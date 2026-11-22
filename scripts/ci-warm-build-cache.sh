@@ -45,12 +45,6 @@ compile_tests() {
   (cd "$1" && go test -tags "$tags" -run '^$' ./... > /dev/null)
 }
 
-# compile_plugin_tests does the same for a plugin module outside go.work, the
-# way `make test-plugins` builds it: GOWORK=off and no tags.
-compile_plugin_tests() {
-  (cd "$1" && GOWORK=off go test -run '^$' ./... > /dev/null)
-}
-
 self_test() {
   local out status
   # shellcheck disable=SC2329  # called by name, through warm_modules
@@ -80,18 +74,5 @@ fi
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root" || exit 1
-
-# WARM_PLUGINS names the plugin modules `make test-plugins` tests (the
-# Makefile's PURE_GO_PLUGINS). They run first, and their summary and warnings
-# are printed without deciding the exit status: the workspace modules below
-# are what every pull request reads, and their result is the script's.
-plugins=""
-for p in ${WARM_PLUGINS:-}; do
-  plugins+="plugins/${p}"$'\n'
-done
-if [ -n "$plugins" ]; then
-  warm_modules compile_plugin_tests <<< "$plugins"
-fi
-
 modules="$(go list -m -f '{{.Dir}}')" || exit 1
 warm_modules compile_tests <<< "$modules"

@@ -429,7 +429,7 @@ STORE_PKGS := ./core/storage/ ./core/workspace/... ./core/projector/ ./core/proj
 # never started. See scripts/ci-warm-build-cache.sh for why main has to do
 # this for pull requests.
 warm-build-cache: i18n-catalogs ## Compile what pull request test jobs compile, to fill the Go build cache (CI, on main)
-	@WARM_PLUGINS="$(PURE_GO_PLUGINS)" ./scripts/ci-warm-build-cache.sh
+	@./scripts/ci-warm-build-cache.sh
 	GOOS=js GOARCH=wasm $(GO) test -exec true -run '^$$' $(STORE_PKGS) $(CHANGE_WASM_PKGS) ./host/ ./kapi/cmd/kapi-wasm-cli/ > /dev/null
 	$(GO) test -tags "fts5,storage_oneconn" -run '^$$' $(STORE_PKGS) > /dev/null
 
@@ -1177,7 +1177,6 @@ test-asr-plugin: ## Run kapi-asr pure-Go tests (protocol + whisper model plumbin
 # The -tags onnx suites for vision and sat need a real onnxruntime and stay in
 # the nightly vision-onnx job. Each module is its own go.mod outside go.work,
 # hence GOWORK=off in each recipe.
-# warm-build-cache compiles the same list for the pull request build cache.
 PURE_GO_PLUGINS := sat check vision asr sourcecode
 
 test-plugins: ## Run the plugin modules whose tests need no system library (sat, check, vision, asr, sourcecode)

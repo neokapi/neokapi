@@ -932,15 +932,15 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      # The shared action, for its build cache: the warm job on main compiles
-      # these modules (`make warm-build-cache`, PURE_GO_PLUGINS) into the "pr"
-      # flavor, which a pull request can read. The plugins compile without the
-      # race detector on every event, so the job reads that flavor everywhere
-      # and saves nothing. Each recipe runs GOWORK=off in its own module.
-      - uses: ./.github/actions/setup-go-modules
+      # setup-go's own cache, keyed on the Go version and the root go.sum. A
+      # pull request restores the entry a push to main saved under that key
+      # and, on that exact hit, saves nothing. The shared setup-go-modules
+      # action primes the go.work modules, which these are outside, and its
+      # setup costs more than this whole job. Each recipe runs GOWORK=off in
+      # its own module.
+      - uses: actions/setup-go@v7
         with:
-          cache-flavor: pr
-          save-cache: "false"
+          go-version: "1.27.4"
       - name: Test the pure-Go plugin modules
         run: make test-plugins
   # ── The //go:build integration lane ───────────────────────────────────────
