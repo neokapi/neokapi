@@ -136,6 +136,7 @@ func TestProjectFlowAISetup_MissingCredentialNamesTheProvider(t *testing.T) {
 		Tool:     "translate",
 		Provider: "anthropic",
 		Message:  `no saved credentials found for provider "anthropic"; save one with 'kapi credentials add' or set ANTHROPIC_API_KEY`,
+		cause:    &credentials.MissingCredentialError{Provider: "anthropic"},
 		onCall:   true,
 	}, need)
 	assert.EqualError(t, need.Err(), `flow "draft": tool "translate": no saved credentials found for provider "anthropic"; save one with 'kapi credentials add' or set ANTHROPIC_API_KEY`)
