@@ -239,7 +239,8 @@ type ToolsListOutput struct {
 	Total int        `json:"total"`
 }
 
-// categoryOrder defines the display order for tool categories.
+// categoryOrder defines the display order for tool categories. The text
+// listing shows these in this order, then one Other section for the rest.
 var categoryOrder = []string{"translation", "quality", "analysis", "text-processing"}
 
 // categoryTitles maps category IDs to display titles.
@@ -286,12 +287,22 @@ func (t ToolsListOutput) FormatText(w io.Writer) error {
 		}
 	}
 
-	// Print any tools in unknown categories.
-	for cat, tools := range grouped {
-		if categoryTitles[cat] != "" {
-			continue
+	// Every tool outside the known categories goes in one Other section,
+	// ordered by category name and, within a category, as the registry lists
+	// it, so the listing is the same on every run.
+	var unknown []string
+	for cat := range grouped {
+		if categoryTitles[cat] == "" {
+			unknown = append(unknown, cat)
 		}
-		section(T("tools.category.other"), tools)
+	}
+	slices.Sort(unknown)
+	var other []ToolInfo
+	for _, cat := range unknown {
+		other = append(other, grouped[cat]...)
+	}
+	if len(other) > 0 {
+		section(T("tools.category.other"), other)
 	}
 
 	Note(w, T("tools.total"), t.Total)
