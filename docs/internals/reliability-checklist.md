@@ -16,8 +16,9 @@ Each one has:
   formats, ci, release or docs).
 
 The checklist covers what needs judgement. A lesson a guard enforces belongs
-in that guard (`make lint`, `scripts/pre-push-check.sh` or a CI job that runs
-on pull requests), not here.
+in that guard (a file in `scripts/guards/`, which `make lint`, `make pre-push`
+and the Repo guards job read, or a CI job that runs on pull requests), not
+here.
 
 ## Running it
 
