@@ -58,9 +58,8 @@ func (a *App) OpenMemorySQLite(cmd Command) (memory.Store, string, func(), error
 // operates on. An explicit --name/--file/--local flag always wins and selects a
 // standalone store. Otherwise, inside a project, the project's own store is
 // selected, so `kapi memory lookup`/`import`/`stats` see the same content memory
-// `kapi extract` pre-fills from and `kapi merge` writes back to — without it,
-// those commands silently hit an empty ./memory.db. Outside a project it falls
-// back to ./memory.db. This mirrors ResolveTermsStore.
+// `kapi extract` pre-fills from and `kapi merge` writes back to. Outside a
+// project it falls back to ./memory.db. This mirrors ResolveTermsStore.
 func (a *App) ResolveMemoryStore(cmd Command) (StoreSelection, error) {
 	name, _ := cmd.Flags().GetString("name")
 	local, _ := cmd.Flags().GetBool("local")
@@ -99,9 +98,9 @@ var MemoryFileFormats = []string{"bundle", "tmx"}
 // extension) to the format `kapi memory import` should read path as.
 //
 // "auto" identifies the file; it never guesses. An extension it does not
-// recognise is an error, because reading an unidentified file as TMX yields
-// "Imported 0 entries" — success-shaped output for a file the importer could
-// not read at all.
+// recognise is an error, because reading an unidentified file as TMX would
+// report "Imported 0 entries" and exit 0 for a file the importer could not
+// read at all.
 func ResolveMemoryImportFormat(flag, path string) (string, error) {
 	if name := strings.ToLower(flag); name != "" && name != "auto" {
 		return name, nil
@@ -183,7 +182,7 @@ func importKMB(ctx context.Context, tm memory.Store, path string, file *kmb.File
 }
 
 // ExportKMB writes the whole content memory as a deterministic, lossless
-// .memory.json bundle — the native form for committing a content memory to git
+// .memory.json bundle: the native form for committing a content memory to git
 // and for re-seeding one exactly.
 func ExportKMB(ctx context.Context, tm memory.Store, w io.Writer) error {
 	return exportMemory(ctx, tm, w, kmb.Marshal)
@@ -430,18 +429,17 @@ var markupTokenRe = regexp.MustCompile(`\{/?=m\d+\}`)
 // WarnSuspectTokenEntries scans the TM for entries whose variants disagree on
 // their placeholder sets, in either representation:
 //
-//   - literal markup tokens in the text — e.g. a plain-text source paired with
-//     a target carrying {=m0} tokens. Such entries bake one format's runtime
+//   - literal markup tokens in the text, such as a plain-text source paired
+//     with a target carrying {=m0} tokens. Such entries bake one format's runtime
 //     projection into format-neutral text: matched from another surface, the
 //     tokens leak verbatim into the output (the class behind the docs
 //     "{=m0} Installer" leak).
-//   - inline-code *runs* — a variant that carries a Ph / PcOpen / PcClose / Sub
-//     its peers do not. That is a pair one side of which has already lost a
-//     placeholder, so leveraging it can only produce a translation with a hole
-//     in it. `recycle` refuses to fill from such an entry (see
-//     model.DiffRunCodes), which is a silent coverage loss unless the entry
-//     itself is repaired — hence the warning at ingest, where the seed author
-//     can still act on it.
+//   - inline-code *runs*: a variant that carries a Ph / PcOpen / PcClose / Sub
+//     its peers do not. One side of the pair has lost a placeholder, so
+//     leveraging it can only produce a translation with a hole in it.
+//     `recycle` refuses to fill from such an entry (see model.DiffRunCodes),
+//     so the warning comes at ingest, where the seed author can still repair
+//     the entry.
 //
 // The durable fix in both cases is a symmetric, run-structured entry.
 func WarnSuspectTokenEntries(ctx context.Context, tm memory.Store, out io.Writer) {

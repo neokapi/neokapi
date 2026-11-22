@@ -12,7 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// TBXImportOptions controls how a TBX (TermBase eXchange) document is interpreted.
+// TBXImportOptions controls how a TBX document is interpreted.
 type TBXImportOptions struct {
 	// DefaultStatus is applied to terms that carry no recognizable status note.
 	// When empty, model.TermApproved is used.
@@ -92,7 +92,7 @@ type tbxEntry struct {
 	// concept-level descriptions: <descrip type="definition">, type="subjectField"
 	Descrips    []tbxDescrip    `xml:"descrip"`
 	DescripGrps []tbxDescripGrp `xml:"descripGrp"`
-	// langSec (TBX v3) and langSet (MARTIF) — both captured.
+	// Both langSec (TBX v3) and langSet (MARTIF) are captured.
 	LangSecs []tbxLangSec `xml:"langSec"`
 	LangSets []tbxLangSec `xml:"langSet"`
 }

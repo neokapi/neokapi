@@ -2,7 +2,6 @@ package memory_test
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 
@@ -39,7 +38,7 @@ func TestTMXSourceLanguage(t *testing.T) {
 func TestImportTMXWithoutTheSourceLanguageStoresNothing(t *testing.T) {
 	tm := memory.NewInMemoryStore()
 	n, err := memory.ImportTMXWithOptions(context.Background(), tm, strings.NewReader(enUSFrenchTMX), "en-GB", "fr", memory.ImportTMXOptions{OriginKey: "f.tmx"})
-	require.True(t, errors.Is(err, memory.ErrNoUsablePair), "err = %v", err)
+	require.ErrorIs(t, err, memory.ErrNoUsablePair)
 	assert.Zero(t, n)
 	assert.Empty(t, mustEntries(t, tm))
 	sessions, err := tm.ListImportSessions(context.Background())

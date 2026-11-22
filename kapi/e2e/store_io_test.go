@@ -184,3 +184,23 @@ func TestStoreImportExportInAStandaloneStoreKeepTheDefault(t *testing.T) {
 		})
 	}
 }
+
+// A directory import with a file that imports nothing exits non-zero, names
+// the count, and keeps what the other files imported.
+func TestMemoryImportDirFailsWhenAFileImportsNothing(t *testing.T) {
+	p := newStoreProject(t)
+	dir := filepath.Join(p.dir, "tmx")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "good.tmx"), []byte(tmx("en-GB", "en-GB", "Harbour")), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "us.tmx"), []byte(tmx("en-US", "en-US", "Color")), 0o644))
+	store := filepath.Join(p.dir, "dir.db")
+
+	// import-dir takes no -p (its -p is --pattern), so it writes a named file.
+	cmd := exec.Command(kapiBin, "memory", "import-dir", dir, "-s", "en-GB", "-t", "fr", "--file", store)
+	cmd.Dir = p.dir
+	cmd.Env = append(append(os.Environ(), isoEnv...), "KAPI_DATA_DIR="+p.dataRoot, "KAPI_CONFIG_DIR="+p.cfgRoot)
+	out, err := cmd.CombinedOutput()
+	require.Error(t, err, "a directory import with a failed file fails:\n%s", out)
+	assert.Contains(t, string(out), "1 of 2 files failed to import")
+	assert.Equal(t, 1, p.total("memory", "lookup", "Harbour", "-s", "en-GB", "-t", "fr", "--file", store), "the readable file's entry is kept")
+}

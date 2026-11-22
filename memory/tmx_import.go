@@ -74,8 +74,8 @@ type ImportTMXOptions struct {
 	// ImportedBy is recorded on the ImportSession.
 	ImportedBy string
 	// SkipIndexRebuild suppresses the automatic FTS5 search + fuzzy index
-	// rebuild that follows a bulk import. Leave it false — the default — and a
-	// single import leaves the store searchable with no further call. Set it
+	// rebuild that follows a bulk import. Left false (the default), a single
+	// import leaves the store searchable with no further call. Set it
 	// only when the caller batches many imports and rebuilds the side-tables
 	// once at the end (the import-dir path): rebuilding per file is the
 	// dominant cost on large corpora.
@@ -150,9 +150,8 @@ func ImportTMXWithOptions(ctx context.Context, tm ContentMemory, reader io.Reade
 // only the specified locales as variants. An empty locales slice keeps every
 // TUV present.
 //
-// This is a multilingual import — each TU becomes one entry with N variants.
-// The "locale pairs" in the name is a historical artifact; the old behavior
-// of emitting a separate entry per (src, tgt) pair has been removed.
+// This is a multilingual import: each TU becomes one entry with N variants,
+// whatever "locale pairs" in the name suggests.
 func ImportTMXLocalePairs(ctx context.Context, tm ContentMemory, reader io.Reader, locales []model.LocaleID, opts ImportTMXOptions) (int, error) {
 	store, ok := tm.(Store)
 	if !ok {
@@ -168,7 +167,7 @@ func ImportTMXLocalePairs(ctx context.Context, tm ContentMemory, reader io.Reade
 // number of entries imported.
 //
 // When the file SHA-256 matches a previous session's hash, opts.WarnFunc is
-// invoked but the import proceeds — a new session is created so that the
+// invoked and the import proceeds. A new session is created so that the
 // caller can distinguish re-imports.
 func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts ImportTMXOptions) (string, int, error) {
 	// 1. Read everything so we can hash and rewind.
@@ -322,10 +321,9 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 		return "", 0, err
 	}
 
-	// 8. Persist. Use BulkAddWithStream when available — this collapses
-	//    thousands of per-entry commits into a single transaction and is
-	//    the only way TMX imports of large corpora finish in a reasonable
-	//    amount of time.
+	// 8. Persist. Use BulkAddWithStream when available: it collapses
+	//    thousands of per-entry commits into a single transaction, so TMX
+	//    imports of large corpora finish in a reasonable amount of time.
 	imported := 0
 	if bulk, ok := store.(BulkAdder); ok {
 		if err := bulk.BulkAddWithStream(ctx, entries, ""); err != nil {
@@ -333,11 +331,10 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 		}
 		imported = len(entries)
 		// BulkAddWithStream deliberately skips the FTS5 search + fuzzy
-		// side-tables — repopulating them per row is the dominant cost on
-		// large corpora. Restore them set-wise here so imported entries are
+		// side-tables, because repopulating them per row is the dominant cost
+		// on large corpora. Restore them set-wise here so imported entries are
 		// visible to search and fuzzy lookup. Doing it inside the session,
-		// rather than at each call site, is what stops a caller (the desktop
-		// import path did) from leaving the import invisible. A batching
+		// rather than at each call site, keeps every caller's import visible. A batching
 		// caller opts out with SkipIndexRebuild and rebuilds once at the end.
 		if idx, ok := store.(SearchIndexRebuilder); ok && !opts.SkipIndexRebuild {
 			if err := idx.RebuildSearchIndex(ctx); err != nil {
@@ -416,8 +413,8 @@ func scopedTUID(originKey, tuid string, index int, sessionID string) string {
 // Files starting with a BOM are converted via charset sniffing (the only
 // way to read UTF-16 before the XML declaration is parseable). BOM-less
 // files follow the XML rules instead: UTF-8 unless the `<?xml ... encoding=`
-// declaration says otherwise — html/charset sniffing alone would fall back
-// to windows-1252 and mangle plain UTF-8 TMX.
+// declaration says otherwise, since html/charset sniffing alone would fall
+// back to windows-1252 and mangle plain UTF-8 TMX.
 func newTMXDecoder(reader io.Reader) (*xml.Decoder, error) {
 	br := bufio.NewReader(reader)
 	head, err := br.Peek(3)
@@ -685,7 +682,7 @@ func parseTMXSeg(dec *xml.Decoder, mapping *TMXMapping) ([]model.Run, error) {
 					return nil, err
 				}
 			default:
-				// Unknown element — round-trip as raw placeholder.
+				// Unknown element: round-trip as raw placeholder.
 				raw, err := captureRawXML(dec, t)
 				if err != nil {
 					return nil, err
@@ -853,7 +850,7 @@ func handleUT(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *
 
 // decodeText collects text content (including nested element text) until
 // the matching end element is consumed. Nested elements are expanded to
-// their text only — sufficient for leaf elements like ph/bpt/ept/ut.
+// their text only, which suffices for leaf elements like ph/bpt/ept/ut.
 func decodeText(dec *xml.Decoder, endName string) (string, error) {
 	var b strings.Builder
 	depth := 1
