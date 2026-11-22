@@ -179,7 +179,7 @@ func newTermsExportCmd(a *App) *cobra.Command {
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			tbName, _ := cmd.Flags().GetString("export-name")
 
-			tb, dbPath, releaseTerms, err := a.OpenTermsSQLite(cmd)
+			tb, dbPath, releaseTerms, err := a.OpenTermsForRead(cmd)
 			if err != nil {
 				return err
 			}
@@ -255,7 +255,7 @@ func newTermsLookupCmd(a *App) *cobra.Command {
 			domain, _ := cmd.Flags().GetString("domain")
 			fuzzy, _ := cmd.Flags().GetBool("fuzzy")
 
-			tb, _, releaseTerms, err := a.OpenTermsSQLite(cmd)
+			tb, _, releaseTerms, err := a.OpenTermsForRead(cmd)
 			if err != nil {
 				return err
 			}
@@ -344,7 +344,7 @@ func newTermsSearchCmd(a *App) *cobra.Command {
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			limit, _ := cmd.Flags().GetInt("limit")
 
-			tb, _, releaseTerms, err := a.OpenTermsSQLite(cmd)
+			tb, _, releaseTerms, err := a.OpenTermsForRead(cmd)
 			if err != nil {
 				return err
 			}
@@ -470,7 +470,7 @@ func newTermsStatsCmd(a *App) *cobra.Command {
 		Short:   "Show terms statistics",
 		Example: "  kapi terms stats\n  kapi terms stats --name product-terms",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tb, dbPath, releaseTerms, err := a.OpenTermsSQLite(cmd)
+			tb, dbPath, releaseTerms, err := a.OpenTermsForRead(cmd)
 			if err != nil {
 				return err
 			}

@@ -22,6 +22,7 @@ func TestMCPExplicitProjectFlag(t *testing.T) {
 func TestMCPUnavailableExplicitProjectFailsBeforeServing(t *testing.T) {
 	t.Setenv("KAPI_NO_PROJECT", "1")
 	cmd := NewMCPCmd(&App{}, "kapi")
-	cmd.SetArgs([]string{"-p", filepath.Join(t.TempDir(), "missing.kapi")})
-	require.ErrorContains(t, cmd.Execute(), "load MCP project")
+	missing := filepath.Join(t.TempDir(), "missing.kapi")
+	cmd.SetArgs([]string{"-p", missing})
+	require.ErrorContains(t, cmd.Execute(), "-p "+missing+" does not exist")
 }
