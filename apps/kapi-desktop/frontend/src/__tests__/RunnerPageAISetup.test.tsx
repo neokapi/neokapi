@@ -70,7 +70,11 @@ describe("RunnerPage AI setup before a run", () => {
 
     const dialog = await screen.findByTestId("ai-credential-missing");
     expect(dialog).toHaveTextContent("No key for anthropic");
-    expect(dialog).toHaveTextContent('no saved credentials found for provider "anthropic"');
+    expect(dialog).toHaveTextContent("Add a key for anthropic in Settings › AI Models.");
+    // A desktop user is not at a terminal, and an app opened from the Dock
+    // does not read the shell's environment.
+    expect(dialog).not.toHaveTextContent("kapi credentials add");
+    expect(dialog).not.toHaveTextContent("ANTHROPIC_API_KEY");
     expect(screen.queryByText("Choose an AI model")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Add a key" }));

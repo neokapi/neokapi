@@ -293,6 +293,11 @@ func (a *App) newReviewAITool(ctx context.Context, op *openProject, name string,
 		if a.aiToolFactory != nil {
 			return a.aiToolFactory(name, cfg, unit.TargetLang)
 		}
+		// The decision a run makes, asked of this tool's own config: a
+		// provider with no key, or no model chosen, says so up front.
+		if need := a.newProjectEngine(op).ToolAISetup(name, cfg); need.Kind != host.AISetupNone {
+			return nil, errors.New(desktopAISetupMessage(need))
+		}
 		tl, terr := a.toolReg.NewToolWithConfig(registry.ToolID(name), cfg, unit.TargetLang)
 		if terr != nil {
 			return nil, friendlyAIProviderError(terr)
@@ -342,8 +347,11 @@ func friendlyAIProviderError(err error) error {
 		return fmt.Errorf("multiple AI credentials are configured (%s). Set a default in Settings → AI Models",
 			strings.Join(amb.Candidates, ", "))
 	}
-	if _, ok := errors.AsType[*credentials.MissingCredentialError](err); ok || strings.Contains(err.Error(), "no saved credentials") {
-		return errors.New("no AI provider is configured. Add one in Settings → AI Models, then try again")
+	if m, ok := errors.AsType[*credentials.MissingCredentialError](err); ok {
+		return errors.New(desktopAISetupMessage(host.AISetupNeed{Kind: host.AISetupMissingCredential, Provider: m.Provider}))
+	}
+	if strings.Contains(err.Error(), "no saved credentials") {
+		return errors.New(desktopAISetupMessage(host.AISetupNeed{Kind: host.AISetupMissingCredential}))
 	}
 	return err
 }
@@ -448,7 +456,7 @@ func (a *App) reviewerModelID() (string, error) {
 		if a.aiToolFactory != nil {
 			return "mock", nil
 		}
-		return "", errors.New("no AI provider is configured. Add one in Settings → AI Models, then try again")
+		return "", errors.New(desktopAISetupMessage(host.AISetupNeed{Kind: host.AISetupChooseModel}))
 	}
 	return id, nil
 }

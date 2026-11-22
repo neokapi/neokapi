@@ -130,7 +130,8 @@ func TestCheckAISetup_NamedProviderWithoutKey(t *testing.T) {
 	need := app.CheckAISetup(tab.ID, "", RunAIOptions{})
 	assert.Equal(t, host.AISetupMissingCredential, need.Kind)
 	assert.Equal(t, "anthropic", need.Provider)
-	assert.Contains(t, need.Message, `no saved credentials found for provider "anthropic"`)
+	// The desktop says where in the app the key goes, not the CLI's advice.
+	assert.Equal(t, "No key for anthropic. Add one in Settings › AI Models, then try again.", need.Message)
 	assert.Equal(t, DefaultModelInfo{Provider: "ollama", Model: "llama3.2:3b"}, app.GetDefaultModel())
 }
 

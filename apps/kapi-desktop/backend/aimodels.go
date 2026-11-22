@@ -214,7 +214,27 @@ func (a *App) CheckAISetup(tabID, flowName string, opts RunAIOptions) host.AISet
 		// The run reports a flow it cannot resolve with its own error.
 		return host.AISetupNeed{}
 	}
+	if need.Kind == host.AISetupMissingCredential {
+		need.Message = desktopAISetupMessage(need)
+	}
 	return need
+}
+
+// desktopAISetupMessage says what a run or a review action needs before it
+// can call its provider, in the desktop's terms: where in the app to add the
+// key or choose the model. It names no command and no environment variable,
+// because a desktop user is not at a terminal and an app opened from the Dock
+// does not read the shell's environment. The run dialog and the Review
+// actions both show it.
+func desktopAISetupMessage(need host.AISetupNeed) string {
+	switch {
+	case need.Kind == host.AISetupChooseModel:
+		return "No AI model is chosen. Choose one in Settings › AI Models, then try again."
+	case need.Provider != "":
+		return fmt.Sprintf("No key for %s. Add one in Settings › AI Models, then try again.", need.Provider)
+	default:
+		return "No key for this step's provider. Add one in Settings › AI Models, then try again."
+	}
 }
 
 // RunAIOptions are the AI settings a desktop run is started with, the

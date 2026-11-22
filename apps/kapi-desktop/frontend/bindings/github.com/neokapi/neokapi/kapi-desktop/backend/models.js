@@ -9551,7 +9551,7 @@ export class RunError {
         }
         if (!("headline" in $$source)) {
             /**
-             * Headline is the short human sentence — the primary line in the UI.
+             * Headline is the short human sentence: the primary line in the UI.
              * @member
              * @type {string}
              */
@@ -9705,18 +9705,18 @@ export const RunErrorActionKind = {
     $zero: "",
 
     /**
-     * ActionCommand — a shell command to run; the UI offers it copyable.
+     * ActionCommand: a shell command to run; the UI offers it copyable.
      */
     ActionCommand: "command",
 
     /**
-     * ActionOpenSettings — navigate to an in-app view (Target is a View id from
+     * ActionOpenSettings: navigate to an in-app view (Target is a View id from
      * the frontend's sidebar union, e.g. "settings", which hosts AI Models).
      */
     ActionOpenSettings: "open-settings",
 
     /**
-     * ActionOpenURL — open an external page (install docs, downloads).
+     * ActionOpenURL: open an external page (install docs, downloads).
      */
     ActionOpenURL: "open-url",
 };
@@ -9733,32 +9733,32 @@ export const RunErrorKind = {
     $zero: "",
 
     /**
-     * RunErrOllamaUnreachable — no Ollama server at the configured URL.
+     * RunErrOllamaUnreachable: no Ollama server at the configured URL.
      */
     RunErrOllamaUnreachable: "ollama-unreachable",
 
     /**
-     * RunErrModelNotInstalled — the local model has not been pulled.
+     * RunErrModelNotInstalled: the local model has not been pulled.
      */
     RunErrModelNotInstalled: "model-not-installed",
 
     /**
-     * RunErrAmbiguousCredential — several AI credentials match; none is default.
+     * RunErrAmbiguousCredential: several AI credentials match; none is default.
      */
     RunErrAmbiguousCredential: "ambiguous-credential",
 
     /**
-     * RunErrMissingCredential — the provider needs an API key and none is set.
+     * RunErrMissingCredential: the provider needs an API key and none is set.
      */
     RunErrMissingCredential: "missing-credential",
 
     /**
-     * RunErrCanceled — the user stopped the run.
+     * RunErrCanceled: the user stopped the run.
      */
     RunErrCanceled: "canceled",
 
     /**
-     * RunErrBlockedTargetPath — a target path cannot be written (a directory
+     * RunErrBlockedTargetPath: a target path cannot be written (a directory
      * occupies it, the directory denies writing, the filesystem is read-only).
      * It is an obstruction to clear on disk, not a translation problem, so it
      * must never be presented as pending target-language work (#1449).
@@ -9766,7 +9766,7 @@ export const RunErrorKind = {
     RunErrBlockedTargetPath: "blocked-target-path",
 
     /**
-     * RunErrUnknown — no confident classification; headline is the raw message.
+     * RunErrUnknown: no confident classification; headline is the raw message.
      */
     RunErrUnknown: "unknown",
 };
