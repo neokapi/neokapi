@@ -486,3 +486,79 @@ func TestUp_ProviderIndependentRunsSkipSetup(t *testing.T) {
 		})
 	}
 }
+
+// TestUp_RecycledOnlyRunNeedsNoKey: a run the content memory answers
+// completely builds its translate step without the missing key and never
+// calls the provider, so it writes the target and exits 0, on a terminal and
+// off one. The plan's "0 AI" and the run agree.
+func TestUp_RecycledOnlyRunNeedsNoKey(t *testing.T) {
+	for _, tty := range []bool{true, false} {
+		mode := map[bool]string{true: "terminal", false: "no terminal"}[tty]
+		t.Run(mode, func(t *testing.T) {
+			isolateAI(t)
+			recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+			target := writeCommittedTargets(t, root)
+			want, err := os.ReadFile(target)
+			require.NoError(t, err)
+			// The first run reads the committed targets into the content
+			// memory; then one target goes missing.
+			nameProvider(t, recipe, "demo")
+			out, err := runUp(t, demoProviderApp(t), recipe)
+			require.NoError(t, err, out)
+			require.NoError(t, os.Remove(target))
+
+			nameProvider(t, recipe, "anthropic")
+			out, err = runUp(t, namedProviderApp(t, tty), recipe)
+			require.NoError(t, err, out)
+			got, err := os.ReadFile(target)
+			require.NoError(t, err, "the recycled target is written")
+			assert.Equal(t, string(want), string(got))
+		})
+	}
+}
+
+// TestUp_KeyAlwaysNeededStepRefusesBeforeThePass: an AI check that names a
+// provider with no key calls that provider for every unit of a pass, recycled
+// or not, so a run with any pass refuses before pass 1 writes anything.
+func TestUp_KeyAlwaysNeededStepRefusesBeforeThePass(t *testing.T) {
+	for _, tty := range []bool{true, false} {
+		mode := map[bool]string{true: "terminal", false: "no terminal"}[tty]
+		t.Run(mode, func(t *testing.T) {
+			isolateAI(t)
+			recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+			target := writeCommittedTargets(t, root)
+			nameProvider(t, recipe, "demo")
+			out, err := runUp(t, demoProviderApp(t), recipe)
+			require.NoError(t, err, out)
+			require.NoError(t, os.Remove(target))
+
+			proj, err := project.Load(recipe)
+			require.NoError(t, err)
+			proj.Defaults.Flow = "checked"
+			proj.Flows["checked"] = &flow.StepsSpec{Steps: []flow.FlowStep{
+				{Tool: "recycle"},
+				{Tool: "translate", Config: map[string]any{"provider": "demo", "skip_matched": true}},
+				{Tool: "qa", Config: map[string]any{"mode": "ai", "provider": "anthropic"}},
+			}}
+			require.NoError(t, project.Save(recipe, proj))
+
+			out, err = runUp(t, namedProviderApp(t, tty), recipe)
+			require.Error(t, err, out)
+			assert.Contains(t, err.Error(), `no saved credentials found for provider "anthropic"`)
+			_, statErr := os.Stat(target)
+			assert.True(t, os.IsNotExist(statErr), "pass 1 writes nothing")
+		})
+	}
+}
+
+// writeCommittedTargets writes Norwegian targets for the fixture's two
+// source files, as a project that already holds its translations, and
+// returns the path of one of them.
+func writeCommittedTargets(t *testing.T, root string) string {
+	t.Helper()
+	dir := filepath.Join(root, "src/locales/nb-NO")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.json"), []byte(`{"greeting":"Hei, verden."}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.json"), []byte(`{"farewell":"Ha det."}`), 0o644))
+	return filepath.Join(dir, "a.json")
+}

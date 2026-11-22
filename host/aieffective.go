@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/credentials/providerenv"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -173,6 +172,13 @@ type AISetupNeed struct {
 	// Message is the error the run would fail with, for a missing credential:
 	// the same text `kapi up` prints.
 	Message string `json:"message,omitempty"`
+
+	// onCall is true when every step lacking its key is built without it and
+	// asks for it only on a provider call (registry DefersCredentials, the
+	// translate step). Such a run needs the key only for units the AI step
+	// translates. A step that is not (an AI check, a review) calls its
+	// provider on every unit of a pass.
+	onCall bool
 }
 
 // Err returns a missing credential as the error a run reports, or nil for
@@ -228,6 +234,8 @@ func (a *App) ProjectFlowAISetup(proj *project.KapiProject, projectPath, flowNam
 	}
 	bindings := recipePresets(proj)
 	need := AISetupNeed{}
+	var missing *AISetupNeed
+	onCall := true
 	for _, step := range spec.Steps {
 		name := registry.ToolID(step.Tool)
 		for _, locale := range locales {
@@ -245,20 +253,31 @@ func (a *App) ProjectFlowAISetup(proj *project.KapiProject, projectPath, flowNam
 				need.Kind = AISetupChooseModel
 				continue
 			}
+			if !a.ToolReg.DefersCredentials(name) {
+				onCall = false
+			}
+			if missing != nil {
+				continue
+			}
 			provider := presetString(cfg, "provider")
 			msg := err.Error()
 			if provider != "" && presetString(cfg, "credential") == "" {
-				msg = missingKeyMessage(provider)
+				msg = credentials.MissingKeyMessage(provider, false)
 			}
-			return AISetupNeed{
+			missing = &AISetupNeed{
 				Kind:     AISetupMissingCredential,
 				Flow:     label,
 				Tool:     string(name),
 				Provider: provider,
 				Message:  msg,
-			}, nil
+			}
 		}
 	}
+	if missing != nil {
+		missing.onCall = onCall
+		return *missing, nil
+	}
+	need.onCall = onCall
 	return need, nil
 }
 
@@ -295,20 +314,18 @@ func (a *App) convergeAISetup(ctx context.Context, proj *project.KapiProject, pr
 	// only when a step would need a model or a key. A plan that cannot be
 	// computed leaves the answer standing: it cannot show there is no work.
 	plan, perr := a.computeProjectPlan(ctxOrBackground(ctx), proj, projectPath, run)
-	if perr == nil && (plan.upToDate || plan.Totals.AIRemaining == 0) {
+	if perr != nil {
+		return need, nil
+	}
+	if plan.upToDate {
+		return AISetupNeed{}, nil
+	}
+	// The translate step is built without its key and asks for it only for
+	// a unit it translates, so the run needs the key exactly when the plan
+	// leaves units for it. A step that calls its provider on every unit of a
+	// pass needs it whenever the run has a pass to make.
+	if need.onCall && plan.Totals.AIRemaining == 0 {
 		return AISetupNeed{}, nil
 	}
 	return need, nil
-}
-
-// missingKeyMessage says what to do about a provider the recipe names whose
-// key is missing. It names the ways that work for every run (a saved
-// credential, the provider's environment variable) and not --api-key, which a
-// recipe flow does not read.
-func missingKeyMessage(provider string) string {
-	msg := fmt.Sprintf("no saved credentials found for provider %q; save one with 'kapi credentials add'", provider)
-	if vars := providerenv.Vars[strings.ToLower(provider)]; len(vars) > 0 {
-		msg += " or set " + vars[0]
-	}
-	return msg
 }

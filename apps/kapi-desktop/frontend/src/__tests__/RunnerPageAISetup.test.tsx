@@ -54,7 +54,7 @@ const missing = {
   tool: "translate",
   provider: "anthropic",
   message:
-    "no saved credentials found for provider \"anthropic\"; use 'kapi credentials add' to save one or pass --api-key directly",
+    "no saved credentials found for provider \"anthropic\"; save one with 'kapi credentials add' or set ANTHROPIC_API_KEY",
 };
 
 describe("RunnerPage AI setup before a run", () => {

@@ -230,9 +230,69 @@ func stripRecipeEndpoint(config map[string]any) map[string]any {
 	return out
 }
 
-// errNoCredentialStore is returned when a lookup needs a credential store and
-// the caller has none.
-var errNoCredentialStore = errors.New("no saved credentials found; use 'kapi credentials add' to save one or pass --api-key directly")
+// MissingCredentialError is returned when no saved credential, inline key or
+// environment variable gives a provider its key. Its text names what works
+// for every command (MissingKeyMessage without the flag); a command that reads
+// --api-key adds the flag with WithAPIKeyFlag.
+type MissingCredentialError struct {
+	// Provider is the provider the key is for, or "" when the config names
+	// none (every saved credential was a candidate).
+	Provider string
+}
+
+func (e *MissingCredentialError) Error() string { return MissingKeyMessage(e.Provider, false) }
+
+// MissingKeyMessage says that provider has no key and what gives it one: a
+// saved credential, the provider's environment variable, and, for a command
+// that reads it, --api-key. It is the one statement of that advice: the
+// runtime error, the pre-run refusal of `kapi up` and the desktop's
+// missing-key dialog all print it.
+func MissingKeyMessage(provider string, apiKeyFlag bool) string {
+	var b strings.Builder
+	if provider == "" {
+		b.WriteString("no saved credentials found; save one with 'kapi credentials add'")
+	} else {
+		fmt.Fprintf(&b, "no saved credentials found for provider %q; save one with 'kapi credentials add'", provider)
+	}
+	if vars := providerEnvVars[strings.ToLower(provider)]; len(vars) > 0 {
+		if apiKeyFlag {
+			b.WriteString(", set " + vars[0])
+		} else {
+			b.WriteString(" or set " + vars[0])
+		}
+	}
+	if apiKeyFlag {
+		b.WriteString(" or pass --api-key")
+	}
+	return b.String()
+}
+
+// WithAPIKeyFlag returns err with a missing credential's advice naming
+// --api-key, for a command that reads the flag. Any other error is returned
+// as it is.
+func WithAPIKeyFlag(err error) error {
+	missing, ok := errors.AsType[*MissingCredentialError](err)
+	if !ok {
+		return err
+	}
+	return &flagHintError{err: err, msg: MissingKeyMessage(missing.Provider, true)}
+}
+
+// flagHintError keeps the wrapped chain (errors.As still finds the
+// MissingCredentialError) and replaces only the missing-credential text.
+type flagHintError struct {
+	err error
+	msg string
+}
+
+func (e *flagHintError) Error() string {
+	if missing, ok := errors.AsType[*MissingCredentialError](e.err); ok {
+		return strings.Replace(e.err.Error(), missing.Error(), e.msg, 1)
+	}
+	return e.err.Error()
+}
+
+func (e *flagHintError) Unwrap() error { return e.err }
 
 // lookupRef looks up a credential by name first, then by ID.
 func lookupRef(store *Store, ref string) (ProviderConfig, error) {
@@ -258,10 +318,7 @@ func autoDetect(store *Store, providerType string) (ProviderConfig, error) {
 	}
 	switch len(matches) {
 	case 0:
-		if providerType != "" {
-			return ProviderConfig{}, fmt.Errorf("no saved credentials found for provider %q; use 'kapi credentials add' to save one or pass --api-key directly", providerType)
-		}
-		return ProviderConfig{}, errNoCredentialStore
+		return ProviderConfig{}, &MissingCredentialError{Provider: providerType}
 	case 1:
 		return matches[0], nil
 	default:
