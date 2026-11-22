@@ -135,12 +135,14 @@ type ImportCounts struct {
 	// NoTarget counts units holding no translation: no target-language
 	// variant, or no variant besides the source.
 	NoTarget int `json:"skipped_no_target"`
+	// Empty counts units with no text in any language.
+	Empty int `json:"skipped_empty"`
 	// Sources counts the kept units by the source language each was read in.
 	Sources map[model.LocaleID]int `json:"sources,omitempty"`
 }
 
 // Skipped is the number of units skipped for any reason.
-func (c ImportCounts) Skipped() int { return c.NoSource + c.SameLanguage + c.NoTarget }
+func (c ImportCounts) Skipped() int { return c.NoSource + c.SameLanguage + c.NoTarget + c.Empty }
 
 // Add adds o's counts to c.
 func (c *ImportCounts) Add(o ImportCounts) {
@@ -148,6 +150,7 @@ func (c *ImportCounts) Add(o ImportCounts) {
 	c.NoSource += o.NoSource
 	c.SameLanguage += o.SameLanguage
 	c.NoTarget += o.NoTarget
+	c.Empty += o.Empty
 	for l, n := range o.Sources {
 		if c.Sources == nil {
 			c.Sources = map[model.LocaleID]int{}
@@ -313,7 +316,10 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 				}
 			}
 		}
-		if len(variants) == 0 {
+		if !holdsText(variants) {
+			if opts.Rule != nil && opts.Counts != nil {
+				opts.Counts.Empty++
+			}
 			continue
 		}
 		if opts.Rule != nil {
@@ -407,6 +413,18 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 		return session.ID, imported, err
 	}
 	return session.ID, imported, nil
+}
+
+// holdsText reports whether any variant holds text or an inline code.
+func holdsText(variants map[model.LocaleID][]model.Run) bool {
+	for _, runs := range variants {
+		for _, r := range runs {
+			if r.Text == nil || r.Text.Text != "" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // applySourceRule chooses a unit's source language and narrows its variants

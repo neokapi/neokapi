@@ -88,19 +88,6 @@ func tmx(srclang, src, text string) string {
 `, srclang, src, text)
 }
 
-// tbx is a one-concept TBX whose root declares lang and whose concept holds a
-// term in lang and a French one.
-func tbx(lang, term string) string {
-	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<tbx style="dca" type="TBX-Basic" xml:lang="%s"><text><body>
-  <conceptEntry id="c1">
-    <langSec xml:lang="%s"><termSec><term>%s</term></termSec></langSec>
-    <langSec xml:lang="fr"><termSec><term>terme</term></termSec></langSec>
-  </conceptEntry>
-</body></text></tbx>
-`, lang, lang, term)
-}
-
 // Store imports and exports with no -s use the project's source language
 // for the project's own store, when the file declares none. Inside the
 // compass sample (en-GB), a TMX that declares srclang="*all*" and a
@@ -216,7 +203,7 @@ func importCounts(t *testing.T, out string) (c struct {
 	NoTarget     int `json:"skipped_no_target"`
 }) {
 	t.Helper()
-	require.NoError(t, json.Unmarshal([]byte(out[strings.Index(out, "{"):]), &c), out)
+	require.NoError(t, json.Unmarshal([]byte(jsonObject(t, out)), &c), out)
 	return c
 }
 
@@ -289,4 +276,32 @@ func TestMemoryImportDirFailsWhenAFileImportsNothing(t *testing.T) {
 	require.Error(t, err, "a directory import with a failed file fails:\n%s", out)
 	assert.Contains(t, string(out), "1 of 2 files failed to import")
 	assert.Equal(t, 1, p.total("memory", "lookup", "Harbour", "-s", "en-GB", "-t", "fr", "--file", store), "the readable file's entry is kept")
+}
+
+// An import that keeps no unit fails, and --json carries its counts beside
+// the error.
+func TestMemoryImportFailureReportsItsCounts(t *testing.T) {
+	p := newStoreProject(t)
+	file := p.write("none.tmx", tmxUnits("de", "<tu>"+tuv("de", "Kai")+tuv("es", "Muelle")+"</tu>", "<tu></tu>"))
+	out, err := p.try("memory", "import", file, "-t", "fr", "--json")
+	require.Error(t, err, out)
+	var res struct {
+		Error    string `json:"error"`
+		NoSource int    `json:"skipped_no_source"`
+		NoTarget int    `json:"skipped_no_target"`
+		Empty    int    `json:"skipped_empty"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(jsonObject(t, out)), &res), out)
+	assert.Contains(t, res.Error, "nothing was imported")
+	assert.Equal(t, 1, res.NoTarget, "the de/es unit holds no fr")
+	assert.Equal(t, 1, res.Empty, "the empty unit")
+}
+
+// jsonObject is out from its first "{", the JSON a command printed after any
+// note lines.
+func jsonObject(t *testing.T, out string) string {
+	t.Helper()
+	i := strings.Index(out, "{")
+	require.GreaterOrEqual(t, i, 0, "no JSON object in:\n%s", out)
+	return out[i:]
 }

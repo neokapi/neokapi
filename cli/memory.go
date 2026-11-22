@@ -242,6 +242,7 @@ Examples:
 					AllPairs: allPairs, Locales: locales, Note: cmd.ErrOrStderr(),
 				})
 				if err != nil {
+					total.Add(c)
 					failed++
 					if !a.Quiet {
 						fmt.Fprintf(os.Stderr, "FAILED: %v\n", err)
@@ -263,7 +264,10 @@ Examples:
 			// A file that imported nothing usable is a failure, and a run with
 			// failures is not reported as a success.
 			if failed > 0 {
-				return fmt.Errorf("%d of %d files failed to import (see the lines above); %d entries imported from the rest", failed, len(files), total.Imported)
+				return &host.ImportCountsError{
+					Err:    fmt.Errorf("%d of %d files failed to import (see the lines above); %d entries imported from the rest", failed, len(files), total.Imported),
+					Counts: total,
+				}
 			}
 			if a.Quiet {
 				return nil
@@ -648,5 +652,6 @@ func memoryImportOutput(c memory.ImportCounts, dbPath string, total int) output.
 		SkippedNoSource:           c.NoSource,
 		SkippedSourceEqualsTarget: c.SameLanguage,
 		SkippedNoTarget:           c.NoTarget,
+		SkippedEmpty:              c.Empty,
 	}
 }

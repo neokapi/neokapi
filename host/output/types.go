@@ -1013,6 +1013,7 @@ type MemoryImportOutput struct {
 	SkippedNoSource           int `json:"skipped_no_source"`
 	SkippedSourceEqualsTarget int `json:"skipped_source_equals_target"`
 	SkippedNoTarget           int `json:"skipped_no_target"`
+	SkippedEmpty              int `json:"skipped_empty"`
 }
 
 func (o MemoryImportOutput) FormatText(w io.Writer) error {
@@ -1025,6 +1026,9 @@ func (o MemoryImportOutput) FormatText(w io.Writer) error {
 	}
 	if o.SkippedNoTarget > 0 {
 		fmt.Fprintf(w, "  skipped %d unit(s) with no translation\n", o.SkippedNoTarget)
+	}
+	if o.SkippedEmpty > 0 {
+		fmt.Fprintf(w, "  skipped %d unit(s) with no text\n", o.SkippedEmpty)
 	}
 	return nil
 }

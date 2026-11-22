@@ -303,7 +303,7 @@ func ImportTMXFile(ctx context.Context, tm memory.Store, imp TMXImport) (memory.
 	file := filepath.Base(imp.Path)
 	counts, err := memory.ImportTMXWithRule(ctx, tm, bytes.NewReader(data), rule, opts)
 	if errors.Is(err, memory.ErrNoUsablePair) {
-		return counts, fmt.Errorf("%s: nothing was imported: %s", file, SkipSummary(counts, rule))
+		return counts, &ImportCountsError{Err: fmt.Errorf("%s: nothing was imported: %s", file, SkipSummary(counts, rule)), Counts: counts}
 	}
 	if err != nil {
 		return counts, err
@@ -319,6 +319,17 @@ func ImportTMXFile(ctx context.Context, tm memory.Store, imp TMXImport) (memory.
 	return counts, nil
 }
 
+// ImportCountsError is an import that failed, carrying what it counted, so a
+// --json caller reads the counts beside the error.
+type ImportCountsError struct {
+	Err    error
+	Counts memory.ImportCounts
+}
+
+func (e *ImportCountsError) Error() string    { return e.Err.Error() }
+func (e *ImportCountsError) Unwrap() error    { return e.Err }
+func (e *ImportCountsError) ErrorFields() any { return e.Counts }
+
 // SkipSummary says how many units an import skipped, by reason, naming the
 // languages the rule looked for.
 func SkipSummary(c memory.ImportCounts, rule memory.SourceRule) string {
@@ -332,6 +343,9 @@ func SkipSummary(c memory.ImportCounts, rule memory.SourceRule) string {
 	}
 	if c.SameLanguage > 0 {
 		parts = append(parts, fmt.Sprintf("%d unit(s) would pair %s with itself", c.SameLanguage, rule.Target))
+	}
+	if c.Empty > 0 {
+		parts = append(parts, fmt.Sprintf("%d unit(s) hold no text", c.Empty))
 	}
 	if c.NoTarget > 0 {
 		if rule.Target != "" {

@@ -79,3 +79,25 @@ func TestImportTMXWithRuleThatKeepsNothingStoresNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, sessions)
 }
+
+// Every unit of a file lands in exactly one count: imported plus every skip
+// reason is the number of units, empty units included.
+func TestImportTMXWithRuleCountsEveryUnit(t *testing.T) {
+	doc := `<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="test" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="en-GB" datatype="plaintext"/>
+  <body>
+    <tu><tuv xml:lang="en-GB"><seg>Buoy</seg></tuv><tuv xml:lang="fr"><seg>Bouée</seg></tuv></tu>
+    <tu><tuv xml:lang="en-GB"><seg></seg></tuv></tu>
+    <tu></tu>
+    <tu><tuv xml:lang="en-GB"><seg>Quay</seg></tuv></tu>
+    <tu><tuv xml:lang="de"><seg>Kai</seg></tuv><tuv xml:lang="fr"><seg>Quai</seg></tuv></tu>
+  </body>
+</tmx>`
+	counts, err := memory.ImportTMXWithRule(context.Background(), memory.NewInMemoryStore(), strings.NewReader(doc),
+		memory.SourceRule{Store: "en-GB", Target: "fr"}, memory.ImportTMXOptions{OriginKey: "f.tmx"})
+	require.NoError(t, err)
+	assert.Equal(t, 1, counts.Imported)
+	assert.Equal(t, 2, counts.Empty, "the empty segment and the empty unit")
+	assert.Equal(t, 5, counts.Imported+counts.Skipped(), "every unit is counted once")
+}
