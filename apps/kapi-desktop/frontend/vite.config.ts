@@ -26,6 +26,13 @@ export default defineConfig({
   ],
   build: {
     outDir: "dist",
+    // The entry chunk is 3,684 kB minified (1,134 kB gzip), measured
+    // 2026-11-22. The app loads it from the assets embedded in the binary, so
+    // its size costs no download, and the 500 kB default warned on every
+    // build. The limit sits just above it, so a regression of more than about
+    // 100 kB warns. If start-up parsing becomes slow, lazy-load the pages in
+    // ViewSwitch.tsx, which imports every page eagerly.
+    chunkSizeWarningLimit: 3800,
     rolldownOptions: {
       output: {
         // The Wails runtime and the generated bindings share one chunk. Left

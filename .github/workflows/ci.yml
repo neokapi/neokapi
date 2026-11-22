@@ -214,8 +214,9 @@ jobs:
           # under host/ runs it, as does one to the browser engine's own tests.
           check_paths wasm_stores '^(core|memory|terms|voice)/' '^host/' '^kapi/cmd/kapi-wasm-cli/' '^packages/engine/src/sqlite\.ts$' '^scripts/wasm-stores/' '^go\.(mod|sum)$' '^Makefile$' '^\.github/workflows/ci\.yml$' "${js_deps[@]}"
           # Every Go source and module file, whatever module holds it: the
-          # edition storage guard type-checks all of them.
-          check_paths go_files '\.go$' '(^|/)go\.(mod|sum)$' '^go\.work' '^Makefile$' '^\.github/workflows/ci\.yml$'
+          # edition storage guard type-checks all of them. The PDFium fetch
+          # gives it the headers plugins/pdfium type-checks against.
+          check_paths go_files '\.go$' '(^|/)go\.(mod|sum)$' '^go\.work' '^Makefile$' '^\.github/workflows/ci\.yml$' '^scripts/(fetch-pdfium|pdfium-pkgconfig)\.sh$'
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
   frontend:
