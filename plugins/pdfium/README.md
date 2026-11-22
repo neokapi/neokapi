@@ -30,12 +30,29 @@ for the full subsystem design.
 ## Build
 
 Needs `libpdfium` on `PKG_CONFIG_PATH` (a `pdfium.pc`). The Makefile targets build
-with `-tags pdfium_experimental` so tier-1 tagged-structure extraction is active:
+with `-tags pdfium_experimental` so tier-1 tagged-structure extraction is active.
+
+`scripts/fetch-pdfium.sh <goos> <goarch> <dir>` downloads the pinned
+bblanchon/pdfium-binaries release for one platform, checks it against the
+recorded SHA-256 and extracts it. The release must be the one the go-pdfium
+version in `go.mod` builds against. Write a `pdfium.pc` that points at it:
+
+```
+Name: PDFium
+Description: PDFium (shared)
+Version: 1
+Cflags: -I<dir>/include
+Libs: -L<dir>/lib -lpdfium
+```
 
 ```
 PKG_CONFIG_PATH=<dir with pdfium.pc> make build-pdfium-plugin
-PKG_CONFIG_PATH=<...> DYLD_LIBRARY_PATH=<lib dir> make test-pdfium-plugin   # dynamic dev
+PKG_CONFIG_PATH=<...> CGO_LDFLAGS="-Wl,-rpath,<dir>/lib" make test-pdfium-plugin
 ```
+
+On macOS the test binaries find `libpdfium.dylib` through that rpath.
+`DYLD_LIBRARY_PATH` does not reach them, because macOS removes it from the
+environment of `/usr/bin/make`. On Linux, `LD_LIBRARY_PATH=<dir>/lib` works too.
 
 The tier-1 tests are gated to `//go:build pdfium_experimental`; the rest run in
 either configuration.

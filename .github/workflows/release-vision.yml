@@ -3,7 +3,7 @@ name: Release Vision plugin
 # The kapi-vision OCR plugin releases independently of the neokapi CLI, on its
 # own `vision-v*` tag (e.g. `vision-v0.1.0` -> kapi-vision 0.1.0), like the SaT
 # and PDFium plugins. It is a cgo binary (-tags onnx) that loads the onnxruntime
-# SHARED library at runtime; the tarball is self-contained — it bundles the
+# SHARED library at runtime. The tarball is self-contained: it bundles the
 # onnxruntime shared lib at lib/<name> AND the PP-OCRv5 model assets at models/
 # beside the binary, where the plugin's resolvers find them with no env config.
 on:

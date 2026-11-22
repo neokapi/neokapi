@@ -24,16 +24,8 @@ jobs:
   # time and loads the onnxruntime SHARED library at runtime. The tarball bundles
   # the onnxruntime shared lib at lib/<unversioned-name> beside the binary, where
   # plugins/check/internal/embed/ort_onnx.go:resolveORTLib() finds it with no env.
-  # The sentence-embedding MODEL is NOT bundled — it downloads on the explicit
+  # The sentence-embedding MODEL is NOT bundled. It downloads on the explicit
   # `kapi-check pull` step at first use (matching kapi-sat; keeps tarballs small).
-  #
-  # Version pins (must be kept in lockstep with plugins/check/go.mod):
-  #   * onnxruntime 1.31.1: yalue/onnxruntime_go v1.38.0 vendors the 1.31 C API
-  #     headers (ORT_API_VERSION 31). An older runtime cannot serve API 31, so
-  #     the runtime and the binding move together.
-  #   * daulet/tokenizers v1.27.0 — matches plugins/check/go.mod. darwin/linux use
-  #     the prebuilt libtokenizers.a from that tag; Windows has no prebuilt lib
-  #     and is built from Rust source (see the Windows leg).
   build-check-plugin:
     name: Build kapi-check plugin (${{ matrix.build.platform }})
     strategy:
@@ -50,6 +42,13 @@ jobs:
           - { platform: windows/amd64, os: windows-2025, goos: windows, goarch: amd64 }
     runs-on: ${{ matrix.build.os }}
     env:
+      # Version pins, kept in lockstep with plugins/check/go.mod:
+      #   * onnxruntime 1.31.1: yalue/onnxruntime_go v1.38.0 vendors the 1.31 C
+      #     API headers (ORT_API_VERSION 31). An older runtime cannot serve API
+      #     31, so the runtime and the binding move together.
+      #   * daulet/tokenizers v1.27.0. darwin/linux use the prebuilt
+      #     libtokenizers.a from that tag; Windows has no prebuilt lib and is
+      #     built from Rust source (see the Windows leg).
       ONNXRUNTIME_VERSION: "1.31.1"
       TOKENIZERS_VERSION: "v1.27.0"
     steps:
@@ -251,7 +250,7 @@ jobs:
   #
   # PREREQUISITE: neokapi/registry's manifest-plugins.json must already contain a
   # "check" stub plugin entry (registry-update refuses to create new top-level
-  # plugins — it errors "plugin not declared"). Add the stub once, mirroring the
+  # plugins; it errors "plugin not declared"). Add the stub once, mirroring the
   # existing "sat"/"bowrain"/"okapi-bridge" entries.
   register-check-plugin:
     name: Register kapi-check in plugin registry
