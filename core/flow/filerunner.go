@@ -915,7 +915,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 		if _, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
 			srcPath = inputPath
 		} else if _, ok := writer.(format.OriginalContentSetter); ok {
-			content, rerr := os.ReadFile(inputPath)
+			content, rerr := r.readInput(inputPath)
 			if rerr != nil {
 				reader.Close()
 				return fmt.Errorf("read %q: %w", filepath.Base(inputPath), rerr)
@@ -1551,4 +1551,15 @@ func openInRoot(root, path string) (*os.File, error) {
 		}
 	}
 	return os.Open(path)
+}
+
+// readInput reads one input of the run whole, through rootpath when it lies
+// beneath the project (openInRoot).
+func (r *FileRunner) readInput(path string) ([]byte, error) {
+	f, err := openInRoot(r.cfg.ProjectRoot, path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(safeio.DefaultBudget().Reader(f))
 }
