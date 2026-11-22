@@ -30,6 +30,10 @@ permissions:
   # (scripts/mirror-image.sh) with the workflow token.
   packages: read
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   # ── Detect which modules changed ──────────────────────────────────────────
   changes:
@@ -1327,6 +1331,8 @@ jobs:
         run: python3 scripts/ci-passed.py --self-test && python3 scripts/ci-passed.py needs
       - name: "Guard: every package test script runs in a pull request job"
         run: python3 scripts/check-test-scripts.py --self-test && python3 scripts/check-test-scripts.py
+      - name: "Guard: every Go command in make, scripts and CI builds with -trimpath"
+        run: python3 scripts/check-go-trimpath.py --self-test && python3 scripts/check-go-trimpath.py
       - name: "Guard: the commit gate hook passes its self-test"
         run: ./.claude/hooks/commit-gate.sh --self-test
       - name: "Guard: the build cache warmer passes its self-test"

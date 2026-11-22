@@ -17,6 +17,10 @@ permissions:
   # short-lived Fulcio cert for signing the kapi-check plugin tarballs.
   id-token: write
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   # ── kapi-check ML checker plugin ────────────────────────────────────────────
   # Build + sign + publish the kapi-check plugin tarball per platform. kapi-check

@@ -26,6 +26,10 @@ permissions:
   # Fulcio cert for signing the tarballs.
   id-token: write
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   build-sourcecode-plugin:
     name: Build kapi-sourcecode (${{ matrix.build.platform }})
