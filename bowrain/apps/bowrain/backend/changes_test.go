@@ -261,7 +261,7 @@ func TestApplyChangesOfflineQueuesTheChangeSetWithItsPreconditions(t *testing.T)
 	require.NoError(t, err)
 	assert.Equal(t, "Bonjour le monde", blocks[0].Targets["fr"].Text, "the cache shows the edit")
 
-	pending, err := q.PeekPending(10)
+	pending, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, pending, 1)
 	assert.Equal(t, string(opChangeSet), pending[0].Operation)
@@ -277,7 +277,7 @@ func TestApplyChangesOfflineQueuesTheChangeSetWithItsPreconditions(t *testing.T)
 	t.Run("a refusal queues nothing", func(t *testing.T) {
 		res := applyChanges(t, app, info.ID, decideTarget(item, blocks[1].ID, "fr", "absent", "establish"))
 		assert.Equal(t, change.SetRefused, res.Status)
-		assert.Equal(t, 1, q.PendingCount())
+		assert.Equal(t, 1, q.PendingCount(t.Context()))
 	})
 }
 
@@ -295,16 +295,16 @@ func TestReplayDropsARetiredEntryAndFailsOneItCannotRead(t *testing.T) {
 		app.offlineQueue.Close()
 	}
 	app.offlineQueue = q
-	require.NoError(t, q.Enqueue("update_block_target", map[string]string{
+	require.NoError(t, q.Enqueue(t.Context(), "update_block_target", map[string]string{
 		"project_id": "p1", "block_id": "b1", "target_locale": "fr", "text": "Bonjour",
 	}))
-	require.NoError(t, q.Enqueue(string(opChangeSet), map[string]any{"project_id": 7}))
+	require.NoError(t, q.Enqueue(t.Context(), string(opChangeSet), map[string]any{"project_id": 7}))
 
 	app.replayPendingChanges(context.Background())
 
 	assert.Zero(t, calls, "nothing reaches the server")
-	assert.Equal(t, 0, q.PendingCount())
-	assert.Equal(t, 1, q.FailedCount(), "only the entry nothing can read is failed")
+	assert.Equal(t, 0, q.PendingCount(t.Context()))
+	assert.Equal(t, 1, q.FailedCount(t.Context()), "only the entry nothing can read is failed")
 
 	listed, err := app.GetFailedChanges()
 	require.NoError(t, err)
