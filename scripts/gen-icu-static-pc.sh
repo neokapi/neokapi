@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# gen-icu-static-pc.sh — emit pkg-config files that force STATIC linking of ICU.
+# gen-icu-static-pc.sh: emit pkg-config files that force STATIC linking of ICU.
 #
 # Why this exists
 # ---------------
@@ -8,12 +8,12 @@
 # all cgo, and the framework links ICU through `#cgo pkg-config: icu-uc icu-i18n`
 # (the FTS5 ICU tokenizer in core/storage and the UAX-29 segmenter in
 # core/segment/uax29). Stock icu-uc.pc / icu-i18n.pc emit `-licui18n -licuuc`,
-# which the linker resolves to a shared library — fatal for a distributable:
+# which the linker resolves to a shared library, which is fatal for a distributable:
 #   * macOS: a notarized .app/binary aborts in dyld at launch because Homebrew's
 #     icu dylib is absent on users' machines and, when present, has a different
 #     code-signing Team ID (library validation rejects it);
 #   * Linux: a single prebuilt binary can't satisfy the distro libicu major-skew
-#     (system libicu 70/72/74 vs the build's 78 — versioned symbols won't bind).
+#     (system libicu 70/72/74 vs the build's 79; versioned symbols won't bind).
 #
 # Static linking removes the runtime dependency entirely; the only ICU-related
 # dylib left is the platform C++ runtime (Apple-signed libc++ on macOS,
@@ -29,8 +29,8 @@
 #   PCDIR=$(scripts/gen-icu-static-pc.sh)
 #   PKG_CONFIG_PATH="$PCDIR" CGO_ENABLED=1 go build -tags fts5 ...
 #
-# Inputs (env, all optional — sensible per-platform defaults)
-#   ICU_PREFIX       ICU install prefix; default: brew --prefix icu4c@78|icu4c.
+# Inputs (env, all optional, with per-platform defaults)
+#   ICU_PREFIX       ICU install prefix; default: brew --prefix icu4c@79|icu4c.
 #   ICU_LIBDIR       dir holding libicu*.a; default: $ICU_PREFIX/lib. Override
 #                    for split layouts (Debian multiarch: /usr/lib/<triple>).
 #   ICU_INCLUDEDIR   ICU headers dir;     default: $ICU_PREFIX/include.
@@ -43,7 +43,7 @@ uname_s=$(uname -s)
 
 icu_prefix="${ICU_PREFIX:-}"
 if [[ -z "$icu_prefix" ]]; then
-  for formula in icu4c@78 icu4c; do
+  for formula in icu4c@79 icu4c; do
     if icu_prefix=$(brew --prefix "$formula" 2>/dev/null) && [[ -n "$icu_prefix" ]]; then
       break
     fi
@@ -81,18 +81,25 @@ if [[ -z "$cxx_lib" ]]; then
   fi
 fi
 
+# The version the headers declare, so the .pc files report what is linked.
+version=$(sed -n 's/^#define U_ICU_VERSION "\(.*\)"/\1/p' "$includedir/unicode/uvernum.h" 2>/dev/null || true)
+if [[ -z "$version" ]]; then
+  echo "gen-icu-static-pc.sh: could not read U_ICU_VERSION from $includedir/unicode/uvernum.h" >&2
+  exit 1
+fi
+
 pcdir=$(mktemp -d)
 
 # Both .pc files carry the full archive set in link order so the result is
 # correct no matter which package(s) cgo passes to pkg-config (it always
 # requests both "icu-uc icu-i18n"). Duplicate archives on the link line are
-# harmless — the linker dedupes them with a warning.
+# harmless: the linker dedupes them with a warning.
 libs="$a_i18n $a_uc $a_data -l$cxx_lib"
 
 # The ICU archives call libm (pow/log in i18n number formatting). macOS folds
 # libm into libSystem so no flag is needed, but on Linux the GNU linker runs
 # with --as-needed and the DSO must be named on the command line *after* the
-# archives that use it — without this, any cgo link against the static
+# archives that use it. Without it, any cgo link against the static
 # archives dies with "libm.so.6: DSO missing from command line".
 if [[ "$uname_s" == "Linux" ]]; then
   libs="$libs -lm"
@@ -104,8 +111,8 @@ libdir=$libdir
 includedir=$includedir
 
 Name: $name
-Description: ICU ($name) — static-archive override for self-contained binaries
-Version: 78
+Description: ICU ($name): static-archive override for self-contained binaries
+Version: $version
 Cflags: -I\${includedir}
 Libs: $libs
 EOF
