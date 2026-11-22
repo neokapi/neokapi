@@ -118,6 +118,22 @@ isolated home, in 27 s. Pull request CI runs it only when the diff touches
 `memory/`, `terms/` or `providers/`, and before you push a change to a
 command's flags, output, help or exit codes. Read its exit code.
 
+## A second `kapi up` changes nothing
+
+When the change reaches `kapi up`, or anything it writes:
+
+```bash
+go test -tags "fts5,e2e" ./kapi/e2e/ -run '^TestUpTwiceIsANoOp$' -count=1 -v   # 15 s
+```
+
+The suite sits behind the `e2e` build tag: without it Go reports that build
+constraints exclude every file, which is not a result.
+
+The test runs `kapi up` on a sample with the offline `demo` provider, requires
+translations in every target, runs it again, and compares every file in the
+project and in the data root. Pull request CI runs it only when `cli/`,
+`host/` or `kapi/` changed.
+
 ## Evidence
 
 Record each command, the output lines that show the behaviour, and the exit
