@@ -139,24 +139,28 @@ func TestFormatterTrustRoutes(t *testing.T) {
 		require.NoError(t, err, "the shim fixture runs node")
 		require.NoError(t, os.MkdirAll(bin, 0o755))
 		node := filepath.Join(bin, "node")
-		require.NoError(t, os.WriteFile(node, []byte("#!/bin/sh\nexec '"+realNode+"' \"$@\"\n"), 0o755))
-		// The repository's own pnpm shim, marking each run and pointing at the
-		// oxfmt entry by its absolute path, so it keeps the NODE_PATH the entry
-		// resolves its modules through. The shim names the entry relative to
-		// node_modules/.bin: as "$basedir/../<entry>" (pnpm 11) or as
-		// "$basedir_abs"/'../<entry>' (pnpm 12).
+		// The node beside the launcher marks each run.
+		require.NoError(t, os.WriteFile(node, []byte("#!/bin/sh\necho ran >> '"+marker+"'\nexec '"+realNode+"' \"$@\"\n"), 0o755))
+		// The repository's own pnpm launcher, copied unchanged so kapi reads it
+		// as it reads the real one. It names its entry relative to
+		// node_modules/.bin, as "$basedir/../<entry>" (pnpm 11) or as
+		// "$basedir_abs"/'../<entry>' (pnpm 12), so the package directory that
+		// holds the entry is linked into this project at the same place.
 		repoShim, err := os.ReadFile(repoOxfmt(t))
 		require.NoError(t, err)
-		shim := strings.Replace(string(repoShim), "#!/bin/sh\n", "#!/bin/sh\necho ran >> '"+marker+"'\n", 1)
-		require.Contains(t, shim, `"$basedir/node"`, "the repository's oxfmt is a pnpm shim")
-		m := regexp.MustCompile(`"\$basedir/\.\./([^"]+/bin/oxfmt)"|"\$basedir_abs"/'\.\./([^']+/bin/oxfmt)'`).FindStringSubmatch(shim)
-		require.NotEmpty(t, m, "the repository's oxfmt shim runs an entry beside node_modules/.bin")
-		entryPath, err := filepath.Abs(filepath.Join("..", "node_modules", m[1]+m[2]))
+		shim := string(repoShim)
+		require.Contains(t, shim, `"$basedir/node"`, "the repository's oxfmt is a pnpm launcher")
+		m := regexp.MustCompile(`"\$basedir/\.\./([^"]+)/bin/oxfmt"|"\$basedir_abs"/'\.\./([^']+)/bin/oxfmt'`).FindStringSubmatch(shim)
+		require.NotEmpty(t, m, "the repository's oxfmt launcher runs an entry beside node_modules/.bin")
+		pkgRel := filepath.FromSlash(m[1] + m[2])
+		pkg, err := filepath.EvalSymlinks(filepath.Join("..", "node_modules", pkgRel))
+		require.NoError(t, err, "the launcher fixture runs the repository's oxfmt entry; run `vp install` at the repository root")
+		pkg, err = filepath.Abs(pkg)
 		require.NoError(t, err)
-		entry, err := filepath.EvalSymlinks(entryPath)
-		require.NoError(t, err, "the shim fixture runs the repository's oxfmt entry; run `vp install` at the repository root")
-		shim = strings.ReplaceAll(shim, m[0], "'"+entry+"'")
-		require.NoError(t, os.WriteFile(filepath.Join(bin, "oxfmt"), []byte(shim), 0o755))
+		linked := filepath.Join(filepath.Dir(bin), pkgRel)
+		require.NoError(t, os.MkdirAll(filepath.Dir(linked), 0o755))
+		require.NoError(t, os.Symlink(pkg, linked))
+		require.NoError(t, os.WriteFile(filepath.Join(bin, "oxfmt"), repoShim, 0o755))
 		allowAtPrompt(t, a, file, marker)
 
 		script, err := os.ReadFile(node)

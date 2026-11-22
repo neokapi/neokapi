@@ -345,9 +345,17 @@ func formatterRuntimeOf(path string) (formatterRuntime, error) {
 		return formatterRuntime{}, nil
 	}
 	defer f.Close()
-	data, err := io.ReadAll(io.LimitReader(f, formatterShebangBytes))
+	data, err := io.ReadAll(io.LimitReader(f, formatterShebangBytes+1))
 	if err != nil || !bytes.HasPrefix(data, []byte("#!")) {
 		return formatterRuntime{}, nil
+	}
+	if len(data) > formatterShebangBytes {
+		// The first line is whole, but a launcher or a shell script is read
+		// whole or not at all.
+		data = data[:formatterShebangBytes]
+		if isLauncher(data) || isShellScript(data) {
+			return formatterRuntime{}, fmt.Errorf("%s is a shell script over %d bytes, more than kapi reads to tell what it runs", path, formatterShebangBytes)
+		}
 	}
 	if isLauncher(data) {
 		rt, err := readLauncher(path, data)
@@ -374,6 +382,27 @@ func formatterRuntimeOf(path string) (formatterRuntime, error) {
 		break
 	}
 	return formatterRuntime{}, nil
+}
+
+// isShellScript reports whether data's first line runs a POSIX shell, directly
+// or through env.
+func isShellScript(data []byte) bool {
+	line, _, _ := bytes.Cut(data[2:], []byte("\n"))
+	fields := strings.Fields(string(line))
+	if len(fields) > 0 && filepath.Base(fields[0]) == "env" {
+		fields = fields[1:]
+		for len(fields) > 0 && (strings.HasPrefix(fields[0], "-") || strings.Contains(fields[0], "=")) {
+			fields = fields[1:]
+		}
+	}
+	if len(fields) == 0 {
+		return false
+	}
+	switch filepath.Base(fields[0]) {
+	case "sh", "bash", "dash", "zsh", "ksh", "ash", "mksh", "busybox":
+		return true
+	}
+	return false
 }
 
 // isExecutableFile reports whether path is a regular file some user may execute.
