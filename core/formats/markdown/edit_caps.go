@@ -136,16 +136,16 @@ func (w *Writer) WriteAttr(seq []model.Run, at int, name, value string) ([]model
 // spellLinkDestination spells value as a link destination the reader reads
 // back as value. The reader keeps a destination as the document spells it,
 // without its angle brackets (goldmark's ast.Link.Destination), so a value is
-// written as itself: bare where a bare destination ends where the value does,
-// and in angle brackets when angle asks for them or the value holds a space,
-// a control character or a parenthesis that does not balance. A value ending
-// in a backslash reads back in neither: bare, "\)" escapes the parenthesis,
-// and between angle brackets "\>" escapes the bracket. It is spelled bare
-// with a space before the parenthesis, which CommonMark 6.6 allows and which
-// ends the destination where the value does. A value that reads back as given
-// in no form, such as one holding a line break, has no spelling. A bare
-// carriage return is not a line break to the parser: it ends a bare
-// destination and is kept between angle brackets.
+// written as itself. It is bare where a bare destination ends where the value
+// does. It goes in angle brackets when angle asks for them or when the value
+// holds a space, a control character or an unbalanced parenthesis.
+//
+// A value ending in a backslash reads back in neither form: bare, "\)"
+// escapes the parenthesis, and between angle brackets "\>" escapes the
+// bracket. Such a value is spelled bare with a space before the parenthesis,
+// which CommonMark 6.6 allows. A value that reads back in no form, such as
+// one holding a line break, has no spelling. A bare carriage return ends a
+// bare destination and is kept between angle brackets.
 func spellLinkDestination(value string, angle bool) (string, error) {
 	if strings.Contains(value, "\n") {
 		return "", errors.New("a link destination cannot hold a line break")
@@ -361,17 +361,17 @@ func backslashBeside(site format.CodeSite) error {
 }
 
 // readsBack parses the block's text with the new code's markup in place, as
-// the reader parses it, and reports, as an error with the reason, a place
-// where the markup would not read back as the new code: where its delimiters
-// would read as text or pair with others, where the code would hold more or
-// less than the range, or where the markup would change how anything else in
+// the reader parses it. It returns an error with the reason when the markup
+// would not read back as the new code. That happens when its delimiters
+// would read as text or pair with others, when the code would hold more or
+// less than the range, or when the markup would change how anything else in
 // the block reads. isCode picks the node the new code reads as. The checks
 // before it name the common causes; this one is the proof that the markup
 // reads back as the code.
 func readsBack(site format.CodeSite, open, closing string, isCode func(ast.Node) bool) error {
 	// The text is parsed after a word and a space, which open no block
-	// construct and read like the start of a line to the inline parser, so
-	// text that would start a list or a heading on a line of its own still
+	// construct and read like the start of a line to the inline parser.
+	// Text that would start a list or a heading on a line of its own still
 	// parses as the paragraph it is in the document.
 	const lead = "x "
 	before := lead + model.RenderRunsWithData(site.Before)
@@ -443,9 +443,8 @@ func parseMarkdown(src []byte) ast.Node {
 }
 
 // parseMarkdownChecked parses src with the reader's parser and extensions and
-// reports a failure of the parser itself as an error: goldmark 1.8 indexes
-// before a line on a blockquote marker followed by a tab and a fence
-// character, as in "> " and a tab and a backtick.
+// reports a panic inside the parser as an error, so a document goldmark
+// cannot parse fails its read instead of the process.
 func parseMarkdownChecked(src []byte) (doc ast.Node, err error) {
 	defer func() {
 		if r := recover(); r != nil {

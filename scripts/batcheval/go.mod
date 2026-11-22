@@ -18,5 +18,5 @@ go 1.27.1
 require (
 	github.com/neokapi/neokapi v0.0.0
 	github.com/neokapi/neokapi/bowrain v0.0.0
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.1
 )
