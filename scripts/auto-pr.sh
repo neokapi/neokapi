@@ -28,8 +28,9 @@
 # what the run found.
 #
 # Requires: git, and for the push and the pull request, gh authenticated via
-# GH_TOKEN/GITHUB_TOKEN with push rights. Pushes and pull requests made with
-# GITHUB_TOKEN start no workflow runs, so the body says how to start the checks.
+# GH_TOKEN/GITHUB_TOKEN with push rights. A push made with GITHUB_TOKEN leaves
+# the pull request's workflow runs waiting for approval, so the body says how
+# to start them unless HAS_BOT_APP says the push used the bot App's token.
 set -euo pipefail
 
 readonly BOT_NAME="github-actions[bot]"
@@ -53,16 +54,21 @@ owned_status() {
 }
 
 # pr_body renders the pull-request body: what produced it, the caller's note,
-# and how to start the checks a GITHUB_TOKEN push cannot start itself.
+# and, when the push used GITHUB_TOKEN (HAS_BOT_APP is not true), how to start
+# the checks it holds for approval. See docs/internals/bot-pushes.md.
 pr_body() {
   cat <<EOF
 Automated by the \`${GITHUB_WORKFLOW:-auto-pr}\` workflow (run ${GITHUB_RUN_ID:-local}).
 
 ${AUTO_PR_NOTE:-}
-
-> Opened with \`GITHUB_TOKEN\`, so CI does not start automatically — close and
-> reopen the pull request (or push any commit) to start the checks.
 EOF
+  if [ "${HAS_BOT_APP:-}" != "true" ]; then
+    cat <<EOF
+
+> Pushed with \`GITHUB_TOKEN\`, so GitHub holds this pull request's workflow
+> runs for approval. On the Checks tab, choose **Approve workflows to run**.
+EOF
+  fi
 }
 
 # base_branch is the ref the workflow ran on: the branch a dispatch selected, or
