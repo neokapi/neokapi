@@ -36,7 +36,7 @@
     "@neokapi/ui-primitives": "*",
     "@radix-ui/react-slot": "^1.5.0",
     "@tailwindcss/vite": "^4.3.5",
-    "lucide-react": "^1.70.0",
+    "lucide-react": "^1.76.0",
     "radix-ui": "^1.8.1",
     "recharts": "^3.10.1",
     "remark-gfm": "^4.0.1",

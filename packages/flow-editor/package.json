@@ -24,7 +24,7 @@
     "@neokapi/i18n-react": "*",
     "@neokapi/ui-primitives": "*",
     "@xyflow/react": "^12.12.1",
-    "lucide-react": "^1.70.0",
+    "lucide-react": "^1.76.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "zod": "^4.6.7"
