@@ -215,6 +215,32 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
     );
   });
 
+  // A page that loads while the backend runs a flow (a reload, a crash
+  // recovery) has missed the run's "running" event, which is the only event
+  // that starts a job. It asks the backend instead and picks the run up from
+  // its accumulated events, so the feed, the runner and the window-close guard
+  // all see the flow that is running.
+  useEffect(() => {
+    let stopped = false;
+    void (async () => {
+      const state = await api.getRunState();
+      if (stopped || state !== "running" || active.current) return;
+      const events = ((await api.getRunEvents()) as RunEvent[] | null) ?? [];
+      if (stopped || active.current || events.length === 0) return;
+      const first = events[0];
+      const job = events.reduce(applyEvent, {
+        ...newJob({ flowName: first.flow_id, tabID: first.tab_id }),
+        events,
+      });
+      if (job.status !== "running") return;
+      add(job);
+      setConfirmed(job);
+    })().catch(() => {});
+    return () => {
+      stopped = true;
+    };
+  }, [add]);
+
   useEffect(() => {
     if (!confirmed) return;
     let stopped = false;

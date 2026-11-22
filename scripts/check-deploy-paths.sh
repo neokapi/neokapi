@@ -14,7 +14,7 @@
 # and this exists so the next framework directory cannot reopen the hole in
 # silence.
 #
-# The linked set is derived from `go list -deps`, never hardcoded here — a list
+# The linked set is derived from `go list -deps`, never hardcoded here. A list
 # maintained by hand is the same failure with an extra step.
 set -euo pipefail
 
@@ -22,21 +22,30 @@ cd "$(dirname "$0")/.."
 WORKFLOW=".github/workflows/deploy-server.yml"
 
 if ! command -v go >/dev/null 2>&1; then
-  echo "check-deploy-paths: go not installed — skipped"
-  exit 0
+  echo "check-deploy-paths: needs go to resolve what the deployed binaries link" >&2
+  exit 1
 fi
 
+# Each graph is resolved on its own, and a failure is reported with go's own
+# message: a binary whose graph went unread would leave its directories out of
+# the set and pass.
+deps=""
+for cmd in ./cmd/bowrain-server ./cmd/bowrain-worker; do
+  if ! out=$(cd bowrain && go list -deps "$cmd"); then
+    echo "check-deploy-paths: could not resolve the dependency graph of bowrain/${cmd#./}" >&2
+    exit 1
+  fi
+  deps+="$out"$'\n'
+done
 linked=$(
-  cd bowrain
-  { go list -deps ./cmd/bowrain-server; go list -deps ./cmd/bowrain-worker; } 2>/dev/null \
-    | grep '^github.com/neokapi/neokapi/' \
+  grep '^github.com/neokapi/neokapi/' <<<"$deps" \
     | sed 's|github.com/neokapi/neokapi/||' \
     | grep -v '^bowrain/' \
     | awk -F/ '{print $1}' | sort -u
 )
 
 if [ -z "$linked" ]; then
-  echo "check-deploy-paths: could not resolve the dependency graph" >&2
+  echo "check-deploy-paths: the deployed binaries link no framework directory, which cannot be right" >&2
   exit 1
 fi
 

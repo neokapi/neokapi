@@ -141,16 +141,45 @@ describe("JobFeedContext", () => {
       { type: "complete", tab_id: "a", flow_id: "check", duration_ms: 4200 },
     ]);
     const { result } = renderHook(() => useJobFeed(), { wrapper: JobFeedProvider });
+    // The provider asks once on load whether the backend is already running
+    // something; the reconciliation poll must not start before the launch is
+    // accepted.
+    await waitFor(() => expect(api.getRunState).toHaveBeenCalledTimes(1));
     let pending: Promise<void>;
     act(() => {
       pending = result.current.launchJob({ tabID: "a", flowName: "check" }, () => launch.promise);
     });
-    expect(api.getRunState).not.toHaveBeenCalled();
+    expect(api.getRunState).toHaveBeenCalledTimes(1);
     await act(async () => {
       launch.resolve();
       await pending;
     });
     await waitFor(() => expect(result.current.activeJob).toBeNull());
     expect(result.current.jobs[0]).toMatchObject({ status: "complete", durationMs: 4200 });
+  });
+
+  it("picks up a run the backend is executing when the page loads", async () => {
+    vi.mocked(api.getRunState).mockResolvedValue("running");
+    vi.mocked(api.getRunEvents).mockResolvedValue([
+      { tab_id: "t1", type: "state", flow_id: "converge", message: "running" },
+      { tab_id: "t1", type: "progress", flow_id: "converge", file_index: 1, file_count: 3 },
+    ]);
+    const { result } = renderHook(() => useJobFeed(), { wrapper: JobFeedProvider });
+    await waitFor(() => expect(result.current.activeJob).not.toBeNull());
+    expect(result.current.activeJob).toMatchObject({
+      flowName: "converge",
+      tabID: "t1",
+      status: "running",
+    });
+  });
+
+  it("starts no job when the backend runs nothing", async () => {
+    vi.mocked(api.getRunState).mockResolvedValue("idle");
+    vi.mocked(api.getRunEvents).mockResolvedValue([
+      { tab_id: "t1", type: "complete", flow_id: "converge" },
+    ]);
+    const { result } = renderHook(() => useJobFeed(), { wrapper: JobFeedProvider });
+    await act(async () => {});
+    expect(result.current.jobs).toHaveLength(0);
   });
 });

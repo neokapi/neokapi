@@ -1,8 +1,12 @@
 # End-to-end overlay for the full local stack (compose.full.yaml). Use it only
-# for automated UI runs, such as the Bowrain mobile app's Maestro flows:
+# for automated runs: the Go server and checkout E2E suites, the Playwright
+# suites and the Bowrain mobile app's Maestro flows.
 #
 #   make -C bowrain stack-up-e2e
-#
+
+# The server runs with the rate limits CI's e2e stack uses
+# (e2e/rate-limits.env), so a suite that passes in CI passes here.
+
 # The "bowrain" realm signs in with passkeys only, which a UI test cannot
 # complete. The one-shot keycloak-e2e service switches that realm's browser
 # flow to username and password and seeds a test user with a password
@@ -13,6 +17,11 @@
 # volumes, and the next `stack-up` imports the passkey-only realm again.
 
 services:
+  # The rate limits CI's e2e stack runs with, from the one file both read.
+  # Without them the server and checkout suites hit 429 on the default caps.
+  bowrain-server:
+    env_file: e2e/rate-limits.env
+
   keycloak-e2e:
     profiles: ["e2e"]
     build:
