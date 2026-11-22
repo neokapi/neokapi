@@ -118,7 +118,8 @@ func serve() error {
 	}
 	defer func() { _ = os.RemoveAll(dir) }()
 	sock := filepath.Join(dir, "kapi-sourcecode.sock")
-	lis, err := net.Listen("unix", sock)
+	var lc net.ListenConfig
+	lis, err := lc.Listen(context.Background(), "unix", sock)
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", sock, err)
 	}
@@ -240,7 +241,7 @@ func complete(stream pb.BridgeService_ProcessServer, errMsg string) error {
 func readInput(header *pb.ProcessHeader) ([]byte, string, error) {
 	in := header.GetInput()
 	if in == nil {
-		return nil, "", fmt.Errorf("no input in header")
+		return nil, "", errors.New("no input in header")
 	}
 	name := header.GetInputName()
 	if path := in.GetPath(); path != "" {
@@ -256,5 +257,5 @@ func readInput(header *pb.ProcessHeader) ([]byte, string, error) {
 	if inline := in.GetInline(); len(inline) > 0 {
 		return inline, name, nil
 	}
-	return nil, "", fmt.Errorf("empty input")
+	return nil, "", errors.New("empty input")
 }

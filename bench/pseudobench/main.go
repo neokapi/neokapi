@@ -64,7 +64,10 @@ func cmdRun(args []string) {
 	results := fs.String("results", "results", "results directory")
 	htmlFile := fs.String("html", "results/pseudobench.html", "HTML report path")
 	traceDir := fs.String("trace-dir", "", "directory for batch trace JSON files (enables internal tracing)")
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(2)
+	}
 
 	if *kapiBin == "" {
 		fmt.Fprintf(os.Stderr, "Error: -kapi is required\n")
@@ -161,7 +164,10 @@ func cmdBuildVersions(args []string) {
 	versions := fs.String("versions", "", "comma-separated git tags")
 	repo := fs.String("repo", "../../", "git repo root")
 	output := fs.String("output", "versions", "output directory")
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(2)
+	}
 
 	if *versions == "" {
 		fmt.Fprintf(os.Stderr, "Error: -versions is required\n")

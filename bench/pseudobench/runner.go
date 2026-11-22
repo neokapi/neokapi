@@ -27,7 +27,7 @@ func (e *NoSuccessfulFilesError) Error() string {
 func runBenchmarks(cfg *Config) (*Report, error) {
 	engines := buildEngines(cfg)
 	if len(engines) == 0 {
-		return nil, fmt.Errorf("no engines available")
+		return nil, errors.New("no engines available")
 	}
 
 	return runEngines(engines, cfg)
@@ -92,7 +92,9 @@ func runExperiment(engine Engine, cfg *Config) (*ExperimentResult, error) {
 	// Prepare trace file path for the final iteration.
 	var traceFile string
 	if cfg.TraceDir != "" {
-		os.MkdirAll(cfg.TraceDir, 0o755)
+		if err := os.MkdirAll(cfg.TraceDir, 0o755); err != nil {
+			return nil, fmt.Errorf("create trace dir: %w", err)
+		}
 		traceFile = filepath.Join(cfg.TraceDir, engine.Name()+"-trace.json")
 	}
 
@@ -104,7 +106,9 @@ func runExperiment(engine Engine, cfg *Config) (*ExperimentResult, error) {
 		isLast := i == cfg.Iterations-1
 		if isLast {
 			outputDir = filepath.Join(cfg.OutputDir, engine.Name())
-			os.MkdirAll(outputDir, 0o755)
+			if err := os.MkdirAll(outputDir, 0o755); err != nil {
+				return nil, fmt.Errorf("create output dir: %w", err)
+			}
 		} else {
 			tmpDir, err := os.MkdirTemp("", "pseudobench-iter-*")
 			if err != nil {
@@ -151,7 +155,7 @@ func runExperiment(engine Engine, cfg *Config) (*ExperimentResult, error) {
 	// Aggregate verification stats from the last iteration's per-file
 	// results. FilesUnverified counts fixtures whose output exists but
 	// has zero pseudo-translated runes despite the input containing
-	// letters — a strong signal the engine short-circuited pseudo or
+	// letters. That is a strong signal the engine short-circuited pseudo or
 	// dropped translatable content. Surfaced in the report so a "fast"
 	// engine that does nothing useful is visibly distinct from a "fast"
 	// engine that actually pseudo-translates.
@@ -243,8 +247,8 @@ func runFileTrace(ctx context.Context, fp FileProcessor, cfg *Config) []FileTimi
 			ft.Success = true
 			ft.WallMs = float64(result.WallTime.Microseconds()) / 1000.0
 			ft.PeakRssKB = result.PeakRSSKB
-			ft.UserCpuMs = float64(result.UserCPU.Microseconds()) / 1000.0
-			ft.SysCpuMs = float64(result.SystemCPU.Microseconds()) / 1000.0
+			ft.UserCPUMs = float64(result.UserCPU.Microseconds()) / 1000.0
+			ft.SysCPUMs = float64(result.SystemCPU.Microseconds()) / 1000.0
 			ft.BlockCount = result.BlockCount
 		}
 

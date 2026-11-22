@@ -52,7 +52,7 @@ func bashDecl(n *ts.Node, _ string, src []byte) (string, bool) {
 	case "variable_assignment":
 		return "var/" + nodeName(n.ChildByFieldName("name"), src), true
 	case "declaration_command":
-		for i := uint(0); i < n.NamedChildCount(); i++ {
+		for i := range n.NamedChildCount() {
 			if c := n.NamedChild(i); c.Kind() == "variable_assignment" {
 				return bashDecl(c, "", src)
 			}

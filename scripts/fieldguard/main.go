@@ -86,6 +86,9 @@ var configs = []config{
 	{name: "js/wasm", env: []string{"GOOS=js", "GOARCH=wasm"}, tags: testTags},
 	{name: "windows", env: []string{"GOOS=windows", "GOARCH=amd64", "CGO_ENABLED=0"}, tags: testTags},
 	{name: "linux without cgo", env: []string{"GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0"}, tags: testTags},
+	// The _darwin.go files on a Linux runner. scripts/internal/buildconfigs,
+	// which the linters, go vet and the other guards use, holds the same list.
+	{name: "darwin without cgo", env: []string{"GOOS=darwin", "GOARCH=arm64", "CGO_ENABLED=0"}, tags: testTags},
 }
 
 func main() {
@@ -909,12 +912,12 @@ func (inv *inventory) writeJSON(w io.Writer) error {
 // this command, go.work or a go.mod can move what every file resolves to,
 // so it loads the whole tree.
 func changedGoFiles(root, ref string) ([]string, bool, error) {
-	out, err := exec.Command("git", "-C", root, "diff", "--name-only", "--diff-filter=d", ref+"...HEAD").Output()
+	out, err := exec.CommandContext(context.Background(), "git", "-C", root, "diff", "--name-only", "--diff-filter=d", ref+"...HEAD").Output()
 	if err != nil {
 		return nil, false, fmt.Errorf("list the files changed since %s: %w", ref, err)
 	}
 	var files []string
-	for _, name := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for name := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		switch {
 		case name == "":
 			continue

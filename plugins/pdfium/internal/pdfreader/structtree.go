@@ -3,6 +3,7 @@ package pdfreader
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	pdfium "github.com/klippa-app/go-pdfium"
@@ -14,21 +15,21 @@ import (
 	"github.com/neokapi/neokapi/core/structure"
 )
 
-// structtree.go implements the tier-1 structure path: when a PDF is *tagged*
-// (carries a logical structure tree — Document › H1 › P › Table › TR › TH/TD …),
-// the structure is authoritative and we read it directly instead of inferring it
-// geometrically. We bridge the tagged elements to text through marked-content IDs
-// (MCIDs): each struct element references the MCIDs of the page's text objects
-// that render its content, so we first build an MCID→{text,bbox} map from the page
-// objects, then walk the struct tree and gather each element's text from its (and
-// its NonStruct descendants') MCIDs.
-//
-// The page-object and struct-element MCID accessors are PDFium *experimental* APIs
-// (go-pdfium only wires them under the `pdfium_experimental` build tag; the bundled
-// bblanchon libpdfium exports them). Without that tag the accessors return a
-// runtime error — which we detect and treat as "no tier-1 available", falling back
-// to the geometric analyzer (structure.Analyze). So this file needs no build tag:
-// it compiles either way and degrades gracefully at runtime.
+// structtree.go implements the tier-1 structure path. A *tagged* PDF carries a
+// logical structure tree (Document › H1 › P › Table › TR › TH/TD …). That
+// structure is authoritative, so we read it directly instead of inferring it
+// geometrically. Marked-content IDs (MCIDs) bridge the tagged elements to text.
+// Each struct element references the MCIDs of the page's text objects that
+// render its content. We build an MCID→{text,bbox} map from the page objects,
+// then walk the struct tree and gather each element's text from its own MCIDs
+// and those of its NonStruct descendants.
+
+// The page-object and struct-element MCID accessors are PDFium *experimental*
+// APIs. go-pdfium only wires them under the `pdfium_experimental` build tag; the
+// bundled bblanchon libpdfium exports them. Without that tag the accessors
+// return a runtime error. We detect it, treat it as "no tier-1 available", and
+// fall back to the geometric analyzer (structure.Analyze). This file needs no
+// build tag: it compiles either way and degrades gracefully at runtime.
 
 // mcEntry accumulates the text and bounding box of all page text objects that
 // share one marked-content ID. Bounds are raw PDFium (bottom-left) coords.
@@ -57,16 +58,16 @@ func (e *mcEntry) union(l, b, r, t float64) {
 
 // structRegions reads a tagged PDF page's logical structure into structure.Regions
 // (the same neutral shape the geometric analyzer produces, so the caller maps both
-// onto the content model identically). It returns ok=false — meaning "no usable
-// tagged structure, fall back to geometry" — when the page has no struct tree, when
-// the experimental MCID APIs are unavailable, or when the tree yields no text.
+// onto the content model identically). It returns ok=false ("no usable tagged
+// structure, fall back to geometry") when the page has no struct tree, when the
+// experimental MCID APIs are unavailable, or when the tree yields no text.
 func structRegions(inst pdfium.Pdfium, docRef references.FPDF_DOCUMENT, pageIndex int, pageHeight float64, counter *int) ([]structure.Region, bool) {
 	pageRes, err := inst.FPDF_LoadPage(&requests.FPDF_LoadPage{Document: docRef, Index: pageIndex})
 	if err != nil {
 		return nil, false
 	}
 	pageRef := pageRes.Page
-	defer inst.FPDF_ClosePage(&requests.FPDF_ClosePage{Page: pageRef})
+	defer func() { _, _ = inst.FPDF_ClosePage(&requests.FPDF_ClosePage{Page: pageRef}) }()
 	page := requests.Page{ByReference: &pageRef}
 
 	tpRes, err := inst.FPDFText_LoadPage(&requests.FPDFText_LoadPage{Page: page})
@@ -74,7 +75,7 @@ func structRegions(inst pdfium.Pdfium, docRef references.FPDF_DOCUMENT, pageInde
 		return nil, false
 	}
 	textPage := tpRes.TextPage
-	defer inst.FPDFText_ClosePage(&requests.FPDFText_ClosePage{TextPage: textPage})
+	defer func() { _, _ = inst.FPDFText_ClosePage(&requests.FPDFText_ClosePage{TextPage: textPage}) }()
 
 	mc, ok := buildMCIDMap(inst, page, textPage)
 	if !ok || len(mc) == 0 {
@@ -95,7 +96,7 @@ func structRegions(inst pdfium.Pdfium, docRef references.FPDF_DOCUMENT, pageInde
 
 	w := &treeWalker{inst: inst, mc: mc, pageHeight: pageHeight, pageNum: pageIndex + 1, counter: counter}
 	var regions []structure.Region
-	for i := 0; i < cnt.Count; i++ {
+	for i := range cnt.Count {
 		ch, err := inst.FPDF_StructTree_GetChildAtIndex(&requests.FPDF_StructTree_GetChildAtIndex{StructTree: tree, Index: i})
 		if err != nil || ch.StructElement == "" {
 			continue
@@ -138,7 +139,7 @@ func buildMCIDMap(inst pdfium.Pdfium, page requests.Page, textPage references.FP
 			if err != nil {
 				return
 			}
-			for i := 0; i < fc.Count; i++ {
+			for i := range fc.Count {
 				sub, err := inst.FPDFFormObj_GetObject(&requests.FPDFFormObj_GetObject{PageObject: obj, Index: uint64(i)})
 				if err != nil || sub.PageObject == "" {
 					continue
@@ -171,7 +172,7 @@ func buildMCIDMap(inst pdfium.Pdfium, page requests.Page, textPage references.FP
 			e.add(txt.Text, float64(bnd.Left), float64(bnd.Bottom), float64(bnd.Right), float64(bnd.Top))
 		}
 	}
-	for i := 0; i < cnt.Count; i++ {
+	for i := range cnt.Count {
 		obj, err := inst.FPDFPage_GetObject(&requests.FPDFPage_GetObject{Page: page, Index: i})
 		if err != nil || obj.PageObject == "" {
 			continue
@@ -271,7 +272,7 @@ func (w *treeWalker) block(el references.FPDF_STRUCTELEMENT) *model.Block {
 	}
 	*w.counter++
 	b := model.NewBlock(fmt.Sprintf("tu%d", *w.counter), s)
-	b.Properties["page-number"] = fmt.Sprintf("%d", w.pageNum)
+	b.Properties["page-number"] = strconv.Itoa(w.pageNum)
 	if box.has {
 		b.SetGeometry(w.flip(box))
 	}
@@ -284,7 +285,7 @@ func (w *treeWalker) block(el references.FPDF_STRUCTELEMENT) *model.Block {
 func (w *treeWalker) gather(el references.FPDF_STRUCTELEMENT, text *strings.Builder, box *mcEntry) {
 	idCnt, err := w.inst.FPDF_StructElement_GetMarkedContentIdCount(&requests.FPDF_StructElement_GetMarkedContentIdCount{StructElement: el})
 	if err == nil {
-		for i := 0; i < idCnt.Count; i++ {
+		for i := range idCnt.Count {
 			idRes, err := w.inst.FPDF_StructElement_GetMarkedContentIdAtIndex(&requests.FPDF_StructElement_GetMarkedContentIdAtIndex{StructElement: el, Index: i})
 			if err != nil {
 				continue
@@ -306,7 +307,7 @@ func (w *treeWalker) children(el references.FPDF_STRUCTELEMENT) []references.FPD
 		return nil
 	}
 	var out []references.FPDF_STRUCTELEMENT
-	for i := 0; i < cnt.Count; i++ {
+	for i := range cnt.Count {
 		ch, err := w.inst.FPDF_StructElement_GetChildAtIndex(&requests.FPDF_StructElement_GetChildAtIndex{StructElement: el, Index: i})
 		if err != nil || ch.StructElement == "" {
 			continue

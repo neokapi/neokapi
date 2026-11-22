@@ -207,7 +207,7 @@ func jsDecl(n *ts.Node, parent string, src []byte) (string, bool) {
 				keyword = c.Kind()
 			}
 		}
-		for i := uint(0); i < n.NamedChildCount(); i++ {
+		for i := range n.NamedChildCount() {
 			if d := n.NamedChild(i); d.Kind() == "variable_declarator" {
 				return keyword + "/" + nodeName(d.ChildByFieldName("name"), src), true
 			}
@@ -231,7 +231,7 @@ func jsDecl(n *ts.Node, parent string, src []byte) (string, bool) {
 			return "global", true
 		}
 	case "export_statement":
-		for i := uint(0); i < n.NamedChildCount(); i++ {
+		for i := range n.NamedChildCount() {
 			c := n.NamedChild(i)
 			if c.Kind() == "decorator" || c.Kind() == "comment" {
 				continue
@@ -244,7 +244,7 @@ func jsDecl(n *ts.Node, parent string, src []byte) (string, bool) {
 			return "default", true
 		}
 	case "ambient_declaration":
-		for i := uint(0); i < n.NamedChildCount(); i++ {
+		for i := range n.NamedChildCount() {
 			if segment, ok := jsDecl(n.NamedChild(i), "ambient_declaration", src); ok {
 				return segment, true
 			}
