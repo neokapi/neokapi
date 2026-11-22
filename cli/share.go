@@ -109,7 +109,7 @@ changes here.`,
 // as `kapi context sync` does, so an isolated run inside a project never
 // reads or syncs that project's recipe.
 func shareRecipePath(cmd *cobra.Command) (string, error) {
-	recipe, err := ResolveProjectPath(cmd)
+	recipe, err := ResolveNewProjectPath(cmd)
 	if err != nil || recipe != "" {
 		return recipe, err
 	}

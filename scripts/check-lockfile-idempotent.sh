@@ -45,12 +45,11 @@ fi
 
 before="$(git hash-object "$LOCKFILE")"
 
-# `vp` resolves the pnpm pinned in package.json#packageManager. A bare `pnpm` now
-# resolves the same pinned version — #1461 fixed the `packageManagerRegistries`
-# setting that made pnpm's self-install fail on any machine whose default registry
-# is a mirror — so either would work today. `vp` is kept because it is what every
-# CI job and Makefile target already uses, and it needs no `packageManager`
-# self-install step at all.
+# `vp` resolves the pnpm pinned in package.json#packageManager and installs it
+# itself, so it needs no pnpm self-install step. A bare `pnpm` of another version
+# switches to the pin through that step, which fails on a machine whose default
+# registry is a mirror (the mirror's tarball URLs are not canonical for it). `vp`
+# is also what every CI job and Makefile target uses.
 if ! command -v vp >/dev/null 2>&1; then
   echo "error: vp (vite-plus) not found — it provides the pinned pnpm" >&2
   exit 1
