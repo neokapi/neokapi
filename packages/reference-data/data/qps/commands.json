@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T16:31:00Z",
+  "generatedAt": "2026-11-22T17:17:44Z",
   "commands": [
     {
       "id": "add",
@@ -9535,6 +9535,13 @@
           "name": "batching",
           "usage": "▒ ĥöŵ ḿàñý ƃļöçķš šĥàŕé öñé ĻĻḾ çàļļ: àüţö (đéƒàüļţ), šîñĝļé ▒",
           "type": "string"
+        },
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "▒ ñüḿƃéŕ öƒ ƒîļéš ţö þŕöçéšš àţ öñçé (0 = àüţö) ▒",
+          "default": "0",
+          "type": "int"
         },
         {
           "name": "context",

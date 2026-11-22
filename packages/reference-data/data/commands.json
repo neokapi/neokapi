@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T16:31:00Z",
+  "generatedAt": "2026-11-22T17:17:44Z",
   "commands": [
     {
       "id": "add",
@@ -9535,6 +9535,13 @@
           "name": "batching",
           "usage": "how many blocks share one LLM call: auto (default), single",
           "type": "string"
+        },
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "number of files to process at once (0 = auto)",
+          "default": "0",
+          "type": "int"
         },
         {
           "name": "context",
