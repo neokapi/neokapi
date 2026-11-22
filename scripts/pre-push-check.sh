@@ -135,6 +135,8 @@ run_check "Em dashes in shipped prose" ./scripts/check-em-dashes.sh
 # nothing else here would notice it losing its teeth. ~1s, all in a scratch repo.
 run_check "Test shards cover every test once" ./scripts/go-test-shard.sh --self-test
 run_check "Copies of each tool pin agree" python3 scripts/check-tool-versions.py --offline
+run_check "Reliability checklist validates" python3 scripts/reliability-checklist.py --self-test
+run_check "Commit gate hook" ./.claude/hooks/commit-gate.sh --self-test
 run_check "Bindings generator warnings about our code fail" ./scripts/wails-generate.sh --self-test
 run_check "Loop output gate" ./scripts/check-loop-output.sh --self-test
 

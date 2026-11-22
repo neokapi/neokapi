@@ -115,6 +115,37 @@ set -o pipefail; golangci-lint run ./core/... | tail -20   # exits non-zero
 golangci-lint run ./core/... > /tmp/lint.out 2>&1; echo $?  # or capture first
 ```
 
+## Verify before you commit
+
+Most changes here are written and merged by an agent, so a change counts as
+done when it has been run, not when its tests pass.
+
+- **Run the `verify` skill before every commit of product code**
+  (`.claude/skills/verify/`). It finds the surfaces the diff touches, runs the
+  real binary, server or app for each, and says what to record. Its recipes
+  hold the launch commands, so do not rediscover them.
+- **`make reliability-checklist`** prints the checks from past incidents whose
+  trigger matches your diff (`docs/internals/reliability-checklist.yaml`).
+  When a failure happens twice, or costs a day, it becomes an item there.
+- **Pull request CI does not run everything.** The integration lane, the Docker
+  E2E stack, the race detector (unless the pull request carries the `race`
+  label) and the release workflows run later or on request. The verify recipes
+  say when to run them yourself.
+- **Three rounds, then stop.** When a check still fails after three attempts
+  to fix it, bring in the person with what fails and what you tried.
+- **Never weaken a check to pass it**: no skipped or deleted test, no sleep or
+  retry, no loosened assertion, no new allowlist entry. A flaky test has a
+  cause; find it.
+- **A change to a check needs the person.** A diff that edits a guard, an
+  allowlist, a workflow, `REVIEW.md` or the checklist says so at the top of its
+  description and waits for the person before it merges.
+- **End the commit message with a `Verified:` trailer** naming the recipes you
+  ran, or `Verified: none (<reason>)`. A hook records commits without one
+  (`.claude/hooks/commit-gate.sh`, observe mode).
+
+`REVIEW.md` tells a reviewer where defects have come from in this repository.
+Read it before reviewing a pull request, your own included.
+
 ## Dogfooding kapi: the in-repo isolation contract
 
 This repo dogfoods kapi. A `kapi.yaml` recipe at the repo root is driven by the

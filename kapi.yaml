@@ -556,7 +556,7 @@ collections:
       - path: "{bowrain/e2e,bowrain/scripts,harness,scripts}/**/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
-      - path: "{.skills,bench,bowrain/docker,bowrain/e2e,bowrain/scripts,core,examples,harness,kapi,plugins,scripts}/**/*.{sh,py,rs,c,h,cs,java,rb}"
+      - path: "{.claude/hooks,.claude/skills,.skills,bench,bowrain/docker,bowrain/e2e,bowrain/scripts,core,examples,harness,kapi,plugins,scripts}/**/*.{sh,py,rs,c,h,cs,java,rb}"
         comments:
           only: true
   - name: source-config-comments
@@ -585,7 +585,7 @@ collections:
       - path: "*.md"
         comments:
           only: true
-      - path: "{.skills,bowrain/docker,bowrain/e2e,bowrain/graph,bowrain/web/docs,cli,core,deploy,docs,examples,harness,host,packages/kapi-claude-plugin,plugins,scripts,specs,web/demos,web/static,web/walkthroughs}/**/*.{md,mdx,html}"
+      - path: "{.claude/skills,.skills,bowrain/docker,bowrain/e2e,bowrain/graph,bowrain/web/docs,cli,core,deploy,docs,examples,harness,host,packages/kapi-claude-plugin,plugins,scripts,specs,web/demos,web/static,web/walkthroughs}/**/*.{md,mdx,html}"
         comments:
           only: true
       - path: "{apps/kapi-desktop/frontend,bowrain,bowrain/apps/bowrain/frontend,bowrain/web/landing,packages/*}/*.{md,html}"
