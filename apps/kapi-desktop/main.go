@@ -70,6 +70,13 @@ func main() {
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 		SingleInstance: singleInstance,
+		// Every quit asks here first: Quit in the app menu, Cmd+Q, the Dock,
+		// a logout, and app.Quit() on Windows and Linux. A tab with unsaved
+		// changes holds the quit until the person answers the frontend's
+		// dialog.
+		ShouldQuit: func() bool {
+			return backend.GuardClose(appService, backend.CloseRouteQuit)
+		},
 	})
 
 	appService.SetApplication(app)
@@ -115,6 +122,18 @@ func main() {
 			InvisibleTitleBarHeight: 50,
 		},
 	})
+
+	// The window's close button, Close Window (Cmd+W) and win.Close() all
+	// reach WindowClosing, from the macOS windowShouldClose, the Windows
+	// WM_CLOSE and the Linux delete-event. A hook runs before the window is
+	// destroyed and can cancel it. A confirmed close finishes by the route that
+	// asked.
+	win.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
+		if !backend.GuardClose(appService, backend.CloseRouteWindow) {
+			event.Cancel()
+		}
+	})
+	backend.SetClosers(appService, win.Close, app.Quit)
 
 	// Forward dropped files to the frontend.
 	win.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
