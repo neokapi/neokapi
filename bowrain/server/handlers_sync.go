@@ -32,12 +32,11 @@ import (
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
 
-// The sync handlers scope to a stream via refParam (editor.go): every sync
-// route — workspace-scoped and flat alike — names the parameter :ref
-// (AD-011). An earlier generation of these handlers read :stream, a name no
-// sync route ever declared, so the lookup came back empty on every request
-// and each handler quietly fell back to "main" — a branch-scoped push landed
-// on the default stream regardless of the URL it arrived on.
+// The sync handlers scope to a stream via refParam (editor.go). Every sync
+// route, workspace-scoped and flat alike, names the parameter :ref (AD-011).
+// A handler that read any other name would find it empty and fall back to
+// "main", so a branch-scoped push would land on the default stream whatever
+// URL it arrived on.
 
 // HandleSyncPushInit handles the first step of a push: Merkle tree diff negotiation.
 // POST /sync/push/init
@@ -56,7 +55,7 @@ func (s *Server) HandleSyncPushInit(c *echo.Context) error {
 		Collections  []string          `json:"collections"`
 		// ContentModelEpoch is the generation of content model the producer
 		// reads into, and AllowModelDowngrade is `push --force` carrying past
-		// the refusal — see core/venue.ContentModelEpoch.
+		// the refusal. See core/venue.ContentModelEpoch.
 		ContentModelEpoch   int  `json:"content_model_epoch"`
 		AllowModelDowngrade bool `json:"allow_model_downgrade"`
 		// Settings are the recipe-owned project settings the producer's recipe
@@ -149,9 +148,9 @@ func (s *Server) HandleSyncPushInit(c *echo.Context) error {
 		_, refusedSettings = store.DecideRecipeSettings(proj, req.Settings, s.settingsPusher(c, req.Stream))
 	}
 
-	// Fast path: root hash comparison. Only "unchanged" when the declared
-	// context matches too — otherwise the push proceeds carrying no chunks and
-	// a manifest that is nothing but the context.
+	// Fast path: root hash comparison. It answers "unchanged" only when the
+	// declared context matches too. Otherwise the push proceeds carrying no
+	// chunks and a manifest that is nothing but the context.
 	if req.RootHash != "" && !ctxDiff.Changed {
 		unchanged, err := diffEngine.CheckRootHash(c.Request().Context(), req.ProjectID, req.Stream, req.RootHash)
 		if err == nil && unchanged {
@@ -228,11 +227,11 @@ type pushCommitManifest struct {
 	ExpectedRef ref.Ref `json:"expected_ref"`
 	// BlockPropertyKeys declares what this producer's readers record, so
 	// the worker knows which stored properties this push is authoritative
-	// about. Passed through verbatim like Items — see
+	// about. Passed through verbatim like Items; see
 	// core/venue.BlockPropertyKeys.
 	BlockPropertyKeys []string `json:"block_property_keys"`
 	// Scope is the set of paths this push is authoritative over, and Tree
-	// is what the producer read within it — per item, the block keys it
+	// is what the producer read within it: per item, the block keys it
 	// holds and the content hash of each. Together they are how a push says
 	// what is GONE: a deletion sends no block, so the payload cannot say
 	// it, and absence is only an answer inside a declared scope. Passed
@@ -310,8 +309,8 @@ func (s *Server) HandleSyncPushCommit(c *echo.Context) error {
 	//
 	// Only the components this manifest WRITES are asserted. A push carrying
 	// blocks and nothing else asserts nothing, so content traffic cannot be
-	// refused because governance moved beside it — which is the whole reason the
-	// ref has components rather than one number.
+	// refused because governance moved beside it. That is why the ref has
+	// components rather than one number.
 	if err := s.assertGovernance(c.Request().Context(), manifest.ProjectID, manifest.Stream,
 		manifest.ExpectedRef,
 		writtenComponents(carriesRecords(manifest.Contexts), carriesDecisions(manifest.Decisions))...); err != nil {
@@ -322,7 +321,7 @@ func (s *Server) HandleSyncPushCommit(c *echo.Context) error {
 	}
 
 	// Enforce upload budget. Cheap and manifest-local, so it runs before the
-	// per-chunk storage probes below — an oversized manifest is rejected without
+	// per-chunk storage probes below: an oversized manifest is rejected without
 	// paying for a stat per chunk.
 	maxPushBytes := s.Config.MaxPushBytes
 	if maxPushBytes <= 0 {
@@ -338,15 +337,12 @@ func (s *Server) HandleSyncPushCommit(c *echo.Context) error {
 
 	// Every chunk the manifest names must already be a blob this server stored.
 	//
-	// This check used to be skipped whenever the blob store implemented
-	// ChunkedBlobStore, on the theory that such a store keeps chunks in an
-	// upload session rather than in content-addressed storage. That is not how
-	// either backend behaves: HandleSyncProxyChunkUpload stores every proxied
-	// chunk through BlobStore.Upload, which is content-addressed by
-	// construction, and the ChunkedBlobStore staging methods have no caller.
-	// The exemption therefore only ever applied to the self-hosted local store
-	// — the one deployment where it removed the sole check standing between a
-	// client-supplied hash and the worker that resolves it.
+	// The check runs for every blob store, ChunkedBlobStore included.
+	// HandleSyncProxyChunkUpload stores every proxied chunk through
+	// BlobStore.Upload, which is content-addressed, and the ChunkedBlobStore
+	// staging methods have no caller. On the self-hosted local store this is
+	// the only check between a client-supplied hash and the worker that
+	// resolves it.
 	for _, chunk := range manifest.Chunks {
 		exists, err := s.BlobStore.Exists(c.Request().Context(), chunk.Hash)
 		if err != nil || !exists {
@@ -408,7 +404,7 @@ func (s *Server) HandleSyncPushCommit(c *echo.Context) error {
 	// Raise the stream's model generation to the one this push carried, now
 	// that it is accepted. On commit rather than at init: a push that
 	// negotiated and then failed must not close a stream to producers whose
-	// content it never delivered. Best-effort — the next push records it.
+	// content it never delivered. Best-effort: the next push records it.
 	if manifest.ContentModelEpoch > 0 {
 		_ = bowsync.NewDiffEngine(s.ContentStore, s.SyncCache).RecordContentModelEpoch(
 			c.Request().Context(), manifest.ProjectID, manifest.Stream, manifest.ContentModelEpoch)
@@ -665,8 +661,8 @@ func (s *Server) HandleSyncPull(c *echo.Context) error {
 
 	// The freshness ref rides on the LAST page only. A client keeps the last
 	// page's ref and discards every earlier one, so computing it per page would
-	// be work whose answer is thrown away — and a pull is a client's cheapest
-	// contact with the server precisely because it stays cheap.
+	// be work whose answer is thrown away. A pull is a client's cheapest
+	// contact with the server and has to stay cheap.
 	if !resp.HasMore {
 		if current, rerr := bowsync.CurrentRef(ctx, s.streamRefSource(), projectID, stream); rerr == nil {
 			resp.Ref = &current
@@ -675,7 +671,7 @@ func (s *Server) HandleSyncPull(c *echo.Context) error {
 
 	// The decision ledger travels like the declared context: small, always
 	// current, on every page rather than cursor-driven. A store without the
-	// ledger capability simply sends none.
+	// ledger capability sends none.
 	if ds, ok := s.ContentStore.(store.DecisionStore); ok {
 		if decisions, derr := ds.ListUnitDecisions(ctx, projectID, stream); derr == nil {
 			resp.Decisions = decisions
@@ -764,7 +760,7 @@ func (s *Server) HandleSyncPull(c *echo.Context) error {
 
 // pullContextEntries renders the project's collections as the pull's context
 // content type: which collections exist, the point each occupies, who governs
-// it, and — decisively — which side owns it.
+// it, and which side owns it.
 //
 // Every collection is carried, workspace-owned and recipe-owned alike.
 // Ownership is what the client keys its own decisions on, so withholding the
@@ -773,7 +769,7 @@ func (s *Server) HandleSyncPull(c *echo.Context) error {
 //
 // The voice profile travels as its NAME, resolved from the bound id: a name is
 // what a recipe and a brand hub agree on, while an id is one instance's
-// bookkeeping. Best-effort throughout — a collection listing that fails, or a
+// bookkeeping. Best-effort throughout: a collection listing that fails, or a
 // profile id that no longer resolves, costs the pull its context rather than
 // its content.
 func (s *Server) pullContextEntries(ctx context.Context, projectID, stream string) []*pb.SyncContextEntry {
@@ -826,8 +822,8 @@ func (s *Server) pullContextEntries(ctx context.Context, projectID, stream strin
 //
 // The length of the raw message will not do: a JSON `null` is four bytes and an
 // empty array is two, so measuring the bytes makes a push that writes no
-// governance look like one that does — and then refuses it because governance
-// moved somewhere it never touched.
+// governance look like one that does. Such a push would then be refused
+// because governance moved somewhere it never touched.
 func carriesRecords(raw json.RawMessage) bool {
 	var records []json.RawMessage
 	if err := json.Unmarshal(raw, &records); err != nil {

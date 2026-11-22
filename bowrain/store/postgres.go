@@ -197,8 +197,8 @@ func (s *PostgresStore) DeleteProject(ctx context.Context, id string) error {
 
 	// Most of the project's content goes with it on the projects foreign key.
 	// These tables carry a bare project_id, so no cascade reaches them and the
-	// verb clears them itself — otherwise a deleted project's history, notes,
-	// decisions and proposals outlive every block they describe.
+	// verb clears them itself. Otherwise a deleted project's history, notes,
+	// decisions and proposals would outlive every block they describe.
 	tables := append(storeutil.ProjectScopedTablesWithoutCascade(), "change_log_archive")
 	for _, table := range tables {
 		//nolint:gosec // table is a fixed literal from storeutil, never user input
@@ -289,8 +289,8 @@ func (s *PostgresStore) createCollectionTx(ctx context.Context, r storage.Runner
 	if err != nil {
 		return fmt.Errorf("seal connector config: %w", err)
 	}
-	// The coordinates are slugs a recipe declares in plain sight, so unlike the
-	// connector config — which carries credentials — they are stored unsealed.
+	// The coordinates are slugs a recipe declares in plain sight, so they are
+	// stored unsealed, unlike the connector config, which carries credentials.
 	contextJSON, err := json.Marshal(c.Context)
 	if err != nil {
 		return fmt.Errorf("marshal collection context: %w", err)
@@ -478,15 +478,13 @@ func storeItemTx(ctx context.Context, tx Runner, projectID, stream string, item 
 		item.ID = id.New()
 	}
 
-	// An empty incoming collection id means "unspecified", not "no collection",
-	// and what it resolves to depends on whether this item is already bound:
-	// an item with no binding yet falls to the project's default collection,
-	// while an item that is already filed under one keeps that binding. A
-	// caller that could not resolve a collection this time round — a transient
-	// lookup failure on a re-push — must not move content out of the collection
-	// it was filed under. Both halves are decided in the statement below, on the
-	// raw incoming id ($10): resolving the default here instead would hand the
-	// upsert a non-empty id and clobber the existing binding (#1840).
+	// An empty incoming collection id means "unspecified", not "no collection".
+	// An item with no binding yet falls to the project's default collection; an
+	// item already filed under one keeps that binding, so a transient lookup
+	// failure on a re-push cannot move its content. Both cases are decided in
+	// the statement below, on the raw incoming id ($10). Resolving the default
+	// here would hand the upsert a non-empty id and overwrite the binding
+	// (#1840).
 	fallbackCollectionID := ""
 	if item.CollectionID == "" {
 		// On the caller's executor, not the pool: a push that reconciled its
@@ -562,14 +560,15 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemN
 	return tx.Commit()
 }
 
-// deleteItemTx is the work, on whatever executor the caller brings — its own
+// deleteItemTx is the work, on whatever executor the caller brings: its own
 // transaction, or the one a whole push is landing in.
 //
 // The content goes and the ledger stays. A decision is the producer's committed
 // record speaking, and a file leaving a checkout says nothing about that record:
 // the file is gone from the tree, the approval is still in the record, and a
-// producer sends the record again only when its fold moves. Taking the rows here
-// lost them, because the push that removed them was the one push carrying them.
+// producer sends the record again only when its fold moves. Deleting the rows
+// here would lose them, because the push that removes the file is the one push
+// carrying them.
 //
 // So an item holding decisions keeps its row as the anchor those rows are keyed
 // on, and content arriving at that path again finds them. An item holding none
@@ -633,9 +632,9 @@ func deleteItemTx(ctx context.Context, tx Runner, projectID, stream, itemName st
 //
 // The rows describing an item hang off its id, so the rename is one UPDATE
 // there. Blocks are the exception: they carry item_name as their address, so
-// they move with it. Nothing about a block's identity changes — which is the
-// point. A rename that minted new blocks would orphan every approval on the
-// file, and "delete the old, create the new" is exactly what did that.
+// they move with it. Nothing about a block's identity changes. A rename that
+// minted new blocks, by deleting the old and creating the new, would orphan
+// every approval on the file.
 func renameItemTx(ctx context.Context, tx Runner, projectID, stream, itemID, newName string) error {
 	stream = storeutil.DefaultStream(stream)
 
@@ -712,8 +711,8 @@ func (s *PostgresStore) WriteBackBlocks(ctx context.Context, projectID, stream s
 //
 // The item's rows are loaded and diffed in Go rather than handed to SQL as a
 // NOT IN list: `keep` is one file's worth of keys, but a NOT IN over it binds a
-// parameter per key and Postgres stops at 65535 — the same ceiling the batched
-// hash prefetch in storeBlocks exists to stay under.
+// parameter per key and Postgres stops at 65535. The batched hash prefetch in
+// storeBlocks stays under the same ceiling.
 //
 // Scoped to one stream, so pruning a branch leaves its parent alone.
 func (s *PostgresStore) PruneItemBlocks(ctx context.Context, projectID, stream, itemName string, keep []string) (int, error) {
@@ -733,7 +732,7 @@ func (s *PostgresStore) PruneItemBlocks(ctx context.Context, projectID, stream, 
 	return n, nil
 }
 
-// pruneItemBlocksTx is the work, on whatever executor the caller brings — its
+// pruneItemBlocksTx is the work, on whatever executor the caller brings: its
 // own transaction, or the one a whole push is landing in.
 func pruneItemBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName string, keep []string) (int, error) {
 	if itemName == "" {
@@ -808,7 +807,7 @@ func (s *PostgresStore) SetBlockOrder(ctx context.Context, projectID, stream, it
 	return nil
 }
 
-// setBlockOrderTx is the work, on whatever executor the caller brings — its own
+// setBlockOrderTx is the work, on whatever executor the caller brings: its own
 // transaction, or the one a whole push is landing in.
 //
 // Rows are diffed in Go and only the ones whose position moved are written, so
@@ -902,10 +901,10 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 
 // storeBlocksTx is the work, on whatever executor the caller brings.
 //
-// A non-nil wb makes it a write-back of item-less blocks read from this store:
-// a block is written only to an existing row that still holds the source
-// revision the caller read, by an UPDATE that checks that revision itself, so a
-// push that commits between this call's own read and its write is caught too. Every
+// A non-nil wb makes it a write-back of item-less blocks read from this store.
+// A block is written only to an existing row that still holds the source
+// revision the caller read. The UPDATE checks that revision itself, so a push
+// that commits between this call's read and its write is caught too. Every
 // other block is recorded on wb as skipped, and nothing else is written for it.
 // A write-back keeps the row's stored context hash: the properties a server step
 // records are its own bookkeeping, and the producer's next push compares against
@@ -924,14 +923,11 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 	// to internal project-unique IDs.
 	//
 	// Both directions are loaded, because a block can arrive carrying either
-	// kind of ID. A push or a format read supplies the caller's own ID, which
-	// this item may already have minted an internal ID for. But a caller that
-	// read blocks *out* of this store — the extraction worker annotating an
-	// item, the editor writing a parsed item back — hands back rows whose ID is
-	// already the internal one. Treating that as an unseen caller ID minted a
-	// second row for content that was already stored, under source_id = the
-	// first row's ID: two rows, same content_hash, different ids, which is
-	// exactly the duplication in #1527.
+	// kind of ID. A push or a format read supplies the caller's own ID. A caller
+	// that read blocks out of this store (the extraction worker, the editor
+	// writing a parsed item back) hands back the internal ID. Treated as a new
+	// caller ID, it would mint a second row for stored content, with two rows
+	// sharing a content_hash (#1527).
 	existingSourceIDs := map[string]string{} // caller/source id → internal id
 	internalSourceIDs := map[string]string{} // internal id → its source id
 	// The item's durable identity, recorded on every block so a rename moves the
@@ -973,9 +969,9 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 		// stored fetched blocks with item_name='' under their raw format-reader
 		// IDs. When this item stores a reader ID it does not already map, claim
 		// the orphaned row for the item (stamping item_name + source_id) instead
-		// of minting a duplicate internal ID — the row, its targets, and its
-		// history heal in place, and the adopted row is picked up by the hash
-		// query below like any other item-scoped block.
+		// of minting a duplicate internal ID. The row, its targets and its
+		// history heal in place, and the hash query below picks up the adopted
+		// row like any other item-scoped block.
 		adopt, err := tx.PrepareContext(ctx,
 			`UPDATE blocks SET item_name=$1, source_id=$2 WHERE project_id=$3 AND stream=$4 AND id=$5 AND item_name=''`)
 		if err != nil {
@@ -1070,7 +1066,7 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 		for start := 0; start < len(ids); start += prefetchChunk {
 			chunk := ids[start:min(start+prefetchChunk, len(ids))]
 
-			// The concatenated fragment is "$2,$3,…" from a count — never
+			// The concatenated fragment is "$2,$3,…" from a count, never
 			// caller data; values travel as bind parameters below.
 			hashQuery := `SELECT id, source_revision FROM blocks WHERE project_id=$1 AND stream=$2 AND id IN (` +
 				placeholderList("pg", 3, len(chunk)) + `)`
@@ -1089,7 +1085,7 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 				present = append(present, bid)
 			}
 			// A truncated read here silently drops existing blocks from the
-			// prefetch, so they get relabeled source_added — losing approvals and
+			// prefetch, so they get relabeled source_added and lose approvals and
 			// target history on a source change.
 			if err := hashRows.Err(); err != nil {
 				hashRows.Close()
@@ -1130,21 +1126,21 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 		internalID := b.ID
 
 		if itemName != "" {
-			// An ID this item's rows already carry is that row — the block was
-			// read out of this store and is being written back. Checked before
-			// the caller-ID map because naming a row directly is the stronger
-			// claim; the two only ever collide on rows this bug already
-			// created, where resolving to the original row is also the repair.
+			// An ID this item's rows already carry is that row: the block was
+			// read out of this store and is being written back. It is checked
+			// before the caller-ID map because naming a row directly is the
+			// stronger claim. The two collide only on duplicate rows from #1527,
+			// where resolving to the original row is also the repair.
 			if existingSource, isInternal := internalSourceIDs[b.ID]; isInternal {
 				internalID = b.ID
 				sourceID = existingSource
 			} else {
 				// The caller's DURABLE identity, not its reader id. A reader
-				// numbers blocks as it goes for formats with no natural key, so
-				// keying rows on that id meant deleting one paragraph renumbered
-				// every block below it and each stored row rebound to its
-				// neighbour's text — carrying that row's history, decisions and
-				// translation onto content that was never reviewed.
+				// numbers blocks as it goes for formats with no natural key. Keyed
+				// on that id, deleting one paragraph would renumber every block
+				// below it, and each stored row would rebind to its neighbour's
+				// text, carrying that row's history, decisions and translation
+				// onto content that was never reviewed.
 				//
 				// convergence.BlockKey resolves to the structural name a reader
 				// assigns (core/model/structural.go), which moves only when the
@@ -1184,8 +1180,8 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 			return fmt.Errorf("marshal properties for block %s: %w", internalID, err)
 		}
 		// Stand-off overlays (segmentation, term, entity, term-candidate, qa,
-		// alignment) ride alongside source_json so they survive the round-trip —
-		// without this they would be dropped and the entity→concept promote path
+		// alignment) ride alongside source_json so they survive the round-trip.
+		// Without this they would be dropped, and the entity→concept promote path
 		// would break on the next GetBlocks. Nil/empty overlays encode to "[]".
 		overlaysJSON, err := MarshalOverlays(b.Overlays)
 		if err != nil {
@@ -1263,9 +1259,9 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 			}
 			// A target is logged when its text moved, not merely because the
 			// caller carried it. Every write-back caller hands over the whole
-			// block with every locale hydrated, so logging on presence alone
-			// stamped one locale's draft, or a settlement stamp, as a change in
-			// every other locale: a locale-scoped pull then re-serves blocks
+			// block with every locale hydrated. Logging on presence alone would
+			// stamp one locale's draft, or a settlement stamp, as a change in
+			// every other locale, and a locale-scoped pull would re-serve blocks
 			// nobody touched. recordTargetHistoryPg already asks this question
 			// of the same snapshot, a few lines above.
 			prevText := oldTargetText[internalID]
@@ -1346,11 +1342,12 @@ const pgStatusBucket = `CASE
 END`
 
 // pgSourceTextMatch tests the substring against each source run's text
-// separately. Text runs serialize flat — {"text":"literal"} — so the run's
+// separately. Text runs serialize flat ({"text":"literal"}), so the run's
 // text is at ->>'text'; every other run kind nests under its own
 // discriminator and yields NULL there. A run array is the only shape
 // source_json ever holds, but a nil run slice marshals to JSON null, which
-// jsonb_array_elements rejects — hence the type guard rather than a bare cast.
+// jsonb_array_elements rejects. The type guard handles that, where a bare
+// cast would fail.
 const pgSourceTextMatch = `EXISTS (
 	SELECT 1 FROM jsonb_array_elements(
 		CASE WHEN jsonb_typeof(b.source_json::jsonb) = 'array' THEN b.source_json::jsonb ELSE '[]'::jsonb END
@@ -1383,8 +1380,8 @@ func pgBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterPg {
 	}
 
 	// A block belongs to one stream. Unfiltered, every query would read its
-	// branches' rows alongside its own — the same block id exists on each — so
-	// the scope is applied here rather than left to each caller to remember.
+	// branches' rows alongside its own, because the same block id exists on
+	// each. The scope is applied here rather than left to each caller.
 	where = append(where, "b.stream = "+bind(storeutil.DefaultStream(query.Stream)))
 
 	if query.ItemName != "" {
@@ -1406,11 +1403,11 @@ func pgBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterPg {
 		where = append(where, "b.content_hash = "+bind(query.ContentHash))
 	}
 	// The keyset cursor. Rows come back in id order, so "after this id" is the
-	// next page — see BlockQuery.AfterID.
+	// next page. See BlockQuery.AfterID.
 	if query.AfterID != "" {
 		where = append(where, "b.id > "+bind(query.AfterID))
 	}
-	// The cursor pointing the other way — see BlockQuery.BeforeID. The rows are
+	// The cursor pointing the other way; see BlockQuery.BeforeID. The rows are
 	// selected in descending id order so a Limit takes the NEAREST predecessors;
 	// GetBlocks puts them back in ascending order.
 	if query.BeforeID != "" {
@@ -1475,8 +1472,8 @@ func pgBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterPg {
 
 // blockScope describes what a block query was scoped BY, never what it was
 // scoped to. A span description is a label Sentry groups on, so putting a
-// project id in it would mint a separate row per project and group nothing —
-// the same reason a transaction is named by its route and not its URL. What is
+// project id in it would mint a separate row per project and group nothing,
+// for the same reason a transaction is named by its route and not its URL. What is
 // worth seeing is the shape: whether a read was bounded to one item, to a page,
 // or to everything.
 func blockScope(q platstore.BlockQuery) string {
@@ -1603,31 +1600,26 @@ func (s *PostgresStore) CountBlocks(ctx context.Context, query platstore.BlockQu
 }
 
 // ListPendingReview pages the (block, locale) pairs whose stored target still
-// needs a review decision. One indexed join answers what the review session
-// once assembled with a blocks fetch per item — minutes of "gathering" at
-// dogfood scale (978 items), and only ever the first dashboard page of it.
+// needs a review decision. It is one indexed join; a blocks fetch per item
+// takes minutes at dogfood scale (978 items).
 func (s *PostgresStore) ListPendingReview(ctx context.Context, q platstore.PendingReviewQuery) ([]platstore.PendingReviewRef, int, error) {
 	stream := storeutil.DefaultStream(q.Stream)
 	limit := q.Limit
 	if limit <= 0 {
 		limit = 200
 	}
-	// Constant skeleton + $N placeholder tokens only; every value binds
-	// through args (the G201-triage contract this package's query builders
-	// share).
+	// Constant skeleton and $N placeholders only; every value binds through
+	// args (this package's G201 contract).
 	//
 	// The status test is the review-completion gate's predicate (see
 	// server/review_loop.go targetPendingReview): anything below reviewed is
-	// pending — including an EMPTY status, which an IN ('draft','translated')
-	// spelling once excluded, leaving a block that stalls completion forever
-	// invisible in the queue. Known narrower edge: a code-only target
-	// (RunsHaveContent true, flattened text empty) is pending for the gate
-	// but skipped here by text <> ''.
+	// pending, an empty status included. Known edge: a code-only target
+	// (RunsHaveContent true, text empty) is pending for the gate but skipped
+	// here by text <> ''.
 	//
-	// The items join carries each block's collection, and is LEFT so a block
-	// whose item has no row for the stream stays in the queue (as ungrouped)
-	// rather than disappearing from it. The filter tests the same COALESCE the
-	// projection returns, so what a caller filters by is what it reads back.
+	// The items join carries each block's collection. It is a LEFT join, so a
+	// block whose item has no row for the stream stays in the queue as
+	// ungrouped. The filter tests the same COALESCE the projection returns.
 	const skeleton = `SELECT %s FROM blocks b JOIN translations t
 		ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = $2
 		LEFT JOIN items i
@@ -1947,7 +1939,7 @@ func (s *PostgresStore) Diff(ctx context.Context, fromVersionID, toVersionID str
 }
 
 // ---------------------------------------------------------------------------
-// Scan helpers (PostgreSQL — uses time.Time directly for TIMESTAMPTZ)
+// Scan helpers (PostgreSQL; time.Time is used directly for TIMESTAMPTZ)
 // ---------------------------------------------------------------------------
 
 func scanProject(row scanner) (*platstore.Project, error) {
@@ -2011,8 +2003,8 @@ func scanStoredBlockPg(row scanner) (*venue.StoredBlock, error) {
 	// Lift the folded source-authoring status back onto the block (source-first
 	// gate). Symmetric with PropsForStore on the write side.
 	platstore.ApplySourceStatusFromProps(sb.Block)
-	// The stored source id IS the block's durable unit — it is what a decision,
-	// a translation and a history entry are filed under here. Reading it back
+	// The stored source id IS the block's durable unit: a decision, a
+	// translation and a history entry are filed under it here. Reading it back
 	// onto the block is what makes a pull round-trip the identity rather than
 	// hand back a block whose key would be re-derived from its name.
 	sb.Block.Key = sb.SourceID
