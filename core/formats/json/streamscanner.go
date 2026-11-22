@@ -21,7 +21,7 @@ import (
 // scanner targets parity on well-formed JSON/JSON5 (objects, arrays, strings with
 // escapes/surrogates, numbers, literals, bare identifiers, and //, /* */, #,
 // <!-- --> comments). Malformed-input error byte-offsets and the validation-mode
-// snippet window are out of scope — those callers keep the buffered scanner.
+// snippet window are out of scope; those callers keep the buffered scanner.
 //
 // All lookahead is bounded (<= 10 bytes, well within bufio's 4 KiB window), so a
 // bufio.Reader.Peek drives it without holding the document.
@@ -31,6 +31,9 @@ type streamScanner struct {
 
 	errOffset   int
 	errCategory string
+
+	// commentErr mirrors scanner.commentErr.
+	commentErr error
 }
 
 func newStreamScanner(r io.Reader) *streamScanner {
@@ -82,9 +85,20 @@ func (s *streamScanner) drop() {
 	}
 }
 
-// next returns the next token, mirroring scanner.next().
+// next returns the next token, with its byte offset, mirroring scanner.next().
 func (s *streamScanner) next() (token, error) {
+	start := s.pos
+	tok, err := s.scanToken()
+	tok.offset = start + len(tok.prefix)
+	return tok, err
+}
+
+// scanToken scans the token at the current position.
+func (s *streamScanner) scanToken() (token, error) {
 	prefix := s.skipWhitespaceAndComments()
+	if s.commentErr != nil {
+		return token{}, s.commentErr
+	}
 
 	ch, ok := s.peekByte()
 	if !ok {
@@ -218,18 +232,20 @@ func (s *streamScanner) skipWhitespaceAndComments() string {
 		}
 		// /* block comment */ (supports nesting).
 		if ch == '/' && len(two) == 2 && two[1] == '*' {
+			open := s.pos
 			s.take(&out)
 			s.take(&out)
 			depth := 1
 			for depth > 0 {
 				pair := s.peekN(2)
 				if len(pair) < 2 {
-					// Unterminated at EOF: consume the remainder.
+					// Unterminated at EOF: consume the remainder, and fail.
 					for {
 						if _, ok := s.take(&out); !ok {
 							break
 						}
 					}
+					s.commentErr = s.syntaxErr(open, "json scanner: unterminated comment at position %d", open)
 					break
 				}
 				switch {
@@ -263,6 +279,7 @@ func (s *streamScanner) skipWhitespaceAndComments() string {
 		if ch == '<' {
 			four := s.peekN(4)
 			if len(four) == 4 && four[1] == '!' && four[2] == '-' && four[3] == '-' {
+				open := s.pos
 				s.take(&out)
 				s.take(&out)
 				s.take(&out)
@@ -276,6 +293,7 @@ func (s *streamScanner) skipWhitespaceAndComments() string {
 						break
 					}
 					if _, ok := s.take(&out); !ok {
+						s.commentErr = s.syntaxErr(open, "json scanner: unterminated comment at position %d", open)
 						break
 					}
 				}
@@ -343,9 +361,13 @@ func (s *streamScanner) scanString(prefix string, quote byte) (token, error) {
 				}
 				decoded.WriteRune(r)
 			default:
-				s.take(&raw)
+				// Decoded as a rune, as scanner.scanString does.
+				r, size := utf8.DecodeRune(s.peekN(4))
+				for range size {
+					s.take(&raw)
+				}
 				decoded.WriteByte('\\')
-				decoded.WriteByte(esc)
+				decoded.WriteRune(r)
 			}
 			continue
 		}
@@ -376,7 +398,7 @@ func (s *streamScanner) scanUnicodeEscape(raw *strings.Builder) (rune, error) {
 	}
 	// Surrogate pair: high surrogate followed by \uXXXX low surrogate.
 	if r1 >= 0xD800 && r1 <= 0xDBFF {
-		nb := s.peekN(6) // \ u X X X X
+		nb := s.peekN(6) // \uXXXX
 		if len(nb) == 6 && nb[0] == '\\' && nb[1] == 'u' {
 			r2, err := strconv.ParseUint(string(nb[2:6]), 16, 32)
 			if err == nil && r2 >= 0xDC00 && r2 <= 0xDFFF {

@@ -29,6 +29,7 @@ on:
       - Tool versions
       - Evals Refresh
       - Bowrain Build
+      - Fuzz
     types: [completed]
 
 permissions:

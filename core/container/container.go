@@ -9,12 +9,12 @@
 // an entry's bytes are materialised only when a consumer actually asks for them
 // (Transform's lazy `read`), so peak memory is a single entry, never the
 // archive and never the full set of entries or results. (An individual entry is
-// still buffered whole — that is the format engine's whole-document contract,
-// shared by every kapi reader — but only one entry is held at once.)
+// still buffered whole, as the format engine's whole-document contract shared
+// by every kapi reader requires, but only one entry is held at once.)
 //
 // The package is free of any dependency on the format registry, the flow
 // engine, or the CLI; the per-entry processing is supplied by the caller. The
-// same fan-out/repack shape is reusable beyond files — a remote API or CMS
+// same fan-out/repack shape is reusable beyond files: a remote API or CMS
 // "collection" fits the same contract (AD-026 §7).
 package container
 
@@ -57,7 +57,7 @@ type Entry struct {
 
 // EntryProcessor decides what to do with one entry during Transform. It receives
 // the entry name and a `read` thunk that lazily materialises the (decompressed)
-// entry bytes — call it ONLY when the entry is actually being processed, so
+// entry bytes. Call it ONLY when the entry is actually being processed, so
 // untouched entries are never read into memory (ZIP copies them raw; TAR streams
 // them). Return (bytes, true, nil) to substitute the entry, or (nil, false, nil)
 // to pass it through unchanged.
@@ -113,7 +113,7 @@ func looksLikeTar(data []byte) bool {
 }
 
 // unsafeEntryName reports whether an archive member name would escape a
-// destination root when materialised — an absolute path, a Windows drive path,
+// destination root when materialised: an absolute path, a Windows drive path,
 // or any ".." traversal segment (the "zip slip" class). Walk/Transform reject
 // such entries fail-closed so every consumer is protected centrally.
 func unsafeEntryName(name string) bool {
@@ -254,7 +254,7 @@ type EntryHeader struct {
 }
 
 // ListEntries returns the regular-file entries' names and uncompressed sizes
-// without reading their content — ZIP from the central directory, TAR by scanning
+// without reading their content: ZIP from the central directory, TAR by scanning
 // headers (bodies are skipped, not buffered). Unsafe (traversal) names are
 // skipped. This is the cheap listing the desktop archive tree uses.
 func ListEntries(path string) (Kind, []EntryHeader, error) {
@@ -492,11 +492,8 @@ func transformZip(path string, out io.Writer, proc EntryProcessor) error {
 }
 
 func writeZipEntry(zw *zip.Writer, src *zip.FileHeader, data []byte) error {
-	hdr := *src
-	hdr.CompressedSize64 = 0
-	hdr.UncompressedSize64 = 0
-	hdr.CRC32 = 0
-	w, err := zw.CreateHeader(&hdr)
+	hdr := safeio.RewriteHeader(src)
+	w, err := zw.CreateHeader(hdr)
 	if err != nil {
 		return err
 	}

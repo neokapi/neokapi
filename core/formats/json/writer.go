@@ -30,9 +30,9 @@ var _ format.StreamingWriter = (*Writer)(nil)
 // StreamingWriter marks this writer as able to consume a *streaming* skeleton
 // store interleaved with the arriving Part stream (Write → streamWrite): it
 // emits output incrementally as skeleton entries arrive, holding only the
-// blocks that have arrived but are not yet referenced — a small window for an
-// order-preserving flow, since the reader emits each skeleton ref immediately
-// before the part it refers to. Pairing it with the streaming JSON reader
+// blocks that have arrived but are not yet referenced. That window is small
+// for an order-preserving flow, since the reader emits each skeleton ref
+// immediately before the part it refers to. Pairing it with the streaming JSON reader
 // (also a StreamingReader) makes the file runner wire a synchronized streaming
 // skeleton store, so the round-trip never materialises the document, the Part
 // stream, or the skeleton in memory.
@@ -54,10 +54,10 @@ func (w *Writer) Config() *Config {
 }
 
 // WriterConfig implements format.WriterConfigurable, exposing the writer's
-// serialization knobs — escape_forward_slashes, indentation, key ordering — to
+// serialization knobs (escape_forward_slashes, indentation, key ordering) to
 // the recipe. The type is the reader's own Config, so the whole of a
 // `defaults.formats.json.config` block applies to both halves of the pair and
-// an extraction key on the writer is simply inert.
+// an extraction key on the writer has no effect.
 func (w *Writer) WriterConfig() format.DataFormatConfig { return w.cfg }
 
 // SetSubfilterResolver sets the resolver for creating sub-format writers.
@@ -72,7 +72,7 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 
 // Write consumes Parts from a channel and writes reconstructed JSON.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
-	// Streaming skeleton store (same-format streaming round-trip): interleave —
+	// Streaming skeleton store (same-format streaming round-trip): interleave:
 	// consume skeleton entries as the reader produces them, pulling referenced
 	// blocks and child layers from the Part stream on demand, so neither the
 	// skeleton nor the block map is ever fully buffered. The buffered paths
@@ -82,9 +82,9 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 		return w.streamWrite(ctx, parts)
 	}
 
-	blocksByID := make(map[string]*model.Block)   // block.ID → block (for skeleton store)
-	blocksByPath := make(map[string]*model.Block) // json keypath → block (for token reparse)
-	childLayerValues := make(map[string]string)   // layer.Name (key path) → reconstructed string
+	blocksByID := make(map[string]*model.Block) // block.ID → block (for skeleton store)
+	blocksByPath := pathBlocks{}                // json keypath → blocks in document order (for token reparse)
+	childLayerValues := make(map[string]string) // layer.Name (key path) → reconstructed string
 	var originalJSON []byte
 
 	for {
@@ -104,7 +104,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 					if kp, ok := block.Properties["json.keypath"]; ok {
 						key = kp
 					}
-					blocksByPath[key] = block
+					blocksByPath[key] = append(blocksByPath[key], block)
 				}
 			case model.PartLayerStart:
 				if layer, ok := part.Resource.(*model.Layer); ok {
@@ -145,8 +145,8 @@ var errChildLayerAborted = errors.New("json: child layer write aborted (writer s
 // writeChildLayer collects parts until the matching PartLayerEnd and writes them
 // through the appropriate sub-format writer. done, when non-nil (the streaming
 // drainer's stop signal), unblocks the collect loop if the main streamWrite loop
-// returns early — so the drainer never parks here waiting on a Part that will
-// not arrive, without depending on the executor cancelling ctx. The buffered
+// returns early. The drainer then never parks here waiting on a Part that will
+// not arrive, and does not depend on the executor cancelling ctx. The buffered
 // caller passes a nil done (a nil channel is never selected).
 func (w *Writer) writeChildLayer(ctx context.Context, done <-chan struct{}, layer *model.Layer, parts <-chan *model.Part) (string, error) {
 	var childParts []*model.Part
@@ -215,7 +215,7 @@ func (w *Writer) fallbackChildText(parts []*model.Part) string {
 }
 
 // writeFromSkeleton reads skeleton entries and fills in block/layer content.
-// This produces byte-exact output — only translated text differs from the original.
+// This produces byte-exact output: only translated text differs from the original.
 func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block, childLayerValues map[string]string) error {
 	var asRead valueAsRead
 	vw := &valueWriter{out: w.Output, escapeSlashes: w.cfg.EscapeForwardSlashes}
@@ -480,20 +480,48 @@ func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) erro
 // reconstruct builds the JSON output from collected blocks.
 // If originalJSON is available, it does a token-level replacement preserving
 // the original formatting. Otherwise, it builds from block paths.
-func (w *Writer) reconstruct(originalJSON []byte, blocks map[string]*model.Block, childLayerValues map[string]string) error {
+func (w *Writer) reconstruct(originalJSON []byte, blocks pathBlocks, childLayerValues map[string]string) error {
 	if originalJSON != nil {
 		return w.reconstructFromOriginal(originalJSON, blocks, childLayerValues)
 	}
-	return w.reconstructFromBlocks(blocks, childLayerValues)
+	return w.reconstructFromBlocks(blocks.last(), childLayerValues)
+}
+
+// pathBlocks holds the blocks read at each key path, in document order. A path
+// holds more than one when an object repeats a key; each occurrence of the
+// path in the original takes the next block, so repeated keys keep their own
+// values.
+type pathBlocks map[string][]*model.Block
+
+// take returns the next block for path and removes it from the queue.
+func (p pathBlocks) take(path string) (*model.Block, bool) {
+	queue := p[path]
+	if len(queue) == 0 {
+		return nil, false
+	}
+	p[path] = queue[1:]
+	return queue[0], true
+}
+
+// last maps each path to its last block, the value a JSON parser keeps for a
+// repeated key.
+func (p pathBlocks) last() map[string]*model.Block {
+	out := make(map[string]*model.Block, len(p))
+	for path, queue := range p {
+		if len(queue) > 0 {
+			out[path] = queue[len(queue)-1]
+		}
+	}
+	return out
 }
 
 // reconstructFromOriginal scans the original JSON tokens and replaces string
 // values with translated text while preserving all formatting.
-func (w *Writer) reconstructFromOriginal(original []byte, blocks map[string]*model.Block, childLayerValues map[string]string) error {
+func (w *Writer) reconstructFromOriginal(original []byte, blocks pathBlocks, childLayerValues map[string]string) error {
 	sc := newScanner(original)
 	tokens, err := sc.scan()
 	if err != nil {
-		return w.reconstructFromBlocks(blocks, childLayerValues)
+		return w.reconstructFromBlocks(blocks.last(), childLayerValues)
 	}
 
 	var out strings.Builder
@@ -511,7 +539,7 @@ func (w *Writer) reconstructFromOriginal(original []byte, blocks map[string]*mod
 
 // writeTokenValue writes a JSON value, replacing translatable strings with block text.
 func (w *Writer) writeTokenValue(out *strings.Builder, tokens []token, pos *int,
-	path string, blocks map[string]*model.Block, childLayerValues map[string]string) {
+	path string, blocks pathBlocks, childLayerValues map[string]string) {
 
 	if *pos >= len(tokens) {
 		return
@@ -529,19 +557,19 @@ func (w *Writer) writeTokenValue(out *strings.Builder, tokens []token, pos *int,
 			out.WriteString(tok.prefix)
 			out.WriteString(escapeJSONString(val, w.cfg.EscapeForwardSlashes))
 			*pos++
-		} else if block, ok := blocks[path]; ok {
+		} else if block, ok := blocks.take(path); ok {
 			text := w.blockText(block)
 			out.WriteString(tok.prefix)
 			out.WriteString(escapeJSONString(text, w.cfg.EscapeForwardSlashes))
 			*pos++
 		} else {
-			// Not a translatable string — preserve original raw bytes
+			// Not a translatable string: preserve original raw bytes
 			out.WriteString(tok.prefix)
 			out.WriteString(tok.raw)
 			*pos++
 		}
 	default:
-		// Non-string value — write as-is
+		// Non-string value: write as-is
 		out.WriteString(tok.prefix)
 		out.WriteString(tok.raw)
 		*pos++
@@ -550,7 +578,7 @@ func (w *Writer) writeTokenValue(out *strings.Builder, tokens []token, pos *int,
 
 // writeTokenObject writes a JSON object, replacing string values.
 func (w *Writer) writeTokenObject(out *strings.Builder, tokens []token, pos *int,
-	parentPath string, blocks map[string]*model.Block, childLayerValues map[string]string) {
+	parentPath string, blocks pathBlocks, childLayerValues map[string]string) {
 
 	out.WriteString(tokens[*pos].prefix)
 	out.WriteString("{")
@@ -591,7 +619,7 @@ func (w *Writer) writeTokenObject(out *strings.Builder, tokens []token, pos *int
 			continue
 		}
 
-		// Unexpected token inside an object — only reachable on malformed input
+		// Unexpected token inside an object, only reachable on malformed input
 		// that the lenient scanner accepted. Emit it verbatim and advance so the
 		// writer always makes progress (mirrors the reader's walkTokenObject and
 		// avoids an infinite loop / hang).
@@ -603,7 +631,7 @@ func (w *Writer) writeTokenObject(out *strings.Builder, tokens []token, pos *int
 
 // writeTokenArray writes a JSON array, replacing string values.
 func (w *Writer) writeTokenArray(out *strings.Builder, tokens []token, pos *int,
-	parentPath string, blocks map[string]*model.Block, childLayerValues map[string]string) {
+	parentPath string, blocks pathBlocks, childLayerValues map[string]string) {
 
 	out.WriteString(tokens[*pos].prefix)
 	out.WriteString("[")
@@ -632,7 +660,7 @@ func (w *Writer) writeTokenArray(out *strings.Builder, tokens []token, pos *int,
 }
 
 // reconstructFromBlocks builds JSON from scratch when no original is available.
-// This is the fallback path — it won't preserve original formatting.
+// This is the fallback path, and it does not preserve original formatting.
 func (w *Writer) reconstructFromBlocks(blocks map[string]*model.Block, childLayerValues map[string]string) error {
 	if len(blocks) == 0 && len(childLayerValues) == 0 {
 		_, err := w.Output.Write([]byte("{}"))
@@ -710,9 +738,9 @@ func (w *Writer) writeIndent(buf *strings.Builder, level int) {
 
 // A non-translatable block is the source's own bytes, whatever target it is
 // carrying. `translatable: false` is the reader's answer to "may this be
-// rewritten", derived from the collection's extraction rules, and a target on
-// such a block is leftover state — written when the rules were broader, or by a
-// pass that did not consult them — not a translation someone decided on.
+// rewritten", derived from the collection's extraction rules. A target on such
+// a block is leftover state, not a translation someone decided on. It was
+// written when the rules were broader, or by a pass that did not consult them.
 //
 // Writing it out is how `tools.case-transform.category: "text-processing"`
 // became `"tekstbehandling"` in a committed catalog: an identifier that a

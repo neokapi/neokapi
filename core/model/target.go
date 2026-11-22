@@ -1,6 +1,10 @@
 package model
 
-import "strings"
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
 
 // This file defines the key every edition of a block is filed under (AD-002),
 // the target lifecycle ladder and the provenance record. Locale is the only
@@ -39,34 +43,93 @@ func (k EditionKey) IsZero() bool { return k == EditionKey{} }
 
 // MarshalText encodes an EditionKey as text so it can serve as a JSON/YAML map
 // key. A locale-only key encodes as the bare locale ("fr"); optional
-// dimensions append as ";tone=…" / ";channel=…".
+// dimensions append as ";tone=…" / ";channel=…". It is the one printer of the
+// text form; SplitEditionKey is the one splitter every reader of it uses.
+//
+// A "%", ";" or "=" inside a part is written as "%25", "%3B" or "%3D", so the
+// encoding is one-to-one: a block can hold a target under a string that is
+// not a locale (a reader files what a document says), and that string must
+// not decode as another key. A part without those characters keeps its text.
 func (k EditionKey) MarshalText() ([]byte, error) {
-	s := string(k.Locale)
+	s := editionKeyEscaper.Replace(string(k.Locale))
 	if k.Tone != "" {
-		s += ";tone=" + k.Tone
+		s += ";tone=" + editionKeyEscaper.Replace(k.Tone)
 	}
 	if k.Channel != "" {
-		s += ";channel=" + k.Channel
+		s += ";channel=" + editionKeyEscaper.Replace(k.Channel)
 	}
 	return []byte(s), nil
 }
 
-// UnmarshalText decodes an EditionKey produced by MarshalText. The locale is
-// normalized on the way in, so a document that spelled it another way still
-// keys the variant every reader looks up.
-func (k *EditionKey) UnmarshalText(b []byte) error {
-	parts := strings.Split(string(b), ";")
-	*k = EditionKey{Locale: NormalizeLocale(LocaleID(parts[0]))}
+var (
+	editionKeyEscaper   = strings.NewReplacer("%", "%25", ";", "%3B", "=", "%3D")
+	editionKeyUnescaper = strings.NewReplacer("%25", "%", "%3B", ";", "%3D", "=")
+)
+
+// EditionKeyDimension is one ";name=value" part of an edition key's text
+// form. Text is the part as written; Name and Value are split at its first
+// "=" and Value is unescaped. HasValue is false for a part with no "=".
+type EditionKeyDimension struct {
+	Text     string
+	Name     string
+	Value    string
+	HasValue bool
+}
+
+// SplitEditionKey splits the text form MarshalText writes into the locale
+// and the dimensions, each part unescaped. The locale is returned as written,
+// not normalized; each reader decides how strictly to read it.
+func SplitEditionKey(text string) (locale string, dims []EditionKeyDimension) {
+	parts := strings.Split(text, ";")
 	for _, p := range parts[1:] {
 		name, val, ok := strings.Cut(p, "=")
-		if !ok {
+		dims = append(dims, EditionKeyDimension{Text: p, Name: name, Value: editionKeyUnescaper.Replace(val), HasValue: ok})
+	}
+	return editionKeyUnescaper.Replace(parts[0]), dims
+}
+
+// EditionKeyDimensions reads the dimensions of a key strictly: each part is
+// name=value with a value, the name is tone or channel, and neither is named
+// twice. The error names the offending part; the caller adds the key.
+func EditionKeyDimensions(dims []EditionKeyDimension) (tone, channel string, err error) {
+	for _, d := range dims {
+		if !d.HasValue || d.Value == "" {
+			return "", "", fmt.Errorf("%q is not name=value", d.Text)
+		}
+		switch d.Name {
+		case "tone":
+			if tone != "" {
+				return "", "", errors.New("it names its tone twice")
+			}
+			tone = d.Value
+		case "channel":
+			if channel != "" {
+				return "", "", errors.New("it names its channel twice")
+			}
+			channel = d.Value
+		default:
+			return "", "", fmt.Errorf("a dimension this build does not read: %q; an edition has a language, a tone and a channel", d.Name)
+		}
+	}
+	return tone, channel, nil
+}
+
+// UnmarshalText decodes an EditionKey produced by MarshalText. The locale is
+// normalized on the way in, so a document that spelled it another way still
+// keys the variant every reader looks up. It is lenient: a part it does not
+// understand is skipped.
+func (k *EditionKey) UnmarshalText(b []byte) error {
+	locale, dims := SplitEditionKey(string(b))
+	*k = EditionKey{Locale: NormalizeLocale(LocaleID(locale))}
+	for _, d := range dims {
+		if !d.HasValue {
 			continue
 		}
-		switch name {
+		switch d.Name {
 		case "tone":
-			k.Tone = val
+			k.Tone = d.Value
 		case "channel":
-			k.Channel = val
+			k.Channel = d.Value
 		}
 	}
 	return nil
@@ -86,7 +149,7 @@ const (
 
 // TargetStatusLadder is the lifecycle order, lowest to highest. Membership and
 // order define "at least this status" coverage (used by ship gates). New ("") is
-// not listed — it means "no committed status yet" and sits below every rung.
+// not listed: it means "no committed status yet" and sits below every rung.
 func TargetStatusLadder() []TargetStatus {
 	return []TargetStatus{
 		TargetStatusDraft,
@@ -115,7 +178,7 @@ func (s TargetStatus) Rank() int {
 // The Kind/Engine/Tool/Reference/Timestamp/Confidence group answers *how* it was
 // made. The Profile group answers *what governed it*: which named context was in
 // force at the moment of production. That second half cannot be reconstructed
-// after the fact — a profile is edited in place and a timestamp is only a proxy
+// after the fact: a profile is edited in place and a timestamp is only a proxy
 // for it, one that breaks for imported content and for anything produced while a
 // pilot shadowed a stream. So it is recorded at production time or approximated
 // forever.
@@ -132,19 +195,19 @@ type Origin struct {
 	// Profile identifies the context profile that governed production, and
 	// ProfileVersion pins the revision of it that was in force. Both are opaque
 	// to the model: the producer stamps whatever its resolver handed it, and
-	// nothing here parses them. Empty when the producer resolved no profile —
+	// nothing here parses them. Empty when the producer resolved no profile:
 	// an ad-hoc run, or a tool that takes no context (pseudo-translation).
 	Profile        string `json:"profile,omitempty"`
 	ProfileVersion string `json:"profile_version,omitempty"`
 	// ContextFingerprint is a content hash of the governing context as it
-	// actually reached the producer — the rendered voice guidance and the
+	// actually reached the producer: the rendered voice guidance and the
 	// terminology it was given. It exists because Profile/ProfileVersion pin
 	// only half of that: terminology reaches a producer separately from the
 	// profile and carries no version of its own, so a profile stamp alone
 	// cannot tell whether the terms have moved since.
 	//
 	// It answers "have the governing inputs changed since this was produced?"
-	// — a change detector, not a snapshot: it cannot reconstruct what the
+	// It is a change detector, not a snapshot: it cannot reconstruct what the
 	// context was, only tell you this target no longer matches it.
 	//
 	// Deliberately NOT the engine's config fingerprint. That one also covers
@@ -158,7 +221,7 @@ type Origin struct {
 // derived edition was produced; the extraction kinds (ocr, asr) describe how a recognized
 // source was produced. OriginLLMRefined is a derived extraction kind: a recognized
 // source (ocr/asr) that a multimodal LLM re-read and rewrote (media-refine), the
-// least-verified recognition tier — distinguished so refined units are queryable
+// least-verified recognition tier, distinguished so refined units are queryable
 // without parsing the Engine string. The original recognizer's engine is
 // preserved in Origin.Engine; the refining tool/provider lives in Tool/Reference.
 const (
@@ -175,7 +238,7 @@ const (
 )
 
 // IsRecognized reports whether an Origin Kind denotes machine-recognized source
-// content (ocr, asr, or an llm-refined recognition) — content a review/refine
+// content (ocr, asr, or an llm-refined recognition): content a review/refine
 // tier treats as provisional, as opposed to losslessly parsed or human-authored
 // source.
 func IsRecognized(kind string) bool {
@@ -188,7 +251,7 @@ func IsRecognized(kind string) bool {
 }
 
 // AnnoSourceOrigin is the block-scoped annotation key carrying a Block's source
-// *Origin — how its source content was produced when it was extracted rather
+// *Origin: how its source content was produced when it was extracted rather
 // than parsed (the source-side counterpart of a derived edition's Origin).
 // Absent for content read losslessly from a text format.
 const AnnoSourceOrigin = "source-origin"

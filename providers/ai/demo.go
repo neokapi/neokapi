@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/icu"
@@ -51,7 +53,7 @@ var _ StreamingLLMProvider = (*DemoProvider)(nil)
 
 func (p *DemoProvider) Name() ProviderID { return Demo }
 
-// InputModalities — the keyless demo provider is text-only.
+// InputModalities returns nil: the keyless demo provider is text-only.
 func (p *DemoProvider) InputModalities() []Modality { return nil }
 
 func (p *DemoProvider) modelName() string {
@@ -66,7 +68,7 @@ func (p *DemoProvider) modelName() string {
 // It goes through StandardTranslate like every other provider, rather than
 // short-circuiting on req.Source: that renders the real prompt and routes it
 // through Chat, so `--provider demo --explain` previews exactly the prompt a
-// paid provider would receive — with no API key, no network and no spend. The
+// paid provider would receive, with no API key, no network and no spend. The
 // reported confidence stays 0: a stub has no real confidence.
 func (p *DemoProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	noticeOnce()
@@ -243,18 +245,11 @@ func demoBaseLang(loc model.LocaleID) string {
 // words are transformed; every other token is emitted verbatim, so inline
 // markup survives intact.
 //
-// Placeholders must be matched as single tokens, not left to the word class:
-// `%d` would otherwise split into `%` and the word `d`, and the demo would
-// cheerfully accent the inside of a placeholder — producing output that fails
-// kapi's own placeholder check. The same holds for the sentinels: accenting the
-// inside of one would break the tool's verbatim restore, so the demo must pass
-// them through like any real model does. Alternation is leftmost-first, so the
-// tag, conversion and sentinel forms are tried before the word and catch-all
-// classes; the trailing single-character alternative guarantees every rune is
-// emitted, since `{`, `%`, `[`, and `]` are excluded from the catch-all class
-// (a greedy catch-all would otherwise swallow the `[[` opener from the
-// preceding whitespace and split the sentinel) and would otherwise be dropped
-// when they appear outside a placeholder.
+// Placeholders must be matched as single tokens. Left to the word class, `%d`
+// would split into `%` and the word `d`, and the demo would accent the inside
+// of a placeholder, producing output that fails kapi's own placeholder check.
+// Accenting the inside of a sentinel would break the tool's verbatim restore,
+// so the demo passes sentinels through like any real model does.
 //
 // Braces are splitTokens' business, not this expression's: a brace placeholder
 // can contain brace placeholders, which no RE2 pattern can express.
@@ -267,10 +262,17 @@ var wordSplit = regexp.MustCompile(`<[^>]*>|\[\[[^\[\]]*\]\]|%[a-zA-Z]|[\p{L}\p{
 // A brace group is opaque whatever it holds. `{0}` and `{{name}}` are
 // interpolation the host program fills in, and `{count, plural, one {# berth}
 // other {# berths}}` is an ICU picker whose argument name, keyword and category
-// keywords are program syntax — marking a word inside either produces a string
+// keywords are program syntax. Marking a word inside either produces a string
 // the program cannot format. What a real model is handed for these spans is a
 // mask; what the demo does with them is nothing at all.
 func splitTokens(source string) []string {
+	// Alternation in wordSplit is leftmost-first, so the tag, conversion and
+	// sentinel forms are tried before the word and catch-all classes. `{`, `%`,
+	// `[` and `]` are excluded from the catch-all class, because a greedy
+	// catch-all would swallow the `[[` opener from the preceding whitespace and
+	// split the sentinel. The trailing single-character alternative then emits
+	// those characters when they appear outside a placeholder, so no rune is
+	// dropped.
 	var out []string
 	last := 0
 	for _, sp := range icu.Spans(source) {
@@ -411,10 +413,13 @@ func matchCase(src, repl string) string {
 	if src == strings.ToUpper(src) && src != strings.ToLower(src) {
 		return strings.ToUpper(repl)
 	}
-	// Title case: first rune upper, rest not all-upper.
-	first := src[:1]
-	if first == strings.ToUpper(first) && first != strings.ToLower(first) {
-		return strings.ToUpper(repl[:1]) + repl[1:]
+	// Title case: first rune upper, rest not all-upper. Whole runes, so a
+	// replacement that starts with a multi-byte letter ("öffnen") stays valid
+	// UTF-8.
+	first, _ := utf8.DecodeRuneInString(src)
+	if unicode.IsUpper(first) {
+		r, size := utf8.DecodeRuneInString(repl)
+		return string(unicode.ToUpper(r)) + repl[size:]
 	}
 	return repl
 }
@@ -464,7 +469,7 @@ var demoContractionRe = regexp.MustCompile(`(?i)\b[a-z]+'(?:t|s|re|ve|ll|d|m)\b`
 // demoPassiveRe approximates passive-voice constructions ("was processed").
 var demoPassiveRe = regexp.MustCompile(`(?i)\b(?:was|were|is|are|been|being|be)\s+\w+ed\b`)
 
-// demoCapTermRe matches capitalized terms of three or more characters —
+// demoCapTermRe matches capitalized terms of three or more characters:
 // product-name candidates for the preferred-terms heuristic.
 var demoCapTermRe = regexp.MustCompile(`\b[A-Z][A-Za-z0-9]{2,}\b`)
 
@@ -755,7 +760,7 @@ func demoOpensSentence(before string) bool {
 // demoChatReply translates the trailing text of a translation-style prompt, or
 // returns a short labeled stub for anything else.
 func demoChatReply(ctx context.Context, userTurn string) string {
-	// A translate prompt puts the content to translate — and nothing else — in
+	// A translate prompt puts the content to translate, and nothing else, in
 	// the user turn, and identifies itself via prompt.Meta. Anything else gets a
 	// labeled stub.
 	if m, ok := prompt.MetaFrom(ctx); ok && m.ID == prompt.IDTranslateSingle {

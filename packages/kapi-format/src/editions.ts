@@ -44,6 +44,53 @@ export function isLanguageKey(key: EditionKey): boolean {
   return key !== SourceEdition && !key.includes(";");
 }
 
+/** The parts of an edition key: its language, and its tone and channel when it has them. */
+export interface EditionKeyParts {
+  locale: string;
+  tone?: string;
+  channel?: string;
+}
+
+const escapeKeyPart = (part: string): string =>
+  part.replace(/[%;=]/gu, (c) => ({ "%": "%25", ";": "%3B", "=": "%3D" })[c] ?? c);
+
+const unescapeKeyPart = (part: string): string =>
+  part.replace(/%25|%3B|%3D/gu, (s) => ({ "%25": "%", "%3B": ";", "%3D": "=" })[s] ?? s);
+
+/**
+ * The text form of an edition key. A `%`, `;` or `=` inside a part is written
+ * as `%25`, `%3B` or `%3D`, so every key has one text and every text one key.
+ *
+ * Mirrors Go `core/model.EditionKey.MarshalText`.
+ */
+export function formatEditionKey(parts: EditionKeyParts): EditionKey {
+  let text = escapeKeyPart(parts.locale);
+  if (parts.tone) text += `;tone=${escapeKeyPart(parts.tone)}`;
+  if (parts.channel) text += `;channel=${escapeKeyPart(parts.channel)}`;
+  return text;
+}
+
+/**
+ * The parts of an edition key's text form, each unescaped. A part that is not
+ * `tone=` or `channel=` is skipped, as the lenient Go reader skips it.
+ *
+ * Mirrors Go `core/model.SplitEditionKey` and `EditionKey.UnmarshalText`,
+ * without normalizing the language.
+ */
+export function parseEditionKey(key: EditionKey): EditionKeyParts {
+  const [locale = "", ...dims] = key.split(";");
+  const parts: EditionKeyParts = { locale: unescapeKeyPart(locale) };
+  for (const dim of dims) {
+    const eq = dim.indexOf("=");
+    if (eq < 0) continue;
+    const name = dim.slice(0, eq);
+    const value = unescapeKeyPart(dim.slice(eq + 1));
+    if (name === "tone") parts.tone = value;
+    else if (name === "channel") parts.channel = value;
+  }
+  return parts;
+}
+
 /**
  * Read one block in either schema. A block in the schema 1.0 shape becomes
  * the editions it describes: the source runs under {@link SourceEdition}, each

@@ -178,7 +178,7 @@ func TestReadInvalidJSON(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
-	// Unterminated string — invalid even under JSON5 lenient mode
+	// Unterminated string, invalid even under JSON5 lenient mode
 	// (single quotes / bare keys, which `{invalid json` would otherwise
 	// be scanned as).
 	err := reader.Open(ctx, testutil.RawDocFromString(`{"key": "unterminated`, model.LocaleEnglish))
@@ -200,7 +200,7 @@ func TestReadInvalidJSONError(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
-	// Unterminated string — invalid even under JSON5 lenient mode
+	// Unterminated string, invalid even under JSON5 lenient mode
 	// (single quotes / bare keys, which `{invalid json` would otherwise
 	// be scanned as).
 	err := reader.Open(ctx, testutil.RawDocFromString(`{"key": "unterminated`, model.LocaleEnglish))
@@ -594,7 +594,7 @@ func TestReadDeeplyNested(t *testing.T) {
 }
 
 // partsByKind splits emitted parts into translatable blocks, non-translatable
-// content blocks, and Data parts — the three buckets the
+// content blocks, and Data parts: the three buckets the
 // extract_non_translatable_content flag moves content between.
 func partsByKind(parts []*model.Part) (translatable, content []*model.Block, data []*model.Data) {
 	for _, p := range parts {
@@ -617,7 +617,7 @@ func partsByKind(parts []*model.Part) (translatable, content []*model.Block, dat
 }
 
 // By default (extract_non_translatable_content on), isolated string values in an
-// array — not extracted for translation — surface as non-translatable content
+// array (not extracted for translation) surface as non-translatable content
 // blocks (visible to ingestion/LLM consumers, skipped by MT) instead of opaque
 // textless Data parts.
 func TestReadIsolatedStringsAsContent(t *testing.T) {
@@ -650,7 +650,7 @@ func TestReadIsolatedStringsAsContent(t *testing.T) {
 }
 
 // With extractNonTranslatableContent off (the Okapi-faithful config), isolated
-// array strings stay opaque textless Data — byte-identical to the prior default.
+// array strings stay opaque textless Data, byte-identical to the prior default.
 func TestReadIsolatedStringsAsDataWhenDisabled(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -736,7 +736,7 @@ func TestReadDanglingNoteFlushedAsData(t *testing.T) {
 // The dangling-note Data part rides on the same flag as the rest of the
 // non-translatable content surfacing: with extract_non_translatable_content off
 // (the Okapi-faithful / parity config) the part stream is byte-identical to the
-// prior behavior — the note text stays skeleton-only and no Data is emitted.
+// prior behavior. The note text stays skeleton-only and no Data is emitted.
 func TestReadDanglingNoteSuppressedWhenDisabled(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -836,21 +836,28 @@ func TestReadDanglingNoteInNestedScope(t *testing.T) {
 }
 
 // TestWriterTerminatesOnUnexpectedObjectToken guards against a writer hang:
-// when leniently-parsed malformed input leaves a non-string, non-comma,
-// non-close token at the head of an object, writeTokenObject must still advance
-// (emit it verbatim) instead of spinning forever. Reconstruction runs on the
+// when the stored original leaves a non-string, non-comma, non-close token at
+// the head of an object, writeTokenObject must still advance (emit it
+// verbatim) instead of spinning forever. The reader refuses such input, so the
+// test reads a well-formed document and puts the malformed original into its
+// layer, as a caller holding its own parts could. Reconstruction runs on the
 // stored original (no skeleton store).
 func TestWriterTerminatesOnUnexpectedObjectToken(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
 	// `]` inside the object (after a complete pair) is the unexpected token.
-	input := `{"a": "b", ] }`
+	malformed := `{"a": "b", ] }`
 
 	reader := jsonfmt.NewReader()
-	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(`{"a": "b"}`, model.LocaleEnglish)))
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	reader.Close()
+	for _, p := range parts {
+		if layer, ok := p.Resource.(*model.Layer); ok && p.Type == model.PartLayerStart {
+			layer.Properties["json.original"] = malformed
+		}
+	}
 
 	writer := jsonfmt.NewWriter()
 	var buf bytes.Buffer
@@ -871,7 +878,7 @@ func TestWriterTerminatesOnUnexpectedObjectToken(t *testing.T) {
 	}
 }
 
-// With surfacing disabled, an excluded value stays opaque textless Data —
+// With surfacing disabled, an excluded value stays opaque textless Data,
 // byte-identical to the prior default.
 func TestReadExcludedValueAsDataWhenDisabled(t *testing.T) {
 	t.Parallel()

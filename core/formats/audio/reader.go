@@ -1,8 +1,8 @@
 // Package audio reads audio files as localizable content: when an ASR engine is
 // available (the kapi-asr plugin), it transcribes the speech into timing-anchored
-// Blocks (AD-030); otherwise the audio is emitted as a Media asset. Like the
-// image reader + vision, transcription is PATH-based — the engine opens the file
-// itself, so the audio bytes never travel through the part stream.
+// Blocks (AD-030). The audio is emitted as a Media asset either way. Like the
+// image reader with vision, transcription is path-based: the engine opens the
+// file itself, so the audio bytes never travel through the part stream.
 package audio
 
 import (
@@ -83,23 +83,24 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	// The audio itself, as the writer copies it. It is emitted whether or not
+	// an ASR engine transcribes it: a document read where an engine is
+	// installed is written back as one read where it is not.
+	uri := r.Doc.URI
+	if uri == "" {
+		uri = path
+	}
+	media := &model.Media{
+		ID:       "m1",
+		URI:      uri,
+		MimeType: r.Doc.MimeType,
+		Filename: filepath.Base(uri),
+	}
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartMedia, Resource: media}) {
+		return
+	}
 	if asr.Available("") {
 		if !r.transcribe(ctx, ch, path, locale) {
-			return
-		}
-	} else {
-		// No ASR engine: the audio is still a localizable Media asset.
-		uri := r.Doc.URI
-		if uri == "" {
-			uri = path
-		}
-		media := &model.Media{
-			ID:       "m1",
-			URI:      uri,
-			MimeType: r.Doc.MimeType,
-			Filename: filepath.Base(uri),
-		}
-		if !r.emit(ctx, ch, &model.Part{Type: model.PartMedia, Resource: media}) {
 			return
 		}
 	}
