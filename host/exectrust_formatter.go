@@ -134,7 +134,7 @@ func (t *formatterTrust) decide(key, digest string, site project.ExecSite) error
 // site is command's exec site as configFile selects it. Its digest holds the
 // SHA-256 of what the formatter runs and loads, as far as kapi can read it: the
 // executable, the interpreter that runs it (formatterRuntimeOf), the script a
-// node_modules/.bin shim hands that interpreter, configFile, and every other
+// node_modules/.bin launcher hands that interpreter, configFile, and every other
 // configuration file the formatter can load for the edited file (configs). A
 // change to any of them asks again. The modules the script, the interpreter or
 // a configuration file imports, and programs a shell script runs, are not
@@ -146,7 +146,10 @@ func (t *formatterTrust) site(configFile, name string, command, configs []string
 		return project.ExecSite{}, fmt.Errorf("read the %s executable before asking whether it may run: %w", name, err)
 	}
 	facts["executable_sha256"] = executable
-	rt := formatterRuntimeOf(command[0])
+	rt, err := formatterRuntimeOf(command[0])
+	if err != nil {
+		return project.ExecSite{}, fmt.Errorf("read what the %s executable runs before asking whether it may run: %w", name, err)
+	}
 	if rt.interpreter != "" {
 		sum, err := t.hash(rt.interpreter)
 		if err != nil {

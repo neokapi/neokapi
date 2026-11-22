@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -323,74 +322,58 @@ func formatterEnv(environ []string) []string {
 // formatterRuntime is what a formatter's executable runs besides itself.
 type formatterRuntime struct {
 	// interpreter is the program that runs the executable: the one a script's
-	// first line names, or the node a node_modules/.bin shim runs.
+	// first line names, or the node a node_modules/.bin launcher runs.
 	interpreter string
-	// script is the file a node_modules/.bin shim hands to node.
+	// script is the file a node_modules/.bin launcher hands to node.
 	script string
 }
-
-// cmdShimNode matches the line a node_modules/.bin shim written by npm's and
-// pnpm's cmd-shim uses to run node on its target, and captures the target.
-var cmdShimNode = regexp.MustCompile(`exec "\$basedir/node"\s+(?:"([^"]+)"|'([^']+)')`)
 
 // formatterShebangBytes bounds how much of an executable is read to find what
 // it runs.
 const formatterShebangBytes = 64 << 10
 
 // formatterRuntimeOf resolves what the executable at path runs, as the
-// formatter's environment (formatterEnv) resolves it. A node_modules/.bin shim
-// runs node from its own directory when that directory holds an executable
-// node, and otherwise the node on PATH, on the target it names. A script whose
+// formatter's environment (formatterEnv) resolves it. A node_modules/.bin
+// launcher (readLauncher) runs node on the script it names. A script whose
 // first line is `#!/usr/bin/env name` runs name from PATH, and one naming an
 // interpreter's path runs that interpreter. An executable without a first
-// `#!` line runs nothing kapi can name.
-func formatterRuntimeOf(path string) formatterRuntime {
+// `#!` line runs nothing kapi can name. The error reports a launcher whose
+// target kapi cannot read with certainty; such an executable is not run.
+func formatterRuntimeOf(path string) (formatterRuntime, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return formatterRuntime{}
+		return formatterRuntime{}, nil
 	}
 	defer f.Close()
 	data, err := io.ReadAll(io.LimitReader(f, formatterShebangBytes))
 	if err != nil || !bytes.HasPrefix(data, []byte("#!")) {
-		return formatterRuntime{}
+		return formatterRuntime{}, nil
 	}
-	dir := filepath.Dir(path)
-	if m := cmdShimNode.FindSubmatch(data); m != nil {
-		var rt formatterRuntime
-		if node := filepath.Join(dir, "node"); isExecutableFile(node) {
-			rt.interpreter = node
-		} else if node, ok := lookPathAbsolute("node"); ok {
-			rt.interpreter = node
+	if isLauncher(data) {
+		rt, err := readLauncher(path, data)
+		if err != nil {
+			return formatterRuntime{}, fmt.Errorf("%s is a node_modules/.bin launcher whose target kapi cannot read: %w", path, err)
 		}
-		target := string(m[1])
-		if target == "" {
-			target = string(m[2])
-		}
-		target = strings.ReplaceAll(target, "$basedir", dir)
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(dir, target)
-		}
-		rt.script = filepath.Clean(target)
-		return rt
+		return rt, nil
 	}
 	line, _, _ := bytes.Cut(data[2:], []byte("\n"))
 	fields := strings.Fields(string(line))
 	if len(fields) == 0 {
-		return formatterRuntime{}
+		return formatterRuntime{}, nil
 	}
 	if filepath.Base(fields[0]) != "env" {
-		return formatterRuntime{interpreter: fields[0]}
+		return formatterRuntime{interpreter: fields[0]}, nil
 	}
 	for _, name := range fields[1:] {
 		if strings.HasPrefix(name, "-") || strings.Contains(name, "=") {
 			continue
 		}
 		if interpreter, ok := lookPathAbsolute(name); ok {
-			return formatterRuntime{interpreter: interpreter}
+			return formatterRuntime{interpreter: interpreter}, nil
 		}
 		break
 	}
-	return formatterRuntime{}
+	return formatterRuntime{}, nil
 }
 
 // isExecutableFile reports whether path is a regular file some user may execute.

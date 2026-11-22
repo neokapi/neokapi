@@ -154,13 +154,19 @@ func TestFormatterRuntimeOf(t *testing.T) {
 	t.Setenv("PATH", "."+string(os.PathListSeparator)+pathDir)
 
 	shim := write("oxfmt", "#!/bin/sh\nbasedir=$(dirname \"$0\")\nif [ -x \"$basedir/node\" ]; then\n  exec \"$basedir/node\"  \"$basedir/../vite-plus/bin/oxfmt\" \"$@\"\nelse\n  exec node  \"$basedir/../vite-plus/bin/oxfmt\" \"$@\"\nfi\n", 0o755)
-	assert.Equal(t, formatterRuntime{interpreter: onPath, script: filepath.Join(filepath.Dir(dir), "vite-plus", "bin", "oxfmt")}, formatterRuntimeOf(shim),
+	runtimeOf := func(path string) formatterRuntime {
+		t.Helper()
+		rt, err := formatterRuntimeOf(path)
+		require.NoError(t, err)
+		return rt
+	}
+	assert.Equal(t, formatterRuntime{interpreter: onPath, script: filepath.Join(filepath.Dir(dir), "vite-plus", "bin", "oxfmt")}, runtimeOf(shim),
 		"a shim with no node beside it runs the node on PATH")
 
 	local := write("node", "#!/bin/sh\n", 0o755)
-	assert.Equal(t, local, formatterRuntimeOf(shim).interpreter, "a shim runs the executable node beside it")
+	assert.Equal(t, local, runtimeOf(shim).interpreter, "a shim runs the executable node beside it")
 
-	assert.Equal(t, formatterRuntime{interpreter: onPath}, formatterRuntimeOf(write("prettier", "#!/usr/bin/env node\nrequire('x')\n", 0o755)))
-	assert.Equal(t, formatterRuntime{interpreter: "/bin/sh"}, formatterRuntimeOf(write("fmt", "#!/bin/sh\nexec x\n", 0o755)))
-	assert.Equal(t, formatterRuntime{}, formatterRuntimeOf(write("native", "\x7fELF\x02\x01", 0o755)))
+	assert.Equal(t, formatterRuntime{interpreter: onPath}, runtimeOf(write("prettier", "#!/usr/bin/env node\nrequire('x')\n", 0o755)))
+	assert.Equal(t, formatterRuntime{interpreter: "/bin/sh"}, runtimeOf(write("fmt", "#!/bin/sh\nexec x\n", 0o755)))
+	assert.Equal(t, formatterRuntime{}, runtimeOf(write("native", "\x7fELF\x02\x01", 0o755)))
 }

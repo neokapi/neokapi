@@ -1,0 +1,8 @@
+#!/bin/sh
+basedir=$(dirname "$0")
+target=$(cat "$basedir/.target")
+if [ -x "$basedir/node" ]; then
+  exec "$basedir/node"  "$target" "$@"
+else
+  exec node  "$target" "$@"
+fi

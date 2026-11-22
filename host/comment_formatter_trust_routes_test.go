@@ -143,18 +143,19 @@ func TestFormatterTrustRoutes(t *testing.T) {
 		// The repository's own pnpm shim, marking each run and pointing at the
 		// oxfmt entry by its absolute path, so it keeps the NODE_PATH the entry
 		// resolves its modules through. The shim names the entry relative to
-		// node_modules/.bin, in whichever package owns the oxfmt bin.
+		// node_modules/.bin: as "$basedir/../<entry>" (pnpm 11) or as
+		// "$basedir_abs"/'../<entry>' (pnpm 12).
 		repoShim, err := os.ReadFile(repoOxfmt(t))
 		require.NoError(t, err)
 		shim := strings.Replace(string(repoShim), "#!/bin/sh\n", "#!/bin/sh\necho ran >> '"+marker+"'\n", 1)
 		require.Contains(t, shim, `"$basedir/node"`, "the repository's oxfmt is a pnpm shim")
-		entryRef := regexp.MustCompile(`"\$basedir/\.\./[^"]+"`).FindString(shim)
-		require.NotEmpty(t, entryRef, "the repository's oxfmt shim runs an entry beside node_modules/.bin")
-		entryPath, err := filepath.Abs(filepath.Join("..", "node_modules", strings.Trim(strings.TrimPrefix(entryRef, `"$basedir/../`), `"`)))
+		m := regexp.MustCompile(`"\$basedir/\.\./([^"]+/bin/oxfmt)"|"\$basedir_abs"/'\.\./([^']+/bin/oxfmt)'`).FindStringSubmatch(shim)
+		require.NotEmpty(t, m, "the repository's oxfmt shim runs an entry beside node_modules/.bin")
+		entryPath, err := filepath.Abs(filepath.Join("..", "node_modules", m[1]+m[2]))
 		require.NoError(t, err)
 		entry, err := filepath.EvalSymlinks(entryPath)
 		require.NoError(t, err, "the shim fixture runs the repository's oxfmt entry; run `vp install` at the repository root")
-		shim = strings.ReplaceAll(shim, entryRef, "'"+entry+"'")
+		shim = strings.ReplaceAll(shim, m[0], "'"+entry+"'")
 		require.NoError(t, os.WriteFile(filepath.Join(bin, "oxfmt"), []byte(shim), 0o755))
 		allowAtPrompt(t, a, file, marker)
 
