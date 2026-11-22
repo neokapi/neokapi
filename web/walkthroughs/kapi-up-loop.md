@@ -18,20 +18,22 @@ This walkthrough follows a project from translation through review to a passing
 ship gate. The gate requires 100% translated and 100% approved content.
 
 `kapi up --plan` previews pending units, exact content-memory matches, remaining
-AI work and estimated tokens. `kapi up` fills the translations from content
-memory, then holds the locale back for review by a person. It exits zero;
-`kapi status --review` lists the remaining work.
+AI work and estimated tokens. `kapi up` recycles the translations from content
+memory and holds the locale back for review by a person, so it writes no target
+file yet. It exits zero; `kapi status --review` lists the remaining work.
 
 `kapi check --ship` exits 3 while required reviews are missing. `kapi apply`
 records each review decision, bound to the translation's content hash. The same
-ship check then passes without retranslating the content.
+ship check then passes without retranslating the content, and the next
+`kapi up` writes the French file.
 
 ## Scene 1 — up-loop (terminal)
 
 Seed content memory, preview with `kapi up --plan`, and produce translations with
 `kapi up`. List pending reviews with `kapi status --review`, show the failing
 `kapi check --ship`, record decisions with `kapi apply review.jsonl`, then repeat
-the ship check. The closing `kapi status` shows `fr` as shippable.
+the ship check. `kapi status` shows `fr` as shippable, and a closing `kapi up`
+writes `messages.fr.json`.
 
 ## Closing
 

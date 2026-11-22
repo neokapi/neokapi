@@ -2,22 +2,21 @@
 # full schema. Regenerate with:
 #   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-up-loop
 #
-# The kapi-loop trust moment, end to end: preview the work (`up --plan`),
-# produce (`up` fills every target from the content memory, then holds the
-# locale back for review: the ship gate requires review, and review needs a person), read the worklist
-# (`status --review`), watch the gate block (`check --ship`, exit 3), record
-# the decision (`apply`), and watch the same gate clear (exit 0).
-#
-# mode: video — `kapi up` and `kapi check` are not wired into the wasm build
-# (kapi/cmd/kapi-wasm-cli), and the exit-code beats are the point of the
-# recording. The embed below is the focused offline subset: the project seeds
-# already produced (messages.fr.json committed), so `status --review`,
-# `apply`, and the closing `status` run live against the in-memory filesystem
-# — the same wait for review → decide → shippable arc, minus the native-only verbs.
-#
-# Fully offline in every venue: the recipe's memory-recycle flow leverages the content memory
-# only — no LLM, no network. The ship gate is translated: 100 + established: 100,
-# so production alone can never clear it: the human decision is the last mile.
+# The scene previews the work (`up --plan`) and runs `up`, which recycles every
+# unit from the content memory. The ship gate requires review, so `up` holds
+# French back. The scene reads the worklist (`status --review`) and shows the
+# gate fail (`check --ship`, exit 3). It records the decisions (`apply`), shows
+# the same gate pass (exit 0), and runs `up` again, which writes the French file.
+
+# mode: video, because the wasm build (kapi/cmd/kapi-wasm-cli) has no `kapi up`
+# or `kapi check`, and the exit codes are the point of the recording. The embed
+# below runs the offline subset. It seeds the project with messages.fr.json
+# already written, so `status --review`, `apply` and `status` run against the
+# in-memory filesystem and show the same arc from review to shippable.
+
+# Every venue is offline. The recipe's memory-recycle flow reads the content
+# memory only, with no model and no network. The ship gate is translated: 100
+# and established: 100, so only a person's decision can clear it.
 
 id: kapi-up-loop
 scene: up-loop
@@ -78,9 +77,9 @@ tape:
   fontSize: 16
 
 # Recording fixtures: the kit catalog, the committed content-memory bundle that
-# supplies the French, the
-# recipe with a translated+approved ship gate, and the reviewer's change-set.
-# The recording starts from an unproduced project — `kapi up` does the work.
+# supplies the French, the recipe with a translated and approved ship gate, and
+# the reviewer's change set. The recording starts with no French file, and
+# `kapi up` writes it.
 seed:
   - messages.json
 files:
@@ -178,13 +177,13 @@ steps:
     narration: --plan reports pending units, exact content-memory matches, remaining AI work and estimated tokens for each locale. It makes no provider calls or writes.
     offline: false
   - command: kapi up
-    narration: up fills all French targets from content memory, then holds the locale back for review by a person. The command exits zero.
+    narration: up recycles all three French units from content memory and holds them back for review, so it writes no target file yet. The command exits zero.
     offline: false
   - command: kapi status --review
     narration: List translated units awaiting approval, each with the source document, block and language a decision names.
-    # offline:true — runs live in the embed against the pre-produced project.
-    # smoke:false — needs the multi-file project seeded; W7 runs commands in
-    # isolation (same policy as kapi-review-and-approve).
+    # offline: true runs it in the embed against the seeded French file.
+    # smoke: false, because it needs the multi-file project seeded and W7 runs
+    # each command on its own (as kapi-review-and-approve does).
     offline: true
     smoke: false
   - command: kapi check --ship
@@ -202,3 +201,6 @@ steps:
     narration: French is shippable, with 100% translated and 100% approved coverage.
     offline: true
     smoke: false
+  - command: kapi up
+    narration: The decisions released French, so up writes messages.fr.json and reports produced 3.
+    offline: false

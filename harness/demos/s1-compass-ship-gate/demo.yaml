@@ -85,12 +85,13 @@ narration:
   - id: review
     kind: terminal
     through: 10
-    caption: Twenty decisions, on the record, and the loop drafts nothing.
+    caption: Twenty decisions on the record. The held Dutch is written, and nothing new is drafted.
     text: >-
       The queue names what each decision addresses, and this filter takes the
       Dutch a person wrote and leaves what the stub drafted. Twenty
-      approvals land in the record as they are made. Running the loop again asks
-      the provider for nothing.
+      approvals land in the record as they are made. Running the loop again
+      writes the nineteen Dutch drafts it held back, and asks the provider for
+      nothing.
 
   - id: offered
     kind: terminal
