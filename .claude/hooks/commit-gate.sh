@@ -13,8 +13,8 @@
 # none'` lists the changes nobody ran.
 #
 # The gate reads the message a `git commit` command carries: the -m arguments,
-# or the file a -F names when that file exists already. A commit that
-# concludes a merge needs no trailer. A message the gate cannot see (a reused
+# or the file a -F names when that file exists already. A commit made while a
+# merge is in progress needs no trailer. A message the gate cannot see (a reused
 # one, an editor, a file the same command writes first, a path held in a
 # variable) passes unjudged.
 #
@@ -95,11 +95,29 @@ subject() {
     }'
 }
 
-# concludes_merge succeeds for a commit that ends a merge: its subject says so,
-# or a merge is in progress in the directory $2.
+# commit_dirs reads a command on stdin and prints the directories its commit
+# may run in, one per line: $1 (where the command starts), each directory a
+# `cd` names, and the one `git -C` names. A relative one is taken from $1.
+commit_dirs() {
+  local start="${1:-.}" dir
+  printf '%s\n' "$start"
+  grep -oE "(^|[;&|[:space:]])(cd|git[[:space:]]+-C)[[:space:]]+(\"[^\"]+\"|'[^']+'|[^[:space:];&|]+)" |
+    sed -E "s/^[;&|[:space:]]*(cd|git[[:space:]]+-C)[[:space:]]+//; s/^[\"']//; s/[\"']\$//" |
+    while IFS= read -r dir; do
+      case "$dir" in *'$'* | *'`'* | '~'*) continue ;; esac
+      case "$dir" in /*) printf '%s\n' "$dir" ;; *) printf '%s\n' "$start/$dir" ;; esac
+    done
+}
+
+# concludes_merge reads a command on stdin and succeeds when a merge is in
+# progress in a directory its commit may run in. The message is not asked: a
+# subject that says "Merge" proves nothing.
 concludes_merge() {
-  case "$1" in "Merge "*) return 0 ;; esac
-  git -C "${2:-.}" rev-parse -q --verify MERGE_HEAD > /dev/null 2>&1
+  local dir
+  while IFS= read -r dir; do
+    git -C "$dir" rev-parse -q --verify MERGE_HEAD > /dev/null 2>&1 && return 0
+  done < <(commit_dirs "$1")
+  return 1
 }
 
 decide() {
@@ -114,7 +132,7 @@ decide() {
   else
     title="$(head -1 <<< "$message")"
   fi
-  concludes_merge "$title" "$cwd" && return 0
+  concludes_merge "$cwd" <<< "$command" && return 0
   title="$(tr '\t' ' ' <<< "$title" | cut -c1-80)"
 
   local stamp refusals
@@ -178,9 +196,12 @@ self_test() {
   decide 'git commit -F later.txt' s1 "$log" "$tmp" > /dev/null
   [ ! -s "$log" ] || { echo "self-test: a message file out of sight was judged" >&2; return 1; }
 
-  # A commit that concludes a merge needs no trailer.
+  # A commit made while a merge is in progress needs no trailer. A subject
+  # that says "Merge" does not make one.
+  : > "$log"
   decide 'git commit -m "Merge origin/main"' s1 "$log" "$tmp" > /dev/null
-  [ ! -s "$log" ] || { echo "self-test: a merge commit named as one was logged" >&2; return 1; }
+  grep -q 'would-refuse' "$log" || { echo "self-test: a subject saying Merge passed with no merge in progress" >&2; return 1; }
+  : > "$log"
   git -C "$tmp" init -q 2> /dev/null
   git -C "$tmp" -c user.name=t -c user.email=t@example.test commit -q --allow-empty -m base 2> /dev/null
   local gitdir
@@ -188,6 +209,12 @@ self_test() {
   git -C "$tmp" rev-parse HEAD > "$gitdir/MERGE_HEAD"
   decide 'git commit -m "Take main"' s1 "$log" "$tmp" > /dev/null
   [ ! -s "$log" ] || { echo "self-test: a commit during a merge was logged" >&2; return 1; }
+  # The merge is found where the command goes, not only where it starts.
+  decide "cd \"$tmp\" && git commit -m \"Take main\"" s1 "$log" /nonexistent > /dev/null
+  decide "git -C $tmp commit -m \"Take main\"" s1 "$log" /nonexistent > /dev/null
+  mkdir -p "$tmp/sub"
+  decide 'cd sub && git commit -m "Take main"' s1 "$log" "$tmp" > /dev/null
+  [ ! -s "$log" ] || { echo "self-test: a merge in the directory the command names was logged" >&2; return 1; }
   rm -f "$gitdir/MERGE_HEAD"
   decide 'git commit -m "Take main"' s1 "$log" "$tmp" > /dev/null
   grep -q 'would-refuse' "$log" || { echo "self-test: the same commit outside a merge was not logged" >&2; return 1; }
@@ -210,7 +237,9 @@ self_test() {
   decide "$with" s3 "$log" "$tmp" || { echo "self-test: enforce refused a verified commit" >&2; return 1; }
   decide 'git commit -F bad.txt' s4 "$log" "$tmp" 2> /dev/null; status=$?
   [ "$status" -eq 2 ] || { echo "self-test: enforce let a message file with no trailer through" >&2; return 1; }
-  decide 'git commit -m "Merge origin/main"' s5 "$log" "$tmp" 2> /dev/null || { echo "self-test: enforce refused a merge commit" >&2; return 1; }
+  git -C "$tmp" rev-parse HEAD > "$gitdir/MERGE_HEAD"
+  decide 'git commit -m "Merge origin/main"' s5 "$log" "$tmp" 2> /dev/null || { echo "self-test: enforce refused a commit during a merge" >&2; return 1; }
+  rm -f "$gitdir/MERGE_HEAD"
 
   mode=off
   : > "$log"

@@ -146,8 +146,8 @@ done when it has been run, not when its tests pass.
 - **End the commit message with a `Verified:` trailer** naming the recipes you
   ran, or `Verified: none (<reason>)`. A hook records commits without one
   (`.claude/hooks/commit-gate.sh`, observe mode). A work-in-progress commit
-  says `Verified: none (work in progress)`. A commit that concludes a merge
-  needs no trailer.
+  says `Verified: none (work in progress)`. A commit made while a merge is in
+  progress needs no trailer.
 
 `REVIEW.md` tells a reviewer where defects have come from in this repository.
 Read it before reviewing a pull request, your own included.
