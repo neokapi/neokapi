@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"runtime"
 	"runtime/debug"
 	"testing"
 
@@ -76,7 +75,7 @@ func TestStreamingPair_ByteExactRESX(t *testing.T) {
 }
 
 // TestStreamingPair_BoundedWriterRESX asserts the writer's peak live heap stays
-// flat across a 20x document-size change — it does not buffer the whole block
+// flat across a 20x document-size change: it does not buffer the whole block
 // map. Reader and writer run concurrently against a streaming store, mirroring
 // the file-runner's isStreamingPair path.
 func TestStreamingPair_BoundedWriterRESX(t *testing.T) {
@@ -86,10 +85,7 @@ func TestStreamingPair_BoundedWriterRESX(t *testing.T) {
 	defer debug.SetGCPercent(debug.SetGCPercent(20))
 
 	liveHeap := func() uint64 {
-		runtime.GC()
-		var m runtime.MemStats
-		runtime.ReadMemStats(&m)
-		return m.HeapAlloc
+		return testutil.LiveHeap()
 	}
 
 	peakWriting := func(n int) (peak uint64, size int) {

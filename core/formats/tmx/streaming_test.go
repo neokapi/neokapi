@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"runtime"
 	"runtime/debug"
 	"testing"
 	"unicode/utf16"
@@ -56,8 +55,8 @@ func genTMX(n int) (io.Reader, int) {
 
 // TestStreamingReaderBoundedMemory asserts the TMX reader's peak heap stays
 // small and flat across a 20x document-size change when reading from a pure
-// stream with a (file-backed) skeleton store — i.e. it does not hold the whole
-// document. This is the load-bearing guarantee of the capturing-reader path.
+// stream with a (file-backed) skeleton store. It does not hold the whole
+// document. The capturing-reader path guarantees this.
 func TestStreamingReaderBoundedMemory(t *testing.T) {
 	if testing.Short() {
 		t.Skip("memory test skipped in -short")
@@ -85,19 +84,16 @@ func TestStreamingReaderBoundedMemory(t *testing.T) {
 		// metric this test actually means. A reader that buffered the whole
 		// document would keep it *live*, so this still trips the bound below.
 		liveHeap := func() uint64 {
-			runtime.GC()
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-			return m.HeapAlloc
+			return testutil.LiveHeap()
 		}
 
 		// Sample ~256 times regardless of document size (stride scales with n)
 		// rather than at a fixed stride. A streaming reader's live heap fluctuates
 		// by a bounded, document-size-independent amount (up to ~64 in-flight parts
-		// queued in its channel), so a fixed stride samples the 20x-larger run 20x
-		// more often and reliably catches that bounded burst while the small run
-		// misses it — which made the ps*3 ratio bound flaky for this low-footprint
-		// format. Equal sample density makes ps and pl estimate the same bounded
+		// queued in its channel). A fixed stride would sample the 20x-larger run 20x
+		// more often and reliably catch that bounded burst while the small run
+		// misses it. That would make the ps*3 ratio bound flaky for this
+		// low-footprint format. Equal sample density makes ps and pl estimate the same bounded
 		// working set, so the ratio reflects real scaling, not sampling luck.
 		stride := max(n/256, 1)
 		base := liveHeap()

@@ -3,7 +3,6 @@ package json
 import (
 	"fmt"
 	"io"
-	"runtime"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -12,7 +11,7 @@ import (
 )
 
 // scanStream tokenises input via the streaming scanner into a slice (for parity
-// comparison only — production streaming consumes next() one token at a time).
+// comparison only; production streaming consumes next() one token at a time).
 func scanStream(t *testing.T, input string) []token {
 	t.Helper()
 	s := newStreamScanner(strings.NewReader(input))
@@ -31,7 +30,7 @@ func scanStream(t *testing.T, input string) []token {
 
 // TestStreamScannerParity asserts the streaming scanner emits the exact same
 // token sequence (type, raw, value, prefix) as the buffered scanner across
-// representative well-formed JSON / JSON5 — the property that lets a streaming
+// representative well-formed JSON / JSON5. This property lets a streaming
 // JSON read stay byte-exact while driving the same forward, ancestor-only walk.
 func TestStreamScannerParity(t *testing.T) {
 	inputs := []string{
@@ -70,7 +69,7 @@ func TestStreamScannerParity(t *testing.T) {
 }
 
 // genJSONReader emits a large JSON object of n entries on demand via an
-// io.Pipe, so the document never exists as a whole buffer — the streaming
+// io.Pipe, so the document never exists as a whole buffer. The streaming
 // scanner's peak memory therefore reflects only its own working set, not the
 // document size. docBytes returns the exact byte length the generator produces.
 func genJSONReader(n int) (io.Reader, int) {
@@ -98,7 +97,7 @@ func genJSONReader(n int) (io.Reader, int) {
 
 // TestStreamScannerBoundedMemory tokenises a large JSON document supplied as a
 // pure stream (never materialised as a buffer) and asserts peak heap is a small,
-// flat window — independent of document size. The buffered scanner would hold the
+// flat window, independent of document size. The buffered scanner would hold the
 // whole []byte plus a []token slice, both scaling with the document.
 func TestStreamScannerBoundedMemory(t *testing.T) {
 	if testing.Short() {
@@ -117,17 +116,14 @@ func TestStreamScannerBoundedMemory(t *testing.T) {
 		// metric this test actually means. A buffered scanner would keep the
 		// whole []byte + []token *live*, so this still trips the bound below.
 		liveHeap := func() uint64 {
-			runtime.GC()
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-			return m.HeapAlloc
+			return testutil.LiveHeap()
 		}
 
 		// Sample ~256 times regardless of document size (stride scales with n)
 		// rather than at a fixed stride. The streaming scanner's live heap
 		// fluctuates by a bounded, document-size-independent amount, so a fixed
 		// stride samples the 20x-larger run 20x more often and reliably catches
-		// that bounded burst while the small run misses it — which would make the
+		// that bounded burst while the small run misses it. That would make the
 		// ps*3 ratio bound flaky for this low-footprint tokenizer. Equal sample
 		// density makes ps and pl estimate the same bounded working set, so the
 		// ratio reflects real scaling, not sampling luck.

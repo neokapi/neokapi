@@ -5,8 +5,8 @@ package formats_test
 // a function of the widest row, not of how many rows there are.
 //
 // This is the conversion-path counterpart to openxml's
-// TestPackageReadBoundedMemory, and it guards the pair of buffers #1710 removed
-// — the runner's collect-then-replay slice and the writer's own event list.
+// TestPackageReadBoundedMemory. It guards against two buffers (#1710): the
+// runner's collect-then-replay slice and the writer's own event list.
 // Either one alone pins the whole block graph, so a regression in either brings
 // the scaling back.
 
@@ -17,7 +17,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -108,10 +107,7 @@ func convertStreaming(t *testing.T, reg *registry.FormatRegistry, path string) (
 	t.Cleanup(func() { _ = r.Close() })
 
 	liveHeap := func() uint64 {
-		runtime.GC()
-		var m runtime.MemStats
-		runtime.ReadMemStats(&m)
-		return m.HeapAlloc
+		return testutil.LiveHeap()
 	}
 	base := liveHeap()
 
@@ -143,8 +139,8 @@ func convertStreaming(t *testing.T, reg *registry.FormatRegistry, path string) (
 //
 // Two sheets of the same size carry it differently: one as 160k small cells,
 // the other as 16k cells around ten times as long. Holding the byte size
-// constant takes the reader's per-part read buffer out of the comparison — that
-// buffer is still O(document) and is a separate problem — leaving the block
+// constant takes the reader's per-part read buffer out of the comparison. That
+// buffer is O(document) and is a separate problem. What remains is the block
 // graph as the only thing that differs between the runs. A writer or runner
 // that collects the Part stream retains ten times as much for the first sheet
 // as for the second; a streaming pair retains neither.
@@ -182,7 +178,7 @@ func TestSpreadsheetConversionDoesNotRetainBlocks(t *testing.T) {
 		many/1024, few/1024)
 }
 
-// The streamed table must render the same bytes the buffered path did — the
+// The streamed table must render the same bytes as the buffered path. The
 // grid is the same grid however the writer got to it.
 func TestStreamedGridRendersEveryRow(t *testing.T) {
 	dir := t.TempDir()

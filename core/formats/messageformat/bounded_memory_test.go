@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"runtime"
 	"runtime/debug"
 	"testing"
 
@@ -18,8 +17,8 @@ import (
 )
 
 // TestStreamingSkeletonByteExact runs the skeleton round-trip oracle through the
-// concurrent (streaming) skeleton store + StreamSkeletonWrite path — the same
-// inputs the buffered path asserts in skeleton_test.go — and confirms the
+// concurrent (streaming) skeleton store + StreamSkeletonWrite path (the same
+// inputs the buffered path asserts in skeleton_test.go) and confirms the
 // streaming write is byte-identical. This is the streaming half of the acceptance
 // criteria: byte-exact through the streaming path, not just the buffered store.
 func TestStreamingSkeletonByteExact(t *testing.T) {
@@ -55,7 +54,7 @@ func TestStreamingSkeletonByteExact(t *testing.T) {
 				defer store.CloseWrite()
 				defer reader.Close()
 				for res := range reader.Read(ctx) {
-					assert.NoError(t, res.Error) // assert (not require) — runs off the test goroutine
+					assert.NoError(t, res.Error) // assert (not require): runs off the test goroutine
 					if res.Part != nil {
 						partsCh <- res.Part
 					}
@@ -83,10 +82,11 @@ func TestStreamingPairDeclared(t *testing.T) {
 }
 
 // TestStreamingWriterBoundedMemory drives a full read→write round-trip of a
-// large MessageFormat document supplied as a pure stream (an io.Pipe generator —
-// the document never exists as a whole buffer) through the streaming reader, a
-// concurrent skeleton store, and the streaming writer, and asserts peak heap
-// stays a small, flat window independent of document size. With the buffered
+// large MessageFormat document supplied as a pure stream (an io.Pipe generator;
+// the document never exists as a whole buffer). The data passes through the
+// streaming reader, a concurrent skeleton store, and the streaming writer. The
+// test asserts peak heap stays a small, flat window independent of document
+// size. With the buffered
 // writer the block map + skeleton queue would grow O(document); this is the
 // proof the pair genuinely streams and the StreamingReader/StreamingWriter
 // markers are not a false claim.
@@ -120,10 +120,7 @@ func TestStreamingWriterBoundedMemory(t *testing.T) {
 		// metric this test actually means. A buffered writer would keep the
 		// whole block map + skeleton queue *live*, so this still trips the bound.
 		liveHeap := func() uint64 {
-			runtime.GC()
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-			return m.HeapAlloc
+			return testutil.LiveHeap()
 		}
 		base := liveHeap()
 
@@ -131,7 +128,7 @@ func TestStreamingWriterBoundedMemory(t *testing.T) {
 		// rather than at a fixed stride. The streaming round-trip's live heap
 		// fluctuates by a bounded, document-size-independent amount, so a fixed
 		// stride samples the 20x-larger run 20x more often and reliably catches
-		// that bounded burst while the small run misses it — which would make the
+		// that bounded burst while the small run misses it. That would make the
 		// ps*3 ratio bound flaky for this low-footprint format. Equal sample
 		// density makes ps and pl estimate the same bounded working set, so the
 		// ratio reflects real scaling, not sampling luck.
@@ -176,7 +173,7 @@ func TestStreamingWriterBoundedMemory(t *testing.T) {
 // genLargeMessageFormat emits a MessageFormat document of n one-per-line literal
 // messages on demand via an io.Pipe, so the document never exists as a whole
 // buffer. Each line is a branchless leaf, so the reader emits it as a single
-// skeleton ref + block — the simple, per-line streaming path.
+// skeleton ref + block: the simple, per-line streaming path.
 func genLargeMessageFormat(n int) (io.Reader, int) {
 	line := func(i int) string {
 		return fmt.Sprintf("translatable message number %d with several words", i)

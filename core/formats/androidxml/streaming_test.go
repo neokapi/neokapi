@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"runtime"
 	"runtime/debug"
 	"testing"
 
@@ -74,19 +73,16 @@ func TestStreamingReaderBoundedMemory(t *testing.T) {
 		// metric this test actually means. A reader that buffered the whole
 		// document would keep it *live*, so this still trips the bound below.
 		liveHeap := func() uint64 {
-			runtime.GC()
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-			return m.HeapAlloc
+			return testutil.LiveHeap()
 		}
 
 		// Sample ~256 times regardless of document size (stride scales with n)
 		// rather than at a fixed stride. A streaming reader's live heap fluctuates
 		// by a bounded, document-size-independent amount (up to ~64 in-flight parts
-		// queued in its channel), so a fixed stride samples the 20x-larger run 20x
-		// more often and reliably catches that bounded burst while the small run
-		// misses it — which made the ps*3 ratio bound flaky for this low-footprint
-		// format. Equal sample density makes ps and pl estimate the same bounded
+		// queued in its channel). A fixed stride would sample the 20x-larger run 20x
+		// more often and reliably catch that bounded burst while the small run
+		// misses it. That would make the ps*3 ratio bound flaky for this
+		// low-footprint format. Equal sample density makes ps and pl estimate the same bounded
 		// working set, so the ratio reflects real scaling, not sampling luck.
 		stride := max(n/256, 1)
 		base := liveHeap()
@@ -108,8 +104,8 @@ func TestStreamingReaderBoundedMemory(t *testing.T) {
 	// /4 bound below needs headroom over the peak's environment-dependent
 	// floor. The retained-delta floor is size-independent (the ratio check
 	// below is what enforces scaling) but varies with runner: ~300 KiB
-	// locally vs ~1.8 MiB observed under -race -shuffle on CI — which put a
-	// 7 MiB doc at largeSize/3.9, a 3% margin that flaked. Doubling the doc
+	// locally vs ~1.8 MiB observed under -race -shuffle on CI. At that floor a
+	// 7 MiB doc sits at largeSize/3.9, a 3% margin that flakes. Doubling the doc
 	// doubles the margin without weakening the bound.
 	ps, smallSize := peakReading(2_000)
 	pl, largeSize := peakReading(80_000) // 40x

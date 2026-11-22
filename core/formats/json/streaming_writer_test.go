@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"runtime"
 	"runtime/debug"
 	"slices"
 	"testing"
@@ -135,7 +134,7 @@ func streamingWriterRoundtrip(t *testing.T, input string, c writerCase) string {
 
 // TestStreamingWriterMatchesBuffered asserts the streaming write path
 // (streamWrite over a concurrent skeleton store) produces byte-identical
-// output to the buffered skeleton path (writeFromSkeleton) — and that both
+// output to the buffered skeleton path (writeFromSkeleton), and that both
 // round-trip the source byte-exact when nothing is translated.
 func TestStreamingWriterMatchesBuffered(t *testing.T) {
 	t.Parallel()
@@ -193,9 +192,9 @@ func TestStreamingWriterWithTranslation(t *testing.T) {
 	assert.Equal(t, `{"greeting": "Bonjour le monde", "farewell": "Au revoir"}`, streaming)
 }
 
-// TestStreamingWriterChildLayer asserts the `layer:<path>` skeleton refs —
-// embedded subfilter content that arrives as a child layer in the Part stream
-// — reconstruct identically on the streaming and buffered paths.
+// TestStreamingWriterChildLayer asserts the `layer:<path>` skeleton refs
+// (embedded subfilter content that arrives as a child layer in the Part stream)
+// reconstruct identically on the streaming and buffered paths.
 func TestStreamingWriterChildLayer(t *testing.T) {
 	t.Parallel()
 	// No forward slashes: the writer re-escapes the reconstructed child-layer
@@ -247,10 +246,11 @@ func TestStreamingWriterReorderedBlocks(t *testing.T) {
 }
 
 // TestStreamingWriterBoundedMemory drives a full read→write round-trip of a
-// large JSON document supplied as a pure stream (an io.Pipe generator — the
-// document never exists as a whole buffer) through the streaming reader, a
-// concurrent skeleton store, and the streaming writer, and asserts peak heap
-// stays a small, flat window — independent of document size. This is the write
+// large JSON document supplied as a pure stream (an io.Pipe generator; the
+// document never exists as a whole buffer). The data passes through the
+// streaming reader, a concurrent skeleton store, and the streaming writer. The
+// test asserts peak heap stays a small, flat window, independent of document
+// size. This is the write
 // half of TestStreamingReaderBoundedMemory: with the buffered writer the block
 // map + skeleton queue would grow O(document).
 func TestStreamingWriterBoundedMemory(t *testing.T) {
@@ -283,10 +283,7 @@ func TestStreamingWriterBoundedMemory(t *testing.T) {
 		// metric this test actually means. A buffered writer would keep the
 		// whole block map + skeleton queue *live*, so this still trips the bound.
 		liveHeap := func() uint64 {
-			runtime.GC()
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-			return m.HeapAlloc
+			return testutil.LiveHeap()
 		}
 		base := liveHeap()
 
@@ -294,7 +291,7 @@ func TestStreamingWriterBoundedMemory(t *testing.T) {
 		// rather than at a fixed stride. The streaming round-trip's live heap
 		// fluctuates by a bounded, document-size-independent amount, so a fixed
 		// stride samples the 20x-larger run 20x more often and reliably catches
-		// that bounded burst while the small run misses it — which would make the
+		// that bounded burst while the small run misses it. That would make the
 		// ps*3 ratio bound flaky for this low-footprint format. Equal sample
 		// density makes ps and pl estimate the same bounded working set, so the
 		// ratio reflects real scaling, not sampling luck.

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"testing"
 
@@ -91,10 +90,7 @@ func TestStreaming_BoundedMemoryXCStrings(t *testing.T) {
 	}
 	defer debug.SetGCPercent(debug.SetGCPercent(20))
 	liveHeap := func() uint64 {
-		runtime.GC()
-		var m runtime.MemStats
-		runtime.ReadMemStats(&m)
-		return m.HeapAlloc
+		return testutil.LiveHeap()
 	}
 	peakReading := func(n int) (peak uint64, size int) {
 		path, sz := genXCStrings(t, n)

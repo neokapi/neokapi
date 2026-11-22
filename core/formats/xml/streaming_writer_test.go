@@ -6,17 +6,15 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
 	xmlfmt "github.com/neokapi/neokapi/core/formats/xml"
+	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/neokapi/neokapi/core/internal/testutil"
 )
 
 func streamingPairRoundtripXML(t *testing.T, input string, cfg *xmlfmt.Config) string {
@@ -90,10 +88,7 @@ func TestStreamingPair_BoundedWriterXML(t *testing.T) {
 	}
 	defer debug.SetGCPercent(debug.SetGCPercent(20))
 	liveHeap := func() uint64 {
-		runtime.GC()
-		var m runtime.MemStats
-		runtime.ReadMemStats(&m)
-		return m.HeapAlloc
+		return testutil.LiveHeap()
 	}
 	peakWriting := func(n int) (peak uint64, size int) {
 		path, sz := genXMLFile(t, n)

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"runtime"
 	"runtime/debug"
 	"testing"
 
@@ -63,10 +62,7 @@ func TestStreamingPair_BoundedWriterTS(t *testing.T) {
 	}
 	defer debug.SetGCPercent(debug.SetGCPercent(20))
 	liveHeap := func() uint64 {
-		runtime.GC()
-		var m runtime.MemStats
-		runtime.ReadMemStats(&m)
-		return m.HeapAlloc
+		return testutil.LiveHeap()
 	}
 	peakWriting := func(n int) (peak uint64, size int) {
 		pr, sz := genTS(n)
