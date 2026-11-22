@@ -6,7 +6,7 @@ require (
 	github.com/daulet/tokenizers v1.27.0
 	github.com/neokapi/neokapi v0.0.0
 	github.com/stretchr/testify v1.12.1
-	github.com/yalue/onnxruntime_go v1.30.1
+	github.com/yalue/onnxruntime_go v1.38.0
 	google.golang.org/grpc v1.85.0
 )
 

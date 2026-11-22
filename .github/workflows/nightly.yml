@@ -124,7 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      ONNXRUNTIME_VERSION: "1.25.0" # matches yalue/onnxruntime_go (ORT_API_VERSION 25)
+      ONNXRUNTIME_VERSION: "1.31.1" # matches yalue/onnxruntime_go (ORT_API_VERSION 31)
       VISION_MODELS_TAG: "vision-models-v1"
     steps:
       - uses: actions/checkout@v7
@@ -180,7 +180,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
-      ONNXRUNTIME_VERSION: "1.25.0"
+      ONNXRUNTIME_VERSION: "1.31.1"
       VISION_MODELS_TAG: "vision-models-v1"
       PDFIUM_RELEASE: "chromium/7891" # matches release-pdfium.yml
     steps:

@@ -31,10 +31,9 @@ jobs:
   # Models are NOT bundled — they download from HuggingFace at first use.
   #
   # Version pins (must be kept in lockstep with plugins/sat/go.mod):
-  #   * onnxruntime 1.25.0 — yalue/onnxruntime_go v1.30.1 targets the 1.25.0 C
-  #     API headers and its bundled test dylib links the 1.25.0 runtime (e.g.
-  #     libonnxruntime.1.25.0.dylib). Other 1.2x releases may load via C-API
-  #     back-compat, but 1.25.0 is the matched, tested ABI — keep this pinned.
+  #   * onnxruntime 1.31.1: yalue/onnxruntime_go v1.38.0 vendors the 1.31 C API
+  #     headers (ORT_API_VERSION 31). An older runtime cannot serve API 31, so
+  #     the runtime and the binding move together.
   #   * daulet/tokenizers v1.27.0 — matches plugins/sat/go.mod. darwin/linux use
   #     the prebuilt libtokenizers.a from that tag; Windows has no prebuilt lib
   #     and is built from Rust source (see the Windows leg).
@@ -61,7 +60,7 @@ jobs:
     runs-on: ${{ matrix.build.os }}
     env:
       # Pinned native-dependency versions (see job-level comment above).
-      ONNXRUNTIME_VERSION: "1.25.0"
+      ONNXRUNTIME_VERSION: "1.31.1"
       TOKENIZERS_VERSION: "v1.27.0"
     steps:
       - uses: actions/checkout@v7

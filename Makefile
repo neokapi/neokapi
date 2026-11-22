@@ -1062,8 +1062,8 @@ test-pdfium-plugin: ## Run kapi-pdfium tests (CGO; needs libpdfium on PKG_CONFIG
 # CI-safe; -tags onnx links the real RapidOCR/PP-OCRv5 pipeline. For DISTRIBUTION
 # the release tarball is self-contained — it bundles the onnxruntime shared lib
 # (lib/) AND the PP-OCRv5 model assets (models/) beside the binary
-# (scripts/package-vision-plugin.sh). onnxruntime is pinned to 1.25.0 to match
-# yalue/onnxruntime_go (ORT_API_VERSION 25). See plugins/vision/README.md.
+# (scripts/package-vision-plugin.sh). onnxruntime is pinned to 1.31.1 to match
+# yalue/onnxruntime_go (ORT_API_VERSION 31). See plugins/vision/README.md.
 build-vision-plugin: ## Build the kapi-vision plugin (no ONNX backend; pure Go)
 	@mkdir -p $(BIN_DIR)
 	cd plugins/vision && GOWORK=off $(GO) build $(LDFLAGS) -o $(BIN_DIR)/kapi-vision ./cmd/kapi-vision

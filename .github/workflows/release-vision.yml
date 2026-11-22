@@ -17,9 +17,9 @@ permissions:
   id-token: write # cosign keyless OIDC (tag publishes)
 
 env:
-  # onnxruntime 1.25.0 matches yalue/onnxruntime_go v1.30.1 (ORT_API_VERSION 25),
+  # onnxruntime 1.31.1 matches yalue/onnxruntime_go v1.38.0 (ORT_API_VERSION 31),
   # the same pin as kapi-sat/kapi-check. Keep in lockstep with plugins/vision/go.mod.
-  ONNXRUNTIME_VERSION: "1.25.0"
+  ONNXRUNTIME_VERSION: "1.31.1"
   # PP-OCRv5 mobile model assets, mirrored on this neokapi release for
   # reproducible, CI-reachable downloads (see plugins/vision/internal/models).
   VISION_MODELS_TAG: "vision-models-v1"
