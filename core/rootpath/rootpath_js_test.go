@@ -3,7 +3,6 @@
 package rootpath_test
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -32,7 +31,7 @@ func TestCheckRegularResolvesALinkWhereContainIsLexical(t *testing.T) {
 
 	_, err := rootpath.CheckRegular(root, filepath.Join(root, "out.txt"))
 	var escape *rootpath.EscapeError
-	require.True(t, errors.As(err, &escape), "a link out of the root is refused: %v", err)
+	require.ErrorAs(t, err, &escape, "a link out of the root is refused")
 
 	got, err := rootpath.CheckRegular(root, filepath.Join(root, "in.txt"))
 	require.NoError(t, err)
