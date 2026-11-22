@@ -288,7 +288,7 @@ func (a *App) ConnectHosts(ctx context.Context, cmd Command, opts ConnectOptions
 	if opts.HostsOnly {
 		opts.DryRun = true
 	}
-	recipe, err := ResolveProjectPath(cmd)
+	recipe, err := ResolveNewProjectPath(cmd)
 	if err != nil {
 		return nil, err
 	}

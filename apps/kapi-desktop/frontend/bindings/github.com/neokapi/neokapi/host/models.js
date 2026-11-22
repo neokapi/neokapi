@@ -3075,7 +3075,7 @@ export const ContextScope = {
     ScopeWorkspace: "workspace",
 
     /**
-     * ScopeProfile is one voice profile and nothing else — a by-name answer with
+     * ScopeProfile is one voice profile and nothing else: a by-name answer with
      * no project in scope, or one naming a profile no recipe declares. Narrower
      * than a project on purpose: there is no terms store and no governance window
      * behind it, and reporting that as an empty project scope would say the
@@ -3149,7 +3149,7 @@ export class ContextSearchResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Terms are concepts whose terms or definition match — what the project
+             * Terms are concepts whose terms or definition match: what the project
              * calls this, and whether it is discouraged.
              * @member
              * @type {ContextTermHit[] | undefined}
@@ -3159,7 +3159,7 @@ export class ContextSearchResult {
         if (/** @type {any} */(false)) {
             /**
              * Precedent is wording the project has already approved that matches the
-             * query — "how have we said this before?".
+             * query: "how have we said this before?".
              * 
              * This is NOT translation recycling. Recycling is the loop's job and is
              * invisible by design (`up` pre-fills from content memory as the structural
@@ -3174,7 +3174,7 @@ export class ContextSearchResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Profiles are the governance profiles whose validity is bounded — "which
+             * Profiles are the governance profiles whose validity is bounded: "which
              * voice is in force, and until when". Only profiles that declare a window
              * appear; a project that never bounds governance has none.
              * @member
@@ -3665,10 +3665,10 @@ export class ContextTermHit {
         if (/** @type {any} */(false)) {
             /**
              * ValidFrom/ValidTo carry the term's own time scoping when it has any.
-             * A rule that starts or stops on a date is what lets a context survive a
-             * rename without being rewritten, so a caller must be able to see that the
-             * answer it just got has an expiry — "recognise the old name until March"
-             * is a different instruction from "never use it".
+             * A rule that starts or stops on a date lets a context survive a rename
+             * without being rewritten. A caller sees that the answer has an expiry,
+             * because "recognise the old name until March" is a different instruction
+             * from "never use it".
              * @member
              * @type {string | undefined}
              */

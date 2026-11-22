@@ -5091,11 +5091,18 @@
   },
   "desktop": {
     "menu": {
+      "cancel": "▒ Çàñçéļ ▒",
+      "cancelFlowAndClose": "▒ Çàñçéļ Ƒļöŵ & Çļöšé ▒",
       "checkForUpdates": "▒ Çĥéçķ ƒöŕ Üþđàţéš… ▒",
+      "closeWithoutSaving": "▒ Çļöšé Ŵîţĥöüţ Šàṽîñĝ ▒",
       "file": "▒ Ƒîļé ▒",
+      "holdNoAnswer": "▒ Ţĥéšé þŕöĵéçţš ķééþ ţĥé ŵîñđöŵ öþéñ, àñđ ţĥé ŵîñđöŵ đîđ ñöţ àñšŵéŕ: ▒",
+      "holdTitle": "▒ Þŕöĵéçţš Šţîļļ Öþéñ ▒",
       "newProject": "▒ Ñéŵ Þŕöĵéçţ ▒",
       "noWorkspaceProjects": "▒ Ñö Þŕöĵéçţš Ýéţ ▒",
       "open": "▒ Öþéñ... ▒",
+      "reasonRunning": "▒ ƒļöŵ ŕüññîñĝ ▒",
+      "reasonUnsaved": "▒ üñšàṽéđ çĥàñĝéš ▒",
       "save": "▒ Šàṽé ▒",
       "saveAs": "▒ Šàṽé Àš... ▒",
       "workspaceProjects": "▒ Þŕöĵéçţš îñ Ýöüŕ Ŵöŕķšþàçé ▒"

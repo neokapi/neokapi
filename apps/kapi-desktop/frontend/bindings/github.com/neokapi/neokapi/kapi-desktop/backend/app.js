@@ -67,6 +67,17 @@ export function AINeedsModelChoice(tabID, flowName) {
 }
 
 /**
+ * AcknowledgeClose tells the guard that the page received the close request.
+ * It returns true when the page should show its dialog, and false when the
+ * native fallback already asks or nothing is pending, so only one question is
+ * ever on screen.
+ * @returns {$CancellablePromise<boolean>}
+ */
+export function AcknowledgeClose() {
+    return $Call.ByID(1234251616);
+}
+
+/**
  * AcknowledgeSampleRevision marks the on-disk sample as up to date with the
  * embedded revision without re-scaffolding ("keep current"), so the desktop
  * stops offering the upgrade for this copy.
@@ -303,6 +314,14 @@ export function BrowseProjectLocation() {
 }
 
 /**
+ * CancelClose drops the held close and keeps the window open.
+ * @returns {$CancellablePromise<void>}
+ */
+export function CancelClose() {
+    return $Call.ByID(511902718);
+}
+
+/**
  * @param {string} tabID
  * @returns {$CancellablePromise<void>}
  */
@@ -404,6 +423,16 @@ export function CloseProject(tabID) {
  */
 export function CloseTerms(handle) {
     return $Call.ByID(3719988687, handle);
+}
+
+/**
+ * ConfirmClose lets the held close go ahead, after the person saved or
+ * discarded every listed tab and stopped every running flow. Every later
+ * close goes ahead too.
+ * @returns {$CancellablePromise<void>}
+ */
+export function ConfirmClose() {
+    return $Call.ByID(1357557596);
 }
 
 /**
@@ -1310,7 +1339,7 @@ export function GetMemoryStats(handle) {
 /**
  * GetPluginDocs returns a summary of available plugin-contributed
  * documentation. The manifest plugin model does not currently surface
- * docs through the host, so this always returns nil — the frontend
+ * docs through the host, so this always returns nil, and the frontend
  * degrades to "no docs available" gracefully.
  * @returns {$CancellablePromise<{ [_ in string]?: any }>}
  */
@@ -2124,7 +2153,7 @@ export function ListWorkspaceProjects() {
  * LoadPlugins discovers manifest-driven plugins and registers their schema
  * extensions and formats on the app's registries, then starts watching the
  * plugin directories so plugins installed or removed by another process (e.g.
- * the kapi CLI) are picked up live. Runs in the foreground — callers needing
+ * the kapi CLI) are picked up live. Runs in the foreground; callers needing
  * async startup wrap with a goroutine.
  * @returns {$CancellablePromise<void>}
  */
@@ -2196,8 +2225,8 @@ export function MediaDataURL(path) {
  * NewProject creates a new project, saves it to disk, and opens it as a tab.
  * If savePath is empty, defaults to ~/KapiProjects/{name}/. The recipe file is
  * always kapi.yaml; the project's identity is its folder, so savePath may be a
- * project folder or a full path to kapi.yaml — either is normalized to
- * <folder>/kapi.yaml. The name is not stored in the YAML — the display name is
+ * project folder or a full path to kapi.yaml; either is normalized to
+ * <folder>/kapi.yaml. The name is not stored in the YAML: the display name is
  * derived from the folder name. Users can override it later on the project page.
  * @param {string} name
  * @param {string} sourceLang
@@ -3101,7 +3130,7 @@ export function SetDefaultModel(model, provider) {
  * Empty or "en" disables localization; non-English locales load the
  * matching MO catalog (embedded builtins + installed plugin catalogs).
  * Returns the resolved locale so the frontend can confirm what took
- * effect — useful when the request was "auto" and the backend chose.
+ * effect, which is useful when the request was "auto" and the backend chose.
  * @param {string} locale
  * @returns {$CancellablePromise<string>}
  */
@@ -3185,6 +3214,18 @@ export function SetUILanguage(lang) {
 }
 
 /**
+ * SetUnsavedTabs records which project tabs have unsaved changes. The frontend
+ * calls it whenever that set changes, and with an empty list when the page
+ * unloads. While it is not empty, or a flow is running, a window close or a
+ * quit is held and desktopclose.RequestedEvent asks the frontend what to do.
+ * @param {string[]} tabIDs
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetUnsavedTabs(tabIDs) {
+    return $Call.ByID(2323691154, tabIDs);
+}
+
+/**
  * ShareView reads the Share page for a tab through the host's `kapi share
  * --status`: the rung, the place, the counts and the last sync, without
  * reaching the place. A tab holding the context alone stands on the first
@@ -3234,7 +3275,7 @@ export function SyncProjectStore(tabID) {
 }
 
 /**
- * T returns the active Translator. Safe to call before SetLocale —
+ * T returns the active Translator. Safe to call before SetLocale:
  * returns a NoopTranslator that passes source text through unchanged.
  * Not exposed to Wails (lowercase methods are private); backend code
  * reaches for it directly.

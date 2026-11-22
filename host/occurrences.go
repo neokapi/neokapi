@@ -10,8 +10,8 @@ import (
 // OccurrenceSources binds the two stores a term-occurrence query joins: the
 // terms store the command resolves to, and the project's block cache.
 //
-// The release function is the terms store's — a standalone store opened for
-// this command is closed by it, while the project's shared handle is not. The
+// The release function belongs to the terms store. A standalone store opened
+// for this command is closed by it, while the project's shared handle is not. The
 // block store is never released here: it is the App's shared project handle,
 // which does not belong to the caller.
 //
@@ -19,7 +19,7 @@ import (
 // fresh checkout, and the honest answer to "where is this term used?" there is
 // "nowhere yet" rather than an error.
 func (a *App) OccurrenceSources(cmd Command) (occurrence.Sources, func(), error) {
-	tb, _, release, err := a.OpenTermsSQLite(cmd)
+	tb, _, release, err := a.OpenTermsForRead(cmd)
 	if err != nil {
 		return occurrence.Sources{}, func() {}, err
 	}
