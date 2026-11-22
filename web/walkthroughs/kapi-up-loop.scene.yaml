@@ -177,7 +177,7 @@ steps:
     narration: --plan reports pending units, exact content-memory matches, remaining AI work and estimated tokens for each locale. It makes no provider calls or writes.
     offline: false
   - command: kapi up
-    narration: up recycles all three French units from content memory and holds them back for review, so it writes no target file yet. The command exits zero.
+    narration: up recycles all three French units from content memory. The gate holds them for review, so up writes no target file yet. The command exits zero.
     offline: false
   - command: kapi status --review
     narration: List translated units awaiting approval, each with the source document, block and language a decision names.
