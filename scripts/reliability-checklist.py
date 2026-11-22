@@ -774,6 +774,11 @@ FIXTURES = [
         "expect": ["mobile-maestro-flows"],
     },
     {
+        "name": "a test finds its source file through runtime.Caller",
+        "files": {"core/profile/repopacks_test.go": ["\t_, file, _, ok := runtime.Caller(0)"]},
+        "expect": ["source-path-under-trimpath"],
+    },
+    {
         "name": "a test that can only skip",
         "files": {"scripts/authoringeval/fixtures_test.go": ['\t\tt.Skip("no kapi binary")']},
         "expect": ["test-that-only-skips"],

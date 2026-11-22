@@ -18,6 +18,8 @@ permissions:
   id-token: write # cosign keyless OIDC (tag publishes)
 
 env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
   # bblanchon pdfium-binaries release to bundle (shared libs), pinned for
   # reproducible releases. workflow_dispatch dry-runs use this too.
   # scripts/fetch-pdfium.sh holds the SHA-256 of each platform archive and
