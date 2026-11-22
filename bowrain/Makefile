@@ -31,7 +31,14 @@ ifneq ($(ICU_PKGCONFIG),)
 export PKG_CONFIG_PATH := $(ICU_PKGCONFIG):$(PKG_CONFIG_PATH)
 endif
 endif
-GOTEST      := $(GO) test $(GOTAGS)
+# Test binaries are linked without DWARF (-ldflags=-w): stack traces, panics
+# and the race detector read the symbol table and pclntab, which stay, and a
+# debugger builds its own binary (dlv test). DWARF is about a quarter of each
+# test binary (bowrain/server: 143.6 MB with it, 108.5 MB without), and a
+# `go test ./...` links every package's binary in the build work directory at
+# once (1.34 GB at peak for the bowrain module). A target that passes its own
+# -ldflags replaces this one.
+GOTEST      := $(GO) test $(GOTAGS) -ldflags=-w
 GOBUILD     := $(GO) build $(GOTAGS)
 GOVET       := $(GO) vet $(GOTAGS)
 GOFMT       := gofmt
