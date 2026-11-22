@@ -86,14 +86,28 @@ problem. A panic, or exit 0 with content missing, is a defect.
 ## Fuzz for a bounded time
 
 ```bash
-grep -n '^func Fuzz' core/formats/<fmt>/*_test.go
-go test -run '^$' -fuzz '^FuzzRoundTripPo$' -fuzztime 30s ./core/formats/po/   # 34 s
+./scripts/go-fuzz.sh --list                           # every target, by package
+make fuzz PKG=core/formats/po FUZZTIME=30s            # the targets of one package
+go test -tags fts5 -run '^$' -fuzz '^FuzzRoundTripPo$' -fuzztime 30s ./core/formats/po/   # one target: 34 s
 ```
 
-A crasher lands in `core/formats/<fmt>/testdata/fuzz/<Target>/<id>`, and the
-failure prints how to rerun it. Rerun it with your diff reverted. If it fails
-there too, it predates your change: report it to the person and delete the
-file. If your diff caused it, fix the cause and commit the file with the fix.
+The `Fuzz` workflow runs every target each night. A crasher lands in
+`core/formats/<fmt>/testdata/fuzz/<Target>/<id>`, and the failure prints how
+to rerun it. Rerun it with your diff reverted. If it fails there too, it
+predates your change: report it to the person and delete the file. If your
+diff caused it, fix the cause and commit the file with the fix.
+
+## The writer is a fixed point
+
+```bash
+go test -tags fts5 ./core/formats/ -run TestWriterIsAFixedPoint -count=1   # 2 s
+```
+
+For every format with a writer, the test reads each sample, writes it, reads
+the output and writes again, and the second and third outputs must be equal
+byte for byte. A new format needs a sample the test can read, or the test
+fails. A writer whose output grows or reorders on each pass fails here and
+nowhere else.
 
 ## Consumer toolchain acceptance
 
