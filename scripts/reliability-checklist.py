@@ -743,7 +743,7 @@ FIXTURES = [
     {
         "name": "packageManager pin moved",
         "files": {"package.json": ['  "packageManager": "pnpm@11.24.0",']},
-        "expect": ["package-manager-pin"],
+        "expect": ["package-manager-pin", "package-manager-launchers"],
     },
     {
         "name": "a client type gains a field the app will read",

@@ -704,6 +704,26 @@ items:
       devEngines block into harness/, which made `make harness-check` refuse to
       install.
 
+  - id: package-manager-launchers
+    title: kapi still reads the launchers a new package manager writes
+    owner_surface: cli
+    trigger:
+      added:
+        - '"packageManager"\s*:'
+      added_in:
+        - '**/package.json'
+    check: >-
+      kapi runs a formatter from node_modules/.bin only when the launcher there
+      equals a template in host/launchers/. After the pin moves, install with
+      the new version and run `go test -tags fts5 ./host/ -run
+      'Launcher|FormatterTrust|ProseP3'`. A refused launcher means the new
+      release changed the layout: add a template built from the real file, and
+      a copy under host/testdata/launchers.
+    incident: >-
+      2026-11-22: pnpm 12 wrote a launcher the reader took for the pnpm 11 one,
+      and `kapi apply` refused every formatter. No job on the pull request ran
+      the host tests, because the cli filter did not list the lockfile.
+
   # ── Mobile ───────────────────────────────────────────────────────────────
 
   - id: mobile-reads-cached-shapes
