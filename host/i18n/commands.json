@@ -4543,9 +4543,6 @@
             "materialize": {
               "usage": "after the loop, write target-language files from the project store for every shippable locale (forces defaults.materialize: on-converge)"
             },
-            "memory": {
-              "usage": "named Memory for recycle flow (resolves from KAPI_HOME)"
-            },
             "model": {
               "usage": "AI model name"
             },

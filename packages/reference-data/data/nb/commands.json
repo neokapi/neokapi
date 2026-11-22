@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T15:02:55Z",
+  "generatedAt": "2026-11-22T16:14:46Z",
   "commands": [
     {
       "id": "add",
@@ -9596,11 +9596,6 @@
           "usage": "etter løkken, skriv målspråkfiler fra prosjektlageret for alle leveringsklare språkkoder (tvinger defaults.materialize: on-converge)",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "memory",
-          "usage": "navngitt memory for resirkuleringsflyt (løses opp fra KAPI_HOME)",
-          "type": "string"
         },
         {
           "name": "model",
