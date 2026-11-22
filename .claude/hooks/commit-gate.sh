@@ -30,7 +30,13 @@
 #
 # The log is commit-gate.log in the repository's common git directory: one
 # file for every worktree, never part of a commit. Each line holds the time,
-# what the gate did, the session and the commit's subject, tab-separated.
+# what the gate did, the session and the commit's subject, tab-separated. A
+# commit passed because a merge was in progress is logged as merge-exempt, so
+# the exemption can be audited.
+#
+# The gate is a reminder for a cooperating session, not a boundary: it lets a
+# third attempt through, and a message it cannot see passes unjudged. What
+# holds a change is the required check and the review.
 #
 #   .claude/hooks/commit-gate.sh --self-test
 set -uo pipefail
@@ -110,11 +116,15 @@ commit_dirs() {
 }
 
 # concludes_merge reads a command on stdin and succeeds when a merge is in
-# progress in a directory its commit may run in. The message is not asked: a
-# subject that says "Merge" proves nothing.
+# progress in a directory its commit may run in. $2 is the common git
+# directory of the repository the hook runs for: a directory of another
+# repository does not count. The message is not asked: a subject that says
+# "Merge" proves nothing.
 concludes_merge() {
-  local dir
+  local dir theirs
   while IFS= read -r dir; do
+    theirs="$(git -C "$dir" rev-parse --path-format=absolute --git-common-dir 2> /dev/null)" || continue
+    [ -z "${2:-}" ] || [ "$theirs" = "$2" ] || continue
     git -C "$dir" rev-parse -q --verify MERGE_HEAD > /dev/null 2>&1 && return 0
   done < <(commit_dirs "$1")
   return 1
@@ -132,11 +142,14 @@ decide() {
   else
     title="$(head -1 <<< "$message")"
   fi
-  concludes_merge "$cwd" <<< "$command" && return 0
   title="$(tr '\t' ' ' <<< "$title" | cut -c1-80)"
 
   local stamp refusals
   stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  if concludes_merge "$cwd" "$(dirname "$log")" <<< "$command"; then
+    printf '%s\tmerge-exempt\t%s\t%s\n' "$stamp" "$session" "$title" >> "$log"
+    return 0
+  fi
   if [ "$mode" = "enforce" ]; then
     refusals="$(grep -c "	refused	$session	" "$log" 2>/dev/null || true)"
     if [ "${refusals:-0}" -lt 2 ]; then
@@ -206,16 +219,24 @@ self_test() {
   git -C "$tmp" -c user.name=t -c user.email=t@example.test commit -q --allow-empty -m base 2> /dev/null
   local gitdir
   gitdir="$(git -C "$tmp" rev-parse --absolute-git-dir)"
+  local repolog="$gitdir/commit-gate.log" other="$tmp/other"
   git -C "$tmp" rev-parse HEAD > "$gitdir/MERGE_HEAD"
-  decide 'git commit -m "Take main"' s1 "$log" "$tmp" > /dev/null
-  [ ! -s "$log" ] || { echo "self-test: a commit during a merge was logged" >&2; return 1; }
+  decide 'git commit -m "Take main"' s1 "$repolog" "$tmp" > /dev/null
   # The merge is found where the command goes, not only where it starts.
-  decide "cd \"$tmp\" && git commit -m \"Take main\"" s1 "$log" /nonexistent > /dev/null
-  decide "git -C $tmp commit -m \"Take main\"" s1 "$log" /nonexistent > /dev/null
+  decide "cd \"$tmp\" && git commit -m \"Take main\"" s1 "$repolog" /nonexistent > /dev/null
+  decide "git -C $tmp commit -m \"Take main\"" s1 "$repolog" /nonexistent > /dev/null
   mkdir -p "$tmp/sub"
-  decide 'cd sub && git commit -m "Take main"' s1 "$log" "$tmp" > /dev/null
-  [ ! -s "$log" ] || { echo "self-test: a merge in the directory the command names was logged" >&2; return 1; }
+  decide 'cd sub && git commit -m "Take main"' s1 "$repolog" "$tmp" > /dev/null
+  [ "$(grep -c "merge-exempt	s1	Take main\$" "$repolog")" -eq 4 ] || { echo "self-test: a commit during a merge was not passed and logged as merge-exempt" >&2; return 1; }
+  grep -q 'would-refuse' "$repolog" && { echo "self-test: a commit during a merge was refused" >&2; return 1; }
+  # A merge in progress in another repository exempts nothing here.
+  git init -q "$other" 2> /dev/null
+  git -C "$other" -c user.name=t -c user.email=t@example.test commit -q --allow-empty -m base 2> /dev/null
   rm -f "$gitdir/MERGE_HEAD"
+  git -C "$other" rev-parse HEAD > "$(git -C "$other" rev-parse --absolute-git-dir)/MERGE_HEAD"
+  : > "$repolog"
+  decide "cd \"$other\" && cd \"$tmp\" && git commit -m \"Take main\"" s1 "$repolog" "$tmp" > /dev/null
+  grep -q 'would-refuse' "$repolog" || { echo "self-test: a merge in another repository exempted the commit" >&2; return 1; }
   decide 'git commit -m "Take main"' s1 "$log" "$tmp" > /dev/null
   grep -q 'would-refuse' "$log" || { echo "self-test: the same commit outside a merge was not logged" >&2; return 1; }
 
@@ -238,7 +259,7 @@ self_test() {
   decide 'git commit -F bad.txt' s4 "$log" "$tmp" 2> /dev/null; status=$?
   [ "$status" -eq 2 ] || { echo "self-test: enforce let a message file with no trailer through" >&2; return 1; }
   git -C "$tmp" rev-parse HEAD > "$gitdir/MERGE_HEAD"
-  decide 'git commit -m "Merge origin/main"' s5 "$log" "$tmp" 2> /dev/null || { echo "self-test: enforce refused a commit during a merge" >&2; return 1; }
+  decide 'git commit -m "Merge origin/main"' s5 "$repolog" "$tmp" 2> /dev/null || { echo "self-test: enforce refused a commit during a merge" >&2; return 1; }
   rm -f "$gitdir/MERGE_HEAD"
 
   mode=off
