@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 
@@ -71,6 +72,13 @@ func TestConvSameFormatWritesTheDocument(t *testing.T) {
 					in := filepath.Join(dir, "in"+filepath.Ext(sample))
 					require.NoError(t, os.WriteFile(in, src, 0o644))
 					out := filepath.Join(dir, "out"+filepath.Ext(sample))
+					// The image format reads a caption from "<image>.alt.txt"
+					// and writes the caption beside its output under the same
+					// convention, so each image sample gets one.
+					sidecar := id == "image"
+					if sidecar {
+						require.NoError(t, os.WriteFile(in+".alt.txt", []byte("A colour swatch\n"), 0o644))
+					}
 
 					want, readErr := formatWriterOutput(t, reg, id, in, src)
 					convErr := app.convertDocument(context.Background(), in, id, "", out)
@@ -87,6 +95,12 @@ func TestConvSameFormatWritesTheDocument(t *testing.T) {
 						t.Fatalf("kconv --to %s did not write the document through the %s writer\nwant: %q\ngot:  %q",
 							id, id, clipBytes(want), clipBytes(got))
 					}
+					if sidecar {
+						alt, err := os.ReadFile(out + ".alt.txt")
+						require.NoError(t, err, "the caption is written beside the output under its name")
+						assert.Equal(t, "A colour swatch\n", string(alt))
+					}
+					assertNoStagedOutput(t, dir)
 				})
 			}
 		})
