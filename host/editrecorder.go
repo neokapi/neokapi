@@ -129,7 +129,7 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 	}
 
 	var edits []projector.Edit
-	var written []string
+	var written []writtenUnit
 	for _, doc := range order {
 		transitions := byDoc[doc]
 		if len(transitions) == 0 {
@@ -160,7 +160,7 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 			}
 			e.Transitions = append(e.Transitions, editTransition(t, keep))
 			if writesTranslation(t) {
-				written = append(written, writtenUnit(t.Ref))
+				written = append(written, unitOf(t.Ref))
 			}
 		}
 		edits = append(edits, e)
@@ -193,9 +193,14 @@ func writesTranslation(t change.Transition) bool {
 }
 
 // writtenUnit is the identity a write tally counts a translation by: the
-// document, the block and the edition (its target language and variant).
-func writtenUnit(ref change.Ref) string {
-	return ref.Doc + "\x00" + ref.Block + "\x00" + ref.EditionText()
+// document, the block and the edition (its target language and variant). It
+// is a struct, so two units never share a key whatever their names hold.
+type writtenUnit struct {
+	doc, block, edition string
+}
+
+func unitOf(ref change.Ref) writtenUnit {
+	return writtenUnit{doc: ref.Doc, block: ref.Block, edition: ref.EditionText()}
 }
 
 // unitWriteTally counts, for one run, the translation units it wrote to a
@@ -204,17 +209,17 @@ func writtenUnit(ref change.Ref) string {
 // that does not ask for the count pays nothing for it.
 type unitWriteTally struct {
 	mu    sync.Mutex
-	units map[string]struct{}
+	units map[writtenUnit]struct{}
 }
 
-func (t *unitWriteTally) add(units ...string) {
+func (t *unitWriteTally) add(units ...writtenUnit) {
 	if t == nil || len(units) == 0 {
 		return
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.units == nil {
-		t.units = map[string]struct{}{}
+		t.units = map[writtenUnit]struct{}{}
 	}
 	for _, u := range units {
 		t.units[u] = struct{}{}

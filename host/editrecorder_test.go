@@ -415,3 +415,15 @@ func TestRecorderCountsAUnitWrittenTwiceOnce(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, a.writeTally.total())
 }
+
+// Two units whose names the old joined key ran together ("a\x00b" + "c" and
+// "a" + "b\x00c") are two units.
+func TestWriteTallyKeepsUnitsWithDelimitersInTheirNamesApart(t *testing.T) {
+	var tally unitWriteTally
+	nb, _ := model.ParseEditionKey("nb")
+	tally.add(
+		unitOf(change.Ref{Doc: "a\x00b", Block: "c", Edition: nb}),
+		unitOf(change.Ref{Doc: "a", Block: "b\x00c", Edition: nb}),
+	)
+	assert.Equal(t, 2, tally.total())
+}
