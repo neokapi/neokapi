@@ -2246,7 +2246,7 @@
       "additionalProperties": false,
       "properties": {
         "jobs": {
-          "description": "how many languages to catch up concurrently per pass (0 = project default, else 4)",
+          "description": "how many languages to catch up concurrently per pass (0 = project default, else 4); runs on this machine, so a server-connected project also needs local",
           "type": "integer"
         },
         "local": {
@@ -2254,15 +2254,15 @@
           "type": "boolean"
         },
         "materialize": {
-          "description": "after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy)",
+          "description": "after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy); runs on this machine, so a server-connected project also needs local",
           "type": "boolean"
         },
         "no_checks": {
-          "description": "skip the project's bound checks inside the loop (failing blocks then count as translated)",
+          "description": "skip the project's bound checks inside the loop (failing blocks then count as translated); runs on this machine, so a server-connected project also needs local",
           "type": "boolean"
         },
         "passes": {
-          "description": "maximum reconciliation passes (0 = loop until up to date or waiting for review; 1 = single pass)",
+          "description": "maximum reconciliation passes (0 = loop until up to date or waiting for review; 1 = single pass); runs on this machine, so a server-connected project also needs local",
           "type": "integer"
         },
         "pre_review": {

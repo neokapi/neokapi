@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// callMCPUp runs the registered MCP `up` tool over a real session — the path an
-// agent takes — and returns the structured result.
+// callMCPUp runs the registered MCP `up` tool over a real session (the path an
+// agent takes) and returns the structured result.
 func callMCPUp(t *testing.T, a *App, in map[string]any) (*ConvergeOutput, error) {
 	t.Helper()
 	ctx := context.Background()
@@ -43,14 +43,14 @@ func callMCPUp(t *testing.T, a *App, in map[string]any) (*ConvergeOutput, error)
 }
 
 // TestMCPUp_RunsAtTheServerVenue is the core regression: over MCP, a
-// server-connected project's `up` reaches the venue plumbing — with the project
-// and the structured stream it needs — and returns the run's result.
+// server-connected project's `up` reaches the venue plumbing (with the project
+// and the structured stream it needs) and returns the run's result.
 func TestMCPUp_RunsAtTheServerVenue(t *testing.T) {
 	recipe := newVenueTestProject(t, true)
 	stub := newServerUpStub(t)
 	a := &App{PluginHost: stub.host}
 
-	out, err := callMCPUp(t, a, map[string]any{"project": recipe, "passes": 2})
+	out, err := callMCPUp(t, a, map[string]any{"project": recipe})
 	require.NoError(t, err)
 
 	require.NotNil(t, out)
@@ -64,7 +64,12 @@ func TestMCPUp_RunsAtTheServerVenue(t *testing.T) {
 	assert.Equal(t, []string{"command", serverUpCommand}, args[:2], "dispatch is a Mode-A command")
 	assert.Contains(t, args, "--project="+recipe, "the plumbing must be pointed at this recipe, not a discovered one")
 	assert.Contains(t, args, "--json", "an embedded run reads the structured document, and --json is also what stops the prompt")
-	assert.Contains(t, args, "--passes=2")
+	assert.Len(t, args, 4, "a server run takes the project and --json, the flags it reads")
+
+	// The server runs its own loop and reads no pass count, so a pass count
+	// for a server run is refused rather than sent and ignored.
+	_, err = callMCPUp(t, a, map[string]any{"project": recipe, "passes": 2})
+	assert.ErrorContains(t, err, "--passes applies to a run on this machine")
 }
 
 // TestMCPUp_LocalProjectStillRunsHere is the control: without a bound venue

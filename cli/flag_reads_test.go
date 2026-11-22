@@ -2,218 +2,583 @@ package cli
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
+	"regexp"
 	"slices"
+	"sort"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/memory"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// flagReads records every flag name a command's code looks up. pflag passes
-// each lookup (Lookup, Changed and every Get) through the flag set's
-// normalize function, so a recorder installed there sees them all.
-type flagReads struct {
-	mu    sync.Mutex
-	names map[string]bool
+// Every flag `kapi up`, `kapi run` and `kapi translate` register has an
+// effect, observed where the value is used. Setting it changes the config an
+// AI step was constructed with, the output or the files the run leaves, or
+// the command refuses it with that flag's own error. A flag with no row fails
+// the test.
+//
+// A row calls a flag inert only after trying it on a fixture where it could
+// matter: a flow with an AI step for the AI flags, a seeded content memory for
+// --memory, two files and several languages for the concurrency flags.
+
+// aiKeys are the config keys an AI step is constructed with that the run
+// flags set.
+var aiKeys = []string{"provider", "model", "api_key", "credential", "instruction", "context", "batching"}
+
+// recorder replaces the translate tool's construction with one that records
+// the config the step was built with (after the run's preprocessor: stored
+// default, credentials) and passes blocks through, so no provider is called.
+type recorder struct {
+	mu     sync.Mutex
+	seen   []map[string]any
+	blocks []string
 }
 
-func (r *flagReads) install(fs *pflag.FlagSet) {
-	fs.SetNormalizeFunc(func(_ *pflag.FlagSet, name string) pflag.NormalizedName {
-		r.mu.Lock()
-		if r.names != nil {
-			r.names[name] = true
+func (r *recorder) install(a *App) {
+	a.ToolReg.SetConfigFactory("translate", func(cfg map[string]any, _ string) (tool.Tool, error) {
+		got := map[string]any{}
+		for _, k := range aiKeys {
+			if v, ok := cfg[k]; ok && v != "" {
+				got[k] = v
+			}
 		}
+		r.mu.Lock()
+		r.seen = append(r.seen, got)
 		r.mu.Unlock()
-		return pflag.NormalizedName(name)
+		// A step built without its key fails on the first block that needs
+		// the provider, as the translate tool's provider does.
+		deferred, _ := cfg[registry.DeferredCredentialErrorKey].(error)
+		return &tool.BaseTool{ToolName: "translate", Annotate: func(v tool.BlockView) error {
+			if deferred != nil {
+				return deferred
+			}
+			r.mu.Lock()
+			r.blocks = append(r.blocks, string(v.SourceLocale())+": "+v.SourceText())
+			r.mu.Unlock()
+			return nil
+		}}, nil
 	})
-	// Installing the function normalizes every registered name once; those
-	// are not reads.
-	r.mu.Lock()
-	r.names = map[string]bool{}
-	r.mu.Unlock()
 }
 
-// appBoundFields are the App fields a flag binds to directly (StringVar and
-// the like). The code reads the field, never the flag, so the walk counts a
-// flag bound to one of these as read; TestRunFlagsBoundToAppFieldsAreHonoured
-// runs each.
-var appBoundFields = []string{"FormatFlag", "EngineFlag", "Encoding", "SourceLang", "TargetLang"}
+// constructed is the configs recorded, in a stable order: steps are built
+// concurrently, one per file and language.
+func (r *recorder) constructed() []map[string]any {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := slices.Clone(r.seen)
+	key := func(m map[string]any) string { b, _ := json.Marshal(m); return string(b) }
+	slices.SortFunc(out, func(x, y map[string]any) int { return strings.Compare(key(x), key(y)) })
+	return out
+}
 
-// boundToApp reports whether setting flag on a fresh command changes one of
-// the appBoundFields of its App.
-func boundToApp(t *testing.T, newCmd func(*App) *cobra.Command, flag string) bool {
+// read is the source language and text of each block the step read, sorted.
+func (r *recorder) read() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := slices.Clone(r.blocks)
+	slices.Sort(out)
+	return out
+}
+
+// outcome is what one invocation did: its output and error with the fixture's
+// paths and every digit masked (durations vary), the files it left under the
+// fixture directory, and the config each AI step was constructed with.
+type outcome struct {
+	Out, Err    string
+	Files       map[string]string
+	Constructed []map[string]any
+	Read        []string
+}
+
+var digits = regexp.MustCompile(`[0-9]+`)
+
+// fixture is a directory and how to adjust the App an invocation runs on.
+type fixture struct {
+	dir   string
+	setup func(t *testing.T, a *App)
+}
+
+// invoke runs newCmd with args in a fresh copy of the fixture and returns
+// what it did. The App's stored AI provider is demo, the offline stub, so a
+// run with no provider flag reaches no network.
+func invoke(t *testing.T, newCmd func(*App) *cobra.Command, fx func(t *testing.T) fixture, args []string) outcome {
 	t.Helper()
-	a := &App{}
+	f := fx(t)
+	a := processOnlyApp(t)
+	if f.setup != nil {
+		f.setup(t, a)
+	}
+	rec := &recorder{}
 	cmd := newCmd(a)
-	fields := func() []string {
-		v := reflect.ValueOf(a).Elem()
-		out := make([]string, len(appBoundFields))
-		for i, name := range appBoundFields {
-			out[i] = v.FieldByName(name).String()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetContext(t.Context())
+	cmd.SetArgs(args)
+	cmd.PersistentPreRunE = func(*cobra.Command, []string) error {
+		if err := a.Init(); err != nil {
+			return err
+		}
+		a.Config.Set(config.KeyAIProvider, "demo")
+		rec.install(a)
+		return nil
+	}
+	t.Chdir(f.dir)
+	err := cmd.Execute()
+	mask := func(s string) string {
+		s = strings.ReplaceAll(s, f.dir, "DIR")
+		return digits.ReplaceAllString(s, "#")
+	}
+	o := outcome{Out: mask(out.String()), Files: map[string]string{}, Constructed: rec.constructed(), Read: rec.read()}
+	if err != nil {
+		o.Err = mask(err.Error())
+	}
+	_ = filepath.WalkDir(f.dir, func(p string, d fs.DirEntry, werr error) error {
+		if werr != nil || d.IsDir() {
+			if d != nil && d.IsDir() && d.Name() == ".kapi" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		// A database file's bytes vary between identical runs.
+		if strings.Contains(filepath.Base(p), ".db") {
+			return nil
+		}
+		data, rerr := os.ReadFile(p)
+		if rerr == nil {
+			rel, _ := filepath.Rel(f.dir, p)
+			o.Files[rel] = fmt.Sprintf("%x", sha256.Sum256([]byte(mask(string(data)))))
+		}
+		return nil
+	})
+	return o
+}
+
+func (o outcome) String() string {
+	b, _ := json.MarshalIndent(o, "", "  ")
+	return string(b)
+}
+
+// flagRow is one flag's proof of effect. base is an invocation without the
+// flag, and with is the flag and its value. refusal, when set, is text of
+// that flag's own refusal. The row then passes only on that error. check,
+// when set, replaces the comparison for an effect not in the outcome
+// (concurrency).
+type flagRow struct {
+	flag    string
+	fx      func(t *testing.T) fixture
+	base    []string
+	with    []string
+	refusal string
+	check   func(t *testing.T)
+}
+
+// assertEffect fails unless the flag changed the outcome with no new error,
+// or was refused with its own error. The baseline runs twice first, so a row
+// cannot pass on an outcome that varies from run to run.
+func assertEffect(t *testing.T, newCmd func(*App) *cobra.Command, r flagRow) {
+	t.Helper()
+	if r.check != nil {
+		r.check(t)
+		return
+	}
+	base := invoke(t, newCmd, r.fx, r.base)
+	again := invoke(t, newCmd, r.fx, r.base)
+	require.Equal(t, base, again, "the baseline for --%s is not deterministic", r.flag)
+	require.Empty(t, base.Err, "the baseline for --%s must succeed:\n%s", r.flag, base)
+	got := invoke(t, newCmd, r.fx, append(slices.Clone(r.base), r.with...))
+	if r.refusal != "" {
+		assert.Contains(t, got.Err, r.refusal, "--%s %v is refused with its own error:\n%s", r.flag, r.with, got)
+		return
+	}
+	require.Empty(t, got.Err, "--%s %v failed:\n%s", r.flag, r.with, got)
+	assert.NotEqual(t, base, got, "--%s %v changed nothing:\n%s", r.flag, r.with, got)
+}
+
+// assertEveryFlagHasARow fails for a registered flag with no row.
+func assertEveryFlagHasARow(t *testing.T, newCmd func(*App) *cobra.Command, rows []flagRow) {
+	t.Helper()
+	have := map[string]bool{}
+	for _, r := range rows {
+		have[r.flag] = true
+	}
+	var missing []string
+	newCmd(&App{}).Flags().VisitAll(func(f *pflag.Flag) {
+		if !have[f.Name] {
+			missing = append(missing, "--"+f.Name)
+		}
+	})
+	sort.Strings(missing)
+	assert.Empty(t, missing, "flags with no row: each must show an effect or be removed")
+}
+
+func runRows(t *testing.T, newCmd func(*App) *cobra.Command, rows []flagRow) {
+	t.Helper()
+	assertEveryFlagHasARow(t, newCmd, rows)
+	for _, r := range rows {
+		t.Run(r.flag, func(t *testing.T) { assertEffect(t, newCmd, r) })
+	}
+}
+
+// isolate pins every root an in-process run could inherit.
+func isolate(t *testing.T) {
+	t.Helper()
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv("KAPI_HOME", t.TempDir())
+	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
+	t.Setenv("KAPI_PLUGINS_DIR", t.TempDir())
+	t.Setenv("KAPI_AI_PROVIDER", "")
+	t.Setenv("ANTHROPIC_API_KEY", "")
+	t.Setenv("OPENAI_API_KEY", "")
+}
+
+// fileFixture is a directory holding messages_en.json, more_en.json, a file
+// no reader opens, a TMX holding en and de with no source language, a content
+// memory answering "Hello" at seed.db, and a recipe over messages_en.json.
+// latin1 writes messages_en.json in ISO-8859-1.
+func fileFixture(latin1 bool) func(t *testing.T) fixture {
+	return func(t *testing.T) fixture {
+		dir, err := filepath.EvalSymlinks(t.TempDir())
+		require.NoError(t, err)
+		body := []byte(`{"greeting": "Hello", "farewell": "Goodbye"}`)
+		if latin1 {
+			body = []byte("{\"greeting\": \"Caf\xe9\"}")
+		}
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "messages_en.json"), body, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "more_en.json"), []byte(`{"other": "More"}`), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "notes.nosuchformat"), []byte("\x00\x01"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "both.tmx"), []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4"><header creationtool="t" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="*all*" datatype="plaintext"/>
+<body><tu><tuv xml:lang="en"><seg>Hello</seg></tuv><tuv xml:lang="de"><seg>Hallo</seg></tuv></tu></body></tmx>
+`), 0o644))
+		seedMemoryFile(t, filepath.Join(dir, "seed.db"))
+		require.NoError(t, project.Save(filepath.Join(dir, project.RecipeFileName), &project.KapiProject{
+			Version:     project.CurrentVersion,
+			Name:        "flageffects",
+			Defaults:    project.Defaults{SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}},
+			Collections: []project.Collection{{Path: "messages_en.json", Target: "messages_{lang}.json"}},
+		}))
+		return fixture{dir: dir}
+	}
+}
+
+// seedMemoryFile writes a content memory at path answering "Hello" and
+// "Hello, world." in fr.
+func seedMemoryFile(t *testing.T, path string) {
+	t.Helper()
+	tm, err := memory.NewSQLiteStore(path)
+	require.NoError(t, err)
+	defer tm.Close()
+	for id, pair := range map[string][2]model.LocaleID{"hello": {"en", "fr"}, "hello-us": {"en-US", "fr-FR"}} {
+		src := "Hello"
+		if pair[0] == "en-US" {
+			src = "Hello, world."
+		}
+		require.NoError(t, tm.Add(t.Context(), memory.Entry{
+			ID:          id,
+			Variants:    map[model.LocaleID][]model.Run{pair[0]: {model.TextR(src)}, pair[1]: {model.TextR("Bonjour de la mémoire")}},
+			HintSrcLang: pair[0],
+		}))
+	}
+}
+
+// upFixture is a copy of convergeFixture (a pseudo-translate default flow)
+// with the given recipe edit, and a seeded content memory at seed.db.
+func upFixture(edit func(t *testing.T, dir string, p *project.KapiProject)) func(t *testing.T) fixture {
+	return func(t *testing.T) fixture {
+		recipe, root := convergeFixture(t, []model.LocaleID{"fr-FR"}, gate.Gate{"translated": {Pct: 100}})
+		seedMemoryFile(t, filepath.Join(root, "seed.db"))
+		if edit != nil {
+			p, err := project.Load(recipe)
+			require.NoError(t, err)
+			edit(t, root, p)
+			require.NoError(t, project.Save(recipe, p))
+		}
+		return fixture{dir: root}
+	}
+}
+
+// concurrencyProbe registers a tool under name that records the most blocks
+// it handles at once, and returns that peak.
+func concurrencyProbe(a *App, name string) *atomic.Int32 {
+	var active, peak atomic.Int32
+	a.ToolReg.Register(registry.ToolID(name), func() tool.Tool {
+		return &tool.BaseTool{ToolName: name, Annotate: func(tool.BlockView) error {
+			cur := active.Add(1)
+			for {
+				old := peak.Load()
+				if cur <= old || peak.CompareAndSwap(old, cur) {
+					break
+				}
+			}
+			time.Sleep(20 * time.Millisecond)
+			active.Add(-1)
+			return nil
+		}}
+	})
+	return &peak
+}
+
+// probePeak runs newCmd over a probe fixture with args and returns the peak.
+func probePeak(t *testing.T, newCmd func(*App) *cobra.Command, f fixture, probe string, args []string) int32 {
+	t.Helper()
+	a := processOnlyApp(t)
+	cmd := newCmd(a)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetContext(t.Context())
+	cmd.SetArgs(args)
+	var peak *atomic.Int32
+	cmd.PersistentPreRunE = func(*cobra.Command, []string) error {
+		if err := a.Init(); err != nil {
+			return err
+		}
+		peak = concurrencyProbe(a, probe)
+		return nil
+	}
+	t.Chdir(f.dir)
+	require.NoError(t, cmd.Execute(), out.String())
+	return peak.Load()
+}
+
+// probeFiles is a directory of two eight-key JSON files.
+func probeFiles(t *testing.T) (string, []string) {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	var b strings.Builder
+	b.WriteString("{")
+	for i := range 8 {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		fmt.Fprintf(&b, `"k%d": "Text %d"`, i, i)
+	}
+	b.WriteString("}")
+	var files []string
+	for _, n := range []string{"a_en.json", "b_en.json"} {
+		p := filepath.Join(dir, n)
+		require.NoError(t, os.WriteFile(p, []byte(b.String()), 0o644))
+		files = append(files, p)
+	}
+	return dir, files
+}
+
+// aiRows prove the AI run flags by the config the translate step was
+// constructed with. base must run a flow with a translate step.
+func aiRows(fx func(t *testing.T) fixture, base []string) []flagRow {
+	row := func(flag, value string) flagRow {
+		return flagRow{flag: flag, fx: fx, base: base, with: []string{"--" + flag, value}}
+	}
+	return []flagRow{
+		{flag: "credential", fx: fx, base: base, with: []string{"--credential", "saved"}, refusal: `"saved"`},
+		row("provider", "ollama"), row("api-key", "sk-x"), row("model", "m-flag"),
+		row("instruction", "formal"), row("context", "none"), row("batching", "single"),
+	}
+}
+
+// fileRows are the rows `kapi run` and `kapi translate` share. files turns
+// input files into the command's arguments (`--input f` for run, positional
+// for translate); flow is run's flow name, empty for translate.
+func fileRows(files func(...string) []string, flowName string) []flagRow {
+	fx := fileFixture(false)
+	cmdline := func(name string, args ...string) []string {
+		var out []string
+		if name != "" {
+			out = append(out, name)
+		}
+		return append(out, args...)
+	}
+	in := func(names ...string) []string {
+		return cmdline(flowName, append(files(names...), "--target-lang", "fr")...)
+	}
+	base := in("messages_en.json")
+	// A flow with a translate step (recycle, translate): run's built-in
+	// translate flow, and translate itself.
+	aiFlow := flowName
+	if flowName != "" {
+		aiFlow = "translate"
+	}
+	aiBase := cmdline(aiFlow, append(files("messages_en.json"), "--target-lang", "fr")...)
+	rows := aiRows(fx, aiBase)
+	return append(rows, []flagRow{
+		{flag: "format", fx: fx, base: base, with: []string{"--format", "properties"}},
+		{flag: "engine", fx: fx, base: base, with: []string{"--engine", "nosuch"}, refusal: `unknown format engine "nosuch"`},
+		{flag: "encoding", fx: fileFixture(true), base: aiBase, with: []string{"--encoding", "iso-8859-1"}},
+		{flag: "source-lang", fx: fx, base: in("both.tmx"), with: []string{"--source-lang", "de"}},
+		{flag: "target-lang", fx: fx, base: base, with: []string{"--target-lang", "de"}},
+		{flag: "input", fx: fx, base: base, with: []string{"--input", "more_en.json"}},
+		{flag: "output", fx: fx, base: base, with: []string{"--output", "out/{name}_{lang}.json"}},
+		{flag: "trace", fx: fx, base: base, with: []string{"--trace", "t.json"}},
+		{flag: "pack", fx: fx, base: base, with: []string{"--pack"}, refusal: "--pack applies to a .kpz input"},
+		{flag: "memory", fx: fx, base: aiBase, with: []string{"--memory", "./seed.db"}},
+		{flag: "termstore", fx: fx, base: aiBase, with: []string{"--termstore", "nosuch"}},
+		{flag: "explain", fx: fx, base: base, with: []string{"--explain"}},
+		{flag: "fail-on-unknown", fx: fx, base: in("messages_en.json", "notes.nosuchformat"), with: []string{"--fail-on-unknown"}, refusal: "unable to detect format"},
+		{flag: "strict", fx: fx, base: in("messages_en.json", "notes.nosuchformat"), with: []string{"--strict"}, refusal: "unable to detect format"},
+		{flag: "print-ops", fx: fx, base: base, with: []string{"--print-ops"}},
+		{flag: "project", fx: fx, base: base, with: []string{"--project", "kapi.yaml"}},
+		{flag: "progress", fx: fx, base: base, with: []string{"--progress", "jsonl"}},
+	}...)
+}
+
+// concurrencyRows prove --concurrency and --parallel-blocks by the peak
+// number of blocks in flight. The probe is registered as probeTool; with a
+// project, the recipe's "probe" flow runs it.
+func concurrencyRows(newCmd func(*App) *cobra.Command, prefix []string, probeTool string, withProject bool) []flagRow {
+	run := func(t *testing.T, extra ...string) int32 {
+		dir, files := probeFiles(t)
+		args := slices.Clone(prefix)
+		if withProject {
+			recipe := filepath.Join(dir, project.RecipeFileName)
+			require.NoError(t, project.Save(recipe, &project.KapiProject{
+				Version: project.CurrentVersion, Name: "probe",
+				Defaults: project.Defaults{SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}},
+				Flows:    map[string]*flow.StepsSpec{"probe": {Steps: []flow.FlowStep{{Tool: probeTool}}}},
+			}))
+			args = append(args, "--project", recipe)
+		}
+		args = append(args, "--input", files[0], "--input", files[1], "--target-lang", "fr",
+			"--output", filepath.Join(dir, "out")+"/")
+		return probePeak(t, newCmd, fixture{dir: dir}, probeTool, append(args, extra...))
+	}
+	return []flagRow{
+		{flag: "concurrency", check: func(t *testing.T) {
+			assert.Equal(t, int32(1), run(t, "--concurrency", "1", "--parallel-blocks", "1"))
+			assert.Greater(t, run(t, "--concurrency", "2", "--parallel-blocks", "1"), int32(1))
+		}},
+		{flag: "parallel-blocks", check: func(t *testing.T) {
+			assert.Equal(t, int32(1), run(t, "--concurrency", "1", "--parallel-blocks", "1"))
+			assert.Greater(t, run(t, "--concurrency", "1", "--parallel-blocks", "4"), int32(1))
+		}},
+	}
+}
+
+func TestRunFlagsEachHaveAnEffect(t *testing.T) {
+	isolate(t)
+	inputs := func(names ...string) []string {
+		var out []string
+		for _, n := range names {
+			out = append(out, "--input", n)
 		}
 		return out
 	}
-	before := fields()
-	f := cmd.Flags().Lookup(flag)
-	value := "x"
-	if flag == "target-lang" || flag == "source-lang" {
-		value = "de"
-	}
-	if f.Value.Type() != "string" && f.Value.Type() != "targetLang" {
-		return false
-	}
-	if err := cmd.Flags().Set(flag, value); err != nil {
-		return false
-	}
-	return !slices.Equal(before, fields())
+	rows := fileRows(inputs, "pseudo-translate")
+	rows = append(rows, concurrencyRows(NewRunCmd, []string{"probe"}, "concurrency-probe", true)...)
+	runRows(t, NewRunCmd, rows)
 }
 
-// runRecorded runs newCmd's RunE once per invocation and returns the union of
-// the flags read across them. Each invocation sets its flags before the
-// recorder is installed, so setting a flag is not counted as reading it.
-func runRecorded(t *testing.T, newCmd func(*App) *cobra.Command, invocations []flagInvocation) map[string]bool {
-	t.Helper()
-	read := map[string]bool{}
-	for _, inv := range invocations {
-		a := processOnlyApp(t)
-		cmd := newCmd(a)
-		var out bytes.Buffer
-		cmd.SetOut(&out)
-		cmd.SetErr(&out)
-		cmd.SetContext(t.Context())
-		for i := 0; i+1 < len(inv.flags); i += 2 {
-			require.NoError(t, cmd.Flags().Set(inv.flags[i], inv.flags[i+1]), "%s: set --%s", inv.name, inv.flags[i])
-		}
-		rec := &flagReads{}
-		rec.install(cmd.Flags())
-		err := cmd.RunE(cmd, inv.args)
-		if inv.wantErr {
-			require.Error(t, err, "%s:\n%s", inv.name, out.String())
-		} else {
-			require.NoError(t, err, "%s:\n%s", inv.name, out.String())
-		}
-		rec.mu.Lock()
-		for n := range rec.names {
-			read[n] = true
-		}
-		rec.mu.Unlock()
-	}
-	return read
+func TestTranslateFlagsEachHaveAnEffect(t *testing.T) {
+	isolate(t)
+	positional := func(names ...string) []string { return names }
+	rows := fileRows(positional, "")
+	// The probe stands in for the translate tool, so the porcelain's own flow
+	// runs it.
+	runRows(t, NewTranslateCmd, append(rows, concurrencyRows(NewTranslateCmd, nil, "translate", false)...))
 }
 
-type flagInvocation struct {
-	name    string
-	args    []string
-	flags   []string // name, value pairs
-	wantErr bool
-}
-
-// assertEveryFlagRead fails for each flag registered on the command that no
-// invocation read and that binds to no App field.
-func assertEveryFlagRead(t *testing.T, newCmd func(*App) *cobra.Command, read map[string]bool) {
-	t.Helper()
-	var unread []string
-	newCmd(&App{}).Flags().VisitAll(func(f *pflag.Flag) {
-		if read[f.Name] || boundToApp(t, newCmd, f.Name) {
-			return
-		}
-		unread = append(unread, "--"+f.Name)
+func TestUpFlagsEachHaveAnEffect(t *testing.T) {
+	isolate(t)
+	fx := upFixture(nil)
+	p := []string{"--project", "app.kapi"}
+	// The built-in default flow (recycle, then translate) runs an AI step.
+	builtin := upFixture(func(_ *testing.T, _ string, pr *project.KapiProject) { pr.Defaults.Flow = "" })
+	// A collection whose declared format no installed reader opens.
+	unreadable := upFixture(func(t *testing.T, dir string, pr *project.KapiProject) {
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "notes"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "notes", "n.nosuch"), []byte("x"), 0o644))
+		pr.Collections = append(pr.Collections, project.Collection{
+			Path: "notes/*.nosuch", Format: &project.FormatSpec{Name: "nosuch"}, Target: "notes/{lang}/*.nosuch",
+		})
 	})
-	slices.Sort(unread)
-	assert.Empty(t, unread, "flags the command registers and never reads: a flag it accepts must act, or the command must refuse it")
-}
-
-// fileFixture writes a JSON source file under a fresh directory and returns
-// the directory and the file.
-func fileFixture(t *testing.T) (dir, file string) {
-	t.Helper()
-	d, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
-	file = filepath.Join(d, "messages_en.json")
-	require.NoError(t, os.WriteFile(file, []byte(`{"greeting": "Hello"}`), 0o644))
-	return d, file
-}
-
-// Every flag `kapi up` registers is read by some run of it.
-func TestUpReadsEveryFlagItRegisters(t *testing.T) {
-	t.Setenv("KAPI_NO_PROJECT", "1")
-	recipe, _ := convergeFixture(t, []model.LocaleID{"fr-FR"}, gate.Gate{"translated": {Pct: 100}})
-	p := []string{"project", recipe}
-	// The built-in default flow (no defaults.flow) recycles from the content
-	// memory --memory names, then translates.
-	builtin, _ := convergeFixture(t, []model.LocaleID{"fr-FR"}, gate.Gate{"translated": {Pct: 100}})
-	proj, err := project.Load(builtin)
-	require.NoError(t, err)
-	proj.Defaults.Flow = ""
-	require.NoError(t, project.Save(builtin, proj))
-	t.Setenv("KAPI_HOME", t.TempDir())
-	read := runRecorded(t, NewUpCmd, []flagInvocation{
-		{name: "run", flags: append([]string{"provider", "demo", "trace", filepath.Join(t.TempDir(), "t.json")}, p...)},
-		{name: "built-in default", flags: []string{"project", builtin, "provider", "demo", "memory", "named"}},
-		{name: "plan", flags: append([]string{"plan", "true"}, p...)},
-		{name: "json", flags: append([]string{"json", "true"}, p...)},
-		{name: "recycle-only", flags: append([]string{"recycle-only", "true"}, p...)},
-		{name: "print-ops", flags: append([]string{"print-ops", "true"}, p...)},
-		{name: "timeout on a local run", flags: append([]string{"timeout", "1m"}, p...), wantErr: true},
-		{name: "local and server", flags: append([]string{"local", "true", "server", "true"}, p...), wantErr: true},
+	// Targets identical to their source fail the bound identical-target check.
+	identical := upFixture(func(t *testing.T, dir string, _ *project.KapiProject) {
+		for _, f := range []string{"a.json", "b.json"} {
+			data, err := os.ReadFile(filepath.Join(dir, "src/locales/en", f))
+			require.NoError(t, err)
+			require.NoError(t, os.MkdirAll(filepath.Join(dir, "src/locales/fr-FR"), 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "src/locales/fr-FR", f), data, 0o644))
+		}
 	})
-	assertEveryFlagRead(t, NewUpCmd, read)
-}
-
-// Every flag `kapi translate` registers is read by some run of it.
-func TestTranslateReadsEveryFlagItRegisters(t *testing.T) {
-	t.Setenv("KAPI_NO_PROJECT", "1")
-	dir, file := fileFixture(t)
-	second := filepath.Join(dir, "more_en.json")
-	require.NoError(t, os.WriteFile(second, []byte(`{"farewell": "Goodbye"}`), 0o644))
-	unknown := filepath.Join(dir, "notes.nosuchformat")
-	require.NoError(t, os.WriteFile(unknown, []byte("\x00\x01"), 0o644))
-	read := runRecorded(t, NewTranslateCmd, []flagInvocation{
-		{name: "file", args: []string{file}, flags: []string{"target-lang", "fr", "provider", "demo", "trace", filepath.Join(dir, "t.json")}},
-		{name: "files", args: []string{file, second}, flags: []string{"target-lang", "fr", "provider", "demo", "output", filepath.Join(dir, "out") + "/"}},
-		{name: "strict over an unreadable file", args: []string{file, unknown}, flags: []string{"target-lang", "fr", "provider", "demo", "strict", "true"}, wantErr: true},
-		{name: "explain", args: []string{file}, flags: []string{"target-lang", "fr", "explain", "true"}},
-		{name: "pack without a package", args: []string{file}, flags: []string{"target-lang", "fr", "pack", "true"}, wantErr: true},
+	latin1 := upFixture(func(t *testing.T, dir string, pr *project.KapiProject) {
+		pr.Defaults.Flow = ""
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "src/locales/en", "a.json"), []byte("{\"greeting\":\"Caf\xe9\"}"), 0o644))
 	})
-	assertEveryFlagRead(t, NewTranslateCmd, read)
-}
-
-// Every flag `kapi run` registers is read by some run of it.
-func TestRunReadsEveryFlagItRegisters(t *testing.T) {
-	t.Setenv("KAPI_NO_PROJECT", "1")
-	dir, file := fileFixture(t)
-	recipe := filepath.Join(dir, project.RecipeFileName)
-	require.NoError(t, project.Save(recipe, &project.KapiProject{
-		Version:  project.CurrentVersion,
-		Name:     "flagreads",
-		Defaults: project.Defaults{SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}},
-		Collections: []project.Collection{{
-			Path: "messages_en.json", Target: "messages_{lang}.json",
+	// A recipe declaring a server venue, dispatched to a stub plugin.
+	venue := func(t *testing.T) fixture {
+		recipe := venueParityProject(t)
+		plugins := venuePluginHost(t, serverRunFlags...)
+		return fixture{dir: filepath.Dir(recipe), setup: func(_ *testing.T, a *App) { a.PluginHost = plugins }}
+	}
+	probe := func(t *testing.T, flag, low, high string, edit func(*project.KapiProject)) {
+		peak := func(value string) int32 {
+			f := upFixture(func(_ *testing.T, _ string, pr *project.KapiProject) {
+				pr.Defaults.Flow = "probe"
+				pr.Defaults.TranslateAfter = "none"
+				pr.Flows["probe"] = &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: "concurrency-probe"}}}
+				edit(pr)
+			})(t)
+			return probePeak(t, NewUpCmd, f, "concurrency-probe", []string{"--project", "app.kapi", "--passes", "1", "--" + flag, value})
+		}
+		one := peak(low)
+		assert.Greater(t, peak(high), one, "--%s %s runs more blocks at once than --%s %s", flag, high, flag, low)
+	}
+	rows := aiRows(builtin, p)
+	rows = append(rows, []flagRow{
+		{flag: "encoding", fx: latin1, base: p, with: []string{"--encoding", "iso-8859-1"}},
+		{flag: "memory", fx: fx, base: append(slices.Clone(p), "--recycle-only"), with: []string{"--memory", "./seed.db"}},
+		{flag: "termstore", fx: fx, base: p, with: []string{"--termstore", "nosuch"}, refusal: `terms store "nosuch" does not exist`},
+		{flag: "trace", fx: fx, base: p, with: []string{"--trace", "t.json"}},
+		{flag: "fail-on-unknown", fx: unreadable, base: p, with: []string{"--fail-on-unknown"}, refusal: "nosuch"},
+		{flag: "strict", fx: unreadable, base: p, with: []string{"--strict"}, refusal: "nosuch"},
+		{flag: "print-ops", fx: fx, base: p, with: []string{"--print-ops"}},
+		{flag: "project", fx: fx, base: p, with: []string{"--project", "nowhere"}, refusal: "-p nowhere does not exist"},
+		{flag: "passes", fx: upFixture(func(_ *testing.T, _ string, pr *project.KapiProject) {
+			pr.ShipGate = gate.Gate{"established": {Pct: 100}}
+		}), base: p, with: []string{"--passes", "1"}},
+		{flag: "jobs", check: func(t *testing.T) {
+			probe(t, "jobs", "1", "3", func(pr *project.KapiProject) {
+				pr.Defaults.TargetLanguages = []model.LocaleID{"fr-FR", "de-DE", "nb-NO"}
+			})
 		}},
-		Flows: map[string]*flow.StepsSpec{
-			"mine": {Steps: []flow.FlowStep{{Tool: "pseudo-translate"}}},
-			"fill": {Steps: []flow.FlowStep{{Tool: "recycle"}}},
-		},
-	}))
-	t.Setenv("KAPI_HOME", t.TempDir())
-	unknown := filepath.Join(dir, "notes.nosuchformat")
-	require.NoError(t, os.WriteFile(unknown, []byte("\x00\x01"), 0o644))
-	read := runRecorded(t, NewRunCmd, []flagInvocation{
-		{name: "built-in over files", args: []string{"pseudo-translate"}, flags: []string{"input", file, "target-lang", "fr"}},
-		{name: "recipe flow", args: []string{"mine"}, flags: []string{"project", recipe, "provider", "demo"}},
-		{name: "recipe flow with a named content memory", args: []string{"fill"}, flags: []string{"project", recipe, "memory", "named"}},
-		{name: "strict over an unreadable file", args: []string{"pseudo-translate"}, flags: []string{"input", file, "input", unknown, "target-lang", "fr", "strict", "true"}, wantErr: true},
-		{name: "explain", args: []string{"pseudo-translate"}, flags: []string{"input", file, "target-lang", "fr", "explain", "true"}},
-	})
-	assertEveryFlagRead(t, NewRunCmd, read)
+		{flag: "concurrency", check: func(t *testing.T) {
+			probe(t, "concurrency", "1", "2", func(*project.KapiProject) {})
+		}},
+		{flag: "no-extract", fx: fx, base: p, with: []string{"--no-extract"}},
+		{flag: "no-checks", fx: identical, base: append(slices.Clone(p), "--recycle-only"), with: []string{"--no-checks"}},
+		{flag: "recycle-only", fx: fx, base: p, with: []string{"--recycle-only"}},
+		{flag: "materialize", fx: fx, base: p, with: []string{"--materialize"}},
+		{flag: "pre-review", fx: fx, base: p, with: []string{"--pre-review"}},
+		{flag: "plan", fx: fx, base: p, with: []string{"--plan"}},
+		{flag: "json", fx: fx, base: p, with: []string{"--json"}},
+		{flag: "local", fx: venue, base: []string{"--project", "kapi.yaml"}, with: []string{"--local"}},
+		{flag: "server", fx: fx, base: p, with: []string{"--server"}, refusal: "server"},
+		{flag: "timeout", fx: fx, base: p, with: []string{"--timeout", "1m"}, refusal: "--timeout applies to a server run"},
+		{flag: "fail-on-incomplete-watch", fx: fx, base: p, with: []string{"--fail-on-incomplete-watch"}, refusal: "--fail-on-incomplete-watch applies to a server run"},
+	}...)
+	runRows(t, NewUpCmd, rows)
 }

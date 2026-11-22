@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/plugin/commands"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/neokapi/neokapi/host"
@@ -41,12 +42,12 @@ func TestManifestNeverShadowsBuiltins(t *testing.T) {
 	for _, c := range m.Capabilities.Commands {
 		if c.Hidden {
 			assert.False(t, builtins[c.Name],
-				"hidden plumbing %q must not reuse a built-in verb — pick a distinct name (server-*)", c.Name)
+				"hidden plumbing %q must not reuse a built-in verb; pick a distinct name (server-*)", c.Name)
 			continue
 		}
 		if builtins[c.Name] {
 			assert.True(t, groupScoped[c.Name],
-				"command %q collides with a built-in kapi verb without being on the acknowledged group-scoped list — plugins extend kapi, they never override it", c.Name)
+				"command %q collides with a built-in kapi verb without being on the acknowledged group-scoped list: plugins extend kapi, they never override it", c.Name)
 		}
 	}
 
@@ -65,9 +66,9 @@ func TestManifestNeverShadowsBuiltins(t *testing.T) {
 
 // kapi carries a compiled-in hint table (host.PluginHint) naming the verbs this
 // plugin provides, so that typing one of them without the plugin installed
-// yields an install offer instead of cobra's bare "unknown command". kapi
-// cannot read this manifest when the plugin is absent — that is the whole
-// point — so the table is hand-written, and this test is what keeps it honest.
+// yields an install offer instead of cobra's bare "unknown command". When the
+// plugin is absent, kapi cannot read this manifest, so the table is
+// hand-written, and this test keeps it in step.
 //
 // The table must hold exactly the verbs that would surface as unknown: visible
 // commands that no built-in already owns. Hidden plumbing never gets typed, and
@@ -96,7 +97,7 @@ func TestPluginHintMatchesManifestVerbs(t *testing.T) {
 	hint, ok := host.PluginHintFor("bowrain")
 	require.True(t, ok, "kapi must carry a plugin hint for bowrain")
 	assert.ElementsMatch(t, want, hint.Verbs,
-		"host.pluginHints for bowrain has drifted from manifest.json — update the table in host/missingplugin.go")
+		"host.pluginHints for bowrain has drifted from manifest.json; update the table in host/missingplugin.go")
 	assert.Equal(t, schema.VenueKey, hint.RecipeKey,
 		"the hint's recipe key must be the top-level block this plugin's schema extension owns")
 
@@ -107,4 +108,23 @@ func TestPluginHintMatchesManifestVerbs(t *testing.T) {
 		groups = append(groups, ext.Name)
 	}
 	assert.Contains(t, groups, hint.RecipeKey)
+}
+
+// The manifest declares, for server-up, exactly the flags a server run
+// reads: kapi up forwards a server run those and refuses every other flag
+// before it dispatches.
+func TestManifestDeclaresTheServerRunFlags(t *testing.T) {
+	data, err := os.ReadFile("manifest.json")
+	require.NoError(t, err)
+	m, err := manifest.Parse(data)
+	require.NoError(t, err)
+	var declared []string
+	for _, c := range m.Capabilities.Commands {
+		if c.Name == "server-up" {
+			for _, f := range c.Flags {
+				declared = append(declared, f.Name)
+			}
+		}
+	}
+	assert.ElementsMatch(t, commands.ServerRunFlags, declared)
 }

@@ -21,7 +21,7 @@ import (
 
 // The MCP `up` tool ran the loop in-process whatever the recipe said. In a
 // server-connected project a human's `kapi up` pushes, converges on the org's
-// keys and pulls the results; the agent's `up` did none of that — it spent the
+// keys and pulls the results; the agent's `up` did none of that: it spent the
 // user's own provider on a local loop and left the server holding the state the
 // team reviews from. The venue is one decision now, and both surfaces make it.
 
@@ -113,7 +113,7 @@ func newServerUpStub(t *testing.T) *serverUpStub {
 		Version:         "0.0.1",
 		Binary:          filepath.Base(binPath),
 		Capabilities: manifest.Capabilities{
-			Commands: []manifest.Command{{Name: serverUpCommand, Hidden: true}},
+			Commands: []manifest.Command{{Name: serverUpCommand, Hidden: true, Flags: serverUpStubFlags}},
 		},
 	}
 	require.NoError(t, m.Validate())
@@ -254,7 +254,7 @@ func TestRunUpDispatch_ServerVenueForwardsTheEmbeddedOptions(t *testing.T) {
 
 // TestRunUpDispatch_LocalVenueRunsTheLoopHere keeps the fallback honest: with
 // the plumbing absent, a connected recipe still converges locally rather than
-// failing — the same degradation the CLI has.
+// failing, the same degradation the CLI has.
 func TestRunUpDispatch_LocalVenueRunsTheLoopHere(t *testing.T) {
 	recipe := newVenueTestProject(t, true)
 	a := &App{}
@@ -297,7 +297,7 @@ func TestParseUpResultStream(t *testing.T) {
 
 	// The proposal is made in the push phase and reported on its own line, long
 	// before the result is known. Folding it onto the result is what carries the
-	// review link past the venue boundary — to the host's own summary, to the
+	// review link past the venue boundary: to the host's own summary, to the
 	// `up` MCP tool, and to a CI job summary built from either.
 	t.Run("a proposed change-set is folded onto the result with its review link", func(t *testing.T) {
 		out, err := parseUpResultStream([]byte(
