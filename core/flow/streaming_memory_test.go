@@ -4,19 +4,19 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
-	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/srt"
+	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/stretchr/testify/require"
 )
 
 // writePlainFile writes an SRT document of n cues to
@@ -44,66 +44,76 @@ func writePlainFile(t *testing.T, path string, n int) int {
 	return size
 }
 
-// runPlainRoundTripPeak runs an SRT → SRT round-trip through
-// the streaming FileRunner path and returns the peak heap-in-use delta observed
-// during the run (sampled by a background goroutine). GC is tightened so the
-// sampled peak tracks the live working set rather than GC sawtooth slack.
-func runPlainRoundTripPeak(t *testing.T, inPath, outPath string) uint64 {
+// gatedSRTReader is the SRT reader with its input fed through a gate, so the
+// test can stop the runner's pipeline at points it chooses.
+type gatedSRTReader struct {
+	*srt.Reader
+	gates chan<- *testutil.Gate
+}
+
+func (r gatedSRTReader) Open(ctx context.Context, doc *model.RawDocument) error {
+	gate := testutil.NewGate(doc.Reader)
+	doc.Reader = io.NopCloser(gate)
+	r.gates <- gate
+	return r.Reader.Open(ctx, doc)
+}
+
+// storeSRTWriter is the SRT writer that hands the test the streaming skeleton
+// store the runner wires it to.
+type storeSRTWriter struct {
+	*srt.Writer
+	stores chan<- *format.SkeletonStore
+}
+
+func (w storeSRTWriter) SetSkeletonStore(s *format.SkeletonStore) {
+	w.stores <- s
+	w.Writer.SetSkeletonStore(s)
+}
+
+// runPlainRoundTripPeak runs an SRT → SRT round-trip through the streaming
+// FileRunner path and returns the peak live heap above the pipeline's heap
+// before any input. The reader's input is fed through a gate in 256 steps. At
+// each stop the reader waits for input and the writer has caught up and waits
+// on the skeleton store, so the heap is measured with no stage working.
+func runPlainRoundTripPeak(t *testing.T, inPath, outPath string, size int) uint64 {
 	t.Helper()
 	ctx := context.Background()
 
 	defer debug.SetGCPercent(debug.SetGCPercent(20))
 
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{SourceLocale: model.LocaleEnglish})
+	gates := make(chan *testutil.Gate, 1)
+	stores := make(chan *format.SkeletonStore, 1)
+	reader := gatedSRTReader{Reader: srt.NewReader(), gates: gates}
+	writer := storeSRTWriter{Writer: srt.NewWriter(), stores: stores}
+	passthrough := &tool.BaseTool{ToolName: "passthrough"}
 
-	runtime.GC()
-	var base runtime.MemStats
-	runtime.ReadMemStats(&base)
-
-	var peak atomic.Uint64
-	stop := make(chan struct{})
 	done := make(chan struct{})
+	var runErr error
 	go func() {
 		defer close(done)
-		var m runtime.MemStats
-		for {
-			select {
-			case <-stop:
-				return
-			default:
-			}
-			runtime.ReadMemStats(&m)
-			if m.HeapAlloc > peak.Load() {
-				peak.Store(m.HeapAlloc)
-			}
-			time.Sleep(300 * time.Microsecond)
-		}
+		runErr = runner.RunFileWithReaderWriter(ctx, "roundtrip", []tool.Tool{passthrough}, inPath, outPath, "", reader, writer)
 	}()
-
-	reader := srt.NewReader()
-	writer := srt.NewWriter()
-	passthrough := &tool.BaseTool{ToolName: "passthrough"}
-	if err := runner.RunFileWithReaderWriter(ctx, "roundtrip", []tool.Tool{passthrough}, inPath, outPath, "", reader, writer); err != nil {
-		close(stop)
-		<-done
-		t.Fatalf("round-trip: %v", err)
+	var store *format.SkeletonStore
+	select {
+	case store = <-stores:
+	case <-done:
+		t.Fatalf("the runner wired no streaming skeleton store: %v", runErr)
 	}
-	close(stop)
+	require.True(t, store.IsStreaming(), "the runner streams the round trip")
+	gate := <-gates
+	peak := testutil.SamplePeakStops(gate, int64(size), 256, store, done)
 	<-done
-
-	p := peak.Load()
-	if p < base.HeapAlloc {
-		return 0
-	}
-	return p - base.HeapAlloc
+	require.NoError(t, runErr, "round-trip")
+	return peak
 }
 
 // TestStreamingRoundTripBoundedMemory asserts the streaming plaintext
-// round-trip holds peak memory to a bounded window — sublinear in input size,
-// not ~ file size. The old buffered path collected the whole Part slice plus the
-// whole file in memory, so its peak was ≥ file size; the streaming path keeps a
-// small window, so a 10× larger input must not give a ~10× larger peak and the
-// peak must stay well under the (multi-MB) file size.
+// round-trip holds peak memory to a bounded window, sublinear in input size
+// rather than ~ file size. A buffered path holding the whole Part slice and
+// the whole file would peak at ≥ file size. The streaming path keeps a small
+// window, so a 10× larger input must not give a ~10× larger peak, and the peak
+// must stay well under the (multi-MB) file size.
 func TestStreamingRoundTripBoundedMemory(t *testing.T) {
 	if testing.Short() {
 		t.Skip("memory regression test skipped in -short")
@@ -127,8 +137,8 @@ func TestStreamingRoundTripBoundedMemory(t *testing.T) {
 	smallSize := writePlainFile(t, smallIn, smallN)
 	largeSize := writePlainFile(t, largeIn, largeN)
 
-	smallPeak := runPlainRoundTripPeak(t, smallIn, filepath.Join(dir, "small.out"))
-	largePeak := runPlainRoundTripPeak(t, largeIn, filepath.Join(dir, "large.out"))
+	smallPeak := runPlainRoundTripPeak(t, smallIn, filepath.Join(dir, "small.out"), smallSize)
+	largePeak := runPlainRoundTripPeak(t, largeIn, filepath.Join(dir, "large.out"), largeSize)
 
 	t.Logf("small: peakΔ=%d KiB (input %d KiB)", smallPeak/1024, smallSize/1024)
 	t.Logf("large: peakΔ=%d KiB (input %d KiB)", largePeak/1024, largeSize/1024)

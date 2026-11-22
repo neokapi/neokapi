@@ -108,27 +108,13 @@ func TestStreamScannerBoundedMemory(t *testing.T) {
 	peakTokenizing := func(n int) (peak uint64, docSize int) {
 		r, size := genJSONReader(n)
 
-		// liveHeap forces a GC so HeapAlloc reflects the *retained* working set
-		// rather than transient per-token garbage that the streaming scanner
-		// legitimately produces. Sampling raw HeapAlloc (garbage included) made
-		// the absolute bound below flaky on slower CI runners, where more
-		// uncollected garbage accumulates between samples; live heap is the
-		// metric this test actually means. A buffered scanner would keep the
-		// whole []byte + []token *live*, so this still trips the bound below.
-		liveHeap := func() uint64 {
-			return testutil.LiveHeap()
-		}
-
-		// Sample ~256 times regardless of document size (stride scales with n)
-		// rather than at a fixed stride. The streaming scanner's live heap
-		// fluctuates by a bounded, document-size-independent amount, so a fixed
-		// stride samples the 20x-larger run 20x more often and reliably catches
-		// that bounded burst while the small run misses it. That would make the
-		// ps*3 ratio bound flaky for this low-footprint tokenizer. Equal sample
-		// density makes ps and pl estimate the same bounded working set, so the
-		// ratio reflects real scaling, not sampling luck.
+		// The test goroutine drives the scanner itself, so the scanner is
+		// stopped whenever the test measures, and no gate is needed. The
+		// stride scales with n, so both sizes are sampled at the same density
+		// and estimate the same bounded working set. A buffered scanner would
+		// keep the whole []byte and []token live, so the bound below trips.
 		stride := max(n/256, 1)
-		base := liveHeap()
+		base := testutil.Measure()
 		s := newStreamScanner(r)
 		count := 0
 		for {
@@ -138,7 +124,7 @@ func TestStreamScannerBoundedMemory(t *testing.T) {
 			}
 			count++
 			if count%stride == 0 {
-				if h := liveHeap(); h > base && h-base > peak {
+				if h := testutil.Measure(); h > base && h-base > peak {
 					peak = h - base
 				}
 			}

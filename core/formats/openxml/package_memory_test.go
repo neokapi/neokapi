@@ -178,39 +178,44 @@ func TestPackageReadBoundedMemory(t *testing.T) {
 
 	dir := t.TempDir()
 
-	// liveHeap forces a GC so the sample reflects the retained working set
-	// rather than transient per-entry garbage the read legitimately produces.
-	liveHeap := func() uint64 {
-		return testutil.LiveHeap()
-	}
-
 	peakReading := func(mediaBytes int) (peak, size uint64) {
 		path, _ := writeMediaDocx(t, dir, mediaBytes)
-		info, err := os.Stat(path)
+		f, err := os.Open(path)
+		require.NoError(t, err)
+		defer f.Close()
+		info, err := f.Stat()
 		require.NoError(t, err)
 
+		// The reader reads the package through ReaderAt, so the gate serves
+		// both Reader and ReaderAt and its budget counts the bytes those
+		// reads ask for.
+		gate := testutil.NewGate(f)
 		r := NewReader()
 		r.cfg.ExtractMedia = true
-		require.NoError(t, r.Open(t.Context(), testutil.RawDocFromFile(t, path, model.LocaleEnglish)))
+		require.NoError(t, r.Open(t.Context(), &model.RawDocument{
+			URI:          path,
+			SourceLocale: model.LocaleEnglish,
+			Encoding:     "UTF-8",
+			Reader:       io.NopCloser(gate),
+			ReaderAt:     gate,
+			Size:         info.Size(),
+		}))
 		defer r.Close()
 
-		base := liveHeap()
-		// Every part is sampled: the two documents differ only in media-entry
-		// count, so equal density is automatic and a single retained asset is
-		// large enough to show up in any sample after it.
+		// The gate stops the reader at 256 points through the package. Each
+		// sample is taken with the reader waiting at the gate and every part
+		// it produced received, so nothing allocates during the collection.
+		// A single retained asset is large enough to show in any later sample.
 		var parts []*model.Part
-		for res := range r.Read(t.Context()) {
+		peak = testutil.SamplePeak(gate, info.Size(), 256, r.Read(t.Context()), func(res model.PartResult) {
 			require.NoError(t, res.Error)
 			if res.Part == nil {
-				continue
+				return
 			}
 			// Hold the stream the way a non-streaming run does, so a reader that
 			// materialized media would keep it live rather than shed it.
 			parts = append(parts, res.Part)
-			if h := liveHeap(); h > base && h-base > peak {
-				peak = h - base
-			}
-		}
+		})
 		runtime.KeepAlive(parts)
 		return peak, uint64(info.Size())
 	}

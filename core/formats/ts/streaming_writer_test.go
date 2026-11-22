@@ -61,47 +61,31 @@ func TestStreamingPair_BoundedWriterTS(t *testing.T) {
 		t.Skip("memory test skipped in -short")
 	}
 	defer debug.SetGCPercent(debug.SetGCPercent(20))
-	liveHeap := func() uint64 {
-		return testutil.LiveHeap()
-	}
+	// The gate stops the reader at 256 points through the document. At each
+	// stop the writer catches up and waits on the skeleton store, so every
+	// sample is taken with every stage of the pipeline waiting.
 	peakWriting := func(n int) (peak uint64, size int) {
 		pr, sz := genTS(n)
+		gate := testutil.NewGate(pr)
 		reader := ts.NewReader()
 		writer := ts.NewWriter()
 		store := format.NewStreamingSkeletonStore()
 		reader.SetSkeletonStore(store)
 		writer.SetSkeletonStore(store)
-		require.NoError(t, reader.Open(context.Background(), &model.RawDocument{URI: "big.ts", SourceLocale: model.LocaleEnglish, Reader: io.NopCloser(pr)}))
+		require.NoError(t, reader.Open(context.Background(), &model.RawDocument{URI: "big.ts", SourceLocale: model.LocaleEnglish, Reader: io.NopCloser(gate)}))
 		require.NoError(t, writer.SetOutputWriter(io.Discard))
-		partsCh := make(chan *model.Part, 64)
+		parts := make(chan *model.Part, 64)
 		go func() {
-			defer close(partsCh)
+			defer close(parts)
 			defer store.CloseWrite()
 			defer reader.Close()
-			for res := range reader.Read(context.Background()) {
-				if res.Error != nil || res.Part == nil {
-					continue
+			peak = testutil.SamplePeakPair(gate, int64(sz), 256, reader.Read(context.Background()), func(res model.PartResult) {
+				if res.Error == nil && res.Part != nil {
+					parts <- res.Part
 				}
-				partsCh <- res.Part
-			}
+			}, store)
 		}()
-		stride := max(n/256, 1)
-		base := liveHeap()
-		wrapped := make(chan *model.Part)
-		go func() {
-			defer close(wrapped)
-			count := 0
-			for p := range partsCh {
-				wrapped <- p
-				count++
-				if count%stride == 0 {
-					if h := liveHeap(); h > base && h-base > peak {
-						peak = h - base
-					}
-				}
-			}
-		}()
-		require.NoError(t, writer.Write(context.Background(), wrapped))
+		require.NoError(t, writer.Write(context.Background(), parts))
 		writer.Close()
 		return peak, sz
 	}

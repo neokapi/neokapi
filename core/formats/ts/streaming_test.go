@@ -73,43 +73,22 @@ func TestStreamingReaderBoundedMemory(t *testing.T) {
 		require.NoError(t, err)
 		defer store.Close()
 		reader.SetSkeletonStore(store)
+		gate := testutil.NewGate(pr)
 		require.NoError(t, reader.Open(context.Background(), &model.RawDocument{
 			URI:          "big.ts",
 			SourceLocale: model.LocaleEnglish,
-			Reader:       io.NopCloser(pr),
+			Reader:       io.NopCloser(gate),
 		}))
 
-		// liveHeap forces a GC so HeapAlloc reflects the *retained* working set
-		// rather than transient per-part garbage that a streaming reader
-		// legitimately produces. Sampling raw HeapAlloc (garbage included) made
-		// the absolute bound below flaky on slower CI runners, where more
-		// uncollected garbage accumulates between samples; live heap is the
-		// metric this test actually means. A reader that buffered the whole
-		// document would keep it *live*, so this still trips the bound below.
-		liveHeap := func() uint64 {
-			return testutil.LiveHeap()
-		}
-
-		// Sample ~256 times regardless of document size (stride scales with n)
-		// rather than at a fixed stride. A streaming reader's live heap fluctuates
-		// by a bounded, document-size-independent amount (up to ~64 in-flight parts
-		// queued in its channel). A fixed stride would sample the 20x-larger run 20x
-		// more often and reliably catch that bounded burst while the small run
-		// misses it. That would make the ps*3 ratio bound flaky for this
-		// low-footprint format. Equal sample density makes ps and pl estimate the same bounded
-		// working set, so the ratio reflects real scaling, not sampling luck.
-		stride := max(n/256, 1)
-		base := liveHeap()
-		count := 0
-		for res := range reader.Read(context.Background()) {
+		// The gate stops the reader at 256 points through the document, the
+		// same density for both sizes, so the two runs estimate the same
+		// bounded working set. Each sample is taken with the reader waiting at
+		// the gate and every part it produced received: nothing allocates
+		// during the collection. A reader that held the document would keep it
+		// live, so the bound below still trips.
+		peak = testutil.SamplePeak(gate, int64(sz), 256, reader.Read(context.Background()), func(res model.PartResult) {
 			require.NoError(t, res.Error)
-			count++ // drain without retaining parts, so the test itself is bounded
-			if count%stride == 0 {
-				if h := liveHeap(); h > base && h-base > peak {
-					peak = h - base
-				}
-			}
-		}
+		})
 		reader.Close()
 		return peak, sz
 	}

@@ -3,6 +3,7 @@ package xml_test
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -228,14 +229,12 @@ func TestStreaming_BoundedMemory(t *testing.T) {
 	}
 	defer debug.SetGCPercent(debug.SetGCPercent(20))
 
-	liveHeap := func() uint64 {
-		return testutil.LiveHeap()
-	}
-
 	peakReading := func(n int) (peak uint64, size int) {
 		path, sz := genXMLFile(t, n)
 		f, err := os.Open(path)
 		require.NoError(t, err)
+		defer f.Close()
+		gate := testutil.NewGate(f)
 		reader := xmlfmt.NewReader()
 		store, err := format.NewSkeletonStore()
 		require.NoError(t, err)
@@ -244,21 +243,15 @@ func TestStreaming_BoundedMemory(t *testing.T) {
 		require.NoError(t, reader.Open(context.Background(), &model.RawDocument{
 			URI:          path,
 			SourceLocale: model.LocaleEnglish,
-			Reader:       f,
+			Reader:       io.NopCloser(gate),
 		}))
 
-		stride := max(n/256, 1)
-		base := liveHeap()
-		count := 0
-		for res := range reader.Read(context.Background()) {
+		// The gate stops the reader at 256 points through the document. Each
+		// sample is taken with the reader waiting at the gate and every part
+		// it produced received, so nothing allocates during the collection.
+		peak = testutil.SamplePeak(gate, int64(sz), 256, reader.Read(context.Background()), func(res model.PartResult) {
 			require.NoError(t, res.Error)
-			count++
-			if count%stride == 0 {
-				if h := liveHeap(); h > base && h-base > peak {
-					peak = h - base
-				}
-			}
-		}
+		})
 		reader.Close()
 		return peak, sz
 	}

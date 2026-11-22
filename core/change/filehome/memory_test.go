@@ -4,14 +4,13 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,6 +19,9 @@ import (
 	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/json"
+	"github.com/neokapi/neokapi/core/internal/testutil"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // writeCatalog writes a JSON object of n messages to path and returns its
@@ -92,39 +94,27 @@ func assertLargeEditBounded(t *testing.T, key, text, want string, ceiling uint64
 	b := page.Blocks[0]
 
 	defer debug.SetGCPercent(debug.SetGCPercent(20))
-	runtime.GC()
-	var base runtime.MemStats
-	runtime.ReadMemStats(&base)
-	var peak atomic.Uint64
-	stop, done := make(chan struct{}), make(chan struct{})
+	streams := armGatedJSON(reg)
+	var peak uint64
+	passes := 0
+	sampled := make(chan struct{})
 	go func() {
-		defer close(done)
-		var m runtime.MemStats
-		for {
-			select {
-			case <-stop:
-				return
-			default:
-			}
-			runtime.ReadMemStats(&m)
-			if m.HeapAlloc > peak.Load() {
-				peak.Store(m.HeapAlloc)
-			}
-			time.Sleep(300 * time.Microsecond)
+		defer close(sampled)
+		for st := range streams {
+			passes++
+			peak = max(peak, testutil.SamplePeakStops(st.gate, size, 256, st.store, st.done))
 		}
 	}()
 	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{{
 		Kind: change.KindSetContent, At: b.Ref, IfMatch: b.Rev, Body: &change.SetContent{Text: &text},
 	}}}, person)
-	close(stop)
-	<-done
+	close(streams)
+	<-sampled
+	require.Positive(t, passes, "the edit streams the catalog through the gated reader")
 	require.NoError(t, err)
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 
-	var delta uint64
-	if p := peak.Load(); p > base.HeapAlloc {
-		delta = p - base.HeapAlloc
-	}
+	delta := peak
 	t.Logf("catalog %d KiB, %d messages; peak heap above the baseline %d KiB", size/1024, n, delta/1024)
 	assert.Less(t, delta, ceiling, "the edit took %d KiB of heap; the ceiling is %d KiB", delta/1024, ceiling/1024)
 
@@ -132,4 +122,57 @@ func assertLargeEditBounded(t *testing.T, key, text, want string, ceiling uint64
 	require.NoError(t, err)
 	assert.Contains(t, string(got), want)
 	assert.Equal(t, n+2, strings.Count(string(got), "\n"), "every other message is kept")
+}
+
+// gatedStream is one streaming pass of the JSON reader into the JSON writer:
+// the gate on the reader's input, the skeleton store between the two, and a
+// channel that closes when the pass closes its reader.
+type gatedStream struct {
+	gate  *testutil.Gate
+	store *format.SkeletonStore
+	done  chan struct{}
+}
+
+// armGatedJSON replaces reg's JSON reader with one whose streaming passes
+// read through a gate, and returns the channel each such pass is sent on.
+// The test samples each pass with SamplePeakStops: the reader stops at the
+// gate, the writer catches up on the store, and only then is the heap
+// measured. A pass that is not streaming reads its input directly.
+func armGatedJSON(reg *registry.FormatRegistry) chan gatedStream {
+	streams := make(chan gatedStream)
+	reg.RegisterReader("json", func() format.DataFormatReader {
+		return &gatedJSONReader{Reader: json.NewReader(), streams: streams}
+	}, json.NewReader().Signature(), "JSON")
+	return streams
+}
+
+type gatedJSONReader struct {
+	*json.Reader
+	streams chan<- gatedStream
+	store   *format.SkeletonStore
+	once    sync.Once
+	done    chan struct{}
+}
+
+func (r *gatedJSONReader) SetSkeletonStore(s *format.SkeletonStore) {
+	r.store = s
+	r.Reader.SetSkeletonStore(s)
+}
+
+func (r *gatedJSONReader) Open(ctx context.Context, doc *model.RawDocument) error {
+	if r.store != nil && r.store.IsStreaming() {
+		gate := testutil.NewGate(doc.Reader)
+		doc.Reader = io.NopCloser(gate)
+		r.done = make(chan struct{})
+		r.streams <- gatedStream{gate: gate, store: r.store, done: r.done}
+	}
+	return r.Reader.Open(ctx, doc)
+}
+
+func (r *gatedJSONReader) Close() error {
+	err := r.Reader.Close()
+	if r.done != nil {
+		r.once.Do(func() { close(r.done) })
+	}
+	return err
 }
