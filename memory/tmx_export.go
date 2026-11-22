@@ -45,13 +45,27 @@ func ExportTMX(ctx context.Context, tm ContentMemory, writer io.Writer, locales 
 	w.str(`<!DOCTYPE tmx SYSTEM "tmx14.dtd">` + "\n")
 	w.str(`<tmx version="1.4">` + "\n")
 
-	defaultSrcLang := "en"
-	if len(entries) > 0 && entries[0].HintSrcLang != "" {
-		defaultSrcLang = string(entries[0].HintSrcLang)
+	// The header names the one source language every entry shares, and
+	// "*all*" when the entries are read in more than one; each <tu> carries
+	// its own srclang either way.
+	headerSrcLang, adminLang := "*all*", "en"
+	sources := map[model.LocaleID]bool{}
+	for _, e := range entries {
+		if e.HintSrcLang != "" {
+			sources[e.HintSrcLang] = true
+		}
+	}
+	switch len(sources) {
+	case 0:
+		headerSrcLang = "en"
+	case 1:
+		for l := range sources {
+			headerSrcLang, adminLang = string(l), string(l)
+		}
 	}
 	w.printf(
 		`  <header creationtool="neokapi-memory" creationtoolversion="2.0" segtype="sentence" adminlang="%s" srclang="%s" datatype="plaintext" o-tmf="unknown"/>`+"\n",
-		xmlesc.Attr(defaultSrcLang), xmlesc.Attr(defaultSrcLang))
+		xmlesc.Attr(adminLang), xmlesc.Attr(headerSrcLang))
 	w.str("  <body>\n")
 
 	for _, entry := range entries {
@@ -122,7 +136,7 @@ func ExportTMX(ctx context.Context, tm ContentMemory, writer io.Writer, locales 
 // `if err != nil { return err }` through every one of them is what made the
 // original inconsistent with itself: the header writes were checked and the
 // entire <body> was not, so a disk-full mid-export produced a truncated TMX
-// with a nil return — the caller believed it had written a complete file.
+// with a nil return, and the caller believed it had written a complete file.
 // Latching keeps the emit code readable while making "did every byte land?" a
 // single question, asked at flush.
 //

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T17:12:13Z",
+  "generatedAt": "2026-11-22T16:31:00Z",
   "commands": [
     {
       "id": "add",
@@ -6546,7 +6546,6 @@
           "name": "source-locale",
           "shorthand": "s",
           "usage": "kildespråkkode",
-          "default": "en",
           "type": "string"
         },
         {
@@ -6619,7 +6618,6 @@
           "name": "source-locale",
           "shorthand": "s",
           "usage": "kildespråkkode",
-          "default": "en",
           "type": "string"
         },
         {
@@ -8742,7 +8740,6 @@
           "name": "source-locale",
           "shorthand": "s",
           "usage": "kildespråkkode for CSV-eksport",
-          "default": "en",
           "type": "string"
         },
         {
@@ -8825,7 +8822,6 @@
           "name": "source-locale",
           "shorthand": "s",
           "usage": "kildespråkkode for CSV-import",
-          "default": "en",
           "type": "string"
         },
         {
@@ -9539,13 +9535,6 @@
           "name": "batching",
           "usage": "hvor mange blokker som deler ett LLM-kall: auto (standard), single",
           "type": "string"
-        },
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "antall filer som behandles samtidig (0 = automatisk)",
-          "default": "0",
-          "type": "int"
         },
         {
           "name": "context",
