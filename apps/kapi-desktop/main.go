@@ -71,9 +71,9 @@ func main() {
 		},
 		SingleInstance: singleInstance,
 		// Every quit asks here first: Quit in the app menu, Cmd+Q, the Dock,
-		// a logout, and app.Quit() on Windows and Linux. A tab with unsaved
-		// changes holds the quit until the person answers the frontend's
-		// dialog.
+		// a logout, a signal, the updater, and app.Quit() on Windows and
+		// Linux. A tab with unsaved changes or a running flow holds the quit
+		// until the person answers the frontend's dialog.
 		ShouldQuit: func() bool {
 			return backend.GuardClose(appService, backend.CloseRouteQuit)
 		},
@@ -135,16 +135,35 @@ func main() {
 	})
 	backend.SetClosers(appService, win.Close, app.Quit)
 	// When the page does not acknowledge a held close in time (a render error,
-	// a crashed web content process), a native dialog names the projects with
-	// unsaved changes and offers to close without saving or to cancel, so the
-	// app can always be closed and never drops work without asking.
-	backend.SetCloseFallback(appService, func(_ backend.CloseRoute, names []string) bool {
+	// a crashed web content process), a native dialog names each project that
+	// holds the window with its reasons, and offers to close anyway (running
+	// flows are cancelled, unsaved changes are dropped) or to cancel. The app
+	// can always be closed, and never drops work without asking.
+	backend.SetCloseFallback(appService, func(_ backend.CloseRoute, blockers []backend.CloseBlocker) bool {
 		tr := appService.T()
+		lines := make([]string, 0, len(blockers))
+		unsaved := false
+		for _, b := range blockers {
+			reasons := make([]string, 0, len(b.Reasons))
+			for _, r := range b.Reasons {
+				if r == backend.CloseReasonUnsaved {
+					unsaved = true
+					reasons = append(reasons, desktopmenu.T(tr, "reasonUnsaved"))
+				} else {
+					reasons = append(reasons, desktopmenu.T(tr, "reasonRunning"))
+				}
+			}
+			lines = append(lines, b.Name+" ("+strings.Join(reasons, ", ")+")")
+		}
+		closeLabel := desktopmenu.T(tr, "cancelFlowAndClose")
+		if unsaved {
+			closeLabel = desktopmenu.T(tr, "closeWithoutSaving")
+		}
 		answer := make(chan bool, 1)
 		dialog := app.Dialog.Question().
-			SetTitle(desktopmenu.T(tr, "unsavedTitle")).
-			SetMessage(desktopmenu.T(tr, "unsavedNoAnswer") + "\n\n" + strings.Join(names, "\n"))
-		dialog.AddButton(desktopmenu.T(tr, "closeWithoutSaving")).OnClick(func() { answer <- true })
+			SetTitle(desktopmenu.T(tr, "holdTitle")).
+			SetMessage(desktopmenu.T(tr, "holdNoAnswer") + "\n\n" + strings.Join(lines, "\n"))
+		dialog.AddButton(closeLabel).OnClick(func() { answer <- true })
 		cancel := dialog.AddButton(desktopmenu.T(tr, "cancel")).OnClick(func() { answer <- false })
 		dialog.SetDefaultButton(cancel)
 		dialog.SetCancelButton(cancel)

@@ -9,12 +9,12 @@ import {
   DialogTitle,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
-import { AlertCircle, FileText } from "lucide-react";
-import type { UnsavedTab } from "../hooks/useWindowCloseGuard";
+import { AlertCircle, FileText, Loader2 } from "lucide-react";
+import type { CloseRow, UnsavedTab } from "../hooks/useWindowCloseGuard";
 
 interface WindowCloseDialogProps {
-  /** The tabs with unsaved changes, in tab order. */
-  tabs: UnsavedTab[];
+  /** Each tab that holds the window, in tab order, with its reasons. */
+  rows: CloseRow[];
   /** The tabs whose last save failed; each is marked in the list. */
   failed?: UnsavedTab[];
   saving?: boolean;
@@ -25,10 +25,13 @@ interface WindowCloseDialogProps {
 
 /**
  * WindowCloseDialog asks once, when the window is closing, about every tab
- * with unsaved changes: Save all, Discard all or Cancel.
+ * that holds it: unsaved changes, a running flow, or both. With unsaved
+ * changes it offers Save all, Discard all or Cancel; a running flow stops when
+ * the window closes. With only running flows it offers what closing a tab
+ * offers: Cancel Flow & Close, or Keep running.
  */
 export function WindowCloseDialog({
-  tabs,
+  rows,
   failed = [],
   saving = false,
   onSaveAll,
@@ -36,8 +39,22 @@ export function WindowCloseDialog({
   onCancel,
 }: WindowCloseDialogProps) {
   const failedIDs = new Set(failed.map((tab) => tab.id));
-  // Focus starts on Save all, so Enter keeps the work rather than discarding it.
-  const saveAllRef = useRef<HTMLButtonElement>(null);
+  const anyUnsaved = rows.some((row) => row.unsaved);
+  const anyRunning = rows.some((row) => row.running);
+  // Focus starts on the action that keeps the work, so Enter never drops it.
+  const keepRef = useRef<HTMLButtonElement>(null);
+
+  const title = !anyUnsaved
+    ? t("A flow is running")
+    : anyRunning
+      ? t("Unsaved changes and a running flow")
+      : t("Unsaved changes");
+  const description = !anyUnsaved
+    ? t("Cancel the flow and close, or keep it running?")
+    : anyRunning
+      ? t("Save before closing? Running flows stop when the window closes.")
+      : t("Save before closing?");
+
   return (
     <Dialog
       open
@@ -50,27 +67,35 @@ export function WindowCloseDialog({
         data-testid="window-close-dialog"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
-          saveAllRef.current?.focus();
+          keepRef.current?.focus();
         }}
       >
         <DialogHeader>
-          <DialogTitle>Unsaved changes</DialogTitle>
-          <DialogDescription>Save before closing?</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <ul className="flex flex-col gap-1" aria-label={t("Projects with unsaved changes")}>
-          {tabs.map((tab) => (
+        <ul className="flex flex-col gap-1" aria-label={t("Projects that keep the window open")}>
+          {rows.map((row) => (
             <li
-              key={tab.id}
+              key={row.id}
               className="flex items-center gap-2 text-sm"
-              data-failed={failedIDs.has(tab.id) || undefined}
+              data-failed={failedIDs.has(row.id) || undefined}
             >
-              {failedIDs.has(tab.id) ? (
+              {failedIDs.has(row.id) ? (
                 <AlertCircle size={14} className="shrink-0 text-destructive" aria-hidden />
+              ) : row.running && !row.unsaved ? (
+                <Loader2 size={14} className="shrink-0 text-muted-foreground" aria-hidden />
               ) : (
                 <FileText size={14} className="shrink-0 text-muted-foreground" aria-hidden />
               )}
-              <span className="truncate">{tab.name}</span>
-              {failedIDs.has(tab.id) && (
+              <span className="truncate">{row.name}</span>
+              {row.unsaved && (
+                <span className="text-xs text-muted-foreground">{t("Unsaved changes")}</span>
+              )}
+              {row.running && (
+                <span className="text-xs text-muted-foreground">{t("Flow running")}</span>
+              )}
+              {failedIDs.has(row.id) && (
                 <span className="text-xs text-destructive">{t("Not saved")}</span>
               )}
             </li>
@@ -84,15 +109,28 @@ export function WindowCloseDialog({
           </p>
         )}
         <DialogFooter>
-          <Button disabled={saving} variant="outline" onClick={onDiscardAll}>
-            Discard all
-          </Button>
-          <Button disabled={saving} variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button ref={saveAllRef} disabled={saving} onClick={onSaveAll} className="sm:ml-4">
-            Save all
-          </Button>
+          {anyUnsaved ? (
+            <>
+              <Button disabled={saving} variant="outline" onClick={onDiscardAll}>
+                Discard all
+              </Button>
+              <Button disabled={saving} variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+              <Button ref={keepRef} disabled={saving} onClick={onSaveAll} className="sm:ml-4">
+                Save all
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button disabled={saving} variant="outline" onClick={onDiscardAll}>
+                Cancel Flow &amp; Close
+              </Button>
+              <Button ref={keepRef} disabled={saving} onClick={onCancel} className="sm:ml-4">
+                Keep running
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

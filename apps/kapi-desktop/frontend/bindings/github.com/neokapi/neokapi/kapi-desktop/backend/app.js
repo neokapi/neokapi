@@ -425,7 +425,8 @@ export function CloseTerms(handle) {
 
 /**
  * ConfirmClose lets the held close go ahead, after the person saved or
- * discarded every listed tab. Every later close goes ahead too.
+ * discarded every listed tab and stopped every running flow. Every later
+ * close goes ahead too.
  * @returns {$CancellablePromise<void>}
  */
 export function ConfirmClose() {
@@ -3213,8 +3214,8 @@ export function SetUILanguage(lang) {
 /**
  * SetUnsavedTabs records which project tabs have unsaved changes. The frontend
  * calls it whenever that set changes, and with an empty list when the page
- * unloads. While it is not empty, a window close or a quit is held and
- * CloseRequestedEvent asks the frontend what to do.
+ * unloads. While it is not empty, or a flow is running, a window close or a
+ * quit is held and CloseRequestedEvent asks the frontend what to do.
  * @param {string[]} tabIDs
  * @returns {$CancellablePromise<void>}
  */

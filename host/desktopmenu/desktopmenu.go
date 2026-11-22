@@ -31,11 +31,14 @@ var sources = map[string]string{
 	"saveAs":              "Save As...",
 	"checkForUpdates":     "Check for Updates…",
 	// The native dialog a held close falls back to when the window does not
-	// answer. The names of the projects with unsaved changes follow the
-	// message, one a line.
-	"unsavedTitle":       "Unsaved Changes",
-	"unsavedNoAnswer":    "These projects have unsaved changes, and the window did not answer:",
+	// answer. Each project that holds the window follows the message on a
+	// line of its own, with its reasons.
+	"holdTitle":          "Projects Still Open",
+	"holdNoAnswer":       "These projects keep the window open, and the window did not answer:",
+	"reasonUnsaved":      "unsaved changes",
+	"reasonRunning":      "flow running",
 	"closeWithoutSaving": "Close Without Saving",
+	"cancelFlowAndClose": "Cancel Flow & Close",
 	"cancel":             "Cancel",
 }
 

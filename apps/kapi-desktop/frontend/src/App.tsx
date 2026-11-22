@@ -81,7 +81,7 @@ function AppInner() {
     },
     [workspace, standings, tm],
   );
-  const { activeJob, hasActive: hasRunningFlow } = useJobFeed();
+  const { jobs, activeJob, hasActive: hasRunningFlow } = useJobFeed();
 
   const emptyProject: KapiProject = { version: "v1", name: "" };
   const history = useProjectHistory(tm.activeTab?.project ?? emptyProject, tm.activeTabID);
@@ -199,7 +199,7 @@ function AppInner() {
     tm.closeTab(pendingCloseTabID);
   }, [pendingCloseTabID, history, tm]);
 
-  // --- Unsaved-changes guard for window close and quit ---
+  // --- Guard for window close and quit: unsaved changes and running flows ---
   const closeGuard = useWindowCloseGuard({
     tabs: tm.tabs.map(({ info }) => ({
       id: info.id,
@@ -207,6 +207,10 @@ function AppInner() {
     })),
     hasChanges: history.hasChanges,
     saveTab,
+    runningTabIDs: jobs.flatMap((job) =>
+      job.status === "running" && job.tabID ? [job.tabID] : [],
+    ),
+    cancelRun: api.cancelProjectRun,
   });
 
   // --- Update project via history ---
@@ -255,9 +259,9 @@ function AppInner() {
       {showTelemetryNotice && (
         <TelemetryNoticeDialog onClose={() => setShowTelemetryNotice(false)} />
       )}
-      {closeGuard.request && (
+      {closeGuard.open && (
         <WindowCloseDialog
-          tabs={closeGuard.request}
+          rows={closeGuard.rows}
           failed={closeGuard.failed}
           saving={closeGuard.saving}
           onSaveAll={() => void closeGuard.saveAll()}

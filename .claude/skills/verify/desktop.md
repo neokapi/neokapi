@@ -106,7 +106,7 @@ gitignored `.playwright-mcp/`. Read each screenshot before you describe it.
   offline `demo` provider. Do not pick one: it bills a real model.
 - **Cancel** cannot be exercised on the samples: their runs take milliseconds.
 - **Save As and Open** use native dialogs; check them in the native app.
-- **Closing the window with unsaved changes.** The bridge's `/close` endpoint
+- **Closing the window with unsaved changes or a running flow.** The bridge's `/close` endpoint
   asks the same guard as the native close and quit hooks. Add a flow in
   compass and in northsea, then `curl -s -XPOST
   'http://127.0.0.1:5175/close?route=window'` (or `route=quit`). It answers
@@ -116,10 +116,13 @@ gitignored `.playwright-mcp/`. Read each screenshot before you describe it.
   names compass, northsea saves, and no closer runs. Discard all runs the
   closer and leaves `kapi.yaml` as it was. With nothing unsaved the endpoint
   answers `allowed=true`. A confirmed close lets every later one through, so
-  restart the bridge between cases. The page acknowledges each request; with
-  no acknowledgement within 4 s the native app opens a fallback dialog that
-  names the projects and offers Close Without Saving or Cancel. The bridge
-  sets no fallback, so a request the page never answers stays held there.
+  restart the bridge between cases. A running flow holds the window too, in
+  the same dialog with its own row; the samples' runs take milliseconds, so
+  that row is checked by the frontend tests, not here. The page acknowledges
+  each request; with no acknowledgement within 4 s the native app opens a
+  fallback dialog that names each project with its reasons and offers Close
+  Without Saving (or Cancel Flow & Close) or Cancel. The bridge sets no
+  fallback, so a request the page never answers stays held there.
 
   The native routes need a person: in the native window, with one and then
   two unsaved tabs, click the close button, press Cmd+Q and choose Kapi, Quit.

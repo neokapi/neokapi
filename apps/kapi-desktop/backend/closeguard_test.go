@@ -46,7 +46,7 @@ func TestCloseGuard_UnsavedChangesHoldTheCloseAndAskOnce(t *testing.T) {
 			g := newTestGuard(r)
 			g.setUnsaved([]string{"a", "b"})
 			assert.False(t, g.allow(route))
-			assert.Equal(t, []map[string]any{{"route": string(route), "tabs": []string{"a", "b"}}}, r.events)
+			assert.Equal(t, []map[string]any{{"route": string(route), "tabs": []string{"a", "b"}, "running": []string{}}}, r.events)
 			assert.Empty(t, r.closed, "a held close runs no closer")
 		})
 	}
@@ -118,7 +118,7 @@ func TestGuardClose_ThroughTheApp(t *testing.T) {
 
 	a.SetUnsavedTabs([]string{"tab-1"})
 	assert.False(t, GuardClose(a, CloseRouteQuit))
-	assert.Equal(t, map[string]any{"route": "quit", "tabs": []string{"tab-1"}}, <-events)
+	assert.Equal(t, map[string]any{"route": "quit", "tabs": []string{"tab-1"}, "running": []string{}}, <-events)
 
 	a.ConfirmClose()
 	<-quit

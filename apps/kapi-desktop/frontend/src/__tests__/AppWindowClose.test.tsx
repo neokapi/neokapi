@@ -57,7 +57,7 @@ describe("App: closing the window with one dirty and one clean tab", () => {
 
     act(() => emit(CLOSE_REQUESTED_EVENT, { route: "window", tabs: ["b"] }));
     expect(api.acknowledgeClose).toHaveBeenCalled();
-    const list = await screen.findByRole("list", { name: "Projects with unsaved changes" });
+    const list = await screen.findByRole("list", { name: "Projects that keep the window open" });
     expect(list).toHaveTextContent("northsea edited");
     expect(list).not.toHaveTextContent("compass");
 
