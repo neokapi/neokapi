@@ -1984,16 +1984,62 @@ var Migrations = []storage.Migration{
 	},
 	{
 		Version:     58,
-		Description: "a revision on each project flow definition",
+		Description: "a revision column on project flow definitions",
 		SQL: `
 			-- A token the store replaces on every write of a flow. A save
 			-- names the revision it was based on and the store refuses it
 			-- when the flow has moved on, so a later save never silently
 			-- replaces an earlier one. Tokens never repeat, so a flow deleted
 			-- and created again under the same id never matches an old save.
-			-- The default gives every existing row a token of its own.
+			--
+			-- Added in the steps that never rewrite the table. This one adds
+			-- the column nullable and gives new rows a token by default. Both
+			-- statements take ACCESS EXCLUSIVE on flow_definitions for a
+			-- catalog change only: no row is read or written. A default on a
+			-- column that already exists applies only to rows inserted later.
+			ALTER TABLE flow_definitions ADD COLUMN IF NOT EXISTS revision TEXT;
+			ALTER TABLE flow_definitions ALTER COLUMN revision SET DEFAULT gen_random_uuid()::text;
+		`,
+	},
+	{
+		Version:     59,
+		Description: "a revision for each existing project flow definition",
+		SQL: `
+			-- Gives each row that predates the column a token of its own.
+			-- ROW EXCLUSIVE on the table and a row lock on each row it
+			-- updates: reads go on, and only a write to the same flow waits.
+			UPDATE flow_definitions SET revision = gen_random_uuid()::text WHERE revision IS NULL;
+		`,
+	},
+	{
+		Version:     60,
+		Description: "a not-null check on flow definition revisions, not yet validated",
+		SQL: `
+			-- NOT VALID checks new and updated rows only, so adding it reads
+			-- no rows: ACCESS EXCLUSIVE for a catalog change.
 			ALTER TABLE flow_definitions
-				ADD COLUMN IF NOT EXISTS revision TEXT NOT NULL DEFAULT gen_random_uuid()::text;
+				ADD CONSTRAINT flow_definitions_revision_not_null CHECK (revision IS NOT NULL) NOT VALID;
+		`,
+	},
+	{
+		Version:     61,
+		Description: "validate the flow definition revision check",
+		SQL: `
+			-- Reads every row under SHARE UPDATE EXCLUSIVE, which lets reads
+			-- and writes of the table go on while it scans.
+			ALTER TABLE flow_definitions VALIDATE CONSTRAINT flow_definitions_revision_not_null;
+		`,
+	},
+	{
+		Version:     62,
+		Description: "flow definition revisions are not null",
+		SQL: `
+			-- With the validated check in place, SET NOT NULL proves the
+			-- column from it and scans nothing: ACCESS EXCLUSIVE for a
+			-- catalog change. The check is then redundant and is dropped,
+			-- also a catalog change.
+			ALTER TABLE flow_definitions ALTER COLUMN revision SET NOT NULL;
+			ALTER TABLE flow_definitions DROP CONSTRAINT flow_definitions_revision_not_null;
 		`,
 	},
 }
