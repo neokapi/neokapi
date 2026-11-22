@@ -244,7 +244,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-e2e-seed-dupes check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-code-display check-json-tags check-comment-coverage check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt check-reliability-checklist check-ci-passed ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-e2e-seed-dupes check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-code-display check-json-tags check-comment-coverage check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt check-reliability-checklist check-ci-passed check-test-scripts ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) --no-print-directory kapi-desktop-lint
 	@$(MAKE) --no-print-directory harness-check
@@ -287,6 +287,12 @@ check-reliability-checklist: ## Guard: the reliability checklist parses, validat
 check-ci-passed: ## Guard: the CI passed job lists every job of the CI workflow
 	@python3 ./scripts/ci-passed.py --self-test
 	@python3 ./scripts/ci-passed.py needs
+
+# A package `test` script that no pull request job runs is a suite whose
+# failures merge. See the comment on ci-frontend-packages.
+check-test-scripts: ## Guard: every package `test` script is run by a pull request CI job
+	@python3 ./scripts/check-test-scripts.py --self-test
+	@python3 ./scripts/check-test-scripts.py
 
 check-code-display: ## Guard: no surface shows an inline code's native data or identifier
 	@./scripts/check-code-display.sh
@@ -796,6 +802,38 @@ ci-i18n-react: ## Mirror the CI `neokapi-i18n` job: typecheck/validate/test/buil
 	cd packages/i18n-react-lint && vp run typecheck
 	cd packages/i18n-react-lint && vp run test
 	cd packages/i18n-react-lint && vp run build
+
+# The unit suites of the shared workspace packages, the docs site, the
+# landing page and the mobile app. Each had a `test` script and no job ran it,
+# so two packages/ui tests failed on main from #3668 until this job existed.
+# scripts/check-test-scripts.py fails when a package with a `test` script is
+# run by no pull request job, and this target is where a new one belongs.
+#
+# web, kapi-lab, kapi-playground and engine also run in docs-kapi.yml, and the
+# landing page in web-landing.yml. Those path filters stop at the package's own
+# directory, so an edit to packages/ui that breaks one of them would skip it.
+# The ci.yml `frontend_packages` filter covers what these suites import.
+ci-frontend-packages: ## Mirror the CI `frontend-packages` job: unit-test the shared packages, docs site, landing page and mobile app
+	# packages/ui imports `@neokapi/i18n-react/runtime`, a built ./dist subpath.
+	cd packages/i18n-react && vp run build
+	cd packages/ui && vp test run
+	cd packages/bowrain-client && vp test run
+	cd packages/concept-ui && vp test run
+	cd packages/context-atlas && vp test run
+	cd packages/context-explorer && vp test run
+	cd packages/docs-palette && vp test run
+	cd packages/docs-shared && vp test run
+	cd packages/editor-grid && vp test run
+	cd packages/engine && vp test run
+	cd packages/kapi-lab && vp test run
+	cd packages/kapi-learn && vp test run
+	cd packages/kapi-playground && vp test run
+	cd packages/project-screens && vp test run
+	cd packages/status-views && vp test run
+	cd web && vp test run
+	cd bowrain/web/landing && vp test run
+	# jest-expo, not vitest.
+	cd bowrain/mobile && vpr test
 
 ci-build: i18n-catalogs go-embed-placeholders check-go-module-boundaries ## Mirror the CI `build` job: build all three binaries (no fts5) + assert module isolation
 	@# Deliberately no fts5 — this target proves the packages compile and the
@@ -3275,13 +3313,13 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration fuzz \
         check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed warm-build-cache workspace-paths test-parallel \
+        fmt vet lint check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts warm-build-cache workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
         ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \
-        ci-frontend ci-kapi-desktop-frontend ci-bowrain-desktop-frontend ci-i18n-react ci-build ci-tidy \
+        ci-frontend ci-frontend-packages ci-kapi-desktop-frontend ci-bowrain-desktop-frontend ci-i18n-react ci-build ci-tidy \
         audit-modules audit-vite-alias check-module-boundaries check-ts-license-boundary \
         build build-all build-server build-worker build-kapi-bowrain-plugin build-bowrain-plugin build-bowrain build-headless \
         plugin-bundle dev-skills \

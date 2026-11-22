@@ -67,8 +67,7 @@
     "typecheck:generated": "tsc -p tsconfig.json --noEmit",
     "check": "vp check",
     "lint": "vp lint",
-    "fmt": "vp fmt",
-    "test": "vp test"
+    "fmt": "vp fmt"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
