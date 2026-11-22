@@ -27,8 +27,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   owner: easOwner || undefined,
   version: "0.2.0",
   // EAS Update: the production and preview build profiles publish to channels
-  // of the same name. A build only takes updates made for its app version.
-  runtimeVersion: { policy: "appVersion" },
+  // of the same name. The runtime version is a hash of everything that shapes
+  // the native app (native dependencies, config plugins, this config), so a
+  // build only takes updates made from the same native code. A native change
+  // gives a new runtime version, and only a new build takes updates made after
+  // it. fingerprint.config.js lists what the hash leaves out.
+  runtimeVersion: { policy: "fingerprint" },
   updates: easProjectId ? { url: `https://u.expo.dev/${easProjectId}` } : undefined,
   orientation: "portrait",
   icon: "./assets/images/icon.png",
