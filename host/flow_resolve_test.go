@@ -108,7 +108,7 @@ func TestConvergeFlowSpec_ResolvesDefaultsFlowLikeKapiRun(t *testing.T) {
 			proj, dir := resolveFixture(t)
 			proj.Defaults.Flow = tt.flow
 			proj.Defaults.TranslateAfter = "none"
-			cf, err := convergeFlowSpec(proj, dir)
+			cf, err := convergeFlowSpec(proj, dir, nil)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, stepTools(cf.spec))
 		})
@@ -116,8 +116,34 @@ func TestConvergeFlowSpec_ResolvesDefaultsFlowLikeKapiRun(t *testing.T) {
 	t.Run("an undeclared name", func(t *testing.T) {
 		proj, dir := resolveFixture(t)
 		proj.Defaults.Flow = "nowhere"
-		_, err := convergeFlowSpec(proj, dir)
+		_, err := convergeFlowSpec(proj, dir, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `"nowhere"`)
 	})
+}
+
+// The run flags seed every step of the built-in default under the step's own
+// config, so `kapi up --provider demo` drafts with demo and the translate
+// step keeps skip_matched. A recipe flow takes none of them, as under
+// `kapi run`.
+func TestConvergeFlowSpec_RunFlagsSeedTheBuiltInDefault(t *testing.T) {
+	proj, dir := resolveFixture(t)
+	proj.Defaults.TranslateAfter = "none"
+	run := map[string]any{"provider": "demo", "skip_matched": false}
+
+	cf, err := convergeFlowSpec(proj, dir, run)
+	require.NoError(t, err)
+	require.Len(t, cf.spec.Steps, 2)
+	for _, s := range cf.spec.Steps {
+		assert.Equal(t, "demo", s.Config["provider"], "%s carries the run's provider", s.Tool)
+	}
+	assert.Equal(t, true, cf.spec.Steps[1].Config["skip_matched"], "the step's own config wins")
+	assert.NotContains(t, DefaultConvergeFlowSpec().Steps[0].Config, "provider", "the shared default is not changed")
+
+	proj.Defaults.Flow = "inline"
+	cf, err = convergeFlowSpec(proj, dir, run)
+	require.NoError(t, err)
+	for _, s := range cf.spec.Steps {
+		assert.NotContains(t, s.Config, "provider", "a recipe flow takes no run flag")
+	}
 }

@@ -404,7 +404,7 @@ func (o ConvergeOutput) formatMonolingual(w io.Writer) error {
 // error (target drift is normal toil, not a break).
 func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, projectPath string, opts ConvergeOptions) error {
 	untilGate, maxPasses := opts.UntilGate, opts.MaxPasses
-	cf, err := convergeFlowSpec(proj, filepath.Dir(projectPath))
+	cf, err := convergeFlowSpec(proj, filepath.Dir(projectPath), runFlagToolConfig(cmd))
 	if err != nil {
 		return err
 	}
@@ -1429,8 +1429,12 @@ type convergeFlow struct {
 // `kapi up --plan` both resolve through it, so a plan never prices a flow the
 // run would not execute, and a flow the run cannot start fails the plan the same
 // way. projectDir is the recipe's directory, which a `flows_dir:` is relative
-// to.
-func convergeFlowSpec(proj *project.KapiProject, projectDir string) (convergeFlow, error) {
+// to. runConfig is the run flags' tool config (runFlagToolConfig): it seeds
+// each step of the built-in default under the step's own config, as `kapi run`
+// seeds a built-in flow, so `kapi up --provider demo` drafts with demo. A
+// recipe flow names its own configuration and takes none of it, as under
+// `kapi run`. Nil when no command is in play.
+func convergeFlowSpec(proj *project.KapiProject, projectDir string, runConfig map[string]any) (convergeFlow, error) {
 	cf := convergeFlow{name: proj.Defaults.Flow, label: proj.Defaults.Flow}
 	if cf.name == "" {
 		// No defaults.flow: run the built-in default (#1078 G6), content memory
@@ -1439,6 +1443,9 @@ func convergeFlowSpec(proj *project.KapiProject, projectDir string) (convergeFlo
 		cf.name = builtinDefaultFlowName
 		cf.label = BuiltinDefaultFlowLabel
 		cf.spec = DefaultConvergeFlowSpec()
+		for i := range cf.spec.Steps {
+			cf.spec.Steps[i].Config = mergeFlowNodeConfig(runConfig, cf.spec.Steps[i].Config)
+		}
 	} else {
 		// The name resolves as `kapi run` resolves it (ResolveProjectFlow).
 		pf, err := ResolveProjectFlow(proj, projectDir, cf.name, nil)

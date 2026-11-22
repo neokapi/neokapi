@@ -14,31 +14,26 @@ import (
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
-// Which provider and model an AI step will actually use is decided by a layered
-// merge (`buildFlowTools` → `applyBindings` → the tool registry's config
-// preprocessor → the tool's own fallback). That is the right place to *apply*
-// the precedence, but it means the answer only exists once a run is under way —
-// so a surface that wants to *tell* the user what is configured has, until now,
-// had to re-derive it, and every re-derivation was a chance to disagree with the
-// run.
-//
-// EffectiveAIModel states the same precedence once, as a query. Both the CLI and
-// Kapi Desktop read it to display the active provider/model, so what the UI
-// promises and what the run does cannot drift apart.
+// The provider and model an AI step uses come from a layered merge
+// (`buildFlowTools` → `applyBindings` → the tool registry's config
+// preprocessor → the tool's own fallback), which runs only inside a run.
+// EffectiveAIModel states the same precedence once, as a query. The CLI and
+// Kapi Desktop read it to show the active provider and model, so what a
+// surface shows matches what the run does.
 
 // AIModelOrigin says which layer supplied the effective value.
 type AIModelOrigin string
 
 const (
-	// AIModelFromLocalePreset — `defaults.locales.<lang>.tools.<tool>` in the recipe.
+	// AIModelFromLocalePreset, `defaults.locales.<lang>.tools.<tool>` in the recipe.
 	AIModelFromLocalePreset AIModelOrigin = "locale-preset"
-	// AIModelFromProjectPreset — `defaults.tools.<tool>` in the recipe.
+	// AIModelFromProjectPreset, `defaults.tools.<tool>` in the recipe.
 	AIModelFromProjectPreset AIModelOrigin = "project-preset"
-	// AIModelFromAppConfig — the stored `ai.provider` / `ai.model` (the file at
+	// AIModelFromAppConfig, the stored `ai.provider` / `ai.model` (the file at
 	// config.GlobalConfigFilePath, or the KAPI_AI_* environment overrides), which
 	// is what `kapi models setup` and `kapi models default` write.
 	AIModelFromAppConfig AIModelOrigin = "app-config"
-	// AIModelFromBuiltIn — nothing configured; the tool's own default applies.
+	// AIModelFromBuiltIn, nothing configured; the tool's own default applies.
 	AIModelFromBuiltIn AIModelOrigin = "built-in"
 )
 
@@ -55,7 +50,7 @@ type AIModelResolution struct {
 	// default").
 	ProviderOrigin AIModelOrigin `json:"provider_origin"`
 	ModelOrigin    AIModelOrigin `json:"model_origin"`
-	// Configured is false when neither half is configured anywhere — the
+	// Configured is false when neither half is configured anywhere, the
 	// built-in fallback is carrying the run, which is worth surfacing rather
 	// than presenting as a deliberate choice.
 	Configured bool `json:"configured"`
@@ -83,8 +78,8 @@ func EffectiveAIModel(
 		ModelOrigin:    AIModelFromBuiltIn,
 	}
 
-	// Lowest configured layer first, so each higher layer simply overwrites and
-	// records itself — the precedence reads top-to-bottom in one direction.
+	// Lowest configured layer first, so each higher layer overwrites the one
+	// below and records itself. The precedence reads top to bottom.
 	//
 	// The app-config layer comes from appconfig.ResolveAIDefault, not from reading
 	// ai.provider / ai.model here: this query and the run must agree about what is
@@ -144,8 +139,10 @@ func presetString(preset map[string]any, key string) string {
 }
 
 // ProjectFlowNeedsAISetup reports whether a step needs a provider choice after
-// applying the recipe and locale presets. An empty flow name selects convergence.
-func (a *App) ProjectFlowNeedsAISetup(proj *project.KapiProject, projectPath, flowName string) (bool, error) {
+// applying the recipe and locale presets. An empty flow name selects
+// convergence, resolved with runConfig, the run flags' tool config (nil for
+// none), so a run given --provider or --credential needs no setup.
+func (a *App) ProjectFlowNeedsAISetup(proj *project.KapiProject, projectPath, flowName string, runConfig map[string]any) (bool, error) {
 	if proj == nil {
 		return false, nil
 	}
@@ -155,7 +152,7 @@ func (a *App) ProjectFlowNeedsAISetup(proj *project.KapiProject, projectPath, fl
 		if !proj.DeclaresTargetLanguages() || !proj.WritesTargets() {
 			return false, nil
 		}
-		resolved, err := convergeFlowSpec(proj, root)
+		resolved, err := convergeFlowSpec(proj, root, runConfig)
 		if err != nil {
 			return false, err
 		}
