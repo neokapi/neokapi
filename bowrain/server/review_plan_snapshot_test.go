@@ -116,10 +116,18 @@ func TestPlanSnapshot_DecisionIsCountedAfterTheQuietPeriod(t *testing.T) {
 }
 
 // A burst of changes costs one compute.
+//
+// The burst is counted by the quiet period alone. Under the shared config a
+// burst that a busy runner stretches past maxWait is counted once at maxWait
+// and once more after it, which is the behaviour
+// TestPlanSnapshot_ContinuousChangeIsCountedByMaxWait covers, so here maxWait
+// is longer than any burst can take.
 func TestPlanSnapshot_BurstComputesOnce(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 	projID, _ := containerProject(t, s, wsID)
-	r := startTestPlanSnapshots(t, s)
+	cfg := testPlanSnapshotConfig
+	cfg.maxWait = time.Minute
+	r := startTestPlanSnapshotsWith(t, s, cfg)
 	readPlan(t, s, wsID, projID)
 	require.EqualValues(t, 1, r.computes.Load())
 
