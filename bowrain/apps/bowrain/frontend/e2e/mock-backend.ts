@@ -373,17 +373,24 @@ export async function injectMockBackend(page: Page) {
         throw new Error(`Flow ${id} not found`);
       };
 
-      // Like the server: a flow without an id is created under a fresh one, and
-      // every stored flow is a project flow.
+      // Like the server: a flow without an id is created under a fresh one,
+      // every stored flow is a project flow, each save raises its revision, and
+      // a save based on an older revision comes back as the flow as it stands
+      // (FlowSaveResult.changed) with nothing written.
       mock[IDS.SaveFlowDefinition] = (_projectId: string, def: any) => {
         if (def.source === "built-in") throw new Error("Cannot modify built-in flows");
         if (!def.id) def.id = `flow-${++flowDefCounter}`;
         if (builtInFlowDefs[def.id]) throw new Error("Cannot modify built-in flows");
+        const stored = userFlowDefs[def.id];
+        if (stored && def.revision && def.revision !== stored.revision) {
+          return { changed: { ...stored } };
+        }
         def.source = "project";
         def.modified_at = new Date().toISOString();
         if (!def.created_at) def.created_at = def.modified_at;
+        def.revision = (stored?.revision ?? 0) + 1;
         userFlowDefs[def.id] = { ...def };
-        return { ...def };
+        return { flow: { ...def } };
       };
 
       mock[IDS.DeleteFlowDefinition] = (_projectId: string, id: string) => {
