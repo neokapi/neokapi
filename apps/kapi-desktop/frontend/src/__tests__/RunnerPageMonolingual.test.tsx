@@ -10,7 +10,7 @@ vi.mock("../hooks/useApi", () => ({
   api: {
     listProjectTools: (...args: unknown[]) => listProjectTools(...args),
     matchContent: async () => [{ path: "/a.md" }, { path: "/b.md" }],
-    aiNeedsModelChoice: async () => false,
+    checkAISetup: async () => ({ kind: "" }),
     runFlow: (...args: unknown[]) => runFlow(...args),
     getRunState: () => Promise.resolve("idle"),
   },

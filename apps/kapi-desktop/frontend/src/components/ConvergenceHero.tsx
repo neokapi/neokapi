@@ -38,6 +38,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type {
+  AISetupNeed,
   ConvergePlan,
   ConvergenceReport,
   LocaleCoverage,
@@ -52,6 +53,7 @@ import { useStoreSyncState } from "../hooks/useProjectStoreSync";
 import { useJobFeed } from "../context/JobFeedContext";
 import { ActiveModelBadge } from "./ActiveModelBadge";
 import { AIModelPromptDialog } from "./AIModelPromptDialog";
+import { AICredentialMissingDialog } from "./AICredentialMissingDialog";
 
 /** The backend's typed marker for a tab whose recipe vanished from disk. */
 const MISSING_FILES_MARKER = "missing or moved";
@@ -112,6 +114,7 @@ export function ConvergenceHero({
   // home instead of landing in a runner view with nothing running behind it.
   const [launchError, setLaunchError] = useState<unknown>(null);
   const [modelPromptOpen, setModelPromptOpen] = useState(false);
+  const [missingKey, setMissingKey] = useState<AISetupNeed | null>(null);
 
   // Both derivations are cheap read-only calls; react-query owns caching and the
   // "project:extracted" event invalidates them. A single query fn keeps the
@@ -336,8 +339,13 @@ export function ConvergenceHero({
     if (!onBringUpToDate) return;
     void (async () => {
       try {
-        if (await api.aiNeedsModelChoice(tabID, "")) {
+        const need = await api.checkAISetup(tabID, "");
+        if (need?.kind === "choose_model") {
           setModelPromptOpen(true);
+          return;
+        }
+        if (need?.kind === "missing_credential") {
+          setMissingKey(need);
           return;
         }
       } catch {
@@ -598,6 +606,18 @@ export function ConvergenceHero({
           void doLaunch();
         }}
         onCancel={() => setModelPromptOpen(false)}
+      />
+      <AICredentialMissingDialog
+        need={missingKey}
+        onAddKey={
+          onOpenSettings
+            ? () => {
+                setMissingKey(null);
+                onOpenSettings("app-settings:credentials");
+              }
+            : undefined
+        }
+        onCancel={() => setMissingKey(null)}
       />
     </Card>
   );

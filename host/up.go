@@ -190,19 +190,29 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	if recycleOnly {
 		untilGate, maxPasses = false, 1
 	}
-	if a.DefaultAISetupIO(cmd).IsTTY() {
-		needsSetup := preReview && proj.DeclaresTargetLanguages() && proj.WritesTargets()
-		if !preReview && !recycleOnly {
-			var err error
-			needsSetup, err = a.ProjectFlowNeedsAISetup(proj, projectPath, "", runFlagToolConfig(cmd))
-			if err != nil {
-				return err
-			}
+	tty := a.DefaultAISetupIO(cmd).IsTTY()
+	needsSetup := tty && preReview && proj.DeclaresTargetLanguages() && proj.WritesTargets()
+	if !preReview && !recycleOnly {
+		// Asked only when the run would call a provider, from the plan the
+		// run's first pass works from, so an up-to-date project runs without a
+		// model or a key. The plan reads the recipe's source language.
+		a.ResolveSourceLang(proj.Defaults.SourceLanguage)
+		need, err := a.convergeAISetup(cmd.Context(), proj, projectPath,
+			planRun{cmd: cmd, noChecks: BoolFlag(cmd, "no-checks")}, runFlagToolConfig(cmd))
+		if err != nil {
+			return err
 		}
-		if needsSetup {
-			if err := a.EnsureAIProviderInteractive(cmd); err != nil {
-				return err
-			}
+		// The wizard sets the stored default, which never overrides a
+		// provider the recipe names, so a missing key for one fails here,
+		// before the run starts, on a terminal and off one alike.
+		if err := need.Err(); err != nil {
+			return err
+		}
+		needsSetup = tty && need.Kind == AISetupChooseModel
+	}
+	if needsSetup {
+		if err := a.EnsureAIProviderInteractive(cmd); err != nil {
+			return err
 		}
 	}
 	jobs, _ := cmd.Flags().GetInt("jobs")

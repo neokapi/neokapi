@@ -25,8 +25,10 @@ export interface AIModelPromptDialogProps {
 }
 
 /**
- * Run-time prompt shown when a flow uses AI but no default model is configured
- * (and credentials don't auto-resolve). The user picks a model — model-first,
+ * Run-time prompt shown when a flow's AI step names no provider and no usable
+ * default resolves (host.AISetupChooseModel). A provider the recipe names
+ * with its key missing goes to AICredentialMissingDialog instead, because a
+ * default never overrides it. The user picks a model — model-first,
  * provider inferred — which is persisted as the shared default and the run then
  * proceeds. Cancelling aborts the launch.
  */
@@ -71,7 +73,7 @@ export function AIModelPromptDialog({
           <DialogTitle>{t("Choose an AI model")}</DialogTitle>
           <DialogDescription>
             {t(
-              "This flow uses AI but no default model is set. Pick one to run with. The provider follows from the model. You can change it later in Settings → AI Models.",
+              "This flow uses AI, and no model it can run with is set up. Pick one. The provider follows from the model. You can change it later in Settings → AI Models.",
             )}
           </DialogDescription>
         </DialogHeader>

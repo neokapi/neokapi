@@ -474,6 +474,21 @@ export interface AIModelResolution {
   configured: boolean;
 }
 
+/**
+ * What running a flow needs before its AI steps can run (matches Go
+ * host.AISetupNeed). An empty kind means the flow can run.
+ */
+export interface AISetupNeed {
+  /** "choose_model": choosing a model fixes it. "missing_credential": only a key for `provider` does. */
+  kind: "" | "choose_model" | "missing_credential";
+  flow?: string;
+  tool?: string;
+  /** The provider the recipe names, for a missing credential. */
+  provider?: string;
+  /** The error the run would fail with, the same text `kapi up` prints. */
+  message?: string;
+}
+
 /** The configured default AI model and the provider it implies (matches Go DefaultModelInfo). */
 export interface DefaultModelInfo {
   provider: string;
