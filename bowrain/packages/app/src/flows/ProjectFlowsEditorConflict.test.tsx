@@ -1,13 +1,19 @@
-import { afterEach, describe, it, expect, vi } from "vite-plus/test";
-import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vite-plus/test";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiProvider, TooltipProvider } from "@neokapi/ui";
 import { ProjectFlowsEditor } from "./ProjectFlowsEditor";
 import { createFlowsApi } from "./fixtures";
-import { discardAllPendingSaves } from "../pendingSaves";
+import {
+  discardAllPendingSaves,
+  discardOwnPendingSaves,
+  setPendingSavesUser,
+} from "../pendingSaves";
 
-// The record of refused versions outlives the editor, so each test starts clean.
+// The record of unsaved versions outlives the editor and belongs to a user, so
+// each test signs one in and starts clean.
+beforeEach(() => setPendingSavesUser("u1"));
 afterEach(() => discardAllPendingSaves());
 
 // Two people edit the same project flow. The second save, based on the flow as
@@ -200,5 +206,86 @@ describe("ProjectFlowsEditor when the refused save is dismissed away from the fl
 
     await user.click(screen.getByRole("button", { name: "Review" }));
     expect(await screen.findByTestId("flow-changed-dialog")).toBeInTheDocument();
+  });
+});
+
+describe("ProjectFlowsEditor and whose refused version it is", () => {
+  it("another person signed in sees nothing of it and opens the server's copy", async () => {
+    const { api, update, user } = setup(60_000);
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("linear-flow-editor");
+    await teammateSaves(api);
+    await addAStep(user);
+    await user.click(screen.getByLabelText("Back to flow list"));
+    await screen.findByTestId("flow-changed-dialog");
+    await user.keyboard("{Escape}");
+    expect(await screen.findByTestId("flow-unsaved-flow-review")).toBeInTheDocument();
+
+    // u1's session ends without a sign-out and u2 signs in on the same app.
+    act(() => setPendingSavesUser(null));
+    act(() => setPendingSavesUser("u2"));
+    await waitFor(() => expect(screen.queryByTestId("flow-unsaved-flow-review")).toBeNull());
+    const calls = update.mock.calls.length;
+    await user.click(await screen.findByText("Teammate's flow"));
+    await screen.findByTestId("linear-flow-editor");
+    expect(screen.queryByTestId("flow-changed-elsewhere")).toBeNull();
+    expect(screen.getByTestId("flow-save-state")).toHaveTextContent("Saved");
+    expect(update.mock.calls.length).toBe(calls);
+
+    // u1 back: the version is theirs again.
+    await user.click(screen.getByLabelText("Back to flow list"));
+    act(() => setPendingSavesUser("u1"));
+    expect(await screen.findByTestId("flow-unsaved-flow-review")).toBeInTheDocument();
+
+    // An explicit sign-out discards u1's records.
+    act(() => discardOwnPendingSaves());
+    await waitFor(() => expect(screen.queryByTestId("flow-unsaved-flow-review")).toBeNull());
+  });
+
+  it("a rename while a refused version waits is kept with it and sends nothing", async () => {
+    const { api, update, user } = setup();
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("linear-flow-editor");
+    await teammateSaves(api);
+    await addAStep(user);
+    await screen.findByTestId("flow-changed-dialog");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByTestId("flow-changed-dialog")).toBeNull());
+    const calls = update.mock.calls.length;
+
+    await user.click(screen.getByLabelText("Rename flow"));
+    await user.clear(screen.getByLabelText("Flow name"));
+    await user.type(screen.getByLabelText("Flow name"), "Renamed");
+    await user.click(screen.getByLabelText("Save"));
+    await new Promise((r) => setTimeout(r, 100));
+    expect(update.mock.calls.length).toBe(calls);
+    expect(screen.queryByTestId("flow-changed-dialog")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Review" }));
+    expect(await screen.findByTestId("flow-changed-dialog")).toBeInTheDocument();
+  });
+
+  it("an edit kept across a lost session and sent later reaches the dialog, and a dismissal keeps it", async () => {
+    const { api, flows, user } = setup(60_000);
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("linear-flow-editor");
+    await addAStep(user);
+    const edited = screen.getAllByText("Quality Check").length;
+
+    // The session ends with the edit unsent; a teammate saves meanwhile.
+    act(() => setPendingSavesUser(null));
+    await teammateSaves(api);
+    act(() => setPendingSavesUser("u1"));
+
+    // The same person sends it: the server refuses it as stale.
+    await user.click(screen.getByLabelText("Back to flow list"));
+    await screen.findByTestId("flow-changed-dialog");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByTestId("flow-changed-dialog")).toBeNull());
+    expect(await screen.findByTestId("flow-unsaved-flow-review")).toBeInTheDocument();
+    expect(flows.find((f) => f.id === "flow-review")?.name).toBe("Teammate's flow");
+
+    await user.click(await screen.findByText("Teammate's flow"));
+    await screen.findByTestId("linear-flow-editor");
+    expect(screen.getAllByText("Quality Check").length).toBe(edited);
   });
 });

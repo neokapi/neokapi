@@ -1057,8 +1057,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
-      - name: The schema the baselines build matches the golden
-        run: go test -tags "fts5,integration" ./migrations/ -run 'TestBaselineSchemaMatchesGolden|TestBaselineVersionsSitAboveRetiredOnes' -v
+      # The whole package: the golden and baseline checks, and the upgrade
+      # tests that migrate a database holding rows, which no other pull
+      # request job runs (the integration lane runs on main only).
+      - name: The migrations build the golden schema and upgrade stored rows
+        run: go test -tags "fts5,integration" ./migrations/ -v
         working-directory: bowrain
 
   # ── The /evals index matches its datasets ─────────────────────────────────

@@ -2,7 +2,6 @@ package backend
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -129,7 +128,7 @@ func (a *App) flowREST(projectID string) (base, token string, ok bool) {
 	return base, token, true
 }
 
-func flowDo(method, urlStr, token string, body any, out any) error {
+func (a *App) flowDo(method, urlStr, token string, body any, out any) error {
 	var reader io.Reader
 	if body != nil {
 		buf, err := json.Marshal(body)
@@ -138,7 +137,7 @@ func flowDo(method, urlStr, token string, body any, out any) error {
 		}
 		reader = bytes.NewReader(buf)
 	}
-	req, err := http.NewRequestWithContext(context.Background(), method, urlStr, reader)
+	req, err := http.NewRequestWithContext(a.requestContext(), method, urlStr, reader)
 	if err != nil {
 		return err
 	}
@@ -148,7 +147,7 @@ func flowDo(method, urlStr, token string, body any, out any) error {
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := a.client().do(a.requestContext(), req)
 	if err != nil {
 		return err
 	}
@@ -182,7 +181,7 @@ func (a *App) ListFlowDefinitions(projectID string) ([]FlowDefinitionInfo, error
 		return builtInFlowInfos(), nil
 	}
 	var out []FlowDefinitionInfo
-	if err := flowDo(http.MethodGet, base, token, nil, &out); err != nil {
+	if err := a.flowDo(http.MethodGet, base, token, nil, &out); err != nil {
 		// Server unreachable, fall back to built-ins so the editor still works.
 		return builtInFlowInfos(), nil
 	}
@@ -204,7 +203,7 @@ func (a *App) GetFlowDefinition(projectID, id string) (*FlowDefinitionInfo, erro
 		return nil, fmt.Errorf("flow %q not found (offline)", id)
 	}
 	var out FlowDefinitionInfo
-	if err := flowDo(http.MethodGet, base+"/"+url.PathEscape(id), token, nil, &out); err != nil {
+	if err := a.flowDo(http.MethodGet, base+"/"+url.PathEscape(id), token, nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -272,7 +271,7 @@ func (a *App) SaveFlowDefinition(projectID string, info FlowDefinitionInfo) (*Fl
 	var out FlowDefinitionInfo
 	if info.ID == "" {
 		// Create.
-		if err := flowDo(http.MethodPost, base, token, info, &out); err != nil {
+		if err := a.flowDo(http.MethodPost, base, token, info, &out); err != nil {
 			return nil, err
 		}
 		return &FlowSaveResult{Flow: &out}, nil
@@ -282,7 +281,7 @@ func (a *App) SaveFlowDefinition(projectID string, info FlowDefinitionInfo) (*Fl
 		FlowDefinitionInfo
 		BaseRevision string `json:"base_revision"`
 	}{info, info.Revision}
-	if err := flowDo(http.MethodPut, base+"/"+url.PathEscape(info.ID), token, body, &out); err != nil {
+	if err := a.flowDo(http.MethodPut, base+"/"+url.PathEscape(info.ID), token, body, &out); err != nil {
 		if current, ok := flowChanged(err); ok {
 			return &FlowSaveResult{Changed: current}, nil
 		}
@@ -297,5 +296,5 @@ func (a *App) DeleteFlowDefinition(projectID, id string) error {
 	if !ok {
 		return errors.New("not connected: connect to a server to delete flows")
 	}
-	return flowDo(http.MethodDelete, base+"/"+url.PathEscape(id), token, nil, nil)
+	return a.flowDo(http.MethodDelete, base+"/"+url.PathEscape(id), token, nil, nil)
 }

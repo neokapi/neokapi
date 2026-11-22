@@ -3872,7 +3872,7 @@ export class ToolInfo {
         }
         if (/** @type {any} */(false)) {
             /**
-             * IsSourceTransform reports whether this tool is a transformer — it may
+             * IsSourceTransform reports whether this tool is a transformer: it may
              * rewrite source (AD-006); the placement pass validates its position.
              * @member
              * @type {boolean | undefined}
