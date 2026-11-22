@@ -13,20 +13,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The shared e2e client is a client of the API like any other, and a client
-// drifts silently: a route it names can stop existing without anything failing
-// to compile. The suite that would notice needs four images and a database, so
-// it runs nightly at best, and route drift reaches main between runs.
+// The shared e2e client is a client of the API like any other: a route it
+// names can stop existing without anything failing to compile. The suite that
+// would notice needs four images and a database and runs nightly.
 //
-// This test needs no stack. It builds the real Echo router in-process, reads
-// the paths the TypeScript client constructs, and asserts each is registered —
-// the guard TestClientServerRouteSurface gives the Go client, cheap enough to
-// run on every pull request.
+// This test builds the real Echo router in-process, reads the paths the
+// TypeScript client constructs, and asserts each is registered, as
+// TestClientServerRouteSurface does for the Go client.
 //
-// It answers one question: could any route serve this path. A path that lands
-// on a route meant for something else — /workspaces/:slug reaching the project
-// handler at /:ws/:id — satisfies the router and still fails against a running
-// server. Only the Playwright suite settles that, which is why both lanes exist.
+// It asks only whether any route could serve a path. A path that reaches a
+// route meant for something else passes here; the Playwright suite catches it.
 
 // clientPathParam stands in for a `${…}` interpolation while a path is matched
 // structurally: it may line up with a server route's `:param`, never with a
@@ -90,6 +86,9 @@ func registeredRoutes(t *testing.T) map[string][][]string {
 	// secret the server serves only its public handful.
 	cfg := server.DefaultConfig()
 	cfg.JWTSecret = "route-surface-guard"
+	// Without a data directory the server keeps blobs under the system
+	// temporary directory; the test gives it one of its own.
+	cfg.BlobStorageLocalDir = t.TempDir()
 	srv := server.NewServer(cfg)
 	t.Cleanup(func() { _ = srv.Shutdown(context.Background()) })
 
@@ -120,7 +119,7 @@ func extractClientRoutes(src string) []clientRoute {
 	}
 
 	// `await fetch(`${this.apiUrl}/…`, { method: "POST", … })`, which is how the
-	// multipart uploads go out — they cannot use the JSON helpers.
+	// multipart uploads go out, since they cannot use the JSON helpers.
 	const anchor = "${this.apiUrl}"
 	for idx := 0; ; {
 		i := strings.Index(src[idx:], anchor)
@@ -148,8 +147,8 @@ func extractClientRoutes(src string) []clientRoute {
 	return out
 }
 
-// callPathArg reads the first argument of a this.<verb> call — always the path
-// — starting from the index just past the method name. An explicit type
+// callPathArg reads the first argument of a this.<verb> call, which is always
+// the path, starting from the index just past the method name. An explicit type
 // argument may sit between the name and the parenthesis, and it is skipped by
 // balancing angle brackets rather than by scanning for a delimiter: the
 // generics in this file contain `;` and `[]` of their own.
@@ -225,8 +224,8 @@ func methodAfter(src string, from int) string {
 }
 
 // normalizeClientPath reduces a template literal to comparable path segments:
-// interpolations become the param sentinel, and a query string is dropped —
-// routing never sees it.
+// interpolations become the param sentinel, and a query string is dropped,
+// since routing never sees it.
 func normalizeClientPath(raw string) string {
 	p := tsInterpolation.ReplaceAllString(raw, clientPathParam)
 	if i := strings.IndexByte(p, '?'); i >= 0 {

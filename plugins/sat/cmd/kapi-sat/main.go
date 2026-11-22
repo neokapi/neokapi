@@ -88,17 +88,20 @@ func runDaemon() int {
 	srv := grpc.NewServer()
 	pb.RegisterBridgeServiceServer(srv, &server{engine: engine, initErr: initErr, stop: srv.GracefulStop})
 
-	// Handshake: one JSON line on stdout, then keep stdout open for logs.
-	hs, _ := json.Marshal(map[string]string{"socket": sock, "version": version.Version})
-	fmt.Println(string(hs))
-	_ = os.Stdout.Sync()
-
+	// Settle the signal disposition before the handshake: a host may send
+	// SIGTERM as soon as it reads the line, and a signal that arrives before
+	// Notify kills the process before it can remove its socket.
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		<-sigc
 		srv.GracefulStop()
 	}()
+
+	// Handshake: one JSON line on stdout, then keep stdout open for logs.
+	hs, _ := json.Marshal(map[string]string{"socket": sock, "version": version.Version})
+	fmt.Println(string(hs))
+	_ = os.Stdout.Sync()
 
 	serveErr := srv.Serve(lis)
 	if serveErr != nil {
