@@ -347,11 +347,14 @@ func check(root string, only []string) (*inventory, error) {
 					continue
 				}
 			}
-			// A problem in the first configuration of a go.work module fails
-			// the check: a package that does not type-check can hide a use.
-			// Anywhere else it is a warning.
+			// A problem in the first configuration of any module fails the
+			// check: a package that does not type-check can hide a use, in a
+			// plugin module as much as in a go.work one. A plugin whose cgo
+			// needs a library gets its headers from the caller (`make
+			// fieldguard` provides PDFium's). In a later configuration it is
+			// a warning.
 			report := func(msg string, warnOnly bool) {
-				if ci == 0 && m.Work && !warnOnly {
+				if ci == 0 && !warnOnly {
 					fatal = append(fatal, msg)
 				} else {
 					inv.warnings = append(inv.warnings, msg)
@@ -360,7 +363,7 @@ func check(root string, only []string) (*inventory, error) {
 			pkgs, err := load(root, m, cfg, patterns)
 			if err != nil {
 				msg := fmt.Sprintf("%s (%s): %v", m.Dir, cfg.name, err)
-				if ci == 0 && m.Work {
+				if ci == 0 {
 					return nil, errors.New(msg)
 				}
 				inv.warnings = append(inv.warnings, msg)

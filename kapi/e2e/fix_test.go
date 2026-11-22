@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,7 +23,8 @@ func failingFindings(t *testing.T, dir string) int {
 	cmd.Env = append(os.Environ(), isoEnv...)
 	out, err := cmd.Output()
 	// A failing finding exits 3; the report is still printed.
-	if ee, ok := err.(*exec.ExitError); !ok || ee.ExitCode() != 3 {
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) || ee.ExitCode() != 3 {
 		require.NoError(t, err, "kapi check:\n%s", out)
 	}
 	var report struct {

@@ -1,6 +1,7 @@
 package safeio
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -14,7 +15,7 @@ import (
 // name is interpreted with forward-slash separators (the zip / URI convention)
 // and converted to the OS separator internally, then validated with
 // filepath.IsLocal (Go 1.20+), which rejects absolute paths, paths that escape
-// the root via "..", the empty path, and — on Windows — reserved device names.
+// the root via "..", the empty path, and, on Windows, reserved device names.
 //
 // IMPORTANT (the pandoc CVE-2023-35936 lesson): if name arrives percent- or
 // otherwise-encoded, the caller MUST decode it *before* calling SafeJoin.
@@ -29,7 +30,7 @@ func SafeJoin(root, name string) (string, error) {
 }
 
 // IsLocalPath reports whether a forward-slash content-derived path is local to
-// its root — i.e. relative and non-escaping. It is the boolean form of the
+// its root, i.e. relative and non-escaping. It is the boolean form of the
 // check [SafeJoin] performs, for callers that want to validate without joining.
 func IsLocalPath(name string) bool {
 	return filepath.IsLocal(filepath.FromSlash(name))
@@ -42,7 +43,7 @@ func IsLocalPath(name string) bool {
 //
 // name is forward-slash separated (zip / URI convention). The returned file
 // must be closed by the caller. Note: on the WASM/wasip1 build there is no
-// usable filesystem, so this returns an error at runtime there — it exists for
+// usable filesystem, so this returns an error at runtime there, it exists for
 // the CLI and server extraction paths; pure path validation that works
 // everywhere is [SafeJoin] / [IsLocalPath].
 func OpenInRoot(dir, name string) (*os.File, error) {
@@ -54,5 +55,19 @@ func OpenInRoot(dir, name string) (*os.File, error) {
 		return nil, err
 	}
 	defer root.Close()
-	return root.Open(filepath.FromSlash(name))
+	// Opened without blocking, so a FIFO cannot stall the read, and refused
+	// unless the descriptor is a regular file.
+	f, err := root.OpenFile(filepath.FromSlash(name), os.O_RDONLY|openNonBlock, 0)
+	if err != nil {
+		return nil, err
+	}
+	info, err := f.Stat()
+	if err == nil && !info.Mode().IsRegular() {
+		err = fmt.Errorf("%s: not a regular file", name)
+	}
+	if err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	return f, nil
 }

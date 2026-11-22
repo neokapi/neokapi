@@ -59,7 +59,8 @@ type planSnapshotConfig struct {
 	// maxWait is the longest a change waits under continuous change.
 	maxWait time.Duration
 	// poll is how often an instance looks for due snapshots and writes the
-	// changes it heard.
+	// changes it heard. Zero polls only when poll is called, which a test
+	// does to make each pass a step it controls.
 	poll time.Duration
 	// lease bounds one compute: a claim not completed by then is free.
 	lease time.Duration
@@ -290,6 +291,8 @@ type planSnapshotRefresher struct {
 	computes atomic.Int64
 	// onCompute, when set, runs at the start of each background compute.
 	onCompute atomic.Pointer[func(platstore.ReviewPlanSnapshotClaim)]
+	// onHear, when set, runs for each event the refresh hears.
+	onHear atomic.Pointer[func(platev.Event)]
 
 	sub    *platev.Subscription
 	cancel context.CancelFunc
@@ -348,6 +351,9 @@ var planSnapshotIgnored = []string{
 // since the workspace's concepts feed each plan. It always acknowledges: the
 // marks are written on the next poll.
 func (r *planSnapshotRefresher) hear(ev platev.Event) error {
+	if hook := r.onHear.Load(); hook != nil {
+		defer (*hook)(ev)
+	}
 	for _, p := range planSnapshotIgnored {
 		if strings.HasPrefix(string(ev.Type), p) {
 			return nil
@@ -399,10 +405,14 @@ func (r *planSnapshotRefresher) flush(ctx context.Context) {
 	r.mu.Unlock()
 }
 
-// run polls until Close: it writes the marks heard, then computes the due
-// snapshots one at a time.
+// run polls every cfg.poll until Close. With no poll interval it only waits
+// for Close, and the caller drives each pass through poll.
 func (r *planSnapshotRefresher) run(ctx context.Context) {
 	defer close(r.done)
+	if r.cfg.poll <= 0 {
+		<-ctx.Done()
+		return
+	}
 	t := time.NewTicker(r.cfg.poll)
 	defer t.Stop()
 	for {
@@ -411,21 +421,27 @@ func (r *planSnapshotRefresher) run(ctx context.Context) {
 			return
 		case <-t.C:
 		}
-		r.flush(ctx)
-		for ctx.Err() == nil {
-			claims, err := r.store.ClaimDueReviewPlanSnapshots(ctx, r.cfg.quiet, r.cfg.maxWait, r.cfg.lease, 1)
-			if err != nil {
-				if ctx.Err() == nil {
-					slog.WarnContext(ctx, "review plan snapshot: could not claim due snapshots", "error", err)
-				}
-				break
+		r.poll(ctx)
+	}
+}
+
+// poll is one pass: it writes the marks heard, then computes the due
+// snapshots one at a time until none is due.
+func (r *planSnapshotRefresher) poll(ctx context.Context) {
+	r.flush(ctx)
+	for ctx.Err() == nil {
+		claims, err := r.store.ClaimDueReviewPlanSnapshots(ctx, r.cfg.quiet, r.cfg.maxWait, r.cfg.lease, 1)
+		if err != nil {
+			if ctx.Err() == nil {
+				slog.WarnContext(ctx, "review plan snapshot: could not claim due snapshots", "error", err)
 			}
-			if len(claims) == 0 {
-				break
-			}
-			for _, c := range claims {
-				r.refresh(ctx, c)
-			}
+			return
+		}
+		if len(claims) == 0 {
+			return
+		}
+		for _, c := range claims {
+			r.refresh(ctx, c)
 		}
 	}
 }
