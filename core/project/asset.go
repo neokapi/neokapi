@@ -47,7 +47,10 @@ func ResolveAssetVariants(root string, item ContentItem, source string, locales 
 	}
 	out := make([]AssetVariant, 0, len(locales))
 	for _, loc := range locales {
-		p := ResolveTargetPath(item.Path, item.Base, item.Target, source, string(loc))
+		p, err := ResolveTargetPath(item.Path, item.Base, item.Target, source, string(loc))
+		if err != nil {
+			continue // a name the template cannot hold safely has no variant
+		}
 		if !filepath.IsAbs(p) {
 			p = filepath.Join(root, p)
 		}

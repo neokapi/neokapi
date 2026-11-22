@@ -117,41 +117,8 @@ func TestOpenRegular(t *testing.T) {
 	})
 }
 
-func TestCreateRegular(t *testing.T) {
-	t.Run("a file link out of the root is never written", func(t *testing.T) {
-		root, _, secret := tree(t)
-		link := filepath.Join(root, "docs", "fr.txt")
-		require.NoError(t, os.Symlink(secret, link))
-		_, err := rootpath.CreateRegular(root, link)
-		requireEscape(t, err, "docs/fr.txt")
-		b, _ := os.ReadFile(secret)
-		assert.Equal(t, "outside", string(b))
-	})
-
-	t.Run("no directory is created beneath a directory link out of the root", func(t *testing.T) {
-		root, outside, _ := tree(t)
-		require.NoError(t, os.Symlink(outside, filepath.Join(root, "locales")))
-		_, err := rootpath.CreateRegular(root, filepath.Join(root, "locales", "fr", "app.json"))
-		requireEscape(t, err, "locales")
-		assert.NoDirExists(t, filepath.Join(outside, "fr"))
-	})
-
-	t.Run("a new file with new directories inside the root is written", func(t *testing.T) {
-		root, _, _ := tree(t)
-		p := filepath.Join(root, "locales", "fr", "app.json")
-		f, err := rootpath.CreateRegular(root, p)
-		require.NoError(t, err)
-		_, err = f.WriteString("{}")
-		require.NoError(t, err)
-		require.NoError(t, f.Close())
-		b, err := os.ReadFile(p)
-		require.NoError(t, err)
-		assert.Equal(t, "{}", string(b))
-	})
-}
-
-// An absolute link that leads inside the root is followed by reads and
-// writes alike, as Contain follows it.
+// An absolute link that leads inside the root is followed by a read, as
+// Contain follows it.
 func TestAnAbsoluteLinkInsideTheRoot(t *testing.T) {
 	root, _, _ := tree(t)
 	real := filepath.Join(root, "docs", "en.md")
@@ -164,23 +131,4 @@ func TestAnAbsoluteLinkInsideTheRoot(t *testing.T) {
 	b, _ := io.ReadAll(f)
 	require.NoError(t, f.Close())
 	assert.Equal(t, "hello", string(b))
-
-	w, err := rootpath.CreateRegular(root, link)
-	require.NoError(t, err)
-	_, _ = w.WriteString("bye")
-	require.NoError(t, w.Close())
-	b, _ = os.ReadFile(real)
-	assert.Equal(t, "bye", string(b))
-}
-
-// A file with another name, which may lie outside the root, is never cut in
-// place: writing it would change the other name too.
-func TestCreateRegularRefusesAHardLinkedFile(t *testing.T) {
-	root, _, secret := tree(t)
-	inside := filepath.Join(root, "docs", "de.json.bak")
-	require.NoError(t, os.Link(secret, inside))
-	_, err := rootpath.CreateRegular(root, inside)
-	require.ErrorIs(t, err, rootpath.ErrHardLinked)
-	b, _ := os.ReadFile(secret)
-	assert.Equal(t, "outside", string(b))
 }

@@ -49,9 +49,6 @@ func write(w func(io.Writer) error) error {
 	{"reading a file's target with atomicfile", 0, `package f
 import "github.com/neokapi/neokapi/core/atomicfile"
 func where(p string) (string, error) { t, _, _, err := atomicfile.Resolve(p); return t, err }`},
-	{"a file created for writing inside a root", 1, `package f
-import "github.com/neokapi/neokapi/core/rootpath"
-func write(root, p string) error { f, err := rootpath.CreateRegular(root, p); if err == nil { f.Close() }; return err }`},
 	{"a file opened for reading inside a root", 0, `package f
 import "github.com/neokapi/neokapi/core/rootpath"
 func read(root, p string) error { f, err := rootpath.OpenRegular(root, p); if err == nil { f.Close() }; return err }`},

@@ -123,7 +123,11 @@ func discoverOutputLangs(basePath string, item project.ContentItem, sourceRel st
 	if !strings.Contains(item.Target, "{lang}") {
 		return nil
 	}
-	resolved := filepath.ToSlash(project.ResolveTargetPath(item.Path, item.Base, item.Target, sourceRel, langPlaceholder))
+	target, err := project.ResolveTargetPath(item.Path, item.Base, item.Target, sourceRel, langPlaceholder)
+	if err != nil {
+		return nil // a name the template cannot hold safely has no target
+	}
+	resolved := filepath.ToSlash(target)
 
 	globPat := filepath.Join(basePath, filepath.FromSlash(strings.ReplaceAll(resolved, langPlaceholder, "*")))
 	hits, err := filepath.Glob(globPat)

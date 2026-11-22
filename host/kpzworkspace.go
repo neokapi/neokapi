@@ -672,6 +672,11 @@ func mergeOutputPath(layout, sourcePath, locale string, multiLocale bool) (strin
 	extNoDot := strings.TrimPrefix(ext, ".")
 
 	if strings.Contains(layout, "{") {
+		if strings.Contains(layout, "{name}") {
+			if err := checkPathSegment(name, "merge: source name"); err != nil {
+				return "", err
+			}
+		}
 		out := expandOutputTemplate(layout, name, locale, extNoDot, ".")
 		if d := filepath.Dir(out); d != "." {
 			_ = os.MkdirAll(d, 0o755)

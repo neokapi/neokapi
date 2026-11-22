@@ -29,6 +29,22 @@ func withinTree(t *testing.T) (root, outside string) {
 	return root, outside
 }
 
+// On a case-insensitive volume a path spelled in another case, with no link
+// anywhere, names a file beneath the root and is written.
+func TestStageWithinWritesAPathSpelledInAnotherCase(t *testing.T) {
+	root, _ := withinTree(t)
+	upper := filepath.Join(filepath.Dir(root), "ROOT")
+	if _, err := os.Stat(upper); err != nil {
+		t.Skip("the volume is case-sensitive")
+	}
+	s, err := atomicfile.StageWithin(root, filepath.Join(upper, "SITE", "fr.json"), write)
+	require.NoError(t, err)
+	require.NoError(t, s.Commit())
+	b, err := os.ReadFile(filepath.Join(root, "site", "fr.json"))
+	require.NoError(t, err)
+	assert.Equal(t, "body", string(b))
+}
+
 func assertEmpty(t *testing.T, dir string) {
 	t.Helper()
 	entries, err := os.ReadDir(dir)

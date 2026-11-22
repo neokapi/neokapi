@@ -12,10 +12,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -32,6 +34,9 @@ func init() {
 
 // registerKapiTools registers all kapi MCP tools on the given server.
 func registerKapiTools(server *mcp.Server, a *cli.App) {
+	// Outside a project a call writes under the directory the server was
+	// started in and the roots its client declares (writescope.go).
+	startDir, _ := os.Getwd()
 	if a.MCPSurface.AllTools {
 		mcp.AddTool(server, &mcp.Tool{
 			Name:        "list_formats",
@@ -53,7 +58,7 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 			Name:        "run_flow",
 			Description: "Execute a processing flow (e.g. pseudo-translate, qa) on a file",
 		}, func(ctx context.Context, req *mcp.CallToolRequest, input RunFlowInput) (*mcp.CallToolResult, RunFlowOutput, error) {
-			return handleRunFlow(ctx, a, input)
+			return handleRunFlow(withWriteRoots(ctx, sessionWriteRoots(ctx, req, startDir)), a, input)
 		})
 	}
 
@@ -80,7 +85,7 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 			Name:        "pseudo_translate",
 			Description: "Pseudo-translate a file to test how the UI holds expanded text",
 		}, func(ctx context.Context, req *mcp.CallToolRequest, input PseudoTranslateInput) (*mcp.CallToolResult, RunFlowOutput, error) {
-			return handlePseudoTranslate(ctx, a, input)
+			return handlePseudoTranslate(withWriteRoots(ctx, sessionWriteRoots(ctx, req, startDir)), a, input)
 		})
 	}
 }
@@ -429,6 +434,7 @@ func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLan
 
 func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, sourceLang, targetLang, outputPath string, flowTools []tool.Tool, pctx *project.ProjectContext) (string, error) {
 	// Compute output path if not specified.
+	named := outputPath != ""
 	if outputPath == "" {
 		ext := filepath.Ext(inputPath)
 		base := inputPath[:len(inputPath)-len(ext)]
@@ -446,10 +452,20 @@ func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, 
 	if pctx != nil {
 		root = pctx.ProjectDir
 	}
-	if err := outputInside(root, outputPath); err != nil {
-		return "", err
-	}
 	home, docs := a.FlowDocuments(ctx, root, model.LocaleID(sourceLang))
+	if root != "" {
+		if err := outputInside(root, outputPath); err != nil {
+			return "", err
+		}
+	} else {
+		// Outside a project the destination lies under a directory a person
+		// chose, and the home commits through that directory as its root.
+		writeRoot, err := writeRootFor(writeRootsFrom(ctx), outputPath, inputPath, named)
+		if err != nil {
+			return "", err
+		}
+		home = filehome.New(nil, filehome.Options{Root: writeRoot, LockDir: filepath.Join(host.DataDir(), "locks")})
+	}
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:    a.FormatReg,
 		SourceLocale: model.LocaleID(sourceLang),

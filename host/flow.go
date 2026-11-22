@@ -1202,7 +1202,11 @@ func (a *App) resolveOutputPath(inputPath, outputTemplate string) (string, error
 // runs pass the file's own dir (via resolveOutputPath).
 func (a *App) resolveOutputPathFrom(inputPath, outputTemplate, base string) (string, error) {
 	if outputTemplate == "" {
-		if out, ok := a.projectItemTargetPath(inputPath, a.TargetLang); ok {
+		out, ok, err := a.projectItemTargetPath(inputPath, a.TargetLang)
+		if err != nil {
+			return "", err
+		}
+		if ok {
 			// A convergence pass under a gating policy drafts into the run's own
 			// tree; delivery to this destination happens once, at the end, for
 			// the locales that cleared their gate (host/convergedrafts.go).
@@ -1217,7 +1221,7 @@ func (a *App) resolveOutputPathFrom(inputPath, outputTemplate, base string) (str
 		}
 		ext := format.Ext(inputPath)
 		name := filepath.Base(inputPath[:len(inputPath)-len(ext)])
-		out := filepath.Join(filepath.Dir(inputPath), fmt.Sprintf("%s_%s%s", name, a.TargetLang, ext))
+		out = filepath.Join(filepath.Dir(inputPath), fmt.Sprintf("%s_%s%s", name, a.TargetLang, ext))
 		if pattern, tracked := a.collectionTracking(out); tracked {
 			return "", fmt.Errorf("%s: writing %s beside its source would land inside the collection %q, which tracks it as source on the next run. Give the collection a target: template, or pass -o",
 				filepath.Base(inputPath), filepath.Base(out), pattern)
@@ -1228,9 +1232,9 @@ func (a *App) resolveOutputPathFrom(inputPath, outputTemplate, base string) (str
 	if base == "" {
 		base = filepath.Dir(inputPath)
 	}
-	out := expandAdhocOutputTemplate(outputTemplate, inputPath, base, a.TargetLang)
-	ensureParentDir(out)
-	return out, nil
+	// The file home creates the destination's directory when the document
+	// commits, after its containment is checked, so none is made here.
+	return expandAdhocOutputTemplate(outputTemplate, inputPath, base, a.TargetLang)
 }
 
 // collectionTracking reports the first collection pattern in the active project
@@ -1317,18 +1321,21 @@ func (a *App) projectItemFor(inputPath string) *project.ContentItem {
 // claiming item declares no target: a file listed under a source-only item
 // before a targeted glob is source-only, and the glob's target is never
 // borrowed for it.
-func (a *App) projectItemTargetPath(inputPath, lang string) (string, bool) {
+func (a *App) projectItemTargetPath(inputPath, lang string) (string, bool, error) {
 	item := a.projectItemFor(inputPath)
 	if item == nil || item.Target == "" {
-		return "", false
+		return "", false, nil
 	}
 	root := a.ProjectContext.ProjectDir
 	relSlash, _ := projectRelPath(root, inputPath)
-	out := project.ResolveTargetPath(item.Path, item.Base, item.Target, relSlash, lang)
+	out, err := project.ResolveTargetPath(item.Path, item.Base, item.Target, relSlash, lang)
+	if err != nil {
+		return "", false, fmt.Errorf("%s: %w", relSlash, err)
+	}
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)
 	}
-	return out, true
+	return out, true, nil
 }
 
 // expandAdhocOutputTemplate expands an explicit -o template/path for one input
@@ -1339,7 +1346,7 @@ func (a *App) projectItemTargetPath(inputPath, lang string) (string, bool) {
 // separator, or its last segment has no extension and no wildcard or token),
 // the input is mirrored beneath it (relative to base). This keeps the ad-hoc -o
 // vocabulary identical to the project content-item target vocabulary.
-func expandAdhocOutputTemplate(tmpl, inputPath, base, lang string) string {
+func expandAdhocOutputTemplate(tmpl, inputPath, base, lang string) (string, error) {
 	resolved := project.ResolvePathPattern(tmpl, lang)
 	if isDirTemplate(resolved) {
 		rel := filepath.Base(inputPath)
@@ -1348,12 +1355,20 @@ func expandAdhocOutputTemplate(tmpl, inputPath, base, lang string) string {
 				rel = r
 			}
 		}
-		return filepath.Join(resolved, rel)
+		return filepath.Join(resolved, rel), nil
 	}
-	out := project.ExpandTemplate(resolved, inputPath)
-	name := format.Stem(inputPath)
-	out = strings.ReplaceAll(out, "*", name)
-	return filepath.FromSlash(out)
+	out, err := project.ExpandTemplate(resolved, inputPath)
+	if err != nil {
+		return "", fmt.Errorf("-o %s: %w", tmpl, err)
+	}
+	if strings.Contains(out, "*") {
+		name := format.Stem(inputPath)
+		if err := project.CheckSegment("*", name); err != nil {
+			return "", fmt.Errorf("-o %s: %w", tmpl, err)
+		}
+		out = strings.ReplaceAll(out, "*", name)
+	}
+	return filepath.FromSlash(out), nil
 }
 
 // isDirTemplate reports whether an output template (after {lang} expansion)
@@ -1372,14 +1387,6 @@ func isDirTemplate(s string) bool {
 		return false
 	}
 	return format.Ext(last) == ""
-}
-
-// ensureParentDir best-effort creates the parent directory of p so a template
-// targeting a new directory writes cleanly.
-func ensureParentDir(p string) {
-	if dir := filepath.Dir(p); dir != "" && dir != "." {
-		_ = os.MkdirAll(dir, 0o755)
-	}
 }
 
 // expandOutputTemplate replaces {name}, {lang}, {ext}, and {dir} placeholders

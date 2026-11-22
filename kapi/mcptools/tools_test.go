@@ -172,6 +172,7 @@ func TestHandlePseudoTranslate(t *testing.T) {
 
 	// Use a temp dir for output.
 	tmpDir := t.TempDir()
+	ctx = withWriteRoots(ctx, []string{tmpDir}) // a client that declares the directory as a root
 	outputPath := filepath.Join(tmpDir, "output_qps.json")
 
 	_, out, err := handlePseudoTranslate(ctx, a, PseudoTranslateInput{
@@ -199,6 +200,7 @@ func TestHandleRunFlow(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
+	ctx = withWriteRoots(ctx, []string{tmpDir}) // a client that declares the directory as a root
 	outputPath := filepath.Join(tmpDir, "output.json")
 
 	_, out, err := handleRunFlow(ctx, a, RunFlowInput{
@@ -227,6 +229,7 @@ func TestHandlePseudoTranslateAutoOutput(t *testing.T) {
 	// Write a small JSON file into a temp dir so the auto-generated sibling
 	// output lands there too (avoids polluting the source tree).
 	tmpDir := t.TempDir()
+	ctx = withWriteRoots(ctx, []string{tmpDir}) // a client that declares the directory as a root
 	inputPath := filepath.Join(tmpDir, "content.json")
 	require.NoError(t, os.WriteFile(inputPath, []byte(`{"hero.title":"Plan less. Ship more.","cta.start":"Start for free"}`), 0o644))
 
