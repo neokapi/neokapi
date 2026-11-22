@@ -20,15 +20,32 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 )
 
+// sourcecodePluginDir holds the plugin binary this test process built. TestMain
+// removes it once the tests have run.
+var sourcecodePluginDir string
+
+// removeSourcecodePlugin removes the directory sourcecodePlugin built into.
+func removeSourcecodePlugin() {
+	if sourcecodePluginDir != "" {
+		_ = os.RemoveAll(sourcecodePluginDir)
+	}
+}
+
 // sourcecodePlugin builds the sourcecode plugin from this repository once per
-// test process, into one fixed directory that later runs overwrite. A build that
-// fails fails every test that needs the plugin.
+// test process, into a directory of this process's own, so two test runs in
+// two worktrees never overwrite each other's binary. When the build fails,
+// every test that needs the plugin fails.
 var sourcecodePlugin = sync.OnceValues(func() (string, error) {
 	src, err := filepath.Abs(filepath.Join("..", "plugins", "sourcecode"))
 	if err != nil {
 		return "", err
 	}
-	bin := filepath.Join(os.TempDir(), "kapi-host-test-plugins", "kapi-sourcecode")
+	dir, err := os.MkdirTemp("", "kapi-host-test-plugins-")
+	if err != nil {
+		return "", err
+	}
+	sourcecodePluginDir = dir
+	bin := filepath.Join(dir, "kapi-sourcecode")
 	build := exec.CommandContext(context.Background(), "go", "build", "-o", bin, "./cmd/kapi-sourcecode")
 	build.Dir = src
 	build.Env = append(os.Environ(), "GOWORK=off", "CGO_ENABLED=1")
@@ -100,8 +117,8 @@ type sourcecodeFile struct {
 	// commented file that does not parse.
 	directives, broken string
 	// tolerant reports that the language reads a file its grammar finds
-	// syntax errors in when a lexical scan of the file places every comment
-	// where the tree does, so broken holds a doubled word the check still
+	// syntax errors in, when a lexical scan of the file places every comment
+	// where the tree does. Then broken holds a doubled word the check still
 	// finds. unplaced then holds a doubled word in a comment the two place
 	// apart, which the check never reads.
 	tolerant bool
@@ -269,11 +286,11 @@ func namedSourceCheck(t *testing.T, a *App, name, src string) check.Report {
 }
 
 // proseP2Sourcecode is the P2 rung for a language whose comments the sourcecode
-// plugin reads, through the plugin built from this repository: comments take
-// part in `kapi check` at their file's point with their own lines, the plugin
-// catches its canary on every run, a file with nothing to check or that cannot
-// be read did not run, and a plugin that answers wrongly on its canary leaves
-// the run invalid.
+// plugin reads, through the plugin built from this repository. Comments take
+// part in `kapi check` at their file's point with their own lines, and the
+// plugin catches its canary on every run. A file with nothing to check, or one
+// that cannot be read, did not run. A plugin that answers wrongly on its canary
+// leaves the run invalid.
 func proseP2Sourcecode(t *testing.T, language string) {
 	f := sourcecodeFiles[language]
 	analyzer := "comments." + language

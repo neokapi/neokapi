@@ -1,5 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vite-plus/test";
@@ -7,10 +6,7 @@ import type { BlockV1, File } from "@neokapi/kapi-format";
 import { KindI18nReact, SchemaVersionV1, newFile, marshalFile } from "@neokapi/kapi-format";
 
 import { runCompile } from "../src/commands/compile.ts";
-
-function tempDir(prefix: string) {
-  return mkdtempSync(join(tmpdir(), `${prefix}-`));
-}
+import { tempDir } from "./temp-dir";
 
 // A minimal block with both source + targets populated so compile
 // has real content to flatten.
