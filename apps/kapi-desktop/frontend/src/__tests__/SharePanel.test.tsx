@@ -368,6 +368,20 @@ describe("Sync now", () => {
     await waitFor(() => expect(slot("share-sync-result")?.textContent).toBe("Pulled 3, pushed 2"));
   });
 
+  it("names what the pull passed over in the folder", async () => {
+    vi.spyOn(api, "syncProjectContext").mockResolvedValue({
+      ...SYNC_RESULT,
+      pull: { ...SYNC_RESULT.pull!, passed_over: ["log/w1/a.jsonl"] },
+    });
+    render(<SharePanel tabID="t1" view={GIT_VIEW} />);
+    await userEvent.click(screen.getByRole("button", { name: "Sync now" }));
+    await waitFor(() =>
+      expect(slot("share-sync-passed-over")?.textContent).toBe(
+        "Passed over, not read: log/w1/a.jsonl",
+      ),
+    );
+  });
+
   it("shows the error exactly as the backend returned it", async () => {
     vi.spyOn(api, "syncProjectContext").mockRejectedValue(new Error(SYNC_ERROR));
     render(<SharePanel tabID="t1" view={GIT_VIEW} />);

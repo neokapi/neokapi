@@ -36,7 +36,11 @@ func contextStoreKey(recipePath string) string {
 
 // contextStoreDigest fingerprints what an approval covers: the project's id
 // and the folder with every link resolved. Another repository cloned to the
-// same path, or a path that leads to another folder, asks again.
+// same path, or a path that leads to another folder, asks again. A recipe
+// with no `id:` (one written before kapi init minted ids) contributes an
+// empty id, so for it the recipe's path and the folder alone identify the
+// approval. The id is plain text in the recipe, so it tells projects apart
+// rather than proving which one this is.
 func contextStoreDigest(projectID, resolved string) string {
 	sum := sha256.Sum256([]byte(projectID + "\x00" + filepath.Clean(resolved)))
 	return "sha256:" + hex.EncodeToString(sum[:])
@@ -80,7 +84,7 @@ func checkContextPath(path string) error {
 // that does not exist yet is kept as written beneath what does. A folder
 // inside the project that is, or passes through, a link is refused: a pull
 // from the repository's remote can replace a directory with a link.
-func resolveContextFolder(layout project.Layout, location string) (string, error) {
+func resolveContextFolder(layout project.Layout, location string) (resolved, existing string, err error) {
 	if rel, err := filepath.Rel(layout.Root, location); err == nil && rel != "." &&
 		rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		p := layout.Root
@@ -91,44 +95,100 @@ func resolveContextFolder(layout project.Layout, location string) (string, error
 				break
 			}
 			if err != nil {
-				return "", err
+				return "", "", err
 			}
 			if info.Mode()&fs.ModeSymlink != 0 {
-				return "", fmt.Errorf("the context folder %s is inside the project and %s is a link: "+
+				return "", "", fmt.Errorf("the context folder %s is inside the project and %s is a link: "+
 					"name the folder itself, or a folder outside the project", location, p)
 			}
 		}
 	}
 	p, rest := location, ""
 	for {
-		resolved, err := filepath.EvalSymlinks(p)
+		real, err := filepath.EvalSymlinks(p)
 		if err == nil {
-			return filepath.Join(resolved, rest), nil
+			return filepath.Join(real, rest), real, nil
 		}
 		if !errors.Is(err, fs.ErrNotExist) {
-			return "", err
+			return "", "", err
 		}
 		parent := filepath.Dir(p)
 		if parent == p {
-			return location, nil
+			return location, "", nil
 		}
 		rest = filepath.Join(filepath.Base(p), rest)
 		p = parent
 	}
 }
 
+// contextFolder is a folder the recipe names, as an approval covers it.
+type contextFolder struct {
+	// Resolved is the folder with every link resolved.
+	Resolved string
+	// Existing is the nearest part of Resolved that exists: Resolved itself,
+	// or the ancestor a first sync creates the folder under.
+	Existing string
+	// Info identifies the directory at Resolved when it exists, taken as it
+	// is resolved, so the remote can refuse another directory swapped in
+	// before it opens the folder.
+	Info fs.FileInfo
+	// Digest is what an approval of the folder carries.
+	Digest string
+}
+
+// exists reports whether the folder is there yet.
+func (f contextFolder) exists() bool { return f.Existing == f.Resolved }
+
 // contextStoreFingerprint resolves the folder the recipe names and the digest
 // an approval of it carries.
-func contextStoreFingerprint(layout project.Layout, location string) (resolved, digest string, err error) {
-	resolved, err = resolveContextFolder(layout, location)
+func contextStoreFingerprint(layout project.Layout, location string) (contextFolder, error) {
+	resolved, existing, err := resolveContextFolder(layout, location)
 	if err != nil {
-		return "", "", err
+		return contextFolder{}, err
+	}
+	folder := contextFolder{Resolved: resolved, Existing: existing}
+	if folder.exists() {
+		if folder.Info, err = os.Stat(resolved); err != nil {
+			return contextFolder{}, err
+		}
 	}
 	proj, err := project.LoadWithOptions(layout.RecipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
-		return "", "", fmt.Errorf("load project: %w", err)
+		return contextFolder{}, fmt.Errorf("load project: %w", err)
 	}
-	return resolved, contextStoreDigest(proj.ID, resolved), nil
+	folder.Digest = contextStoreDigest(proj.ID, resolved)
+	return folder, nil
+}
+
+// createContextFolder makes an approved folder that does not exist yet,
+// beneath the existing ancestor it was resolved under and through a root
+// opened there, and resolves it again. The approval covers the folder that
+// is there afterwards: one that resolves anywhere else is refused.
+func createContextFolder(layout project.Layout, location string, folder contextFolder) (contextFolder, error) {
+	if folder.exists() || folder.Existing == "" {
+		return folder, nil
+	}
+	parent, err := os.OpenRoot(folder.Existing)
+	if err != nil {
+		return contextFolder{}, err
+	}
+	defer func() { _ = parent.Close() }()
+	rel, err := filepath.Rel(folder.Existing, folder.Resolved)
+	if err != nil {
+		return contextFolder{}, err
+	}
+	if err := parent.MkdirAll(rel, 0o755); err != nil {
+		return contextFolder{}, fmt.Errorf("create the context folder %s: %w", folder.Resolved, err)
+	}
+	created, err := contextStoreFingerprint(layout, location)
+	if err != nil {
+		return contextFolder{}, err
+	}
+	if created.Digest != folder.Digest || !created.exists() {
+		return contextFolder{}, fmt.Errorf("the context folder was created under %s but now resolves to %s, not the folder that was allowed (%s); run the sync again to be asked about it",
+			folder.Existing, created.Resolved, folder.Resolved)
+	}
+	return created, nil
 }
 
 // agentRunning reports an agent driving this process: it serves an MCP
@@ -149,55 +209,63 @@ func (a *App) agentRunning() bool {
 // the folder is not touched. With one recorded, the folder is resolved again
 // and must still match. With ask set and a person at a terminal, it asks and
 // records the answer; otherwise it refuses with the command that approves.
-func (a *App) requireContextStore(layout project.Layout, info ContextBackendInfo, ask bool) (string, error) {
+func (a *App) requireContextStore(layout project.Layout, info ContextBackendInfo, ask bool) (contextFolder, error) {
 	if info.Kind != project.ContextBackendFile {
-		return "", nil
+		return contextFolder{}, nil
 	}
 	key := contextStoreKey(layout.RecipePath)
 	refuse := func(location, reason string) error {
 		return &ContextStoreApprovalError{Recipe: layout.RecipePath, Location: location, Reason: reason}
 	}
-	if rec, ok := loadExecTrust().Projects[key]; ok && rec.Decision == execTrustAllow {
-		resolved, digest, err := contextStoreFingerprint(layout, info.Location)
-		if err != nil {
-			return "", err
+	// A sync (ask set) creates an approved folder that is not there yet; a
+	// status read leaves it as it is.
+	approved := func(folder contextFolder) (contextFolder, error) {
+		if !ask {
+			return folder, nil
 		}
-		if digest == rec.Digest {
-			return resolved, nil
+		return createContextFolder(layout, info.Location, folder)
+	}
+	if rec, ok := loadExecTrust().Projects[key]; ok && rec.Decision == execTrustAllow {
+		folder, err := contextStoreFingerprint(layout, info.Location)
+		if err != nil {
+			return contextFolder{}, err
+		}
+		if folder.Digest == rec.Digest {
+			return approved(folder)
 		}
 	}
 	if a.agentRunning() {
-		return "", refuse(info.Location, "An agent is running this command, and only a person can allow a folder")
+		return contextFolder{}, refuse(info.Location, "An agent is running this command, and only a person can allow a folder")
 	}
 	// A surface that said who acts (ActAs: the desktop) asks through its own
 	// dialog before it syncs, never at a terminal it may have been started
 	// from.
 	if !ask || a.actingActor != nil {
-		return "", refuse(info.Location, "Nothing here asks for the approval")
+		return contextFolder{}, refuse(info.Location, "Nothing here asks for the approval")
 	}
 	isTTY := a.isTTY
 	if isTTY == nil {
 		isTTY = defaultIsStdinTTY
 	}
 	if !isTTY() {
-		return "", refuse(info.Location, "No terminal is attached, so there is nobody to ask")
+		return contextFolder{}, refuse(info.Location, "No terminal is attached, so there is nobody to ask")
 	}
-	resolved, digest, err := contextStoreFingerprint(layout, info.Location)
+	folder, err := contextStoreFingerprint(layout, info.Location)
 	if err != nil {
-		return "", err
+		return contextFolder{}, err
 	}
-	printContextStorePrompt(os.Stderr, layout.RecipePath, resolved)
+	printContextStorePrompt(os.Stderr, layout.RecipePath, folder)
 	ok, err := ConfirmDefaultNo(os.Stdin, os.Stderr, "Allow this project to keep its context in that folder? [y/N] ")
 	if err != nil {
-		return "", err
+		return contextFolder{}, err
 	}
 	if !ok {
-		return "", refuse(resolved, "It was not allowed")
+		return contextFolder{}, refuse(folder.Resolved, "It was not allowed")
 	}
-	if err := recordExecTrust(key, digest, execTrustAllow); err != nil {
+	if err := recordExecTrust(key, folder.Digest, execTrustAllow); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: could not record the answer in %s: %v\n", ExecTrustPath(), err)
 	}
-	return resolved, nil
+	return approved(folder)
 }
 
 // contextStoreTrustNotice is what the prompt and the Sharing guide say about
@@ -205,25 +273,30 @@ func (a *App) requireContextStore(layout project.Layout, info ContextBackendInfo
 const contextStoreTrustNotice = "kapi writes the project's decisions, terms and voice there, and merges in what other\n" +
 	"machines put there. Anyone who can write to that folder can add to this project's context.\n"
 
-// printContextStorePrompt states what the answer allows.
-func printContextStorePrompt(w interface{ Write([]byte) (int, error) }, recipePath, location string) {
-	fmt.Fprintf(w, "\n%s keeps the project's context in a folder:\n\n  %s\n\n%s\n", recipePath, location, contextStoreTrustNotice)
+// printContextStorePrompt states what the answer allows, and where a folder
+// that is not there yet will be created.
+func printContextStorePrompt(w interface{ Write([]byte) (int, error) }, recipePath string, folder contextFolder) {
+	fmt.Fprintf(w, "\n%s keeps the project's context in a folder:\n\n  %s\n\n", recipePath, folder.Resolved)
+	if !folder.exists() && folder.Existing != "" {
+		fmt.Fprintf(w, "The folder does not exist yet. The first sync will create it under %s.\n\n", folder.Existing)
+	}
+	fmt.Fprintf(w, "%s\n", contextStoreTrustNotice)
 }
 
 // contextStoreFor resolves the folder the recipe at recipePath keeps its
 // context in and the digest an approval of it carries. location is "" for
 // any other backend.
-func contextStoreFor(recipePath string) (location, digest string, err error) {
+func contextStoreFor(recipePath string) (contextFolder, error) {
 	layout, err := project.LayoutFor(recipePath)
 	if err != nil {
-		return "", "", err
+		return contextFolder{}, err
 	}
 	info, err := resolveBackend(layout)
 	if err != nil {
-		return "", "", err
+		return contextFolder{}, err
 	}
 	if info.Kind != project.ContextBackendFile {
-		return "", "", nil
+		return contextFolder{}, nil
 	}
 	return contextStoreFingerprint(layout, info.Location)
 }
@@ -233,8 +306,8 @@ func contextStoreFor(recipePath string) (location, digest string, err error) {
 // reads the path, never the folder's contents; a person asked to allow the
 // folder sees this.
 func ContextStoreLocation(recipePath string) (string, error) {
-	location, _, err := contextStoreFor(recipePath)
-	return location, err
+	folder, err := contextStoreFor(recipePath)
+	return folder.Resolved, err
 }
 
 // ContextStoreAllowed reports whether the person allowed the folder the
@@ -245,8 +318,8 @@ func ContextStoreAllowed(recipePath string) bool {
 	if !ok || rec.Decision != execTrustAllow {
 		return false
 	}
-	location, digest, err := contextStoreFor(recipePath)
-	return err == nil && location != "" && digest == rec.Digest
+	folder, err := contextStoreFor(recipePath)
+	return err == nil && folder.Resolved != "" && folder.Digest == rec.Digest
 }
 
 // ApproveContextStore records that the person allows the recipe's folder,
@@ -270,21 +343,21 @@ func (a *App) approveContextStore(recipePath, shown string) (string, error) {
 	if a.agentRunning() {
 		return "", errors.New("an agent is running this command, and only a person can allow a folder for a project's context")
 	}
-	location, digest, err := contextStoreFor(recipePath)
+	folder, err := contextStoreFor(recipePath)
 	if err != nil {
 		return "", err
 	}
-	if location == "" {
+	if folder.Resolved == "" {
 		return "", fmt.Errorf("%s keeps no context in a folder, so there is nothing to allow", recipePath)
 	}
-	if shown != "" && filepath.Clean(shown) != location {
+	if shown != "" && filepath.Clean(shown) != folder.Resolved {
 		return "", fmt.Errorf("%s now keeps its context in %s, not the folder shown (%s): look at the folder again before allowing it",
-			recipePath, location, shown)
+			recipePath, folder.Resolved, shown)
 	}
-	if err := recordExecTrust(contextStoreKey(recipePath), digest, execTrustAllow); err != nil {
+	if err := recordExecTrust(contextStoreKey(recipePath), folder.Digest, execTrustAllow); err != nil {
 		return "", err
 	}
-	return location, nil
+	return folder.Resolved, nil
 }
 
 // isContextStoreKey reports a trust record key for a folder approval.
@@ -299,16 +372,17 @@ func (a *App) ContextStoreAllow(cmd Command, recipePath string) (output.TrustAll
 	if a.agentRunning() {
 		return out, errors.New("an agent is running this command, and only a person can allow a folder for a project's context")
 	}
-	location, digest, err := contextStoreFor(key)
+	folder, err := contextStoreFor(key)
 	if err != nil {
 		return out, err
 	}
-	if location == "" {
+	if folder.Resolved == "" {
 		out.Reason = "the recipe keeps no context in a folder, so there is nothing to allow"
 		return out, nil
 	}
+	location := folder.Resolved
 	out.ContextStore = location
-	printContextStorePrompt(cmd.ErrOrStderr(), key, location)
+	printContextStorePrompt(cmd.ErrOrStderr(), key, folder)
 	if !a.AssumeYes {
 		isTTY := a.isTTY
 		if isTTY == nil {
@@ -326,7 +400,7 @@ func (a *App) ContextStoreAllow(cmd Command, recipePath string) (output.TrustAll
 			return out, nil
 		}
 	}
-	if err := recordExecTrust(contextStoreKey(key), digest, execTrustAllow); err != nil {
+	if err := recordExecTrust(contextStoreKey(key), folder.Digest, execTrustAllow); err != nil {
 		return out, err
 	}
 	out.Recorded = true

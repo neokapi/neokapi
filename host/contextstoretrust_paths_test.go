@@ -3,8 +3,11 @@
 package host
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -121,4 +124,60 @@ func TestContextStore_AnApprovalOfAnotherFolderIsRefused(t *testing.T) {
 	_, err = app.ApproveContextStoreAt(recipe, shown)
 	require.ErrorContains(t, err, "not the folder shown")
 	assert.False(t, ContextStoreAllowed(recipe))
+}
+
+// A sync through a folder holding a link says what it passed over, in the
+// result and its text, rather than reporting an empty folder.
+func TestContextStore_ASyncReportsWhatItPassedOver(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	folder := filepath.Join(realTempDir(t), "team")
+	require.NoError(t, os.MkdirAll(filepath.Join(folder, "log", "w1"), 0o755))
+	planted := "log/w1/" + strings.Repeat("0", 24) + ".jsonl"
+	require.NoError(t, os.Symlink(filepath.Join(realTempDir(t), "elsewhere"), filepath.Join(folder, filepath.FromSlash(planted))))
+	recipe := folderProject(t, app, folder)
+	_, err := app.ApproveContextStore(recipe)
+	require.NoError(t, err)
+
+	res, err := app.SyncProjectContext(t.Context(), ContextSyncRequest{Project: recipe})
+	require.NoError(t, err)
+	require.NotNil(t, res.Pull)
+	assert.Equal(t, []string{planted}, res.Pull.PassedOver)
+	var text bytes.Buffer
+	require.NoError(t, res.Pull.FormatText(&text))
+	assert.Contains(t, text.String(), "passed over 1 entry in the folder that kapi does not read, such as a link: "+planted)
+	data, err := json.Marshal(res.Pull)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"passed_over":["`+planted+`"]`)
+}
+
+// A folder that is not there yet is announced with the ancestor it will be
+// created under, created by the first sync, and covered by the approval as
+// the directory that exists afterwards.
+func TestContextStore_AFolderNotThereYetIsCreatedUnderItsAncestor(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	base := realTempDir(t)
+	folder := filepath.Join(base, "teams", "docs")
+	recipe := folderProject(t, app, folder)
+	layout, err := project.LayoutFor(recipe)
+	require.NoError(t, err)
+
+	fp, err := contextStoreFingerprint(layout, folder)
+	require.NoError(t, err)
+	assert.Equal(t, base, fp.Existing)
+	var prompt bytes.Buffer
+	printContextStorePrompt(&prompt, recipe, fp)
+	assert.Contains(t, prompt.String(), "The folder does not exist yet. The first sync will create it under "+base+".")
+
+	_, err = app.ApproveContextStore(recipe)
+	require.NoError(t, err)
+	assert.NoDirExists(t, folder, "approving creates nothing")
+	_, err = app.SyncProjectContext(t.Context(), ContextSyncRequest{Project: recipe})
+	require.NoError(t, err)
+	assert.DirExists(t, filepath.Join(folder, "log"))
+	assert.True(t, ContextStoreAllowed(recipe), "the approval covers the directory created")
+
+	after, err := contextStoreFingerprint(layout, folder)
+	require.NoError(t, err)
+	assert.Equal(t, folder, after.Existing)
+	assert.NotNil(t, after.Info)
 }

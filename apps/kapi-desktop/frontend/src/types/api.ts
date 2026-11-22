@@ -949,6 +949,8 @@ export interface ContextPull extends SyncStatus {
   rebuilt?: boolean;
   checkpoint?: string;
   empty?: boolean;
+  /** Entries in a shared folder the pull left out: links, devices. */
+  passed_over?: string[];
   seconds: number;
 }
 
