@@ -96,7 +96,7 @@ func TestSanitizeRecipeNil(t *testing.T) {
 }
 
 // TestSanitizeRecipeLeavesTheCallersRecipeAlone: SanitizeRecipe returns a copy,
-// and a shallow struct copy would alias every map and slice — so sanitizing the
+// and a shallow struct copy would alias every map and slice. So sanitizing the
 // recipe kapi is about to PACK must not quietly edit the project's own loaded
 // recipe in the same process.
 func TestSanitizeRecipeLeavesTheCallersRecipeAlone(t *testing.T) {
@@ -124,7 +124,7 @@ func TestSanitizeRecipeLeavesTheCallersRecipeAlone(t *testing.T) {
 
 // TestSanitizeRecipeStripsExecClassSteps: a .kpz recipe is authored by whoever
 // packed the archive, so a step that runs a command it names cannot survive
-// into a project that adopts it — including one hidden in a nested `parallel`
+// into a project that adopts it. That includes one hidden in a nested `parallel`
 // branch or in source_transforms.
 func TestSanitizeRecipeStripsExecClassSteps(t *testing.T) {
 	r := &project.KapiProject{
@@ -214,13 +214,12 @@ func TestSanitizeRecipeClearsNonLocalOut(t *testing.T) {
 }
 
 // TestSanitizeRecipeKeepsRequires pins a decision rather than a mechanism.
-// `requires:` is the one package-carried field that can still lead somewhere —
-// it is what makes LoadProjectInteractive offer an install — and it is kept on
+// `requires:` is the one package-carried field that can still lead somewhere.
+// It is what makes LoadProjectInteractive offer an install. It is kept on
 // purpose: it declares a fact, installs nothing by itself, and what it can ask
 // for is bounded by the signed plugin registry. Stripping it would cost the
-// declaration and buy no capability back, so if this test ever fails, the
-// question to answer is whether that reasoning changed, not whether the sweep
-// missed a field.
+// declaration and buy no capability back. If this test ever fails, ask whether
+// that reasoning changed, not whether the sweep missed a field.
 func TestSanitizeRecipeKeepsRequires(t *testing.T) {
 	r := &project.KapiProject{
 		Version:  project.CurrentVersion,
@@ -240,7 +239,7 @@ func TestSanitizeRecipeKeepsRequires(t *testing.T) {
 // is refused when it loads (core/project, TestRecipeTargetOutsideTheProjectIsRefused).
 func TestSanitizeRecipeClearsNonLocalPaths(t *testing.T) {
 	// One hostile value, applied to one field at a time, so a field that is
-	// simply not swept fails on its own rather than hiding behind a sibling.
+	// not swept fails on its own rather than hiding behind a sibling.
 	const escape = "../../../../etc/kapi-escape"
 
 	for _, tc := range []struct {
@@ -300,8 +299,8 @@ func TestSanitizeRecipeClearsNonLocalPaths(t *testing.T) {
 }
 
 // TestSanitizeRecipeKeepsOrdinaryPaths: the sweep exists to catch the paths that
-// leave the project, so the ordinary ones — including every template
-// placeholder a target may be written with — have to come through untouched.
+// leave the project. So the ordinary ones, including every template
+// placeholder a target may be written with, have to come through untouched.
 func TestSanitizeRecipeKeepsOrdinaryPaths(t *testing.T) {
 	r := &project.KapiProject{
 		Version: project.CurrentVersion,
@@ -327,8 +326,8 @@ func TestSanitizeRecipeKeepsOrdinaryPaths(t *testing.T) {
 	assert.Equal(t, r.Collections, got.Collections)
 }
 
-// TestSanitizeRecipeSweepsEveryExtrasScope: a recipe has four Extras maps —
-// top-level, defaults, per-collection and per-item — and an extension may be
+// TestSanitizeRecipeSweepsEveryExtrasScope: a recipe has four Extras maps:
+// top-level, defaults, per-collection and per-item. An extension may be
 // registered at any of them. Sweeping only the top one means the denylist holds
 // by accident of where today's extensions happen to be registered.
 func TestSanitizeRecipeSweepsEveryExtrasScope(t *testing.T) {

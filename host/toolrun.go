@@ -82,11 +82,11 @@ type ToolRunConfig struct {
 	OutputTemplate string
 	// InPlace: write back to the input file path instead of expanding
 	// OutputTemplate. Enabled automatically when all inputs are KBF
-	// files and -o was omitted — KBF writers are locale-additive,
+	// files and -o was omitted. KBF writers are locale-additive,
 	// so in-place accumulates translations rather than clobbering.
 	InPlace bool
 	// DefaultLayout: no -o/--output-dir was given, so resolve each output
-	// path with localeOutputPath — swap the source locale in the input path
+	// path with localeOutputPath: swap the source locale in the input path
 	// if present, else write under a {lang}/ directory beside the input.
 	DefaultLayout bool
 	TargetLang    string
@@ -130,8 +130,8 @@ func (a *App) filePolicy(cfg ToolRunConfig, proj *project.KapiProject, file stri
 // in collections under different policies, so no single policy covers them.
 //
 // A redacted package (kpz.Redaction) whose vault is among the project's batch
-// vaults runs: kapi extract --format kpz wrote it in this project and
-// withheld each file's values under that file's policy, so the package holds
+// vaults runs. kapi extract --format kpz wrote it in this project and
+// withheld each file's values under that file's policy. The package holds
 // tokens where the originals were, and the originals stay in the vault until
 // kapi merge restores them. Any other redacted package is refused, since
 // nothing here says which rules withheld its values.
@@ -300,7 +300,7 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	// single BatchFlowTrace and write it once at the end. The pseudobench
 	// concurrency view consumes this exact shape; without it that chart
 	// renders empty even though kapi processed everything in parallel.
-	// Per-file trace mode (with {name}) keeps its existing behaviour —
+	// Per-file trace mode (with {name}) keeps its existing behaviour:
 	// the placeholder signals the user wants individual flow traces.
 	batchTrace := cfg.TracePath != "" && !strings.Contains(cfg.TracePath, "{name}") && len(files) > 1
 	var batchStart time.Time
@@ -353,7 +353,7 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 				}()
 			}
 
-			// Suppress per-file trace writes in batch mode — the path has no
+			// Suppress per-file trace writes in batch mode. The path has no
 			// {name} placeholder so every file would clobber the same target.
 			runCfg := runCfgs[file]
 			if batchTrace {
@@ -465,7 +465,7 @@ func (a *App) resolveRunOutputPath(cfg ToolRunConfig, filePath, commonDir string
 
 func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, collector flow.Collector, commonDir string, progress progressGroup, batchInfo *batchTraceInfo) error {
 	// Container binding (AD-026 §6): a ZIP/TAR/TAR.GZ is a namespace of inner
-	// documents, not a single document — handle it before single-document format
+	// documents, not a single document. Handle it before single-document format
 	// detection (which can't classify e.g. ".tar.gz"). When the run produces
 	// output, localize each entry as its own file run (real reader/writer +
 	// skeleton round-trip, so a DOCX/EPUB *inside* the archive round-trips
@@ -543,7 +543,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	// Create writer early so we can wire skeleton store before reading.
 	// Writer format defaults to the reader's format (same-in / same-out
 	// round-trip) but a different output extension selects a different
-	// writer — that's how "convert .json → .kbf.json → .mo" works without a
+	// writer. That's how "convert .json → .kbf.json → .mo" works without a
 	// dedicated --writer flag. The output path's extension IS the user's
 	// intent declaration.
 	var writer format.DataFormatWriter
@@ -606,7 +606,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	// model + structural layer (role-driven semantic export). The same-format
 	// gate lives in format.NewWiredSkeleton, shared with
 	// core/flow.FileRunner.RunFileWithReaderWriter.
-	//
+
 	// A store that cannot be created fails the file. `--fail-on-unknown` governs
 	// *unreadable* input, not a fault in our own scaffolding: a skeleton we
 	// promised and cannot deliver would silently reconstruct the document from
@@ -757,7 +757,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 
 	waitErr := wait()
 	// The executor has finished draining; cancel and join the feeder so it
-	// never leaks — on a tool error the tools stop early and the feeder may
+	// never leaks. On a tool error the tools stop early and the feeder may
 	// still be parked on an inCh send for the parts past the channel buffer.
 	feedCancel()
 	<-feedDone
@@ -822,7 +822,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		// Prefer passing the file path over loading content bytes when the writer
 		// supports it. This avoids duplicating the file in memory for gRPC transfer.
 		// As with the skeleton store, only hand the source to the writer for a
-		// same-format round trip — for a cross-format conversion the source bytes
+		// same-format round trip. For a cross-format conversion the source bytes
 		// are in the reader's format and would be echoed/re-parsed by a foreign
 		// writer, so the writer reconstructs from the content model instead.
 		if reader.Name() == writer.Name() {
@@ -877,7 +877,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 // resolveFiles turns explicit `-i` patterns into a concrete file list. It is
 // the strict spelling of the shared expander in inputs.go: same glob (`**`
 // recursive) and directory semantics everywhere, but an argument that matches
-// nothing is an error rather than a skip — a flow told to process a file it
+// nothing is an error rather than a skip. A flow told to process a file it
 // cannot find must not silently process zero files.
 func resolveFiles(patterns []string) ([]string, error) {
 	var firstMiss error
@@ -987,7 +987,7 @@ func commonPath(a, b string) string {
 // expandOutputPath expands an explicit -o template for one tool-run input file
 // and ensures the parent directory exists. Token expansion and directory-mirror
 // handling are delegated to the shared ad-hoc resolver (expandAdhocOutputTemplate)
-// so the -o vocabulary matches flow runs and project content-item targets — a
+// so the -o vocabulary matches flow runs and project content-item targets. A
 // directory target mirrors the file relative to commonDir.
 func expandOutputPath(tmpl, filePath, commonDir, lang string) string {
 	result := expandAdhocOutputTemplate(tmpl, filePath, commonDir, lang)
@@ -999,9 +999,9 @@ func expandOutputPath(tmpl, filePath, commonDir, lang string) string {
 // -o template or --output-dir was given. The aim is to land translated files
 // where the project's own localization layout expects them:
 //
-//   - If the source locale appears in the input path — as a directory segment
+//   - If the source locale appears in the input path, as a directory segment
 //     (locales/en/app.json) or a filename token (app.en.json, app_en.arb,
-//     en.json) — it is swapped for the target locale, writing beside the
+//     en.json), it is swapped for the target locale, writing beside the
 //     source. A directory match is preferred over a filename match.
 //   - Otherwise the file is placed under a {lang}/ directory beside the input
 //     (messages.json → fr/messages.json).

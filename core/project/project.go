@@ -67,8 +67,8 @@ type KapiProject struct {
 
 	// ID is the project's stable identity. `kapi init` mints one, and every
 	// key kapi derives for the project's recorded context reads it through
-	// Identity, so renaming the project, moving the folder and cloning the
-	// repository elsewhere all leave that context where it is and two
+	// Identity. So renaming the project, moving the folder and cloning the
+	// repository elsewhere all leave that context where it is, and two
 	// checkouts of one recipe resolve to one project. A recipe carrying no id
 	// is identified by its Name; `kapi init --mint-id` writes one into such a
 	// recipe. See id.go.
@@ -145,7 +145,7 @@ type KapiProject struct {
 
 	// SourceGate is the source-readiness bar: a single coverage gate over the
 	// source authoring ladder (written→established), e.g.
-	// {established: 100}. It is the source-side counterpart of ShipGate — it gates
+	// {established: 100}. It is the source-side counterpart of ShipGate: it gates
 	// the author's own content, not the translations. BuildSourceGate
 	// resolves it; evaluated by `kapi check --ship` (never an ordinary
 	// build).
@@ -158,7 +158,7 @@ type KapiProject struct {
 	// binary that has not registered the bowrain extension.
 	//
 	// Version constraints follow semver (`^1.0`, `>=1.47.0`, `~1.4.2`,
-	// `1.4.0` exact-match, `*` any). The map form is mandatory — a bare-list
+	// `1.4.0` exact-match, `*` any). The map form is mandatory. A bare-list
 	// form (`requires: [bowrain]`) is rejected with an actionable error.
 	Requires RequiresMap `yaml:"requires,omitempty" json:"requires,omitempty"`
 
@@ -179,7 +179,7 @@ type Defaults struct {
 	SourceLanguage  model.LocaleID   `yaml:"source_language,omitempty" json:"source_language,omitempty"`
 	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
 
-	// Flow names the project's default flow — the one `kapi run` (with no flow
+	// Flow names the project's default flow: the one `kapi run` (with no flow
 	// argument) executes to bring the project's content up to date across every
 	// target language. It is a built-in composed flow name or a key in `flows:`.
 	// Empty means there is no default; `kapi run` then requires an explicit flow.
@@ -188,11 +188,11 @@ type Defaults struct {
 	// Materialize governs whether the convergence loop (`kapi up`) owns
 	// delivery of the localized target files (#1078 C2/C3).
 	//
-	// "on-converge" makes the run responsible for them, under the ship gate:
-	// its passes draft into a run-local tree and only a locale whose gated
+	// "on-converge" makes the run responsible for them, under the ship gate.
+	// Its passes draft into a run-local tree. Only a locale whose gated
 	// scopes are all shippable has its files written to the collection's
 	// `target:` path. "manual" (the default) leaves delivery to an explicit
-	// `kapi merge` (or `up --materialize`) and claims no gate — its passes
+	// `kapi merge` (or `up --materialize`) and claims no gate. Its passes
 	// write where the recipe points as they produce each unit.
 	Materialize string `yaml:"materialize,omitempty" json:"materialize,omitempty"`
 
@@ -279,12 +279,12 @@ type Defaults struct {
 	//
 	// It exists because most axes default. A project has one brand far more
 	// often than one per collection, so stating it per entry is noise that
-	// drifts — the same reason Voice above is a default with a per-collection
-	// override rather than a field repeated on every entry.
+	// drifts. Voice above is a default with a per-collection
+	// override rather than a field repeated on every entry, for the same reason.
 	//
-	// The structural axes (product, channel) are NOT written here: they are
-	// derived from a collection's `channel:`, and a default that could shadow
-	// them would let a recipe contradict its own point. Declared axes only.
+	// The structural axes (product, channel) come from a collection's
+	// `channel:`. A default that could shadow them would let a recipe
+	// contradict its own point, so this map holds declared axes only.
 	Coordinates map[string]string `yaml:"coordinates,omitempty" json:"coordinates,omitempty"`
 
 	// Priority is the review priority every collection takes unless it sets
@@ -303,7 +303,7 @@ type Defaults struct {
 
 	// Locales holds per-target-language overrides, keyed by locale. Each entry's
 	// tool presets merge on top of the project-wide Tools presets (and under a
-	// flow step's own config) whenever a flow runs for that target locale — so a
+	// flow step's own config) whenever a flow runs for that target locale, so a
 	// project can declare an advanced feature once per locale ("de needs
 	// redaction, others don't") without forking the flow. Convergence and any
 	// targeted run honor it; locales with no entry use the project defaults.
@@ -533,13 +533,13 @@ const (
 
 // Materialize policy values for Defaults.Materialize (#1078 C2/C3).
 const (
-	// MaterializeManual: the run does not own delivery — bringing the
+	// MaterializeManual: the run does not own delivery. Bringing the
 	// localized files up to date is an explicit `kapi merge` (or `kapi up
 	// --materialize`). The default, and the policy that claims no gate.
 	MaterializeManual = "manual"
 	// MaterializeOnConverge: the run owns delivery under the ship gate. Its
 	// passes draft, and the localized files are written at the end for every
-	// locale whose gated scopes are all shippable — a parked locale's files
+	// locale whose gated scopes are all shippable. A parked locale's files
 	// are absent, not merely unblessed.
 	MaterializeOnConverge = "on-converge"
 )
@@ -742,14 +742,14 @@ type Collection struct {
 	// Channel places this collection's content at a point in the project's
 	// context space, written as the qualified `profile/channel`. A bare channel
 	// name is rejected, and the error spells out the qualified form(s) to write
-	// (ResolveChannel). The point selects the profile whose governance —
-	// voice, terms — a run carries over this content, and the channel then
+	// (ResolveChannel). The point selects the profile whose governance
+	// (voice, terms) a run carries over this content, and the channel then
 	// selects the matching override inside that voice. Empty means the
 	// project's default point governs it. Named collections only: a point is
 	// resolved by collection name, so an unnamed entry has nothing to resolve.
 	Channel string `yaml:"channel,omitempty" json:"channel,omitempty"`
 
-	// Coordinates places this collection on the DECLARED axes — the ones a
+	// Coordinates places this collection on the DECLARED axes: the ones a
 	// project names for itself, brand among them. It overlays
 	// `defaults.coordinates`, per axis, so a collection moves on the one axis
 	// it differs on and inherits the rest.
@@ -762,7 +762,7 @@ type Collection struct {
 	// Package descriptions and installer strings are the usual case.
 	//
 	// It is an assertion, not a mode. Naming no target already made a
-	// collection source-only, so this flag adds no behaviour — what it adds is
+	// collection source-only, so this flag adds no behaviour. What it adds is
 	// the difference between meaning it and forgetting. Validate rejects a
 	// collection that sets it and also carries a target, so the declaration and
 	// the items cannot drift into disagreeing.
@@ -780,7 +780,7 @@ type Collection struct {
 	// redaction replaces it in turn (RedactionForPath).
 	Redaction *RedactionSpec `yaml:"redaction,omitempty" json:"redaction,omitempty"`
 
-	// Bare entry fields (short form — promoted from ContentItem).
+	// Bare entry fields (short form, promoted from ContentItem).
 	Path   string      `yaml:"path,omitempty" json:"path,omitempty"`
 	Format *FormatSpec `yaml:"format,omitempty" json:"format,omitempty"`
 	Target string      `yaml:"target,omitempty" json:"target,omitempty"`
@@ -822,8 +822,8 @@ func validateTargetInside(field, target string) error {
 // checked: an unchecked one drifts away from the items under it and becomes a
 // second, wrong answer to the question the items already answer.
 //
-// Both spellings of a target are covered — the collection's own
-// target_languages, and each item's target path — because either alone would
+// Both spellings of a target are covered: the collection's own
+// target_languages, and each item's target path. Either alone would
 // leave a way to declare the contradiction.
 func (c *Collection) validateSourceOnly(i int) error {
 	if !c.SourceOnly {
@@ -853,21 +853,19 @@ func (c *Collection) validateSourceOnly(i int) error {
 // EffectiveItems returns the collection's items with Base folded in: every
 // path, target and item base joined onto the collection's base, so every
 // consumer downstream sees project-relative paths and never has to know a base
-// was declared. An item that declares no base of its own keeps none — the
+// was declared. An item that declares no base of its own keeps none. The
 // target tokens then relativize against the joined pattern's own fixed prefix,
 // which is what makes `base:` a location and not a second relativization root.
 //
-// For bare entries it wraps the promoted fields as a single-item slice
-// (carrying the bare entry's Extras through, so platform-specific per-item
-// fields survive).
+// For bare entries it wraps the promoted fields as a single-item slice,
+// carrying the bare entry's Extras so platform-specific per-item fields
+// survive.
 //
-// The collection's languages fold in the same way its base does: an item that
-// declares none of its own carries the collection's, so a consumer holding an
-// effective item needs no second lookup to know which languages apply to it.
-// Every host path resolves an item's languages with no collection in hand
-// (`ResolvedTargetLanguages(nil, defaults)`), so without this a collection-level
-// `target_languages:` was invisible to coverage, checks, the plan and the
-// convergence fan-out alike — declared in the recipe and silently unused.
+// The collection's languages fold in the same way: an item that declares none
+// of its own carries the collection's. Every host path resolves an item's
+// languages with no collection in hand (`ResolvedTargetLanguages(nil,
+// defaults)`). Without this fold, coverage, checks, the plan and the
+// convergence fan-out would all miss a collection-level `target_languages:`.
 func (c *Collection) EffectiveItems() []ContentItem {
 	var items []ContentItem
 	if c.IsBareEntry() {
@@ -901,8 +899,8 @@ func (c *Collection) EffectiveItems() []ContentItem {
 }
 
 // JoinBase prefixes a collection-relative path with the collection's base.
-// An empty path stays empty — an item with no target has no target under a
-// base either — and an absolute path is left alone so the escape check
+// An empty path stays empty, since an item with no target has no target under
+// a base either. An absolute path is left alone so the escape check
 // downstream still sees it.
 func JoinBase(base, p string) string {
 	if base == "" || p == "" {
@@ -924,7 +922,7 @@ type ContentItem struct {
 	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
 
 	// Channel overrides the collection's `channel:` for the files this item
-	// matches — the one place a single file, or a sub-pattern, sits at a
+	// matches. It is the one place a single file, or a sub-pattern, sits at a
 	// different point in the context space than the rest of its collection. It
 	// takes the same qualified `profile/channel` form and the same validator as
 	// a collection's channel; empty inherits the collection's. A run resolves it
@@ -997,7 +995,7 @@ func normalizeLocales(in []model.LocaleID) []model.LocaleID {
 // DeclaresTargetLanguages reports whether the recipe names a target language
 // anywhere its content could be written to one: in `defaults.target_languages`,
 // or on a collection or item that also declares a target template. False means
-// the project is MONOLINGUAL — there is no per-language work to plan, price or
+// the project is MONOLINGUAL: there is no per-language work to plan, price or
 // run, so a caller must not ask for an AI provider or quote a translation cost.
 //
 // It reads the recipe only: no glob expands, nothing is stat-ed. A caller that
@@ -1120,11 +1118,11 @@ func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
 // whatever recipe is already there and writing nothing at all when the
 // serialization is unchanged (core/yamledit).
 //
-// A recipe is committed, human-authored source — `kapi init` scaffolds it with a
-// commented tutorial — so a verb that touches one binding must not take the
-// explanation with it. And a save that writes nothing new is worse than untidy
-// here: the recipe sits at the repo root, which the erasure gate classifies as
-// foreign, so a convergence run that rewrote it — identical content and all — is
+// A recipe is committed, human-authored source. `kapi init` scaffolds it with a
+// commented tutorial, so a verb that touches one binding must not take the
+// explanation with it. A save that writes nothing new is worse than untidy
+// here. The recipe sits at the repo root, which the erasure gate classifies as
+// foreign, so a convergence run that rewrote it, even with identical content, is
 // refused by name.
 func Save(path string, proj *KapiProject) error {
 	if proj.Version == "" {
@@ -1137,7 +1135,7 @@ func Save(path string, proj *KapiProject) error {
 }
 
 // Validate checks that the project file is well-formed. Equivalent to
-// validate(LoadOptions{}) — i.e. it runs the requires-extension check.
+// validate(LoadOptions{}), so it runs the requires-extension check.
 func (p *KapiProject) Validate() error {
 	return p.validate(LoadOptions{})
 }
