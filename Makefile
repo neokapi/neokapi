@@ -244,7 +244,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-e2e-seed-dupes check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-code-display check-json-tags check-comment-coverage check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt check-reliability-checklist check-ci-passed check-test-scripts ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-e2e-seed-dupes check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-code-display check-json-tags check-comment-coverage check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt check-reliability-checklist check-ci-passed check-test-scripts check-temp-leaks ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) --no-print-directory kapi-desktop-lint
 	@$(MAKE) --no-print-directory harness-check
@@ -293,6 +293,11 @@ check-ci-passed: ## Guard: the CI passed job lists every job of the CI workflow
 check-test-scripts: ## Guard: every package `test` script is run by a pull request CI job
 	@python3 ./scripts/check-test-scripts.py --self-test
 	@python3 ./scripts/check-test-scripts.py
+
+# The CI test jobs run through scripts/check-temp-leaks.sh, which fails a run
+# that leaves files in its temporary directory. This target proves the script.
+check-temp-leaks: ## Guard: the temporary-file leak check passes its self-test
+	@./scripts/check-temp-leaks.sh --self-test
 
 check-code-display: ## Guard: no surface shows an inline code's native data or identifier
 	@./scripts/check-code-display.sh
@@ -3313,7 +3318,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration fuzz \
         check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts warm-build-cache workspace-paths test-parallel \
+        fmt vet lint check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts check-temp-leaks warm-build-cache workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \

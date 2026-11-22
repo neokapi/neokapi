@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vite-plus/test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { runSplit } from "../src/commands/split.ts";
 import type { TranslationsManifest } from "../src/plugin/chunk-manifest.ts";
+import { tempDir } from "./temp-dir";
 
 let workDir: string;
 let logSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
-  workDir = mkdtempSync(join(tmpdir(), "i18n-react-split-"));
+  workDir = tempDir("i18n-react-split");
   logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 });
 

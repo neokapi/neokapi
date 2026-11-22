@@ -774,6 +774,11 @@ FIXTURES = [
         "expect": ["mobile-maestro-flows"],
     },
     {
+        "name": "a test makes a temporary directory",
+        "files": {"core/formats/foo/foo_test.go": ['\tdir, err := os.MkdirTemp("", "foo-")']},
+        "expect": ["temporary-file-owner"],
+    },
+    {
         "name": "a test that can only skip",
         "files": {"scripts/authoringeval/fixtures_test.go": ['\t\tt.Skip("no kapi binary")']},
         "expect": ["test-that-only-skips"],

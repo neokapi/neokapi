@@ -249,7 +249,7 @@ jobs:
 
       # Job body lives in `make ci-frontend-packages`.
       - name: Unit-test the shared packages, docs site, landing page and mobile app
-        run: make ci-frontend-packages
+        run: scripts/check-temp-leaks.sh make ci-frontend-packages
 
   # ── Kapi Desktop ────────────────────────────────────────────────────────
   # The frontend half and the Go half share nothing but the checkout, so they
@@ -474,7 +474,7 @@ jobs:
 
       - name: Run framework tests
         id: run-tests
-        run: make test-framework
+        run: scripts/check-temp-leaks.sh make test-framework
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -619,7 +619,7 @@ jobs:
 
       - name: Run cli tests
         id: run-tests
-        run: make test-cli SHARD=${{ matrix.shard }}
+        run: scripts/check-temp-leaks.sh make test-cli SHARD=${{ matrix.shard }}
         continue-on-error: true
 
       - name: Show cli test failures
@@ -689,7 +689,7 @@ jobs:
 
       - name: Run kapi tests
         id: run-tests
-        run: make test-kapi
+        run: scripts/check-temp-leaks.sh make test-kapi
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -751,7 +751,7 @@ jobs:
 
       - name: Run Bowrain Plugin tests
         id: run-tests
-        run: make test-bowrain-plugin
+        run: scripts/check-temp-leaks.sh make test-bowrain-plugin
         continue-on-error: true
 
       - name: Convert plugin tests to JUnit XML
@@ -843,7 +843,7 @@ jobs:
 
       - name: Run bowrain tests
         id: run-tests
-        run: make test-bowrain SHARD=${{ matrix.shard }}
+        run: scripts/check-temp-leaks.sh make test-bowrain SHARD=${{ matrix.shard }}
         continue-on-error: true
 
       # The suite pipes `go test -json` to a file, so failing test names never
@@ -923,7 +923,7 @@ jobs:
       # No setup-go-modules: that action primes the go.work modules, and these
       # four are outside it. Each recipe runs GOWORK=off in its own module.
       - name: Test the pure-Go plugin modules
-        run: make test-plugins
+        run: scripts/check-temp-leaks.sh make test-plugins
   # ── The //go:build integration lane ───────────────────────────────────────
   # The cross-store correctness suites: content-memory and terms parity between
   # SQLite and Postgres, the governed change-set lifecycle, and the knowledge
@@ -1325,6 +1325,8 @@ jobs:
         run: python3 scripts/reliability-checklist.py --self-test
       - name: "Guard: the CI passed job answers for every job"
         run: python3 scripts/ci-passed.py --self-test && python3 scripts/ci-passed.py needs
+      - name: "Guard: a test run that leaves files in the temporary directory fails"
+        run: scripts/check-temp-leaks.sh --self-test
       - name: "Guard: every package test script runs in a pull request job"
         run: python3 scripts/check-test-scripts.py --self-test && python3 scripts/check-test-scripts.py
       - name: "Guard: the commit gate hook passes its self-test"

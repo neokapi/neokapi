@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vite-plus/test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { afterAll, describe, expect, it } from "vite-plus/test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequire } from "node:module";
@@ -8,6 +8,18 @@ const require = createRequire(import.meta.url);
 const loader = require("./reference-locale-loader.cjs") as ((source: string) => string) & {
   localeVariantPath: (resourcePath: string, locale: string) => string | null;
 };
+
+// The datasets each test writes are removed once the file's tests have run.
+const made: string[] = [];
+afterAll(() => {
+  for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+function referenceData(): string {
+  const dir = mkdtempSync(join(tmpdir(), "reference-data-"));
+  made.push(dir);
+  return dir;
+}
 
 function run(resourcePath: string, locale: string, source: string) {
   const deps: string[] = [];
@@ -20,7 +32,7 @@ function run(resourcePath: string, locale: string, source: string) {
 
 describe("reference-locale loader", () => {
   it("returns the locale variant beside the dataset and declares it a dependency", () => {
-    const data = mkdtempSync(join(tmpdir(), "reference-data-"));
+    const data = referenceData();
     mkdirSync(join(data, "qps"));
     writeFileSync(
       join(data, "tools.json"),
@@ -38,7 +50,7 @@ describe("reference-locale loader", () => {
   });
 
   it("passes the English through when the locale has no variant", () => {
-    const data = mkdtempSync(join(tmpdir(), "reference-data-"));
+    const data = referenceData();
     writeFileSync(join(data, "tools.json"), "{}");
 
     const { out, deps } = run(join(data, "tools.json"), "nb", "english");

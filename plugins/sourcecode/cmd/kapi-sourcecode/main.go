@@ -8,7 +8,7 @@
 // no new client code.
 //
 // The format is READ-ONLY and says so in the manifest. There is no writer, and
-// a program is never written back — see internal/proseread for why that is a
+// a program is never written back. See internal/proseread for why that is a
 // decision rather than an omission.
 package main
 
@@ -116,6 +116,7 @@ func serve() error {
 	if err != nil {
 		return fmt.Errorf("temp dir: %w", err)
 	}
+	defer func() { _ = os.RemoveAll(dir) }()
 	sock := filepath.Join(dir, "kapi-sourcecode.sock")
 	lis, err := net.Listen("unix", sock)
 	if err != nil {
@@ -136,10 +137,7 @@ func serve() error {
 		srv.GracefulStop()
 	}()
 
-	err = srv.Serve(lis)
-	_ = os.Remove(sock)
-	_ = os.Remove(dir)
-	return err
+	return srv.Serve(lis)
 }
 
 // server implements BridgeService. Read-mode Process only: this plugin provides

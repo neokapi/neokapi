@@ -27,7 +27,7 @@ import (
 )
 
 // selfcheckPDF is a tiny one-page PDF embedded so `doctor` can confirm the
-// PDFium cgo backend actually loads and extracts text — a real failure mode
+// PDFium cgo backend actually loads and extracts text, a real failure mode
 // (missing/mismatched native lib) that a bare version print cannot catch.
 //
 //go:embed selfcheck.pdf
@@ -88,6 +88,7 @@ func serve() error {
 	if err != nil {
 		return fmt.Errorf("temp dir: %w", err)
 	}
+	defer func() { _ = os.RemoveAll(dir) }()
 	sock := filepath.Join(dir, "kapi-pdfium.sock")
 	lis, err := net.Listen("unix", sock)
 	if err != nil {
@@ -109,10 +110,7 @@ func serve() error {
 		srv.GracefulStop()
 	}()
 
-	err = srv.Serve(lis)
-	_ = os.Remove(sock)
-	_ = os.Remove(dir)
-	return err
+	return srv.Serve(lis)
 }
 
 // server implements BridgeService. Only read-mode Process is supported; tools

@@ -45,14 +45,28 @@ when git cannot produce the diff. `make lint` runs
 `make check-reliability-checklist`, the self-test: the file parses, every item
 validates, and each trigger selects its fixture.
 
+## Trigger fields
+
+| Field | Meaning |
+| --- | --- |
+| `paths` | Globs. A changed file that matches selects the item. |
+| `added` | Regular expressions (Python `re`) searched in each added line. |
+| `added_in` | Globs. When present, `added` reads only lines of matching files. |
+| `exclude` | Globs. Files never considered, for paths or added lines. |
+| `note` | When a match is a false alarm. |
+
+In a glob, `**` spans directories, `*` and `?` stay inside one segment, and
+`{a,b}` is a choice. Quote every glob and regular expression in single quotes;
+`''` is a literal quote.
+
 ## Adding an item
 
 An item earns a place when the same failure happened twice, or happened once
 and cost a day or more, and its trigger can be read from a diff. A person
 approves each new item.
 
-1. Add the item to the YAML file under its surface. The header comment there
-   describes the trigger fields and the quoting rules.
+1. Add the item to the YAML file under its surface, with the trigger fields
+   above.
 2. Add a fixture for it to `FIXTURES` in `scripts/reliability-checklist.py`;
    the self-test fails for an item that no fixture selects.
 3. Run the script over recent merged pull requests with

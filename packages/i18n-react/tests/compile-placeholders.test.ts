@@ -8,8 +8,7 @@
  * night, every one of them a string a reader would have been handed with the
  * value missing.
  */
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -17,6 +16,7 @@ import type { Block, File, Run } from "@neokapi/kapi-format";
 import { newFile, marshalFile, sourceEditions } from "@neokapi/kapi-format";
 
 import { runCompile } from "../src/commands/compile.ts";
+import { tempDir } from "./temp-dir";
 
 // block builds a catalog block from its source runs and its translations by
 // language, each filed as an edition under its key.
@@ -48,7 +48,7 @@ function fileWith(blocks: Block[]): File {
 }
 
 async function compile(blocks: Block[]): Promise<Record<string, string>> {
-  const dir = mkdtempSync(join(tmpdir(), "compile-"));
+  const dir = tempDir("compile");
   mkdirSync(join(dir, "i18n"), { recursive: true });
   writeFileSync(join(dir, "i18n", "App.kbf.json"), marshalFile(fileWith(blocks)));
   const out = join(dir, "out");

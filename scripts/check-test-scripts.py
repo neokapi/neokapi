@@ -177,6 +177,11 @@ def runs_suite(argv: list[str], script: str) -> bool:
     return all(w.startswith("-") or w in ('$@', '"$@"') for w in argv[len(want):])
 
 
+# Scripts that run the command given as their arguments. A step that calls one
+# runs that command, so the walk follows it.
+WRAPPERS = ("scripts/check-temp-leaks.sh", "./scripts/check-temp-leaks.sh")
+
+
 class Walker:
     """Collects the directories a test runner is started in."""
 
@@ -195,6 +200,9 @@ class Walker:
             return cwd
         if argv[0] == "cd" and len(argv) >= 2:
             return norm(os.path.join(cwd, argv[1]))
+        if argv[0] in WRAPPERS and len(argv) >= 2:
+            # A wrapper runs the command that follows it, in the same directory.
+            return self.command(shlex.join(argv[1:]), cwd, where)
         if argv[0] in ("make", "$(MAKE)", "${MAKE}"):
             self.make(argv[1:], cwd, where)
             return cwd
@@ -491,7 +499,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: make ci-web ci-sub
-      - run: make ci-script
+      - run: scripts/check-temp-leaks.sh make ci-script
   docs:
     runs-on: ubuntu-latest
     steps:
