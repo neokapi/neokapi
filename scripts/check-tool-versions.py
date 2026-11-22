@@ -122,7 +122,7 @@ PINS = [
         "name": "ICU (static build)",
         "where": [("scripts/build-icu-static.sh", r'ICU_VERSION="\$\{ICU_VERSION:-(\d+\.\d+)\}"')],
         "latest": ("github-release", "unicode-org/icu"),
-        "note": "A new ICU changes segmentation and collation data: run the segmentation parity tests.",
+        "note": "A new ICU changes segmentation and collation data: run the segmentation parity tests. scripts/build-icu-static.sh needs the SHA-256 of the sources tarball and the data zip, and its smoke check must pass.",
     },
     {
         "name": "whisper.cpp",
