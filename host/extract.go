@@ -16,7 +16,6 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
-	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
@@ -636,7 +635,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		}
 		return writer.Close()
 	}
-	if err := writeExtractOutput(task.outRoot, task.outputPath, write); err != nil {
+	if err := writeExtractOutput(ctx, task.outRoot, task.outputPath, write); err != nil {
 		return project.ExtractionFile{}, err
 	}
 
@@ -1396,9 +1395,9 @@ var (
 )
 
 // writeExtractOutput writes the bilingual file at path with write. Beneath
-// root it is staged and renamed through an os.Root opened on root
-// (atomicfile.StageWithin), so a failed write leaves the file as it was.
-func writeExtractOutput(root, path string, write func(io.Writer) error) error {
+// root it commits through a file home rooted there (commitWithin), so a
+// failed write leaves the file as it was.
+func writeExtractOutput(ctx context.Context, root, path string, write func(io.Writer) error) error {
 	if root == "" {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			return fmt.Errorf("mkdir output: %w", err)
@@ -1413,11 +1412,7 @@ func writeExtractOutput(root, path string, write func(io.Writer) error) error {
 		}
 		return werr
 	}
-	s, err := atomicfile.StageWithin(root, path, write)
-	if err != nil {
-		return fmt.Errorf("write %s: %w", path, err)
-	}
-	if err := s.Commit(); err != nil {
+	if err := commitWithin(ctx, root, path, write); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil

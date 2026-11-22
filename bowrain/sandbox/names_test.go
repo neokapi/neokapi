@@ -12,7 +12,7 @@ import (
 // anything reaches Docker.
 func TestValidateWorkspaceName(t *testing.T) {
 	for _, ok := range []string{"main.go", "src/app.json", "a/b/c.txt", "./x.txt"} {
-		assert.NoError(t, validateWorkspaceName(ok), ok)
+		require.NoError(t, validateWorkspaceName(ok), ok)
 	}
 	for _, bad := range []string{"", ".", "/etc/passwd", "../x", "a/../../x", `a\b`, "a\x00b", "/"} {
 		assert.Error(t, validateWorkspaceName(bad), "%q", bad)

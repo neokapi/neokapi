@@ -316,11 +316,43 @@ func (w *commentFileWrite) write(src, out []byte) *writeError {
 		return &writeError{string(comment.RefusedStale), "the file changed while its comment edits were applied; read it again and send the edits again"}
 	}
 	if w.backupSuffix != "" {
-		if err := w.writeBackup(src, mode, inRoot); err != nil {
-			return &writeError{reasonIO, "write backup: " + err.Error()}
+		// The bytes the rewrite replaces, beside the file. In the project
+		// they are staged and renamed through the root, never cut in place,
+		// so a backup name that is a hard link to another file leaves that
+		// file alone.
+		var berr error
+		if !inRoot {
+			berr = os.WriteFile(w.file+w.backupSuffix, src, mode)
+		} else {
+			var s *atomicfile.Staged
+			if s, berr = atomicfile.StageWithinMode(w.root, w.file+w.backupSuffix, mode, func(dst io.Writer) error {
+				_, err := dst.Write(src)
+				return err
+			}); berr == nil {
+				berr = s.Commit()
+			}
+		}
+		if berr != nil {
+			return &writeError{reasonIO, "write backup: " + berr.Error()}
 		}
 	}
-	file, err := w.replace(out, inRoot)
+	// The rewrite replaces the file atomically. In the project it is staged,
+	// written and renamed through an os.Root opened on the project root
+	// (atomicfile.StageWithin), so no byte is written outside it.
+	var file string
+	if !inRoot {
+		file, err = atomicfile.ReplaceBytes(w.file, out)
+	} else {
+		var s *atomicfile.Staged
+		if s, err = atomicfile.StageWithin(w.root, w.file, func(dst io.Writer) error {
+			_, err := dst.Write(out)
+			return err
+		}); err == nil {
+			if err = s.Commit(); err == nil {
+				file = s.Target()
+			}
+		}
+	}
 	if err != nil {
 		return &writeError{reasonIO, err.Error()}
 	}
@@ -419,24 +451,6 @@ func (a *App) checkWrittenComments(ctx context.Context, cmd Command, file, diff,
 	})
 }
 
-// writeBackup writes the bytes the rewrite replaces beside the file, through
-// rootpath when the file lies in the project.
-func (w *commentFileWrite) writeBackup(src []byte, mode os.FileMode, inRoot bool) error {
-	if !inRoot {
-		return os.WriteFile(w.file+w.backupSuffix, src, mode)
-	}
-	// Staged and renamed through the root, never cut in place: a backup
-	// name that is a hard link to another file leaves that file alone.
-	s, err := atomicfile.StageWithinMode(w.root, w.file+w.backupSuffix, mode, func(out io.Writer) error {
-		_, err := out.Write(src)
-		return err
-	})
-	if err != nil {
-		return err
-	}
-	return s.Commit()
-}
-
 // read returns the bytes and the mode of the file at path, through rootpath
 // when the file lies in the project.
 func (w *commentFileWrite) read(path string, inRoot bool) ([]byte, os.FileMode, error) {
@@ -457,25 +471,4 @@ func (w *commentFileWrite) read(path string, inRoot bool) ([]byte, os.FileMode, 
 	}
 	data, err := io.ReadAll(f)
 	return data, info.Mode().Perm(), err
-}
-
-// replace puts out in place of the file atomically and returns the file the
-// bytes landed on. A file in the project is staged, written and renamed
-// through an os.Root opened on the project root (atomicfile.StageWithin), so
-// no byte is written outside it.
-func (w *commentFileWrite) replace(out []byte, inRoot bool) (string, error) {
-	if !inRoot {
-		return atomicfile.ReplaceBytes(w.file, out)
-	}
-	s, err := atomicfile.StageWithin(w.root, w.file, func(dst io.Writer) error {
-		_, err := dst.Write(out)
-		return err
-	})
-	if err != nil {
-		return "", err
-	}
-	if err := s.Commit(); err != nil {
-		return "", err
-	}
-	return s.Target(), nil
 }

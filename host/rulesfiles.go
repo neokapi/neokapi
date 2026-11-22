@@ -196,7 +196,7 @@ func (a *App) WriteRulesFiles(ctx context.Context, recipePath string) (*RulesFil
 	}
 	rulesFilesMu.Lock()
 	defer rulesFilesMu.Unlock()
-	return writeRulesPlan(projectWrites{root: root}, root, plan)
+	return writeRulesPlan(projectWrites{ctx: ctx, root: root}, root, plan) //nolint:contextcheck // ctx travels on projectWrites
 }
 
 // PreviewRulesFiles reports what WriteRulesFiles would do to each rules file
@@ -210,7 +210,7 @@ func (a *App) PreviewRulesFiles(ctx context.Context, recipePath string) (*RulesF
 	if err != nil {
 		return nil, err
 	}
-	return writeRulesPlan(projectWrites{dry: true, root: root}, root, plan)
+	return writeRulesPlan(projectWrites{ctx: ctx, dry: true, root: root}, root, plan) //nolint:contextcheck // ctx travels on projectWrites
 }
 
 // RefreshRulesFiles rewrites the rules files of a project that has them: one

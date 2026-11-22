@@ -321,7 +321,8 @@ func (a *App) ConnectHosts(ctx context.Context, cmd Command, opts ConnectOptions
 		res.Default = len(hosts) == 1 && !claudeCodeFound(root)
 	}
 
-	wiring, err := WriteAgentWiring(AgentWiringOptions{
+	wiring, err := WriteAgentWiring(AgentWiringOptions{ //nolint:contextcheck // ctx travels on AgentWiringOptions.Context
+		Context: ctx,
 		Root:    root,
 		Hosts:   hosts,
 		Recipe:  filepath.Base(recipe),
@@ -467,7 +468,7 @@ func (a *App) connectRulesFiles(ctx context.Context, root, recipe string, haveRe
 	)
 	switch {
 	case !haveRecipe:
-		res, err = writeRulesPlan(projectWrites{dry: true, root: root}, root, rulesPlan{})
+		res, err = writeRulesPlan(projectWrites{ctx: ctx, dry: true, root: root}, root, rulesPlan{}) //nolint:contextcheck // ctx travels on projectWrites
 	case dry:
 		res, err = a.PreviewRulesFiles(ctx, recipe)
 	default:

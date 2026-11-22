@@ -1,6 +1,7 @@
 package host
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/rootpath"
 )
@@ -157,6 +157,8 @@ type AgentWiringResult struct {
 
 // AgentWiringOptions configures WriteAgentWiring.
 type AgentWiringOptions struct {
+	// Context is the context the writes run under; nil is context.Background.
+	Context context.Context
 	// Root is the project root. Every path written is under it.
 	Root string
 	// Hosts are the hosts to wire. Empty writes nothing at all.
@@ -399,7 +401,7 @@ func WriteAgentWiring(opts AgentWiringOptions) (*AgentWiringResult, error) {
 		recipe = project.RecipeFileName
 	}
 	entry := kapiMCPEntry(recipe, opts.Tools)
-	w := projectWrites{dry: opts.DryRun, root: opts.Root}
+	w := projectWrites{ctx: opts.Context, dry: opts.DryRun, root: opts.Root}
 
 	res := &AgentWiringResult{}
 	for _, host := range agentHostOrder {
@@ -969,6 +971,8 @@ func sweepSkillDir(w projectWrites, dir string, shipped map[string]bool, retired
 // symbolic link in the project that leads out of root is refused rather than
 // followed.
 type projectWrites struct {
+	// ctx is the context the writes run under; nil is context.Background.
+	ctx  context.Context
 	dry  bool
 	root string
 }
@@ -1008,18 +1012,18 @@ func (w projectWrites) writeFile(path string, body []byte) error {
 	return os.WriteFile(path, body, 0o644)
 }
 
-// create writes one file beneath root. It is staged and renamed through an
-// os.Root opened on root (atomicfile.StageWithin), never cut in place, so a
-// file that is a hard link to another one leaves that other file alone.
+// create writes one file beneath root through a file home rooted there
+// (commitWithin): staged and renamed, never cut in place, so a file that is a
+// hard link to another one leaves that other file alone.
 func (w projectWrites) create(path string, body []byte) error {
-	s, err := atomicfile.StageWithin(w.root, path, func(out io.Writer) error {
+	ctx := w.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := commitWithin(ctx, w.root, path, func(out io.Writer) error {
 		_, err := out.Write(body)
 		return err
-	})
-	if err != nil {
-		return fmt.Errorf("write %s: %w", path, err)
-	}
-	if err := s.Commit(); err != nil {
+	}); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil
