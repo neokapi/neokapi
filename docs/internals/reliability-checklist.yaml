@@ -1,0 +1,1088 @@
+# Reliability checklist: checks selected by what a diff touches.
+#
+# Each item has a trigger that can be read from a diff, a check to perform, and
+# the incident or pull request behind it. `make reliability-checklist` (or
+# scripts/reliability-checklist.py) prints the items whose trigger matches the
+# current diff, so a change is checked against past failures without anyone
+# having to remember them. See docs/internals/reliability-checklist.md.
+#
+# Trigger fields:
+#   paths     globs; a changed file that matches selects the item.
+#   added     regular expressions (Python re) searched in each added line.
+#   added_in  globs; when present, `added` reads only lines of matching files.
+#   exclude   globs; files never considered, for paths or added lines.
+#   note      when a match is a false alarm.
+# Globs: ** spans directories, * and ? stay inside one segment, {a,b} is a
+# choice. Quote every glob and regex in single quotes ('' is a literal quote).
+#
+# Adding an item: the failure happened twice, or once and cost a day or more,
+# and its trigger can be read from a diff. A person approves the item. Add a
+# fixture for it in scripts/reliability-checklist.py (the self-test fails
+# without one), then tune the trigger on recent merged pull requests so a
+# typical one selects 3 to 10 items and a docs-only one selects none.
+#
+# Retiring an item: a guard (a make target in `make lint` or
+# scripts/pre-push-check.sh, or a CI job that runs on pull requests) now
+# enforces it, or it has not led to a real finding in six months. Delete it in
+# the same commit that adds the guard, and say which guard.
+
+version: 1
+items:
+  # ── Stores and migrations ────────────────────────────────────────────────
+
+  - id: pg-suites-skip-on-pull-requests
+    title: The integration lane and the race detector do not run on pull requests
+    owner_surface: stores
+    trigger:
+      paths:
+        - 'bowrain/**/*.sql'
+        - 'bowrain/**/postgres*.go'
+        - 'bowrain/**/migrat*.go'
+        - 'bowrain/migrations/**'
+        - 'bowrain/storage/**/*.go'
+        - 'bowrain/store/**/*.go'
+        - 'bowrain/testutil/pgtest/**'
+      added:
+        - 'pgtest\.'
+      added_in:
+        - 'bowrain/**/*_test.go'
+    check: >-
+      Pull request CI runs the PostgreSQL-backed suites on its database
+      service, but not everything a store change can break: -short still
+      skips a suite that starts a container of its own, "Test (integration)"
+      runs only on push, and the race detector runs only when the pull request
+      carries the `race` label. For a change to a store, a migration or SQL,
+      run `make test-integration` and `make test-race-changed
+      BASE_SHA=$(git merge-base origin/main HEAD)` with Docker running, or add
+      the `race` label. Report which ran and with which tags.
+    incident: >-
+      PR #3607 (2026-11-21) added terms migrations that broke
+      TestTermSnapshotCache_TermsWrittenBeforeTheRevisionAreKept, and CI was
+      green because every PostgreSQL suite skipped under -short. PR #2689
+      (2026-09-13) changed the terms baseline, merged green, and main then
+      failed TestBaselineSchemaMatchesGolden on four consecutive commits until
+      #2699. Since #3615 (2026-11-22) the PostgreSQL suites run on pull
+      requests; the integration lane and the race detector still do not.
+
+  - id: schema-change-reaches-existing-databases
+    title: A schema change must reach databases that already exist
+    owner_surface: stores
+    trigger:
+      added:
+        - '\b(CREATE TABLE|ALTER TABLE|ADD COLUMN|DROP COLUMN|RENAME COLUMN|DROP INDEX)\b'
+        - '^\s*Version:\s*\d+'
+      added_in:
+        - 'bowrain/**/*.go'
+        - 'bowrain/**/*.sql'
+        - 'terms/**/*.go'
+        - 'memory/**/*.go'
+        - 'voice/**/*.go'
+        - 'core/**/*.go'
+        - 'host/**/*.go'
+      exclude:
+        - '**/*_test.go'
+        - '**/testdata/**'
+    check: >-
+      An edit inside CREATE TABLE IF NOT EXISTS changes only a database built
+      after it. Bump the version and add an idempotent statement for existing
+      databases (ADD COLUMN IF NOT EXISTS; RENAME COLUMN guarded on
+      information_schema.columns). Number a new migration above the
+      retired-version comment in its file, and record a retired number in
+      highestEverIssued in bowrain/migrations/ledger_test.go. Regenerate and
+      read the schema golden: from bowrain/, with BOWRAIN_TEST_POSTGRES_URL
+      naming a bowrain_test database, `go test -tags "fts5,integration"
+      ./migrations/ -run
+      'TestBaselineSchemaMatchesGolden|TestBaselineVersionsSitAboveRetiredOnes'
+      -update`. The golden diff should hold only your change.
+    incident: >-
+      PR #2143 renamed a column inside the auth baseline without a version
+      bump; from the #2145 deploy until #2148 (2026-08-21) every workspace
+      request returned 500. PRs #1268 and #1270 reused migration numbers retired
+      by a squash, so their tables and columns were never created on live
+      databases (found 2026-07-17). PR #2202 cost a CI cycle on an unregenerated
+      golden.
+
+  - id: migration-runner-applies-only-higher-versions
+    title: The migration runner applies only versions above the highest recorded
+    owner_surface: stores
+    trigger:
+      added:
+        - 'schema_migrations'
+        - '(?i)DELETE FROM \w*migrations'
+        - 'highestEverIssued'
+      exclude:
+        - '**/*.md'
+        - '**/*.mdx'
+    check: >-
+      The runners apply every version above the highest one recorded and never
+      fill a gap below it. A test that deletes one ledger row to force a replay
+      exercises nothing the runner does: delete every row at and above the
+      version, or start from a database built at the earlier version. A new
+      migration that may meet a database where a colliding number already ran
+      must be idempotent.
+    incident: >-
+      PR #3607 (2026-11-21): a test deleted one row of the terms ledger and
+      expected that migration to replay; it was rewritten to reset the ledger to
+      before the revision table. PRs #1268 and #1270 (found 2026-07-17): new
+      migrations reused retired numbers and were skipped on every existing
+      database.
+
+  - id: new-column-needs-backfill
+    title: A new column or index needs a backfill for existing rows
+    owner_surface: stores
+    trigger:
+      paths:
+        - 'terms/schema/**'
+        - 'memory/schema/**'
+      added:
+        - '\bADD COLUMN\b'
+        - '\bCREATE (UNIQUE )?INDEX\b'
+        - '^\s*Version:\s*\d+'
+      added_in:
+        - 'bowrain/**/*.go'
+        - 'bowrain/**/*.sql'
+        - 'terms/**/*.go'
+        - 'memory/**/*.go'
+        - 'voice/**/*.go'
+        - 'core/**/*.go'
+        - 'host/**/*.go'
+      exclude:
+        - '**/*_test.go'
+        - '**/testdata/**'
+      note: >-
+        the column or index belongs to a table created in the same change, or
+        the new version changes no column.
+    check: >-
+      Existing rows hold NULL or the default in a new column, so an index on it
+      serves none of them, and a query that filters on it misses them or scans.
+      Backfill in the migration or in an idempotent pass when the store opens,
+      and make the read path correct for rows written before the change. Test
+      it: write a row at the previous version, migrate, read it through the new
+      path. Give every new query on the column a LIMIT.
+    incident: >-
+      Review of PR #3607 (2026-11-21): text_normalized was added with no
+      backfill, so its new index served no existing row and the fuzzy lookup
+      read every term in a locale with no LIMIT. Fixed in that PR
+      (terms/normalized_backfill.go).
+
+  - id: migration-cast-guards-bad-rows
+    title: A SQL cast over stored values survives one malformed value
+    owner_surface: stores
+    trigger:
+      added:
+        - '(?<!\$\d)(?<!\$\d\d)::\s*(jsonb?|int(eger)?|bigint|uuid|timestamptz?|boolean|numeric)\b'
+        - '(?i)\bCAST\s*\('
+        - '(?i)\bjson_extract\s*\('
+      added_in:
+        - 'bowrain/**/*.go'
+        - 'bowrain/**/*.sql'
+        - 'terms/**/*.go'
+        - 'memory/**/*.go'
+        - 'voice/**/*.go'
+        - 'core/**/*.go'
+      exclude:
+        - '**/*_test.go'
+        - '**/testdata/**'
+      note: >-
+        the cast reads a column whose every value this code wrote and
+        validated, such as a JSONB column.
+    check: >-
+      One value the cast rejects fails the whole statement. In a migration
+      that stops the store from opening, for every workspace at once; in a
+      query it fails the request for every row the query reads. Cast only
+      values that parse (pg_input_is_valid, a CASE on json_valid) and read the
+      rest as NULL or a default. Add a test over a table holding one
+      malformed, one empty and one NULL value.
+    incident: >-
+      Review of PR #3607 (2026-11-21): a migration cast a nullable TEXT column
+      of properties to jsonb with no guard, so one malformed value would have
+      stopped every workspace's terms store from opening. Fixed in that PR
+      (bowrain/terms/pilot_upgrade.sql).
+
+  - id: unbounded-store-read
+    title: A store read must be bounded by scope or LIMIT
+    owner_surface: stores
+    trigger:
+      added:
+        - '\b(GetBlocks|ListBlocks|AllBlocks)\('
+        - '\bSELECT\b(?!.*\b(LIMIT|COUNT\(|EXISTS)\b)'
+      added_in:
+        - 'bowrain/**/*.go'
+        - 'bowrain/**/*.sql'
+        - 'terms/**/*.go'
+        - 'memory/**/*.go'
+        - 'voice/**/*.go'
+        - 'host/**/*.go'
+      exclude:
+        - '**/*_test.go'
+        - '**/testdata/**'
+      note: >-
+        the read is scoped to one item, a list of ids or a primary key, or the
+        LIMIT sits on a later line of the same statement.
+    check: >-
+      A BlockQuery with no ItemName, IDs or Limit loads a whole project into
+      memory, and a SQL lookup with no LIMIT reads a whole locale. Walk with
+      store.EachBlockBatch, use CountBlocks when the answer is a number, keep
+      only counters or a small projection per batch, and give lookups a LIMIT.
+    incident: >-
+      2026-08-18: one unscoped GetBlocks took the server from about 16 MiB to
+      934 MiB of a 1 GiB task, which was killed: a 2.5-minute outage. The other
+      whole-project reads were converted in #2099 and #2101. Review of PR #3607
+      (2026-11-21): the fuzzy term lookup read every term in a locale with no
+      LIMIT.
+
+  - id: one-clock-for-compared-timestamps
+    title: Timestamps compared with each other come from one clock
+    owner_surface: stores
+    trigger:
+      added:
+        - '\bNOW\(\)'
+        - '(?i)\bCURRENT_TIMESTAMP\b'
+        - '\bclock_timestamp\('
+        - '(?i)datetime\(\s*''now'''
+        - 'time\.Sleep\(\s*\d+\s*\*\s*time\.(Milli|Micro|Nano)second'
+      exclude:
+        - '**/*.md'
+        - '**/*.mdx'
+    check: >-
+      The server and its database are two machines whose clocks drift. Bind Go
+      time.Now() (one value per transaction) instead of NOW(),
+      CURRENT_TIMESTAMP or datetime('now'), and never compare a process
+      timestamp with a database one. A short sleep that orders two timestamps
+      in a test is the tell: across two clocks no sleep is long enough.
+      bowrain/store/history_clock_test.go shows a test that proves one clock
+      without reproducing skew.
+    incident: >-
+      PR #2124 (2026-08-20): restore-to-point compared a NOW() history row with
+      process-stamped versions; with the server behind its database it reverted
+      nothing, ahead of it it blanked targets. PR #3613 (2026-11-21): the
+      refresh-token sibling limit compared a server-stamped created_at with a
+      database-stamped consumed_at, and under skew a token counted as its own
+      successor. Both first showed as flaky tests.
+
+  - id: one-connection-ceiling
+    title: One connection ceiling, set on the pool
+    owner_surface: stores
+    trigger:
+      added:
+        - '\b(SetMaxOpenConns|SetMaxIdleConns|SetConnMaxIdleTime|OpenDBFromPool)\b'
+        - '\bpgxpool\.(New|NewWithConfig|ParseConfig)\b'
+        - '\bMaxConns\s*='
+    check: >-
+      Set the ceiling once, on the pgx pool. Never call SetMaxIdleConns or
+      SetMaxOpenConns on a database/sql handle that wraps a pool: db.Stats()
+      cannot see waiters inside pgxpool.Acquire, so a stranded opener looks
+      like an idle pool.
+    incident: >-
+      PR #1795 (2026-08-10): two ceilings over one pool stranded connection
+      openers; same-instant requests hung for the page's lifetime and failed
+      together as 503 while db.Stats() showed idle connections.
+
+  - id: extension-schema-pinned
+    title: CREATE EXTENSION names its schema
+    owner_surface: stores
+    trigger:
+      added:
+        - '(?i)\bCREATE EXTENSION\b'
+    check: >-
+      Write `CREATE EXTENSION IF NOT EXISTS <name> WITH SCHEMA public`. Without
+      it the extension installs wherever search_path points, and under per-test
+      schemas it disappears with whichever schema created it.
+    incident: >-
+      PR #1796 (2026-08-10): pg_trgm installed into a per-test schema, and later
+      migrations failed with "operator class gin_trgm_ops does not exist".
+
+  # ── Server ───────────────────────────────────────────────────────────────
+
+  - id: new-route-applies-sibling-access-rules
+    title: A new route or public read applies the access rules of its siblings
+    owner_surface: server
+    trigger:
+      paths:
+        - 'bowrain/server/handlers_pulse*.go'
+        - 'bowrain/server/handlers_activity*.go'
+        - 'bowrain/store/activity*.go'
+      added:
+        - '\.(GET|POST|PUT|PATCH|DELETE|Any|Match)\(\s*"'
+      added_in:
+        - 'bowrain/**/*.go'
+      exclude:
+        - '**/*_test.go'
+    check: >-
+      Find the routes on the same resource (list, detail) and apply the same
+      middleware and the same project visibility or permission filter. Pulse
+      routes answer anonymous requests, so every query behind them filters to
+      visible projects. Add a
+      test that an anonymous request, and a member without access, read
+      nothing from a private project through the new route.
+    incident: >-
+      Review of PR #3607 (2026-11-21): the Pulse activity and heatmap routes
+      ignored project visibility while the list and detail routes applied it,
+      so an anonymous request could read a private project's activity. The
+      queries behind those routes had last been reworked in #3487
+      (2026-11-14).
+
+  - id: echo-accepted-advisories
+    title: Two Echo advisories are accepted on conditions in the server code
+    owner_surface: server
+    trigger:
+      paths:
+        - 'scripts/govulncheck-accepted.txt'
+      added:
+        - 'middleware\.(Proxy|ProxyWithConfig|RateLimiter|RateLimiterWithConfig)\b'
+        - '\bconfigureIPExtractor\b'
+        - '\bIPExtractor\b'
+        - '\becho\.ExtractIP'
+      added_in:
+        - 'bowrain/**/*.go'
+      note: >-
+        the line only names the extractor in a comment or a test.
+    check: >-
+      scripts/govulncheck-accepted.txt accepts two Echo v4 advisories that are
+      fixed only in Echo v5, on two grounds: the server sets its own IP
+      extractor (configureIPExtractor in bowrain/server/server.go) and keys its
+      own rate limiter on it, and it does not use Echo's Proxy middleware. If
+      the diff adds middleware.Proxy, uses Echo's RateLimiter, or changes
+      configureIPExtractor, re-read both advisories against the new code, run
+      `cd bowrain && go test ./server/ -run TestPerIPControlsResistXFFSpoofing`,
+      and update or remove the entries. A person approves the change.
+    incident: >-
+      PR #3612 (2026-11-21) recorded both entries once the vulnerability scan
+      covered every module.
+
+  - id: sync-field-travels-both-projections
+    title: A synchronised field travels both wire projections
+    owner_surface: server
+    trigger:
+      paths:
+        - 'core/proto/sync/**'
+        - 'core/venue/convert.go'
+        - 'core/venue/overlays_json.go'
+        - 'host/venue/client/sync_convert.go'
+        - 'host/venue/client/push.go'
+        - 'bowrain/server/handlers_sync.go'
+    check: >-
+      Content crosses two projections: the proto push and the JSON pull
+      (host/venue/client/sync_convert.go). A field carried by one is dropped by
+      the other unless both converters, the store serialisation and
+      core/venue/venuetest/kitchensink.go carry it. A field declared in
+      sync.proto is not evidence of a sender: find the code that sets it and the
+      code that reads it. Run `go test ./core/venue/ -run Conformance` and the
+      store round trip, `cd bowrain && go test -tags fts5 -count=1 ./store/ -run
+      Roundtrip` (needs Docker).
+    incident: >-
+      2026-07-19: Block.Overlays was dropped by the store (#1388) and by both
+      wire paths (#1389), along with Origin.Confidence and Run.Attrs. Audits on
+      2026-07-29 and 2026-09-20 that read only sync.proto reported terms, memory
+      and media travelling the protocol; only blocks do.
+
+  # ── Framework ────────────────────────────────────────────────────────────
+
+  - id: wire-and-persisted-identifiers
+    title: Identifiers on a wire, in storage or in analytics are contracts
+    owner_surface: framework
+    trigger:
+      paths:
+        - '**/*.proto'
+      added:
+        - '\bSessionState\b'
+        - '\b(capture|trackEvent|track)\(\s*["''][a-z_]+["'']'
+      exclude:
+        - '**/*.md'
+        - '**/*.mdx'
+    check: >-
+      Ask of each renamed or removed identifier whether it is persisted,
+      serialised, transmitted or used as an external key: a proto message or
+      field, a stored view id, an analytics event name. Change the display
+      string and keep the identifier, or ship the rename as a deliberate
+      breaking change with a migration. After editing a .proto, run `make
+      proto` and commit the generated code.
+    incident: >-
+      2026-07-25 vocabulary sweep: renaming proto names corrupted the generated
+      descriptor and would have broken kapi to Bowrain sync; desktop view ids
+      stored in SessionState and an analytics event id were kept for the same
+      reason.
+
+  - id: governance-fingerprint-not-identity-hash
+    title: The governance fingerprint and the identity hash are different
+    owner_surface: framework
+    trigger:
+      added:
+        - '\bContextHash\b'
+        - '\bContextFingerprint\b'
+        - '\bGovernedBy\b'
+      exclude:
+        - '**/*.md'
+        - '**/*.mdx'
+    check: >-
+      UnitState.ContextHash and StoredBlock.ContextHash are identity hashes of
+      name, type and properties. The fingerprint of the voice guidance and terms
+      a producer was given is Origin.ContextFingerprint, and that is what
+      memory.Version.GovernedBy compares. Use core/review.GoverningFingerprint
+      when judging whether a prior answer is still governed.
+    incident: >-
+      PR #2437: review history compared a memory version's fingerprint with
+      UnitState.ContextHash, so "still governed" could never be true.
+
+  - id: ai-recorder-registered-first
+    title: An AI exchange recorder is registered before providers are built
+    owner_surface: framework
+    trigger:
+      added:
+        - '\bAddRecorder\('
+        - '\baiprovider\.Recording\('
+    check: >-
+      NewProvider wraps for recording at construction, so register the recorder
+      first. MockProvider does not delegate Translate to StandardTranslate, so a
+      test using it records nothing: wrap it with aiprovider.Recording and set
+      TranslateFunc to StandardTranslate.
+    incident: >-
+      PR #2303: a single recorder slot meant the second registration silently
+      switched the first off, and the symptom was an empty prompt transcript.
+
+  - id: dependency-bump-moves-every-module
+    title: A dependency bump in one module moves every workspace module
+    owner_surface: framework
+    trigger:
+      paths:
+        - '**/go.mod'
+        - 'go.work'
+    check: >-
+      go.work resolves versions over the union of its modules, so a bump in one
+      go.mod changes what every module builds against. Diff `go list -m all` in
+      each module on main and on the branch, run the tests of modules whose
+      versions moved, then run `make ci-tidy` (workspace mode, what CI runs),
+      commit what it writes, and run `make audit-modules`. Do not repair a
+      go.sum with `GOWORK=off go mod tidy` alone.
+    incident: >-
+      PR #2633 (2026-09-11): refreshing only bowrain/go.mod raised etree under
+      core/formats/xliff2 and failed a framework test. PR #3110 (2026-10-09):
+      go.sum tidied with GOWORK=off failed the CI Tidy Check on the next pull
+      request.
+
+  # ── Formats ──────────────────────────────────────────────────────────────
+
+  - id: writer-keeps-inline-codes
+    title: A format writer renders runs, not plain text
+    owner_surface: formats
+    trigger:
+      added:
+        - '\.TargetText\('
+        - '\.SourceText\('
+      added_in:
+        - 'core/formats/**/*writ*.go'
+        - 'plugins/**/*writ*.go'
+      exclude:
+        - '**/*_test.go'
+    check: >-
+      TargetText and SourceText keep only text runs; placeholders, paired codes
+      and plural or select forms vanish with no error. Render from TargetRuns
+      through the format's run renderer (model.RenderRunsWithData or the
+      format's own), and add a round-trip test whose target holds a placeholder
+      and a paired code. scripts/check-run-projection.sh covers TypeScript only.
+    incident: >-
+      PR #3608 (2026-11-21): the new EML writer wrote targets with TargetText
+      and dropped placeholders; the plaintext writer had the same defect.
+
+  - id: reader-leaves-undecodable-values
+    title: A reader leaves a value it cannot decode unextracted
+    owner_surface: formats
+    trigger:
+      added:
+        - '(?i)charset'
+        - '\bWordDecoder\b'
+        - '(?i)unsupported (encoding|charset)'
+        - '(?i)unknown (encoding|charset)'
+      added_in:
+        - 'core/formats/**/*.go'
+        - 'plugins/**/*.go'
+      exclude:
+        - '**/*_test.go'
+    check: >-
+      A value the reader cannot decode (an unknown charset, a malformed encoded
+      word, a bad escape) stays unextracted with a warning, and the rest of the
+      file reads. Return an error only when the file as a whole cannot be read.
+      Add a fixture with an unknown charset and assert that the other blocks
+      extract.
+    incident: >-
+      PR #3608 (2026-11-21): the new EML subject decoder failed the whole file
+      on a charset it did not know.
+
+  - id: bounded-memory-test-measures-live-heap
+    title: A bounded-memory test measures the live heap
+    owner_surface: formats
+    trigger:
+      added:
+        - '\b(ReadMemStats|HeapAlloc|HeapInuse)\b'
+      added_in:
+        - '**/*_test.go'
+    check: >-
+      Call runtime.GC() before each sample so HeapAlloc is the retained working
+      set, sample the small and large runs at equal density (stride
+      max(n/256, 1)), and gate a ratio bound behind an absolute floor when the
+      peaks are under about 100 KiB. Keep the assertion bounds; change only the
+      measurement.
+    incident: >-
+      2026-07-11: the TestStreamingReaderBoundedMemory family failed
+      intermittently on CI runners and in the nightly, one format package at a
+      time, because it sampled raw HeapAlloc including garbage.
+
+  # ── CLI ──────────────────────────────────────────────────────────────────
+
+  - id: plugin-format-collection
+    title: A collection in a plugin format must not break the project without it
+    owner_surface: cli
+    trigger:
+      added:
+        - '^\s+format:\s*\S+'
+      added_in:
+        - '**/kapi.yaml'
+    check: >-
+      Run `kapi status` from ./bin/kapi with the isolation variables and
+      KAPI_PLUGINS_DIR_ONLY=1 with an empty KAPI_PLUGINS_DIR. A format no
+      installed plugin provides must be reported under source.unreadable with a
+      warning naming the plugin, never fail the command. A gate written for that
+      collection stages the plugin itself (see `make check-governed-prose`).
+    incident: >-
+      PR #2179 (2026-08-23): one sourcecode collection made kapi status, kapi
+      check --ship and kapi up fail for anyone without the plugin, CI included.
+
+  - id: nil-command-context
+    title: A command's context can be nil outside Execute
+    owner_surface: cli
+    trigger:
+      added:
+        - '\bcmd\.Context\(\)'
+      added_in:
+        - 'cli/**/*.go'
+        - 'kapi/**/*.go'
+        - 'bowrain/plugin/**/*.go'
+    check: >-
+      cobra's Command.Context() is nil when RunE or a helper is called without
+      Execute, as tests and hook paths do. A nil context in a database/sql call
+      panics, and the deferred Close then deadlocks, so the process hangs rather
+      than failing. Use cmdContext(cmd) at store calls, and call
+      cmd.SetContext(t.Context()) in tests that invoke RunE directly.
+    incident: >-
+      2026-05 (kapi verify): the `kapi hook stop` path hung in production on a
+      nil context, and tests hung for minutes instead of failing.
+
+  - id: kapi-invocation-isolated
+    title: An in-repo kapi run is isolated and uses the tree's binary
+    owner_surface: cli
+    trigger:
+      added:
+        - '^(?!\s*(//|#|\*|--))(.*[\s;&|(''"/=])?(\./)?(bin/)?kapi\s+(up|push|pull|status|check|init|exec|run|context|voice|terms|memory|plugin|plugins|serve|mcp|store|ls)\b'
+        - 'exec\.(Command|CommandContext|LookPath)\([^)]*"kapi"'
+      added_in:
+        - 'scripts/**'
+        - 'Makefile'
+        - '**/*.mk'
+        - '.github/workflows/**'
+        - '.github/actions/**'
+        - 'harness/**/*.ts'
+        - '**/*_test.go'
+        - 'kapi/e2e/**'
+      note: >-
+        the line is the dogfood workflow itself (make l10n, dogfood-sync.yml),
+        or it already uses $(KAPI_ISO_ENV), isoEnv or kapiIsolationEnv().
+    check: >-
+      Every in-repo kapi run that is not the dogfood workflow sets
+      KAPI_NO_PROJECT=1, KAPI_PLUGINS_DIR_ONLY=1, and throwaway KAPI_CONFIG_DIR,
+      KAPI_DATA_DIR, XDG_DATA_HOME and XDG_CACHE_HOME; reuse $(KAPI_ISO_ENV),
+      kapi/e2e's isoEnv or harness kapiIsolationEnv(). Give a plugin-dispatched
+      command (push, pull, up with a venue) a -p pointing at a scratch project,
+      even with --help. Call ./bin/kapi by path: a kapi found on PATH is the
+      last release, not the tree.
+    incident: >-
+      2026-09-15: `kapi push --help` ran a real push and pull against the
+      dogfood recipe and rewrote the checkout's sync cache. PR #2627
+      (2026-09-12): an eval fell back to kapi on PATH and validated its fixtures
+      against a released schema; the same week a release binary's PASS hid a
+      check that worked in the tree.
+
+  # ── Desktop ──────────────────────────────────────────────────────────────
+
+  - id: desktop-bindings-follow-shared-types
+    title: Desktop bindings follow the Go types they expose
+    owner_surface: desktop
+    trigger:
+      added:
+        - 'json:"'
+      added_in:
+        - 'host/*.go'
+        - 'core/project/*.go'
+        - 'apps/kapi-desktop/backend/**/*.go'
+        - 'bowrain/apps/bowrain/backend/**/*.go'
+      exclude:
+        - '**/*_test.go'
+      note: >-
+        the type is not reachable from a method of a bound service.
+    check: >-
+      Run `make wails-bindings` (wails3 at the pinned version) and `git diff
+      --exit-code -- apps/kapi-desktop/frontend/bindings
+      bowrain/apps/bowrain/frontend/bindings`, then commit the result. The
+      desktop jobs skip on a pull request that touches only host/ or core/, and
+      make pre-push does not run the bindings gate, so stale bindings reach main
+      red. A doc comment on a bound field is a bindings change too.
+    incident: >-
+      PR #2559 (2026-09-08): a doc comment on a bound field failed the desktop
+      jobs. Host- and core-only pull requests have merged green and turned main
+      red on the bindings gate more than once (ci.yml path filters).
+
+  - id: plugins-dir-variable
+    title: Plugin discovery reads KAPI_PLUGINS_DIR
+    owner_surface: desktop
+    trigger:
+      added:
+        - 'KAPI_PLUGIN_DIR\b'
+      exclude:
+        - 'host/pluginhost/**'
+    check: >-
+      Discovery roots come from KAPI_PLUGINS_DIR (plural), paired with
+      KAPI_PLUGINS_DIR_ONLY. KAPI_PLUGIN_DIR (singular) is the variable the host
+      passes to a spawned plugin naming its own directory, and only
+      host/pluginhost sets it.
+    incident: >-
+      2026-08-31: kapi-desktop read the singular variable, so the documented
+      isolation contract did nothing for its plugin loading and Homebrew plugins
+      leaked in.
+
+  # ── Web ──────────────────────────────────────────────────────────────────
+
+  - id: standalone-ts-tree-typechecked
+    title: A TypeScript tree outside the workspace is typechecked somewhere
+    owner_surface: web
+    trigger:
+      paths:
+        - 'bowrain/e2e/**/*.ts'
+        - 'bowrain/e2e/**/package.json'
+        - 'bowrain/e2e/**/tsconfig*.json'
+    check: >-
+      Name the CI job that typechecks the tree this file sits in. A standalone
+      pnpm tree outside pnpm-workspace.yaml is typechecked only where a job runs
+      its typecheck; bowrain/e2e/cloud runs `vp run typecheck` from run.sh. If
+      no job does, add one before relying on the types.
+    incident: >-
+      PR #3612 (2026-11-21): bowrain/e2e/cloud was never typechecked, so a spec
+      read a field the shared client type did not declare.
+
+  - id: warning-token-as-text
+    title: The warning colour is a fill, not a text colour
+    owner_surface: web
+    trigger:
+      added:
+        - '\btext-warning(?![\w-])'
+      exclude:
+        - '**/*.md'
+        - '**/*.mdx'
+    check: >-
+      --warning is a light amber designed to carry dark ink; as text on a light
+      ground it measures 2.29:1 and fails WCAG AA. Use the derived ink from PR
+      #3167 (`text-[color-mix(in_oklch,var(--warning)_60%,var(--warning-foreground))]
+      dark:text-warning`) or a --warning-ink token, and measure a new pair as
+      packages/ui/docs/judgement-colours.md asks.
+    incident: >-
+      PR #3167 (2026-10-16): warning badges and finding tones in packages/ui
+      used text-warning as ink.
+
+  - id: package-manager-pin
+    title: The pnpm pin changes only on purpose
+    owner_surface: web
+    trigger:
+      added:
+        - '"(packageManager|devEngines)"\s*:'
+      added_in:
+        - '**/package.json'
+    check: >-
+      vp and pnpm rewrite packageManager or add devEngines when the local pnpm
+      is newer than the pin. Revert the field unless the upgrade is the point of
+      the change. In harness/ use `corepack pnpm run <script>`, which the
+      Makefile and CI use.
+    incident: >-
+      2026-08-31: two unrelated vp commands bumped the root pin and injected a
+      devEngines block into harness/, which made `make harness-check` refuse to
+      install.
+
+  # ── Mobile ───────────────────────────────────────────────────────────────
+
+  - id: mobile-reads-cached-shapes
+    title: The mobile app renders data cached by an earlier update
+    owner_surface: mobile
+    trigger:
+      paths:
+        - 'bowrain/mobile/src/lib/queryClient.ts'
+      added:
+        - '^\s+(readonly\s+)?\w+:\s*[^=(,?]*(\[\]|Array<|Record<|Map<)[^=(,?]*;\s*$'
+        - '\b(CACHE_BUSTER|PersistQueryClientProvider|persistQueryClient)\b'
+      added_in:
+        - 'packages/bowrain-client/src/**/*.ts'
+      exclude:
+        - '**/*.test.ts'
+      note: >-
+        no mobile screen reads the new field yet. The trigger reads required
+        list and map members of the client types only: an optional member
+        already forces a reader to handle its absence, and a missing scalar
+        renders empty rather than throwing.
+    check: >-
+      The app restores its persisted query cache, so after an over-the-air
+      update a screen can render data of the previous shape. Read a field added
+      in the same change as its server field defensively (?. and ?? []), and
+      before publishing an update ask whether Home and Review render from
+      cached data. The persister drops cached queries after an update and keeps
+      mutations, which hold the offline decision queue; keep both halves.
+    incident: >-
+      PR #3609 (2026-11-21): after an update Home read plan.waiting.length on a
+      plan cached without waiting, and the app crashed on start.
+
+  # ── CI ───────────────────────────────────────────────────────────────────
+
+  - id: test-that-only-skips
+    title: A test that skips wherever CI runs it guards nothing
+    owner_surface: ci
+    trigger:
+      added:
+        - '\bt\.Skip(f|Now)?\('
+        - '\b(it|test|describe)\.skip\('
+      added_in:
+        - '**/*_test.go'
+        - '**/*.test.ts'
+        - '**/*.test.tsx'
+        - '**/*.spec.ts'
+    check: >-
+      Name a CI job where the skip condition is false. When none exists (no
+      binary on the runner, -short on pull requests, a missing variable), make
+      the precondition available in CI or fail loudly instead of skipping.
+    incident: >-
+      PR #2627 (2026-09-12): a test in scripts/authoringeval skipped on every CI
+      run because the runner had no kapi binary, and only ever ran on a laptop,
+      where it was wrong.
+
+  - id: scheduled-job-reports-failure
+    title: A scheduled or tag-only workflow tells someone when it fails
+    owner_surface: ci
+    trigger:
+      added:
+        - '^\s*schedule:'
+        - '^\s*-?\s*cron:'
+      added_in:
+        - '.github/workflows/*.yml'
+    check: >-
+      Add the workflow's name to the workflow_run list in
+      .github/workflows/scheduled-failure-issue.yml. Give it a path-gated
+      pull_request trigger for the surface it exercises where that is
+      affordable, and lead job conditions with the event check inside
+      !cancelled() so a skipped change-detection job does not skip the
+      scheduled run.
+    incident: >-
+      e2e.yml: the Kapi CLI suite went red on 2026-07-26 because #1462
+      rewrote a flag inside it, and stayed red; the Playwright job went red
+      after #1775 with nothing to say so. Dogfood Sync failed for six days when
+      the push protocol retired an endpoint.
+
+  - id: third-party-download-pinned
+    title: A download from a third party is pinned and verified
+    owner_surface: ci
+    trigger:
+      added:
+        - '\b(curl|wget)\b[^#]*https?://'
+        - 'releases/download/'
+        - '\bgh release download\b'
+        - '\bInvoke-WebRequest\b'
+        - 'raw\.githubusercontent\.com/'
+        - '@latest\b'
+      added_in:
+        - '.github/**'
+        - 'scripts/**'
+        - 'Makefile'
+        - '**/*.mk'
+        - '**/Dockerfile*'
+      note: >-
+        the URL is this project's own release or registry.
+    check: >-
+      Pin an exact version and verify a checksum committed beside the URL
+      (sha256sum -c); prefer a signed or registry source. If the download runs
+      only on a schedule or a tag, dispatch that workflow once on the branch.
+    incident: >-
+      PR #3612 (2026-11-21): the nightly fetched a native library from a third
+      party's GitHub releases with no checksum; the repository went private and
+      the download returned 404. 2026-10-16: a live-fetched installer changed
+      upstream and broke all four Windows desktop builds of a release candidate
+      (#3182, #3186).
+
+  - id: loop-reports-every-iteration
+    title: A loop over modules reports every failure
+    owner_surface: ci
+    trigger:
+      added:
+        - '\bfor\s+\w+\s+in\b'
+        - '\bxargs\b'
+        - '\(\s*cd\s+\S+\s*&&'
+      added_in:
+        - '.github/workflows/**'
+        - '.github/actions/**'
+        - 'Makefile'
+        - 'scripts/*{check,scan,vuln,audit,test}*'
+    check: >-
+      Under set -e, and under the default bash of a workflow step, the first
+      failing iteration ends the loop and hides every later one; without -e,
+      only the last status counts. Collect failures and exit non-zero after the
+      loop. Check whether a second copy of the same scan already runs elsewhere,
+      and whether it is passing.
+    incident: >-
+      PR #3612 (2026-11-21): the vulnerability scan stopped at its first failing
+      module and hid two Echo advisories in a later module, and a second weekly
+      copy of the scan had failed with a tool error for five weeks.
+
+  - id: pipeline-hides-exit-code
+    title: A pipeline reports the status of its last stage
+    owner_surface: ci
+    trigger:
+      added:
+        - '\|\s*(tail|head|tee)\b'
+        - ';\s*echo\s+["'']?\w*=?\$\?'
+      added_in:
+        - '.github/workflows/**'
+        - '.github/actions/**'
+        - 'Makefile'
+        - '**/*.mk'
+        - 'scripts/**/*.sh'
+      note: >-
+        the status is not acted on, or set -o pipefail is in force (a step with
+        an explicit `shell: bash` runs with -eo pipefail).
+    check: >-
+      `cmd | tail` exits with tail's status and `cmd > log; echo $?` with
+      echo's. Start the command with set -o pipefail, or capture the status
+      before filtering.
+    incident: >-
+      PR #2117 (2026-08-20): a golangci-lint run piped to tail reported success
+      twice in one session, once over a run that produced no results at all.
+
+  - id: go-tags-last-wins
+    title: Repeated go -tags flags do not combine
+    owner_surface: ci
+    trigger:
+      added:
+        - '-tags\b.*-tags\b'
+        - '\$\((GOTEST|GOBUILD|GOTAGS)\)[^#]*-tags\b'
+      added_in:
+        - 'Makefile'
+        - '**/*.mk'
+        - '.github/**'
+        - 'scripts/**'
+    check: >-
+      The last -tags wins, so `$(GOTEST) -tags integration` drops the fts5 in
+      $(GOTAGS), and the build succeeds. Spell every tag in one comma-separated
+      flag and use $(GO) when a target needs its own tag set. Verify with
+      `go list -tags "<tags>" -f '{{.CgoCFLAGS}}' github.com/mattn/go-sqlite3 |
+      grep FTS5`.
+    incident: >-
+      2026-08-01 (CLAUDE.md): on one day a headless binary died on its first
+      memory query with "no such function: fts5", and a parity suite ran in a
+      configuration no other target used.
+
+  - id: actions-output-truthiness
+    title: Step outputs in an expression are strings
+    owner_surface: ci
+    trigger:
+      added:
+        - '(steps|needs)\.[\w-]+\.outputs\.[\w-]+\s*(\|\||&&)'
+        - '(\|\||&&)\s*(steps|needs)\.[\w-]+\.outputs\.[\w-]+\s*(\}\}|$)'
+      added_in:
+        - '.github/**'
+    check: >-
+      `a || b` returns the first truthy operand, and the string 'false' is
+      truthy, so a chain of bare outputs collapses to the first. Compare each
+      operand with == 'true'.
+    incident: >-
+      PR #1554 (2026-07-29): the build, tidy and race gates were keyed on a
+      string that is always truthy.
+
+  - id: shell-pattern-dialect
+    title: A shell pattern can be transformed before it runs
+    owner_surface: ci
+    trigger:
+      added:
+        - '\bsed\b[^|]*\\[bB<>]'
+        - 'git grep(?![^|]*-P)[^|]*\\b'
+        - '^\s+[A-Za-z0-9_./-]+[*?][A-Za-z0-9_.*?/-]*\s*(#.*)?$'
+      added_in:
+        - 'scripts/**/*.sh'
+        - 'Makefile'
+        - '.github/**'
+    check: >-
+      BSD sed and git grep's default engine drop \b and report success. Use
+      perl, Python re, grep -E or git grep -P, and confirm the pattern finds a
+      planted positive before trusting an empty result. Quote any bash array
+      entry holding *, ? or [, or the shell expands it when the array is built.
+    incident: >-
+      PR #2418 (2026-09-04): git grep '\bQA\b' returned nothing on a tree full
+      of matches. The voice sweep (#2166) found BSD sed with \b matched nothing.
+      An unquoted pattern in scripts/check-vocabulary.sh's allowlist expanded to
+      two directory entries and excused no file.
+
+  - id: new-gate-fails-on-purpose
+    title: A new gate is shown failing before it is trusted passing
+    owner_surface: ci
+    trigger:
+      paths:
+        - 'scripts/check-*'
+        - 'scripts/*guard*/**'
+      added:
+        - '^check-[\w-]+:'
+      added_in:
+        - 'Makefile'
+    check: >-
+      Plant a positive and see the gate report it, preferably as a --self-test
+      over fixtures (check-loop-output.sh and scripts/commentcoverage do this).
+      Fail the smallest unit that is wrong, not the whole run. Wire the gate
+      into make lint or scripts/pre-push-check.sh, and into CI where it belongs.
+    incident: >-
+      2026-08-27: eval gates that could not fail (an empty voice profile scored
+      100/100; a gate whose second half never ran). PR #2418 and the allowlist
+      expansion under shell-pattern-dialect. A guard discarded a
+      seventeen-scenario eval sweep over one word.
+
+  - id: freshness-digest-scope
+    title: A freshness digest covers only the inputs it derives from
+    owner_surface: ci
+    trigger:
+      added:
+        - '(?i)\b(createHash|hashFiles|hashTree|digest)\b'
+      added_in:
+        - 'scripts/**'
+        - '.github/workflows/**'
+        - 'Makefile'
+      exclude:
+        - '**/*_test.go'
+    check: >-
+      Edit an unrelated file inside the hashed tree and confirm the check still
+      passes; edit a real input and confirm it fails.
+    incident: >-
+      PR #3608 (2026-11-21): a check recomputed a digest of everything under
+      core/formats and failed on any unrelated edit there.
+
+  - id: ignore-rule-swallows-files
+    title: An ignore rule can drop a new file without a word
+    owner_surface: ci
+    trigger:
+      paths:
+        - '**/.gitignore'
+      added:
+        - '(packages|scripts|harness|apps|plugins|web)/\S*/bin/'
+      added_in:
+        - 'Makefile'
+        - '**/package.json'
+    check: >-
+      Run `git status --ignored -- <dir>` or `git check-ignore -v <file>` for
+      each new file. Anchor directory patterns with a leading slash. The root
+      .gitignore ignores every bin/ directory, so a committed entry point never
+      lives under one.
+    incident: >-
+      PR #2425 (2026-09-05): a generator under packages/docs-palette/bin/ was
+      never committed, every local check passed, and CI failed. PR #2600
+      (2026-09-08): unanchored harness/.gitignore patterns swallowed demo
+      fixtures.
+
+  # ── Release ──────────────────────────────────────────────────────────────
+
+  - id: release-path-dry-run
+    title: A change to the release path gets a dry run before a tag
+    owner_surface: release
+    trigger:
+      paths:
+        - '.github/workflows/release*.yml'
+        - '.github/workflows/_publish-plugin-formula.yml'
+        - '.goreleaser*.y*ml'
+        - 'scripts/package-*.sh'
+        - 'scripts/release-*.sh'
+        - 'scripts/fetch-*.sh'
+    check: >-
+      Release workflows run only on a tag, so nothing on the pull request
+      exercises this. Run the workflow's workflow_dispatch build-only dry run
+      on the branch (`gh workflow run <file> --ref <branch>`) and read every
+      leg. On the Windows runner a script receives D:\ paths, which GNU tar
+      reads as host:path; three green platforms say nothing about the fourth.
+    incident: >-
+      2026-11-21: a release build broke on Rust `stable` toolchain drift and
+      was found only by a manual dry run. PR #2180 (2026-08-23): the sourcecode
+      plugin packager failed only on Windows. 2026-10-16: all four Windows
+      desktop builds of a release candidate failed in the Vite+ install step.
+
+  - id: toolchain-pinned
+    title: Toolchains are pinned, and a bump is carried everywhere
+    owner_surface: release
+    trigger:
+      added:
+        - 'rust-toolchain@(stable|beta|nightly)\b'
+        - 'toolchain:\s*(stable|beta|nightly)\b'
+        - '^go 1\.\d+'
+        - '^toolchain go'
+        - 'go-version:'
+        - 'golangci-lint[^\n]*v\d+\.\d+'
+      added_in:
+        - '.github/**'
+        - 'go.work'
+        - '**/go.mod'
+        - 'Makefile'
+        - 'rust-toolchain*'
+    check: >-
+      Pin a Rust toolchain to an exact version rather than stable. A Go minor
+      bump touches every go.mod, go.work, each workflow go-version and the
+      setup-go-modules default; it needs the first golangci-lint release built
+      with that Go (expect new findings), a reinstall of go-installed tools such
+      as wails3, desktop bindings regenerated twice, and a release dry run.
+    incident: >-
+      2026-11-21: `dtolnay/rust-toolchain@stable` moved under a release build.
+      2026-08-30 to 2026-09-01: the Go 1.27 bump cascaded through gofmt skew, a
+      golangci-lint version gate, new gosec rules and non-deterministic Wails
+      bindings.
+
+  # ── Docs ─────────────────────────────────────────────────────────────────
+
+  - id: cdn-object-headers
+    title: Objects copied to the CDN keep their headers
+    owner_surface: docs
+    trigger:
+      added:
+        - '\brclone\b'
+        - '\baws s3 (cp|sync|mv)\b'
+        - '\baws s3api (put|copy)-object\b'
+      exclude:
+        - '**/*.md'
+        - '**/*.mdx'
+    check: >-
+      rclone stamps Content-Encoding: gzip on any object that starts with gzip
+      magic bytes. After a copy, read the headers of .gz, .wasm and other
+      pre-compressed objects (`aws s3api head-object --query ContentEncoding`)
+      and compare them with the source. The playground's .wasm.gz must carry no
+      Content-Encoding.
+    incident: >-
+      2026-07-14 CDN migration: 10 of 166 objects gained Content-Encoding: gzip,
+      and the playground silently fell back to the 71 MB uncompressed binary.
+
+  - id: target-locale-never-gates
+    title: Target-language drift never fails a build
+    owner_surface: docs
+    trigger:
+      added:
+        - '\bonBroken\w+'
+        - '\blinkIntegrity\b'
+        - '--require-extracted'
+        - '(?i)coverage[^\n]*(fail|exit 1|throw)'
+      added_in:
+        - 'web/docusaurus.config.ts'
+        - 'bowrain/web/docs/docusaurus.config.ts'
+        - 'bowrain/web/landing/**'
+        - '.github/workflows/l10n.yml'
+        - '.github/workflows/dogfood-sync.yml'
+        - '.github/workflows/docs-*.yml'
+        - 'scripts/check-loop-output.sh'
+    check: >-
+      The source locale stays strict; target locales warn. A coverage bar may
+      gate a release tag, never an ordinary build or pull request. Confirm a
+      source-only edit with stale target files still builds.
+    incident: >-
+      Committed nb docs made source edits fail the nb Docusaurus build with
+      onBrokenLinks: throw, until the target tier became a build artefact
+      (2026-06; recorded in CLAUDE.md).

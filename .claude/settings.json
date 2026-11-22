@@ -22,9 +22,21 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_response.filePath // .tool_input.file_path' | { read -r f; case \"$f\" in */platform/packages/ui/*|*/platform/apps/*) cd \"$(echo \"$f\" | sed 's|/platform/.*|/platform/packages/ui|')\" && vp fmt \"$f\" 2>/dev/null || true ;; */packages/flow-editor/*) cd \"$(echo \"$f\" | sed 's|/packages/flow-editor/.*|/packages/flow-editor|')\" && vp fmt \"$f\" 2>/dev/null || true ;; */framework/apps/kapi-desktop/frontend/*) cd \"$(echo \"$f\" | sed 's|/framework/apps/kapi-desktop/frontend/.*|/framework/apps/kapi-desktop/frontend|')\" && vp fmt \"$f\" 2>/dev/null || true ;; esac; }",
+            "command": "f=\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-edited.sh; [ -x \"$f\" ] || exit 0; exec \"$f\"",
             "timeout": 30,
-            "statusMessage": "Formatting frontend code..."
+            "statusMessage": "Formatting the edited file..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/commit-gate.sh; [ -x \"$f\" ] || exit 0; exec \"$f\"",
+            "timeout": 10
           }
         ]
       }
