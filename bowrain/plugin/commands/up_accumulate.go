@@ -13,20 +13,29 @@ import (
 // cli.ConvergeOutput a local run produces, so `kapi up`'s final summary is
 // identical whichever venue executed.
 //
-// The fold itself is convergence.Standing — the very fold the server persists
+// The fold itself is convergence.Standing, the very fold the server persists
 // its run standing from, so client and server can't disagree about a locale's
 // verdict. What is left here is the venue's own concern: mapping that standing
 // onto the CLI's output type, and falling back to the run's persisted state for
 // anything the stream did not carry (a run joined mid-flight, a cut stream).
 type runAccumulator struct {
 	standing *convergence.Standing
+	// produced sums the passes' produced_delta: the units the run wrote.
+	// waiting is the last pass's count of drafts held for review.
+	produced, waiting int
 }
 
 func newRunAccumulator() *runAccumulator {
 	return &runAccumulator{standing: convergence.NewStanding()}
 }
 
-func (a *runAccumulator) observe(ev convergence.Event) { a.standing.Observe(ev) }
+func (a *runAccumulator) observe(ev convergence.Event) {
+	a.standing.Observe(ev)
+	if ev.Type == convergence.EventPassDone {
+		a.produced += max(ev.ProducedDelta, 0)
+		a.waiting = ev.WaitingForReview
+	}
+}
 
 // terminalError returns a non-nil error when the run ended in a failure state
 // (failed or canceled), so `kapi up` exits non-zero instead of reporting a
@@ -55,7 +64,8 @@ func (a *runAccumulator) terminalError(final *apiclient.ConvergenceRun) error {
 // stream did not carry.
 func (a *runAccumulator) output(final *apiclient.ConvergenceRun) cli.ConvergeOutput {
 	runState, sawDone := a.standing.RunState()
-	out := cli.ConvergeOutput{Flow: "default (server)", Passes: a.standing.Passes()}
+	out := cli.ConvergeOutput{Flow: "default (server)", Passes: a.standing.Passes(),
+		Produced: a.produced, WaitingForReview: a.waiting}
 
 	converged := runState == convergence.RunConverged
 	if !sawDone && final != nil {
@@ -65,7 +75,7 @@ func (a *runAccumulator) output(final *apiclient.ConvergenceRun) cli.ConvergeOut
 		out.Passes = final.Passes
 	}
 
-	// Both sides ran the same fold over the same events, so they agree — except
+	// Both sides ran the same fold over the same events, so they agree, except
 	// where one of them is incomplete. A stream that reached its terminal event
 	// is complete and is the richer view (it saw every pass); a stream that was
 	// cut short is not, and the run row the server wrote after the loop is.

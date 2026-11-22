@@ -37,6 +37,7 @@ import (
 	"github.com/neokapi/neokapi/host/output"
 	sqlmemory "github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/leverage"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	sqlterms "github.com/neokapi/neokapi/terms"
 	"golang.org/x/sync/errgroup"
 )
@@ -105,6 +106,13 @@ func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string) error {
 // same flag surface and ExecuteUp stays byte-identical.
 func (a *App) AddFlowRunFlags(cmd Command) { a.addFlowRunFlags(cmd) }
 
+// providerFlagUsage describes --provider from the AI provider registry, and
+// names the offline demo provider for a first run with no credentials.
+func providerFlagUsage() string {
+	return fmt.Sprintf("AI provider: %s. %s works offline with no credentials and writes illustrative output, for trying kapi",
+		strings.Join(aiprovider.ProviderNames(), ", "), aiprovider.Demo)
+}
+
 // addFlowRunFlags registers the common flags for flow execution commands.
 func (a *App) addFlowRunFlags(cmd Command) {
 	a.AddProcessingFlags(cmd)
@@ -112,7 +120,7 @@ func (a *App) addFlowRunFlags(cmd Command) {
 	cmd.Flags().StringP("output", "o", "", "output path or template (e.g. ./out/{name}_{lang}.{ext})")
 	cmd.Flags().IntP("concurrency", "j", 0, "number of files to process at once (0 = auto)")
 	cmd.Flags().String("credential", "", "saved credential name to use (see 'kapi credentials list')")
-	cmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, ollama)")
+	cmd.Flags().String("provider", "anthropic", providerFlagUsage())
 	cmd.Flags().String("api-key", "", "API key for the AI provider")
 	cmd.Flags().String("model", "", "AI model name")
 	cmd.Flags().String("instruction", "", "extra guidance for the model while translating (e.g. \"informal register; keep product names in English\")")
@@ -161,7 +169,7 @@ func explainBindings(w io.Writer, flowName string, inputPaths []string, outputFl
 }
 
 // explainProjectFlowRun renders the plan for a project-defined flow run
-// without executing it — the project-path counterpart of explainBindings
+// without executing it, the project-path counterpart of explainBindings
 // (kapi run <project-flow> --explain), sharing its source → sink rendering.
 // One binding line per resolved input (explicit -i or content-derived), then
 // the locale pass(es) the run would execute. Plan only: no tool is built, no
@@ -310,7 +318,7 @@ func builtinComposedFlows() []output.FlowInfo {
 
 func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPath string) error {
 	// A check step in the chain needs somewhere to report, and the chain is
-	// built below — so the collector is armed first and read at the run's own
+	// built below, so the collector is armed first and read at the run's own
 	// output.
 	defer a.beginFlowFindings(flowName)()
 
@@ -385,16 +393,16 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	emit(FlowRunEvent{Type: FlowEventProgress, FileIndex: 0, FileCount: 1, FilePath: inputPath})
 
 	// In project mode, run against the project's block cache so SessionTools
-	// cache per-block work as overlays — that is what lets a later run skip
+	// cache per-block work as overlays, that is what lets a later run skip
 	// already-done steps and makes the project's working state packable (AD-025
 	// §5). Identical output either way; the store only adds the overlay cache.
 	// In project mode also open the document cache (L1): the runner parses
-	// each source once and replays it on a later run — the parse companion to
+	// each source once and replays it on a later run, the parse companion to
 	// the block store's overlay cache. Both rebuild from the files. Identical
 	// output either way.
 	//
 	// The block store is a view on the App's project store, so it is not closed
-	// here — the App owns the handle for as long as it lives.
+	// here, the App owns the handle for as long as it lives.
 	var projStore blockstore.Store
 	var runnerCache flow.PartCache
 	var runnerCacheKey string
@@ -471,8 +479,8 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	}
 	// The format the run reads this file with: the --format flag, else the one
 	// the recipe's matching item declares, else registry detection. Declared
-	// beats detected because every other derivation over this project — the
-	// block store, coverage, checks, extract — resolves it that way, and a run
+	// beats detected because every other derivation over this project, the
+	// block store, coverage, checks, extract, resolves it that way, and a run
 	// that detects differently numbers the document's blocks differently from
 	// the store it writes into.
 	declaredFormat := fmtName
@@ -544,7 +552,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	}
 
 	// Whole-image (target-asset) replacement: when the source is a binary asset
-	// and a localized variant already exists at the target, it is authoritative —
+	// and a localized variant already exists at the target, it is authoritative,
 	// kapi can't regenerate a real image localization, so keep it rather than
 	// clobber it by reprocessing the source.
 	srcFmt := fmtName
@@ -610,7 +618,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 
 // writeTraceFile serializes a trace to JSON and writes it to disk. toolNames is
 // the ordered list of tool names (one per "tool-N" node) used to label the
-// graph nodes — without it the nodes would fall back to their bare "tool-N" ids.
+// graph nodes, without it the nodes would fall back to their bare "tool-N" ids.
 //
 // Every failure is RETURNED: `--trace` is an explicit request for a file, so a
 // run that writes none must not exit 0 (the user would open a visualizer on
@@ -710,7 +718,7 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 	defer a.beginFlowFindings(flowName)()
 
 	// Mirror a directory-style -o against the batch's common input root (not
-	// each file's own dir), so nested inputs keep their relative structure —
+	// each file's own dir), so nested inputs keep their relative structure,
 	// the same base the exec tool runner uses.
 	outputBase := commonDirPrefix(inputPaths)
 	if concurrency <= 0 {
@@ -950,11 +958,11 @@ func shortList(xs []string, n int) []string {
 var errSkippedFile = errors.New("skipped")
 
 // processFlowFile performs the full read → process → write cycle for a single file.
-// Safe for concurrent use — each call uses its own reader, writer, and tool instances.
+// Safe for concurrent use, each call uses its own reader, writer, and tool instances.
 // When recorder is non-nil, tools are wrapped with TracingTool for batch tracing.
 // Returns the detected format name and trace nodes (both empty when recorder is nil).
 //
-// All formats — built-in and Mode-C plugin-backed — use the standard
+// All formats, built-in and Mode-C plugin-backed, use the standard
 // read → process → write pipeline. Plugin-backed formats are routed
 // through their daemon transparently by the registered factories.
 func (a *App) processFlowFile(ctx context.Context, cmd Command, flowName, inputPath, outputTemplate, outputBase string, recorder *flow.TraceRecorder) (string, []flow.TraceNode, error) {
@@ -1022,7 +1030,7 @@ func (a *App) processFlowFile(ctx context.Context, cmd Command, flowName, inputP
 // When recorder is non-nil, tools are wrapped with TracingTool and reader/writer
 // events are recorded. Returns trace nodes (nil when recorder is nil).
 func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, inputPath, outputTemplate, outputBase, registryName string, reader format.DataFormatReader, mergedConfig map[string]any, item *project.ContentItem, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
-	// A project run hands back the pass's assembled chain — ONE slice, shared by
+	// A project run hands back the pass's assembled chain, ONE slice, shared by
 	// every file in the batch, which runs its files concurrently. So the wrapping
 	// below builds this file's own slice rather than writing into that one: an
 	// in-place wrap is a write to shared memory from each goroutine, and the
@@ -1055,7 +1063,7 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 		projRoot = a.ProjectContext.ProjectDir
 	}
 
-	// Process-only default in a project (AD-026 §3/§5) — the same decision
+	// Process-only default in a project (AD-026 §3/§5), the same decision
 	// RunSingleFile makes, so a batch and a one-file run of the same flow agree:
 	// with a recipe in scope and no explicit -o, the run commits its
 	// `targets/<locale>` overlays and emits no file, and `kapi merge`
@@ -1116,7 +1124,7 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 	}
 
 	// Writer format defaults to the reader's format but a different output
-	// extension selects a different writer — see registry.WriterFormatFor,
+	// extension selects a different writer, see registry.WriterFormatFor,
 	// shared with the bowrain pull so both venues project cross-format
 	// targets identically.
 	writerFormatName := string(a.FormatReg.WriterFormatFor(registry.FormatID(registryName), outputPath))
@@ -1182,7 +1190,7 @@ func (a *App) reportReaderDiagnostics(cmd Command, inputPath string, reader form
 //     whose matched content item carries a target template → the per-file output
 //     comes from core's project.ResolveTargetPath (the single canonical
 //     resolver, shared with merge and the desktop). This honours {lang}, the
-//     full path-token set, the legacy bare `*`, and directory targets — and so
+//     full path-token set, the legacy bare `*`, and directory targets, and so
 //     fixes the double-extension class of bug.
 //  2. No explicit -o and no project target → the ad-hoc default
 //     <basename>_<lang><ext> beside the source, unless that sibling would land
@@ -1276,7 +1284,7 @@ func itemFormatName(item *project.ContentItem) string {
 	return project.ResolveFormat(item.Format.Name)
 }
 
-// projectItemFor returns the recipe content item that claims inputPath — the
+// projectItemFor returns the recipe content item that claims inputPath, the
 // item whose `format.config` says which leaves of that file are content and
 // how the writer serializes them. The claim is project.KapiProject.ItemForPath,
 // the same rule content resolution applies, so a file cannot be read under one
@@ -1335,8 +1343,8 @@ func (a *App) projectItemTargetPath(inputPath, lang string) (string, bool) {
 // file using the shared core path-token vocabulary: project.ResolvePathPattern
 // for {lang} and project.ExpandTemplate for the path tokens ({name} {basename}
 // {ext} {dir} {path} {relpath} {filename}), plus the legacy bare `*` == {name}.
-// When the template (after {lang} expansion) denotes a directory — it ends in a
-// separator, or its last segment has no extension and no wildcard/token — the
+// When the template (after {lang} expansion) denotes a directory, it ends in a
+// separator, or its last segment has no extension and no wildcard/token, the
 // input is mirrored beneath it (relative to base). This keeps the ad-hoc -o
 // vocabulary identical to the project content-item target vocabulary.
 func expandAdhocOutputTemplate(tmpl, inputPath, base, lang string) string {
@@ -1402,7 +1410,7 @@ func expandOutputTemplate(tmpl, name, lang, ext, dir string) string {
 //
 // inputPath is the file the chain will process. A built-in flow builds fresh
 // tools per file, so the path is what tells the standing bindings which content
-// collection governs this run — the voice profile and terms of the collection the
+// collection governs this run, the voice profile and terms of the collection the
 // file belongs to, not necessarily the project-wide ones. Empty when there is no
 // single file in view; the bindings are then the project-wide ones.
 func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool.Tool, func(), error) {
@@ -1451,8 +1459,8 @@ func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool
 	// The standing context a built-in flow runs under. Project-defined flows get
 	// this via toolFromStep; built-in flows used to get only the voice profile
 	// profile, so `kapi translate` inside a project silently ignored
-	// defaults.tools and never sent the project's terminology, while `kapi up` —
-	// the same tools, the project path — honored both. One recipe, two behaviours,
+	// defaults.tools and never sent the project's terminology, while `kapi up`,
+	// the same tools, the project path, honored both. One recipe, two behaviours,
 	// depending on the verb.
 	bindings := a.resolveRunBindings(inputPath, cmd...)
 
@@ -1557,7 +1565,7 @@ func runFlagToolConfig(cmd Command) map[string]any {
 // BuildFlowTools assembles the tool chain for a built-in flow for one
 // (source, target) pass. It runs the same data-flow validation, AD-006
 // placement gate, per-node config merge and standing bindings as a CLI flow
-// run — the reason an embedding surface (the MCP run_flow porcelain) must route
+// run, the reason an embedding surface (the MCP run_flow porcelain) must route
 // through it rather than reimplement the loop. The returned cleanup releases
 // resources the assembly opened (e.g. SQLite content memory handles) and must
 // run after the pass.
@@ -1678,7 +1686,7 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 	// (recycle, which is a no-op without one) or merely ACCEPTS one (translate,
 	// which reads a block's previously approved answer as prompt reference and
 	// translates fine without it). Before this there were three, each narrowing
-	// the built tool to recycle's concrete config — so the capability could only
+	// the built tool to recycle's concrete config, so the capability could only
 	// ever serve one tool, and translate reached its corpus through a side
 	// channel to avoid being routed into an assertion it would fail.
 	config, corpusCleanup, err := a.grantMemory(toolName, config, cmd...)
@@ -1782,7 +1790,7 @@ func (a *App) grantMemory(toolName string, config map[string]any, cmd ...Command
 	next[corememory.ConfigKey] = provider
 
 	// The source locale is schema-hidden, so a config factory cannot read it
-	// from the map — and without it a SQLite lookup (WHERE locale = ?) matches
+	// from the map, and without it a SQLite lookup (WHERE locale = ?) matches
 	// nothing. It was previously set on the built tool, which only worked for
 	// the one tool the injection knew about.
 	if _, ok := next[corememory.SourceLocaleKey]; !ok {
@@ -1826,7 +1834,7 @@ func (a *App) defaultParallelBlocks(flowName string) int {
 
 // openTerms opens the terms store the term tools in built-in flows enforce
 // against: an explicit --termstore (a named resource or a file path), a
-// profile's standalone `terms:`, else the project's own store — so those tools
+// profile's standalone `terms:`, else the project's own store, so those tools
 // are project-aware with no flag.
 //
 // Returns (nil, noop, nil) when nothing is bound, and also when the project
@@ -1878,7 +1886,7 @@ func (a *App) openTerms(cmd ...Command) (sqlterms.Store, func(), error) {
 // wins: a named resource (no path separators) resolves via KAPI_HOME, an
 // explicit file path is opened directly. When no flag is given but a project is
 // in scope, the project's own store is used, so `kapi recycle fr.json` leverages
-// the same content memory `kapi extract`/`kapi merge` use — with no flag.
+// the same content memory `kapi extract`/`kapi merge` use, with no flag.
 //
 // Returns (nil, noop, nil) when no content memory is in scope. This mirrors
 // openTerms and shares the project resolution with the `kapi memory`
@@ -1893,7 +1901,7 @@ func (a *App) OpenToolMemory(cmd Command) (corememory.Provider, func(), error) {
 	var memoryPath string
 	switch {
 	case memoryValue == "":
-		// No flag — the project's own store.
+		// No flag, the project's own store.
 		root, err := a.projectRootFor(cmd)
 		if err != nil {
 			return nil, nil, err
@@ -2000,14 +2008,14 @@ func (b *ProjectBindings) unresolved(what string, err error) {
 }
 
 // resolveProjectBindings resolves the standing voice + terminology context
-// for one point of a project flow run — the governance in force there. The
+// for one point of a project flow run, the governance in force there. The
 // voice comes from the profile matching that point, else defaults.voice, else a
 // convention voice.yaml, with the point's channel selecting the override inside
 // it; the term rules come from that profile's standalone terms, else the
 // project's own store. Returns nil when the project carries neither, so ad-hoc
 // behavior is unchanged.
 //
-// point is the zero value for a run that is not split by governance — every
+// point is the zero value for a run that is not split by governance, every
 // caller outside the grouping (groupInputsByBinding) passes it, which resolves
 // exactly the project-wide bindings it always did.
 func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, projectPath string, point project.GovernancePoint) (*ProjectBindings, error) {
@@ -2100,9 +2108,9 @@ func ToolAccepts(s *schema.ComponentSchema, cap string) bool {
 // ResolveTermsStore returns the terms store a project-aware tool command should
 // use, with no flag. Resolution order:
 //
-//  1. An explicit --termstore flag (named resource or path) — a standalone store.
+//  1. An explicit --termstore flag (named resource or path), a standalone store.
 //  2. The `termstore:` of the profile governing the point
-//     (project.ResolveGovernanceFor) — a store named the way --termstore names
+//     (project.ResolveGovernanceFor), a store named the way --termstore names
 //     one. It binds a vocabulary to a region of the context space, and there is
 //     nothing on the wire for it, so it names a store on this machine.
 //  3. The project's own store.
@@ -2200,8 +2208,8 @@ func governedTermsPath(rc *project.ResolvedGovernance) (string, error) {
 	return path, nil
 }
 
-// ResolveTermRules builds the term rules governing the project — for each
-// concept, the source term and the translation approved for the target locale —
+// ResolveTermRules builds the term rules governing the project, for each
+// concept, the source term and the translation approved for the target locale,
 // for the active source and target locales. It reads the project's terms store
 // in the workspace (see projectConcepts for the precedence). Returns nil when
 // no terms store is in scope or it has no terms for the locale pair. The result
@@ -2399,7 +2407,7 @@ func (a *App) runProjectStepsOver(ctx context.Context, cmd Command, flowName str
 	}
 
 	// Assemble the pass's tool chain through the shared builder (placement
-	// gate, per-step config resolution, project content memory injection) — the same
+	// gate, per-step config resolution, project content memory injection), the same
 	// implementation the multi-locale orchestrator (RunFlowAllLocales) uses.
 	projectTools, cleanup, err := a.buildProjectFlowTools(cmd, flowName, spec, rCtx, nil)
 	if err != nil {
@@ -2630,13 +2638,13 @@ func stepNamesRedactRules(config map[string]any) bool {
 // resolveRunBindings returns the standing context a flow run should carry.
 //
 // The project path (RunFromProject, converge) resolves bindings up front and
-// leaves them on the App. A built-in flow given explicit files — `kapi translate
-// messages.json` inside a project, `kapi run translate -i …` — does not, so it
+// leaves them on the App. A built-in flow given explicit files, `kapi translate
+// messages.json` inside a project, `kapi run translate -i …`, does not, so it
 // used to see none: the recipe's defaults.tools were ignored and its terms
 // never reached the model, while `kapi up` over the same recipe honored both.
 // One recipe, two behaviours, depending on the verb. Resolve them here instead.
 //
-// Outside a project there are no bindings — but `--termstore` is an explicit
+// Outside a project there are no bindings, but `--termstore` is an explicit
 // request to use that terminology, and it used to reach only term-check (which
 // validates the output afterwards) and never translate (which could have got it
 // right the first time). That run now carries a binding set holding just the
@@ -2719,7 +2727,7 @@ func recipePresets(proj *project.KapiProject) *ProjectBindings {
 
 // ApplyProjectBindings injects the project's standing context into a step's
 // config: the tool's project preset (defaults.tools, applied under the step's
-// own keys — the step wins), then the voice and terminology bindings when
+// own keys, the step wins), then the voice and terminology bindings when
 // the tool can honor them and the step did not set them explicitly. Returns
 // the (possibly cloned) config so the recipe's in-memory step config is never
 // mutated.
@@ -2783,7 +2791,7 @@ func (a *App) applyBindingsFor(b *ProjectBindings, toolName string, s *schema.Co
 	// history. It used to take no point, on the reasoning that it produces a new
 	// translation rather than choosing between approved ones. That is true of
 	// the output and beside the point once the previous version became
-	// reference — a wording approved for one surface must not steer another.
+	// reference, a wording approved for one surface must not steer another.
 	if b.point != "" && (isMemoryRecycleTool(toolName, s) || isTranslateTool(toolName, s)) {
 		if _, ok := config["point"]; !ok {
 			clone()
@@ -2795,7 +2803,7 @@ func (a *App) applyBindingsFor(b *ProjectBindings, toolName string, s *schema.Co
 	// RequiresTerms, and the producers, which do not.
 	//
 	// Translate renders the rules straight into its prompt, but it declares
-	// Requires{TargetLanguage, Credentials} — not Terms — so the project's
+	// Requires{TargetLanguage, Credentials}, not Terms, so the project's
 	// terminology never reached it. A project with a terms store had its
 	// terminology *checked* after the fact, yet never *enforced at generation*:
 	// the model was simply never told. Wired here the way the voice profile is
@@ -2862,7 +2870,7 @@ func isAIReviewTool(toolName string, s *schema.ComponentSchema) bool {
 // isDNTCheckTool reports whether a step is the do-not-translate check.
 //
 // It is listed here rather than given schema.RequiresTerms because the check is
-// valid with no store bound — the recipe may name its terms directly. What it
+// valid with no store bound, the recipe may name its terms directly. What it
 // must not be is a check with nothing to check: with an empty list it passes
 // everything, which is the reassurance a guardrail should never give.
 func isDNTCheckTool(toolName string, s *schema.ComponentSchema) bool {

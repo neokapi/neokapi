@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-17T09:59:05Z",
+  "generatedAt": "2026-11-22T09:42:20Z",
   "commands": [
     {
       "id": "add",
@@ -7689,7 +7689,7 @@
         },
         {
           "name": "provider",
-          "usage": "▒ ÀÎ þŕöṽîđéŕ (àñţĥŕöþîç, öþéñàî, öļļàḿà) ▒",
+          "usage": "▒ ÀÎ þŕöṽîđéŕ: àñţĥŕöþîç, öþéñàî, ĝéḿîñî, àžüŕéöþéñàî, çļàüđé-çöđé, öļļàḿà, đéḿö. đéḿö ŵöŕķš öƒƒļîñé ŵîţĥ ñö çŕéđéñţîàļš àñđ ŵŕîţéš îļļüšţŕàţîṽé öüţþüţ, ƒöŕ ţŕýîñĝ ķàþî ▒",
           "default": "anthropic",
           "type": "string"
         },
@@ -8170,7 +8170,7 @@
         },
         {
           "name": "provider",
-          "usage": "▒ ÀÎ þŕöṽîđéŕ (àñţĥŕöþîç, öþéñàî, öļļàḿà) ▒",
+          "usage": "▒ ÀÎ þŕöṽîđéŕ: àñţĥŕöþîç, öþéñàî, ĝéḿîñî, àžüŕéöþéñàî, çļàüđé-çöđé, öļļàḿà, đéḿö. đéḿö ŵöŕķš öƒƒļîñé ŵîţĥ ñö çŕéđéñţîàļš àñđ ŵŕîţéš îļļüšţŕàţîṽé öüţþüţ, ƒöŕ ţŕýîñĝ ķàþî ▒",
           "default": "anthropic",
           "type": "string"
         },
@@ -9340,7 +9340,7 @@
         },
         {
           "name": "provider",
-          "usage": "▒ ÀÎ þŕöṽîđéŕ (àñţĥŕöþîç, öþéñàî, öļļàḿà) ▒",
+          "usage": "▒ ÀÎ þŕöṽîđéŕ: àñţĥŕöþîç, öþéñàî, ĝéḿîñî, àžüŕéöþéñàî, çļàüđé-çöđé, öļļàḿà, đéḿö. đéḿö ŵöŕķš öƒƒļîñé ŵîţĥ ñö çŕéđéñţîàļš àñđ ŵŕîţéš îļļüšţŕàţîṽé öüţþüţ, ƒöŕ ţŕýîñĝ ķàþî ▒",
           "default": "anthropic",
           "type": "string"
         },
@@ -9380,7 +9380,8 @@
       "examples": [
         "kapi translate messages.json --target-lang fr",
         "kapi translate docs/*.md --target-lang de -o out/{name}_{lang}.{ext}",
-        "kapi translate app.xliff --target-lang ja --provider ollama"
+        "kapi translate app.xliff --target-lang ja --provider ollama",
+        "kapi translate messages.json --target-lang fr --provider demo"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
@@ -9720,7 +9721,7 @@
         },
         {
           "name": "provider",
-          "usage": "▒ ÀÎ þŕöṽîđéŕ (àñţĥŕöþîç, öþéñàî, öļļàḿà) ▒",
+          "usage": "▒ ÀÎ þŕöṽîđéŕ: àñţĥŕöþîç, öþéñàî, ĝéḿîñî, àžüŕéöþéñàî, çļàüđé-çöđé, öļļàḿà, đéḿö. đéḿö ŵöŕķš öƒƒļîñé ŵîţĥ ñö çŕéđéñţîàļš àñđ ŵŕîţéš îļļüšţŕàţîṽé öüţþüţ, ƒöŕ ţŕýîñĝ ķàþî ▒",
           "default": "anthropic",
           "type": "string"
         },

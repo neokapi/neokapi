@@ -4016,8 +4016,8 @@ export class ConvergeLocaleResult {
         if (/** @type {any} */(false)) {
             /**
              * FailingChecks counts units that are produced but fail the project's bound
-             * checks (#1078 G4). They count at their true rung in Pct — the unit is
-             * translated — and hold the locale out of Shippable until fixed. It counts
+             * checks (#1078 G4). They count at their true rung in Pct, the unit is
+             * translated, and hold the locale out of Shippable until fixed. It counts
              * UNITS, which is not what `kapi check` counts: one unit can carry several
              * findings, and `kapi check` lists findings.
              * @member
@@ -4049,7 +4049,7 @@ export class ConvergeLocaleResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Redrafted counts the stale units this run produced over — recycled against
+             * Redrafted counts the stale units this run produced over, recycled against
              * the rewritten source, or drafted for the remainder. It is what the loop
              * owes them: a translation of the source the project has now. The decision
              * they carried is NOT restored, so they stay in Stale until someone reviews
@@ -4156,10 +4156,29 @@ export class ConvergeOutput {
              */
             this["locales"] = [];
         }
+        if (!("produced" in $$source)) {
+            /**
+             * Produced counts the units this run wrote, across every pass. A run that
+             * changed nothing reports 0.
+             * @member
+             * @type {number}
+             */
+            this["produced"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * WaitingForReview counts the drafts the run holds for review in locales
+             * short of their ship gate. They are not written to the project, so
+             * Produced leaves them out.
+             * @member
+             * @type {number | undefined}
+             */
+            this["waiting_for_review"] = undefined;
+        }
         if (/** @type {any} */(false)) {
             /**
              * ParkedScopes lists the gated (collection, locale) scopes that remain
-             * short of their gate — per-scope detail under the per-locale rollup, so
+             * short of their gate, per-scope detail under the per-locale rollup, so
              * a UI can link each parked scope to its review queue.
              * @member
              * @type {ParkedScope[] | undefined}
@@ -4200,7 +4219,7 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
-             * StallReason is the machine-readable cause a run did not converge — set to
+             * StallReason is the machine-readable cause a run did not converge, set to
              * source_not_ready when every pending locale had nothing producible because
              * its source is held below the translate_after level. Empty on a
              * clean/parked-on-target run.
@@ -4252,8 +4271,8 @@ export class ConvergeOutput {
             /**
              * ConceptsProposed, ChangesetID and ChangesetURL report governed terminology
              * the run proposed rather than applied: edits that take effect only once a
-             * reviewer accepts them. They are venue-supplied — a run at a venue that
-             * governs terminology fills them in — and all three are zero for a run that
+             * reviewer accepts them. They are venue-supplied, a run at a venue that
+             * governs terminology fills them in, and all three are zero for a run that
              * proposed nothing.
              * 
              * ChangesetURL is a deep link to the review surface, and is empty whenever
@@ -4320,25 +4339,25 @@ export class ConvergeOutput {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType96;
-        const $$createField4_0 = $$createType98;
-        const $$createField16_0 = $$createType100;
-        const $$createField17_0 = $$createType102;
-        const $$createField18_0 = $$createType104;
+        const $$createField6_0 = $$createType98;
+        const $$createField18_0 = $$createType100;
+        const $$createField19_0 = $$createType102;
+        const $$createField20_0 = $$createType104;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
         }
         if ("parked_scopes" in $$parsedSource) {
-            $$parsedSource["parked_scopes"] = $$createField4_0($$parsedSource["parked_scopes"]);
+            $$parsedSource["parked_scopes"] = $$createField6_0($$parsedSource["parked_scopes"]);
         }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField16_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField18_0($$parsedSource["warnings"]);
         }
         if ("findings" in $$parsedSource) {
-            $$parsedSource["findings"] = $$createField17_0($$parsedSource["findings"]);
+            $$parsedSource["findings"] = $$createField19_0($$parsedSource["findings"]);
         }
         if ("pre_review" in $$parsedSource) {
-            $$parsedSource["pre_review"] = $$createField18_0($$parsedSource["pre_review"]);
+            $$parsedSource["pre_review"] = $$createField20_0($$parsedSource["pre_review"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }
@@ -4686,7 +4705,7 @@ export class FindingsReport {
 
 /**
  * ParkedScope identifies one gated (collection, locale) scope still short of
- * its gate after the run — the address a review surface can deep-link to.
+ * its gate after the run, the address a review surface can deep-link to.
  */
 export class ParkedScope {
     /**

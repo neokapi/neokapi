@@ -56,7 +56,9 @@ diff -r -x work "$SB/before" "$SB/project" && echo unchanged
 ```
 
 Both runs exit 0 and end `Not yet up to date`, because the sample's Dutch waits
-for review. Target-language drift never fails a run.
+for review. Target-language drift never fails a run. The second run's summary
+reads `produced 0` and `waiting for review 19`: it wrote nothing, and the Dutch
+drafts are held apart from what it produced.
 
 **`kapi check`**, a pass and then a failure:
 

@@ -39,6 +39,19 @@ func TestRunAccumulator_PreservesFinalStandingState(t *testing.T) {
 	assert.NoError(t, acc.terminalError(final))
 }
 
+// TestRunAccumulator_ProducedAndWaiting: the summary of a server run reports
+// what its passes wrote and the drafts its last pass held for review, as a
+// local run's summary does.
+func TestRunAccumulator_ProducedAndWaiting(t *testing.T) {
+	acc := newRunAccumulator()
+	acc.observe(convergence.Event{Type: convergence.EventPassDone, Pass: 1, Produced: 10, ProducedDelta: 10, WaitingForReview: 4})
+	acc.observe(convergence.Event{Type: convergence.EventPassDone, Pass: 2, Produced: 10, WaitingForReview: 4})
+	acc.observe(convergence.Event{Type: convergence.EventDone, State: convergence.RunParked})
+	out := acc.output(nil)
+	assert.Equal(t, 10, out.Produced)
+	assert.Equal(t, 4, out.WaitingForReview)
+}
+
 // TestRunAccumulator_ParkedFromFinalStanding: a parked run's parked locale is
 // taken from the final standing and recorded as a parked scope.
 func TestRunAccumulator_ParkedFromFinalStanding(t *testing.T) {

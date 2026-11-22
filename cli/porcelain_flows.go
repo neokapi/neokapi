@@ -8,8 +8,8 @@ import (
 
 // Flow-backed porcelain: `kapi translate` and `kapi pseudo-translate` are
 // top-level verbs that run built-in flows, not raw tools. The pitch command
-// therefore carries the guardrails — content memory reuse and deterministic checks wrap
-// the AI step — while every raw tool keeps exactly one spelling under
+// therefore carries the guardrails, content memory reuse and deterministic checks wrap
+// the AI step, while every raw tool keeps exactly one spelling under
 // `kapi exec <name>`. The verb ladder: `kapi up` brings a project up to date,
 // `kapi translate` produces for files, `kapi exec` runs one bare tool.
 
@@ -31,7 +31,8 @@ no checks) stays available as 'kapi exec translate'. To bring a whole project
 up to date, use 'kapi up'.`,
 		Example: `  kapi translate messages.json --target-lang fr
   kapi translate docs/*.md --target-lang de -o out/{name}_{lang}.{ext}
-  kapi translate app.xliff --target-lang ja --provider ollama`,
+  kapi translate app.xliff --target-lang ja --provider ollama
+  kapi translate messages.json --target-lang fr --provider demo`,
 		Args: cobra.ArbitraryArgs,
 		RunE: newPorcelainFlowRunE(a, "translate",
 			"kapi translate needs input files: kapi translate <files...> --target-lang <locale>. To translate a whole project, use 'kapi up'"),
@@ -43,7 +44,7 @@ up to date, use 'kapi up'.`,
 }
 
 // NewPseudoTranslateCmd creates `kapi pseudo-translate`: run the built-in
-// pseudo-translate flow over the given files — the keyless pre-flight test
+// pseudo-translate flow over the given files, the keyless pre-flight test
 // for locale readiness (expansion, accents, placeholder survival).
 func NewPseudoTranslateCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{

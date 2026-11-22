@@ -164,6 +164,12 @@ kapi up --json               # NDJSON event stream (one event per line, final
 runs the built-in default flow (content memory recycle → AI translate) and materializes the
 translated files. Drift is never an error: a behind locale is *pending*, and work
 a machine can't finish *waits for review* (reported, exit 0), so neither blocks you.
+The summary's `produced` counts what this run wrote, and `waiting for review`
+counts the drafts held back, apart from it. The result record carries both as
+`produced` and `waiting_for_review`. A run over a project with nothing new
+reports `produced 0`, whatever waits for review. To try kapi with no
+credentials, `kapi translate --provider demo` (or `provider: demo` on a flow's
+translate step) drafts offline with illustrative output.
 
 Every flow run (`up`, `translate`, `pseudo-translate`, `run`, `exec`) writes a
 file only while it still holds what it held when the run began: a file someone

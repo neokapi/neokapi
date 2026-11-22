@@ -14,10 +14,10 @@ import * as check$0 from "../check/models.js";
 import * as gate$0 from "../gate/models.js";
 
 /**
- * Event is one progress event of a convergence run — the single protocol every
- * venue and surface speaks: the CLI's live renderer, `kapi up --json` (NDJSON,
+ * Event is one progress event of a convergence run, the single protocol every
+ * venue and surface speaks. The CLI's live renderer, `kapi up --json` (NDJSON,
  * one event per line), the desktop's run view, and a Bowrain server run's SSE
- * stream all carry exactly this shape, so nothing about rendering a run knows
+ * stream all carry exactly this shape. So nothing about rendering a run knows
  * where it executes.
  * 
  * The struct is deliberately flat with a Type discriminator (not an interface)
@@ -137,7 +137,9 @@ export class Event {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Post-derivation fields (pass_done).
+             * Post-derivation fields (pass_done). Produced counts the units written
+             * so far and ProducedDelta what this pass wrote. WaitingForReview counts
+             * the drafts held for review, which neither of the two includes.
              * @member
              * @type {number | undefined}
              */
@@ -155,13 +157,20 @@ export class Event {
              * @member
              * @type {number | undefined}
              */
+            this["waiting_for_review"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
             this["failing_checks"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * Source-first fields (settle_source stage / pass_done / done). SettledSource
              * is how many source blocks the settlement phase stamped this pass;
-             * BlockedOnSource is how many remain below the translate_after level — the count the UI
+             * BlockedOnSource is how many remain below the translate_after level, the count the UI
              * renders as "N segments need source review before translating" and the
              * signal that a run held on source (source_not_ready). Both are omitted when
              * zero, so a project at `translate_after: none` (or with a fully-settled source) carries
@@ -255,7 +264,7 @@ export const EventType = {
      * concurrently), and after the pass coverage is re-derived with the project's
      * bound checks. The stream ends with exactly one EventDone.
      *
-     * EventPassStart opens pass Pass (1-based, capped at MaxPasses) over the
+     * EventPassStart opens the pass numbered by Pass (1-based, capped at MaxPasses) over the
      * Pending locales. ExtractedFiles/ExtractedBlocks report the pre-pass
      * auto-extract on block-store drift (both zero when in sync).
      */
@@ -284,8 +293,9 @@ export const EventType = {
 
     /**
      * EventPassDone closes a pass after post-derivation: Produced units at
-     * ≥ draft, the pass's ProducedDelta, FailingChecks demoted by the bound
-     * checks, and the locales still Pending (short of their gate).
+     * ≥ draft that are written, the pass's ProducedDelta, the drafts held
+     * WaitingForReview, FailingChecks demoted by the bound checks, and the
+     * locales still Pending (short of their gate).
      */
     EventPassDone: "pass_done",
 
@@ -1028,7 +1038,7 @@ export class SourceCoverage {
 }
 
 /**
- * StallReason is the machine-readable cause a run did not converge — the label
+ * StallReason is the machine-readable cause a run did not converge, the label
  * that turns a silent stuck spinner into an actionable state (strategy
  * 2026-07-dogfood doc 06, theme C). It is set on the run row and carried on the
  * terminal done event so the UI and analytics can distinguish, say, "pending
@@ -1061,7 +1071,7 @@ export const StallReason = {
 
     /**
      * StallNoProgress: a full pass produced nothing new and the remainder
-     * cannot advance unaided — ordinary parking (genuine pending work).
+     * cannot advance unaided, ordinary parking (genuine pending work).
      */
     StallNoProgress: "no_progress",
 
@@ -1089,8 +1099,8 @@ export const StallReason = {
      * is the fan-out.
      * 
      * It is a SERVER-venue reason. The local venue reads the same recipe as
-     * monolingual — the front door, where one language is the answer rather than
-     * a missing setting — and reconciles the source alone, reporting the run as
+     * monolingual, the front door, where one language is the answer rather than
+     * a missing setting, and reconciles the source alone, reporting the run as
      * monolingual instead of stalled.
      */
     StallNoTargetLocales: "no_target_locales",

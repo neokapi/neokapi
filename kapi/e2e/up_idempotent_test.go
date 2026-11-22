@@ -43,19 +43,105 @@ Install the tool, then run it in your project.
 - Choose a [language](https://example.com/languages).
 `
 
+// upTwiceHeldRecipe adds a language whose ship gate the demo provider's drafts
+// cannot clear: nl needs established wording, which only a person gives. Its
+// drafts wait for review in the work directory and no nl file is written.
+const upTwiceHeldRecipe = `version: v1
+name: up-twice-held-e2e
+defaults:
+  source_language: en
+  target_languages: [fr, de, nl]
+  materialize: on-converge
+ship_gates:
+  - when: {locales: [nl]}
+    gate: {established: 100}
+collections:
+  - name: app
+    path: src/messages_en.json
+    target: src/messages_{lang}.json
+  - name: docs
+    path: docs/en/*.md
+    target: docs/{lang}/*.md
+`
+
 // A second `kapi up` over a project the first one converged does nothing: it
-// reports zero passes and changes no byte of the project tree, its state
-// under .kapi/ included, or of the workspace under the data root, where the
-// content memory, terms and context graph live. The one exception is the two
-// "last opened" stamps of the workspace registry (workspaceStamps), so the
-// registry database is compared row by row; every other file is compared
-// byte for byte. A run that rewrites a target, a cache entry or a store with
-// equal content but a new timestamp inside it fails here.
+// changes no byte of the project tree, its state under .kapi/ included, or of
+// the workspace under the data root, where the content memory, terms and
+// context graph live. The one exception is the two "last opened" stamps of
+// the workspace registry (workspaceStamps), so the registry database is
+// compared row by row; every other file is compared byte for byte. A run that
+// rewrites a target, a cache entry or a store with equal content but a new
+// timestamp inside it fails here.
 //
-// The first run must have done the work: every target exists, carries
-// translated text (the demo provider marks it with the language, "⟦fr⟧"), and
-// the run reports what it produced.
+// The first run must have done the work and report what it produced. The
+// second run's summary reports nothing produced. Where a language waits for
+// review, the second run passes over it again and reports the drafts waiting,
+// apart from produced.
 func TestUpTwiceIsANoOp(t *testing.T) {
+	t.Run("converged", func(t *testing.T) {
+		first, second := upTwice(t, upTwiceRecipe, false)
+		require.True(t, first.Converged, "the first run converges")
+		require.Len(t, first.Locales, 2)
+		for _, l := range first.Locales {
+			assert.Equal(t, 100, l.Pct.Translated, "%s is fully translated", l.Locale)
+		}
+		assert.Positive(t, first.Produced, "the first run's summary reports what it wrote")
+		assert.Zero(t, first.WaitingForReview)
+
+		assert.True(t, second.Converged, "the second run is converged")
+		assert.Zero(t, second.Passes, "the second run has nothing to do")
+		assert.Zero(t, second.Produced, "the second run's summary reports nothing produced")
+		assert.Zero(t, second.WaitingForReview)
+	})
+
+	t.Run("drafts wait for review", func(t *testing.T) {
+		first, second := upTwice(t, upTwiceHeldRecipe, true)
+		require.False(t, first.Converged, "nl waits for review")
+		require.Len(t, first.Locales, 3)
+		assert.Positive(t, first.Produced, "the first run's summary reports what it wrote")
+		require.Positive(t, first.WaitingForReview, "the first run holds the nl drafts for review")
+
+		assert.False(t, second.Converged, "nl still waits for review")
+		assert.Positive(t, second.Passes, "the second run passes over nl again")
+		assert.Zero(t, second.Produced, "the second run's summary reports nothing produced")
+		assert.Equal(t, first.WaitingForReview, second.WaitingForReview,
+			"the second run's summary reports the same drafts waiting for review")
+		for _, ev := range second.passes {
+			assert.Zero(t, ev.ProducedDelta, "pass %d of the second run wrote nothing", ev.Pass)
+			assert.Equal(t, first.WaitingForReview, ev.WaitingForReview, "pass %d reports the drafts waiting", ev.Pass)
+		}
+	})
+}
+
+// upTwiceResult is one run's result record and its pass_done events.
+type upTwiceResult struct {
+	Type             string `json:"type"`
+	Pass             int    `json:"pass"`
+	Passes           int    `json:"passes"`
+	Converged        bool   `json:"converged"`
+	Produced         int    `json:"produced"`
+	ProducedDelta    int    `json:"produced_delta"`
+	WaitingForReview int    `json:"waiting_for_review"`
+	Locales          []struct {
+		Locale string `json:"locale"`
+		Pct    struct {
+			Translated int `json:"translated"`
+		} `json:"pct"`
+	} `json:"locales"`
+	passes []upTwiceResult
+}
+
+// upTwice runs `kapi up` twice over a project with recipe and returns both
+// runs' results. It asserts that the first run translated the fr and de
+// targets and that the second run changed no file of the project or the data
+// root.
+//
+// With parked set, a language waits for review, so the second run passes over
+// it again and rewrites its working caches under .kapi/work/. The project is
+// then compared outside that directory, as the cli verify recipe compares it;
+// the data root is still compared whole.
+func upTwice(t *testing.T, recipe string, parked bool) (first, second *upTwiceResult) {
+	t.Helper()
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 	dataRoot, err := filepath.EvalSymlinks(t.TempDir())
@@ -66,36 +152,23 @@ func TestUpTwiceIsANoOp(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "src", "messages_en.json"), source, 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "docs", "en", "guide.md"), []byte(upTwiceGuide), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "kapi.yaml"), []byte(upTwiceRecipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "kapi.yaml"), []byte(recipe), 0o644))
 
 	// The built-in default flow translates with the configured provider; the
 	// demo provider answers offline, with no key. The data root is this test's
 	// own, so its snapshot sees only what these two runs wrote.
-	up := func(args ...string) string {
+	up := func() *upTwiceResult {
 		t.Helper()
-		cmd := exec.Command(kapiBin, append([]string{"up", "-p", "kapi.yaml", "--json"}, args...)...)
+		cmd := exec.Command(kapiBin, "up", "-p", "kapi.yaml", "--json")
 		cmd.Dir = dir
 		cmd.Env = append(append(os.Environ(), isoEnv...),
 			"KAPI_DATA_DIR="+dataRoot, "KAPI_AI_PROVIDER=demo", "ANTHROPIC_API_KEY=", "OPENAI_API_KEY=")
 		out, err := cmd.CombinedOutput()
 		require.NoError(t, err, "kapi up failed:\n%s", out)
-		return string(out)
-	}
-	type upEvent struct {
-		Type      string `json:"type"`
-		Passes    int    `json:"passes"`
-		Converged bool   `json:"converged"`
-		Produced  int    `json:"produced"`
-		Locales   []struct {
-			Locale string `json:"locale"`
-			Pct    struct {
-				Translated int `json:"translated"`
-			} `json:"pct"`
-		} `json:"locales"`
-	}
-	events := func(out string) (result *upEvent, produced int) {
-		for line := range strings.Lines(out) {
-			var e upEvent
+		var result *upTwiceResult
+		var passes []upTwiceResult
+		for line := range strings.Lines(string(out)) {
+			var e upTwiceResult
 			if json.Unmarshal([]byte(line), &e) != nil {
 				continue
 			}
@@ -103,21 +176,16 @@ func TestUpTwiceIsANoOp(t *testing.T) {
 			case "result":
 				result = &e
 			case "pass_done":
-				produced = max(produced, e.Produced)
+				passes = append(passes, e)
 			}
 		}
-		return result, produced
+		require.NotNil(t, result, "the run reports a result:\n%s", out)
+		result.passes = passes
+		return result
 	}
 
-	first, produced := events(up())
-	require.NotNil(t, first, "the first run reports a result")
-	require.True(t, first.Converged, "the first run converges")
+	first = up()
 	require.GreaterOrEqual(t, first.Passes, 1, "the first run did a pass")
-	require.Positive(t, produced, "the first run produced translations")
-	require.Len(t, first.Locales, 2)
-	for _, l := range first.Locales {
-		assert.Equal(t, 100, l.Pct.Translated, "%s is fully translated", l.Locale)
-	}
 	for _, target := range []struct{ path, lang string }{
 		{"src/messages_fr.json", "fr"}, {"src/messages_de.json", "de"},
 		{"docs/fr/guide.md", "fr"}, {"docs/de/guide.md", "de"},
@@ -131,18 +199,26 @@ func TestUpTwiceIsANoOp(t *testing.T) {
 	beforeRows := workspaceRows(t, filepath.Join(dataRoot, workspaceDB))
 	require.NotEmpty(t, beforeRows["workspace_projects"], "the run registered the project")
 
-	second, _ := events(up())
-	require.NotNil(t, second, "the second run reports a result")
-	assert.True(t, second.Converged, "the second run is converged")
-	assert.Zero(t, second.Passes, "the second run has nothing to do")
+	second = up()
 
-	assertUnchanged(t, "project", beforeTree, snapshotTree(t, dir))
+	afterTree := snapshotTree(t, dir)
+	if parked {
+		for _, tree := range []map[string]string{beforeTree, afterTree} {
+			for path := range tree {
+				if strings.HasPrefix(path, ".kapi/work/") {
+					delete(tree, path)
+				}
+			}
+		}
+	}
+	assertUnchanged(t, "project", beforeTree, afterTree)
 	afterData := snapshotTree(t, dataRoot)
 	delete(beforeData, workspaceDB)
 	delete(afterData, workspaceDB)
 	assertUnchanged(t, "data root", beforeData, afterData)
 	assert.Equal(t, beforeRows, workspaceRows(t, filepath.Join(dataRoot, workspaceDB)),
 		"the second run changed a row of the workspace registry beyond its last-opened stamps")
+	return first, second
 }
 
 // assertUnchanged reports every file the second run created, removed or

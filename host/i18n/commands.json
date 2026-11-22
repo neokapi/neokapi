@@ -3672,7 +3672,7 @@
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
             },
             "provider": {
-              "usage": "AI provider (anthropic, openai, ollama)"
+              "usage": "AI provider: anthropic, openai, gemini, azureopenai, claude-code, ollama, demo. demo works offline with no credentials and writes illustrative output, for trying kapi"
             },
             "source-lang": {
               "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
@@ -3899,7 +3899,7 @@
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
             },
             "provider": {
-              "usage": "AI provider (anthropic, openai, ollama)"
+              "usage": "AI provider: anthropic, openai, gemini, azureopenai, claude-code, ollama, demo. demo works offline with no credentials and writes illustrative output, for trying kapi"
             },
             "source-lang": {
               "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
@@ -4364,7 +4364,7 @@
           "short": "List available processing tools"
         },
         "translate": {
-          "example": "  kapi translate messages.json --target-lang fr\n  kapi translate docs/*.md --target-lang de -o out/{name}_{lang}.{ext}\n  kapi translate app.xliff --target-lang ja --provider ollama",
+          "example": "  kapi translate messages.json --target-lang fr\n  kapi translate docs/*.md --target-lang de -o out/{name}_{lang}.{ext}\n  kapi translate app.xliff --target-lang ja --provider ollama\n  kapi translate messages.json --target-lang fr --provider demo",
           "flags": {
             "api-key": {
               "usage": "API key for the AI provider"
@@ -4427,7 +4427,7 @@
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
             },
             "provider": {
-              "usage": "AI provider (anthropic, openai, ollama)"
+              "usage": "AI provider: anthropic, openai, gemini, azureopenai, claude-code, ollama, demo. demo works offline with no credentials and writes illustrative output, for trying kapi"
             },
             "source-lang": {
               "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
@@ -4604,7 +4604,7 @@
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
             },
             "provider": {
-              "usage": "AI provider (anthropic, openai, ollama)"
+              "usage": "AI provider: anthropic, openai, gemini, azureopenai, claude-code, ollama, demo. demo works offline with no credentials and writes illustrative output, for trying kapi"
             },
             "recycle-only": {
               "usage": "fill only the targets the content memory answers exactly, in one pass, with no provider calls"
