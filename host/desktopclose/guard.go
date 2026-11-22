@@ -91,7 +91,10 @@ type Guard struct {
 	state    State
 	route    Route
 	stopWait func() bool
-	closers  map[Route]func()
+	// onSettled runs, with the lock held, when a held close is answered and
+	// the guard is back at idle (ExitOnSecondSignal resets its count there).
+	onSettled func()
+	closers   map[Route]func()
 }
 
 // SetClosers sets how a confirmed close finishes: closeWindow closes the
@@ -229,6 +232,9 @@ func (g *Guard) resetLocked() {
 	g.stopWaitLocked()
 	g.state = StateIdle
 	g.route = ""
+	if g.onSettled != nil {
+		g.onSettled()
+	}
 }
 
 func (g *Guard) blockersLocked() []Blocker {
