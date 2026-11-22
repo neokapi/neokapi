@@ -125,8 +125,8 @@ func TestStoreReadsCreateNoStore(t *testing.T) {
 	}
 }
 
-// A read command in a project nothing has opened yet creates nothing: no work
-// directory and no workspace entry.
+// A read command in a project nothing has opened yet answers from an empty
+// store and creates nothing: no work directory and no workspace entry.
 func TestStoreReadsInAFreshProjectCreateNothing(t *testing.T) {
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
@@ -138,16 +138,20 @@ defaults:
   source_language: en
   target_languages: [fr]
 `), 0o644))
-	for _, args := range [][]string{
-		{"memory", "lookup", "Hello", "-t", "fr"},
-		{"terms", "lookup", "hello", "-t", "fr"},
+	for _, tc := range []struct {
+		args []string
+		says string
+	}{
+		{[]string{"memory", "lookup", "Hello", "-t", "fr"}, "No matches"},
+		{[]string{"terms", "stats"}, "Concepts:"},
 	} {
+		args := tc.args
 		cmd := exec.Command(kapiBin, append(args, "-p", ".")...)
 		cmd.Dir = dir
 		cmd.Env = append(append(os.Environ(), isoEnv...), "KAPI_DATA_DIR="+dataRoot)
 		out, err := cmd.CombinedOutput()
-		require.Error(t, err, "kapi %v must fail:\n%s", args, out)
-		assert.Contains(t, string(out), "yet", "kapi %v says the project has no store yet:\n%s", args, out)
+		require.NoError(t, err, "kapi %v:\n%s", args, out)
+		assert.Contains(t, string(out), tc.says, "kapi %v answers from an empty store:\n%s", args, out)
 		assert.NoDirExists(t, filepath.Join(dir, ".kapi"), "kapi %v created a work directory", args)
 		entries, rerr := os.ReadDir(dataRoot)
 		require.NoError(t, rerr)
