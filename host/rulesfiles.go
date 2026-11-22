@@ -193,7 +193,7 @@ func (a *App) WriteRulesFiles(ctx context.Context, recipePath string) (*RulesFil
 	}
 	rulesFilesMu.Lock()
 	defer rulesFilesMu.Unlock()
-	return writeRulesPlan(projectWrites{}, root, plan)
+	return writeRulesPlan(projectWrites{root: root}, root, plan)
 }
 
 // PreviewRulesFiles reports what WriteRulesFiles would do to each rules file
@@ -207,7 +207,7 @@ func (a *App) PreviewRulesFiles(ctx context.Context, recipePath string) (*RulesF
 	if err != nil {
 		return nil, err
 	}
-	return writeRulesPlan(projectWrites{dry: true}, root, plan)
+	return writeRulesPlan(projectWrites{dry: true, root: root}, root, plan)
 }
 
 // RefreshRulesFiles rewrites the rules files of a project that has them: one
@@ -1085,7 +1085,7 @@ func (a *App) PlanRulesFiles(ctx context.Context, recipePath string) ([]RulesFil
 		agents := filepath.Join(root, filepath.FromSlash(dir), "AGENTS.md")
 		claude := filepath.Join(root, filepath.FromSlash(dir), "CLAUDE.md")
 		for _, path := range []string{agents, claude} {
-			doc, rerr := os.ReadFile(path)
+			doc, rerr := projectWrites{root: root}.read(path)
 			if path == claude && (sameInode(agents, claude) || (rerr == nil && agentrules.ImportsAgents(doc))) {
 				continue
 			}
@@ -1113,7 +1113,7 @@ func writeFolderRules(w projectWrites, root, dir, section string) ([]RulesFile, 
 			if sameInode(agents, claude) {
 				continue
 			}
-			if doc, err := os.ReadFile(claude); err == nil && agentrules.ImportsAgents(doc) {
+			if doc, err := w.read(claude); err == nil && agentrules.ImportsAgents(doc) {
 				action, rerr := removeRulesSection(w, claude)
 				if rerr != nil {
 					return out, rerr
@@ -1136,7 +1136,7 @@ func writeFolderRules(w projectWrites, root, dir, section string) ([]RulesFile, 
 // upsertRulesSection writes section into the file at path, creating it when
 // it does not exist.
 func upsertRulesSection(w projectWrites, path, section string) (RulesFileAction, error) {
-	doc, err := os.ReadFile(path)
+	doc, err := w.read(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		if werr := w.writeFile(path, []byte(section)); werr != nil {
 			return "", werr
@@ -1163,7 +1163,7 @@ func upsertRulesSection(w projectWrites, path, section string) (RulesFileAction,
 // the file when nothing else is in it. It reports "" when the file holds no
 // section.
 func removeRulesSection(w projectWrites, path string) (RulesFileAction, error) {
-	doc, err := os.ReadFile(path)
+	doc, err := w.read(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return "", nil
 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/neokapi/neokapi/core/ignore"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // MatchGlob reports whether path matches the doublestar glob pattern (same
@@ -244,7 +245,18 @@ func (w *globWalker) walk(rel, abs string, states []globState) {
 		isDir := e.IsDir()
 		isLink := e.Type()&os.ModeSymlink != 0
 		var linkErr error
-		if isLink && (w.opts.FilesOnly || w.followsLink(states, name)) {
+		// A link that leads out of the root is never listed and never read
+		// through, whatever the pattern: its content is not the project's.
+		escaped := false
+		// A link to a missing file is left to the stat below, which reports it.
+		if isLink {
+			if _, serr := os.Stat(childAbs); serr == nil {
+				if _, cerr := rootpath.Contain(w.root, childAbs); cerr != nil {
+					escaped, linkErr = true, cerr
+				}
+			}
+		}
+		if isLink && !escaped && (w.opts.FilesOnly || w.followsLink(states, name)) {
 			info, serr := os.Stat(childAbs)
 			switch {
 			case serr != nil:
@@ -266,7 +278,7 @@ func (w *globWalker) walk(rel, abs string, states []globState) {
 		}
 
 		// emit is decided once per entry: whether a completed match is kept.
-		emit := !w.opts.FilesOnly || (!isDir && linkErr == nil)
+		emit := !escaped && (!w.opts.FilesOnly || (!isDir && linkErr == nil))
 		checked, unreadable := false, false
 		descend := false
 		w.stamp++
@@ -284,7 +296,7 @@ func (w *globWalker) walk(rel, abs string, states []globState) {
 				checked = true
 				if w.excluded(childRel) {
 					emit = false
-				} else if w.opts.FilesOnly && linkErr != nil && !errors.Is(linkErr, errLinkedDir) {
+				} else if escaped || (w.opts.FilesOnly && linkErr != nil && !errors.Is(linkErr, errLinkedDir)) {
 					unreadable = true
 				}
 			}

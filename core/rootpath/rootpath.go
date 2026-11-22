@@ -169,6 +169,20 @@ func CreateRegular(root, p string) (*os.File, error) {
 	return f, nil
 }
 
+// Remove removes the file p beneath root through os.Root, so a link that
+// leads out of root, even one put in place after a check, is refused.
+func Remove(root, p string) error {
+	r, rel, err := openRoot(root, p)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	if err := r.Remove(rel); err != nil {
+		return explain(root, p, err)
+	}
+	return nil
+}
+
 // openRoot opens root and returns p relative to it.
 func openRoot(root, p string) (*os.Root, string, error) {
 	absRoot, err := filepath.Abs(root)

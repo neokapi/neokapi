@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/diffscope"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/pmezard/go-difflib/difflib"
 )
 
@@ -93,7 +95,7 @@ type commentFileResult struct {
 // sourceLocale is the language that check reads the file in. A command-line run
 // passes "" and gets the language the invocation settled on; an MCP call passes
 // the language of the project it named, which the App does not hold.
-func (a *App) applyComments(ctx context.Context, cmd Command, entries []changeEntry, preview bool, backupSuffix string, trust *formatterTrust, sourceLocale string) []commentFileResult {
+func (a *App) applyComments(ctx context.Context, cmd Command, entries []changeEntry, preview bool, backupSuffix string, trust *formatterTrust, sourceLocale, root string) []commentFileResult {
 	a.InitRegistries()
 	byFile := map[string][]changeEntry{}
 	var order []string
@@ -107,7 +109,7 @@ func (a *App) applyComments(ctx context.Context, cmd Command, entries []changeEn
 	canaries := map[string]error{}
 	results := make([]commentFileResult, 0, len(order))
 	for _, file := range order {
-		w := &commentFileWrite{app: a, cmd: cmd, file: file, entries: byFile[file], preview: preview, backupSuffix: backupSuffix, trust: trust, sourceLocale: sourceLocale}
+		w := &commentFileWrite{app: a, cmd: cmd, file: file, entries: byFile[file], preview: preview, backupSuffix: backupSuffix, trust: trust, sourceLocale: sourceLocale, root: root}
 		w.result = commentFileResult{File: file, Edits: make([]commentEdit, len(w.entries))}
 		for i, e := range w.entries {
 			w.result.Edits[i] = commentEdit{ID: e.ID}
@@ -137,7 +139,11 @@ type commentFileWrite struct {
 	// sourceLocale is the language the check of the written comments reads the
 	// file in, empty when the run resolved none of its own.
 	sourceLocale string
-	result       commentFileResult
+	// root is the project's root, empty outside a project. A file beneath it
+	// is written, and backed up, through rootpath and an os.Root rename, so a
+	// link that leads out of the project is refused rather than followed.
+	root   string
+	result commentFileResult
 }
 
 // notRun marks every edit not already refused or unchanged as did-not-run.
@@ -313,12 +319,13 @@ func (w *commentFileWrite) write(src, out []byte) *writeError {
 		return &writeError{reasonIO, err.Error()}
 	}
 	mode := info.Mode().Perm()
+	inRoot := w.root != "" && under(w.root, w.file)
 	if w.backupSuffix != "" {
-		if err := os.WriteFile(w.file+w.backupSuffix, src, mode); err != nil {
+		if err := w.writeBackup(src, mode, inRoot); err != nil {
 			return &writeError{reasonIO, "write backup: " + err.Error()}
 		}
 	}
-	file, err := atomicfile.ReplaceBytes(w.file, out)
+	file, err := w.replace(out, inRoot)
 	if err != nil {
 		return &writeError{reasonIO, err.Error()}
 	}
@@ -415,4 +422,48 @@ func (a *App) checkWrittenComments(ctx context.Context, cmd Command, file, diff,
 		voice: voice,
 		vocab: vocab,
 	})
+}
+
+// writeBackup writes the bytes the rewrite replaces beside the file, through
+// rootpath when the file lies in the project.
+func (w *commentFileWrite) writeBackup(src []byte, mode os.FileMode, inRoot bool) error {
+	if !inRoot {
+		return os.WriteFile(w.file+w.backupSuffix, src, mode)
+	}
+	f, err := rootpath.CreateRegular(w.root, w.file+w.backupSuffix)
+	if err != nil {
+		return err
+	}
+	if err := f.Chmod(mode); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if _, err := f.Write(src); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
+}
+
+// replace puts out in place of the file atomically and returns the file the
+// bytes landed on. A file in the project is renamed through an os.Root opened
+// on the project root (atomicfile.Staged.CommitWithin).
+func (w *commentFileWrite) replace(out []byte, inRoot bool) (string, error) {
+	if !inRoot {
+		return atomicfile.ReplaceBytes(w.file, out)
+	}
+	if _, err := rootpath.Contain(w.root, w.file); err != nil {
+		return "", err
+	}
+	s, err := atomicfile.Stage(w.file, func(dst io.Writer) error {
+		_, err := dst.Write(out)
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+	if err := s.CommitWithin(w.root); err != nil {
+		return "", err
+	}
+	return s.Target(), nil
 }

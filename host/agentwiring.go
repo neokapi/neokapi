@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -16,6 +17,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // Wiring a project up for the coding agents that work in it.
@@ -393,7 +395,7 @@ func WriteAgentWiring(opts AgentWiringOptions) (*AgentWiringResult, error) {
 		recipe = project.RecipeFileName
 	}
 	entry := kapiMCPEntry(recipe, opts.Tools)
-	w := projectWrites{dry: opts.DryRun}
+	w := projectWrites{dry: opts.DryRun, root: opts.Root}
 
 	res := &AgentWiringResult{}
 	for _, host := range agentHostOrder {
@@ -584,7 +586,7 @@ func codexMCPServerArgs(path string) []string {
 func upsertMCPServerEntry(w projectWrites, path, serversKey string, entry mcpServerEntry) (AgentWiringFile, error) {
 	out := AgentWiringFile{Detail: describeMCPEntry(entry)}
 
-	raw, err := os.ReadFile(path)
+	raw, err := w.read(path)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 		doc, merr := marshalMCPConfig(map[string]json.RawMessage{}, serversKey, map[string]json.RawMessage{}, entry)
@@ -674,7 +676,7 @@ func upsertCodexMCPServerEntry(w projectWrites, path string, entry mcpServerEntr
 	out := AgentWiringFile{Detail: describeMCPEntry(entry)}
 	block := codexMCPServerBlock(entry)
 
-	raw, err := os.ReadFile(path)
+	raw, err := w.read(path)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 		if werr := w.write(path, []byte(block)); werr != nil {
@@ -862,7 +864,7 @@ func writeOneSkill(w projectWrites, dir string, skill fs.FS, retired func([]byte
 		}
 		count++
 		target := filepath.Join(dir, filepath.FromSlash(rel))
-		held, herr := os.ReadFile(target)
+		held, herr := w.read(target)
 		switch {
 		case errors.Is(herr, fs.ErrNotExist):
 			created++
@@ -925,7 +927,7 @@ func sweepSkillDir(w projectWrites, dir string, shipped map[string]bool, retired
 		if shipped[rel] {
 			return nil
 		}
-		body, rerr := os.ReadFile(p)
+		body, rerr := w.read(p)
 		if rerr != nil {
 			return fmt.Errorf("read %s: %w", p, rerr)
 		}
@@ -958,12 +960,35 @@ func sweepSkillDir(w projectWrites, dir string, shipped map[string]bool, retired
 // projectWrites writes and removes the files of one wiring run. A dry run
 // does neither, so the run reports what it would do and the tree stays as it
 // is.
-type projectWrites struct{ dry bool }
+//
+// With root set, every read, write and removal goes through rootpath, so a
+// symbolic link in the project that leads out of root is refused rather than
+// followed.
+type projectWrites struct {
+	dry  bool
+	root string
+}
+
+// read reads one file.
+func (w projectWrites) read(path string) ([]byte, error) {
+	if w.root == "" {
+		return os.ReadFile(path)
+	}
+	f, err := rootpath.OpenRegular(w.root, path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(f)
+}
 
 // write writes one file, creating the directories above it.
 func (w projectWrites) write(path string, body []byte) error {
 	if w.dry {
 		return nil
+	}
+	if w.root != "" {
+		return w.create(path, body)
 	}
 	return writeProjectFile(path, body)
 }
@@ -973,13 +998,32 @@ func (w projectWrites) writeFile(path string, body []byte) error {
 	if w.dry {
 		return nil
 	}
+	if w.root != "" {
+		return w.create(path, body)
+	}
 	return os.WriteFile(path, body, 0o644)
+}
+
+// create writes one file beneath root through rootpath.
+func (w projectWrites) create(path string, body []byte) error {
+	f, err := rootpath.CreateRegular(w.root, path)
+	if err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	if _, err := f.Write(body); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return f.Close()
 }
 
 // remove removes one file.
 func (w projectWrites) remove(path string) error {
 	if w.dry {
 		return nil
+	}
+	if w.root != "" {
+		return rootpath.Remove(w.root, path)
 	}
 	return os.Remove(path)
 }

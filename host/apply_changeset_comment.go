@@ -302,7 +302,7 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 	}
 	// The preview runs every rewrite and writes nothing, so a refusal in any
 	// file refuses the whole change set before one comment is written.
-	preview := a.applyComments(ctx, cmd, entries, true, "", trust, "")
+	preview := a.applyComments(ctx, cmd, entries, true, "", trust, "", root)
 	byOp := commentOutcomes(ops, preview)
 	for _, o := range ops {
 		if e := byOp[o.i]; e != nil && (e.Status == commentRefused || (e.Status == commentNotRun && e.Reason != reasonPreview)) {
@@ -330,7 +330,7 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 		return res, preview, nil
 	}
 
-	results := a.applyComments(ctx, cmd, entries, false, backup, trust, "")
+	results := a.applyComments(ctx, cmd, entries, false, backup, trust, "", root)
 	byOp = commentOutcomes(ops, results)
 	written := false
 	for _, f := range results {

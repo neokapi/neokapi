@@ -31,6 +31,7 @@ import (
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/ref/refcache"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/venue"
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/host"
@@ -1883,7 +1884,7 @@ func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []it
 		}
 		coreproj.WireReadSkeleton(c.formatReg, formatName, reader)
 
-		f, err := os.Open(absPath)
+		f, err := rootpath.OpenRegular(c.project.Root, absPath)
 		if err != nil {
 			reader.Close()
 			continue
@@ -1981,7 +1982,7 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 	// the same way gives the venue the block ids they name.
 	coreproj.WireReadSkeleton(c.formatReg, formatName, reader)
 
-	f, err := os.Open(filePath)
+	f, err := rootpath.OpenRegular(c.project.Root, filePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open file %s: %w", filePath, err)
 	}
@@ -2199,7 +2200,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 		defer skelStore.Close()
 	}
 
-	f, err := os.Open(sourcePath)
+	f, err := rootpath.OpenRegular(c.project.Root, sourcePath)
 	if err != nil {
 		return fmt.Errorf("open source file %s: %w", sourcePath, err)
 	}
@@ -2237,7 +2238,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 	if sps, ok := writer.(format.SourcePathSetter); ok {
 		sps.SetSourcePath(sourcePath)
 	} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
-		srcBytes, err := os.ReadFile(sourcePath)
+		srcBytes, err := readInRoot(c.project.Root, sourcePath)
 		if err != nil {
 			return fmt.Errorf("read source for writer: %w", err)
 		}
@@ -2609,4 +2610,15 @@ func allScannedBlocks(blockMap map[string][]*model.Block) []*model.Block {
 		all = append(all, blocks...)
 	}
 	return all
+}
+
+// readInRoot reads the file at path when it is a regular file that resolves
+// inside root (rootpath.OpenRegular).
+func readInRoot(root, path string) ([]byte, error) {
+	f, err := rootpath.OpenRegular(root, path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(f)
 }

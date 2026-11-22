@@ -467,7 +467,7 @@ func (a *App) connectRulesFiles(ctx context.Context, root, recipe string, haveRe
 	)
 	switch {
 	case !haveRecipe:
-		res, err = writeRulesPlan(projectWrites{dry: true}, root, rulesPlan{})
+		res, err = writeRulesPlan(projectWrites{dry: true, root: root}, root, rulesPlan{})
 	case dry:
 		res, err = a.PreviewRulesFiles(ctx, recipe)
 	default:
