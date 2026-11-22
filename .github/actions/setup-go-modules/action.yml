@@ -15,9 +15,23 @@ inputs:
       that differ from plain `go build` output. Sharing one key across both
       (as setup-go's built-in cache did) meant every job restored a blob that
       rarely matched, so the framework recompiled near-cold in 7+ jobs. Use
-      "race" for `make test-*` jobs and "plain" for build/tidy jobs.
+      "race" for `make test-*` jobs and "plain" for build/tidy jobs. A "race"
+      job on a pull request reads the "pr" flavor, which the job `Warm the pull
+      request build cache` saves on main.
     required: false
     default: race
+  save-cache:
+    description: >
+      Whether the job saves the caches it restored: "true", "false", or "auto",
+      which saves on every event except pull_request. A pull request can read a
+      cache saved on main or on its own branch and no other, so a cache a pull
+      request saves serves only its own later pushes while counting against the
+      repository's 10 GiB, where it evicts the caches on main that every pull
+      request reads. Pass "false" from a job that reads a flavor another job
+      owns: every job of a run writes the same key, and the first to finish
+      wins.
+    required: false
+    default: auto
   modules:
     description: >
       Space-separated module directories to `go mod download`, or "all" for the
@@ -46,9 +60,9 @@ runs:
 
     # Effective build-cache flavor. On pull_request the test jobs build WITHOUT
     # -race (see the Makefile's event-aware profile), so their object files
-    # differ from the race-instrumented push/nightly build. Key them under a
-    # separate "pr" flavor so the two never thrash one another's cache; PR runs
-    # self-warm from the previous PR via the restore-keys prefix. Jobs that pass
+    # differ from the race-instrumented push/nightly build. They read a separate
+    # "pr" flavor, which the warm job in ci.yml saves on main: a cache one pull
+    # request saves is out of every other pull request's reach. Jobs that pass
     # an explicit non-"race" flavor (e.g. "plain" for build/tidy) are untouched.
     - name: Resolve build-cache flavor
       id: flavor
@@ -63,7 +77,30 @@ runs:
           echo "value=$REQUESTED" >> "$GITHUB_OUTPUT"
         fi
 
-    - name: Restore module download cache (flavor-independent)
+    - name: Resolve whether to save the caches
+      id: save
+      shell: bash
+      env:
+        REQUESTED: ${{ inputs.save-cache }}
+        EVENT: ${{ github.event_name }}
+      run: |
+        case "$REQUESTED" in
+          true | false) echo "value=$REQUESTED" >> "$GITHUB_OUTPUT" ;;
+          auto)
+            if [ "$EVENT" = "pull_request" ]; then
+              echo "value=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "value=true" >> "$GITHUB_OUTPUT"
+            fi
+            ;;
+          *)
+            echo "::error::save-cache must be auto, true or false, not '$REQUESTED'"
+            exit 1
+            ;;
+        esac
+
+    - name: Restore and save module download cache (flavor-independent)
+      if: steps.save.outputs.value == 'true'
       uses: actions/cache@v6
       with:
         path: ${{ steps.gocache.outputs.mod }}
@@ -71,12 +108,31 @@ runs:
         restore-keys: |
           go-mod-${{ runner.os }}-
 
-    - name: Restore build cache (flavor-scoped)
+    - name: Restore module download cache
+      if: steps.save.outputs.value != 'true'
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ steps.gocache.outputs.mod }}
+        key: go-mod-${{ runner.os }}-${{ hashFiles('go.sum', 'host/go.sum', 'cli/go.sum', 'kapi/go.sum', 'apps/kapi-desktop/go.sum', 'bowrain/go.sum', 'bowrain/core/go.sum', 'bowrain/plugin/go.sum') }}
+        restore-keys: |
+          go-mod-${{ runner.os }}-
+
+    - name: Restore and save build cache (flavor-scoped)
+      if: steps.save.outputs.value == 'true'
       uses: actions/cache@v6
       with:
         path: ${{ steps.gocache.outputs.build }}
         # SHA-suffixed key always saves a fresh post-build cache; restore-keys
         # warms it from the most recent run of the same flavor + Go version.
+        key: go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-${{ github.sha }}
+        restore-keys: |
+          go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-
+
+    - name: Restore build cache
+      if: steps.save.outputs.value != 'true'
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ steps.gocache.outputs.build }}
         key: go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-${{ github.sha }}
         restore-keys: |
           go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-
