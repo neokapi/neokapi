@@ -34,7 +34,7 @@ export default defineConfig({
         // binding at load time before the other chunk has assigned it. The
         // load fails, the lazy import in useApi swallows it, and every backend
         // call returns null: the app renders with empty lists and no error.
-        advancedChunks: {
+        codeSplitting: {
           groups: [{ name: "wails", test: /@wailsio\/runtime|\/bindings\// }],
         },
       },
