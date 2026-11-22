@@ -30,7 +30,7 @@ describe("RunnerPage", () => {
 
   it("shows input file selector", () => {
     renderWithProviders(<RunnerPage {...defaultProps} />);
-    expect(screen.getByText("Select files...")).toBeInTheDocument();
+    expect(screen.getByText("Select files…")).toBeInTheDocument();
   });
 
   it("shows target language input", () => {

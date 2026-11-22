@@ -34,11 +34,28 @@ type ContextObject struct {
 	Data []byte
 	// SHA256 is the hex digest of Data, which the store computes on put.
 	SHA256 string
-	// PushedBy is the member whose push created the object.
-	PushedBy string
+	// PushedBy is who pushed the object: the member, and the tool when the
+	// member's tool token made the push.
+	PushedBy Pusher
 	// PushedAt is when the object was created.
 	PushedAt time.Time
 }
+
+// Pusher is who created a context object. A server reads every operation of
+// a segment a tool pushed as the tool's, issued by UserID, whatever actor the
+// operation names.
+type Pusher struct {
+	// UserID is the member: the person who pushed, or the member who issued
+	// the tool's token.
+	UserID string
+	// Tool is the tool's name when a tool token made the push, and TokenID
+	// the token's id. Both stay on the object after the token is revoked.
+	Tool    string
+	TokenID string
+}
+
+// Member returns a pusher that is the member userID in person.
+func Member(userID string) Pusher { return Pusher{UserID: userID} }
 
 // ContextObjectStore holds the objects a project's context is shared through.
 // An object is created once: a put of a name the project holds with the same
@@ -57,7 +74,7 @@ type ContextObjectStore interface {
 	// of the batch is written and the error is a *ContextObjectExistsError
 	// naming it. A blob whose name is not the address of its bytes is
 	// refused before anything is written.
-	PutContextObjects(ctx context.Context, projectID, pushedBy string, batch []ContextObject) error
+	PutContextObjects(ctx context.Context, projectID string, pushedBy Pusher, batch []ContextObject) error
 	// DigestContextObjects returns the SHA256 digest of every object under
 	// dir, keyed by name. A reader compares it with the list it read before
 	// to learn which objects are new without reading any of them.

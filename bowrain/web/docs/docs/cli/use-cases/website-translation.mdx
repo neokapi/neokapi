@@ -5,17 +5,18 @@ sidebar_label: Website Translation
 
 # Use case: a website in several languages
 
-This guide walks through carrying a website's content into several languages
-with kapi (with the bowrain plugin) and, optionally, a Bowrain workspace for
-review. A language is one more coordinate: the same context that governs the
-source governs each target.
+Carry a website's content into several languages from its repository with
+kapi and the bowrain plugin, and, if you want reviewers in the browser, review
+the drafts in a Bowrain workspace. A language is one more coordinate, so the
+context that governs the source governs each target too.
 
 ## Overview
 
-1. **CLI**: initialize a project and map your website's files
-2. **CLI**: converge with `kapi up`: AI drafting, content-memory recycling, and checks against your terms and voice
-3. **CLI**: review locally, or push to a workspace and review in the session
-4. **CLI**: keep the project in step with the workspace
+1. Initialize a project and map your website's files.
+2. Catch up with `kapi up`: AI drafting, content-memory reuse, and checks
+   against your terms and voice profile.
+3. Review locally, or push to a workspace and review in the session.
+4. Keep the project in step with the workspace.
 
 ## Step 1: initialize the project
 
@@ -53,9 +54,11 @@ collections:
     format: json
 ```
 
-## Step 2: converge with `kapi up`
+## Step 2: catch up with `kapi up`
 
-`kapi up` is the convergence verb: it brings every target language up to date against the current source, drafting with AI, recycling from content memory, and running the checks, and is safe to re-run whenever the source changes.
+`kapi up` brings every target language up to date with the current source. It
+reuses content memory, drafts the rest with AI and runs the checks. Re-run it
+whenever the source changes.
 
 ```bash
 # Bring every target language up to date against the source
@@ -89,7 +92,7 @@ steps:
 
 ### Tools and flows
 
-kapi tools and flows are composable pipelines that run on your local files:
+kapi tools and flows run on your local files:
 
 - **`kapi exec translate`**: draft with an AI provider
 - **`kapi exec recycle`**: pre-fill targets from content memory
@@ -97,7 +100,7 @@ kapi tools and flows are composable pipelines that run on your local files:
 - **`kapi exec term-check`**: check the terms in force at each block's point
 - **`kapi run <flow>`**: execute a composed or custom multi-tool flow
 
-Tools and flows automatically process all files matching your recipe's `collections:`.
+Tools and flows process every file that matches your recipe's `collections:`.
 
 ## Step 3: review
 
@@ -105,10 +108,11 @@ Locally, `kapi status --review` lists the translated blocks awaiting a
 decision, and `kapi apply` records one in the project's decision ledger, where
 every checkout reads it.
 
-For a reviewer who works in a browser, connect the project to a workspace
-(step 4) and use the [review session](/server/review): source and draft side
-by side, the checks and the terms inline, bulk approval of everything that
-passes, and a per-locale ship state that says what can go out today.
+For a reviewer who works in a browser or in the desktop app, connect the
+project to a workspace (step 4) and use the [review session](/server/review).
+It shows source and draft side by side, with the checks and the terms inline.
+A reviewer can approve everything that passes in one action, and the per-locale
+ship state shows what can go out today.
 
 ### Using terms
 
@@ -154,7 +158,7 @@ kapi declares its tree on every push, so only changed blocks transfer over the n
 - **Put `recycle` before `translate`** to reuse approved wording before spending credits
 - **Run `kapi pseudo-translate`** first to identify potential UI truncation issues
 - **Use local automations** to run the checks before pushing to a workspace
-- **Commit `kapi.yaml` and `.kapi/`** to git; the context graph belongs in review, and only `.kapi/work/` is gitignored
+- **Commit `kapi.yaml`** to git. `kapi init` keeps `.kapi/`, this checkout's cache, out of git
 - **Check `kapi status`** before pushing to see what changed
 
 ## Related

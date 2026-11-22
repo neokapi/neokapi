@@ -38,7 +38,7 @@ describe("ConvergenceRunView — live locale rows", () => {
     const fr = container.querySelector('[data-locale="fr-FR"]')!;
     expect(fr.getAttribute("data-state")).toBe("done");
     expect(within(fr as HTMLElement).getByText("20/20")).toBeInTheDocument();
-    expect(within(fr as HTMLElement).getByText("Memory 12 · AI 8")).toBeInTheDocument();
+    expect(within(fr as HTMLElement).getByText("Recycled 12 · AI 8")).toBeInTheDocument();
 
     const de = container.querySelector('[data-locale="de-DE"]')!;
     expect(de.getAttribute("data-state")).toBe("running");
@@ -67,12 +67,12 @@ describe("ConvergenceRunView — structured outcome (kapi-desktop)", () => {
         result={{
           converged: false,
           passes: 2,
-          parkedScopes: [{ locale: "de-DE", collection: "docs" }],
+          parked_scopes: [{ locale: "de-DE", collection: "docs" }],
         }}
         onOpenReview={onOpenReview}
       />,
     );
-    expect(screen.getByText(/1 scope\(s\) waiting for review/)).toBeInTheDocument();
+    expect(screen.getByText(/1 scope waiting for review/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Review de-DE · docs" }));
     expect(onOpenReview).toHaveBeenCalledWith({ collection: "docs", locale: "de-DE" });
@@ -82,14 +82,14 @@ describe("ConvergenceRunView — structured outcome (kapi-desktop)", () => {
     render(
       <ConvergenceRunView
         model={liveModel}
-        result={{ converged: true, passes: 1, materializedFiles: 4 }}
+        result={{ converged: true, passes: 1, materialized_files: 4 }}
       />,
     );
     expect(
       screen.getByText("Up to date in 1 pass(es). Every gated locale is shippable."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Materialized 4 localized file(s) from the project store."),
+      screen.getByText("Wrote 4 translated files from the project store."),
     ).toBeInTheDocument();
   });
 
@@ -149,9 +149,9 @@ describe("ConvergenceRunView — source hold", () => {
         result={{
           converged: false,
           passes: 1,
-          blockedOnSource: 12,
-          translateAfter: "established",
-          stallReason: "source_not_ready",
+          blocked_on_source: 12,
+          translate_after: "established",
+          stall_reason: "source_not_ready",
         }}
       />,
     );
@@ -168,7 +168,7 @@ describe("ConvergenceRunView — source hold", () => {
     render(
       <ConvergenceRunView
         model={model}
-        result={{ converged: false, passes: 1, blockedOnSource: 3 }}
+        result={{ converged: false, passes: 1, blocked_on_source: 3 }}
       />,
     );
     const hold = document.querySelector('[data-slot="convergence-source-hold"]');

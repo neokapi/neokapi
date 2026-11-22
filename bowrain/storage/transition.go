@@ -68,3 +68,22 @@ func (db *PgDB) Transition(ctx context.Context, fn func(Runner) error) error {
 	}
 	return nil
 }
+
+// WriteTx is the transaction one write of a store runs in: a *sql.Tx the store
+// began on the pool, or a transition someone else owns (Within).
+type WriteTx interface {
+	Runner
+	Commit() error
+	Rollback() error
+}
+
+// Within wraps a transition a store was bound into as the WriteTx one of its
+// writes runs in. Committing and rolling back belong to the transition's
+// owner, so both are no-ops here: a write that fails returns its error, and
+// the owner rolls the whole transition back.
+func Within(tx Runner) WriteTx { return within{tx} }
+
+type within struct{ Runner }
+
+func (within) Commit() error   { return nil }
+func (within) Rollback() error { return nil }

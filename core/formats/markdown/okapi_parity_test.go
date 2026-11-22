@@ -107,7 +107,7 @@ func TestRead_EscapedHtmlBlockWithMarkdown(t *testing.T) {
 // okapi: MarkdownFilterTest#testExtractImageTitleButNotAltText
 func TestRead_ExtractImageTitleButNotAltText(t *testing.T) {
 	blocks := readBlocksWithConfig(t, "![My Alt](image.png \"My Title\")\n", func(c *markdown.Config) {
-		_ = c.ApplyMap(map[string]any{"translateImageAlt": false})
+		_ = c.ApplyMap(map[string]any{"translate_image_alt": false})
 	})
 	require.NotEmpty(t, blocks)
 	// Alt text should not appear in translatable text
@@ -1020,12 +1020,12 @@ func TestWrite_CustomConfigurationFromString(t *testing.T) {
 	// Native equivalent: verify ApplyMap works correctly.
 	cfg := &markdown.Config{}
 	err := cfg.ApplyMap(map[string]any{
-		"translateCodeBlocks":  true,
-		"translateFrontMatter": true,
-		"translateImageAlt":    false,
-		"translateURLs":        true,
-		"translateBlockQuotes": false,
-		"translateHTMLBlocks":  true,
+		"translate_code_blocks":  true,
+		"translate_front_matter": true,
+		"translate_image_alt":    false,
+		"translate_urls":         true,
+		"translate_block_quotes": false,
+		"translate_html_blocks":  true,
 	})
 	require.NoError(t, err)
 	assert.True(t, cfg.TranslateCodeBlocks)

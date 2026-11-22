@@ -23,7 +23,6 @@ const defaultProps = {
   startHereDismissed: false,
   hasOpenProject: false,
   onDismissStartHere: vi.fn(),
-  onConnectAssistant: vi.fn(),
   onOpenWhatsNew: vi.fn(),
   onOpenCheckout: vi.fn(),
   onOpenContext: vi.fn(),
@@ -59,12 +58,9 @@ const slot = (name: string) => document.querySelector(`[data-slot='${name}']`);
 const slots = (name: string) => Array.from(document.querySelectorAll(`[data-slot='${name}']`));
 
 describe("AppHome", () => {
-  it("opens on your context, with what it is and where the workspace is", () => {
+  it("opens on your context, with where the workspace is", () => {
     render(<AppHome {...defaultProps} />);
     expect(screen.getByRole("heading", { level: 1, name: "Your context" })).toBeInTheDocument();
-    expect(
-      screen.getByText("What your projects write by, and what your assistants noticed."),
-    ).toBeInTheDocument();
     // The location is a value: its last segment, the whole path in the tooltip.
     expect(slot("workspace-location")?.textContent).toBe("default");
     expect(screen.queryByText(/workspaces\/default/)).not.toBeInTheDocument();
@@ -93,7 +89,7 @@ describe("AppHome", () => {
     }
   });
 
-  it("carries no quick tools: the Toolbox is in the sidebar", () => {
+  it("carries no quick tools: flows are in Project Settings", () => {
     render(<AppHome {...defaultProps} workspace={workspaceOf(SEVERAL_ROWS)} />);
     expect(screen.queryByText("Quick tools")).not.toBeInTheDocument();
     expect(screen.queryByText("Design a Flow")).not.toBeInTheDocument();
@@ -146,7 +142,7 @@ describe("AppHome", () => {
     expect(onOpenWhatsNew).toHaveBeenCalledWith("prj_acmehelp");
   });
 
-  it("leaves Start here to carry a first run, without counts or What's new", () => {
+  it("leaves Get started to carry a first run, without counts or What's new", () => {
     render(<AppHome {...defaultProps} />);
     expect(slot("workspace-numbers")).toBeNull();
     expect(slot("whats-new")).toBeNull();
@@ -186,19 +182,19 @@ describe("AppHome", () => {
     expect(slot("workspace-read-only")).toHaveTextContent("Read only");
   });
 
-  it("shows Start here until it is dismissed", async () => {
+  it("shows Get started until it is hidden", async () => {
     const onDismissStartHere = vi.fn();
     const { rerender } = render(
       <AppHome {...defaultProps} onDismissStartHere={onDismissStartHere} />,
     );
-    expect(screen.getByText("Start here")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Dismiss Start here" }));
+    expect(screen.getByText("Get started")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Hide Get started" }));
     expect(onDismissStartHere).toHaveBeenCalled();
     rerender(<AppHome {...defaultProps} startHereDismissed />);
-    expect(screen.queryByText("Start here")).not.toBeInTheDocument();
+    expect(screen.queryByText("Get started")).not.toBeInTheDocument();
   });
 
-  it("creates the sample from Start here", async () => {
+  it("creates the sample from Get started", async () => {
     const onCreateSampleProject = vi.fn();
     render(<AppHome {...defaultProps} onCreateSampleProject={onCreateSampleProject} />);
     await userEvent.click(screen.getByTestId("sample-kapimart"));

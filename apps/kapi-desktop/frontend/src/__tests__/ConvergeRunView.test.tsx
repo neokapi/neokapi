@@ -13,17 +13,25 @@ function ce(event: ConvergeEvent): RunEvent {
 /** A live typed stream: two locales, one done, one mid-flight, pass settled. */
 const liveEvents: RunEvent[] = [
   { type: "state", flow_id: "up", message: "running" },
-  ce({ type: "pass_start", pass: 1, maxPasses: 6, pending: ["fr-FR", "de-DE"] }),
+  ce({ type: "pass_start", pass: 1, max_passes: 6, pending: ["fr-FR", "de-DE"] }),
   ce({ type: "locale_start", pass: 1, locale: "fr-FR", units: 20 }),
-  ce({ type: "locale_done", pass: 1, locale: "fr-FR", units: 20, done: 20, viaTM: 12, viaAI: 8 }),
+  ce({
+    type: "locale_done",
+    pass: 1,
+    locale: "fr-FR",
+    units: 20,
+    done: 20,
+    via_memory: 12,
+    via_ai: 8,
+  }),
   ce({ type: "locale_start", pass: 1, locale: "de-DE", units: 20 }),
-  ce({ type: "unit_progress", pass: 1, locale: "de-DE", done: 9, viaTM: 4, viaAI: 5 }),
+  ce({ type: "unit_progress", pass: 1, locale: "de-DE", done: 9, via_memory: 4, via_ai: 5 }),
   ce({
     type: "pass_done",
     pass: 1,
     produced: 29,
-    producedDelta: 29,
-    failingChecks: 2,
+    produced_delta: 29,
+    failing_checks: 2,
     pending: ["de-DE"],
   }),
 ];
@@ -39,7 +47,7 @@ const completeEvent: RunEvent = {
       { locale: "fr-FR", shippable: true },
       { locale: "de-DE", shippable: false, parked: true },
     ],
-    parkedScopes: [{ locale: "de-DE", collection: "docs" }],
+    parked_scopes: [{ locale: "de-DE", collection: "docs" }],
   },
 };
 
@@ -56,7 +64,7 @@ describe("ConvergeRunView — live locale rows", () => {
     const fr = container.querySelector('[data-locale="fr-FR"]')!;
     expect(fr.getAttribute("data-state")).toBe("done");
     expect(within(fr as HTMLElement).getByText("20/20")).toBeInTheDocument();
-    expect(within(fr as HTMLElement).getByText("Memory 12 · AI 8")).toBeInTheDocument();
+    expect(within(fr as HTMLElement).getByText("Recycled 12 · AI 8")).toBeInTheDocument();
 
     const de = container.querySelector('[data-locale="de-DE"]')!;
     expect(de.getAttribute("data-state")).toBe("running");
@@ -82,7 +90,7 @@ describe("ConvergeRunView — live locale rows", () => {
   it("deep-links a scope waiting for review to the Review page filtered to it", async () => {
     const onOpenReview = vi.fn();
     render(<ConvergeRunView events={[...liveEvents, completeEvent]} onOpenReview={onOpenReview} />);
-    expect(screen.getByText(/1 scope\(s\) waiting for review/)).toBeInTheDocument();
+    expect(screen.getByText(/1 scope waiting for review/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Review de-DE · docs" }));
     expect(onOpenReview).toHaveBeenCalledWith({ collection: "docs", locale: "de-DE" });
@@ -97,7 +105,7 @@ describe("ConvergeRunView — live locale rows", () => {
         passes: 1,
         converged: true,
         locales: [{ locale: "fr-FR", shippable: true }],
-        materializedFiles: 4,
+        materialized_files: 4,
       },
     };
     render(<ConvergeRunView events={[...liveEvents, converged]} />);
@@ -105,7 +113,7 @@ describe("ConvergeRunView — live locale rows", () => {
       screen.getByText("Up to date in 1 pass(es). Every gated locale is shippable."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Materialized 4 localized file(s) from the project store."),
+      screen.getByText("Wrote 4 translated files from the project store."),
     ).toBeInTheDocument();
   });
 

@@ -79,8 +79,8 @@ func TestToFormatInfoParam_ObjectWithOkapiFormat(t *testing.T) {
 		Description: "Inline code detection",
 		OkapiFormat: "inlineCodeFinder",
 	}
-	p := ToFormatInfoParam("codeFinderRules", prop)
-	assert.Equal(t, "codeFinderRules", p.Name)
+	p := ToFormatInfoParam("code_finder_rules", prop)
+	assert.Equal(t, "code_finder_rules", p.Name)
 	assert.Equal(t, "inlineCodeFinder", p.Type)
 	assert.Equal(t, "Inline code detection", p.Description)
 }

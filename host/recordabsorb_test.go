@@ -333,7 +333,7 @@ func newTwoChannelRecordProject(t *testing.T) (a *App, root, recipe string) {
 
 // lookupFrom asks the store the question a fill asks: for this source, at this
 // point, what does the record answer? It is the full-score, unambiguous
-// question a `fillTargetThreshold: 100` policy puts.
+// question a `fill_target_threshold: 100` policy puts.
 func lookupFrom(t *testing.T, a *App, root, source, at string) []memory.Match {
 	t.Helper()
 	db, err := a.ProjectDB(context.Background(), root)

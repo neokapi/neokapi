@@ -19,7 +19,7 @@ const spelledValues = `{
 // An untouched value is written with the bytes it was read with. The writer
 // encoded every value from its text, so each write respelled values nothing
 // had changed: a URL's slashes became `\/` under the default
-// escapeForwardSlashes, and `\u00e9` became `é`.
+// escape_forward_slashes, and `\u00e9` became `é`.
 func TestUntouchedValueKeepsItsSpelling(t *testing.T) {
 	edit := func(b *model.Block) {
 		if text := b.SourceText(); strings.Contains(text, "utilize") {

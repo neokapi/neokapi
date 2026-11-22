@@ -9,118 +9,33 @@ version: 2
 # ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION. The 3-day window clears that gate with
 # margin; majors wait a week. Tune the day counts to taste.
 updates:
-  # ── Framework Go modules (Apache-2.0) ──────────────────────────────────────
+  # ── Go modules ─────────────────────────────────────────────────────────────
+  # Every module in one entry. go.work unifies versions across the workspace, so
+  # a bump in one module has to reach every module that requires the dependency,
+  # or scripts/check-workspace-versions.sh fails the pull request. One entry per
+  # module raised one pull request per module, and none of them could pass
+  # (#3526, #3529). With `directories` and a group, Dependabot raises one pull
+  # request that edits them all.
   - package-ecosystem: gomod
-    directory: /
+    directories:
+      - /
+      - /host
+      - /cli
+      - /kapi
+      - /apps/kapi-desktop
+      - /bowrain/core
+      - /bowrain/plugin
+      - /bowrain
+      - /plugins/*
+      - /scripts/*
+      - /bench/pseudobench
     schedule:
       interval: weekly
       day: monday
     cooldown:
       default-days: 3
       semver-major-days: 7
-    labels: [dependencies, go, framework]
-    open-pull-requests-limit: 10
-    groups:
-      go-minor-patch:
-        update-types: [minor, patch]
-
-  - package-ecosystem: gomod
-    directory: /cli
-    schedule:
-      interval: weekly
-      day: monday
-    cooldown:
-      default-days: 3
-      semver-major-days: 7
-    labels: [dependencies, go, framework]
-    open-pull-requests-limit: 5
-    groups:
-      go-minor-patch:
-        update-types: [minor, patch]
-
-  - package-ecosystem: gomod
-    directory: /kapi
-    schedule:
-      interval: weekly
-      day: monday
-    cooldown:
-      default-days: 3
-      semver-major-days: 7
-    labels: [dependencies, go, framework]
-    open-pull-requests-limit: 5
-    groups:
-      go-minor-patch:
-        update-types: [minor, patch]
-
-  - package-ecosystem: gomod
-    directory: /apps/kapi-desktop
-    schedule:
-      interval: weekly
-      day: monday
-    cooldown:
-      default-days: 3
-      semver-major-days: 7
-    labels: [dependencies, go, framework]
-    open-pull-requests-limit: 5
-    groups:
-      go-minor-patch:
-        update-types: [minor, patch]
-    ignore:
-      - dependency-name: github.com/wailsapp/wails/v3
-        versions: ["3.0.0-alpha.8.3"]
-
-  # ── Bowrain Go modules (AGPL) ──────────────────────────────────────────────
-  - package-ecosystem: gomod
-    directory: /bowrain/core
-    schedule:
-      interval: weekly
-      day: monday
-    cooldown:
-      default-days: 3
-      semver-major-days: 7
-    labels: [dependencies, go, bowrain]
-    open-pull-requests-limit: 5
-    groups:
-      go-minor-patch:
-        update-types: [minor, patch]
-
-  - package-ecosystem: gomod
-    directory: /bowrain/plugin
-    schedule:
-      interval: weekly
-      day: monday
-    cooldown:
-      default-days: 3
-      semver-major-days: 7
-    labels: [dependencies, go, bowrain]
-    open-pull-requests-limit: 5
-    groups:
-      go-minor-patch:
-        update-types: [minor, patch]
-
-  - package-ecosystem: gomod
-    directory: /host/venue/schema
-    schedule:
-      interval: weekly
-      day: monday
-    cooldown:
-      default-days: 3
-      semver-major-days: 7
-    labels: [dependencies, go, bowrain]
-    open-pull-requests-limit: 5
-    groups:
-      go-minor-patch:
-        update-types: [minor, patch]
-
-  - package-ecosystem: gomod
-    directory: /bowrain
-    schedule:
-      interval: weekly
-      day: monday
-    cooldown:
-      default-days: 3
-      semver-major-days: 7
-    labels: [dependencies, go, bowrain]
+    labels: [dependencies, go]
     open-pull-requests-limit: 10
     groups:
       go-minor-patch:
@@ -128,10 +43,22 @@ updates:
     ignore:
       - dependency-name: github.com/wailsapp/wails/v3
         versions: ["3.0.0-alpha.8.3"]
+      # The binding names the onnxruntime API version it was built for, so it
+      # moves with the library scripts/fetch-onnxruntime.sh pins, by hand.
+      # scripts/check-tool-versions.py reports when the pair falls behind.
+      - dependency-name: github.com/yalue/onnxruntime_go
+      # Moves with TOKENIZERS_VERSION, the static library the release
+      # workflows download.
+      - dependency-name: github.com/daulet/tokenizers
 
   # ── GitHub Actions ─────────────────────────────────────────────────────────
+  # The composite actions under .github/actions are listed too: "/" alone
+  # covers the workflows only, and setup-go-modules sat a major behind every
+  # workflow that calls it.
   - package-ecosystem: github-actions
-    directory: /
+    directories:
+      - /
+      - /.github/actions/*
     schedule:
       interval: weekly
     cooldown:
@@ -181,9 +108,6 @@ updates:
       npm-lexical:
         patterns: ["lexical", "@lexical/*"]
         update-types: [minor, patch]
-      npm-forms:
-        patterns: ["react-hook-form", "@hookform/*"]
-        update-types: [minor, patch]
       # Low risk, high count: a dozen font packages should never crowd out a
       # PR that needs reading.
       npm-fonts:
@@ -195,43 +119,86 @@ updates:
         exclude-patterns: ["@types/react", "@types/react-dom"]
         update-types: [minor, patch]
       npm-toolchain:
-        patterns: ["vite-plus", "@swc/*", "eslint", "@oxlint/*", "@playwright/test", "typescript"]
+        patterns: ["@swc/*", "eslint", "@oxlint/*", "@playwright/test", "typescript"]
+        update-types: [minor, patch]
+    ignore:
+      # Vite+ moves with the `vite` alias and the setup-vp inputs, which
+      # Dependabot cannot follow: every pull request it raised for it failed
+      # (#3532). scripts/check-tool-versions.py reports when it falls behind.
+      - dependency-name: vite-plus
+
+  # ── npm trees outside the root workspace ───────────────────────────────────
+  # Each has a lockfile of its own, which the root entry above never reads.
+  - package-ecosystem: npm
+    directories:
+      - /bowrain/e2e/cloud
+      - /harness
+      - /bowrain/web/docs
+      - /samples/tidewatch-docs
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 3
+      semver-major-days: 7
+    labels: [dependencies, npm]
+    groups:
+      standalone-minor-patch:
         update-types: [minor, patch]
 
   # ── Docker base images ─────────────────────────────────────────────────────
   - package-ecosystem: docker
-    directory: /bowrain/docker/bowrain-server
+    directories:
+      - /bowrain/docker/bowrain-ctrl
+      - /bowrain/docker/bowrain-pulse
+      - /bowrain/docker/bowrain-server
+      - /bowrain/docker/bowrain-web
+      - /bowrain/docker/bowrain-worker
+      - /bowrain/docker/bravo-agent
+      - /bowrain/docker/bravo-sandbox-node
+      - /bowrain/docker/bravo-sandbox-python
+      - /bowrain/docker/keycloak
+      - /docker/kapi
     schedule:
       interval: weekly
     cooldown:
       default-days: 3
-    labels: [dependencies, docker, bowrain]
-
-  - package-ecosystem: docker
-    directory: /bowrain/docker/bowrain-worker
-    schedule:
-      interval: weekly
-    cooldown:
-      default-days: 3
-    labels: [dependencies, docker, bowrain]
-
-  - package-ecosystem: docker
-    directory: /bowrain/docker/bowrain-web
-    schedule:
-      interval: weekly
-    cooldown:
-      default-days: 3
-    labels: [dependencies, docker, bowrain]
+    labels: [dependencies, docker]
+    groups:
+      docker-minor-patch:
+        update-types: [minor, patch]
     ignore:
-      # Track Node LTS for the web-builder stage; skip Current-line majors
-      # until they reach LTS (e.g. Node 26 → LTS Oct 2026). See PR #584.
+      # Track Node LTS for the builder stages; skip Current-line majors until
+      # they reach LTS. See PR #584.
       - dependency-name: node
         update-types: ["version-update:semver-major"]
+      # The base image sets the glibc floor of the binaries built in it.
+      - dependency-name: ubuntu
+        update-types: ["version-update:semver-major"]
+      # A Python minor release is a new language version: the sandbox image
+      # moves to one deliberately, with its packages checked against it.
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
-  - package-ecosystem: docker
-    directory: /bowrain/docker/keycloak
+  # ── Compose files ──────────────────────────────────────────────────────────
+  - package-ecosystem: docker-compose
+    directories:
+      - /bowrain
+      - /bowrain/e2e
+      - /bowrain/e2e/server
+      - /bowrain/deploy/docker
     schedule:
       interval: weekly
     cooldown:
       default-days: 3
-    labels: [dependencies, docker, bowrain]
+    labels: [dependencies, docker]
+    groups:
+      compose-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      # The local and test databases and cache follow the production engines'
+      # majors.
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+      - dependency-name: redis
+        update-types: ["version-update:semver-major"]

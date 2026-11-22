@@ -4,7 +4,7 @@ title: Content memory
 description: Store approved source and target wording with its approval context for reuse across workspace projects.
 ---
 
-import { ThemedVideo } from "@neokapi/docs-shared";
+import { ThemedImage, ThemedVideo } from "@neokapi/docs-shared";
 
 # Content memory
 
@@ -24,13 +24,21 @@ A run can reuse eligible entries before drafting new text.
 ## Opening the content memory
 
 Click **Context** in the main sidebar, then **Content memory**. The **Content
-memory** button in a project's source view opens the same page: the memory is the
-workspace's, and every project draws on it.
+memory** button in a project's source view opens the same page, because every
+project draws on the workspace's memory.
 
 ## The list
 
 The page is a list of pairs beside a detail pane. Each row shows an entry's source
 on one line, with the language of its target at the right.
+
+<ThemedImage
+  alt="The content memory list beside an entry's detail pane"
+  sources={{
+    light: "/img/web-app/light/content-memory.png",
+    dark: "/img/web-app/dark/content-memory.png",
+  }}
+/>
 
 The server reads the memory into one target language at a time. When your
 projects translate into more than one, the picker under the search chooses the
@@ -39,7 +47,7 @@ language; it starts on the one most of your projects translate into.
 - **Search** matches the wording as you type.
 - **Show more entries**, at the foot of the list, reads the next page.
 
-The server answers each search a page at a time, so a memory of thousands of
+The server returns each search a page at a time, so a memory of thousands of
 entries searches as quickly as a short one. While the list has focus, the arrow
 keys, `j` and `k` move the selection.
 
@@ -72,7 +80,7 @@ pane says how many, and why.
 
 ## Content memory in editing and review
 
-The content memory also assists work outside the browser:
+The content memory is also used in the editor and in every run:
 
 - **Context panel**: the [editor](/server/translation-editor) shows per-block
   matches with scores and match types, with one-click apply.
@@ -97,15 +105,20 @@ slightly.
 
 ## Governed version reuse
 
-An entry is more than a pair of strings. Successive answers for one block are
-linked as a version chain, and each carries a fingerprint of the context it was
-approved under: the point, the voice, the terms in force. When a block's source
-changes, the prior answer is offered to the model only as a reference, only
-under the fingerprint it was approved under, and the reuse decision reads
-whether the words actually moved (none, cosmetic, or substantive) rather than a
-similarity score alone. A translation can be asked to reuse the prior version or
-to start clean. The chain and the fingerprint travel with the entry, so a memory
-exported from one workspace keeps its provenance in the next.
+Successive answers for one block are linked as a version chain. Each carries a
+fingerprint of the context it was approved under: the point, the voice profile
+and the terms in force.
+
+When a block's source changes:
+
+- the prior answer is offered to the model as a reference only, and only under
+  the fingerprint it was approved under;
+- the reuse decision looks at how much the words changed (none, cosmetic or
+  substantive), beside the similarity score;
+- you can ask a translation to reuse the prior version or to start clean.
+
+The chain and the fingerprint travel with the entry, so a memory exported from
+one workspace keeps its provenance in the next.
 
 For how the underlying engine matches across projects, see the framework's
 [content memory](https://neokapi.github.io/framework/content-memory) reference.

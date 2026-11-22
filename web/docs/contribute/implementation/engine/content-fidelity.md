@@ -45,7 +45,7 @@ type Config struct {
 ```
 
 Naming the field `disableNonTranslatableContent` (rather than a positive
-`extractNonTranslatableContent bool` that `Reset()` must remember to set `true`)
+`extract_non_translatable_content bool` that `Reset()` must remember to set `true`)
 keeps the on-by-default behavior true even for a `Config{}` literal that never
 runs `Reset()`: a reader constructed in a test, or any caller that
 mutates one field and forgets the rest. `Reset()` still pins it explicitly for
@@ -61,7 +61,7 @@ func (c *Config) Reset() {
 ## The getter / setter / ApplyMap / schema quartet
 
 The private field is exposed through four coordinated surfaces. Keep the names
-and the public key (`extractNonTranslatableContent`, positive sense)
+and the public key (`extract_non_translatable_content`, positive sense)
 byte-identical across all of them; the duck-typed parity hook (below) and the
 generated reference both bind to them by name.
 
@@ -79,10 +79,10 @@ func (c *Config) SetExtractNonTranslatableContent(v bool) {
 ```
 
 **ApplyMap key** (same file) decodes the positive public key: recipes, presets,
-and the CLI speak `extractNonTranslatableContent`, never the private field:
+and the CLI speak `extract_non_translatable_content`, never the private field:
 
 ```go
-case "extractNonTranslatableContent":
+case "extract_non_translatable_content":
     c.disableNonTranslatableContent = !toBool(val)
 ```
 
@@ -92,7 +92,7 @@ generated `/reference/formats` page and to schema-driven config UIs, with
 `ParameterGroup` (the `"general"` group) so it renders:
 
 ```go
-"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+"extract_non_translatable_content": schema.Prop(coreschema.PropertySchema{
     Type:    "boolean",
     Title:   "Extract non-translatable content",
     Default: true,
@@ -307,7 +307,7 @@ setter rather than emitting unconditionally.
 2. Add the `ExtractNonTranslatableContent() bool` getter and
    `SetExtractNonTranslatableContent(bool)` setter (both absorbing the
    inversion); the exact setter signature is the parity contract.
-3. Decode the positive public key `extractNonTranslatableContent` in
+3. Decode the positive public key `extract_non_translatable_content` in
    `ApplyMap`.
 4. Declare a `schema.Prop` with `Default: true` and place the field in a
    `ParameterGroup` so it reaches `/reference/formats`.

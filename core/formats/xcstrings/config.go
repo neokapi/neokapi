@@ -84,26 +84,26 @@ func (c *Config) SetExtractNonTranslatableContent(v bool) {
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "extractStale":
+		case "extract_stale":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractStale: expected bool, got %T", val)
+				return fmt.Errorf("extract_stale: expected bool, got %T", val)
 			}
 			c.ExtractStale = b
-		case "markTranslatedState":
+		case "mark_translated_state":
 			s, ok := val.(string)
 			if !ok {
-				return fmt.Errorf("markTranslatedState: expected string, got %T", val)
+				return fmt.Errorf("mark_translated_state: expected string, got %T", val)
 			}
 			c.MarkTranslatedState = s
-		case "extractNonTranslatableContent":
+		case "extract_non_translatable_content":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
+				return fmt.Errorf("extract_non_translatable_content: expected bool, got %T", val)
 			}
 			c.disableNonTranslatableContent = !b
 		default:
-			return fmt.Errorf("xcstrings: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "xcstrings", key)
 		}
 	}
 	return nil

@@ -6,11 +6,10 @@ description: How Bowrain handles authentication, access control, the audit log, 
 
 # Security and privacy
 
-This page describes how Bowrain handles identity, access, auditing, and your
-content. It is written for the person deciding whether to bring a team onto the
-platform. Every statement here reflects how the shipped software behaves; where a
-detail is an operational fact about hosted Bowrain Cloud rather than a property of
-the code, it is marked as such.
+Bowrain signs people in through OIDC, scopes every request to a workspace,
+records every event in a tamper-evident audit log, and lets you export your
+content in open formats. Each statement below describes the shipped software.
+Operational facts about hosted Bowrain Cloud are marked as such.
 
 ## Authentication
 
@@ -52,8 +51,8 @@ distinct from the one your team signs in with.
 ## Access control
 
 Access is organized around workspaces. Every project belongs to exactly one
-workspace, and every API route is workspace-scoped, so tenancy is enforced at the
-transport layer rather than left to individual handlers.
+workspace, and every API route is scoped to a workspace, so the server checks
+the workspace on every request.
 
 ### Roles
 
@@ -81,11 +80,10 @@ audit log:
 - **Groups**: named teams. A group grants a project role (optionally scoped to a
   language) to all of its members at once, so team access does not require
   per-person, per-project rows.
-- **Deny rules**: subtractive rules that remove a set of permissions from a
-  user, a role, or a group. A deny always wins: it is applied after grants are
-  resolved, so it cannot be overridden by a later grant. This is how you express
-  "this person keeps everything except the ability to publish" once, rather than
-  by editing every role they hold.
+- **Deny rules**: rules that remove a set of permissions from a user, a role or
+  a group. A deny always wins, because it is applied after grants are resolved.
+  With one rule you can say "this person keeps everything except the ability to
+  publish", without editing every role they hold.
 - **Role overrides**: retune the default permissions of a built-in workspace
   role for one workspace, for example making the `member` role read-only.
 
@@ -94,11 +92,11 @@ audit log:
 Edits are also gated by the workflow status of the content itself. A block that is
 in review requires the review permission to change; a published block requires the
 project-management permission to reopen. Publishing is treated as an approval
-step, and Bowrain can enforce **separation of duties** so that the person who
-wrote a block is not the person who approves it. The workspace chooses the
-mode: off, warn (the self-approval is recorded but allowed), or block (the
-self-approval is rejected). Drafts a run produced carry machine authorship, so
-the rule never stops a solo reviewer from approving them.
+step, and Bowrain can enforce **separation of duties**, so that someone other
+than a block's writer approves it. The workspace chooses the mode: off, warn
+(the self-approval is recorded but allowed), or block (the self-approval is
+rejected). Drafts a run produced carry machine authorship, so a solo reviewer
+can always approve them.
 
 ## The audit log
 
@@ -116,9 +114,9 @@ integrity through a dedicated endpoint (`GET /:workspace/audit-log/verify`), whi
 walks the chain, recomputes each hash, and reports the first broken link if one
 exists. The log can also be forwarded to an external SIEM system.
 
-Content changes are recoverable without destroying history: a rollback restores a
-prior value as a new edit, so the record of both the mistake and its correction is
-preserved and the restore can itself be undone.
+Content changes can be rolled back with history intact. A rollback restores a
+prior value as a new edit, so the record keeps both the mistake and its
+correction, and you can undo the restore too.
 
 ## Data residency
 
@@ -146,18 +144,18 @@ events go to the EU ingestion host.
 
 ## Your content: ownership and export
 
-Bowrain stores your content, content memory, and terms so a team can share
-them; it does not lock them in. Content is held in the platform's content store
-and round-trips back to the source formats you brought it in as. Content memory
-and terms export to open, standard interchange formats through the kapi CLI:
+Bowrain stores your content, content memory and terms so a team can share
+them, and you can take them out at any time. Content is held in the platform's
+content store and is written back in the source formats you brought it in as.
+Content memory and terms export to open, standard interchange formats through
+the kapi CLI:
 
 - `kapi memory export` writes **TMX 1.4**, the standard interchange format for
   content memory.
 - `kapi terms export` writes **TBX**, **CSV**, or **JSON**.
 
-The web app's terms explorer also exports the terms store as JSON. Combined with
-the non-destructive history above, this means your assets are portable at any
-time. If you leave, you take your content and your memory with you.
+The web app's terms explorer also exports the terms store as JSON. If you
+leave, you take your content and your memory with you.
 
 ## Bring-your-own AI keys
 

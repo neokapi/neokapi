@@ -111,7 +111,10 @@ export function ConceptsView({
   const concepts = useMemo(() => list.data?.pages.flatMap((p) => p.concepts) ?? [], [list.data]);
   const total = list.data?.pages[0]?.total ?? 0;
 
-  const [selectedId, setSelectedId] = useState<string | null>(defaultSelected ?? null);
+  const [chosenId, setSelectedId] = useState<string | null>(defaultSelected ?? null);
+  // The list opens on its first concept, so the detail pane shows something
+  // from the start rather than a prompt to choose.
+  const selectedId = chosenId ?? concepts[0]?.id ?? null;
 
   if (list.error && !list.data) {
     return (
@@ -265,18 +268,20 @@ function ConceptRow({ concept, naming }: { concept: ConceptSummary; naming: Conc
       // concepts scrolls as lightly as a short one.
       className="[contain-intrinsic-size:auto_36px] [content-visibility:auto]"
       trailing={
-        <span
-          className="text-[11px] text-muted-foreground tabular-nums"
-          title={t("{count, plural, one {# language} other {# languages}}", { count: languages })}
-        >
-          {languages}
+        <span className="text-[11px] text-muted-foreground tabular-nums">
+          {t("{count, plural, one {# language} other {# languages}}", { count: languages })}
         </span>
       }
     >
       <span className="font-medium" translate="no">
         {primaryName(concept, naming)}
       </span>
-      {headline && <TermStatusChip status={headline.status} className="ml-2" />}
+      {/* Only a status that differs from the usual one earns a badge: on a
+          list where nearly every term is preferred, a badge on each says
+          nothing. */}
+      {headline && !isPreferredStatus(headline.status) && headline.status !== "approved" && (
+        <TermStatusChip status={headline.status} className="ml-2" />
+      )}
     </ListDetailItem>
   );
 }

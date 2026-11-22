@@ -4,9 +4,9 @@ go 1.27.1
 
 require (
 	github.com/neokapi/neokapi v0.0.0
-	github.com/yalue/onnxruntime_go v1.30.1
+	github.com/yalue/onnxruntime_go v1.38.0
 )
 
-require golang.org/x/text v0.43.0 // indirect
+require golang.org/x/text v0.44.0 // indirect
 
 replace github.com/neokapi/neokapi => ../..

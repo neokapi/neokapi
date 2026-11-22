@@ -2,9 +2,11 @@ package server
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
+	"slices"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -13,12 +15,12 @@ import (
 
 // HandleGetPublicConfig returns the unauthenticated, public-safe subset of the
 // instance-wide platform configuration: whether signups are open, any
-// maintenance banner, and — when the customer model-choice feature is enabled —
-// the enabled models and default. The web app calls this on bootstrap to render
+// maintenance banner, and, when the customer model-choice feature is enabled,
+// the enabled models and the default. The web app calls this on bootstrap to render
 // the signup gate, maintenance banner, and (optionally) a model picker.
 //
 // GET /api/v1/config
-func (s *Server) HandleGetPublicConfig(c echo.Context) error {
+func (s *Server) HandleGetPublicConfig(c *echo.Context) error {
 	return c.JSON(http.StatusOK, s.PlatformConfig.PublicSnapshot())
 }
 
@@ -27,7 +29,7 @@ func (s *Server) HandleGetPublicConfig(c echo.Context) error {
 // so the UI can render onboard/offboard without a second call).
 //
 // GET /api/admin/platform
-func (s *Server) HandleAdminGetPlatformConfig(c echo.Context) error {
+func (s *Server) HandleAdminGetPlatformConfig(c *echo.Context) error {
 	return c.JSON(http.StatusOK, platformConfigResponse{
 		Snapshot:   s.PlatformConfig.Snapshot(),
 		Persistent: s.PlatformConfig.Persistent(),
@@ -115,7 +117,7 @@ func setIfPresent(set func(string, any) error, key string, v any) error {
 // server and worker reloads its cached settings without a redeploy.
 //
 // PUT /api/admin/platform
-func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
+func (s *Server) HandleAdminUpdatePlatformConfig(c *echo.Context) error {
 	if !s.PlatformConfig.Persistent() {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{
 			Error: "platform config is not persistent on this instance (no database configured)"})
@@ -243,8 +245,8 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
 
 	if r := req.Resilience; r != nil {
 		// Validation refuses values that would make a breaker harm a healthy
-		// dependency — a ratio outside (0,1] trips on success, and a zero
-		// window/cooldown/probe count either spins or never recovers. The
+		// dependency. A ratio outside (0,1] trips on success, and a zero
+		// window, cooldown or probe count either spins or never recovers. The
 		// resilience package refuses them too; rejecting here means the admin is
 		// told, rather than having the value silently ignored.
 		if r.FailureRatio != nil && (*r.FailureRatio <= 0 || *r.FailureRatio > 1) {
@@ -276,7 +278,7 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
 	}
 
 	if len(updates) == 0 {
-		// Nothing to change — return the current snapshot rather than error.
+		// Nothing to change: return the current snapshot rather than an error.
 		return c.JSON(http.StatusOK, platformConfigResponse{
 			Snapshot:   s.PlatformConfig.Snapshot(),
 			Persistent: true,
@@ -306,10 +308,11 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
 	})
 }
 
+// joinKeys lists the keys of m, sorted and comma-separated.
 func joinKeys(m map[string]json.RawMessage) string {
 	first := true
 	var b []byte
-	for k := range m {
+	for _, k := range slices.Sorted(maps.Keys(m)) {
 		if !first {
 			b = append(b, ',')
 		}

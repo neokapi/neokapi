@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"slices"
 	"strconv"
@@ -14,7 +15,7 @@ import (
 
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -31,16 +32,15 @@ import (
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
 
-// The sync handlers scope to a stream via refParam (editor.go): every sync
-// route — workspace-scoped and flat alike — names the parameter :ref
-// (AD-011). An earlier generation of these handlers read :stream, a name no
-// sync route ever declared, so the lookup came back empty on every request
-// and each handler quietly fell back to "main" — a branch-scoped push landed
-// on the default stream regardless of the URL it arrived on.
+// The sync handlers scope to a stream via refParam (editor.go). Every sync
+// route, workspace-scoped and flat alike, names the parameter :ref (AD-011).
+// A handler that read any other name would find it empty and fall back to
+// "main", so a branch-scoped push would land on the default stream whatever
+// URL it arrived on.
 
 // HandleSyncPushInit handles the first step of a push: Merkle tree diff negotiation.
 // POST /sync/push/init
-func (s *Server) HandleSyncPushInit(c echo.Context) error {
+func (s *Server) HandleSyncPushInit(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		Collections  []string          `json:"collections"`
 		// ContentModelEpoch is the generation of content model the producer
 		// reads into, and AllowModelDowngrade is `push --force` carrying past
-		// the refusal — see core/venue.ContentModelEpoch.
+		// the refusal. See core/venue.ContentModelEpoch.
 		ContentModelEpoch   int  `json:"content_model_epoch"`
 		AllowModelDowngrade bool `json:"allow_model_downgrade"`
 		// Settings are the recipe-owned project settings the producer's recipe
@@ -148,9 +148,9 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		_, refusedSettings = store.DecideRecipeSettings(proj, req.Settings, s.settingsPusher(c, req.Stream))
 	}
 
-	// Fast path: root hash comparison. Only "unchanged" when the declared
-	// context matches too — otherwise the push proceeds carrying no chunks and
-	// a manifest that is nothing but the context.
+	// Fast path: root hash comparison. It answers "unchanged" only when the
+	// declared context matches too. Otherwise the push proceeds carrying no
+	// chunks and a manifest that is nothing but the context.
 	if req.RootHash != "" && !ctxDiff.Changed {
 		unchanged, err := diffEngine.CheckRootHash(c.Request().Context(), req.ProjectID, req.Stream, req.RootHash)
 		if err == nil && unchanged {
@@ -163,6 +163,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 				"ref":                    currentRef,
 				"settings":               heldSettings,
 				"settings_refused":       refusedSettings,
+				"parts":                  apiclient.PushParts,
 			})
 		}
 	}
@@ -188,64 +189,91 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		"ref":                    currentRef,
 		"settings":               heldSettings,
 		"settings_refused":       refusedSettings,
+		"parts":                  apiclient.PushParts,
 	})
+}
+
+// pushCommitManifest is the body of POST /sync/push/commit, and the manifest
+// the push worker reads (jobs.syncPushManifest).
+type pushCommitManifest struct {
+	UploadID  string          `json:"upload_id"`
+	ProjectID string          `json:"project_id"`
+	Stream    string          `json:"stream"`
+	Chunks    []chunkRef      `json:"chunks"`
+	Items     json.RawMessage `json:"items"`
+	ActorID   string          `json:"actor_id"`
+	// ActorTool and ActorTokenID name the tool and its token when a tool
+	// token made the push; ActorID is then the member who issued it. Set
+	// here from the signed-in caller, never from the client.
+	ActorTool     string `json:"actor_tool"`
+	ActorTokenID  string `json:"actor_token_id"`
+	WorkspaceSlug string `json:"workspace_slug"`
+	ConnectorID   string `json:"connector_id"`
+	// Contexts is the context content type, passed through to the worker
+	// verbatim like Items: this handler validates the transport, the worker
+	// reconciles the content.
+	Contexts json.RawMessage `json:"contexts"`
+	// Decisions is the decisions content type, passed through the same way:
+	// the worker upserts it into the unit_decisions ledger after the chunks.
+	Decisions json.RawMessage `json:"decisions"`
+	// Writes are the edition writes beside the decisions (see
+	// venue.EditionWrite): how each translation the project holds came
+	// to be. Passed through to the worker, which records them.
+	Writes json.RawMessage `json:"writes"`
+	// ExpectedRef is the compare-and-swap assertion: the governance
+	// components this push last observed. Checked here so a client waiting
+	// on `kapi push` is told at once, and again in the worker, which is
+	// where the write actually lands.
+	ExpectedRef ref.Ref `json:"expected_ref"`
+	// BlockPropertyKeys declares what this producer's readers record, so
+	// the worker knows which stored properties this push is authoritative
+	// about. Passed through verbatim like Items; see
+	// core/venue.BlockPropertyKeys.
+	BlockPropertyKeys []string `json:"block_property_keys"`
+	// Scope is the set of paths this push is authoritative over, and Tree
+	// is what the producer read within it: per item, the block keys it
+	// holds and the content hash of each. Together they are how a push says
+	// what is GONE: a deletion sends no block, so the payload cannot say
+	// it, and absence is only an answer inside a declared scope. Passed
+	// through verbatim like Items; see core/venue.Tree and core/venue.Scope.
+	Scope venue.Scope `json:"scope"`
+	Tree  venue.Tree  `json:"tree"`
+	// ContentModelEpoch is the generation this push wrote, recorded on the
+	// stream now that it has been accepted.
+	ContentModelEpoch int `json:"content_model_epoch"`
+	// Settings are the recipe-owned project settings this push asks to put
+	// in force: the converge policy and the translate_after level. A push
+	// to the default stream applies each one that tightens, and one that
+	// loosens when the pusher may manage the project. Applied here, before
+	// the job is queued, so the run a push starts already reads them.
+	Settings venue.ProjectSettings `json:"settings"`
+
+	// Terms is the terminology part (host/venue/client.TermsEdits), checked
+	// here and applied by the worker in the push's transaction. TermsAuthor
+	// and TermsOnBehalfOf are set here from the signed-in caller.
+	Terms           json.RawMessage `json:"terms"`
+	TermsAuthor     string          `json:"terms_author"`
+	TermsOnBehalfOf string          `json:"terms_on_behalf_of"`
+	// ContextObjects are the context ledger objects the project's context
+	// lives in, when it lives here. Checked here (names, reach, key) and
+	// stored by the worker in the push's transaction. ContextKey,
+	// ContextOperations and ContextEvent are set here: the key to bind, the
+	// operations the project did not hold, and the context change the worker
+	// publishes once the push commits.
+	ContextObjects    []apiclient.ContextObjectWire `json:"context_objects"`
+	ContextKey        string                        `json:"context_key"`
+	ContextOperations int                           `json:"context_operations"`
+	ContextEvent      map[string]string             `json:"context_event"`
 }
 
 // HandleSyncPushCommit finalizes a push by validating the manifest and enqueuing the worker job.
 // POST /sync/push/commit
-func (s *Server) HandleSyncPushCommit(c echo.Context) error {
+func (s *Server) HandleSyncPushCommit(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
 		return err
 	}
 
-	var manifest struct {
-		UploadID      string          `json:"upload_id"`
-		ProjectID     string          `json:"project_id"`
-		Stream        string          `json:"stream"`
-		Chunks        []chunkRef      `json:"chunks"`
-		Items         json.RawMessage `json:"items"`
-		ActorID       string          `json:"actor_id"`
-		WorkspaceSlug string          `json:"workspace_slug"`
-		ConnectorID   string          `json:"connector_id"`
-		// Contexts is the context content type, passed through to the worker
-		// verbatim like Items: this handler validates the transport, the worker
-		// reconciles the content.
-		Contexts json.RawMessage `json:"contexts"`
-		// Decisions is the decisions content type, passed through the same way:
-		// the worker upserts it into the unit_decisions ledger after the chunks.
-		Decisions json.RawMessage `json:"decisions"`
-		// Writes are the edition writes beside the decisions (see
-		// venue.EditionWrite): how each translation the project holds came
-		// to be. Passed through to the worker, which records them.
-		Writes json.RawMessage `json:"writes"`
-		// ExpectedRef is the compare-and-swap assertion: the governance
-		// components this push last observed. Checked here so a client waiting
-		// on `kapi push` is told at once, and again in the worker, which is
-		// where the write actually lands.
-		ExpectedRef ref.Ref `json:"expected_ref"`
-		// BlockPropertyKeys declares what this producer's readers record, so
-		// the worker knows which stored properties this push is authoritative
-		// about. Passed through verbatim like Items — see
-		// core/venue.BlockPropertyKeys.
-		BlockPropertyKeys []string `json:"block_property_keys"`
-		// Scope is the set of paths this push is authoritative over, and Tree
-		// is what the producer read within it — per item, the block keys it
-		// holds and the content hash of each. Together they are how a push says
-		// what is GONE: a deletion sends no block, so the payload cannot say
-		// it, and absence is only an answer inside a declared scope. Passed
-		// through verbatim like Items; see core/venue.Tree and core/venue.Scope.
-		Scope venue.Scope `json:"scope"`
-		Tree  venue.Tree  `json:"tree"`
-		// ContentModelEpoch is the generation this push wrote, recorded on the
-		// stream now that it has been accepted.
-		ContentModelEpoch int `json:"content_model_epoch"`
-		// Settings are the recipe-owned project settings this push asks to put
-		// in force: the converge policy and the translate_after level. A push
-		// to the default stream applies each one that tightens, and one that
-		// loosens when the pusher may manage the project. Applied here, before
-		// the job is queued, so the run a push starts already reads them.
-		Settings venue.ProjectSettings `json:"settings"`
-	}
+	var manifest pushCommitManifest
 	if err := c.Bind(&manifest); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
@@ -257,9 +285,13 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 	// authenticated user; a client-supplied project_id / actor_id / workspace
 	// is not trusted (prevents writing into another tenant's project, IDOR).
 	manifest.ProjectID = c.Param("id")
+	// The fields this handler sets are never taken from the client.
+	manifest.TermsAuthor, manifest.TermsOnBehalfOf = "", ""
+	manifest.ContextKey, manifest.ContextOperations, manifest.ContextEvent = "", 0, nil
 	// The path is authorized; a manifest-supplied stream never overrides it.
 	manifest.Stream = refParam(c)
-	manifest.ActorID, _ = c.Get("user_id").(string)
+	actor := requestActorOf(c)
+	manifest.ActorID, manifest.ActorTool, manifest.ActorTokenID = actor.UserID, actor.Tool, actor.TokenID
 	// Resolve the workspace slug from the path-scoped project rather than
 	// trusting the client. Best-effort: the worker tolerates an empty slug.
 	manifest.WorkspaceSlug = ""
@@ -277,8 +309,8 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 	//
 	// Only the components this manifest WRITES are asserted. A push carrying
 	// blocks and nothing else asserts nothing, so content traffic cannot be
-	// refused because governance moved beside it — which is the whole reason the
-	// ref has components rather than one number.
+	// refused because governance moved beside it. That is why the ref has
+	// components rather than one number.
 	if err := s.assertGovernance(c.Request().Context(), manifest.ProjectID, manifest.Stream,
 		manifest.ExpectedRef,
 		writtenComponents(carriesRecords(manifest.Contexts), carriesDecisions(manifest.Decisions))...); err != nil {
@@ -289,7 +321,7 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 	}
 
 	// Enforce upload budget. Cheap and manifest-local, so it runs before the
-	// per-chunk storage probes below — an oversized manifest is rejected without
+	// per-chunk storage probes below: an oversized manifest is rejected without
 	// paying for a stat per chunk.
 	maxPushBytes := s.Config.MaxPushBytes
 	if maxPushBytes <= 0 {
@@ -305,20 +337,23 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 
 	// Every chunk the manifest names must already be a blob this server stored.
 	//
-	// This check used to be skipped whenever the blob store implemented
-	// ChunkedBlobStore, on the theory that such a store keeps chunks in an
-	// upload session rather than in content-addressed storage. That is not how
-	// either backend behaves: HandleSyncProxyChunkUpload stores every proxied
-	// chunk through BlobStore.Upload, which is content-addressed by
-	// construction, and the ChunkedBlobStore staging methods have no caller.
-	// The exemption therefore only ever applied to the self-hosted local store
-	// — the one deployment where it removed the sole check standing between a
-	// client-supplied hash and the worker that resolves it.
+	// The check runs for every blob store, ChunkedBlobStore included.
+	// HandleSyncProxyChunkUpload stores every proxied chunk through
+	// BlobStore.Upload, which is content-addressed, and the ChunkedBlobStore
+	// staging methods have no caller. On the self-hosted local store this is
+	// the only check between a client-supplied hash and the worker that
+	// resolves it.
 	for _, chunk := range manifest.Chunks {
 		exists, err := s.BlobStore.Exists(c.Request().Context(), chunk.Hash)
 		if err != nil || !exists {
 			return apiErr(c, http.StatusBadRequest, fmt.Sprintf("chunk %d (hash %s) not found in storage", chunk.Index, chunk.Hash))
 		}
+	}
+
+	// The terminology and context ledger parts, checked before anything is
+	// applied: a part this request can already refuse refuses the whole push.
+	if refused, err := s.acceptPushParts(c, &manifest); refused || err != nil {
+		return err
 	}
 
 	appliedSettings, refusedSettings, err := s.applyRecipeSettings(c, manifest.ProjectID, manifest.Stream, manifest.Settings)
@@ -369,7 +404,7 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 	// Raise the stream's model generation to the one this push carried, now
 	// that it is accepted. On commit rather than at init: a push that
 	// negotiated and then failed must not close a stream to producers whose
-	// content it never delivered. Best-effort — the next push records it.
+	// content it never delivered. Best-effort: the next push records it.
 	if manifest.ContentModelEpoch > 0 {
 		_ = bowsync.NewDiffEngine(s.ContentStore, s.SyncCache).RecordContentModelEpoch(
 			c.Request().Context(), manifest.ProjectID, manifest.Stream, manifest.ContentModelEpoch)
@@ -394,7 +429,7 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 
 // settingsPusher describes the caller of a push for the recipe-settings
 // decision: the stream it pushes to, and whether it may manage the project.
-func (s *Server) settingsPusher(c echo.Context, stream string) store.SettingsPusher {
+func (s *Server) settingsPusher(c *echo.Context, stream string) store.SettingsPusher {
 	return store.SettingsPusher{Stream: stream, MayLoosen: hasPermission(c, platauth.PermManageProject)}
 }
 
@@ -402,26 +437,31 @@ func (s *Server) settingsPusher(c echo.Context, stream string) store.SettingsPus
 // and returns them, with the ones the project keeps. Each change is audited
 // with the pusher, the setting and its value before and after. A push that
 // carries no settings reads nothing.
-func (s *Server) applyRecipeSettings(c echo.Context, projectID, stream string, settings venue.ProjectSettings) (venue.ProjectSettings, []venue.SettingRefusal, error) {
+func (s *Server) applyRecipeSettings(c *echo.Context, projectID, stream string, settings venue.ProjectSettings) (venue.ProjectSettings, []venue.SettingRefusal, error) {
 	if len(settings) == 0 || s.ContentStore == nil {
 		return nil, nil, nil
 	}
 	ctx := c.Request().Context()
-	proj, err := s.ContentStore.GetProject(ctx, projectID)
+	pusher := s.settingsPusher(c, stream)
+	var refused []venue.SettingRefusal
+	var changes []store.SettingChange
+	proj, changed, err := s.ContentStore.EditProject(ctx, projectID, func(proj *store.Project) (bool, error) {
+		var apply venue.ProjectSettings
+		apply, refused = store.DecideRecipeSettings(proj, settings, pusher)
+		changes = store.ApplyRecipeSettings(proj, apply)
+		return len(changes) > 0, nil
+	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("read project settings: %w", err)
-	}
-	apply, refused := store.DecideRecipeSettings(proj, settings, s.settingsPusher(c, stream))
-	changes := store.ApplyRecipeSettings(proj, apply)
-	if len(changes) == 0 {
-		return nil, refused, nil
-	}
-	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
 		return nil, nil, fmt.Errorf("apply project settings: %w", err)
 	}
+	if !changed {
+		return nil, refused, nil
+	}
 	applied := venue.ProjectSettings{}
+	recipe := platev.RecipeChange{Source: "push", Stream: stream}
 	for _, ch := range changes {
 		applied[ch.Setting] = ch.To
+		recipe.Settings = append(recipe.Settings, platev.SettingChange{Name: ch.Setting, Before: ch.From, After: ch.To})
 		s.emitAudit(c, auditEvent{
 			Type:         platev.EventProjectSettingChanged,
 			WorkspaceID:  proj.WorkspaceID,
@@ -433,6 +473,15 @@ func (s *Server) applyRecipeSettings(c echo.Context, projectID, stream string, s
 			After:        map[string]string{ch.Setting: ch.To},
 		})
 	}
+	// One feed entry for the push's settings, however many it changed.
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventRecipeChanged,
+		WorkspaceID:  proj.WorkspaceID,
+		ProjectID:    projectID,
+		ResourceType: "project",
+		ResourceID:   projectID,
+		Data:         recipe.Data(),
+	})
 	return applied, refused, nil
 }
 
@@ -450,7 +499,7 @@ func (s *Server) applyRecipeSettings(c echo.Context, projectID, stream string, s
 // response. It is not a 403 for the push: the content is not in question, and
 // refusing to store it would lose work over a permission the pusher can be
 // granted afterwards.
-func (s *Server) precheckPushVerdicts(c echo.Context, raw json.RawMessage) venue.PushGovernance {
+func (s *Server) precheckPushVerdicts(c *echo.Context, raw json.RawMessage) venue.PushGovernance {
 	if len(raw) == 0 {
 		return venue.PushGovernance{}
 	}
@@ -515,10 +564,25 @@ func (s *Server) pushGovernanceFor(ctx context.Context, pushID string) *venue.Pu
 	return &report
 }
 
+// pushPartsFor reads back what a push's terminology and context ledger parts
+// did, as the worker recorded it on the job row. Best-effort, like
+// pushGovernanceFor.
+func (s *Server) pushPartsFor(ctx context.Context, pushID string) *venue.PushParts {
+	raw, err := s.JobStore.PushParts(ctx, pushID)
+	if err != nil || raw == "" {
+		return nil
+	}
+	var parts venue.PushParts
+	if json.Unmarshal([]byte(raw), &parts) != nil || parts.Empty() {
+		return nil
+	}
+	return &parts
+}
+
 // HandleSyncProxyChunkUpload handles chunk uploads for the proxy transport mode
 // (local dev / self-hosted without Azure Blob SAS URLs).
 // PUT /sync/push/chunks/:uploadId/:chunkIndex
-func (s *Server) HandleSyncProxyChunkUpload(c echo.Context) error {
+func (s *Server) HandleSyncProxyChunkUpload(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
 		return err
 	}
@@ -549,7 +613,7 @@ type chunkRef struct {
 }
 
 // readBody reads up to maxBytes from the request body.
-func readBody(c echo.Context, maxBytes int64) ([]byte, error) {
+func readBody(c *echo.Context, maxBytes int64) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(c.Request().Body, maxBytes))
 }
 
@@ -557,7 +621,7 @@ func readBody(c echo.Context, maxBytes int64) ([]byte, error) {
 // given cursor. The response is a RichPullResponse (Bowrain AD-009 Phase 7) with structured
 // SyncBlock records instead of raw change log entries. When the client sends
 // Accept-Encoding: zstd, the response is zstd-compressed.
-func (s *Server) HandleSyncPull(c echo.Context) error {
+func (s *Server) HandleSyncPull(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -597,8 +661,8 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 
 	// The freshness ref rides on the LAST page only. A client keeps the last
 	// page's ref and discards every earlier one, so computing it per page would
-	// be work whose answer is thrown away — and a pull is a client's cheapest
-	// contact with the server precisely because it stays cheap.
+	// be work whose answer is thrown away. A pull is a client's cheapest
+	// contact with the server and has to stay cheap.
 	if !resp.HasMore {
 		if current, rerr := bowsync.CurrentRef(ctx, s.streamRefSource(), projectID, stream); rerr == nil {
 			resp.Ref = &current
@@ -607,7 +671,7 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 
 	// The decision ledger travels like the declared context: small, always
 	// current, on every page rather than cursor-driven. A store without the
-	// ledger capability simply sends none.
+	// ledger capability sends none.
 	if ds, ok := s.ContentStore.(store.DecisionStore); ok {
 		if decisions, derr := ds.ListUnitDecisions(ctx, projectID, stream); derr == nil {
 			resp.Decisions = decisions
@@ -665,7 +729,7 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 
 		// Fetch media assets for affected items.
 		if s.ContentStore != nil && len(itemSet) > 0 {
-			for itemName := range itemSet {
+			for _, itemName := range slices.Sorted(maps.Keys(itemSet)) {
 				assets, err := s.ContentStore.ListAssets(ctx, projectID, stream, itemName)
 				if err != nil {
 					continue // best-effort: skip media on error
@@ -696,7 +760,7 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 
 // pullContextEntries renders the project's collections as the pull's context
 // content type: which collections exist, the point each occupies, who governs
-// it, and — decisively — which side owns it.
+// it, and which side owns it.
 //
 // Every collection is carried, workspace-owned and recipe-owned alike.
 // Ownership is what the client keys its own decisions on, so withholding the
@@ -705,7 +769,7 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 //
 // The voice profile travels as its NAME, resolved from the bound id: a name is
 // what a recipe and a brand hub agree on, while an id is one instance's
-// bookkeeping. Best-effort throughout — a collection listing that fails, or a
+// bookkeeping. Best-effort throughout: a collection listing that fails, or a
 // profile id that no longer resolves, costs the pull its context rather than
 // its content.
 func (s *Server) pullContextEntries(ctx context.Context, projectID, stream string) []*pb.SyncContextEntry {
@@ -758,8 +822,8 @@ func (s *Server) pullContextEntries(ctx context.Context, projectID, stream strin
 //
 // The length of the raw message will not do: a JSON `null` is four bytes and an
 // empty array is two, so measuring the bytes makes a push that writes no
-// governance look like one that does — and then refuses it because governance
-// moved somewhere it never touched.
+// governance look like one that does. Such a push would then be refused
+// because governance moved somewhere it never touched.
 func carriesRecords(raw json.RawMessage) bool {
 	var records []json.RawMessage
 	if err := json.Unmarshal(raw, &records); err != nil {
@@ -798,7 +862,7 @@ func writtenComponents(contexts, decisions bool) []ref.Component {
 var syncCompressorPool = compression.NewPool(nil)
 
 // writePullResponse marshals the response as JSON and optionally compresses with zstd.
-func writePullResponse(c echo.Context, resp apiclient.RichPullResponse) error {
+func writePullResponse(c *echo.Context, resp apiclient.RichPullResponse) error {
 	data, err := json.Marshal(resp)
 	if err != nil {
 		return apiErr(c, http.StatusInternalServerError, "marshal response")
@@ -820,7 +884,7 @@ func writePullResponse(c echo.Context, resp apiclient.RichPullResponse) error {
 
 // HandleSyncGetBlocks returns blocks with full structured content for a specific item.
 // Returns []SyncBlock with segments, spans, annotations, and metadata.
-func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
+func (s *Server) HandleSyncGetBlocks(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -888,7 +952,7 @@ func pushStatus(total, completed, failed, inProgress int) string {
 
 // HandleSyncPushStatus returns the aggregated status of jobs triggered by a push.
 // GET /api/v1/projects/:id/sync/status?push_id=xxx
-func (s *Server) HandleSyncPushStatus(c echo.Context) error {
+func (s *Server) HandleSyncPushStatus(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -935,6 +999,16 @@ func (s *Server) HandleSyncPushStatus(c echo.Context) error {
 	// the worker reaches the person who ran `kapi push`.
 	if report := s.pushGovernanceFor(c.Request().Context(), pushID); report != nil {
 		resp["governance"] = report
+	}
+	// What the push's terminology and context ledger parts did, once its
+	// transaction committed.
+	if parts := s.pushPartsFor(c.Request().Context(), pushID); parts != nil {
+		if parts.Terms != nil {
+			resp["terms"] = parts.Terms
+		}
+		if parts.Ledger != nil {
+			resp["ledger"] = parts.Ledger
+		}
 	}
 	return c.JSON(http.StatusOK, resp)
 }

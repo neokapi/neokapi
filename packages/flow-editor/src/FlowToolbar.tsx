@@ -67,7 +67,7 @@ export function FlowToolbar({
               aria-label="Run flow"
             >
               {running ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-              {running ? t("Running...") : t("Run")}
+              {running ? t("Running…") : t("Run")}
             </Button>
           )}
         </>

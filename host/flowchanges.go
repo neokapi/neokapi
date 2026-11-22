@@ -2,7 +2,6 @@ package host
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -18,36 +17,37 @@ import (
 )
 
 // What a flow writes, as the kapi host commits and records it.
-//
+
 // Every flow run the host starts (kapi translate, pseudo-translate, run, exec,
 // up, and the same runs in Kapi Desktop and over MCP) writes its documents
-// through the file home its change service commits through (flowHome): the
-// same lock directory and the same if-unchanged rename. Inside a project the
-// run also records what it changed, one content.edit operation per document
-// it wrote, with the actor tool:<flow> and the origin flow:<flow>, through the
-// recorder a change set's commit records through (App.EditRecorder). A flow's
-// record keeps revisions and hashes and no text: the file holds the text.
-//
+// through the file home its change service commits through (flowHome). Inside
+// a project the run also records what it changed, one content.edit operation
+// per document, with the actor tool:<flow> and the origin flow:<flow>, through
+// App.EditRecorder. A flow's record keeps revisions and hashes and no text:
+// the file holds the text.
+
 // The transitions are the run's effect on the file as the change service reads
-// it. The document is read through the service before the run (the revision
-// of each edition it holds, or, for a run that writes a target-language file,
-// of that edition joined in from its file) and again after the commit, and a
-// transition is recorded for each edition whose revision moved. Reading the
-// file rather than the blocks the run held is what makes a recorded revision
-// the one a later read finds, which is how a read, kapi status and the next
-// pass know the translation on disk is the one the run made and which source
-// revision it was made from (its basis).
-//
+// it. The document is read through the service before the run and again after
+// the commit. Before the run it reads the revision of each edition it holds,
+// or, for a run that writes a target-language file, of that edition joined in
+// from its file. A transition is recorded for each edition whose revision
+// moved.
+
+// Reading the file rather than the blocks the run held makes a recorded
+// revision the one a later read finds. That is how a read, kapi status and
+// the next pass know the translation on disk is the one the run made. They
+// also learn which source revision it was made from (its basis).
+
 // Under --print-ops the run writes nothing: its home stages no file
 // (filehome.Options.WriteNothing), nothing is recorded, and the operations the
 // run would apply are collected into one change set (printedOps), which
 // kapi apply applies to the same bytes.
-//
+
 // A document that moved while the run worked (a person saved it, a change set
 // committed first) is applied again through the change service, from the
 // operations the run's blocks describe, each guarded by the revision read
-// before the run. The service reads the file under its lock and refuses the
-// whole document stale when an edition the run changed has moved too.
+// before the run. An edition the run changed that moved too makes the whole
+// document stale.
 
 // flowActor is the actor a flow writes as.
 func flowActor(flowName string) change.Actor {
@@ -63,7 +63,7 @@ func flowOrigin(flowName string) string { return "flow:" + flowName }
 // --print-ops it writes nothing but a convergence pass's drafts, which stay
 // in the run's own tree.
 func (a *App) flowHome(root string) *filehome.Home {
-	opts := filehome.Options{LockDir: filepath.Join(DataDir(), "locks"), WriteNothing: a.printOps != nil, WriteUnder: a.convergeDraftDir}
+	opts := filehome.Options{LockDir: filepath.Join(DataDir(), "locks"), WriteNothing: a.printOps != nil, WriteUnder: a.convergeDraftDir, Root: root}
 	if root != "" {
 		l := project.LayoutAt(root)
 		opts.LockDir = filepath.Join(l.WorkDir(), "locks")
@@ -91,10 +91,7 @@ func (a *App) flowDocumentsIn(ctx context.Context, cmd Command, root string, sou
 	if root == "" && a.printOps == nil {
 		return home, nil
 	}
-	recipe := ""
-	if root != "" {
-		recipe = project.LayoutAt(root).RecipePath
-	}
+	recipe := runRecipe(cmd, root)
 	fc := &flowChanges{app: a, ctx: ctx, root: root, print: a.printOps, home: home, source: source}
 	fc.changes = a.newCommandChanges(flowHookCommand(ctx, cmd, recipe), recipe, ChangeServiceOptions{
 		Format:       a.FormatFlag,
@@ -316,10 +313,10 @@ func producerKey(block, edition string) string { return block + "\x00" + edition
 type revisions map[string]blockRevs
 
 // blockRevs is one block's editions as the change service read them: each
-// tracked edition's revision by edition text ("" is the document's own), and
-// the authoritative edition, by the key the service names it with, its
-// revision, which is the basis of a derived edition made from it, and the
-// content hash of its text.
+// tracked edition's revision by edition text ("" is the document's own). It
+// also holds the authoritative edition, by the key the service names it with.
+// For that edition it keeps its revision, which is the basis of a derived
+// edition made from it, and the content hash of its text.
 type blockRevs struct {
 	editions    map[string]string
 	auth        model.EditionKey
@@ -534,7 +531,7 @@ func (doc *flowDoc) Leave(b *model.Block) {
 			continue
 		}
 		ed, _ := b.Edition(k)
-		lb.editions[text] = leftEdition{key: k, runs: slices.Clone(ed.Runs), rev: rev, status: ed.Status, origin: ed.Origin}
+		lb.editions[text] = leftEdition{key: k, runs: model.CloneRuns(ed.Runs), rev: rev, status: ed.Status, origin: ed.Origin}
 	}
 	if len(lb.editions) == 0 && doc.entered == nil {
 		return
@@ -761,7 +758,7 @@ func (fc *flowChanges) loop() *loopWrites {
 	return fc.history
 }
 
-// docKey is the key the project knows the document ref by.
+// docKey is the key the project stores the document ref under.
 func (fc *flowChanges) docKey(ref string) string {
 	return fc.app.documentKey(fc.ctx, fc.root, ref)
 }
@@ -881,22 +878,9 @@ func (a *App) draftDestination(locale model.LocaleID, path string) (string, bool
 // to the block afterwards leaves the copy as it was: the source runs and each
 // target, runs included, are copies.
 func snapshotBlock(b *model.Block) *model.Block {
-	c := b.CopyEditions(copyRuns)
+	c := b.CopyEditions(model.CloneRuns)
 	c.Properties = maps.Clone(b.Properties)
 	return c
-}
-
-// copyRuns copies a run sequence through its canonical JSON, so no run of the
-// copy shares a pointer with the original.
-func copyRuns(runs []model.Run) []model.Run {
-	if runs == nil {
-		return nil
-	}
-	var out []model.Run
-	if err := json.Unmarshal(model.CanonicalRunsJSON(runs), &out); err != nil {
-		return slices.Clone(runs)
-	}
-	return out
 }
 
 // FlowHome is the file home a flow, or any surface that writes a whole
@@ -911,4 +895,20 @@ func (doc *flowDoc) producer(key, text string) (model.Origin, bool) {
 	defer doc.mu.Unlock()
 	o, ok := doc.producers[producerKey(key, text)]
 	return o, ok
+}
+
+// runRecipe is the recipe of the project rooted at root that the run cmd
+// starts reads: the one its -p (or discovery) names when that recipe sits in
+// root, so a recipe under another name than kapi.yaml is the project's, else
+// root's kapi.yaml. "" outside a project.
+func runRecipe(cmd Command, root string) string {
+	if root == "" {
+		return ""
+	}
+	if cmd != nil {
+		if path, err := ResolveProjectPath(cmd); err == nil && path != "" && filepath.Dir(path) == root {
+			return path
+		}
+	}
+	return project.LayoutAt(root).RecipePath
 }

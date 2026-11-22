@@ -9,10 +9,12 @@ const sampleTokens: ApiToken[] = [
     id: "tok-1",
     user_id: "u-1",
     workspace_id: "ws-1",
-    name: "CI/CD Pipeline",
-    // A machine token: change-sets it pushes are authored by "agent/kapi-ci",
-    // which leaves the person who minted it free to review them.
-    agent_name: "kapi-ci",
+    name: "Dogfood Sync",
+    // A tool token: the server records what it pushes as the tool's, issued
+    // by the member, who can then review it.
+    tool_name: "dogfood-sync",
+    issued_by: "u-1",
+    issuer_name: "Asgeir Frimannsson",
     token_prefix: "bwt_ab12",
     scopes: '["*"]',
     last_used_at: new Date(Date.now() - 86400000).toISOString(),

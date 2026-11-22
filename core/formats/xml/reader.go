@@ -1371,7 +1371,7 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 	isInline := s.reader.cfg.isInlineElementNS(t.Name.Local, t.Name.Space, parentName)
 	isExcluded := s.reader.cfg.isExcludedElementCtx(elemCtx)
 
-	// Check excludeByDefault
+	// Check exclude_by_default
 	if s.reader.cfg.ExcludeByDefault && !s.reader.cfg.isIncludedElementCtx(elemCtx) {
 		isExcluded = true
 	}

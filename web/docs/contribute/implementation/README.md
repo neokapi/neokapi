@@ -17,8 +17,7 @@ design choices; notes describe the implementation.
 The notes are grouped into the same series as the decisions (**F** foundations,
 **E** engine, **C** context, **S** surfaces, **M** multilingual), so a note sits
 under the heading of the AD it details. A final group holds the
-notes that describe this repository's own infrastructure rather than a
-subsystem of the engine.
+notes on this repository's own infrastructure.
 
 ## F: Foundations
 
@@ -32,7 +31,9 @@ subsystem of the engine.
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Implementing Formats](engine/implementing-formats.md)             | [E-02](/contribute/architecture/engine/e-02-format-system)                                                                    | Step-by-step guide for new format readers and writers                                                                                              |
 | [Skeleton store and streaming](engine/skeleton-store.md) | [E-02](/contribute/architecture/engine/e-02-format-system)                                                                    | The skeleton store, its backings and writer fallbacks, and how the whole-document readers stream through it |
+| [Docx paragraph replay](engine/docx-paragraph-replay.md) | [E-02](/contribute/architecture/engine/e-02-format-system) | How a WordprocessingML round trip puts an unchanged paragraph back as its original bytes, and what the corpus and the parity slice measure |
 | [Content-Fidelity Surfacing](engine/content-fidelity.md)           | [E-02](/contribute/architecture/engine/e-02-format-system)                                                                    | Surfacing non-translatable context: the inverted toggle, channels, parity force-off                                                                |
+| [Scaling the processing primitive](engine/scaling-processing.md) | [E-01](/contribute/architecture/engine/e-01-processing-engine) | The same processing primitive in-process, as a queue-backed worker and as a gRPC daemon, and the seams that let it scale as a service |
 | [Flow Steps Format](engine/flow-steps-format.md)                   | [E-04](/contribute/architecture/engine/e-04-flows-and-io-binding) · [E-03](/contribute/architecture/engine/e-03-tool-system)  | YAML step list, compilation to the graph, script steps                                                                                             |
 | [Session-Scoped Tool Authoring](engine/session-tool-authoring.md)  | [E-03](/contribute/architecture/engine/e-03-tool-system)                                                                      | Guide for writing tools against BlockStore                                                                                                         |
 | [The change applier](engine/change-applier.md) | [E-09](/contribute/architecture/engine/e-09-the-change-contract) · [E-03](/contribute/architecture/engine/e-03-tool-system) | The change-set types, strict decoding and schema, ApplyBlock and its rules, status consequences, Diff, and how tools write through it |
@@ -45,6 +46,8 @@ subsystem of the engine.
 | Note                                                                     | Parent AD                                                        | Content                                                                                        |
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
 | [kapi.yaml Project File](context/kapi-project-file.md)                    | [C-01](/contribute/architecture/context/c-01-project-model)        | `kapi.yaml` recipe schema and examples                                                           |
+| [Workspace storage](context/workspace-storage.md) | [C-03](/contribute/architecture/context/c-03-context-store-and-graph) | The files a workspace keeps, the tables in each pool, cross-file queries, pool settings and read-only opening |
+| [Context atlas](context/context-atlas.md) | [C-11](/contribute/architecture/context/c-11-context-operations) · [C-12](/contribute/architecture/context/c-12-places) | The `kapi context atlas --json` document the desktop's Explore view draws, field by field |
 | [Terminology Data Model](context/terminology-data-model.md)               | [C-08](/contribute/architecture/context/c-08-terms)                | Go structs, Terminology interface                                                                |
 | [Content Memory Matching Algorithm](context/memory-matching-algorithm.md) | [C-09](/contribute/architecture/context/c-09-content-memory)       | Tiered matching, version chains, TMX mapping                                                     |
 
@@ -65,10 +68,13 @@ subsystem of the engine.
 
 ## Repo infrastructure
 
-These two describe how this repository builds and presents itself rather than
-how the engine works, so they answer to no architecture decision.
+These notes describe how this repository builds, measures and presents itself,
+and answer to no architecture decision.
 
 | Note                                        | Content                                                                                        |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | [CDN asset offloading](repo/cdn-assets.md)   | Why the large immutable docs assets are served from S3 + CloudFront, and how they are published  |
+| [Brand tokens and the documentation palette](repo/docs-palette.md) | Where the brand colours live, how the docs sites and the diagram kit are painted from them, and what the drift gate asserts |
+| [Agent evaluation](repo/agent-evaluation.md) | Whether coding agents apply a project's rules, measured on a generated repository against an answer key |
+| [Paired agent evaluation](repo/paired-agent-evaluation.md) | The same content tasks through file tools, the kapi CLI skill, MCP and the edit commands, compared |
 | [Markdown in the UI](repo/markdown-in-ui.md) | Which metadata fields carry markdown, and the shared `Markdown` typeset primitive that renders them |

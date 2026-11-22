@@ -32,7 +32,8 @@ func newContextReviewCmd(a *App) *cobra.Command {
 decide about each one: keep it as a rule, drop it, choose a side where two
 suggestions disagree, or apply a rule more widely than where it was seen.
 
-A suggestion nobody answers keeps advising, so nothing here has to be cleared.
+Checks keep reporting a suggestion until someone answers it, so nothing here
+has to be cleared.
 A rule you keep is in force from then on: checks fail on it unless it is
 advisory. Dropping a rule already in force takes it back out.
 
@@ -313,7 +314,7 @@ func ask(w io.Writer, in *bufio.Reader, prompt string) string {
 	return strings.ToLower(strings.TrimSpace(line))
 }
 
-// writeReviewFacts writes where an item was seen and who noticed it.
+// writeReviewFacts writes where an item was seen and who suggested it.
 func writeReviewFacts(w io.Writer, it screens.DigestItem, indent string) {
 	if it.Quote != nil && (it.Quote.Quote != "" || it.Quote.Path != "") {
 		line := it.Quote.Path

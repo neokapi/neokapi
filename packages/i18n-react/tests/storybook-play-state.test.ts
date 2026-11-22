@@ -21,6 +21,7 @@ const loadTranslationsMock = vi.fn<(locale: string, url: string) => Promise<void
 vi.mock("../src/runtime/index.ts", () => ({
   setTranslations: setTranslationsMock,
   loadTranslations: loadTranslationsMock,
+  setKeyMarking: () => {},
   t: () => "",
   tx: () => null,
   useNeokapi: () => 0,

@@ -9,8 +9,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-
-	"github.com/neokapi/neokapi/core/httputil"
 )
 
 // ollamaKeepAlive keeps a loaded model resident between requests. kapi
@@ -52,7 +50,7 @@ func NewOllamaProvider(cfg Config) *OllamaProvider {
 	}
 	return &OllamaProvider{
 		config: cfg,
-		client: httputil.NewResilientClient(),
+		client: newChatClient(),
 	}
 }
 

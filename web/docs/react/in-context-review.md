@@ -7,7 +7,9 @@ keywords: [in-context review, translation review, live editing, checks, terminol
 
 # In-context review
 
-A translator working from a file cannot see that "Save" landed on a button 40 pixels wide, that the German for "Cancel" now wraps to two lines, or that the tone is wrong for a dialog that deletes something. Review mode puts the review back on the app: run it, hold ALT, and every translatable string on the page becomes something you can inspect and fix in place.
+Review mode lets you check and fix translations on the running app: hold ALT, click a string and edit its translation in place. The fix goes into the `.kbf.json` file the string came from.
+
+A translator working from a file cannot see that "Save" landed on a button 40 pixels wide, that the German for "Cancel" wraps to two lines, or that the tone is wrong for a dialog that deletes something. On the running app, you can.
 
 ## Turn it on
 
@@ -25,7 +27,7 @@ Review mode adds review data to your markup and lets the browser write to your t
 
 ## Review a string
 
-Hold **ALT**: hovering now outlines every translatable element. **ALT+click** one to open its panel:
+Hold **ALT**, and hovering outlines every translatable element. **ALT+click** one to open its panel:
 
 - **Source**: the original text, with its links, bold spans, and placeholders shown the way a translator sees them.
 - **Target**: the current translation, editable.
@@ -34,7 +36,7 @@ Hold **ALT**: hovering now outlines every translatable element. **ALT+click** on
 
 Type a fix, save, and the app repaints immediately with the new text.
 
-The fix is written into the `.kbf.json` file the string came from, so it shows up as a line in `git diff`, travels through review in a pull request like any other change, and is picked up by the next `neokapi-i18n compile` with no extra step. A reviewer's edit takes exactly the same path as a translator's, because it is the same file.
+The fix is written into the `.kbf.json` file the string came from. It shows up as a line in `git diff`, goes through pull-request review like any other change, and the next `neokapi-i18n compile` includes it. A reviewer's edit and a translator's edit land in the same file.
 
 ## Head and SEO strings
 
@@ -55,11 +57,11 @@ function Head() {
 }
 ```
 
-Each hook translates its source through the runtime dictionary (the same lookup `t()` uses), sets the real head element, and registers the string for review. Nothing scrapes arbitrary head markup; only strings the pipeline translated appear.
+Each hook translates its source through the runtime dictionary (the same lookup `t()` uses), sets the real head element, and registers the string for review. Only strings translated through these hooks appear in review, and other head markup is left alone.
 
-A **head/SEO** button appears in the review toolbar whenever a page has such strings. It opens a panel listing each one (its slot (`title`, `description`, `og:title`, …), the source, and the current target) with the same editable field and save the inline panel uses. An edit writes back through the same `.kbf.json` file and repaints the head in place. When a page registers no head strings, the button stays hidden.
+A **head/SEO** button appears in the review toolbar whenever a page has such strings. It opens a panel that lists each string with its slot (`title`, `description`, `og:title`, …), its source and its current target, with the same editable field and save as the inline panel. An edit writes back through the same `.kbf.json` file and repaints the head in place. When a page registers no head strings, the button stays hidden.
 
-Head translation resolves through the runtime dictionary, so it applies in OTA / [runtime mode](./modes). Identically-worded slots, a `<title>` and its `og:title` say, share one translation.
+Head translation resolves through the runtime dictionary, so it applies in OTA / [runtime mode](./modes). Slots with identical wording, such as a `<title>` and its `og:title`, share one translation.
 
 ## See terminology and check findings on the page
 
@@ -70,13 +72,13 @@ kapi exec qa i18n/ --target-lang de
 kapi exec term-check i18n/ --target-lang de --termstore terms/de.db
 ```
 
-An approved term that wasn't used, a placeholder that went missing in translation, a string that runs 60% longer than its source and is about to break the button it lives in: each is marked on the words it's about, in the place it happens. Re-run a check while the app is open and the marks update; you don't need to restart anything.
+An approved term that wasn't used, a placeholder that went missing in translation, a string that runs 60% longer than its source and is about to break the button it lives in: each is marked on the words it concerns. Re-run a check while the app is open, and the marks update without a restart.
 
 ## Review on statically-rendered pages
 
-The review identifier, `data-kapi-id`, is a **content hash**: it is the same whether the build [inlines](./modes) the translation (zero-runtime SSG/SSR) or emits a runtime `t()` call. So review is render-mode-independent: it works on a fully static page with no app i18n runtime.
+The review identifier, `data-kapi-id`, is a **content hash**: it is the same whether the build [inlines](./modes) the translation (zero-runtime SSG/SSR) or emits a runtime `t()` call. Review therefore works in either mode, including on a fully static page with no app i18n runtime.
 
-Turn `review: true` on for an **inline** (or SSG/SSR) build and the plugin does two things regardless of mode: it stamps `data-kapi-id` into the baked HTML, and it emits `translations/review.json`, a read-only manifest of source, target, and location for every string on the page. That is everything a **hosted overlay** needs:
+Turn `review: true` on for an **inline** (or SSG/SSR) build, and the plugin does two things in either mode. It stamps `data-kapi-id` into the baked HTML, and it emits `translations/review.json`, a read-only manifest of source, target and location for every string on the page. A **hosted overlay** needs nothing more:
 
 ```ts
 import { initKapiReviewHosted } from "@neokapi/i18n-react/review/hosted";
@@ -84,7 +86,7 @@ import { initKapiReviewHosted } from "@neokapi/i18n-react/review/hosted";
 initKapiReviewHosted(); // read-only; fetches translations/review.json
 ```
 
-With only a static deploy (no dev server, no backend), a reviewer can deep-link to a string (`?kapi-focus=<hash>`), open the whole-page index (`?kapi-review`), and inspect any string's source and target in context. This is the "click from the platform into the live site" path.
+With only a static deploy (no dev server, no backend), a reviewer can deep-link to a string (`?kapi-focus=<hash>`), open the whole-page index (`?kapi-review`), and inspect any string's source and target in context.
 
 To let a reviewer **edit** on that static page, pass `edit: true` and an endpoint that speaks the review-store protocol (a staging deployment of the dev middleware, or a proxied review backend):
 
@@ -100,14 +102,14 @@ neokapi-i18n compile i18n --out public/translations --review
 
 ## Reviewers without a checkout
 
-Review talks to an endpoint, and the local one (reading and writing the `.kbf.json` files in your repository) is the endpoint that needs no infrastructure. Point it at a different endpoint on a staging deployment and a reviewer with no repository and no toolchain can review the app in place:
+Review reads and writes through an endpoint. The local endpoint works on the `.kbf.json` files in your repository and needs no infrastructure. Point review at an endpoint on a staging deployment, and a reviewer with no repository and no toolchain can review the app in place:
 
 ```ts
 initKapiReview({ endpoint: "https://staging.example.com/review" });
 ```
 
-## Next
+## Related
 
 - [Translating with kapi](./translating-with-kapi): where the terminology and check findings come from.
 - [Configuration](./configuration#review--reviewkbfdir): the `review` and `reviewKbfDir` options.
-- [S-05](/contribute/architecture/surfaces/s-05-i18n-runtime): how it works underneath, and why.
+- [S-05](/contribute/architecture/surfaces/s-05-i18n-runtime): the architecture of the i18n runtime and the review overlay.

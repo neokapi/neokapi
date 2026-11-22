@@ -27,8 +27,8 @@ defaults:
   formats:
     markdown:
       config:
-        translateFrontMatter: true
-        frontMatterKeys: [title, description, sidebar_label]
+        translate_front_matter: true
+        front_matter_keys: [title, description, sidebar_label]
   exclude:
     - "**/node_modules/**"
     - "**/.git/**"
@@ -49,8 +49,8 @@ collections:
         format:
           name: markdown
           config:
-            translateFrontMatter: true
-            frontMatterKeys: [title, description, sidebar_label]
+            translate_front_matter: true
+            front_matter_keys: [title, description, sidebar_label]
         target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
 
 # The ship gate is a coverage bar, and it gates DELIVERY — not the build. A
@@ -65,7 +65,7 @@ established_gate:
   established: 100
 
 flows:
-  # Recycle first, then draft the remainder. skipMatched is what makes the second
+  # Recycle first, then draft the remainder. skip_matched is what makes the second
   # step mean "the remainder": without it the AI step re-translates the units
   # recycle just filled from approved wording.
   #
@@ -77,9 +77,9 @@ flows:
     steps:
       - tool: recycle
         config:
-          fillTarget: true
-          fillTargetThreshold: 100
+          fill_target: true
+          fill_target_threshold: 100
       - tool: translate
         config:
           provider: demo
-          skipMatched: true
+          skip_matched: true

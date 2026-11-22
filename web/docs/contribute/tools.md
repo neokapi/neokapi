@@ -7,7 +7,9 @@ keywords: [tool implementation, BaseTool, Part, handler, pipeline, Go, neokapi, 
 
 # Implementing a New Tool
 
-Tools process Parts as they flow through a pipeline. Most tools only care about one or two Part types (usually Blocks).
+A tool reads the Parts of a run and acts on the ones it handles, usually
+Blocks. You build it on `tool.BaseTool`, set a handler for each Part type you
+want, and register it.
 
 ## Using BaseTool
 
@@ -107,20 +109,21 @@ reg.Register("uppercase", func() tool.Tool {
 
 Use `RegisterWithSchema` instead to attach a parameter schema, and
 `SetConfigFactory` so a YAML step's `config:` reaches the tool; see
-[Tool Authoring](/contribute/tool-authoring).
+[Tool Authoring with Parameter Schemas](/contribute/tool-authoring).
 
 ## Built-in Tools
 
 The framework's built-in tools are registered with their parameter schemas. The
-authoritative, generated list of what ships in the current build (every tool's
-name, description, and parameters) is the [Tool Reference](/tools), rendered
-from those schemas so it always matches the build. This guide deliberately does
-not restate it; for how the built-ins map to the kinds of work above, see
-[Tools](/framework/tools).
+[Tool Reference](/tools) is generated from those schemas and lists every tool
+in the current build with its name, description and parameters. For how the
+built-ins map to the kinds of work above, see [Tools](/framework/tools).
 
 ### Schema-Driven CLI Flags
 
-All built-in tools use schema-driven CLI flags. Tool config structs use `schema:"..."` tags to auto-generate flags from the struct fields. Use `schema:"-"` to exclude a field from flag generation. The `NewToolFromConfig` pattern allows the flow engine to instantiate tools from YAML configuration by mapping config keys to struct fields automatically.
+Built-in tools take their CLI flags from their config structs: each field with a
+`schema:"..."` tag becomes a flag, and `schema:"-"` excludes a field. The
+`NewToolFromConfig` pattern lets the flow engine build a tool from YAML
+configuration by mapping config keys to struct fields.
 
 ### Registering Built-in Tools
 
@@ -176,3 +179,9 @@ termEnforceTool := terms.NewTermEnforceTool(tb, terms.TermEnforceConfig{
     TargetLocale: "fr",
 })
 ```
+
+## Related
+
+- [Tool Authoring with Parameter Schemas](/contribute/tool-authoring): declaring parameters and registering with a schema.
+- [E-03: The tool system](/contribute/architecture/engine/e-03-tool-system): handler views, placement and side effects.
+- [Interface Reference](/contribute/interfaces): the `Tool` interface and `BaseTool`.

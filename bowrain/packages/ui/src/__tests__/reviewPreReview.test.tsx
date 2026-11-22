@@ -1,5 +1,5 @@
 /**
- * An agent's pre-review (a decide with outcome advise) reaches the reviewer in
+ * An agent's pre-review (a decide with outcome prereview) reaches the reviewer in
  * two places: the queue row carries its score, and the unit's checks card
  * carries the score, who gave it and the reasons. Neither decides anything.
  */

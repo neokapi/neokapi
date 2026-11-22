@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// PluginHint is the little kapi knows, offline, about a plugin it does not
+// PluginHint is what kapi holds, offline, about a plugin it does not
 // have installed: the top-level recipe key the plugin owns, and the verbs it
 // contributes to the command tree.
 //

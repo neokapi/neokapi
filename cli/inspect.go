@@ -48,6 +48,11 @@ apply:
   ops         the operations the block accepts
   role, level the block's structural role (heading, list-item, table-cell,
               …) and nesting level
+  layer       the layer the block sits on when it is not the body: furniture
+              for page headers, footers and slide masters, metadata for
+              speaker notes and comments
+  visibility  hidden for text the file does not show, such as a hidden
+              sheet, column, row or slide
 
 Inside a project (the one -p names, or the one found from the working
 directory) a file is named by its project-relative path and read with the

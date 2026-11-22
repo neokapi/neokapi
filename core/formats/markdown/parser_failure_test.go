@@ -11,12 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestReaderReportsAParserFailure covers a document the parser itself fails
-// on: goldmark indexes before the line when a blockquote marker is followed
-// by a tab and a fence character at the start of the document. The reader
-// reports the failure as a read error, and the rebuild path's own parse of
-// its output treats the failure as nothing formed.
-func TestReaderReportsAParserFailure(t *testing.T) {
+// TestReaderReadsTabAfterBlockquoteMarker covers a blockquote marker followed
+// by a tab and a fence character at the start of the document, an input
+// goldmark 1.8.2 and earlier panicked on. It reads without error.
+func TestReaderReadsTabAfterBlockquoteMarker(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	reader := markdown.NewReader()
@@ -28,7 +26,7 @@ func TestReaderReportsAParserFailure(t *testing.T) {
 			errs++
 		}
 	}
-	assert.Equal(t, 1, errs, "the parser failure is reported as one read error")
+	assert.Zero(t, errs, "the document reads without error")
 
 	// The same bytes inside an indented code block are content, and the
 	// rebuild path parses them while checking its output.

@@ -1,4 +1,4 @@
-import { Card, Skeleton } from "@neokapi/ui-primitives";
+import { Card, PageContainer, Skeleton } from "@neokapi/ui-primitives";
 
 // ---------------------------------------------------------------------------
 // Page-level skeleton components for instant navigation feedback
@@ -7,7 +7,7 @@ import { Card, Skeleton } from "@neokapi/ui-primitives";
 /** Skeleton for the project dashboard (card grid). */
 export function DashboardSkeleton() {
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <PageContainer width="wide" className="space-y-6">
       {/* Header area */}
       <div className="flex items-center justify-between">
         <Skeleton className="h-8 w-48" />
@@ -34,14 +34,14 @@ export function DashboardSkeleton() {
           </Card>
         ))}
       </div>
-    </div>
+    </PageContainer>
   );
 }
 
 /** Skeleton for project detail view (file table). */
 export function ProjectDetailSkeleton() {
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <PageContainer width="full" className="space-y-4 px-6 py-5">
       {/* Breadcrumb / back */}
       <div className="flex items-center gap-2">
         <Skeleton className="h-4 w-4" />
@@ -88,7 +88,7 @@ export function ProjectDetailSkeleton() {
           </div>
         ))}
       </Card>
-    </div>
+    </PageContainer>
   );
 }
 
@@ -128,7 +128,7 @@ export function EditorSkeleton() {
 /** Skeleton for table-based views (audit log, bin, terms, memory). */
 export function TablePageSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-5xl p-4 md:p-6 space-y-4">
+    <PageContainer width="wide" className="space-y-4">
       {/* Page header */}
       <Card className="p-6">
         <Skeleton className="h-6 w-36 mb-2" />
@@ -155,14 +155,14 @@ export function TablePageSkeleton() {
           </div>
         ))}
       </Card>
-    </div>
+    </PageContainer>
   );
 }
 
 /** Skeleton for voice profile list (card grid). */
 export function VoiceProfilesSkeleton() {
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <PageContainer width="wide" className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
@@ -189,14 +189,14 @@ export function VoiceProfilesSkeleton() {
           </Card>
         ))}
       </div>
-    </div>
+    </PageContainer>
   );
 }
 
 /** Skeleton for settings pages (single card with fields). */
 export function SettingsSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-3xl py-4 space-y-4">
+    <PageContainer width="standard" className="space-y-4">
       <Card className="p-6 space-y-4">
         <div className="space-y-1">
           <Skeleton className="h-6 w-32" />
@@ -209,14 +209,14 @@ export function SettingsSkeleton() {
           </div>
         ))}
       </Card>
-    </div>
+    </PageContainer>
   );
 }
 
 /** Skeleton for the translation dashboard (stats + charts + table). */
 export function TranslationDashboardSkeleton() {
   return (
-    <div className="space-y-6">
+    <PageContainer width="wide" className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <Skeleton className="h-7 w-64" />
@@ -297,7 +297,7 @@ export function TranslationDashboardSkeleton() {
           ))}
         </div>
       </Card>
-    </div>
+    </PageContainer>
   );
 }
 
@@ -356,7 +356,7 @@ export function TaskBoardSkeleton() {
 /** Skeleton for explorer views (terms, memory) with search + table. */
 export function ExplorerSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-5xl p-4 md:p-6 space-y-4">
+    <PageContainer width="wide" className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
@@ -386,6 +386,6 @@ export function ExplorerSkeleton() {
           </div>
         ))}
       </Card>
-    </div>
+    </PageContainer>
   );
 }

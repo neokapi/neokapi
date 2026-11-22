@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/config"
+	coreschema "github.com/neokapi/neokapi/core/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -62,7 +63,7 @@ func TestOkapiXLIFFTransform_PassesThroughSupportedParams(t *testing.T) {
 
 	// Supported params should be passed through
 	for key, val := range spec {
-		assert.Equal(t, val, result[key], "param %q should pass through", key)
+		assert.Equal(t, val, result[coreschema.SnakeCase(key)], "param %q should pass through under its snake_case key", key)
 	}
 }
 
@@ -86,6 +87,6 @@ func TestOkapiXLIFFTransform_UnknownParamsPassThrough(t *testing.T) {
 	result, err := config.DefaultTransforms.Transform(from, to, spec)
 	require.NoError(t, err)
 
-	assert.Equal(t, "value", result["customParam"])
-	assert.Nil(t, result["generateTarget"])
+	assert.Equal(t, "value", result["custom_param"])
+	assert.Nil(t, result["generate_target"])
 }

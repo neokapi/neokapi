@@ -126,13 +126,13 @@ func TestExtractNonTranslatableContentApplyMap(t *testing.T) {
 	cfg.Reset()
 	assert.True(t, cfg.ExtractNonTranslatableContent(), "surfacing defaults on")
 
-	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extract_non_translatable_content": false}))
 	assert.False(t, cfg.ExtractNonTranslatableContent())
 
-	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": true}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extract_non_translatable_content": true}))
 	assert.True(t, cfg.ExtractNonTranslatableContent())
 
-	require.Error(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": "nope"}),
+	require.Error(t, cfg.ApplyMap(map[string]any{"extract_non_translatable_content": "nope"}),
 		"non-bool value is rejected")
 }
 

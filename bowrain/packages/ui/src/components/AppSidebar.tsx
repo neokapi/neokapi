@@ -24,6 +24,7 @@ import {
   Clock,
   Trash2,
   Globe,
+  Languages,
   Users,
   KeyRound,
   Info,
@@ -39,7 +40,6 @@ import {
   Plug,
   FolderOpen,
   ListChecks,
-  MapIcon,
 } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
@@ -91,12 +91,13 @@ export function NavCount({ count }: { count?: number }) {
 type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 
 export type ProjectView =
-  | "map"
-  | "dashboard"
+  | "overview"
+  | "languages"
   | "rules"
   | "source"
   | "automations"
   | "runs"
+  | "feed"
   | "connectors";
 
 export type SidebarContext =
@@ -106,9 +107,9 @@ export type SidebarContext =
       project: ProjectInfo;
       activeStream: string;
       activeProjectView: ProjectView;
-      /** The Map: the project's landing page. */
-      onOpenMap?: () => void;
-      onOpenDashboard: () => void;
+      /** The Overview: the project's landing page. */
+      onOpenOverview?: () => void;
+      onOpenLanguages: () => void;
       /** The questions about the project's suggestions, and the rules in force. */
       onOpenRules?: () => void;
       /** The project's source content: collections, items and streams. */
@@ -122,6 +123,8 @@ export type SidebarContext =
       onDeleteStream?: (streamName: string) => void;
       onOpenAutomations?: () => void;
       onOpenRuns?: () => void;
+      /** The project feed: how the project changed, newest first. */
+      onOpenFeed?: () => void;
       onOpenConnectors?: () => void;
     };
 
@@ -217,12 +220,13 @@ export const projectSubNavConfig = (
   ctx: Extract<SidebarContext, { level: "project" }>,
 ): SubNavItem[] =>
   [
-    { id: "map", label: t("Map"), icon: <MapIcon />, on: ctx.onOpenMap },
-    { id: "dashboard", label: t("Overview"), icon: <LayoutDashboard />, on: ctx.onOpenDashboard },
+    { id: "overview", label: t("Overview"), icon: <LayoutDashboard />, on: ctx.onOpenOverview },
+    { id: "languages", label: t("Languages"), icon: <Languages />, on: ctx.onOpenLanguages },
     { id: "rules", label: t("Rules"), icon: <ListChecks />, on: ctx.onOpenRules },
     { id: "source", label: t("Source content"), icon: <FolderOpen />, on: ctx.onOpenSource },
     { id: "automations", label: t("Automations"), icon: <Sparkles />, on: ctx.onOpenAutomations },
     { id: "runs", label: t("Runs"), icon: <Rocket />, on: ctx.onOpenRuns },
+    { id: "feed", label: t("Activity"), icon: <Activity />, on: ctx.onOpenFeed },
     { id: "connectors", label: t("Connectors"), icon: <Plug />, on: ctx.onOpenConnectors },
   ]
     .filter((item) => item.on)
@@ -234,12 +238,13 @@ export function openProjectSection(
   id: string,
 ): void {
   const run = {
-    map: ctx.onOpenMap,
-    dashboard: ctx.onOpenDashboard,
+    overview: ctx.onOpenOverview,
+    languages: ctx.onOpenLanguages,
     rules: ctx.onOpenRules,
     source: ctx.onOpenSource,
     automations: ctx.onOpenAutomations,
     runs: ctx.onOpenRuns,
+    feed: ctx.onOpenFeed,
     connectors: ctx.onOpenConnectors,
   }[id];
   run?.();

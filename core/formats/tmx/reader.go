@@ -888,7 +888,7 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 			block.SetTargetText(model.LocaleID(tuv.lang), "")
 		}
 		block.MarkNative(model.Variant(model.LocaleID(tuv.lang)))
-		// When processAllTargets is false, only read the first target TUV
+		// When process_all_targets is false, only read the first target TUV
 		if !r.cfg.ProcessAllTargets {
 			if firstTarget {
 				firstTarget = false

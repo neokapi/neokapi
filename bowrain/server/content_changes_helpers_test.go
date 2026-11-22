@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/require"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -37,15 +37,14 @@ var translateCaller = changeCaller{user: "user-2", name: "Tom", perms: platauth.
 
 // changesContext is the echo context the router hands the changes route for a
 // project's main stream, as who.
-func changesContext(t *testing.T, pid string, who changeCaller, body []byte) (echo.Context, *httptest.ResponseRecorder) {
+func changesContext(t *testing.T, pid string, who changeCaller, body []byte) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	e := echo.New()
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/acme/projects/"+pid+"/streams/main/changes", bytes.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "stream")
-	c.SetParamValues("acme", pid, "main")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: pid}, {Name: "stream", Value: "main"}})
 	c.Set("project_permissions", who.perms)
 	if who.langs != nil {
 		c.Set("project_languages", who.langs)

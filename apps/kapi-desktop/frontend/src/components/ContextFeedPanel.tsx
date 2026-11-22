@@ -15,7 +15,8 @@
 
 import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PanelHeader } from "@neokapi/ui-primitives";
+import { ErrorNotice, PanelHeader } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
@@ -105,6 +106,10 @@ export function ContextFeedPanel({
   return (
     <div data-slot="context-feed-panel" className="flex h-full min-h-0 flex-col">
       {title && <PanelHeader title={title} />}
+      {/* A drop the host refuses (an edit a later one built on) says why. */}
+      {discard.error != null && (
+        <ErrorNotice error={discard.error} detailsLabel={t("Details")} className="m-3 mb-0" />
+      )}
       <div className="min-h-0 flex-1">
         <ContextFeedList
           feed={feed}

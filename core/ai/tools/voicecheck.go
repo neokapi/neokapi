@@ -32,14 +32,14 @@ type VoiceCheckTool struct {
 // VoiceCheckConfig holds configuration for the voice profile check tool.
 type VoiceCheckConfig struct {
 	Provider string `json:"provider,omitempty"  schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
-	APIKey   string `json:"apiKey,omitempty"    schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	APIKey   string `json:"api_key,omitempty"    schema:"title=API Key,description=API key for the AI provider,group=provider"`
 	// BaseURL is the endpoint the provider is called at, for a self-hosted or
 	// proxied deployment. The host resolves it from the credential the key
 	// came from and injects it here; a recipe cannot set it, which is why it
 	// is off the form (see host/credentials.stripRecipeEndpoint).
-	BaseURL   string `json:"baseURL,omitempty"   schema:"-"`
+	BaseURL   string `json:"base_url,omitempty"   schema:"-"`
 	Model     string `json:"model,omitempty"     schema:"title=Model,description=AI model name,group=provider"`
-	ProfileID string `json:"profileId,omitempty" schema:"title=Profile ID,description=Voice profile to resolve from the store"`
+	ProfileID string `json:"profile_id,omitempty" schema:"title=Profile ID,description=Voice profile to resolve from the store"`
 	// Profile is the resolved voice profile, supplied programmatically (e.g. by
 	// the kapi voice command or a .kapi voice binding). Not serialized.
 	Profile *coreprofile.VoiceProfile `json:"-" schema:"-"`

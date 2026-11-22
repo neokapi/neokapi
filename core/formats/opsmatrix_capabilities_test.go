@@ -460,7 +460,7 @@ func TestCapabilityMatrix(t *testing.T) {
 	}
 }
 
-// renumberCodes gives the codes of runs ids in the order they first appear,
+// renumber_codes gives the codes of runs ids in the order they first appear,
 // as a reader numbers them, so content an operation produced compares with
 // the same content read back.
 func renumberCodes(runs []model.Run) []model.Run {

@@ -64,7 +64,7 @@ That buys three things at once:
   reader.
 - **The prompt is fingerprinted** into the translate config, so rewording a
   prompt invalidates cached targets rather than silently serving a translation
-  produced by a prompt that no longer exists.
+  produced by a prompt that has since changed.
 
 The corollary is that **prompts never fork per provider**. Providers differ in
 *mechanism* (one constrains output by grammar, another by a response-format
@@ -137,7 +137,7 @@ reasoning model draws its thoughts from the same allowance as its answer, so
 sizing a short block's request down to what its words need would be a new way to
 truncate one.
 
-The output budget also charges for the reply's **shape**, not only its words.
+The output budget also charges for the reply's **shape** as well as its words.
 The JSON scaffolding the schema wraps around each item costs per *item* rather
 than per word, and on a batch of many short interface strings it is most of the
 reply. A budget covering the translation's words alone asks for a cap smaller

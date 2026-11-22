@@ -5,14 +5,14 @@
  */
 
 import { describe, expect, it, vi } from "vite-plus/test";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { Block } from "@neokapi/kapi-format";
 import { marshalFile, newFile, sourceEditions } from "@neokapi/kapi-format";
 
 import { runCompile } from "../src/commands/compile.ts";
+import { tempDir } from "./temp-dir";
 
 function block(hash: string, text: string): Block {
   return {
@@ -54,7 +54,7 @@ async function compile(dir: string): Promise<string[]> {
 
 describe("compile walks catalogs in byte order", () => {
   it("orders keys by catalog path, depth first, then by block", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "compile-order-"));
+    const dir = tempDir("compile-order");
     // Written in an order no sort would produce; uppercase sorts before
     // lowercase in byte order, and a directory is walked where its name falls.
     catalog(dir, "i18n/src/b/Late.kbf.json", [block("kLate", "late")]);
@@ -67,8 +67,8 @@ describe("compile walks catalogs in byte order", () => {
   });
 
   it("writes the same bytes whichever order the catalogs were created in", async () => {
-    const a = mkdtempSync(join(tmpdir(), "compile-order-a-"));
-    const b = mkdtempSync(join(tmpdir(), "compile-order-b-"));
+    const a = tempDir("compile-order-a");
+    const b = tempDir("compile-order-b");
     const files: [string, Block[]][] = [
       ["i18n/src/one.kbf.json", [block("k1", "one")]],
       ["i18n/src/two.kbf.json", [block("k2", "two")]],

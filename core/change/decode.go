@@ -419,9 +419,9 @@ func validateBody(op Op, ptr string) *Error {
 		}
 	case *Decide:
 		switch b.Outcome {
-		case OutcomeEstablish, OutcomeReject, OutcomeWithdraw, OutcomeAdvise:
+		case OutcomeEstablish, OutcomeReject, OutcomeWithdraw, OutcomePrereview:
 		default:
-			return invalidAt(ptr+"/outcome", "outcome %q; one of establish, reject, withdraw, advise", b.Outcome)
+			return invalidAt(ptr+"/outcome", "outcome %q; one of establish, reject, withdraw, prereview", b.Outcome)
 		}
 		if b.Score != nil && (*b.Score < 0 || *b.Score > 100) {
 			return invalidAt(ptr+"/score", "score %d is outside 0 to 100", *b.Score)

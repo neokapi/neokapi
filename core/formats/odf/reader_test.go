@@ -492,7 +492,7 @@ func TestConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	err = cfg.ApplyMap(map[string]any{
-		"translateNotes": false,
+		"translate_notes": false,
 	})
 	require.NoError(t, err)
 	assert.False(t, cfg.TranslateNotes)

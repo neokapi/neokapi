@@ -98,17 +98,21 @@ describe("createLocalContextSource", () => {
     expect(caps.relations).toBe("project");
   });
 
-  it("answers a file through the by-location surface, untouched", async () => {
+  it("answers a file through the by-location surface, and states a capped list as partial", async () => {
     const backend = fakeBackend();
     const source = createLocalContextSource(TAB, backend);
     const answer = await source.governs({
       scope: { ...SCOPE, path: "docs/help/billing.json" },
       limit: 5,
     });
-    expect(backend.at).toHaveBeenCalledWith(TAB, "docs/help/billing.json", 5);
+    expect(backend.at).toHaveBeenCalledWith(TAB, "docs/help/billing.json", "", 5);
     expect(backend.governs).not.toHaveBeenCalled();
     expect(answer.point.path).toBe("docs/help/billing.json");
-    expect(answer.terms_total).toBe(18);
+    // The surface counted 18 terms behind one: the concepts behind the rest
+    // are unknown, so the answer says the list is partial rather than
+    // giving a total in the wrong unit.
+    expect(answer.terms_total).toBeUndefined();
+    expect(answer.terms_capped).toBe(true);
     expect(answer.voice?.guide).toBe("Write plainly.");
   });
 
@@ -116,8 +120,17 @@ describe("createLocalContextSource", () => {
     const backend = fakeBackend();
     const source = createLocalContextSource(TAB, backend);
     await source.governs({ scope: SCOPE, limit: 5 });
-    expect(backend.governs).toHaveBeenCalledWith(TAB, "Docs", "", 5);
+    expect(backend.governs).toHaveBeenCalledWith(TAB, "Docs", "", "", 5);
     expect(backend.at).not.toHaveBeenCalled();
+  });
+
+  it("narrows the terms to the chosen language at a collection and at a file", async () => {
+    const backend = fakeBackend();
+    const source = createLocalContextSource(TAB, backend);
+    await source.governs({ scope: { ...SCOPE, locale: "nb" }, limit: 5 });
+    expect(backend.governs).toHaveBeenCalledWith(TAB, "Docs", "", "nb", 5);
+    await source.governs({ scope: { ...SCOPE, locale: "nb", path: "docs/a.json" }, limit: 5 });
+    expect(backend.at).toHaveBeenCalledWith(TAB, "docs/a.json", "nb", 5);
   });
 
   it("flattens concepts into term rows, marking the discouraged one", async () => {

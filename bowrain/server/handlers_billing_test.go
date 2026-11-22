@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,11 +44,16 @@ type mockBillingStore struct {
 	grantSetsAlloc bool
 }
 
-func (m *mockBillingStore) GetSubscription(_ context.Context, _ string) (*billing.Subscription, error) {
-	if m.sub == nil {
-		return nil, assert.AnError
+func (m *mockBillingStore) GetSubscription(_ context.Context, workspaceID string) (*billing.Subscription, error) {
+	if m.sub != nil {
+		return m.sub, nil
 	}
-	return m.sub, nil
+	for _, sub := range m.subs {
+		if sub.WorkspaceID == workspaceID {
+			return sub, nil
+		}
+	}
+	return nil, assert.AnError
 }
 func (m *mockBillingStore) UpsertSubscription(_ context.Context, sub *billing.Subscription) error {
 	m.upsertedSub = sub
@@ -192,7 +197,7 @@ func TestMonthlyAllocationMiddleware_Dispatch(t *testing.T) {
 		c := e.NewContext(req, rec)
 		c.Set("workspace_id", "ws-1")
 		c.Set("workspace_plan", plan)
-		handler := MonthlyAllocationMiddleware(store)(func(c echo.Context) error {
+		handler := MonthlyAllocationMiddleware(store)(func(c *echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
 		require.NoError(t, handler(c))

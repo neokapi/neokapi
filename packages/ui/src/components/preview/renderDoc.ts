@@ -73,6 +73,12 @@ export interface RenderLine {
   key?: string;
   /** Stand-off overlays anchored to this block's runs (terms, entities, qa, …). */
   overlays?: OverlayView[];
+  /**
+   * The runs the overlays address: the source's, and each target's by locale.
+   * Set only on a line that carries overlays, which resolve by anchor.
+   */
+  runs?: Run[];
+  targetRuns?: Record<string, Run[]>;
   /** Block-level annotations (notes, alt-translations, …). */
   annotations?: AnnotationView[];
 }
@@ -380,7 +386,13 @@ function lineFromBlock(node: ContentNode, role?: RenderLine["role"]): RenderLine
     // whose indentation collapses is no longer code.
     ...(node.preserveWhitespace || resolvedRole === "code" ? { preserveWhitespace: true } : {}),
     ...(codeLanguage ? { codeLanguage } : {}),
-    ...(node.overlays && node.overlays.length > 0 ? { overlays: node.overlays } : {}),
+    ...(node.overlays && node.overlays.length > 0
+      ? {
+          overlays: node.overlays,
+          runs: node.source,
+          ...(node.targets ? { targetRuns: node.targets } : {}),
+        }
+      : {}),
     ...(node.annotations && node.annotations.length > 0 ? { annotations: node.annotations } : {}),
   };
 }

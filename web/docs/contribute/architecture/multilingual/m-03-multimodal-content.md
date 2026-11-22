@@ -24,7 +24,7 @@ Underneath that, an image, an audio file and a video are each also a whole
 **adaptable asset**, a thing a per-locale variant can replace outright. The two
 modes are independent and compose on one file.
 
-Nothing here is a new content-model primitive. The anchors are the content
+The pattern adds no content-model primitive. The anchors are the content
 model's existing per-medium facets, the confidence is a field on the source
 provenance record, and the multimodal message is the provider interface's. What
 this decision adds is the escalation tier, one generic transform that implements

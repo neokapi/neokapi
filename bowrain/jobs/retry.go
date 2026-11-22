@@ -1,10 +1,57 @@
 package jobs
 
 import (
+	"context"
+	"log/slog"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/resilience"
 )
+
+// QuotaSkipPrefix starts the error recorded on a job skipped because another
+// job in its batch found the AI provider's quota exhausted. The original
+// provider message follows, so the row still classifies as a quota failure.
+const QuotaSkipPrefix = "skipped: the AI provider's quota is exhausted"
+
+// skipQueuedPushSiblings fails the still-queued jobs that share job's push
+// once job has hit an exhausted provider quota. The quota is account-wide and
+// resets in hours, so each of those jobs would make one more refused call.
+// Only jobs read as queued are selected; one already processing belongs to
+// another worker and ends on its own. A job claimed between the read and the
+// write is cancelled too, which stops it at its next chunk. The skipped jobs'
+// queue messages are acked unrun, because a claim needs a queued row. Returns
+// how many were skipped.
+func skipQueuedPushSiblings(ctx context.Context, store JobStore, job *TranslationJob, cause error) int {
+	if job.PushID == "" || cause == nil {
+		return 0
+	}
+	ctx = context.WithoutCancel(ctx)
+	siblings, err := store.ListJobsByPushID(ctx, job.PushID)
+	if err != nil {
+		slog.WarnContext(ctx, "quota skip: list push jobs failed", "push_id", job.PushID, "error", err)
+		return 0
+	}
+	reason := QuotaSkipPrefix + " (" + cause.Error() + ")"
+	skipped := 0
+	for _, sib := range siblings {
+		if sib.ID == job.ID || sib.Status != StatusQueued {
+			continue
+		}
+		ok, err := store.CancelJob(ctx, sib.ID, reason)
+		if err != nil {
+			slog.WarnContext(ctx, "quota skip: fail queued job failed", "job_id", sib.ID, "error", err)
+			continue
+		}
+		if ok {
+			skipped++
+		}
+	}
+	if skipped > 0 {
+		slog.WarnContext(ctx, "AI provider quota exhausted; skipped queued jobs in the push",
+			"push_id", job.PushID, "skipped", skipped)
+	}
+	return skipped
+}
 
 // defaultMaxJobAttempts bounds how many times a translation job is retried on
 // transient failures before it is marked failed. It is aligned with the queue

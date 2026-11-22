@@ -6,7 +6,7 @@
 #
 # Format id `okf_plaintext` covers the line-based BasePlainTextFilter
 # configuration that ships as the default for the upstream filter. The
-# native reader's default mode (`segmentByLine: true`) maps to the same
+# native reader's default mode (`segment_by_line: true`) maps to the same
 # behavior: each line of the input becomes one Block; blank lines emit
 # a Data part and are not extracted; line endings are preserved as
 # skeleton.
@@ -18,7 +18,7 @@
 # therefore declares no spec.config keys and scopes its features to
 # the line-based extraction path that the canonical okf_plaintext
 # configuration exercises. Paragraph mode (testParagraphs) is exercised
-# by the native reader's own test suite via `segmentByLine: false`,
+# by the native reader's own test suite via `segment_by_line: false`,
 # but is not represented as a Feature here — see the under-specified
 # note at the bottom of this file.
 #
@@ -224,7 +224,7 @@ features:
       - plaintext.TestRoundTrip
 # ── Intentionally under-specified ─────────────────────────────────────
 #
-# Paragraph mode (segmentByLine=false / okf_plaintext_paragraphs) is
+# Paragraph mode (segment_by_line=false / okf_plaintext_paragraphs) is
 # upstream-tested by ParaPlainTextFilterTest#testParagraphs and Skeleton*
 # and exercised by native plaintext.TestPara_Paragraphs etc., but it is
 # NOT represented here as a Feature: the okf_plaintext bridge composite

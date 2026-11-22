@@ -135,6 +135,14 @@ An item that declares no `Base` of its own keeps none; the target tokens then
 relativize against the joined pattern's own fixed prefix. That is what makes
 `base:` a *location* rather than a second relativization root.
 
+A target, joined onto its base, lies inside the project. A recipe whose target
+is absolute or climbs out of the project with `..` is refused when it is
+loaded, so `kapi status` and every run report it before any work starts. The
+error names the key (`collections[0].target`) and the target. A target that a
+symbolic link inside the project leads outside is refused when the file home
+writes it. A destination a person names with `-o` is written where they name
+it.
+
 ### The context space
 
 Content is written for a point in the context space. Two axes are
@@ -316,8 +324,8 @@ machine, and a local store means nothing to a venue that governs terminology
 from a shared vocabulary. A recipe that binds a terms store per profile
 (`KapiProject.BindsTermsByProfile`) and also binds a venue is warned at run time
 (`host.WarnUnsyncedCoordinates`, called by `kapi run`, `kapi up` and
-`RunFlowAllLocales`) that the binding applies to local runs only. The run
-proceeds; this is a caveat, not a fault.
+`RunFlowAllLocales`) that the binding applies to local runs only, and the
+run proceeds.
 
 One function resolves governance for every surface:
 `KapiProject.ResolveGovernanceFor(GovernancePoint{Profile, Collection, Path, Comments, At})`.
@@ -600,7 +608,11 @@ The `kapi.yaml` recipe references AI providers by type (e.g., `provider: anthrop
    resolved location. Keys live under the keychain service `"kapi"`)
 2. Environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) or the
    `--api-key` flag
-3. The `--provider` and `--model` CLI flags override project defaults
+3. The `--provider` and `--model` CLI flags override the recipe's tool
+   presets and the configured default for every step that does not name its
+   own value; a step's own `config:` wins over a flag. See
+   [E-07](../../architecture/engine/e-07-model-providers.md#default-provider-resolution)
+   for the full order.
 
 ## CLI Integration
 
@@ -746,7 +758,7 @@ flows:
     steps:
       - tool: recycle
         config:
-          fuzzyThreshold: 75
+          fuzzy_threshold: 75
       - tool: translate
         config:
           provider: anthropic
@@ -756,5 +768,5 @@ flows:
     steps:
       - tool: pseudo-translate
         config:
-          expansionPercent: 30
+          expansion_percent: 30
 ```

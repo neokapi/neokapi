@@ -54,7 +54,7 @@ export default function FlowTracePlayer({
   };
 
   // The nodes touched at the current step, for inspector highlighting.
-  const activeNodeIds = Array.from(new Set(delta.events.map((e) => e.nodeId)));
+  const activeNodeIds = Array.from(new Set(delta.events.map((e) => e.node_id)));
 
   return (
     <div className={styles.wrapper}>
@@ -65,7 +65,7 @@ export default function FlowTracePlayer({
       <div className={styles.visualizationArea}>
         <FlowGraph
           nodes={trace.nodes}
-          channelSize={trace.channelSize}
+          channelSize={trace.channel_size}
           particles={playback.particles}
           channelFills={playback.channelFills}
           activeNodes={playback.activeNodes}

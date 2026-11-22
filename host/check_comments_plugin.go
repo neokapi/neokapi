@@ -54,7 +54,7 @@ func (a *App) hasCommentProvider(path string) bool {
 	return p != nil
 }
 
-// commentPluginHint is what kapi knows, with no plugin installed, about a
+// commentPluginHint is what kapi holds, with no plugin installed, about a
 // language whose comments a plugin reads: its extensions, its name and the
 // plugin to install. A check over such a file names that plugin. Nothing is
 // dispatched from here: an installed plugin's manifest decides what it reads,

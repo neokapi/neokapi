@@ -18,8 +18,8 @@ project's **work**, and that work is itself two kinds of thing:
   ladder reachable from content. Rebuildable; it lives in the cache under
   `.kapi/work/cache/` and is ignored. Delete it and a re-run reconstructs
   identical results.
-- **Authored block state**: a person approving a translation, holding a block for review, or recording who reviewed what. This is *not* derivable from
-  anything; it must be **kept**.
+- **Authored block state**: a person approving a translation, holding a block for review, or recording who reviewed what. Nothing can derive it,
+  so it must be **kept**.
 
 Authored state needs a carrier a plain target file cannot provide: such a file
 contains target text but no record of its approval. `core/state` is
@@ -146,7 +146,7 @@ text in that pairing came to be.
 The ledger holds decisions only. An entry decides something when it carries a
 review state (an approval or a rejection, of a translation or of source
 wording), a rung above translated, a block held for review, an assignee, a note, or an
-agent's pre-review, which is a `decide advise` (`state.UnitState.Decides`).
+agent's pre-review, which is a `decide prereview` (`state.UnitState.Decides`).
 `WorkStore` refuses an entry that decides nothing with
 `state.ErrDecidesNothing`: a translation, the source it was made from and the
 rung its producer put it on belong to the block history. A shard line or a log
@@ -307,7 +307,7 @@ and `host.DecisionScope` is that one fallback definition, so every party names
 an unresolved document the same way. It is also the name the connector gives the
 item, so a decision travels the sync protocol scoped to the item it was made in.
 
-A decision is not about a translation; it is about a **pairing**: this rendering,
+A decision is about a **pairing**: this rendering,
 *of this source*. Each record therefore carries both halves, computed by the one
 definition every party uses:
 
@@ -370,12 +370,12 @@ from the venue reads current on a checkout holding the same source. A project's
 source language cannot change once its venue holds content, since every stamped
 revision and every basis is taken under it.
 
-A record is **stale** when either half no longer matches what the project holds.
+A record is **stale** when either half differs from what the project holds.
 Editing an approved translation drops the block back below *established*; rewriting
 its source does the same. Binding only the target is the half-measure that lets a
 reviewer's blessing outlive the sentence it blessed: the translation stays
-`translated`, stays approved, and ships wording for text the project no longer
-has, reporting nothing.
+`translated`, stays approved, and ships wording for text the project has dropped,
+reporting nothing.
 
 Staleness is **derived on every read, never stored**. A decision is history and is
 never rewritten; what a source edit changes is not the record but whether it still
@@ -403,7 +403,7 @@ matches and nothing withholds. A not-gated scope carries no shippable claim:
 `shippable: true`, so a consumer that reads only `shippable` offers it. A locale
 spread over several collections takes the weakest state among them.
 
-**Stale is work, not only a report.** The convergence fan-out treats a
+**Stale is work as well as a report.** The convergence fan-out treats a
 basis-stale block exactly as it treats one with no translation at all: it is in
 the pending set on any scope (gated or not, since the `draft` tally would
 otherwise read an ungated scope as complete), it is priced in `kapi up --plan` on
@@ -564,7 +564,7 @@ wording is the text at the basis revision, so the content memory pairs the
 translation with it, and a later lookup classifies the source in hand against it
 (`edit.Classify`).
 When that wording is unrecoverable the pair is not written at all, so the corpus
-never learns a translation of a sentence the project no longer has. Once the
+never learns a translation of a sentence the project has dropped. Once the
 target has moved as well, the record describes neither half of what is on disk
 and the pair is absorbed like any undecided one, which is what lets a person who
 rewrites a sentence and its translation together keep the pairing they authored.
@@ -656,11 +656,11 @@ written before the field existed reads through the producer's stamp on its
 A `Decision` records a person's outcome and, where a hosted surface knows it,
 who reached it. Every decision is a `decide` operation sent to the change
 service ([E-09](../engine/e-09-the-change-contract.md)), and an agent or a model
-never records one: the service refuses a `decide` other than `advise` from an
+never records one: the service refuses a `decide` other than `prereview` from an
 agent as `not_permitted`, whichever surface carries it (`kapi apply` run from an
 agent's shell, MCP `apply_edits`). An agent pre-reviews instead: it stores a
 score and its reasons on the block (`state.AIReview`, a `decide` operation with
-outcome `advise`, the desktop pre-review), bound to the translation it judged,
+outcome `prereview`, the desktop pre-review), bound to the translation it judged,
 and the person reviewing reads it in the queue. Its judgement never counts as a
 person's.
 

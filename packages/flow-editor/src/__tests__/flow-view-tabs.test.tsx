@@ -47,16 +47,16 @@ const TRACE: FlowTrace = {
     { id: "tool-2", type: "tool", name: "qa" },
   ],
   events: [
-    { ts: 1, type: "enter", nodeId: "tool-1", partId: "b1" },
-    { ts: 2, type: "exit", nodeId: "tool-1", partId: "b1" },
+    { ts: 1, type: "enter", node_id: "tool-1", part_id: "b1" },
+    { ts: 2, type: "exit", node_id: "tool-1", part_id: "b1" },
   ],
   parts: {
     b1: {
-      initial: { id: "b1", type: "Block", summary: "Hello", sourceText: "Hello" },
-      afterNode: {},
+      initial: { id: "b1", type: "Block", summary: "Hello", source_text: "Hello" },
+      after_node: {},
     },
   },
-  durationUs: 2,
+  duration_us: 2,
 };
 
 function renderTabs(props: Partial<React.ComponentProps<typeof FlowViewTabs>> = {}) {

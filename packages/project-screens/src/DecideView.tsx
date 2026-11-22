@@ -35,6 +35,7 @@ import {
   ListDetailPane,
   ListDetailToolbar,
   LoadingSpinner,
+  PageContainer,
   PageHeader,
   Select,
   SelectContent,
@@ -47,7 +48,7 @@ import {
   useListNavigation,
   type DigestKind,
 } from "@neokapi/ui-primitives";
-import { NoticedBy } from "./NoticedBy";
+import { RecordedBy } from "./RecordedBy";
 import { opens, type ScreenNavigation } from "./port";
 import type {
   ContextActor,
@@ -67,7 +68,7 @@ export function decisionKey(d: RuleDecision): string {
 }
 
 /**
- * The question a Map row opens on. The row's key is its group and its item's
+ * The question an Overview row opens on. The row's key is its group and its item's
  * id (`suggested:<id>`, `conflict:<id>`), and the id is a suggestion's own or
  * one side's of a disagreement.
  */
@@ -154,7 +155,7 @@ export interface DecideViewProps extends ScreenNavigation {
   view: RulesDecideView | null;
   loading?: boolean;
   error?: unknown;
-  /** The Map row to open on (`suggested:<id>`, `conflict:<id>`). */
+  /** The Overview row to open on (`suggested:<id>`, `conflict:<id>`). */
   defaultSelected?: string;
   /** Take the keyboard. */
   keyboard?: boolean;
@@ -206,7 +207,9 @@ export function DecideView({
   canNavigate,
 }: DecideViewProps) {
   const screenNav: ScreenNavigation = { navigate, canNavigate };
-  const onOpenMap = opens(screenNav, { kind: "map" }) ? () => navigate({ kind: "map" }) : undefined;
+  const onOpenOverview = opens(screenNav, { kind: "overview" })
+    ? () => navigate({ kind: "overview" })
+    : undefined;
   // The file a suggestion was seen in opens in the Reader, when the host opens it.
   const onOpenFile = (path: string) =>
     opens(screenNav, { kind: "reader", path })
@@ -357,6 +360,7 @@ export function DecideView({
 
   const header = view && (
     <PageHeader
+      help="decide"
       className="mb-0 shrink-0 px-6 pt-5 pb-3"
       title={t("{project} · Decide", "the Decide page title", { project: view.project_name })}
       // With nothing waiting, the empty state states the kept count.
@@ -409,7 +413,7 @@ export function DecideView({
       {header}
       <div className="min-h-0 flex-1 border-t border-border">
         {decisions.length === 0 ? (
-          <div className="mx-auto max-w-xl p-6" data-slot="decide-empty">
+          <PageContainer width="narrow" data-slot="decide-empty">
             <EmptyState
               title={t("Nothing to decide.")}
               description={
@@ -426,25 +430,25 @@ export function DecideView({
                     )
               }
               action={
-                onOpenMap && (
+                onOpenOverview && (
                   <Button
                     size="sm"
                     variant="outline"
                     data-slot="decide-open-map"
-                    onClick={onOpenMap}
+                    onClick={onOpenOverview}
                   >
-                    Open the Map
+                    Open the Overview
                   </Button>
                 )
               }
             />
-          </div>
+          </PageContainer>
         ) : narrowed && membersLoading ? (
           <div className="p-6" data-slot="decide-mine-loading">
             <LoadingSpinner />
           </div>
         ) : shown.length === 0 ? (
-          <div className="mx-auto max-w-xl p-6" data-slot="decide-mine-empty">
+          <PageContainer width="narrow" data-slot="decide-mine-empty">
             <EmptyState
               title={t("Nothing assigned to you.")}
               action={
@@ -453,7 +457,7 @@ export function DecideView({
                 </Button>
               }
             />
-          </div>
+          </PageContainer>
         ) : (
           <ListDetail
             list={
@@ -795,7 +799,7 @@ function OptionRow({
           "an option's uses on Decide",
           { blocks: o.blocks, files: o.files },
         )}
-        {o.noticed_by && <NoticedBy who={o.noticed_by} nameOf={nameOf} />}
+        {o.recorded_by && <RecordedBy who={o.recorded_by} nameOf={nameOf} />}
       </span>
     </button>
   );
@@ -862,8 +866,8 @@ function Evidence({
           </span>
         ))}
       {d.kind !== "disagreement" && (
-        <span data-slot="decide-noticed" className="ml-auto text-[11px]">
-          <NoticedBy who={d.noticed_by} nameOf={nameOf} />
+        <span data-slot="decide-recorded" className="ml-auto text-[11px]">
+          <RecordedBy who={d.recorded_by} nameOf={nameOf} />
         </span>
       )}
     </div>

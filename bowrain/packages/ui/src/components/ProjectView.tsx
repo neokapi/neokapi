@@ -107,7 +107,7 @@ export interface ProjectViewProps {
   /** Open project member management. */
   onManageMembers?: () => void;
   /** Navigate to the project's overview. */
-  onOpenDashboard?: () => void;
+  onOpenOverview?: () => void;
   /** Navigate to project settings page. */
   onOpenSettings?: () => void;
 }
@@ -135,7 +135,7 @@ export function ProjectView({
   onDiffStream: _onDiffStream,
   onDeleteStream: _onDeleteStream,
   onManageMembers,
-  onOpenDashboard,
+  onOpenOverview,
   onOpenSettings,
 }: ProjectViewProps) {
   const { getDisplayName } = useLocales();
@@ -283,12 +283,12 @@ export function ProjectView({
             </p>
           </div>
           <div className="flex gap-2">
-            {onOpenDashboard && (
+            {onOpenOverview && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={onOpenDashboard}
-                data-testid="open-dashboard-btn"
+                onClick={onOpenOverview}
+                data-testid="open-overview-btn"
               >
                 Overview
               </Button>

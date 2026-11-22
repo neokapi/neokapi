@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
@@ -105,6 +106,12 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 			Name:        coll.Name,
 			Coordinates: kapiProject.CoordinatesAt(point, governance),
 			Owner:       venue.ContextOwnerRecipe,
+			SourceOnly:  coll.SourceOnly,
+		}
+		// Normal travels as empty, so a recipe that sets no priority sends
+		// what it sent before the field existed.
+		if pr := kapiProject.PriorityOf(coll); pr != project.PriorityNormal {
+			entry.Priority = pr
 		}
 		if governance != nil {
 			entry.Channel = governance.Channel
@@ -131,6 +138,13 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 				}
 				entry.VoiceProfileJson = authored
 				carried[profile.Name] = true
+				// The operation that recorded the write, so the server keeps
+				// its author rather than recording the pusher. A ledger that
+				// cannot be read leaves it empty: the profile still lands, as
+				// the pusher's write.
+				if op, rerr := app.RecordedVoiceWrite(ctx, proj.Root, profile); rerr == nil {
+					entry.VoiceOp = op
+				}
 			}
 		}
 		entries = append(entries, entry)

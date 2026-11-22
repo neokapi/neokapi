@@ -32,13 +32,13 @@ func TestOkapiPOTransform_DropsOkapiOnlyParams(t *testing.T) {
 	require.NoError(t, err)
 
 	// Okapi-only params should be dropped.
-	assert.Nil(t, result["useCodeFinder"])
-	assert.Nil(t, result["codeFinderRules"])
-	assert.Nil(t, result["bilingualMode"])
-	assert.Nil(t, result["protectApproved"])
+	assert.Nil(t, result["use_code_finder"])
+	assert.Nil(t, result["code_finder_rules"])
+	assert.Nil(t, result["bilingual_mode"])
+	assert.Nil(t, result["protect_approved"])
 
 	// Shared params should be kept.
-	assert.Equal(t, true, result["preserveUntranslated"])
+	assert.Equal(t, true, result["preserve_untranslated"])
 }
 
 func TestOkapiPOTransform_EmptySpec(t *testing.T) {

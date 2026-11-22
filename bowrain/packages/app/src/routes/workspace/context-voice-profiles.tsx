@@ -5,6 +5,7 @@ import {
   VoiceProfilesSkeleton,
   useVoiceProfiles,
   useDeleteVoiceProfile,
+  PageContainer,
 } from "@neokapi/ui";
 import type { VoiceProfile } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
@@ -78,16 +79,18 @@ export function ContextVoiceProfilesRoute() {
   }
 
   return (
-    <VoiceProfileList
-      profiles={profiles ?? []}
-      onSelect={handleSelect}
-      onCreate={handleCreate}
-      onDelete={handleDelete}
-      onReview={handleReview}
-      // Only servers running the brand-scan job system get the hosted-scan
-      // CTA; the local lane (kapi Agent Skill) is always available.
-      onScanVoice={contextScanAvailable ? handleScanVoice : undefined}
-      onLocalLane={handleLocalLane}
-    />
+    <PageContainer width="wide">
+      <VoiceProfileList
+        profiles={profiles ?? []}
+        onSelect={handleSelect}
+        onCreate={handleCreate}
+        onDelete={handleDelete}
+        onReview={handleReview}
+        // Only servers running the brand-scan job system get the hosted-scan
+        // CTA; the local lane (kapi Agent Skill) is always available.
+        onScanVoice={contextScanAvailable ? handleScanVoice : undefined}
+        onLocalLane={handleLocalLane}
+      />
+    </PageContainer>
   );
 }

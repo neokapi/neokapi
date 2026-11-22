@@ -270,10 +270,19 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		case format.SkeletonRef:
 			original, expected := pendingOriginal, pendingRendered
 			pendingOriginal, pendingRendered = nil, nil
-			lastRefRendered, lastRefResolved = "", false
-			if block, ok := blocks[string(entry.Data)]; ok {
+			block, ok := blocks[string(entry.Data)]
+			// An attribute value's ref (an <img alt> inside the text unit)
+			// leaves the comparison alone: the whitespace a SkeletonTrimmed
+			// entry restores belongs to the last text block, which may sit
+			// before the inline tag carrying the attribute.
+			if !ok || !block.IsReferent {
+				lastRefRendered, lastRefResolved = "", false
+			}
+			if ok {
 				text := w.getBlockText(block)
-				lastRefRendered, lastRefResolved = text, true
+				if !block.IsReferent {
+					lastRefRendered, lastRefResolved = text, true
+				}
 				if block.Translatable {
 					// Extraction normalized this block's whitespace, and
 					// nothing has edited it since: replay the bytes the
@@ -283,9 +292,10 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 					// inline tag belongs in the replayed span — but the
 					// encoding pass does not run, because the original bytes
 					// are already the document's own.
+					replay, replayOK := replayOriginal(text, expected, original)
 					switch {
-					case original != nil && text == string(expected):
-						text = w.substituteBlockRefs(string(original), blocks)
+					case replayOK:
+						text = w.substituteBlockRefs(replay, blocks)
 					case block.IsReferent:
 						// An attribute value holds no markup, so every quote
 						// in it is text. htmlEncodeBlockText's span tracking
@@ -293,13 +303,12 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 						// and leave the quotes after it unescaped, ending the
 						// value early.
 						text = encodeAttrValue(text, quote, "&quot;")
-					case w.Locale.IsEmpty() && !sourceEdited(block):
-						// A write in the document's own language replays
-						// a block nothing edited as the reader read it:
-						// its runs hold the document's bytes, and the
-						// encoding pass would respell its quotes and
-						// whitespace.
-						text = w.substituteBlockRefs(text, blocks)
+					case !sourceEdited(block) && w.writesSourceAsRead(block):
+						// A block nothing edited and nothing translated is
+						// replayed as the reader read it: its runs hold the
+						// document's bytes, and the encoding pass would
+						// respell its quotes and join its lines.
+						text = w.substituteBlockRefs(w.renderSourceRuns(block), blocks)
 					default:
 						if patched, asRead, ok := w.patchedSource(block, original); ok {
 							// The edit as a patch of the block's own bytes,
@@ -333,6 +342,36 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		}
 	}
 	return nil
+}
+
+// replayOriginal returns the bytes a SkeletonOriginal recorded for a block,
+// when the block renders to what the entry expected. A text block's trailing
+// whitespace can be trimmed after its original was recorded; the trimmed
+// bytes follow the ref as a SkeletonTrimmed entry, so the replay leaves them
+// off when the rendering is the expectation without that whitespace.
+func replayOriginal(text string, expected, original []byte) (string, bool) {
+	if original == nil {
+		return "", false
+	}
+	if text == string(expected) {
+		return string(original), true
+	}
+	tail, ok := strings.CutPrefix(string(expected), text)
+	if !ok || strings.TrimLeftFunc(tail, isHTMLWhitespace) != "" || !strings.HasSuffix(string(original), tail) {
+		return "", false
+	}
+	return string(original[:len(original)-len(tail)]), true
+}
+
+// writesSourceAsRead reports whether the writer puts block's source wording in
+// the output: a write in the document's own language, a block with no target
+// for the writer's locale, or a target whose runs equal the source's.
+func (w *Writer) writesSourceAsRead(block *model.Block) bool {
+	if w.Locale.IsEmpty() || !block.HasTarget(w.Locale) {
+		return true
+	}
+	src, _ := block.Edition(block.Authoritative(model.AuthorityPolicy{}))
+	return model.RenderRunsWithData(block.TargetRuns(w.Locale)) == model.RenderRunsWithData(src.Runs)
 }
 
 // sourceEdited reports whether an edit changed block's source since the reader

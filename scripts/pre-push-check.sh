@@ -1,5 +1,5 @@
 #!/bin/bash
-# pre-push-check.sh — Run only the checks relevant to your changes.
+# pre-push-check.sh: run only the checks relevant to your changes.
 #
 # Mirrors the CI change-detection logic from .github/workflows/ci.yml
 # so you catch issues before pushing.
@@ -58,7 +58,7 @@ fi
 matches() {
     [ "$RUN_ALL" = true ] && return 0
     for pattern in "$@"; do
-        echo "$CHANGED" | grep -qE "$pattern" && return 0
+        grep -qE "$pattern" <<< "$CHANGED" && return 0
     done
     return 1
 }
@@ -76,7 +76,7 @@ if matches '^bowrain/e2e/' '^bowrain/apps/web/e2e/'; then
 fi
 
 # Ungated too: retired framing lands wherever prose is edited, and it degrades
-# quietly — a stale phrase reads as intentional to the next reader.
+# quietly: a stale phrase reads as intentional to the next reader.
 run_check "Retired framing in user-facing prose" ./scripts/check-vocabulary.sh
 
 # Ungated: the interchange chrome came back once as one adapter method and one
@@ -93,6 +93,11 @@ run_check "Documentation palettes are fresh" make check-docs-palette
 # Ungated: a hand-rolled run walk is written wherever someone needs "just the
 # text", and it fails by showing less content rather than by failing. ~1s.
 run_check "Run projections are declared" ./scripts/check-run-projection.sh
+run_check "No surface shows coded text" ./scripts/check-code-display.sh
+
+# Ungated: a camelCase json tag on an output type changes a field name every
+# script and agent reads. ~1s.
+run_check "Output JSON field names are snake_case" ./scripts/check-json-tags.sh
 
 # Ungated: prose describing a project's context as a file is written wherever
 # someone reaches for a path, and it teaches the habit the store-only model
@@ -128,6 +133,20 @@ run_check "Em dashes in shipped prose" ./scripts/check-em-dashes.sh
 
 # Ungated because the gate it proves runs only in the nightly convergence:
 # nothing else here would notice it losing its teeth. ~1s, all in a scratch repo.
+run_check "Test shards cover every test once" ./scripts/go-test-shard.sh --self-test
+# The fuzz runner runs only in the nightly fuzz.yml. ~15s: it fuzzes a scratch
+# module for a few seconds per target.
+run_check "Fuzz runner reports a failing target" ./scripts/go-fuzz.sh --self-test
+run_check "Copies of each tool pin agree" python3 scripts/check-tool-versions.py --offline
+run_check "Reliability checklist validates" python3 scripts/reliability-checklist.py --self-test
+run_check "CI passed answers for every job" make --no-print-directory check-ci-passed
+run_check "Every package test script runs in CI" make --no-print-directory check-test-scripts
+run_check "Every Go command builds with -trimpath" make --no-print-directory check-go-trimpath
+run_check "Every macOS minimum agrees" make --no-print-directory check-macos-minimum
+run_check "The temporary-file leak check works" make --no-print-directory check-temp-leaks
+run_check "Commit gate hook" ./.claude/hooks/commit-gate.sh --self-test
+run_check "Build cache warmer" ./scripts/ci-warm-build-cache.sh --self-test
+run_check "Bindings generator warnings about our code fail" ./scripts/wails-generate.sh --self-test
 run_check "Loop output gate" ./scripts/check-loop-output.sh --self-test
 
 # Ungated for the same reason: the delivery it proves runs only in scheduled
@@ -141,11 +160,15 @@ run_check "Extractor warning ratchet" node scripts/check-extract-warnings.mjs --
 
 # Ungated for the same reason, plus one specific to this repo: the bowrain
 # checks below are gated on ^bowrain/core/ and ^bowrain/plugin/ only, so the
-# main bowrain module has no local format gate at all — which is how nine files
+# main bowrain module has no local format gate at all, which is how nine files
 # there drifted. ~1s for the whole tree.
 run_check "Go formatting (gofmt -l -s)" ./scripts/check-gofmt.sh
 
 # ── Go checks ──────────────────────────────────────────────────────────────
+
+if matches '\.go$' '(^|/)go\.(mod|sum|work)$' '\.([cm]?[tj]s|[tj]sx)$' '(^|/)(LICENSE|package\.json|tsconfig[^/]*\.json)$' '^scripts/check-(go-module-boundaries|ts-license-boundary|workspace-versions)[.-]' '^pnpm-workspace\.yaml$' '^Makefile$'; then
+    run_check "Module boundaries" make check-module-boundaries
+fi
 
 # The gate has to name every directory `make check-framework` reaches, and that
 # is `golangci-lint run ./...` from the ROOT module plus host, cli, kapi and
@@ -160,6 +183,12 @@ fi
 
 if matches '^bowrain/core/' '^bowrain/plugin/' '^bowrain/.*\.go$' '^bowrain/go\.(mod|sum)$'; then
     run_check "Go lint (bowrain)" make check-bowrain
+fi
+
+if matches '^bowrain/.*\.(go|sql)$' '^(core|host|kpz|memory|providers|terms|voice)/.*\.go$' \
+    '^(bowrain/(core/|plugin/)?|host/)?go\.(mod|sum)$' '^go\.work(\.sum)?$' \
+    '^(Makefile|bowrain/Makefile|scripts/pre-push-check\.sh)$'; then
+    run_check "Bowrain tests (pull request)" make GITHUB_EVENT_NAME=pull_request ci-test-bowrain
 fi
 
 # The /evals index copies each eval dataset's date and headline number, so a
@@ -179,7 +208,7 @@ if matches '^apps/kapi-desktop/'; then
 fi
 
 # The docs playground compiles the CLI to js/wasm. CI builds it, but only in the
-# docs workflows — so a dependency that cannot target js/wasm (a TTY, signals,
+# docs workflows, so a dependency that cannot target js/wasm (a TTY, signals,
 # cgo, the clipboard) passed every local check and failed CI minutes later.
 # Compile only, ~1s warm.
 if matches '^core/' '^host/' '^cli/' '^kapi/' '^go\.work' '^go\.(mod|sum)$' '/go\.(mod|sum)$'; then
@@ -215,17 +244,37 @@ fi
 # ── go mod tidy drift check ───────────────────────────────────────────────
 
 if matches '^go\.(mod|sum)$' '/go\.(mod|sum)$'; then
-    run_check "go mod tidy" bash -c '
-      for dir in . cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain; do
-        (cd "$dir" && go mod tidy)
-      done
-      git diff --exit-code -- "**go.mod" "**go.sum"'
+    run_check "go mod tidy" make ci-tidy
+fi
+
+# ── Build-derived multilingual artifacts ──────────────────────────────────
+
+# On a same-repo pull request the l10n workflow commits drift in this tier
+# back as a bot commit, which GitHub runs no checks on, so the pull request
+# stalls until someone closes and reopens it. Regenerating here finds the drift
+# before the push. The patterns are the sources the committed tier derives
+# from. App sources are not among them: their qps dictionaries are build
+# output. About a minute and a half warm; it rebuilds bin/kapi.
+if matches '^(core|providers|memory|terms|cli|host)/.*\.go$' '^host/i18n/' '^core/i18n/catalogs/' \
+    '^scripts/gen-refs/' '^packages/reference-data/data/' '^bowrain/emails/src/' \
+    '^bowrain/mailer/subjects/en\.json$' '^bowrain/web/landing/(src/|index\.html$)' \
+    '^packages/(i18n-react|kapi-format)/'; then
+    run_check "Build-derived multilingual artifacts are fresh" make l10n-verify
 fi
 
 # ── Frontend checks ────────────────────────────────────────────────────────
 
 if matches '^bowrain/packages/ui/' '^bowrain/apps/web/' '^bowrain/apps/bowrain/frontend/'; then
     run_check "Frontend (bowrain)" make frontend-check-all
+fi
+
+# The unit suites of the shared packages, the docs site, the landing page and
+# the mobile app. Same filter as the CI `frontend-packages` job, and the same
+# target that job runs. About a minute.
+if matches '^packages/' '^web/' '^bowrain/web/landing/' '^bowrain/mobile/' '^core/place/testdata/' \
+    '^bowrain/web/docs/src/css/palette\.generated\.css$' '^Makefile$' '^\.github/workflows/ci\.yml$' \
+    '^pnpm-lock\.yaml$' '^package\.json$' '^pnpm-workspace\.yaml$'; then
+    run_check "Frontend package suites" make ci-frontend-packages
 fi
 
 # ── Walkthrough harness ────────────────────────────────────────────────────

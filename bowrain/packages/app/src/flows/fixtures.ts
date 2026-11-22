@@ -57,7 +57,7 @@ export const sampleSchemas: Record<string, ComponentSchema> = {
         description: "The provider configuration to translate with",
         "ui:widget": "credential-picker",
       },
-      skipMatched: {
+      skip_matched: {
         type: "boolean",
         title: "Skip matched",
         description: "Leave the blocks the content memory already filled",
@@ -81,7 +81,7 @@ export const sampleSchemas: Record<string, ComponentSchema> = {
     title: "Pseudo Translate",
     type: "object",
     properties: {
-      expansionPercent: {
+      expansion_percent: {
         type: "integer",
         title: "Expansion Percent",
         description: "Extra padding percentage added to simulate translation expansion",
@@ -141,7 +141,7 @@ export const builtInTranslate: FlowDefinitionInfo = {
       type: "tool",
       name: "translate",
       label: "Translate",
-      config: { skipMatched: true },
+      config: { skip_matched: true },
       position: { x: 250, y: 100 },
     },
     { id: "qa", type: "tool", name: "qa", label: "Quality Check", position: { x: 500, y: 100 } },

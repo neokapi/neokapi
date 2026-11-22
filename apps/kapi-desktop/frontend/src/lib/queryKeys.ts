@@ -25,8 +25,8 @@ export const qk = {
 
   // The last run's retained traces; the whole family is invalidated by a run event
   runTraces: () => ["run-traces"] as const,
-  runTrace: (filePath: string, locale: string) =>
-    ["run-traces", "trace", filePath, locale] as const,
+  runTrace: (tabID: string, filePath: string, locale: string) =>
+    ["run-traces", tabID, "trace", filePath, locale] as const,
 
   // Flows (project-scoped + user/ad-hoc)
   flows: (tabID: string) => ["flows", tabID] as const,
@@ -141,7 +141,7 @@ export const qk = {
   projectFilters: (tabID: string) => ["project-filters", tabID] as const,
   extractResult: (tabID: string) => ["extract-result", tabID] as const,
   storeSync: (tabID: string) => ["store-sync", tabID] as const,
-  mapSummary: (tabID: string) => ["map-summary", tabID] as const,
+  overviewSummary: (tabID: string) => ["overview-summary", tabID] as const,
   deeperLookModel: (tabID: string) => ["ai", "deeper-look-model", tabID] as const,
   readerFile: (tabID: string, relPath: string) => ["reader-file", tabID, relPath] as const,
   checks: (tabID: string, filterID: string) => ["checks", tabID, filterID] as const,

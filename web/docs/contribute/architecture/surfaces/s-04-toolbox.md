@@ -14,7 +14,7 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 `kcat`, `kgrep`, `ksed`, and `kdiff` are format-aware reimaginings of `cat`,
 `grep`, `sed`, and `diff` that operate on the **text inside** any format kapi
-understands (a Word document, a JSON catalog, XLIFF, Markdown) rather than on
+reads (a Word document, a JSON catalog, XLIFF, Markdown) rather than on
 raw bytes. `kconv` has no classic analogue: it converts a document into another
 format by handing the blocks, and the role each carries, to a different format's
 writer. All five are the **same `kapi` binary under different names**, dispatched
@@ -100,7 +100,7 @@ carries on from. The rule is git's (a NUL byte in the first 8000 bytes),
 exempting the Unicode byte-order marks, since UTF-16 and UTF-32 text is full of
 NUL bytes and announces itself. The guard sits in the one format-resolution
 helper, so every utility inherits it. It cannot fire for a format kapi
-understands, because detection already claimed those, and `-f` is the escape
+reads, because detection already claimed those, and `-f` is the escape
 hatch because it short-circuits detection entirely.
 
 **Read path** (`kcat`, `kgrep`). The stream helper opens the input, detects the
@@ -134,7 +134,13 @@ writer **only when the reader and writer are the same format**: a same-format
 conversion round-trips faithfully through the skeleton, while a cross-format one
 reconstructs from the content model and the block roles, so the source's foreign
 byte skeleton is never emitted. This is the same format-match guard the file
-runner applies.
+runner applies. A same-format conversion always uses the format's registered
+writer. Only a cross-format conversion to JSON or YAML switches to the
+structural writers, which write the blocks as records, because a document has
+no catalog keys for the catalog writers to use. A reader that declares
+`format.WriteOnlyReader` (MO) makes the conversion fail with an error, and a
+`--to` naming a format with a reader and no writer is refused before any input
+is read.
 
 **Compare path** (`kdiff`). Two inputs are projected to block text and the
 **blocks are aligned**, not the lines, so structural noise (a re-zipped

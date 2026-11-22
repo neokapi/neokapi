@@ -5,11 +5,10 @@
 # named for XML historically but holds raw text bytes for any text
 # format).
 #
-# Config keys mirror the Okapi parameter names (bilingualMode,
-# protectApproved, wrapContent, makeID, includeMsgContextInNote,
-# outputGeneric, allowEmptyOutputTarget) — the same names the bridge
-# composite schema exposes, so drift detection against the bridge
-# schema lines up. `okapi_param` carries the underlying Java field
+# Config keys are the snake_case spellings of the Okapi parameter names
+# (bilingual_mode, protect_approved, wrap_content, make_id,
+# include_msg_context_in_note, output_generic, allow_empty_output_target),
+# so drift detection against the bridge composite schema lines up. `okapi_param` carries the underlying Java field
 # name for full traceability where it differs.
 #
 # Native PO Config.ApplyMap accepts each parameter name; some are
@@ -41,7 +40,7 @@ description: |
   target locale.
 
 config:
-  - key: bilingualMode
+  - key: bilingual_mode
     type: boolean
     default: true
     description: |
@@ -52,7 +51,7 @@ config:
       than English strings.
     okapi_param: bilingualMode
 
-  - key: protectApproved
+  - key: protect_approved
     type: boolean
     default: false
     description: |
@@ -62,7 +61,7 @@ config:
       not yet honor it.
     okapi_param: protectApproved
 
-  - key: wrapContent
+  - key: wrap_content
     type: boolean
     default: true
     description: |
@@ -71,7 +70,7 @@ config:
       native default both wrap.
     okapi_param: wrapContent
 
-  - key: makeID
+  - key: make_id
     type: boolean
     default: true
     description: |
@@ -82,7 +81,7 @@ config:
       for each form of a plural entry.
     okapi_param: makeID
 
-  - key: includeMsgContextInNote
+  - key: include_msg_context_in_note
     type: boolean
     default: false
     description: |
@@ -92,7 +91,7 @@ config:
       `context` property regardless of this flag.
     okapi_param: includeMsgContextInNote
 
-  - key: outputGeneric
+  - key: output_generic
     type: boolean
     default: false
     description: |
@@ -101,7 +100,7 @@ config:
       for parity. The native writer always emits canonical PO.
     okapi_param: outputGeneric
 
-  - key: allowEmptyOutputTarget
+  - key: allow_empty_output_target
     type: boolean
     default: false
     description: |
@@ -110,7 +109,7 @@ config:
       entries through as untranslated Blocks regardless.
     okapi_param: allowEmptyOutputTarget
 
-  # Inline code finder (`useCodeFinder` / `codeFinderRules`) is reachable
+  # Inline code finder (`use_code_finder` / `code_finder_rules`) is reachable
   # in the bridge schema only via the `inlineCodes` `$ref` to `$defs`,
   # which the drift checker doesn't follow today. The native reader
   # still supports the finder through the legacy Java field names; the
@@ -550,7 +549,7 @@ features:
   - id: monolingual_mode
     name: Monolingual mode (msgid as identifier)
     description: |
-      With `bilingualMode: false`, msgid is treated as an
+      With `bilingual_mode: false`, msgid is treated as an
       identifier and the msgstr value supplies the source text —
       the shape used by catalogues that ship message IDs rather
       than English strings. Drives Okapi's `okf_po-monolingual`
@@ -560,14 +559,14 @@ features:
     # Monolingual catalogues are a usage convention; the gettext PO
     # spec itself describes only the bilingual shape — no spec_refs.
     config:
-      bilingualMode: false
+      bilingual_mode: false
     examples:
       - name: msgstr_as_source
         origin: "authored: monolingual catalogue (msgid is an ID, msgstr carries source)"
         description: |
           In monolingual mode the source is the msgstr value
           ("Hello"), not the msgid ("key1"). The reader honors
-          `bilingualMode: false` by extracting the msgstr as the
+          `bilingual_mode: false` by extracting the msgstr as the
           Block source and keeping the msgid as the Block name —
           matching Okapi's `okf_po-monolingual` configuration.
         input_xml: |

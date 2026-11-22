@@ -19,20 +19,23 @@ every project this machine account has run kapi in, whichever surface ran it
 ([C-03](../context/c-03-context-store-and-graph.md)), and the rules that hold
 in all of them. The record of what people and agents have recorded about their
 context ([C-11](../context/c-11-context-operations.md)) is a History view of
-its own. Projects open from there as tabs, several at a time, on a **Map**:
-the project's content files, the counts of its files, blocks, rules and
-findings, and the suggestions awaiting a person. Beside it, a Context hub
-opens on **Decide**, one question for each suggestion about how the project
-writes that waits for a person, beside the graph explorer, what an assistant working in the project
-reads, the voice profile, the terms, the content memory, the project's history
-and where its context is shared. Each tab also carries a project section with
-what the project stands at and a map of its coordinate points, a checks panel
-the Map's findings count opens, a review queue, governance editing on the recipe, a runner that brings the project up to
-date through the same venue the CLI uses, a tool reference, and an OS-keychain
-credential vault. It depends on the framework and `host` only. It
+its own. Projects open from there as tabs, several at a time, on an
+**Overview**: the project's content files, the counts of its files, blocks,
+rules and findings, the suggestions awaiting a person, and, once the recipe
+declares a target language, the language standing with Bring up to date.
+Beside it, a Context hub opens on **Decide**, one question for each suggestion
+about how the project writes that waits for a person, beside the graph
+explorer, the voice profile, the terms and the content memory. Each tab also
+carries Project Settings, whose tabs hold governance editing on the recipe,
+the collections with what the project stands at and a map of its coordinate
+points, what an assistant working in the project reads, the project's history
+and where its context is shared. Beside these sit a checks panel the
+Overview's findings count opens, a review queue, a runner that brings the
+project up to date through the same venue the CLI uses, a tool reference, and
+an OS-keychain credential vault. It depends on the framework and `host` only. It
 links neither Cobra nor the `cli` module, and no package from the platform
 layer, which `make audit-modules` asserts by inspecting the transitive package
-list of `./backend/...`.
+list of the entire desktop module.
 
 ## Context
 
@@ -76,12 +79,11 @@ apps/kapi-desktop/
 └── build/                   # per-platform build configuration
 ```
 
-Four assertions run in `make audit-modules`: an isolated `GOWORK=off` build of
-`./backend/...` (so the module resolves against its own `go.mod`, not the
-workspace overlay), a tidiness check that fails on any stale or
-boundary-crossing requirement, an import-level check that the transitive
-package list contains no Cobra and no `cli` package, and the same check for any
-platform package.
+`make audit-modules` builds the desktop with `GOWORK=off` and checks its
+manifest and checksums. It inspects the dependencies of every package,
+including the Wails entry point. The desktop uses the host runtime and the
+framework. A dependency on Cobra, the CLI module or a platform module fails
+the import check.
 
 ### One bound service, many open projects
 
@@ -100,6 +102,12 @@ open set is real state in the backend. Each tab carries its own loaded recipe,
 project context, and resolved stores, and closing one releases them. A file
 watcher refreshes the tab when the recipe changes, including edits made through
 the CLI or git.
+
+The desktop host owns the project database handles and closes them at service
+shutdown. Each convergence run, plan, and review queue request borrows those
+handles and the desktop registries. Each operation has its own source locale,
+encoding, and parse cache. Two open tabs can therefore derive reports at the
+same time using different recipe settings.
 
 ### Every edit is a change set
 
@@ -127,8 +135,8 @@ what the person does with the revision it read:
 - Approve and Reject send `decide` with the outcome `establish` or `reject`, Reject with the reviewer's note on the
   change set. A held-back draft, which reads as `absent`, is decided as `absent`.
   Approving the clean blocks of a view reads each one as it approves it and runs
-  its checks again; a block whose text is no longer what its row lists, or that
-  now trips a check, stops the batch with its row brought up to date.
+  its checks again; a block whose text differs from what its row lists, or that
+  trips a check, stops the batch with its row brought up to date.
 - A check finding whose rule names a replacement carries its fix, the
   `replace_text` `kapi check` reports, and the Checks panel sends it as it is.
   A finding whose words have an inline code among them carries none.
@@ -167,14 +175,14 @@ shape of the page patterns guide (`packages/ui/docs/page-patterns.md`): a page
 header, a row of labelled counts, and two lists of rows that each lead to a
 project. Top to bottom it holds the counts, **What's new**, **Projects**,
 **Holds in every project** (drawn only while the workspace holds a rule) and
-**Start here**, which comes first instead on an empty workspace. The header
+**Get started**, which comes first instead on an empty workspace. The header
 names the workspace directory by its last segment, with the full path in the
 tooltip.
 
 `host.App.ContextStandings` answers the counts, What's new and each project
 row's rules column from one fold of the log over every registered project. A
 `ContextProjectStanding` carries the project's rules in force, the suggestions
-advising, the conflicts, the concepts in its terms store, what is new since the
+waiting, the conflicts, the concepts in its terms store, what is new since the
 person's marker (below), and the latest session's activity as a
 `ContextActivity`: its actor, what it recorded and corrected, what is new by
 digest theme, and `Working`, which holds while an agent session has added an
@@ -189,9 +197,9 @@ two registered projects share a store, so the home's sum counts each concept
 once. The counts are drawn by `StatRow`: projects, rules, terms, suggestions,
 and the conflicts as "needs you", in the warning ink while there are any. No
 sentence on the page is generated from a number. What's new lists the projects
-with something new, a suggestion advising, a conflict or a working session,
+with something new, a suggestion waiting, a conflict or a working session,
 newest session first. A row is the latest session's actor as an `ActorMark`,
-the project and how long ago, one chip per digest theme the session noticed
+the project and how long ago, one chip per digest theme the session recorded
 ("3 names", "1 word") and a warning chip for the conflicts, then one button,
 Decide while there is a conflict and Review otherwise, which opens the
 project's tab on Decide. A working session adds a chip with a live dot.
@@ -207,11 +215,21 @@ path and Remove, and the first checkout's path is the tooltip on the name.
 into force. Those rules live in the workspace's own rule table, which every
 project on this machine reads.
 
-**Start here** is three steps for a first run: open a project or try the
-sample, connect an assistant, come back to What's new. Dismissing it is a
-setting in the desktop's own settings (`StartHereDismissed`, through
-`DismissStartHere` and `RestoreStartHere`), the way the sample cards are
-dismissed, so it stays dismissed across launches until Settings restores it.
+**Get started** is three guided tours for a first run: try the sample and find
+your way around it, decide what becomes a rule, connect an assistant. Each
+step carries a check once its tour is finished, and the card counts them.
+Hiding it is a setting in the desktop's own settings (`StartHereDismissed`,
+through `DismissStartHere` and `RestoreStartHere`), the way the sample cards
+are dismissed, so it stays hidden across launches until Settings restores it.
+
+**Help**, at the foot of the sidebar, opens the Help panel: the tours, each
+with **Start**, and help topics read in the app. The info button beside a
+page's title opens the panel on that page's topic. Each topic is a section of
+the Kapi Desktop overview in these docs, read from its source when the app is
+built, and ends with a link to the same section on the website. A tour starts
+only from a click: the Help panel, Get started, or the **Guide** action on a
+project's first steps. Finished tours are kept in the webview's local storage.
+[S-08](s-08-in-app-help.md) describes the design.
 
 The feed of every project's operations is **History**, a view reached from a
 link beside the title ([the feed](#the-feed-of-recorded-context-operations)).
@@ -248,39 +266,56 @@ changes, triggering a frontend refetch. Reopening an unchanged registration
 leaves the revision unchanged. This requires one indexed query per second and
 avoids interpreting filesystem events from SQLite database and WAL files.
 
-### The Map
+### The rail and the Overview
 
-Every project tab opens on its **Map**, and a persisted view opens where it
-was. The project rail lists, in order, Map, Context, Project, Review (only
-while the project declares target languages), Toolbox and Project Settings;
-the checks panel has no entry of its own. A project waiting to be set up, an
-empty folder or one matching a preset, opens on the Map too, and the Map's
-empty files list leads to the project section, where the setup and the preset
-are offered. The Map is an overview in the page patterns guide's sense, and it renders from one bound call,
-`MapSummary`, which answers from what the app already holds and reads no file
+Every project tab opens on its **Overview**, and a persisted view opens where
+it was. The project rail lists, in order, Overview, Context, Review and
+Project Settings, and each page has exactly one entry: the checks panel and
+the Reader open from the Overview and keep it marked, and Project Settings
+holds Settings, Content, Flows, Assistants and Share as tabs. The formats, with
+the presets saved for each, are a tab of App Settings, because presets belong
+to the user rather than a project. Review is always on the rail; on a
+project that declares no target language it shows the languages section of
+Project Settings under one line, and nothing else on the rail changes with
+the project's languages.
+
+A view id is persisted in the session, so ids are never renamed in place. The
+Overview keeps the id `map`, and `canonicalView` in the tab manager maps the
+ids of retired pages to the page that holds their content now: `project-home`,
+`content` and `languages` to `map`, and `context:agent`, `context:history` and
+`context:share` to `project-settings:assistants`, `:sessions` and `:share`.
+
+A project waiting to be set up, an empty folder or one matching a preset,
+opens on the Overview too, and its empty files list leads to the `setup`
+route, where the setup and the preset are offered. The Overview is an overview
+in the page patterns guide's sense. Its header, counts, suggestions and files
+are `@neokapi/project-screens`' `OverviewView`, which leaves a slot under the
+counts: the desktop draws the plugin and sample notices there and, on a
+project with a target language, the convergence hero. The page renders from one bound call,
+`OverviewSummary`, which answers from what the app already holds and reads no file
 the store sync has not read:
 
 | Region | What it shows | Read from |
 | --- | --- | --- |
 | Header | the project's name; when the store sync last found the block cache current with the files on disk ("Read 2 minutes ago"), naming how many files the cache holds only when that differs from the files count; **Run on everything**; **Decide** with the count of conflicts and suggestions awaiting a person | the time `SyncProjectStore` records on the tab, the block cache |
 | Counts | **files** (the recipe's resolved content files), **blocks** (the cache's translatable blocks for them, as `GetProjectStatus` counts them), **rules** (the concepts in the bound terms store, the word and pattern rules of the voice profile at the project's own point, and the notes a person kept) and **findings** (the last checks run over every file), the only one in the warning ink and only above zero. Blocks open Ask, rules open Explore, and findings open the checks panel. **kapi suggests** beside them shows only when conflicts make its number differ from Decide's | the block cache, the terms and voice stores, the operation log, the tab's last whole-project `RunChecks` |
-| What your files do | one row for each conflict and each suggestion the digest holds: its kind as a `KindIcon`, the rule, the quotation, and the distinct blocks and files its evidence names. **Decide** opens the Decide section selecting that row (`conflict:<id>` or `suggested:<id>`) | `host.App.ContextDigest`, and the operation log for the evidence |
-| What your files do, empty | "No suggestions yet." and **Connect an assistant**, which opens the Assistants section | |
+| Suggestions | one row for each conflict and each suggestion the digest holds: its kind as a `KindIcon`, the rule, the quotation, and the distinct blocks and files its evidence names. **Decide** opens the Decide section selecting that row (`conflict:<id>` or `suggested:<id>`) | `host.App.ContextDigest`, and the operation log for the evidence |
+| Suggestions, empty | "No suggestions yet." and **Connect an assistant**, which opens Project Settings on Assistants | |
 | Files | one row per content file: format, name (the folder on the meta line), blocks, findings when above zero, and **Open**, which previews the file. Most findings first, then by path. An empty list offers **Add files**, or **Set up the project** while the project waits to be set up | the resolved content, the block cache, the last checks run |
 
 The checks run behind the findings count is `RunChecks` over every file in
 the recipe's target languages, the same run the checks panel makes. A run that
-narrows the files leaves the Map's counts as they were. The tab keeps the last
+narrows the files leaves the Overview's counts as they were. The tab keeps the last
 run over every file and every target language in memory; a narrower run, from
-the checks panel under the menu-bar filter, does not replace it. The Map runs
+the checks panel under the menu-bar filter, does not replace it. The Overview runs
 one itself the first time it opens a tab that has none in this session, and
 **Run on everything** runs it again. The findings count opens the checks panel
 on that run (`LastProjectChecks`), so the count and the panel agree until the
 person runs the panel's own checks.
 
-### The project home and the point map
+### Content and the point map
 
-The **Project** section shows the project's **standing**, in the two-axis shape
+The **Content** tab of Project Settings shows the project's **standing**, in the two-axis shape
 `kapi status` prints: content on one row, governance on the other, and the
 venue and stream on the identity line. Below it, the point map lists every
 coordinate point the recipe declares ([C-02](../context/c-02-coordinates-and-governance.md)),
@@ -330,22 +365,27 @@ that governs it, not where it was written.
 
 ### The Context hub
 
-The stores are sections of one hub, beside the graph, in this order:
+The stores are sections of one hub, beside the graph. The hub is one component
+drawn in two places: the rail's Context page offers Decide, Explore, Ask,
+Voice, Terms and Content Memory on its section bar, and Project Settings draws
+Assistants, Sessions and Share under its own tabs with no section bar. A tab
+with no checkout has no Project Settings, so its hub offers every section. The
+sections, in order:
 
 | Section (id) | What it shows | Answered by |
 | --- | --- | --- |
 | **Decide** (`rules`) | one question per suggestion waiting for a person, the questions `kapi rules` asks ([below](#decide)); on a tab with no checkout, the digest of what was recorded, without the decisions | `RulesDecideView` and `DecideRule`, over `host.App.DecideRules` and `host.App.DecideRule`; `ProjectContextDigest` for a tab with no checkout |
 | **Explore** (`atlas`) | the project's context on its axes and over time, through `@neokapi/context-atlas` ([below](#exploring-the-context)) | `ProjectContextAtlas`, over `host.App.ContextAtlas` |
-| **Ask** (`explorer`) | the context graph by file and by word, through `@neokapi/context-explorer`; the governs pane renders the same guide the retrieval surface serves ([C-06](../context/c-06-retrieval.md)) | `ContextAt`, `ContextGoverns`, `ContextLives`, `ContextRelates`, `ContextSearch` |
+| **Search** (`explorer`) | the context graph by file and by word, through `@neokapi/context-explorer`; the governs pane renders the same guide the retrieval surface serves ([C-06](../context/c-06-retrieval.md)) | `ContextAt`, `ContextGoverns`, `ContextLives`, `ContextRelates`, `ContextSearch` |
 | **Assistants** (`agent`) | each assistant and its connection, with Connect, and the newest sessions recorded in the project ([below](#connecting-an-assistant)). **Show what it reads** opens the rules files and the brief for one file. The brief is the resolved context for one file as an agent receives it: `AgentContextAt` calls the desktop's `ContextAt` and renders the answer's own `FormatText`, so the body on screen is the `context://` resource body rather than a second rendering of it | `AssistantsView`, `ConnectAssistant`, `ConnectAgentHost` (Claude Desktop), `RulesFiles`, `WriteRulesFiles`, `AgentContextAt` |
 | **Voice** | the whole resolved profile per point: tone, style patterns with severities and rates, term rules, examples, and the locale, channel and persona overrides as authored ([C-07](../context/c-07-voice-profiles.md)); the profile is edited here | `ProjectVoice`, `SaveVoiceProfile` |
 | **Terms** | the terms store: search, facets, provenance, concept relations | `SearchTerms` |
 | **Content Memory** (`memory`) | the content memory: search, facets, activity, provenance, the languages gate | `SearchMemoryEntries` |
-| **Sessions** (`history`) | the project's feed ([below](#the-feed-of-recorded-context-operations)), with a reset to before each session. It is not on the section bar: a session on the Assistants page, or **All sessions** there, opens it, and the bar marks Assistants while it is open | `ContextFeed` with the project key, `ContextResetScope`, `ResetContext` |
+| **Sessions** (`history`) | the project's feed ([below](#the-feed-of-recorded-context-operations)), with a reset to before each session. It has no tab of its own: a session on the Assistants page, or **All sessions** there, opens it, and Project Settings marks Assistants while it is open | `ContextFeed` with the project key, `ContextResetScope`, `ResetContext` |
 | **Share** (`share`) | how far the project's context reaches, as three rungs ([below](#sharing-and-the-ladder-of-reach)) | `ProjectSharing`, `SetProjectSharing`, `SyncProjectContext` |
 
-Each id is routable, so a persisted view and a link from the home or the Map
-land on its section. Each section names the command that does the same on the
+Each id is routable, so a persisted view and a link from the home or the
+Overview land on its section. Each section names the command that does the same on the
 command line, as a chip at the right of the section bar: `kapi context review`, `kapi context atlas`, `kapi context
 log`, `kapi context sync`, `kapi connect`.
 
@@ -476,11 +516,11 @@ count of work waiting.
 ### Decide
 
 A project's Context hub opens on **Decide**, titled with the project's name,
-with the number of suggestions to decide and the number of rules kept. The Map
+with the number of suggestions to decide and the number of rules kept. The Overview
 opens it too, selecting the row a person chose there (`conflict:<id>` or
 `suggested:<id>`, matched against a question's own id or one of its sides').
-Deciding there is discovery, never a gate: a suggestion advises agents and
-checks from the moment it is recorded, and one nobody answers keeps advising.
+Deciding there is discovery, never a gate: agents and checks see a suggestion
+from the moment it is recorded, and checks keep reporting one nobody answers.
 
 The page is a list beside a detail pane. The list holds one row per suggestion
 waiting for a person: its kind as a `KindIcon`, the wording it is about, and
@@ -491,9 +531,9 @@ and the desktop ask the same thing in the same order:
 
 | Suggestion | The question and its options |
 | --- | --- |
-| A name | "Which one do your files use?": each form with the blocks and files of the project's source that write it, the most used first, and **Other…** for a form the person types |
+| A name | "Which spelling should the project use?": each form with the blocks and files of the project's source that write it, the most used first, and **Other…** for a form the person types |
 | A word, a note or a content-memory pair | "Keep this as a rule?", with no options |
-| A disagreement | "Which one holds?" (or "Which one do your files use?" for two names): one option per side, each with who suggested it, its blocks and files, and what keeping it does |
+| A disagreement | "Which one holds?" (or "Which spelling should the project use?" for two names): one option per side, each with who suggested it, its blocks and files, and what keeping it does |
 
 Before the actions, a line states what keeping the picked option does: the
 blocks a check then reports, and where the rule applies ("If you keep
@@ -509,10 +549,10 @@ answer through `host.App.DecideRule`, which makes the calls `kapi rules` makes
 for the same keys: a keep is `DecideContextReview` with the suggestion kept in
 the picked form, or with the picked side chosen; Not a rule drops the
 suggestion, or every side of a disagreement; Later records nothing and leaves
-the suggestion advising, and the page leaves it out until it is opened again.
+the suggestion waiting, and the page leaves it out until it is opened again.
 The first keep writes the recipe of a folder opened without one. After each
 answer the next question is selected, and with none left the page says
-"Nothing to decide." with the number of rules kept and a link to the Map.
+"Nothing to decide." with the number of rules kept and a link to the Overview.
 
 Counting reads every block of the project's source once per view. The tab
 holds the last view, and the next read counts over its blocks again while no
@@ -628,17 +668,18 @@ it is local work that calls no provider. The app therefore keeps it current
 without a person's step. `SyncProjectStore` compares the resolved source files
 with their extract-time stamps (`DetectStoreDrift`) and runs the shared
 `ExtractToProjectStore` path only when the cache is missing, was written by
-another kapi version, or no longer matches the files. The frontend calls it
+another kapi version, or differs from the files. The frontend calls it
 when a project tab becomes active and after the file watcher reports a change.
 It returns without extracting while a run holds the project, because
 `kapi up` extracts before each pass.
 
 The hero, its verb and **Plan…** appear only while the saved recipe declares
 a target language, the answer of `declaresTargetLanguages` in
-`frontend/src/lib/languages.ts` that the rail's Review entry also reads. On a
+`frontend/src/lib/languages.ts` that Review also reads to choose between its
+queue and the languages section. On a
 project without one the runner route opens no Bring up to date view either.
 
-The project home reports the cache only by its effect: while it catches up,
+The Overview reports the cache only by its effect: while it catches up,
 the hero reads "Reading the project's files…", and a failed read is shown as
 an error with its cause. Below the hero's verb, three counts separate the
 run's work from a person's: blocks to translate, translations waiting for
@@ -659,8 +700,12 @@ Live progress survives the dispatch. The venue route reads the plumbing's
 NDJSON line by line as it arrives, folding framing records into the result and
 handing the run's own events to the run view; a buffered document and a
 streamed one are read by the same fold. The shared engine discovers plugins
-once, and a run borrows that engine, so the venue a run resolves is the one the
-tab's other surfaces see.
+once. A run resolves its venue through the same plugin host as the tab.
+The host resolves target languages from the recipe defaults, collections, and
+content items. A project with no target languages reconciles its source.
+The desktop and CLI use the same host check to decide whether a flow needs
+a provider choice. It applies each locale’s tool presets and inspects the
+requirements of the configured steps.
 
 <SwimlaneDiagram
   actors={[
@@ -673,22 +718,27 @@ tab's other surfaces see.
     { from: 1, to: 2, label: "execute", detail: "flow spec + project context" },
     { from: 2, to: 1, label: "trace records", detail: "step, block, log, error" },
     { from: 1, to: 0, label: "flow:event", detail: "emitted + buffered for reconnect" },
-    { from: 0, to: 1, label: "CancelRun()" },
+    { from: 0, to: 1, label: "CancelProjectRun(tabID)" },
     { from: 1, to: 2, label: "context cancel" },
   ]}
   caption="A run is one call in and a stream of events out. The backend buffers the stream so a reloaded window replays the run rather than losing it."
 />
 
-A desktop window can reload mid-run, and a run that only existed as a live
-event stream would vanish. The backend keeps the events, collapsing consecutive
-metric snapshots so a long run does not grow the buffer at the sampling rate.
-The runner asks for a target language only when the flow produces one.
+The runner admits one active run across the open tabs. Each event and retained
+trace list carries the owning tab ID. A reloaded window can replay the buffered
+events. Consecutive metric snapshots share one buffer entry. Each tab retains
+its own last run error until a run in that tab succeeds.
 
-### The toolbox is a reference; flows run through the runner
+Cancellation checks the tab ID and signals the active run. The call returns
+after the worker publishes its terminal event and releases the runner. A
+replacement run can then start. The runner asks for a target language only
+when the flow produces one.
 
-The Toolbox page describes each registry tool: what it does, its schema, what it
-consumes and produces, its reference page, and the command that runs it
-(`kapi exec <tool>`, with `kapi tools schema <tool>` for its options). Tools
+### Tools are described in the flow editor; flows run through the runner
+
+The flow editor's tool palette and step panel describe each registry tool:
+what it does, its schema, what it consumes and produces, and the command that
+runs it (`kapi exec <tool>`, copied from the step's terminal icon). Tools
 execute through the CLI and through flows; the desktop runs no tool on its
 own, because a third path would have to re-solve project isolation and AI
 consent for little.
@@ -702,7 +752,7 @@ The editor saves inline flows into the recipe and opens a flow file read-only,
 since the file is where that flow is edited.
 
 The flow editor's Run action goes through the same `RunFlow` path the
-collections table and the project home use. It appears in project mode, where
+collections table and the Overview use. It appears in project mode, where
 there is a project for a run to act on, and stays absent in ad-hoc mode.
 
 The flow editor's graph edits **composition** only. Its two ends are endpoint

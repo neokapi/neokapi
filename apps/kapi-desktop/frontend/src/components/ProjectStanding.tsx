@@ -14,20 +14,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Compass, FileText, ShieldCheck, Cloud } from "lucide-react";
-import {
-  Badge,
-  Card,
-  CardContent,
-  CoordinateChip,
-  SimpleTooltip,
-  cn,
-} from "@neokapi/ui-primitives";
+import { Badge, Card, CardContent, SimpleTooltip, cn } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
-import { call } from "../hooks/useApi";
+import { api, call } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import type { KapiProject, KeptConflict, ProjectStatus, ProjectServer } from "../types/api";
 import { KeptConflicts } from "./KeptConflicts";
 import { declaresTargetLanguages, resolvedTargetLanguages } from "../lib/languages";
+import { LabelledCoordinates, coordinateDifferences, sharedCoordinates } from "./PointCoordinates";
 
 /** One point the recipe declares, and what governs there. */
 export interface ProjectPoint {
@@ -63,6 +57,8 @@ export interface ProjectStandingProps {
   conflicts?: KeptConflict[];
   /** Open Context standing at a point. */
   onOpenPoint?: (pin: { coordinate?: string; collection?: string }) => void;
+  /** The project store's concept count, pre-loaded for Storybook/tests. */
+  termsCount?: number;
   /** Whether the saved recipe declares a target language; the languages row
    *  appears only when it does. Defaults to `declaresTargetLanguages(project)`. */
   hasTargetLanguages?: boolean;
@@ -110,6 +106,7 @@ export function ProjectStanding({
   conflicts,
   onOpenPoint,
   hasTargetLanguages,
+  termsCount: propTermsCount,
 }: ProjectStandingProps) {
   const languages = hasTargetLanguages ?? declaresTargetLanguages(project);
   const statusQuery = useQuery({
@@ -128,6 +125,21 @@ export function ProjectStanding({
     enabled: !propServer && !!tabID,
   });
 
+  // A project's own terms apply without a `termstore:` binding, so the count
+  // comes from the project store whenever the recipe binds none.
+  const handlesQuery = useQuery({
+    queryKey: qk.projectHandles(tabID),
+    queryFn: () => api.getProjectHandles(tabID),
+    enabled: propTermsCount === undefined && !!tabID,
+  });
+  const termsHandle = handlesQuery.data?.termsHandle ?? "";
+  const termsStatsQuery = useQuery({
+    queryKey: qk.termsStats(termsHandle),
+    queryFn: () => api.getTermsStats(termsHandle),
+    enabled: propTermsCount === undefined && !!termsHandle,
+  });
+  const termsCount = propTermsCount ?? termsStatsQuery.data?.count ?? 0;
+
   const status = propStatus ?? statusQuery.data ?? undefined;
   const points = propPoints ?? pointsQuery.data ?? undefined;
   const server = propServer ?? serverQuery.data ?? undefined;
@@ -140,6 +152,12 @@ export function ProjectStanding({
   // by "the project's voice" before they look at the map.
   const rootPoint = points?.points.find((p) => p.default);
   const bound = points?.points.filter((p) => p.voice).length ?? 0;
+
+  // The coordinates every point shares are drawn once under the heading, and
+  // a row shows only where it differs, usually its channel. A row names its
+  // voice only when it differs from the project's own, which the governance
+  // axis above already states.
+  const shared = sharedCoordinates(points?.points.map((p) => p.coordinates) ?? []);
 
   return (
     <div className="mb-6 space-y-3" data-testid="project-standing">
@@ -170,11 +188,20 @@ export function ProjectStanding({
                   })}
                 </Fact>
                 <Fact muted>·</Fact>
-                <Fact muted>{t("{count} collection(s)", { count: collections })}</Fact>
+                <Fact muted>
+                  {t("{count, plural, one {# collection} other {# collections}}", {
+                    count: collections,
+                  })}
+                </Fact>
               </>
             ) : (
               <Fact muted>
-                {t("{count} collection(s) · reading the files", { count: collections })}
+                {t(
+                  "{count, plural, one {# collection} other {# collections}} · reading the files",
+                  {
+                    count: collections,
+                  },
+                )}
               </Fact>
             )}
           </Axis>
@@ -194,12 +221,16 @@ export function ProjectStanding({
             <Fact muted>·</Fact>
             {rootPoint?.termstore ? (
               <Fact>{t("terms {source}", { source: rootPoint.termstore })}</Fact>
+            ) : termsCount > 0 ? (
+              <Fact>
+                {t("{count, plural, one {# concept} other {# concepts}}", { count: termsCount })}
+              </Fact>
             ) : (
               <Fact muted>{t("no terms bound")}</Fact>
             )}
             <Fact muted>·</Fact>
             <Fact muted>
-              {t("{count} of {total} point(s) governed", {
+              {t("{count} of {total, plural, one {# point} other {# points}} governed", {
                 count: bound,
                 total: points?.points.length ?? 0,
               })}
@@ -237,11 +268,16 @@ export function ProjectStanding({
       {points && points.points.length > 0 && (
         <Card>
           <CardContent className="p-4">
-            <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            <h2 className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               <Compass size={12} />
               {t("Where content sits")}
             </h2>
-            <ul className="divide-y" data-testid="point-map">
+            <LabelledCoordinates
+              entries={Object.entries(shared)}
+              className="mt-2"
+              testId="point-map-shared"
+            />
+            <ul className="mt-2 divide-y" data-testid="point-map">
               {points.points.map((p) => (
                 <li key={p.ref || "__default__"}>
                   <button
@@ -260,13 +296,7 @@ export function ProjectStanding({
                     data-testid="point-row"
                   >
                     <span className="min-w-[9rem] font-medium">{p.label}</span>
-                    {p.coordinates && (
-                      <span className="flex flex-wrap items-center gap-1">
-                        {Object.entries(p.coordinates).map(([axis, value]) => (
-                          <CoordinateChip key={axis} axis={axis} value={value} />
-                        ))}
-                      </span>
-                    )}
+                    <LabelledCoordinates entries={coordinateDifferences(p.coordinates, shared)} />
                     <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
                       {p.collections.length > 0
                         ? p.collections.join(", ")
@@ -280,12 +310,14 @@ export function ProjectStanding({
                         {t("fell through")}
                       </Badge>
                     )}
-                    {p.voice ? (
-                      <Badge variant="secondary" className="font-normal">
-                        {p.voice}
-                      </Badge>
-                    ) : (
+                    {!p.voice ? (
                       <span className="text-xs text-muted-foreground">{t("no voice")}</span>
+                    ) : (
+                      p.voice !== rootPoint?.voice && (
+                        <Badge variant="secondary" className="font-normal">
+                          {p.voice}
+                        </Badge>
+                      )
                     )}
                   </button>
                 </li>

@@ -17,6 +17,7 @@ import {
   Badge,
   Card,
   CardContent,
+  PageContainer,
   PageHeader,
   ScrollArea,
   FindingSnippet,
@@ -259,7 +260,7 @@ export function ChecksPanel({
   }, [propResult]);
 
   // The panel opens on the last run over every file and target language, the
-  // run the Map's findings count is read from, so the count and the panel
+  // run the Overview's findings count is read from, so the count and the panel
   // agree. Running the checks here replaces it.
   useEffect(() => {
     if (propResult) return;
@@ -401,10 +402,10 @@ export function ChecksPanel({
     verdict === "did_not_run" && result?.did_not_run_cause === "checker_invalid";
 
   return (
-    <div className="p-6">
+    <PageContainer width="wide">
       <PageHeader
+        help="checks"
         title="Checks"
-        subtitle="Run content checks like tests over your project: terminology, placeholders, and brand vocabulary. Scope which files and languages to check with the menu-bar filter."
         actions={
           <div className="flex items-center gap-2">
             <Button size="sm" onClick={() => void runChecks()} disabled={loading}>
@@ -716,6 +717,6 @@ export function ChecksPanel({
         backLabel={t("Back to checks")}
         onClose={() => setDocumentOpen(false)}
       />
-    </div>
+    </PageContainer>
   );
 }

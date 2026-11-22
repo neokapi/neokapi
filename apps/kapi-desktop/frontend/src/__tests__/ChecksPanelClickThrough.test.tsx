@@ -15,7 +15,7 @@ const result: CheckRunResult = {
       findings: [
         {
           category: "placeholder",
-          severity: "critical",
+          fails: true,
           message: "The target drops {count}.",
           block_id: "b2",
           field: "target",
@@ -25,7 +25,7 @@ const result: CheckRunResult = {
         },
         {
           category: "voice",
-          severity: "major",
+          fails: true,
           message: 'Say "sign in" rather than "log in".',
           original_text: "log in",
           block_id: "b1",
@@ -60,7 +60,6 @@ describe("ChecksPanel click-through", () => {
       </ErrorProvider>,
     );
     const points = screen.getAllByTestId("finding-point");
-    // The backend sorts critical first, so the placeholder finding leads.
     expect(points[1]).toHaveTextContent("support/docs");
     await userEvent.click(points[1]);
     expect(onOpenContext).toHaveBeenCalledWith({

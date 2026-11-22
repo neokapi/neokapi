@@ -345,12 +345,10 @@ import (
 // okapi-unmapped: OpenXmlPptxTest#documentPropertiesNotTranslatedButReordered — doc properties reordering not implemented
 // okapi-unmapped: OpenXmlPptxTest#documentPropertiesTranslatedAndReordered — doc properties reordering not implemented
 // okapi-unmapped: OpenXmlPptxTest#doesNotExtractEmptyFormatting — empty formatting filtering not implemented
-// okapi-unmapped: OpenXmlPptxTest#doesNotExtractHiddenSlides — hidden slide exclusion not implemented
 // okapi-unmapped: OpenXmlPptxTest#endParagraphPropertiesDoesNotTriggerAdditionalCodesCreation — paragraph properties not implemented
 // okapi-unmapped: OpenXmlPptxTest#extractsWithAggressivelyCleanedUpFormatting — PPTX aggressive cleanup not implemented
 // okapi-unmapped: OpenXmlPptxTest#extractsWithoutAggressivelyCleanedUpFormatting — PPTX aggressive cleanup not implemented
 // okapi-unmapped: OpenXmlPptxTest#graphicMetadataExtracted — graphic metadata not implemented
-// okapi-unmapped: OpenXmlPptxTest#hiddenSlideRelatedPartsNotExtracted — hidden slide parts not implemented
 // okapi-unmapped: OpenXmlPptxTest#notesTranslatedAndReordered — notes reordering not implemented
 // okapi-unmapped: OpenXmlPptxTest#relationshipsReordered — relationships reordering not implemented
 // okapi-unmapped: OpenXmlPptxTest#testExternalRelationships — external relationships not implemented
@@ -1060,6 +1058,32 @@ func TestNative_PptxHiddenSlides(t *testing.T) {
 	parts := readFile(t, filepath.Join(dir, "1010-slide1-hidden-slide2-hidden.pptx"))
 
 	require.NotEmpty(t, parts, "PPTX with hidden slides should produce parts")
+}
+
+// okapi: OpenXmlPptxTest#doesNotExtractHiddenSlides
+func TestNative_PptxHiddenSlideNotExtracted(t *testing.T) {
+	dir := testdataDir(t)
+	blocks := translatableBlocks(readFile(t, filepath.Join(dir, "736.pptx")))
+	assert.Equal(t, []string{"This is a visible slide title", "This is a visible slide body"},
+		testutil.BlockTexts(blocks))
+}
+
+// okapi: OpenXmlPptxTest#hiddenSlideRelatedPartsNotExtracted
+func TestNative_PptxHiddenSlidePartsNotExtracted(t *testing.T) {
+	dir := testdataDir(t)
+	// Only the document properties remain when every slide is hidden.
+	blocks := translatableBlocks(readFile(t, filepath.Join(dir, "1010-slide1-hidden-slide2-hidden.pptx")))
+	assert.Equal(t, []string{"Slide 1", "User"}, testutil.BlockTexts(blocks))
+
+	// The visible slide keeps its notes; the hidden slide's notes are left out.
+	blocks = translatableBlocks(readFile(t, filepath.Join(dir, "1010-slide1-visible-slide2-hidden.pptx")))
+	texts := testutil.BlockTexts(blocks)
+	assert.Contains(t, texts, "visible")
+	assert.Contains(t, texts, "Slide 1 note.")
+	for _, b := range blocks {
+		assert.NotContains(t, b.Name, "slide2.xml", "hidden slide 2 extracted")
+		assert.NotContains(t, b.Name, "notesSlide2.xml", "hidden slide 2's notes extracted")
+	}
 }
 
 // okapi: OpenXmlPptxTest#chartsTranslatedAndReordered

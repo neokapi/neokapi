@@ -64,10 +64,7 @@ export function CtrlShell({ children, headerSlot, contentClassName }: CtrlShellP
           <Header headerSlot={headerSlot} />
           <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
             <div
-              className={cn(
-                "flex-1 flex flex-col min-h-0 min-w-0 overflow-auto p-4",
-                contentClassName,
-              )}
+              className={cn("flex-1 flex flex-col min-h-0 min-w-0 overflow-auto", contentClassName)}
             >
               {children}
             </div>

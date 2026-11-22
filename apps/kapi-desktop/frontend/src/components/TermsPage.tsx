@@ -14,6 +14,7 @@ import {
   DialogTitle,
   Label,
   Input,
+  PageContainer,
   PageHeader,
   EmptyState,
   SimpleTooltip,
@@ -191,8 +192,9 @@ export function TermsPage({
     return (
       <div className="flex h-full min-h-0 flex-col">
         <PageHeader
+          help="voice-and-terms"
           className="mb-0 shrink-0 px-6 pt-5 pb-3"
-          title={store?.name ?? (isProject ? "Project Terms" : tbName)}
+          title={store?.name ?? (isProject ? "Terms" : tbName)}
           subtitle={
             count !== undefined
               ? t("{count, plural, one {# concept} other {# concepts}}", { count })
@@ -226,10 +228,12 @@ export function TermsPage({
     );
   }
 
-  // No store open: the named stores, one row each, to open one from.
+  // No store open: the named stores, one row each, to open one from, or the
+  // empty state when there are none. A short list, so a narrow column.
   return (
-    <div className="mx-auto max-w-3xl p-6">
+    <PageContainer width="narrow">
       <PageHeader
+        help="voice-and-terms"
         title="Terms"
         actions={
           <div className="flex gap-2">
@@ -282,7 +286,7 @@ export function TermsPage({
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>New Terms</DialogTitle>
+            <DialogTitle>New terms store</DialogTitle>
           </DialogHeader>
           <div>
             <Label className="mb-1 block text-xs text-muted-foreground">Name</Label>
@@ -336,7 +340,7 @@ export function TermsPage({
             </p>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => void handleRecover()} disabled={recovering}>
-                {recovering ? t("Recovering...") : t("Create Fresh Terms")}
+                {recovering ? t("Recovering…") : t("Create fresh terms")}
               </Button>
               <Button
                 variant="outline"
@@ -352,6 +356,6 @@ export function TermsPage({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 }

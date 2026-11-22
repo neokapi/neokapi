@@ -83,10 +83,21 @@ standing without running anything, and 'kapi check --ship' to enforce the
 gates (e.g. before a release tag).
 
 --passes 1 runs a single pass (the behavior of the bare 'kapi run');
---passes N caps the loop at N passes.`,
+--passes N caps the loop at N passes.
+
+--recycle-only fills the targets the content memory answers exactly and
+stops: one pass, no provider calls. Near matches and the rest of the work wait
+for a full run. Kapi Desktop runs the same pass when it reads a project's
+files.
+
+--pre-review, after the run, has the AI review tool score each translation
+awaiting review against the voice and terms that apply to its file. A score is
+advisory: it never approves a block, and 'kapi status --review' lists it.`,
 		Example: `  kapi up                # run the default flow; stop where a gate holds content back
   kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale
   kapi up --passes 1     # a single pass over every locale that needs work
+  kapi up --recycle-only # fill exact content-memory matches only, with no provider
+  kapi up --pre-review   # then have the AI model score the translations awaiting review
   kapi up --materialize  # also write target-language files for the shippable locales
   kapi up --local        # connected project: run the loop on this machine, then push the results
   kapi up -p kapi.yaml   # bring an explicit project recipe up to date`,
@@ -103,7 +114,7 @@ gates (e.g. before a release tag).
 	}
 
 	AddProjectFlag(cmd)
-	a.AddFlowRunFlags(cmd)
+	a.AddUpRunFlags(cmd)
 	AddUpFlags(cmd)
 	cmd.Flags().Bool("local", false, "run the loop on this machine even when the recipe declares a server (the results are then pushed so the server stays current)")
 	cmd.Flags().Bool("server", false, "require the server venue: fail rather than run the loop locally when the recipe has no server or the server plumbing is unavailable")
@@ -141,12 +152,25 @@ func runUpWithVenue(a *App, cmd *cobra.Command, projectPath string) error {
 	}
 
 	if dec.Venue == host.UpVenueServer {
+		if BoolFlag(cmd, "recycle-only") {
+			return errors.New("--recycle-only runs on this machine; add --local to run it in a server-connected project")
+		}
+		if BoolFlag(cmd, "pre-review") {
+			return errors.New("--pre-review runs on this machine; add --local to run it in a server-connected project")
+		}
 		printUpVenue(a, cmd, local, dec.ServerURL)
 		return pluginhost.ExecPluginCommand(cmd.Context(), dec.Route, forwardedFlagArgs(cmd.Flags(), "server"))
 	}
 
 	if dec.HasServer && dec.Route == nil && !BoolFlag(cmd, "plan") {
 		a.WarnIfServerRecipeConvergingLocally(cmd, projectPath)
+	}
+	// The server venue's own flags wait on a server run, so a run on this
+	// machine refuses them rather than accepting a flag it cannot honour.
+	for _, name := range []string{"timeout", "fail-on-incomplete-watch"} {
+		if cmd.Flags().Changed(name) {
+			return fmt.Errorf("--%s applies to a server run; this run is on this machine", name)
+		}
 	}
 	return a.ExecuteUp(cmd, projectPath)
 }

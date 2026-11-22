@@ -191,8 +191,8 @@ export class Collection {
              * Channel places this collection's content at a point in the project's
              * context space, written as the qualified `profile/channel`. A bare channel
              * name is rejected, and the error spells out the qualified form(s) to write
-             * (ResolveChannel). The point selects the profile whose governance —
-             * voice, terms — a run carries over this content, and the channel then
+             * (ResolveChannel). The point selects the profile whose governance
+             * (voice, terms) a run carries over this content, and the channel then
              * selects the matching override inside that voice. Empty means the
              * project's default point governs it. Named collections only: a point is
              * resolved by collection name, so an unnamed entry has nothing to resolve.
@@ -203,7 +203,7 @@ export class Collection {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Coordinates places this collection on the DECLARED axes — the ones a
+             * Coordinates places this collection on the DECLARED axes: the ones a
              * project names for itself, brand among them. It overlays
              * `defaults.coordinates`, per axis, so a collection moves on the one axis
              * it differs on and inherits the rest.
@@ -220,15 +220,26 @@ export class Collection {
              * never translated: a run reads it, checks it, and writes nothing back.
              * Package descriptions and installer strings are the usual case.
              * 
-             * It is an assertion, not a mode. Naming no target already made a
-             * collection source-only, so this flag adds no behaviour — what it adds is
-             * the difference between meaning it and forgetting. Validate rejects a
+             * It is an assertion. Naming no target already makes a collection
+             * source-only, so the flag adds no behaviour. It records that the missing
+             * target is intended. Validate rejects a
              * collection that sets it and also carries a target, so the declaration and
              * the items cannot drift into disagreeing.
              * @member
              * @type {boolean | undefined}
              */
             this["source_only"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Priority orders this collection's content for review against the
+             * project's other collections: high, normal or low. Empty takes
+             * defaults.priority. A review surface deals the high collections first and
+             * the low ones last.
+             * @member
+             * @type {string | undefined}
+             */
+            this["priority"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -243,7 +254,7 @@ export class Collection {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Bare entry fields (short form — promoted from ContentItem).
+             * Bare entry fields (the short form, promoted from ContentItem).
              * @member
              * @type {string | undefined}
              */
@@ -276,8 +287,8 @@ export class Collection {
         const $$createField2_0 = $$createType1;
         const $$createField3_0 = $$createType3;
         const $$createField6_0 = $$createType4;
-        const $$createField8_0 = $$createType6;
-        const $$createField10_0 = $$createType8;
+        const $$createField9_0 = $$createType6;
+        const $$createField11_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField2_0($$parsedSource["target_languages"]);
@@ -289,10 +300,10 @@ export class Collection {
             $$parsedSource["coordinates"] = $$createField6_0($$parsedSource["coordinates"]);
         }
         if ("redaction" in $$parsedSource) {
-            $$parsedSource["redaction"] = $$createField8_0($$parsedSource["redaction"]);
+            $$parsedSource["redaction"] = $$createField9_0($$parsedSource["redaction"]);
         }
         if ("format" in $$parsedSource) {
-            $$parsedSource["format"] = $$createField10_0($$parsedSource["format"]);
+            $$parsedSource["format"] = $$createField11_0($$parsedSource["format"]);
         }
         return new Collection(/** @type {Partial<Collection>} */($$parsedSource));
     }
@@ -475,7 +486,7 @@ export class ContentItem {
         if (/** @type {any} */(false)) {
             /**
              * Channel overrides the collection's `channel:` for the files this item
-             * matches — the one place a single file, or a sub-pattern, sits at a
+             * matches. It is the one place a single file, or a sub-pattern, sits at a
              * different point in the context space than the rest of its collection. It
              * takes the same qualified `profile/channel` form and the same validator as
              * a collection's channel; empty inherits the collection's. A run resolves it
@@ -675,7 +686,7 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Flow names the project's default flow — the one `kapi run` (with no flow
+             * Flow names the project's default flow: the one `kapi run` (with no flow
              * argument) executes to bring the project's content up to date across every
              * target language. It is a built-in composed flow name or a key in `flows:`.
              * Empty means there is no default; `kapi run` then requires an explicit flow.
@@ -687,13 +698,13 @@ export class Defaults {
         if (/** @type {any} */(false)) {
             /**
              * Materialize governs whether the convergence loop (`kapi up`) owns
-             * delivery of the localized target files (#1078 C2/C3).
+             * delivery of the target files (#1078 C2/C3).
              * 
-             * "on-converge" makes the run responsible for them, under the ship gate:
-             * its passes draft into a run-local tree and only a locale whose gated
+             * "on-converge" makes the run responsible for them, under the ship gate.
+             * Its passes draft into a run-local tree, and only a locale whose gated
              * scopes are all shippable has its files written to the collection's
              * `target:` path. "manual" (the default) leaves delivery to an explicit
-             * `kapi merge` (or `up --materialize`) and claims no gate — its passes
+             * `kapi merge` (or `up --materialize`) and claims no gate. Its passes
              * write where the recipe points as they produce each unit.
              * @member
              * @type {string | undefined}
@@ -719,13 +730,13 @@ export class Defaults {
              * is translated into N locales only once it is ready.
              * 
              * Values (model.ResolveTranslateAfter):
-             *   ""            — unset; the runner applies the default level (`written`).
-             *   "written"     — the DEFAULT: a written source translates once it clears
+             *   "":            unset; the runner applies the default level (`written`).
+             *   "written":     the DEFAULT. A written source translates once it clears
              *                   its automated terminology, voice and source hygiene
              *                   checks (no human bottleneck).
-             *   "established" — a person has established the source (voice-critical or
+             *   "established": a person has established the source (voice-critical or
              *                   regulated projects). A failing finding still holds it.
-             *   "none"        — the deliberate opt-out: no hold, every present source
+             *   "none":        the deliberate opt-out. No hold, every present source
              *                   fans out on push. You have to choose it.
              * 
              * Any other value fails the recipe's validation.
@@ -870,16 +881,25 @@ export class Defaults {
              * 
              * It exists because most axes default. A project has one brand far more
              * often than one per collection, so stating it per entry is noise that
-             * drifts — the same reason Voice above is a default with a per-collection
-             * override rather than a field repeated on every entry.
+             * drifts. Voice above is a default with a per-collection override for the
+             * same reason.
              * 
-             * The structural axes (product, channel) are NOT written here: they are
+             * The structural axes (product, channel) stay out of this map. They are
              * derived from a collection's `channel:`, and a default that could shadow
              * them would let a recipe contradict its own point. Declared axes only.
              * @member
              * @type {{ [_ in string]?: string } | undefined}
              */
             this["coordinates"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Priority is the review priority every collection takes unless it sets
+             * its own: high, normal or low. Empty is normal.
+             * @member
+             * @type {string | undefined}
+             */
+            this["priority"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -900,7 +920,7 @@ export class Defaults {
             /**
              * Locales holds per-target-language overrides, keyed by locale. Each entry's
              * tool presets merge on top of the project-wide Tools presets (and under a
-             * flow step's own config) whenever a flow runs for that target locale — so a
+             * flow step's own config) whenever a flow runs for that target locale. A
              * project can declare an advanced feature once per locale ("de needs
              * redaction, others don't") without forking the flow. Convergence and any
              * targeted run honor it; locales with no entry use the project defaults.
@@ -930,8 +950,8 @@ export class Defaults {
         const $$createField18_0 = $$createType16;
         const $$createField19_0 = $$createType18;
         const $$createField20_0 = $$createType4;
-        const $$createField21_0 = $$createType20;
-        const $$createField22_0 = $$createType22;
+        const $$createField22_0 = $$createType20;
+        const $$createField23_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
@@ -967,10 +987,10 @@ export class Defaults {
             $$parsedSource["coordinates"] = $$createField20_0($$parsedSource["coordinates"]);
         }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField21_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField22_0($$parsedSource["tools"]);
         }
         if ("locales" in $$parsedSource) {
-            $$parsedSource["locales"] = $$createField22_0($$parsedSource["locales"]);
+            $$parsedSource["locales"] = $$createField23_0($$parsedSource["locales"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }
@@ -1223,8 +1243,8 @@ export class KapiProject {
             /**
              * ID is the project's stable identity. `kapi init` mints one, and every
              * key kapi derives for the project's recorded context reads it through
-             * Identity, so renaming the project, moving the folder and cloning the
-             * repository elsewhere all leave that context where it is and two
+             * Identity. Renaming the project, moving the folder and cloning the
+             * repository elsewhere all leave that context where it is, and two
              * checkouts of one recipe resolve to one project. A recipe carrying no id
              * is identified by its Name; `kapi init --mint-id` writes one into such a
              * recipe. See id.go.
@@ -1333,9 +1353,9 @@ export class KapiProject {
              * Ship gates decide when localized content is shippable, as coverage
              * thresholds over the lifecycle ladder (see core/gate). Three optional,
              * additive forms:
-             *   ShipGate  — a single catch-all gate ({translated: 100, established: 100}).
-             *   ShipGates — a when/gate rule list; most-specific rule wins.
-             *   Gates     — a named registry referenced by a rule's `gate: <name>`.
+             *   ShipGate:  a single catch-all gate ({translated: 100, established: 100}).
+             *   ShipGates: a when/gate rule list; most-specific rule wins.
+             *   Gates:     a named registry referenced by a rule's `gate: <name>`.
              * BuildShipGates resolves these into an evaluatable gate.RuleSet.
              * @member
              * @type {gate$0.Gate | undefined}
@@ -1364,8 +1384,8 @@ export class KapiProject {
              * translation, and a language picker marks it AI. Same
              * additive forms and precedence as the ship gate, resolving a rule's
              * `gate: <name>` reference against the same Gates registry:
-             *   EstablishedGate  — a single catch-all gate.
-             *   EstablishedGates — a when/gate rule list; most-specific rule wins.
+             *   EstablishedGate:  a single catch-all gate.
+             *   EstablishedGates: a when/gate rule list; most-specific rule wins.
              * With no established gate configured, no scope ships `established`. A
              * project that delivers only established content says so in its ship gate
              * (e.g. {established: 100}).
@@ -1385,8 +1405,8 @@ export class KapiProject {
             /**
              * SourceGate is the source-readiness bar: a single coverage gate over the
              * source authoring ladder (written→established), e.g.
-             * {established: 100}. It is the source-side counterpart of ShipGate — it gates
-             * the author's own content, not the translations. BuildSourceGate
+             * {established: 100}. It is the source-side counterpart of ShipGate and gates
+             * the author's own content, never the translations. BuildSourceGate
              * resolves it; evaluated by `kapi check --ship` (never an ordinary
              * build).
              * @member
@@ -1403,7 +1423,7 @@ export class KapiProject {
              * binary that has not registered the bowrain extension.
              * 
              * Version constraints follow semver (`^1.0`, `>=1.47.0`, `~1.4.2`,
-             * `1.4.0` exact-match, `*` any). The map form is mandatory — a bare-list
+             * `1.4.0` exact-match, `*` any). Only the map form is accepted. A bare-list
              * form (`requires: [bowrain]`) is rejected with an actionable error.
              * @member
              * @type {RequiresMap | undefined}
@@ -2022,6 +2042,76 @@ export class ShipGateRule {
             $$parsedSource["gate"] = $$createField1_0($$parsedSource["gate"]);
         }
         return new ShipGateRule(/** @type {Partial<ShipGateRule>} */($$parsedSource));
+    }
+}
+
+/**
+ * StoreDrift describes how the block store has fallen behind the working tree.
+ */
+export class StoreDrift {
+    /**
+     * Creates a new StoreDrift instance.
+     * @param {Partial<StoreDrift>} [$$source = {}] - The source object to create the StoreDrift.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * StoreMissing: nothing has been extracted yet (a fresh project, or the
+             * block cache was cleared).
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["store_missing"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * VersionStale: the store exists but was written by a different kapi
+             * version (missing or mismatched version stamp), so its content may be
+             * extracted differently by the running binary.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["version_stale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Changed lists the project-relative source paths whose bytes drifted
+             * from their extract-time stamps (edited, or never stamped).
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["changed"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Removed lists stamped source paths that no longer resolve from the
+             * project's content patterns (deleted or de-scoped files whose blocks
+             * linger in the store).
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["removed"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StoreDrift instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {StoreDrift}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("changed" in $$parsedSource) {
+            $$parsedSource["changed"] = $$createField2_0($$parsedSource["changed"]);
+        }
+        if ("removed" in $$parsedSource) {
+            $$parsedSource["removed"] = $$createField3_0($$parsedSource["removed"]);
+        }
+        return new StoreDrift(/** @type {Partial<StoreDrift>} */($$parsedSource));
     }
 }
 

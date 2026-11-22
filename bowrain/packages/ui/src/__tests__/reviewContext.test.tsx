@@ -127,7 +127,7 @@ describe("the queue anchors what the checks found", () => {
       message: "Uses a forbidden rendering.",
       original_text: "mot de passe",
       suggestion: "code secret",
-      position: { kind: "range", start: { run: 0, offset: 19 }, end: { run: 0, offset: 31 } },
+      position: { kind: "range", start: { run: 0, offset: 20 }, end: { run: 0, offset: 32 } },
     };
     reviewer({ issues: [issue] }, emptyContext());
 
@@ -211,7 +211,9 @@ describe("the queue's neighbourhood", () => {
     // have rendered "We sent a link to ." and lost the variable. Both sides go
     // through it, so the chip survives on the target line too.
     expect(table.textContent).toContain("Nous avons envoyé un lien à ");
-    expect(table.textContent.match(/{{\.Email}}/g)).toHaveLength(2);
+    // The chip names the variable (Email) and never prints its native form.
+    expect(table.textContent.match(/\bEmail\b/g)).toHaveLength(2);
+    expect(table.textContent).not.toContain("{{");
     // The neighbour is keyed by the block the payload names, so a reviewer can
     // find it in the document rather than guessing which line it was.
     expect(table.textContent).toContain("b0");

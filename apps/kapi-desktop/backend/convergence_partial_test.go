@@ -97,6 +97,8 @@ func TestBringUpToDate_PartialFailure_StateReflectsPartial(t *testing.T) {
 		"a pass whose tool cannot be assembled must fail the run, not be swallowed")
 
 	// 1. The failure is recorded, so the UI can report it rather than infer it.
+	app.CancelRun()
+	require.Equal(t, string(RunStateError), app.GetRunState())
 	runErr := app.GetLastRunError()
 	require.NotNil(t, runErr, "a failed run must be recorded for the home surfaces")
 	assert.NotEmpty(t, runErr.Headline)
@@ -160,9 +162,14 @@ func TestBringUpToDate_SuccessClearsARecordedFailure(t *testing.T) {
 	app := NewApp()
 	tab, _ := newConvergenceProject(t, app)
 
-	// Seed a stale failure as though a previous run had died.
-	app.runState = newRunner()
-	app.recordRunFailure(&RunError{Kind: RunErrModelNotInstalled, Headline: "stale", Raw: "stale"})
+	other, _ := newPartialFailureProject(t, app)
+	require.NoError(t, app.BringUpToDate(other.ID))
+	awaitTerminalRun(t, app)
+	app.CancelRun()
+	previous := app.GetProjectLastRunError(other.ID)
+	require.NotNil(t, previous)
+	require.Nil(t, app.GetProjectLastRunError(tab.ID))
+	app.getOpenProject(tab.ID).lastRunError.Store(previous)
 	require.NotNil(t, app.GetLastRunError())
 
 	require.NoError(t, app.BringUpToDate(tab.ID))
@@ -172,6 +179,8 @@ func TestBringUpToDate_SuccessClearsARecordedFailure(t *testing.T) {
 	}, 60*time.Second, 50*time.Millisecond)
 	require.Equal(t, string(RunStateComplete), app.GetRunState())
 
+	assert.Same(t, previous, app.GetProjectLastRunError(other.ID))
+	assert.Nil(t, app.GetProjectLastRunError(tab.ID))
 	assert.Nil(t, app.GetLastRunError(),
 		"a successful run clears the recorded failure — otherwise the home stays red forever")
 }

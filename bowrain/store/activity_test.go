@@ -188,3 +188,134 @@ func TestActivityStore_TypesFilter(t *testing.T) {
 		assert.Len(t, result.Activities, 6)
 	})
 }
+
+// Rows that share a created_at across a page boundary are each returned once.
+// Paging on created_at alone skipped every row the page did not reach.
+func TestActivityStore_PagesRowsSharingATimestamp(t *testing.T) {
+	store := newTestActivityStore(t)
+	ctx := t.Context()
+
+	at := time.Date(2026, 11, 14, 9, 30, 0, 0, time.UTC)
+	const total = 23
+	var want []string
+	for range total {
+		a := &Activity{
+			WorkspaceID: "ws-1", ActorID: "user-1",
+			Type: ActivityProjectUpdated, Summary: "updated", CreatedAt: at,
+		}
+		require.NoError(t, store.Create(ctx, a))
+		want = append(want, a.ID)
+	}
+
+	seen := map[string]int{}
+	cursor := ""
+	for pages := 0; ; pages++ {
+		require.Less(t, pages, total, "paging did not terminate")
+		res, err := store.List(ctx, ActivityQuery{WorkspaceID: "ws-1", Limit: 5, Cursor: cursor})
+		require.NoError(t, err)
+		for _, a := range res.Activities {
+			seen[a.ID]++
+		}
+		if res.NextCursor == "" {
+			break
+		}
+		cursor = res.NextCursor
+	}
+
+	assert.Len(t, seen, total)
+	for _, id := range want {
+		assert.Equal(t, 1, seen[id], "activity %s", id)
+	}
+}
+
+func TestActivityStore_KeepsSubSecondTime(t *testing.T) {
+	store := newTestActivityStore(t)
+	ctx := t.Context()
+
+	at := time.Date(2026, 11, 14, 9, 30, 0, 123456789, time.UTC)
+	a := &Activity{WorkspaceID: "ws-1", ActorID: "u", Type: ActivityProjectUpdated, CreatedAt: at}
+	require.NoError(t, store.Create(ctx, a))
+	assert.Equal(t, at.Truncate(time.Microsecond), a.CreatedAt)
+
+	res, err := store.List(ctx, ActivityQuery{WorkspaceID: "ws-1"})
+	require.NoError(t, err)
+	require.Len(t, res.Activities, 1)
+	assert.True(t, a.CreatedAt.Equal(res.Activities[0].CreatedAt),
+		"stored %s, read %s", a.CreatedAt, res.Activities[0].CreatedAt)
+}
+
+func TestActivityStore_RejectsForeignCursor(t *testing.T) {
+	store := newTestActivityStore(t)
+	for _, c := range []string{"2026-11-14T09:30:00Z", "not base64!", "bm8tc2VwYXJhdG9y"} {
+		_, err := store.List(t.Context(), ActivityQuery{WorkspaceID: "ws-1", Cursor: c})
+		assert.ErrorIs(t, err, ErrInvalidActivityCursor, c)
+	}
+}
+
+// A workspace's rows are filed under its slug or its id. A query naming both
+// lists both, and the daily counts and the unseen count agree with it.
+func TestActivityStore_MatchesEveryWorkspaceKey(t *testing.T) {
+	store := newTestActivityStore(t)
+	ctx := t.Context()
+
+	for _, key := range []string{"acme", "ws-uuid-1", "other"} {
+		require.NoError(t, store.Create(ctx, &Activity{
+			WorkspaceID: key, ActorID: "u", Type: ActivityProjectUpdated, Summary: key,
+		}))
+	}
+
+	res, err := store.List(ctx, ActivityQuery{WorkspaceID: "acme", WorkspaceKeys: []string{"ws-uuid-1"}})
+	require.NoError(t, err)
+	assert.Len(t, res.Activities, 2)
+
+	counts, err := store.DailyCounts(ctx, time.Now().Add(-time.Hour), []string{"acme", "ws-uuid-1"}, nil)
+	require.NoError(t, err)
+	total := 0
+	for _, c := range counts {
+		total += c.Count
+	}
+	assert.Equal(t, 2, total)
+
+	require.NoError(t, store.SetActivitySeenAt(ctx, "u", "ws-uuid-1", time.Now().Add(-time.Hour)))
+	n, err := store.CountNewActivities(ctx, "u", "ws-uuid-1", "acme")
+	require.NoError(t, err)
+	assert.Equal(t, 2, n)
+}
+
+// ProjectIDs keeps a listing and the daily counts to a set of projects. An
+// empty set matches no row, and a row filed under no project is outside
+// every set.
+func TestActivityStore_ProjectSet(t *testing.T) {
+	store := newTestActivityStore(t)
+	ctx := t.Context()
+	for _, pid := range []string{"a", "b", ""} {
+		require.NoError(t, store.Create(ctx, &Activity{
+			WorkspaceID: "acme", ProjectID: pid, ActorID: "u", Type: ActivityItemPushed, Summary: pid,
+		}))
+	}
+	since := time.Now().Add(-time.Hour)
+	for _, tc := range []struct {
+		name string
+		set  []string
+		want int
+	}{
+		{"unrestricted", nil, 3},
+		{"one project", []string{"a"}, 1},
+		{"two projects", []string{"a", "b"}, 2},
+		{"empty set", []string{}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := store.List(ctx, ActivityQuery{WorkspaceID: "acme", ProjectIDs: tc.set})
+			require.NoError(t, err)
+			assert.Len(t, res.Activities, tc.want)
+
+			counts, err := store.DailyCounts(ctx, since, []string{"acme"}, tc.set)
+			require.NoError(t, err)
+			total := 0
+			for _, c := range counts {
+				total += c.Count
+			}
+			assert.Equal(t, tc.want, total)
+		})
+	}
+}

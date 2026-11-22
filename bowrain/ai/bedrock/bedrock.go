@@ -536,13 +536,14 @@ func isLocalPath(s string) bool {
 	return u.Scheme == "" || u.Scheme == "file"
 }
 
-// baseModelID strips a Bedrock cross-region inference-profile prefix ("eu.",
-// "us.", "apac.", "us-gov.") and the vendor segment ("anthropic.") from a model
-// id, yielding the bare model id the framework's limit table understands
-// (e.g. "eu.anthropic.claude-sonnet-4-6" -> "claude-sonnet-4-6").
+// baseModelID strips a Bedrock inference-profile prefix ("eu.", "us.", "apac.",
+// "us-gov.", "global.") and the vendor segment ("anthropic.", "openai.") from a
+// model id, yielding the bare model id the framework's limit table understands
+// (e.g. "eu.anthropic.claude-sonnet-4-6" -> "claude-sonnet-4-6",
+// "global.openai.gpt-6.1-terra" -> "gpt-6.1-terra").
 func baseModelID(id string) string {
 	s := id
-	for _, pfx := range []string{"us-gov.", "eu.", "us.", "apac."} {
+	for _, pfx := range []string{"us-gov.", "eu.", "us.", "apac.", "global."} {
 		if strings.HasPrefix(s, pfx) {
 			s = s[len(pfx):]
 			break

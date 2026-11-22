@@ -12,7 +12,7 @@ import (
 // the other's, and the failure is invisible: the blocks look like a real parse,
 // because they were one — of a different configuration.
 func TestReadBlocksConfigKey_SeparatesConfigurations(t *testing.T) {
-	withPatterns := map[string]any{"keyPathPatterns": []string{"title", "narration.*.text"}}
+	withPatterns := map[string]any{"key_path_patterns": []string{"title", "narration.*.text"}}
 	withoutPatterns := map[string]any(nil)
 
 	assert.NotEqual(t,
@@ -22,7 +22,7 @@ func TestReadBlocksConfigKey_SeparatesConfigurations(t *testing.T) {
 
 	assert.NotEqual(t,
 		readBlocksConfigKey("yaml", withPatterns, "en"),
-		readBlocksConfigKey("yaml", map[string]any{"keyPathPatterns": []string{"title"}}, "en"),
+		readBlocksConfigKey("yaml", map[string]any{"key_path_patterns": []string{"title"}}, "en"),
 		"a narrower pattern set is a different question")
 
 	assert.NotEqual(t,
@@ -42,11 +42,11 @@ func TestReadBlocksConfigKey_SeparatesConfigurations(t *testing.T) {
 // project.
 func TestFormatConfigDigest_IsStableAcrossIterationOrder(t *testing.T) {
 	cfg := map[string]any{
-		"translateFrontMatter": true,
-		"frontMatterKeys":      []string{"title", "description", "sidebar_label"},
-		"extractAllPairs":      false,
-		"useKeyAsName":         true,
-		"extractionRules":      "(displayName|description|title|label)$",
+		"translate_front_matter": true,
+		"front_matter_keys":      []string{"title", "description", "sidebar_label"},
+		"extract_all_pairs":      false,
+		"use_key_as_name":        true,
+		"extraction_rules":       "(displayName|description|title|label)$",
 	}
 	want := formatConfigDigest(cfg)
 	for range 50 {
@@ -66,10 +66,10 @@ func TestFormatConfigDigest_IsStableAcrossIterationOrder(t *testing.T) {
 // selects one key path and the config that selects another share every key.
 func TestFormatConfigDigest_TracksValues(t *testing.T) {
 	assert.NotEqual(t,
-		formatConfigDigest(map[string]any{"keyPathPatterns": []string{"title"}}),
-		formatConfigDigest(map[string]any{"keyPathPatterns": []string{"command"}}))
+		formatConfigDigest(map[string]any{"key_path_patterns": []string{"title"}}),
+		formatConfigDigest(map[string]any{"key_path_patterns": []string{"command"}}))
 
 	assert.NotEqual(t,
-		formatConfigDigest(map[string]any{"translateFrontMatter": true}),
-		formatConfigDigest(map[string]any{"translateFrontMatter": false}))
+		formatConfigDigest(map[string]any{"translate_front_matter": true}),
+		formatConfigDigest(map[string]any{"translate_front_matter": false}))
 }

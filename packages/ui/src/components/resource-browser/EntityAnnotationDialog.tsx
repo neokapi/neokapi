@@ -130,7 +130,7 @@ export function EntityAnnotationDialog({
                   <select
                     value={p.entity_type}
                     onChange={(e) => updatePattern(idx, "entity_type", e.target.value)}
-                    className="rounded-md border border-input bg-transparent px-2 py-1.5 text-xs outline-none"
+                    className="rounded-md border border-input bg-transparent px-2 py-1.5 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   >
                     {ENTITY_TYPES.map((et) => (
                       <option key={et.value} value={et.value}>

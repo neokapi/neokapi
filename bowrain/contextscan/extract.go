@@ -29,7 +29,7 @@ func ExtractFile(reg *registry.FormatRegistry, data []byte, filename, contentTyp
 	if int64(len(data)) > MaxFileBytes {
 		return "", fmt.Errorf("contextscan: file %q too large: %d bytes (max %d)", filename, len(data), MaxFileBytes)
 	}
-	reader, err := readerForFile(reg, filename, contentType)
+	reader, err := readerForFile(reg, filename, contentType, data)
 	if err != nil {
 		return "", err
 	}
@@ -56,18 +56,24 @@ func ExtractFile(reg *registry.FormatRegistry, data []byte, filename, contentTyp
 // ExtractFile's detection would otherwise, so upload endpoints can validate
 // (and explain skips) before storing anything.
 func CheckFileSupported(reg *registry.FormatRegistry, filename, contentType string) error {
-	_, err := detectFormat(reg, filename, contentType)
+	_, err := detectFormat(reg, filename, contentType, nil)
 	return err
 }
 
-// detectFormat resolves a registered format id from the registry by extension
-// first, then content type — the same precedence the file connector uses.
-func detectFormat(reg *registry.FormatRegistry, filename, contentType string) (string, error) {
+// detectFormat resolves a registered format id through the registry's
+// resolver by extension first, then content type. With data in hand, the
+// file's head decides among the formats claiming the extension (an Android
+// strings.xml against generic XML); without it, the extension alone does.
+func detectFormat(reg *registry.FormatRegistry, filename, contentType string, data []byte) (string, error) {
 	detector := reg.Detector()
 	ext := strings.ToLower(filepath.Ext(filename))
 	if ext != "" {
-		if name, err := detector.DetectByExtension(ext); err == nil {
-			return name, nil
+		opts := registry.DetectOptions{ExtensionOnly: true}
+		if data != nil {
+			opts = registry.DetectOptions{Content: func() (io.ReadSeeker, error) { return bytes.NewReader(data), nil }}
+		}
+		if name, err := reg.Detect(filename, opts); err == nil {
+			return string(name), nil
 		}
 	}
 	if contentType != "" {
@@ -82,8 +88,8 @@ func detectFormat(reg *registry.FormatRegistry, filename, contentType string) (s
 
 // readerForFile resolves the format through the registry and builds a reader
 // configured for text harvesting.
-func readerForFile(reg *registry.FormatRegistry, filename, contentType string) (format.DataFormatReader, error) {
-	fmtName, err := detectFormat(reg, filename, contentType)
+func readerForFile(reg *registry.FormatRegistry, filename, contentType string, data []byte) (format.DataFormatReader, error) {
+	fmtName, err := detectFormat(reg, filename, contentType, data)
 	if err != nil {
 		return nil, err
 	}

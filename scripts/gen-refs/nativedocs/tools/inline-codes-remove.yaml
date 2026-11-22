@@ -13,33 +13,33 @@ overview: |
   locale is required) and includes non-translatable blocks. Line-break codes
   can optionally be replaced with a space so adjacent words do not run together.
 parameters:
-  applySource:
+  apply_source:
     description: Strip inline codes from source segments.
     help: When enabled, inline-code runs are removed from the source segments.
     values: "`true` / `false` (default `false`)"
-  applyTarget:
+  apply_target:
     description: Strip inline codes from target segments.
     help: |
       When enabled, inline-code runs are removed from the target segments of the
       configured locale.
     values: "`true` / `false` (default `true`)"
     dependsOn:
-      - property: targetLocale
-        condition: required when applyTarget is enabled
-  targetLocale:
+      - property: target_locale
+        condition: required when apply_target is enabled
+  target_locale:
     description: Target locale for processing.
-    help: The locale whose target segments are processed. Required when `applyTarget` is enabled.
+    help: The locale whose target segments are processed. Required when `apply_target` is enabled.
     values: "BCP-47 locale"
     dependsOn:
-      - property: applyTarget
+      - property: apply_target
         condition: must be enabled for this to take effect
-  includeNonTranslatable:
+  include_non_translatable:
     description: Also strip codes from non-translatable blocks.
     help: |
       When enabled, the removal also applies to blocks marked non-translatable.
       Disable it to leave non-translatable blocks untouched.
     values: "`true` / `false` (default `true`)"
-  replaceWithSpace:
+  replace_with_space:
     description: Replace line-break codes with a space instead of removing them.
     help: |
       When enabled, line-break-style placeholder codes are replaced with a
@@ -47,7 +47,7 @@ parameters:
       than `foobar`. Other inline codes are still removed entirely.
     values: "`true` / `false` (default `false`)"
 limitations:
-  - At least one of applySource or applyTarget must be enabled.
+  - At least one of apply_source or apply_target must be enabled.
 processingNotes:
   - Removal recurses into plural and select constructs so codes inside them are stripped as well.
   - Paired open/close codes are dropped while their inner text content is retained.
@@ -55,11 +55,11 @@ examples:
   - title: Strip codes from the target
     description: Produce plain target text for a locale.
     config: |
-      applyTarget: true
-      targetLocale: fr
+      apply_target: true
+      target_locale: fr
   - title: Keep word boundaries at line breaks
     description: Replace line-break codes with a space when stripping.
     config: |
-      applyTarget: true
-      targetLocale: fr
-      replaceWithSpace: true
+      apply_target: true
+      target_locale: fr
+      replace_with_space: true

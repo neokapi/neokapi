@@ -16,7 +16,7 @@ import (
 //
 // A rule whose avoided forms differ from the term only in case matches as
 // written, so the rule about `quickcast` never fires on `Quickcast`. With no
-// form to avoid, the rule records the term alone, which advises nothing.
+// form to avoid, the rule records the term alone, which reports nothing.
 func ObservedRule(term string, insteadOf []string) profile.TermRule {
 	term = strings.TrimSpace(term)
 	forms := AvoidedForms(term, insteadOf)

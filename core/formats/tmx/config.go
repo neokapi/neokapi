@@ -2,6 +2,7 @@ package tmx
 
 import (
 	"fmt"
+	"github.com/neokapi/neokapi/core/format"
 
 	"github.com/neokapi/neokapi/core/config"
 )
@@ -54,43 +55,43 @@ func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
 		// Extraction
-		case "processAllTargets":
+		case "process_all_targets":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("processAllTargets: expected bool, got %T", val)
+				return fmt.Errorf("process_all_targets: expected bool, got %T", val)
 			}
 			c.ProcessAllTargets = b
-		case "exitOnInvalid":
+		case "exit_on_invalid":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("exitOnInvalid: expected bool, got %T", val)
+				return fmt.Errorf("exit_on_invalid: expected bool, got %T", val)
 			}
 			c.ExitOnInvalid = b
 
 		// Output
-		case "escapeGT":
+		case "escape_gt":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("escapeGT: expected bool, got %T", val)
+				return fmt.Errorf("escape_gt: expected bool, got %T", val)
 			}
 			c.EscapeGT = b
 
 		// Inline codes
-		case "useCodeFinder":
+		case "use_code_finder":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useCodeFinder: expected bool, got %T", val)
+				return fmt.Errorf("use_code_finder: expected bool, got %T", val)
 			}
 			c.UseCodeFinder = b
-		case "codeFinderRules":
+		case "code_finder_rules":
 			rules, err := parseCodeFinderRules(val)
 			if err != nil {
-				return fmt.Errorf("codeFinderRules: %w", err)
+				return fmt.Errorf("code_finder_rules: %w", err)
 			}
 			c.CodeFinderRules = rules
 
 		default:
-			return fmt.Errorf("tmx: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "tmx", key)
 		}
 	}
 	return nil

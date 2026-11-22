@@ -1,6 +1,6 @@
 package epub
 
-import "fmt"
+import "github.com/neokapi/neokapi/core/format"
 
 // Config holds configuration for the EPUB format.
 type Config struct {
@@ -40,12 +40,12 @@ func (c *Config) SetExtractNonTranslatableContent(v bool) {
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "extractNonTranslatableContent":
+		case "extract_non_translatable_content":
 			if v, ok := val.(bool); ok {
 				c.disableNonTranslatableContent = !v
 			}
 		default:
-			return fmt.Errorf("epub: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "epub", key)
 		}
 	}
 	return nil

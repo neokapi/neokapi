@@ -61,20 +61,20 @@ func (c *Config) Validate() error { return nil }
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "extractBlockTitles":
+		case "extract_block_titles":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractBlockTitles: expected bool, got %T", val)
+				return fmt.Errorf("extract_block_titles: expected bool, got %T", val)
 			}
 			c.ExtractBlockTitles = b
-		case "extractTableCells":
+		case "extract_table_cells":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractTableCells: expected bool, got %T", val)
+				return fmt.Errorf("extract_table_cells: expected bool, got %T", val)
 			}
 			c.ExtractTableCells = b
 		default:
-			return fmt.Errorf("asciidoc: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "asciidoc", key)
 		}
 	}
 	return nil

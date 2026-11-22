@@ -4,13 +4,6 @@
 # Modules: neokapi/bowrain/core (interface), neokapi/bowrain/plugin (kapi-bowrain plugin), neokapi/bowrain (server+app).
 # Can be used standalone (cd bowrain && make test) or delegated from root.
 
-# Suppress macOS linker warnings for CGO (Wails WebView)
-ifeq ($(shell uname -s),Darwin)
-export MACOSX_DEPLOYMENT_TARGET := 10.15
-export CGO_CFLAGS := -mmacosx-version-min=10.15
-export CGO_LDFLAGS := -mmacosx-version-min=10.15
-endif
-
 # Node 22 requires --experimental-strip-types to load .ts config files
 # (vite.config.ts) via native ESM in tools like vite-plus (vp check/lint).
 export NODE_OPTIONS := --experimental-strip-types
@@ -25,6 +18,7 @@ VERSION_PKG ?= github.com/neokapi/neokapi/core/version
 LDFLAGS     ?= -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 
 GO          := go
+include $(ROOT_DIR)/scripts/lib/goflags.mk
 GOTAGS      := -tags fts5
 # macOS Homebrew ICU, resolved rather than pinned — see the root Makefile for
 # why a hardcoded icu4c@NN breaks silently on the next ICU major bump.
@@ -37,7 +31,14 @@ ifneq ($(ICU_PKGCONFIG),)
 export PKG_CONFIG_PATH := $(ICU_PKGCONFIG):$(PKG_CONFIG_PATH)
 endif
 endif
-GOTEST      := $(GO) test $(GOTAGS)
+# Test binaries are linked without DWARF (-ldflags=-w): stack traces, panics
+# and the race detector read the symbol table and pclntab, which stay, and a
+# debugger builds its own binary (dlv test). DWARF is about a quarter of each
+# test binary (bowrain/server: 143.6 MB with it, 108.5 MB without), and a
+# `go test ./...` links every package's binary in the build work directory at
+# once (1.34 GB at peak for the bowrain module). A target that passes its own
+# -ldflags replaces this one.
+GOTEST      := $(GO) test $(GOTAGS) -ldflags=-w
 GOBUILD     := $(GO) build $(GOTAGS)
 GOVET       := $(GO) vet $(GOTAGS)
 GOFMT       := gofmt
@@ -130,7 +131,7 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
         docker-server docker-web docker-keycloak docker-all \
         docker-push-server docker-push-web docker-push-keycloak docker-push \
         dev-deps dev-deps-down dev-server dev-worker dev-web dev-ctrl bowrain-dev certs \
-        stack-up stack-up-web stack-up-shared stack-shared-down stack-down stack-logs stack-ps stack-build \
+        stack-up stack-up-web stack-up-e2e stack-up-shared stack-shared-down stack-down stack-logs stack-ps stack-build \
         test test-fast test-unit test-race test-verbose test-integration \
         test-platform test-bowrain-plugin test-bowrain test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         test-images pull-test-images \
@@ -414,6 +415,18 @@ stack-up: ## Build + start the full local stack (server+worker+deps) in Docker
 stack-up-web: ## Full local stack including the web UI (served at http://localhost:8080)
 	$(COMPOSE_FULL) --profile web up -d --build --wait
 
+COMPOSE_E2E := docker compose -f compose.full.yaml -f compose.e2e.yaml
+E2E_USERNAME ?= e2e-reviewer@example.com
+E2E_PASSWORD ?= e2e-password
+
+# The e2e stack includes the web UI: the server suite reads the page at / and
+# follows the device sign-in to a page the web app serves, as CI's stack does.
+stack-up-e2e: ## stack-up-web, then password sign-in and a test user on the bowrain realm (e2e runs only)
+	$(COMPOSE_E2E) --profile web up -d --build --wait
+	E2E_USERNAME='$(E2E_USERNAME)' E2E_PASSWORD='$(E2E_PASSWORD)' $(COMPOSE_E2E) run --rm --build keycloak-e2e
+	@echo "Test user:       $(E2E_USERNAME) / $(E2E_PASSWORD)  (password sign-in on the bowrain realm)"
+	@echo "Restore passkey-only sign-in with: make -C bowrain stack-down stack-up"
+
 COMPOSE_SHARED := docker compose -f compose.yaml -f compose.override.yaml -f compose.app.yaml
 
 stack-up-shared: ## Full Docker app sharing the local-dev deps + Traefik (https://bowrain.mymac)
@@ -446,6 +459,23 @@ test-e2e-cloud: ## Run cloud e2e tests against a live server (set BOWRAIN_URL)
 
 test-e2e-dev: ## Run cloud e2e tests against the dev environment
 	bash e2e/cloud/run-dev.sh
+
+# ── Connector maturity ───────────────────────────────────────────────────────
+# The connector half of the content maturity report. The probes run the
+# connector operation tests, and the dataset is served by the Bowrain docs
+# site. See docs/internals/content-maturity.md.
+
+CONNECTOR_MATURITY := node bowrain/scripts/connector-maturity/connector-maturity.mjs
+
+.PHONY: test-connector-maturity check-connector-maturity refresh-connector-maturity
+test-connector-maturity: ## Test the connector maturity tooling
+	cd $(ROOT_DIR) && node --test bowrain/scripts/connector-maturity/*.test.mjs
+
+check-connector-maturity: i18n-catalogs test-connector-maturity ## Probe the connectors and check the published connector report
+	cd $(ROOT_DIR) && $(CONNECTOR_MATURITY) --check $${MATURITY_HISTORY_BASE:+--history-base "$$MATURITY_HISTORY_BASE"}
+
+refresh-connector-maturity: i18n-catalogs test-connector-maturity ## Probe the connectors and record a dated observation
+	cd $(ROOT_DIR) && $(CONNECTOR_MATURITY) --write $${MATURITY_DATE:+--date "$$MATURITY_DATE"}
 
 # ── Test ─────────────────────────────────────────────────────────────────────
 
@@ -508,10 +538,30 @@ pull-test-images: ## Fetch those images so no test pulls one mid-run
 		docker pull --quiet "$$img" >/dev/null || exit 1; \
 	done
 
+# SHARD splits the CI run. The server package holds the largest share of this
+# target's time and Go runs one package's tests one after another, so a pull
+# request runs it as shards side by side: SHARD=i/n runs one share of the
+# server package's tests (scripts/go-test-shard.sh), SHARD=rest runs every
+# other package, and the default runs everything in one go, with coverage, as a
+# push to main does.
+SHARD ?= all
+SERVER_PACKAGE := github.com/neokapi/neokapi/bowrain/server
+
 test-bowrain: i18n-catalogs ## Run bowrain module tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
-	$(GOTEST_BASE) $(call cov,$(COVER_DIR)/bowrain.out) $(_SHORT) -json $$($(GO) list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json
+ifeq ($(SHARD),all)
+	packages="$$($(GO) list ./...)" && \
+		packages="$$(printf '%s\n' "$$packages" | grep -v '/apps/bowrain')" && \
+		$(GOTEST_BASE) $(call cov,$(COVER_DIR)/bowrain.out) $(_SHORT) -json $$packages > ../test-results-bowrain.json
+else ifeq ($(SHARD),rest)
+	packages="$$($(GO) list ./...)" && \
+		packages="$$(printf '%s\n' "$$packages" | grep -v '/apps/bowrain' | grep -vx '$(SERVER_PACKAGE)')" && \
+		$(GOTEST_BASE) $(_SHORT) -json $$packages > ../test-results-bowrain.json
+else
+	flags="$$(../scripts/go-test-shard.sh server $(SHARD))" && \
+		$(GOTEST_BASE) $(_SHORT) -json $$flags ./server > ../test-results-bowrain.json
+endif
 else
 	$(GOTEST_BASE) ./... -count=1
 endif
@@ -533,16 +583,19 @@ cover: i18n-catalogs ## Run platform tests with coverage
 fmt: ## Format Go source files
 	$(GOFMT) -w -s .
 
+# scripts/tagmatrix runs the analyzer once per build configuration, so the
+# integration, e2e and other build-tagged files are analyzed too. It runs from
+# the repository root, where go.work is. TAGMATRIX_CONFIG narrows it to some
+# configurations; the lint-platform CI job runs the host one.
+GO_LINT_BOWRAIN := bowrain/core bowrain/plugin bowrain
+TAGMATRIX       := $(GO) run ./scripts/tagmatrix $(if $(TAGMATRIX_CONFIG),-config $(TAGMATRIX_CONFIG))
+
 vet: i18n-catalogs ## Run go vet
-	cd core && $(GOVET) ./...
-	cd plugin && $(GOVET) ./...
-	$(GOVET) ./...
+	cd $(ROOT_DIR) && $(TAGMATRIX) -tool vet $(GO_LINT_BOWRAIN)
 
 lint: i18n-catalogs ## Run golangci-lint
 ifdef GOLANGCI_LINT
-	cd core && $(GOLANGCI_LINT) run ./...
-	cd plugin && $(GOLANGCI_LINT) run ./...
-	$(GOLANGCI_LINT) run ./...
+	cd $(ROOT_DIR) && PATH="$(dir $(GOLANGCI_LINT)):$$PATH" $(TAGMATRIX) -tool lint $(GO_LINT_BOWRAIN)
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif

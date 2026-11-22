@@ -1,12 +1,12 @@
 // Command kapi-sat is the SaT (Segment any Text / wtpsplit) segmenter plugin
-// for kapi. It runs SaT ONNX models in-process — the heavy onnxruntime + XLM-R
+// for kapi. It runs SaT ONNX models in-process. The heavy onnxruntime + XLM-R
 // tokenizer native dependencies live here, not in the portable kapi binary.
 //
 // It is a Mode-C (daemon-over-socket) plugin: it serves the shared
 // BridgeService over a Unix socket and answers the Segment RPC, exactly as the
 // host's generic daemonSegmenter drives any plugin-declared segmenter
 // (capabilities.segmenters in manifest.json). There is no kapi-sat-specific code
-// in the host — the engine is wired purely from manifest metadata.
+// in the host: the engine is wired purely from manifest metadata.
 //
 // Subcommands:
 //
@@ -61,9 +61,9 @@ func runDaemon() int {
 	logf := func(format string, args ...any) {
 		fmt.Fprintf(os.Stderr, "kapi-sat: "+format+"\n", args...)
 	}
-	engine, err := sat.NewEngine(logf)
-	if err != nil {
-		logf("engine init failed: %v", err)
+	engine, initErr := sat.NewEngine(logf)
+	if initErr != nil {
+		logf("engine init failed: %v", initErr)
 		// Continue with a nil engine: the daemon still serves; Segment errors.
 	}
 	defer func() {
@@ -77,21 +77,21 @@ func runDaemon() int {
 		logf("temp dir: %v", err)
 		return 1
 	}
+	defer func() { _ = os.RemoveAll(dir) }()
 	sock := filepath.Join(dir, "kapi-sat.sock")
-	lis, err := net.Listen("unix", sock)
+	var lc net.ListenConfig
+	lis, err := lc.Listen(context.Background(), "unix", sock)
 	if err != nil {
 		logf("listen %s: %v", sock, err)
 		return 1
 	}
 
 	srv := grpc.NewServer()
-	pb.RegisterBridgeServiceServer(srv, &server{engine: engine, initErr: err, stop: srv.GracefulStop})
+	pb.RegisterBridgeServiceServer(srv, &server{engine: engine, initErr: initErr, stop: srv.GracefulStop})
 
-	// Handshake: one JSON line on stdout, then keep stdout open for logs.
-	hs, _ := json.Marshal(map[string]string{"socket": sock, "version": version.Version})
-	fmt.Println(string(hs))
-	_ = os.Stdout.Sync()
-
+	// Settle the signal disposition before the handshake: a host may send
+	// SIGTERM as soon as it reads the line, and a signal that arrives before
+	// Notify kills the process before it can remove its socket.
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
@@ -99,9 +99,12 @@ func runDaemon() int {
 		srv.GracefulStop()
 	}()
 
+	// Handshake: one JSON line on stdout, then keep stdout open for logs.
+	hs, _ := json.Marshal(map[string]string{"socket": sock, "version": version.Version})
+	fmt.Println(string(hs))
+	_ = os.Stdout.Sync()
+
 	serveErr := srv.Serve(lis)
-	_ = os.Remove(sock)
-	_ = os.Remove(dir)
 	if serveErr != nil {
 		logf("serve: %v", serveErr)
 		return 1
@@ -111,7 +114,7 @@ func runDaemon() int {
 
 // server implements BridgeService. Only Segment (and Shutdown) are supported;
 // Process / ProcessStep fall through to UnimplementedBridgeServiceServer, which
-// returns codes.Unimplemented — kapi-sat is a segmenter, not a format/step plugin.
+// returns codes.Unimplemented, because kapi-sat is a segmenter, not a format/step plugin.
 type server struct {
 	pb.UnimplementedBridgeServiceServer
 	engine  sat.Engine
@@ -128,13 +131,13 @@ func (s *server) Shutdown(_ context.Context, _ *pb.ShutdownRequest) (*pb.Shutdow
 
 // Segment runs the SaT model over the request text and returns the interior
 // sentence-break offsets (rune indices). The model name and boundary threshold
-// ride in params (satModel / threshold), matching the engine's segment schema.
+// ride in params (sat_model / threshold), matching the engine's segment schema.
 func (s *server) Segment(_ context.Context, req *pb.SegmentRequest) (*pb.SegmentResponse, error) {
 	if s.engine == nil {
 		return &pb.SegmentResponse{Error: fmt.Sprintf("engine unavailable: %v", s.initErr)}, nil
 	}
 	params := req.GetParams()
-	modelName := params["satModel"]
+	modelName := params["sat_model"]
 	var threshold float64
 	if t := params["threshold"]; t != "" {
 		threshold, _ = strconv.ParseFloat(t, 64)

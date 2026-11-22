@@ -170,7 +170,7 @@ func repoCommentRewrites(t *testing.T, a *App, language string) (files, unlocate
 // configured, did not run.
 //
 // The subtests named "must fail" break the write path on purpose and assert
-// that the run notices. Nothing in here skips.
+// that the run catches. Nothing in here skips.
 func proseP3Sourcecode(t *testing.T, language string) {
 	f := sourcecodeRewriteFiles[language]
 	refusedAs := func(t *testing.T, a *App, file string, entry map[string]any, reason string) {

@@ -87,6 +87,12 @@ type PushResult struct {
 	// SettingsRefused are the recipe's settings the venue kept at its own
 	// value, each with the reason and what would apply it.
 	SettingsRefused []venue.SettingRefusal
+
+	// Terms and Ledger are what the push's terminology and context ledger
+	// parts did, as the venue reported once its transaction committed. Nil
+	// for a part the push did not carry, and for an ingest not yet confirmed.
+	Terms  *venue.PushTermsOutcome
+	Ledger *venue.PushLedgerOutcome
 }
 
 // Ingest states reported by PushResult.Ingest.

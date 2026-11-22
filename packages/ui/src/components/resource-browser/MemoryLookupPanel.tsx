@@ -202,7 +202,7 @@ export function MemoryLookupPanel({
           disabled={loading || !text.trim()}
           className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {loading ? t("Looking up...") : t("Lookup")}
+          {loading ? t("Looking up…") : t("Lookup")}
         </button>
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <label htmlFor="min-score">Min:</label>

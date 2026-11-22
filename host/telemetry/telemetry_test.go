@@ -1,3 +1,8 @@
+//go:build !notelemetry
+
+// The tests drive the sending client in client.go, which a notelemetry build
+// replaces with the stub.
+
 package telemetry
 
 import (

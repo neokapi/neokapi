@@ -123,8 +123,8 @@ export interface Rung {
 /** Whether a scope clears a gate (it ships established or translated), as
  * distinct from a scope no gate matches. */
 const clearsShipGate = (lc: LocaleCoverage) =>
-  lc.shipState
-    ? lc.shipState === "established" || lc.shipState === "translated"
+  lc.ship_state
+    ? lc.ship_state === "established" || lc.ship_state === "translated"
     : lc.gated && lc.shippable;
 
 export function rungFor(lc?: LocaleCoverage): Rung {
@@ -136,7 +136,7 @@ export function rungFor(lc?: LocaleCoverage): Rung {
   // one: established, or translated (it ships as AI translation). A scope no
   // gate matches shows its place on the ladder instead.
   if (clearsShipGate(lc)) {
-    const established = lc.shipState === "established";
+    const established = lc.ship_state === "established";
     return {
       key: "shippable",
       label: established ? "Approved" : "Ships translated",
@@ -196,6 +196,8 @@ interface ProjectFile {
   format: string;
   size: number;
   is_dir: boolean;
+  /** A context file (voice, terms, content memory, decisions), never content. */
+  context?: boolean;
 }
 
 export interface CollectionsPanelProps {
@@ -305,7 +307,7 @@ function StripBar({ label, pct, color }: { label: string; pct: number; color?: s
       </span>
       <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent">
         <span
-          className="block h-full rounded-full bg-primary transition-all"
+          className="block h-full rounded-full bg-primary transition-[width]"
           style={{ width: `${pct}%`, ...(color ? { background: color } : {}) }}
         />
       </span>
@@ -633,7 +635,7 @@ export function CollectionsPanel({
   // Collections ticked for a batch run (keyed by index into project.collections).
   const [selected, setSelected] = useState<Set<number>>(new Set());
   // The "Advanced" disclosure (collapsed by default): manual run pickers and
-  // the Re-extract override live behind it — Bring up to date is the primary
+  // the Re-extract override live behind it — Catch up is the primary
   // verb of the home, so per-flow runs are demoted, not removed (#1078 C4).
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [otherCollapsed, setOtherCollapsed] = useState(false);
@@ -833,7 +835,7 @@ export function CollectionsPanel({
   };
 
   const handleAddCollection = () => {
-    updateCollections([...collections, { name: "New Collection", content: [{ path: "" }] }]);
+    updateCollections([...collections, { name: "New collection", content: [{ path: "" }] }]);
   };
 
   const handleUpdateCollection = (index: number, coll: Collection) => {
@@ -897,6 +899,7 @@ export function CollectionsPanel({
   }, []);
 
   // --- Build the "Other files" set: project files that no collection matched ---
+  // Context files govern the content, so they are never offered as unclaimed.
   const matchedSet = new Set(matches.map((m) => m.relative));
   // Relative paths of every known output file, so generated files surface as
   // children of their source rather than getting dumped into "Other files".
@@ -905,7 +908,7 @@ export function CollectionsPanel({
     for (const o of list) outputSet.add(o.relative);
   }
   const unmatchedFiles = projectFiles.filter(
-    (f) => !f.is_dir && !matchedSet.has(f.relative) && !outputSet.has(f.relative),
+    (f) => !f.is_dir && !f.context && !matchedSet.has(f.relative) && !outputSet.has(f.relative),
   );
 
   // ── Active-filter narrowing (bug #1 — consistent everywhere) ───────────────
@@ -1233,7 +1236,7 @@ export function CollectionsPanel({
               placeholder={
                 project.defaults?.source_language
                   ? t("Inherit ({source})", { source: project.defaults.source_language })
-                  : t("Select source...")
+                  : t("Select source…")
               }
             />
           </div>
@@ -1253,7 +1256,7 @@ export function CollectionsPanel({
                   ? t("Inherit ({targets})", {
                       targets: project.defaults.target_languages.join(", "),
                     })
-                  : t("Add targets...")
+                  : t("Add targets…")
               }
             />
           </div>
@@ -1273,7 +1276,9 @@ export function CollectionsPanel({
                   className="absolute right-10 top-3 text-[10px] text-muted-foreground"
                   data-testid="pattern-match-count"
                 >
-                  {t("{count} file(s)", { count: matchCountForItem(ci, ii) })}
+                  {t("{count, plural, one {# file} other {# files}}", {
+                    count: matchCountForItem(ci, ii),
+                  })}
                 </span>
                 <div className="absolute right-2 top-2 opacity-0 group-hover/item:opacity-100">
                   <ConfirmDeleteButton
@@ -1619,7 +1624,7 @@ export function CollectionsPanel({
   // The single flow picker in the section header is scope-aware: it runs across
   // the ticked collections when any are selected, else across the whole project
   // (the runner narrows "all" by the active filter). This is what folds the old
-  // standalone "Run Flows" list into the collection surface (issue #1068).
+  // standalone "Run flows" list into the collection surface (issue #1068).
   const hasSelection = selected.size > 0;
   const runReady = hasSelection ? selectedPaths.length > 0 : matches.length > 0;
   const flowValid = (name: string) => flowValidation[name]?.valid !== false;
@@ -1742,11 +1747,27 @@ export function CollectionsPanel({
   // One coverage cell: a ship-gate rung (Approved or Ships / In review / Draft / —) with
   // the translated % as a secondary figure once convergence is available; the
   // translated-only bar/tile before then.
+  // A collection that does not translate into a language shows a quiet dot,
+  // named in its tooltip; one that does shows its share translated, 0% included.
+  const notTargeted = (lang: string) => (
+    <SimpleTooltip content={t("Not translated into {lang}", { lang: localeLabel(lang) })}>
+      <span
+        className="text-center text-[10px] text-muted-foreground/40"
+        data-slot="coverage-not-targeted"
+      >
+        &middot;
+      </span>
+    </SimpleTooltip>
+  );
   const langCell = (coll: Collection, lang: string) => {
     if (hasGates) {
-      const r = rungFor(scopeCov(coll, lang));
+      const lc = scopeCov(coll, lang);
+      const r = rungFor(lc);
       if (r.key === "none") {
-        return <span className="text-center text-[10px] text-muted-foreground/40">&middot;</span>;
+        if (!lc) return notTargeted(lang);
+        return (
+          <span className="text-center text-[10px] tabular-nums text-muted-foreground">0%</span>
+        );
       }
       const cellTitle = onOpenReview
         ? `${localeLabel(lang)}: ${r.label} · ${r.pct}% translated · ${t("click to review")}`
@@ -1762,7 +1783,7 @@ export function CollectionsPanel({
         <SimpleTooltip content={cellTitle}>
           <span className="flex items-center justify-center gap-1 text-[10px]">
             <span className="size-2 shrink-0 rounded-full" style={{ background: r.color }} />
-            <span className="tabular-nums text-muted-foreground">{r.pct}</span>
+            <span className="tabular-nums text-muted-foreground">{r.pct}%</span>
           </span>
         </SimpleTooltip>
       ) : (
@@ -1792,9 +1813,7 @@ export function CollectionsPanel({
       );
     }
     const p = covPct(coll, lang);
-    if (p === null) {
-      return <span className="text-center text-[10px] text-muted-foreground/40">&middot;</span>;
-    }
+    if (p === null) return notTargeted(lang);
     return heatmap ? (
       <SimpleTooltip content={`${localeLabel(lang)}: ${p}%`}>
         <span
@@ -1804,7 +1823,7 @@ export function CollectionsPanel({
             color: p > 55 ? "var(--primary-foreground)" : "var(--muted-foreground)",
           }}
         >
-          {p}
+          {p}%
         </span>
       </SimpleTooltip>
     ) : (
@@ -1829,24 +1848,26 @@ export function CollectionsPanel({
   // Grid template shared by the header + every row so columns line up. The
   // coverage block is N language columns (bars or heatmap tiles), or a single
   // flexible spacer before the actions when there's nothing to show.
+  // Language columns take a fixed width so the name column takes the rest of
+  // the row and truncates only when the row is genuinely short of room.
   const coverageCols = showCoverageCols
-    ? `repeat(${columnLangs.length}, minmax(${heatmap ? 40 : 60}px, 1fr))`
-    : "1fr";
-  const gridCols = `${selectable ? "24px " : ""}minmax(150px,1.6fr) 52px 62px ${coverageCols} auto`;
+    ? `repeat(${columnLangs.length}, ${heatmap ? 48 : 88}px)`
+    : "auto";
+  const gridCols = `${selectable ? "24px " : ""}minmax(150px,1fr) 52px 62px ${coverageCols} auto`;
 
   return (
     <section className="mb-8">
       {/* Section header — Collections is the spine; actions live here. */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        {/* Paths are relative to the project folder; the folder is the
+            heading's tooltip rather than a line of its own. */}
+        <h2
+          className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground"
+          title={basePath ? shortenHome(basePath) : undefined}
+        >
           <FileText size={14} />
           {t("Collections")}
         </h2>
-        {basePath && (
-          <span className="hidden text-xs text-muted-foreground sm:inline">
-            {t("relative to {base}", { base: shortenHome(basePath) })}
-          </span>
-        )}
         <div className="ml-auto flex items-center gap-2">
           <Button
             variant="outline"
@@ -1855,14 +1876,14 @@ export function CollectionsPanel({
             aria-label="Add content collection"
           >
             <Plus size={12} />
-            {t("Add Collection")}
+            {t("Add collection")}
           </Button>
           <Button variant="outline" size="sm" onClick={handleAddFiles} aria-label="Add files">
             <Plus size={12} />
-            {t("Add Files")}
+            {t("Add files")}
           </Button>
           {/* Advanced — collapsed by default: the manual run pickers and the
-              Re-extract override live behind it. Bring up to date (the hero)
+              Re-extract override live behind it. the run action (the hero)
               covers the routine path, including extraction on drift. */}
           <Button
             variant="ghost"
@@ -1974,24 +1995,29 @@ export function CollectionsPanel({
           <Filter size={12} className="shrink-0 text-muted-foreground" />
           <span className="text-muted-foreground">
             {hiddenCount > 0
-              ? t("Filtered by {name} · {count} collection(s) hidden", {
-                  name: activeFilter.name,
-                  count: hiddenCount,
-                })
+              ? t(
+                  "Filtered by {name} · {count, plural, one {# collection} other {# collections}} hidden",
+                  {
+                    name: activeFilter.name,
+                    count: hiddenCount,
+                  },
+                )
               : t("Filtered by {name}", { name: activeFilter.name })}
           </span>
           <Button
             variant="link"
             size="xs"
             className="ml-auto h-auto px-0"
-            onClick={() => void setActiveFilter("")}
+            onClick={() =>
+              void setActiveFilter("").catch((err) => showError(t("Active filter"), err))
+            }
           >
             {t("Show all")}
           </Button>
         </div>
       )}
 
-      {/* The stale-store banner is gone: Bring up to date auto-heals version
+      {/* The stale-store banner is gone: a catch-up run auto-heals version
           drift through the shared storesync path before every pass (#1078). */}
 
       {/* Colour-coded "cake": block distribution per collection (slices match
@@ -2158,7 +2184,7 @@ export function CollectionsPanel({
                     <span
                       key={l}
                       className="text-center normal-case"
-                      title={localeLabel(l)}
+                      title={t("{lang}: share of blocks translated", { lang: localeLabel(l) })}
                       translate="no"
                     >
                       {heatmap ? l.split("-")[0] : l}

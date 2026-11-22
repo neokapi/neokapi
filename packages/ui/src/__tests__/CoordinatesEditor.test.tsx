@@ -52,6 +52,20 @@ describe("CoordinatesEditor", () => {
     expect(screen.queryAllByTestId("coordinate-row")).toHaveLength(0);
   });
 
+  it("labels each row with the axis name rather than its key", () => {
+    render(
+      <CoordinatesEditor
+        value={{ brand: "northsea", age: "13-" }}
+        onChange={vi.fn()}
+        axes={axes}
+      />,
+    );
+    expect(screen.getAllByTestId("coordinate-axis").map((el) => el.textContent)).toEqual([
+      "Brand",
+      "Age",
+    ]);
+  });
+
   it("edits a declared axis by name", async () => {
     const onChange = vi.fn();
     render(<CoordinatesEditor value={{ brand: "northsea" }} onChange={onChange} axes={axes} />);

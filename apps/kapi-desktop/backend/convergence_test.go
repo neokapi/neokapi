@@ -1,8 +1,10 @@
 package backend
 
 import (
+	"github.com/neokapi/neokapi/core/credentials/providerenv"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -53,6 +55,34 @@ func newConvergenceProject(t *testing.T, app *App) (*TabInfo, string) {
 	require.NoError(t, err)
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
 	return tab, root
+}
+
+func TestConcurrentProjectReportsKeepTheirSourceLanguages(t *testing.T) {
+	app := NewApp()
+	first, _ := newConvergenceProject(t, app)
+	second, _ := newConvergenceProject(t, app)
+	op := app.getOpenProject(second.ID)
+	op.Project.Defaults.SourceLanguage = "it"
+	require.NoError(t, app.SaveProject(second.ID))
+	owner := app.hostEngine()
+
+	var workers sync.WaitGroup
+	for _, tab := range []*TabInfo{first, second} {
+		workers.Go(func() {
+			_, err := app.GetConvergence(tab.ID)
+			assert.NoError(t, err)
+		})
+		workers.Go(func() {
+			_, err := app.GetConvergePlan(tab.ID)
+			assert.NoError(t, err)
+		})
+		workers.Go(func() {
+			_, err := app.ReviewQueue(tab.ID, ProjectFilter{})
+			assert.NoError(t, err)
+		})
+	}
+	workers.Wait()
+	assert.Empty(t, owner.SourceLang)
 }
 
 func TestGetConvergence_DerivesCoverage(t *testing.T) {
@@ -141,6 +171,46 @@ func TestBringUpToDate_RunsSharedUpEngine(t *testing.T) {
 	require.NotNil(t, result, "the complete event carries the structured result")
 	assert.True(t, result.Converged)
 	assert.Empty(t, result.ParkedScopes)
+}
+
+func TestBringUpToDate_ResolvesRecipeLanguages(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		targets []model.LocaleID
+	}{
+		{name: "source only"},
+		{name: "collection targets", targets: []model.LocaleID{"fr-FR"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app := NewApp()
+			tab, root := newConvergenceProject(t, app)
+			op := app.getOpenProject(tab.ID)
+			op.Project.Defaults.TargetLanguages = nil
+			op.Project.Collections[0].TargetLanguages = tc.targets
+			require.NoError(t, app.SaveProject(tab.ID))
+			plan, err := app.GetConvergePlan(tab.ID)
+			require.NoError(t, err)
+			require.Equal(t, len(tc.targets) == 0, plan.Plan.Monolingual)
+
+			require.NoError(t, app.BringUpToDate(tab.ID))
+			awaitTerminalRun(t, app)
+			require.Equal(t, string(RunStateComplete), app.GetRunState())
+			events := app.GetRunEvents()
+			require.NotEmpty(t, events)
+			event := events[len(events)-1]
+			require.Equal(t, "complete", event.Type)
+			require.NotNil(t, event.ConvergeResult)
+			assert.Equal(t, plan.Plan.Monolingual, event.ConvergeResult.Monolingual)
+			assert.Len(t, event.ConvergeResult.Locales, len(tc.targets))
+			if plan.Plan.Monolingual {
+				assert.Equal(t, "Reconciled the source.", event.Message)
+				assert.Positive(t, event.ConvergeResult.ExtractedBlocks)
+			}
+			for _, target := range tc.targets {
+				assert.FileExists(t, filepath.Join(root, "locales", string(target)+".json"))
+			}
+		})
+	}
 }
 
 func TestBringUpToDate_RefusesConcurrentRun(t *testing.T) {
@@ -334,4 +404,39 @@ func TestDecideEstablish_PromotesToReviewed(t *testing.T) {
 			assert.NotEqual(t, item.Key, it.Key, "the approved unit is gone")
 		}
 	}
+}
+
+// A convergence run started with an explicit provider runs with it: demo over
+// a preset that names a provider with no key converges, and the same run
+// without it fails on the missing key.
+func TestBringUpToDateWith_ExplicitProvider(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	for _, names := range providerenv.Vars {
+		for _, n := range names {
+			t.Setenv(n, "")
+		}
+	}
+	t.Setenv("KAPI_AI_PROVIDER", "")
+	t.Setenv("KAPI_AI_MODEL", "")
+	app := NewApp()
+	tab, root := newConvergenceProject(t, app)
+	op := app.getOpenProject(tab.ID)
+	op.Project.Defaults.Flow = ""
+	op.Project.Defaults.Tools = map[string]map[string]any{"translate": {"provider": "anthropic"}}
+	require.NoError(t, project.Save(op.Path, op.Project))
+
+	finish := func() string {
+		require.Eventually(t, func() bool {
+			s := app.GetRunState()
+			return s == string(RunStateComplete) || s == string(RunStateError)
+		}, 60*time.Second, 50*time.Millisecond)
+		return app.GetRunState()
+	}
+	require.NoError(t, app.BringUpToDate(tab.ID))
+	require.Equal(t, string(RunStateError), finish(), "anthropic has no key")
+
+	require.NoError(t, app.BringUpToDateWith(tab.ID, RunAIOptions{Provider: "demo"}))
+	require.Equal(t, string(RunStateComplete), finish())
+	_, err := os.Stat(filepath.Join(root, "locales", "fr-FR.json"))
+	require.NoError(t, err, "the demo provider translated fr-FR")
 }

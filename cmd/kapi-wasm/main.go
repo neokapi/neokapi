@@ -157,7 +157,11 @@ func run(filename string, input []byte, opts pseudoOpts) (runResult, error) {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 
-	fmtName, err := reg.Detect(filename, registry.DetectOptions{ExtensionOnly: true})
+	// The bytes are in hand, so content decides among the formats claiming the
+	// extension (an Android strings.xml against generic XML), as it does on disk.
+	fmtName, err := reg.Detect(filename, registry.DetectOptions{
+		Content: func() (io.ReadSeeker, error) { return bytes.NewReader(input), nil },
+	})
 	if err != nil {
 		return runResult{}, fmt.Errorf("detect format for %q: %w", filepath.Base(filename), err)
 	}

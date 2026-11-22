@@ -8,7 +8,7 @@
 #   - Inputs are inline .arb JSON snippets (input_xml) or the committed
 #     testdata fixtures. Assertions reflect the live reader under default
 #     config; numbers verified via go test -run TestSpec.
-#   - Config keys mirror Config.ApplyMap (config.go) 1:1: descriptionNotes.
+#   - Config keys mirror Config.ApplyMap (config.go) 1:1: description_notes.
 #   - The byte_faithful feature carries a #847 expected.roundtrip view
 #     (mode: byte_exact).
 
@@ -23,11 +23,11 @@ description: |
   or selectordinal is read with its branches, so the words of each branch
   are translated and edited while its syntax is kept. The
   @key.description is attached as a translator note when
-  descriptionNotes is enabled. The document is parsed losslessly so the
+  description_notes is enabled. The document is parsed losslessly so the
   writer produces byte-faithful output, splicing only changed values.
 
 config:
-  - key: descriptionNotes
+  - key: description_notes
     type: boolean
     default: true
     description: |

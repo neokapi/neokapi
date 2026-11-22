@@ -23,7 +23,7 @@
 # inline.underline (u→fmt:underline), inline.strikethrough (s/del→
 # fmt:strikethrough), inline.code (code→fmt:code), inline.highlight
 # (mark→fmt:highlight), inline.superscript/subscript (sup/sub), media.image
-# (img→media:image), and the block-kind rows (blockTypeMap heading/paragraph/
+# (img→media:image), and the block-kind rows (block_type_map heading/paragraph/
 # list-item/cell/quote/title).
 version: 1
 family: rich-markup

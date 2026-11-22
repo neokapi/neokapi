@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useRouteContext } from "@tanstack/react-router";
-import { VoiceMCPGuide } from "@neokapi/ui";
+import { VoiceMCPGuide, PageContainer } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
 export function ContextMCPGuideRoute() {
@@ -12,5 +12,9 @@ export function ContextMCPGuideRoute() {
     }
   }, [activeWorkspace]);
 
-  return <VoiceMCPGuide serverUrl={window.location.origin} />;
+  return (
+    <PageContainer width="standard">
+      <VoiceMCPGuide serverUrl={window.location.origin} />
+    </PageContainer>
+  );
 }

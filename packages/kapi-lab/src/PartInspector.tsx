@@ -46,17 +46,17 @@ export default function PartInspector({
         )}
       </div>
 
-      {initial.sourceText && (
+      {initial.source_text && (
         <div className={styles.inspectorField}>
           <div className={styles.inspectorLabel}>Source</div>
-          <div className={styles.inspectorValue}>{initial.sourceText}</div>
+          <div className={styles.inspectorValue}>{initial.source_text}</div>
         </div>
       )}
 
-      {initial.targetText && (
+      {initial.target_text && (
         <div className={styles.inspectorField}>
           <div className={styles.inspectorLabel}>Target</div>
-          <div className={styles.inspectorValue}>{initial.targetText}</div>
+          <div className={styles.inspectorValue}>{initial.target_text}</div>
         </div>
       )}
 
@@ -65,11 +65,11 @@ export default function PartInspector({
         <div className={styles.inspectorValue}>{initial.summary}</div>
       </div>
 
-      {snapshots.afterNode && (
+      {snapshots.after_node && (
         <div className={styles.nodeHistory}>
           <div className={styles.inspectorLabel}>Transformations</div>
           {nodes.map((node) => {
-            const after = snapshots.afterNode?.[node.id];
+            const after = snapshots.after_node?.[node.id];
             if (!after) return null;
             const isActive = active.has(node.id);
             return (
@@ -80,8 +80,8 @@ export default function PartInspector({
                 <span className={styles.nodeHistoryLabel}>{node.label}</span>
                 <div>
                   <div className={styles.nodeHistoryValue}>{after.summary}</div>
-                  {after.targetText && (
-                    <div className={styles.nodeHistoryValue}>Target: {after.targetText}</div>
+                  {after.target_text && (
+                    <div className={styles.nodeHistoryValue}>Target: {after.target_text}</div>
                   )}
                 </div>
               </div>

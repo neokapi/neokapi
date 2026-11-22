@@ -206,17 +206,6 @@ func memoryEntryID(sourceLocale, targetLocale model.LocaleID, sourceRuns, target
 	return "tmseed-" + hex.EncodeToString(h.Sum(nil))[:32]
 }
 
-// cloneRunsForMemory makes an independent copy of a run slice so a stored content-memory entry
-// never aliases a live block's runs.
-func cloneRunsForMemory(runs []model.Run) []model.Run {
-	if len(runs) == 0 {
-		return nil
-	}
-	out := make([]model.Run, len(runs))
-	copy(out, runs)
-	return out
-}
-
 // resolveJobMemory returns the project content memory for a job's workspace via the deps'
 // resolver, or nil when no resolver is configured or resolution fails (a content memory is
 // optional; its absence degrades to AI-only, never an error).

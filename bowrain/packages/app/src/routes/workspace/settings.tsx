@@ -12,7 +12,8 @@ import {
   CardDescription,
   ErrorNotice,
   Input,
-  Label,
+  PageContainer,
+  SettingsRow,
   Textarea,
 } from "@neokapi/ui";
 
@@ -113,8 +114,7 @@ function GeneralIdentityCard({ editable }: { editable: boolean }) {
         <CardDescription>Workspace details and identity</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="ws-name">Name</Label>
+        <SettingsRow label="Name" htmlFor="ws-name">
           <Input
             id="ws-name"
             value={name}
@@ -122,9 +122,8 @@ function GeneralIdentityCard({ editable }: { editable: boolean }) {
             onChange={(e) => setName(e.target.value)}
             placeholder="Workspace name"
           />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="ws-description">Description</Label>
+        </SettingsRow>
+        <SettingsRow label="Description" htmlFor="ws-description">
           <Textarea
             id="ws-description"
             value={description}
@@ -133,7 +132,7 @@ function GeneralIdentityCard({ editable }: { editable: boolean }) {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="What this workspace is for (optional)"
           />
-        </div>
+        </SettingsRow>
         <div className="grid">
           <SettingsField label="Slug" value={activeWorkspace.slug} mono />
           <SettingsField label="Your Role" value={activeWorkspace.role} />
@@ -165,17 +164,19 @@ export function SettingsIndexRoute() {
 
   if (!activeWorkspace) {
     return (
-      <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
-        Select a workspace
-      </Card>
+      <PageContainer width="narrow">
+        <Card className="mt-8 p-8 text-center text-muted-foreground text-sm">
+          Select a workspace
+        </Card>
+      </PageContainer>
     );
   }
 
   const isAdmin = activeWorkspace.role === "owner" || activeWorkspace.role === "admin";
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 py-4" data-testid="settings-heading">
+    <PageContainer width="standard" className="space-y-6" data-testid="settings-heading">
       <GeneralIdentityCard editable={isAdmin} />
-    </div>
+    </PageContainer>
   );
 }

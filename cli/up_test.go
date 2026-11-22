@@ -10,10 +10,13 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -102,7 +105,7 @@ func TestUp_SinglePass(t *testing.T) {
 }
 
 // TestUp_ParksUnreachableGate: a gate the deterministic flow cannot satisfy
-// (reviewed needs a human) parks after the loop stalls — reported, never a
+// (reviewed needs a human) parks after the loop stalls: reported, never a
 // build failure. This is the default `up` behavior (no flag needed).
 func TestUp_ParksUnreachableGate(t *testing.T) {
 	a := processOnlyApp(t)
@@ -180,8 +183,8 @@ func storeBlockTexts(t *testing.T, root string) []string {
 }
 
 // TestUp_AutoExtractsOnDrift: `kapi up` populates the project block store on
-// first run (missing store = drift), stamps it, and — after a source edit
-// between runs — re-extracts so the store mirrors the edited working tree.
+// first run (missing store = drift), stamps it, and after a source edit
+// between runs re-extracts so the store mirrors the edited working tree.
 func TestUp_AutoExtractsOnDrift(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
@@ -209,7 +212,7 @@ func TestUp_AutoExtractsOnDrift(t *testing.T) {
 	assert.Contains(t, out3, "source file(s) changed", "edited source must trigger a re-extract")
 	texts := storeBlockTexts(t, root)
 	assert.Contains(t, texts, "Hello, edited world.")
-	assert.NotContains(t, texts, "Hello, world.", "re-extraction is a full rebuild — no stale blocks")
+	assert.NotContains(t, texts, "Hello, world.", "re-extraction is a full rebuild: no stale blocks")
 }
 
 // TestUp_NoExtractOptsOut: --no-extract skips the drift check entirely; the
@@ -223,7 +226,7 @@ func TestUp_NoExtractOptsOut(t *testing.T) {
 	assert.NotContains(t, out, "into the project store")
 
 	// The stamp is a row now, not a sidecar, so "never stamped" reads as the
-	// store reporting itself stale — the same conclusion, asked of the table.
+	// store reporting itself stale: the same conclusion, asked of the table.
 	db := openStore(t, root)
 	assert.True(t, db.BlockStoreStale(t.Context()), "--no-extract must not stamp the store")
 	has, herr := db.HasBlocks(t.Context())
@@ -240,7 +243,7 @@ func TestUp_MaterializePolicyManualByDefault(t *testing.T) {
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "Up to date", out)
-	assert.NotContains(t, out, "Materialized", "defaults.materialize is manual — no post-loop write")
+	assert.NotContains(t, out, "Materialized", "defaults.materialize is manual: no post-loop write")
 }
 
 // TestUp_MaterializeOnConverge: with defaults.materialize: on-converge, a
@@ -272,7 +275,7 @@ func TestUp_MaterializeOnConverge(t *testing.T) {
 }
 
 // TestUp_MaterializeFlagForces: --materialize forces the post-loop write even
-// when the recipe policy is manual — and, like the policy, writes what the store
+// when the recipe policy is manual, and, like the policy, writes what the store
 // holds rather than source fallback over the run's own output.
 func TestUp_MaterializeFlagForces(t *testing.T) {
 	a := processOnlyApp(t)
@@ -287,7 +290,7 @@ func TestUp_MaterializeFlagForces(t *testing.T) {
 }
 
 // TestUp_MaterializeSkipsParkedLocale: a locale short of its gate (parked)
-// does not materialize — its content isn't at the bar yet.
+// does not materialize: its content isn't at the bar yet.
 //
 // The assertion that matters is the second one. Reading the run's own report
 // only asks whether the gate was consulted; #1936 is that it was consulted after
@@ -310,7 +313,7 @@ func TestUp_MaterializeSkipsParkedLocale(t *testing.T) {
 	}
 }
 
-// TestRun_BareRunErrors: `kapi run` takes a flow name only — the bare form
+// TestRun_BareRunErrors: `kapi run` takes a flow name only; the bare form
 // errors and points at `kapi up` (hard cutover; run never converges).
 func TestRun_BareRunErrors(t *testing.T) {
 	a := processOnlyApp(t)
@@ -329,27 +332,24 @@ func TestRun_BareRunErrors(t *testing.T) {
 // compact provider wizard inline, persists the choice, and then continues the
 // original command to convergence.
 func TestUp_FirstRunInlineWizard(t *testing.T) {
-	a := processOnlyApp(t)
-	saved := map[string]string{}
-	wiz := AISetupIO{
-		In:        strings.NewReader("\nn\n"), // accept default (Claude Code), skip live check
-		Out:       io.Discard,
-		IsTTY:     func() bool { return true },
-		Detect:    func(context.Context) AIDetection { return AIDetection{ClaudeCode: true} },
-		LiveCheck: func(context.Context, string, string, string) error { return nil },
-		SetDefault: func(provider, model string) error {
-			saved["ai.provider"], saved["ai.model"] = provider, model
-			return nil
-		},
-	}
+	a := demoProviderApp(t)
+	a.Config.Set(config.KeyAIProvider, "")
+	det := AIDetection{}
+	wiz, _, saved, _ := fakeSetupIO("", det)
+	wiz.Prompter = &scriptedPrompter{pick: indexOfProvider(t, BuildAISetupChoices(det), "demo")}
 	a.AISetupIOOverride = &wiz
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Flow = ""
+	require.NoError(t, project.Save(recipe, proj))
 
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
 
 	// The wizard persisted the pick…
-	assert.Equal(t, "claude-code", saved["ai.provider"])
+	assert.Equal(t, "demo", saved[config.KeyAIProvider])
 	// …and the original command continued to run the loop.
 	_, rerr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
 	require.NoError(t, rerr, "up must continue after the inline wizard")
@@ -359,15 +359,330 @@ func TestUp_FirstRunInlineWizard(t *testing.T) {
 // TestUp_ConfiguredSkipsWizard: with a provider already configured the wizard
 // never engages (no prompts in output).
 func TestUp_ConfiguredSkipsWizard(t *testing.T) {
-	a := processOnlyApp(t)
+	a := demoProviderApp(t)
 	wiz := AISetupIO{
 		IsTTY:  func() bool { return true },
-		Detect: func(context.Context) AIDetection { return AIDetection{DefaultProvider: "ollama"} },
+		Detect: func(context.Context) AIDetection { return AIDetection{DefaultProvider: "demo"} },
 	}
 	a.AISetupIOOverride = &wiz
 	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
 
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Flow = ""
+	require.NoError(t, project.Save(recipe, proj))
+
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
 	assert.NotContains(t, out, "No AI provider is configured")
+}
+
+// isolateAI removes provider keys and AI defaults from the environment
+// (clearAIEnv, context_suggest_test.go) and isolates the credential store, so
+// nothing on the developer's machine resolves a key.
+func isolateAI(t *testing.T) {
+	t.Helper()
+	clearAIEnv(t)
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+}
+
+// namedProviderApp is an app with a stored default for another provider, on
+// a terminal or off one. The wizard must never open: the stored default
+// never overrides a provider the recipe names.
+func namedProviderApp(t *testing.T, tty bool) *App {
+	t.Helper()
+	a := processOnlyApp(t)
+	a.Config = config.NewAppConfig()
+	a.Config.Set(config.KeyAIProvider, "ollama")
+	a.Config.Set(config.KeyAIModel, "llama3.2:3b")
+	a.AISetupIOOverride = &AISetupIO{IsTTY: func() bool { return tty }, Detect: func(context.Context) AIDetection {
+		t.Fatal("the wizard opened for a provider the recipe names")
+		return AIDetection{}
+	}}
+	// Credentials resolve as in the kapi binary, from an empty store, so a
+	// step whose key is missing fails to resolve and never reaches a provider.
+	a.Credentials = credentials.NewStore(filepath.Join(t.TempDir(), "credentials.json"))
+	a.ToolReg.SetConfigPreprocessor(func(toolName string, requires []string, cfg map[string]any) (map[string]any, error) {
+		cfg = ApplyAIDefaults(a.Config, toolName, requires, cfg)
+		return credentials.ResolveCredentials(a.Credentials, toolName, requires, cfg)
+	})
+	return a
+}
+
+func nameProvider(t *testing.T, recipe, provider string) {
+	t.Helper()
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Flow = ""
+	proj.Defaults.Tools = map[string]map[string]any{"translate": {"provider": provider}}
+	require.NoError(t, project.Save(recipe, proj))
+}
+
+// TestUp_NamedProviderWithoutKey: a recipe that names a provider with no key
+// refuses before the run starts when the run has work for it, and runs when
+// it has none, on a terminal and off one alike.
+func TestUp_NamedProviderWithoutKey(t *testing.T) {
+	for _, tty := range []bool{true, false} {
+		mode := map[bool]string{true: "terminal", false: "no terminal"}[tty]
+
+		t.Run(mode+": work to translate refuses before the run", func(t *testing.T) {
+			isolateAI(t)
+			recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+			nameProvider(t, recipe, "anthropic")
+
+			out, err := runUp(t, namedProviderApp(t, tty), recipe)
+			require.Error(t, err, out)
+			assert.Contains(t, err.Error(), `no saved credentials found for provider "anthropic"`)
+			assert.Contains(t, err.Error(), "ANTHROPIC_API_KEY")
+			assert.Contains(t, AdviseAPIKey(NewUpCmd(processOnlyApp(t)), err).Error(), "or pass --api-key",
+				"kapi up reads --api-key, so its advice names it")
+			_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
+			assert.True(t, os.IsNotExist(statErr), "the run must not start")
+		})
+
+		t.Run(mode+": up to date runs without the key", func(t *testing.T) {
+			isolateAI(t)
+			recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+			nameProvider(t, recipe, "demo")
+			out, err := runUp(t, demoProviderApp(t), recipe)
+			require.NoError(t, err, out)
+
+			// A teammate's recipe now names a provider this person has no
+			// key for; nothing is left to translate.
+			nameProvider(t, recipe, "anthropic")
+			out, err = runUp(t, namedProviderApp(t, tty), recipe)
+			require.NoError(t, err, out)
+			assert.Contains(t, out, "Up to date")
+		})
+	}
+}
+
+func TestUp_ProviderIndependentRunsSkipSetup(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		change func(*project.KapiProject)
+		flags  []string
+	}{
+		{name: "local flow"},
+		{name: "no target paths", change: func(p *project.KapiProject) {
+			p.Defaults.Flow = ""
+			p.Collections[0].Target = ""
+		}},
+		{name: "recycle only", flags: []string{"--recycle-only"}, change: func(p *project.KapiProject) { p.Defaults.Flow = "" }},
+		{name: "rules mode", change: func(p *project.KapiProject) {
+			p.Flows[p.Defaults.Flow].Steps = append(p.Flows[p.Defaults.Flow].Steps, flow.FlowStep{Tool: "qa", Config: map[string]any{"mode": "rules"}})
+		}},
+		{name: "recipe provider", change: func(p *project.KapiProject) {
+			p.Defaults.Flow = ""
+			p.Defaults.Tools = map[string]map[string]any{"translate": {"provider": "demo"}}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := processOnlyApp(t)
+			a.AISetupIOOverride = &AISetupIO{IsTTY: func() bool { return true }, Detect: func(context.Context) AIDetection {
+				t.Fatal("run requested model setup")
+				return AIDetection{}
+			}}
+			recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+			if tc.change != nil {
+				proj, err := project.Load(recipe)
+				require.NoError(t, err)
+				tc.change(proj)
+				require.NoError(t, project.Save(recipe, proj))
+			}
+			out, err := runUp(t, a, recipe, tc.flags...)
+			require.NoError(t, err, out)
+		})
+	}
+}
+
+// TestUp_RecycledOnlyRunNeedsNoKey: a run the content memory answers
+// completely builds its translate step without the missing key and never
+// calls the provider, so it writes the target and exits 0, on a terminal and
+// off one. The plan's "0 AI" and the run agree.
+func TestUp_RecycledOnlyRunNeedsNoKey(t *testing.T) {
+	for _, tty := range []bool{true, false} {
+		mode := map[bool]string{true: "terminal", false: "no terminal"}[tty]
+		t.Run(mode, func(t *testing.T) {
+			isolateAI(t)
+			recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+			target := writeCommittedTargets(t, root)
+			want, err := os.ReadFile(target)
+			require.NoError(t, err)
+			// The first run reads the committed targets into the content
+			// memory; then one target goes missing.
+			nameProvider(t, recipe, "demo")
+			out, err := runUp(t, demoProviderApp(t), recipe)
+			require.NoError(t, err, out)
+			require.NoError(t, os.Remove(target))
+
+			nameProvider(t, recipe, "anthropic")
+			out, err = runUp(t, namedProviderApp(t, tty), recipe)
+			require.NoError(t, err, out)
+			got, err := os.ReadFile(target)
+			require.NoError(t, err, "the recycled target is written")
+			assert.Equal(t, string(want), string(got))
+		})
+	}
+}
+
+// TestUp_KeyAlwaysNeededStepRefusesBeforeThePass: an AI check that names a
+// provider with no key calls that provider for every unit of a pass, recycled
+// or not, so a run with any pass refuses before pass 1 writes anything.
+func TestUp_KeyAlwaysNeededStepRefusesBeforeThePass(t *testing.T) {
+	for _, tty := range []bool{true, false} {
+		mode := map[bool]string{true: "terminal", false: "no terminal"}[tty]
+		t.Run(mode, func(t *testing.T) {
+			isolateAI(t)
+			recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+			target := writeCommittedTargets(t, root)
+			nameProvider(t, recipe, "demo")
+			out, err := runUp(t, demoProviderApp(t), recipe)
+			require.NoError(t, err, out)
+			require.NoError(t, os.Remove(target))
+
+			proj, err := project.Load(recipe)
+			require.NoError(t, err)
+			proj.Defaults.Flow = "checked"
+			proj.Flows["checked"] = &flow.StepsSpec{Steps: []flow.FlowStep{
+				{Tool: "recycle"},
+				{Tool: "translate", Config: map[string]any{"provider": "demo", "skip_matched": true}},
+				{Tool: "qa", Config: map[string]any{"mode": "ai", "provider": "anthropic"}},
+			}}
+			require.NoError(t, project.Save(recipe, proj))
+
+			out, err = runUp(t, namedProviderApp(t, tty), recipe)
+			require.Error(t, err, out)
+			assert.Contains(t, err.Error(), `no saved credentials found for provider "anthropic"`)
+			_, statErr := os.Stat(target)
+			assert.True(t, os.IsNotExist(statErr), "pass 1 writes nothing")
+		})
+	}
+}
+
+// writeCommittedTargets writes Norwegian targets for the fixture's two
+// source files, as a project that already holds its translations, and
+// returns the path of one of them.
+func writeCommittedTargets(t *testing.T, root string) string {
+	t.Helper()
+	dir := filepath.Join(root, "src/locales/nb-NO")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.json"), []byte(`{"greeting":"Hei, verden."}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.json"), []byte(`{"farewell":"Ha det."}`), 0o644))
+	return filepath.Join(dir, "a.json")
+}
+
+// TestUp_ProviderFlagOverAPresetWithoutKey: `kapi up --provider demo` in a
+// project whose preset names a provider with no key needs nothing, on a
+// terminal and off one. A step that names its own provider keeps it, so its
+// missing key still refuses.
+func TestUp_ProviderFlagOverAPresetWithoutKey(t *testing.T) {
+	for _, tty := range []bool{true, false} {
+		mode := map[bool]string{true: "terminal", false: "no terminal"}[tty]
+
+		t.Run(mode+": the flag wins over the preset", func(t *testing.T) {
+			isolateAI(t)
+			recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+			nameProvider(t, recipe, "anthropic")
+			out, err := runUp(t, namedProviderApp(t, tty), recipe, "--provider", "demo")
+			require.NoError(t, err, out)
+			_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
+			require.NoError(t, statErr, "the run translated with the demo provider")
+		})
+
+		t.Run(mode+": a step's own provider keeps its missing key", func(t *testing.T) {
+			isolateAI(t)
+			recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+			proj, err := project.Load(recipe)
+			require.NoError(t, err)
+			proj.Defaults.Flow = "own"
+			proj.Flows["own"] = &flow.StepsSpec{Steps: []flow.FlowStep{
+				{Tool: "translate", Config: map[string]any{"provider": "anthropic"}},
+			}}
+			require.NoError(t, project.Save(recipe, proj))
+
+			out, err := runUp(t, namedProviderApp(t, tty), recipe, "--provider", "demo")
+			require.Error(t, err, out)
+			assert.Contains(t, err.Error(), `no saved credentials found for provider "anthropic"`)
+			_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
+			assert.True(t, os.IsNotExist(statErr), "the run must not start")
+		})
+	}
+}
+
+// recycledProject is a converged project whose content memory answers both
+// source files, with its targets removed and a recipe flow `draft` that
+// recycles, then translates on a provider with no key. It returns the recipe,
+// the target directory and the source directory.
+func recycledProject(t *testing.T) (recipe, targetDir, srcDir string) {
+	t.Helper()
+	isolateAI(t)
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+	writeCommittedTargets(t, root)
+	nameProvider(t, recipe, "demo")
+	out, err := runUp(t, demoProviderApp(t), recipe)
+	require.NoError(t, err, out)
+	targetDir = filepath.Join(root, "src/locales/nb-NO")
+	require.NoError(t, os.RemoveAll(targetDir))
+
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Flows["draft"] = &flow.StepsSpec{Steps: []flow.FlowStep{
+		{Tool: "recycle"},
+		{Tool: "translate", Config: map[string]any{"provider": "anthropic", "skip_matched": true}},
+	}}
+	require.NoError(t, project.Save(recipe, proj))
+	return recipe, targetDir, filepath.Join(root, "src/locales/en")
+}
+
+// TestRun_MissingKeyRefusesBeforeAnyFileIsWritten: `kapi run` writes each
+// file as it finishes it, so a provider the run calls with no key refuses
+// before the first file, never after some are done.
+func TestRun_MissingKeyRefusesBeforeAnyFileIsWritten(t *testing.T) {
+	recipe, targetDir, srcDir := recycledProject(t)
+	// b.json now holds a sentence the content memory has never seen.
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "b.json"), []byte(`{"farewell":"See you tomorrow."}`), 0o644))
+
+	out, err := runRunCmd(t, namedProviderApp(t, false), recipe, "draft")
+	require.Error(t, err, out)
+	assert.Contains(t, err.Error(), `no saved credentials found for provider "anthropic"`)
+	_, statErr := os.Stat(filepath.Join(targetDir, "a.json"))
+	assert.True(t, os.IsNotExist(statErr), "a.json was written before the run refused")
+}
+
+// TestRun_RecycledOnlyRunNeedsNoKey: when the content memory answers every
+// unit, the translate step is never called, so the run needs no key.
+func TestRun_RecycledOnlyRunNeedsNoKey(t *testing.T) {
+	recipe, targetDir, _ := recycledProject(t)
+	out, err := runRunCmd(t, namedProviderApp(t, false), recipe, "draft")
+	require.NoError(t, err, out)
+	for _, f := range []string{"a.json", "b.json"} {
+		_, statErr := os.Stat(filepath.Join(targetDir, f))
+		require.NoError(t, statErr, f)
+	}
+}
+
+// TestTranslate_MissingKeyRefusesBeforeAnyFileIsWritten: `kapi translate`
+// over named files cannot be planned, so a missing key refuses before the
+// first file.
+func TestTranslate_MissingKeyRefusesBeforeAnyFileIsWritten(t *testing.T) {
+	recipe, _, srcDir := recycledProject(t)
+	// b.json now holds a sentence nothing has translated.
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "b.json"), []byte(`{"farewell":"See you tomorrow."}`), 0o644))
+	outDir := t.TempDir()
+	cmd := NewTranslateCmd(namedProviderApp(t, false))
+	cmd.SetArgs([]string{
+		filepath.Join(srcDir, "a.json"), filepath.Join(srcDir, "b.json"),
+		"--project", recipe, "--target-lang", "nb-NO", "--provider", "anthropic",
+		"-o", filepath.Join(outDir, "{name}_{lang}.{ext}"),
+	})
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	err := cmd.Execute()
+	require.Error(t, err, buf.String())
+	assert.Contains(t, err.Error(), `no saved credentials found for provider "anthropic"`)
+	entries, rerr := os.ReadDir(outDir)
+	require.NoError(t, rerr)
+	assert.Empty(t, entries, "a file was written before the run refused")
 }

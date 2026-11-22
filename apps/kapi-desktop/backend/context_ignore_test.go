@@ -43,7 +43,7 @@ func TestContextPanesGiveAnIgnoredFileTheDefaultPoint(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
 	for rel, wantDefault := range map[string]bool{"config/app.yaml": true, "config/other.yaml": false} {
-		governs, err := app.ContextGoverns(tab.ID, "", rel, 0)
+		governs, err := app.ContextGoverns(tab.ID, "", rel, "", 0)
 		require.NoError(t, err)
 		assert.Equal(t, wantDefault, governs.Point.Default, "ContextGoverns %s", rel)
 		lives, err := app.ContextLives(tab.ID, "", rel, 0)

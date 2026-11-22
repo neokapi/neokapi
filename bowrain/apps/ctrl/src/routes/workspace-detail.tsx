@@ -1,7 +1,15 @@
 import { useState } from "react";
 import { useParams } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Tabs, TabsList, TabsTrigger, TabsContent, Badge, Button } from "@neokapi/ui";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  Badge,
+  Button,
+  PageContainer,
+} from "@neokapi/ui";
 import {
   SubscriptionBadge,
   CreditLedger,
@@ -134,7 +142,7 @@ export function WorkspaceDetailRoute() {
     : null;
 
   return (
-    <div className="space-y-6">
+    <PageContainer width="wide" className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">{workspace.name}</h2>
@@ -355,6 +363,6 @@ export function WorkspaceDetailRoute() {
         onOpenChange={setShowAddMember}
         workspaceId={workspace.id}
       />
-    </div>
+    </PageContainer>
   );
 }

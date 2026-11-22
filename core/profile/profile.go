@@ -2,6 +2,7 @@ package profile
 
 import (
 	"maps"
+	"regexp"
 	"strings"
 	"time"
 
@@ -45,6 +46,32 @@ type VoiceProfile struct {
 	// beside it: a starter pack's terms, or a voice file's `terms:` list. They
 	// are never stored with the profile and never serialized.
 	carried CarriedTerms
+}
+
+// Slug spells a profile name as the id a project stores the profile under:
+// lower case, each run of characters other than letters a to z and digits
+// replaced by one hyphen, with no hyphen at either end.
+func Slug(name string) string {
+	s := slugRe.ReplaceAllString(strings.ToLower(strings.TrimSpace(name)), "-")
+	return strings.Trim(s, "-")
+}
+
+var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
+
+// Authored is a voice profile as a project authors it: what it says about how
+// to write, without the bookkeeping a store keeps about the row (its partition
+// key, its timestamps, its creator and the note of its last write).
+func Authored(p *VoiceProfile) *VoiceProfile {
+	if p == nil {
+		return nil
+	}
+	out := *p
+	out.Scope = ""
+	out.CreatedAt = time.Time{}
+	out.UpdatedAt = time.Time{}
+	out.CreatedBy = ""
+	out.VersionNote = ""
+	return &out
 }
 
 // CarriedTerms are the word rules a voice file carries beside its voice, and
@@ -171,12 +198,13 @@ func cloneRules(in []TermRule) []TermRule {
 
 // ProfileVersion is an immutable snapshot of a profile at a point in time.
 // Each UpdateProfile() call archives the previous state as a ProfileVersion.
+// A version records what the profile said, never who wrote it: the context
+// ledger records each write with its actor.
 type ProfileVersion struct {
 	ProfileID string       `json:"profile_id"`
 	Version   int          `json:"version"`
 	Snapshot  VoiceProfile `json:"snapshot"`
 	Note      string       `json:"note"`
-	CreatedBy string       `json:"created_by"`
 	CreatedAt time.Time    `json:"created_at"`
 }
 

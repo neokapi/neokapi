@@ -39,6 +39,8 @@ export interface VoiceBindingSelectProps {
   inheritLabel: string;
   /** The field label; defaults to "Voice profile". */
   label?: string;
+  /** Keep the label for screen readers only, where a settings row shows it. */
+  labelHidden?: boolean;
   /** A muted note beneath the picker. */
   help?: string;
   disabled?: boolean;
@@ -55,6 +57,7 @@ export function VoiceBindingSelect({
   options,
   inheritLabel,
   label,
+  labelHidden = false,
   help,
   disabled,
   className,
@@ -79,7 +82,10 @@ export function VoiceBindingSelect({
 
   return (
     <div className="space-y-1" data-slot="voice-binding">
-      <Label htmlFor={id} className="mb-1 block text-xs text-muted-foreground">
+      <Label
+        htmlFor={id}
+        className={labelHidden ? "sr-only" : "mb-1 block text-xs text-muted-foreground"}
+      >
         {fieldLabel}
       </Label>
       <Select

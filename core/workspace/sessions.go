@@ -33,7 +33,7 @@ CREATE INDEX IF NOT EXISTS idx_workspace_agent_sessions_seen ON workspace_agent_
 
 // AgentSession is one agent at work in a project, as the workspace holds it.
 //
-// An agent runs in a process of its own and records what it notices under a
+// An agent runs in a process of its own and records its suggestions under a
 // session id. Another process reads these rows to show that somebody is working
 // here: the desktop draws it beside the project, and `kapi context log
 // --session` reads back what that session recorded.

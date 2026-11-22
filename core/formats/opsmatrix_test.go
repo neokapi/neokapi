@@ -182,6 +182,7 @@ func opsMatrix() []opsFixture {
 		{format: "asciidoc", template: "asciidoc.adoc.tmpl"},
 		{format: "csv", template: "csv.csv.tmpl"},
 		{format: "designtokens", template: "designtokens.tokens.json.tmpl"},
+		{format: "eml", template: "eml.eml.tmpl"},
 		{format: "epub", template: "epub.tmpl"},
 		{format: "html", template: "html.html.tmpl"},
 		{format: "i18next", template: "i18next.json.tmpl"},

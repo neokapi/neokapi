@@ -216,44 +216,20 @@ func segmentSpans(ctx context.Context, runs []model.Run, engineName, locale stri
 	return spans
 }
 
-// termOverlay builds an OverlayTerm over the source runs from the lab
-// project's terms (labproject.go). Each matched term becomes a span carrying
-// the matched surface form (text), its required translation and domain.
-// Returns nil when the lab project cannot be opened or nothing matches.
-func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Overlay {
+// termOverlay is the term overlay over the source runs from the lab
+// project's terms (labproject.go), located as every other reader of the store
+// locates them (terms.LocateOverlay), with French as the target. Returns nil
+// when the lab project cannot be opened or nothing matches.
+func termOverlay(ctx context.Context, runs []model.Run, _ string) *model.Overlay {
 	tb, err := labTermsStore(ctx)
 	if err != nil {
 		return nil
 	}
-	// The store is asked about the search text, where a character reference
-	// stands for its character, and each match is mapped back to the runs.
-	search := profile.NewSearchText(source, runs)
-	matches, err := tb.LookupAll(ctx, search.Text, terms.LookupOptions{
-		SourceLocale: model.LocaleID("en"),
-		TargetLocale: model.LocaleID("fr"),
-	})
-	if err != nil || len(matches) == 0 {
+	ov, err := terms.LocateOverlay(ctx, tb, runs, model.LocaleID("en"), model.LocaleID("fr"))
+	if err != nil {
 		return nil
 	}
-	spans := make([]model.Span, 0, len(matches))
-	for _, m := range matches {
-		props := map[string]string{"term": m.Term.Text}
-		// The match carries its whole concept, French terms included.
-		if tgt := m.Concept.PreferredTerm(model.LocaleID("fr")); tgt != nil {
-			props["target"] = tgt.Text
-		}
-		if m.Concept.Domain != "" {
-			props["domain"] = m.Concept.Domain
-		}
-		if search.SpelledAtEdge(m.Position.Start, m.Position.End) {
-			props["spelled"] = search.Text[m.Position.Start:m.Position.End]
-		}
-		spans = append(spans, model.Span{
-			Range: model.RangeAnchorForBytes(runs, search.ToText(m.Position.Start), search.ToText(m.Position.End)),
-			Props: props,
-		})
-	}
-	return &model.Overlay{Type: model.OverlayTerm, Spans: spans}
+	return ov
 }
 
 // voiceOverlay builds an OverlayCheck over the source runs from the seeded voice

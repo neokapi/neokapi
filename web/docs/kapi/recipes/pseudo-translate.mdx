@@ -22,11 +22,11 @@ Try it right here: drop a file (or pick the JSON or Word sample) and kapi runs `
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-Pseudo-translation is a **quick tool**, so no project is needed:
+Pseudo-translation runs as a step in a flow:
 
-1. Open **Toolbox → Tools**, pick the pseudo-translate tool, and choose your source catalog.
-2. Adjust the shape in the config form: prefix/suffix markers and expansion padding to simulate how much longer real translations run.
-3. Run it and load the output file into your UI; anything un-accented was hard-coded instead of pulled from the catalog.
+1. Open **Project Settings → Flows** and open or create a flow with the pseudo-translate step.
+2. Adjust the shape in the step's settings: prefix/suffix markers and expansion padding to simulate how much longer real translations run.
+3. Run the flow and load the output file into your UI; anything un-accented was hard-coded instead of pulled from the catalog.
 
 In a project, add `qps` as a target locale and pseudo-translation rides the normal flow; output lands on the language path like any locale.
 
@@ -48,7 +48,7 @@ One command; the output path is a name you choose:
 kapi pseudo-translate messages.json -o messages.pseudo.json
 ```
 
-To tune the markers and the padding, run the tool directly: `kapi exec pseudo-translate` takes `--prefix`, `--suffix`, and `--expansion-percent`, and the full flags are in the [`exec pseudo-translate` reference](/reference/commands/exec-pseudo-translate). The same keys go under a flow step's `config:` (`expansionPercent: 30`). In a project, run it with no file argument to cover the recipe's declared content, or as the gap-filler step after content-memory leverage; see [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory).
+To tune the markers and the padding, run the tool directly: `kapi exec pseudo-translate` takes `--prefix`, `--suffix`, and `--expansion-percent`, and the full flags are in the [`exec pseudo-translate` reference](/reference/commands/exec-pseudo-translate). The same keys go under a flow step's `config:` (`expansion_percent: 30`). In a project, run it with no file argument to cover the recipe's declared content, or as the gap-filler step after content-memory leverage; see [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory).
 
 </TabItem>
 </Tabs>

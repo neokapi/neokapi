@@ -26,6 +26,7 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
   }, [editingID]);
 
   const startEditing = (tab: TabInfo) => {
+    onSelect(tab.id);
     setEditingID(tab.id);
     setEditValue(tab.name);
   };
@@ -77,7 +78,9 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
     }
   };
 
-  if (tabs.length === 0) return null;
+  // One open project needs no strip: the strip exists to switch between
+  // projects, so it appears once a second one opens.
+  if (tabs.length < 2) return null;
 
   // Roving tabindex: exactly one tab is in the tab order at a time.
   const focusableID = activeTabID ?? tabs[0].id;

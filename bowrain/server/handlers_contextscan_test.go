@@ -11,9 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
@@ -140,8 +141,7 @@ func TestContextScanCreate_InsufficientCredits402(t *testing.T) {
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("test")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "test"}})
 	c.Set("workspace_id", "test-ws")
 	c.Set("project_permissions", platauth.PermAll)
 
@@ -314,15 +314,14 @@ func contextScanMultipart(t *testing.T, files map[string][]byte) (*bytes.Buffer,
 	return &buf, w.FormDataContentType()
 }
 
-func newContextScanUploadContext(t *testing.T, body *bytes.Buffer, contentType string) (echo.Context, *httptest.ResponseRecorder) {
+func newContextScanUploadContext(t *testing.T, body *bytes.Buffer, contentType string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	e := echo.New()
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/acme/context-scans/uploads", body)
 	r.Header.Set("Content-Type", contentType)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("acme")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}})
 	c.Set("project_permissions", platauth.PermAll)
 	return c, rec
 }
@@ -438,8 +437,7 @@ func TestContextScanCheckDraft(t *testing.T) {
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("acme")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}})
 
 	require.NoError(t, s.HandleCheckVoiceDraft(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
@@ -474,4 +472,30 @@ func TestContextScanCheckDraft(t *testing.T) {
 		require.NoError(t, s.HandleCheckVoiceDraft(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code, invalid)
 	}
+}
+
+// TestContextScanCreate_ProjectInWorkspaceOnly: a scan may name a project of
+// the request's own workspace and no other.
+func TestContextScanCreate_ProjectInWorkspaceOnly(t *testing.T) {
+	s, ownerToken := newTestServer(t)
+	wireContextScan(t, s)
+	require.NotNil(t, s.ContentStore)
+	own := &platstore.Project{Name: "own", DefaultSourceLanguage: "en", WorkspaceID: "test-ws"}
+	other := &platstore.Project{Name: "other", DefaultSourceLanguage: "en", WorkspaceID: "other-ws"}
+	unowned := &platstore.Project{Name: "unowned", DefaultSourceLanguage: "en"}
+	for _, p := range []*platstore.Project{own, other, unowned} {
+		require.NoError(t, s.ContentStore.CreateProject(t.Context(), p))
+	}
+	create := func(project string) int {
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/test/context-scans", strings.NewReader(`{"project":"`+project+`"}`))
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Authorization", "Bearer "+ownerToken)
+		rec := httptest.NewRecorder()
+		s.GetEcho().ServeHTTP(rec, r)
+		return rec.Code
+	}
+	assert.Equal(t, http.StatusAccepted, create(own.ID))
+	assert.Equal(t, http.StatusNotFound, create(other.ID), "another workspace's project")
+	assert.Equal(t, http.StatusNotFound, create(unowned.ID), "a project naming no workspace")
+	assert.Equal(t, http.StatusNotFound, create("missing"))
 }

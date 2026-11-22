@@ -1,0 +1,18 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["8X6GKF24MG.cloud.bowrain.app"],
+        "components": [
+          {
+            "/": "/auth/callback",
+            "comment": "Sign-in redirect for the Bowrain mobile app"
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["8X6GKF24MG.cloud.bowrain.app"]
+  }
+}

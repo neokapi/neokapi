@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/event"
@@ -243,7 +243,7 @@ func TestOrchestrator_DriveStallsOnCredits(t *testing.T) {
 	var probe struct {
 		Type        string `json:"type"`
 		State       string `json:"state"`
-		StallReason string `json:"stallReason"`
+		StallReason string `json:"stall_reason"`
 	}
 	require.NoError(t, json.Unmarshal(payloads[len(payloads)-1], &probe))
 	assert.Equal(t, "done", probe.Type)
@@ -421,11 +421,10 @@ func TestRunForProject_IDOR(t *testing.T) {
 	require.NoError(t, rs.CreateRun(ctx, runB))
 	s := &Server{ConvergenceRunStore: rs}
 
-	newCtx := func(projectID, runID string) echo.Context {
+	newCtx := func(projectID, runID string) *echo.Context {
 		e := echo.New()
 		c := e.NewContext(httptest.NewRequest(http.MethodGet, "/", nil), httptest.NewRecorder())
-		c.SetParamNames("id", "runID")
-		c.SetParamValues(projectID, runID)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: projectID}, {Name: "runID", Value: runID}})
 		return c
 	}
 
@@ -441,7 +440,7 @@ func TestRunForProject_IDOR(t *testing.T) {
 }
 
 func TestResumeSeq(t *testing.T) {
-	newCtx := func(header, after string) echo.Context {
+	newCtx := func(header, after string) *echo.Context {
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodGet, "/?after="+after, nil)
 		if header != "" {

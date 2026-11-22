@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/contextop"
@@ -404,6 +405,46 @@ func TestUpdateProjectWritesTheRecipeOnAChange(t *testing.T) {
 	assert.Contains(t, registeredDirs(t, app), host.NormalizeCheckoutPath(dir))
 }
 
+func TestUpdateProjectAsksForASyncWhenTheRecipeChanges(t *testing.T) {
+	app := newWorkspaceApp(t)
+	dir := contentFolder(t, "Handbook")
+	tab, err := app.OpenProject(dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+	var mu sync.Mutex
+	var asked []any
+	InjectEventSink(app, func(name string, data any) {
+		if name == "project-recipe-changed" {
+			mu.Lock()
+			asked = append(asked, data)
+			mu.Unlock()
+		}
+	})
+	t.Cleanup(func() { InjectEventSink(app, nil) })
+	count := func() int { mu.Lock(); defer mu.Unlock(); return len(asked) }
+
+	require.NoError(t, app.UpdateProject(tab.ID, roundTrip(t, app.GetProject(tab.ID))))
+	assert.Equal(t, 0, count(), "an update that changes nothing asks for no sync")
+
+	changed := roundTrip(t, app.GetProject(tab.ID))
+	changed.Collections = append(changed.Collections, project.Collection{Name: "Help", Content: []project.ContentItem{{Path: "docs/**/*.md"}}})
+	require.NoError(t, app.UpdateProject(tab.ID, changed))
+	assert.Equal(t, 1, count(), "a new collection asks the frontend to sync the block cache")
+}
+
+func TestRunChecksOnAFolderWithNoRecipe(t *testing.T) {
+	app := newWorkspaceApp(t)
+	dir := contentFolder(t, "Handbook")
+	tab, err := app.OpenProject(dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+	require.NoFileExists(t, filepath.Join(dir, project.RecipeFileName))
+
+	res, err := app.RunChecks(tab.ID, ProjectFilter{})
+	require.NoError(t, err, "a folder opened without a kapi.yaml is checked, not refused for the missing file")
+	assert.NotNil(t, res)
+}
+
 func TestSaveProjectWritesTheRecipeOfAFolder(t *testing.T) {
 	app := newWorkspaceApp(t)
 	dir := contentFolder(t, "Handbook")
@@ -430,9 +471,9 @@ func roundTrip(t *testing.T, proj *project.KapiProject) *project.KapiProject {
 	return &out
 }
 
-// The Map is the landing view of every tab, a folder opened without a recipe
+// The Overview is the landing view of every tab, a folder opened without a recipe
 // included: it reads the folder's draft cache.
-func TestMapSummaryOfAFolderWithoutARecipe(t *testing.T) {
+func TestOverviewSummaryOfAFolderWithoutARecipe(t *testing.T) {
 	app := newWorkspaceApp(t)
 	dir := contentFolder(t, "Handbook")
 	tab, err := app.OpenProject(dir)
@@ -441,7 +482,7 @@ func TestMapSummaryOfAFolderWithoutARecipe(t *testing.T) {
 	_, err = app.SyncProjectStore(tab.ID)
 	require.NoError(t, err)
 
-	sum, err := app.MapSummary(tab.ID)
+	sum, err := app.OverviewSummary(tab.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 3, sum.ReadFiles)
 	assert.Positive(t, sum.Blocks)

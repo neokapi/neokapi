@@ -98,7 +98,7 @@ func (s *contextOpsSession) settled(ctx context.Context, written contextop.Recor
 
 // reconcile brings the stores in line with the rules whose standing moved
 // since before was read. An established rule a correction now contests is
-// taken out of the store it was written to, so it advises instead of failing
+// taken out of the store it was written to, so it is reported instead of failing
 // a check; a contested rule that is established again is written back.
 func (s *contextOpsSession) reconcile(ctx context.Context, before []contextop.Record) ([]string, error) {
 	after, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
@@ -186,7 +186,7 @@ func (s *contextOpsSession) writer(ctx context.Context, r contextop.Record) (*pr
 
 // retract takes a rule back out of wherever keeping put it. A suggestion
 // nobody kept put nothing anywhere, so retracting it is a no-op: the rule
-// stops advising the moment the log says so.
+// stops being reported the moment the log says so.
 func (s *contextOpsSession) retract(ctx context.Context, r contextop.Record) (string, error) {
 	if r.Status != contextop.StatusEstablished {
 		return "", nil

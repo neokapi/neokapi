@@ -177,7 +177,7 @@ func TestOrchestrator_NoTargetLocales_ParksNotUpToDate(t *testing.T) {
 	var probe struct {
 		Type        string `json:"type"`
 		State       string `json:"state"`
-		StallReason string `json:"stallReason"`
+		StallReason string `json:"stall_reason"`
 	}
 	require.NoError(t, json.Unmarshal(payloads[len(payloads)-1], &probe))
 	assert.Equal(t, "done", probe.Type)

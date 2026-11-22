@@ -131,7 +131,7 @@ func TestReviewHistoryThreadsTheGoverningFingerprint(t *testing.T) {
 	}
 }
 
-func TestDoNotTranslateFromRules(t *testing.T) {
+func TestProtectedTerms(t *testing.T) {
 	tests := []struct {
 		name  string
 		rules []coreprofile.TermRule
@@ -159,7 +159,7 @@ func TestDoNotTranslateFromRules(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, doNotTranslateFromRules(tc.rules))
+			assert.Equal(t, tc.want, ProtectedTerms(tc.rules))
 		})
 	}
 }

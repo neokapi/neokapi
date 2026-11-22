@@ -178,8 +178,23 @@ func (a *App) SaveVoiceProfileAt(
 	if !res.Changed {
 		return res, nil
 	}
-	op, err := a.recordVoiceWrite(ctx, recipePath, actor, prof,
-		"saved whole", "saved in the voice editor")
+	stored, err := store.GetProfile(ctx, prof.ID)
+	if err != nil {
+		return res, fmt.Errorf("read voice profile %s back: %w", prof.ID, err)
+	}
+	var before *coreprofile.VoiceProfile
+	if herr == nil {
+		before = held
+	}
+	edit, err := voiceEditOf(before, stored)
+	if err != nil {
+		return res, err
+	}
+	what := "saved"
+	if res.Created {
+		what = "created"
+	}
+	op, err := a.recordVoiceWrite(ctx, recipePath, actor, edit, what, "saved in the voice editor")
 	if err != nil {
 		return res, err
 	}

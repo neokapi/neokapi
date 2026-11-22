@@ -34,7 +34,7 @@ func sourcecodeFormatCheck(t *testing.T, file, config string) (check.Report, err
 
 func TestSourcecodeFormatFindsTheGrammarFromTheFileName(t *testing.T) {
 	t.Run("a cask recipe without a language reads and checks", func(t *testing.T) {
-		report, err := sourcecodeFormatCheck(t, "Casks/kapi.rb", "{ nodePathPatterns: [desc, caveats] }")
+		report, err := sourcecodeFormatCheck(t, "Casks/kapi.rb", "{ node_path_patterns: [desc, caveats] }")
 		require.NoError(t, err)
 		assert.NotEqual(t, check.VerdictDidNotRun, report.Verdict, report.DidNotRun)
 		assert.Positive(t, report.Target.Blocks)
@@ -48,7 +48,7 @@ func TestSourcecodeFormatFindsTheGrammarFromTheFileName(t *testing.T) {
 	})
 
 	t.Run("an extension no grammar reads fails naming the file and the languages", func(t *testing.T) {
-		report, err := sourcecodeFormatCheck(t, "Casks/kapi.cask", "{ nodePathPatterns: [desc, caveats] }")
+		report, err := sourcecodeFormatCheck(t, "Casks/kapi.cask", "{ node_path_patterns: [desc, caveats] }")
 		require.NoError(t, err)
 		msg := unreadableMessage(t, report)
 		assert.Contains(t, msg, "Casks/kapi.cask")
@@ -56,13 +56,13 @@ func TestSourcecodeFormatFindsTheGrammarFromTheFileName(t *testing.T) {
 	})
 
 	t.Run("a declared language reads a file whose extension names none", func(t *testing.T) {
-		report, err := sourcecodeFormatCheck(t, "Casks/kapi.cask", "{ language: ruby, nodePathPatterns: [desc, caveats] }")
+		report, err := sourcecodeFormatCheck(t, "Casks/kapi.cask", "{ language: ruby, node_path_patterns: [desc, caveats] }")
 		require.NoError(t, err)
 		assert.Positive(t, report.Target.Blocks)
 	})
 
 	t.Run("a declared language wins over the extension", func(t *testing.T) {
-		report, err := sourcecodeFormatCheck(t, "Casks/kapi.rb", "{ language: python, nodePathPatterns: [desc, caveats] }")
+		report, err := sourcecodeFormatCheck(t, "Casks/kapi.rb", "{ language: python, node_path_patterns: [desc, caveats] }")
 		require.NoError(t, err)
 		msg := unreadableMessage(t, report)
 		assert.Contains(t, msg, `"python"`, "the declaration is read, though the extension names a grammar")

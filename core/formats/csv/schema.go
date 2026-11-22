@@ -22,23 +22,23 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "format",
 				Label: "CSV Format Settings",
 				Fields: []string{
-					"separator", "textQualifier", "hasHeader",
-					"columnNamesRow", "valuesStartRow",
+					"separator", "text_qualifier", "has_header",
+					"column_names_row", "values_start_row",
 				},
 			},
 			{
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"translatableColumns", "keyColumns", "commentColumns",
-					"columns", "trimValues", "extractNonTranslatableContent",
+					"translatable_columns", "key_columns", "comment_columns",
+					"columns", "trim_values", "extract_non_translatable_content",
 				},
 			},
 			{
 				ID:    "inlineCodes",
 				Label: "Inline Codes",
 				Fields: []string{
-					"useCodeFinder", "codeFinderRules",
+					"use_code_finder", "code_finder_rules",
 				},
 			},
 		},
@@ -49,29 +49,29 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Title:       "Field Delimiter",
 				Description: "Field delimiter character (comma for CSV, tab for TSV)",
 			}),
-			"textQualifier": schema.Prop(coreschema.PropertySchema{
+			"text_qualifier": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Default:     "\"",
 				Title:       "Text Qualifier",
 				Description: "Character used to quote field values containing delimiters or newlines",
 			}),
-			"hasHeader": schema.Prop(coreschema.PropertySchema{
+			"has_header": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Has Header Row",
 				Description: "If true, the first row is treated as headers (non-translatable)",
 			}),
-			"translatableColumns": schema.Prop(coreschema.PropertySchema{
+			"translatable_columns": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Translatable Columns",
 				Description: "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable.",
 			}),
-			"keyColumns": schema.Prop(coreschema.PropertySchema{
+			"key_columns": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Key Columns",
 				Description: "Column indices (0-based) that provide the block ID (source ID / record ID)",
 			}),
-			"commentColumns": schema.Prop(coreschema.PropertySchema{
+			"comment_columns": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Comment Columns",
 				Description: "Column indices (0-based) that contain comments or notes",
@@ -81,42 +81,42 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Title:       "Column Roles",
 				Description: "Column-role mapping for bilingual translation tables: an object with 0-based column indices for key, source and target (e.g. {key: 0, source: 1, target: 2}). On merge only the target column is rewritten.",
 			}),
-			"trimValues": schema.Prop(coreschema.PropertySchema{
+			"trim_values": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Trim Values",
 				Description: "If true, leading and trailing whitespace is removed from cell values",
 			}),
-			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+			"extract_non_translatable_content": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Extract non-translatable content",
 				Description: "If true (default), non-translatable contextual content such as preamble rows and non-translatable column cells is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of opaque data. Disable to keep it as plain data parts.",
 			}),
-			"columnNamesRow": schema.Prop(coreschema.PropertySchema{
+			"column_names_row": schema.Prop(coreschema.PropertySchema{
 				Type:        "integer",
 				Default:     0,
 				Title:       "Column Names Row",
 				Description: "1-based row number containing column names. 0 means auto-detect.",
 			}),
-			"valuesStartRow": schema.Prop(coreschema.PropertySchema{
+			"values_start_row": schema.Prop(coreschema.PropertySchema{
 				Type:        "integer",
 				Default:     0,
 				Title:       "Values Start Row",
 				Description: "1-based row number where data values begin. 0 means auto-detect.",
 			}),
-			"useCodeFinder": schema.Prop(coreschema.PropertySchema{
+			"use_code_finder": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Enable Inline Code Detection",
 				Description: "Enable regex-based inline code detection within cell values",
 			}),
-			"codeFinderRules": schema.Prop(coreschema.PropertySchema{
+			"code_finder_rules": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Code Finder Rules",
 				Description: "Regex patterns that match inline codes within translatable text",
 				Widget:      "code-finder",
-				Visible:     &coreschema.ConditionExpr{Field: "useCodeFinder", Eq: true},
+				Visible:     &coreschema.ConditionExpr{Field: "use_code_finder", Eq: true},
 			}),
 		},
 	}

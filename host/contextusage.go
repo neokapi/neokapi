@@ -60,7 +60,7 @@ func newContextUsage(records []contextop.Record, project workspace.ProjectKey, s
 			u.established = append(u.established, r)
 			continue
 		}
-		if !r.Status.Advises() || r.Established {
+		if !r.Status.Advisory() || r.Established {
 			continue
 		}
 		if key := suggestionKey(rule.Term); key != "" {

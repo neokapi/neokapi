@@ -440,7 +440,7 @@ func settleGroup(records []Record, f *settleFacts, group, dropped []int, rivals 
 		switch {
 		case len(backing) == 0:
 			// Nothing a person did backs it: whatever an establish operation
-			// once rested on no longer holds, and it advises.
+			// once rested on no longer holds, and it is only reported.
 		case len(open) > 0:
 			r.Status = StatusContested
 			for _, id := range open {

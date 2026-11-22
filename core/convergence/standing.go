@@ -9,9 +9,9 @@ type LocaleStanding struct {
 	State     string `json:"state"` // shippable | parked | pending
 	Units     int    `json:"units,omitempty"`
 	Produced  int    `json:"produced,omitempty"`
-	ViaMemory int    `json:"viaTM,omitempty"`
-	ViaAI     int    `json:"viaAI,omitempty"`
-	ViaDraft  int    `json:"viaDrafts,omitempty"`
+	ViaMemory int    `json:"via_memory,omitempty"`
+	ViaAI     int    `json:"via_ai,omitempty"`
+	ViaDraft  int    `json:"via_drafts,omitempty"`
 }
 
 // Standing folds a run's Event stream into its per-locale standing and the

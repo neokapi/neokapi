@@ -1,6 +1,7 @@
 package project
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -27,7 +28,7 @@ func TestResolveTargetPathInRendersTheDeclaredStyle(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := ResolveTargetPathIn("app/en.json", "", "app/{lang}.json", "app/en.json", tc.lang, tc.format)
+			got := mustPath(ResolveTargetPathIn("app/en.json", "", "app/{lang}.json", "app/en.json", tc.lang, tc.format))
 			assert.Equal(t, tc.want, got)
 		})
 	}
@@ -51,7 +52,7 @@ func TestResolveTargetPathInProjectsDirectorySegments(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := ResolveTargetPathIn("app/en.json", "", tc.target, "app/en.json", "nb-NO", "posix")
+			got := mustPath(ResolveTargetPathIn("app/en.json", "", tc.target, "app/en.json", "nb-NO", "posix"))
 			assert.Equal(t, tc.want, got)
 		})
 	}
@@ -62,7 +63,7 @@ func TestResolveTargetPathInProjectsDirectorySegments(t *testing.T) {
 func TestLocaleFormatRoundTrips(t *testing.T) {
 	for _, declared := range []model.LocaleID{"nb-NO", "zh-Hans", "pt-BR"} {
 		t.Run(string(declared), func(t *testing.T) {
-			onDisk := ResolveTargetPathIn("app/en.json", "", "app/{lang}.json", "app/en.json", string(declared), "posix")
+			onDisk := mustPath(ResolveTargetPathIn("app/en.json", "", "app/{lang}.json", "app/en.json", string(declared), "posix"))
 
 			// The path is written in the declared style.
 			assert.Contains(t, onDisk, "_")
@@ -110,9 +111,11 @@ collections:
 
 	// The file it writes is not.
 	item := ContentItem{Path: "app/en.json", Target: "app/{lang}.json"}
-	assert.Equal(t, "app/nb_NO.json", ctx.TargetPath(item, "app/en.json", ctx.TargetLocales[0]))
+	assert.Equal(t, "app/nb_NO.json", mustPath(ctx.TargetPath(item, "app/en.json", ctx.TargetLocales[0])))
+	assert.Equal(t, filepath.Join(ctx.ProjectDir, "app", "nb_NO.json"), ctx.TargetFile(item, "app/en.json", ctx.TargetLocales[0]))
+	assert.Empty(t, ctx.TargetFile(ContentItem{Path: "app/en.json"}, "app/en.json", ctx.TargetLocales[0]))
 
 	// And a project that declares nothing writes the canonical name.
 	plain := &ProjectContext{}
-	assert.Equal(t, "app/nb-NO.json", plain.TargetPath(item, "app/en.json", "nb-NO"))
+	assert.Equal(t, "app/nb-NO.json", mustPath(plain.TargetPath(item, "app/en.json", "nb-NO")))
 }

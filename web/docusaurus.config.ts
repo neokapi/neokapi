@@ -55,6 +55,20 @@ const channelVersion = (
   process.env.DOCS_CHANNEL_VERSION ||
   git(["describe", "--tags", "--abbrev=0", "--match", "v[0-9]*"])
 ).replace(/^v/, "");
+// After a GA release, main's nearest tag is that GA tag, so the next channel
+// describes the following minor until its first release candidate is tagged.
+// A prerelease tag names the channel version as it is.
+const describedVersion = channelVersion;
+const channelIsPrerelease = /-/.test(describedVersion);
+const nextMinor = (v: string): string => {
+  const m = /^(\d+)\.(\d+)\.\d+$/.exec(v);
+  return m ? `${m[1]}.${Number(m[2]) + 1}.0` : v;
+};
+const channelVersionShown =
+  channel === "next" && describedVersion && !channelIsPrerelease
+    ? nextMinor(describedVersion)
+    : describedVersion;
+
 const stableVersion = (
   process.env.DOCS_STABLE_VERSION ||
   git(["tag", "--list", "v[0-9]*", "--sort=-v:refname"])
@@ -65,10 +79,11 @@ const stableVersion = (
 ).replace(/^v/, "");
 
 const docsChannel =
-  channelVersion && stableVersion
+  channelVersionShown && stableVersion
     ? {
         channel,
-        version: channelVersion,
+        version: channelVersionShown,
+        prerelease: channelIsPrerelease,
         stableVersion,
         stableUrl: `${siteUrl}/`,
         nextUrl: `${siteUrl}/next/`,
@@ -157,6 +172,21 @@ const brand = JSON.parse(fs.readFileSync(path.join(__dirname, "brand.json"), "ut
   tagline: string;
 };
 
+// The locales one build covers. Docusaurus builds them one after another, and
+// each costs as much as the first, so a pull request that changes no
+// translation input builds the source locale alone (DOCS_LOCALES=en, set by
+// docs-kapi.yml). Unset, every locale builds, as on main and locally.
+const allLocales = ["en", "nb", "qps"];
+const docsLocales = (process.env.DOCS_LOCALES ?? allLocales.join(","))
+  .split(",")
+  .map((locale) => locale.trim())
+  .filter(Boolean);
+if (!docsLocales.includes("en") || docsLocales.some((locale) => !allLocales.includes(locale))) {
+  throw new Error(
+    `DOCS_LOCALES must list "en" and only ${allLocales.join(", ")}; got "${process.env.DOCS_LOCALES}"`,
+  );
+}
+
 const config: Config = {
   title: "neokapi",
   tagline: brand.tagline,
@@ -196,7 +226,7 @@ const config: Config = {
 
   i18n: {
     defaultLocale: "en",
-    locales: ["en", "nb", "qps"],
+    locales: docsLocales,
     localeConfigs: {
       en: { label: "English" },
       nb: { label: "Norsk (bokmål)", htmlLang: "nb" },
@@ -210,6 +240,7 @@ const config: Config = {
   },
 
   customFields: {
+    sourceRevision: git(["rev-parse", "HEAD"]) || process.env.GITHUB_SHA || "main",
     docsChannel,
     cdnBaseUrl,
     cdnSitePrefix: "kapi",
@@ -242,6 +273,10 @@ const config: Config = {
       {
         redirects: [
           { from: "/kapi/get-started/project-vs-adhoc", to: "/kapi/projects" },
+          {
+            from: "/kapi/desktop/recipes/review-what-your-assistant-noticed",
+            to: "/kapi/desktop/recipes/review-your-assistants-suggestions",
+          },
           // The engine service is retired; the channels an application drives
           // kapi through are listed on the scripting contract.
           { from: "/reference/engine-service", to: "/reference/cli-contract" },
@@ -1163,7 +1198,7 @@ const config: Config = {
             // looking for. What kapi is measured against is its own navbar
             // item, below.
             { label: "Reference Overview", to: "/reference" },
-            { label: "Kapi CLI Commands", to: "/commands" },
+            { label: "Commands", to: "/commands" },
             { label: "Formats", to: "/formats" },
             { label: "Tools", to: "/tools" },
             { label: "AI Models", to: "/models" },
@@ -1305,7 +1340,11 @@ const config: Config = {
               to: "/framework/architecture",
             },
             {
-              label: "Kapi CLI",
+              label: "Kapi Desktop",
+              to: "/kapi/desktop/overview",
+            },
+            {
+              label: "Command line",
               to: "/kapi/cli",
             },
             {

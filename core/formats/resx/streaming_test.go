@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"runtime"
 	"runtime/debug"
 	"testing"
 
@@ -53,7 +52,7 @@ func genRESX(n int) (io.Reader, int) {
 
 // TestStreamingReaderBoundedMemory asserts the resx reader's peak heap stays
 // small and flat across a 20x document-size change when reading from a pure
-// stream with a (file-backed) skeleton store — i.e. it does not hold the whole
+// stream with a (file-backed) skeleton store. It does not hold the whole
 // document or the whole token slice.
 func TestStreamingReaderBoundedMemory(t *testing.T) {
 	if testing.Short() {
@@ -68,47 +67,22 @@ func TestStreamingReaderBoundedMemory(t *testing.T) {
 		require.NoError(t, err)
 		defer store.Close()
 		reader.SetSkeletonStore(store)
+		gate := testutil.NewGate(pr)
 		require.NoError(t, reader.Open(context.Background(), &model.RawDocument{
 			URI:          "big.resx",
 			SourceLocale: model.LocaleEnglish,
-			Reader:       io.NopCloser(pr),
+			Reader:       io.NopCloser(gate),
 		}))
 
-		// liveHeap forces a GC so HeapAlloc reflects the *retained* working set
-		// rather than transient per-part garbage that a streaming reader
-		// legitimately produces. Sampling raw HeapAlloc (garbage included) made
-		// the absolute bound below flaky on slower CI runners, where more
-		// uncollected garbage accumulates between samples; live heap is the
-		// metric this test actually means. A reader that buffered the whole
-		// document would keep it *live*, so this still trips the bound below.
-		liveHeap := func() uint64 {
-			runtime.GC()
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-			return m.HeapAlloc
-		}
-
-		// Sample ~256 times regardless of document size (stride scales with n).
-		// A fixed stride of 256 would sample the small run only a handful of
-		// times and the 20x-larger run 20x more often; since a streaming reader's
-		// live heap fluctuates by a bounded, document-size-independent amount (up
-		// to ~64 in-flight parts queued in its channel), the frequently-sampled
-		// large run catches that bounded burst while the rarely-sampled small run
-		// misses it — which made the ps*3 ratio bound flaky for this low-footprint
-		// format. Equal sample density makes ps and pl estimate the same bounded
-		// working set, so the ratio reflects real scaling, not sampling luck.
-		stride := max(n/256, 1)
-		base := liveHeap()
-		count := 0
-		for res := range reader.Read(context.Background()) {
+		// The gate stops the reader at 256 points through the document, the
+		// same density for both sizes, so the two runs estimate the same
+		// bounded working set. Each sample is taken with the reader waiting at
+		// the gate and every part it produced received: nothing allocates
+		// during the collection. A reader that held the document would keep it
+		// live, so the bound below still trips.
+		peak = testutil.SamplePeak(gate, int64(sz), 256, reader.Read(context.Background()), func(res model.PartResult) {
 			require.NoError(t, res.Error)
-			count++
-			if count%stride == 0 {
-				if h := liveHeap(); h > base && h-base > peak {
-					peak = h - base
-				}
-			}
-		}
+		})
 		reader.Close()
 		return peak, sz
 	}

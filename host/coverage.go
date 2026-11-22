@@ -310,7 +310,7 @@ type basisVerdict int
 
 const (
 	// basisNone — nothing is recorded for this unit and locale. A target here is
-	// one the project knows nothing about: written by hand, or present before
+	// one the project has no record of: written by hand, or present before
 	// kapi ever ran. Nothing can call it stale, and the loop leaves it alone.
 	basisNone basisVerdict = iota
 	// basisUnknown — a record whose basis says nothing about the source in front
@@ -523,6 +523,10 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 	}
 	idx.loop = a.newLoopWrites(ctx, root)
 	st, err := a.OpenProjectState(ctx, root)
+	if errors.Is(err, errNoProjectStore) {
+		// A read that creates no store finds no decision in a project with none.
+		return idx, nil
+	}
 	if err != nil {
 		return idx, err
 	}

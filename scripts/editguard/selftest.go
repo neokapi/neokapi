@@ -3,12 +3,11 @@ package main
 import (
 	"fmt"
 	"go/ast"
-	"go/importer"
 	"go/parser"
 	"go/token"
-	"io"
-	"os"
 	"strings"
+
+	"github.com/neokapi/neokapi/scripts/internal/guardpackages"
 )
 
 // fixtures are packages the check must report, or must pass, each with the
@@ -32,7 +31,7 @@ import (
 	"github.com/spf13/pflag"
 )
 func quiet(fs *pflag.FlagSet, l *log.Logger) { fs.SetOutput(io.Discard); l.SetOutput(io.Discard) }`},
-	{"a file replaced outside the file home", 2, `package f
+	{"a file replaced outside the file home", 3, `package f
 import (
 	"io"
 	"github.com/neokapi/neokapi/core/atomicfile"
@@ -41,35 +40,29 @@ func write(w func(io.Writer) error) error {
 	if _, err := atomicfile.Replace("out.html", w); err != nil {
 		return err
 	}
-	_, err := atomicfile.Stage("out.html", w)
+	if _, err := atomicfile.Stage("out.html", w); err != nil {
+		return err
+	}
+	_, err := atomicfile.StageWithin(".", "out.html", w)
 	return err
 }`},
 	{"reading a file's target with atomicfile", 0, `package f
 import "github.com/neokapi/neokapi/core/atomicfile"
 func where(p string) (string, error) { t, _, _, err := atomicfile.Resolve(p); return t, err }`},
+	{"a file opened for reading inside a root", 0, `package f
+import "github.com/neokapi/neokapi/core/rootpath"
+func read(root, p string) error { f, err := rootpath.OpenRegular(root, p); if err == nil { f.Close() }; return err }`},
 }
 
 // runSelfTest checks every fixture and fails when one reports other than it
 // expects.
 func runSelfTest() error {
-	pkgs, err := list([]string{"github.com/neokapi/neokapi/core/format", "github.com/neokapi/neokapi/core/atomicfile", "github.com/spf13/pflag", "log"})
+	pkgs, err := guardpackages.List("github.com/neokapi/neokapi/core/format", "github.com/neokapi/neokapi/core/atomicfile", "github.com/neokapi/neokapi/core/rootpath", "github.com/spf13/pflag", "log")
 	if err != nil {
 		return err
 	}
-	exports := map[string]string{}
-	for _, p := range pkgs {
-		if p.Export != "" {
-			exports[p.ImportPath] = p.Export
-		}
-	}
 	fset := token.NewFileSet()
-	imp := importer.ForCompiler(fset, "gc", func(path string) (io.ReadCloser, error) {
-		file, ok := exports[path]
-		if !ok {
-			return nil, fmt.Errorf("no export data for %s", path)
-		}
-		return os.Open(file)
-	})
+	imp := pkgs.Importer(fset)
 	var failures []string
 	for _, fx := range fixtures {
 		f, err := parser.ParseFile(fset, "fixture.go", fx.src, 0)

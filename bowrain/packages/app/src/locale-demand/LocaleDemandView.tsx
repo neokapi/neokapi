@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  PageContainer,
 } from "@neokapi/ui";
 import {
   TIME_RANGES,
@@ -90,7 +91,7 @@ export function LocaleDemandView({
   const isSample = snapshot?.provenance.kind === "sample";
 
   return (
-    <div className="mx-auto w-full max-w-7xl p-6">
+    <PageContainer width="wide">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold">
@@ -201,6 +202,6 @@ export function LocaleDemandView({
           )}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

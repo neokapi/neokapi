@@ -4,9 +4,9 @@ name: Release PDFium plugin
 # platform. Decoupled from the main kapi release (its own cgo matrix + native
 # libpdfium bundling), like release-sat.yml.
 #
-#   * workflow_dispatch  → build-only dry run across the matrix (no sign/publish).
-#                          Use this to validate the platform matrix before tagging.
-#   * push tag pdfium-v* → build + sign + publish + register in the registry.
+#   * workflow_dispatch: build-only dry run across the matrix (no sign/publish).
+#     Use this to validate the platform matrix before tagging.
+#   * push tag pdfium-v*: build + sign + publish + register in the registry.
 on:
   push:
     tags:
@@ -18,9 +18,14 @@ permissions:
   id-token: write # cosign keyless OIDC (tag publishes)
 
 env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
   # bblanchon pdfium-binaries release to bundle (shared libs), pinned for
   # reproducible releases. workflow_dispatch dry-runs use this too.
-  PDFIUM_RELEASE: chromium/7891
+  # scripts/fetch-pdfium.sh holds the SHA-256 of each platform archive and
+  # refuses a release without them; it must match plugins/pdfium/go.mod's
+  # go-pdfium, which v1.21.5 builds against chromium/8165.
+  PDFIUM_RELEASE: chromium/8165
 
 jobs:
   build-pdfium-plugin:
@@ -29,12 +34,12 @@ jobs:
       fail-fast: false
       matrix:
         # Windows links pdfium.dll directly via GNU ld's -l:pdfium.dll
-        # (package-pdfium-plugin.sh) — no MSVC/GNU import-lib mismatch.
+        # (package-pdfium-plugin.sh), so the MSVC import lib is never used.
         build:
-          - { platform: darwin/arm64,  os: macos-latest,     goos: darwin,  goarch: arm64, asset: pdfium-mac-arm64.tgz }
-          - { platform: linux/amd64,   os: ubuntu-latest,    goos: linux,   goarch: amd64, asset: pdfium-linux-x64.tgz }
-          - { platform: linux/arm64,   os: ubuntu-24.04-arm, goos: linux,   goarch: arm64, asset: pdfium-linux-arm64.tgz }
-          - { platform: windows/amd64, os: windows-2025,     goos: windows, goarch: amd64, asset: pdfium-win-x64.tgz }
+          - { platform: darwin/arm64,  os: macos-latest,     goos: darwin,  goarch: arm64 }
+          - { platform: linux/amd64,   os: ubuntu-latest,    goos: linux,   goarch: amd64 }
+          - { platform: linux/arm64,   os: ubuntu-24.04-arm, goos: linux,   goarch: arm64 }
+          - { platform: windows/amd64, os: windows-2025,     goos: windows, goarch: amd64 }
     runs-on: ${{ matrix.build.os }}
     steps:
       - uses: actions/checkout@v7
@@ -65,17 +70,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$PDFIUM_RELEASE" = "latest" ]; then
-            url="https://github.com/bblanchon/pdfium-binaries/releases/latest/download/${{ matrix.build.asset }}"
-          else
-            url="https://github.com/bblanchon/pdfium-binaries/releases/download/${PDFIUM_RELEASE}/${{ matrix.build.asset }}"
-          fi
-          echo "downloading $url"
           # Use a repo-relative work dir: on Windows git-bash, an absolute
           # $RUNNER_TEMP ("D:\a\_temp\…") confuses tar (drive letter parsed as a
           # host) and mingw; a relative POSIX path is safe on every platform.
-          mkdir -p pdfium-work/pdfium
-          curl -sSL "$url" | tar xz -C pdfium-work/pdfium
+          scripts/fetch-pdfium.sh "${{ matrix.build.goos }}" "${{ matrix.build.goarch }}" pdfium-work/pdfium
           ls pdfium-work/pdfium pdfium-work/pdfium/lib pdfium-work/pdfium/bin 2>/dev/null || true
 
       - name: Build + package kapi-pdfium tarball

@@ -129,14 +129,14 @@ func TestOutputOptionsCombined(t *testing.T) {
 func TestSplitOutputConfig(t *testing.T) {
 	t.Run("nested map", func(t *testing.T) {
 		opts, rest, err := format.SplitOutputConfig(map[string]any{
-			"output":        map[string]any{"bom": "add", "newline": "crlf", "encoding": "utf-16le"},
-			"segmentByLine": true,
+			"output":          map[string]any{"bom": "add", "newline": "crlf", "encoding": "utf-16le"},
+			"segment_by_line": true,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, format.BOMAdd, opts.BOM)
 		assert.Equal(t, format.NewlineCRLF, opts.Newline)
 		assert.Equal(t, "utf-16le", opts.Encoding)
-		assert.Equal(t, map[string]any{"segmentByLine": true}, rest)
+		assert.Equal(t, map[string]any{"segment_by_line": true}, rest)
 	})
 
 	t.Run("dotted keys", func(t *testing.T) {

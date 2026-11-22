@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/change"
@@ -36,8 +37,7 @@ func getReviewContext(t *testing.T, s *Server, wsID, projID, blockID, locale str
 	r := httptest.NewRequest(http.MethodGet, "/?target_locale="+locale, nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "ref", "bid")
-	c.SetParamValues("rc", projID, "main", blockID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "rc"}, {Name: "id", Value: projID}, {Name: "ref", Value: "main"}, {Name: "bid", Value: blockID}})
 	c.Set("workspace_id", wsID)
 	c.Set("project_permissions", platauth.PermAll)
 	require.NoError(t, s.HandleGetReviewContext(c))
@@ -288,8 +288,7 @@ func TestReviewContext_NeedsATargetLocale(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "ref", "bid")
-	c.SetParamValues("rc", projID, "main", ids["Hello"])
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "rc"}, {Name: "id", Value: projID}, {Name: "ref", Value: "main"}, {Name: "bid", Value: ids["Hello"]}})
 	c.Set("workspace_id", wsID)
 	c.Set("project_permissions", platauth.PermAll)
 	require.NoError(t, s.HandleGetReviewContext(c))
@@ -307,8 +306,7 @@ func TestReviewContext_RequiresViewContent(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/?target_locale=fr", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "ref", "bid")
-	c.SetParamValues("rc", projID, "main", ids["Hello"])
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "rc"}, {Name: "id", Value: projID}, {Name: "ref", Value: "main"}, {Name: "bid", Value: ids["Hello"]}})
 	c.Set("workspace_id", wsID)
 	c.Set("project_permissions", platauth.Permission(0))
 	require.Error(t, s.HandleGetReviewContext(c))

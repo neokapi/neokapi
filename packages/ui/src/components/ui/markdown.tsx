@@ -38,6 +38,11 @@ export interface MarkdownProps {
   variant?: "docs" | "chat";
   /** Extra classes for the wrapper element. */
   className?: string;
+  /**
+   * Handles a click on a link in place of the browser. Where it is set, a
+   * link never navigates the page or opens a window of its own.
+   */
+  onLinkClick?: (href: string) => void;
 }
 
 /** External links open in a new tab; typeset styles the anchor itself. */
@@ -84,13 +89,42 @@ const inlineComponents: Partial<Components> = {
   blockquote: ({ children }) => <span className="italic">{children}</span>,
 };
 
-export function Markdown({ children, inline = false, variant = "docs", className }: MarkdownProps) {
+export function Markdown({
+  children,
+  inline = false,
+  variant = "docs",
+  className,
+  onLinkClick,
+}: MarkdownProps) {
+  const handled = React.useMemo<Partial<Components> | null>(() => {
+    if (!onLinkClick) return null;
+    const base = inline ? inlineComponents : blockComponents;
+    return {
+      ...base,
+      a: ({ href, children: label }) => (
+        <a
+          href={href}
+          className={
+            inline
+              ? "text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary"
+              : undefined
+          }
+          onClick={(e) => {
+            e.preventDefault();
+            if (href) onLinkClick(href);
+          }}
+        >
+          {label}
+        </a>
+      ),
+    };
+  }, [inline, onLinkClick]);
   if (!children || !children.trim()) return null;
 
   if (inline) {
     return (
       <span className={cn("[&>*]:inline", className)}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={inlineComponents}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={handled ?? inlineComponents}>
           {children}
         </ReactMarkdown>
       </span>
@@ -99,7 +133,7 @@ export function Markdown({ children, inline = false, variant = "docs", className
 
   return (
     <div className={cn("typeset", variant === "chat" ? "typeset-chat" : "typeset-docs", className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={blockComponents}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={handled ?? blockComponents}>
         {children}
       </ReactMarkdown>
     </div>

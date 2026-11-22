@@ -19,7 +19,7 @@ built-in and plugin formats uniformly. Detection cascades through extension,
 priority, and content sniffing. Byte-exact write-back rides one skeleton store
 that every reader and writer pair wires the same way, and a reader classifies
 its input **three** ways: translatable content, pure structure, and
-non-translatable-but-meaningful context that is *surfaced* rather than buried.
+non-translatable-but-meaningful context that the reader *surfaces* to tools.
 
 ## Context
 
@@ -567,9 +567,9 @@ The JSON, YAML and ARB writers declare both operations:
   deeper. It removes a member with the comma before or after it and a comment
   that ends on the member's own line. A value in an array is named by its
   position and is never added or removed. A configuration that reads a block's
-  note, id or metadata from the members beside it (`noteRules`, `idRules`,
-  `useIdStack`, `genericMetaRules`, `maxwidthRules`) declares neither
-  operation, and under `useFullKeyPath` a name such as `/nav/home` is read as
+  note, id or metadata from the members beside it (`note_rules`, `id_rules`,
+  `use_id_stack`, `generic_meta_rules`, `maxwidth_rules`) declares neither
+  operation, and under `use_full_key_path` a name such as `/nav/home` is read as
   the key path it spells.
 - YAML adds a line at the indentation of the mapping's keys, after every line
   of the anchor's value, or above the comment directly over the key it goes
@@ -949,7 +949,7 @@ a check scoped to the written change comes back with the result.
 #### Default on, via an inverted opt-out
 
 Surfacing is the **default**, controlled per format by a single boolean,
-`extractNonTranslatableContent`, exposed as a schema property in the generated
+`extract_non_translatable_content`, exposed as a schema property in the generated
 format reference and accepted in `ApplyMap` under that key. The implementation is
 an **inverted private field**:
 
@@ -979,7 +979,7 @@ non-translatable structure. The convention is uniform; each reader decides which
 of its fragments are genuinely *context* rather than inert data.
 
 Which formats expose the flag, and exactly what each surfaces, is generated into
-the [Format Reference](/formats) rather than enumerated here;
+the [Format Reference](/formats);
 [content-fidelity](/contribute/implementation/engine/content-fidelity) is the
 recipe for adding surfacing to a format.
 
@@ -991,7 +991,7 @@ Surfacing is additive over the existing guarantees.
   A surfaced renderable block stands in for the rendered body via a skeleton ref,
   or a **sub-skeleton**: verbatim segments interleaved with refs to translatable
   spans inside an otherwise-opaque payload. A surfaced comment's bytes are copied
-  verbatim. An untranslated round-trip is byte-identical whether the flag is on or
+  verbatim. An untranslated round-trip is byte-identical with the flag on and with it
   off. Translation of a surfaced *translatable* span splices in place; the
   surrounding structure is untouched.
 - **Translation-skip.** A surfaced block carries `Translatable: false`, so the
@@ -1135,7 +1135,7 @@ for the store's details.
   no changes to the engine are needed.
 - The three-way reader output policy serves ingestion and translation from one
   parse, and the inverted opt-out means a format that has not thought about the
-  question still surfaces context rather than hiding it.
+  question still surfaces context.
 
 ## Related
 

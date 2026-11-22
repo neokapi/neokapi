@@ -3,9 +3,11 @@ package backend
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/kapi-desktop/backend/sample"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -291,4 +293,33 @@ func TestDetectFormatByExtension(t *testing.T) {
 	for _, tt := range tests {
 		assert.Equal(t, tt.expect, app.DetectFormat(tt.path), "for %s", tt.path)
 	}
+}
+
+func TestListProjectFilesMarksTheSampleContextFiles(t *testing.T) {
+	app := NewApp()
+	dir := t.TempDir()
+	require.NoError(t, sample.Scaffold("kapimart", dir))
+	tab, err := app.OpenProject(filepath.Join(dir, "kapi.yaml"))
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+	files, err := app.ListProjectFiles(tab.ID)
+	require.NoError(t, err)
+	var context, content int
+	for _, f := range files {
+		if f.IsDir {
+			continue
+		}
+		rel := filepath.ToSlash(f.Relative)
+		if strings.HasPrefix(rel, "context/") {
+			assert.True(t, f.Context, "%s is a context file", rel)
+			context++
+		} else if f.Context {
+			t.Errorf("%s is content, not a context file", rel)
+		} else {
+			content++
+		}
+	}
+	assert.NotZero(t, context)
+	assert.NotZero(t, content)
 }

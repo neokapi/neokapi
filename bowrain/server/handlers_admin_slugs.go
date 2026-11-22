@@ -9,14 +9,14 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // HandleAdminListSlugReservations returns all active workspace slug
 // reservations (most recent first), used by the ctrl admin UI.
 //
 // GET /api/admin/slug-reservations
-func (s *Server) HandleAdminListSlugReservations(c echo.Context) error {
+func (s *Server) HandleAdminListSlugReservations(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
@@ -37,7 +37,7 @@ type adminReleaseSlugRequest struct {
 // returns 404 only if the slug was never reserved.
 //
 // POST /api/admin/slug-reservations/release
-func (s *Server) HandleAdminReleaseSlugReservation(c echo.Context) error {
+func (s *Server) HandleAdminReleaseSlugReservation(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}

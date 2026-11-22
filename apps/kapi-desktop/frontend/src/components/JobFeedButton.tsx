@@ -13,11 +13,18 @@ import { Button, RunErrorNotice, ScrollArea, SimpleTooltip } from "@neokapi/ui-p
 import { useJobFeed, type Job } from "../context/JobFeedContext";
 
 /**
- * Persistent job feed button in the top-right header area.
- * Shows a badge when jobs are active, and a dropdown panel on click.
+ * Job feed button in the top-right header area. It appears once the session
+ * has a job, running or finished, shows a badge while jobs run, and opens a
+ * dropdown panel on click.
  */
-export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void }) {
-  const { jobs, hasActive, selectJob, clearJob, clearAll } = useJobFeed();
+export function JobFeedButton({
+  onViewJob,
+  canViewJob,
+}: {
+  onViewJob?: (job: Job) => void;
+  canViewJob?: (job: Job) => boolean;
+}) {
+  const { jobs, hasActive, clearJob, clearAll } = useJobFeed();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -37,6 +44,10 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
   useEffect(() => {
     if (hasActive) setOpen(true);
   }, [hasActive]);
+
+  // Nothing has run this session (or the finished jobs were cleared): the top
+  // bar carries no button for an empty feed.
+  if (jobs.length === 0) return null;
 
   const statusIcon = (job: Job) => {
     switch (job.status) {
@@ -72,10 +83,8 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
   };
 
   const handleView = (job: Job) => {
-    selectJob(job.id);
     setOpen(false);
-    // Defer navigation to avoid updating AppInner while ViewSwitch is rendering.
-    queueMicrotask(() => onViewJob?.(job));
+    onViewJob?.(job);
   };
 
   return (
@@ -178,7 +187,7 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
                         </div>
                         <div className="h-1 rounded-full bg-accent overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-primary transition-all duration-300"
+                            className="h-full rounded-full bg-primary transition-[width] duration-300"
                             style={{
                               width: `${(job.progress.current / job.progress.total) * 100}%`,
                             }}
@@ -222,13 +231,15 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
 
                     {/* Actions row */}
                     <div className="flex items-center gap-1 mt-1.5 ml-5">
-                      <button
-                        onClick={() => handleView(job)}
-                        className="text-[10px] text-primary hover:text-primary/80 flex items-center gap-0.5 transition-colors"
-                      >
-                        <ExternalLink size={10} />
-                        View
-                      </button>
+                      {onViewJob && (canViewJob?.(job) ?? true) && (
+                        <button
+                          onClick={() => handleView(job)}
+                          className="text-[10px] text-primary hover:text-primary/80 flex items-center gap-0.5 transition-colors"
+                        >
+                          <ExternalLink size={10} />
+                          View
+                        </button>
+                      )}
                       {job.status !== "running" && (
                         <button
                           onClick={() => clearJob(job.id)}

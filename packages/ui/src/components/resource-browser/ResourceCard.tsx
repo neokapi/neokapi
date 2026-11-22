@@ -50,7 +50,7 @@ export function ResourceCard({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md group ${className ?? ""}`}
+      className={`w-full text-left rounded-lg border border-border bg-card p-4 transition-[border-color,box-shadow] hover:border-primary/30 hover:shadow-md group ${className ?? ""}`}
     >
       <div className="flex items-start gap-3">
         {icon && (

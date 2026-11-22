@@ -83,13 +83,13 @@ function computeParticles(
 
   for (const evt of events) {
     if (evt.ts > time) break;
-    if (!evt.partId) continue;
-    const existing = partStates.get(evt.partId);
+    if (!evt.part_id) continue;
+    const existing = partStates.get(evt.part_id);
     const worker = (evt.meta?.worker as number | undefined) ?? existing?.worker;
     if (existing && existing.lastEvent.type === "exit") {
-      partStates.set(evt.partId, { lastEvent: evt, prevExit: existing.lastEvent, worker });
+      partStates.set(evt.part_id, { lastEvent: evt, prevExit: existing.lastEvent, worker });
     } else {
-      partStates.set(evt.partId, { lastEvent: evt, prevExit: existing?.prevExit, worker });
+      partStates.set(evt.part_id, { lastEvent: evt, prevExit: existing?.prevExit, worker });
     }
   }
 
@@ -104,16 +104,16 @@ function computeParticles(
     const { lastEvent, worker } = state;
     const snapshot = parts[partId]?.initial;
     if (!snapshot) continue;
-    const nIdx = nodeIndex.get(lastEvent.nodeId);
+    const nIdx = nodeIndex.get(lastEvent.node_id);
     if (nIdx === undefined) continue;
 
     if (lastEvent.type === "enter") {
-      activeNodes.add(lastEvent.nodeId);
+      activeNodes.add(lastEvent.node_id);
       particles.push({
         partId,
         partType: snapshot.type,
         position: "node",
-        nodeId: lastEvent.nodeId,
+        nodeId: lastEvent.node_id,
         summary: snapshot.summary,
         worker,
       });
@@ -123,9 +123,9 @@ function computeParticles(
         let nextEnterTs: number | null = null;
         for (const evt of events) {
           if (
-            evt.partId === partId &&
+            evt.part_id === partId &&
             evt.type === "enter" &&
-            evt.nodeId === nodes[nextNodeIdx].id
+            evt.node_id === nodes[nextNodeIdx].id
           ) {
             nextEnterTs = evt.ts;
             break;
@@ -171,13 +171,13 @@ function describeDelta(
   // Group by (type, nodeId), collecting distinct parts.
   const groups = new Map<string, { type: string; node: string; parts: Set<string> }>();
   for (const e of events) {
-    const key = `${e.type}:${e.nodeId}`;
+    const key = `${e.type}:${e.node_id}`;
     let g = groups.get(key);
     if (!g) {
-      g = { type: e.type, node: e.nodeId, parts: new Set() };
+      g = { type: e.type, node: e.node_id, parts: new Set() };
       groups.set(key, g);
     }
-    if (e.partId) g.parts.add(e.partId);
+    if (e.part_id) g.parts.add(e.part_id);
   }
 
   const verb = (t: string) => (t === "enter" ? "entered" : t === "exit" ? "left" : t);
@@ -187,10 +187,10 @@ function describeDelta(
     // When a single part leaves a node and gained a target, call it out.
     if (n === 1 && g.type === "exit") {
       const pid = [...g.parts][0];
-      const after = parts[pid]?.afterNode?.[g.node];
-      if (after?.targetText) {
+      const after = parts[pid]?.after_node?.[g.node];
+      if (after?.target_text) {
         phrases.push(
-          `${after.id || "a part"} left ${labelOf(g.node)} → "${truncate(after.targetText, 32)}"`,
+          `${after.id || "a part"} left ${labelOf(g.node)} → "${truncate(after.target_text, 32)}"`,
         );
         continue;
       }
@@ -292,7 +292,7 @@ export function useFlowPlayback(options: Options): FlowPlaybackReturn {
       events: frameEvents,
       summary: describeDelta(frameEvents, nodes, parts),
       affectedPartIds: Array.from(
-        new Set(frameEvents.map((e) => e.partId).filter(Boolean) as string[]),
+        new Set(frameEvents.map((e) => e.part_id).filter(Boolean) as string[]),
       ),
     };
   }, [events, nodes, parts, time, frameIndex]);

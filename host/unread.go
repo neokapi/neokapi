@@ -39,7 +39,7 @@ type UnreadSet struct {
 	// run, "priced" for a plan. Empty reads as "checked".
 	outcome string
 	// installed are the discovered plugins whose manifests name the plugin
-	// that supplies a format, ahead of the formats kapi knows.
+	// that supplies a format, ahead of the formats kapi lists.
 	installed []*pluginhost.Plugin
 }
 
@@ -49,7 +49,7 @@ type missingReader struct {
 	// what names the reader: `format "sourcecode"`, or `TypeScript comments`.
 	what string
 	// plugin is the registry name of the plugin that supplies the reader, or
-	// empty when kapi knows no plugin that does.
+	// empty when kapi lists no plugin that does.
 	plugin string
 }
 
@@ -67,7 +67,7 @@ func missingReaderOf(err error, format string, installed []*pluginhost.Plugin) m
 }
 
 // installClause says how to get a reader: the command that installs plugin, or,
-// when plugin is empty, that kapi knows no plugin that supplies it.
+// when plugin is empty, that kapi lists no plugin that supplies it.
 func installClause(plugin string) string {
 	if plugin == "" {
 		return "no known plugin supplies it"

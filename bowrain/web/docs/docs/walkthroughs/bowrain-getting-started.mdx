@@ -9,12 +9,12 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Getting started from a local codebase (kapi)
 
-The kapi developer path: connect a local project to your Bowrain server, push the
-source for the team, and pull results back, synced like git.
-This is one of [several routes into a workspace](/server/connectors), and the
-one for a developer working from a checkout. Content in a content platform, a
-design tool, or a repository connects server-side instead: no checkout, and
-nothing installed.
+Connect a local project to your Bowrain server so the team works on the same
+content: you push the source, the server catches every language up, and you
+pull the results back, as with git. This is the
+[route into a workspace](/server/connectors) for a developer working from a
+checkout. Content in a content platform, a design tool or a repository
+connects server-side instead, with no checkout and nothing installed.
 
 <ThemedVideo
   sources={{
@@ -24,14 +24,19 @@ nothing installed.
   outdated="wording"
 />
 
-`kapi init --server https://app.bowrain.cloud` writes a `kapi.yaml` recipe with a
-collection for each kind of content it finds, keeps a cache for the checkout in
-`.kapi/`, and connects the project to your Bowrain server (pass
-`--workspace <slug>` if you belong to several). `kapi add` tracks files init did
-not propose; `kapi push` sends the source up (pure transport); `kapi status`
-shows standing, exactly like git; and `kapi pull` brings results back into
-the same files and formats. `kapi up` does all of it on the server in one command (push, catch up, and
-pull) for the daily reconcile and for CI.
+The video shows these steps:
+
+1. `kapi init --server https://app.bowrain.cloud` writes a `kapi.yaml` recipe
+   with a collection for each kind of content it finds, keeps a cache for the
+   checkout in `.kapi/`, and connects the project to your Bowrain server. Pass
+   `--workspace <slug>` if you belong to several.
+2. `kapi add` tracks files init did not propose.
+3. `kapi push` sends the source up.
+4. `kapi status` shows where the project stands, as `git status` does.
+5. `kapi pull` brings the results back into the same files and formats.
+
+`kapi up` does push, catch up and pull on the server in one command, for daily
+use and for CI.
 
 ## Next
 

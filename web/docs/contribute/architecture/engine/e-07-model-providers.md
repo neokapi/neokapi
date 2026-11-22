@@ -195,15 +195,15 @@ primary list, which is sorted Recommended → Advanced → Legacy (superseded). 
 *active default* can never be non-recommended; a test enforces it.
 
 **Catalog validation.** `make check-models` (`scripts/modelcheck`) lists each
-provider's available models and reports catalogued models that are no longer
-served. With `-candidates`, it also reports available models missing from the catalog. The
+provider's available models and reports catalogued models that the provider does
+not serve. With `-candidates`, it also reports available models missing from the catalog. The
 live half needs provider credentials and stays a manual or scheduled tool: a
 rate-limited provider must never be mistaken for a retired one, the same
 false-cliff trap the [batch eval](/batch-eval) guards against. The keyless half
 (every published price must be for a catalogued model) is an ordinary unit test,
 so it runs in `make test`. The `/models` page is generated from the catalog and
-gated by `make check-reference-docs`, so it cannot describe a model the catalog
-no longer lists.
+gated by `make check-reference-docs`, so it cannot describe a model missing from the
+catalog.
 
 #### StreamingLLMProvider
 
@@ -244,7 +244,7 @@ tool's own configuration, illustrated by `translate` (`core/ai/tools/translate.g
 - **Batching intent rather than a magic number.** The user-facing knob is `--batching`
   with two values: `auto`, the default, hands sizing to a packer that fits blocks
   to the model's context and output ceilings from the catalog; `single` pins one
-  block per call. An explicit `batchSize` in a flow step's config overrides both.
+  block per call. An explicit `batch_size` in a flow step's config overrides both.
 - **Two automatic downgrades to per-block.** A *local* provider is forced to
   `single`, because a small on-device model tends to ignore the "return JSON"
   instruction and emit plain numbered text, and a very large prompt is a slow
@@ -349,7 +349,7 @@ Both provider families resolve credentials through one function,
 
 1. A tool that does not declare `credentials` in `Requires` is returned
    unchanged.
-2. An inline `apiKey`: the `--api-key` flag, or a step's own config.
+2. An inline `api_key`: the `--api-key` flag, or a step's own config.
 3. A saved credential named with `--credential`.
 4. Nothing at all, for a **keyless local provider** (Ollama, demo): a local run
    is never failed for want of a saved credential.
@@ -358,7 +358,7 @@ Both provider families resolve credentials through one function,
 
 Keys never appear in flow definitions or project files.
 
-**The endpoint travels with the key.** `baseURL` is part of the same decision as
+**The endpoint travels with the key.** `base_url` is part of the same decision as
 the secret sent to it, so it is stored alongside the credential (`kapi
 credentials add --base-url`) and injected during credential resolution. A flow
 step's `config:` cannot set it: `ResolveCredentials` clears the key on the way in,
@@ -392,9 +392,26 @@ keeping a recipe out of it is a separate act.
 value came from** (`env` | `config` | `none`), and `config.SetAIDefault` /
 `config.ClearAIDefault` are the matching single write path.
 
-Precedence, matching every other config key: an explicit `--provider`/`--model`
-flag or an inline recipe value first, then `KAPI_AI_PROVIDER` / `KAPI_AI_MODEL`,
-then the stored `ai.provider` / `ai.model`.
+Precedence, for every step of every flow a run executes (`kapi up`, `kapi run`,
+`kapi translate`, a recipe flow, a flow file and the built-in default alike):
+
+1. a key the step's own `config:` sets,
+2. the run flag (`--provider`, `--model`, `--credential`, `--api-key`,
+   `--instruction`, `--context`, `--batching`),
+3. the recipe's tool presets, `defaults.locales.<lang>.tools` and then
+   `defaults.tools`,
+4. `KAPI_AI_PROVIDER` / `KAPI_AI_MODEL`, then the stored `ai.provider` /
+   `ai.model`,
+5. the tool's own default.
+
+A step that names its own provider keeps it, so a flow that compares two
+providers still compares them, and the run prints a note naming each flag a
+step kept its own value over. `host.seedRunConfig` applies the rule in one
+place; `ResolveProjectFlow` and the convergence flow resolve through it, and
+the AI-setup decision (`ProjectFlowNeedsAISetup`) takes the same run
+configuration, so a run given `--provider` is never asked to set one up. The
+desktop passes none. The server venue runs with the provider its workspace is
+configured with, so `kapi up` refuses a run flag there and names `--local`.
 
 One resolver rather than six read sites, because six read sites had no shared
 answer to "what is configured, and where did it come from", so a scope bug in
@@ -452,8 +469,8 @@ another), and the rest of the flow is unchanged.
 Model-backed tools receive terminology context from upstream stages: matched
 terms and their preferred translations, identified entities with their
 do-not-translate flags and locale formatting hints, and a dedicated term-constraint
-section for the current Block's coordinates. Terminology is therefore not only a
-post-translation check; it guides the generation from the start
+section for the current Block's coordinates. Terminology is therefore a
+post-translation check and also guides the generation from the start
 ([C-08](../context/c-08-terms.md)).
 
 ### Scope boundary

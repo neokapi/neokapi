@@ -55,9 +55,9 @@ function page(view: AssistantsView, props: Partial<Parameters<typeof AssistantsP
 }
 
 describe("the Assistants page", () => {
-  it("titles the page with the project and says what connecting does", () => {
+  it("titles the page Assistants and says what connecting does", () => {
     page(ASSISTANTS_NONE);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("KapiMart · Assistants");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Assistants");
     expect(document.querySelector("[data-slot='assistants-pitch']")?.textContent).toBe(
       "Checks every edit · follows your 4 rules · leaves suggestions here",
     );

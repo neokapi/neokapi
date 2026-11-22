@@ -11,7 +11,7 @@ function ce(event: ConvergeEvent): RunEvent {
 describe("reduceConvergeRun (typed converge_event stream)", () => {
   it("builds a pass with one queued row per pending locale on pass_start", () => {
     const model = reduceConvergeRun([
-      ce({ type: "pass_start", pass: 1, maxPasses: 6, pending: ["fr-FR", "de-DE"] }),
+      ce({ type: "pass_start", pass: 1, max_passes: 6, pending: ["fr-FR", "de-DE"] }),
     ]);
     expect(model.live).toBe(true);
     expect(model.passes).toHaveLength(1);
@@ -24,23 +24,23 @@ describe("reduceConvergeRun (typed converge_event stream)", () => {
 
   it("advances a locale row through running → done with content memory/AI split", () => {
     const model = reduceConvergeRun([
-      ce({ type: "pass_start", pass: 1, maxPasses: 6, pending: ["fr-FR"] }),
+      ce({ type: "pass_start", pass: 1, max_passes: 6, pending: ["fr-FR"] }),
       ce({ type: "locale_start", pass: 1, locale: "fr-FR", units: 20 }),
-      ce({ type: "unit_progress", pass: 1, locale: "fr-FR", done: 8, viaTM: 5, viaAI: 3 }),
+      ce({ type: "unit_progress", pass: 1, locale: "fr-FR", done: 8, via_memory: 5, via_ai: 3 }),
       ce({
         type: "locale_done",
         pass: 1,
         locale: "fr-FR",
         units: 20,
         done: 20,
-        viaTM: 12,
-        viaAI: 8,
+        via_memory: 12,
+        via_ai: 8,
       }),
     ]);
     const row = model.passes[0].rows[0];
-    // The incoming events carry the wire field `viaTM`; the render model calls
+    // The incoming events carry the wire field `via_memory`; the render model calls
     // the same number `viaMemory`. Asserting on the model side uses the model
-    // name — a `viaTM` expectation here passes vacuously under toMatchObject.
+    // name: a `via_memory` expectation here passes vacuously under toMatchObject.
     expect(row).toMatchObject({
       locale: "fr-FR",
       state: "done",
@@ -53,23 +53,23 @@ describe("reduceConvergeRun (typed converge_event stream)", () => {
 
   it("mid-flight unit_progress leaves the row running with partial counts", () => {
     const model = reduceConvergeRun([
-      ce({ type: "pass_start", pass: 1, maxPasses: 6, pending: ["fr-FR"] }),
+      ce({ type: "pass_start", pass: 1, max_passes: 6, pending: ["fr-FR"] }),
       ce({ type: "locale_start", pass: 1, locale: "fr-FR", units: 20 }),
-      ce({ type: "unit_progress", pass: 1, locale: "fr-FR", done: 8, viaTM: 5, viaAI: 3 }),
+      ce({ type: "unit_progress", pass: 1, locale: "fr-FR", done: 8, via_memory: 5, via_ai: 3 }),
     ]);
     expect(model.passes[0].rows[0]).toMatchObject({ state: "running", done: 8, units: 20 });
   });
 
   it("records the pass summary on pass_done", () => {
     const model = reduceConvergeRun([
-      ce({ type: "pass_start", pass: 1, maxPasses: 6, pending: ["fr-FR", "de-DE"] }),
+      ce({ type: "pass_start", pass: 1, max_passes: 6, pending: ["fr-FR", "de-DE"] }),
       ce({ type: "locale_done", pass: 1, locale: "fr-FR", units: 20, done: 20 }),
       ce({
         type: "pass_done",
         pass: 1,
         produced: 40,
-        producedDelta: 40,
-        failingChecks: 3,
+        produced_delta: 40,
+        failing_checks: 3,
         pending: ["de-DE"],
       }),
     ]);
@@ -84,10 +84,10 @@ describe("reduceConvergeRun (typed converge_event stream)", () => {
 
   it("accumulates multiple passes and the run outcome", () => {
     const model = reduceConvergeRun([
-      ce({ type: "pass_start", pass: 1, maxPasses: 6, pending: ["de-DE"] }),
-      ce({ type: "pass_done", pass: 1, produced: 40, producedDelta: 40, pending: ["de-DE"] }),
-      ce({ type: "pass_start", pass: 2, maxPasses: 6, pending: ["de-DE"] }),
-      ce({ type: "pass_done", pass: 2, produced: 43, producedDelta: 3, pending: [] }),
+      ce({ type: "pass_start", pass: 1, max_passes: 6, pending: ["de-DE"] }),
+      ce({ type: "pass_done", pass: 1, produced: 40, produced_delta: 40, pending: ["de-DE"] }),
+      ce({ type: "pass_start", pass: 2, max_passes: 6, pending: ["de-DE"] }),
+      ce({ type: "pass_done", pass: 2, produced: 43, produced_delta: 3, pending: [] }),
       ce({ type: "materialized", files: 12 }),
       ce({ type: "done", state: "converged" }),
     ]);

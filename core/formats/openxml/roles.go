@@ -241,16 +241,21 @@ func attrLocalVal(start xml.StartElement, local string) string {
 // Block: a heading/title style wins (numbered headings keep their heading
 // role), otherwise a list style or a numbering declaration marks the block as
 // a list item, and
-// failing both a note part (footnotes/endnotes) supplies a footnote role. It
-// also records the part's plane (header/footer → furniture) and per-paragraph
-// visibility (a fully hidden paragraph → hidden) — the §8 structure facets.
-// All additive stand-off metadata; never serialized back, so byte-faithful
-// round-trip is unaffected.
+// failing both a note part (footnotes/endnotes) supplies a footnote role. A
+// paragraph in a running header or footer takes page-header or page-footer
+// whatever its style, unless it sits in a table cell. It also records the
+// part's plane (header/footer → furniture, comments → metadata) and
+// per-paragraph visibility (a fully hidden paragraph → hidden), the §8
+// structure facets. All additive stand-off metadata; never serialized back,
+// so byte-faithful round-trip is unaffected.
 func (p *wmlParser) applyParagraphRole(block *model.Block, paraStyleID, rawParaProps string, hidden bool) {
 	if block == nil {
 		return
 	}
-	if r := roleForParaStyle(paraStyleID, p.roleStyles); r.role != "" {
+	runningPart := p.partRole == model.RolePageHeader || p.partRole == model.RolePageFooter
+	if runningPart && p.cellDepth == 0 {
+		block.SetSemanticRole(p.partRole, 0)
+	} else if r := roleForParaStyle(paraStyleID, p.roleStyles); r.role != "" {
 		block.SetSemanticRole(r.role, r.level)
 	} else if paraHasNumbering(rawParaProps) {
 		block.SetSemanticRole(model.RoleListItem, 0)
@@ -294,8 +299,8 @@ func (p *wmlParser) applyParagraphRole(block *model.Block, paraStyleID, rawParaP
 		}
 		p.pendingColSpan = 0
 		p.pendingVMerge = ""
-	} else if p.partNoteRole != "" {
-		block.SetSemanticRole(p.partNoteRole, 0)
+	} else if p.partRole != "" && !runningPart {
+		block.SetSemanticRole(p.partRole, 0)
 	}
 	if p.partPlane != "" {
 		block.SetLayoutLayer(p.partPlane)
@@ -306,20 +311,25 @@ func (p *wmlParser) applyParagraphRole(block *model.Block, paraStyleID, rawParaP
 }
 
 // docxPartStructure classifies a WordprocessingML part path into the plane and
-// fallback note-role it implies: running headers/footers are furniture; the
-// footnotes/endnotes parts give their paragraphs a footnote role.
-func docxPartStructure(partPath string) (plane, noteRole string) {
+// the role it implies. Running headers and footers are furniture with the
+// page-header and page-footer roles. The footnotes and endnotes parts give
+// their paragraphs a footnote role. Comments sit outside the rendered flow, so
+// they are metadata; the role vocabulary has no entry for a reviewer comment,
+// so they carry no role.
+func docxPartStructure(partPath string) (plane, role string) {
 	base := partPath
 	if i := strings.LastIndex(base, "/"); i >= 0 {
 		base = base[i+1:]
 	}
 	switch {
 	case strings.HasPrefix(base, "header"):
-		return model.LayerFurniture, ""
+		return model.LayerFurniture, model.RolePageHeader
 	case strings.HasPrefix(base, "footer"):
-		return model.LayerFurniture, ""
+		return model.LayerFurniture, model.RolePageFooter
 	case base == "footnotes.xml" || base == "endnotes.xml":
 		return "", model.RoleFootnote
+	case base == "comments.xml":
+		return model.LayerMetadata, ""
 	}
 	return "", ""
 }

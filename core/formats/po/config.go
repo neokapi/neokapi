@@ -2,6 +2,7 @@ package po
 
 import (
 	"fmt"
+	"github.com/neokapi/neokapi/core/format"
 	"regexp"
 )
 
@@ -40,7 +41,7 @@ type Config struct {
 	MakeID bool
 
 	// IncludeMsgContextInNote mirrors Okapi's
-	// `includeMsgContextInNote` parameter — append the msgctxt value
+	// `include_msg_context_in_note` parameter — append the msgctxt value
 	// to the note annotation. Accepted for parity; the native reader
 	// stores msgctxt under the block's `context` property regardless.
 	IncludeMsgContextInNote bool
@@ -73,70 +74,70 @@ func (c *Config) Validate() error { return nil }
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "preserveUntranslated":
+		case "preserve_untranslated":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("preserveUntranslated: expected bool, got %T", val)
+				return fmt.Errorf("preserve_untranslated: expected bool, got %T", val)
 			}
 			c.PreserveUntranslated = b
-		case "bilingualMode":
+		case "bilingual_mode":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("bilingualMode: expected bool, got %T", val)
+				return fmt.Errorf("bilingual_mode: expected bool, got %T", val)
 			}
 			c.BilingualMode = b
-		case "wrapContent":
+		case "wrap_content":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("wrapContent: expected bool, got %T", val)
+				return fmt.Errorf("wrap_content: expected bool, got %T", val)
 			}
 			c.WrapContent = b
-		case "allowEmptyOutputTarget":
+		case "allow_empty_output_target":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("allowEmptyOutputTarget: expected bool, got %T", val)
+				return fmt.Errorf("allow_empty_output_target: expected bool, got %T", val)
 			}
 			c.AllowEmptyOutputTarget = b
-		case "useCodeFinder":
+		case "use_code_finder":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useCodeFinder: expected bool, got %T", val)
+				return fmt.Errorf("use_code_finder: expected bool, got %T", val)
 			}
 			c.UseCodeFinder = b
 			c.compiledCodeFinder = nil
-		case "codeFinderRules":
+		case "code_finder_rules":
 			rules, err := parseCodeFinderRules(val)
 			if err != nil {
-				return fmt.Errorf("codeFinderRules: %w", err)
+				return fmt.Errorf("code_finder_rules: %w", err)
 			}
 			c.CodeFinderRules = rules
 			c.compiledCodeFinder = nil
-		case "protectApproved":
+		case "protect_approved":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("protectApproved: expected bool, got %T", val)
+				return fmt.Errorf("protect_approved: expected bool, got %T", val)
 			}
 			c.ProtectApproved = b
-		case "makeID":
+		case "make_id":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("makeID: expected bool, got %T", val)
+				return fmt.Errorf("make_id: expected bool, got %T", val)
 			}
 			c.MakeID = b
-		case "includeMsgContextInNote":
+		case "include_msg_context_in_note":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("includeMsgContextInNote: expected bool, got %T", val)
+				return fmt.Errorf("include_msg_context_in_note: expected bool, got %T", val)
 			}
 			c.IncludeMsgContextInNote = b
-		case "outputGeneric":
+		case "output_generic":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("outputGeneric: expected bool, got %T", val)
+				return fmt.Errorf("output_generic: expected bool, got %T", val)
 			}
 			c.OutputGeneric = b
 		default:
-			return fmt.Errorf("po: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "po", key)
 		}
 	}
 	return nil

@@ -14,13 +14,13 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 The content memory is the framework's reuse store, in the `memory/` package. It
 stores multilingual entries as per-locale `[]model.Run` sequences, preserving
-inline markup and entity metadata rather than flat strings, and uses a tiered
+inline markup and entity metadata, and uses a tiered
 matching pipeline to maximize reuse. In-memory and SQLite backends ship; a wider
 backend can be supplied behind the same interface.
 
 The content memory is the project's **recycle** corpus: a pool of source→target
-pairs reused to pre-fill and leverage future work. It is not the carrier of unit
-state. Whether a person established a particular target lives in the
+pairs reused to pre-fill and leverage future work. Unit state has its own
+carrier: whether a person established a particular target lives in the
 unit-state record ([C-04](c-04-block-state-and-decisions.md)). Adding a pair to
 the memory (a `memory` operation through `kapi apply`) is recycle leverage; it does not
 promote a unit to *reviewed*.
@@ -88,6 +88,12 @@ across every variant with its per-locale value and position. `Point` records
 where the answer was approved (see [Where an answer was
 approved](#where-an-answer-was-approved)) and `Unit` which block it was approved
 for (see [Version chains and governed reuse](#version-chains-and-governed-reuse)).
+The in-memory store takes ownership of an entry when you write it. Each read
+returns an independent copy of the entry and its metadata. The store, review
+editor and recycling jobs use `model.CloneRuns` to copy nested inline content.
+You can edit a returned variant without changing the stored text or its lookup
+keys.
+
 Each `Origin` carries a `ContextFingerprint`, the governing context in force
 when that answer was produced, so an answer absorbed into the corpus keeps the
 statement about what governed it; it is empty for an import, a seed, or a
@@ -154,13 +160,13 @@ The first match at or above the configured threshold wins, so a generalized exac
 match is preferred over a plain fuzzy one.
 
 **The fill policy sits above the matcher.** The `recycle` tool looks up at its
-`fuzzyThreshold` (default 70) and fills a target at or above its
-`fillTargetThreshold` (default 95); a match between the two floors is recorded
+`fuzzy_threshold` (default 70) and fills a target at or above its
+`fill_target_threshold` (default 95); a match between the two floors is recorded
 as an alternative-translation candidate and read by nothing. The fill floor
 catches the cosmetic edits an author actually makes (a trailing period, an added
 comma, a capitalised word), which score between 96 and 98 at realistic sentence
 length. The lookup floor below it is inert. A recipe configured for exact-only fill
-sets `fillTargetThreshold: 100`, which is what the dogfood recipe does. A
+sets `fill_target_threshold: 100`, which is what the dogfood recipe does. A
 sub-exact fill is a pricing mechanism from a time when a person edited rather
 than wrote, and it is retiring in favour of the version chain below: a
 near-match makes a reader diff the source against a stored target to find what
@@ -396,7 +402,7 @@ Because the absorber's entries are reproducible from the committed translations
 by construction (that is what this stage does), an entry written under an older
 identity is **re-learned rather than migrated**: the pass drops the stamps
 that would let it skip a document, reads the record again, and afterwards
-forgets the entries it had minted that the current identity no longer mints.
+forgets the entries it had minted that the current identity does not mint.
 Entries imported from other sources are preserved.
 
 The forgetting comes after the pass rather than before it, and that ordering is

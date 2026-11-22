@@ -11,8 +11,8 @@ vi.mock("../hooks/useApi", () => ({
   api: {
     getRunState: (...args: unknown[]) => getRunStateMock(...args),
     getRunEvents: (...args: unknown[]) => getRunEventsMock(...args),
-    cancelRun: (...args: unknown[]) => cancelRunMock(...args),
-    aiNeedsModelChoice: vi.fn().mockResolvedValue(false),
+    cancelProjectRun: (...args: unknown[]) => cancelRunMock(...args),
+    checkAISetup: vi.fn().mockResolvedValue({ kind: "" }),
     matchContent: vi.fn().mockResolvedValue([]),
     bringUpToDate: (...args: unknown[]) => bringUpToDateMock(...args),
     runFlow: (...args: unknown[]) => runFlowMock(...args),
@@ -33,7 +33,7 @@ const project = {
   flows: { translate: { steps: [{ tool: "translate" }] } },
 };
 
-describe("RunnerPage converge mode (Bring up to date)", () => {
+describe("RunnerPage converge mode (Catch up)", () => {
   beforeEach(() => {
     bringUpToDateMock.mockClear();
     runFlowMock.mockClear();
@@ -60,10 +60,10 @@ describe("RunnerPage converge mode (Bring up to date)", () => {
     );
 
     // The convergence header + passes card render instead of the flow runner.
-    expect(screen.getByText("Bring up to date · translate")).toBeInTheDocument();
+    expect(screen.getByText("Catch up · translate")).toBeInTheDocument();
     expect(screen.getByText("Passes")).toBeInTheDocument();
     // No manual configuration and no pipeline card in converge mode.
-    expect(screen.queryByText("Select files...")).not.toBeInTheDocument();
+    expect(screen.queryByText("Select files…")).not.toBeInTheDocument();
     expect(screen.queryByText("Pipeline")).not.toBeInTheDocument();
 
     await waitFor(() => expect(bringUpToDateMock).toHaveBeenCalledWith("t1"));
@@ -90,7 +90,7 @@ describe("RunnerPage converge mode (Bring up to date)", () => {
     const cancel = await screen.findByRole("button", { name: "Cancel flow execution" });
     const { default: userEvent } = await import("@testing-library/user-event");
     await userEvent.click(cancel);
-    await waitFor(() => expect(cancelRunMock).toHaveBeenCalled());
+    await waitFor(() => expect(cancelRunMock).toHaveBeenCalledWith("t1"));
   });
 
   it("settles into the cancelled state when the backend reports the run canceled", async () => {
@@ -99,7 +99,12 @@ describe("RunnerPage converge mode (Bring up to date)", () => {
     // produces through the shared up engine).
     getRunStateMock.mockResolvedValue("canceled");
     getRunEventsMock.mockResolvedValue([
-      { type: "error", flow_id: "translate", message: "run canceled (context canceled)" },
+      {
+        type: "error",
+        tab_id: "t1",
+        flow_id: "translate",
+        message: "run canceled (context canceled)",
+      },
     ]);
     renderWithProviders(
       <RunnerPage

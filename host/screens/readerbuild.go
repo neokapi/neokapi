@@ -124,6 +124,8 @@ type ReaderPlacement struct {
 	// in file order.
 	Fixes map[string]string
 	Order []string
+	// From maps a fixable finding's id to the words its fix replaces.
+	From map[string]string
 }
 
 // PlaceFindings sets each finding on the block it names, in the order the
@@ -134,6 +136,7 @@ func PlaceFindings(blocks []*model.Block, findings []CheckedFinding) ReaderPlace
 		Blocks:   make([]ReaderBlockDTO, 0, len(blocks)),
 		Document: []ReaderFindingDTO{},
 		Fixes:    map[string]string{},
+		From:     map[string]string{},
 	}
 	index := make(map[string]int, len(blocks))
 	for _, b := range blocks {
@@ -159,6 +162,7 @@ func PlaceFindings(blocks []*model.Block, findings []CheckedFinding) ReaderPlace
 		f.ID = key + "-" + strconv.Itoa(seen[key])
 		if f.Fixable {
 			out.Fixes[f.ID] = cf.Fix
+			out.From[f.ID] = cf.OriginalText
 			out.Fixable++
 		}
 		i, ok := index[cf.BlockID]

@@ -356,3 +356,18 @@ func TestExportTBXSourceLocaleFilter(t *testing.T) {
 	assert.Contains(t, out, `id="has-en"`)
 	assert.NotContains(t, out, `id="no-en"`, "concept without the source locale should be filtered out")
 }
+
+// A terms store holds concepts across languages, so a TBX import keeps every
+// concept and every language in it, whatever its source language.
+func TestImportTBXKeepsEveryConcept(t *testing.T) {
+	doc := `<?xml version="1.0" encoding="UTF-8"?>
+<tbx style="dca" type="TBX-Basic"><text><body>
+  <conceptEntry id="c1"><langSec xml:lang="en-GB"><termSec><term>buoy</term></termSec></langSec><langSec xml:lang="fr"><termSec><term>bouée</term></termSec></langSec></conceptEntry>
+  <conceptEntry id="c2"><langSec xml:lang="en"><termSec><term>harbour</term></termSec></langSec><langSec xml:lang="fr"><termSec><term>port</term></termSec></langSec></conceptEntry>
+  <conceptEntry id="c3"><langSec xml:lang="de"><termSec><term>Hafen</term></termSec></langSec><langSec xml:lang="fr"><termSec><term>port</term></termSec></langSec></conceptEntry>
+</body></text></tbx>`
+	tb := NewInMemoryStore()
+	n, err := ImportTBX(context.Background(), tb, strings.NewReader(doc), TBXImportOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 3, n)
+}

@@ -21,9 +21,16 @@ once per block, and every client renders it. The desktop's detail pane and the
 MCP `review_block` tool receive the same object; a client that draws a subset
 chooses it in its own projection, and every client receives the whole.
 
-Content is reviewed block by block. What kapi learned about how a project writes
-is reviewed differently: as discovery in a **digest** that reads as news and
-never gates the work (below).
+Content is decided block by block, and read **in its container**: the
+component, the document section or the page a reader meets the block in, laid
+out by role, with the block marked and its neighbours decidable in place. A
+string alone is the fallback, never the default. Suggestions about how a
+project writes are reviewed differently: as discovery in a **digest** that
+reads as news and never gates the work (below).
+
+Every client shows an inline code by its name or its kind, never by its native
+form: `serverURL`, *link*, *line break*, not `{serverURL}`, `<a href=…>` or an
+extractor's synthesized identifier.
 
 The bar the design is held to is an invariant:
 
@@ -173,7 +180,7 @@ fails to compile in the one that ignores it. The clients are:
 | Kapi Desktop ([S-02](s-02-kapi-desktop.md)) | the queue's detail pane: the five shared cards over the model, and the document view opening at the block with review state drawn as marks |
 | `kapi status --review` ([S-01](s-01-kapi-cli.md)) | the queue as a table, `--lang` narrowing it to one or more languages, and as JSON with `--json` |
 | MCP `review_block` ([S-03](s-03-agent-surfaces.md)) | the model whole, with the reference and revision of the edition under review, as the read leg before a pre-review sent through `apply_edits`; `review_queue` lists the queue with its per-language counts and each row's reference |
-| A review surface over the REST editor | the queue as a list with the focused block beside it: the same five cards over the same model, the findings anchored on the target, with the three verdicts under them |
+| A review surface over the REST editor | the queue as a list with the focused block beside it: the same five cards over the same model, the findings anchored on the target, with the three verdicts under them; a card deck opens a block's container (`GET …/blocks/:ref/:bid/container`) laid out by role, deciding its waiting units in place |
 
 A host that records a review decision with an identity is a client of this
 model by shape: the layers are the contract, whatever renders them.
@@ -192,6 +199,132 @@ error and warning scale) as the cards' extra props. A row a venue leaves empty
 draws the card's own empty case, so the same block reads the same way on either
 surface. The origin kinds, the decision states, the tone a finding takes and
 the neutral chip a term rule takes are all named once, in the cards.
+
+### Review follows reach
+
+A project of any size produces more blocks than a person reads. Review is
+ordered by the reach of each decision, widest first, and what a person does
+not read is settled by the checks under a policy that person set:
+
+1. **Coordinates**: the products, channels, brand and languages, and the voice
+   each point binds. Each decision governs every block at the point.
+2. **Context**: terms and voice rules, the source term first and its
+   translation in each target language right after, dealt to the same
+   reviewer and ranked by the blocks each one governs.
+3. **Exceptions**: what fails a check against the context, grouped by
+   the rule it breaks, so one decision about the rule or the source clears
+   the group.
+4. **Interfaces**: complete components, sections and pages read in context
+   (the container, below), source first.
+5. **Policy**: everything else. A block that clears every bar is established
+   as a decision of the person who set the policy, recorded in the ledger
+   and reopened by any later rejection.
+
+How much a person reads at levels 4 and 5 is the project's involvement:
+`context` (the coordinates, the context, the exceptions and a sample of
+interfaces), `interfaces` (and every interface page) or `every`. It is set
+per project. Reviewing by kind of content ("the interface first",
+"the docs last") is the wrong axis: both share the same terms and voice
+rules, and deciding them once at the coordinates they span is what makes
+both right.
+
+### A block is reviewed inside its container
+
+A translation is a decision about a block, and a reader never meets a block
+alone. "Open" is a verb on a button and an adjective in a status line; a
+sentence fragment means something only in its paragraph. The review model's
+neighbourhood answers the invariant (the blocks before and after, as the model
+was told), and a review surface goes further: it draws the block inside its
+**container** and lets the reviewer decide the container's other blocks there.
+
+The container is chosen from what the reader recorded, by the first rule that
+applies:
+
+| Container | When | What it holds |
+| --- | --- | --- |
+| Component | the block has a `component` property (the React extractor records the component, file, line, element and JSX path of every string) | the component's strings, in render order |
+| Section | the block's document has headings (a structure annotation, or a block type such as a markdown `heading` with its `level`) | the heading at or above the block down to the next heading of the same or a higher level |
+| Window | otherwise | the blocks either side, in document order |
+
+Each unit of a container carries a **role** (heading with its level,
+paragraph, list item, button, label, link, caption, cell, code), read from the
+structure annotation, the block type, or a React string's element and JSX
+path, so a surface lays the container out as it reads: a heading as a
+heading, a button as a button. Each unit also carries the revisions a change
+set binds to, so a waiting unit is decided in place through the same
+operations as the block the reviewer opened.
+
+A surface shows the richest rendering of the container it can reach, and
+falls back a rung when it cannot:
+
+1. **Live.** The component rendered in its own runtime with the translation in
+   place: a Storybook story fed the pending catalog, or the running
+   application through the in-context runtime ([S-05](s-05-i18n-runtime.md)).
+2. **Rendered document.** The format's preview (`format.PreviewBuilder`, each
+   block marked `<kat-block>`), opened at the block, as the document view in
+   [S-02](s-02-kapi-desktop.md) does.
+3. **Laid out container.** The container's units drawn by role from the block
+   data alone. This needs nothing but the store, so every client can draw it,
+   a phone included.
+4. **Neighbourhood.** The model's before and after, which every client already
+   holds.
+
+Not everything a reviewer decides is a block. A term rule, a concept, a voice
+rule, a coordinate or a channel binding is a statement about how the project
+writes, complete in itself, and is reviewed as a card in the digest (below).
+Block translations are reviewed in their container; a card that shows one
+string is the quick path for a block whose container adds nothing, such as a
+short label already approved elsewhere, and it opens the container on request.
+
+### Codes are shown by name, never by their native form
+
+An inline code carries three strings, and two of them are for tools. `data` is
+the native source slice kept for the round trip (`<span className="muted">`,
+`{count}`); `equiv` is the code's identifier, which an extractor synthesizes
+when the source has none (the React extractor names an element `=m0`). Printed,
+they put markup in front of a reviewer: a review card once read
+`Needs to reach <=m0><serverURL/></=m0>`.
+
+A code is therefore shown by one rule, in both languages
+(`packages/kapi-format/src/code-display.ts`, `core/model/codedisplay.go`):
+
+- a code with a **human name** reads as the name. A human name starts with a
+  letter and holds only letters, digits, spaces, `_`, `.` and `-`; it may come
+  from the code's display label, its identifier, or the name inside a native
+  form such as `{{name}}`, `${name}` or `%(name)s`;
+- a code without one reads as the word for its **kind**: link, bold, italic,
+  code, line break, image, value, content or styled text;
+- a paired code draws its content as marked text, with no tags.
+
+`codeDisplays` returns a branded `CodeDisplay`, the only value a chip widget
+accepts, so a raw string cannot reach one; `RunsDisplayText` applies the same
+rule to text the server flattens for a list row. Vocabulary label templates
+never substitute native data, and a label that still reads as markup falls
+back to the kind. Writers keep the native form (`RenderRunsWithData`), which
+is what they are for. `scripts/check-code-display.sh` fails when interface
+code reads a code's `data`, `equiv` or `disp` outside an allowlist, in
+`make lint`, the pre-push check and CI.
+
+### A surface draws the positions the engine recorded
+
+Where a review surface marks something inside a string (a term, a finding),
+the position comes from the engine as a run-anchored overlay (`model.Overlay`, the stand-off layer of
+[F-02](../foundations/f-02-content-model.md)), and the surface draws what the anchor covers. It
+never searches the text for the thing again. A second matcher in a client
+disagrees with the check sooner or later: it marks a word the gate never
+counted, or calls a translation compliant that the gate fails.
+
+For terms, the producer is the term check itself. `coretools.TermCheckUses`
+returns its decision rule by rule with byte ranges in the source and the
+target, `TermCheckViolations` reports from it, and `TermCheckOverlays` draws
+it as `term` overlays on both editions, each span carrying the verdict. Each
+form of a plural or select is read on its own (`model.FormReadings`), and a
+span inside a form is anchored to it, so a surface that draws every form marks
+the term in each and can say which forms miss it. A
+surface that shows "this translation uses the term" therefore shows the
+gate's answer. The anchor arithmetic a client needs (`runsPlainText`,
+`charSpanForAnchor`, `textRunPartsForAnchor`) lives once, in
+`@neokapi/kapi-format`, mirroring `model.RunsText` and `model.RangeAnchor`.
 
 ### The AI actions inherit the point
 
@@ -238,8 +371,8 @@ Coverage grades the basis of both classes alike, by the revision of the
 source, so a changed link counts as a source change as much as a changed word.
 A source change under an undecided target grades the block stale, the plan counts
 it, and the next pass re-drafts it with the old wording still on disk. Only a decision moves an edition on
-its ladder. A target that no longer holds the revision the flow left was taken
-over by a person; the next read records that change as observed, with no
+its ladder. A target that holds a different revision from the one the flow left was
+taken over by a person; the next read records that change as observed, with no
 author and no basis, and the block grades as basis unknown and is left alone and
 reported. No host clears targets to force the loop's attention. A venue's own
 worker records the basis of the drafts it writes, and a push carries the basis
@@ -328,11 +461,11 @@ translation or arrives with a moved source is an edit and lands at
 ### Context is reviewed as discovery, in a digest
 
 A context suggestion (a term rule, a note about how the project writes, a
-wording pair) advises agents and checks from the moment it is recorded, and an
+wording pair) reaches agents and checks from the moment it is recorded, and an
 established rule is what fails a check ([C-11](../context/c-11-context-operations.md)).
-A suggestion nobody answers keeps advising. Reviewing context is therefore
-reading what kapi learned and answering the few things that need a person;
-nothing waits on it, and there is no queue to clear.
+A suggestion nobody answers keeps being reported. Reviewing context means
+reading the suggestions and answering the few that need a person. Nothing waits
+on it, and there is no queue to clear.
 
 `host.App.ContextDigest` (`host/contextdigest.go`) assembles one project's
 digest from the operation log, and every surface reads it: the desktop's
@@ -376,6 +509,11 @@ Rendering stays with each host. The model sits in the framework
 (`core/review`), which every client already depends on, so no module above
 the licence line imports from below it, which `make audit-modules` asserts for
 Go and for TypeScript.
+
+A reviewer reads a translation where a reader meets it. The container is
+chosen on the server from what readers already record, so a client needs no
+format knowledge to draw it, and the richer rungs (a rendered document, a live
+component) replace it where a surface can reach them.
 
 The invariant is enforced. The reflection
 test holds the model to `prompt.Context`; the equality test holds the review AI

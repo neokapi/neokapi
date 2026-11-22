@@ -6,6 +6,8 @@ import { api } from "../hooks/useApi";
 import type { AIActivityEntry, AIActivityResult } from "../types/api";
 import { AIExchangeView } from "./AIExchangeView";
 
+const AI_ACTIVITY_PROBE_MS = 5_000;
+
 /**
  * The session's AI activity: every model call this app has made, newest first.
  *
@@ -17,12 +19,39 @@ import { AIExchangeView } from "./AIExchangeView";
  * The log is session-scoped and in memory. Closing the app ends it, which is
  * the honest scope for a diagnostic: it is not an audit trail, and presenting
  * it as one would be a promise the storage does not keep.
+ *
+ * The button appears once the session has made a model call. Until then it
+ * asks the log for its newest entry every few seconds and draws nothing.
  */
-export function AIActivityButton() {
+export function AIActivityButton({ probeMs = AI_ACTIVITY_PROBE_MS }: { probeMs?: number } = {}) {
   const [open, setOpen] = useState(false);
   const [log, setLog] = useState<AIActivityResult | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  // Whether the session has made a model call. Once it has, the button stays,
+  // including after the log is cleared.
+  const [called, setCalled] = useState(false);
+
+  useEffect(() => {
+    if (called) return;
+    let cancelled = false;
+    const probe = async () => {
+      try {
+        const newest = await api.getAIActivity(1);
+        if (!cancelled && newest && (newest.entries.length > 0 || newest.dropped > 0)) {
+          setCalled(true);
+        }
+      } catch {
+        // The probe runs unattended; a failed one leaves the button hidden.
+      }
+    };
+    void probe();
+    const timer = setInterval(() => void probe(), probeMs);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [called, probeMs]);
 
   const refresh = useCallback(async () => {
     try {
@@ -54,6 +83,8 @@ export function AIActivityButton() {
     setExpanded(null);
     void refresh();
   };
+
+  if (!called) return null;
 
   return (
     <div className="relative" ref={panelRef}>

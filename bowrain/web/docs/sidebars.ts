@@ -26,6 +26,7 @@ const sidebars: SidebarsConfig = {
         "getting-started/introduction",
         "getting-started/the-context-graph",
         "getting-started/the-loop",
+        "getting-started/reviewing-a-large-project",
         "getting-started/quickstart",
         "getting-started/installation",
         "getting-started/kapi-vs-bowrain",
@@ -42,7 +43,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "server/web-overview",
         "server/getting-started",
-        "server/project-map",
+        "server/project-overview",
         "server/walkthroughs",
       ],
     },
@@ -65,6 +66,7 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "server/review",
+        "server/review-on-your-phone",
       ],
     },
     {

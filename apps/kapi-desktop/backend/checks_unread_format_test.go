@@ -12,7 +12,6 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/registry"
 )
 
 // The Checks panel runs the check `kapi check` runs, over the content the
@@ -168,15 +167,20 @@ func TestRunChecksOfOnlyUnreadableContentDidNotRun(t *testing.T) {
 }
 
 // Only a missing reader is skipped. A JSON file that does not parse was opened
-// and is broken, and the run still fails on it.
+// and is broken, and the run fails on it with the failing finding `kapi check`
+// reports for a file it could not read.
 func TestRunChecksStillFailsOnABrokenFileInAKnownFormat(t *testing.T) {
 	isolateCheckPlugins(t)
 	app := NewApp()
 	tabID := unreadCheckProject(t, app, `{"greeting": "Hello`, false)
 
-	_, err := app.RunChecks(tabID, ProjectFilter{Languages: []string{"fr"}})
-	require.Error(t, err)
-	require.NotErrorIs(t, err, registry.ErrUnknownFormat)
+	res, err := app.RunChecks(tabID, ProjectFilter{Languages: []string{"fr"}})
+	require.NoError(t, err)
+	assert.Equal(t, "failed", res.Verdict)
+	assert.False(t, res.Pass)
+	for _, w := range res.Warnings {
+		assert.NotContains(t, w.Source, "en.json", "a broken file is not an unread format")
+	}
 }
 
 func slicesContainSuffix(paths []string, suffix string) bool {

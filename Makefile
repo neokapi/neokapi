@@ -39,6 +39,7 @@ endif
 export LDFLAGS     := -ldflags "$(LDFLAGS_X)"
 
 GO := go
+include scripts/lib/goflags.mk
 # FTS5 build tag is required by mattn/go-sqlite3 to enable FTS5 full-text
 # search. Without it, content memory and terms migrations fail at runtime.
 #
@@ -46,7 +47,8 @@ GO := go
 #   Linux:  sudo apt-get install libicu-dev pkg-config
 #   macOS:  brew bundle   (see Brewfile; this Makefile finds the keg itself)
 # `make doctor` reports what is missing.
-GOTAGS  := -tags "fts5"
+GOTAG_LIST := fts5
+GOTAGS  := -tags "$(GOTAG_LIST)"
 
 # macOS Homebrew ICU: expose the keg to pkg-config if it is not already there.
 #
@@ -65,7 +67,14 @@ ifneq ($(ICU_PKGCONFIG),)
 export PKG_CONFIG_PATH := $(ICU_PKGCONFIG):$(PKG_CONFIG_PATH)
 endif
 endif
-GOTEST  := $(GO) test $(GOTAGS)
+# Test binaries are linked without DWARF (-ldflags=-w): stack traces, panics
+# and the race detector read the symbol table and pclntab, which stay, and a
+# debugger builds its own binary (dlv test). DWARF is about a quarter of each
+# test binary (bowrain/server: 143.6 MB with it, 108.5 MB without), and a
+# `go test ./...` links every package's binary in the build work directory at
+# once (1.34 GB at peak for the bowrain module). A target that passes its own
+# -ldflags replaces this one.
+GOTEST  := $(GO) test $(GOTAGS) -ldflags=-w
 GOBUILD := $(GO) build $(GOTAGS)
 GOVET   := $(GO) vet $(GOTAGS)
 GOFMT   := gofmt
@@ -220,22 +229,19 @@ test-verbose: ## Run tests with verbose output
 	@$(MAKE) --no-print-directory _fw-test-verbose
 	@$(MAKE) -C bowrain test-verbose
 
+# The fuzz targets, each for FUZZTIME. The nightly fuzz.yml runs the same
+# script, split by SHARD. The tags are $(GOTAGS)'s, spelled as the list the
+# script hands to its own single -tags flag (GOTAG_LIST).
+FUZZTIME ?= 30s
+fuzz: i18n-catalogs ## Run every Go fuzz target (FUZZTIME=30s, PKG=core/formats/json, SHARD=1/4)
+	@./scripts/go-fuzz.sh --fuzztime $(FUZZTIME) --tags $(GOTAG_LIST) $(if $(PKG),--package $(PKG)) $(if $(filter-out all,$(SHARD)),--shard $(SHARD))
+
 test-integration: ## Run the //go:build integration lane (Postgres-backed cross-store suites; needs Docker or BOWRAIN_TEST_POSTGRES_URL)
 	@$(MAKE) --no-print-directory _fw-test-integration
 	@$(MAKE) -C bowrain test-integration
 
-format-acceptance: ## Run native-format consumer-toolchain acceptance tests (plutil/resgen/xmllint/node; each check auto-skips if its tool is absent)
-	# Scoped to the formats that ship a //go:build acceptance suite — running
-	# ./core/formats/... would also pull in unrelated packages' fixture-dependent
-	# tests (e.g. xliff2's okapi byte-equal corpus). Add new formats here as they
-	# gain acceptance coverage.
-	# Clear NODE_OPTIONS so node tooling spawned by the JSON-schema + MDX checks do
-	# not inherit a flag the runner's node rejects (e.g. CI sets
-	# --experimental-strip-types, which Node 20 refuses). These checks need none.
-	NODE_OPTIONS= $(GO) test -tags acceptance -count=1 \
-		./core/formats/xcstrings/ ./core/formats/arb/ ./core/formats/resx/ \
-		./core/formats/androidxml/ ./core/formats/applestrings/ \
-		./core/formats/i18next/ ./core/formats/designtokens/ ./core/formats/mdx/
+format-acceptance: i18n-catalogs ## Run consumer checks for format packages with acceptance tests
+	NODE_OPTIONS= $(GO) test -tags acceptance -count=1 $(if $(ACCEPTANCE_EVENTS),-json) $(sort $(dir $(wildcard ./core/formats/*/acceptance_test.go))) $(if $(ACCEPTANCE_EVENTS),> "$(ACCEPTANCE_EVENTS)")
 
 # NOTE: this is a FIXER, not a check — it rewrites files and exits 0. The
 # corresponding check is `make check-gofmt`, which is what CI gates on.
@@ -244,10 +250,12 @@ fmt: ## Format Go source files
 
 vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
+	@$(MAKE) --no-print-directory plugins-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-e2e-seed-dupes check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-comment-coverage check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-e2e-seed-dupes check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-code-display check-json-tags check-comment-coverage check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
+	@$(MAKE) --no-print-directory plugins-lint
 	@$(MAKE) --no-print-directory kapi-desktop-lint
 	@$(MAKE) --no-print-directory harness-check
 	@$(MAKE) -C bowrain lint
@@ -273,6 +281,53 @@ check-deploy-paths: ## Guard: the deploy workflow triggers on every framework di
 
 check-run-projection: ## Guard: a Run sequence is projected through a declared RunSpec, never a hand-rolled walk
 	@./scripts/check-run-projection.sh
+
+# The checklist informs a change and never gates it: `reliability-checklist`
+# prints the items whose trigger matches a diff and exits 0. What lint gates is
+# the file itself: it parses, every item validates, and every trigger selects
+# its fixture. See docs/internals/reliability-checklist.md.
+reliability-checklist: ## Print the reliability checklist items a diff triggers (BASE=<ref>, default merge base with origin/main; HEAD=<ref>, default working tree)
+	@python3 ./scripts/reliability-checklist.py $(if $(BASE),--base $(BASE)) $(if $(HEAD),--head $(HEAD))
+
+check-reliability-checklist: ## Guard: the reliability checklist parses, validates, and each trigger selects its fixture
+	@python3 ./scripts/reliability-checklist.py --self-test
+
+# `CI passed` is the one status check main requires. A job missing from its
+# `needs` would not hold a merge. See .claude/skills/verify/ci.md.
+check-ci-passed: ## Guard: the CI passed job lists every job of the CI workflow
+	@python3 ./scripts/ci-passed.py --self-test
+	@python3 ./scripts/ci-passed.py needs
+
+# A package `test` script that no pull request job runs is a suite whose
+# failures merge, and one that two jobs run costs a job and checks nothing
+# more. See the comment on ci-frontend-packages.
+check-test-scripts: ## Guard: every package `test` script is run by exactly one pull request CI job
+	@python3 ./scripts/check-test-scripts.py --self-test
+	@python3 ./scripts/check-test-scripts.py
+
+check-go-trimpath: ## Guard: every Go command in make, scripts and CI builds with -trimpath
+	@python3 ./scripts/check-go-trimpath.py --self-test
+	@python3 ./scripts/check-go-trimpath.py
+
+check-ci-caches: ## Guard: no step a pull request runs saves an Actions cache
+	@python3 ./scripts/check-ci-caches.py --self-test
+	@python3 ./scripts/check-ci-caches.py
+	@python3 ./scripts/ci-cache-budget.py --self-test
+
+check-macos-minimum: ## Guard: every declared macOS minimum is scripts/lib/macos-minimum, and Go builds for no newer
+	@./scripts/check-macos-minimum.sh --self-test
+	@./scripts/check-macos-minimum.sh
+
+# The CI test jobs run through scripts/check-temp-leaks.sh, which fails a run
+# that leaves files in its temporary directory. This target proves the script.
+check-temp-leaks: ## Guard: the temporary-file leak check passes its self-test
+	@./scripts/check-temp-leaks.sh --self-test
+
+check-code-display: ## Guard: no surface shows an inline code's native data or identifier
+	@./scripts/check-code-display.sh
+
+check-json-tags: ## Guard: machine-readable output uses snake_case json field names
+	@./scripts/check-json-tags.sh
 
 check-docs-store-only: ## Guard: the written record describes a project's context as living in its store
 	@./scripts/check-docs-store-only.sh
@@ -394,6 +449,18 @@ check-wasm: i18n-catalogs ## Compile-check the in-browser CLI for js/wasm (the d
 STORE_PKGS := ./core/storage/ ./core/workspace/... ./core/projector/ ./core/projectdb/ \
 	./core/state/ ./core/history/ ./core/workhome/ ./core/blockstore/... ./memory/... ./terms/... ./voice/... ./host/storage/...
 
+# What the `Warm the pull request build cache` job on main runs. It compiles
+# and runs no test: the native test binaries of every workspace module, then
+# the two other builds the store suites job makes, under js/wasm and with one
+# connection per pool. `-run '^$$'` matches no test, and under js/wasm
+# `-exec true` stands in for the Node runner, so each test binary is built and
+# never started. See scripts/ci-warm-build-cache.sh for why main has to do
+# this for pull requests.
+warm-build-cache: i18n-catalogs ## Compile what pull request test jobs compile, to fill the Go build cache (CI, on main)
+	@./scripts/ci-warm-build-cache.sh
+	GOOS=js GOARCH=wasm $(GO) test -exec true -run '^$$' $(STORE_PKGS) $(CHANGE_WASM_PKGS) ./host/ ./kapi/cmd/kapi-wasm-cli/ > /dev/null
+	$(GO) test -tags "fts5,storage_oneconn" -run '^$$' $(STORE_PKGS) > /dev/null
+
 test-stores-oneconn: i18n-catalogs ## Run the store suites natively with every pool held to one connection and WAL off
 	$(GO) test -tags "fts5,storage_oneconn" -count=1 -timeout 15m $(STORE_PKGS)
 
@@ -484,32 +551,48 @@ _fw-test-verbose: i18n-catalogs
 _fw-test-integration: i18n-catalogs
 	@bash scripts/test-integration.sh $(_RACE) $(_SHUFFLE)
 
-# host/ carries the runtime and every service the CLI dispatches to, so it is
-# vetted and linted alongside the modules that import it — not left to the
-# module that happens to build it.
-_fw-vet: i18n-catalogs
-	$(GOVET) ./...
-	cd host && $(GOVET) ./...
-	cd cli && $(GOVET) ./...
-	cd kapi && $(GOVET) ./...
-	cd scripts/batcheval && $(GOVET) ./...
-	cd scripts/contexteval && $(GOVET) ./...
-	cd scripts/gen-refs && $(GOVET) ./...
-	cd scripts/proseprobe && $(GOVET) ./...
+# The Go modules `make lint` and the CI lint jobs analyze, by the job that
+# lints them under the host configuration. host/ carries the runtime and every
+# service the CLI dispatches to, so it is linted beside the modules that import
+# it. Each scripts/ module is listed because `./...` at the root stops at a
+# nested go.mod. The plugin modules and bench/pseudobench sit outside go.work;
+# scripts/tagmatrix runs them with GOWORK=off.
+GO_LINT_FRAMEWORK := . host cli kapi
+GO_LINT_SCRIPTS   := scripts/gen-refs scripts/gen-contract-types scripts/proseprobe scripts/batcheval scripts/commentcoverage scripts/contexteval scripts/contract-audit scripts/editguard scripts/emdashcheck scripts/fieldguard scripts/mkappcast scripts/projectionguard bench/pseudobench
+GO_LINT_PLATFORM  := bowrain/core bowrain/plugin bowrain
+GO_LINT_DESKTOP   := apps/kapi-desktop
+GO_LINT_PLUGINS   := plugins/asr plugins/av plugins/check plugins/pdfium plugins/sat plugins/sourcecode plugins/vision
+GO_LINT_ALL       := $(GO_LINT_FRAMEWORK) $(GO_LINT_SCRIPTS) $(GO_LINT_PLATFORM) $(GO_LINT_DESKTOP) $(GO_LINT_PLUGINS)
 
-# scripts/gen-refs is a workspace module like the four above it, and it writes
-# the committed reference dataset the docs site and the drift gate read. It
-# needs its own module directory here because `./...` at the root stops at a
-# nested go.mod.
+# scripts/tagmatrix runs the analyzer once per build configuration in
+# scripts/internal/buildconfigs (host, model, js-wasm, windows, linux-nocgo,
+# darwin-nocgo), so every build-tagged file is analyzed, and it fails on a Go
+# file that no configuration compiles. TAGMATRIX_CONFIG narrows a run to some
+# configurations; CI runs one per job. Every plugins/pdfium package needs PDFium
+# on pkg-config, so the targets that reach it fetch it the way fieldguard does.
+TAGMATRIX        := $(GO) run ./scripts/tagmatrix $(if $(TAGMATRIX_CONFIG),-config $(TAGMATRIX_CONFIG))
+# tagmatrix runs the golangci-lint it finds on PATH.
+TAGMATRIX_LINT   := PATH="$(dir $(GOLANGCI_LINT)):$$PATH" $(TAGMATRIX) -tool lint
+WITH_PDFIUM       = pc="$$(./scripts/pdfium-pkgconfig.sh "$(PDFIUM_CACHE_DIR)")" && PKG_CONFIG_PATH="$$pc$${PKG_CONFIG_PATH:+:$$PKG_CONFIG_PATH}"
+# Only the model configuration compiles plugins/pdfium in a lint-tags leg.
+LINT_PDFIUM       = $(if $(filter model,$(LINT_CONFIG)),$(WITH_PDFIUM),true &&)
+
+_fw-vet: i18n-catalogs
+	$(TAGMATRIX) -tool vet $(GO_LINT_FRAMEWORK) $(GO_LINT_SCRIPTS)
+
+plugins-vet: ## Run go vet over the plugin modules under every build configuration
+	@$(WITH_PDFIUM) $(TAGMATRIX) -tool vet $(GO_LINT_PLUGINS)
+
 _fw-lint: i18n-catalogs
 ifdef GOLANGCI_LINT
-	$(GOLANGCI_LINT) run ./...
-	cd host && $(GOLANGCI_LINT) run ./...
-	cd cli && $(GOLANGCI_LINT) run ./...
-	cd kapi && $(GOLANGCI_LINT) run ./...
-	cd scripts/gen-refs && $(GOLANGCI_LINT) run ./...
-	cd scripts/gen-contract-types && $(GOLANGCI_LINT) run ./...
-	cd scripts/proseprobe && $(GOLANGCI_LINT) run ./...
+	$(TAGMATRIX_LINT) $(GO_LINT_FRAMEWORK) $(GO_LINT_SCRIPTS)
+else
+	@echo "golangci-lint not installed. Run 'make tools' to install."
+endif
+
+plugins-lint: ## Run golangci-lint over the plugin modules under every build configuration
+ifdef GOLANGCI_LINT
+	@$(WITH_PDFIUM) $(TAGMATRIX_LINT) $(GO_LINT_PLUGINS)
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif
@@ -572,11 +655,30 @@ else
 	cd scripts/proseprobe && $(GOTEST_BASE) ./... -count=1
 endif
 
+# SHARD splits the CI run. The host package holds most of this target's time
+# and Go runs one package's tests one after another, so a pull request runs it
+# as shards side by side: SHARD=i/n runs one share of the host package's tests
+# (scripts/go-test-shard.sh), SHARD=rest runs every other host package and the
+# cli module, and the default runs everything in one go, with coverage, as a
+# push to main does.
+SHARD ?= all
+HOST_PACKAGE := github.com/neokapi/neokapi/host
+
 test-cli: i18n-catalogs ## Run host + cli module tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
+ifeq ($(SHARD),all)
 	cd host && $(GOTEST_BASE) $(call cov,../$(COVER_DIR)/host.out) -json ./... > ../test-results-cli.json
 	cd cli && $(GOTEST_BASE) $(call cov,../$(COVER_DIR)/cli.out) -json ./... >> ../test-results-cli.json
+else ifeq ($(SHARD),rest)
+	cd host && packages="$$($(GO) list ./...)" && \
+		packages="$$(printf '%s\n' "$$packages" | grep -vx '$(HOST_PACKAGE)')" && \
+		$(GOTEST_BASE) -json $$packages > ../test-results-cli.json
+	cd cli && $(GOTEST_BASE) -json ./... >> ../test-results-cli.json
+else
+	cd host && flags="$$(../scripts/go-test-shard.sh . $(SHARD))" && \
+		$(GOTEST_BASE) -json $$flags . > ../test-results-cli.json
+endif
 else
 	cd host && $(GOTEST_BASE) ./... -count=1
 	cd cli && $(GOTEST_BASE) ./... -count=1
@@ -614,8 +716,11 @@ ci-test-kapi: ## Run kapi tests with full CI flags locally
 ci-test-platform: ## Run platform tests with full CI flags locally
 	$(MAKE) -C bowrain CI=true test-platform
 
-ci-test-bowrain: ## Run bowrain tests with full CI flags locally
-	$(MAKE) -C bowrain CI=true test-bowrain
+ci-test-bowrain: go-embed-placeholders ## Run Bowrain tests with the CI profile for the current event
+	@: > test-results-bowrain.json
+	$(MAKE) -C bowrain CI=true test-bowrain || { \
+		status=$$?; ./scripts/print-go-test-failures.sh test-results-bowrain.json; exit $$status; \
+	}
 
 ci-test-kapi-desktop: ## Run Kapi Desktop tests with full CI flags locally
 	$(MAKE) CI=true kapi-desktop-test
@@ -636,11 +741,52 @@ ci-test-all: ## Run all module tests with full CI flags locally
 # workflow; only the shell bodies live here. Commands mirror the YAML verbatim
 # (e.g. bare `go build`, no fts5 tag) so local == CI.
 #
-# The lint jobs are not mirrored here (they post PR annotations via the pinned
-# golangci-lint-action and gha-lint bootstraps actionlint), but `make lint` and
-# CI lint are otherwise equivalent: the fts5 build tag lives in
-# .golangci.yml (run.build-tags), so both analyze the same cgo/FTS5 code
-# — provided libicu-dev is on PKG_CONFIG_PATH, which the lint CI job installs.
+# The Go lint jobs install golangci-lint with .github/actions/golangci and run
+# the ci-lint-* targets below, which `make lint` runs too. The cgo files need
+# libicu-dev on PKG_CONFIG_PATH, which the lint CI jobs install. A ci-lint-*
+# target fails when golangci-lint is missing; `make lint` only says so.
+REQUIRE_GOLANGCI_LINT = $(if $(GOLANGCI_LINT),,$(error golangci-lint is not on PATH. Run 'make tools' to install it))
+
+ci-lint-framework: ## Mirror the CI `lint-framework` job: the host configuration of the framework modules
+	$(REQUIRE_GOLANGCI_LINT)
+	$(TAGMATRIX_LINT) -config host $(GO_LINT_FRAMEWORK)
+
+ci-lint-scripts: i18n-catalogs ## Mirror the CI `lint-scripts` job: the host configuration of the scripts modules
+	$(REQUIRE_GOLANGCI_LINT)
+	$(TAGMATRIX_LINT) -config host $(GO_LINT_SCRIPTS)
+
+ci-lint-platform: ## Mirror the CI `lint-platform` job: the host configuration of the bowrain modules
+	$(REQUIRE_GOLANGCI_LINT)
+	@$(MAKE) -C bowrain lint TAGMATRIX_CONFIG=host
+
+ci-lint-plugins: ## Mirror the CI `lint-plugins` job: the host configuration of the plugin modules
+	$(REQUIRE_GOLANGCI_LINT)
+	@$(WITH_PDFIUM) $(TAGMATRIX_LINT) -config host $(GO_LINT_PLUGINS)
+
+ci-lint-kapi-desktop: kapi-desktop-lint-deps ## Mirror the lint step of the CI `kapi-desktop-backend` job
+	$(REQUIRE_GOLANGCI_LINT)
+	$(TAGMATRIX_LINT) -config host $(GO_LINT_DESKTOP)
+
+# One leg of the CI `lint-tags` matrix: the packages that hold a file the host
+# configuration leaves out, linted under configuration LINT_CONFIG, and the
+# edit and projection guards under the same configuration.
+ci-lint-tags: i18n-catalogs go-embed-placeholders ## Mirror one CI `lint-tags` leg (LINT_CONFIG=model|js-wasm|windows|linux-nocgo|darwin-nocgo)
+	$(REQUIRE_GOLANGCI_LINT)
+	$(if $(LINT_CONFIG),,$(error LINT_CONFIG names the configuration))
+	@$(LINT_PDFIUM) $(TAGMATRIX_LINT) -config $(LINT_CONFIG) $(GO_LINT_ALL)
+	$(GO) run ./scripts/editguard -config $(LINT_CONFIG)
+	$(GO) run ./scripts/projectionguard -config $(LINT_CONFIG)
+
+# Prints true when a change since LINT_BASE reaches a package a `lint-tags` leg
+# compiles, and false otherwise. A leg that prints false skips its lint.
+ci-lint-affected: ## Print whether a change since LINT_BASE affects the LINT_CONFIG leg
+	@$(GO) run ./scripts/tagmatrix -config $(LINT_CONFIG) -affected-since $(LINT_BASE) $(GO_LINT_ALL)
+
+# Fills the Go build cache with the export data one `lint-tags` leg reads, for
+# the main-only job that saves that leg's cache flavor.
+warm-lint-cache: i18n-catalogs go-embed-placeholders ## Compile the export data the LINT_CONFIG leg reads (CI, on main)
+	$(if $(LINT_CONFIG),,$(error LINT_CONFIG names the configuration))
+	@$(LINT_PDFIUM) $(GO) run ./scripts/tagmatrix -config $(LINT_CONFIG) -warm $(GO_LINT_ALL)
 
 ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web frontends
 	# The vocabulary packs are also gated in reference-data-drift.yml, but that
@@ -651,7 +797,7 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	node scripts/format-ops/check-vocab-packs.mjs
 	# Guard against vite-plus / vite-alias version drift before any vp check runs,
 	# so the failure is an actionable one-liner rather than a puzzling TS2321.
-	bash scripts/audit-vite-alias.sh
+	bash scripts/audit-vite-alias.sh --installed
 	# The tree must already be formatted the way `vp check --fix` formats it —
 	# see check-fmt-fixed-point. ~0.4s over the whole workspace.
 	$(MAKE) --no-print-directory check-fmt-fixed-point
@@ -675,9 +821,9 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	# tsc over the package tsconfig is what covers them.
 	cd bowrain/packages/ui && vp run typecheck:stories
 	cd bowrain/packages/ui && vp test
-	# packages/app was never covered here, so a broken viewFromPath sat on main
-	# from #1462 until #1533: the sidebar stopped highlighting on /terms and no
-	# job noticed. It holds the routing every surface depends on.
+	# packages/app holds the routing every surface depends on. Without its
+	# suite here, a broken viewFromPath stops the sidebar highlighting on
+	# /terms and no job notices.
 	cd bowrain/packages/app && vp check
 	cd bowrain/packages/app && vp test
 	cd bowrain/apps/web && vp check
@@ -708,7 +854,7 @@ ci-kapi-desktop-frontend: ## Mirror the CI `kapi-desktop` job's frontend half (G
 	cd packages/i18n-react && vp run build
 	cd packages/ui && vp check
 	cd packages/flow-editor && vp check
-	cd apps/kapi-desktop/frontend && vp check
+	cd apps/kapi-desktop/frontend && vp run check
 	cd packages/flow-editor && vp test
 	cd apps/kapi-desktop/frontend && vp test
 	# The production bundle, which nothing above evaluates.
@@ -743,9 +889,35 @@ ci-i18n-react: ## Mirror the CI `neokapi-i18n` job: typecheck/validate/test/buil
 	cd packages/i18n-react-lint && vp run test
 	cd packages/i18n-react-lint && vp run build
 
-ci-build: i18n-catalogs ## Mirror the CI `build` job: build all three binaries (no fts5) + assert module isolation
-	@mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
-	@mkdir -p apps/kapi-desktop/frontend/dist && echo placeholder > apps/kapi-desktop/frontend/dist/index.html
+# The unit suites of the shared workspace packages, the docs site, the
+# landing page and the mobile app. This target is their one pull request
+# home: the ci.yml `frontend_packages` filter covers what they import, so an
+# edit to packages/ui that breaks the docs site runs the docs site's suite.
+# scripts/check-test-scripts.py fails when a package `test` script runs in no
+# pull request job or in more than one, and a new suite belongs here.
+ci-frontend-packages: ## Mirror the CI `frontend-packages` job: unit-test the shared packages, docs site, landing page and mobile app
+	# packages/ui imports `@neokapi/i18n-react/runtime`, a built ./dist subpath.
+	cd packages/i18n-react && vp run build
+	cd packages/ui && vp test run
+	cd packages/bowrain-client && vp test run
+	cd packages/concept-ui && vp test run
+	cd packages/context-atlas && vp test run
+	cd packages/context-explorer && vp test run
+	cd packages/docs-palette && vp test run
+	cd packages/docs-shared && vp test run
+	cd packages/editor-grid && vp test run
+	cd packages/engine && vp test run
+	cd packages/kapi-lab && vp test run
+	cd packages/kapi-learn && vp test run
+	cd packages/kapi-playground && vp test run
+	cd packages/project-screens && vp test run
+	cd packages/status-views && vp test run
+	cd web && vp test run
+	cd bowrain/web/landing && vp test run
+	# jest-expo, not vitest.
+	cd bowrain/mobile && vpr test
+
+ci-build: i18n-catalogs go-embed-placeholders check-go-module-boundaries ## Mirror the CI `build` job: build all three binaries (no fts5) + assert module isolation
 	@# Deliberately no fts5 — this target proves the packages compile and the
 	@# module boundaries hold, and nothing here is ever executed. The binaries
 	@# go to a scratch directory rather than $(BIN_DIR) precisely because they
@@ -761,204 +933,55 @@ ci-build: i18n-catalogs ## Mirror the CI `build` job: build all three binaries (
 	GOWORK=off bash -c "cd bowrain/core && go build ./..."
 	GOWORK=off bash -c "cd kapi && go build ./..."
 	GOWORK=off bash -c "cd bowrain/plugin && go build ./..."
-	@# kapi must not depend on platform / bowrain / heavy deps
-	@if cd kapi && GOWORK=off go list -m all | grep -q 'neokapi/platform'; then echo "kapi should not depend on platform"; exit 1; fi
-	@if cd bowrain && GOWORK=off go list -m all | grep -q 'neokapi/cli'; then echo "bowrain should not depend on cli"; exit 1; fi
-	@if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|labstack/echo|keycloak'; then exit 1; fi
 
-# Plugins outside go.work also need dependency checks. Tidy each module to
-# detect incomplete or stale go.mod and go.sum files, including modules not
-# built by other CI jobs.
-ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fail on drift
-	@for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain \
-	            plugins/sat plugins/check plugins/vision plugins/asr plugins/av plugins/pdfium \
-	            plugins/sourcecode; do \
-	  echo "Checking $$dir..."; \
-	  (cd "$$dir" && go mod tidy); \
-	done
-	@if ! git diff --exit-code -- '**go.mod' '**go.sum'; then \
-	  echo "::error::go.mod/go.sum files are not tidy. Run 'make deps' locally."; \
-	  exit 1; \
-	fi
-
-# ── Module Isolation ──────────────────────────────────────────────────────────
-
-# Module isolation boundaries are asserted by `audit-modules` below (folded in
-# from the retired `verify-isolation`, which matched on `go list -m all` and
-# false-flagged kapi's legitimate go-keyring/go-oidc, erroring on a green tree).
-
-# audit-modules asserts the module isolation contract and fails on drift. For
-# each isolated module it runs a GOWORK=off build (so the module resolves
-# against its own go.mod, not the workspace — a boundary violation that the
-# go.work overlay would otherwise hide), then a GOWORK=off `go mod tidy` and
-# fails if tidy was not a no-op (stale or missing requires, or a require that
-# pulls in a forbidden boundary-crossing module, all leave a diff). The
-# pre-tidy go.mod/go.sum are snapshotted and restored, so the check is robust
-# whether the changes are committed (CI) or still in the working tree (local
-# pre-push). Mirrors the per-module isolation commands in CLAUDE.md "Build
-# Conventions".
-#
-# bowrain/core additionally gets an import-level assertion: its transitive
-# package imports (GOWORK=off go list -deps ./...) must contain NO package from
-# the main bowrain module — only bowrain/core/* is allowed under the bowrain/
-# tree. This fails fast on a re-introduced bowrain/sync or bowrain/proto/v1
-# import (which would otherwise re-add the require + replace on the main bowrain
-# module and re-couple the framework-only core to redis/echo/the gRPC service
-# surface).
-#
-# Four more import-level (go list -deps) assertions, matched on PACKAGES so a
-# transitive dep cannot dodge them: every Apache-licensed module (., host, cli,
-# kapi, apps/kapi-desktop) must import NO AGPL bowrain package — the license
-# boundary, with no exception, which also enforces kapi↛bowrain; kapi must not
-# link wails/echo; and the main bowrain module must
-# not depend on cli. These replace the old `verify-isolation` target, which
-# matched on `go list -m all` and so false-flagged kapi's legitimately linked
-# go-keyring and (transitive) go-oidc — it errored on a green tree and ran in no
-# workflow. oidc/keyring reach kapi legitimately (sigstore cosign, keychain),
-# so they are deliberately not asserted against.
-#
-# Modules audited (path → expected boundary):
-#   .                  framework — no host/cli/bowrain deps
-#   host               framework only — the cobra-free app runtime (NO cobra)
-#   cli                framework + host — the thin cobra shell; no bowrain dep
-#   bowrain/core       framework only — no cli AND no main bowrain dep
-#   kapi               framework + host + cli only — no bowrain dep
-#   apps/kapi-desktop  framework + host only — NO cli, NO cobra
-#   bowrain/plugin     framework + host + cli + bowrain/core (bowrain behavior + the kapi-bowrain plugin binary)
-#   bowrain            framework + host + bowrain/core (the platform; host for the host/flowdef flow catalog)
-#
-# Last, scripts/check-workspace-versions.sh diffs each module's GOWORK=off
-# version selection against the workspace's. go.work unifies versions, so a
-# bump in one go.mod raises the dependency for every module while the others'
-# go.mod files still name the old version; the isolated build then compiles
-# against a different library than the workspace build. A direct dependency
-# that differs fails the audit (raise the require and tidy); an indirect one
-# is only reported.
-#
-# bowrain and bowrain/plugin are not isolation boundaries (they legitimately depend
-# on several modules), but they are audited for the same go.mod/go.sum tidiness —
-# e.g. a require that should be indirect after a package moves. CI's Tidy Check
-# covers all modules, so they belong here too.
-#
-# Build pattern per module: most build ./..., but apps/kapi-desktop's main
-# package embeds frontend/dist (//go:embed all:frontend/dist) which only exists
-# after a frontend build, so — like `make kapi-desktop-test` — we build only
-# ./backend/... for it. `go mod tidy` still resolves the whole module graph
-# (embeds don't affect dependency resolution), so the boundary contract holds.
 AUDIT_MODULES := . host cli bowrain/core kapi apps/kapi-desktop bowrain/plugin bowrain
+TIDY_MODULES := $(AUDIT_MODULES) $(patsubst %/go.mod,%,$(wildcard plugins/*/go.mod))
+GO_EMBED_PAGES := apps/kapi-desktop/frontend/dist/index.html bowrain/apps/bowrain/frontend/dist/index.html bowrain/apps/web/dist/index.html
 
-audit-modules: i18n-catalogs ## Assert module isolation + go.mod/go.sum tidiness + go.mod/go.work version agreement (fails on drift)
-	@set -e; rc=0; for dir in $(AUDIT_MODULES); do \
-	  echo ">> audit $$dir"; \
-	  pkgs="./..."; [ "$$dir" = "apps/kapi-desktop" ] && pkgs="./backend/..."; \
-	  ( cd "$$dir" && GOWORK=off $(GO) build $$pkgs ) || { echo "ERROR: $$dir failed isolated (GOWORK=off) build"; exit 1; }; \
-	  if [ "$$dir" = "bowrain/core" ]; then \
-	    bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps ./... 2>/dev/null \
-	              | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' \
-	              | grep -vE '^github\.com/neokapi/neokapi/bowrain/core(/|$$)' || true ); \
-	    if [ -n "$$bad" ]; then \
-	      echo "ERROR: bowrain/core must be framework-only — it imports the main bowrain module:"; \
-	      echo "$$bad" | sed 's/^/    /'; \
-	      echo "  (move the shared code down to where both sides may reach it — the framework, e.g. core/venue or core/proto/sync/v1)"; \
-	      rc=1; \
-	    fi; \
-	  fi; \
-	  if [ "$$dir" = "apps/kapi-desktop" ]; then \
-	    bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps ./backend/... 2>/dev/null \
-	              | grep -E '^(github\.com/spf13/cobra|github\.com/neokapi/neokapi/cli)(/|$$)' || true ); \
-	    if [ -n "$$bad" ]; then \
-	      echo "ERROR: kapi-desktop must stay cobra-free — it links the cli module or cobra:"; \
-	      echo "$$bad" | sed 's/^/    /'; \
-	      echo "  (the desktop depends on the host module only; move the needed symbol into host/)"; \
-	      rc=1; \
-	    fi; \
-	  fi; \
-	  case "$$dir" in \
-	    .|host|cli|kapi|apps/kapi-desktop) \
-	      bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps $$pkgs 2>/dev/null \
-	                | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' || true ); \
-	      if [ -n "$$bad" ]; then \
-	        echo "ERROR: Apache-licensed module $$dir imports an AGPL bowrain package (there is no exception):"; \
-	        echo "$$bad" | sed 's/^/    /'; \
-	        rc=1; \
-	      fi; \
-	      ;; \
-	  esac; \
-	  if [ "$$dir" = "kapi" ]; then \
-	    bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps ./... 2>/dev/null \
-	              | grep -iE 'wailsapp/wails|labstack/echo' || true ); \
-	    if [ -n "$$bad" ]; then \
-	      echo "ERROR: kapi links a heavy bowrain-side dependency (wails/echo):"; \
-	      echo "$$bad" | sed 's/^/    /'; \
-	      rc=1; \
-	    fi; \
-	  fi; \
-	  if [ "$$dir" = "bowrain" ]; then \
-	    bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps ./... 2>/dev/null \
-	              | grep -E '^github\.com/neokapi/neokapi/cli(/|$$)' || true ); \
-	    if [ -n "$$bad" ]; then \
-	      echo "ERROR: bowrain depends on the cli module (it composes over host, not cli):"; \
-	      echo "$$bad" | sed 's/^/    /'; \
-	      rc=1; \
-	    fi; \
-	  fi; \
-	  cp "$$dir/go.mod" "$$dir/go.mod.audit.bak"; \
-	  [ -f "$$dir/go.sum" ] && cp "$$dir/go.sum" "$$dir/go.sum.audit.bak" || true; \
-	  ( cd "$$dir" && GOWORK=off $(GO) mod tidy ) || { echo "ERROR: $$dir failed go mod tidy"; exit 1; }; \
-	  if ! diff -q "$$dir/go.mod.audit.bak" "$$dir/go.mod" >/dev/null 2>&1 || \
-	     { [ -f "$$dir/go.sum.audit.bak" ] && ! diff -q "$$dir/go.sum.audit.bak" "$$dir/go.sum" >/dev/null 2>&1; }; then \
-	    echo "ERROR: $$dir go.mod/go.sum not tidy — run 'cd $$dir && GOWORK=off go mod tidy' and commit"; rc=1; \
-	  fi; \
-	  mv "$$dir/go.mod.audit.bak" "$$dir/go.mod"; \
-	  [ -f "$$dir/go.sum.audit.bak" ] && mv "$$dir/go.sum.audit.bak" "$$dir/go.sum" || true; \
-	done; \
-	[ $$rc -eq 0 ] || exit 1
-	@$(ROOT_DIR)/scripts/check-ts-license-boundary.sh
-	@$(ROOT_DIR)/scripts/check-workspace-versions.sh $(AUDIT_MODULES)
-	@echo "audit-modules: all module boundaries clean, go.mod/go.sum tidy, go.mod and go.work versions agree"
+.PHONY: go-embed-placeholders check-go-module-boundaries
 
-# check-module-boundaries asserts the package-level license/architecture
-# boundaries the tree relies on but no CI job enforced (audit-modules, which also
-# runs them, is a pre-push-only target): kapi-desktop must link neither cobra nor
-# the cli module — the Apache desktop stays cli-free — bowrain/core must import
-# no package from the AGPL main bowrain module, and no Apache-licensed module
-# may reach a package under the AGPL tree at all.
-#
-# That last assertion carries no exception list, and it must never grow one. The
-# separately-licensed recipe vocabulary that used to be the single allowed
-# import is a package under host now, so nothing Apache reaches into bowrain/ —
-# and an exception is how a boundary stops being one. If a package genuinely
-# needs to be read from both sides, it belongs below the line rather than on an
-# allowlist above it.
-#
-# The same line is asserted on the TypeScript side by
-# scripts/check-ts-license-boundary.sh, which this target runs last. Go import
-# closures say nothing about a React component under packages/ importing
-# @neokapi/ui (the AGPL bowrain/packages/ui), and the pnpm workspace resolves
-# every internal dependency from source, so that import compiles and bundles
-# into the Apache desktop app with nothing to notice it.
-#
-# Wired into CI as the `module-boundaries` job, gated on any_go OR kapi_desktop OR
-# ts_boundary so a desktop-only PR that reaches for cobra is still caught (any_go
-# has no apps/kapi-desktop filter) and a TypeScript-only PR still gets the
-# licence check.
-APACHE_MODULES := . host cli kapi apps/kapi-desktop
+go-embed-placeholders: $(GO_EMBED_PAGES)
+
+$(GO_EMBED_PAGES):
+	@mkdir -p $(@D)
+	@touch $@
+
+# The download comes first and retries, so a request the module proxy drops is
+# not reported as a manifest that is out of date.
+ci-tidy: ## Check isolated module manifests and sums for drift
+	@GO="$(GO)" ./scripts/go-mod-download.sh $(TIDY_MODULES)
+	@set -e; for dir in $(TIDY_MODULES); do \
+	  echo "Checking $$dir..."; \
+	  (cd "$$dir" && GOWORK=off $(GO) mod tidy -diff); \
+	done
+
+audit-modules: check-module-boundaries ## Build each application module in isolation and check its dependencies
+	@set -e; for dir in $(AUDIT_MODULES); do \
+	  echo "Checking $$dir..."; \
+	  GOWORK=off $(GO) -C "$$dir" build -mod=readonly ./...; \
+	  GOWORK=off $(GO) -C "$$dir" mod tidy -diff; \
+	done
 
 # The terms, content memory, voice profiles and widened rules are projections
 # of the workspace's operation log, written only by core/projector. A write that
 # reaches one another way leaves a row a rebuild drops. The guard type-checks the
 # Apache modules and proves itself on fixtures first.
+# The edit and projection guards run under every build configuration by
+# default. The module-boundaries CI job runs the host one; each lint-tags leg
+# runs its own.
+GUARD_CONFIGS ?= host model js-wasm windows linux-nocgo darwin-nocgo
+
 check-projection-writes: i18n-catalogs ## Guard: only the projector writes a project's context stores
 	@$(GO) run ./scripts/projectionguard -self-test
-	@$(GO) run ./scripts/projectionguard
+	@for c in $(GUARD_CONFIGS); do $(GO) run ./scripts/projectionguard -config $$c || exit 1; done
 
 # A format writer pointed at a file writes a whole document to disk. The guard
 # type-checks every module that writes documents and reports each such call
 # outside the format packages and the places scripts/editguard lists with what
 # each writes, and proves itself on fixtures first.
-check-edit-writes: i18n-catalogs ## Guard: a document reaches a file only where scripts/editguard lists it
+check-edit-writes: i18n-catalogs go-embed-placeholders ## Guard: a document reaches a file only where scripts/editguard lists it
 	@$(GO) run ./scripts/editguard -self-test
-	@$(GO) run ./scripts/editguard
+	@for c in $(GUARD_CONFIGS); do $(GO) run ./scripts/editguard -config $$c || exit 1; done
 
 # A block stores its content as peer editions in Block.Editions and lists the
 # editions its document holds in Block.Native (docs/internals/edit-model.md,
@@ -967,41 +990,21 @@ check-edit-writes: i18n-catalogs ## Guard: a document reaches a file only where 
 # every other package reaches the editions through the accessors and the
 # storage can change inside core/model alone. A test may write the storage to
 # plant a state no accessor produces; those uses are counted. The desktop
-# placeholder bundle lets its main package type-check.
+# placeholder bundle lets its main package type-check. PDFium is fetched once,
+# pinned and checksummed, into PDFIUM_CACHE_DIR (shared by every worktree).
+PDFIUM_CACHE_DIR ?= $(or $(XDG_CACHE_HOME),$(HOME)/.cache)/neokapi/pdfium
 fieldguard: kapi-desktop-lint-deps ## Gate: no code outside core/model and its tests reaches Block.Editions or Block.Native past the edition accessors
 	@$(GO) run ./scripts/fieldguard -self-test
-	@$(GO) run ./scripts/fieldguard
+	@# plugins/pdfium type-checks only with PDFium on pkg-config, and a package
+	@# that does not type-check fails the guard.
+	@pc="$$(./scripts/pdfium-pkgconfig.sh "$(PDFIUM_CACHE_DIR)")" && \
+		PKG_CONFIG_PATH="$$pc$${PKG_CONFIG_PATH:+:$$PKG_CONFIG_PATH}" $(GO) run ./scripts/fieldguard $(FIELDGUARD_ARGS)
 
-check-module-boundaries: i18n-catalogs ## Assert kapi-desktop cli/cobra-free + Apache modules link no AGPL
-	@bad=$$(cd apps/kapi-desktop && GOWORK=off $(GO) list -deps ./backend/... 2>/dev/null \
-	          | grep -E '^(github\.com/spf13/cobra|github\.com/neokapi/neokapi/cli)(/|$$)' || true); \
-	  if [ -n "$$bad" ]; then echo "ERROR: kapi-desktop must stay cobra-free and cli-free — it links:"; echo "$$bad" | sed 's/^/    /'; exit 1; fi
-	@bad=$$(cd bowrain/core && GOWORK=off $(GO) list -deps ./... 2>/dev/null \
-	          | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' \
-	          | grep -vE '^github\.com/neokapi/neokapi/bowrain/core(/|$$)' || true); \
-	  if [ -n "$$bad" ]; then echo "ERROR: bowrain/core must be framework-only — it imports the main bowrain module:"; echo "$$bad" | sed 's/^/    /'; exit 1; fi
-	@set -e; for dir in $(APACHE_MODULES); do \
-	  pkgs="./..."; [ "$$dir" = "apps/kapi-desktop" ] && pkgs="./backend/..."; \
-	  bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps $$pkgs 2>/dev/null \
-	            | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' || true ); \
-	  if [ -n "$$bad" ]; then \
-	    echo "ERROR: Apache-licensed module $$dir imports an AGPL bowrain package (there is no exception):"; \
-	    echo "$$bad" | sed 's/^/    /'; exit 1; \
-	  fi; \
-	done
-	@bad=$$(cd bowrain/plugin && GOWORK=off $(GO) list -deps ./cmd/kapi-bowrain 2>/dev/null \
-	          | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' \
-	          | grep -vE '^github\.com/neokapi/neokapi/bowrain/plugin(/|$$)' || true); \
-	  if [ -n "$$bad" ]; then \
-	    echo "ERROR: the kapi-bowrain binary is declared Apache-2.0 (bowrain/plugin/LICENSE) but links AGPL:"; \
-	    echo "$$bad" | sed 's/^/    /'; \
-	    echo "  Its manifest, the plugin registry and the Homebrew formula all declare Apache-2.0."; \
-	    echo "  Either move what it needs below the line, or the declaration is false on three public surfaces."; \
-	    exit 1; \
-	  fi
-	@$(ROOT_DIR)/scripts/check-ts-license-boundary.sh
-	@$(ROOT_DIR)/scripts/check-workspace-versions.sh $(AUDIT_MODULES)
-	@echo "check-module-boundaries: kapi-desktop cli/cobra-free, bowrain/core framework-only, Apache modules AGPL-free, kapi-bowrain Apache-clean, no Apache TypeScript reaching AGPL, go.mod and go.work versions agree"
+check-go-module-boundaries: i18n-catalogs go-embed-placeholders
+	@GO="$(GO)" ./scripts/check-go-module-boundaries.sh $(AUDIT_MODULES)
+
+check-module-boundaries: check-go-module-boundaries check-ts-license-boundary ## Check import boundaries and isolated dependency versions
+	@GO="$(GO)" ./scripts/check-workspace-versions.sh $(AUDIT_MODULES)
 
 # ── SRX parity golden (Okapi tikal, no bridge involved) ─────────────────────
 regen-srx-parity-golden: ## Regenerate SRX parity golden from the real Okapi (okapi-apps tikal jars)
@@ -1182,8 +1185,8 @@ build-server build-worker build-kapi-bowrain-plugin build-bowrain build-headless
 #
 # `build-sat-plugin-onnx` builds the real in-process segmenter and requires the
 # native deps (CGO):
-#   - onnxruntime shared library (download from microsoft/onnxruntime releases;
-#     point the binary at it at RUNTIME via KAPI_SAT_ORT_LIB)
+#   - onnxruntime shared library (scripts/fetch-onnxruntime.sh fetches the
+#     pinned build; point the binary at it at RUNTIME via KAPI_SAT_ORT_LIB)
 #   - the daulet/tokenizers static library (libtokenizers.a) on the linker path
 #     (download from the daulet/tokenizers GitHub releases or `make build` it)
 # Set SAT_TOKENIZERS_LIB to the directory containing libtokenizers.a.
@@ -1228,8 +1231,8 @@ test-pdfium-plugin: ## Run kapi-pdfium tests (CGO; needs libpdfium on PKG_CONFIG
 # CI-safe; -tags onnx links the real RapidOCR/PP-OCRv5 pipeline. For DISTRIBUTION
 # the release tarball is self-contained — it bundles the onnxruntime shared lib
 # (lib/) AND the PP-OCRv5 model assets (models/) beside the binary
-# (scripts/package-vision-plugin.sh). onnxruntime is pinned to 1.25.0 to match
-# yalue/onnxruntime_go (ORT_API_VERSION 25). See plugins/vision/README.md.
+# (scripts/package-vision-plugin.sh). onnxruntime is pinned to 1.31.1 to match
+# yalue/onnxruntime_go (ORT_API_VERSION 31). See plugins/vision/README.md.
 build-vision-plugin: ## Build the kapi-vision plugin (no ONNX backend; pure Go)
 	@mkdir -p $(BIN_DIR)
 	cd plugins/vision && GOWORK=off $(GO) build $(LDFLAGS) -o $(BIN_DIR)/kapi-vision ./cmd/kapi-vision
@@ -1241,7 +1244,7 @@ build-vision-plugin-onnx: ## Build kapi-vision WITH the ONNX backend (CGO; loads
 
 # Package a self-contained distribution tarball for the HOST platform: builds
 # kapi-vision -tags onnx, bundles the onnxruntime shared lib + PP-OCRv5 models.
-#   VISION_ORT_DIR     extracted onnxruntime release dir (microsoft/onnxruntime)
+#   VISION_ORT_DIR     onnxruntime dir written by scripts/fetch-onnxruntime.sh
 #   VISION_MODELS_DIR  dir with ppocrv5_det.onnx / ppocrv5_rec.onnx / ppocrv5_dict.txt
 package-vision-plugin: ## Package a kapi-vision tarball for the host platform (CGO; needs VISION_ORT_DIR + VISION_MODELS_DIR)
 	@test -n "$(VISION_ORT_DIR)" || { echo "set VISION_ORT_DIR to the extracted onnxruntime release dir"; exit 1; }
@@ -1269,12 +1272,14 @@ test-asr-plugin: ## Run kapi-asr pure-Go tests (protocol + whisper model plumbin
 # The -tags onnx suites for vision and sat need a real onnxruntime and stay in
 # the nightly vision-onnx job. Each module is its own go.mod outside go.work,
 # hence GOWORK=off in each recipe.
+PURE_GO_PLUGINS := sat check vision asr sourcecode
+
 test-plugins: ## Run the plugin modules whose tests need no system library (sat, check, vision, asr, sourcecode)
-	@$(MAKE) --no-print-directory test-sat-plugin
-	@$(MAKE) --no-print-directory test-check-plugin
-	@$(MAKE) --no-print-directory test-vision-plugin
-	@$(MAKE) --no-print-directory test-asr-plugin
-	@$(MAKE) --no-print-directory test-sourcecode-plugin
+	@# Every module runs, so one failing module does not hide the next.
+	@failed=""; for p in $(PURE_GO_PLUGINS); do \
+		$(MAKE) --no-print-directory test-$$p-plugin || failed="$$failed $$p"; \
+	done; \
+	if [ -n "$$failed" ]; then echo "test-plugins: failed:$$failed"; exit 1; fi
 
 # ── kapi-sourcecode reader plugin ────────────────────────────────────────────
 # Reads the prose out of source files with tree-sitter grammars, so a string
@@ -1311,9 +1316,8 @@ sourcecode-comment-goldens: ## Regenerate the goldens the kapi-sourcecode commen
 #
 # Requires the same two native deps as build-sat-plugin-onnx:
 #   SAT_TOKENIZERS_LIB  dir containing libtokenizers.a (linked at build time)
-#   SAT_ORT_DIR         extracted onnxruntime release dir (its shared lib is
-#                       copied into the tarball; downloaded from
-#                       microsoft/onnxruntime releases)
+#   SAT_ORT_DIR         onnxruntime dir written by scripts/fetch-onnxruntime.sh
+#                       (its shared lib is copied into the tarball)
 # The release matrix (.github/workflows/release.yml: build-sat-plugin) runs the
 # underlying script per platform; this target is the local equivalent.
 package-sat-plugin: ## Package a kapi-sat distribution tarball for the host platform (CGO; needs SAT_TOKENIZERS_LIB + SAT_ORT_DIR)
@@ -1353,8 +1357,8 @@ test-check-plugin: ## Run kapi-check pure-Go tests (protocol + vec + model cache
 # emits kapi-check_<version>_<os>_<arch>.tar.gz under $(BIN_DIR)/check-dist.
 # Needs the same two native deps as build-check-plugin-onnx:
 #   CHECK_TOKENIZERS_LIB  dir containing libtokenizers.a (linked at build time)
-#   CHECK_ORT_DIR         extracted onnxruntime release dir (its shared lib is
-#                         bundled into the tarball; from microsoft/onnxruntime)
+#   CHECK_ORT_DIR         onnxruntime dir written by scripts/fetch-onnxruntime.sh
+#                         (its shared lib is bundled into the tarball)
 # The release matrix (.github/workflows/release-check.yml) runs the underlying
 # script per platform; this target is the local equivalent.
 package-check-plugin: ## Package a kapi-check distribution tarball for the host platform (CGO; needs CHECK_TOKENIZERS_LIB + CHECK_ORT_DIR)
@@ -1395,8 +1399,13 @@ regen-kapimart-sample: build ## Regenerate the KapiMart sample's history (target
 regen-compass-sample: build ## Regenerate the Compass sample's decision record so each decision carries its source basis
 	@./scripts/regen-compass-state.sh
 
+# The timeout covers the KapiMart tests under -race: each one syncs the sample's
+# store, and a sync runs a recycle pass (a convergence pass over every file and
+# target language) before the checks run over the targets it wrote. That pass
+# is goroutine- and SQLite-heavy, which the race detector slows several times
+# over, so the package needs well over two minutes on a CI runner.
 kapi-desktop-test: i18n-catalogs ## Run Kapi Desktop Go backend tests
-	cd $(KAPI_DESKTOP_DIR) && $(GOTEST_BASE) ./backend/... -count=1 -timeout 180s
+	cd $(KAPI_DESKTOP_DIR) && $(GOTEST_BASE) ./backend/... -count=1 -timeout 300s
 
 # `go test ./backend/...` compiles only the backend, but golangci-lint compiles
 # the whole module — including main.go, whose `//go:embed all:frontend/dist`
@@ -1409,14 +1418,11 @@ kapi-desktop-test: i18n-catalogs ## Run Kapi Desktop Go backend tests
 # which is what the i18n-catalogs prerequisite covers. Both are prerequisites
 # rather than a note in a runbook, so `make kapi-desktop-lint` works from a
 # clean checkout and the CI job below reuses the same definition.
-kapi-desktop-lint-deps: i18n-catalogs ## Materialize what the Kapi Desktop module embeds, so it typechecks
-	@mkdir -p $(KAPI_DESKTOP_DIR)/frontend/dist
-	@test -e $(KAPI_DESKTOP_DIR)/frontend/dist/index.html \
-		|| echo placeholder > $(KAPI_DESKTOP_DIR)/frontend/dist/index.html
+kapi-desktop-lint-deps: i18n-catalogs $(KAPI_DESKTOP_DIR)/frontend/dist/index.html ## Materialize the desktop backend's embedded files
 
 kapi-desktop-lint: kapi-desktop-lint-deps ## Run golangci-lint over the Kapi Desktop Go backend
 ifdef GOLANGCI_LINT
-	cd $(KAPI_DESKTOP_DIR) && $(GOLANGCI_LINT) run ./...
+	$(TAGMATRIX_LINT) $(GO_LINT_DESKTOP)
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif
@@ -1443,43 +1449,33 @@ endif
 # Unlike the release steps this deliberately does NOT run `go mod tidy`, which
 # would mutate go.mod/go.sum and collide with the `tidy-check` gate.
 #
-# NOTE: the release workflows still carry their own copy of this invocation and
-# install the wails3 CLI with `@latest`. Folding them onto these targets (and a
-# pinned CLI) is the obvious next step, but their desktop matrix includes Windows
-# runners where `make` is not reliably on PATH, and the release path only runs on
-# tags — so it is not verifiable from a PR and is deliberately left alone here.
+# The release workflows carry their own copy of this invocation, because their
+# desktop matrix includes Windows runners where `make` is not reliably on PATH.
+# They install the CLI through the same script as `make wails3-cli`.
+#
+# With cgo off the generator cannot see the symbols Wails defines in its own
+# cgo files and warns about each one. scripts/wails-generate.sh counts those
+# and fails on a warning about any other package, which would mean a bound type
+# of ours did not resolve.
 WAILS_BINDINGS_ENV   := CGO_ENABLED=0
 WAILS_BINDINGS_FLAGS := -f "-tags production,fts5 -trimpath -buildvcs=false -ldflags=\"\"" -clean=true
 BOWRAIN_DESKTOP_DIR  := bowrain/apps/bowrain
 
-# Install the wails3 CLI at the exact wails version the apps build against, so
-# the generator can never disagree with the library. `go install …@latest` would
-# make the byte gate drift repo-wide the day upstream tags a release; deriving
-# the pin from go.mod keeps one source of truth. (Verified byte-identical output
-# across two CLI versions, so the pin is future-proofing, not a current fix.)
-#
-# One CLI on PATH serves both desktop apps, so their pins must agree — assert it
-# rather than silently generating one app's bindings with the other's generator.
-# The queries run with GOWORK=off deliberately: inside the workspace `go list -m`
-# reports the MVS-unified version, so both modules would always look identical
-# and the assertion would never fire.
+# Install the wails3 CLI at the exact Wails version the apps build against, so
+# the generator can never disagree with the library. scripts/install-wails3.sh
+# reads the version from the two go.mod files that require Wails and refuses to
+# go on when they disagree: one CLI on PATH serves both desktop apps. It reads
+# the files and does not ask `go list -m`, which inside the workspace reports
+# the version go.work unified, so the two would always look identical.
 wails3-cli: ## Install the wails3 CLI pinned to the wails version both desktop apps require
-	@kv="$$(cd $(KAPI_DESKTOP_DIR) && GOWORK=off $(GO) list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"; \
-	bv="$$(cd $(BOWRAIN_DESKTOP_DIR)/../.. && GOWORK=off $(GO) list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"; \
-	if [ "$$kv" != "$$bv" ]; then \
-		echo "wails3-cli: the desktop apps pin different wails versions (kapi-desktop=$$kv, bowrain=$$bv);"; \
-		echo "  one wails3 CLI cannot generate both apps' bindings faithfully — align the two go.mod files."; \
-		exit 1; \
-	fi; \
-	echo "wails3-cli: installing wails3 $$kv"; \
-	$(GO) install github.com/wailsapp/wails/v3/cmd/wails3@$$kv
+	@GO="$(GO)" ./scripts/install-wails3.sh
 
 kapi-desktop-bindings: i18n-catalogs ## Regenerate the committed Kapi Desktop Wails bindings + wbridge id map
-	cd $(KAPI_DESKTOP_DIR) && $(WAILS_BINDINGS_ENV) wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
+	cd $(KAPI_DESKTOP_DIR) && $(WAILS_BINDINGS_ENV) $(CURDIR)/scripts/wails-generate.sh wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
 	cd $(KAPI_DESKTOP_DIR)/frontend && node scripts/gen-wails-id-map.mjs
 
 bowrain-desktop-bindings: i18n-catalogs ## Regenerate the committed Bowrain Desktop Wails bindings + wbridge id map
-	cd $(BOWRAIN_DESKTOP_DIR) && $(WAILS_BINDINGS_ENV) wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
+	cd $(BOWRAIN_DESKTOP_DIR) && $(WAILS_BINDINGS_ENV) $(CURDIR)/scripts/wails-generate.sh wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
 	cd $(BOWRAIN_DESKTOP_DIR)/frontend && node scripts/gen-wails-id-map.mjs
 
 wails-bindings: kapi-desktop-bindings bowrain-desktop-bindings ## Regenerate both desktop apps' committed Wails bindings
@@ -1544,7 +1540,7 @@ kapi-desktop-frontend-test: kapi-desktop-frontend-deps ## Run Kapi Desktop front
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp test
 
 kapi-desktop-frontend-check: kapi-desktop-frontend-deps ## Lint + format + typecheck Kapi Desktop frontend
-	cd $(KAPI_DESKTOP_DIR)/frontend && vp check
+	cd $(KAPI_DESKTOP_DIR)/frontend && vp run check
 
 # Invoke the neokapi-i18n CLI by its built entrypoint rather than `vpx neokapi-i18n`,
 # which resolves the bin via the workspace and falls back to an npm fetch (404)
@@ -1713,10 +1709,12 @@ L10N_COMPILE_TARGETS := \
 #
 # BUILD-DERIVED (L10N_DERIVED) — committed source alone. The two generated
 # inventories the extract stage writes out of the Go registries and the cobra
-# command tree; the English email renders; and the whole `qps` probe tier, which
-# is a mechanical expansion of the extracted source catalogs and is then
+# command tree; the English email renders; and the committed `qps` probe tier,
+# which is a mechanical expansion of the extracted source catalogs and is then
 # compiled like any other locale. Nothing here passes through the project store,
-# so regenerating it must reproduce it byte for byte — l10n-verify says so.
+# so regenerating it must reproduce it byte for byte, and l10n-verify checks it.
+# The app surfaces' qps dictionaries are in neither tier: they are build output
+# that each app regenerates (`make app-qps`), so git carries none of them.
 #
 # LOOP-OWNED (L10N_LOOP_OWNED) — the target-language tier `kapi up` writes out
 # of the project store, which holds the union of what git carries and what a
@@ -1735,9 +1733,9 @@ L10N_COMPILE_TARGETS := \
 #
 # The compiled runtime dictionaries split the same way, and by the same rule:
 # `translations/qps.json` is compiled from the pseudo expansion of the source
-# catalogs, `translations/<lang>.json` from what the loop materialized. The qps
-# side keeps every surface's compiler under the byte gate, so a compiler change
-# still surfaces as drift.
+# catalogs, `translations/<lang>.json` from what the loop materialized. The
+# landing page's qps dictionary keeps the compiler under the byte gate, so a
+# compiler change still surfaces as drift.
 #
 # Two entries are git magic pathspecs, and they are kept OUT of the plain lists
 # because the two contexts that consume them need opposite quoting. A Make
@@ -1761,11 +1759,6 @@ L10N_DERIVED := \
 	scripts/gen-refs/nativedocs/qps \
 	packages/reference-data/data/qps \
 	bowrain/mailer/subjects/qps.json \
-	$(KAPI_DESKTOP_FRONTEND)/public/translations/qps.json \
-	bowrain/apps/web/public/translations/qps.json \
-	bowrain/apps/bowrain/frontend/public/translations/qps.json \
-	bowrain/apps/ctrl/public/translations/qps.json \
-	bowrain/apps/pulse/public/translations/qps.json \
 	$(LANDING_DIR)/translations/qps.json \
 	$(LANDING_DIR)/head/qps.json \
 	bowrain/mailer/templates/qps
@@ -1781,6 +1774,7 @@ L10N_LOOP_LOCALE = core/i18n/catalogs/$(1).json host/i18n/catalogs/$(1).json \
 	bowrain/apps/ctrl/public/translations/$(1).json \
 	bowrain/apps/pulse/public/translations/$(1).json \
 	$(LANDING_DIR)/translations/$(1).json \
+	bowrain/mobile/i18n/$(1).json \
 	bowrain/mailer/templates/$(1) \
 	scripts/gen-refs/nativedocs/$(1) \
 	packages/reference-data/data/$(1)
@@ -1846,18 +1840,63 @@ l10n-extract-globs: ## Print each extract surface as "<dir><TAB><extract flags>"
 check-extract-fixtures: ## Guard: no test/story file is extracted, and each surface's make and package invocations agree
 	@node scripts/check-extract-fixtures.mjs
 
+# The app surfaces' qps dictionaries (public/translations/qps.json) are build
+# output, not committed. Each one is a function of the app's source, so the app
+# regenerates it where it is built: the vite build and dev server through
+# scripts/vite-qps-catalog.mjs, and every workflow that ships an app through
+# .github/actions/app-pseudo-locale. One target per surface, run from the
+# repository root: extract the surface's source catalogs, pseudo-translate them
+# into a scratch directory, and compile that into each shell's dictionary.
+#
+# The scratch directory keeps two concurrent runs apart (the web and desktop
+# shells compile from the same bowrain app catalogs), and keeps this target out
+# of the i18n-qps trees l10n-pseudo owns.
+#
+# The extractor's warnings are the l10n workflow's to ratchet, so this target
+# prints its log only when the extract fails.
+#
+# QPS_KAPI is any kapi that can pseudo-translate: the one `make build` wrote,
+# else the one on PATH. CI installs a pinned release. The extractor and compiler
+# are @neokapi/i18n-react's CLI, which this target does not rebuild: a vite
+# build that calls it has already loaded that package's dist/.
+QPS_KAPI ?= $(if $(wildcard bin/kapi),$(CURDIR)/bin/kapi,kapi)
+
+# $(1) surface dir, $(2) extract flags, $(3) compile outputs relative to $(1).
+define app-qps-recipe
+	@test -f packages/i18n-react/dist/cli.js || { echo "app-qps: @neokapi/i18n-react is not built; run 'make i18n-react-build'" >&2; exit 1; }
+	@command -v $(QPS_KAPI) >/dev/null 2>&1 || { echo "app-qps: no kapi at '$(QPS_KAPI)'; run 'make build' or put kapi on PATH" >&2; exit 1; }
+	@tmp=$$(mktemp -d) && trap 'rm -rf "$$tmp"' EXIT && \
+		{ (cd $(1) && $(NEOKAPI_I18N_CLI) extract $(2)) > "$$tmp/extract.log" 2>&1 || { cat "$$tmp/extract.log" >&2; exit 1; }; } && \
+		$(KAPI_ISO_ENV) $(QPS_KAPI) pseudo-translate $(1)/i18n --target-lang qps -o "$$tmp/qps" -q && \
+		for out in $(3); do (cd $(1) && $(NEOKAPI_I18N_CLI) compile "$$tmp/qps" --out $$out >/dev/null) || exit 1; done
+endef
+
+kapi-desktop-qps: ## Regenerate the Kapi Desktop qps dictionary (build output, not committed)
+	$(call app-qps-recipe,$(KAPI_DESKTOP_FRONTEND),$(KAPI_DESKTOP_EXTRACT_FLAGS),public/translations)
+
+bowrain-app-qps: ## Regenerate the qps dictionary of both shells of the bowrain app (web, desktop)
+	$(call app-qps-recipe,$(BOWRAIN_APP_DIR),$(BOWRAIN_APP_EXTRACT_FLAGS),../../apps/web/public/translations ../../apps/bowrain/frontend/public/translations)
+
+bowrain-ctrl-qps: ## Regenerate the ctrl qps dictionary
+	$(call app-qps-recipe,bowrain/apps/ctrl,$(BOWRAIN_SHELL_EXTRACT_FLAGS),public/translations)
+
+bowrain-pulse-qps: ## Regenerate the pulse qps dictionary
+	$(call app-qps-recipe,bowrain/apps/pulse,$(BOWRAIN_SHELL_EXTRACT_FLAGS),public/translations)
+
+app-qps: kapi-desktop-qps bowrain-app-qps bowrain-ctrl-qps bowrain-pulse-qps ## Regenerate every app's qps dictionary
+
 check-vocab-packs: ## Guard: the vocabulary packs have exactly two homes (Go embed + one TS copy) and they agree
 	@node scripts/format-ops/check-vocab-packs.mjs
 
 # The stages below read the project's context from the workspace store. The
-# recipe keeps it on refs/kapi/context in this repository, and this pulls what
-# the ref holds that the store does not, which is what lets a fresh clone
+# recipe keeps it on the Bowrain project its bowrain: block names, and this
+# pulls what that project holds that the store does not, which is what lets a fresh clone
 # converge, check and export. A second run pulls nothing, so every stage may
 # declare it.
-l10n-context-import: bin/kapi ## Pull the repository's context from refs/kapi/context into the workspace store the loop reads
+l10n-context-import: bin/kapi ## Pull the repository's context from Bowrain into the workspace store the loop reads
 	$(KAPI_LOOP_ENV) ./bin/kapi context sync --no-push
 
-l10n-context-push: bin/kapi ## Sync the context this machine recorded with refs/kapi/context
+l10n-context-push: bin/kapi ## Sync the context this machine recorded with the Bowrain project
 	$(KAPI_LOOP_ENV) ./bin/kapi context sync
 
 l10n-review-export: bin/kapi l10n-context-import ## Emit disposable TMX/CSV review views of the project store → l10n/review/
@@ -2083,9 +2122,10 @@ L10N_REPORT_PAIRS = \
 	bowrain/apps/bowrain/frontend/public/translations/$(1).json:bowrain/apps/bowrain/frontend/public/translations/qps.json \
 	bowrain/apps/ctrl/public/translations/$(1).json:bowrain/apps/ctrl/public/translations/qps.json \
 	bowrain/apps/pulse/public/translations/$(1).json:bowrain/apps/pulse/public/translations/qps.json \
-	$(LANDING_DIR)/translations/$(1).json:$(LANDING_DIR)/translations/qps.json
+	$(LANDING_DIR)/translations/$(1).json:$(LANDING_DIR)/translations/qps.json \
+	bowrain/mobile/i18n/$(1).json:bowrain/mobile/i18n/en.json
 
-l10n-report: ## Report per-locale coverage and placeholder parity over the loop-owned tier (never gates)
+l10n-report: app-qps ## Report per-locale coverage and placeholder parity over the loop-owned tier (never gates)
 	@$(foreach lang,$(L10N_LANGS),node scripts/l10n-loop-report.mjs $(lang) $(call L10N_REPORT_PAIRS,$(lang));)
 
 # What a derived artifact derives from, printed one locale per line, so the
@@ -2100,7 +2140,7 @@ l10n-content-pairs: ## Print <artifact>:<reference> for every derived artifact w
 # wrote, which is where it gates; here it is a reading, run when someone wants
 # the list. Not in `make l10n`: content soundness gates the return leg, never an
 # ordinary build.
-l10n-content-check: ## Read every committed derived artifact for parse, placeholder parity and machine identifiers
+l10n-content-check: app-qps ## Read every committed derived artifact for parse, placeholder parity and machine identifiers
 	@$(foreach lang,$(L10N_LANGS),node scripts/check-derived-content.mjs $(lang) $(call L10N_REPORT_PAIRS,$(lang));)
 
 # Everything the loop materializes for one locale — the corpus the orphan report
@@ -2696,8 +2736,9 @@ context-eval-validate: ## Measure judge–human agreement on the labeled seed se
 
 # ── Frontend Checks ──────────────────────────────────────────────────────────
 
-audit-vite-alias: ## Assert the vite catalog alias tracks the vite-plus devDependency version
-	bash scripts/audit-vite-alias.sh
+audit-vite-alias: ## Assert the vite catalog alias names the core the installed vite-plus depends on
+	bash scripts/audit-vite-alias.sh --self-test
+	bash scripts/audit-vite-alias.sh --installed
 
 frontend-check-all: audit-vite-alias ## Run lint, format, and typecheck across all frontend projects
 	$(MAKE) -C bowrain frontend-check-all
@@ -2728,7 +2769,7 @@ logo: ## Regenerate all neokapi logo/icon/favicon assets from the source pair
 	@bash scripts/generate-neokapi-logo.sh
 
 # Regenerate every bowrain-branded logo/icon/favicon from the canonical vector
-# mark (bowrain/assets/brand/mark.svg + mark-favicon.svg). Fully scripted —
+# mark (assets/brand/bowrain/mark.svg + mark-favicon.svg). Fully scripted —
 # drop in an updated mark and re-run.
 bowrain-logo: ## Regenerate all bowrain logo/icon/favicon assets from the vector mark
 	@bash scripts/generate-bowrain-brand-assets.sh
@@ -2794,6 +2835,23 @@ fetch-corpus: ## Download Tier B format corpora from the format-corpus release (
 
 publish-corpus: ## Publish corpus-staging/<id>/ to the format-corpus release (merges per-format, never drops)
 	@bash scripts/publish-corpus.sh
+
+.PHONY: test-content-maturity check-content-maturity refresh-content-maturity
+test-content-maturity: i18n-catalogs i18n-react-build ## Test the format contracts and maturity report tooling
+	$(GO) test $(GOTAGS) -short ./core/formats/...
+	$(GO) test -tags fts5,e2e -count=1 ./kapi/e2e -run '^TestKpzEmailDelivery$$'
+	python3 -B scripts/format-ops/test_audit_receipts.py
+	node --test scripts/format-ops/*.test.mjs
+	cd web && vp test run src/pages/format-maturity
+	node scripts/format-ops/check-support-gates.mjs
+	node scripts/format-ops/validate-ledger.mjs
+
+check-content-maturity: test-content-maturity ## Measure format, output and connector evidence and check the published reports
+	node scripts/format-ops/content-maturity.mjs --check $${MATURITY_HISTORY_BASE:+--history-base "$$MATURITY_HISTORY_BASE"}
+
+refresh-content-maturity: test-content-maturity ## Measure content support and update the dated reports
+	node scripts/format-ops/content-maturity.mjs --write $${MATURITY_DATE:+--date "$$MATURITY_DATE"}
+	node scripts/format-ops/validate-ledger.mjs
 
 # prose-probe scores the Prose maturity axis (docs/internals/format-maturity.md
 # §2.8). It runs every TestProseP<n>_<subject> rung test in the workspace and
@@ -2872,6 +2930,15 @@ harness-videos-staged: ## Full fresh pass: stack up → seed → record, then na
 	$(MAKE) harness-narrate FORCE=1
 	$(MAKE) harness-package FORCE=1
 
+# Docs screenshots, light and dark, from the real screens: the Bowrain web app
+# on the seeded local stack and Kapi Desktop screens from the Kapi Storybook
+# build. Bring the stack up and seed it first (`make -C bowrain stack-up-web`,
+# `make harness-seed`). The files are gitignored CDN assets; publish them with
+# `make publish-cdn-images publish-cdn-bowrain-images`.
+docs-screenshots: kapi-storybook-build ## Shoot the docs screenshots (Bowrain web + Kapi Desktop, light + dark) → static/img
+	cd harness && vpx tsx scripts/shoot-docs-screens.ts desktop ../web/static/img/desktop
+	cd harness && vpx tsx scripts/shoot-docs-screens.ts bowrain ../bowrain/web/docs/static/img/web-app
+
 # ── Generate (scripts at root) ──────────────────────────────────────────────
 
 # okapi-bridge plugin dir feeding the reference dataset.
@@ -2912,10 +2979,12 @@ check-reference-docs: i18n-catalogs ## Drift gate: fail if the committed referen
 # Distribution metadata is declared in kapi.yaml and checked under the project's
 # voice profile. scripts/check-vocabulary.sh covers surfaces kapi cannot read.
 #
-# The isolated store starts empty, so pull the repository's context from
-# refs/kapi/context before checking. Without it, checks have no voice profile or
-# term rules. A pull writes nothing to the ref.
-import-dogfood-context: build ## Pull the repository's context from refs/kapi/context into the isolated store the gates use
+# The isolated store starts empty, so pull the repository's context from the
+# Bowrain project before checking. Without it, checks have no voice profile or
+# term rules. A pull writes nothing there. The isolated config holds no
+# sign-in, so the pull authenticates with BOWRAIN_AUTH_TOKEN and
+# BOWRAIN_SERVER_URL, which CI sets from its secret.
+import-dogfood-context: build ## Pull the repository's context from Bowrain into the isolated store the gates use
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi context sync --no-push -p $(CURDIR)/kapi.yaml
 
 # The commit check's cost on web/docs (docs/internals/evals.md): once in a
@@ -2950,6 +3019,10 @@ check-docs-prose: build import-dogfood-context ## Gate: the documentation passes
 	@# The two READMEs: prose kapi has always been able to read, that no
 	@# collection declared. A reader meets the README before anything else.
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'README.md' 'bowrain/README.md' \
+		-p $(CURDIR)/kapi.yaml
+	@# The narration of the walkthrough videos. Viewers hear it, and its
+	@# translations are generated from it.
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'harness/demos/*/demo.yaml' \
 		-p $(CURDIR)/kapi.yaml
 	@# NOT the agent skill, and not by omission. Gating host/skills reports 30
 	@# failing findings, every one of them correct-by-design: @angular/localize and
@@ -3176,9 +3249,7 @@ docs-build-prod: web-wasm-demo web-wasm-cli ## Build the kapi docs+landing site 
 bowrain-docs-build-prod: ## Build the standalone bowrain docs site with the production base → bowrain/web/docs/build
 # bowrain/web/docs carries its own pnpm-workspace.yaml (packages: []), so it is
 # already its own workspace root and needs no --ignore-workspace to stay out of
-# the repo workspace. The flag is actively harmful here: it makes pnpm skip that
-# file, including its packageManagerRegistries pin, and the package-manager
-# bootstrap then fails on any machine whose default registry is a mirror.
+# the repo workspace. The flag would make pnpm skip that file and its settings.
 	cd bowrain/web/docs && vp install
 	cd bowrain/web/docs && DOCS_BASE_URL=$(BOWRAIN_DOCS_BASE) vpx docusaurus build
 
@@ -3190,10 +3261,14 @@ publish-website: docs-build-prod bowrain-docs-build-prod ## Build + deploy the k
 
 # ── Tools ────────────────────────────────────────────────────────────────────
 
+# The versions match what CI runs and what wrote the committed *.pb.go files;
+# scripts/check-tool-versions.py holds each copy to the others. golangci-lint
+# v2 lives under the /v2 module path: the v1 path installs a v1 binary, which
+# cannot read the version 2 .golangci.yml.
 tools: ## Install development tools
-	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
+	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
 setup-remote: ## Install dependencies for cloud environments
 	CLAUDE_CODE_REMOTE=true bash scripts/setup-remote.sh
@@ -3331,16 +3406,16 @@ help: ## Show this help
 	@echo "  Sub-Makefile:  make -C bowrain help"
 	@echo ""
 
-.PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
+.PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration fuzz \
         check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
+        fmt vet lint plugins-vet plugins-lint ci-lint-framework ci-lint-scripts ci-lint-platform ci-lint-plugins ci-lint-kapi-desktop ci-lint-tags ci-lint-affected warm-lint-cache check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-ci-caches check-macos-minimum check-temp-leaks warm-build-cache workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
         ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \
-        ci-frontend ci-kapi-desktop-frontend ci-bowrain-desktop-frontend ci-i18n-react ci-build ci-tidy \
+        ci-frontend ci-frontend-packages ci-kapi-desktop-frontend ci-bowrain-desktop-frontend ci-i18n-react ci-build ci-tidy \
         audit-modules audit-vite-alias check-module-boundaries check-ts-license-boundary \
         build build-all build-server build-worker build-kapi-bowrain-plugin build-bowrain-plugin build-bowrain build-headless \
         plugin-bundle dev-skills \
@@ -3360,14 +3435,14 @@ help: ## Show this help
         l10n-context-import \
         l10n-collapse-check l10n-report l10n-content-pairs l10n-content-check \
         l10n-orphans l10n-orphans-report l10n-stale-report \
-        check-extract-fixtures \
+        check-extract-fixtures app-qps kapi-desktop-qps bowrain-app-qps bowrain-ctrl-qps bowrain-pulse-qps \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi gate-conformance test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         face-parity face-parity-update \
         bench bench-build bench-run bench-run-full bench-stress fetch-okapi-testdata \
         logo harness-deps harness-check harness-videos \
-        harness-seed harness-record harness-narrate harness-package harness-videos-all harness-videos-staged \
+        harness-seed harness-record harness-narrate harness-package harness-videos-all harness-videos-staged docs-screenshots \
         publish-cdn-wasm publish-cdn-vision-models publish-cdn-videos publish-cdn-bowrain-videos \
         publish-cdn-images publish-cdn-bowrain-images publish-cdn-all \
         fetch-corpus publish-corpus corpus-sweep \

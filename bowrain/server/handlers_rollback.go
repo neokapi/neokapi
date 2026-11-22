@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -27,7 +27,7 @@ import (
 // wording lands it over the findings it brings back (gate report). A target
 // that moved since the read keeps what it holds. It returns the number of
 // targets reverted.
-func (s *Server) applyReverts(ctx context.Context, c echo.Context, pid, stream, reason string, reverts []bstore.TargetRevert) (int, error) {
+func (s *Server) applyReverts(ctx context.Context, c *echo.Context, pid, stream, reason string, reverts []bstore.TargetRevert) (int, error) {
 	proj, err := s.ContentStore.GetProject(ctx, pid)
 	if err != nil {
 		return 0, err
@@ -112,7 +112,7 @@ type RollbackBlockRequest struct {
 // language-scoped.
 //
 // POST /:ws/:id/blocks/:ref/:bid/rollback  { "locale": "fr", "to_seq": 12 }
-func (s *Server) HandleRollbackBlock(c echo.Context) error {
+func (s *Server) HandleRollbackBlock(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermRollbackChanges); err != nil {
 		return err
 	}
@@ -235,7 +235,7 @@ type RevertBatchRequest struct {
 // recorded). Requires PermRollbackChanges.
 //
 // POST /:ws/:id/revert  { "correlation_id": "...", "stream": "main" }
-func (s *Server) HandleRevertBatch(c echo.Context) error {
+func (s *Server) HandleRevertBatch(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermRollbackChanges); err != nil {
 		return err
 	}
@@ -305,7 +305,7 @@ type RestoreToPointRequest struct {
 // (recorded as new edits). Requires PermRollbackChanges.
 //
 // POST /:ws/:id/restore  { "to_version": "v1" }  | { "to_cursor": 42 } | { "to_time": "..." }
-func (s *Server) HandleRestoreToPoint(c echo.Context) error {
+func (s *Server) HandleRestoreToPoint(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermRollbackChanges); err != nil {
 		return err
 	}

@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useNeokapi } from "@neokapi/i18n-react/runtime";
 import type { KapiProject } from "./types/api";
 import { api } from "./hooks/useApi";
+import { useSaveProjectTab } from "./hooks/useSaveProjectTab";
 import { useProjectHistory } from "./hooks/useProjectHistory";
 import { GLOBAL_OVERLAYS, useTabManager } from "./hooks/useTabManager";
 import { useAppInit } from "./hooks/useAppInit";
 import { useMenuEvents } from "./hooks/useMenuEvents";
 import { useProjectStoreSync } from "./hooks/useProjectStoreSync";
-import { ErrorProvider } from "./components/ErrorBanner";
+import { ErrorProvider, useError } from "./components/ErrorBanner";
 import { JobFeedProvider, useJobFeed } from "./context/JobFeedContext";
 import { ActiveFilterProvider } from "./context/ActiveFilterContext";
 import { IconSidebar } from "./components/IconSidebar";
@@ -17,6 +18,8 @@ import { FilterMenu } from "./components/FilterMenu";
 import { TabBar } from "./components/TabBar";
 import { SaveBar } from "./components/SaveBar";
 import { UnsavedDialog } from "./components/UnsavedDialog";
+import { WindowCloseDialog } from "./components/WindowCloseDialog";
+import { useWindowCloseGuard } from "./hooks/useWindowCloseGuard";
 import { RunningFlowDialog } from "./components/RunningFlowDialog";
 import { TelemetryNoticeDialog } from "./components/TelemetryNoticeDialog";
 import { initAnalytics, capturePageview } from "./analytics";
@@ -30,7 +33,7 @@ import { Undo2, Redo2 } from "lucide-react";
 import { Button, SimpleTooltip, Toaster, TooltipProvider } from "@neokapi/ui-primitives";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
-import { declaresTargetLanguages } from "./lib/languages";
+import { DesktopGuide } from "./guide/DesktopGuide";
 
 export default function App() {
   return (
@@ -48,13 +51,10 @@ export default function App() {
 }
 
 function AppInner() {
-  // Subscribe the root to neokapi-i18n's translation store so the tree
-  // re-renders when the user toggles UI language from Settings —
-  // plugin-injected __t/__tx calls read the module-level dict, so a
-  // root re-render is enough to roll out the new language without
-  // waiting for navigation.
+  // Refresh the tree when the translation dictionary changes.
   useNeokapi();
 
+  const { showError } = useError();
   const shortenHome = useShortenHome();
   const {
     workspace,
@@ -81,18 +81,10 @@ function AppInner() {
     },
     [workspace, standings, tm],
   );
-  // Start here connects an assistant in the most recently opened project.
-  const latestTab = tm.tabs[tm.tabs.length - 1];
-  const connectAssistant = useCallback(() => {
-    if (latestTab) tm.openTabOn(latestTab.info.id, "context:agent");
-  }, [latestTab, tm]);
-  const { hasActive: hasRunningFlow } = useJobFeed();
+  const { jobs, activeJob, hasActive: hasRunningFlow } = useJobFeed();
 
   const emptyProject: KapiProject = { version: "v1", name: "" };
-  const history = useProjectHistory(
-    tm.activeTab?.project ?? emptyProject,
-    tm.activeTabID,
-  ) as ReturnType<typeof useProjectHistory> & { cleanup: (id: string) => void };
+  const history = useProjectHistory(tm.activeTab?.project ?? emptyProject, tm.activeTabID);
 
   // Opening or closing a tab moves the workspace's last-active times.
   useEffect(() => {
@@ -112,30 +104,28 @@ function AppInner() {
   useEffect(() => {
     const view = tm.effectiveView;
     // The "projects/" prefix keeps the routes the analytics already hold.
-    const route = GLOBAL_OVERLAYS.has(view) ? view : `projects/${view.split(":")[0]}`;
+    const base = view.split(":")[0];
+    const route = GLOBAL_OVERLAYS.has(base) ? base : `projects/${base}`;
     capturePageview(route);
   }, [tm.effectiveView]);
 
-  // Warn before window close/quit if there are unsaved changes or running flows.
+  // In a browser, warn before a reload or a closed tab drops unsaved changes
+  // or a running flow. The native window does not fire beforeunload; its
+  // close and quit go through useWindowCloseGuard below.
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (history.isDirty || hasRunningFlow) e.preventDefault();
+      if (history.hasChanges() || hasRunningFlow) e.preventDefault();
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [history.isDirty, hasRunningFlow]);
+  }, [history.hasChanges, hasRunningFlow]);
 
   // --- Project save ---
+  const saveTab = useSaveProjectTab(history, tm, showError);
+
   const handleSaveProject = useCallback(async () => {
-    if (!tm.activeTabID) return;
-    const proj = history.project;
-    await api.updateProject(tm.activeTabID, proj);
-    await api.saveProject(tm.activeTabID);
-    history.markSaved();
-    tm.updateTab(tm.activeTabID, { project: proj });
-    // Re-check plugin status — user may have edited plugin requirements.
-    void tm.checkPluginStatus(tm.activeTabID);
-  }, [tm, history]);
+    if (tm.activeTabID) await saveTab(tm.activeTabID);
+  }, [tm.activeTabID, saveTab]);
 
   // --- Keyboard shortcuts ---
   useEffect(() => {
@@ -161,45 +151,47 @@ function AppInner() {
   const [pendingCloseTabID, setPendingCloseTabID] = useState<string | null>(null);
   const [pendingFlowCloseTabID, setPendingFlowCloseTabID] = useState<string | null>(null);
 
+  const confirmClose = useCallback(
+    (tabID: string) => {
+      if (history.hasChanges(tabID)) {
+        tm.selectTab(tabID);
+        setPendingCloseTabID(tabID);
+      } else {
+        history.cleanup(tabID);
+        tm.closeTab(tabID);
+      }
+    },
+    [history, tm],
+  );
+
   const handleCloseTab = useCallback(
     (tabID: string) => {
-      // Guard: running flow.
-      if (hasRunningFlow) {
-        setPendingFlowCloseTabID(tabID);
-        return;
-      }
-      // Guard: unsaved changes.
-      if (tabID === tm.activeTabID && history.isDirty) {
-        setPendingCloseTabID(tabID);
-        return;
-      }
-      history.cleanup(tabID);
-      tm.closeTab(tabID);
+      if (activeJob?.tabID === tabID) setPendingFlowCloseTabID(tabID);
+      else confirmClose(tabID);
     },
-    [tm, history, hasRunningFlow],
+    [confirmClose, activeJob],
   );
 
   const handleFlowCancelAndClose = useCallback(async () => {
     if (!pendingFlowCloseTabID) return;
-    await api.cancelRun();
-    const tabID = pendingFlowCloseTabID;
+    await api.cancelProjectRun(pendingFlowCloseTabID);
     setPendingFlowCloseTabID(null);
-    // After canceling, check for unsaved changes before closing.
-    if (tabID === tm.activeTabID && history.isDirty) {
-      setPendingCloseTabID(tabID);
-      return;
-    }
-    history.cleanup(tabID);
-    tm.closeTab(tabID);
-  }, [pendingFlowCloseTabID, tm, history]);
+    confirmClose(pendingFlowCloseTabID);
+  }, [pendingFlowCloseTabID, confirmClose]);
 
+  const [savingBeforeClose, setSavingBeforeClose] = useState(false);
   const handleUnsavedSave = useCallback(async () => {
-    if (!pendingCloseTabID) return;
-    setPendingCloseTabID(null);
-    await handleSaveProject();
-    history.cleanup(pendingCloseTabID);
-    tm.closeTab(pendingCloseTabID);
-  }, [pendingCloseTabID, handleSaveProject, history, tm]);
+    if (!pendingCloseTabID || savingBeforeClose) return;
+    setSavingBeforeClose(true);
+    try {
+      if (await saveTab(pendingCloseTabID)) {
+        setPendingCloseTabID(null);
+        confirmClose(pendingCloseTabID);
+      }
+    } finally {
+      setSavingBeforeClose(false);
+    }
+  }, [pendingCloseTabID, savingBeforeClose, saveTab, confirmClose]);
 
   const handleUnsavedDiscard = useCallback(() => {
     if (!pendingCloseTabID) return;
@@ -207,6 +199,18 @@ function AppInner() {
     history.cleanup(pendingCloseTabID);
     tm.closeTab(pendingCloseTabID);
   }, [pendingCloseTabID, history, tm]);
+
+  // --- Guard for window close and quit: unsaved changes and running flows ---
+  const closeGuard = useWindowCloseGuard({
+    tabs: tm.tabs.map(({ info }) => ({
+      id: info.id,
+      name: history.snapshot(info.id)?.name || info.name,
+    })),
+    hasChanges: history.hasChanges,
+    saveTab,
+    finishedTabIDs: finishedTabs(jobs),
+    cancelRun: api.cancelProjectRun,
+  });
 
   // --- Update project via history ---
   const updateProject = useCallback((project: KapiProject) => history.set(project), [history]);
@@ -217,15 +221,12 @@ function AppInner() {
     openProject: tm.openProject,
     openRecent: tm.openRecent,
     addTab: tm.addTab,
-    updateTabInfo: tm.updateTabInfo,
+    saveTab,
     setShowNewProjectForm: tm.setShowNewProjectForm,
   });
 
   // --- Render ---
-  // macOS uses a hidden-inset titlebar (traffic lights overlay the top-left), so
-  // the sidebar reserves a top strip and the top bar insets its left content to
-  // clear them. Windows/Linux have a native frame — drop those insets so the
-  // sidebar's Home icon sits at the very top instead of an empty gap.
+  // The hidden macOS title bar places the window controls over the sidebar.
   const isMac = isMacDesktop();
   // The Active Filter is per-project-tab and applies with a project loaded.
   const filterTabID = tm.activeTabID;
@@ -257,181 +258,222 @@ function AppInner() {
       {showTelemetryNotice && (
         <TelemetryNoticeDialog onClose={() => setShowTelemetryNotice(false)} />
       )}
+      {closeGuard.open && (
+        <WindowCloseDialog
+          rows={closeGuard.rows}
+          failed={closeGuard.failed}
+          saving={closeGuard.saving}
+          onSaveAll={() => void closeGuard.saveAll()}
+          onDiscardAll={() => void closeGuard.discardAll()}
+          onCancel={() => void closeGuard.cancel()}
+        />
+      )}
     </>
   );
+  // Tours and Help sit above both screens, so a tour can open any page.
+  const guideNav = {
+    navigate: tm.navigate,
+    hasProject: !!tm.activeTab && !tm.activeTab.info.context_only,
+  };
   if (screen !== "app") {
     return (
-      <div className="flex h-screen flex-col bg-background text-foreground">
-        <div className="h-12 shrink-0" style={{ WebkitAppRegion: "drag" } as React.CSSProperties} />
-        <main className="min-h-0 flex-1">
-          {screen === "open" && (
-            <OpenScreen
-              workspace={workspace}
-              onChooseFolder={() => void tm.openProject()}
-              onOpenPath={(path) => void tm.openRecent(path)}
-              onTrySample={() => tm.createSampleProject("kapimart")}
-              onOpenSettings={() => tm.navigate("app-settings")}
-            />
-          )}
-        </main>
-        {dialogs}
-      </div>
+      <DesktopGuide {...guideNav}>
+        <div className="flex h-screen flex-col bg-background text-foreground">
+          <div
+            className="h-12 shrink-0"
+            style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+          />
+          <main className="min-h-0 flex-1">
+            {screen === "open" && (
+              <OpenScreen
+                workspace={workspace}
+                onChooseFolder={() => void tm.openProject()}
+                onOpenPath={(path) => void tm.openRecent(path)}
+                onTrySample={() => tm.createSampleProject("kapimart")}
+                onOpenSettings={() => tm.navigate("app-settings")}
+              />
+            )}
+          </main>
+          {dialogs}
+        </div>
+      </DesktopGuide>
     );
   }
 
   return (
-    <ActiveFilterProvider tabID={filterTabID} enabled={filterEnabled}>
-      <div className="flex h-screen flex-col bg-background text-foreground">
-        <div className="flex min-h-0 flex-1">
-          {/* Icon sidebar */}
-          <div className="flex shrink-0 flex-col bg-sidebar">
-            {isMac && (
-              <div
-                className="h-12 shrink-0"
-                style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-              />
-            )}
-            <div className="flex-1 border-r border-border">
-              <IconSidebar
-                active={tm.effectiveView}
-                onChange={tm.navigate}
-                projectDisabled={!tm.activeTab}
-                hasTargetLanguages={declaresTargetLanguages(tm.activeTab?.project)}
-              />
-            </div>
-          </div>
-
-          {/* Right: top bar + content */}
-          <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Top bar */}
-            <div
-              className="flex h-12 shrink-0 items-end border-b border-border bg-sidebar"
-              style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-            >
-              {/* Undo / Redo */}
-              {tm.activeTab && (
+    <DesktopGuide {...guideNav}>
+      <ActiveFilterProvider tabID={filterTabID} enabled={filterEnabled}>
+        <div className="flex h-screen flex-col bg-background text-foreground">
+          <div className="flex min-h-0 flex-1">
+            {/* Icon sidebar */}
+            <div className="flex shrink-0 flex-col bg-sidebar">
+              {isMac && (
                 <div
-                  className={`flex shrink-0 items-center gap-0.5 pb-1.5 ${isMac ? "pl-16" : "pl-2"}`}
+                  className="h-12 shrink-0"
+                  style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+                />
+              )}
+              <div className="flex-1 border-r border-border">
+                <IconSidebar
+                  active={tm.effectiveView}
+                  onChange={tm.navigate}
+                  projectDisabled={!tm.activeTab}
+                />
+              </div>
+            </div>
+
+            {/* Right: top bar + content */}
+            <div className="flex flex-1 flex-col overflow-hidden">
+              {/* Top bar */}
+              <div
+                className="flex h-12 shrink-0 items-end border-b border-border bg-sidebar"
+                style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+              >
+                {/* Undo / Redo */}
+                {tm.activeTab && (
+                  <div
+                    className={`flex shrink-0 items-center gap-0.5 pb-1.5 ${isMac ? "pl-16" : "pl-2"}`}
+                    style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+                  >
+                    <SimpleTooltip content="Undo (⌘Z)">
+                      <span className="inline-flex">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={history.undo}
+                          disabled={!history.canUndo}
+                          aria-label="Undo"
+                          className="h-7 w-7"
+                        >
+                          <Undo2 size={14} />
+                        </Button>
+                      </span>
+                    </SimpleTooltip>
+                    <SimpleTooltip content="Redo (⌘⇧Z)">
+                      <span className="inline-flex">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={history.redo}
+                          disabled={!history.canRedo}
+                          aria-label="Redo"
+                          className="h-7 w-7"
+                        >
+                          <Redo2 size={14} />
+                        </Button>
+                      </span>
+                    </SimpleTooltip>
+                  </div>
+                )}
+                {/* Tabs or spacer. The strip shows once two projects are open;
+                  until then the spacer stays part of the window's drag region. */}
+                <div
+                  className={`flex-1 ${tm.activeTab ? "pl-2" : isMac ? "pl-16" : "pl-2"}`}
+                  style={
+                    tm.tabs.length > 1
+                      ? ({ WebkitAppRegion: "no-drag" } as React.CSSProperties)
+                      : undefined
+                  }
+                >
+                  {tm.tabs.length > 1 && (
+                    <TabBar
+                      tabs={tm.tabs.map(({ info }) => ({
+                        ...info,
+                        name: history.snapshot(info.id)?.name || info.name,
+                      }))}
+                      activeTabID={tm.activeTabID}
+                      onSelect={tm.selectTab}
+                      onClose={handleCloseTab}
+                      onRename={(id, name) => {
+                        const project = history.snapshot(id);
+                        if (project) history.set({ ...project, name }, id);
+                      }}
+                    />
+                  )}
+                </div>
+                {/* Filter, job feed and AI activity */}
+                <div
+                  className="flex shrink-0 items-center gap-1.5 px-3 pb-1.5"
                   style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
                 >
-                  <SimpleTooltip content="Undo (⌘Z)">
-                    <span className="inline-flex">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={history.undo}
-                        disabled={!history.canUndo}
-                        aria-label="Undo"
-                        className="h-7 w-7"
-                      >
-                        <Undo2 size={14} />
-                      </Button>
-                    </span>
-                  </SimpleTooltip>
-                  <SimpleTooltip content="Redo (⌘⇧Z)">
-                    <span className="inline-flex">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={history.redo}
-                        disabled={!history.canRedo}
-                        aria-label="Redo"
-                        className="h-7 w-7"
-                      >
-                        <Redo2 size={14} />
-                      </Button>
-                    </span>
-                  </SimpleTooltip>
-                </div>
-              )}
-              {/* Tabs or spacer */}
-              <div
-                className={`flex-1 ${tm.activeTab ? "pl-2" : isMac ? "pl-16" : "pl-2"}`}
-                style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-              >
-                {tm.tabs.length > 0 && (
-                  <TabBar
-                    tabs={tm.tabs.map((t) => t.info)}
-                    activeTabID={tm.activeTabID}
-                    onSelect={tm.selectTab}
-                    onClose={handleCloseTab}
-                    onRename={(id, name) =>
-                      tm.updateTab(id, {
-                        info: { ...tm.tabs.find((t) => t.info.id === id)!.info, name },
-                      })
-                    }
+                  {filterEnabled && <FilterMenu key={tm.activeTabID} project={history.project} />}
+                  <JobFeedButton
+                    canViewJob={(job) => tm.tabs.some((tab) => tab.info.id === job.tabID)}
+                    onViewJob={(job) => {
+                      if (job.tabID) tm.openTabOn(job.tabID, `runner:${job.id}`);
+                    }}
                   />
-                )}
+                  <AIActivityButton />
+                </div>
               </div>
-              {/* Filter, job feed and AI activity */}
-              <div
-                className="flex shrink-0 items-center gap-1.5 px-3 pb-1.5"
-                style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-              >
-                {filterEnabled && <FilterMenu project={history.project} />}
-                <JobFeedButton
-                  onViewJob={() => {
-                    // Navigate to runner view for the job's flow.
-                    if (tm.activeTabID) {
-                      tm.navigate("runner");
-                    }
+
+              {/* Content */}
+              <main className="flex-1 overflow-auto">
+                <ViewSwitch
+                  key={tm.activeTabID}
+                  effectiveView={tm.effectiveView}
+                  activeTab={tm.activeTab}
+                  history={history}
+                  updateProject={updateProject}
+                  navigate={tm.navigate}
+                  updateTab={tm.updateTab}
+                  workspace={workspace}
+                  workspaceError={workspaceError}
+                  standings={standings}
+                  startHereDismissed={startHereDismissed}
+                  onDismissStartHere={dismissStartHere}
+                  onRestoreStartHere={restoreStartHere}
+                  hasOpenProject={tm.tabs.length > 0}
+                  onOpenWhatsNew={openWhatsNew}
+                  onOpenCheckout={tm.openRecent}
+                  onOpenContext={tm.openWorkspaceContext}
+                  onForgetProject={forgetProject}
+                  onNewProject={() => tm.setShowNewProjectForm(true)}
+                  onOpenProject={tm.openProject}
+                  onCreateSampleProject={tm.createSampleProject}
+                  onResetSample={async (id) => {
+                    const project = await tm.resetSample(id);
+                    if (project) history.replace(project, id);
                   }}
+                  onOpenPath={(path) => void tm.openRecent(path)}
+                  openScreen={openScreen}
                 />
-                <AIActivityButton />
-              </div>
+              </main>
             </div>
-
-            {/* Content */}
-            <main className="flex-1 overflow-auto">
-              <ViewSwitch
-                effectiveView={tm.effectiveView}
-                activeTab={tm.activeTab}
-                history={history}
-                updateProject={updateProject}
-                navigate={tm.navigate}
-                updateTab={tm.updateTab}
-                workspace={workspace}
-                workspaceError={workspaceError}
-                standings={standings}
-                startHereDismissed={startHereDismissed}
-                onDismissStartHere={dismissStartHere}
-                onRestoreStartHere={restoreStartHere}
-                hasOpenProject={!!latestTab}
-                onConnectAssistant={connectAssistant}
-                onOpenWhatsNew={openWhatsNew}
-                onOpenCheckout={tm.openRecent}
-                onOpenContext={tm.openWorkspaceContext}
-                onForgetProject={forgetProject}
-                onNewProject={() => tm.setShowNewProjectForm(true)}
-                onOpenProject={tm.openProject}
-                onCreateSampleProject={tm.createSampleProject}
-                onResetSample={tm.resetSample}
-                onOpenPath={(path) => void tm.openRecent(path)}
-                openScreen={openScreen}
-              />
-            </main>
           </div>
+
+          {tm.activeTab && (
+            <SaveBar key={tm.activeTabID} isDirty={history.isDirty} onSave={handleSaveProject} />
+          )}
+
+          {/* Dialogs */}
+          {dialogs}
+          {pendingFlowCloseTabID && (
+            <RunningFlowDialog
+              onCancelFlow={() => void handleFlowCancelAndClose()}
+              onKeepRunning={() => setPendingFlowCloseTabID(null)}
+            />
+          )}
+          {pendingCloseTabID && (
+            <UnsavedDialog
+              saving={savingBeforeClose}
+              onSave={() => void handleUnsavedSave()}
+              onDiscard={handleUnsavedDiscard}
+              onCancel={() => setPendingCloseTabID(null)}
+            />
+          )}
         </div>
-
-        {/* Save bar — full width below sidebar + content */}
-        {tm.activeTab && <SaveBar isDirty={history.isDirty} onSave={handleSaveProject} />}
-
-        {/* Dialogs */}
-        {dialogs}
-        {pendingFlowCloseTabID && (
-          <RunningFlowDialog
-            onCancelFlow={() => void handleFlowCancelAndClose()}
-            onKeepRunning={() => setPendingFlowCloseTabID(null)}
-          />
-        )}
-        {pendingCloseTabID && (
-          <UnsavedDialog
-            onSave={() => void handleUnsavedSave()}
-            onDiscard={handleUnsavedDiscard}
-            onCancel={() => setPendingCloseTabID(null)}
-          />
-        )}
-      </div>
-    </ActiveFilterProvider>
+      </ActiveFilterProvider>
+    </DesktopGuide>
   );
+}
+
+/** The tabs whose latest flow has finished: a job ended and none runs. */
+function finishedTabs(jobs: { tabID?: string; status: string }[]): string[] {
+  const running = new Set(jobs.filter((j) => j.status === "running").map((j) => j.tabID));
+  const out = new Set<string>();
+  for (const job of jobs) {
+    if (job.tabID && job.status !== "running" && !running.has(job.tabID)) out.add(job.tabID);
+  }
+  return [...out];
 }

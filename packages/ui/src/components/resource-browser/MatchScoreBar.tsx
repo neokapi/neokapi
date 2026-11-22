@@ -42,7 +42,7 @@ export function MatchScoreBar({ score, matchType, className }: MatchScoreBarProp
     <div className={`flex items-center gap-2 ${className ?? ""}`}>
       <div className="relative h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
         <div
-          className="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
+          className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-300"
           style={{ width: `${pct}%`, backgroundColor: color }}
         />
       </div>

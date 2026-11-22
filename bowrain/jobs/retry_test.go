@@ -26,6 +26,10 @@ func TestIsTransientError(t *testing.T) {
 		{name: "504 gateway timeout", err: errors.New("openai: API error 504: gateway timeout"), want: true},
 		{name: "anthropic 529 overloaded", err: errors.New("anthropic: API error 529: overloaded"), want: true},
 		{name: "429 rate limit", err: errors.New("anthropic: API error 429: rate limit exceeded"), want: true},
+		{name: "bedrock throttle", err: errors.New("bedrock: converse: https response error StatusCode: 429, ThrottlingException: Too many tokens, please wait before trying again."), want: true},
+
+		// An exhausted quota resets in hours: failed now, not retried.
+		{name: "bedrock daily quota", err: errors.New("bedrock: converse: https response error StatusCode: 429, ThrottlingException: Too many tokens per day, please wait before trying again."), want: false},
 
 		// Permanent 4xx → not transient.
 		{name: "400 bad request", err: errors.New("openai: API error 400: bad request"), want: false},

@@ -48,7 +48,7 @@ export default function PartDetailsModal({
   // it, falling back to the initial read.
   let finalSnap: PartSnapshot = initial;
   for (let i = nodes.length - 1; i >= 0; i--) {
-    const s = set.afterNode?.[nodes[i].id];
+    const s = set.after_node?.[nodes[i].id];
     if (s) {
       finalSnap = s;
       break;
@@ -59,7 +59,7 @@ export default function PartDetailsModal({
   // Pipeline stages: the reader (initial) then each node that touched the part.
   const stages: { label: string; snap: PartSnapshot }[] = [{ label: "read", snap: initial }];
   for (const n of nodes) {
-    const s = set.afterNode?.[n.id];
+    const s = set.after_node?.[n.id];
     if (s) stages.push({ label: n.label, snap: s });
   }
 
@@ -139,10 +139,10 @@ export default function PartDetailsModal({
                   <tr key={i}>
                     <td className={styles.stageLabel}>{s.label}</td>
                     <td className={styles.mono}>
-                      {s.snap.sourceText || <span className={styles.muted}>—</span>}
+                      {s.snap.source_text || <span className={styles.muted}>—</span>}
                     </td>
                     <td className={styles.mono}>
-                      {s.snap.targetText || <span className={styles.muted}>—</span>}
+                      {s.snap.target_text || <span className={styles.muted}>—</span>}
                     </td>
                   </tr>
                 ))}

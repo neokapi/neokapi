@@ -26,7 +26,7 @@ export type ConvergenceEventType =
 /**
  * One progress event of a convergence run — the flat, type-discriminated
  * protocol (core/convergence.Event). Fields are populated per `type` and
- * omitted when zero.
+ * omitted when zero. Field names are the wire's snake_case JSON keys.
  *
  * A run is a sequence of passes; within a pass every pending locale runs the
  * default flow (concurrently), and after the pass coverage is re-derived with
@@ -37,30 +37,26 @@ export interface ConvergenceEvent {
 
   // Pass-scoped (pass_start, pass_done; `pass` stamps locale-scoped events too).
   pass?: number;
-  maxPasses?: number;
+  max_passes?: number;
   pending?: string[];
 
   // Pre-pass auto-extract on drift (pass_start).
-  extractedFiles?: number;
-  extractedBlocks?: number;
+  extracted_files?: number;
+  extracted_blocks?: number;
 
   // Locale-scoped (locale_start, unit_progress, locale_done).
   locale?: string;
   units?: number;
   done?: number;
-  /**
-   * Wire field name, not vocabulary: this mirrors `json:"viaTM"` on
-   * core/convergence.Event. The serialized key is a network contract with
-   * independently released clients, so it keeps its legacy name; the render
-   * model below calls the same number `viaMemory`.
-   */
-  viaTM?: number;
-  viaAI?: number;
+  /** Units filled from the content memory. The render model calls the same
+   *  number `viaMemory`. */
+  via_memory?: number;
+  via_ai?: number;
 
   // Post-derivation (pass_done).
   produced?: number;
-  producedDelta?: number;
-  failingChecks?: number;
+  produced_delta?: number;
+  failing_checks?: number;
 
   // locale_done → shippable|parked|pending; done → converged|parked|failed|canceled.
   state?: string;
@@ -124,13 +120,13 @@ export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): Co
     case "pass_start": {
       model.passes.push({
         pass: ev.pass ?? model.passes.length + 1,
-        maxPasses: ev.maxPasses ?? 0,
+        maxPasses: ev.max_passes ?? 0,
         rows: (ev.pending ?? []).map(newRow),
         settled: false,
       });
-      if (ev.extractedFiles || ev.extractedBlocks) {
+      if (ev.extracted_files || ev.extracted_blocks) {
         model.logs?.push(
-          `Extracted ${ev.extractedBlocks ?? 0} blocks from ${ev.extractedFiles ?? 0} files`,
+          `Extracted ${ev.extracted_blocks ?? 0} blocks from ${ev.extracted_files ?? 0} files`,
         );
       }
       break;
@@ -149,8 +145,8 @@ export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): Co
       if (pass && ev.locale) {
         const row = ensureRow(pass, ev.locale);
         row.done = ev.done ?? 0;
-        row.viaMemory = ev.viaTM ?? 0;
-        row.viaAI = ev.viaAI ?? 0;
+        row.viaMemory = ev.via_memory ?? 0;
+        row.viaAI = ev.via_ai ?? 0;
         row.state = deriveRowState(row);
       }
       break;
@@ -161,8 +157,8 @@ export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): Co
         const row = ensureRow(pass, ev.locale);
         if (ev.units != null) row.units = ev.units;
         row.done = ev.done ?? row.done;
-        row.viaMemory = ev.viaTM ?? row.viaMemory;
-        row.viaAI = ev.viaAI ?? row.viaAI;
+        row.viaMemory = ev.via_memory ?? row.viaMemory;
+        row.viaAI = ev.via_ai ?? row.viaAI;
         // locale_done is terminal for the row within this pass.
         row.state = "done";
         // The live stream is state-less; only adopt a ship verdict when the
@@ -177,8 +173,8 @@ export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): Co
       if (pass) {
         pass.settled = true;
         pass.produced = ev.produced;
-        pass.producedDelta = ev.producedDelta;
-        pass.failingChecks = ev.failingChecks;
+        pass.producedDelta = ev.produced_delta;
+        pass.failingChecks = ev.failing_checks;
         pass.pending = ev.pending;
       }
       break;

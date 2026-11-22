@@ -1,9 +1,9 @@
 package backend
 
-// The Map asks whether a model is connected each time it is shown. The
+// The Overview asks whether a model is connected each time it is shown. The
 // credential lookup behind the answer reads the saved key from the OS keychain
 // once per tool the deeper look builds. lookModelCache keeps the answer for
-// the session, so showing the Map again reads no key.
+// the session, so showing the Overview again reads no key.
 //
 // The App drops the kept answers when a provider key or the default model
 // changes, and when a deeper look finds no model to ask. An answer older than

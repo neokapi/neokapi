@@ -7,7 +7,8 @@ keywords: [flow steps format, YAML, steps, nodes, edges, StepsToGraph, flow comp
 
 # Flow Steps Format
 
-The steps-based flow format provides human-friendly YAML authoring that compiles to the internal nodes+edges graph representation.
+You write a flow as a YAML list of steps, and kapi compiles the list to the
+internal graph of nodes and edges.
 
 ## Format Detection
 
@@ -81,7 +82,7 @@ Write a flow meant to run as ordered steps.
 ```yaml
 steps:
   - tool: recycle
-    config: { fuzzyThreshold: 75 }
+    config: { fuzzy_threshold: 75 }
   - tool: translate
   - tool: qa
 ```

@@ -65,7 +65,7 @@ describe("ProjectSettingsPage format engine", () => {
     await userEvent.click(screen.getByRole("option", { name: "okapi-bridge" }));
 
     await waitFor(() => expect(onUpdate).toHaveBeenCalled());
-    const updated = onUpdate.mock.calls.at(-1)![0] as KapiProject;
+    const updated = onUpdate.mock.lastCall![0] as KapiProject;
     expect(updated.defaults?.engine).toBe("okapi-bridge");
   });
 
@@ -78,7 +78,7 @@ describe("ProjectSettingsPage format engine", () => {
     await userEvent.click(select);
     await userEvent.click(await screen.findByRole("option", { name: "native (default)" }));
     await waitFor(() => expect(onUpdate).toHaveBeenCalled());
-    const updated = onUpdate.mock.calls.at(-1)![0] as KapiProject;
+    const updated = onUpdate.mock.lastCall![0] as KapiProject;
     expect(updated.defaults?.engine).toBeUndefined();
   });
 
@@ -97,7 +97,7 @@ describe("ProjectSettingsPage format engine", () => {
     expect(bridge).toBeDefined();
     await userEvent.click(bridge!);
     await waitFor(() => expect(onUpdate).toHaveBeenCalled());
-    const updated = onUpdate.mock.calls.at(-1)![0] as KapiProject;
+    const updated = onUpdate.mock.lastCall![0] as KapiProject;
     expect(updated.plugins).toBeUndefined();
     expect(updated.defaults?.engine).toBeUndefined();
     expect(updated.defaults?.formats?.[".json"]).toEqual({ priority: 3, engine: undefined });
@@ -120,7 +120,7 @@ describe("ProjectSettingsPage format engine", () => {
     await userEvent.click(select);
     await userEvent.click(await screen.findByRole("option", { name: "native" }));
     await waitFor(() => expect(onUpdate).toHaveBeenCalled());
-    const updated = onUpdate.mock.calls.at(-1)![0] as KapiProject;
+    const updated = onUpdate.mock.lastCall![0] as KapiProject;
     expect(updated.defaults?.formats?.[".json"]).toEqual({ priority: 3, engine: "native" });
   });
 });

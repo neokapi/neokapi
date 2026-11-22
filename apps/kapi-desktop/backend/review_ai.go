@@ -2,7 +2,7 @@ package backend
 
 // AI in review (issue #1077, phase 3): per-unit AI actions (fix findings,
 // retranslate with instruction, explain) and the batch AI pre-review. Provider
-// calls happen ONLY inside these explicitly-invoked methods — queue listing
+// calls happen ONLY inside these explicitly-invoked methods; queue listing
 // and unit loading never touch a provider. All provider configuration resolves
 // exactly like the flow runner's: the shared ai.provider/ai.model defaults plus
 // the desktop credential store, so "the model that runs your flows" is the
@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -22,12 +21,11 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host"
-	appconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/host/credentials"
+	"github.com/neokapi/neokapi/host/reviewdeck"
 )
 
 // Review AI actions.
@@ -38,7 +36,7 @@ const (
 )
 
 // ReviewAIActionResult is the outcome of one per-unit AI action. Fix/retranslate
-// return a PROPOSED target only — nothing is written until the reviewer accepts
+// return a PROPOSED target only. Nothing is written until the reviewer accepts
 // the proposal, which the Review page sends as a set_content through Apply;
 // explain returns text.
 type ReviewAIActionResult struct {
@@ -61,7 +59,7 @@ type ReviewAIActionResult struct {
 //
 //   - fix-findings: a one-block translate invocation whose instruction carries
 //     the unit's current check findings (and any fresh AI-review findings) as
-//     constraints — the model produces a corrected translation.
+//     constraints, and the model produces a corrected translation.
 //   - retranslate: a one-block translate invocation with the reviewer's
 //     instruction verbatim.
 //   - explain: a one-block run of the ai review tool; the structured result
@@ -123,7 +121,7 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 		res, err = a.reviewAIExplain(ctx, op, unit, b, sourceLang)
 	case ReviewAIFixFindings:
 		findings := a.currentUnitFindings(ctx, op, scope, b, loc, sourceLang, key, rf.Collection, rf.Relative)
-		instruction = fixFindingsInstruction(b.TargetText(loc), findings, instruction)
+		instruction = reviewdeck.FixInstruction(b.TargetText(loc), "", findings, instruction)
 		res, err = a.reviewAIPropose(ctx, op, unit, b, sourceLang, instruction)
 	case ReviewAIRetranslate:
 		if strings.TrimSpace(instruction) == "" {
@@ -135,37 +133,36 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 			action, ReviewAIFixFindings, ReviewAIRetranslate, ReviewAIExplain)
 	}
 	if err != nil {
-		return nil, err
+		// A translate step is built without its key and reports a missing one
+		// on its first call, so a run error gets the rewrite a build error does.
+		return nil, friendlyAIProviderError(err)
 	}
 	res.Exchanges = a.aiActivity.since(mark)
 	return res, nil
 }
 
 // reviewAIPropose runs a one-block translate invocation and returns the
-// produced target as a proposal. The block is a fresh read-side copy — nothing
-// touches the target file.
+// produced target as a proposal, through reviewdeck.ProposeRewrite, which the fix
+// candidates of every surface run. Nothing touches the target file.
 func (a *App) reviewAIPropose(ctx context.Context, op *openProject, unit host.UnitRef, b *model.Block, sourceLang, instruction string) (*ReviewAIActionResult, error) {
 	tl, release, err := a.newReviewAITool(ctx, op, "translate", unit, map[string]any{
-		"sourceLocale": sourceLang,
-		"instruction":  instruction,
+		"source_locale": sourceLang,
+		"instruction":   instruction,
 		// One block, one call: the single-block path renders the instruction
 		// via TranslateRequest.Directives.
-		"batchSize": 1,
+		"batch_size": 1,
 	})
 	if err != nil {
 		return nil, err
 	}
 	defer release()
-	if err := runReviewAITool(ctx, tl, b); err != nil {
-		return nil, fmt.Errorf("ai action: %w", err)
-	}
-	proposed := b.TargetText(model.LocaleID(unit.TargetLang))
-	if strings.TrimSpace(proposed) == "" {
-		return nil, errors.New("the model returned an empty translation. Try a more specific instruction")
+	runs, err := reviewdeck.ProposeRewrite(ctx, tl, b, model.LocaleID(unit.TargetLang))
+	if err != nil {
+		return nil, err
 	}
 	return &ReviewAIActionResult{
-		ProposedTarget: proposed,
-		ProposedEdit:   model.RunsEditText(b.TargetRuns(model.LocaleID(unit.TargetLang))),
+		ProposedTarget: model.RunsText(runs),
+		ProposedEdit:   model.RunsEditText(runs),
 	}, nil
 }
 
@@ -173,7 +170,7 @@ func (a *App) reviewAIPropose(ctx context.Context, op *openProject, unit host.Un
 // structured result as explanation text (score + findings). Read-only: the
 // review lands in block properties on an in-memory copy.
 func (a *App) reviewAIExplain(ctx context.Context, op *openProject, unit host.UnitRef, b *model.Block, sourceLang string) (*ReviewAIActionResult, error) {
-	tl, release, err := a.newReviewAITool(ctx, op, "review", unit, map[string]any{"sourceLocale": sourceLang})
+	tl, release, err := a.newReviewAITool(ctx, op, "review", unit, map[string]any{"source_locale": sourceLang})
 	if err != nil {
 		return nil, err
 	}
@@ -218,11 +215,7 @@ func (a *App) currentUnitFindings(ctx context.Context, op *openProject, scope st
 	var lines []string
 	// The findings a fix is asked to address are the ones this unit's own
 	// point produces, so the voice is resolved there.
-	points := a.newPointResolver(op, false)
-	profile := points.at(ctx, collection, relPath)
-	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
-	for _, f := range a.blockCheckFindings(ctx, b, relPath, sourceLang, loc, profile,
-		points.termsAt(ctx, collection, relPath), dntTerms) {
+	for _, f := range a.blockCheckFindings(ctx, a.reviewPoints(ctx, op), b, collection, relPath, filepath.ToSlash(relPath), sourceLang, loc) {
 		outcome := "reports"
 		if f.Fails {
 			outcome = "fails"
@@ -245,34 +238,12 @@ func (a *App) currentUnitFindings(ctx context.Context, op *openProject, scope st
 	return lines
 }
 
-// fixFindingsInstruction builds the translate instruction for fix-findings:
-// the current translation, the findings to resolve, and any extra reviewer
-// guidance.
-func fixFindingsInstruction(currentTarget string, findings []string, extra string) string {
-	var sb strings.Builder
-	sb.WriteString("Produce a corrected translation. The current translation is:\n")
-	sb.WriteString(currentTarget)
-	if len(findings) > 0 {
-		sb.WriteString("\n\nIt has these review findings; resolve every one of them while preserving the meaning of the source:\n")
-		for _, f := range findings {
-			sb.WriteString("- " + f + "\n")
-		}
-	} else {
-		sb.WriteString("\n\nImprove its accuracy and fluency while preserving the meaning of the source.\n")
-	}
-	if strings.TrimSpace(extra) != "" {
-		sb.WriteString("\nAdditional guidance: " + extra)
-	}
-	return sb.String()
-}
-
 // freshAIReview returns the unit's AI pre-review annotation from the state
 // store when it still judges the translation of b in loc, else nil.
 func (a *App) freshAIReview(ctx context.Context, op *openProject, scope, key string, loc model.LocaleID, b *model.Block) *state.AIReview {
 	// One handle per project, memoized on the engine: this is called per unit
-	// while rendering a review, and under the four-file layout each call opened
-	// and closed a database of its own. Now there is nothing to close — the
-	// working store is a schema of the project's store, and the engine owns it.
+	// while rendering a review. There is nothing to close, because the working
+	// store is a schema of the project's store and the engine owns it.
 	root := filepath.Dir(op.Path)
 	st, err := a.hostEngine().OpenProjectState(ctx, root)
 	if err != nil {
@@ -294,9 +265,9 @@ func (a *App) freshAIReview(ctx context.Context, op *openProject, scope, key str
 // newReviewAITool builds the AI tool an action uses the way a run builds it.
 // host.ToolConfigForUnit assembles the config a flow run would hand this tool
 // for this unit (the voice profile, the term rules, the point, the tool and
-// locale presets, the content memory), the action's own keys layer on top, and
-// the tool comes from the registry path the flow runner takes (shared AI
-// defaults plus credential resolution).
+// locale presets, the content memory). The action's own keys layer on top. The
+// tool comes from the registry path the flow runner takes (shared AI defaults
+// plus credential resolution).
 //
 // A Review proposal is therefore steered by the same governance the checks card
 // above it judges the unit against.
@@ -321,6 +292,11 @@ func (a *App) newReviewAITool(ctx context.Context, op *openProject, name string,
 	build := func() (tool.Tool, error) {
 		if a.aiToolFactory != nil {
 			return a.aiToolFactory(name, cfg, unit.TargetLang)
+		}
+		// The decision a run makes, asked of this tool's own config: a
+		// provider with no key, or no model chosen, says so up front.
+		if need := a.newProjectEngine(op).ToolAISetup(name, cfg); need.Kind != host.AISetupNone {
+			return nil, errors.New(desktopAISetupMessage(need))
 		}
 		tl, terr := a.toolReg.NewToolWithConfig(registry.ToolID(name), cfg, unit.TargetLang)
 		if terr != nil {
@@ -371,8 +347,11 @@ func friendlyAIProviderError(err error) error {
 		return fmt.Errorf("multiple AI credentials are configured (%s). Set a default in Settings → AI Models",
 			strings.Join(amb.Candidates, ", "))
 	}
+	if m, ok := errors.AsType[*credentials.MissingCredentialError](err); ok {
+		return errors.New(desktopAISetupMessage(host.AISetupNeed{Kind: host.AISetupMissingCredential, Provider: m.Provider}))
+	}
 	if strings.Contains(err.Error(), "no saved credentials") {
-		return errors.New("no AI provider is configured. Add one in Settings → AI Models, then try again")
+		return errors.New(desktopAISetupMessage(host.AISetupNeed{Kind: host.AISetupMissingCredential}))
 	}
 	return err
 }
@@ -401,11 +380,13 @@ type PreReviewResult struct {
 	Skipped int `json:"skipped,omitempty"`
 }
 
-// RunAIPreReview runs the ai review tool over the pending review queue for a
-// locale (batch, explicitly invoked — never during queue listing). Every unit
-// gets an advisory annotation (score + findings) in the project state store,
-// bound to the translation it judged. Every unit stays in the queue for a
-// person to decide.
+// RunAIPreReview runs the AI pre-review over the pending review queue for a
+// locale (host.App.RunAIPreReview, which `kapi up --pre-review`
+// also runs). Every block gets an advisory annotation (score and findings) in
+// the project state store, bound to the translation it judged, and stays in
+// the queue for a person to decide. The judge is built from the desktop's
+// tool registry and credential store, and each model call runs under the
+// block's activity scope.
 func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope) (*PreReviewResult, error) {
 	canon, lerr := canonicalLocale(locale)
 	if lerr != nil {
@@ -419,151 +400,63 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope) (*PreRe
 	if op.Project == nil || op.Path == "" {
 		return nil, errors.New("project has no recipe loaded")
 	}
-
-	rep, err := a.GetConvergence(tabID)
-	if err != nil {
-		return nil, err
-	}
-	var pending []host.ReviewQueueItem
-	for _, it := range rep.Review {
-		if locale != "" && it.Locale != locale {
-			continue
-		}
-		if scope.Collection != "" && it.Collection != scope.Collection {
-			continue
-		}
-		pending = append(pending, it)
-	}
 	modelID, err := a.reviewerModelID()
 	if err != nil {
 		return nil, err
-	}
-	res := &PreReviewResult{Model: modelID}
-	if len(pending) == 0 {
-		return res, nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
-	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
+	opts := host.PreReviewOptions{
+		Collection: scope.Collection,
+		Model:      modelID,
+		NewTool: func(name string, cfg map[string]any, targetLang string) (tool.Tool, error) {
+			if a.aiToolFactory != nil {
+				return a.aiToolFactory(name, cfg, targetLang)
+			}
+			tl, terr := a.toolReg.NewToolWithConfig(registry.ToolID(name), cfg, targetLang)
+			if terr != nil {
+				return nil, friendlyAIProviderError(terr)
+			}
+			return tl, nil
+		},
+		UnitContext: func(ctx context.Context, it host.ReviewQueueItem) context.Context {
+			return withAIScope(ctx, AIActivityScope{Surface: "pre-review", Locale: it.Locale, File: it.File, Key: it.Key})
+		},
+		Progress: func(done, total int, it host.ReviewQueueItem) {
+			a.emitEvent("prereview:progress", map[string]any{"done": done, "total": total, "file": it.File, "key": it.Key})
+		},
+	}
+	if locale != "" {
+		opts.Languages = []string{locale}
+	}
 	src := string(op.Project.Defaults.SourceLanguage)
-
-	// Group by (file, locale) so each pair is read and overlaid once, and the
-	// annotations for a file land in one state write.
-	type scopeKey struct{ file, locale string }
-	groups := map[scopeKey][]host.ReviewQueueItem{}
-	order := []scopeKey{}
-	for _, it := range pending {
-		k := scopeKey{file: it.File, locale: it.Locale}
-		if _, seen := groups[k]; !seen {
-			order = append(order, k)
-		}
-		groups[k] = append(groups[k], it)
+	res, err := a.newProjectEngine(op).RunAIPreReview(ctx, op.Path, src, opts)
+	if err != nil {
+		return nil, err
 	}
-
-	done := 0
-	total := len(pending)
-	for _, k := range order {
-		items := groups[k]
-		rf, tgtPath, ferr := a.findReviewSource(op, k.locale, k.file)
-		if ferr != nil {
-			res.Skipped += len(items)
-			done += len(items)
-			continue
-		}
-		_, byKey, berr := a.reviewUnitBlocks(ctx, op, rf, tgtPath, k.locale)
-		if berr != nil {
-			res.Skipped += len(items)
-			done += len(items)
-			continue
-		}
-		// The judge is steered by the voice and vocabulary governing this file's
-		// point, exactly as the deterministic checks below it are: one tool per
-		// (file, locale) group, because every unit in the group shares a point.
-		unit := host.UnitRef{Collection: rf.Collection, Path: rf.Relative, TargetLang: k.locale}
-		tl, release, terr := a.newReviewAITool(ctx, op, "review", unit,
-			map[string]any{"sourceLocale": sourceLang})
-		if terr != nil {
-			return nil, terr
-		}
-		// The group runs in its own scope so the assembly this tool holds is
-		// released when the group ends, on every exit.
-		if gerr := func() error {
-			defer release()
-
-			annotations := map[string]state.AIReview{}
-
-			for _, it := range items {
-				done++
-				a.emitEvent("prereview:progress", map[string]any{
-					"done": done, "total": total, "file": it.File, "key": it.Key,
-				})
-				b, found := byKey[it.Key]
-				if !found {
-					res.Skipped++
-					continue
-				}
-				unitCtx := withAIScope(ctx, AIActivityScope{
-					Surface: "pre-review", Locale: it.Locale, File: it.File, Key: it.Key,
-				})
-				if rerr := runReviewAITool(unitCtx, tl, b); rerr != nil {
-					return fmt.Errorf("ai pre-review %s:%s: %w", it.File, it.Key, rerr)
-				}
-				scoreStr, hasScore := b.Properties["review-score"]
-				if !hasScore {
-					res.Skipped++ // prose fallback — no usable score, nothing stored
-					continue
-				}
-				score, serr := strconv.Atoi(scoreStr)
-				if serr != nil {
-					res.Skipped++
-					continue
-				}
-				rev := state.AIReview{Score: score, Model: modelID}
-				if parsed, perr := aitools.ParseReviewResult(b.Properties["review"]); perr == nil {
-					for _, f := range parsed.Findings {
-						rev.Findings = append(rev.Findings, state.AIReviewFinding{
-							Severity: f.Severity, Message: f.Message, Suggestion: f.Suggestion,
-						})
-					}
-				}
-				annotations[it.Key] = rev
-				res.Reviewed++
-			}
-
-			if len(annotations) > 0 {
-				if _, aerr := a.hostEngine().RecordAIReviews(ctx, op.Path, src, k.locale, k.file, annotations); aerr != nil {
-					return fmt.Errorf("record ai reviews: %w", aerr)
-				}
-			}
-			return nil
-		}(); gerr != nil {
-			return nil, gerr
-		}
-	}
-	return res, nil
+	return &PreReviewResult{Model: res.Model, Reviewed: res.Reviewed, Skipped: res.Skipped}, nil
 }
 
-// reviewerModelID resolves the model identity a pre-review records
-// ("ai/<model-id>"): the shared ai.model default, the credential's model, or —
-// with neither — the provider id. In tests (aiToolFactory injected) the
-// credential store is not consulted.
+// reviewerModelID resolves the reviewer a pre-review records
+// (host.ReviewerModel) from the desktop's AI config and credential store. In
+// tests (aiToolFactory injected) the credential store is not consulted, and a
+// run with no AI default records "mock".
 func (a *App) reviewerModelID() (string, error) {
-	cfg := map[string]any{}
-	cfg = appconfig.ApplyAIToolDefaults(a.aiConfig, "review", []string{schema.RequiresCredentials}, cfg)
-	if a.aiToolFactory == nil {
-		resolved, err := credentials.ResolveCredentials(a.credentials, "review", []string{schema.RequiresCredentials}, cfg)
-		if err != nil {
-			return "", friendlyAIProviderError(err)
+	store := a.credentials
+	if a.aiToolFactory != nil {
+		store = nil
+	}
+	id, err := host.ReviewerModel(a.aiConfig, store, nil)
+	if err != nil {
+		return "", friendlyAIProviderError(err)
+	}
+	if id == "" {
+		if a.aiToolFactory != nil {
+			return "mock", nil
 		}
-		cfg = resolved
+		return "", errors.New(desktopAISetupMessage(host.AISetupNeed{Kind: host.AISetupChooseModel}))
 	}
-	if m, _ := cfg["model"].(string); m != "" {
-		return m, nil
-	}
-	if p, _ := cfg["provider"].(string); p != "" {
-		return p, nil
-	}
-	return "mock", nil
+	return id, nil
 }

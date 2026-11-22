@@ -1,6 +1,6 @@
 id: kapi-desktop-projects
-title: A recipe written for you
-subtitle: Open a folder, give it a language, point it at content, and read the plan.
+title: Set up a project
+subtitle: Open a folder, add a language, choose where translations go, and see what needs translating.
 kind: use-case
 publishAs: kapi-desktop-projects
 terminal: desktop
@@ -9,65 +9,57 @@ needsAi: false
 # One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Projects
-  - Source & target languages
-  - Content patterns
-  - The catch-up plan
+  - A folder becomes a project
+  - Languages
+  - Where translations go
+  - The plan
 outro:
-  line: Open a folder, add a language, read the plan.
-  pointer: kapi up --plan
+  line: Click Bring up to date to translate the new text.
 
+# The folder holds a few help pages, made off camera. The app proposes a
+# collection for them when the folder opens, and the walk gives it a target
+# path, so the plan has work to show on the same project.
 narration:
   - id: title
     kind: title
     text: >-
-      A kapi project is a recipe beside your files, and Kapi Desktop writes it
-      for you. Open a folder, give it a language, point it at content, and see
-      what one click would do.
+      You'll open a folder of help pages as a project and add French as a
+      language.
 
   - id: new-project
     kind: desktop
     beat: new-project
-    caption: Opened, and governing nothing yet.
+    caption: Drop a folder to open it as a project.
     text: >-
-      A project starts from a folder. Dropped on the Open screen, an empty one
-      opens on its Map, which offers to set the project up, and a template
-      gives it a structure. The standing after it is empty: no target
-      language, no content read, nothing to be behind on.
+      Drop the folder on the Open screen. The app finds the three help pages
+      and shows the next steps.
 
   - id: add-language
     kind: desktop
     beat: add-language
-    caption: One language picked, and saved into the recipe.
-    zoom: 1.4
+    caption: Add French.
     text: >-
-      Project Settings is where the source language and the languages you
-      translate into are declared. Picking French adds it, and saving writes one
-      line into the recipe beside your files.
+      Open Project Settings. Under Translate into, pick French, and click Save
+      Changes.
 
   - id: add-collection
     kind: desktop
     beat: add-collection
-    caption: A name and one glob, counted as you type.
-    crop: { selector: ['[data-slot="code-input"]', '[data-testid="pattern-match-count"]'] }
+    caption: Choose where the translations go.
     text: >-
-      A collection is a name and the patterns that define it. The editor counts
-      what each pattern matched while you type it, so a glob that finds nothing
-      says so before you save it rather than after a run.
+      On the Content tab, edit the collection the app found, enter a folder
+      for the translations, and click Save Changes.
 
   - id: plan
     kind: desktop
     beat: plan
-    caption: A dry run. Nothing written, no provider called.
-    crop: { x: 0.38, y: 0.05, w: 0.24, h: 0.3 }
+    caption: See the work before it runs.
     hold: 10
     text: >-
-      On a project that already has content, the plan reads what is pending
-      before anything runs. Units with no target, what the project's own memory
-      can answer, and an estimate for the rest, all computed on this machine.
+      Back on the Overview, click Plan to see how much text has no French
+      translation yet. Click Bring up to date when you want to translate it.
 
   - id: outro
     kind: outro
     text: >-
-      Open a folder, declare a language and a pattern, then read the plan
-      before you press the one button that does the work.
+      Click Bring up to date to translate the new text.

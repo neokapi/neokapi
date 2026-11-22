@@ -130,7 +130,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	blockID := 0
 	dataID := 0
-	var pendingNote string // accumulated comment text for commentsAreNotes
+	var pendingNote string // accumulated comment text for comments_are_notes
 
 	// A property's key IS its identity — the author controls it, and it does not
 	// move when an entry above it is deleted. One builder per document read; it

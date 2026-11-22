@@ -47,7 +47,7 @@ flows:
     steps:
       - tool: pseudo-translate
         config:
-          expansionPercent: 30
+          expansion_percent: 30
 
 defaults:
   source_language: en
@@ -153,6 +153,7 @@ collections:
 | `source_language`  | string          | Overrides `defaults.source_language` for this collection                                                  |
 | `target_languages` | string[]        | Overrides `defaults.target_languages` for this collection                                                 |
 | `source_only`      | bool            | The collection has no target language: `kapi up` skips it and target-coverage gates exclude it. Rejected if the collection or any item also carries a target |
+| `priority`         | string          | Review priority: `high`, `normal` or `low`. Overrides `defaults.priority`. A review queue deals high collections first and low ones last |
 | `redaction`        | RedactionSpec   | The redaction policy for the files this collection holds, on a named collection or a bare entry. It replaces `defaults.redaction` for those files (see [redaction](#redaction)) |
 | `path`             | string          | Bare entries only: the glob, written instead of `content:`                                                |
 | `format`           | string or map   | Bare entries only                                                                                         |
@@ -186,8 +187,8 @@ intent, and loading fails if the collection contradicts it. See
 
 A collection's `base` is **where the collection lives**. Every `path`, `target`
 and item `base` beneath it is written relative to that directory and joined onto
-it, so a collection reads as the tree it governs rather than as a prefix repeated
-on every line:
+it, so a collection reads as the tree it governs, with no prefix repeated on
+every line:
 
 ```yaml
 collections:
@@ -598,6 +599,7 @@ bounded profile against the current time and labels it `active`, `upcoming` or
 | `comments`         | map                 | `directives`: markers your own tools read at the start of a comment line, set aside wherever kapi reads the project's comments. `channel`: the point, a qualified `profile/channel`, at which every declared item's comments sit unless the item names its own (see [Comments in source code](/kapi/recipes/verify-content#comments-in-source-code)) |
 | `voice`            | VoiceBinding        | Bind a voice profile as standing project context (see [voice](#voice)). A profile's own `voice:` overrides it for that product's content |
 | `coordinates`      | map                 | The project's default point on the declared axes (`brand`, `mode`), inherited by every collection; `product` and `channel` are derived from `channel:` and rejected here (see [Declared axes](#declared-axes)) |
+| `priority`         | string              | The review priority every collection takes unless it sets its own: `high`, `normal` (the default) or `low` |
 | `tools`            | map                 | Project-level tool presets, keyed by tool name: config applied wherever that tool runs in a project flow. A step's own `config` overrides a preset per key. `term_rules:` is the key `term-check`, `translate`, `recycle`, `dnt-check` and `pseudo-translate` take here (one term, what to use instead, and `advisory: true` for a rule that reports without failing), and the terminology gate holds every target language to it (see [Term rules](#term-rules)) |
 | `locales`          | map                 | Per-target-language overrides keyed by locale. Each entry's `tools:` presets merge over `defaults.tools` and under a step's own config whenever a flow runs for that locale, so one locale can enable redaction or a different model without forking the flow (see [the kapi loop](/kapi/convergence)). A `term_rules:` preset here governs that locale at the terminology gate |
 | `flow`             | string              | The project's default flow, the composed flow `kapi up` runs to catch up every locale. A key in `flows:`, a file in `flows_dir:`, or a built-in name (e.g. `translate`), resolved as `kapi run` resolves it. Empty runs the built-in default (recycle → translate) |
@@ -938,12 +940,12 @@ the recipe shape.
 
 ## Ship gates
 
-Ship gates decide when translated content is *shippable*: coverage thresholds
+Ship gates set when translated content is *shippable*: coverage thresholds
 over the target lifecycle ladder (`draft` → `translated` → `established`,
 where `established` is the rung `kapi status` shows as *approved*), enforced by
 [`kapi check --ship`](/reference/commands/check) and driven toward by [`kapi up`](/reference/commands/up). The model (ladders,
-derived state, review) is [the kapi loop](/kapi/convergence); this section is
-the schema. All of these keys are top-level (siblings of `defaults`) and
+derived state, review) is described in [the kapi loop](/kapi/convergence), and
+the schema follows. All of these keys are top-level (siblings of `defaults`) and
 optional: with none set, nothing is gated.
 
 | Field         | Type           | Description                                                                                       |
@@ -1049,7 +1051,7 @@ A tiered per-market strategy built from these pieces is worked through in
 ### source_gate
 
 The source-side coverage gate: a threshold map over the authoring ladder
-(`written` → `established`), gating the author's own content rather than the
+(`written` → `established`), gating the author's own content, not the
 translations.
 
 ```yaml

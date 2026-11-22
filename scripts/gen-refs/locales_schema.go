@@ -48,7 +48,7 @@ func (c *catalogTranslator) T(scope corei18n.Scope, source string) string {
 }
 
 // takeScoped is take for a dotted scope whose segments may themselves carry
-// dots: a property is keyed by its schema path (`parser.preserveWhitespace`),
+// dots: a property is keyed by its schema path (`parser.preserve_whitespace`),
 // so a segment that names no key is joined with the next until one does.
 func (c *localeCoverage) takeScoped(english string, cat map[string]any, path []string) string {
 	if english == "" {

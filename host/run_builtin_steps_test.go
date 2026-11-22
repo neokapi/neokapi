@@ -25,7 +25,7 @@ func TestBuiltInFlowSteps_RendersTheChainWithRunFlags(t *testing.T) {
 	for _, s := range spec.Steps {
 		assert.Equal(t, "demo", s.Config["provider"], "step %s carries the run flags", s.Tool)
 	}
-	assert.Equal(t, true, spec.Steps[1].Config["skipMatched"],
+	assert.Equal(t, true, spec.Steps[1].Config["skip_matched"],
 		"the node's own config survives beside the run flags")
 }
 

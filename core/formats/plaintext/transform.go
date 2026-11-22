@@ -1,6 +1,10 @@
 package plaintext
 
-import "github.com/neokapi/neokapi/core/config"
+import (
+	"github.com/neokapi/neokapi/core/config"
+
+	coreschema "github.com/neokapi/neokapi/core/schema"
+)
 
 // okapiPlaintextTransformer converts OkfPlaintextFilterConfig specs to
 // PlaintextFormatConfig. The native plaintext format supports the same
@@ -18,7 +22,7 @@ func (okapiPlaintextTransformer) Transform(spec map[string]any) (map[string]any,
 		case "parametersClass":
 			continue
 		default:
-			result[key] = val
+			result[coreschema.SnakeCase(key)] = val
 		}
 	}
 	return result, nil

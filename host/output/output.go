@@ -4,6 +4,7 @@ package output
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -22,7 +23,7 @@ import (
 type Format string
 
 const (
-	// FormatText outputs human-readable text (default) — a table for listings,
+	// FormatText outputs human-readable text (default): a table for listings,
 	// a labeled summary for single records. "table" is an accepted alias.
 	FormatText Format = "text"
 	// FormatJSON outputs machine-readable JSON.
@@ -167,7 +168,7 @@ func Colorize(cmd Command, w io.Writer) bool {
 	if os.Getenv("NO_COLOR") != "" {
 		return false
 	}
-	// CLICOLOR_FORCE forces color when set to anything other than 0 — the
+	// CLICOLOR_FORCE forces color when set to anything other than 0, the
 	// convention termenv implements for the text path. Treating a bare "set"
 	// as force-on made CLICOLOR_FORCE=0, the documented way to turn color off,
 	// turn it on instead.
@@ -220,8 +221,8 @@ func printJSON(w io.Writer, data any) error {
 }
 
 // printYAML renders the same structured record JSON mode emits, in YAML. It
-// round-trips through JSON first so the json struct tags — the single
-// definition of every result shape — govern both formats.
+// round-trips through JSON first so the json struct tags, the single
+// definition of every result shape, govern both formats.
 func printYAML(w io.Writer, data any) error {
 	raw, err := json.Marshal(data)
 	if err != nil {
@@ -252,12 +253,33 @@ type Error struct {
 	Code  string `json:"code,omitempty"`
 }
 
+// ErrorWithFields is an error whose JSON form carries fields beside the
+// message: an import that failed reports what it counted.
+type ErrorWithFields interface {
+	error
+	// ErrorFields is a value whose JSON object fields are printed beside
+	// "error" and "code".
+	ErrorFields() any
+}
+
 // PrintError outputs an error in the appropriate format to cmd.ErrOrStderr()
 // so tests using cmd.SetErr can capture error output.
 func PrintError(cmd Command, err error, code string) {
 	w := cmd.ErrOrStderr()
 	format := ResolveFormat(cmd)
 	if format == FormatJSON {
+		if withFields, ok := errors.AsType[ErrorWithFields](err); ok {
+			fields := map[string]any{}
+			if data, merr := json.Marshal(withFields.ErrorFields()); merr == nil {
+				_ = json.Unmarshal(data, &fields)
+			}
+			fields["error"] = err.Error()
+			if code != "" {
+				fields["code"] = code
+			}
+			_ = printJSON(w, fields)
+			return
+		}
 		e := Error{Error: err.Error(), Code: code}
 		_ = printJSON(w, e)
 	} else {

@@ -50,7 +50,7 @@ func NewInlineCodesRemoveConfig(targetLocale model.LocaleID) *InlineCodesRemoveC
 }
 
 // NewInlineCodesRemoveFromConfig creates an inline-codes-remove tool from a
-// config map. Without it `applySource` and `replaceWithSpace` were discarded and
+// config map. Without it `apply_source` and `replace_with_space` were discarded and
 // the target locale stayed empty, so from a flow the tool stripped codes from
 // nothing at all (#1476).
 func NewInlineCodesRemoveFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
@@ -112,7 +112,7 @@ func NewInlineCodesRemoveTool(cfg *InlineCodesRemoveConfig) *tool.BaseTool {
 
 // stripInlineRuns walks a run sequence and removes every non-text
 // run (placeholder, paired code, sub). Consecutive text runs are
-// coalesced. When replaceWithSpace is true, line-break-style codes
+// coalesced. When replace_with_space is true, line-break-style codes
 // contribute a single space so "foo<br/>bar" collapses to "foo bar"
 // rather than "foobar".
 //

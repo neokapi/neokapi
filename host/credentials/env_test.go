@@ -168,7 +168,7 @@ func TestInferProviderID(t *testing.T) {
 
 // TestResolveCredentials_EnvFallbackPerProvider checks that, with no inline key
 // and no --credential, each major provider's standard env var is injected as
-// config["apiKey"] while the resolved provider is preserved.
+// config["api_key"] while the resolved provider is preserved.
 func TestResolveCredentials_EnvFallbackPerProvider(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -228,7 +228,7 @@ func TestResolveCredentials_EnvFallbackPerProvider(t *testing.T) {
 
 			result, err := ResolveCredentials(store, tc.toolName, []string{"credentials"}, tc.config)
 			require.NoError(t, err)
-			assert.Equal(t, tc.envVal, result["apiKey"], "env var should be injected as apiKey")
+			assert.Equal(t, tc.envVal, result["api_key"], "env var should be injected as apiKey")
 			assert.Equal(t, tc.wantProvider, result["provider"], "provider should be preserved/inferred")
 		})
 	}
@@ -241,10 +241,10 @@ func TestResolveCredentials_InlineKeyBeatsEnv(t *testing.T) {
 	t.Setenv("ANTHROPIC_API_KEY", "sk-from-env")
 	store := newTestStore(t)
 
-	config := map[string]any{"provider": "anthropic", "apiKey": "sk-inline"}
+	config := map[string]any{"provider": "anthropic", "api_key": "sk-inline"}
 	result, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)
 	require.NoError(t, err)
-	assert.Equal(t, "sk-inline", result["apiKey"], "inline apiKey must beat env var")
+	assert.Equal(t, "sk-inline", result["api_key"], "inline apiKey must beat env var")
 }
 
 // TestResolveCredentials_CredentialRefBeatsEnv verifies precedence: a
@@ -279,7 +279,7 @@ func TestResolveCredentials_EnvBeatsStoreAutoDetect(t *testing.T) {
 	config := map[string]any{"provider": "openai"}
 	result, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)
 	require.NoError(t, err, "env var should short-circuit before store auto-detect")
-	assert.Equal(t, "sk-from-env", result["apiKey"])
+	assert.Equal(t, "sk-from-env", result["api_key"])
 	assert.Equal(t, "openai", result["provider"])
 }
 

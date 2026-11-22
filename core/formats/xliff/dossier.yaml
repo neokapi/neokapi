@@ -26,4 +26,4 @@ learning_materials:
   - docs/internals/research/xliff-okapi-compat-quirks.md
 divergences:
   - https://github.com/neokapi/okapi-bridge/blob/main/parity/annotations/xliff.yaml
-  - "core/formats/xliff/spec.yaml expected_fail: bridge does not expose ignoreInputSegmentation (no tracked issue number)"
+  - "core/formats/xliff/spec.yaml expected_fail: bridge does not expose ignore_input_segmentation (no tracked issue number)"

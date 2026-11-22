@@ -1,8 +1,10 @@
+import type { ReviewInvolvement, ServerReviewPlan } from "@neokapi/bowrain-client";
+import { ROUTES as BOWRAIN_ROUTES, feedQueryString } from "@neokapi/bowrain-client";
 import { CHANGE_RESULT_SCHEMA_ID } from "@neokapi/contract-types";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import type {
   KeptRule,
-  MapSummary,
+  OverviewSummary,
   ReaderFile,
   RuleDecideResult,
   RulesDecideView,
@@ -86,6 +88,8 @@ import type {
   TranslationDashboardStats,
   TranslationDashboardItemOpts,
   ActivityPage,
+  FeedPage,
+  FeedQuery,
   ConvergenceRun,
   ConvergenceEstimate,
   LoopRollup,
@@ -844,14 +848,14 @@ export class RestApiAdapter implements ApiAdapter {
     name: string,
     expireDays: number,
     scopes?: string[],
-    agentName?: string,
+    toolName?: string,
   ): Promise<CreateApiTokenResponse> {
     const body: Record<string, unknown> = { name, expire_days: expireDays };
     if (scopes && scopes.length > 0) {
       body.scopes = scopes;
     }
-    if (agentName) {
-      body.agent_name = agentName;
+    if (toolName) {
+      body.tool_name = toolName;
     }
     return this.fetchJSON(`/api/v1/${workspaceSlug}/tokens`, {
       method: "POST",
@@ -1817,6 +1821,49 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
+  async getReviewPlan(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<ServerReviewPlan> {
+    const q = stream ? `?stream=${encodeURIComponent(stream)}` : "";
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/review/plan${q}`);
+  }
+
+  async confirmReviewCoordinates(workspaceSlug: string, projectId: string): Promise<void> {
+    await this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/review/plan/coordinates`, {
+      method: "POST",
+    });
+  }
+
+  async setReviewInvolvement(
+    workspaceSlug: string,
+    projectId: string,
+    involvement: ReviewInvolvement,
+  ): Promise<void> {
+    await this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/review/plan/involvement`, {
+      method: "PUT",
+      body: JSON.stringify({ involvement }),
+    });
+  }
+
+  async settleReviewPlan(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<{ approved: number; first_pass: boolean }> {
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/review/plan/settle`, {
+      method: "POST",
+      body: JSON.stringify({ stream }),
+    });
+  }
+
+  async startReviewPlanScan(workspaceSlug: string, projectId: string): Promise<void> {
+    await this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/review/plan/scan`, {
+      method: "POST",
+    });
+  }
+
   async createSourceProposal(
     workspaceSlug: string,
     projectId: string,
@@ -1853,11 +1900,11 @@ export class RestApiAdapter implements ApiAdapter {
 
   // ── The project screens ────────────────────────────────────────────────
 
-  async getMapSummary(
+  async getOverviewSummary(
     workspaceSlug: string,
     projectId: string,
     stream?: string,
-  ): Promise<MapSummary> {
+  ): Promise<OverviewSummary> {
     return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/map/${this.ref(stream)}`);
   }
 
@@ -2293,6 +2340,12 @@ export class RestApiAdapter implements ApiAdapter {
     await this.fetchJSON(`${this.termsEp(workspaceSlug)}/${req.concept_id}`, {
       method: "PUT",
       body: JSON.stringify(req),
+    });
+  }
+
+  async widenConcept(workspaceSlug: string, conceptId: string): Promise<void> {
+    await this.fetchJSON(`${this.termsEp(workspaceSlug)}/${conceptId}/widen`, {
+      method: "POST",
     });
   }
 
@@ -2900,6 +2953,17 @@ export class RestApiAdapter implements ApiAdapter {
     await this.fetchJSON(`/api/v1/${workspaceSlug}/activities/seen`, {
       method: "POST",
     });
+  }
+
+  async listProjectFeed(
+    workspaceSlug: string,
+    projectId: string,
+    query?: FeedQuery,
+  ): Promise<FeedPage> {
+    const page = await this.fetchJSON<FeedPage>(
+      `/api/v1${BOWRAIN_ROUTES.feed(workspaceSlug, projectId)}${feedQueryString(query)}`,
+    );
+    return { entries: page.entries ?? [], next_cursor: page.next_cursor || undefined };
   }
 
   // ── Convergence runs (server-side `kapi up`) — Bowrain AD-022 ────────────

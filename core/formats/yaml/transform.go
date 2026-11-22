@@ -1,6 +1,10 @@
 package yaml
 
-import "github.com/neokapi/neokapi/core/config"
+import (
+	"github.com/neokapi/neokapi/core/config"
+
+	coreschema "github.com/neokapi/neokapi/core/schema"
+)
 
 // okapiYAMLTransformer converts okf_yaml filter config specs to native YAML
 // format config. Most Okapi YAML filter parameters map directly to native
@@ -26,7 +30,7 @@ func (okapiYAMLTransformer) Transform(spec map[string]any) (map[string]any, erro
 				}
 			}
 		default:
-			result[key] = val
+			result[coreschema.SnakeCase(key)] = val
 		}
 	}
 	return result, nil

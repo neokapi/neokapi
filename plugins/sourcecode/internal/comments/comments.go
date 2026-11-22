@@ -108,7 +108,7 @@ func Locate(language, name string, src []byte) (*comment.File, error) {
 	s := newScanner(lang, src, root)
 	if lang.syntax.lexical != nil {
 		if err := s.agree(lang.syntax.lexical); err != nil {
-			return nil, fmt.Errorf("%w: the comments in %s cannot be placed exactly as %s (%v)", comment.ErrUnlocated, displayName(name), lang.DisplayName, err)
+			return nil, fmt.Errorf("%w: the comments in %s cannot be placed exactly as %s (%w)", comment.ErrUnlocated, displayName(name), lang.DisplayName, err)
 		}
 	}
 	return s.file(), nil

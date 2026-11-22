@@ -2,6 +2,7 @@ package xliff2
 
 import (
 	"fmt"
+	"github.com/neokapi/neokapi/core/format"
 	"slices"
 
 	"github.com/neokapi/neokapi/core/config"
@@ -112,51 +113,51 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			c.Version = s
 
 		// Extraction
-		case "forceUniqueIds":
+		case "force_unique_ids":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("forceUniqueIds: expected bool, got %T", val)
+				return fmt.Errorf("force_unique_ids: expected bool, got %T", val)
 			}
 			c.ForceUniqueIds = b
-		case "ignoreTagTypeMatch":
+		case "ignore_tag_type_match":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("ignoreTagTypeMatch: expected bool, got %T", val)
+				return fmt.Errorf("ignore_tag_type_match: expected bool, got %T", val)
 			}
 			c.IgnoreTagTypeMatch = b
 
 		// States
-		case "discardInvalidTargets":
+		case "discard_invalid_targets":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("discardInvalidTargets: expected bool, got %T", val)
+				return fmt.Errorf("discard_invalid_targets: expected bool, got %T", val)
 			}
 			c.DiscardInvalidTargets = b
 
 		// Output
-		case "writeOriginalData":
+		case "write_original_data":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("writeOriginalData: expected bool, got %T", val)
+				return fmt.Errorf("write_original_data: expected bool, got %T", val)
 			}
 			c.WriteOriginalData = b
 
 		// Inline codes
-		case "useCodeFinder":
+		case "use_code_finder":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useCodeFinder: expected bool, got %T", val)
+				return fmt.Errorf("use_code_finder: expected bool, got %T", val)
 			}
 			c.UseCodeFinder = b
-		case "codeFinderRules":
+		case "code_finder_rules":
 			rules, err := parseCodeFinderRules(val)
 			if err != nil {
-				return fmt.Errorf("codeFinderRules: %w", err)
+				return fmt.Errorf("code_finder_rules: %w", err)
 			}
 			c.CodeFinderRules = rules
 
 		default:
-			return fmt.Errorf("xliff2: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "xliff2", key)
 		}
 	}
 	return nil

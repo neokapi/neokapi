@@ -371,12 +371,27 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
   // typewriter reveals the words they cover. The host's marks join them after,
   // so on equal footing a mark wins the text it shares with an overlay.
   const spans = useMemo<ResolvedSpan[]>(() => {
+    const sideRuns =
+      ctx.side !== "source" && line.targets?.[ctx.side] ? line.targetRuns?.[ctx.side] : line.runs;
+    const limit = visible.length;
     const own = ctx.annotations
-      ? resolveOverlaySpans(line.overlays, ctx.side, visible, ctx.overlayFilter)
+      ? resolveOverlaySpans(line.overlays, ctx.side, sideRuns, ctx.overlayFilter)
+          .filter((s) => s.start < limit || (s.start === limit && s.end === limit))
+          .map((s) => (s.end > limit ? { ...s, end: limit } : s))
       : [];
     if (marks.length === 0) return own;
     return [...own, ...marks].sort((a, b) => a.start - b.start || b.end - a.end);
-  }, [ctx.annotations, ctx.side, ctx.overlayFilter, line.overlays, visible, marks]);
+  }, [
+    ctx.annotations,
+    ctx.side,
+    ctx.overlayFilter,
+    line.overlays,
+    line.runs,
+    line.targetRuns,
+    line.targets,
+    visible,
+    marks,
+  ]);
 
   const segments = useMemo<TextSegment[]>(() => segmentText(visible, spans), [visible, spans]);
 

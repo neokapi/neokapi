@@ -14,7 +14,7 @@ import (
 
 // `kapi context suggest` against the built binary: the pass files what it sees
 // in the files, and the review queue a person reads in another process lists
-// it as noticed by kapi.
+// it as suggested by kapi.
 func TestContextSuggestFilesWhatReviewShows(t *testing.T) {
 	root := t.TempDir()
 	write := func(rel, body string) {
@@ -47,12 +47,12 @@ collections:
 		Suggested []struct {
 			Groups []struct {
 				Items []struct {
-					Sentence  string `json:"sentence"`
-					Keepable  bool   `json:"keepable"`
-					NoticedBy struct {
+					Sentence   string `json:"sentence"`
+					Keepable   bool   `json:"keepable"`
+					RecordedBy struct {
 						Kind string `json:"kind"`
 						Name string `json:"name"`
-					} `json:"noticed_by"`
+					} `json:"recorded_by"`
 				} `json:"items"`
 			} `json:"groups"`
 		} `json:"suggested"`
@@ -66,8 +66,8 @@ collections:
 					continue
 				}
 				found++
-				assert.Equal(t, "tool", it.NoticedBy.Kind)
-				assert.Equal(t, "kapi", it.NoticedBy.Name)
+				assert.Equal(t, "tool", it.RecordedBy.Kind)
+				assert.Equal(t, "kapi", it.RecordedBy.Name)
 				assert.True(t, it.Keepable, "a person can keep it")
 			}
 		}
@@ -75,5 +75,5 @@ collections:
 	assert.Equal(t, 1, found, "the queue lists the suggestion once:\n%s", queue)
 
 	text := kapi(t, "context", "review", "--peek", "-p", recipe)
-	assert.Contains(t, text, "noticed by kapi\n")
+	assert.Contains(t, text, "suggested by kapi\n")
 }

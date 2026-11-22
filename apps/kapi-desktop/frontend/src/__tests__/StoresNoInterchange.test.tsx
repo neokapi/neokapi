@@ -51,7 +51,7 @@ describe("content memory page", () => {
         <MemoriesPage tabID="t1" />
       </ErrorProvider>,
     );
-    await waitFor(() => expect(screen.getByText("Project Content Memory")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Content memory")).toBeInTheDocument());
     expectNoInterchangeControls();
   });
 
@@ -61,7 +61,7 @@ describe("content memory page", () => {
         <MemoriesPage resources={[]} />
       </ErrorProvider>,
     );
-    await waitFor(() => expect(screen.getByText("Content Memories")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Content memories")).toBeInTheDocument());
     expect(screen.getAllByRole("button", { name: /open file/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: /new memory/i }).length).toBeGreaterThan(0);
     expectNoInterchangeControls();
@@ -75,7 +75,7 @@ describe("terms page", () => {
         <TermsPage tabID="t1" />
       </ErrorProvider>,
     );
-    await waitFor(() => expect(screen.getByText("Project Terms")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Terms")).toBeInTheDocument());
     expectNoInterchangeControls();
   });
 

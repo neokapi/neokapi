@@ -109,9 +109,23 @@ func TestProjectCheck_EndToEnd(t *testing.T) {
 	a := byItem[idOf["docs/a.md"]]
 	assert.Equal(t, 2, a.Findings, "the forbidden term and the competitor's name")
 	assert.Equal(t, 1, a.Fixable, "the term rule names a replacement; the pattern none")
+	rules := map[string]store.RuleTally{}
+	for _, r := range a.Rules {
+		rules[r.Key] = r
+	}
+	require.Len(t, rules, 2, "%+v", a.Rules)
+	cheap := rules["terms.vocabulary:cheap"]
+	assert.Equal(t, "cheap", cheap.Subject)
+	assert.Equal(t, "c-affordable", cheap.ConceptID)
+	assert.Equal(t, 1, cheap.Count)
+	assert.True(t, cheap.Fails)
+	pattern := rules[`voice.style:\bLocalizely\b`]
+	assert.Equal(t, 1, pattern.Count, "the pattern names the voice rule: %+v", a.Rules)
+	assert.Contains(t, pattern.Message, "Name no competitor")
 	b := byItem[idOf["docs/b.md"]]
 	assert.Zero(t, b.Findings)
 	assert.Zero(t, b.Fixable)
+	assert.Empty(t, b.Rules)
 
 	// An item deleted since takes its tally with it at the next check.
 	require.NoError(t, cs.DeleteItem(ctx, projectID, "main", "docs/b.md"))

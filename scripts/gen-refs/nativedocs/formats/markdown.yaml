@@ -14,40 +14,40 @@ overview: |
   link/image URLs are emitted as non-translatable structure. Each of those
   categories can be toggled, and embedded HTML can be routed to a subfilter.
 parameters:
-  translateCodeBlocks:
+  translate_code_blocks:
     description: Make fenced and indented code blocks translatable.
     help: |
       When enabled, fenced and indented code blocks are extracted as
       translatable content. By default they are emitted as non-translatable
       data, since code is rarely translated.
     values: "`true` / `false` (default `false`)"
-  translateFrontMatter:
+  translate_front_matter:
     description: Make YAML front matter values translatable.
     help: |
       When enabled, values in the document's YAML front matter are extracted
       as translatable content. By default front matter is emitted as
       non-translatable data.
     values: "`true` / `false` (default `false`)"
-  translateImageAlt:
+  translate_image_alt:
     description: Include image alt text in translatable content.
     help: |
       When enabled (the default), the alt text of images is included in the
       translatable content of the block that contains the image.
     values: "`true` / `false` (default `true`)"
-  translateURLs:
+  translate_urls:
     description: Make link and image URLs translatable.
     help: |
       When enabled, the URLs of links and images are extracted as translatable
       content (useful when per-locale assets or pages live at different paths).
       By default URLs are left untranslated.
     values: "`true` / `false` (default `false`)"
-  translateBlockQuotes:
+  translate_block_quotes:
     description: Make blockquote content translatable.
     help: |
       When enabled (the default), the prose inside blockquotes is translatable.
       Disable it to leave quoted material untranslated.
     values: "`true` / `false` (default `true`)"
-  translateHTMLBlocks:
+  translate_html_blocks:
     description: Make raw HTML blocks translatable.
     help: |
       When enabled, raw HTML blocks embedded in the Markdown are extracted as
@@ -55,7 +55,7 @@ parameters:
       data; route them to a subfilter via `subfilter` for structured HTML
       handling instead.
     values: "`true` / `false` (default `false`)"
-  unescapeBackslashCharacters:
+  unescape_backslash_characters:
     description: Parse backslash-escaped punctuation in the source.
     help: |
       When enabled, backslash-escaped punctuation in the source document (for
@@ -71,22 +71,22 @@ parameters:
     values: Format name (default empty)
     examples:
       - "`html` parses embedded HTML through the HTML format"
-  useCodeFinder:
+  use_code_finder:
     description: Enable regex-based inline-code detection.
     help: |
       Enables regex-based detection of additional inline codes within
       extracted text, beyond the Markdown inline markup already recognized.
-      The patterns are supplied via `codeFinderRules`.
+      The patterns are supplied via `code_finder_rules`.
     values: "`true` / `false` (default `false`)"
-  codeFinderRules:
+  code_finder_rules:
     description: Regex patterns that match inline codes within text.
     help: |
       An array of regular expressions; text matching any of them is treated
       as an inline code rather than translatable words. Only used when
-      `useCodeFinder` is enabled.
+      `use_code_finder` is enabled.
     values: Array of regular expressions (default empty)
     dependsOn:
-      - property: useCodeFinder
+      - property: use_code_finder
         condition: must be enabled for these patterns to apply
 limitations:
   - Code blocks, front matter, raw HTML blocks, and URLs are non-translatable by default; enable the corresponding option to extract them.
@@ -97,7 +97,7 @@ examples:
   - title: Translate front matter too
     description: Include YAML front matter values alongside the prose.
     config: |
-      translateFrontMatter: true
+      translate_front_matter: true
   - title: Handle embedded HTML structurally
     description: Route inline and block HTML through the HTML subfilter.
     config: |

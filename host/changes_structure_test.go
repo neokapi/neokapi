@@ -71,12 +71,12 @@ func TestChangeService_AddsAndRemovesKeysAcrossACatalogsTranslations(t *testing.
 }
 
 // A JSON catalog configured to read a block's note from the member beside it
-// (noteRules, as a Chrome extension's messages.json is read) makes that member
+// (note_rules, as a Chrome extension's messages.json is read) makes that member
 // part of the block's shell. Its writer adds and removes no blocks, so
 // describing the document reports neither operation and a removal is refused.
 func TestChangeService_RefusesStructureWhereNotesAreReadFromBesideABlock(t *testing.T) {
 	const catalog = "{\n  \"greeting\": {\n    \"message\": \"Hello\",\n    \"description\": \"Shown on the home page\"\n  },\n  \"cart\": {\n    \"message\": \"Cart\"\n  }\n}\n"
-	item := project.ContentItem{Path: "locales/en.json", Format: &project.FormatSpec{Name: "json", Config: map[string]any{"noteRules": "^description$"}}}
+	item := project.ContentItem{Path: "locales/en.json", Format: &project.FormatSpec{Name: "json", Config: map[string]any{"note_rules": "^description$"}}}
 	a, recipe := changeProject(t, item, map[string]string{"locales/en.json": catalog})
 	svc := changeService(t, a, recipe)
 	ctx := context.Background()

@@ -28,14 +28,14 @@ import (
 // budgetedSource wraps a source stream with the shared safeio byte budget and a
 // closer, so every reader fed by the file-run path is bounded uniformly
 // (core/safeio) regardless of whether the format reader self-wraps. It is the
-// streaming twin of the old "os.ReadFile then bytes.Reader" — the file's bytes
+// streaming twin of the old "os.ReadFile then bytes.Reader": the file's bytes
 // flow through on demand instead of being buffered whole up front.
 type budgetedSource struct {
 	io.Reader
 	closer io.Closer
 
 	// readerAt and size, when set, are the random-access view of the same
-	// bytes — the file handle behind the stream. openReader hands them to the
+	// bytes, that is, the file handle behind the stream. openReader hands them to the
 	// RawDocument so a container format reads its entries in place instead of
 	// buffering the archive (see model.RawDocument.ReaderAt).
 	readerAt io.ReaderAt
@@ -103,7 +103,7 @@ type FileRunnerConfig struct {
 	// file's session context with the input's path relative to this root, so the
 	// target overlays it commits are keyed globally-unique per source file
 	// (blockstore.StoreKey) rather than by the collision-prone file-local block
-	// id — the file-writing and process-only paths write the same key, and merge
+	// id. The file-writing and process-only paths write the same key, and merge
 	// reads it. Empty ⇒ ad-hoc run: overlays keep the raw id (a single document
 	// can't collide with itself).
 	ProjectRoot string
@@ -154,7 +154,7 @@ type FileRunnerConfig struct {
 	// Store, when non-nil, is the block store the executor runs the tool
 	// chain against. A persistent store (e.g. a project's .kapi/work/store.db) makes
 	// SessionTools cache per-block work as overlays and skip already-done
-	// steps on a later run — the substrate of resumable .kpz workspaces
+	// steps on a later run, which is the substrate of resumable .kpz workspaces
 	// (AD-025 §5). nil (the default) uses an ephemeral in-memory store, so
 	// one-shot runs are unchanged.
 	Store blockstore.Store
@@ -163,7 +163,7 @@ type FileRunnerConfig struct {
 	// consults it before parsing a source so a file another operation (status,
 	// a prior run) already parsed under the same config is replayed from the
 	// cache instead of re-read. It is the L1 companion to Store's L2 overlay
-	// cache — together they are the project's one internal model. nil (ad-hoc,
+	// cache; together they are the project's one internal model. nil (ad-hoc,
 	// no project) parses directly. See PartCacheKey for the config key.
 	PartCache PartCache
 
@@ -196,7 +196,7 @@ type FileRunnerConfig struct {
 type PartCache interface {
 	// OpenDocument returns a streaming reader for a fresh cached document under
 	// (path, configKey), or nil on a miss/staleness. The caller streams parts one
-	// at a time and, ONLY when reconstructing output, opens the skeleton — so a
+	// at a time and, ONLY when reconstructing output, opens the skeleton, so a
 	// process-only flow never materializes it. Nothing whole is held in memory.
 	OpenDocument(path, configKey string) CachedDocument
 	// RecordDocument returns a sink to persist a freshly-parsed document as it
@@ -215,7 +215,7 @@ type CachedDocument interface {
 	// a writer. A nil store with a nil error means the document genuinely has
 	// none (a generative format) and the writer reconstructs from the content
 	// model alone. A non-nil error means the entry PROMISED a skeleton it cannot
-	// deliver — the two must not be conflated, because writing without a
+	// deliver. The two must not be conflated, because writing without a
 	// skeleton the source needs silently degrades the output. The caller closes
 	// the store.
 	OpenSkeleton() (*format.SkeletonStore, error)
@@ -298,8 +298,8 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 }
 
 // RunFileProcessOnly detects the format, creates and configures a reader, and
-// runs a process-only pipeline (no writer) against the configured Store —
-// committing `targets/<locale>` overlays and emitting no output file
+// runs a process-only pipeline (no writer) against the configured Store. It
+// commits `targets/<locale>` overlays and emits no output file
 // (AD-026 §3). It is the process-only twin of RunFile: same detection and
 // reader-configuration path, but no sink. Requires a persistent Store.
 func (r *FileRunner) RunFileProcessOnly(ctx context.Context, flowName string, tools []tool.Tool, inputPath, targetLang string) error {
@@ -399,7 +399,7 @@ func (r *FileRunner) readParts(ctx context.Context, reader format.DataFormatRead
 			r.cfg.Recorder.Record(TraceExit, "reader", PartKey(result.Part), nil)
 		}
 	}
-	// Close reader immediately after reading — for daemon-backed plugin
+	// Close reader immediately after reading. For daemon-backed plugin
 	// formats this lets the daemon enter its idle state, freeing the
 	// stream for the subsequent writer call.
 	reader.Close()
@@ -414,17 +414,16 @@ var errCacheUnavailable = errors.New("document cache unavailable")
 // cachedSource ensures the document is in the streaming cache and returns a
 // streaming reader over it. On a hit it closes the (unused) reader. On a miss it
 // parses the source ONCE, recording the parts (append log) + skeleton (file)
-// without running tools or a writer, then returns a reader over the fresh entry —
-// so every consumer (process-only executor, file-writing writer) replays from the
-// cache uniformly, one part at a time, with the skeleton opened lazily and only
-// when a writer needs it. Returns errCacheUnavailable (reader left open) when no
-// cache is configured.
+// without running tools or a writer, then returns a reader over the fresh entry.
+// Every consumer (process-only executor, file-writing writer) replays from the
+// cache one part at a time, opening the skeleton lazily when a writer needs it. Returns errCacheUnavailable (reader left open)
+// when no cache is configured.
 // reconstructs indicates whether the run will reconstruct output (a file-writing
 // run that needs the skeleton) or not (a process-only / read run that only feeds
 // the executor). It is the demand-driven signal for what to RECORD: a
-// non-reconstructing run records lean (no skeleton — the reader skips skeleton
-// generation entirely), keyed separately so its skeleton-less entry is never
-// served to a writer. "Skip the skeleton when no writer" applied to the sink.
+// non-reconstructing run records lean (no skeleton, and the reader skips skeleton
+// generation entirely), keyed separately so a writer never gets its
+// skeleton-less entry.
 func (r *FileRunner) cachedSource(ctx context.Context, reader format.DataFormatReader, inputPath, targetLang string, reconstructs bool) (CachedDocument, error) {
 	if r.cfg.PartCache == nil {
 		return nil, errCacheUnavailable
@@ -461,8 +460,8 @@ func (r *FileRunner) recordDocument(ctx context.Context, reader format.DataForma
 		if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
 			// The reader HAS structure to capture. If the recorder cannot give it
 			// somewhere to go, recording anyway commits a skeleton-less entry that
-			// every later run replays into a re-serialized (lower-fidelity) file —
-			// silently, and permanently until the cache is deleted. Decline to
+			// every later run replays into a re-serialized (lower-fidelity) file,
+			// silently and permanently until the cache is deleted. Decline to
 			// record instead: errCacheUnavailable leaves the reader open and the
 			// live path below produces a faithful file.
 			store := rec.SkeletonStore()
@@ -528,7 +527,11 @@ func (r *FileRunner) tracedReplay(feed func(context.Context, chan<- *model.Part)
 				// and closes its channel.
 				for range replayed {
 				}
-				<-done
+				// The feed has stopped. An error of its own, other than the
+				// cancellation it was stopped by, travels with the cancellation.
+				if err := <-done; err != nil && !errors.Is(err, ctx.Err()) {
+					return errors.Join(ctx.Err(), err)
+				}
 				return ctx.Err()
 			}
 		}
@@ -554,9 +557,9 @@ func sliceFeed(parts []*model.Part) func(context.Context, chan<- *model.Part) er
 
 // cacheableWriter reports whether a same-format writer reconstructs output from
 // the content model (+ skeleton bytes) alone, so the file-writing path may
-// replay it from the document cache. Writers that re-read the original source —
-// by path (SourcePathSetter) or as raw bytes (OriginalContentSetter), i.e. the
-// packaged/binary formats — are excluded; they stay on the live read path.
+// replay it from the document cache. Writers that re-read the original source,
+// by path (SourcePathSetter) or as raw bytes (OriginalContentSetter), are
+// excluded. These are the packaged/binary formats; they stay on the live read path.
 func cacheableWriter(w format.DataFormatWriter) bool {
 	if _, ok := w.(format.SourcePathSetter); ok {
 		return false
@@ -570,7 +573,7 @@ func cacheableWriter(w format.DataFormatWriter) bool {
 // cachedFileWrite serves the same-format file-writing path through the streaming
 // document cache: it ensures the source is cached (parse → record on a miss),
 // then replays the parts one at a time to the writer and opens the skeleton
-// lazily from its file — the reader never runs on a hit, and nothing is held
+// lazily from its file. The reader never runs on a hit, and nothing is held
 // whole in memory. Returns errCacheUnavailable (reader left open) when the cache
 // can't serve, so the caller falls back to the live read path.
 func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string, reader format.DataFormatReader, writer format.DataFormatWriter, out *writtenDocument) error {
@@ -589,7 +592,7 @@ func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools
 		if serr != nil {
 			// The cached entry promised a skeleton it cannot produce. Writing
 			// anyway would re-serialize the document from the content model and
-			// quietly lose the source's exact formatting — the same silent
+			// quietly lose the source's exact formatting: the same silent
 			// degradation-reported-as-success as #1449. The cache is rebuildable,
 			// so say so rather than shipping a lesser file.
 			return fmt.Errorf("%s: cached parse is unusable: %w (delete the project's .kapi/work/cache to rebuild it)",
@@ -617,8 +620,8 @@ func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools
 // file-writing entry ("write", parts + skeleton), so the demand-driven recording
 // never serves a skeleton-less entry to a writer. A "read" entry holds the parts
 // a reader gives with a read skeleton wired (wireReadSkeleton). (A process-only run then a
-// file-writing run of the same source re-parse once to capture the skeleton — the
-// trade for not recording a skeleton on every default run.) Returns "" when no
+// file-writing run of the same source re-parse once to capture the skeleton. That
+// is the trade for not recording a skeleton on every default run.) Returns "" when no
 // cache is configured (the key is then unused).
 func (r *FileRunner) partCacheKey(formatName string, reconstructs bool) string {
 	if r.cfg.PartCache == nil {
@@ -688,20 +691,18 @@ func (r *FileRunner) newExecutor() *DefaultExecutor {
 // blockstore.StoreKey(namespace, blockID, sourceText), which is the same Hash the
 // project store's own blocks carry.
 //
-// ONE namespace across both run modes is what lets a convergence pass (which
-// writes files, so each pass's coverage sees real output) and a later merge (which
-// reads the overlays back) meet on the same overlay. Leaving the file-writing path
-// untagged put the run's work under the bare, file-local block id instead, where no
-// reader looks — and a missing overlay is blockstore.ErrNotFound, the legitimate
-// "not translated yet" sentinel, so merge wrote the source text over already
-// translated files and exited 0.
-//
-// A caller that already named the file keeps its tag: merge spells the namespace
-// exactly as the recipe resolver does, which is the spelling the store was
-// populated with. Outside a project — ad-hoc runs, the per-document .kpz workspace
-// store — the context stays untagged and the bare id is the key, which cannot
-// collide in a store holding one document.
+// ONE namespace across both run modes lets a convergence pass (which writes
+// files, so coverage sees real output) and a later merge (which reads the
+// overlays back) meet on the same overlay. An untagged file-writing path puts
+// its work under the bare, file-local block id, where no reader looks. A missing
+// overlay is blockstore.ErrNotFound, the legitimate "not translated yet"
+// sentinel, so merge would write source text over translated files and exit 0.
 func (r *FileRunner) overlayScope(ctx context.Context, inputPath string) context.Context {
+	// A caller that already named the file keeps its tag: merge spells the
+	// namespace exactly as the recipe resolver does, which is the spelling the
+	// store was populated with. Outside a project (ad-hoc runs, the per-document
+	// .kpz workspace store) the context stays untagged and the bare id is the
+	// key, which cannot collide in a store holding one document.
 	if r.cfg.ProjectRoot == "" || blockstore.SourceRel(ctx) != "" {
 		return ctx
 	}
@@ -734,7 +735,7 @@ func (r *FileRunner) commitsTargets(targetLang string) bool {
 // RunFileToStore reads and parses the input via the reader, runs the tool chain
 // against the configured persistent Store so SessionTools commit
 // `targets/<locale>` overlays, commits the session, and writes NO output file
-// (AD-026 §3 — a process-only run). It requires a non-nil persistent Store: the
+// (AD-026 §3, a process-only run). It requires a non-nil persistent Store: the
 // whole point is to land the work as overlays for a later `merge` / `export`.
 //
 // The caller configures the reader (presets, project defaults) before calling,
@@ -750,14 +751,13 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 	}
 
 	// A process-only run's ONLY deliverable is the overlays, and merge materializes
-	// exactly the files the recipe resolves — so an input the project root cannot
-	// name has nowhere to put its work, and that is fatal rather than a fallback to
-	// some other namespace. Silently producing a wrong deliverable is worse than
-	// refusing to start. filepath.Rel of a plain relative CLI argument against the
-	// absolute project root is exactly the case that used to fail, so ProjectRel
-	// absolutises both sides first; what remains an error is genuinely
-	// unaddressable. The file-writing path, whose deliverable is the file itself,
-	// keeps going (see overlayScope / blockstore.SourceNamespace).
+	// exactly the files the recipe resolves. An input the project root cannot name
+	// has nowhere to put its work, so that is fatal rather than a fallback to some
+	// other namespace. Refusing to start beats silently producing a wrong
+	// deliverable. ProjectRel absolutises both sides first, so a plain relative CLI
+	// argument against the absolute project root resolves; what remains an error is
+	// genuinely unaddressable. The file-writing path, whose deliverable is the file
+	// itself, keeps going (see overlayScope / blockstore.SourceNamespace).
 	if r.cfg.ProjectRoot != "" && blockstore.SourceRel(ctx) == "" {
 		if _, err := blockstore.ProjectRel(r.cfg.ProjectRoot, inputPath); err != nil {
 			reader.Close()
@@ -798,8 +798,8 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 
 // runProcessOnly builds the flow (with the implicit commit-targets step), runs
 // the executor against the persistent store, and feeds it from `feed` (a cache
-// replay or a buffered slice) while draining the output — a process-only run that
-// commits `targets/<locale>` overlays and writes no file. `feed` closes inCh.
+// replay or a buffered slice) while draining the output. It is a process-only run
+// that commits `targets/<locale>` overlays and writes no file. `feed` closes inCh.
 func (r *FileRunner) runProcessOnly(ctx context.Context, flowName string, tools []tool.Tool, targetLang string, feed func(context.Context, chan<- *model.Part) error) error {
 	fb := NewFlow(flowName)
 	for _, t := range tools {
@@ -839,7 +839,7 @@ func (r *FileRunner) runProcessOnly(ctx context.Context, flowName string, tools 
 		feedErr = feed(feedCtx, inCh) // feed closes inCh
 	}()
 
-	// Drain (and discard) the executor output — there is no sink. Draining is
+	// Drain (and discard) the executor output, since there is no sink. Draining is
 	// required so the executor's tool goroutines can make progress and so
 	// ExecuteWithChannels' wait() commits the session. When tracing, emit a
 	// writer enter/exit per Part so the trace shape matches a file run.
@@ -880,17 +880,17 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	defer doc.abort()
 
 	// A file-writing run in project scope commits the same `targets/<locale>`
-	// overlays a process-only run does — convergence deliberately runs this path so
-	// each pass's coverage sees real files — so it addresses them by the same key.
+	// overlays a process-only run does (convergence deliberately runs this path so
+	// each pass's coverage sees real files), so it addresses them by the same key.
 	ctx = r.overlayScope(ctx, inputPath)
 
 	// Document-cache fast path (project mode): for a same-format round-trip whose
 	// writer reconstructs from the content model + skeleton (not the raw source
 	// bytes), a prior parse of this source under the same config replays straight
-	// to the writer — parts from the cache, skeleton from the cached bytes — so the
-	// reader never runs. The raw-source-coupled binary/markup writers (openxml,
-	// odf, epub, idml, html, asciidoc) reconstruct from the original file and stay
-	// on the live path below.
+	// to the writer, with parts from the cache and the skeleton from the cached
+	// bytes. The reader never runs. The raw-source-coupled binary/markup writers
+	// (openxml, odf, epub, idml, html, asciidoc) reconstruct from the original file
+	// and stay on the live path below.
 	if sameFormat && cacheableWriter(writer) && r.cfg.PartCache != nil {
 		if err := r.cachedFileWrite(ctx, flowName, tools, inputPath, outputPath, targetLang, reader, writer, doc); !errors.Is(err, errCacheUnavailable) {
 			return err
@@ -925,22 +925,20 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	// Wire skeleton store if both support it AND reader and writer are the
 	// SAME format. A skeleton holds opaque, format-specific bytes (e.g. the
 	// WordprocessingML XML fragments an openxml reader captures); feeding it to
-	// a different writer would dump that foreign markup verbatim. For a
-	// cross-format conversion (e.g. report.docx → report.md) we deliberately
-	// leave the skeleton unwired so the writer reconstructs output from the
-	// content model + the structural layer (SemanticRole/role-driven semantic
-	// export, WS6) rather than the source's byte skeleton.
+	// a different writer would dump that foreign markup verbatim. A
+	// cross-format conversion (e.g. report.docx → report.md) leaves the
+	// skeleton unwired, so the writer reconstructs output from the content
+	// model + the structural layer (role-driven semantic export, WS6).
 	//
 	// The concurrent (channel-backed) store keeps a streaming round-trip
 	// bounded-memory; the file-backed store serves every other run (the writer
 	// buffers the block map). Output is byte-identical either way.
-	//
-	// A store that cannot be created fails the run rather than falling back:
-	// without it the writer re-serializes the document from the content model
-	// and reports success, losing the structure the reader could not model.
 	var skeletonStore *format.SkeletonStore
 	if sameFormat {
 		store, storeErr := wireSkeleton(reader, writer, streaming)
+		// A store that cannot be created fails the run: without it the writer
+		// re-serializes the document from the content model and reports
+		// success, losing the structure the reader could not model.
 		if storeErr != nil {
 			reader.Close()
 			return fmt.Errorf("cannot process %s: %w", filepath.Base(inputPath), storeErr)
@@ -1007,7 +1005,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	return r.runPipelineToWriter(ctx, flowName, tools, sliceFeeder(parts), outputPath, targetLang, writer, skeletonStore, srcPath, preReadContent, doc)
 }
 
-// partFeed supplies a pipeline's Part stream and owns whatever produces it — an
+// partFeed supplies a pipeline's Part stream and owns whatever produces it: an
 // open reader, a cached document handle. Feed closes inCh, reports a read error
 // through errOut, and releases those resources as it finishes. Abort releases
 // the same resources for a run that ends before the pipeline starts (a rejected
@@ -1035,7 +1033,7 @@ func (f *partFeed) Abort() {
 }
 
 // sliceFeeder returns a feed that streams a pre-read Part slice into the
-// executor and closes the input channel — the buffered (non-streaming) feed.
+// executor and closes the input channel: the buffered (non-streaming) feed.
 // The reader it came from is already closed, so there is nothing to release.
 func sliceFeeder(parts []*model.Part) *partFeed {
 	return &partFeed{
@@ -1054,7 +1052,7 @@ func sliceFeeder(parts []*model.Part) *partFeed {
 
 // readerFeeder returns the streaming feed: the reader runs concurrently with the
 // executor and writer (feedReader). The reader is opened before the pipeline is
-// built, so the feed owns closing it — a run rejected before the pipeline starts
+// built, so the feed owns closing it. A run rejected before the pipeline starts
 // must not strand the open file behind it.
 func (r *FileRunner) readerFeeder(ctx context.Context, reader format.DataFormatReader, skel *format.SkeletonStore) *partFeed {
 	return &partFeed{
@@ -1073,7 +1071,7 @@ func (r *FileRunner) readerFeeder(ctx context.Context, reader format.DataFormatR
 // streamingFeed reports whether the run feeds the reader concurrently with the
 // writer: the reader streams its input, and no writer forced the source to be
 // materialized up front. It is the single predicate behind both halves of the
-// streaming decision — the feed AND the skeleton backing — because pairing a
+// streaming decision, the feed AND the skeleton backing, because pairing a
 // channel-backed skeleton store with a buffered feed deadlocks: the store blocks
 // the writer inside Next() until the reader's feeder calls CloseWrite, which
 // only the concurrent protocol reaches.
@@ -1093,7 +1091,7 @@ func wireSkeleton(reader format.DataFormatReader, writer format.DataFormatWriter
 }
 
 // RunSkeletonReconstruct runs the tool chain when the raw source is absent but
-// a round-trip skeleton is present — the skeleton-only .kpz handoff case
+// a round-trip skeleton is present: the skeleton-only .kpz handoff case
 // (AD-025 §6). The source's blocks are rebuilt from the skeleton's block refs
 // (so their identities match the cached overlays and the merge hydrate step),
 // the tool chain runs against the configured Store, and a writer of the given
@@ -1133,10 +1131,10 @@ func (r *FileRunner) RunSkeletonReconstruct(ctx context.Context, flowName string
 }
 
 // partsFromSkeleton rebuilds the translatable blocks a skeleton references,
-// one Part per distinct SkeletonRef (layer refs are skipped — embedded layers
-// are not reconstructed from overlays). The blocks carry only their identity
-// (ID); their source text is unknown (it lived in the dropped raw source), so
-// callers rely on cached target overlays to supply content.
+// one Part per distinct SkeletonRef (layer refs are skipped, since embedded
+// layers are not reconstructed from overlays). The blocks carry only their
+// identity (ID); their source text is unknown (it lived in the dropped raw
+// source), so callers rely on cached target overlays to supply content.
 func partsFromSkeleton(skelBytes []byte) ([]*model.Part, error) {
 	store := format.NewSkeletonStoreFromBytes(skelBytes)
 	defer store.Close()
@@ -1167,7 +1165,7 @@ func partsFromSkeleton(skelBytes []byte) ([]*model.Part, error) {
 // wires the writer's source (path/bytes) and locale, runs the executor while
 // feed supplies Parts concurrently, and streams the result through writer to its
 // already-configured output. It does NOT close the writer or the skeleton store
-// and does NOT finalize the output — the caller owns those, so it can wrap the
+// and does NOT finalize the output. The caller owns those, so it can wrap the
 // run in atomic temp-file/rename (runPipelineToWriter) or write straight to an
 // in-memory/stream sink (RunStream). label names the destination for errors.
 func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools []tool.Tool, feed *partFeed, targetLang string, writer format.DataFormatWriter, sourcePath string, inputContent []byte, label string, doc *writtenDocument) error {
@@ -1181,8 +1179,8 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 	}
 	// Against a store that outlives the run, the file is only half the deliverable:
 	// the `targets/<locale>` overlays are what a later merge replays. The
-	// channel-based producers — recycle, which is the first step of the built-in
-	// convergence flow, and every other capability-typed Produce BaseTool — set the
+	// channel-based producers (recycle, which is the first step of the built-in
+	// convergence flow, and every other capability-typed Produce BaseTool) set the
 	// target on the in-flight block without implementing SessionTool, so their work
 	// reaches the file and nothing else. Appending the same implicit step the
 	// process-only path appends persists it; it is idempotent for the bespoke
@@ -1200,7 +1198,7 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 	// skeleton-rebuild). The source is in the READER's format; handing it to a
 	// different-format writer (e.g. DocLang → HTML) would make the writer
 	// re-parse foreign bytes and echo the source markup. For a cross-format
-	// conversion — or a skeleton-reconstructed run with no source — the caller
+	// conversion, or a skeleton-reconstructed run with no source, the caller
 	// passes these empty so the writer reconstructs from the content model +
 	// structural layer (role-driven semantic export, WS6) / the skeleton.
 	if sps, ok := writer.(format.SourcePathSetter); ok && sourcePath != "" && filepath.IsAbs(sourcePath) {
@@ -1216,9 +1214,9 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 	// directly. For the buffered feeder the reader has already been fully read
 	// and closed (preserving the read-then-write ordering daemon-backed plugin
 	// formats require). For the streaming feeder the reader runs concurrently
-	// here — safe because only in-process StreamingReaders take that path, never
-	// a daemon plugin — and a streaming skeleton store lets the writer consume
-	// the skeleton interleaved rather than after a Flush.
+	// here. That is safe because only in-process StreamingReaders take that path,
+	// never a daemon plugin, and a streaming skeleton store lets the writer
+	// consume the skeleton interleaved rather than after a Flush.
 	executor := r.newExecutor()
 
 	// Derive a cancellable context for the feeder so a tool error (which
@@ -1290,16 +1288,12 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 
 	// The writer drains outCh (every DataFormatWriter loops
 	// `for part := range parts`), so the executor's tool goroutines can
-	// make progress and close outCh — no deadlock. Should a writer return
-	// early without draining (e.g. it rejects the input before consuming
-	// all parts), drain the remainder here so a tool goroutine blocked on
-	// an `outCh <- p` send can still finish; otherwise the executor's
-	// errgroup Wait() — and thus this function — would hang.
+	// make progress and close outCh without deadlock.
+	//
 	// When tracing, relay the executor output through a tap that records a
 	// writer enter/exit event per Part before the writer consumes it. The
 	// relay owns draining outCh and closes its own channel when outCh closes,
 	// so the no-trace path (writerIn == outCh) is byte-for-byte unchanged.
-	//
 	// The same relay shows each block to the caller following the document
 	// (DocumentRun.Leave) as the writer receives it.
 	writerIn := outCh
@@ -1327,6 +1321,10 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 	_, writeSpan := observe.Start(ctx, spanOpFormatWrite, writer.Name())
 	writeErr := writer.Write(ctx, writerIn)
 	writeSpan.End(writeErr)
+	// Should a writer return early without draining (e.g. it rejects the
+	// input before consuming all parts), drain the remainder here so a tool
+	// goroutine blocked on an `outCh <- p` send can still finish. Otherwise
+	// the executor's errgroup Wait(), and thus this function, would hang.
 	if writeErr != nil {
 		for range writerIn { //nolint:revive // intentional drain to unblock tools
 		}
@@ -1352,10 +1350,10 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 
 // runPipelineToWriter executes the tool chain over the Parts supplied by feed
 // and writes the result through writer into a document staged in the file
-// home, which it then commits (documents.go): a tool or writer error never
+// home, which it then commits (documents.go). A tool or writer error never
 // leaves a partial destination, and a destination that changed while the run
 // worked is left as it is. feed is responsible for closing inCh and reporting
-// any read error via its *error argument; a buffered caller ranges a pre-read
+// any read error via its *error argument. A buffered caller ranges a pre-read
 // slice, a streaming caller drives the reader concurrently (feedReader). When
 // skeletonStore is non-nil it is closed before returning.
 // sourcePath/inputContent are handed to the writer only when non-empty
@@ -1365,7 +1363,7 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 		defer skeletonStore.Close()
 	}
 	// Every destination check below can reject the run before the pipeline
-	// starts, which is exactly when the feed's own cleanup never happens — a
+	// starts, which is exactly when the feed's own cleanup never happens: a
 	// streaming feed holds the open reader until then. Once the feed has run
 	// this is a no-op.
 	defer feed.Abort()
@@ -1374,8 +1372,8 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 
 	// Refuse a blocked destination BEFORE running the pipeline (#1449). A
 	// directory (or a device, or an unwritable directory) standing where the
-	// writer needs a file used to surface only at the closing rename — as a
-	// bare "file exists" — after the tools had already run and, for an AI flow,
+	// writer needs a file would otherwise surface only at the closing rename, as a
+	// bare "file exists", after the tools had already run and, for an AI flow,
 	// already been paid for. Checking first makes the failure actionable and
 	// free.
 	if err := CheckOutputPath(outputPath); err != nil {
@@ -1386,7 +1384,7 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 	// opening the destination itself (#608, S4). Skeleton-driven writers emit
 	// one (often tiny) write per skeleton entry; an unbuffered *os.File turns
 	// each into a syscall. A 64 KiB buffer coalesces them. The buffer is
-	// flushed AFTER writer.Close() returns — some writers (e.g. the KBF
+	// flushed AFTER writer.Close() returns, because some writers (e.g. the KBF
 	// writer) only emit their payload in Close, so the buffer must outlive
 	// Close. Output bytes are unchanged.
 	//
@@ -1422,6 +1420,14 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 		if perr, ok := errors.AsType[*atomicfile.Error](werr); ok {
 			return ClassifyOutputPathError(outputPath, outputDir, perr.Err)
 		}
+		// A run that edits its file in place reads the file it watches. A
+		// save that lands during the read can make the reader fail on bytes
+		// that are half old and half new, and the save is then the cause.
+		if !IsMoved(werr) {
+			if now, derr := filehome.Digest(outputPath); derr == nil && now != doc.before {
+				return errors.Join(&filehome.MovedError{Path: outputPath, Before: doc.before, Now: now}, werr)
+			}
+		}
 		return werr
 	}
 	return nil
@@ -1429,9 +1435,9 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 
 // RunStream runs the full read → process → write pipeline from an in-memory /
 // streamed source to an io.Writer, with no temporary files for the document
-// itself (AD-026 §6). It is the stream-based twin of RunFile: the container
+// itself (AD-026 §6). It is the stream-based twin of RunFile. The container
 // binding drives one archive entry through it (bytes in, bytes out) without
-// staging the entry on disk, and for a streaming-capable inner format the entry
+// staging the entry on disk. For a streaming-capable inner format the entry
 // is never even buffered whole. fmtID is the already-detected format of the
 // content (a container knows each entry's format); reader and writer are created
 // and configured exactly as RunFile does.
@@ -1473,8 +1479,8 @@ func (r *FileRunner) RunStream(ctx context.Context, flowName string, tools []too
 	}
 
 	// Same format in and out (a container round-trips each entry), so wire a
-	// skeleton exactly as the file path does — from the same streaming decision
-	// that picks the feed, and failing the entry rather than repacking a
+	// skeleton exactly as the file path does, from the same streaming decision
+	// that picks the feed, and fail the entry rather than repacking a
 	// reconstruction of it.
 	streaming := streamingFeed(reader, preReadContent)
 	skeletonStore, skelErr := wireSkeleton(reader, writer, streaming)
@@ -1494,7 +1500,7 @@ func (r *FileRunner) RunStream(ctx context.Context, flowName string, tools []too
 	label := filepath.Base(srcURI)
 	if streaming {
 		// Streaming inner format: feed the reader directly from the source
-		// stream — the entry is never buffered whole.
+		// stream; the entry is never buffered whole.
 		if err := r.openReader(ctx, reader, &budgetedSource{Reader: safeio.DefaultBudget().Reader(in)}, srcURI, targetLang); err != nil {
 			return err
 		}

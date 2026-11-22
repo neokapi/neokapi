@@ -147,7 +147,14 @@ export const demoFixturesDir = (id: string) => path.join(DEMOS_DIR, id, "fixture
  */
 export const demoFixturesDirFor = (m: { id: string; fixturesFrom?: string }): string =>
   m.fixturesFrom ? path.resolve(REPO_ROOT, m.fixturesFrom) : demoFixturesDir(m.id);
-export const sandboxDir = (id: string) => path.join(SANDBOX_DIR, id);
+/**
+ * A demo's sandbox. Given the demo's cwd label (`~/acme-docs`), the sandbox is a
+ * folder of that name inside the demo's own directory, so a command that names
+ * the folder (`kapi init` names the project after it) says what the title bar
+ * says.
+ */
+export const sandboxDir = (id: string, cwdLabel?: string) =>
+  cwdLabel ? path.join(SANDBOX_DIR, id, path.basename(cwdLabel)) : path.join(SANDBOX_DIR, id);
 export const captureDir = (id: string) => path.join(CAPTURES_DIR, id);
 /** Public/<id> is what Remotion reads via staticFile(). */
 export const publicDemoDir = (id: string) => path.join(PUBLIC_DIR, id);

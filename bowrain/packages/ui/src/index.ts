@@ -99,6 +99,8 @@ export {
   SelectItem,
   Markdown,
   PageHeader,
+  PageContainer,
+  SettingsRow,
   SectionHeading,
   // Governance forms: the voice governing a point and a point's axes, the
   // same forms kapi desktop composes its recipe governance from.
@@ -148,7 +150,7 @@ export {
   TooltipTrigger,
   TooltipContent,
 } from "@neokapi/ui-primitives";
-export type { ChartConfig, MarkdownProps } from "@neokapi/ui-primitives";
+export type { ChartConfig, MarkdownProps, PageWidth } from "@neokapi/ui-primitives";
 export type {
   FlowCardItem,
   LinearFlowEditorProps,
@@ -726,6 +728,16 @@ export type {
   CollectionTranslationStats,
   ActivityInfo,
   ActivityPage,
+  FeedActor,
+  FeedActorKind,
+  FeedEntry,
+  FeedKind,
+  FeedLink,
+  FeedMember,
+  FeedPage,
+  FeedQuery,
+  FeedRecipeDiff,
+  FeedScreen,
   ConvergenceRun,
   ConvergenceRunState,
   ConvergenceLocaleStanding,
@@ -1316,3 +1328,8 @@ export {
   ActivityHeatmap,
 } from "./components/pulse";
 export type { PulseSettingsProps } from "./components/pulse";
+
+// The project feed (GET /:ws/:id/feed): a column of cards of how a project changes.
+export { ProjectFeedView, projectFeedKey } from "./project-feed/ProjectFeedView";
+export { FeedCard, FeedAvatar, FeedPreview } from "./project-feed/FeedCard";
+export type { ProjectFeedViewProps } from "./project-feed/ProjectFeedView";

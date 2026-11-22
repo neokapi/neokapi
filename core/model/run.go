@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 )
 
@@ -198,6 +200,51 @@ type Run struct {
 	Sub     *SubRun         `json:"sub,omitempty"`
 	Plural  *PluralRun      `json:"plural,omitempty"`
 	Select  *SelectRun      `json:"select,omitempty"`
+}
+
+// CloneRuns returns independent copies of the runs and their nested content.
+func CloneRuns(runs []Run) []Run {
+	out := slices.Clone(runs)
+	for i := range out {
+		run := &out[i]
+		run.Text = clonePointer(run.Text)
+		run.Ph = clonePointer(run.Ph)
+		run.PcOpen = clonePointer(run.PcOpen)
+		run.PcClose = clonePointer(run.PcClose)
+		run.Sub = clonePointer(run.Sub)
+		run.Plural = clonePointer(run.Plural)
+		run.Select = clonePointer(run.Select)
+		if ph := run.Ph; ph != nil {
+			ph.Attrs = maps.Clone(ph.Attrs)
+			ph.Constraints = clonePointer(ph.Constraints)
+		}
+		if open := run.PcOpen; open != nil {
+			open.Attrs = maps.Clone(open.Attrs)
+			open.Constraints = clonePointer(open.Constraints)
+		}
+		if plural := run.Plural; plural != nil {
+			plural.Forms = cloneBranches(plural.Forms)
+		}
+		if selectRun := run.Select; selectRun != nil {
+			selectRun.Cases = cloneBranches(selectRun.Cases)
+		}
+	}
+	return out
+}
+
+func clonePointer[T any](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	return new(*p)
+}
+
+func cloneBranches[K comparable](branches map[K][]Run) map[K][]Run {
+	out := maps.Clone(branches)
+	for key, runs := range branches {
+		out[key] = CloneRuns(runs)
+	}
+	return out
 }
 
 // Intention-revealing constructors for the seven Run kinds. Each returns a
@@ -591,6 +638,59 @@ func flattenRunsTo(buf *strings.Builder, runs []Run) {
 			}
 			for _, form := range r.Select.Cases {
 				flattenRunsTo(buf, form)
+				break
+			}
+		}
+	}
+}
+
+// RunsDisplayText returns a Run sequence as a reader sees it in one line of
+// text: TextRun content verbatim, each placeholder as its human name or the
+// word for its kind (PlaceholderWord), each subblock reference by its name,
+// and plural / select by their 'other' branch (or the first form present).
+// Paired codes contribute nothing; the text between them is kept. A code's
+// native form and a synthesized identifier never appear.
+//
+// It is the text for a list row or a preview, where a placeholder has to stay
+// visible: "Failed to cordon node name" rather than RunsText's "Failed to
+// cordon node ". It is never parsed back into runs; a writer that needs the
+// native form uses RenderRunsWithData.
+func RunsDisplayText(runs []Run) string {
+	var buf strings.Builder
+	runsDisplayTextTo(&buf, runs)
+	return buf.String()
+}
+
+func runsDisplayTextTo(buf *strings.Builder, runs []Run) {
+	for _, r := range runs {
+		switch r.Kind() {
+		case RunKindText:
+			buf.WriteString(r.Text.Text)
+		case RunKindPh:
+			buf.WriteString(PlaceholderWord(r.Ph))
+		case RunKindPcOpen, RunKindPcClose:
+		case RunKindSub:
+			if name := HumanCodeName(r.Sub.Equiv); name != "" {
+				buf.WriteString(name)
+			} else {
+				buf.WriteString(CodeKindWords[CodeKindContent])
+			}
+		case RunKindPlural:
+			if form, ok := r.Plural.Forms[PluralOther]; ok {
+				runsDisplayTextTo(buf, form)
+				continue
+			}
+			for _, form := range r.Plural.Forms {
+				runsDisplayTextTo(buf, form)
+				break
+			}
+		case RunKindSelect:
+			if form, ok := r.Select.Cases["other"]; ok {
+				runsDisplayTextTo(buf, form)
+				continue
+			}
+			for _, form := range r.Select.Cases {
+				runsDisplayTextTo(buf, form)
 				break
 			}
 		}

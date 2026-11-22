@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -72,7 +73,7 @@ func TestReconcileContext_CreatesCollectionWithGovernance(t *testing.T) {
 	entries := []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "kapi", "channel": "docs"}, "docs", "Acme Voice", voice),
 	}
-	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", entries)
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"docs"}, res.Created)
 
@@ -112,18 +113,22 @@ func TestReconcileContext_DoublePushIsIdempotent(t *testing.T) {
 		}
 	}
 
-	first, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", entries())
+	first, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries())
 	require.NoError(t, err)
 	require.Equal(t, []string{"docs"}, first.Created)
+	assert.Equal(t, []platev.CollectionChange{{
+		Name: "docs", Change: platev.CollectionAdded, After: map[string]string{"product": "kapi"},
+	}}, first.Changes)
 
 	before, err := deps.ContentStore.GetCollectionByName(ctx, "p1", "docs", "main")
 	require.NoError(t, err)
 
-	second, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", entries())
+	second, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries())
 	require.NoError(t, err)
 	assert.Empty(t, second.Created, "the second push must not create a second row")
 	assert.Empty(t, second.Updated, "an unchanged recipe must not rewrite the row")
 	assert.Equal(t, []string{"docs"}, second.Unchanged)
+	assert.Empty(t, second.Changes, "an unchanged recipe records no recipe change")
 
 	all, err := deps.ContentStore.ListCollections(ctx, "p1", "main")
 	require.NoError(t, err)
@@ -150,16 +155,21 @@ func TestReconcileContext_ChangedRecipeUpdates(t *testing.T) {
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
-	_, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", []*pb.SyncContextEntry{
+	_, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "kapi"}, "", "", nil),
 	})
 	require.NoError(t, err)
 
-	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", []*pb.SyncContextEntry{
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "bowrain"}, "email", "", nil),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"docs"}, res.Updated)
+	// The recipe change records the coordinates on both sides.
+	assert.Equal(t, []platev.CollectionChange{{
+		Name: "docs", Change: platev.CollectionCoordinates,
+		Before: map[string]string{"product": "kapi"}, After: map[string]string{"product": "bowrain"},
+	}}, res.Changes)
 
 	col, err := deps.ContentStore.GetCollectionByName(ctx, "p1", "docs", "main")
 	require.NoError(t, err)
@@ -176,14 +186,14 @@ func TestReconcileContext_UndeclaredIsReportedNotDeleted(t *testing.T) {
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
-	_, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", []*pb.SyncContextEntry{
+	_, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "", nil),
 		contextEntry("marketing", nil, "", "", nil),
 	})
 	require.NoError(t, err)
 
 	// The recipe drops "marketing".
-	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", []*pb.SyncContextEntry{
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "", nil),
 	})
 	require.NoError(t, err)
@@ -208,7 +218,7 @@ func TestReconcileContext_WorkspaceOwnedIsNotReported(t *testing.T) {
 		ProjectID: "p1", Name: "uploads", Stream: "main", Owner: venue.ContextOwnerWorkspace,
 	}))
 
-	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", []*pb.SyncContextEntry{
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "", nil),
 	})
 	require.NoError(t, err)
@@ -228,7 +238,7 @@ func TestReconcileContext_DeclaringClaimsAWorkspaceCollection(t *testing.T) {
 		ProjectID: "p1", Name: "docs", Stream: "main", Owner: venue.ContextOwnerWorkspace,
 	}))
 
-	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", []*pb.SyncContextEntry{
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "kapi"}, "", "", nil),
 	})
 	require.NoError(t, err)
@@ -252,7 +262,7 @@ func TestReconcileContext_ChangedVoiceLandsAsANewVersion(t *testing.T) {
 		Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "neutral"},
 	})
 	require.NoError(t, err)
-	_, err = reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", []*pb.SyncContextEntry{
+	_, err = reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "Acme Voice", first),
 	})
 	require.NoError(t, err)
@@ -261,7 +271,7 @@ func TestReconcileContext_ChangedVoiceLandsAsANewVersion(t *testing.T) {
 		Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "formal"},
 	})
 	require.NoError(t, err)
-	_, err = reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", []*pb.SyncContextEntry{
+	_, err = reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "Acme Voice", second),
 	})
 	require.NoError(t, err)
@@ -285,7 +295,7 @@ func TestReconcileContext_NoVoiceCarriesStructureOnly(t *testing.T) {
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
-	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", []*pb.SyncContextEntry{
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "kapi"}, "", "", nil),
 	})
 	require.NoError(t, err)
@@ -310,10 +320,23 @@ func TestReconcileContext_UnclaimedProjectReconcilesStructure(t *testing.T) {
 
 	voice, err := json.Marshal(&coreprofile.VoiceProfile{Name: "Acme Voice"})
 	require.NoError(t, err)
-	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "", "user-1", []*pb.SyncContextEntry{
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "Acme Voice", voice),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"docs"}, res.Created)
 	assert.Empty(t, res.ProfileIDs)
+}
+
+func TestGovernanceConfig_SourceOnly(t *testing.T) {
+	set := governanceConfig(map[string]string{"type": "git"}, "", &pb.SyncContextEntry{Channel: "web", SourceOnly: true, Priority: "high"})
+	assert.Equal(t, "high", set[store.CollectionConfigPriority])
+	assert.Equal(t, "true", set[store.CollectionConfigSourceOnly])
+	assert.Equal(t, "git", set["type"])
+
+	cleared := governanceConfig(set, "", &pb.SyncContextEntry{Channel: "web"})
+	_, hasPriority := cleared[store.CollectionConfigPriority]
+	assert.False(t, hasPriority)
+	_, ok := cleared[store.CollectionConfigSourceOnly]
+	assert.False(t, ok)
 }

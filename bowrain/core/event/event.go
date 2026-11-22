@@ -36,6 +36,70 @@ func ActorNameFromContext(ctx context.Context) string {
 	return ""
 }
 
+type toolKeyType struct{}
+
+// Tool is the tool a request or a job acts as, when a member's tool token
+// authenticated it. The actor (WithActor) is then the member who issued the
+// token, and the tool is who did the work.
+type Tool struct {
+	// Name is the tool's name, as the token was minted with.
+	Name string
+	// TokenID is the id of the token the tool authenticated with.
+	TokenID string
+}
+
+// The event data keys a tool is recorded under.
+const (
+	DataActorKind = "actor_kind"
+	DataActorName = "actor_name"
+	DataTokenID   = "token_id"
+	// ActorKindTool is the actor kind of work a tool did.
+	ActorKindTool = "tool"
+)
+
+// WithTool returns a context that carries the tool a request acts as. A tool
+// with no name leaves the context as it is.
+func WithTool(ctx context.Context, t Tool) context.Context {
+	if t.Name == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, toolKeyType{}, t)
+}
+
+// ToolFromContext returns the tool the context carries, and whether it carries
+// one.
+func ToolFromContext(ctx context.Context) (Tool, bool) {
+	t, ok := ctx.Value(toolKeyType{}).(Tool)
+	return t, ok && t.Name != ""
+}
+
+// StampTool records the context's tool on an event's data: actor_kind tool,
+// actor_name the tool's name and token_id its token, replacing whatever the
+// data said, and no session, which a tool does not have. The event's Actor
+// stays the member who issued the token. A nil
+// map is allocated when there is a tool to record; without one, data is
+// returned as it is.
+func StampTool(ctx context.Context, data map[string]string) map[string]string {
+	t, _ := ToolFromContext(ctx)
+	return t.Stamp(data)
+}
+
+// Stamp is StampTool for a tool held outside a context, such as a push job's
+// manifest. A tool with no name returns data as it is.
+func (t Tool) Stamp(data map[string]string) map[string]string {
+	if t.Name == "" {
+		return data
+	}
+	if data == nil {
+		data = map[string]string{}
+	}
+	data[DataActorKind] = ActorKindTool
+	data[DataActorName] = t.Name
+	data[DataTokenID] = t.TokenID
+	delete(data, "session")
+	return data
+}
+
 type reqMetaKeyType struct{}
 
 // RequestMeta carries audit-relevant request metadata for event attribution.
@@ -102,6 +166,11 @@ const (
 	// Extraction events
 	EventExtractionCompleted EventType = "extraction.completed"
 
+	// EventContextScanCompleted fires when a term scan of a project
+	// completes. ProjectID is the scanned project; Data carries job_id and
+	// workspace_slug.
+	EventContextScanCompleted EventType = "context.scan.completed"
+
 	// Quality events
 	EventQualityGatePass EventType = "quality.gate.pass"
 	EventQualityGateFail EventType = "quality.gate.fail"
@@ -129,6 +198,30 @@ const (
 	EventVoiceDrift          EventType = "voice.drift"
 	EventVoiceCorrected      EventType = "voice.corrected"
 	EventVoiceProfileUpdated EventType = "voice.profile.updated"
+
+	// The correction-learning loop's rule decisions. A correction-derived rule
+	// is promoted by a reviewer, promoted by the profile's autonomy setting,
+	// or rejected; a promoted rule can be demoted. Each carries the context
+	// change it makes (ContextChange). The demotion's value predates the
+	// voice vocabulary and stays, because the audit log holds events under it.
+	EventVoiceRulePromoted     EventType = "voice.rule_promoted"
+	EventVoiceRuleAutoPromoted EventType = "voice.rule_auto_promoted"
+	EventVoiceRuleRejected     EventType = "voice.rule_rejected"
+	EventVoiceRuleDemoted      EventType = "brand.rule.demoted"
+
+	// EventContextRecorded records one write to a project's context ledger
+	// on the server: a push of context objects that carries new operations,
+	// or one answer given through Decide. One event covers the whole write,
+	// and its counts say what the write held. Data carries the fields of
+	// ContextChange.
+	EventContextRecorded EventType = "context.recorded"
+
+	// EventRecipeChanged records one change to what a project declares: the
+	// collections and their coordinates a push reconciled, the recipe-owned
+	// settings a push applied, or the target languages a member set. Data
+	// carries the fields of RecipeChange, the before and after values
+	// included.
+	EventRecipeChanged EventType = "recipe.changed"
 
 	// Workflow events (Bowrain AD-014)
 	EventPushAutomationsCompleted EventType = "push.automations.completed"

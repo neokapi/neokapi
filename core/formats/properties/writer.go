@@ -42,7 +42,7 @@ func NewWriter() *Writer {
 }
 
 // SetConfig replaces the writer's config — used to apply serialization
-// knobs such as escapeExtendedChars from parity tests, CLI introspection,
+// knobs such as escape_extended_chars from parity tests, CLI introspection,
 // and .kapi recipe loading.
 func (w *Writer) SetConfig(cfg *Config) {
 	if cfg != nil {
@@ -51,7 +51,7 @@ func (w *Writer) SetConfig(cfg *Config) {
 }
 
 // WriterConfig implements format.WriterConfigurable, exposing the writer's
-// Config so the flow/CLI plumbing can apply parameters (escapeExtendedChars)
+// Config so the flow/CLI plumbing can apply parameters (escape_extended_chars)
 // via ApplyMap.
 func (w *Writer) WriterConfig() format.DataFormatConfig {
 	if w.cfg == nil {

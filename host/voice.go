@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
@@ -651,7 +650,7 @@ func (a *App) BuildVoiceProvider(cmd Command) (aiprovider.LLMProvider, error) {
 		config["provider"] = provider
 	}
 	if apiKey != "" {
-		config["apiKey"] = apiKey
+		config["api_key"] = apiKey
 	}
 	if cred != "" {
 		config["credential"] = cred
@@ -664,7 +663,7 @@ func (a *App) BuildVoiceProvider(cmd Command) (aiprovider.LLMProvider, error) {
 		return nil, err
 	}
 	pName, _ := resolved["provider"].(string)
-	key, _ := resolved["apiKey"].(string)
+	key, _ := resolved["api_key"].(string)
 	mdl, _ := resolved["model"].(string)
 	p, err := aitools.ProviderFromConfig(pName, aiprovider.Config{APIKey: key, Model: mdl})
 	if err != nil {
@@ -744,11 +743,5 @@ func RuleRewrite(profile *coreprofile.VoiceProfile, text string) (string, []outp
 	return res.Text, changes, res.Skipped
 }
 
-var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
-
 // slugify converts a profile name to a stable, filename-safe ID.
-func slugify(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
-	s = slugRe.ReplaceAllString(s, "-")
-	return strings.Trim(s, "-")
-}
+func slugify(s string) string { return coreprofile.Slug(s) }

@@ -157,8 +157,13 @@ collections:
     source_only: true
     content:
       - path: deploy/homebrew/*.rb
-        format: { name: sourcecode, config: { language: ruby, nodePathPatterns: [desc, caveats] } }
+        format: { name: sourcecode, config: { language: ruby, node_path_patterns: [desc, caveats] } }
 ```
+
+A `target:` lies inside the project. An absolute target, or one that climbs out
+with `..`, is refused when the recipe loads; move the recipe or the target so the
+target lies inside the project. A target that a symbolic link leads outside the
+project is refused when it is written.
 
 - **Voice profile**: `kapi voice import <file.yaml>` files one in the project's
   voice store and prints its id; bind that id under `defaults.voice.profile`.
@@ -218,6 +223,9 @@ collections:
   and checks but never writes back (package descriptions, installer strings);
   `kapi up` skips it and target-coverage gates exclude it. A collection that
   also names a target fails to load.
+- **Review priority**: `priority: high | normal | low` on a collection, or
+  `defaults.priority` for all of them, orders review: high collections are
+  dealt first and low ones last.
 - **Comments in code**: `comments: true` on a content item checks the comments
   in its files as content. Go source has no format reader, so its comments are
   what kapi reads: `kapi check` and `check --ship` check them under the item's

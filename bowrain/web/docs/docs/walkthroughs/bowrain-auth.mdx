@@ -9,9 +9,9 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Auth and workspaces from the CLI
 
-Once the kapi-bowrain plugin is installed, kapi gains a handful of server-aware
-commands for the everyday questions: who am I, where can I push, and is my
-content ready.
+With the kapi-bowrain plugin installed, kapi answers everyday questions about
+the server: who you are signed in as, where you can push, and whether your
+content is ready.
 
 <ThemedVideo
   sources={{
@@ -20,13 +20,15 @@ content ready.
   }}
 />
 
-`kapi auth status` shows the server and account this checkout is connected to,
-useful when you work across more than one Bowrain server. `kapi workspace list`
-shows every workspace you belong to; a project is pushed into one of them, and
-each keeps its own projects, content memory, and terms. And because
-kapi is still the file toolchain underneath, you can `kapi pseudo-translate`
-locally first: padded, accented copy (the `qps` pseudo-locale) that surfaces
-layout and truncation problems before a reviewer ever sees the file.
+- `kapi auth status` shows the server and account this checkout is connected
+  to, which helps when you work with more than one Bowrain server.
+- `kapi workspace list` shows every workspace you belong to. A project is
+  pushed into one of them, and each keeps its own projects, content memory
+  and terms. The browser and the desktop app show the same workspaces in the
+  workspace rail.
+- `kapi pseudo-translate` writes padded, accented copy (the `qps`
+  pseudo-locale) on your machine. It shows layout and truncation problems
+  before a reviewer sees the file.
 
 ## Next
 

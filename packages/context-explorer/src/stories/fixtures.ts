@@ -54,6 +54,24 @@ const governanceAtPoint: GovernanceAnswer = {
       discouraged: true,
       valid_to: "2026-12-31",
     },
+    // One concept held in six languages: the pane lists it once.
+    ...(
+      [
+        ["en", "warehouse"],
+        ["de", "Lager"],
+        ["fr", "entrepôt"],
+        ["ja", "倉庫"],
+        ["nb", "lager"],
+        ["ar", "مستودع"],
+      ] as const
+    ).map(([locale, term]) => ({
+      concept_id: "c-warehouse",
+      term,
+      locale,
+      status: "preferred",
+      definition: "A building where stock is held before it ships.",
+      discouraged: false,
+    })),
   ],
   terms_total: 18,
   profiles: [

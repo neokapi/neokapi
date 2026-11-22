@@ -23,12 +23,12 @@ func TestInjectCredentialPicker_GroupAware(t *testing.T) {
 		"properties": map[string]any{
 			"mode":     map[string]any{"type": "string"},
 			"provider": map[string]any{"type": "string"},
-			"apiKey":   map[string]any{"type": "string"},
+			"api_key":  map[string]any{"type": "string"},
 			"model":    map[string]any{"type": "string"},
 		},
 		"ui:groups": []any{
 			map[string]any{"id": "qa", "fields": []any{"mode"}},
-			map[string]any{"id": "ai:provider", "fields": []any{"provider", "apiKey", "model"},
+			map[string]any{"id": "ai:provider", "fields": []any{"provider", "api_key", "model"},
 				"ui:visible": map[string]any{"field": "mode", "eq": "ai"}},
 		},
 	}
@@ -39,7 +39,7 @@ func TestInjectCredentialPicker_GroupAware(t *testing.T) {
 	require.Contains(t, props, "credential", "credential field injected")
 
 	// Manual provider fields gated on an empty credential.
-	for _, f := range []string{"provider", "apiKey", "model"} {
+	for _, f := range []string{"provider", "api_key", "model"} {
 		vis, ok := props[f].(map[string]any)["ui:visible"].(map[string]any)
 		require.True(t, ok, "%s has ui:visible", f)
 		assert.Equal(t, "credential", vis["field"])

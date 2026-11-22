@@ -1,22 +1,14 @@
-# Customer #1 dogfood — neokapi's own content, converged on bowrain.cloud.
+# Customer #1 dogfood: neokapi's own content, converged on bowrain.cloud.
 #
-# This is the workflow the product tells everyone else to write, run against the
-# repository that builds the product: install the CLI with setup-kapi, sync the
-# project's context from its git ref, run the convergence verb with kapi-action,
-# sync the decisions the run recorded back to the ref, and open a pull request
-# with the content that came back.
-# Nothing in it is bespoke: a step here that a customer could not copy is a step
-# the product is missing.
+# The workflow the product tells everyone else to write, run on the repository
+# that builds it. It installs the CLI with setup-kapi, syncs the project's
+# context, runs `kapi up` with kapi-action, syncs the recorded decisions back
+# and opens a pull request with the content. A step a customer could not copy
+# is a step the product is missing.
 #
-# INERT BY DEFAULT (roadmap epic 017-F, decision D2). Every job is gated on the
-# repo variable DOGFOOD_SYNC_ENABLED == 'true', so until the founder arms it
-# this workflow is a no-op: scheduled runs and manual dispatches evaluate the
-# gate and skip.
-#
-# Arming it needs two settings that are not in this file:
-#   * repo secret   BOWRAIN_AUTH_TOKEN     — a bwt_ workspace API token
-#   * repo variable DOGFOOD_SYNC_ENABLED   — set to 'true'
-# Unset the variable to disarm; no secret is read and no content moves.
+# Inert by default (epic 017-F, decision D2): every job is gated on the repo
+# variable DOGFOOD_SYNC_ENABLED == 'true'. Arming it also needs the repo secret
+# BOWRAIN_AUTH_TOKEN (a bwt_ workspace API token).
 
 name: Dogfood Sync
 
@@ -37,6 +29,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   converge:
     # The single gate. No secret is referenced and no content moves unless the
@@ -50,45 +46,36 @@ jobs:
       # ran on, and opens the pull request that proposes it.
       contents: write
       pull-requests: write
+    env:
+      # The context remote reads the CI token only beside the server it names.
+      BOWRAIN_SERVER_URL: https://app.bowrain.cloud
     steps:
       - uses: actions/checkout@v7
 
       # This is the ONE in-repo kapi invocation that binds the root recipe (the
       # isolation contract in CLAUDE.md), so nothing here sets KAPI_NO_PROJECT.
       # setup-kapi installs the released CLI and the bowrain plugin from the
-      # registry — the same path a customer takes. Neither is built from this
+      # registry, the same path a customer takes. Neither is built from this
       # checkout, so the run tests the product rather than the working tree.
       - name: Install kapi and the bowrain plugin
         uses: neokapi/setup-kapi@v1
         with:
-          # The CLI and the plugin are cut at one version, so this pair is the
-          # pair that was released together. A pin rather than `latest` keeps a
-          # scheduled run on a known pair when a newer release lands, and a
-          # release candidate is reachable from a pin alone: `latest` resolves
-          # stable tags, and setup-kapi sends a plugin ref carrying a
-          # prerelease suffix to the beta channel on its own.
-          #
-          # The plugin is the client of the push protocol, so the version here
-          # decides which endpoints the run calls. The deployed server routes
-          # `/push/init`, `/push/commit` and `GET /tree`; a plugin cut before
-          # those routes existed posts to `/push/diff` and receives a 404 for
-          # every file it sends. Bump both lines together whenever the push
-          # protocol changes.
-          #
-          # The pair also has to read the catalogs `make l10n-extract` writes
-          # from this checkout. A pair cut before the catalog schema the
-          # extractor writes cannot read them, and the step after extraction
-          # stops the run on that rather than push past it; bump both lines to
-          # a release that reads them.
-          version: 1.3.0-rc11
-          plugins: bowrain@1.3.0-rc11
+          # The CLI and plugin are released together at one version; bump both
+          # lines together. A pin keeps scheduled runs on a known pair and
+          # reaches release candidates, which `latest` skips. The plugin's
+          # version decides which push endpoints the run calls: one older than
+          # `/push/init` and `/push/commit` posts to `/push/diff` and gets 404s.
+          # The pair must also read the catalogs `make l10n-extract` writes; the
+          # step after extraction stops the run when it cannot.
+          version: 1.4.0-rc5
+          plugins: bowrain@1.4.0-rc5
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
 
       # The one thing kapi cannot do for itself. Five collections declare
       # i18n/**/*.kbf.json catalogs that the neokapi-i18n extractor produces
       # from React source; they are build artifacts, gitignored by design, so a
       # bare run from a clean checkout would carry nothing for them. Stage 1
-      # only (source catalogs) — the target side is the loop's job, and target
+      # only (source catalogs). The target side is the loop's job, and target
       # drift must never gate a push.
       - uses: ./.github/actions/setup-node-ui
 
@@ -100,25 +87,22 @@ jobs:
       # workspace, and priming the ones these stages never touch writes hashes
       # into `go.work.sum`. The gate below reads the whole tree and refuses a
       # convergence run that changed a file outside the loop's scope, which is
-      # exactly right — a run that delivers content must not also be the run
+      # exactly right: a run that delivers content must not also be the run
       # that edits the module graph.
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.27.1"
+          go-version: "1.27.4"
 
       - name: Extract the source catalogs the loop carries
         run: make l10n-extract
 
-      # The push below declares every catalog the recipe's patterns cover, and
-      # the venue deletes whatever it holds that the declaration leaves out. A
-      # released kapi that cannot read a catalog pushes it as if it held
-      # nothing: the releases before KBF schema 2 do so with a schema 2
-      # catalog, and the venue would drop every string in it with its
-      # translations and approvals. `kapi inspect` exits non-zero on a catalog
-      # it cannot read, so the run stops here, before anything reaches the
-      # venue, until the pin above names a release that reads what this
-      # checkout's extractor writes. The directories are the extract surfaces
-      # stage 1 ran over.
+      # The push declares every catalog the recipe covers, and the venue
+      # deletes whatever the declaration leaves out. A kapi that cannot read a
+      # catalog pushes it as empty. A release before KBF schema 2 does that with
+      # a schema 2 catalog. The venue then drops its strings, translations and
+      # approvals. `kapi inspect` exits non-zero on such a catalog, so the run
+      # stops here until the pin names a release that reads them. The
+      # directories are the extract surfaces of stage 1.
       - name: Refuse a kapi that cannot read the extracted catalogs
         run: |
           set -euo pipefail
@@ -140,9 +124,9 @@ jobs:
 
       # The context this repository governs its content by lives in the
       # workspace store, and a runner's store starts empty. The recipe keeps it
-      # on refs/kapi/context in this repository (`context: {backend: git}`), so
-      # the run reads it from there: the terms, the voice profiles, the wording
-      # already approved and the record of who approved it. --no-push shares
+      # on the Bowrain project (`context: {backend: bowrain}`), so the run reads
+      # it from there: the terms, the voice profiles, the wording already
+      # approved and the record of who approved it. --no-push shares
       # nothing back, so this step only reads. Every gate and every retrieval
       # below answers from the store.
       - name: Read the project's context
@@ -160,11 +144,11 @@ jobs:
           plan: ${{ inputs.plan || 'false' }}
 
       # The loop's return leg. `kapi up` pulls the server's ledger into the
-      # project's decision ledger, and `kapi context sync` writes the operations
-      # the run recorded to refs/kapi/context, where the next run and every
-      # checkout's `kapi context sync` read them. The job's `contents: write`
-      # covers the ref. A sync that cannot reach the remote exits 5 and changes
-      # nothing, so the next run shares what this one could not.
+      # project's decision ledger, and `kapi context sync` sends the operations
+      # the run recorded to the Bowrain project, where the next run and every
+      # checkout's `kapi context sync` read them. A sync that cannot reach the
+      # server exits 5 and changes nothing, so the next run shares what this one
+      # could not.
       - name: Push the decisions the run brought home
         id: record
         if: ${{ !inputs.plan }}
@@ -178,77 +162,45 @@ jobs:
           # The count is also what the gate below takes as the decisions that
           # account for a removed artifact.
           echo "pushed=${pushed:-0}" >> "$GITHUB_OUTPUT"
-          echo "note=\`kapi context sync\` shared ${pushed:-0} context operation(s) on refs/kapi/context." >> "$GITHUB_OUTPUT"
+          echo "note=\`kapi context sync\` shared ${pushed:-0} context operation(s) with Bowrain." >> "$GITHUB_OUTPUT"
 
-      # The pipeline's third stage, the other thing kapi cannot do for itself. A
-      # catalog is not what a product loads: the SPAs and the landing page load
-      # compiled runtime dictionaries, the transactional emails are rendered to
-      # per-locale HTML the server embeds, and the Go binaries load gettext MO.
-      # Delivering the catalogs alone leaves every surface compiled from them
-      # behind until a human runs `make l10n`, so the wording reaches the
-      # pull request and the product still ships the previous run's.
-      #
-      # It runs after the return leg, so it compiles what the loop materialized,
-      # and before the gate, which classifies what it wrote: the compiled
-      # dictionaries and the per-locale email renders are in `l10n-owned-paths`
-      # alongside the catalogs they come from. A plan dispatch materializes
-      # nothing, so there is nothing for it to compile.
+      # Stage 3: compile the catalogs into what the products load (runtime
+      # dictionaries, rendered emails, gettext MO). Without it the pull request
+      # carries new wording while the products still ship the previous run's.
+      # It runs after the return leg, so it compiles what the loop wrote, and
+      # before the gate, which classifies its output as owned. A plan dispatch
+      # writes nothing, so there is nothing to compile.
       - name: Compile the catalogs into what the products load
         if: ${{ !inputs.plan }}
         run: make l10n-compile
 
-      # Delivery is conditional on what the run wrote being sound. Every artifact
-      # the loop owns is re-materialized on the next regeneration rather than
-      # repaired, so a defect delivered here is a defect the next run reproduces:
-      # a translation that lost the placeholder its sentence was built around, a
-      # scene id translated into something the harness matches nothing by, a
-      # catalog that no longer parses.
-      #
-      # `--hold-back` makes the gate answer that per leaf rather than per run.
-      # A defective leaf is removed from the artifact and named in the log, the
-      # job summary and the pull request; the target falls back to its source
-      # for that string, which is the pending state this loop absorbs. The rest
-      # of the night is delivered. A defect with no leaf to remove refuses the
-      # run by name and this job goes red: an artifact that does not parse, a
-      # narration sidecar that stopped overlaying its master, or a leaf whose
-      # removal would empty the artifact.
-      #
-      # Coverage is not what it asks. A locale short of its source is the pending
-      # state this loop absorbs, and a night that approved nothing is an ordinary
-      # night. What the run brought home to the context is reported by the push
-      # step above. What a run *removed* still needs a decision behind it: a
-      # removal carries no content to read, so the gate takes the number of
-      # operations the push step shared as `--decisions`, and refuses a removed
-      # artifact when that number is 0. A plan dispatch skips the push step,
-      # its output is empty, and the gate reads 0.
-      #
-      # Runs unconditionally rather than behind has-changes, so the gate reads
-      # the tree itself rather than the action's account of it. A clean tree
-      # (a `plan` dispatch, or a run with nothing to catch up) passes.
+      # The gate below measures each app's target dictionary against that app's
+      # qps dictionary, which is build output and absent from a fresh checkout.
+      # The installed kapi writes it; nothing here commits it.
+      - name: Generate the apps' qps dictionaries the gate reads
+        run: make app-qps QPS_KAPI="$(command -v kapi)"
+
+      # Deliver only what is sound. A defect delivered here comes back on every
+      # regeneration: a lost placeholder, a translated scene id, a catalog that
+      # no longer parses. With `--hold-back` the gate removes each defective
+      # leaf, names it in the log, summary and pull request, and delivers the
+      # rest; the target falls back to its source for that string. A defect
+      # with no leaf to remove fails the job. Coverage is not checked. The
+      # gate refuses a removed artifact when `--decisions`, the operations the
+      # push step shared, is 0. It always runs and reads the tree itself.
       - name: Refuse derived content that must not be committed
         id: gate
         env:
           PUSHED: ${{ steps.record.outputs.pushed }}
         run: ./scripts/check-loop-output.sh --hold-back --decisions "${PUSHED:-0}"
 
-      # The action reports; delivery is this workflow's own step, and it is a
-      # pull request rather than a push to main. Approved wording is content
-      # someone decided, so a human reads the diff before it ships, the same way
-      # the return leg above makes writing the record its own step.
-      #
-      # One rolling bot branch: an unmerged pull request is refreshed rather
-      # than joined by a sibling, and a night with nothing pending pushes
-      # nothing and opens nothing. Only the artifacts the loop owns are staged,
-      # the same set the gate above classifies as derived.
-      #
-      # Runs whatever the action reported, for the gate's reason: the compile
-      # step writes owned artifacts after the action computed has-changes.
-      #
-      # The note reports what this run produced rather than what a run of this
-      # shape does: the push step's own account of what it shared, and the
-      # gate's count of what it classified. A reviewer reads the note as
-      # the summary of the run, so a sentence it cannot support is a sentence
-      # that misreads the diff for them.
+      # Delivery is a pull request on one rolling bot branch, never a push to
+      # main, so a person reads approved wording before it ships. A night with
+      # nothing pending opens nothing. Only the artifacts the loop owns are
+      # staged, the set the gate classifies as derived. It runs whatever the
+      # action reported, because the compile step writes owned artifacts after
+      # the action computed has-changes. The note reports what this run did:
+      # the push step's count and the gate's count, nothing it cannot support.
       - name: Open a pull request with what the loop brought home
         if: ${{ !inputs.plan }}
         env:
@@ -262,7 +214,7 @@ jobs:
           # (`:(glob)…`), which the shell must not expand against the tree.
           set -f
           # An unreadable derived set would deliver the context change and leave
-          # every artifact it backs behind, green — the silent half-delivery this
+          # every artifact it backs behind, green: the silent half-delivery this
           # whole sequence exists to prevent. The gate above refuses it first;
           # this refuses it again rather than trusting step order to hold.
           #
@@ -271,7 +223,7 @@ jobs:
           # request carries exactly what the gate classified.
           derived="$(make -s l10n-owned-paths)"
           if [ -z "${derived//[[:space:]]/}" ]; then
-            echo "::error title=Delivery refused::the derived set is empty — refusing to deliver a partial tree"
+            echo "::error title=Delivery refused::the derived set is empty; refusing to deliver a partial tree"
             exit 1
           fi
           AUTO_PR_NOTE="\`kapi up\` converged this repository's content on bowrain.cloud. ${RECORD_NOTE} The content gate read ${DERIVED:-0} derived change(s) and found them sound."

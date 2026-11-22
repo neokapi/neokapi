@@ -227,7 +227,7 @@ func TestRead_JavaEscapeChars(t *testing.T) {
 	ctx := t.Context()
 
 	reader := properties.NewReader()
-	err := reader.Config().ApplyMap(map[string]any{"useJavaEscapes": true})
+	err := reader.Config().ApplyMap(map[string]any{"use_java_escapes": true})
 	require.NoError(t, err)
 	input := "key1=Listen\\: here's the \\#1 thing to remember\\: a \\!\\= b \\\\ c"
 	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))

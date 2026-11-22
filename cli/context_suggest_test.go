@@ -45,7 +45,7 @@ func TestContextSuggestPrintsWhatItFiled(t *testing.T) {
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	require.Len(t, lines, 4, out)
 	assert.Regexp(t, `^Filed\s+\S+\s+Write email, not e-mail or e mail\. \(email 2, e-mail 1; 3 blocks in 1 file\)$`, lines[0])
-	assert.Regexp(t, `^Filed\s+\S+\s+The files address the reader as you \(person_pov: second\): 3 of 3 blocks with a personal pronoun say you, and none says we\.$`, lines[1])
+	assert.Regexp(t, `^Filed\s+\S+\s+The reader is addressed as you \(person_pov: second\): 3 of 3 blocks with a personal pronoun contain you, and none contains we\.$`, lines[1])
 	assert.Empty(t, lines[2])
 	assert.Equal(t, "Decide with kapi context review.", lines[3])
 
@@ -167,9 +167,9 @@ func TestContextSuggestAIFilesWhatTheModelProposes(t *testing.T) {
 	out := runContext(t, a, "suggest", "--ai", "-p", recipe)
 	assert.Regexp(t, `(?m)^Filed\s+\S+\s+Write email, not e-mail or e mail\.`, out, "the pass over the files runs first")
 	assert.Regexp(t, `(?m)^Filed\s+\S+\s+Write Harbor Help, not Harbor-Help or HarborHelp\. \(2 blocks in 1 file\)$`, out)
-	assert.Regexp(t, `(?m)^Known\s+The files address the reader as you \(person_pov: second\)\.$`, out,
+	assert.Regexp(t, `(?m)^Known\s+The reader is addressed as you \(person_pov: second\)\.$`, out,
 		"the pass filed that already, so the model's reading of it is not filed again")
-	assert.Regexp(t, `(?m)^Filed\s+\S+\s+The files keep sentences short \(sentence_length: short\)\.$`, out)
+	assert.Regexp(t, `(?m)^Filed\s+\S+\s+Short sentences \(sentence_length: short\)\.$`, out)
 	assert.Regexp(t, `(?m)^demo-stub read 7 blocks in 2 files \(\d+ tokens\):$`, out)
 	modelAt := strings.Index(out, "demo-stub read")
 	assert.Less(t, strings.Index(out, "Write email"), modelAt, "the pass's lines come first")
@@ -206,8 +206,8 @@ func TestContextSuggestAIDryRunFilesNothing(t *testing.T) {
 
 	out := runContext(t, a, "suggest", "--ai", "--dry-run", "-p", recipe)
 	assert.Regexp(t, `(?m)^Would file\s+Write Harbor Help, not Harbor-Help or HarborHelp\.`, out)
-	assert.Equal(t, 1, strings.Count(out, "Would file    The files address the reader as you"), out)
-	assert.Regexp(t, `(?m)^Known\s+The files address the reader as you \(person_pov: second\)\.$`, out,
+	assert.Equal(t, 1, strings.Count(out, "Would file    The reader is addressed as you"), out)
+	assert.Regexp(t, `(?m)^Known\s+The reader is addressed as you \(person_pov: second\)\.$`, out,
 		"the pass would file it in the same run, so the model's reading of it is known")
 	assert.Regexp(t, `(?m)^demo-stub read 7 blocks in 2 files`, out, "a dry run still asks the model")
 	assert.NotContains(t, out, "Decide with")

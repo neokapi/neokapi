@@ -86,7 +86,7 @@ func TestNewProjectContext_FormatDefaults(t *testing.T) {
 		Version: CurrentVersion,
 		Defaults: Defaults{
 			Formats: map[string]FormatDefaults{
-				"html": {Preset: "strict", Config: map[string]any{"extractComments": true}},
+				"html": {Preset: "strict", Config: map[string]any{"extract_comments": true}},
 			},
 		},
 	}

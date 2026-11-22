@@ -1,9 +1,11 @@
 package terms_test
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 
@@ -69,4 +71,93 @@ func TestFuzzyLengthWindow_AdmitsEveryScoringCandidate(t *testing.T) {
 				"minScore=%v: %q scores %v but the window excludes it", minScore, cand, score)
 		}
 	}
+}
+
+func TestLookupUsesFirstEligibleTierAndProjectScope(t *testing.T) {
+	for name, tb := range relationBackends(t) {
+		t.Run(name, func(t *testing.T) {
+			for _, row := range []struct{ id, project, text string }{
+				{"shared", "", "alert"}, {"local", "here", "alert"}, {"other", "there", "alerts"},
+			} {
+				require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
+					ID: row.id, ProjectID: row.project, Terms: []terms.Term{{Text: row.text, Locale: "en"}},
+				}))
+			}
+			for _, tc := range []struct {
+				scope             terms.ProjectScope
+				ids               map[string]bool
+				query             string
+				tier              model.MatchStrategy
+				justTerm, passage []string
+			}{
+				{terms.ProjectScopeAll, nil, "alert", model.MatchStrategyExact, []string{"local", "shared"}, []string{"local", "other"}},
+				{terms.ProjectScopeOnly, nil, "alert", model.MatchStrategyExact, []string{"local"}, []string{"local"}},
+				{terms.ProjectScopeExclude, nil, "alert", model.MatchStrategyExact, []string{"shared"}, []string{"shared", "other"}},
+				{terms.ProjectScopeAll, map[string]bool{"other": true}, "alert", model.MatchStrategyFuzzy, []string{"other"}, []string{"other"}},
+				{terms.ProjectScopeAll, map[string]bool{}, "alert", "", nil, nil},
+			} {
+				opts := terms.LookupOptions{SourceLocale: "en", ProjectID: "here", ProjectScope: tc.scope, ConceptIDs: tc.ids}
+				matches := mustLookup(t, tb, tc.query, opts)
+				assert.Equal(t, tc.justTerm, terms.MatchedConceptIDs(matches), "%+v", opts)
+				for _, m := range matches {
+					assert.Equal(t, tc.tier, m.MatchType)
+				}
+				assert.Equal(t, tc.passage, terms.MatchedConceptIDs(mustLookupAll(t, tb, "alert and alerts", opts)), "%+v", opts)
+			}
+		})
+	}
+}
+
+func TestLookupPropagatesUnreadableCandidateConcept(t *testing.T) {
+	tb, err := terms.NewSQLiteStore(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, tb.Close()) })
+	for _, id := range []string{"healthy", "unreadable"} {
+		require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
+			ID: id, Terms: []terms.Term{{Text: "alert", Locale: "en"}},
+		}))
+	}
+	corruptProperties(t, tb, "unreadable")
+	for _, mode := range []model.MatchStrategy{model.MatchStrategyExact, model.MatchStrategyNormalized, model.MatchStrategyFuzzy} {
+		t.Run(string(mode), func(t *testing.T) {
+			matches, err := tb.Lookup(t.Context(), "alert", terms.LookupOptions{SourceLocale: "en", MatchModes: []model.MatchStrategy{mode}})
+			require.ErrorContains(t, err, "unreadable")
+			assert.Empty(t, matches)
+		})
+	}
+}
+
+// When more terms fall in the fuzzy length window than the tier scores, both
+// stores keep the same candidates, nearest the query's length first, and so
+// return the same matches.
+func TestFuzzyCandidateLimitAgreesAcrossStores(t *testing.T) {
+	ctx := t.Context()
+	sqlite, err := terms.NewSQLiteStore(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = sqlite.Close() })
+	inmem := terms.NewInMemoryStore()
+
+	var concepts []terms.Concept
+	// More rows than the limit, one character longer than the query, and too
+	// far from it to score.
+	for i := range terms.FuzzyCandidateLimit + 50 {
+		concepts = append(concepts, terms.Concept{ID: fmt.Sprintf("n-%04d", i), Terms: []terms.Term{{Text: fmt.Sprintf("zz%04dqqq", i), Locale: "en"}}})
+	}
+	// A match of the query's length, which the order keeps.
+	concepts = append(concepts, terms.Concept{ID: "z-same", Terms: []terms.Term{{Text: "notifyer", Locale: "en"}}})
+	// A match one character longer, ordered after the rows above and so past
+	// the limit.
+	concepts = append(concepts, terms.Concept{ID: "z-longer", Terms: []terms.Term{{Text: "notifiers", Locale: "en"}}})
+	for _, c := range concepts {
+		require.NoError(t, sqlite.AddConcept(ctx, c))
+		require.NoError(t, inmem.AddConcept(ctx, c))
+	}
+
+	opts := terms.LookupOptions{SourceLocale: "en", MinScore: 0.7, MatchModes: []model.MatchStrategy{model.MatchStrategyFuzzy}}
+	want, err := inmem.Lookup(ctx, "notifier", opts)
+	require.NoError(t, err)
+	got, err := sqlite.Lookup(ctx, "notifier", opts)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"z-same"}, terms.MatchedConceptIDs(want))
+	assert.Equal(t, terms.MatchedConceptIDs(want), terms.MatchedConceptIDs(got))
 }

@@ -133,27 +133,15 @@ func blockID(counter int) string {
 	return "tu" + strconv.Itoa(counter)
 }
 
-// Signature returns detection metadata for this format. The .xml extension is
-// owned by the generic xml format, so Android resources are detected by Sniff
-// only — never by extension or MIME (which would collide with generic XML).
+// Signature returns detection metadata for this format. Android resources
+// share the .xml extension with the generic xml format: the extension makes
+// androidxml a candidate and Sniff decides. A file Sniff rejects stays with
+// the generic reader, which outranks this one by priority.
 func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
-		Sniff: Sniff,
+		Extensions: []string{".xml"},
+		Sniff:      Sniff,
 	}
-}
-
-// Sniff reports whether the given bytes look like an Android string-resources
-// file: a <resources> root carrying at least one translatable element. It is
-// deliberately conservative so it does not steal arbitrary XML documents.
-func Sniff(data []byte) bool {
-	s := string(data)
-	if !strings.Contains(s, "<resources") {
-		return false
-	}
-	return strings.Contains(s, "<string ") ||
-		strings.Contains(s, "<string>") ||
-		strings.Contains(s, "<string-array") ||
-		strings.Contains(s, "<plurals")
 }
 
 // Open opens a RawDocument for reading.

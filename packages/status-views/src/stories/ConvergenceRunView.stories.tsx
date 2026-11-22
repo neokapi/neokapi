@@ -67,7 +67,7 @@ export const WaitingForReview: Story = {
     result: {
       converged: false,
       passes: 2,
-      parkedScopes: [
+      parked_scopes: [
         { locale: "ja-JP", collection: "docs" },
         { locale: "ja-JP", collection: "marketing" },
       ],
@@ -80,7 +80,7 @@ export const WaitingForReview: Story = {
 export const Converged: Story = {
   args: {
     model: settledModel,
-    result: { converged: true, passes: 2, materializedFiles: 6 },
+    result: { converged: true, passes: 2, materialized_files: 6 },
   },
 };
 

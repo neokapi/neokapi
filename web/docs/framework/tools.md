@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: Tools
-description: Tools are the composable processing stages in a neokapi pipeline — each reads Parts from an input channel, transforms them, and writes to an output channel. Built-in tools cover translation, checks, segmentation, memory leverage, and more.
+description: "Tools are the composable processing stages in a neokapi pipeline: each reads Parts from an input channel, transforms them, and writes to an output channel. Built-in tools cover translation, checks, segmentation, memory leverage, and more."
 keywords: [tools, pipeline stage, processing, translation, checks, memory leverage, segmentation, composable]
 ---
 
@@ -10,9 +10,9 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Tools
 
-A **tool** is the unit of processing in neokapi. Where a [format](/framework/formats)
-reader turns a document into a stream of [Parts](/framework/content-model) and a
-writer turns the stream back into a document, a tool sits in between: it reads
+A **tool** is the unit of processing in neokapi. A [format](/framework/formats)
+reader turns a document into a stream of [Parts](/framework/content-model), and a
+writer turns the stream back into a document. A tool sits in between: it reads
 Parts from an input channel, transforms them, and writes them to an output
 channel.
 
@@ -20,14 +20,13 @@ Because every tool speaks the same channel contract, tools compose freely. A
 translation run is one chain: leverage from memory, look up terminology,
 translate the remainder, check quality. A monolingual voice pass is another:
 check the source, rewrite the off-voice runs, check again. Each tool handles the
-Parts it cares about and passes the rest through untouched. The category of work a
-tool does is not fixed by the framework; the same interface backs analysis,
-transformation, enrichment, and validation alike. The authoritative, generated
-list of what ships in the current build is the [Tool Reference](/tools).
+Parts it cares about and passes the rest through untouched. The same interface
+backs analysis, transformation, enrichment and validation. The generated
+[Tool Reference](/tools) lists the tools in the current build.
 
 :::tip Try a tool on a file
 Pick a tool, edit its configuration in the live form, and run it on a sample
-file to see how each translatable [Block](/framework/content-model) changes,
+file to see how each [Block](/framework/content-model) changes,
 source before and tool output after. The same form that drives the configuration
 here is the one the visual editors and the [Tool Reference](/tools) render from
 the tool's schema. This runs the real `kapi` engine in your browser via
@@ -50,11 +49,11 @@ type Tool interface {
 }
 ```
 
-`Process` is the heart of it. A tool consumes Parts from `in`, does its work, and
+`Process` does the work. A tool consumes Parts from `in`, does its work, and
 emits Parts on `out`. It blocks until the input channel is closed (input
-exhausted) or the context is cancelled. This is the lowest common denominator
-that flow composition relies on: chaining tools means wiring one tool's `out`
-channel to the next tool's `in` channel, so every tool must speak it.
+exhausted) or the context is cancelled. Flow composition relies on this method
+alone: chaining tools means wiring one tool's `out` channel to the next tool's
+`in` channel.
 
 The remaining methods carry the tool's identity (`Name`, `Description`) and its
 configuration. Configuration is a small interface of its own. A tool config
@@ -85,7 +84,7 @@ type BaseTool struct {
     ToolDescription string
     Cfg             ToolConfig
 
-    // Block handler — set exactly one. The view type bounds what it may write.
+    // Block handler: set exactly one. The view type bounds what it may write.
     Annotate  func(BlockView) error             // read-only: overlays / annotations / properties
     Produce func(VariantView) error            // writes target
     Transform func(BlockView) (EditPlan, error) // edit producer: the framework applier rewrites source
@@ -104,14 +103,14 @@ A concrete tool embeds `BaseTool` and sets only the handlers it needs.
 `BaseTool.Process` reads each Part, switches on its `Type`, and calls the
 matching handler. **Any handler left unset is a pass-through**, so the Part
 flows to the output channel unchanged. For Blocks, a tool sets one of three
-capability-typed handlers and the view it receives decides what it may write
+capability-typed handlers, and the view it receives limits what it may write
 (the immutability model; see [the tool-system AD](/contribute/architecture/engine/e-03-tool-system)):
 `Annotate` reads source and target but writes only overlays, annotations, and
 properties; `Produce` writes the target; `Transform` is a read-only edit
 producer that returns an edit plan, and a framework-owned applier performs the
-source rewrite, rebasing surviving overlays and vaulting any secrets. The
-forbidden writes are not on the view, so a quality check can't
-accidentally mutate the source, and a transformer holds no source setter.
+source rewrite, rebasing surviving overlays and vaulting any secrets. The view
+has no method for a forbidden write, so a quality check can't mutate the source
+by accident, and a transformer holds no source setter.
 
 The case-transform tool is a representative example. It can rewrite the source,
 so it sets `Transform` and returns the rewrite as a plan:
@@ -189,7 +188,7 @@ across many Parts or to emit more Parts than it consumes, it can implement
 
 ## How tools compose
 
-The streaming contract is what makes composition trivial. Three Parts (a layer
+Composition follows from the streaming contract. Three Parts (a layer
 start, a block, a layer end) flowing through a two-tool chain look like this:
 
 <PipelineDiagram
@@ -213,19 +212,18 @@ channels, backpressure, error propagation) are covered in
 
 ### Wrapping tools
 
-Because a tool is just an interface, one tool can wrap another to add behavior
+Because a tool is an interface, one tool can wrap another to add behavior
 without the inner tool knowing. The framework uses this for **intra-tool block
 parallelism**: `ParallelBlockTool` wraps a block-handling tool and fans its
-block handler out across N goroutines while preserving Part order, which is
-valuable for IO-bound tools such as AI or MT translation where each block is an
+block handler out across N goroutines while preserving Part order. This helps
+IO-bound tools such as AI or MT translation, where each block is an
 independent network call. The wrapper presents the same `Tool` interface, so the
 rest of the flow is unaffected.
 
 ## Categories of work
 
-The framework enforces no tool categories: the interface is the same whether a
-tool transforms, enriches, or validates. As a way of thinking about
-what a tool does, the built-in tools fall into a few broad kinds:
+The framework enforces no tool categories. As a guide, the built-in tools fall
+into five broad kinds:
 
 | Kind          | What it does                              | Examples                                            |
 | ------------- | ----------------------------------------- | --------------------------------------------------- |
@@ -235,33 +233,32 @@ what a tool does, the built-in tools fall into a few broad kinds:
 | **Analyze**   | Accumulate statistics across the stream   | word count, repetition analysis, character inventory |
 | **Convert**   | Adjust representation                     | encoding conversion, line-break normalization        |
 
-Enrich and validate tools commonly use the [Block annotation
-system](/framework/content-model) rather than rewriting text: the `recycle` tool
+Enrich and validate tools commonly write to the [Block annotation
+system](/framework/content-model) and leave the text alone: the `recycle` tool
 attaches candidate memory matches, a check tool attaches findings, and downstream tools
-or an editor read those annotations. This shared annotation channel is how
-[content memory](/framework/content-memory),
-[terminology](/framework/terminology), and [voice profile](/framework/checks/voice)
-results all reach the same consumer without colliding.
+or an editor read those annotations. [Content memory](/framework/content-memory),
+[terminology](/framework/terminology) and [voice profile](/framework/checks/voice)
+results reach the same consumer through this shared channel without colliding.
 
 ## Configuration and schemas
 
 Tools that expose configuration declare it as a struct with `schema:"…"` field
 tags. The framework derives a JSON-Schema-style descriptor from that struct by
-reflection, which is what drives auto-generated CLI flags, validation, and the
+reflection. The descriptor drives the generated CLI flags, validation and the
 configuration forms in the visual editors. A tool that opts into this advertises
 its schema through an optional interface; the generated [Tool
-Reference](/tools) renders each tool's parameters from exactly these schemas, so
-it always matches the build.
+Reference](/tools) renders each tool's parameters from these schemas, so it
+matches the build.
 
 ## Scripting: write a transform in JavaScript
 
-Not every transform deserves its own Go tool. The built-in `script` tool runs a
-small JavaScript program against each Part. Define `process(part)`, edit
+For a transform too small to need its own Go tool, the built-in `script` tool
+runs a small JavaScript program against each Part. Define `process(part)`, edit
 `part.block.source` or `part.block.targets`, and return the part to keep it (or
 `null` to drop it). Alternatively, omit the function and write top-level code
-against the global `part`, calling `emit(part)` / `skip()`. It is the quickest
-way to prototype a one-off rule, and it runs anywhere the engine runs, the
-browser included, via the embedded interpreter.
+against the global `part`, calling `emit(part)` / `skip()`. Use it to prototype
+a one-off rule. It runs anywhere the engine runs, the browser included, via the
+embedded interpreter.
 
 :::tip Write a script, run it on your file
 Edit the JavaScript below, where `process(part)` runs once per Part with full
@@ -276,8 +273,8 @@ your own file and read the per-Block before/after of source and target.
 Built-in tools live in the framework and are registered into a `ToolRegistry`,
 which maps a tool name to a factory. Tools can also be supplied by
 [plugins](/contribute/plugins), discovered at runtime and dispatched as
-subprocesses over gRPC, so the available toolset can extend beyond what is
-compiled into a given binary without changing the interface tools satisfy.
+subprocesses over gRPC. A plugin adds tools to a binary without changing the
+interface they satisfy.
 
 ## Related reading
 

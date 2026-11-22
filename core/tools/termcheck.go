@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
@@ -38,9 +40,9 @@ type TermCheckConfig struct {
 	// SourceLocale is the language the source is written in. An English source
 	// finds a term with its regular inflections; any other finds a term as a
 	// whole word under its text and declared forms.
-	SourceLocale  model.LocaleID `json:"sourceLocale,omitempty"  schema:"-"`
-	TargetLocale  model.LocaleID `json:"targetLocale,omitempty"  schema:"-"`
-	CaseSensitive bool           `json:"caseSensitive,omitempty" schema:"title=Case Sensitive,description=Whether term matching is case-sensitive"`
+	SourceLocale  model.LocaleID `json:"source_locale,omitempty"  schema:"-"`
+	TargetLocale  model.LocaleID `json:"target_locale,omitempty"  schema:"-"`
+	CaseSensitive bool           `json:"case_sensitive,omitempty" schema:"title=Case Sensitive,description=Whether term matching is case-sensitive"`
 }
 
 // casedFor reports whether a bilingual rule matches in its own casing: when
@@ -117,30 +119,21 @@ func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 		Cfg:             cfg,
 	}
 	t.Annotate = func(v tool.BlockView) error {
-		if !v.Translatable() {
-			return nil
-		}
-
 		conf := t.Cfg.(*TermCheckConfig)
-		if len(conf.TermRules) == 0 {
-			return nil
+		var passed string
+		var errs, warns []string
+		if v.Translatable() && len(conf.TermRules) > 0 && v.HasTarget(conf.TargetLocale) {
+			errs, warns = TermCheckRunViolations(conf, v.SourceRuns(), v.TargetRuns(conf.TargetLocale))
+			passed = strconv.FormatBool(len(errs) == 0)
 		}
-
-		if !v.HasTarget(conf.TargetLocale) {
-			return nil
+		set := func(key, value string) {
+			if v.Property(key) != value {
+				v.SetProperty(key, value)
+			}
 		}
-
-		errs, warns := TermCheckViolations(conf, v.SourceText(), v.TargetText(conf.TargetLocale))
-
-		if len(errs) == 0 {
-			v.SetProperty(PropTermCheckPassed, "true")
-		} else {
-			v.SetProperty(PropTermCheckPassed, "false")
-			v.SetProperty(PropTermCheckErrors, strings.Join(errs, "; "))
-		}
-		if len(warns) > 0 {
-			v.SetProperty(PropTermCheckWarnings, strings.Join(warns, "; "))
-		}
+		set(PropTermCheckPassed, passed)
+		set(PropTermCheckErrors, strings.Join(errs, "; "))
+		set(PropTermCheckWarnings, strings.Join(warns, "; "))
 
 		return nil
 	}
@@ -153,25 +146,19 @@ func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 // content to term rules outside a pipeline calls it, so it reports exactly
 // what the tool reports.
 func TermCheckViolations(cfg *TermCheckConfig, source, target string) (errs, warns []string) {
-	targetText := check.PlaceholderText(target)
-	for _, use := range sourceUses(source, cfg) {
-		rule := cfg.TermRules[use.index]
+	for _, use := range TermCheckUses(cfg, source, target) {
+		if use.Satisfied {
+			continue
+		}
 		var msg string
-		if rule.DoNotTranslate {
-			if keptVerbatim(targetText, rule, use.texts) {
-				continue
-			}
-			msg = doNotTranslateViolation(rule)
+		if use.Rule.DoNotTranslate {
+			msg = doNotTranslateViolation(use.Rule)
 		} else {
-			renderings := rule.Renderings()
-			if rendered(targetText, renderings, casedFor(cfg, rule)) {
-				continue
-			}
-			msg = violation(rule, renderings, cfg.TargetLocale)
+			msg = violation(use.Rule, use.Rule.Renderings(), cfg.TargetLocale)
 		}
 		// A rule fails unless it is marked advisory. Rules resolved from the
 		// terms store are established terms and fail.
-		if !rule.Advisory {
+		if !use.Rule.Advisory {
 			errs = append(errs, msg)
 		} else {
 			warns = append(warns, msg)
@@ -180,10 +167,246 @@ func TermCheckViolations(cfg *TermCheckConfig, source, target string) (errs, war
 	return errs, warns
 }
 
+// TermUse is one rule term-check holds a translation to, with where the
+// decision found it: the byte ranges of the term in the source, and of each
+// rendering (or, for a do-not-translate rule, of the kept term) in the target.
+// Satisfied is the verdict, and it is true exactly when Target holds a range.
+type TermUse struct {
+	// Index is the rule's position in TermCheckConfig.TermRules.
+	Index     int
+	Rule      profile.TermRule
+	Source    [][2]int
+	Target    [][2]int
+	Satisfied bool
+}
+
+// TermCheckUses is term-check's decision for one source and target text,
+// rule by rule, with positions. TermCheckViolations reports from it and
+// TermCheckOverlays draws from it, so a surface that shows where a term sits
+// shows what the check decided.
+func TermCheckUses(cfg *TermCheckConfig, source, target string) []TermUse {
+	targetText := check.PlaceholderText(target)
+	uses := sourceUses(source, cfg)
+	out := make([]TermUse, 0, len(uses))
+	for _, use := range uses {
+		rule := cfg.TermRules[use.index]
+		var hits [][2]int
+		if rule.DoNotTranslate {
+			hits = verbatimSpans(targetText, rule, use.texts)
+		} else {
+			hits = renderingSpans(targetText, rule.Renderings(), casedFor(cfg, rule))
+		}
+		out = append(out, TermUse{Index: use.index, Rule: rule, Source: use.spans, Target: hits, Satisfied: len(hits) > 0})
+	}
+	return out
+}
+
+// termReading pairs a reading of the source with the reading of the
+// translation held to it. A translation's form is held to the source's form of
+// the same key (its `one` to the source's `one`), and to the source's default
+// form when the source has no such form: a Polish `few` renders what English
+// says in `other`.
+type termReading struct {
+	source, target model.FormReading
+	// form is the form the pair stands for, empty when neither side holds a
+	// plural or select.
+	form string
+}
+
+// termReadings returns the pairs that together read every form of the
+// translation, and every form of the source when the translation holds no
+// plural or select of its own.
+func termReadings(sourceRuns, targetRuns []model.Run) []termReading {
+	sources := model.FormReadings(sourceRuns)
+	targets := model.FormReadings(targetRuns)
+	if len(targets[0].Choices) == 0 {
+		out := make([]termReading, len(sources))
+		for i, src := range sources {
+			out[i] = termReading{source: src, target: targets[0], form: src.Form()}
+		}
+		return out
+	}
+	out := make([]termReading, len(targets))
+	for i, target := range targets {
+		src := sources[0]
+		choice := target.Varied
+		if choice == nil && len(target.Choices) == 1 {
+			choice = &target.Choices[0]
+		}
+		if choice != nil {
+			src = model.FormReadingFor(sourceRuns, choice.Pivot, choice.Key)
+		}
+		out[i] = termReading{source: src, target: target, form: target.Form()}
+	}
+	return out
+}
+
+// TermCheckRunViolations is term-check's decision over a source's and a
+// translation's runs, form by form. A plural or select holds one sequence per
+// form, and the flat text holds only one of them, so each form of the
+// translation is checked against the matching form of the source
+// (termReadings), and a violation in one form names it. For content with no
+// plural or select it reports exactly what TermCheckViolations reports over the
+// flat texts.
+func TermCheckRunViolations(cfg *TermCheckConfig, sourceRuns, targetRuns []model.Run) (errs, warns []string) {
+	seen := map[string]bool{}
+	add := func(list *[]string, msgs []string, form string) {
+		for _, m := range msgs {
+			if form != "" {
+				m += " (in the " + form + " form)"
+			}
+			if !seen[m] {
+				seen[m] = true
+				*list = append(*list, m)
+			}
+		}
+	}
+	for _, r := range termReadings(sourceRuns, targetRuns) {
+		e, w := TermCheckViolations(cfg, r.source.Text, r.target.Text)
+		add(&errs, e, r.form)
+		add(&warns, w, r.form)
+	}
+	return errs, warns
+}
+
+// TermCheckRunMissed returns the demanded rules that some form of the
+// translation does not satisfy, in TermRules order, each once. Advisory rules
+// are left out, so the result is the rules behind TermCheckRunViolations'
+// errs. A surface that groups failures by rule reads it.
+func TermCheckRunMissed(cfg *TermCheckConfig, sourceRuns, targetRuns []model.Run) []profile.TermRule {
+	missed := make([]bool, len(cfg.TermRules))
+	for _, r := range termReadings(sourceRuns, targetRuns) {
+		for _, use := range TermCheckUses(cfg, r.source.Text, r.target.Text) {
+			if !use.Satisfied && !use.Rule.Advisory {
+				missed[use.Index] = true
+			}
+		}
+	}
+	var out []profile.TermRule
+	for i, rule := range cfg.TermRules {
+		if missed[i] {
+			out = append(out, rule)
+		}
+	}
+	return out
+}
+
+// TermCheckOverlays draws term-check's decision as term overlays: one over
+// the source runs, a span for each place the source uses a demanded term, and
+// one over the translation in cfg.TargetLocale, a span for each rendering the
+// target holds. Each form of a plural or select is checked (termReadings), and
+// a span inside a form is anchored to that form. The spans of one rule share
+// an id ("term-check:<n>", n its index in TermRules), and each carries the rule
+// as a TermAnnotation and, in its props, the verdict ("satisfied", false when
+// any form misses the term), the forms that miss it ("missing_forms", comma
+// separated, when the content has forms), the source term ("term"), the
+// rendering it requires ("replacement") and the concept ("concept_id"), so a
+// reader of the wire form, which keeps props, can pair a source term with its
+// rendering, tell a missing one, and open the concept. It returns nil when the
+// source uses no demanded term.
+func TermCheckOverlays(cfg *TermCheckConfig, sourceRuns, targetRuns []model.Run) []model.Overlay {
+	type ruleSpans struct {
+		rule        profile.TermRule
+		src, tgt    []model.Anchor
+		seen        map[string]bool
+		missing     []string
+		unsatisfied bool
+	}
+	byRule := map[int]*ruleSpans{}
+	var order []int
+	add := func(rs *ruleSpans, list *[]model.Anchor, a model.Anchor) {
+		key := fmt.Sprintf("%p:%+v", list, a)
+		if !rs.seen[key] {
+			rs.seen[key] = true
+			*list = append(*list, a)
+		}
+	}
+	for _, r := range termReadings(sourceRuns, targetRuns) {
+		for _, use := range TermCheckUses(cfg, r.source.Text, r.target.Text) {
+			rs, ok := byRule[use.Index]
+			if !ok {
+				rs = &ruleSpans{rule: use.Rule, seen: map[string]bool{}}
+				byRule[use.Index] = rs
+				order = append(order, use.Index)
+			}
+			for _, h := range use.Source {
+				add(rs, &rs.src, r.source.Anchor(h[0], h[1]))
+			}
+			for _, h := range use.Target {
+				add(rs, &rs.tgt, r.target.Anchor(h[0], h[1]))
+			}
+			if !use.Satisfied {
+				rs.unsatisfied = true
+				if r.form != "" && !slices.Contains(rs.missing, r.form) {
+					rs.missing = append(rs.missing, r.form)
+				}
+			}
+		}
+	}
+	if len(order) == 0 {
+		return nil
+	}
+	slices.Sort(order)
+	src := model.Overlay{Type: model.OverlayTerm}
+	tgt := model.Overlay{Type: model.OverlayTerm, Edition: model.Variant(cfg.TargetLocale)}
+	for _, idx := range order {
+		rs := byRule[idx]
+		id := fmt.Sprintf("term-check:%d", idx)
+		ann := termAnnotation(rs.rule, cfg.TargetLocale)
+		props := map[string]string{"satisfied": strconv.FormatBool(!rs.unsatisfied), "term": rs.rule.Term}
+		if len(rs.missing) > 0 {
+			props["missing_forms"] = strings.Join(rs.missing, ",")
+		}
+		if rs.rule.ConceptID != "" {
+			props["concept_id"] = rs.rule.ConceptID
+		}
+		if rs.rule.Replacement != "" {
+			props["replacement"] = rs.rule.Replacement
+		}
+		if rs.rule.Advisory {
+			props["advisory"] = "true"
+		}
+		if rs.rule.DoNotTranslate {
+			props["do_not_translate"] = "true"
+		}
+		for _, a := range rs.src {
+			src.Spans = append(src.Spans, model.Span{ID: id, Range: a, Props: props, Value: ann})
+		}
+		for _, a := range rs.tgt {
+			tgt.Spans = append(tgt.Spans, model.Span{ID: id, Range: a, Props: props, Value: ann})
+		}
+	}
+	out := []model.Overlay{src}
+	if len(tgt.Spans) > 0 {
+		out = append(out, tgt)
+	}
+	return out
+}
+
+// termAnnotation is a rule as a term annotation: the source term, its concept,
+// and the renderings that satisfy it in target. A do-not-translate rule's
+// rendering is the term itself.
+func termAnnotation(rule profile.TermRule, target model.LocaleID) *model.TermAnnotation {
+	ann := &model.TermAnnotation{SourceTerm: rule.Term, ConceptID: rule.ConceptID, Score: 1}
+	if rule.DoNotTranslate {
+		ann.TargetTerms = []model.TermRef{{Text: rule.Term, Locale: target}}
+		return ann
+	}
+	for i, r := range rule.Renderings() {
+		ref := model.TermRef{Text: r.Text, Locale: target}
+		if i == 0 {
+			ref.Status = model.TermPreferred
+		}
+		ann.TargetTerms = append(ann.TargetTerms, ref)
+	}
+	return ann
+}
+
 // sourceUse is a rule the source uses, with the text of each place it does.
 type sourceUse struct {
 	index int
 	texts []string
+	spans [][2]int
 }
 
 // sourceUses returns, in rule order, every rule the target is held to whose
@@ -241,6 +464,7 @@ func sourceUses(source string, conf *TermCheckConfig) []sourceUse {
 			order = append(order, s.Index)
 		}
 		use.texts = append(use.texts, source[s.Start:s.End])
+		use.spans = append(use.spans, [2]int{s.Start, s.End})
 	}
 	slices.Sort(order)
 	out := make([]sourceUse, 0, len(order))
@@ -255,12 +479,17 @@ func sourceUses(source string, conf *TermCheckConfig) []sourceUse {
 // of it, so a term the source capitalises at the start of a sentence is kept
 // when the target capitalises it the same way.
 func keptVerbatim(target string, rule profile.TermRule, occurrences []string) bool {
+	return len(verbatimSpans(target, rule, occurrences)) > 0
+}
+
+// verbatimSpans returns the byte ranges where target keeps a do-not-translate
+// term as keptVerbatim reads it.
+func verbatimSpans(target string, rule profile.TermRule, occurrences []string) [][2]int {
+	var hits [][2]int
 	for _, s := range append(rule.AllForms(), occurrences...) {
-		if s != "" && strings.Contains(target, s) {
-			return true
-		}
+		hits = append(hits, occurrencesOf(target, s, true)...)
 	}
-	return false
+	return outermostSpans(hits)
 }
 
 // doNotTranslateViolation words a do-not-translate rule the target does not
@@ -276,17 +505,21 @@ func doNotTranslateViolation(rule profile.TermRule) string {
 // rendered reports whether target contains one of the renderings or a declared
 // form of one.
 func rendered(target string, renderings []profile.Rendering, caseSensitive bool) bool {
+	return len(renderingSpans(target, renderings, caseSensitive)) > 0
+}
+
+// renderingSpans returns the byte ranges where target contains one of the
+// renderings or a declared form of one. The match is containment, as rendered
+// decides it, so a compound holding a rendering is a range.
+func renderingSpans(target string, renderings []profile.Rendering, caseSensitive bool) [][2]int {
+	var hits [][2]int
 	for _, r := range renderings {
-		if containsTerm(target, r.Text, caseSensitive) {
-			return true
-		}
+		hits = append(hits, occurrencesOf(target, r.Text, caseSensitive)...)
 		for _, f := range r.Forms {
-			if strings.TrimSpace(f) != "" && containsTerm(target, f, caseSensitive) {
-				return true
-			}
+			hits = append(hits, occurrencesOf(target, f, caseSensitive)...)
 		}
 	}
-	return false
+	return outermostSpans(hits)
 }
 
 // violation words a demanded rule the target does not satisfy. It opens the way
@@ -325,11 +558,43 @@ func declaresForms(renderings []profile.Rendering) bool {
 	return false
 }
 
-func containsTerm(text, term string, caseSensitive bool) bool {
-	if caseSensitive {
-		return strings.Contains(text, term)
+// occurrencesOf returns the byte ranges of every occurrence of term in text.
+// Without caseSensitive a letter matches any of its cases (strings.EqualFold).
+// A blank term occurs nowhere.
+func occurrencesOf(text, term string, caseSensitive bool) [][2]int {
+	if strings.TrimSpace(term) == "" {
+		return nil
 	}
-	return strings.Contains(strings.ToLower(text), strings.ToLower(term))
+	var hits [][2]int
+	for i := 0; i+len(term) <= len(text); {
+		window := text[i : i+len(term)]
+		if window == term || (!caseSensitive && strings.EqualFold(window, term)) {
+			hits = append(hits, [2]int{i, i + len(term)})
+		}
+		_, size := utf8.DecodeRuneInString(text[i:])
+		i += size
+	}
+	return hits
+}
+
+// outermostSpans sorts ranges by position and drops any range that lies
+// inside one already kept, so a declared form and its rendering covering the
+// same word are one range.
+func outermostSpans(hits [][2]int) [][2]int {
+	slices.SortFunc(hits, func(a, b [2]int) int {
+		if a[0] != b[0] {
+			return a[0] - b[0]
+		}
+		return b[1] - a[1]
+	})
+	var out [][2]int
+	for _, h := range hits {
+		if n := len(out); n > 0 && h[1] <= out[n-1][1] {
+			continue
+		}
+		out = append(out, h)
+	}
+	return out
 }
 
 // TermCheckMatching describes how term-check matches under cfg, for the verdict

@@ -128,6 +128,61 @@ func TestPseudoTranslateToolPreservesPrintfVerbs(t *testing.T) {
 	}
 }
 
+// A block of whitespace or inline codes alone has no text to translate, so it
+// gets no target and no markers that would put text where the file has none.
+func TestPseudoTranslateToolSkipsBlocksWithoutText(t *testing.T) {
+	t.Parallel()
+	tl := tools.NewPseudoTranslateTool(&tools.PseudoConfig{Prefix: "▒ ", Suffix: " ▒", TargetLocale: "qps"})
+
+	blank := model.NewBlock("tu1", "\n  \n")
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: blank})
+	assert.Empty(t, result.Resource.(*model.Block).TargetText("qps"), "whitespace-only block")
+
+	codeOnly := model.NewBlock("tu2", "")
+	codeOnly.SetSourceRuns([]model.Run{
+		{Ph: &model.PlaceholderRun{ID: "1", Type: "fmt:image"}},
+		{Text: &model.TextRun{Text: " "}},
+	})
+	result = processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: codeOnly})
+	assert.Empty(t, result.Resource.(*model.Block).TargetText("qps"), "code-only block")
+
+	text := model.NewBlock("tu3", "Hello")
+	result = processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: text})
+	assert.Equal(t, "▒ Ĥéļļö ▒", result.Resource.(*model.Block).TargetText("qps"))
+}
+
+func TestPseudoTranslateToolPreservesMarkupTags(t *testing.T) {
+	t.Parallel()
+	// A YAML or JSON string carries HTML as text rather than as code runs.
+	// The consumer parses the tags, so `<ƃ>` would no longer be bold.
+	cfg := &tools.PseudoConfig{
+		Prefix:       "▒ ",
+		Suffix:       " ▒",
+		TargetLocale: "qps",
+	}
+	tl := tools.NewPseudoTranslateTool(cfg)
+
+	tests := []struct {
+		source string
+		want   []string
+	}{
+		{"<b>Bold</b> text", []string{"<b>Ƃöļđ</b>", "ţéẋţ"}},
+		{`Visit <a href="https://example.com/x">site</a>`, []string{`<a href="https://example.com/x">`, "</a>", "šîţé"}},
+		{"Line<br/>break<br />end", []string{"<br/>", "<br />", "ƃŕéàķ"}},
+		// Prose with a bare angle bracket is text and accents.
+		{"a < b and c > d", []string{"à < ƃ"}},
+		{"love <3 you", []string{"<3 ýöü"}},
+	}
+	for i, tt := range tests {
+		block := model.NewBlock("tu"+strconv.Itoa(i), tt.source)
+		result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+		target := result.Resource.(*model.Block).TargetText("qps")
+		for _, want := range tt.want {
+			assert.Contains(t, target, want, "source %q", tt.source)
+		}
+	}
+}
+
 func TestPseudoTranslateToolWithExpansion(t *testing.T) {
 	t.Parallel()
 	cfg := &tools.PseudoConfig{

@@ -148,7 +148,7 @@ With no terminal and no opt-in, kapi **refuses**, naming the recipe, the sites,
 and the ways to answer: `kapi trust allow` from a terminal, or the opt-in.
 Assuming yes when there is nobody to ask would make the gate a formality.
 
-### Refusal is enforced under tool construction, not only at load
+### Refusal is enforced at load and under tool construction
 
 The prompt is the user experience; it is not the enforcement point. A handful of
 internal paths load a recipe directly rather than through
@@ -191,8 +191,8 @@ and a `package.json` or `package.yaml` counts only when it holds a top-level
 A change to any of them asks again. What that code loads in turn is outside the
 digest: the modules the script, the interpreter or a configuration file imports,
 the plugins a configuration names, and the programs a shell script runs. So a
-recorded allow trusts the project's dependencies as installed, not only the
-files it names. The formatter runs with kapi's environment, with every `PATH`
+recorded allow trusts the files it names and the project's dependencies as
+installed. The formatter runs with kapi's environment, with every `PATH`
 entry that is not an absolute path removed, so a program the formatter looks up
 is never found relative to the project.
 

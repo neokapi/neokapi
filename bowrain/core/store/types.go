@@ -104,6 +104,11 @@ type BlockQuery struct {
 	// text, contains it case-insensitively. Source matching is per run, so a
 	// substring spanning an inline-code boundary does not match.
 	Text string
+	// TextAny keeps only blocks whose source text contains at least one of
+	// its strings, case-insensitively and per run as Text matches. Empty
+	// keeps every block. A caller that matches a pattern rule passes the
+	// rule's words (profile.PatternWords) to read only the candidates.
+	TextAny []string
 
 	// Order says how a page is sorted. Empty is the keyset order, by id, which
 	// is what a walk needs: AfterID and BeforeID are cursors over that order,
@@ -237,8 +242,11 @@ type PendingReviewQuery struct {
 	// A pointer rather than a string because the empty collection is a scope,
 	// not the absence of one.
 	CollectionID *string
-	Limit        int
-	Offset       int
+	// ExcludeCollections leaves out the items of these collections: the
+	// source-only ones, whose content has no target language.
+	ExcludeCollections []string
+	Limit              int
+	Offset             int
 }
 
 // Version represents a named snapshot of project state.
@@ -337,6 +345,33 @@ type Collection struct {
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// CollectionConfigSourceOnly is the ConnectorConfig key a recipe's
+// `source_only: true` collection is stored under, set to "true". Its items have
+// no target language: the platform drafts no translation of them, counts no
+// translation as missing, and deals none for review.
+const CollectionConfigSourceOnly = "source_only"
+
+// CollectionConfigPriority is the ConnectorConfig key a collection's review
+// priority is stored under: "high" or "low". Absent is normal.
+const CollectionConfigPriority = "priority"
+
+// Priority is the collection's review priority: "high", "normal" or "low".
+func (c *Collection) Priority() string {
+	if c == nil {
+		return "normal"
+	}
+	switch p := c.ConnectorConfig[CollectionConfigPriority]; p {
+	case "high", "low":
+		return p
+	}
+	return "normal"
+}
+
+// SourceOnly reports whether the collection's content has no target language.
+func (c *Collection) SourceOnly() bool {
+	return c != nil && c.ConnectorConfig[CollectionConfigSourceOnly] == "true"
 }
 
 // ---------------------------------------------------------------------------

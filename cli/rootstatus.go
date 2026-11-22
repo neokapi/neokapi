@@ -8,7 +8,7 @@ import (
 )
 
 // RootRunE is the RunE for a bare root invocation (`kapi` with no
-// subcommand). Inside a project it prints the Map, the same text `kapi look`
+// subcommand). Inside a project it prints the Overview, the same text `kapi look`
 // prints: the project's files, blocks, rules, findings and waiting
 // suggestions, ending on the next command to run. A line naming where the
 // commands are listed follows it. Outside a project it falls back to the

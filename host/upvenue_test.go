@@ -104,7 +104,7 @@ func newServerUpStub(t *testing.T) *serverUpStub {
 	script := "#!/bin/sh\n" +
 		"printf '%s\\n' \"$@\" > " + argsFile + "\n" +
 		`echo '{"type":"locale","locale":"nb"}'` + "\n" +
-		`echo '{"type":"result","flow":"server-venue","passes":2,"converged":true,"materializedFiles":3}'` + "\n"
+		`echo '{"type":"result","flow":"server-venue","passes":2,"converged":true,"materialized_files":3}'` + "\n"
 	require.NoError(t, os.WriteFile(binPath, []byte(script), 0o755))
 
 	m := &manifest.Manifest{

@@ -17,6 +17,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	8  auth baseline (folded 1-7)
 //	9  auth baseline (folds 1-8) + api token machine identity
 //	10 auth baseline (folds 1-9) + workspace voice profile column rename
+//	11 auth baseline (folds 1-10) + membership coordinates and custodian seat billing
 //
 // Versions 2, 4 and 6 were catch-ups: PR #428 had already added their columns
 // and tables to the v1 baseline, so they existed only to roll forward
@@ -29,9 +30,10 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // built from this baseline has no such tokens, and every token minted since
 // carries a family_id from the code.
 //
-// Baseline is version 11 — above every number issued, so an existing database
+// Baseline is version 12, above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 12.
+// repaired. Retired numbers are never reused; the next migration is version 13.
+// Version 12 renames api_tokens.agent_name to tool_name.
 //
 // The subsystem carries exactly one baseline (migrations/schema_test.go
 // enforces it), so a schema change is made by editing the baseline in place and
@@ -45,8 +47,8 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // query in production failed until the bump landed.
 var Migrations = []storage.Migration{
 	{
-		Version:     11,
-		Description: "auth baseline (folds 1-10) + membership coordinates and custodian seat billing",
+		Version:     12,
+		Description: "auth baseline (folds 1-11) + api token tool name",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS users (
 				id            TEXT PRIMARY KEY,
@@ -155,13 +157,12 @@ var Migrations = []storage.Migration{
 				user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
 				name         TEXT NOT NULL,
-				-- The machine that holds this token, when it is a machine token:
-				-- a CI runner, a kapi-action step, an agent-driven kapi. Work
-				-- authored under it is attributed to "agent/<agent_name>" rather
-				-- than to user_id, so the person whose token it is stays an
-				-- eligible reviewer of what the machine proposes. '' = an
-				-- ordinary personal token.
-				agent_name   TEXT NOT NULL DEFAULT '',
+				-- The tool this token belongs to, when it is a tool token: a CI
+				-- workflow, a kapi-action step. The server records work done
+				-- under it as the tool's ("tool/<tool_name>"), issued by user_id,
+				-- so the member who issued it stays an eligible reviewer of what
+				-- the tool proposes. '' = a personal token.
+				tool_name    TEXT NOT NULL DEFAULT '',
 				token_hash   TEXT UNIQUE NOT NULL,
 				token_prefix TEXT NOT NULL,
 				scopes       TEXT NOT NULL DEFAULT '["*"]',
@@ -171,9 +172,23 @@ var Migrations = []storage.Migration{
 			);
 			-- The CREATE above serves an empty database; this serves one that
 			-- already has api_tokens, where CREATE ... IF NOT EXISTS is a no-op
-			-- and would leave the new column missing. Both are idempotent, both
-			-- land the same column, and neither is a second baseline.
-			ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS agent_name TEXT NOT NULL DEFAULT '';
+			-- and would leave the column missing or under its former name,
+			-- agent_name. The rename runs only where the former name is still
+			-- there and the new one is not; the ADD then covers a table that
+			-- had neither. Both are idempotent and neither is a second baseline.
+			DO $$
+			BEGIN
+				IF EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_schema = current_schema() AND table_name = 'api_tokens' AND column_name = 'agent_name'
+				) AND NOT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_schema = current_schema() AND table_name = 'api_tokens' AND column_name = 'tool_name'
+				) THEN
+					ALTER TABLE api_tokens RENAME COLUMN agent_name TO tool_name;
+				END IF;
+			END $$;
+			ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS tool_name TEXT NOT NULL DEFAULT '';
 			CREATE INDEX IF NOT EXISTS idx_api_tokens_workspace ON api_tokens(workspace_id);
 			CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens(user_id);
 

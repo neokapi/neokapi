@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 
@@ -16,7 +16,11 @@ import (
 // EventVoiceRulePromoted fires when a correction-derived rule is promoted
 // into a voice profile (it carries the "voice." prefix so voice automations and
 // notifications react to it). The closed loop becomes observable here.
-const EventVoiceRulePromoted platev.EventType = "voice.rule_promoted"
+const EventVoiceRulePromoted = platev.EventVoiceRulePromoted
+
+// EventVoiceRuleDemoted fires when a promoted rule is removed from the
+// workspace terms store.
+const EventVoiceRuleDemoted = platev.EventVoiceRuleDemoted
 
 // VoiceCorrectionRequest is the request body for creating a voice correction.
 type VoiceCorrectionRequest struct {
@@ -29,7 +33,7 @@ type VoiceCorrectionRequest struct {
 }
 
 // HandleCreateVoiceCorrection records a user correction to a voice finding.
-func (s *Server) HandleCreateVoiceCorrection(c echo.Context) error {
+func (s *Server) HandleCreateVoiceCorrection(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -78,7 +82,7 @@ func (s *Server) HandleCreateVoiceCorrection(c echo.Context) error {
 }
 
 // HandleGetSuggestedRules returns vocabulary rules suggested from repeated corrections.
-func (s *Server) HandleGetSuggestedRules(c echo.Context) error {
+func (s *Server) HandleGetSuggestedRules(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "voice not configured"})
 	}
@@ -111,7 +115,7 @@ type PromoteRuleRequest struct {
 // replacement, records the decision against the profile, and emits
 // voice.rule_promoted. This closes the correction-learning loop: a correction a
 // team made becomes a deterministic check on every future generation.
-func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
+func (s *Server) HandlePromoteSuggestedRule(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -161,7 +165,8 @@ func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
 			DecidedBy:       userID,
 			DecidedAt:       time.Now().UTC(),
 		})
-		s.publishVoiceRuleEvent(EventVoiceRulePromoted, wsID, userID, profileID, req.Term, req.Replacement, 0)
+		actor, _ := requestSession(c)
+		s.publishVoiceRuleEvent(c, EventVoiceRulePromoted, actor, platev.ContextOpKeep, wsID, userID, profileID, req.Term, req.Replacement)
 	}
 	// Announce the concept the promotion created or joined.
 	s.publishKnowledgeEvents(c, kgEvents)
@@ -178,7 +183,7 @@ type DemoteRuleRequest struct {
 // workspace terms store (the inverse of promote). Requires PermManageVoice.
 //
 // POST /:ws/voice-profiles/:id/demote-rule  { "term": "utilize" }
-func (s *Server) HandleDemoteSuggestedRule(c echo.Context) error {
+func (s *Server) HandleDemoteSuggestedRule(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -207,11 +212,14 @@ func (s *Server) HandleDemoteSuggestedRule(c echo.Context) error {
 	}
 
 	if changed {
+		actor, _ := requestSession(c)
+		change := voiceRuleChange(c, actor, platev.ContextOpRetire, req.Term)
+		change.Extra = map[string]string{"term": req.Term, "profile_id": profileID}
 		s.emitAudit(c, auditEvent{
-			Type:         platev.EventType("brand.rule.demoted"),
+			Type:         EventVoiceRuleDemoted,
 			ResourceType: "voice_profile",
 			ResourceID:   profileID,
-			Data:         map[string]string{"term": req.Term},
+			Data:         change.Data(),
 		})
 	}
 

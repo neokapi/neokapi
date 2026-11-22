@@ -54,7 +54,7 @@ A change set has an envelope and operations.
 | `schema` | `kapi.change/v1` |
 | `mode` | `apply` (the default) or `preview`, which computes and checks everything, writes nothing, and returns a diff per document |
 | `gate` | `enforce` (the default) or `report`: what a failing governance finding the change introduces does |
-| `require_basis` | refuse a write to a derived edition whose authoritative edition moved since the sender read it |
+| `require_basis` | refuse a write to a derived edition, or a decision, whose authoritative edition moved since the sender read it |
 | `note`, `evidence` | what a person reads in history, and where the wording behind the change was seen: a file's `path`, the `block` key a read reports, a `quote` or a `url` |
 | `ops` | the operations, applied in order; a change set with none changes nothing |
 
@@ -123,6 +123,13 @@ derived edition's basis, and whether the authoritative edition has moved since,
 from that derivation where the edition carries one, and from the host otherwise.
 A KBF bundle carries each edition's derivation, so a bundle read back holds the
 basis it was written with.
+
+A `decide` may name a `basis` too: the revision of the authoritative edition its
+sender read beside the edition decided on. Under `require_basis` a decision whose
+basis no longer holds is refused as `stale` on `basis`, so a reviewer approving a
+translation also binds the source it was read against. A correction and its
+approval in one change set send the same two revisions, read before the change
+set began, and the decision binds to the content the set lands.
 
 A position names that content too. An edit's `start` and `end`, a run `range`,
 and the run index a `path` walks through all refer to the edition at the
@@ -416,7 +423,7 @@ skeleton alone holds no text to edit and is refused `unsupported`. The
 conformance suite runs on it with two JSON documents and a bilingual catalog.
 
 A whole document **diverges** when a write to it was made from a version that
-is no longer its head. Two machines that each edited one document from one
+has stopped being its head. Two machines that each edited one document from one
 head leave one write as the head and the other beside it once their logs meet.
 The kapi host records a third case the same way: a `.kpz` replaced on disk
 while its cache holds edits nobody packed. Each edited document the new file
@@ -566,8 +573,8 @@ person's overridden findings go to the record.
 The kapi host's policy (`ChangePolicy`) lets a person send every operation.
 An agent may change content, and is refused as `not_permitted` when it sends a
 `term`, `memory` or `recipe` operation, a `decide` with any outcome but
-`advise`, an `if_match` of `*`, or the `report` gate. A tool in a flow may
-choose `report` and decides only with `advise`, and only a tool sends the
+`prereview`, an `if_match` of `*`, or the `report` gate. A tool in a flow may
+choose `report` and decides only with `prereview`, and only a tool sends the
 in-process provenance operation. A sender of any other kind is refused every
 operation.
 
@@ -664,7 +671,7 @@ The verbs that write whole translations build the service with
 `Materialize` set, so the file home writes each translation's file from its
 source's skeleton, keeping what each block's partner in the file held where the
 change set leaves it, and a translation follows the source's structure, even
-where the change set changes no content in a file whose blocks no longer pair
+where the change set changes no content in a file whose blocks have stopped pairing
 with the source's. A bilingual translation file that still holds every unit
 of its source keeps its own skeleton, header included.
 `kapi merge -i` compiles a returned XLIFF, PO or `.kpz` into `set_content`
@@ -723,7 +730,7 @@ from a closed set of codes, each mapped once to an exit code and an HTTP status
 | `invalid` | the change set does not decode, fails its schema or contradicts itself | 2 | 400 |
 | `not_found` | a reference resolves to no document, block or edition, or a `find` matches nothing | 3 | 404 |
 | `ambiguous` | a key or a `find` matches more than one thing | 3 | 409 |
-| `stale` | an `if_match` no longer holds, or under `require_basis` the basis moved | 3 | 409 |
+| `stale` | an `if_match` fails to hold, or under `require_basis` the basis moved | 3 | 409 |
 | `doc_changed` | the document changed under the commit and one more pass could not settle it | 3 | 409 |
 | `guard` | the result breaks an inline code, a plural or select, or a position (subcode `codes_changed`, `structure_lost`, `bad_position` or `overlap`) | 3 | 422 |
 | `gate_failed` | the commit check found a failing finding the change introduces | 3 | 422 |

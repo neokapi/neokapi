@@ -80,19 +80,21 @@ test.describe("Routing", () => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
-    // The stream root is the collection-first overview, not a file list.
-    await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 10000 });
-
-    // URL should contain the project ID and stream
-    expect(page.url()).toContain(`/p/${projectId}/s/main`);
+    // The stream root redirects to the project's Overview.
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/s/main/overview$`), {
+      timeout: 10000,
+    });
+    await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 10000 });
   });
 
-  test("the overview's former /dashboard address still resolves", async ({ page }) => {
+  test("the languages page's former /dashboard address still resolves", async ({ page }) => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}/p/${projectId}/s/main/dashboard`);
 
     await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 10000 });
-    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/s/main$`), { timeout: 10000 });
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/s/main/languages$`), {
+      timeout: 10000,
+    });
   });
 
   test("deep link to the source view loads the file list", async ({ page }) => {
@@ -147,15 +149,13 @@ test.describe("Routing", () => {
 
   test("URL persists on page refresh", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main/languages`);
     await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 10000 });
 
-    // Refresh the page
     await page.reload();
 
-    // The overview should still be loaded after refresh
     await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain(`/p/${projectId}/s/main`);
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/s/main/languages$`));
   });
 
   test("sidebar navigation updates URL", async ({ page }) => {

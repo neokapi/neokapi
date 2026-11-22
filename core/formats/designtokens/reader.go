@@ -16,7 +16,7 @@
 // and must never be translated. The single field that carries human-readable,
 // translatable prose is $description (token and group documentation). The
 // reader configures the JSON reader to extract *only* $description values
-// (extractAllPairs=false plus an extractionRules regex targeting the
+// (extract_all_pairs=false plus an extraction_rules regex targeting the
 // $description path segment); every token value and the entire structure pass
 // through as non-translatable Data, preserving the byte-faithful round-trip.
 package designtokens

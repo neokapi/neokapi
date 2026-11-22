@@ -31,18 +31,19 @@ import (
 // This file builds the change service (core/change) for a surface of the kapi
 // host: the CLI, MCP and Kapi Desktop each call it, hand it a change set and
 // the actor their transport vouches for, and write nothing themselves.
-//
+
 // Inside a project the service resolves a document reference the way the
-// recipe does: a project-relative path names a source file, read with the
-// format and the configuration its content item binds; the file of one of its
+// recipe does. A project-relative path names a source file, read with the
+// format and the configuration its content item binds. The file of one of its
 // translations (the target template's output) names that edition of the
-// source; and an archive member is container!entry. An edition that lives in a
-// target file is joined to the source by key, then by translation-invariant
-// address, then by position, and a target file that does not exist yet is
-// written from the source's skeleton, as kapi merge writes one. Outside a
-// project a reference is a path under the working directory, read with the
-// format detection finds.
-//
+// source. An archive member is container!entry.
+
+// An edition that lives in a target file is joined to the source by key, then
+// by translation-invariant address, then by position. A target file that does
+// not exist yet is written from the source's skeleton, as kapi merge writes
+// one. Outside a project a reference is a path under the working directory,
+// read with the format detection finds.
+
 // Decisions and asset operations (decide, term, memory, recipe) land through
 // the host functions kapi apply and the review queue already use, after the
 // content they refer to.
@@ -215,7 +216,7 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 	// The recorder opens before the home takes its first lock, after the
 	// lock directory is prepared.
 	recorder := a.changeRecorder(ctx, h.root)
-	home := filehome.New(h.layout, filehome.Options{LockDir: h.lockDir, PrepareLocks: recorder.before(h.prepare), BackupSuffix: opts.BackupSuffix,
+	home := filehome.New(h.layout, filehome.Options{LockDir: h.lockDir, PrepareLocks: recorder.before(h.prepare), BackupSuffix: opts.BackupSuffix, Root: h.root,
 		Materialize: opts.Materialize, BeforeSettle: opts.BeforeSettle})
 	svcOpts := []change.Option{
 		change.WithOrigin(origin),
@@ -262,11 +263,11 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 }
 
 // changeHookCommand is the command the hooks that resolve a project from a
-// command are given: cmd for a service of the project at recipe, which cmd
-// names, and a command that resolves no project for a service outside one,
-// so discovery from the working directory never puts an edit made outside a
-// project under the governance of a project it happens to sit in. That
-// command keeps the --source-lang cmd was given, the language the commit
+// command are given. A service of the project at recipe, which cmd names,
+// gets cmd. A service outside a project gets a command that resolves no
+// project. So discovery from the working directory never puts an edit made
+// outside a project under the governance of a project it happens to sit in.
+// That command keeps the --source-lang cmd was given, the language the commit
 // check reads a document outside a project in.
 func changeHookCommand(ctx context.Context, cmd Command, recipe string) Command {
 	switch {
@@ -470,11 +471,11 @@ var languageDirs = []string{"i18n", "intl", "l10n", "lang", "langs", "language",
 // disk.
 //
 // Most two-letter names are language codes, and so are many names of code
-// directories (io, my, to, is, id), so a bare two-letter name counts only
-// where the files around it are sorted by language: in a directory named for
-// that (locales/nb.json, i18n/de/app.json), or beside another name of the same
-// kind that is a language (locales/en.json and locales/nb.json, docs/en/guide.md
-// and docs/de/guide.md). A name with a region or script (nb-NO, pt_BR,
+// directories (io, my, to, is, id). So a bare two-letter name counts only
+// where the files around it are sorted by language. That holds in a directory
+// named for that (locales/nb.json, i18n/de/app.json). It also holds beside
+// another name of the same kind that is a language (locales/en.json and
+// locales/nb.json, docs/en/guide.md and docs/de/guide.md). A name with a region or script (nb-NO, pt_BR,
 // zh-Hans) counts as it stands. Empty when the path names no language.
 func pathLanguage(ref, path string) model.LocaleID {
 	slashed := filepath.ToSlash(ref)
@@ -921,8 +922,8 @@ func (l *projectChangeLayout) sourceDoc(ctx context.Context, ref string, rf proj
 	case len(targets) > 0 && d.Editions == change.EditionsInFile:
 		// A bilingual source (a PO catalog or template, an XLIFF file, a
 		// Qt Linguist or string catalog) whose translations the recipe
-		// writes to files of their own keeps them there: the French of
-		// po/en.po is po/fr.po's, read and written in that file, and the
+		// writes to files of their own keeps them there. The French of
+		// po/en.po is po/fr.po's, read and written in that file. The
 		// source catalog's own msgstr holds no edition. Every surface
 		// reads it the same way, whatever target language it was told.
 		d.Editions, d.TargetLocale = change.EditionsPerFile, ""
@@ -1119,9 +1120,9 @@ func (c *changeAssets) prepareDecision(actor change.Actor, op change.Op, target 
 		return &change.Error{Code: change.CodeUnsupported, Capability: "decide",
 			Message: "a review decision is recorded in a project; there is no kapi project here"}
 	}
-	if actor.Kind != change.ActorPerson && body.Outcome != change.OutcomeAdvise {
+	if actor.Kind != change.ActorPerson && body.Outcome != change.OutcomePrereview {
 		return &change.Error{Code: change.CodeNotPermitted,
-			Message: "an agent records a pre-review (decide with advise), never a decision; a person decides"}
+			Message: "an agent records a pre-review (decide with prereview), never a decision; a person decides"}
 	}
 	if target == nil {
 		return &change.Error{Code: change.CodeNotFound, Message: "the decision names no edition"}
@@ -1130,7 +1131,7 @@ func (c *changeAssets) prepareDecision(actor change.Actor, op change.Op, target 
 		return &change.Error{Code: change.CodeNotFound, Field: "at/edition",
 			Message: fmt.Sprintf("block %s holds no %s edition to decide on, in its file or in the workspace home", target.Ref.Block, editionText(target.Ref.Edition))}
 	}
-	if body.Outcome == change.OutcomeAdvise && body.Score == nil {
+	if body.Outcome == change.OutcomePrereview && body.Score == nil {
 		return &change.Error{Code: change.CodeInvalid, Field: "score",
 			Message: "a pre-review carries the score it gives, from 0 to 100"}
 	}
@@ -1167,7 +1168,7 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 	locale := string(target.Ref.Edition.Locale)
 	ref := ReviewUnitRef{File: filepath.FromSlash(file), Key: target.Ref.Block, Locale: locale}
 	switch body.Outcome {
-	case change.OutcomeAdvise:
+	case change.OutcomePrereview:
 		review := state.AIReview{Model: reviewerName(actor), At: nowRFC3339(), TargetHash: targetHash(decided.target), Revision: decided.targetRev}
 		if body.Score != nil {
 			review.Score = *body.Score

@@ -1,0 +1,1157 @@
+# Bowrain mobile, starting with review: design note
+
+This design records the review decisions approved on 2026-11-12. The mobile
+app now implements sign-in, review decks and an offline decision queue.
+The server selects the cards and enforces review permissions. The shared
+TypeScript client maps its responses for the app. See the [mobile app](../../bowrain/mobile/)
+and the [review plan](review-by-leverage.md) for the current workflow.
+
+The versions and store rules below were checked on 2026-11-12. Items marked
+*unverified* lacked confirmation from a primary source at that date.
+
+A mock of four screens (language list, a fast-deck card, the reason sheet, a
+stale card routed to the desk) is a private canvas shared with the founder;
+it is not part of this repository.
+
+## The problem
+
+On the dogfood project, 3,815 nb blocks wait for review (`kapi status
+--review`, 2026-11-12). Every one is an AI draft with status `translated`, and
+none is approved. Their source text is short: the median is 52 characters and
+none exceeds 80, because they are UI strings, CLI help, reference text and
+narration. 57 carry check findings; the other 3,758 have none.
+
+The recipe declares no ship gate, so nb ships unreviewed and the queue blocks
+nothing. A gate such as `established: 100` for nb would hold the language back
+behind this backlog. Either way approval coverage stays at zero, because every
+review surface today assumes a desk: the Kapi Desktop Review page, Bowrain
+web's review session, and on the CLI `kapi status --review` with a `decide`
+operation sent to `kapi apply`.
+
+Short, clean strings take a second or two to judge. A phone suits that work,
+in the minutes a reviewer has between other things. This note proposes the
+Bowrain mobile app, named Bowrain in both stores. Review is its first
+feature: one card per block, swiped to decide. The app's structure (sign-in,
+workspaces and projects, notifications, the offline queue) is built for the
+features that follow review, and none of it is specific to review.
+
+## Scope
+
+- **In scope:** translation review, the blocks a pending-review listing
+  returns, for people with the review permission for a language.
+- **Later:** the entity queue (`/review-queue`, `entity_review` items: term
+  and entity suggestions) suits the same card. It needs a card of its own.
+- **Out of scope for the first version:** long prose (routed to the desk),
+  project settings, source changes, notifications (phase 3), lot sampling,
+  known-bad cards and pace (phases 2 and 4).
+
+The app is a client. Every rule it applies (what counts as a decision, who
+may decide, which cards come first, which cards go to the desk) is computed
+by the server, so Bowrain web's focused reviewer and the app answer the same
+way. Where a rule does not exist on the server yet, this note adds it there
+first. This follows the standing rule that a surface never carries product
+behaviour of its own.
+
+## The card
+
+One block per card:
+
+- the source text and the translation, with placeholders and inline codes
+  drawn as chips, never flattened to text;
+- under the chips, the product and surface the text ships on, such as
+  *Neokapi · Desktop*. The app reads them from the collection's coordinates
+  and channel binding, which the deck's collection list carries
+  (`GET /:ws/:id/review-deck/:ref/collections`), and falls back to the
+  collection's name;
+- why a card that is not quick needs a closer look, when nothing else on the
+  card says so: no pre-review, a long source, a source changed since the
+  approval, or a redraft after a rejection. The server sends the reason as a
+  code (`reason_code`) and the app words it;
+- a footer with the file name and the key, which opens the context page;
+- for a stale block, the earlier approved translation beside the new draft,
+  with the changed words marked;
+- the AI pre-review score and the check findings, when there are any;
+- the term and voice notes the review context returns for the block.
+
+### The context page
+
+A string read alone is often ambiguous: "Open" can be a verb on a button or an
+adjective in a status line, and a sentence fragment only makes sense in its
+paragraph. The context page shows the translation where a reader meets it.
+It opens from the card's footer or with a swipe down on the card, and has two
+tabs.
+
+**In context** draws the block inside its container, which the server picks
+(`GET /:ws/:id/blocks/:ref/:bid/container?target_locale=`):
+
+- a string from a React component is read with the component's other strings,
+  in the order the component renders them;
+- a block of a document is read with its section, from the heading above it to
+  the next heading of the same or a higher level;
+- anything else is read with the dozen blocks either side of it.
+
+Each unit carries its role (heading with its level, paragraph, button, list
+item, label, link, caption, cell, code), and the page lays the units out by
+role, so a heading reads as a heading and a button as a button. The page
+opens on the translation, with Source and Both a tap away, and scrolls to the
+card's block, which is outlined. Every other translation waiting for review
+carries a dot; tapping one selects it and offers Approve and Fix in place, and
+when more than one waits the page offers to approve them all.
+
+Each unit carries the term check's spans (`overlays`). The server runs
+term-check, the gate kapi and the platform use, with the rules the workspace's
+concepts and the recipe impose on the language, and returns its decision as
+term overlays: where each term sits in the source, where the translation
+renders it, and whether it does. The page underlines what those anchors cover
+and matches no text itself, so a term marked here and the gate's verdict are
+one decision. Tapping a term opens the term sheet: the concept's definition,
+the form to use in the language under review, the check's verdict on this
+translation, and the concept's terms in every language with their status
+(`GET /:ws/concepts/:cid`). Previous and next step through every term in the
+container in reading order. A plural or select is checked form by form, and
+a term inside a form is marked where the form is drawn; when some forms miss
+the term, the sheet names them.
+
+A code, such as a variable named `serverURL`, reads as its name in a muted
+monospace face and does not respond to a tap. In a string, a tap opens a term
+or contextual help, and a code is neither.
+
+When the container is a component, its collection declares a Storybook, and
+the Storybook's index holds a story beside the component's source file,
+**See it running** opens the component running, full page. The container names the host
+and the component's source file; the app reads the host's story index through
+the server, takes the stories written beside that file
+(`OfflineLaunch.stories.tsx` for `OfflineLaunch.tsx`), and loads one in a
+WebView. The container's translations go in as the dictionary the
+`@neokapi/i18n-react` Storybook decorator renders, keyed by each unit's
+`message_key`, so the component shows the wording under review. Source reading
+posts an empty dictionary.
+
+The view has two steppers. The bottom one walks the container's strings: the
+current string is outlined solid in the running component and scrolled into
+view, the others dashed, and the panel under it shows the string with Approve
+and Fix. The top one walks the stories. They are ordered with a story named
+for the component first and stories named for an error, a sign-in, an empty
+state or a dark theme last. On opening, a story that shows none of the strings
+within a few seconds is passed over, so the view settles on one that shows the
+content under review; the bar says how many of the strings each story shows.
+
+The app asks the story's runtime to mark keys (`markKeys` in the posted
+dictionary): every message renders between invisible marks that carry its
+message key. An injected script finds each unit's element by its
+`message_key` and posts back the block ids it found. For a Storybook built
+with a runtime that marks nothing, the script falls back to the plain text
+between the string's codes (`visibleFragments`). That list is the
+page's only message to the app, and the app keeps only ids it sent. The
+WebView stays on the story's origin. A decision made
+here goes through the same change sets and offline queue as a swipe, and Fix
+opens the deck's fix sheet for that unit.
+
+**Details** lists the data behind the card, from the block's review context
+(`GET /:ws/:id/blocks/:ref/:bid/review-context`): the collection and any other
+coordinates, the full path and key, the copies a decision covers, the strings
+either side of the text in its file (a neighbour with the same wording is
+marked *Same text*), the voice profile in force, and the closest content
+memory match.
+
+Codes on every surface read as a name or a word, never as their native form:
+a variable reads as its name (`serverURL`), a code without a human name reads
+as its kind (*link*, *line break*, *value*), and a paired code draws its
+content as marked text with no tags (`codeDisplays` in
+`packages/kapi-format/src/code-display.ts`, `HumanCodeName` in Go;
+`scripts/check-code-display.sh` guards it).
+
+## Gestures and buttons
+
+| Action | Gesture | Button | Result |
+| --- | --- | --- | --- |
+| Reject | swipe left | Reject | the fix sheet opens on the rejection: a reason and an optional note, with the fixes one tap away |
+| Fix | none | Fix | the fix sheet (below): pick a ready-made fix or edit, and the corrected translation is approved in one change set |
+| Skip | swipe up | Later | nothing is recorded; the card returns at the end of the deck |
+| In context | swipe down | the card's footer | the context page opens over the card, which stays in place |
+| Approve | swipe right | Approve | a `decide` operation with outcome `establish` |
+| Undo | none | Undo, or Undo on the bar under the card | the last decision is dropped while it is held or queued, or reversed with a new decision once sent; the card comes back from the side it left by |
+
+The deck is a stack of cards: the top card with the next two behind it,
+smaller and lower. A card tilts with the drag, and an Approve (green) or
+Reject (red) stamp fades in with the distance. Crossing the commit distance
+gives a haptic tick; a release past it throws the card off the screen, and a
+release short of it springs the card back. The buttons throw the card the same
+way. With reduced motion the card fades instead of flying and does not tilt.
+
+The buttons sit under the card in the directions the card moves: Reject on the
+left, Approve on the right, Fix between them, with Undo and Later smaller at
+the edges. This keeps the rule every review surface uses, the negative or
+corrective action first and Approve last at the trailing edge, so Kapi
+Desktop, Bowrain web and the app agree, and right approves.
+
+Every gesture has a button, for discoverability and for accessibility
+(VoiceOver and TalkBack users act on the buttons, and the card carries the
+same actions as accessibility actions). Haptics confirm approve and fix.
+
+### The fix sheet
+
+A rejected block goes back for a new draft, waits in the queue and comes back
+for review: two more round trips, often days, to change what is usually one or
+two words. A correction settles the block at once, and the corrected wording
+enters the content memory, so every later draft of the same text reuses it.
+The fix sheet is therefore the main path for a translation that is not right.
+
+1. **Why:** one tap on a reason chip (wrong term, meaning, tone, placeholder,
+   grammar). The reason filters and orders the fixes below.
+2. **Ready-made fixes,** each a diff against the draft, each one tap to apply:
+   the term fix (the draft with a term rule's replacement applied), the
+   content-memory alternatives the review context finds, and an AI rewrite
+   that addresses the chosen reason. The server computes them (below), so
+   Bowrain web and Kapi Desktop offer the same fixes.
+3. **Edit:** a text field where placeholders and inline codes are locked
+   chips that cannot be broken, with the diff shown before confirming.
+4. **Reject with the reason:** when no fix fits. The decision carries the
+   reason and an optional note, and the next draft reads them.
+
+A fix is one change set: `set_content` with the corrected runs, then `decide`
+with outcome `establish`, both with `if_match` on the revisions the card
+showed. The server validates the content: a fix that breaks a placeholder is
+refused as a guard failure, and the sheet shows why. Under the workspace's
+separation-of-duties policy a reviewer approving their own correction is
+self-approval: with `off` or `warn` the block settles at once; with `block`
+the correction is kept and the block waits for a second reviewer, which is
+still faster than a redraft. Corrections are sampled in quality review like
+any other decision.
+
+## The deck
+
+A language's deck opens on **pages**. A page is one component's strings, or
+the blocks of one document that belong to no component, listed with the
+translations waiting in it (`GET …/review-deck/:ref/pages`, below). Opening a
+page shows its container with the first waiting translation in view; the
+reviewer decides each unit in place, or approves every waiting one at once. A
+document page walks section by section: **Next section** opens the container
+of the next translation waiting in the document (`next_waiting` on the
+container). **Cards** is the other view, one tap away, for quick strings.
+Context items (terms, rules, coordinates) stay on cards in their own deck. A
+server without the pages route opens on cards.
+
+The server orders the cards and returns them with a reason per card:
+
+1. **Fast deck:** blocks with no check findings and a high pre-review score.
+   These are the cards a swipe is right for.
+2. **Look closer:** blocks with a low score, or a term or voice note.
+3. **Needs the desk:** blocks with findings, stale blocks, rejected blocks
+   with a new draft, and sources over a length threshold. The app lists them
+   with "Open on desktop" and does not offer the swipe.
+
+`kapi up --pre-review` and the server's pre-review already record the scores
+the first split needs. The ordering is a new server endpoint (below), shared
+with Bowrain web.
+
+### The backlog before the first swipe
+
+Swiping through 3,758 clean cards one by one is the wrong first step. The
+recommended policy treats the backlog as lots and samples them, the way
+acceptance sampling (ISO 2859-1, by acceptable quality level; ISO 2859-5 for
+sequential plans) treats a production lot:
+
+1. Group the clean, high-scoring drafts into lots: one collection and
+   language each.
+2. Draw a random sample from each lot into the fast deck, and review the
+   sample.
+3. If the sample's reject rate stays under the threshold, approve the rest of
+   the lot with `approve-passing`. If it goes over, the whole lot goes back to
+   review card by card.
+4. Never approve a block with a failing check finding without a person.
+
+The sample size and the threshold are project settings with defaults. No
+published source applies acceptance sampling to translation review
+specifically, so the defaults are a starting point to measure, not a
+standard.
+
+### The context deck
+
+The context page of a project (`app/[ws]/[project]/context.tsx`) deals the
+project's context items one card at a time from `GET /:ws/:id/context/deck`:
+voice rules, concepts, term rules and notes. Keep records an attestation of
+the revision the card shows; retire drops a rule or a note, and proposes a
+change set that deprecates a concept's terms.
+
+Candidate terms come first. A context scan that names a project
+(`project` on `POST /:ws/context-scans`) samples every collection, extracts
+terms in the project's source language, counts the blocks that use each one
+over the whole project, and files each as a concept whose source term is
+proposed. A proposed term governs no check. Its card carries `proposed: true`,
+`reach` (the blocks in all and per collection) and, in `where`, the
+coordinates every block that uses it shares. The deck orders candidates by
+reach, most blocks first, ahead of every other card.
+
+The card reads **Proposed term**, **Used in N blocks** and the collections.
+Its actions say what they do:
+
+| Action | Label | What the server does |
+| --- | --- | --- |
+| Keep | Keep as a term | the proposed term becomes preferred, and the concept is attested as it then reads |
+| Retire | Not a term | the concept is deleted, and the term is recorded on the project so no later scan proposes it again |
+
+## Guarding against careless approval
+
+- **Pace:** adults read silent non-fiction at about 238 words a minute, with
+  a typical range of 175 to 300 (Brysbaert, 2019). A review card asks the
+  reader to read the source and the translation. A decision that comes faster
+  than about 0.25 seconds per word over both texts is too fast to have read
+  them. The app does not refuse it: the reviewer sees "you are deciding faster
+  than you can read", and the session report shows the rate.
+- **Known-bad cards:** about 3 to 5 percent of a deck are cards whose correct
+  answer is known (a deliberately wrong translation from a seeded set), spread
+  evenly through the deck. The annotation literature gives no fixed rate; one
+  heuristic sizes the gold set at about the square root of the items
+  labelled. The pool rotates, because reused known items get recognised. A
+  reviewer who approves one is told so on the spot. The result counts in the
+  reviewer's accuracy, never in the content.
+- **Separation of duties:** the workspace's existing policy applies; a person
+  cannot approve a translation they wrote when the policy forbids it. The app
+  hides the swipe on such cards.
+- **Per-reviewer report:** approvals, rejections, reasons and pace per
+  session, visible to the reviewer and to whoever manages the language.
+
+## Decisions offline, and text that changes
+
+A card carries the revisions it showed: the translation's revision
+(`target_revisions` in the pending-review entry) and the source's. A swipe
+becomes a `decide` operation whose `if_match` maps both editions to those
+revisions, sent through the change contract
+(`POST /:ws/projects/:id/streams/:stream/changes`). If the translation or the
+source moved after the card was loaded, the server answers `409 stale` and the
+approval does not land. The app tells the reviewer and offers the new version
+as a fresh card.
+
+A new decision is held on the device for five seconds under a bar that names
+it and offers Undo, so a wrong swipe is taken back before anything reaches the
+server. Leaving the app sends every held decision at once. Every decision made
+on the device is kept in a log for a day with what became of it, and the
+deck's Reviewed list shows that log with an Undo on each decision that can
+still be taken back: a held or queued one is dropped, a sent approval or
+rejection is withdrawn with a new decision. A correction that landed stays;
+changing it is a new edit.
+
+Decisions waiting to be sent are paused mutations in TanStack Query, persisted on
+the device, and sent in order when the phone reconnects or the app returns to
+the foreground. Background sync on iOS is opportunistic, so the app does not
+rely on it. Each decision is its own change set, so one stale card does not
+hold back the rest. `bulk-review` is not used for this: it decides on the
+translation the server reads at request time, so a late sync could approve
+text the reviewer never saw.
+
+## Notifications
+
+- A digest per reviewer and language: "42 nb blocks are waiting", at most
+  once per period the reviewer picks, never between their quiet hours.
+- An event push when a block is assigned to the reviewer, or a gate is held
+  back only by review.
+- No content in a push payload: the count and the language only. The text is
+  fetched after the person opens the app and signs in.
+- Each notification links to the deck it describes.
+- Sent through the Expo push service (below), which fronts APNs and FCM.
+
+The push service decision: Expo's service is free, has one API for both
+platforms, allows 600 notifications a second per project, and deletes a
+payload once Apple or Google has accepted it. Expo staff may see payloads
+while debugging, which is acceptable because payloads carry counts only.
+Direct APNs and FCM become worth their extra work only if that rate limit or
+a customer's compliance requirement applies; the worker job is written
+against a small sender interface so the switch stays local.
+
+## Sign-in and permissions
+
+The API accepts only the tokens the Bowrain server issues, so the server
+brokers the OIDC flow with the workspace's identity provider (Cognito's hosted
+UI in production, Keycloak locally) and the app never holds the provider's
+tokens. The redirect back to the app carries a one-time code, never a token: a
+custom-scheme redirect can be delivered to any app that registered the same
+scheme, and the code is useless without the PKCE verifier, which stays in the
+app.
+
+1. The app generates a PKCE verifier, its S256 challenge and a random `state`,
+   and opens the sign-in route in a browser session (`expo-web-browser`):
+
+   `GET /api/v1/auth/desktop/login?redirect_uri=bowrain://auth/callback&code_challenge=<S256>&code_challenge_method=S256&state=<state>&response_mode=code`
+
+   With `response_mode=code` the server requires `S256` (it refuses `plain`
+   and a missing method), a challenge that decodes to a SHA-256 digest, and a
+   `state`. The redirect has to pass the same allowlist as the desktop app's:
+   a loopback `http` URL or a `bowrain://` URL.
+2. After sign-in at the identity provider the server stores a one-time code
+   for the person, bound to the challenge and the redirect, in the shared
+   session store (Redis, so every server instance sees it; the in-memory
+   store is for a single instance). The code lives 60 seconds and holds no
+   token. The server redirects to `bowrain://auth/callback?code=<code>&state=<state>`.
+3. The app refuses a callback whose `state` is missing or different, then
+   redeems the code:
+
+   `POST /api/v1/auth/desktop/token` with `{"code", "code_verifier", "redirect_uri"}`
+
+   The server takes the code from the store in one atomic step, so the first
+   attempt spends it whether or not it succeeds. It checks the redirect and
+   compares the verifier's challenge with the stored one in constant time. It
+   answers `{"access_token", "refresh_token", "token_type", "expires_in"}`,
+   or `400 invalid_grant` for an unknown, used or expired code, another
+   redirect or a wrong verifier. A refusal is logged with its reason and
+   never with the code. The route sits behind the per-IP auth throttle.
+4. The access token lives 15 minutes. The app refreshes it with
+   `POST /api/v1/auth/refresh` and `{"refresh_token"}` in the body; the
+   server rotates the refresh token on every use.
+
+5. Sign-out sends `POST /api/v1/auth/logout` with
+   `{"post_logout_redirect_uri": "bowrain://auth/signed-out"}`. The server
+   revokes the person's refresh tokens and answers with the identity
+   provider's `end_session_url`, built to return to that redirect. The
+   redirect passes the same allowlist as the sign-in redirect, and the
+   provider must list it too: the local Keycloak client's post-logout
+   redirect URIs (`bowrain/docker/keycloak/realm.json`) and, in production,
+   the Cognito app client's sign-out URLs.
+
+   On iOS the sign-in session is ephemeral (`preferEphemeralSession`): it
+   shares no cookies with Safari and keeps none, so the next sign-in always
+   asks for an account and sign-out opens no browser. Android's Custom Tabs
+   share the browser's cookies and have no ephemeral mode, so there the app
+   opens the `end_session_url` in an auth session and waits for the
+   redirect. Either way the device is signed out first, so a provider that
+   refuses the redirect leaves nobody signed in.
+
+- The refresh token is held in the platform keychain (`expo-secure-store`).
+- The Bowrain desktop app signs in the same way, with the same redirect URI.
+  Without `response_mode` the sign-in route still redirects with the tokens
+  in the query, for installed desktop releases that predate the code redirect.
+- In production the redirect should be an `https` URL on the Bowrain web
+  domain (Universal Links on iOS, App Links on Android), so no other app can
+  claim it. The iOS half is in the tree with the team ID left as a placeholder
+  (`bowrain/apps/web/public/.well-known/apple-app-site-association`, the
+  app's `associatedDomains`); [bowrain-mobile-testflight.md](bowrain-mobile-testflight.md)
+  lists what remains. Still to do: publish `/.well-known/assetlinks.json`
+  (package `cloud.bowrain.app` and the signing certificate's SHA-256) on the
+  web domain, add the Android intent filter to the app's config, and add the
+  `https` URL to the server's redirect allowlist. Development builds keep the
+  `bowrain://` redirect.
+- The review permission is language-scoped (`PermReview`); the app shows only
+  the languages a person may approve, and the server checks again on every
+  decision.
+- Apple requires apps with account creation to offer account deletion in the
+  app (guideline 5.1.1(v)). The app only signs in to accounts created on the
+  web, so a link to the account page may satisfy it (*unverified*; confirm
+  with App Review before submission).
+
+## What the server needs
+
+1. **A deck endpoint:** the pending-review entries for a reviewer and
+   language, ordered into the three groups above, each with the reason it is
+   in its group and the revisions the card shows. Bowrain web's focused
+   reviewer uses it too.
+2. **The source revision on each pending-review entry,** beside
+   `target_revisions`, so a decision can bind both halves.
+3. **Lot sampling** for the backlog policy: lots, samples, the threshold, and
+   `approve-passing` over a lot that passed.
+4. **Fix candidates:** for one block and language, the term fix, the
+   content-memory alternatives and, on request, an AI rewrite for a reason,
+   each as runs with a diff against the draft. The computation lives in host,
+   so Kapi Desktop and the CLI get the same candidates; the server exposes it.
+5. **Device registration:** `POST`/`DELETE` a push token per device, with the
+   person's digest period and quiet hours.
+6. **A notification job** in the worker: digests and event pushes through the
+   Expo push service, behind a sender interface.
+7. **Known-bad cards and pace:** a seeded, rotating set per language, and the
+   session report, both server-side.
+8. **Reject reasons that reach the next draft.** The `decide` operation
+   already carries `reasons`; the server keeps them with the decision, and the
+   drafting step reads them as guidance when it drafts the block again.
+
+## Stack (as of 2026-11)
+
+| Part | Choice | Version | Why |
+| --- | --- | --- | --- |
+| Framework | Expo, development builds (not Expo Go) | SDK 57 (React Native 0.86, React 19.2); SDK 58 (React Native 0.88, released 2026-10-15) once its libraries settle | `create-expo-app` still starts on SDK 57; Expo Go is not for production work |
+| Engine | Hermes V1, New Architecture | default since React Native 0.84; the legacy architecture is gone since SDK 55 | nothing to choose |
+| Navigation | `expo-router` | follows the SDK | in the default template |
+| Card and gestures | `react-native-gesture-handler` and Reanimated 4 with `react-native-worklets` | Reanimated 4.3 to 4.5 | the card stack is about 150 lines; no third-party swiper |
+| Haptics | `expo-haptics` | follows the SDK | on swipe commit |
+| Styling | Uniwind | current | Tailwind v4, the version Bowrain web uses, so the CSS tokens are shared; NativeWind v4 is on Tailwind v3 and v5 is still a release candidate |
+| Components | React Native Reusables | current | shadcn-style primitives on Uniwind |
+| Server state and offline | TanStack Query v5 with a persister and paused mutations | v5 | the offline queue is built in (`setMutationDefaults` lets paused mutations resume after a restart) |
+| Local storage | `expo-sqlite` (with its key-value store) or MMKV | *unverified* | either holds the persisted query cache |
+| Auth | `expo-auth-session` and `expo-secure-store` | follows the SDK | plain OIDC covers Cognito and Keycloak |
+| Push | `expo-notifications` and the Expo push service | follows the SDK | see Notifications |
+| Text | `react-i18next`, with the device language from Expo's locale module | current | JSON catalogs, which the kapi loop already writes |
+| End-to-end tests | Maestro | current; the EAS Workflows Maestro job is in alpha | simpler than Detox |
+| Unit tests | Jest with `jest-expo` | *unverified* | the template's default |
+| Build and release | EAS Build, Submit, Update and Workflows | Starter plan ($19 a month); the free tier allows 15 iOS and 15 Android builds a month (*unverified*: from a third-party summary) | the fastest route to TestFlight |
+| AI tooling | the Expo plugin for Claude Code | `claude plugin install expo@claude-plugins-official` | installs Expo's skills and its MCP server |
+
+Universal web and native code (Expo web, react-strict-dom) is not used:
+Bowrain web already exists, and the app shares types and the API client, not
+screens.
+
+## Building it with AI agents
+
+- **Install the Expo plugin for Claude Code.** It brings Expo's agent skills
+  and the Expo MCP server (`mcp.expo.dev`), which answers from the current
+  SDK's documentation instead of the model's memory. SDK 58 adds an
+  experimental `@expo/agent-cli`.
+- **Start from `create-expo-app`'s default template** and keep the project in
+  Continuous Native Generation: the `ios/` and `android/` folders are
+  generated by prebuild and never committed or edited. Native settings live in
+  `app.config.ts` and config plugins.
+- **Use development builds from the start**, not Expo Go. A native module
+  added later needs a new development build; agents often forget this and
+  debug a stale binary.
+- **Pitfalls agents hit:** editing generated native folders instead of
+  writing a config plugin; testing in Expo Go; adding a native dependency
+  without rebuilding; following blog posts for older Reanimated (its Babel
+  plugin is now `react-native-worklets/plugin`).
+- **A `bowrain/mobile/CLAUDE.md`** states the above, the licence boundary and
+  the rule that the app holds no product behaviour, so every session starts
+  from it.
+
+## The app in this repository
+
+- **Placement:** `bowrain/mobile/`, a pnpm workspace package.
+- **Monorepo:** pnpm's isolated layout is supported since SDK 54, and
+  `expo/metro-config` detects the workspace. If a library fails under it, the
+  documented fallback is `nodeLinker: hoisted`, which is workspace-wide and
+  would change the Vite apps too. The first spike checks that the isolated
+  layout works with Vite+ in the same workspace.
+- **Shared code:** the API client and the TypeScript types move to an Apache
+  package under `packages/`, which both Bowrain web and the app import. The
+  card itself is native UI; the web's DOM components are not reused.
+- **Text:** the app's UI strings go through the same loop as every other
+  Bowrain app: an `i18n/` directory the dogfood recipe reads, catalogs bundled
+  at build time, and catalog updates shipped by EAS Update between store
+  releases.
+- **Analytics:** the same PostHog events Bowrain web sends for a decision
+  (`review_approved`, `review_rejected`, batch size and locale), never
+  content.
+
+## Navigation
+
+The app opens on the system tab bar (expo-router native tabs: UITabBar on
+iOS, the Material bar on Android). Each tab holds its own stack, so a tab
+keeps its place while another is open.
+
+| Tab | What it shows | Where it reads it |
+| --- | --- | --- |
+| Home | workspaces, a workspace's projects, a project's languages with what each deck holds | `/workspaces`, `/:ws/projects`, `/:ws/:id/permissions`, the deck's counts |
+| Review | every language the person may review, across projects and workspaces, where anything waits, most waiting first | `GET /auth/me/review` (below) |
+| Activity | the feed of the project the person last opened; a button at the top picks another. A review entry opens on its decisions, with Undo on the reader's own | `GET /:ws/:id/feed`, `GET /:ws/:id/feed/:entry/decisions` |
+| Account | the person and the name they show under, the account page on the server, the server, appearance, the version and update, sign-out | `GET` and `PATCH /auth/me`, expo-application, expo-updates |
+
+The deck is not in a tab. It opens over the tab bar from Home, Review or an
+Activity card, because a reviewer needs the whole screen for the card and
+the action bar. Its route, `/:ws/:project/:locale`, and the Home routes keep
+their paths, so a link to a deck or a project opens the same screen as
+before, with the tabs beneath it.
+
+Review is a tab of its own because the question a reviewer opens the app
+with is what is waiting for them, and Home answers it one project at a time.
+The server answers it in one request; the app neither sums nor sorts.
+
+A person shows under the name they set, else their handle (the slug of their
+personal workspace), else the part of their email before the @; the server
+answers it as `shown_name` on `/auth/me` and as the actor's name on each feed
+entry, read from the account when the feed is read. A feed entry the reader
+made carries `viewer: true`, and the app words it in the second person: "You
+approved 2". A key with a `_you` variant in the catalog is read for those
+("You have translations waiting"), and every other key reads as it is.
+
+Account is reached from its tab only; Home carries no second way in. The tab
+bar shows a system symbol for Account: a native tab icon is an image or a
+symbol, and the initials are neither. The feed draws a person as their
+initials in a colour fixed by their user id. An email address gives the
+initials of the part before the @.
+
+The project the Activity tab shows is kept on the device and dropped on
+sign-out. Appearance (System, Light, Dark) is kept on the device too and
+applied through Uniwind, which also sets the native interface style.
+
+## Licence
+
+`bowrain/` is AGPL-3.0. GPL-family licences conflict with App Store terms
+(the 2011 removal of VLC from the App Store is the usual precedent), and no
+current statement from Apple or the FSF changes that. Apache-2.0 raises no
+such conflict, and Expo and its skills are MIT. The app is a client of the
+server, like the `kapi-bowrain` plugin, so it takes the same placement: its
+own directory under its own Apache-2.0 `LICENSE`, linking nothing from the
+AGPL tree, `@neokapi/ui` included. `scripts/check-ts-license-boundary.sh`
+refuses a reach into an AGPL file by path, package name, tsconfig alias or
+dependency, and covers the new directory once it has its `LICENSE`.
+
+## Release
+
+- EAS Build and EAS Submit, run from EAS Workflows or CI beside
+  `release-bowrain.yml`, on the `bowrain-v*` tags.
+- EAS Update for JavaScript-only fixes between store releases. Apple allows
+  over-the-air updates that do not change the app's primary purpose. The app
+  checks when it opens and on each return to the foreground (at most every ten
+  minutes), downloads in the background, and applies a downloaded update at
+  the next return to the foreground unless the fix sheet is open, behind the
+  splash screen. Under an open sheet it offers Restart in a banner instead.
+  Held decisions are sent and the cache saved before the reload
+  (`src/lib/appUpdates.ts`).
+- The runtime version follows Expo's `fingerprint` policy: a hash of the
+  native dependencies, the config plugins and the app config. A build takes
+  only updates made from the same native code, so a native dependency can
+  merge at any time. Updates made after it reach only builds made after it.
+  The steps are in
+  [Updates and new builds](bowrain-mobile-testflight.md#updates-and-new-builds).
+- Store requirements in 2026: Google Play requires target API level 36 for
+  new apps and updates since 2026-08-31; Apple requires privacy manifests for
+  the SDKs an app uses and the account-deletion rule above.
+- Review times: Apple reports 90 percent of submissions reviewed within 24
+  hours. TestFlight internal testing needs no review; external TestFlight
+  builds go through a beta review.
+- An Apple Developer account, a Google Play developer account and an Expo
+  organization, all in the founder's name. Apple enrolment can take several
+  days. Store listings, privacy labels and review notes are founder steps, as
+  Windows signing is.
+
+## The fastest path to a first build
+
+About one to two weeks of work after the accounts exist (an estimate, not a
+measurement):
+
+1. The founder opens the Apple Developer, Google Play and Expo accounts.
+2. `create-expo-app` in `bowrain/mobile/`, the Expo plugin, `eas init`, the
+   monorepo spike.
+3. Sign-in against the local Keycloak, then Cognito.
+4. The deck and the card against the existing pending-review API, decisions
+   through the change contract.
+5. `eas build --profile development` for daily work.
+6. `eas build -p ios` and `eas submit` to TestFlight internal testing, and an
+   upload to the Play internal track.
+
+The server's deck endpoint and the other additions follow; the first build
+reads the pending-review listing as it is.
+
+## Web fallback
+
+A person who reviews once, such as an external translator sent a link, should
+not have to install anything. The link in an invitation or digest email opens
+Bowrain web's focused reviewer, which reads the same deck endpoint. The app is
+for people who review regularly.
+
+## Testing
+
+End-to-end tests run against the real local stack (`bowrain/compose.yaml`:
+Keycloak, the server, PostgreSQL), with Maestro flows driving a simulator.
+The server endpoints get Go tests beside the existing review handler tests.
+The push service is stubbed at the sender interface.
+
+## Phases
+
+1. **First version:** on the server, the deck endpoint (with source and
+   target revisions) and fix candidates from host; in the app, sign-in,
+   language list, deck, card, gestures, the fix sheet, decisions and fixes
+   through the change contract, the offline queue; then TestFlight and the
+   Play internal track.
+2. **Server:** lot sampling, reject reasons read by the next draft. Bowrain
+   web's focused reviewer moves to the deck endpoint and gains the fix sheet.
+3. **Notifications:** device registration, the worker job, digests and
+   assignment pushes.
+4. **Safeguards:** known-bad cards, pace, session reports.
+5. **Store release** of Bowrain with review, then the entity-review card and
+   the next features.
+
+## Decisions
+
+1. **The backlog:** lot sampling, as in "The backlog before the first swipe":
+   sample each lot of clean, high-scoring drafts, approve the lot with
+   `approve-passing` when the sample passes, send it back to card-by-card
+   review when it does not, and never approve a block with a failing finding
+   without a person.
+2. **Push:** the Expo push service, with counts-only payloads and the worker
+   written against a sender interface; direct APNs and FCM only if the rate
+   limit or a compliance requirement applies.
+3. **Pace and known-bad cards:** warn below about 0.25 seconds per word over
+   the source and the translation; 3 to 5 percent known-bad cards, spread
+   evenly, from a rotating pool.
+4. **Corrections:** in the first version, as the fix sheet: ready-made fixes
+   first, editing second, reject with a reason last. A correction settles the
+   block and teaches the content memory; a reject only asks for another
+   draft. (The founder reversed the earlier "not in the first version" on
+   2026-11-12.)
+5. **The app's name:** decided: Bowrain. Review is the first feature, so
+   the store subtitle and screenshots lead with it. Before submission, check
+   that the name is free in both stores and that the trademark position
+   (USPTO, EUIPO) covers the app category.
+
+## API for the first version
+
+Built on the branch `review-deck-api`. Field names below are the names the
+server writes. Every path is under `/api/v1`: `:ws` is the workspace slug,
+`:id` the project slug, `:ref` the stream (`main`). The envelope fields are
+snake_case. Runs are the content model's own JSON, the shape the editor
+reads (`text`, `ph`, `pcOpen`, `pcClose`, `sub`, `plural`, `select`).
+
+### The deck
+
+`GET /:ws/:id/review-deck/:ref?locale=nb&limit=50&cursor=...`
+
+| Parameter | Meaning |
+| --- | --- |
+| `locale` | required: the target language of the deck |
+| `limit` | cards per page, default 50, at most 200 |
+| `cursor` | opaque: the `next_cursor` of the page before. Omit it for the first page |
+| `group` | optional: `fast`, `closer` or `desk`, to read one group only |
+| `collection` | optional: one collection's cards; present and empty selects the items in no collection |
+
+Permission: `review` for the language (`PermReview`, language-scoped). A
+caller without it gets `403`.
+
+The deck is the pending-review queue as it stands, so a decided card is
+absent from the next page. Cards come in group order: `fast`, then
+`closer`, then `desk`, and within a group in the order the files read. The
+cursor is a position in that order (group, file, position, block), so the
+next page starts after the last card returned even when that card has been
+decided since. A card whose group changed after a page was read can appear
+again in its new group, so a client drops cards it already holds by
+`block_id` and `locale`.
+
+The server keeps each translation's group and classifies a translation
+again when its draft, its source, its pre-review or its decision changes,
+and once a day otherwise. A background sorter in the server
+(`server/review_deck_sorter.go`) classifies every waiting translation of
+every project's languages every five minutes and shortly after a push or a
+convergence run completes, under an advisory lock so one server instance
+sorts at a time. A request classifies at most 2,000 new or changed
+translations the sorter has not reached, and reads the rest of the deck from
+what it kept, so only the page's blocks are read whole.
+
+```json
+{
+  "locale": "nb",
+  "cards": [
+    {
+      "block_id": "b-01J...",
+      "item_name": "web/i18n/en.json",
+      "key": "settings.save",
+      "collection_id": "c-01J...",
+      "locale": "nb",
+      "source_runs": [{"text": "Save "}, {"ph": {"id": "1", "type": "var", "data": "{name}", "equiv": "name"}}],
+      "target_runs": [{"text": "Lagre "}, {"ph": {"id": "1", "type": "var", "data": "{name}", "equiv": "name"}}],
+      "source_text": "Save {name}",
+      "target_text": "Lagre {name}",
+      "target_edit_text": "Lagre <x id=\"1/\"/>",
+      "source_revision": "r:0a1b2c3d4e5f6a7b",
+      "target_revision": "r:74dbfac2ed1c9d6e",
+      "target_status": "translated",
+      "pre_review": {"score": 92, "reviewer": "agent/claude-code", "reasons": []},
+      "findings_count": 0,
+      "failing_findings_count": 0,
+      "term_compliance": "compliant",
+      "voice_score": 88,
+      "voice_bar": 75,
+      "notes": [
+        {"kind": "term", "text": "term \"workspace\": \"arbeidsområde\""}
+      ],
+      "own_work": false,
+      "group": "fast",
+      "reason": "no findings, pre-review score 92",
+      "copies": [
+        {"block_id": "b-01K...", "item_name": "desktop/i18n/en.json", "key": "actions.save",
+         "collection_id": "c-01K...", "source_revision": "r:0a1b2c3d4e5f6a7b", "target_revision": "r:9c8b7a6f5e4d3c2b"}
+      ]
+    }
+  ],
+  "counts": {"fast": 3758, "closer": 0, "desk": 57, "total": 3815},
+  "next_cursor": "ZmFzdDpiLTAxSi4uLjpuYg",
+  "policy": {"long_source_chars": 280, "fast_min_score": 80}
+}
+```
+
+- `source_revision` and `target_revision` are the tokens a change set's
+  `basis` and `if_match` take (below).
+- The deck deals one card for each source and translation. Translations
+  waiting with the same source revision and the same translation text are
+  dealt once, at the first in deck order, and the counts count them once.
+  `copies` lists the others, across every collection the deck reads, each
+  with its `block_id`, `item_name`, `key`, `collection_id` and revisions.
+  The app sends a decision as one change set with an operation for the card
+  and one for each copy, and an undo withdraws each on the revision the
+  decision left there. A page reads at most 500 copies; one past that stays
+  in the deck and is dealt after the card's decision lands.
+- `source_runs` and `target_runs` are for drawing the card, codes with their
+  data. `target_edit_text` is the translation in the placeholder form a
+  `set_content` sends as `text`, which the edit field starts from.
+- `pre_review` is absent when no agent has scored the translation as it
+  stands. `voice_score` is absent for an unscored block, and `voice_bar`
+  where no voice profile governs the language. `term_compliance` is
+  `compliant`, `violation`, `not_governed`, or absent when nothing was
+  checked.
+- `notes[].kind` is `check`, `term`, `voice` or `pre_review`.
+- `own_work` is true when the caller wrote the translation. Under the
+  workspace's `block` separation-of-duties policy an approval of it is
+  refused, and the app hides the swipe on such a card.
+- `counts` cover every classified card. `counts.unclassified` is present
+  when one request did not reach every new or changed translation; those
+  cards are missing from the deck until a later request classifies them, so
+  a client asks again while it is above zero.
+
+The grouping rule is `reviewdeck.ClassifyDeckCard` (`host/reviewdeck`):
+
+| Group | When | `reason` names |
+| --- | --- | --- |
+| `desk` | a failing finding; a stale approval (the source moved since the translation was approved); a rejected translation with a new draft; a source longer than `long_source_chars` | the first that applies |
+| `fast` | no finding of any kind and a pre-review score of at least `fast_min_score` | the score |
+| `closer` | every other card: a low or missing score, or a finding that does not fail (such as a voice score under the bar) | the first that applies |
+
+A translation rejected at the wording it holds is in no group. It waits for a
+new draft, and the deck and its counts leave it out until one lands; the new
+draft then goes to the desk.
+
+### The review inbox
+
+`GET /auth/me/review`
+
+Every language the caller may review, in every project of every workspace
+they belong to, where the language's deck holds anything. Access resolves as
+it does for a project route, and an API token's scopes narrow it. Each
+language counts as its deck counts it: `waiting` is the grouped translations
+plus `unclassified`, the part the background sorter or an opened deck has
+not grouped yet. Nothing is classified by this call. The list is sorted most waiting first.
+
+```json
+{
+  "languages": [
+    {
+      "workspace": "acme",
+      "workspace_name": "Acme",
+      "project": "site",
+      "project_name": "Site",
+      "stream": "main",
+      "locale": "nb",
+      "waiting": 42,
+      "fast": 30,
+      "closer": 8,
+      "desk": 2,
+      "unclassified": 2
+    }
+  ]
+}
+```
+
+A server without the route answers 404, and the Review tab says so and
+points to Home.
+
+### A language's deck by collection
+
+`GET /:ws/:id/review-deck/:ref/collections?locale=nb`
+
+The deck of one language split by collection, so a reviewer takes it one
+collection at a time. Permission is the deck's: `review` for the language.
+The request classifies new translations within the deck's budget, then
+counts.
+
+Collections with something waiting come first, in the project's collection
+order (the default collection, then by name). The blocks in no collection
+follow, with an empty `collection_id`. Collections with nothing left
+waiting come last. A collection with no translation in the language is
+absent. `all` is the whole language, the deck without `collection`. A set
+of copies in several collections counts once in `all` and once in each
+collection that holds one, so the collections can add up to more than
+`all`.
+
+`translations` is every translation of the language in the collection and
+`decided` the part no longer waiting (approved, or rejected and waiting for
+a new draft), so `decided` of `translations` is the collection's progress.
+The deck opens on one collection with `collection=<collection_id>`.
+
+```json
+{
+  "locale": "nb",
+  "stream": "main",
+  "all": {"collection_id": "", "name": "", "waiting": 52, "fast": 30, "closer": 10, "desk": 4, "unclassified": 8, "translations": 140, "decided": 88},
+  "collections": [
+    {"collection_id": "c-01J...", "name": "web-ui", "waiting": 40, "fast": 30, "closer": 6, "desk": 2, "unclassified": 2, "translations": 100, "decided": 60},
+    {"collection_id": "c-01K...", "name": "docs", "waiting": 12, "fast": 0, "closer": 4, "desk": 2, "unclassified": 6, "translations": 30, "decided": 18},
+    {"collection_id": "c-01L...", "name": "emails", "waiting": 0, "fast": 0, "closer": 0, "desk": 0, "unclassified": 0, "translations": 10, "decided": 10}
+  ]
+}
+```
+
+In the app, a language in the Review tab opens this list. Each row shows
+what waits and how much of the collection is decided; a row opens the deck
+on that collection, and the first row opens the whole language. When a
+collection's deck runs out, the end screen offers the next collection with
+anything waiting.
+
+### A block's container
+
+`GET /:ws/:id/blocks/:ref/:bid/container?target_locale=nb`
+
+What a reader meets the block inside. Permission is `view_content`, as for
+the review context.
+
+```json
+{
+  "kind": "component",
+  "title": "OfflineLaunch",
+  "item_name": "bowrain/apps/bowrain/frontend/src/components/OfflineLaunch.kbf.json",
+  "locale": "nb",
+  "focus": "b-01J...",
+  "more_before": false,
+  "more_after": false,
+  "units": [
+    {"block_id": "b-01H...", "item_name": "…", "key": "…", "role": "heading", "level": 2,
+     "source_runs": [{"text": "Can't reach your server"}], "target_runs": [{"text": "Kan ikke nå serveren din"}],
+     "target_status": "translated", "waiting": true,
+     "source_revision": "r:…", "target_revision": "r:…"}
+  ]
+}
+```
+
+- `kind` is `component` (a React component's strings, by the block's
+  `component` property), `section` (from the heading at or above the block to
+  the next heading of the same or a higher level) or `window` (twelve blocks
+  either side). The container looks at most 80 blocks either side;
+  `more_before` and `more_after` say it stopped short.
+- `role` comes from the structure annotation, the block's type (a markdown
+  heading is `heading` with a `level` property) or a React string's element and
+  JSX path. A role the server cannot read is `paragraph`.
+- `waiting` is a translation present and not approved. The revisions are the
+  ones a change set binds to, so any unit can be decided as a card is.
+- `message_key` and `message_text` are the key a running component looks the
+  string up by and the translation in the runtime catalog's form. They feed
+  the live preview and are never drawn.
+- `overlays` are term-check's spans in the overlay wire form
+  (`core/editor.OverlayView`): a `term` overlay on side `source` and, when the
+  translation renders a term, one on the target locale's side. Spans of one
+  rule share an id (`term-check:<n>`); their props carry `term`,
+  `replacement`, `concept_id`, `satisfied` and, where set, `missing_forms`,
+  `advisory` and `do_not_translate`. A span inside a plural or select form is
+  pathed to the form. Absent when no term governs the language.
+- `collection_id` names the item's collection. `preview` (`kind`, `url`,
+  `source_file`) is set for a component whose collection declares a preview
+  host.
+- `next_waiting` is the first translation waiting in the item after the
+  container, in document order; absent when none waits. A page review moves
+  there with Next section.
+
+### A language's deck by page
+
+`GET /:ws/:id/review-deck/:ref/pages?locale=nb[&collection=c1]`
+
+Permission is `review` for the language, as for the deck.
+
+```json
+{
+  "locale": "nb",
+  "waiting": 9,
+  "more": false,
+  "pages": [
+    {"kind": "component", "title": "OfflineLaunch", "component": "OfflineLaunch",
+     "item_name": "…/OfflineLaunch.kbf.json", "collection_id": "c1",
+     "waiting": 3, "first_block_id": "b-01J..."},
+    {"kind": "document", "title": "guide.md", "item_name": "docs/guide.md",
+     "collection_id": "c2", "waiting": 4, "first_block_id": "b-01K..."}
+  ]
+}
+```
+
+- Pages are grouped by item and the block's `component` property, and ordered
+  by collection priority, item, and the position of the first waiting
+  translation.
+- `waiting` counts translations present and not approved, leaving out those
+  set aside. A copy counts on each page it appears on, since a page review
+  decides each unit in place.
+- The route returns at most 200 pages; `more` says more wait past them.
+
+### Fix candidates
+
+`GET /:ws/:id/blocks/:ref/:bid/fix-candidates?locale=nb&reason=wrong_term&ai=false`
+
+| Parameter | Meaning |
+| --- | --- |
+| `locale` | required: the target language |
+| `reason` | optional: `wrong_term`, `meaning`, `tone`, `placeholder` or `grammar`. It orders the candidates and steers the AI rewrite |
+| `ai` | `true` also asks for an AI rewrite, which spends AI credits. Default `false` |
+
+Permission: `review` for the language. With `ai=true` the workspace's AI
+credit gate applies (`402` when the workspace is out of credits).
+
+```json
+{
+  "block_id": "b-01J...",
+  "locale": "nb",
+  "reason": "wrong_term",
+  "source_revision": "r:0a1b2c3d4e5f6a7b",
+  "target_revision": "r:74dbfac2ed1c9d6e",
+  "current_runs": [{"text": "Lagre arbeidsrommet "}, {"ph": {"id": "1", "type": "var", "data": "{name}", "equiv": "name"}}],
+  "current_text": "Lagre arbeidsrommet {name}",
+  "current_edit_text": "Lagre arbeidsrommet <x id=\"1/\"/>",
+  "candidates": [
+    {
+      "kind": "term",
+      "label": "Use \"arbeidsområdet\" for \"arbeidsrommet\"",
+      "runs": [{"text": "Lagre arbeidsområdet "}, {"ph": {"id": "1", "type": "var", "data": "{name}", "equiv": "name"}}],
+      "text": "Lagre arbeidsområdet {name}",
+      "edit_text": "Lagre arbeidsområdet <x id=\"1/\"/>",
+      "diff": {
+        "kind": "substantive",
+        "prior": [{"text": "Lagre", "op": "same"}, {"text": " ", "op": "same"}, {"text": "arbeidsrommet", "op": "removed"}, {"text": " {name}", "op": "same"}],
+        "current": [{"text": "Lagre", "op": "same"}, {"text": " ", "op": "same"}, {"text": "arbeidsområdet", "op": "added"}, {"text": " {name}", "op": "same"}]
+      },
+      "reasons": ["wrong_term"],
+      "changes": [{"from": "arbeidsrommet", "to": "arbeidsområdet", "count": 1}]
+    },
+    {
+      "kind": "memory",
+      "label": "Content memory, 96% match",
+      "runs": [{"text": "Lagre arbeidsområdet "}, {"ph": {"id": "1", "type": "var", "data": "{name}", "equiv": "name"}}],
+      "text": "Lagre arbeidsområdet {name}",
+      "edit_text": "Lagre arbeidsområdet <x id=\"1/\"/>",
+      "diff": {"kind": "substantive", "prior": [], "current": []},
+      "reasons": ["wrong_term", "meaning", "placeholder"],
+      "score": 96
+    }
+  ],
+  "dropped": [
+    {"kind": "memory", "label": "Content memory, 81% match", "why": "it drops or adds a placeholder the source holds"}
+  ],
+  "notes": []
+}
+```
+
+- `kind` is `term` (the draft with the term rules for the target language
+  applied), `memory` (a content-memory alternative for the source, never one
+  identical to the draft) or `ai` (a rewrite for the given reason).
+- `runs` is the corrected translation for drawing, codes with their data.
+  `edit_text` is the same content in the placeholder form a `set_content`
+  sends as `text`, each code an `<x id="…"/>`. A change set's runs never
+  carry a code's `data`: send `edit_text`, or `runs` with every `data`
+  removed.
+- Every candidate keeps the source's placeholders and passes the
+  inline-code guard the change service applies. One that does not is listed
+  under `dropped` with the reason and is never offered.
+- `diff` is a word diff of `current_text` against `text`: `prior` holds
+  `same`, `cosmetic` and `removed` spans, `current` holds `same`, `cosmetic`
+  and `added`. Joining either side's spans gives that text back.
+- `notes` says why a kind is missing, such as "no AI provider is
+  configured".
+
+### Approve
+
+One change set per card, sent to
+`POST /:ws/projects/:id/streams/:ref/changes`. `at.doc` is the card's
+`item_name`, `at.block` its `block_id`, and `at.edition` the locale. With
+`require_basis`, the `basis` binds the source: the decision is refused as
+stale when the source moved after the card was read.
+
+```json
+{
+  "require_basis": true,
+  "ops": [
+    {
+      "op": "decide",
+      "at": {"doc": "web/i18n/en.json", "block": "b-01J...", "edition": "nb"},
+      "if_match": "r:74dbfac2ed1c9d6e",
+      "basis": "r:0a1b2c3d4e5f6a7b",
+      "outcome": "establish"
+    }
+  ]
+}
+```
+
+### Fix: correct and approve
+
+The corrected runs and then the approval, in one change set. Both
+operations carry the revisions the card showed. A decision's `if_match` is
+checked against the translation as it stood when the change set began, and
+the decision binds to the content the change set lands.
+
+```json
+{
+  "require_basis": true,
+  "ops": [
+    {
+      "op": "set_content",
+      "at": {"doc": "web/i18n/en.json", "block": "b-01J...", "edition": "nb"},
+      "if_match": "r:74dbfac2ed1c9d6e",
+      "basis": "r:0a1b2c3d4e5f6a7b",
+      "text": "Lagre arbeidsområdet <x id=\"1/\"/>"
+    },
+    {
+      "op": "decide",
+      "at": {"doc": "web/i18n/en.json", "block": "b-01J...", "edition": "nb"},
+      "if_match": "r:74dbfac2ed1c9d6e",
+      "basis": "r:0a1b2c3d4e5f6a7b",
+      "outcome": "establish",
+      "reasons": ["wrong_term"]
+    }
+  ]
+}
+```
+
+`text` is the candidate's `edit_text`, or the edit field's text with each
+code kept as the `<x id="…"/>` it started with. The content may go as
+`"runs"` instead, with no code carrying `data` (`{"ph": {"id": "1"}}`):
+the server takes each code's data from the translation it replaces.
+
+### Reject with reasons
+
+```json
+{
+  "require_basis": true,
+  "note": "the optional note the reviewer typed",
+  "ops": [
+    {
+      "op": "decide",
+      "at": {"doc": "web/i18n/en.json", "block": "b-01J...", "edition": "nb"},
+      "if_match": "r:74dbfac2ed1c9d6e",
+      "basis": "r:0a1b2c3d4e5f6a7b",
+      "outcome": "reject",
+      "reasons": ["meaning"]
+    }
+  ]
+}
+```
+
+### What the change result says
+
+The response is a `kapi.change-result/v1` object: `status` for the set,
+`ops[i].status` per operation, and `ops[i].error` on a refusal.
+
+| Situation | HTTP | `status` | Operations |
+| --- | --- | --- | --- |
+| it landed | 200 | `applied` | every operation `applied` |
+| the translation moved after the card was read | 409 | `refused` | `error.code` `stale`, `error.field` `if_match`; `current` holds the text as it stands |
+| the source moved after the card was read | 409 | `refused` | `error.code` `stale`, `error.field` `basis` |
+| a fix drops a placeholder the source holds | 422 | `refused` | `set_content` with `error.code` `gate_failed`: the placeholder check fails on the new wording |
+| a fix names a code neither edition holds, or unbalances a paired code | 422 | `refused` | `set_content` with `error.code` `guard`, `error.subcode` `codes_changed` |
+| a code in `runs` carries `data` | 400 | `refused` | the set's `error.code` `invalid`, with `error.pointer` naming the run |
+| a fix under separation of duties `off` or `warn` | 200 | `applied` | both `applied`; the block is approved |
+| a fix under separation of duties `block` | 200 | `partial` | `set_content` `applied`; `decide` `refused` with `error.code` `not_permitted` and the policy's message. The correction is kept, and the block waits for a second reviewer |
+| an approval of your own work under `block` | 403 | `refused` | `decide` with `error.code` `not_permitted` |
+| no review permission for the language | 403 | `refused` | `error.code` `not_permitted` |
+
+## Sources
+
+- Expo SDK 57 and 58 changelogs: <https://expo.dev/changelog/sdk-57>,
+  <https://expo.dev/changelog/sdk-58>
+- React Native 0.84 (Hermes V1):
+  <https://reactnative.dev/blog/2026/02/11/react-native-0.84>
+- Reanimated 4 migration:
+  <https://docs.swmansion.com/react-native-reanimated/docs/guides/migration-from-3.x/>
+- NativeWind v5: <https://www.nativewind.dev/v5>; Uniwind:
+  <https://uniwind.dev/>
+- TanStack Query persistence:
+  <https://tanstack.com/query/v5/docs/framework/react/plugins/persistQueryClient>
+- Expo authentication guide: <https://docs.expo.dev/guides/authentication/>
+- Expo push FAQ and security: <https://docs.expo.dev/push-notifications/faq/>,
+  <https://expo.dev/security>
+- Expo monorepos: <https://docs.expo.dev/guides/monorepos/>
+- Expo end-to-end tests: <https://docs.expo.dev/tutorial/cicd/e2e-tests.md>
+- Expo and Claude Code: <https://docs.expo.dev/agents/claude/>
+- Over-the-air updates:
+  <https://expo.dev/articles/updates-and-rollouts/over-the-air-updates>
+- Google Play target API:
+  <https://support.google.com/googleplay/android-developer/answer/11926878>
+- Apple account deletion:
+  <https://developer.apple.com/help/app-review/guideline-reference/5-1-1-account-deletion>
+- Reading rate: Brysbaert (2019), "How many words do we read per minute?"
+- Gold-standard items in annotation: <https://arxiv.org/pdf/2105.09457>,
+  <https://arxiv.org/pdf/1801.02546>

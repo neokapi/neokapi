@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
 	"github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/voice"
 )
 
 // step is one write a store call made, in the form an operation carries it.
@@ -310,20 +312,18 @@ func (p *Projector) applyMemory(ctx context.Context, s step) error {
 	return nil
 }
 
+// applyVoice writes a voice-profile step. Creating and updating both put the
+// profile: a profile the store lacks is created, one it holds is updated when
+// what it says differs, archiving the version it replaces. A writer outside
+// the checkout (VoiceWrite) cannot know which profiles the store holds, and a
+// rebuild meets the same rows either way.
 func (p *Projector) applyVoice(ctx context.Context, s step) error {
 	store := p.st.Voice
 	if store == nil {
 		return errNoSubsystem
 	}
-	for _, prof := range s.CreateProfiles {
-		copied := *prof
-		if err := store.CreateProfile(ctx, &copied); err != nil {
-			return err
-		}
-	}
-	for _, prof := range s.UpdateProfiles {
-		copied := *prof
-		if err := store.UpdateProfileAt(ctx, &copied, prof.UpdatedAt); err != nil {
+	for _, prof := range append(slices.Clip(s.CreateProfiles), s.UpdateProfiles...) {
+		if err := putProfile(ctx, store, prof); err != nil {
 			return err
 		}
 	}
@@ -333,6 +333,25 @@ func (p *Projector) applyVoice(ctx context.Context, s step) error {
 		}
 	}
 	return nil
+}
+
+// putProfile creates prof in store, or updates the profile the store holds
+// under its id when the two differ.
+func putProfile(ctx context.Context, store *voice.SQLiteStore, prof *coreprofile.VoiceProfile) error {
+	copied := *prof
+	held, err := store.GetProfile(ctx, prof.ID)
+	switch {
+	case err != nil && !notFound(err):
+		return err
+	case err != nil:
+		if copied.CreatedAt.IsZero() {
+			copied.CreatedAt = copied.UpdatedAt
+		}
+		return store.CreateProfile(ctx, &copied)
+	case sameProfile(held, &copied):
+		return nil
+	}
+	return store.UpdateProfileAt(ctx, &copied, prof.UpdatedAt)
 }
 
 func (p *Projector) applyRules(ctx context.Context, s step) error {

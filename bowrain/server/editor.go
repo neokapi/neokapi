@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -28,6 +28,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
+	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/id"
@@ -392,29 +393,11 @@ type MemoryUpdateRequest struct {
 
 // --- Terminology types ---
 
-// TermInfoResponse is a term in a concept.
-type TermInfoResponse struct {
-	Text         string   `json:"text"`
-	Locale       string   `json:"locale"`
-	Status       string   `json:"status"`
-	PartOfSpeech string   `json:"part_of_speech,omitempty"`
-	Gender       string   `json:"gender,omitempty"`
-	Note         string   `json:"note,omitempty"`
-	Forms        []string `json:"forms,omitempty"`
-}
+// TermInfoResponse holds the editable fields of a term in a concept request.
+type TermInfoResponse = venue.TermEdit
 
-// ConceptInfoResponse is the API response for a concept.
-type ConceptInfoResponse struct {
-	ID             string             `json:"id"`
-	ProjectID      string             `json:"project_id,omitempty"` // empty = workspace-scoped
-	Domain         string             `json:"domain"`
-	Definition     string             `json:"definition"`
-	DoNotTranslate bool               `json:"do_not_translate,omitempty"`
-	Terms          []TermInfoResponse `json:"terms"`
-	Properties     map[string]string  `json:"properties,omitempty"`
-	CreatedAt      string             `json:"created_at"`
-	UpdatedAt      string             `json:"updated_at"`
-}
+// ConceptInfoResponse carries a concept and its project scope.
+type ConceptInfoResponse = venue.ConceptInfo
 
 // TermSearchResponse holds a page of term search results.
 type TermSearchResponse struct {
@@ -495,7 +478,7 @@ type SaveProviderConfigRequest struct {
 // in the URL. A ref with a slash — every `$auto` stream named after a
 // git branch like fix/thing — MUST arrive percent-encoded to route at all, and
 // taking it raw stored "fix%2Fthing" as a stream name.
-func refParam(c echo.Context) string {
+func refParam(c *echo.Context) string {
 	if s := unescapeParam(c.Param("ref")); s != "" {
 		return s
 	}
@@ -519,13 +502,13 @@ func unescapeParam(s string) string {
 }
 
 // streamParam is an alias for refParam (backward compatibility).
-func streamParam(c echo.Context) string {
+func streamParam(c *echo.Context) string {
 	return refParam(c)
 }
 
 // refParamWithProject extracts the ref from the request,
 // falling back to the project's configured default stream before "main".
-func refParamWithProject(c echo.Context, p *store.Project) string {
+func refParamWithProject(c *echo.Context, p *store.Project) string {
 	if s := unescapeParam(c.Param("ref")); s != "" {
 		return s
 	}
@@ -542,13 +525,13 @@ func refParamWithProject(c echo.Context, p *store.Project) string {
 }
 
 // streamParamWithProject is an alias for refParamWithProject (backward compatibility).
-func streamParamWithProject(c echo.Context, p *store.Project) string {
+func streamParamWithProject(c *echo.Context, p *store.Project) string {
 	return refParamWithProject(c, p)
 }
 
 // projectParam extracts the project ID from either :id or :pid path parameter.
 // Bowrain AD-011 uses :id consistently, but some handlers historically use :pid.
-func projectParam(c echo.Context) string {
+func projectParam(c *echo.Context) string {
 	if id := c.Param("id"); id != "" {
 		return id
 	}
@@ -640,13 +623,18 @@ func editorAddFilesInternal(ctx context.Context, cs store.ContentStore, formatRe
 		}
 
 		ext := filepath.Ext(itemName)
-		fmtName, err := formatReg.Detector().DetectByExtension(ext)
+		// The resolver kapi push uses: by extension, and by the file's head
+		// when several formats claim it (an Android strings.xml, not XML).
+		fmtID, err := formatReg.Detect(itemName, registry.DetectOptions{
+			Content: func() (io.ReadSeeker, error) { return bytes.NewReader(data), nil },
+		})
 		if err != nil {
 			skip(itemName, fmt.Sprintf("unsupported file type %q: %s", ext, err))
 			continue
 		}
+		fmtName := string(fmtID)
 
-		reader, err := formatReg.NewReader(registry.FormatID(fmtName))
+		reader, err := formatReg.NewReader(fmtID)
 		if err != nil {
 			skip(itemName, fmt.Sprintf("no reader for format %q: %s", fmtName, err))
 			continue
@@ -829,19 +817,19 @@ func editorTranslateConfig(
 		BatchSize:        req.BatchSize,
 		BatchConcurrency: req.Concurrency,
 	}
-	b.Terms = editorTerms(ctx, voiceCtx, workspaceSlug)
+	b.Terms = editorTerms(ctx, voiceCtx, workspaceSlug, projectID)
 	b.Memory = editorMemory(ctx, voiceCtx, workspaceSlug)
 	return jobs.BuildTranslateConfig(ctx, b)
 }
 
-// editorTerms returns the workspace terms an editor translation derives its
-// terminology from, or nil (and logs) when the store cannot be opened:
+// editorTerms returns the terms an editor translation in a project derives
+// its terminology from, or nil (and logs) when the store cannot be opened:
 // terminology must never fail an interactive translation.
-func editorTerms(ctx context.Context, voiceCtx editorVoiceContext, workspaceSlug string) terms.Terminology {
+func editorTerms(ctx context.Context, voiceCtx editorVoiceContext, workspaceSlug, projectID string) terms.Terminology {
 	if voiceCtx.Stores == nil || workspaceSlug == "" {
 		return nil
 	}
-	tb, err := voiceCtx.Stores.getTerms(ctx, workspaceSlug)
+	tb, err := voiceCtx.Stores.getProjectTerms(ctx, workspaceSlug, projectID)
 	if err != nil {
 		slog.WarnContext(ctx, "terms resolution failed; translating without terminology",
 			"workspace", workspaceSlug, "error", err)
@@ -1038,7 +1026,7 @@ func editorMemoryTranslate(ctx context.Context, cs store.ContentStore, commit co
 	// The rules the workspace terms impose, the derivation the translate jobs
 	// use, so a match that breaks one is left untranslated here as it is there.
 	var rules []coreprofile.TermRule
-	if tb, terr := wsStores.getTerms(ctx, ws); terr == nil {
+	if tb, terr := wsStores.getProjectTerms(ctx, ws, projectID); terr == nil {
 		rules, err = jobs.TermRulesFromConcepts(ctx, tb, projectID, proj.DefaultSourceLanguage, model.LocaleID(targetLocale))
 		if err != nil {
 			slog.WarnContext(ctx, "terms read failed; recycling without term rules", "project_id", projectID, "error", err)
@@ -1084,7 +1072,7 @@ func editorTermEnforce(ctx context.Context, cs store.ContentStore, wsStores *wor
 		return nil, err
 	}
 
-	tb, err := wsStores.getTerms(ctx, ws)
+	tb, err := wsStores.getProjectTerms(ctx, ws, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("init terms: %w", err)
 	}
@@ -1255,7 +1243,7 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 		return nil, err
 	}
 
-	tb, err := wsStores.getTerms(ctx, ws)
+	tb, err := wsStores.getProjectTerms(ctx, ws, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("init terms: %w", err)
 	}
@@ -1341,7 +1329,7 @@ func buildStreamChain(ctx context.Context, cs store.ContentStore, projectID, str
 
 // fileParam extracts the item/file path from the request.
 // Bowrain AD-011: uses ?item= query param. Falls back to wildcard (*) for legacy routes.
-func fileParam(c echo.Context) string {
+func fileParam(c *echo.Context) string {
 	if item := c.QueryParam("item"); item != "" {
 		return item
 	}
@@ -1680,9 +1668,13 @@ func editorCreateProvider(provType, apiKey, modelName string) aiprovider.LLMProv
 // which falls back to the BOWRAIN_PLATFORM_* env bootstrap defaults when unset —
 // so an admin switching provider/model in ctrl takes effect on the next request
 // without a redeploy, while an un-provisioned instance behaves exactly as before.
+// The API key comes from the environment through jobs.PlatformAPIKey, the same
+// resolution the worker uses, so a keyed provider (openai) works on both paths.
 func (s *Server) platformProviderConfig() jobs.PlatformProviderConfig {
+	provider := s.PlatformConfig.AIProvider()
 	return jobs.PlatformProviderConfig{
-		Provider: s.PlatformConfig.AIProvider(),
+		Provider: provider,
+		APIKey:   jobs.PlatformAPIKey(provider),
 		Model:    s.PlatformConfig.AIDefaultModel(),
 		BaseURL:  s.PlatformConfig.AIBaseURL(),
 	}
@@ -1737,48 +1729,25 @@ func editorEntryToInfo(e memory.Entry, sourceLocale, targetLocale string) Memory
 }
 
 func editorConceptToInfo(c terms.Concept) ConceptInfoResponse {
-	terms := make([]TermInfoResponse, len(c.Terms))
-	for i, t := range c.Terms {
-		terms[i] = TermInfoResponse{
-			Text:         t.Text,
-			Locale:       string(t.Locale),
-			Status:       string(t.Status),
-			PartOfSpeech: t.PartOfSpeech,
-			Gender:       t.Gender,
-			Note:         t.Note,
-			Forms:        t.Forms,
-		}
+	projects := termscope.Projects(c)
+	projectID := c.ProjectID
+	if len(projects) == 1 {
+		projectID = projects[0]
 	}
 	return ConceptInfoResponse{
 		ID:             c.ID,
-		ProjectID:      c.ProjectID,
+		ProjectID:      projectID,
+		Projects:       projects,
 		Domain:         c.Domain,
 		Definition:     c.Definition,
 		DoNotTranslate: c.DoNotTranslate,
-		Terms:          terms,
+		Advisory:       c.Advisory,
+		Source:         c.Source,
+		Terms:          venue.TermInfos(c.Terms),
 		Properties:     c.Properties,
 		CreatedAt:      c.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:      c.UpdatedAt.Format(time.RFC3339),
 	}
-}
-
-func editorTermsFromInfo(infos []TermInfoResponse) []terms.Term {
-	result := make([]terms.Term, len(infos))
-	for i, t := range infos {
-		result[i] = terms.Term{
-			Text:         t.Text,
-			Locale:       model.LocaleID(t.Locale),
-			Status:       model.TermStatus(t.Status),
-			PartOfSpeech: t.PartOfSpeech,
-			Gender:       t.Gender,
-			Note:         t.Note,
-			Forms:        t.Forms,
-		}
-		if result[i].Status == "" {
-			result[i].Status = model.TermApproved
-		}
-	}
-	return result
 }
 
 // ---------------------------------------------------------------------------
@@ -1900,6 +1869,11 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 
 	for _, bs := range blockStats {
 		if !bs.Translatable {
+			continue
+		}
+		// A source-only collection's content has no target language, so it
+		// owes no translation and counts toward no coverage.
+		if im := itemLookup[bs.ItemName]; im != nil && collMap[im.collectionID].SourceOnly() {
 			continue
 		}
 		translatableBlocks++

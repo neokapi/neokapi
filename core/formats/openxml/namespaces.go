@@ -7,65 +7,106 @@ package openxml
 import (
 	"encoding/xml"
 	"strings"
-	"sync"
 )
 
-// nsRegistry tracks namespace URI → prefix mappings discovered during parsing.
-// It supplements the static nsPrefixMap with dynamic mappings from xmlns: attributes.
-var nsRegistry = struct {
-	sync.RWMutex
+// nsScope tracks the namespace URI → prefix mappings one read of a package
+// discovers in its xmlns: attributes. It supplements the static nsPrefixMap,
+// so an element re-serialised from the package keeps the prefix its source
+// declared. A scope belongs to one read: the parts of a package share it, and
+// concurrent reads of different packages each hold their own, so one
+// document's declarations never reach another's output. A scope is used by
+// one goroutine at a time.
+//
+// A nil scope holds no dynamic mappings and resolves through nsPrefixMap
+// alone.
+type nsScope struct {
 	m map[string]string
-}{m: make(map[string]string)}
-
-// isolateNamespaces snapshots the global namespace registry and replaces it with
-// an empty one for the duration of a nested parse, returning a restore func to
-// defer. Drawing-payload extraction decodes its fragment under a synthetic
-// wrapper that declares the canonical OpenXML prefixes (wrapDrawingXMLForDecode),
-// so resolving the drawing's element prefixes against an empty registry — which
-// falls through to the static nsPrefixMap — keeps that serialization
-// deterministic and immune to a *different* document's leaked declaration (e.g.
-// a prior file binding the markup-compatibility namespace to `ve:` instead of
-// the canonical `mc:`). The surrounding document's registry is restored
-// afterward, so its own — possibly non-canonical — prefixes still round-trip
-// unchanged. Without this, test/processing order (or `-shuffle`) decided whether
-// a drawing emitted `mc:` or a leaked `ve:`.
-func isolateNamespaces() func() {
-	nsRegistry.Lock()
-	saved := nsRegistry.m
-	nsRegistry.m = map[string]string{}
-	nsRegistry.Unlock()
-	return func() {
-		nsRegistry.Lock()
-		nsRegistry.m = saved
-		nsRegistry.Unlock()
-	}
 }
 
-// registerNamespaces scans an element's attributes for xmlns declarations
-// and records the URI → prefix mapping.
-func registerNamespaces(attrs []xml.Attr) {
-	nsRegistry.Lock()
+func newNSScope() *nsScope {
+	return &nsScope{m: map[string]string{}}
+}
+
+// names returns the parser's namespace scope, creating one for a parser
+// built without the reader's.
+func (p *wmlParser) names() *nsScope {
+	if p.ns == nil {
+		p.ns = newNSScope()
+	}
+	return p.ns
+}
+
+// names returns the parser's namespace scope, creating one for a parser
+// built without the reader's.
+func (p *dmlParser) names() *nsScope {
+	if p.ns == nil {
+		p.ns = newNSScope()
+	}
+	return p.ns
+}
+
+// names returns the parser's namespace scope, creating one for a parser
+// built without the reader's.
+func (p *smlParser) names() *nsScope {
+	if p.ns == nil {
+		p.ns = newNSScope()
+	}
+	return p.ns
+}
+
+// names returns the parser's namespace scope, creating one for a parser
+// built without the reader's.
+func (p *corePropsParser) names() *nsScope {
+	if p.ns == nil {
+		p.ns = newNSScope()
+	}
+	return p.ns
+}
+
+// isolate replaces the scope's mappings with an empty set for the duration of
+// a nested parse, returning a restore func to defer. Drawing-payload
+// extraction decodes its fragment under a synthetic wrapper that declares the
+// canonical OpenXML prefixes (wrapDrawingXMLForDecode). Resolving the
+// drawing's element prefixes against an empty set falls through to the static
+// nsPrefixMap. That keeps the serialization deterministic, whatever
+// non-canonical declaration the package makes elsewhere (e.g. one binding the
+// markup-compatibility namespace to `ve:` instead of the canonical `mc:`).
+// The surrounding mappings are restored afterward, so the document's own,
+// possibly non-canonical, prefixes still round-trip unchanged.
+func (s *nsScope) isolate() func() {
+	if s == nil {
+		return func() {}
+	}
+	saved := s.m
+	s.m = map[string]string{}
+	return func() { s.m = saved }
+}
+
+// register scans an element's attributes for xmlns declarations and records
+// the URI → prefix mapping.
+func (s *nsScope) register(attrs []xml.Attr) {
+	if s == nil {
+		return
+	}
 	for _, a := range attrs {
 		if a.Name.Space == "xmlns" {
 			// xmlns:prefix="URI" → map URI to prefix
-			nsRegistry.m[a.Value] = a.Name.Local
+			s.m[a.Value] = a.Name.Local
 		} else if a.Name.Space == "" && a.Name.Local == "xmlns" {
 			// xmlns="URI" (default namespace) → map URI to "" (no prefix)
-			nsRegistry.m[a.Value] = ""
+			s.m[a.Value] = ""
 		}
 	}
-	nsRegistry.Unlock()
 }
 
-// resolvePrefix returns the namespace prefix for a URI, checking the dynamic
-// registry first (which reflects the document's actual declarations), then
+// resolvePrefix returns the namespace prefix for a URI, checking the scope's
+// mappings first (which reflect the document's actual declarations), then
 // falling back to the static map.
-func resolvePrefix(ns string) string {
-	nsRegistry.RLock()
-	p, ok := nsRegistry.m[ns]
-	nsRegistry.RUnlock()
-	if ok {
-		return p
+func (s *nsScope) resolvePrefix(ns string) string {
+	if s != nil {
+		if p, ok := s.m[ns]; ok {
+			return p
+		}
 	}
 	if p, ok := nsPrefixMap[ns]; ok {
 		return p
@@ -74,9 +115,9 @@ func resolvePrefix(ns string) string {
 }
 
 // writeElementName writes an element name with its namespace prefix.
-func writeElementName(buf *strings.Builder, name xml.Name) {
+func (s *nsScope) writeElementName(buf *strings.Builder, name xml.Name) {
 	if name.Space != "" {
-		prefix := resolvePrefix(name.Space)
+		prefix := s.resolvePrefix(name.Space)
 		if prefix != "" {
 			buf.WriteString(prefix)
 			buf.WriteString(":")
@@ -88,7 +129,7 @@ func writeElementName(buf *strings.Builder, name xml.Name) {
 }
 
 // writeAttrName writes an attribute name, handling xmlns declarations.
-func writeAttrName(buf *strings.Builder, name xml.Name) {
+func (s *nsScope) writeAttrName(buf *strings.Builder, name xml.Name) {
 	if name.Space == "xmlns" {
 		// Namespace declaration: xmlns:prefix
 		buf.WriteString("xmlns:")
@@ -101,7 +142,7 @@ func writeAttrName(buf *strings.Builder, name xml.Name) {
 		return
 	}
 	if name.Space != "" {
-		prefix := resolvePrefix(name.Space)
+		prefix := s.resolvePrefix(name.Space)
 		if prefix != "" {
 			buf.WriteString(prefix)
 			buf.WriteString(":")

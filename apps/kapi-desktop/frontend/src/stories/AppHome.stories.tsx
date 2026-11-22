@@ -24,7 +24,6 @@ const meta: Meta<typeof AppHome> = {
     startHereDismissed: false,
     hasOpenProject: false,
     onDismissStartHere: fn(),
-    onConnectAssistant: fn(),
     onOpenWhatsNew: fn(),
     onOpenCheckout: fn(),
     onOpenContext: fn(),
@@ -45,7 +44,7 @@ type Story = StoryObj<typeof AppHome>;
 const dark = { theme: "dark" };
 
 /**
- * The first run: nothing has registered, nothing is recorded, and Start here
+ * The first run: nothing has registered, nothing is recorded, and Get started
  * carries the screen. The counts wait until there is a project to count.
  */
 export const FirstRun: Story = {
@@ -55,7 +54,7 @@ export const FirstRunDark: Story = { args: FirstRun.args, globals: dark };
 
 /**
  * One project with four new items while claude-code is working in it: the row
- * carries claude-code's mark and a working chip, and Start here comes last.
+ * carries claude-code's mark and a working chip, and Get started comes last.
  */
 export const OneProjectWorking: Story = {
   args: {

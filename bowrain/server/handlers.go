@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/resilience"
 	"github.com/neokapi/neokapi/core/locale"
@@ -86,7 +86,7 @@ type ErrorResponse struct {
 }
 
 // HandleHealth returns a simple health check.
-func (s *Server) HandleHealth(c echo.Context) error {
+func (s *Server) HandleHealth(c *echo.Context) error {
 	return c.JSON(http.StatusOK, HealthResponse{
 		Status:    "ok",
 		Version:   version.Version,
@@ -168,7 +168,7 @@ func (s *Server) readiness(ctx context.Context) (map[string]ComponentStatus, str
 }
 
 // HandleReady returns a detailed readiness check of all server components.
-func (s *Server) HandleReady(c echo.Context) error {
+func (s *Server) HandleReady(c *echo.Context) error {
 	components, status := s.readiness(c.Request().Context())
 
 	httpStatus := http.StatusOK
@@ -270,7 +270,7 @@ func (s *Server) checkEmail() ComponentStatus {
 
 // HandleInfo returns server info: mode, build metadata, and all reference data
 // (formats, tools, locales, connector types).
-func (s *Server) HandleInfo(c echo.Context) error {
+func (s *Server) HandleInfo(c *echo.Context) error {
 	mode := "server"
 	if s.Config.JWTSecret == "" {
 		mode = "standalone"

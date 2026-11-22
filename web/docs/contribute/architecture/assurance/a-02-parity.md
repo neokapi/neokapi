@@ -22,8 +22,8 @@ bridge plugin from that repository's checkout, runs every case, and writes a
 JSON report. A scheduled workflow there runs it weekly and on demand and
 publishes the report as a workflow artifact.
 
-Parity is a **maintainer-facing fidelity check on Go ports**, not a product
-surface and not a plugin contract. Nothing in this repository builds, tests or
+Parity is a **maintainer-facing fidelity check on Go ports**, outside the
+product surface and the plugin contract. This repository never builds, tests or
 gates on the bridge: no workflow here checks out the bridge, and no release
 waits on a parity run. The distinct, durable, cross-repository guarantee, that a
 plugin implements the plugin protocol at all, is
@@ -38,9 +38,9 @@ Two independent stacks must agree on output:
   `kapi` binary.
 - **The bridge plugin**: a Java plugin built from the Okapi Framework JARs,
   developed in its own repository and spawned as a daemon on demand over a local
-  socket. It is not part of the product surface; it is the reference
-  implementation of a third-party plugin in a non-Go language, and, for parity, a
-  convenient second opinion on what an Okapi filter produces.
+  socket. It serves as the reference implementation of a third-party plugin in a
+  non-Go language, and, for parity, as a second opinion on what an Okapi filter
+  produces. Users never see it as part of the product.
 
 When a Go port and a bridge filter both claim to read the same format, kapi
 uses the Go port: a daemon-backed reader is registered only where no native
@@ -125,10 +125,9 @@ any system-installed plugin. Its sandbox holds:
    corner skipping when it is not.
 
 Tests resolve the sandbox from the environment, or by walking up from the
-working directory to a built one, and **fail** when there is none. Skip-by-default
-was abandoned deliberately: silent skips made runs report parity green while
-nothing had been compared. An explicit environment variable opts into skipping
-instead.
+working directory to a built one, and **fail** when there is none. A silent skip
+would let a run report parity green with nothing compared, so the suite skips
+only when an explicit environment variable opts in.
 
 Every build tag the suite needs is spelled in one `-tags` flag. Go does not
 union repeated `-tags` (the last occurrence wins), so a second `-tags parity`

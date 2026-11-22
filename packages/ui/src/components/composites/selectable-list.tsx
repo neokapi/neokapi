@@ -58,7 +58,7 @@ export function SelectableList<T>({
   columns,
   actions,
   filterFn,
-  filterPlaceholder = t("Filter..."),
+  filterPlaceholder = t("Filter…"),
   rowClassName,
   maxHeight = 400,
   emptyMessage = t("No items match the filter."),

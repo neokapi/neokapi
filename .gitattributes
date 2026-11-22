@@ -7,3 +7,5 @@ core/diffscope/testdata/*.diff -text
 # Comment corpus fixtures are held to their goldens by sha256, and the crlf
 # fixtures hold CRLF line breaks on purpose, so no checkout may convert them.
 plugins/sourcecode/internal/comments/testdata/** -text
+
+core/formats/eml/testdata/*.eml -text whitespace=cr-at-eol

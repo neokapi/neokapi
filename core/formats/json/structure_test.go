@@ -232,11 +232,11 @@ func TestWriterDeclaresStructure(t *testing.T) {
 // declares no structural operation under it and refuses one.
 func TestWriterDeclaresNoStructureWhenSiblingsDescribeABlock(t *testing.T) {
 	for name, set := range map[string]func(*Config){
-		"noteRules":        func(c *Config) { c.NoteRules = "^description$" },
-		"idRules":          func(c *Config) { c.IDRules = "^id$" },
-		"useIdStack":       func(c *Config) { c.UseIDStack = true },
-		"genericMetaRules": func(c *Config) { c.GenericMetaRules = "^meta$" },
-		"maxwidthRules":    func(c *Config) { c.MaxwidthRules = "^max$" },
+		"note_rules":         func(c *Config) { c.NoteRules = "^description$" },
+		"id_rules":           func(c *Config) { c.IDRules = "^id$" },
+		"use_id_stack":       func(c *Config) { c.UseIDStack = true },
+		"generic_meta_rules": func(c *Config) { c.GenericMetaRules = "^meta$" },
+		"maxwidth_rules":     func(c *Config) { c.MaxwidthRules = "^max$" },
 	} {
 		t.Run(name, func(t *testing.T) {
 			w := NewWriter()

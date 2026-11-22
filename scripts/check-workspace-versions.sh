@@ -108,7 +108,7 @@ scan() {
     fi
     if ! compare_listings "$tmp/workspace.txt" "$tmp/module.txt"; then
       echo "ERROR: $dir: a direct dependency resolves to a different version under go.work than under its own go.mod"
-      echo "  (raise the require in $dir/go.mod to the workspace version and run make ci-tidy; the isolated build must compile against what the workspace builds against)"
+      echo "  (raise the require in $dir/go.mod to the workspace version, then run GOWORK=off go mod tidy in $dir)"
       status=1
     fi
   done

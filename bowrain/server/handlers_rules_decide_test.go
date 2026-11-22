@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -33,6 +33,8 @@ type decideCaller struct {
 	userID string
 	perms  platauth.Permission
 	reach  platauth.CoordinateReach
+	// languages are the languages the caller may review; nil is all.
+	languages []string
 }
 
 // decideSQLiteServer serves the Decide and context object routes over a
@@ -45,7 +47,7 @@ func decideSQLiteServer(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlite
 	srv := &Server{ContentStore: cs, wsStores: newWorkspaceStores()}
 	e := echo.New()
 	g := e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("user_id", caller.userID)
 			c.Set("workspace_id", "ws")
 			c.Set("project_permissions", caller.perms)
@@ -76,10 +78,19 @@ type decideParityPushed struct {
 // collections at their points, each file's blocks, and its ledger.
 func seedDecideParity(t *testing.T, e *echo.Echo, cs platstore.ContentStore) string {
 	t.Helper()
+	return seedDecideParityIn(t, cs, "ws", func(pid string) workspace.Remote {
+		return &routeRemote{h: e, base: "/api/v1/ws/" + pid + "/context/objects"}
+	})
+}
+
+// seedDecideParityIn is seedDecideParity for a project in workspace wsID,
+// whose ledger is pushed through the remote remoteOf returns.
+func seedDecideParityIn(t *testing.T, cs platstore.ContentStore, wsID string, remoteOf func(pid string) workspace.Remote) string {
+	t.Helper()
 	ctx := t.Context()
 	p := &platstore.Project{
 		Name: "decide-parity", DefaultSourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"},
-		WorkspaceID: "ws", Properties: map[string]string{},
+		WorkspaceID: wsID, Properties: map[string]string{},
 	}
 	require.NoError(t, cs.CreateProject(ctx, p))
 
@@ -111,8 +122,7 @@ func seedDecideParity(t *testing.T, e *echo.Echo, cs platstore.ContentStore) str
 	require.NoError(t, err)
 	ops, err := workspace.DecodeSegment(segment, "prj_decideparityaaaaaaaa")
 	require.NoError(t, err)
-	r := &routeRemote{h: e, base: "/api/v1/ws/" + p.ID + "/context/objects"}
-	require.NoError(t, r.Put(ctx, workspace.Object{Name: workspace.SegmentName("desktop", ops[0].ID), Data: segment}))
+	require.NoError(t, remoteOf(p.ID).Put(ctx, workspace.Object{Name: workspace.SegmentName("desktop", ops[0].ID), Data: segment}))
 	return p.ID
 }
 

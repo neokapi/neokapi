@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 )
@@ -26,7 +26,7 @@ import (
 // holding it is holding exactly those bytes, and re-uploading them would move
 // the same content twice. A push that re-sends an unchanged chunk after a
 // failed commit pays nothing for it.
-func (s *Server) HandleSyncPushUploads(c echo.Context) error {
+func (s *Server) HandleSyncPushUploads(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
 		return err
 	}

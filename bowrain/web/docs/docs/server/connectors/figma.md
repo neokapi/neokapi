@@ -7,17 +7,17 @@ description: The Figma connector reads the text layers of a Figma design file ov
 # Figma connector
 
 The Figma connector is a design connector. It reads the text of a Figma design
-file over the Figma REST API and delivers each text layer to Bowrain. It is a
-one-directional connector: it fetches text but does not write results back to
-Figma.
+file over the Figma REST API and delivers each text layer to Bowrain. It works
+in one direction: it fetches text from Figma, and you apply results to the
+design yourself.
 
 :::note
 
-This connector is added in a project's **Connectors** view in the web app, or
+Add this connector in a project's **Connectors** view in the web app, or
 through the workspace **connectors API** described below. Saved credentials are
-write-only: used for sync, never displayed again. All connector operations
-require the **manage connectors** permission. It is one route into a workspace
-among several; see [Connectors](/server/connectors) for the full row.
+write-only: Bowrain uses them for sync and never displays them again. All
+connector operations need the **manage connectors** permission. For the other
+routes into a workspace, see [Connectors](/server/connectors).
 
 :::
 
@@ -65,9 +65,9 @@ for subsequent fetch and status calls.
 
 ## How sync works
 
-Sync is explicit: text is read only when you fetch (**Fetch now** in the
-Connectors view, or the fetch endpoint). The connector does not poll Figma on a
-schedule and does not receive Figma webhooks.
+Sync is explicit: text is read only when you fetch, with **Fetch now** in the
+Connectors view or the fetch endpoint. The connector neither polls Figma nor
+receives Figma webhooks.
 
 **Fetch** reads the file, walks its layer tree, and stores each non-empty text
 layer as a block on the target project's main content stream. Call
@@ -77,14 +77,14 @@ layer as a block on the target project's main content stream. Call
 { "connector_id": "{id}", "project_id": "{project}" }
 ```
 
-The response reports how many items were fetched. Fetching stores source
-content; it does not itself start a run. Catch the fetched content up the
-way you would any project content, for example by starting a run or by letting
-the project's `bowrain.converge` policy produce and review targets.
+The response reports how many items were fetched. A fetch stores source content
+and starts no run. Catch the content up as you would any project content, for
+example by starting a run or by letting the project's `bowrain.converge` policy
+produce and review targets.
 
-Because the connector does not publish, translated strings are consumed
-elsewhere: export them from Bowrain, or read them through the API, and apply
-them to the design by hand or through a separate Figma integration.
+To use the translated strings, export them from Bowrain or read them through
+the API, and apply them to the design by hand or through a separate Figma
+integration.
 
 Call `GET /api/v1/{workspace}/connectors/{id}/status` to see the connector's
 current view of the file.

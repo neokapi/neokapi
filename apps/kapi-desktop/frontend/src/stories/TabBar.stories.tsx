@@ -22,6 +22,7 @@ const meta: Meta<typeof TabBar> = {
 export default meta;
 type Story = StoryObj<typeof TabBar>;
 
+/** One open project draws no strip: it appears once a second project opens. */
 export const SingleTab: Story = {
   args: {
     tabs: [{ id: "1", name: "translation", path: "/Users/dev/translation/kapi.yaml" }],

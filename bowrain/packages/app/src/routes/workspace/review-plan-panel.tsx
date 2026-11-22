@@ -1,0 +1,607 @@
+// The review plan on a project's Overview: what the project asks of its
+// reviewers, ordered by the reach of each decision. The coordinates and the
+// context generate the text, so they come first; then the exceptions, the
+// interfaces read in context, and what the involvement leaves to the checks.
+// The server counts every level (GET /:ws/:id/review/plan); each step links to
+// the page that decides it.
+
+import { Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button, ErrorNotice, useApi, useCallerPermissions } from "@neokapi/ui";
+import { invalidateProjectQueries } from "../../queries";
+import {
+  coordinatesOpen,
+  planFromServer,
+  type CoordinateChange,
+  planProducts,
+  planRuleLabel,
+  pointKey,
+  pointLabel,
+  type PlanLevel,
+  type PlanRule,
+  type PlanStepState,
+  type ReviewInvolvement,
+  type ReviewPlan,
+} from "@neokapi/bowrain-client";
+
+/**
+ * Why the term scan waits, in a sentence, or nothing while nothing holds it
+ * back. A push starts the scan on its own.
+ */
+function ScanWaiting({
+  waiting,
+  quotaResetsAt,
+}: {
+  waiting: ReviewPlan["context"]["scanWaiting"];
+  quotaResetsAt?: string;
+}) {
+  switch (waiting) {
+    case "waiting_content":
+      return <p>The scan for terms starts when content arrives.</p>;
+    case "waiting_push":
+      return <p>The scan for terms starts with the next push.</p>;
+    case "waiting_quota": {
+      if (!quotaResetsAt) return <p>The scan for terms waits for the AI limit to reset.</p>;
+      const date = new Date(quotaResetsAt).toLocaleDateString(undefined, {
+        dateStyle: "long",
+        timeZone: "UTC",
+      });
+      return <p>The scan for terms waits for the AI limit to reset on {date}.</p>;
+    }
+    case "waiting_credits":
+      return <p>The scan for terms waits for AI credits: this workspace has none left.</p>;
+    case "no_ai":
+      return <p>The scan for terms waits for an AI provider: this server has none set up.</p>;
+    default:
+      return null;
+  }
+}
+
+/**
+ * What the job proposing target terms is doing, or why it waits, in a
+ * sentence, or nothing while no job runs and nothing holds one back. The
+ * server starts the job when a term scan completes, a target language is
+ * added or a push lands.
+ */
+function ProposalsState({
+  context,
+}: {
+  context: Pick<ReviewPlan["context"], "proposals" | "proposalsWaiting" | "quotaResetsAt">;
+}) {
+  const status = context.proposals?.status;
+  if (status === "queued" || status === "processing") {
+    return <p>Proposing terms in your target languages.</p>;
+  }
+  switch (context.proposalsWaiting) {
+    case "waiting_quota": {
+      if (!context.quotaResetsAt) return <p>Term proposals wait for the AI limit to reset.</p>;
+      const date = new Date(context.quotaResetsAt).toLocaleDateString(undefined, {
+        dateStyle: "long",
+        timeZone: "UTC",
+      });
+      return <p>Term proposals wait for the AI limit to reset on {date}.</p>;
+    }
+    case "waiting_credits":
+      return <p>Term proposals wait for AI credits: this workspace has none left.</p>;
+    case "no_ai":
+      return <p>Term proposals wait for an AI provider: this server has none set up.</p>;
+    default:
+      return null;
+  }
+}
+
+export interface ReviewPlanPanelProps {
+  ws: string;
+  projectId: string;
+  stream: string;
+}
+
+/** Each involvement's name, as the selector shows it. */
+const INVOLVEMENT_LABELS: Record<ReviewInvolvement, string> = {
+  context: "Context",
+  interfaces: "Interfaces",
+  every: "Every translation",
+};
+
+/** What each involvement leaves to a person and to the checks. */
+function InvolvementDetail({ involvement }: { involvement: ReviewInvolvement }) {
+  switch (involvement) {
+    case "interfaces":
+      return <>As Context, and you read every interface page.</>;
+    case "every":
+      return <>A person establishes every translation. Nothing is settled by the checks.</>;
+    default:
+      return (
+        <>
+          You decide the coordinates, the context and the exceptions, and read a sample of pages.
+          Content that clears every check is settled by the checks.
+        </>
+      );
+  }
+}
+
+function Step({
+  n,
+  level,
+  next,
+  done: counted,
+  state,
+  title,
+  children,
+}: {
+  n: number;
+  level: PlanLevel;
+  next: PlanLevel | null;
+  done: boolean;
+  /** The server's state for the step; a server that sends none leaves `done` to decide. */
+  state?: PlanStepState;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const isNext = next === level;
+  const done = state ? state === "done" : counted;
+  return (
+    <li
+      data-testid={`plan-${level}`}
+      data-next={isNext || undefined}
+      className={`flex gap-3 rounded-lg border p-3 ${isNext ? "border-primary bg-primary/5" : "border-border"}`}
+    >
+      <span
+        className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+          done
+            ? "bg-success text-success-foreground"
+            : isNext
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground"
+        }`}
+      >
+        {done ? "✓" : n}
+      </span>
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex items-baseline gap-2">
+          <span className="font-medium">{title}</span>
+          {isNext && <span className="text-primary text-xs font-semibold uppercase">Next</span>}
+          {state === "not_started" && (
+            <span
+              data-testid={`plan-${level}-not-started`}
+              className="text-muted-foreground text-xs"
+            >
+              Not started
+            </span>
+          )}
+        </div>
+        <div className="text-muted-foreground space-y-0.5 text-sm">{children}</div>
+      </div>
+    </li>
+  );
+}
+
+/** The rules behind the most findings in one place: the source or a language. */
+function RuleList({ testId, title, rules }: { testId: string; title: string; rules: PlanRule[] }) {
+  if (rules.length === 0) return null;
+  return (
+    <div data-testid={testId} className="pt-1">
+      <p className="text-xs font-semibold uppercase">{title}</p>
+      <ul className="space-y-0.5">
+        {rules.map((r) => (
+          <li key={r.key} className="flex items-baseline gap-2">
+            <span className="text-foreground min-w-0 flex-1 truncate" title={r.rule}>
+              {planRuleLabel(r)}
+            </span>
+            <span className="shrink-0 tabular-nums">
+              {r.count} {r.count === 1 ? "finding" : "findings"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function placeOf(coords: Record<string, string> | undefined): string {
+  return [coords?.product, coords?.channel].filter(Boolean).join(" / ");
+}
+
+/** One change against the confirmed coordinates, as a sentence. */
+function ChangeText({ change: c }: { change: CoordinateChange }) {
+  const where = placeOf(c.coordinates);
+  switch (c.kind) {
+    case "point_added":
+      return (
+        <>
+          New: {c.collection} at {where}
+        </>
+      );
+    case "point_removed":
+      return (
+        <>
+          Removed: {c.collection} at {where}
+        </>
+      );
+    case "point_moved":
+      return (
+        <>
+          Moved: {c.collection} from {placeOf(c.previousCoordinates)} to {where}
+        </>
+      );
+    case "voice_changed":
+      return c.voice ? (
+        <>
+          Voice: {c.collection} now uses {c.voice}
+        </>
+      ) : (
+        <>Voice: {c.collection} no longer has a voice</>
+      );
+    case "source_only_changed":
+      return c.sourceOnly ? (
+        <>{c.collection} is now source only</>
+      ) : (
+        <>{c.collection} now receives translations</>
+      );
+    case "language_added":
+      return <>Language added: {c.locale}</>;
+    case "language_removed":
+      return <>Language removed: {c.locale}</>;
+  }
+}
+
+/** What changed since the team last confirmed the coordinates. */
+function CoordinateChanges({ by, changes }: { by?: string; changes: CoordinateChange[] }) {
+  return (
+    <div data-testid="plan-coordinate-changes" className="pt-1">
+      <p className="text-xs font-semibold uppercase">
+        {by ? <>Since {by} confirmed</> : <>Since the last confirmation</>}
+      </p>
+      {changes.length === 0 ? (
+        <p>Nothing changed since the last confirmation.</p>
+      ) : (
+        <ul className="space-y-0.5">
+          {changes.map((c, i) => (
+            <li key={`${c.kind}-${c.collection ?? c.locale}-${i}`} className="text-foreground">
+              <ChangeText change={c} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** The plan's steps, drawn from the server's answer. */
+export function ReviewPlanSteps({
+  plan,
+  ws,
+  projectId,
+  stream,
+  onConfirmCoordinates,
+  onInvolvement,
+  onSettle,
+  onScan,
+  busy,
+}: {
+  plan: ReviewPlan;
+  ws: string;
+  projectId: string;
+  stream: string;
+  onConfirmCoordinates?: () => void;
+  onInvolvement?: (v: ReviewInvolvement) => void;
+  onSettle?: () => void;
+  onScan?: () => void;
+  busy?: boolean;
+}) {
+  const products = planProducts(plan.coordinates.points);
+  const untranslated = Object.entries(plan.context.untranslated).filter(([, n]) => n > 0);
+  const failing = plan.languages.reduce((n, l) => n + l.failing, 0);
+  const pages = plan.languages.reduce((n, l) => n + l.pages, 0);
+  const pagesTotal = plan.languages.reduce((n, l) => n + l.pagesTotal, 0);
+  const scanning =
+    plan.context.scan?.status === "queued" || plan.context.scan?.status === "processing";
+  const settleNow = plan.policy.settle === "first_pass" || plan.policy.settle === "policy";
+  const settleable = plan.languages.reduce((n, l) => n + l.settleable, 0);
+  const params = { workspace: ws, projectId, stream };
+  const stateOf = (level: PlanLevel) => plan.steps.find((st) => st.level === level)?.state;
+  // The context step counts the team's open decisions in every target
+  // language; `mine` is the part in the languages this person follows.
+  const contextStep = plan.steps.find((st) => st.level === "context");
+  const otherLanguages = (plan.waiting ?? []).find((w) => w.reason === "other_languages");
+  const held = plan.held ? plan.languages.filter((l) => l.held > 0) : [];
+
+  return (
+    <section data-testid="review-plan" className="space-y-3 rounded-xl border p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-base font-semibold">Review plan</h2>
+        <label className="text-muted-foreground flex items-center gap-2 text-sm">
+          Involvement
+          <select
+            data-testid="plan-involvement"
+            className="bg-background rounded-md border px-2 py-1 text-sm"
+            value={plan.involvement}
+            disabled={!onInvolvement || busy}
+            onChange={(e) => onInvolvement?.(e.target.value as ReviewInvolvement)}
+          >
+            <option value="context">Context</option>
+            <option value="interfaces">Interfaces</option>
+            <option value="every">Every translation</option>
+          </select>
+        </label>
+      </div>
+      <p className="text-muted-foreground text-sm">
+        Decide what generates the text before you read the text.{" "}
+        <InvolvementDetail involvement={plan.involvement} />
+      </p>
+      {plan.overrides.length > 0 ? (
+        <ul data-testid="plan-involvement-overrides" className="text-muted-foreground text-sm">
+          {plan.overrides.map((o) => (
+            <li key={pointKey(o.coordinates)}>
+              {pointLabel(o.coordinates)}: {INVOLVEMENT_LABELS[o.involvement]}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <ol className="space-y-2">
+        <Step
+          n={1}
+          level="coordinates"
+          next={plan.next}
+          state={stateOf("coordinates")}
+          done={!coordinatesOpen(plan.coordinates)}
+          title="Coordinates"
+        >
+          <p>
+            {plan.coordinates.sourceLanguage} into{" "}
+            {plan.coordinates.targetLanguages.join(", ") || "no target language yet"}
+          </p>
+          {products.map((p) => (
+            <p key={p.product}>
+              {p.product}: {p.channels.join(", ")}
+            </p>
+          ))}
+          {plan.coordinates.confirmed && (
+            <CoordinateChanges
+              by={plan.coordinates.confirmedByName || plan.coordinates.confirmedBy}
+              changes={plan.coordinates.changes}
+            />
+          )}
+          {coordinatesOpen(plan.coordinates) && onConfirmCoordinates && (
+            <Button size="sm" variant="outline" disabled={busy} onClick={onConfirmCoordinates}>
+              Confirm coordinates
+            </Button>
+          )}
+        </Step>
+        <Step
+          n={2}
+          level="context"
+          next={plan.next}
+          state={stateOf("context")}
+          done={plan.context.waiting === 0 && untranslated.length === 0}
+          title="Context"
+        >
+          <p>
+            {plan.context.waiting} terms and voice rules to decide · {plan.context.concepts} terms
+            in the source language
+          </p>
+          {untranslated.map(([locale, n]) => (
+            <p key={locale}>
+              {n} terms have no {locale} term yet
+            </p>
+          ))}
+          {contextStep &&
+            contextStep.mine !== undefined &&
+            contextStep.mine !== contextStep.count && (
+              <p data-testid="plan-context-team">
+                {contextStep.count} open for the team, {contextStep.mine} in your languages
+              </p>
+            )}
+          {otherLanguages?.locales?.length ? (
+            <p data-testid="plan-context-other-languages">
+              Terms missing in {otherLanguages.locales.join(", ")}, reviewed by others
+            </p>
+          ) : null}
+          {scanning && (
+            <p>Scanning the project for terms, {plan.context.scan?.progress ?? 0}% done</p>
+          )}
+          {plan.context.scan?.status === "completed" && (
+            <p>The last scan finished. Its terms are in the context deck.</p>
+          )}
+          {plan.context.scan?.status === "failed" && !plan.context.scanWaiting && (
+            <p>The last scan failed. The next push starts it again, or you can scan again now.</p>
+          )}
+          <ScanWaiting
+            waiting={plan.context.scanWaiting}
+            quotaResetsAt={plan.context.quotaResetsAt}
+          />
+          <ProposalsState context={plan.context} />
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              to="/$workspace/p/$projectId/s/$stream/rules"
+              params={params}
+              className="text-primary"
+            >
+              Review context
+            </Link>
+            {onScan && !scanning && (
+              <Button size="sm" variant="outline" disabled={busy} onClick={onScan}>
+                Scan again
+              </Button>
+            )}
+          </div>
+        </Step>
+        <Step
+          n={3}
+          level="exceptions"
+          next={plan.next}
+          state={stateOf("exceptions")}
+          done={(plan.exceptions.sourceFindings ?? 0) === 0 && failing === 0}
+          title="Exceptions"
+        >
+          <p>
+            {plan.exceptions.sourceFindings === null
+              ? "The source has not been checked yet"
+              : `${plan.exceptions.sourceFindings} findings in the source`}{" "}
+            · {failing} translations fail a check
+          </p>
+          {(plan.exceptions.byRule.source.length > 0 ||
+            Object.values(plan.exceptions.byRule.targets).some((rs) => rs.length > 0)) && (
+            <p>
+              Most findings break one rule many times. Change the rule and its findings clear, or
+              fix the source and its translations are drafted again.
+            </p>
+          )}
+          <RuleList
+            testId="plan-rules-source"
+            title="Source, by rule"
+            rules={plan.exceptions.byRule.source}
+          />
+          {plan.languages.map((l) => (
+            <RuleList
+              key={l.locale}
+              testId={`plan-rules-${l.locale}`}
+              title={`${l.locale}, by rule`}
+              rules={plan.exceptions.byRule.targets[l.locale] ?? []}
+            />
+          ))}
+        </Step>
+        <Step
+          n={4}
+          level="interfaces"
+          next={plan.next}
+          state={stateOf("interfaces")}
+          done={pages === 0}
+          title="Interfaces in context"
+        >
+          {plan.involvement === "context" ? (
+            <p>
+              Read {pages} of {pagesTotal} pages: one in ten from each channel, and every page with
+              a failing check.
+            </p>
+          ) : (
+            <p>{pages} pages with a translation waiting. Read every page, source first.</p>
+          )}
+          {pages > 0 && (
+            <p>
+              <Link
+                to="/$workspace/p/$projectId/s/$stream/review"
+                params={params}
+                className="text-primary"
+              >
+                Read the pages
+              </Link>
+            </p>
+          )}
+        </Step>
+        <Step
+          n={5}
+          level="policy"
+          next={plan.next}
+          state={stateOf("policy")}
+          done={settleable === 0}
+          title="Settled by the checks"
+        >
+          {plan.policy.settle === "none" ? (
+            <p>Every translation is read by a person, so nothing is settled here.</p>
+          ) : (
+            <>
+              <p>{settleable} translations clear every check.</p>
+              {plan.policy.settle === "held" && (
+                <p>
+                  Held until the context is decided: {plan.policy.contextOpen} context cards are
+                  still open.
+                </p>
+              )}
+              {plan.policy.settle === "first_pass" && (
+                <p>
+                  First pass: this settles on the checks alone. Later passes wait until the context
+                  is decided.
+                </p>
+              )}
+              {plan.policy.settle === "policy" && (
+                <p>
+                  Each is established as your decision, recorded in the ledger, and reopened if
+                  anyone rejects it later.
+                </p>
+              )}
+              {settleNow && settleable > 0 && onSettle && (
+                <Button size="sm" variant="outline" disabled={busy} onClick={onSettle}>
+                  Establish the {settleable} translations
+                </Button>
+              )}
+            </>
+          )}
+        </Step>
+      </ol>
+      {held.map((l) => (
+        <p
+          key={l.locale}
+          data-testid={`plan-held-${l.locale}`}
+          className="text-muted-foreground text-sm"
+        >
+          {l.held} {l.locale} translations are held until the context is decided.
+        </p>
+      ))}
+    </section>
+  );
+}
+
+/** The review plan panel, read and written through the server. */
+export function ReviewPlanPanel({ ws, projectId, stream }: ReviewPlanPanelProps) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const { can, data: permissions } = useCallerPermissions(projectId);
+  const plan = useQuery({
+    queryKey: ["project", ws, projectId, stream, "review-plan"],
+    queryFn: async () => planFromServer(await api.getReviewPlan!(ws, projectId, stream)),
+    enabled: !!api.getReviewPlan,
+  });
+  const update = useMutation({
+    mutationKey: ["review-plan", ws, projectId, stream],
+    mutationFn: (apply: () => Promise<unknown>) => apply(),
+    onSuccess: () => invalidateProjectQueries(qc, ws, projectId),
+  });
+  function action<Args extends unknown[]>(
+    allowed: boolean,
+    apply: ((...args: Args) => Promise<unknown>) | undefined,
+  ) {
+    if (permissions && allowed && apply) {
+      return (...args: Args) => update.mutate(() => apply(...args));
+    }
+  }
+
+  if (!api.getReviewPlan) return null;
+  return (
+    <>
+      {plan.error && (
+        <ErrorNotice
+          error={plan.error}
+          title="Couldn't load the review plan"
+          onRetry={() => void plan.refetch()}
+        />
+      )}
+      {update.error && (
+        <ErrorNotice
+          error={update.error}
+          title="Couldn't update the review plan"
+          variant="inline"
+        />
+      )}
+      {plan.data && (
+        <ReviewPlanSteps
+          plan={plan.data}
+          ws={ws}
+          projectId={projectId}
+          stream={stream}
+          busy={update.isPending}
+          onConfirmCoordinates={action(
+            stream === "main" && can("manage_project"),
+            api.confirmReviewCoordinates?.bind(api, ws, projectId),
+          )}
+          onInvolvement={action(
+            can("manage_project"),
+            api.setReviewInvolvement?.bind(api, ws, projectId),
+          )}
+          onSettle={action(can("review"), api.settleReviewPlan?.bind(api, ws, projectId, stream))}
+          onScan={action(can("manage_voice"), api.startReviewPlanScan?.bind(api, ws, projectId))}
+        />
+      )}
+    </>
+  );
+}

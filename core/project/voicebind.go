@@ -17,11 +17,9 @@ var ErrVoiceAlreadyBound = errors.New("recipe: a voice is already bound here")
 // BindVoice declares `voice: {profile: <id>}` in the recipe at path: under
 // `defaults:` when profile is empty, or under `profiles.<profile>:`.
 //
-// The edit is an insertion into the text, and every byte of the recipe outside
-// the lines it adds stays as the author wrote it: comments, blank lines, key
-// order, quoting, flow and block styles. A recipe is committed, human-authored
-// source, and a binding added on someone's behalf should show in a diff as
-// exactly the lines it adds.
+// The edit is an insertion into the text. Every byte of the recipe outside the
+// lines it adds stays as the author wrote it, so a binding added on someone's
+// behalf shows in a diff as exactly the lines it adds.
 //
 // The two lines go directly under the parent key, ahead of its first child, at
 // the indentation the parent's children already use. A recipe with no
@@ -30,8 +28,7 @@ var ErrVoiceAlreadyBound = errors.New("recipe: a voice is already bound here")
 // Save instead, which keeps its comments and order but may restyle the parent.
 //
 // It returns ErrVoiceAlreadyBound when the parent already declares a `voice:`,
-// whatever it binds: replacing a binding a person wrote is a different decision
-// from adding one where there was none.
+// whatever it binds, so a binding a person wrote is never replaced.
 func BindVoice(path, profile, id string) error {
 	if id == "" {
 		return errors.New("recipe: a voice binding needs a profile id")
@@ -90,7 +87,7 @@ func DeclaredDefaultVoice(path string) (*VoiceBinding, error) {
 		} `yaml:"defaults"`
 	}
 	if err := yaml.Unmarshal(data, &head); err != nil {
-		return nil, fmt.Errorf("parse project file: %w", err)
+		return nil, fmt.Errorf("parse project file %s: %w", path, err)
 	}
 	return head.Defaults.Voice, nil
 }

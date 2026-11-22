@@ -87,11 +87,18 @@ func TestBuildByteToRuneASCII(t *testing.T) {
 	assert.Equal(t, 3, f(3)) // end
 }
 
+func TestResolveThreshold(t *testing.T) {
+	assert.InDelta(t, DefaultThreshold, resolveThreshold(0), 0)
+	assert.InDelta(t, DefaultThreshold, resolveThreshold(-0.5), 0)
+	assert.InDelta(t, DefaultThreshold, resolveThreshold(1), 0)
+	assert.InDelta(t, 0.6, resolveThreshold(0.6), 0)
+}
+
 func TestBuildByteToRuneMultibyte(t *testing.T) {
-	// "héllo": h(1) é(2 bytes) l l o => 6 bytes, 5 runes.
+	// "héllo": one byte each for h, l, l and o, two for é => 6 bytes, 5 runes.
 	text := "héllo"
-	require.Equal(t, 6, len(text))
-	require.Equal(t, 5, len([]rune(text)))
+	require.Len(t, text, 6)
+	require.Len(t, []rune(text), 5)
 	f := buildByteToRune(text)
 	assert.Equal(t, 0, f(0)) // before h
 	assert.Equal(t, 1, f(1)) // before é (byte 1)

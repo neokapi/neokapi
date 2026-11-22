@@ -158,6 +158,7 @@ function createWailsMemoryAdapter(
               tabID,
               "",
               path,
+              "",
               0,
             );
             const point = res?.point;

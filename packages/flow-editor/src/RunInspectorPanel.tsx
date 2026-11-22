@@ -100,21 +100,21 @@ function TransitionRow({ t }: { t: PartTransition }) {
         <div className="mt-1">
           <div className="text-[9px] font-semibold text-muted-foreground">SOURCE REWRITTEN</div>
           <div className="text-[10px] leading-snug text-muted-foreground line-through opacity-60">
-            {t.before.sourceText}
+            {t.before.source_text}
           </div>
-          <div className="text-[11px] leading-snug text-foreground">{t.after.sourceText}</div>
+          <div className="text-[11px] leading-snug text-foreground">{t.after.source_text}</div>
         </div>
       )}
       {delta.targetChanged && (
         <div className="mt-1">
           <div className="text-[9px] font-semibold text-muted-foreground">TARGET</div>
-          {t.before.targetText && (
+          {t.before.target_text && (
             <div className="text-[10px] leading-snug text-muted-foreground line-through opacity-60">
-              {t.before.targetText}
+              {t.before.target_text}
             </div>
           )}
           <div className="text-[11px] leading-snug text-foreground">
-            {t.after.targetText || "(empty)"}
+            {t.after.target_text || "(empty)"}
           </div>
         </div>
       )}

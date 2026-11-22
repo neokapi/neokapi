@@ -7,26 +7,32 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # kapi up
 
-Catch the project up to its ship gates: the verb that runs
-[the kapi loop](/the-loop). `kapi up`
-treats the recipe as the desired state and runs the project's default flow over
-all content across every target language, looping until every gated locale is
-shippable or waits for review.
+Catch every language up to the project's ship gates. On a connected project the
+work runs on the Bowrain server, with the organization's keys and the shared
+content memory and terms, and what needs a person goes to the team's review
+session. The **Run now** button in the project's Runs view starts the same run
+from the browser or the desktop app.
 
-On a **server-connected** project (the recipe declares a `bowrain:` block), `kapi
-up` runs the loop **on the Bowrain server** by default: it pushes drift, the
-server runs the loop on the organization's keys and shared content memory and terms,
-progress streams back live, results pull down, and translations waiting for review enter the
-team's review session. `kapi up --local` runs the loop on this machine and pushes the
-results instead.
+`kapi up` runs [the kapi loop](/the-loop). It treats the recipe as the desired
+state and runs the project's default flow over all content in every target
+language, looping until every gated locale is shippable or waits for review.
+
+On a **server-connected** project (the recipe declares a `bowrain:` block),
+`kapi up` runs the loop **on the Bowrain server** by default:
+
+1. It pushes what drifted.
+2. The server runs the loop, and progress streams back live.
+3. The results pull down, and translations waiting for review enter the team's
+   review session.
+
+`kapi up --local` runs the loop on this machine and pushes the results instead.
 
 The push phase reports the verdicts the server did not accept, per language, in
 the lines [`kapi push`](/cli/commands/push) prints. With `--json` they arrive as
 one `governance` record in the stream.
 
-`kapi push` and `kapi pull` remain as pure transport: they move project state
-and never translate. There is no `kapi sync`; a connected `kapi up` *is* push →
-catch up → pull.
+`kapi push` and `kapi pull` only move project state and never translate. There
+is no `kapi sync`: a connected `kapi up` pushes, catches up, then pulls.
 
 ## Usage
 
@@ -88,9 +94,9 @@ and `kapi status` reports where that run got to.
 Each pass re-derives coverage from the working tree, runs the flow only for the
 locales still short of their gate, then runs the project's bound checks over what
 was produced. The loop stops when every gated locale is shippable, a pass makes no
-progress, or the pass cap is reached. Whatever cannot be advanced unaided
-**waits for review**: reported as awaiting a person, exit 0. `kapi up` never fails the build
-on target drift.
+progress, or the pass cap is reached. Anything a flow cannot advance without a
+person **waits for review**: `kapi up` reports it as awaiting a person and exits
+0. Target languages that are behind never fail the build.
 
 Locales are caught up concurrently within a pass (`--jobs`, default 4). Before
 each pass, `up` re-syncs the block store with the working tree (`--no-extract`
@@ -99,8 +105,8 @@ opts out).
 ## Two venues, one event stream
 
 On a connected project the run executes on the server and streams the same
-convergence events the CLI renders locally, so the terminal view is identical
-either way.
+events the CLI renders locally, so the terminal view looks the same on either
+venue.
 
 <PipelineDiagram
   channelLabel=""
@@ -114,10 +120,9 @@ either way.
 
 ## Exit Codes
 
-The exit code answers whether the work happened, not whether this command
-watched it happen. A server run outlives the connection that watches it: when
-the stream ends early, `up` says so, pulls what landed, and reports the run's
-state as the server holds it.
+The exit code reports whether the work happened. A server run continues if the
+connection watching it drops. When the stream ends early, `up` says so, pulls
+what landed, and reports the run's state as the server holds it.
 
 - `0`: caught up, work waiting for review reported (target drift is never a failure), or the
   run went on after the event stream ended early
@@ -135,8 +140,8 @@ state as the server holds it.
 
 ## When to Use
 
-Use `kapi up` for the daily reconcile, bringing every locale up to date against
-the project's gates, locally or on the server:
+Use `kapi up` every day to bring every locale up to date against the project's
+gates, locally or on the server:
 
 - **CI/CD pipelines**: `kapi up --json` from a workflow to catch up on push and
   fail only on an explicit `kapi check --ship` gate; see

@@ -21,44 +21,44 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Content Extraction",
 				Fields: []string{
-					"extractNonTranslatableContent",
+					"extract_non_translatable_content",
 				},
 			},
 			{
 				ID:    "output",
 				Label: "Output settings",
 				Fields: []string{
-					"maxCharsPerLine", "maxLinesPerCaption",
-					"cjkCharsPerLine", "splitWords",
+					"max_chars_per_line", "max_lines_per_caption",
+					"cjk_chars_per_line", "split_words",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+			"extract_non_translatable_content": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Extract non-translatable content",
 				Description: "If true (default), non-translatable contextual content such as a STYLE block's embedded CSS is surfaced as a content block (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden. Disable to keep the legacy opaque behavior.",
 			}),
-			"maxCharsPerLine": schema.Prop(coreschema.PropertySchema{
+			"max_chars_per_line": schema.Prop(coreschema.PropertySchema{
 				Type:        "integer",
 				Title:       "Max characters per line",
 				Description: "Maximum number of characters per line in output. Set to 0 to disable.",
 				Default:     0,
 			}),
-			"maxLinesPerCaption": schema.Prop(coreschema.PropertySchema{
+			"max_lines_per_caption": schema.Prop(coreschema.PropertySchema{
 				Type:        "integer",
 				Title:       "Max lines per caption",
 				Description: "Maximum number of lines per caption in output. Set to 0 to disable.",
 				Default:     0,
 			}),
-			"cjkCharsPerLine": schema.Prop(coreschema.PropertySchema{
+			"cjk_chars_per_line": schema.Prop(coreschema.PropertySchema{
 				Type:        "integer",
 				Title:       "Max characters per line for CJK",
 				Description: "Maximum number of characters per line for CJK languages. Set to 0 to disable.",
 				Default:     0,
 			}),
-			"splitWords": schema.Prop(coreschema.PropertySchema{
+			"split_words": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Split words at character limit",
 				Description: "Split words so that they don't go over the character limit per line.",

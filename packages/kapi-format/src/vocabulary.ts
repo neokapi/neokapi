@@ -133,7 +133,9 @@ export const JSX_VOCABULARY: VocabularyEntry[] = [
     html: {
       open: "",
       close: "",
-      placeholder: '<span class="neokapi-node" data-node="{id}" title="{data}">{equiv}</span>',
+      // The node's native source and its synthesized identifier are not for
+      // a reader; it shows as a neutral glyph.
+      placeholder: '<span class="neokapi-node" data-node="{id}">{name}</span>',
     },
     display: {
       open: "",

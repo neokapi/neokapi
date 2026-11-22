@@ -6,7 +6,7 @@
       "id": "01JBQC2K8M1N3P",
       "short": "n3p4",
       "kind": "name",
-      "question": "Which one do your files use?",
+      "question": "Which spelling should the project use?",
       "sentence": "Write Invoicely, not Invoice-ly.",
       "label": "Invoicely",
       "avoided": 1,
@@ -32,7 +32,7 @@
         "quote": "Invoicely sends the receipt."
       },
       "applies": "the whole project",
-      "noticed_by": {
+      "recorded_by": {
         "kind": "agent",
         "name": "claude-code",
         "session": "s-7f3a",
@@ -41,7 +41,7 @@
     },
     {
       "kind": "disagreement",
-      "question": "Which one do your files use?",
+      "question": "Which spelling should the project use?",
       "reason": "Two suggestions name different forms for Quickcast.",
       "sentence": "Write Quickcast, not Quick cast or QuickCast.",
       "label": "Quickcast",
@@ -54,7 +54,7 @@
           "blocks": 14,
           "files": 5,
           "consequence": "If you keep it: \"Quick cast\" or \"QuickCast\" become findings in 3 blocks. Applies to the whole project.",
-          "noticed_by": {
+          "recorded_by": {
             "kind": "agent",
             "name": "claude-code",
             "session": "s-7f3a",
@@ -68,7 +68,7 @@
           "blocks": 2,
           "files": 1,
           "consequence": "If you keep it: \"Quickcast\" becomes a finding in 14 blocks. Applies to the whole project.",
-          "noticed_by": {
+          "recorded_by": {
             "kind": "person"
           }
         }
@@ -81,7 +81,7 @@
         "quote": "Quickcast keeps your credits."
       },
       "applies": "the whole project",
-      "noticed_by": {
+      "recorded_by": {
         "kind": "agent",
         "name": "claude-code",
         "session": "s-7f3a",
@@ -101,7 +101,7 @@
       "other": false,
       "consequence": "If you keep it: it is stated to writers and assistants where it applies. No check reads it. Applies to docs/release-notes.md.",
       "applies": "docs/release-notes.md",
-      "noticed_by": {
+      "recorded_by": {
         "kind": "person"
       },
       "assignee": {

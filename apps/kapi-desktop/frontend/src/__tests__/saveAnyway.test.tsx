@@ -60,7 +60,7 @@ describe("save anyway", () => {
     expect(result.current.gated?.findings.map((f) => f.rule)).toEqual(["terms.vocabulary"]);
     expect(result.current.stale).toBeNull();
     expect(onApplied).not.toHaveBeenCalled();
-    expect(client.sets.at(-1)?.gate).toBeUndefined();
+    expect(client.sets[client.sets.length - 1]?.gate).toBeUndefined();
 
     await act(async () => {
       await result.current.override();
@@ -68,7 +68,7 @@ describe("save anyway", () => {
     expect(result.current.gated).toBeNull();
     expect(result.current.error).toBeNull();
     expect(onApplied).toHaveBeenCalledTimes(1);
-    const sent = client.sets.at(-1);
+    const sent = client.sets[client.sets.length - 1];
     expect(sent?.gate).toBe("report");
     expect(sent?.note).toBe("Say utilize");
     expect(sent?.ops).toEqual(ops);

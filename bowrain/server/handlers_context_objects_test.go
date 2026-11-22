@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -64,7 +64,7 @@ func contextObjectSQLiteServer(t *testing.T, cs *sqlitestore.SQLiteStore, member
 	e := echo.New()
 	e.Use(middleware.BodyLimit(requestBodyLimit))
 	g := e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("user_id", member)
 			c.Set("project_permissions", perms)
 			return next(c)
@@ -118,7 +118,7 @@ func TestContextObjectRoutes_PushedByAndPermissions_SQLite(t *testing.T) {
 	require.NoError(t, writer.Put(ctx, workspace.Object{Name: name, Data: workspacetest.Segment("prj", "000000000000000000000001", "one")}))
 	obj, err := cs.GetContextObject(ctx, pid, name)
 	require.NoError(t, err)
-	assert.Equal(t, "member-a", obj.PushedBy)
+	assert.Equal(t, platstore.Member("member-a"), obj.PushedBy)
 
 	readerURL := contextObjectSQLiteServer(t, cs, "viewer", platauth.PermViewContent)
 	reader := contextRemote(t, readerURL, "ws", pid, "unused")
@@ -223,7 +223,7 @@ func TestContextObjectRoutes_RemoteConformance_Postgres(t *testing.T) {
 		require.True(t, ok)
 		obj, err := cos.GetContextObject(ctx, pid, name)
 		require.NoError(t, err)
-		assert.Equal(t, "test-user", obj.PushedBy)
+		assert.Equal(t, platstore.Member("test-user"), obj.PushedBy)
 
 		viewer := &platauth.User{ID: "viewer-user", Email: "viewer@example.com", Name: "Viewer"}
 		require.NoError(t, srv.AuthStore.CreateUser(ctx, viewer))

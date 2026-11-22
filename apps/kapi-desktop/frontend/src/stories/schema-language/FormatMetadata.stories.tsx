@@ -65,7 +65,7 @@ export const FormatIdentification: Story = {
         mimeTypes: ["application/json"],
       },
       properties: {
-        extractAllPairs: { type: "boolean", title: "Extract All Pairs", default: true },
+        extract_all_pairs: { type: "boolean", title: "Extract All Pairs", default: true },
       },
     },
   },
@@ -115,7 +115,7 @@ export const RefResolution: Story = {
         },
       },
       properties: {
-        extractionRules: { title: "Extraction Rules", $ref: "#/$defs/ruleEntry" },
+        extraction_rules: { title: "Extraction Rules", $ref: "#/$defs/ruleEntry" },
         protectionRules: { title: "Protection Rules", $ref: "#/$defs/ruleEntry" },
       },
     } as unknown as ComponentSchema,

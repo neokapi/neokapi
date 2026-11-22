@@ -12,10 +12,10 @@ When a [reader](/framework/formats) lifts an inline element out of the text into
 [span](/framework/inline-formatting), it assigns that span a semantic type from a
 vocabulary: `fmt:bold`, `link:hyperlink`, `code:variable`, and so on. The
 vocabulary entry says what the type means, how it should be rendered and labeled,
-and what a translator is allowed to do with it. This is the layer that makes
-inline handling format-independent: `<b>` (HTML), `**` (Markdown), and `<w:b/>`
-(DOCX) all resolve to the same `fmt:bold` type, so everything downstream treats
-them identically. (See [Concepts](/framework/concepts) for **Run**, **span**,
+and what a translator is allowed to do with it. Through the vocabulary, `<b>`
+(HTML), `**` (Markdown) and `<w:b/>` (DOCX) all resolve to the same `fmt:bold`
+type, and every tool downstream treats them identically. (See
+[Concepts](/framework/concepts) for **Run**, **span**,
 and **semantic type** in one place.)
 
 ## What a semantic type carries
@@ -32,8 +32,7 @@ Each type maps a span to a consistent set of metadata:
 | **Constraints**     | Editing rules       | Deletable, cloneable, reorderable   |
 | **Text equivalent** | Plain text fallback | `\n` for line breaks                |
 
-The **constraints** are the part that matters most for correctness. They encode
-what a translator may do with a code:
+The **constraints** encode what a translator may do with a code:
 
 - **Deletable**: may the code be removed? Formatting like bold is deletable;
   required elements like line breaks, variables, and placeholders are not.
@@ -59,14 +58,13 @@ reader maps its native constructs to these shared types; an application can laye
 a domain-specific vocabulary on top when it needs types the built-ins do not
 cover.
 
-## Why this enables format-independent reuse
+## Reuse across formats
 
 Because every format reduces inline codes to the same semantic types, content
 becomes comparable across formats. The same vocabulary that drives editor
 rendering also feeds [content-memory](/framework/content-memory)
 matching: an entry created from an HTML source can match a Markdown source
-because both reduce to the same structural projection. One classification serves
-preview, validation, and reuse.
+because both reduce to the same structural projection.
 
 ## Related reading
 

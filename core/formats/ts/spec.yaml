@@ -7,7 +7,7 @@
 #
 # Authoring notes:
 #   - Config keys mirror Okapi's TsFilter Parameters (decodeByteValues,
-#     escapeGT) plus the bridge composite schema's grouped inlineCodes
+#     escape_gt) plus the bridge composite schema's grouped inlineCodes
 #     leaves. okapi_param records the upstream Java field name.
 #   - The native Config struct currently exposes no knobs — its
 #     ApplyMap rejects every key. The keys below are documented for
@@ -45,7 +45,7 @@ config:
       always treats `<byte>` as an inline code today.
     okapi_param: decodeByteValues
 
-  - key: escapeGT
+  - key: escape_gt
     type: boolean
     default: false
     description: |
@@ -60,7 +60,7 @@ config:
       bridge composite schema exposes under `inlineCodes` ($defs).
       The grouped `enabled` / `rules` / `mergeAdjacent` /
       `moveBoundaryCodes` leaves expose Okapi's useCodeFinder /
-      codeFinderRules / mergeAdjacentCodes /
+      code_finder_rules / mergeAdjacentCodes /
       moveLeadingAndTrailingCodesToSkeleton parameters. The native
       reader does not yet honor any of them; documented here so
       drift detection sees the grouping the bridge advertises.

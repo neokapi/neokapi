@@ -29,19 +29,25 @@ var ErrNoContextKey = errors.New("the project's context has no project key yet: 
 // ContextLedger returns the context ledger of a project, read from its
 // context objects and written as member. Every operation the ledger records
 // carries the member as its actor, a person under the member's display name,
-// whatever actor the caller filled in. A governing operation (a keep, a drop,
-// an edit) is refused with ErrOutsideReach unless the member holds
-// PermManageTerms at every point it governs.
+// whatever actor the caller filled in; a member acting through a tool token
+// is the tool, on behalf of the member, and the policy then refuses it every
+// governing operation. A governing operation (a keep, a drop, an edit) is
+// refused with ErrOutsideReach unless the member holds PermManageTerms at
+// every point it governs.
 func (s *Server) ContextLedger(ctx context.Context, projectID string, member LedgerMember) (*contextop.Ledger, error) {
 	objects, ok := s.contextObjects()
 	if !ok {
 		return nil, errors.New("context objects not configured")
 	}
+	actor := contextop.Actor{Kind: contextop.ActorPerson, Name: s.displayName(ctx, member.UserID)}
+	if member.Tool != "" {
+		actor = contextop.Actor{Kind: contextop.ActorTool, Name: member.Tool, OnBehalfOf: actor.Name}
+	}
 	log := &contextLog{
 		objects: objects,
 		cache:   s.contextLogs.project(projectID),
 		project: projectID,
-		actor:   contextop.Actor{Kind: contextop.ActorPerson, Name: s.displayName(ctx, member.UserID)},
+		actor:   actor,
 		member:  member,
 		nameOf:  s.displayName,
 	}
@@ -97,8 +103,10 @@ var _ contextop.Log = (*contextLog)(nil)
 //
 // A context operation whose actor is a person with no name, as the command
 // line records one and a sync pushes it, is returned under the name of the
-// member who pushed its segment. The log itself holds the operation as it was
-// pushed, so a later push of the same operation still matches it.
+// member who pushed its segment. Every context operation of a segment a tool
+// pushed is returned as the tool's, on behalf of the member who issued its
+// token, whatever actor the client wrote. The log itself holds the operation
+// as it was pushed, so a later push of the same operation still matches it.
 func (l *contextLog) Select(ctx context.Context, q workspace.OpQuery) ([]workspace.Op, error) {
 	_, ops, pushers, err := l.cache.readPushers(ctx, l.objects, l.project)
 	if err != nil {
@@ -107,7 +115,7 @@ func (l *contextLog) Select(ctx context.Context, q workspace.OpQuery) ([]workspa
 	names := map[string]string{}
 	nameOf := func(userID string) string {
 		name, ok := names[userID]
-		if !ok {
+		if !ok && l.nameOf != nil {
 			name = l.nameOf(ctx, userID)
 			names[userID] = name
 		}
@@ -121,8 +129,13 @@ func (l *contextLog) Select(ctx context.Context, q workspace.OpQuery) ([]workspa
 			(q.Subject != "" && op.Subject != q.Subject) {
 			continue
 		}
-		if pusher := pushers[op.ID]; pusher != "" && l.nameOf != nil && strings.HasPrefix(op.Kind, contextop.OpKindPrefix) {
-			op.Payload = nameUnnamedPerson(op.Payload, func() string { return nameOf(pusher) })
+		if pusher := pushers[op.ID]; pusher.UserID != "" && strings.HasPrefix(op.Kind, contextop.OpKindPrefix) {
+			switch {
+			case pusher.Tool != "":
+				op.Payload = actAsTool(op.Payload, pusher.Tool, func() string { return nameOf(pusher.UserID) })
+			case l.nameOf != nil:
+				op.Payload = nameUnnamedPerson(op.Payload, func() string { return nameOf(pusher.UserID) })
+			}
 		}
 		out = append(out, op)
 		if q.Limit > 0 && len(out) == q.Limit {
@@ -213,7 +226,7 @@ func (l *contextLog) Record(ctx context.Context, ops ...workspace.Op) ([]workspa
 		return nil, err
 	}
 	name := workspace.SegmentName(contextLedgerWriter, fresh[0].ID)
-	if err := l.objects.PutContextObjects(ctx, l.project, l.member.UserID, []platstore.ContextObject{{Name: name, Data: data}}); err != nil {
+	if err := l.objects.PutContextObjects(ctx, l.project, l.member.pusher(), []platstore.ContextObject{{Name: name, Data: data}}); err != nil {
 		return nil, fmt.Errorf("record context operations: %w", err)
 	}
 	return out, nil
@@ -273,6 +286,26 @@ func nameUnnamedPerson(payload []byte, name func() string) []byte {
 	return out
 }
 
+// actAsTool returns a context operation's payload with the tool as its
+// actor, on behalf of the member issuer names, whatever actor the payload
+// named. A payload that does not read as a JSON object is returned as it is.
+func actAsTool(payload []byte, tool string, issuer func() string) []byte {
+	body := map[string]json.RawMessage{}
+	if len(payload) == 0 || json.Unmarshal(payload, &body) != nil {
+		return payload
+	}
+	stamped, err := json.Marshal(contextop.Actor{Kind: contextop.ActorTool, Name: tool, OnBehalfOf: issuer()})
+	if err != nil {
+		return payload
+	}
+	body["actor"] = stamped
+	out, err := json.Marshal(body)
+	if err != nil {
+		return payload
+	}
+	return out
+}
+
 // contextLogCache holds each project's decoded log between requests. The
 // zero value is ready to use.
 type contextLogCache struct {
@@ -307,14 +340,14 @@ type projectContextLog struct {
 	ops      []workspace.Op
 	// pushers names the member who pushed the segment each operation was
 	// read from, by operation id.
-	pushers map[string]string
+	pushers map[string]platstore.Pusher
 }
 
 // readSegment is one segment as it was decoded, and the member who pushed it.
 type readSegment struct {
 	digest   string
 	ops      []workspace.Op
-	pushedBy string
+	pushedBy platstore.Pusher
 }
 
 // read returns the project's key and its log, merged in id order and numbered
@@ -326,7 +359,7 @@ func (p *projectContextLog) read(ctx context.Context, objects platstore.ContextO
 
 // readPushers is read, with the member who pushed the segment each operation
 // was read from, by operation id. The map is shared and read-only.
-func (p *projectContextLog) readPushers(ctx context.Context, objects platstore.ContextObjectStore, projectID string) (workspace.ProjectKey, []workspace.Op, map[string]string, error) {
+func (p *projectContextLog) readPushers(ctx context.Context, objects platstore.ContextObjectStore, projectID string) (workspace.ProjectKey, []workspace.Op, map[string]platstore.Pusher, error) {
 	raw, err := objects.ContextKey(ctx, projectID)
 	if err != nil {
 		return "", nil, nil, err
@@ -372,17 +405,17 @@ func (p *projectContextLog) readPushers(ctx context.Context, objects platstore.C
 // segmentPushers names the member who pushed each operation's segment, by
 // operation id. Where two segments hold one id, the first in name order
 // names it, as mergeSegments keeps that segment's operation.
-func segmentPushers(segments map[string]readSegment) map[string]string {
+func segmentPushers(segments map[string]readSegment) map[string]platstore.Pusher {
 	names := make([]string, 0, len(segments))
 	for name := range segments {
 		names = append(names, name)
 	}
 	slices.Sort(names)
-	out := map[string]string{}
+	out := map[string]platstore.Pusher{}
 	for _, name := range names {
 		seg := segments[name]
 		for _, op := range seg.ops {
-			if _, ok := out[op.ID]; !ok && seg.pushedBy != "" {
+			if _, ok := out[op.ID]; !ok && seg.pushedBy.UserID != "" {
 				out[op.ID] = seg.pushedBy
 			}
 		}

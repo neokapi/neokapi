@@ -30,7 +30,7 @@ import (
 // NewTool builds the framework recycle tool backed by a content memory, with
 // the canonical fill defaults (fill near-exact matches at or above the fill
 // threshold as reviewable drafts; record the rest as alt-translation
-// candidates). fuzzyThreshold is the 0-100 lookup floor; a non-positive value
+// candidates). fuzzy_threshold is the 0-100 lookup floor; a non-positive value
 // keeps the tool's default. This is the one constructor both the kapi CLI and
 // the bowrain platform build recycle from, so a recycled target is stamped the
 // same way everywhere. termRules are the term rules governing the blocks the

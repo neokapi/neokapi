@@ -55,6 +55,16 @@ type ContextScanRequest struct {
 	UploadKeys  []string `json:"upload_keys,omitempty"` // blob keys from the uploads endpoint
 	ProfileName string   `json:"profile_name,omitempty"`
 	Domain      string   `json:"domain,omitempty"`
+	// Project is the id of a project of the workspace to read. The scan
+	// samples every collection of it, extracts candidate terms in its source
+	// language and files them as proposed concepts of the project.
+	Project string `json:"project,omitempty"`
+	// TermProposals, set, makes the job propose target-language terms for
+	// the concepts of Project instead of scanning it (executeTermProposals).
+	TermProposals *TermProposalRequest `json:"term_proposals,omitempty"`
+	// TermForms, set, makes the job propose the surface forms of kept
+	// target terms of Project instead of scanning it (executeTermForms).
+	TermForms *TermFormsRequest `json:"term_forms,omitempty"`
 }
 
 // HasSource reports whether the request names at least one scan source.
@@ -63,6 +73,7 @@ func (r *ContextScanRequest) HasSource() bool {
 		return false
 	}
 	return strings.TrimSpace(r.PasteText) != "" ||
+		strings.TrimSpace(r.Project) != "" ||
 		len(r.URLs) > 0 ||
 		strings.TrimSpace(r.RepoURL) != "" ||
 		len(r.UploadKeys) > 0
@@ -101,6 +112,9 @@ type ArtefactProposal struct {
 
 	// terms
 	Terms []tools.TermEntry `json:"terms,omitempty"`
+	// Reach is each term's use over the whole project, for a scan that read
+	// one. Its terms are filed as proposed concepts of the project.
+	Reach []CandidateReach `json:"reach,omitempty"`
 }
 
 // ContextScanResult is the result payload persisted on a completed scan: what
@@ -117,6 +131,10 @@ type ContextScanResult struct {
 	Artefacts []ArtefactProposal   `json:"artefacts"`
 	Sources   []ContextScanSource  `json:"sources"`
 	Truncated bool                 `json:"truncated"`
+	// TermProposals is what a term-proposal job did, for a job that was one.
+	TermProposals *TermProposalSummary `json:"term_proposals,omitempty"`
+	// TermForms is what a term-forms job did, for a job that was one.
+	TermForms *TermFormsSummary `json:"term_forms,omitempty"`
 }
 
 // Voice returns the first proposed voice profile and its evidence — what a

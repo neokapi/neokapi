@@ -11,7 +11,7 @@
       "description": "The grammar to parse with, by name (for example \"ruby\"). Empty picks the grammar from the file's extension, which is the usual case; set it when the file reaches the reader without a name or the extension is ambiguous.",
       "default": ""
     },
-    "nodePathPatterns": {
+    "node_path_patterns": {
       "type": "array",
       "items": {
         "type": "string"

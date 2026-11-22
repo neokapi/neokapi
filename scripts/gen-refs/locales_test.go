@@ -380,14 +380,14 @@ func TestLocalizeSchema_Format(t *testing.T) {
 				PropertySchema: coreschema.PropertySchema{Type: "object", Title: "Parser"},
 				FlattenPath:    "parser",
 				Properties: map[string]fschema.PropertySchema{
-					"preserveWhitespace": {PropertySchema: coreschema.PropertySchema{Type: "boolean", Title: "Keep whitespace"}},
+					"preserve_whitespace": {PropertySchema: coreschema.PropertySchema{Type: "boolean", Title: "Keep whitespace"}},
 				},
 			},
 		},
 	})
 	require.NoError(t, err)
 	cat := map[string]any{"formats": map[string]any{"markdown": map[string]any{
-		"properties": map[string]any{"parser": map[string]any{"title": "Ṕàŕšéŕ", "properties": map[string]any{"preserveWhitespace": map[string]any{"title": "Ķééþ"}}}},
+		"properties": map[string]any{"parser": map[string]any{"title": "Ṕàŕšéŕ", "properties": map[string]any{"preserve_whitespace": map[string]any{"title": "Ķééþ"}}}},
 	}}}
 	var cov localeCoverage
 	out, err := localizeSchema(format, KindFormat, "markdown", cat, "qps", &cov)
@@ -395,7 +395,7 @@ func TestLocalizeSchema_Format(t *testing.T) {
 	var got fschema.FormatSchema
 	require.NoError(t, json.Unmarshal(out, &got))
 	assert.Equal(t, "Ṕàŕšéŕ", got.Properties["parser"].Title)
-	assert.Equal(t, "Ķééþ", got.Properties["parser"].Properties["preserveWhitespace"].Title)
+	assert.Equal(t, "Ķééþ", got.Properties["parser"].Properties["preserve_whitespace"].Title)
 	assert.Equal(t, "Markdown", got.Title, "the format's own title stays: it is the name")
 	assert.Equal(t, ".md", got.FormatMeta.Extensions[0], "data fields pass through")
 	assert.Equal(t, "parser", got.Properties["parser"].FlattenPath, "format-level fields survive the crossing")

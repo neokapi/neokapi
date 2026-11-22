@@ -9,6 +9,7 @@ import {
   Markdown,
   ScrollArea,
   SimpleTooltip,
+  ToolCommandCopy,
 } from "@neokapi/ui-primitives";
 import { IoContract } from "./nodes/PortChip";
 import { getCategoryStyle } from "./category";
@@ -118,6 +119,7 @@ export function StepConfigPanel({
             </div>
             <div className="text-sm font-semibold text-foreground">{displayName}</div>
           </div>
+          <ToolCommandCopy tool={step.tool} className="self-start" />
           <Button
             variant="ghost"
             size="icon-xs"
@@ -221,7 +223,7 @@ export function StepConfigPanel({
               onClick={() => setShowDocs((v) => !v)}
               className={cn("ml-auto text-[9px] h-5 px-2", showDocs && "border-ring text-ring")}
             >
-              {showDocs ? t("Hide Docs") : t("Docs")}
+              {showDocs ? t("Hide docs") : t("Docs")}
             </Button>
           )}
           {doc?.wikiUrl && (
@@ -350,9 +352,7 @@ export function StepConfigPanel({
             />
           ) : (
             <div className="text-[11px] text-muted-foreground text-center py-5 italic">
-              {toolInfo?.has_schema
-                ? t("Loading configuration...")
-                : t("No configurable parameters")}
+              {toolInfo?.has_schema ? t("Loading configuration…") : t("No configurable parameters")}
             </div>
           )}
         </div>

@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
   PageHeader,
   cn,
+  PageContainer,
 } from "@neokapi/ui-primitives";
 import { useCallback, useState } from "react";
 import type { DragEvent } from "react";
@@ -548,7 +549,7 @@ export function ProjectDashboard({
   const isEmpty = projects.length === 0;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-2 py-8 md:py-10">
+    <PageContainer width="wide">
       {isEmpty ? (
         <OnboardingView
           workspaceName={workspaceName}
@@ -660,6 +661,6 @@ export function ProjectDashboard({
           }}
         />
       )}
-    </div>
+    </PageContainer>
   );
 }

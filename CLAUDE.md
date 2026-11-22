@@ -26,7 +26,7 @@ one-way and enforced; violating one breaks `make audit-modules`.
 | Kapi — the `kapi` binary | `kapi/` | framework, host, cli |
 | Kapi Desktop — Wails v3 app | `apps/kapi-desktop/` | framework, host |
 | Bowrain Core | `bowrain/core/` | framework |
-| Bowrain Plugin — `kapi-bowrain` binary | `bowrain/plugin/` | framework, host, cli, bowrain/core |
+| Bowrain Plugin — `kapi-bowrain` binary | `bowrain/plugin/` | framework, host, cli |
 | Bowrain — server/web/connectors | `bowrain/` | framework, host, bowrain/core |
 | SaT segmenter plugin | `plugins/sat/` | framework |
 
@@ -39,7 +39,7 @@ Non-obvious constraints:
   (context + `*pflag.FlagSet` + IO), which `*cobra.Command` satisfies natively;
   embedded runs use `host.EnvCommand`.
 - **kapi-desktop links neither cobra nor the cli module** — asserted by
-  `make audit-modules` via `go list -deps ./backend/...`.
+  `make audit-modules` via `go list -deps ./...`.
 - **License boundary.** Framework, host, cli, kapi and kapi-desktop are
   Apache-2.0; `bowrain/` is AGPL-3.0, **except `bowrain/plugin/`, which is
   Apache-2.0** — the `kapi-bowrain` binary is a client of the server, not a part
@@ -114,6 +114,41 @@ redirect to a file and read `$?` before filtering:
 set -o pipefail; golangci-lint run ./core/... | tail -20   # exits non-zero
 golangci-lint run ./core/... > /tmp/lint.out 2>&1; echo $?  # or capture first
 ```
+
+## Verify before you commit
+
+Most changes here are written and merged by an agent, so a change counts as
+done when it has been run, not when its tests pass.
+
+- **Run the `verify` skill before every commit of product code**
+  (`.claude/skills/verify/`). It finds the surfaces the diff touches, runs the
+  real binary, server or app for each, and says what to record. Its recipes
+  hold the launch commands, so do not rediscover them.
+- **`make reliability-checklist`** prints the checks from past incidents whose
+  trigger matches your diff (`docs/internals/reliability-checklist.yaml`).
+  When a failure happens twice, or costs a day, it becomes an item there.
+- **Pull request CI does not run everything.** The integration lane, the Docker
+  E2E stack, the race detector (unless the pull request carries the `race`
+  label) and the release workflows run later or on request. The verify recipes
+  say when to run them yourself.
+- **Merge with `gh pr merge <n> --auto --squash`.** The main branch requires
+  the `CI passed` check, which answers for every job and workflow on the
+  commit, so a queued pull request merges when all of it is green. Never pass
+  `--admin`.
+- **Three rounds, then stop.** When a check still fails after three attempts
+  to fix it, bring in the person with what fails and what you tried.
+- **Never weaken a check to pass it**: no skipped or deleted test, no sleep or
+  retry, no loosened assertion, no new allowlist entry. A flaky test has a
+  cause; find it.
+- **A change to a check needs the person.** A diff that edits a guard, an
+  allowlist, a workflow, `REVIEW.md` or the checklist says so at the top of its
+  description and waits for the person before it merges.
+- **End the commit message with a `Verified:` trailer** naming the recipes you
+  ran, or `Verified: none (<reason>)`. A hook records commits without one
+  (`.claude/hooks/commit-gate.sh`, observe mode).
+
+`REVIEW.md` tells a reviewer where defects have come from in this repository.
+Read it before reviewing a pull request, your own included.
 
 ## Dogfooding kapi: the in-repo isolation contract
 
@@ -511,6 +546,7 @@ Some folders have rules of their own, in the AGENTS.md and CLAUDE.md there. Read
 - bowrain/apps/pulse/i18n/: a voice of its own.
 - bowrain/emails/i18n/: a voice of its own.
 - bowrain/mailer/subjects/: a voice of its own.
+- bowrain/mobile/i18n/: a voice of its own.
 - bowrain/packages/app/i18n/: a voice of its own.
 - bowrain/web/docs/: a voice of its own.
 - bowrain/web/landing/i18n/: a voice of its own.

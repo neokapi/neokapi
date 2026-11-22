@@ -1,6 +1,10 @@
 package po
 
-import "github.com/neokapi/neokapi/core/config"
+import (
+	"github.com/neokapi/neokapi/core/config"
+
+	coreschema "github.com/neokapi/neokapi/core/schema"
+)
 
 // okapiPOTransformer converts okf_po filter config specs to native PO format config.
 // The PO filter has few config parameters, so most Okapi-only params are dropped.
@@ -20,7 +24,7 @@ func (okapiPOTransformer) Transform(spec map[string]any) (map[string]any, error)
 
 		// Shared params — keep as-is
 		default:
-			result[key] = val
+			result[coreschema.SnakeCase(key)] = val
 		}
 	}
 

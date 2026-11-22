@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/change"
@@ -24,15 +24,16 @@ import (
 //   - establish moves the translation to established, under the workspace's
 //     separation-of-duties policy. A change set that also writes the
 //     translation it establishes is judged as the sender's own work.
+//     Refusing that approval keeps the correction.
 //   - reject moves it to draft, so it re-enters the work queue; withdraw moves
 //     it to translated. Moving an established translation takes the review
 //     permission for its language.
-//   - advise records a pre-review: the score and reasons an agent gives the
+//   - prereview records a pre-review: the score and reasons an agent gives the
 //     translation, which the review queue shows beside it while it stands at
 //     the revision judged (prereviews.go). It moves no status.
 type streamDecisions struct {
 	s      *Server
-	c      echo.Context
+	c      *echo.Context
 	proj   *store.Project
 	stream string
 	rows   *rowLookup
@@ -54,7 +55,14 @@ type streamDecisions struct {
 	approved map[model.LocaleID]bool
 	// applied counts the decisions that moved a translation.
 	applied int
+	// heldForSecondReviewer are the approvals of the sender's own
+	// correction that the separation-of-duties policy refuses, keyed by
+	// block id and locale. The correction lands, and Apply refuses the
+	// decision.
+	heldForSecondReviewer map[string]error
 }
+
+func heldKey(blockID, locale string) string { return blockID + "\x00" + locale }
 
 var _ change.Assets = (*streamDecisions)(nil)
 
@@ -73,7 +81,7 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 	case target.Ref.Edition.Tone != "" || target.Ref.Edition.Channel != "":
 		return &change.Error{Code: change.CodeUnsupported, Capability: "decide",
 			Message: "a stream records review decisions on a language's translation, not on a tone or channel edition"}
-	case body.Outcome == change.OutcomeAdvise:
+	case body.Outcome == change.OutcomePrereview:
 		return d.prepareAdvice(ctx, body, target)
 	case d.c == nil:
 		return &change.Error{Code: change.CodeUnsupported, Capability: "decide",
@@ -115,6 +123,13 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 			sod.wrote(row.Block.ID, locale)
 		}
 		if err := sod.vet(row.Block.ID, locale); err != nil {
+			if fault, ok := errors.AsType[reviewFault](err); ok && edited && fault.msg == sodRefusal {
+				if d.heldForSecondReviewer == nil {
+					d.heldForSecondReviewer = map[string]error{}
+				}
+				d.heldForSecondReviewer[heldKey(row.Block.ID, locale)] = err
+				return nil
+			}
 			return decisionRefusal(err)
 		}
 	default:
@@ -128,7 +143,7 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 
 func (d *streamDecisions) Apply(ctx context.Context, actor change.Actor, set *change.Set, op change.Op, target *change.DecisionTarget) (change.OpStatus, *change.Error) {
 	body := op.Body.(*change.Decide)
-	if body.Outcome == change.OutcomeAdvise {
+	if body.Outcome == change.OutcomePrereview {
 		return d.recordAdvice(ctx, actor, body, target)
 	}
 	row := d.rows.find(ctx, target.Doc.Doc, target.Ref.Block)
@@ -137,6 +152,11 @@ func (d *streamDecisions) Apply(ctx context.Context, actor change.Actor, set *ch
 			Message: fmt.Sprintf("%s holds no block keyed %q", target.Doc.Doc, target.Ref.Block)}
 	}
 	locale := string(target.Ref.Edition.Locale)
+	if err, held := d.heldForSecondReviewer[heldKey(row.Block.ID, locale)]; held && body.Outcome == change.OutcomeEstablish {
+		e := decisionRefusal(err)
+		e.Message = sodRefusal + "; your correction is saved and waits for another reviewer to approve it"
+		return "", e
+	}
 	req := ReviewBlockRequest{TargetLocale: locale, ItemName: target.Doc.Doc, BaseRevision: target.Rev}
 	demoteTo := model.TargetStatusTranslated
 	switch body.Outcome {

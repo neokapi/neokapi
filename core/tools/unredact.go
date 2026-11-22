@@ -15,7 +15,7 @@ type UnredactConfig struct {
 	// VaultPath, when set, reads originals from a sidecar
 	// [redaction.FileVault] (external mode). Otherwise unredact restores
 	// from the in-process SecretAnnotation left by redact.
-	VaultPath string `json:"vaultPath,omitempty" schema:"-"`
+	VaultPath string `json:"vault_path,omitempty" schema:"-"`
 
 	// Document names the document the blocks sit in, as redact recorded it
 	// in the sidecar vault (RedactConfig.Document).

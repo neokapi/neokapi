@@ -38,8 +38,8 @@ export interface ChangeSet {
    */
   gate?: ChangeGate;
   /**
-   * refuse a derived-edition write whose authoritative edition moved since it
-   * was read
+   * refuse a derived-edition write, or a decision, whose authoritative edition
+   * moved since it was read
    */
   require_basis?: boolean;
   /** one line a person reads in history and review */
@@ -332,7 +332,7 @@ export interface NativeOp {
 
 /**
  * Record a review decision on the edition revision read. An agent sends only
- * advise.
+ * prereview.
  */
 export interface DecideOp {
   op: "decide";
@@ -344,7 +344,14 @@ export interface DecideOp {
    * @pattern ^(absent|\*|r:[0-9a-f]{16})$
    */
   if_match: string;
-  /** establish, reject, withdraw, or advise (an agent's pre-review) */
+  /**
+   * the revision of the authoritative edition you read beside the edition you
+   * decide on; under require_basis a decision is refused when it moved
+   *
+   * @pattern ^r:[0-9a-f]{16}$
+   */
+  basis?: string;
+  /** establish, reject, withdraw, or prereview (an agent's pre-review) */
   outcome: DecideOutcome;
   /**
    * a score from 0 to 100
@@ -620,7 +627,7 @@ export interface BlockRef {
  *
  * Mirrors core/change.Outcome.
  */
-export type DecideOutcome = "establish" | "reject" | "withdraw" | "advise";
+export type DecideOutcome = "establish" | "reject" | "withdraw" | "prereview";
 
 /** upsert or delete */
 export type TermAction = "upsert" | "delete";
@@ -756,7 +763,7 @@ export type PluralForm = "zero" | "one" | "two" | "few" | "many" | "other" | `=$
  * - `delete_block`: Remove a block from a document.
  * - `native`: A format-specific operation, guarded by the document digest.
  * - `decide`: Record a review decision on the edition revision read. An agent
- *   sends only advise.
+ *   sends only prereview.
  * - `term`: Write or delete a term in the terms store.
  * - `memory`: Add or delete a content-memory pair.
  * - `recipe`: Set one recipe field through its allowlist.

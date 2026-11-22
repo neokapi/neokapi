@@ -60,15 +60,15 @@ func unitProject(t *testing.T) (a *App, recipe, root, srcFile string) {
 			Voice:           &project.VoiceBinding{Profile: "house"},
 			Tools: map[string]map[string]any{
 				"translate": {
-					"dnt":           []any{"Bowrain", "kapi"},
-					"context":       "neighbours",
-					"contextWindow": 3,
-					"reuse":         "prior",
+					"dnt":            []any{"Bowrain", "kapi"},
+					"context":        "neighbours",
+					"context_window": 3,
+					"reuse":          "prior",
 				},
 			},
 			Locales: map[string]project.LocaleDefaults{
 				"nb": {Tools: map[string]map[string]any{
-					"translate": {"contextWindow": 5},
+					"translate": {"context_window": 5},
 				}},
 			},
 		},
@@ -183,7 +183,7 @@ var contextBearing = []string{
 	"reuse",
 	"dnt",
 	"context",
-	"contextWindow",
+	"context_window",
 }
 
 // TestToolConfigForUnit_MatchesTheFlowRunner is the assertion the split exists
@@ -215,7 +215,7 @@ func TestToolConfigForUnit_MatchesTheFlowRunner(t *testing.T) {
 		{
 			name: "with the review action's own keys on top",
 			unit: UnitRef{Path: srcFile, TargetLang: "nb"},
-			base: map[string]any{"instruction": "make it informal", "batchSize": 1},
+			base: map[string]any{"instruction": "make it informal", "batch_size": 1},
 		},
 	}
 
@@ -254,7 +254,7 @@ func TestToolConfigForUnit_CarriesTheGovernance(t *testing.T) {
 
 	cfg, release, cerr := a.ToolConfigForUnit(t.Context(), proj, recipe, "translate",
 		UnitRef{Path: srcFile, TargetLang: "nb"},
-		map[string]any{"instruction": "make it informal", "batchSize": 1})
+		map[string]any{"instruction": "make it informal", "batch_size": 1})
 	require.NoError(t, cerr)
 	defer release()
 
@@ -269,7 +269,7 @@ func TestToolConfigForUnit_CarriesTheGovernance(t *testing.T) {
 
 	assert.Equal(t, []any{"Bowrain", "kapi"}, cfg["dnt"], "the recipe's do-not-translate list")
 	assert.Equal(t, "neighbours", cfg["context"])
-	assert.Equal(t, 5, cfg["contextWindow"], "the nb preset wins over the project one")
+	assert.Equal(t, 5, cfg["context_window"], "the nb preset wins over the project one")
 	assert.Equal(t, "prior", cfg["reuse"])
 	assert.NotNil(t, cfg[corememory.ConfigKey], "a corpus the tool can read a prior version from")
 	assert.Equal(t, "en", cfg[corememory.SourceLocaleKey])
@@ -277,7 +277,7 @@ func TestToolConfigForUnit_CarriesTheGovernance(t *testing.T) {
 	// The action's own keys are layered on top rather than replaced by the
 	// assembly.
 	assert.Equal(t, "make it informal", cfg["instruction"])
-	assert.Equal(t, 1, cfg["batchSize"])
+	assert.Equal(t, 1, cfg["batch_size"])
 }
 
 // TestToolConfigForUnit_GovernsTheJudge: the AI pre-review judge scores against
@@ -289,7 +289,7 @@ func TestToolConfigForUnit_GovernsTheJudge(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg, release, cerr := a.ToolConfigForUnit(t.Context(), proj, recipe, "review",
-		UnitRef{Path: srcFile, TargetLang: "nb"}, map[string]any{"sourceLocale": "en"})
+		UnitRef{Path: srcFile, TargetLang: "nb"}, map[string]any{"source_locale": "en"})
 	require.NoError(t, cerr)
 	defer release()
 
@@ -342,14 +342,14 @@ func TestToolConfigForUnit_NoProjectIsNotAnError(t *testing.T) {
 	// dogfood recipe and the assembly binds to it.
 	t.Setenv("KAPI_NO_PROJECT", "1")
 	a := &App{ToolReg: builtinToolReg()}
-	base := map[string]any{"sourceLocale": "en"}
+	base := map[string]any{"source_locale": "en"}
 
 	cfg, release, err := a.ToolConfigForUnit(t.Context(), nil, "", "translate",
 		UnitRef{Path: "docs/guide.md", TargetLang: "nb"}, base)
 	require.NoError(t, err)
 	defer release()
 
-	assert.Equal(t, "en", cfg["sourceLocale"])
+	assert.Equal(t, "en", cfg["source_locale"])
 	assert.NotContains(t, cfg, "profile")
 	assert.NotSame(t, &base, &cfg, "the caller's map is not the one that comes back")
 }

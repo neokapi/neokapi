@@ -1,7 +1,7 @@
 // Package flowdef carries the product's flow-definition concerns on top of
 // the framework's flow graph model (core/flow): the built-in flow catalog
 // (BuiltInFlows) and the filesystem store for user flow definitions
-// (FlowStore). The engine — graph model, executor, file runner — stays in
+// (FlowStore). The engine (graph model, executor, file runner) stays in
 // core/flow; this package is what the kapi CLI, Kapi Desktop, and the bowrain
 // platform share when they list, resolve, or persist flows.
 package flowdef
@@ -27,18 +27,15 @@ func BuiltInFlows() []flow.FlowDefinition {
 			// deterministic check pass verifies placeholders/tags before the
 			// result is written. The raw tool stays at `kapi exec translate`.
 			//
-			// skipMatched is what makes the chain mean "recycle, then translate
-			// the REMAINDER". The translate tool's own default is to translate
-			// every translatable block it is handed, which is right for `kapi
-			// exec translate` — you pointed it at the content — and wrong here:
-			// without it the AI step overwrites every unit recycle had just
-			// filled from approved wording, so a project with a full content
-			// memory paid for a model call per unit and shipped the model's
-			// answer instead of its own.
+			// skip_matched makes the chain mean "recycle, then translate the
+			// REMAINDER". The translate tool's own default is to translate every
+			// block it is handed, which suits `kapi exec translate`. Here the AI
+			// step leaves alone every unit recycle filled from approved wording,
+			// so a full content memory costs no model call.
 			Nodes: []flow.FlowNode{
 				{ID: "recycle", Type: flow.NodeTool, Name: "recycle", Label: "Memory Reuse", Position: flow.NodePosition{X: 0, Y: 100}},
 				{ID: "translate", Type: flow.NodeTool, Name: "translate", Label: "Translate", Position: flow.NodePosition{X: 250, Y: 100},
-					Config: map[string]any{"skipMatched": true}},
+					Config: map[string]any{"skip_matched": true}},
 				{ID: "qa", Type: flow.NodeTool, Name: "qa", Label: "Quality Check", Position: flow.NodePosition{X: 500, Y: 100}},
 			},
 			Edges: []flow.FlowEdge{
@@ -54,9 +51,11 @@ func BuiltInFlows() []flow.FlowDefinition {
 			Nodes: []flow.FlowNode{
 				{ID: "translate", Type: flow.NodeTool, Name: "translate", Label: "Translate", Position: flow.NodePosition{X: 0, Y: 100}},
 				// mode: ai runs the LLM judge rather than the deterministic
-				// default, with a pinned provider that --provider overrides.
+				// default. The node names no provider, so the judge uses the
+				// provider the run resolves for translate: --provider, then the
+				// recipe's presets, then the configured default.
 				{ID: "qa", Type: flow.NodeTool, Name: "qa", Label: "Quality Check", Position: flow.NodePosition{X: 250, Y: 100},
-					Config: map[string]any{registry.CheckModeField: registry.CheckModeAI, "provider": "anthropic"}},
+					Config: map[string]any{registry.CheckModeField: registry.CheckModeAI}},
 			},
 			Edges: []flow.FlowEdge{
 				{ID: "e-translate-qa", Source: "translate", Target: "qa"},
@@ -121,7 +120,7 @@ func BuiltInFlows() []flow.FlowDefinition {
 			Name:        "Secure Translate",
 			Description: "Redact sensitive content, AI-translate, then restore the originals locally",
 			Source:      registry.SourceBuiltIn,
-			// Redact precedes the remote-egress step (translate) — the order the
+			// Redact precedes the remote-egress step (translate), the order the
 			// placement pass enforces; unredact restores after translation.
 			Nodes: []flow.FlowNode{
 				{ID: "redact", Type: flow.NodeTool, Name: "redact", Label: "Redact", Position: flow.NodePosition{X: 0, Y: 100}},
@@ -140,15 +139,15 @@ func BuiltInFlows() []flow.FlowDefinition {
 			Source:      registry.SourceBuiltIn,
 			// Ordinary ordered steps (AD-006): the NER annotator runs first and its
 			// entity overlay drives redact, which produces the source rewrite. The
-			// NER step egresses source during detection — the documented AD-020
+			// NER step egresses source during detection: the documented AD-020
 			// trade-off the placement pass permits because redact consumes the
 			// entity port that step produces.
 			Nodes: []flow.FlowNode{
 				{ID: "entity-extract", Type: flow.NodeTool, Name: "entity-extract", Label: "Detect Entities (NER)", Position: flow.NodePosition{X: 0, Y: 100}},
 				{ID: "redact", Type: flow.NodeTool, Name: "redact", Label: "Redact", Position: flow.NodePosition{X: 250, Y: 100},
 					Config: map[string]any{
-						"detectors":   []string{"entities"},
-						"entityTypes": []string{"person", "org", "location", "date"},
+						"detectors":    []string{"entities"},
+						"entity_types": []string{"person", "org", "location", "date"},
 					}},
 			},
 			Edges: []flow.FlowEdge{

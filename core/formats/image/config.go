@@ -1,6 +1,10 @@
 package image
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/neokapi/neokapi/core/format"
+)
 
 // Config is the image-format configuration. An image is, first and foremost, a
 // localizable Media asset (emitted regardless of these toggles); OCR and layout
@@ -33,7 +37,7 @@ func (c *Config) ApplyMap(values map[string]any) error {
 		case "layout":
 			c.Layout = b
 		default:
-			return fmt.Errorf("image: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "image", key)
 		}
 	}
 	return nil

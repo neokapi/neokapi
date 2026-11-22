@@ -20,6 +20,7 @@ import type { Block, Run } from "./block.ts";
 import { sourceRuns } from "./editions.ts";
 import { projectRuns, projectRunsText, type ModelRunSpec } from "./run-projection.ts";
 import type { VocabularyEntry } from "./vocabulary.ts";
+import { humanCodeName } from "./code-display.ts";
 import { JSX_VOCABULARY, expandTemplate } from "./vocabulary.ts";
 
 export type VocabularyLookup = (type: string) => VocabularyEntry | undefined;
@@ -147,9 +148,9 @@ function renderEntry(
 ): string {
   const entry = vocab(type);
   if (!entry) {
-    // Fallback: show the raw data. Keeps us resilient if a new
-    // vocabulary key appears before the registry is updated.
-    return `<span class="neokapi-unknown">${escapeHtml(context.data)}</span>`;
+    // Fallback: a type the registry does not know yet shows by its name,
+    // never its native form.
+    return `<span class="neokapi-unknown">${escapeHtml(codeName(context))}</span>`;
   }
   const template =
     kind === "open"
@@ -162,7 +163,17 @@ function renderEntry(
     subType: context.subType,
     data: escapeHtml(context.data),
     equiv: escapeHtml(context.equiv),
+    name: escapeHtml(codeName(context)),
   });
+}
+
+/**
+ * What a reader sees for a code: its human name, else a neutral glyph. A
+ * template that puts a code's label in front of a reader uses {name}, never
+ * {equiv} or {data}, which can hold a synthesized identifier or native source.
+ */
+function codeName(context: { data: string; equiv: string }): string {
+  return humanCodeName(context.equiv, context.data) ?? "⟨⟩";
 }
 
 // ─── Block rendering ──────────────────────────────────────────────

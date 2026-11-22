@@ -38,13 +38,13 @@ export default function BlockResults({
   const rows: Row[] = Object.values(trace.parts)
     .filter((ss) => ss.initial.type === "Block")
     .map((ss) => {
-      const after = ss.afterNode?.[nodeId];
+      const after = ss.after_node?.[nodeId];
       return {
         id: ss.initial.id,
-        srcBefore: ss.initial.sourceText ?? "",
-        srcAfter: after ? (after.sourceText ?? "") : null,
-        tgtBefore: ss.initial.targetText ?? "",
-        tgtAfter: after?.targetText ?? "",
+        srcBefore: ss.initial.source_text ?? "",
+        srcAfter: after ? (after.source_text ?? "") : null,
+        tgtBefore: ss.initial.target_text ?? "",
+        tgtAfter: after?.target_text ?? "",
         dropped: !after,
       };
     });

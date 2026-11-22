@@ -85,8 +85,8 @@ function memoryAiSummary(run: ConvergenceRun): string | null {
   let tm = 0;
   let ai = 0;
   for (const l of locales) {
-    tm += l.viaTM ?? 0;
-    ai += l.viaAI ?? 0;
+    tm += l.via_memory ?? 0;
+    ai += l.via_ai ?? 0;
   }
   if (tm === 0 && ai === 0) return null;
   return `Memory ${tm} · AI ${ai}`;

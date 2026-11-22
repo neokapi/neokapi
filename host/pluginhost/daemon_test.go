@@ -114,9 +114,9 @@ func warmFakeDaemon(binPath string) error {
 		// StdoutPipe concurrently with Wait as unsafe (Wait closes the pipe
 		// under the reader) — the same hazard DaemonClient.close handles
 		// with drainDone. Kill unblocks the read by closing stdout.
-		readErr = errors.New("no handshake within 60s")
 		_ = cmd.Process.Kill()
-		<-read
+		// The reader ends once the pipe closes; its error, if any, is kept.
+		readErr = errors.Join(errors.New("no handshake within 60s"), <-read)
 	}
 
 	// SIGTERM lets the daemon unlink its own socket (a no-op if we killed it).

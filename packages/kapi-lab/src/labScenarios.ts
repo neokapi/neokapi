@@ -306,7 +306,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
         config: {
           // Source is immutable by default (AD-006); a script that rewrites it
           // must opt in, making the step an explicit transformer.
-          allowSourceMutation: true,
+          allow_source_mutation: true,
           code: '// process(part) runs once for every Part in the document.\n/** @param {Part} part */\nfunction process(part) {\n  if (part.type === "block") {\n    part.block.source[0].content.text =\n      part.block.source[0].content.text.toUpperCase();\n  }\n  return part;\n}\n',
         },
       },
@@ -316,7 +316,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
     walkthrough: [
       {
         prose:
-          "A script step is a tool you write yourself: open its config and the panel is a real code editor with typed completions for part / emit / skip / log, plus a library of examples to start from. This one rewrites the source, so it declares allowSourceMutation: the source is read-only for scripts unless they opt into being a transformer.",
+          "A script step is a tool you write yourself: open its config and the panel is a real code editor with typed completions for part / emit / skip / log, plus a library of examples to start from. This one rewrites the source, so it declares allow_source_mutation: the source is read-only for scripts unless they opt into being a transformer.",
         select: "tool-0",
         mode: "configure",
       },

@@ -96,7 +96,7 @@ func unmarshalRecipe(raw json.RawMessage) (*project.KapiProject, error) {
 // execClassTools are the built-in tool IDs that run code the recipe names
 // rather than transforming content: `external-command` spawns a subprocess from
 // its own config, and `script` evaluates recipe-supplied JavaScript (and reads
-// an arbitrary file via scriptFile). A recipe that rides in a .kpz has crossed a
+// an arbitrary file via script_file). A recipe that rides in a .kpz has crossed a
 // trust boundary, so neither may survive into a project that adopts it.
 var execClassTools = map[string]bool{
 	"external-command": true,

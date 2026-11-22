@@ -1,0 +1,19 @@
+[
+  { "locale": "fr", "text": "fr" },
+  { "locale": "nb", "tone": "formal", "text": "nb;tone=formal" },
+  { "locale": "en", "tone": "casual", "channel": "short", "text": "en;tone=casual;channel=short" },
+  { "locale": ";", "text": "%3B" },
+  { "locale": "fr;tone=formal", "text": "fr%3Btone%3Dformal" },
+  { "locale": "%3B", "text": "%253B" },
+  { "locale": "50%", "text": "50%25" },
+  { "locale": "fr", "channel": "a;b", "text": "fr;channel=a%3Bb" },
+  { "locale": "fr", "tone": "a%b", "text": "fr;tone=a%25b" },
+  { "locale": "fr", "tone": "a=b", "text": "fr;tone=a%3Db" },
+  { "locale": "nb", "tone": "50% off", "text": "nb;tone=50%25 off" },
+
+  { "readOnly": true, "locale": "fr", "tone": "a%3bb", "text": "fr;tone=a%3bb" },
+  { "readOnly": true, "locale": "fr", "tone": "a%2", "text": "fr;tone=a%2" },
+  { "readOnly": true, "locale": "fr", "tone": "a%", "text": "fr;tone=a%" },
+  { "readOnly": true, "locale": "nb", "tone": "50% off", "text": "nb;tone=50% off" },
+  { "readOnly": true, "locale": "fr", "tone": "a=b", "text": "fr;tone=a=b" }
+]

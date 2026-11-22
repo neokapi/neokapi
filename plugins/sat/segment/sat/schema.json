@@ -3,7 +3,7 @@
   "title": "ML model (SaT)",
   "type": "object",
   "properties": {
-    "satModel": {
+    "sat_model": {
       "type": "string",
       "title": "SaT Model",
       "description": "SaT model name (e.g. sat-3l-sm, sat-12l-sm)",

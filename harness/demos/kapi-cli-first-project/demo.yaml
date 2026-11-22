@@ -1,0 +1,132 @@
+id: kapi-cli-first-project
+title: Your first project, from the terminal
+subtitle: Set up a project, choose your rules, fix the text that breaks them, and share the rules.
+kind: use-case
+publishAs: kapi-cli-first-project
+# The CLI half of "Your first project" (web/docs/kapi/get-started/first-project.mdx),
+# step for step. Every command is deterministic and offline, and nothing calls
+# a model. The last line of each `kapi look` names the next step, so the looks
+# walk the guide's order.
+#
+# `kapi rules` runs in a pseudo-terminal (`keys:`), so it asks as it does for a
+# person, and the two answers are typed at its prompts. The `kapi check` with
+# `expectExit: 3` is the kept rule failing on camera; a take where it passed
+# fails the capture.
+terminal: shell
+brand: kapi
+cwd: ~/acme-docs
+needsAi: false
+# The sandbox is the folder; kapi init writes the recipe on camera, and every
+# command after it finds the project by walking up.
+project: true
+captureTimeoutSec: 240
+aspects:
+  - one project, start to finish
+  - the next step on every look
+  - rules Claude Code follows
+outro:
+  line: Try it in a folder of your own.
+  pointer: kapi init
+
+# A repository with a remote, so `kapi share --via git` has somewhere to push.
+# The remote is a bare repository inside the sandbox, kept out of the tree.
+setup:
+  - git init -q
+  - git config user.email docs@acme.example
+  - git config user.name Acme
+  - git init -q --bare .origin.git
+  - echo .origin.git >> .git/info/exclude
+  - git remote add origin "$PWD/.origin.git"
+  - git add -A
+  - git commit -qm "Acme help center"
+  - git push -q origin HEAD
+
+script:
+  - comment: A folder of help-center docs, with a README and five pages.
+  - command: ls README.md docs
+  - comment: Set up the project and Claude Code.
+  - command: kapi init
+  - comment: See a summary of the project.
+  - command: kapi look
+  - comment: Press k to keep each suggestion.
+  - command: kapi rules
+    keys: [k, k]
+  - comment: Find the text that breaks a rule.
+  # The kept rule must fail here: this is the beat.
+  - command: kapi check docs/guide.md
+    expectExit: 3
+  - comment: Fix the text that breaks a rule.
+  - command: kapi fix
+  - comment: Commit, then share the rules through git.
+  - command: git add -A && git commit -qm "Add kapi"
+  - command: kapi share --via git
+  - command: kapi look
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      This is a folder of help-center docs. You'll set up kapi, keep two
+      writing rules, fix the text that breaks them, and share the rules.
+
+  - id: init
+    kind: terminal
+    through: 4
+    highlight: { text: [collections, CLAUDE.md] }
+    caption: Set up the project.
+    text: >-
+      Type kapi init. It lists the files it will read, saves the project in
+      kapi.yaml, and writes your rules into CLAUDE.md for Claude Code.
+
+  - id: look
+    kind: terminal
+    through: 6
+    highlight: { text: ["kapi suggests 2", "Decide with"] }
+    caption: Two suggested rules.
+    text: >-
+      Type kapi look for a summary: six files, no rules yet, and two
+      suggestions based on how the files are written. One is email instead of
+      e-mail. The other is addressing the reader as you. The last line shows
+      the next command.
+
+  - id: decide
+    kind: terminal
+    through: 8
+    highlight: { text: ["Which spelling should the project use?", "Kept 2"] }
+    caption: Keep the rules you want.
+    text: >-
+      Type kapi rules and press k to keep each suggestion. The project now has
+      two rules.
+
+  - id: check
+    kind: terminal
+    through: 10
+    highlight: { text: [FAILS] }
+    caption: Find the text that breaks a rule.
+    text: >-
+      Type kapi check with the guide. It reports e-mail twice and exits with
+      an error, so you can run the same command in CI to block such changes.
+
+  - id: fix
+    kind: terminal
+    through: 12
+    highlight: { text: ["2 fixed"] }
+    caption: Fix the text.
+    text: >-
+      Type kapi fix. It replaces e-mail with email and leaves the rest of the
+      file unchanged.
+
+  - id: share
+    kind: terminal
+    through: 16
+    highlight: { text: ["With your team", "Check with"] }
+    caption: Share the rules through git.
+    text: >-
+      Commit the files, then type kapi share with git. Everyone who pulls the
+      repository gets the same rules.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Try it in a folder of your own. Type kapi init, then run the command on
+      the last line of kapi look.

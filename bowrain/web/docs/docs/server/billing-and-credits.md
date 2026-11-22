@@ -6,10 +6,15 @@ sidebar_position: 13
 
 # Billing and credits
 
-Bowrain bills a workspace on one of four plans. A plan sets three things: the
-features the workspace can use, the scope of custody it holds (markets, brands,
-and custodian seats), and its monthly allowance of AI credits. Billing is
-managed by the workspace owner from **Workspace Settings > Billing**.
+Each plan sets what a workspace can use, how much custody it holds and how
+many AI credits it gets each month. The workspace owner manages billing from
+**Workspace Settings > Billing**.
+
+A plan sets:
+
+- the features the workspace can use;
+- the scope of custody it holds: markets, brands and custodian seats;
+- its monthly allowance of AI credits.
 
 <!--
 Plan facts come from bowrain/billing/plans.go (PlanLimits, MonthlyCredits,
@@ -41,44 +46,42 @@ dedicated support, custom agreements, and SLA terms.
 Three things are never metered, on any plan:
 
 - **Members.** Viewers, contributors, reviewers and machine tokens are free and
-  uncapped. The people most worth having in the workspace are the ones who
-  notice what no rule caught, and a seat cap is a standing reason not to invite
-  them.
+  uncapped, so you can invite everyone who reads the content.
 - **Checks.** Every check runs on every plan without limit, including Free.
-- **Coordinates.** A scan proposes axes and a person approves them; approving
-  one never costs anything. Markets and brands are tier boundaries, never
-  per-point charges.
+- **Coordinates.** A scan proposes axes and a person approves them, and
+  approving an axis is free. Markets and brands set the plan tier. Bowrain does
+  not charge per point.
 
 ### Markets and brands
 
 A **market** is a workspace-defined scope, a name plus the locales it covers
 (see [Context](/server/context#markets)). A **brand** is the coarsest
 coordinate a point sits under: a workspace has brands, a brand has products, a
-product ships channels. Together they bound the scope of custody a workspace
-holds, and markets is the number a workspace expands into most often.
+product ships channels. Together they set the scope of custody a workspace
+holds. Markets are the limit workspaces raise most often.
 
 ### Custodians
 
-A **custodian** is someone who may author what governs content, the voice and
-the terms, over a bounded region of the workspace's points. Custodians own rules
-and escalations; they hold no review queue of their own. A reviewer bounded to a
-point is a contributor with a narrow beat, and contributors are never metered.
+A **custodian** is someone who may write the voice profile and the terms for a
+region of the workspace's points. Custodians own rules and escalations, and
+contributors work the review queue. A reviewer limited to a point is a
+contributor, and contributors are not metered.
 
-- The seat is **derived from a grant**, never declared. Holding `manage_voice`
-  or `manage_terms` over a region makes a member a custodian, so the billable
-  role and what a person can do are one fact and cannot drift apart.
-- A grant that would exceed the plan's custodian allowance is **refused at
-  grant time**, with the count and the limit, so the answer is actionable.
-- When a plan carries no custodian seats, which is what a lapsed trial leaves
-  behind, existing custodial authority stops resolving. Nothing is deleted: the
-  voice, the terms, the rules and the coordinates stay exactly as they are, and
-  the authority returns the moment a plan does. Each request that meets such a
-  custody, from the web app or from an agent through the server's MCP endpoint,
-  adds an `authz.denied` entry with the effect `suspend` to the audit log.
+- The seat **comes from a grant**. Holding `manage_voice` or `manage_terms`
+  over a region makes a member a custodian, so the billed seat always matches
+  what the person can do.
+- Bowrain **refuses a grant** that would exceed the plan's custodian allowance
+  when it is made, and reports the count and the limit.
+- When a plan carries no custodian seats, as after a lapsed trial, existing
+  custodian grants are suspended. The voice profile, terms, rules and
+  coordinates stay as they are, and the grants return with the next plan that
+  has seats. Each request that meets a suspended grant, from the web app or
+  from an agent through the server's MCP endpoint, adds an `authz.denied` entry
+  with the effect `suspend` to the audit log.
 - The workspace **owner keeps an implicit, unbillable custodianship at the root
-  point**, so approval is always possible even on Free.
-- A point nobody holds is reported on its profile card in the
-  [Context hub](/server/context#profiles). It never blocks a build or a run.
+  point**, so approval is always possible, even on Free.
+- A point nobody holds is marked on its profile card in the
+  [Context hub](/server/context#profiles). Builds and runs continue there.
 
 See [Members and roles](/server/members-and-roles#custodians-and-points) for
 how a grant is bound to a point.
@@ -116,24 +119,22 @@ consume credits.
 
 On any plan, you can configure Bowrain to run against your own AI provider key
 under **Workspace Settings > Providers**. Work that runs on your own key uses no
-Bowrain credits at all: you pay your provider directly, and the workspace's
-credit balance is left untouched.
+Bowrain credits. You pay your provider directly.
 
 ### Top-up packs
 
 If a workspace needs more credits, the owner can buy a credit pack: 200K
-credits for $5. Packs are one-time purchases, never charged automatically on
-your behalf. They do not expire, and they are drawn from last, after the
-monthly plan allowance and any remaining trial credits, so a pack you buy now
-stays available across monthly resets until it is spent.
+credits for $5. A pack is a one-time purchase, and Bowrain never buys one
+automatically. Packs do not expire. Bowrain draws on them last, after the
+monthly plan allowance and any remaining trial credits, so a pack stays
+available across monthly resets until it is spent.
 
 ### When credits run out
 
 When the spendable balance (monthly allowance, plus remaining trial credits,
-plus any purchased packs) reaches zero, AI operations pause. A paused request
-is rejected rather than run, and the workspace owner is emailed. Everything
-that does not call an AI model keeps working: editing, review, checks, and
-browsing content.
+plus any purchased packs) reaches zero, AI operations pause. Bowrain rejects
+each AI request and emails the workspace owner. Everything that does not call
+an AI model keeps working: editing, review, checks and browsing content.
 
 On a paid plan, AI access returns at the next monthly reset; at any time the
 owner can also buy a credit pack or upgrade the plan. Enterprise workspaces
@@ -147,12 +148,11 @@ allowance reaches 80% usage, before it is exhausted.
 The Team plan is priced per seat per month. The seat is the custodian seat
 described above: the subscription quantity is the number of custodians the
 workspace may hold, up to the plan's allowance of five. Members who are not
-custodians are free. Monthly credits are shared across the whole workspace
-rather than allocated per seat.
+custodians are free. The whole workspace shares the monthly credits.
 
-At checkout the quantity defaults to the custodians the workspace already has
-and cannot be set below it. Self-serve checkout covers up to 50 seats; larger
-teams are handled as an Enterprise conversation.
+At checkout the quantity defaults to the number of custodians the workspace
+already has, and you cannot set it lower. Self-serve checkout covers up to 50
+seats. Larger teams use the Enterprise plan.
 
 ## Trials
 
@@ -162,11 +162,11 @@ custodian seat, and its AI work draws on the one-time 200K trial credits every
 workspace receives at creation. The Pro monthly allowance starts with a paid
 subscription.
 
-The trial is card-free and has no Stripe subscription behind it, so nothing
-charges you when it ends. The workspace moves to the Free plan, which is free
-forever, keeps whatever trial credits remain, and keeps everything it governed:
-custodial authority is suspended until a plan returns, and nothing is deleted.
-To stay on Pro (or move to Team), subscribe before or after the trial ends.
+The trial needs no card and has no Stripe subscription behind it, so you are
+not charged when it ends. The workspace moves to the Free plan and keeps its
+remaining trial credits, voice profiles, terms and rules. Custodian grants are
+suspended until a plan with seats returns. To stay on Pro or move to Team,
+subscribe before or after the trial ends.
 
 ## Managing your subscription
 

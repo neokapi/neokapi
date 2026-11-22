@@ -8,6 +8,7 @@ import {
   languageCount,
   languagesInOrder,
   marketsFor,
+  projectsOf,
   provenanceOf,
   replacementFor,
 } from "./conceptFacts";
@@ -90,6 +91,15 @@ describe("coordinatesOf", () => {
       ["channel", "store"],
     ]);
     expect(coordinatesOf(undefined)).toEqual([]);
+  });
+});
+
+describe("projectsOf", () => {
+  it("reads the projects a concept is limited to, none for the whole workspace", () => {
+    expect(projectsOf({ projects: ["p-a", "p-b"], project_id: "" })).toEqual(["p-a", "p-b"]);
+    expect(projectsOf({ project_id: "p-a" })).toEqual(["p-a"]);
+    expect(projectsOf({})).toEqual([]);
+    expect(projectsOf(undefined)).toEqual([]);
   });
 });
 

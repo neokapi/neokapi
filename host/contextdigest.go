@@ -1,8 +1,8 @@
-// The context digest: what kapi learned about how a project writes since a
+// The context digest: the rules and suggestions about how a project writes since a
 // person last looked.
 //
-// Review is discovery, never a gate. A suggestion advises from the moment it
-// is recorded, and one nobody answers keeps advising, so the digest is news
+// Review is discovery, never a gate. Checks report a suggestion from the moment
+// it is recorded, and keep reporting one nobody answers, so the digest is news
 // rather than a queue: it puts the few things that need a person first
 // (conflicts), then what became established and how, then the suggestions
 // grouped by theme, then the content drifting away from an established rule,
@@ -64,7 +64,7 @@ type ContextDigestRequest struct {
 	Since time.Time
 }
 
-// ContextDigest is what kapi learned about how one project writes.
+// ContextDigest holds the rules and suggestions about how one project writes.
 type ContextDigest struct {
 	// Project is the project's workspace key, and ProjectName what a person
 	// calls it.
@@ -79,7 +79,7 @@ type ContextDigest struct {
 	// Established are the rules that came into force, newest first: every one
 	// since the marker, then a few from before it.
 	Established []screens.DigestItem `json:"established"`
-	// Suggested are the suggestions still advising, grouped by theme.
+	// Suggested are the suggestions still waiting, grouped by theme.
 	Suggested []DigestTheme `json:"suggested"`
 	// Drift is content moving away from an established rule.
 	Drift []DigestDrift `json:"drift"`
@@ -125,7 +125,7 @@ type DigestNumbers struct {
 	// NewThisWeek counts the rules that came into force in the last seven
 	// days.
 	NewThisWeek int `json:"new_this_week"`
-	// Suggested counts the suggestions advising, and Conflicts the
+	// Suggested counts the suggestions waiting, and Conflicts the
 	// disagreements.
 	Suggested int `json:"suggested"`
 	Conflicts int `json:"conflicts"`
@@ -287,7 +287,7 @@ type ContextActivity struct {
 type ContextProjectStanding struct {
 	Project     string `json:"project"`
 	ProjectName string `json:"project_name,omitempty"`
-	// Rules counts the rules in force, Suggested the suggestions advising and
+	// Rules counts the rules in force, Suggested the suggestions waiting and
 	// Conflicts the disagreements that need a person.
 	Rules     int `json:"rules"`
 	Suggested int `json:"suggested"`
@@ -574,13 +574,13 @@ func (d ContextDigest) FormatText(w io.Writer) error {
 			writeDigestItem(&b, dr.Rule, "  ")
 		}
 	}
-	fmt.Fprintf(&b, "\nkapi knows %d %s for %s", d.Numbers.Rules, pluralWord(d.Numbers.Rules, "rule", "rules"), name)
+	fmt.Fprintf(&b, "\n%d %s for %s", d.Numbers.Rules, pluralWord(d.Numbers.Rules, "rule", "rules"), name)
 	if d.Numbers.NewThisWeek > 0 {
 		fmt.Fprintf(&b, "; %d %s new this week", d.Numbers.NewThisWeek, pluralWord(d.Numbers.NewThisWeek, "is", "are"))
 	}
 	b.WriteString(".")
 	if d.Numbers.Suggested > 0 {
-		fmt.Fprintf(&b, " %d %s advising.", d.Numbers.Suggested, pluralWord(d.Numbers.Suggested, "suggestion is", "suggestions are"))
+		fmt.Fprintf(&b, " %d %s waiting for you.", d.Numbers.Suggested, pluralWord(d.Numbers.Suggested, "suggestion is", "suggestions are"))
 	}
 	b.WriteString("\n")
 	if len(d.Conflicts) > 0 || d.Numbers.Suggested > 0 {
@@ -638,7 +638,7 @@ func writeDigestItem(b *strings.Builder, it screens.DigestItem, indent string) {
 	if it.Established() {
 		facts = append(facts, it.How...)
 	} else {
-		facts = append(facts, "noticed by "+actorPhrase(it.NoticedBy, false))
+		facts = append(facts, "suggested by "+actorPhrase(it.RecordedBy, false))
 	}
 	if len(facts) > 0 {
 		fmt.Fprintf(b, "%s      %s\n", indent, strings.Join(facts, " · "))

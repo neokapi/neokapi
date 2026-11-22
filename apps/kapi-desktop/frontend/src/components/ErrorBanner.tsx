@@ -169,7 +169,7 @@ function ErrorBannerItem({
             className="px-0 h-auto text-[11px] text-muted-foreground hover:text-foreground"
           >
             <Copy size={10} />
-            {copied ? t("Copied") : t("Copy Details")}
+            {copied ? t("Copied") : t("Copy details")}
           </Button>
         }
       />

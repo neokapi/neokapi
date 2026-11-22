@@ -24,13 +24,13 @@ func TestApplyFlowRedaction_UnionsDetectors(t *testing.T) {
 	out, err := a.applyFlowRedaction("redact", map[string]any{"detectors": []any{"entities"}}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"entities", "rules"}, out["detectors"], "the step's entity detection stays beside the policy's rules")
-	assert.Equal(t, rules, out["rulesPath"])
+	assert.Equal(t, rules, out["rules_path"])
 
 	own := filepath.Join(t.TempDir(), "own.yaml")
-	out, err = a.applyFlowRedaction("redact", map[string]any{"rulesPath": own}, nil)
+	out, err = a.applyFlowRedaction("redact", map[string]any{"rules_path": own}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"rules"}, out["detectors"])
-	assert.Equal(t, own, out["rulesPath"], "a step that names rules keeps them")
+	assert.Equal(t, own, out["rules_path"], "a step that names rules keeps them")
 
 	out, err = a.applyFlowRedaction("translate", map[string]any{"provider": "demo"}, nil)
 	require.NoError(t, err)

@@ -49,7 +49,7 @@ dist/
 **/public/version.json
 
 # Extraction artifacts — regenerated via `make l10n`.
-# The per-locale runtime dictionaries under public/translations/ are
+# The target-locale runtime dictionaries under public/translations/ are
 # committed so the app ships with translations; the intermediate
 # per-file .kbf.json extract output is ephemeral and gitignored.
 apps/kapi-desktop/frontend/i18n/
@@ -57,7 +57,7 @@ apps/kapi-desktop/frontend/i18n-qps/
 apps/kapi-desktop/frontend/i18n-nb/
 
 # Same policy for the bowrain UI surfaces (make bowrain-{app,ctrl,pulse}-translations):
-# compiled public/translations/ dictionaries are committed, .kbf.json intermediates are not.
+# compiled target-locale dictionaries are committed, .kbf.json intermediates are not.
 bowrain/packages/app/i18n/
 bowrain/packages/app/i18n-qps/
 bowrain/packages/app/i18n-nb/
@@ -67,6 +67,16 @@ bowrain/apps/ctrl/i18n-nb/
 bowrain/apps/pulse/i18n/
 bowrain/apps/pulse/i18n-qps/
 bowrain/apps/pulse/i18n-nb/
+
+# The app surfaces' qps (pseudo-locale) dictionaries are build output. Each
+# app's vite build and dev server regenerates its own (`make app-qps`, wired in
+# through scripts/vite-qps-catalog.mjs), and the workflows that ship an app run
+# the same target first (.github/actions/app-pseudo-locale).
+apps/kapi-desktop/frontend/public/translations/qps.json
+bowrain/apps/web/public/translations/qps.json
+bowrain/apps/bowrain/frontend/public/translations/qps.json
+bowrain/apps/ctrl/public/translations/qps.json
+bowrain/apps/pulse/public/translations/qps.json
 
 # Same policy for the transactional emails (make l10n): the committed
 # artifacts are the rendered per-locale templates under
@@ -205,6 +215,7 @@ web/reference/tools/
 # Generated documentation assets (fetched from docs-assets release in CI)
 web/static/img/bowrain/
 web/static/img/web-app/
+web/static/img/desktop/
 web/static/video/
 
 # What the skill-eval agents produced (translated .docx, rewritten .pptx, …),

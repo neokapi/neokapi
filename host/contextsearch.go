@@ -24,16 +24,13 @@ import (
 
 // Context retrieval, by content. See AD-037.
 //
-// One question — *what do we know about this?* — asked once and answered from
-// every store the scope holds. Callers do not name a store: which one holds the
-// answer is an implementation detail, and making a caller choose forces it to
-// know the answer's location before it can ask.
+// One question, *what do we know about this?*, asked once and answered from
+// every store the scope holds. Callers name no store, so a caller can ask
+// before it knows where the answer lives.
 //
 // This is the single implementation behind BOTH the `kapi context search` verb
 // and the `context_search` MCP tool. The two surfaces are wrappers over this
-// function, so they cannot drift — the fragmentation AD-037 records (six CLI
-// retrieval verbs, three MCP tools, no rule for which got exposed) came from
-// each surface growing its own retrieval path.
+// function, so they cannot drift into separate retrieval paths (AD-037).
 
 // ContextScope names how much of the graph a result set could have come from.
 // A caller must be able to tell "this project holds no answer" from "this scope
@@ -46,7 +43,7 @@ const (
 	ScopeProject ContextScope = "project"
 	// ScopeWorkspace is a Bowrain-connected workspace: the full concept graph.
 	ScopeWorkspace ContextScope = "workspace"
-	// ScopeProfile is one voice profile and nothing else — a by-name answer with
+	// ScopeProfile is one voice profile and nothing else: a by-name answer with
 	// no project in scope, or one naming a profile no recipe declares. Narrower
 	// than a project on purpose: there is no terms store and no governance window
 	// behind it, and reporting that as an empty project scope would say the
@@ -59,7 +56,7 @@ type ContextSearchRequest struct {
 	Query string
 	// Locale narrows term results to a language when set; empty searches all.
 	Locale model.LocaleID
-	// Limit caps each group independently, not the total — groups are ranked
+	// Limit caps each group independently. Groups are ranked
 	// within themselves and never merged, so one shared budget would let a
 	// productive group starve the others.
 	Limit int
@@ -94,11 +91,11 @@ type ContextSearchResult struct {
 	// carrying one is empty because nothing has been read in, which a caller
 	// cannot otherwise tell from a project that holds nothing.
 	Notice *ContextFilesNotice `json:"notice,omitempty"`
-	// Terms are concepts whose terms or definition match — what the project
+	// Terms are concepts whose terms or definition match: what the project
 	// calls this, and whether it is discouraged.
 	Terms []ContextTermHit `json:"terms,omitempty"`
 	// Precedent is wording the project has already approved that matches the
-	// query — "how have we said this before?".
+	// query: "how have we said this before?".
 	//
 	// This is NOT translation recycling. Recycling is the loop's job and is
 	// invisible by design (`up` pre-fills from content memory as the structural
@@ -107,13 +104,13 @@ type ContextSearchResult struct {
 	// question: it serves a caller AUTHORING source content who wants its own
 	// writing to sound like the project.
 	Precedent []ContextPrecedentHit `json:"precedent,omitempty"`
-	// Profiles are the governance profiles whose validity is bounded — "which
+	// Profiles are the governance profiles whose validity is bounded: "which
 	// voice is in force, and until when". Only profiles that declare a window
 	// appear; a project that never bounds governance has none.
 	Profiles []ContextProfileHit `json:"profiles,omitempty"`
 	// Suggestions are what somebody recorded about the word and nobody has
 	// established: suggested term rules and notes that mention it, and the
-	// rules a disagreement contests. They advise and fail no check.
+	// rules a disagreement contests. Checks report them and fail on none.
 	Suggestions []ContextSuggestion `json:"suggestions,omitempty"`
 	// Attention holds what a person or an agent must act on before relying on
 	// the answer: context files nothing has read in, a store that could not be
@@ -159,9 +156,9 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 			}
 			fmt.Fprintf(w, "  %-24s %s", t.Term, verdict)
 			// Locale before status. One spelling can be deprecated in one
-			// language and admitted in another — "termbase" is, in this repo's
-			// own terms store — and without the locale those two lines read as
-			// the tool contradicting itself rather than answering per language.
+			// language and admitted in another, and without the locale those
+			// two lines read as the tool contradicting itself rather than
+			// answering per language.
 			meta := t.Locale
 			if t.Status != "" {
 				if meta != "" {
@@ -175,11 +172,10 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 			if t.ValidTo != "" {
 				fmt.Fprintf(w, " until %s", validityText(t.ValidTo))
 			}
-			// The domain is the axis that segments the graph — which part of the
-			// subject this concept belongs to. It was carried in the struct and
-			// the JSON but never rendered, so the one field that distinguishes
-			// one body of context from another was invisible at the surface
-			// people actually read.
+			// The domain is the axis that segments the graph: which part of the
+			// subject this concept belongs to. It is the one field that
+			// distinguishes one body of context from another, so the text
+			// answer shows it as the JSON does.
 			if t.Domain != "" {
 				fmt.Fprintf(w, "  [%s]", t.Domain)
 			}
@@ -281,10 +277,10 @@ type ContextTermHit struct {
 	// reports a use of it and fails nothing.
 	Advisory bool `json:"advisory,omitempty"`
 	// ValidFrom/ValidTo carry the term's own time scoping when it has any.
-	// A rule that starts or stops on a date is what lets a context survive a
-	// rename without being rewritten, so a caller must be able to see that the
-	// answer it just got has an expiry — "recognise the old name until March"
-	// is a different instruction from "never use it".
+	// A rule that starts or stops on a date lets a context survive a rename
+	// without being rewritten. A caller sees that the answer has an expiry,
+	// because "recognise the old name until March" is a different instruction
+	// from "never use it".
 	ValidFrom string `json:"valid_from,omitempty"`
 	ValidTo   string `json:"valid_to,omitempty"`
 	// Uses is how many times this exact term appears in the project's
@@ -386,16 +382,14 @@ type ContextSearchSources struct {
 	// and could not. Unbound and unopenable are different answers to "why is
 	// this group empty?", and only the caller knows which happened.
 	//
-	// Typed per store rather than a free-text note list so the two cannot be
-	// reported at once: a store that failed to open is not also a store the
-	// project does not have. The SQLite openers create a missing file rather
-	// than reporting absence, so an error from one always means broken —
-	// dropping it, as both surfaces originally did, told the caller its project
-	// had no terminology when in fact it could not be read.
+	// Typed per store rather than a free-text note list, so each store has
+	// exactly one reason. A standalone store file that does not exist is a
+	// NoStoreError; any other error means the store could not be read, and
+	// the answer says so instead of reporting an empty store.
 	TermsErr  error
 	MemoryErr error
 
-	// Profiles are the project's bounded governance profiles — surfaced so an
+	// Profiles are the project's bounded governance profiles, surfaced so an
 	// answer can say which voice is in force and until when. Populated from the
 	// resolved recipe; empty for a project that bounds no profile, or a
 	// standalone-store query with no project in scope.
@@ -404,8 +398,8 @@ type ContextSearchSources struct {
 	// Freshness carries staleness notes about the graph these stores are read
 	// from: governance that moved since this process last read it. Resolved by
 	// the caller (host/freshness.go) because it is a property of the reader's
-	// history, not of any store — the same stores read by a fresh process are
-	// not stale, they are simply unread.
+	// history. A fresh process reading the same stores reports no staleness,
+	// because it has read nothing before.
 	Freshness []string
 
 	// Provenance says which project these stores belong to and what state it
@@ -413,7 +407,7 @@ type ContextSearchSources struct {
 	Provenance *ContextProvenance
 
 	// Unread names the context files a checkout holds whose project store has
-	// never held context — a clone, before anyone read its layout in. Its
+	// never held context: a clone, before anyone read its layout in. Its
 	// stores answer, and answer empty, which is indistinguishable from a
 	// project that genuinely holds no such term.
 	Unread *ContextFilesNotice
@@ -439,13 +433,13 @@ type ContextSearchSources struct {
 	// against, so a term's uses can say where each one is governed. nil for a
 	// standalone-store query with no project in scope.
 	Recipe *project.KapiProject
-	// At is the instant governance is resolved at — the run's wall clock. The
+	// At is the instant governance is resolved at: the run's wall clock. The
 	// zero value reads the recipe as declared, applying no validity window.
 	At time.Time
 }
 
-// ContextSearchSourcesFor assembles the stores a context search reads — the one
-// path for both `kapi context search` and the context_search MCP tool, so the
+// ContextSearchSourcesFor assembles the stores a context search reads. It is the
+// one path for both `kapi context search` and the context_search MCP tool, so the
 // two cannot drift in what they bind. A non-empty termsPath/memoryPath selects a
 // STANDALONE store (an agent pointed at a vocabulary or corpus outside the
 // project); otherwise the store the command resolves to is used: the project's
@@ -461,13 +455,15 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 
 	if termsPath != "" {
 		src.TermsStandalone = true
-		if tb, err := terms.NewSQLiteStore(termsPath); err == nil {
+		if err := missingStore(termsPath, "terms store", "kapi terms import"); err != nil {
+			src.TermsErr = err
+		} else if tb, err := terms.NewSQLiteStore(termsPath); err == nil {
 			cleanups = append(cleanups, func() { _ = tb.Close() })
 			src.Terms = tb
 		} else {
 			src.TermsErr = err
 		}
-	} else if tb, _, release, err := a.OpenTermsSQLite(cmd); err == nil {
+	} else if tb, _, release, err := a.OpenTermsForRead(cmd); err == nil {
 		cleanups = append(cleanups, release)
 		src.Terms = tb
 	} else {
@@ -475,13 +471,15 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 	}
 
 	if memoryPath != "" {
-		if tm, err := memory.NewSQLiteStore(memoryPath); err == nil {
+		if err := missingStore(memoryPath, "content memory", "kapi memory import"); err != nil {
+			src.MemoryErr = err
+		} else if tm, err := memory.NewSQLiteStore(memoryPath); err == nil {
 			cleanups = append(cleanups, func() { _ = tm.Close() })
 			src.Memory = tm
 		} else {
 			src.MemoryErr = err
 		}
-	} else if tm, _, release, err := a.OpenMemorySQLite(cmd); err == nil {
+	} else if tm, _, release, err := a.OpenMemoryForRead(cmd); err == nil {
 		cleanups = append(cleanups, release)
 		src.Memory = tm
 	} else {
@@ -494,11 +492,14 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 
 	// The recipe: its bounded governance profiles, so an answer can say which
 	// voice is in force and until when, and the context space itself, so each
-	// place a term is used can say where it is governed. Best-effort — a project
-	// that will not resolve or load simply contributes neither, exactly like a
-	// standalone-store query.
+	// place a term is used can say where it is governed. A project that
+	// will not resolve or load contributes neither, and RecipeErr says why.
 	src.At = a.GovernanceInstant()
-	if path, err := ResolveProjectPath(cmd); err == nil && path != "" {
+	path, perr := ResolveProjectPath(cmd)
+	if perr != nil {
+		src.RecipeErr = fmt.Errorf("this project's recipe could not be read: %w", perr)
+	}
+	if perr == nil && path != "" {
 		proj, lerr := project.LoadWithOptions(path, project.LoadOptions{SkipRequiresCheck: true})
 		if lerr != nil {
 			src.RecipeErr = fmt.Errorf("this project's recipe could not be read: %w", lerr)
@@ -515,7 +516,7 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 			// it, the same as every other store.
 			if log, lerr := a.ContextOperations(ctxOrBackground(cmd.Context()), ContextLogRequest{Project: path, Subjects: true}); lerr == nil {
 				for _, op := range log.Operations {
-					if op.Status.Advises() {
+					if op.Status.Advisory() {
 						src.Operations = append(src.Operations, op.Record)
 					}
 				}
@@ -532,9 +533,8 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 
 	// Whether the graph these stores hold has moved since this process last
 	// read it. Assembled here, with the stores, so every surface that retrieves
-	// context reports staleness identically — a note that appeared on one
-	// surface and not the other would teach an assistant that only one of them
-	// can go stale.
+	// context reports staleness identically. A note on one surface and not the
+	// other would teach an assistant that only one of them can go stale.
 	src.Freshness = a.governanceNotes(cmd)
 
 	return src, func() {
@@ -570,11 +570,10 @@ func (a *App) bindContextGraph(ctx context.Context, projectPath string, proj *pr
 
 // SearchContext answers one context question from every bound store.
 //
-// A store that errors degrades to a note rather than failing the whole call:
-// half an answer plus a statement of what was unreachable is more useful to a
-// caller mid-task than an error, and silently dropping the failure would make
-// an incomplete answer look complete — the exact defect AD-037 records in the
-// surface this replaces.
+// A store that errors degrades to a note rather than failing the whole call.
+// Half an answer plus a statement of what was unreachable is more useful to a
+// caller mid-task than an error. The note keeps an incomplete answer from
+// looking complete (AD-037).
 func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSearchRequest) (*ContextSearchResult, error) {
 	if req.Query == "" {
 		return nil, errors.New("context search: empty query")
@@ -818,8 +817,8 @@ func profileHits(windows []project.ProfileWindow, at time.Time) []ContextProfile
 
 // validityText renders a bound a hit carries as RFC3339 the way a reader writes
 // it: a bare date when it falls on midnight UTC, the full instant otherwise.
-// The stored form stays RFC3339 — a program reading the JSON wants one shape —
-// and only the prose is shortened, by both answers, so a date reads the same
+// The stored form stays RFC3339, since a program reading the JSON wants one
+// shape, and only the prose is shortened, by both answers, so a date reads the same
 // wherever it appears.
 func validityText(rfc3339 string) string {
 	t, err := time.Parse(time.RFC3339, rfc3339)
@@ -925,10 +924,10 @@ func attachUses(hit *ContextTermHit, uses []contextgraph.ConceptUse, places *poi
 }
 
 // pointResolver answers "where is this document governed" for the places a term
-// is used, through the one resolution seam every other surface uses — so the
-// answer a writer reads and the voice a run applies to the same file come from
-// the same walk of the recipe, including a content item's own `channel:` and a
-// profile that has stopped governing.
+// is used, through the one resolution seam every other surface uses. The answer
+// a writer reads and the voice a run applies to the same file come from the
+// same walk of the recipe. That walk includes a content item's own `channel:`
+// and a profile that has stopped governing.
 type pointResolver struct {
 	proj  *project.KapiProject
 	at    time.Time
@@ -972,10 +971,9 @@ func (r *pointResolver) pointOf(document string) string {
 // flagRetiredPrecedent marks prior wording containing a term this same search
 // found discouraged.
 //
-// Without it a single answer contradicts itself. That is not hypothetical: the
-// first time this surface was pointed at this repo's own context, a search for
-// "termbase" reported the word retired and then offered "Export termbase to
-// CSV" under "already approved wording".
+// Without it a single answer contradicts itself: a search for a retired word
+// reports it retired and then offers wording that contains it under "already
+// approved wording".
 //
 // Scoped to the terms in THIS result rather than every retired term in the
 // store: checking all content against all terminology is the terms check tool's
@@ -1023,7 +1021,7 @@ func termHits(concepts []terms.Concept, locale model.LocaleID) []ContextTermHit 
 				Discouraged: t.Status.Discouraged(),
 			}
 			if hit.Discouraged {
-				hit.Replacement = discouragedReplacement(c, t)
+				hit.Replacement = terms.Replacement(c, t)
 				hit.Advisory = c.Advisory
 			}
 			if v := t.Validity; v != nil {
@@ -1040,20 +1038,7 @@ func termHits(concepts []terms.Concept, locale model.LocaleID) []ContextTermHit 
 	return out
 }
 
-// discouragedReplacement is what to say instead of the discouraged term t of
-// c: the concept's preferred wording in t's language, or the wording t's note
-// names (terms.ReplacementFromNote), as the check reads it (terms.PreferredTerm).
-// A term whose concept would otherwise mark the rules of another term
-// differently stands in a concept of its own, with the replacement in its
-// note (terms.UpsertDecision).
-func discouragedReplacement(c terms.Concept, t terms.Term) string {
-	if pref := preferredTerm(c, t.Locale); pref != "" {
-		return pref
-	}
-	return terms.ReplacementFromNote(t.Note)
-}
-
-// preferredTerm finds the concept's preferred wording in one locale — what to
+// preferredTerm finds the concept's preferred wording in one locale: what to
 // say instead of a discouraged term. Returns "" when the concept records no
 // preference, which is a real state: a term can be banned without an anointed
 // replacement, and inventing one would be worse than saying nothing.

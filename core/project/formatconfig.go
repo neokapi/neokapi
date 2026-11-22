@@ -10,7 +10,7 @@ import (
 // for that item alone. Whoever reads or writes a file has to consult both, or it
 // reads the document under a configuration the recipe never described — and the
 // keys that live here are exactly the ones that say which leaves of a document
-// are content (`extractionRules`, `keyPathPatterns`, `frontMatterKeys`). A path
+// are content (`extraction_rules`, `key_path_patterns`, `front_matter_keys`). A path
 // that drops them extracts a document's identifiers and slugs as prose and
 // translates them.
 //
@@ -23,7 +23,7 @@ import (
 // defaults. Returns nil when the recipe declares nothing.
 //
 // The overlay is shallow — a key an item names replaces the default outright
-// rather than merging into it, so an item that narrows `extractionRules` is not
+// rather than merging into it, so an item that narrows `extraction_rules` is not
 // silently widened by the project default it meant to override.
 func MergeFormatConfig(defaults map[string]FormatDefaults, formatName string, item *ContentItem) map[string]any {
 	var merged map[string]any

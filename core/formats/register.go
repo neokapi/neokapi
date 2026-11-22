@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/designtokens"
 	"github.com/neokapi/neokapi/core/formats/doclang"
 	"github.com/neokapi/neokapi/core/formats/docling"
+	"github.com/neokapi/neokapi/core/formats/eml"
 	"github.com/neokapi/neokapi/core/formats/epub"
 	execfmt "github.com/neokapi/neokapi/core/formats/exec"
 	"github.com/neokapi/neokapi/core/formats/html"
@@ -66,6 +67,11 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	if len(opts) > 0 {
 		o = opts[0]
 	}
+
+	emlReader := func() format.DataFormatReader { return eml.NewReader() }
+	reg.RegisterReader(EML, emlReader, eml.Signature(), "Email message (EML)")
+	reg.RegisterWriter(EML, func() format.DataFormatWriter { return eml.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "eml", emlReader)
 
 	// Plain Text
 	reg.RegisterReader("plaintext",
@@ -296,16 +302,19 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterWriter("i18next", func() format.DataFormatWriter { return i18next.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "i18next", func() format.DataFormatReader { return i18next.NewReader() })
 
-	// Android String Resources (res/values/strings.xml). The .xml extension and
-	// XML MIME are owned by the generic xml format, so detection is Sniff-only:
-	// the file must have a <resources> root carrying at least one <string>,
-	// <string-array>, or <plurals>.
+	// Android String Resources (res/values/strings.xml). Co-claims ".xml" with
+	// the generic XML reader so it is a candidate for every .xml file, and the
+	// content sniff decides: a <resources> root with a <string>, <string-array>
+	// or <plurals> child. The below-default priority keeps any other .xml on
+	// the generic reader when the sniff misses.
 	reg.RegisterReader("androidxml",
 		func() format.DataFormatReader { return androidxml.NewReader() },
 		format.FormatSignature{
-			Sniff: androidxml.Sniff,
+			Extensions: []string{".xml"},
+			Sniff:      androidxml.Sniff,
 		}, "Android String Resources")
 	reg.RegisterWriter("androidxml", func() format.DataFormatWriter { return androidxml.NewWriter() })
+	reg.SetFormatPriority("androidxml", format.DefaultBuiltInPriority-10)
 	registerSchemaAndDecoder(o, reg, "androidxml", func() format.DataFormatReader { return androidxml.NewReader() })
 
 	// W3C DTCG Design Tokens (.tokens / .tokens.json). Claims the unique

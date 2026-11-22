@@ -275,7 +275,7 @@ func TestResolveRedactContract(t *testing.T) {
 	withEntities := tools.ResolveRedactContract(map[string]any{"detectors": []string{"entities"}}, base)
 	assert.False(t, withEntities.Consumes[0].Optional, "entities detector: entity input is required")
 
-	byCategories := tools.ResolveRedactContract(map[string]any{"entityTypes": []string{"person"}}, base)
+	byCategories := tools.ResolveRedactContract(map[string]any{"entity_types": []string{"person"}}, base)
 	assert.False(t, byCategories.Consumes[0].Optional, "naming categories also requires the entity input")
 
 	assert.True(t, base.Consumes[0].Optional, "resolver must not mutate the base contract")

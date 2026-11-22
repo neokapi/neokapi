@@ -19,7 +19,7 @@ export const NAME_DECISION: RuleDecision = {
   id: DECIDE_IDS.quickcast,
   short: "0njy7pfhjp",
   kind: "name",
-  question: "Which one do your files use?",
+  question: "Which spelling should the project use?",
   sentence: 'Write "Quickcast", not "Quick cast" or "QuickCast"',
   label: "Quickcast",
   avoided: 0,
@@ -50,7 +50,7 @@ export const NAME_DECISION: RuleDecision = {
   other: true,
   seen: { path: "site/products/index.html", quote: "Try Quick cast today." },
   applies: "the whole project",
-  noticed_by: claude,
+  recorded_by: claude,
 };
 
 export const WORD_DECISION: RuleDecision = {
@@ -68,7 +68,7 @@ export const WORD_DECISION: RuleDecision = {
     'If you keep it: "business" becomes a finding in 3 blocks. Applies to the whole project.',
   seen: { path: "site/about.html", quote: "Our business plan." },
   applies: "the whole project",
-  noticed_by: claude,
+  recorded_by: claude,
 };
 
 export const DISAGREEMENT: RuleDecision = {
@@ -87,7 +87,7 @@ export const DISAGREEMENT: RuleDecision = {
       files: 3,
       consequence:
         'If you keep "store": "shop" becomes a finding in 2 blocks. Applies to the whole project.',
-      noticed_by: claude,
+      recorded_by: claude,
     },
     {
       id: DECIDE_IDS.market,
@@ -97,14 +97,14 @@ export const DISAGREEMENT: RuleDecision = {
       files: 1,
       consequence:
         'If you keep "market": "shop" becomes a finding in 2 blocks. Applies to the whole project.',
-      noticed_by: codex,
+      recorded_by: codex,
     },
   ],
   chosen: 0,
   other: false,
   seen: { path: "site/index.html", quote: "Visit our shop." },
   applies: "the whole project",
-  noticed_by: claude,
+  recorded_by: claude,
 };
 
 export const NOTE_DECISION: RuleDecision = {
@@ -121,7 +121,7 @@ export const NOTE_DECISION: RuleDecision = {
   consequence:
     "If you keep it: it is stated to writers and assistants where it applies. No check reads it. Applies to the whole project.",
   applies: "the whole project",
-  noticed_by: { kind: "person" },
+  recorded_by: { kind: "person" },
 };
 
 /** KapiMart with four questions waiting. */

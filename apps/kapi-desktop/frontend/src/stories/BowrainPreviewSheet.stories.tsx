@@ -13,14 +13,14 @@ import type { PreviewRefusal } from "../types/api";
 
 /** The Fernwell fixtures through the four reads a local preview makes. */
 const FERNWELL_LOCAL: ProjectScreensPort = {
-  mapSummary: async () => MAP_PENDING,
+  overviewSummary: async () => MAP_PENDING,
   readerFile: async () => READER_WITH_FIXES,
   decideView: async () => DECIDE_VIEW,
   keptRules: async () => KEPT_RULES,
 };
 
 /**
- * Preview on the Share page's Bowrain rung: the project's Map and Rules as a
+ * Preview on the Share page's Bowrain rung: the project's Overview and Rules as a
  * Bowrain project page draws them, read from this Mac, with no Keep, Fix or
  * check action.
  */
@@ -38,7 +38,7 @@ const meta: Meta<typeof BowrainPreviewSheet> = {
 export default meta;
 type Story = StoryObj<typeof BowrainPreviewSheet>;
 
-/** The Map tab: the counts, the suggestions and the files. */
+/** The Overview tab: the counts, the suggestions and the files. */
 export const MapTab: Story = {
   play: async () => {
     const sheet = await screen.findByRole("dialog");
@@ -47,7 +47,7 @@ export const MapTab: Story = {
   },
 };
 
-export const MapTabDark: Story = { name: "Map tab (dark)", globals: { theme: "dark" } };
+export const OverviewTabDark: Story = { name: "Overview tab (dark)", globals: { theme: "dark" } };
 
 /** The Rules tab: the questions waiting, then Kept by with who kept each rule. */
 export const RulesTab: Story = {
@@ -65,7 +65,7 @@ export const RulesTabDark: Story = {
   globals: { theme: "dark" },
 };
 
-/** A file on the Map opened in the Reader inside the sheet, with Back to the Map. */
+/** A file on the Overview opened in the Reader inside the sheet, with Back to the Map. */
 export const ReaderInside: Story = {
   play: async () => {
     const sheet = await screen.findByRole("dialog");
@@ -94,7 +94,7 @@ function refusing(refusal: PreviewRefusal): ProjectScreensPort {
   const refuse = async (): Promise<never> => {
     throw new PreviewRefusalError(refusal);
   };
-  return { mapSummary: refuse, readerFile: refuse, decideView: refuse, keptRules: refuse };
+  return { overviewSummary: refuse, readerFile: refuse, decideView: refuse, keptRules: refuse };
 }
 
 const CONNECTED = {

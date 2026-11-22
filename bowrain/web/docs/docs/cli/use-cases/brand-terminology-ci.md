@@ -3,14 +3,26 @@ title: Gate governed terms in CI
 sidebar_label: Gate governed terms in CI
 ---
 
+import { PipelineDiagram } from "@neokapi/docs-shared";
+
 # Use case: gate governed terms in CI
 
-A team's governed terms live in the [Context](/server/context) hub on the
-Bowrain server: preferred terms, forbidden terms, the wording approved per
-market. This guide wires those terms into a CI gate, so a pull request that
-uses a banned term or the wrong rendering fails the build before it merges.
+A pull request that uses a forbidden term or the wrong rendering fails the
+build before it merges. The gate enforces the terms your team governs in the
+[Context](/server/context) hub on the Bowrain server: preferred terms,
+forbidden terms and the wording approved per market.
 
-The loop is two commands:
+<PipelineDiagram
+  channelLabel=""
+  stages={[
+    { label: "Context hub", sub: "governed terms", role: "annotate" },
+    { label: "kapi pull", sub: "snapshot into the terms store", role: "io" },
+    { label: "kapi check --ship", sub: "offline, per target file", role: "qa" },
+    { label: "exit code", sub: "0 pass · 3 fail · 4 did not run" },
+  ]}
+/>
+
+It takes two commands:
 
 1. [`kapi pull`](/cli/commands/pull) fetches results and, when the project
    is claimed into a workspace, also snapshots the workspace's governed concepts
@@ -19,8 +31,8 @@ The loop is two commands:
    checks the project's target files against that terms store and exits non-zero
    when a file violates it.
 
-Pull the truth once, then verify offline: no per-file server round-trip, and
-the gate enforces exactly what the hub shows.
+The job pulls once and then checks offline, without a server request per file.
+The gate enforces exactly what the hub shows.
 
 ## Prerequisites
 
@@ -43,9 +55,8 @@ kapi check --ship
 
 `kapi check --ship` runs every gate the project binds (voice, terms,
 checks) plus its ship/source coverage gates. The terms gate runs because the
-project's terms store has concepts in it, exactly the ones `kapi pull`
-snapshotted, so the gate enforces what the hub shows with no extra
-configuration.
+project's terms store holds the concepts `kapi pull` snapshotted, so it needs
+no extra configuration.
 
 Scope the check to one locale with `--locale`, or point the terms gate at a
 specific terms store with `--termstore`:
@@ -105,12 +116,13 @@ A failing gate exits non-zero and fails the job.
 | `4`  | A gate did not run: it had no content to check, or a checker failed    |
 | `1`  | Operational error (project not found, unreadable file, …)             |
 
-Exit `3` means "not on-spec yet", not a crash: read the findings and fix them.
-Pass `--no-fail` to exit `0` for a failed gate (report mode), useful inside an
-assistant fix-loop that reads the findings from the output and re-runs; omit it
-for CI gating, which uses the non-zero exit status to stop delivery. Exit `4` is never a pass
-and `--no-fail` does not change it: the result's `did_not_run_cause` says
-whether a checker is broken or the gate had nothing to check.
+Exit `3` means the content does not meet the gate yet: read the findings and
+fix them. Pass `--no-fail` to exit `0` for a failed gate (report mode). That
+suits an assistant fix-loop that reads the findings and re-runs. Leave it out
+for CI gating, which uses the non-zero exit status to stop delivery. Exit `4`
+is never a pass, and `--no-fail` leaves it unchanged. The result's
+`did_not_run_cause` says whether a checker is broken or the gate had nothing
+to check.
 
 Add `--json` to feed the structured findings to another tool:
 
@@ -120,12 +132,12 @@ kapi check --ship --json
 
 ## Keeping the snapshot fresh
 
-`kapi pull` refreshes the local terms store on every run, so pulling at the start of
-each CI job keeps the gate aligned with the current governed terms. When
-the workspace changes a preferred or forbidden term, a
-[governed edit](/server/context#tiered-governance) that travels through a
-[change-set](/server/context#experiments-change-sets-and-pilots), the next CI run
-pulls it and gates against it automatically.
+`kapi pull` refreshes the local terms store on every run, so pulling at the
+start of each CI job keeps the gate in step with the governed terms. A change
+to a preferred or forbidden term is a
+[governed edit](/server/context#tiered-governance) that goes through a
+[change-set](/server/context#experiments-change-sets-and-pilots). Once it
+merges, the next CI run pulls it and gates against it.
 
 ## Related
 

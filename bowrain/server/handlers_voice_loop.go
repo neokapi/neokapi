@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -21,8 +21,8 @@ import (
 // correction handlers; rejection and autonomy-driven promotion are their
 // counterparts. All carry the "voice." prefix so voice automations react.
 const (
-	EventVoiceRuleRejected     platev.EventType = "voice.rule_rejected"
-	EventVoiceRuleAutoPromoted platev.EventType = "voice.rule_auto_promoted"
+	EventVoiceRuleRejected     = platev.EventVoiceRuleRejected
+	EventVoiceRuleAutoPromoted = platev.EventVoiceRuleAutoPromoted
 )
 
 // HandleListCandidates returns the correction-derived candidate rules for a
@@ -31,7 +31,7 @@ const (
 // and joined with this profile's recorded decisions. By default only candidates
 // still needing a human (pending/approved) are returned; ?all=true includes the
 // full history.
-func (s *Server) HandleListCandidates(c echo.Context) error {
+func (s *Server) HandleListCandidates(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "voice not configured"})
 	}
@@ -62,7 +62,7 @@ func (s *Server) HandleListCandidates(c echo.Context) error {
 // HandleRejectSuggestedRule records a reviewer's decision to decline a
 // correction-derived candidate. The rejection persists so the same term stops
 // re-surfacing in the candidate list, and emits voice.rule_rejected.
-func (s *Server) HandleRejectSuggestedRule(c echo.Context) error {
+func (s *Server) HandleRejectSuggestedRule(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (s *Server) HandleRejectSuggestedRule(c echo.Context) error {
 	if err := s.VoiceStore.RecordRuleDecision(c.Request().Context(), decision); err != nil {
 		return serverErr(c, err)
 	}
-	s.publishVoiceRuleEvent(EventVoiceRuleRejected, wsID, userID, profileID, req.Term, req.Replacement, 0)
+	s.publishVoiceRuleEvent(c, EventVoiceRuleRejected, platev.ContextActorPerson, platev.ContextOpDrop, wsID, userID, profileID, req.Term, req.Replacement)
 	return c.JSON(http.StatusOK, decision)
 }
 
@@ -111,7 +111,7 @@ type EvaluateRuleRequest struct {
 // content with and without the rule, and reports how many blocks the change would newly
 // flag, what it resolves, and the per-item breakdown — the number a reviewer sees
 // before the rule lands. Nothing is persisted.
-func (s *Server) HandleEvaluateRulePromotion(c echo.Context) error {
+func (s *Server) HandleEvaluateRulePromotion(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func (s *Server) HandleEvaluateRulePromotion(c echo.Context) error {
 	if err != nil || project == nil || project.WorkspaceID != profile.Scope {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found"})
 	}
-	rules, err := s.workspaceWordRules(ctx, c.Param("ws"), project.DefaultSourceLanguage)
+	rules, err := s.workspaceWordRules(ctx, c.Param("ws"), project.ID, project.DefaultSourceLanguage)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -168,34 +168,41 @@ func (s *Server) HandleEvaluateRulePromotion(c echo.Context) error {
 	return c.JSON(http.StatusOK, radius)
 }
 
-// publishVoiceRuleEvent emits a brand rule lifecycle event, if an event bus is
-// configured. Shared by the reject/promote/auto-promote paths.
-func (s *Server) publishVoiceRuleEvent(t platev.EventType, wsID, userID, profileID, term, replacement string, version int) {
+// publishVoiceRuleEvent emits a voice rule lifecycle event, if an event bus is
+// configured. Shared by the reject/promote/auto-promote paths. The event
+// carries the context change it makes (platev.ContextChange), so the activity
+// recorder files it as one.
+func (s *Server) publishVoiceRuleEvent(c *echo.Context, t platev.EventType, actor platev.ContextActorKind, op platev.ContextOperation, wsID, userID, profileID, term, replacement string) {
 	if s.EventBus == nil {
 		return
 	}
-	data := map[string]string{
+	change := voiceRuleChange(c, actor, op, term)
+	change.Extra = map[string]string{
 		"profile_id":  profileID,
 		"term":        term,
 		"replacement": replacement,
 	}
-	if version > 0 {
-		data["version"] = strconv.Itoa(version)
-	}
+	meta := requestMeta(c)
 	s.EventBus.Publish(platev.Event{
-		ID:        id.New(),
-		Type:      t,
-		Source:    "brand",
-		ProjectID: wsID,
-		Actor:     userID,
-		Data:      data,
-		Timestamp: time.Now().UTC(),
+		ID:           id.New(),
+		Type:         t,
+		Source:       "brand",
+		ProjectID:    wsID,
+		WorkspaceID:  wsID,
+		Actor:        userID,
+		Data:         change.Data(),
+		ResourceType: "voice_profile",
+		ResourceID:   profileID,
+		Timestamp:    time.Now().UTC(),
+		RequestID:    meta.RequestID,
+		IP:           meta.IP,
+		UserAgent:    meta.UserAgent,
 	})
 }
 
 // driftConfigFromQuery reads drift-detection settings from query params, falling
 // back to the analyzer's defaults (7-day recent window, 10-point drop).
-func driftConfigFromQuery(c echo.Context) (coreprofile.DriftConfig, int) {
+func driftConfigFromQuery(c *echo.Context) (coreprofile.DriftConfig, int) {
 	cfg := coreprofile.DriftConfig{}
 	days := 30
 	if v := c.QueryParam("days"); v != "" {
@@ -224,7 +231,7 @@ func driftConfigFromQuery(c echo.Context) (coreprofile.DriftConfig, int) {
 // HandleGetVoiceDrift returns the current voice compliance drift analysis
 // for a project — the recent vs. baseline average and whether compliance has
 // drifted. Safe/read-only: it never fires an alert (use drift-check for that).
-func (s *Server) HandleGetVoiceDrift(c echo.Context) error {
+func (s *Server) HandleGetVoiceDrift(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "voice not configured"})
 	}
@@ -241,7 +248,7 @@ func (s *Server) HandleGetVoiceDrift(c echo.Context) error {
 // drifted, publishes voice.drift so automations and notifications react.
 // This is the action a scheduled job (or a dashboard "check now") invokes; the
 // GET variant is the safe read.
-func (s *Server) HandleRunVoiceDriftCheck(c echo.Context) error {
+func (s *Server) HandleRunVoiceDriftCheck(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -282,7 +289,7 @@ func (s *Server) HandleRunVoiceDriftCheck(c echo.Context) error {
 // and announced as voice.rule_auto_promoted). Returns the promoted rule
 // term when an auto-promotion happened. Best-effort: errors are swallowed so a
 // correction is never lost to an autonomy hiccup.
-func (s *Server) maybeAutoPromote(ctx echo.Context, profile *coreprofile.VoiceProfile, wsID, userID string, correction *coreprofile.Correction) (string, bool) {
+func (s *Server) maybeAutoPromote(ctx *echo.Context, profile *coreprofile.VoiceProfile, wsID, userID string, correction *coreprofile.Correction) (string, bool) {
 	if profile == nil || profile.Autonomy.AutoPromoteAtCount <= 0 {
 		return "", false
 	}
@@ -323,7 +330,7 @@ func (s *Server) maybeAutoPromote(ctx echo.Context, profile *coreprofile.VoicePr
 			ConceptID:       conceptID,
 			DecidedAt:       time.Now().UTC(),
 		})
-		s.publishVoiceRuleEvent(EventVoiceRuleAutoPromoted, wsID, userID, profile.ID, sug.Term, sug.Replacement, 0)
+		s.publishVoiceRuleEvent(ctx, EventVoiceRuleAutoPromoted, platev.ContextActorTool, platev.ContextOpKeep, wsID, userID, profile.ID, sug.Term, sug.Replacement)
 		s.publishKnowledgeEvents(ctx, kgEvents)
 		return sug.Term, true
 	}

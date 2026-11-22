@@ -19,14 +19,13 @@ Runs execute on the server using the configured AI credentials and the
 workspace's shared terms, content memory and voice profiles. Content imported
 through a [connector](/server/connectors) uses the same processing flow.
 
-This page covers what happens on the server. The model itself, the lifecycle
-ladders, coverage gates, and ship states, is documented once, on the kapi
-site, where it is called *the kapi loop*:
-<KapiLink to="/kapi/convergence">The kapi loop</KapiLink>.
+The steps below happen on the server. The model behind them, with its
+lifecycle ladders, coverage gates and ship states, is documented on the kapi
+site as <KapiLink to="/kapi/convergence">the kapi loop</KapiLink>.
 
-## Three roles, three surfaces
+## Produce, promote, release
 
-Producing, promoting, and releasing stay separate. Each role has a home:
+Each of the three steps happens in its own place:
 
 <PhaseFlow
   nodes={[
@@ -52,16 +51,16 @@ Producing, promoting, and releasing stay separate. Each role has a home:
   caption="A server run produces; review in the app promotes what a machine can't decide; the ship gate releases."
 />
 
-- **A run produces.** A server-side flow over connector content, a push under
-  the `bowrain.converge` policy, or a developer's `kapi up`: each drives every
-  block as far up its lifecycle as a flow can take it unaided.
-- **Review promotes.** What a run holds back appears in the project's
-  [review session](/server/review), where a person (or several; decisions are
-  shared) advances a translation past what a machine can decide.
-- **The gate releases.** [`kapi check --ship`](/cli/use-cases/brand-terminology-ci)
-  answers one question, *is this scope shippable?*, and is the explicit,
-  opt-in enforcement point for a release in a pipeline. Language drift never
-  fails an ordinary build.
+- **Produce: a run.** A server-side flow over connector content, a push under
+  the `bowrain.converge` policy, or a developer's `kapi up` takes each block as
+  far up its lifecycle as a flow can without a person.
+- **Promote: review.** Items a run holds back appear in the project's
+  [review session](/server/review). There a person, or several people sharing
+  the decisions, approves each translation a machine could not decide.
+- **Release: the ship gate.** [`kapi check --ship`](/cli/use-cases/brand-terminology-ci)
+  reports whether a scope is shippable. You add it to a pipeline as the
+  enforcement point for a release. An ordinary build passes when target
+  languages are behind.
 
 :::note[The formal name]
 The model behind this (derived state, lifecycle ladders, coverage gates) is
@@ -70,12 +69,12 @@ service*. The REST API, the run event stream, and `--json` output use that
 vocabulary. On the kapi site the same model is named *the kapi loop*.
 :::
 
-## Source first: settle before the fan-out
+## Source first
 
-A run **settles the source first**: it checks source content and waits until it
-reaches the configured `translate_after` level before translating it. Resolving source issues
-before translation avoids repeating corrections in each target language.
-The gate can require human approval when the project needs it.
+A run **settles the source first**. It checks source content and translates it
+only once it reaches the configured `translate_after` level. A source problem
+fixed before translation is fixed once, instead of once in each target language.
+You can set the gate to require a person's approval.
 
 <GatedLoopDiagram
   nodes={[
@@ -108,10 +107,11 @@ The gate can require human approval when the project needs it.
   caption="A server run settles the source, holds each block until its source reaches translate_after, then translates the source that has. Work that needs review is added to the review queue."
 />
 
-- **Settle the source.** A server run's first pass runs the source stage over the
-  source locale only (source checks, do-not-translate terms marked and
-  **protected** so translation can never touch them, the rule-based checks) and stamps each
-  block's source status up the authoring ladder (*written → approved*).
+- **Settle the source.** A server run's first pass covers the source locale
+  only. It runs the source checks and the rule-based checks, and marks
+  do-not-translate terms as **protected** so translation leaves them unchanged.
+  It then moves each block's source status up the authoring ladder
+  (*written → approved*).
 - **Hold the source.** The project's `defaults.translate_after` (default
   `written`) is the source-side counterpart of
   the ship gate. Source that
@@ -119,18 +119,16 @@ The gate can require human approval when the project needs it.
   `source_not_ready`, opens a **source-review task** in the team's queue (see
   [Review](/server/review)), and reports how many blocks are blocked on source.
   Set `translate_after: none` to translate without holding the source.
-- **Translate source that meets the gate.** Settled source is processed per locale,
-  memory first: recycle what the shared memory already has, AI-translate the
-  remainder, check what was produced. Protected terms stay protected through the
-  model.
+- **Translate source that meets the gate.** The run processes settled source
+  per locale, memory first. It reuses what the shared memory already has,
+  translates the remainder with AI, and checks the result. Protected terms stay
+  unchanged.
 - **Hold at the target ship-gate.** A locale that clears its `ship_gate` is
-  shippable; whatever a machine cannot decide **waits for review** rather than
-  shipping under-reviewed.
+  shippable. Anything a machine cannot decide **waits for review**.
 
-Editing a source block re-opens the hold for changed segments. The next
-run checks and regenerates those segments. The model itself, the ladders and gate
-thresholds, is documented once on the kapi site:
-<KapiLink to="/kapi/convergence#source-first">Source first</KapiLink>.
+Editing a source block re-opens the hold for the changed segments, and the next
+run checks and regenerates them. The kapi site documents the ladders and gate
+thresholds under <KapiLink to="/kapi/convergence#source-first">Source first</KapiLink>.
 
 ## Who starts a run
 
@@ -160,25 +158,25 @@ A connector, push policy or explicit command can start a server run:
   caption="The same server-side run, started by a connector, a push policy, or a developer's command."
 />
 
-- **From a connector, with no checkout.** Content connected server-side (a
-  content platform, a design tool) catches up where it lives when a
-  [server-side flow](/server/flows) or automation rule runs over it, and
-  publishes back to where it came from. A
+- **From a connector, with no checkout.** For content connected server-side,
+  such as a content platform or a design tool, a
+  [server-side flow](/server/flows) or automation rule runs over the content
+  where it lives and publishes the results back to it. A
   [repository connector](/server/connectors/github) turns a push webhook into a
-  run and delivers the results as a pull request, with no pipeline in the
-  repository at all.
-- **From a push policy.** With `bowrain.converge: on-push` on the recipe's
-  `bowrain:` block, every push triggers a server-side run: the project stays
-  continuously current without anyone running a command. The policy is explicit
-  and per-project, the way `git push` triggering CI is a repository policy. See
+  run and delivers the results as a pull request. The repository needs no
+  pipeline.
+- **From a push policy.** With `bowrain.converge: on-push` in the recipe's
+  `bowrain:` block, every push starts a server-side run, and the project stays
+  current without anyone running a command. You set the policy per project, in
+  the same way a repository sets CI to run on `git push`. See
   [Automation](/server/automation).
 - **From a developer's terminal or CI.** [`kapi up`](/cli/commands/up) on a
   connected project prints its resolved venue first (*server*), pushes the
   drift, streams the run's progress live into the same terminal view, and pulls
   the results down. `kapi up --local` overrides the venue for one run: the work
-  executes on that machine and those keys, and the results are pushed so the
-  server is never left stale. `kapi up --server` requires the server venue,
-  failing rather than falling back (for CI that must never spend local keys).
+  runs on that machine with its keys, and kapi pushes the results so the server
+  stays current. `kapi up --server` requires the server venue and fails if it is
+  unavailable, for CI that must never spend local keys.
   See the [kapi connector](/server/connectors/kapi) and
   [the loop in CI](/cli/ci/overview).
 
@@ -194,17 +192,16 @@ Every surface reads the same derived state:
 - **In the terminal**, [`kapi status`](/cli/commands/status) shows the
   per-language coverage grid, the server standing, and the effective venue and
   `bowrain.converge` policy.
-- **In the review session**, translations waiting for review are the worklist: a
-  run reports them as awaiting a person and still exits zero. Work waiting for
-  review is pending, not an error.
+- **In the review session**, translations waiting for review are the worklist.
+  A run reports them as awaiting a person and exits zero.
 
 A run started from the app and a run started from a terminal emit the same event
 stream. The Runs view, CLI and `--json` output report progress from those events.
 
 ## See it run
 
-The developer route end to end: connect a repository, push, and bring it up to
-date on the server:
+The video shows the developer route: connect a repository, push, and bring it
+up to date on the server.
 
 <ThemedVideo
   sources={{

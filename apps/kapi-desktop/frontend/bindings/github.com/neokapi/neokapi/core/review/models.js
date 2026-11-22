@@ -414,6 +414,17 @@ export class Neighbourhood {
              */
             this["after"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Unit is the block itself, drawn in place between Before and After. It
+             * travels as runs for the same reason the neighbours do: a surface that
+             * drew the unit from a text preview showed its neighbours' placeholders
+             * and left the unit's own out. Absent when the reader has no runs for it.
+             * @member
+             * @type {Neighbour | null | undefined}
+             */
+            this["unit"] = undefined;
+        }
         if (!("window" in $$source)) {
             /**
              * Window is how many blocks either side were asked for. A list shorter
@@ -436,12 +447,16 @@ export class Neighbourhood {
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType15;
         const $$createField2_0 = $$createType15;
+        const $$createField3_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("before" in $$parsedSource) {
             $$parsedSource["before"] = $$createField1_0($$parsedSource["before"]);
         }
         if ("after" in $$parsedSource) {
             $$parsedSource["after"] = $$createField2_0($$parsedSource["after"]);
+        }
+        if ("unit" in $$parsedSource) {
+            $$parsedSource["unit"] = $$createField3_0($$parsedSource["unit"]);
         }
         return new Neighbourhood(/** @type {Partial<Neighbourhood>} */($$parsedSource));
     }
@@ -597,11 +612,11 @@ export class Point {
      * @returns {Point}
      */
     static createFrom($$source = {}) {
-        const $$createField8_0 = $$createType16;
-        const $$createField9_0 = $$createType18;
-        const $$createField10_0 = $$createType20;
-        const $$createField12_0 = $$createType22;
-        const $$createField13_0 = $$createType23;
+        const $$createField8_0 = $$createType17;
+        const $$createField9_0 = $$createType19;
+        const $$createField10_0 = $$createType21;
+        const $$createField12_0 = $$createType23;
+        const $$createField13_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coordinates" in $$parsedSource) {
             $$parsedSource["coordinates"] = $$createField8_0($$parsedSource["coordinates"]);
@@ -819,7 +834,7 @@ export class Provenance {
      * @returns {Provenance}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType25;
+        const $$createField0_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("origin" in $$parsedSource) {
             $$parsedSource["origin"] = $$createField0_0($$parsedSource["origin"]);
@@ -907,13 +922,14 @@ const $$createType12 = $Create.Array($$createType11);
 const $$createType13 = $Create.Array($Create.Any);
 const $$createType14 = Neighbour.createFrom;
 const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = $Create.Map($Create.Any, $Create.Any);
-const $$createType17 = Voice.createFrom;
-const $$createType18 = $Create.Nullable($$createType17);
-const $$createType19 = profile$0.TermRule.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = ProfileValidity.createFrom;
-const $$createType22 = $Create.Array($$createType21);
-const $$createType23 = $Create.Array($Create.Any);
-const $$createType24 = model$0.Origin.createFrom;
-const $$createType25 = $Create.Nullable($$createType24);
+const $$createType16 = $Create.Nullable($$createType14);
+const $$createType17 = $Create.Map($Create.Any, $Create.Any);
+const $$createType18 = Voice.createFrom;
+const $$createType19 = $Create.Nullable($$createType18);
+const $$createType20 = profile$0.TermRule.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = ProfileValidity.createFrom;
+const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = $Create.Array($Create.Any);
+const $$createType25 = model$0.Origin.createFrom;
+const $$createType26 = $Create.Nullable($$createType25);

@@ -121,7 +121,7 @@ func TestDecide_ARejectionGoesStaleWhenTheTranslationChanges(t *testing.T) {
 	assert.Equal(t, 100, after.Locales[0].Pct["translated"], "back at the translated baseline")
 }
 
-// An agent records a pre-review (advise), never a decision: the change
+// An agent records a pre-review (outcome prereview), never a decision: the change
 // service refuses its establish and its reject, and nothing it sent
 // establishes a unit.
 func TestDecide_AnAgentMayNotDecide(t *testing.T) {

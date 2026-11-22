@@ -7,6 +7,7 @@ import {
   PageHeader,
   useApi,
   useContextScanJob,
+  PageContainer,
 } from "@neokapi/ui";
 import type { ContextScanRequest, VoiceProfile } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
@@ -70,7 +71,7 @@ export function ContextScanJobRoute() {
 
   if (job.status === "completed" && job.draft) {
     return (
-      <div className="max-w-6xl mx-auto space-y-6">
+      <PageContainer width="standard" className="space-y-6">
         <PageHeader
           title="Review your draft"
           subtitle="Every field shows the model's confidence and the evidence it rests on. Adjust anything, test it on sample copy, then approve to create the profile and the selected terms."
@@ -80,16 +81,16 @@ export function ContextScanJobRoute() {
           onApproved={handleApproved}
           onRegenerate={() => void handleRegenerate()}
         />
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="max-w-xl mx-auto pt-8">
+    <PageContainer width="narrow" className="pt-8">
       <ContextScanProgress
         job={job}
         onRetry={job.status === "failed" ? () => void handleRegenerate() : undefined}
       />
-    </div>
+    </PageContainer>
   );
 }

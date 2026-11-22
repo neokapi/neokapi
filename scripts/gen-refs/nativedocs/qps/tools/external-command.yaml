@@ -46,27 +46,27 @@ parameters:
       Ţĥé àŕĝüḿéñţ ļîšţ ƒöŕ ţĥé çöḿḿàñđ. Üšé `${source}` àñđ `${target}` àš
       þļàçéĥöļđéŕš; ƃöţĥ àŕé ŕéþļàçéđ ŵîţĥ ţĥé ţéẋţ ƃéîñĝ þŕöçéššéđ.
     values: "àŕŕàý öƒ šţŕîñĝš"
-  applySource:
+  apply_source:
     description: Þŕöçéšš šöüŕçé ţéẋţ.
     help: "Ŵĥéñ éñàƃļéđ, ţĥé šöüŕçé ţéẋţ îš šéñţ ţĥŕöüĝĥ ţĥé çöḿḿàñđ."
     values: "`ţŕüé` / `ƒàļšé` (đéƒàüļţ `ƒàļšé`)"
-  applyTarget:
+  apply_target:
     description: Þŕöçéšš ţàŕĝéţ ţéẋţ.
     help: |
       Ŵĥéñ éñàƃļéđ, ţĥé ţàŕĝéţ ţéẋţ îš šéñţ ţĥŕöüĝĥ ţĥé çöḿḿàñđ ƒöŕ ţĥé
       çöñƒîĝüŕéđ ļöçàļé. Öñļý éẋîšţîñĝ ţàŕĝéţš àŕé ţöüçĥéđ.
     values: "`ţŕüé` / `ƒàļšé` (đéƒàüļţ `ţŕüé`)"
     dependsOn:
-      - property: targetLocale
-        condition: ŕéǫüîŕéđ ŵĥéñ àþþļýŢàŕĝéţ îš éñàƃļéđ
-  targetLocale:
+      - property: target_locale
+        condition: ŕéǫüîŕéđ ŵĥéñ àþþļý_ţàŕĝéţ îš éñàƃļéđ
+  target_locale:
     description: Ţàŕĝéţ ļöçàļé ƒöŕ þŕöçéššîñĝ.
-    help: Ţĥé ļöçàļé ŵĥöšé ţàŕĝéţ ţéẋţ îš þŕöçéššéđ. Ŕéǫüîŕéđ ŵĥéñ `àþþļýŢàŕĝéţ` îš éñàƃļéđ.
+    help: Ţĥé ļöçàļé ŵĥöšé ţàŕĝéţ ţéẋţ îš þŕöçéššéđ. Ŕéǫüîŕéđ ŵĥéñ `àþþļý_ţàŕĝéţ` îš éñàƃļéđ.
     values: "ƂÇÞ-47 ļöçàļé"
     dependsOn:
-      - property: applyTarget
+      - property: apply_target
         condition: ḿüšţ ƃé éñàƃļéđ ƒöŕ ţĥîš ţö ţàķé éƒƒéçţ
-  sendAsStdin:
+  send_as_stdin:
     description: Šéñđ ţĥé ţéẋţ öñ šţàñđàŕđ îñþüţ ŕàţĥéŕ ţĥàñ àš àñ àŕĝüḿéñţ.
     help: |
       Ŵĥéñ éñàƃļéđ, ţĥé ţéẋţ îš ŵŕîţţéñ ţö ţĥé çöḿḿàñđ'š šţàñđàŕđ îñþüţ. Ŵĥéñ
@@ -90,12 +90,12 @@ examples:
     description: "Ŕüñ àñ éẋţéŕñàļ þŕöĝŕàḿ öñ ţĥé ţàŕĝéţ, šéñđîñĝ ţéẋţ öñ šţđîñ."
     config: |
       command: my-formatter
-      applyTarget: true
-      targetLocale: fr
+      apply_target: true
+      target_locale: fr
   - title: Þàšš ţéẋţ àš àñ àŕĝüḿéñţ
     description: Šüƃšţîţüţé ţĥé ţéẋţ îñţö ţĥé àŕĝüḿéñţ ļîšţ îñšţéàđ öƒ šţđîñ.
     config: |
       command: transform
       args: ["--text", "${source}"]
-      applySource: true
-      sendAsStdin: false
+      apply_source: true
+      send_as_stdin: false

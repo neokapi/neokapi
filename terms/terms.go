@@ -46,6 +46,21 @@ func ReplacementFromNote(note string) string {
 	return strings.TrimSpace(rest)
 }
 
+// Replacement is what to say instead of the discouraged term t of c: the
+// wording t's note names (ReplacementFromNote), else the concept's preferred
+// term in t's language. The note comes first because a person recorded it for
+// this term, as in `kapi context review --keep`; the concept's preferred term
+// stands for every term of the concept that names nothing of its own.
+func Replacement(c Concept, t Term) string {
+	if r := ReplacementFromNote(t.Note); r != "" {
+		return r
+	}
+	if pref := c.PreferredTerm(t.Locale); pref != nil && !strings.EqualFold(pref.Text, t.Text) {
+		return pref.Text
+	}
+	return ""
+}
+
 // UsageNote is a term note as a reader sees it beside a finding: the note
 // itself, or "" when the note only names the replacement. The replacement is
 // reported on its own, so carrying such a note too would print it twice
@@ -235,7 +250,8 @@ type LookupOptions struct {
 	SourceLocale  model.LocaleID
 	TargetLocale  model.LocaleID
 	CaseSensitive bool
-	MinScore      float64 // minimum match score for fuzzy (default 0.8)
+	ConceptIDs    map[string]bool // eligible concepts, nil for all concepts
+	MinScore      float64         // minimum match score for fuzzy (default 0.8)
 	MatchModes    []model.MatchStrategy
 	Domains       []string           // restrict to specific domains
 	StatusFilter  []model.TermStatus // only return terms with these statuses
@@ -243,6 +259,10 @@ type LookupOptions struct {
 	ProjectID     string             // project context for scope filtering
 	ProjectScope  ProjectScope       // project filtering mode (default: all)
 	Scope         *graph.Scope       // validity scope; nil = no validity filtering
+}
+
+func (opts LookupOptions) includesConcept(id string) bool {
+	return !IsShadowID(id) && (opts.ConceptIDs == nil || opts.ConceptIDs[id])
 }
 
 // ConceptRelation is a persisted, typed relationship between two concepts —

@@ -237,3 +237,27 @@ func idBlock(id, name, source string) *model.Block {
 	b.SetSourceText(source)
 	return b
 }
+
+// The unit's own row travels as runs, as its neighbours' do, so a surface
+// drawing it between them draws its placeholder too.
+func TestNeighbourhoodOf_CarriesTheUnit(t *testing.T) {
+	block := func(id string, runs ...model.Run) *model.Block {
+		b := &model.Block{ID: id, Name: id, Translatable: true}
+		b.SetSourceRuns(runs)
+		return b
+	}
+	ph := model.Run{Ph: &model.PlaceholderRun{ID: "c1", Type: "code", Data: "{{name}}"}}
+	blocks := []*model.Block{
+		block("before", model.TextR("Cordoned node "), ph),
+		block("unit", model.TextR("Failed to cordon node "), ph),
+		block("after", model.TextR("Drained node "), ph),
+	}
+
+	n := NeighbourhoodOf(blocks, 1, 0, "nb")
+	require.NotNil(t, n.Unit)
+	assert.Equal(t, blocks[1].SourceRuns(), n.Unit.Source)
+	require.NotNil(t, n.Unit.Source[1].Ph)
+	assert.Equal(t, "{{name}}", n.Unit.Source[1].Ph.Data)
+	assert.Len(t, n.Before, 1)
+	assert.Len(t, n.After, 1)
+}

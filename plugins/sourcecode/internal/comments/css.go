@@ -79,7 +79,7 @@ func cssContainer(kind, parent string) bool {
 func cssDecl(n *ts.Node, _ string, src []byte) (string, bool) {
 	switch n.Kind() {
 	case "rule_set":
-		for i := uint(0); i < n.NamedChildCount(); i++ {
+		for i := range n.NamedChildCount() {
 			if c := n.NamedChild(i); c.Kind() == "selectors" {
 				return "rule/" + selectorName(c.Utf8Text(src)), true
 			}
@@ -90,7 +90,7 @@ func cssDecl(n *ts.Node, _ string, src []byte) (string, bool) {
 	case "supports_statement":
 		return "supports", true
 	case "keyframes_statement":
-		for i := uint(0); i < n.NamedChildCount(); i++ {
+		for i := range n.NamedChildCount() {
 			if c := n.NamedChild(i); c.Kind() == "keyframes_name" {
 				return "keyframes/" + nodeName(c, src), true
 			}

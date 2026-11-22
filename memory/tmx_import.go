@@ -74,36 +74,130 @@ type ImportTMXOptions struct {
 	// ImportedBy is recorded on the ImportSession.
 	ImportedBy string
 	// SkipIndexRebuild suppresses the automatic FTS5 search + fuzzy index
-	// rebuild that follows a bulk import. Leave it false — the default — and a
-	// single import leaves the store searchable with no further call. Set it
+	// rebuild that follows a bulk import. Left false (the default), a single
+	// import leaves the store searchable with no further call. Set it
 	// only when the caller batches many imports and rebuilds the side-tables
 	// once at the end (the import-dir path): rebuilding per file is the
 	// dominant cost on large corpora.
 	SkipIndexRebuild bool
+	// Rule, when set, makes the import bilingual: each TU's source language is
+	// chosen by ChooseSource, the TU keeps that source and the target (every
+	// other variant when Rule.Target is empty), and a TU the rule cannot use
+	// is skipped and counted in Counts. When TUs exist and none is kept, the
+	// import stores nothing and fails with ErrNoUsablePair.
+	Rule *SourceRule
+	// Counts, when set, receives what a Rule import kept and skipped.
+	Counts *ImportCounts
 }
 
-// ImportTMXWithOptions imports a TMX file into the content memory, supports recording an Origin
-// and filtering to a specific (src, tgt) bilingual pair when both locales
-// are set. Other TUVs are dropped.
-func ImportTMXWithOptions(ctx context.Context, tm ContentMemory, reader io.Reader, sourceLocale, targetLocale model.LocaleID, opts ImportTMXOptions) (int, error) {
+// SourceRule is how a bilingual import chooses each unit's source language.
+type SourceRule struct {
+	// Explicit is --source-locale, empty when it was not given.
+	Explicit model.LocaleID
+	// Store is the source language of the store the import writes to.
+	Store model.LocaleID
+	// Target is --target-locale, empty to keep every other variant.
+	Target model.LocaleID
+}
+
+// ChooseSource returns the source language of one unit. It is Explicit when
+// given, and only if the unit holds it. Otherwise it is Store when the unit
+// holds it, else declared (the unit's own srclang, else the file's) when the
+// unit holds that, else "", and the unit is skipped. A TBX import takes no
+// source rule: a terms store keeps every concept in every language.
+func ChooseSource(rule SourceRule, declared model.LocaleID, holds func(model.LocaleID) bool) model.LocaleID {
+	pick := func(l model.LocaleID) model.LocaleID {
+		if l == "" {
+			return ""
+		}
+		l = model.NormalizeLocale(l)
+		if holds(l) {
+			return l
+		}
+		return ""
+	}
+	if rule.Explicit != "" {
+		return pick(rule.Explicit)
+	}
+	if l := pick(rule.Store); l != "" {
+		return l
+	}
+	return pick(declared)
+}
+
+// ImportCounts is what a bilingual import kept and why it skipped the rest.
+type ImportCounts struct {
+	Imported int `json:"imported"`
+	// NoSource counts units holding none of the languages ChooseSource tries.
+	NoSource int `json:"skipped_no_source"`
+	// SameLanguage counts units whose source would equal the target.
+	SameLanguage int `json:"skipped_source_equals_target"`
+	// NoTarget counts units holding no translation: no target-language
+	// variant, or no variant besides the source.
+	NoTarget int `json:"skipped_no_target"`
+	// Empty counts units with no text in any language.
+	Empty int `json:"skipped_empty"`
+	// Sources counts the kept units by the source language each was read in.
+	Sources map[model.LocaleID]int `json:"sources,omitempty"`
+}
+
+// Skipped is the number of units skipped for any reason.
+func (c ImportCounts) Skipped() int { return c.NoSource + c.SameLanguage + c.NoTarget + c.Empty }
+
+// Add adds o's counts to c.
+func (c *ImportCounts) Add(o ImportCounts) {
+	c.Imported += o.Imported
+	c.NoSource += o.NoSource
+	c.SameLanguage += o.SameLanguage
+	c.NoTarget += o.NoTarget
+	c.Empty += o.Empty
+	for l, n := range o.Sources {
+		if c.Sources == nil {
+			c.Sources = map[model.LocaleID]int{}
+		}
+		c.Sources[l] += n
+	}
+}
+
+// ErrNoUsablePair reports a bilingual TMX import that would store nothing:
+// the file holds translation units, and the source rule kept none of them.
+var ErrNoUsablePair = errors.New("no translation unit holds a usable source and target")
+
+// declaredSource is the language a unit declares as its source: its own
+// srclang, else the file's, canonicalized; "" for none or "*all*".
+func declaredSource(unit, header string) model.LocaleID {
+	for _, v := range []string{unit, header} {
+		if v = strings.TrimSpace(v); v != "" && !strings.EqualFold(v, "*all*") {
+			return model.NormalizeLocale(model.LocaleID(v))
+		}
+	}
+	return ""
+}
+
+// ImportTMXWithRule imports a TMX file into the content memory as bilingual
+// entries, choosing each unit's source language by rule (ChooseSource) and
+// recording an Origin. It returns what it kept and skipped; when the file
+// holds units and none is kept, it stores nothing and returns ErrNoUsablePair
+// with the counts.
+func ImportTMXWithRule(ctx context.Context, tm ContentMemory, reader io.Reader, rule SourceRule, opts ImportTMXOptions) (ImportCounts, error) {
+	var counts ImportCounts
+	opts.Rule = &rule
+	opts.Counts = &counts
 	store, ok := tm.(Store)
 	if !ok {
-		return 0, errors.New("content memory does not support import sessions")
-	}
-	if sourceLocale != "" && targetLocale != "" {
-		opts.Locales = []model.LocaleID{sourceLocale, targetLocale}
+		return counts, errors.New("content memory does not support import sessions")
 	}
 	_, imported, err := ImportTMXSession(ctx, store, reader, opts)
-	return imported, err
+	counts.Imported = imported
+	return counts, err
 }
 
 // ImportTMXLocalePairs reads a TMX file and imports TUs into the content memory, keeping
 // only the specified locales as variants. An empty locales slice keeps every
 // TUV present.
 //
-// This is a multilingual import — each TU becomes one entry with N variants.
-// The "locale pairs" in the name is a historical artifact; the old behavior
-// of emitting a separate entry per (src, tgt) pair has been removed.
+// This is a multilingual import: each TU becomes one entry with N variants,
+// whatever "locale pairs" in the name suggests.
 func ImportTMXLocalePairs(ctx context.Context, tm ContentMemory, reader io.Reader, locales []model.LocaleID, opts ImportTMXOptions) (int, error) {
 	store, ok := tm.(Store)
 	if !ok {
@@ -119,7 +213,7 @@ func ImportTMXLocalePairs(ctx context.Context, tm ContentMemory, reader io.Reade
 // number of entries imported.
 //
 // When the file SHA-256 matches a previous session's hash, opts.WarnFunc is
-// invoked but the import proceeds — a new session is created so that the
+// invoked and the import proceeds. A new session is created so that the
 // caller can distinguish re-imports.
 func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts ImportTMXOptions) (string, int, error) {
 	// 1. Read everything so we can hash and rewind.
@@ -181,9 +275,6 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 	if session.FileKey == "" {
 		session.FileKey = "tmx-import"
 	}
-	if err := store.CreateImportSession(ctx, session); err != nil {
-		return "", 0, err
-	}
 
 	// 6. Build locale filter (empty = keep all).
 	// Canonical on both sides: a filter written "en-US" keeps a TUV declaring
@@ -225,8 +316,18 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 				}
 			}
 		}
-		if len(variants) == 0 {
+		if !holdsText(variants) {
+			if opts.Rule != nil && opts.Counts != nil {
+				opts.Counts.Empty++
+			}
 			continue
+		}
+		if opts.Rule != nil {
+			var keep bool
+			variants, hintLang, keep = applySourceRule(*opts.Rule, declaredSource(tu.SrcLang, doc.Header.SrcLang), variants, opts.Counts)
+			if !keep {
+				continue
+			}
 		}
 
 		// Merge TU-level props into entry-level props.
@@ -269,10 +370,16 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 		})
 	}
 
-	// 8. Persist. Use BulkAddWithStream when available — this collapses
-	//    thousands of per-entry commits into a single transaction and is
-	//    the only way TMX imports of large corpora finish in a reasonable
-	//    amount of time.
+	if len(entries) == 0 && len(doc.TUs) > 0 && opts.Rule != nil {
+		return "", 0, ErrNoUsablePair
+	}
+	if err := store.CreateImportSession(ctx, session); err != nil {
+		return "", 0, err
+	}
+
+	// 8. Persist. Use BulkAddWithStream when available: it collapses
+	//    thousands of per-entry commits into a single transaction, so TMX
+	//    imports of large corpora finish in a reasonable amount of time.
 	imported := 0
 	if bulk, ok := store.(BulkAdder); ok {
 		if err := bulk.BulkAddWithStream(ctx, entries, ""); err != nil {
@@ -280,11 +387,10 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 		}
 		imported = len(entries)
 		// BulkAddWithStream deliberately skips the FTS5 search + fuzzy
-		// side-tables — repopulating them per row is the dominant cost on
-		// large corpora. Restore them set-wise here so imported entries are
+		// side-tables, because repopulating them per row is the dominant cost
+		// on large corpora. Restore them set-wise here so imported entries are
 		// visible to search and fuzzy lookup. Doing it inside the session,
-		// rather than at each call site, is what stops a caller (the desktop
-		// import path did) from leaving the import invisible. A batching
+		// rather than at each call site, keeps every caller's import visible. A batching
 		// caller opts out with SkipIndexRebuild and rebuilds once at the end.
 		if idx, ok := store.(SearchIndexRebuilder); ok && !opts.SkipIndexRebuild {
 			if err := idx.RebuildSearchIndex(ctx); err != nil {
@@ -307,6 +413,57 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 		return session.ID, imported, err
 	}
 	return session.ID, imported, nil
+}
+
+// holdsText reports whether any variant holds text or an inline code.
+func holdsText(variants map[model.LocaleID][]model.Run) bool {
+	for _, runs := range variants {
+		for _, r := range runs {
+			if r.Text == nil || r.Text.Text != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// applySourceRule chooses a unit's source language and narrows its variants
+// to the source and the target (every variant when the rule names no
+// target). It reports false, counting the reason, for a unit the rule cannot
+// use.
+func applySourceRule(rule SourceRule, declared model.LocaleID, variants map[model.LocaleID][]model.Run, counts *ImportCounts) (map[model.LocaleID][]model.Run, model.LocaleID, bool) {
+	if counts == nil {
+		counts = &ImportCounts{}
+	}
+	holds := func(l model.LocaleID) bool { _, ok := variants[l]; return ok }
+	src := ChooseSource(rule, declared, holds)
+	if src == "" {
+		counts.NoSource++
+		return nil, "", false
+	}
+	tgt := rule.Target
+	if tgt != "" {
+		tgt = model.NormalizeLocale(tgt)
+	}
+	switch {
+	case tgt != "" && tgt == src:
+		counts.SameLanguage++
+		return nil, "", false
+	case tgt != "" && !holds(tgt):
+		counts.NoTarget++
+		return nil, "", false
+	case tgt == "" && len(variants) < 2:
+		counts.NoTarget++
+		return nil, "", false
+	}
+	if tgt != "" {
+		variants = map[model.LocaleID][]model.Run{src: variants[src], tgt: variants[tgt]}
+	}
+	if counts.Sources == nil {
+		counts.Sources = map[model.LocaleID]int{}
+	}
+	counts.Sources[src]++
+	return variants, src, true
 }
 
 func newSessionID(hash string, t time.Time) string {
@@ -352,8 +509,8 @@ func scopedTUID(originKey, tuid string, index int, sessionID string) string {
 // Files starting with a BOM are converted via charset sniffing (the only
 // way to read UTF-16 before the XML declaration is parseable). BOM-less
 // files follow the XML rules instead: UTF-8 unless the `<?xml ... encoding=`
-// declaration says otherwise — html/charset sniffing alone would fall back
-// to windows-1252 and mangle plain UTF-8 TMX.
+// declaration says otherwise, since html/charset sniffing alone would fall
+// back to windows-1252 and mangle plain UTF-8 TMX.
 func newTMXDecoder(reader io.Reader) (*xml.Decoder, error) {
 	br := bufio.NewReader(reader)
 	head, err := br.Peek(3)
@@ -621,7 +778,7 @@ func parseTMXSeg(dec *xml.Decoder, mapping *TMXMapping) ([]model.Run, error) {
 					return nil, err
 				}
 			default:
-				// Unknown element — round-trip as raw placeholder.
+				// Unknown element: round-trip as raw placeholder.
 				raw, err := captureRawXML(dec, t)
 				if err != nil {
 					return nil, err
@@ -789,7 +946,7 @@ func handleUT(dec *xml.Decoder, start xml.StartElement, b *runBuilder, mapping *
 
 // decodeText collects text content (including nested element text) until
 // the matching end element is consumed. Nested elements are expanded to
-// their text only — sufficient for leaf elements like ph/bpt/ept/ut.
+// their text only, which suffices for leaf elements like ph/bpt/ept/ut.
 func decodeText(dec *xml.Decoder, endName string) (string, error) {
 	var b strings.Builder
 	depth := 1

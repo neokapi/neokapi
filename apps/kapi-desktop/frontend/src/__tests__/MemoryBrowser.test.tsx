@@ -101,7 +101,7 @@ describe("MemoryBrowser", () => {
       adapter = createMockAdapter([]);
       render(<MemoryBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
-      const input = screen.getByPlaceholderText("Search content memory...");
+      const input = screen.getByPlaceholderText("Search content memory…");
       await userEvent.type(input, "test query{Enter}");
 
       await waitFor(() => {
@@ -136,7 +136,7 @@ describe("MemoryBrowser", () => {
         expect(screen.getByText("No entries yet.")).toBeInTheDocument();
       });
 
-      const input = screen.getByPlaceholderText("Search content memory...");
+      const input = screen.getByPlaceholderText("Search content memory…");
       await userEvent.type(input, "nonexistent{Enter}");
 
       await waitFor(() => {

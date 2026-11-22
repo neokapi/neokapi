@@ -21,7 +21,7 @@ func TestGetToolSchemaProxiesTheServerRoute(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"$id":"term-check","title":"Terminology Check","type":"object",` +
 				`"ui:groups":[{"id":"main","label":"Main"}],` +
-				`"properties":{"caseSensitive":{"type":"boolean","title":"Case Sensitive"}}}`))
+				`"properties":{"case_sensitive":{"type":"boolean","title":"Case Sensitive"}}}`))
 		case "/api/v1/tools/broken/schema":
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte("boom"))
@@ -43,7 +43,7 @@ func TestGetToolSchemaProxiesTheServerRoute(t *testing.T) {
 	assert.NotNil(t, schema["ui:groups"])
 	props, ok := schema["properties"].(map[string]any)
 	require.True(t, ok)
-	assert.Contains(t, props, "caseSensitive")
+	assert.Contains(t, props, "case_sensitive")
 
 	// A tool without a schema is a nil document, as the server's 404 says.
 	schema, err = app.GetToolSchema("no-such-tool")
@@ -67,7 +67,7 @@ func TestGetToolSchemaOfflineReadsTheLocalRegistry(t *testing.T) {
 	assert.Equal(t, "term-check", schema["$id"])
 	props, ok := schema["properties"].(map[string]any)
 	require.True(t, ok)
-	assert.Contains(t, props, "caseSensitive")
+	assert.Contains(t, props, "case_sensitive")
 
 	schema, err = app.GetToolSchema("no-such-tool")
 	require.NoError(t, err)

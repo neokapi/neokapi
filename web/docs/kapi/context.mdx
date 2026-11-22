@@ -28,7 +28,9 @@ and leave the rest of it alone.
 
 ## Ask what applies here {#what-applies-here}
 
-Point `kapi context` at a file before you write it. The answer is a short brief:
+Before you write a file, ask what applies to it: run `kapi context <path>`,
+open the file in **Search** in Kapi Desktop, or let an assistant call
+`context_read` over MCP. The answer is a short brief:
 the voice to write in, one list of the words to use and to avoid there, and
 what has been suggested but not yet decided. A person can read it, and an
 assistant reads the same text.
@@ -49,7 +51,7 @@ Say this, not that:
 Suggested, not yet established:
 - Quickcast, not "Quick cast", "Quick-cast", "QuickCast" (claude-code, seen in docs/billing.md)
 
-Nothing else is recorded for this file. As you read the files around it, record with context_note (or `kapi context note`) what they do every time, including names your text does not use: each product, feature and plan name as written, the spelling variety, and a word chosen over a common alternative. Leave alone a word they write more than one way, with no note about it.
+Nothing else is recorded for this file. As you read the files around it, record with context_note (or `kapi context note`) any wording they keep consistent, including names your text does not contain: each product, feature and plan name as written, the spelling variety, and a word chosen over a common alternative. Leave alone a word spelled more than one way, with no note about it.
 ```
 
 The word list gathers every rule that holds for the file: the project's own
@@ -72,7 +74,7 @@ kapi context cmd/main.go --comments
 A rule held for one part of the project says nothing about the rest, so the
 answer for a file where it does not hold names the wording that stays as it
 is. A rename kept for the help pages leaves the API reference with the old
-name, and the answer for a file there says so plainly:
+name, and the answer for a file there says so:
 
 ```text
 Keep as it is in this file:
@@ -103,7 +105,7 @@ a path, and the same text is a resource: `context://docs/billing.md`, with
 ## Search what the project says about a word
 
 The other question takes a word or a phrase and asks everything the project
-keeps:
+keeps. In Kapi Desktop, search for the word in **Search**; on the command line:
 
 ```bash
 kapi context search "sign-in"
@@ -121,7 +123,7 @@ kapi context search "sign-in"
 
 The answer lists the terms to use, the terms to avoid with their replacements,
 and wording already approved, grouped by kind. Approved wording that contains a
-term to avoid is flagged. Each term reports how often your content uses it, as
+term to avoid is flagged. Each term reports how often it appears in your content, as
 of the last `kapi up`, so a term added since then shows no uses until the next
 run. The desktop explorer shows the same counts.
 
@@ -142,7 +144,7 @@ A project with nothing recorded says so:
 
 Nothing is recorded for this file yet. Write as the surrounding files do.
 
-As you read the files around it, record with context_note (or `kapi context note`) what they do every time, including names your text does not use: each product, feature and plan name as written, the spelling variety, and a word chosen over a common alternative. Leave alone a word they write more than one way, with no note about it.
+As you read the files around it, record with context_note (or `kapi context note`) any wording they keep consistent, including names your text does not contain: each product, feature and plan name as written, the spelling variety, and a word chosen over a common alternative. Leave alone a word spelled more than one way, with no note about it.
 ```
 
 The last paragraph asks an assistant to note what it sees, and each note
@@ -169,8 +171,8 @@ about is `empty` however much the project holds elsewhere.
 
 A new project starts with no rules. They grow out of ordinary work: an
 assistant notes the name the files always use, or the word you changed in its
-draft, and each note arrives as a suggestion. A suggestion advises from the
-moment it is recorded. Checks report it, no check fails on it, and it becomes a
+draft, and each note arrives as a suggestion. Checks report a suggestion from
+the moment it is recorded, no check fails on it, and it becomes a
 rule when you keep it with `kapi context review`, or when your own work backs
 it, such as a merged change that writes it.
 
@@ -409,9 +411,8 @@ governance: profile "acme-relaunch" expired 2026-12-01; governing with the proje
 `kapi context search` labels each dated product `active`, `upcoming` or
 `expired`, so a writer can see that guidance has an end date before it lapses.
 
-A single term can carry the same dates, which is how a vocabulary survives a
-rename: _recognise the old name until March_ is a different instruction from
-_never use it_.
+A single term can carry the same dates. During a rename, a dated term can say
+_recognise the old name until March_, where an undated one says _never use it_.
 
 ### One more axis: language {#one-more-axis-language}
 
@@ -423,8 +424,8 @@ terms of `acme/docs` are the terms its German documentation uses.
 A language adds an override inside the voice profile, next to the channel
 overrides: a `locales:` entry carries the formality, the point of view, the
 cultural notes and the examples for that language. Terms carry their
-renderings per language. What you write for one language governs every other,
-and [convergence](/kapi/convergence) keeps the languages in step.
+renderings per language. The guidance you write for the source governs every
+language, and [the kapi loop](/kapi/convergence) keeps the languages in step.
 
 ## Sharing context
 

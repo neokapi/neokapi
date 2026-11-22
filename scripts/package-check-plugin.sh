@@ -137,10 +137,12 @@ else
   # link ws2_32/userenv but not ntdll, so mingw's single-pass linker reports
   # "undefined reference to Nt*/Rtl*". Append -lntdll via the env CGO_LDFLAGS,
   # which Go places AFTER the package's -ltokenizers in the link line — the
-  # order the single-pass GNU linker requires.
+  # order the single-pass GNU linker requires. Rust's std also parks threads
+  # with WaitOnAddress and WakeByAddress*, which the synchronization import
+  # library provides, so -lsynchronization follows for the same reason.
   CGO_LDFLAGS_VAL="-L${TOKENIZERS_LIB}"
   if [ "$GOOS" = "windows" ]; then
-    CGO_LDFLAGS_VAL="${CGO_LDFLAGS_VAL} -lntdll"
+    CGO_LDFLAGS_VAL="${CGO_LDFLAGS_VAL} -lntdll -lsynchronization"
   fi
   echo "package-check-plugin: building ${BIN_NAME} ${VERSION} for ${GOOS}/${GOARCH} (-tags onnx)"
   (
@@ -170,7 +172,7 @@ sed 's/^  "version": *"[^"]*"/  "version": "'"$VERSION"'"/' "$STAGE/manifest.jso
 # ── stage onnxruntime shared library at lib/<unversioned-name> ────────────────
 # Find the platform shared library inside the extracted onnxruntime dir. Prefer
 # $ORT_DIR/lib; fall back to a recursive search. onnxruntime ships versioned
-# names (libonnxruntime.1.25.0.dylib, libonnxruntime.so.1.25.0) alongside an
+# names (libonnxruntime.1.31.1.dylib, libonnxruntime.so.1.31.1) alongside an
 # unversioned alias (libonnxruntime.dylib / libonnxruntime.so); we normalise to
 # the unversioned name the loader path points at. On Windows the DLL is
 # unversioned already (onnxruntime.dll).

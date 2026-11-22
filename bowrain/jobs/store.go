@@ -60,6 +60,12 @@ type JobStore interface {
 	// carried no verdict, when every verdict was accepted, or when the push is
 	// not yet applied.
 	PushGovernance(ctx context.Context, pushID string) (string, error)
+	// SetPushParts records what a push's terminology and context ledger parts
+	// did (venue.PushParts, as JSON), on the job row the producer polls.
+	SetPushParts(ctx context.Context, jobID, report string) error
+	// PushParts reads that record back for a push. Empty when the push carried
+	// neither part, or is not yet applied.
+	PushParts(ctx context.Context, pushID string) (string, error)
 	// ClaimJob atomically transitions a job from queued to processing and bumps
 	// its claim_epoch (the lease generation). Returns claimed=true with the new
 	// epoch if this caller won the claim, or (false, 0, nil) if another worker
@@ -144,7 +150,8 @@ type JobStore interface {
 //
 // Baseline is version 10 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 11.
+// repaired. Retired numbers are never reused; versions 11 to 13 follow it, and
+// the next migration is version 14.
 var JobMigrations = []storage.Migration{
 	{
 		Version:     10,
@@ -237,6 +244,40 @@ var JobMigrations = []storage.Migration{
 				ADD COLUMN IF NOT EXISTS governance_report TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     12,
+		Description: "rename translation_jobs.via_tm to via_memory",
+		SQL: `
+			-- The baseline creates via_tm; this renames it. The guard keeps the
+			-- migration replayable over a schema that already carries
+			-- via_memory, which is what a cleared ledger replays against.
+			DO $$
+			BEGIN
+				IF EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_schema = current_schema()
+					  AND table_name = 'translation_jobs'
+					  AND column_name = 'via_tm'
+				) THEN
+					ALTER TABLE translation_jobs RENAME COLUMN via_tm TO via_memory;
+				END IF;
+			END $$;
+		`,
+	},
+	{
+		Version:     13,
+		Description: "record what a push's terms and context ledger parts did",
+		SQL: `
+			-- A push applies its content, its terminology edits and its
+			-- context ledger objects in one transaction on the worker, after
+			-- the commit was answered with 202. What the terms and ledger
+			-- parts amounted to (concepts applied, the change-set proposed,
+			-- the operations stored) is written here for the producer to read
+			-- back, as governance_report is.
+			ALTER TABLE translation_jobs
+				ADD COLUMN IF NOT EXISTS parts_report TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }
 
 // jobStore implements JobStore using PostgreSQL.
@@ -264,7 +305,7 @@ func (s *jobStore) CreateJob(ctx context.Context, job *TranslationJob) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO translation_jobs
 			(id, workspace_slug, project_id, item_name, target_locale, provider_config_id,
-			 model, push_id, step_id, status, progress, total_blocks, done_blocks, tokens_used, error, created_at, updated_at, workspace_id, via_tm, via_ai, stream, created_by)
+			 model, push_id, step_id, status, progress, total_blocks, done_blocks, tokens_used, error, created_at, updated_at, workspace_id, via_memory, via_ai, stream, created_by)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
 		job.ID, job.WorkspaceSlug, job.ProjectID, job.ItemName, job.TargetLocale,
 		job.ProviderConfigID, job.Model, job.PushID, job.StepID, string(job.Status), job.Progress, job.TotalBlocks,
@@ -279,7 +320,7 @@ func (s *jobStore) GetJob(ctx context.Context, id string) (*TranslationJob, erro
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, workspace_slug, project_id, item_name, target_locale,
 				provider_config_id, model, push_id, step_id, status, progress, total_blocks, done_blocks,
-				tokens_used, error, created_at, updated_at, workspace_id, via_tm, via_ai, stream, created_by
+				tokens_used, error, created_at, updated_at, workspace_id, via_memory, via_ai, stream, created_by
 		 FROM translation_jobs WHERE id = $1`, id)
 	return scanJob(row)
 }
@@ -291,7 +332,7 @@ func (s *jobStore) ListJobs(ctx context.Context, workspaceSlug string, limit int
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, workspace_slug, project_id, item_name, target_locale,
 				provider_config_id, model, push_id, step_id, status, progress, total_blocks, done_blocks,
-				tokens_used, error, created_at, updated_at, workspace_id, via_tm, via_ai, stream, created_by
+				tokens_used, error, created_at, updated_at, workspace_id, via_memory, via_ai, stream, created_by
 		 FROM translation_jobs
 		 WHERE workspace_slug = $1
 		 ORDER BY created_at DESC
@@ -322,7 +363,7 @@ func (s *jobStore) UpdateJobProgress(ctx context.Context, id string, epoch int64
 func (s *jobStore) UpdateJobMemorySplit(ctx context.Context, id string, epoch int64, viaMemory, viaAI int) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE translation_jobs
-		 SET via_tm = $1, via_ai = $2, updated_at = NOW()
+		 SET via_memory = $1, via_ai = $2, updated_at = NOW()
 		 WHERE id = $3 AND status = 'processing' AND claim_epoch = $4`,
 		viaMemory, viaAI, id, epoch)
 	if err != nil {
@@ -426,11 +467,16 @@ func (s *jobStore) SweepStaleProcessing(ctx context.Context, olderThan time.Dura
 	// Nothing else covers it: an enqueue that failed after the row was written
 	// — the create handler's rollback, or the sweep's own re-enqueue — leaves a
 	// job nobody will ever deliver. Re-enqueueing one that IS merely waiting is
-	// harmless, because ClaimJob admits exactly one worker.
+	// harmless, because ClaimJob admits exactly one worker. Waiting is not an
+	// attempt: a queued row is re-enqueued without spending its budget and is
+	// never failed here, so a backlog longer than the threshold drains instead
+	// of failing jobs that never ran.
 	rows, err := s.db.QueryContext(ctx,
 		`UPDATE translation_jobs
-		 SET status = 'queued', attempts = attempts + 1, updated_at = NOW()
-		 WHERE status IN ('processing', 'queued') AND updated_at < $1 AND attempts + 1 < $2
+		 SET attempts = attempts + CASE WHEN status = 'processing' THEN 1 ELSE 0 END,
+		     status = 'queued', updated_at = NOW()
+		 WHERE updated_at < $1
+		   AND (status = 'queued' OR (status = 'processing' AND attempts + 1 < $2))
 		 RETURNING id`,
 		cutoff, maxAttempts)
 	if err != nil {
@@ -457,7 +503,7 @@ func (s *jobStore) SweepStaleProcessing(ctx context.Context, olderThan time.Dura
 		`UPDATE translation_jobs
 		 SET status = 'failed', attempts = attempts + 1,
 		     error = 'stalled before completion; exceeded max attempts', updated_at = NOW()
-		 WHERE status IN ('processing', 'queued') AND updated_at < $1 AND attempts + 1 >= $2`,
+		 WHERE status = 'processing' AND updated_at < $1 AND attempts + 1 >= $2`,
 		cutoff, maxAttempts)
 	if err != nil {
 		return requeued, 0, fmt.Errorf("sweep fail exhausted jobs: %w", err)
@@ -525,6 +571,34 @@ func (s *jobStore) PushGovernance(ctx context.Context, pushID string) (string, e
 	return report, nil
 }
 
+// SetPushParts records what a push's terms and ledger parts did on the job row.
+func (s *jobStore) SetPushParts(ctx context.Context, jobID, report string) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE translation_jobs SET parts_report = $1, updated_at = NOW() WHERE id = $2`,
+		report, jobID)
+	if err != nil {
+		return fmt.Errorf("record push parts: %w", err)
+	}
+	return nil
+}
+
+// PushParts reads back what a push's terms and ledger parts did, from the
+// ingest job's row.
+func (s *jobStore) PushParts(ctx context.Context, pushID string) (string, error) {
+	var report string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT parts_report FROM translation_jobs
+		 WHERE push_id = $1 AND item_name = $2 AND parts_report <> ''
+		 LIMIT 1`, pushID, SyncPushItemName).Scan(&report)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("read push parts: %w", err)
+	}
+	return report, nil
+}
+
 func (s *jobStore) CompleteJob(ctx context.Context, id string, epoch int64) (bool, error) {
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE translation_jobs
@@ -576,7 +650,7 @@ func (s *jobStore) ListJobsByPushID(ctx context.Context, pushID string) ([]*Tran
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, workspace_slug, project_id, item_name, target_locale,
 				provider_config_id, model, push_id, step_id, status, progress, total_blocks, done_blocks,
-				tokens_used, error, created_at, updated_at, workspace_id, via_tm, via_ai, stream, created_by
+				tokens_used, error, created_at, updated_at, workspace_id, via_memory, via_ai, stream, created_by
 		 FROM translation_jobs
 		 WHERE push_id = $1
 		 ORDER BY created_at ASC`, pushID)

@@ -7,15 +7,11 @@
 # enabled (tables, strikethrough); the upstream Java filter is built on
 # Flexmark, but the public extraction contract is the same.
 #
-# Config keys use the Okapi parameter names (translateImageAltText,
-# translateUrls, translateHeaderMetadata, htmlSubfilter, …) — the same
-# names the bridge composite schema exposes, so drift detection lines
-# up. `okapi_param` carries the underlying Java field name for full
-# traceability where it differs. Native ApplyMap accepts both the
-# Okapi parameter names and the legacy native spellings
-# (translateImageAlt, translateURLs, translateFrontMatter, subfilter)
-# — feature/example config blocks below use the Okapi names so the
-# spec is internally consistent.
+# Config keys are the native snake_case names (translate_image_alt,
+# translate_urls, translate_front_matter, subfilter). `okapi_param`
+# carries the Okapi parameter name each one corresponds to
+# (translate_image_alt, translate_urls, translate_front_matter,
+# subfilter), so drift detection against the bridge schema lines up.
 
 format: okf_markdown
 mime_type: text/markdown
@@ -29,7 +25,7 @@ description: |
   translatable Blocks.
 
 config:
-  - key: translateImageAltText
+  - key: translate_image_alt
     type: boolean
     default: true
     description: |
@@ -37,7 +33,7 @@ config:
       `false`, the alt text becomes a non-translatable inline code.
     okapi_param: translateImageAltText
 
-  - key: translateUrls
+  - key: translate_urls
     type: boolean
     default: false
     description: |
@@ -46,7 +42,7 @@ config:
       not localised.
     okapi_param: translateUrls
 
-  - key: translateCodeBlocks
+  - key: translate_code_blocks
     type: boolean
     default: false
     description: |
@@ -57,7 +53,7 @@ config:
       key on each example so both implementations agree.
     okapi_param: translateCodeBlocks
 
-  - key: translateHeaderMetadata
+  - key: translate_front_matter
     type: boolean
     default: false
     description: |
@@ -66,7 +62,7 @@ config:
       translatable Blocks.
     okapi_param: translateHeaderMetadata
 
-  - key: unescapeBackslashCharacters
+  - key: unescape_backslash_characters
     type: boolean
     default: false
     description: |
@@ -75,7 +71,7 @@ config:
       unchanged through the writer.
     okapi_param: unescapeBackslashCharacters
 
-  - key: htmlSubfilter
+  - key: subfilter
     type: string
     default: ""
     description: |
@@ -254,7 +250,7 @@ features:
       stay inside the surrounding Block as inline Spans. Default
       behaviour: link/image text and autolink URL are translatable;
       explicit URLs in `()` parentheses are NOT extracted unless
-      `translateUrls=true` (see the urls feature).
+      `translate_urls=true` (see the urls feature).
     spec_refs:
       - "CommonMark §6.3 Links (https://spec.commonmark.org/0.31.2/#links)"
       - "CommonMark §6.4 Images (https://spec.commonmark.org/0.31.2/#images)"
@@ -291,19 +287,19 @@ features:
       - markdown.TestRead_AutoLink
 
   - id: image_alt_opt_out
-    name: Suppress image alt text via translateImageAltText=false
+    name: Suppress image alt text via translate_image_alt=false
     description: |
-      With `translateImageAltText=false` the alt text inside `![…]()`
+      With `translate_image_alt=false` the alt text inside `![…]()`
       is dropped from the surrounding Block (the image itself remains
       as an inline placeholder). Verifies the Okapi parameter name
       maps to the native config field.
     spec_refs:
       - "CommonMark §6.4 Images (https://spec.commonmark.org/0.31.2/#images)"
     config:
-      translateImageAltText: false
+      translate_image_alt: false
     examples:
       - name: image_alt_dropped
-        origin: "authored: image with alt + translateImageAltText=false"
+        origin: "authored: image with alt + translate_image_alt=false"
         input_xml: "See ![alt text](image.png) here"
         block_count: 1
         # Native: alt text is dropped, Block text becomes "See  here".
@@ -314,7 +310,7 @@ features:
     native_refs:
       - markdown.TestRead_ExtractImageTitleButNotAltText
 
-  # ── Code blocks (extraction policy via translateCodeBlocks) ───────
+  # ── Code blocks (extraction policy via translate_code_blocks) ───────
   - id: fenced_code_block_default
     name: Fenced code block as Data by default
     description: |
@@ -324,10 +320,10 @@ features:
     spec_refs:
       - "CommonMark §4.5 Fenced code blocks (https://spec.commonmark.org/0.31.2/#fenced-code-blocks)"
     config:
-      translateCodeBlocks: false
+      translate_code_blocks: false
     examples:
       - name: fenced_no_translate
-        origin: "authored: fenced code block with default translateCodeBlocks=false"
+        origin: "authored: fenced code block with default translate_code_blocks=false"
         input_xml: "```\ncode here\n```\n"
         block_count: 0
     okapi_refs:
@@ -339,16 +335,16 @@ features:
   - id: fenced_code_block_translate
     name: Fenced code block extraction when opted in
     description: |
-      With `translateCodeBlocks=true` fenced code blocks become
+      With `translate_code_blocks=true` fenced code blocks become
       translatable Blocks; the language tag (when present) is
       preserved as a Block property.
     spec_refs:
       - "CommonMark §4.5 Fenced code blocks (https://spec.commonmark.org/0.31.2/#fenced-code-blocks)"
     config:
-      translateCodeBlocks: true
+      translate_code_blocks: true
     examples:
       - name: fenced_translated
-        origin: "authored: fenced code block with translateCodeBlocks=true opt-in"
+        origin: "authored: fenced code block with translate_code_blocks=true opt-in"
         input_xml: "```\ncode here\n```\n"
         block_count: 1
         # Native preserves the trailing newline of the fenced content.
@@ -363,7 +359,7 @@ features:
     name: Indented code block as Data
     description: |
       A four-space-indented block is a code block, not part of the
-      surrounding paragraph. Default `translateCodeBlocks=false` keeps
+      surrounding paragraph. Default `translate_code_blocks=false` keeps
       it as Data — verifies surrounding paragraphs still extract
       cleanly.
     spec_refs:
@@ -377,7 +373,7 @@ features:
           than native — Okapi MarkdownFilter surfaces the indented
           code block as a third Block (visible to the spec) rather
           than skipping it as Data. Native skips per
-          translateCodeBlocks=false default. Both legitimate;
+          translate_code_blocks=false default. Both legitimate;
           spec asserts native behavior.
         block_count: 2
         block_texts: ["Text", "More text"]
@@ -409,7 +405,7 @@ features:
     native_refs:
       - markdown.TestRead_BlockQuoteEvents
 
-  # ── YAML front matter (translateHeaderMetadata) ───────────────────
+  # ── YAML front matter (translate_front_matter) ───────────────────
   - id: front_matter_default
     name: YAML front matter skipped by default
     description: |
@@ -433,15 +429,15 @@ features:
   - id: front_matter_translate
     name: YAML front matter values extracted when opted in
     description: |
-      With `translateHeaderMetadata=true` each YAML scalar value in
+      With `translate_front_matter=true` each YAML scalar value in
       the header becomes a translatable Block (in source order),
       followed by the body Blocks. Verifies the Okapi parameter name
       maps to the native config field.
     config:
-      translateHeaderMetadata: true
+      translate_front_matter: true
     examples:
       - name: header_translated
-        origin: "authored: YAML front matter with translateHeaderMetadata=true opt-in"
+        origin: "authored: YAML front matter with translate_front_matter=true opt-in"
         input_xml: "---\ntitle: My Title\nauthor: John\n---\n\n# Heading\n"
         block_count: 3
         block_texts: ["My Title", "John", "Heading"]
@@ -477,19 +473,19 @@ features:
     description: |
       A standalone HTML block (`<div>…</div>` between blank lines) is
       Data by default — the surrounding markdown paragraphs are still
-      extracted as Blocks. With no `htmlSubfilter` configured the HTML
+      extracted as Blocks. With no `subfilter` configured the HTML
       stays opaque.
     spec_refs:
       - "CommonMark §4.6 HTML blocks (https://spec.commonmark.org/0.31.2/#html-blocks)"
     examples:
       - name: html_block_between_paragraphs
-        origin: "authored: HTML block between two paragraphs, no htmlSubfilter"
+        origin: "authored: HTML block between two paragraphs, no subfilter"
         input_xml: "Text before\n\n<div>HTML content</div>\n\nText after\n"
         expected_fail: |
           bridge default config descends into HTML blocks (extracts
           "HTML content" as a third translatable Block) instead of
           treating them as opaque Data. Native skips HTML blocks
-          when no htmlSubfilter is configured. Both legitimate;
+          when no subfilter is configured. Both legitimate;
           spec asserts native behavior. Could be reconciled by
           explicitly disabling HTML extraction in the bridge config.
         block_count: 2

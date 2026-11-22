@@ -1,4 +1,5 @@
 import React from "react";
+import { CODE_KIND_WORDS, codeKind, humanCodeName } from "@neokapi/kapi-format";
 import { cn } from "../../lib/utils";
 import { directionAttrs } from "../../lib/text-direction";
 import { headingLevel, inlineSegments, type InlineSeg } from "./projectionRender";
@@ -208,20 +209,22 @@ function placeholderElement(
       <img
         key={key}
         src={seg.attrs?.src}
-        alt={seg.attrs?.alt ?? seg.equiv ?? ""}
+        alt={seg.attrs?.alt ?? humanCodeName(seg.equiv) ?? ""}
         title={seg.attrs?.title}
         className="inline-block max-h-40"
       />
     );
   }
-  // A variable / control placeholder: show its human-readable equivalent.
+  // A variable / control placeholder: its human name, else the word for its
+  // kind. A synthesized identifier or native data is never shown.
+  const word = humanCodeName(seg.equiv) ?? CODE_KIND_WORDS[codeKind(seg.type)];
   return (
     <span
       key={key}
       className="rounded bg-amber-500/15 px-1 text-amber-700 dark:text-amber-400"
-      title={seg.type}
+      title={word}
     >
-      {seg.equiv || seg.type}
+      {word}
     </span>
   );
 }

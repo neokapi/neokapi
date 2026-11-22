@@ -86,6 +86,8 @@ func PersonDecides(t Transition) error {
 		return refuse(t, "only a tool records evidence and settles on it")
 	case KindReset:
 		return refuse(t, "only a person resets the context")
+	case KindAttest:
+		return refuse(t, "only a person attests that they reviewed an item")
 	case KindCheck:
 		// A check run reports what a check found and changes nothing the
 		// context holds, so any actor may record one.
@@ -103,7 +105,7 @@ func withdrawable(t Transition) error {
 	if !sameActor(t.Actor, t.Target.Actor) {
 		return refuse(t, "only its author withdraws a suggestion, in the session that recorded it")
 	}
-	if !t.Target.Status.Advises() || t.Target.Established {
+	if !t.Target.Status.Advisory() || t.Target.Established {
 		return refuse(t, fmt.Sprintf("operation %s is %s, and only a suggestion can be withdrawn", t.Target.ID, t.Target.Status))
 	}
 	return nil

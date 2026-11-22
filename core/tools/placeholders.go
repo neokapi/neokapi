@@ -40,7 +40,7 @@ func (d placeholderDelta) extraMessage(locale model.LocaleID) string {
 }
 
 // comparePlaceholders reports the interpolation placeholders a translation
-// dropped and, when flagExtra is set, the ones it invented.
+// dropped and, when flag_extra is set, the ones it invented.
 //
 // When either side is an ICU message that chooses between sub-messages — a
 // plural, select or selectordinal — the comparison is structural: what a

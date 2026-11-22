@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -75,8 +75,7 @@ func TestUserSender_HoldsWhatTheMiddlewareResolves(t *testing.T) {
 		m, err := srv.AuthStore.GetMembership(ctx, wsID, userID)
 		require.NoError(t, err)
 		c := echo.New().NewContext(httptest.NewRequest(http.MethodGet, "/", nil), httptest.NewRecorder())
-		c.SetParamNames("ws", "id")
-		c.SetParamValues(wsSlug, pid)
+		c.SetPathValues(echo.PathValues{{Name: "ws", Value: wsSlug}, {Name: "id", Value: pid}})
 		c.Set("user_id", userID)
 		c.Set("workspace_id", wsID)
 		c.Set("workspace_role", m.Role)
@@ -85,7 +84,7 @@ func TestUserSender_HoldsWhatTheMiddlewareResolves(t *testing.T) {
 			perms platauth.Permission
 			langs []string
 		)
-		require.NoError(t, srv.ProjectAccessMiddleware()(func(c echo.Context) error {
+		require.NoError(t, srv.ProjectAccessMiddleware()(func(c *echo.Context) error {
 			perms, _ = c.Get("project_permissions").(platauth.Permission)
 			langs, _ = c.Get("project_languages").([]string)
 			return nil

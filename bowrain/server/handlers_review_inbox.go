@@ -1,0 +1,302 @@
+package server
+
+import (
+	"cmp"
+	"context"
+	"net/http"
+	"slices"
+
+	"github.com/labstack/echo/v5"
+
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/host/reviewdeck"
+)
+
+// reviewInboxStream is the stream the inbox counts: the one a review client
+// opens when it names none.
+const reviewInboxStream = "main"
+
+// reviewInboxLanguage is one language of one project with translations
+// waiting for the caller's review.
+type reviewInboxLanguage struct {
+	Workspace     string `json:"workspace"`
+	WorkspaceName string `json:"workspace_name"`
+	Project       string `json:"project"`
+	ProjectName   string `json:"project_name"`
+	Stream        string `json:"stream"`
+	Locale        string `json:"locale"`
+	deckWaiting
+}
+
+// deckWaiting is what a language's review deck holds, split by group. The
+// inbox, the deck and the deck's collections all count with it, so one
+// language shows one number wherever a client asks.
+type deckWaiting struct {
+	// Waiting is every translation the deck deals: the ones classified into
+	// a group and the ones not classified yet. A translation set aside is
+	// not counted.
+	Waiting int `json:"waiting"`
+	Fast    int `json:"fast"`
+	Closer  int `json:"closer"`
+	Desk    int `json:"desk"`
+	// Unclassified is the part of Waiting the deck has not grouped yet. The
+	// deck groups it when the language is opened.
+	Unclassified int `json:"unclassified"`
+	// Held is the translations the plan holds back from the deck until the
+	// context is decided; they are not part of Waiting.
+	Held int `json:"held,omitempty"`
+}
+
+// deckWaitingOf reads the store's deck counts.
+func deckWaitingOf(n store.ReviewDeckCounts) deckWaiting {
+	w := deckWaiting{
+		Fast:         n.ByRank[deckRank(reviewdeck.DeckFast)],
+		Closer:       n.ByRank[deckRank(reviewdeck.DeckCloser)],
+		Desk:         n.ByRank[deckRank(reviewdeck.DeckDesk)],
+		Unclassified: n.Unclassified,
+	}
+	w.Waiting = w.Fast + w.Closer + w.Desk + w.Unclassified
+	return w
+}
+
+type reviewInboxResponse struct {
+	// Context lists the projects whose context waits for the caller's
+	// review, most waiting first. A client shows it before the languages:
+	// the context a translation is checked against is reviewed first.
+	Context   []contextInboxEntry   `json:"context"`
+	Languages []reviewInboxLanguage `json:"languages"`
+	// Projects lists the projects with work waiting for the caller, and the
+	// ones where the caller has saved followed languages, most waiting
+	// first, each with the languages the caller follows and the plan in
+	// brief.
+	Projects []reviewInboxProject `json:"projects"`
+}
+
+// reviewInboxProject is one project of the inbox: the languages the caller
+// follows there and its review plan in brief.
+type reviewInboxProject struct {
+	Workspace     string `json:"workspace"`
+	WorkspaceName string `json:"workspace_name"`
+	Project       string `json:"project"`
+	ProjectName   string `json:"project_name"`
+	// Followed is the languages the caller follows: the saved list, or every
+	// language they may review when none is saved.
+	Followed []string `json:"followed"`
+	// Saved is set once the caller has saved a list for the project.
+	Saved bool `json:"saved"`
+	// CanManage is set when the caller may change the project's settings.
+	CanManage bool `json:"can_manage"`
+	// Waiting is the context cards and the translations in followed
+	// languages waiting for the caller.
+	Waiting int `json:"waiting"`
+	// Plan is the plan in brief. It is computed for a project with work
+	// waiting for the caller and for one with a saved list, from the plan's
+	// snapshot, and carried when work waits or is held, or when the plan
+	// names a next step or a step that only waits.
+	Plan *planSummaryDTO `json:"plan,omitempty"`
+}
+
+// HandleReviewInbox answers, for the signed-in person, every language they may
+// review in every project of every workspace they belong to, where anything is
+// waiting, most waiting first. A language counts as its review deck counts it,
+// held translations excluded; the project's plan in brief names those.
+//
+// Access resolves as ProjectAccessMiddleware resolves it for a project route,
+// narrowed by an API token's scopes. It counts from the deck's stored facts
+// and classifies nothing: one count per project, over its reviewable languages.
+//
+// A project where the caller has saved followed languages lists only those.
+// Each project with work waiting or held, and each saved project with a next
+// step or a step that only waits, carries its plan in brief, read from the
+// plan's snapshot with the caller's context cards and languages added.
+//
+// GET /api/v1/auth/me/review
+func (s *Server) HandleReviewInbox(c *echo.Context) error {
+	if s.AuthStore == nil || s.ContentStore == nil || s.Services == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
+	}
+	if _, ok := store.ReviewDeckStores(s.ContentStore); !ok {
+		return apiErr(c, http.StatusServiceUnavailable, "the review inbox needs the PostgreSQL content store")
+	}
+	userID, _ := c.Get("user_id").(string)
+	if userID == "" {
+		return apiErr(c, http.StatusUnauthorized, "not authenticated")
+	}
+	ctx := c.Request().Context()
+
+	workspaces, err := s.AuthStore.ListWorkspaces(ctx, userID)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	projects, err := s.Services.Project.ListProjects(ctx)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	scopes, _ := c.Get("api_token_scopes").(string)
+
+	followed := map[string][]string{}
+	if fs, ok := store.FollowedLanguages(s.ContentStore); ok {
+		if followed, err = fs.ListFollowedLanguages(ctx, userID); err != nil {
+			return serverErr(c, err)
+		}
+	}
+
+	out := reviewInboxResponse{
+		Context:   []contextInboxEntry{},
+		Languages: []reviewInboxLanguage{},
+		Projects:  []reviewInboxProject{},
+	}
+	for _, ws := range workspaces {
+		for _, p := range projects {
+			if p.WorkspaceID != ws.ID || p.Archived {
+				continue
+			}
+			perms, reach := s.inboxProjectAccess(ctx, userID, ws, p, scopes)
+			entry, ok, err := s.contextInbox(ctx, ws, p, userID, perms, reach)
+			if err != nil {
+				return serverErr(c, err)
+			}
+			proj := reviewInboxProject{
+				Workspace:     ws.Slug,
+				WorkspaceName: ws.Name,
+				Project:       p.ID,
+				ProjectName:   p.Name,
+				CanManage:     perms.Has(platauth.PermManageProject),
+			}
+			if ok {
+				out.Context = append(out.Context, entry)
+				proj.Waiting += entry.Waiting
+			}
+			locales := s.reviewableLocales(ctx, userID, ws, p, scopes)
+			if saved, isSaved := followed[p.ID]; isSaved {
+				locales = keepFollowed(locales, saved)
+				proj.Saved = true
+			}
+			proj.Followed = append([]string{}, locales...)
+			// The deck counts come from the plan's snapshot. The plan is built
+			// for a project with anything waiting and for a saved one, and
+			// says whether it holds translations back and which step waits.
+			var plan *reviewPlanResponse
+			counts := map[string]deckSplit{}
+			if len(locales) > 0 || proj.Waiting > 0 || proj.Saved {
+				b, err := s.planBasisOf(ctx, ws, p, reviewInboxStream)
+				if err != nil {
+					return serverErr(c, err)
+				}
+				for _, loc := range locales {
+					counts[loc] = b.snap.Languages[loc].split()
+				}
+				if proj.Waiting > 0 || proj.Saved || anyWaiting(counts) {
+					computed, err := s.reviewPlanFrom(ctx, ws, p, reviewInboxStream, planCaller{
+						userID: userID, perms: perms, reach: reach, locales: locales,
+						context: &callerContext{entry: entry, ok: ok},
+					}, b)
+					if err != nil {
+						return serverErr(c, err)
+					}
+					plan = &computed
+				}
+			}
+			held, heldAny := plan != nil && plan.Held != "", false
+			for _, loc := range locales {
+				lang := reviewInboxLanguage{
+					Workspace:     ws.Slug,
+					WorkspaceName: ws.Name,
+					Project:       p.ID,
+					ProjectName:   p.Name,
+					Stream:        reviewInboxStream,
+					Locale:        loc,
+					deckWaiting:   counts[loc].waiting(held),
+				}
+				heldAny = heldAny || lang.Held > 0
+				if lang.Waiting > 0 {
+					out.Languages = append(out.Languages, lang)
+					proj.Waiting += lang.Waiting
+				}
+			}
+			// A project whose translations are all held still shows its plan,
+			// so the person sees the step that releases them, and so does one
+			// with a next step or a step that only waits.
+			if plan != nil && (proj.Waiting > 0 || heldAny || plan.Next != "" || len(plan.Waiting) > 0) {
+				summary := summarizePlan(*plan)
+				proj.Plan = &summary
+			}
+			if proj.Waiting > 0 || proj.Saved || heldAny {
+				out.Projects = append(out.Projects, proj)
+			}
+		}
+	}
+	slices.SortStableFunc(out.Projects, func(a, b reviewInboxProject) int {
+		return cmp.Or(cmp.Compare(b.Waiting, a.Waiting), cmp.Compare(a.ProjectName, b.ProjectName))
+	})
+	slices.SortStableFunc(out.Context, func(a, b contextInboxEntry) int {
+		return cmp.Or(cmp.Compare(b.Waiting, a.Waiting), cmp.Compare(a.ProjectName, b.ProjectName))
+	})
+	slices.SortStableFunc(out.Languages, func(a, b reviewInboxLanguage) int {
+		return cmp.Or(
+			cmp.Compare(b.Waiting, a.Waiting),
+			cmp.Compare(a.ProjectName, b.ProjectName),
+			cmp.Compare(a.Locale, b.Locale),
+		)
+	})
+	return c.JSON(http.StatusOK, out)
+}
+
+// anyWaiting reports whether any language's deck holds a translation.
+func anyWaiting(counts map[string]deckSplit) bool {
+	for _, n := range counts {
+		if n.waiting(false).Waiting > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// inboxProjectAccess is what the user may do in the project and the
+// coordinates their grants reach, as resolveProjectAccess resolves it and an
+// API token's scopes narrow it.
+func (s *Server) inboxProjectAccess(ctx context.Context, userID string, ws *platauth.Workspace, p *store.Project, scopes string) (platauth.Permission, platauth.CoordinateReach) {
+	access := s.resolveProjectAccess(ctx, accessRequest{
+		userID: userID, projectID: p.ID, workspaceID: ws.ID, role: ws.Role, plan: ws.Plan,
+	})
+	perms := access.permissions
+	if scopes != "" {
+		if resolved, err := platauth.ParseScopes(scopes); err == nil && !resolved.IsFullAccess {
+			perms &= resolved.Permissions
+		}
+	}
+	return perms, access.coordinates
+}
+
+// reviewableLocales is the project's target languages the user may review:
+// the review permission as resolveProjectAccess resolves it, narrowed by an
+// API token's scopes, then by the languages the permission reaches.
+func (s *Server) reviewableLocales(ctx context.Context, userID string, ws *platauth.Workspace, p *store.Project, scopes string) []string {
+	access := s.resolveProjectAccess(ctx, accessRequest{
+		userID: userID, projectID: p.ID, workspaceID: ws.ID, role: ws.Role, plan: ws.Plan,
+	})
+	perms, languages := access.permissions, access.languages
+	if scopes != "" {
+		if resolved, err := platauth.ParseScopes(scopes); err == nil && !resolved.IsFullAccess {
+			perms &= resolved.Permissions
+			if len(resolved.Languages) > 0 {
+				if len(languages) == 0 {
+					languages = resolved.Languages
+				} else {
+					languages = intersectStrings(languages, resolved.Languages)
+				}
+			}
+		}
+	}
+	if !perms.Has(platauth.PermReview) {
+		return nil
+	}
+	var out []string
+	for _, l := range p.TargetLanguages {
+		if len(languages) == 0 || slices.Contains(languages, string(l)) {
+			out = append(out, string(l))
+		}
+	}
+	return out
+}

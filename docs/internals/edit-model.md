@@ -180,7 +180,7 @@ existing content, `if_match` (section 4).
 
 | Op | Body | Replaces on main | Who may send it |
 | --- | --- | --- | --- |
-| `decide` | `at` with an edition, `if_match`, `outcome` (`establish`, `reject`, `withdraw`, `advise`), `score?` (0 to 100), `reasons?` | `kapi apply` review entries; desktop Approve and Reject; Bowrain `PUT …/review`, bulk review, approve-passing, `PUT …/status`; MCP `pre_review_unit` (as `advise`) | a person; an agent sends `advise` only (`host/convergereport.go:155-159` already refuses agent decisions) |
+| `decide` | `at` with an edition, `if_match`, `outcome` (`establish`, `reject`, `withdraw`, `prereview`), `score?` (0 to 100), `reasons?` | `kapi apply` review entries; desktop Approve and Reject; Bowrain `PUT …/review`, bulk review, approve-passing, `PUT …/status`; MCP `pre_review_unit` (as `prereview`) | a person; an agent sends `prereview` only (`host/convergereport.go:155-159` already refuses agent decisions) |
 | `term` | `action` (`upsert`, `delete`) and today's term fields (`status`, `replacement`, `replaces`, `do_not_translate`, `advisory`, `competitor`) | `kapi apply` term entries | a person; an agent observes or corrects instead (`host/mcp_grow.go:30-37`) |
 | `memory` | `action` (`add`, `delete`), `from: {edition, text}`, `to: {edition, text}` | `kapi apply` memory entries | a person |
 | `recipe` | `path`, `value`, through the `project.SetField` allowlist | `kapi apply` recipe entries | a person |
@@ -274,7 +274,7 @@ pcOpen 2, text `order`, pcClose 2, text `.`. Placeholder text shows them as
 {"op": "decide", "at": {"doc": "docs/guide.md", "block": "install/p", "edition": "fr"},
  "if_match": "r:74dbfac2ed1c9d6e", "outcome": "establish"}
 {"op": "decide", "at": {"doc": "docs/guide.md", "block": "install/p", "edition": "fr"},
- "if_match": "r:74dbfac2ed1c9d6e", "outcome": "advise", "score": 80, "reasons": ["terminology"]}
+ "if_match": "r:74dbfac2ed1c9d6e", "outcome": "prereview", "score": 80, "reasons": ["terminology"]}
 
 // 12. A term beside the content fix.
 {"op": "term", "action": "upsert", "term": "handbook", "status": "preferred", "replaces": "shop guide"}
@@ -1216,7 +1216,7 @@ checkout reader accepts. A project's source language cannot change once its stor
 | Today | Becomes | When |
 | --- | --- | --- |
 | MCP `review_unit` | `review_block` | 1.3.0, in the one deliberate MCP break |
-| MCP `pre_review_unit` | `decide` with `outcome: advise` through `apply_edits` | 1.3.0 |
+| MCP `pre_review_unit` | `decide` with `outcome: prereview` through `apply_edits` | 1.3.0 |
 | MCP `extract_content` | `read_blocks` | 1.3.0 |
 | operation kind `unit.record` | `decision.record` | 1.3.0, with the data reset |
 | "content units" in prose and catalog strings (about 20 pages under `web/docs/kapi/`) | "blocks" | 1.3.0, before the walkthroughs are re-recorded |
@@ -1347,7 +1347,7 @@ fingerprint the staleness gate already recomputes (`profile.TermRuleMap` feeds i
 
 One function decides what an actor may do, extending `contextop.PersonDecides`
 (`core/contextop/policy.go:58-108`) with content transitions. An agent may apply content edits
-(decision D2), may `decide` only with `advise`, may not send `term`, `memory` or `recipe`
+(decision D2), may `decide` only with `prereview`, may not send `term`, `memory` or `recipe`
 operations (it observes or corrects instead, which `host/apply.go:96-101` already intends and MCP
 failed to enforce), may not send `if_match: "*"`, and may not choose `gate: report`. Bowrain
 substitutes its RBAC, ABAC and separation-of-duties checks behind the same signature
@@ -1578,7 +1578,7 @@ needed a Python helper to chain commands (r8 §3.6). So people get verbs and the
 | `apply_edits` | the change set's envelope fields as the tool's arguments (`ops`, `mode`, `gate`, `note`, `evidence`, …) → the result; the actor is fixed to the session's agent |
 | `describe_format` (new) | capabilities and schemas for a format or a file |
 | `review_block` (replaces `review_unit`) | the review picture of one block; a read |
-| `pre_review_unit` | removed; an agent sends `decide` with `outcome: advise` |
+| `pre_review_unit` | removed; an agent sends `decide` with `outcome: prereview` |
 
 `read_blocks`, `apply_edits` and `describe_format` join the default `writing` set, and the
 server's instructions name them as the way to change text inside a file. Today `kapi
@@ -2507,7 +2507,7 @@ installed by no channel.
 | Parked drafts | 1.3.0 | 1.3.0 | after, or 1.3.0 if wanted | 1.3.0 (D4) | ws-store §1.9 |
 | Local reconciliation on read | after 1.3.0 | 1.3.0 | 1.3.0 | 1.3.0 with a measured fallback | `host/identity.go:68` has one caller |
 | Sync wire in 1.3.0 | unchanged | unchanged | `expected_hash` becomes the revision | unchanged | fewer moving parts; the log remote changes it later |
-| Pre-review | separate `pre_review` op | `decision.pre_review` | `decide` with `advise` | `decide` with `advise` | one decision operation |
+| Pre-review | separate `pre_review` op | `decision.pre_review` | `decide` with `prereview` | `decide` with `prereview` | one decision operation |
 | Context lifecycle in the envelope | no | namespaced ops | no | no | they act on operations by id (`core/contextop/policy.go:58-108`) |
 
 ## Appendix B. Evidence used

@@ -51,6 +51,7 @@ type App struct {
 	activeWS        string                     // selected workspace slug
 	authInfo        *config.StoredAuth         // cached auth info (shared host/venue/config store)
 	pkceVerifier    string                     // PKCE code_verifier
+	pkceState       string                     // state the sign-in redirect must return
 	pkceResultCh    chan *pkceResult           // result from URL protocol callback
 	watcher         *ProjectWatcher            // active change-event (SSE) subscription
 	watchedProject  string                     // project the watcher subscribes to, kept across an outage so reconnect can restore it
@@ -499,8 +500,9 @@ func defaultStorePath() string {
 	return filepath.Join(dir, "bowrain.db")
 }
 
-// DetectFormat detects the format of a file by its extension.
+// DetectFormat detects the format of a file through the registry's resolver:
+// by its extension, and by its head when several formats claim the extension.
 func (a *App) DetectFormat(filePath string) (string, error) {
-	ext := filepath.Ext(filePath)
-	return a.formatReg.Detector().DetectByExtension(ext)
+	id, err := a.formatReg.Detect(filePath, registry.DetectOptions{})
+	return string(id), err
 }

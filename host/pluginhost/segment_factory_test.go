@@ -23,7 +23,7 @@ const segSchemaJSON = `{
   "title": "Test SaT",
   "type": "object",
   "properties": {
-    "satModel": { "type": "string", "title": "SaT Model", "ui:order": 10 },
+    "sat_model": { "type": "string", "title": "SaT Model", "ui:order": 10 },
     "threshold": { "type": "number", "title": "Threshold", "minimum": 0, "maximum": 1, "ui:order": 20 }
   }
 }`
@@ -98,7 +98,7 @@ func TestRegisterModeCSegmenters_RegistersEngineWithSchema(t *testing.T) {
 	require.True(t, ok, "engine registered into the segment registry")
 	assert.Equal(t, "Test ML segmenter", desc.Label)
 	require.NotNil(t, desc.Schema, "engine carries the manifest schema")
-	assert.Contains(t, desc.Schema.Properties, "satModel")
+	assert.Contains(t, desc.Schema.Properties, "sat_model")
 	assert.Contains(t, desc.Schema.Properties, "threshold")
 
 	// Idempotent: re-registering the same plugin does not add it again.
@@ -121,7 +121,7 @@ func TestRegisterModeCSegmenters_SegmentOverDaemon(t *testing.T) {
 
 	// The fake daemon returns an interior boundary after each '.', so this text
 	// yields two segments.
-	seg, err := segment.Build(engine, segment.BaseConfig{}, map[string]any{"satModel": "sat-3l-sm"})
+	seg, err := segment.Build(engine, segment.BaseConfig{}, map[string]any{"sat_model": "sat-3l-sm"})
 	require.NoError(t, err)
 	spans, err := seg.Segment(ctx, runs, model.LocaleID("en"))
 	require.NoError(t, err)

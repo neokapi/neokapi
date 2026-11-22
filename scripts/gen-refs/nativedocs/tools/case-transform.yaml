@@ -18,12 +18,12 @@ parameters:
       to lower case, and `title` to title case (every letter uppercased, using
       the Unicode title-case mapping).
     values: "`upper` / `lower` / `title` (default `upper`)"
-  applySource:
+  apply_source:
     description: Apply the transformation to source text.
     help: |
       When enabled, the source text of each translatable block is transformed.
     values: "`true` / `false` (default `true`)"
-  applyTarget:
+  apply_target:
     description: Apply the transformation to target text.
     help: |
       When enabled, the target text is transformed for the configured target
@@ -39,10 +39,10 @@ examples:
     description: Force all source strings to upper case.
     config: |
       mode: upper
-      applySource: true
+      apply_source: true
   - title: Lowercase the target translation
     description: Normalize target text to lower case for a locale.
     config: |
       mode: lower
-      applySource: false
-      applyTarget: true
+      apply_source: false
+      apply_target: true

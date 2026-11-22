@@ -87,7 +87,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "bowrain-web-project-screens",
-    "title": "One record of what your files do, for the whole team"
+    "title": "One record of the project's rules, for the whole team"
   },
   {
     "id": "bowrain-web-review",
@@ -106,16 +106,20 @@ export const DEMOS: RegistryEntry[] = [
     "title": "The hand-off is a bilingual file"
   },
   {
+    "id": "kapi-cli-first-project",
+    "title": "Your first project, from the terminal"
+  },
+  {
     "id": "kapi-desktop-config",
-    "title": "The keychain holds the key"
+    "title": "Settings and API keys"
   },
   {
     "id": "kapi-desktop-content",
-    "title": "What a collection holds"
+    "title": "Your files and progress"
   },
   {
     "id": "kapi-desktop-context",
-    "title": "What your assistant noticed, and what you decide"
+    "title": "Decide what your assistants suggest"
   },
   {
     "id": "kapi-desktop-explorer",
@@ -123,15 +127,15 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "kapi-desktop-flows",
-    "title": "Compose the flow, run it anywhere"
+    "title": "Edit a flow"
   },
   {
     "id": "kapi-desktop-projects",
-    "title": "A recipe written for you"
+    "title": "Set up a project"
   },
   {
     "id": "kapi-desktop-review",
-    "title": "Judged where it sits"
+    "title": "Review a translation"
   },
   {
     "id": "s0-northsea-checks",

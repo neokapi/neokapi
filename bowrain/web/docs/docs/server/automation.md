@@ -4,25 +4,37 @@ sidebar_position: 11
 description: Bowrain's two layers of automation, server-side rules that respond to events across a workspace, and local rules declared on a project recipe for kapi-driven CLI and CI workflows.
 ---
 
+import { ThemedImage } from "@neokapi/docs-shared";
+
 # Automation
 
-Bowrain provides two complementary layers of automation: **server-side rules**,
-configured in the web app, that respond to events across the whole workspace,
-and **local rules** declared on a project recipe for kapi-driven (CLI/CI)
-workflows.
+Automation runs flows, opens review tasks and sends notices without anyone
+starting them by hand. Bowrain has two layers:
+
+- **Server-side rules**, set in the web app, respond to events across the
+  workspace.
+- **Local rules**, declared in a project recipe, run around kapi commands in
+  CLI and CI workflows.
 
 ## Server-side automation
 
 Server-side automations are event-driven rules configured in the Bowrain web
 app under **Project > Automations**. They respond to events on the server and
 trigger actions such as running flows or sending notifications. Because they
-react to events on the server, they apply to content from **any connector**, not
-just a local checkout.
+react to events on the server, they apply to content from **any connector**.
 
-The Automations surface has three tabs: **Runs** (run history), **Rules**
-(trigger + conditions + actions), and **Flows** (the flow canvas; see
-[Server-side flows](/server/flows)). The Flows tab and the Rules tab are one
-editor, so a `run_flow` action and the flow it runs are authored in one place.
+The Automations page has three tabs: **Runs** (run history), **Rules**
+(trigger, conditions and actions) and **Flows** (the flow canvas; see
+[Server-side flows](/server/flows)). The Flows and Rules tabs share one editor,
+so you write a `run_flow` action and the flow it runs in one place.
+
+<ThemedImage
+  alt="The Automations page with the Runs, Rules and Flows tabs"
+  sources={{
+    light: "/img/web-app/light/automations.png",
+    dark: "/img/web-app/dark/automations.png",
+  }}
+/>
 
 ### Triggers
 
@@ -36,9 +48,9 @@ A rule fires on one of these events:
 | `push.automations.completed` | Every automation for a push has completed |
 | `source.review.completed` | A source review task is completed |
 
-A connector fetch emits no event, so a rule cannot react to content arriving
-from a content platform; catch that content up by starting a run. No event
-fires when a flow finishes, so a rule cannot chain on a flow's completion.
+A connector fetch emits no event, so a rule cannot react to content fetched
+from a content platform. Start a run to catch that content up. No event fires
+when a flow finishes, so a rule cannot chain on a flow's completion.
 
 ### Creating rules
 
@@ -54,9 +66,9 @@ fires when a flow finishes, so a rule cannot chain on a flow's completion.
 Rules and the flow definitions they reference are persisted through the
 project-scoped REST API: `/api/v1/:ws/:id/automations` for rules and
 `/api/v1/:ws/:id/flows` for flow definitions. Rules can be reordered, disabled,
-and duplicated from the editor. A rule is checked when it is saved: every
+and duplicated from the editor. Bowrain checks a rule when you save it: every
 action must be one the server runs, and a `run_flow` action must name a flow
-the project can see, so a rule that saves is a rule that fires.
+the project can see. A rule that saves will fire.
 
 ### Actions
 
@@ -87,14 +99,13 @@ reason, in the run history and in the execution history.
 Every server-side automation run is recorded under **Project > Automations >
 Runs**, with its trigger, its steps, the outcome of each step, and per-step
 logs. A run in progress updates in place as each step starts and finishes.
-This is the record to consult when a rule did not do what you expected.
+Check it when a rule did not do what you expected.
 
 ## Local automation (CLI)
 
-Local automations run in kapi (with the bowrain plugin) and are declared at the
-top level of your project's `kapi.yaml` recipe. They hook into CLI commands and
-execute actions before or after push, pull, and flow runs: the developer
-workflow and CI layer that complements the server rules above.
+Local automations run in kapi with the bowrain plugin. You declare them at the
+top level of your project's `kapi.yaml` recipe. They run actions before or
+after push, pull and flow runs, for developer and CI workflows.
 
 ### Configuration
 
@@ -145,14 +156,19 @@ A local `run_flow` action takes these parameters:
 | `flow`          | The flow to run: one declared under `flows:` on the recipe, or a built-in flow such as `qa`. Required. |
 | `fail_on_error` | `true` aborts the command when the flow's check steps report findings, or when its checks did not run: the flow holds no check step, or its check steps read no content. Default `false`: report and continue. |
 
-The flow runs the way `kapi run <flow>` runs it inside the project: over every
-file the recipe's collections match, one pass per target language the flow
-applies to, with the recipe's voice profile and terms bound, and with the
-results committed to the project store rather than written to target files.
-Its output, including the findings table its check steps produce, prints in
-the output of the command that triggered it (on stderr under `--json`, so the
-command's document stays intact). A flow that cannot run, because the name is
-unknown or a tool fails, aborts the command whatever `fail_on_error` says.
+The flow runs as `kapi run <flow>` runs it inside the project:
+
+- over every file the recipe's collections match;
+- one pass per target language the flow applies to;
+- with the recipe's voice profile and terms bound;
+- with the results committed to the project store, and target files left as
+  they are.
+
+Its output, including the findings table from its check steps, prints with the
+output of the command that triggered it. Under `--json` it goes to stderr, so
+the command's JSON document stays intact. A flow that cannot run, because the
+name is unknown or a tool fails, aborts the command whatever `fail_on_error`
+says.
 
 ### Example: a check gate before push
 
@@ -175,19 +191,21 @@ before anything is sent, with the findings summary and the exit code
 reported and the push goes ahead.
 
 A flow can reach no verdict in two ways, and both count as checks that did not
-run. A check step over no content block, for example when every matched file is
-empty, reports the cause `nothing_to_check`. A flow that holds no check step,
-such as `pseudo-translate`, checks none of the content it runs over and reports
-the cause `content_not_checked`. With `fail_on_error` the push is aborted with
+run:
+
+- A check step over no content block, for example when every matched file is
+  empty, reports the cause `nothing_to_check`.
+- A flow with no check step, such as `pseudo-translate`, reports the cause
+  `content_not_checked`. With `fail_on_error` the push is aborted with
 the cause and the exit code `kapi check` uses when a check did not run. Without
 it, the command prints the cause and the push goes ahead.
 
 ### Catching up on every push
 
-Catching the project up on push is the project's `bowrain.converge` policy
-rather than an automation. With the default `on-push`, the server runs a full
-pass (reuse, drafting, checks, terms, gates, review holds) after every push, recorded
-as a run anyone can watch:
+The project's `bowrain.converge` policy, not an automation rule, catches the
+project up on push. With the default `on-push`, the server runs a full pass
+after every push: reuse, drafting, checks, terms, gates and review holds. Each
+pass is recorded as a run anyone can watch:
 
 ```yaml
 # kapi.yaml
@@ -196,8 +214,8 @@ bowrain:
   converge: on-push        # on-push (default) | manual
 ```
 
-`kapi push` from CI just pushes; the server catches the project up on its own
-clock; `kapi up` is push, then *watch the run*, then pull. See
+`kapi push` from CI only pushes, and the server catches the project up on its
+own schedule. `kapi up` pushes, *watches the run*, then pulls. See
 [Keeping content caught up](/the-loop) for the model.
 
 The policy travels with every push to the project's default stream. Setting
@@ -216,10 +234,17 @@ app, and an in-flight run can be canceled. Translations waiting for review land 
 
 ## Quality gate events
 
-Bowrain derives each target language's ship state from five gates: coverage
-(`translated`), the checks (`checks`), terminology where terms govern the
-language (`terms`), decisions on source that has changed (`stale`), and wording
-a reviewer rejected (`rejected`). When a language stops meeting a gate, Bowrain
+Bowrain derives each target language's ship state from these gates:
+
+| Gate | What it covers |
+| --- | --- |
+| `translated` | Coverage |
+| `checks` | The checks |
+| `terms` | Terminology, where terms govern the language |
+| `stale` | Decisions on source that has changed |
+| `rejected` | Wording a reviewer rejected |
+
+When a language stops meeting a gate, Bowrain
 publishes `quality.gate.fail` for that gate and language. When it meets the gate
 again, Bowrain publishes `quality.gate.pass`. An unchanged result publishes
 nothing, and a language whose first result meets every gate publishes no pass.
@@ -263,6 +288,6 @@ so far is kept.
 
 ## Loop prevention
 
-Automation chains are tracked through a causation chain. If a chain of rules
-exceeds five levels deep, it stops automatically and a warning is logged. This
-prevents circular rules from running indefinitely.
+Bowrain tracks which event caused each automation. If a chain of rules goes
+more than five levels deep, Bowrain stops it and logs a warning, so circular
+rules cannot run forever.

@@ -9,9 +9,9 @@ keywords: [telemetry, privacy, analytics, opt out, DO_NOT_TRACK, KAPI_TELEMETRY,
 
 Release builds of the kapi CLI collect a small amount of anonymous usage
 telemetry (which built-in commands are run, how long they take, in coarse
-buckets, and whether they succeed) to guide development priorities. This
-page is the complete inventory: every event, every property, the privacy
-invariants, and every mechanism for turning it off.
+buckets, and whether they succeed) to guide development priorities. The
+sections below list every event, every property, the privacy invariants and
+every way to turn it off.
 
 Telemetry is **opt-out**: it is enabled by default in official release
 binaries, disclosed by a one-time notice on first use, and disabled by any
@@ -70,8 +70,8 @@ the `kapi telemetry` command group itself is never reported.
 
 ## Turning it off
 
-Telemetry is disabled when **any** of the following holds; the switches
-compose as a lattice where any single one wins:
+Telemetry is disabled when **any** of the following holds; a single switch is
+enough:
 
 | Switch | Scope |
 | --- | --- |
@@ -82,7 +82,7 @@ compose as a lattice where any single one wins:
 | Built with `-tags notelemetry` | Compile-time: the entire client is excluded from the binary |
 | No reporting key in the build | Automatic; source builds and development builds send nothing |
 
-Disabled means disabled: no events are sent, no first-run notice is shown,
+When telemetry is disabled, no events are sent, no first-run notice is shown,
 and no identifier is generated.
 
 ## Delivery

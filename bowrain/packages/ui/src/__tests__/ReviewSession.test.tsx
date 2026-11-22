@@ -137,6 +137,20 @@ describe("ReviewSession", () => {
     );
   });
 
+  it("puts the decision at the trailing edge, Reject then Approve", async () => {
+    renderSession();
+    await waitForQueue();
+    const decisions = screen.getByTestId("reviewer-decisions");
+    expect(Array.from(decisions.children, (b) => b.getAttribute("data-testid"))).toEqual([
+      "reviewer-reject",
+      "reviewer-approve",
+    ]);
+    expect(decisions.parentElement?.lastElementChild).toBe(decisions);
+    expect(decisions.parentElement?.firstElementChild).toBe(
+      screen.getByTestId("reviewer-key-hints"),
+    );
+  });
+
   it("approve sends a decision and advances to the next pending block", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSession();

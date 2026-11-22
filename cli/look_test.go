@@ -14,7 +14,7 @@ import (
 	"github.com/neokapi/neokapi/host"
 )
 
-// `kapi look` end to end through the root: the Map with no path, the Reader
+// `kapi look` end to end through the root: the Overview with no path, the Reader
 // with one, and bare `kapi` printing the Map.
 
 // writeLookProject writes a project with one docs collection holding files,
@@ -96,9 +96,9 @@ func TestLookMap(t *testing.T) {
 			want: []string{
 				"1 file · 2 blocks · 0 rules · 0 findings",
 				"Files\n  docs/guide.md  2 blocks\n",
-				"Check with `kapi check`. See a file with `kapi look <path>`.",
+				"Connect your assistant with `kapi connect`. See a file with `kapi look <path>`.",
 			},
-			not: []string{"kapi suggests", "What your files do", "languages"},
+			not: []string{"kapi suggests", "Suggestions", "languages"},
 		},
 		{
 			name: "findings",
@@ -109,6 +109,7 @@ func TestLookMap(t *testing.T) {
 			want: []string{
 				"2 files · 4 blocks · 0 rules · 1 finding",
 				"  docs/guide.md  2 blocks · 1 finding\n  docs/faq.md    2 blocks\n",
+				"Connect your assistant with `kapi connect`. See a file with `kapi look <path>`.",
 			},
 		},
 		{
@@ -117,7 +118,7 @@ func TestLookMap(t *testing.T) {
 			note:  [3]string{"login", "sign in", "docs/guide.md"},
 			want: []string{
 				"kapi suggests 1",
-				"What your files do\n  Word  sign in, not login",
+				"Suggestions\n  Word  sign in, not login",
 				"Decide with `kapi rules`. See a file with `kapi look <path>`.",
 			},
 		},
@@ -144,7 +145,7 @@ func TestLookMap(t *testing.T) {
 			if len(tt.files) > 0 {
 				var m host.LookProject
 				require.NoError(t, json.Unmarshal([]byte(runRoot(t, "look", "--json")), &m))
-				assert.Equal(t, checkFindings(t), m.Findings, "the Map counts the findings kapi check reports")
+				assert.Equal(t, checkFindings(t), m.Findings, "the Overview counts the findings kapi check reports")
 			}
 		})
 	}
@@ -206,7 +207,7 @@ func TestLookMap_FirstLookFilesWhatKapiSees(t *testing.T) {
 				require.NoError(t, json.Unmarshal([]byte(runRoot(t, "look", "--json")), &m))
 			}
 			assert.Contains(t, out, "1 file · 4 blocks · 0 rules · 1 finding · kapi suggests 1\n")
-			assert.Contains(t, out, "\nWhat your files do\n  Name  email, not e-mail, e mail  2 of 3 uses\n\nFiles\n")
+			assert.Contains(t, out, "\nSuggestions\n  Name  email, not e-mail, e mail  2 of 3 uses\n\nFiles\n")
 			assert.True(t, strings.HasPrefix(out, m.Project+" · read 1 file just now\n\n"), out)
 
 			assert.Equal(t, 1, m.Suggests)
@@ -336,7 +337,7 @@ func TestRootHelp_WorkOrder(t *testing.T) {
 	}
 }
 
-// TestBareKapi_PrintsTheMap: bare `kapi` in a project is the Map, its own last
+// TestBareKapi_PrintsTheMap: bare `kapi` in a project is the Overview, its own last
 // line, and the line naming where the commands are listed.
 func TestBareKapi_PrintsTheMap(t *testing.T) {
 	writeLookProject(t, "", map[string]string{"docs/guide.md": "# Guide\n\nOpen the editor to write.\n"})

@@ -1,4 +1,4 @@
-// The shapes the Map, the Reader and Decide render. The desktop backend and
+// The shapes the Overview, the Reader and Decide render. The desktop backend and
 // the Bowrain server each produce them; the views read nothing else.
 
 import type { Anchor, Run } from "@neokapi/contract-types";
@@ -145,7 +145,7 @@ export interface DigestItem {
   collection?: string;
   standing?: string;
   usage?: DigestUsage;
-  noticed_by: { kind: string; name?: string; session?: string };
+  recorded_by: { kind: string; name?: string; session?: string };
   at: string;
   /** Recorded (or established) after the person last looked. */
   new: boolean;
@@ -168,10 +168,10 @@ export interface DigestConflict {
   reason: string;
 }
 
-// --- The Map and Decide (backend MapSummary, RulesDecideViewDTO) ---
+// --- The Overview and Decide (backend OverviewSummary, RulesDecideViewDTO) ---
 
-/** One content file on the Map (MapSummary). */
-export interface MapFileRow {
+/** One content file on the Overview (OverviewSummary). */
+export interface OverviewFileRow {
   /** Absolute, for the preview. */
   path: string;
   /** Project-relative and slash-separated, for the row. */
@@ -209,7 +209,7 @@ export interface RuleOption {
   /** What keeping this option does. */
   consequence: string;
   /** Who suggested the side, for a disagreement. */
-  noticed_by?: ContextActor;
+  recorded_by?: ContextActor;
 }
 
 /** One question Decide asks about a suggestion (RuleDecisionDTO), as `kapi rules` asks it. */
@@ -238,7 +238,7 @@ export interface RuleDecision {
   seen?: ContextEvidence;
   /** Where a kept rule holds. */
   applies: string;
-  noticed_by: ContextActor;
+  recorded_by: ContextActor;
   /** The member the question is assigned to, where the host assigns questions. */
   assignee?: ContextActor;
   /** The assigned member's user id, for a picker among the members. */
@@ -291,8 +291,8 @@ export interface RulesDecideView {
   narrowed: number;
 }
 
-/** Everything the Map renders, in one read (MapSummary). */
-export interface MapSummary {
+/** Everything the Overview renders, in one read (OverviewSummary). */
+export interface OverviewSummary {
   project_key?: string;
   files: number;
   blocks: number;
@@ -307,6 +307,16 @@ export interface MapSummary {
   conflicts: number;
   awaiting: number;
   target_languages: string[];
-  file_rows: MapFileRow[];
+  file_rows: OverviewFileRow[];
   suggestions: MapSuggestionRow[];
+  /** A first project's steps, while one that stays done is open; absent once set up. */
+  steps?: OverviewStep[];
+}
+
+/** One step of a first project, in the order "Your first project" takes them. */
+export interface OverviewStep {
+  id: "decide" | "check" | "fix" | "connect" | "share";
+  done: boolean;
+  /** What is left: items awaiting a decision, or failing findings. */
+  count?: number;
 }

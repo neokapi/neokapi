@@ -182,7 +182,7 @@ export const ObjectProperty: Story = {
           title: "Parser Settings",
           description: "Settings for the document parser",
           properties: {
-            assumeWellformed: {
+            assume_wellformed: {
               type: "boolean",
               title: "Assume Well-formed",
               description: "Skip validation of input structure",
@@ -245,7 +245,7 @@ export const DuplicateLabelSuppression: Story = {
       title: "Label Suppression Demo",
       type: "object",
       properties: {
-        expansionPercent: {
+        expansion_percent: {
           type: "integer",
           title: "Expansion Percent",
           description: "Expansion percent",

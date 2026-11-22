@@ -50,7 +50,7 @@ Since then 1.3 changed what several of them show:
   that sits in a translation's file, carries none, and the Checks panel offers
   no Apply fix for it.
 - Bowrain records an agent's pre-review. An assistant on the server's MCP
-  endpoint sends `decide` with outcome `advise`; the review session's queue row
+  endpoint sends `decide` with outcome `prereview`; the review session's queue row
   shows "AI" and the score, and the block's checks card shows the score, the
   assistant's name and its reasons. Use match in the review session and the
   document's inspector saves the match with its codes.
@@ -296,7 +296,7 @@ Per video:
 | `s2-tidewatch-ci` | the jq line prints `established 77%` for nb and `established 0%` for nl; the check passes with one REPORTS, on `docs/integrating.md` (`mooring`) |
 | `bowrain-desktop-automations` | Run now starts a run that appears at the top of the table; the row settles with a per-language summary; the dashboard's "Review pending translations" link opens the review session |
 | `bowrain-cli-getting-started` | `kapi init` prints `collections (proposed from the files here...)` with `src/locales/en.json`; `kapi status` shows the `content` and `governance` lines; `kapi up` prints the venue first; `src/locales/fr.json` arrives |
-| `08-mcp-tools` | the session reads the unit with `review_block` and sends `apply_edits` a `decide` with outcome `advise`, not an approval; the queue artifact still lists the unit, now with `aiScore` |
+| `08-mcp-tools` | the session reads the unit with `review_block` and sends `apply_edits` a `decide` with outcome `prereview`, not an approval; the queue artifact still lists the unit, now with `aiScore` |
 | `kapi-desktop-review` | the unit shows one human action (Approve) and no sign-off control; the history layer reads "Already approved"; the translation shows its codes as chips in the editor, and the `a` keystroke lands while the editor does not hold focus; the Changes card reads "No change recorded" for an untouched unit; the batch approval clears every clean unit with no "Batch approval stopped" notice, since nothing changes them during the take |
 | `kapi-desktop-explorer` | Terms searched for `cart` lists three concepts, and shopping cart's pane shows cart Admitted beside shopping cart Preferred; Content Memory searched for `checkout` lists Proceed to Checkout in five languages, and the selected pair names the file it came from and the key `cart.proceed_to_checkout` |
 | `kapi-desktop-context` | the `home` beat shows no working chip; the counts read 1 project, 0 rules, 5 suggestions and 1 needs you, and the KapiMart row carries codex's mark, chips for 1 name, 1 word and 1 needs you, and Decide; after the keep, change and choose beats, Established lists "sign in, not log in", "shopping cart, not basket" and "KapiMart, not Kapi Mart", each "kept by you", with the cursor on the rule each act made; each act lands as the narration names it, because the walk waits for the word in the captions the narrate stage wrote, so a capture with no captions acts at the walk's fallback seconds; the brief for `src/en/store-ui.json` lists `basket` as Discouraged, say `shopping cart` instead; in the `live` beat the row trades codex's mark for claude-code's and gains a "claude-code is working" chip and a 1 word chip, and the suggestions count goes from 3 to 4; Share's stepper marks On this Mac and names `workspaces/default` |

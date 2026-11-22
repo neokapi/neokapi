@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -55,10 +55,10 @@ const (
 	contextOperationConflictCode = apiclient.ContextOperationConflictCode
 )
 
-// requestBodyLimit bounds every request body the server reads. A push of
-// context objects travels as base64 in JSON, so the client remote splits a
-// push into batches that stay under it.
-const requestBodyLimit = "50M"
+// requestBodyLimit bounds every request body the server reads, in bytes
+// (50 MB). A push of context objects travels as base64 in JSON, so the client
+// remote splits a push into batches that stay under it.
+const requestBodyLimit = 50_000_000
 
 // contextObjectWritePermission gates a push of context objects: a member
 // holding any of the permissions a decision can need (governingPermissions)
@@ -92,14 +92,14 @@ func (s *Server) contextObjects() (platstore.ContextObjectStore, bool) {
 
 // contextObjectsUnavailable answers a route whose content store holds no
 // context objects.
-func contextObjectsUnavailable(c echo.Context) error {
+func contextObjectsUnavailable(c *echo.Context) error {
 	return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "context objects not configured"})
 }
 
 // HandleListContextObjects answers GET /:ws/:id/context/objects?dir=, the
 // names under one directory of the context layout (log/, blobs/,
 // checkpoints/), sorted.
-func (s *Server) HandleListContextObjects(c echo.Context) error {
+func (s *Server) HandleListContextObjects(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func (s *Server) HandleListContextObjects(c echo.Context) error {
 
 // HandleGetContextObject answers GET /:ws/:id/context/objects/<name> with the
 // object's bytes.
-func (s *Server) HandleGetContextObject(c echo.Context) error {
+func (s *Server) HandleGetContextObject(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func (s *Server) HandleGetContextObject(c echo.Context) error {
 // written in one transaction and every new object is stamped with the
 // signed-in member. A name the project holds with other bytes refuses the
 // whole batch with 409.
-func (s *Server) HandlePutContextObjects(c echo.Context) error {
+func (s *Server) HandlePutContextObjects(c *echo.Context) error {
 	if perms, _ := c.Get("project_permissions").(platauth.Permission); perms&contextObjectWritePermission == 0 {
 		if err := s.requirePermission(c, contextObjectWritePermission); err != nil {
 			return err
@@ -164,20 +164,9 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
 	}
-	batch := make([]platstore.ContextObject, 0, len(body.Objects))
-	for _, obj := range body.Objects {
-		if !workspace.ValidObjectName(obj.Name) {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{
-				Error: "not a name in the context layout", Details: obj.Name, Code: contextObjectInvalidCode,
-			})
-		}
-		if strings.HasPrefix(obj.Name, workspace.RemoteBlobDir) &&
-			workspace.BlobObjectName(workspace.BlobAddress(obj.Data)) != obj.Name {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{
-				Error: "the blob's name is not the address of its bytes", Details: obj.Name, Code: contextObjectInvalidCode,
-			})
-		}
-		batch = append(batch, platstore.ContextObject{Name: obj.Name, Data: obj.Data})
+	batch, refused, err := contextBatchOf(c, body.Objects)
+	if refused || err != nil {
+		return err
 	}
 	cos, ok := s.contextObjects()
 	if !ok {
@@ -192,11 +181,11 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 	} else if err != nil {
 		return serverErr(c, err)
 	}
-	if refused, err := s.acceptContextBatch(c, cos, batch); refused || err != nil {
+	accepted, refused, err := s.acceptContextBatch(c, cos, batch, true)
+	if refused || err != nil {
 		return err
 	}
-	pushedBy, _ := c.Get("user_id").(string)
-	err := cos.PutContextObjects(ctx, projectID, pushedBy, batch)
+	err = cos.PutContextObjects(ctx, projectID, requestActorOf(c).pusher(), batch)
 	if exists, ok := errors.AsType[*platstore.ContextObjectExistsError](err); ok {
 		return c.JSON(http.StatusConflict, ErrorResponse{
 			Error: "the project already holds that context object with other bytes", Details: exists.Name, Code: contextObjectExistsCode,
@@ -205,7 +194,20 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 	if err != nil {
 		return serverErr(c, err)
 	}
+	s.emitPushedContext(c, projectID, accepted)
 	return c.NoContent(http.StatusNoContent)
+}
+
+// acceptedContext is what a push accepted by acceptContextBatch carries: the
+// operations the project did not hold, every operation by id, and whether
+// the push bound the project's context to its key. When the caller defers the
+// binding to its own transaction, bindKey names the key to bind and bound is
+// what the binding will report.
+type acceptedContext struct {
+	fresh   []workspace.Op
+	byID    map[string]workspace.Op
+	bound   bool
+	bindKey workspace.ProjectKey
 }
 
 // acceptContextBatch reads the segments of a push before any of it is
@@ -223,17 +225,19 @@ func (s *Server) HandlePutContextObjects(c echo.Context) error {
 //   - a governing operation lies outside the pusher's reach (403
 //     outside_reach, see checkReach).
 //
-// refused reports that the answer has been written.
-func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectStore, batch []platstore.ContextObject) (refused bool, err error) {
+// refused reports that the answer has been written. bind binds an unbound
+// project here; a caller that stores the batch in a transaction of its own
+// passes false and binds accepted.bindKey there.
+func (s *Server) acceptContextBatch(c *echo.Context, cos platstore.ContextObjectStore, batch []platstore.ContextObject, bind bool) (accepted acceptedContext, refused bool, err error) {
 	ctx := c.Request().Context()
 	projectID := c.Param("id")
 	member := ledgerMemberOf(c)
 	if err := checkPushObjects(member, batch); err != nil {
-		return true, c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
+		return accepted, true, c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
 	}
 	held, err := cos.DigestContextObjects(ctx, projectID, workspace.RemoteLogDir)
 	if err != nil {
-		return true, serverErr(c, err)
+		return accepted, true, serverErr(c, err)
 	}
 	// A segment the project holds already is not read again: the same bytes
 	// change nothing, and other bytes are refused as the store refuses them.
@@ -248,7 +252,7 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 			continue
 		}
 		if digest != contextObjectDigest(obj.Data) {
-			return true, c.JSON(http.StatusConflict, ErrorResponse{
+			return accepted, true, c.JSON(http.StatusConflict, ErrorResponse{
 				Error: "the project already holds that context object with other bytes", Details: obj.Name, Code: contextObjectExistsCode,
 			})
 		}
@@ -257,7 +261,7 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 	for _, obj := range segments {
 		named := segmentKeys(obj.Data)
 		if len(named) == 0 {
-			return true, c.JSON(http.StatusBadRequest, ErrorResponse{
+			return accepted, true, c.JSON(http.StatusBadRequest, ErrorResponse{
 				Error: "the segment holds no operations of a project", Details: obj.Name, Code: contextInvalidSegmentCode,
 			})
 		}
@@ -268,17 +272,17 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 		}
 	}
 	if len(keys) == 0 {
-		return false, nil
+		return accepted, false, nil
 	}
 	if len(keys) > 1 {
-		return true, c.JSON(http.StatusConflict, ErrorResponse{
+		return accepted, true, c.JSON(http.StatusConflict, ErrorResponse{
 			Error: fmt.Sprintf("the push carries the context of two projects, project key %s and project key %s", keys[0], keys[1]),
 			Code:  contextKeyMismatchCode,
 		})
 	}
 	key := keys[0]
 	if workspace.IsCheckoutKey(key) {
-		return true, c.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+		return accepted, true, c.JSON(http.StatusUnprocessableEntity, ErrorResponse{
 			Error:   checkoutKeyRefusal(key),
 			Message: checkoutKeyRemedy,
 			Details: string(key),
@@ -287,20 +291,20 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 	}
 	bound, err := cos.ContextKey(ctx, projectID)
 	if errors.Is(err, platstore.ErrNoContextProject) {
-		return true, c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found", Details: projectID, Code: contextObjectNoProjectCode})
+		return accepted, true, c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found", Details: projectID, Code: contextObjectNoProjectCode})
 	}
 	if err != nil {
-		return true, serverErr(c, err)
+		return accepted, true, serverErr(c, err)
 	}
 	if bound != "" && bound != string(key) {
-		return true, keyMismatch(c, workspace.ProjectKey(bound), key)
+		return accepted, true, keyMismatch(c, workspace.ProjectKey(bound), key)
 	}
 
 	var pushed []workspace.Op
 	for _, obj := range segments {
 		ops, err := workspace.DecodeSegment(obj.Data, key)
 		if err != nil {
-			return true, c.JSON(http.StatusBadRequest, ErrorResponse{
+			return accepted, true, c.JSON(http.StatusBadRequest, ErrorResponse{
 				Error: fmt.Sprintf("the segment does not read as operations of project key %s: %v", key, err), Details: obj.Name, Code: contextInvalidSegmentCode,
 			})
 		}
@@ -310,7 +314,7 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 	var log []workspace.Op
 	if bound != "" {
 		if _, log, err = s.contextLogs.project(projectID).read(ctx, cos, projectID); err != nil {
-			return true, serverErr(c, err)
+			return accepted, true, serverErr(c, err)
 		}
 	}
 	byID := make(map[string]workspace.Op, len(log)+len(pushed))
@@ -321,7 +325,7 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 	for _, op := range pushed {
 		if have, ok := byID[op.ID]; ok {
 			if !sameOperation(have, op) {
-				return true, c.JSON(http.StatusConflict, ErrorResponse{
+				return accepted, true, c.JSON(http.StatusConflict, ErrorResponse{
 					Error:   fmt.Sprintf("operation %s is held with other content", workspace.ShortOpID(op.ID)),
 					Details: op.ID, Code: contextOperationConflictCode,
 				})
@@ -332,8 +336,19 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 		fresh = append(fresh, op)
 	}
 
+	if member.Tool != "" {
+		if ids := verdictOps(fresh); len(ids) > 0 {
+			return accepted, true, c.JSON(http.StatusUnprocessableEntity, ErrorResponse{
+				Error: fmt.Sprintf("tool %s cannot push review verdicts: operations %s keep, attest or drop context, and only a person records those",
+					member.Tool, strings.Join(ids, ", ")),
+				Message: "Push these operations with your own sign-in first, then run the tool again.",
+				Details: strings.Join(ids, ","),
+				Code:    toolPushVerdictCode,
+			})
+		}
+	}
 	if err := checkPushContent(member, fresh, byID); err != nil {
-		return true, c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
+		return accepted, true, c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error(), Code: contextOutsideReachCode})
 	}
 	// Permission.Has tests every bit, so the coordinate check is skipped
 	// only for a member holding all three permissions over an unbounded
@@ -345,25 +360,29 @@ func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectS
 			err = checkPoints(ctx, member, op, byID)
 		}
 		if err != nil {
-			return true, c.JSON(http.StatusForbidden, ErrorResponse{
+			return accepted, true, c.JSON(http.StatusForbidden, ErrorResponse{
 				Error: err.Error(), Details: op.ID, Code: contextOutsideReachCode,
 			})
 		}
 	}
 
-	if bound == "" {
+	if bound == "" && !bind {
+		accepted.bindKey, accepted.bound = key, true
+	} else if bound == "" {
 		now, err := cos.BindContextKey(ctx, projectID, string(key))
 		if errors.Is(err, platstore.ErrNoContextProject) {
-			return true, c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found", Details: projectID, Code: contextObjectNoProjectCode})
+			return accepted, true, c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found", Details: projectID, Code: contextObjectNoProjectCode})
 		}
 		if err != nil {
-			return true, serverErr(c, err)
+			return accepted, true, serverErr(c, err)
 		}
 		if now != string(key) {
-			return true, keyMismatch(c, workspace.ProjectKey(now), key)
+			return accepted, true, keyMismatch(c, workspace.ProjectKey(now), key)
 		}
+		accepted.bound = true
 	}
-	return false, nil
+	accepted.fresh, accepted.byID = fresh, byID
+	return accepted, false, nil
 }
 
 // sameOperation reports whether two readings of one operation id say the
@@ -387,7 +406,7 @@ func compactJSON(raw []byte) string {
 }
 
 // keyMismatch answers a push naming a key other than the bound one.
-func keyMismatch(c echo.Context, bound, pushed workspace.ProjectKey) error {
+func keyMismatch(c *echo.Context, bound, pushed workspace.ProjectKey) error {
 	return c.JSON(http.StatusConflict, ErrorResponse{
 		Error:   keyMismatchRefusal(bound, pushed),
 		Details: string(pushed),

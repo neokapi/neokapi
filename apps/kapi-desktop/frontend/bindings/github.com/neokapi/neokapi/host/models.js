@@ -20,6 +20,9 @@ import * as convergence$0 from "../core/convergence/models.js";
 import * as profile$0 from "../core/profile/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as project$0 from "../core/project/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as review$0 from "../core/review/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -43,24 +46,24 @@ export const AIModelOrigin = {
     $zero: "",
 
     /**
-     * AIModelFromLocalePreset — `defaults.locales.<lang>.tools.<tool>` in the recipe.
+     * AIModelFromLocalePreset, `defaults.locales.<lang>.tools.<tool>` in the recipe.
      */
     AIModelFromLocalePreset: "locale-preset",
 
     /**
-     * AIModelFromProjectPreset — `defaults.tools.<tool>` in the recipe.
+     * AIModelFromProjectPreset, `defaults.tools.<tool>` in the recipe.
      */
     AIModelFromProjectPreset: "project-preset",
 
     /**
-     * AIModelFromAppConfig — the stored `ai.provider` / `ai.model` (the file at
+     * AIModelFromAppConfig, the stored `ai.provider` / `ai.model` (the file at
      * config.GlobalConfigFilePath, or the KAPI_AI_* environment overrides), which
      * is what `kapi models setup` and `kapi models default` write.
      */
     AIModelFromAppConfig: "app-config",
 
     /**
-     * AIModelFromBuiltIn — nothing configured; the tool's own default applies.
+     * AIModelFromBuiltIn, nothing configured; the tool's own default applies.
      */
     AIModelFromBuiltIn: "built-in",
 };
@@ -111,7 +114,7 @@ export class AIModelResolution {
         }
         if (!("configured" in $$source)) {
             /**
-             * Configured is false when neither half is configured anywhere — the
+             * Configured is false when neither half is configured anywhere, the
              * built-in fallback is carrying the run, which is worth surfacing rather
              * than presenting as a deliberate choice.
              * @member
@@ -131,6 +134,101 @@ export class AIModelResolution {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new AIModelResolution(/** @type {Partial<AIModelResolution>} */($$parsedSource));
+    }
+}
+
+/**
+ * AISetupKind says what a flow needs before its AI steps can run.
+ * @readonly
+ * @enum {string}
+ */
+export const AISetupKind = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * AISetupNone means every AI step's credentials resolve.
+     */
+    AISetupNone: "",
+
+    /**
+     * AISetupChooseModel means an AI step names no provider and the stored
+     * default does not resolve to a usable one. Choosing a model, which sets
+     * the stored default, fixes it.
+     */
+    AISetupChooseModel: "choose_model",
+
+    /**
+     * AISetupMissingCredential means the recipe names a provider (or a saved
+     * credential) for an AI step and no credential for it resolves. A stored
+     * default never overrides a named provider, so only a credential for that
+     * provider fixes it.
+     */
+    AISetupMissingCredential: "missing_credential",
+};
+
+/**
+ * AISetupNeed is what running a flow needs before its AI steps can run.
+ */
+export class AISetupNeed {
+    /**
+     * Creates a new AISetupNeed instance.
+     * @param {Partial<AISetupNeed>} [$$source = {}] - The source object to create the AISetupNeed.
+     */
+    constructor($$source = {}) {
+        if (!("kind" in $$source)) {
+            /**
+             * @member
+             * @type {AISetupKind}
+             */
+            this["kind"] = AISetupKind.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Flow and Tool name the step a missing credential belongs to.
+             * @member
+             * @type {string | undefined}
+             */
+            this["flow"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["tool"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Provider is the provider the recipe names, for a missing credential.
+             * @member
+             * @type {string | undefined}
+             */
+            this["provider"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Message is the error the run would fail with, for a missing credential:
+             * the same text `kapi up` prints.
+             * @member
+             * @type {string | undefined}
+             */
+            this["message"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AISetupNeed instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AISetupNeed}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AISetupNeed(/** @type {Partial<AISetupNeed>} */($$parsedSource));
     }
 }
 
@@ -1432,7 +1530,7 @@ export class ContextAnswer {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Suggestions are what earlier sessions noticed at this point and nobody
+             * Suggestions are what earlier sessions suggested at this point and nobody
              * has established, with the rules a disagreement contests. They are
              * reported apart from Voice and Terms because they bind nothing: a check
              * reports each one and no check fails on it. A writer reads them as the
@@ -1754,7 +1852,7 @@ export const ContextCoverage = {
 };
 
 /**
- * ContextDigest is what kapi learned about how one project writes.
+ * ContextDigest holds the rules and suggestions about how one project writes.
  */
 export class ContextDigest {
     /**
@@ -1807,7 +1905,7 @@ export class ContextDigest {
         }
         if (!("suggested" in $$source)) {
             /**
-             * Suggested are the suggestions still advising, grouped by theme.
+             * Suggested are the suggestions still waiting, grouped by theme.
              * @member
              * @type {DigestTheme[]}
              */
@@ -2265,12 +2363,49 @@ export class ContextOperation {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Voice is what a whole-profile write did, for the edit operation that
+             * records one.
+             * @member
+             * @type {contextop$0.VoiceEdit | null | undefined}
+             */
+            this["voice"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Import is the context file an import operation read: what kind of
+             * source it was, its path and how many items it carried.
+             * @member
+             * @type {contextop$0.ImportSource | null | undefined}
+             */
+            this["import"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Standing counts the evidence for and against a suggestion, folded from
              * the log. It is set on a term rule that settling considers.
              * @member
              * @type {contextop$0.Standing | null | undefined}
              */
             this["standing"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Attest is what an attest operation carries.
+             * @member
+             * @type {contextop$0.Attestation | null | undefined}
+             */
+            this["attest"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Revision names the subject as it reads now: the id of the operation
+             * that last changed its rule or its scope, which is the operation itself
+             * until a keep edits it or a widening moves it. It is folded, not stored,
+             * and an attestation names it.
+             * @member
+             * @type {string | undefined}
+             */
+            this["revision"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -2313,6 +2448,9 @@ export class ContextOperation {
         const $$createField18_0 = $$createType0;
         const $$createField19_0 = $$createType67;
         const $$createField20_0 = $$createType69;
+        const $$createField21_0 = $$createType71;
+        const $$createField22_0 = $$createType73;
+        const $$createField23_0 = $$createType75;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("actor" in $$parsedSource) {
             $$parsedSource["actor"] = $$createField3_0($$parsedSource["actor"]);
@@ -2344,8 +2482,17 @@ export class ContextOperation {
         if ("check" in $$parsedSource) {
             $$parsedSource["check"] = $$createField19_0($$parsedSource["check"]);
         }
+        if ("voice" in $$parsedSource) {
+            $$parsedSource["voice"] = $$createField20_0($$parsedSource["voice"]);
+        }
+        if ("import" in $$parsedSource) {
+            $$parsedSource["import"] = $$createField21_0($$parsedSource["import"]);
+        }
         if ("standing" in $$parsedSource) {
-            $$parsedSource["standing"] = $$createField20_0($$parsedSource["standing"]);
+            $$parsedSource["standing"] = $$createField22_0($$parsedSource["standing"]);
+        }
+        if ("attest" in $$parsedSource) {
+            $$parsedSource["attest"] = $$createField23_0($$parsedSource["attest"]);
         }
         return new ContextOperation(/** @type {Partial<ContextOperation>} */($$parsedSource));
     }
@@ -2547,7 +2694,7 @@ export class ContextProjectStanding {
         }
         if (!("rules" in $$source)) {
             /**
-             * Rules counts the rules in force, Suggested the suggestions advising and
+             * Rules counts the rules in force, Suggested the suggestions waiting and
              * Conflicts the disagreements that need a person.
              * @member
              * @type {number}
@@ -2614,7 +2761,7 @@ export class ContextProjectStanding {
      * @returns {ContextProjectStanding}
      */
     static createFrom($$source = {}) {
-        const $$createField8_0 = $$createType71;
+        const $$createField8_0 = $$createType77;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("latest" in $$parsedSource) {
             $$parsedSource["latest"] = $$createField8_0($$parsedSource["latest"]);
@@ -2765,7 +2912,7 @@ export class ContextPull {
      * @returns {ContextPull}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType72;
+        const $$createField0_0 = $$createType78;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("remote" in $$parsedSource) {
             $$parsedSource["remote"] = $$createField0_0($$parsedSource["remote"]);
@@ -2892,7 +3039,7 @@ export class ContextPush {
      * @returns {ContextPush}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType72;
+        const $$createField0_0 = $$createType78;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("remote" in $$parsedSource) {
             $$parsedSource["remote"] = $$createField0_0($$parsedSource["remote"]);
@@ -3023,7 +3170,7 @@ export const ContextScope = {
     ScopeWorkspace: "workspace",
 
     /**
-     * ScopeProfile is one voice profile and nothing else — a by-name answer with
+     * ScopeProfile is one voice profile and nothing else: a by-name answer with
      * no project in scope, or one naming a profile no recipe declares. Narrower
      * than a project on purpose: there is no terms store and no governance window
      * behind it, and reporting that as an empty project scope would say the
@@ -3097,7 +3244,7 @@ export class ContextSearchResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Terms are concepts whose terms or definition match — what the project
+             * Terms are concepts whose terms or definition match: what the project
              * calls this, and whether it is discouraged.
              * @member
              * @type {ContextTermHit[] | undefined}
@@ -3107,7 +3254,7 @@ export class ContextSearchResult {
         if (/** @type {any} */(false)) {
             /**
              * Precedent is wording the project has already approved that matches the
-             * query — "how have we said this before?".
+             * query: "how have we said this before?".
              * 
              * This is NOT translation recycling. Recycling is the loop's job and is
              * invisible by design (`up` pre-fills from content memory as the structural
@@ -3122,7 +3269,7 @@ export class ContextSearchResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Profiles are the governance profiles whose validity is bounded — "which
+             * Profiles are the governance profiles whose validity is bounded: "which
              * voice is in force, and until when". Only profiles that declare a window
              * appear; a project that never bounds governance has none.
              * @member
@@ -3134,7 +3281,7 @@ export class ContextSearchResult {
             /**
              * Suggestions are what somebody recorded about the word and nobody has
              * established: suggested term rules and notes that mention it, and the
-             * rules a disagreement contests. They advise and fail no check.
+             * rules a disagreement contests. Checks report them and fail on none.
              * @member
              * @type {ContextSuggestion[] | undefined}
              */
@@ -3173,7 +3320,7 @@ export class ContextSearchResult {
         const $$createField3_0 = $$createType26;
         const $$createField4_0 = $$createType40;
         const $$createField5_0 = $$createType30;
-        const $$createField6_0 = $$createType74;
+        const $$createField6_0 = $$createType80;
         const $$createField7_0 = $$createType34;
         const $$createField8_0 = $$createType32;
         const $$createField9_0 = $$createType0;
@@ -3259,7 +3406,7 @@ export class ContextSettleResult {
      * @returns {ContextSettleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType76;
+        const $$createField2_0 = $$createType82;
         const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("signals" in $$parsedSource) {
@@ -3430,7 +3577,7 @@ export class ContextSuggestion {
         const $$createField3_0 = $$createType0;
         const $$createField5_0 = $$createType0;
         const $$createField13_0 = $$createType14;
-        const $$createField14_0 = $$createType69;
+        const $$createField14_0 = $$createType73;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("contested_by" in $$parsedSource) {
             $$parsedSource["contested_by"] = $$createField3_0($$parsedSource["contested_by"]);
@@ -3508,10 +3655,10 @@ export class ContextSyncResult {
      * @returns {ContextSyncResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType78;
-        const $$createField1_0 = $$createType80;
-        const $$createField2_0 = $$createType82;
-        const $$createField3_0 = $$createType84;
+        const $$createField0_0 = $$createType84;
+        const $$createField1_0 = $$createType86;
+        const $$createField2_0 = $$createType88;
+        const $$createField3_0 = $$createType90;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pull" in $$parsedSource) {
             $$parsedSource["pull"] = $$createField0_0($$parsedSource["pull"]);
@@ -3613,10 +3760,10 @@ export class ContextTermHit {
         if (/** @type {any} */(false)) {
             /**
              * ValidFrom/ValidTo carry the term's own time scoping when it has any.
-             * A rule that starts or stops on a date is what lets a context survive a
-             * rename without being rewritten, so a caller must be able to see that the
-             * answer it just got has an expiry — "recognise the old name until March"
-             * is a different instruction from "never use it".
+             * A rule that starts or stops on a date lets a context survive a rename
+             * without being rewritten. A caller sees that the answer has an expiry,
+             * because "recognise the old name until March" is a different instruction
+             * from "never use it".
              * @member
              * @type {string | undefined}
              */
@@ -3693,7 +3840,7 @@ export class ContextTermHit {
      * @returns {ContextTermHit}
      */
     static createFrom($$source = {}) {
-        const $$createField13_0 = $$createType86;
+        const $$createField13_0 = $$createType92;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("top_uses" in $$parsedSource) {
             $$parsedSource["top_uses"] = $$createField13_0($$parsedSource["top_uses"]);
@@ -3942,7 +4089,7 @@ export class ConvergeLocaleResult {
              */
             this["pct"] = undefined;
         }
-        if (!("shipState" in $$source)) {
+        if (!("ship_state" in $$source)) {
             /**
              * ShipState folds the locale's scopes into one standing: withheld when any
              * scope is withheld, shippable when every scope is gated and clears its gate,
@@ -3951,7 +4098,7 @@ export class ConvergeLocaleResult {
              * @member
              * @type {ShipState}
              */
-            this["shipState"] = convergence$0.ShipState.$zero;
+            this["ship_state"] = convergence$0.ShipState.$zero;
         }
         if (!("gated" in $$source)) {
             /**
@@ -3964,14 +4111,13 @@ export class ConvergeLocaleResult {
         if (/** @type {any} */(false)) {
             /**
              * FailingChecks counts units that are produced but fail the project's bound
-             * checks (#1078 G4). They count at their true rung in Pct — the unit is
-             * translated — and hold the locale out of Shippable until fixed. It counts
-             * UNITS, which is not what `kapi check` counts: one unit can carry several
-             * findings, and `kapi check` lists findings.
+             * checks (#1078 G4). They count at their true rung in Pct (the unit is
+             * translated) and hold the locale out of Shippable until fixed. It counts
+             * UNITS, where `kapi check` lists findings, and one unit can carry several.
              * @member
              * @type {number | undefined}
              */
-            this["failingChecks"] = undefined;
+            this["failing_checks"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -3997,11 +4143,11 @@ export class ConvergeLocaleResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Redrafted counts the stale units this run produced over — recycled against
-             * the rewritten source, or drafted for the remainder. It is what the loop
-             * owes them: a translation of the source the project has now. The decision
-             * they carried is NOT restored, so they stay in Stale until someone reviews
-             * the new draft, which is why the two are reported side by side.
+             * Redrafted counts the stale units this run produced over: recycled against
+             * the rewritten source, or drafted for the remainder. Each now holds a
+             * translation of the current source. The decision they carried is NOT
+             * restored, so they stay in Stale until someone reviews the new draft, and
+             * the two are reported side by side.
              * @member
              * @type {number | undefined}
              */
@@ -4029,7 +4175,7 @@ export class ConvergeLocaleResult {
              * @member
              * @type {number | undefined}
              */
-            this["staleDrafts"] = undefined;
+            this["stale_drafts"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4039,7 +4185,7 @@ export class ConvergeLocaleResult {
              * @member
              * @type {output$0.UnstampedDrafts[] | undefined}
              */
-            this["unstampedDrafts"] = undefined;
+            this["unstamped_drafts"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -4052,13 +4198,13 @@ export class ConvergeLocaleResult {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType19;
-        const $$createField12_0 = $$createType88;
+        const $$createField12_0 = $$createType94;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
         }
-        if ("unstampedDrafts" in $$parsedSource) {
-            $$parsedSource["unstampedDrafts"] = $$createField12_0($$parsedSource["unstampedDrafts"]);
+        if ("unstamped_drafts" in $$parsedSource) {
+            $$parsedSource["unstamped_drafts"] = $$createField12_0($$parsedSource["unstamped_drafts"]);
         }
         return new ConvergeLocaleResult(/** @type {Partial<ConvergeLocaleResult>} */($$parsedSource));
     }
@@ -4106,13 +4252,35 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Produced counts the units this run wrote to the project's files, by its
+             * passes or by the delivery after its loop, from this run's drafts or an
+             * earlier run's. A run that changed nothing reports 0. Nil when the venue
+             * does not report it: a server run writes to the server, and its summary
+             * leaves the figure out rather than give it another meaning.
+             * @member
+             * @type {number | null | undefined}
+             */
+            this["produced"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * WaitingForReview counts the drafts the run holds for review in locales
+             * short of their ship gate. They are not written to the project, so
+             * Produced leaves them out.
+             * @member
+             * @type {number | undefined}
+             */
+            this["waiting_for_review"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * ParkedScopes lists the gated (collection, locale) scopes that remain
-             * short of their gate — per-scope detail under the per-locale rollup, so
+             * short of their gate: per-scope detail under the per-locale rollup, so
              * a UI can link each parked scope to its review queue.
              * @member
              * @type {ParkedScope[] | undefined}
              */
-            this["parkedScopes"] = undefined;
+            this["parked_scopes"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4122,7 +4290,7 @@ export class ConvergeOutput {
              * @member
              * @type {number | undefined}
              */
-            this["materializedFiles"] = undefined;
+            this["materialized_files"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4134,7 +4302,7 @@ export class ConvergeOutput {
              * @member
              * @type {number | undefined}
              */
-            this["blockedOnSource"] = undefined;
+            this["blocked_on_source"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4144,18 +4312,18 @@ export class ConvergeOutput {
              * @member
              * @type {string | undefined}
              */
-            this["translateAfter"] = undefined;
+            this["translate_after"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
-             * StallReason is the machine-readable cause a run did not converge — set to
+             * StallReason is the machine-readable cause a run did not converge. It is
              * source_not_ready when every pending locale had nothing producible because
              * its source is held below the translate_after level. Empty on a
              * clean/parked-on-target run.
              * @member
              * @type {string | undefined}
              */
-            this["stallReason"] = undefined;
+            this["stall_reason"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4170,6 +4338,16 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
+             * NoTargets reports a run over a project that declares target languages but
+             * has no collection with a target path: the source half ran, and no
+             * translation had anywhere to go.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["no_targets"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * ExtractedFiles and ExtractedBlocks report the pre-pass re-extraction that
              * brought the project store back in sync with the working tree. Both 0 when
              * the store was already current. They are the "what moved" of a monolingual
@@ -4177,45 +4355,44 @@ export class ConvergeOutput {
              * @member
              * @type {number | undefined}
              */
-            this["extractedFiles"] = undefined;
+            this["extracted_files"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
              * @type {number | undefined}
              */
-            this["extractedBlocks"] = undefined;
+            this["extracted_blocks"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * ConceptsProposed, ChangesetID and ChangesetURL report governed terminology
              * the run proposed rather than applied: edits that take effect only once a
-             * reviewer accepts them. They are venue-supplied — a run at a venue that
-             * governs terminology fills them in — and all three are zero for a run that
-             * proposed nothing.
+             * reviewer accepts them. A venue that governs terminology fills them in,
+             * and all three are zero for a run that proposed nothing.
              * 
              * ChangesetURL is a deep link to the review surface, and is empty whenever
-             * the venue could not name one. An id with no link is still worth reporting:
-             * it is the handle every other surface takes, so a reader who cannot click
-             * through can still ask for the change-set by name.
+             * the venue could not name one. The id is reported either way: it is the
+             * handle every other surface takes, so a reader who cannot click through
+             * can still ask for the change-set by name.
              * @member
              * @type {number | undefined}
              */
-            this["conceptsProposed"] = undefined;
+            this["concepts_proposed"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
              * @type {string | undefined}
              */
-            this["changesetId"] = undefined;
+            this["changeset_id"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
              * @type {string | undefined}
              */
-            this["changesetUrl"] = undefined;
+            this["changeset_url"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4238,6 +4415,15 @@ export class ConvergeOutput {
              */
             this["findings"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * PreReview counts what the AI pre-review scored after the run, nil when
+             * none was asked for (kapi up --pre-review).
+             * @member
+             * @type {PreReviewResult | null | undefined}
+             */
+            this["pre_review"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -4248,22 +4434,26 @@ export class ConvergeOutput {
      * @returns {ConvergeOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType90;
-        const $$createField4_0 = $$createType92;
-        const $$createField15_0 = $$createType94;
-        const $$createField16_0 = $$createType96;
+        const $$createField3_0 = $$createType96;
+        const $$createField6_0 = $$createType98;
+        const $$createField18_0 = $$createType100;
+        const $$createField19_0 = $$createType102;
+        const $$createField20_0 = $$createType104;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
         }
-        if ("parkedScopes" in $$parsedSource) {
-            $$parsedSource["parkedScopes"] = $$createField4_0($$parsedSource["parkedScopes"]);
+        if ("parked_scopes" in $$parsedSource) {
+            $$parsedSource["parked_scopes"] = $$createField6_0($$parsedSource["parked_scopes"]);
         }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField15_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField18_0($$parsedSource["warnings"]);
         }
         if ("findings" in $$parsedSource) {
-            $$parsedSource["findings"] = $$createField16_0($$parsedSource["findings"]);
+            $$parsedSource["findings"] = $$createField19_0($$parsedSource["findings"]);
+        }
+        if ("pre_review" in $$parsedSource) {
+            $$parsedSource["pre_review"] = $$createField20_0($$parsedSource["pre_review"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }
@@ -4430,7 +4620,7 @@ export class DigestNumbers {
         }
         if (!("suggested" in $$source)) {
             /**
-             * Suggested counts the suggestions advising, and Conflicts the
+             * Suggested counts the suggestions waiting, and Conflicts the
              * disagreements.
              * @member
              * @type {number}
@@ -4510,7 +4700,7 @@ export class DigestTheme {
      * @returns {DigestTheme}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType98;
+        const $$createField2_0 = $$createType106;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("groups" in $$parsedSource) {
             $$parsedSource["groups"] = $$createField2_0($$parsedSource["groups"]);
@@ -4588,9 +4778,9 @@ export class FindingsReport {
      * @returns {FindingsReport}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType99;
-        const $$createField1_0 = $$createType100;
-        const $$createField2_0 = $$createType102;
+        const $$createField0_0 = $$createType107;
+        const $$createField1_0 = $$createType108;
+        const $$createField2_0 = $$createType110;
         const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target" in $$parsedSource) {
@@ -4611,7 +4801,7 @@ export class FindingsReport {
 
 /**
  * ParkedScope identifies one gated (collection, locale) scope still short of
- * its gate after the run — the address a review surface can deep-link to.
+ * its gate after the run: the address a review surface can deep-link to.
  */
 export class ParkedScope {
     /**
@@ -4645,6 +4835,55 @@ export class ParkedScope {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ParkedScope(/** @type {Partial<ParkedScope>} */($$parsedSource));
+    }
+}
+
+/**
+ * PreReviewResult counts what a pre-review run did.
+ */
+export class PreReviewResult {
+    /**
+     * Creates a new PreReviewResult instance.
+     * @param {Partial<PreReviewResult>} [$$source = {}] - The source object to create the PreReviewResult.
+     */
+    constructor($$source = {}) {
+        if (!("model" in $$source)) {
+            /**
+             * Model is the reviewer the annotations name.
+             * @member
+             * @type {string}
+             */
+            this["model"] = "";
+        }
+        if (!("reviewed" in $$source)) {
+            /**
+             * Reviewed counts the blocks annotated with a score.
+             * @member
+             * @type {number}
+             */
+            this["reviewed"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Skipped counts the blocks left without an annotation: the model gave no
+             * usable score, or the block could not be read again.
+             * @member
+             * @type {number | undefined}
+             */
+            this["skipped"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PreReviewResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {PreReviewResult}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PreReviewResult(/** @type {Partial<PreReviewResult>} */($$parsedSource));
     }
 }
 
@@ -4799,7 +5038,7 @@ export class RulesFilesResult {
      * @returns {RulesFilesResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType104;
+        const $$createField0_0 = $$createType112;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
@@ -4836,7 +5075,7 @@ export class UpPlanOutput {
              */
             this["flow"] = undefined;
         }
-        if (!("flowDrafts" in $$source)) {
+        if (!("flow_drafts" in $$source)) {
             /**
              * FlowDrafts reports whether the flow contains any step that produces a
              * target other than by content-memory recycling. False means the flow
@@ -4845,9 +5084,9 @@ export class UpPlanOutput {
              * @member
              * @type {boolean}
              */
-            this["flowDrafts"] = false;
+            this["flow_drafts"] = false;
         }
-        if (!("flowCallsProvider" in $$source)) {
+        if (!("flow_calls_provider" in $$source)) {
             /**
              * FlowCallsProvider reports whether producing a target under this flow
              * reaches an AI or machine-translation provider. False means the run makes
@@ -4856,7 +5095,7 @@ export class UpPlanOutput {
              * @member
              * @type {boolean}
              */
-            this["flowCallsProvider"] = false;
+            this["flow_calls_provider"] = false;
         }
         if (!("scopes" in $$source)) {
             /**
@@ -4894,12 +5133,22 @@ export class UpPlanOutput {
             /**
              * Monolingual reports a project that resolves no target locale: there is no
              * per-language work to price. An empty Scopes list otherwise means the work
-             * is already done — or, with UnreadTargets set, that the plan has not been
+             * is already done, or, with UnreadTargets set, that the plan has not been
              * able to judge it yet. The three must not read the same.
              * @member
              * @type {boolean | undefined}
              */
             this["monolingual"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * NoTargets reports a project that declares target languages but has no
+             * collection with a target path, so a run writes no translation. An empty
+             * Scopes list then means there is nowhere to write, not that the work is done.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["no_targets"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4910,6 +5159,18 @@ export class UpPlanOutput {
              * @type {check$0.Warning[] | undefined}
              */
             this["warnings"] = undefined;
+        }
+        if (!("drift" in $$source)) {
+            /**
+             * Drift is the project store's standing against the source files on disk:
+             * the files changed or removed since the store last read them, or a store
+             * that is missing or was written by another kapi version. A run reads
+             * those files again before its first pass, unless it runs with
+             * --no-extract. A plan reports a missing store and creates none.
+             * @member
+             * @type {project$0.StoreDrift}
+             */
+            this["drift"] = (new project$0.StoreDrift());
         }
         if (!("note" in $$source)) {
             /**
@@ -4929,9 +5190,10 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType106;
-        const $$createField4_0 = $$createType105;
-        const $$createField8_0 = $$createType94;
+        const $$createField3_0 = $$createType114;
+        const $$createField4_0 = $$createType113;
+        const $$createField9_0 = $$createType100;
+        const $$createField10_0 = $$createType115;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -4940,7 +5202,10 @@ export class UpPlanOutput {
             $$parsedSource["totals"] = $$createField4_0($$parsedSource["totals"]);
         }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField8_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField9_0($$parsedSource["warnings"]);
+        }
+        if ("drift" in $$parsedSource) {
+            $$parsedSource["drift"] = $$createField10_0($$parsedSource["drift"]);
         }
         return new UpPlanOutput(/** @type {Partial<UpPlanOutput>} */($$parsedSource));
     }
@@ -4980,24 +5245,24 @@ export class UpPlanScope {
              */
             this["collection"] = undefined;
         }
-        if (!("missingTarget" in $$source)) {
+        if (!("missing_target" in $$source)) {
             /**
              * MissingTarget is the count of translatable units with no committed
              * target for the locale.
              * @member
              * @type {number}
              */
-            this["missingTarget"] = 0;
+            this["missing_target"] = 0;
         }
-        if (!("memoryExact" in $$source)) {
+        if (!("memory_exact" in $$source)) {
             /**
              * MemoryExact is the count of counted units covered by an exact-hash
-             * content-memory hit (the cheap leverage estimate — fuzzy leverage is not
+             * content-memory hit (the cheap leverage estimate, fuzzy leverage is not
              * counted).
              * @member
              * @type {number}
              */
-            this["memoryExact"] = 0;
+            this["memory_exact"] = 0;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -5018,7 +5283,7 @@ export class UpPlanScope {
              */
             this["drafts"] = undefined;
         }
-        if (!("aiRemaining" in $$source)) {
+        if (!("ai_remaining" in $$source)) {
             /**
              * AIRemaining is the count of counted units left for AI translation after
              * content-memory leverage and stored drafts: the provider calls a run
@@ -5026,19 +5291,17 @@ export class UpPlanScope {
              * @member
              * @type {number}
              */
-            this["aiRemaining"] = 0;
+            this["ai_remaining"] = 0;
         }
         if (/** @type {any} */(false)) {
             /**
-             * Stale is the count of units that HAVE a committed target whose decision
-             * was recorded against source wording that has since changed. The run
-             * re-drafts them — recycle against the new wording, AI for the remainder —
-             * so they are PRICED into MemoryExact/AIRemaining/TokenEstimate exactly as a
-             * unit with no target is. They are reported on their own axis as well, and
-             * not folded into MissingTarget, because the two ask different things of the
-             * reader: missing work finishes when the loop finishes it, stale work also
-             * owes a review, and the tokens are being spent on a unit a person had
-             * already decided.
+             * Stale is the count of units with a committed target whose decision was
+             * recorded against source wording that has since changed. The run drafts
+             * them again (recycle against the new wording, AI for the remainder), so
+             * they are priced into MemoryExact, AIRemaining and TokenEstimate as a unit
+             * with no target is. They are also reported on their own, apart from
+             * MissingTarget: missing work ends when the loop finishes it, and stale
+             * work also owes a review of a unit a person had already decided.
              * @member
              * @type {number | undefined}
              */
@@ -5046,16 +5309,15 @@ export class UpPlanScope {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Unanswered is the count of units that HAVE a committed target which the
-             * project content memory does not answer: no decision of theirs has moved,
-             * but the corpus holds no exact answer for their source, so `recycle` cannot
-             * fill them and the pass drafts them again over what is on disk.
+             * Unanswered is the count of units with a committed target that the
+             * project content memory does not answer. No decision of theirs has moved,
+             * but the corpus holds no exact answer for their source, so `recycle`
+             * cannot fill them and the pass drafts them again over what is on disk.
              * 
-             * It is its own axis because it is its own fact. `stale` means a decision's
-             * basis moved — it drives `blocked: stale`, the review worklist and shipping —
-             * and a produced unit the record never paired is none of that. Folding the two
-             * would put the plan and the run summary at odds, since the summary's re-draft
-             * count is the decision-based coverage tally.
+             * It is kept apart from Stale. Stale means a decision's basis moved, and it
+             * drives `blocked: stale`, the review worklist and shipping. A produced
+             * unit the record never paired is none of that, and the run summary's
+             * re-draft count is the decision-based coverage tally.
              * @member
              * @type {number | undefined}
              */
@@ -5074,33 +5336,32 @@ export class UpPlanScope {
              * @member
              * @type {number | undefined}
              */
-            this["outOfReach"] = undefined;
+            this["out_of_reach"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
-             * UnreadTargets is the count of produced units the plan declines to judge:
-             * their committed translation has not been read into the project store yet,
-             * so the corpus is unfinished and its silence about them means "not asked",
-             * not "the pass will draft this". A run reads them first — the seed phase
-             * absorbs the committed record before the pass — which is why this is a
-             * disclosure and not an axis of work: pricing them would quote a provider
-             * call for every translation the run is about to recycle, and quoting zero
-             * would promise a free run.
+             * UnreadTargets is the count of produced units the plan does not judge.
+             * Their committed translation has not been read into the project store
+             * yet, so the corpus has not been asked about them. A run reads them first:
+             * the seed phase absorbs the committed record before the pass. So this is a
+             * disclosure, not work. Pricing them would quote a provider call for every
+             * translation the run will recycle, and quoting zero would promise a free
+             * run.
              * @member
              * @type {number | undefined}
              */
-            this["unreadTargets"] = undefined;
+            this["unread_targets"] = undefined;
         }
-        if (!("tokenEstimate" in $$source)) {
+        if (!("token_estimate" in $$source)) {
             /**
              * TokenEstimate approximates the input tokens for the remaining AI work:
-             * source characters / 4 (a common chars-per-token heuristic — the
+             * source characters / 4 (a common chars-per-token heuristic, the
              * providers expose no tokenizer here, so this is an estimate, not a
              * quote).
              * @member
              * @type {number}
              */
-            this["tokenEstimate"] = 0;
+            this["token_estimate"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -5186,42 +5447,51 @@ const $$createType64 = contextop$0.Signal.createFrom;
 const $$createType65 = $Create.Nullable($$createType64);
 const $$createType66 = contextop$0.CheckRun.createFrom;
 const $$createType67 = $Create.Nullable($$createType66);
-const $$createType68 = contextop$0.Standing.createFrom;
+const $$createType68 = contextop$0.VoiceEdit.createFrom;
 const $$createType69 = $Create.Nullable($$createType68);
-const $$createType70 = ContextActivity.createFrom;
+const $$createType70 = contextop$0.ImportSource.createFrom;
 const $$createType71 = $Create.Nullable($$createType70);
-const $$createType72 = workspace$0.RemoteDescriptor.createFrom;
-const $$createType73 = ContextPrecedentHit.createFrom;
-const $$createType74 = $Create.Array($$createType73);
-const $$createType75 = ContextOperation.createFrom;
-const $$createType76 = $Create.Array($$createType75);
-const $$createType77 = ContextPull.createFrom;
-const $$createType78 = $Create.Nullable($$createType77);
-const $$createType79 = ContextSettleResult.createFrom;
-const $$createType80 = $Create.Nullable($$createType79);
-const $$createType81 = ContextPush.createFrom;
-const $$createType82 = $Create.Nullable($$createType81);
-const $$createType83 = RulesFilesResult.createFrom;
+const $$createType72 = contextop$0.Standing.createFrom;
+const $$createType73 = $Create.Nullable($$createType72);
+const $$createType74 = contextop$0.Attestation.createFrom;
+const $$createType75 = $Create.Nullable($$createType74);
+const $$createType76 = ContextActivity.createFrom;
+const $$createType77 = $Create.Nullable($$createType76);
+const $$createType78 = workspace$0.RemoteDescriptor.createFrom;
+const $$createType79 = ContextPrecedentHit.createFrom;
+const $$createType80 = $Create.Array($$createType79);
+const $$createType81 = ContextOperation.createFrom;
+const $$createType82 = $Create.Array($$createType81);
+const $$createType83 = ContextPull.createFrom;
 const $$createType84 = $Create.Nullable($$createType83);
-const $$createType85 = ContextTermUse.createFrom;
-const $$createType86 = $Create.Array($$createType85);
-const $$createType87 = output$0.UnstampedDrafts.createFrom;
-const $$createType88 = $Create.Array($$createType87);
-const $$createType89 = ConvergeLocaleResult.createFrom;
-const $$createType90 = $Create.Array($$createType89);
-const $$createType91 = ParkedScope.createFrom;
+const $$createType85 = ContextSettleResult.createFrom;
+const $$createType86 = $Create.Nullable($$createType85);
+const $$createType87 = ContextPush.createFrom;
+const $$createType88 = $Create.Nullable($$createType87);
+const $$createType89 = RulesFilesResult.createFrom;
+const $$createType90 = $Create.Nullable($$createType89);
+const $$createType91 = ContextTermUse.createFrom;
 const $$createType92 = $Create.Array($$createType91);
-const $$createType93 = check$0.Warning.createFrom;
+const $$createType93 = output$0.UnstampedDrafts.createFrom;
 const $$createType94 = $Create.Array($$createType93);
-const $$createType95 = FindingsReport.createFrom;
-const $$createType96 = $Create.Nullable($$createType95);
-const $$createType97 = DigestGroup.createFrom;
+const $$createType95 = ConvergeLocaleResult.createFrom;
+const $$createType96 = $Create.Array($$createType95);
+const $$createType97 = ParkedScope.createFrom;
 const $$createType98 = $Create.Array($$createType97);
-const $$createType99 = check$0.Target.createFrom;
-const $$createType100 = check$0.Summary.createFrom;
-const $$createType101 = check$0.Diagnostic.createFrom;
-const $$createType102 = $Create.Array($$createType101);
-const $$createType103 = RulesFile.createFrom;
-const $$createType104 = $Create.Array($$createType103);
-const $$createType105 = UpPlanScope.createFrom;
+const $$createType99 = check$0.Warning.createFrom;
+const $$createType100 = $Create.Array($$createType99);
+const $$createType101 = FindingsReport.createFrom;
+const $$createType102 = $Create.Nullable($$createType101);
+const $$createType103 = PreReviewResult.createFrom;
+const $$createType104 = $Create.Nullable($$createType103);
+const $$createType105 = DigestGroup.createFrom;
 const $$createType106 = $Create.Array($$createType105);
+const $$createType107 = check$0.Target.createFrom;
+const $$createType108 = check$0.Summary.createFrom;
+const $$createType109 = check$0.Diagnostic.createFrom;
+const $$createType110 = $Create.Array($$createType109);
+const $$createType111 = RulesFile.createFrom;
+const $$createType112 = $Create.Array($$createType111);
+const $$createType113 = UpPlanScope.createFrom;
+const $$createType114 = $Create.Array($$createType113);
+const $$createType115 = project$0.StoreDrift.createFrom;

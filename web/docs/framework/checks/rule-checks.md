@@ -16,15 +16,14 @@ and **reports findings without modifying the content**. Findings are recorded
 as stand-off overlays on the block (see
 [Checks](/framework/checks#one-model-findings)) and surfaced to the CLI, an
 editor, or a downstream tool, so a check pass slots into any
-[flow](/framework/flows) as an ordinary stage. neokapi offers two complementary
-approaches: fast, deterministic rules, and LLM-assisted review.
+[flow](/framework/flows) as an ordinary stage. neokapi has two approaches: fast
+deterministic rules, and LLM-assisted review.
 
-Run as a gate, these checks behave like tests for AI output: deterministic and
-repeatable, they read translated content against its source and report exactly
-what broke: a dropped placeholder, a translated do-not-translate term, a term
-that drifts from the project's terms store. `kapi check` runs them over a file or a
-source/target pair and exits non-zero when the gate fails, so a regression is
-caught in CI, or in an assistant's fix-loop, the same way a failing test is.
+Run as a gate, the deterministic checks read translated content against its
+source and report what broke: a dropped placeholder, a translated
+do-not-translate term, a term that drifts from the project's terms store.
+`kapi check` runs them over a file or a source/target pair and exits non-zero
+when the gate fails, so CI or an assistant's fix-loop catches the regression.
 
 <ThemedVideo
   sources={{
@@ -55,9 +54,8 @@ checks span several concerns:
 | **Repetition**      | Consecutive doubled words in the target                                          |
 
 Each check is individually configurable: every rule has a flag, and length
-checks have thresholds. Because the schema is declared on the tool's config
-struct, the available options and their defaults are generated into the
-[Tool Reference](/tools) rather than listed by hand here.
+checks have thresholds. The schema is declared on the tool's config struct, so
+the options and their defaults are generated into the [Tool Reference](/tools).
 
 Run it from the CLI against a bilingual file. The command below parses an XLIFF
 file and reports its findings as JSON:
@@ -67,7 +65,7 @@ file and reports its findings as JSON:
   seed={["app.xliff"]}
 />
 
-In a flow, `qa` is just another step after translation:
+In a flow, `qa` is a step after translation:
 
 ```yaml
 steps:
@@ -92,9 +90,9 @@ its own validator, `term-check`. The full set is in the
 Where the deterministic rules catch the mechanical errors, running `qa` with an
 LLM `--provider` uses that [LLM provider](/framework/translation) to assess
 qualities a rule expresses poorly (fluency, accuracy against the source,
-and terminology appropriateness) and attaches its assessment to each block. It
-is the natural companion to `translate`: the built-in `translate-qa` flow runs
-translation and then this review in one pass.
+and terminology appropriateness) and attaches its assessment to each block.
+The built-in `translate-qa` flow runs translation and then this review in one
+pass.
 
 ```bash
 kapi run translate-qa -i app.xliff --target-lang fr
@@ -104,11 +102,10 @@ kapi run translate-qa -i app.xliff --target-lang fr
 
 Both kinds of check emit the same `core/check.Finding`, recorded as a stand-off
 overlay anchored to the offending runs, as described under
-[Checks](/framework/checks#one-model-findings). This is the same shared channel that
-[memory matches](/framework/content-memory),
-[terminology](/framework/terminology), and [voice](/framework/checks/voice)
-results use, so a single downstream consumer (a report, an editor view, a CI
-gate) can read every kind of finding from one place.
+[Checks](/framework/checks#one-model-findings). [Memory matches](/framework/content-memory),
+[terminology](/framework/terminology) and [voice](/framework/checks/voice)
+results use the same channel, so one downstream consumer (a report, an editor
+view, a CI gate) reads every kind of finding from one place.
 
 ## Related reading
 

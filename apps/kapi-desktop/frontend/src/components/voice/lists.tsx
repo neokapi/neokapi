@@ -136,7 +136,7 @@ function TermRuleListEditorInner({
               <TagInput
                 value={rule.forms ?? []}
                 onChange={(forms) => update({ ...rule, forms })}
-                placeholder={t("Add a form...")}
+                placeholder={t("Add a form…")}
               />
             </Field>
             <div className="space-y-2">

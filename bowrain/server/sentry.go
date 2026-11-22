@@ -3,7 +3,7 @@ package server
 import (
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/observe"
 )
 
@@ -11,7 +11,7 @@ import (
 // client-visible "reference" resolves to the Sentry issue. No-op when Sentry is
 // not configured (empty DSN). Called from the unified HTTPErrorHandler, which
 // fires both for returned 5xx and for panics recovered by middleware.Recover.
-func (s *Server) captureServerError(c echo.Context, err error, status int) {
+func (s *Server) captureServerError(c *echo.Context, err error, status int) {
 	if !observe.SentryEnabled() {
 		return
 	}

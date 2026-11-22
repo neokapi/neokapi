@@ -25,6 +25,7 @@ import {
   SheetHeader,
   SheetTitle,
   Skeleton,
+  PageContainer,
 } from "@neokapi/ui-primitives";
 import {
   AlertTriangle,
@@ -292,7 +293,7 @@ export function ConnectorsPanel({
   });
 
   return (
-    <div className="mx-auto w-full max-w-3xl p-4 md:p-6">
+    <PageContainer width="standard">
       <div className="mb-2 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-foreground text-xl font-semibold">Connectors</h1>
@@ -370,7 +371,7 @@ export function ConnectorsPanel({
           if (removeTarget) removeMutation.mutate(removeTarget.id);
         }}
       />
-    </div>
+    </PageContainer>
   );
 }
 

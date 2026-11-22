@@ -146,7 +146,7 @@ test("a step whose tool has no options shows no options control", async ({ page 
   await pickTool(page, page.getByTestId("add-step"), /^translate/);
   await saved(page);
   const row = page.getByTestId("step-row");
-  await expect(row.getByLabel("Move up")).toBeVisible();
+  await expect(row.getByLabel(/^Remove /)).toBeVisible();
   await expect(row.getByLabel("Options")).toHaveCount(0);
 });
 

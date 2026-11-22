@@ -80,7 +80,16 @@ export function PatternRuleRow({ pattern }: { pattern: Pattern }) {
         {pattern.description || pattern.regex}
       </span>
       {pattern.description && (
-        <SimpleTooltip content={pattern.regex}>
+        <SimpleTooltip
+          content={
+            <span>
+              {t("Matches the pattern")}{" "}
+              <code className="font-mono" translate="no">
+                {pattern.regex}
+              </code>
+            </span>
+          }
+        >
           <span
             className="cursor-help text-muted-foreground/70"
             data-testid="voice-pattern-regex"
@@ -132,7 +141,7 @@ export function TermRuleRow({ rule }: { rule: TermRule }) {
         {rule.note && <span className="ml-2 text-[11px] text-muted-foreground">{rule.note}</span>}
       </span>
       {matching && (
-        <SimpleTooltip content={matching}>
+        <SimpleTooltip content={t("How it matches: {detail}", { detail: matching })}>
           <span
             className="cursor-help text-muted-foreground/70"
             data-testid="voice-term-detail"

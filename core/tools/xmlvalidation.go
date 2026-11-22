@@ -54,7 +54,7 @@ func NewXMLValidationConfig(loc model.LocaleID) *XMLValidationConfig {
 }
 
 // NewXMLValidationFromConfig creates an xml-validation tool from a config map.
-// Without it a step's `checkTarget` / `wrapRoot` were discarded, so the tool
+// Without it a step's `check_target` / `wrap_root` were discarded, so the tool
 // only ever validated the source with a wrapping root element — the defaults —
 // however the step was written (#1476).
 func NewXMLValidationFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {

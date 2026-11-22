@@ -39,15 +39,15 @@ type LLMParams struct {
 	Model         string `json:"model,omitempty"         schema:"title=Model,description=Model name,order=20"`
 	Credential    string `json:"credential,omitempty"    schema:"title=Credential,description=Stored credential name,widget=credential-picker,order=30"`
 	Instruction   string `json:"instruction,omitempty"   schema:"title=Chunking Instruction,description=Optional guidance for how to chunk,widget=textarea,order=40"`
-	MaxChunkRunes int    `json:"maxChunkRunes,omitempty" schema:"title=Max Chunk Size,description=Soft upper bound on chunk size in characters (0 = model default),min=0,order=50"`
+	MaxChunkRunes int    `json:"max_chunk_runes,omitempty" schema:"title=Max Chunk Size,description=Soft upper bound on chunk size in characters (0 = model default),min=0,order=50"`
 
 	// Resolved at runtime by the host, not exposed as form fields. They carry
 	// their real JSON names because schema.ApplyConfig decodes the params map
 	// through JSON: under `json:"-"` the host's resolved key and endpoint were
 	// dropped on the way in and the engine called the vendor's public endpoint
 	// with no credential.
-	APIKey  string `json:"apiKey,omitempty"  schema:"-"`
-	BaseURL string `json:"baseURL,omitempty" schema:"-"`
+	APIKey  string `json:"api_key,omitempty"  schema:"-"`
+	BaseURL string `json:"base_url,omitempty" schema:"-"`
 }
 
 // init wires the LLM engine into the global segment registry, mirroring the

@@ -16,7 +16,7 @@ export function hasAdditionalProperties(schema: PropertySchema): boolean {
 /**
  * Turn a property key into a human-readable label as a fallback when the schema
  * has no `title`: split camelCase / snake_case / kebab-case into words and
- * title-case them, so `checkLeadingWhitespace` reads "Check Leading Whitespace"
+ * title-case them, so `check_leading_whitespace` reads "Check Leading Whitespace"
  * and `target_language` reads "Target Language". An explicit `title` always wins.
  */
 export function humanizeKey(key: string): string {

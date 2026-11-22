@@ -164,6 +164,27 @@ func TestRotateRefreshTokenReuseGrace(t *testing.T) {
 		require.ErrorIs(t, err, ErrRefreshTokenInvalid)
 	})
 
+	// StoreRefreshToken stamps created_at with the server's clock, and a
+	// rotation stamps consumed_at with the database's. With the server's clock
+	// ahead, the consumed token is created "after" its own consumption.
+	t.Run("a consumed token is not its own successor", func(t *testing.T) {
+		h0 := hashToken("g4-0")
+		_, err := s.StoreRefreshToken(ctx, user.ID, h0, future)
+		require.NoError(t, err)
+		_, err = s.db.Exec(
+			`UPDATE refresh_tokens SET created_at = clock_timestamp() + interval '5 seconds' WHERE token_hash = $1`, h0)
+		require.NoError(t, err)
+
+		_, err = s.RotateRefreshToken(ctx, h0, hashToken("g4-s0"), future)
+		require.NoError(t, err)
+		for i := 1; i < RefreshReuseSiblingCap; i++ {
+			_, err = s.RotateRefreshToken(ctx, h0, hashToken("g4-s"+string(rune('0'+i))), future)
+			require.NoError(t, err, "sibling %d within the cap", i)
+		}
+		_, err = s.RotateRefreshToken(ctx, h0, hashToken("g4-over"), future)
+		require.ErrorIs(t, err, ErrRefreshTokenReuse)
+	})
+
 	t.Run("the sibling cap revokes the family", func(t *testing.T) {
 		h0 := hashToken("g3-0")
 		_, err := s.StoreRefreshToken(ctx, user.ID, h0, future)

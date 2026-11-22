@@ -4,15 +4,17 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 )
 
 // These cover what the governance dashboard used to buy with one request per
@@ -96,7 +98,7 @@ func TestCountsRoutesBeatTheIdParam(t *testing.T) {
 	} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		c := e.NewContext(req, httptest.NewRecorder())
-		e.Router().Find(http.MethodGet, path, c)
+		e.Router().Route(c)
 		assert.Equal(t, want, c.Path(), "%s must route to %s", path, want)
 	}
 }
@@ -161,6 +163,49 @@ func TestBlastRadiusWithoutASummaryWalks(t *testing.T) {
 	assertEngineUnavailable(t, h.srv.HandleChangeSetBlastRadius(c))
 }
 
+func newPilotHarness(t *testing.T) *kgHarness {
+	t.Helper()
+	dir := t.TempDir()
+	h := newKGHarness(t)
+	content, err := sqlitestore.NewSQLiteStore(filepath.Join(dir, "content.db"))
+	require.NoError(t, err)
+	h.srv.ContentStore = content
+	return h
+}
+
+func TestStartPilotRejectsAmbiguousProjectIDs(t *testing.T) {
+	h := newPilotHarness(t)
+	cs := h.seedChangeSet(t, "pilot", 0)
+
+	for _, project := range []string{"project-a,project-b", " project-a"} {
+		t.Run(project, func(t *testing.T) {
+			body, err := json.Marshal(StartPilotRequest{ProjectID: project, Stream: "main"})
+			require.NoError(t, err)
+			c, rec := h.req(http.MethodPost, "/changesets/"+cs.ID+"/pilots", string(body), platauth.PermManageTerms, "id", cs.ID)
+			require.NoError(t, h.srv.HandleStartPilot(c))
+			require.Equal(t, http.StatusBadRequest, rec.Code)
+			assert.Contains(t, rec.Body.String(), "project_id")
+		})
+	}
+}
+
+func TestAbandonedChangeSetRejectsPilotStart(t *testing.T) {
+	h := newPilotHarness(t)
+	cs := h.seedChangeSet(t, "pilot", 0)
+	path := "/changesets/" + cs.ID
+	abandon, rec := h.req(http.MethodPost, path+"/abandon", "", platauth.PermManageTerms, "id", cs.ID)
+	require.NoError(t, h.srv.HandleAbandonChangeSet(abandon))
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	start, rec := h.req(http.MethodPost, path+"/pilots", `{"project_id":"p1","stream":"main"}`, platauth.PermManageTerms, "id", cs.ID)
+	require.NoError(t, h.srv.HandleStartPilot(start))
+	assert.Equal(t, http.StatusConflict, rec.Code)
+
+	abandon, rec = h.req(http.MethodPost, path+"/abandon", "", platauth.PermManageTerms, "id", cs.ID)
+	require.NoError(t, h.srv.HandleAbandonChangeSet(abandon))
+	assert.Equal(t, http.StatusConflict, rec.Code)
+}
+
 // The trial endpoint sits under the pilot path, which already carries a
 // :project/:stream pair the DELETE claims. This pins that the router lands on
 // the findings route rather than folding the trailing segment into the stream.
@@ -173,7 +218,7 @@ func TestTrialFindingsRouteShape(t *testing.T) {
 	path := "/acme/changesets/cs-1/pilots/proj-1/main/findings"
 	req := httptest.NewRequest(http.MethodGet, path, nil)
 	c := e.NewContext(req, httptest.NewRecorder())
-	e.Router().Find(http.MethodGet, path, c)
+	e.Router().Route(c)
 	assert.Equal(t, "/:ws/changesets/:id/pilots/:project/:stream/findings", c.Path())
 }
 

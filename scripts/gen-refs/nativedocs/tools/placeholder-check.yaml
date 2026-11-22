@@ -15,7 +15,7 @@ overview: |
   `{name}` / `{0}` (ICU / .NET), and numbered tags such as `<0>…</0>`. A target
   locale is required; blocks without a target for that locale are skipped.
 parameters:
-  flagExtra:
+  flag_extra:
     description: Report placeholders present in the target but absent from the source.
     help: |
       When enabled (the default), a placeholder that appears in the target but
@@ -28,9 +28,9 @@ limitations:
   - Requires a configured target locale; blocks without a target for that locale are skipped.
 processingNotes:
   - Operates on translatable blocks that have a target for the configured locale; other parts pass through unchanged.
-  - Dropped placeholders fail the check, and so do extra placeholders when flagExtra is enabled.
+  - Dropped placeholders fail the check, and so do extra placeholders when flag_extra is enabled.
 examples:
   - title: Only report dropped placeholders
     description: Disable extra-placeholder reporting and flag only placeholders missing from the target.
     config: |
-      flagExtra: false
+      flag_extra: false

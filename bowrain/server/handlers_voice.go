@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/core/id"
@@ -79,7 +79,7 @@ type CreateFromStarterRequest struct {
 }
 
 // HandleListVoiceProfiles lists all voice profiles in a workspace.
-func (s *Server) HandleListVoiceProfiles(c echo.Context) error {
+func (s *Server) HandleListVoiceProfiles(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
 	}
@@ -92,7 +92,7 @@ func (s *Server) HandleListVoiceProfiles(c echo.Context) error {
 }
 
 // HandleCreateVoiceProfile creates a new voice profile.
-func (s *Server) HandleCreateVoiceProfile(c echo.Context) error {
+func (s *Server) HandleCreateVoiceProfile(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -133,10 +133,11 @@ func (s *Server) HandleCreateVoiceProfile(c echo.Context) error {
 		CreatedBy:   userID,
 	}
 
-	if err := s.VoiceStore.CreateProfile(c.Request().Context(), profile); err != nil {
+	res, err := s.writeVoiceProfile(c.Request().Context(), wsID, memberVoiceWrite(requestActorOf(c), nil, profile, "created in Bowrain"))
+	if err != nil {
 		return serverErr(c, err)
 	}
-	return c.JSON(http.StatusCreated, profile)
+	return c.JSON(http.StatusCreated, res.Profile)
 }
 
 // HandleUpsertVoiceProfile creates or updates the workspace voice profile
@@ -150,7 +151,7 @@ func (s *Server) HandleCreateVoiceProfile(c echo.Context) error {
 //     UpdateProfile, which archives the current state as an immutable
 //     ProfileVersion before bumping the version — server-side edits are never
 //     lost, only superseded by a new, revertible version.
-func (s *Server) HandleUpsertVoiceProfile(c echo.Context) error {
+func (s *Server) HandleUpsertVoiceProfile(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -171,9 +172,8 @@ func (s *Server) HandleUpsertVoiceProfile(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	wsID, _ := c.Get("workspace_id").(string)
-	userID, _ := c.Get("user_id").(string)
 
-	result, err := s.upsertVoiceProfile(ctx, wsID, userID, req, "superseded by kapi push")
+	result, err := s.upsertVoiceProfile(ctx, wsID, requestActorOf(c), req, "superseded by kapi push", "written through the voice profile upsert")
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -185,7 +185,7 @@ func (s *Server) HandleUpsertVoiceProfile(c echo.Context) error {
 			Type:         platev.EventVoiceProfileUpdated,
 			ResourceType: "voice_profile",
 			ResourceID:   result.Profile.ID,
-			Data:         map[string]string{"name": result.Profile.Name, "via": "push"},
+			Data:         voiceProfileData(c, result.Profile.ID, map[string]string{"name": result.Profile.Name, "via": "push"}),
 			Before:       map[string]string{"version": strconv.Itoa(result.BeforeVersion)},
 			After:        map[string]string{"version": strconv.Itoa(result.Profile.Version)},
 		})
@@ -212,11 +212,13 @@ type voiceProfileUpsert struct {
 // upsertVoiceProfile creates or updates the workspace profile matching req by
 // name, case-insensitively, and reports which it did. An update archives the
 // current state as an immutable version under versionNote before bumping;
-// identical content is a no-op.
+// identical content is a no-op. A create or an update is recorded on the
+// ledger as userID's, with note (writeVoiceProfile).
 //
-// The caller emits any audit event: the same upsert is reached from a push and
-// from a brand-scan approval, and those are not the same act.
-func (s *Server) upsertVoiceProfile(ctx context.Context, wsID, userID string, req VoiceProfileRequest, versionNote string) (voiceProfileUpsert, error) {
+// The caller emits any audit event: the same upsert is reached from the
+// upsert endpoint and from a context-scan approval, and those are not the
+// same act.
+func (s *Server) upsertVoiceProfile(ctx context.Context, wsID string, actor requestActor, req VoiceProfileRequest, versionNote, note string) (voiceProfileUpsert, error) {
 	profiles, err := s.VoiceStore.ListProfiles(ctx, wsID)
 	if err != nil {
 		return voiceProfileUpsert{}, err
@@ -246,12 +248,13 @@ func (s *Server) upsertVoiceProfile(ctx context.Context, wsID, userID string, re
 			Version:     1,
 			CreatedAt:   now,
 			UpdatedAt:   now,
-			CreatedBy:   userID,
+			CreatedBy:   actor.UserID,
 		}
-		if err := s.VoiceStore.CreateProfile(ctx, profile); err != nil {
+		res, err := s.writeVoiceProfile(ctx, wsID, memberVoiceWrite(actor, nil, profile, note))
+		if err != nil {
 			return voiceProfileUpsert{}, err
 		}
-		return voiceProfileUpsert{Profile: profile, Action: voiceUpsertCreated}, nil
+		return voiceProfileUpsert{Profile: res.Profile, Action: voiceUpsertCreated}, nil
 	}
 
 	incoming := voiceContentOf(voiceProfileContent(req))
@@ -265,6 +268,7 @@ func (s *Server) upsertVoiceProfile(ctx context.Context, wsID, userID string, re
 	}
 
 	beforeVersion := existing.Version
+	before := *existing
 	existing.Name = req.Name
 	existing.Description = req.Description
 	existing.Tone = req.Tone
@@ -279,10 +283,11 @@ func (s *Server) upsertVoiceProfile(ctx context.Context, wsID, userID string, re
 
 	// UpdateProfile archives the current state as an immutable ProfileVersion
 	// and bumps existing.Version — the incoming change lands as a new version.
-	if err := s.VoiceStore.UpdateProfile(ctx, existing); err != nil {
+	res, err := s.writeVoiceProfile(ctx, wsID, memberVoiceWrite(actor, &before, existing, note))
+	if err != nil {
 		return voiceProfileUpsert{}, err
 	}
-	return voiceProfileUpsert{Profile: existing, Action: voiceUpsertUpdated, BeforeVersion: beforeVersion}, nil
+	return voiceProfileUpsert{Profile: res.Profile, Action: voiceUpsertUpdated, BeforeVersion: beforeVersion}, nil
 }
 
 // voiceProfileContent is the authored surface of a voice profile the push
@@ -344,13 +349,13 @@ func voiceContentOf(c voiceProfileContent) voiceProfileContent {
 // Callers respond 404 (anti-enumeration) on a mismatch, matching the
 // project-level cross-tenant guard in ProjectAccessMiddleware. Fails closed when
 // the workspace context is missing (wsID empty).
-func profileInRequestWorkspace(c echo.Context, profile *coreprofile.VoiceProfile) bool {
+func profileInRequestWorkspace(c *echo.Context, profile *coreprofile.VoiceProfile) bool {
 	wsID, _ := c.Get("workspace_id").(string)
 	return wsID != "" && profile != nil && profile.Scope == wsID
 }
 
 // HandleGetVoiceProfile returns a single voice profile by ID.
-func (s *Server) HandleGetVoiceProfile(c echo.Context) error {
+func (s *Server) HandleGetVoiceProfile(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
 	}
@@ -366,7 +371,7 @@ func (s *Server) HandleGetVoiceProfile(c echo.Context) error {
 }
 
 // HandleUpdateVoiceProfile updates an existing voice profile.
-func (s *Server) HandleUpdateVoiceProfile(c echo.Context) error {
+func (s *Server) HandleUpdateVoiceProfile(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -391,6 +396,7 @@ func (s *Server) HandleUpdateVoiceProfile(c echo.Context) error {
 		return apiErr(c, http.StatusNotFound, "voice profile not found")
 	}
 	beforeVersion := strconv.Itoa(profile.Version)
+	before := *profile
 
 	profile.Name = req.Name
 	profile.Description = req.Description
@@ -401,17 +407,18 @@ func (s *Server) HandleUpdateVoiceProfile(c echo.Context) error {
 	profile.Channels = req.Channels
 	profile.Personas = req.Personas
 	profile.MinScore = req.MinScore
-	profile.Version++
 	profile.UpdatedAt = time.Now().UTC()
 
-	if err := s.VoiceStore.UpdateProfile(ctx, profile); err != nil {
+	res, err := s.writeVoiceProfile(ctx, profile.Scope, memberVoiceWrite(requestActorOf(c), &before, profile, "edited in Bowrain"))
+	if err != nil {
 		return serverErr(c, err)
 	}
+	profile = res.Profile
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventVoiceProfileUpdated,
 		ResourceType: "voice_profile",
 		ResourceID:   profile.ID,
-		Data:         map[string]string{"name": profile.Name},
+		Data:         voiceProfileData(c, profile.ID, map[string]string{"name": profile.Name}),
 		Before:       map[string]string{"version": beforeVersion},
 		After:        map[string]string{"version": strconv.Itoa(profile.Version)},
 	})
@@ -419,7 +426,7 @@ func (s *Server) HandleUpdateVoiceProfile(c echo.Context) error {
 }
 
 // HandleDeleteVoiceProfile deletes a voice profile.
-func (s *Server) HandleDeleteVoiceProfile(c echo.Context) error {
+func (s *Server) HandleDeleteVoiceProfile(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -437,14 +444,14 @@ func (s *Server) HandleDeleteVoiceProfile(c echo.Context) error {
 	if !profileInRequestWorkspace(c, profile) {
 		return apiErr(c, http.StatusNotFound, "voice profile not found")
 	}
-	if err := s.VoiceStore.DeleteProfile(ctx, profile.ID); err != nil {
+	if _, err := s.writeVoiceProfile(ctx, profile.Scope, memberVoiceWrite(requestActorOf(c), profile, nil, "removed in Bowrain")); err != nil {
 		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 	return c.NoContent(http.StatusNoContent)
 }
 
 // HandleCheckVoice checks text against a voice profile and returns findings and score.
-func (s *Server) HandleCheckVoice(c echo.Context) error {
+func (s *Server) HandleCheckVoice(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
 	}
@@ -490,7 +497,7 @@ func (s *Server) HandleCheckVoice(c echo.Context) error {
 }
 
 // HandleListStarterPacks lists available starter pack templates.
-func (s *Server) HandleListStarterPacks(c echo.Context) error {
+func (s *Server) HandleListStarterPacks(c *echo.Context) error {
 	names, err := packs.List()
 	if err != nil {
 		return serverErr(c, err)
@@ -511,7 +518,7 @@ func (s *Server) HandleListStarterPacks(c echo.Context) error {
 }
 
 // HandleCreateFromStarter creates a voice profile from a starter pack template.
-func (s *Server) HandleCreateFromStarter(c echo.Context) error {
+func (s *Server) HandleCreateFromStarter(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -553,14 +560,16 @@ func (s *Server) HandleCreateFromStarter(c echo.Context) error {
 		profile.Name = req.Name
 	}
 
-	if err := s.VoiceStore.CreateProfile(c.Request().Context(), profile); err != nil {
+	res, err := s.writeVoiceProfile(c.Request().Context(), wsID,
+		memberVoiceWrite(requestActorOf(c), nil, profile, "created from the "+req.Pack+" starter pack"))
+	if err != nil {
 		return serverErr(c, err)
 	}
-	return c.JSON(http.StatusCreated, profile)
+	return c.JSON(http.StatusCreated, res.Profile)
 }
 
 // HandleGetVoiceScores returns voice compliance scores for a project.
-func (s *Server) HandleGetVoiceScores(c echo.Context) error {
+func (s *Server) HandleGetVoiceScores(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
 	}
@@ -574,7 +583,7 @@ func (s *Server) HandleGetVoiceScores(c echo.Context) error {
 }
 
 // HandleGetVoiceScoresByLocale returns voice compliance scores filtered by locale.
-func (s *Server) HandleGetVoiceScoresByLocale(c echo.Context) error {
+func (s *Server) HandleGetVoiceScoresByLocale(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
 	}
@@ -589,7 +598,7 @@ func (s *Server) HandleGetVoiceScoresByLocale(c echo.Context) error {
 }
 
 // HandleGetVoiceTrends returns voice compliance score trends for a project.
-func (s *Server) HandleGetVoiceTrends(c echo.Context) error {
+func (s *Server) HandleGetVoiceTrends(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
 	}

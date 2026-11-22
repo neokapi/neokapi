@@ -15,82 +15,82 @@ overview: |
   Two presets are provided (*Chrome Extension* and *i18next*) as starting
   points for those layouts.
 parameters:
-  extractAllPairs:
+  extract_all_pairs:
     description: Extract all key/value string pairs for translation.
     help: |
       When enabled (the default), every string value associated with a key is
       extracted. When disabled, nothing is extracted unless a key matches the
       `exceptions` pattern (the meaning of `exceptions` inverts; see below) or
-      an `extractionRules` pattern is set.
+      an `extraction_rules` pattern is set.
     values: "`true` / `false` (default `true`)"
   exceptions:
-    description: Regex over key names whose effect depends on `extractAllPairs`.
+    description: Regex over key names whose effect depends on `extract_all_pairs`.
     help: |
-      A regular expression matched against key names. When `extractAllPairs`
+      A regular expression matched against key names. When `extract_all_pairs`
       is `true`, keys matching this pattern are **excluded** from extraction.
-      When `extractAllPairs` is `false`, only keys matching this pattern are
+      When `extract_all_pairs` is `false`, only keys matching this pattern are
       **included**. The match is applied to the immediate key, or to the full
-      key path when `useFullKeyPath` is enabled.
+      key path when `use_full_key_path` is enabled.
     values: Regular expression (default empty)
     examples:
-      - "`^message$` with `extractAllPairs: false` extracts only the `message` key"
+      - "`^message$` with `extract_all_pairs: false` extracts only the `message` key"
     dependsOn:
-      - property: extractAllPairs
+      - property: extract_all_pairs
         condition: determines whether matches are excluded (true) or included (false)
-  extractIsolatedStrings:
+  extract_isolated_strings:
     description: Extract standalone string values inside arrays.
     help: |
       String values that appear directly in arrays, without an associated
       key, are not extracted by default. Enable this to treat such isolated
       strings as translatable blocks.
     values: "`true` / `false` (default `false`)"
-  extractionRules:
+  extraction_rules:
     description: Regex limiting which key paths are extracted.
     help: |
       A regular expression matched against key names (or full key paths when
-      `useFullKeyPath` is enabled). When set, only matching keys are extracted
-      and it overrides `extractAllPairs`.
+      `use_full_key_path` is enabled). When set, only matching keys are extracted
+      and it overrides `extract_all_pairs`.
     values: Regular expression (default empty)
     examples:
       - "`/messages/.*|/labels/.*` extracts only keys under `messages` or `labels`"
-  useKeyAsName:
+  use_key_as_name:
     description: Use the JSON key as the block name.
     help: |
       When enabled (the default), the JSON key is used as the block's name
       (resname) so translators and downstream tools can reference each block.
     values: "`true` / `false` (default `true`)"
-  useFullKeyPath:
+  use_full_key_path:
     description: Use the full hierarchical key path as the block name.
     help: |
       When enabled, the block name is the full path through nested objects
       (for example `parent/child`) rather than just the immediate key. The
       same path is then used when matching the rule-based regex patterns.
     values: "`true` / `false` (default `false`)"
-  useLeadingSlashOnKeyPath:
+  use_leading_slash_on_key_path:
     description: Prefix full key paths with a leading slash.
     help: |
-      When `useFullKeyPath` is enabled, this controls whether the path begins
+      When `use_full_key_path` is enabled, this controls whether the path begins
       with a leading `/` (for example `/parent/child`). Enabled by default.
     values: "`true` / `false` (default `true`)"
     dependsOn:
-      - property: useFullKeyPath
+      - property: use_full_key_path
         condition: only affects names when full key paths are used
-  useIdStack:
+  use_id_stack:
     description: Build block IDs from the nested key stack.
     help: |
       When enabled, the block ID is composed from the stack of enclosing keys,
       producing a compound identifier for nested structures.
     values: "`true` / `false` (default `false`)"
-  idRules:
+  id_rules:
     description: Regex over key names whose values become block IDs.
     help: |
       A regular expression matched against key names. The value of a matching
       key is used as the name/ID of the next translatable block, overriding
-      `useKeyAsName`.
+      `use_key_as_name`.
     values: Regular expression (default empty)
     examples:
       - "`/id|/key` uses the value of an `id` or `key` field as the block ID"
-  noteRules:
+  note_rules:
     description: Regex over key names whose values become translator notes.
     help: |
       A regular expression matched against key names. The value of a matching
@@ -98,14 +98,14 @@ parameters:
     values: Regular expression (default empty)
     examples:
       - "`/description|/comment` attaches a `description` or `comment` value as a note"
-  genericMetaRules:
+  generic_meta_rules:
     description: Regex over key names whose values become generic metadata.
     help: |
       A regular expression matched against key names. The value of a matching
       key is recorded as a generic metadata annotation on the next
       translatable block, rather than being extracted as content.
     values: Regular expression (default empty)
-  maxwidthRules:
+  maxwidth_rules:
     description: Regex over key names whose numeric values set a max-width constraint.
     help: |
       A regular expression matched against key names. The numeric value of a
@@ -113,12 +113,12 @@ parameters:
       block, used by length-constrained workflows.
     values: Regular expression (default empty)
     dependsOn:
-      - property: maxwidthSizeUnit
+      - property: maxwidth_size_unit
         condition: the value is interpreted in this unit
-  maxwidthSizeUnit:
+  maxwidth_size_unit:
     description: Unit for the max-width constraint.
     help: |
-      The unit in which `maxwidthRules` values are interpreted: `pixel` or
+      The unit in which `maxwidth_rules` values are interpreted: `pixel` or
       `char`.
     values: "`pixel` / `char` (default `pixel`)"
   subfilter:
@@ -126,12 +126,12 @@ parameters:
     help: |
       The name of a format used as a subfilter (for example `html`) to parse
       embedded markup inside extracted string values. When set, it applies to
-      all extracted values unless `subfilterRules` restricts it to specific
+      all extracted values unless `subfilter_rules` restricts it to specific
       keys.
     values: Format name (default empty)
     examples:
       - "`html` parses HTML inside JSON string values"
-  subfilterRules:
+  subfilter_rules:
     description: Regex over key names selecting which values are subfiltered.
     help: |
       A regular expression matched against key names. Only values whose key
@@ -150,7 +150,7 @@ parameters:
       names, for routing different keys to different subfilters. Each mapping
       requires both a non-empty `pattern` and a non-empty `format`.
     values: "Array of `{pattern, format}` objects (default empty)"
-  escapeForwardSlashes:
+  escape_forward_slashes:
     description: Escape forward slashes in translated values.
     help: |
       When enabled (the default), forward slashes in a translated value are
@@ -161,25 +161,25 @@ parameters:
       is spelled the way most of the document's slashes are spelled. The
       option applies only to a document that spells no slash.
     values: "`true` / `false` (default `true`)"
-  useCodeFinder:
+  use_code_finder:
     description: Enable pattern-based inline-code detection.
     help: |
       Enables regex-based detection of inline codes (placeholders, variables,
       tags) inside extracted text. The patterns are supplied via
-      `codeFinderRules`.
+      `code_finder_rules`.
     values: "`true` / `false` (default `false`)"
-  codeFinderRules:
+  code_finder_rules:
     description: Regex patterns that match inline codes within values.
     help: |
       An array of regular expressions; text matching any of them is treated
       as an inline code rather than translatable words. Only used when
-      `useCodeFinder` is enabled.
+      `use_code_finder` is enabled.
     values: Array of regular expressions (default empty)
     dependsOn:
-      - property: useCodeFinder
+      - property: use_code_finder
         condition: must be enabled for these patterns to apply
 limitations:
-  - The match target for the rule-based regex patterns is either the immediate key or the full key path, depending on `useFullKeyPath`, never both.
+  - The match target for the rule-based regex patterns is either the immediate key or the full key path, depending on `use_full_key_path`, never both.
 processingNotes:
   - String values become translatable blocks; objects, arrays, and non-string scalars form the surrounding non-translatable structure.
   - Note, ID, generic-metadata, and max-width rules attach to the next translatable block rather than producing content of their own.
@@ -187,16 +187,16 @@ examples:
   - title: Extract a subset of keys
     description: Translate only keys under the messages and labels objects.
     config: |
-      extractionRules: "/messages/.*|/labels/.*"
+      extraction_rules: "/messages/.*|/labels/.*"
   - title: Notes from description keys
     description: Attach description values as translator notes (Chrome extension style).
     config: |
-      extractAllPairs: false
+      extract_all_pairs: false
       exceptions: "^message$"
-      noteRules: "^description$"
+      note_rules: "^description$"
   - title: HTML inside values
     description: Parse HTML markup within values whose key ends in _html (i18next style).
     config: |
       subfilter: html
-      subfilterRules: "_html$"
-      useFullKeyPath: true
+      subfilter_rules: "_html$"
+      use_full_key_path: true

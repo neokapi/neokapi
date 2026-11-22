@@ -45,6 +45,10 @@ concurrency:
   group: evals-refresh
   cancel-in-progress: false
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   # Free, keyless: the demo stubs prove the harnesses still assemble and run.
   harness-smoke:
@@ -57,7 +61,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: "1.27.1"
+          go-version: "1.27.4"
 
       - name: Install libicu (framework cgo dependency)
         uses: ./.github/actions/apt-install
@@ -91,7 +95,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: "1.27.1"
+          go-version: "1.27.4"
 
       - name: Install libicu (framework cgo dependency)
         uses: ./.github/actions/apt-install
@@ -169,7 +173,7 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         uses: actions/setup-go@v7
         with:
-          go-version: "1.27.1"
+          go-version: "1.27.4"
 
       - name: Install libicu (framework cgo dependency)
         if: steps.gate.outputs.run == 'true'

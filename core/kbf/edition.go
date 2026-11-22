@@ -19,7 +19,7 @@ import (
 // ProjectInfo.SourceLocale names. A translation a reader filed under no
 // language has no key of its own, because the empty key names the source, so a
 // block carries it apart from Editions, as Unlabelled.
-//
+
 // Schema 1 carried the same content as `source` runs beside a `targets` map of
 // runs keyed by locale and a `targetOrigins` map. A block in that shape decodes
 // into the editions it describes (UnmarshalJSON), so a reader of either schema
@@ -209,32 +209,15 @@ func ReadKey(text string) (model.EditionKey, error) {
 	if text == SourceEdition {
 		return model.EditionKey{}, nil
 	}
-	parts := strings.Split(text, ";")
-	if strings.TrimSpace(parts[0]) == "" {
+	language, dims := model.SplitEditionKey(text)
+	if strings.TrimSpace(language) == "" {
 		return model.EditionKey{}, fmt.Errorf("kbf: edition key %q names no language", text)
 	}
-	key := model.EditionKey{Locale: model.NormalizeLocale(model.LocaleID(parts[0]))}
-	for _, p := range parts[1:] {
-		name, val, ok := strings.Cut(p, "=")
-		if !ok || val == "" {
-			return model.EditionKey{}, fmt.Errorf("kbf: edition key %q: %q is not name=value", text, p)
-		}
-		switch name {
-		case "tone":
-			if key.Tone != "" {
-				return model.EditionKey{}, fmt.Errorf("kbf: edition key %q names its tone twice", text)
-			}
-			key.Tone = val
-		case "channel":
-			if key.Channel != "" {
-				return model.EditionKey{}, fmt.Errorf("kbf: edition key %q names its channel twice", text)
-			}
-			key.Channel = val
-		default:
-			return model.EditionKey{}, fmt.Errorf("kbf: edition key %q has a dimension this build does not read: %q", text, name)
-		}
+	tone, channel, err := model.EditionKeyDimensions(dims)
+	if err != nil {
+		return model.EditionKey{}, fmt.Errorf("kbf: edition key %q: %w", text, err)
 	}
-	return key, nil
+	return model.EditionKey{Locale: model.NormalizeLocale(model.LocaleID(language)), Tone: tone, Channel: channel}, nil
 }
 
 // FromModelEdition returns e in the bundle's shape, with a run sequence of its
@@ -332,10 +315,10 @@ func (b *Block) UnreadEditions() map[string]Edition {
 }
 
 // FileEditions files the editions b holds on mb, a block whose source already
-// holds b's source runs: the source's status, origin and derivation on the
-// edition mb was read in, then every other edition under its canonical key,
-// each marked native because the bundle holds it, and the unlabelled edition
-// as mb's translation filed under no language. Editions are filed in the order
+// holds b's source runs. The source's status, origin and derivation go on the
+// edition mb was read in. Every other edition goes under its canonical key,
+// marked native because the bundle holds it, and the unlabelled edition
+// becomes mb's translation filed under no language. Editions are filed in the order
 // of their key text, so two keys that name one edition (`nb_NO` and `nb-NO`)
 // settle the same way on every read.
 //

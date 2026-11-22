@@ -12,6 +12,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // Writer implements DataFormatWriter for ODF files.
@@ -193,7 +194,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 				continue
 			}
 
-			// Regular block ref — render translated text
+			// Regular block ref: render translated text
 			if currentPart != "" {
 				if block, ok := blocks[refID]; ok {
 					text := w.getBlockText(block)
@@ -213,12 +214,9 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 	// Write output ZIP: replace translatable parts with skeleton-reconstructed content
 	for _, f := range origZR.File {
 		if content, ok := partContents[f.Name]; ok && len(content) > 0 {
-			fh := f.FileHeader
+			fh := safeio.RewriteHeader(&f.FileHeader)
 			fh.Method = zip.Deflate
-			fh.CompressedSize64 = 0
-			fh.UncompressedSize64 = 0
-			fh.CRC32 = 0
-			fw, err := zw.CreateHeader(&fh)
+			fw, err := zw.CreateHeader(fh)
 			if err != nil {
 				return err
 			}
@@ -231,12 +229,9 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 			if err != nil {
 				return err
 			}
-			fh := f.FileHeader
+			fh := safeio.RewriteHeader(&f.FileHeader)
 			fh.Method = zip.Store
-			fh.CompressedSize64 = 0
-			fh.UncompressedSize64 = 0
-			fh.CRC32 = 0
-			fw, err := zw.CreateHeader(&fh)
+			fw, err := zw.CreateHeader(fh)
 			if err != nil {
 				return err
 			}
@@ -272,12 +267,9 @@ func (w *Writer) writeFromReparse(origZR *zip.Reader, zw *zip.Writer,
 				return fmt.Errorf("odf: replacing content in %s: %w", f.Name, err)
 			}
 
-			fh := f.FileHeader
+			fh := safeio.RewriteHeader(&f.FileHeader)
 			fh.Method = zip.Deflate
-			fh.CompressedSize64 = 0
-			fh.UncompressedSize64 = 0
-			fh.CRC32 = 0
-			fw, err := zw.CreateHeader(&fh)
+			fw, err := zw.CreateHeader(fh)
 			if err != nil {
 				return err
 			}
@@ -290,12 +282,9 @@ func (w *Writer) writeFromReparse(origZR *zip.Reader, zw *zip.Writer,
 			if err != nil {
 				return err
 			}
-			fh := f.FileHeader
+			fh := safeio.RewriteHeader(&f.FileHeader)
 			fh.Method = zip.Store
-			fh.CompressedSize64 = 0
-			fh.UncompressedSize64 = 0
-			fh.CRC32 = 0
-			fw, err := zw.CreateHeader(&fh)
+			fw, err := zw.CreateHeader(fh)
 			if err != nil {
 				return err
 			}
@@ -313,7 +302,7 @@ func (w *Writer) writeFromReparse(origZR *zip.Reader, zw *zip.Writer,
 	return nil
 }
 
-// replaceContent replaces translatable text in an ODF XML document.
+// replaceContent replaces the text of translatable elements in an ODF XML document.
 // It walks the XML tree and replaces text in translatable elements
 // with target text from the collected blocks.
 func (w *Writer) replaceContent(data []byte, blocks map[string]*model.Block) ([]byte, error) {
@@ -354,7 +343,7 @@ func (w *Writer) replaceContent(data []byte, blocks map[string]*model.Block) ([]
 				tokenBuf = []xml.Token{t}
 			} else if inTranslatable {
 				tokenBuf = append(tokenBuf, t)
-				// Skip text collection for inline elements — we collect their CharData
+				// Skip text collection for inline elements; we collect their CharData
 			} else {
 				if err := enc.EncodeToken(t); err != nil {
 					return nil, err
@@ -376,7 +365,7 @@ func (w *Writer) replaceContent(data []byte, blocks map[string]*model.Block) ([]
 				tokenBuf = append(tokenBuf, t)
 
 				if len(elementStack) == translatableDepth {
-					// End of translatable element — check for replacement
+					// End of translatable element: check for replacement
 					text := strings.TrimSpace(textBuf.String())
 					if block, ok := blockByText[text]; ok {
 						replacement := w.getBlockText(block)
@@ -393,7 +382,7 @@ func (w *Writer) replaceContent(data []byte, blocks map[string]*model.Block) ([]
 							return nil, err
 						}
 					} else {
-						// No replacement — write original tokens
+						// No replacement: write original tokens
 						for _, tok := range tokenBuf {
 							if err := enc.EncodeToken(tok); err != nil {
 								return nil, err
@@ -453,7 +442,7 @@ func (w *Writer) replaceContent(data []byte, blocks map[string]*model.Block) ([]
 // carries inline-code runs (PcOpen/PcClose pairs captured by the reader
 // from elements like <text:span>, <text:script>, <draw:frame>, etc.),
 // the runs are serialised via renderRunsForODF so the original markup
-// is spliced back into the reconstructed XML — mirroring upstream Okapi
+// is spliced back into the reconstructed XML, mirroring upstream Okapi
 // ODFFilter's TextFragment-with-codes round-trip. Plain-text-only blocks
 // XML-escape the text so special chars (< > & " ') in pseudo-translated
 // content (e.g. "<=lt, >=gt, &=amp, &quot;=quot, '=apos") survive the
@@ -465,8 +454,8 @@ func (w *Writer) getBlockText(block *model.Block) string {
 	return renderSourceRunsForODF(block.SourceRuns(), block.SourceText())
 }
 
-// renderSourceRunsForODF renders one side of a block — runs plus the plain
-// text they flatten to — into the XML a `<text:p>` holds. The reader calls it
+// renderSourceRunsForODF renders one side of a block (runs plus the plain
+// text they flatten to) into the XML a `<text:p>` holds. The reader calls it
 // too, on the runs it is about to make a block from, so the expectation it
 // pairs with a SkeletonOriginal is the very rendering this writer will compare
 // against rather than a second reading of the same rule.
@@ -512,7 +501,7 @@ func odfEscapeText(s string) string {
 
 // renderRunsForODF walks a Run sequence the same way model.RenderRunsWithData
 // does, but XML-escapes the TextRun content while leaving Data fields
-// (PcOpen/PcClose/Ph) verbatim — those already hold valid XML markup
+// (PcOpen/PcClose/Ph) verbatim. Those already hold valid XML markup
 // (the reader captured them via odfBuildStartTagMarkup which produces
 // properly-escaped attributes). This is what lets a pseudo-translated
 // "<=ĺţ, >=ĝţ" inside a <text:span> render as

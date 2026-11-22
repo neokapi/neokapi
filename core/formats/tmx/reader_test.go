@@ -1371,9 +1371,9 @@ func TestParameters(t *testing.T) {
 	cfg.Reset()
 	assert.Equal(t, "tmx", cfg.FormatName())
 	require.NoError(t, cfg.Validate())
-	assert.False(t, cfg.EscapeGT, "escapeGT should default to false")
-	assert.True(t, cfg.ProcessAllTargets, "processAllTargets should default to true")
-	assert.False(t, cfg.ExitOnInvalid, "exitOnInvalid should default to false")
+	assert.False(t, cfg.EscapeGT, "escape_gt should default to false")
+	assert.True(t, cfg.ProcessAllTargets, "process_all_targets should default to true")
+	assert.False(t, cfg.ExitOnInvalid, "exit_on_invalid should default to false")
 }
 
 // okapi: ParametersTest#testReset
@@ -1388,10 +1388,10 @@ func TestParametersReset(t *testing.T) {
 	}
 	cfg.Reset()
 	require.NoError(t, cfg.Validate())
-	assert.False(t, cfg.EscapeGT, "escapeGT should reset to false")
-	assert.True(t, cfg.ProcessAllTargets, "processAllTargets should reset to true")
-	assert.False(t, cfg.ExitOnInvalid, "exitOnInvalid should reset to false")
-	assert.False(t, cfg.UseCodeFinder, "useCodeFinder should reset to false")
+	assert.False(t, cfg.EscapeGT, "escape_gt should reset to false")
+	assert.True(t, cfg.ProcessAllTargets, "process_all_targets should reset to true")
+	assert.False(t, cfg.ExitOnInvalid, "exit_on_invalid should reset to false")
+	assert.False(t, cfg.UseCodeFinder, "use_code_finder should reset to false")
 }
 
 // okapi: ParametersTest#testFromString
@@ -1404,14 +1404,14 @@ func TestParametersFromMap(t *testing.T) {
 	cfg := &tmx.Config{}
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{
-		"escapeGT":          true,
-		"processAllTargets": false,
-		"exitOnInvalid":     true,
+		"escape_gt":           true,
+		"process_all_targets": false,
+		"exit_on_invalid":     true,
 	})
 	require.NoError(t, err)
-	assert.True(t, cfg.EscapeGT, "escapeGT should be true")
-	assert.False(t, cfg.ProcessAllTargets, "processAllTargets should be false")
-	assert.True(t, cfg.ExitOnInvalid, "exitOnInvalid should be true")
+	assert.True(t, cfg.EscapeGT, "escape_gt should be true")
+	assert.False(t, cfg.ProcessAllTargets, "process_all_targets should be false")
+	assert.True(t, cfg.ExitOnInvalid, "exit_on_invalid should be true")
 
 	// Unknown keys are rejected, mirroring Java's strict parameter parsing.
 	require.Error(t, cfg.ApplyMap(map[string]any{"noSuchParam": true}))

@@ -131,10 +131,9 @@ describe("the rungs a project has reached", () => {
 });
 
 describe("the Share page", () => {
-  it("is titled with the project, says how far the rules reach, and lists three rungs", () => {
+  it("is titled Share and lists three rungs", () => {
     render(<SharePanel tabID="t1" projectName="Fernwell" view={LOCAL_VIEW} />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Fernwell · Share");
-    expect(screen.getByText("How far your rules reach", { selector: "p" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Share");
     const ladder = screen.getByRole("list", { name: "How far your rules reach" });
     expect(ladder.dataset.slot).toBe("share-ladder");
     expect(within(ladder).getAllByRole("listitem")).toHaveLength(3);

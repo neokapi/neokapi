@@ -21,8 +21,8 @@ const bridgePlugin = "okapi-bridge"
 
 // FormatProvider returns the name of the plugin that supplies format, which is
 // the name `kapi plugins install` resolves in the registry. An installed plugin
-// whose manifest declares the format comes first, then the plugin kapi knows to
-// publish it. A retired plugin supplies nothing. ok is false when kapi knows no
+// whose manifest declares the format comes first, then the plugin kapi lists to
+// publish it. A retired plugin supplies nothing. ok is false when kapi lists no
 // plugin that supplies format.
 func FormatProvider(installed []*Plugin, format string) (plugin string, ok bool) {
 	if format == "" {

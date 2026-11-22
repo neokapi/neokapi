@@ -106,7 +106,7 @@ func TestTwoProjectsGetTheirOwnContextStore(t *testing.T) {
 	}))
 	has, err := app.HasTerms(ctx)
 	require.NoError(t, err)
-	assert.False(t, has, "what one project learned is scoped to it")
+	assert.False(t, has, "what one project recorded is scoped to it")
 }
 
 func TestJoinAnswersTermToBlocksAcrossTheTwoFiles(t *testing.T) {

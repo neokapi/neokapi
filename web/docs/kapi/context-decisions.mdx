@@ -5,17 +5,31 @@ description: "An assistant notes what the project's files do and what you change
 keywords: [kapi, context, rules, note, suggest, review, keep, drop, choose, widen, reset, suggestion, rule, contested, evidence, terms, content memory, agent, session]
 ---
 
+import { PhaseFlow } from "@neokapi/docs-shared";
+
 # Growing context
 
 A new project starts with no terms, voice profile or approved wording. Its
-context grows as you work: an assistant notices the name the files always use,
+context grows as you work: an assistant suggests the name the files always use,
 or the word you changed in its draft, and records it. Each note arrives as a
-**suggestion**. A suggestion advises from the moment it is recorded, and you
+**suggestion**. Checks report a suggestion from the moment it is recorded, and you
 decide about it when it suits you. A suggestion you keep becomes a **rule**.
+
+<PhaseFlow
+  nodes={[
+    { label: "note", sub: "an assistant or kapi records it", role: "io" },
+    { label: "suggestion", sub: "checks report it, none fails", role: "annotate", edge: "recorded" },
+    { label: "rule", sub: "a check fails on it", role: "qa", edge: "a person keeps it" },
+  ]}
+  caption="A note arrives as a suggestion that checks report at once; it becomes a rule when a person keeps it."
+/>
+
+In Kapi Desktop you decide on the **Decide** page and go back to an earlier
+state from **Sessions**, under Assistants in Project Settings. On the command line, the commands are these:
 
 | Command | Does |
 | --- | --- |
-| `kapi context suggest` | file what kapi can see in the project's files as suggestions |
+| `kapi context suggest` | record what kapi can see in the project's files as suggestions |
 | `kapi rules` | decide about each suggestion, list the rules in force, narrow or drop one |
 | `kapi context review` | the same decisions, as an assistant records them, and applying a rule more widely |
 | `kapi context reset --before <when>` | go back to how the context stood at an earlier point |
@@ -29,7 +43,7 @@ A coding agent using kapi's [MCP server](/reference/mcp) records with the
 Each call records one thing:
 
 ```bash
-# something the files do every time
+# consistent wording in the files
 kapi context note --term Quickcast --instead-of "Quick cast" \
   --seen-in docs/guide.md --quote "Quickcast forecasts the next hour."
 
@@ -65,9 +79,9 @@ that recorded it:
 kapi context note --withdraw 0n794e2gk7 --why "recorded the wrong way round"
 ```
 
-## What kapi sees in the files {#what-kapi-sees-in-the-files}
+## Suggestions from your files {#what-kapi-sees-in-the-files}
 
-`kapi context suggest` reads the files the recipe declares and files what it
+`kapi context suggest` reads the files the recipe declares and records what it
 can see in them, with no AI model:
 
 | It sees | It suggests |
@@ -77,40 +91,40 @@ can see in them, with no AI model:
 | most blocks with a personal pronoun addressing the reader as you, and none saying we | a note that the files address the reader as you |
 
 ```bash
-kapi context suggest             # file the suggestions
+kapi context suggest             # record the suggestions
 kapi context suggest --dry-run   # print them and record nothing
 kapi context suggest --ai        # then ask the connected AI model as well
 ```
 
 Each suggestion is noticed by kapi, with the counts and a quote from the
 files, and waits for you in review like an assistant's note. You decide about
-each one. Running the command again files nothing new, and a suggestion you
+each one. Running the command again records nothing new, and a suggestion you
 dropped stays dropped.
 
 With `--ai`, kapi then asks the connected AI model about the same blocks,
-through `term-extract` and `voice-infer`, and files what the model proposes
-the same way. A term is filed when the files write it as the model wrote it in
-two or more blocks; a term the files write in more than one way is left to the
+through `term-extract` and `voice-infer`, and records what the model proposes
+the same way. A term is recorded when it appears in two or more blocks exactly
+as the model wrote it; a term spelled more than one way in the files is left to the
 spelling suggestion in the table. A name with spellings to
 avoid, such as `Harbor Help`, becomes a term rule; a single word becomes a
 note naming the term. Each voice measure the model reads becomes a note that
 names it, such as `(sentence_length: short)`; in a project that binds a voice,
-no voice measures are filed. These suggestions are noticed by
+no voice measures are recorded. These suggestions are noticed by
 kapi with the model's name, and the line before them names the model, the
 blocks it read and the tokens the provider reported. The model reads a
 bounded sample of a large project. A project that declares redaction has it
 applied before the model reads anything. With no AI provider configured, or
-no key for the one configured, the command refuses before it files anything;
+no key for the one configured, the command refuses before it records anything;
 `kapi models setup` connects one. `--dry-run` with `--ai`
 still asks the model and records nothing. In Kapi Desktop, **Deeper look with
-AI** on the Map does the same.
+AI** on the Overview does the same.
 
 ## A suggestion never stops your work
 
-A suggestion advises at once: `kapi context <path>` lists it under
+Checks report a suggestion at once: `kapi context <path>` lists it under
 *Suggested, not yet established*, and checks report text that goes against it.
 No check fails on it and no score changes until it becomes a rule. A
-suggestion nobody answers keeps advising, so nothing here has to be cleared.
+suggestion nobody answers stays reported, so nothing here has to be cleared.
 
 ## Deciding with kapi rules {#deciding-with-kapi-rules}
 
@@ -124,7 +138,7 @@ and files that use it. Before you answer, it says what keeping the marked form
 does: how many blocks a check then reports, and where the rule applies.
 
 ```
-[1/2] Which one do your files use?  #0rbavbmqsx
+[1/2] Which spelling should the project use?  #0rbavbmqsx
   * 1) Quickcast  2 blocks in 2 files
     2) Quick cast  1 block in 1 file
     3) Quick-cast  0 blocks in 0 files
@@ -166,7 +180,7 @@ decisions that mention a word. `kapi context review`, below, records the same
 decisions; it is the spelling an assistant uses, and it also applies a rule
 more widely.
 
-## Reviewing what kapi learned {#reviewing-what-kapi-learned}
+## Review the suggestions {#reviewing-what-kapi-learned}
 
 ```bash
 kapi context review
@@ -208,9 +222,9 @@ Suggested
   Names and spellings
     0njy7pfhjp  Write Quickcast, not Quick cast, Quick-cast or QuickCast.
           seen "Try Quick cast today" in docs/intro.md
-          seen in 2 sessions · noticed by claude
+          seen in 2 sessions · suggested by claude
 
-kapi knows 23 rules for Fernwell; 4 are new this week. 1 suggestion is advising.
+23 rules for Fernwell; 4 are new this week. 1 suggestion is waiting for you.
 ```
 
 The sections come in the order you read them: disagreements that need you,
@@ -260,7 +274,7 @@ kapi context review --session s4980103f5148 --keep all
 kapi context review --drop 0pjby7f9fx --note "we say it both ways on purpose"
 ```
 
-A dropped suggestion stops advising at once. Dropping a rule already in force
+Checks stop reporting a dropped suggestion at once. Dropping a rule already in force
 takes it back out of the project's terms or content memory, so checks stop
 failing on it. The record stays either way, so the same suggestion is
 recognisable the next time somebody makes it.
@@ -298,7 +312,7 @@ alone makes nothing a rule.
 ## When two suggestions disagree
 
 Two suggestions that name different forms for one word are **contested**.
-Both still advise, review shows them together under *Needs you*, and neither
+Checks still report both, review shows them together under *Needs you*, and neither
 can be kept on its own. Choose one side:
 
 ```bash
@@ -375,7 +389,7 @@ assistant.
 An assistant can withdraw only its own notes, in the session that recorded
 them.
 
-## How kapi knows who recorded a note
+## Who recorded a note {#how-kapi-knows-who-recorded-a-note}
 
 The MCP server identifies the caller as an assistant, uses the client's name,
 and groups its notes under one session. For shell commands, kapi recognises
@@ -405,9 +419,9 @@ same context, and appear in `kapi context log` beside the rest:
 ```
 
 A person's changes are in force at once. An assistant's term, content-memory
-and recipe changes are refused, whether it sends them through the MCP
-`apply_edits` tool or runs `kapi apply` from its shell, because writing a rule
-directly is a person's decision. The assistant records the rule with
+and recipe changes are refused, through the MCP `apply_edits` tool and through
+`kapi apply` from its shell alike, because writing a rule directly is a
+person's decision. The assistant records the rule with
 `kapi context note` instead, and you keep it. `kapi store import` also puts
 context in force directly, and records each file it read.
 

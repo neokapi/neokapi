@@ -99,9 +99,16 @@ export interface GovernanceAnswer {
   point: ContextPoint;
   scope: AnswerScope;
   voice?: ContextVoice;
+  /** The terms in force, one per concept and language; the pane groups them by concept. */
   terms: TermHit[];
-  /** Total terms scoped here when `terms` is capped. */
+  /** Total concepts scoped here when `terms` is capped. */
   terms_total?: number;
+  /**
+   * True when `terms` is capped and the surface can count only the terms
+   * behind it, not the concepts, so the pane says the list is partial
+   * without a total.
+   */
+  terms_capped?: boolean;
   profiles: ProfileWindow[];
   rules?: RuleBinding[];
   /** Redaction clearance in force here, when the surface knows it. */

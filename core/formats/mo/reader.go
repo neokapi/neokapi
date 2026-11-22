@@ -8,13 +8,18 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// Reader is a stub — the pipeline never reads MO as a source. It exists
+// Reader is a stub: the pipeline never reads MO as a source. It exists
 // only so the format registry can answer `DetectByExtension(".mo")` and
 // route `-o file.mo` output to the MO writer. Calling Open / Read
 // returns an error pointing the caller at the appropriate gettext lib.
 type Reader struct {
 	format.BaseFormatReader
 }
+
+var _ format.WriteOnlyReader = (*Reader)(nil)
+
+// WriteOnlyReader marks MO as written and never read as a source.
+func (r *Reader) WriteOnlyReader() {}
 
 // NewReader constructs the stub reader.
 func NewReader() *Reader {
@@ -25,7 +30,7 @@ func NewReader() *Reader {
 	}
 }
 
-// Open always fails — MO is a runtime catalog format, not a pipeline
+// Open always fails: MO is a runtime catalog format, not a pipeline
 // source. Runtime consumers load MO via github.com/leonelquinteros/gotext.
 func (r *Reader) Open(_ context.Context, _ *model.RawDocument) error {
 	return errors.New("mo: read not supported. Load compiled MO catalogs via gotext.NewMo().ParseFile at runtime rather than through the pipeline")
@@ -53,7 +58,7 @@ func (r *Reader) SetConfig(cfg format.DataFormatConfig) error {
 	return nil
 }
 
-// Close is a no-op — the stub reader owns no resources.
+// Close is a no-op: the stub reader owns no resources.
 func (r *Reader) Close() error { return nil }
 
 // Signature returns the MO format's extension/MIME tuple so

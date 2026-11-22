@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -234,7 +234,7 @@ func ledgerSQLiteServer(t *testing.T) (*Server, *echo.Echo, *countingObjects) {
 	srv := &Server{ContentStore: counted, wsStores: newWorkspaceStores()}
 	e := echo.New()
 	srv.registerContextObjectRoutes(e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("user_id", "member-a")
 			c.Set("project_permissions", platauth.PermViewContent|contextObjectWritePermission)
 			return next(c)
@@ -539,7 +539,7 @@ func TestContextLedger_DecisionsStayInReach_SQLite(t *testing.T) {
 	srv := &Server{ContentStore: cs, wsStores: newWorkspaceStores()}
 	e := echo.New()
 	srv.registerContextObjectRoutes(e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("user_id", "custodian")
 			c.Set("project_permissions", platauth.PermViewContent|contextObjectWritePermission)
 			c.Set("project_coordinates", acme)
@@ -587,7 +587,7 @@ func reachSQLiteServer(t *testing.T, reach platauth.CoordinateReach) (*echo.Echo
 	srv := &Server{ContentStore: cs, wsStores: newWorkspaceStores()}
 	e := echo.New()
 	srv.registerContextObjectRoutes(e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("user_id", "custodian")
 			c.Set("project_permissions", platauth.PermViewContent|contextObjectWritePermission)
 			c.Set("project_coordinates", reach)
@@ -928,7 +928,7 @@ func TestContextLedger_KeepIsGovernedByItsTarget_SQLite(t *testing.T) {
 	}
 	voiceEcho := echo.New()
 	(&Server{ContentStore: cs, wsStores: newWorkspaceStores()}).registerContextObjectRoutes(voiceEcho.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("user_id", "voice")
 			c.Set("project_permissions", platauth.PermViewContent|platauth.PermManageVoice)
 			return next(c)
@@ -1031,7 +1031,7 @@ func TestContextLedger_VoiceCustodianPushesVoiceDecisionsAlone_SQLite(t *testing
 
 	voiceEcho := echo.New()
 	(&Server{ContentStore: cs, wsStores: newWorkspaceStores()}).registerContextObjectRoutes(voiceEcho.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("user_id", "voice")
 			c.Set("project_permissions", platauth.PermViewContent|platauth.PermManageVoice)
 			return next(c)

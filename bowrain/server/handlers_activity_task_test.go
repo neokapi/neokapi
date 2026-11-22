@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/labstack/echo/v5"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,8 +40,7 @@ func TestHandleListActivities_Empty(t *testing.T) {
 
 	// Set route params via echo context.
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 
 	err := srv.HandleListActivities(c)
 	require.NoError(t, err)
@@ -70,8 +70,7 @@ func TestHandleListActivities_WithData(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/activities?project_id=proj-1", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 
 	err := srv.HandleListActivities(c)
 	require.NoError(t, err)
@@ -101,8 +100,7 @@ func TestHandleListActivities_NoStoreMatchesLiveShape(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	c := srv.GetEcho().NewContext(httptest.NewRequest(http.MethodGet, "/api/v1/demo/activities", nil), rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 
 	require.NoError(t, srv.HandleListActivities(c))
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -119,8 +117,7 @@ func TestHandleCreateTask(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("user_id", "user-1")
 
 	err := srv.HandleCreateTask(c)
@@ -145,8 +142,7 @@ func TestHandleCreateTask_ValidationErrors(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("ws")
-		c.SetParamValues("demo")
+		c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 
 		err := srv.HandleCreateTask(c)
 		require.NoError(t, err)
@@ -159,8 +155,7 @@ func TestHandleCreateTask_ValidationErrors(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("ws")
-		c.SetParamValues("demo")
+		c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 
 		err := srv.HandleCreateTask(c)
 		require.NoError(t, err)
@@ -185,8 +180,7 @@ func TestHandleGetTask(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/tasks/"+task.ID, nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "taskId")
-	c.SetParamValues("demo", task.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "taskId", Value: task.ID}})
 
 	err := srv.HandleGetTask(c)
 	require.NoError(t, err)
@@ -214,8 +208,7 @@ func TestHandleCompleteTask(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/demo/tasks/"+task.ID+"/complete", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "taskId")
-	c.SetParamValues("demo", task.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "taskId", Value: task.ID}})
 	c.Set("user_id", "user-2")
 
 	err := srv.HandleCompleteTask(c)
@@ -246,8 +239,7 @@ func TestHandleCancelTask(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/demo/tasks/"+task.ID+"/cancel", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "taskId")
-	c.SetParamValues("demo", task.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "taskId", Value: task.ID}})
 
 	err := srv.HandleCancelTask(c)
 	require.NoError(t, err)
@@ -266,8 +258,7 @@ func TestHandleNotificationPreferences_RoundTrip(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/notification-preferences", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("user_id", "user-1")
 
 	err := srv.HandleGetNotificationPreferences(c)
@@ -286,8 +277,7 @@ func TestHandleNotificationPreferences_RoundTrip(t *testing.T) {
 	req2.Header.Set("Content-Type", "application/json")
 	rec2 := httptest.NewRecorder()
 	c2 := e.NewContext(req2, rec2)
-	c2.SetParamNames("ws")
-	c2.SetParamValues("demo")
+	c2.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c2.Set("user_id", "user-1")
 
 	err = srv.HandleUpdateNotificationPreferences(c2)
@@ -321,8 +311,7 @@ func TestHandleListTasks_AssigneeMe(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/tasks"+query, nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("ws")
-		c.SetParamValues("demo")
+		c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 		if userID != "" {
 			c.Set("user_id", userID)
 		}
@@ -379,8 +368,7 @@ func TestHandleListTasks_TypesFilter(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/tasks"+query, nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("ws")
-		c.SetParamValues("demo")
+		c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 		require.NoError(t, srv.HandleListTasks(c))
 		require.Equal(t, http.StatusOK, rec.Code)
 		var resp bstore.TaskResult
@@ -414,8 +402,7 @@ func TestHandleGetTaskCounts(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/tasks/counts"+query, nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("ws")
-		c.SetParamValues("demo")
+		c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 		if userID != "" {
 			c.Set("user_id", userID)
 		}
@@ -472,8 +459,7 @@ func TestHandleListActivities_TypesFilter(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/activities"+query, nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("ws")
-		c.SetParamValues("demo")
+		c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 		require.NoError(t, srv.HandleListActivities(c))
 		require.Equal(t, http.StatusOK, rec.Code)
 		var resp bstore.ActivityResult

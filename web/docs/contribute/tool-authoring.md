@@ -7,18 +7,20 @@ keywords: [tool authoring, BaseTool, parameter schema, JSON Schema, Go, neokapi,
 
 # Creating Tools with Parameter Schemas
 
-This guide covers how to create a tool with a parameter schema so that the UI and CLI can auto-generate configuration forms and validate user input.
+You build a tool on `tool.BaseTool` and declare its parameters in a config struct.
+The CLI and the desktop UI generate configuration forms from that schema and
+validate user input against it.
 
 ## Tool basics
 
-Every tool is built on `tool.BaseTool`. For Blocks (the translatable unit) a
+Every tool is built on `tool.BaseTool`. For Blocks (the unit of text) a
 tool sets exactly one capability-typed handler, and the view it receives bounds
 what it may write (E-03): `Annotate(BlockView)` reads source and target and
 writes only overlays, annotations, and properties; `Produce(VariantView)`
 writes the target; `Transform(BlockView)` returns an edit plan that the
-framework applier uses to rewrite the source. The wrong writes
-are not on the view: an annotator has no target setter to call, and a
-transformer holds no source setter at all. Other
+framework applier uses to rewrite the source. Each view
+carries only the writes its handler may make: an annotator has no target setter
+to call, and a transformer holds no source setter. Other
 Part types (Data, Media, Layer, Group) use the untyped `Handle*Fn` fields. Parts
 you don't handle pass through unchanged; a handler returns an `error` (and may
 call `v.Drop()` to remove the block from the stream).
@@ -68,7 +70,7 @@ Define a config struct with exported fields. The `schema` struct tag controls ho
 
 ```go
 type MyToolConfig struct {
-    TargetLocale string `json:"targetLocale" schema:"description=Target locale for output"`
+    TargetLocale string `json:"target_locale" schema:"description=Target locale for output"`
     Uppercase    bool   `json:"uppercase"    schema:"description=Convert text to uppercase,default=false"`
     MaxLength    int    `json:"maxLength"    schema:"description=Maximum output length (0 = unlimited),default=0"`
     Mode         string `json:"mode"         schema:"description=Processing mode,enum=fast|thorough|balanced,default=balanced"`
@@ -99,7 +101,7 @@ type MyToolConfig struct {
 | `[]T`                        | `array`          |
 | `map`, `struct`              | `object`         |
 
-Interface, function, and channel fields are automatically skipped.
+`schema.FromStruct()` skips interface, function and channel fields.
 
 ## How schema.FromStruct() works
 
@@ -121,7 +123,7 @@ The function:
 2. Maps Go types to JSON Schema types
 3. Parses `schema` struct tags for metadata (description, default, enum, widget, etc.)
 4. Extracts `group` tags to build `ui:groups` for the UI
-5. Uses `json` struct tags for field names (falls back to camelCase conversion)
+5. Uses `json` struct tags for field names, falling back to the field name in snake_case (`FillTargetThreshold` becomes `fill_target_threshold`). Config keys are snake_case; a `json` tag must be too
 6. Generates a `ComponentSchema` with `toolMeta` metadata
 
 ### Parameter groups
@@ -145,9 +147,8 @@ registry, and pair it with `SetConfigFactory()` so a YAML step's `config:` map
 reaches the tool. The plain factory builds a tool with default config; the
 config factory receives the step's map and the run's target language, decodes
 the map into the config struct, and builds the tool from that. Without it, a
-step's `config:` is discarded (the registry only knows how to call the plain
-factory), which is the registration invariant the framework's own tools are
-tested against:
+step's `config:` is discarded, because the registry only knows how to call the
+plain factory. The framework's own tools are tested against this invariant:
 
 ```go
 import (
@@ -206,7 +207,7 @@ Once registered with a schema:
 
 ## Full example: creating a custom tool
 
-Here is a complete example of a prefix/suffix wrapping tool with a parameter schema:
+This tool wraps text in a prefix and a suffix, and declares both as parameters:
 
 ```go
 package wraptext
@@ -226,7 +227,7 @@ import (
 type WrapTextConfig struct {
     Prefix       string `json:"prefix"       schema:"description=Text prepended to each block,default=["`
     Suffix       string `json:"suffix"       schema:"description=Text appended to each block,default=]"`
-    TargetLocale string `json:"targetLocale" schema:"description=Target locale,placeholder=en"`
+    TargetLocale string `json:"target_locale" schema:"description=Target locale,placeholder=en"`
     SourceOnly   bool   `json:"sourceOnly"   schema:"description=Wrap source text only,default=false"`
 }
 
@@ -321,3 +322,10 @@ no `--target-lang`. A monolingual tool that also works on a target when the run
 names one adds `Accepts: []string{schema.AcceptsTargetLanguage}`, and one whose
 result depends on the source language adds `schema.AcceptsSourceLanguage`. See
 [E-03: locale cardinality](/contribute/architecture/engine/e-03-tool-system#locale-cardinality).
+
+## Related
+
+- [E-03: The tool system](/contribute/architecture/engine/e-03-tool-system): the handler views, locale cardinality and side effects.
+- [YAML Flow Authoring](/contribute/flow-authoring): placing a tool in a flow.
+- [Interface Reference](/contribute/interfaces): the `Tool` and `BaseTool` definitions.
+- [Testing Strategy](/contribute/testing): how tools are tested.

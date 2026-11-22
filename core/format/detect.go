@@ -92,7 +92,7 @@ func (d *Detector) Detect(path string, reader io.ReadSeeker, mimeType string) (s
 		if ext := Ext(path); ext != "" {
 			cands := d.extensionCandidates(ext)
 			if len(cands) > 1 && reader != nil {
-				if name, err := d.DetectByContent(reader); err == nil && cands[name] {
+				if name, err := d.DetectByContentAmong(reader, cands); err == nil {
 					return name, nil
 				}
 			}
@@ -243,9 +243,34 @@ func (d *Detector) extensionCandidates(ext string) map[string]bool {
 //     distinguishes a .docx from an .epub when both are just "a ZIP".
 //  4. As a last resort, the best (ambiguous) magic match from step 2.
 func (d *Detector) DetectByContent(reader io.ReadSeeker) (string, error) {
-	buf := make([]byte, 512)
-	n, err := reader.Read(buf)
-	if err != nil && !errors.Is(err, io.EOF) {
+	return d.detectByContent(reader, contentHead, nil)
+}
+
+// DetectByContentAmong is DetectByContent limited to the named formats: the
+// formats claiming one extension, among which the file's content decides. A
+// format outside the set never shadows one inside it, whatever its priority,
+// and it reads a longer head than DetectByContent (amongHead) so a licence
+// comment ahead of the root element does not hide it from a sniffer.
+func (d *Detector) DetectByContentAmong(reader io.ReadSeeker, names map[string]bool) (string, error) {
+	if len(names) == 0 {
+		return "", errors.New("no formats to detect among")
+	}
+	return d.detectByContent(reader, amongHead, func(name string) bool { return names[name] })
+}
+
+// contentHead is how much of a file DetectByContent reads; amongHead is how
+// much DetectByContentAmong reads.
+const (
+	contentHead = 512
+	amongHead   = 8192
+)
+
+// detectByContent is DetectByContent over the first head bytes of reader,
+// considering only the formats allow accepts (every format when nil).
+func (d *Detector) detectByContent(reader io.ReadSeeker, head int, allow func(string) bool) (string, error) {
+	buf := make([]byte, head)
+	n, err := io.ReadFull(reader, buf)
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
 		return "", fmt.Errorf("reading content: %w", err)
 	}
 	buf = buf[:n]
@@ -253,7 +278,7 @@ func (d *Detector) DetectByContent(reader io.ReadSeeker) (string, error) {
 		return "", fmt.Errorf("seeking: %w", err)
 	}
 
-	sniffName, magicName, magicAmbiguous := d.matchBuffer(buf)
+	sniffName, magicName, magicAmbiguous := d.matchBuffer(buf, allow)
 
 	// 1. Precise sniffers win outright.
 	if sniffName != "" {
@@ -272,13 +297,13 @@ func (d *Detector) DetectByContent(reader io.ReadSeeker) (string, error) {
 		for m := mt; m != nil; m = m.Parent() {
 			mime := strings.TrimSpace(strings.SplitN(m.String(), ";", 2)[0])
 			// Skip mimetype's "don't know" fallbacks: text/plain and
-			// octet-stream are not positive identifications — mapping them to a
+			// octet-stream are not positive identifications. Mapping them to a
 			// registered format would turn every texty/binary blob into that
 			// format. Callers that want a plaintext default supply their own.
 			if mime == "" || mime == "text/plain" || mime == "application/octet-stream" {
 				continue
 			}
-			if name, err := d.DetectByMIME(mime); err == nil {
+			if name, ok := d.mimeFormat(mime, allow); ok {
 				return name, nil
 			}
 		}
@@ -293,16 +318,47 @@ func (d *Detector) DetectByContent(reader io.ReadSeeker) (string, error) {
 	return "", errors.New("unable to detect format from content")
 }
 
+// mimeFormat is DetectByMIME limited to the formats allow accepts (every
+// format when nil).
+func (d *Detector) mimeFormat(mimeType string, allow func(string) bool) (string, bool) {
+	if allow == nil {
+		name, err := d.DetectByMIME(mimeType)
+		return name, err == nil
+	}
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	mimeType = strings.ToLower(strings.TrimSpace(mimeType))
+	bestName, bestPriority := "", -1
+	for name, sig := range d.signatures {
+		if !allow(name) {
+			continue
+		}
+		for _, m := range sig.MIMETypes {
+			if strings.ToLower(m) == mimeType {
+				pri := d.priorities[name]
+				if bestName == "" || pri > bestPriority || (pri == bestPriority && name < bestName) {
+					bestName, bestPriority = name, pri
+				}
+			}
+		}
+	}
+	return bestName, bestName != ""
+}
+
 // matchBuffer evaluates the registered Sniff functions and magic-byte prefixes
-// against buf. It returns the best Sniff match, the best magic-prefix match, and
+// against buf, considering only the formats allow accepts (every format when
+// nil). It returns the best Sniff match, the best magic-prefix match, and
 // whether that magic prefix is shared by more than one format (ambiguous).
 // Within each category, higher priority wins and ties break lexicographically.
-func (d *Detector) matchBuffer(buf []byte) (sniffName, magicName string, magicAmbiguous bool) {
+func (d *Detector) matchBuffer(buf []byte, allow func(string) bool) (sniffName, magicName string, magicAmbiguous bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
 	sniffPri := -1
 	for name, sig := range d.signatures {
+		if allow != nil && !allow(name) {
+			continue
+		}
 		if sig.Sniff != nil && sig.Sniff(buf) {
 			pri := d.priorities[name]
 			if sniffName == "" || pri > sniffPri || (pri == sniffPri && name < sniffName) {
@@ -314,6 +370,9 @@ func (d *Detector) matchBuffer(buf []byte) (sniffName, magicName string, magicAm
 	magicPri := -1
 	matches := 0
 	for name, sig := range d.signatures {
+		if allow != nil && !allow(name) {
+			continue
+		}
 		hit := false
 		for _, magic := range sig.MagicBytes {
 			if bytes.HasPrefix(buf, magic) {

@@ -15,7 +15,7 @@ import (
 
 	venueauth "github.com/neokapi/neokapi/host/venue/auth"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/stretchr/testify/assert"
@@ -177,7 +177,7 @@ func TestHandleDeviceVerificationDefaultValues(t *testing.T) {
 	require.NoError(t, srv.SessionStore.Set(ctx, prefixUserCode+"aaaa-bbbb", []byte("test-device-default"), authStateTTL))
 
 	e := echo.New()
-	e.POST("/verify", func(c echo.Context) error {
+	e.POST("/verify", func(c *echo.Context) error {
 		return srv.handleDeviceVerification(c, "aaaa-bbbb")
 	})
 
@@ -241,7 +241,7 @@ func TestHandleDeviceVerificationOIDCRedirect(t *testing.T) {
 	require.NoError(t, srv.SessionStore.Set(ctx, prefixUserCode+"cccc-dddd", []byte("test-oidc-device"), authStateTTL))
 
 	e := echo.New()
-	e.POST("/verify", func(c echo.Context) error {
+	e.POST("/verify", func(c *echo.Context) error {
 		return srv.handleDeviceVerification(c, "cccc-dddd")
 	})
 
@@ -325,7 +325,7 @@ func TestDeviceVerifyStatesCleanup(t *testing.T) {
 	require.NoError(t, sessionSet(ctx, srv.SessionStore, prefixDeviceVerify, state, verifyEntry, authStateTTL))
 
 	e := echo.New()
-	e.GET("/callback", func(c echo.Context) error {
+	e.GET("/callback", func(c *echo.Context) error {
 		return srv.HandleDeviceAuthCallback(c)
 	})
 
@@ -484,7 +484,7 @@ func TestDesktopAuthStatesCleanup(t *testing.T) {
 	require.NoError(t, sessionSet(ctx, srv.SessionStore, prefixDesktopAuth, state, desktopEntry, authStateTTL))
 
 	e := echo.New()
-	e.GET("/callback", func(c echo.Context) error {
+	e.GET("/callback", func(c *echo.Context) error {
 		return srv.HandleDesktopCallback(c)
 	})
 
@@ -672,7 +672,7 @@ func TestOIDCRedirectIncludesPKCEAndNonce(t *testing.T) {
 		require.NoError(t, srv.SessionStore.Set(ctx, prefixUserCode+"eeee-ffff", []byte("pkce-test-device"), authStateTTL))
 
 		ep := echo.New()
-		ep.POST("/verify", func(c echo.Context) error {
+		ep.POST("/verify", func(c *echo.Context) error {
 			return srv.handleDeviceVerification(c, "eeee-ffff")
 		})
 
@@ -773,7 +773,7 @@ func TestDeviceVerifyEntryHasPKCEAndNonce(t *testing.T) {
 	require.NoError(t, srv.SessionStore.Set(ctx, prefixUserCode+"gggg-hhhh", []byte("pkce-nonce-test-device"), authStateTTL))
 
 	e := echo.New()
-	e.POST("/verify", func(c echo.Context) error {
+	e.POST("/verify", func(c *echo.Context) error {
 		return srv.handleDeviceVerification(c, "gggg-hhhh")
 	})
 
@@ -833,7 +833,7 @@ func TestAuthMiddlewareCookieFallback(t *testing.T) {
 
 	e := echo.New()
 	e.Use(AuthMiddleware(jwtSecret, nil))
-	e.GET("/api/v1/auth/me", func(c echo.Context) error {
+	e.GET("/api/v1/auth/me", func(c *echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{
 			"user_id": c.Get("user_id").(string),
 			"email":   c.Get("email").(string),
@@ -867,7 +867,7 @@ func TestAuthMiddlewareBearerPrecedence(t *testing.T) {
 
 	e := echo.New()
 	e.Use(AuthMiddleware(jwtSecret, nil))
-	e.GET("/test", func(c echo.Context) error {
+	e.GET("/test", func(c *echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"user_id": c.Get("user_id").(string)})
 	})
 
@@ -887,7 +887,7 @@ func TestAuthMiddlewareBearerPrecedence(t *testing.T) {
 func TestAuthMiddlewareNeitherHeaderNorCookie(t *testing.T) {
 	e := echo.New()
 	e.Use(AuthMiddleware("test-secret", nil))
-	e.GET("/test", func(c echo.Context) error {
+	e.GET("/test", func(c *echo.Context) error {
 		return c.JSON(http.StatusOK, nil)
 	})
 
@@ -1122,7 +1122,7 @@ func TestDeviceVerificationDirectRefusedWithoutOptIn(t *testing.T) {
 		seedPendingDevice(t, srv, "guarded-device", "eeee-ffff-0000-1111")
 
 		e := echo.New()
-		e.POST("/direct", func(c echo.Context) error {
+		e.POST("/direct", func(c *echo.Context) error {
 			return srv.handleDeviceVerificationDirect(c, "guarded-device")
 		})
 		req := httptest.NewRequest(http.MethodPost, "/direct",
@@ -1152,7 +1152,7 @@ func TestDeviceVerificationAttemptsAreBounded(t *testing.T) {
 	seedPendingDevice(t, srv, "attempt-device", "2222-3333-4444-5555")
 
 	e := echo.New()
-	e.POST("/verify", func(c echo.Context) error {
+	e.POST("/verify", func(c *echo.Context) error {
 		return srv.handleDeviceVerification(c, "2222-3333-4444-5555")
 	})
 	attempt := func() string {

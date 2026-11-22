@@ -388,13 +388,11 @@ func (d *daemonService) Push(ctx context.Context, req *pb.PushRequest) (*pb.Push
 	})
 
 	// A failure after content landed rides on the response, so the content
-	// result is not lost to an RPC error.
+	// result is not lost to an RPC error. Terminology travels in the push's
+	// transaction, so it fails with the content or not at all.
 	resp := &pb.PushResponse{Report: printed.String()}
-	var termErr *commands.PushedTerminologyError
 	var autoErr *commands.PushAutomationError
 	switch {
-	case errors.As(err, &termErr):
-		resp.TerminologyError = termErr.Err.Error()
 	case errors.As(err, &autoErr):
 		resp.AutomationError = autoErr.Error()
 	case err != nil:

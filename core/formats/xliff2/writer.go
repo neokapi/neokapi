@@ -702,7 +702,7 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 	}
 
 	// Capture pre-patch inline ids on every <target> in the unit. Okapi's
-	// Tag store remembers tags it parsed even after they're replaced (the
+	// Tag store keeps tags it parsed even after they're replaced (the
 	// store outlives a single Source/Target swap), so when Store.suggestId
 	// later picks a fresh ignorable id it skips not just live ids but the
 	// pre-replacement ghosts too. Without this, we synthesise ignorable

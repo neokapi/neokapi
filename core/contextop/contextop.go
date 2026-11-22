@@ -1,7 +1,7 @@
 // Package contextop records how a project's context came to be.
 //
 // A project starts with no terms, no voice rules and an empty content memory,
-// and the context grows out of ordinary work. Someone notices a fact or the
+// and the context grows out of ordinary work. Someone records a fact or the
 // form the project uses for a word, a person keeps it, checks enforce it, and
 // the next correction is evidence for the rule after that. Every step is an
 // operation: who did it, what it was about, where the evidence was seen, what
@@ -18,10 +18,10 @@
 // subject-bearing operation ended up with, so the history is the whole record
 // and a surface can replay it.
 //
-// # Suggestions advise, established rules bind
+// # Suggestions report, established rules bind
 //
-// Everything recorded about a project is a suggestion, and it advises the
-// moment it is recorded. [Resolve] and [Resolution.RuleSets] project the
+// Everything recorded about a project is a suggestion, and checks report it
+// from the moment it is recorded. [Resolve] and [Resolution.RuleSets] project the
 // suggestions at a point into rule sets marked advisory, which the vocabulary
 // matcher reports at neutral severity, below every gate threshold. A
 // suggestion therefore shows up in a check and can never fail one. A person
@@ -34,7 +34,7 @@
 // # Contested
 //
 // Two suggestions about one word that name different forms to use disagree:
-// both advise, both are marked contested, and neither can be kept until a
+// checks report both, both are marked contested, and neither can be kept until a
 // person chooses. A suggestion that contradicts an established rule is
 // contested and the rule stays in force. A person's own correction that
 // reverses an established rule contests the rule, which then reports instead
@@ -93,6 +93,10 @@ type Actor struct {
 	// can be reviewed together, or the context reset to before it. Empty for a
 	// person and for a tool.
 	Session string `json:"session,omitempty"`
+	// OnBehalfOf names the member an agent or a tool ran for, when the server
+	// that records the operation knows it: the member who issued the token a
+	// tool pushed with. Empty for a person.
+	OnBehalfOf string `json:"on_behalf_of,omitempty"`
 }
 
 // String renders an actor for a log line: "agent claude/abc123", "person asgeir",
@@ -115,9 +119,9 @@ func (a Actor) String() string {
 type Kind string
 
 const (
-	// KindObserve records something somebody noticed: a fact in prose, or the
+	// KindObserve records something somebody found in the files: a fact in prose, or the
 	// form the project uses for a word with the forms it avoids, which is a
-	// term rule. It advises from the moment it is recorded.
+	// term rule. Checks report it from the moment it is recorded.
 	KindObserve Kind = "observe"
 	// KindCorrect records that someone changed wording from one form to another
 	// at a location. It carries both wordings, and it may carry the term rule
@@ -163,10 +167,16 @@ const (
 	// session and the transcript state the hook ran at (CheckRun.Turn), so
 	// the hook running twice for one Stop records one operation.
 	KindCheck Kind = "check"
+	// KindAttest records that a person read one item at one revision and
+	// keeps it (an [Attestation]). It changes nothing in force. It names the
+	// operation it attests as its target when the item is an operation of
+	// this log; a concept or a voice rule lives in another store and is named
+	// by the attestation alone.
+	KindAttest Kind = "attest"
 )
 
 // Kinds is every operation kind, in the order a reader meets them.
-var Kinds = []Kind{KindObserve, KindCorrect, KindImport, KindEdit, KindKeep, KindDrop, KindWithdraw, KindReset, KindWiden, KindSignal, KindEstablish, KindCheck}
+var Kinds = []Kind{KindObserve, KindCorrect, KindImport, KindEdit, KindKeep, KindDrop, KindWithdraw, KindReset, KindWiden, KindSignal, KindEstablish, KindCheck, KindAttest}
 
 // Valid reports whether k is one of the declared kinds.
 func (k Kind) Valid() bool { return slices.Contains(Kinds, k) }
@@ -182,8 +192,8 @@ func (k Kind) Bears() bool {
 type Status string
 
 const (
-	// StatusSuggested is an operation nothing has acted on. Its rule advises
-	// and never fails a check.
+	// StatusSuggested is an operation nothing has acted on. Checks report its
+	// rule and never fail on it.
 	StatusSuggested Status = "suggested"
 	// StatusEstablished is a rule a person kept, imported or wrote. It is in
 	// force at the severity it carries.
@@ -191,7 +201,7 @@ const (
 	// StatusContested is a rule that disagrees with another: two suggestions
 	// naming different forms for one word, a suggestion that contradicts an
 	// established rule, or an established rule a person's own correction
-	// reversed. It advises and fails no check until a person chooses.
+	// reversed. Checks report it and fail on none until a person chooses.
 	// Record.ContestedBy names the other side.
 	StatusContested Status = "contested"
 	// StatusWithdrawn is a suggestion its author took back in the session that
@@ -212,14 +222,15 @@ var Statuses = []Status{StatusSuggested, StatusEstablished, StatusContested, Sta
 func (s Status) Valid() bool { return slices.Contains(Statuses, s) }
 
 // Answers reports whether a subject at this status still says anything: a
-// suggestion and a contested rule advise, an established rule binds, and the
+// suggestion and a contested rule are reported, an established rule binds, and the
 // other three are silent.
 func (s Status) Answers() bool {
 	return s == StatusSuggested || s == StatusEstablished || s == StatusContested
 }
 
-// Advises reports whether a subject at this status advises without binding.
-func (s Status) Advises() bool {
+// Advisory reports whether checks report a subject at this status without it
+// binding.
+func (s Status) Advisory() bool {
 	return s == StatusSuggested || s == StatusContested
 }
 
@@ -515,9 +526,22 @@ type Record struct {
 	Because []string `json:"because,omitempty"`
 	// Check is what a check operation found.
 	Check *CheckRun `json:"check,omitempty"`
+	// Voice is what a whole-profile write did, for the edit operation that
+	// records one.
+	Voice *VoiceEdit `json:"voice,omitempty"`
+	// Import is the context file an import operation read: what kind of
+	// source it was, its path and how many items it carried.
+	Import *ImportSource `json:"import,omitempty"`
 	// Standing counts the evidence for and against a suggestion, folded from
 	// the log. It is set on a term rule that settling considers.
 	Standing *Standing `json:"standing,omitempty"`
+	// Attest is what an attest operation carries.
+	Attest *Attestation `json:"attest,omitempty"`
+	// Revision names the subject as it reads now: the id of the operation
+	// that last changed its rule or its scope, which is the operation itself
+	// until a keep edits it or a widening moves it. It is folded, not stored,
+	// and an attestation names it.
+	Revision string `json:"revision,omitempty"`
 
 	// pending names the person signals a suggestion would be established on,
 	// when the log supports establishing it and no establish operation has
@@ -537,18 +561,21 @@ func (r Record) Rule() (profile.TermRule, bool) { return r.Subject.Rule() }
 // id, the sequence, the project, the timestamp and the folded status are the
 // log's own and are not repeated here.
 type payload struct {
-	Actor      Actor       `json:"actor"`
-	Subject    Subject     `json:"subject,omitzero"`
-	Correction *Correction `json:"correction,omitempty"`
-	Evidence   []Evidence  `json:"evidence,omitempty"`
-	Basis      Basis       `json:"basis,omitzero"`
-	Scope      Scope       `json:"scope,omitzero"`
-	Target     string      `json:"target,omitempty"`
-	Before     string      `json:"before,omitempty"`
-	Note       string      `json:"note,omitempty"`
-	Signal     *Signal     `json:"signal,omitempty"`
-	Because    []string    `json:"because,omitempty"`
-	Check      *CheckRun   `json:"check,omitempty"`
+	Actor      Actor         `json:"actor"`
+	Subject    Subject       `json:"subject,omitzero"`
+	Correction *Correction   `json:"correction,omitempty"`
+	Evidence   []Evidence    `json:"evidence,omitempty"`
+	Basis      Basis         `json:"basis,omitzero"`
+	Scope      Scope         `json:"scope,omitzero"`
+	Target     string        `json:"target,omitempty"`
+	Before     string        `json:"before,omitempty"`
+	Note       string        `json:"note,omitempty"`
+	Signal     *Signal       `json:"signal,omitempty"`
+	Because    []string      `json:"because,omitempty"`
+	Check      *CheckRun     `json:"check,omitempty"`
+	Voice      *VoiceEdit    `json:"voice,omitempty"`
+	Import     *ImportSource `json:"import,omitempty"`
+	Attest     *Attestation  `json:"attest,omitempty"`
 }
 
 // encode renders a record as the workspace operation that carries it.
@@ -566,6 +593,9 @@ func encode(r Record) (workspace.Op, error) {
 		Signal:     r.Signal,
 		Because:    r.Because,
 		Check:      r.Check,
+		Voice:      r.Voice,
+		Import:     r.Import,
+		Attest:     r.Attest,
 	})
 	if err != nil {
 		return workspace.Op{}, fmt.Errorf("contextop: encode %s operation: %w", r.Kind, err)
@@ -609,6 +639,9 @@ func decode(op workspace.Op) (Record, bool, error) {
 		Signal:     body.Signal,
 		Because:    body.Because,
 		Check:      body.Check,
+		Voice:      body.Voice,
+		Import:     body.Import,
+		Attest:     body.Attest,
 		At:         op.At.UTC(),
 	}, true, nil
 }

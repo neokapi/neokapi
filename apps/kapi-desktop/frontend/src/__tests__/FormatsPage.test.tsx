@@ -45,7 +45,7 @@ describe("FormatsPage", () => {
   it("renders search input", () => {
     renderPage();
     expect(
-      screen.getByPlaceholderText("Search formats by name or file extension..."),
+      screen.getByPlaceholderText("Search formats by name or file extension…"),
     ).toBeInTheDocument();
   });
 
@@ -64,10 +64,10 @@ describe("FormatsPage", () => {
   it("shows search empty state", async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.queryByText("Loading configuration schema...")).not.toBeInTheDocument();
+      expect(screen.queryByText("Loading configuration schema…")).not.toBeInTheDocument();
     });
     await userEvent.type(
-      screen.getByPlaceholderText("Search formats by name or file extension..."),
+      screen.getByPlaceholderText("Search formats by name or file extension…"),
       "nonexistent",
     );
     expect(screen.getByText("No formats match your search.")).toBeInTheDocument();

@@ -40,6 +40,19 @@ describe("TabBar", () => {
     expect(container.innerHTML).toBe("");
   });
 
+  it("hides the strip while only one project is open", () => {
+    const { container } = render(
+      <TabBar tabs={tabs.slice(0, 1)} activeTabID="1" {...defaultProps} />,
+    );
+    expect(container.innerHTML).toBe("");
+    expect(screen.queryByRole("tablist")).toBeNull();
+  });
+
+  it("shows the strip once a second project opens", () => {
+    render(<TabBar tabs={tabs} activeTabID="1" {...defaultProps} />);
+    expect(screen.getAllByRole("tab")).toHaveLength(2);
+  });
+
   it("highlights active tab", () => {
     render(<TabBar tabs={tabs} activeTabID="2" {...defaultProps} />);
     const activeTab = screen.getByText("Project B").closest("div");

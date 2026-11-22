@@ -14,6 +14,7 @@ import {
   useAnalytics,
   useApi,
   useWorkspace,
+  PageContainer,
 } from "@neokapi/ui";
 import type { ConvergenceRunScope } from "@neokapi/ui";
 import {
@@ -82,12 +83,12 @@ export function RunsRoute() {
   // Fire the estimate-viewed event once the estimate lands in the open dialog.
   // Beyond the yes/no coverage flag it carries the BUCKETED magnitude of the
   // work the run would do — what it would cost, how many units are left for AI
-  // after TM recycling, and TM's share — which is what sizes the one-time
+  // after content memory recycling, and content memory's share — which is what sizes the one-time
   // new-workspace credit grant. Bucketed only: never an exact credit amount,
   // token count, or anything content-derived.
   useEffect(() => {
     if (consentOpen && estimate) {
-      const viaTm = estimate.totals?.via_tm ?? 0;
+      const viaMemory = estimate.totals?.via_memory ?? 0;
       const viaAi = estimate.totals?.via_ai ?? 0;
       // Where billing is unconfigured (self-hosted) the estimate carries no
       // credit section; the demand is still the token estimate (1 token ≈ 1
@@ -98,7 +99,7 @@ export function RunsRoute() {
         covers_all_ai: estimate.credits?.covers_all_ai ?? true,
         estimated_credits_bucket: creditBucket(credits),
         ai_units_bucket: countBucket(viaAi),
-        tm_leverage_pct_bucket: sharePercentBucket(viaTm, viaTm + viaAi),
+        memory_leverage_pct_bucket: sharePercentBucket(viaMemory, viaMemory + viaAi),
       });
     }
   }, [consentOpen, estimate, capture]);
@@ -144,9 +145,11 @@ export function RunsRoute() {
 
   if (!activeWorkspace || !projectId) {
     return (
-      <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
-        Select a project to view runs
-      </Card>
+      <PageContainer width="narrow">
+        <Card className="mt-8 p-8 text-center text-muted-foreground text-sm">
+          Select a project to view runs
+        </Card>
+      </PageContainer>
     );
   }
 
@@ -167,7 +170,7 @@ export function RunsRoute() {
     });
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-4 md:p-6 space-y-6">
+    <PageContainer width="wide" className="space-y-6">
       <ConvergenceRunsList
         runs={runs}
         loading={runsQuery.isLoading}
@@ -210,6 +213,6 @@ export function RunsRoute() {
         onSettleSource={goToTasks}
         onBuyCredits={goToBilling}
       />
-    </div>
+    </PageContainer>
   );
 }

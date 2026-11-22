@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/convergence"
@@ -117,7 +117,7 @@ type startConvergenceRunRequest struct {
 
 // HandleStartConvergenceRun starts (or joins) a project convergence run.
 // POST /…/projects/:id/convergence/runs
-func (s *Server) HandleStartConvergenceRun(c echo.Context) error {
+func (s *Server) HandleStartConvergenceRun(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (s *Server) HandleStartConvergenceRun(c echo.Context) error {
 
 // HandleListConvergenceRuns returns a project's runs, newest first.
 // GET /…/projects/:id/convergence/runs?limit=N
-func (s *Server) HandleListConvergenceRuns(c echo.Context) error {
+func (s *Server) HandleListConvergenceRuns(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func (s *Server) HandleListConvergenceRuns(c echo.Context) error {
 // authorized project (the :id the access middleware validated). A run owned by
 // another project reports not-found so the caller answers 404 — never 403, so
 // run existence across projects is not leaked (F1: cross-project IDOR).
-func (s *Server) runForProject(c echo.Context) (*bstore.ConvergenceRun, bool) {
+func (s *Server) runForProject(c *echo.Context) (*bstore.ConvergenceRun, bool) {
 	run, err := s.ConvergenceRunStore.GetRun(c.Request().Context(), c.Param("runID"))
 	if err != nil || run == nil || run.ProjectID != c.Param("id") {
 		return nil, false
@@ -184,7 +184,7 @@ func (s *Server) runForProject(c echo.Context) (*bstore.ConvergenceRun, bool) {
 
 // HandleGetConvergenceRun returns one run by ID.
 // GET /…/projects/:id/convergence/runs/:runID
-func (s *Server) HandleGetConvergenceRun(c echo.Context) error {
+func (s *Server) HandleGetConvergenceRun(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func (s *Server) HandleGetConvergenceRun(c echo.Context) error {
 
 // HandleCancelConvergenceRun requests cancellation of an in-flight run.
 // POST /…/projects/:id/convergence/runs/:runID/cancel
-func (s *Server) HandleCancelConvergenceRun(c echo.Context) error {
+func (s *Server) HandleCancelConvergenceRun(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
 		return err
 	}
@@ -227,7 +227,7 @@ func (s *Server) HandleCancelConvergenceRun(c echo.Context) error {
 // header (native EventSource auto-sends it on reconnect) and falls back to an
 // explicit ?after=<seq> query param. An absent/invalid value means -1 (stream
 // from the beginning).
-func resumeSeq(c echo.Context) int {
+func resumeSeq(c *echo.Context) int {
 	raw := c.Request().Header.Get("Last-Event-ID")
 	if raw == "" {
 		raw = c.QueryParam("after")
@@ -262,7 +262,7 @@ var convergenceHeartbeatEvery = 15 * time.Second
 // Each frame is `id: <seq>\ndata: <Event JSON>` — the exact event protocol the
 // CLI renders a local run from, with the persisted seq as the resumable id.
 // GET /…/projects/:id/convergence/runs/:runID/events
-func (s *Server) HandleConvergenceRunSSE(c echo.Context) error {
+func (s *Server) HandleConvergenceRunSSE(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -302,7 +302,7 @@ func (s *Server) HandleConvergenceRunSSE(c echo.Context) error {
 		if _, err := fmt.Fprintf(c.Response(), "id: %d\ndata: %s\n\n", seq, payload); err != nil {
 			return false
 		}
-		c.Response().Flush()
+		flushResponse(c)
 		return isTerminalEvent(payload)
 	}
 
@@ -361,7 +361,7 @@ func (s *Server) HandleConvergenceRunSSE(c echo.Context) error {
 			if _, err := fmt.Fprint(c.Response(), ": heartbeat\n\n"); err != nil {
 				return nil
 			}
-			c.Response().Flush()
+			flushResponse(c)
 		}
 	}
 }

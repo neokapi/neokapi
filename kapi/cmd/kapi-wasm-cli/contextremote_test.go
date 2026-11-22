@@ -68,7 +68,7 @@ func TestPageRemote_Conformance(t *testing.T) {
 // A remote without the page contract's methods is refused by name.
 func TestPageRemote_RefusesAnObjectWithoutTheMethods(t *testing.T) {
 	_, err := newPageRemote(js.Global().Get("Object").New())
-	assert.ErrorContains(t, err, "no list method")
+	require.ErrorContains(t, err, "no list method")
 	_, err = newPageRemote(js.ValueOf("folder"))
 	assert.Error(t, err)
 }

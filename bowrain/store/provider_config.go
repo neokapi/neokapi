@@ -20,9 +20,9 @@ var ErrProviderConfigNotFound = errors.New("provider config not found")
 // Postgres (Epic 004 hybrid AI). Unlike the machine-global, keychain-backed
 // core/credentials store, these configs are multi-tenant: every row is owned by
 // exactly one workspace and the API key is sealed at rest with crypto.Cipher
-// (BOWRAIN_SECRETS_KEY) — the same mechanism used for connector secrets.
+// (BOWRAIN_SECRETS_KEY), the same mechanism used for connector secrets.
 //
-// APIKey holds the decrypted key and is populated only by Get and Resolve —
+// APIKey holds the decrypted key and is populated only by Get and Resolve,
 // never by List, and it is never serialized back to a client. On Upsert an empty
 // APIKey means "leave the stored key unchanged" (so a rename/model edit does not
 // wipe the key).
@@ -124,6 +124,30 @@ func (s *ProviderConfigStore) List(ctx context.Context, workspaceID string) ([]P
 	return out, rows.Err()
 }
 
+// Latest returns the workspace's most recently updated provider config, without
+// its API key. It is the config a workspace's automatic AI work (convergence,
+// automation translation, extraction) and an editor translation that names no
+// provider run on: saving a config, or editing one, makes it the one in use.
+// Returns ErrProviderConfigNotFound when the workspace has saved none.
+func (s *ProviderConfigStore) Latest(ctx context.Context, workspaceID string) (ProviderConfig, error) {
+	if workspaceID == "" {
+		return ProviderConfig{}, ErrProviderConfigNotFound
+	}
+	var c ProviderConfig
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, workspace_id, workspace_slug, name, type, model, base_url, created_at, updated_at
+		 FROM provider_configs WHERE workspace_id=$1
+		 ORDER BY updated_at DESC, id DESC LIMIT 1`, workspaceID,
+	).Scan(&c.ID, &c.WorkspaceID, &c.WorkspaceSlug, &c.Name, &c.Type, &c.Model, &c.BaseURL, &c.CreatedAt, &c.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ProviderConfig{}, ErrProviderConfigNotFound
+	}
+	if err != nil {
+		return ProviderConfig{}, fmt.Errorf("latest provider config: %w", err)
+	}
+	return c, nil
+}
+
 // Get returns one provider config, scoped to the workspace, with its API key
 // decrypted. Returns ErrProviderConfigNotFound when the id does not belong to
 // this workspace (cross-tenant reads are indistinguishable from "not found").
@@ -135,7 +159,7 @@ func (s *ProviderConfigStore) Get(ctx context.Context, workspaceID, configID str
 }
 
 // Resolve loads a saved config for the worker's translation path, with the API
-// key decrypted. It is scoped strictly by the DURABLE workspace_id — never by
+// key decrypted. It is scoped strictly by the DURABLE workspace_id, never by
 // workspace_slug. The persisted slug is a mutable, reusable label: a workspace
 // rename would break resolution, and worse, a slug freed by one tenant and later
 // acquired by another could authorize retrieval of the first tenant's decrypted

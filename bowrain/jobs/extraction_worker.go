@@ -39,6 +39,11 @@ type ExtractionWorkerDeps struct {
 	NERProvider        ner.Provider            // optional; nil disables NER pass
 	Platform           *PlatformProviderConfig // optional; nil disables platform provider
 	PlatformResolver   PlatformResolver        // optional; consulted at job time for runtime config changes (overrides Platform)
+	// ProviderStore finds the AI provider config a workspace has saved for its
+	// own key. A job whose project names no extraction_provider runs on the
+	// workspace's most recently updated config when it has one, and on the
+	// platform provider otherwise. Optional; nil always uses the platform.
+	ProviderStore WorkspaceProviderStore
 	// BillingHooks deducts platform credits for what an extraction spends.
 	// Optional; nil (self-hosted / unbilled) disables credit deduction.
 	BillingHooks *billing.UsageHooks
@@ -472,6 +477,9 @@ func resolveExtractionProvider(ctx context.Context, deps *ExtractionWorkerDeps, 
 	}
 
 	if providerConfigID == "" || providerConfigID == "platform" {
+		if resolved, ok, err := workspaceExtractionProvider(ctx, deps, job); err != nil || ok {
+			return resolved, err
+		}
 		// Extraction is not translation: it stays on the platform default model
 		// (a workspace's chosen translation model must not silently raise
 		// extraction cost), so it resolves with no workspace scope.

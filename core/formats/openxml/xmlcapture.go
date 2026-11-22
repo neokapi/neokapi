@@ -12,15 +12,15 @@ import (
 )
 
 // writeRawStartElementTo emits an XML start element to a strings.Builder,
-// preserving namespace prefixes via the package nsPrefixMap and
-// registering any new xmlns declarations on the element.
-func writeRawStartElementTo(out *strings.Builder, t xml.StartElement) {
-	registerNamespaces(t.Attr)
+// preserving namespace prefixes through the scope and registering any new
+// xmlns declarations on the element in it.
+func (s *nsScope) writeRawStartElementTo(out *strings.Builder, t xml.StartElement) {
+	s.register(t.Attr)
 	out.WriteString("<")
-	writeElementName(out, t.Name)
+	s.writeElementName(out, t.Name)
 	for _, a := range t.Attr {
 		out.WriteString(" ")
-		writeAttrName(out, a.Name)
+		s.writeAttrName(out, a.Name)
 		out.WriteString(`="`)
 		out.WriteString(xmlesc.Attr(a.Value))
 		out.WriteString(`"`)
@@ -29,19 +29,21 @@ func writeRawStartElementTo(out *strings.Builder, t xml.StartElement) {
 }
 
 // writeRawEndElementTo emits an XML end element to a strings.Builder.
-func writeRawEndElementTo(out *strings.Builder, t xml.EndElement) {
+func (s *nsScope) writeRawEndElementTo(out *strings.Builder, t xml.EndElement) {
 	out.WriteString("</")
-	writeElementName(out, t.Name)
+	s.writeElementName(out, t.Name)
 	out.WriteString(">")
 }
 
-func startElementToRaw(start xml.StartElement) string {
+// startElementToRaw serialises a start element with the prefixes the scope
+// resolves.
+func (s *nsScope) startElementToRaw(start xml.StartElement) string {
 	var b strings.Builder
 	b.WriteString("<")
-	writeElementName(&b, start.Name)
+	s.writeElementName(&b, start.Name)
 	for _, a := range start.Attr {
 		b.WriteString(" ")
-		writeAttrName(&b, a.Name)
+		s.writeAttrName(&b, a.Name)
 		b.WriteString(`="`)
 		b.WriteString(xmlesc.Attr(a.Value))
 		b.WriteString(`"`)

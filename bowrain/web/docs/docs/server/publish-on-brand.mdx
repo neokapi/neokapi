@@ -9,17 +9,18 @@ import { PhaseFlow } from "@neokapi/docs-shared";
 
 # Publish on brand
 
-This guide is for people who write and publish content, site pages, posts,
-marketing copy, and want it to leave the building on profile for the audience
-it was written for, and optionally in more than one language. It assumes no
-codebase and no command line: everything below happens in the Bowrain web app,
-against the systems your content already lives in.
+Connect your content platform or design tool, let the server draft and check
+your content against your voice profile and terms, and publish the approved
+result back. Every step happens in the Bowrain web app, with no codebase and no
+command line.
 
-By the end you will have a workspace with configured voice guidance and terms, a
-project connected to your content platform or design tool,
-[server runs](/the-loop) drafting and checking that content, a review session
-for what a machine cannot decide, and an explicit publish step that writes the
-result back where it came from.
+You end with:
+
+- a workspace with voice guidance and terms;
+- a project connected to your content platform or design tool;
+- [server runs](/the-loop) that draft and check the content;
+- a review session for what a machine cannot decide;
+- a publish step that writes the result back where it came from.
 
 <PhaseFlow
   nodes={[
@@ -34,15 +35,14 @@ result back where it came from.
 
 You need access to a Bowrain workspace; see
 [First login](/server/getting-started) for signing in and creating one. Adding
-connectors requires the **manage connectors** permission; approving a scan's
-proposals and saving a voice profile requires `manage_voice`, and promoting
+connectors requires the **manage connectors** permission. Approving a scan's
+proposals and saving a voice profile require `manage_voice`, and promoting
 terms requires `manage_terms`.
 
-## 1. Establish the context
+## 1. Set up the context
 
-The loop can only enforce what the workspace has written down. Three things
-carry that knowledge, and all are shared across every project in the
-workspace:
+A run enforces what the workspace has written down. Every project in the
+workspace shares these:
 
 - **The axes** your content varies along: the brand, the kind of document, the
   market. Content sits at a point on them, and what governs it is bound there.
@@ -50,24 +50,22 @@ workspace:
   description of how content at a point should read: tone, style rules,
   preferred and forbidden vocabulary, before/after examples. Most workspaces
   call their default profile *brand*. Once saved, it runs as checks over
-  everything the loop produces, and it keeps improving: corrections your
-  reviewers make aggregate into candidate rules that a reviewer promotes into
-  the profile.
+  everything a run produces. Your reviewers' corrections become candidate rules,
+  and a reviewer promotes the ones to keep into the profile.
 - **[Terms](/server/terminology)**: the concepts and terms your team has
   decided on, per language, with lifecycle statuses (preferred, deprecated,
   forbidden). Term suggestions appear in the editor, and term use is checked
   on everything a run produces.
 
-Starting from nothing, use a [context scan](/server/context-scan): point it at
-material you already have, pasted copy, public web pages, uploaded documents,
-and it proposes the axes, a voice profile and term candidates for you to edit
-and approve. Nothing a scan proposes is enforced until you approve it.
-Alternatively, curate directly: add concepts in the terms explorer or import an
-existing terms list from CSV or JSON.
+To start, run a [context scan](/server/context-scan) over material you already
+have: pasted copy, public web pages or uploaded documents. It proposes the
+axes, a voice profile and term candidates for you to edit and approve. A
+proposal takes effect only when you approve it. You can also add concepts
+directly in the terms explorer, or import an existing terms list from CSV or
+JSON.
 
-You do not need a finished profile to continue. A thin profile plus the
-correction loop is a workable starting point; the rules you actually need
-surface as reviewers fix real output.
+A short profile is enough to continue. Further rules come from the fixes
+reviewers make to real output.
 
 ## 2. Connect where your content lives
 
@@ -78,8 +76,8 @@ workspace; fetching and publishing act on the project you are in.
 
 Click **Add connector**, pick the system, and fill in its credentials. They
 are write-only: the server uses them to sync, and the interface never displays
-them again. Each connector syncs a specific slice of its system, and the
-limits matter when you plan what to route through Bowrain:
+them again. Each connector syncs part of its system. Check the limits when you
+plan what to route through Bowrain:
 
 | System | What syncs | Publish back | Notable limits |
 | --- | --- | --- | --- |
@@ -89,63 +87,70 @@ limits matter when you plan what to route through Bowrain:
 
 Once a connector is added, **Browse content** shows what it can see, and
 **Fetch now** pulls that content into the project as source text. Sync is
-explicit: connectors do not poll on a schedule, and fetching stores source
-content without starting a run. The same operations are available through the
-[workspace connectors API](/server/connectors) if you prefer to script them.
+explicit: connectors run only when you ask, and a fetch stores source content
+without starting a run. To script these operations, use the
+[workspace connectors API](/server/connectors).
 
-For a one-off document with no connector, a press release, a slide deck, a
-contract, upload the file directly into the project and
+For a one-off document with no connector, such as a press release, a slide deck
+or a contract, upload the file directly into the project and
 [export](/server/translation-editor#file-export) the finished file from the
 editor in its original format.
 
 ## 3. Draft and check
 
 Content fetched from a connector is ordinary project content, and
-[a server run](/the-loop) is how it catches up: each run checks the source
-against the context, reuses what the workspace already remembers, drafts the
-rest with AI steered by the voice profile and vocabulary in force at each
-point, checks everything it produced, and **holds back for review** what a machine
-cannot decide. Work waiting for review is pending, not an error.
+[a server run](/the-loop) catches it up. Each run:
 
-From the web app, start a run from the project's **Runs** view with **Run
-now**; the run's progress, pass count, and per-locale summary appear in the
-same view. A connector fetch raises no server event, so content fetched from a
-CMS is caught up by starting a run; [automation rules](/server/automation)
-react to content being *pushed* (from a repository or the CLI), not to a fetch.
+1. checks the source against the context;
+2. reuses what the workspace content memory already holds;
+3. drafts the rest with AI, using the voice profile and terms in force at each
+   point;
+4. checks everything it produced;
+5. **holds back for review** what a machine cannot decide.
 
-For finer control, say draft then run a specific check, author a
-[server-side flow](/server/flows) on the project's **Automations > Flows** tab
-and run it over the project. Flows are connector-agnostic: the same flow
-applies to content from any connector.
+Start a run from the project's **Runs** view with **Run now**. The run's
+progress, pass count and per-locale summary appear in the same view. A
+connector fetch raises no server event, so start a run after a fetch.
+[Automation rules](/server/automation) react to content *pushed* from a
+repository or the CLI.
+
+To control the steps, for example to draft and then run one specific check,
+write a [server-side flow](/server/flows) on the project's **Automations >
+Flows** tab and run it over the project. A flow works the same on content from
+any connector.
 
 ## 4. Review
 
-What the loop holds back lands in the project's [review session](/server/review),
-which walks every pending block across items and locales with the source, the
-draft, the checks and the voice findings side by side. Approve, reject or edit
-each block, or approve everything that passes the checks and the voice bar in
-one action. Approving the last pending block starts the run that delivers.
+Items a run holds back appear in the project's
+[review session](/server/review). It lists every pending block across items
+and locales, with the source, the draft, the checks and the voice findings side
+by side. Approve, reject or edit each block, or approve everything that passes
+the checks and the voice bar in one action. Approving the last pending block
+starts the run that delivers the results.
 
-Every fix a reviewer makes is also a signal: recurring corrections surface as
-candidate voice rules with a measured blast radius, and promoting one makes it
-an enforced check on every future generation (see
+Recurring corrections become candidate voice rules with a measured blast
+radius. Promoting one makes it an enforced check on every later generation (see
 [Voice and corrections](/server/context-voice)). The per-locale
-[ship state](/server/review#ship-states) on the dashboard tells you what can go
+[ship state](/server/review#ship-states) on the dashboard shows what can go
 out today.
 
 ## 5. Publish back
 
-Publishing is a deliberate, explicit step; nothing leaves Bowrain on its own.
-In the project's **Connectors** view, click **Publish** on the connector and
-confirm; the connector writes the project's stored text back to the matching
-items in the remote system, overwriting what is there.
+Content leaves Bowrain only when you publish it. In the project's
+**Connectors** view, click **Publish** on the connector and confirm. The
+connector writes the project's stored text back to the matching items in the
+remote system and overwrites what is there.
 
-What arrives depends on the system: WordPress posts are updated in place
-(title, body, excerpt, publication status untouched), HubSpot pages receive
-their new title and meta description but may still need a publish step inside
-HubSpot to go live, and Figma has no publish path, so you export the
-translations and apply them through your design workflow. Each connector page
-states exactly what its publish writes.
+What arrives depends on the system:
+
+- **WordPress** posts are updated in place: title, body and excerpt. Their
+  publication status stays as it was.
+- **HubSpot** pages receive their new title and meta description. You may
+  still need to publish the page inside HubSpot to make it live.
+- **Figma** has no publish path. Export the translations and apply them through
+  your design workflow.
+
+Each connector page lists what its publish writes.
 
 ## What's next
 

@@ -5,13 +5,27 @@ description: "How to use the kapi CLI to translate a neokapi-i18n KBF archive: p
 keywords: [kapi, translate, KBF, pseudo-translate, AI translation, neokapi-i18n, translation workflow]
 ---
 
+import { PipelineDiagram } from "@neokapi/docs-shared";
+
 # Translating with `kapi`
 
-`neokapi-i18n` produces a KBF directory archive. The `kapi` CLI translates it. This page walks through the three most useful flows.
+kapi fills the KBF archive that neokapi-i18n extracts. It pseudo-translates the archive to check your layout, translates it with AI and your content memory, and checks the result against your terms, and it writes each result back into the same files.
+
+<PipelineDiagram
+  channelLabel=""
+  stages={[
+    { label: "i18n/", sub: "KBF archive", role: "io" },
+    { label: "recycle", sub: "content memory", role: "annotate" },
+    { label: "translate", sub: "AI provider", role: "translate" },
+    { label: "qa · term-check", sub: "findings", role: "qa" },
+    { label: "compile", sub: "{locale}.json", role: "io" },
+  ]}
+  caption="Each kapi step reads and writes the same archive; neokapi-i18n compile turns it into runtime dicts."
+/>
 
 ## Pseudo-translation for UI checks
 
-Pseudo-translation is the fastest way to see what has been picked up for translation, and what has not.
+Pseudo-translation shows you at a glance which strings were extracted and which were missed.
 
 ```bash
 kapi pseudo-translate i18n/
@@ -21,7 +35,7 @@ With no `-o`, the default for KBF inputs is in-place: the `qps` target is added 
 
 Source `Welcome to Acme` becomes `▒ Ŵéḷçőḿé tő Âçmé ▒`:
 
-- **Accented characters** make translated strings visually distinct. Untranslated strings (bugs) stand out immediately in the UI.
+- **Accented characters** make translated strings visually distinct. A string that stays plain English is an extraction gap, and it stands out in the UI.
 - **Markers** (`▒`) mark start and end, so truncation is obvious (`Welcome to Ac…` never wraps to `▒ Ŵéḷç…`).
 - **Expansion** (adding 30–50% more characters) mimics German, French and Russian string growth so layout bugs surface before you ship.
 
@@ -31,7 +45,7 @@ Then `neokapi-i18n compile` it and load it as any other locale:
 neokapi-i18n compile i18n/ --out public/translations
 ```
 
-Your dev server now has a `qps` locale. Wire a language picker and ship pseudo-translated screenshots to design review.
+Your dev server then serves a `qps` locale. Add a language picker, and send pseudo-translated screenshots to design review.
 
 ### Pseudo-translation in CI
 
@@ -46,7 +60,7 @@ Add it to CI as a UI-layout smoke test:
 
 ## AI translation
 
-For actual translations, `kapi translate` feeds the KBF directory through an LLM. It preserves placeholders, inline element tokens, and plural / select structure:
+`kapi translate` sends the KBF directory to an LLM for translation. It preserves placeholders, inline element tokens, and plural / select structure:
 
 ```bash
 kapi translate i18n/ --target-lang fr
@@ -81,7 +95,7 @@ vp neokapi-i18n extract                          # refresh i18n/ with new/change
 kapi exec translate i18n/ --target-lang fr --skip-matched
 ```
 
-Only the blocks added since the last pass are sent to the LLM; everything already translated is left as-is.
+kapi sends only the blocks added since the last pass to the LLM, and leaves the translated blocks as they are.
 
 ## Checks
 
@@ -102,9 +116,9 @@ kapi exec term-check i18n/ --target-lang fr --termstore terms/fr.db   # terminol
 
 `kapi exec` reports what a check finds and exits 0 whatever it finds, so a run never fails a build on its own. The command that fails one is `kapi check`, which exits 3 while a finding fails; see [Ship gates and CI](/kapi/recipes/ship-gates-and-ci).
 
-## Content memory leverage
+## Reuse past translations from content memory
 
-`kapi` has a built-in SQLite content memory. Feed past translations in:
+`kapi` has a built-in content memory. Import your past translations:
 
 ```bash
 kapi memory import historical-translations.tmx -s en -t fr
@@ -121,20 +135,20 @@ Pass `--memory <name-or-path>` to `kapi exec recycle` to draw on a specific cont
 
 ## Terminology consistency
 
-For apps with a large product vocabulary, keep terms rendered consistently with a terms store. Import the term list into a named store, then check translations with `kapi exec term-check` so any target that diverges from an approved term is flagged:
+For an app with a large product vocabulary, a terms store keeps each term translated the same way. Import the term list into a named store, then check translations with `kapi exec term-check`, which flags any target that diverges from an approved term:
 
 ```bash
 kapi terms import product-terms.csv -s en -t fr --name product-terms
 kapi exec term-check i18n/ --target-lang fr --termstore product-terms
 ```
 
-To feed terminology into the translation step itself rather than only checking it afterward, read the terms into the project with `kapi store import` (the project's own terms govern with nothing bound) or list rules under `term_rules:` in the step's config. `translate` reads the matching rules itself and sends them in the prompt's terminology section.
+To give the translation step the terms as well as checking them afterward, read the terms into the project with `kapi store import` (the project's own terms govern with nothing bound) or list rules under `term_rules:` in the step's config. `translate` reads the matching rules itself and sends them in the prompt's terminology section.
 
 See [Terminology](/framework/terminology).
 
 ## Putting it together
 
-A complete Makefile / package-scripts setup for a multi-locale app:
+A complete package-scripts setup for a multi-locale app:
 
 ```json title="package.json"
 {
@@ -149,18 +163,17 @@ A complete Makefile / package-scripts setup for a multi-locale app:
 
 ## Drive it from a project
 
-The commands above are ad-hoc: flags on every call, fine for a quick run. For an
-app you translate every release, a [`kapi.yaml` project file](/contribute/architecture/context/c-01-project-model)
-is the working model worth adopting: it captures the content patterns, target
-languages, flows, and defaults once, so you drive everything through named flows
-instead of repeating flags, and the project store accumulates content memory
-and terminology across releases.
+The commands above take their flags on every call, which suits a quick run. For
+an app you translate every release, a [`kapi.yaml` project file](/contribute/architecture/context/c-01-project-model)
+records the content patterns, target languages, flows and defaults once. You then
+run named flows instead of repeating flags, and the project store keeps content
+memory and terminology across releases.
 
-`kapi init --framework neokapi-i18n` scaffolds the recommended layout, in which
-everything the stack authors sits under one `i18n/` directory. The bundler writes
-source catalogs to `i18n/src/`; kapi writes per-locale targets to `i18n/{lang}/`.
-Source living under `i18n/src/` (rather than flat under `i18n/`) is what lets the source
-glob stay clear of the generated targets, with no sibling `i18n-<lang>/` trees:
+`kapi init --framework neokapi-i18n` scaffolds a layout that keeps every catalog
+under one `i18n/` directory. The bundler writes source catalogs to `i18n/src/`,
+and kapi writes per-locale targets to `i18n/{lang}/`. Because the source lives
+under `i18n/src/`, the source glob never matches the generated targets, and you
+need no sibling `i18n-<lang>/` trees:
 
 ```yaml title="kapi.yaml"
 version: v1
@@ -190,9 +203,9 @@ context/
 └── work/                   content memory and pseudo-locale output (ignored by git)
 ```
 
-The content memory's local store and the pseudo-locale output are rebuildable
-state, so they live under `.kapi/work/`, in the checkout's cache that git never
-sees. The terms and the voice profile are files you commit under `context/`;
+The content memory's local store and the pseudo-locale output are state that
+kapi can rebuild, so they live under `.kapi/work/`, a cache in the checkout that
+git ignores. The terms and the voice profile are files you commit under `context/`;
 an edit to `context/voice.yaml` or `context/terms.json` takes effect when you
 run `kapi store import context` again. See [Context portability](/kapi/context-portability).
 
@@ -227,11 +240,13 @@ anything that breaks, the same author → check → revise loop you'd run by han
 
 Claude translates in place (locale-additive), runs `kapi exec qa` / `kapi exec term-check`, and
 loops on the findings until the archive passes; you `neokapi-i18n compile` the result as
-usual. Your components stay as they are; only the catalogue changes.
+usual. Claude changes the catalog and leaves your components as they are.
 
 See [Use with Claude](/kapi/get-started/use-with-claude) for the MCP setup and the
 broader agent loop.
 
-## Next
+## Related
 
+- [Extract → translate → compile](./pipeline): where these commands sit in the full round trip.
+- [In-context review](./in-context-review): see the check findings on the running app.
 - [Configuration](./configuration): componentMap, rules, Storybook, warnings.

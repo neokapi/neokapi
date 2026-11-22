@@ -26,25 +26,25 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Content Extraction",
 				Fields: []string{
-					"translateNotes", "translateHiddenContent",
-					"extractNonTranslatableContent",
+					"translate_notes", "translate_hidden_content",
+					"extract_non_translatable_content",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"translateNotes": schema.Prop(coreschema.PropertySchema{
+			"translate_notes": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Translate Presentation Notes",
 				Description: "If true, presentation speaker notes are extracted as translatable content.",
 			}),
-			"translateHiddenContent": schema.Prop(coreschema.PropertySchema{
+			"translate_hidden_content": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Translate Hidden Content",
 				Description: "If true, hidden content is extracted as translatable content.",
 			}),
-			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+			"extract_non_translatable_content": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Extract non-translatable content",

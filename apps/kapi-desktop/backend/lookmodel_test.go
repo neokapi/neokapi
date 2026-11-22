@@ -59,7 +59,7 @@ func saveAnthropicKeyNamed(t *testing.T, app *App, name string) string {
 	return saved.ID
 }
 
-func TestLookModel_ReadsTheSavedKeyOnceForRepeatedMapViews(t *testing.T) {
+func TestLookModel_ReadsTheSavedKeyOnceForRepeatedOverviewViews(t *testing.T) {
 	app, tabID, lookups := lookModelApp(t)
 	saveAnthropicKey(t, app)
 
@@ -69,7 +69,7 @@ func TestLookModel_ReadsTheSavedKeyOnceForRepeatedMapViews(t *testing.T) {
 	for range 5 {
 		assert.Equal(t, want, lookModelOf(t, app, tabID))
 	}
-	assert.Equal(t, 1, *lookups, "five Map views read the saved key once")
+	assert.Equal(t, 1, *lookups, "five Overview views read the saved key once")
 }
 
 func TestLookModel_SavingAKeyAsksAgain(t *testing.T) {

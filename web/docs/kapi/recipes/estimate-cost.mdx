@@ -13,14 +13,14 @@ import { StatsWidget } from "@site/src/components/Lab";
 
 # Estimate a run's cost
 
-**Goal:** know what a translation run will cost before you start it. kapi counts what there actually is to translate (blocks, words, characters, off the **extracted content**, so boilerplate, keys, and markup are excluded), and you multiply by a model's or vendor's per-word rate. In a project, `kapi up --plan` goes further and prices the pending work per language. Try the counter in your browser:
+**Goal:** know what a translation run will cost before you start it. kapi counts the text there is to translate (blocks, words, characters, off the **extracted content**, so boilerplate, keys, and markup are excluded), and you multiply by a model's or vendor's per-word rate. In a project, `kapi up --plan` goes further and prices the pending work per language. Try the counter in your browser:
 
 <StatsWidget />
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-Open the project: each content collection lists its matched files with per-file and collection totals, so the volume of a job is visible before you run anything. **Plan…** beside **Bring up to date** shows the pending work per language, the leverage available from content memory, and a token estimate before anything runs. For a loose file, the stats tool runs as a **quick tool** from the Toolbox.
+Open the project: each content collection lists its matched files with per-file and collection totals, so the volume of a job is visible before you run anything. **Plan…** on the Overview shows the pending work per language, the leverage available from content memory, and a token estimate before anything runs. For a loose file, count it from the command line with `kapi exec word-count <file>`.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">

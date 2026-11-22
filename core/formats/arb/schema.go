@@ -24,12 +24,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"descriptionNotes",
+					"description_notes",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"descriptionNotes": schema.Prop(coreschema.PropertySchema{
+			"description_notes": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Surface descriptions as notes",
 				Default:     true,

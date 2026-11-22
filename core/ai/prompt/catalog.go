@@ -87,6 +87,38 @@ func (p TermForms) Turns(terms string) []Turn {
 	}
 }
 
+// TermTranslate asks for the term a concept takes in a target language, given
+// its source term, its definition and sentences that use it. The answer is a
+// proposal: a person keeps, edits or rejects each one before it governs any
+// text.
+type TermTranslate struct {
+	// SourceLocale and TargetLocale are the languages of the source term and
+	// of the term wanted.
+	SourceLocale model.LocaleID
+	TargetLocale model.LocaleID
+}
+
+func (p TermTranslate) Turns(concepts string) []Turn {
+	var b strings.Builder
+	b.WriteString("You are a terminologist. For each concept below, give the term it takes in ")
+	fmt.Fprintf(&b, "%s, translated from %s.\n\n", LanguageName(p.TargetLocale), LanguageName(p.SourceLocale))
+	b.WriteString("Each concept has an id, its source term, a definition when one is known, sentences from the content that use it, ")
+	b.WriteString("and terms a reviewer has already turned down.\n\n")
+	b.WriteString("Rules:\n")
+	b.WriteString("- Give the term a careful writer in the target language would use for this concept in this content, in its dictionary form.\n")
+	b.WriteString("- Read the sentences: they decide which sense of the source term is meant.\n")
+	b.WriteString("- Keep a product name, a command or a code identifier unchanged when the target language uses it unchanged.\n")
+	b.WriteString("- Never answer with a term listed as turned down.\n")
+	b.WriteString("- Answer every id once. Leave the term empty when you cannot tell what it should be; an empty answer is better than a guess.\n")
+	b.WriteString("- The note is one short sentence on the choice, in English, or empty.\n")
+	b.WriteString("\nA person reviews each answer before it is used.")
+
+	return []Turn{
+		System(Section{Kind: KindTask, Origin: "framework", Text: b.String()}),
+		User(Section{Kind: KindContent, Origin: "concepts", Text: concepts}),
+	}
+}
+
 // VoiceInfer drafts a voice profile from a corpus of existing content.
 type VoiceInfer struct {
 	// Domain is an optional subject-domain hint ("medical", "developer tools").
@@ -580,6 +612,13 @@ func Catalog() []CatalogEntry {
 			Tool:    "terms-expand",
 			Summary: "List the other surface forms a term takes in one language, so the check can match them without guessing at morphology.",
 			Turns:   TermForms{Language: "nb", MaxPerTerm: 8}.Turns("løsning\nutnytte"),
+		},
+		{
+			ID:      IDTermTranslate,
+			Tool:    "term-translate",
+			Summary: "Propose the term a concept takes in a target language, from its source term, definition and sentences that use it, for a person to keep, edit or reject.",
+			Turns: TermTranslate{SourceLocale: "en", TargetLocale: "nb"}.Turns(
+				`[{"id":"c1","term":"workspace","definition":"<what the term means>","examples":["<a sentence that uses it>"],"turned_down":[]}]`),
 		},
 		{
 			ID:      IDAxisDiscover,

@@ -19,7 +19,7 @@ import (
 //     context or its recipe directly. The context policy refuses that write
 //     to anyone but a person; an agent records an observation or a correction
 //     instead, and a person keeps it.
-//   - decide with any outcome but advise. A review decision is a person's; an
+//   - decide with any outcome but prereview. A review decision is a person's; an
 //     agent pre-reviews.
 //   - send if_match "*", which writes whatever the edition holds without having
 //     read it.
@@ -29,7 +29,7 @@ import (
 // A tool in a flow may choose report: its drafts land as drafts and meet the
 // ship gates later. Only a tool records provenance, the in-process operation
 // that says how a tool produced an edition. A tool, like an agent, decides
-// only with advise; a surface that carries a person's decision (a pull, a
+// only with prereview; a surface that carries a person's decision (a pull, a
 // merge) sends it as that person.
 //
 // The surface that carries a change set names its sender. A sender of any
@@ -66,9 +66,9 @@ func (p ChangePolicy) Permit(actor change.Actor, set *change.Set, op change.Op) 
 		return p.asset(actor, op.Kind)
 	case change.KindDecide:
 		d, _ := op.Body.(*change.Decide)
-		if actor.Kind != change.ActorPerson && (d == nil || d.Outcome != change.OutcomeAdvise) {
+		if actor.Kind != change.ActorPerson && (d == nil || d.Outcome != change.OutcomePrereview) {
 			return notPermitted("outcome", actor, "decide "+outcomeOf(d),
-				"a review decision is a person's; record a pre-review with outcome advise")
+				"a review decision is a person's; record a pre-review with outcome prereview")
 		}
 	case change.KindProvenance:
 		if actor.Kind != change.ActorTool {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host"
 )
 
 // FileMatch represents a file matched by content patterns.
@@ -74,7 +75,9 @@ func (a *App) MatchContent(tabID string) ([]FileMatch, error) {
 }
 
 // DetectFormat returns the format name for a file path outside any project:
-// the registry's resolver by extension, under the config's engine default.
+// the registry's resolver, under the config's engine default. When several
+// formats claim the extension, the file's head decides among them; a path
+// that cannot be read (an archive entry's name) resolves by extension.
 // A path in an open project goes through DetectProjectFormat, which adds the
 // recipe's sources, engine preference and pins.
 func (a *App) DetectFormat(path string) string {
@@ -82,7 +85,7 @@ func (a *App) DetectFormat(path string) string {
 	if ext == "" {
 		return ""
 	}
-	detected, err := a.formatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
+	detected, err := a.formatReg.Detect(path, registry.DetectOptions{})
 	if err != nil {
 		return ""
 	}
@@ -107,6 +110,10 @@ type ProjectFileInfo struct {
 	Format   string `json:"format,omitempty"`
 	Size     int64  `json:"size"`
 	IsDir    bool   `json:"is_dir"`
+	// Context marks a context file (host.ContextFileFilter): a voice profile,
+	// a terms or content-memory bundle, a decision-record shard. It governs
+	// the content and is never a candidate for a collection.
+	Context bool `json:"context,omitempty"`
 }
 
 // IsEmptyProject returns true if the project directory contains only
@@ -144,8 +151,12 @@ func (a *App) ListProjectFiles(tabID string) ([]ProjectFileInfo, error) {
 
 	// Use project-scoped format detection when a project is available.
 	var ctx *project.ProjectContext
+	isContext := host.IsContextFile
 	if op != nil {
 		ctx = project.NewProjectContext(op.Project, op.Path)
+		if op.Path != "" {
+			isContext = host.ContextFileFilter(op.Path)
+		}
 	}
 
 	var files []ProjectFileInfo
@@ -158,6 +169,7 @@ func (a *App) ListProjectFiles(tabID string) ([]ProjectFileInfo, error) {
 			IsDir:    info.IsDir(),
 		}
 		if !info.IsDir() {
+			pf.Context = isContext(rel)
 			if ctx != nil {
 				pf.Format = ctx.DetectFormat(a.formatReg, path)
 			} else {

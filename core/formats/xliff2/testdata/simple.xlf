@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+  <file id="f1" original="app.json">
+    <unit id="greeting">
+      <segment state="translated">
+        <source>Hello <pc id="1">world</pc></source>
+        <target>Bonjour <pc id="1">le monde</pc></target>
+      </segment>
+    </unit>
+    <unit id="count">
+      <notes>
+        <note category="description">Shown under the inbox title.</note>
+      </notes>
+      <segment>
+        <source>You have <ph id="1" equiv="{count}"/> new messages.</source>
+      </segment>
+    </unit>
+  </file>
+</xliff>

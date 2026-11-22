@@ -423,3 +423,53 @@ func TestDetectBinaryFlaggedFormatNotDeclined(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "mo", name)
 }
+
+// TestDetectByContentAmong checks that a format outside the named set never
+// shadows a sniffer inside it, whatever its priority, and that the head read
+// reaches past DetectByContent's 512 bytes.
+func TestDetectByContentAmong(t *testing.T) {
+	d := format.NewDetector()
+	d.Register("xml", format.FormatSignature{
+		Extensions: []string{".xml"},
+		MIMETypes:  []string{"text/xml", "application/xml"},
+		MagicBytes: [][]byte{[]byte("<?xml")},
+	})
+	d.Register("android", format.FormatSignature{
+		Extensions: []string{".xml"},
+		Sniff:      func(b []byte) bool { return bytes.Contains(b, []byte("<resources>")) },
+	})
+	d.SetPriority("android", format.DefaultBuiltInPriority-10)
+	// A format of another extension whose sniffer also matches, ranked higher.
+	d.Register("greedy", format.FormatSignature{
+		Extensions: []string{".greedy"},
+		Sniff:      func(b []byte) bool { return bytes.Contains(b, []byte("<?xml")) },
+	})
+	d.SetPriority("greedy", 90)
+
+	cands := map[string]bool{"xml": true, "android": true}
+	doc := `<?xml version="1.0"?><resources><string name="a">A</string></resources>`
+
+	name, err := d.DetectByContent(strings.NewReader(doc))
+	require.NoError(t, err)
+	assert.Equal(t, "greedy", name, "unrestricted detection takes the highest-priority sniffer")
+
+	name, err = d.DetectByContentAmong(strings.NewReader(doc), cands)
+	require.NoError(t, err)
+	assert.Equal(t, "android", name)
+
+	name, err = d.Detect("strings.xml", strings.NewReader(doc), "")
+	require.NoError(t, err)
+	assert.Equal(t, "android", name, "Detect sniffs among the extension's claimants")
+
+	long := `<?xml version="1.0"?><!--` + strings.Repeat(" licence text", 100) + `--><resources><string name="a">A</string></resources>`
+	name, err = d.DetectByContentAmong(strings.NewReader(long), cands)
+	require.NoError(t, err)
+	assert.Equal(t, "android", name, "a licence comment ahead of the root stays inside the head")
+
+	name, err = d.DetectByContentAmong(strings.NewReader(`<?xml version="1.0"?><root/>`), cands)
+	require.NoError(t, err)
+	assert.Equal(t, "xml", name)
+
+	_, err = d.DetectByContentAmong(strings.NewReader(doc), nil)
+	assert.Error(t, err)
+}

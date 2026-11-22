@@ -21,14 +21,17 @@ import { FRAME_H, FRAME_W, sceneLayout } from "../remotion/components/layout.ts"
 import type { SceneLayout } from "../remotion/components/layout.ts";
 import type { ZoomRect } from "../types.ts";
 
-/** Furthest a crop pushes into the window on its own; a beat's `zoom` can take it to 3. */
-export const MAX_CROP_SCALE = 2.5;
+/**
+ * Furthest the camera zooms into the window. The capture is 1920x1080, so a
+ * deeper zoom draws text from upscaled pixels and it reads soft.
+ */
+export const MAX_CROP_SCALE = 2;
 
 /** A region whose fit is under this is shown as the whole window. */
 export const FULL_WINDOW_FIT = 1.15;
 
-/** A full-window card fits this much of the picture box, so its tilt never clips. */
-export const CARD_INSET = 0.96;
+/** The wide shot fits the window in this much of the picture box, so its frame and shadow show around it. */
+export const CARD_INSET = 0.86;
 
 /**
  * Web demos capture a browser SPA with no window chrome, so the composition
@@ -51,6 +54,9 @@ export interface CardGeometry {
   cardH: number;
   cardCx: number;
   cardCy: number;
+  /** The picture box the card is drawn in, which clips it. */
+  boxW: number;
+  boxH: number;
   /** The area a crop is fitted into: the picture box down to the caption band. */
   areaW: number;
   areaH: number;
@@ -80,6 +86,8 @@ export function cardGeometry(layout: SceneLayout, aspect: number, web: boolean):
     cardH,
     cardCx: (boxW - cardW) / 2 + cardW / 2,
     cardCy: (boxH - cardH) / 2 + cardH / 2,
+    boxW,
+    boxH,
     areaW: boxW,
     areaH,
     areaCx: boxW / 2,
@@ -87,9 +95,57 @@ export function cardGeometry(layout: SceneLayout, aspect: number, web: boolean):
   };
 }
 
-/** The scale at which `region` fills the crop area. Below `FULL_WINDOW_FIT` the shot is the whole window. */
+/** The share of the crop area a zoomed region fills, so it keeps a margin around it. */
+export const ZOOM_FILL = 0.84;
+
+/**
+ * The scale at which `region` fills the crop area, less the margin
+ * `ZOOM_FILL` keeps around it. Below `FULL_WINDOW_FIT` the shot is the whole
+ * window.
+ */
 export function regionFit(region: ZoomRect, geo: CardGeometry): number {
-  return Math.min(geo.areaW / (region.w * geo.bw), geo.areaH / (region.h * geo.bh));
+  return ZOOM_FILL * Math.min(geo.areaW / (region.w * geo.bw), geo.areaH / (region.h * geo.bh));
+}
+
+/**
+ * How far past the picture box's edges the pushed-in window is kept, as a
+ * share of the box, so the camera's tilt and breathing drift never open a gap
+ * at an edge.
+ */
+export const EDGE_OVERSCAN = 0.02;
+
+/**
+ * The pan of a cropped shot, moved as little as needed so the window still
+ * fills the picture box.
+ *
+ * A shot centres its region in the crop area. A region near the window's edge
+ * then pulls the window's edge into the frame, with the backdrop beside it,
+ * so the pan is clamped to keep each edge of the window past the edge of the
+ * box. The region itself stays in the crop area: the clamp never moves it out
+ * of the space above the captions, and where both cannot hold, the region
+ * wins. Pans are in the box's pixels, as `DesktopScene` applies them about the
+ * card's centre.
+ */
+export function panInsideWindow(region: ZoomRect, s: number, tx: number, ty: number, geo: CardGeometry): { tx: number; ty: number } {
+  const mx = EDGE_OVERSCAN * geo.boxW;
+  const my = EDGE_OVERSCAN * geo.boxH;
+  // Where a window point lands in the box, with no pan: x = cardCx + tx + s * (u * bw - cardW / 2).
+  const x0 = geo.cardCx - (s * geo.cardW) / 2; // the window's left edge
+  const x1 = geo.cardCx + s * (geo.bw - geo.cardW / 2); // its right edge
+  const y0 = geo.cardCy - (s * geo.cardH) / 2; // the card's top (bar included)
+  const y1 = geo.cardCy + s * (geo.bar + geo.bh - geo.cardH / 2); // its bottom
+  const within = (v: number, a: number, b: number) => Math.max(Math.min(a, b), Math.min(Math.max(a, b), v));
+  // Keep the window's edges past the box's: left edge at or before -mx, right at or after boxW + mx.
+  let px = within(tx, -mx - x0, geo.boxW + mx - x1);
+  let py = within(ty, -my - y0, geo.boxH + my - y1);
+  // The region stays inside the crop area, which comes first.
+  const rx0 = geo.cardCx + s * (region.x * geo.bw - geo.cardW / 2);
+  const rx1 = geo.cardCx + s * ((region.x + region.w) * geo.bw - geo.cardW / 2);
+  const ry0 = geo.cardCy + s * (geo.bar + region.y * geo.bh - geo.cardH / 2);
+  const ry1 = geo.cardCy + s * (geo.bar + (region.y + region.h) * geo.bh - geo.cardH / 2);
+  px = within(px, -rx0, geo.areaW - rx1);
+  py = within(py, -ry0, geo.areaH - ry1);
+  return { tx: px, ty: py };
 }
 
 /** How a demo's beats are framed: the geometry every scene of it shares. */
@@ -112,8 +168,8 @@ export function frameGeometry(frame: DemoFrame): CardGeometry {
 export function fitCeilings(frame: DemoFrame): { w: number; h: number } {
   const geo = frameGeometry(frame);
   return {
-    w: geo.areaW / geo.bw / FULL_WINDOW_FIT,
-    h: geo.areaH / geo.bh / FULL_WINDOW_FIT,
+    w: (ZOOM_FILL * geo.areaW) / geo.bw / FULL_WINDOW_FIT,
+    h: (ZOOM_FILL * geo.areaH) / geo.bh / FULL_WINDOW_FIT,
   };
 }
 

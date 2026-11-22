@@ -26,7 +26,7 @@ const meta: Meta<typeof ReaderView> = {
     onFix: fn(),
     onFixAll: fn(),
     onBack: fn(),
-    backLabel: "Back to the Map",
+    backLabel: "Back to the Overview",
     navigate: fn(),
   },
   parameters: { layout: "fullscreen" },
@@ -52,7 +52,7 @@ export const AtABlock: Story = { args: { focusBlockID: "p3", backLabel: "Back to
 
 /** A port with the reads alone. */
 const READ_ONLY: ProjectScreensPort = {
-  mapSummary: async () => MAP_PENDING,
+  overviewSummary: async () => MAP_PENDING,
   readerFile: async () => READER_WITH_FIXES,
   decideView: async () => DECIDE_VIEW,
 };

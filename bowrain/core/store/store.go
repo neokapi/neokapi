@@ -13,12 +13,17 @@ import (
 // the umbrella the concrete server store satisfies; it is exactly the union of
 // the roles below, so existing implementations and callers are unchanged.
 
+// ProjectEdit changes the current project under a write lock. It returns true
+// to persist the edit. Properties is initialized before the edit runs.
+type ProjectEdit func(*Project) (bool, error)
+
 // ProjectStore persists projects and their archive lifecycle.
 type ProjectStore interface {
 	CreateProject(ctx context.Context, p *Project) error
 	GetProject(ctx context.Context, id string) (*Project, error)
 	ListProjects(ctx context.Context) ([]*Project, error)
 	UpdateProject(ctx context.Context, p *Project) error
+	EditProject(ctx context.Context, id string, edit ProjectEdit) (project *Project, changed bool, err error)
 	DeleteProject(ctx context.Context, id string) error
 	ArchiveProject(ctx context.Context, id string) error
 	RestoreProject(ctx context.Context, id string) error
@@ -282,6 +287,25 @@ type PushApplier interface {
 	CreateCollection(ctx context.Context, c *Collection) error
 	UpdateCollection(ctx context.Context, c *Collection) error
 
+	// The context ledger verbs. When a project's context lives on the venue,
+	// a push carries the ledger objects the venue does not hold, and storing
+	// them is part of the same transition as the content: a ledger that
+	// outlived a failed push would record decisions about content that never
+	// landed. PutContextObjects returns how many objects the project did not
+	// hold, and refuses a name held with other bytes with a
+	// *ContextObjectExistsError. BindContextKey binds an unbound project and
+	// returns the key it is bound to after the call.
+	PutContextObjects(ctx context.Context, projectID string, pushedBy Pusher, batch []ContextObject) (int, error)
+	BindContextKey(ctx context.Context, projectID, key string) (string, error)
+
+	// The apply marker. A push job claims it on its own transaction, so a job
+	// redelivered after the transaction committed applies nothing twice:
+	// ClaimPushApply reports false for a job an earlier run applied.
+	// RecordPushApply stores what the run applied, which the redelivered run
+	// finishes from (see PushApplyStore.PushApplied).
+	ClaimPushApply(ctx context.Context, jobID string) (bool, error)
+	RecordPushApply(ctx context.Context, jobID string, record []byte) error
+
 	// The identity verbs. A push declares a tree; which document each entry IS
 	// is resolved against what the venue holds, and acted on before any content
 	// lands — so a renamed file's blocks are written to the item that already
@@ -306,4 +330,7 @@ type PushApplyStore interface {
 	// ApplyPush runs fn against one transaction and commits it. An error from
 	// fn rolls the whole transition back: nothing fn wrote survives.
 	ApplyPush(ctx context.Context, fn func(PushApplier) error) error
+	// PushApplied reads what an applied push job recorded (PushApplier.
+	// RecordPushApply), and false for a job no committed run applied.
+	PushApplied(ctx context.Context, jobID string) ([]byte, bool, error)
 }

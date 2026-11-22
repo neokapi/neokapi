@@ -35,8 +35,8 @@ func TestResolve_CandidatesAnswerInTheirOwnProject(t *testing.T) {
 
 func TestResolve_OnlyCandidatesAdvise(t *testing.T) {
 	tests := []struct {
-		status contextop.Status
-		advise bool
+		status   contextop.Status
+		advisory bool
 	}{
 		{contextop.StatusSuggested, true},
 		{contextop.StatusEstablished, false},
@@ -50,7 +50,7 @@ func TestResolve_OnlyCandidatesAdvise(t *testing.T) {
 				Subject: termRule("utilise", "use", false), Status: tt.status,
 			}
 			got := contextop.Resolve([]contextop.Record{r}, nil, contextop.ResolveRequest{Project: "prj_docs"})
-			assert.Equal(t, tt.advise, len(got.Advisory) == 1,
+			assert.Equal(t, tt.advisory, len(got.Advisory) == 1,
 				"a confirmed rule lives in the project's own store, and a discarded or reverted one answers nowhere")
 		})
 	}
@@ -123,7 +123,7 @@ func TestResolution_RuleSetsMarkCandidatesAdvisory(t *testing.T) {
 	sets := resolution.RuleSets()
 	require.Len(t, sets, 2)
 	assert.False(t, sets[0].Suggested, "a widened rule binds")
-	assert.True(t, sets[1].Suggested, "a candidate advises")
+	assert.True(t, sets[1].Suggested, "a candidate is reported")
 
 	hits := profile.MatchTermRulesInText(sets, "we leverage and utilise it")
 	require.Len(t, hits, 2)

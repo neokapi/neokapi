@@ -48,7 +48,7 @@ export const TextField: Story = {
 export const NumberField: Story = {
   render: () => (
     <FieldHarness
-      name="expansionPercent"
+      name="expansion_percent"
       schema={{
         type: "integer",
         description: "Expand text length %",

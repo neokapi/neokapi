@@ -36,7 +36,7 @@ func placeholderUpProject(t *testing.T) (*App, *EnvCommand, string) {
 		"  translate_after: none\n"+redactionYAML+
 		"collections:\n  - name: docs\n    content:\n      - path: \"docs/*.json\"\n        target: \"out/{lang}/{name}.{ext}\"\n"+
 		"flows:\n  rewrite:\n    steps:\n      - tool: redact\n"+
-		"      - tool: external-command\n        config:\n          command: "+script+"\n          applySource: true\n          applyTarget: false\n"+
+		"      - tool: external-command\n        config:\n          command: "+script+"\n          apply_source: true\n          apply_target: false\n"+
 		"      - tool: translate\n        config:\n          provider: demo\n      - tool: unredact\n")
 	write("redact.yaml", redactRules)
 	write("docs/page.json", redactedPage)

@@ -1,6 +1,6 @@
 import { Layers } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
-import { NeighbourhoodTable } from "../ui/neighbourhood-table";
+import { NeighbourhoodTable, type NeighbourhoodEntry } from "../ui/neighbourhood-table";
 import { Skeleton } from "../ui/skeleton";
 import { LayerCard } from "./LayerCard";
 import type { ReviewNeighbourhood } from "@neokapi/contract-types";
@@ -12,13 +12,20 @@ import type { ReviewNeighbourhood } from "@neokapi/contract-types";
  * This is one of the four things a translate prompt carries about a block, so a
  * reviewer reading a paragraph in sequence reads what the model read. The table
  * is `NeighbourhoodTable`, and the neighbours travel as run sequences through
- * the declared run projection, so a placeholder in a neighbour reads as a chip
- * rather than disappearing.
+ * the declared run projection, so a placeholder in a neighbour, or in the unit
+ * itself, reads as a chip rather than disappearing.
  */
 export interface NeighbourhoodCardProps {
   neighbourhood?: ReviewNeighbourhood;
   /** The unit under decision, rendered in place between its neighbours. */
   unitKey?: string;
+  /**
+   * The unit's own runs, as the caller holds them now. Wins over the
+   * neighbourhood's copy, which was read with the context and can trail an
+   * edit made since.
+   */
+  unit?: NeighbourhoodEntry;
+  /** The unit's text, drawn only when no runs for it are at hand. */
   unitSource?: string;
   unitTarget?: string;
   sourceLocale?: string;
@@ -32,6 +39,7 @@ export interface NeighbourhoodCardProps {
 export function NeighbourhoodCard({
   neighbourhood,
   unitKey,
+  unit,
   unitSource,
   unitTarget,
   sourceLocale,
@@ -81,6 +89,7 @@ export function NeighbourhoodCard({
             before={before}
             after={after}
             unitKey={key}
+            unit={unit ?? neighbourhood.unit}
             unitSource={unitSource}
             unitTarget={unitTarget}
             sourceLocale={sourceLocale}

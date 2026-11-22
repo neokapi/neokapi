@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import { createTravels, type Travels } from "travels";
 import { useTravelStore } from "use-travel";
 import type { KapiProject } from "../types/api";
@@ -36,127 +36,116 @@ function toPlain(p: KapiProject): KapiProject {
   return JSON.parse(JSON.stringify(p));
 }
 
-function makeTravels(initial: KapiProject) {
+/** A tab's timeline: manual archive mode, so undo steps are the debounced
+ *  batches committed by archive(). */
+type ProjectTravels = Travels<KapiProject, false, false>;
+
+function makeTravels(initial: KapiProject): ProjectTravels {
   return createTravels(toPlain(initial), {
     maxHistory: MAX_UNDO,
     autoArchive: false,
-  }) as unknown as Travels<KapiProject, false, true>;
+  });
 }
 
-/**
- * Manages project undo/redo history and dirty-state tracking using
- * mutative/travels for patch-based storage.
- *
- * Each tab gets its own persistent Travels instance (stored in a Map).
- * Switching tabs swaps the active instance without destroying history.
- * Undo boundaries are debounced at ARCHIVE_DEBOUNCE_MS.
- */
-export function useProjectHistory(
-  initialProject: KapiProject,
-  tabId: string | null,
-): ProjectHistory {
-  // Persistent map of Travels instances and saved snapshots per tab.
-  const instancesRef = useRef(new Map<string, Travels<KapiProject, false, true>>());
-  const savedMapRef = useRef(new Map<string, string>());
-  const tabIdRef = useRef(tabId);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+interface TabHistory {
+  timeline: ProjectTravels;
+  saved: string;
+  timer?: ReturnType<typeof setTimeout>;
+}
 
-  // Get or create the Travels instance for the current tab.
+export function useProjectHistory(initialProject: KapiProject, tabId: string | null) {
+  const histories = useRef(new Map<string, TabHistory>()).current;
+  const [, refresh] = useReducer((n: number) => n + 1, 0);
   const key = tabId ?? "";
-  if (!instancesRef.current.has(key)) {
-    instancesRef.current.set(key, makeTravels(initialProject));
-    savedMapRef.current.set(key, serialize(initialProject));
+  let history = histories.get(key);
+  if (!history) {
+    history = { timeline: makeTravels(initialProject), saved: serialize(initialProject) };
+    histories.set(key, history);
   }
+  const entry = history;
+  const [state, , controls] = useTravelStore<KapiProject, false, false>(entry.timeline);
 
-  // On tab switch, flush any pending debounce from the previous tab.
-  if (tabId !== tabIdRef.current) {
-    tabIdRef.current = tabId;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = null;
-  }
-
-  // useState to hold the active instance — triggers re-render on tab switch.
-  const [activeInstance, setActiveInstance] = useState(() => instancesRef.current.get(key)!);
-  if (activeInstance !== instancesRef.current.get(key)) {
-    setActiveInstance(instancesRef.current.get(key)!);
-  }
-
-  const [state, setState, rawControls] = useTravelStore(activeInstance);
-  // Cast to manual controls — autoArchive is false so canArchive/archive are available.
-  const controls = rawControls as typeof rawControls & {
-    canArchive: () => boolean;
-    archive: () => void;
-  };
-
-  const scheduleArchive = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      debounceRef.current = null;
-      if (controls.canArchive()) controls.archive();
-    }, ARCHIVE_DEBOUNCE_MS);
-  }, [controls]);
-
-  const flushArchive = useCallback(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    }
-    if (controls.canArchive()) controls.archive();
-  }, [controls]);
+  useEffect(
+    () => () => {
+      for (const tab of histories.values()) clearTimeout(tab.timer);
+    },
+    [histories],
+  );
 
   const set = useCallback(
-    (project: KapiProject) => {
-      const plain = toPlain(project);
-      setState(() => plain);
-      scheduleArchive();
+    (project: KapiProject, id = key) => {
+      const tab = histories.get(id);
+      if (!tab) return;
+      tab.timeline.setState(() => toPlain(project));
+      clearTimeout(tab.timer);
+      tab.timer = setTimeout(() => {
+        if (tab.timeline.canArchive()) tab.timeline.archive();
+      }, ARCHIVE_DEBOUNCE_MS);
     },
-    [setState, scheduleArchive],
+    [histories, key],
   );
 
   const replace = useCallback(
-    (project: KapiProject) => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-      const inst = makeTravels(project);
-      instancesRef.current.set(key, inst);
-      savedMapRef.current.set(key, serialize(project));
-      setActiveInstance(inst);
+    (project: KapiProject, id = key) => {
+      clearTimeout(histories.get(id)?.timer);
+      histories.set(id, { timeline: makeTravels(project), saved: serialize(project) });
+      refresh();
     },
-    [key],
+    [histories, key],
   );
 
   const undo = useCallback(() => {
-    flushArchive();
+    clearTimeout(entry.timer);
+    if (controls.canArchive()) controls.archive();
     controls.back();
-  }, [controls, flushArchive]);
+  }, [controls, entry]);
 
-  const redo = useCallback(() => {
-    controls.forward();
-  }, [controls]);
+  const markSaved = useCallback(
+    (id = key, project: KapiProject = state, savedName = project.name) => {
+      const tab = histories.get(id);
+      if (tab) {
+        if (savedName !== project.name && tab.timeline.getState().name === project.name) {
+          if (tab.timeline.canArchive()) tab.timeline.archive();
+          tab.timeline.setState({ ...tab.timeline.getState(), name: savedName });
+          tab.timeline.archive();
+        }
+        tab.saved = serialize({ ...project, name: savedName });
+        refresh();
+      }
+    },
+    [histories, key, state],
+  );
 
-  const markSaved = useCallback(() => {
-    savedMapRef.current.set(key, serialize(state));
-  }, [key, state]);
+  const hasChanges = useCallback(
+    (id?: string) => {
+      const dirty = (tab: TabHistory) => serialize(tab.timeline.getState()) !== tab.saved;
+      if (id === undefined) return Array.from(histories.values()).some(dirty);
+      const tab = histories.get(id);
+      return !!tab && dirty(tab);
+    },
+    [histories],
+  );
 
-  const isDirty = serialize(state) !== (savedMapRef.current.get(key) ?? "");
-
-  /** Remove a tab's history (call when closing a tab). */
-  const cleanup = useCallback((id: string) => {
-    instancesRef.current.delete(id);
-    savedMapRef.current.delete(id);
-  }, []);
+  const cleanup = useCallback(
+    (id: string) => {
+      clearTimeout(histories.get(id)?.timer);
+      histories.delete(id);
+    },
+    [histories],
+  );
 
   return {
-    project: state as KapiProject,
+    project: state,
     set,
     replace,
     undo,
-    redo,
+    redo: () => controls.forward(),
     markSaved,
-    isDirty,
-    canUndo: controls.canBack(),
-    canRedo: controls.canForward(),
-    /** @internal Remove a closed tab's history. */
+    isDirty: hasChanges(key),
+    canUndo: controls.canUndo,
+    canRedo: controls.canRedo,
+    snapshot: (id: string) => histories.get(id)?.timeline.getState(),
+    hasChanges,
     cleanup,
-  } as ProjectHistory & { cleanup: (id: string) => void };
+  };
 }

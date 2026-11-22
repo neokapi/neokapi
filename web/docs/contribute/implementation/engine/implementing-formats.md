@@ -7,8 +7,8 @@ keywords: [implementing formats, format reader, format writer, Okapi migration, 
 
 # Implementing Formats
 
-Step-by-step guide for implementing new neokapi format readers/writers or
-migrating existing Okapi filters. Parent AD:
+The steps for implementing a neokapi format reader and writer, or for porting an
+Okapi filter. Parent AD:
 [E-02](/contribute/architecture/engine/e-02-format-system).
 
 :::note Canonical tutorial

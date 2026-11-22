@@ -75,17 +75,36 @@ func TestWordPressFetch(t *testing.T) {
 func TestWordPressPublish(t *testing.T) {
 	srv := setupWordPressServer(t)
 	defer srv.Close()
-
-	c, err := NewWordPressConnector(map[string]string{
-		"url": withTestNetwork(t, srv),
-	})
+	c, err := NewWordPressConnector(map[string]string{"url": withTestNetwork(t, srv)})
 	require.NoError(t, err)
-
 	items, err := c.Fetch(t.Context(), platconn.FetchOptions{})
 	require.NoError(t, err)
+	require.NotEmpty(t, items)
+	item := items[0]
+	require.Equal(t, "1", item.Metadata["wp_id"])
 
-	err = c.Publish(t.Context(), items[:1], platconn.PublishOptions{})
+	var got map[string]string
+	publish := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "/wp-json/wp/v2/posts/1", r.URL.Path)
+		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&got)) {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer publish.Close()
+	c, err = NewWordPressConnector(map[string]string{"url": withTestNetwork(t, publish)})
 	require.NoError(t, err)
+	for i, b := range item.Blocks {
+		if b.Type == "title" {
+			item.Blocks[i] = deliveryCopy(b, "Bonjour le monde")
+		}
+	}
+	require.NoError(t, c.Publish(t.Context(), []*platconn.ContentItem{item}, platconn.PublishOptions{}))
+	require.Equal(t, map[string]string{
+		"title":   "Bonjour le monde",
+		"content": "<p>Welcome to WordPress.</p>",
+		"excerpt": "A welcome post",
+	}, got)
 }
 
 func TestWordPressStatus(t *testing.T) {

@@ -51,8 +51,8 @@ func (s *SQLiteStore) GetContextObject(ctx context.Context, projectID, name stri
 	obj := platstore.ContextObject{Name: name}
 	var at string
 	err := s.db.QueryRowContext(ctx,
-		`SELECT data, sha256, pushed_by, pushed_at FROM context_objects WHERE project_id = ? AND name = ?`,
-		projectID, name).Scan(&obj.Data, &obj.SHA256, &obj.PushedBy, &at)
+		`SELECT data, sha256, pushed_by, pushed_tool, pushed_token, pushed_at FROM context_objects WHERE project_id = ? AND name = ?`,
+		projectID, name).Scan(&obj.Data, &obj.SHA256, &obj.PushedBy.UserID, &obj.PushedBy.Tool, &obj.PushedBy.TokenID, &at)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("%w: %s", platstore.ErrNoContextObject, name)
 	}
@@ -72,7 +72,7 @@ func (s *SQLiteStore) GetContextObject(ctx context.Context, projectID, name stri
 // statement of the transaction is an insert, so the transaction takes the
 // write lock before it reads, and a concurrent push waits on the busy timeout
 // rather than failing on a stale snapshot.
-func (s *SQLiteStore) PutContextObjects(ctx context.Context, projectID, pushedBy string, batch []platstore.ContextObject) error {
+func (s *SQLiteStore) PutContextObjects(ctx context.Context, projectID string, pushedBy platstore.Pusher, batch []platstore.ContextObject) error {
 	for _, obj := range batch {
 		if err := storeutil.CheckContextObject(obj.Name, obj.Data); err != nil {
 			return err
@@ -90,10 +90,10 @@ func (s *SQLiteStore) PutContextObjects(ctx context.Context, projectID, pushedBy
 			data = []byte{}
 		}
 		res, err := tx.ExecContext(ctx,
-			`INSERT INTO context_objects (project_id, name, data, sha256, pushed_by, pushed_at)
-			 VALUES (?, ?, ?, ?, ?, ?)
+			`INSERT INTO context_objects (project_id, name, data, sha256, pushed_by, pushed_tool, pushed_token, pushed_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 			 ON CONFLICT(project_id, name) DO NOTHING`,
-			projectID, obj.Name, data, storeutil.ContextObjectDigest(data), pushedBy, at)
+			projectID, obj.Name, data, storeutil.ContextObjectDigest(data), pushedBy.UserID, pushedBy.Tool, pushedBy.TokenID, at)
 		if err != nil {
 			return fmt.Errorf("put context object %s: %w", obj.Name, err)
 		}

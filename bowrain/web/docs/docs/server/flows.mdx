@@ -8,12 +8,14 @@ import { PhaseFlow, SwimlaneDiagram } from "@neokapi/docs-shared";
 
 # Server-side flows
 
-Flows on Bowrain Server execute the same processing pipelines available in the
-CLI, over content held in the workspace rather than in local files. A flow runs
-on the server in one of two ways: as the flow a [convergence run](/the-loop)
-drives, or from an automation rule's `run_flow` action. Either way it runs in
-the background, reads the project's blocks, streams them through its tools, and
-writes the results back, with no CLI involved.
+A server-side flow processes a project's content in the workspace, with no
+local checkout and no CLI. It runs the same pipelines as kapi, over the blocks
+the server holds.
+
+A flow runs on the server in two ways: as the flow a
+[convergence run](/the-loop) drives, or from an automation rule's `run_flow`
+action. Either way it runs in the background, reads the project's blocks,
+streams them through its tools and writes the results back.
 
 ## How a server-side flow runs
 
@@ -69,21 +71,20 @@ The Bowrain web app exposes a flow and automation editor under
 2. **Rules**: trigger, conditions, and ordered actions. A `run_flow`
    action selects a flow from the project's flow registry.
 3. **Flows**: the flow canvas, the same visual editor the desktop app renders.
-   It lists the built-in flows alongside the project's stored flows and edits
-   the latter on a reader → tool(s) → writer graph; transformers such as
-   redaction and normalization are ordinary ordered steps whose placement is
-   validated when the flow is built.
+   It lists the built-in flows beside the project's stored flows, and you edit
+   the stored ones as a reader → tool(s) → writer graph. Transformers such as
+   redaction and normalization are ordinary ordered steps, and the server
+   validates their placement when it builds the flow.
 
-Flows are **connector-agnostic**: a flow runs server-side on content from any
-[connector](/server/connectors). The graph never names one; content that
-arrived from a content platform, a design tool, a repository, or a developer's
-checkout is handled identically.
+A flow works the same on content from any [connector](/server/connectors). The
+graph names no connector, so content from a content platform, a design tool, a
+repository or a developer's checkout goes through the same steps.
 
 ## Event flow
 
-One end-to-end example: the developer route, where a checkout pushes and the
-server runs the flow. Content arriving through any other connector follows the
-same server-side path:
+The diagram shows the developer route, where a checkout pushes and the server
+runs the flow. Content from any other connector takes the same path on the
+server.
 
 <SwimlaneDiagram
   actors={[
@@ -117,8 +118,8 @@ drives these endpoints; automations reference a flow by its `id`.
 Built-in flows are read-only; the server rejects writes to a flow whose `id`
 collides with a built-in. Mutations require the `manage_automation` permission.
 
-A flow definition is a node/edge graph (reader → tool(s) → writer) rather than
-a flat step list, so it round-trips losslessly through the visual editor:
+A flow definition is a node/edge graph (reader → tool(s) → writer), so the
+visual editor can open and save it without loss:
 
 ```bash
 curl -X POST https://app.bowrain.cloud/api/v1/acme/proj-1/flows \
@@ -147,13 +148,13 @@ with the rest of the project.
 
 ## Composing multi-step work
 
-Multi-step work composes *inside* a single flow definition: the node graph
-above chains `translate` and `qa` in one run. There is no flow-to-flow chaining.
-Automations react to content events such as `connector.push.completed` with a
-fixed set of actions (see [Automation](/server/automation)), and no automation
-trigger fires when a flow finishes, so a rule cannot chain on one. See
-[Automation > Loop prevention](/server/automation#loop-prevention) for how the
-automation engine bounds event-driven work.
+Put multi-step work *inside* one flow definition: the node graph above chains
+`translate` and `qa` in one run. One flow cannot start another. Automations
+react to content events such as `connector.push.completed` with a fixed set of
+actions (see [Automation](/server/automation)). No automation trigger fires
+when a flow finishes, so a rule cannot chain on one. See
+[Automation > Loop prevention](/server/automation#loop-prevention) for how
+Bowrain bounds event-driven work.
 
 ## Related
 

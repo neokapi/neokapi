@@ -1,0 +1,20 @@
+version: 1
+family: plain-text
+constructs:
+  - construct: block.heading
+    expressible: true
+    read:
+      status: lossless
+      evidence: [eml.TestCorpus]
+    write:
+      status: unknown
+      notes: The writer updates the source subject.
+  - construct: block.paragraph
+    expressible: true
+    read:
+      status: lossy
+      evidence: [eml.TestCorpus]
+      notes: Each inline plain-text body forms one block.
+    write:
+      status: unknown
+      notes: The writer updates the source MIME entity.

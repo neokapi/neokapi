@@ -1,5 +1,5 @@
 // Package rulesview reads a project's operation log as a person sees it: the
-// digest of what kapi learned about how the project writes, and the questions
+// digest of the rules and suggestions about how the project writes, and the questions
 // a person answers about each suggestion waiting for a decision.
 //
 // The package holds the model and no input or output. Its callers load the
@@ -31,7 +31,7 @@ const (
 	// ThemeWords holds term rules that replace one word with another, or say
 	// a word to avoid.
 	ThemeWords = "words"
-	// ThemeWriting holds what was noticed about how the project writes, in
+	// ThemeWriting holds what was suggested about how the project writes, in
 	// prose: address, tone.
 	ThemeWriting = "writing"
 	// ThemeMemory holds wording pairs for the content memory.
@@ -57,7 +57,7 @@ const week = 7 * 24 * time.Hour
 // of the workspace.
 const WidenToWorkspace = "workspace"
 
-// Digest is what kapi learned about how one project writes.
+// Digest holds the rules and suggestions about how one project writes.
 type Digest struct {
 	// Project is the project's workspace key, and ProjectName what a person
 	// calls it. BuildDigest leaves ProjectName empty for the caller to fill.
@@ -72,7 +72,7 @@ type Digest struct {
 	// Established are the rules that came into force, newest first: every one
 	// since the marker, then a few from before it.
 	Established []Item `json:"established"`
-	// Suggested are the suggestions still advising, grouped by theme.
+	// Suggested are the suggestions still waiting, grouped by theme.
 	Suggested []Theme `json:"suggested"`
 	// Drift is content moving away from an established rule.
 	Drift []Drift `json:"drift"`
@@ -106,8 +106,8 @@ type Item struct {
 	// Usage is the project's own words back to it, from the latest usage
 	// count, for a rule a check has counted.
 	Usage *Usage `json:"usage,omitempty"`
-	// NoticedBy is who recorded it.
-	NoticedBy contextop.Actor `json:"noticed_by"`
+	// RecordedBy is who recorded it.
+	RecordedBy contextop.Actor `json:"recorded_by"`
 	// At is when it was recorded.
 	At time.Time `json:"at"`
 	// New reports an item recorded (or, for an established rule, established)
@@ -205,7 +205,7 @@ type Numbers struct {
 	// NewThisWeek counts the rules that came into force in the last seven
 	// days.
 	NewThisWeek int `json:"new_this_week"`
-	// Suggested counts the suggestions advising, and Conflicts the
+	// Suggested counts the suggestions waiting, and Conflicts the
 	// disagreements.
 	Suggested int `json:"suggested"`
 	Conflicts int `json:"conflicts"`
@@ -372,16 +372,16 @@ func bearer(byID map[string]contextop.Record, r contextop.Record) (contextop.Rec
 // for the caller, which holds the marker.
 func NewItem(r contextop.Record, collectionFor func(string) string) Item {
 	it := Item{
-		ID:        r.ID,
-		Short:     contextop.ShortID(r.ID),
-		Status:    r.Status,
-		Theme:     ThemeOf(r.Subject),
-		Sentence:  Sentence(r.Subject),
-		Subject:   r.Subject,
-		Standing:  r.Standing.Describe(),
-		NoticedBy: r.Actor,
-		At:        r.At,
-		Scope:     r.Scope.Describe(),
+		ID:         r.ID,
+		Short:      contextop.ShortID(r.ID),
+		Status:     r.Status,
+		Theme:      ThemeOf(r.Subject),
+		Sentence:   Sentence(r.Subject),
+		Subject:    r.Subject,
+		Standing:   r.Standing.Describe(),
+		RecordedBy: r.Actor,
+		At:         r.At,
+		Scope:      r.Scope.Describe(),
 	}
 	if it.Sentence == "" && r.Correction != nil {
 		// A correction that states no rule of its own is the change itself.

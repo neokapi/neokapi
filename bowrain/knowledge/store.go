@@ -68,6 +68,9 @@ type Store interface {
 	// LatestRev returns the highest revision number recorded for a concept, or
 	// 0 when the concept has no revisions yet.
 	LatestRev(ctx context.Context, workspaceID, conceptID string) (int64, error)
+	// LatestRevisions returns the latest revision of every concept in the
+	// workspace that has one, keyed by concept id, in one read.
+	LatestRevisions(ctx context.Context, workspaceID string) (map[string]*ConceptRevision, error)
 
 	// --- Change-sets -----------------------------------------------------
 

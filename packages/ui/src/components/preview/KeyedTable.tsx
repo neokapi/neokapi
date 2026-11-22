@@ -89,7 +89,7 @@ function RunCell({
     [runs, highlights, side],
   );
   const segments = React.useMemo(() => {
-    const own = overlays ? resolveOverlaySpans(overlays, side, text) : [];
+    const own = overlays ? resolveOverlaySpans(overlays, side, runs) : [];
     const spans =
       marks.length === 0
         ? own

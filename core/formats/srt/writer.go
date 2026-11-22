@@ -14,9 +14,7 @@ type Writer struct {
 	format.BaseFormatWriter
 	skeletonStore *format.SkeletonStore
 	firstEntry    bool
-	// sequence numbers the entries this writer emits. SRT requires a contiguous
-	// 1..N run, so the number is a property of the output, not of the block —
-	// see writeBlock.
+	// sequence numbers the entries in the generated file.
 	sequence int
 }
 
@@ -125,16 +123,16 @@ func (w *Writer) writeBlock(part *model.Part) error {
 
 	text := w.blockText(block)
 
-	// The entry number is generated here rather than read off the block. SRT
-	// numbers its entries 1..N contiguously, so the number describes a position
-	// in this output and cannot be carried on a block: a block read from VTT or
-	// produced by ASR has none, and the writer used to emit a blank line in its
-	// place. Keeping it off the block also keeps it out of the block's context
-	// hash (model.ComputeContextHash folds in every property), where a value that
-	// shifts whenever an earlier cue is deleted would undo the naming in
-	// cueName.
+	// Assign the sequence number at output. An inserted cue shifts the
+	// numbers after it without changing the identity of those blocks.
 	w.sequence++
 	timecode := block.Properties["timecode"]
+	if timing, ok := block.Timing(); ok {
+		start, end, parsed := parseSRTTimecode(timecode)
+		if !parsed || start != timing.StartMS || end != timing.EndMS {
+			timecode = formatSRTTime(timing.StartMS) + " --> " + formatSRTTime(timing.EndMS)
+		}
+	}
 
 	// Blank line separator between entries
 	if !w.firstEntry {

@@ -139,12 +139,12 @@ export class FlowTrace {
              */
             this["nodes"] = [];
         }
-        if (!("channelSize" in $$source)) {
+        if (!("channel_size" in $$source)) {
             /**
              * @member
              * @type {number}
              */
-            this["channelSize"] = 0;
+            this["channel_size"] = 0;
         }
         if (!("events" in $$source)) {
             /**
@@ -160,26 +160,26 @@ export class FlowTrace {
              */
             this["parts"] = {};
         }
-        if (!("inputFile" in $$source)) {
+        if (!("input_file" in $$source)) {
             /**
              * @member
              * @type {TraceFile}
              */
-            this["inputFile"] = (new TraceFile());
+            this["input_file"] = (new TraceFile());
         }
-        if (!("outputFile" in $$source)) {
+        if (!("output_file" in $$source)) {
             /**
              * @member
              * @type {TraceFile}
              */
-            this["outputFile"] = (new TraceFile());
+            this["output_file"] = (new TraceFile());
         }
-        if (!("durationUs" in $$source)) {
+        if (!("duration_us" in $$source)) {
             /**
              * @member
              * @type {number}
              */
-            this["durationUs"] = 0;
+            this["duration_us"] = 0;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -215,11 +215,11 @@ export class FlowTrace {
         if ("parts" in $$parsedSource) {
             $$parsedSource["parts"] = $$createField5_0($$parsedSource["parts"]);
         }
-        if ("inputFile" in $$parsedSource) {
-            $$parsedSource["inputFile"] = $$createField6_0($$parsedSource["inputFile"]);
+        if ("input_file" in $$parsedSource) {
+            $$parsedSource["input_file"] = $$createField6_0($$parsedSource["input_file"]);
         }
-        if ("outputFile" in $$parsedSource) {
-            $$parsedSource["outputFile"] = $$createField7_0($$parsedSource["outputFile"]);
+        if ("output_file" in $$parsedSource) {
+            $$parsedSource["output_file"] = $$createField7_0($$parsedSource["output_file"]);
         }
         return new FlowTrace(/** @type {Partial<FlowTrace>} */($$parsedSource));
     }
@@ -359,7 +359,7 @@ export class PartDetail {
              * @member
              * @type {boolean | undefined}
              */
-            this["hasSkeleton"] = undefined;
+            this["has_skeleton"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -451,7 +451,7 @@ export class PartSnapshot {
              * @member
              * @type {string | undefined}
              */
-            this["sourceText"] = undefined;
+            this["source_text"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -459,7 +459,7 @@ export class PartSnapshot {
              * @member
              * @type {string | undefined}
              */
-            this["targetText"] = undefined;
+            this["target_text"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -511,7 +511,7 @@ export class PartSnapshotSet {
              * @member
              * @type {{ [_ in string]?: PartSnapshot } | undefined}
              */
-            this["afterNode"] = undefined;
+            this["after_node"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -529,8 +529,8 @@ export class PartSnapshotSet {
         if ("initial" in $$parsedSource) {
             $$parsedSource["initial"] = $$createField0_0($$parsedSource["initial"]);
         }
-        if ("afterNode" in $$parsedSource) {
-            $$parsedSource["afterNode"] = $$createField1_0($$parsedSource["afterNode"]);
+        if ("after_node" in $$parsedSource) {
+            $$parsedSource["after_node"] = $$createField1_0($$parsedSource["after_node"]);
         }
         return new PartSnapshotSet(/** @type {Partial<PartSnapshotSet>} */($$parsedSource));
     }
@@ -749,13 +749,13 @@ export class TraceEvent {
              */
             this["type"] = TraceEventType.$zero;
         }
-        if (!("nodeId" in $$source)) {
+        if (!("node_id" in $$source)) {
             /**
              * which node
              * @member
              * @type {string}
              */
-            this["nodeId"] = "";
+            this["node_id"] = "";
         }
         if (/** @type {any} */(false)) {
             /**
@@ -763,7 +763,7 @@ export class TraceEvent {
              * @member
              * @type {string | undefined}
              */
-            this["partId"] = undefined;
+            this["part_id"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**

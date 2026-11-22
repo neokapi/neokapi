@@ -47,7 +47,7 @@ type SegmentationRule struct {
 // engine-specific values arrive in EngineParams and are decoded into the
 // engine's own config.
 type SegmentationConfig struct {
-	TargetLocale model.LocaleID     `json:"targetLocale,omitempty" schema:"-"`
+	TargetLocale model.LocaleID     `json:"target_locale,omitempty" schema:"-"`
 	Rules        []SegmentationRule `json:"rules,omitempty"        schema:"-"`
 
 	// Engine selects the segmenter backend by registry name (srx is the default).
@@ -60,17 +60,17 @@ type SegmentationConfig struct {
 	// layer (sentence for srx/uax29/sat, llm-chunk for llm).
 	Layer string `json:"layer,omitempty" schema:"title=Overlay Layer,description=Segmentation overlay layer name; empty uses the engine's natural layer,group=segmentation,order=10"`
 
-	SegmentSource bool `json:"segmentSource,omitempty" schema:"title=Segment Source Text,description=Segment the source text,default=true,group=segmentation,order=20"`
-	SegmentTarget bool `json:"segmentTarget,omitempty" schema:"title=Segment Target Text,description=Segment existing target text,group=segmentation,order=30"`
+	SegmentSource bool `json:"segment_source,omitempty" schema:"title=Segment Source Text,description=Segment the source text,default=true,group=segmentation,order=20"`
+	SegmentTarget bool `json:"segment_target,omitempty" schema:"title=Segment Target Text,description=Segment existing target text,group=segmentation,order=30"`
 
-	OverwriteSegmentation          bool `json:"overwriteSegmentation,omitempty"          schema:"title=Overwrite Existing Segmentation,description=Re-segment already-segmented blocks replacing previous segmentation,group=boundaries,order=10"`
-	TreatIsolatedCodesAsWhitespace bool `json:"treatIsolatedCodesAsWhitespace,omitempty" schema:"title=Treat Isolated Codes as Whitespace,description=Treat isolated inline codes as whitespace during segmentation,group=boundaries,order=20"`
-	TrimLeadingWS                  bool `json:"trimLeadingWhitespace,omitempty"          schema:"title=Trim Leading Whitespace,description=Exclude leading whitespace from each segment span,default=true,group=boundaries,order=30"`
-	TrimTrailingWS                 bool `json:"trimTrailingWhitespace,omitempty"         schema:"title=Trim Trailing Whitespace,description=Exclude trailing whitespace from each segment span,default=true,group=boundaries,order=40"`
+	OverwriteSegmentation          bool `json:"overwrite_segmentation,omitempty"          schema:"title=Overwrite Existing Segmentation,description=Re-segment already-segmented blocks replacing previous segmentation,group=boundaries,order=10"`
+	TreatIsolatedCodesAsWhitespace bool `json:"treat_isolated_codes_as_whitespace,omitempty" schema:"title=Treat Isolated Codes as Whitespace,description=Treat isolated inline codes as whitespace during segmentation,group=boundaries,order=20"`
+	TrimLeadingWS                  bool `json:"trim_leading_whitespace,omitempty"          schema:"title=Trim Leading Whitespace,description=Exclude leading whitespace from each segment span,default=true,group=boundaries,order=30"`
+	TrimTrailingWS                 bool `json:"trim_trailing_whitespace,omitempty"         schema:"title=Trim Trailing Whitespace,description=Exclude trailing whitespace from each segment span,default=true,group=boundaries,order=40"`
 	// RenumberCodes is honored at bilingual projection time, where standalone
 	// segments are materialized; in the overlay model the runs are never
 	// rewritten, so it is a no-op for overlay production.
-	RenumberCodes bool `json:"renumberCodes,omitempty" schema:"title=Renumber Code IDs,description=Renumber inline code IDs when materializing segments to a bilingual format,group=boundaries,order=50"`
+	RenumberCodes bool `json:"renumber_codes,omitempty" schema:"title=Renumber Code IDs,description=Renumber inline code IDs when materializing segments to a bilingual format,group=boundaries,order=50"`
 
 	// EngineParams carries the selected engine's own parameters, captured from
 	// the unified config map and decoded into the engine's [segment.EngineConfig]
@@ -124,7 +124,7 @@ func (c *SegmentationConfig) maskOptions() segment.MaskOptions {
 // exported schema accessor.
 func segmentationToolMeta() schema.ToolMeta {
 	// The source language picks the segmentation rules for the source; the
-	// target language the run names is the one segmentTarget segments.
+	// target language the run names is the one segment_target segments.
 	return toolMeta("segmentation", "Segmentation", schema.CategoryTextProcessing,
 		withTags("text-processing"), withAliases("segment"), withWritesOutput(),
 		withCardinality(schema.Monolingual),

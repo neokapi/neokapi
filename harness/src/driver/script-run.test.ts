@@ -188,3 +188,18 @@ test("unexpectedExitMessage names every failing command", () => {
   assert.match(message, /kapi check --strict ↳ expected exit 3, got 0/);
   assert.match(message, /expectExit:/);
 });
+
+test("runScriptSteps types keys into a command that asks at a terminal", async () => {
+  const ask = `if [ -t 0 ]; then printf 'keep? '; read a; printf 'again? '; read b; echo "got $a $b"; else echo "no terminal"; exit 2; fi`;
+  const run = await runScriptSteps([{ command: ask, keys: ["k", "n"] }], {
+    cwd: os.tmpdir(),
+    env: process.env,
+    timeoutMs: 30_000,
+  });
+
+  assert.equal(run.errors.length, 0);
+  assert.deepEqual(
+    outputs(run.events).map((e) => e.text),
+    ["keep? k\nagain? n\ngot k n"],
+  );
+});

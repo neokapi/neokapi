@@ -27,7 +27,7 @@ import (
 type EstimateLocaleWork struct {
 	Locale        string `json:"locale"`
 	Pending       int    `json:"pending"`        // translatable ready-source blocks the locale still owes a draft
-	ViaMemory     int    `json:"via_tm"`         // pending blocks a content memory recycle would fill (free)
+	ViaMemory     int    `json:"via_memory"`     // pending blocks a content memory recycle would fill (free)
 	ViaAI         int    `json:"via_ai"`         // pending blocks left for paid AI
 	TokenEstimate int    `json:"token_estimate"` // ~input tokens for the AI remainder (chars/4)
 }
@@ -59,7 +59,7 @@ type ConvergenceEstimate struct {
 // EstimateTotals is the cross-locale rollup of the per-locale work.
 type EstimateTotals struct {
 	Pending       int `json:"pending"`
-	ViaMemory     int `json:"via_tm"`
+	ViaMemory     int `json:"via_memory"`
 	ViaAI         int `json:"via_ai"`
 	TokenEstimate int `json:"token_estimate"`
 }

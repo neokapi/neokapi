@@ -101,11 +101,11 @@ func tagChip() *Block {
 }
 
 const tagChipExpectedHTML = `<kat-block id="tag-chip" data-type="jsx:element">` +
-	`<span class="neokapi-node" data-node="1" title="index !== undefined &amp;&amp; &lt;span className=&quot;badge&quot;&gt;{index}&lt;/span&gt;">badge</span>` +
+	`<span class="neokapi-node" data-node="1">badge</span>` +
 	` ` +
 	`<span class="neokapi-var" data-var="label" data-type="string">label</span>` +
 	` ` +
-	`<span class="neokapi-node" data-node="3" title="!deletable &amp;&amp; &lt;span className=&quot;required&quot;&gt;*&lt;/span&gt;">required</span>` +
+	`<span class="neokapi-node" data-node="3">required</span>` +
 	`</kat-block>`
 
 // shoppingCart — one structured plural run with three forms (zero,

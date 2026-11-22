@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -60,7 +60,7 @@ type VoiceRollupResponse struct {
 // settings come from the shared drift query params (?recent_days,?min_score,
 // ?drop_points,?days). Gated only by workspace membership, matching the existing
 // per-project brand reads.
-func (s *Server) HandleGetVoiceRollup(c echo.Context) error {
+func (s *Server) HandleGetVoiceRollup(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "voice not configured"})
 	}
@@ -167,7 +167,7 @@ func (s *Server) voiceRollupEntry(
 
 // rollupPageParams reads limit/offset from the query, clamping limit to a sane
 // range so a single call can't fan out unboundedly across a large workspace.
-func rollupPageParams(c echo.Context) (limit, offset int) {
+func rollupPageParams(c *echo.Context) (limit, offset int) {
 	limit, offset = defaultRollupLimit, 0
 	if v := c.QueryParam("limit"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {

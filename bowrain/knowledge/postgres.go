@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/storage"
+	pgterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/core/id"
 )
 
@@ -24,6 +25,37 @@ import (
 // ValidateStatusTransition before any write.
 type PostgresKnowledgeStore struct {
 	db *storage.PgDB
+	// tx is the transition this store was bound into, or nil for the pool. A
+	// push proposes governed terminology edits in the same transaction as its
+	// content, so the same store runs either way (see Bind).
+	tx storage.Runner
+}
+
+// Bind returns this store with its statements directed at tx, for a caller
+// that owns the transaction and is putting more than one store in it. A write
+// through the bound store neither begins nor commits: it runs on tx, and the
+// owner commits or rolls back. The receiver is left alone.
+func (s *PostgresKnowledgeStore) Bind(tx storage.Runner) *PostgresKnowledgeStore {
+	bound := *s
+	bound.tx = tx
+	return &bound
+}
+
+// run is where this store's statements go.
+func (s *PostgresKnowledgeStore) run() storage.Runner {
+	if s.tx != nil {
+		return s.tx
+	}
+	return s.db
+}
+
+// begin opens the transaction one write runs in: the bound transition, which
+// its owner commits, or a transaction of its own on the pool.
+func (s *PostgresKnowledgeStore) begin(ctx context.Context) (storage.WriteTx, error) {
+	if s.tx != nil {
+		return storage.Within(s.tx), nil
+	}
+	return s.db.BeginTx(ctx, nil)
 }
 
 // NewPostgresKnowledgeStore creates a PostgreSQL-backed knowledge store and
@@ -62,7 +94,7 @@ func (s *PostgresKnowledgeStore) CreateMarket(ctx context.Context, m *Market) er
 		return fmt.Errorf("marshal locales: %w", err)
 	}
 
-	_, err = s.db.ExecContext(ctx,
+	_, err = s.run().ExecContext(ctx,
 		`INSERT INTO kg_markets (workspace_id, id, name, description, locales, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		m.WorkspaceID, m.ID, m.Name, m.Description, string(locales), m.CreatedAt, m.UpdatedAt)
@@ -73,7 +105,7 @@ func (s *PostgresKnowledgeStore) CreateMarket(ctx context.Context, m *Market) er
 }
 
 func (s *PostgresKnowledgeStore) GetMarket(ctx context.Context, workspaceID, marketID string) (*Market, error) {
-	row := s.db.QueryRowContext(ctx,
+	row := s.run().QueryRowContext(ctx,
 		`SELECT workspace_id, id, name, description, locales, created_at, updated_at
 		 FROM kg_markets WHERE workspace_id = $1 AND id = $2`, workspaceID, marketID)
 	return scanMarket(row)
@@ -87,7 +119,7 @@ func (s *PostgresKnowledgeStore) UpdateMarket(ctx context.Context, m *Market) er
 		return fmt.Errorf("marshal locales: %w", err)
 	}
 
-	res, err := s.db.ExecContext(ctx,
+	res, err := s.run().ExecContext(ctx,
 		`UPDATE kg_markets SET name = $1, description = $2, locales = $3, updated_at = $4
 		 WHERE workspace_id = $5 AND id = $6`,
 		m.Name, m.Description, string(locales), m.UpdatedAt, m.WorkspaceID, m.ID)
@@ -102,7 +134,7 @@ func (s *PostgresKnowledgeStore) UpdateMarket(ctx context.Context, m *Market) er
 }
 
 func (s *PostgresKnowledgeStore) DeleteMarket(ctx context.Context, workspaceID, marketID string) error {
-	res, err := s.db.ExecContext(ctx,
+	res, err := s.run().ExecContext(ctx,
 		`DELETE FROM kg_markets WHERE workspace_id = $1 AND id = $2`, workspaceID, marketID)
 	if err != nil {
 		return fmt.Errorf("delete market: %w", err)
@@ -115,7 +147,7 @@ func (s *PostgresKnowledgeStore) DeleteMarket(ctx context.Context, workspaceID, 
 }
 
 func (s *PostgresKnowledgeStore) ListMarkets(ctx context.Context, workspaceID string) ([]*Market, error) {
-	rows, err := s.db.QueryContext(ctx,
+	rows, err := s.run().QueryContext(ctx,
 		`SELECT workspace_id, id, name, description, locales, created_at, updated_at
 		 FROM kg_markets WHERE workspace_id = $1 ORDER BY name`, workspaceID)
 	if err != nil {
@@ -166,7 +198,7 @@ func (s *PostgresKnowledgeStore) AddObservation(ctx context.Context, o *Observat
 		o.CreatedAt = time.Now().UTC()
 	}
 
-	_, err := s.db.ExecContext(ctx,
+	_, err := s.run().ExecContext(ctx,
 		`INSERT INTO kg_observations (workspace_id, id, concept_id, kind, quote, source, url, locale, market, note, created_by, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 		o.WorkspaceID, o.ID, o.ConceptID, string(o.Kind), o.Quote, o.Source, o.URL,
@@ -178,7 +210,7 @@ func (s *PostgresKnowledgeStore) AddObservation(ctx context.Context, o *Observat
 }
 
 func (s *PostgresKnowledgeStore) DeleteObservation(ctx context.Context, workspaceID, observationID string) error {
-	res, err := s.db.ExecContext(ctx,
+	res, err := s.run().ExecContext(ctx,
 		`DELETE FROM kg_observations WHERE workspace_id = $1 AND id = $2`, workspaceID, observationID)
 	if err != nil {
 		return fmt.Errorf("delete observation: %w", err)
@@ -191,7 +223,7 @@ func (s *PostgresKnowledgeStore) DeleteObservation(ctx context.Context, workspac
 }
 
 func (s *PostgresKnowledgeStore) ListObservationsByConcept(ctx context.Context, workspaceID, conceptID string) ([]*Observation, error) {
-	rows, err := s.db.QueryContext(ctx,
+	rows, err := s.run().QueryContext(ctx,
 		`SELECT workspace_id, id, concept_id, kind, quote, source, url, locale, market, note, created_by, created_at
 		 FROM kg_observations WHERE workspace_id = $1 AND concept_id = $2
 		 ORDER BY created_at DESC, id`, workspaceID, conceptID)
@@ -239,7 +271,7 @@ func (s *PostgresKnowledgeStore) AddComment(ctx context.Context, c *Comment) err
 		c.CreatedAt = time.Now().UTC()
 	}
 
-	_, err := s.db.ExecContext(ctx,
+	_, err := s.run().ExecContext(ctx,
 		`INSERT INTO kg_comments (workspace_id, id, concept_id, parent_id, changeset_id, body, author, created_at, resolved)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		c.WorkspaceID, c.ID, c.ConceptID, c.ParentID, c.ChangesetID, c.Body, c.Author, c.CreatedAt, c.Resolved)
@@ -250,7 +282,7 @@ func (s *PostgresKnowledgeStore) AddComment(ctx context.Context, c *Comment) err
 }
 
 func (s *PostgresKnowledgeStore) DeleteComment(ctx context.Context, workspaceID, commentID string) error {
-	res, err := s.db.ExecContext(ctx,
+	res, err := s.run().ExecContext(ctx,
 		`DELETE FROM kg_comments WHERE workspace_id = $1 AND id = $2`, workspaceID, commentID)
 	if err != nil {
 		return fmt.Errorf("delete comment: %w", err)
@@ -263,7 +295,7 @@ func (s *PostgresKnowledgeStore) DeleteComment(ctx context.Context, workspaceID,
 }
 
 func (s *PostgresKnowledgeStore) ResolveComment(ctx context.Context, workspaceID, commentID string, resolved bool) error {
-	res, err := s.db.ExecContext(ctx,
+	res, err := s.run().ExecContext(ctx,
 		`UPDATE kg_comments SET resolved = $1 WHERE workspace_id = $2 AND id = $3`,
 		resolved, workspaceID, commentID)
 	if err != nil {
@@ -277,7 +309,7 @@ func (s *PostgresKnowledgeStore) ResolveComment(ctx context.Context, workspaceID
 }
 
 func (s *PostgresKnowledgeStore) ListCommentsByConcept(ctx context.Context, workspaceID, conceptID string) ([]*Comment, error) {
-	rows, err := s.db.QueryContext(ctx,
+	rows, err := s.run().QueryContext(ctx,
 		`SELECT workspace_id, id, concept_id, parent_id, changeset_id, body, author, created_at, resolved
 		 FROM kg_comments WHERE workspace_id = $1 AND concept_id = $2
 		 ORDER BY created_at, id`, workspaceID, conceptID)
@@ -288,7 +320,7 @@ func (s *PostgresKnowledgeStore) ListCommentsByConcept(ctx context.Context, work
 }
 
 func (s *PostgresKnowledgeStore) ListCommentsByChangeset(ctx context.Context, workspaceID, changesetID string) ([]*Comment, error) {
-	rows, err := s.db.QueryContext(ctx,
+	rows, err := s.run().QueryContext(ctx,
 		`SELECT workspace_id, id, concept_id, parent_id, changeset_id, body, author, created_at, resolved
 		 FROM kg_comments WHERE workspace_id = $1 AND changeset_id = $2
 		 ORDER BY created_at, id`, workspaceID, changesetID)
@@ -347,7 +379,7 @@ func (s *PostgresKnowledgeStore) AddRevision(ctx context.Context, r *ConceptRevi
 	}
 
 	if r.Rev > 0 {
-		_, err := s.db.ExecContext(ctx,
+		_, err := s.run().ExecContext(ctx,
 			`INSERT INTO kg_concept_revisions (workspace_id, concept_id, rev, snapshot, summary, actor, changeset_id, created_at)
 			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 			r.WorkspaceID, r.ConceptID, r.Rev, snapshot, r.Summary, r.Actor, r.ChangesetID, r.CreatedAt)
@@ -357,7 +389,7 @@ func (s *PostgresKnowledgeStore) AddRevision(ctx context.Context, r *ConceptRevi
 		return nil
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin revision tx: %w", err)
 	}
@@ -391,7 +423,7 @@ func (s *PostgresKnowledgeStore) AddRevision(ctx context.Context, r *ConceptRevi
 }
 
 func (s *PostgresKnowledgeStore) ListRevisions(ctx context.Context, workspaceID, conceptID string) ([]*ConceptRevision, error) {
-	rows, err := s.db.QueryContext(ctx,
+	rows, err := s.run().QueryContext(ctx,
 		`SELECT workspace_id, concept_id, rev, snapshot, summary, actor, changeset_id, created_at
 		 FROM kg_concept_revisions WHERE workspace_id = $1 AND concept_id = $2
 		 ORDER BY rev`, workspaceID, conceptID)
@@ -413,13 +445,33 @@ func (s *PostgresKnowledgeStore) ListRevisions(ctx context.Context, workspaceID,
 
 func (s *PostgresKnowledgeStore) LatestRev(ctx context.Context, workspaceID, conceptID string) (int64, error) {
 	var rev int64
-	err := s.db.QueryRowContext(ctx,
+	err := s.run().QueryRowContext(ctx,
 		`SELECT COALESCE(MAX(rev), 0) FROM kg_concept_revisions WHERE workspace_id = $1 AND concept_id = $2`,
 		workspaceID, conceptID).Scan(&rev)
 	if err != nil {
 		return 0, fmt.Errorf("latest revision: %w", err)
 	}
 	return rev, nil
+}
+
+func (s *PostgresKnowledgeStore) LatestRevisions(ctx context.Context, workspaceID string) (map[string]*ConceptRevision, error) {
+	rows, err := s.run().QueryContext(ctx,
+		`SELECT DISTINCT ON (concept_id) workspace_id, concept_id, rev, snapshot, summary, actor, changeset_id, created_at
+		 FROM kg_concept_revisions WHERE workspace_id = $1
+		 ORDER BY concept_id, rev DESC`, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("latest revisions: %w", err)
+	}
+	defer rows.Close()
+	out := map[string]*ConceptRevision{}
+	for rows.Next() {
+		r, err := scanRevision(rows)
+		if err != nil {
+			return nil, err
+		}
+		out[r.ConceptID] = r
+	}
+	return out, rows.Err()
 }
 
 func scanRevision(row scanner) (*ConceptRevision, error) {
@@ -456,7 +508,7 @@ func (s *PostgresKnowledgeStore) CreateChangeSet(ctx context.Context, cs *Change
 		cs.Status = ChangeSetDraft
 	}
 
-	_, err := s.db.ExecContext(ctx,
+	_, err := s.run().ExecContext(ctx,
 		`INSERT INTO kg_changesets (workspace_id, id, name, description, status, origin, created_by, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		cs.WorkspaceID, cs.ID, cs.Name, cs.Description, string(cs.Status), cs.Origin, cs.CreatedBy, cs.CreatedAt, cs.UpdatedAt)
@@ -467,7 +519,7 @@ func (s *PostgresKnowledgeStore) CreateChangeSet(ctx context.Context, cs *Change
 }
 
 func (s *PostgresKnowledgeStore) GetChangeSet(ctx context.Context, workspaceID, changesetID string) (*ChangeSet, error) {
-	row := s.db.QueryRowContext(ctx,
+	row := s.run().QueryRowContext(ctx,
 		`SELECT `+changeSetColumns+`
 		 FROM kg_changesets WHERE workspace_id = $1 AND id = $2`, workspaceID, changesetID)
 	return scanChangeSet(row)
@@ -479,10 +531,10 @@ func (s *PostgresKnowledgeStore) ListChangeSets(ctx context.Context, workspaceID
 	var rows *sql.Rows
 	var err error
 	if status == "" {
-		rows, err = s.db.QueryContext(ctx,
+		rows, err = s.run().QueryContext(ctx,
 			`SELECT `+cols+` FROM kg_changesets WHERE workspace_id = $1 ORDER BY created_at DESC, id`, workspaceID)
 	} else {
-		rows, err = s.db.QueryContext(ctx,
+		rows, err = s.run().QueryContext(ctx,
 			`SELECT `+cols+` FROM kg_changesets WHERE workspace_id = $1 AND status = $2 ORDER BY created_at DESC, id`,
 			workspaceID, string(status))
 	}
@@ -504,7 +556,7 @@ func (s *PostgresKnowledgeStore) ListChangeSets(ctx context.Context, workspaceID
 
 func (s *PostgresKnowledgeStore) UpdateChangeSet(ctx context.Context, cs *ChangeSet) error {
 	cs.UpdatedAt = time.Now().UTC()
-	res, err := s.db.ExecContext(ctx,
+	res, err := s.run().ExecContext(ctx,
 		`UPDATE kg_changesets SET name = $1, description = $2, updated_at = $3
 		 WHERE workspace_id = $4 AND id = $5`,
 		cs.Name, cs.Description, cs.UpdatedAt, cs.WorkspaceID, cs.ID)
@@ -526,7 +578,7 @@ func (s *PostgresKnowledgeStore) SetChangeSetStatus(ctx context.Context, workspa
 		return errors.New("use SetMergeResult to merge a change-set, not SetChangeSetStatus")
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin status tx: %w", err)
 	}
@@ -576,7 +628,7 @@ func (s *PostgresKnowledgeStore) SetMergeResult(ctx context.Context, workspaceID
 		mergedAt = mergedAt.UTC()
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin merge tx: %w", err)
 	}
@@ -645,7 +697,7 @@ func (s *PostgresKnowledgeStore) ListChangeSetSummaries(ctx context.Context, wor
 		args = append(args, string(status))
 	}
 
-	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(skeleton, changeSetColumnsC, statusFilter), args...)
+	rows, err := s.run().QueryContext(ctx, fmt.Sprintf(skeleton, changeSetColumnsC, statusFilter), args...)
 	if err != nil {
 		return nil, fmt.Errorf("list change-set summaries: %w", err)
 	}
@@ -665,7 +717,7 @@ func (s *PostgresKnowledgeStore) ListChangeSetSummaries(ctx context.Context, wor
 
 // CountChangeSetsByStatus groups the workspace's change-sets by status.
 func (s *PostgresKnowledgeStore) CountChangeSetsByStatus(ctx context.Context, workspaceID string) (map[ChangeSetStatus]int, error) {
-	rows, err := s.db.QueryContext(ctx,
+	rows, err := s.run().QueryContext(ctx,
 		`SELECT status, COUNT(*) FROM kg_changesets WHERE workspace_id = $1 GROUP BY status`, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("count change-sets by status: %w", err)
@@ -695,7 +747,7 @@ func (s *PostgresKnowledgeStore) SetChangeSetImpact(ctx context.Context, workspa
 		}
 		payload = string(b)
 	}
-	res, err := s.db.ExecContext(ctx,
+	res, err := s.run().ExecContext(ctx,
 		`UPDATE kg_changesets SET impact_summary = $1 WHERE workspace_id = $2 AND id = $3`,
 		payload, workspaceID, changesetID)
 	if err != nil {
@@ -717,7 +769,7 @@ func (s *PostgresKnowledgeStore) ListOpenChangeSetsByOrigin(ctx context.Context,
 	if origin == "" {
 		return nil, nil
 	}
-	rows, err := s.db.QueryContext(ctx,
+	rows, err := s.run().QueryContext(ctx,
 		`SELECT `+changeSetColumns+` FROM kg_changesets
 		 WHERE workspace_id = $1 AND origin = $2 AND status IN ('draft', 'in_review')
 		 ORDER BY created_at, id`, workspaceID, origin)
@@ -739,7 +791,7 @@ func (s *PostgresKnowledgeStore) ListOpenChangeSetsByOrigin(ctx context.Context,
 // SupersedeChangeSet moves an undecided change-set to superseded and records
 // its successor, atomically and transition-checked.
 func (s *PostgresKnowledgeStore) SupersedeChangeSet(ctx context.Context, workspaceID, changesetID, successorID string) error {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin supersede: %w", err)
 	}
@@ -822,23 +874,14 @@ func (s *PostgresKnowledgeStore) AppendOp(ctx context.Context, op *ChangeSetOp) 
 		payload = "null"
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin op tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Lock the parent change-set row so concurrent appends serialize; this also
-	// confirms the change-set exists before we number an orphan op.
-	var locked int
-	err = tx.QueryRowContext(ctx,
-		`SELECT 1 FROM kg_changesets WHERE workspace_id = $1 AND id = $2 FOR UPDATE`,
-		op.WorkspaceID, op.ChangesetID).Scan(&locked)
-	if errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("change-set %s not found", op.ChangesetID)
-	}
-	if err != nil {
-		return fmt.Errorf("lock change-set: %w", err)
+	if _, err := lockChangeSet(ctx, tx, op.WorkspaceID, op.ChangesetID); err != nil {
+		return err
 	}
 
 	var next int64
@@ -860,8 +903,22 @@ func (s *PostgresKnowledgeStore) AppendOp(ctx context.Context, op *ChangeSetOp) 
 	return nil
 }
 
+func lockChangeSet(ctx context.Context, tx storage.Runner, workspaceID, changesetID string) (ChangeSetStatus, error) {
+	var status ChangeSetStatus
+	err := tx.QueryRowContext(ctx,
+		`SELECT status FROM kg_changesets WHERE workspace_id = $1 AND id = $2 FOR UPDATE`,
+		workspaceID, changesetID).Scan(&status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("change-set %s not found", changesetID)
+	}
+	if err != nil {
+		return "", fmt.Errorf("lock change-set: %w", err)
+	}
+	return status, nil
+}
+
 func (s *PostgresKnowledgeStore) RemoveOp(ctx context.Context, workspaceID, changesetID string, seq int64) error {
-	res, err := s.db.ExecContext(ctx,
+	res, err := s.run().ExecContext(ctx,
 		`DELETE FROM kg_changeset_ops WHERE workspace_id = $1 AND changeset_id = $2 AND seq = $3`,
 		workspaceID, changesetID, seq)
 	if err != nil {
@@ -875,7 +932,7 @@ func (s *PostgresKnowledgeStore) RemoveOp(ctx context.Context, workspaceID, chan
 }
 
 func (s *PostgresKnowledgeStore) ListOps(ctx context.Context, workspaceID, changesetID string) ([]*ChangeSetOp, error) {
-	rows, err := s.db.QueryContext(ctx,
+	rows, err := s.run().QueryContext(ctx,
 		`SELECT workspace_id, changeset_id, seq, op, payload, base_rev, created_by, created_at
 		 FROM kg_changeset_ops WHERE workspace_id = $1 AND changeset_id = $2
 		 ORDER BY seq`, workspaceID, changesetID)
@@ -933,7 +990,7 @@ func (s *PostgresKnowledgeStore) AddReview(ctx context.Context, r *ChangeSetRevi
 	}
 	r.Basis = basis
 
-	_, err := s.db.ExecContext(ctx,
+	_, err := s.run().ExecContext(ctx,
 		`INSERT INTO kg_changeset_reviews (workspace_id, changeset_id, reviewer, verdict, comment, review_basis, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)
 		 ON CONFLICT (workspace_id, changeset_id, reviewer) DO UPDATE SET
@@ -949,7 +1006,7 @@ func (s *PostgresKnowledgeStore) AddReview(ctx context.Context, r *ChangeSetRevi
 }
 
 func (s *PostgresKnowledgeStore) ListReviews(ctx context.Context, workspaceID, changesetID string) ([]*ChangeSetReview, error) {
-	rows, err := s.db.QueryContext(ctx,
+	rows, err := s.run().QueryContext(ctx,
 		`SELECT workspace_id, changeset_id, reviewer, verdict, comment, review_basis, created_at
 		 FROM kg_changeset_reviews WHERE workspace_id = $1 AND changeset_id = $2
 		 ORDER BY created_at, reviewer`, workspaceID, changesetID)
@@ -994,6 +1051,66 @@ func scanReview(row scanner) (*ChangeSetReview, error) {
 // Pilots
 // ---------------------------------------------------------------------------
 
+func (e *Engine) withGovernanceTransaction(ctx context.Context, store Store, apply func(*Engine, Store) error) error {
+	if store == nil {
+		return errors.New("knowledge: change set requires a governance store")
+	}
+	kg, ok := store.(*PostgresKnowledgeStore)
+	if !ok {
+		return apply(e, store)
+	}
+	tx, err := kg.begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	concepts := e.concepts
+	if tb, ok := concepts.(*pgterms.PostgresStore); ok {
+		concepts = tb.Bind(tx)
+	}
+	bound := kg.Bind(tx)
+	if err := apply(NewEngine(e.blocks, concepts, bound), bound); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (e *Engine) withLockedChangeSet(ctx context.Context, store Store, workspaceID, changesetID string, apply func(*Engine, Store, ChangeSetStatus) error) error {
+	return e.withLockedProposal(ctx, store, workspaceID, changesetID, "", apply)
+}
+
+func (e *Engine) withLockedProposal(ctx context.Context, store Store, workspaceID, changesetID, origin string, apply func(*Engine, Store, ChangeSetStatus) error) error {
+	return e.withGovernanceTransaction(ctx, store, func(engine *Engine, store Store) error {
+		if kg, ok := store.(*PostgresKnowledgeStore); ok {
+			if origin != "" {
+				if err := kg.lockProposalOrigin(ctx, workspaceID, origin); err != nil {
+					return err
+				}
+			}
+			status, err := lockChangeSet(ctx, kg.run(), workspaceID, changesetID)
+			if err != nil {
+				return err
+			}
+			return apply(engine, store, status)
+		}
+		cs, err := store.GetChangeSet(ctx, workspaceID, changesetID)
+		if err != nil {
+			return err
+		}
+		return apply(engine, store, cs.Status)
+	})
+}
+
+func (s *PostgresKnowledgeStore) lockProposalOrigin(ctx context.Context, workspaceID, origin string) error {
+	_, err := s.run().ExecContext(ctx,
+		`SELECT pg_advisory_xact_lock(hashtext('kg_changeset_origin'), hashtext($1::text || ':' || $2::text))`,
+		workspaceID, origin)
+	if err != nil {
+		return fmt.Errorf("lock change-set origin: %w", err)
+	}
+	return nil
+}
+
 // AddPilot binds a change-set to a project stream. The binding is idempotent: a
 // re-bind of the same (change-set, project, stream) leaves the existing row.
 func (s *PostgresKnowledgeStore) AddPilot(ctx context.Context, p *Pilot) error {
@@ -1001,11 +1118,13 @@ func (s *PostgresKnowledgeStore) AddPilot(ctx context.Context, p *Pilot) error {
 		p.CreatedAt = time.Now().UTC()
 	}
 
-	_, err := s.db.ExecContext(ctx,
+	err := s.run().QueryRowContext(ctx,
 		`INSERT INTO kg_pilots (workspace_id, changeset_id, project_id, stream, created_by, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6)
-		 ON CONFLICT (workspace_id, changeset_id, project_id, stream) DO NOTHING`,
-		p.WorkspaceID, p.ChangesetID, p.ProjectID, p.Stream, p.CreatedBy, p.CreatedAt)
+		 ON CONFLICT (workspace_id, changeset_id, project_id, stream)
+		 DO UPDATE SET project_id = EXCLUDED.project_id
+		 RETURNING created_by, created_at`,
+		p.WorkspaceID, p.ChangesetID, p.ProjectID, p.Stream, p.CreatedBy, p.CreatedAt).Scan(&p.CreatedBy, &p.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("insert pilot: %w", err)
 	}
@@ -1013,7 +1132,7 @@ func (s *PostgresKnowledgeStore) AddPilot(ctx context.Context, p *Pilot) error {
 }
 
 func (s *PostgresKnowledgeStore) RemovePilot(ctx context.Context, workspaceID, changesetID, projectID, stream string) error {
-	res, err := s.db.ExecContext(ctx,
+	res, err := s.run().ExecContext(ctx,
 		`DELETE FROM kg_pilots
 		 WHERE workspace_id = $1 AND changeset_id = $2 AND project_id = $3 AND stream = $4`,
 		workspaceID, changesetID, projectID, stream)
@@ -1028,7 +1147,7 @@ func (s *PostgresKnowledgeStore) RemovePilot(ctx context.Context, workspaceID, c
 }
 
 func (s *PostgresKnowledgeStore) ListPilots(ctx context.Context, workspaceID, changesetID string) ([]*Pilot, error) {
-	rows, err := s.db.QueryContext(ctx,
+	rows, err := s.run().QueryContext(ctx,
 		`SELECT workspace_id, changeset_id, project_id, stream, created_by, created_at
 		 FROM kg_pilots WHERE workspace_id = $1 AND changeset_id = $2
 		 ORDER BY created_at, project_id, stream`, workspaceID, changesetID)
@@ -1039,7 +1158,7 @@ func (s *PostgresKnowledgeStore) ListPilots(ctx context.Context, workspaceID, ch
 }
 
 func (s *PostgresKnowledgeStore) ListPilotsForStream(ctx context.Context, workspaceID, projectID, stream string) ([]*Pilot, error) {
-	rows, err := s.db.QueryContext(ctx,
+	rows, err := s.run().QueryContext(ctx,
 		`SELECT workspace_id, changeset_id, project_id, stream, created_by, created_at
 		 FROM kg_pilots WHERE workspace_id = $1 AND project_id = $2 AND stream = $3
 		 ORDER BY created_at, changeset_id`, workspaceID, projectID, stream)

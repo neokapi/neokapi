@@ -4,21 +4,31 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 )
 
+func pulseWorkspaceVisibility(ws *platauth.Workspace) platauth.DashboardVisibility {
+	if ws.Type != platauth.WorkspaceTypeTeam || ws.DashboardVisibility == "" {
+		return platauth.DashboardPrivate
+	}
+	return ws.DashboardVisibility
+}
+
+func pulseProjectVisible(p *store.Project, workspaceID string) bool {
+	return p != nil && p.WorkspaceID == workspaceID && !p.Archived &&
+		(p.DashboardVisibility == "public" || p.DashboardVisibility == "unlisted")
+}
+
 // PulseAccessMiddleware resolves the workspace by slug from the :workspace
-// URL parameter and enforces dashboard_visibility rules. For public and
-// unlisted workspaces no auth is required. For private workspaces, a valid
-// JWT and workspace membership are needed.
+// URL parameter and enforces its dashboard visibility.
 //
 // On success the middleware stores "pulse_workspace" on the echo context.
 func PulseAccessMiddleware(jwtSecret string, authStore auth.AuthStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			param := c.Param("workspace")
 			if param == "" {
 				return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
@@ -30,17 +40,17 @@ func PulseAccessMiddleware(jwtSecret string, authStore auth.AuthStore) echo.Midd
 			if err != nil {
 				ws, err = authStore.GetWorkspaceByAccessKey(ctx, param)
 			}
-			if err != nil {
+			if err != nil || ws == nil {
 				return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
 			}
 
-			switch ws.DashboardVisibility {
+			switch pulseWorkspaceVisibility(ws) {
 			case platauth.DashboardPublic:
 				// Fully accessible, indexed.
 			case platauth.DashboardUnlisted:
 				// Accessible but not indexed.
 				c.Response().Header().Set("X-Robots-Tag", "noindex")
-			case platauth.DashboardPrivate, "":
+			case platauth.DashboardPrivate:
 				// Only workspace members with valid auth.
 				if !pulseAuthCheck(c, jwtSecret, authStore, ws.ID) {
 					return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
@@ -61,7 +71,7 @@ func PulseAccessMiddleware(jwtSecret string, authStore auth.AuthStore) echo.Midd
 // Returns 404 for private projects (prevents enumeration).
 func PulseProjectAccessMiddleware(cs store.ContentStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			pid := projectParam(c)
 			if pid == "" {
 				return next(c)
@@ -74,10 +84,7 @@ func PulseProjectAccessMiddleware(cs store.ContentStore) echo.MiddlewareFunc {
 
 			ctx := c.Request().Context()
 			p, err := cs.GetProject(ctx, pid)
-			if err != nil || p.WorkspaceID != ws.ID {
-				return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
-			}
-			if p.DashboardVisibility == "private" || p.DashboardVisibility == "" {
+			if err != nil || !pulseProjectVisible(p, ws.ID) {
 				return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
 			}
 
@@ -89,7 +96,7 @@ func PulseProjectAccessMiddleware(cs store.ContentStore) echo.MiddlewareFunc {
 
 // pulseAuthCheck attempts to validate JWT from Authorization header or session
 // cookie and verify workspace membership. Returns true if the user is a member.
-func pulseAuthCheck(c echo.Context, jwtSecret string, authStore auth.AuthStore, workspaceID string) bool {
+func pulseAuthCheck(c *echo.Context, jwtSecret string, authStore auth.AuthStore, workspaceID string) bool {
 	var claims *platauth.Claims
 
 	// Try Bearer token.
@@ -112,6 +119,6 @@ func pulseAuthCheck(c echo.Context, jwtSecret string, authStore auth.AuthStore, 
 
 	// Check workspace membership.
 	ctx := c.Request().Context()
-	_, err := authStore.GetMembership(ctx, workspaceID, claims.Subject)
-	return err == nil
+	membership, err := authStore.GetMembership(ctx, workspaceID, claims.Subject)
+	return err == nil && membership != nil
 }

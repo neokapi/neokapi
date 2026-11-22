@@ -16,7 +16,7 @@ import (
 // normalized, and no lookup will find it again: the content memory's variant
 // rows, the terms store's term rows and the block cache's `targets/<locale>`
 // overlays all persist across the digest-gated recompiles, so nothing heals
-// them on its own. NonCanonicalLocales is how a command notices and says so,
+// them on its own. NonCanonicalLocales is how a command detects them and says so,
 // rather than reporting the leverage as absent.
 //
 // The two pools take different remedies, because they hold different kinds of

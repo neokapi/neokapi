@@ -19,7 +19,7 @@ func TestResolveToolConfig_URIPrefixes(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "srx"), 0755))
 
 	config := map[string]any{
-		"tmxPath":   "memory:project-memory",
+		"tmx_path":  "memory:project-memory",
 		"termsPath": "terms:product",
 		"srxPath":   "srx:custom-rules",
 	}
@@ -31,7 +31,7 @@ func TestResolveToolConfig_URIPrefixes(t *testing.T) {
 	}
 
 	expected := map[string]string{
-		"tmxPath":   filepath.Join(tmpDir, "memory", "project-memory.db"),
+		"tmx_path":  filepath.Join(tmpDir, "memory", "project-memory.db"),
 		"termsPath": filepath.Join(tmpDir, "terms", "product.db"),
 		"srxPath":   filepath.Join(tmpDir, "srx", "custom-rules.srx"),
 	}
@@ -120,7 +120,7 @@ func TestResolveToolConfig_OkapiVariables(t *testing.T) {
 
 func TestResolveToolConfig_LanguageVariables(t *testing.T) {
 	config := map[string]any{
-		"tmxPath": "${rootDir}/${srcLang}-${trgLang}.tmx",
+		"tmx_path": "${rootDir}/${srcLang}-${trgLang}.tmx",
 	}
 
 	ctx := ResourceContext{
@@ -134,9 +134,9 @@ func TestResolveToolConfig_LanguageVariables(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	got := resolved["tmxPath"].(string)
+	got := resolved["tmx_path"].(string)
 	if got != "/project/en-fr.tmx" {
-		t.Errorf("tmxPath: got %q, want %q", got, "/project/en-fr.tmx")
+		t.Errorf("tmx_path: got %q, want %q", got, "/project/en-fr.tmx")
 	}
 }
 

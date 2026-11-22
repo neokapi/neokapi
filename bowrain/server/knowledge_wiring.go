@@ -3,13 +3,12 @@ package server
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
-	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
-	"github.com/neokapi/neokapi/core/id"
 )
 
 // errKnowledgeUnavailable is returned (as a 503) when the brand knowledge graph
@@ -51,69 +50,46 @@ func (s *Server) knowledgeEngineFor(ctx context.Context, wsSlug string) (*knowle
 // minted, timestamped platform event here. The ordinary-edit handlers in
 // handlers_concepts.go and the change-set handlers in handlers_changesets.go
 // build the same descriptors for the events they fire directly.
-func (s *Server) publishKnowledgeEvents(c echo.Context, events []knowledge.MergeEvent) {
+func (s *Server) publishKnowledgeEvents(c *echo.Context, events []knowledge.MergeEvent) {
 	fallbackActor, _ := c.Get("user_id").(string)
-	s.publishKnowledgeEventsIn(c.Param("ws"), fallbackActor, events)
+	s.publishKnowledgeEventsIn(c.Request().Context(), c.Param("ws"), fallbackActor, events)
 }
 
 // publishKnowledgeEventsIn is publishKnowledgeEvents for a caller outside a
 // request: the workspace slug the events are keyed by, and the actor an event
 // that names none is attributed to.
-func (s *Server) publishKnowledgeEventsIn(wsSlug, fallbackActor string, events []knowledge.MergeEvent) {
+func (s *Server) publishKnowledgeEventsIn(ctx context.Context, wsSlug, fallbackActor string, events []knowledge.MergeEvent) {
 	if s.EventBus == nil || len(events) == 0 {
 		return
 	}
 	now := time.Now().UTC()
 	for _, ev := range events {
-		actor := ev.Actor
-		if actor == "" {
-			actor = fallbackActor
+		var summary *knowledge.ChangeSetDigest
+		if strings.HasPrefix(string(ev.Type), "changeset.") {
+			summary = s.changeSetDigest(ctx, ev.WorkspaceID, ev.ChangesetID)
 		}
-		data := map[string]string{}
-		put := func(k, v string) {
-			if v != "" {
-				data[k] = v
-			}
-		}
-		// The activity recorder and the notification dispatcher both key on the
-		// workspace slug, so an event carrying only the workspace id lands in
-		// the feed under no workspace at all.
-		put("workspace_slug", wsSlug)
-		put("changeset_id", ev.ChangesetID)
-		put("on_behalf_of", ev.OnBehalfOf)
-		put("review_basis", string(ev.ReviewBasis))
-		put("concept_id", ev.ConceptID)
-		put("profile_id", ev.ProfileID)
-		put("project_id", ev.ProjectID)
-		put("stream", ev.Stream)
-		resType, resID := knowledgeEventResource(ev)
-		s.EventBus.Publish(platev.Event{
-			ID:           id.New(),
-			Type:         ev.Type,
-			Source:       "knowledge",
-			WorkspaceID:  ev.WorkspaceID,
-			Actor:        actor,
-			Data:         data,
-			ResourceType: resType,
-			ResourceID:   resID,
-			Timestamp:    now,
-		})
+		s.EventBus.Publish(knowledge.PlatformEvent(ev, "knowledge", wsSlug, fallbackActor, summary, now))
 	}
 }
 
-// knowledgeEventResource maps a knowledge event to the audit-enrichment
-// resource (type, ID) that best identifies what it touched.
-func knowledgeEventResource(ev knowledge.MergeEvent) (resourceType, resourceID string) {
-	switch {
-	case ev.ConceptID != "":
-		return "concept", ev.ConceptID
-	case ev.ChangesetID != "":
-		return "changeset", ev.ChangesetID
-	case ev.ProfileID != "":
-		return "voice_profile", ev.ProfileID
-	default:
-		return "", ""
+// changeSetDigest reads a change set's name and the number of its ops by op
+// type, so the feed can show what the set holds. The op types are a closed
+// list, which bounds the counts. A set that cannot be read gives nil.
+func (s *Server) changeSetDigest(ctx context.Context, workspaceID, changesetID string) *knowledge.ChangeSetDigest {
+	if s.KnowledgeStore == nil || workspaceID == "" || changesetID == "" {
+		return nil
 	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+	defer cancel()
+	cs, err := s.KnowledgeStore.GetChangeSet(ctx, workspaceID, changesetID)
+	if err != nil || cs == nil {
+		return nil
+	}
+	ops, err := s.KnowledgeStore.ListOps(ctx, workspaceID, changesetID)
+	if err != nil {
+		ops = nil
+	}
+	return knowledge.DigestChangeSet(cs.Name, ops)
 }
 
 // conceptEvent is a small constructor for a concept-scoped knowledge event the

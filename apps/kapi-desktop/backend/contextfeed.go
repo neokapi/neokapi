@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/contextop"
@@ -134,6 +135,28 @@ type ContextFeedEntry struct {
 	// is here. A decision needs none: it is recorded in the workspace, where
 	// the project's terms and content memory live.
 	Recipe string `json:"recipe,omitempty"`
+	// Voice is what a whole voice-profile write changed, for the edit that
+	// records one.
+	Voice *ContextVoiceEditDTO `json:"voice,omitempty"`
+}
+
+// ContextVoiceEditDTO is what a whole voice-profile write changed: the
+// fields, each as it stood and as it was written.
+type ContextVoiceEditDTO struct {
+	Profile string                  `json:"profile"`
+	Changes []ContextVoiceChangeDTO `json:"changes"`
+	// Omitted counts the changes past the ones the record lists.
+	Omitted int `json:"omitted,omitempty"`
+	// Restorable reports that dropping the edit restores the profile as it
+	// stood. A write that created the profile has nothing to restore.
+	Restorable bool `json:"restorable"`
+}
+
+// ContextVoiceChangeDTO is one field a voice-profile write changed.
+type ContextVoiceChangeDTO struct {
+	Field string `json:"field"`
+	From  string `json:"from,omitempty"`
+	To    string `json:"to,omitempty"`
 }
 
 // ContextFeedGroup is one session's work: an agent run, or a person's
@@ -779,7 +802,7 @@ func deskPerson() contextop.Actor {
 // awaiting a decision that states a rule. A note and a correction that
 // suggested nothing are facts on the record with nothing to decide.
 func decidable(r contextop.Record) bool {
-	if !r.Status.Advises() || r.Established {
+	if !r.Status.Advisory() || r.Established {
 		return false
 	}
 	switch r.Subject.Kind {
@@ -1107,7 +1130,35 @@ func contextFeedEntry(r contextop.Record, projectName, recipe string) ContextFee
 		out.Droppable = true
 		out.WidenTo = host.ContextWidenOptions(r.Subject.Kind, r.Scope)
 	}
+	if r.Voice != nil {
+		v := &ContextVoiceEditDTO{
+			Profile:    r.Voice.Profile,
+			Changes:    make([]ContextVoiceChangeDTO, 0, len(r.Voice.Changes)),
+			Omitted:    r.Voice.Omitted,
+			Restorable: r.Voice.Previous != "",
+		}
+		for _, c := range r.Voice.Changes {
+			v.Changes = append(v.Changes, ContextVoiceChangeDTO{Field: c.Field, From: c.From, To: c.To})
+		}
+		out.Voice = v
+		out.WidenTo = []string{}
+	}
+	// Dropping a voice-profile write is undoing it, which needs the profile
+	// as it stood. A write that created the profile, or one recorded without
+	// its change, offers no drop.
+	if voiceWrite(r) && (r.Voice == nil || r.Voice.Previous == "") {
+		out.Droppable = false
+	}
 	return out
+}
+
+// voiceWrite reports an operation that records a whole voice-profile write.
+func voiceWrite(r contextop.Record) bool {
+	if r.Voice != nil {
+		return true
+	}
+	return r.Kind == contextop.KindEdit && r.Subject.Kind == contextop.SubjectNote &&
+		strings.HasPrefix(r.Subject.Text, "voice profile ")
 }
 
 // actorDTO renders an actor, splitting a "<client>@<host>" name so a reader

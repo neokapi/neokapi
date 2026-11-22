@@ -24,18 +24,18 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"extractComments", "skipNameDataReferences",
+					"extract_comments", "skip_name_data_references",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"extractComments": schema.Prop(coreschema.PropertySchema{
+			"extract_comments": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Extract comments as notes",
 				Default:     true,
 				Description: "Surface each string <data> entry's sibling <comment> element as a translator note on the emitted block. Comments always round-trip verbatim regardless of this setting.",
 			}),
-			"skipNameDataReferences": schema.Prop(coreschema.PropertySchema{
+			"skip_name_data_references": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Skip name-reference entries",
 				Default:     true,

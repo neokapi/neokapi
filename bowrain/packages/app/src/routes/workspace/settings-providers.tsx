@@ -31,6 +31,7 @@ import {
   WorkspaceModelSettings,
   type ProviderConfig,
   type ProviderConfigWithKey,
+  PageContainer,
 } from "@neokapi/ui";
 import { configQueryOptions } from "../../queries";
 
@@ -182,15 +183,16 @@ export function SettingsProvidersRoute() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl py-4 space-y-4">
+    <PageContainer width="standard" className="space-y-4">
       <WorkspaceModelSettings workspace={activeWorkspace} />
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
             <CardTitle>Providers</CardTitle>
             <CardDescription>
-              Translation and AI providers available to flows in this workspace. API keys are stored
-              securely and never displayed.
+              Translation and AI providers available to flows in this workspace. Automatic
+              translation and extraction run on the most recently saved provider and use no credits.
+              API keys are stored securely and never displayed.
             </CardDescription>
           </div>
           <Button onClick={openAdd}>Add provider</Button>
@@ -365,6 +367,6 @@ export function SettingsProvidersRoute() {
         loading={deleting}
         onConfirm={() => void handleDelete()}
       />
-    </div>
+    </PageContainer>
   );
 }

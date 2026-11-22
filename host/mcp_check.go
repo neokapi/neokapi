@@ -322,7 +322,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		if bderr != nil {
 			return nil, check.Report{}, bderr
 		}
-		ruleDiags, qerr := a.collectTargetRuleDiagnostics(ctx, cmd, blocks, in.File, model.LocaleID(lang), execution)
+		ruleDiags, qerr := a.collectTargetRuleDiagnostics(ctx, cmd, blocks, in.File, model.LocaleID(lang), execution, nil)
 		if qerr != nil {
 			return nil, check.Report{}, qerr
 		}

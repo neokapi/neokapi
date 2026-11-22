@@ -22,7 +22,7 @@ export function fixtureScreensPort(over: Partial<ProjectScreensPort> = {}): Proj
   let filed = 0;
   const nextProposal = () => `sp-fernwell-${String(++filed).padStart(4, "0")}`;
   return {
-    mapSummary: async () => MAP_PENDING,
+    overviewSummary: async () => MAP_PENDING,
     readerFile: async () => READER_WITH_FIXES,
     decideView: async () => DECIDE_VIEW,
     keptRules: async () => KEPT_RULES,

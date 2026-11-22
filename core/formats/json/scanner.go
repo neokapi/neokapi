@@ -32,6 +32,7 @@ type token struct {
 	raw    string // raw bytes of the token (for non-strings: exactly as in input)
 	value  string // decoded value (for strings: unescaped content)
 	prefix string // whitespace and comments preceding this token
+	offset int    // byte offset of the token itself, after its prefix
 }
 
 // scanner tokenizes JSON input, preserving whitespace and handling comments.
@@ -46,6 +47,11 @@ type scanner struct {
 	// the structure.json-* families. The error string itself is unchanged.
 	errOffset   int
 	errCategory string
+
+	// commentErr is an unterminated block or HTML comment met while skipping
+	// the prefix of a token. The comment runs to the end of the input, which
+	// is not a document.
+	commentErr error
 }
 
 func newScanner(input []byte) *scanner {
@@ -84,9 +90,20 @@ func (s *scanner) scan() ([]token, error) {
 	return tokens, nil
 }
 
-// next returns the next token.
+// next returns the next token, with its byte offset.
 func (s *scanner) next() (token, error) {
+	start := s.pos
+	tok, err := s.scanToken()
+	tok.offset = start + len(tok.prefix)
+	return tok, err
+}
+
+// scanToken scans the token at s.pos.
+func (s *scanner) scanToken() (token, error) {
 	prefix := s.skipWhitespaceAndComments()
+	if s.commentErr != nil {
+		return token{}, s.commentErr
+	}
 
 	if s.pos >= len(s.input) {
 		return token{typ: tokenEOF, prefix: prefix}, nil
@@ -138,7 +155,7 @@ func (s *scanner) next() (token, error) {
 		if ch == '-' || (ch >= '0' && ch <= '9') {
 			return s.scanNumber(prefix)
 		}
-		// JSON5 bare identifier — accepted in object-key position by
+		// JSON5 bare identifier, accepted in object-key position by
 		// okapi's okf_json. Emit as tokenString; the parser/writer
 		// preserve the raw form so the bare identifier round-trips.
 		if isIdentStart(ch) {
@@ -196,7 +213,7 @@ func (s *scanner) scanBareIdentifier(prefix string) (token, error) {
 // whitespace rune (e.g. U+00A0 NO-BREAK SPACE, often introduced by
 // indentation copy-pasted from word processors). RFC 8259 only allows
 // ASCII whitespace, but every real-world JSON parser this reader has
-// to interop with — including okapi's okf_json — accepts the broader
+// to interop with, including okapi's okf_json, accepts the broader
 // Unicode set, and several of our parity fixtures rely on it.
 func (s *scanner) skipWhitespaceAndComments() string {
 	start := s.pos
@@ -229,6 +246,7 @@ func (s *scanner) skipWhitespaceAndComments() string {
 		}
 		// /* block comment */ (supports nesting)
 		if ch == '/' && s.pos+1 < len(s.input) && s.input[s.pos+1] == '*' {
+			open := s.pos
 			s.pos += 2
 			depth := 1
 			for s.pos+1 < len(s.input) && depth > 0 {
@@ -241,6 +259,10 @@ func (s *scanner) skipWhitespaceAndComments() string {
 				} else {
 					s.pos++
 				}
+			}
+			if depth > 0 {
+				s.pos = len(s.input)
+				s.commentErr = s.syntaxErr(open, "json scanner: unterminated comment at position %d", open)
 			}
 			continue
 		}
@@ -255,13 +277,20 @@ func (s *scanner) skipWhitespaceAndComments() string {
 		// <!-- html comment -->
 		if ch == '<' && s.pos+3 < len(s.input) &&
 			s.input[s.pos+1] == '!' && s.input[s.pos+2] == '-' && s.input[s.pos+3] == '-' {
+			open := s.pos
 			s.pos += 4
+			closed := false
 			for s.pos+2 < len(s.input) {
 				if s.input[s.pos] == '-' && s.input[s.pos+1] == '-' && s.input[s.pos+2] == '>' {
 					s.pos += 3
+					closed = true
 					break
 				}
 				s.pos++
+			}
+			if !closed {
+				s.pos = len(s.input)
+				s.commentErr = s.syntaxErr(open, "json scanner: unterminated comment at position %d", open)
 			}
 			continue
 		}
@@ -320,9 +349,13 @@ func (s *scanner) scanString(prefix string, quote byte) (token, error) {
 				decoded.WriteRune(r)
 				s.pos += size - 1 // -1 because loop will increment
 			default:
-				// Unknown escape — preserve as-is
+				// Unknown escape: preserve as-is. The escaped character is
+				// decoded as a rune, as an unescaped one is, so a byte that
+				// is not UTF-8 reads as U+FFFD on both paths.
+				r, size := utf8.DecodeRune(s.input[s.pos:])
 				decoded.WriteByte('\\')
-				decoded.WriteByte(esc)
+				decoded.WriteRune(r)
+				s.pos += size - 1 // -1 because loop will increment
 			}
 			s.pos++
 			continue
@@ -351,7 +384,7 @@ func (s *scanner) scanUnicodeEscape() (rune, int, error) {
 
 	// Check for surrogate pair
 	if r1 >= 0xD800 && r1 <= 0xDBFF {
-		// High surrogate — expect \uXXXX low surrogate
+		// High surrogate: expect \uXXXX low surrogate
 		if s.pos+4+2+4 <= len(s.input) && s.input[s.pos+4] == '\\' && s.input[s.pos+5] == 'u' {
 			hex2 := string(s.input[s.pos+6 : s.pos+10])
 			r2, err := strconv.ParseUint(hex2, 16, 32)
@@ -470,7 +503,7 @@ func escapeJSONStringQuoted(s string, escapeSlashes bool, quote byte) string {
 }
 
 // quoteOf inspects a token's raw form and returns the delimiter byte
-// used to wrap it (or 0 for bare identifiers). Used by the writer to
+// that wraps it (or 0 for bare identifiers). Used by the writer to
 // preserve JSON5 single-quoted strings on round-trip.
 func quoteOf(raw string) byte {
 	if len(raw) == 0 {

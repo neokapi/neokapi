@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/locale"
@@ -67,7 +67,7 @@ type pendingReviewResponse struct {
 // absence of one. A reviewer arriving from a collection card used to get the
 // project's whole queue and filter it in the browser over a bounded slice, so a
 // collection larger than the slice showed fewer entries than its card counted.
-func (s *Server) HandleListPendingReview(c echo.Context) error {
+func (s *Server) HandleListPendingReview(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -91,13 +91,18 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 		collectionID = &scope
 	}
 
+	exclude, err := sourceOnlyCollections(ctx, s.ContentStore, pid, streamParam(c))
+	if err != nil {
+		return serverErr(c, err)
+	}
 	refs, total, err := s.ContentStore.ListPendingReview(ctx, store.PendingReviewQuery{
-		ProjectID:    pid,
-		Stream:       streamParam(c),
-		Locales:      locales,
-		CollectionID: collectionID,
-		Limit:        limit,
-		Offset:       offset,
+		ProjectID:          pid,
+		Stream:             streamParam(c),
+		Locales:            locales,
+		CollectionID:       collectionID,
+		ExcludeCollections: exclude,
+		Limit:              limit,
+		Offset:             offset,
 	})
 	if err != nil {
 		return serverErr(c, err)

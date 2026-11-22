@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/project"
@@ -282,4 +283,27 @@ func TestMonolingual_IsNotAssumedFromDefaultsAlone(t *testing.T) {
 	require.NoError(t, serr, out)
 	assert.NotContains(t, out, "Monolingual project")
 	assert.Contains(t, out, "nb", "the collection's language must appear in the coverage grid")
+}
+
+// TestUpPlan_NoTargetPathSaysNothingIsWritten: a project with target languages
+// whose collections have no target path has nowhere to write a translation. The
+// plan and the run say so instead of reporting every block as translated.
+func TestUpPlan_NoTargetPathSaysNothingIsWritten(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, _ := monolingualProject(t)
+	body, err := os.ReadFile(recipe)
+	require.NoError(t, err)
+	body = []byte(strings.Replace(string(body), "  translate_after: none\n",
+		"  translate_after: none\n  target_languages: [fr]\n", 1))
+	require.NoError(t, os.WriteFile(recipe, body, 0o644))
+
+	out, err := runCLI(t, NewUpCmd(a), "--project", recipe, "--plan")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "no collection has a target path")
+	assert.NotContains(t, out, "every block has a committed target")
+
+	out, err = runCLI(t, NewUpCmd(a), "--project", recipe)
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "No collection has a target path")
+	assert.NotContains(t, out, "No target languages are configured")
 }

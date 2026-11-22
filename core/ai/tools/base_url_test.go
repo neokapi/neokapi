@@ -113,9 +113,9 @@ func TestEveryAIToolCallsTheCredentialEndpoint(t *testing.T) {
 			srv, called := endpointRecorder(t)
 			config := map[string]any{
 				"provider": string(aiprovider.Ollama),
-				"apiKey":   "k",
+				"api_key":  "k",
 				"model":    "m",
-				"baseURL":  srv.URL,
+				"base_url": srv.URL,
 			}
 			maps.Copy(config, c.config)
 
@@ -137,7 +137,7 @@ func TestEveryAIToolCallsTheCredentialEndpoint(t *testing.T) {
 // round trip, so a field the map cannot reach is a field the host cannot set.
 func TestEveryAIToolConfigDecodesTheEndpoint(t *testing.T) {
 	const endpoint = "https://llm.internal/v1"
-	config := map[string]any{"baseURL": endpoint}
+	config := map[string]any{"base_url": endpoint}
 
 	t.Run("translate", func(t *testing.T) {
 		var cfg AITranslateConfig
@@ -181,7 +181,7 @@ func TestEveryAIToolConfigDecodesTheEndpoint(t *testing.T) {
 	})
 	t.Run("segment-llm", func(t *testing.T) {
 		var p LLMParams
-		require.NoError(t, schema.ApplyConfig(map[string]any{"baseURL": endpoint, "apiKey": "k"}, &p))
+		require.NoError(t, schema.ApplyConfig(map[string]any{"base_url": endpoint, "api_key": "k"}, &p))
 		assert.Equal(t, endpoint, p.BaseURL)
 		assert.Equal(t, "k", p.APIKey)
 	})
@@ -203,7 +203,7 @@ func TestTheEndpointStaysOffTheForm(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			require.NotNil(t, s)
-			assert.NotContains(t, s.Properties, "baseURL")
+			assert.NotContains(t, s.Properties, "base_url")
 		})
 	}
 }
@@ -216,9 +216,9 @@ func TestSegmentLLMEngineCallsTheResolvedEndpoint(t *testing.T) {
 
 	seg, err := segment.Build("llm", segment.BaseConfig{Language: "en"}, map[string]any{
 		"provider": string(aiprovider.Ollama),
-		"apiKey":   "k",
+		"api_key":  "k",
 		"model":    "m",
-		"baseURL":  srv.URL,
+		"base_url": srv.URL,
 	})
 	require.NoError(t, err)
 

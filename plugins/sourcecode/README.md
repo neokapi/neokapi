@@ -22,10 +22,10 @@ array under `zap`. Configure the calls containing prose in the recipe:
   format:
     name: sourcecode
     config:
-      nodePathPatterns: [desc, caveats]
+      node_path_patterns: [desc, caveats]
 ```
 
-`nodePathPatterns` works like the YAML reader's `keyPathPatterns`. Leave it empty
+`node_path_patterns` works like the YAML reader's `key_path_patterns`. Leave it empty
 to inspect all string literals exposed by the grammar, labelled by their
 containing call, before choosing narrower patterns.
 

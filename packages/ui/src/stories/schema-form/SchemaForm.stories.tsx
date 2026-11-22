@@ -60,7 +60,7 @@ const simpleSchema: ComponentSchema = {
       default: "]",
       description: "Suffix added to translations",
     },
-    expansionPercent: {
+    expansion_percent: {
       type: "integer",
       title: "Expansion Percent",
       default: 30,
@@ -85,12 +85,12 @@ const groupedSchema: ComponentSchema = {
     {
       id: "whitespace",
       label: "Whitespace Checks",
-      fields: ["checkLeadingWhitespace", "checkTrailingWhitespace", "checkDoubleSpaces"],
+      fields: ["check_leading_whitespace", "check_trailing_whitespace", "check_double_spaces"],
     },
     {
       id: "content",
       label: "Content Checks",
-      fields: ["checkEmptyTarget", "targetSameAsSource"],
+      fields: ["check_empty_target", "targetSameAsSource"],
     },
     {
       id: "output",
@@ -99,25 +99,25 @@ const groupedSchema: ComponentSchema = {
     },
   ],
   properties: {
-    checkLeadingWhitespace: {
+    check_leading_whitespace: {
       type: "boolean",
       title: "Check Leading Whitespace",
       default: true,
       description: "Check for leading whitespace differences",
     },
-    checkTrailingWhitespace: {
+    check_trailing_whitespace: {
       type: "boolean",
       title: "Check Trailing Whitespace",
       default: true,
       description: "Check for trailing whitespace differences",
     },
-    checkDoubleSpaces: {
+    check_double_spaces: {
       type: "boolean",
       title: "Check Double Spaces",
       default: false,
       description: "Check for double spaces",
     },
-    checkEmptyTarget: {
+    check_empty_target: {
       type: "boolean",
       title: "Warn on Empty Target",
       default: true,

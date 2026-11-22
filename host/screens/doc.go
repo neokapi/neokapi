@@ -1,4 +1,4 @@
-// Package screens holds the shapes the Map, the Reader and Decide render, as
+// Package screens holds the shapes the Overview, the Reader and Decide render, as
 // JSON. The desktop backend and the Bowrain server both produce them, and the
 // views in packages/project-screens read nothing else. The package imports
 // only core/, so a server that cannot import the host root can build them.

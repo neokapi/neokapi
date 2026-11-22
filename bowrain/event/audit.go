@@ -279,6 +279,42 @@ func (a *AuditLogger) QueryAuditLog(ctx context.Context, q AuditQuery) ([]AuditE
 	return a.scanEntries(ctx, qb.String(), args)
 }
 
+// RollupEntries returns the audit entries of the events filed into one feed
+// roll-up row (activity_rollup_events), newest first.
+func (a *AuditLogger) RollupEntries(ctx context.Context, activityID string, limit int) ([]AuditEntry, error) {
+	return a.scanEntries(ctx,
+		`SELECT `+auditSelectCols+` FROM audit_log a
+		 WHERE a.event_id IN (SELECT event_id FROM activity_rollup_events WHERE activity_id = $1)
+		 ORDER BY a.created_at DESC, a.id DESC LIMIT $2`, []any{activityID, limit})
+}
+
+// LatestBlockDecisions returns the newest review decision recorded on each
+// of the blocks' translations into locale, keyed by block id.
+func (a *AuditLogger) LatestBlockDecisions(ctx context.Context, projectID, locale string, blockIDs []string) (map[string]AuditEntry, error) {
+	out := make(map[string]AuditEntry, len(blockIDs))
+	if len(blockIDs) == 0 {
+		return out, nil
+	}
+	args := []any{projectID, string(platev.EventReviewDecided), locale}
+	marks := make([]string, len(blockIDs))
+	for i, id := range blockIDs {
+		args = append(args, id)
+		marks[i] = fmt.Sprintf("$%d", len(args))
+	}
+	entries, err := a.scanEntries(ctx,
+		`SELECT DISTINCT ON (a.resource_id) `+auditSelectCols+` FROM audit_log a
+		 WHERE a.project_id = $1 AND a.event_type = $2 AND a.resource_type = 'block'
+		   AND a.data->>'locale' = $3 AND a.resource_id IN (`+strings.Join(marks, ", ")+`)
+		 ORDER BY a.resource_id, a.created_at DESC, a.id DESC`, args)
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range entries {
+		out[e.ResourceID] = e
+	}
+	return out, nil
+}
+
 func (a *AuditLogger) scanEntries(ctx context.Context, query string, args []any) ([]AuditEntry, error) {
 	rows, err := a.db.QueryContext(ctx, query, args...)
 	if err != nil {

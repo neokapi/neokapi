@@ -917,7 +917,7 @@ func TestConfig_CollapseWhitespace(t *testing.T) {
 		"default config should collapse whitespace")
 
 	// With preserve_whitespace=true.
-	parts2 := readHTMLWithConfig(t, snippet, map[string]any{"parser": map[string]any{"preserveWhitespace": true}})
+	parts2 := readHTMLWithConfig(t, snippet, map[string]any{"parser": map[string]any{"preserve_whitespace": true}})
 	blocks2 := translatableBlocks(parts2)
 	require.NotEmpty(t, blocks2)
 	assert.Equal(t, " t1  \nt2  ", blocks2[0].SourceText(),
@@ -937,7 +937,7 @@ func TestConfig_PreserveWhitespacePerElement(t *testing.T) {
 // okapi: HtmlConfigurationSupportTest#test_GLOBAL_PRESERVE_WHITESPACE
 func TestConfig_GlobalPreserveWhitespace(t *testing.T) {
 	snippet := "<p> t1  \nt2  </p><pre> t3  \nt4  </pre>"
-	parts := readHTMLWithConfig(t, snippet, map[string]any{"parser": map[string]any{"preserveWhitespace": true}})
+	parts := readHTMLWithConfig(t, snippet, map[string]any{"parser": map[string]any{"preserve_whitespace": true}})
 	blocks := translatableBlocks(parts)
 	require.Len(t, blocks, 2)
 	assert.Equal(t, " t1  \nt2  ", blocks[0].SourceText())
@@ -1510,8 +1510,8 @@ func TestConfig_CodeFinderRules(t *testing.T) {
 	// Code finder rules are a config feature; verify the config accepts them
 	cfg := &htmlfmt.Config{}
 	err := cfg.ApplyMap(map[string]any{
-		"useCodeFinder":   true,
-		"codeFinderRules": []string{`\bVAR\d\b`},
+		"use_code_finder":   true,
+		"code_finder_rules": []string{`\bVAR\d\b`},
 	})
 	require.NoError(t, err)
 	patterns := cfg.CodeFinderPatterns()
@@ -1545,7 +1545,7 @@ func TestConfigSupport_CollapseWhitespace(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	assert.Equal(t, "t1 t2", blocks[0].SourceText())
 
-	parts2 := readHTMLWithConfig(t, snippet, map[string]any{"parser": map[string]any{"preserveWhitespace": true}})
+	parts2 := readHTMLWithConfig(t, snippet, map[string]any{"parser": map[string]any{"preserve_whitespace": true}})
 	blocks2 := translatableBlocks(parts2)
 	require.NotEmpty(t, blocks2)
 	assert.Equal(t, " t1  \nt2  ", blocks2[0].SourceText())

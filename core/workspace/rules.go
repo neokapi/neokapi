@@ -32,7 +32,7 @@ CREATE INDEX IF NOT EXISTS idx_workspace_rules_kind ON workspace_rules(kind, id)
 // Rule is one piece of context that answers in every project of the workspace
 // rather than in the one whose evidence produced it.
 //
-// Almost everything a project learns stays in that project: its terms, its
+// Almost everything a project records stays in that project: its terms, its
 // voice profile and its content memory live in its own context store. A rule a
 // person deliberately widened has nowhere there to live, because no single
 // project owns it, so it lives here beside the registry.

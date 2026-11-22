@@ -83,7 +83,7 @@ function resolveStep(step: FlowStep, toolMap: Map<string, ToolInfo>): ResolvedSt
 
   if (step.tool === "redact") {
     const detectors = config.detectors as string[] | undefined;
-    const entityTypes = config.entityTypes as string[] | undefined;
+    const entityTypes = config.entity_types as string[] | undefined;
     const entitiesOn = (detectors?.includes("entities") ?? false) || (entityTypes?.length ?? 0) > 0;
     if (entitiesOn) {
       consumes = consumes.map((c) =>

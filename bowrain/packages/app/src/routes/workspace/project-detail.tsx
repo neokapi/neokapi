@@ -23,6 +23,7 @@ import {
   ConfirmDialog,
   ProjectMemberManager,
   X,
+  PageContainer,
 } from "@neokapi/ui";
 import type {
   SkippedFile,
@@ -342,7 +343,7 @@ export function ProjectDetailRoute() {
   }, [setActions, handleEditStream, handleMergeStream, handleDiffStream, handleDeleteStream]);
 
   return (
-    <>
+    <PageContainer width="full" className="px-6 py-5">
       {/* Files the server declined to import on the last upload */}
       {uploadSkipped.length > 0 && (
         <Alert
@@ -420,7 +421,7 @@ export function ProjectDetailRoute() {
         }}
         onUploadFiles={handleUploadFiles}
         onRemoveFile={handleRemoveFile}
-        onOpenDashboard={() =>
+        onOpenOverview={() =>
           navigate({
             to: "/$workspace/p/$projectId/s/$stream",
             params: {
@@ -584,6 +585,6 @@ export function ProjectDetailRoute() {
         variant="destructive"
         onConfirm={confirmArchiveStream}
       />
-    </>
+    </PageContainer>
   );
 }

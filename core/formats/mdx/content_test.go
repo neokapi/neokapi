@@ -13,7 +13,7 @@ import (
 )
 
 // readPartsExtract runs the MDX reader over src with a skeleton store and the
-// extractNonTranslatableContent flag set to `on`, returning the ordered
+// extract_non_translatable_content flag set to `on`, returning the ordered
 // Block/Data parts plus the populated skeleton store (ready to replay).
 func readPartsExtract(t *testing.T, src []byte, on bool) ([]*model.Part, *format.SkeletonStore) {
 	t.Helper()
@@ -21,6 +21,7 @@ func readPartsExtract(t *testing.T, src []byte, on bool) ([]*model.Part, *format
 	r.cfg.SetExtractNonTranslatableContent(on)
 	store, err := format.NewSkeletonStore()
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
 	r.SetSkeletonStore(store)
 	doc := &model.RawDocument{
 		Reader:       io.NopCloser(bytes.NewReader(src)),
@@ -118,7 +119,7 @@ Done.
 }
 
 // TestJSXChildrenOpaqueWhenOff verifies that with the flag OFF the JSX region
-// stays a single opaque Data part — the exact pre-#928 part stream — so parity
+// stays a single opaque Data part, the exact pre-#928 part stream, so parity
 // (which forces the flag off) is byte-identical.
 func TestJSXChildrenOpaqueWhenOff(t *testing.T) {
 	src := []byte(`# Title
@@ -180,10 +181,10 @@ func TestNestedJSXChildrenSurfaced(t *testing.T) {
 // --- Treatment A: GFM table cell prose (#928) ---
 
 // TestTableCellsAreTranslatableBlocks pins what delegating a GFM table to the
-// markdown reader buys: each cell is an ordinary translatable block with its
-// inline markup parsed into runs, the header row's cells carry the header role,
-// the delimiter row and the pipes and padding around every cell stay in the
-// skeleton, and the untranslated round-trip is byte-for-byte.
+// markdown reader buys. Each cell is an ordinary translatable block with its
+// inline markup parsed into runs, and the header row's cells carry the header
+// role. The delimiter row and the pipes and padding around every cell stay in
+// the skeleton, and the untranslated round-trip is byte-for-byte.
 func TestTableCellsAreTranslatableBlocks(t *testing.T) {
 	src := []byte(`# Title
 
@@ -277,15 +278,14 @@ func TestTableRowsRideGroups(t *testing.T) {
 
 // --- Treatment A: markdown-opaque fallback blocks (#928) ---
 
-// TestMarkdownOpaqueFallbackSurfacesBlocks verifies that when a Markdown span
-// fails byte-exact reconstruction (here an admonition opener followed by a
-// line indented by one space, which the reader reads as the body without its
-// space) the span is kept verbatim opaque
-// AND, when the flag is on, the prose the markdown sub-reader already parsed
-// is surfaced as non-translatable
-// content blocks (no skeleton ref → no round-trip impact). With the flag off,
-// only the opaque Data is emitted (identical pre-#928 part stream). Both
-// directions round-trip byte-for-byte.
+// TestMarkdownOpaqueFallbackSurfacesBlocks covers a Markdown span that fails
+// byte-exact reconstruction: here an admonition opener followed by a line
+// indented by one space, which the reader reads as the body without its space.
+// The span is kept verbatim opaque. When the flag is on, the prose the markdown
+// sub-reader already parsed is surfaced as non-translatable content blocks
+// (no skeleton ref, so no round-trip impact). With the flag off, only the
+// opaque Data is emitted (identical pre-#928 part stream). Both directions
+// round-trip byte-for-byte.
 func TestMarkdownOpaqueFallbackSurfacesBlocks(t *testing.T) {
 	// An admonition opener followed by a line indented by one space: the
 	// reader drops the space, so the markdown reader does not reconstruct the
@@ -310,7 +310,7 @@ func TestMarkdownOpaqueFallbackSurfacesBlocks(t *testing.T) {
 	assert.Equal(t, string(src), string(writeParts(t, onParts, onStore, "")),
 		"surfacing the fallback blocks must not change the byte round-trip")
 
-	// Flag OFF: opaque Data only (no blocks) — identical pre-#928 part stream.
+	// Flag OFF: opaque Data only (no blocks), the same part stream as before #928.
 	offParts, offStore := readPartsExtract(t, src, false)
 	require.Len(t, opaqueData(offParts, "mdx-markdown-opaque"), 1)
 	for _, p := range offParts {
@@ -330,16 +330,16 @@ func TestExtractNonTranslatableContentConfig(t *testing.T) {
 	c.Reset()
 	assert.True(t, c.ExtractNonTranslatableContent(), "default is ON")
 
-	require.NoError(t, c.ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
+	require.NoError(t, c.ApplyMap(map[string]any{"extract_non_translatable_content": false}))
 	assert.False(t, c.ExtractNonTranslatableContent(), "ApplyMap can turn it off")
-	require.NoError(t, c.ApplyMap(map[string]any{"extractNonTranslatableContent": true}))
+	require.NoError(t, c.ApplyMap(map[string]any{"extract_non_translatable_content": true}))
 	assert.True(t, c.ExtractNonTranslatableContent(), "ApplyMap can turn it back on")
 
 	c.SetExtractNonTranslatableContent(false)
 	assert.False(t, c.ExtractNonTranslatableContent(), "Set toggles the flag")
 
 	// Wrong type is rejected.
-	require.Error(t, c.ApplyMap(map[string]any{"extractNonTranslatableContent": "nope"}))
+	require.Error(t, c.ApplyMap(map[string]any{"extract_non_translatable_content": "nope"}))
 
 	// The flag is NOT forwarded to markdown: a code fence inside an MDX
 	// markdown span stays opaque (Data) even with the mdx flag ON, because

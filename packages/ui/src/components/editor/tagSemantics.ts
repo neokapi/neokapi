@@ -1,5 +1,5 @@
 import type { SpanInfo } from "../../types/span";
-import { getDefaultRegistry, type ColorScheme } from "../../vocabularies";
+import { getDefaultRegistry, readableLabel, type ColorScheme } from "../../vocabularies";
 import { isDeletable, isCloneable } from "./tagConstraints";
 
 // Re-export ColorScheme as TagColorScheme for backward compatibility.
@@ -26,15 +26,17 @@ export function tagColors(span: SpanInfo): TagColorScheme {
 
 /** Rich chip label from vocabulary: "B>" for bold opening, "/I" for italic closing, "br" for break. */
 export function semanticLabel(span: SpanInfo): string {
-  // Use display_text from the backend if available.
-  if (span.display_text) {
+  // Use display_text from the backend when it reads as words.
+  if (span.display_text && readableLabel(span.display_text)) {
     return span.display_text;
   }
-  // Entity placeholders show their value (stored in data).
+  // Entity placeholders show their value (stored in data): a name or a
+  // number, which is content, never markup.
   if (
     span.span_type === "placeholder" &&
     getDefaultRegistry().isEntityType(span.type) &&
-    span.data
+    span.data &&
+    readableLabel(span.data)
   ) {
     return span.data;
   }
@@ -71,13 +73,13 @@ export function isLineBreakCode(span: SpanInfo): boolean {
   return getDefaultRegistry().textEquiv(span) === "\n";
 }
 
-/** Tooltip with semantic name and raw data: e.g. "Bold open: <b>" */
+/** Tooltip with the semantic name and role, e.g. "Bold open". A code's raw data is never shown. */
 export function semanticTooltip(span: SpanInfo): string {
   const registry = getDefaultRegistry();
   const info = registry.lookupOrFallback(span.type);
   const spanTypeLabel =
     span.span_type === "opening" ? "open" : span.span_type === "closing" ? "close" : "placeholder";
-  return `${info.label} ${spanTypeLabel}: ${span.data}`;
+  return `${info.label} ${spanTypeLabel}`;
 }
 
 // --- Pair Analysis ---

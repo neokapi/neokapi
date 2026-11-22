@@ -36,9 +36,14 @@ Resolution has two stages.
    the engine order is walked until an engine with a claimant is found.
 2. **Format within the engine.** When the engine has one claimant, that is the
    format. When it has several and the file can be read, the file head is
-   sniffed and the result is taken if it names one of the engine's claimants
-   (`.xliff` 1.x or 2.x, `.xml` as Android, RESX or plain XML). Otherwise the
-   highest priority wins and a tie falls to name order.
+   sniffed among those claimants alone (`format.Detector.DetectByContentAmong`,
+   so a sniffer of another extension cannot shadow them): `.xliff` 1.x or 2.x,
+   `.xml` as Android string resources, DocLang or plain XML. Otherwise the
+   highest priority wins and a tie falls to name order. A format told apart
+   only by its content (`androidxml`, `doclang`) claims the shared extension
+   with a priority below the generic reader's, so a file its sniffer rejects
+   stays generic. A caller holding the bytes rather than a path passes them as
+   `DetectOptions.Content`; `ExtensionOnly` skips this stage.
 
 A priority never crosses an engine. `format.DefaultPluginPriority` (25) sits
 below `format.DefaultBuiltInPriority` (50) so that the detector's own

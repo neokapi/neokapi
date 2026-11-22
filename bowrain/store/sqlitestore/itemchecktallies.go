@@ -23,11 +23,12 @@ func (s *SQLiteStore) PutItemCheckTally(ctx context.Context, t platstore.ItemChe
 		at = time.Now()
 	}
 	if _, err := s.db.ExecContext(ctx, `
-		INSERT INTO item_check_tallies (project_id, stream, item_id, findings, fixable, checked_at)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO item_check_tallies (project_id, stream, item_id, findings, fixable, rules, checked_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (project_id, stream, item_id) DO UPDATE
-		   SET findings = excluded.findings, fixable = excluded.fixable, checked_at = excluded.checked_at`,
-		t.ProjectID, stream, t.ItemID, t.Findings, t.Fixable, at.UTC().Format(time.RFC3339Nano)); err != nil {
+		   SET findings = excluded.findings, fixable = excluded.fixable, rules = excluded.rules,
+		       checked_at = excluded.checked_at`,
+		t.ProjectID, stream, t.ItemID, t.Findings, t.Fixable, platstore.EncodeRuleTallies(t.Rules), at.UTC().Format(time.RFC3339Nano)); err != nil {
 		return fmt.Errorf("record the check tally of item %s: %w", t.ItemID, err)
 	}
 	return nil
@@ -39,7 +40,7 @@ func (s *SQLiteStore) ListItemCheckTallies(ctx context.Context, projectID, strea
 		stream = "main"
 	}
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT item_id, findings, fixable, checked_at
+		SELECT item_id, findings, fixable, rules, checked_at
 		  FROM item_check_tallies WHERE project_id = ? AND stream = ? ORDER BY item_id`, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("list the check tallies of project %s: %w", projectID, err)
@@ -48,10 +49,11 @@ func (s *SQLiteStore) ListItemCheckTallies(ctx context.Context, projectID, strea
 	out := []platstore.ItemCheckTally{}
 	for rows.Next() {
 		t := platstore.ItemCheckTally{ProjectID: projectID, Stream: stream}
-		var at string
-		if err := rows.Scan(&t.ItemID, &t.Findings, &t.Fixable, &at); err != nil {
+		var at, rules string
+		if err := rows.Scan(&t.ItemID, &t.Findings, &t.Fixable, &rules, &at); err != nil {
 			return nil, fmt.Errorf("list the check tallies of project %s: %w", projectID, err)
 		}
+		t.Rules = platstore.DecodeRuleTallies([]byte(rules))
 		if t.CheckedAt, err = time.Parse(time.RFC3339Nano, at); err != nil {
 			return nil, fmt.Errorf("list the check tallies of project %s: the time %q: %w", projectID, at, err)
 		}

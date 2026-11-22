@@ -5,6 +5,10 @@ on: pull_request
 permissions:
   contents: write
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   tidy:
     if: github.actor == 'dependabot[bot]'
@@ -15,9 +19,11 @@ jobs:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/setup-go@v7
+      # Restore-only on this pull request: main's module cache, keyed on every
+      # go.sum, which a dependency bump changes.
+      - uses: ./.github/actions/setup-go-cached
         with:
-          go-version: "1.27.1"
+          family: go-tidy
 
       - name: Tidy all modules
         env:

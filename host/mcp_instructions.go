@@ -40,9 +40,9 @@ func MCPInstructions() string {
 		"correct, or that nothing is recorded yet.\n\n" +
 		"For Word, XLIFF and other files your tools cannot edit safely, use read_blocks and apply_edits; " +
 		"describe_format says what a format accepts.\n\n" +
-		"Record with context_note what the files keep to and the rules omit, even where your text does not need " +
+		"Record with context_note consistent wording in the files that the rules omit, even where your text does not need " +
 		"it: a name, the spelling variety, a word preferred over a common one, with its path. Leave alone a word " +
-		"the files write two ways. Record the person's edits with from, to, path; withdraw takes back a mistake. " +
+		"spelled two ways in the files. Record the person's edits with from, to, path; withdraw takes back a mistake. " +
 		"A person decides what becomes a rule.\n\n" +
 		"Finally, run check_file on each changed file; fix what it reports. " +
 		"After a note, end with context_session_summary."

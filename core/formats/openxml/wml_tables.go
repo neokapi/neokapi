@@ -168,7 +168,7 @@ func (p *wmlParser) closeTableStruct(name string) {
 func (p *wmlParser) handleTableRow(d *rawDecoder, start xml.StartElement) error {
 	// The row's own start tag, kept so the skeleton can replay it once the
 	// row is known not to be a deleted one.
-	registerNamespaces(start.Attr)
+	p.names().register(start.Attr)
 	startRaw := d.RawString()
 
 	// Peek at the first child token. Per ECMA-376 §17.4.79 (CT_Row),

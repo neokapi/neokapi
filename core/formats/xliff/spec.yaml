@@ -7,9 +7,9 @@
 # default-config baseline.
 #
 # Authoring notes:
-#   - Config keys mirror the okf_xliff bridge composite schema's
-#     `x-flattenPath` leaf names (`fallbackToID`, `includeIts`,
-#     `ignoreInputSegmentation`, …) so drift detection against the
+#   - Config keys are the snake_case spellings of the okf_xliff bridge
+#     composite schema's `x-flattenPath` leaf names (`fallback_to_id`, `include_its`,
+#     `ignore_input_segmentation`, …) so drift detection against the
 #     bridge composite schema lines up.
 #   - `okapi_param` is the Java field name from XLIFFFilter#Parameters
 #     for traceability — usually identical to the leaf name for this
@@ -32,7 +32,7 @@ description: |
   <mrk mtype="seg"> markers.
 
 config:
-  - key: preserveSpaceByDefault
+  - key: preserve_space_by_default
     type: boolean
     default: false
     description: |
@@ -41,7 +41,7 @@ config:
       `xml:space` only.
     okapi_param: preserveSpaceByDefault
 
-  - key: includeExtensions
+  - key: include_extensions
     type: boolean
     default: true
     description: |
@@ -51,7 +51,7 @@ config:
       preserved on round-trip.
     okapi_param: includeExtensions
 
-  - key: includeIts
+  - key: include_its
     type: boolean
     default: true
     description: |
@@ -61,7 +61,7 @@ config:
       round-trip.
     okapi_param: includeIts
 
-  - key: ignoreInputSegmentation
+  - key: ignore_input_segmentation
     type: boolean
     default: false
     description: |
@@ -70,7 +70,7 @@ config:
       pre-segmented bilingual XLIFF rely on the segmentation surviving.
     okapi_param: ignoreInputSegmentation
 
-  - key: fallbackToID
+  - key: fallback_to_id
     type: boolean
     default: false
     description: |
@@ -81,7 +81,7 @@ config:
       observable behavior.
     okapi_param: fallbackToID
 
-  - key: forceUniqueIds
+  - key: force_unique_ids
     type: boolean
     default: false
     description: |
@@ -89,7 +89,7 @@ config:
       Off by default — preserves the original ids from the source XLIFF.
     okapi_param: forceUniqueIds
 
-  - key: useTranslationTargetState
+  - key: use_translation_target_state
     type: boolean
     default: true
     description: |
@@ -98,16 +98,16 @@ config:
       the original `state` value via block properties.
     okapi_param: useTranslationTargetState
 
-  - key: targetStateValue
+  - key: target_state_value
     type: string
     default: needs-translation
     description: |
       State value the writer assigns to `<target>` elements when
-      `useTranslationTargetState` is true. Read-only spec — the reader
+      `use_translation_target_state` is true. Read-only spec — the reader
       doesn't consult this.
     okapi_param: targetStateValue
 
-  - key: addTargetLanguage
+  - key: add_target_language
     type: boolean
     default: true
     description: |
@@ -116,7 +116,7 @@ config:
       on this; recorded for parity with the bridge schema.
     okapi_param: addTargetLanguage
 
-  - key: overrideTargetLanguage
+  - key: override_target_language
     type: boolean
     default: false
     description: |
@@ -125,7 +125,7 @@ config:
       doesn't act on this.
     okapi_param: overrideTargetLanguage
 
-  - key: allowEmptyTargets
+  - key: allow_empty_targets
     type: boolean
     default: false
     description: |
@@ -134,7 +134,7 @@ config:
       simply yields no target segments on the block).
     okapi_param: allowEmptyTargets
 
-  - key: alwaysAddTargets
+  - key: always_add_targets
     type: boolean
     default: false
     description: |
@@ -142,7 +142,7 @@ config:
       Recorded for bridge parity; reader-side this is a no-op.
     okapi_param: alwaysAddTargets
 
-  - key: editAltTrans
+  - key: edit_alt_trans
     type: boolean
     default: false
     description: |
@@ -150,7 +150,7 @@ config:
       Recorded for bridge parity; reader-side this is a no-op.
     okapi_param: editAltTrans
 
-  - key: addAltTrans
+  - key: add_alt_trans
     type: boolean
     default: false
     description: |
@@ -489,9 +489,9 @@ features:
       - xliff.TestReadXLIFFTargets
 
   - id: ignore_input_segmentation
-    name: ignoreInputSegmentation config wiring
+    name: ignore_input_segmentation config wiring
     description: |
-      With `ignoreInputSegmentation: true`, the reader is expected to
+      With `ignore_input_segmentation: true`, the reader is expected to
       discard `<seg-source>` segmentation and surface the trans-unit's
       `<source>` as a single segment. The current assertion vocabulary
       (block_count, block_texts) only sees concatenated block text, so
@@ -502,10 +502,10 @@ features:
       output); a follow-up that introduces segment_count assertions
       will tighten this into a true behavioural check.
     config:
-      ignoreInputSegmentation: true
+      ignore_input_segmentation: true
     examples:
       - name: flag_accepted
-        origin: "authored: segmented trans-unit + ignoreInputSegmentation=true config wiring"
+        origin: "authored: segmented trans-unit + ignore_input_segmentation=true config wiring"
         input_xml: |
           <?xml version="1.0"?>
           <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
@@ -519,7 +519,7 @@ features:
             </file>
           </xliff>
         expected_fail: |
-          bridge default config does not expose ignoreInputSegmentation
+          bridge default config does not expose ignore_input_segmentation
           (Okapi XLIFFFilter rejects the property as Unknown), so the
           bridge falls back to using <source> verbatim and yields
           "Sentence one. Sentence two." (with the inter-segment space).

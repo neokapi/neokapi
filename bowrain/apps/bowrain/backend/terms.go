@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -128,25 +129,6 @@ func conceptToInfo(c terms.Concept) ConceptInfo {
 	}
 }
 
-func termsFromInfo(infos []TermInfo) []terms.Term {
-	result := make([]terms.Term, len(infos))
-	for i, t := range infos {
-		result[i] = terms.Term{
-			Text:         t.Text,
-			Locale:       model.LocaleID(t.Locale),
-			Status:       model.TermStatus(t.Status),
-			PartOfSpeech: t.PartOfSpeech,
-			Gender:       t.Gender,
-			Note:         t.Note,
-			Forms:        t.Forms,
-		}
-		if result[i].Status == "" {
-			result[i].Status = model.TermApproved
-		}
-	}
-	return result
-}
-
 // GetTerms searches the terms store.
 func (a *App) GetTerms(projectID, query, sourceLocale, targetLocale string, offset, limit int) (*TermSearchResult, error) {
 	if a.isConnected() {
@@ -220,7 +202,7 @@ func (a *App) addConceptLocal(req AddConceptRequest) (*ConceptInfo, error) {
 		ID:         id.New(),
 		Domain:     req.Domain,
 		Definition: req.Definition,
-		Terms:      termsFromInfo(req.Terms),
+		Terms:      venue.EditedTerms(nil, termInfosToEditor(req.Terms)),
 	}
 
 	if err := tb.AddConcept(context.Background(), concept); err != nil {
@@ -249,13 +231,16 @@ func (a *App) UpdateConcept(req UpdateConceptRequest) error {
 			if err != nil {
 				return fmt.Errorf("init terms: %w", err)
 			}
-			concept := terms.Concept{
-				ID:         req.ConceptID,
-				Domain:     req.Domain,
-				Definition: req.Definition,
-				Terms:      termsFromInfo(req.Terms),
+			ctx := context.Background()
+			concept, _, err := tb.GetConcept(ctx, req.ConceptID)
+			if err != nil {
+				return err
 			}
-			return tb.AddConcept(context.Background(), concept)
+			concept.ID = req.ConceptID
+			concept.Domain = req.Domain
+			concept.Definition = req.Definition
+			concept.Terms = venue.EditedTerms(concept.Terms, termInfosToEditor(req.Terms))
+			return tb.AddConcept(ctx, concept)
 		},
 	)
 }

@@ -78,7 +78,7 @@
 #                     queryable: many formats mapping a construct to
 #                     skeleton-only would indicate a missing model facility.
 #   block_type      — block-kind rows only: the canonical Block.Type string
-#                     (grounded in core/formats/html/reader.go blockTypeMap
+#                     (grounded in core/formats/html/reader.go block_type_map
 #                     and the markdown reader's block types).
 #   its_category    — ITS 2.0 data-category seed where applicable
 #                     (https://www.w3.org/TR/its20/ §2.1), lowercase-kebab:
@@ -643,7 +643,7 @@ constructs:
 
   # ── Block kinds ───────────────────────────────────────────────────────────
   # Block.Type is a free-form string today; these rows pin the canonical
-  # values (grounded in core/formats/html/reader.go blockTypeMap and the
+  # values (grounded in core/formats/html/reader.go block_type_map and the
   # markdown reader) that the V2 "block kinds populated" criterion scores
   # against. Level/depth (h1..h6, list nesting) rides Block.Properties.
   - id: block.heading

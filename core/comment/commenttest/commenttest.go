@@ -21,7 +21,7 @@
 //     check that reads every real comment.
 //
 // Verify returns what a provider broke rather than failing a test, so a test
-// can hand it a provider broken on purpose and assert that it notices.
+// can hand it a provider broken on purpose and assert that it catches it.
 package commenttest
 
 import (

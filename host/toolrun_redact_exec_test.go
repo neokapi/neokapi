@@ -27,10 +27,10 @@ func echoProgram(t *testing.T) (config map[string]any, saw string) {
 	script := filepath.Join(dir, "echo.sh")
 	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\ntee \"$1\" | sed 's/Write/Mail/'\n"), 0o700))
 	return map[string]any{
-		"command":     script,
-		"args":        []any{saw},
-		"applySource": true,
-		"applyTarget": false,
+		"command":      script,
+		"args":         []any{saw},
+		"apply_source": true,
+		"apply_target": false,
 	}, saw
 }
 
@@ -41,7 +41,7 @@ func rewriteProgram(t *testing.T, expr string) map[string]any {
 	t.Helper()
 	script := filepath.Join(t.TempDir(), "rewrite.sh")
 	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nsed '"+expr+"'\n"), 0o700))
-	return map[string]any{"command": script, "applySource": true, "applyTarget": false}
+	return map[string]any{"command": script, "apply_source": true, "apply_target": false}
 }
 
 // A program that drops the placeholder it read leaves the block as it was:
@@ -259,7 +259,7 @@ func TestFlowRun_ExternalCommandThatDropsAPlaceholderReportsTheFinding(t *testin
 	// The redact step names no rules, so it redacts under the project's policy.
 	recipe := redactProject(t, redactionYAML+"flows:\n  rewrite:\n    steps:\n      - tool: redact\n"+
 		"      - tool: external-command\n        config:\n          command: "+script+
-		"\n          applySource: true\n          applyTarget: false\n      - tool: unredact\n")
+		"\n          apply_source: true\n          apply_target: false\n      - tool: unredact\n")
 	stdout, got, err := runRecipeFlow(t, recipe, "rewrite")
 	require.NoError(t, err, "a flow reports its findings and leaves the gate to kapi check")
 
@@ -341,7 +341,7 @@ func TestFlowRun_ARedactStepWithItsOwnRulesKeepsThem(t *testing.T) {
 	rules := filepath.Join(t.TempDir(), "rules.yaml")
 	require.NoError(t, os.WriteFile(rules, []byte("version: v1\nrules:\n  - term: today\n    category: date\n"), 0o600))
 	recipe := redactProject(t, redactionYAML+"flows:\n  secure:\n    steps:\n"+
-		"      - tool: redact\n        config:\n          rulesPath: "+rules+"\n"+
+		"      - tool: redact\n        config:\n          rules_path: "+rules+"\n"+
 		"      - tool: translate\n        config:\n          provider: demo\n      - tool: unredact\n")
 	saw := providerSaw(t)
 	_, _, err := runRecipeFlow(t, recipe, "secure", "target-lang", "fr")
@@ -423,7 +423,7 @@ func TestUp_AProgramThatDropsAPlaceholderFailsTheRun(t *testing.T) {
 		"  translate_after: none\n"+redactionYAML+
 		"collections:\n  - name: docs\n    content:\n      - path: \"docs/*.json\"\n        target: \"out/{lang}/{name}.{ext}\"\n"+
 		"flows:\n  rewrite:\n    steps:\n      - tool: redact\n"+
-		"      - tool: external-command\n        config:\n          command: "+script+"\n          applySource: true\n          applyTarget: false\n"+
+		"      - tool: external-command\n        config:\n          command: "+script+"\n          apply_source: true\n          apply_target: false\n"+
 		"      - tool: translate\n        config:\n          provider: demo\n      - tool: unredact\n")
 	write("redact.yaml", redactRules)
 	write("docs/page.json", redactedPage)

@@ -302,7 +302,7 @@ async function loadBlocksFromStdin(): Promise<{
 }
 
 const usage = `
-neokapi-i18n compile — flatten translated blocks into runtime dictionaries.
+neokapi-i18n compile: flatten translated blocks into runtime dictionaries.
 
 Usage:
   neokapi-i18n compile <input>... [--locale <lang>]... [--out <dir>] [--review]
@@ -317,7 +317,7 @@ Options:
                     If omitted, every language a block holds an edition in
                     is emitted.
   --out <dir>       Output directory (default: public/translations)
-  --review          Also emit review.json — a read-only in-context review
+  --review          Also emit review.json, a read-only in-context review
                     manifest (source + all targets + annotations, merged by
                     hash) for @neokapi/i18n-react/review/hosted. Point it at the
                     i18n/ tree, which is walked recursively so it picks up the

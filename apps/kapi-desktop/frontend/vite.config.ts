@@ -3,6 +3,7 @@ import type { PluginOption } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import neokapi from "@neokapi/i18n-react/vite";
+import qpsCatalog from "../../../scripts/vite-qps-catalog.mjs";
 import neokapiI18nConfig from "./neokapi-i18n.config.json" with { type: "json" };
 
 export default defineConfig({
@@ -12,17 +13,26 @@ export default defineConfig({
   // PluginOption keeps the plugin fully type-safe while stopping the recursion.
   plugins: [
     // componentMap stabilises i18n hashes for app-local wrapper components
-    // (kept in neokapi-i18n.config.json so the extract CLI and this
-    // transform hash identically — a map that exists on one side only
-    // makes those strings unresolvable at runtime)
-    // that render translatable text — without it the extractor warns and the
-    // hash could shift once a mapping is added. Map each to its rendered tag.
+    // that render text, mapping each to its rendered tag. Without it the
+    // extractor warns, and a hash could shift once a mapping is added. It is
+    // kept in neokapi-i18n.config.json so the extract CLI and this transform
+    // hash identically. A map present on one side only makes those strings
+    // unresolvable at runtime.
     neokapi({ mode: "runtime", componentMap: neokapiI18nConfig.componentMap }) as PluginOption,
+    // public/translations/qps.json is build output: regenerated here (make kapi-desktop-qps).
+    qpsCatalog("kapi-desktop-qps"),
     react(),
     tailwindcss(),
   ],
   build: {
     outDir: "dist",
+    // The entry chunk is 3,684 kB minified (1,134 kB gzip), measured
+    // 2026-11-22. The app loads it from the assets embedded in the binary, so
+    // its size costs no download, and the 500 kB default warned on every
+    // build. The limit sits just above it, so a regression of more than about
+    // 100 kB warns. If start-up parsing becomes slow, lazy-load the pages in
+    // ViewSwitch.tsx, which imports every page eagerly.
+    chunkSizeWarningLimit: 3800,
     rolldownOptions: {
       output: {
         // The Wails runtime and the generated bindings share one chunk. Left
@@ -31,7 +41,7 @@ export default defineConfig({
         // binding at load time before the other chunk has assigned it. The
         // load fails, the lazy import in useApi swallows it, and every backend
         // call returns null: the app renders with empty lists and no error.
-        advancedChunks: {
+        codeSplitting: {
           groups: [{ name: "wails", test: /@wailsio\/runtime|\/bindings\// }],
         },
       },

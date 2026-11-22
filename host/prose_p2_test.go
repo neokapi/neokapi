@@ -24,7 +24,7 @@ import (
 // its formatter each catch a canary on every run.
 //
 // The subtests named "must fail" break one of those on purpose and assert that
-// the run notices. Nothing in here skips.
+// the run catches. Nothing in here skips.
 func TestProseP2_go(t *testing.T) {
 	t.Run("a comment is held to the governance of its file's point", func(t *testing.T) {
 		root := commentProjectFixture(t)

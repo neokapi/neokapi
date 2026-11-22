@@ -13,14 +13,14 @@ overview: |
   glob-style patterns, detect inline codes, and route values containing
   embedded markup (such as HTML) to a subfilter.
 parameters:
-  extractNonStrings:
+  extract_non_strings:
     description: Extract non-string scalar values.
     help: |
       When enabled, non-string scalars (booleans, numbers, and nulls) are
       also extracted as translatable blocks. By default only string scalars
       are extracted.
     values: "`true` / `false` (default `false`)"
-  keyPathPatterns:
+  key_path_patterns:
     description: Glob patterns selecting which key paths are extracted.
     help: |
       An array of glob-style key-path patterns. When non-empty, only keys
@@ -39,21 +39,21 @@ parameters:
     values: Format name (default empty)
     examples:
       - "`html` parses HTML inside YAML scalar values"
-  useCodeFinder:
+  use_code_finder:
     description: Enable regex-based inline-code detection.
     help: |
       Enables regex-based detection of inline codes within string values. The
-      patterns are supplied via `codeFinderRules`.
+      patterns are supplied via `code_finder_rules`.
     values: "`true` / `false` (default `false`)"
-  codeFinderRules:
+  code_finder_rules:
     description: Regex patterns that match inline codes within values.
     help: |
       An array of regular expressions; text matching any of them is treated
       as an inline code rather than translatable words. Only used when
-      `useCodeFinder` is enabled.
+      `use_code_finder` is enabled.
     values: Array of regular expressions (default empty)
     dependsOn:
-      - property: useCodeFinder
+      - property: use_code_finder
         condition: must be enabled for these patterns to apply
 limitations:
   - Only scalar values are translatable; mapping keys and sequence structure form the non-translatable skeleton.
@@ -63,7 +63,7 @@ examples:
   - title: Extract a single locale subtree
     description: Translate only the keys under the en branch of a Rails-style locale file.
     config: |
-      keyPathPatterns:
+      key_path_patterns:
         - "en.**"
   - title: HTML inside values
     description: Parse HTML markup within YAML scalar values.

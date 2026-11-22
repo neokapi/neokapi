@@ -122,7 +122,7 @@ func applyWith(t *testing.T, a *App, entries ...map[string]any) (commentRun, err
 // formatter did not run writes nothing.
 //
 // The subtests named "must fail" break the write path on purpose and assert
-// that the run notices.
+// that the run catches.
 func TestPluginCommentRewrite(t *testing.T) {
 	t.Run("the fixture is oxfmt-clean", func(t *testing.T) {
 		file := tsProject(t, nil)

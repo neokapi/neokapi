@@ -17,14 +17,14 @@ from what is held there, on every axis at once, in one place:
 ref(stream) = { content: position, context: hash, terms: hash, decisions: hash }
 ```
 
-The four components are not the same kind of value. **Content** is a
+The four components are values of two kinds. **Content** is a
 monotonic position: ahead and behind are meaningful, and an interrupted transfer
 resumes from it. **Context**, **terms** and **decisions** are identity hashes,
 compared for equality and for nothing else.
 
 Two unequal hashes carry no ordering, so a ref never claims one side is newer. It
 reports that governance moved and leaves the reconciliation to a caller who can
-ask a person: cheap observation, explicit resolution.
+ask a person.
 
 ## Context
 
@@ -244,7 +244,7 @@ is nothing to be behind.
 - Governance changes are observable without a round trip or a monotonic cursor.
 - A writer can protect a governance write without blocking on content traffic,
   and a client that does not know about refs is not broken by them.
-- A caller receives a notice when previously retrieved context has changed.
+- A caller receives a notice when context it retrieved earlier has changed.
 - Adding a component is a change in exactly two places, the struct and the
   comparison, because nothing else re-implements either.
 

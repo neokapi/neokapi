@@ -28,8 +28,8 @@ import {
 import {
   Badge,
   Button,
-  CoordinateChip,
   LocaleLabel,
+  PageContainer,
   PageHeader,
   SectionHeading,
   Separator,
@@ -56,7 +56,8 @@ import type {
 import { VoiceProfileEditor } from "./voice/VoiceProfileEditor";
 import { FactGrid } from "./voice/facts";
 import { PatternGroups, RulesBlock } from "./voice/rules";
-import { ResolutionHeader, shortDate } from "./voice/resolution-header";
+import { ResolutionHeader } from "./voice/resolution-header";
+import { LabelledCoordinates, coordinateDifferences, sharedCoordinates } from "./PointCoordinates";
 
 export interface VoicePageProps {
   tabID: string;
@@ -168,14 +169,17 @@ function ExampleRow({ example }: { example: VoiceExample }) {
 /** One row in the point rail. */
 function PointRow({
   point,
+  shared,
   selected,
   onSelect,
 }: {
   point: VoicePoint;
+  /** The coordinates every point holds, drawn once above the list. */
+  shared: Record<string, string>;
   selected: boolean;
   onSelect: () => void;
 }) {
-  const coordinates = Object.entries(point.coordinates ?? {});
+  const coordinates = coordinateDifferences(point.coordinates, shared);
   return (
     <li>
       <button
@@ -196,13 +200,7 @@ function PointRow({
             </Badge>
           )}
         </div>
-        {coordinates.length > 0 && (
-          <span className="mt-1 flex flex-wrap items-center gap-1">
-            {coordinates.map(([axis, value]) => (
-              <CoordinateChip key={axis} axis={axis} value={value} />
-            ))}
-          </span>
-        )}
+        <LabelledCoordinates entries={coordinates} className="mt-1" />
         <p className="truncate text-[11px] text-muted-foreground">
           {point.profile ? point.profile.name : t("no voice profile binds here")}
         </p>
@@ -443,6 +441,10 @@ export function VoicePage({ tabID, result, editable = true, save, valueSets }: V
 
   const [selected, setSelected] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const shared = useMemo(
+    () => sharedCoordinates(data?.points.map((p) => p.coordinates) ?? []),
+    [data],
+  );
   const active = useMemo(() => {
     if (!data?.points.length) return undefined;
     return data.points.find((p) => p.label === selected) ?? data.points[0];
@@ -458,84 +460,91 @@ export function VoicePage({ tabID, result, editable = true, save, valueSets }: V
   }, [active]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto p-6">
+    <PageContainer width="full">
       <PageHeader
+        help="voice-and-terms"
+        className="mb-0 shrink-0 px-6 pt-5 pb-3"
         title={t("Voice")}
-        subtitle={t("The profile that governs each point, and why that one.")}
       />
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto border-t border-border px-6 pb-6">
+        {!result && query.isError && (
+          <ErrorHint
+            title={t("The voice profiles did not load")}
+            description={(query.error as Error).message}
+          />
+        )}
 
-      {!result && query.isError && (
-        <ErrorHint
-          title={t("The voice profiles did not load")}
-          description={(query.error as Error).message}
-        />
-      )}
+        {!result && query.isLoading && (
+          <div className="mt-4 space-y-2">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        )}
 
-      {!result && query.isLoading && (
-        <div className="mt-4 space-y-2">
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      )}
+        {data && (
+          <>
+            {!!data.notes?.length && (
+              <ul className="mt-4 space-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+                {data.notes.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            )}
 
-      {data && (
-        <>
-          {!!data.notes?.length && (
-            <ul className="mt-4 space-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
-              {data.notes.map((note) => (
-                <li key={note}>{note}</li>
-              ))}
-            </ul>
-          )}
-
-          {data.points.length === 0 ? (
-            <EmptyHint
-              title={t("This project declares no points")}
-              description={t("Open the recipe to bind a voice profile.")}
-            />
-          ) : (
-            <div className="mt-4 grid min-h-0 flex-1 gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-              <nav aria-label={t("Points")}>
-                <ul className="space-y-1">
-                  {data.points.map((p) => (
-                    <PointRow
-                      key={p.label}
-                      point={p}
-                      selected={active?.label === p.label}
-                      onSelect={() => setSelected(p.label)}
+            {data.points.length === 0 ? (
+              <PageContainer width="narrow">
+                <EmptyHint
+                  title={t("This project declares no points")}
+                  description={t("Open the recipe to bind a voice profile.")}
+                />
+              </PageContainer>
+            ) : (
+              <div className="mt-4 grid min-h-0 flex-1 gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
+                <nav aria-label={t("Points")}>
+                  <LabelledCoordinates
+                    entries={Object.entries(shared)}
+                    className="mb-2 px-3"
+                    testId="voice-shared-coordinates"
+                  />
+                  <ul className="space-y-1">
+                    {data.points.map((p) => (
+                      <PointRow
+                        key={p.label}
+                        point={p}
+                        shared={shared}
+                        selected={active?.label === p.label}
+                        onSelect={() => setSelected(p.label)}
+                      />
+                    ))}
+                  </ul>
+                </nav>
+                {active &&
+                  (editing ? (
+                    <VoiceProfileEditor
+                      tabID={tabID}
+                      profileName={active.point.profile ?? ""}
+                      target={active.edit}
+                      profile={draft}
+                      valueSets={valueSets}
+                      save={save}
+                      onCancel={() => setEditing(false)}
+                      onSaved={(result) => {
+                        setEditing(false);
+                        void queries.invalidateQueries({ queryKey: qk.projectVoice(tabID) });
+                        notifyRulesFiles(result.rulesFiles);
+                      }}
+                    />
+                  ) : (
+                    <PointDetail
+                      point={active}
+                      onEdit={editable ? () => setEditing(true) : undefined}
                     />
                   ))}
-                </ul>
-                <p className="mt-3 px-3 text-[11px] text-muted-foreground">
-                  {t("Resolved {at}", { at: shortDate(data.at) })}
-                </p>
-              </nav>
-              {active &&
-                (editing ? (
-                  <VoiceProfileEditor
-                    tabID={tabID}
-                    profileName={active.point.profile ?? ""}
-                    target={active.edit}
-                    profile={draft}
-                    valueSets={valueSets}
-                    save={save}
-                    onCancel={() => setEditing(false)}
-                    onSaved={(result) => {
-                      setEditing(false);
-                      void queries.invalidateQueries({ queryKey: qk.projectVoice(tabID) });
-                      notifyRulesFiles(result.rulesFiles);
-                    }}
-                  />
-                ) : (
-                  <PointDetail
-                    point={active}
-                    onEdit={editable ? () => setEditing(true) : undefined}
-                  />
-                ))}
-            </div>
-          )}
-        </>
-      )}
-    </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </PageContainer>
   );
 }

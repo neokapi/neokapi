@@ -1293,7 +1293,7 @@ ON CONFLICT(checkout, key) DO UPDATE SET path = excluded.path, content = exclude
 // names one. It answers for one path what reading Documents and then
 // AdoptedDocuments answers for every path, so a caller naming a single
 // document reads the two rows that concern it rather than every document the
-// project knows.
+// project holds.
 func (w *WorkStore) DocumentKey(ctx context.Context, path string) (key string, found bool, err error) {
 	if w.db == nil {
 		return "", false, nil

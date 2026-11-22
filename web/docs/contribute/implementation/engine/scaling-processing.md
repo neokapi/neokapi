@@ -9,8 +9,8 @@ keywords: [scale-out, processing primitive, RunOnParts, tool service, gRPC daemo
 # Scaling the processing primitive
 
 This implementation note describes how the one processing primitive runs at
-several scales today, the seams that let it become an independently scalable
-service, and the direction the first such services take. It is grounded in the
+several scales, the seams that let it become an independently scalable
+service, and the direction the first such services take. It builds on the
 engine architecture: the tool contract ([E-03](../../architecture/engine/e-03-tool-system)),
 the streaming executor ([E-01](../../architecture/engine/e-01-processing-engine)),
 flows and I/O binding ([E-04](../../architecture/engine/e-04-flows-and-io-binding)),

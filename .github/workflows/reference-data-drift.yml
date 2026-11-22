@@ -55,6 +55,7 @@ on:
       - "web/src/components/reference/slugs.ts"
       - "web/docs/**"
       - "bowrain/web/docs/docs/**"
+      - "harness/demos/*/demo.yaml"
       - "kapi.yaml"
       # The prose `check-governed-prose` gates. The rule that decides the
       # verdict lives in the voice profile, which kapi.yaml binds.
@@ -101,6 +102,7 @@ on:
       - "web/src/components/reference/slugs.ts"
       - "web/docs/**"
       - "bowrain/web/docs/docs/**"
+      - "harness/demos/*/demo.yaml"
       - "kapi.yaml"
       # The prose `check-governed-prose` gates. The rule that decides the
       # verdict lives in the voice profile, which kapi.yaml binds.
@@ -138,12 +140,18 @@ jobs:
 
       - name: Check reference dossier prose
         run: make check-reference-prose
+        env:
+          BOWRAIN_AUTH_TOKEN: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
+          BOWRAIN_SERVER_URL: https://app.bowrain.cloud
 
       # Check package and Homebrew descriptions through their governed
       # collections. The target builds and stages the kapi-sourcecode plugin
       # needed to read the cask.
       - name: Check the prose kapi governs
         run: make check-governed-prose
+        env:
+          BOWRAIN_AUTH_TOKEN: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
+          BOWRAIN_SERVER_URL: https://app.bowrain.cloud
 
       # The documentation, gated per-PR for the first time. It was governed by
       # the voice profile and checked by nothing on a PR: dogfood-sync.yml runs
@@ -152,6 +160,9 @@ jobs:
       # a second copy of the rule for these surfaces.
       - name: Check the documentation prose
         run: make check-docs-prose
+        env:
+          BOWRAIN_AUTH_TOKEN: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
+          BOWRAIN_SERVER_URL: https://app.bowrain.cloud
 
       - name: Check shared TS contract types for drift
         run: make check-contract-types
@@ -186,10 +197,12 @@ jobs:
       # them and fail if a committed page is stale — gen-reference-pages.ts needs
       # only the @neokapi/reference-data package resolvable, so vp install
       # suffices (no i18n-react/wasm build).
-      - uses: voidzero-dev/setup-vp@v1.21.2
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "22"
+          node-version: "26"
           cache: true
+          # A pull request restores the dependency cache and saves none.
+          cache-save: ${{ github.event_name != 'pull_request' }}
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install workspace dependencies

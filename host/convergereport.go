@@ -72,7 +72,7 @@ func (a *App) ProjectConvergence(ctx context.Context, projectPath, sourceLang st
 		if err != nil {
 			return fmt.Errorf("compute source readiness: %w", err)
 		}
-		review, err := a.computeReviewQueue(ctx, proj, root, units, unread)
+		review, err := a.computeReviewQueue(ctx, proj, root, units, unread, nil)
 		if err != nil {
 			return fmt.Errorf("compute review queue: %w", err)
 		}

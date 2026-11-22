@@ -66,7 +66,7 @@ var contractless = map[string]func(reg *registry.ToolRegistry, rt *readingTool){
 	},
 }
 
-const contractlessRefusal = "kapi refused to run contractless: the project declares a redaction policy at defaults.redaction, and contractless has no contract that kapi knows, so kapi cannot tell whether it sends blocks to a provider. Declare its side effects in the toolMeta of the schema its plugin manifest names, or run it in a flow with a redact step ahead of it"
+const contractlessRefusal = "kapi refused to run contractless: the project declares a redaction policy at defaults.redaction, and contractless declares no contract, so kapi cannot tell whether it sends blocks to a provider. Declare its side effects in the toolMeta of the schema its plugin manifest names, or run it in a flow with a redact step ahead of it"
 
 func TestToolRun_RefusesAToolWithNoContractUnderAPolicy(t *testing.T) {
 	isolateKapiEnv(t)

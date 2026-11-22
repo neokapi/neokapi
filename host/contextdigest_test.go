@@ -96,7 +96,7 @@ func TestContextDigest_SectionsFromTheLog(t *testing.T) {
 	require.NoError(t, again.FormatText(&text))
 	assert.Contains(t, text.String(), "Needs you")
 	assert.Contains(t, text.String(), "Earlier")
-	assert.Contains(t, text.String(), "kapi knows 1 rule for ctxops-digest; 1 is new this week.")
+	assert.Contains(t, text.String(), "1 rule for ctxops-digest; 1 is new this week.")
 
 	// Choosing a side drops the rival and keeps the chosen rule.
 	chosen := again.Conflicts[0].Sides[0]

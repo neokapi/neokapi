@@ -571,7 +571,7 @@ describe("conditional variant groups", () => {
     type: "object",
     "ui:groups": [
       { id: "segmentation", label: "Segmentation", fields: ["engine"] },
-      { id: "srx", label: "SRX settings", fields: ["rulesPath"] },
+      { id: "srx", label: "SRX settings", fields: ["rules_path"] },
       { id: "llm", label: "LLM settings", fields: ["provider"] },
     ],
     properties: {
@@ -584,7 +584,7 @@ describe("conditional variant groups", () => {
           { value: "llm", label: "LLM" },
         ],
       },
-      rulesPath: {
+      rules_path: {
         type: "string",
         title: "SRX Rules File",
         "ui:visible": { field: "engine", eq: "srx" },
@@ -673,13 +673,13 @@ describe("group-level visibility (master-detail)", () => {
       {
         id: "srx",
         label: "SRX settings",
-        fields: ["rulesPath"],
+        fields: ["rules_path"],
         "ui:visible": { field: "engine", eq: "srx" },
       },
       {
         id: "llm",
         label: "LLM settings",
-        fields: ["provider", "model", "credential", "instruction", "maxChunkRunes"], // >4 ⇒ collapsible
+        fields: ["provider", "model", "credential", "instruction", "max_chunk_runes"], // >4 ⇒ collapsible
         "ui:visible": { field: "engine", eq: "llm" },
       },
     ],
@@ -694,12 +694,12 @@ describe("group-level visibility (master-detail)", () => {
         ],
       },
       // No per-field ui:visible — the group gates the whole section.
-      rulesPath: { type: "string", title: "SRX Rules File" },
+      rules_path: { type: "string", title: "SRX Rules File" },
       provider: { type: "string", title: "Provider" },
       model: { type: "string", title: "Model" },
       credential: { type: "string", title: "Credential" },
       instruction: { type: "string", title: "Instruction" },
-      maxChunkRunes: { type: "integer", title: "Max Chunk" },
+      max_chunk_runes: { type: "integer", title: "Max Chunk" },
     },
   };
 

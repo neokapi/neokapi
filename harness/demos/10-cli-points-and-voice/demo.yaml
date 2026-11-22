@@ -6,15 +6,13 @@ publishAs: cli-points-and-voice
 # A scripted plain-shell demo: every command is deterministic and offline, so it
 # runs for real and its output is recorded exactly.
 #
-# `fixtures/context/voice.yaml` holds the voice the recipe binds by name, and
-# `setup:` reads it into the sandbox's store, which is where every answer and
-# the gate come from. The import keeps the voice and moves the file's word
-# rules into the project's terms; the forbidden term among them is the one the
-# partner page trips.
+# `fixtures/context/voice.yaml` holds the voice the recipe binds by name.
+# `setup:` imports it into the sandbox's store: the voice stays a voice, and its
+# word rules move into the project's terms. The partner page uses the forbidden
+# term among them.
 #
-# One `kapi check` run exits 3 on purpose (the failing gate is the
-# point of that beat) and declares it with `expectExit: 3`, so a take where the
-# gate silently passed would fail the capture instead of shipping.
+# One `kapi check` run exits 3 on purpose and declares it with `expectExit: 3`.
+# A take where that check passes fails the capture.
 terminal: shell
 brand: kapi
 cwd: ~/voltway

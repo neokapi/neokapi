@@ -80,6 +80,9 @@ func NewProjectBearerClient(serverURL, projectID, authToken string) *BowrainClie
 	}
 }
 
+// ProjectID is the id of the project the client acts for.
+func (c *BowrainClient) ProjectID() string { return c.projectID }
+
 // projectPrefix returns the URL prefix for project-scoped endpoints.
 // Bowrain AD-011: workspace project uses bare slug /:ws/:pid, unclaimed uses /projects/:pid.
 func (c *BowrainClient) projectPrefix() string {
@@ -247,6 +250,12 @@ type PushStatusResponse struct {
 	// The verdicts were not recorded and the rungs were not written; the
 	// content landed regardless, at translated.
 	Governance *venue.PushGovernance `json:"governance,omitempty"`
+
+	// Terms and Ledger are what the push's terminology and context ledger
+	// parts did, once its transaction committed. Nil for a part the push did
+	// not carry, and for a push still being applied.
+	Terms  *venue.PushTermsOutcome  `json:"terms,omitempty"`
+	Ledger *venue.PushLedgerOutcome `json:"ledger,omitempty"`
 }
 
 // BlockContent represents a block with its translations from the server.

@@ -140,6 +140,36 @@ export const SAMPLE_ENTRIES: MemoryEntryDTO[] = [
   },
 ];
 
+/** One wording held in six languages, the shape a project's interface strings take. */
+export const SIX_LANGUAGES: MemoryEntryDTO = {
+  id: "six",
+  project_id: "kapimart",
+  hint_src_lang: "en",
+  variants: Object.fromEntries(
+    (
+      [
+        ["en", "Recently viewed"],
+        ["ar", "شوهدت مؤخرًا"],
+        ["de", "Zuletzt angesehen"],
+        ["fr", "Consultés récemment"],
+        ["ja", "最近閲覧した商品"],
+        ["nb", "Nylig sett"],
+      ] as const
+    ).map(([locale, text]) => [locale, { locale, text, runs: [{ text }] }]),
+  ),
+  origins: [
+    {
+      source: "file",
+      key: "store/home.json#home.recent",
+      added_at: at(12),
+      added_by: "kapi up",
+    },
+  ],
+  unit: "store/home.json:home.recent",
+  created_at: at(12),
+  updated_at: at(12),
+};
+
 /** A store of `count` entries in French and German, for the long-list stories. */
 export function manyEntries(count: number): MemoryEntryDTO[] {
   return Array.from({ length: count }, (_, i) => ({

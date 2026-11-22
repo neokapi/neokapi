@@ -8,7 +8,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,7 +37,7 @@ func TestBorrowEngine_RunAppReachesTheTabsStore(t *testing.T) {
 	fromTab, err := app.projectStore(app.getOpenProject(tab.ID))
 	require.NoError(t, err)
 
-	run := app.borrowEngine(&host.App{})
+	run := app.newProjectEngine(app.getOpenProject(tab.ID))
 	fromRun, err := run.ProjectDB(context.Background(), root)
 	require.NoError(t, err)
 

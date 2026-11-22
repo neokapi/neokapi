@@ -40,7 +40,7 @@ export const FLOWS: FlowDef[] = [
     steps:
       - tool: recycle
         config:
-          fillTargetThreshold: 75`,
+          fill_target_threshold: 75`,
   },
   {
     id: "translate-exact",
@@ -49,7 +49,7 @@ export const FLOWS: FlowDef[] = [
     steps:
       - tool: recycle
         config:
-          fillTargetThreshold: 100`,
+          fill_target_threshold: 100`,
   },
 ];
 

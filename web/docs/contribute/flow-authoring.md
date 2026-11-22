@@ -7,7 +7,9 @@ keywords: [flow authoring, YAML flows, steps format, parallel steps, pipeline YA
 
 # YAML Flow Authoring
 
-Flows define processing pipelines as YAML files. The steps-based format is the human-authored representation that compiles to an internal graph (nodes + edges) for execution.
+A flow is a YAML file that lists the tools a run applies, in order. You write it
+as a list of steps, and kapi compiles the steps into a graph of tool nodes and
+edges for execution.
 
 ## Steps format
 
@@ -17,21 +19,21 @@ A flow is a list of sequential steps. Each step references a tool by name and op
 steps:
   - tool: pseudo-translate
     config:
-      expansionPercent: 30
+      expansion_percent: 30
       prefix: "["
       suffix: "]"
 ```
 
-The target locale is not part of the flow. The run supplies it to every step
+The run supplies the target locale to every step
 (`--target-lang` at the CLI, or the project's declared targets under `kapi
-run` / `kapi up`), so one flow serves every locale; a `targetLocale` written
+run` / `kapi up`), so one flow serves every locale; a `target_locale` written
 into a step's config is outranked by the run's language.
 
 ### Source and sink
 
-A flow carries only its steps. Where content enters and leaves are **bindings**
-resolved when the flow runs (a file, the project store, a `.kpz` workspace, an
-interchange import/export, or `none`) rather than fields of the flow document. A flow
+A flow carries only its steps. Where content enters and leaves is set by
+**bindings** that the run resolves: a file, the project store, a `.kpz`
+workspace, an interchange import/export, or `none`. A flow
 declares a binding only when it is intrinsic to the flow (e.g. a check flow that
 produces no document sets `sink: none`), and never a path:
 
@@ -55,7 +57,7 @@ steps:
   - tool: pseudo-translate
     label: Generate test translations
     config:
-      expansionPercent: 30
+      expansion_percent: 30
 ```
 
 ## Sequential steps
@@ -66,7 +68,7 @@ Steps execute in order. The output channel of one tool feeds into the input chan
 steps:
   - tool: create-target
     config:
-      copySource: true
+      copy_source: true
 
   - tool: search-replace
     config:
@@ -89,7 +91,7 @@ before it emitted. To run several checks, list them one after another:
 steps:
   - tool: create-target
     config:
-      copySource: true
+      copy_source: true
 
   - tool: qa
     label: Quality checks
@@ -122,7 +124,7 @@ steps:
   - tool: redact
     config:
       detectors: [rules]
-      rulesPath: redaction-rules.yaml
+      rules_path: redaction-rules.yaml
 
   - tool: translate
 ```
@@ -154,8 +156,8 @@ The `StepsToGraph()` function transforms a `StepsSpec` into `FlowNode` and `Flow
 1. Each sequential step becomes a **tool** node, chained by edges
 2. A `parallel:` block creates multiple tool nodes, all connected from the previous node, and the step after it connects from every branch; this shape exists in the definition only and cannot run
 
-The graph is tool nodes only. The flow's source and sink are bindings supplied at
-run time ([E-04](architecture/engine/e-04-flows-and-io-binding)), not nodes in the graph.
+The graph holds tool nodes only. The run supplies the flow's source and sink as
+bindings ([E-04](architecture/engine/e-04-flows-and-io-binding)).
 
 The host builds the ordered tool chain from the steps, and the `Executor` runs it: each tool becomes a goroutine connected to the next by a buffered channel.
 
@@ -169,12 +171,12 @@ A typical translation flow with content-memory leverage, AI translation for new 
 steps:
   - tool: create-target
     config:
-      copySource: false
+      copy_source: false
 
   - tool: recycle
     label: Apply memory matches
     config:
-      fuzzyThreshold: 75
+      fuzzy_threshold: 75
 
   - tool: translate
     label: Translate remaining
@@ -200,13 +202,13 @@ Run analysis tools over pseudo-translated output:
 steps:
   - tool: pseudo-translate
     config:
-      expansionPercent: 30
+      expansion_percent: 30
 
   - tool: term-check
   - tool: qa
     config:
-      checkAbsoluteMaxCharLength: true
-      absoluteMaxCharLength: 200
+      check_absolute_max_char_length: true
+      absolute_max_char_length: 200
 ```
 
 ```bash
@@ -280,11 +282,11 @@ spec := &flow.StepsSpec{
     Input: "json",
     Steps: []flow.FlowStep{
         {Tool: "pseudo-translate", Config: map[string]any{
-            "targetLocale": "fr",
-            "expansionPercent": 30,
+            "target_locale": "fr",
+            "expansion_percent": 30,
         }},
         {Tool: "qa", Config: map[string]any{
-            "targetLocale": "fr",
+            "target_locale": "fr",
         }},
     },
 }
@@ -292,3 +294,10 @@ spec := &flow.StepsSpec{
 nodes, edges, err := flow.StepsToGraph(spec)
 // Build and execute with Executor...
 ```
+
+## Related
+
+- [Tool Authoring with Parameter Schemas](/contribute/tool-authoring): building the tools a flow names.
+- [JavaScript Script Step](/contribute/script-step): the JavaScript step used in the filtering example.
+- [E-04: Flows and I/O binding](/contribute/architecture/engine/e-04-flows-and-io-binding): how a run resolves a flow's source and sink.
+- [E-09: The change contract](/contribute/architecture/engine/e-09-the-change-contract): how a run commits what it writes.

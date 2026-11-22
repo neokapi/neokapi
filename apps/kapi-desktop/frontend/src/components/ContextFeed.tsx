@@ -978,6 +978,16 @@ function RowActions({
       </div>
     );
   }
+  if (entry.droppable && entry.voice) {
+    return (
+      <div className="flex shrink-0 items-center gap-1.5">
+        <Button variant="outline" size="sm" data-slot="undo-voice-edit" onClick={onDrop}>
+          <Undo2 size={13} />
+          Undo edit
+        </Button>
+      </div>
+    );
+  }
   if (entry.droppable) {
     return (
       <div className="flex shrink-0 items-center gap-1.5">
@@ -1012,8 +1022,14 @@ function Shortcut({ k }: { k: string }) {
  */
 function EntryDetails({ entry }: { entry: ContextFeedEntry }) {
   const coordinates = Object.entries(entry.scope.coordinates ?? {});
+  const changes = entry.voice?.changes ?? [];
+  const changeCount = changes.length + (entry.voice?.omitted ?? 0);
   const hasDetails =
-    entry.evidence.length > 0 || coordinates.length > 0 || !!entry.note || !!entry.standing;
+    entry.evidence.length > 0 ||
+    coordinates.length > 0 ||
+    !!entry.note ||
+    !!entry.standing ||
+    changeCount > 0;
   if (!hasDetails) return null;
   return (
     <Collapsible className="mt-1 pl-6">
@@ -1033,11 +1049,16 @@ function EntryDetails({ entry }: { entry: ContextFeedEntry }) {
               count: entry.evidence.length,
             })}
           </span>
+        ) : changeCount > 0 ? (
+          <span>
+            {t("{count, plural, one {# change} other {# changes}}", { count: changeCount })}
+          </span>
         ) : (
           <span>Details</span>
         )}
       </CollapsibleTrigger>
       <CollapsibleContent className="mt-1.5 space-y-2">
+        {entry.voice && changes.length > 0 && <VoiceChanges edit={entry.voice} />}
         {entry.evidence.length > 0 && (
           <ul data-slot="context-evidence" className="space-y-1.5">
             {entry.evidence.map((e, i) => (
@@ -1099,6 +1120,42 @@ function EntryDetails({ entry }: { entry: ContextFeedEntry }) {
         </p>
       </CollapsibleContent>
     </Collapsible>
+  );
+}
+
+/**
+ * The fields a voice-profile write changed, one row each: the field, what it
+ * held, and what it holds now.
+ */
+function VoiceChanges({ edit }: { edit: NonNullable<ContextFeedEntry["voice"]> }) {
+  return (
+    <div data-slot="voice-changes" className="space-y-1">
+      <dl className="grid grid-cols-[minmax(8rem,auto)_1fr] gap-x-4 gap-y-1 text-xs">
+        {edit.changes.map((c) => (
+          <div key={c.field} className="contents">
+            <dt className="font-mono text-[11px] text-muted-foreground" translate="no">
+              {c.field}
+            </dt>
+            <dd className="min-w-0 break-words" translate="no">
+              {c.from && (
+                <span className="text-muted-foreground line-through decoration-muted-foreground/60">
+                  {c.from}
+                </span>
+              )}
+              {c.from && c.to && <span className="mx-1.5 text-muted-foreground">→</span>}
+              {c.to && <span>{c.to}</span>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {!!edit.omitted && (
+        <p className="text-[11px] text-muted-foreground">
+          {t("{count, plural, one {# more change} other {# more changes}}", {
+            count: edit.omitted,
+          })}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -1378,7 +1435,7 @@ export function ContextFeedHint() {
   return (
     <p className="flex items-center gap-2 text-xs text-muted-foreground">
       <Terminal size={13} className="shrink-0" />
-      An agent working in one of your projects records what it notices here.
+      An agent working in one of your projects records its suggestions here.
     </p>
   );
 }

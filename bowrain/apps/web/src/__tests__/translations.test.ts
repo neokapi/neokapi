@@ -1,13 +1,10 @@
-// Runtime smoke for the committed neokapi-i18n catalogs (`make l10n`): the
-// compiled dictionaries under public/translations/ must parse, load into the
-// neokapi-i18n runtime, and resolve hash lookups — a stale or malformed catalog
-// would otherwise only surface as untranslated (or garbled) text at runtime.
-//
-// Shape, never coverage. The pseudo locale is derived from the source
-// extraction, so a collapse in its entry count means extract/compile drifted
-// and is a real failure. A target locale is the dogfood loop's output and is
-// routinely empty or partial while translation catches up with a source
-// change — normal drift the loop absorbs, never a build failure.
+// Runtime smoke for the compiled catalogs under public/translations/: each
+// must parse, load into the neokapi-i18n runtime and resolve hash lookups.
+// Shape, never coverage. The qps dictionary is build output from the source
+// extraction (`make bowrain-app-qps`), so a collapse in its entry count means
+// extract or compile drifted; with no build it is absent and those cases skip.
+// A target locale is the dogfood loop's output and is often partial, which is
+// normal drift and never a failure.
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,11 +21,16 @@ function readCatalog(locale: string): Record<string, string> {
   >;
 }
 
+const QPS_MISSING = "no qps dictionary; `make bowrain-app-qps` or a vite build writes it";
+
+function hasCatalog(locale: string): boolean {
+  return existsSync(join(translationsDir, `${locale}.json`));
+}
+
 // readTargetCatalog reads a target-locale catalog that may not have been
-// generated at all — a missing file and an empty one mean the same thing.
+// generated at all: a missing file and an empty one mean the same thing.
 function readTargetCatalog(locale: string): Record<string, string> {
-  const path = join(translationsDir, `${locale}.json`);
-  return existsSync(path) ? readCatalog(locale) : {};
+  return hasCatalog(locale) ? readCatalog(locale) : {};
 }
 
 // expectLoadable asserts a catalog's shape: every entry is a non-empty hash
@@ -51,9 +53,13 @@ afterEach(() => {
 });
 
 describe("compiled translation catalogs", () => {
-  it("qps catalog parses, is non-trivial, and resolves hash lookups", () => {
+  it("qps catalog parses, is non-trivial, and resolves hash lookups", (ctx) => {
+    if (!hasCatalog("qps")) {
+      ctx.skip(QPS_MISSING);
+      return;
+    }
     const qps = readCatalog("qps");
-    // The pseudo catalog must cover the whole extraction — a sudden collapse
+    // The pseudo catalog must cover the whole extraction. A sudden collapse
     // in entry count means extract/compile drifted from the source tree.
     expect(Object.keys(qps).length).toBeGreaterThan(1000);
     expectLoadable("qps", qps);
@@ -70,7 +76,11 @@ describe("compiled translation catalogs", () => {
     expectLoadable("nb", nb);
   });
 
-  it("loadTranslations() fetches a catalog and activates the locale", async () => {
+  it("loadTranslations() fetches a catalog and activates the locale", async (ctx) => {
+    if (!hasCatalog("qps")) {
+      ctx.skip(QPS_MISSING);
+      return;
+    }
     const qps = readCatalog("qps");
     vi.stubGlobal(
       "fetch",

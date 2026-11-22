@@ -36,9 +36,9 @@ variants).
   ]}
 />
 
-This differs from a flat list of source→target pairs and is what enables
-multiple terms per locale, status-driven enforcement, and rich metadata
-attached to a single language-neutral concept.
+Unlike a flat list of source→target pairs, a concept can hold several terms
+per locale, drive enforcement by status, and carry metadata on one
+language-neutral unit.
 
 ### Term lifecycle statuses
 
@@ -60,7 +60,7 @@ and `"advisory": true` on a `kind: term` change-set entry.
 
 ## Concept relations
 
-Concepts are not islands. A terms store persists typed, directed **relations**
+A terms store persists typed, directed **relations**
 between concepts, so a renamed product points at its replacement and a
 deprecated term points at the one to use instead. The relation vocabulary is
 aligned with [SKOS](https://www.w3.org/2004/02/skos/):
@@ -111,7 +111,7 @@ a **scope** (a point in time and a set of tags) and only edges and terms whose
 validity matches the scope are returned. A nil validity is unbounded (it matches
 every scope); a nil scope applies no filtering.
 
-This makes the same terms store answer scope-dependent questions: which terms were
+With validity, one terms store answers scope-dependent questions: which terms were
 preferred *as of* last quarter, or which relations hold *within* a given market.
 Tags are open-ended (the framework assigns them no meaning); a caller chooses a
 tag vocabulary (for example a `market` key) and uses it consistently.
@@ -123,8 +123,8 @@ accepts any transition between known statuses (history is the guard), while
 `IsGovernedTransition(from, to)` reports whether a change is
 consequential enough to deserve review: any transition **to** `forbidden` or
 `preferred`, or any transition **from** `forbidden`. The framework only
-classifies; a platform built on it decides what governance a governed transition
-requires.
+classifies. An application built on it sets the review a governed transition
+needs.
 
 ## Storage backends
 
@@ -188,13 +188,14 @@ statistics, and listing. Inside a project, a term decision also lands through
 `kapi apply`: a `term` operation (`action`, `term`, `locale`, `status`,
 `replacement`, `replaces`, `do_not_translate`) is written to the project's
 terms store, and `kapi terms export` writes the store out as a bundle a pull
-request can review. Concept **relations** are authored
-visually rather than from the command line: Kapi Desktop opens a per-concept
-dashboard (the `@neokapi/concept-ui` component, which shows a concept's terms,
-geography, constraints, a local relations widget, and a timeline) over a local
-terms store, where an editor adds, retypes, scopes, and removes edges directly.
-The relation data this produces is the same `ConceptRelation` records
-persisted by the terms store and read through the [Go API](#go-library) below.
+request can review.
+
+You author concept **relations** in Kapi Desktop. It opens a per-concept
+dashboard over a local terms store: the `@neokapi/concept-ui` component, which
+shows a concept's terms, geography, constraints, a local relations widget and a
+timeline. There you add, retype, scope and remove edges. Each edge is a
+`ConceptRelation` record in the terms store, read through the
+[Go API](#go-library) below.
 
 ## Pipeline integration
 
@@ -204,8 +205,8 @@ Three pipeline tools bring terminology into the flow:
   rule list carries, attaches the matches as `term` annotations (source term,
   target suggestions, positions, status), and, where a target exists, checks
   that it uses the expected rendering. Violations are reported as findings with
-  expected-versus-actual detail, and the tool exits non-zero on them so it
-  doubles as a gate. It takes its rules from the project's terms store
+  expected-versus-actual detail, and the tool exits non-zero on them, so it
+  also works as a gate. It takes its rules from the project's terms store
   (`--termstore` outside a project) or from `term_rules:` in a flow step's
   config: the same shape as every word rule, including the `terms:` a voice file carries (one `term`, its
   `replacement`, an optional `advisory`, and optionally a `concept_id` that ties the rule
@@ -216,13 +217,13 @@ Three pipeline tools bring terminology into the flow:
   words in a translation; the prose around it is checked as usual. A source
   word rule leaves code out with `scope: prose` instead.
   A rule marked `advisory: true` reports without failing; any other rule
-  fails, because a rule resolved from a store carries no marking and must not
-  be silently downgraded. The source term matches in its own casing only when
+  fails. A rule resolved from a store carries no marking, so it fails by
+  default. The source term matches in its own casing only when
   the tool or the rule sets `case_sensitive`.
 - **`dnt-check`** (do-not-translate) fails a target where a term listed under
   `--terms` (product names, trademarks, code identifiers) was translated,
   transliterated or dropped. The translate step masks those spans, so the model
-  never sees them, so it cannot be translated. A concept the terms store marks
+  never sees them and cannot translate them. A concept the terms store marks
   do-not-translate travels a different route: the translate step asks for it in
   the prompt as a term to keep verbatim, and `term-check` fails a target that
   does not keep it.
@@ -270,8 +271,8 @@ as its first argument and returns an `error` as its last in the real API; both
 are elided here for readability.)
 
 `Lookup` finds the best match for a single term. `LookupAll` scans running text
-and returns every term occurrence with positions; this is what powers the
-`term-check` tool, the `term-lookup` library stage, and editor suggestions. By
+and returns every term occurrence with positions. The `term-check` tool, the
+`term-lookup` library stage and editor suggestions all use it. By
 default `LookupAll` matches
 case-insensitively (terminology should be recognized regardless of
 capitalization); set `CaseSensitive` to override.
@@ -407,16 +408,18 @@ concept structure:
 
 ## Terminology and content memory
 
-Terminology and [content memory](/framework/content-memory) are
-deliberately separate systems because they answer different questions:
+Terminology and [content memory](/framework/content-memory) are separate
+systems that answer different questions:
 
 - **Content memory**: "How was this sentence rendered before?" (segment pairs).
 - **Terminology**: "What is the correct term for this concept?" (multi-locale
   knowledge units).
 
-They share the `Block` annotation system as their integration point, so both
-memory matches and term matches are available to any downstream tool or editor.
+Both write to the `Block` annotation system, so any downstream tool or editor
+sees memory matches and term matches.
 
-Terminology and [segmentation](/framework/segmentation) are run-anchored overlays
-produced in the [content-preparation](/framework/content-preparation) pass that
-readies a source before translation.
+## Related
+
+- [Content preparation](/framework/content-preparation): terminology beside segmentation, before translation.
+- [Rule-based checks](/framework/checks/rule-checks): `term-check` among the other checks.
+- [Terms bundle](/reference/serialization/terms): the file `kapi terms export` writes.

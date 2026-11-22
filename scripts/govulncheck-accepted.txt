@@ -1,0 +1,12 @@
+# Advisories govulncheck reports that a person has reviewed and found not to
+# apply. scripts/govulncheck.py reads this file.
+#
+# One entry per line:
+#
+#   module  ID  review-by (YYYY-MM-DD)  why the advisory does not apply there
+#
+# An entry covers one module: the same advisory reached from another module is
+# unreviewed. It is for an advisory with no fixed release. The scan fails when a
+# fix ships, on the review date, and when the entry no longer matches a finding,
+# so the list cannot outlive its reasons. Adding or extending an entry
+# is a security decision: a person approves it.

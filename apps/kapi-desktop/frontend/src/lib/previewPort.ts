@@ -27,11 +27,11 @@ async function required<T>(read: Promise<T | null>): Promise<T> {
 
 /**
  * A read-only port over the tab's own project, read through the bindings the
- * tab's Map, Reader and Decide read through.
+ * tab's Overview, Reader and Decide read through.
  */
 export function localPreviewPort(tabID: string): ProjectScreensPort {
   return {
-    mapSummary: () => required(api.mapSummary(tabID)),
+    overviewSummary: () => required(api.overviewSummary(tabID)),
     readerFile: (path) => required(api.readerFile(tabID, path)),
     decideView: () => required(api.rulesDecideView(tabID)),
     keptRules: () => required(api.keptRules(tabID)),
@@ -77,28 +77,28 @@ async function fromBowrain<K extends Exclude<keyof BowrainPreviewAnswer, "refusa
 
 /**
  * A read-only port over the tab's project as the Bowrain server shows it.
- * The server knows a file by its item name, which the Map's rows carry, and
+ * The server knows a file by its item name, which the Overview's rows carry, and
  * the Reader is opened by the file's path, so the port keeps the names the
- * Map reads carried, reads the Map first when it has none for a path, and
- * opens a path the Map did not list by that path. A person
+ * Overview reads carried, reads the Overview first when it has none for a path, and
+ * opens a path the Overview did not list by that path. A person
  * the server leaves unnamed is the one signed in, shown by `signedInAs`.
  */
 export function remotePreviewPort(tabID: string, signedInAs?: string): ProjectScreensPort {
   const itemOf = new Map<string, string>();
   let mapped: Promise<unknown> | null = null;
   const readMap = async () => {
-    const summary = await fromBowrain(tabID, "map", "map");
+    const summary = await fromBowrain(tabID, "overview", "overview");
     for (const row of summary.file_rows ?? []) itemOf.set(row.relative, row.path);
     return summary;
   };
   return {
-    mapSummary: () => {
+    overviewSummary: () => {
       const read = readMap();
       mapped = read;
       return read;
     },
     readerFile: async (path) => {
-      // A Reader opened before any Map read has returned, from Decide say,
+      // A Reader opened before any Overview read has returned, from Decide say,
       // waits for one to learn the item's name.
       if (!itemOf.has(path)) {
         mapped ??= readMap();
@@ -131,10 +131,10 @@ export function usePreviewPort(
   return { port, source };
 }
 
-/** The targets a preview opens: the Map, the Reader and the Rules tab. */
+/** The targets a preview opens: the Overview, the Reader and the Rules tab. */
 export function previewOpens(target: ScreenTarget): boolean {
   switch (target.kind) {
-    case "map":
+    case "overview":
     case "reader":
     case "rules":
     case "kept":

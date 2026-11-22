@@ -219,28 +219,23 @@ func TestClassifyRunError_SingleFileRunStillClassifies(t *testing.T) {
 	assert.Equal(t, "ollama serve", re.Actions[0].Command)
 }
 
-func TestGetLastRunError_RecordsAndClears(t *testing.T) {
-	a := &App{runState: newRunner()}
-	assert.Nil(t, a.GetLastRunError(), "no run attempted yet")
-
-	cause := &aiprovider.OllamaError{
-		Kind:  aiprovider.OllamaErrModelNotInstalled,
-		Model: "gemma4:e2b",
-	}
-	a.recordRunFailure(classifyRunError(wrapLikeConverge("nb", "a.md", cause)))
-
-	got := a.GetLastRunError()
-	require.NotNil(t, got)
-	assert.Equal(t, RunErrModelNotInstalled, got.Kind)
-
-	// A subsequent success clears it — a stale failure must not keep marking a
-	// converged project as broken.
-	a.recordRunFailure(nil)
-	assert.Nil(t, a.GetLastRunError())
+func TestGetLastRunErrorBeforeAnyRun(t *testing.T) {
+	app := NewApp()
+	assert.Nil(t, app.GetLastRunError())
 }
 
-func TestRecordRunFailure_NilRunnerIsSafe(t *testing.T) {
-	a := &App{}
-	a.recordRunFailure(&RunError{Kind: RunErrUnknown})
-	assert.Nil(t, a.GetLastRunError())
+// A key missing at the first provider call (the translate step is built
+// without it) is the same setup failure, named for its provider and pointed
+// at the app's settings, never at a command or a variable.
+func TestClassifyRunError_MissingKeyDuringTheRun(t *testing.T) {
+	err := fmt.Errorf("converge nb: execute flow: tool translate: translate: %w",
+		fmt.Errorf("tool translate config: %w", &credentials.MissingCredentialError{Provider: "anthropic"}))
+	re := classifyRunError(err)
+	require.NotNil(t, re)
+	assert.Equal(t, RunErrMissingCredential, re.Kind)
+	assert.Equal(t, "No key for anthropic", re.Headline)
+	assert.Equal(t, "Add one in Settings › AI Models.", re.Remediation)
+	assert.NotContains(t, re.Headline+re.Remediation, "ANTHROPIC_API_KEY")
+	require.Len(t, re.Actions, 1)
+	assert.Equal(t, ActionOpenSettings, re.Actions[0].Kind)
 }

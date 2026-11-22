@@ -21,35 +21,35 @@ const DRIFTED_PLAN: ConvergePlan = {
       {
         locale: "nb-NO",
         collection: "docs",
-        missingTarget: 34,
-        memoryExact: 12,
-        aiRemaining: 22,
-        tokenEstimate: 1840,
+        missing_target: 34,
+        memory_exact: 12,
+        ai_remaining: 22,
+        token_estimate: 1840,
       },
       {
         locale: "nb-NO",
         collection: "ui-strings",
-        missingTarget: 8,
-        memoryExact: 5,
-        aiRemaining: 3,
-        tokenEstimate: 120,
+        missing_target: 8,
+        memory_exact: 5,
+        ai_remaining: 3,
+        token_estimate: 120,
       },
       {
         locale: "de-DE",
         collection: "docs",
-        missingTarget: 34,
-        memoryExact: 2,
+        missing_target: 34,
+        memory_exact: 2,
         drafts: 12,
-        aiRemaining: 20,
-        tokenEstimate: 1690,
+        ai_remaining: 20,
+        token_estimate: 1690,
       },
     ],
     totals: {
-      missingTarget: 76,
-      memoryExact: 19,
+      missing_target: 76,
+      memory_exact: 19,
       drafts: 12,
-      aiRemaining: 45,
-      tokenEstimate: 3650,
+      ai_remaining: 45,
+      token_estimate: 3650,
     },
     note: PLAN_NOTE,
   },
@@ -70,7 +70,7 @@ const DRIFTED_REPORT: ConvergenceReport = {
       gated: true,
       shippable: false,
       pending: [{ state: "translated", actual: 72, required: 100 }],
-      staleAwaitingReview: 3,
+      stale_awaiting_review: 3,
     },
     {
       locale: "de-DE",
@@ -80,8 +80,8 @@ const DRIFTED_REPORT: ConvergenceReport = {
       gated: true,
       shippable: false,
       pending: [{ state: "translated", actual: 71, required: 100 }],
-      failingChecks: 2,
-      termsNotChecked: 5,
+      failing_checks: 2,
+      terms_not_checked: 5,
     },
   ],
   review: [
@@ -95,7 +95,7 @@ const CONVERGED_PLAN: ConvergePlan = {
   plan: {
     flow: "translate",
     scopes: null,
-    totals: { missingTarget: 0, memoryExact: 0, aiRemaining: 0, tokenEstimate: 0 },
+    totals: { missing_target: 0, memory_exact: 0, ai_remaining: 0, token_estimate: 0 },
     note: PLAN_NOTE,
   },
   changedFiles: 0,
@@ -129,7 +129,7 @@ const CONVERGED_REPORT: ConvergenceReport = {
 
 /** Texts to translate, translations waiting for review and languages held
  *  back: three counts, each leading to where it is dealt with, and an armed
- *  "Bring up to date". */
+ *  "Catch up". */
 export const Drifted: Story = {
   args: {
     tabID: "storybook",
@@ -152,8 +152,8 @@ export const ReadingFiles: Story = {
   },
 };
 
-/** Nothing left to translate: what remains is a person's, so Bring up to date
- *  steps back to an outline button. */
+/** Nothing left to translate: what remains is a person's, so the run action
+ *  is absent and the counts lead to Review. */
 export const WaitingForAPerson: Story = {
   args: {
     tabID: "storybook",
@@ -162,7 +162,7 @@ export const WaitingForAPerson: Story = {
       locales: DRIFTED_REPORT.locales.map((l) => ({
         ...l,
         pending: undefined,
-        termsNotChecked: 0,
+        terms_not_checked: 0,
       })),
     },
     plan: CONVERGED_PLAN,

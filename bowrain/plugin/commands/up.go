@@ -29,9 +29,9 @@ var (
 
 // upCmd is the hidden `server-up` plumbing behind `kapi up`'s server venue.
 // The built-in up owns the verb in every install (the no-shadowing rule) and
-// dispatches here — with the user's flags forwarded — when the recipe
-// declares a server: block: the loop runs on the Bowrain server by default
-// (org keys, shared content memory/terminology, always-on); --local runs it on this
+// dispatches here, with the user's flags forwarded, when the recipe declares a
+// server: block. The loop runs on the Bowrain server by default (org keys,
+// shared content memory/terminology, always-on); --local runs it on this
 // machine and then pushes the results so the server never goes stale. The
 // local paths delegate to the same ExecuteUp as the built-in, so a
 // disconnected recipe behaves byte-identically either way.
@@ -97,6 +97,12 @@ func runUp(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
+	// The server runs the loop with the provider and settings its workspace
+	// is configured with, so a run flag has nothing to act on there.
+	if set := cli.ChangedRunConfigFlags(cmd); len(set) > 0 {
+		return fmt.Errorf("%s applies to a run on this machine; the server runs with the provider its workspace is configured with. Add --local to run here with %s",
+			strings.Join(set, ", "), strings.Join(set, ", "))
+	}
 	return runServerUp(cmd, proj)
 }
 
@@ -106,18 +112,19 @@ func pushAfterLocalConverge(cmd *cobra.Command, proj *project.Project) error {
 	if !app.Quiet {
 		fmt.Fprintln(cmd.ErrOrStderr(), "Pushing produced results to the server...")
 	}
-	pr, conn, err := transfer.Push(cmd.Context(), app, proj, transfer.PushOptions{})
+	terms, err := conceptEdits(cmd.Context(), proj)
+	if err != nil {
+		return fmt.Errorf("terminology: %w", err)
+	}
+	pr, conn, err := transfer.Push(cmd.Context(), app, proj, transfer.PushOptions{Terms: terms})
 	if err != nil {
 		return fmt.Errorf("push after local run: %w", err)
 	}
 	defer conn.Close()
-	// The declared context — collections, coordinates, voice — travelled
-	// with the push itself; the push reports what its governance amounted to.
+	// The declared context (collections, coordinates, voice) and the
+	// terminology travelled with the push itself, in one transaction.
 	bres := pr.Brand
-	cres, err := conceptPush(cmd.Context(), proj, false)
-	if err != nil {
-		return err
-	}
+	cres := conceptResult(proj, pr.Terms, false, pr.PartsPending)
 	if err := reportConceptPush(cmd, nil, cres, flagBool(cmd, "json")); err != nil {
 		return err
 	}
@@ -140,18 +147,15 @@ func pushAfterLocalConverge(cmd *cobra.Command, proj *project.Project) error {
 // reportConceptPush says what the terminology fold inside `kapi up`'s push
 // phase amounted to.
 //
-// `up` ran the fold and discarded its result at both venues. A governed
-// terminology edit — a term banned, a concept retired — became a submitted
-// change-set waiting on a reviewer, and the run reported block counts and a
-// convergence summary with no mention of it. The proposal was real; only the
-// telling was missing.
+// A governed terminology edit (a term banned, a concept retired) becomes a
+// submitted change-set waiting on a reviewer, and the run reports it beside
+// its block counts and convergence summary.
 //
 // Under --json the same proposal travels as one discriminated NDJSON record
 // alongside brand_profile's, carrying the review link as a field. That record is
-// the whole of what a non-terminal consumer can see: a CI job summary is built
-// from the run's structured output, not from its stderr, so a proposal that
-// exists only as a stderr sentence is invisible to the surface most likely to
-// be read by the person who has to review it.
+// the whole of what a non-terminal consumer can see. A CI job summary is built
+// from the run's structured output, so the proposal travels there for the
+// person who has to review it.
 func reportConceptPush(cmd *cobra.Command, stream *output.NDJSONStream, res *PushConceptsResult, jsonOut bool) error {
 	if res == nil {
 		return nil
@@ -179,8 +183,12 @@ func reportConceptPush(cmd *cobra.Command, stream *output.NDJSONStream, res *Pus
 			res.ConceptsApplied, res.RelationsApplied)
 	}
 	if res.ConceptsProposed > 0 {
-		fmt.Fprintf(w, "Proposed %d governed terminology edit(s) in change-set %s. They take effect when reviewed.\n",
-			res.ConceptsProposed, res.ChangesetID)
+		in := "in a change-set"
+		if res.ChangesetID != "" {
+			in = "in change-set " + res.ChangesetID
+		}
+		fmt.Fprintf(w, "Proposed %d governed terminology edit(s) %s. They take effect when reviewed.\n",
+			res.ConceptsProposed, in)
 		if res.ChangesetURL != "" {
 			fmt.Fprintf(w, "Review it at %s\n", res.ChangesetURL)
 		}
@@ -198,8 +206,8 @@ func runServerUp(cmd *cobra.Command, proj *project.Project) error {
 	jsonOut := flagBool(cmd, "json")
 	stderr := cmd.ErrOrStderr()
 
-	// One stream for the whole NDJSON document — the brand-push record, every
-	// re-emitted server event, and the closing result — so a write that fails
+	// One stream for the whole NDJSON document (the brand-push record, every
+	// re-emitted server event, and the closing result), so a write that fails
 	// part-way is reported once at the end rather than leaving the consumer with a
 	// truncated stream that looks complete. nil in text mode.
 	var jsonStream *output.NDJSONStream
@@ -213,22 +221,23 @@ func runServerUp(cmd *cobra.Command, proj *project.Project) error {
 		return fmt.Errorf("pre-push automation: %w", err)
 	}
 
-	// Phase 1: transport — push local changes (pure, no implicit translate).
+	// Phase 1: transport. Push local changes (pure, no implicit translate).
 	if !app.Quiet && !jsonOut {
 		fmt.Fprintln(stderr, "Pushing local changes...")
 	}
-	pr, conn, err := transfer.Push(ctx, app, proj, transfer.PushOptions{})
+	terms, err := conceptEdits(ctx, proj)
+	if err != nil {
+		return fmt.Errorf("terminology: %w", err)
+	}
+	pr, conn, err := transfer.Push(ctx, app, proj, transfer.PushOptions{Terms: terms})
 	if err != nil {
 		return fmt.Errorf("push: %w", err)
 	}
 	defer conn.Close()
-	// The declared context — collections, coordinates, voice — travelled
-	// with the push itself; the push reports what its governance amounted to.
+	// The declared context (collections, coordinates, voice) and the
+	// terminology travelled with the push itself, in one transaction.
 	bres := pr.Brand
-	cres, err := conceptPush(ctx, proj, false)
-	if err != nil {
-		return err
-	}
+	cres := conceptResult(proj, pr.Terms, false, pr.PartsPending)
 	if err := reportConceptPush(cmd, jsonStream, cres, jsonOut); err != nil {
 		return err
 	}
@@ -253,7 +262,7 @@ func runServerUp(cmd *cobra.Command, proj *project.Project) error {
 		return err
 	}
 
-	// Phase 2: pre-flight — show the estimate (source readiness FIRST, then the
+	// Phase 2: pre-flight. Show the estimate (source readiness FIRST, then the
 	// credit/scope estimate) and gate a large run behind confirmation. --yes and
 	// --json skip the prompt; a non-TTY without --yes proceeds (CI must not hang).
 	proceed, err := confirmServerRun(cmd, client, jsonOut)
@@ -320,7 +329,7 @@ func runServerUp(cmd *cobra.Command, proj *project.Project) error {
 		fmt.Fprintln(stderr, watchEndedLine(watch, run.ID))
 	}
 
-	// Phase 4: transport — pull the produced targets back down.
+	// Phase 4: transport. Pull the produced targets back down.
 	if !app.Quiet && !jsonOut {
 		fmt.Fprintln(stderr, "Pulling results...")
 	}
@@ -344,7 +353,7 @@ func runServerUp(cmd *cobra.Command, proj *project.Project) error {
 		return fmt.Errorf("post-pull automation: %w", err)
 	}
 
-	// Phase 5: final result — the run's own state, read again here so the record
+	// Phase 5: final result. The run's own state, read again here so the record
 	// says what the server holds rather than the last frame this client saw.
 	final := runStateNow(ctx, client, run, &watch)
 	if err := writeServerUpResult(cmd, jsonStream, acc.output(final), final, watch); err != nil {
@@ -363,7 +372,7 @@ func runServerUp(cmd *cobra.Command, proj *project.Project) error {
 
 // reportVoicePush surfaces the voice profile result of up's push phase the way
 // `kapi push` reports it: the same footer line (via output.PushOutput) next to
-// the push messages on stderr, or — under --json — one discriminated NDJSON
+// the push messages on stderr, or (under --json) one discriminated NDJSON
 // line on stdout carrying the same field names as push's JSON output. Silent
 // when no profile travelled (nil result) or, for text, under --quiet.
 //
@@ -455,10 +464,10 @@ func reportPushSettings(cmd *cobra.Command, stream *output.NDJSONStream, pr *tra
 }
 
 func init() {
-	// The flow-run flags need the live *cli.App (AddFlowRunFlags is a method),
-	// which isn't captured until the app initializer fires — after init(). So
-	// wire the app-independent flags now and add the flow-run flags in the
-	// command factory, which receives the App.
+	// The run flags need the live *cli.App (AddUpRunFlags is a method), which
+	// isn't captured until the app initializer fires, after init(). So wire the
+	// app-independent flags now and add the run flags in the command factory,
+	// which receives the App.
 	cli.AddProjectFlag(upCmd)
 	cli.AddUpFlags(upCmd)
 	upCmd.Flags().BoolVar(&upLocal, "local", false, "run the loop on this machine instead of the server, then push the results")
@@ -466,11 +475,11 @@ func init() {
 	upCmd.Flags().DurationVar(&upTimeout, "timeout", 15*time.Minute, "maximum time to wait for a server run to finish before pulling available results")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, a *cli.App) {
 		// Match the built-in `kapi up` flag surface exactly (NewUpCmd adds the
-		// flow-run flags): without --provider/--model/--memory/--target-lang/… a
-		// documented invocation would break the moment the plugin is installed,
-		// since kapi dispatches raw argv to this cobra tree.
+		// same run flags): kapi dispatches raw argv to this cobra tree, so a
+		// flag only one of the two registered would break, or be accepted, the
+		// moment the plugin is installed.
 		if a != nil {
-			a.AddFlowRunFlags(upCmd)
+			a.AddUpRunFlags(upCmd)
 		}
 		parent.AddCommand(upCmd)
 	})
@@ -483,7 +492,7 @@ func flagBool(cmd *cobra.Command, name string) bool {
 }
 
 // confirmAITokenThreshold is the AI-work size above which `kapi up` asks for
-// confirmation even when the balance covers it — so a large paid run is never
+// confirmation even when the balance covers it, so a large paid run is never
 // started blind. Below it, a covered run proceeds without a prompt.
 const confirmAITokenThreshold = 50_000
 

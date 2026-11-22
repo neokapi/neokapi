@@ -36,6 +36,7 @@ var shippedStreamEndpoints = []streamEndpoint{
 	{"GET", "/status", "every release"},
 	{"GET", "/ref", "1.2.0-rc23 and newer"},
 	{"GET", "/tree", "1.2.0-rc27 and newer"},
+	{"POST", "/tree", "1.4.0-rc4 and newer"},
 
 	{"POST", "/push/init", "every release"},
 	{"POST", "/push/commit", "every release"},

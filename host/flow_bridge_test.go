@@ -153,15 +153,15 @@ func TestBuildToolByName_RegistryWithConfigFactory(t *testing.T) {
 	}
 
 	config := map[string]any{
-		"source_locale": "en",
-		"target_locale": "de",
-		"segmentSource": true,
-		"segmentTarget": false,
+		"source_locale":  "en",
+		"target_locale":  "de",
+		"segment_source": true,
+		"segment_target": false,
 	}
 	tools, _, err := app.buildToolByName("segmentation", config)
 	require.NoError(t, err)
 	require.Len(t, tools, 1)
 	assert.Equal(t, "segmentation", tools[0].Name())
 	assert.Equal(t, "de", capturedLang)
-	assert.Equal(t, true, capturedConfig["segmentSource"])
+	assert.Equal(t, true, capturedConfig["segment_source"])
 }

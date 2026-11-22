@@ -32,6 +32,7 @@
 //     never passed" → blocking when --model-id is provided.
 
 import fs from 'node:fs';
+import { formatTreeDigest } from '../../../scripts/format-ops/lib.mjs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -251,12 +252,16 @@ for (const id of Object.keys(R)) results[id] = { reasons: [], notes: [] };
   const { reasons, notes } = results['triage-score'];
   const c = evalCadence(r, 'triage-score');
   if (c) reasons.push(c);
-  scalarSignal(reasons, notes, 'core_formats_sha', git(root, ['log', '-1', '--format=%H', '--', 'core/formats']), r.watermarks.core_formats_sha);
+  if (r.watermarks.format_tree_sha256) {
+    scalarSignal(reasons, notes, 'format_tree_sha256', formatTreeDigest(root), r.watermarks.format_tree_sha256);
+  } else {
+    scalarSignal(reasons, notes, 'core_formats_sha', git(root, ['log', '-1', '--format=%H', '--', 'core/formats']), r.watermarks.core_formats_sha);
+  }
   const dashVer = dash ? (dash.scorer_version ?? 1) : null;
   if (dashVer != null && dashVer !== r.watermarks.scorer_version) {
     reasons.push(`scorer_version drift: dashboard is v${dashVer}, ledger watermark v${r.watermarks.scorer_version} (multi-axis sweep not yet published)`);
   }
-  notes.push('audit_sha not recomputed here (runs the full audit); the ritual recomputes: python3 .skills/refresh-format-maturity/scripts/audit-format.py --all --json | shasum -a 256');
+  notes.push('audit_sha not recomputed here (runs the full audit); the ritual recomputes: python3 .skills/refresh-format-maturity/scripts/audit-format.py --all --json --repository-only --ledger docs/internals/format-ops-ledger.json | shasum -a 256');
   if (dash?.generated_at && r.last_run && datePart(dash.generated_at) > datePart(r.last_run) && !hasRunSince('triage-score', dash.generated_at)) {
     report.blocking.push(`reconcile/orphan: maturity-dashboard generated_at ${dash.generated_at} newer than triage-score last_run ${r.last_run} with no runs[] entry — adopt (outcome: adopted-orphan) before planning`);
   }

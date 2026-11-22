@@ -17,7 +17,7 @@ import (
 // Where the convergence loop runs.
 //
 // `kapi up` is one verb with two venues: the loop on this machine, or the loop
-// on the server the recipe binds — pushed, converged on org keys against the
+// on the server the recipe binds, pushed, converged on org keys against the
 // shared content memory and terminology, streamed back, pulled. Which one a run
 // gets is decided here, once, so every surface that offers the verb decides it
 // the same way. A surface that resolved it for itself would hand its callers a
@@ -55,7 +55,7 @@ type UpVenueDecision struct {
 	Venue UpVenue
 	// HasServer reports whether the recipe binds a convergence venue at all,
 	// which is what separates "local because there is no server" from "local
-	// because the plumbing is missing" — the second warrants a warning.
+	// because the plumbing is missing", the second warrants a warning.
 	HasServer bool
 	// ServerURL is the bound venue's URL, for the line a surface prints
 	// before the run.
@@ -101,7 +101,7 @@ const serverUpCommand = "server-up"
 
 // venueBlockHint names the recipe block a user would add to connect a project,
 // as the registered venue extension spells it. A binary linking no platform has
-// no key to name and gets no hint — the caller's next case tells it to install
+// no key to name and gets no hint, the caller's next case tells it to install
 // the plugin, which is the honest first step there.
 func venueBlockHint() string {
 	if key, ok := project.VenueKey(); ok {
@@ -113,8 +113,8 @@ func venueBlockHint() string {
 // RunUpDispatch is the embedded `kapi up` with its venue resolved: a connected
 // project runs on the server through the plugin plumbing, everything else runs
 // the loop here. It is what an embedded surface (the MCP `up` tool, a UI)
-// calls instead of RunUp, so an agent gets the run a human gets — push,
-// converge at the venue, pull — rather than a local loop that leaves the server
+// calls instead of RunUp, so an agent gets the run a human gets (push,
+// converge at the venue, pull) rather than a local loop that leaves the server
 // stale and the results unpulled.
 //
 // Both venues return the same ConvergeOutput: the plumbing speaks the same
@@ -128,6 +128,15 @@ func (a *App) RunUpDispatch(ctx context.Context, projectPath, sourceLang string,
 	if dec.Venue != UpVenueServer {
 		return a.RunUp(ctx, projectPath, sourceLang, opts)
 	}
+	if opts.RecycleOnly {
+		return nil, errors.New("a recycle-only pass runs locally; this project converges on its server")
+	}
+	if opts.PreReview {
+		return nil, errors.New("a pre-review runs locally; this project converges on its server, so pass local to run it here")
+	}
+	if len(opts.RunConfig) > 0 {
+		return nil, errors.New("a run with its own provider, credential or model runs locally; this project converges on its server, so pass local to run it here")
+	}
 	return runUpAtVenue(ctx, dec.Route, projectPath, opts)
 }
 
@@ -137,10 +146,9 @@ func (o UpOptions) VenueOptions() UpVenueOptions {
 }
 
 // runUpAtVenue dispatches the run to the venue plumbing and reads the result
-// out of its NDJSON document. --json is not optional here: it is what makes the
-// subprocess's stdout a structured document rather than a terminal rendering,
-// and it is also what tells the plumbing not to prompt (an embedded run has no
-// one to answer).
+// out of its NDJSON document. It always passes --json, which makes the
+// subprocess's stdout a structured document. The flag also tells the plumbing
+// not to prompt, since an embedded run has no one to answer.
 func runUpAtVenue(ctx context.Context, route *pluginhost.CommandRoute, projectPath string, opts UpOptions) (*ConvergeOutput, error) {
 	args := []string{"--project=" + projectPath, "--json"}
 	if opts.MaxPasses > 0 && !opts.UntilGate {
@@ -182,8 +190,8 @@ func runUpAtVenue(ctx context.Context, route *pluginhost.CommandRoute, projectPa
 // into the result a local run returns.
 //
 // The `changeset` record is the one other line this reader keeps. A venue that
-// governs terminology emits it separately from the result — the proposal is
-// made in the run's push phase, long before the result is known — and it is
+// governs terminology emits it separately from the result (the proposal is
+// made in the run's push phase, long before the result is known), and it is
 // folded onto the result here so an embedded caller receives one object
 // describing the whole run. Dropped, it would leave every consumer downstream
 // of the venue (the host's own summary, the `up` MCP tool, a CI job summary

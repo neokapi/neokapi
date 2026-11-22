@@ -167,13 +167,13 @@ func TestFrameSiblings_SkeletonStreamHasContentBlocks(t *testing.T) {
 // through ApplyMap and that unknown keys are still rejected.
 func TestApplyMap_ExtractNonTranslatableContent(t *testing.T) {
 	cfg := &messageformat.Config{}
-	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extract_non_translatable_content": false}))
 	assert.False(t, cfg.ExtractNonTranslatableContent())
 
-	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": true}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extract_non_translatable_content": true}))
 	assert.True(t, cfg.ExtractNonTranslatableContent())
 
-	require.Error(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": "nope"}),
+	require.Error(t, cfg.ApplyMap(map[string]any{"extract_non_translatable_content": "nope"}),
 		"non-bool value must be rejected")
 	require.Error(t, cfg.ApplyMap(map[string]any{"bogus": true}),
 		"unknown keys must still be rejected")

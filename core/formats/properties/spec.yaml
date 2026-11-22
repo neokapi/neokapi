@@ -6,13 +6,14 @@
 # which the runner skips cleanly when the okapi-testdata corpus isn't
 # fetched.
 #
-# Config keys use the Okapi parameter names (extractOnlyMatchingKey,
-# useKeyCondition, keyCondition, extraComments, commentsAreNotes,
-# escapeExtendedChars, useJavaEscapes, convertLFandTab, idLikeResname,
-# useLd, localizeOutside) — the same names the bridge composite schema
-# exposes. The native Config.ApplyMap accepts each of these directly.
+# Config keys are the snake_case spellings of the Okapi parameter names
+# (extract_only_matching_key, use_key_condition, key_condition,
+# extra_comments, comments_are_notes, escape_extended_chars,
+# use_java_escapes). The bridge composite schema also exposes
+# convertLFandTab, idLikeResname, useLd and localizeOutside, which the
+# native reader does not take.
 #
-# Inline-code detection (useCodeFinder / codeFinderRules) is exercised
+# Inline-code detection (use_code_finder / code_finder_rules) is exercised
 # through the message-placeholder feature but is NOT declared as a
 # spec.config key. The bridge composite schema represents it as a
 # nested $defs block (`inlineCodes.enabled`, `inlineCodes.rules`) whose
@@ -38,34 +39,34 @@ description: |
 
 config:
   # ── Extraction filtering (extraction.* in bridge schema) ──────────
-  - key: useKeyCondition
+  - key: use_key_condition
     type: boolean
     default: false
     description: |
       Enable key-based extraction filtering. When false, every entry
-      is extracted; when true, the keyCondition regex selects which
-      entries are extracted (gated by extractOnlyMatchingKey).
+      is extracted; when true, the key_condition regex selects which
+      entries are extracted (gated by extract_only_matching_key).
     okapi_param: useKeyCondition
 
-  - key: extractOnlyMatchingKey
+  - key: extract_only_matching_key
     type: boolean
     default: true
     description: |
-      Direction of the keyCondition filter. When true (default),
+      Direction of the key_condition filter. When true (default),
       ONLY entries whose keys match are extracted. When false,
-      matching keys are EXCLUDED. No effect unless useKeyCondition
+      matching keys are EXCLUDED. No effect unless use_key_condition
       is true.
     okapi_param: extractOnlyMatchingKey
 
-  - key: keyCondition
+  - key: key_condition
     type: string
     default: ".*text.*"
     description: |
       Regex evaluated against each property key. Combined with
-      extractOnlyMatchingKey to include or exclude matching entries.
+      extract_only_matching_key to include or exclude matching entries.
     okapi_param: keyCondition
 
-  - key: extraComments
+  - key: extra_comments
     type: boolean
     default: false
     description: |
@@ -74,7 +75,7 @@ config:
     okapi_param: extraComments
 
   # ── Comment / note handling ───────────────────────────────────────
-  - key: commentsAreNotes
+  - key: comments_are_notes
     type: boolean
     default: true
     description: |
@@ -84,7 +85,7 @@ config:
     okapi_param: commentsAreNotes
 
   # ── Output formatting ─────────────────────────────────────────────
-  - key: escapeExtendedChars
+  - key: escape_extended_chars
     type: boolean
     default: true
     description: |
@@ -93,7 +94,7 @@ config:
       effect — it shapes the writer's output only.
     okapi_param: escapeExtendedChars
 
-  - key: useJavaEscapes
+  - key: use_java_escapes
     type: boolean
     default: false
     description: |
@@ -200,7 +201,7 @@ features:
     name: Standard comment markers and notes
     description: |
       Lines starting with `#` or `!` are comments. With
-      commentsAreNotes=true (default) a comment immediately
+      comments_are_notes=true (default) a comment immediately
       preceding an entry attaches as that entry's translator note;
       otherwise the comment lives only in the skeleton. A blank
       line resets the pending note.
@@ -223,11 +224,11 @@ features:
       - properties.TestReadComments
       - properties.TestReadExclamationComment
 
-  # ── Extra comment markers (extraComments) ─────────────────────────
+  # ── Extra comment markers (extra_comments) ─────────────────────────
   - id: extra_comment_markers
     name: Optional `;` and `//` comment markers
     description: |
-      With extraComments=true the reader also recognizes lines
+      With extra_comments=true the reader also recognizes lines
       starting with `;` or `//` as comments. Default off — these
       lines parse as ordinary entries (with `;` or `/` as part of
       the key).
@@ -235,19 +236,19 @@ features:
     # only recognises `#` and `!` — no spec_refs.
     examples:
       - name: semicolon_off_treated_as_entry
-        origin: "authored: `;` line under default extraComments=false (parses as entry)"
+        origin: "authored: `;` line under default extra_comments=false (parses as entry)"
         input_xml: "; not a comment\nkey=value\n"
-        # extraComments=false (default): `;` is part of the key, so
+        # extra_comments=false (default): `;` is part of the key, so
         # the line parses as an entry whose value is "not a comment".
         block_count: 2
         block_texts:
           - "not a comment"
           - "value"
       - name: semicolon_on_skipped
-        origin: "authored: same `;` line with extraComments=true opt-in"
+        origin: "authored: same `;` line with extra_comments=true opt-in"
         input_xml: "; this is a comment\nkey=value\n"
         config:
-          extraComments: true
+          extra_comments: true
         block_count: 1
         first_block_text: "value"
     okapi_refs:
@@ -314,7 +315,7 @@ features:
   - id: java_extra_escapes
     name: "Decode Java property escapes (\\: \\= \\# \\!)"
     description: |
-      With useJavaEscapes=true, the additional Java property escape
+      With use_java_escapes=true, the additional Java property escape
       sequences `\:`, `\=`, `\#`, `\!` in values are decoded to
       their literal characters. Default off — by default these stay
       escaped in the extracted text.
@@ -322,22 +323,22 @@ features:
       - "Java SE Properties spec — escaped key terminators \\: \\= (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Properties.html)"
     examples:
       - name: default_off_keeps_escapes
-        origin: "authored: value with every \\: \\= \\# \\! escape, useJavaEscapes off"
+        origin: "authored: value with every \\: \\= \\# \\! escape, use_java_escapes off"
         input_xml: "key1=Listen\\: here's the \\#1 thing to remember\\: a \\!\\= b \\\\ c"
         expected_fail: |
           bridge bug — with useJavaEscapes off, Okapi PropertiesFilter
           keeps the `\\` doubled instead of decoding it once, yielding
           "...a \\!\\= b \\\\ c". Native (and the Java property spec)
           treats `\\` as always-decoded to a single backslash regardless
-          of the useJavaEscapes flag. Tracked separately as a bridge
+          of the use_java_escapes flag. Tracked separately as a bridge
           escape-decoding bug.
         block_count: 1
         first_block_text: "Listen\\: here's the \\#1 thing to remember\\: a \\!\\= b \\ c"
       - name: enabled_decodes_escapes
-        origin: "authored: same value with useJavaEscapes=true (escapes decoded)"
+        origin: "authored: same value with use_java_escapes=true (escapes decoded)"
         input_xml: "key1=Listen\\: here's the \\#1 thing to remember\\: a \\!\\= b \\\\ c"
         config:
-          useJavaEscapes: true
+          use_java_escapes: true
         block_count: 1
         first_block_text: "Listen: here's the #1 thing to remember: a != b \\ c"
     okapi_refs:
@@ -349,21 +350,21 @@ features:
   - id: key_condition_filtering
     name: Extract / exclude entries by key regex
     description: |
-      With useKeyCondition=true, entries are filtered by a regex
-      matched against their keys. extractOnlyMatchingKey selects
+      With use_key_condition=true, entries are filtered by a regex
+      matched against their keys. extract_only_matching_key selects
       direction: true keeps matching entries; false drops them.
       Mirrors the upstream Test02 / Test03 fprm configurations.
     # Key-condition filtering is an Okapi-side extraction policy,
     # not part of the Java Properties format spec — no spec_refs.
     config:
-      useKeyCondition: true
-      keyCondition: ".*text.*"
+      use_key_condition: true
+      key_condition: ".*text.*"
     examples:
       - name: extract_matching_only
         origin: "okapi-fixture: PropertiesFilterTest#testDoubleExtraction (Test02 fprm shape)"
         input_xml: "text100\tText for text100\nkey101\tText for key101 (no extraction)\ntextkey102 Text for textkey102\n"
         config:
-          extractOnlyMatchingKey: true
+          extract_only_matching_key: true
         block_count: 2
         block_texts:
           - "Text for text100"
@@ -372,7 +373,7 @@ features:
         origin: "okapi-fixture: PropertiesFilterTest#testDoubleExtraction (Test03 fprm shape)"
         input_xml: "text100\tText for text100 (no extraction)\nkey101\tText for key101\ntextkey102 Text for textkey102 (no extraction)\n"
         config:
-          extractOnlyMatchingKey: false
+          extract_only_matching_key: false
         block_count: 1
         first_block_text: "Text for key101"
     okapi_refs:

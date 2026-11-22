@@ -68,13 +68,16 @@ func resolveItemIDPg(ctx context.Context, tx Runner, projectID, stream, itemName
 }
 
 // deciderRole classifies a decision identity for the audit trail: "" (plain
-// human), "ai/<model>" (autonomous), "agent/<client>" (acting for a person).
+// human), "ai/<model>" (autonomous), "agent/<client>" (acting for a person),
+// "tool/<name>" (a tool under a member's tool token).
 func deciderRole(by string) string {
 	switch {
 	case strings.HasPrefix(by, state.AIIdentityPrefix):
 		return "ai"
 	case strings.HasPrefix(by, "agent/"):
 		return "agent"
+	case strings.HasPrefix(by, "tool/"):
+		return "tool"
 	default:
 		return "human"
 	}

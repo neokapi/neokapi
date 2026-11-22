@@ -44,17 +44,17 @@ interface FileResult {
 interface FileTrace {
   file: string;
   format: string;
-  startUs: number;
-  endUs: number;
+  start_us: number;
+  end_us: number;
   lane: number;
-  durationUs: number;
+  duration_us: number;
 }
 
 interface BatchTrace {
   name: string;
   concurrency: number;
-  fileTraces: FileTrace[];
-  durationUs: number;
+  file_traces: FileTrace[];
+  duration_us: number;
 }
 
 interface Experiment {
@@ -599,7 +599,7 @@ function BatchConcurrencyChart({ experiments }: { experiments: Experiment[] }) {
     x: number;
     y: number;
   } | null>(null);
-  const withTraces = experiments.filter((e) => e.batchTrace && e.batchTrace.fileTraces.length > 0);
+  const withTraces = experiments.filter((e) => e.batchTrace && e.batchTrace.file_traces.length > 0);
   if (withTraces.length === 0) {
     return (
       <div className={styles.compCard}>
@@ -617,13 +617,13 @@ function BatchConcurrencyChart({ experiments }: { experiments: Experiment[] }) {
     <>
       {withTraces.map((exp) => {
         const bt = exp.batchTrace!;
-        const traces = bt.fileTraces;
-        const maxTimeUs = Math.max(...traces.map((f) => f.endUs));
+        const traces = bt.file_traces;
+        const maxTimeUs = Math.max(...traces.map((f) => f.end_us));
         const maxLane = Math.max(...traces.map((f) => f.lane));
         const numLanes = maxLane + 1;
 
         const formats = [...new Set(traces.map((f) => f.format))];
-        const totalMs = (bt.durationUs / 1000).toFixed(0);
+        const totalMs = (bt.duration_us / 1000).toFixed(0);
         const rssMB = (exp.peakRssKB.max / 1024).toFixed(1);
 
         // Group traces by lane
@@ -663,8 +663,8 @@ function BatchConcurrencyChart({ experiments }: { experiments: Experiment[] }) {
                   </div>
                   <div className={styles.timelineTrack}>
                     {laneTraces.map((ft) => {
-                      const left = (ft.startUs / maxTimeUs) * 100;
-                      const width = Math.max(((ft.endUs - ft.startUs) / maxTimeUs) * 100, 0.3);
+                      const left = (ft.start_us / maxTimeUs) * 100;
+                      const width = Math.max(((ft.end_us - ft.start_us) / maxTimeUs) * 100, 0.3);
                       const color = formatColor(ft.format);
                       return (
                         <div
@@ -710,7 +710,7 @@ function BatchConcurrencyChart({ experiments }: { experiments: Experiment[] }) {
                 <br />
                 {hoveredFile.file.format} · Lane {hoveredFile.file.lane}
                 <br />
-                {fmt(hoveredFile.file.durationUs / 1000)} ms
+                {fmt(hoveredFile.file.duration_us / 1000)} ms
               </div>
             )}
           </div>

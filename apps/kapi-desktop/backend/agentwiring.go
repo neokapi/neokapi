@@ -324,7 +324,7 @@ func readClaudeDesktopEntry(path string) (claudeDesktopEntry, bool) {
 func connectClaudeDesktop(recipe string, tools []string) (*host.AgentWiringResult, error) {
 	dir, ok := claudeDesktopConfigDir()
 	if !ok {
-		return nil, fmt.Errorf("kapi knows where Claude Desktop keeps its configuration on macOS and Windows, not on %s", runtime.GOOS)
+		return nil, fmt.Errorf("kapi can find the Claude Desktop configuration on macOS and Windows only, not on %s", runtime.GOOS)
 	}
 	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
 		return nil, fmt.Errorf("this machine has no Claude Desktop configuration folder at %s: open Claude Desktop once, then connect again", dir)

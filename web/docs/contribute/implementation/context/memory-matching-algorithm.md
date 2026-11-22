@@ -7,7 +7,9 @@ keywords: [content memory matching, fuzzy match, memory, plain key, structural k
 
 # Content Memory Matching Algorithm
 
-This note provides implementation details for [C-09](/contribute/architecture/context/c-09-content-memory).
+The content memory derives matching keys from each entry, matches in tiers, and
+keeps a version chain per block. Parent AD:
+[C-09](/contribute/architecture/context/c-09-content-memory).
 
 ## Derived matching keys
 
@@ -56,11 +58,11 @@ or two equally far) goes to the smaller target text (`memory.NearerAnswer`).
 
 A caller that names no point settles nothing: the ambiguity rule runs instead
 and every full-score match demotes to `ScoreNearExact` with `Match.Ambiguous`
-set, so exact-only consumers (extract pre-fill, `fillTargetThreshold: 100`)
+set, so exact-only consumers (extract pre-fill, `fill_target_threshold: 100`)
 skip them rather than picking by storage order. Results order deterministically
 by (score desc, match-type priority, entry ID).
 
-The first match at or above the score threshold wins. A generalized exact match (different entity values, identical structure) is preferred over a plain fuzzy match (similar text, unknown structure). Levenshtein edit distance with a configurable threshold provides fuzzy matching; the `recycle` tool looks up at `fuzzyThreshold` (default 70) and fills at `fillTargetThreshold` (default 95), recording matches between the two as alternative-translation candidates.
+The first match at or above the score threshold wins. A generalized exact match (different entity values, identical structure) is preferred over a plain fuzzy match (similar text, unknown structure). Levenshtein edit distance with a configurable threshold provides fuzzy matching; the `recycle` tool looks up at `fuzzy_threshold` (default 70) and fills at `fill_target_threshold` (default 95), recording matches between the two as alternative-translation candidates.
 
 ## Entity Adaptation
 

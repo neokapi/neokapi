@@ -236,6 +236,28 @@ func (s *PostgresAuthStore) ListPublicWorkspaces(ctx context.Context) ([]*platau
 	return result, rows.Err()
 }
 
+func (s *PostgresAuthStore) ListAllWorkspaces(ctx context.Context, limit, offset int) ([]*platauth.Workspace, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_access_key, pulse_term_sources, preferred_model, voice_profile_id, created_at, updated_at
+		 FROM workspaces
+		 ORDER BY created_at DESC, id
+		 LIMIT $1 OFFSET $2`, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("list all workspaces: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]*platauth.Workspace, 0)
+	for rows.Next() {
+		w, err := scanWorkspacePg(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, w)
+	}
+	return result, rows.Err()
+}
+
 func (s *PostgresAuthStore) UpdateWorkspace(ctx context.Context, w *platauth.Workspace) error {
 	w.UpdatedAt = time.Now().UTC()
 	termSrcJSON, _ := json.Marshal(w.PulseTermSources)
@@ -495,9 +517,9 @@ func (s *PostgresAuthStore) StoreRefreshToken(ctx context.Context, userID, token
 const RefreshReuseGrace = 30 * time.Second
 
 // RefreshReuseSiblingCap bounds the successors a consumed token can have within
-// RefreshReuseGrace. RotateRefreshToken counts the family's tokens created at
-// or after the consumed token's consumed_at; when that count has reached the
-// cap, a further presentation is reuse and revokes the family.
+// RefreshReuseGrace. RotateRefreshToken counts the family's other tokens
+// created at or after the consumed token's consumed_at; when that count has
+// reached the cap, a further presentation is reuse and revokes the family.
 const RefreshReuseSiblingCap = 3
 
 // RotateRefreshToken atomically consumes the presented refresh token and mints
@@ -544,6 +566,7 @@ func (s *PostgresAuthStore) RotateRefreshToken(ctx context.Context, presentedHas
 
 	if consumedAt.Valid {
 		return rotateConsumedRefreshToken(ctx, tx, consumedRefreshToken{
+			id:         rowID,
 			userID:     userID,
 			familyID:   familyID,
 			expiresAt:  expiresAt,
@@ -579,6 +602,7 @@ func (s *PostgresAuthStore) RotateRefreshToken(ctx context.Context, presentedHas
 // consumedRefreshToken is the locked row of a refresh token that was already
 // rotated, as RotateRefreshToken read it.
 type consumedRefreshToken struct {
+	id         string
 	userID     string
 	familyID   string
 	expiresAt  time.Time
@@ -598,10 +622,14 @@ func rotateConsumedRefreshToken(ctx context.Context, tx *sql.Tx, tok consumedRef
 	}
 
 	if withinGrace {
+		// The consumed token is left out by id. StoreRefreshToken stamps its
+		// created_at with the server's clock and consumed_at comes from the
+		// database's, so with the server ahead the token would otherwise count
+		// as created after its own consumption.
 		var successors int
 		if err := tx.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM refresh_tokens WHERE family_id = $1 AND created_at >= $2`,
-			tok.familyID, tok.consumedAt).Scan(&successors); err != nil {
+			`SELECT COUNT(*) FROM refresh_tokens WHERE family_id = $1 AND created_at >= $2 AND id <> $3`,
+			tok.familyID, tok.consumedAt, tok.id).Scan(&successors); err != nil {
 			return "", fmt.Errorf("count refresh token successors: %w", err)
 		}
 		if successors < RefreshReuseSiblingCap {
@@ -694,13 +722,13 @@ func (s *PostgresAuthStore) CreateAPIToken(ctx context.Context, token *platauth.
 	if token.Scopes == "" {
 		token.Scopes = `["*"]`
 	}
-	if err := platauth.ValidateAgentName(token.AgentName); err != nil {
+	if err := platauth.ValidateToolName(token.ToolName); err != nil {
 		return err
 	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO api_tokens (id, user_id, workspace_id, name, agent_name, token_hash, token_prefix, scopes, expires_at, created_at)
+		`INSERT INTO api_tokens (id, user_id, workspace_id, name, tool_name, token_hash, token_prefix, scopes, expires_at, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-		token.ID, token.UserID, token.WorkspaceID, token.Name, token.AgentName, tokenHash,
+		token.ID, token.UserID, token.WorkspaceID, token.Name, token.ToolName, tokenHash,
 		token.TokenPrefix, token.Scopes, token.ExpiresAt, token.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("insert api token: %w", err)
@@ -711,21 +739,28 @@ func (s *PostgresAuthStore) CreateAPIToken(ctx context.Context, token *platauth.
 func (s *PostgresAuthStore) GetAPITokenByHash(ctx context.Context, tokenHash string) (*platauth.APIToken, error) {
 	var tok platauth.APIToken
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, user_id, workspace_id, name, agent_name, token_prefix, scopes, last_used_at, expires_at, created_at
+		`SELECT id, user_id, workspace_id, name, tool_name, token_prefix, scopes, last_used_at, expires_at, created_at
 		 FROM api_tokens WHERE token_hash = $1`, tokenHash).
-		Scan(&tok.ID, &tok.UserID, &tok.WorkspaceID, &tok.Name, &tok.AgentName, &tok.TokenPrefix,
+		Scan(&tok.ID, &tok.UserID, &tok.WorkspaceID, &tok.Name, &tok.ToolName, &tok.TokenPrefix,
 			&tok.Scopes, &tok.LastUsedAt, &tok.ExpiresAt, &tok.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get api token: %w", err)
 	}
+	if tok.IsTool() {
+		tok.IssuedBy = tok.UserID
+	}
 	return &tok, nil
 }
 
+// ListAPITokens lists a workspace's tokens, newest first, each with the
+// display name of the member it belongs to as IssuerName.
 func (s *PostgresAuthStore) ListAPITokens(ctx context.Context, workspaceID string) ([]*platauth.APIToken, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, user_id, workspace_id, name, agent_name, token_prefix, scopes, last_used_at, expires_at, created_at
-		 FROM api_tokens WHERE workspace_id = $1
-		 ORDER BY created_at DESC`, workspaceID)
+		`SELECT t.id, t.user_id, t.workspace_id, t.name, t.tool_name, t.token_prefix, t.scopes,
+		        t.last_used_at, t.expires_at, t.created_at, COALESCE(NULLIF(u.name, ''), u.email, '')
+		 FROM api_tokens t LEFT JOIN users u ON u.id = t.user_id
+		 WHERE t.workspace_id = $1
+		 ORDER BY t.created_at DESC`, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list api tokens: %w", err)
 	}
@@ -734,9 +769,12 @@ func (s *PostgresAuthStore) ListAPITokens(ctx context.Context, workspaceID strin
 	result := make([]*platauth.APIToken, 0)
 	for rows.Next() {
 		var tok platauth.APIToken
-		if err := rows.Scan(&tok.ID, &tok.UserID, &tok.WorkspaceID, &tok.Name, &tok.AgentName, &tok.TokenPrefix,
-			&tok.Scopes, &tok.LastUsedAt, &tok.ExpiresAt, &tok.CreatedAt); err != nil {
+		if err := rows.Scan(&tok.ID, &tok.UserID, &tok.WorkspaceID, &tok.Name, &tok.ToolName, &tok.TokenPrefix,
+			&tok.Scopes, &tok.LastUsedAt, &tok.ExpiresAt, &tok.CreatedAt, &tok.IssuerName); err != nil {
 			return nil, fmt.Errorf("scan api token: %w", err)
+		}
+		if tok.IsTool() {
+			tok.IssuedBy = tok.UserID
 		}
 		result = append(result, &tok)
 	}

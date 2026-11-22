@@ -172,7 +172,7 @@ func TestSetConfigPreprocessor_TransformsConfig(t *testing.T) {
 	})
 	reg.SetConfigFactory("ai-tool", func(config map[string]any, targetLang string) (tool.Tool, error) {
 		// Verify the preprocessor ran before the factory.
-		assert.Equal(t, "injected-key", config["apiKey"])
+		assert.Equal(t, "injected-key", config["api_key"])
 		assert.Equal(t, "anthropic", config["provider"])
 		return &stubTool{}, nil
 	})
@@ -183,12 +183,12 @@ func TestSetConfigPreprocessor_TransformsConfig(t *testing.T) {
 		assert.Contains(t, requires, "credentials")
 		result := make(map[string]any)
 		maps.Copy(result, config)
-		result["apiKey"] = "injected-key"
+		result["api_key"] = "injected-key"
 		result["provider"] = "anthropic"
 		return result, nil
 	})
 
-	_, err := reg.NewToolWithConfig("ai-tool", map[string]any{"batchSize": 10}, "fr")
+	_, err := reg.NewToolWithConfig("ai-tool", map[string]any{"batch_size": 10}, "fr")
 	require.NoError(t, err)
 }
 
@@ -210,6 +210,35 @@ func TestSetConfigPreprocessor_ErrorPropagates(t *testing.T) {
 	_, err := reg.NewToolWithConfig("ai-tool", map[string]any{}, "fr")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ai-tool config")
+}
+
+// A tool that defers its credentials is built when they do not resolve, with
+// the failure in its config for its first provider call; the step's own
+// config map is left as it was.
+func TestSetConfigPreprocessor_DeferredCredentials(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.RegisterWithSchema("ai-tool", func() tool.Tool { return &stubTool{} }, &schema.ComponentSchema{
+		Title:    "AI Tool",
+		ToolMeta: &schema.ToolMeta{ID: "ai-tool", Requires: []string{"credentials"}},
+	})
+	var got error
+	reg.SetConfigFactory("ai-tool", func(config map[string]any, targetLang string) (tool.Tool, error) {
+		got, _ = config[DeferredCredentialErrorKey].(error)
+		return &stubTool{}, nil
+	})
+	reg.SetConfigPreprocessor(func(string, []string, map[string]any) (map[string]any, error) {
+		return nil, assert.AnError
+	})
+	assert.False(t, reg.DefersCredentials("ai-tool"))
+	reg.SetDefersCredentials("ai-tool")
+	assert.True(t, reg.DefersCredentials("ai-tool"))
+
+	step := map[string]any{"provider": "anthropic"}
+	_, err := reg.NewToolWithConfig("ai-tool", step, "fr")
+	require.NoError(t, err, "the tool is built")
+	require.ErrorIs(t, got, assert.AnError)
+	assert.Contains(t, got.Error(), "ai-tool config")
+	assert.Equal(t, map[string]any{"provider": "anthropic"}, step)
 }
 
 func TestSetConfigPreprocessor_SkippedWithoutConfigFactory(t *testing.T) {

@@ -15,7 +15,7 @@
 // `@mdx-js/mdx@3` into it, then compiles each MDX file with a small ESM script.
 // Every step is gated: the test t.Skips (not fails) when node/npm are missing,
 // the install fails (offline), or node itself cannot execute (e.g. a
-// non-executable bin) — those are tooling/environment failures, not kapi
+// non-executable bin). Those are tooling/environment failures, not kapi
 // failures. When the compiler DOES run and reports MDX_COMPILE_FAIL, that is a
 // real writer bug and the test FAILs.
 //
@@ -65,8 +65,7 @@ func toolCouldNotRun(err error, combinedOutput string) bool {
 	if err == nil {
 		return false
 	}
-	var ee *exec.ExitError
-	if errors.As(err, &ee) {
+	if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 		switch ee.ExitCode() {
 		case 126, 127:
 			return true
@@ -148,7 +147,7 @@ func mdxCompiler(t *testing.T) func(t *testing.T, mdxPath string) (ran, ok bool,
 	require.NoError(t, os.WriteFile(filepath.Join(proj, "compile.mjs"), []byte(compileScript), 0o644))
 
 	// Install the real MDX compiler. Provisioning failures (offline, npm error,
-	// non-executable npm) are tooling failures, not kapi failures — skip.
+	// non-executable npm) are tooling failures, not kapi failures, so skip.
 	if out, err := runCmd(t, proj, 300*time.Second, npm, "install", "--no-audit", "--no-fund", "@mdx-js/mdx@3"); err != nil {
 		t.Skipf("could not provision @mdx-js/mdx@3 (tooling/environment, not a kapi failure):\n%s", out)
 	}
@@ -196,7 +195,7 @@ func TestAcceptanceTranslatedMDXCompiles(t *testing.T) {
 			for _, p := range parts {
 				if p.Type == model.PartBlock {
 					b := p.Resource.(*model.Block)
-					// Translate prose only — a real MT tool skips
+					// Translate prose only. A real MT tool skips
 					// Translatable:false surfaced content (JSX text children,
 					// table cells; #928).
 					if b.Translatable && strings.ContainsAny(b.SourceText(), "abcdefghijklmnopqrstuvwxyz") {
@@ -221,7 +220,7 @@ func TestAcceptanceTranslatedMDXCompiles(t *testing.T) {
 }
 
 // TestAcceptanceUntranslatedRoundTripCompiles verifies the untranslated
-// read→write output (byte-identical to source) still compiles — a fast,
+// read→write output (byte-identical to source) still compiles. It is a fast,
 // independent guard that the writer never emits compiler-breaking bytes even
 // without translation.
 func TestAcceptanceUntranslatedRoundTripCompiles(t *testing.T) {

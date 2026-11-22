@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -18,7 +18,7 @@ import (
 // c.Param("ws") (the slug) would match none of them and answer /:ws/tasks with
 // an empty list. The slug is kept only as the fallback for the handful of
 // routes that run without the workspace middleware.
-func taskWorkspaceID(c echo.Context) string {
+func taskWorkspaceID(c *echo.Context) string {
 	if wsID, _ := c.Get("workspace_id").(string); wsID != "" {
 		return wsID
 	}
@@ -33,7 +33,7 @@ func taskWorkspaceID(c echo.Context) string {
 // the "my tasks" surface (the dedicated /my/tasks route was folded into this
 // filter, Bowrain AD-011), so the literal must never reach the store, where it
 // would match nothing.
-func taskAssigneeParam(c echo.Context) (assignee string, ok bool) {
+func taskAssigneeParam(c *echo.Context) (assignee string, ok bool) {
 	assignee = c.QueryParam("assignee_id")
 	if assignee != "me" {
 		return assignee, true
@@ -48,7 +48,7 @@ func taskAssigneeParam(c echo.Context) (assignee string, ok bool) {
 // ?types=a,b,c is the multi-type filter the review inbox and the dashboard need
 // (review, review_terms, source_review are one set); ?type stays the single
 // exact match and applies when ?types is absent.
-func taskQueryFromRequest(c echo.Context, ws, assignee string) bstore.TaskQuery {
+func taskQueryFromRequest(c *echo.Context, ws, assignee string) bstore.TaskQuery {
 	return bstore.TaskQuery{
 		WorkspaceID: ws,
 		ProjectID:   c.QueryParam("project_id"),
@@ -62,7 +62,7 @@ func taskQueryFromRequest(c echo.Context, ws, assignee string) bstore.TaskQuery 
 }
 
 // HandleListTasks returns tasks for a workspace, optionally filtered.
-func (s *Server) HandleListTasks(c echo.Context) error {
+func (s *Server) HandleListTasks(c *echo.Context) error {
 	// The same bstore.TaskResult the live path returns, so an unconfigured
 	// deployment answers the shape a client already parses — next_cursor
 	// omitted, not an empty string that reads as a cursor.
@@ -99,7 +99,7 @@ func (s *Server) HandleListTasks(c echo.Context) error {
 // A board's column headers count the whole column, not the page it has loaded,
 // so they read this rather than tallying the rows in hand.
 // GET /api/v1/:ws/tasks/counts
-func (s *Server) HandleGetTaskCounts(c echo.Context) error {
+func (s *Server) HandleGetTaskCounts(c *echo.Context) error {
 	empty := &bstore.TaskCounts{ByStatus: map[string]int{}}
 	if s.TaskStore == nil {
 		return c.JSON(http.StatusOK, empty)
@@ -118,7 +118,7 @@ func (s *Server) HandleGetTaskCounts(c echo.Context) error {
 }
 
 // HandleCreateTask creates a new task.
-func (s *Server) HandleCreateTask(c echo.Context) error {
+func (s *Server) HandleCreateTask(c *echo.Context) error {
 	if s.TaskStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "tasks not configured"})
 	}
@@ -184,7 +184,7 @@ func (s *Server) HandleCreateTask(c echo.Context) error {
 }
 
 // HandleGetTask returns a single task.
-func (s *Server) HandleGetTask(c echo.Context) error {
+func (s *Server) HandleGetTask(c *echo.Context) error {
 	if s.TaskStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "tasks not configured"})
 	}
@@ -199,7 +199,7 @@ func (s *Server) HandleGetTask(c echo.Context) error {
 }
 
 // HandleUpdateTask updates a task.
-func (s *Server) HandleUpdateTask(c echo.Context) error {
+func (s *Server) HandleUpdateTask(c *echo.Context) error {
 	if s.TaskStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "tasks not configured"})
 	}
@@ -255,7 +255,7 @@ func (s *Server) HandleUpdateTask(c echo.Context) error {
 }
 
 // HandleDeleteTask removes a task.
-func (s *Server) HandleDeleteTask(c echo.Context) error {
+func (s *Server) HandleDeleteTask(c *echo.Context) error {
 	if s.TaskStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "tasks not configured"})
 	}
@@ -269,7 +269,7 @@ func (s *Server) HandleDeleteTask(c echo.Context) error {
 }
 
 // HandleAssignTask assigns a task to a user.
-func (s *Server) HandleAssignTask(c echo.Context) error {
+func (s *Server) HandleAssignTask(c *echo.Context) error {
 	if s.TaskStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "tasks not configured"})
 	}
@@ -290,7 +290,7 @@ func (s *Server) HandleAssignTask(c echo.Context) error {
 }
 
 // HandleCompleteTask marks a task as completed.
-func (s *Server) HandleCompleteTask(c echo.Context) error {
+func (s *Server) HandleCompleteTask(c *echo.Context) error {
 	if s.TaskStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "tasks not configured"})
 	}
@@ -322,7 +322,7 @@ func (s *Server) HandleCompleteTask(c echo.Context) error {
 }
 
 // HandleCancelTask cancels a task.
-func (s *Server) HandleCancelTask(c echo.Context) error {
+func (s *Server) HandleCancelTask(c *echo.Context) error {
 	if s.TaskStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "tasks not configured"})
 	}

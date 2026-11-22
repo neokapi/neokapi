@@ -1,7 +1,7 @@
 package backend
 
 // The Share page's preview of a connected project, read from the Bowrain
-// server the recipe's `bowrain:` block names: the server's own Map, Reader,
+// server the recipe's `bowrain:` block names: the server's own Overview, Reader,
 // questions and rules in force, through the sign-in `kapi auth login` keeps.
 // A refusal comes back as the server worded it, beside the one action that
 // answers it.
@@ -23,10 +23,10 @@ import (
 
 // The parts of a project BowrainPreview reads.
 const (
-	PreviewMap    = "map"
-	PreviewReader = "reader"
-	PreviewDecide = "decide"
-	PreviewKept   = "kept"
+	PreviewOverview = "overview"
+	PreviewReader   = "reader"
+	PreviewDecide   = "decide"
+	PreviewKept     = "kept"
 )
 
 // The actions a refusal names.
@@ -43,11 +43,11 @@ const (
 // or the server's refusal. Exactly one of the part fields is set when
 // Refusal is nil.
 type BowrainPreviewAnswer struct {
-	Map     *screens.MapSummaryDTO      `json:"map,omitempty"`
-	Reader  *screens.ReaderFileDTO      `json:"reader,omitempty"`
-	Decide  *screens.RulesDecideViewDTO `json:"decide,omitempty"`
-	Kept    []screens.KeptRuleDTO       `json:"kept,omitempty"`
-	Refusal *PreviewRefusal             `json:"refusal,omitempty"`
+	Overview *screens.OverviewSummaryDTO `json:"overview,omitempty"`
+	Reader   *screens.ReaderFileDTO      `json:"reader,omitempty"`
+	Decide   *screens.RulesDecideViewDTO `json:"decide,omitempty"`
+	Kept     []screens.KeptRuleDTO       `json:"kept,omitempty"`
+	Refusal  *PreviewRefusal             `json:"refusal,omitempty"`
 }
 
 // PreviewRefusal is why the server, or this Mac, read nothing.
@@ -63,7 +63,7 @@ type PreviewRefusal struct {
 }
 
 // BowrainPreview reads one part of a tab's project from the Bowrain server
-// its recipe connects to: part is "map", "reader" (item names the file),
+// its recipe connects to: part is "overview", "reader" (item names the file),
 // "decide" or "kept". The DTOs are the server's own. A tab whose recipe names
 // no project in a workspace on a server is an error; a missing sign-in and a
 // refusal from the server are a Refusal.
@@ -73,7 +73,7 @@ func (a *App) BowrainPreview(tabID, part, item string) (*BowrainPreviewAnswer, e
 		return nil, fmt.Errorf("project tab %q not found", tabID)
 	}
 	switch part {
-	case PreviewMap, PreviewDecide, PreviewKept:
+	case PreviewOverview, PreviewDecide, PreviewKept:
 	case PreviewReader:
 		if item == "" {
 			return nil, errors.New("the reader part names a file")
@@ -103,8 +103,8 @@ func (a *App) BowrainPreview(tabID, part, item string) (*BowrainPreviewAnswer, e
 	defer cancel()
 	out := &BowrainPreviewAnswer{}
 	switch part {
-	case PreviewMap:
-		out.Map, err = c.MapSummary(ctx)
+	case PreviewOverview:
+		out.Overview, err = c.OverviewSummary(ctx)
 	case PreviewReader:
 		out.Reader, err = c.ReaderFile(ctx, item)
 	case PreviewDecide:

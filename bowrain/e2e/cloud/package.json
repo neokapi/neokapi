@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.5.0",
+  "packageManager": "pnpm@12.21.0",
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",
@@ -11,8 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
-    "@types/node": "^26.6.1",
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6",
     "typescript": "^7.0.2"
   }
 }

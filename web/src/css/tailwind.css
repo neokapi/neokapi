@@ -36,7 +36,7 @@
 @source "../../../packages/kapi-learn/src";
 @source "../components/Learn";
 @source "../pages/learn";
-/* The Map on the landing page is drawn by @neokapi/project-screens inside a
+/* The Overview on the landing page is drawn by @neokapi/project-screens inside a
  * .kapi-reference scope, so scan its source too. */
 @source "../../../packages/project-screens/src";
 

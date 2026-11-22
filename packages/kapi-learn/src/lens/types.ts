@@ -1,6 +1,6 @@
 // The context graph as the lens draws it: what a project holds (its content
 // and the editions of it), the point that content sits at, and what the
-// project knows there (a voice, the terms, the content memory) with the
+// project holds there (a voice, the terms, the content memory) with the
 // record of how it came to know it. Every node and edge is read from the
 // engine's own answers; nothing here is modelled from the recipe.
 

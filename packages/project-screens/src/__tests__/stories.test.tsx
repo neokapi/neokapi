@@ -2,14 +2,14 @@
 import { describe, expect, it } from "vite-plus/test";
 import { render, screen } from "@testing-library/react";
 import { composeStories } from "@storybook/react-vite";
-import * as mapStories from "../stories/Map.stories";
+import * as overviewStories from "../stories/Overview.stories";
 import * as readerStories from "../stories/Reader.stories";
 import * as rulesStories from "../stories/Rules.stories";
 
 // Every story renders without throwing, and each read-only preview draws no
 // control for an action its port does not implement.
 describe.each([
-  ["Map", mapStories],
+  ["Overview", overviewStories],
   ["Reader", readerStories],
   ["Rules", rulesStories],
 ])("%s stories", (_, stories) => {
@@ -23,7 +23,7 @@ describe.each([
 
 describe("read-only stories", () => {
   it("draw no action", async () => {
-    const { ReadOnly: MapReadOnly } = composeStories(mapStories);
+    const { ReadOnly: MapReadOnly } = composeStories(overviewStories);
     const { ReadOnly: ReaderReadOnly } = composeStories(readerStories);
     const { ReadOnly: RulesReadOnly } = composeStories(rulesStories);
     render(<MapReadOnly />);

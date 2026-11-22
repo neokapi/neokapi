@@ -3,19 +3,24 @@ title: Content Store
 sidebar_position: 11
 ---
 
+import { PipelineDiagram } from "@neokapi/docs-shared";
+
 # Content Store
 
-The Content Store provides versioned, content-addressable persistence for content. It serves as the central persistence layer for neokapi projects.
+The Content Store is the versioned, content-addressable persistence layer for Bowrain projects.
 
 ## Architecture
 
-The store sits between connectors (which pull/push external content) and the processing pipeline (flows, tools, content memory, terms):
+The store sits between connectors, which pull and push external content, and the processing pipeline: flows, tools, content memory and terms. Versions record named snapshots of the store.
 
-```
-Connectors → ContentStore ← → Flows/Tools
-                  ↕
-              Versions
-```
+<PipelineDiagram
+  channelLabel=""
+  stages={[
+    { label: "Connectors", sub: "fetch · publish", role: "io" },
+    { label: "ContentStore", sub: "blocks · versions", role: "annotate" },
+    { label: "Flows and tools", sub: "read and write blocks", role: "translate" },
+  ]}
+/>
 
 ### Key Concepts
 
@@ -153,6 +158,6 @@ for _, change := range diff.Changes {
 ## Flow Integration
 
 Server-side flows read from and write to the content store through the flow
-service rather than a flow-executor option: a run loads the project's blocks
+service: a run loads the project's blocks
 from the store, executes the flow, and stores the produced targets back. See
 [Server-side flows](/server/flows).

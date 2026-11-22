@@ -39,8 +39,9 @@ type Decision struct {
 // UpsertDecision lands a term decision in the concept set.
 //
 // The term joins the concept that already declares it, else the one
-// `replaces` names, else the one that declares the replacement, so "what
-// should this say instead" is the preferred term of the term's concept. A
+// `replaces` names, else the one that declares the replacement. The
+// replacement is kept in the term's note, so "what should this say instead"
+// is that word (Replacement) even when the concept prefers another. A
 // replacement no concept declares yet becomes that concept's preferred term.
 //
 // A concept carries one advisory marking and one text scope for its rules

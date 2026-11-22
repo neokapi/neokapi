@@ -11,7 +11,7 @@ import (
 	fwproject "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/venue"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // The workspace's channel-slug equivalence surface.
@@ -162,7 +162,7 @@ type channelProposalsResponse struct {
 // Readable by anyone who may read content, because the listing says only what
 // the workspace already holds. Settling one takes the governance permission —
 // see HandleJudgeChannelAliasProposal.
-func (s *Server) HandleListChannelAliasProposals(c echo.Context) error {
+func (s *Server) HandleListChannelAliasProposals(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ type channelProposalJudgement struct {
 // offline. Dismissing says they are two channels, and that is what stops the
 // next push from raising the pair again — the upsert leaves a judged row's
 // status alone, so a re-sighting refreshes where it was seen and nothing more.
-func (s *Server) HandleJudgeChannelAliasProposal(c echo.Context) error {
+func (s *Server) HandleJudgeChannelAliasProposal(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}

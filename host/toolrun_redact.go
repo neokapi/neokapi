@@ -60,7 +60,7 @@ func (a *App) toolRunPolicyFor(recipe string, proj *project.KapiProject, file, t
 		}
 	}
 	if governing.Spec != nil && !a.toolContractKnown(toolName) {
-		return toolRunPolicy{}, fmt.Errorf("kapi refused to run %s: the project declares a redaction policy at %s, and %s has no contract that kapi knows, so kapi cannot tell whether it sends blocks to a provider. Declare its side effects in the toolMeta of the schema its plugin manifest names, or run it in a flow with a redact step ahead of it", toolName, governing.At, toolName)
+		return toolRunPolicy{}, fmt.Errorf("kapi refused to run %s: the project declares a redaction policy at %s, and %s declares no contract, so kapi cannot tell whether it sends blocks to a provider. Declare its side effects in the toolMeta of the schema its plugin manifest names, or run it in a flow with a redact step ahead of it", toolName, governing.At, toolName)
 	}
 	spec := resolved.Spec
 	if spec == nil {

@@ -130,7 +130,7 @@ func TestCommentsOnlyRejectsWhatOnlyValuesUse(t *testing.T) {
 			want: "collections[1].content[0]: comments.only is set, so the item has no values to redact",
 		},
 		"a reader config": {
-			item: "        format:\n          name: yaml\n          config:\n            keyPathPatterns: [\"greeting\"]",
+			item: "        format:\n          name: yaml\n          config:\n            key_path_patterns: [\"greeting\"]",
 			want: "collections[1].content[0]: comments.only is set, so format.config has no values to configure",
 		},
 		"a reader preset": {

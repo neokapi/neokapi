@@ -24,10 +24,10 @@ import (
 // and the run's own per-locale counts — described different runs.
 
 // runSourceLines totals the counts the run reports per locale, from the
-// renderer's plain-stream lines: "  nb  2/2 blocks  (content memory 1 · AI 1)",
+// renderer's plain-stream lines: "  nb  2/2 blocks  (recycled 1 · AI 1)",
 // with the "drafts N" segment the renderer adds for the units a pass served
 // from the block store rather than a provider.
-var runSourceLines = regexp.MustCompile(`content memory (\d+) · (?:drafts (\d+) · )?AI (\d+)`)
+var runSourceLines = regexp.MustCompile(`recycled (\d+) · (?:drafts (\d+) · )?AI (\d+)`)
 
 func runCounts(t *testing.T, out string) (viaMemory, viaDraft, viaAI int) {
 	t.Helper()

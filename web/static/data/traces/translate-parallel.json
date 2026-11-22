@@ -12,119 +12,119 @@
     },
     { "id": "writer", "type": "writer", "name": "json", "label": "JSON Writer" }
   ],
-  "channelSize": 64,
+  "channel_size": 64,
   "events": [
-    { "ts": 50, "type": "exit", "nodeId": "reader", "partId": "layer-1" },
-    { "ts": 100, "type": "exit", "nodeId": "reader", "partId": "block-title" },
-    { "ts": 120, "type": "exit", "nodeId": "reader", "partId": "block-subtitle" },
-    { "ts": 140, "type": "exit", "nodeId": "reader", "partId": "block-intro" },
-    { "ts": 160, "type": "exit", "nodeId": "reader", "partId": "block-body" },
-    { "ts": 180, "type": "exit", "nodeId": "reader", "partId": "block-cta" },
-    { "ts": 200, "type": "exit", "nodeId": "reader", "partId": "data-1" },
-    { "ts": 220, "type": "exit", "nodeId": "reader", "partId": "layer-1-end" },
+    { "ts": 50, "type": "exit", "node_id": "reader", "part_id": "layer-1" },
+    { "ts": 100, "type": "exit", "node_id": "reader", "part_id": "block-title" },
+    { "ts": 120, "type": "exit", "node_id": "reader", "part_id": "block-subtitle" },
+    { "ts": 140, "type": "exit", "node_id": "reader", "part_id": "block-intro" },
+    { "ts": 160, "type": "exit", "node_id": "reader", "part_id": "block-body" },
+    { "ts": 180, "type": "exit", "node_id": "reader", "part_id": "block-cta" },
+    { "ts": 200, "type": "exit", "node_id": "reader", "part_id": "data-1" },
+    { "ts": 220, "type": "exit", "node_id": "reader", "part_id": "layer-1-end" },
 
-    { "ts": 250, "type": "enter", "nodeId": "tool-0", "partId": "layer-1" },
-    { "ts": 260, "type": "exit", "nodeId": "tool-0", "partId": "layer-1" },
-    { "ts": 270, "type": "enter", "nodeId": "writer", "partId": "layer-1" },
-    { "ts": 290, "type": "exit", "nodeId": "writer", "partId": "layer-1" },
+    { "ts": 250, "type": "enter", "node_id": "tool-0", "part_id": "layer-1" },
+    { "ts": 260, "type": "exit", "node_id": "tool-0", "part_id": "layer-1" },
+    { "ts": 270, "type": "enter", "node_id": "writer", "part_id": "layer-1" },
+    { "ts": 290, "type": "exit", "node_id": "writer", "part_id": "layer-1" },
 
     {
       "ts": 300,
       "type": "enter",
-      "nodeId": "tool-0",
-      "partId": "block-title",
+      "node_id": "tool-0",
+      "part_id": "block-title",
       "meta": { "worker": 0 }
     },
     {
       "ts": 310,
       "type": "enter",
-      "nodeId": "tool-0",
-      "partId": "block-subtitle",
+      "node_id": "tool-0",
+      "part_id": "block-subtitle",
       "meta": { "worker": 1 }
     },
     {
       "ts": 320,
       "type": "enter",
-      "nodeId": "tool-0",
-      "partId": "block-intro",
+      "node_id": "tool-0",
+      "part_id": "block-intro",
       "meta": { "worker": 2 }
     },
 
     {
       "ts": 620,
       "type": "exit",
-      "nodeId": "tool-0",
-      "partId": "block-title",
+      "node_id": "tool-0",
+      "part_id": "block-title",
       "meta": { "parallel": true, "worker": 0 }
     },
-    { "ts": 630, "type": "enter", "nodeId": "writer", "partId": "block-title" },
-    { "ts": 670, "type": "exit", "nodeId": "writer", "partId": "block-title" },
+    { "ts": 630, "type": "enter", "node_id": "writer", "part_id": "block-title" },
+    { "ts": 670, "type": "exit", "node_id": "writer", "part_id": "block-title" },
 
     {
       "ts": 680,
       "type": "exit",
-      "nodeId": "tool-0",
-      "partId": "block-subtitle",
+      "node_id": "tool-0",
+      "part_id": "block-subtitle",
       "meta": { "parallel": true, "worker": 1 }
     },
-    { "ts": 690, "type": "enter", "nodeId": "writer", "partId": "block-subtitle" },
-    { "ts": 730, "type": "exit", "nodeId": "writer", "partId": "block-subtitle" },
+    { "ts": 690, "type": "enter", "node_id": "writer", "part_id": "block-subtitle" },
+    { "ts": 730, "type": "exit", "node_id": "writer", "part_id": "block-subtitle" },
 
     {
       "ts": 700,
       "type": "enter",
-      "nodeId": "tool-0",
-      "partId": "block-body",
+      "node_id": "tool-0",
+      "part_id": "block-body",
       "meta": { "worker": 0 }
     },
 
     {
       "ts": 750,
       "type": "exit",
-      "nodeId": "tool-0",
-      "partId": "block-intro",
+      "node_id": "tool-0",
+      "part_id": "block-intro",
       "meta": { "parallel": true, "worker": 2 }
     },
-    { "ts": 760, "type": "enter", "nodeId": "writer", "partId": "block-intro" },
-    { "ts": 800, "type": "exit", "nodeId": "writer", "partId": "block-intro" },
+    { "ts": 760, "type": "enter", "node_id": "writer", "part_id": "block-intro" },
+    { "ts": 800, "type": "exit", "node_id": "writer", "part_id": "block-intro" },
 
     {
       "ts": 770,
       "type": "enter",
-      "nodeId": "tool-0",
-      "partId": "block-cta",
+      "node_id": "tool-0",
+      "part_id": "block-cta",
       "meta": { "worker": 1 }
     },
 
     {
       "ts": 1020,
       "type": "exit",
-      "nodeId": "tool-0",
-      "partId": "block-body",
+      "node_id": "tool-0",
+      "part_id": "block-body",
       "meta": { "parallel": true, "worker": 0 }
     },
-    { "ts": 1030, "type": "enter", "nodeId": "writer", "partId": "block-body" },
-    { "ts": 1070, "type": "exit", "nodeId": "writer", "partId": "block-body" },
+    { "ts": 1030, "type": "enter", "node_id": "writer", "part_id": "block-body" },
+    { "ts": 1070, "type": "exit", "node_id": "writer", "part_id": "block-body" },
 
     {
       "ts": 1100,
       "type": "exit",
-      "nodeId": "tool-0",
-      "partId": "block-cta",
+      "node_id": "tool-0",
+      "part_id": "block-cta",
       "meta": { "parallel": true, "worker": 1 }
     },
-    { "ts": 1110, "type": "enter", "nodeId": "writer", "partId": "block-cta" },
-    { "ts": 1150, "type": "exit", "nodeId": "writer", "partId": "block-cta" },
+    { "ts": 1110, "type": "enter", "node_id": "writer", "part_id": "block-cta" },
+    { "ts": 1150, "type": "exit", "node_id": "writer", "part_id": "block-cta" },
 
-    { "ts": 1160, "type": "enter", "nodeId": "tool-0", "partId": "data-1" },
-    { "ts": 1170, "type": "exit", "nodeId": "tool-0", "partId": "data-1" },
-    { "ts": 1180, "type": "enter", "nodeId": "writer", "partId": "data-1" },
-    { "ts": 1200, "type": "exit", "nodeId": "writer", "partId": "data-1" },
+    { "ts": 1160, "type": "enter", "node_id": "tool-0", "part_id": "data-1" },
+    { "ts": 1170, "type": "exit", "node_id": "tool-0", "part_id": "data-1" },
+    { "ts": 1180, "type": "enter", "node_id": "writer", "part_id": "data-1" },
+    { "ts": 1200, "type": "exit", "node_id": "writer", "part_id": "data-1" },
 
-    { "ts": 1210, "type": "enter", "nodeId": "tool-0", "partId": "layer-1-end" },
-    { "ts": 1220, "type": "exit", "nodeId": "tool-0", "partId": "layer-1-end" },
-    { "ts": 1230, "type": "enter", "nodeId": "writer", "partId": "layer-1-end" },
-    { "ts": 1260, "type": "exit", "nodeId": "writer", "partId": "layer-1-end" }
+    { "ts": 1210, "type": "enter", "node_id": "tool-0", "part_id": "layer-1-end" },
+    { "ts": 1220, "type": "exit", "node_id": "tool-0", "part_id": "layer-1-end" },
+    { "ts": 1230, "type": "enter", "node_id": "writer", "part_id": "layer-1-end" },
+    { "ts": 1260, "type": "exit", "node_id": "writer", "part_id": "layer-1-end" }
   ],
   "parts": {
     "layer-1": {
@@ -135,15 +135,15 @@
         "id": "block-title",
         "type": "Block",
         "summary": "Welcome to our platform",
-        "sourceText": "Welcome to our platform"
+        "source_text": "Welcome to our platform"
       },
-      "afterNode": {
+      "after_node": {
         "tool-0": {
           "id": "block-title",
           "type": "Block",
           "summary": "Bienvenue sur notre plateforme",
-          "sourceText": "Welcome to our platform",
-          "targetText": "Bienvenue sur notre plateforme"
+          "source_text": "Welcome to our platform",
+          "target_text": "Bienvenue sur notre plateforme"
         }
       }
     },
@@ -152,15 +152,15 @@
         "id": "block-subtitle",
         "type": "Block",
         "summary": "The best way to manage content",
-        "sourceText": "The best way to manage content"
+        "source_text": "The best way to manage content"
       },
-      "afterNode": {
+      "after_node": {
         "tool-0": {
           "id": "block-subtitle",
           "type": "Block",
           "summary": "La meilleure façon de gérer du contenu",
-          "sourceText": "The best way to manage content",
-          "targetText": "La meilleure façon de gérer du contenu"
+          "source_text": "The best way to manage content",
+          "target_text": "La meilleure façon de gérer du contenu"
         }
       }
     },
@@ -169,15 +169,15 @@
         "id": "block-intro",
         "type": "Block",
         "summary": "Our platform helps teams collaborate...",
-        "sourceText": "Our platform helps teams collaborate on translations efficiently"
+        "source_text": "Our platform helps teams collaborate on translations efficiently"
       },
-      "afterNode": {
+      "after_node": {
         "tool-0": {
           "id": "block-intro",
           "type": "Block",
           "summary": "Notre plateforme aide les équipes à c...",
-          "sourceText": "Our platform helps teams collaborate on translations efficiently",
-          "targetText": "Notre plateforme aide les équipes à collaborer efficacement sur les traductions"
+          "source_text": "Our platform helps teams collaborate on translations efficiently",
+          "target_text": "Notre plateforme aide les équipes à collaborer efficacement sur les traductions"
         }
       }
     },
@@ -186,15 +186,15 @@
         "id": "block-body",
         "type": "Block",
         "summary": "With powerful AI-driven translation, ...",
-        "sourceText": "With powerful AI-driven translation, you can reduce costs and time to market"
+        "source_text": "With powerful AI-driven translation, you can reduce costs and time to market"
       },
-      "afterNode": {
+      "after_node": {
         "tool-0": {
           "id": "block-body",
           "type": "Block",
           "summary": "Grâce à une traduction pilotée par l'...",
-          "sourceText": "With powerful AI-driven translation, you can reduce costs and time to market",
-          "targetText": "Grâce à une traduction pilotée par l'IA, vous pouvez réduire les coûts et le délai de mise sur le marché"
+          "source_text": "With powerful AI-driven translation, you can reduce costs and time to market",
+          "target_text": "Grâce à une traduction pilotée par l'IA, vous pouvez réduire les coûts et le délai de mise sur le marché"
         }
       }
     },
@@ -203,15 +203,15 @@
         "id": "block-cta",
         "type": "Block",
         "summary": "Get started today",
-        "sourceText": "Get started today"
+        "source_text": "Get started today"
       },
-      "afterNode": {
+      "after_node": {
         "tool-0": {
           "id": "block-cta",
           "type": "Block",
           "summary": "Commencez dès aujourd'hui",
-          "sourceText": "Get started today",
-          "targetText": "Commencez dès aujourd'hui"
+          "source_text": "Get started today",
+          "target_text": "Commencez dès aujourd'hui"
         }
       }
     },
@@ -222,14 +222,14 @@
       "initial": { "id": "layer-1-end", "type": "LayerEnd", "summary": "Document root end" }
     }
   },
-  "inputFile": {
+  "input_file": {
     "name": "landing-page.json",
     "format": "json",
     "preview": "{\n  \"title\": \"Welcome to our platform\",\n  \"subtitle\": \"The best way to manage content\",\n  \"intro\": \"Our platform helps teams collaborate on translations efficiently\",\n  \"body\": \"With powerful AI-driven translation, you can reduce costs and time to market\",\n  \"cta\": \"Get started today\"\n}"
   },
-  "outputFile": {
+  "output_file": {
     "name": "landing-page_fr.json",
     "preview": "{\n  \"title\": \"Bienvenue sur notre plateforme\",\n  \"subtitle\": \"La meilleure façon de gérer du contenu\",\n  \"intro\": \"Notre plateforme aide les équipes à collaborer efficacement sur les traductions\",\n  \"body\": \"Grâce à une traduction pilotée par l'IA, vous pouvez réduire les coûts et le délai de mise sur le marché\",\n  \"cta\": \"Commencez dès aujourd'hui\"\n}"
   },
-  "durationUs": 1260
+  "duration_us": 1260
 }

@@ -24,6 +24,26 @@ export interface RecordedTraceInfo {
   url: string;
 }
 
+/**
+ * Parse a trace file's JSON. A trace written with the camelCase field names of
+ * earlier releases (`durationUs`, `nodeId`, `afterNode`, …) would replay as an
+ * empty run, so it is refused with the command that re-records it.
+ */
+export function parseTrace(raw: unknown, label: string): FlowTrace {
+  if (!raw || typeof raw !== "object" || !Array.isArray((raw as FlowTrace).events)) {
+    throw new Error(`${label} is not a kapi trace JSON`);
+  }
+  const t = raw as Record<string, unknown> & { events: Record<string, unknown>[] };
+  const legacy =
+    "durationUs" in t || "channelSize" in t || (t.events.length > 0 && "nodeId" in t.events[0]);
+  if (legacy) {
+    throw new Error(
+      `${label} uses the trace field names of an earlier kapi release. Re-record it with \`kapi run --trace <file>\`.`,
+    );
+  }
+  return raw as FlowTrace;
+}
+
 /** Reconstruct the flow a recorded trace ran: its tool nodes, in order. */
 export function specFromTrace(trace: FlowTrace): FlowSpec {
   const steps = (trace.nodes ?? [])
@@ -58,9 +78,9 @@ export function TraceImportControl({
     try {
       const resp = await fetch(url);
       if (!resp.ok) throw new Error(`failed to load trace (${resp.status})`);
-      onLoad((await resp.json()) as FlowTrace, label);
+      onLoad(parseTrace(await resp.json(), label), label);
     } catch (err) {
-      onError(String(err));
+      onError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
@@ -69,11 +89,18 @@ export function TraceImportControl({
   const loadFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
+      let raw: unknown;
       try {
         // readAsText guarantees a string result.
-        onLoad(JSON.parse(reader.result as string) as FlowTrace, file.name);
+        raw = JSON.parse(reader.result as string);
       } catch {
         onError(`${file.name} is not a kapi trace JSON`);
+        return;
+      }
+      try {
+        onLoad(parseTrace(raw, file.name), file.name);
+      } catch (err) {
+        onError(err instanceof Error ? err.message : String(err));
       }
     };
     reader.readAsText(file);

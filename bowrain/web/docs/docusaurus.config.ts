@@ -61,6 +61,20 @@ const channelVersion = (
   process.env.DOCS_CHANNEL_VERSION ||
   git(["describe", "--tags", "--abbrev=0", "--match", "bowrain-v[0-9]*"])
 ).replace(/^bowrain-v/, "");
+// After a GA release, main's nearest tag is that GA tag, so the next channel
+// describes the following minor until its first release candidate is tagged.
+// A prerelease tag names the channel version as it is.
+const describedVersion = channelVersion;
+const channelIsPrerelease = /-/.test(describedVersion);
+const nextMinor = (v: string): string => {
+  const m = /^(\d+)\.(\d+)\.\d+$/.exec(v);
+  return m ? `${m[1]}.${Number(m[2]) + 1}.0` : v;
+};
+const channelVersionShown =
+  channel === "next" && describedVersion && !channelIsPrerelease
+    ? nextMinor(describedVersion)
+    : describedVersion;
+
 const stableVersion = (
   process.env.DOCS_STABLE_VERSION ||
   git(["tag", "--list", "bowrain-v[0-9]*", "--sort=-v:refname"])
@@ -71,10 +85,11 @@ const stableVersion = (
 ).replace(/^bowrain-v/, "");
 
 const docsChannel =
-  channelVersion && stableVersion
+  channelVersionShown && stableVersion
     ? {
         channel,
-        version: channelVersion,
+        version: channelVersionShown,
+        prerelease: channelIsPrerelease,
         stableVersion,
         stableUrl: `${siteUrl}/docs/`,
         nextUrl: `${siteUrl}/docs/next/`,
@@ -155,6 +170,8 @@ const config: Config = {
 
   customFields: {
     docsChannel,
+    // The commit the evidence links on the connector maturity page point at.
+    sourceRevision: git(["rev-parse", "HEAD"]) || process.env.GITHUB_SHA || "main",
     kapiWebSite: KAPI_WEB_SITE,
     // Offload walkthrough videos to the shared CDN (Cloudflare R2) when
     // configured — empty DOCS_CDN_URL keeps them same-origin (the default). This
@@ -212,6 +229,7 @@ const config: Config = {
       "@docusaurus/plugin-client-redirects",
       {
         redirects: [
+          { from: "/server/project-map", to: "/server/project-overview" },
           { from: "/architecture-decisions/index", to: "/developer/server" },
           { from: "/architecture-decisions/001-vision-and-modules", to: "/developer/server" },
           {
@@ -417,6 +435,7 @@ const config: Config = {
             { label: "Getting Started", to: "/" },
             { label: "Using Bowrain", to: "/server/web-overview" },
             { label: "Connectors", to: "/server/connectors" },
+            { label: "Connector maturity", to: "/connector-maturity" },
             { label: "Connect (CLI)", to: "/cli/overview" },
           ],
         },

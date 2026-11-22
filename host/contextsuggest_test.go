@@ -177,7 +177,7 @@ func TestSuggestFromFiles_SpellingFiledByKapi(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, SuggestActor, op.Actor)
 	assert.Equal(t, contextop.KindObserve, op.Kind)
-	assert.Equal(t, contextop.StatusSuggested, op.Status, "it advises and fails nothing until a person keeps it")
+	assert.Equal(t, contextop.StatusSuggested, op.Status, "it is reported and fails nothing until a person keeps it")
 	assert.False(t, op.Established)
 	rule, ok := op.Rule()
 	require.True(t, ok)
@@ -204,7 +204,7 @@ func TestSuggestFromFiles_SpellingFiledByKapi(t *testing.T) {
 	assert.Equal(t, 1, item.Usage.RejectedCount)
 	var text strings.Builder
 	require.NoError(t, digest.FormatText(&text))
-	assert.Contains(t, text.String(), "noticed by kapi\n")
+	assert.Contains(t, text.String(), "suggested by kapi\n")
 }
 
 func TestSuggestFromFiles_PackWords(t *testing.T) {
@@ -223,7 +223,7 @@ func TestSuggestFromFiles_PackWords(t *testing.T) {
 		{
 			name:  "three words a pack avoids and no voice",
 			files: three,
-			want:  []string{"The files use 3 words the technical-docs starter pack avoids: simple once, easy once and obviously once, in 3 blocks across 1 file."},
+			want:  []string{"3 words on the technical-docs starter pack's avoid list appear in the files: simple once, easy once and obviously once, in 3 blocks across 1 file."},
 		},
 		{name: "two words are not enough", files: two},
 		{
@@ -268,7 +268,7 @@ func TestSuggestFromFiles_Address(t *testing.T) {
 		{
 			name:  "seven of ten blocks with a pronoun say you",
 			files: blocks(7, 3, ""),
-			want:  "The files address the reader as you (person_pov: second): 7 of 10 blocks with a personal pronoun say you, and none says we.",
+			want:  "The reader is addressed as you (person_pov: second): 7 of 10 blocks with a personal pronoun contain you, and none contains we.",
 		},
 		{name: "six of ten is below the share", files: blocks(6, 4, "")},
 		{name: "one block that says we is enough to stay silent", files: blocks(8, 0, "We keep the panel open.\n")},

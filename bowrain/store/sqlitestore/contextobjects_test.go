@@ -26,7 +26,7 @@ func TestContextObjects_CreatedOnce(t *testing.T) {
 	blob := []byte("payload")
 	blobName := workspace.BlobObjectName(workspace.BlobAddress(blob))
 
-	require.NoError(t, s.PutContextObjects(ctx, p.ID, "member-a", []platstore.ContextObject{
+	require.NoError(t, s.PutContextObjects(ctx, p.ID, platstore.Member("member-a"), []platstore.ContextObject{
 		{Name: seg2, Data: []byte("two\n")},
 		{Name: seg1, Data: []byte("one\n")},
 		{Name: blobName, Data: blob},
@@ -47,17 +47,17 @@ func TestContextObjects_CreatedOnce(t *testing.T) {
 	sum := sha256.Sum256([]byte("one\n"))
 	assert.Equal(t, "one\n", string(got.Data))
 	assert.Equal(t, hex.EncodeToString(sum[:]), got.SHA256)
-	assert.Equal(t, "member-a", got.PushedBy)
+	assert.Equal(t, platstore.Member("member-a"), got.PushedBy)
 	assert.False(t, got.PushedAt.IsZero())
 
-	require.NoError(t, s.PutContextObjects(ctx, p.ID, "member-b", []platstore.ContextObject{{Name: seg1, Data: []byte("one\n")}}),
+	require.NoError(t, s.PutContextObjects(ctx, p.ID, platstore.Member("member-b"), []platstore.ContextObject{{Name: seg1, Data: []byte("one\n")}}),
 		"the bytes an object already holds change nothing")
 	got, err = s.GetContextObject(ctx, p.ID, seg1)
 	require.NoError(t, err)
-	assert.Equal(t, "member-a", got.PushedBy, "the member who created the object stays on it")
+	assert.Equal(t, platstore.Member("member-a"), got.PushedBy, "the member who created the object stays on it")
 
 	seg3 := workspace.SegmentName("w1", "000000000000000000000003")
-	err = s.PutContextObjects(ctx, p.ID, "member-b", []platstore.ContextObject{
+	err = s.PutContextObjects(ctx, p.ID, platstore.Member("member-b"), []platstore.ContextObject{
 		{Name: seg3, Data: []byte("three\n")},
 		{Name: seg1, Data: []byte("changed\n")},
 	})
@@ -77,18 +77,18 @@ func TestContextObjects_NamesOutsideTheLayoutAreRefused(t *testing.T) {
 	ctx := t.Context()
 	p := createTestProject(t, s)
 	for _, name := range []string{"../escape", "log/w1/../../x.jsonl", "notes.txt", "blobs/XYZ"} {
-		require.Error(t, s.PutContextObjects(ctx, p.ID, "m", []platstore.ContextObject{{Name: name, Data: []byte("x")}}), name)
+		require.Error(t, s.PutContextObjects(ctx, p.ID, platstore.Member("m"), []platstore.ContextObject{{Name: name, Data: []byte("x")}}), name)
 		_, err := s.GetContextObject(ctx, p.ID, name)
 		require.Error(t, err, name)
 		require.NotErrorIs(t, err, platstore.ErrNoContextObject, name)
 	}
 	blobName := workspace.BlobObjectName(workspace.BlobAddress([]byte("right")))
-	err := s.PutContextObjects(ctx, p.ID, "m", []platstore.ContextObject{{Name: blobName, Data: []byte("wrong")}})
+	err := s.PutContextObjects(ctx, p.ID, platstore.Member("m"), []platstore.ContextObject{{Name: blobName, Data: []byte("wrong")}})
 	require.Error(t, err, "a blob is stored only under the address of its bytes")
 	require.NotErrorIs(t, err, platstore.ErrContextObjectExists)
 	_, err = s.GetContextObject(ctx, p.ID, blobName)
 	require.ErrorIs(t, err, platstore.ErrNoContextObject)
-	require.NoError(t, s.PutContextObjects(ctx, p.ID, "m", []platstore.ContextObject{{Name: blobName, Data: []byte("right")}}))
+	require.NoError(t, s.PutContextObjects(ctx, p.ID, platstore.Member("m"), []platstore.ContextObject{{Name: blobName, Data: []byte("right")}}))
 
 	_, err = s.ListContextObjects(ctx, p.ID, "log")
 	require.Error(t, err, "a directory is named with its slash, as the layout names it")
@@ -128,7 +128,7 @@ func TestContextObjects_KeyAndDigests(t *testing.T) {
 
 	seg := workspace.SegmentName("w1", "000000000000000000000001")
 	blob := []byte("payload")
-	require.NoError(t, s.PutContextObjects(ctx, p.ID, "m", []platstore.ContextObject{
+	require.NoError(t, s.PutContextObjects(ctx, p.ID, platstore.Member("m"), []platstore.ContextObject{
 		{Name: seg, Data: []byte("one\n")},
 		{Name: workspace.BlobObjectName(workspace.BlobAddress(blob)), Data: blob},
 	}))
@@ -182,4 +182,18 @@ func TestMigrations_TermCandidatesLeaveTheReviewQueue(t *testing.T) {
 	require.NoError(t, reopened.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'rejected_terms'`).Scan(&n))
 	assert.Zero(t, n)
+}
+
+// A tool's push keeps the tool and its token on the object beside the member
+// who issued the token.
+func TestContextObjects_KeepTheToolThatPushed(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+	seg := workspace.SegmentName("ci", "000000000000000000000001")
+	by := platstore.Pusher{UserID: "member-a", Tool: "dogfood-sync", TokenID: "tok-1"}
+	require.NoError(t, s.PutContextObjects(ctx, p.ID, by, []platstore.ContextObject{{Name: seg, Data: []byte("one\n")}}))
+	got, err := s.GetContextObject(ctx, p.ID, seg)
+	require.NoError(t, err)
+	assert.Equal(t, by, got.PushedBy)
 }

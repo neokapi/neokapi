@@ -115,7 +115,7 @@ func TestParagraphs_Roundtrip_WithTranslation(t *testing.T) {
 
 func TestParagraphs_MutuallyExclusiveWithSpliceLines(t *testing.T) {
 	cfg := plaintext.NewReader().Config().(*plaintext.Config)
-	require.NoError(t, cfg.ApplyMap(map[string]any{"paragraphs": true, "spliceLines": true}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"paragraphs": true, "splice_lines": true}))
 	require.Error(t, cfg.Validate())
 }
 
@@ -127,7 +127,7 @@ func TestParagraphs_MutuallyExclusiveWithSpliceLines(t *testing.T) {
 // line into one text unit.
 func TestSplice_CombinedLines(t *testing.T) {
 	input := "First part \\\nsecond part\nStandalone line\nA \\\nB \\\nC\n"
-	blocks := readBlocksWithConfig(t, input, map[string]any{"spliceLines": true})
+	blocks := readBlocksWithConfig(t, input, map[string]any{"splice_lines": true})
 	require.Len(t, blocks, 3)
 	assert.Equal(t, "First part \nsecond part", blocks[0].SourceText())
 	assert.Equal(t, "Standalone line", blocks[1].SourceText())
@@ -144,7 +144,7 @@ func TestSplice_Roundtrip_ByteExact(t *testing.T) {
 		"Trailing splicer with newline \\\n",
 	}
 	for _, input := range inputs {
-		output := skeletonRoundtripWithConfig(t, input, map[string]any{"spliceLines": true}, "", nil)
+		output := skeletonRoundtripWithConfig(t, input, map[string]any{"splice_lines": true}, "", nil)
 		assert.Equal(t, input, output, "splice mode roundtrip should be byte-exact")
 	}
 }
@@ -152,7 +152,7 @@ func TestSplice_Roundtrip_ByteExact(t *testing.T) {
 func TestSplice_Roundtrip_WithTranslation(t *testing.T) {
 	input := "Hello \\\nworld\nGoodbye\n"
 	locale := model.LocaleID("de")
-	output := skeletonRoundtripWithConfig(t, input, map[string]any{"spliceLines": true}, locale, func(parts []*model.Part) {
+	output := skeletonRoundtripWithConfig(t, input, map[string]any{"splice_lines": true}, locale, func(parts []*model.Part) {
 		for _, p := range parts {
 			if p.Type != model.PartBlock {
 				continue
@@ -172,7 +172,7 @@ func TestSplice_Roundtrip_WithTranslation(t *testing.T) {
 
 func TestSplice_CustomMarker(t *testing.T) {
 	input := "First part _\nsecond part\nPlain line\n"
-	values := map[string]any{"spliceLines": true, "spliceMarker": "_"}
+	values := map[string]any{"splice_lines": true, "splice_marker": "_"}
 
 	blocks := readBlocksWithConfig(t, input, values)
 	require.Len(t, blocks, 2)
@@ -186,7 +186,7 @@ func TestSplice_CustomMarker(t *testing.T) {
 func TestSplice_NonSkeletonWrite_ReaddsMarkers(t *testing.T) {
 	ctx := t.Context()
 	input := "One \\\ntwo\nThree"
-	reader := configureReader(t, map[string]any{"spliceLines": true})
+	reader := configureReader(t, map[string]any{"splice_lines": true})
 	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	reader.Close()
@@ -201,9 +201,9 @@ func TestSplice_NonSkeletonWrite_ReaddsMarkers(t *testing.T) {
 }
 
 func TestSplice_LegacySegmentByLineStillWorks(t *testing.T) {
-	// segmentByLine=false remains the compatibility spelling for
+	// segment_by_line=false remains the compatibility spelling for
 	// paragraph mode.
-	blocks := readBlocksWithConfig(t, "P1\n\nP2", map[string]any{"segmentByLine": false})
+	blocks := readBlocksWithConfig(t, "P1\n\nP2", map[string]any{"segment_by_line": false})
 	require.Len(t, blocks, 2)
 	assert.Equal(t, "P1", blocks[0].SourceText())
 	assert.Equal(t, "P2", blocks[1].SourceText())

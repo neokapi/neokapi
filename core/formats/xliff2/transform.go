@@ -1,6 +1,10 @@
 package xliff2
 
-import "github.com/neokapi/neokapi/core/config"
+import (
+	"github.com/neokapi/neokapi/core/config"
+
+	coreschema "github.com/neokapi/neokapi/core/schema"
+)
 
 // okapiXLIFF2Transformer converts OkfXliff2FilterConfig specs to Xliff2FormatConfig.
 type okapiXLIFF2Transformer struct{}
@@ -15,7 +19,7 @@ func (okapiXLIFF2Transformer) Transform(spec map[string]any) (map[string]any, er
 			"discardInvalidTargets",
 			"writeOriginalData",
 			"useCodeFinder", "codeFinderRules":
-			result[key] = val
+			result[coreschema.SnakeCase(key)] = val
 
 		// Okapi-only params — drop silently (no native equivalent)
 		case "needsSegmentation", "simplifyTags",
@@ -29,7 +33,7 @@ func (okapiXLIFF2Transformer) Transform(spec map[string]any) (map[string]any, er
 			continue
 
 		default:
-			result[key] = val
+			result[coreschema.SnakeCase(key)] = val
 		}
 	}
 

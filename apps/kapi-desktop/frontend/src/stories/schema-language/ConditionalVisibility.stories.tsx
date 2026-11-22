@@ -61,18 +61,18 @@ export const ShowIfBoolean: Story = {
       title: "Conditional Fields",
       type: "object",
       properties: {
-        useCodeFinder: {
+        use_code_finder: {
           type: "boolean",
           title: "Use Code Finder",
           description: "Enable inline code detection",
           default: false,
         },
-        codeFinderRules: {
+        code_finder_rules: {
           type: "string",
           title: "Code Finder Rules",
           description: "Regex patterns for inline codes (one per line)",
           "ui:widget": "textarea",
-          "ui:visible": { field: "useCodeFinder", eq: true },
+          "ui:visible": { field: "use_code_finder", eq: true },
         },
       },
     },

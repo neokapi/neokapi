@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -259,7 +258,6 @@ type fixer struct {
 	cmd      Command
 	recipe   string
 	root     string
-	actor    change.Actor
 	resolved ResolvedActor
 	note     string
 	services map[bool]*change.Service
@@ -303,7 +301,7 @@ func (a *App) applyFixes(cmd Command, recipe string, opts FixOptions, docs map[s
 	if err != nil {
 		return err
 	}
-	f := &fixer{app: a, cmd: cmd, recipe: recipe, root: root, actor: changeActorOf(resolved.Actor), resolved: resolved,
+	f := &fixer{app: a, cmd: cmd, recipe: recipe, root: root, resolved: resolved,
 		note: resolved.NoteWith("applied with `kapi fix`"), services: map[bool]*change.Service{}}
 	for _, doc := range order {
 		if err := f.fixDoc(doc, docs[doc], opts.DryRun, res); err != nil {
@@ -313,77 +311,45 @@ func (a *App) applyFixes(cmd Command, recipe string, opts FixOptions, docs map[s
 	return nil
 }
 
-// fixDoc previews, guards and applies the fixes of one document.
+// fixDoc applies the fixes of one document (ApplyDocFixes) and records what
+// landed and what did not.
 func (f *fixer) fixDoc(doc string, df *docFixes, dryRun bool, res *FixResult) error {
-	ctx := CmdContext(f.cmd)
 	outside := f.recipe != "" && filepath.IsAbs(filepath.FromSlash(doc)) && !under(f.root, filepath.FromSlash(doc))
 	svc, err := f.service(outside)
 	if err != nil {
 		return err
 	}
-	ops := slices.Clone(df.ops)
-	for len(ops) > 0 {
-		set := change.Set{Mode: change.ModePreview, Note: f.note, Ops: make([]change.Op, len(ops))}
-		for i, o := range ops {
-			set.Ops[i] = o.op
+	fixes := make([]DocFix, len(df.ops))
+	for i, o := range df.ops {
+		from := ""
+		if len(o.findings) > 0 {
+			from = o.findings[0].Location.Snippet
 		}
-		original, rerr := os.ReadFile(df.file)
-		preview, err := svc.Apply(ctx, set, f.actor)
-		if err != nil {
-			return err
+		fixes[i] = DocFix{ID: strconv.Itoa(i), Op: o.op, From: from}
+	}
+	out, err := f.app.ApplyDocFixes(CmdContext(f.cmd), DocFixRequest{
+		Service: svc, Actor: f.resolved.Actor, Recipe: f.recipe, Note: f.note,
+		File: df.file, Fixes: fixes, DryRun: dryRun,
+	})
+	if err != nil {
+		return err
+	}
+	opOf := func(id string) fixOp {
+		i, _ := strconv.Atoi(id)
+		return df.ops[i]
+	}
+	for _, r := range out.Refused {
+		res.NotFixed = append(res.NotFixed, unfixedFor(opOf(r.ID), r.Reason, r.Error)...)
+	}
+	if out.Result != nil {
+		landed := make([]fixOp, 0, len(out.Fixed))
+		for _, id := range out.Fixed {
+			landed = append(landed, opOf(id))
 		}
-		if preview.Status != change.SetPreviewed {
-			ops = dropRefused(ops, preview, res)
-			continue
-		}
-		if rerr != nil || !keepsOtherBytes(original, ops, preview) {
-			for _, o := range ops {
-				res.NotFixed = append(res.NotFixed, unfixedFor(o, fixReasonOtherBytes, nil)...)
-			}
-			return nil
-		}
-		if dryRun {
-			f.landed(df, doc, ops, preview, res)
-			return nil
-		}
-		set.Mode = change.ModeApply
-		var before map[int]string
-		if f.actor.Kind == change.ActorAgent {
-			before = wordingBefore(ctx, svc, set)
-		}
-		out, err := svc.Apply(ctx, set, f.actor)
-		if err != nil {
-			return err
-		}
-		switch out.Status {
-		case change.SetApplied, change.SetPartial:
-			f.app.noteAgentEdits(ctx, f.recipe, f.resolved.Actor, appliedWording(set, out, before))
-			f.landed(df, doc, ops, out, res)
-			return nil
-		}
-		ops = dropRefused(ops, out, res)
+		res.Files = append(res.Files, fixedFile(df.file, doc, landed, out.Result))
+		res.Fixed += res.Files[len(res.Files)-1].Fixed
 	}
 	return nil
-}
-
-// landed records a document's change set that landed, or would in a dry run.
-func (f *fixer) landed(df *docFixes, doc string, ops []fixOp, out *change.Result, res *FixResult) {
-	res.Files = append(res.Files, fixedFile(df.file, doc, ops, out))
-	res.Fixed += res.Files[len(res.Files)-1].Fixed
-}
-
-// dropRefused records the operation that refused a change set as not fixed
-// and returns the others. A change set refused as a whole fixes nothing.
-func dropRefused(ops []fixOp, out *change.Result, res *FixResult) []fixOp {
-	i := refusedOp(out)
-	if i < 0 || i >= len(ops) {
-		for _, o := range ops {
-			res.NotFixed = append(res.NotFixed, unfixed(o, out.Error)...)
-		}
-		return nil
-	}
-	res.NotFixed = append(res.NotFixed, unfixed(ops[i], out.Ops[i].Error)...)
-	return slices.Delete(ops, i, i+1)
 }
 
 // keepsOtherBytes reports whether the file a preview would write differs from
@@ -392,7 +358,7 @@ func dropRefused(ops []fixOp, out *change.Result, res *FixResult) []fixOp {
 // reports. A preview that writes nothing keeps every byte; one that writes
 // more than one file, renders no diff (a file too large or not text) or
 // cannot be rebuilt is not shown to keep them.
-func keepsOtherBytes(original []byte, ops []fixOp, preview *change.Result) bool {
+func keepsOtherBytes(original []byte, ops []docFixOp, preview *change.Result) bool {
 	var written []change.DocResult
 	for _, d := range preview.Docs {
 		if d.After != nil {
@@ -419,10 +385,10 @@ func keepsOtherBytes(original []byte, ops []fixOp, preview *change.Result) bool 
 			continue
 		}
 		body, ok := o.op.Body.(*change.ReplaceText)
-		if !ok || len(body.Edits) != 1 || len(o.findings) == 0 {
+		if !ok || len(body.Edits) != 1 || o.from == "" {
 			return false
 		}
-		pairs = append(pairs, FixPair{From: o.findings[0].Location.Snippet, To: body.Edits[0].Text})
+		pairs = append(pairs, FixPair{From: o.from, To: body.Edits[0].Text})
 	}
 	return onlyPairsDiffer(string(original), after, pairs)
 }
@@ -555,13 +521,11 @@ func refusedOp(res *change.Result) int {
 	return -1
 }
 
-// fixedFile is the account of one document's change set that landed.
+// fixedFile is the account of one document's change set that landed, with
+// the operations in it that landed.
 func fixedFile(file, doc string, ops []fixOp, res *change.Result) FixedFile {
 	f := FixedFile{File: file, Doc: doc, Result: res, Pairs: []FixPair{}}
-	for i, o := range ops {
-		if i < len(res.Ops) && res.Ops[i].Status == change.OpNotApplied {
-			continue
-		}
+	for _, o := range ops {
 		f.Fixed += len(o.findings)
 		to := ""
 		if body, ok := o.op.Body.(*change.ReplaceText); ok && len(body.Edits) > 0 {
@@ -577,11 +541,6 @@ func fixedFile(file, doc string, ops []fixOp, res *change.Result) FixedFile {
 		}
 	}
 	return f
-}
-
-// unfixed records the findings of a refused operation as not fixed.
-func unfixed(o fixOp, e *change.Error) []UnfixedFinding {
-	return unfixedFor(o, fixRefusalReason(e), e)
 }
 
 // unfixedFor records the findings of an operation that did not land as not

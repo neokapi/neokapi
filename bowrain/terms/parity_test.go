@@ -2,33 +2,6 @@
 
 package terms_test
 
-// Cross-backend parity: the same fixture corpus and the same lookups must
-// produce identical term match sets, scores, ordering and validity filtering on
-// the framework SQLite terms and the bowrain Postgres terms. Both stores
-// delegate ranking to terms.LookupTiered / terms.LookupAllTiered, so any
-// divergence here is a real drift regression.
-//
-// This suite historically FAILED before the dialect-seam refactor: the Postgres
-// terms ignored term validity (valid_from/valid_to) in its fuzzy, exact and
-// normalized paths — while SQLite honored it — and its LookupAll omitted the
-// (text, position) de-duplication. It is the acceptance gate for keeping the two
-// backends in lockstep.
-//
-// The fuzzy validity fixtures use identical term TEXT differing only in
-// validity, so the two backends' distinct fuzzy retrieval engines (SQLite FTS5
-// trigram vs Postgres pg_trgm) retrieve the same rows — isolating the shared
-// validity/scoring/dedup fix from cross-engine retrieval nuances. The corpus's
-// "Install" terms also clear the fuzzy tier's MinScore against "installations"
-// (a 0.5385 Levenshtein ratio), so the fuzzy cases below expect them: the
-// candidate pool is bounded by terms.FuzzyLengthWindow, which admits exactly
-// what the score gate can keep, on both backends. Fixtures set
-// no ProjectID: the Postgres terms is workspace-scoped and has no project_id
-// column, so project scoping is a SQLite/local concern and is not exercised
-// here.
-//
-// Requires a Postgres (BOWRAIN_TEST_POSTGRES_URL, or the local default) and the
-// fts5 build tag for the SQLite side: `go test -tags "integration fts5"`.
-
 import (
 	"context"
 	"fmt"

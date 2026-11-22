@@ -9,6 +9,8 @@ import { useMemo } from "react";
 import {
   Badge,
   Button,
+  LocaleSelect,
+  resolveLocaleName,
   Select,
   SelectContent,
   SelectItem,
@@ -31,6 +33,17 @@ const DIMENSION_LABEL: Record<Dimension, () => string> = {
   path: () => t("Path"),
   coordinate: () => t("Coordinate"),
   locale: () => t("Language"),
+};
+
+/** A picker's "no value" entry, written whole so each reads naturally. */
+const ANY_LABEL: Record<Dimension, () => string> = {
+  workspace: () => t("Any workspace"),
+  project: () => t("Any project"),
+  stream: () => t("Any stream"),
+  collection: () => t("Any collection"),
+  path: () => t("Any path"),
+  coordinate: () => t("Any coordinate"),
+  locale: () => t("Any language"),
 };
 
 /** The label of one dimension, for a picker or a chip. */
@@ -70,6 +83,25 @@ function DimensionSelect({ dimension }: { dimension: Dimension }) {
     );
   }
 
+  // A language reads by its name, through the same picker every other language
+  // choice in the app uses; the code alone makes a reader guess.
+  if (dimension === "locale") {
+    return (
+      <LocaleSelect
+        className="h-8 w-48 text-sm"
+        aria-label={dimensionLabel(dimension)}
+        data-slot="scope-locale"
+        value={value ?? ""}
+        onChange={(next) => setDimension(dimension, next || undefined)}
+        clearLabel={loading ? t("Loading…") : t("Any language")}
+        locales={options.map((option) => ({
+          code: option.value,
+          displayName: option.label ?? resolveLocaleName(option.value),
+        }))}
+      />
+    );
+  }
+
   return (
     <Select
       value={value ?? ANY}
@@ -84,9 +116,7 @@ function DimensionSelect({ dimension }: { dimension: Dimension }) {
         <SelectValue placeholder={dimensionLabel(dimension)} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={ANY}>
-          {loading ? t("Loading…") : t("Any {dimension}", { dimension: dimensionLabel(dimension) })}
-        </SelectItem>
+        <SelectItem value={ANY}>{loading ? t("Loading…") : ANY_LABEL[dimension]()}</SelectItem>
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value}>
             {option.label ?? option.value}

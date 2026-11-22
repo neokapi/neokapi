@@ -50,17 +50,17 @@ const (
 type AIEntityExtractConfig struct {
 	Engine   string `json:"engine,omitempty" schema:"title=Extraction Engine,description=llm (AI provider; default) / ner (local on-device model: nothing leaves the machine) / hybrid (both),enum=llm|ner|hybrid,default=llm"`
 	Provider string `json:"provider,omitempty" schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
-	APIKey   string `json:"apiKey,omitempty" schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	APIKey   string `json:"api_key,omitempty" schema:"title=API Key,description=API key for the AI provider,group=provider"`
 	// BaseURL is the endpoint the provider is called at, for a self-hosted or
 	// proxied deployment. The host resolves it from the credential the key
 	// came from and injects it here; a recipe cannot set it, which is why it
 	// is off the form (see host/credentials.stripRecipeEndpoint).
-	BaseURL     string         `json:"baseURL,omitempty" schema:"-"`
+	BaseURL     string         `json:"base_url,omitempty" schema:"-"`
 	Model       string         `json:"model,omitempty" schema:"title=Model,description=AI model name,group=provider"`
 	Locale      model.LocaleID `json:"locale,omitempty" schema:"description=Locale of the source content"`
-	KnownTerms  []string       `json:"knownTerms,omitempty" schema:"description=Terms to exclude from extraction (already in the terms store)"`                // terms to exclude from extraction (already in terms)
-	BatchSize   int            `json:"batchSize,omitempty" schema:"description=Number of blocks per LLM call (0 or 1 = one block per call),default=1,min=1"`   // Blocks per LLM call. 0 or 1 = one block per call.
-	Concurrency int            `json:"batchConcurrency,omitempty" schema:"description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"` // Concurrent batch calls. 0 or 1 = sequential.
+	KnownTerms  []string       `json:"known_terms,omitempty" schema:"description=Terms to exclude from extraction (already in the terms store)"`                // terms to exclude from extraction (already in terms)
+	BatchSize   int            `json:"batch_size,omitempty" schema:"description=Number of blocks per LLM call (0 or 1 = one block per call),default=1,min=1"`   // Blocks per LLM call. 0 or 1 = one block per call.
+	Concurrency int            `json:"batch_concurrency,omitempty" schema:"description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"` // Concurrent batch calls. 0 or 1 = sequential.
 }
 
 // entityExtractFull is the reflected schema of the whole config — the source of
@@ -97,11 +97,11 @@ func entityExtractCommonSchema() *schema.ComponentSchema {
 		Type:        "object",
 		ToolMeta:    full.ToolMeta,
 		Properties: map[string]schema.PropertySchema{
-			"engine":     full.Properties["engine"],
-			"locale":     full.Properties["locale"],
-			"knownTerms": full.Properties["knownTerms"],
+			"engine":      full.Properties["engine"],
+			"locale":      full.Properties["locale"],
+			"known_terms": full.Properties["known_terms"],
 		},
-		Groups: []schema.ParameterGroup{{ID: "extract", Label: "Extraction", Fields: []string{"engine", "locale", "knownTerms"}}},
+		Groups: []schema.ParameterGroup{{ID: "extract", Label: "Extraction", Fields: []string{"engine", "locale", "known_terms"}}},
 	}
 }
 
@@ -112,13 +112,13 @@ func entityExtractMembers() []registry.ToolGroupMember {
 	llmParams := &schema.ComponentSchema{
 		Type: "object",
 		Properties: map[string]schema.PropertySchema{
-			"provider":         full.Properties["provider"],
-			"apiKey":           full.Properties["apiKey"],
-			"model":            full.Properties["model"],
-			"batchSize":        full.Properties["batchSize"],
-			"batchConcurrency": full.Properties["batchConcurrency"],
+			"provider":          full.Properties["provider"],
+			"api_key":           full.Properties["api_key"],
+			"model":             full.Properties["model"],
+			"batch_size":        full.Properties["batch_size"],
+			"batch_concurrency": full.Properties["batch_concurrency"],
 		},
-		Groups: []schema.ParameterGroup{{ID: "provider", Label: "Provider", Fields: []string{"provider", "apiKey", "model"}}},
+		Groups: []schema.ParameterGroup{{ID: "provider", Label: "Provider", Fields: []string{"provider", "api_key", "model"}}},
 	}
 	setProviderOptions(llmParams, aiProviderOptions())
 	usesLLM := &schema.ConditionExpr{Any: []*schema.ConditionExpr{

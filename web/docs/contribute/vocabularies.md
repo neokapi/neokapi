@@ -7,9 +7,11 @@ keywords: [vocabularies, authoring, inline codes, semantic types, JSON, vocabula
 
 # Authoring Vocabularies
 
-This guide covers implementing and extending vocabularies, the semantic type
-system that classifies inline codes. For what vocabularies are and why they
-exist, see the concept page: [Vocabularies](/framework/vocabularies).
+A vocabulary is the set of semantic types that classifies inline codes, such as
+`fmt:bold` or `link:hyperlink`. You define one as a JSON file, load it into a
+`VocabularyRegistry`, and map your format's native elements to its types. For
+what vocabularies are and why they exist, see
+[Vocabularies](/framework/vocabularies).
 
 ## Vocabulary file format
 
@@ -199,8 +201,8 @@ resolving to the same vocabulary types:
 | link                                | `link:hyperlink` |
 | image                               | `link:image`     |
 
-A soft line break is not a run: it is emitted as inline text continuation (see
-`softBreakContinuation`), not a `struct:break` placeholder.
+The reader emits a soft line break as inline text continuation (see
+`softBreakContinuation`), with no `struct:break` placeholder.
 
 ### SubType conventions
 
@@ -274,8 +276,8 @@ tool := tools.NewSpanClassifyTool(&tools.SpanClassifyConfig{})
 
 It applies strategies in order: check the run's `SubType` against known Okapi
 type strings, parse `Data` for an HTML element name, look that name up in the
-semantic type map, and otherwise leave the run as `code:markup`. The tool name
-is retained for backwards compatibility with existing flow definitions.
+semantic type map, and otherwise leave the run as `code:markup`. Flow definitions
+name it `span-classify`.
 
 ## Testing vocabularies
 
@@ -303,7 +305,7 @@ func TestMyVocabulary(t *testing.T) {
 4. **Test roundtrip fidelity.** Vocabulary types affect rendering, but each run's `Data` drives output, so verify both.
 5. **Extend rather than replace.** Use `extends` to build on `common-formatting`.
 
-## Related reading
+## Related
 
 - [Vocabularies](/framework/vocabularies): the concept and built-in vocabularies.
 - [Implementing a Format](/contribute/formats): building readers and writers.

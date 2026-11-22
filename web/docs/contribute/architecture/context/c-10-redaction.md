@@ -280,7 +280,7 @@ policy of the file it holds:
    (`KapiProject.DeclaresRedaction`); a built-in flow built for one input file
    is held when a policy covers that file. A project flow's input set splits
    by the policy that governs each file (`groupInputsByBinding`), and a
-   `redact` step that names no `rulesPath` or `rules` of its own redacts each
+   `redact` step that names no `rules_path` or `rules` of its own redacts each
    part under that part's policy (`App.applyFlowRedaction`); a step that names
    its own rules keeps them. `kapi run`, `kapi up` and its plan reach the step
    through the same assembly, and the MCP `run_flow` tool and the desktop's

@@ -1201,6 +1201,72 @@ var storeMigrations = []storage.Migration{
 			);
 		`,
 	},
+	{
+		Version:     43,
+		Description: "the tool and token a context object was pushed with",
+		SQL:         `-- Mirrors bowrain/store/migrations.go version 52; Apply adds the columns.`,
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return addMissingColumns(ctx, tx, "context_objects", []string{
+				"pushed_tool  TEXT NOT NULL DEFAULT ''",
+				"pushed_token TEXT NOT NULL DEFAULT ''",
+			})
+		},
+	},
+	{
+		Version:     44,
+		Description: "the findings of each rule in a check tally",
+		SQL:         `-- Mirrors bowrain/store/migrations.go version 53 for item_check_tallies; Apply adds the column.`,
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return addMissingColumns(ctx, tx, "item_check_tallies", []string{
+				"rules TEXT NOT NULL DEFAULT '[]'",
+			})
+		},
+	},
+	{
+		Version:     45,
+		Description: "the target languages each person follows in a project",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 54: one row per
+			-- person and project, the followed locales as a JSON array.
+			-- updated_at is RFC 3339 in UTC.
+			CREATE TABLE IF NOT EXISTS followed_languages (
+				user_id    TEXT NOT NULL,
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				locales    TEXT NOT NULL DEFAULT '[]',
+				updated_at TEXT NOT NULL,
+				PRIMARY KEY (user_id, project_id)
+			);
+		`,
+	},
+	{
+		Version:     46,
+		Description: "context sessions and the cards they hold",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 55. Times are
+			-- RFC 3339 in UTC; ended_at and last_decided_at are '' while
+			-- unset.
+			CREATE TABLE IF NOT EXISTS context_sessions (
+				id              TEXT PRIMARY KEY,
+				project_id      TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				user_id         TEXT NOT NULL,
+				cards           TEXT NOT NULL DEFAULT '[]',
+				reach           TEXT NOT NULL DEFAULT '{}',
+				decisions       TEXT NOT NULL DEFAULT '[]',
+				started_at      TEXT NOT NULL,
+				expires_at      TEXT NOT NULL,
+				ended_at        TEXT NOT NULL DEFAULT '',
+				last_decided_at TEXT NOT NULL DEFAULT ''
+			);
+			CREATE INDEX IF NOT EXISTS context_sessions_project ON context_sessions (project_id, started_at);
+			CREATE TABLE IF NOT EXISTS context_session_holds (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				item_key   TEXT NOT NULL,
+				session_id TEXT NOT NULL REFERENCES context_sessions(id) ON DELETE CASCADE,
+				PRIMARY KEY (project_id, item_key)
+			);
+			CREATE INDEX IF NOT EXISTS context_session_holds_session ON context_session_holds (session_id);
+		`,
+	},
 }
 
 // addMissingColumns adds each column definition to table unless the table

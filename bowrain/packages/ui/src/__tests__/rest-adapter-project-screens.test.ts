@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vite-plus/test";
 import {
   keptRulesFixture,
-  mapSummaryFixture,
+  overviewSummaryFixture,
   readerFileFixture,
   rulesDecideViewFixture,
 } from "@neokapi/project-screens/fixtures.ts";
 import { RestApiAdapter } from "../api/rest-adapter";
 
 // The project screens' routes on the server (bowrain/server
-// handlers_rules_decide.go and handlers_map_reader.go). The Map, Reader,
+// handlers_rules_decide.go and handlers_map_reader.go). The Overview, Reader,
 // Decide and kept-rule bodies are the JSON host/screens marshals for each
 // screen, pinned by its fixtures test, which the server answers with; the
 // other bodies are the ones the handler tests decode.
@@ -47,15 +47,15 @@ afterEach(() => {
 
 const api = () => new RestApiAdapter("http://server");
 
-describe("the Map and the Reader", () => {
-  it("reads the Map of a stream", async () => {
-    const fetchMock = mockFetch(mapSummaryFixture);
-    const out = await api().getMapSummary("acme", "proj 1", "release");
+describe("the Overview and the Reader", () => {
+  it("reads the Overview of a stream", async () => {
+    const fetchMock = mockFetch(overviewSummaryFixture);
+    const out = await api().getOverviewSummary("acme", "proj 1", "release");
     expect(call(fetchMock)).toMatchObject({
       path: "/api/v1/acme/proj%201/map/release",
       method: "GET",
     });
-    expect(out.file_rows).toEqual(mapSummaryFixture.file_rows);
+    expect(out.file_rows).toEqual(overviewSummaryFixture.file_rows);
   });
 
   it("reads one item for the Reader by its name, on main when no stream is named", async () => {

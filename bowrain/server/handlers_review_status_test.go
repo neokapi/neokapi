@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -311,7 +311,7 @@ func TestDecide_RejectMovesToDraft(t *testing.T) {
 	assert.Equal(t, model.TargetStatusNew, targetStatusOf(t, got, "de"), "de must be untouched")
 
 	// A pre-review is an agent's, and a stream decides on translations.
-	rec, res := decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeAdvise)
+	rec, res := decideOn(t, srv, cs, pid, bid, "fr", change.OutcomePrereview)
 	assert.Equal(t, change.CodeNotPermitted.HTTPStatus(), rec.Code, rec.Body.String())
 	assert.Equal(t, change.CodeNotPermitted, res.Ops[0].Error.Code)
 	rec, res = sendChanges(t, srv, pid, fullCaller, change.Set{Ops: []change.Op{
@@ -387,8 +387,7 @@ func TestHandleGetFileBlocksCarriesPerLocaleStatus(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/api/v1/acme/"+pid+"/blocks/main?item=greetings.txt", nil)
 	w := httptest.NewRecorder()
 	c := e.NewContext(r, w)
-	c.SetParamNames("ws", "id", "ref")
-	c.SetParamValues("acme", pid, "main")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: pid}, {Name: "ref", Value: "main"}})
 	require.NoError(t, srv.HandleGetFileBlocks(c))
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 

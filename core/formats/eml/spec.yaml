@@ -1,0 +1,30 @@
+format: eml
+kind: top_level
+mime_type: message/rfc822
+description: Extract the message subject and inline plain-text MIME bodies.
+
+features:
+  - id: subject_and_body
+    name: Subject and plain body
+    description: Decode the Subject header and read the body in message order.
+    spec_refs: ["RFC 5322 §3.6.5", "RFC 2047 §6"]
+    native_refs: [eml.TestCorpus]
+    examples:
+      - name: encoded_subject
+        input_xml: "Subject: =?UTF-8?B?Q2Fmw6k=?=\r\n\r\nReview ready.\r\n"
+        block_count: 2
+        block_texts: ["Café", "Review ready."]
+  - id: opaque_bodies
+    name: Preserve attachments and HTML
+    description: The subject remains editable when the body holds an attachment or HTML.
+    spec_refs: ["RFC 2046 §5.1", "RFC 2183 §2.2"]
+    native_refs: [eml.TestCorpus]
+    examples:
+      - name: text_attachment
+        input_xml: "Subject: File\nContent-Type: text/plain\nContent-Disposition: attachment; filename=x.txt\n\nAttachment text"
+        block_count: 1
+        first_block_text: File
+      - name: html_body
+        input_xml: "Subject: News\nContent-Type: text/html\n\n<p>News</p>"
+        block_count: 1
+        first_block_text: News

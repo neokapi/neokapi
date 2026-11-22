@@ -21,7 +21,7 @@ type Story = StoryObj<typeof ProjectRulesPage>;
 /** A member who governs rules. */
 export const Member: Story = {};
 
-/** Opened on one question from a Map row. */
+/** Opened on one question from an Overview row. */
 export const OnARow: Story = { args: { row: `suggested:${DECIDE_IDS.quickcast}` } };
 
 /** A member who governs no rule: Decide draws no answer. */

@@ -26,7 +26,7 @@ func TestParseEditionKey(t *testing.T) {
 		{in: "fr;tone", wantErr: "not name=value"},
 		{in: "fr;tone=", wantErr: "not name=value"},
 		{in: "fr;tone=a;tone=b", wantErr: "tone twice"},
-		{in: "fr;product=app", wantErr: "unknown dimension"},
+		{in: "fr;product=app", wantErr: "dimension this build does not read"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.in, func(t *testing.T) {

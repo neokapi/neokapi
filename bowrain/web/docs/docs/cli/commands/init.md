@@ -5,7 +5,9 @@ sidebar_position: 1
 
 # kapi init
 
-Initialize a new project in the current directory. Creates a `kapi.yaml` recipe at the project root with collections proposed from the files in the tree, and wires the project for the coding agents that work in it. The project's context (terms, content memory, voice profile and the decision record) lives in your workspace; `.kapi/` beside the recipe is a cache for this checkout, kept out of git. With the bowrain plugin installed, `kapi init` can also connect the project to a workspace.
+Set up a project in the current directory and, with the bowrain plugin installed, connect it to a workspace, so the checkout shares the team's terms, voice profiles and decisions.
+
+`kapi init` creates a `kapi.yaml` recipe at the project root, with collections proposed from the files in the tree, and sets the project up for the coding agents that work in it. The project's context (terms, content memory, voice profile and the decision record) lives in your workspace. `.kapi/` beside the recipe is a cache for this checkout, kept out of git.
 
 ## Usage
 
@@ -176,7 +178,7 @@ kapi status  # finds kapi.yaml up the tree
 
 **Do NOT commit** `.kapi/`: it is this checkout's cache (`work/store.db`, the caches, the redaction vault, your personal saved filters), and `kapi init` writes an ignore rule that keeps all of it out.
 
-Auth tokens are never written to the project. They live in the OS keychain (keys `bowrain-auth:<server-url>` and `bowrain-refresh:<server-url>`); non-secret metadata sits in `auth.json` in the bowrain config directory (`~/.config/bowrain` on Linux, `~/Library/Application Support/bowrain` on macOS).
+Auth tokens stay out of the project. They live in the OS keychain (keys `bowrain-auth:<server-url>` and `bowrain-refresh:<server-url>`). Non-secret metadata sits in `auth.json` in the bowrain config directory (`~/.config/bowrain` on Linux, `~/Library/Application Support/bowrain` on macOS).
 
 ## Next steps
 

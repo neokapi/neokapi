@@ -1,7 +1,7 @@
 ---
 sidebar_position: 13
 title: Segmentation
-description: "Segmentation is the means that makes content-memory reuse work and lets translation and checks operate per sentence. neokapi records it as a run-anchored stand-off overlay produced by a pluggable engine (SRX, UAX-29, an LLM, or the SaT ML model), never a destructive split."
+description: "Segmentation lets content memory reuse past sentences and lets translation and checks operate per sentence. neokapi records it as a run-anchored stand-off overlay produced by a pluggable engine (SRX, UAX-29, an LLM, or the SaT ML model), and the block's runs stay whole."
 keywords: [segmentation, SRX, UAX-29, sentence boundary, SaT, wtpsplit, overlay, content memory, reuse]
 ---
 
@@ -9,19 +9,16 @@ import { StreamDiagram } from "@neokapi/docs-shared";
 
 # Segmentation
 
-Segmentation is a **means**: authors don't set out "to segment," they
-want their past translations reused and each sentence translated and checked on
-its own. Segmentation is what makes both possible:
-[content memory](/framework/content-memory) is a store of *segment*
-pairs, so boundaries are what let prior sentences match, and per-segment
-translation and [checks](/framework/checks) keep each unit small and a finding
-pinned to the sentence that broke. This page is the engine reference for the
-framework users who configure that behavior.
+Authors don't set out to segment. They want their past translations reused, and
+each sentence translated and checked on its own, and segmentation makes both
+possible. [Content memory](/framework/content-memory) is a store of *segment*
+pairs, so boundaries let prior sentences match. Per-segment translation and
+[checks](/framework/checks) keep each unit small and pin a finding to the
+sentence that broke.
 
-It divides a block's source into the units a translator or model works on,
-usually sentences. In neokapi segmentation is a **run-anchored stand-off
-overlay** rather than a structural split: the boundaries are recorded as spans over the
-existing runs, and the source runs themselves are never rewritten
+Segmentation divides a block's source into the units a translator or model
+works on, usually sentences. neokapi records it as a **run-anchored stand-off
+overlay**: spans over the existing runs, which stay exactly as they were read
 ([F-02: Content Model](/contribute/architecture/foundations/f-02-content-model)). A block
 can carry several segmentation layers at once, and removing the overlay restores
 the unsegmented block exactly.
@@ -36,9 +33,8 @@ the unsegmented block exactly.
   ]}
 />
 
-Because segmentation is an overlay rather than an edit, it is a [check-like
-annotation](/framework/content-model): it is produced after any
-[transformers](/framework/flows#transformers) have settled the source, so
+Segmentation is a [check-like annotation](/framework/content-model), produced
+after any [transformers](/framework/flows#transformers) have settled the source, so
 every boundary is anchored to the canonical runs that translation and content
 memory will also see. If a later transformer does rewrite the source, the framework
 applier rebases the boundaries onto the new runs.
@@ -69,7 +65,7 @@ what they cost to run.
 | `srx` (default) | SRX 2.0 rules: the full ruleset over a UAX-29 base where ICU is linked, a reduced pure-Go ruleset otherwise | nothing (pure Go); uses ICU when present | You want deterministic, language-tunable sentence boundaries, the industry-standard rule format. |
 | `uax29` | Unicode UAX-29 sentence rules (ICU) | cgo + ICU | You want the bare Unicode baseline with no exception rules and ICU is available. |
 | `llm` | An LLM asked to chunk semantically | an [LLM provider](/framework/translation) | You want meaning-aware chunks (long-form prose, mixed content) rather than sentence boundaries. |
-| `sat` | The wtpsplit *Segment any Text* ONNX model | the `kapi-sat` plugin | You need robust multilingual or unpunctuated-text segmentation that rules handle poorly. |
+| `sat` | The wtpsplit *Segment any Text* ONNX model | the `kapi-sat` plugin | You need reliable multilingual or unpunctuated-text segmentation that rules handle poorly. |
 
 `srx`, `uax29` and `sat` produce a **sentence** layer; `llm` produces an
 `llm-chunk` layer. Leave `--layer` empty to accept the engine's natural layer, or
@@ -98,9 +94,8 @@ a handful of break rules. neokapi implements this hybrid directly:
   still handles the common abbreviations, decimals, and initials, and it is the
   only segmenter that runs in the browser.
 
-You don't choose between these: the `srx` engine picks the right path for the
-build. The result is full-fidelity SRX segmentation where ICU is available, and
-a pure-Go approximation everywhere else.
+The `srx` engine picks the path for the build, so there is nothing to choose:
+full SRX segmentation where ICU is linked, a pure-Go approximation elsewhere.
 
 To tune boundaries (protect a domain abbreviation, split on a custom marker),
 point the engine at your own SRX file (an explicit `--rules-path` overrides the
@@ -123,7 +118,7 @@ selection. For anything beyond a rule or two, prefer a real SRX file with
 
 The `sat` engine runs wtpsplit *Segment any Text* models (XLM-RoBERTa-based ONNX)
 through the out-of-process `kapi-sat` plugin, so its native ML stack never enters
-the `kapi` binary. It is the right choice for text that rule engines segment
+the `kapi` binary. Use it for text that rule engines segment
 poorly: languages without reliable sentence punctuation, user-generated or
 transcribed text, and mixed-script content. The plugin must be installed
 (`kapi plugin install kapi-sat`) before the engine is available; once it is,
@@ -153,10 +148,10 @@ kapi exec segmentation transcript.txt --engine sat --sat-model sat-3l-sm
 
 Useful flags: `--segment-source` (default true) / `--segment-target` to choose
 which side to segment, and `--overwrite-segmentation` to re-segment blocks that
-already carry an overlay. Each segment is **trimmed of leading/trailing
-whitespace by default**, so a segment is the clean sentence and the
-inter-sentence whitespace is left uncovered (keeping memory keys stable, regardless
-of which engine ran); pass `--trim-leading-whitespace=false` /
+already carry an overlay. By default each segment is **trimmed of
+leading/trailing whitespace**: a segment is the clean sentence, and the
+whitespace between sentences belongs to no segment. Memory keys therefore stay
+stable whichever engine ran. Pass `--trim-leading-whitespace=false` /
 `--trim-trailing-whitespace=false` to keep the raw surrounding whitespace.
 `kapi stats` reports segment totals without changing the content; for per-block
 segment detail, use `kapi inspect`. For every flag, see the
@@ -182,8 +177,8 @@ project's content memory.
 
 ## How segmentation feeds the rest of the pipeline
 
-- **Content memory**: memory is a store of *segment* pairs, so segmentation is
-  what makes prior sentence translations reusable. Segment, then
+- **Content memory**: memory is a store of *segment* pairs, so segmentation
+  makes prior sentence translations reusable. Segment, then
   [`recycle`](/framework/content-memory) matches **sentence by sentence**:
   when a block carries a multi-segment overlay, each sentence is looked up
   against memory and the block target is assembled from the per-segment matches,
@@ -194,9 +189,10 @@ project's content memory.
   full-segment matches coexist in one block.
 - **Checks**: length, consistency, and other [checks](/framework/checks)
   operate per segment when an overlay is present, so a finding points at the
-  offending sentence rather than the whole block.
+  offending sentence.
 
-Segmentation and [terminology](/framework/terminology) are run-anchored overlays
-that prepare a source for translation; see
-[Content preparation](/framework/content-preparation) for how they compose into
-one authoring pass.
+## Related
+
+- [Content preparation](/framework/content-preparation): segmentation beside terminology in one authoring pass.
+- [Content memory](/framework/content-memory): sentence-by-sentence reuse.
+- [M-02: SaT Segmenter Plugin](/contribute/architecture/multilingual/m-02-segmentation): the ML engine's design.

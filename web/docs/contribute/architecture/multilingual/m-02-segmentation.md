@@ -12,9 +12,8 @@ import { StreamDiagram, PipelineDiagram } from "@neokapi/docs-shared";
 
 ## Summary
 
-Segmentation is a means to two ends: it is what makes prior translations
-reusable and what lets translation and checks operate on a unit small enough to
-be right about. In neokapi it is a **run-anchored stand-off overlay**. The
+Segmentation makes prior translations reusable, and lets translation and checks
+operate on a unit small enough to be right about. In neokapi it is a **run-anchored stand-off overlay**. The
 boundaries are recorded as spans over a block's existing runs, and the runs are
 never rewritten.
 

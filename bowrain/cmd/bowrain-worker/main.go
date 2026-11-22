@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -27,6 +28,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	bowevent "github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/bowrain/knowledge"
 	sqlmemory "github.com/neokapi/neokapi/bowrain/memory"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/platformconfig"
@@ -37,7 +39,6 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	voicepg "github.com/neokapi/neokapi/bowrain/voice"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/version"
 	fwmemory "github.com/neokapi/neokapi/memory"
@@ -251,22 +252,25 @@ func runWorker(dbURL string) error {
 	// every AI translation the worker runs, and the terms store resolver supplies
 	// the per-locale terminology. All optional — a failure here (or an
 	// unbound project) degrades translations to bare, never blocks them.
-	if bs, err := voicepg.NewPostgresVoiceStore(pgdb); err != nil {
+	bs, err := voicepg.NewPostgresVoiceStore(pgdb)
+	if err != nil {
 		slog.Warn("voice store unavailable; translation jobs run without voice", "error", err)
+		bs = nil
 	} else {
 		translationDeps.VoiceStore = bs
-
-		// Both stores came from this one PgDB, so one transaction covers both.
-		// A push reconciles collections and writes voice profiles before its
-		// content lands; binding them to the same transition is what stops a
-		// failed push from leaving the workspace governed by a declaration
-		// whose content never arrived.
-		translationDeps.PushTransition = func(ctx context.Context, fn func(store.PushApplier, coreprofile.Store) error) error {
-			return pgdb.Transition(ctx, func(tx storage.Runner) error {
-				return fn(pgCS.Bind(tx), bs.Bind(tx))
-			})
-		}
 	}
+
+	// Every store a push writes came from this one PgDB, so one transaction
+	// covers them all: the collections and voice profiles the push declares,
+	// its content, its context ledger objects, and its terminology edits and
+	// change-set. The transition is always wired, so a push the server
+	// accepted with terminology edits is never refused here for want of it.
+	ks, kerr := knowledge.NewPostgresKnowledgeStore(pgdb)
+	if kerr != nil {
+		slog.Warn("knowledge store unavailable; pushes that propose governed terminology fail", "error", kerr)
+		ks = nil
+	}
+	translationDeps.PushTransition = jobs.NewPostgresPushTransition(pgdb, pgCS, bs, ks)
 	if authStore != nil {
 		translationDeps.WorkspaceDefault = &workerWorkspaceDefault{auth: authStore}
 		// The platform is authoritative for review governance. A push can
@@ -295,13 +299,10 @@ func runWorker(dbURL string) error {
 		}
 	}
 
-	// Wire billing credit deduction + Stripe meter reporting into the worker
-	// (Epic 004). Without this, async auto-translate records ai_usage and
-	// enforces the token abuse cap but never deducts credits or fires Stripe
-	// meters. Only platform-key jobs are metered (resolved.Source); BYO-key jobs
-	// burn no credits. Degrades gracefully in self-hosted mode where the billing
-	// store can't be built — the worker just skips credit deduction (mirrors the
-	// server's nil-BillingHooks behavior).
+	// Wire billing credit deduction and Stripe meter reporting into the worker
+	// (Epic 004). Only platform-key jobs are metered (resolved.Source); BYO-key
+	// jobs burn no credits. When the billing store can't be built, the worker
+	// skips credit deduction, as the server does with nil BillingHooks.
 	if hooks := buildWorkerBillingHooks(pgdb); hooks != nil {
 		translationDeps.BillingHooks = hooks
 	}
@@ -362,20 +363,16 @@ func runWorker(dbURL string) error {
 	//
 	//   - BOWRAIN_PLATFORM_PROVIDER (e.g. "gemini", "openai", "anthropic",
 	//     "ollama", "demo") selects a generic upstream for self-hosted / local
-	//     dev with a plain API key. The key comes from BOWRAIN_PLATFORM_API_KEY
-	//     or a provider-specific env var (e.g. GEMINI_API_KEY). This takes
-	//     precedence over the Azure path.
+	//     dev with a plain API key. The key comes from the provider's own env var
+	//     (e.g. OPENAI_API_KEY), then BOWRAIN_PLATFORM_API_KEY; see
+	//     jobs.PlatformAPIKey. This takes precedence over the Azure path.
 	//   - BOWRAIN_OPENAI_ENDPOINT selects Azure OpenAI via managed identity
 	//     (the hosted Bowrain cloud).
 	switch {
 	case platformProvider != "":
-		apiKey := os.Getenv("BOWRAIN_PLATFORM_API_KEY")
-		if apiKey == "" {
-			apiKey = platformAPIKeyFromEnv(platformProvider)
-		}
 		translationDeps.Platform = &jobs.PlatformProviderConfig{
 			Provider: platformProvider,
-			APIKey:   apiKey,
+			APIKey:   jobs.PlatformAPIKey(platformProvider),
 			Model:    os.Getenv("BOWRAIN_PLATFORM_MODEL"),
 			BaseURL:  os.Getenv("BOWRAIN_PLATFORM_BASE_URL"),
 		}
@@ -581,6 +578,8 @@ func runWorker(dbURL string) error {
 		// optional — extraction degrades to the plain LLM pass.
 		Platform:         translationDeps.Platform,
 		PlatformResolver: platformResolver,
+		// A workspace that saved its own provider key extracts on it.
+		ProviderStore: providerStore,
 		// Extraction spends the platform key, so it is metered like every
 		// other AI path: the abuse cap sees each call and the credit ledger
 		// takes one deduction per job. Nil hooks (no STRIPE_SECRET_KEY)
@@ -595,10 +594,17 @@ func runWorker(dbURL string) error {
 			slog.Info("extraction: "+message, "step_id", stepID, "level", level)
 		},
 	}
-	g.Go(func() error {
-		slog.Info("starting extraction worker")
-		return jobs.RunExtractionWorker(ctx, extractionDeps)
-	})
+	// Several loops share the queue: a push that creates hundreds of
+	// extraction jobs otherwise drains them one model call at a time.
+	// ClaimExtractionJob admits one loop per job, so the loops never repeat
+	// work.
+	extractionLoops := extractionConcurrency()
+	slog.Info("starting extraction worker", "loops", extractionLoops)
+	for range extractionLoops {
+		g.Go(func() error {
+			return jobs.RunExtractionWorker(ctx, extractionDeps)
+		})
+	}
 
 	// Extraction stale-job sweeper: the same crash backstop the translation and
 	// brand-scan workers have. Without it an extraction job whose worker died
@@ -627,6 +633,13 @@ func runWorker(dbURL string) error {
 		PlatformResolver: platformResolver,
 		BillingHooks:     translationDeps.BillingHooks,
 		QuotaStore:       pgQS,
+		// A scan that names a project samples its content and files the
+		// candidate terms in the workspace terms store the server reads.
+		ContentStore:  cs,
+		TermsResolver: translationDeps.TermsResolver,
+		// A completed project scan is announced, so the server proposes
+		// target terms for it. Nil without Redis, as it is for translation.
+		EventBus: translationDeps.EventBus,
 		LogFunc: func(stepID, level, message string, data map[string]string) {
 			slog.Info("brand-scan: "+message, "job_id", stepID, "level", level)
 		},
@@ -675,34 +688,30 @@ func runWorker(dbURL string) error {
 }
 
 // buildWorkerBillingHooks constructs the worker's billing usage hooks: the
-// Postgres-backed billing store for credit deduction plus the Stripe client for
-// meter reporting. It is gated on STRIPE_SECRET_KEY — the signal that this is a
-// billed, metered SaaS deployment. Without Stripe there are no subscriptions and
-// therefore no weekly credit allocations, so every platform job's DeductCredits
-// would return "no allocation for workspace" and log once per chunk on an
-// otherwise-unbilled self-hosted deployment (Epic 004). Returning nil in that
-// case makes the worker skip credit deduction cleanly (mirrors the server's
-// nil-BillingHooks behavior). Migrations are namespaced + idempotent, so
-// re-running them here (the server also runs them) is safe.
+// Postgres-backed billing store for credit deduction, plus the Stripe client for
+// meter reporting when a real STRIPE_SECRET_KEY is set. It matches the server,
+// which deducts from the ledger whether or not Stripe is configured. On a
+// deployment that grants no credits, DeductCredits reports the missing
+// allocation per chunk at info level and the job continues. Migrations are
+// namespaced and idempotent, so re-running them here (the server also runs
+// them) is safe.
 func buildWorkerBillingHooks(pgdb *storage.PgDB) *billing.UsageHooks {
-	// A placeholder key (Terraform seeds the SSM parameter as "CHANGEME", epic
-	// 002) is not a key: treating it as one would enable credit deduction and fire
-	// every meter event at a Stripe account that rejects them.
-	stripeKey := os.Getenv("STRIPE_SECRET_KEY")
-	if !billing.IsStripeSecretKey(stripeKey) {
-		slog.Info("worker billing disabled: no usable STRIPE_SECRET_KEY (self-hosted / unbilled / unprovisioned deployment)")
-		return nil
-	}
+	// The trial and monthly grants are handed out without Stripe, so spending
+	// them must not depend on Stripe either. A placeholder key (Terraform seeds the SSM parameter as
+	// "CHANGEME") is not a key: treating it as one would fire every meter event
+	// at a Stripe account that rejects them.
 	billingStore, err := billing.NewPgBillingStore(pgdb)
 	if err != nil {
 		slog.Warn("worker billing disabled: failed to init billing store", "error", err)
 		return nil
 	}
-	hooks := &billing.UsageHooks{
-		Store:  billingStore,
-		Stripe: billing.NewStripeClient(stripeKey),
+	hooks := &billing.UsageHooks{Store: billingStore}
+	if stripeKey := os.Getenv("STRIPE_SECRET_KEY"); billing.IsStripeSecretKey(stripeKey) {
+		hooks.Stripe = billing.NewStripeClient(stripeKey)
+		slog.Info("worker billing: credit deduction and Stripe meter reporting enabled")
+	} else {
+		slog.Info("worker billing: credit deduction enabled; Stripe meter reporting off (no usable STRIPE_SECRET_KEY)")
 	}
-	slog.Info("worker billing credit deduction + Stripe meter reporting enabled")
 	return hooks
 }
 
@@ -803,6 +812,15 @@ func guardSecretsKey(secretsKey, databaseURL string) error {
 	return nil
 }
 
+// extractionConcurrency is how many extraction loops the worker runs:
+// BOWRAIN_EXTRACTION_CONCURRENCY when it is a positive number, else 4.
+func extractionConcurrency() int {
+	if n, err := strconv.Atoi(os.Getenv("BOWRAIN_EXTRACTION_CONCURRENCY")); err == nil && n > 0 {
+		return n
+	}
+	return 4
+}
+
 func envOrDefault(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
@@ -814,44 +832,16 @@ func envOrDefault(key, fallback string) string {
 // ctrl-managed settings service, mirroring the startup BOWRAIN_PLATFORM_* switch:
 // a configured provider (e.g. "bedrock") takes the generic path with its env key.
 // Provider, model and base URL come from the service (so a ctrl change is picked
-// up live); the API key remains an env-sourced secret. Returns nil when no
-// provider is configured.
+// up live); the API key remains an env-sourced secret, resolved for the current
+// provider by jobs.PlatformAPIKey. Returns nil when no provider is configured.
 func platformConfigFromService(svc *platformconfig.Service) *jobs.PlatformProviderConfig {
 	if provider := svc.AIProvider(); provider != "" {
-		apiKey := os.Getenv("BOWRAIN_PLATFORM_API_KEY")
-		if apiKey == "" {
-			apiKey = platformAPIKeyFromEnv(provider)
-		}
 		return &jobs.PlatformProviderConfig{
 			Provider: provider,
-			APIKey:   apiKey,
+			APIKey:   jobs.PlatformAPIKey(provider),
 			Model:    svc.AIDefaultModel(),
 			BaseURL:  svc.AIBaseURL(),
 		}
 	}
 	return nil
-}
-
-// platformAPIKeyFromEnv resolves a platform-provider API key from the
-// provider-specific environment variables, so operators can supply e.g.
-// GEMINI_API_KEY directly without also setting BOWRAIN_PLATFORM_API_KEY.
-// Keyless providers (ollama, demo) return "".
-func platformAPIKeyFromEnv(provider string) string {
-	var names []string
-	switch strings.ToLower(provider) {
-	case "gemini":
-		names = []string{"GEMINI_API_KEY", "GOOGLE_API_KEY"}
-	case "openai":
-		names = []string{"OPENAI_API_KEY"}
-	case "anthropic":
-		names = []string{"ANTHROPIC_API_KEY"}
-	case "azureopenai":
-		names = []string{"AZURE_OPENAI_API_KEY"}
-	}
-	for _, n := range names {
-		if v := os.Getenv(n); v != "" {
-			return v
-		}
-	}
-	return ""
 }

@@ -7,11 +7,11 @@ keywords: [react-i18next, FormatJS, react-intl, LinguiJS, fbtee, Paraglide, alte
 
 # Alternatives
 
-A quick reference for teams already using, or evaluating, another React i18n library. All of these are solid projects; the differences below are about fit, not quality.
+If you use or are evaluating another React i18n library, these tables show where neokapi-i18n differs: how a string is identified, how much you wrap, and what ships at runtime. Every library here is well maintained, and the comparison is about fit for your codebase.
 
 ## react-i18next
 
-The incumbent. Uses developer-authored keys and a `t(key)` / `<Trans>` runtime.
+The most widely used option. It uses developer-authored keys and a `t(key)` / `<Trans>` runtime.
 
 |                   | react-i18next                         | neokapi-i18n                                                  |
 | ----------------- | ------------------------------------- | ----------------------------------------------------------- |
@@ -35,11 +35,11 @@ Developer-authored message descriptors with ICU formatting baked in.
 | Extraction        | `@formatjs/cli`                                        | Plugin during normal build                   |
 | Runtime cost      | Ships `intl-messageformat` (ICU parser/formatter); can precompile to AST to drop the parser | Inline mode: zero runtime (~2 kB if you use ICU/plurals); runtime mode: one dict lookup |
 
-FormatJS's ICU-in-source approach handles complex message composition well, but forces translators (and developers) to work in ICU directly. neokapi-i18n keeps the source looking like React, then emits the canonical ICU template for translators' CAT tools downstream.
+FormatJS's ICU-in-source approach handles complex message composition well, and developers and translators both work in ICU. neokapi-i18n keeps the source in React components and gives translators' CAT tools the canonical ICU template.
 
 ## Lingui
 
-The closest in philosophy: Lingui uses macros (`<Trans>`, `t` tagged templates) to rewrite source text into hashed-key runtime lookups at build time.
+The closest in approach: Lingui uses macros (`<Trans>`, `t` tagged templates) to rewrite source text into hashed-key runtime lookups at build time.
 
 |                   | Lingui                                   | neokapi-i18n                                                  |
 | ----------------- | ---------------------------------------- | ----------------------------------------------------------- |
@@ -49,7 +49,7 @@ The closest in philosophy: Lingui uses macros (`<Trans>`, `t` tagged templates) 
 | Format            | PO (default), JSON, CSV                   | KBF with structural context, placeholders, plural forms |
 | Runtime cost      | Small `@lingui/core` runtime + compiled catalogs; dict lookup | Inline mode: zero runtime (~2 kB if you use ICU/plurals); runtime mode: one dict lookup |
 
-Lingui and neokapi-i18n agree on "source text as key". The core difference: Lingui asks you to opt every string into the macro (`<Trans>`, `` t`...` ``); neokapi-i18n opts in by default. `t()` in neokapi-i18n is a small escape hatch for non-JSX strings, not the normal authoring pattern.
+Lingui and neokapi-i18n both use the source text as the key. They differ on opt-in. With Lingui you put every string into a macro (`<Trans>`, `` t`...` ``). neokapi-i18n extracts JSX text by default and keeps `t()` for strings outside JSX.
 
 ## fbtee
 
@@ -64,7 +64,7 @@ The modern continuation of Meta's `fbt`. fbtee rebuilds it for TypeScript, React
 | Format            | JSON (`source_strings.json` + per-locale files)        | KBF with structural context, placeholders, plural forms |
 | Runtime cost      | Ships the fbt runtime to resolve params/plural/pronoun at render; translations loaded | Inline mode: zero runtime (~2 kB if you use ICU/plurals); runtime mode: one dict lookup |
 
-fbtee shares neokapi-i18n's "source text as key" philosophy, but takes the opposite stance on wrapping: it deliberately requires an `<fbt>` marker (with a `desc`) around every translatable string so the Babel / SWC compiler and ESLint plugin can statically analyse, type-check, and extract it. That buys compile-time guarantees and declarative inline plural / gender handling, at the cost of wrapping ceremony on every string, the same wrapping tax neokapi-i18n removes by extracting plain JSX automatically.
+fbtee also uses the source text as the key, and it requires an `<fbt>` marker with a `desc` around every translatable string. The marker lets the Babel / SWC compiler and the ESLint plugin analyse, type-check and extract each string statically. You get compile-time guarantees and declarative inline plural and gender handling, and you write a wrapper on every string. neokapi-i18n extracts plain JSX with no wrapper.
 
 ## Paraglide (Inlang)
 
@@ -77,14 +77,12 @@ Typed, per-message functions generated at build time. A message `welcome` become
 | Tree-shakeability | Every message is a function; excellent tree-shaking  | Dict lookup; the dict is one object |
 | Runtime cost      | Minimal runtime; tree-shaken per-message functions, so unused messages cost ~0 | Inline mode: zero runtime (~2 kB if you use ICU/plurals); runtime mode: one dict lookup |
 
-Paraglide's typed-function model gives strong refactoring support but requires the ids-as-function-names model. neokapi-i18n is source-text-as-key; the two can coexist in a codebase if needed, but usually you pick one.
+Paraglide's typed functions give strong refactoring support, with message ids as function names. neokapi-i18n keys by source text. The two can coexist in one codebase, though most projects pick one.
 
-## Where neokapi-i18n is unusual
+## Two properties the tables leave out
 
-Two properties follow from choices the tables above don't capture:
-
-- **Keys survive refactoring.** The key is derived from the source text *and the element's own tag*, and deliberately not from its ancestors. Wrapping a section in a new `<div>`, moving a paragraph into a `<Card>`, restructuring the page around it: none of these change a key, so none of them orphan a translation. The element is still enough to keep a button's "Open" distinct from a menu item's; where it isn't, you disambiguate explicitly with a note.
-- **[Review happens on the running app](./in-context-review).** ALT+click a string to see its source and edit its target, with terminology and check findings painted onto the live text, and the edit written straight back to the `.kbf.json` as a git diff. Review needs no account and no network: the strings are files in your repository, so a reviewer with a checkout is a reviewer.
+- **Keys survive refactoring.** The key comes from the source text *and the element's own tag*, and never from its ancestors. You can wrap a section in a new `<div>`, move a paragraph into a `<Card>` or restructure the page around it, and every key and translation stays. The element still keeps a button's "Open" apart from a menu item's. Where it doesn't, you add a note to tell them apart.
+- **[Review happens on the running app](./in-context-review).** ALT+click a string to see its source and edit its target. Terminology and check findings appear on the live text, and the edit is written back to the `.kbf.json` as a git diff. Review needs no account and no network, because the strings are files in your repository. Anyone with a checkout can review.
 
 ## Which to pick
 
@@ -94,6 +92,7 @@ Two properties follow from choices the tables above don't capture:
 - **You want explicit, compile-time-checked inline markers with declarative plural/gender** → fbtee.
 - **You have a large existing react-i18next codebase** → stay with react-i18next unless you're doing a rewrite anyway.
 
-## When neokapi-i18n isn't the right fit
+## Related
 
-See the same section in the [Introduction](./introduction#when-neokapi-i18n-isnt-the-right-fit).
+- [When neokapi-i18n isn't the right fit](./introduction#when-neokapi-i18n-isnt-the-right-fit): the cases where another approach serves you better.
+- [Quick start](./quickstart): try neokapi-i18n in a Vite + React project.

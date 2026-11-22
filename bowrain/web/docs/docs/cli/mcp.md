@@ -5,7 +5,9 @@ title: MCP Server
 
 # Using the bowrain plugin with AI assistants
 
-kapi (with the bowrain plugin) exposes project management capabilities as an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server. This lets AI tools like Claude, GitHub Copilot, Cursor, Windsurf, and other MCP-compatible agents check project status, list tracked files, push and pull, and consult the workspace's context graph, all through structured tool calls.
+An AI assistant connected through MCP works from the same workspace context as your team. It can check project status, list tracked files, push and pull, and read the concepts and change-sets in the workspace's context graph.
+
+kapi with the bowrain plugin serves these as an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server. Claude, GitHub Copilot, Cursor, Windsurf and other MCP-compatible agents call them as structured tools.
 
 ## Quick start
 
@@ -143,7 +145,7 @@ Two more tools are served only by the plugin's own MCP server, `kapi-bowrain mcp
 | `project_config` | Read project configuration from the `kapi.yaml` recipe   |
 | `concept_search` | Search the workspace context graph for governed concepts |
 
-The recipe is kapi's, and kapi's own tools read it. `context_search` on the kapi surface answers what a project calls something; `concept_search` reads the workspace graph instead.
+kapi's own tools read the recipe. `context_search` among the kapi tools answers what a project calls something, and `concept_search` reads the workspace graph.
 
 ## Example conversations
 
@@ -268,7 +270,7 @@ Search the workspace [context graph](/server/context) for governed concepts (ter
 
 ## How it works
 
-No server process, ports, or additional authentication is needed. Your AI tool starts `kapi mcp` as a subprocess, communicates over stdin/stdout, and shuts it down when the session ends. It discovers your project the same way the CLI does, by walking up the directory tree to find the nearest `kapi.yaml` recipe.
+You run no server process, open no ports and set up no extra authentication. Your AI tool starts `kapi mcp` as a subprocess, talks to it over stdin/stdout, and shuts it down when the session ends. It finds your project as the CLI does, by walking up the directory tree to the nearest `kapi.yaml` recipe.
 
 ## Related
 

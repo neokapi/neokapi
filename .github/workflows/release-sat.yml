@@ -21,6 +21,10 @@ permissions:
   # short-lived Fulcio cert for signing the kapi-sat plugin tarballs.
   id-token: write
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   # ── kapi-sat ML segmenter plugin ────────────────────────────────────────────
   # Build + sign + publish the kapi-sat plugin tarball per platform. kapi-sat is
@@ -28,16 +32,7 @@ jobs:
   # time and loads the onnxruntime SHARED library at runtime. The tarball bundles
   # the onnxruntime shared lib at lib/<unversioned-name> beside the binary, where
   # plugins/sat/internal/sat/ort_onnx.go:resolveORTLib() finds it with no env.
-  # Models are NOT bundled — they download from HuggingFace at first use.
-  #
-  # Version pins (must be kept in lockstep with plugins/sat/go.mod):
-  #   * onnxruntime 1.25.0 — yalue/onnxruntime_go v1.30.1 targets the 1.25.0 C
-  #     API headers and its bundled test dylib links the 1.25.0 runtime (e.g.
-  #     libonnxruntime.1.25.0.dylib). Other 1.2x releases may load via C-API
-  #     back-compat, but 1.25.0 is the matched, tested ABI — keep this pinned.
-  #   * daulet/tokenizers v1.27.0 — matches plugins/sat/go.mod. darwin/linux use
-  #     the prebuilt libtokenizers.a from that tag; Windows has no prebuilt lib
-  #     and is built from Rust source (see the Windows leg).
+  # Models are NOT bundled. They download from HuggingFace at first use.
   build-sat-plugin:
     name: Build kapi-sat plugin (${{ matrix.build.platform }})
     strategy:
@@ -53,16 +48,22 @@ jobs:
           - { platform: linux/arm64, os: ubuntu-24.04-arm, goos: linux, goarch: arm64 }
           - { platform: windows/amd64, os: windows-2025, goos: windows, goarch: amd64 }
           # windows/arm64: native windows-11-arm runner. No GCC mingw for
-          # aarch64-windows exists, so the toolchain is LLVM-based throughout —
+          # aarch64-windows exists, so the toolchain is LLVM-based throughout:
           # MSYS2 CLANGARM64 (clang + libc++) for cgo, and the Rust
           # aarch64-pc-windows-gnullvm target (same LLVM/UCRT/libc++ ABI) for the
           # tokenizers static lib. (#804)
           - { platform: windows/arm64, os: windows-11-arm, goos: windows, goarch: arm64 }
     runs-on: ${{ matrix.build.os }}
     env:
-      # Pinned native-dependency versions (see job-level comment above).
-      ONNXRUNTIME_VERSION: "1.25.0"
-      TOKENIZERS_VERSION: "v1.27.0"
+      # Version pins, kept in lockstep with plugins/sat/go.mod:
+      #   * onnxruntime 1.31.1: yalue/onnxruntime_go v1.38.0 vendors the 1.31 C
+      #     API headers (ORT_API_VERSION 31). An older runtime cannot serve API
+      #     31, so the runtime and the binding move together.
+      #   * daulet/tokenizers: the version and its checksums are pinned in
+      #     scripts/fetch-tokenizers.sh. darwin/linux use the prebuilt
+      #     libtokenizers.a; Windows has no prebuilt lib and is built from
+      #     the pinned commit's Rust source (see the Windows leg).
+      ONNXRUNTIME_VERSION: "1.31.1"
     steps:
       - uses: actions/checkout@v7
         with:
@@ -70,14 +71,14 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.27.1"
+          go-version: "1.27.4"
 
       # Tarball signing is only needed for publishing (tag pushes). Skip on the
       # build-only workflow_dispatch.
       #
       # The installer action has no windows/arm64 build, so use it for every
       # other leg and `go install` cosign on windows/arm64. (On the build-only
-      # dispatch neither runs — signing is gated to tags.)
+      # dispatch neither runs, because signing is gated to tags.)
       - name: Install cosign (tarball signing)
         if: startsWith(github.ref, 'refs/tags/sat-v') && !(runner.os == 'Windows' && matrix.build.goarch == 'arm64')
         uses: sigstore/cosign-installer@v3
@@ -87,7 +88,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          go install github.com/sigstore/cosign/v2/cmd/cosign@v2.4.1
+          go install github.com/sigstore/cosign/v2/cmd/cosign@v2.6.5
           # setup-go doesn't add GOPATH/bin to PATH; do it so the sign step finds cosign.
           cygpath -w "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
@@ -104,47 +105,15 @@ jobs:
           fi
 
       # ── onnxruntime shared library (runtime dep; bundled into the tarball) ────
-      - name: Download onnxruntime (Unix)
-        if: runner.os != 'Windows'
+      - name: Download onnxruntime
         shell: bash
         env:
           GOOS: ${{ matrix.build.goos }}
           GOARCH: ${{ matrix.build.goarch }}
         run: |
           set -euo pipefail
-          case "${GOOS}/${GOARCH}" in
-            darwin/arm64) asset="onnxruntime-osx-arm64-${ONNXRUNTIME_VERSION}.tgz" ;;
-            darwin/amd64) asset="onnxruntime-osx-x86_64-${ONNXRUNTIME_VERSION}.tgz" ;;
-            linux/amd64)  asset="onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz" ;;
-            linux/arm64)  asset="onnxruntime-linux-aarch64-${ONNXRUNTIME_VERSION}.tgz" ;;
-            *) echo "::error::no onnxruntime asset mapping for ${GOOS}/${GOARCH}"; exit 1 ;;
-          esac
-          url="https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${asset}"
-          echo "Downloading $url"
-          mkdir -p "$RUNNER_TEMP/ort"
-          curl -sSfL -o "$RUNNER_TEMP/${asset}" "$url"
-          tar -xzf "$RUNNER_TEMP/${asset}" -C "$RUNNER_TEMP/ort"
-          # The archive extracts to a single versioned top-level dir.
-          ort_root="$(find "$RUNNER_TEMP/ort" -maxdepth 1 -mindepth 1 -type d | head -n1)"
-          echo "ORT_DIR=${ort_root}" >> "$GITHUB_ENV"
-
-      - name: Download onnxruntime (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        env:
-          GOARCH: ${{ matrix.build.goarch }}
-        run: |
-          $slug = if ($env:GOARCH -eq 'arm64') { 'win-arm64' } else { 'win-x64' }
-          $asset = "onnxruntime-$slug-$env:ONNXRUNTIME_VERSION.zip"
-          $url = "https://github.com/microsoft/onnxruntime/releases/download/v$env:ONNXRUNTIME_VERSION/$asset"
-          Write-Host "Downloading $url"
-          $dest = "$env:RUNNER_TEMP\$asset"
-          Invoke-WebRequest -Uri $url -OutFile $dest
-          $ortRoot = "$env:RUNNER_TEMP\ort"
-          Expand-Archive -Path $dest -DestinationPath $ortRoot -Force
-          # Single versioned top-level dir inside the zip.
-          $inner = (Get-ChildItem -Path $ortRoot -Directory | Select-Object -First 1).FullName
-          "ORT_DIR=$inner" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          scripts/fetch-onnxruntime.sh "$GOOS" "$GOARCH" "$RUNNER_TEMP/ort"
+          echo "ORT_DIR=$RUNNER_TEMP/ort" >> "$GITHUB_ENV"
 
       # ── daulet/tokenizers static library (build-time dep) ─────────────────────
       # darwin/linux: prebuilt libtokenizers.a from the pinned release tag.
@@ -157,35 +126,21 @@ jobs:
           GOARCH: ${{ matrix.build.goarch }}
         run: |
           set -euo pipefail
-          case "${GOOS}/${GOARCH}" in
-            darwin/arm64) asset="libtokenizers.darwin-arm64.tar.gz" ;;
-            darwin/amd64) asset="libtokenizers.darwin-x86_64.tar.gz" ;;
-            linux/amd64)  asset="libtokenizers.linux-amd64.tar.gz" ;;
-            linux/arm64)  asset="libtokenizers.linux-arm64.tar.gz" ;;
-            *) echo "::error::no libtokenizers asset mapping for ${GOOS}/${GOARCH}"; exit 1 ;;
-          esac
-          url="https://github.com/daulet/tokenizers/releases/download/${TOKENIZERS_VERSION}/${asset}"
-          echo "Downloading $url"
-          mkdir -p "$RUNNER_TEMP/tok"
-          curl -sSfL -o "$RUNNER_TEMP/${asset}" "$url"
-          tar -xzf "$RUNNER_TEMP/${asset}" -C "$RUNNER_TEMP/tok"
-          test -f "$RUNNER_TEMP/tok/libtokenizers.a" || { echo "::error::libtokenizers.a missing after extract"; ls -la "$RUNNER_TEMP/tok"; exit 1; }
+          bash scripts/fetch-tokenizers.sh lib "$GOOS" "$GOARCH" "$RUNNER_TEMP/tok"
           echo "TOKENIZERS_LIB=$RUNNER_TEMP/tok" >> "$GITHUB_ENV"
 
-      # Windows: no prebuilt lib is published by daulet/tokenizers, so build the
+      # Windows: daulet/tokenizers publishes no prebuilt lib, so build the
       # tokenizers-ffi crate from Rust source. The crate bundles C++ (esaxx via
-      # the cc crate), so the C++ runtime the .a expects must match what cgo
-      # links at the end:
-      #   * amd64 -> x86_64-pc-windows-gnu (GCC mingw / libstdc++); cgo on
-      #     windows-2025 uses the bundled mingw gcc. The upstream cgo directive's
-      #     -lstdc++ is correct here.
-      #   * arm64 -> aarch64-pc-windows-gnullvm (LLVM mingw / libc++); there is no
-      #     GCC mingw for aarch64-windows. cgo links with CLANGARM64 clang, so the
-      #     C++ runtime is libc++ — the upstream -lstdc++ is WRONG for this leg and
-      #     the final cgo link is expected to need -lc++ (see #804).
+      # the cc crate), so the .a must expect the C++ runtime cgo links:
+      #   * amd64 -> x86_64-pc-windows-gnu (GCC mingw / libstdc++). cgo on
+      #     windows-2025 uses the bundled mingw gcc, and the upstream -lstdc++
+      #     is correct.
+      #   * arm64 -> aarch64-pc-windows-gnullvm (LLVM mingw / libc++). cgo links
+      #     with CLANGARM64 clang, so the runtime is libc++: the upstream
+      #     -lstdc++ is wrong for this leg and the link needs -lc++ (see #804).
       - name: Install Rust (Windows)
         if: runner.os == 'Windows'
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.99.1
         with:
           targets: ${{ matrix.build.goarch == 'arm64' && 'aarch64-pc-windows-gnullvm' || 'x86_64-pc-windows-gnu' }}
 
@@ -195,8 +150,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git clone --branch "${TOKENIZERS_VERSION}" --depth 1 \
-            https://github.com/daulet/tokenizers "$RUNNER_TEMP/tokenizers-src"
+          bash scripts/fetch-tokenizers.sh source "$RUNNER_TEMP/tokenizers-src"
           cd "$RUNNER_TEMP/tokenizers-src"
           cargo build --release -p tokenizers-ffi --target x86_64-pc-windows-gnu
           mkdir -p "$RUNNER_TEMP/tok"
@@ -225,8 +179,7 @@ jobs:
         run: |
           set -euo pipefail
           export CC=clang CXX=clang++
-          git clone --branch "${TOKENIZERS_VERSION}" --depth 1 \
-            https://github.com/daulet/tokenizers "$RUNNER_TEMP/tokenizers-src"
+          bash scripts/fetch-tokenizers.sh source "$RUNNER_TEMP/tokenizers-src"
           cd "$RUNNER_TEMP/tokenizers-src"
           cargo build --release -p tokenizers-ffi --target aarch64-pc-windows-gnullvm
           mkdir -p "$RUNNER_TEMP/tok"
@@ -279,7 +232,7 @@ jobs:
 
       # ── package the tarball ───────────────────────────────────────────────────
       # The packaging script builds the binary unless a pre-built (already-signed)
-      # one is provided via SAT_PREBUILT_BIN — see scripts/package-sat-plugin.sh.
+      # one is provided via SAT_PREBUILT_BIN (see scripts/package-sat-plugin.sh).
       - name: Package kapi-sat tarball
         id: package
         shell: bash
@@ -326,11 +279,11 @@ jobs:
         with:
           name: sat-tarball-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
           # Glob the output dir via a native per-OS path (runner.temp), NOT the
-          # script's stdout path: on the Windows runner the bash script emits a
-          # git-bash-style path (/d/a/_temp/…) that the JS upload-artifact action
-          # cannot resolve, so it silently uploads nothing (the tarball is on
-          # disk — its checksum artifact proves it). if-no-files-found: error
-          # turns a future miss into a hard failure instead of a 404'd release.
+          # script's stdout path. On the Windows runner the bash script emits a
+          # git-bash-style path (/d/a/_temp/…). The JS upload-artifact action
+          # cannot resolve it and uploads nothing, though the tarball is on disk.
+          # if-no-files-found: error turns a future miss into a hard failure
+          # instead of a 404'd release.
           path: |
             ${{ runner.temp }}/sat-out/*.tar.gz
             ${{ runner.temp }}/sat-out/*.tar.gz.sigstore.json
@@ -366,7 +319,7 @@ jobs:
   # upload directly.
   publish-sat-release:
     name: Publish kapi-sat release
-    # Tag pushes only — workflow_dispatch is a build-only dry run.
+    # Tag pushes only. workflow_dispatch is a build-only dry run.
     if: startsWith(github.ref, 'refs/tags/sat-v')
     needs: build-sat-plugin
     runs-on: ubuntu-latest
@@ -392,15 +345,15 @@ jobs:
   # Register the new kapi-sat plugin version into neokapi/registry so
   # `kapi plugins install sat` resolves to this build. Mirrors the goreleaser
   # job's "Update manifest plugin registry" step but for --plugin sat across the
-  # four supported platforms.
+  # supported platforms.
   #
   # PREREQUISITE: neokapi/registry's manifest-plugins.json must already contain a
   # "sat" stub plugin entry (registry-update refuses to create new top-level
-  # plugins — it errors "plugin not declared"). Add the stub once, mirroring the
+  # plugins; it errors "plugin not declared"). Add the stub once, mirroring the
   # existing "bowrain"/"okapi-bridge" entries.
   register-sat-plugin:
     name: Register kapi-sat in plugin registry
-    # Tag pushes only — workflow_dispatch is a build-only dry run.
+    # Tag pushes only. workflow_dispatch is a build-only dry run.
     if: startsWith(github.ref, 'refs/tags/sat-v')
     needs: publish-sat-release
     runs-on: ubuntu-latest

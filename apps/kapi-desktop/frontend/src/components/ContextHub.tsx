@@ -1,7 +1,7 @@
 // The Context pillar, and the surfaces that read the project's context graph.
 //
 // One rail, in the order a person meets it: Decide asks about each suggestion
-// waiting for the project, one question at a time, and the project's Map
+// waiting for the project, one question at a time, and the project's Overview
 // leads to it;
 // Explore lays all of it out on its axes and over time; Ask answers a question
 // at a point; Assistants lists the assistants connected to the project and
@@ -17,29 +17,19 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  BookOpen,
-  Bot,
-  Compass,
-  Database,
-  History,
-  MessageSquareQuote,
-  Share2,
-  Sparkles,
-  Telescope,
-} from "lucide-react";
+import { ArrowLeft, Check, Terminal } from "lucide-react";
 import {
   Button,
   LoadingSpinner,
+  PageContainer,
   PageHeader,
   ScrollArea,
   SimpleTooltip,
-  cn,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
+import { writeClipboardText } from "../lib/clipboard";
 import { AssistantPanel } from "./AssistantPanel";
 import { AssistantsPage } from "./AssistantsPage";
 import { ContextAtlasView } from "./ContextAtlasView";
@@ -51,6 +41,7 @@ import { VoicePage } from "./VoicePage";
 import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
 import { SharePanel } from "./SharePanel";
+import { SubNavTabs } from "./SubNavTabs";
 
 /** The surfaces filed under Context. */
 export type ContextSection =
@@ -83,7 +74,7 @@ export interface ContextHubProps {
   pin?: ContextPin;
   /**
    * The Decide row to open on, by its key in the list (`suggested:<id>`,
-   * `conflict:<id>`), when the Map sent a person here for one suggestion.
+   * `conflict:<id>`), when the Overview sent a person here for one suggestion.
    */
   decideRow?: string;
   /** Whether the project declares targets. Memory appears when it does. */
@@ -96,11 +87,40 @@ export interface ContextHubProps {
   contextOnly?: boolean;
   /** Go to another view of the project: "map", … */
   onNavigate?: (view: string) => void;
+  /**
+   * Which sections the hub offers. "context" is the rail's Context page;
+   * "connect" is the assistants, their sessions and sharing, which Project
+   * Settings hosts under its own tabs, so the hub draws no section nav there.
+   * A context-only tab has no Project Settings and offers every section.
+   * Defaults to "all" on a context-only tab and "context" otherwise.
+   */
+  group?: "context" | "connect" | "all";
+}
+
+/** The sections Project Settings hosts rather than the Context page. */
+const CONNECT_SECTIONS: ReadonlySet<ContextSection> = new Set(["agent", "history", "share"]);
+
+/**
+ * The connect section a view names, wherever it is spelled: Project Settings'
+ * own tabs ("project-settings:assistants"), or the hub's ids a saved session
+ * may still hold ("context:agent").
+ */
+export function connectSectionOf(view: string): ContextSection | undefined {
+  const [base, section] = view.split(":");
+  if (base === "project-settings") {
+    if (section === "assistants") return "agent";
+    if (section === "sessions") return "history";
+    if (section === "share") return "share";
+    return undefined;
+  }
+  if (base === "context" && CONNECT_SECTIONS.has(section as ContextSection)) {
+    return section as ContextSection;
+  }
+  return undefined;
 }
 
 const SECTIONS: Array<{
   id: ContextSection;
-  icon: React.ReactNode;
   localeGated?: boolean;
   /**
    * Reads the recipe or the files beside it, so a context-only tab does not
@@ -113,22 +133,18 @@ const SECTIONS: Array<{
    */
   under?: ContextSection;
 }> = [
-  { id: "rules", icon: <Sparkles size={14} /> },
-  { id: "atlas", icon: <Telescope size={14} /> },
-  { id: "explorer", icon: <Compass size={14} />, needsCheckout: true },
+  { id: "rules" },
+  { id: "atlas" },
+  { id: "explorer", needsCheckout: true },
   // A context-only tab keeps the Assistants: the page says a checkout is
   // needed to connect one, and lists the sessions.
-  { id: "agent", icon: <Bot size={14} /> },
-  {
-    id: "voice",
-    icon: <MessageSquareQuote size={14} />,
-    needsCheckout: true,
-  },
-  { id: "terms", icon: <BookOpen size={14} /> },
-  { id: "memory", icon: <Database size={14} />, localeGated: true },
-  { id: "history", icon: <History size={14} />, under: "agent" },
+  { id: "agent" },
+  { id: "voice", needsCheckout: true },
+  { id: "terms" },
+  { id: "memory", localeGated: true },
+  { id: "history", under: "agent" },
   // A context-only tab keeps Share: the panel offers it the first rung only.
-  { id: "share", icon: <Share2 size={14} /> },
+  { id: "share" },
 ];
 
 /**
@@ -163,6 +179,7 @@ export function ContextHub({
   hasTargetLanguages,
   contextOnly,
   onNavigate,
+  group = contextOnly ? "all" : "context",
 }: ContextHubProps) {
   const [active, setActive] = useState<ContextSection>(section ?? (pin ? "explorer" : "rules"));
   // A pin set from inside the hub (the memory browser opening a unit) rather
@@ -177,7 +194,9 @@ export function ContextHub({
   // one of the two things such a tab exists to show.
   const sections = SECTIONS.filter(
     (s) =>
-      (!s.localeGated || hasTargetLanguages || contextOnly) && (!s.needsCheckout || !contextOnly),
+      (!s.localeGated || hasTargetLanguages || contextOnly) &&
+      (!s.needsCheckout || !contextOnly) &&
+      (group === "all" || (group === "connect") === CONNECT_SECTIONS.has(s.id)),
   );
   // A section the project's languages or its missing checkout gated away must
   // not stay selected.
@@ -191,32 +210,24 @@ export function ContextHub({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <nav
-        aria-label={t("Context sections")}
-        className="flex shrink-0 items-center gap-1 border-b border-border px-6 py-2"
-      >
-        {sections
-          .filter((s) => !s.under)
-          .map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => (s.id === "agent" ? openAssistants() : setActive(s.id))}
-              aria-current={marked === s.id ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors",
-                marked === s.id
-                  ? "bg-accent font-medium text-foreground"
-                  : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-              )}
-            >
-              {s.icon}
-              <SectionLabel id={s.id} />
-            </button>
-          ))}
-        <SectionCommand section={current} contextOnly={contextOnly} />
-      </nav>
+    <div className="relative flex h-full min-h-0 flex-col">
+      {/* Project Settings draws its own tabs for the connect group, so the
+          hub adds no bar of its own there: only the command, at the corner. */}
+      {group === "connect" ? (
+        <div className="pointer-events-none absolute top-4 right-6 z-10 [&>*]:pointer-events-auto">
+          <SectionCommand section={current} contextOnly={contextOnly} />
+        </div>
+      ) : (
+        <SubNavTabs
+          label={t("Context sections")}
+          tabs={sections
+            .filter((s) => !s.under)
+            .map((s) => ({ id: s.id, label: <SectionLabel id={s.id} /> }))}
+          active={marked}
+          onSelect={(id) => (id === "agent" ? openAssistants() : setActive(id))}
+          trailing={<SectionCommand section={current} contextOnly={contextOnly} />}
+        />
+      )}
       <div className="min-h-0 flex-1">
         {current === "explorer" && (
           <ContextExplorerView tabID={tabID} projectName={projectName} pin={unitPin ?? pin} />
@@ -236,7 +247,7 @@ export function ContextHub({
         )}
         {current === "agent" && (
           <ScrollArea className="h-full">
-            <div className="mx-auto max-w-3xl px-6 py-5">
+            <PageContainer width="standard">
               {reading && !contextOnly ? (
                 <AssistantPanel tabID={tabID} path={pin?.path} onBack={() => setReading(false)} />
               ) : (
@@ -250,7 +261,7 @@ export function ContextHub({
                   }}
                 />
               )}
-            </div>
+            </PageContainer>
           </ScrollArea>
         )}
         {current === "rules" && !contextOnly && (
@@ -263,7 +274,7 @@ export function ContextHub({
               setUnitPin({ path });
               setActive("explorer");
             }}
-            onOpenMap={onNavigate ? () => onNavigate("map") : undefined}
+            onOpenOverview={onNavigate ? () => onNavigate("map") : undefined}
           />
         )}
         {current === "rules" && contextOnly && (
@@ -271,7 +282,11 @@ export function ContextHub({
           // in: it reads the digest, a list beside a detail pane, each
           // scrolling on its own, so the section holds a fixed height.
           <div className="flex h-full min-h-0 flex-col">
-            <PageHeader className="mb-0 shrink-0 px-6 pt-5 pb-3" title={t("Decide")} />
+            <PageHeader
+              className="mb-0 shrink-0 px-6 pt-5 pb-3"
+              title={t("Decide")}
+              help="decide"
+            />
             <div className="min-h-0 flex-1 border-t border-border">
               <ContextDigestPanel
                 tabID={tabID}
@@ -302,6 +317,7 @@ export function ContextHub({
             <PageHeader
               className="mb-0 shrink-0 px-6 pt-5 pb-3"
               title={t("Sessions")}
+              help="assistants"
               backButton={
                 <Button
                   size="sm"
@@ -321,9 +337,9 @@ export function ContextHub({
         )}
         {current === "share" && (
           <ScrollArea className="h-full">
-            <div className="mx-auto max-w-3xl px-6 py-5">
+            <PageContainer width="standard">
               <SharePanel tabID={tabID} projectName={projectName} contextOnly={contextOnly} />
-            </div>
+            </PageContainer>
           </ScrollArea>
         )}
       </div>
@@ -371,8 +387,9 @@ const SECTION_COMMANDS: Partial<Record<ContextSection, string>> = {
 };
 
 /**
- * The current section's command, as a mono chip at the right of the nav: one
- * place on the page, and never a caption under a section.
+ * The current section's command, as a terminal icon at the right of the nav.
+ * The tooltip names the command and a click copies it, so the page carries
+ * one small control rather than a chip of text.
  */
 function SectionCommand({
   section,
@@ -381,19 +398,40 @@ function SectionCommand({
   section: ContextSection;
   contextOnly?: boolean;
 }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(timer);
+  }, [copied]);
   // A tab with no checkout reads the digest, which is the review's.
   const command =
     section === "rules" && contextOnly ? "kapi context review" : SECTION_COMMANDS[section];
   if (!command) return null;
   return (
-    <SimpleTooltip content={t("The same in the terminal")}>
-      <code
+    <SimpleTooltip
+      content={
+        <span className="flex flex-col gap-0.5">
+          <code translate="no" className="font-mono">
+            {command}
+          </code>
+          <span className="opacity-70">{copied ? t("Copied") : t("Copy for the terminal")}</span>
+        </span>
+      }
+    >
+      <Button
+        variant="ghost"
+        size="icon"
         data-slot="context-section-command"
-        translate="no"
-        className="ml-auto shrink-0 rounded-md border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
+        data-command={command}
+        aria-label={t("Copy {command} for the terminal", { command })}
+        className="ml-auto size-7 shrink-0 text-muted-foreground"
+        onClick={() => {
+          void writeClipboardText(command).then(() => setCopied(true));
+        }}
       >
-        {command}
-      </code>
+        {copied ? <Check className="size-3.5" /> : <Terminal className="size-3.5" />}
+      </Button>
     </SimpleTooltip>
   );
 }
@@ -406,7 +444,7 @@ function SectionLabel({ id }: { id: ContextSection }) {
     case "atlas":
       return <>Explore</>;
     case "explorer":
-      return <>Ask</>;
+      return <>Search</>;
     case "agent":
       return <>Assistants</>;
     case "voice":

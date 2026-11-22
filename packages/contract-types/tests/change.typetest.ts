@@ -118,7 +118,7 @@ export const examples: ChangeSet = {
       op: "decide",
       at: { doc: "docs/guide.md", block: "install/p", edition: "fr" },
       if_match: "r:74dbfac2ed1c9d6e",
-      outcome: "advise",
+      outcome: "prereview",
       score: 80,
       reasons: ["terminology"],
     },
@@ -269,7 +269,7 @@ export const refused: ChangeOp[] = [
   { op: "delete_block", at: { ...at, edition: "fr" }, if_match: { en: rev } },
   // @ts-expect-error insert_block names the document, not a block
   { op: "insert_block", at, editions: { en: { text: "x" } } },
-  // @ts-expect-error a decision outcome is establish, reject, withdraw or advise
+  // @ts-expect-error a decision outcome is establish, reject, withdraw or prereview
   { op: "decide", at, if_match: rev, outcome: "approve" },
   // @ts-expect-error no such operation
   { op: "rewrite", at, if_match: rev, text: "a" },

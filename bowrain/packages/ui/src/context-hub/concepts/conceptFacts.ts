@@ -70,6 +70,15 @@ export function coordinatesOf(properties?: Record<string, string>): Array<[strin
   return out;
 }
 
+/**
+ * The projects a concept is limited to, empty for one of the whole workspace:
+ * the `projects` the server names, else the one `project_id`.
+ */
+export function projectsOf(info?: { projects?: string[]; project_id?: string }): string[] {
+  if (info?.projects && info.projects.length > 0) return info.projects;
+  return info?.project_id ? [info.project_id] : [];
+}
+
 /** Who added a concept and who changed it last, by the entries of its story that name someone. */
 export interface ConceptProvenance {
   /** The oldest entry with an actor: who brought the concept into the workspace. */

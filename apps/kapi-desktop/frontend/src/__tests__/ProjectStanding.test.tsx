@@ -16,8 +16,8 @@ const status: ProjectStatus = {
   projectName: "Northsea",
   hasData: true,
   collections: [
-    { name: "Docs", blockCount: 12, coverage: {}, targetLanguages: [] },
-    { name: "App", blockCount: 30, coverage: {}, targetLanguages: [] },
+    { name: "Docs", blockCount: 12, coverage: {}, units: {}, targetLanguages: [] },
+    { name: "App", blockCount: 30, coverage: {}, units: {}, targetLanguages: [] },
   ],
 };
 
@@ -78,10 +78,31 @@ describe("ProjectStanding", () => {
     const standing = screen.getByTestId("project-standing");
     expect(standing).toHaveTextContent("stream main");
     expect(standing).toHaveTextContent("42 blocks");
-    expect(standing).toHaveTextContent("2 collection(s)");
+    expect(standing).toHaveTextContent("2 collections");
     expect(screen.getByTestId("standing-voice")).toHaveTextContent("voice Northsea");
     expect(standing).toHaveTextContent("northsea-terms");
-    expect(standing).toHaveTextContent("3 of 3 point(s) governed");
+    expect(standing).toHaveTextContent("3 of 3 points governed");
+  });
+
+  it("counts the project's own terms when the recipe binds no store", () => {
+    const unbound: ProjectPointsResult = {
+      ...points,
+      points: points.points.map((p) => ({ ...p, termstore: undefined })),
+    };
+    render(
+      <ProjectStanding
+        tabID="t1"
+        project={project}
+        displayName="Northsea"
+        status={status}
+        points={unbound}
+        server={{ connected: false, stream: "main" }}
+        termsCount={100}
+      />,
+    );
+    const standing = screen.getByTestId("project-standing");
+    expect(standing).toHaveTextContent("100 concepts");
+    expect(standing).not.toHaveTextContent("no terms bound");
   });
 
   it("names the venue when one is connected", () => {
@@ -128,12 +149,24 @@ describe("ProjectStanding", () => {
     const rows = screen.getAllByTestId("point-row");
     expect(rows).toHaveLength(3);
     expect(rows[0]).toHaveTextContent("project default");
+    // The coordinates every point shares are drawn once, above the rows.
+    const shared = screen.getByTestId("point-map-shared");
     expect(
-      rows[0].querySelector("[data-slot='coordinate-chip'][data-axis='brand']"),
+      shared.querySelector("[data-slot='coordinate-chip'][data-axis='brand']"),
     ).toHaveTextContent("northsea");
+    expect(shared).toHaveTextContent("brand");
+    expect(rows[0].querySelector("[data-slot='coordinate-chip']")).toBeNull();
+    // A row shows only the coordinates where it differs.
+    expect(
+      [...rows[1].querySelectorAll("[data-slot='coordinate-chip']")].map((c) =>
+        c.getAttribute("data-axis"),
+      ),
+    ).toEqual(["product", "channel"]);
     expect(rows[1]).toHaveTextContent("support/docs");
     expect(rows[1]).toHaveTextContent("Docs");
+    // A voice is named on a row only where it differs from the project's own.
     expect(rows[1]).toHaveTextContent("Northsea Support");
+    expect(rows[0]).not.toHaveTextContent("Northsea");
     // A point nothing sits at says so rather than reading as an error.
     expect(rows[2]).toHaveTextContent("no collection sits here");
     expect(rows[2]).toHaveTextContent("fell through");

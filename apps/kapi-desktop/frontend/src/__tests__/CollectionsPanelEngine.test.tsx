@@ -125,8 +125,8 @@ describe("CollectionsPanel engine choice", () => {
     await userEvent.click(await screen.findByRole("option", { name: "okapi-bridge" }));
 
     await waitFor(() => expect(onUpdate).toHaveBeenCalled());
-    const updated = onUpdate.mock.calls.at(-1)![0] as KapiProject;
-    expect(updated.collections[0].content?.[0].format).toEqual({ name: "okf_json" });
+    const updated = onUpdate.mock.lastCall![0] as KapiProject;
+    expect(updated.collections?.[0].content?.[0]).toMatchObject({ format: { name: "okf_json" } });
   });
 
   it("shows the pinned engine and returns the item to the project order on Auto", async () => {
@@ -151,8 +151,10 @@ describe("CollectionsPanel engine choice", () => {
     await userEvent.click(await screen.findByRole("option", { name: "Auto (project order)" }));
 
     await waitFor(() => expect(onUpdate).toHaveBeenCalled());
-    const updated = onUpdate.mock.calls.at(-1)![0] as KapiProject;
-    expect(updated.collections[0].content?.[0].format).toBeUndefined();
+    const updated = onUpdate.mock.lastCall![0] as KapiProject;
+    const content = updated.collections?.[0].content?.[0];
+    expect(content).toBeDefined();
+    expect(content?.format).toBeUndefined();
   });
 
   it("offers no choice when one engine reads the files", async () => {

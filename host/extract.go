@@ -428,7 +428,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	}
 	// Apply the project's per-item format config (defaults.formats overlaid
 	// by the item's format.config) so recipe options like
-	// translateFrontMatter actually reach the reader.
+	// translate_front_matter actually reach the reader.
 	if err := applyFormatConfig(reader, mergedFormatConfig(task.ctx.Project, task.source.Format, task.source.Item)); err != nil {
 		return project.ExtractionFile{}, fmt.Errorf("apply format config for %s: %w", task.source.Relative, err)
 	}
@@ -780,7 +780,7 @@ func applySegmentation(ctx context.Context, blocks []*model.Block, conf project.
 		SegmentSource: true,
 	}
 	if conf.SRX != "" {
-		cfg.EngineParams = map[string]any{"rulesPath": conf.SRX}
+		cfg.EngineParams = map[string]any{"rules_path": conf.SRX}
 	}
 	t := tools.NewSegmentationTool(cfg)
 	for _, b := range blocks {

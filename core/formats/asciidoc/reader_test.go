@@ -200,7 +200,7 @@ func TestReaderConfigExtractionToggles(t *testing.T) {
 	// With both toggles off, the block title and table cells stay skeleton.
 	r := asciidoc.NewReader()
 	cfg := r.Config()
-	require.NoError(t, cfg.ApplyMap(map[string]any{"extractBlockTitles": false, "extractTableCells": false}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extract_block_titles": false, "extract_table_cells": false}))
 	require.NoError(t, r.Open(t.Context(), testutil.RawDocFromString(input, model.LocaleEnglish)))
 	defer r.Close()
 	off := testutil.FilterBlocks(testutil.CollectParts(t, r.Read(t.Context())))

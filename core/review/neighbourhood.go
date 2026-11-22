@@ -8,7 +8,7 @@ import (
 )
 
 // NeighbourhoodOf collects the translatable blocks either side of blocks[idx],
-// in document order: the window's worth before it, nearest last, and the
+// and blocks[idx] itself as Unit, in document order: the window's worth before it, nearest last, and the
 // window's worth after it, nearest first. A window of zero or less means
 // DefaultWindow. The unit's own key is the reader's name for it, the same key
 // a translate prompt carries.
@@ -17,6 +17,9 @@ func NeighbourhoodOf(blocks []*model.Block, idx, window int, loc model.LocaleID)
 		window = DefaultWindow
 	}
 	out := Neighbourhood{Key: PromptKey(blocks[idx]), Window: window}
+	if n, ok := NeighbourOf(blocks[idx], loc); ok {
+		out.Unit = &n
+	}
 	for i := idx - 1; i >= 0 && len(out.Before) < window; i-- {
 		if n, ok := NeighbourOf(blocks[i], loc); ok {
 			out.Before = append([]Neighbour{n}, out.Before...)

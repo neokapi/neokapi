@@ -46,11 +46,11 @@ type SourceStamp struct {
 type StoreDrift struct {
 	// StoreMissing: nothing has been extracted yet (a fresh project, or the
 	// block cache was cleared).
-	StoreMissing bool `json:"storeMissing,omitempty"`
+	StoreMissing bool `json:"store_missing,omitempty"`
 	// VersionStale: the store exists but was written by a different kapi
 	// version (missing or mismatched version stamp), so its content may be
 	// extracted differently by the running binary.
-	VersionStale bool `json:"versionStale,omitempty"`
+	VersionStale bool `json:"version_stale,omitempty"`
 	// Changed lists the project-relative source paths whose bytes drifted
 	// from their extract-time stamps (edited, or never stamped).
 	Changed []string `json:"changed,omitempty"`
@@ -168,7 +168,7 @@ type BlockStoreStamper interface {
 // A store that cannot answer it leaves decisions keyed on the path they were
 // made at, which is what happened before any of this existed.
 type DocumentAdopter interface {
-	// AdoptDocuments resolves the read against what the project knows and
+	// AdoptDocuments resolves the read against what the project holds and
 	// returns each path's durable key.
 	AdoptDocuments(ctx context.Context, current []reconcile.DocUnit) (map[string]string, error)
 }

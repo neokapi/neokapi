@@ -13,7 +13,7 @@
 # Seeded 2026-06-12 from the research base's ranked shortlist
 # (docs/internals/research/format-ops/SYNTHESIS.md §5).
 version: 1
-updated: "2026-06-19"
+updated: "2026-11-20"
 candidates:
   - id: fluent
     as: format
@@ -162,4 +162,5 @@ candidates:
 decided:
   accepted:
     - {id: asciidoc, as: format, date: "2026-06-19"}
+    - {id: eml, as: format, date: "2026-11-20"}
   rejected: {}

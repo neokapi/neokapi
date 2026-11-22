@@ -83,7 +83,7 @@ func snippetRoundtrip(t *testing.T, snippet string, params map[string]any) strin
 	var buf bytes.Buffer
 	writer := jsonfmt.NewWriter()
 	if params != nil {
-		if v, ok := params["escapeForwardSlashes"]; ok {
+		if v, ok := params["escape_forward_slashes"]; ok {
 			if b, ok := v.(bool); ok {
 				writer.Config().EscapeForwardSlashes = b
 			}
@@ -126,7 +126,7 @@ func TestSnippets_Object(t *testing.T) {
 // okapi: JSONFilterTest#testList
 func TestSnippets_List(t *testing.T) {
 	t.Parallel()
-	// extractIsolatedStrings defaults to false, so array strings are not extracted.
+	// extract_isolated_strings defaults to false, so array strings are not extracted.
 	// But objects within arrays should extract their key-value pairs.
 	parts := readJSON(t, `{"items": [{"key": "Text1"}]}`)
 
@@ -140,8 +140,8 @@ func TestSnippets_List(t *testing.T) {
 func TestSnippets_AllWithKeyNoException(t *testing.T) {
 	t.Parallel()
 	parts := readJSONWith(t, `{"key1": "Text1", "key2": "Text2"}`, map[string]any{
-		"extractAllPairs": true,
-		"useKeyAsName":    true,
+		"extract_all_pairs": true,
+		"use_key_as_name":   true,
 	})
 
 	blocks := translatableBlocks(parts)
@@ -159,8 +159,8 @@ func TestSnippets_AllWithKeyNoException(t *testing.T) {
 func TestSnippets_AllWithKeyWithException(t *testing.T) {
 	t.Parallel()
 	parts := readJSONWith(t, `{"key1": "Text1", "key2": "Text2", "not_this": "Text3"}`, map[string]any{
-		"extractAllPairs": true,
-		"exceptions":      "not_this",
+		"extract_all_pairs": true,
+		"exceptions":        "not_this",
 	})
 
 	blocks := translatableBlocks(parts)
@@ -174,8 +174,8 @@ func TestSnippets_AllWithKeyWithException(t *testing.T) {
 func TestSnippets_NoneWithKeywithException(t *testing.T) {
 	t.Parallel()
 	parts := readJSONWith(t, `{"key1": "Text1", "key2": "Text2", "extract_me": "Text3"}`, map[string]any{
-		"extractAllPairs": false,
-		"exceptions":      "extract_me",
+		"extract_all_pairs": false,
+		"exceptions":        "extract_me",
 	})
 
 	blocks := translatableBlocks(parts)
@@ -189,9 +189,9 @@ func TestSnippets_NoneWithKeywithException(t *testing.T) {
 func TestSnippets_Path(t *testing.T) {
 	t.Parallel()
 	parts := readJSONWith(t, `{"parent": {"child": "Text1"}}`, map[string]any{
-		"useFullKeyPath":           true,
-		"useKeyAsName":             true,
-		"useLeadingSlashOnKeyPath": true,
+		"use_full_key_path":             true,
+		"use_key_as_name":               true,
+		"use_leading_slash_on_key_path": true,
 	})
 
 	blocks := translatableBlocks(parts)
@@ -207,9 +207,9 @@ func TestSnippets_Path(t *testing.T) {
 func TestSnippets_LeadingSlash(t *testing.T) {
 	t.Parallel()
 	parts := readJSONWith(t, `{"parent": {"child": "Text1"}}`, map[string]any{
-		"useFullKeyPath":           true,
-		"useKeyAsName":             true,
-		"useLeadingSlashOnKeyPath": false,
+		"use_full_key_path":             true,
+		"use_key_as_name":               true,
+		"use_leading_slash_on_key_path": false,
 	})
 
 	blocks := translatableBlocks(parts)
@@ -222,7 +222,7 @@ func TestSnippets_LeadingSlash(t *testing.T) {
 func TestSnippets_StandaloneYes(t *testing.T) {
 	t.Parallel()
 	parts := readJSONWith(t, `{"colors": ["Red", "Green", "Blue"]}`, map[string]any{
-		"extractIsolatedStrings": true,
+		"extract_isolated_strings": true,
 	})
 
 	blocks := translatableBlocks(parts)
@@ -281,7 +281,7 @@ func TestSnippets_EscapedForwardSlashDecoding(t *testing.T) {
 // okapi: JSONFilterTest#testEscapeForwardSlashes
 func TestSnippets_EscapeForwardSlashes(t *testing.T) {
 	t.Parallel()
-	// Default: escapeForwardSlashes=true, forward slashes are escaped in output.
+	// Default: escape_forward_slashes=true, forward slashes are escaped in output.
 	output := snippetRoundtrip(t, `{"key": "a/b"}`, nil)
 	assert.Contains(t, output, `a\/b`)
 }
@@ -290,7 +290,7 @@ func TestSnippets_EscapeForwardSlashes(t *testing.T) {
 func TestSnippets_NoEscapeForwardSlashes(t *testing.T) {
 	t.Parallel()
 	output := snippetRoundtrip(t, `{"key": "a/b"}`, map[string]any{
-		"escapeForwardSlashes": false,
+		"escape_forward_slashes": false,
 	})
 	assert.Contains(t, output, `a/b`)
 	assert.NotContains(t, output, `a\/b`)
@@ -386,8 +386,8 @@ func TestSnippets_NoteRules(t *testing.T) {
 	t.Parallel()
 	input := `{"note": "This is a note", "key": "Text1"}`
 	parts := readJSONWith(t, input, map[string]any{
-		"extractAllPairs": true,
-		"noteRules":       "note",
+		"extract_all_pairs": true,
+		"note_rules":        "note",
 	})
 
 	blocks := translatableBlocks(parts)
@@ -410,8 +410,8 @@ func TestSnippets_IdRules(t *testing.T) {
 	t.Parallel()
 	input := `{"id": "my-id", "key": "Text1"}`
 	parts := readJSONWith(t, input, map[string]any{
-		"extractAllPairs": true,
-		"idRules":         "id",
+		"extract_all_pairs": true,
+		"id_rules":          "id",
 	})
 
 	blocks := translatableBlocks(parts)
@@ -427,9 +427,9 @@ func TestSnippets_NestedIdRules(t *testing.T) {
 	t.Parallel()
 	input := `{"items": [{"id": "item1", "text": "Text1"}, {"id": "item2", "text": "Text2"}]}`
 	parts := readJSONWith(t, input, map[string]any{
-		"extractAllPairs": true,
-		"idRules":         "id",
-		"useIdStack":      true,
+		"extract_all_pairs": true,
+		"id_rules":          "id",
+		"use_id_stack":      true,
 	})
 
 	blocks := translatableBlocks(parts)
@@ -444,8 +444,8 @@ func TestSnippets_GenericMetaRules(t *testing.T) {
 	t.Parallel()
 	input := `{"meta": "metadata-value", "key": "Text1"}`
 	parts := readJSONWith(t, input, map[string]any{
-		"extractAllPairs":  true,
-		"genericMetaRules": "meta",
+		"extract_all_pairs":  true,
+		"generic_meta_rules": "meta",
 	})
 
 	blocks := translatableBlocks(parts)
@@ -465,9 +465,9 @@ func TestSnippets_GenericMetaRulesWithId(t *testing.T) {
 	t.Parallel()
 	input := `{"id": "my-id", "meta": "metadata-value", "key": "Text1"}`
 	parts := readJSONWith(t, input, map[string]any{
-		"extractAllPairs":  true,
-		"idRules":          "id",
-		"genericMetaRules": "meta",
+		"extract_all_pairs":  true,
+		"id_rules":           "id",
+		"generic_meta_rules": "meta",
 	})
 
 	blocks := translatableBlocks(parts)
@@ -483,8 +483,8 @@ func TestSnippets_ExtractionRules(t *testing.T) {
 	t.Parallel()
 	input := `{"title": "Extract me", "body": "Extract me too", "id": "Skip me"}`
 	parts := readJSONWith(t, input, map[string]any{
-		"extractAllPairs": false,
-		"extractionRules": "title|body",
+		"extract_all_pairs": false,
+		"extraction_rules":  "title|body",
 	})
 
 	blocks := translatableBlocks(parts)
@@ -499,9 +499,9 @@ func TestSnippets_MaxwidthRules(t *testing.T) {
 	t.Parallel()
 	input := `{"maxwidth": 100, "title": "Text1"}`
 	parts := readJSONWith(t, input, map[string]any{
-		"extractAllPairs": false,
-		"exceptions":      "title",
-		"maxwidthRules":   "maxwidth",
+		"extract_all_pairs": false,
+		"exceptions":        "title",
+		"maxwidth_rules":    "maxwidth",
 	})
 
 	blocks := translatableBlocks(parts)
@@ -520,10 +520,10 @@ func TestSnippets_MaxwidthRulesWithSizeChar(t *testing.T) {
 	t.Parallel()
 	input := `{"maxwidth": 50, "title": "Text1"}`
 	parts := readJSONWith(t, input, map[string]any{
-		"extractAllPairs":  false,
-		"exceptions":       "title",
-		"maxwidthRules":    "maxwidth",
-		"maxwidthSizeUnit": "char",
+		"extract_all_pairs":  false,
+		"exceptions":         "title",
+		"maxwidth_rules":     "maxwidth",
+		"maxwidth_size_unit": "char",
 	})
 
 	blocks := translatableBlocks(parts)
@@ -542,10 +542,10 @@ func TestSnippets_ArrayWithinArray(t *testing.T) {
 	t.Parallel()
 	input := `{"data": [["Text1"]]}`
 	parts := readJSONWith(t, input, map[string]any{
-		"extractIsolatedStrings":   true,
-		"useFullKeyPath":           true,
-		"useKeyAsName":             true,
-		"useLeadingSlashOnKeyPath": true,
+		"extract_isolated_strings":      true,
+		"use_full_key_path":             true,
+		"use_key_as_name":               true,
+		"use_leading_slash_on_key_path": true,
 	})
 
 	blocks := translatableBlocks(parts)
@@ -559,10 +559,10 @@ func TestSnippets_ArrayWithinArrayWithinArray(t *testing.T) {
 	t.Parallel()
 	input := `{"data": [[["Text1"]]]}`
 	parts := readJSONWith(t, input, map[string]any{
-		"extractIsolatedStrings":   true,
-		"useFullKeyPath":           true,
-		"useKeyAsName":             true,
-		"useLeadingSlashOnKeyPath": true,
+		"extract_isolated_strings":      true,
+		"use_full_key_path":             true,
+		"use_key_as_name":               true,
+		"use_leading_slash_on_key_path": true,
 	})
 
 	blocks := translatableBlocks(parts)
@@ -576,9 +576,9 @@ func TestSnippets_ArrayWithObject(t *testing.T) {
 	t.Parallel()
 	input := `{"items": [{"name": "Text1"}]}`
 	parts := readJSONWith(t, input, map[string]any{
-		"useFullKeyPath":           true,
-		"useKeyAsName":             true,
-		"useLeadingSlashOnKeyPath": true,
+		"use_full_key_path":             true,
+		"use_key_as_name":               true,
+		"use_leading_slash_on_key_path": true,
 	})
 
 	blocks := translatableBlocks(parts)
@@ -592,9 +592,9 @@ func TestSnippets_NamedArray(t *testing.T) {
 	t.Parallel()
 	input := `{"items": [{"name": "Text1"}, {"name": "Text2"}]}`
 	parts := readJSONWith(t, input, map[string]any{
-		"useFullKeyPath":           true,
-		"useKeyAsName":             true,
-		"useLeadingSlashOnKeyPath": true,
+		"use_full_key_path":             true,
+		"use_key_as_name":               true,
+		"use_leading_slash_on_key_path": true,
 	})
 
 	blocks := translatableBlocks(parts)
@@ -609,8 +609,8 @@ func TestSnippets_InlineCodeFinderEscaping(t *testing.T) {
 	t.Parallel()
 	input := `{"key": "Hello <b>world</b> end"}`
 	parts := readJSONWith(t, input, map[string]any{
-		"useCodeFinder": true,
-		"codeFinderRules": map[string]any{
+		"use_code_finder": true,
+		"code_finder_rules": map[string]any{
 			"count": 1,
 			"rule0": `</?([A-Z0-9a-z]*)\b[^>]*>`,
 		},
@@ -628,8 +628,8 @@ func TestSnippets_InlineCodeFinderNewLineCharacter(t *testing.T) {
 	t.Parallel()
 	input := `{"key": "Line1\nLine2"}`
 	parts := readJSONWith(t, input, map[string]any{
-		"useCodeFinder": true,
-		"codeFinderRules": map[string]any{
+		"use_code_finder": true,
+		"code_finder_rules": map[string]any{
 			"count": 1,
 			"rule0": `\n`,
 		},
@@ -743,19 +743,19 @@ func TestSnippets_SubfiltersProduceDistinctTextUnitIds(t *testing.T) {
 // okapi: JSONFilterTest#testSubfilterRules
 func TestSnippets_SubfilterRules(t *testing.T) {
 	t.Parallel()
-	// Without a real HTML resolver, verify that subfilterRules config is accepted
+	// Without a real HTML resolver, verify that subfilter_rules config is accepted
 	// and non-matching keys are still extracted as plain blocks.
 	input := `{"html_key": "<b>Bold text</b>", "plain_key": "Plain text"}`
 	parts := readJSONWith(t, input, map[string]any{
-		"subfilterRules": "html_key",
-		"subfilter":      "html",
+		"subfilter_rules": "html_key",
+		"subfilter":       "html",
 	})
 
 	blocks := translatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
 	// Without a resolver, both keys should be extracted as plain blocks.
-	// The subfilterRules config is just stored — it needs a resolver to apply.
+	// The subfilter_rules config is just stored — it needs a resolver to apply.
 	var foundPlain bool
 	for _, b := range blocks {
 		if strings.Contains(b.SourceText(), "Plain text") {
@@ -805,10 +805,10 @@ func TestSnippets_ExtractionRulesWithFullPath(t *testing.T) {
 	t.Parallel()
 	input := `{"widgets": [{"body": "Extract this", "id": "123"}]}`
 	parts := readJSONWith(t, input, map[string]any{
-		"extractAllPairs":          false,
-		"useFullKeyPath":           true,
-		"useLeadingSlashOnKeyPath": true,
-		"extractionRules":          `/widgets.*body`,
+		"extract_all_pairs":             false,
+		"use_full_key_path":             true,
+		"use_leading_slash_on_key_path": true,
+		"extraction_rules":              `/widgets.*body`,
 	})
 
 	blocks := translatableBlocks(parts)
@@ -853,11 +853,11 @@ func TestSnippets_VariableMaxWidthInNestedObjects(t *testing.T) {
   ]
 }`
 	parts := readJSONWith(t, input, map[string]any{
-		"extractAllPairs":  false,
-		"exceptions":       "title",
-		"useKeyAsName":     true,
-		"maxwidthRules":    "maxchars",
-		"maxwidthSizeUnit": "char",
+		"extract_all_pairs":  false,
+		"exceptions":         "title",
+		"use_key_as_name":    true,
+		"maxwidth_rules":     "maxchars",
+		"maxwidth_size_unit": "char",
 	})
 
 	blocks := translatableBlocks(parts)
@@ -899,13 +899,13 @@ func TestSnippets_MetaDataAndExtractionRulesNestedNotes(t *testing.T) {
   ]
 }`
 	parts := readJSONWith(t, input, map[string]any{
-		"extractAllPairs":          false,
-		"useFullKeyPath":           true,
-		"useLeadingSlashOnKeyPath": true,
-		"extractionRules":          `/widgets.*body`,
-		"noteRules":                `/widgets.*name`,
-		"idRules":                  `/widgets.*id`,
-		"genericMetaRules":         `/widgets.*image`,
+		"extract_all_pairs":             false,
+		"use_full_key_path":             true,
+		"use_leading_slash_on_key_path": true,
+		"extraction_rules":              `/widgets.*body`,
+		"note_rules":                    `/widgets.*name`,
+		"id_rules":                      `/widgets.*id`,
+		"generic_meta_rules":            `/widgets.*image`,
 	})
 
 	blocks := translatableBlocks(parts)
@@ -944,13 +944,13 @@ func TestSnippets_MetaDataAndExtractionRulesWithSubfilter(t *testing.T) {
   ]
 }`
 	parts := readJSONWith(t, input, map[string]any{
-		"extractAllPairs":          false,
-		"useFullKeyPath":           true,
-		"useLeadingSlashOnKeyPath": true,
-		"extractionRules":          `/widgets.*body`,
-		"noteRules":                `/widgets.*name`,
-		"idRules":                  `/widgets.*id`,
-		"genericMetaRules":         `/widgets.*image`,
+		"extract_all_pairs":             false,
+		"use_full_key_path":             true,
+		"use_leading_slash_on_key_path": true,
+		"extraction_rules":              `/widgets.*body`,
+		"note_rules":                    `/widgets.*name`,
+		"id_rules":                      `/widgets.*id`,
+		"generic_meta_rules":            `/widgets.*image`,
 	})
 
 	blocks := translatableBlocks(parts)
@@ -964,7 +964,7 @@ func TestSnippets_MetaDataAndExtractionRulesWithSubfilter(t *testing.T) {
 			break
 		}
 	}
-	assert.True(t, foundBody, "body values should be extracted via extractionRules")
+	assert.True(t, foundBody, "body values should be extracted via extraction_rules")
 
 	// Name keys should NOT be extracted as translatable
 	texts := blockTexts(blocks)
@@ -1095,7 +1095,7 @@ func TestSnippets_EscapeForwardSlashesSubfilter(t *testing.T) {
 	// content that contains forward slashes and HTML-like tags.
 	input := `{"key": "<a href=\"http://example.com\">link</a>"}`
 	output := snippetRoundtrip(t, input, nil)
-	// With default escapeForwardSlashes=true, forward slashes should be escaped
+	// With default escape_forward_slashes=true, forward slashes should be escaped
 	assert.Contains(t, output, `http:\/\/example.com`)
 	assert.Contains(t, output, "link")
 }
@@ -1142,8 +1142,8 @@ func TestSnippets_ExactRoundtrip_UnicodeEscapes(t *testing.T) {
 	t.Parallel()
 	input := `{"id": "\u0041\u0042", "text": "Hello"}`
 	output := snippetRoundtrip(t, input, map[string]any{
-		"extractAllPairs": true,
-		"idRules":         "id",
+		"extract_all_pairs": true,
+		"id_rules":          "id",
 	})
 	// The id value should be preserved exactly (raw bytes), not re-encoded
 	assert.Contains(t, output, `"\u0041\u0042"`)
@@ -1156,8 +1156,8 @@ func TestSnippets_ExactRoundtrip_EscapedSlash(t *testing.T) {
 	t.Parallel()
 	input := `{"note": "see a\/b", "text": "Hello"}`
 	output := snippetRoundtrip(t, input, map[string]any{
-		"extractAllPairs": true,
-		"noteRules":       "note",
+		"extract_all_pairs": true,
+		"note_rules":        "note",
 	})
 	// Note value should be preserved exactly
 	assert.Contains(t, output, `"see a\/b"`)
@@ -1176,7 +1176,7 @@ func TestSnippets_ExactRoundtrip_Array(t *testing.T) {
 	t.Parallel()
 	input := `{"items": ["a", "b", "c"]}`
 	output := snippetRoundtrip(t, input, map[string]any{
-		"extractIsolatedStrings": true,
+		"extract_isolated_strings": true,
 	})
 	assert.Equal(t, input, output)
 }
@@ -1244,9 +1244,9 @@ func TestSnippets_SkeletonTranslation_UseFullKeyPath(t *testing.T) {
 
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"useFullKeyPath":           true,
-		"useKeyAsName":             true,
-		"useLeadingSlashOnKeyPath": true,
+		"use_full_key_path":             true,
+		"use_key_as_name":               true,
+		"use_leading_slash_on_key_path": true,
 	}))
 	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
 	parts := testutil.CollectParts(t, reader.Read(ctx))
@@ -1276,7 +1276,7 @@ func TestSnippets_SkeletonTranslation_UseFullKeyPath(t *testing.T) {
 }
 
 // TestSnippets_SkeletonTranslation_IdRules verifies translations work
-// when idRules changes the block name to a custom ID.
+// when id_rules changes the block name to a custom ID.
 func TestSnippets_SkeletonTranslation_IdRules(t *testing.T) {
 	t.Parallel()
 	input := `{"id": "msg-1", "text": "Hello"}`
@@ -1284,8 +1284,8 @@ func TestSnippets_SkeletonTranslation_IdRules(t *testing.T) {
 
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"extractAllPairs": true,
-		"idRules":         "id",
+		"extract_all_pairs": true,
+		"id_rules":          "id",
 	}))
 	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
 	parts := testutil.CollectParts(t, reader.Read(ctx))
@@ -1325,15 +1325,15 @@ func TestSnippets_SkeletonTranslation_Exceptions(t *testing.T) {
 
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"extractAllPairs": true,
-		"exceptions":      "internal_id",
+		"extract_all_pairs": true,
+		"exceptions":        "internal_id",
 	}))
 	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	reader.Close()
 
 	// Set translation only for translatable blocks. The excluded value now
-	// surfaces as a non-translatable content block (extractNonTranslatableContent
+	// surfaces as a non-translatable content block (extract_non_translatable_content
 	// defaults on); a realistic MT pass skips it, so it keeps its source text.
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
@@ -1366,8 +1366,8 @@ func TestSnippets_SkeletonTranslation_NoteRules(t *testing.T) {
 
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"extractAllPairs": true,
-		"noteRules":       "note",
+		"extract_all_pairs": true,
+		"note_rules":        "note",
 	}))
 	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
 	parts := testutil.CollectParts(t, reader.Read(ctx))
@@ -1403,7 +1403,7 @@ func snippetRoundtripWithSkeleton(t *testing.T, snippet string, params map[strin
 
 	if params != nil {
 		require.NoError(t, reader.Config().ApplyMap(params))
-		if v, ok := params["escapeForwardSlashes"]; ok {
+		if v, ok := params["escape_forward_slashes"]; ok {
 			if b, ok := v.(bool); ok {
 				writer.Config().EscapeForwardSlashes = b
 			}
@@ -1446,16 +1446,16 @@ func TestSkeletonStore_ByteExact(t *testing.T) {
 		{"hash_comment", "{\n  # hash comment\n  \"key\": \"value\"\n}", nil},
 		{"mixed_comments", "{\n  // line\n  /* block */\n  # hash\n  \"key\": \"value\"\n}", nil},
 		{"nested", `{"parent": {"child": "value"}, "other": "text"}`, nil},
-		{"array_isolated", `{"items": ["a", "b", "c"]}`, map[string]any{"extractIsolatedStrings": true}},
+		{"array_isolated", `{"items": ["a", "b", "c"]}`, map[string]any{"extract_isolated_strings": true}},
 		{"array_non_isolated", `{"items": ["a", "b", "c"]}`, nil},
 		{"non_string_values", `{"name": "Test", "count": 42, "rate": 3.14, "active": true, "deleted": false, "meta": null}`, nil},
 		{"multiline", "{\n  \"title\": \"Hello\",\n  \"nested\": {\n    \"key\": \"World\"\n  },\n  \"count\": 5\n}", nil},
 		{"trailing_newline", "{\"key\": \"value\"}\n", nil},
 		{"empty_object", `{"data": {}, "text": "Hello"}`, nil},
-		{"unicode_escapes_non_translatable", `{"id": "\u0041\u0042", "text": "Hello"}`, map[string]any{"idRules": "id"}},
-		{"escaped_slash_non_translatable", `{"note": "see a\/b", "text": "Hello"}`, map[string]any{"noteRules": "note"}},
+		{"unicode_escapes_non_translatable", `{"id": "\u0041\u0042", "text": "Hello"}`, map[string]any{"id_rules": "id"}},
+		{"escaped_slash_non_translatable", `{"note": "see a\/b", "text": "Hello"}`, map[string]any{"note_rules": "note"}},
 		// Excluded value surfaced as a non-translatable content block
-		// (extractNonTranslatableContent defaults on) still round-trips
+		// (extract_non_translatable_content defaults on) still round-trips
 		// byte-exact: the body rides a skeleton ref like a translatable value.
 		{"excluded_value_surfaced", `{"keep": "Hi", "_internal": "secret"}`, map[string]any{"exceptions": "^_internal$"}},
 	}
@@ -1521,8 +1521,8 @@ func TestSkeletonStore_WithTranslation_UseFullKeyPath(t *testing.T) {
 	reader := jsonfmt.NewReader()
 	writer := jsonfmt.NewWriter()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"useKeyAsName":   true,
-		"useFullKeyPath": true,
+		"use_key_as_name":   true,
+		"use_full_key_path": true,
 	}))
 
 	store, err := format.NewSkeletonStore()
@@ -1564,7 +1564,7 @@ func TestSkeletonStore_WithTranslation_IdRules(t *testing.T) {
 
 	reader := jsonfmt.NewReader()
 	writer := jsonfmt.NewWriter()
-	require.NoError(t, reader.Config().ApplyMap(map[string]any{"idRules": "id"}))
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{"id_rules": "id"}))
 
 	store, err := format.NewSkeletonStore()
 	require.NoError(t, err)
@@ -1616,15 +1616,15 @@ func TestSkeletonStore_Exceptions(t *testing.T) {
 	t.Parallel()
 	input := `{"title": "Hello", "id": "skip-me", "body": "World"}`
 	output := snippetRoundtripWithSkeleton(t, input, map[string]any{
-		"extractAllPairs": true,
-		"exceptions":      "^id$",
+		"extract_all_pairs": true,
+		"exceptions":        "^id$",
 	})
 	assert.Equal(t, input, output, "skeleton store should preserve non-extracted values byte-exact")
 }
 
 func TestSkeletonStore_EscapeForwardSlashes(t *testing.T) {
 	t.Parallel()
-	// With escapeForwardSlashes=true (default), translated text should have \/
+	// With escape_forward_slashes=true (default), translated text should have \/
 	input := `{"url": "http://example.com"}`
 	ctx := t.Context()
 	locale := model.LocaleID("fr")

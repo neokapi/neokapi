@@ -364,7 +364,7 @@ export function TermsBrowser({
                           terms[idx] = { ...terms[idx], text: e.target.value };
                           setEditConcept({ ...editConcept, terms });
                         }}
-                        className="flex-1 rounded border border-input bg-transparent px-2 py-1 text-[12px] outline-none"
+                        className="flex-1 rounded border border-input bg-transparent px-2 py-1 text-[12px] outline-none focus-visible:ring-1 focus-visible:ring-ring"
                       />
                       {mergedLocales.length > 0 ? (
                         <div>
@@ -389,7 +389,7 @@ export function TermsBrowser({
                             terms[idx] = { ...terms[idx], locale: e.target.value };
                             setEditConcept({ ...editConcept, terms });
                           }}
-                          className="w-16 rounded border border-input bg-transparent px-2 py-1 text-[12px] outline-none"
+                          className="w-16 rounded border border-input bg-transparent px-2 py-1 text-[12px] outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         />
                       )}
                       <select
@@ -399,7 +399,7 @@ export function TermsBrowser({
                           terms[idx] = { ...terms[idx], status: e.target.value };
                           setEditConcept({ ...editConcept, terms });
                         }}
-                        className="rounded border border-input bg-transparent px-1 py-1 text-[11px] outline-none"
+                        className="rounded border border-input bg-transparent px-1 py-1 text-[11px] outline-none focus-visible:ring-1 focus-visible:ring-ring"
                       >
                         {STATUS_OPTIONS.map((s) => (
                           <option key={s} value={s}>
@@ -497,7 +497,7 @@ export function TermsBrowser({
                         setNewTerms(t);
                       }}
                       placeholder="Term"
-                      className="flex-[2] rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none"
+                      className="flex-[2] rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     />
                     {mergedLocales.length > 0 ? (
                       <div>
@@ -523,7 +523,7 @@ export function TermsBrowser({
                           setNewTerms(t);
                         }}
                         placeholder="Locale"
-                        className="w-20 rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none"
+                        className="w-20 rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
                       />
                     )}
                     <select
@@ -533,7 +533,7 @@ export function TermsBrowser({
                         t[idx] = { ...t[idx], status: e.target.value };
                         setNewTerms(t);
                       }}
-                      className="rounded border border-input bg-transparent px-1 py-1.5 text-xs outline-none"
+                      className="rounded border border-input bg-transparent px-1 py-1.5 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     >
                       {STATUS_OPTIONS.map((s) => (
                         <option key={s} value={s}>

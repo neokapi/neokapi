@@ -6,8 +6,27 @@
  * binary or the public/ tree.
  */
 import fs from "node:fs";
+import path from "node:path";
 import type { CaptureError, DemoCapture, ScriptStep, TimelineEvent } from "../types.ts";
-import { sh } from "../lib/exec.ts";
+import { run, sh } from "../lib/exec.ts";
+import { HARNESS_ROOT } from "../lib/paths.ts";
+
+/** The pty driver a step with `keys` runs under (see its docstring). */
+const PTY_RUN = path.join(HARNESS_ROOT, "scripts", "pty-run.py");
+
+/**
+ * Run one step's command: through `sh -c` with pipes, or, for a step that
+ * types answers, in a pseudo-terminal that types each line once the question
+ * is on screen. A pty merges stdout and stderr, as a terminal does.
+ */
+function runStep(step: ScriptStep, command: string, opts: ScriptRunOptions) {
+  if (!step.keys?.length) return sh(command, { cwd: opts.cwd, env: opts.env, timeoutMs: opts.timeoutMs });
+  return run("python3", ["-I", PTY_RUN, command, ...step.keys], {
+    cwd: opts.cwd,
+    env: { ...opts.env, PTY_TIMEOUT_SEC: String(Math.max(1, Math.floor(opts.timeoutMs / 1000) - 5)) },
+    timeoutMs: opts.timeoutMs,
+  });
+}
 
 /** The verdict on one driven command: the code it produced against the codes its step declared. */
 export interface ExitOutcome {
@@ -82,7 +101,7 @@ export async function runScriptSteps(steps: ScriptStep[], opts: ScriptRunOptions
     commandCount++;
     events.push({ i: i++, kind: "command", text: command });
 
-    const r = await sh(command, { cwd: opts.cwd, env: opts.env, timeoutMs: opts.timeoutMs });
+    const r = await runStep(step, command, opts);
     // Both streams in arrival order, so a command that reports progress on
     // stderr and its result on stdout records the way it read in the terminal.
     let out = r.combined.replace(/\n+$/, "");

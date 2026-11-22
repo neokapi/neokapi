@@ -26,7 +26,7 @@ import (
 	"github.com/neokapi/neokapi/kpz"
 )
 
-// A .kpz is a single-file, serverless localization workspace — the portable
+// A .kpz is a single-file, serverless localization workspace, the portable
 // twin of a .kapi project's working state. It is operated on through three
 // pipeline-stage verbs against a persistent shadow cache (see kpzcache.go):
 //
@@ -47,7 +47,7 @@ func IsKpzPath(p string) bool {
 	return l.Scheme == "" && l.Kind() == flow.BindingStore
 }
 
-// kpzWorkspaceInput reports whether the inputs are a single .kpz workspace —
+// kpzWorkspaceInput reports whether the inputs are a single .kpz workspace,
 // the signal to transform it in place rather than run the plain pipeline.
 func kpzWorkspaceInput(inputs []string) bool {
 	return len(inputs) == 1 && IsKpzPath(inputs[0])
@@ -175,7 +175,7 @@ func (a *App) extractToKpz(ctx context.Context, sources []string, outKpz, target
 		}
 		// Capture the round-trip skeleton (default source-retention). As in
 		// extractOneKpz: genuine absence is (nil, nil), so an error means the
-		// skeleton exists and could not be taken — a workspace built without it
+		// skeleton exists and could not be taken, a workspace built without it
 		// writes back re-serialized, lower-fidelity files while reporting
 		// success. Fail rather than degrade silently.
 		if formatID != "" {
@@ -231,7 +231,7 @@ func (a *App) extractToKpz(ctx context.Context, sources []string, outKpz, target
 // captureSkeletonBytes reads a source document through its format reader with
 // a SkeletonStore wired, returning the serialized skeleton stream (the
 // round-trip template merge reuses; AD-025 §6). Returns (nil, nil) when the
-// reader does not emit a skeleton (binary formats, etc.) — callers treat that
+// reader does not emit a skeleton (binary formats, etc.), callers treat that
 // as "no skeleton, re-read source at merge time". The data argument is the raw
 // source bytes (so callers that already read the file don't read it twice).
 func captureSkeletonBytes(ctx context.Context, reg *registry.FormatRegistry, formatID registry.FormatID, path string, data []byte, srcLocale model.LocaleID) ([]byte, error) {
@@ -274,7 +274,7 @@ func captureSkeletonBytes(ctx context.Context, reg *registry.FormatRegistry, for
 // ─── transform: run a tool/flow in place ────────────────────────
 
 // transformKpzInPlace runs the tool chain over every source in the workspace
-// against the cache's persistent per-source block stores — incrementally,
+// against the cache's persistent per-source block stores, incrementally,
 // without rewriting the .kpz. Locales accumulate in the recipe. With doPack
 // it also ejects the result to the .kpz (--pack); otherwise the cache is left
 // dirty for an explicit `kapi pack`.
@@ -322,7 +322,7 @@ func (a *App) transformKpzInPlace(ctx context.Context, kpzPath, flowName string,
 
 	// Document output during a transform is a throwaway (the work that
 	// persists is the overlays the SessionTools cache). Write it under the
-	// cache dir rather than the OS temp dir — the latter doesn't exist in the
+	// cache dir rather than the OS temp dir, the latter doesn't exist in the
 	// wasm sandbox.
 	discard := filepath.Join(c.dir, "discard")
 	if err := os.MkdirAll(discard, 0o755); err != nil {
@@ -378,7 +378,7 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 	}
 	// -o is the user speaking, and an absolute destination there is legitimate.
 	// The recipe's own layout is the PACKAGE speaking, and a package describes
-	// where its output goes relative to wherever it is merged — never an
+	// where its output goes relative to wherever it is merged, never an
 	// absolute or climbing destination. LoadWorkspace already drops a non-local
 	// layout on ingest; this is the check at the point of use, so a cache built
 	// by an older build cannot slip one through.
@@ -488,11 +488,11 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 
 // workspaceInfo is the structured state of a .kpz workspace: its sources,
 // recipe, per-locale overlay coverage, and dirty flag. Emitted as text or,
-// with --json, as JSON — the latter drives the docs lab's inspection panel.
+// with --json, as JSON, the latter drives the docs lab's inspection panel.
 type workspaceInfo struct {
 	Workspace   string         `json:"workspace"`
-	SourceLang  string         `json:"sourceLang,omitempty"`
-	TargetLangs []string       `json:"targetLangs,omitempty"`
+	SourceLang  string         `json:"source_lang,omitempty"`
+	TargetLangs []string       `json:"target_langs,omitempty"`
 	Out         string         `json:"out,omitempty"`
 	Documents   []string       `json:"documents"`
 	Overlays    map[string]int `json:"overlays"` // locale → translated-block count
@@ -522,7 +522,7 @@ func (o workspaceInfo) FormatText(w io.Writer) error {
 //
 // Two archive profiles, two answers. A **workspace** `.kpz` is a live thing with
 // a shadow cache, so the question worth asking is whether that cache holds work
-// not yet packed back — which is what this reports. A **project snapshot** has no
+// not yet packed back, which is what this reports. A **project snapshot** has no
 // cache and no such state; asking it produces one anyway (building a cache the
 // snapshot never had, then calling it "dirty" moments after `pack` wrote it).
 // A snapshot is answered by [App.RunArchiveInfo] instead: the same parts, in the
@@ -554,7 +554,7 @@ func (a *App) InfoKpz(cmd Command, kpzPath string) error {
 		info.Out = recipeOut(c.meta.Recipe)
 	}
 	// Per-locale translated-block counts (overlays of kind targets/<locale>),
-	// read from the *cache* rather than the on-disk archive — the point of a
+	// read from the *cache* rather than the on-disk archive, the point of a
 	// workspace report is the work the cache holds.
 	cached, err := c.toPackage(ctx)
 	if err != nil {
@@ -597,7 +597,7 @@ func (a *App) unpackKpz(ctx context.Context, kpzPath string) error {
 // runCacheSource runs one source through the tool chain against its
 // persistent cache store, writing the document to docOut. The store is
 // persistent, so SessionTools read prior overlays (skip recompute) and write
-// new ones directly — no per-invocation load/export.
+// new ones directly, no per-invocation load/export.
 func (a *App) runCacheSource(ctx context.Context, c *kpzCache, src kpzCacheSource, flowName string, tools []tool.Tool, docOut, targetLang string) error {
 	store, err := sqlitestore.New(c.storePath(src.Key))
 	if err != nil {
@@ -660,7 +660,7 @@ func overlaysForSource(overlays []kpz.OverlayDoc, sourcePath string) []kpz.Overl
 // <dir>/[<lang>/]<name>; the default is ./<lang>/<name>.
 //
 // The locale is a package-supplied value that becomes a path segment in every
-// branch, so it is checked before it can redirect the write — the layout may be
+// branch, so it is checked before it can redirect the write, the layout may be
 // as absolute as the user asked for, but the locale is an identifier.
 func mergeOutputPath(layout, sourcePath, locale string, multiLocale bool) (string, error) {
 	if err := checkPathSegment(locale, "merge: target locale"); err != nil {
@@ -672,6 +672,11 @@ func mergeOutputPath(layout, sourcePath, locale string, multiLocale bool) (strin
 	extNoDot := strings.TrimPrefix(ext, ".")
 
 	if strings.Contains(layout, "{") {
+		if strings.Contains(layout, "{name}") {
+			if err := checkPathSegment(name, "merge: source name"); err != nil {
+				return "", err
+			}
+		}
 		out := expandOutputTemplate(layout, name, locale, extNoDot, ".")
 		if d := filepath.Dir(out); d != "." {
 			_ = os.MkdirAll(d, 0o755)

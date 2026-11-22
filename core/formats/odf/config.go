@@ -1,6 +1,6 @@
 package odf
 
-import "fmt"
+import "github.com/neokapi/neokapi/core/format"
 
 // Config holds configuration for the ODF format reader/writer.
 type Config struct {
@@ -52,14 +52,14 @@ func (c *Config) Validate() error { return nil }
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "translateNotes":
+		case "translate_notes":
 			c.TranslateNotes = toBool(val)
-		case "translateHiddenContent":
+		case "translate_hidden_content":
 			c.TranslateHiddenContent = toBool(val)
-		case "extractNonTranslatableContent":
+		case "extract_non_translatable_content":
 			c.disableNonTranslatableContent = !toBool(val)
 		default:
-			return fmt.Errorf("odf: unknown config key %q", key)
+			return format.UnknownParameterError(c, "odf", key)
 		}
 	}
 	return nil

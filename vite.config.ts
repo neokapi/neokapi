@@ -105,6 +105,8 @@ export default defineConfig({
       "**/build/**",
       "**/.docusaurus/**",
       "**/bindings/**",
+      // Uniwind writes the mobile app's theme types on every Metro start.
+      "bowrain/mobile/src/uniwind-types.d.ts",
       // Committed-but-generated docs artifacts. These are produced by `make`
       // targets / the format-triage skill / the demo harness and checked in so
       // the sites build in CI without re-running them — but they are codegen

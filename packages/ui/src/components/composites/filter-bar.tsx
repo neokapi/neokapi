@@ -89,7 +89,7 @@ export function FilterBar({
   onSearchChange,
   fields,
   presets,
-  placeholder = t("Search..."),
+  placeholder = t("Search…"),
 }: FilterBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState(search);

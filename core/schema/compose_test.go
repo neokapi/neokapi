@@ -13,7 +13,7 @@ func TestComposeVariants(t *testing.T) {
 		Scope  bool   `json:"scope,omitempty" schema:"title=Scope,group=main,order=10"`
 	}
 	type srxParams struct {
-		RulesPath string `json:"rulesPath,omitempty" schema:"title=Rules File,order=10"`
+		RulesPath string `json:"rules_path,omitempty" schema:"title=Rules File,order=10"`
 	}
 	type satParams struct {
 		Model     string  `json:"model,omitempty" schema:"title=Model,order=10"`
@@ -40,7 +40,7 @@ func TestComposeVariants(t *testing.T) {
 
 	// Each variant's fields are merged in; gating is at the GROUP level
 	// (master-detail), not per field.
-	for _, field := range []string{"rulesPath", "model", "threshold"} {
+	for _, field := range []string{"rules_path", "model", "threshold"} {
 		require.Contains(t, s.Properties, field)
 		assert.Nil(t, s.Properties[field].Visible, "field %q carries no per-field visibility", field)
 	}
@@ -72,7 +72,7 @@ func TestComposeVariants(t *testing.T) {
 	assert.Equal(t, []string{"main", "srx", "sat"}, ids)
 
 	// The base schema was not mutated.
-	assert.Nil(t, b.Properties["rulesPath"].Visible)
+	assert.Nil(t, b.Properties["rules_path"].Visible)
 	_, hadField := b.Properties["model"]
 	assert.False(t, hadField, "base schema untouched")
 }

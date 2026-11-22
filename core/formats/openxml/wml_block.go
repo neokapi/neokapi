@@ -321,7 +321,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// RunParser (RunParser.java lines 752-766) which routes
 			// these to runBuilder.addToMarkup so they survive the
 			// round-trip when ConditionalParameters has neither
-			// `replaceNoBreakHyphenTag` nor `ignoreSoftHyphenTag`
+			// `replace_no_break_hyphen_tag` nor `ignore_soft_hyphen_tag`
 			// set. The sentinel payload after the ":" is the literal
 			// XML to re-emit; the writer wraps it in a <w:r> with
 			// the source rPr context.

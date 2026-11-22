@@ -10,7 +10,10 @@ import (
 	"strings"
 	"time"
 
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/voicewrite"
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/id"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 
@@ -53,6 +56,10 @@ type contextReconcileResult struct {
 	// ProfileIDs maps collection name → the brand-hub profile id bound to it,
 	// so the caller can see what governance actually landed.
 	ProfileIDs map[string]string
+	// Changes lists the collections this push added and the ones whose
+	// coordinates it moved, with the coordinates before and after, for the
+	// recipe.changed event.
+	Changes []platev.CollectionChange
 }
 
 // total reports how many collections the reconcile touched or confirmed.
@@ -79,7 +86,8 @@ func parseContextEntries(raw json.RawMessage) ([]*pb.SyncContextEntry, error) {
 // reconciles collection structure.
 //
 // collections may be a transaction-scoped store, allowing governance updates to
-// roll back with the content push.
+// roll back with the content push. ledger records each voice profile write on
+// the pushed project's context ledger; nil records none.
 type collectionWriter interface {
 	ListCollections(ctx context.Context, projectID, stream string) ([]*store.Collection, error)
 	CreateCollection(ctx context.Context, c *store.Collection) error
@@ -91,6 +99,7 @@ func reconcileContext(
 	collections collectionWriter,
 	voice coreprofile.Store,
 	projectID, stream, workspaceID, actorID string,
+	ledger voicewrite.Ledger,
 	entries []*pb.SyncContextEntry,
 ) (*contextReconcileResult, error) {
 	result := &contextReconcileResult{ProfileIDs: map[string]string{}}
@@ -110,7 +119,8 @@ func reconcileContext(
 	}
 
 	declared := make(map[string]struct{}, len(entries))
-	profileIDs := newProfileBinder(voice, workspaceID, actorID)
+	profileIDs := newProfileBinder(voice, ledger, workspaceID, actorID)
+	profileIDs.pusher = pusherOf(ctx, actorID)
 
 	for _, e := range entries {
 		if e == nil || e.Name == "" {
@@ -136,7 +146,7 @@ func reconcileContext(
 				Context:         maps.Clone(e.Coordinates),
 				Owner:           venue.ContextOwnerRecipe,
 				ContextHash:     e.ContentHash,
-				ConnectorConfig: governanceConfig(nil, profileID, e.Channel),
+				ConnectorConfig: governanceConfig(nil, profileID, e),
 				PreviewKind:     e.GetPreview().GetKind(),
 				PreviewURL:      e.GetPreview().GetUrl(),
 			}
@@ -144,6 +154,9 @@ func reconcileContext(
 				return nil, fmt.Errorf("create collection %s: %w", e.Name, cerr)
 			}
 			result.Created = append(result.Created, e.Name)
+			result.Changes = append(result.Changes, platev.CollectionChange{
+				Name: e.Name, Change: platev.CollectionAdded, After: maps.Clone(e.Coordinates),
+			})
 			byName[e.Name] = col
 			continue
 		}
@@ -160,13 +173,19 @@ func reconcileContext(
 		// keys are still compared, because the profile id is minted server-side
 		// and can change without the recipe changing (a hub rename, a first
 		// bind after the project was claimed into a workspace).
-		wantConfig := governanceConfig(current.ConnectorConfig, profileID, e.Channel)
+		wantConfig := governanceConfig(current.ConnectorConfig, profileID, e)
 		if !claiming && current.ContextHash == e.ContentHash &&
 			maps.Equal(current.ConnectorConfig, wantConfig) {
 			result.Unchanged = append(result.Unchanged, e.Name)
 			continue
 		}
 
+		if !maps.Equal(current.Context, e.Coordinates) {
+			result.Changes = append(result.Changes, platev.CollectionChange{
+				Name: e.Name, Change: platev.CollectionCoordinates,
+				Before: maps.Clone(current.Context), After: maps.Clone(e.Coordinates),
+			})
+		}
 		current.Context = maps.Clone(e.Coordinates)
 		current.Owner = venue.ContextOwnerRecipe
 		current.ContextHash = e.ContentHash
@@ -213,19 +232,26 @@ func reconcileContext(
 }
 
 // governanceConfig returns the collection's connector config with the resolved
-// governance written into the two keys core/profile reads: the bound profile id
-// and the channel. Every other key is carried through untouched — a collection
+// governance written into the two keys core/profile reads, the bound profile id
+// and the channel, and the recipe's source_only declaration and review
+// priority (store.CollectionConfigSourceOnly, store.CollectionConfigPriority). Every other key is carried through untouched: a collection
 // may also hold connector settings, and governance has no business dropping
 // them.
 //
-// An empty profile id or channel REMOVES the key rather than storing an empty
+// An empty profile id or channel, or a collection that is not source-only, REMOVES the key rather than storing an empty
 // value, so "no voice bound at this point" reads the same as "never bound one".
-func governanceConfig(current map[string]string, profileID, channel string) map[string]string {
-	out := make(map[string]string, len(current)+2)
+func governanceConfig(current map[string]string, profileID string, e *pb.SyncContextEntry) map[string]string {
+	out := make(map[string]string, len(current)+4)
 	maps.Copy(out, current)
+	only := ""
+	if e.GetSourceOnly() {
+		only = "true"
+	}
 	for key, value := range map[string]string{
-		coreprofile.PropertyProfileID: profileID,
-		coreprofile.PropertyChannel:   channel,
+		coreprofile.PropertyProfileID:    profileID,
+		coreprofile.PropertyChannel:      e.GetChannel(),
+		store.CollectionConfigSourceOnly: only,
+		store.CollectionConfigPriority:   e.GetPriority(),
 	} {
 		if value == "" {
 			delete(out, key)
@@ -241,13 +267,15 @@ func governanceConfig(current map[string]string, profileID, channel string) map[
 // name, so several collections governed by one voice cost one upsert.
 type profileBinder struct {
 	voice       coreprofile.Store
+	ledger      voicewrite.Ledger
 	workspaceID string
 	actorID     string
+	pusher      store.Pusher
 	byName      map[string]string
 }
 
-func newProfileBinder(voice coreprofile.Store, workspaceID, actorID string) *profileBinder {
-	return &profileBinder{voice: voice, workspaceID: workspaceID, actorID: actorID, byName: map[string]string{}}
+func newProfileBinder(voice coreprofile.Store, ledger voicewrite.Ledger, workspaceID, actorID string) *profileBinder {
+	return &profileBinder{voice: voice, ledger: ledger, workspaceID: workspaceID, actorID: actorID, byName: map[string]string{}}
 }
 
 // bind returns the profile id governing this entry, creating or updating the
@@ -289,7 +317,7 @@ func (b *profileBinder) bind(ctx context.Context, e *pb.SyncContextEntry) (strin
 		return "", fmt.Errorf("decode voice profile %q: %w", e.VoiceProfile, err)
 	}
 
-	profileID, err := b.upsert(ctx, e.VoiceProfile, existing, pushed)
+	profileID, err := b.upsert(ctx, e.VoiceProfile, existing, pushed, e.GetVoiceOp())
 	if err != nil {
 		return "", err
 	}
@@ -300,7 +328,13 @@ func (b *profileBinder) bind(ctx context.Context, e *pb.SyncContextEntry) (strin
 // upsert applies the pushed profile content to the hub and returns the id to
 // bind. With no pushed content it binds whatever the hub already holds under
 // that name.
-func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushed *coreprofile.VoiceProfile) (string, error) {
+//
+// The write goes through voicewrite.Apply, which records it on the project's
+// ledger. recorded is the operation the pushing client recorded for the
+// write: when the push's ledger objects or the project's ledger hold it, it
+// is the record, with its actor, note and agent host, and no second
+// operation is appended. Otherwise the write is recorded as the pusher's.
+func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushed *coreprofile.VoiceProfile, recorded string) (string, error) {
 	if pushed == nil {
 		if existing == nil {
 			return "", nil
@@ -318,8 +352,8 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 		created.CreatedAt = now
 		created.UpdatedAt = now
 		created.CreatedBy = b.actorID
-		if err := b.voice.CreateProfile(ctx, &created); err != nil {
-			return "", fmt.Errorf("create voice profile %q: %w", name, err)
+		if _, err := voicewrite.Apply(ctx, b.voice, b.ledger, b.write(nil, &created, recorded)); err != nil {
+			return "", err
 		}
 		return created.ID, nil
 	}
@@ -341,10 +375,27 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 	updated.Personas = pushed.Personas
 	updated.VersionNote = "superseded by kapi push"
 	updated.UpdatedAt = now
-	if err := b.voice.UpdateProfile(ctx, &updated); err != nil {
-		return "", fmt.Errorf("update voice profile %q: %w", name, err)
+	if _, err := voicewrite.Apply(ctx, b.voice, b.ledger, b.write(existing, &updated, recorded)); err != nil {
+		return "", err
 	}
 	return updated.ID, nil
+}
+
+// write is the voicewrite.Write of one pushed profile, by the pusher: the
+// member, or the tool whose token made the push.
+func (b *profileBinder) write(before, after *coreprofile.VoiceProfile, recorded string) voicewrite.Write {
+	actor := contextop.Actor{Kind: contextop.ActorPerson}
+	if b.pusher.Tool != "" {
+		actor = contextop.Actor{Kind: contextop.ActorTool, Name: b.pusher.Tool}
+	}
+	return voicewrite.Write{
+		Before:   before,
+		After:    after,
+		Actor:    actor,
+		PushedBy: b.pusher,
+		Note:     "pushed with `kapi push`",
+		Recorded: recorded,
+	}
 }
 
 // decodeVoiceProfile reads the authored voice content a context entry carried.

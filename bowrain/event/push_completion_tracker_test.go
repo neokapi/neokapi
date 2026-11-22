@@ -50,6 +50,12 @@ func (s *stubJobStore) SetPushGovernance(ctx context.Context, jobID, report stri
 func (s *stubJobStore) PushGovernance(ctx context.Context, pushID string) (string, error) {
 	return "", nil
 }
+func (s *stubJobStore) SetPushParts(ctx context.Context, jobID, report string) error {
+	return nil
+}
+func (s *stubJobStore) PushParts(ctx context.Context, pushID string) (string, error) {
+	return "", nil
+}
 func (s *stubJobStore) ClaimJob(ctx context.Context, id string) (bool, int64, error) {
 	return true, 1, nil
 }

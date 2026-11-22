@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/apierror"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
@@ -34,13 +34,13 @@ var errAccessDenied = errors.New("access denied")
 
 // deny writes a 403 with the given message and returns errAccessDenied so the
 // calling handler aborts.
-func deny(c echo.Context, msg string) error {
+func deny(c *echo.Context, msg string) error {
 	_ = c.JSON(http.StatusForbidden, ErrorResponse{Error: msg})
 	return errAccessDenied
 }
 
 // validateSessionCookie extracts and validates a JWT from the bowrain_session cookie.
-func validateSessionCookie(c echo.Context, jwtSecret string) *platauth.Claims {
+func validateSessionCookie(c *echo.Context, jwtSecret string) *platauth.Claims {
 	cookie, err := c.Cookie(sessionCookieName)
 	if err != nil || cookie.Value == "" {
 		return nil
@@ -54,7 +54,7 @@ func validateSessionCookie(c echo.Context, jwtSecret string) *platauth.Claims {
 
 // setClaimsOnContext sets user claims on both the Echo context and the request
 // context (for actor attribution in events emitted by the ContentStore).
-func setClaimsOnContext(c echo.Context, claims *platauth.Claims) {
+func setClaimsOnContext(c *echo.Context, claims *platauth.Claims) {
 	c.Set("user_id", claims.Subject)
 	c.Set("email", claims.Email)
 	c.Set("name", claims.Name)
@@ -71,7 +71,7 @@ func setClaimsOnContext(c echo.Context, claims *platauth.Claims) {
 }
 
 // requestMeta extracts audit-relevant request metadata from the echo context.
-func requestMeta(c echo.Context) platev.RequestMeta {
+func requestMeta(c *echo.Context) platev.RequestMeta {
 	reqID, _ := c.Get("request_id").(string)
 	if reqID == "" {
 		reqID = c.Response().Header().Get(echo.HeaderXRequestID)
@@ -88,7 +88,7 @@ func requestMeta(c echo.Context) platev.RequestMeta {
 // claims on the Echo context.
 func AuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			// Try Bearer header first.
 			header := c.Request().Header.Get("Authorization")
 			if after, ok := strings.CutPrefix(header, "Bearer "); ok {
@@ -153,7 +153,7 @@ func ensureUserExists(ctx context.Context, authStore auth.AuthStore, claims *pla
 }
 
 // handleAPIToken validates a bwt_ API token, looks up the user, and sets context.
-func handleAPIToken(c echo.Context, next echo.HandlerFunc, token string, authStore auth.AuthStore) error {
+func handleAPIToken(c *echo.Context, next echo.HandlerFunc, token string, authStore auth.AuthStore) error {
 	ctx := c.Request().Context()
 
 	hash := sha256.Sum256([]byte(token))
@@ -178,11 +178,13 @@ func handleAPIToken(c echo.Context, next echo.HandlerFunc, token string, authSto
 	c.Set("name", user.Name)
 	c.Set("api_token_id", apiToken.ID)
 	c.Set("api_token_scopes", apiToken.Scopes)
-	// A machine token authors as the machine. user_id stays the token's owner,
-	// because that is who is accountable and whose membership resolves the
-	// permissions — only authorship moves. See authorIdentity.
-	if apiToken.AgentName != "" {
+	// A tool token acts as the tool. user_id stays the member who issued it,
+	// who is accountable and whose membership resolves the permissions; the
+	// tool is recorded as who did the work. See requestActor.
+	if apiToken.IsTool() {
 		c.Set("author_identity", apiToken.AuthorIdentity())
+		c.Set(toolNameKey, apiToken.ToolName)
+		ctx = platev.WithTool(ctx, platev.Tool{Name: apiToken.ToolName, TokenID: apiToken.ID})
 	}
 	// Propagate actor into the request context for event attribution.
 	ctx = platev.WithActor(ctx, user.ID, user.Name)
@@ -209,7 +211,7 @@ func handleAPIToken(c echo.Context, next echo.HandlerFunc, token string, authSto
 // or a session cookie. With a ClaimToken, access is restricted to only the matching project.
 func ClaimOrAuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			header := c.Request().Header.Get("Authorization")
 
 			// Try ClaimToken first (only from header).
@@ -279,7 +281,7 @@ func ClaimOrAuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.Midd
 // of the workspace identified by the :ws path parameter.
 func WorkspaceAccessMiddleware(authStore auth.AuthStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			userID, ok := c.Get("user_id").(string)
 			if !ok || userID == "" {
 				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "not authenticated"})
@@ -347,7 +349,7 @@ func WorkspaceAccessMiddleware(authStore auth.AuthStore) echo.MiddlewareFunc {
 // again", not a statement about existence or standing. The client sees the
 // generic envelope; the operator sees the slug and the driver's own words
 // against the same reference the client can quote.
-func workspaceLookupUnavailable(c echo.Context, op, wsSlug string, err error) error {
+func workspaceLookupUnavailable(c *echo.Context, op, wsSlug string, err error) error {
 	slog.Error("workspace resolution failed",
 		"op", op, "workspace_slug", wsSlug,
 		"reference", apierror.RequestID(c), "error", err)
@@ -368,7 +370,7 @@ const codeWorkspaceLookupFailed = "workspace_lookup_failed"
 // not configured (store is nil or plan is empty), this is a no-op.
 func MonthlyAllocationMiddleware(store billing.BillingStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			if store == nil {
 				return next(c)
 			}
@@ -399,7 +401,7 @@ func MonthlyAllocationMiddleware(store billing.BillingStore) echo.MiddlewareFunc
 
 // requireRole verifies that the authenticated user has one of the allowed roles
 // in the current workspace. Returns an echo error response on failure, nil on success.
-func (s *Server) requireRole(c echo.Context, allowed ...platauth.Role) error {
+func (s *Server) requireRole(c *echo.Context, allowed ...platauth.Role) error {
 	role, ok := c.Get("workspace_role").(platauth.Role)
 	if !ok {
 		return deny(c, "workspace role not available")
@@ -434,7 +436,7 @@ func (s *Server) requireRole(c echo.Context, allowed ...platauth.Role) error {
 // the flat sync routes) are resolved via the project's workspace.
 func (s *Server) ProjectAccessMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			// 1. Claim-token sync: full access to the single claimed project.
 			if claimPID, _ := c.Get("claim_project_id").(string); claimPID != "" {
 				c.Set("project_permissions", platauth.PermAll)
@@ -523,7 +525,13 @@ func (s *Server) ProjectAccessMiddleware() echo.MiddlewareFunc {
 				s.recordCustodyLapse(c, access.coordinates)
 			}
 
-			c.Set("project_permissions", access.permissions)
+			perms := access.permissions
+			// A tool token never approves or rejects translations, whatever
+			// its issuer's membership and its scopes grant.
+			if requestActorOf(c).isTool() {
+				perms &^= reviewDeniedToTools
+			}
+			c.Set("project_permissions", perms)
 			c.Set("project_languages", access.languages)
 			c.Set("project_coordinates", access.coordinates)
 
@@ -651,7 +659,7 @@ func (s *Server) workspaceRoleFallback(ctx context.Context, r accessRequest) *pl
 // membership, workspace-role fallback, or claim-token grant). A missing context
 // therefore means the caller is unauthenticated or the route is misconfigured —
 // either way, deny rather than silently allow.
-func (s *Server) requirePermission(c echo.Context, perm platauth.Permission) error {
+func (s *Server) requirePermission(c *echo.Context, perm platauth.Permission) error {
 	perms, ok := c.Get("project_permissions").(platauth.Permission)
 	if !ok {
 		s.emitAuthzDenied(c, perm, "no_permission_context")
@@ -666,7 +674,7 @@ func (s *Server) requirePermission(c echo.Context, perm platauth.Permission) err
 
 // emitAuthzDenied records an authorization denial for an authenticated caller.
 // Anonymous/unauthenticated probes are not recorded (no actor to attribute).
-func (s *Server) emitAuthzDenied(c echo.Context, perm platauth.Permission, reason string) {
+func (s *Server) emitAuthzDenied(c *echo.Context, perm platauth.Permission, reason string) {
 	if actor, _ := c.Get("user_id").(string); actor == "" {
 		return
 	}
@@ -688,7 +696,7 @@ func (s *Server) emitAuthzDenied(c echo.Context, perm platauth.Permission, reaso
 
 // requireLanguagePermission verifies both the permission and language access.
 // Use for language-scoped operations like translation and review.
-func (s *Server) requireLanguagePermission(c echo.Context, perm platauth.Permission, locale string) error {
+func (s *Server) requireLanguagePermission(c *echo.Context, perm platauth.Permission, locale string) error {
 	if err := s.requirePermission(c, perm); err != nil {
 		return err
 	}
@@ -709,7 +717,7 @@ const unreachableAxis = "\x00unreachable"
 
 // hasPermission is requirePermission as a predicate: it answers the same
 // question without writing a 403 or recording a denial.
-func hasPermission(c echo.Context, perm platauth.Permission) bool {
+func hasPermission(c *echo.Context, perm platauth.Permission) bool {
 	perms, ok := c.Get("project_permissions").(platauth.Permission)
 	return ok && perms.Has(perm)
 }
@@ -718,7 +726,7 @@ func hasPermission(c echo.Context, perm platauth.Permission) bool {
 // same question without writing a 403 or recording a denial. A batch route
 // uses it where one block's refusal must be recorded against that block
 // instead of answering for the whole request.
-func allowsLanguage(c echo.Context, perm platauth.Permission, locale string) bool {
+func allowsLanguage(c *echo.Context, perm platauth.Permission, locale string) bool {
 	if !hasPermission(c, perm) {
 		return false
 	}
@@ -728,7 +736,7 @@ func allowsLanguage(c echo.Context, perm platauth.Permission, locale string) boo
 
 // callerReach is the caller's custody on this request, for the surfaces that
 // report custody rather than enforce it.
-func callerReach(c echo.Context) platauth.CoordinateReach {
+func callerReach(c *echo.Context) platauth.CoordinateReach {
 	reach, _ := c.Get("project_coordinates").(platauth.CoordinateReach)
 	return reach
 }
@@ -738,7 +746,7 @@ func callerReach(c echo.Context) platauth.CoordinateReach {
 // Parses the token's scopes and intersects them with the already-resolved project permissions.
 func ScopeRestrictionMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			scopesJSON, _ := c.Get("api_token_scopes").(string)
 			if scopesJSON == "" {
 				return next(c) // not an API token request or no scopes set
@@ -748,7 +756,6 @@ func ScopeRestrictionMiddleware() echo.MiddlewareFunc {
 			if !ok {
 				return next(c) // no project permissions to restrict
 			}
-
 			resolved, err := platauth.ParseScopes(scopesJSON)
 			if err != nil || resolved.IsFullAccess {
 				return next(c) // "*" scope or parse error — no restriction
@@ -791,7 +798,7 @@ func ScopeRestrictionMiddleware() echo.MiddlewareFunc {
 // bravo_session_id is present on the echo context.
 func SessionGrantMiddleware(stateStore SessionStateStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			sessionID, _ := c.Get("bravo_session_id").(string)
 			if sessionID == "" {
 				return next(c)

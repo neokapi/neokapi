@@ -46,27 +46,27 @@ parameters:
       The argument list for the command. Use `${source}` and `${target}` as
       placeholders; both are replaced with the text being processed.
     values: "array of strings"
-  applySource:
+  apply_source:
     description: Process source text.
     help: When enabled, the source text is sent through the command.
     values: "`true` / `false` (default `false`)"
-  applyTarget:
+  apply_target:
     description: Process target text.
     help: |
       When enabled, the target text is sent through the command for the
       configured locale. Only existing targets are touched.
     values: "`true` / `false` (default `true`)"
     dependsOn:
-      - property: targetLocale
-        condition: required when applyTarget is enabled
-  targetLocale:
+      - property: target_locale
+        condition: required when apply_target is enabled
+  target_locale:
     description: Target locale for processing.
-    help: The locale whose target text is processed. Required when `applyTarget` is enabled.
+    help: The locale whose target text is processed. Required when `apply_target` is enabled.
     values: "BCP-47 locale"
     dependsOn:
-      - property: applyTarget
+      - property: apply_target
         condition: must be enabled for this to take effect
-  sendAsStdin:
+  send_as_stdin:
     description: Send the text on standard input rather than as an argument.
     help: |
       When enabled, the text is written to the command's standard input. When
@@ -90,12 +90,12 @@ examples:
     description: Run an external program on the target, sending text on stdin.
     config: |
       command: my-formatter
-      applyTarget: true
-      targetLocale: fr
+      apply_target: true
+      target_locale: fr
   - title: Pass text as an argument
     description: Substitute the text into the argument list instead of stdin.
     config: |
       command: transform
       args: ["--text", "${source}"]
-      applySource: true
-      sendAsStdin: false
+      apply_source: true
+      send_as_stdin: false

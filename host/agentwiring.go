@@ -70,7 +70,7 @@ const (
 	AgentHostAgents AgentHost = "agents"
 )
 
-// agentHostOrder is every host kapi knows, in the order a result lists them.
+// agentHostOrder is every host kapi supports, in the order a result lists them.
 var agentHostOrder = []AgentHost{
 	AgentHostClaudeCode, AgentHostCursor, AgentHostVSCode, AgentHostCodex, AgentHostAgents,
 }
@@ -182,7 +182,7 @@ type AgentWiringOptions struct {
 var ErrUnknownAgentHost = errors.New("unknown agent host")
 
 // agentHostNone is the spelling that opts out, and agentHostAll the one that
-// asks for every host kapi knows.
+// asks for every host kapi supports.
 const (
 	agentHostNone = "none"
 	agentHostAll  = "all"

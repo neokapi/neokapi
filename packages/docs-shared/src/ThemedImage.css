@@ -10,16 +10,16 @@
   border-radius: 10px;
 }
 
-.themed-img--dark {
+/* The variant rules carry two classes so they outrank the one-class
+   `.themed-img` rule above whatever the order. The CSS minifier merges and
+   reorders rules of equal specificity, so source order is no guarantee. */
+.themed-img.themed-img--dark {
   display: none;
-}
-.themed-img--light {
-  display: block;
 }
 
-[data-theme="dark"] .themed-img--light {
+[data-theme="dark"] .themed-img.themed-img--light {
   display: none;
 }
-[data-theme="dark"] .themed-img--dark {
+[data-theme="dark"] .themed-img.themed-img--dark {
   display: block;
 }

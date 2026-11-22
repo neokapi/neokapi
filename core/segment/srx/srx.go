@@ -55,7 +55,7 @@ func init() {
 type Params struct {
 	// RulesPath points at a custom SRX 2.0 rules file, overriding the built-in
 	// ruleset.
-	RulesPath string `json:"rulesPath,omitempty" schema:"title=SRX Rules File,description=Path to a custom SRX 2.0 rules file (overrides the built-in ruleset),widget=file-picker,order=10"`
+	RulesPath string `json:"rules_path,omitempty" schema:"title=SRX Rules File,description=Path to a custom SRX 2.0 rules file (overrides the built-in ruleset),widget=file-picker,order=10"`
 	// RulesXML is inline SRX 2.0 XML, taking precedence over RulesPath. It is not
 	// a form field — it backs programmatic callers (the docs lab, tests) that
 	// embed a ruleset directly.

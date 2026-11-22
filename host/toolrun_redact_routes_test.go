@@ -373,7 +373,7 @@ func TestToolRun_RefusesEntityDetection(t *testing.T) {
 		a.InitRegistries()
 		cfg := upperRun(a, filepath.Join(filepath.Dir(recipe), "docs", "page.json"))
 		cfg.Project = recipe
-		cfg.ToolConfig = map[string]any{"mode": "upper", "applySource": true}
+		cfg.ToolConfig = map[string]any{"mode": "upper", "apply_source": true}
 		require.NoError(t, a.RunToolOnFiles(t.Context(), cfg))
 	})
 }

@@ -63,12 +63,12 @@ flows:
     steps:
       - tool: recycle
         config:
-          fillTarget: true
-          fillTargetThreshold: 100
+          fill_target: true
+          fill_target_threshold: 100
       - tool: translate
         config:
           provider: demo
-          skipMatched: true
+          skip_matched: true
           term_rules: &term_rules
             - term: billing period
               replacement: période de facturation

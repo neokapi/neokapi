@@ -33,19 +33,19 @@ const (
 
 // MemoryLeverageConfig holds configuration for the content-memory leverage tool.
 type MemoryLeverageConfig struct {
-	TargetLocale model.LocaleID      `json:"targetLocale,omitempty"   schema:"-"`
-	SourceLocale model.LocaleID      `json:"sourceLocale,omitempty"   schema:"-"`
+	TargetLocale model.LocaleID      `json:"target_locale,omitempty"   schema:"-"`
+	SourceLocale model.LocaleID      `json:"source_locale,omitempty"   schema:"-"`
 	Memory       corememory.Provider `json:"-"                   schema:"-"`
 
 	// Schema-visible properties matching the bridge schema.
-	FuzzyThreshold                int    `json:"fuzzyThreshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for a match; the fuzzy path below 100 is retiring,default=70,min=0,max=100"`
-	FillTarget                    bool   `json:"fillTarget,omitempty"       schema:"title=Fill Target with Translation,description=Copy the best translation candidate into the target content,default=true"`
-	FillTargetThreshold           int    `json:"fillTargetThreshold,omitempty" schema:"title=Fill Target Threshold,description=Minimum match score required to fill the target (100 = exact only),default=95,min=0,max=100"`
-	FillIfTargetIsEmpty           bool   `json:"fillIfTargetIsEmpty,omitempty" schema:"title=Only If Target Is Empty,description=Fill the target only when it has no existing content"`
-	NoQueryThreshold              int    `json:"noQueryThreshold,omitempty" schema:"title=No-Query Threshold,description=Skip content-memory query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
-	MakeTMX                       bool   `json:"makeTmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
-	TMXPath                       string `json:"tmxPath,omitempty"         schema:"title=TMX Output Path,description=File path for the generated TMX document"`
-	DowngradeIdenticalBestMatches bool   `json:"downgradeIdenticalBestMatches,omitempty" schema:"title=Downgrade Identical Exact Matches,description=Reduce score by 1%% when multiple identical exact matches are returned"`
+	FuzzyThreshold                int    `json:"fuzzy_threshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for a match; the fuzzy path below 100 is retiring,default=70,min=0,max=100"`
+	FillTarget                    bool   `json:"fill_target,omitempty"       schema:"title=Fill Target with Translation,description=Copy the best translation candidate into the target content,default=true"`
+	FillTargetThreshold           int    `json:"fill_target_threshold,omitempty" schema:"title=Fill Target Threshold,description=Minimum match score required to fill the target (100 = exact only),default=95,min=0,max=100"`
+	FillIfTargetIsEmpty           bool   `json:"fill_if_target_is_empty,omitempty" schema:"title=Only If Target Is Empty,description=Fill the target only when it has no existing content"`
+	NoQueryThreshold              int    `json:"no_query_threshold,omitempty" schema:"title=No-Query Threshold,description=Skip content-memory query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
+	MakeTMX                       bool   `json:"make_tmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
+	TMXPath                       string `json:"tmx_path,omitempty"         schema:"title=TMX Output Path,description=File path for the generated TMX document"`
+	DowngradeIdenticalBestMatches bool   `json:"downgrade_identical_best_matches,omitempty" schema:"title=Downgrade Identical Exact Matches,description=Reduce score by 1%% when multiple identical exact matches are returned"`
 
 	// Point is where this run's content sits in the project's context space,
 	// injected by the flow's bindings. It is a location, not governance: it
@@ -332,11 +332,11 @@ func fillBreaksTermRules(conf *MemoryLeverageConfig, v tool.VariantView, candida
 	if len(conf.TermRules) == 0 {
 		return false
 	}
-	errs, _ := TermCheckViolations(&TermCheckConfig{
+	errs, _ := TermCheckRunViolations(&TermCheckConfig{
 		TermRules:    conf.TermRules,
 		SourceLocale: conf.SourceLocale,
 		TargetLocale: conf.TargetLocale,
-	}, v.SourceText(), model.RunsText(candidate))
+	}, v.SourceRuns(), candidate)
 	return len(errs) > 0
 }
 
@@ -358,7 +358,7 @@ func fillBreaksTermRules(conf *MemoryLeverageConfig, v tool.VariantView, candida
 //     codes and placeholders survive as model objects;
 //   - an Ambiguous match (several full-score exacts with differing
 //     targets) is recorded as an alt-translation candidate but never
-//     filled, regardless of fillTargetThreshold — unattended leverage must
+//     filled, regardless of fill_target_threshold — unattended leverage must
 //     not turn an arbitrary pick into published content. The text path is
 //     skipped too: it would resolve the same tie by arbitrary pick.
 //
@@ -390,7 +390,7 @@ func leverageBlock(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 	if m.Exact {
 		matchType, propType = model.MatchExact, "exact"
 	}
-	targetRuns := cloneRuns(m.TargetRuns)
+	targetRuns := model.CloneRuns(m.TargetRuns)
 	v.AddAltTranslation(&model.AltTranslation{
 		Source:    v.SourceRuns(),
 		Target:    targetRuns,
@@ -450,69 +450,6 @@ func leverageBlock(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 	})
 	v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
 	return true
-}
-
-// cloneRuns deep-copies a Run sequence so a TM entry's stored runs are
-// never aliased into block targets (an in-memory TM hands out its own
-// slices; a later edit to one filled block must not rewrite the entry or
-// another block).
-func cloneRuns(runs []model.Run) []model.Run {
-	if runs == nil {
-		return nil
-	}
-	out := make([]model.Run, len(runs))
-	for i, r := range runs {
-		out[i] = cloneRun(r)
-	}
-	return out
-}
-
-func cloneRun(r model.Run) model.Run {
-	var c model.Run
-	switch {
-	case r.Text != nil:
-		t := *r.Text
-		c.Text = &t
-	case r.Ph != nil:
-		p := *r.Ph
-		if p.Constraints != nil {
-			cc := *p.Constraints
-			p.Constraints = &cc
-		}
-		c.Ph = &p
-	case r.PcOpen != nil:
-		p := *r.PcOpen
-		if p.Constraints != nil {
-			cc := *p.Constraints
-			p.Constraints = &cc
-		}
-		c.PcOpen = &p
-	case r.PcClose != nil:
-		p := *r.PcClose
-		c.PcClose = &p
-	case r.Sub != nil:
-		s := *r.Sub
-		c.Sub = &s
-	case r.Plural != nil:
-		p := model.PluralRun{Pivot: r.Plural.Pivot}
-		if r.Plural.Forms != nil {
-			p.Forms = make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
-			for k, form := range r.Plural.Forms {
-				p.Forms[k] = cloneRuns(form)
-			}
-		}
-		c.Plural = &p
-	case r.Select != nil:
-		s := model.SelectRun{Pivot: r.Select.Pivot}
-		if r.Select.Cases != nil {
-			s.Cases = make(map[string][]model.Run, len(r.Select.Cases))
-			for k, cs := range r.Select.Cases {
-				s.Cases[k] = cloneRuns(cs)
-			}
-		}
-		c.Select = &s
-	}
-	return c
 }
 
 // leverageSegments attempts sentence-level content-memory leverage over a multi-segment

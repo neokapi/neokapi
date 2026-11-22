@@ -10,19 +10,19 @@ interface PartInspectorProps {
 
 /** Single row showing before/after state for a block part. */
 function PartRow({ before, after }: { before: PartSnapshot; after: PartSnapshot }) {
-  const sourceChanged = before.sourceText !== after.sourceText;
-  const targetChanged = before.targetText !== after.targetText;
+  const sourceChanged = before.source_text !== after.source_text;
+  const targetChanged = before.target_text !== after.target_text;
 
   return (
     <div className="mb-2.5 rounded-md border border-border p-2">
       <div className="mb-1.5 text-[10px] text-muted-foreground">{before.summary}</div>
 
       {/* Source text */}
-      {before.sourceText && (
+      {before.source_text && (
         <div className="mb-1">
           <div className="mb-0.5 text-[9px] font-semibold text-muted-foreground">SOURCE</div>
           <div className="text-[11px] leading-snug text-foreground">
-            {after.sourceText || before.sourceText}
+            {after.source_text || before.source_text}
             {sourceChanged && (
               <span className="ml-1 text-[9px] text-accent-foreground">changed</span>
             )}
@@ -33,11 +33,11 @@ function PartRow({ before, after }: { before: PartSnapshot; after: PartSnapshot 
       {/* Target text */}
       <div>
         <div className="mb-0.5 text-[9px] font-semibold text-muted-foreground">TARGET</div>
-        {before.targetText || after.targetText ? (
+        {before.target_text || after.target_text ? (
           <div className="flex flex-col gap-0.5">
-            {before.targetText && before.targetText !== after.targetText && (
+            {before.target_text && before.target_text !== after.target_text && (
               <div className="text-[11px] text-muted-foreground line-through opacity-60">
-                {before.targetText}
+                {before.target_text}
               </div>
             )}
             <div
@@ -46,7 +46,7 @@ function PartRow({ before, after }: { before: PartSnapshot; after: PartSnapshot 
                 targetChanged ? "text-accent-foreground" : "text-foreground",
               )}
             >
-              {after.targetText || "(empty)"}
+              {after.target_text || "(empty)"}
             </div>
           </div>
         ) : (
@@ -64,7 +64,7 @@ function PartRow({ before, after }: { before: PartSnapshot; after: PartSnapshot 
 export function PartInspector({ nodeId, nodeName, parts }: PartInspectorProps) {
   // Filter to Block-type parts that have snapshots for this node.
   const relevantParts = Object.entries(parts).filter(
-    ([, ss]) => ss.initial.type === "Block" && ss.afterNode?.[nodeId],
+    ([, ss]) => ss.initial.type === "Block" && ss.after_node?.[nodeId],
   );
 
   return (
@@ -85,7 +85,7 @@ export function PartInspector({ nodeId, nodeName, parts }: PartInspectorProps) {
           )}
 
           {relevantParts.map(([partId, ss]) => (
-            <PartRow key={partId} before={ss.initial} after={ss.afterNode![nodeId]} />
+            <PartRow key={partId} before={ss.initial} after={ss.after_node![nodeId]} />
           ))}
         </div>
       </ScrollArea>

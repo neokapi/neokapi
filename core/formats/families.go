@@ -67,6 +67,7 @@ var builtInFamilies = map[registry.FormatID]registry.FormatFamily{
 	"vtt": registry.FamilySubtitleTimedText,
 
 	// Unmarked text.
+	"eml":       registry.FamilyPlainText,
 	"exec":      registry.FamilyPlainText,
 	"plaintext": registry.FamilyPlainText,
 

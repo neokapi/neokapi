@@ -7,6 +7,11 @@ keywords: [testing, roundtrip, table-driven tests, spec.yaml, Okapi, testify, mo
 
 # Test Strategy
 
+Every format, tool and flow in neokapi is tested at its interface, and a
+format's roundtrip test is the bar it must pass. Copy the patterns below for a
+new test, pick the build tag that matches its scope, and add a gate conformance
+case when you change what `kapi check` reports.
+
 ## Principles
 
 1. **Every format and tool has tests.** No format reader/writer or tool ships without tests.
@@ -258,4 +263,12 @@ excludes `**/testdata/**`, so `kapi check` on the repository never reads them.
 
 ## CI
 
-Tests run automatically via GitHub Actions on every push and pull request. See `.github/workflows/ci.yml`.
+GitHub Actions runs the tests on every push and pull request
+(`.github/workflows/ci.yml`).
+
+## Related
+
+- [A-01: Testing and documentation](/contribute/architecture/assurance/a-01-testing-and-documentation): the test layers and what each protects.
+- [A-02: Parity](/contribute/architecture/assurance/a-02-parity): the comparison against the Okapi Framework.
+- [Implementing a Format](/contribute/formats): extraction and roundtrip tests for a new format.
+- [Tool Authoring with Parameter Schemas](/contribute/tool-authoring): building the tools these tests drive.

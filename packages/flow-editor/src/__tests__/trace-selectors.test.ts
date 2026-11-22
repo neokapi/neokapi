@@ -24,11 +24,11 @@ function sampleTrace(): FlowTrace {
       { id: "writer", type: "writer", name: "write" },
     ],
     events: [
-      { ts: 1, type: "enter", nodeId: "tool-1", partId: "b1" },
-      { ts: 2, type: "exit", nodeId: "tool-1", partId: "b1" },
-      { ts: 3, type: "enter", nodeId: "tool-2", partId: "b1" },
-      { ts: 5, type: "exit", nodeId: "tool-2", partId: "b1" },
-      { ts: 6, type: "enter", nodeId: "writer", partId: "b1" },
+      { ts: 1, type: "enter", node_id: "tool-1", part_id: "b1" },
+      { ts: 2, type: "exit", node_id: "tool-1", part_id: "b1" },
+      { ts: 3, type: "enter", node_id: "tool-2", part_id: "b1" },
+      { ts: 5, type: "exit", node_id: "tool-2", part_id: "b1" },
+      { ts: 6, type: "enter", node_id: "writer", part_id: "b1" },
     ],
     parts: {
       b1: {
@@ -36,7 +36,7 @@ function sampleTrace(): FlowTrace {
           id: "b1",
           type: "Block",
           summary: "Call Jane Doe",
-          sourceText: "Call Jane Doe",
+          source_text: "Call Jane Doe",
           detail: {
             overlays: [
               {
@@ -47,12 +47,12 @@ function sampleTrace(): FlowTrace {
             ],
           },
         },
-        afterNode: {
+        after_node: {
           "tool-1": {
             id: "b1",
             type: "Block",
             summary: "Call Jane Doe",
-            sourceText: "Call [REDACTED:Person]",
+            source_text: "Call [REDACTED:Person]",
             detail: {
               annotations: [{ key: "redaction.secret", summary: "redaction.secret" }],
             },
@@ -61,8 +61,8 @@ function sampleTrace(): FlowTrace {
             id: "b1",
             type: "Block",
             summary: "Call Jane Doe",
-            sourceText: "Call [REDACTED:Person]",
-            targetText: "Appeler [REDACTED:Person]",
+            source_text: "Call [REDACTED:Person]",
+            target_text: "Appeler [REDACTED:Person]",
             detail: {
               annotations: [{ key: "redaction.secret", summary: "redaction.secret" }],
             },
@@ -70,7 +70,7 @@ function sampleTrace(): FlowTrace {
         },
       },
     },
-    durationUs: 10,
+    duration_us: 10,
   };
 }
 
@@ -103,7 +103,7 @@ describe("remapEventsToEditor", () => {
   it("rewrites node ids and drops reader/writer events", () => {
     const events = remapEventsToEditor(sampleTrace(), stepToolCounts(STEPS));
     expect(events).toHaveLength(4);
-    expect(events.map((e) => e.nodeId)).toEqual(["tool-0", "tool-0", "tool-1", "tool-1"]);
+    expect(events.map((e) => e.node_id)).toEqual(["tool-0", "tool-0", "tool-1", "tool-1"]);
   });
 });
 
@@ -124,13 +124,13 @@ describe("partsThroughStep", () => {
 
     const redact = partsThroughStep(trace, counts, 0);
     expect(redact).toHaveLength(1);
-    expect(redact[0].before.sourceText).toBe("Call Jane Doe");
-    expect(redact[0].after.sourceText).toBe("Call [REDACTED:Person]");
+    expect(redact[0].before.source_text).toBe("Call Jane Doe");
+    expect(redact[0].after.source_text).toBe("Call [REDACTED:Person]");
 
     const translate = partsThroughStep(trace, counts, 1);
     expect(translate).toHaveLength(1);
-    expect(translate[0].before.sourceText).toBe("Call [REDACTED:Person]");
-    expect(translate[0].after.targetText).toBe("Appeler [REDACTED:Person]");
+    expect(translate[0].before.source_text).toBe("Call [REDACTED:Person]");
+    expect(translate[0].after.target_text).toBe("Appeler [REDACTED:Person]");
   });
 });
 
@@ -151,22 +151,22 @@ function layerTrace(): FlowTrace {
       { id: "writer", type: "writer", name: "write" },
     ],
     events: [
-      { ts: 1, type: "enter", nodeId: "tool-1", partId: "doc1#start" },
-      { ts: 2, type: "exit", nodeId: "tool-1", partId: "doc1#start" },
-      { ts: 3, type: "enter", nodeId: "tool-1", partId: "doc1#end" },
-      { ts: 4, type: "exit", nodeId: "tool-1", partId: "doc1#end" },
+      { ts: 1, type: "enter", node_id: "tool-1", part_id: "doc1#start" },
+      { ts: 2, type: "exit", node_id: "tool-1", part_id: "doc1#start" },
+      { ts: 3, type: "enter", node_id: "tool-1", part_id: "doc1#end" },
+      { ts: 4, type: "exit", node_id: "tool-1", part_id: "doc1#end" },
     ],
     parts: {
       "doc1#start": {
         initial: structural("doc1", "LayerStart", "Layer: Document"),
-        afterNode: { "tool-1": structural("doc1", "LayerStart", "Layer: Document") },
+        after_node: { "tool-1": structural("doc1", "LayerStart", "Layer: Document") },
       },
       "doc1#end": {
         initial: structural("doc1", "LayerEnd", "end layer doc1"),
-        afterNode: { "tool-1": structural("doc1", "LayerEnd", "end layer doc1") },
+        after_node: { "tool-1": structural("doc1", "LayerEnd", "end layer doc1") },
       },
     },
-    durationUs: 4,
+    duration_us: 4,
   };
 }
 

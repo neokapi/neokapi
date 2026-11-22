@@ -267,6 +267,11 @@ export interface ChangeResultInfo {
   status: "applied" | "refused" | "previewed" | "partial";
   record: string | null;
   error?: { code: string; message: string };
+  /** One entry per document the change touched, with what the commit check found. */
+  docs: Array<{
+    written: boolean;
+    findings?: Array<{ rule: string; message: string; fails: boolean }>;
+  }>;
   ops: Array<{
     i: number;
     op: string;

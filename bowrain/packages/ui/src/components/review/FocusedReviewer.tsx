@@ -14,12 +14,13 @@ import {
 import type { EntityInfo, ComplianceBasis, ReviewContext } from "../../types/api";
 import { ComplianceRateChip } from "../ComplianceRateChip";
 import { entityLabel } from "../editor/entityMarks";
-import { sourceRuns } from "../editor/blockContent";
+import { sourceRuns, targetRuns } from "../editor/blockContent";
 import { FormattedSourceDisplay } from "../editor/FormattedSourceDisplay";
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { getBlockStatus, getTargetText } from "../editor/blockStatus";
 import { blockToContentNode } from "../../preview/toContentTree";
+import { DocumentPreview } from "../editor/DocumentPreview";
 import {
   AnchoredTarget,
   findingViews,
@@ -63,6 +64,13 @@ export interface ReviewerCompliance {
 export interface FocusedReviewerProps {
   /** The pending block being reviewed. */
   entry: ReviewEntry;
+  /**
+   * The project the entry's item is in. With it the reviewer reads the block
+   * in its document, opened at the block, before the neighbourhood list.
+   */
+  projectId?: string;
+  /** Open another block of the document in the reviewer, as a click in the document asks. */
+  onOpenBlock?: (blockId: string) => void;
   /** Source language code, for the source column label. */
   sourceLocale: string;
   /** 1-based position + total for the "3 of 12" header. */
@@ -150,6 +158,8 @@ const verdictChip: Record<ReviewQueueVerdict, string> = {
  */
 export function FocusedReviewer({
   entry,
+  projectId,
+  onOpenBlock,
   sourceLocale,
   position,
   localeName,
@@ -177,6 +187,9 @@ export function FocusedReviewer({
   const status = getBlockStatus(block, locale);
   const verdict = entryVerdict(entry);
   const [selection, setSelection] = useState("");
+  // The block is read in its document first; the neighbourhood list is the
+  // fallback, and the only view without a project.
+  const [contextView, setContextView] = useState<"document" | "list">("document");
 
   // Capture the current source-text selection so the source-side lane can act
   // on it. Constrained to the source column via the onMouseUp target.
@@ -281,17 +294,66 @@ export function FocusedReviewer({
           {/* The document surface has the neighbourhood by construction; the
             queue is a flat list across items, so it says what this block sits
             between, and how many neighbours that is before it is opened. */}
-          <NeighbourhoodCard
-            neighbourhood={context?.neighbourhood}
-            loading={contextLoading}
-            unitKey={block.id}
-            unitSource={block.source}
-            unitTarget={targetText}
-            sourceLocale={sourceLocale}
-            locale={locale}
-            testId="reviewer-neighbourhood"
-            className="mb-3"
-          />
+          {projectId ? (
+            <section
+              data-slot="reviewer-in-document"
+              className="mb-3 overflow-hidden rounded-md border"
+            >
+              <div className="flex items-center justify-between gap-2 border-b px-3 py-1.5">
+                <span className="text-xs font-medium text-muted-foreground">In the document</span>
+                <div className="flex gap-1" role="tablist">
+                  <Button
+                    size="sm"
+                    variant={contextView === "document" ? "secondary" : "ghost"}
+                    role="tab"
+                    aria-selected={contextView === "document"}
+                    data-slot="reviewer-view-document"
+                    onClick={() => setContextView("document")}
+                  >
+                    Document
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={contextView === "list" ? "secondary" : "ghost"}
+                    role="tab"
+                    aria-selected={contextView === "list"}
+                    data-slot="reviewer-view-list"
+                    onClick={() => setContextView("list")}
+                  >
+                    Before and after
+                  </Button>
+                </div>
+              </div>
+              {contextView === "document" ? (
+                <div className="h-[22rem] overflow-auto">
+                  <DocumentPreview
+                    key={entry.itemName}
+                    projectId={projectId}
+                    itemName={entry.itemName}
+                    sourceLocale={sourceLocale}
+                    targetLocale={locale}
+                    selectedBlockId={block.id}
+                    previewContentMode="target"
+                    onBlockSelect={(id) => onOpenBlock?.(id)}
+                  />
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+          {!projectId || contextView === "list" ? (
+            <NeighbourhoodCard
+              neighbourhood={context?.neighbourhood}
+              loading={contextLoading}
+              unitKey={block.id}
+              unit={{ key: block.id, source: sourceRuns(block), target: targetRuns(block, locale) }}
+              unitSource={block.source}
+              unitTarget={targetText}
+              sourceLocale={sourceLocale}
+              locale={locale}
+              testId="reviewer-neighbourhood"
+              className="mb-3"
+            />
+          ) : null}
 
           {/* Source vs target, generous side-by-side */}
           <div className="grid gap-4 lg:grid-cols-2">
@@ -523,40 +585,21 @@ export function FocusedReviewer({
         </div>
       </div>
 
-      {/* Decision bar + keyboard hints */}
-      <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-2.5">
-        <Button
-          size="sm"
-          variant="success"
-          onClick={onApprove}
-          disabled={busy || !canApprove}
-          title={canApprove ? undefined : "Approving needs the review permission for this language"}
-          data-testid="reviewer-approve"
-        >
-          <Check className="mr-1 h-4 w-4" /> Approve
-          <kbd className="ml-1.5 rounded bg-white/20 px-1 text-[10px]">A</kbd>
-        </Button>
-        {/* Reject takes destructive, which is where the shared scale puts it
-            (packages/ui/docs/judgement-colours.md): it undoes the translation
-            in force rather than accepting it. */}
-        <Button
-          size="sm"
-          variant="destructive"
-          onClick={onReject}
-          disabled={busy}
-          data-testid="reviewer-reject"
-        >
-          <X className="mr-1 h-4 w-4" /> Reject
-          <kbd className="ml-1.5 rounded bg-destructive/20 px-1 text-[10px]">R</kbd>
-        </Button>
-        <div className="flex-1" />
+      {/* Keyboard hints on the leading edge, the decision on the trailing edge
+          with Approve last, as a dialog puts its confirming action last
+          (packages/ui/docs/page-patterns.md). */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border px-4 py-2.5">
         <span
           className="hidden items-center gap-3 text-[11px] text-muted-foreground sm:flex"
           aria-hidden
+          data-testid="reviewer-key-hints"
         >
           <span>
             <kbd className="rounded border border-border px-1">J</kbd>/
             <kbd className="rounded border border-border px-1">K</kbd> move
+          </span>
+          <span>
+            <kbd className="rounded border border-border px-1">E</kbd> edit
           </span>
           <span>
             <kbd className="rounded border border-border px-1">A</kbd> approve
@@ -564,13 +607,36 @@ export function FocusedReviewer({
           <span>
             <kbd className="rounded border border-border px-1">R</kbd> reject
           </span>
-          <span>
-            <kbd className="rounded border border-border px-1">E</kbd> edit
-          </span>
           <span className="text-muted-foreground/70">
             {errorCount > 0 ? `${errorCount} error(s)` : ""}
           </span>
         </span>
+        <div className="ml-auto flex items-center gap-6" data-testid="reviewer-decisions">
+          {/* Reject takes destructive, which is where the shared scale puts it
+              (packages/ui/docs/judgement-colours.md): it undoes the translation
+              in force rather than accepting it. */}
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={onReject}
+            disabled={busy}
+            data-testid="reviewer-reject"
+          >
+            <X className="mr-1 h-4 w-4" /> Reject
+          </Button>
+          <Button
+            size="sm"
+            variant="success"
+            onClick={onApprove}
+            disabled={busy || !canApprove}
+            title={
+              canApprove ? undefined : "Approving needs the review permission for this language"
+            }
+            data-testid="reviewer-approve"
+          >
+            <Check className="mr-1 h-4 w-4" /> Approve
+          </Button>
+        </div>
       </div>
     </div>
   );

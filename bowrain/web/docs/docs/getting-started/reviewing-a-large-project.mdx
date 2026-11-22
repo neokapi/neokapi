@@ -1,0 +1,282 @@
+---
+sidebar_position: 4
+title: Reviewing a large project
+slug: /reviewing-a-large-project
+description: How to review a project with more content than anyone can read. Decide the coordinates and the context first, then the exceptions, then whole interfaces in context, and let the checks settle the rest under a policy you set.
+keywords: [review, review plan, large project, involvement, context, terms, coordinates, voice profile, policy, approve passing]
+---
+
+# Reviewing a large project
+
+A project connected to a real repository holds thousands of blocks in the
+source language, and as many again in each target language. You will not read
+them one by one, and you don't need to. Most of that text is generated from a
+few decisions: where each part of the project sits, which terms it uses, and
+how its voice sounds. Decide those, and the text follows.
+
+The **review plan** on each project puts those decisions in order. Each step
+reaches more content than the step below it, so you start at the top.
+
+## The five steps
+
+| Step | What you decide | How much one decision reaches |
+| --- | --- | --- |
+| 1. Coordinates | the products, channels and languages, and the voice profile each part of the project uses | every block in that part |
+| 2. Context | the project's terms and voice rules, in the source language first, then each term's translation | every block that uses the term or meets the rule |
+| 3. Exceptions | content that fails a check, grouped by the rule it breaks | the blocks that rule names |
+| 4. Interfaces in context | whole screens, components and pages, read where they ship | the strings on the page |
+| 5. Settled by the checks | nothing: content that clears every check is established under your policy | |
+
+### 1. Coordinates
+
+The plan lists each part of the project with its product and channel, the
+voice profile bound there, and the languages the project translates into.
+These come from the project's recipe or from the context scan Bowrain runs
+when you connect a repository. Read them once and confirm them. A product
+filed under the wrong voice profile, or a language the project never ships,
+puts every block below it at the wrong point.
+
+On the phone, the step opens a map of the project: products as rows, channels
+as columns. Each cell shows how many blocks sit there, the voice profile bound
+there, and a bar for each target language showing how much of it is
+established. The grid scrolls sideways when a product has many channels. Tap a
+cell to see its collections.
+
+When you confirm, Bowrain records the map as it stands: the parts of the
+project, their voice profiles and the target languages. If the recipe changes
+later, the plan lists each change against that record, under the name of the
+person who confirmed: a new part, a part removed or moved, a different voice
+profile, a language added or removed. The map outlines the changed cells, and
+the plan marks the coordinates as the next step again.
+
+Bowrain keeps one record per project. Anyone who can edit the project's
+settings can confirm, and one confirmation settles the step for the whole
+team. A change someone has confirmed leaves everyone's plan.
+
+### 2. Context
+
+The context deck holds the terms and voice rules that wait for your review.
+Decide each term in the source language first, then its term in each language
+you review, while you know what the term means.
+
+Bowrain finds the terms a project uses on its own. When the first content
+arrives, it reads a sample of every collection in the source language and
+proposes the terms the project uses most, ranked by how many blocks use each
+one. It reads the project again when a push adds a collection, or when the
+source grows by a fifth or by 500 blocks since the last read. The terms
+arrive first in the context deck: keep a term, or mark it as not a term so it
+is not proposed again.
+
+While Bowrain reads, the step says **Reading your content**. Before any
+content arrives, it says **Starts when content arrives**. Reading uses AI. If
+your workspace has used its monthly AI limit, the step names the day the limit
+resets, and the read starts with the first push after that. If your workspace
+has no AI credits left, the step says so. To read the project again at any
+time, choose **Scan again** on the project's Overview in Bowrain on the web.
+
+Until a read has finished or the project has terms, the step reads **Not
+started**. It never shows as done with no terms in it.
+
+While the read runs, or waits for content, the AI limit, AI credits or an AI
+provider, the context holds nothing for you to decide. The plan then names the
+step after it as your next step, and shows what the context waits for beside
+it.
+
+A term you keep governs every block that uses it: the checks hold the source
+to it, translation uses it, and a translation that misses it fails. A term
+that has no translation in a language yet is counted on the plan, because
+until you decide one, every translation of that term is a guess.
+
+When you keep a term, Bowrain proposes its term in each target language and
+deals the proposal to you as the next card, in the languages you review. The
+card shows the source term, the proposed term, the language and how many
+blocks use the term. Keep it, edit the wording and keep yours, or choose
+**Not this term**. A proposal you turn down is not proposed again. A proposal
+counts for nothing until you keep it, so translation never uses a term nobody
+has reviewed.
+
+Bowrain also proposes terms for the whole project without being asked. After
+a read finishes, after you add a target language, and after a push, it
+proposes a term in each target language for every term you kept that has
+none yet. While it works, the step says **Proposing terms in your target
+languages**. Proposals use AI too: when your workspace has used its monthly
+AI limit, the step names the day the limit resets, and when the workspace has
+no AI credits left, it says so.
+
+When you keep a proposed term, Bowrain adds the other forms it takes in that
+language, such as the plural and the definite form. The checks then recognize
+the Norwegian plural "varsler" as a use of the term "varsel". Adding the forms
+uses AI and follows the same limits.
+
+#### Sessions on the phone
+
+On the phone, the context comes in sessions of ten cards. The project
+has one queue for the whole team. A session takes the ten cards that reach the
+most blocks and holds them for you while it runs, so a colleague working at
+the same time gets different cards. A card anyone decides leaves every queue.
+
+A session opens with what changed since the team's last session: terms a scan
+found, terms now used in more blocks, and how many cards others decided. The
+feed shows their decisions, and nothing asks you to decide them again. Each
+card shows how many blocks use the term, as a bar against the widest term in
+the session, the channels it appears in, and the term proposed for each
+language you review.
+
+When you finish, the summary counts what you kept, changed and turned down,
+and how many blocks use the terms you kept. Choose **Ten more** for the next
+session or **Done for now** to stop. Leaving the screen ends the session and
+returns its cards to the queue. A session nobody touches for half an hour ends
+on its own.
+
+A second person reviews a decision only when your workspace turns on
+separation of duties. Then Bowrain assigns that review as its own step.
+
+### 3. Exceptions
+
+The plan counts the findings in the source and the translations that fail a
+check. Most findings are one rule broken many times, so the plan lists the
+rules behind the most findings: for the source, as the last project-wide check
+counted them, and for each language you review. Each rule shows its count and
+what it names, such as a term the content uses or a voice pattern it matches.
+
+Decide each rule before its blocks. If the rule is wrong, change it, and every
+finding it raised clears. If the content is wrong, fix the source, and the
+translations are drafted again from it. On the phone, tap a language's rule to
+open that language's deck with only the translations that break it. What
+remains after the rules are decided, you decide block by block.
+
+### 4. Interfaces in context
+
+Read complete interfaces where they ship: a component in its running story, a
+document section with its heading. Read the source first, then each
+translation of the same page. On the phone, a language's deck opens on pages
+for this reason.
+
+How many pages you read depends on your involvement (below). Under
+**Context**, the plan deals a sample: one page in ten from each collection,
+and every page with a translation that fails a check. That is enough to
+confirm the decisions above read right.
+
+### 5. Settled by the checks
+
+Everything else is settled by the checks you have already decided. A
+translation that passes the checks, uses the terms and meets the voice bar is
+established as a person's decision: it is recorded in the decision ledger
+under that person's name with the reason "review policy", and anyone who
+rejects it later reopens it.
+
+Bowrain settles on its own after each run that drafts translations. The
+decisions are credited to the person who last set the project's involvement.
+If nobody has set it, they go to the person who confirmed the coordinates.
+That person must still be able to review the project. When nobody qualifies,
+nothing settles after a run, and the plan's last step says why. The step
+also shows the last pass: when it ran, how many translations it established,
+and whether it followed a run or a person ran it. On the web, the step's
+**Establish** button runs the same pass by hand, credited to you. Only one
+pass runs for a project at a time.
+
+A project's first pass settles on the checks alone, so you can establish
+what passes before the context is finished. After that, a pass waits
+until the context is decided: every term reviewed, with a term in each
+target language. Until then the plan shows how many context cards are still
+open.
+
+## What waits until the context is decided
+
+A translation reviewed before its terms are decided gets reviewed twice. So
+while the context has open decisions, a language's deck holds only what
+the plan leaves for people at that point: the translations that fail a check,
+and the sample of pages. The other translations are held. The deck, the plan
+and the Review tab show them as one line, such as "1,200 Norwegian Bokmål
+translations are held until the context is decided", and they reach the
+deck once the context is decided.
+
+The exceptions stay open while you work on the context, because each one
+breaks a rule you can decide on its own. Under **Every translation**, nothing
+is held.
+
+## Where each step stands
+
+Each step of the plan is in one of four states:
+
+| State | What it means |
+| --- | --- |
+| Not started | there is nothing to work from yet, such as a context level with no scan and no terms |
+| Open | something waits |
+| Done | nothing waits |
+| Changed | the team finished the step and it changed after, such as coordinates edited since the last confirmation |
+
+## The languages you review
+
+Each person chooses the languages they review in each project. Your Review
+tab and the plan count only those languages. Until you choose, you follow
+every language your membership lets you review.
+
+On the phone, the Review tab shows each project you follow with the step it
+is on, such as "Step 2 of 5", and a **Next** card for that step with one fact
+and one button that opens it. The later steps follow as a short list, each
+with a count or its state, and one line per language names the translations
+held until the context is decided. The chip at the top of the tab names
+the languages you follow and opens their settings, which are also under
+**Languages you review** on the Account tab.
+
+The Home tab opens on the same next step, for the project you opened last, or
+else the first project with a step for you. Before you choose your languages,
+it offers **Set up review**. For exceptions and pages it opens a language's
+deck.
+
+The first time you open a project's plan, Bowrain asks which languages you
+review. If you manage the project, the same screen also shows its
+coordinates, its target languages and its involvement. Turning a target
+language on or off files a recipe change: the next sync writes it into the
+project's recipe, and the feed records it.
+
+Following a language never copies work. Everyone who follows a language
+shares its one queue, and a translation one person decides leaves the queue
+for everyone.
+
+## Choosing your involvement
+
+Set how much your reviewers can be involved, and the plan follows:
+
+| Involvement | You read | The checks settle |
+| --- | --- | --- |
+| Context | the coordinates, the context, the exceptions and a sample of pages | every translation that clears every check |
+| Interfaces | as Context, and every interface page | the translations the pages do not cover |
+| Every translation | everything | nothing |
+
+**Context** is the default, and it is the setting a single reviewer can keep
+up with on a large project. Choose **Interfaces** when a team can read every
+screen before a release, and **Every translation** for content where each
+sentence carries legal or safety weight. Changing it needs the permission to
+edit the project's settings. On the phone, it is on the project's
+**Languages you review** screen.
+
+### Involvement by product or channel
+
+One project can hold content that needs different care. You can keep the
+project at **Context** and set **Every translation** for one product's
+interface, or **Context** for its reference docs while the rest of the project
+sits at **Interfaces**. On the phone, add these under **Involvement by product
+or channel** on the same screen. The web Overview lists them under the
+involvement selector.
+
+Each setting names a product, a channel, or both, as the project's
+coordinates declare them. A collection takes the setting that matches its
+coordinates and names the most of them, so `app · ui` wins over `app` for the
+app's interface. When two settings name as many coordinates, the one that
+asks more of your reviewers wins. Content no setting matches takes the
+project's involvement.
+
+The plan, the language decks and the checks follow the setting per
+collection. Content under **Every translation** is never held back while the
+context is open, and the checks never settle it: a person establishes each
+translation there, whether the settle step runs by hand or after a run.
+
+## Getting the source right first
+
+Every translation is made from the source, so the source comes first at every
+step: its terms before their translations, its findings before the
+translations' findings, its reading of a page before each translation of that
+page. Translation keeps running while you review the source; a source fix
+drafts the affected translations again on its own.

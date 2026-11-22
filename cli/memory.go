@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/spf13/cobra"
@@ -47,8 +48,9 @@ Outside a project and with no flag: same as --local (uses ./memory.db).`,
 	auditCmd := newMemoryAuditCmd(a)
 	listCmd := newMemoryListCmd(a)
 	sessionsCmd := newMemorySessionsCmd(a, memoryCmd)
+	annotateCmd := newMemoryAnnotateCmd(a)
 
-	for _, cmd := range []*cobra.Command{importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd} {
+	for _, cmd := range []*cobra.Command{importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd, annotateCmd} {
 		AddResourceFlags(cmd)
 	}
 	// The project's content memory is a subsystem of `.kapi/work/store.db`
@@ -58,11 +60,11 @@ Outside a project and with no flag: same as --local (uses ./memory.db).`,
 	// upward walk is off and an explicit -p is the only way in.
 	// import-dir is left out: its -p is already --pattern, and pflag panics at
 	// init on a redefined shorthand rather than failing a test.
-	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, statsCmd, auditCmd} {
+	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, statsCmd, auditCmd, annotateCmd} {
 		AddProjectFlag(cmd)
 	}
 
-	memoryCmd.AddCommand(importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd, auditCmd, listCmd, sessionsCmd)
+	memoryCmd.AddCommand(importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd, auditCmd, annotateCmd, listCmd, sessionsCmd)
 	return memoryCmd
 }
 
@@ -80,7 +82,14 @@ identity verbatim, so re-seeding a content memory from committed bundles is
 fully reproducible. The format is selected by file extension; --format
 overrides.
 
-By default, imports entries matching the given --source-locale and --target-locale.
+Each unit is imported as a source and a target. Its source language is
+--source-locale when given; otherwise the store's source language when the
+unit holds it, else the language the unit or the file declares (srclang) when
+the unit holds that. A unit with none of these, with no translation, or whose
+source would equal the target is skipped, and the summary counts each reason.
+An import that keeps no unit fails. Region tags are never folded: an en-US
+unit is stored as en-US, and a lookup in en-GB does not match it.
+
 Use --all-pairs to emit entries for every (src, tgt) language pair present in
 each TU. Multilingual TMX files need this (e.g. EUR-Lex Euramis exports, where
 a single TU may carry every official EU language). Combine with --locales to
@@ -104,6 +113,10 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			if err != nil {
 				return err
 			}
+			storeSrc, err := memoryStoreSourceLocale(a, cmd, "")
+			if err != nil {
+				return err
+			}
 
 			tm, dbPath, releaseMemory, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
@@ -111,12 +124,15 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			}
 			defer releaseMemory()
 
-			var count int
+			var counts memory.ImportCounts
 			switch inputFormat {
 			case "bundle":
-				count, err = ImportKMBFile(cmd.Context(), tm, args[0])
+				counts.Imported, err = ImportKMBFile(host.CmdContext(cmd), tm, args[0])
 			case "tmx":
-				count, err = ImportTMXFile(cmd.Context(), tm, args[0], srcLocale, tgtLocale, allPairs, ParseLocaleList(localesRaw))
+				counts, err = ImportTMXFile(host.CmdContext(cmd), tm, host.TMXImport{
+					Path: args[0], Named: srcLocale, StoreSource: storeSrc, Target: tgtLocale,
+					AllPairs: allPairs, Locales: ParseLocaleList(localesRaw), Note: cmd.ErrOrStderr(),
+				})
 			default:
 				return fmt.Errorf("unsupported format: %s (use tmx or bundle)", inputFormat)
 			}
@@ -128,25 +144,21 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			// inserts. Rebuild the search/fuzzy side-tables so imported
 			// entries are visible to `kapi memory search` and fuzzy lookup,
 			// matching what import-dir does after its bulk load.
-			a.RebuildMemorySearchIndexes(cmd.Context(), tm)
+			a.RebuildMemorySearchIndexes(host.CmdContext(cmd), tm)
 
 			if a.Quiet {
 				return nil
 			}
-			WarnSuspectTokenEntries(cmd.Context(), tm, cmd.ErrOrStderr())
-			memoryTotal, err := tm.Count(cmd.Context())
+			WarnSuspectTokenEntries(host.CmdContext(cmd), tm, cmd.ErrOrStderr())
+			memoryTotal, err := tm.Count(host.CmdContext(cmd))
 			if err != nil {
 				return fmt.Errorf("count content-memory entries: %w", err)
 			}
-			return output.Print(cmd, output.MemoryImportOutput{
-				Imported: count,
-				DBPath:   dbPath,
-				Total:    memoryTotal,
-			})
+			return output.Print(cmd, memoryImportOutput(counts, dbPath, memoryTotal))
 		},
 	}
 
-	cmd.Flags().StringP("source-locale", "s", "en", "source locale")
+	cmd.Flags().StringP("source-locale", "s", "", tmxSourceLocaleUsage)
 	cmd.Flags().StringP("target-locale", "t", "", "target locale")
 	cmd.Flags().Bool("all-pairs", false, "emit entries for every (src,tgt) pair present in each TU (multilingual TMX)")
 	cmd.Flags().String("locales", "", "comma-separated locale subset for --all-pairs (empty = all languages in file)")
@@ -165,8 +177,16 @@ Auto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)
 becomes the Origin.Key on each imported entry so you can trace which file a
 segment came from.
 
-By default, imports entries matching --source-locale and --target-locale from
-every file. Use --pattern to filter (glob against filename) and --all-pairs to
+Each unit is imported as a source and a target. Its source language is
+--source-locale when given; otherwise the store's source language when the
+unit holds it, else the language the unit or the file declares (srclang) when
+the unit holds that. A unit with none of these, with no translation, or whose
+source would equal the target is skipped, and the summary counts each reason.
+An import that keeps no unit fails. Region tags are never folded: an en-US
+unit is stored as en-US, and a lookup in en-GB does not match it. A file
+that imports nothing fails the command; the others are kept.
+
+Use --pattern to filter (glob against filename) and --all-pairs to
 emit the full language cross-product from multilingual files.
 
 Examples:
@@ -180,6 +200,10 @@ Examples:
 			localesRaw, _ := cmd.Flags().GetString("locales")
 			pattern, _ := cmd.Flags().GetString("pattern")
 			recursive, _ := cmd.Flags().GetBool("recursive")
+			storeSrc, err := memoryStoreSourceLocale(a, cmd, "")
+			if err != nil {
+				return err
+			}
 
 			tm, dbPath, releaseMemory, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
@@ -206,24 +230,28 @@ Examples:
 				return fmt.Errorf("no TMX files found in %s", dir)
 			}
 
-			var totalImported int
+			var total memory.ImportCounts
 			var failed int
 			for i, path := range files {
 				rel, _ := filepath.Rel(dir, path)
 				if !a.Quiet {
 					fmt.Fprintf(os.Stderr, "[%d/%d] %s ", i+1, len(files), rel)
 				}
-				n, err := ImportTMXFile(cmd.Context(), tm, path, srcLocale, tgtLocale, allPairs, locales)
+				c, err := ImportTMXFile(host.CmdContext(cmd), tm, host.TMXImport{
+					Path: path, Named: srcLocale, StoreSource: storeSrc, Target: tgtLocale,
+					AllPairs: allPairs, Locales: locales, Note: cmd.ErrOrStderr(),
+				})
 				if err != nil {
+					total.Add(c)
 					failed++
 					if !a.Quiet {
 						fmt.Fprintf(os.Stderr, "FAILED: %v\n", err)
 					}
 					continue
 				}
-				totalImported += n
+				total.Add(c)
 				if !a.Quiet {
-					fmt.Fprintf(os.Stderr, "%d entries\n", n)
+					fmt.Fprintf(os.Stderr, "%d entries, %d skipped\n", c.Imported, c.Skipped())
 				}
 			}
 
@@ -231,27 +259,31 @@ Examples:
 			// The bulk path deliberately skips per-row FTS5 inserts, the
 			// dominant cost on large corpora, and this restores text search
 			// and fuzzy matching.
-			a.RebuildMemorySearchIndexes(cmd.Context(), tm)
+			a.RebuildMemorySearchIndexes(host.CmdContext(cmd), tm)
 
+			// A file that imported nothing usable is a failure, and a run with
+			// failures is not reported as a success.
+			if failed > 0 {
+				return &host.ImportCountsError{
+					Err:    fmt.Errorf("%d of %d files failed to import (see the lines above); %d entries imported from the rest", failed, len(files), total.Imported),
+					Counts: total,
+				}
+			}
 			if a.Quiet {
 				return nil
 			}
-			WarnSuspectTokenEntries(cmd.Context(), tm, cmd.ErrOrStderr())
-			memoryTotal, err := tm.Count(cmd.Context())
+			WarnSuspectTokenEntries(host.CmdContext(cmd), tm, cmd.ErrOrStderr())
+			memoryTotal, err := tm.Count(host.CmdContext(cmd))
 			if err != nil {
 				return fmt.Errorf("count content-memory entries: %w", err)
 			}
 			fmt.Fprintf(os.Stderr, "\nDone. %d files processed (%d failed), %d entries imported, content memory now has %d entries\n",
-				len(files), failed, totalImported, memoryTotal)
-			return output.Print(cmd, output.MemoryImportOutput{
-				Imported: totalImported,
-				DBPath:   dbPath,
-				Total:    memoryTotal,
-			})
+				len(files), failed, total.Imported, memoryTotal)
+			return output.Print(cmd, memoryImportOutput(total, dbPath, memoryTotal))
 		},
 	}
 
-	cmd.Flags().StringP("source-locale", "s", "en", "source locale")
+	cmd.Flags().StringP("source-locale", "s", "", tmxSourceLocaleUsage)
 	cmd.Flags().StringP("target-locale", "t", "", "target locale")
 	cmd.Flags().Bool("all-pairs", false, "emit entries for every (src,tgt) pair present in each TU")
 	cmd.Flags().String("locales", "", "comma-separated locale subset for --all-pairs")
@@ -283,7 +315,7 @@ plain JSON, so it reviews line by line in a diff. --locales does not apply.`,
 			localesRaw, _ := cmd.Flags().GetString("locales")
 			format, _ := cmd.Flags().GetString("format")
 
-			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemoryForRead(cmd)
 			if err != nil {
 				return err
 			}
@@ -300,12 +332,12 @@ plain JSON, so it reviews line by line in a diff. --locales does not apply.`,
 
 			switch ResolveMemoryExportFormat(format, outputPath) {
 			case "bundle":
-				if err := ExportKMB(cmd.Context(), tm, w); err != nil {
+				if err := ExportKMB(host.CmdContext(cmd), tm, w); err != nil {
 					return err
 				}
 			case "tmx":
 				locales := ParseLocaleList(localesRaw)
-				if err := memory.ExportTMX(cmd.Context(), tm, w, locales); err != nil {
+				if err := memory.ExportTMX(host.CmdContext(cmd), tm, w, locales); err != nil {
 					return fmt.Errorf("export TMX: %w", err)
 				}
 			default:
@@ -313,7 +345,7 @@ plain JSON, so it reviews line by line in a diff. --locales does not apply.`,
 			}
 
 			if !a.Quiet && outputPath != "" {
-				total, err := tm.Count(cmd.Context())
+				total, err := tm.Count(host.CmdContext(cmd))
 				if err != nil {
 					return fmt.Errorf("count content-memory entries: %w", err)
 				}
@@ -346,7 +378,7 @@ func newMemoryLookupCmd(a *App) *cobra.Command {
 			minScore, _ := cmd.Flags().GetFloat64("min-score")
 			maxResults, _ := cmd.Flags().GetInt("max-results")
 
-			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemoryForRead(cmd)
 			if err != nil {
 				return err
 			}
@@ -357,23 +389,20 @@ func newMemoryLookupCmd(a *App) *cobra.Command {
 				MaxResults: maxResults,
 			}
 
-			matches, err := tm.LookupText(cmd.Context(), args[0], model.LocaleID(srcLocale), model.LocaleID(tgtLocale), opts)
+			sel, err := a.ResolveMemoryStore(cmd)
+			if err != nil {
+				return err
+			}
+			srcLoc, err := a.StoreSourceLocale(cmd, sel, srcLocale)
+			if err != nil {
+				return err
+			}
+			tgtLoc := model.LocaleID(tgtLocale)
+			matches, err := tm.LookupText(host.CmdContext(cmd), args[0], srcLoc, tgtLoc, opts)
 			if err != nil {
 				return fmt.Errorf("lookup: %w", err)
 			}
-
-			entries := make([]output.MemoryLookupEntry, len(matches))
-			srcLoc := model.LocaleID(srcLocale)
-			tgtLoc := model.LocaleID(tgtLocale)
-			for i, m := range matches {
-				entries[i] = output.MemoryLookupEntry{
-					Source:    m.Entry.VariantText(srcLoc),
-					Target:    m.Entry.VariantText(tgtLoc),
-					Score:     m.Score,
-					MatchType: string(m.MatchType),
-					EntryID:   m.Entry.ID,
-				}
-			}
+			entries := host.MemoryLookupEntries(matches, srcLoc, tgtLoc)
 
 			return output.Print(cmd, output.MemoryLookupOutput{
 				Matches: entries,
@@ -382,7 +411,7 @@ func newMemoryLookupCmd(a *App) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringP("source-locale", "s", "en", "source locale")
+	cmd.Flags().StringP("source-locale", "s", "", storeSourceLocaleUsage)
 	cmd.Flags().StringP("target-locale", "t", "", "target locale")
 	cmd.Flags().Float64("min-score", 0.7, "minimum match score (0.0-1.0)")
 	cmd.Flags().Int("max-results", 10, "maximum results to return")
@@ -402,13 +431,13 @@ func newMemorySearchCmd(a *App) *cobra.Command {
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			limit, _ := cmd.Flags().GetInt("limit")
 
-			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemoryForRead(cmd)
 			if err != nil {
 				return err
 			}
 			defer releaseMemory()
 
-			entries, total, err := tm.SearchEntries(cmd.Context(), memory.SearchParams{
+			entries, total, err := tm.SearchEntries(host.CmdContext(cmd), memory.SearchParams{
 				Query:         args[0],
 				AnyLocale:     srcLocale,
 				RequireLocale: tgtLocale,
@@ -465,7 +494,7 @@ func newMemoryStatsCmd(a *App) *cobra.Command {
 		Short:   "Show content memory statistics",
 		Example: "  kapi memory stats\n  kapi memory stats --name my-tm",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tm, dbPath, releaseMemory, err := a.OpenMemorySQLite(cmd)
+			tm, dbPath, releaseMemory, err := a.OpenMemoryForRead(cmd)
 			if err != nil {
 				return err
 			}
@@ -475,7 +504,7 @@ func newMemoryStatsCmd(a *App) *cobra.Command {
 			// locale pairs. Keep the legacy LocalePairs map populated with
 			// a single-locale summary for backward compatibility.
 			localePairs := make(map[string]int)
-			localeStats, err := tm.LocaleStats(cmd.Context())
+			localeStats, err := tm.LocaleStats(host.CmdContext(cmd))
 			if err != nil {
 				return fmt.Errorf("locale stats: %w", err)
 			}
@@ -483,7 +512,7 @@ func newMemoryStatsCmd(a *App) *cobra.Command {
 				localePairs[lf.Locale] = lf.Count
 			}
 
-			total, err := tm.Count(cmd.Context())
+			total, err := tm.Count(host.CmdContext(cmd))
 			if err != nil {
 				return fmt.Errorf("count content-memory entries: %w", err)
 			}
@@ -540,12 +569,12 @@ that added them so you can filter the content memory by import source.`,
 		Use:   "list",
 		Short: "List all import sessions",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemoryForRead(cmd)
 			if err != nil {
 				return err
 			}
 			defer releaseMemory()
-			sessions, err := tm.ListImportSessions(cmd.Context())
+			sessions, err := tm.ListImportSessions(host.CmdContext(cmd))
 			if err != nil {
 				return fmt.Errorf("list import sessions: %w", err)
 			}
@@ -558,12 +587,12 @@ that added them so you can filter the content memory by import source.`,
 		Short: "Show details for a single import session",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemoryForRead(cmd)
 			if err != nil {
 				return err
 			}
 			defer releaseMemory()
-			s, ok, err := tm.GetImportSession(cmd.Context(), args[0])
+			s, ok, err := tm.GetImportSession(host.CmdContext(cmd), args[0])
 			if err != nil {
 				return fmt.Errorf("get import session: %w", err)
 			}
@@ -584,7 +613,7 @@ that added them so you can filter the content memory by import source.`,
 				return err
 			}
 			defer releaseMemory()
-			if err := tm.DeleteImportSession(cmd.Context(), args[0]); err != nil {
+			if err := tm.DeleteImportSession(host.CmdContext(cmd), args[0]); err != nil {
 				return fmt.Errorf("delete session: %w", err)
 			}
 			return output.Print(cmd, MemorySessionDeleteOutput{ID: args[0], Deleted: true})
@@ -596,4 +625,33 @@ that added them so you can filter the content memory by import source.`,
 	}
 	sessionsCmd.AddCommand(listCmd, showCmd, deleteCmd)
 	return sessionsCmd
+}
+
+// memoryStoreSourceLocale resolves --source-locale for a command on the
+// content memory the command selects, by the rule the lookups use
+// (App.StoreSourceLocale).
+func memoryStoreSourceLocale(a *App, cmd *cobra.Command, named string) (model.LocaleID, error) {
+	sel, err := a.ResolveMemoryStore(cmd)
+	if err != nil {
+		return "", err
+	}
+	return a.StoreSourceLocale(cmd, sel, named)
+}
+
+// tmxSourceLocaleUsage is the -s help of the TMX imports, which choose the
+// source language per unit.
+const tmxSourceLocaleUsage = "source locale; without it each unit is read in the store's source language when it holds it, else in the language it declares, and skipped otherwise"
+
+// memoryImportOutput is the summary of a content-memory import: what was
+// imported and, by reason, what was skipped.
+func memoryImportOutput(c memory.ImportCounts, dbPath string, total int) output.MemoryImportOutput {
+	return output.MemoryImportOutput{
+		Imported:                  c.Imported,
+		DBPath:                    dbPath,
+		Total:                     total,
+		SkippedNoSource:           c.NoSource,
+		SkippedSourceEqualsTarget: c.SameLanguage,
+		SkippedNoTarget:           c.NoTarget,
+		SkippedEmpty:              c.Empty,
+	}
 }

@@ -196,7 +196,7 @@ func TestProjectWithNoCheckoutOpensOnItsContext(t *testing.T) {
 
 // TestWorkspaceWatcherSeesAnotherProcess is the live half: a second handle on
 // the same workspace directory, standing in for the CLI or an agent's MCP
-// server, registers a project and this app notices without being told.
+// server, registers a project, and this app picks it up without being told.
 func TestWorkspaceWatcherSeesAnotherProcess(t *testing.T) {
 	app := newWorkspaceApp(t)
 	root := workspaceRootOf(t, app)
@@ -230,7 +230,7 @@ func TestWorkspaceWatcherSeesAnotherProcess(t *testing.T) {
 		mu.Lock()
 		defer mu.Unlock()
 		return events > 0
-	}, 5*time.Second, 20*time.Millisecond, "the app notices a project registered by another process")
+	}, 5*time.Second, 20*time.Millisecond, "the app picks up a project registered by another process")
 
 	home, err := app.ListWorkspaceProjects()
 	require.NoError(t, err)

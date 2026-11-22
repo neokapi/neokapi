@@ -54,7 +54,7 @@ narration:
     highlight: pseudo
     text: >-
       Claude runs a pseudo-translation first. It expands every English string
-      and reorders nothing else, so a placeholder the catalog spells wrongly or
+      and reorders nothing else, so a placeholder spelled wrongly in the catalog or
       a plural key the framework will not accept shows up here, before a
       provider is paid for anything.
 

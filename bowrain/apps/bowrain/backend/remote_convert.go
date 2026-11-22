@@ -177,36 +177,16 @@ func editorTermMatchesToBlockMatches(ms []editorclient.EditorTermMatch) []BlockT
 
 // --- Terminology (concepts) ---
 
-func termInfoToEditor(t TermInfo) editorclient.EditorTerm {
-	return editorclient.EditorTerm{
-		Text:         t.Text,
-		Locale:       t.Locale,
-		Status:       t.Status,
-		PartOfSpeech: t.PartOfSpeech,
-		Gender:       t.Gender,
-		Note:         t.Note,
-		Forms:        t.Forms,
-	}
-}
-
 func termInfosToEditor(ts []TermInfo) []editorclient.EditorTerm {
 	out := make([]editorclient.EditorTerm, len(ts))
 	for i, t := range ts {
-		out[i] = termInfoToEditor(t)
+		out[i] = editorclient.EditorTerm(t)
 	}
 	return out
 }
 
 func editorTermToInfo(t editorclient.EditorTerm) TermInfo {
-	return TermInfo{
-		Text:         t.Text,
-		Locale:       t.Locale,
-		Status:       t.Status,
-		PartOfSpeech: t.PartOfSpeech,
-		Gender:       t.Gender,
-		Note:         t.Note,
-		Forms:        t.Forms,
-	}
+	return TermInfo(t)
 }
 
 func editorConceptToInfo(c editorclient.EditorConcept) ConceptInfo {

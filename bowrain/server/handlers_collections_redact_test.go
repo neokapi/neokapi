@@ -9,7 +9,7 @@ import (
 
 func TestIsSecretConnectorKey(t *testing.T) {
 	secret := []string{
-		"password", "Password", "passwd", "api_key", "apiKey", "API-KEY",
+		"password", "Password", "passwd", "api_key", "api_key", "API-KEY",
 		"access_token", "refresh_token", "auth_token", "client_secret",
 		"clientSecret", "private_key", "access_key", "personal_access_token",
 		"credential", "credentials",

@@ -25,10 +25,10 @@ type PreviousBlock struct {
 
 // DiffLeverageConfig holds configuration for the diff leverage tool.
 type DiffLeverageConfig struct {
-	TargetLocale  model.LocaleID           `json:"targetLocale,omitempty"  schema:"-"`
-	PreviousTexts map[string]PreviousBlock `json:"previousTexts,omitempty" schema:"-"`
-	CaseSensitive bool                     `json:"caseSensitive,omitempty" schema:"title=Case Sensitive,description=Whether comparison is case-sensitive,default=true"`
-	FuzzyMatch    bool                     `json:"fuzzyMatch,omitempty"    schema:"title=Fuzzy Match,description=Enable fuzzy matching for similar texts"`
+	TargetLocale  model.LocaleID           `json:"target_locale,omitempty"  schema:"-"`
+	PreviousTexts map[string]PreviousBlock `json:"previous_texts,omitempty" schema:"-"`
+	CaseSensitive bool                     `json:"case_sensitive,omitempty" schema:"title=Case Sensitive,description=Whether comparison is case-sensitive,default=true"`
+	FuzzyMatch    bool                     `json:"fuzzy_match,omitempty"    schema:"title=Fuzzy Match,description=Enable fuzzy matching for similar texts"`
 }
 
 // ToolName returns the tool name this config applies to.

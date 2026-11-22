@@ -45,6 +45,7 @@ Some folders have rules of their own, in the AGENTS.md and CLAUDE.md there. Read
 - bowrain/apps/pulse/i18n/: a voice of its own.
 - bowrain/emails/i18n/: a voice of its own.
 - bowrain/mailer/subjects/: a voice of its own.
+- bowrain/mobile/i18n/: a voice of its own.
 - bowrain/packages/app/i18n/: a voice of its own.
 - bowrain/web/docs/: a voice of its own.
 - bowrain/web/landing/i18n/: a voice of its own.

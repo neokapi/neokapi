@@ -93,7 +93,7 @@ func LocateComments(src []byte) (*comment.File, error) {
 
 type commentWalk struct {
 	src     []byte
-	offsets []int
+	offsets sourceLines
 	// excluded holds the byte ranges of quoted scalars and block scalar bodies,
 	// where a `#` is content.
 	excluded [][2]int
@@ -149,7 +149,7 @@ func (w *commentWalk) record(n *yamlv3.Node) {
 
 // scalar records the extent of a scalar in which a `#` is content.
 func (w *commentWalk) scalar(n *yamlv3.Node) {
-	start := lineColToOffset(w.offsets, n.Line, n.Column)
+	start := w.offsets.offset(n.Line, n.Column)
 	if start < 0 || start >= len(w.src) {
 		return
 	}
@@ -172,7 +172,7 @@ func (w *commentWalk) scalar(n *yamlv3.Node) {
 		if body < len(w.src) {
 			body++
 		}
-		if end := scanBlockScalarEnd(w.src, start); end > body {
+		if end := scanBlockScalarEnd(w.src, start, n.Value); end > body {
 			w.excluded = append(w.excluded, [2]int{body, end})
 		}
 	}
@@ -181,6 +181,7 @@ func (w *commentWalk) scalar(n *yamlv3.Node) {
 // skipNodeProperties steps past a tag (`!tag`) and an anchor (`&name`) in front
 // of a scalar's own bytes.
 func skipNodeProperties(src []byte, i int) int {
+properties:
 	for i < len(src) {
 		switch src[i] {
 		case '!':
@@ -190,14 +191,24 @@ func skipNodeProperties(src []byte, i int) int {
 			}
 			i += n
 		case '&':
-			for i < len(src) && src[i] != ' ' && src[i] != '\t' && src[i] != '\n' {
-				i++
-			}
-			for i < len(src) && (src[i] == ' ' || src[i] == '\t') {
+			i++
+			for i < len(src) && !strings.ContainsRune(" \t\r\n,[]{}", rune(src[i])) {
 				i++
 			}
 		default:
 			return i
+		}
+		for i < len(src) {
+			switch src[i] {
+			case ' ', '\t', '\r', '\n':
+				i++
+			case '#':
+				for i < len(src) && src[i] != '\n' && src[i] != '\r' {
+					i++
+				}
+			default:
+				continue properties
+			}
 		}
 	}
 	return i

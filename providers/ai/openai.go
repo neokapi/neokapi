@@ -7,18 +7,28 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-
-	"github.com/neokapi/neokapi/core/httputil"
+	"sync/atomic"
 )
 
 // DefaultOpenAIModel is the model a fresh provider uses when the caller names none.
-const DefaultOpenAIModel = "gpt-5.6-sol"
+const DefaultOpenAIModel = "gpt-6.1-terra"
 
 // OpenAIProvider implements LLMProvider for OpenAI-compatible APIs.
 type OpenAIProvider struct {
 	config Config
 	client *http.Client
+
+	// tokensParam and omitTemperature record what the endpoint has refused,
+	// so only the first request after a refusal pays for the retry.
+	tokensParam     atomic.Int32
+	omitTemperature atomic.Bool
 }
+
+// Values of OpenAIProvider.tokensParam. Zero leaves the choice to the endpoint.
+const (
+	tokensParamCompletion int32 = 1 + iota
+	tokensParamLegacy
+)
 
 // NewOpenAIProvider creates a new OpenAI provider.
 func NewOpenAIProvider(cfg Config) *OpenAIProvider {
@@ -33,7 +43,7 @@ func NewOpenAIProvider(cfg Config) *OpenAIProvider {
 	}
 	return &OpenAIProvider{
 		config: cfg,
-		client: httputil.NewResilientClient(),
+		client: newChatClient(),
 	}
 }
 
@@ -50,59 +60,11 @@ func (p *OpenAIProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 	if err != nil {
 		return nil, err
 	}
-
-	body := openaiRequest{
+	return p.complete(ctx, openaiRequest{
 		Model:       p.config.Model,
 		Temperature: p.config.Temperature,
 		Messages:    apiMessages,
-	}
-	if n := p.maxTokens(ctx); n > 0 {
-		body.MaxTokens = &n
-	}
-
-	jsonBody, err := json.Marshal(body)
-	if err != nil {
-		return nil, fmt.Errorf("openai: marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.config.BaseURL+"/v1/chat/completions", bytes.NewReader(jsonBody))
-	if err != nil {
-		return nil, fmt.Errorf("openai: create request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
-
-	httpResp, err := p.client.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("openai: request: %w", err)
-	}
-	defer httpResp.Body.Close()
-
-	respBody, err := readCappedBody(httpResp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("openai: read response: %w", err)
-	}
-
-	if httpResp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("openai: API error %d: %s", httpResp.StatusCode, string(respBody))
-	}
-
-	var apiResp openaiResponse
-	if err := json.Unmarshal(respBody, &apiResp); err != nil {
-		return nil, fmt.Errorf("openai: unmarshal response: %w", err)
-	}
-
-	if len(apiResp.Choices) == 0 {
-		return nil, errors.New("openai: no choices in response")
-	}
-
-	return &ChatResponse{
-		Content:   apiResp.Choices[0].Message.Content,
-		Model:     apiResp.Model,
-		Usage:     apiResp.Usage.toTokenUsage(),
-		Truncated: apiResp.truncated(),
-	}, nil
+	})
 }
 
 func (p *OpenAIProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
@@ -110,8 +72,7 @@ func (p *OpenAIProvider) ChatStructured(ctx context.Context, messages []Message,
 	if err != nil {
 		return nil, err
 	}
-
-	body := openaiRequest{
+	return p.complete(ctx, openaiRequest{
 		Model:       p.config.Model,
 		Temperature: p.config.Temperature,
 		Messages:    apiMessages,
@@ -124,54 +85,145 @@ func (p *OpenAIProvider) ChatStructured(ctx context.Context, messages []Message,
 				Strict:      schema.Strict,
 			},
 		},
-	}
-	if n := p.maxTokens(ctx); n > 0 {
-		body.MaxTokens = &n
-	}
+	})
+}
 
+// complete sends one chat completion. OpenAI's current models take the output
+// budget as max_completion_tokens and accept only the default temperature, while
+// OpenAI-compatible servers behind a custom BaseURL often know only max_tokens.
+// The provider starts from the form its endpoint is most likely to accept, and
+// when the API refuses a parameter by name it retries once without it and keeps
+// that form for later requests.
+func (p *OpenAIProvider) complete(ctx context.Context, body openaiRequest) (*ChatResponse, error) {
+	for attempt := 0; ; attempt++ {
+		req := body
+		if n := p.maxTokens(ctx); n > 0 {
+			if p.completionTokens() {
+				n = withReasoningHeadroom(n, p.Limits().EffectiveMaxOutputTokens())
+				req.MaxCompletionTokens = &n
+			} else {
+				req.MaxTokens = &n
+			}
+		}
+		if p.omitTemperature.Load() {
+			req.Temperature = nil
+		}
+		resp, status, respBody, err := p.post(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		if status == http.StatusBadRequest && attempt == 0 && p.adapt(respBody, req) {
+			continue
+		}
+		if status != http.StatusOK {
+			return nil, fmt.Errorf("openai: API error %d: %s", status, string(respBody))
+		}
+		return resp, nil
+	}
+}
+
+// reasoningHeadroomTokens is what a reasoning model may spend thinking before
+// it writes a reply, on top of the reply itself.
+const reasoningHeadroomTokens = 16384
+
+// withReasoningHeadroom turns the reply budget a caller asked for into a
+// max_completion_tokens cap. On OpenAI's reasoning models that cap covers the
+// hidden reasoning as well as the visible reply, so a budget sized for the
+// reply alone is spent thinking and the reply is cut off: a one-line
+// extraction stopped at 4,096 tokens. The cap only bounds a runaway reply; the
+// tokens used are what is billed.
+func withReasoningHeadroom(reply, ceiling int) int {
+	return min(ceiling, max(reply*4, reply+reasoningHeadroomTokens))
+}
+
+// completionTokens reports whether requests carry max_completion_tokens rather
+// than max_tokens: the default for OpenAI's own endpoint, and for any endpoint
+// that has refused max_tokens.
+func (p *OpenAIProvider) completionTokens() bool {
+	switch p.tokensParam.Load() {
+	case tokensParamCompletion:
+		return true
+	case tokensParamLegacy:
+		return false
+	}
+	return p.config.BaseURL == "https://api.openai.com"
+}
+
+// adapt reads a 400 response and, when it names a parameter this request sent
+// that the model does not take, switches the provider away from it. It reports
+// whether anything changed, so the caller retries only then.
+func (p *OpenAIProvider) adapt(respBody []byte, sent openaiRequest) bool {
+	var e struct {
+		Error struct {
+			Param string `json:"param"`
+			Code  string `json:"code"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(respBody, &e) != nil {
+		return false
+	}
+	switch e.Error.Param {
+	case "max_tokens":
+		if sent.MaxTokens != nil {
+			p.tokensParam.Store(tokensParamCompletion)
+			return true
+		}
+	case "max_completion_tokens":
+		if sent.MaxCompletionTokens != nil {
+			p.tokensParam.Store(tokensParamLegacy)
+			return true
+		}
+	case "temperature":
+		if sent.Temperature != nil {
+			p.omitTemperature.Store(true)
+			return true
+		}
+	}
+	return false
+}
+
+// post sends the request and decodes a 200 response. A non-200 status comes
+// back with its body and no error, so the caller can decide whether to adapt.
+func (p *OpenAIProvider) post(ctx context.Context, body openaiRequest) (*ChatResponse, int, []byte, error) {
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
-		return nil, fmt.Errorf("openai: marshal request: %w", err)
+		return nil, 0, nil, fmt.Errorf("openai: marshal request: %w", err)
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.config.BaseURL+"/v1/chat/completions", bytes.NewReader(jsonBody))
 	if err != nil {
-		return nil, fmt.Errorf("openai: create request: %w", err)
+		return nil, 0, nil, fmt.Errorf("openai: create request: %w", err)
 	}
-
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
 
 	httpResp, err := p.client.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("openai: request: %w", err)
+		return nil, 0, nil, fmt.Errorf("openai: request: %w", err)
 	}
 	defer httpResp.Body.Close()
 
 	respBody, err := readCappedBody(httpResp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("openai: read response: %w", err)
+		return nil, 0, nil, fmt.Errorf("openai: read response: %w", err)
 	}
-
 	if httpResp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("openai: API error %d: %s", httpResp.StatusCode, string(respBody))
+		return nil, httpResp.StatusCode, respBody, nil
 	}
 
 	var apiResp openaiResponse
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {
-		return nil, fmt.Errorf("openai: unmarshal response: %w", err)
+		return nil, 0, nil, fmt.Errorf("openai: unmarshal response: %w", err)
 	}
-
 	if len(apiResp.Choices) == 0 {
-		return nil, errors.New("openai: no choices in response")
+		return nil, 0, nil, errors.New("openai: no choices in response")
 	}
-
 	return &ChatResponse{
 		Content:   apiResp.Choices[0].Message.Content,
 		Model:     apiResp.Model,
 		Usage:     apiResp.Usage.toTokenUsage(),
 		Truncated: apiResp.truncated(),
-	}, nil
+	}, http.StatusOK, nil, nil
 }
 
 // Limits reports what the configured model can emit.
@@ -250,6 +302,8 @@ type openaiRequest struct {
 	Model     string             `json:"model"`
 	Messages  []openaiReqMessage `json:"messages"`
 	MaxTokens *int               `json:"max_tokens,omitempty"`
+	// MaxCompletionTokens replaces MaxTokens on OpenAI's current models.
+	MaxCompletionTokens *int `json:"max_completion_tokens,omitempty"`
 	// Shared with the Azure provider, which builds the same body.
 	Temperature    *float64              `json:"temperature,omitempty"`
 	ResponseFormat *openaiResponseFormat `json:"response_format,omitempty"`

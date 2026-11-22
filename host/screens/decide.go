@@ -49,8 +49,8 @@ type RuleDecisionDTO struct {
 	// Seen is the sentence the suggestion was seen in, and its file.
 	Seen *ContextEvidenceDTO `json:"seen,omitempty"`
 	// Applies is where a kept rule holds.
-	Applies   string          `json:"applies"`
-	NoticedBy ContextActorDTO `json:"noticed_by"`
+	Applies    string          `json:"applies"`
+	RecordedBy ContextActorDTO `json:"recorded_by"`
 	// Assignee is the member the question is assigned to, on a surface that
 	// assigns questions to members.
 	Assignee *ContextActorDTO `json:"assignee,omitempty"`
@@ -72,8 +72,8 @@ type RuleOptionDTO struct {
 	Files  int `json:"files"`
 	// Consequence says what keeping this option does.
 	Consequence string `json:"consequence"`
-	// NoticedBy is who suggested the side, for a disagreement.
-	NoticedBy *ContextActorDTO `json:"noticed_by,omitempty"`
+	// RecordedBy is who suggested the side, for a disagreement.
+	RecordedBy *ContextActorDTO `json:"recorded_by,omitempty"`
 }
 
 // RuleDecideResultDTO is what one answer recorded.
@@ -104,7 +104,7 @@ func RuleDecisionFrom(d rulesview.Decision) RuleDecisionDTO {
 		Other:       d.Kind == rulesview.DecisionName,
 		Consequence: d.Consequence,
 		Applies:     d.Applies,
-		NoticedBy:   ActorFrom(d.NoticedBy),
+		RecordedBy:  ActorFrom(d.RecordedBy),
 	}
 	if e := d.Seen; e != nil {
 		out.Seen = &ContextEvidenceDTO{Path: e.Path, Unit: e.Unit, Quote: e.Quote}
@@ -121,8 +121,8 @@ func RuleDecisionFrom(d rulesview.Decision) RuleDecisionDTO {
 			Blocks: o.Blocks, Files: o.Files, Consequence: o.Consequence,
 		}
 		if d.Kind == rulesview.DecisionDisagreement {
-			who := ActorFrom(o.NoticedBy)
-			opt.NoticedBy = &who
+			who := ActorFrom(o.RecordedBy)
+			opt.RecordedBy = &who
 		}
 		out.Options = append(out.Options, opt)
 		if i == d.Chosen {

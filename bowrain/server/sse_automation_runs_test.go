@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -57,8 +57,7 @@ func openRunStream(t *testing.T, srv *Server, projectID, runID string) (*syncRec
 	req = req.WithContext(ctx)
 	rec := newSyncRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id", "runId")
-	c.SetParamValues(projectID, runID)
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: projectID}, {Name: "runId", Value: runID}})
 	done := make(chan error, 1)
 	go func() { done <- srv.HandleAutomationRunSSE(c) }()
 	return rec, cancel, done
@@ -213,8 +212,7 @@ func TestHandleCancelAutomationRun_PushesRunFinished(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/acme/"+projectID+"/automations/runs/"+run.ID+"/cancel", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id", "runId")
-	c.SetParamValues(projectID, run.ID)
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: projectID}, {Name: "runId", Value: run.ID}})
 	require.NoError(t, srv.HandleCancelAutomationRun(c))
 	require.Equal(t, http.StatusOK, rec.Code)
 

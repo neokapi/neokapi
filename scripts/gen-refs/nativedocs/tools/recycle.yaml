@@ -14,20 +14,20 @@ overview: |
   tool skip the content-memory lookup when an existing candidate already scores high enough.
   Optionally, all leveraged matches can be written to a TMX file.
 parameters:
-  fuzzyThreshold:
+  fuzzy_threshold:
     description: Minimum score for a fuzzy match to be considered.
     help: |
       The lowest fuzzy-match score (0-100) the content-memory lookup will return. Matches
       below this score are ignored.
     values: "integer 0-100 (default `70`)"
-  fillTarget:
+  fill_target:
     description: Copy the best match into the target.
     help: |
       When enabled, the best qualifying match is written into the block's
       target content. When disabled, matches are scored and recorded but the
       target is not filled.
     values: "`true` / `false` (default `true`)"
-  fillTargetThreshold:
+  fill_target_threshold:
     description: Minimum match score required to fill the target.
     help: |
       A match must score at least this value to be written into the target.
@@ -35,37 +35,37 @@ parameters:
       filled.
     values: "integer 0-100 (default `95`)"
     dependsOn:
-      - property: fillTarget
+      - property: fill_target
         condition: filling must be enabled for this threshold to apply
-  fillIfTargetIsEmpty:
+  fill_if_target_is_empty:
     description: Only fill the target when it has no existing content.
     help: |
       When enabled, a match is written only if the block's target is currently
       empty, so existing translations are never overwritten.
     values: "`true` / `false` (default `false`)"
-  noQueryThreshold:
+  no_query_threshold:
     description: Skip the content memory query when an existing candidate scores high enough.
     help: |
       If the block already carries a match score at or above this value, the content memory
       lookup is skipped. The default of 101 means the content memory is always queried.
     values: "integer 0-101 (default `101`)"
-  makeTmx:
+  make_tmx:
     description: Generate a TMX document of leveraged matches.
     help: |
       When enabled, all leveraged matches are written to a TMX file at the
       configured output path.
     values: "`true` / `false` (default `false`)"
     dependsOn:
-      - property: tmxPath
+      - property: tmx_path
         condition: set the output path when generating TMX
-  tmxPath:
+  tmx_path:
     description: Output path for the generated TMX document.
     help: File path where the TMX document is written when TMX generation is enabled.
     values: "file path"
     dependsOn:
-      - property: makeTmx
+      - property: make_tmx
         condition: TMX generation must be enabled
-  downgradeIdenticalBestMatches:
+  downgrade_identical_best_matches:
     description: Reduce the score when multiple identical exact matches exist.
     help: |
       When enabled, an exact match is scored 99 instead of 100 if the content memory returns
@@ -82,11 +82,11 @@ examples:
   - title: Apply only high-confidence matches
     description: Fill the target from matches scoring 95 or above.
     config: |
-      fillTarget: true
-      fillTargetThreshold: 95
+      fill_target: true
+      fill_target_threshold: 95
   - title: Leverage and export to TMX
     description: Lower the fuzzy threshold and write matches to a TMX file.
     config: |
-      fuzzyThreshold: 60
-      makeTmx: true
-      tmxPath: ./leverage.tmx
+      fuzzy_threshold: 60
+      make_tmx: true
+      tmx_path: ./leverage.tmx

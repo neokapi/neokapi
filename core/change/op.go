@@ -80,7 +80,10 @@ type Op struct {
 	IfMatch string
 	// Basis is, for set_content on a derived edition, the revision of the
 	// authoritative edition the content was made from. It is recorded always,
-	// and refuses only under the envelope's require_basis.
+	// and refuses only under the envelope's require_basis. For decide it is the
+	// revision of the authoritative edition the sender read beside the edition
+	// decided on, and under require_basis a decision is refused as stale when
+	// the authoritative edition moved.
 	Basis string
 	// Body holds the kind's own fields: *SetContent for set_content, and so
 	// on. Its concrete type always matches Kind.
@@ -272,12 +275,12 @@ const (
 	OutcomeEstablish Outcome = "establish"
 	OutcomeReject    Outcome = "reject"
 	OutcomeWithdraw  Outcome = "withdraw"
-	OutcomeAdvise    Outcome = "advise"
+	OutcomePrereview Outcome = "prereview"
 )
 
 // Decide records a review decision on the edition revision its sender read.
 type Decide struct {
-	Outcome Outcome  `json:"outcome" jsonschema:"establish, reject, withdraw, or advise (an agent's pre-review)"`
+	Outcome Outcome  `json:"outcome" jsonschema:"establish, reject, withdraw, or prereview (an agent's pre-review)"`
 	Score   *int     `json:"score,omitempty" jsonschema:"a score from 0 to 100"`
 	Reasons []string `json:"reasons,omitempty" jsonschema:"why"`
 }
@@ -387,8 +390,8 @@ var specs = []opSpec{
 		"Remove a block from a document."},
 	{KindNative, func() Body { return &Native{} }, atDoc, ifMatchDigest, false, true,
 		"A format-specific operation, guarded by the document digest."},
-	{KindDecide, func() Body { return &Decide{} }, atEdition, ifMatchRequired, false, true,
-		"Record a review decision on the edition revision read. An agent sends only advise."},
+	{KindDecide, func() Body { return &Decide{} }, atEdition, ifMatchRequired, true, true,
+		"Record a review decision on the edition revision read. An agent sends only prereview."},
 	{KindTerm, func() Body { return &Term{} }, atNone, ifMatchNone, false, true,
 		"Write or delete a term in the terms store."},
 	{KindMemory, func() Body { return &Memory{} }, atNone, ifMatchNone, false, true,

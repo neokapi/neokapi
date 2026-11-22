@@ -57,11 +57,11 @@ kapi voice profiles
 
 The default word-rule and pattern checks assess encoded rules. `kapi check
 --voice` adds advisory similarity to profile examples through the `kapi-check`
-plugin; it does not request an LLM judgment. `kapi voice check --ai` and the raw
+plugin, and requests no LLM judgment. `kapi voice check --ai` and the raw
 `voice-check` tool explicitly request semantic model review.
 
-A clean rule result means no findings in those rules. It does not establish
-that a service description, promise or factual claim is correct. The canonical
+A clean rule result means those rules raised no finding. Whether a service
+description, promise or factual claim is correct stays unassessed. The canonical
 check report identifies analyses that ran, were not requested or cannot be
 assessed by exact rules. Reports without execution metadata have unreported
 coverage. Applicable prose guidance is recorded as unsupported by deterministic
@@ -74,7 +74,7 @@ missing or null findings, invalid fields and invalid finding values are errors.
 Only an explicit empty findings array is a completed clean model response.
 Empty content skips model analysis and emits no score.
 
-## Voice profiles
+## What a profile holds
 
 A profile captures tone, style measures and pattern rules. Word rules ("write
 this, not that") are [terms](/framework/terminology), and a voice file may
@@ -267,9 +267,8 @@ type Store interface {
 The framework ships a SQLite backend (`voice/sqlite.go`) built on
 the shared `core/storage` migration system, with JSON columns for the complex
 tone and style fields. Inside a project the voice tables live in the
-project's own store; a standalone store is `voice.db`. The interface
-is designed for extension: server deployments can add a scope-partitioned
-PostgreSQL backend.
+project's own store; a standalone store is `voice.db`. Server deployments can
+add a scope-partitioned PostgreSQL backend behind the same interface.
 
 ### Scoring and resolution
 
@@ -341,3 +340,9 @@ func (a *VoiceAnnotation) AnnotationType() string { return "voice" }
 
 Profiles serialize as both JSON and YAML, so they can be authored by hand or
 constructed programmatically as a `*profile.VoiceProfile`.
+
+## Related
+
+- [Voice profile reference](/reference/serialization/voice-profile): every field of the file.
+- [Checks](/framework/checks): the engine voice checks run on.
+- [Terminology](/framework/terminology): where word rules live.

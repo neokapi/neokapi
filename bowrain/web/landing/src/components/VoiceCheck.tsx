@@ -386,7 +386,7 @@ export function VoiceCheck() {
           <p className="mt-3 text-xs text-muted-foreground">
             {hasText
               ? t("Only the listed wording patterns were evaluated.")
-              : t("No text supplied. There is nothing to assess.")}
+              : t("No text yet. Write or paste a draft to check it.")}
           </p>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-secondary">
             <div

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -79,7 +79,7 @@ func (o *convergenceOrchestrator) buildConvergenceEstimate(ctx context.Context, 
 		if resolved, err := s.wsStores.getMemory(ctx, slug); err == nil {
 			tm = resolved
 		}
-		if resolved, err := s.wsStores.getTerms(ctx, slug); err == nil {
+		if resolved, err := s.wsStores.getProjectTerms(ctx, slug, proj.ID); err == nil {
 			tb = resolved
 		}
 	}
@@ -168,7 +168,7 @@ func estimateComputedProps(proj *platstore.Project, view convergenceEstimateView
 	props[analytics.PropEstimatedCreditsBucket] =
 		analytics.CreditBucket(billing.TokensToCredits(view.Totals.TokenEstimate))
 	props[analytics.PropAIUnitsBucket] = analytics.CountBucket(view.Totals.ViaAI)
-	props[analytics.PropTMLeveragePctBucket] =
+	props[analytics.PropMemoryLeveragePctBucket] =
 		analytics.SharePercentBucket(view.Totals.ViaMemory, view.Totals.ViaMemory+view.Totals.ViaAI)
 	if view.Credits != nil {
 		props[analytics.PropCoversAllAI] = view.Credits.CoversAllAI
@@ -182,7 +182,7 @@ func estimateComputedProps(proj *platstore.Project, view convergenceEstimateView
 // split and credit cost for the ready source, then the workspace balance. It
 // starts no run and calls no AI provider.
 // GET /…/projects/:id/convergence/estimate
-func (s *Server) HandleConvergenceEstimate(c echo.Context) error {
+func (s *Server) HandleConvergenceEstimate(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}

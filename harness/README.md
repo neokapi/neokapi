@@ -47,7 +47,7 @@ tag runs a live Claude session; **shell** marks a scripted shell demo and
 | 18 | `kapi-bilingual-workflow`        | **shell.** kapi emits a bilingual XLIFF pre-filled from content memory and merges the return |
 | 19 | `kapi-desktop-projects`          | **desktop.** A folder opened as a project, given a language and a collection, and its plan read |
 | 20 | `kapi-desktop-content`           | **desktop.** The collections read as the project opens, and one file read as keys and values |
-| 21 | `kapi-desktop-flows`             | **desktop.** The Toolbox: a flow gains a step, is reordered, and becomes the project default |
+| 21 | `kapi-desktop-flows`             | **desktop.** Project flows: a flow gains a step, is reordered, and becomes the project default |
 | 22 | `kapi-desktop-review`            | **desktop.** The review queue, and the five layers behind one decision |
 | 23 | `kapi-desktop-explorer`          | **desktop.** A project's terms and content memory, searched in the Context hub |
 | 24 | `kapi-desktop-config`            | **desktop.** Appearance, plugins, and where a provider key is stored |
@@ -63,7 +63,7 @@ tag runs a live Claude session; **shell** marks a scripted shell demo and
 | 34 | `bowrain-sizzle`                 | **desktop.** A reel of the Bowrain platform: governance, collaboration, and quality |
 | 35 | `e2-communication-is-context`    | **explainer.** One rename becomes a different rule on each surface, and each rule belongs to a place |
 | 36 | `e2-assistant-run`               | The live run behind E2's beat 6: an assistant edits a help article and an API page, and kapi gives each its own rule |
-| 37 | `kapi-desktop-context`           | **desktop.** What two assistants noticed in the sample, read on its Map, kept, changed and settled in Decide, then the brief for a file, a note arriving live, and Share |
+| 37 | `kapi-desktop-context`           | **desktop.** What two assistants suggested in the sample, read on its Overview, kept, changed and settled in Decide, then the brief for a file, a note arriving live, and Share |
 
 An **explainer** (`terminal: explainer`) has no capture: every scene is a
 `kind: diagram` beat drawn in React and SVG under `src/remotion/explainer/`,

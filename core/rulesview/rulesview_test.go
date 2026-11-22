@@ -10,8 +10,10 @@ import (
 
 	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/workspace"
+	"github.com/neokapi/neokapi/terms"
 )
 
 const key = workspace.ProjectKey("acme/docs")
@@ -57,7 +59,7 @@ func TestQuestions(t *testing.T) {
 			name:    "a name with several forms asks which one the files use",
 			records: []contextop.Record{suggested("n1", term("Quickcast", "Quick cast", "QuickCast", "Quick cast"), claude, -1)},
 			want: []Decision{{
-				ID: "n1", Short: contextop.ShortID("n1"), Kind: DecisionName, Question: "Which one do your files use?",
+				ID: "n1", Short: contextop.ShortID("n1"), Kind: DecisionName, Question: "Which spelling should the project use?",
 				Sentence: "Write Quickcast, not Quick cast, QuickCast or Quick cast.", SuggestedBy: "claude",
 				Options: []Option{{Form: "Quickcast", Scope: docs}, {Form: "Quick cast", Scope: docs}, {Form: "QuickCast", Scope: docs}},
 			}},
@@ -66,7 +68,7 @@ func TestQuestions(t *testing.T) {
 			name:    "a spelling filed by kapi is a name with two forms",
 			records: []contextop.Record{suggested("s1", term("e-mail", "email"), SuggestActor, -1)},
 			want: []Decision{{
-				ID: "s1", Short: contextop.ShortID("s1"), Kind: DecisionName, Question: "Which one do your files use?",
+				ID: "s1", Short: contextop.ShortID("s1"), Kind: DecisionName, Question: "Which spelling should the project use?",
 				Sentence: "Write e-mail, not email.", SuggestedBy: "kapi",
 				Options: []Option{{Form: "e-mail", Scope: docs}, {Form: "email", Scope: docs}},
 			}},
@@ -94,8 +96,8 @@ func TestQuestions(t *testing.T) {
 				Kind: DecisionDisagreement, Question: "Which one holds?",
 				Reason: "These rules say different things about the same word. Choose one, and the others are set aside.",
 				Options: []Option{
-					{ID: "sa", Short: contextop.ShortID("sa"), Sentence: "Write sign in, not log in.", Subject: sideA.Subject, Scope: docs, NoticedBy: claude},
-					{ID: "sb", Short: contextop.ShortID("sb"), Sentence: "Write sign on, not log in.", Subject: sideB.Subject, Scope: docs, NoticedBy: sideB.Actor},
+					{ID: "sa", Short: contextop.ShortID("sa"), Sentence: "Write sign in, not log in.", Subject: sideA.Subject, Scope: docs, RecordedBy: claude},
+					{ID: "sb", Short: contextop.ShortID("sb"), Sentence: "Write sign on, not log in.", Subject: sideB.Subject, Scope: docs, RecordedBy: sideB.Actor},
 				},
 			}},
 		},
@@ -115,7 +117,7 @@ func TestQuestions(t *testing.T) {
 				// The question carries its subject and scope for the counts.
 				assert.Equal(t, docs, g.Scope)
 				assert.NotNil(t, g.Seen)
-				g.Subject, g.Scope, g.NoticedBy, g.Seen = contextop.Subject{}, contextop.Scope{}, contextop.Actor{}, nil
+				g.Subject, g.Scope, g.RecordedBy, g.Seen = contextop.Subject{}, contextop.Scope{}, contextop.Actor{}, nil
 				assert.Equal(t, want, g)
 			}
 		})
@@ -313,4 +315,34 @@ func TestSeenByAndActorPhrase(t *testing.T) {
 	assert.Equal(t, "kapi", ActorPhrase(SuggestActor, false))
 	assert.Equal(t, "kapi check", ActorPhrase(contextop.Actor{Kind: contextop.ActorTool, Name: "check"}, false))
 	assert.Equal(t, "an agent's", ActorPhrase(contextop.Actor{Kind: contextop.ActorAgent}, true))
+}
+
+// A kept replacement holds the line: "say cart", with the concept's
+// preferred "shopping cart" among the other admitted wordings.
+func TestSayThisNotThatKeepsTheKeptWord(t *testing.T) {
+	c := terms.Concept{ID: "cart", Terms: []terms.Term{
+		{Text: "shopping cart", Locale: "en", Status: model.TermPreferred},
+		{Text: "cart", Locale: "en", Status: model.TermAdmitted},
+		{Text: "basket", Locale: "en", Status: model.TermForbidden, Note: terms.ReplacementNote("cart")},
+	}}
+	hits, _ := TermsInForce([]terms.Concept{c}, "en", time.Time{}, 0)
+	rules, total := SayThisNotThat(hits, nil, nil, 0)
+	require.Equal(t, 1, total)
+	assert.Equal(t, "cart", rules[0].Say)
+	assert.Equal(t, []string{"shopping cart"}, rules[0].Also)
+	assert.Equal(t, []string{"basket"}, rules[0].Not)
+}
+
+// With no kept word, the concept's preferred term is the one to say.
+func TestSayThisNotThatSaysThePreferredTerm(t *testing.T) {
+	c := terms.Concept{ID: "cart", Terms: []terms.Term{
+		{Text: "shopping cart", Locale: "en", Status: model.TermPreferred},
+		{Text: "cart", Locale: "en", Status: model.TermAdmitted},
+		{Text: "basket", Locale: "en", Status: model.TermForbidden},
+	}}
+	hits, _ := TermsInForce([]terms.Concept{c}, "en", time.Time{}, 0)
+	rules, _ := SayThisNotThat(hits, nil, nil, 0)
+	require.Len(t, rules, 1)
+	assert.Equal(t, "shopping cart", rules[0].Say)
+	assert.Equal(t, []string{"cart"}, rules[0].Also)
 }

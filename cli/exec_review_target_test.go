@@ -39,7 +39,7 @@ func TestExecReviewNeverWritesOverTheTranslation(t *testing.T) {
   "schemaVersion": "1.0",
   "kind": "kapi-bundle",
   "generator": {"id": "test", "version": "1.0"},
-  "project": {"id": "review", "sourceLocale": "en"},
+  "project": {"id": "review", "source_locale": "en"},
   "documents": [{
     "id": "app", "documentType": "json", "path": "app.json",
     "blocks": [

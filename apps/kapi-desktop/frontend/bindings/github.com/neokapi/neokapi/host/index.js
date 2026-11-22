@@ -5,6 +5,8 @@
 export {
     AIModelOrigin,
     AIModelResolution,
+    AISetupKind,
+    AISetupNeed,
     AgentHost,
     AgentWiringAction,
     AgentWiringFile,
@@ -59,6 +61,7 @@ export {
     DigestTheme,
     FindingsReport,
     ParkedScope,
+    PreReviewResult,
     ReviewContext,
     ReviewQueue,
     RulesFile,

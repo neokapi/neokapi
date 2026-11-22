@@ -8,9 +8,9 @@ sidebar_label: CLI conventions
 
 Every kapi command answers the same four questions the same way: how it takes
 input, how it emits output, what its exit code means, and what it does inside a
-project. These are contracts enforced by tests
-(`cli/conventions_test.go`, `host/inputs_test.go`), not per-command choices: a
-new command that breaks one fails the build.
+project. Tests enforce these contracts
+(`cli/conventions_test.go`, `host/inputs_test.go`), so a new command that
+breaks one fails the build.
 
 ## 1. Input
 

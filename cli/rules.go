@@ -22,13 +22,12 @@ func NewRulesCmd(a *App) *cobra.Command {
 		Use:     "rules",
 		Short:   "Decide, list, narrow or drop the rules your project keeps",
 		GroupID: "work",
-		Long: `The rules are what your project keeps to: names and their spelling, words to
-avoid, and the voice's measures and patterns. An assistant suggests a rule
-when it notices one in your files. Checks report a suggestion, and none fails
-on it until you keep it.
+		Long: `The rules cover names and their spelling, words to avoid, and the voice's
+measures and patterns. An assistant suggests a rule when it finds one in your
+files. Checks report a suggestion, and none fails on it until you keep it.
 
 With suggestions waiting, kapi rules asks about each one in turn: which form
-your files use, or whether to keep it. Before you answer, it shows what
+the project should use, or whether to keep it. Before you answer, it shows what
 keeping it does: how many blocks a check then reports, and where the rule
 applies.
 
@@ -41,7 +40,7 @@ lists the questions with the id each decision takes:
 
   --keep <id>        keep a suggestion (repeatable); --use picks the form
   --drop <id>        not a rule: set a suggestion or a kept rule aside
-  --later <id>       leave it waiting; it keeps advising
+  --later <id>       leave it waiting; checks keep reporting it
   --choose <id>      keep one side where two suggestions disagree
 
 kapi context review records the same decisions for an assistant.`,
@@ -91,7 +90,7 @@ kapi context review records the same decisions for an assistant.`,
 	}
 	addRulesDecideFlags(cmd)
 	cmd.Flags().StringArray("drop", nil, "not a rule: set a suggestion or a kept rule aside by id (repeatable)")
-	cmd.Flags().StringArray("later", nil, "leave a suggestion waiting by id (repeatable); it keeps advising")
+	cmd.Flags().StringArray("later", nil, "leave a suggestion waiting by id (repeatable); checks keep reporting it")
 	cmd.Flags().String("choose", "", "keep this side where two suggestions disagree and set the other aside")
 	cmd.Flags().StringArray("keep", nil, "keep a suggestion by id (repeatable)")
 	AddProjectFlag(cmd)

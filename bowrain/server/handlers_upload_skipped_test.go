@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -91,8 +91,7 @@ func TestHandleUploadFilesReportsSkipped(t *testing.T) {
 	r.Header.Set("Content-Type", contentType)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("acme", proj.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: proj.ID}})
 	c.Set("project_permissions", platauth.PermAll)
 
 	require.NoError(t, srv.HandleUploadFiles(c))
@@ -114,6 +113,48 @@ func TestHandleUploadFilesReportsSkipped(t *testing.T) {
 	assert.Contains(t, resp.Skipped[0].Reason, ".xyz")
 }
 
+// TestHandleUploadFilesDetectsAndroidByContent: an uploaded .xml file goes
+// through the resolver kapi push uses, so an Android string resources file is
+// read as androidxml and any other XML as xml.
+func TestHandleUploadFilesDetectsAndroidByContent(t *testing.T) {
+	srv, cs := newUploadTestServer(t)
+	proj := seedUploadProject(t, cs)
+
+	body, contentType := multipartFiles(t, map[string]string{
+		"strings.xml": `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pay_now">Pay %1$s with your saved card</string>
+</resources>
+`,
+		"catalog.xml": `<?xml version="1.0"?><catalog><title>Guide</title></catalog>`,
+	})
+
+	e := echo.New()
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/acme/"+proj.ID+"/files", body)
+	r.Header.Set("Content-Type", contentType)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(r, rec)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: proj.ID}})
+	c.Set("project_permissions", platauth.PermAll)
+
+	require.NoError(t, srv.HandleUploadFiles(c))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	var resp struct {
+		Items []struct {
+			Name   string `json:"name"`
+			Format string `json:"format"`
+		} `json:"items"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	formatsByName := map[string]string{}
+	for _, it := range resp.Items {
+		formatsByName[it.Name] = it.Format
+	}
+	assert.Equal(t, "androidxml", formatsByName["strings.xml"])
+	assert.Equal(t, "xml", formatsByName["catalog.xml"])
+}
+
 // TestHandleUploadFilesNoSkipped: a clean upload carries no skipped entries
 // (the field is omitted, which the UI treats as none).
 func TestHandleUploadFilesNoSkipped(t *testing.T) {
@@ -129,8 +170,7 @@ func TestHandleUploadFilesNoSkipped(t *testing.T) {
 	r.Header.Set("Content-Type", contentType)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("acme", proj.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: proj.ID}})
 	c.Set("project_permissions", platauth.PermAll)
 
 	require.NoError(t, srv.HandleUploadFiles(c))
@@ -167,8 +207,7 @@ func TestHandleUploadToCollectionReportsSkipped(t *testing.T) {
 	r.Header.Set("Content-Type", contentType)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "cid")
-	c.SetParamValues("acme", proj.ID, coll.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: proj.ID}, {Name: "cid", Value: coll.ID}})
 	c.Set("project_permissions", platauth.PermAll)
 
 	require.NoError(t, srv.HandleUploadToCollection(c))

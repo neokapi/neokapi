@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
-import { ContextScanInput, ContextScanLocalLaneCard, PageHeader } from "@neokapi/ui";
+import { ContextScanInput, ContextScanLocalLaneCard, PageHeader, PageContainer } from "@neokapi/ui";
 import type { ContextScanRequest } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
@@ -57,23 +57,23 @@ export function ContextScanRoute() {
   // page stays reachable by URL — explain instead of failing with a raw 503.
   if (!contextScanAvailable) {
     return (
-      <div className="max-w-3xl mx-auto space-y-6">
+      <PageContainer width="narrow" className="space-y-6">
         <PageHeader
           title="Scan your brand"
           subtitle="The hosted context scan is not available on this server: it requires the background job system (PostgreSQL and a job queue), which this deployment does not run. You can still create a voice profile by hand, or draft one locally."
         />
         <ContextScanLocalLaneCard onLearnMore={handleLocalLane} />
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <PageContainer width="narrow" className="space-y-6">
       <PageHeader
         title="Scan your brand"
         subtitle="Give the scan anything that carries your voice: pasted text, web pages, marketing files, or a repository. It drafts a voice profile and candidate terms, with the evidence behind each field; nothing is saved until you review and approve."
       />
       <ContextScanInput onStarted={handleStarted} />
-    </div>
+    </PageContainer>
   );
 }

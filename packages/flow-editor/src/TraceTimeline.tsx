@@ -85,7 +85,7 @@ export function TraceTimeline({ events, nodeNames, totalDurationUs }: TraceTimel
     // Sort by first appearance in events.
     const firstSeen = new Map<string, number>();
     for (const evt of events) {
-      if (!firstSeen.has(evt.nodeId)) firstSeen.set(evt.nodeId, evt.ts);
+      if (!firstSeen.has(evt.node_id)) firstSeen.set(evt.node_id, evt.ts);
     }
     entries.sort((a, b) => (firstSeen.get(a[0]) ?? 0) - (firstSeen.get(b[0]) ?? 0));
     return entries;

@@ -157,19 +157,19 @@ func TestStyle_RoundTrip_CRLF(t *testing.T) {
 	assert.Equal(t, input, output, "CRLF STYLE block roundtrip should be byte-exact")
 }
 
-// TestStyle_ApplyMap_TogglesFlag verifies the extractNonTranslatableContent key
+// TestStyle_ApplyMap_TogglesFlag verifies the extract_non_translatable_content key
 // flows through ApplyMap alongside the existing JSON-backed keys.
 func TestStyle_ApplyMap_TogglesFlag(t *testing.T) {
 	cfg := &vtt.Config{}
 	assert.True(t, cfg.ExtractNonTranslatableContent(), "default is on")
 
 	require.NoError(t, cfg.ApplyMap(map[string]any{
-		"extractNonTranslatableContent": false,
-		"maxCharsPerLine":               42,
+		"extract_non_translatable_content": false,
+		"max_chars_per_line":               42,
 	}))
 	assert.False(t, cfg.ExtractNonTranslatableContent())
 	assert.Equal(t, 42, cfg.MaxCharsPerLine)
 
-	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": true}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extract_non_translatable_content": true}))
 	assert.True(t, cfg.ExtractNonTranslatableContent())
 }

@@ -1,0 +1,14 @@
+Subject: Hi
+Content-Type: multipart/mixed;
+ boundary="b"
+
+--b
+Content-Type: text/plain;
+	charset="iso-8859-1"; delsp=no
+Content-Transfer-Encoding: quoted-printable
+
+Caf=E9
+--b
+Content-Type: text/plain
+
+no end

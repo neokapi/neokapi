@@ -20,7 +20,7 @@ import (
 	"time"
 
 	// Blank-import the cli package so its init() registrations run in the desktop
-	// too — command factories, MCP tools, and any cli-registered AI providers —
+	// too (command factories, MCP tools, and any cli-registered AI providers),
 	// keeping the desktop's tool and provider lists in sync with the CLI.
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/flow"
@@ -64,7 +64,7 @@ type App struct {
 
 	// pluginRuntime owns the live plugin host, the Mode-C daemon pool that backs
 	// plugin-provided formats (e.g. okapi-bridge's okf_*), and the discover→wire
-	// sequence — the same pluginhost.Runtime the CLI uses, so the lifecycle logic
+	// sequence. It is the same pluginhost.Runtime the CLI uses, so the lifecycle logic
 	// lives in one place. watchCancel stops the directory watcher that picks up
 	// plugins installed or removed by another process (e.g. `kapi plugins
 	// install` run in a terminal). The daemon pool is torn down in
@@ -72,7 +72,7 @@ type App struct {
 	pluginRuntime *pluginhost.Runtime
 	watchCancel   context.CancelFunc
 
-	// i18n — localizes metadata on the way out of Wails methods so the
+	// i18n localizes metadata on the way out of Wails methods so the
 	// React frontend's tool palette and schema forms render in the
 	// user's chosen locale without the frontend having to know anything
 	// about the backend's string table. Built lazily on first SetLocale.
@@ -117,7 +117,7 @@ type App struct {
 	engine   *host.App
 	engineMu sync.Mutex
 
-	// checks is the shared host.App behind RunChecks — the exported bilingual
+	// checks is the shared host.App behind RunChecks: the exported bilingual
 	// check pipeline (ReadBlocksForCheck / OverlayTargets / RunCheckTool /
 	// FindingsFromBlock), sharing the desktop's plugin-wired format registry.
 	// checksMu is held for the duration of a checks run: the run opens the
@@ -127,7 +127,7 @@ type App struct {
 	checksMu sync.Mutex
 
 	// Content-memory and terms handles the frontend addresses by ID. Two kinds
-	// live here: standalone stores the user opened or created by path (owned —
+	// live here: standalone stores the user opened or created by path (owned:
 	// closing the handle closes the file), and a project's own content memory and
 	// terms, which are two schemas inside its `.kapi/work/store.db` and are therefore
 	// borrowed (see handleStore.Adopt). Closing a borrowed handle drops the ID
@@ -143,14 +143,14 @@ type App struct {
 	// what other kapi processes do while the app is open.
 	wsWatcher *workspaceWatcher
 
-	// aiConfig is the shared kapi app config (~/.config/kapi/kapi.yaml) — the
+	// aiConfig is the shared kapi app config (~/.config/kapi/kapi.yaml), the
 	// same file the kapi CLI reads. It supplies the default AI provider/model
 	// (ai.provider / ai.model) so a desktop run with no pinned provider uses the
 	// user's configured default, identical to the CLI.
 	aiConfig *appconfig.AppConfig
 
 	// lookModels keeps whether a model is connected for the deeper look, so
-	// showing the Map reads no saved key from the keychain (lookmodel.go).
+	// showing the Overview reads no saved key from the keychain (lookmodel.go).
 	lookModels lookModelCache
 
 	// eventSink, when non-nil, receives every emitted event in addition to the
@@ -159,6 +159,10 @@ type App struct {
 	// Nil in production.
 	eventMu   sync.RWMutex
 	eventSink func(name string, data any)
+
+	// closing holds a window close or a quit while a tab has unsaved changes
+	// or a running flow (closeguard.go).
+	closing closeState
 
 	logger *log.Logger
 
@@ -201,6 +205,7 @@ func NewApp() *App {
 	formatReg.SetDefaultEngine(aiCfg.FormatEngine())
 
 	app := &App{
+		runState:      newRunner(),
 		formatReg:     formatReg,
 		toolReg:       toolReg,
 		schemaReg:     schemaReg,
@@ -221,12 +226,12 @@ func NewApp() *App {
 
 	// Wire AI defaulting + credential resolution, exactly like the CLI: first
 	// fill the default provider/model (ai.provider/ai.model) for AI tools that
-	// pin none — the shared convention — then resolve the API key for that
+	// pin none (the shared convention), then resolve the API key for that
 	// provider from the credential store.
 	toolReg.SetConfigPreprocessor(app.aiConfigPreprocessor())
 
 	// The plugin runtime owns discovery, the host, the daemon pool, and the
-	// schema/format wiring — the same pluginhost.Runtime the CLI uses. Cache is
+	// schema/format wiring, through the same pluginhost.Runtime the CLI uses. Cache is
 	// off so a rescan always reflects on-disk truth (live installs); connectors
 	// are off because the desktop doesn't source through plugin connectors.
 	app.pluginRuntime = pluginhost.NewRuntime(pluginhost.RuntimeOptions{
@@ -267,7 +272,7 @@ type openProject struct {
 	// Project-scoped content memory and terms: borrowed handles onto the two
 	// schemas of the project's own store, registered so the frontend can address
 	// them by ID like any other. Empty when the project has no store yet, or when
-	// that subsystem holds nothing — the state the pages read as "this project
+	// that subsystem holds nothing: the state the pages read as "this project
 	// has none of its own" and fall back to the named stores from.
 	memoryHandle string // handle ID in App.memoryHandles, empty if none
 	tbHandle     string // handle ID in App.tbHandles, empty if none
@@ -276,13 +281,20 @@ type openProject struct {
 	// polling surface (the home hero) doesn't spam ERR lines while the tab's
 	// directory is moved (e.g. mid sample reset). Reset when the file is back.
 	missingWarned atomic.Bool
+	lastRunError  atomic.Pointer[RunError]
+	filtersMu     sync.RWMutex
 
-	// What the Map shows from this session's own reads (mapsummary.go): when
+	// What the Overview shows from this session's own reads (mapsummary.go): when
 	// the store sync last found the block cache current, and the counts of
 	// the last checks run over the whole project. mapMu guards both.
 	mapMu       sync.Mutex
 	storeReadAt time.Time
 	lastCheck   *mapCheckTally
+	// recycled is what the last recycle pass filled (recycle.go), and
+	// recycleChecked latches the first sync's pass, so a tab looks for exact
+	// matches once on opening and again after each extraction.
+	recycled       *RecycledNote
+	recycleChecked atomic.Bool
 
 	// The questions Decide last read (rulesdecide.go), with the blocks they
 	// were counted over, so what keeping a typed form does is stated without
@@ -328,7 +340,7 @@ func (a *App) GetProjectTermsHandle(tabID string) string {
 // The json tags carry the same memory/terms vocabulary as the Go fields and the
 // frontend's ProjectHandles type. They were left as tmHandle/termbaseHandle when
 // the fields were renamed, so the wire never matched what the frontend reads
-// (`memoryHandle`) — MemoriesPage and the Terms page saw undefined and showed
+// (`memoryHandle`), so MemoriesPage and the Terms page saw undefined and showed
 // their "no project content memory found" empty state for every project. That
 // type is hand-written, so tsc could not catch it either.
 type ProjectHandles struct {
@@ -352,7 +364,7 @@ func (a *App) GetProjectHandles(tabID string) ProjectHandles {
 }
 
 // ServiceStartup is called by Wails v3 during application startup.
-// All initialization happens here — data is guaranteed ready before
+// All initialization happens here, so data is ready before
 // the frontend renders.
 func (a *App) ServiceStartup(ctx context.Context, options application.ServiceOptions) error {
 	a.logger.Println("service starting")
@@ -398,13 +410,13 @@ func (a *App) host() *pluginhost.Host {
 // LoadPlugins discovers manifest-driven plugins and registers their schema
 // extensions and formats on the app's registries, then starts watching the
 // plugin directories so plugins installed or removed by another process (e.g.
-// the kapi CLI) are picked up live. Runs in the foreground — callers needing
+// the kapi CLI) are picked up live. Runs in the foreground; callers needing
 // async startup wrap with a goroutine.
 func (a *App) LoadPlugins() {
 	a.rescanPlugins()
 	// Prime the metadata Translator from the persisted UI language so
 	// tool/format listings come back localized on the very first
-	// ListTools/ListFormats call — before the frontend has a chance to
+	// ListTools/ListFormats call, before the frontend has a chance to
 	// invoke SetLocale.
 	a.SetLocale(a.GetUILanguage())
 	a.emitEvent("plugins-loaded", nil)
@@ -415,7 +427,7 @@ func (a *App) LoadPlugins() {
 // shared runtime, which wires schema extensions and registers the formats
 // plugins provide (e.g. okapi-bridge's okf_* filters) as daemon-backed
 // readers/writers. A project using plugin formats therefore becomes readable as
-// soon as the plugin is installed — no app restart needed (issue #4).
+// soon as the plugin is installed, with no app restart (issue #4).
 func (a *App) rescanPlugins() {
 	a.pluginRuntime.Rescan()
 }
@@ -458,8 +470,8 @@ type TabInfo struct {
 // NewProject creates a new project, saves it to disk, and opens it as a tab.
 // If savePath is empty, defaults to ~/KapiProjects/{name}/. The recipe file is
 // always kapi.yaml; the project's identity is its folder, so savePath may be a
-// project folder or a full path to kapi.yaml — either is normalized to
-// <folder>/kapi.yaml. The name is not stored in the YAML — the display name is
+// project folder or a full path to kapi.yaml; either is normalized to
+// <folder>/kapi.yaml. The name is not stored in the YAML: the display name is
 // derived from the folder name. Users can override it later on the project page.
 func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath string) (*TabInfo, error) {
 	// Default save location: ~/KapiProjects/{name}/
@@ -703,19 +715,30 @@ func (a *App) openFolder(recipe string) (*TabInfo, error) {
 // back to the backend before operations like MatchContent.
 func (a *App) UpdateProject(tabID string, proj *project.KapiProject) error {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	op := a.projects[tabID]
 	if op == nil {
+		a.mu.Unlock()
 		return fmt.Errorf("tab %q not found", tabID)
 	}
-	changed := op.unsaved.Load() && !sameRecipe(op.Project, proj)
+	recipeChanged := !sameRecipe(op.Project, proj)
 	op.Project = proj
-	if changed {
+	var err error
+	if recipeChanged && op.unsaved.Load() {
 		// A person changed a setting the recipe holds, in a folder opened
 		// without a kapi.yaml. The first such change writes the file.
-		return a.ensureRecipeLocked(op)
+		err = a.ensureRecipeLocked(op)
 	}
-	return nil
+	a.mu.Unlock()
+	if recipeChanged && err == nil {
+		// A new collection or pattern names files the block cache has not
+		// read, and the edit lives in memory until it is saved, so no file
+		// changes for the watcher to see. The event asks the frontend to sync
+		// the cache. It is not project-files-changed: a listener of that one
+		// pushes its own copy of the recipe back through UpdateProject, which
+		// would race the save this update may be part of.
+		a.emitEvent("project-recipe-changed", tabID)
+	}
+	return err
 }
 
 // CloseProject removes a project tab, stops its file watcher,
@@ -769,7 +792,7 @@ func (a *App) releaseProjectResources(op *openProject) {
 //
 // Both are schemas inside the one store, so this borrows rather than opens: the
 // handles share the engine's connection pool and closing one must not close it.
-// Presence is a row question — every subsystem's schema exists from the store's
+// Presence is a row question: every subsystem's schema exists from the store's
 // first open, so the file says only that some command ran here. A project whose
 // store holds nothing yet gets no handles, which is the state the Memories and
 // Terms pages already read as "this project has none of its own" and fall back
@@ -777,7 +800,7 @@ func (a *App) releaseProjectResources(op *openProject) {
 //
 // It never CREATES the store: opening a tab is browsing, and browsing must not
 // write. A project with no `.kapi/work/store.db` is left alone until something that
-// genuinely has state to keep — an extract, a run, a seeded sample — makes one.
+// genuinely has state to keep (an extract, a run, a seeded sample) makes one.
 func (a *App) autoOpenProjectResources(op *openProject) {
 	root, ok := projectRoot(op)
 	if !ok {
@@ -841,50 +864,89 @@ func (a *App) ListTabs() []TabInfo {
 	return tabs
 }
 
+// SavedProjectSnapshot identifies the written recipe and the name stored in it.
+type SavedProjectSnapshot struct {
+	Tab  TabInfo `json:"tab"`
+	Name string  `json:"name"`
+}
+
 // SaveProject writes a project to its file path.
 func (a *App) SaveProject(tabID string) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	op := a.projects[tabID]
-
-	if op == nil {
-		return fmt.Errorf("tab %q not found", tabID)
-	}
-	if op.Path == "" {
-		return errors.New("project has no file path (use SaveProjectAs)")
-	}
-	return a.saveRecipe(op)
+	_, err := a.persistProject(tabID, nil, "", false)
+	return err
 }
 
 // SaveProjectAs writes a project to a new file path.
 func (a *App) SaveProjectAs(tabID, path string) error {
+	if path == "" {
+		return errors.New("project destination is empty")
+	}
+	_, err := a.persistProject(tabID, nil, path, false)
+	return err
+}
+
+func (a *App) persistProject(tabID string, snapshot *project.KapiProject, path string, nameFromFolder bool) (*SavedProjectSnapshot, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
 	op := a.projects[tabID]
 	if op == nil {
-		return fmt.Errorf("tab %q not found", tabID)
+		return nil, fmt.Errorf("tab %q not found", tabID)
 	}
-	draftRoot := ""
-	if op.unsaved.Load() && op.Path != "" {
-		draftRoot = filepath.Dir(op.Path)
+	if op.contextOnly {
+		return nil, errors.New("open a project folder to save its recipe")
 	}
-	if err := project.Save(path, op.Project); err != nil {
-		return err
+	if path == "" {
+		path = op.Path
 	}
-	op.Path = path
-	if draftRoot == "" {
-		return nil
+	if path == "" {
+		return nil, errors.New("project has no file path (use SaveProjectAs)")
 	}
-	// A folder opened without a recipe, saved into another folder: that
-	// folder is the project now, set up as ensureRecipe sets one up.
-	if err := project.EnsureLayout(project.LayoutAt(filepath.Dir(path))); err != nil {
-		a.logger.Printf("create %s for %s: %v", project.StateDirName, path, err)
+	if snapshot == nil {
+		snapshot = op.Project
 	}
-	op.unsaved.Store(false)
-	op.draft = nil
-	a.adoptRecipe(op, draftRoot)
-	return nil
+	recipe := *snapshot
+	root := filepath.Dir(path)
+	if nameFromFolder {
+		if name := filepath.Base(root); name != "" && name != "." && name != string(filepath.Separator) {
+			recipe.Name = name
+		}
+	}
+	previous := op.Project
+	if path == op.Path {
+		op.Project = &recipe
+		if err := a.saveRecipe(op); err != nil {
+			op.Project = previous
+			return nil, err
+		}
+	} else {
+		for _, tab := range a.projects {
+			if tab != op && sameRecipePath(tab.Path, path) {
+				return nil, errors.New("the destination project is already open")
+			}
+		}
+		if broadFolder(root) {
+			return nil, errBroadFolder(root)
+		}
+		if err := project.Save(path, &recipe); err != nil {
+			return nil, err
+		}
+		a.releaseProjectResources(op)
+		op.Path, op.Project = path, &recipe
+		op.unsaved.Store(false)
+		op.draft = nil
+		op.workspaceKey = workspaceKeyFor(&recipe, root)
+		if err := project.EnsureLayout(project.LayoutAt(root)); err != nil {
+			a.logger.Printf("create %s for %s: %v", project.StateDirName, path, err)
+		}
+		a.autoOpenProjectResources(op)
+		a.registerInWorkspace(op)
+		a.startWatcher(op)
+		a.emitEvent("project:recipe-written", map[string]any{"tabID": tabID, "path": path})
+	}
+	if !sameRecipe(previous, &recipe) {
+		a.emitEvent("project-recipe-changed", tabID)
+	}
+	return &SavedProjectSnapshot{Tab: tabInfoOf(op), Name: recipe.Name}, nil
 }
 
 // GetProject returns the project for a tab.
@@ -1085,7 +1147,7 @@ type ToolInfo struct {
 	Produces      []IOPort `json:"produces,omitempty"`       // ports written
 	SideEffects   []string `json:"side_effects,omitempty"`   // external interactions
 
-	// IsSourceTransform reports whether the tool is a transformer — it may
+	// IsSourceTransform reports whether the tool is a transformer: it may
 	// rewrite source (AD-006); the placement pass validates its position.
 	IsSourceTransform bool `json:"is_source_transform,omitempty"`
 
@@ -1108,7 +1170,7 @@ type IOPort struct {
 // Empty or "en" disables localization; non-English locales load the
 // matching MO catalog (embedded builtins + installed plugin catalogs).
 // Returns the resolved locale so the frontend can confirm what took
-// effect — useful when the request was "auto" and the backend chose.
+// effect, which is useful when the request was "auto" and the backend chose.
 func (a *App) SetLocale(locale string) string {
 	// cliI18n.Resolve merges the framework catalogs with the CLI catalog
 	// (command help, output chrome, and the desktop.menu.* labels), so the
@@ -1122,7 +1184,7 @@ func (a *App) SetLocale(locale string) string {
 	return string(tr.Locale())
 }
 
-// T returns the active Translator. Safe to call before SetLocale —
+// T returns the active Translator. Safe to call before SetLocale:
 // returns a NoopTranslator that passes source text through unchanged.
 // Not exposed to Wails (lowercase methods are private); backend code
 // reaches for it directly.
@@ -1283,7 +1345,7 @@ func (a *App) injectCredentialPicker(schema map[string]any) {
 		"field": "credential",
 		"eq":    "",
 	}
-	for _, fieldName := range []string{"provider", "apiKey", "model"} {
+	for _, fieldName := range []string{"provider", "api_key", "model"} {
 		if prop, ok := props[fieldName].(map[string]any); ok {
 			prop["ui:visible"] = manualCondition
 		}
@@ -1293,7 +1355,7 @@ func (a *App) injectCredentialPicker(schema map[string]any) {
 	// it inherits that group's visibility. For a ToolGroup tool the provider
 	// fields live in a member group (e.g. "ai:provider" for qa, "llm:provider"
 	// for entity-extract) gated by the discriminator, so the credential picker
-	// then appears only when that AI backend is selected — not in rules/ner mode.
+	// then appears only when that AI backend is selected, not in rules/ner mode.
 	// Match by the group that contains "provider", which covers both the plain
 	// "provider" group (translate) and the namespaced member groups.
 	if groups, ok := schema["ui:groups"].([]any); ok {
@@ -1448,7 +1510,7 @@ func (a *App) GetFormatSchema(formatName string) map[string]any {
 
 // GetPluginDocs returns a summary of available plugin-contributed
 // documentation. The manifest plugin model does not currently surface
-// docs through the host, so this always returns nil — the frontend
+// docs through the host, so this always returns nil, and the frontend
 // degrades to "no docs available" gracefully.
 func (a *App) GetPluginDocs() map[string]any {
 	return nil
@@ -1757,7 +1819,7 @@ func (a *App) RunFormatReader(formatName string, filePath string, config map[str
 	// the registry now so the reader below resolves. No-op once installed.
 	a.ensureFormatPlugin(formatName)
 	// For media formats the in-core reader exists, but OCR/ASR/demux need the
-	// engine plugin (kapi-vision/asr/av) — install it on first open. No-op once
+	// engine plugin (kapi-vision/asr/av); install it on first open. No-op once
 	// the engine is available or for non-media formats.
 	a.ensureMediaEngine(formatName)
 

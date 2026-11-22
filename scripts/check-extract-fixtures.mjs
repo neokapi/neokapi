@@ -1,53 +1,36 @@
 #!/usr/bin/env node
 //
 // Guard: test and story files are not product copy, and must reach neither the
-// extractor's scan set nor a committed runtime catalog.
-//
-// Stage 1 of the dogfood loop scans React source and writes a source catalog;
-// stage 3 hands every string in it to the translate stage and stage 4 compiles
-// it into the dictionary each SPA loads at runtime. A fixture caught in stage 1
-// therefore ships to users and is presented for translation as if a human had
-// written it for them.
-//
-// Three checks, because no two of them add up to the third:
-//
-//   1. Scan set. Each surface's real `--src`/`--ignore` flags are expanded
-//      exactly as `neokapi-i18n extract` expands them (`fs/promises.glob` with
-//      `{ exclude }`), and no yielded path may be a fixture. This catches a new
-//      `--src` root added without the rooted ignores beside it — the shape of
-//      the defect it exists for.
-//
-//      That defect: an --ignore is matched against the path glob yields, `../`
-//      prefix and all, and `**` does not match a leading `..` segment. So a
-//      bare `**/*.test.tsx` is dead for a `../`-prefixed root, silently, and
-//      265 of 544 scanned files were fixtures (#1789).
-//
-//   2. Sentinel key. `App.test.tsx`'s JSX text "app" hashes to a key that was
-//      present in the committed bowrain catalogs while the ignores were dead.
-//      A key is FNV-1a-64 over text|description, so the sentinel is stable
-//      against renames and vocabulary sweeps, and its reappearance means the
-//      leak is back however it got back.
-//
-//   3. Invocation parity. A surface is extracted from two places — a make
-//      target and, where one exists, the package's own `extract` script — and
-//      the two must pass the same flags. A `--config` on one side only is the
-//      shape that defect takes: the componentMap decides how a JSX path
-//      resolves, a key is a hash over that path, and the vite transform reads
-//      the config file unconditionally. So the half that omits it extracts,
-//      translates and compiles keys the running app never asks for, and the
-//      strings fall back to source with nothing failing (#1806). The same check
-//      requires every `--config` path to exist, and requires a surface that
-//      carries its own config file to pass it.
-//
-// `demo/` trees are deliberately not universal here: bowrain excludes its own,
-// while kapi-desktop's src/demo is a real UI harness whose strings are seen.
-// Each surface's ignore set says which it is; this guard checks the part that
-// holds everywhere.
-//
-// Usage:
-//     node scripts/check-extract-fixtures.mjs
-//
-// Wired into `make lint`.
+// extractor's scan set nor a committed runtime catalog. A fixture caught in the
+// extract stage is compiled into the dictionary each SPA loads, so it ships to
+// users and is presented for translation as if a person had written it.
+// Usage: node scripts/check-extract-fixtures.mjs (wired into `make lint`).
+// Three checks follow, because no two of them add up to the third.
+
+// 1. Scan set. Each surface's real `--src`/`--ignore` flags are expanded
+//    exactly as `neokapi-i18n extract` expands them (`fs/promises.glob` with
+//    `{ exclude }`), and no yielded path may be a fixture. An --ignore is
+//    matched against the path glob yields, `../` prefix and all, and `**` does
+//    not match a leading `..` segment. So a bare `**/*.test.tsx` is silently
+//    dead for a `../`-prefixed root; 265 of 544 scanned files were fixtures
+//    (#1789).
+
+// 2. Sentinel key. `App.test.tsx`'s JSX text "app" hashes to a key that was
+//    present in the bowrain catalogs while the ignores were dead. A key is
+//    FNV-1a-64 over text|description, so the sentinel survives renames, and its
+//    reappearance means the leak is back however it got back.
+
+// 3. Invocation parity. A surface is extracted from a make target and, where
+//    one exists, the package's own `extract` script, and the two must pass the
+//    same flags. A `--config` on one side only changes how JSX paths resolve,
+//    so that side compiles keys the running app never asks for, and the
+//    strings fall back to source with nothing failing (#1806). Every
+//    `--config` path must exist, and a surface with its own config file must
+//    pass it.
+
+// `demo/` trees are not universal: bowrain excludes its own, while
+// kapi-desktop's src/demo is a real UI harness whose strings are seen. Each
+// surface's ignore set says which it is.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -60,13 +43,17 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // A fixture by name. Mirrors what every surface's ignore set excludes.
 const FIXTURE = /(\.(test|stories)\.[jt]sx?$)|((^|\/)(__tests__|stories)\/)/;
 
-// Committed runtime catalogs, and the key that must not be in one.
+// Runtime catalogs, and the key that must not be in one.
 // "2Lo0Nu5k0DP" = hash of the JSX text "app" in
-// bowrain/apps/bowrain/frontend/src/App.test.tsx.
+// bowrain/apps/bowrain/frontend/src/App.test.tsx. The qps dictionaries cover
+// the whole extraction and are build output, so they are read when a build has
+// written them; the committed nb dictionaries are read always.
 const SENTINEL_KEY = "2Lo0Nu5k0DP";
 const SENTINEL_CATALOGS = [
   "bowrain/apps/bowrain/frontend/public/translations/qps.json",
   "bowrain/apps/web/public/translations/qps.json",
+  "bowrain/apps/bowrain/frontend/public/translations/nb.json",
+  "bowrain/apps/web/public/translations/nb.json",
 ];
 
 // The extract flags that consume the next token. Anything else is a switch.
@@ -170,7 +157,7 @@ for (const { dir, src, exclude, config, tokens } of surfaces()) {
   }
 
   if (src.length === 0) {
-    console.error(`${dir}: no --src patterns — l10n-extract-globs is out of step`);
+    console.error(`${dir}: no --src patterns; l10n-extract-globs is out of step`);
     failed = true;
     continue;
   }
@@ -190,13 +177,14 @@ for (const { dir, src, exclude, config, tokens } of surfaces()) {
     for (const f of leaked.slice(0, 10)) console.error(`    ${f}`);
     if (leaked.length > 10) console.error(`    … and ${leaked.length - 10} more`);
     console.error(
-      `  Each --src root needs the exclude set rooted at its own prefix — ` +
+      `  Each --src root needs the exclude set rooted at its own prefix; ` +
         `see src-ignores in the Makefile.`,
     );
   }
 }
 
 for (const rel of SENTINEL_CATALOGS) {
+  if (!existsSync(resolve(root, rel))) continue;
   const catalog = JSON.parse(readFileSync(resolve(root, rel), "utf8"));
   const messages = catalog.messages ?? catalog;
   if (Object.hasOwn(messages, SENTINEL_KEY)) {

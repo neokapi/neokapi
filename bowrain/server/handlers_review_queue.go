@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 
@@ -14,7 +14,7 @@ import (
 )
 
 // HandleListReviewQueue returns review items for a project with filtering and pagination.
-func (s *Server) HandleListReviewQueue(c echo.Context) error {
+func (s *Server) HandleListReviewQueue(c *echo.Context) error {
 	projectID := c.Param("id")
 	if s.ReviewQueueStore == nil {
 		return c.JSON(http.StatusOK, bstore.ReviewQueueResult{Items: []bstore.ReviewItem{}})
@@ -49,7 +49,7 @@ func (s *Server) HandleListReviewQueue(c echo.Context) error {
 }
 
 // HandleGetReviewQueueItem returns a single review item.
-func (s *Server) HandleGetReviewQueueItem(c echo.Context) error {
+func (s *Server) HandleGetReviewQueueItem(c *echo.Context) error {
 	if s.ReviewQueueStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "review queue not configured"})
 	}
@@ -63,7 +63,7 @@ func (s *Server) HandleGetReviewQueueItem(c echo.Context) error {
 }
 
 // HandleDecideReviewItem applies an approve/reject decision to a review item.
-func (s *Server) HandleDecideReviewItem(c echo.Context) error {
+func (s *Server) HandleDecideReviewItem(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermReview); err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (s *Server) HandleDecideReviewItem(c echo.Context) error {
 // trackReviewDecision captures a review_approved / review_rejected analytics
 // event after a decision persists (fire-and-forget; batch size and locale
 // only — never review content).
-func (s *Server) trackReviewDecision(c echo.Context, decision string, batchSize int, locale string) {
+func (s *Server) trackReviewDecision(c *echo.Context, decision string, batchSize int, locale string) {
 	if s.PostHogClient == nil {
 		return
 	}
@@ -142,7 +142,7 @@ func (s *Server) trackReviewDecision(c echo.Context, decision string, batchSize 
 }
 
 // HandleAssignReviewItem assigns a review item to a user.
-func (s *Server) HandleAssignReviewItem(c echo.Context) error {
+func (s *Server) HandleAssignReviewItem(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageMembers); err != nil {
 		return err
 	}
@@ -168,7 +168,7 @@ func (s *Server) HandleAssignReviewItem(c echo.Context) error {
 }
 
 // HandleSplitReviewItem splits occurrences from a review item into a new item.
-func (s *Server) HandleSplitReviewItem(c echo.Context) error {
+func (s *Server) HandleSplitReviewItem(c *echo.Context) error {
 	if s.ReviewQueueStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "review queue not configured"})
 	}
@@ -195,7 +195,7 @@ func (s *Server) HandleSplitReviewItem(c echo.Context) error {
 }
 
 // HandleBatchDecideReviewItems applies the same decision to multiple review items.
-func (s *Server) HandleBatchDecideReviewItems(c echo.Context) error {
+func (s *Server) HandleBatchDecideReviewItems(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermReview); err != nil {
 		return err
 	}
@@ -262,7 +262,7 @@ func (s *Server) HandleBatchDecideReviewItems(c echo.Context) error {
 }
 
 // HandleSyncReviewDecisions processes offline review decisions from the mobile app.
-func (s *Server) HandleSyncReviewDecisions(c echo.Context) error {
+func (s *Server) HandleSyncReviewDecisions(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermReview); err != nil {
 		return err
 	}

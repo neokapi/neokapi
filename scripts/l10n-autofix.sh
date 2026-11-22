@@ -1,45 +1,42 @@
 #!/usr/bin/env bash
-# l10n-autofix.sh — regenerate the build-derived multilingual artifacts and, on a
+# l10n-autofix.sh: regenerate the build-derived multilingual artifacts and, on a
 # same-repo pull request, commit the result instead of failing the build.
 #
 # Usage: scripts/l10n-autofix.sh [--dry-run]
 #
-# There is nothing to configure. `make l10n-build` regenerates the tier and
-# `make l10n-derived-paths` names exactly what it owns, so this script and the
-# Makefile cannot disagree about the gated set — which is the whole reason the
-# path list is not repeated here.
+# --dry-run performs the regen, stage and commit but prints the push command
+# instead of running it, for local testing. `make l10n-build` regenerates the
+# tier and `make l10n-derived-paths` names what it owns, so the gated set has
+# one definition.
+
+# The walk has no convergence in it: extraction and the qps probe read
+# committed source, and the compilers read what those wrote. Every gated path is
+# a deterministic function of committed source, so:
 #
-# The walk it runs has no convergence in it. Extraction and the qps probe read
-# committed source, and the compilers read what those two wrote; nothing here
-# opens the project store, so nothing here can rewrite a target-language
-# artifact. That is the property the auto-commit rests on: every path under the
-# gate is a deterministic function of committed source, so:
-#
-#   * no drift                → exit 0 quietly.
-#   * drift on a same-repo PR → commit exactly the owned paths as
-#     github-actions[bot], push to the PR head branch, annotate, exit 0.
-#     Regeneration is deterministic, so the next run of this gate (on the bot
-#     commit) finds no drift — the loop terminates after one commit. The push
-#     uses GITHUB_TOKEN, which does NOT trigger new workflow runs; the checks
-#     on the current run's SHA are authoritative.
-#   * drift anywhere else     → print it and fail, exactly like `make
-#     l10n-verify` (fork PRs have no push rights; pushes to main keep the
-#     strict safety net; local runs stay strict for humans).
-#
-# The target-language tier is not here and must not be added. It is written by
-# `kapi up` out of the project store, which holds wording no checkout can
-# reproduce from git alone, so a bot that regenerated and committed it would
-# overwrite approved wording with whatever the seeds happen to hold — green,
-# every time, and silent. Its standing is reported instead: `make l10n-report`.
-#
-# Context is passed in via environment (wired in .github/workflows/l10n.yml):
+#   * no drift                -> exit 0 quietly.
+#   * drift on a same-repo PR -> commit exactly the owned paths as
+#     github-actions[bot], push to the PR head branch, annotate, exit 0. A
+#     rerun on the bot commit finds no drift.
+#   * drift anywhere else     -> print it and fail, like `make l10n-verify`.
+#     Fork PRs have no push rights; main and local runs stay strict.
+
+# The push uses GITHUB_TOKEN, so GitHub starts no workflow runs for the bot
+# commit, or starts them as `action_required`. Branch protection evaluates the
+# checks of the PR's new head, the bot commit, so the PR cannot merge until CI
+# runs on it: someone pushes another commit or closes and reopens the PR, which
+# costs a full CI cycle. The app qps dictionaries are build output for that
+# reason (`make app-qps`), which leaves this tier to change rarely.
+
+# The target-language tier must not be added here. `kapi up` writes it from the
+# project store, which holds wording git alone cannot reproduce, so a bot that
+# regenerated and committed it would overwrite approved wording while every
+# check passed. Its standing is reported instead: `make l10n-report`.
+
+# Context comes from the environment (wired in .github/workflows/l10n.yml):
 #   GITHUB_EVENT_NAME   "pull_request" enables the auto-fix path
 #   AUTOFIX_SAME_REPO   "true" iff the PR head repo == the base repo
 #   AUTOFIX_HEAD_REF    the PR head branch to push to
 #   GITHUB_WORKFLOW     names the workflow in the bot commit body
-#
-# --dry-run performs the regen + stage + commit but skips the actual push
-# (prints the push command instead) — used for local testing of the wiring.
 set -euo pipefail
 
 dry_run=0
@@ -82,8 +79,8 @@ same_repo="${AUTOFIX_SAME_REPO:-false}"
 head_ref="${AUTOFIX_HEAD_REF:-}"
 
 if [[ "$event" == "pull_request" && "$same_repo" == "true" && -n "$head_ref" ]]; then
-  # Same-repo PR: self-heal. Stage ONLY the owned paths — never the rest of
-  # the working tree — so an unexpected unrelated change can never ride along
+  # Same-repo PR: self-heal. Stage ONLY the owned paths, never the rest of
+  # the working tree, so an unexpected unrelated change can never ride along
   # in the bot commit. `git add` (unlike diff and ls-files) fatals on a
   # pathspec that matches nothing, so it gets the resolved file lists rather
   # than the raw pathspecs.
@@ -106,7 +103,7 @@ if [[ "$event" == "pull_request" && "$same_repo" == "true" && -n "$head_ref" ]];
   else
     git push origin "HEAD:refs/heads/${head_ref}"
   fi
-  echo "::notice::Stale build-derived artifacts regenerated and committed to '${head_ref}'. The bot commit was pushed with GITHUB_TOKEN and does not re-trigger workflows — the checks on this run's SHA are authoritative."
+  echo "::warning::Stale build-derived artifacts regenerated and committed to '${head_ref}'. The bot commit was pushed with GITHUB_TOKEN, so GitHub runs no checks on it, and branch protection holds the pull request until checks pass on that new head. Close and reopen the pull request, or push another commit, to run CI on it. Running 'make l10n-build' before pushing avoids this."
   exit 0
 fi
 

@@ -17,7 +17,7 @@ import (
 // recipe names, rather than to transform content with code kapi ships:
 // `external-command` spawns a subprocess from its own config, and `script`
 // evaluates recipe-supplied JavaScript (and can read an arbitrary file through
-// scriptFile).
+// script_file).
 //
 // The same classification is applied on two other surfaces, for the same
 // reason. `host/mcp_tools.go` withholds both from the agent-facing MCP surface
@@ -196,8 +196,8 @@ func execSitesInToolConfig(in map[string]map[string]any, where string) []ExecSit
 
 // execDetailKeys are the config keys worth showing in a consent prompt, in the
 // order they read best. `command`/`args` are external-command's argv;
-// `scriptFile` and `script` are what the script tool would evaluate.
-var execDetailKeys = []string{"command", "args", "scriptFile", "script"}
+// `script_file` and `script` are what the script tool would evaluate.
+var execDetailKeys = []string{"command", "args", "script_file", "script"}
 
 // summariseExecConfig renders the part of a config that says what would run.
 // Values come from an untrusted recipe, so the result is sanitised and clipped

@@ -50,7 +50,7 @@ func yamlCommentsProject(t *testing.T, comments, remembered bool) (*App, *EnvCom
 		}},
 		Flows: map[string]*flow.StepsSpec{
 			"recycle-only": {Steps: []flow.FlowStep{
-				{Tool: "recycle", Config: map[string]any{"fillTarget": true, "fillTargetThreshold": 100}},
+				{Tool: "recycle", Config: map[string]any{"fill_target": true, "fill_target_threshold": 100}},
 			}},
 		},
 	}
@@ -118,7 +118,7 @@ func TestUpConvergesAReaderFormatWithCommentsTrueUnchanged(t *testing.T) {
 		assert.Contains(t, string(keyed), "# the first words", "the skeleton keeps the line comment")
 	})
 
-	t.Run("must fail: the comparison notices a run that converged nothing", func(t *testing.T) {
+	t.Run("must fail: the comparison catches a run that converged nothing", func(t *testing.T) {
 		_, converged := convergedYAML(t, true, true)
 		_, unconverged := convergedYAML(t, true, false)
 		assert.NotEqual(t, string(converged), string(unconverged),

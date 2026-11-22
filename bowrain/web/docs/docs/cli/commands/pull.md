@@ -5,10 +5,10 @@ sidebar_position: 4
 
 # kapi pull
 
-Fetch the server's changes into the working tree. `kapi pull` is pure
-transport: it moves the results of runs and review, the workspace's governed
-terms, and the recipe changes an approval decided on, and never drafts
-anything.
+Bring the team's work into your checkout: the results of server runs and
+review, the workspace's governed terms, and the recipe changes a person
+approved. `kapi pull` only moves content and drafts nothing. A teammate in the
+browser or in Kapi Desktop sees the same results on the server.
 
 ## Usage
 
@@ -60,11 +60,10 @@ committed or pulled (the protocol is described once, on
 - **Recipe changes**, first. When a person approved an axis a
   [context scan](/server/context-scan) proposed, the approval is waiting as a
   pending recipe change. Pull writes it into `kapi.yaml` as
-  `defaults.coordinates.<axis>` and settles it with the server. A value the
-  recipe already holds is taken as applied; a value that disagrees with what
-  the recipe says is reported as a conflict and left for you to resolve. The
-  recipe is a decision waiting to be reviewed in git, so a failure here never
-  fails the pull.
+  `defaults.coordinates.<axis>` and marks it settled on the server. A value the
+  recipe already holds counts as applied. A value that disagrees with the
+  recipe is reported as a conflict for you to resolve. You review recipe
+  changes in git, so a failure here never fails the pull.
 - **Content.** Targets produced by runs and promoted by review land in the
   target files the recipe's `collections:` name, with the format's own writer.
   A file whose targets did not change is left untouched.
@@ -76,21 +75,20 @@ committed or pulled (the protocol is described once, on
   terms store and records a baseline, so a later
   [`kapi push`](/cli/commands/push) can diff local terms edits against it and
   [`kapi check --ship`](/cli/use-cases/brand-terminology-ci) gates offline
-  against the same governed vocabulary.
+  against the same governed terms.
 
-Pull also reports what it deliberately did not apply:
+Pull also reports what it did not apply:
 
-- **Retired items.** An item the server still streams whose source is gone
-  from this checkout is skipped rather than resurrected.
+- **Retired items.** Pull skips an item the server still sends when its source
+  is gone from this checkout.
 - **Blocks without a file.** A block the server sends with an empty item name,
   or with one that points outside the project, has no file to land in. Pull
   skips it, prints how many it skipped with the first block ids, and moves
   past it, so the next pull continues from there.
 - **Governance divergence.** Pull reports the collections the server holds and
-  how it governs them. For a collection this recipe declares, `kapi.yaml` is
-  the authority, so a point, channel or voice that differs on the server is
-  reported and resolved in git rather than pulled down over the local
-  governance.
+  how it governs them. For a collection this recipe declares, `kapi.yaml`
+  decides. Pull reports a point, channel or voice that differs on the server,
+  and you resolve it in git.
 
 ## Exit codes
 
@@ -113,7 +111,6 @@ Pull from Bowrain Server to:
 - **Sync governed terms**, so `kapi check --ship` gates offline
 - **Update source content** that entered Bowrain through another connector
 
-Source content can originate from a server-side connector, a content platform,
-a design tool, or a git host, not only from your local files. `kapi pull`
-brings those upstream changes down, so the checkout is the local mirror of
-content that may have entered Bowrain elsewhere.
+Source content can also come from a server-side connector: a content platform,
+a design tool or a git host. `kapi pull` brings those changes down, so the
+checkout mirrors content that entered Bowrain elsewhere.

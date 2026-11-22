@@ -3,11 +3,11 @@
 // as the views read them. The `satisfies` checks run in the package typecheck,
 // so a field the Go side drops or renames fails it.
 
-import mapJSON from "../fixtures/map-summary.json";
+import overviewJSON from "../fixtures/overview-summary.json";
 import readerJSON from "../fixtures/reader-file.json";
 import decideJSON from "../fixtures/rules-decide-view.json";
 import keptJSON from "../fixtures/kept-rules.json";
-import type { KeptRule, MapSummary, ReaderFile, RulesDecideView } from "./types";
+import type { KeptRule, OverviewSummary, ReaderFile, RulesDecideView } from "./types";
 
 // A JSON import types each string as `string`, never as one of a union's
 // literals, so the fixtures satisfy the types with those literals widened.
@@ -20,7 +20,8 @@ type Loose<T> = T extends string
       ? Loose<U>[]
       : { [K in keyof T]: Loose<T[K]> };
 
-export const mapSummaryFixture = mapJSON satisfies Loose<MapSummary> as MapSummary;
+export const overviewSummaryFixture =
+  overviewJSON satisfies Loose<OverviewSummary> as OverviewSummary;
 export const readerFileFixture = readerJSON satisfies Loose<ReaderFile> as ReaderFile;
 export const rulesDecideViewFixture =
   decideJSON satisfies Loose<RulesDecideView> as RulesDecideView;

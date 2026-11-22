@@ -200,7 +200,7 @@ func TestExtractDescriptionsDisabled(t *testing.T) {
 	require.NoError(t, r.Open(t.Context(), doc))
 	defer r.Close()
 	parts := testutil.CollectParts(t, r.Read(t.Context()))
-	assert.Empty(t, collectBlocks(parts), "extractDescriptions=false extracts nothing")
+	assert.Empty(t, collectBlocks(parts), "extract_descriptions=false extracts nothing")
 }
 
 // TestTranslatedWrite verifies that translating $description values and writing
@@ -303,10 +303,10 @@ func TestConfigApplyMap(t *testing.T) {
 	c.Reset()
 	assert.True(t, c.ExtractDescriptions)
 
-	require.NoError(t, c.ApplyMap(map[string]any{"extractDescriptions": false}))
+	require.NoError(t, c.ApplyMap(map[string]any{"extract_descriptions": false}))
 	assert.False(t, c.ExtractDescriptions)
 
-	require.Error(t, c.ApplyMap(map[string]any{"extractDescriptions": "nope"}))
+	require.Error(t, c.ApplyMap(map[string]any{"extract_descriptions": "nope"}))
 	require.Error(t, c.ApplyMap(map[string]any{"unknownKey": true}))
 }
 
@@ -320,7 +320,7 @@ func TestSchema(t *testing.T) {
 	assert.Equal(t, "designtokens", s.FormatMeta.ID)
 	assert.Equal(t, []string{".tokens"}, s.FormatMeta.Extensions)
 	assert.Empty(t, s.FormatMeta.MimeTypes)
-	assert.Contains(t, s.Properties, "extractDescriptions")
+	assert.Contains(t, s.Properties, "extract_descriptions")
 }
 
 // TestMalformedJSON verifies that malformed input surfaces a clean error
@@ -474,7 +474,7 @@ func TestDeprecatedBooleanStaysOpaque(t *testing.T) {
 }
 
 // TestDeprecatedStringFallsBackToDataWhenDescriptionsDisabled verifies that with
-// extractDescriptions=false (no $description blocks emitted at all), a string
+// extract_descriptions=false (no $description blocks emitted at all), a string
 // $deprecated on a token that has a $description still surfaces its prose on the
 // Data part, since there is no block to annotate.
 func TestDeprecatedStringFallsBackToDataWhenDescriptionsDisabled(t *testing.T) {
@@ -498,7 +498,7 @@ func TestDeprecatedStringFallsBackToDataWhenDescriptionsDisabled(t *testing.T) {
 	defer r.Close()
 	parts := testutil.CollectParts(t, r.Read(t.Context()))
 
-	assert.Empty(t, collectBlocks(parts), "extractDescriptions=false extracts nothing")
+	assert.Empty(t, collectBlocks(parts), "extract_descriptions=false extracts nothing")
 	d := collectData(parts)["spacing.small.$deprecated"]
 	require.NotNil(t, d)
 	assert.Equal(t, "Use spacing.compact instead.", d.Properties["text"],

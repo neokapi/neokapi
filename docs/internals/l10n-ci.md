@@ -14,16 +14,21 @@ target-drift rule; the recipe itself (`kapi.yaml`) for what each collection is.
 The loop uses the **system-installed** released kapi. Project context is stored
 in the user's workspace: terms, voice profiles, approved wording and decisions.
 
-The recipe declares `context: {backend: git}`, so the project's context is
-shared on `refs/kapi/context` in this repository. A CI runner starts with an
-empty workspace; before `kapi up` the job runs `kapi context sync --no-push`,
-which reads the ref and shares nothing, and after it `kapi context sync` shares
-the decisions the run recorded. The job's
-`contents: write` covers the ref.
+The recipe connects the project to Bowrain and declares
+`context: {backend: bowrain}`, so the project's context is kept on the Bowrain
+project, beside the content. A CI runner starts with an empty workspace; before
+`kapi up` the job runs `kapi context sync --no-push`, which reads the context
+and shares nothing, and after it `kapi context sync` shares the decisions the
+run recorded. Both authenticate with the `BOWRAIN_AUTH_TOKEN` secret and
+`BOWRAIN_SERVER_URL`.
 
-`make import-dogfood-context` pulls the ref into the isolated store used by
-prose checks, and `make l10n-context-import` pulls it for the convergence loop.
-`make l10n-context-push` shares what a local run recorded.
+`make import-dogfood-context` pulls the context into the isolated store used by
+the prose checks, and `make l10n-context-import` pulls it for the convergence
+loop. `make l10n-context-push` shares what a local run recorded. The isolated
+store has no sign-in, so a local run of the prose checks needs
+`BOWRAIN_AUTH_TOKEN` and `BOWRAIN_SERVER_URL` exported; the *Reference data*
+workflow sets both from the secret, which Dependabot pull requests read from
+the Dependabot secret of the same name.
 The isolation contract in [CLAUDE.md](../../CLAUDE.md) prevents other in-repo
 invocations from accessing the developer's project context.
 
@@ -136,6 +141,35 @@ gitignored, and the docs workflows regenerate it with a released kapi
 (`.github/actions/pseudo-locale`) immediately before each site build. Nothing of
 it is committed, so nothing of it is byte-gated.
 
+## App pseudo-locale dictionaries
+
+The app surfaces' `qps` dictionaries are build output too, and git carries none
+of them: `public/translations/qps.json` under Kapi Desktop, the bowrain web and
+desktop shells, ctrl and pulse. Each is a function of its app's source, so the
+app regenerates it where it is built. One make target per surface does the
+work: `kapi-desktop-qps`, `bowrain-app-qps` (both bowrain shells), `bowrain-ctrl-qps`
+and `bowrain-pulse-qps`, with `app-qps` running all four. Each extracts the
+surface's source catalogs, pseudo-translates them into a scratch directory with
+`QPS_KAPI` (`bin/kapi` when it exists, else the `kapi` on `PATH`) and compiles
+the result into each shell's dictionary.
+
+| Consumer | How it gets the dictionary |
+| --- | --- |
+| `vp dev`, `vp build`, Wails dev and build, Playwright's dev server | each app's `vite.config.ts` loads `scripts/vite-qps-catalog.mjs`, which runs the surface's target once at build start |
+| Both Storybooks | `.storybook/main.ts` runs the target from `viteFinal`, before the static `public/` tree is served |
+| Deploy and release workflows, Storybook preview | `.github/actions/app-pseudo-locale` installs a pinned kapi and runs the target before the build |
+| The nightly's content gate | `dogfood-sync.yml` runs `make app-qps` before `scripts/check-loop-output.sh` |
+| `make l10n-report`, `make l10n-content-check` | both depend on `app-qps` |
+| Docker images | the image carries whatever dictionary the build context holds; none when it holds none |
+
+The vite plugin never fails a build. With no `make`, no kapi, or a failing run
+it warns, and the app's `qps` locale renders the English source. It skips under
+Vitest, under `CI` (where the workflows run the target themselves and fail on
+an error) and when `NEOKAPI_SKIP_QPS` is set. `make l10n` and `make l10n-build`
+still compile these dictionaries from the `i18n-qps/` trees, because the content
+reports measure each target dictionary against them, and `l10n-derived-paths`
+leaves them out.
+
 ## Two tiers, and what may be asserted about each
 
 Every committed artifact this pipeline owns is a function of one of two things,
@@ -143,9 +177,10 @@ and that is what decides how it is checked.
 
 **Build-derived** is a function of committed source alone: the two generated
 inventories (`core/i18n/builtins/metadata.json`, `host/i18n/commands.json`), the
-English email renders, and the whole `qps` tier, including the `qps` probe of
-each Go-surface catalog and the reference dataset's `qps` variant. Nothing here passes through the
-project store, so regenerating it must reproduce it byte for byte. `make
+English email renders, and the committed `qps` tier: the `qps` probe of each
+Go-surface catalog, the reference dataset's `qps` variant, the landing page's
+dictionary and head, and the `qps` email renders and subjects. The app dictionaries above are not
+in it. Nothing here passes through the project store, so regenerating it must reproduce it byte for byte. `make
 l10n-verify` runs `make l10n-build` (extraction, the probe, and the compilations
 that read neither the store nor a target locale) and diffs the set that `make
 l10n-derived-paths` prints, so the Makefile and CI cannot disagree about it. It
@@ -233,17 +268,22 @@ l10n-build` and then:
 - no drift → pass;
 - drift on a **same-repo pull request** → commit exactly the owned paths as
   `github-actions[bot]` and push to the PR head branch. Regeneration is
-  deterministic, so the rerun on the bot commit finds nothing and the loop
-  terminates after one commit. The push uses `GITHUB_TOKEN`, which does not
-  re-trigger workflows, so the checks on the current run's SHA are
-  authoritative;
+  deterministic, so a rerun on the bot commit finds nothing. The push uses
+  `GITHUB_TOKEN`, so GitHub starts no workflow runs for the bot commit, or
+  starts them as `action_required`. Branch protection reads the checks of the
+  pull request's new head, which is the bot commit, so the pull request cannot
+  merge until CI runs on it: someone closes and reopens it, or pushes another
+  commit, and the checks run again from the start. `make pre-push` runs `make
+  l10n-verify` when a change touches a source this tier derives from, so the
+  drift is found before the push;
 - drift **anywhere else** (fork PR, push to main, a human's laptop) → fail, like
   `make l10n-verify`.
 
-Auto-committing is the right shape here for one reason only: every artifact
-under the gate is a deterministic function of committed source, so asking a human
-to run a command and push its output is asking them to be a build step. That is
-also why the walk it runs has no convergence in it. A job that regenerated the
+Every artifact under the gate is a deterministic function of committed
+source, which is what makes the auto-commit safe, and the walk it runs has no
+convergence in it for the same reason. Because each bot commit stalls its pull
+request for a CI cycle, the app dictionaries, which change with most UI edits,
+are build output rather than gated artifacts. A job that regenerated the
 target tier from the committed bundles and committed the result would overwrite
 every approval the loop had brought home: the regeneration would be green, the
 diff would look routine, and the wording would be gone.
@@ -337,8 +377,8 @@ Three steps sit between `kapi up` and delivery, in this order.
 
 `kapi context sync` is the loop's return leg for unit decisions. `kapi up`
 records the server's approved decisions in the project's decision ledger, and
-the sync shares those operations on `refs/kapi/context`, where the next run and
-every checkout's sync read them. A sync that cannot reach the remote exits 5
+the sync shares those operations with the Bowrain project, where the next run
+and every checkout's sync read them. A sync that cannot reach the remote exits 5
 and changes nothing, so the next run shares what this one could not.
 
 The terminology return leg needs no step: the concept pull merges approved term
@@ -377,7 +417,7 @@ The gate does not require the run to have decided anything. A night that
 converged and approved nothing is the ordinary night for a repository whose
 source moves daily and whose reviewers approve in batches. What the run brought
 home to the context is reported by the `kapi context sync` step, which names the
-operations it shared on `refs/kapi/context`.
+operations it shared with Bowrain.
 
 It does require a decision behind a **removal**. A rewrite carries content to
 read; a deletion carries none. The nightly passes the number of operations

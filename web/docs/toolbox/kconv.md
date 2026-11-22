@@ -1,16 +1,18 @@
 ---
 sidebar_position: 5
 title: kconv
-description: "kconv converts the content of any supported format into another (Markdown, HTML, DocLang), driven by the structural role layer rather than the source bytes."
+description: "kconv converts the content of any supported format into another (Markdown, HTML, DocLang), driven by the structural role of each block."
 keywords: [kconv, convert, markdown, html, doclang, docx, docling, format conversion, multilingual content]
 ---
+
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # kconv
 
 Convert the content of any supported format into another. `kconv` reads a
 document into kapi's content model and re-expresses it in a different format,
-carrying the **structure** across (headings, lists, tables and inline
-formatting) rather than the source bytes.
+and carries the **structure** across: headings, lists, tables and inline
+formatting.
 
 ```bash
 kconv [flags] [FILE...]
@@ -22,7 +24,7 @@ extension. With no `-o`, the result is written to standard output. With no file,
 or when the file is `-`, standard input is read.
 
 A conversion that produces a binary document (a same-format `.docx` round-trip,
-say) is refused rather than streamed at a terminal. Pass `-o FILE`, redirect
+say) is never written to a terminal. Pass `-o FILE`, redirect
 stdout, or name standard output explicitly with `-o -` to ask for the bytes
 anyway. Redirected and piped output is never inspected.
 
@@ -34,11 +36,23 @@ directory.
 
 ## How the conversion works
 
-`kconv` is a projection of the content model. Each block carries a normalized
+`kconv` is a projection of the content model:
+
+<PipelineDiagram
+  stages={[
+    { label: "source file", role: "io" },
+    { label: "reader", sub: "source format" },
+    { label: "blocks", sub: "text + role", role: "annotate" },
+    { label: "writer", sub: "target format" },
+    { label: "output file", role: "io" },
+  ]}
+/>
+
+Each block carries a normalized
 **role** (heading, list item, table cell, caption) and `kconv` renders that
 role in the target format: a heading becomes `#`/`##` in Markdown or
-`<h1>`/`<h2>` in HTML; a list becomes bullets or a `<ul>`; a table reconstructs
-as an HTML `<table>` (Markdown lists the cells). Inline formatting is rendered
+`<h1>`/`<h2>` in HTML; a list becomes bullets or a `<ul>`; a table becomes
+an HTML `<table>` or a Markdown table. Inline formatting is rendered
 from each run's type, so a bold span becomes `**…**` or `<strong>…</strong>`
 whatever spelling the source format used.
 
@@ -48,14 +62,18 @@ new format.
 
 ## Supported output formats
 
-You can read (convert **from**) any supported format. You can write (convert
-**to**) the document and data formats that are produced from content alone:
+You can convert from any format with an installed reader. The target writer
+must be able to generate a document from the blocks the source provides.
 
-- **Documents**: Markdown, HTML, DocLang, AsciiDoc, plain text
-- **Data and catalogs**: JSON, YAML, and the resource-string formats
+- Markdown, HTML and DocLang retain headings and body text. Their writers also
+  project structures such as tables and inline formatting.
+- JSON and YAML write structural block records. Use `--to json-catalog` or
+  `--to yaml-catalog` to write keyed strings from catalog input.
+- CSV and TSV require cell positions. WebVTT and SubRip use cue times.
 
-Run `kapi formats` for the full set, or try the
-[Conversion lab](/learn/conversion) to convert in your browser.
+The [output evidence dashboard](/format-maturity#outputs) lists the
+built-in targets, the fixtures the tests convert, and the values each target
+reader recovers. You can also try the [Conversion lab](/learn/conversion).
 
 **Not conversion targets:**
 
@@ -70,6 +88,9 @@ Run `kapi formats` for the full set, or try the
 ## Examples
 
 ```bash
+# Read the subject and plain-text body of an email as Markdown
+kconv message.eml --to md
+
 # A Word proposal as clean Markdown (to stdout)
 kconv proposal.docx --to md
 
@@ -114,8 +135,8 @@ shares, so `kconv 'docs/**/*.md' --to html -o site/` writes
 in sibling directories cannot collide.
 
 Two inputs that *would* resolve to the same output file (`report.md` and
-`report.html` both converted to DocLang) are a reported error rather than a
-silent overwrite, and so is a conversion that would write over its own input.
+`report.html` both converted to DocLang) are reported as an error and neither
+is written, and so is a conversion that would write over its own input.
 The rest of the run continues; the exit status is 2.
 
 Without a directory, `-o` names a single output file and takes a single input.
@@ -124,7 +145,7 @@ Without a directory, `-o` names a single output file and takes a single input.
 
 Converting to the **same** format is a faithful round-trip: everything,
 including styling and non-translatable content, is preserved (see [ksed](ksed.md)
-for the same fidelity). Converting to a **different** format is deliberately a
+for the same fidelity). Converting to a **different** format is a
 *clean projection*: a `.docx` → `.md` keeps the document's structure and prose
 but not its Word-specific packaging. Inline formatting is rendered from each
 run's vocabulary type, the same model the rest of the toolbox uses (see

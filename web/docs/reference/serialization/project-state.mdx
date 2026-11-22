@@ -38,7 +38,7 @@ decided about the source and the translation. `kapi store import` reads that
 shape in, and the ledger moves between machines as operations, through a
 context backend or a transfer file.
 
-The consequences follow from that:
+This has four consequences:
 
 - The two directions agree. A snapshot writes the shards and an import reads
   them, so a clone that runs the import picks up what the shards carry.
@@ -64,7 +64,7 @@ scope, each line a single block:
 {"unit":"k1_…","scope":"d-app-messages","variant":{"locale":"nb"},"status":"established","targetHash":"…","revision":"r:…","basis":"r:…","contentHash":"…","contextHash":"…","decision":{"reviewState":"approved","at":"2026-08-04T09:12:44Z"},"updated":"2026-08-04T09:12:44Z"}
 ```
 
-**JSON Lines rather than one document**, because the record is appended to and
+**JSON Lines**, because the record is appended to and
 diffed far more often than it is read whole: a line per block makes recording an
 approval a one-line diff instead of a rewrite of every byte. **Sharded per
 document** for the same reason at a larger grain: editing the documentation
@@ -72,12 +72,11 @@ does not rewrite the shard holding the interface strings, and two branches
 touching unrelated documents do not conflict on sight.
 
 Lines are sorted within a shard, so a file's bytes depend only on its contents.
-A shard whose last block is gone is pruned rather than left behind claiming blocks
-that no longer exist. A malformed line is an error: state is authoritative and
-must never be silently discarded.
+A shard whose last block is gone is pruned. A malformed line is an error: state
+is authoritative and is never silently discarded.
 
-Shard filenames are *derived* from the document scope rather than taken from
-it. A scope is the document's resolved **key**, never its path (so renaming a
+A shard's filename is *derived* from the document scope, never the scope
+itself. A scope is the document's resolved **key**, never its path (so renaming a
 file does not orphan its state), and deriving the filename keeps an opaque key
 from escaping the directory.
 
@@ -118,11 +117,11 @@ the version rides the single-document serialization of the same records.
 | `aiReview` | object | Last AI pre-review annotation. Optional. Its `targetHash` and `revision` name the translation it judged. |
 | `updated` | string | RFC 3339. |
 
-A few fields carry most of the design:
+Five fields need more explanation:
 
 **`revision` and `targetHash` name the translation without holding it.** They
-identify the content the review was made against, so editing it invalidates a
-stale approval rather than silently carrying it forward. The revision covers
+identify the content the review was made against, so an edit to the
+translation makes the approval stale. The revision covers
 the inline codes as well as the words, so a changed link counts as an edit. The
 translation itself lives in the deliverable; this record only blesses it.
 
@@ -132,7 +131,7 @@ revision of the source, and the hash of its wording, as the decision's basis.
 Edit the source and the block reads as stale until someone decides the new
 pairing; restore the source and the decision applies again. The content hash is
 also what lets a block removed in one revision and restored in a later one come
-back to its own history rather than being re-translated.
+back to its own history, with no re-translation.
 
 **A record made before revisions is read by its hashes.** It carries no
 `revision` or `basis`, applies while the text of both halves matches, and keeps
@@ -150,12 +149,12 @@ approval, that approval is recorded separately in `decision`, with `by`
 carrying the `ai/<model>` identity, so a machine judgement and a machine
 approval remain distinguishable in the record.
 
-## What is deliberately not in it
+## What the shards leave out
 
 - **The translations themselves.** Only their hashes. The content lives in the
   deliverable or in a [content bundle](/reference/serialization/content-bundle).
 - **Anything derivable.** Coverage percentages and review queues are computed
-  from these shards plus the content rather than stored alongside.
+  from these shards and the content.
 - **A decision this checkout does not hold.** The shards are what this checkout
   holds now; the ledger keeps the rest, including the history of a block that has
   been decided more than once.

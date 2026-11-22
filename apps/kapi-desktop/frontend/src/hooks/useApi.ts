@@ -17,6 +17,7 @@ import type {
   ProviderConfig,
   DefaultModelInfo,
   AIModelResolution,
+  AISetupNeed,
   AIModelOption,
   AIDetectionResult,
   ProjectFilter,
@@ -32,7 +33,7 @@ import type {
   DocumentRebase,
   ExtractResult,
   StoreSyncResult,
-  MapSummary,
+  OverviewSummary,
   DeeperLookModel,
   DeeperLookResult,
   ReaderFile,
@@ -146,6 +147,13 @@ export const api = {
   browseProjectLocation: () => call<string>("BrowseProjectLocation"),
   closeProject: (tabID: string) => call<void>("CloseProject", tabID),
   listTabs: () => call<TabInfo[]>("ListTabs"),
+  setUnsavedTabs: (tabIDs: string[]) => call<void>("SetUnsavedTabs", tabIDs),
+  /** Resolves false when the backend's native dialog already asks. */
+  acknowledgeClose: () => call<boolean>("AcknowledgeClose"),
+  confirmClose: () => call<void>("ConfirmClose"),
+  cancelClose: () => call<void>("CancelClose"),
+  saveProjectSnapshot: (tabID: string, snapshot: KapiProject, saveAs: boolean) =>
+    call<{ tab: TabInfo; name: string }>("SaveProjectSnapshot", tabID, snapshot, saveAs),
   saveProject: (tabID: string) => call<void>("SaveProject", tabID),
   saveProjectAs: (tabID: string, path: string) => call<void>("SaveProjectAs", tabID, path),
   saveProjectDialog: (tabID: string) => call<TabInfo>("SaveProjectDialog", tabID),
@@ -156,8 +164,10 @@ export const api = {
   getProjectStatus: (tabID: string) => call<ProjectStatus>("GetProjectStatus", tabID),
   runExtract: (tabID: string) => call<ExtractResult>("RunExtract", tabID),
   syncProjectStore: (tabID: string) => call<StoreSyncResult>("SyncProjectStore", tabID),
-  /** The Map of the tab's project: its counts, file rows and suggestions, in one read. */
-  mapSummary: (tabID: string) => call<MapSummary>("MapSummary", tabID),
+  /** The Overview of the tab's project: its counts, file rows and suggestions, in one read. */
+  overviewSummary: (tabID: string) => call<OverviewSummary>("OverviewSummary", tabID),
+  /** Hide the first steps on a project's Overview, for that project on this machine. */
+  dismissOverviewSteps: (tabID: string) => call<void>("DismissOverviewSteps", tabID),
   /** The model a deeper look of the tab would ask, and whether one is connected. */
   deeperLookModel: (tabID: string) => call<DeeperLookModel>("DeeperLookModel", tabID),
   /** Read the tab's files with the connected model and file what it proposes. */
@@ -273,7 +283,7 @@ export const api = {
   // backend/checks.go.
   runChecks: (tabID: string, filter: ProjectFilter) =>
     call<CheckRunResult>("RunChecks", tabID, filter),
-  /** The last checks run over every file and target language, the Map's findings. */
+  /** The last checks run over every file and target language, the Overview's findings. */
   lastProjectChecks: (tabID: string) => call<CheckRunResult>("LastProjectChecks", tabID),
 
   // The Reader: one file's blocks, the findings on them and the rules that
@@ -286,6 +296,7 @@ export const api = {
   // Runner (scoped to tab)
   runFlow: (tabID: string, name: string, inputPaths: string[], targetLangs: string[]) =>
     call<void>("RunFlow", tabID, name, inputPaths, targetLangs),
+  cancelProjectRun: (tabID: string) => call<void>("CancelProjectRun", tabID),
   cancelRun: () => call<void>("CancelRun"),
   getRunState: () => call<string>("GetRunState"),
   getRunEvents: () => call<unknown[]>("GetRunEvents"),
@@ -295,7 +306,7 @@ export const api = {
    * was supposed to write these files failed", so the home surfaces read this
    * to avoid presenting a failed catch-up as convergence.
    */
-  getLastRunError: () => call<RunError | null>("GetLastRunError"),
+  getProjectLastRunError: (tabID: string) => call<RunError>("GetProjectLastRunError", tabID),
 
   // Tools
   listTools: () => call<ToolInfo[]>("ListTools"),
@@ -422,8 +433,13 @@ export const api = {
   setDefaultModel: (model: string, provider: string) =>
     call<void>("SetDefaultModel", model, provider),
   listAIModels: () => call<AIModelOption[]>("ListAIModels"),
-  aiNeedsModelChoice: (tabID: string, flowName: string) =>
-    call<boolean>("AINeedsModelChoice", tabID, flowName),
+  /** What a run needs before its AI steps can run. opts is the provider,
+   * credential or model the run is started with (none by default). */
+  checkAISetup: (
+    tabID: string,
+    flowName: string,
+    opts: { provider?: string; credential?: string; model?: string } = {},
+  ) => call<AISetupNeed>("CheckAISetup", tabID, flowName, opts),
   /** Detect the machine's AI options (Claude Code binary, Ollama server,
    * env keys, saved credentials) — instant and offline. */
   detectAIProviders: () => call<AIDetectionResult>("DetectAIProviders"),
@@ -457,6 +473,7 @@ export const api = {
         format: string;
         size: number;
         is_dir: boolean;
+        context?: boolean;
       }>
     >("ListProjectFiles", tabID),
   applyTemplate: (tabID: string, template: string) => call<void>("ApplyTemplate", tabID, template),
@@ -746,7 +763,8 @@ export const api = {
    * arguments, else the named input file's (its newest locale pass unless one
    * is given). Null when nothing retained matches.
    */
-  getLastTrace: (filePath = "", locale = "") => call<FlowTrace>("GetLastTrace", filePath, locale),
+  getProjectLastTrace: (tabID: string, filePath: string, locale: string) =>
+    call<FlowTrace>("GetProjectLastTrace", tabID, filePath, locale),
 
   // Outputs — generated target files per source file in a content collection.
   listOutputs: (tabID: string) => call<Record<string, OutputFileInfo[]>>("ListOutputs", tabID),

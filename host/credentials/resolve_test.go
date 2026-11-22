@@ -1,6 +1,8 @@
 package credentials
 
 import (
+	"errors"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -28,7 +30,7 @@ func clearProviderEnv(t *testing.T) {
 
 func TestResolveCredentials_NoRequirement(t *testing.T) {
 	store := newTestStore(t)
-	config := map[string]any{"batchSize": 50}
+	config := map[string]any{"batch_size": 50}
 
 	result, err := ResolveCredentials(store, "translate", []string{"target-language"}, config)
 	require.NoError(t, err)
@@ -40,12 +42,12 @@ func TestResolveCredentials_ExplicitAPIKey(t *testing.T) {
 	store := newTestStore(t)
 	config := map[string]any{
 		"provider": "openai",
-		"apiKey":   "sk-explicit",
+		"api_key":  "sk-explicit",
 	}
 
 	result, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)
 	require.NoError(t, err)
-	assert.Equal(t, "sk-explicit", result["apiKey"], "explicit apiKey should win")
+	assert.Equal(t, "sk-explicit", result["api_key"], "explicit apiKey should win")
 }
 
 func TestResolveCredentials_ByName(t *testing.T) {
@@ -169,7 +171,7 @@ func TestResolveCredentials_KeylessLocalProviders(t *testing.T) {
 			got, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)
 			require.NoError(t, err, "keyless local provider must not require a credential")
 			assert.Equal(t, provider, got["provider"])
-			_, hasKey := got["apiKey"]
+			_, hasKey := got["api_key"]
 			assert.False(t, hasKey, "no apiKey injected for keyless provider")
 		})
 	}
@@ -178,7 +180,7 @@ func TestResolveCredentials_KeylessLocalProviders(t *testing.T) {
 func TestMergeCredentials(t *testing.T) {
 	config := map[string]any{
 		"credential": "my-cred",
-		"batchSize":  50,
+		"batch_size": 50,
 	}
 	cred := &ProviderConfigWithKey{
 		ProviderType: "anthropic",
@@ -194,11 +196,11 @@ func TestMergeCredentials(t *testing.T) {
 
 	// Injected values.
 	assert.Equal(t, "anthropic", result["provider"])
-	assert.Equal(t, "sk-test-key", result["apiKey"])
+	assert.Equal(t, "sk-test-key", result["api_key"])
 	assert.Equal(t, "claude-sonnet-4-5-20250514", result["model"])
 
 	// Original values preserved.
-	assert.Equal(t, 50, result["batchSize"])
+	assert.Equal(t, 50, result["batch_size"])
 
 	// Original config not modified.
 	assert.Equal(t, "my-cred", config["credential"], "original config should not be modified")
@@ -314,4 +316,33 @@ func TestFindByType(t *testing.T) {
 	// No match.
 	none := store.FindByType("gemini")
 	assert.Empty(t, none)
+}
+
+func TestMissingKeyMessage(t *testing.T) {
+	assert.Equal(t,
+		`no saved credentials found for provider "anthropic"; save one with 'kapi credentials add' or set ANTHROPIC_API_KEY`,
+		MissingKeyMessage("anthropic", false))
+	assert.Equal(t,
+		`no saved credentials found for provider "anthropic"; save one with 'kapi credentials add', set ANTHROPIC_API_KEY or pass --api-key`,
+		MissingKeyMessage("anthropic", true))
+	assert.Equal(t, `no saved credentials found; save one with 'kapi credentials add'`, MissingKeyMessage("", false))
+}
+
+// The runtime error names what works for every command; a command that
+// reads --api-key adds it, and the error still unwraps to the type.
+func TestMissingCredentialError_FlagHint(t *testing.T) {
+	clearProviderEnv(t)
+	_, err := ResolveCredentials(newTestStore(t), "translate", []string{"credentials"}, map[string]any{"provider": "anthropic"})
+	require.Error(t, err)
+	assert.Equal(t, MissingKeyMessage("anthropic", false), err.Error())
+	assert.NotContains(t, err.Error(), "--api-key")
+
+	wrapped := WithAPIKeyFlag(fmt.Errorf("tool translate config: %w", err))
+	assert.Equal(t, "tool translate config: "+MissingKeyMessage("anthropic", true), wrapped.Error())
+	var missing *MissingCredentialError
+	require.ErrorAs(t, wrapped, &missing)
+	assert.Equal(t, "anthropic", missing.Provider)
+
+	other := errors.New("disk full")
+	assert.Equal(t, other, WithAPIKeyFlag(other))
 }

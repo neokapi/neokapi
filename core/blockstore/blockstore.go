@@ -10,7 +10,7 @@
 //   - Blocks are content-addressed by hash. Once written, they are
 //     immutable. Flows don't rewrite them; they append overlays.
 //   - Overlays are append layers keyed by (kind, blockHash). "kind"
-//     is a namespace string ("targets", "annotations/termbase", …).
+//     is a namespace string ("targets", "annotations/terms", …).
 //     Different tools write different kinds in parallel.
 //   - Every provider supports forward-only streaming via
 //     Session.Blocks. Random access (GetBlock, GetOverlay) is
@@ -51,7 +51,7 @@ type Capabilities struct {
 	Writable bool
 	// Persistent: the store survives the process and reuses its state
 	// across runs (SQLite cache, remote ContentStore). The default
-	// in-memory store is NOT persistent — its overlay cache is discarded
+	// in-memory store is NOT persistent, its overlay cache is discarded
 	// when the process exits, so writing overlays during a one-shot run
 	// is wasted work. Executors use this to route one-shot runs through
 	// the plain streaming Tool.Process path instead of SessionTool's
@@ -142,7 +142,8 @@ type Session interface {
 	GetOverlay(kind, blockHash string) (Overlay, error)
 
 	// PutOverlay appends or replaces an overlay. Idempotent per
-	// (kind, blockHash).
+	// (kind, blockHash): putting the payload the overlay already holds
+	// changes nothing, its UpdatedAt included.
 	PutOverlay(s Overlay) error
 
 	// ListOverlays streams every overlay of a given kind. It reads the
@@ -167,7 +168,7 @@ type Session interface {
 // scan their full overlay space (memory, sqlite cache) implement it; it is
 // what the block-store exporter uses to snapshot all in-progress work
 // without knowing the kinds up front. Streaming/remote sessions that can't
-// enumerate need not implement it — callers fall back to per-kind
+// enumerate need not implement it, callers fall back to per-kind
 // ListOverlays.
 type OverlayEnumerator interface {
 	// AllOverlays streams every overlay the session can see, ordered by
@@ -179,7 +180,7 @@ type OverlayEnumerator interface {
 // leaving overlays intact. A full re-extraction rebuilds the block set from
 // source, so it clears the previous set first rather than relying on per-key
 // upserts (whose keys can change between kapi versions). Stores that can't
-// bulk-delete need not implement it — callers treat its absence as a no-op.
+// bulk-delete need not implement it, callers treat its absence as a no-op.
 type BlockPurger interface {
 	DeleteBlocks() error
 }

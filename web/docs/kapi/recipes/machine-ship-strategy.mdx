@@ -3,16 +3,16 @@ id: machine-ship-strategy
 title: "Tier gates per market"
 sidebar_label: "Tier gates per market"
 sidebar_position: 8
-description: "A tiered ship-gate strategy: contractual markets fully human-reviewed, mid-tier markets reviewed where it matters, the long tail shipped machine-translated with AI review counting, one recipe, enforced by kapi check --ship."
+description: "A tiered ship-gate strategy: contractual markets fully human-reviewed, mid-tier markets reviewed where it matters, the long tail shipped machine-translated once its checks pass, in one recipe enforced by kapi check --ship."
 hide_table_of_contents: true
 ---
 
 # Tier gates per market
 
-**Goal:** not every market justifies the same review budget. A contractual
-locale may require a person to approve every block; a mid-tier market wants the
-important strings reviewed and the long tail machine-translated; a long-tail
-locale ships as soon as the machine's own review is clean. Ship gates encode
+**Goal:** spend review time where each market needs it. A contractual locale
+may require a person to approve every block. In a mid-tier market, people
+review the important strings and the rest ships machine-translated. A
+long-tail locale ships as soon as its translations pass their checks. Ship gates encode
 that policy per market in the recipe, and one command,
 [`kapi check --ship`](/kapi/recipes/ship-gates-and-ci), enforces all of
 it. The gate model is [the kapi loop](/kapi/convergence); the schema is the
@@ -24,7 +24,7 @@ it. The gate model is [the kapi loop](/kapi/convergence); the schema is the
 | ----------- | ------------------------------------------------------------- | ------------------------------------------------- |
 | Contractual | A person approves every block                                   | `{ translated: 100, established: 100 }` |
 | Mid-tier    | Everything translated, the important 80% human-reviewed        | `{ translated: 100, established: 80 }`               |
-| Long tail   | Everything translated, AI reviews count as reviewed   | `{ translated: 100 }` |
+| Long tail   | Everything translated, with its checks green; no person approves | `{ translated: 100 }` |
 
 A gate spells the approved rung `established`: `established: 80` asks for at
 least 80% of blocks approved by a person.
@@ -75,7 +75,7 @@ measure people. See [who approves a block](/kapi/convergence#approver-classes).
   *at least 80%*; it does not choose which 80%. Reviewers work the worklist
   (`kapi status --review`) in whatever order matters; the gate only measures
   the outcome.
-- **Source drift degrades tiers gracefully.** An edited source string re-opens
+- **Source drift affects each tier differently.** An edited source string re-opens
   its blocks in every locale; the contractual tier then waits for a person while
   the machine tier recovers on the next `kapi up` pass; see
   [drift, watched end to end](/kapi/convergence#drift-watched-end-to-end).

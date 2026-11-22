@@ -6,7 +6,8 @@
 // and not folded into the voice row — governance changing on a date must be
 // visible.
 
-import { Badge, Separator, cn } from "@neokapi/ui-primitives";
+import { useMemo } from "react";
+import { Badge, Separator, SimpleTooltip, cn } from "@neokapi/ui-primitives";
 import { EmptyHint, LocalePill, useResource } from "@neokapi/concept-ui";
 import { t } from "@neokapi/i18n-react/runtime";
 import { ScrollText, ShieldCheck } from "lucide-react";
@@ -20,13 +21,86 @@ export interface GovernsPaneProps {
   className?: string;
 }
 
-function TermRow({ term }: { term: TermHit }) {
+/**
+ * One concept's terms, as one row: the term it is known by, the term in the
+ * chosen language beside it, the words it rules out, and the rest of its
+ * languages counted.
+ */
+export interface ConceptTerms {
+  concept_id: string;
+  /** The term the row leads with: the first preferred term outside the chosen language. */
+  primary: TermHit;
+  /** The term in the scope's chosen language, when one is chosen and held. */
+  chosen?: TermHit;
+  /** Discouraged or forbidden terms, each with the term to use instead. */
+  ruled_out: { term: TermHit; instead?: string }[];
+  /** The concept's other allowed terms, in other languages or as synonyms. */
+  others: TermHit[];
+  definition?: string;
+}
+
+/** True when a term's locale is the chosen language or a region of it. */
+function inLanguage(term: TermHit, locale: string): boolean {
+  const l = (term.locale ?? "").toLowerCase();
+  const want = locale.toLowerCase();
+  return l === want || l.startsWith(`${want}-`);
+}
+
+/**
+ * Group a flat term list into one row per concept, in the order the concepts
+ * first appear. `locale` is the scope's chosen language, when one is set.
+ */
+export function groupTerms(terms: TermHit[], locale?: string): ConceptTerms[] {
+  const order: string[] = [];
+  const byConcept = new Map<string, TermHit[]>();
+  for (const term of terms) {
+    let list = byConcept.get(term.concept_id);
+    if (!list) {
+      list = [];
+      byConcept.set(term.concept_id, list);
+      order.push(term.concept_id);
+    }
+    list.push(term);
+  }
+  return order.map((id) => {
+    const list = byConcept.get(id)!;
+    const allowed = list.filter((term) => !term.discouraged);
+    const outside = locale ? allowed.filter((term) => !inLanguage(term, locale)) : allowed;
+    const primary =
+      outside.find((term) => term.status === "preferred") ??
+      outside[0] ??
+      allowed.find((term) => term.status === "preferred") ??
+      allowed[0] ??
+      list[0];
+    const chosen = locale
+      ? allowed.find((term) => term !== primary && inLanguage(term, locale))
+      : undefined;
+    const ruled_out = list
+      .filter((term) => term.discouraged && term !== primary)
+      .map((term) => ({
+        term,
+        // The allowed term in the same language, else the one the source named.
+        instead:
+          allowed.find((a) => a.locale === term.locale && a.status === "preferred")?.term ??
+          allowed.find((a) => a.locale === term.locale)?.term ??
+          term.replacement,
+      }));
+    const others = allowed.filter((term) => term !== primary && term !== chosen);
+    return {
+      concept_id: id,
+      primary,
+      chosen,
+      ruled_out,
+      others,
+      definition: list.find((term) => term.definition)?.definition,
+    };
+  });
+}
+
+/** A term's word, struck through when it is ruled out, and its language. */
+function TermWord({ term }: { term: TermHit }) {
   return (
-    <li
-      className="flex items-start gap-2 py-1.5"
-      data-testid="governs-term"
-      data-discouraged={term.discouraged}
-    >
+    <span className="inline-flex items-center gap-1.5">
       <span
         className={cn(
           "font-medium",
@@ -36,14 +110,72 @@ function TermRow({ term }: { term: TermHit }) {
         {term.term}
       </span>
       {term.locale && <LocalePill locale={term.locale} />}
-      {term.discouraged && term.replacement && (
-        <span className="text-muted-foreground">
-          {t("use {replacement}", { replacement: term.replacement })}
-        </span>
-      )}
-      <ValidityChip state={undefined} from={term.valid_from} to={term.valid_to} />
-      {term.definition && (
-        <span className="min-w-0 flex-1 truncate text-muted-foreground">{term.definition}</span>
+    </span>
+  );
+}
+
+function ConceptRow({ row }: { row: ConceptTerms }) {
+  const { primary, chosen, ruled_out, others } = row;
+  const languages = new Set(others.map((term) => term.locale ?? ""));
+  return (
+    <li
+      className="py-1.5"
+      data-testid="governs-term"
+      data-concept={row.concept_id}
+      data-discouraged={primary.discouraged}
+    >
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <TermWord term={primary} />
+        {primary.discouraged && primary.replacement && (
+          <span className="text-muted-foreground">
+            {t("use {replacement}", { replacement: primary.replacement })}
+          </span>
+        )}
+        <ValidityChip state={undefined} from={primary.valid_from} to={primary.valid_to} />
+        {chosen && (
+          <span data-testid="governs-term-chosen" className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="text-muted-foreground">
+              ·
+            </span>
+            <TermWord term={chosen} />
+          </span>
+        )}
+        {ruled_out.map(({ term, instead }) => (
+          <span
+            key={`${term.term}:${term.locale ?? ""}`}
+            data-testid="governs-term-discouraged"
+            className="inline-flex items-center gap-1.5"
+          >
+            <TermWord term={term} />
+            {instead && (
+              <span className="text-muted-foreground">
+                {t("use {replacement}", { replacement: instead })}
+              </span>
+            )}
+            <ValidityChip state={undefined} from={term.valid_from} to={term.valid_to} />
+          </span>
+        ))}
+        {others.length > 0 && (
+          <SimpleTooltip
+            content={others
+              .map((term) => (term.locale ? `${term.term} (${term.locale})` : term.term))
+              .join(", ")}
+          >
+            <span
+              data-testid="governs-term-more"
+              className="text-xs text-muted-foreground tabular-nums"
+            >
+              {languages.size === others.length
+                ? t("{count, plural, one {+# language} other {+# languages}}", {
+                    count: others.length,
+                  })
+                : t("{count, plural, one {+# term} other {+# terms}}", { count: others.length })}
+            </span>
+          </SimpleTooltip>
+        )}
+      </div>
+      {row.definition && (
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">{row.definition}</p>
       )}
     </li>
   );
@@ -64,6 +196,9 @@ export function GovernsPane({ limit, className }: GovernsPaneProps) {
       limit,
     ],
   );
+
+  const terms = data?.terms;
+  const concepts = useMemo(() => groupTerms(terms ?? [], scope.locale), [terms, scope.locale]);
 
   const reach =
     capabilities.governance === "resolved"
@@ -192,19 +327,22 @@ export function GovernsPane({ limit, className }: GovernsPaneProps) {
             <h4 className="mb-1 flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               <ScrollText className="size-3.5" />
               {t("Terms")}
-              {data.terms_total !== undefined && data.terms_total > data.terms.length && (
+              {data.terms_total !== undefined && data.terms_total > concepts.length ? (
                 <span className="font-normal normal-case">
-                  {t("{shown} of {total}", { shown: data.terms.length, total: data.terms_total })}
+                  {t("{shown} of {total}", { shown: concepts.length, total: data.terms_total })}
                 </span>
+              ) : (
+                data.terms_capped && (
+                  <span className="font-normal normal-case">
+                    {t("first {shown}", { shown: concepts.length })}
+                  </span>
+                )
               )}
             </h4>
-            {data.terms.length > 0 ? (
+            {concepts.length > 0 ? (
               <ul className="divide-y">
-                {data.terms.map((term) => (
-                  <TermRow
-                    key={`${term.concept_id}:${term.term}:${term.locale ?? ""}`}
-                    term={term}
-                  />
+                {concepts.map((row) => (
+                  <ConceptRow key={row.concept_id} row={row} />
                 ))}
               </ul>
             ) : (

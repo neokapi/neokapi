@@ -17,19 +17,24 @@ import type { RuleAnswer, RuleDecision } from "../types/api";
 
 export interface DecidePageProps {
   tabID: string;
-  /** The Map row to open on (`suggested:<id>`, `conflict:<id>`). */
+  /** The Overview row to open on (`suggested:<id>`, `conflict:<id>`). */
   defaultSelected?: string;
   /** Open the file a suggestion was seen in. Absent shows the file without a link. */
   onOpenFile?: (path: string) => void;
-  /** Open the project's Map, from the empty state. */
-  onOpenMap?: () => void;
+  /** Open the project's Overview, from the empty state. */
+  onOpenOverview?: () => void;
 }
 
 /** How long a typed form rests before what keeping it does is read. */
 const OTHER_DEBOUNCE_MS = 250;
 
 /** Decide for the project a tab holds. */
-export function DecidePage({ tabID, defaultSelected, onOpenFile, onOpenMap }: DecidePageProps) {
+export function DecidePage({
+  tabID,
+  defaultSelected,
+  onOpenFile,
+  onOpenOverview,
+}: DecidePageProps) {
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: qk.rulesDecide(tabID),
@@ -75,7 +80,7 @@ export function DecidePage({ tabID, defaultSelected, onOpenFile, onOpenMap }: De
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: ["context-digest", tabID] });
       void qc.invalidateQueries({ queryKey: ["context-feed"] });
-      void qc.invalidateQueries({ queryKey: qk.mapSummary(tabID) });
+      void qc.invalidateQueries({ queryKey: qk.overviewSummary(tabID) });
       void qc.invalidateQueries({ queryKey: qk.workspaceProjects() });
     },
   });
@@ -112,11 +117,15 @@ export function DecidePage({ tabID, defaultSelected, onOpenFile, onOpenMap }: De
           : undefined
       }
       navigate={(target: ScreenTarget) => {
-        if (target.kind === "map") onOpenMap?.();
+        if (target.kind === "overview") onOpenOverview?.();
         else if (target.kind === "reader") onOpenFile?.(target.path);
       }}
       canNavigate={(target) =>
-        target.kind === "map" ? !!onOpenMap : target.kind === "reader" ? !!onOpenFile : false
+        target.kind === "overview"
+          ? !!onOpenOverview
+          : target.kind === "reader"
+            ? !!onOpenFile
+            : false
       }
     />
   );

@@ -41,7 +41,7 @@ type RulesDecideView struct {
 	// Counts are the rules listing's counts, for the line a project with
 	// nothing to decide prints.
 	Counts RulesCounts `json:"counts"`
-	// Hint is the command that files suggestions from what kapi sees in the
+	// Hint is the command that files suggestions from the patterns in the
 	// files, for a project with none waiting.
 	Hint string `json:"hint,omitempty"`
 
@@ -79,9 +79,9 @@ type RuleDecision struct {
 	// SuggestedBy names who suggested it.
 	SuggestedBy string `json:"suggested_by,omitempty"`
 
-	subject   contextop.Subject
-	scope     contextop.Scope
-	noticedBy contextop.Actor
+	subject    contextop.Subject
+	scope      contextop.Scope
+	recordedBy contextop.Actor
 }
 
 // RuleOption is one answer to a question.
@@ -99,9 +99,9 @@ type RuleOption struct {
 	// Consequence says what keeping this option does.
 	Consequence string `json:"consequence"`
 
-	subject   contextop.Subject
-	scope     contextop.Scope
-	noticedBy contextop.Actor
+	subject    contextop.Subject
+	scope      contextop.Scope
+	recordedBy contextop.Actor
 }
 
 // DecideRules reads the suggestions waiting in a project as questions. It
@@ -168,13 +168,13 @@ func ruleDecisionFrom(d rulesview.Decision) RuleDecision {
 		ID: d.ID, Short: d.Short, Kind: d.Kind, Question: d.Question, Reason: d.Reason,
 		Sentence: d.Sentence, Chosen: d.Chosen, Consequence: d.Consequence, Seen: d.Seen,
 		Applies: d.Applies, SuggestedBy: d.SuggestedBy,
-		subject: d.Subject, scope: d.Scope, noticedBy: d.NoticedBy,
+		subject: d.Subject, scope: d.Scope, recordedBy: d.RecordedBy,
 	}
 	for _, o := range d.Options {
 		out.Options = append(out.Options, RuleOption{
 			Form: o.Form, ID: o.ID, Short: o.Short, Sentence: o.Sentence,
 			Blocks: o.Blocks, Files: o.Files, Consequence: o.Consequence,
-			subject: o.Subject, scope: o.Scope, noticedBy: o.NoticedBy,
+			subject: o.Subject, scope: o.Scope, recordedBy: o.RecordedBy,
 		})
 	}
 	return out
@@ -187,13 +187,13 @@ func (d RuleDecision) Model() rulesview.Decision {
 		ID: d.ID, Short: d.Short, Kind: d.Kind, Question: d.Question, Reason: d.Reason,
 		Sentence: d.Sentence, Chosen: d.Chosen, Consequence: d.Consequence, Seen: d.Seen,
 		Applies: d.Applies, SuggestedBy: d.SuggestedBy,
-		Subject: d.subject, Scope: d.scope, NoticedBy: d.noticedBy,
+		Subject: d.subject, Scope: d.scope, RecordedBy: d.recordedBy,
 	}
 	for _, o := range d.Options {
 		out.Options = append(out.Options, rulesview.Option{
 			Form: o.Form, ID: o.ID, Short: o.Short, Sentence: o.Sentence,
 			Blocks: o.Blocks, Files: o.Files, Consequence: o.Consequence,
-			Subject: o.subject, Scope: o.scope, NoticedBy: o.noticedBy,
+			Subject: o.subject, Scope: o.scope, RecordedBy: o.recordedBy,
 		})
 	}
 	return out
@@ -295,13 +295,13 @@ func (d RuleDecision) DropRequest() ContextReviewRequest {
 	return ContextReviewRequest{Drop: ids}
 }
 
-// NoticedBy is who suggested what the question is about: the suggestion's
+// RecordedBy is who suggested what the question is about: the suggestion's
 // actor, or the first side's for a disagreement.
-func (d RuleDecision) NoticedBy() contextop.Actor { return d.noticedBy }
+func (d RuleDecision) RecordedBy() contextop.Actor { return d.recordedBy }
 
-// NoticedBy is who suggested the side an option stands for. An option that is
+// RecordedBy is who suggested the side an option stands for. An option that is
 // a form of a name has none of its own.
-func (o RuleOption) NoticedBy() contextop.Actor { return o.noticedBy }
+func (o RuleOption) RecordedBy() contextop.Actor { return o.recordedBy }
 
 // Label is the wording a question is about, for a list that shows each
 // question on one line. For a name it is the form the suggestion says to
@@ -504,7 +504,7 @@ func seenLine(e *contextop.Evidence) string {
 }
 
 // RulesLaterResult is what leaving suggestions for later did: nothing is
-// recorded, and each one keeps advising.
+// recorded, and checks keep reporting each one.
 type RulesLaterResult struct {
 	Later []string `json:"later"`
 }
@@ -512,7 +512,7 @@ type RulesLaterResult struct {
 // FormatText says which suggestions wait.
 func (r RulesLaterResult) FormatText(w io.Writer) error {
 	for _, id := range r.Later {
-		if _, err := fmt.Fprintf(w, "Left #%s for later. It keeps advising until you decide.\n", contextop.ShortID(id)); err != nil {
+		if _, err := fmt.Fprintf(w, "Left #%s for later. Checks keep reporting it until you decide.\n", contextop.ShortID(id)); err != nil {
 			return err
 		}
 	}
@@ -528,7 +528,7 @@ func (a *App) LeaveRulesForLater(ctx context.Context, project string, ids []stri
 		if err != nil {
 			return out, err
 		}
-		if subject.Established || !subject.Status.Advises() {
+		if subject.Established || !subject.Status.Advisory() {
 			return out, fmt.Errorf("operation %s is %s, not a suggestion waiting for a decision", contextop.ShortID(subject.ID), subject.Status)
 		}
 		out.Later = append(out.Later, subject.ID)

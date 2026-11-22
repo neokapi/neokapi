@@ -29,7 +29,8 @@ vi.mock("../hooks/useApi", () => ({
 
 import { CollectionsPanel, outputPattern, templatize } from "../components/CollectionsPanel";
 import { ErrorProvider } from "../components/ErrorBanner";
-import type { KapiProject, OutputFileInfo } from "../types/api";
+import type { OutputFileInfo } from "../hooks/useApi";
+import type { KapiProject } from "../types/api";
 
 const project: KapiProject = {
   version: "v1",

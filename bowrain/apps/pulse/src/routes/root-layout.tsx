@@ -1,4 +1,5 @@
 import { Outlet, useParams } from "@tanstack/react-router";
+import { PageContainer } from "@neokapi/ui";
 import { PulseHeader } from "@neokapi/ui/components/pulse";
 import { usePulseOverview } from "../hooks/use-pulse";
 import { CacheFreshness } from "../components/CacheFreshness";
@@ -14,12 +15,16 @@ export function RootLayout() {
         workspaceName={data?.workspace.name ?? (workspace || "Pulse")}
         logoUrl={data?.workspace.logo_url}
       />
-      <main className="mx-auto max-w-7xl px-4 py-6">
-        <Outlet />
+      <main>
+        <PageContainer width="wide">
+          <Outlet />
+        </PageContainer>
       </main>
       {workspace && (
-        <footer className="mx-auto max-w-7xl px-4 pb-4 flex justify-end">
-          <CacheFreshness queryKeyPrefix={["pulse", workspace]} />
+        <footer>
+          <PageContainer width="wide" className="flex justify-end pt-0 pb-4">
+            <CacheFreshness queryKeyPrefix={["pulse", workspace]} />
+          </PageContainer>
         </footer>
       )}
     </div>

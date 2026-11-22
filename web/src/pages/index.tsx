@@ -5,13 +5,14 @@ import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Layout from "@theme/Layout";
 import Heading from "@theme/Heading";
-import MapPreview from "../components/home/MapPreview";
+import OverviewPreview from "../components/home/OverviewPreview";
 import StructuredData from "../components/home/StructuredData";
 import AuthorsNote from "../components/home/AuthorsNote";
 
 import styles from "./index.module.css";
 
 function HomepageHeader() {
+  const { siteConfig } = useDocusaurusContext();
   return (
     <header className={clsx("hero", styles.heroBanner)}>
       <div className={clsx("container", styles.heroGrid)}>
@@ -22,15 +23,13 @@ function HomepageHeader() {
             className={styles.heroLogo}
           />
           <Heading as="h1" className={clsx("hero__title", styles.heroTitle)}>
-            <Translate id="home.hero.title">
-              Consistent writing across people, AI agents and languages.
-            </Translate>
+            {siteConfig.tagline}
           </Heading>
           <p className={styles.heroSubtitle}>
             <Translate id="home.hero.subtitle">
               kapi reads your project's files, keeps the rules they are written by in a context
               graph, and checks every edit against it. Use it from the desktop app, the command line
-              or your AI agent. It is built on neokapi, the open content engine.
+              or your AI agent. kapi is built on neokapi, in Go.
             </Translate>
           </p>
           <div className={styles.buttons}>
@@ -48,7 +47,7 @@ function HomepageHeader() {
           </p>
         </div>
         <div className={styles.heroAside}>
-          <MapPreview />
+          <OverviewPreview />
         </div>
       </div>
     </header>
@@ -80,7 +79,7 @@ const KapiCards: Card[] = [
     description: translate({
       id: "home.kapi.desktop.description",
       message:
-        "Open a folder. The Map shows your files, the rules in force and what an assistant noticed. Decide what becomes a rule, then open a file and fix a finding in place.",
+        "Open a folder. The Overview shows your files, the rules in force and what an assistant suggested. Decide what becomes a rule, then open a file and fix a finding in place.",
     }),
     link: "/kapi/desktop/overview",
     linkText: translate({ id: "home.kapi.desktop.link", message: "Kapi Desktop" }),
@@ -261,7 +260,7 @@ export default function Home() {
       description={translate({
         id: "home.meta.description",
         message:
-          "kapi keeps a project's writing consistent across people, AI agents and languages: it reads your files, keeps the rules they are written by in a context graph, and checks every edit against it. Built on neokapi, the open content engine in Go.",
+          "The open content engine for people and AI agents. kapi reads your project's files, keeps the rules they are written by in a context graph, and checks every edit against it, from the desktop app, the command line or an agent. Built on neokapi, in Go.",
       })}
     >
       <StructuredData />

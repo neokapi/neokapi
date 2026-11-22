@@ -1643,6 +1643,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       new_count: 0,
     }),
     markActivitiesSeen: async () => {},
+    listProjectFeed: async () => ({ entries: [] }),
 
     // --- Convergence runs (Bowrain AD-022) ------------------------------------------
     listConvergenceRuns: async () => [],
@@ -1975,7 +1976,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     // --- Convergence --------------------------------------------------------
     estimateConvergence: async () => ({
       source: { gate: "none", total: 0, ready: 0, held: 0 },
-      totals: { pending: 0, via_tm: 0, via_ai: 0, token_estimate: 0 },
+      totals: { pending: 0, via_memory: 0, via_ai: 0, token_estimate: 0 },
     }),
 
     // --- Concepts -----------------------------------------------------------
@@ -2149,7 +2150,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     }),
     // The project screens, over the Fernwell fixtures the screens' own
     // stories draw. A fix files a proposal and leaves the item as it is.
-    getMapSummary: async () => MAP_PENDING,
+    getOverviewSummary: async () => MAP_PENDING,
     getReaderFile: async () => READER_WITH_FIXES,
     getDecideView: async () => DECIDE_VIEW,
     getDecideConsequence: async (_ws, _projectId, _id, form) =>

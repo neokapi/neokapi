@@ -127,7 +127,7 @@ test.describe("Context explorer", () => {
     const panel = page.getByTestId("search-panel");
     await expect(panel).toBeVisible({ timeout: 15000 });
     await panel.getByTestId("search-input").fill("the");
-    await panel.getByRole("button", { name: "Search" }).click();
+    await panel.getByRole("button", { name: "Search", exact: true }).click();
 
     await expect(page.getByTestId("search-results")).toBeVisible({ timeout: 15000 });
     // Zero groups is a legitimate answer on an empty workspace; what must never

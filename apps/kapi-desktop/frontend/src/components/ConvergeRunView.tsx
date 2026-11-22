@@ -40,14 +40,14 @@ export function ConvergeRunView({ events, running, canceled, onOpenReview }: Con
               passes: result.passes,
               locales: result.locales?.map((l) => ({
                 locale: l.locale,
-                shipState: l.shipState,
+                ship_state: l.ship_state,
                 gated: l.gated,
               })),
-              parkedScopes: result.parkedScopes,
-              materializedFiles: result.materializedFiles,
-              blockedOnSource: result.blockedOnSource,
-              translateAfter: result.translateAfter,
-              stallReason: result.stallReason,
+              parked_scopes: result.parked_scopes,
+              materialized_files: result.materialized_files,
+              blocked_on_source: result.blocked_on_source,
+              translate_after: result.translate_after,
+              stall_reason: result.stall_reason,
             }
           : undefined
       }

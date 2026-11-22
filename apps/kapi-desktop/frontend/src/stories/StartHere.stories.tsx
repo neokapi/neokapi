@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { StartHere } from "../components/StartHere";
+import { DesktopGuide } from "../guide/DesktopGuide";
 
 const meta: Meta<typeof StartHere> = {
   title: "Components/StartHere",
@@ -9,14 +10,15 @@ const meta: Meta<typeof StartHere> = {
   args: {
     onDismiss: fn(),
     onCreateSampleProject: fn(),
-    onConnectAssistant: fn(),
     hasOpenProject: true,
   },
   decorators: [
     (Story) => (
-      <div className="mx-auto max-w-3xl p-6">
-        <Story />
-      </div>
+      <DesktopGuide navigate={fn()} hasProject onOpenUrl={fn()}>
+        <div className="mx-auto max-w-3xl p-6">
+          <Story />
+        </div>
+      </DesktopGuide>
     ),
   ],
 };
@@ -24,8 +26,8 @@ const meta: Meta<typeof StartHere> = {
 export default meta;
 type Story = StoryObj<typeof StartHere>;
 
-/** A project tab is open, so Connect an assistant opens its Assistant section. */
+/** A project tab is open, so every tour can start. */
 export const WithAProjectOpen: Story = {};
 
-/** No project is open: Connect an assistant waits for one and says so. */
+/** No project is open: the project tours wait for one and say so. */
 export const NoProjectOpen: Story = { args: { hasOpenProject: false } };

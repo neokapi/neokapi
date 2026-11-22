@@ -27,7 +27,7 @@ parameters:
       ƃļöçķ (é.ĝ. ƃý `éñţîţý-éẋţŕàçţ`). Ƃöţĥ ḿàý ƃé ļîšţéđ; ŵĥéñ ñöñé îš šéţ,
       `ŕüļéš` îš üšéđ.
     values: "ļîšţ öƒ `ŕüļéš` / `éñţîţîéš` (đéƒàüļţ `[ŕüļéš]`)"
-  rulesPath:
+  rules_path:
     description: Þàţĥ ţö à ŕéđàçţîöñ ŕüļéš ÝÀḾĻ ƒîļé.
     help: |
       Ļöàđš ļîţéŕàļ ţéŕḿš àñđ ŕéĝüļàŕ éẋþŕéššîöñš ţö ŕéđàçţ. Öñļý ŕéļéṽàñţ ŵĥéñ
@@ -45,7 +45,7 @@ parameters:
       (à þéŕ-çàţéĝöŕý çöüñţéŕ). Ŵĥéñ üñšéţ, ţĥé ƒŕàḿéŵöŕķ đéƒàüļţ ţéḿþļàţé îš
       üšéđ.
     values: "ţéḿþļàţé šţŕîñĝ"
-  entityTypes:
+  entity_types:
     description: Éñţîţý çàţéĝöŕîéš ţö ŕéđàçţ ŵĥéñ ţĥé `éñţîţîéš` đéţéçţöŕ îš éñàƃļéđ.
     help: |
       Ŕéšţŕîçţš éñţîţý ŕéđàçţîöñ ţö ţĥé ļîšţéđ çàţéĝöŕîéš. Ŵĥéñ üñšéţ, ţĥé
@@ -69,9 +69,9 @@ examples:
     description: Ŕéþļàçé šþàñš ḿàţçĥéđ ƃý à ŕüļéš ƒîļé ŵîţĥ ţĥé đéƒàüļţ þļàçéĥöļđéŕ.
     config: |
       detectors: [rules]
-      rulesPath: redaction-rules.yaml
+      rules_path: redaction-rules.yaml
   - title: Ŕéđàçţ éẋţŕàçţéđ éñţîţîéš
     description: Ŕéđàçţ þéŕšöñ àñđ öŕĝàñîžàţîöñ éñţîţîéš àļŕéàđý àññöţàţéđ öñ ţĥé ƃļöçķ.
     config: |
       detectors: [entities]
-      entityTypes: [person, organization]
+      entity_types: [person, organization]

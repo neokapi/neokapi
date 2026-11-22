@@ -306,7 +306,7 @@ which is to set `KAPI_DATA_DIR` to a directory outside it.
 
 SQLite keeps a database, a write-ahead log and a shared-memory index consistent
 with each other through byte-range locks the operating system enforces; a sync
-client copies each of the three whenever it notices a change, takes no lock, and
+client copies each of the three whenever it detects a change, takes no lock, and
 replaces a file under an open handle when a second machine writes. The result is
 a database whose log describes a state the main file is not in, reported as
 corruption long after the copy, in a process that did nothing wrong. The cost of
@@ -360,6 +360,19 @@ in a blob it names; a batch of entries or concepts is split so each blob stays
 well inside the 64 MiB bound. A pass that writes many rows (an import, a
 convergence run's absorbed record) collects them into one batch, recorded as one
 operation per store.
+
+Applying a `voice.write` step puts each profile it carries. A profile the store
+lacks is created, and a profile it holds is updated when what the profile says
+differs, with the replaced version archived. A writer that records into the
+project's log without a checkout of its own, such as a shared server, builds
+the operation with `projector.VoiceWrite`. That writer cannot know which
+profiles a checkout holds, so the same operation applies to a checkout that
+never held the profile and to one holding an older version, and removing a
+profile the checkout lacks is not an error. The profile's id is its name as
+`profile.Slug` spells it, the id a checkout stores the profile under. The
+writer records the operation beside the `context.edit` that names the change;
+the history reads the context operation, and the store applies the
+`voice.write`.
 
 `Projector.Rebuild`, behind `kapi store rebuild`, empties the projection tables
 and the rules the project widened, and replays the project's operations in id
@@ -738,7 +751,7 @@ uses of one term in one block fold into a `count` property rather than into
 separate edges, and the term and the locale are the edge discriminators;
 `governed_by` comes from resolving each named collection's governance; `blesses`
 joins the decision ledger against the block cache, so a record whose block
-no longer exists keeps its node and loses its edge. A unit state names its
+has left the cache keeps its node and loses its edge. A unit state names its
 document by the durable key the ledger's view records
 ([C-04](c-04-block-state-and-decisions.md)); the graph writer turns that key back
 into the path the block cache files blocks under before joining.
@@ -833,16 +846,15 @@ producer means one number wherever the question is asked, and because that
 producer is extraction, the number is as of the last extraction rather than of
 the working tree. Each surface says so beside the count. The passage a use sits
 in is read from the block cache by the content key the edge names, so a block
-the cache no longer holds costs the snippet and never the count.
+missing from the cache costs the snippet and never the count.
 
 ### The query shapes are written once
 
 A store spanning many projects answers the same questions with the dimensions
-free; a local project answers them with the dimensions pinned to one value. That
-is enforced rather than described. The queries live in `core/contextgraph/query.go`
+free; a local project answers them with the dimensions pinned to one value. Code
+enforces it. The queries live in `core/contextgraph/query.go`
 against two narrow read interfaces, `EdgeReader` and `NodeFinder`, that both
-backing stores satisfy, so there is one implementation rather than two agreeing
-by convention:
+backing stores satisfy, so there is one implementation:
 
 | Query | Question |
 | --- | --- |

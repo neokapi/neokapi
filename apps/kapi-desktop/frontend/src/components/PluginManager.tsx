@@ -268,9 +268,7 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
           {updates.length > 0 && (
             <Button size="sm" onClick={handleUpdateAll} disabled={updatingAll}>
               <ArrowUpCircle size={12} />
-              {updatingAll
-                ? t("Updating...")
-                : t("Update All ({count})", { count: updates.length })}
+              {updatingAll ? t("Updating…") : t("Update All ({count})", { count: updates.length })}
             </Button>
           )}
           <Button
@@ -280,7 +278,7 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
             disabled={checkingUpdates}
           >
             <RefreshCw size={12} className={checkingUpdates ? "animate-spin" : ""} />
-            {checkingUpdates ? t("Checking...") : t("Check Updates")}
+            {checkingUpdates ? t("Checking…") : t("Check for updates")}
           </Button>
         </div>
       </div>
@@ -372,7 +370,7 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
                         {status?.state === "downloading" && status.percent !== undefined && (
                           <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
                             <div
-                              className="h-full rounded-full bg-primary transition-all duration-300"
+                              className="h-full rounded-full bg-primary transition-[width] duration-300"
                               style={{ width: `${status.percent}%` }}
                             />
                           </div>
@@ -386,9 +384,7 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
                       ) : status?.state === "downloading" ? (
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Loader2 size={12} className="animate-spin" />
-                          {status.percent !== undefined
-                            ? `${status.percent}%`
-                            : t("Downloading...")}
+                          {status.percent !== undefined ? `${status.percent}%` : t("Downloading…")}
                         </div>
                       ) : status?.state === "error" ? (
                         <div className="flex items-center gap-1">
@@ -511,7 +507,7 @@ function InstalledPluginCard({
           {updateStatus?.state === "downloading" && updateStatus.percent !== undefined && (
             <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
               <div
-                className="h-full rounded-full bg-primary transition-all duration-300"
+                className="h-full rounded-full bg-primary transition-[width] duration-300"
                 style={{ width: `${updateStatus.percent}%` }}
               />
             </div>
@@ -534,7 +530,7 @@ function InstalledPluginCard({
           {updateStatus?.state === "downloading" ? (
             <div className="flex items-center gap-1 text-xs text-primary">
               <Loader2 size={12} className="animate-spin" />
-              {updateStatus.percent !== undefined ? `${updateStatus.percent}%` : t("Updating...")}
+              {updateStatus.percent !== undefined ? `${updateStatus.percent}%` : t("Updating…")}
             </div>
           ) : updateStatus?.state === "done" ? (
             <span className="text-[10px] text-primary px-2 py-0.5 rounded bg-primary/10">

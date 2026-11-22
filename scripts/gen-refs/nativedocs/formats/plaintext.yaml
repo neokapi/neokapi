@@ -16,7 +16,7 @@ overview: |
   lines into a single block, which suits prose where sentences span
   several wrapped lines. This mirrors Okapi's plain-text filter.
 parameters:
-  segmentByLine:
+  segment_by_line:
     description: Treat each line as a block, rather than each paragraph.
     help: |
       When enabled (the default), every non-empty line of the input
@@ -35,4 +35,4 @@ examples:
   - title: Paragraph mode
     description: Group wrapped lines into paragraph blocks instead of one block per line.
     config: |
-      segmentByLine: false
+      segment_by_line: false

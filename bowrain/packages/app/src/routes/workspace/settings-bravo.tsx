@@ -13,6 +13,7 @@ import {
   type BravoConfig,
   type BravoToolInfo,
   type BravoUsageSummary,
+  PageContainer,
 } from "@neokapi/ui";
 
 export function SettingsBravoRoute() {
@@ -80,21 +81,21 @@ export function SettingsBravoRoute() {
 
   if (!bravoEnabled) {
     return (
-      <div className="mx-auto w-full max-w-3xl py-4">
+      <PageContainer width="standard">
         <Card>
           <CardHeader>
             <CardTitle>@bravo Agent</CardTitle>
             <CardDescription>The @bravo agent is not enabled for this workspace.</CardDescription>
           </CardHeader>
         </Card>
-      </div>
+      </PageContainer>
     );
   }
 
   if (!config) return <SettingsSkeleton />;
 
   return (
-    <div className="mx-auto w-full max-w-3xl py-4 space-y-4">
+    <PageContainer width="standard" className="space-y-4">
       <Card>
         <CardHeader>
           <CardTitle>Configuration</CardTitle>
@@ -123,6 +124,6 @@ export function SettingsBravoRoute() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageContainer>
   );
 }

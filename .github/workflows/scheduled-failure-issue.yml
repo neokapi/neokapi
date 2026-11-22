@@ -24,11 +24,13 @@ on:
       - Nightly
       - E2E
       - Dogfood Sync
-      - Security
       - Container Scan
       - Contract Audit
+      - Tool versions
       - Evals Refresh
       - Bowrain Build
+      - Fuzz
+      - Cache Budget
     types: [completed]
 
 permissions:

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useWorkspace, InviteManager } from "@neokapi/ui";
+import { useWorkspace, InviteManager, PageContainer } from "@neokapi/ui";
 
 export function SettingsMembersRoute() {
   const { activeWorkspace } = useWorkspace();
@@ -13,8 +13,8 @@ export function SettingsMembersRoute() {
   if (!activeWorkspace) return null;
 
   return (
-    <div className="mx-auto w-full max-w-3xl py-4">
+    <PageContainer width="standard">
       <InviteManager workspace={activeWorkspace} />
-    </div>
+    </PageContainer>
   );
 }

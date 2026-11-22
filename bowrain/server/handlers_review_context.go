@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -71,7 +71,7 @@ type reviewContextResponse struct {
 // Every read here is bounded to the unit: the block, its neighbours by position
 // cursor, its term and memory lookups, its notes, its latest score, its ledger
 // row.
-func (s *Server) HandleGetReviewContext(c echo.Context) error {
+func (s *Server) HandleGetReviewContext(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -186,9 +186,10 @@ func (s *Server) fillReviewPoint(
 		}
 	}
 
-	// The word rules are terms: the workspace terms store's in the source
-	// language, and any the bound voice's file carries.
-	if rules, rerr := s.workspaceWordRules(ctx, ws, proj.DefaultSourceLanguage); rerr != nil {
+	// The word rules are terms: those of the workspace terms store that apply
+	// in the project, in the source language, and any the bound voice's file
+	// carries.
+	if rules, rerr := s.workspaceWordRules(ctx, ws, proj.ID, proj.DefaultSourceLanguage); rerr != nil {
 		p.Notes = append(p.Notes, "the word rules here could not be read: "+rerr.Error())
 	} else {
 		rules = rulesWithTerm(append(rules, profile.CarriedTerms().Rules...))
@@ -208,6 +209,7 @@ func (s *Server) fillReviewPoint(
 			out.CollectionID = item.CollectionID
 			if coll, cerr := s.ContentStore.GetCollection(ctx, proj.ID, item.CollectionID); cerr == nil && coll != nil {
 				p.Collection = coll.Name
+				p.Channel = coll.ConnectorConfig[coreprofile.PropertyChannel]
 				if len(coll.Context) > 0 {
 					p.Coordinates = coll.Context
 				}
@@ -244,6 +246,9 @@ func rulesWithTerm(rules []coreprofile.TermRule) []coreprofile.TermRule {
 // block: the same role the stable unit key plays on the host.
 func (s *Server) reviewNeighbourhood(ctx context.Context, pid, stream string, sb *venue.StoredBlock, loc model.LocaleID) review.Neighbourhood {
 	n := review.Neighbourhood{Key: sb.Block.ID, Window: review.DefaultWindow}
+	if unit, ok := neighbourOf(sb.Block, loc); ok {
+		n.Unit = &unit
+	}
 	if sb.ItemName == "" {
 		return n
 	}
@@ -260,17 +265,9 @@ func (s *Server) reviewNeighbourhood(ctx context.Context, pid, stream string, sb
 			if stored == nil || stored.Block == nil {
 				continue
 			}
-			b := stored.Block
-			src := b.SourceRuns()
-			if len(src) == 0 {
-				continue
+			if nb, ok := neighbourOf(stored.Block, loc); ok {
+				out = append(out, nb)
 			}
-			nb := review.Neighbour{Key: b.ID, Source: src}
-			if t, ok := b.TargetEdition(loc); ok {
-				nb.Target = t.Runs
-				nb.Status = string(t.Status)
-			}
-			out = append(out, nb)
 		}
 		return out
 	}
@@ -279,6 +276,21 @@ func (s *Server) reviewNeighbourhood(ctx context.Context, pid, stream string, sb
 	n.Before = read(store.BlockQuery{DocumentBefore: sb.Block.ID})
 	n.After = read(store.BlockQuery{DocumentAfter: sb.Block.ID})
 	return n
+}
+
+// neighbourOf projects one stored block into the neighbourhood, keyed by its
+// platform block id, or reports that it has no source runs to draw.
+func neighbourOf(b *model.Block, loc model.LocaleID) (review.Neighbour, bool) {
+	src := b.SourceRuns()
+	if len(src) == 0 {
+		return review.Neighbour{}, false
+	}
+	nb := review.Neighbour{Key: b.ID, Source: src}
+	if t, ok := b.TargetEdition(loc); ok {
+		nb.Target = t.Runs
+		nb.Status = string(t.Status)
+	}
+	return nb, true
 }
 
 // reviewHistory reads what the corpus already blessed for this unit: the prior

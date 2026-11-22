@@ -744,7 +744,7 @@ func forgettingNeedsAKey(t *testing.T, b workspace.Backend) {
 // widenedRulesAreHeldForTheWorkspace covers the one piece of context that
 // belongs to no project: a rule a person deliberately put in force everywhere.
 //
-// Everything else a project learns lives in that project's own context store.
+// Everything else a project records lives in that project's own context store.
 // A widened rule has nowhere there to live, so the workspace holds it, keeps
 // the project its evidence came from, and hands it back to whatever knows what
 // the bytes mean.

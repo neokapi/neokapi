@@ -27,7 +27,7 @@ parameters:
     help: |
       A marker placed after the pseudo-translated text, mirroring the prefix.
     values: "string (default ` ▒`)"
-  expansionPercent:
+  expansion_percent:
     description: Extra padding to simulate translation expansion.
     help: |
       Adds padding characters proportional to the text length, so the output is
@@ -49,4 +49,4 @@ examples:
   - title: Simulate 30% expansion
     description: Pad output to surface layout clipping.
     config: |
-      expansionPercent: 30
+      expansion_percent: 30

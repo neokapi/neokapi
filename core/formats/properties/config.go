@@ -2,6 +2,7 @@ package properties
 
 import (
 	"fmt"
+	"github.com/neokapi/neokapi/core/format"
 	"regexp"
 )
 
@@ -98,72 +99,72 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("separator: expected string, got %T", val)
 			}
 			c.Separator = s
-		case "useJavaEscapes":
+		case "use_java_escapes":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useJavaEscapes: expected bool, got %T", val)
+				return fmt.Errorf("use_java_escapes: expected bool, got %T", val)
 			}
 			c.UseJavaEscapes = b
-		case "useKeyCondition":
+		case "use_key_condition":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useKeyCondition: expected bool, got %T", val)
+				return fmt.Errorf("use_key_condition: expected bool, got %T", val)
 			}
 			c.UseKeyCondition = b
 			c.compiledKeyCondition = nil
-		case "extractOnlyMatchingKey":
+		case "extract_only_matching_key":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractOnlyMatchingKey: expected bool, got %T", val)
+				return fmt.Errorf("extract_only_matching_key: expected bool, got %T", val)
 			}
 			c.ExtractOnlyMatchingKey = b
-		case "keyCondition":
+		case "key_condition":
 			s, ok := val.(string)
 			if !ok {
-				return fmt.Errorf("keyCondition: expected string, got %T", val)
+				return fmt.Errorf("key_condition: expected string, got %T", val)
 			}
 			c.KeyCondition = s
 			c.compiledKeyCondition = nil
-		case "extraComments":
+		case "extra_comments":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extraComments: expected bool, got %T", val)
+				return fmt.Errorf("extra_comments: expected bool, got %T", val)
 			}
 			c.ExtraComments = b
-		case "commentsAreNotes":
+		case "comments_are_notes":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("commentsAreNotes: expected bool, got %T", val)
+				return fmt.Errorf("comments_are_notes: expected bool, got %T", val)
 			}
 			c.CommentsAreNotes = b
-		case "extractNonTranslatableContent":
+		case "extract_non_translatable_content":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
+				return fmt.Errorf("extract_non_translatable_content: expected bool, got %T", val)
 			}
 			c.disableNonTranslatableContent = !b
-		case "escapeExtendedChars":
+		case "escape_extended_chars":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("escapeExtendedChars: expected bool, got %T", val)
+				return fmt.Errorf("escape_extended_chars: expected bool, got %T", val)
 			}
 			c.EscapeExtendedChars = b
-		case "useCodeFinder":
+		case "use_code_finder":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useCodeFinder: expected bool, got %T", val)
+				return fmt.Errorf("use_code_finder: expected bool, got %T", val)
 			}
 			c.UseCodeFinder = b
 			c.compiledCodeFinder = nil
-		case "codeFinderRules":
+		case "code_finder_rules":
 			rules, err := parseCodeFinderRules(val)
 			if err != nil {
-				return fmt.Errorf("codeFinderRules: %w", err)
+				return fmt.Errorf("code_finder_rules: %w", err)
 			}
 			c.CodeFinderRules = rules
 			c.compiledCodeFinder = nil
 		default:
-			return fmt.Errorf("properties: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "properties", key)
 		}
 	}
 	return nil

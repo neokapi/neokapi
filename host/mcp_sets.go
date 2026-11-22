@@ -107,7 +107,7 @@ func AllMCPToolSets() map[string]bool {
 
 // MCPSurface is the tool surface a server exposes. It is set from flags on
 // `kapi mcp` (--tools, --all-tools, --all-flows, --all) rather than an
-// environment variable: the surface an assistant sees is a property of how the
+// environment variable: the surface an assistant gets is a property of how the
 // server was started, so it belongs on the command that starts it, where
 // `--help` lists it.
 type MCPSurface struct {

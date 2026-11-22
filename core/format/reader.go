@@ -62,7 +62,7 @@ type DataFormatReader interface {
 
 // StreamingReader is a capability marker a reader implements to declare that it
 // reads its input incrementally from doc.Reader (via bufio, never io.ReadAll /
-// os.ReadFile) and emits Parts incrementally — so it can be fed straight into
+// os.ReadFile) and emits Parts incrementally, so it can be fed straight into
 // the executor without the whole input or the whole Part stream being buffered.
 // It also promises the reader is in-process and pure-Go (never a daemon-backed
 // plugin), so its read may safely overlap a same-format writer's write: there is
@@ -85,6 +85,14 @@ type StreamingReader interface {
 func IsStreamingReader(r DataFormatReader) bool {
 	_, ok := r.(StreamingReader)
 	return ok
+}
+
+// WriteOnlyReader marks the reader of a format that is written and never read
+// as a source, such as compiled MO catalogs. The reader exists so detection
+// can route an output path to the writer; opening a document with it fails.
+type WriteOnlyReader interface {
+	// WriteOnlyReader marks the capability; it is never called.
+	WriteOnlyReader()
 }
 
 // FormatSignature describes how to detect a data format.

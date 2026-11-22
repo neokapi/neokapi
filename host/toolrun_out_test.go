@@ -29,7 +29,7 @@ func upperRun(a *App, file string) ToolRunConfig {
 		Files:         []string{file},
 		DefaultLayout: true,
 		NewTool: func() (tool.Tool, error) {
-			return a.ToolReg.NewToolWithConfig(registry.ToolID("case-transform"), map[string]any{"mode": "upper", "applySource": true}, "")
+			return a.ToolReg.NewToolWithConfig(registry.ToolID("case-transform"), map[string]any{"mode": "upper", "apply_source": true}, "")
 		},
 	}
 }

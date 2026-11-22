@@ -14,7 +14,7 @@ import (
 )
 
 // TestConvergeRenderer_PlainStream: on a non-TTY stream the renderer prints
-// one line per meaningful event and never rewrites — the CI-log posture.
+// one line per meaningful event and never rewrites, the CI-log posture.
 func TestConvergeRenderer_PlainStream(t *testing.T) {
 	var out strings.Builder
 	r := NewConvergeRenderer(&out, false)
@@ -24,7 +24,7 @@ func TestConvergeRenderer_PlainStream(t *testing.T) {
 	r.OnEvent(convergence.Event{Type: convergence.EventLocaleStart, Pass: 1, Locale: "nb-NO", Units: 2})
 	r.OnEvent(convergence.Event{Type: convergence.EventUnitProgress, Pass: 1, Locale: "nb-NO", Done: 1})
 	r.OnEvent(convergence.Event{Type: convergence.EventLocaleDone, Pass: 1, Locale: "nb-NO", Units: 2, Done: 2, ViaMemory: 1, ViaAI: 1})
-	r.OnEvent(convergence.Event{Type: convergence.EventPassDone, Pass: 1, MaxPasses: 5, Produced: 4, ProducedDelta: 4, FailingChecks: 1})
+	r.OnEvent(convergence.Event{Type: convergence.EventPassDone, Pass: 1, MaxPasses: 5, Produced: 4, ProducedDelta: 4, WaitingForReview: 3, FailingChecks: 1})
 	r.OnEvent(convergence.Event{Type: convergence.EventMaterialized, Files: 3})
 	r.OnEvent(convergence.Event{Type: convergence.EventDone, State: convergence.RunConverged})
 
@@ -32,8 +32,8 @@ func TestConvergeRenderer_PlainStream(t *testing.T) {
 	assert.NotContains(t, got, "\x1b[", "plain stream must carry no ANSI control sequences")
 	assert.Contains(t, got, "Extracted 4 block(s).")
 	assert.Contains(t, got, "pass 1/5 · catching up nb-NO, de-DE")
-	assert.Contains(t, got, "nb-NO      2/2 blocks  (content memory 1 · AI 1)")
-	assert.Contains(t, got, "pass 1 done · produced 4 (+4) · 1 failing check(s)")
+	assert.Contains(t, got, "nb-NO      2/2 blocks  (recycled 1 · AI 1)")
+	assert.Contains(t, got, "pass 1 done · produced 4 · waiting for review 3 · 1 failing check(s)")
 	assert.Contains(t, got, "materialized 3 target file(s)")
 	// unit_progress is TTY-only detail; a plain stream stays line-per-outcome.
 	assert.NotContains(t, got, "1/2 blocks")
@@ -57,7 +57,7 @@ func TestConvergeRenderer_PlainStreamPrintsLocalesInPassOrder(t *testing.T) {
 		"  de         2/2 blocks\n" +
 		"  fr         2/2 blocks\n" +
 		"  nb         2/2 blocks\n" +
-		"pass 1 done · produced 6 (+0)\n"
+		"pass 1 done · produced 0\n"
 	assert.Equal(t, want, run("nb", "de", "fr"))
 	assert.Equal(t, want, run("fr", "nb", "de"))
 
@@ -66,10 +66,10 @@ func TestConvergeRenderer_PlainStreamPrintsLocalesInPassOrder(t *testing.T) {
 	assert.Equal(t, "pass 1/2 · catching up de, fr, nb\n"+
 		"  de         2/2 blocks\n"+
 		"  nb         2/2 blocks\n"+
-		"pass 1 done · produced 6 (+0)\n", run("nb", "de"))
+		"pass 1 done · produced 0\n", run("nb", "de"))
 }
 
-// TestUp_JSONStreamsNDJSON: `up --json` is an NDJSON event stream — every
+// TestUp_JSONStreamsNDJSON: `up --json` is an NDJSON event stream, every
 // line parses as one JSON object with a type, and the final line is the
 // structured result record.
 func TestUp_JSONStreamsNDJSON(t *testing.T) {

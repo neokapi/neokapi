@@ -78,7 +78,7 @@ variants:
 
 config:
   # ── Common (all variants) ─────────────────────────────────────────
-  - key: translateNotes
+  - key: translate_notes
     type: boolean
     default: true
     description: |
@@ -87,7 +87,7 @@ config:
       covers speaker notes attached to each slide.
     okapi_param: extractNotes
 
-  - key: translateHiddenContent
+  - key: translate_hidden_content
     type: boolean
     default: false
     description: |
@@ -253,7 +253,7 @@ features:
     name: Slide text and speaker notes (ODP)
     description: |
       Each slide's text frames extract as Blocks in slide order; with
-      the default `translateNotes=true`, speaker notes attached to
+      the default `translate_notes=true`, speaker notes attached to
       each slide also extract as additional Blocks. The root Layer's
       `docType` property reads `odp` so downstream tools can route on
       variant.

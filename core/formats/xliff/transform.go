@@ -1,6 +1,10 @@
 package xliff
 
-import "github.com/neokapi/neokapi/core/config"
+import (
+	"github.com/neokapi/neokapi/core/config"
+
+	coreschema "github.com/neokapi/neokapi/core/schema"
+)
 
 // okapiXLIFFTransformer converts okf_xliff filter specs to xliff format config.
 type okapiXLIFFTransformer struct{}
@@ -18,7 +22,7 @@ func (okapiXLIFFTransformer) Transform(spec map[string]any) (map[string]any, err
 			"addTargetLanguage", "overrideTargetLanguage",
 			"allowEmptyTargets", "alwaysAddTargets",
 			"useCodeFinder", "codeFinderRules":
-			result[key] = val
+			result[coreschema.SnakeCase(key)] = val
 
 		// Okapi-only params — drop silently
 		case "inlineCdata", "bilingualMode", "generateTarget",
@@ -41,7 +45,7 @@ func (okapiXLIFFTransformer) Transform(spec map[string]any) (map[string]any, err
 			"moveLeadingAndTrailingCodesToSkeleton", "simplifierRules":
 			continue
 		default:
-			result[key] = val
+			result[coreschema.SnakeCase(key)] = val
 		}
 	}
 	return result, nil

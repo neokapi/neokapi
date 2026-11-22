@@ -25,6 +25,7 @@ import (
 	"github.com/neokapi/neokapi/core/container"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/storage/filelock"
 )
 
@@ -196,7 +197,7 @@ func (st *staged) run(ctx context.Context) error {
 		own.tmp, own.after, own.diff = nil, own.before, nil
 	}
 	if len(removed) > 0 && own.tmp != nil && s.doc.Entry == "" {
-		if err := st.verifyRemoved(ctx, own.tmp.Name(), removed); err != nil {
+		if err := st.verifyRemoved(ctx, own.tmp, removed); err != nil {
 			return err
 		}
 	}
@@ -247,8 +248,8 @@ func (st *staged) run(ctx context.Context) error {
 // unit and fill one the block does not hold from its source, as the Okapi
 // filters they follow do: such a write would replace the translation with the
 // source rather than remove it.
-func (st *staged) verifyRemoved(ctx context.Context, staged string, removed map[int][]model.EditionKey) error {
-	data, err := os.ReadFile(staged)
+func (st *staged) verifyRemoved(ctx context.Context, staged *atomicfile.Staged, removed map[int][]model.EditionKey) error {
+	data, err := staged.ReadAll()
 	if err != nil {
 		return err
 	}
@@ -311,16 +312,17 @@ func (st *staged) lockKeys() error {
 // writeEdition stages the file of a joined edition with the runs the editor
 // gave it, and without the edition in the blocks gone names. A file that
 // exists is edited through its own skeleton, so every byte of it outside the
-// changed blocks stays, and each changed block must have a partner there; a
-// write that would need a block the file does not hold is refused, because
-// adding one means rewriting the file. A file that does not exist yet is
-// materialized from the document's skeleton, as kapi merge writes a target
-// file, and so is every file under Options.Materialize, except a bilingual
-// file that still holds every block of the document and nothing else: it
-// keeps its own skeleton, so its header (its language, its plural rule) and
-// its comments stay. A bilingual file a translation was removed from is read
-// back (verifyEditionRemoved); any other file loses the block that held the
-// translation (restructureEditionFile).
+// changed blocks stays. Each changed block must have a partner there. A write
+// that needs a block the file does not hold is refused, because adding one
+// means rewriting the file.
+//
+// A file that does not exist yet is materialized from the document's
+// skeleton, as kapi merge writes a target file. So is every file under
+// Options.Materialize, except a bilingual file that still holds every block
+// of the document and nothing else. That file keeps its own skeleton, so its
+// header (language, plural rule) and comments stay. A bilingual file a
+// translation was removed from is read back (verifyEditionRemoved). Any other
+// file loses the block that held it (restructureEditionFile).
 func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdition, ix *blockIndex, changed map[int][]model.Run, gone map[int]bool) error {
 	s := st.s
 	inPlace := je.exists && !s.h.materialize
@@ -536,11 +538,13 @@ type creation struct {
 // creations are the blocks of the translations the change creates in a file
 // in the edition's own language that holds no partner of them, at the
 // document indexes created. Each goes under the key the file gives keys
-// (translateKey, as a new block's edition is keyed there), after the partner
-// of the document's nearest block before it that the file holds, or the
-// block added for that one, when its key there shares the parent of the new
-// key; else before the nearest such block after it, on the same terms; else
-// last in the mapping its key names.
+// (translateKey, as a new block's edition is keyed there).
+//
+// It goes after the partner of the document's nearest block before it that
+// the file holds, or after the block added for that one. That anchor counts
+// only when its key there shares the parent of the new key. Failing that, it
+// goes before the nearest such block after it, on the same terms. Failing
+// both, it goes last in the mapping its key names.
 func creations(je *joinedEdition, ix *blockIndex, created []int, changed map[int][]model.Run, goneAt map[int]bool) []creation {
 	slices.Sort(created)
 	docKey, fileKey := je.anyPair(ix)
@@ -597,9 +601,9 @@ func parentKey(key string) string {
 // restructureEditionFile takes the blocks removed names out of the file the
 // stage wrote for a joined edition in the edition's own language, and adds
 // the blocks of adds to it. Such a file holds a translation as a block of its
-// own, so a translation leaves it with its block, as delete_block removes a
-// block from an edition's file, and a translation created there arrives with
-// one; the format's writer makes both (format.StructureEditor). removed maps
+// own. So a translation leaves it with its block, as delete_block removes a
+// block from an edition's file. A translation created there arrives with one.
+// The format's writer makes both (format.StructureEditor). removed maps
 // the file's key of each block to the document's key of the block it
 // translates. A block the writer cannot remove or add refuses the operations
 // on it, and the file is never deleted: it keeps every other block, and
@@ -609,7 +613,7 @@ func (st *staged) restructureEditionFile(ctx context.Context, f *stagedFile, je 
 	var data []byte
 	var err error
 	if f.tmp != nil {
-		data, err = os.ReadFile(f.tmp.Name())
+		data, err = f.tmp.ReadAll()
 	} else {
 		data, err = readAll(je.src)
 	}
@@ -736,16 +740,16 @@ func (st *staged) verifyCreated(ctx context.Context, je *joinedEdition, data []b
 }
 
 // verifyEditionRemoved reads back the bilingual file of a joined edition as
-// the stage wrote it, in the edition's language, and refuses the change when
-// a block removed names (by the file's key, mapped to the document's) still
-// holds the translation the editor removed: a writer that fills a unit with
-// no translation from its source, as the XLIFF and TMX writers do, would
-// replace the translation with the source rather than remove it.
+// the stage wrote it, in the edition's language. It refuses the change when a
+// block removed names (by the file's key, mapped to the document's) still
+// holds the translation the editor removed. A writer that fills a unit with no
+// translation from its source, as the XLIFF and TMX writers do, would replace
+// the translation with the source rather than remove it.
 func (st *staged) verifyEditionRemoved(ctx context.Context, f *stagedFile, je *joinedEdition, removed map[string]string) error {
 	if f.tmp == nil {
 		return nil
 	}
-	data, err := os.ReadFile(f.tmp.Name())
+	data, err := f.tmp.ReadAll()
 	if err != nil {
 		return err
 	}
@@ -792,9 +796,12 @@ func blockList(keys []string) string {
 // whose directory does not exist yet, such as a translation written for the
 // first time, has the directory created when it commits, never before.
 func (st *staged) write(ctx context.Context, path string, src source, produce func(io.Writer) error) (*atomicfile.Staged, string, func() string, error) {
+	if err := st.s.h.contain(path); err != nil {
+		return nil, "", nil, err
+	}
 	h := sha256.New()
 	if src.entry == "" {
-		tmp, err := atomicfile.StageWithParents(path, func(w io.Writer) error {
+		tmp, err := st.s.h.stage(path, func(w io.Writer) error {
 			bw := bufio.NewWriterSize(io.MultiWriter(w, h), 64*1024)
 			if err := produce(bw); err != nil {
 				return err
@@ -805,13 +812,13 @@ func (st *staged) write(ctx context.Context, path string, src source, produce fu
 			return nil, "", nil, err
 		}
 		after := digestOf(h)
-		return tmp, after, func() string { return fileDiff(src.path, tmp.Name(), st.label(path)) }, nil
+		return tmp, after, func() string { return stagedDiff(src.path, tmp, st.label(path)) }, nil
 	}
 	var member bytes.Buffer
 	if err := produce(&member); err != nil {
 		return nil, "", nil, err
 	}
-	tmp, err := atomicfile.Stage(path, func(w io.Writer) error {
+	tmp, err := st.s.h.stage(path, func(w io.Writer) error {
 		return container.Transform(path, io.MultiWriter(w, h), func(name string, _ func() ([]byte, error)) ([]byte, bool, error) {
 			if sameEntry(name, src.entry) {
 				return member.Bytes(), true, nil
@@ -1017,16 +1024,26 @@ func (st *staged) Commit(ctx context.Context) error {
 			st.recordID = id
 		}
 	}
+	// Every file is checked again under the commit locks, before any lands:
+	// a link put in place after the stage is refused here.
+	for _, f := range st.files {
+		if f.tmp == nil {
+			continue
+		}
+		if err := st.s.h.contain(f.path); err != nil {
+			return err
+		}
+	}
 	for _, f := range st.files {
 		if f.tmp == nil {
 			continue
 		}
 		if st.s.h.backup != "" && f.before != "" {
-			if err := backUp(f.path, st.s.h.backup); err != nil {
+			if err := st.s.h.backUp(f.path, st.s.h.backup); err != nil {
 				return err
 			}
 		}
-		err := f.tmp.Commit()
+		err := st.s.h.commit(f.path, f.tmp)
 		f.tmp = nil
 		if err != nil {
 			return err
@@ -1039,7 +1056,14 @@ func (st *staged) Commit(ctx context.Context) error {
 // backUp copies the file at path beside it, with suffix appended to its name
 // and its mode kept. It is called under the commit lock, once the file is
 // known to hold what the stage read.
-func backUp(path, suffix string) error {
+//
+// A file beneath the home's root is read and its copy written through an
+// os.Root opened on the root (rootpath), so neither follows a link out of it.
+func (h *Home) backUp(path, suffix string) error {
+	root, inRoot := h.under(path)
+	if inRoot {
+		return backUpWithin(root, path, suffix)
+	}
 	in, err := os.Open(path)
 	if err != nil {
 		return err
@@ -1049,8 +1073,12 @@ func backUp(path, suffix string) error {
 	if err != nil {
 		return err
 	}
-	out, err := os.OpenFile(path+suffix, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode().Perm())
+	out, err := os.OpenFile(path+suffix, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
 	if err != nil {
+		return fmt.Errorf("write backup: %w", err)
+	}
+	if err := out.Chmod(info.Mode().Perm()); err != nil {
+		_ = out.Close()
 		return fmt.Errorf("write backup: %w", err)
 	}
 	if _, err := io.Copy(out, in); err != nil {
@@ -1080,8 +1108,9 @@ func (st *staged) discard() {
 // diffLimit bounds the size of a file a preview renders as a diff.
 const diffLimit = 1 << 20
 
-// fileDiff renders the change from the file at before to the file at after.
-func fileDiff(before, after, label string) string {
+// stagedDiff renders the change from the file at before to the staged bytes
+// of after, which are read back through the staging's own root.
+func stagedDiff(before string, after *atomicfile.Staged, label string) string {
 	a, err := readLimited(before)
 	if errors.Is(err, fs.ErrNotExist) {
 		// The change creates the file.
@@ -1090,8 +1119,8 @@ func fileDiff(before, after, label string) string {
 	if err != nil {
 		return ""
 	}
-	b, err := readLimited(after)
-	if err != nil {
+	b, err := after.ReadAll()
+	if err != nil || len(b) > diffLimit {
 		return ""
 	}
 	return textDiff(a, b, label)
@@ -1130,4 +1159,31 @@ func textDiff(a, b []byte, label string) string {
 
 func isText(b []byte) bool {
 	return len(b) <= diffLimit && utf8.Valid(b) && bytes.IndexByte(b, 0) < 0
+}
+
+// backUpWithin writes the copy of a file beneath root through
+// atomicfile.StageWithinMode: staged and renamed into place through the
+// root, never cut in place, so a copy name that is a hard link to a file
+// elsewhere replaces that name and leaves the other file alone.
+func backUpWithin(root, path, suffix string) error {
+	in, err := rootpath.OpenRegular(root, path)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	info, err := in.Stat()
+	if err != nil {
+		return err
+	}
+	s, err := atomicfile.StageWithinMode(root, path+suffix, info.Mode().Perm(), func(out io.Writer) error {
+		_, err := io.Copy(out, in)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("write backup: %w", err)
+	}
+	if err := s.Commit(); err != nil {
+		return fmt.Errorf("write backup: %w", err)
+	}
+	return nil
 }

@@ -60,10 +60,10 @@ const DEMO_DIR = "harness/demos";
 // ── what the recipe declares translatable ────────────────────────────────────
 //
 // Read from kapi.yaml at run time. The narration sidecars take the
-// `keyPathPatterns` of the item that reads `harness/demos/*/demo.yaml`, merged
+// `key_path_patterns` of the item that reads `harness/demos/*/demo.yaml`, merged
 // over `defaults.formats.yaml.config` the way the engine merges a format's
 // defaults with an item's own config. The engine catalog takes the
-// `extractionRules` of the item that reads `core/i18n/builtins/metadata.json`.
+// `extraction_rules` of the item that reads `core/i18n/builtins/metadata.json`.
 // A leaf outside either is a machine identifier the target must carry through.
 
 const RECIPE = "kapi.yaml";
@@ -85,7 +85,7 @@ function translatableRules(recipeText) {
   if (demo === null) throw new Error(`${RECIPE} declares no content item for ${DEMO_SOURCE}`);
   return {
     engine: keyRule(readerConfig(recipe, engine, "json")),
-    demo: leafKeys(readerConfig(recipe, demo, "yaml").keyPathPatterns),
+    demo: leafKeys(readerConfig(recipe, demo, "yaml").key_path_patterns),
   };
 }
 
@@ -106,16 +106,16 @@ function readerConfig(recipe, item, fallbackFormat) {
 }
 
 /**
- * The leaves a JSON reader config names: `extractionRules` when it is set,
+ * The leaves a JSON reader config names: `extraction_rules` when it is set,
  * otherwise every leaf less `exceptions`, or only `exceptions` when
- * `extractAllPairs` is off. The rule is tested against the dotted key path, so
+ * `extract_all_pairs` is off. The rule is tested against the dotted key path, so
  * an alternative such as `enumDescriptions\.[^.]+$` reaches the leaf it names.
  */
 function keyRule(config) {
-  const rules = config.extractionRules ? new RegExp(config.extractionRules) : null;
+  const rules = config.extraction_rules ? new RegExp(config.extraction_rules) : null;
   const exceptions = config.exceptions ? new RegExp(config.exceptions) : null;
   if (rules) return (keyPath) => rules.test(keyPath);
-  if (config.extractAllPairs !== false) {
+  if (config.extract_all_pairs !== false) {
     return exceptions ? (keyPath) => !exceptions.test(keyPath) : null;
   }
   return exceptions ? (keyPath) => exceptions.test(keyPath) : () => false;
@@ -1086,7 +1086,7 @@ function selfTest() {
     "  formats:",
     "    yaml:",
     "      config:",
-    "        keyPathPatterns:",
+    "        key_path_patterns:",
     "          - title",
     "          - outro.line",
     "          - narration.*.text",
@@ -1099,8 +1099,8 @@ function selfTest() {
     "        format:",
     "          name: json",
     "          config:",
-    "            extractAllPairs: false",
-    "            extractionRules: '(displayName|note)$|enumDescriptions\\.[^.]+$'",
+    "            extract_all_pairs: false",
+    "            extraction_rules: '(displayName|note)$|enumDescriptions\\.[^.]+$'",
     "        target: catalogs/{lang}.json",
     "  - name: demos",
     "    base: harness/demos",
@@ -1139,7 +1139,7 @@ function selfTest() {
 
   const overridden = planted.replace(
     "          name: yaml\n",
-    "          name: yaml\n          config:\n            keyPathPatterns: [subtitle]\n",
+    "          name: yaml\n          config:\n            key_path_patterns: [subtitle]\n",
   );
   check("an item's own config overrides the format defaults", [...translatableRules(overridden).demo], [
     "subtitle",

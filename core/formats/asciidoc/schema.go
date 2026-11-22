@@ -24,18 +24,18 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"extractBlockTitles", "extractTableCells",
+					"extract_block_titles", "extract_table_cells",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"extractBlockTitles": schema.Prop(coreschema.PropertySchema{
+			"extract_block_titles": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Extract block titles",
 				Default:     true,
 				Description: "Emit AsciiDoc block titles (`.Title`) as translatable blocks. When false they are preserved verbatim as skeleton.",
 			}),
-			"extractTableCells": schema.Prop(coreschema.PropertySchema{
+			"extract_table_cells": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Extract table cells",
 				Default:     true,

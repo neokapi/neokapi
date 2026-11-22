@@ -37,8 +37,8 @@ export function ProjectReaderPage({
         focusBlockID={block}
         navigate={navigate}
         canNavigate={bowrainOpens}
-        onBack={() => navigate({ kind: "map" })}
-        backLabel={t("Map")}
+        onBack={() => navigate({ kind: "overview" })}
+        backLabel={t("Overview")}
         onOpenProposal={() => setProposals(true)}
       />
       {proposals && (

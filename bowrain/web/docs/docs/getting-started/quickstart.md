@@ -8,10 +8,9 @@ keywords: [quick start, bowrain, connectors, workspace, context scan, review, pu
 
 # Quick start
 
-Content reaches a workspace through a [connector](/server/connectors), and every
-route meets in the same place: the same profiles, the same vocabulary, the same
-content memory, the same review session. Pick the route that matches where
-your source lives.
+Content reaches a workspace through a [connector](/server/connectors). Every
+route leads to the same profiles, vocabulary, content memory and review
+session. Pick the route that matches where your source lives.
 
 | Your source lives in | Start here | Anything to install? |
 | --- | --- | --- |
@@ -21,23 +20,23 @@ your source lives.
 
 ## From your content
 
-You write and publish content; you want it on profile for the audience it was
-written for, and optionally in more languages. Nothing to install: open
+You write and publish content, and you want it to fit its audience, possibly
+in more languages too. There is nothing to install. Open
 [app.bowrain.cloud](https://app.bowrain.cloud) (or your own server) and sign
-in. A personal workspace is created on first login.
+in. Bowrain creates a personal workspace on your first login.
 
 1. **Establish the context.** Run a [context scan](/server/context-scan) over
    content you already trust. It proposes the axes your content varies along, a
-   voice profile and term candidates for you to review and approve. Vocabulary
-   and content memory grow in the workspace from there.
+   voice profile and term candidates for you to review and approve. The
+   workspace adds terms and content memory as you work.
 2. **Create a project** and bring content in. Upload files directly in the web
    app, or connect the systems your content lives in (WordPress, HubSpot,
    Figma) so source flows in and published results flow back. See
    [First login and first project](/server/getting-started) and
    [Connectors](/server/connectors).
 3. **Draft and check.** A [run](/the-loop) checks the source against the
-   context and drafts any target languages against the voice profile,
-   vocabulary, and memory in force at each point; checks flag what drifts.
+   context. It drafts any target languages with the voice profile, terms and
+   memory that apply at each point, and the checks flag what drifts.
 4. **Review and publish.** Step through the [review session](/server/review),
    approve what is right (corrections feed the
    [learning loop](/server/context-voice)), then export, or publish back
@@ -48,15 +47,15 @@ The end-to-end path for this route is
 
 ## From a repository
 
-Your source files live in a GitHub or GitLab repository, and you would rather
-not add a pipeline to it. Connect the repository server-side: a push webhook
-triggers a run, and the results arrive as **one open pull/merge request** that
-every later delivery updates in place.
+Your source files live in a GitHub or GitLab repository, and you don't want to
+add a pipeline to it. Connect the repository server-side. A push webhook starts
+a run, and the results arrive as **one open pull/merge request** that each later
+delivery updates in place.
 
-Nothing is installed and nothing is checked out; the server holds the
-credentials and does the work. With a GitHub App registered for your server,
-installing the app on a repository and binding it to a project is the only
-per-repository step.
+You install nothing and check nothing out. The server holds the credentials
+and does the work. With a GitHub App registered for your server, the only
+per-repository step is to install the app on the repository and bind it to a
+project.
 
 See the [GitHub / GitLab connector](/server/connectors/github) for setup, and
 [The Bowrain GitHub App](/cli/ci/github-app) for the walkthrough.
@@ -80,9 +79,9 @@ kapi up          # catch the project up; runs on the server
 kapi status      # per-scope coverage, ship standing, server standing, and venue
 ```
 
-`kapi up` pushes what drifted, runs on the server with the organization's keys
-and shared memory, streams progress into the terminal, and pulls the results
-down. What a machine cannot decide waits in the team's
+`kapi up` pushes what drifted and runs on the server with the organization's
+keys and shared memory. It streams progress into the terminal and pulls the
+results down. Items a machine cannot decide wait in the team's
 [review session](/server/review).
 
 The full command set, flows, and the CI contract are in the

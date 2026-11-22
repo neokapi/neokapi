@@ -29,7 +29,7 @@ function MapEntry({
 
   if (!isComplex) {
     return (
-      <div className="flex items-center gap-0 rounded-md border border-input overflow-hidden">
+      <div className="flex items-center gap-0 rounded-md border border-input overflow-hidden focus-within:ring-1 focus-within:ring-ring">
         <span className="shrink-0 px-2.5 py-1.5 text-xs font-mono text-muted-foreground bg-muted/40 border-r border-input">
           {entryKey}
         </span>

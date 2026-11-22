@@ -2,8 +2,12 @@ package event
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -17,14 +21,29 @@ import (
 // for human consumption. Unlike the AuditLogger (which records raw events),
 // the ActivityRecorder produces aggregated, human-readable activity records.
 type ActivityRecorder struct {
-	store *bstore.ActivityStore
-	bus   platev.EventBus
-	sub   *platev.Subscription
+	store    *bstore.ActivityStore
+	bus      platev.EventBus
+	sub      *platev.Subscription
+	projects ProjectWorkspaceResolver
+}
+
+// ActivityRecorderOption configures an ActivityRecorder.
+type ActivityRecorderOption func(*ActivityRecorder)
+
+// WithProjectWorkspaces files an event that names a project and no workspace
+// under the project's workspace id. Without it such an event is filed under
+// an empty workspace, where no feed lists it. The store-emitted project and
+// stream events are of this kind.
+func WithProjectWorkspaces(r ProjectWorkspaceResolver) ActivityRecorderOption {
+	return func(ar *ActivityRecorder) { ar.projects = r }
 }
 
 // NewActivityRecorder creates and starts an activity recorder.
-func NewActivityRecorder(store *bstore.ActivityStore, bus platev.EventBus) *ActivityRecorder {
+func NewActivityRecorder(store *bstore.ActivityStore, bus platev.EventBus, opts ...ActivityRecorderOption) *ActivityRecorder {
 	r := &ActivityRecorder{store: store, bus: bus}
+	for _, opt := range opts {
+		opt(r)
+	}
 	r.sub = bus.SubscribeGroup("activity-recorder", r.handleEvent)
 	return r
 }
@@ -51,11 +70,90 @@ func (r *ActivityRecorder) handleEvent(ev platev.Event) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := r.store.Create(ctx, a); err != nil {
+	if a.WorkspaceID == "" && a.ProjectID != "" && r.projects != nil {
+		// A deleted project resolves to nothing, and redelivering its event
+		// would not change that, so a failed lookup files the entry as is.
+		wsID, err := r.projects.WorkspaceForProject(ctx, a.ProjectID)
+		if err != nil {
+			slog.Warn("activity recorder could not resolve the project's workspace", "event_id", ev.ID, "project_id", a.ProjectID, "error", err)
+		}
+		a.WorkspaceID = wsID
+	}
+
+	var err error
+	if a.Kind == bstore.FeedKindReviewSummary {
+		a.ID = reviewRollupID(a)
+		err = r.store.AddToRollup(ctx, ev.ID, a)
+	} else {
+		err = r.store.Create(ctx, a)
+	}
+	if err != nil {
 		slog.Warn("activity recorder failed to persist activity", "event_id", ev.ID, "event_type", ev.Type, "error", err)
 		return err
 	}
 	return nil
+}
+
+// reviewRollupID names the roll-up row of a review decision: one row per
+// workspace, project, actor, language and UTC hour. The hour is the one the
+// row's first decision fell in, which is also the row's time in the feed.
+func reviewRollupID(a *bstore.Activity) string {
+	locale := ""
+	if len(a.Locales) > 0 {
+		locale = a.Locales[0]
+	}
+	hour := a.CreatedAt.UTC().Truncate(time.Hour).Format(time.RFC3339)
+	sum := sha256.Sum256([]byte(strings.Join([]string{a.WorkspaceID, a.ProjectID, a.ActorID, locale, hour}, "\x00")))
+	return "rvw_" + hex.EncodeToString(sum[:12])
+}
+
+// actorKindOf is the actor kind an event names, or the one its actor implies:
+// an event with no actor was the system's (a tool), any other a person's.
+func actorKindOf(ev platev.Event) string {
+	switch k := ev.Data["actor_kind"]; k {
+	case bstore.ActorKindPerson, bstore.ActorKindAgent, bstore.ActorKindTool:
+		return k
+	}
+	if ev.Actor == "" || ev.Actor == "system" {
+		return bstore.ActorKindTool
+	}
+	return bstore.ActorKindPerson
+}
+
+// splitList splits a comma-joined list, dropping empty entries.
+func splitList(s string) []string {
+	var out []string
+	for part := range strings.SplitSeq(s, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
+// countsOf builds a counts map from the event's integer fields, keyed as the
+// feed counts them. A field that is absent or not a number is left out.
+func countsOf(data map[string]string, fields map[string]string) map[string]int {
+	counts := map[string]int{}
+	for key, field := range fields {
+		if n := atoiOr(data[field], -1); n >= 0 {
+			counts[key] = n
+		}
+	}
+	return counts
+}
+
+// flatContextCounts folds a context change's counts into the feed's flat
+// counts: one total per item kind and one per operation.
+func flatContextCounts(c platev.ContextCounts) map[string]int {
+	counts := map[string]int{}
+	for kind, ops := range c {
+		for op, n := range ops {
+			counts[string(kind)] += n
+			counts[string(op)] += n
+		}
+	}
+	return counts
 }
 
 func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity {
@@ -64,14 +162,17 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		ActorID:   ev.Actor,
 		ActorName: ev.Data["actor_name"],
 		Data:      ev.Data,
-		// The feed lists by workspace *slug* (GET /:ws/activities), so an
-		// explicit slug on the event wins: the knowledge path sets
-		// Event.WorkspaceID to the workspace UUID and carries the slug here,
-		// and preferring the UUID filed those rows where no feed could list
-		// them. The event's own field is the fallback the sync path needs — it
-		// sets WorkspaceID and carries neither Data key, which once filed 17k
-		// activities under an empty workspace.
+		// An explicit slug on the event wins, then the event's workspace id,
+		// then (in handleEvent) the workspace of the project it names. Every
+		// feed reads a workspace by both its slug and its id, so a row under
+		// either is listed. A row under an empty workspace is listed nowhere,
+		// which is why the project fallback exists.
 		WorkspaceID: ev.Data["workspace_slug"],
+		// The time the event happened, so a redelivered event sorts where it
+		// happened rather than where it was recorded.
+		CreatedAt: ev.Timestamp,
+		ActorKind: actorKindOf(ev),
+		Session:   ev.Data["session"],
 	}
 	if a.ActorID == "" {
 		a.ActorID = "system"
@@ -96,7 +197,7 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.EntityID = ev.ProjectID
 		a.Summary = "updated project " + ev.Data["name"]
 	case platev.EventProjectDeleted:
-		a.Type = bstore.ActivityProjectCreated // reuse for deletion display
+		a.Type = bstore.ActivityProjectDeleted
 		a.EntityType = "project"
 		a.EntityID = ev.ProjectID
 		a.Summary = "deleted project"
@@ -105,14 +206,24 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 	case platev.EventPushCompleted:
 		a.Type = bstore.ActivityItemPushed
 		a.EntityType = "item"
+		a.EntityID = ev.Data["push_id"]
 		a.Summary = pushSummary(ev.Data)
+		a.Kind = bstore.FeedKindPush
+		a.Stream = ev.Data["stream"]
+		if a.Stream == "" {
+			a.Stream = ev.Data["branch"]
+		}
+		a.Counts = countsOf(ev.Data, map[string]string{
+			"files": "files_count", "blocks": "blocks_count",
+			"files_removed": "files_removed", "collections": "collections_count",
+		})
 	case platev.EventPullCompleted:
 		a.Type = bstore.ActivityItemPulled
 		a.EntityType = "item"
 		a.Summary = "pulled content"
 
 	// Block events never reach the feed: a push or converge touches
-	// thousands of blocks, and the feed is for people — the push- and
+	// thousands of blocks, and the feed is for people: the push- and
 	// run-level entries above are the readable record of that work.
 
 	// Streams
@@ -128,7 +239,7 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.EntityID = ev.Data["stream"]
 		a.Summary = "merged stream " + ev.Data["stream"]
 	case platev.EventStreamDeleted:
-		a.Type = bstore.ActivityStreamCreated // reuse
+		a.Type = bstore.ActivityStreamDeleted
 		a.EntityType = "stream"
 		a.EntityID = ev.Data["stream"]
 		a.Summary = "deleted stream " + ev.Data["stream"]
@@ -193,10 +304,62 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 
 	// Collections
 	case platev.EventCollectionCreated:
-		a.Type = bstore.ActivityProjectUpdated
+		a.Type = bstore.ActivityCollectionCreated
 		a.EntityType = "collection"
 		a.EntityID = ev.Data["collection_id"]
 		a.Summary = "created collection " + ev.Data["name"]
+
+	// Recipe changes: what a project declares, with the values before and
+	// after the change.
+	case platev.EventRecipeChanged:
+		change := platev.ParseRecipeChange(ev.Data)
+		if change.Empty() {
+			return nil
+		}
+		a.Type = bstore.ActivityRecipeChanged
+		a.EntityType = "project"
+		a.EntityID = ev.ProjectID
+		a.Kind = bstore.FeedKindRecipeChange
+		a.Stream = change.Stream
+		a.Counts = change.Counts()
+		a.Locales = change.Locales()
+		a.Coordinates = change.Coordinates()
+		a.Summary = recipeChangeSummary(a.Counts)
+
+	// Review decisions: rolled up into one row per actor, language and hour
+	// (handleEvent), so a reviewer who approves 300 blocks in a morning files
+	// a few rows rather than 300.
+	case platev.EventReviewDecided, platev.EventReviewBulkApproved:
+		locale := ev.Data["locale"]
+		if locale == "" {
+			return nil
+		}
+		a.Type = bstore.ActivityReviewSummary
+		a.EntityType = "locale"
+		a.EntityID = locale
+		a.Kind = bstore.FeedKindReviewSummary
+		a.Stream = ev.Data["stream"]
+		a.Locales = []string{locale}
+		a.Summary = "reviewed translations in " + locale
+		// The row stands for many decisions; no one decision's data is its
+		// own.
+		a.Data = map[string]string{"locale": locale}
+		if a.Stream != "" {
+			a.Data["stream"] = a.Stream
+		}
+		if ev.Type == platev.EventReviewBulkApproved {
+			n := atoiOr(ev.Data["approved"], 0)
+			if n <= 0 {
+				return nil
+			}
+			a.Counts = map[string]int{"bulk_approved": n}
+		} else {
+			decision := ev.Data["decision"]
+			if decision == "" {
+				return nil
+			}
+			a.Counts = map[string]int{decision: 1}
+		}
 
 	// Governed change-sets. The graph's lifecycle is audit-logged separately;
 	// these cases are what puts it in the feed people actually read.
@@ -251,7 +414,7 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.Stream = ev.Data["stream"]
 		a.Summary = pilotSummary("stopped piloting a change", ev.Data)
 
-	// Concepts, evidence, and discussion — the ordinary (ungoverned) edits to
+	// Concepts, evidence, and discussion: the ordinary (ungoverned) edits to
 	// the graph, which are most of what a steward's day looks like.
 	case knowledge.EventConceptCreated:
 		a.Type = bstore.ActivityConceptCreated
@@ -300,7 +463,7 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.EntityType = "connector"
 		a.Summary = "connector sync completed"
 
-	// Convergence runs — the loop itself, and what the feed is read to answer
+	// Convergence runs: the loop itself, and what the feed is read to answer
 	// "did the loop run, and what came of it" with. Mapped for every terminal
 	// state, because a failed or parked run is the one worth scanning for; the
 	// summary carries the real outcome word.
@@ -312,13 +475,103 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.EntityType = "run"
 		a.EntityID = ev.Data["run_id"]
 		a.Summary = convergenceRunSummary(ev.Data)
+		a.Kind = bstore.FeedKindConvergenceRun
+		a.Locales = splitList(ev.Data["locales"])
+		a.Counts = countsOf(ev.Data, map[string]string{
+			"passes": "passes", "locales": "locales_count", "produced": "produced_count",
+		})
+		if ev.Actor == "" {
+			a.ActorName = "convergence"
+		}
+
+	// Context changes: writes to a project's context ledger and decisions
+	// about voice rules and profiles. An event that counts no item carries no
+	// context change and stays out of the feed.
+	case platev.EventContextRecorded, platev.EventVoiceProfileUpdated,
+		platev.EventVoiceRulePromoted, platev.EventVoiceRuleAutoPromoted,
+		platev.EventVoiceRuleRejected, platev.EventVoiceRuleDemoted:
+		change := platev.ParseContextChange(ev.Data)
+		if change.Counts.Total() == 0 {
+			return nil
+		}
+		a.Type = bstore.ActivityContextChanged
+		a.EntityType = string(change.ItemKind)
+		if a.EntityType == "" {
+			a.EntityType = "context"
+		}
+		a.EntityID = change.ItemID
+		a.Summary = change.Counts.Describe()
+		a.Kind = bstore.FeedKindContextChange
+		a.Counts = flatContextCounts(change.Counts)
+		// A voice event names the workspace as its project; a voice profile
+		// belongs to the workspace, so the row names no project.
+		if ev.ProjectID != "" && ev.ProjectID == ev.WorkspaceID {
+			a.ProjectID = ""
+		}
 
 	default:
 		// Skip events we don't map to activities.
 		return nil
 	}
 
+	if strings.HasPrefix(string(ev.Type), changeSetEventPrefix) {
+		a.Kind = bstore.FeedKindChangeSet
+		// A change set belongs to the workspace; one tied to a project names
+		// it in its data, and the project feed lists it there.
+		if a.ProjectID == "" {
+			a.ProjectID = ev.Data["project_id"]
+		}
+		// The step the change set reached, from the event's type. The
+		// event's own map is shared with every other subscriber, so the row
+		// gets a copy.
+		a.Data = maps.Clone(ev.Data)
+		if a.Data == nil {
+			a.Data = map[string]string{}
+		}
+		a.Data["state"] = strings.TrimPrefix(string(ev.Type), changeSetEventPrefix)
+		// The set's ops by type, when the event carries them.
+		if raw := ev.Data["changeset_ops"]; raw != "" {
+			ops := map[string]int{}
+			if json.Unmarshal([]byte(raw), &ops) == nil {
+				a.Counts = ops
+			}
+		}
+	}
 	return a
+}
+
+// changeSetEventPrefix marks the governed change-set events
+// (knowledge.EventChangeSet*), the project feed's change_set kind.
+const changeSetEventPrefix = "changeset."
+
+// recipeChangeSummary is the workspace feed's line for a recipe change.
+func recipeChangeSummary(counts map[string]int) string {
+	var parts []string
+	for _, k := range []struct{ key, noun string }{
+		{"collections_added", "added %s"},
+		{"collections_removed", "removed %s"},
+		{"coordinates_changed", "moved %s"},
+		{"targets_added", "added %s"},
+		{"targets_removed", "removed %s"},
+		{"settings_changed", "changed %s"},
+	} {
+		n := counts[k.key]
+		if n == 0 {
+			continue
+		}
+		unit := "collection"
+		switch {
+		case strings.HasPrefix(k.key, "targets"):
+			unit = "language"
+		case k.key == "settings_changed":
+			unit = "setting"
+		}
+		parts = append(parts, fmt.Sprintf(k.noun, pluralCount(n, unit)))
+	}
+	if len(parts) == 0 {
+		return "changed the recipe"
+	}
+	return strings.Join(parts, " · ")
 }
 
 // pilotSummary names where a pilot runs when the event says, because "started
@@ -431,7 +684,7 @@ func groupThousands(n int) string {
 // It says what the run did, not merely that it ended: the outcome word the run
 // row records (converged | parked | failed | canceled), the machine-readable
 // stall reason when one parked it, and the run's magnitude folded out of its
-// per-locale standing. It never enumerates the locales — the event's data
+// per-locale standing. It never enumerates the locales; the event's data
 // carries the list for a drill-down, the summary carries the count.
 func convergenceRunSummary(data map[string]string) string {
 	state := data["state"]

@@ -2,18 +2,19 @@ name: Docs — kapi
 
 # Two channels, one site.
 #
-#   PRODUCTION  built from the `docs/stable` branch — which a GA release moves
-#               to its tag (release-docs.yml) and a person cherry-picks docs
-#               fixes onto — and deployed at the site ROOT of neokapi.github.io.
+#   PRODUCTION  built from the `docs/stable` branch and deployed at the site
+#               ROOT of neokapi.github.io. A GA release moves the branch to
+#               its tag (release-docs.yml); a person cherry-picks docs fixes
+#               onto it.
 #   NEXT        built from every push to main and deployed under /next/, with a
 #               banner naming the release in progress.
-#
+
 # The channel follows the ref being built, so `workflow_dispatch` takes a `ref`
 # input: run this workflow from main with `ref: docs/stable` and it checks out
-# that branch and publishes production. That keeps the workflow definition on
-# main alone, so a `docs/stable` branch cut from an older tag still deploys with
-# the current steps.
-#
+# that branch and publishes production. The workflow definition stays on main
+# alone, so a `docs/stable` branch cut from an older tag still deploys with the
+# current steps.
+
 # pages-deploy.yml routes by ARTIFACT NAME (kapi-site → root, kapi-site-next →
 # /next/), so a production deploy and a next deploy can never land in each
 # other's slot.
@@ -70,6 +71,10 @@ concurrency:
 
 permissions:
   contents: read
+
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
 
 jobs:
   # Which channel this run publishes, which ref it builds, where the site is
@@ -147,10 +152,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.resolve.outputs.ref }}
-      - uses: actions/setup-go@v7
+      - uses: ./.github/actions/setup-go-cached
         with:
-          go-version: "1.27.1"
-          cache: true
+          family: go-wasm
 
       - name: Build playground wasm
         run: make web-wasm-demo
@@ -173,16 +177,19 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    # CDN_URL is the CDN origin (cdn.<domain>, S3+CloudFront) to serve large
-    # assets (wasm, vision models, videos, images) from — the DOCS_CDN_URL repo
+      # The locale choice below lists the pull request's changed files.
+      pull-requests: read
+    # CDN_URL is the CDN origin (cdn.<domain>, S3+CloudFront) that serves large
+    # assets (wasm, vision models, videos, images): the DOCS_CDN_URL repo
     # variable. Empty → assets stay same-origin. It is ON for push AND same-repo
-    # PRs so previews reference the shared, already-published video/model/image
-    # assets by URL instead of staging them into the artifact. WASM is different:
-    # only push-to-main publishes it to the CDN (via the OIDC deploy role, which
-    # PRs can't assume), so same-repo PR previews serve their own wasm
-    # same-origin (see the wasm publish step + DOCS_CDN_VERSION below). FORK PRs
-    # keep CDN_URL empty and never get a deployed preview, so they build fully
-    # same-origin.
+    # PRs so previews reference the shared, already-published assets by URL
+    # instead of staging them into the artifact.
+    #
+    # WASM is different: only push-to-main publishes it to the CDN (via the
+    # OIDC deploy role, which PRs can't assume), so same-repo PR previews serve
+    # their own wasm same-origin (see the wasm publish step and
+    # DOCS_CDN_VERSION below). FORK PRs keep CDN_URL empty and never get a
+    # deployed preview, so they build fully same-origin.
     env:
       CDN_URL: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.DOCS_CDN_URL || '' }}
     steps:
@@ -206,10 +213,10 @@ jobs:
 
       # The production channel advertises the release it is built from, spliced
       # here from that release's actual assets rather than carried as committed
-      # markdown. release-docs.yml still opens its rolling PR against main, so
-      # the next channel's committed page keeps up; production reads the release
+      # markdown. release-docs.yml opens its rolling PR against main, so the
+      # next channel's committed page keeps up; production reads the release
       # directly and so cannot drift from it.
-      #
+
       # The script refuses when a platform has no asset on the release yet (the
       # Windows binaries are signed out of band the morning after a release) and
       # leaves the page untouched. The page then serves the links it carries and
@@ -228,10 +235,12 @@ jobs:
             echo "::warning::${STABLE_TAG} is missing assets for at least one platform; the installation page keeps its committed links"
           fi
 
-      - uses: voidzero-dev/setup-vp@v1.21.2
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "22"
+          node-version: "26"
           cache: true
+          # A pull request restores the dependency cache and saves none.
+          cache-save: ${{ github.event_name != 'pull_request' }}
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install workspace dependencies
@@ -245,44 +254,17 @@ jobs:
         run: vp run build
         working-directory: packages/i18n-react
 
-      # The lab package has no other CI home (ci.yml's filters cover the
-      # bowrain frontends and packages/ui|flow-editor via the desktop job);
-      # its unit tests run here, where every kapi-lab change already lands.
-      - name: Lab package checks and tests
-        working-directory: packages/kapi-lab
-        run: |
-          vp check --no-fmt
-          vp test -- --run
-
-      # The playground kit (the CLI playground's terminal and sample projects).
-      - name: Playground package checks and tests
-        working-directory: packages/kapi-playground
-        run: |
-          vp check --no-fmt
-          # The production build checks out docs/stable, whose playground
-          # package predates its tests.
-          vp test -- --run --passWithNoTests
-
-      # The docs site's own unit tests: the helpers the reference-page generator
-      # shares with the runtime grids, whose output is committed MDX. A page is
-      # generated, so a defect in one of them is a defect on every page of a
-      # kind at once.
-      - name: Docs site unit tests
-        working-directory: web
-        run: vp test -- --run
-
-      # @neokapi/engine (the publishable wasm-engine wrapper the playground
-      # builds on) also has its CI home here: its facade unit tests run against
-      # a mocked global surface, and the publish build proves dist/ assembles.
-      - name: Engine package checks, tests, and publish build
+      # The unit suites of the bundled packages and of the site run in the
+      # ci.yml `frontend-packages` job, and their lint and type-check in the
+      # root `vp check` of the `frontend` job, which runs on every pull
+      # request. The publish build of @neokapi/engine, the
+      # wasm-engine wrapper the playground builds on, proves dist/ assembles.
+      - name: Engine package publish build
         working-directory: packages/engine
-        run: |
-          vp check --no-fmt
-          vp test -- --run
-          vp run build
+        run: vp run build
 
       # Videos and vision models are served from the CDN (R2) for push and
-      # same-repo PRs — referenced by URL, never staged into the artifact. The
+      # same-repo PRs, referenced by URL and never staged into the artifact. The
       # docs-assets release is retired: videos are published to R2 from the
       # desktop (make publish-cdn-videos), vision models via
       # make publish-cdn-vision-models (from the pinned vision-models-v1 release).
@@ -298,7 +280,7 @@ jobs:
       # Stage @embedpdf/pdfium's wasm next to the kapi wasm so the /lab/pdf
       # browser PDF reader can fetch it (else it 404s on /wasm/pdfium.wasm). The
       # build-wasm job is Go-only with no node_modules, so this runs here where
-      # `vp install` above populated @embedpdf/pdfium — no CDN, pinned dep.
+      # `vp install` above populated @embedpdf/pdfium: no CDN, a pinned dep.
       - name: Stage PDFium wasm (browser PDF)
         run: make web-pdfium-wasm
 
@@ -319,10 +301,10 @@ jobs:
       # On push to main: publish the freshly built wasm (kapi-cli + pdfium +
       # wasm_exec.js, versioned by commit sha) to the S3 CDN origin via the OIDC
       # deploy role, then drop it from the site artifact so GitHub Pages stays
-      # small — the site is built below pointing at /kapi/wasm/<sha>/ on the CDN
+      # small. The site is built below pointing at /kapi/wasm/<sha>/ on the CDN
       # (DOCS_CDN_VERSION). PRs can't assume the deploy role (its trust pins the
       # subject to main / the prod environment), so they skip this and serve
-      # their own wasm same-origin — config.ts falls back when the version is
+      # their own wasm same-origin: config.ts falls back when the version is
       # unset, while videos/models/images still resolve from the CDN by URL.
       - name: Configure AWS credentials (OIDC)
         if: ${{ github.event_name != 'pull_request' && env.CDN_URL != '' }}
@@ -343,13 +325,41 @@ jobs:
       # The deployed Format Reference is the committed dataset: built-ins plus
       # the in-repo plugins, reproducible from this checkout alone. The docs
       # build clones nothing and generates nothing from an external plugin repo
-      # (#1073) — a third-party plugin documents its own formats in its own
+      # (#1073). A third-party plugin documents its own formats in its own
       # repository.
 
-      # The qps pseudo-locale is generated here, not committed — see
+      # The qps pseudo-locale is generated here, not committed; see
       # .github/actions/pseudo-locale for why. It must run BEFORE the build that
       # reads i18n/qps/.
+      # Docusaurus builds its locales one after another, about three and a half
+      # minutes each, which made this the slowest check on a pull request. A
+      # pull request builds the source locale alone unless it changes what a
+      # target locale is built from, or carries the docs-all-locales label.
+      # Main, a release channel and a manual run build every locale. A target
+      # locale never gates a source change, so nothing a pull request must pass
+      # is skipped.
+      - name: Choose the locales to build
+        id: locales
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ALL_LOCALES_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'docs-all-locales') }}
+        run: |
+          set -euo pipefail
+          list="en,nb,qps"
+          if [ "$EVENT" = "pull_request" ] && [ "$ALL_LOCALES_LABEL" != "true" ]; then
+            changed="$(gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename')"
+            if ! grep -qE '^(web/i18n/|web/docusaurus\.config\.ts$|kapi\.yaml$|scripts/pseudo-docs-i18n\.sh$|\.github/actions/pseudo-locale/|\.github/workflows/docs-kapi\.yml$)' <<< "$changed"; then
+              list="en"
+            fi
+          fi
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "Building locales: $list"
+
       - name: Generate the qps pseudo-locale
+        if: contains(steps.locales.outputs.list, 'qps')
         uses: ./.github/actions/pseudo-locale
         with:
           site: web
@@ -358,6 +368,7 @@ jobs:
         run: vp run build
         working-directory: web
         env:
+          DOCS_LOCALES: ${{ steps.locales.outputs.list }}
           DOCS_BASE_URL: ${{ needs.resolve.outputs.base }}
           # Production ("stable") carries no banner; every other build is the
           # next channel and says so on every page.

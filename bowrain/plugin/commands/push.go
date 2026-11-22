@@ -26,22 +26,26 @@ var pushCmd = &cobra.Command{
 
 Only changed blocks are sent. Runs the recipe's pre-push automations if any.
 
-When the project is claimed into a workspace and a baseline was pulled, push
-also reconciles local terminology edits against that baseline. Ordinary edits
-(definitions, notes, proposed terms, non-governed relations) apply directly,
-while governed edits (a term set to forbidden/preferred, a REPLACED_BY
-relation, a concept delete) are bundled into a single change-set proposal for
-review, the same separation of duties the web hub enforces. Push reports what
-applied directly versus what was proposed.
+One push is one transaction on the server. Beside the content it carries:
 
-Push also carries the project's declared context: the collections the recipe
-names, the point each occupies in the project's context space, and the brand
-voice governing it. They travel inside the push, so the collections a pushed
-item belongs to exist server-side by the time the item is stored. They are created on
-first push, unchanged content is a no-op, and a changed voice lands as a new
-version with server-side edits archived rather than overwritten. A collection
-the recipe no longer names is reported, never deleted. Use the recipe to carry
-the structure without the governance.`,
+  - the declared structure: the collections the recipe names, the point each
+    occupies in the project's context space, and the voice governing it;
+  - terminology edits, when the project is claimed into a workspace. Ordinary
+    edits (definitions, notes, proposed terms, non-governed relations) apply
+    directly. Governed edits (a term set to forbidden or preferred, a
+    REPLACED_BY relation, a concept delete) become one change-set for review;
+  - the context ledger, when the recipe keeps the project's context on the
+    server (context: {backend: bowrain}): the recorded operations the server
+    does not hold yet.
+
+The server applies all of it or none of it. A refused terminology edit or
+ledger operation leaves the content where it was, and the push report lists
+each part.
+
+Collections are created on first push, unchanged content is a no-op, and a
+changed voice lands as a new version with server-side edits archived rather
+than overwritten. A collection the recipe no longer names is reported, never
+deleted.`,
 	RunE: runPush,
 }
 
@@ -64,16 +68,6 @@ func runPush(cmd *cobra.Command, args []string) error {
 	return err
 }
 
-// PushedTerminologyError reports a push whose content landed and whose
-// terminology fold failed. The push report has been printed by then.
-type PushedTerminologyError struct{ Err error }
-
-func (e *PushedTerminologyError) Error() string {
-	return "the content above was pushed; its terminology was not: " + e.Err.Error()
-}
-
-func (e *PushedTerminologyError) Unwrap() error { return e.Err }
-
 // PushAutomationError reports a recipe automation that failed around a push.
 // Trigger is pre-push (nothing was pushed) or post-push (the push report has
 // been printed).
@@ -89,17 +83,27 @@ func (e *PushAutomationError) Unwrap() error { return e.Err }
 // PushProject is the one push of a project, whichever route it arrives by:
 // `kapi-bowrain push`, and the daemon that serves `kapi push`. It runs the
 // recipe's pre-push automations, pushes the content with the recipe's declared
-// context, folds the workspace terminology in, prints the push report to cmd,
-// then runs the post-push automations. Automations and the flows they run
+// context, the project's terminology edits and (when the context lives on the
+// server) its context ledger in one transaction, prints the push report to
+// cmd, then runs the post-push automations. Automations and the flows they run
 // print to cmd as well.
 //
-// The returned report is nil only when nothing was pushed. A terminology
-// failure returns the report with a *PushedTerminologyError, and a failed
+// The returned report is nil only when nothing was pushed. A failed
 // automation returns a *PushAutomationError. The caller owns conn.
 func PushProject(cmd *cobra.Command, proj *project.Project, conn *source.BowrainSourceConnector, opts transfer.PushOptions) (*PushReport, error) {
 	if err := runLocalAutomations(cmd, proj, project.HookPrePush); err != nil {
 		return nil, &PushAutomationError{Trigger: project.HookPrePush, Err: err}
 	}
+
+	// The workspace terminology travels in the push: local concept and
+	// relation edits are classified against the pulled baseline here, and the
+	// server applies them in the push's transaction. Skipped silently only
+	// when the project is not claimed into a workspace.
+	terms, err := conceptEdits(cmd.Context(), proj)
+	if err != nil {
+		return nil, fmt.Errorf("terminology: %w", err)
+	}
+	opts.Terms = terms
 
 	pr, err := transfer.PushProject(cmd.Context(), app, proj, conn, opts)
 	if err != nil {
@@ -133,15 +137,7 @@ func PushProject(cmd *cobra.Command, proj *project.Project, conn *source.Bowrain
 		out.VoiceReason = pr.Brand.Reason
 	}
 
-	// Fold the workspace's governed terminology into the push: reconcile local
-	// concept/relation edits against the pulled baseline (ordinary edits go up
-	// directly, governed edits become a submitted change-set). Skipped silently
-	// only when the project is not claimed into a workspace.
-	//
-	// A terminology failure is returned after the report prints, so the
-	// content that landed and its push id stay in front of the user.
-	cres, conceptErr := conceptPush(cmd.Context(), proj, opts.DryRun)
-	if cres != nil {
+	if cres := conceptResult(proj, pr.Terms, pr.DryRun, pr.PartsPending); cres != nil {
 		out.ConceptsApplied = cres.ConceptsApplied
 		out.RelationsApplied = cres.RelationsApplied
 		out.ConceptsProposed = cres.ConceptsProposed
@@ -149,14 +145,18 @@ func PushProject(cmd *cobra.Command, proj *project.Project, conn *source.Bowrain
 		out.ChangesetURL = cres.ChangesetURL
 		out.ChangesetUnchanged = cres.ChangesetUnchanged
 	}
+	if pr.Ledger != nil {
+		out.ContextObjects = pr.Ledger.Objects
+		out.ContextOperations = pr.Ledger.Operations
+		out.ContextBound = pr.Ledger.Bound
+	}
+	out.PartsPending = pr.PartsPending && !pr.DryRun
+	out.CollectionsDeclared = pr.CollectionsDeclared
 	applyLoopStatus(&out, proj, conn.Stream())
 
 	report := &PushReport{PushOutput: out, PushID: pr.PushID, ChunkCount: pr.ChunkCount}
 	if err := output.Print(cmd, out); err != nil {
 		return report, err
-	}
-	if conceptErr != nil {
-		return report, &PushedTerminologyError{Err: conceptErr}
 	}
 
 	if err := runLocalAutomations(cmd, proj, project.HookPostPush); err != nil {

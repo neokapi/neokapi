@@ -134,14 +134,14 @@ function wailsCallIds(): Record<string, number> {
 
 /** The project screens' server responses, as the mock serves them. */
 interface ScreenFixtures {
-  mapSummary: unknown;
+  overviewSummary: unknown;
   readerFile: unknown;
   rulesDecideView: unknown;
   keptRules: unknown;
 }
 
 /**
- * The JSON host/screens marshals for the Map, the Reader, Decide and the kept
+ * The JSON host/screens marshals for the Overview, the Reader, Decide and the kept
  * rules, pinned by its fixtures test and shared with the project screens'
  * package. The mock answers the server's routes with these, so a change to a
  * screen's shape reaches this suite through the same files.
@@ -157,7 +157,7 @@ function projectScreensFixtures(): ScreenFixtures {
       ),
     );
   return {
-    mapSummary: read("map-summary"),
+    overviewSummary: read("overview-summary"),
     readerFile: read("reader-file"),
     rulesDecideView: read("rules-decide-view"),
     keptRules: read("kept-rules"),
@@ -288,7 +288,7 @@ export async function injectMockBackend(page: Page) {
             defaultLocale: "qps",
           },
           properties: {
-            expansionPercent: {
+            expansion_percent: {
               type: "integer",
               title: "Expansion Percent",
               description:
@@ -1498,9 +1498,41 @@ export async function injectMockBackend(page: Page) {
           }),
         ],
 
-        // The project screens: the Map a project opens on, the Reader, Decide,
+        // The project screens: the Overview a project opens on, the Reader, Decide,
         // the kept rules, the project-wide check and the workspace's queue.
-        ["GET", /^\/api\/v1\/[^/]+\/[^/]+\/map\/[^/]+$/, () => screens.mapSummary],
+        ["GET", /^\/api\/v1\/[^/]+\/[^/]+\/map\/[^/]+$/, () => screens.overviewSummary],
+        // The review plan the Overview opens with (GET /:ws/:id/review/plan).
+        [
+          "GET",
+          /^\/api\/v1\/[^/]+\/[^/]+\/review\/plan$/,
+          () => ({
+            stream: "main",
+            involvement: "context",
+            next: "coordinates",
+            coordinates: {
+              source_language: "en",
+              target_languages: ["fr"],
+              points: [],
+              confirmed: false,
+            },
+            context: { waiting: 0, by_kind: {}, concepts: 0, untranslated: {} },
+            exceptions: { by_rule: { source: [], targets: {} } },
+            languages: [],
+            policy: { settle: "first_pass", context_open: 0 },
+          }),
+        ],
+        [
+          "POST",
+          /^\/api\/v1\/[^/]+\/[^/]+\/review\/plan\/settle$/,
+          () => ({ approved: 0, first_pass: true }),
+        ],
+        [
+          "POST",
+          /^\/api\/v1\/[^/]+\/[^/]+\/review\/plan\/scan$/,
+          () => ({ scan: { id: "scan-e2e-1", status: "queued", progress: 0 } }),
+        ],
+        ["POST", /^\/api\/v1\/[^/]+\/[^/]+\/review\/plan\/coordinates$/, () => ({})],
+        ["PUT", /^\/api\/v1\/[^/]+\/[^/]+\/review\/plan\/involvement$/, () => ({})],
         ["POST", /^\/api\/v1\/[^/]+\/[^/]+\/map\/[^/]+\/check$/, () => ({ job_id: "job-check-1" })],
         [
           "GET",

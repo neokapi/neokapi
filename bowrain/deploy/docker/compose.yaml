@@ -20,7 +20,7 @@
 
 services:
   traefik:
-    image: traefik:v3.3
+    image: traefik:v3.7
     ports:
       - "80:80"
     volumes:
@@ -54,13 +54,13 @@ services:
   # AWS, drop this service and point SQS_ENDPOINT-less server/worker at real
   # SQS queues via the task role.
   elasticmq:
-    image: softwaremill/elasticmq-native:latest
+    image: softwaremill/elasticmq-native:1.7.1
     restart: unless-stopped
 
   # One-shot: create the job queues the server enqueues to and the worker
   # consumes (visibility timeout mirrors prod).
   sqs-init:
-    image: amazon/aws-cli:latest
+    image: amazon/aws-cli:2.42.1
     depends_on:
       elasticmq:
         condition: service_started

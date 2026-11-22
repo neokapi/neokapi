@@ -10,6 +10,8 @@
 //   - host/venue/schema     → registers extension decoders
 //   - bowrain/plugin/commands   → registers CLI command factories
 //   - bowrain/plugin/mcp        → registers MCP tool factories
+//   - host/venue/contextbackend → registers the bowrain context backend,
+//     which push reads to stage the project's context ledger
 //
 // After the host calls cli.ApplyAppInitializers / cli.ApplyCommandFactories
 // the bowrain feature set is wired in.
@@ -22,5 +24,6 @@ package plugin
 import (
 	_ "github.com/neokapi/neokapi/bowrain/plugin/commands"
 	_ "github.com/neokapi/neokapi/bowrain/plugin/mcp"
+	_ "github.com/neokapi/neokapi/host/venue/contextbackend"
 	_ "github.com/neokapi/neokapi/host/venue/schema"
 )

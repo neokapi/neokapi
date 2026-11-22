@@ -36,7 +36,7 @@ func TestParseCacheKeyChangesWithTheBuild(t *testing.T) {
 	proj := a.ProjectContext
 	require.NotNil(t, proj)
 
-	cfg := map[string]any{"translateFrontMatter": true}
+	cfg := map[string]any{"translate_front_matter": true}
 
 	before := version.Version
 	defer func() { version.Version = before }()

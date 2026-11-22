@@ -103,6 +103,8 @@ export const Demo: React.FC<DemoProps> = ({ id, capture, narration, beats, capti
         if (!screencast || !b) return terminalScene(scene, t, lay);
         const prev = scenes[idx - 1];
         const prevBeat = prev?.kind === "desktop" && prev.beat ? (beatById.get(prev.beat) ?? null) : null;
+        const next = scenes[idx + 1];
+        const nextBeat = next?.kind === "desktop" && next.beat ? (beatById.get(next.beat) ?? null) : null;
         return (
           <DesktopScene
             demoId={id}
@@ -110,8 +112,7 @@ export const Demo: React.FC<DemoProps> = ({ id, capture, narration, beats, capti
             themeMode={mode}
             beat={b}
             prevBeat={prevBeat}
-            sceneIndex={idx}
-            globalFrom={t.from}
+            nextBeat={nextBeat}
             sceneDurationFrames={t.durationFrames}
             layout={lay}
             crop={scene.crop}

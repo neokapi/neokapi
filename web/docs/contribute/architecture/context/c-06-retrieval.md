@@ -48,7 +48,7 @@ writing against that output has terminology it did not get. Silence would have
 been safer.
 
 The same pressure applies across surfaces. The agent skill drives the CLI, so a
-surface an assistant learns from the skill and a surface it reaches over MCP must
+surface the skill teaches an assistant and a surface it reaches over MCP must
 be the same surface, or the highest-leverage prose in the repository teaches a
 model that does not exist.
 
@@ -225,7 +225,7 @@ kapi owns one delimited section (`<!-- kapi:rules -->` to
 `<!-- /kapi:rules -->`, `core/agentrules`) and nothing else in the file. The
 section also replaces a `<!-- kapi:voice -->` pointer section where a file holds one. A
 `CLAUDE.md` that imports `@AGENTS.md`, or is the same file, gets no section of
-its own. A folder that no longer has rules of its own loses the section, and a
+its own. A folder left with no rules of its own loses the section, and a
 file that held nothing else is deleted. The rules files are never content
 (`core/ignore` ignores both names), so a collection globbing `**/*.md` does not
 read them.
@@ -254,7 +254,7 @@ narrower question than `kapi context` (*what does this store hold* rather than
 *what applies here*), which is a reasonable thing to ask of a store you opened on
 purpose. What an agent is taught differs: the skill drives `kapi context <path>` and
 `kapi context search`, so the narrow verbs stay available to a person without becoming the
-model an assistant learns.
+model the skill teaches an assistant.
 
 **Management verbs are not retrieval and do not fold.** `terms
 import/export/stats`, `memory import/export/audit`, `voice new/validate/import/pack`
@@ -304,7 +304,7 @@ available for that query:
 | Primitive | What is counted |
 | --- | --- |
 | By location | applicable voice profile, terms, and established or workspace-wide rules |
-| By content | matching terms and previously approved wording |
+| By content | matching terms and approved wording from earlier work |
 
 Two or more kinds produce `covered`, one produces `thin`, and none produces
 `empty`. The grade describes the response, not the whole project. Unreviewed

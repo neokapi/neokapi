@@ -7,9 +7,8 @@ keywords: [interface reference, DataFormatReader, DataFormatWriter, Tool, Execut
 
 # Interface Reference
 
-This page collects the concrete Go interfaces and types that form neokapi's
-implementation contract: the signatures you implement when writing a format, a
-tool, or a plugin. For the _concepts_ behind these types (what a Part is, why the
+These are the Go interfaces and types you implement when you write a format, a
+tool or a plugin, with their signatures. For the _concepts_ behind these types (what a Part is, why the
 content model is shaped this way), see the framework section:
 [Content Model](/framework/content-model), [Tools](/framework/tools),
 [Flows](/framework/flows), and [Pipeline](/framework/pipeline).
@@ -62,7 +61,7 @@ type Resource interface {
 
 ```go
 // Layer is a top-level structural grouping: a document, a section,
-// or embedded content. Layers can nest — embedded content becomes
+// or embedded content. Layers can nest: embedded content becomes
 // a child Layer with its own DataFormat.
 type Layer struct {
     ID             string
@@ -82,7 +81,7 @@ func (l *Layer) IsRoot() bool { return l.ParentID == "" }
 func (l *Layer) IsEmbedded() bool { return l.ParentID != "" && l.Format != "" }
 ```
 
-### Block (translatable content)
+### Block (a unit of text)
 
 ```go
 // Block is the primary modifiable content (Okapi: TextUnit). Its content is a
@@ -279,8 +278,8 @@ type Data struct {
 type Media struct {
     ID         string
     MimeType   string
-    Data       []byte // inline binary — small, pipeline-internal assets only
-    BlobKey    string // content-addressed key in the BlobStore — large assets
+    Data       []byte // inline binary: small, pipeline-internal assets only
+    BlobKey    string // content-addressed key in the BlobStore: large assets
     URI        string // external reference (CDN / signed URL)
     Filename   string
     AltText    string
@@ -392,14 +391,14 @@ type PartHandler func(part *model.Part) (*model.Part, error)
 
 // BaseTool implements Process once and dispatches each Part to the matching
 // handler. Embed it and set only the handlers you need; unset handlers pass the
-// Part through unchanged. For Blocks, set exactly ONE capability-typed handler —
-// the view it receives bounds what the tool may write (immutability, E-03):
-//   Annotate(BlockView)  — read-only: overlays / annotations / properties
-//   Produce(VariantView) — writes the target; source read-only
-//   Transform(BlockView) — edit producer: returns an EditPlan the framework
-//                          applier applies to the source (the sole mutator —
-//                          it rewrites, rebases overlays, vaults secrets,
-//                          bounds-checks, atomically)
+// Part through unchanged. For Blocks, set exactly ONE capability-typed handler.
+// The view it receives bounds what the tool may write (immutability, E-03):
+//   Annotate(BlockView)   read-only: overlays / annotations / properties
+//   Produce(VariantView)  writes the target; source read-only
+//   Transform(BlockView)  edit producer: returns an EditPlan the framework
+//                         applier applies to the source. The applier is the
+//                         sole mutator: it rewrites, rebases overlays, vaults
+//                         secrets and bounds-checks, atomically.
 type BaseTool struct {
     ToolName        string
     ToolDescription string
@@ -426,7 +425,7 @@ type BaseTool struct {
 // BlockView ⊂ VariantView are the read/write surfaces a block handler sees.
 // BlockView reads source/target and writes overlays, annotations and
 // properties; VariantView adds the target writes (SetEdition, SetTargetRuns,
-// SetTargetText, RemoveTarget). There is no source-write view — a
+// SetTargetText, RemoveTarget). No view writes the source: a
 // Transform handler is a read-only producer and the framework applier is the
 // only code that rewrites source. A tool needing batching, 1→N fan-out, or
 // stream control overrides Process instead.
@@ -543,9 +542,8 @@ func (r *ToolRegistry) NewTool(name ToolID) (tool.Tool, error)
 
 Out-of-process formats, tools, and source connectors run as Mode-C plugin
 daemons and are reached over a single gRPC `BridgeService`. A bidirectional
-`Process` stream carries the whole document lifecycle. Its mode (read-only,
-read-write, or write-only) is selected by the header rather than by separate
-RPCs:
+`Process` stream carries the whole document lifecycle. The header selects its mode
+(read-only, read-write, or write-only) on the one RPC:
 
 ```protobuf
 service BridgeService {
@@ -563,6 +561,9 @@ The `ProcessRequest` / `ProcessResponse` payloads stream `PartMessage`s that map
 onto the in-process `Part` model via `core/plugin/protoconvert`. The full
 service is defined in `core/plugin/proto/v2/neokapi_bridge.proto`.
 
-See [Plugin System](/contribute/plugins) and
-[Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1) for the full
-contract.
+## Related
+
+- [Plugin System](/contribute/plugins): manifests, discovery and transport modes.
+- [Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1): the full plugin contract.
+- [Implementing a Format](/contribute/formats): a reader and writer built on these interfaces.
+- [Tool Authoring with Parameter Schemas](/contribute/tool-authoring): a tool built on `BaseTool`.

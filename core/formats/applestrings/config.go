@@ -63,20 +63,20 @@ func (c *Config) Validate() error {
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "extractComments":
+		case "extract_comments":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractComments: expected bool, got %T", val)
+				return fmt.Errorf("extract_comments: expected bool, got %T", val)
 			}
 			c.ExtractComments = b
-		case "protectPlaceholders":
+		case "protect_placeholders":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("protectPlaceholders: expected bool, got %T", val)
+				return fmt.Errorf("protect_placeholders: expected bool, got %T", val)
 			}
 			c.ProtectPlaceholders = b
 		default:
-			return fmt.Errorf("applestrings: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "applestrings", key)
 		}
 	}
 	return nil

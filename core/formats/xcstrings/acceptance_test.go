@@ -56,13 +56,17 @@ func TestAcceptanceTranslatedOutputValidatesAgainstSchema(t *testing.T) {
 			outPath := filepath.Join(dir, "translated.json")
 			require.NoError(t, os.WriteFile(outPath, out, 0o644))
 
-			if haveJq {
+			t.Run("jq", func(t *testing.T) {
+				if !haveJq {
+					t.Skip("jq is unavailable")
+				}
 				runValidator(t, "jq", jqPath, []string{".", outPath})
-			} else {
-				t.Log("jq not available; skipped well-formedness check")
-			}
+			})
 
-			if haveAjvRunner {
+			t.Run("ajv", func(t *testing.T) {
+				if !haveAjvRunner {
+					t.Skip("AJV is unavailable")
+				}
 				// Prefer a real `ajv` executable on PATH; fall back to npx
 				// provisioning ajv-cli@5 on demand.
 				name, prefix := ajvCommand()
@@ -74,9 +78,7 @@ func TestAcceptanceTranslatedOutputValidatesAgainstSchema(t *testing.T) {
 					t.Skipf("ajv could not run (tooling/environment, not a kapi failure): %s", combined)
 				}
 				assert.NoErrorf(t, err, "ajv must accept kapi's xcstrings output: %s", combined)
-			} else {
-				t.Log("ajv runner not available; skipped schema validation")
-			}
+			})
 		})
 	}
 }

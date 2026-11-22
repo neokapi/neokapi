@@ -14,7 +14,7 @@ overview: |
   a terms store. The only schema-level option controls whether term matching
   respects letter case.
 parameters:
-  caseSensitive:
+  case_sensitive:
     description: Whether term matching is case-sensitive.
     help: |
       When enabled, source and target terms must match exactly, including letter
@@ -32,4 +32,4 @@ examples:
   - title: Case-insensitive term matching
     description: Match terms regardless of capitalisation.
     config: |
-      caseSensitive: false
+      case_sensitive: false

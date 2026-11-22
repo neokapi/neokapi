@@ -35,7 +35,7 @@ func TestFaceParity_DesktopContextAtMatchesTheRecord(t *testing.T) {
 	app, tab, p := openFixture(t)
 	want := facetest.Golden(t)
 
-	answer, err := app.ContextAt(tab.ID, p.ContextPath, p.ContextLimit)
+	answer, err := app.ContextAt(tab.ID, p.ContextPath, "", p.ContextLimit)
 	require.NoError(t, err)
 	assert.Equal(t, want.ContextAt, facetest.ContextFactsFrom(answer),
 		"ContextAt answers what the record says applies there")

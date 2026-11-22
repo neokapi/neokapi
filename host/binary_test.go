@@ -76,7 +76,7 @@ func TestExplicitFormatOverridesBinaryGuard(t *testing.T) {
 	assert.Equal(t, "plaintext", name)
 }
 
-// TestBinaryGuardLeavesDetectedFormatsAlone: a format kapi understands is
+// TestBinaryGuardLeavesDetectedFormatsAlone: a format kapi reads is
 // detected before the fallback, so a binary document (a .docx is a ZIP) is
 // unaffected by the guard.
 func TestBinaryGuardLeavesDetectedFormatsAlone(t *testing.T) {

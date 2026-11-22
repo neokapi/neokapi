@@ -12,16 +12,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Compass, Workflow } from "lucide-react";
 import {
-  Card,
-  CardContent,
   CoordinatesEditor,
-  Label,
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
   SectionHeading,
+  SettingsRow,
   TagInput,
   VoiceBindingSelect,
 } from "@neokapi/ui-primitives";
@@ -87,88 +85,86 @@ export function GovernanceSettings({
       {/* Where content sits: the project's own point, and the channel map. */}
       <section>
         <SectionHeading className="mb-3" icon={<Compass size={14} />}>
-          Where content sits
+          {t("Where content sits")}
         </SectionHeading>
-        <Card>
-          <CardContent className="space-y-4 p-4">
+        <div>
+          <SettingsRow label={t("Default point")}>
             <CoordinatesEditor
               value={defaults.coordinates ?? {}}
               axes={governance.axes}
               allowNewAxis
-              label={t("Default point")}
               emptyText={t("Every collection sits at the project's own point.")}
               note={t("{axes} come from a collection's channel.", {
                 axes: structural.map((a) => a.axis).join(" and "),
               })}
               onChange={(coordinates) => updateDefaults({ coordinates })}
             />
+          </SettingsRow>
 
+          <SettingsRow
+            label={t("Voice profile")}
+            htmlFor="governance-voice"
+            help={t("A file is edited on the Voice page. A starter pack is read-only.")}
+          >
             <VoiceBindingSelect
+              id="governance-voice"
+              labelHidden
+              className="max-w-none"
               value={encodeVoiceBinding(defaults.voice)}
               options={voiceBindingOptions(governance)}
               inheritLabel={t("None bound")}
               label={t("Voice profile")}
-              help={t("A file is edited on the Voice page. A starter pack is read-only.")}
               onChange={(key) => updateDefaults({ voice: decodeVoiceBinding(key) })}
             />
+          </SettingsRow>
 
-            <div>
-              <Label className="mb-1 block text-xs text-muted-foreground">{t("Channels")}</Label>
-              <ChannelMap tabID={tabID} onUpdate={onUpdate} />
-            </div>
-          </CardContent>
-        </Card>
+          <SettingsRow label={t("Channels")}>
+            <ChannelMap tabID={tabID} onUpdate={onUpdate} />
+          </SettingsRow>
+        </div>
       </section>
 
       {/* What runs, and what is skipped. */}
       <section>
         <SectionHeading className="mb-3" icon={<Workflow size={14} />}>
-          What runs, and what is skipped
+          {t("What runs, and what is skipped")}
         </SectionHeading>
-        <Card>
-          <CardContent className="space-y-4 p-4">
-            <div>
-              <Label className="mb-1 block text-xs text-muted-foreground">
-                {t("Default flow")}
-              </Label>
-              <Select
-                value={defaults.flow || NONE}
-                onValueChange={(v) => updateDefaults({ flow: v === NONE ? undefined : v })}
-              >
-                <SelectTrigger className="max-w-xs" aria-label={t("Default flow")}>
-                  <SelectValue placeholder={t("Chosen per run")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>{t("Chosen per run")}</SelectItem>
-                  {flows.map((f) => (
-                    <SelectItem key={f} value={f}>
-                      {f}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                {t("The default flow a run uses when it names no other one.")}
-              </p>
-            </div>
+        <div>
+          <SettingsRow
+            label={t("Default flow")}
+            help={t("The flow a run uses when it names no other one.")}
+          >
+            <Select
+              value={defaults.flow || NONE}
+              onValueChange={(v) => updateDefaults({ flow: v === NONE ? undefined : v })}
+            >
+              <SelectTrigger aria-label={t("Default flow")}>
+                <SelectValue placeholder={t("Chosen per run")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>{t("Chosen per run")}</SelectItem>
+                {flows.map((f) => (
+                  <SelectItem key={f} value={f}>
+                    {f}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SettingsRow>
 
-            <div>
-              <Label className="mb-1 block text-xs text-muted-foreground">
-                {t("Skip these paths")}
-              </Label>
-              <TagInput
-                value={defaults.exclude ?? []}
-                onChange={(exclude) =>
-                  updateDefaults({ exclude: exclude.length ? exclude : undefined })
-                }
-                placeholder={t("Add a pattern, e.g. **/vendor/**")}
-              />
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                {t("Glob patterns a content scan passes over.")}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          <SettingsRow
+            label={t("Skip these paths")}
+            help={t("Glob patterns a content scan passes over.")}
+          >
+            <TagInput
+              value={defaults.exclude ?? []}
+              onChange={(exclude) =>
+                updateDefaults({ exclude: exclude.length ? exclude : undefined })
+              }
+              placeholder={t("Add a pattern, e.g. **/vendor/**")}
+            />
+          </SettingsRow>
+        </div>
       </section>
     </>
   );

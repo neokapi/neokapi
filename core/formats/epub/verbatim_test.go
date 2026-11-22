@@ -227,10 +227,10 @@ func TestVerbatim_ApplyMap(t *testing.T) {
 	cfg := &epub.Config{}
 	assert.True(t, cfg.ExtractNonTranslatableContent(), "default is on")
 
-	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extract_non_translatable_content": false}))
 	assert.False(t, cfg.ExtractNonTranslatableContent())
 
-	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": true}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extract_non_translatable_content": true}))
 	assert.True(t, cfg.ExtractNonTranslatableContent())
 
 	cfg.Reset()
@@ -242,8 +242,8 @@ func TestVerbatim_SchemaExposesFlag(t *testing.T) {
 	cfg := &epub.Config{}
 	s := cfg.Schema()
 	require.NotNil(t, s)
-	prop, ok := s.Properties["extractNonTranslatableContent"]
-	require.True(t, ok, "schema must declare extractNonTranslatableContent")
+	prop, ok := s.Properties["extract_non_translatable_content"]
+	require.True(t, ok, "schema must declare extract_non_translatable_content")
 	assert.Equal(t, "boolean", prop.Type)
 	assert.Equal(t, true, prop.Default)
 }

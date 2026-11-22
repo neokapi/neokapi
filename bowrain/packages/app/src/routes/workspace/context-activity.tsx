@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
-import { ActivityView } from "@neokapi/ui";
+import { ActivityView, PageContainer } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
 /**
@@ -22,19 +22,21 @@ export function ContextActivityRoute() {
   const ws = workspace ?? "";
 
   return (
-    <ActivityView
-      onOpenConcept={(cid) =>
-        void navigate({
-          to: "/$workspace/context/concepts/$cid",
-          params: { workspace: ws, cid },
-        })
-      }
-      onOpenExperiment={(id) =>
-        void navigate({
-          to: "/$workspace/context/changes/$id",
-          params: { workspace: ws, id },
-        })
-      }
-    />
+    <PageContainer width="full" className="px-6 py-5">
+      <ActivityView
+        onOpenConcept={(cid) =>
+          void navigate({
+            to: "/$workspace/context/concepts/$cid",
+            params: { workspace: ws, cid },
+          })
+        }
+        onOpenExperiment={(id) =>
+          void navigate({
+            to: "/$workspace/context/changes/$id",
+            params: { workspace: ws, id },
+          })
+        }
+      />
+    </PageContainer>
   );
 }

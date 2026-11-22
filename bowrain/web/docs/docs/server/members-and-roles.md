@@ -4,15 +4,14 @@ description: Administering a Bowrain workspace, from inviting members and the ro
 sidebar_position: 10
 ---
 
+import { ThemedImage } from "@neokapi/docs-shared";
+
 # Members and roles
 
-A workspace groups the people who work on its projects. This page covers the
-day-to-day administration: inviting members, the roles they hold, the finer
-permission bundles that apply per project, how a grant is bound to a point in
-the context space, who counts as a custodian, API tokens for programmatic
-access, and the governance controls for teams that need stricter separation.
-
-Member and role administration is available to workspace owners and admins.
+A workspace groups the people who work on its projects. Workspace owners and
+admins invite members, assign roles and project role templates, bind grants to
+a point in the context space, issue API tokens, and set the governance controls
+for teams that need stricter separation.
 
 ## Workspace roles
 
@@ -27,13 +26,21 @@ do across the whole workspace.
 | **Viewer** | Read-only access to projects and their content. |
 
 These roles are also summarized on the [Workspaces](/server/workspaces) page.
-For fine-grained control within a single project, use
-[role templates](#project-role-templates) rather than the workspace role.
+For finer control within a single project, use
+[role templates](#project-role-templates).
 
-Members are never metered: a plan caps custodian seats, markets and brands, and
-nothing else. Invite everyone who might notice what a rule missed.
+Members are not metered. A plan caps custodian seats, markets and brands, so
+you can invite everyone who reads the content.
 
 ## Inviting members
+
+<ThemedImage
+  alt="Workspace members and their roles"
+  sources={{
+    light: "/img/web-app/light/members.png",
+    dark: "/img/web-app/dark/members.png",
+  }}
+/>
 
 Go to **Workspace Settings > Members** and choose **Invite**. Enter the email
 address and pick the role to grant: Admin, Member, or Viewer. (Ownership is
@@ -47,9 +54,8 @@ used.
 
 ## Project role templates
 
-A workspace role is broad. Within a project, access is governed by **role
-templates**, named bundles of permissions that decide exactly what a member may
-do on that project.
+A workspace role is broad. Within a project, **role templates** set what a
+member may do. A template is a named bundle of permissions.
 
 Each new workspace is seeded with built-in templates:
 
@@ -68,8 +74,8 @@ built-in templates cannot be deleted, but custom ones can.
 A template is assembled from individual permissions grouped by area:
 
 - **Content**: view content, edit source, translate, review. `translate` writes
-  and rejects a translation; approving one is `review`, so a template without it
-  can contribute and send work back but never sign it off.
+  and rejects a translation. Approving one needs `review`, so a template without
+  it can contribute and send work back, and only a reviewer signs it off.
 - **Knowledge**: manage terms (`manage_terms`), content memory
   (`manage_memory`), voice profiles (`manage_voice`), and assets.
 - **Operations**: run flows, manage files, manage streams, manage connectors,
@@ -78,9 +84,8 @@ A template is assembled from individual permissions grouped by area:
 
 ## Project-level members
 
-Adding someone to a project draws on both mechanisms above. From a project's
-members surface you assign a workspace member a **role template**, and
-optionally bound it:
+Adding someone to a project uses both of the above. In a project's members
+page, you assign a workspace member a **role template** and can limit it:
 
 - **By language.** For the language-scoped templates such as Translator and
   Reviewer, a set of **languages** they are limited to. A reviewer scoped to
@@ -89,33 +94,33 @@ optionally bound it:
 - **By point.** The `review`, `manage_voice` and `manage_terms` permissions
   are bound to a point in the [context space](/getting-started/the-context-graph):
   a region named by axis values such as `brand=acme` or
-  `brand=acme,channel=support`. A person bounded that way reviews, or authors
-  voice and terms, only for content that sits at or under that point, and the
-  binding is carried on their membership.
+  `brand=acme,channel=support`. A person limited this way reviews, or writes
+  voice and terms, only for content at or under that point. The limit is stored
+  on their membership.
 
-This is how a single project can host translators for different languages, a
-reviewer per market, a custodian per brand, and a project admin, each with
-exactly the access their job needs. A language is one more axis, so bounding by
-language and bounding by point are the same mechanism.
+One project can then have translators for different languages, a reviewer per
+market, a custodian per brand and a project admin, each with the access their
+job needs. A language is one more axis, so limiting by language and limiting by
+point work the same way.
 
 ## Custodians and points
 
-A **custodian** is a member who may author what governs content, the voice and
-the terms, over a bounded region. The role is derived from a grant rather than
-declared: giving someone `manage_voice` or `manage_terms` at a point makes them
-the custodian of that point. Custodians own rules and escalations; a review
-queue is a contributor's beat, and contributors are never metered.
+A **custodian** is a member who may write the voice profile and the terms for
+a region of the context space. The grant makes the custodian: giving someone
+`manage_voice` or `manage_terms` at a point makes them the custodian of that
+point. Custodians own rules and escalations. Contributors work the review
+queue, and contributors are not metered.
 
 - Custodian seats are the one thing a plan meters about people. A grant that
   would exceed the plan's allowance is refused when it is made, with the count
   and the limit.
 - The workspace owner keeps an implicit, unbillable custodianship at the root
   point, so an approval is always possible.
-- Points nobody holds are reported on their profile card in the
-  [Context hub](/server/context#profiles), as the operator's queue and the
-  buyer's exposure. An uncovered point never blocks a run or a build.
-- When a plan carries no custodian seats, existing custodial authority is
-  suspended, not deleted, and returns with the next plan.
+- A point nobody holds is marked on its profile card in the
+  [Context hub](/server/context#profiles). Runs and builds continue at an
+  uncovered point.
+- When a plan carries no custodian seats, existing custodian grants are
+  suspended. They return with the next plan that has seats.
 
 See [Billing and credits](/server/billing-and-credits#custodians) for the plan
 allowances.
@@ -134,27 +139,26 @@ When creating a token you set:
   translate, review, or manage), with translate and review optionally limited to
   specific BCP-47 languages.
 
-The token value is shown once, at creation, and cannot be retrieved again, so
-copy it then. A token can be deleted at any time, which immediately revokes
-access for anything using it. From the command line, `kapi auth token create`,
-`list` and `delete` do the same (see [`kapi auth`](/cli/commands/auth)).
+The token value is shown once, at creation, so copy it then. Deleting a token
+revokes access at once for anything using it. From the command line,
+`kapi auth token create`, `list` and `delete` do the same (see
+[`kapi auth`](/cli/commands/auth)).
 
 ## Governance controls
 
-Workspaces that need stricter access separation have a set of governance
-controls under **Workspace Settings > Governance** (owner and admin only). In
-brief:
+For stricter access separation, owners and admins set the governance controls
+under **Workspace Settings > Governance**:
 
 - **Separation of duties**: whether a person may approve their own work. Set
   it to off, warn (record a warning but allow it), or block (refuse an approval
   of content the approver wrote). It covers approving a translation block by
   block, over a selection, and through **Approve everything passing**, where a
-  refused target is left pending and counted. A translation written on a
-  laptop counts as the work of the person who first pushes it when they wrote
-  it by hand there (with `kapi apply`, in Kapi Desktop, or through an agent
-  working for them), and the rule applies to an approval of it in that push or
-  any later one, as in the web app. A draft a run produced has no human author,
-  so this rule never stops the one person in a workspace from approving it.
+  refused target is left pending and counted. A translation written by hand on
+  a laptop, with `kapi apply`, in Kapi Desktop or through an agent working for
+  that person, counts as the work of the person who first pushes it. The rule
+  applies to an approval of it in that push or any later one, as in the web
+  app. A draft a run produced has no human author, so the one person in a
+  workspace can always approve it.
 - **Teams**: group members so they can be granted project roles in bulk.
 - **Deny rules**: negative permissions that always override grants. A rule
   targets a user, a workspace role, or a team, and removes specific permissions

@@ -22,7 +22,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var authServerURL string
+var (
+	authServerURL     string
+	authUseDeviceCode bool
+	authNoBrowser     bool
+)
 
 var authCmd = &cobra.Command{
 	Use:   "auth",
@@ -33,7 +37,13 @@ var authCmd = &cobra.Command{
 var authLoginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Log in to the server",
-	Long: `Log in to a Bowrain server. Opens a browser for authentication.
+	Long: `Log in to a Bowrain server. Opens your browser to sign in, and the browser
+returns you to the terminal when you are done.
+
+Over SSH, in CI, or with --use-device-code, login prints a URL and a code
+instead: open the URL in a browser on any device and enter the code. With
+--no-browser, login prints the sign-in URL instead of opening it; open it in a
+browser on this machine.
 
 Server URL is resolved from (first match wins):
   1. --server flag
@@ -47,12 +57,16 @@ Server URL is resolved from (first match wins):
 	},
 }
 
-// performLogin runs the device grant and reports the result in this command
-// tree's output format. The grant itself is host/venue/auth's — what a
-// successful login should print is the caller's call, and `init` folds it into
-// the project it is scaffolding rather than announcing it separately.
+// performLogin signs in and reports the result in this command tree's output
+// format. The sign-in itself is host/venue/auth's. What a successful login
+// prints is the caller's choice: `init` folds it into the project it is
+// scaffolding rather than announcing it separately.
 func performLogin(cmd *cobra.Command, serverURL string) (*config.StoredAuth, error) {
-	stored, err := venueauth.PerformLogin(cmd.Context(), serverURL, cmd.ErrOrStderr())
+	stored, err := venueauth.PerformLogin(cmd.Context(), serverURL, venueauth.LoginOptions{
+		Progress:   cmd.ErrOrStderr(),
+		DeviceCode: authUseDeviceCode,
+		NoBrowser:  authNoBrowser,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +204,7 @@ Requires authentication (run 'kapi auth login' first).`,
 			if saveErr := proj.Save(); saveErr != nil {
 				fmt.Fprintf(os.Stderr, "Warning: could not update recipe %s: %v\n", proj.RecipePath(), saveErr)
 			}
-			// Clear claim token from sync cache — no longer needed after claim.
+			// The claim token in the sync cache is spent once the claim succeeds.
 			cache := project.LoadSyncCache(proj.Layout)
 			cache.ClaimToken = ""
 			_ = cache.Save(proj.Layout)
@@ -205,6 +219,9 @@ Requires authentication (run 'kapi auth login' first).`,
 
 func init() {
 	authLoginCmd.Flags().StringVar(&authServerURL, "server", "", "server URL")
+	authLoginCmd.Flags().BoolVar(&authUseDeviceCode, "use-device-code", false, "sign in with a code entered on any device, for a machine without a browser")
+	authLoginCmd.Flags().BoolVar(&authNoBrowser, "no-browser", false, "print the sign-in URL instead of opening the browser")
+	authLoginCmd.MarkFlagsMutuallyExclusive("use-device-code", "no-browser")
 	authCmd.AddCommand(authLoginCmd)
 	authCmd.AddCommand(authLogoutCmd)
 	authCmd.AddCommand(authStatusCmd)

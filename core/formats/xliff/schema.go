@@ -22,67 +22,67 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"preserveSpaceByDefault", "includeExtensions", "includeIts",
-					"ignoreInputSegmentation", "fallbackToID", "forceUniqueIds",
+					"preserve_space_by_default", "include_extensions", "include_its",
+					"ignore_input_segmentation", "fallback_to_id", "force_unique_ids",
 				},
 			},
 			{
 				ID:    "states",
 				Label: "Translation State Handling",
 				Fields: []string{
-					"useTranslationTargetState", "targetStateValue",
-					"editAltTrans", "addAltTrans",
+					"use_translation_target_state", "target_state_value",
+					"edit_alt_trans", "add_alt_trans",
 				},
 			},
 			{
 				ID:    "output",
 				Label: "Output",
 				Fields: []string{
-					"addTargetLanguage", "overrideTargetLanguage",
-					"allowEmptyTargets", "alwaysAddTargets",
+					"add_target_language", "override_target_language",
+					"allow_empty_targets", "always_add_targets",
 				},
 			},
 			{
 				ID:    "inlineCodes",
 				Label: "Inline Codes",
 				Fields: []string{
-					"useCodeFinder", "codeFinderRules",
+					"use_code_finder", "code_finder_rules",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
 			// Extraction
-			"preserveSpaceByDefault": schema.Prop(coreschema.PropertySchema{
+			"preserve_space_by_default": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Preserve whitespace by default",
 				Description: "Treat all content as xml:space=\"preserve\" unless explicitly overridden",
 			}),
-			"includeExtensions": schema.Prop(coreschema.PropertySchema{
+			"include_extensions": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Include XLIFF extension elements",
 				Description: "Include non-standard namespace extension elements in extracted content",
 			}),
-			"includeIts": schema.Prop(coreschema.PropertySchema{
+			"include_its": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Include ITS markup",
 				Description: "Include ITS (Internationalization Tag Set) markup in extracted content",
 			}),
-			"ignoreInputSegmentation": schema.Prop(coreschema.PropertySchema{
+			"ignore_input_segmentation": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Ignore input segmentation",
 				Description: "Ignore seg-source/mrk segmentation from the input XLIFF and treat the full source as a single segment",
 			}),
-			"fallbackToID": schema.Prop(coreschema.PropertySchema{
+			"fallback_to_id": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Use trans-unit ID as name if no resname",
 				Description: "Use the trans-unit id attribute as the block name when no resname attribute is present",
 			}),
-			"forceUniqueIds": schema.Prop(coreschema.PropertySchema{
+			"force_unique_ids": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Enforce unique trans-unit IDs",
@@ -90,25 +90,25 @@ func (c *Config) Schema() *schema.FormatSchema {
 			}),
 
 			// States
-			"useTranslationTargetState": schema.Prop(coreschema.PropertySchema{
+			"use_translation_target_state": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Update target state attribute",
 				Description: "Update the state attribute on target elements when writing translated XLIFF",
 			}),
-			"targetStateValue": schema.Prop(coreschema.PropertySchema{
+			"target_state_value": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Default:     "needs-translation",
 				Title:       "Target state value",
-				Description: "State value to set on target elements when useTranslationTargetState is enabled",
+				Description: "State value to set on target elements when use_translation_target_state is enabled",
 			}),
-			"editAltTrans": schema.Prop(coreschema.PropertySchema{
+			"edit_alt_trans": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Edit alt-trans elements",
 				Description: "Allow editing of existing alt-trans elements",
 			}),
-			"addAltTrans": schema.Prop(coreschema.PropertySchema{
+			"add_alt_trans": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Add alt-trans elements",
@@ -116,25 +116,25 @@ func (c *Config) Schema() *schema.FormatSchema {
 			}),
 
 			// Output
-			"addTargetLanguage": schema.Prop(coreschema.PropertySchema{
+			"add_target_language": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Add target-language attribute",
 				Description: "Add the target-language attribute to file elements if not already present",
 			}),
-			"overrideTargetLanguage": schema.Prop(coreschema.PropertySchema{
+			"override_target_language": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Override target language",
 				Description: "Override the target-language attribute in the output document with the pipeline target locale",
 			}),
-			"allowEmptyTargets": schema.Prop(coreschema.PropertySchema{
+			"allow_empty_targets": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Allow empty targets",
 				Description: "Allow target elements with empty content to be written",
 			}),
-			"alwaysAddTargets": schema.Prop(coreschema.PropertySchema{
+			"always_add_targets": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Add targets for monolingual XLIFF",
@@ -142,18 +142,18 @@ func (c *Config) Schema() *schema.FormatSchema {
 			}),
 
 			// Inline codes
-			"useCodeFinder": schema.Prop(coreschema.PropertySchema{
+			"use_code_finder": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Title:       "Enable inline code detection",
 				Description: "Enable regex-based inline code detection in translatable text",
 			}),
-			"codeFinderRules": schema.Prop(coreschema.PropertySchema{
+			"code_finder_rules": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Code finder rules",
 				Description: "Regex patterns that match inline codes within translatable text",
 				Widget:      "code-finder",
-				Visible:     &coreschema.ConditionExpr{Field: "useCodeFinder", Eq: true},
+				Visible:     &coreschema.ConditionExpr{Field: "use_code_finder", Eq: true},
 			}),
 		},
 	}

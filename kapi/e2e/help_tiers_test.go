@@ -85,7 +85,7 @@ func TestHelpTiers_FreshProjectStatus(t *testing.T) {
 }
 
 // TestLook_RealRoot drives `kapi look` and bare `kapi` through the real root:
-// the Map names the file and its finding, bare `kapi` is the Map with the
+// the Overview names the file and its finding, bare `kapi` is the Overview with the
 // line naming where the commands are, and the Reader draws carets under the
 // finding with a range.
 func TestLook_RealRoot(t *testing.T) {
@@ -106,7 +106,7 @@ collections:
 	assert.Contains(t, look, "look-e2e · read 1 file just now\n")
 	assert.Contains(t, look, "  1 file · 2 blocks · 0 rules · 1 finding\n")
 	assert.Contains(t, look, "Files\n  docs/guide.md  2 blocks · 1 finding\n")
-	assert.True(t, strings.HasSuffix(look, "\nCheck with `kapi check`. See a file with `kapi look <path>`.\n"), look)
+	assert.True(t, strings.HasSuffix(look, "\nConnect your assistant with `kapi connect`. See a file with `kapi look <path>`.\n"), look)
 
 	bare, _ := kapiAt(t, dir)
 	assert.Equal(t, look+"\nkapi --help for the commands\n", bare)

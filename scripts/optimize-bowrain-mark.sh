@@ -4,8 +4,8 @@
 # compact 64x64-viewBox SVG the asset pipeline expects. Run this whenever you
 # edit the source vector, then regenerate everything derived from it:
 #
-#   scripts/optimize-bowrain-mark.sh <full-export.svg>  bowrain/assets/brand/mark.svg
-#   scripts/optimize-bowrain-mark.sh <plain-export.svg> bowrain/assets/brand/mark-favicon.svg
+#   scripts/optimize-bowrain-mark.sh <full-export.svg>  assets/brand/bowrain/mark.svg
+#   scripts/optimize-bowrain-mark.sh <plain-export.svg> assets/brand/bowrain/mark-favicon.svg
 #   make bowrain-logo
 #
 # What it does (see scripts/lib/svg_mark_optimize.py):

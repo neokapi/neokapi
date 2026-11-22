@@ -75,9 +75,9 @@ func TestApplyNativeDoc(t *testing.T) {
 		Description: "JavaScript Object Notation.",
 		Overview:    "The JSON format extracts string values.",
 		Parameters: map[string]nativeDocParam{
-			"extractAllPairs": {Help: "Extract every pair.", Values: "true/false", DependsOn: []nativeDocDepends{{Property: "exceptions", Condition: "ignored when set"}}},
+			"extract_all_pairs": {Help: "Extract every pair.", Values: "true/false", DependsOn: []nativeDocDepends{{Property: "exceptions", Condition: "ignored when set"}}},
 		},
-		Examples: []nativeDocExample{{Title: "Basic", Config: "extractAllPairs: true"}},
+		Examples: []nativeDocExample{{Title: "Basic", Config: "extract_all_pairs: true"}},
 	}
 	applyNativeDoc(&e, ndf)
 
@@ -85,12 +85,12 @@ func TestApplyNativeDoc(t *testing.T) {
 	assert.Equal(t, "JavaScript Object Notation.", e.Description)
 	require.NotNil(t, e.Doc)
 	assert.Equal(t, "The JSON format extracts string values.", e.Doc.Overview)
-	require.Contains(t, e.Doc.Parameters, "extractAllPairs")
-	assert.Equal(t, "Extract every pair.", e.Doc.Parameters["extractAllPairs"].Help)
-	require.Len(t, e.Doc.Parameters["extractAllPairs"].DependsOn, 1)
-	assert.Equal(t, "exceptions", e.Doc.Parameters["extractAllPairs"].DependsOn[0].Property)
+	require.Contains(t, e.Doc.Parameters, "extract_all_pairs")
+	assert.Equal(t, "Extract every pair.", e.Doc.Parameters["extract_all_pairs"].Help)
+	require.Len(t, e.Doc.Parameters["extract_all_pairs"].DependsOn, 1)
+	assert.Equal(t, "exceptions", e.Doc.Parameters["extract_all_pairs"].DependsOn[0].Property)
 	require.Len(t, e.Doc.Examples, 1)
-	assert.Equal(t, "extractAllPairs: true", e.Doc.Examples[0].Config)
+	assert.Equal(t, "extract_all_pairs: true", e.Doc.Examples[0].Config)
 }
 
 func TestApplyNativeDocEmptyKeepsNilDoc(t *testing.T) {

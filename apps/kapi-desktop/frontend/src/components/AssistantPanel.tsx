@@ -47,6 +47,7 @@ export function AssistantPanel({ tabID, path, onBack, rulesFiles }: AssistantPan
   return (
     <div data-slot="assistant-panel">
       <PageHeader
+        help="assistants"
         title="What your assistant reads"
         backButton={
           onBack && (

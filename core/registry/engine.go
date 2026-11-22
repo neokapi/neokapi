@@ -190,20 +190,19 @@ func (r *FormatRegistry) Resolve(path string, opts DetectOptions) (Resolution, e
 	if oerr != nil {
 		return res, nil
 	}
-	name, derr := r.detector.DetectByContent(content)
+	names := make(map[string]bool, len(cands))
+	for _, c := range cands {
+		names[string(c.name)] = true
+	}
+	name, derr := r.detector.DetectByContentAmong(content, names)
 	if c, ok := content.(io.Closer); ok {
 		_ = c.Close()
 	}
-	if derr != nil {
+	if derr != nil || !names[name] {
 		return res, nil
 	}
-	for _, c := range cands {
-		if string(c.name) == name {
-			res.Format = c.name
-			res.Content = true
-			return res, nil
-		}
-	}
+	res.Format = FormatID(name)
+	res.Content = true
 	return res, nil
 }
 

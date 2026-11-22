@@ -13,7 +13,6 @@ import {
   Card,
   CardContent,
   Input,
-  Label,
   PageHeader,
   SectionHeading,
   Select,
@@ -21,6 +20,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  PageContainer,
+  SettingsRow,
 } from "@neokapi/ui-primitives";
 import { useCallback, useEffect, useState } from "react";
 import { useApi } from "../context/ApiContext";
@@ -148,7 +149,7 @@ export function GovernanceSettings() {
   if (!activeWorkspace) return null;
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 py-4">
+    <PageContainer width="standard" className="flex flex-col gap-6">
       <PageHeader
         title="Governance"
         subtitle="Who may decide on content, and the teams decisions are granted to."
@@ -163,11 +164,11 @@ export function GovernanceSettings() {
           Who may decide
         </SectionHeading>
         <Card>
-          <CardContent className="space-y-5 p-4">
-            <div>
-              <Label className="mb-1 block text-xs text-muted-foreground">
-                Separation of duties
-              </Label>
+          <CardContent className="divide-y divide-border/50 px-4 py-1">
+            <SettingsRow
+              label="Separation of duties"
+              help="Whether a translator may approve their own work."
+            >
               <div className="flex flex-wrap items-center gap-3">
                 <Select
                   value={sod}
@@ -185,15 +186,12 @@ export function GovernanceSettings() {
                 </Select>
                 <span className="text-xs text-muted-foreground">{SOD_DESCRIPTIONS[sod]}</span>
               </div>
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                Whether a translator may approve their own work.
-              </p>
-            </div>
+            </SettingsRow>
 
-            <div>
-              <Label className="mb-1 block text-xs text-muted-foreground">
-                Workspace role overrides
-              </Label>
+            <SettingsRow
+              label="Workspace role overrides"
+              help="The permissions a workspace role carries; blank keeps the built-in default."
+            >
               <ul className="flex flex-col gap-2">
                 {WORKSPACE_ROLES.map((role) => (
                   <li key={role} className="flex flex-wrap items-center gap-2">
@@ -203,7 +201,7 @@ export function GovernanceSettings() {
                       value={overrideEdit[role] ?? overrides[role]?.join(",") ?? ""}
                       aria-label={`${role} permissions`}
                       onChange={(e) => setOverrideEdit((o) => ({ ...o, [role]: e.target.value }))}
-                      className="max-w-md flex-1 font-mono text-[12px]"
+                      className="min-w-0 flex-1 font-mono text-[12px]"
                     />
                     <Button variant="outline" size="sm" onClick={() => void saveOverride(role)}>
                       Save
@@ -211,13 +209,12 @@ export function GovernanceSettings() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                The permissions a workspace role carries; blank keeps the built-in default.
-              </p>
-            </div>
+            </SettingsRow>
 
-            <div>
-              <Label className="mb-1 block text-xs text-muted-foreground">Deny rules</Label>
+            <SettingsRow
+              label="Deny rules"
+              help="A deny rule always overrides a grant. Its subject is a user, a workspace role or a team."
+            >
               <div className="mb-2 flex flex-wrap items-end gap-2">
                 <Select
                   value={denyForm.subject_type}
@@ -284,11 +281,7 @@ export function GovernanceSettings() {
                   ))}
                 </ul>
               )}
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                A deny rule always overrides a grant. Its subject is a user, a workspace role or a
-                team.
-              </p>
-            </div>
+            </SettingsRow>
           </CardContent>
         </Card>
       </section>
@@ -343,6 +336,6 @@ export function GovernanceSettings() {
           </CardContent>
         </Card>
       </section>
-    </div>
+    </PageContainer>
   );
 }

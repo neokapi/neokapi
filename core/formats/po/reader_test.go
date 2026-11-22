@@ -1123,14 +1123,14 @@ func TestRead_PluralFormsDefaultTwoFormsNoHeader(t *testing.T) {
 	assert.Equal(t, "%d days", blocks[1].SourceText())
 }
 
-// Monolingual mode (bilingualMode=false) treats the msgid as an
+// Monolingual mode (bilingual_mode=false) treats the msgid as an
 // identifier and the msgstr as the source text — Okapi's
 // okf_po-monolingual configuration (testDoubleExtraction loads
 // TestMonoLingual_*.po with okf_po@Monolingual.fprm).
 func TestRead_MonolingualMode(t *testing.T) {
 	t.Parallel()
 	input := "msgid \"key1\"\nmsgstr \"Hello\"\n"
-	parts := readWithConfig(t, input, map[string]any{"bilingualMode": false})
+	parts := readWithConfig(t, input, map[string]any{"bilingual_mode": false})
 
 	blocks := translatableBlocks(parts)
 	require.Len(t, blocks, 1)

@@ -1,6 +1,6 @@
 id: kapi-desktop-review
-title: Judged where it sits
-subtitle: Five layers under one unit, and a keystroke to decide.
+title: Review a translation
+subtitle: Read each translation in its place, then approve it with one key.
 kind: use-case
 publishAs: kapi-desktop-review
 terminal: desktop
@@ -9,93 +9,65 @@ needsAi: false
 # One continuous narration read: uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - One review queue
-  - The point a unit sits at
-  - Prior decisions and approved wording
-  - Findings anchored in the runs
+  - The review list
+  - Source and translation
+  - What helps you judge it
+  - Approve
 outro:
-  line: Open Review and press A on a clean unit.
-  pointer: kapi status --review
+  line: Open Review, and press A on a translation that reads right.
 
 narration:
   - id: title
     kind: title
     text: >-
-      A translation is judged where it sits: at its point, beside its
-      neighbours, against what was approved before.
+      You'll read a translation in its place and approve it with one key.
 
   - id: queue
     kind: desktop
     beat: queue
-    caption: One list, every language, two ways to narrow it.
+    caption: Every translation to review.
     text: >-
-      Review is one queue. Every language is in the same list, with a count per
-      language and chips for what a check flagged.
+      Open Review. The list on the left shows every translation to review.
+
+  - id: filters
+    kind: desktop
+    beat: filters
+    caption: Filter by language or by problem.
+    text: >-
+      Use the menus at the top to filter by language, or to show only
+      translations with problems.
 
   - id: open-unit
     kind: desktop
     beat: open-unit
-    caption: Source, target, and the layers beneath them.
+    caption: The English and the translation.
     text: >-
-      Opening a unit gives the source and the translation, with what shaped
-      them stacked underneath.
+      Click a translation. The English and the translation appear side by
+      side.
 
-  - id: point
+  - id: details
     kind: desktop
-    beat: point
-    caption: What governs here?
-    crop: { selector: '[data-slot="review-point"]' }
+    beat: details
+    caption: The context for this translation.
     text: >-
-      The first layer is the point this content sits at: its coordinates, the
-      voice governing there, and the term rules bound to it.
+      Below, read the text around it and the version approved last time.
 
-  - id: neighbourhood
+  - id: checks
     kind: desktop
-    beat: neighbourhood
-    caption: What sits either side of it?
-    crop: { selector: '[data-slot="review-neighbourhood"]' }
+    beat: checks
+    caption: What the checks found.
     text: >-
-      The second is the neighbourhood: the blocks either side of it, so a
-      sentence is read where a reader will meet it.
-
-  - id: history
-    kind: desktop
-    beat: history
-    caption: What was decided before?
-    crop: { selector: '[data-slot="review-history"]' }
-    text: >-
-      The third is what was decided before: the version approved last time,
-      beside the match memory offers now.
-
-  - id: findings
-    kind: desktop
-    beat: findings
-    caption: What did the checks find, and where?
-    crop: { selector: '[data-slot="review-findings"]' }
-    highlight: { selector: '[data-slot="review-finding"]' }
-    text: >-
-      The fourth is the checks. A finding is anchored in the run it names, so a
-      complaint about a placeholder points at the placeholder.
-
-  - id: provenance
-    kind: desktop
-    beat: provenance
-    caption: Who decided, and when?
-    crop: { selector: '[data-slot="review-provenance"]' }
-    text: >-
-      The fifth is provenance: who wrote it, who decided it, and whether the
-      text has moved since. This one carries none.
+      Problems found by the checks appear here as well.
 
   - id: decide
     kind: desktop
     beat: decide
-    caption: One keystroke, then the clean ones together.
+    caption: Approve with one key.
     text: >-
-      With that read, the decision is a keystroke bound to the text it judged,
-      and the units no check flagged go together.
+      Press A to approve it, and the next translation opens. To approve all
+      translations without problems, click Approve clean blocks.
 
   - id: outro
     kind: outro
     text: >-
-      Every decision here is the record the command line reads and writes, so
-      the surface you work from is a preference.
+      Open Review and press A on each translation you approve.

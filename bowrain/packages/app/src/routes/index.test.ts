@@ -155,14 +155,14 @@ describe("route tree", () => {
     expect((matches[matches.length - 1] as AnyRoute).params._splat).toBe(itemName);
   });
 
-  // The overview of collections and ship readiness has its own address; the
-  // file-centric source view is a named sibling.
-  it("renders the overview at /overview", () => {
+  // The languages page, with collections and ship readiness, has its own
+  // address; the file-centric source view is a named sibling.
+  it("renders the languages page at /languages", () => {
     const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
 
-    const matches = router.matchRoutes("/acme/p/proj-1/s/main/overview", undefined);
+    const matches = router.matchRoutes("/acme/p/proj-1/s/main/languages", undefined);
     const leaf = matches[matches.length - 1] as AnyRoute;
-    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream/overview");
+    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream/languages");
 
     const source = router.matchRoutes("/acme/p/proj-1/s/main/source", undefined);
     expect((source[source.length - 1] as AnyRoute).routeId).toBe(
@@ -170,20 +170,20 @@ describe("route tree", () => {
     );
   });
 
-  // The overview's drill-down is search state on its route, so a link to one
-  // collection resolves to the overview rather than a path of its own.
-  it("keeps the collection drill-down on the overview route", () => {
+  // The languages page's drill-down is search state on its route, so a link to
+  // one collection resolves to that page rather than a path of its own.
+  it("keeps the collection drill-down on the languages route", () => {
     const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
     const href = router.buildLocation({
-      to: "/$workspace/p/$projectId/s/$stream/overview",
+      to: "/$workspace/p/$projectId/s/$stream/languages",
       params: { workspace: "acme", projectId: "proj-1", stream: "main" },
       search: { collection: "docs" },
     }).href;
-    expect(href).toBe("/acme/p/proj-1/s/main/overview?collection=docs");
+    expect(href).toBe("/acme/p/proj-1/s/main/languages?collection=docs");
 
-    const matches = router.matchRoutes("/acme/p/proj-1/s/main/overview", { collection: "docs" });
+    const matches = router.matchRoutes("/acme/p/proj-1/s/main/languages", { collection: "docs" });
     const leaf = matches[matches.length - 1] as AnyRoute;
-    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream/overview");
+    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream/languages");
     expect(leaf.search.collection).toBe("docs");
   });
 
@@ -204,9 +204,9 @@ describe("route tree", () => {
     return undefined;
   };
 
-  // Links and bookmarks to the overview's former address must not break, and
-  // must arrive on the drill-down they named.
-  it("redirects the former /dashboard address to the overview, keeping its scope", () => {
+  // Links and bookmarks to the languages page's former addresses must not
+  // break, and must arrive on the drill-down they named.
+  it("redirects the former /dashboard address to the languages page, keeping its scope", () => {
     const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
     const matches = router.matchRoutes("/acme/p/proj-1/s/main/dashboard", { collection: "docs" });
     const leaf = matches[matches.length - 1] as AnyRoute;
@@ -215,22 +215,40 @@ describe("route tree", () => {
 
     const to = redirectOf("/$workspace/p/$projectId/s/$stream/dashboard", { collection: "docs" });
     expect(to, "the former address must redirect, not render").toBeDefined();
-    expect(to.to).toBe("/$workspace/p/$projectId/s/$stream/overview");
+    expect(to.to).toBe("/$workspace/p/$projectId/s/$stream/languages");
     expect(to.search).toEqual({ collection: "docs" });
     expect(to.replace).toBe(true);
   });
 
-  // Opening a project lands on the Map. A link to the stream root that carries
-  // the overview's drill-down lands on the overview with it.
-  it("redirects the stream root to the Map, or to the overview with its drill-down", () => {
-    const toMap = redirectOf("/$workspace/p/$projectId/s/$stream", {});
-    expect(toMap.to).toBe("/$workspace/p/$projectId/s/$stream/map");
-    expect(toMap.replace).toBe(true);
+  it("sends a drilled-down /overview link to the languages page, keeping its scope", () => {
+    const to = redirectOf("/$workspace/p/$projectId/s/$stream/overview", { collection: "docs" });
+    expect(to, "a drilled-down /overview link must redirect").toBeDefined();
+    expect(to.to).toBe("/$workspace/p/$projectId/s/$stream/languages");
+    expect(to.search).toEqual({ collection: "docs" });
+    expect(redirectOf("/$workspace/p/$projectId/s/$stream/overview", {})).toBeUndefined();
+    // A parameter another route reads, such as the theme, is no drill-down.
+    expect(
+      redirectOf("/$workspace/p/$projectId/s/$stream/overview", { theme: "dark" }),
+    ).toBeUndefined();
+  });
 
-    const toOverview = redirectOf("/$workspace/p/$projectId/s/$stream", { collection: "docs" });
+  it("redirects the Overview's former /map address to /overview", () => {
+    const to = redirectOf("/$workspace/p/$projectId/s/$stream/map", {});
+    expect(to.to).toBe("/$workspace/p/$projectId/s/$stream/overview");
+    expect(to.replace).toBe(true);
+  });
+
+  // Opening a project lands on the Overview. A link to the stream root that
+  // carries the languages page's drill-down lands on that page with it.
+  it("redirects the stream root to the Overview, or to the languages page with its drill-down", () => {
+    const toOverview = redirectOf("/$workspace/p/$projectId/s/$stream", {});
     expect(toOverview.to).toBe("/$workspace/p/$projectId/s/$stream/overview");
-    expect(toOverview.search).toEqual({ collection: "docs" });
     expect(toOverview.replace).toBe(true);
+
+    const toLanguages = redirectOf("/$workspace/p/$projectId/s/$stream", { collection: "docs" });
+    expect(toLanguages.to).toBe("/$workspace/p/$projectId/s/$stream/languages");
+    expect(toLanguages.search).toEqual({ collection: "docs" });
+    expect(toLanguages.replace).toBe(true);
   });
 
   it("contains auth child routes", () => {
@@ -271,9 +289,9 @@ describe("the project screens' routes", () => {
     return matches[matches.length - 1] as AnyRoute;
   };
 
-  it("draws the Map at /map", () => {
-    expect(leaf("/acme/p/proj-1/s/main/map").routeId).toBe(
-      "/$workspace/p/$projectId/s/$stream/map",
+  it("draws the Overview at /overview", () => {
+    expect(leaf("/acme/p/proj-1/s/main/overview").routeId).toBe(
+      "/$workspace/p/$projectId/s/$stream/overview",
     );
   });
 
@@ -303,9 +321,9 @@ describe("the project screens' routes", () => {
     );
   });
 
-  it("keeps the Overview at /overview", () => {
-    expect(leaf("/acme/p/proj-1/s/main/overview").routeId).toBe(
-      "/$workspace/p/$projectId/s/$stream/overview",
+  it("keeps the languages page at /languages", () => {
+    expect(leaf("/acme/p/proj-1/s/main/languages").routeId).toBe(
+      "/$workspace/p/$projectId/s/$stream/languages",
     );
   });
 });

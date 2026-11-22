@@ -212,6 +212,52 @@ func TestCoverageCountsACommittedTargetWithoutARun(t *testing.T) {
 	assert.Equal(t, 1, status.Collections[0].Coverage["fr-FR"])
 }
 
+// The committed target counts before anything has been extracted, as `kapi
+// status` counts it, and reading the status creates no store.
+func TestCoverageCountsACommittedTargetWithNoStore(t *testing.T) {
+	app := NewApp()
+	tab, root := newCoverageProject(t, app)
+	require.NoError(t, os.WriteFile(
+		filepath.Join(root, "locales", "fr-FR.json"),
+		[]byte(`{"greeting":"Bonjour"}`),
+		0o644,
+	))
+
+	status, err := app.GetProjectStatus(tab.ID)
+	require.NoError(t, err)
+	assert.False(t, status.HasData)
+	require.Len(t, status.Collections, 1)
+	coll := status.Collections[0]
+	assert.Zero(t, coll.BlockCount, "nothing extracted")
+	assert.Equal(t, 1, coll.Coverage["fr-FR"])
+	assert.Equal(t, 3, coll.Units["fr-FR"])
+	assert.Equal(t, 0, coll.Coverage["de-DE"])
+
+	layout, err := project.LayoutFor(filepath.Join(root, "project.kapi"))
+	require.NoError(t, err)
+	assert.NoFileExists(t, layout.StorePath())
+}
+
+// A collection's languages are its items' (ContentItem.ResolvedTargetLanguages),
+// the languages `kapi status` reports its units in: an item's own list wins
+// over the defaults, and an item with no target path writes none.
+func TestProjectStatusTakesEachItemsLanguages(t *testing.T) {
+	proj := &project.KapiProject{
+		Defaults: project.Defaults{SourceLanguage: "en-US", TargetLanguages: []model.LocaleID{"fr-FR", "de-DE"}},
+		Collections: []project.Collection{
+			{Name: "App", Content: []project.ContentItem{
+				{Path: "a/en.json", Target: "a/{lang}.json"},
+				{Path: "b/en.json", Target: "b/{lang}.json", TargetLanguages: []model.LocaleID{"nb_NO"}},
+			}},
+			{Name: "Docs", Content: []project.ContentItem{{Path: "docs/*.md"}}},
+		},
+	}
+	order, targets := collectionTargets(proj)
+	assert.Equal(t, []string{"App", "Docs"}, order)
+	assert.Equal(t, []string{"fr-FR", "de-DE", "nb-NO"}, targets["App"])
+	assert.Empty(t, targets["Docs"], "a source-only collection writes no language")
+}
+
 func TestRunExtractUnknownTab(t *testing.T) {
 	app := NewApp()
 	_, err := app.RunExtract("nope")

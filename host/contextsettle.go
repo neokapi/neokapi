@@ -150,7 +150,7 @@ func (s *contextOpsSession) recordMerge(ctx context.Context, req ContextSettleRe
 		rule, ok := r.Rule()
 		// A merge outside a suggestion's window says nothing about it: the
 		// suggestion held nowhere while the change was made.
-		if !ok || rule.Replacement == "" || r.Established || !r.Status.Advises() || !r.Scope.InForce(s.app.GovernanceInstant()) {
+		if !ok || rule.Replacement == "" || r.Established || !r.Status.Advisory() || !r.Scope.InForce(s.app.GovernanceInstant()) {
 			continue
 		}
 		preferred, rejected := 0, 0

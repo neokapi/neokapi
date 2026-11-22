@@ -12,68 +12,68 @@ overview: |
   The tool operates only on the target text, so a target locale is required, and
   only blocks that already have a target for that locale are processed.
 parameters:
-  targetLocale:
+  target_locale:
     description: Target locale for processing.
     help: |
       The locale whose target text is corrected. Required; only blocks with an
       existing target for this locale are touched.
     values: "BCP-47 locale (required)"
-  normalizeSpaces:
+  normalize_spaces:
     description: Collapse runs of multiple spaces to one.
     help: When enabled, consecutive spaces are reduced to a single space.
     values: "`true` / `false` (default `true`)"
-  trimLeading:
+  trim_leading:
     description: Remove leading whitespace from the target.
     help: When enabled, whitespace at the start of the target text is removed.
     values: "`true` / `false` (default `false`)"
-  trimTrailing:
+  trim_trailing:
     description: Remove trailing whitespace from the target.
     help: When enabled, whitespace at the end of the target text is removed.
     values: "`true` / `false` (default `false`)"
-  matchSourceWhitespace:
+  match_source_whitespace:
     description: Copy the source's leading/trailing whitespace to the target.
     help: |
       When enabled, the target's existing leading and trailing whitespace is
       stripped and replaced with the source's, so the target mirrors the
       source's edge whitespace.
     values: "`true` / `false` (default `true`)"
-  removeZeroWidthChars:
+  remove_zero_width_chars:
     description: Remove zero-width spaces and joiners.
     help: |
       When enabled, zero-width spaces and joiners (and the zero-width no-break
       space) are removed from the target.
     values: "`true` / `false` (default `true`)"
-  correctFullStop:
+  correct_full_stop:
     description: Correct whitespace after full stops.
     help: |
       When enabled, whitespace following a full stop (ASCII `.` or full-width
       `．`) is removed, per the included whitespace types.
     values: "`true` / `false` (default `true`)"
-  correctComma:
+  correct_comma:
     description: Correct whitespace after commas.
     help: |
       When enabled, whitespace following a comma (ASCII `,` or full-width `，`)
       is removed, per the included whitespace types.
     values: "`true` / `false` (default `true`)"
-  correctExclamation:
+  correct_exclamation:
     description: Correct whitespace after exclamation marks.
     help: |
       When enabled, whitespace following an exclamation mark (ASCII `!` or
       full-width `！`) is removed, per the included whitespace types.
     values: "`true` / `false` (default `true`)"
-  correctQuestion:
+  correct_question:
     description: Correct whitespace after question marks.
     help: |
       When enabled, whitespace following a question mark (ASCII `?` or
       full-width `？`) is removed, per the included whitespace types.
     values: "`true` / `false` (default `true`)"
-  includeVerticalWS:
+  include_vertical_ws:
     description: Include vertical whitespace in corrections.
     help: |
       When enabled, vertical whitespace (line feeds and carriage returns) is
       treated as removable after punctuation.
     values: "`true` / `false` (default `true`)"
-  includeHorizontalWS:
+  include_horizontal_ws:
     description: Include horizontal tabs in corrections.
     help: |
       When enabled, horizontal tab characters are treated as removable after
@@ -86,10 +86,10 @@ examples:
   - title: Normalize spacing for a locale
     description: Apply the default whitespace cleanup to a target.
     config: |
-      targetLocale: fr
+      target_locale: fr
   - title: Tidy CJK punctuation spacing
     description: Remove spaces after punctuation for a non-space-delimited target.
     config: |
-      targetLocale: zh-Hans
-      correctFullStop: true
-      correctComma: true
+      target_locale: zh-Hans
+      correct_full_stop: true
+      correct_comma: true

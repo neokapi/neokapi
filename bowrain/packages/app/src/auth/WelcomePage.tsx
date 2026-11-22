@@ -16,6 +16,7 @@ import {
   type SlugCheckResponse,
   type User,
   type Workspace,
+  PageContainer,
 } from "@neokapi/ui";
 
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
@@ -173,7 +174,7 @@ export function WelcomePage({ onComplete }: WelcomePageProps) {
   })();
 
   return (
-    <div className="mx-auto w-full max-w-lg pt-16">
+    <PageContainer width="narrow" className="pt-16">
       <Card>
         <CardHeader>
           <CardTitle>Welcome to Bowrain</CardTitle>
@@ -230,6 +231,6 @@ export function WelcomePage({ onComplete }: WelcomePageProps) {
           </form>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }

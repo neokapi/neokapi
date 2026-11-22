@@ -116,12 +116,30 @@ func (ctx *ProjectContext) PathLocale(id model.LocaleID) string {
 
 // TargetPath expands a content item's target template for one source file and
 // locale, rendering the locale in the project's declared style.
-func (ctx *ProjectContext) TargetPath(item ContentItem, sourceRel string, id model.LocaleID) string {
+func (ctx *ProjectContext) TargetPath(item ContentItem, sourceRel string, id model.LocaleID) (string, error) {
 	format := ""
 	if ctx != nil {
 		format = ctx.LocaleFormat
 	}
 	return ResolveTargetPathIn(item.Path, item.Base, item.Target, sourceRel, string(id), format)
+}
+
+// TargetFile is TargetPath as a path on disk: a relative expansion is joined
+// to the project directory. It returns "" when the item declares no target,
+// or when the source's name is not a safe segment for the template.
+func (ctx *ProjectContext) TargetFile(item ContentItem, sourceRel string, id model.LocaleID) string {
+	if item.Target == "" {
+		return ""
+	}
+	out, err := ctx.TargetPath(item, sourceRel, id)
+	if err != nil {
+		// A name the template cannot hold safely has no target.
+		return ""
+	}
+	if filepath.IsAbs(out) || ctx == nil {
+		return out
+	}
+	return filepath.Join(ctx.ProjectDir, out)
 }
 
 // LocaleFromPath canonicalizes a locale read back off disk.
@@ -163,9 +181,10 @@ func (ctx *ProjectContext) detectFormat(reg *registry.FormatRegistry, path strin
 }
 
 // DetectOptions is the detection the recipe declares: its sources, the
-// engine it prefers and how it ranks its plugins, the engine it pins per
-// format (defaults.formats.<name>.engine) and the priorities it sets among
-// an engine's formats (defaults.formats.<name>.priority). content supplies
+// engine it prefers and how it ranks its plugins. It also carries the engine
+// the recipe pins per format (defaults.formats.<name>.engine) and the
+// priorities it sets among an engine's formats
+// (defaults.formats.<name>.priority). content supplies
 // the file's bytes when several formats claim its extension; nil reads the
 // file at the path.
 func (ctx *ProjectContext) DetectOptions(content func() (io.ReadSeeker, error)) registry.DetectOptions {
@@ -235,26 +254,19 @@ func (rf ResolvedFile) CommentsOnly() bool {
 // returns the resolved file list with detected formats. Ignore rules from
 // .kapiignore are applied. Patterns that escape the project root are rejected.
 //
-// A file resolves once. Items are walked in recipe order, across collections,
-// and the claims on each layer of a file follow the rule ItemForPath applies to
-// every path-to-item lookup in the hosts (fileClaims). The first item whose
-// pattern matches a file and that claims more than its comments claims its
-// values and names the file. A later item of that kind never sees the file,
-// however specific its pattern, so a recipe lists the item that names a file
-// before the glob that would also cover it. An item declared for comments alone
-// claims no value wherever it is listed, and claims the comments unless the
-// values' item declares them first (ResolvedFile.CommentItem).
+// A file resolves once. Items are walked in recipe order across collections,
+// with ItemForPath's per-layer claim rule (fileClaims). The first matching
+// item that claims more than comments takes the file's values and names it,
+// so list a specific item before a glob that also covers it. A comments-only
+// item claims the comments unless the values' item declares them first
+// (ResolvedFile.CommentItem).
 //
-// It fails rather than resolve a partial content set: a pattern that cannot be
-// expanded means the recipe declares content this call cannot account for, and
-// every derivation downstream (coverage, plan, checks, review, extract) reads a
-// short list as a smaller universe rather than as an error. Callers must not
-// discard the error: an empty result and a failed resolution are different
-// facts.
+// A pattern that cannot be expanded fails the call, since downstream
+// derivations (coverage, plan, checks, review, extract) would read a partial
+// list as a smaller universe. Callers must not discard the error.
 //
-// A match that cannot be read, such as a dangling symbolic link, is left out of
-// the list and handed to OnUnreadableContent, which the CLI reports on stderr.
-// ResolveContentReport returns the same matches to its caller.
+// An unreadable match, such as a dangling symbolic link, is left out and
+// handed to OnUnreadableContent.
 func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]ResolvedFile, error) {
 	res, err := ctx.ResolveContentReport(reg)
 	return res.Files, err
@@ -474,15 +486,15 @@ type Configurable interface {
 
 // ConfigureReader applies the project's format defaults to any Configurable
 // component (typically a DataFormatReader). It is ConfigureReaderFor with no
-// content item — the right call only where no item is in scope, such as an
+// content item, the right call only where no item is in scope, such as an
 // ad-hoc file the recipe does not claim.
 func (ctx *ProjectContext) ConfigureReader(reader Configurable, formatName string) error {
 	return ctx.ConfigureReaderFor(reader, formatName, nil)
 }
 
 // ConfigureReaderFor applies the format configuration the recipe declares for
-// one content item — the project defaults for the format overlaid by the item's
-// own `format.config` — onto a reader. A nil item takes the defaults alone.
+// one content item, the project defaults for the format overlaid by the item's
+// own `format.config`, onto a reader. A nil item takes the defaults alone.
 func (ctx *ProjectContext) ConfigureReaderFor(reader Configurable, formatName string, item *ContentItem) error {
 	return ApplyReaderConfig(reader, ctx.FormatConfigFor(formatName, item))
 }

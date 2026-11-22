@@ -335,7 +335,7 @@ metadata:
 spec:
   steps:
     - tool: recycle
-      config: { fuzzyThreshold: 75 }
+      config: { fuzzy_threshold: 75 }
     - tool: translate
       config: { provider: anthropic }
     - tool: qa

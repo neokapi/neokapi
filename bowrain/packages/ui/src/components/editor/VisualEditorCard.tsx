@@ -500,6 +500,9 @@ export function VisualEditorCard({
       )}
 
       {/* ── Action Bar ─────────────────────────────────── */}
+      {/* In review the key hints sit on the leading edge and the decision on
+          the trailing edge, Reject then Approve last, as a dialog puts its
+          confirming action last (packages/ui/docs/page-patterns.md). */}
       <div className="flex items-center justify-end gap-2 px-4 pb-3 pt-1 border-t border-border">
         {editorMode === "translate" && !isEditing && (
           <Button size="sm" onClick={onStartEditing} data-testid="edit-btn">
@@ -508,29 +511,33 @@ export function VisualEditorCard({
         )}
         {editorMode === "review" && (
           <>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-destructive hover:text-destructive"
-              onClick={onReject}
-              data-testid="reject-btn"
-            >
-              <X className="w-3.5 h-3.5 mr-1" />
-              Reject
-              <span className="ml-1.5 text-[10px] text-muted-foreground">(Ctrl+Shift+R)</span>
-            </Button>
-            {/* An untranslated block has no reviewable target — the server
-                categorically rejects the approval, so don't offer it. */}
-            <Button
-              size="sm"
-              onClick={onApprove}
-              disabled={!targetText.trim()}
-              data-testid="approve-btn"
-            >
-              <Check className="w-3.5 h-3.5 mr-1" />
-              Approve
-              <span className="ml-1.5 text-[10px] text-muted-foreground">(Ctrl+Shift+A)</span>
-            </Button>
+            <span className="mr-auto flex items-center gap-3 text-[10px] text-muted-foreground">
+              <span>Ctrl+Shift+R reject</span>
+              <span>Ctrl+Shift+A approve</span>
+            </span>
+            <div className="flex items-center gap-6">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                onClick={onReject}
+                data-testid="reject-btn"
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                Reject
+              </Button>
+              {/* An untranslated block has no reviewable target — the server
+                  categorically rejects the approval, so don't offer it. */}
+              <Button
+                size="sm"
+                onClick={onApprove}
+                disabled={!targetText.trim()}
+                data-testid="approve-btn"
+              >
+                <Check className="w-3.5 h-3.5 mr-1" />
+                Approve
+              </Button>
+            </div>
           </>
         )}
       </div>

@@ -21,7 +21,7 @@ type atPoint struct {
 	terms        terms.Terminology
 	// context is what the project's context operations add here: rules a person
 	// widened to the whole workspace, which bind, and candidates nobody has
-	// decided on, which advise (core/contextop).
+	// decided on, which only report (core/contextop).
 	context contextop.Resolution
 	// keep is the renames held elsewhere that leave the old wording correct
 	// here, as rules against the new wording (checkTerms.keepAt).

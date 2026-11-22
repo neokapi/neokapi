@@ -7,7 +7,12 @@ export type { IOPort };
 export interface User {
   id: string;
   email: string;
-  name: string;
+  /** The name the person set; absent until they set one. */
+  name?: string;
+  /** GET /auth/me only: the name to show, the set name else the handle. */
+  shown_name?: string;
+  /** GET /auth/me only: the slug of the personal workspace. */
+  handle?: string;
   avatar_url: string;
   /** Set once the user has completed onboarding. Null/undefined = needs /welcome. */
   onboarded_at?: string | null;
@@ -140,11 +145,15 @@ export interface ApiToken {
   workspace_id: string;
   name: string;
   /**
-   * The machine this token is for, when it is a machine token. Work created
-   * under it is authored by "agent/<agent_name>" rather than by user_id.
-   * Absent on an ordinary personal token.
+   * The tool this token is for, when it is a tool token. The server records
+   * work done under it as the tool's, issued by user_id (issued_by).
+   * Absent on a personal token.
    */
-  agent_name?: string;
+  tool_name?: string;
+  /** The member who issued a tool token. */
+  issued_by?: string;
+  /** Display name of the member the token belongs to, in a listing. */
+  issuer_name?: string;
   token_prefix: string;
   scopes: string;
   last_used_at: string | null;
@@ -156,7 +165,9 @@ export interface ApiToken {
 export interface CreateApiTokenResponse {
   id: string;
   name: string;
-  agent_name?: string;
+  tool_name?: string;
+  /** The member who issued a tool token. */
+  issued_by?: string;
   token_prefix: string;
   token: string;
   scopes: string;
@@ -1203,7 +1214,10 @@ export interface TermInfo {
 /** Concept info */
 export interface ConceptInfo {
   id: string;
+  /** The project the concept is limited to, when it is limited to one. */
   project_id?: string;
+  /** The projects the concept is limited to; absent for one of the whole workspace. */
+  projects?: string[];
   stream?: string;
   domain: string;
   definition: string;
@@ -1543,8 +1557,9 @@ export interface ConvergenceLocaleStanding {
   state: string;
   units?: number;
   produced?: number;
-  viaTM?: number;
-  viaAI?: number;
+  via_memory?: number;
+  via_ai?: number;
+  via_drafts?: number;
 }
 
 /**
@@ -1651,7 +1666,7 @@ export interface ConvergenceSourceReadiness {
 export interface ConvergenceEstimateLocale {
   locale: string;
   pending: number;
-  via_tm: number;
+  via_memory: number;
   via_ai: number;
   token_estimate: number;
 }
@@ -1659,7 +1674,7 @@ export interface ConvergenceEstimateLocale {
 /** Cross-locale rollup of the estimate. */
 export interface ConvergenceEstimateTotals {
   pending: number;
-  via_tm: number;
+  via_memory: number;
   via_ai: number;
   token_estimate: number;
 }
@@ -1731,6 +1746,23 @@ export interface ActivityPage {
   new_count?: number;
 }
 
+/**
+ * The project feed (`GET /:ws/:id/feed`). The shapes are the shared API
+ * client's, which mirror the server's FeedResponse.
+ */
+export type {
+  FeedActor,
+  FeedActorKind,
+  FeedEntry,
+  FeedKind,
+  FeedLink,
+  FeedMember,
+  FeedPage,
+  FeedQuery,
+  FeedRecipeDiff,
+  FeedScreen,
+} from "@neokapi/bowrain-client";
+
 /** Task type discriminator */
 export type TaskType =
   | "translate"
@@ -1779,7 +1811,7 @@ export interface PendingReviewEntry {
   voice_bar?: number;
   /**
    * The pre-review an agent recorded on this translation (a `decide` with
-   * outcome `advise`), present while the translation stands at the revision
+   * outcome `prereview`), present while the translation stands at the revision
    * the agent judged. It decides nothing.
    */
   pre_review?: PreReviewInfo;
@@ -3020,7 +3052,7 @@ export interface ModelRecommendationsResponse {
   locales: ModelSweepLocaleGroup[];
 }
 
-// --- The project screens: the Map, the Reader and Decide on the server ---
+// --- The project screens: the Overview, the Reader and Decide on the server ---
 
 /** The body POST /:ws/:id/map/:ref/check answers with: the job to follow. */
 export interface ProjectCheckStarted {

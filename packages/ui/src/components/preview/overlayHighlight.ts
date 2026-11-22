@@ -1,15 +1,15 @@
-// overlayHighlight — map a block's stand-off overlays onto a flat text string,
-// producing color-coded, tooltipped highlight segments for FormatPreview.
+// overlayHighlight — map a block's stand-off overlays onto the text a line
+// reads, producing color-coded, tooltipped highlight segments for FormatPreview.
 //
-// Overlays anchor to run-index ranges, but the renderer works with the block's
-// concatenated literal text (RenderLine.text / targets[locale]). Each
-// OverlaySpanView already carries the engine-extracted `text` it covers, so we
-// locate spans by substring match over the rendered text — robust across the
-// run↔text projection — and fall back to nothing when a span's text can't be
-// found (e.g. it covered only inline markup). This mirrors the contract:
-// "locate spans by range over the runs, or fall back to matching span.text".
+// Overlays anchor to the runs. Each span is located by its anchor through
+// `charSpanForAnchor`, the arithmetic every surface shares
+// (@neokapi/kapi-format), so a highlight sits where the engine put it. A span
+// is never found by searching the text for what it covered: that marks the
+// first occurrence of a repeated word, and it marks text the engine never
+// meant when a producer and the renderer read the runs differently.
 
-import type { OverlaySpan, OverlayView } from "./types";
+import { charSpanForAnchor } from "./anchor";
+import type { OverlaySpan, OverlayView, Run } from "./types";
 
 // ── Overlay type → accent ────────────────────────────────────────────────────
 //
@@ -160,49 +160,48 @@ function tooltipFor(type: string, span: OverlaySpan): string {
 }
 
 /**
- * Resolve every overlay span for the active side into char ranges over `text`,
- * sorted by start. Spans whose text can't be located are dropped. Overlapping
- * spans are kept; the renderer flattens them (innermost-wins) below.
+ * Resolve every overlay span for the active side into char ranges over the
+ * text of `runs` (the side's reading, `runsText`, which indexes as
+ * `runsPlainText` does), sorted by start. A span whose anchor addresses
+ * nothing in those runs is dropped. Overlapping spans are kept; the renderer
+ * flattens them (innermost-wins) below.
  *
  * @param overlays  the block's overlays (already filtered or not)
  * @param side      the active side: "source" or a target locale key
- * @param text      the rendered text for that side
+ * @param runs      the runs of that side, which the anchors address
  * @param filter    optional set of overlay types to include (undefined = all)
  */
 export function resolveOverlaySpans(
   overlays: OverlayView[] | undefined,
   side: string,
-  text: string,
+  runs: Run[] | undefined,
   filter?: Set<string>,
 ): ResolvedSpan[] {
-  if (!overlays || !text) return [];
+  if (!overlays || !runs || runs.length === 0) return [];
   const out: ResolvedSpan[] = [];
-  // Track a search cursor per (overlay, sequence) so repeated identical span
-  // texts within one overlay map to successive occurrences, not all to the first.
   for (const ov of overlays) {
     if (ov.side !== side) continue;
     // "tm" is a line-level marker (content-memory leverage), not a span highlight — the
     // renderer reads it off the line directly and styles the whole line.
     if (ov.type === "tm") continue;
     if (filter && !filter.has(ov.type)) continue;
-    let cursor = 0;
     for (const span of ov.spans) {
       if (span.ignorable) continue;
-      const needle = span.text ?? "";
-      if (!needle) continue;
-      const idx = text.indexOf(needle, cursor);
-      if (idx < 0) continue;
+      const at = charSpanForAnchor(runs, span.range);
+      if (!at) continue;
+      const code = span.range.kind === "run" ? span.range.runId : undefined;
+      if (at.end <= at.start && !code) continue;
       out.push({
-        start: idx,
-        end: idx + needle.length,
+        start: at.start,
+        end: at.end,
         type: ov.type,
         // Style/tooltip key on the span too, so a voice-vocabulary qa span gets
         // the voice accent rather than the generic check accent.
         style: overlayStyle(ov.type, span),
         span,
         tooltip: tooltipFor(ov.type, span),
+        ...(code ? { code } : {}),
       });
-      cursor = idx + Math.max(1, needle.length);
     }
   }
   out.sort((a, b) => a.start - b.start || b.end - a.end);

@@ -1,6 +1,10 @@
 package tmx
 
-import "github.com/neokapi/neokapi/core/config"
+import (
+	"github.com/neokapi/neokapi/core/config"
+
+	coreschema "github.com/neokapi/neokapi/core/schema"
+)
 
 // okapiTMXTransformer converts OkfTmxFilterConfig specs to TmxFormatConfig.
 type okapiTMXTransformer struct{}
@@ -14,7 +18,7 @@ func (okapiTMXTransformer) Transform(spec map[string]any) (map[string]any, error
 		case "processAllTargets", "exitOnInvalid",
 			"escapeGT",
 			"useCodeFinder", "codeFinderRules":
-			result[key] = val
+			result[coreschema.SnakeCase(key)] = val
 
 		// Okapi-only params — drop silently
 		case "segType", "consolidateDpSkeleton", "propValueSep",
@@ -23,7 +27,7 @@ func (okapiTMXTransformer) Transform(spec map[string]any) (map[string]any, error
 			continue
 
 		default:
-			result[key] = val
+			result[coreschema.SnakeCase(key)] = val
 		}
 	}
 

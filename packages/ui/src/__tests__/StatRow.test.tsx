@@ -104,7 +104,7 @@ describe("StatRow", () => {
 
   it("makes a count with a hint focusable, so the hint is reachable from the keyboard", () => {
     render(
-      <StatRow items={[{ value: 11, label: "suggestions", hint: "Advising, not yet kept" }]} />,
+      <StatRow items={[{ value: 11, label: "suggestions", hint: "Waiting, not yet kept" }]} />,
     );
     const item = screen.getByRole("listitem");
     const focusable = item.querySelector('[tabindex="0"]');

@@ -16,7 +16,7 @@ import (
 // The presence tests on the Prose maturity axis (docs/internals/format-maturity.md
 // §2.8) for the languages this plugin reads the comments of: the build holds a
 // grammar for the language, and the plugin's manifest declares it, which is how
-// kapi learns to send the language's files here. They claim no rung.
+// kapi starts sending the language's files here. They claim no rung.
 func TestProseP0_typescript(t *testing.T) { assertPresent(t, "typescript") }
 
 func TestProseP0_tsx(t *testing.T) { assertPresent(t, "tsx") }

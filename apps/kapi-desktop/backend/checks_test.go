@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/change"
-	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
@@ -119,7 +118,7 @@ func TestRunChecksTargetFindingCarriesTargetLocale(t *testing.T) {
 	require.NoError(t, os.WriteFile(
 		filepath.Join(srcDir, "en.json"),
 		[]byte(`{"greeting":"Hello {name}"}`), 0o644))
-	// The target drops the placeholder — a placeholder-integrity finding.
+	// The target drops the placeholder, a placeholder-integrity finding.
 	require.NoError(t, os.WriteFile(
 		filepath.Join(srcDir, "de-DE.json"),
 		[]byte(`{"greeting":"Hallo"}`), 0o644))
@@ -326,7 +325,7 @@ func setupMarkupBlock(t *testing.T, app *App, page, voiceYAML string) markupFixt
 // TestResolveTargetPathMatchesRunner asserts that the checks panel resolves
 // translated-file paths through the same canonical resolver the runner uses
 // (project.ResolveTargetPath), so checks probe exactly the paths the runner
-// writes — including item bases, multi-segment `**` globs, and directory
+// writes, including item bases, multi-segment `**` globs, and directory
 // targets that the old hand-rolled expansion mishandled.
 func TestResolveTargetPathMatchesRunner(t *testing.T) {
 	root := t.TempDir()
@@ -401,12 +400,14 @@ func TestResolveTargetPathMatchesRunner(t *testing.T) {
 			got := app.resolveTargetPath(rf, op, tc.lang)
 			assert.Equal(t, filepath.Join(root, tc.want), got)
 
-			// Parity with the canonical resolver — the same
+			// Parity with the canonical resolver, the same
 			// project.ResolveTargetPath the flow runner now reaches through
 			// the shared cli orchestrator (cli.App.RunFlowAllLocales), so
 			// checks-side and runner-side resolution cannot diverge.
 			relSlash := filepath.ToSlash(tc.relative)
-			canonical := filepath.Join(root, project.ResolveTargetPath(tc.itemPath, tc.base, tc.target, relSlash, tc.lang))
+			resolved, err := project.ResolveTargetPath(tc.itemPath, tc.base, tc.target, relSlash, tc.lang)
+			require.NoError(t, err)
+			canonical := filepath.Join(root, resolved)
 			assert.Equal(t, canonical, got, "checks-side resolution must equal project.ResolveTargetPath")
 		})
 	}
@@ -421,35 +422,40 @@ func TestResolveTargetPathNoTemplate(t *testing.T) {
 	assert.Empty(t, app.resolveTargetPath(project.ResolvedFile{Relative: "a.json", Item: &project.ContentItem{Path: "a.json"}}, op, "fr"))
 }
 
-// TestRunChecksOperationalFailuresReturnNoResult covers the failures a run can
-// meet while reading what it checks. The voice profile is not among them: the
-// run resolves it from the project's store, so the bytes in the checkout are
-// never parsed and a malformed copy of them reaches no gate.
-func TestRunChecksOperationalFailuresReturnNoResult(t *testing.T) {
-	for _, failure := range []string{"source", "target", "terms"} {
-		t.Run(failure, func(t *testing.T) {
-			app := NewApp()
-			tabID, src := setupCheckProject(t, app, `{"greeting":"Hello world"}`)
-			filter := ProjectFilter{}
-			switch failure {
-			case "source":
-				if runtime.GOOS == "windows" || os.Geteuid() == 0 {
-					t.Skip("requires POSIX read permissions as an unprivileged user")
-				}
-				require.NoError(t, os.Chmod(src, 0o000))
-				t.Cleanup(func() { _ = os.Chmod(src, 0o644) })
-			case "target":
-				target := filepath.Join(filepath.Dir(src), "fr.json")
-				require.NoError(t, os.Mkdir(target, 0o755))
-				filter.Languages = []string{"fr"}
-			case "terms":
-				app.getOpenProject(tabID).tbHandle = "unavailable-store"
+// TestRunChecksReportsWhatItCouldNotRead covers the files a run meets and
+// cannot read, which it reports as `kapi check` does. A source that cannot be
+// read is a failing finding, so the run never shows a pass over it. A
+// directory where a translation belongs holds no translation, as every
+// measurement of the project reads it, so the translation is pending work.
+func TestRunChecksReportsWhatItCouldNotRead(t *testing.T) {
+	t.Run("source", func(t *testing.T) {
+		if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+			t.Skip("requires POSIX read permissions as an unprivileged user")
+		}
+		app := NewApp()
+		tabID, src := setupCheckProject(t, app, `{"greeting":"Hello world"}`)
+		require.NoError(t, os.Chmod(src, 0o000))
+		t.Cleanup(func() { _ = os.Chmod(src, 0o644) })
+		result, err := app.RunChecks(tabID, ProjectFilter{})
+		require.NoError(t, err)
+		assert.Equal(t, "failed", result.Verdict, "an unread source never reads as a pass")
+		require.Len(t, result.Files, 1)
+		require.Len(t, result.Files[0].Findings, 1)
+		assert.Equal(t, "structure", result.Files[0].Findings[0].Check)
+		assert.True(t, result.Files[0].Findings[0].Fails)
+	})
+	t.Run("target", func(t *testing.T) {
+		app := NewApp()
+		tabID, src := setupCheckProject(t, app, `{"greeting":"Hello world"}`)
+		require.NoError(t, os.Mkdir(filepath.Join(filepath.Dir(src), "fr.json"), 0o755))
+		result, err := app.RunChecks(tabID, ProjectFilter{Languages: []string{"fr"}})
+		require.NoError(t, err)
+		for _, f := range result.Files {
+			for _, d := range f.Findings {
+				assert.NotEqual(t, "target", d.Field, "a directory holds no translation to check: %s", d.Message)
 			}
-			result, err := app.RunChecks(tabID, filter)
-			require.Error(t, err)
-			assert.Nil(t, result, "incomplete execution must not publish a passing score")
-		})
-	}
+		}
+	})
 }
 
 // TestRunChecksResolvesAVoiceBoundByName: a recipe that names its profile
@@ -492,6 +498,7 @@ func TestRunChecksResolvesAVoiceBoundByName(t *testing.T) {
 	require.Len(t, res.Files, 1)
 	require.NotEmpty(t, res.Files[0].Findings, "the named profile governs the file")
 	assert.Equal(t, "utilize", res.Files[0].Findings[0].Rule)
+	assert.Equal(t, "terms", res.Files[0].Findings[0].Check)
 }
 
 // TestRunChecksIgnoresAMalformedProfileInTheCheckout: a gate answers from the
@@ -531,8 +538,11 @@ func TestRunChecksVerdictRecordsCanaries(t *testing.T) {
 	assert.Empty(t, res.DidNotRunCause)
 }
 
-// TestRunChecksNeverPassesOverNothing verifies that empty content and projects
-// with no applicable checker are reported as not checked, rather than passing.
+// TestRunChecksNeverPassesOverNothing verifies that empty content is reported
+// as not checked rather than passing. Content with blocks is always checked:
+// the hygiene analyzer runs over every file and proves it can fail, as it does
+// for `kapi check`, so a project with no voice and no terms still has a
+// verdict.
 func TestRunChecksNeverPassesOverNothing(t *testing.T) {
 	t.Run("content with no blocks", func(t *testing.T) {
 		app := NewApp()
@@ -549,9 +559,8 @@ func TestRunChecksNeverPassesOverNothing(t *testing.T) {
 		tabID, _ := setupCheckProjectVoiced(t, app, `{"greeting":"Hello world"}`, "")
 		res, err := app.RunChecks(tabID, ProjectFilter{})
 		require.NoError(t, err)
-		assert.Equal(t, "did_not_run", res.Verdict)
-		assert.False(t, res.Pass)
-		assert.Equal(t, "content_not_checked", res.DidNotRunCause)
+		assert.Equal(t, "passed", res.Verdict, "the hygiene analyzer checked the content")
+		assert.Empty(t, res.DidNotRunCause)
 	})
 
 	t.Run("a voice profile with nothing to catch", func(t *testing.T) {
@@ -560,29 +569,7 @@ func TestRunChecksNeverPassesOverNothing(t *testing.T) {
 			"id: house\nname: House Style\n")
 		res, err := app.RunChecks(tabID, ProjectFilter{})
 		require.NoError(t, err)
-		assert.Equal(t, "did_not_run", res.Verdict)
-		assert.Equal(t, "content_not_checked", res.DidNotRunCause)
+		assert.Equal(t, "passed", res.Verdict, "the hygiene analyzer checked the content")
+		assert.Empty(t, res.DidNotRunCause)
 	})
-}
-
-// TestCheckRunVerdict pairs each outcome with the one it must not become.
-func TestCheckRunVerdict(t *testing.T) {
-	caught := check.CanaryOutcome{Status: check.CanaryCaught, Probes: 1}
-	missed := check.CanaryOutcome{Status: check.CanaryMissed, Probes: 1, Missed: "dropped placeholder"}
-	proven := []check.AnalyzerExecution{{ID: "placeholder", Status: check.AnalyzerPassed, Required: true, Canary: &caught}}
-	critical := []check.Finding{{Category: "placeholder", Fails: true}}
-
-	assert.Equal(t, "passed", checkRunVerdict(nil, nil, 2, proven, 100, nil, nil).Verdict)
-	failed := checkRunVerdict(critical, nil, 2, proven, 75, nil, nil)
-	assert.Equal(t, "failed", failed.Verdict)
-	assert.False(t, failed.Pass)
-
-	broken := checkRunVerdict(critical, nil, 2, []check.AnalyzerExecution{{ID: "placeholder", Status: check.AnalyzerInvalid, Required: true, Canary: &missed}}, 75, nil, nil)
-	assert.Equal(t, "did_not_run", broken.Verdict, "a missed canary outranks the failure")
-	assert.Equal(t, "checker_invalid", broken.DidNotRunCause)
-
-	empty := checkRunVerdict(nil, nil, 0, proven, 100, nil, nil)
-	assert.Equal(t, "did_not_run", empty.Verdict)
-	assert.Equal(t, "nothing_to_check", empty.DidNotRunCause)
-	assert.NotEqual(t, broken.DidNotRunCause, empty.DidNotRunCause)
 }

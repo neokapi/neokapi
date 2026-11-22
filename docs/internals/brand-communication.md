@@ -233,7 +233,7 @@ the source of truth. Specifics that have bitten us:
 ## Machine enforcement
 
 This guideline is encoded as the project's voice profile, held in the
-project's context on `refs/kapi/context` and bound project-wide by
+project's context on the Bowrain project and bound project-wide by
 `defaults.voice` in the root `kapi.yaml`; keep the two in step. `make check-docs-prose` runs `kapi check` over both documentation sites,
 the READMEs and the site taglines under that profile, and
 `make check-governed-prose` does the same for the package and installer

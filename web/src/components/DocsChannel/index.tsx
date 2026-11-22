@@ -21,8 +21,10 @@ import styles from "./styles.module.css";
 export interface DocsChannelInfo {
   /** Which channel this build serves. */
   channel: "stable" | "next";
-  /** Version the channel describes, e.g. "1.3.0-rc1". */
+  /** Version the channel describes, e.g. "1.3.0-rc1", or the next minor after a GA. */
   version: string;
+  /** Whether a prerelease of that version is published to install. */
+  prerelease: boolean;
   /** Latest GA version, e.g. "1.2.0". */
   stableVersion: string;
   /** Absolute URL of the stable channel root, with a trailing slash. */
@@ -92,7 +94,13 @@ export function DocsChannelBanner(): React.ReactElement | null {
     <div className={styles.banner} role="note">
       <span>
         These pages describe kapi {info.version}, the release in progress.{" "}
-        <Link to={info.installTo}>Install the beta</Link> to follow them, or read the{" "}
+        {info.prerelease ? (
+          <>
+            <Link to={info.installTo}>Install the beta</Link> to follow them, or read the{" "}
+          </>
+        ) : (
+          <>Read the </>
+        )}
         <a href={info.stableUrl}>documentation for {info.stableVersion}</a>.
       </span>
     </div>

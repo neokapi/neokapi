@@ -8,7 +8,7 @@
 // no new client code.
 //
 // The format is READ-ONLY and says so in the manifest. There is no writer, and
-// a program is never written back — see internal/proseread for why that is a
+// a program is never written back. See internal/proseread for why that is a
 // decision rather than an omission.
 package main
 
@@ -116,8 +116,10 @@ func serve() error {
 	if err != nil {
 		return fmt.Errorf("temp dir: %w", err)
 	}
+	defer func() { _ = os.RemoveAll(dir) }()
 	sock := filepath.Join(dir, "kapi-sourcecode.sock")
-	lis, err := net.Listen("unix", sock)
+	var lc net.ListenConfig
+	lis, err := lc.Listen(context.Background(), "unix", sock)
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", sock, err)
 	}
@@ -125,10 +127,9 @@ func serve() error {
 	srv := grpc.NewServer()
 	pb.RegisterBridgeServiceServer(srv, &server{stop: srv.GracefulStop})
 
-	hs, _ := json.Marshal(map[string]string{"socket": sock, "version": version.Version})
-	fmt.Println(string(hs))
-	_ = os.Stdout.Sync()
-
+	// Settle the signal disposition before the handshake: a host may send
+	// SIGTERM as soon as it reads the line, and a signal that arrives before
+	// Notify kills the process before it can remove its socket.
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
@@ -136,10 +137,11 @@ func serve() error {
 		srv.GracefulStop()
 	}()
 
-	err = srv.Serve(lis)
-	_ = os.Remove(sock)
-	_ = os.Remove(dir)
-	return err
+	hs, _ := json.Marshal(map[string]string{"socket": sock, "version": version.Version})
+	fmt.Println(string(hs))
+	_ = os.Stdout.Sync()
+
+	return srv.Serve(lis)
 }
 
 // server implements BridgeService. Read-mode Process only: this plugin provides
@@ -208,7 +210,7 @@ func (s *server) Process(stream pb.BridgeService_ProcessServer) error {
 }
 
 // optionsFrom decodes the recipe's format config, which arrives as flat strings.
-// nodePathPatterns is comma-separated; empty means "extract everything the
+// node_path_patterns is comma-separated; empty means "extract everything the
 // grammar exposes", which is the reader's own default.
 func optionsFrom(params map[string]string) (proseread.Options, error) {
 	opts := proseread.Options{
@@ -219,10 +221,10 @@ func optionsFrom(params map[string]string) (proseread.Options, error) {
 	// A value that does not decode is REPORTED rather than skipped: silently
 	// dropping the include list would widen extraction to every string in the
 	// file, which reads as a working check quietly doing something else.
-	if raw := strings.TrimSpace(params["nodePathPatterns"]); raw != "" {
+	if raw := strings.TrimSpace(params["node_path_patterns"]); raw != "" {
 		var paths []string
 		if err := json.Unmarshal([]byte(raw), &paths); err != nil {
-			return opts, fmt.Errorf("nodePathPatterns: %w", err)
+			return opts, fmt.Errorf("node_path_patterns: %w", err)
 		}
 		opts.NodePathPatterns = paths
 	}
@@ -239,7 +241,7 @@ func complete(stream pb.BridgeService_ProcessServer, errMsg string) error {
 func readInput(header *pb.ProcessHeader) ([]byte, string, error) {
 	in := header.GetInput()
 	if in == nil {
-		return nil, "", fmt.Errorf("no input in header")
+		return nil, "", errors.New("no input in header")
 	}
 	name := header.GetInputName()
 	if path := in.GetPath(); path != "" {
@@ -255,5 +257,5 @@ func readInput(header *pb.ProcessHeader) ([]byte, string, error) {
 	if inline := in.GetInline(); len(inline) > 0 {
 		return inline, name, nil
 	}
-	return nil, "", fmt.Errorf("empty input")
+	return nil, "", errors.New("empty input")
 }

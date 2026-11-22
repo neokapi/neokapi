@@ -129,7 +129,7 @@ func TestReadWithTranslatableConfig(t *testing.T) {
 	assert.Contains(t, texts, "Hello")
 	assert.Contains(t, texts, "World")
 
-	// With extractNonTranslatableContent on (the default, #928), the
+	// With extract_non_translatable_content on (the default, #928), the
 	// whitelist-excluded <id> is surfaced as a non-translatable content block
 	// rather than being discarded into a contentless Data part.
 	var nonTrans []*model.Block
@@ -144,7 +144,7 @@ func TestReadWithTranslatableConfig(t *testing.T) {
 }
 
 // TestNonTranslatableContent_FlagOff verifies that disabling
-// extractNonTranslatableContent restores the prior behavior: whitelist-excluded
+// extract_non_translatable_content restores the prior behavior: whitelist-excluded
 // element text is dropped into a contentless Data part, never surfaced as a
 // block.
 func TestNonTranslatableContent_FlagOff(t *testing.T) {
@@ -222,7 +222,7 @@ func TestNonTranslatableContent_CodeElementRole(t *testing.T) {
 }
 
 // TestNonTranslatableContent_ByteExact verifies a byte-exact skeleton
-// round-trip with extractNonTranslatableContent on (the default): the
+// round-trip with extract_non_translatable_content on (the default): the
 // surfaced non-translatable content rides the skeleton without altering output.
 func TestNonTranslatableContent_ByteExact(t *testing.T) {
 	cfg := &xmlfmt.Config{
@@ -784,10 +784,10 @@ func TestWhitespace_PreserveWithConfig(t *testing.T) {
 func TestWhitespace_ElementPreserve(t *testing.T) {
 	cfg := &xmlfmt.Config{}
 	err := cfg.ApplyMap(map[string]any{
-		"parser": map[string]any{"preserveWhitespace": false},
+		"parser": map[string]any{"preserve_whitespace": false},
 		"elements": map[string]any{
 			"pre": map[string]any{
-				"ruleTypes": []any{"TEXTUNIT", "PRESERVE_WHITESPACE"},
+				"rule_types": []any{"TEXTUNIT", "PRESERVE_WHITESPACE"},
 			},
 		},
 	})
@@ -887,7 +887,7 @@ func TestExclude_ViaElementRule(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"pre": map[string]any{
-				"ruleTypes": []any{"EXCLUDE"},
+				"rule_types": []any{"EXCLUDE"},
 			},
 		},
 	})
@@ -907,10 +907,10 @@ func TestInclude_InsideExcluded(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"pre": map[string]any{
-				"ruleTypes": []any{"EXCLUDE"},
+				"rule_types": []any{"EXCLUDE"},
 			},
 			"b": map[string]any{
-				"ruleTypes": []any{"INCLUDE"},
+				"rule_types": []any{"INCLUDE"},
 			},
 		},
 	})
@@ -931,7 +931,7 @@ func TestExclude_WithPositiveCondition(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"pre": map[string]any{
-				"ruleTypes":  []any{"EXCLUDE"},
+				"rule_types": []any{"EXCLUDE"},
 				"conditions": []any{"x", "EQUALS", "true"},
 			},
 		},
@@ -952,7 +952,7 @@ func TestExclude_WithNegativeCondition(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"pre": map[string]any{
-				"ruleTypes":  []any{"EXCLUDE"},
+				"rule_types": []any{"EXCLUDE"},
 				"conditions": []any{"x", "EQUALS", "false"},
 			},
 		},
@@ -972,7 +972,7 @@ func TestExclude_WithPositiveConditionRegex(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"pre": map[string]any{
-				"ruleTypes":  []any{"EXCLUDE"},
+				"rule_types": []any{"EXCLUDE"},
 				"conditions": []any{"x", "MATCHES", "tr.*"},
 			},
 		},
@@ -993,7 +993,7 @@ func TestExclude_Matches(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"p": map[string]any{
-				"ruleTypes":  []any{"EXCLUDE"},
+				"rule_types": []any{"EXCLUDE"},
 				"conditions": []any{"x", "MATCHES", "ABZ"},
 			},
 		},
@@ -1018,7 +1018,7 @@ func TestExcludeByDefault_Basic(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"item": map[string]any{
-				"ruleTypes":  []any{"INCLUDE"},
+				"rule_types": []any{"INCLUDE"},
 				"conditions": []any{"translate", "EQUALS", "y"},
 			},
 		},
@@ -1045,7 +1045,7 @@ func TestExcludeByDefault_Issue282(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"item": map[string]any{
-				"ruleTypes":  []any{"INCLUDE"},
+				"rule_types": []any{"INCLUDE"},
 				"conditions": []any{"translate", "EQUALS", "y"},
 			},
 		},
@@ -1070,7 +1070,7 @@ func TestExcludeByDefault_EmptyElements(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"item": map[string]any{
-				"ruleTypes":  []any{"INCLUDE"},
+				"rule_types": []any{"INCLUDE"},
 				"conditions": []any{"translate", "EQUALS", "y"},
 			},
 		},
@@ -1099,10 +1099,10 @@ func TestInlineExclude_Basic(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"tag1": map[string]any{
-				"ruleTypes": []any{"INLINE", "EXCLUDE"},
+				"rule_types": []any{"INLINE", "EXCLUDE"},
 			},
 			"tag2": map[string]any{
-				"ruleTypes": []any{"INLINE"},
+				"rule_types": []any{"INLINE"},
 			},
 		},
 	})
@@ -1123,10 +1123,10 @@ func TestInlineExclude_Reversed(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"tag1": map[string]any{
-				"ruleTypes": []any{"INLINE", "EXCLUDE"},
+				"rule_types": []any{"INLINE", "EXCLUDE"},
 			},
 			"tag2": map[string]any{
-				"ruleTypes": []any{"INLINE"},
+				"rule_types": []any{"INLINE"},
 			},
 		},
 	})
@@ -1147,10 +1147,10 @@ func TestInlineExclude_NotExclude(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"tag1": map[string]any{
-				"ruleTypes": []any{"INLINE"},
+				"rule_types": []any{"INLINE"},
 			},
 			"tag2": map[string]any{
-				"ruleTypes": []any{"INLINE"},
+				"rule_types": []any{"INLINE"},
 			},
 		},
 	})
@@ -1171,10 +1171,10 @@ func TestInlineExclude_Embedded(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"tag1": map[string]any{
-				"ruleTypes": []any{"INLINE", "EXCLUDE"},
+				"rule_types": []any{"INLINE", "EXCLUDE"},
 			},
 			"tag2": map[string]any{
-				"ruleTypes": []any{"INLINE"},
+				"rule_types": []any{"INLINE"},
 			},
 		},
 	})
@@ -1196,10 +1196,10 @@ func TestInlineExclude_NotExcludeEmbedded(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"tag1": map[string]any{
-				"ruleTypes": []any{"INLINE"},
+				"rule_types": []any{"INLINE"},
 			},
 			"tag2": map[string]any{
-				"ruleTypes": []any{"INLINE"},
+				"rule_types": []any{"INLINE"},
 			},
 		},
 	})
@@ -1221,10 +1221,10 @@ func TestInlineExclude_TwoExcludes(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"tag1": map[string]any{
-				"ruleTypes": []any{"INLINE", "EXCLUDE"},
+				"rule_types": []any{"INLINE", "EXCLUDE"},
 			},
 			"tag2": map[string]any{
-				"ruleTypes": []any{"INLINE", "EXCLUDE"},
+				"rule_types": []any{"INLINE", "EXCLUDE"},
 			},
 		},
 	})
@@ -1247,10 +1247,10 @@ func TestInlineExclude_Config(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"tag1": map[string]any{
-				"ruleTypes": []any{"INLINE", "EXCLUDE"},
+				"rule_types": []any{"INLINE", "EXCLUDE"},
 			},
 			"tag2": map[string]any{
-				"ruleTypes": []any{"INLINE"},
+				"rule_types": []any{"INLINE"},
 			},
 		},
 	})
@@ -1271,7 +1271,7 @@ func TestInlineExclude_Standalone(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"tag1": map[string]any{
-				"ruleTypes": []any{"INLINE", "EXCLUDE"},
+				"rule_types": []any{"INLINE", "EXCLUDE"},
 			},
 		},
 	})
@@ -1297,12 +1297,12 @@ func TestAttributeID_FromRule(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"p": map[string]any{
-				"ruleTypes":    []any{"TEXTUNIT"},
-				"idAttributes": []any{"id"},
+				"rule_types":    []any{"TEXTUNIT"},
+				"id_attributes": []any{"id"},
 			},
 			"pre": map[string]any{
-				"ruleTypes":    []any{"TEXTUNIT"},
-				"idAttributes": []any{"id"},
+				"rule_types":    []any{"TEXTUNIT"},
+				"id_attributes": []any{"id"},
 			},
 		},
 	})
@@ -1324,8 +1324,8 @@ func TestAttributeID_MultipleIDAttrs(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"p": map[string]any{
-				"ruleTypes":    []any{"TEXTUNIT"},
-				"idAttributes": []any{"id", "xml:id"},
+				"rule_types":    []any{"TEXTUNIT"},
+				"id_attributes": []any{"id", "xml:id"},
 			},
 		},
 	})
@@ -1349,7 +1349,7 @@ func TestAttributeWritable(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"attributes": map[string]any{
 			"dir": map[string]any{
-				"ruleTypes": []any{"ATTRIBUTE_WRITABLE"},
+				"rule_types": []any{"ATTRIBUTE_WRITABLE"},
 			},
 		},
 	})
@@ -1374,8 +1374,8 @@ func TestTranslatableAttr_WithCondition(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"p": map[string]any{
-				"ruleTypes": []any{"TEXTUNIT"},
-				"translatableAttributes": map[string]any{
+				"rule_types": []any{"TEXTUNIT"},
+				"translatable_attributes": map[string]any{
 					"alt": []any{"attr1", "EQUALS", "trans"},
 				},
 			},
@@ -1397,8 +1397,8 @@ func TestTranslatableAttr_With2ORConditions(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"p": map[string]any{
-				"ruleTypes": []any{"TEXTUNIT"},
-				"translatableAttributes": map[string]any{
+				"rule_types": []any{"TEXTUNIT"},
+				"translatable_attributes": map[string]any{
 					"alt": []any{
 						[]any{"attr1", "EQUALS", "trans"},
 						[]any{"attr2", "EQUALS", "yes"},
@@ -1427,8 +1427,8 @@ func TestAttrTrans_AllElementsExcept(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"attributes": map[string]any{
 			"alt": map[string]any{
-				"ruleTypes":         []any{"ATTRIBUTE_TRANS"},
-				"allElementsExcept": []any{"elem2", "elem3"},
+				"rule_types":          []any{"ATTRIBUTE_TRANS"},
+				"all_elements_except": []any{"elem2", "elem3"},
 			},
 		},
 	})
@@ -1449,8 +1449,8 @@ func TestAttrTrans_OnlyTheseElements(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"attributes": map[string]any{
 			"alt": map[string]any{
-				"ruleTypes":         []any{"ATTRIBUTE_TRANS"},
-				"onlyTheseElements": []any{"elem1", "elem3"},
+				"rule_types":          []any{"ATTRIBUTE_TRANS"},
+				"only_these_elements": []any{"elem1", "elem3"},
 			},
 		},
 	})
@@ -1475,7 +1475,7 @@ func TestInlineCondition_Positive(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"b": map[string]any{
-				"ruleTypes":  []any{"INLINE"},
+				"rule_types": []any{"INLINE"},
 				"conditions": []any{"x", "EQUALS", "true"},
 			},
 		},
@@ -1500,7 +1500,7 @@ func TestStartTag_OpenNotPlaceholder(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"b": map[string]any{
-				"ruleTypes": []any{"INLINE"},
+				"rule_types": []any{"INLINE"},
 			},
 		},
 	})
@@ -1714,7 +1714,7 @@ func TestConfig_Validate_OK(t *testing.T) {
 func TestConfig_ApplyMap_TranslatableElements(t *testing.T) {
 	cfg := &xmlfmt.Config{}
 	err := cfg.ApplyMap(map[string]any{
-		"translatableElements": []any{"title", "description"},
+		"translatable_elements": []any{"title", "description"},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"title", "description"}, cfg.TranslatableElements)
@@ -1723,7 +1723,7 @@ func TestConfig_ApplyMap_TranslatableElements(t *testing.T) {
 func TestConfig_ApplyMap_TranslatableAttributes(t *testing.T) {
 	cfg := &xmlfmt.Config{}
 	err := cfg.ApplyMap(map[string]any{
-		"translatableAttributes": []any{"alt", "title"},
+		"translatable_attributes": []any{"alt", "title"},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"alt", "title"}, cfg.TranslatableAttributes)
@@ -1732,7 +1732,7 @@ func TestConfig_ApplyMap_TranslatableAttributes(t *testing.T) {
 func TestConfig_ApplyMap_PreserveWhitespace(t *testing.T) {
 	cfg := &xmlfmt.Config{}
 	err := cfg.ApplyMap(map[string]any{
-		"preserveWhitespace": true,
+		"preserve_whitespace": true,
 	})
 	require.NoError(t, err)
 	assert.True(t, cfg.PreserveWhitespace)
@@ -1741,7 +1741,7 @@ func TestConfig_ApplyMap_PreserveWhitespace(t *testing.T) {
 func TestConfig_ApplyMap_ExcludeByDefault(t *testing.T) {
 	cfg := &xmlfmt.Config{}
 	err := cfg.ApplyMap(map[string]any{
-		"excludeByDefault": true,
+		"exclude_by_default": true,
 	})
 	require.NoError(t, err)
 	assert.True(t, cfg.ExcludeByDefault)
@@ -1751,8 +1751,8 @@ func TestConfig_ApplyMap_Parser(t *testing.T) {
 	cfg := &xmlfmt.Config{}
 	err := cfg.ApplyMap(map[string]any{
 		"parser": map[string]any{
-			"preserveWhitespace": true,
-			"assumeWellformed":   true,
+			"preserve_whitespace": true,
+			"assume_wellformed":   true,
 		},
 	})
 	require.NoError(t, err)
@@ -1764,10 +1764,10 @@ func TestConfig_ApplyMap_ElementRules(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"pre": map[string]any{
-				"ruleTypes": []any{"EXCLUDE"},
+				"rule_types": []any{"EXCLUDE"},
 			},
 			"b": map[string]any{
-				"ruleTypes": []any{"INLINE"},
+				"rule_types": []any{"INLINE"},
 			},
 		},
 	})
@@ -1780,7 +1780,7 @@ func TestConfig_ApplyMap_AttributeRules(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"attributes": map[string]any{
 			"dir": map[string]any{
-				"ruleTypes": []any{"ATTRIBUTE_WRITABLE"},
+				"rule_types": []any{"ATTRIBUTE_WRITABLE"},
 			},
 		},
 	})
@@ -1841,7 +1841,7 @@ func TestInlineCondition_Negative(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"b": map[string]any{
-				"ruleTypes":  []any{"INLINE"},
+				"rule_types": []any{"INLINE"},
 				"conditions": []any{"x", "EQUALS", "true"},
 			},
 		},
@@ -2078,7 +2078,7 @@ func TestConfig_ExcludeByDefault(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"item": map[string]any{
-				"ruleTypes":  []any{"INCLUDE"},
+				"rule_types": []any{"INCLUDE"},
 				"conditions": []any{"translate", "EQUALS", "y"},
 			},
 		},
@@ -2106,8 +2106,8 @@ func TestConfig_AttributeID(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"text": map[string]any{
-				"ruleTypes":    []any{"TEXTUNIT"},
-				"idAttributes": []any{"id"},
+				"rule_types":    []any{"TEXTUNIT"},
+				"id_attributes": []any{"id"},
 			},
 		},
 	})
@@ -2162,7 +2162,7 @@ func TestExclude_RegexWithAttribute(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"'.*'": map[string]any{
-				"ruleTypes":  []any{"EXCLUDE"},
+				"rule_types": []any{"EXCLUDE"},
 				"conditions": []any{"x", "EQUALS", "true"},
 			},
 		},
@@ -2184,7 +2184,7 @@ func TestExclude_RegexWithoutAttribute(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"'.*'": map[string]any{
-				"ruleTypes":  []any{"EXCLUDE"},
+				"rule_types": []any{"EXCLUDE"},
 				"conditions": []any{"x", "EQUALS", "true"},
 			},
 		},
@@ -2210,7 +2210,7 @@ func TestInlineExclude_RegexTrick(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"elements": map[string]any{
 			"'tag\\d+'": map[string]any{
-				"ruleTypes": []any{"INLINE", "EXCLUDE"},
+				"rule_types": []any{"INLINE", "EXCLUDE"},
 			},
 		},
 	})
@@ -2241,7 +2241,7 @@ func TestAttributeWritable_Regex(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"attributes": map[string]any{
 			"dir": map[string]any{
-				"ruleTypes": []any{"ATTRIBUTE_WRITABLE"},
+				"rule_types": []any{"ATTRIBUTE_WRITABLE"},
 			},
 		},
 	})

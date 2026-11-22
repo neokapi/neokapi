@@ -1,10 +1,10 @@
-# Full local Bowrain stack — everything in Docker, plain HTTP on localhost.
-#
+# Full local Bowrain stack: everything in Docker, plain HTTP on localhost.
+
 # Unlike compose.yaml (dev *dependencies* only; server/web run on the host),
-# this file brings up the entire platform — server, async worker, and all
-# backing services — so you can exercise real push → translate → pull cycles
+# this file brings up the entire platform (server, async worker, and all
+# backing services), so you can exercise real push → translate → pull cycles
 # with the kapi plugin against a self-contained local deployment.
-#
+
 #   ┌──────────┐  device-flow/anon   ┌────────────────┐
 #   │   kapi   │ ──────────────────▶ │ bowrain-server │ ──┐ enqueue (SQS)
 #   │ (plugin) │ ◀────────────────── │   :8080 (API)  │   │
@@ -14,20 +14,20 @@
 #                                         (Redis)    │  ingest + xlate │   (Gemini/…)
 #                                                    └────────────────┘
 #   Jobs run on SQS (ElasticMQ), events on Redis Streams, and push payloads/blobs
-#   in S3 (a Versity S3 gateway) — the same managed-service code paths the AWS deployment uses.
-#
+#   in S3 (a Versity S3 gateway): the same managed-service code paths the AWS deployment uses.
+
 # Usage:
 #   cp .env.example .env            # optional: set GEMINI_API_KEY etc.
 #   docker compose -f compose.full.yaml up -d --build --wait
 #   docker compose -f compose.full.yaml --profile web up -d --build   # + web UI on :8080
 #   docker compose -f compose.full.yaml down -v                       # tear down
-#
+
 # Endpoints:
 #   http://localhost:8080            bowrain-server API (+ web UI when --profile web)
 #   http://localhost:8080/api/v1/health
 #   http://localhost:8180            Keycloak (admin/admin)
 #   http://localhost:8025            Mailpit (sent emails)
-#
+
 # Translation upstream (worker):
 #   BOWRAIN_PLATFORM_PROVIDER defaults to "demo" (offline, deterministic, no key)
 #   so the full pipeline works out of the box. Set it to "gemini" + GEMINI_API_KEY
@@ -129,7 +129,7 @@ services:
     # The Versity S3 gateway (Apache-2.0) over a directory, pinned to the
     # release the test suites use (bowrain/testutil/testimage), so the local
     # stack and the tests stand up the same server.
-    image: versity/versitygw:v1.8.0
+    image: versity/versitygw:v1.11.0
     command: ["--access", "bowrainlocal", "--secret", "bowrainlocal-secret", "posix", "/data"]
     ports:
       - "9000:7070"
@@ -138,7 +138,7 @@ services:
 
   # One-shot: create the blob bucket, mirroring the Terraform S3 bucket in prod.
   s3-init:
-    image: amazon/aws-cli:2.27.50
+    image: amazon/aws-cli:2.42.1
     depends_on:
       s3:
         condition: service_started
@@ -162,7 +162,7 @@ services:
   # (no license). The event bus runs on Redis Streams (separate concern), so the
   # box holds no dedicated queue broker.
   elasticmq:
-    image: softwaremill/elasticmq-native:latest
+    image: softwaremill/elasticmq-native:1.7.1
     ports:
       - "9324:9324"
       - "9325:9325"
@@ -171,7 +171,7 @@ services:
   # (a 5m visibility timeout matching the stale-sweeper contract; DLQ/redrive is
   # a prod durability concern provisioned by Terraform, not needed for local dev).
   sqs-init:
-    image: amazon/aws-cli:latest
+    image: amazon/aws-cli:2.42.1
     depends_on:
       elasticmq:
         condition: service_started
@@ -208,15 +208,15 @@ services:
       BOWRAIN_OIDC_PUBLIC_URL: http://localhost:8180/realms/bowrain
       BOWRAIN_OIDC_CLIENT_ID: bowrain
       BOWRAIN_OIDC_CLIENT_SECRET: bowrain-secret
-      # The admin/ctrl control plane is not wired into the local stack — its OIDC
+      # The admin/ctrl control plane is not wired into the local stack: its OIDC
       # verifier can't satisfy the localhost-vs-in-cluster issuer split here. The
-      # server runs fine without it (admin API simply stays disabled).
+      # server runs fine without it (the admin API stays disabled).
       BOWRAIN_SMTP_HOST: mailpit:1025
       BOWRAIN_SMTP_FROM: noreply@bowrain.local
       BOWRAIN_REDIS_URL: redis://redis:6379
-      # Event bus on Redis Streams (ElastiCache in prod) — no separate broker.
+      # Event bus on Redis Streams (ElastiCache in prod), no separate broker.
       BOWRAIN_EVENT_BACKEND: redis
-      # Object storage via the S3 gateway — identical s3blob code path to
+      # Object storage via the S3 gateway, the same s3blob code path as
       # Amazon S3 in production. S3_PUBLIC_ENDPOINT is the host the browser uses,
       # so pre-signed URLs the server mints still resolve client-side.
       BLOB_STORAGE_BACKEND: s3
@@ -227,7 +227,7 @@ services:
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: bowrainlocal
       AWS_SECRET_ACCESS_KEY: bowrainlocal-secret
-      # Job queue via LocalStack (SQS-compatible) — same sqsqueue code path as AWS.
+      # Job queue via LocalStack (SQS-compatible): the sqsqueue code path AWS runs.
       BOWRAIN_QUEUE_BACKEND: sqs
       SQS_ENDPOINT: http://elasticmq:9324
       # Serve the SPA from the server (single origin). Populated by the `web`
@@ -258,6 +258,12 @@ services:
         condition: service_completed_successfully
       sqs-init:
         condition: service_completed_successfully
+      # Only under `--profile web`. As a dependency the one-shot copy counts as
+      # done when it exits 0, so `up --wait` waits for it instead of failing on
+      # an exited container, and the server starts with the web UI in place.
+      web-init:
+        condition: service_completed_successfully
+        required: false
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/health"]
       interval: 5s
@@ -272,9 +278,9 @@ services:
     environment:
       BOWRAIN_DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain?sslmode=disable
       BOWRAIN_REDIS_URL: redis://redis:6379
-      # Event bus on Redis Streams (ElastiCache in prod) — no separate broker.
+      # Event bus on Redis Streams (ElastiCache in prod), no separate broker.
       BOWRAIN_EVENT_BACKEND: redis
-      # Object storage via the S3 gateway — same bucket and s3blob code path as the server,
+      # Object storage via the S3 gateway: the bucket and s3blob code path the server uses,
       # so both read/write the same push payloads through S3, not a shared disk.
       BLOB_STORAGE_BACKEND: s3
       S3_BLOB_BUCKET: bowrain-blobs
@@ -284,12 +290,12 @@ services:
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: bowrainlocal
       AWS_SECRET_ACCESS_KEY: bowrainlocal-secret
-      # Job queue via LocalStack (SQS) — same queues the server enqueues to.
+      # Job queue via LocalStack (SQS): the queues the server enqueues to.
       BOWRAIN_QUEUE_BACKEND: sqs
       SQS_ENDPOINT: http://elasticmq:9324
       # Upstream translation provider for "platform" jobs (auto-translate-on-push).
       # "demo" = offline deterministic stub (no key). Set to "gemini" + GEMINI_API_KEY
-      # (or openai/anthropic/ollama) for real translations — see .env.example.
+      # (or openai/anthropic/ollama) for real translations; see .env.example.
       BOWRAIN_PLATFORM_PROVIDER: ${BOWRAIN_PLATFORM_PROVIDER:-demo}
       BOWRAIN_PLATFORM_MODEL: ${BOWRAIN_PLATFORM_MODEL:-}
       BOWRAIN_PLATFORM_API_KEY: ${BOWRAIN_PLATFORM_API_KEY:-}

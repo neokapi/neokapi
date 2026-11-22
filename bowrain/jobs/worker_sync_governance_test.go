@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -57,6 +58,8 @@ func (a pushAuthority) AllowsLanguage(_ context.Context, q review.Query) (bool, 
 type governedPush struct {
 	projectID string
 	actor     string
+	// tool is the tool whose token made the push, empty for a person.
+	tool      string
 	blocks    []*model.Block
 	item      string
 	decisions []venue.UnitDecision
@@ -87,6 +90,7 @@ func (p governedPush) run(t *testing.T, deps *WorkerDeps, jobID string) error {
 		"project_id": p.projectID,
 		"stream":     "main",
 		"actor_id":   p.actor,
+		"actor_tool": p.tool,
 		"chunks": []map[string]any{{
 			"index": 0, "content_type": "blocks", "hash": chunkHash,
 			"record_count": len(syncBlocks), "byte_size": len(chunkData),
@@ -763,4 +767,43 @@ type unreadableProject struct{ *bstore.PostgresStore }
 
 func (unreadableProject) GetProject(context.Context, string) (*store.Project, error) {
 	return nil, errors.New("read project: connection reset by peer")
+}
+
+// A tool records no verdict. Its push lands the content at translated and
+// records no approval, whether or not the deployment can resolve review
+// permissions, and even when the member who issued its token may review.
+func TestPushReviewGovernance_AToolRecordsNoVerdict(t *testing.T) {
+	const item = "en.json"
+	const locale = "fr"
+	tests := []struct {
+		name string
+		auth review.Authority
+	}{
+		{"with a review authority that grants the issuer review", pushAuthority{review: map[string]bool{locale: true}}},
+		{"without a review authority", nil},
+	}
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			deps := newTestWorkerDeps(t)
+			deps.ReviewAuthority = tt.auth
+			pid := fmt.Sprintf("gov-tool-%d", i)
+			require.NoError(t, deps.ContentStore.CreateProject(t.Context(),
+				&store.Project{ID: pid, Name: "Governed", DefaultSourceLanguage: "en"}))
+			push := governedPush{
+				projectID: pid, actor: "u-reviewer", tool: "dogfood-sync", item: item,
+				blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusEstablished)},
+				decisions: []venue.UnitDecision{{
+					ItemName: item, Unit: "b1", Variant: locale,
+					Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
+					DecidedBy: "u-reviewer", Updated: "2026-09-03T10:00:00Z",
+				}},
+			}
+			require.NoError(t, push.run(t, deps, fmt.Sprintf("job-tool-%d", i)), "a refused verdict never fails the push")
+			assert.Equal(t, model.TargetStatusTranslated, storedTarget(t, deps, pid, item, locale),
+				"the translation lands; the approval does not")
+			if d, ok := heldDecision(t, deps, pid, "b1", locale); ok {
+				assert.NotEqual(t, venue.ReviewStateApproved, d.ReviewState, "no approval is recorded for a tool")
+			}
+		})
+	}
 }

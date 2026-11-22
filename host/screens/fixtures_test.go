@@ -29,7 +29,7 @@ func TestFixtures(t *testing.T) {
 		name  string
 		value any
 	}{
-		{"map-summary.json", mapSummary()},
+		{"overview-summary.json", overviewSummary()},
 		{"reader-file.json", readerFile()},
 		{"rules-decide-view.json", rulesDecideView()},
 		{"kept-rules.json", keptRules()},
@@ -75,7 +75,7 @@ func quickcastSides() []screens.DigestItem {
 				Preferred: "Quickcast", PreferredCount: 14, Rejected: []string{"Quick cast", "QuickCast"}, RejectedCount: 3,
 				Within: "docs/", Line: `docs/ says "Quickcast" 14 times and "Quick cast" or "QuickCast" 3 times`,
 			},
-			NoticedBy: agent, At: recordedAt, New: true, Scope: "project acme/docs",
+			RecordedBy: agent, At: recordedAt, New: true, Scope: "project acme/docs",
 			Droppable: true,
 		},
 		{
@@ -84,17 +84,17 @@ func quickcastSides() []screens.DigestItem {
 			Subject: contextop.Subject{Kind: contextop.SubjectTerm, Term: &profile.TermRule{
 				Term: "Quickcast", Replacement: "QuickCast",
 			}},
-			Quote:     &contextop.Evidence{Path: "docs/release-notes.md", Quote: "QuickCast now reads PDF files."},
-			NoticedBy: personAlone, At: recordedAt.Add(2 * time.Hour), Scope: "project acme/docs",
+			Quote:      &contextop.Evidence{Path: "docs/release-notes.md", Quote: "QuickCast now reads PDF files."},
+			RecordedBy: personAlone, At: recordedAt.Add(2 * time.Hour), Scope: "project acme/docs",
 			Droppable: true,
 		},
 	}
 }
 
-func mapSummary() screens.MapSummaryDTO {
+func overviewSummary() screens.OverviewSummaryDTO {
 	findings := 4
 	sides := quickcastSides()
-	return screens.MapSummaryDTO{
+	return screens.OverviewSummaryDTO{
 		ProjectKey:      "acme/docs",
 		Files:           3,
 		Blocks:          42,
@@ -107,7 +107,7 @@ func mapSummary() screens.MapSummaryDTO {
 		Conflicts:       1,
 		Awaiting:        2,
 		TargetLanguages: []string{"de", "nb"},
-		FileRows: []screens.MapFileDTO{
+		FileRows: []screens.OverviewFileDTO{
 			{Path: "/work/acme-docs/docs/billing.md", Relative: "docs/billing.md", Format: "markdown", Collection: "docs", Blocks: 18, Findings: 3},
 			{Path: "/work/acme-docs/docs/release-notes.md", Relative: "docs/release-notes.md", Format: "markdown", Collection: "docs", Blocks: 15, Findings: 1},
 			{Path: "/work/acme-docs/locales/en.json", Relative: "locales/en.json", Format: "json", Collection: "app", Blocks: 9, Findings: 0},
@@ -124,10 +124,10 @@ func mapSummary() screens.MapSummaryDTO {
 				Group: "suggested",
 				Item: screens.DigestItem{
 					ID: "01JBQB7F2G4H6J", Short: "h6j1", Status: contextop.StatusSuggested, Theme: "writing",
-					Sentence:  "Keep sentences in release notes under 25 words.",
-					Subject:   contextop.Subject{Kind: contextop.SubjectNote, Text: "Keep sentences in release notes under 25 words."},
-					Quote:     &contextop.Evidence{Path: "docs/release-notes.md", Unit: "b7", Quote: "QuickCast now reads PDF files."},
-					NoticedBy: agent, At: recordedAt.Add(time.Hour), New: true, Scope: "project acme/docs",
+					Sentence:   "Keep sentences in release notes under 25 words.",
+					Subject:    contextop.Subject{Kind: contextop.SubjectNote, Text: "Keep sentences in release notes under 25 words."},
+					Quote:      &contextop.Evidence{Path: "docs/release-notes.md", Unit: "b7", Quote: "QuickCast now reads PDF files."},
+					RecordedBy: agent, At: recordedAt.Add(time.Hour), New: true, Scope: "project acme/docs",
 					Keepable: true, Droppable: true,
 				},
 				Blocks: 1,
@@ -204,7 +204,7 @@ func rulesDecideView() screens.RulesDecideViewDTO {
 		Decisions: []screens.RuleDecisionDTO{
 			{
 				ID: "01JBQC2K8M1N3P", Short: "n3p4", Kind: "name",
-				Question: "Which one do your files use?",
+				Question: "Which spelling should the project use?",
 				Sentence: "Write Invoicely, not Invoice-ly.",
 				Label:    "Invoicely", Avoided: 1,
 				Options: []screens.RuleOptionDTO{
@@ -214,23 +214,23 @@ func rulesDecideView() screens.RulesDecideViewDTO {
 				Chosen:  0,
 				Other:   true,
 				Seen:    &screens.ContextEvidenceDTO{Path: "docs/billing.md", Unit: "b4", Quote: "Invoicely sends the receipt."},
-				Applies: "the whole project", NoticedBy: agentDTO,
+				Applies: "the whole project", RecordedBy: agentDTO,
 			},
 			{
 				Kind:     "disagreement",
-				Question: "Which one do your files use?",
+				Question: "Which spelling should the project use?",
 				Reason:   "Two suggestions name different forms for Quickcast.",
 				Sentence: "Write Quickcast, not Quick cast or QuickCast.",
 				Label:    "Quickcast",
 				Options: []screens.RuleOptionDTO{
 					{ID: "01JBQ8X4K2M7Z9", Short: "q7z9", Sentence: "Write Quickcast, not Quick cast or QuickCast.", Blocks: 14, Files: 5,
-						Consequence: `If you keep it: "Quick cast" or "QuickCast" become findings in 3 blocks. Applies to the whole project.`, NoticedBy: &agentDTO},
+						Consequence: `If you keep it: "Quick cast" or "QuickCast" become findings in 3 blocks. Applies to the whole project.`, RecordedBy: &agentDTO},
 					{ID: "01JBQ9A1C3D5E7", Short: "e5e7", Sentence: "Write QuickCast, not Quickcast.", Blocks: 2, Files: 1,
-						Consequence: `If you keep it: "Quickcast" becomes a finding in 14 blocks. Applies to the whole project.`, NoticedBy: &nobody},
+						Consequence: `If you keep it: "Quickcast" becomes a finding in 14 blocks. Applies to the whole project.`, RecordedBy: &nobody},
 				},
 				Chosen:  0,
 				Seen:    &screens.ContextEvidenceDTO{Path: "docs/billing.md", Unit: "b2", Quote: "Quickcast keeps your credits."},
-				Applies: "the whole project", NoticedBy: agentDTO,
+				Applies: "the whole project", RecordedBy: agentDTO,
 			},
 			{
 				ID: "01JBQB7F2G4H6J", Short: "h6j1", Kind: "note",
@@ -239,7 +239,7 @@ func rulesDecideView() screens.RulesDecideViewDTO {
 				Label:       "Keep sentences in release notes under 25 words.",
 				Options:     []screens.RuleOptionDTO{},
 				Consequence: "If you keep it: it is stated to writers and assistants where it applies. No check reads it. Applies to docs/release-notes.md.",
-				Applies:     "docs/release-notes.md", NoticedBy: nobody,
+				Applies:     "docs/release-notes.md", RecordedBy: nobody,
 				Assignee: &screens.ContextActorDTO{Kind: "person", Name: "Mira Holt"}, AssigneeID: "user-mira",
 			},
 		},

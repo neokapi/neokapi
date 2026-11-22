@@ -34,7 +34,7 @@ const repairedBlockParse = "Parse reads the input from an [io.Reader].\n\nIt sto
 // canary refuses a renderer that would write it.
 //
 // The subtest named "must fail" breaks the write path on purpose and asserts
-// that the run notices. Nothing in here skips.
+// that the run catches. Nothing in here skips.
 func TestProseP4_go(t *testing.T) {
 	formatted, err := format.Source([]byte(repairBlockGo))
 	require.NoError(t, err)

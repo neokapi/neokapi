@@ -38,10 +38,6 @@ func TestExportTMX_LocalesFilter(t *testing.T) {
 	assert.NotContains(t, out, `xml:lang="de"`)
 }
 
-// The bilingual (src, tgt) shim ExportTMXBilingual is gone — its only caller
-// was this test. The two-locale filter it wrapped is the same code path
-// TestExportTMX_LocalesFilter above already covers.
-
 func TestExportTMX_EscapesSpecialChars(t *testing.T) {
 	tm := memory.NewInMemoryStore()
 	require.NoError(t, tm.Add(context.Background(), memory.Entry{
@@ -57,10 +53,9 @@ func TestExportTMX_EscapesSpecialChars(t *testing.T) {
 	assert.Contains(t, out, "A &amp; B &lt; C &gt; D")
 }
 
-// The tuid attribute went through this package's own xmlAttr until #1979's
-// cluster 8 replaced it with core/xmlesc.Attr. This is the differential
-// coverage for that consolidation, exercised through the real call site
-// rather than the package's own unit test.
+// The tuid attribute is escaped by core/xmlesc.Attr, the escaper every XML
+// writer shares. This covers it through the real call site rather than the
+// escaper's own unit test.
 func TestExportTMX_EscapesSpecialCharsInAttributes(t *testing.T) {
 	tm := memory.NewInMemoryStore()
 	require.NoError(t, tm.Add(context.Background(), memory.Entry{

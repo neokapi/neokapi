@@ -57,21 +57,24 @@
 #                            SPA (bowrain/web/landing/src) → committed runtime
 #                            catalogs
 #                            bowrain/web/landing/translations/<lang>.json
+#   bowrain-mobile         — the mobile app's react-i18next catalog
+#                            (bowrain/mobile/i18n/en.json) →
+#                            i18n/<lang>.json, bundled at build time
 #
 # Drive it with `make l10n`: one kapi pass over this whole recipe, wrapped in the
 # extraction and catalog-compilation stages a recipe may not name itself
 # (AD-038). Adding a collection here needs no Makefile change — see
 # docs/internals/l10n-ci.md. The context graph this project is governed by —
-# voice profile, terms, reviewed content memory — is shared on the
-# refs/kapi/context ref of this repository: `kapi context sync` reads it and
-# shares what you recorded.
+# voice profile, terms, reviewed content memory — is kept on the Bowrain project
+# the bowrain: block below names: `kapi context sync` reads it and shares what
+# you recorded.
 version: v1
 # This project's stable identity. It survives a rename, a move and a clone,
 # and everything kapi records about the project is keyed on it. Keep it.
 id: prj_6x7ttpbbrhisq4m63uqjrm7uki
 name: neokapi
 context:
-  backend: git
+  backend: bowrain
 defaults:
   source_language: en
   target_languages: [nb]
@@ -101,8 +104,7 @@ defaults:
   # missing provider credential having recycled nothing.
   flow: memory-recycle
   # The voice is bound by name: the profile the project's context holds, which
-  # `kapi context sync` reads from refs/kapi/context (the `context.backend`
-  # above). The terms need no binding: the project has one terms store, and it
+  # `kapi context sync` reads from Bowrain (the `context.backend` above). The terms need no binding: the project has one terms store, and it
   # governs every collection.
   voice:
     profile: neokapi-documentation
@@ -116,7 +118,7 @@ defaults:
   formats:
     yaml:
       config:
-        keyPathPatterns:
+        key_path_patterns:
           - title
           - subtitle
           - outro.line
@@ -128,12 +130,12 @@ defaults:
     # `.md` item overridden to the mdx reader still picks up `mdx:` here).
     markdown:
       config:
-        translateFrontMatter: true
-        frontMatterKeys: [title, description, sidebar_label]
+        translate_front_matter: true
+        front_matter_keys: [title, description, sidebar_label]
     mdx:
       config:
-        translateFrontMatter: true
-        frontMatterKeys: [title, description, sidebar_label]
+        translate_front_matter: true
+        front_matter_keys: [title, description, sidebar_label]
   # Code comments are prose, and the collections at source/comments below
   # declare them. A comment line that opens with one of these markers is read
   # by the contract audit (.contract-audit), so a check sets it aside rather
@@ -174,6 +176,7 @@ defaults:
     - "harness/demos/*/demo.*.yaml"
     - "scripts/gen-refs/nativedocs/qps/**"
     - "**/palette.generated.css"
+    - "bowrain/mobile/src/uniwind-types.d.ts"
     # Sample projects and test fixtures: content written to be read by a check
     # or a test, faults included, rather than prose about this repository.
     - "samples/**"
@@ -194,7 +197,7 @@ profiles:
     voice:
       profile: neokapi-documentation
   bowrain:
-    channels: [app, ctrl, pulse, docs, email, landing]
+    channels: [app, ctrl, pulse, docs, email, landing, mobile]
     voice:
       profile: bowrain-platform
   # The code comments of both products. The comment voice holds them to its
@@ -208,6 +211,10 @@ profiles:
 
 # A channel is always bound as `<profile>/<channel>`: the product owns the
 # surface, and the binding reads as one.
+#
+# Review priority: the surfaces a user reads first (the CLI, both apps, the
+# mobile app and the landing page) are high; the internal admin apps, demo
+# narration and the generated reference dossiers are low; the rest is normal.
 collections:
   - name: neokapi-engine
     channel: neokapi/engine
@@ -216,7 +223,7 @@ collections:
       # The block name the reader derives from the key path is the gettext
       # msgctxt the compiled catalog is keyed by, and the Scope the runtime
       # looks a string up under (core/i18n.Scope) — dot-separated, no leading
-      # slash, which is what useKeyAsName alone produces. Only the keys that
+      # slash, which is what use_key_as_name alone produces. Only the keys that
       # hold prose are extracted; ids, categories, extensions and mime types
       # are not text a reader sees.
       #
@@ -231,13 +238,14 @@ collections:
         format:
           name: json
           config:
-            extractAllPairs: false
-            useKeyAsName: true
-            extractionRules: '(displayName|description|title|label|note)$|enumDescriptions\.[^.]+$'
+            extract_all_pairs: false
+            use_key_as_name: true
+            extraction_rules: '(displayName|description|title|label|note)$|enumDescriptions\.[^.]+$'
         target: catalogs/{lang}.json
   # The CLI's own help and output strings.
   - name: neokapi-cli
     channel: neokapi/cli
+    priority: high
     base: host/i18n
     content:
       # Bare `json`: the whole file is recycled as one item. The catalog
@@ -250,6 +258,7 @@ collections:
         target: catalogs/{lang}.json
   - name: neokapi-desktop
     channel: neokapi/desktop
+    priority: high
     base: apps/kapi-desktop/frontend
     # A reviewer can read one of these strings inside the component that ships
     # it. Declared per collection because this repository publishes one host per
@@ -264,6 +273,7 @@ collections:
         target: i18n-{lang}/{filename}
   - name: bowrain-app
     channel: bowrain/app
+    priority: high
     base: bowrain/packages/app
     preview:
       kind: storybook
@@ -273,6 +283,7 @@ collections:
         target: i18n-{lang}/{filename}
   - name: bowrain-ctrl
     channel: bowrain/ctrl
+    priority: low
     base: bowrain/apps/ctrl
     preview:
       kind: storybook
@@ -282,6 +293,7 @@ collections:
         target: i18n-{lang}/{filename}
   - name: bowrain-pulse
     channel: bowrain/pulse
+    priority: low
     base: bowrain/apps/pulse
     preview:
       kind: storybook
@@ -330,6 +342,7 @@ collections:
   # in that locale by the site's reference-locale plugin.
   - name: neokapi-docs-reference
     channel: neokapi/docs
+    priority: low
     base: scripts/gen-refs/nativedocs
     content:
       # `*/*.yaml` is the generator's own glob (loadNativeDocs reads
@@ -341,14 +354,14 @@ collections:
       # `introducedIn` a version and `seeAlso` a cross-reference. Grading those
       # as sentences is how a check earns the reputation that stops anyone
       # reading its findings. `parameters` keys are schema property paths and
-      # carry dots of their own (`parser.preserveWhitespace`), so the patterns
+      # carry dots of their own (`parser.preserve_whitespace`), so the patterns
       # under it span segments with `**` rather than one with `*`.
       - path: "*/*.yaml"
         target: "{lang}/{path}.yaml"
         format:
           name: yaml
           config:
-            keyPathPatterns:
+            key_path_patterns:
               - displayName
               - description
               - overview
@@ -395,10 +408,20 @@ collections:
         target: "{lang}.json"
   - name: bowrain-landing
     channel: bowrain/landing
+    priority: high
     base: bowrain/web/landing
     content:
       - path: i18n/**/*.kbf.json
         target: i18n-{lang}/{filename}
+  - name: bowrain-mobile
+    channel: bowrain/mobile
+    priority: high
+    base: bowrain/mobile
+    content:
+      - path: i18n/en.json
+        format:
+          name: json
+        target: "i18n/{lang}.json"
   # Distribution metadata: the description a user reads in a package manager
   # before anything is installed, and the one Windows shows in file properties.
   # Both are product copy that no docs sweep has ever looked at, and neither is
@@ -420,14 +443,14 @@ collections:
         format:
           name: yaml
           config:
-            keyPathPatterns:
+            key_path_patterns:
               - description
   - name: neokapi-desktop-build
     channel: neokapi/desktop
     base: apps/kapi-desktop/build
     source_only: true
     content:
-      # extractAllPairs off + exceptions as an INCLUDE list: the file is mostly
+      # extract_all_pairs off + exceptions as an INCLUDE list: the file is mostly
       # version numbers and company/product names, and only these two keys are
       # sentences a user reads in the file's properties dialog.
       # The Wails build config. `description` and `comments` are the product
@@ -439,17 +462,18 @@ collections:
         format:
           name: yaml
           config:
-            keyPathPatterns:
+            key_path_patterns:
               - info.description
               - info.comments
       - path: windows/info.json
         format:
           name: json
           config:
-            extractAllPairs: false
+            extract_all_pairs: false
             exceptions: "FileDescription|Comments"
   - name: neokapi-demos
     channel: neokapi/demos
+    priority: low
     base: harness/demos
     content:
       # Narrated demo-video scripts. The English demo.yaml is the master;
@@ -459,7 +483,7 @@ collections:
       # rather than committed, so a demo has one exactly when its narration has
       # been translated. Never hand-edit a sidecar: correct the wording where it
       # is reviewed, and the next convergence writes it. Translatable keys are
-      # selected by defaults.formats.yaml.config.keyPathPatterns above.
+      # selected by defaults.formats.yaml.config.key_path_patterns above.
       - path: "*/demo.yaml"
         format:
           name: yaml
@@ -486,7 +510,7 @@ collections:
       - path: "{bench,cli,cmd,core,examples,host,kapi,kpz,memory,plugins,providers,scripts,terms,voice}/**/*.go"
         comments:
           only: true
-      - path: "bowrain/{agent,ai,analytics,apierror,auth,billing,changes,cmd,connector,contextscan,core,credentials,crypto,e2e,editorclient,event,forge,graph,jobs,knowledge,mailer,memory,migrations,observe,platformconfig,plugin,proto,resilience,review,safehttp,sandbox,server,service,storage,store,sync,terms,testutil,voice}/**/*.go"
+      - path: "bowrain/{agent,ai,analytics,apierror,auth,billing,changes,cmd,connector,contextscan,core,credentials,crypto,e2e,editorclient,event,forge,graph,jobs,knowledge,mailer,memory,migrations,observe,platformconfig,plugin,proto,resilience,review,safehttp,sandbox,scripts,server,service,storage,store,sync,termcandidate,terms,termscope,termspush,testutil,voice,voicewrite}/**/*.go"
         comments:
           only: true
       - path: "{apps/kapi-desktop,bowrain/apps/bowrain}/*.go"
@@ -505,13 +529,13 @@ collections:
       - path: "{bowrain/apps,bowrain/packages,packages}/*/src/**/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
-      - path: "{apps/kapi-desktop/frontend,bowrain/apps/bowrain/frontend,bowrain/emails,bowrain/web/landing,web}/src/**/*.{ts,tsx,js,mjs,cjs,css}"
+      - path: "{apps/kapi-desktop/frontend,bowrain/apps/bowrain/frontend,bowrain/emails,bowrain/mobile,bowrain/web/landing,web}/src/**/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
       - path: "{bowrain/packages,packages}/*/{examples,tests}/**/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
-      - path: "{bowrain/apps/*,bowrain/apps/bowrain/frontend}/e2e/**/*.{ts,tsx,js,mjs}"
+      - path: "{bowrain/apps/*,bowrain/apps/bowrain/frontend,bowrain/mobile}/e2e/**/*.{ts,tsx,js,mjs}"
         comments:
           only: true
       - path: "{bowrain/storybook,storybook}/.storybook/*.{ts,tsx,js,css}"
@@ -520,7 +544,7 @@ collections:
       - path: "*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
-      - path: "{apps/kapi-desktop/frontend,bowrain/apps/*,bowrain/apps/bowrain/frontend,bowrain/packages/*,bowrain/web/docs,bowrain/web/landing,packages/*,web}/*.{ts,tsx,js,mjs,cjs,css}"
+      - path: "{apps/kapi-desktop/frontend,bowrain/apps/*,bowrain/apps/bowrain/frontend,bowrain/mobile,bowrain/packages/*,bowrain/web/docs,bowrain/web/landing,packages/*,web}/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
       - path: "{apps/kapi-desktop/frontend/scripts,bowrain/apps/bowrain/frontend/scripts,bowrain/emails/scripts,bowrain/web/docs/src,bowrain/web/landing/e2e,packages/*/cli,packages/*/scripts,.skills,examples,.claude/workflows}/**/*.{ts,tsx,js,mjs,cjs,css}"
@@ -529,10 +553,10 @@ collections:
       - path: "web/{plugins,scripts}/**/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
-      - path: "{bowrain/e2e,harness,scripts}/**/*.{ts,tsx,js,mjs,cjs,css}"
+      - path: "{bowrain/e2e,bowrain/scripts,harness,scripts}/**/*.{ts,tsx,js,mjs,cjs,css}"
         comments:
           only: true
-      - path: "{.skills,bench,bowrain/docker,bowrain/e2e,bowrain/scripts,core,examples,harness,kapi,plugins,scripts}/**/*.{sh,py,rs,c,h,cs,java,rb}"
+      - path: "{.claude/hooks,.claude/skills,.skills,bench,bowrain/docker,bowrain/e2e,bowrain/scripts,core,examples,harness,kapi,plugins,scripts}/**/*.{sh,py,rs,c,h,cs,java,rb}"
         comments:
           only: true
   - name: source-config-comments
@@ -548,7 +572,7 @@ collections:
       - path: "bowrain/apps/bowrain/build/**/*.{yaml,yml}"
         comments:
           only: true
-      - path: "{.github,.skills,apps/kapi-desktop/build,bowrain/deploy,bowrain/docker,bowrain/e2e,cli,core,docs,harness,host,scripts,specs,web/demos,web/scenes,web/walkthroughs}/**/*.{yaml,yml}"
+      - path: "{.github,.skills,apps/kapi-desktop/build,bowrain/deploy,bowrain/docker,bowrain/e2e,bowrain/mobile/e2e,cli,core,docs,harness,host,scripts,specs,web/demos,web/scenes,web/walkthroughs}/**/*.{yaml,yml}"
         comments:
           only: true
       - path: "bowrain/*.yaml"
@@ -561,7 +585,7 @@ collections:
       - path: "*.md"
         comments:
           only: true
-      - path: "{.skills,bowrain/docker,bowrain/e2e,bowrain/graph,bowrain/web/docs,cli,core,deploy,docs,examples,harness,host,packages/kapi-claude-plugin,plugins,scripts,specs,web/demos,web/static,web/walkthroughs}/**/*.{md,mdx,html}"
+      - path: "{.claude/skills,.skills,bowrain/docker,bowrain/e2e,bowrain/graph,bowrain/web/docs,cli,core,deploy,docs,examples,harness,host,packages/kapi-claude-plugin,plugins,scripts,specs,web/demos,web/static,web/walkthroughs}/**/*.{md,mdx,html}"
         comments:
           only: true
       - path: "{apps/kapi-desktop/frontend,bowrain,bowrain/apps/bowrain/frontend,bowrain/web/landing,packages/*}/*.{md,html}"
@@ -599,8 +623,8 @@ flows:
     steps:
       - tool: recycle
         config:
-          fillTarget: true
-          fillTargetThreshold: 100
+          fill_target: true
+          fill_target_threshold: 100
       - tool: placeholder-check
   # AI translation for new/changed strings: content memory first, then translate for
   # the misses (voice profile + terms are bound project-wide), then checks.
@@ -609,8 +633,8 @@ flows:
     steps:
       - tool: recycle
         config:
-          fillTarget: true
-          fillTargetThreshold: 100
+          fill_target: true
+          fill_target_threshold: 100
       - tool: translate
         config:
           provider: anthropic
@@ -625,7 +649,7 @@ flows:
 #
 # neokapi is the first real workspace on Bowrain. `kapi push` sends every surface
 # above to the project below; nb drafts land in the governed review queue, and
-# the decisions made there come home on refs/kapi/context.
+# the decisions made there come home with `kapi context sync`.
 #
 # converge: manual — a push moves content but does NOT auto-start a server AI
 # convergence run. The first on-push run (2026-07-17) tried to AI-draft the whole
@@ -643,7 +667,8 @@ flows:
 # nightly + manual sync runs in .github/workflows/dogfood-sync.yml (gated on the
 # DOGFOOD_SYNC_ENABLED repo variable, token in BOWRAIN_AUTH_TOKEN).
 #
-# To disconnect: re-comment this block and unset DOGFOOD_SYNC_ENABLED.
+# To disconnect: re-comment this block, set context.backend back to git, and
+# unset DOGFOOD_SYNC_ENABLED.
 bowrain:
   url: "https://app.bowrain.cloud/bowrain-hq/uek630Q5"   # <server>/<workspace>/<project-id>
   converge: manual     # push never auto-converges; start the loop deliberately

@@ -5,15 +5,15 @@
  */
 
 import { describe, expect, it, vi } from "vite-plus/test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { runExtract } from "../src/commands/extract.ts";
+import { tempDir } from "./temp-dir";
 
 /** A package with the given source files, extracted with `args`; returns the root. */
 async function extractIn(sources: Record<string, string>, args: string[]): Promise<string> {
-  const root = mkdtempSync(join(tmpdir(), "i18n-react-warnings-"));
+  const root = tempDir("i18n-react-warnings");
   for (const [file, code] of Object.entries(sources)) {
     mkdirSync(join(root, file, ".."), { recursive: true });
     writeFileSync(join(root, file), code);

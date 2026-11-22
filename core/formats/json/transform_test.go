@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/config"
+	coreschema "github.com/neokapi/neokapi/core/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,12 +30,12 @@ func TestOkapiJSONTransform_DropsOkapiOnlyParams(t *testing.T) {
 	require.NoError(t, err)
 
 	// Okapi-only params dropped
-	assert.Nil(t, result["escapeExtendedChars"])
+	assert.Nil(t, result["escape_extended_chars"])
 	assert.Nil(t, result["bom"])
 
 	// Shared params kept
-	assert.Equal(t, true, result["extractAllPairs"])
-	assert.Equal(t, true, result["useFullKeyPath"])
+	assert.Equal(t, true, result["extract_all_pairs"])
+	assert.Equal(t, true, result["use_full_key_path"])
 }
 
 func TestOkapiJSONTransform_EmptySpec(t *testing.T) {
@@ -70,6 +71,6 @@ func TestOkapiJSONTransform_AllParamsPassThrough(t *testing.T) {
 	require.NoError(t, err)
 
 	for key, val := range spec {
-		assert.Equal(t, val, result[key], "param %s should pass through", key)
+		assert.Equal(t, val, result[coreschema.SnakeCase(key)], "param %s should pass through under its snake_case key", key)
 	}
 }

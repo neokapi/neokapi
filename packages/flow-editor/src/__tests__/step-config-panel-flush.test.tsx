@@ -110,3 +110,14 @@ describe("StepConfigPanel debounce flush on unmount (#51)", () => {
     });
   });
 });
+
+describe("StepConfigPanel command line", () => {
+  it("offers the command that runs the tool on files, as an icon that copies", () => {
+    renderPanel(() => {});
+    const button = container.querySelector("[data-slot='tool-command']");
+    expect(button?.getAttribute("data-command")).toBe("kapi exec translate <files...>");
+    expect(button?.getAttribute("aria-label")).toBe(
+      "Copy kapi exec translate <files...> for the terminal",
+    );
+  });
+});

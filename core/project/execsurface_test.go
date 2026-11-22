@@ -95,7 +95,7 @@ defaults:
     nb:
       tools:
         script:
-          scriptFile: ./hook.js
+          script_file: ./hook.js
 collections:
   - path: a/**
     format:

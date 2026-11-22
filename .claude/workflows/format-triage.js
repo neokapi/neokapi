@@ -7,7 +7,7 @@ export const meta = {
     { title: 'Score', detail: 'one agent per format (×samples) returns evidence-cited quality-dimension cells — NOT a free level pick' },
     { title: 'Triage', detail: 'rank the formats below target and the highest-leverage gap for each' },
     { title: 'Remediate', detail: '(mode=remediate) add the top missing artifact per format and verify it' },
-    { title: 'Publish', detail: 'write the refreshed dashboard dataset + history snapshot + docs snapshot block + support.yaml last_certified + ledger run record' },
+    { title: 'Publish', detail: 'write the refreshed dashboard dataset + history snapshot + docs snapshot block + ledger run record' },
   ],
 }
 
@@ -833,7 +833,7 @@ ${json}
    - a per-axis distribution table: one row per axis (Engine, Vocabulary, Editor, Knowledge, Corpus, Security, Structure & Geometry, Prose), columns = that axis's grades with counts from summary.by_level (engine) / summary.by_axis (the rest).
    - a per-format table sorted by id, one line each: | format | axis vector (levels.engine levels.vocabulary levels.editor levels.knowledge levels.corpus levels.security levels.structure levels.prose space-separated, e.g. "L3 V0 E1 K0 C0 S1 G0 P0") | top gap (the first entry of the row's engine blocking_gaps, truncated to ~100 chars, or "none") |
    - a languages table from the dataset's languages[], one line each: | language | presence | level (or "none") |
-5. Refresh certification in core/formats/support.yaml: for EVERY format id present in the dataset's formats[], set that format's \`last_certified\` field to "TODAY" (quoted). Change NOTHING else in this file — tier / tier_since / gates / notes / grandfathered are owned by the tier-review ritual (writer partition, format-maturity.md §1).
+5. Read certification dates from core/formats/support.yaml. A triage reviewer may renew an individual certification after recording passing results from every named gate at the measured revision.
 6. Record the run in docs/internals/format-ops-ledger.json:
    - rituals."triage-score".last_run = TODAY
    - rituals."triage-score".watermarks: core_formats_sha = output of \`git log -1 --format=%H -- core/formats\`; audit_sha = the sha256 hex of \`python3 .skills/refresh-format-maturity/scripts/audit-format.py --all --json | shasum -a 256\`; scorer_version = 5; axes_published = ["engine","vocabulary","editor","knowledge","corpus","security","structure","prose"]. Leave model_id and prompt_sha as they are.
@@ -991,7 +991,7 @@ for (const f of FORMATS) {
     if (sticky.delta && sticky.derived_from === 'dimensions') movesByAxis[axis].published++
     if (sticky.derived_from === 'sticky-prior') movesByAxis[axis].suppressed++
     levels[axis] = sticky.level
-    next[axis] = NEXT[axis][sticky.level] || '—'
+    next[axis] = axis === 'engine' && type === 'harvest' && sticky.level === 'L3' ? '—' : (NEXT[axis][sticky.level] || '—')
     const band = axis === 'engine'
       ? { floor: floor ? floor.base : null, ceiling: floor ? floor.ceiling : null }
       : { floor: (floor && floor.axes && floor.axes[axis] && floor.axes[axis].base) || null, ceiling: axisCeiling(axis, floor) }
@@ -1086,7 +1086,7 @@ if (PUBLISH && proseError) {
 } else if (PUBLISH) {
   phase('Publish')
   await agent(publishPrompt(JSON.stringify(dataset, null, 2)), { label: 'publish', phase: 'Publish' })
-  log('Published web/static/data/format-maturity{,-history}.json + docs snapshot block + support.yaml last_certified + ledger run record — rebuild the docs to see it.')
+  log('Published web/static/data/format-maturity{,-history}.json + docs snapshot block + ledger run record — rebuild the docs to see it.')
 }
 
 // per-format computed levels exposed for reproducibility measurement

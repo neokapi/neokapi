@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"html/template"
 	"os"
 	"path/filepath"
@@ -104,7 +103,6 @@ const htmlTemplate = `<!DOCTYPE html>
                     <th>Files</th>
                     <th class="numeric">Wall Time (ms)</th>
                     <th class="numeric">Peak RSS (KB)</th>
-                    <th class="numeric">Daemon RSS (KB)</th>
                 </tr>
             </thead>
             <tbody>
@@ -115,7 +113,6 @@ const htmlTemplate = `<!DOCTYPE html>
                     <td>{{successCount .FileTimings}}/{{len .FileTimings}}</td>
                     <td class="numeric">{{printf "%.0f" .WallTimeMs.Median}} &plusmn; {{printf "%.0f" .WallTimeMs.Stddev}}</td>
                     <td class="numeric">{{printf "%.0f" .PeakRssKB.Max}}</td>
-                    <td class="numeric">{{if .DaemonRssKB}}{{printf "%.0f" .DaemonRssKB.Max}}{{else}}&mdash;{{end}}</td>
                 </tr>
                 {{end}}
             </tbody>
@@ -123,7 +120,7 @@ const htmlTemplate = `<!DOCTYPE html>
     </div>
 
     <script>
-    var experiments = {{.DataJSON}};
+    var experiments = {{.Experiments}};
 
     var ENGINE_COLORS = {
         "kapi-native":        { bg: "rgba(33,150,243,0.7)",  border: "#2196F3" },
@@ -198,8 +195,6 @@ const htmlTemplate = `<!DOCTYPE html>
     // ---------------------------------------------------------------------------
     // 2. Peak RSS chart
     // ---------------------------------------------------------------------------
-    var hasDaemon = experiments.some(function(e) { return e.daemonRssKB; });
-
     var rssDatasets = [{
         label: "Peak RSS (kapi)",
         data: experiments.map(function(e) { return e.peakRssKB.max; }),
@@ -207,20 +202,6 @@ const htmlTemplate = `<!DOCTYPE html>
         borderColor: experiments.map(function(e) { return colorFor(e.engine).border; }),
         borderWidth: 1,
     }];
-
-    if (hasDaemon) {
-        rssDatasets.push({
-            label: "Daemon JVM RSS",
-            data: experiments.map(function(e) { return e.daemonRssKB ? e.daemonRssKB.max : 0; }),
-            backgroundColor: experiments.map(function(e) {
-                return e.daemonRssKB ? "rgba(76,175,80,0.35)" : "rgba(0,0,0,0)";
-            }),
-            borderColor: experiments.map(function(e) {
-                return e.daemonRssKB ? "#388E3C" : "rgba(0,0,0,0)";
-            }),
-            borderWidth: 1,
-        });
-    }
 
     new Chart(document.getElementById("rssChart"), {
         type: "bar",
@@ -231,7 +212,7 @@ const htmlTemplate = `<!DOCTYPE html>
         options: {
             responsive: true,
             plugins: {
-                legend: { display: hasDaemon, position: "bottom" },
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
                         label: function(ctx) {
@@ -241,8 +222,8 @@ const htmlTemplate = `<!DOCTYPE html>
                 }
             },
             scales: {
-                x: { grid: { display: false }, stacked: hasDaemon },
-                y: { beginAtZero: true, stacked: hasDaemon, title: { display: true, text: "KB" } }
+                x: { grid: { display: false } },
+                y: { beginAtZero: true, title: { display: true, text: "KB" } }
             }
         }
     });
@@ -343,17 +324,17 @@ const htmlTemplate = `<!DOCTYPE html>
         var chartIndex = 0;
 
         experiments.forEach(function(exp, expIdx) {
-            if (!exp.batchTrace || !exp.batchTrace.fileTraces || exp.batchTrace.fileTraces.length === 0) return;
+            if (!exp.batchTrace || !exp.batchTrace.file_traces || exp.batchTrace.file_traces.length === 0) return;
 
             var bt = exp.batchTrace;
-            var traces = bt.fileTraces;
+            var traces = bt.file_traces;
 
             // Compute max lane and max time.
             var maxLane = 0;
             var maxTimeUs = 0;
             traces.forEach(function(ft) {
                 if (ft.lane > maxLane) maxLane = ft.lane;
-                if (ft.endUs > maxTimeUs) maxTimeUs = ft.endUs;
+                if (ft.end_us > maxTimeUs) maxTimeUs = ft.end_us;
             });
             var numLanes = maxLane + 1;
 
@@ -366,9 +347,9 @@ const htmlTemplate = `<!DOCTYPE html>
             // Build one dataset per file trace (each is a single floating bar).
             var datasets = traces.map(function(ft) {
                 var color = FORMAT_COLORS[ft.format] || "#999";
-                var startMs = ft.startUs / 1000;
-                var endMs = ft.endUs / 1000;
-                var durationMs = (ft.endUs - ft.startUs) / 1000;
+                var startMs = ft.start_us / 1000;
+                var endMs = ft.end_us / 1000;
+                var durationMs = (ft.end_us - ft.start_us) / 1000;
 
                 // Create data array with null for all lanes except this file's lane.
                 var data = [];
@@ -401,13 +382,10 @@ const htmlTemplate = `<!DOCTYPE html>
 
             var stats = document.createElement("span");
             stats.className = "batch-trace-stats";
-            var totalMs = (bt.durationUs / 1000).toFixed(0);
+            var totalMs = (bt.duration_us / 1000).toFixed(0);
             var rssKB = exp.peakRssKB.max.toFixed(0);
             var rssMB = (exp.peakRssKB.max / 1024).toFixed(1);
             var statsText = totalMs + " ms total \u00b7 " + rssMB + " MB RSS \u00b7 " + bt.concurrency + " lanes \u00b7 " + traces.length + " files";
-            if (exp.daemonRssKB) {
-                statsText += " \u00b7 " + (exp.daemonRssKB.max / 1024).toFixed(1) + " MB daemon";
-            }
             stats.textContent = statsText;
             header.appendChild(stats);
             container.appendChild(header);
@@ -543,16 +521,10 @@ const htmlTemplate = `<!DOCTYPE html>
 type templateData struct {
 	Metadata    Metadata
 	Experiments []ExperimentResult
-	DataJSON    template.JS
 }
 
 func generateHTMLReport(report *Report, outputPath string) error {
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
-		return err
-	}
-
-	dataBytes, err := json.Marshal(report.Experiments)
-	if err != nil {
 		return err
 	}
 
@@ -571,7 +543,6 @@ func generateHTMLReport(report *Report, outputPath string) error {
 	td := templateData{
 		Metadata:    report.Metadata,
 		Experiments: report.Experiments,
-		DataJSON:    template.JS(dataBytes),
 	}
 
 	tmpl, err := template.New("report").Funcs(funcMap).Parse(htmlTemplate)

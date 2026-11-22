@@ -40,7 +40,7 @@ type Engine interface {
 
 // benchCWD is a stable empty directory used as the working directory for
 // every spawned process. Every fixture and output path the engines pass is
-// absolute, so the cwd never carries meaning — pinning it outside the repo
+// absolute, so the cwd never carries meaning. Pinning it outside the repo
 // keeps a kapi invocation from binding the repo's dogfood kapi.yaml via the
 // upward project walk (belt-and-suspenders with the KAPI_NO_PROJECT=1 that
 // nativeOnlyEnv already set).
@@ -175,7 +175,7 @@ func (e *KapiNativeEngine) Name() string    { return "kapi-native" }
 func (e *KapiNativeEngine) Version() string { return e.VersionStr }
 
 // nativeOnlyEnv suppresses plugin discovery and isolates the run from the
-// developer's config, caches, and the repo's dogfood project — the full
+// developer's config, caches, and the repo's dogfood project. This is the full
 // dogfooding contract (CLAUDE.md, Makefile $(KAPI_ISO_ENV)). KAPI_PLUGINS_DIR
 // points at an empty scratch dir and KAPI_PLUGINS_DIR_ONLY pins discovery to
 // exactly that dir, so neither the user's XDG root nor the absolute system
@@ -225,7 +225,7 @@ func runKapiBatch(ctx context.Context, binPath string, files []TestFile, inputDi
 	// Don't pass --fail-on-unknown: some engines legitimately can't
 	// handle some formats (no native idml/openxml reader), and we want
 	// them to skip rather than fail the whole batch. Per-file success
-	// is determined post-hoc by checking output existence below — that
+	// is determined post-hoc by checking output existence below. That
 	// catches the silent-skip class of bugs without losing engine-wide
 	// timing on partial-coverage formats.
 	args = append(args, "--target-lang", "qps", "-q", "-o", outputTemplate)
@@ -275,7 +275,7 @@ func runKapiBatch(ctx context.Context, binPath string, files []TestFile, inputDi
 		}
 		missing++
 	}
-	// We don't fail the engine when missing > 0 — partial coverage is
+	// We don't fail the engine when missing > 0. Partial coverage is
 	// expected (e.g. native can't handle idml). Per-file Success flags
 	// already record exactly which fixtures the engine processed. Only
 	// fail if the engine produced literally nothing AND wasn't told it
@@ -356,7 +356,7 @@ func collectOutputs(outputDir string) []string {
 // hasOutputFor returns true if any file in `written` looks like the
 // pseudo-translated output of inputPath. kapi's `{name}_{lang}{ext}`
 // template can collapse to a directory containing the original
-// filename, so we accept any match by basename — exact path matching
+// filename, so we accept any match by basename. Exact path matching
 // is too brittle across engines and versions.
 func hasOutputFor(written []string, inputPath string) bool {
 	base := filepath.Base(inputPath)
@@ -414,7 +414,7 @@ func sumDirSize(dir string) int64 {
 
 // runCommand runs a command and returns stdout as a string.
 func runCommand(name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
+	cmd := exec.CommandContext(context.Background(), name, args...)
 	out, err := cmd.Output()
 	return string(out), err
 }
@@ -422,7 +422,7 @@ func runCommand(name string, args ...string) (string, error) {
 // detectVersion tries to get the version string from a binary.
 // Both kapi and kapi-okapi-bridge expose a `version` subcommand; the
 // bridge prints a bare version string ("0.0.0-dev"), kapi prints JSON
-// when given --json. Never invoke the binary with no args — the bridge
+// when given --json. Never invoke the binary with no args. The bridge
 // launcher treats that as "start gRPC daemon" and blocks forever.
 func detectVersion(binPath string) string {
 	// kapi-style first: `binary version --json` → {"version": "..."}
@@ -469,7 +469,7 @@ func detectVersion(binPath string) string {
 // tracked file to zero of them: /Users/<name>/... resolves on exactly one
 // laptop. Error strings are the way they get in, because a failing engine
 // reports the binary and the fixture by full path, and a run where nothing
-// fails carries none — so the guard stays quiet until the first bad run and
+// fails carries none. So the guard stays quiet until the first bad run and
 // then fails a build that looks unrelated.
 func scrubPaths(msg string) string {
 	if home, err := os.UserHomeDir(); err == nil && home != "" {

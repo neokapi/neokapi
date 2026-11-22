@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"cmp"
 	"errors"
 
 	"github.com/neokapi/neokapi/host/venue/config"
@@ -13,6 +14,7 @@ import (
 var (
 	tokenName       string
 	tokenExpireDays int
+	tokenTool       string
 )
 
 var authTokenCmd = &cobra.Command{
@@ -25,6 +27,11 @@ var authTokenCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create an API token",
 	Long: `Create a new API token for the current workspace.
+
+With --tool the token belongs to a tool, such as a CI workflow: the server
+records what the tool does as the tool's, issued by you, and you can review
+that work. A tool token cannot review. Revoking it stops the tool and leaves
+your own sign-in alone.
 
 The token is displayed once, so save it immediately.
 Requires a project connected to a server workspace.`,
@@ -42,7 +49,8 @@ Requires a project connected to a server workspace.`,
 			return errors.New("no workspace configured in the project recipe")
 		}
 
-		resp, err := client.CreateToken(cmd.Context(), stored.ServerURL, stored.AccessToken, proj.Recipe.Server.Workspace(), tokenName, tokenExpireDays)
+		resp, err := client.CreateToken(cmd.Context(), stored.ServerURL, stored.AccessToken, proj.Recipe.Server.Workspace(),
+			client.CreateTokenRequest{Name: tokenName, ExpireDays: tokenExpireDays, ToolName: tokenTool})
 		if err != nil {
 			return err
 		}
@@ -50,6 +58,7 @@ Requires a project connected to a server workspace.`,
 		return output.Print(cmd, output.TokenCreateOutput{
 			ID:          resp.ID,
 			Name:        resp.Name,
+			Tool:        resp.ToolName,
 			Token:       resp.Token,
 			TokenPrefix: resp.TokenPrefix,
 			ExpiresAt:   resp.ExpiresAt,
@@ -84,6 +93,8 @@ var authTokenListCmd = &cobra.Command{
 			entries[i] = output.TokenEntry{
 				ID:          t.ID,
 				Name:        t.Name,
+				Tool:        t.ToolName,
+				IssuedBy:    cmp.Or(t.IssuerName, t.IssuedBy),
 				TokenPrefix: t.TokenPrefix,
 				LastUsedAt:  t.LastUsedAt,
 				ExpiresAt:   t.ExpiresAt,
@@ -125,6 +136,7 @@ var authTokenDeleteCmd = &cobra.Command{
 func init() {
 	authTokenCreateCmd.Flags().StringVar(&tokenName, "name", "", "token name (required)")
 	authTokenCreateCmd.Flags().IntVar(&tokenExpireDays, "expire-days", 0, "days until expiration (0 = never)")
+	authTokenCreateCmd.Flags().StringVar(&tokenTool, "tool", "", "make a tool token for the named tool, such as dogfood-sync (lowercase letters, digits, - and _)")
 	_ = authTokenCreateCmd.MarkFlagRequired("name")
 
 	addProjectFlag(authTokenCmd)

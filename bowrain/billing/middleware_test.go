@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -49,7 +49,7 @@ func TestPlanGuard(t *testing.T) {
 				c.Set("feature_overrides", tt.overrides)
 			}
 
-			handler := PlanGuard(tt.feature)(func(c echo.Context) error {
+			handler := PlanGuard(tt.feature)(func(c *echo.Context) error {
 				return c.String(http.StatusOK, "ok")
 			})
 
@@ -176,7 +176,7 @@ func TestQuotaGuard(t *testing.T) {
 			c.Set(contextKeyWorkspacePlan, tt.plan)
 			c.Set("workspace_id", "ws-123")
 
-			handler := QuotaGuard(store)(func(c echo.Context) error {
+			handler := QuotaGuard(store)(func(c *echo.Context) error {
 				return c.String(http.StatusOK, "ok")
 			})
 
@@ -197,7 +197,7 @@ func TestQuotaGuard_RetryAfterHeader(t *testing.T) {
 	c.Set(contextKeyWorkspacePlan, "free")
 	c.Set("workspace_id", "ws-123")
 
-	handler := QuotaGuard(store)(func(c echo.Context) error {
+	handler := QuotaGuard(store)(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -226,7 +226,7 @@ func TestQuotaGuard_OnBlockCallbackFired(t *testing.T) {
 	c.Set(contextKeyWorkspacePlan, "pro")
 	c.Set("workspace_id", "ws-456")
 
-	handler := QuotaGuard(store, onBlock)(func(c echo.Context) error {
+	handler := QuotaGuard(store, onBlock)(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -253,7 +253,7 @@ func TestQuotaGuard_OnBlockNotFiredWhenAllowed(t *testing.T) {
 	c.Set(contextKeyWorkspacePlan, "pro")
 	c.Set("workspace_id", "ws-456")
 
-	handler := QuotaGuard(store, onBlock)(func(c echo.Context) error {
+	handler := QuotaGuard(store, onBlock)(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -278,7 +278,7 @@ func TestPlanGuard_OnBlockCallbackFired(t *testing.T) {
 	c.Set(contextKeyWorkspacePlan, "free")
 	c.Set("workspace_id", "ws-789")
 
-	handler := PlanGuard(FeatureConnectorsGit, onBlock)(func(c echo.Context) error {
+	handler := PlanGuard(FeatureConnectorsGit, onBlock)(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -302,7 +302,7 @@ func TestPlanGuard_OnBlockNotFiredWhenAllowed(t *testing.T) {
 	c.Set(contextKeyWorkspacePlan, "pro")
 	c.Set("workspace_id", "ws-789")
 
-	handler := PlanGuard(FeatureConnectorsGit, onBlock)(func(c echo.Context) error {
+	handler := PlanGuard(FeatureConnectorsGit, onBlock)(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 

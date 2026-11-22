@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -23,23 +23,17 @@ type ApprovePassingRequest struct {
 	Locales []string `json:"locales,omitempty"`
 }
 
-// ApprovePassingResponse reports what the bulk pass did. RemainingPending is the
-// count of targets still awaiting review after the pass (the excluded
-// failing/non-compliant blocks). ReviewCompleted is true when this pass emptied the
-// project's whole review queue and kicked off the completing convergence run →
-// delivery, so a surface can show "all approved · delivering…".
+// ApprovePassingResponse reports what the bulk pass did. RemainingPending is
+// the count of targets still awaiting review after the pass. ReviewCompleted
+// is true when this pass emptied the project's whole review queue and started
+// the completing convergence run and delivery.
 //
-// The Skipped* fields name WHICH bar each excluded target missed — the same
-// bars the review queue's entries carry, so the surface that previewed the
-// pass and the response that reports it speak in one vocabulary. A target can
-// miss more than one bar; it is counted against the first in gate order
-// (checks, then terminology, then voice). SkippedTermsNotChecked counts the
-// targets in a locale terms or voice profile rules govern whose terminology has
-// no verdict, and SkippedVoiceNotChecked those in a locale a voice profile
-// governs that nothing has scored: the pass holds no evidence to approve them
-// on. A dimension that does not govern the locale is no bar and skips nothing.
-// SkippedSelfAuthored is the only count about the caller rather than the
-// content: a translation the caller wrote, in a workspace whose
+// The Skipped* fields name the bar each excluded target missed, the same bars
+// the review queue's entries carry. A target that misses several is counted
+// against the first in gate order: checks, then terminology, then voice.
+// SkippedTermsNotChecked and SkippedVoiceNotChecked count targets in a locale
+// that dimension governs with no verdict or score yet. SkippedSelfAuthored
+// counts translations the caller wrote, in a workspace whose
 // separation-of-duties policy blocks self-approval. The six sum to Skipped.
 type ApprovePassingResponse struct {
 	Approved               int  `json:"approved"`
@@ -55,27 +49,22 @@ type ApprovePassingResponse struct {
 }
 
 // HandleApprovePassing bulk-approves every block whose target for a locale is
-// awaiting review AND clears the ship bar — passes the project's checks with
-// no error-severity finding, is term-compliant for the locale, AND meets the
-// voice compliance bar (the same #1365 shipstate predicate the dashboard
-// aggregates). Blocks that fail checks, violate the terminology, sit below the
-// voice bar, or lack a result for a bar that governs the locale are EXCLUDED
-// and left pending for a
-// person. Approved blocks are
-// promoted to reviewed; the locales that clear their review queue have their
-// review task(s) closed, and if that empties the project's whole review queue
-// the loop continues to a completing convergence run → delivery (RV-B).
+// awaiting review and clears the ship bar: no error-severity finding from the
+// project's checks, term-compliant for the locale, and at or above the voice
+// compliance bar. A block that misses a bar, or lacks a result for a bar that
+// governs the locale, is left pending for a person. When the whole review
+// queue empties, the loop continues to a completing convergence run and
+// delivery.
 //
-// Every promotion is a decide operation the pass sends through the stream's
-// change service as the caller, bound to the translation the pass read: it
-// goes to the decision ledger with the decider and the revision of the
-// translation it blesses, and from there into the workspace content memory, exactly as
-// any other approval does. A translation that moved since the pass read it
-// stays pending. A translation the caller wrote themselves is left pending when
-// the workspace's separation-of-duties policy blocks self-approval.
+// Every promotion is a decide operation sent through the stream's change
+// service as the caller, bound to the translation the pass read. It reaches
+// the decision ledger and the workspace content memory as any other approval
+// does. A translation that moved since the pass read it stays pending, as
+// does one the caller wrote under a separation-of-duties policy that blocks
+// self-approval.
 //
-// POST /:ws/:id/review/approve-passing  { "stream"?: "main", "locales"?: ["fr"] }
-func (s *Server) HandleApprovePassing(c echo.Context) error {
+// POST /:ws/:id/review/approve-passing { "stream"?: "main", "locales"?: ["fr"] }
+func (s *Server) HandleApprovePassing(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermReview); err != nil {
 		return err
 	}
@@ -99,11 +88,30 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 		stream = req.Stream
 	}
 
+	resp, err := s.approvePassing(c, proj, stream, req.Locales, nil, nil)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusOK, resp)
+}
+
+// approvePassing runs one approve-passing pass over the stream, in the
+// project's target languages narrowed to wantedLocales (all when empty) and to
+// the caller's language scope. Each decision carries reasons in the ledger:
+// the review plan's settle step passes "review policy". The items of
+// skipCollections are left alone ("" names the items in no collection).
+func (s *Server) approvePassing(c *echo.Context, proj *platstore.Project, stream string, wantedLocales, reasons, skipCollections []string) (ApprovePassingResponse, error) {
+	ctx := c.Request().Context()
+	pid := proj.ID
+	skipItems, err := itemsInCollections(ctx, s.ContentStore, pid, stream, skipCollections)
+	if err != nil {
+		return ApprovePassingResponse{}, err
+	}
 	// Candidate locales: the project's target languages, narrowed by the optional
 	// locales filter and by the caller's own language scope (a reviewer scoped to
 	// fr cannot approve de). project_languages empty = all languages allowed.
 	wanted := map[string]bool{}
-	for _, l := range req.Locales {
+	for _, l := range wantedLocales {
 		wanted[l] = true
 	}
 	allowed, _ := c.Get("project_languages").([]string)
@@ -155,15 +163,13 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 	}
 
 	// A batch at a time: decide it, write back the blocks it changed, count
-	// what it leaves pending, drop it. Reading a whole project's blocks — and
-	// holding every modified one until the end — is what OOM-killed the server,
-	// and "approve everything that passes" is by nature the request that touches
-	// the most of a corpus at once.
+	// what it leaves pending, drop it. Reading a whole project's blocks, and
+	// holding every modified one until the end, runs the server out of memory
+	// on a large corpus.
 	//
-	// Applying per batch rather than once at the end does mean a failure
-	// part-way leaves the earlier batches approved. The operation is
-	// idempotent: re-running approves what is still pending.
-	//
+	// A failure part-way leaves the earlier batches approved. The operation is
+	// idempotent: running it again approves what is still pending.
+
 	// Safe to write during the walk: the cursor is keyed on block id and an
 	// approval changes a target's status, never an id, so the page boundary the
 	// next query resumes from cannot move underneath it.
@@ -187,12 +193,12 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 			set := change.Set{}
 			pending := 0
 			for _, sb := range batch {
-				if sb == nil || sb.Block == nil || !sb.Block.Translatable {
+				if sb == nil || sb.Block == nil || !sb.Block.Translatable || skipItems[sb.ItemName] {
 					continue
 				}
 				for _, loc := range locales {
 					if !targetPendingReview(sb.Block, loc) {
-						continue // untranslated, or already approved — not a candidate
+						continue // untranslated, or already approved: not a candidate
 					}
 					scored := scores[string(locale.Normalize(loc))]
 					blocker := blockApproveBlocker(ctx, sb.Block, loc, scored, gate)
@@ -212,7 +218,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 						set.Ops = append(set.Ops, change.Op{Kind: change.KindDecide,
 							At:      change.Ref{Doc: sb.ItemName, Block: sb.Block.ID, Edition: model.EditionKey{Locale: loc}},
 							IfMatch: platstore.TargetRevision(sb, loc),
-							Body:    &change.Decide{Outcome: change.OutcomeEstablish}})
+							Body:    &change.Decide{Outcome: change.OutcomeEstablish, Reasons: reasons}})
 					}
 				}
 			}
@@ -249,7 +255,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 			return nil
 		})
 	if walkErr != nil {
-		return serverErr(c, walkErr)
+		return ApprovePassingResponse{}, walkErr
 	}
 
 	touched := make([]model.LocaleID, 0, len(touchedSet))
@@ -289,7 +295,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 		})
 	}
 
-	return c.JSON(http.StatusOK, ApprovePassingResponse{
+	return ApprovePassingResponse{
 		Approved:               approved,
 		Skipped:                skipped + sodRefused,
 		SkippedFailingChecks:   skippedBy[approveBlockerChecks],
@@ -300,5 +306,5 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 		SkippedSelfAuthored:    sodRefused,
 		RemainingPending:       remaining,
 		ReviewCompleted:        reviewCompleted,
-	})
+	}, nil
 }

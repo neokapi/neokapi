@@ -19,13 +19,13 @@ import (
 type ScriptConfig struct {
 	Source     string `json:"source,omitempty"     schema:"title=Script Source,description=Script source mode,enum=inline|file,default=inline,widget=segmented"`
 	Code       string `json:"code,omitempty"       schema:"title=Inline Code,description=Inline ES5 JavaScript code,widget=code-editor,showIf=source:inline"`
-	ScriptFile string `json:"scriptFile,omitempty" schema:"title=Script File,description=Path to a .js file,widget=file-picker,showIf=source:file"`
+	ScriptFile string `json:"script_file,omitempty" schema:"title=Script File,description=Path to a .js file,widget=file-picker,showIf=source:file"`
 	// AllowSourceMutation opts the script into writing the block's SOURCE.
 	// Off by default: source is read-only to the script (its source edits are
 	// ignored), matching the content-model immutability contract; only target
 	// edits take effect. Enable for source-transform scripts that run early,
 	// before any segmentation/term/entity overlay is attached.
-	AllowSourceMutation bool `json:"allowSourceMutation,omitempty" schema:"title=Allow Source Mutation,description=Permit the script to modify the source text (off by default; source is read-only)"`
+	AllowSourceMutation bool `json:"allow_source_mutation,omitempty" schema:"title=Allow Source Mutation,description=Permit the script to modify the source text (off by default; source is read-only)"`
 }
 
 // ToolName returns the tool name this config applies to.

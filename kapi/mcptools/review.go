@@ -2,7 +2,7 @@ package mcptools
 
 // MCP review tools: the review queue and the review picture of one block. An
 // agent reads what awaits a person and records its pre-review through
-// apply_edits, as a decide operation with outcome advise bound to the
+// apply_edits, as a decide operation with outcome prereview bound to the
 // revision review_block reports; it never records a decision. Only a person
 // establishes a block, through the desktop Review page, `kapi apply`, or a
 // hosted review session, so an agent's judgement never counts as a person's.
@@ -27,14 +27,14 @@ func init() {
 func registerReviewTools(server *mcp.Server, a *cli.App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "review_queue",
-		Description: "List the review queue: every block awaiting a person, each with ref, the reference review_block reads it by ({doc, block, edition}: the source document, the block key and the translation's language; no edition for a source block). One queue holds every language, the project's source language among them: a translated block not yet approved is one row, and a source block held below the project's translate_after level is another, marked `isSource`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; blocks annotated by an AI pre-review carry their score. Lean by design: call review_block for a block's context (the point governing it, its neighbourhood, its prior version, its findings).",
+		Description: "List the review queue: every block awaiting a person, each with ref, the reference review_block reads it by ({doc, block, edition}: the source document, the block key and the translation's language; no edition for a source block). One queue holds every language, the project's source language among them: a translated block not yet approved is one row, and a source block held below the project's translate_after level is another, marked `is_source`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; blocks annotated by an AI pre-review carry their score. Lean by design: call review_block for a block's context (the point governing it, its neighbourhood, its prior version, its findings).",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ReviewQueueInput) (*mcp.CallToolResult, ReviewQueueOutput, error) {
 		return handleReviewQueue(ctx, a, input)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:         "review_block",
-		Description:  "Read one block's review picture: ref and rev, the reference and revision of the edition under review, and the block itself, under block: source and target text, ladder status, the last recorded decision (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. Address it with the ref a review_queue row carries, or a ref read_blocks reports with the translation's edition. A block in the project's source language is read from its source file and returns its authoring rung with no target half. To record a pre-review, send apply_edits a decide operation with at set to ref, if_match set to rev, outcome advise, a score from 0 to 100 and your reasons: it is bound to the wording you read, a later edit drops it, and it never approves the block.",
+		Description:  "Read one block's review picture: ref and rev, the reference and revision of the edition under review, and the block itself, under block: source and target text, ladder status, the last recorded decision (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. Address it with the ref a review_queue row carries, or a ref read_blocks reports with the translation's edition. A block in the project's source language is read from its source file and returns its authoring rung with no target half. To record a pre-review, send apply_edits a decide operation with at set to ref, if_match set to rev, outcome prereview, a score from 0 to 100 and your reasons: it is bound to the wording you read, a later edit drops it, and it never approves the block.",
 		OutputSchema: reviewBlockOutputSchema,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ReviewBlockInput) (*mcp.CallToolResult, ReviewBlockOutput, error) {
 		return handleReviewBlock(ctx, a, input)
@@ -119,7 +119,7 @@ func handleReviewQueue(ctx context.Context, a *cli.App, input ReviewQueueInput) 
 	if input.Language != "" {
 		langs = []string{input.Language}
 	}
-	queue, err := a.ReviewQueue(ctx, projectPath, "", cli.ReviewQueueOptions{Languages: langs})
+	queue, err := a.ReviewQueue(ctx, projectPath, "", cli.ReviewQueueOptions{Languages: langs, MarkFindings: true})
 	if err != nil {
 		return nil, ReviewQueueOutput{}, fmt.Errorf("derive review queue: %w", err)
 	}

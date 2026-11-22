@@ -34,8 +34,8 @@ func ApplySourceLocale(sourceLang string, config map[string]any) map[string]any 
 	if config == nil {
 		config = map[string]any{}
 	}
-	if _, ok := config["sourceLocale"]; !ok {
-		config["sourceLocale"] = sourceLang
+	if _, ok := config["source_locale"]; !ok {
+		config["source_locale"] = sourceLang
 	}
 	return config
 }

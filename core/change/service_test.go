@@ -770,6 +770,53 @@ func TestService_DecisionsAndAssetsFollowTheContent(t *testing.T) {
 	})
 }
 
+// A decision's basis binds the source its sender read: under require_basis a
+// decision on a translation whose source moved is refused as stale, and a
+// correction and its approval in one change set both name the revisions read
+// before the change set began.
+func TestService_ADecisionBasisBindsTheSource(t *testing.T) {
+	h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "First", "nb", "Første")}})
+	assets := &memAssets{}
+	svc := newMemService(h, change.WithAssets(assets))
+	ctx := context.Background()
+	b := readBlock(t, svc, "a", "one")
+	nb := b.Editions["nb"]
+	decideOn := func(rev, basis string) change.Op {
+		return change.Op{Kind: change.KindDecide, At: atEdition(b.Ref, "nb"), IfMatch: rev, Basis: basis,
+			Body: &change.Decide{Outcome: change.OutcomeEstablish}}
+	}
+
+	t.Run("a basis that names another source is stale under require_basis", func(t *testing.T) {
+		res, err := svc.Apply(ctx, change.Set{RequireBasis: true, Ops: []change.Op{decideOn(nb.Rev, "r:0000000000000000")}}, svcPerson)
+		require.NoError(t, err)
+		require.Equal(t, change.SetRefused, res.Status)
+		require.NotNil(t, res.Ops[0].Error)
+		assert.Equal(t, change.CodeStale, res.Ops[0].Error.Code)
+		assert.Equal(t, "basis", res.Ops[0].Error.Field)
+		require.NotNil(t, res.Ops[0].Current)
+		assert.Equal(t, b.Rev, res.Ops[0].Current.Rev)
+		assert.Equal(t, "First", res.Ops[0].Current.Text)
+	})
+
+	t.Run("without require_basis the basis is not checked", func(t *testing.T) {
+		res, err := svc.Apply(ctx, change.Set{Mode: change.ModePreview, Ops: []change.Op{decideOn(nb.Rev, "r:0000000000000000")}}, svcPerson)
+		require.NoError(t, err)
+		assert.Equal(t, change.SetPreviewed, res.Status, "%+v", res.Ops)
+	})
+
+	t.Run("a correction and its approval name the revisions read", func(t *testing.T) {
+		res, err := svc.Apply(ctx, change.Set{RequireBasis: true, Ops: []change.Op{
+			{Kind: change.KindSetContent, At: atEdition(b.Ref, "nb"), IfMatch: nb.Rev, Basis: b.Rev,
+				Body: edit(b.Ref, "", "Innledende").Body},
+			decideOn(nb.Rev, b.Rev),
+		}}, svcPerson)
+		require.NoError(t, err)
+		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+		assert.Equal(t, []string{`decide establish one@nb ` + res.Ops[0].After + ` "Innledende" on "First"`}, assets.applied,
+			"the decision binds to the corrected wording")
+	})
+}
+
 func TestService_Refusals(t *testing.T) {
 	h := newMemHome(map[string][]memBlock{
 		"a":   {textBlock("one", "First"), textBlock("dup", "Twice"), textBlock("dup", "Again"), {key: "code", editions: map[model.EditionKey][]model.Run{{}: {model.TextR("x := 1")}}}},

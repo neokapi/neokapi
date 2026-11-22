@@ -55,13 +55,13 @@ export function formatWarning(w: Warning): string {
     case "unknown-component":
       return (
         `[neokapi] ${loc}: <${w.tag}> is an unmapped component with ` +
-        `translatable text — extracted. Add a componentMap entry to ` +
+        `translatable text: extracted. Add a componentMap entry to ` +
         `stabilise hashes: { ${w.tag}: '<underlying-html-tag>' }.\n` +
         `  ↳ ${w.snippet}`
       );
     case "dyn-label-splice":
       return (
-        `[neokapi] ${loc}: {${w.tag}} is rendered as JSX text — the ` +
+        `[neokapi] ${loc}: {${w.tag}} is rendered as JSX text. The ` +
         `property name suggests a user-visible string that won't be ` +
         `translated. Extract the label (e.g. t("key") or <T>…</T>) or ` +
         `mark the parent translate="no" if intentional.\n` +
@@ -70,7 +70,7 @@ export function formatWarning(w: Warning): string {
     case "ternary-attr-complex":
       return (
         `[neokapi] ${loc}: ${w.tag}={…} uses a conditional whose ` +
-        `branches aren't both plain string literals — can't extract. ` +
+        `branches aren't both plain string literals, so it can't extract. ` +
         `Lift the strings to the branches (cond ? "A" : "B") or use ` +
         `t() explicitly.\n` +
         `  ↳ ${w.snippet}`

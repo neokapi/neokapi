@@ -1,17 +1,17 @@
 ---
 sidebar_position: 6
 title: kdiff
-description: kdiff compares the text of two files block by block, regardless of format, so a reflowed Word document or a reordered JSON catalog shows only the prose that actually changed rather than byte-level noise.
+description: kdiff compares the text of two files block by block, regardless of format, so a reflowed Word document or a reordered JSON catalog shows only the prose that actually changed.
 keywords: [kdiff, diff, compare, changeset, coverage, docx, json, xliff, multilingual content]
 ---
 
 # kdiff
 
-Compare the human-readable text inside any supported format, **block by block**,
-rather than byte by byte. A reflowed Word `.docx`, a re-zipped container or a
-reordered JSON catalog do not register as a diff. Only the prose that actually
-changed does. This is the changeset a translator (or a translation engine) cares
-about: what content moved, was added, was removed, or was rewritten.
+Compare the human-readable text inside any supported format, **block by block**.
+A reflowed Word `.docx`, a re-zipped container or a reordered JSON catalog shows
+only the prose that actually changed. That is the changeset a translator or a
+translation engine needs: what content moved, was added, was removed, or was
+rewritten.
 
 ```bash
 kdiff [flags] FILE_A [FILE_B]
@@ -30,7 +30,7 @@ What text changed between two versions of a document.
 # What changed between two catalog versions
 kdiff old.json new.json
 
-# What changed in a Word proposal — ignoring re-save / formatting noise
+# What changed in a Word proposal, ignoring re-save and formatting noise
 kdiff proposal.docx proposal-v2.docx
 
 # What changed in the French translation specifically
@@ -57,18 +57,17 @@ app [fr]: 18 translated, 3 untranslated, 1 identical to source
 
 ## How blocks are aligned
 
-`kdiff` aligns the document's **blocks** rather than its line positions. The
-alignment strategy is chosen automatically:
+`kdiff` aligns the document's **blocks** and ignores line positions. It picks the
+alignment strategy for the format:
 
 - **Keyed formats** (JSON, XLIFF, PO, `.resx`, and anything else with a stable
-  block key) align **by key**. Reordering keys is therefore not a diff; renaming the
-  value under a key is a *change*; a new key is an *addition*. Reordered keys are
-  reported as `moved`, not as a wholesale rewrite the way a line diff would show
-  them.
+  block key) align **by key**. A changed value under a key is a *change*, and a
+  new key is an *addition*. Reordered keys are reported as `moved`, where a line
+  diff would show a wholesale rewrite.
 - **Prose formats** (Word, Markdown, HTML, whose block identities are
   positional) align **by content**, using a longest-common-subsequence match
   over the block text. Inserting a paragraph shows up as a single added block,
-  not as a cascade of "everything after it changed".
+  and the blocks after it stay unchanged.
 
 Force a strategy with `--by id` or `--by content` when the automatic choice is
 wrong for your file.

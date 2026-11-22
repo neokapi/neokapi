@@ -1,0 +1,33 @@
+{
+  "name": "@neokapi/bowrain-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Typed client for the Bowrain server API: workspaces, projects, the review deck, fix candidates and change sets (kapi.change/v1). Shared by the Bowrain mobile app and Bowrain web. Holds no product rules; every decision is the server's.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "LICENSE"
+  ],
+  "scripts": {
+    "typecheck": "vp check --no-fmt --no-lint",
+    "check": "vp check",
+    "test": "vp test"
+  },
+  "dependencies": {
+    "@neokapi/contract-types": "*",
+    "@neokapi/kapi-format": "*"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

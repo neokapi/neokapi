@@ -51,7 +51,7 @@ export function NewProjectDialog({ onCreate, onCancel, shortenHome }: NewProject
     >
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>New Project</DialogTitle>
+          <DialogTitle>New project</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -144,7 +144,7 @@ export function NewProjectDialog({ onCreate, onCancel, shortenHome }: NewProject
               value={sourceLang}
               onChange={setSourceLang}
               locales={locales}
-              placeholder={t("Select source language...")}
+              placeholder={t("Select source language…")}
             />
           </div>
           <div className="flex gap-2">

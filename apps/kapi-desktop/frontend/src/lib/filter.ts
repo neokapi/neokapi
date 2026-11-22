@@ -7,6 +7,7 @@
  *   - glob:        keep only files whose path matches this glob
  *   - languages:   keep only these target languages
  */
+import { globToRegExp } from "@neokapi/kapi-lab/glob.ts";
 import type { ProjectFilter } from "../types/api";
 
 /** Minimal file shape the filter needs — matches FileMatch from the backend. */
@@ -26,39 +27,14 @@ export function isEmptyFilter(filter: ProjectFilter | null | undefined): boolean
   );
 }
 
-/**
- * Match a path against a simple glob. `*` matches within a path segment, `**`
- * matches across segments, `?` matches one non-separator char. A glob with no
- * `/` matches anywhere in the tree (so `*.json` matches `a/b/c.json`).
- */
-export function matchGlob(glob: string, path: string): boolean {
-  const g = glob.trim();
-  if (!g) return true;
-  const pattern = g.includes("/") ? g : `**/${g}`;
-  const re = globToRegExp(pattern);
-  return re.test(path);
+function fileGlob(glob: string): RegExp | undefined {
+  const pattern = glob.trim();
+  if (!pattern) return undefined;
+  return globToRegExp(pattern.includes("/") ? pattern : `**/${pattern}`);
 }
 
-function globToRegExp(glob: string): RegExp {
-  let re = "";
-  for (let i = 0; i < glob.length; i++) {
-    const c = glob[i];
-    if (c === "*") {
-      if (glob[i + 1] === "*") {
-        re += ".*";
-        i++;
-      } else {
-        re += "[^/]*";
-      }
-    } else if (c === "?") {
-      re += "[^/]";
-    } else if ("\\^$.|+()[]{}".includes(c)) {
-      re += "\\" + c;
-    } else {
-      re += c;
-    }
-  }
-  return new RegExp(`^${re}$`);
+export function matchGlob(glob: string, path: string): boolean {
+  return fileGlob(glob)?.test(path) ?? true;
 }
 
 /** Keep only files within the filter's collections and matching its glob. */
@@ -68,11 +44,10 @@ export function filterFiles<T extends FilterableFile>(
 ): T[] {
   if (isEmptyFilter(filter)) return files;
   const cols = filter?.collections ?? [];
-  const glob = filter?.glob?.trim() ?? "";
+  const glob = fileGlob(filter?.glob ?? "");
   return files.filter((f) => {
-    if (cols.length && f.collection && !cols.includes(f.collection)) return false;
-    if (glob && !matchGlob(glob, f.relative ?? f.path)) return false;
-    return true;
+    if (cols.length && (!f.collection || !cols.includes(f.collection))) return false;
+    return glob?.test(f.relative ?? f.path) ?? true;
   });
 }
 

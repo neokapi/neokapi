@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage/compression"
@@ -296,8 +297,7 @@ func TestStreamParamWithProject(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("stream")
-		c.SetParamValues("from-url")
+		c.SetPathValues(echo.PathValues{{Name: "stream", Value: "from-url"}})
 
 		proj := &store.Project{DefaultStream: "proj-default"}
 		assert.Equal(t, "from-url", streamParamWithProject(c, proj))

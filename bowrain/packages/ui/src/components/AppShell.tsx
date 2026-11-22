@@ -202,9 +202,14 @@ export function AppShell<V extends string = string>({
                 counts={sidebarProps.subNavCounts}
               />
             )}
+            {/* The scroll container is positioned, so an absolutely positioned
+                descendant (every `sr-only` label is one) is laid out inside it
+                and scrolls with the page. Without it such an element anchors
+                to <main>, which clips, and adds height there that no scrollbar
+                reaches. */}
             <div
               className={cn(
-                "flex-1 flex flex-col min-h-0 min-w-0 overflow-auto p-4",
+                "relative flex-1 flex flex-col min-h-0 min-w-0 overflow-auto",
                 contentClassName,
               )}
             >

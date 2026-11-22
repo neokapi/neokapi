@@ -65,7 +65,7 @@ func TestReadArrayStrings(t *testing.T) {
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"extractIsolatedStrings": true,
+		"extract_isolated_strings": true,
 	}))
 	input := `{"items": ["First", "Second", "Third"]}`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -178,7 +178,7 @@ func TestReadInvalidJSON(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
-	// Unterminated string — invalid even under JSON5 lenient mode
+	// Unterminated string, invalid even under JSON5 lenient mode
 	// (single quotes / bare keys, which `{invalid json` would otherwise
 	// be scanned as).
 	err := reader.Open(ctx, testutil.RawDocFromString(`{"key": "unterminated`, model.LocaleEnglish))
@@ -200,7 +200,7 @@ func TestReadInvalidJSONError(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
-	// Unterminated string — invalid even under JSON5 lenient mode
+	// Unterminated string, invalid even under JSON5 lenient mode
 	// (single quotes / bare keys, which `{invalid json` would otherwise
 	// be scanned as).
 	err := reader.Open(ctx, testutil.RawDocFromString(`{"key": "unterminated`, model.LocaleEnglish))
@@ -227,7 +227,7 @@ func TestReadFromFile(t *testing.T) {
 
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"extractIsolatedStrings": true,
+		"extract_isolated_strings": true,
 	}))
 	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/simple.json", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -378,7 +378,7 @@ func TestRoundTripArray(t *testing.T) {
 	// Read
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"extractIsolatedStrings": true,
+		"extract_isolated_strings": true,
 	}))
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -436,7 +436,7 @@ func TestRoundTripFileSimple(t *testing.T) {
 	require.NoError(t, err)
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"extractIsolatedStrings": true,
+		"extract_isolated_strings": true,
 	}))
 	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/simple.json", model.LocaleEnglish))
 	require.NoError(t, err)
@@ -506,7 +506,7 @@ func TestReadMixedArray(t *testing.T) {
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"extractIsolatedStrings": true,
+		"extract_isolated_strings": true,
 	}))
 	input := `{"mixed": ["text", 42, true, "more text"]}`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
@@ -594,8 +594,8 @@ func TestReadDeeplyNested(t *testing.T) {
 }
 
 // partsByKind splits emitted parts into translatable blocks, non-translatable
-// content blocks, and Data parts — the three buckets the
-// extractNonTranslatableContent flag moves content between.
+// content blocks, and Data parts: the three buckets the
+// extract_non_translatable_content flag moves content between.
 func partsByKind(parts []*model.Part) (translatable, content []*model.Block, data []*model.Data) {
 	for _, p := range parts {
 		switch p.Type {
@@ -616,8 +616,8 @@ func partsByKind(parts []*model.Part) (translatable, content []*model.Block, dat
 	return translatable, content, data
 }
 
-// By default (extractNonTranslatableContent on), isolated string values in an
-// array — not extracted for translation — surface as non-translatable content
+// By default (extract_non_translatable_content on), isolated string values in an
+// array (not extracted for translation) surface as non-translatable content
 // blocks (visible to ingestion/LLM consumers, skipped by MT) instead of opaque
 // textless Data parts.
 func TestReadIsolatedStringsAsContent(t *testing.T) {
@@ -650,13 +650,13 @@ func TestReadIsolatedStringsAsContent(t *testing.T) {
 }
 
 // With extractNonTranslatableContent off (the Okapi-faithful config), isolated
-// array strings stay opaque textless Data — byte-identical to the prior default.
+// array strings stay opaque textless Data, byte-identical to the prior default.
 func TestReadIsolatedStringsAsDataWhenDisabled(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"extractNonTranslatableContent": false,
+		"extract_non_translatable_content": false,
 	}))
 	input := `{"tags": ["alpha", "beta"]}`
 	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
@@ -705,7 +705,7 @@ func TestReadExcludedValueAsContent(t *testing.T) {
 
 // A configured note whose object scope closes with no following translatable
 // block to attach it to (a "dangling note") would otherwise be silently
-// dropped. By default (extractNonTranslatableContent on) the reader flushes the
+// dropped. By default (extract_non_translatable_content on) the reader flushes the
 // note text as a non-translatable Data part at object-scope close so
 // ingestion/LLM consumers can still see it. The note key + delimiters stay in
 // the skeleton, so the document still round-trips byte-exact.
@@ -714,7 +714,7 @@ func TestReadDanglingNoteFlushedAsData(t *testing.T) {
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"noteRules": "^_note$",
+		"note_rules": "^_note$",
 	}))
 	input := `{"text": "Hello", "_note": "trailing hint"}`
 	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
@@ -734,16 +734,16 @@ func TestReadDanglingNoteFlushedAsData(t *testing.T) {
 }
 
 // The dangling-note Data part rides on the same flag as the rest of the
-// non-translatable content surfacing: with extractNonTranslatableContent off
+// non-translatable content surfacing: with extract_non_translatable_content off
 // (the Okapi-faithful / parity config) the part stream is byte-identical to the
-// prior behavior — the note text stays skeleton-only and no Data is emitted.
+// prior behavior. The note text stays skeleton-only and no Data is emitted.
 func TestReadDanglingNoteSuppressedWhenDisabled(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"noteRules":                     "^_note$",
-		"extractNonTranslatableContent": false,
+		"note_rules":                       "^_note$",
+		"extract_non_translatable_content": false,
 	}))
 	input := `{"text": "Hello", "_note": "trailing hint"}`
 	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
@@ -766,7 +766,7 @@ func TestReadConsumedNoteIsAnnotationNotData(t *testing.T) {
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"noteRules": "^_note$",
+		"note_rules": "^_note$",
 	}))
 	input := `{"_note": "hint", "text": "Hello"}`
 	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
@@ -790,7 +790,7 @@ func TestReadDanglingIDNotFlushed(t *testing.T) {
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"idRules": "^_id$",
+		"id_rules": "^_id$",
 	}))
 	input := `{"text": "Hi", "_id": "abc"}`
 	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
@@ -813,7 +813,7 @@ func TestReadDanglingNoteInNestedScope(t *testing.T) {
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"noteRules": "_note$",
+		"note_rules": "_note$",
 	}))
 	input := `{"meta": {"_note": "section note"}, "text": "Hello"}`
 	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
@@ -831,26 +831,33 @@ func TestReadDanglingNoteInNestedScope(t *testing.T) {
 	// The note key + delimiters stay in the skeleton, so the round-trip is
 	// byte-exact even though the note text is now surfaced as a Data part.
 	assert.Equal(t, input, snippetRoundtripWithSkeleton(t, input, map[string]any{
-		"noteRules": "_note$",
+		"note_rules": "_note$",
 	}))
 }
 
 // TestWriterTerminatesOnUnexpectedObjectToken guards against a writer hang:
-// when leniently-parsed malformed input leaves a non-string, non-comma,
-// non-close token at the head of an object, writeTokenObject must still advance
-// (emit it verbatim) instead of spinning forever. Reconstruction runs on the
+// when the stored original leaves a non-string, non-comma, non-close token at
+// the head of an object, writeTokenObject must still advance (emit it
+// verbatim) instead of spinning forever. The reader refuses such input, so the
+// test reads a well-formed document and puts the malformed original into its
+// layer, as a caller holding its own parts could. Reconstruction runs on the
 // stored original (no skeleton store).
 func TestWriterTerminatesOnUnexpectedObjectToken(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
 	// `]` inside the object (after a complete pair) is the unexpected token.
-	input := `{"a": "b", ] }`
+	malformed := `{"a": "b", ] }`
 
 	reader := jsonfmt.NewReader()
-	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(`{"a": "b"}`, model.LocaleEnglish)))
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	reader.Close()
+	for _, p := range parts {
+		if layer, ok := p.Resource.(*model.Layer); ok && p.Type == model.PartLayerStart {
+			layer.Properties["json.original"] = malformed
+		}
+	}
 
 	writer := jsonfmt.NewWriter()
 	var buf bytes.Buffer
@@ -871,15 +878,15 @@ func TestWriterTerminatesOnUnexpectedObjectToken(t *testing.T) {
 	}
 }
 
-// With surfacing disabled, an excluded value stays opaque textless Data —
+// With surfacing disabled, an excluded value stays opaque textless Data,
 // byte-identical to the prior default.
 func TestReadExcludedValueAsDataWhenDisabled(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"exceptions":                    "^_internal$",
-		"extractNonTranslatableContent": false,
+		"exceptions":                       "^_internal$",
+		"extract_non_translatable_content": false,
 	}))
 	input := `{"keep": "Hi", "_internal": "secret"}`
 	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))

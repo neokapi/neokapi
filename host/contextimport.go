@@ -50,10 +50,10 @@ type ContextImport struct {
 	// Concepts, Entries and VoiceProfiles count what the sources carried.
 	Concepts      int `json:"concepts,omitempty"`
 	Entries       int `json:"entries,omitempty"`
-	VoiceProfiles int `json:"voiceProfiles,omitempty"`
+	VoiceProfiles int `json:"voice_profiles,omitempty"`
 	// VoiceTerms counts the word rules the voice files carried, which the
 	// import moved into the terms store: word rules are terms.
-	VoiceTerms int `json:"voiceTerms,omitempty"`
+	VoiceTerms int `json:"voice_terms,omitempty"`
 	// Decisions counts the rows read from a layout's decision record.
 	Decisions int `json:"decisions,omitempty"`
 	// Unchanged counts the sources already in the store at their current
@@ -69,7 +69,7 @@ type ContextImport struct {
 	Voice *ImportedVoiceBinding `json:"voice,omitempty"`
 	// ProfileVoices reports the profiles whose own voice the import bound in
 	// the recipe, because the profile's name alone would not select it.
-	ProfileVoices []ImportedProfileVoice `json:"profileVoices,omitempty"`
+	ProfileVoices []ImportedProfileVoice `json:"profile_voices,omitempty"`
 }
 
 // ImportedProfileVoice is one `profiles.<name>.voice` binding an import wrote.
@@ -95,7 +95,7 @@ type ImportedVoiceBinding struct {
 	Candidates []VoiceProfileRef `json:"candidates,omitempty"`
 	// FileBinding is the path a recipe's `defaults.voice` names in a form that
 	// names a file, which the import leaves for the person to replace.
-	FileBinding string `json:"fileBinding,omitempty"`
+	FileBinding string `json:"file_binding,omitempty"`
 }
 
 // VoiceProfileRef names a voice profile in the project's store.

@@ -37,3 +37,51 @@ func TestApplyConfig(t *testing.T) {
 		assert.Contains(t, config, "events")
 	})
 }
+
+func TestApplyConfigReadsSnakeCaseKeys(t *testing.T) {
+	type rule struct {
+		Pattern string
+		IsRegex bool
+	}
+	type cfg struct {
+		FillTarget          bool
+		FillTargetThreshold int `json:"fill_target_threshold"`
+		TextUnitIDs         []string
+		Rules               []rule
+	}
+
+	var c cfg
+	require.NoError(t, ApplyConfig(map[string]any{
+		"fill_target":           true,
+		"fill_target_threshold": 95,
+		"text_unit_ids":         []any{"a"},
+		"rules":                 []any{map[string]any{"pattern": "x", "is_regex": true}},
+	}, &c))
+	assert.True(t, c.FillTarget)
+	assert.Equal(t, 95, c.FillTargetThreshold)
+	assert.Equal(t, []string{"a"}, c.TextUnitIDs)
+	assert.Equal(t, []rule{{Pattern: "x", IsRegex: true}}, c.Rules)
+
+	// A camelCase or Go-cased spelling names no field.
+	var old cfg
+	require.NoError(t, ApplyConfig(map[string]any{"fillTarget": true, "FillTarget": true, "fillTargetThreshold": 95}, &old))
+	assert.Equal(t, cfg{}, old)
+}
+
+func TestRenamedKeyError(t *testing.T) {
+	type cfg struct {
+		FillTargetThreshold int
+		Rules               []struct{ IsRegex bool }
+	}
+	props := FromStruct(&cfg{}, ToolMeta{ID: "t"}).Properties
+
+	err := RenamedKeyError(props, map[string]any{"fillTargetThreshold": 100}, "flows.translate.steps[1].config")
+	require.Error(t, err)
+	assert.Equal(t, "flows.translate.steps[1].config: fillTargetThreshold is now fill_target_threshold", err.Error())
+
+	err = RenamedKeyError(props, map[string]any{"rules": []any{map[string]any{"isRegex": true}}}, "c")
+	require.Error(t, err)
+	assert.Equal(t, "c.rules[0]: isRegex is now is_regex", err.Error())
+
+	assert.NoError(t, RenamedKeyError(props, map[string]any{"fill_target_threshold": 100, "onProgress": 1}, "c"))
+}

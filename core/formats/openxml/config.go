@@ -1,6 +1,10 @@
 package openxml
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/neokapi/neokapi/core/format"
+)
 
 // Config holds configuration for the OpenXML format reader/writer.
 type Config struct {
@@ -173,55 +177,55 @@ func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
 		// Boolean options
-		case "translateDocProperties":
+		case "translate_doc_properties":
 			c.TranslateDocProperties = toBool(val)
-		case "translateHiddenText":
+		case "translate_hidden_text":
 			c.TranslateHiddenText = toBool(val)
-		case "translateHeadersFooters":
+		case "translate_headers_footers":
 			c.TranslateHeadersFooters = toBool(val)
-		case "translateFootnotes":
+		case "translate_footnotes":
 			c.TranslateFootnotes = toBool(val)
-		case "translateComments":
+		case "translate_comments":
 			c.TranslateComments = toBool(val)
-		case "translateHyperlinks":
+		case "translate_hyperlinks":
 			c.TranslateHyperlinks = toBool(val)
-		case "aggressiveCleanup":
+		case "aggressive_cleanup":
 			c.AggressiveCleanup = toBool(val)
-		case "tabAsCharacter":
+		case "tab_as_character":
 			c.TabAsCharacter = toBool(val)
-		case "translateSlideNotes":
+		case "translate_slide_notes":
 			c.TranslateSlideNotes = toBool(val)
-		case "translateSlideMasters":
+		case "translate_slide_masters":
 			c.TranslateSlideMasters = toBool(val)
-		case "translateHiddenSlides":
+		case "translate_hidden_slides":
 			c.TranslateHiddenSlides = toBool(val)
-		case "translateCharts":
+		case "translate_charts":
 			c.TranslateCharts = toBool(val)
-		case "translateDiagrams":
+		case "translate_diagrams":
 			c.TranslateDiagrams = toBool(val)
-		case "translateSheetNames":
+		case "translate_sheet_names":
 			c.TranslateSheetNames = toBool(val)
-		case "translateSharedStrings":
+		case "translate_shared_strings":
 			c.TranslateSharedStrings = toBool(val)
-		case "useCodeFinder":
+		case "use_code_finder":
 			c.UseCodeFinder = toBool(val)
-		case "extractMedia":
+		case "extract_media":
 			c.ExtractMedia = toBool(val)
-		case "extractRunFontsInfo":
+		case "extract_run_fonts_info":
 			c.ExtractRunFontsInfo = toBool(val)
-		case "replaceLineSeparator":
+		case "replace_line_separator":
 			c.ReplaceLineSeparator = toBool(val)
-		case "ignoreSoftHyphenTag":
+		case "ignore_soft_hyphen_tag":
 			c.IgnoreSoftHyphenTag = toBool(val)
-		case "replaceNoBreakHyphenTag":
+		case "replace_no_break_hyphen_tag":
 			c.ReplaceNoBreakHyphenTag = toBool(val)
-		case "automaticallyAcceptRevisions":
+		case "automatically_accept_revisions":
 			c.AutomaticallyAcceptRevisions = toBool(val)
-		case "extractNonTranslatableContent":
+		case "extract_non_translatable_content":
 			c.disableNonTranslatableContent = !toBool(val)
 
 		// String options
-		case "lineSeparatorReplacement":
+		case "line_separator_replacement":
 			s, ok := val.(string)
 			if !ok {
 				return fmt.Errorf("openxml: config key %q expects string, got %T", key, val)
@@ -229,62 +233,62 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			c.LineSeparatorReplacement = s
 
 		// String list options
-		case "excludedSheets":
+		case "excluded_sheets":
 			list, err := toStringSlice(key, val)
 			if err != nil {
 				return err
 			}
 			c.ExcludedSheets = list
-		case "excludedColumns":
+		case "excluded_columns":
 			list, err := toStringSlice(key, val)
 			if err != nil {
 				return err
 			}
 			c.ExcludedColumns = list
-		case "excludeColors":
+		case "exclude_colors":
 			list, err := toStringSlice(key, val)
 			if err != nil {
 				return err
 			}
 			c.ExcludeColors = list
-		case "excludeHighlightColors":
+		case "exclude_highlight_colors":
 			list, err := toStringSlice(key, val)
 			if err != nil {
 				return err
 			}
 			c.ExcludeHighlightColors = list
-		case "includeHighlightColors":
+		case "include_highlight_colors":
 			list, err := toStringSlice(key, val)
 			if err != nil {
 				return err
 			}
 			c.IncludeHighlightColors = list
-		case "excludeStyles":
+		case "exclude_styles":
 			list, err := toStringSlice(key, val)
 			if err != nil {
 				return err
 			}
 			c.ExcludeStyles = list
-		case "includeStyles":
+		case "include_styles":
 			list, err := toStringSlice(key, val)
 			if err != nil {
 				return err
 			}
 			c.IncludeStyles = list
 
-		case "codeFinderRules":
+		case "code_finder_rules":
 			list, err := toStringSlice(key, val)
 			if err != nil {
 				return err
 			}
 			c.CodeFinderRules = list
-		case "complexFieldDefinitionsToExtract":
+		case "complex_field_definitions_to_extract":
 			list, err := toStringSlice(key, val)
 			if err != nil {
 				return err
 			}
 			c.ComplexFieldDefinitionsToExtract = list
-		case "fontMappings":
+		case "font_mappings":
 			m, err := toStringMap(key, val)
 			if err != nil {
 				return err
@@ -292,7 +296,7 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			c.FontMappings = m
 
 		// Int list options
-		case "includedSlides":
+		case "included_slides":
 			list, err := toIntSlice(key, val)
 			if err != nil {
 				return err
@@ -300,7 +304,7 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			c.IncludedSlides = list
 
 		default:
-			return fmt.Errorf("openxml: unknown config key %q", key)
+			return format.UnknownParameterError(c, "openxml", key)
 		}
 	}
 	return nil

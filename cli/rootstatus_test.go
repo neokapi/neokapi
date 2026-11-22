@@ -27,7 +27,7 @@ func newBareRoot(a *App) (*cobra.Command, *bytes.Buffer) {
 }
 
 // TestRootRunE_InProject: bare `kapi` inside a project with a target language
-// prints the Map (the `kapi look` renderer) with its languages line, then the
+// prints the Overview (the `kapi look` renderer) with its languages line, then the
 // line naming where the commands are listed.
 func TestRootRunE_InProject(t *testing.T) {
 	root := writeStatusProject(t)
@@ -37,22 +37,23 @@ func TestRootRunE_InProject(t *testing.T) {
 	cmd, buf := newBareRoot(a)
 	cmd.SetArgs(nil)
 
-	// The Map prints through output.Print, which writes to the redirected
+	// The Overview prints through output.Print, which writes to the redirected
 	// stdout; capture both.
 	stdout, err := captureStdout(t, cmd.Execute)
 	require.NoError(t, err)
 
 	combined := stdout + buf.String()
-	assert.Contains(t, combined, "1 file · 3 blocks", "the Map's counts render")
+	assert.Contains(t, combined, "1 file · 3 blocks", "the Overview's counts render")
 	assert.Contains(t, combined, "3 languages · ", "a target language adds the languages line")
 	assert.Contains(t, combined, "kapi status for coverage")
 	assert.Contains(t, combined, "See a file with `kapi look <path>`.")
 	assert.True(t, strings.HasSuffix(combined, "\nkapi --help for the commands\n"), combined)
-	assert.NotContains(t, combined, "Usage:", "in-project bare kapi shows the Map, not help")
+	assert.NotContains(t, combined, "Usage:", "in-project bare kapi shows the Overview, not help")
 }
 
 // TestRootRunE_OneLanguageProject: in a project that names no target language
-// the Map has no languages line and names `kapi check` as the next step.
+// the Overview has no languages line, and a project with no assistant connected
+// names `kapi connect` as the next step.
 func TestRootRunE_OneLanguageProject(t *testing.T) {
 	recipe, _ := monolingualProject(t)
 	t.Setenv("KAPI_NO_PROJECT", "")
@@ -66,8 +67,8 @@ func TestRootRunE_OneLanguageProject(t *testing.T) {
 	require.NoError(t, err)
 
 	combined := stdout + buf.String()
-	assert.Contains(t, combined, "docs/berths.md", "the Map lists the file")
-	assert.Contains(t, combined, "Check with `kapi check`. See a file with `kapi look <path>`.")
+	assert.Contains(t, combined, "docs/berths.md", "the Overview lists the file")
+	assert.Contains(t, combined, "Connect your assistant with `kapi connect`. See a file with `kapi look <path>`.")
 	assert.Contains(t, combined, "kapi --help for the commands")
 	assert.NotContains(t, combined, "kapi up")
 	assert.NotContains(t, combined, "languages")

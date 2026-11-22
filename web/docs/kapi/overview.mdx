@@ -5,6 +5,8 @@ description: "kapi reads your project's files, holds the rules the project keeps
 keywords: [kapi, writing rules, terms, voice profile, kapi look, kapi rules, kapi check, kapi fix, kapi connect, kapi share, agent, AGENTS.md, CLAUDE.md, Kapi Desktop, overview]
 ---
 
+import { CycleDiagram } from "@neokapi/docs-shared";
+
 # Keep your writing consistent, and check every edit
 
 A help article, an API reference and a release note should use the same words,
@@ -17,14 +19,24 @@ language.
 [Start a project](/kapi/get-started/first-project) or
 [use kapi with your agent](/kapi/get-started/use-with-claude).
 
+<CycleDiagram
+  steps={[
+    { label: "see what applies", sub: "kapi look · Overview" },
+    { label: "write", sub: "you or an assistant" },
+    { label: "check every edit", sub: "kapi check · Reader" },
+    { label: "decide what becomes a rule", sub: "kapi rules · Decide" },
+  ]}
+  caption="The writing loop: what you decide becomes a rule that the next look, draft and check all read."
+/>
+
 ## See what applies
 
 Run `kapi init` in a folder, or open it in Kapi Desktop with **Choose a
 folder**. `kapi look` prints the project at a glance: its files and blocks,
 the rules in force, the findings and the suggestions waiting for you. The first
-look at a project with no rules files what kapi sees in the files as
-suggestions, such as one word written two ways. In Kapi Desktop this view is
-the project's **Map**.
+look at a project with no rules lists patterns in the files as suggestions,
+such as one word written two ways. In Kapi Desktop this view is
+the project's **Overview**.
 
 `kapi context <path>` prints the rules for one file as an assistant reads
 them. kapi also writes the rules into a section of `AGENTS.md` and `CLAUDE.md`,
@@ -65,7 +77,7 @@ Add a target language to the recipe when the project needs one. `kapi up` then
 translates changed content into each language, reuses earlier translations
 from the content memory, and holds back what needs a person for review. The
 language commands appear in
-`kapi --help` once the recipe declares a target language; before that,
+`kapi --help` once the recipe declares a target language. Until then,
 `kapi help languages` lists them. See
 [Add languages](/kapi/get-started/add-languages) and
 [the kapi loop](/kapi/convergence).
@@ -97,11 +109,14 @@ The CLI, your agent and Kapi Desktop work on the same
 
 `kapi share` shares the rules and decisions with the people who work on the
 project, through the repository, a shared folder or an S3 bucket, as the
-desktop's **Share** section does. See
+desktop's **Share** tab does. See
 [Sharing context](/kapi/context-portability).
 
 ## Next
 
+- **[Your first project](/kapi/get-started/first-project)**: one project
+  from an open folder to shared rules, each step in Kapi Desktop and in the
+  CLI.
 - **[Installation](/kapi/get-started/installation)**: the CLI and Kapi
   Desktop.
 - **[Learn kapi](/learn)**: short labs that run the real engine in your

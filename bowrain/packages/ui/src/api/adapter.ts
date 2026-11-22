@@ -1,7 +1,8 @@
+import type { ReviewInvolvement, ServerReviewPlan } from "@neokapi/bowrain-client";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import type {
   KeptRule,
-  MapSummary,
+  OverviewSummary,
   ReaderFile,
   RuleDecideResult,
   RulesDecideView,
@@ -81,6 +82,8 @@ import type {
   TranslationDashboardStats,
   TranslationDashboardItemOpts,
   ActivityPage,
+  FeedPage,
+  FeedQuery,
   ConvergenceRun,
   ConvergenceEstimate,
   LoopRollup,
@@ -337,11 +340,11 @@ export interface ApiAdapter {
     expireDays: number,
     scopes?: string[],
     /**
-     * Names the machine the token is for (a CI runner, an agent-driven kapi).
-     * Work created under it is authored by "agent/<agentName>" rather than by
-     * the person who minted it, which is what leaves them free to review it.
+     * Names the tool the token is for, such as a CI workflow. The server
+     * records work done under it as the tool's, issued by the member who
+     * mints it, and that member can review it.
      */
-    agentName?: string,
+    toolName?: string,
   ): Promise<CreateApiTokenResponse>;
   deleteApiToken(workspaceSlug: string, tokenId: string): Promise<void>;
 
@@ -822,6 +825,36 @@ export interface ApiAdapter {
     req?: ApprovePassingRequest,
   ): Promise<ApprovePassingResult>;
 
+  /**
+   * The project's review plan for the caller (GET /:ws/:id/review/plan): the
+   * coordinates, the context, the exceptions, the pages and what the
+   * involvement leaves to the checks, in the order a reviewer works them.
+   */
+  getReviewPlan?(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<ServerReviewPlan>;
+  /** Confirms the project's coordinates as the plan lists them. */
+  confirmReviewCoordinates?(workspaceSlug: string, projectId: string): Promise<void>;
+  /** Sets how much the project's reviewers can be involved. */
+  setReviewInvolvement?(
+    workspaceSlug: string,
+    projectId: string,
+    involvement: ReviewInvolvement,
+  ): Promise<void>;
+  /**
+   * The plan's last step: establishes every waiting translation that clears
+   * every bar, recorded with the reason "review policy".
+   */
+  settleReviewPlan?(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<{ approved: number; first_pass: boolean }>;
+  /** Starts a scan of the project for candidate terms. */
+  startReviewPlanScan?(workspaceSlug: string, projectId: string): Promise<void>;
+
   // Back-to-source review (RV-F): a reviewer proposes a source-text fix; a source
   // owner (PermEditSource) approves it — applying it and re-drafting every locale
   // — or rejects it.
@@ -948,6 +981,8 @@ export interface ApiAdapter {
   getTermCount(workspaceSlug: string): Promise<number>;
   addConcept(workspaceSlug: string, req: AddConceptRequest): Promise<ConceptInfo>;
   updateConcept(workspaceSlug: string, req: UpdateConceptRequest): Promise<void>;
+  /** Make a concept limited to some projects apply in every project of the workspace. */
+  widenConcept?(workspaceSlug: string, conceptId: string): Promise<void>;
   deleteConcept(workspaceSlug: string, conceptId: string): Promise<void>;
   /**
    * Reject concept deletion with status 409 and a GovernedRefusal envelope.
@@ -1224,6 +1259,9 @@ export interface ApiAdapter {
   ): Promise<ActivityPage>;
 
   markActivitiesSeen(workspaceSlug: string): Promise<void>;
+
+  /** One page of a project's feed, newest first (GET /:ws/:id/feed). */
+  listProjectFeed(workspaceSlug: string, projectId: string, query?: FeedQuery): Promise<FeedPage>;
 
   // Convergence runs (server-side `kapi up`) — Bowrain AD-022
   listConvergenceRuns(
@@ -1531,9 +1569,13 @@ export interface ApiAdapter {
     stream: string,
   ): Promise<TrialReport>;
 
-  // The project screens: the Map, the Reader and Decide over one stream.
-  /** The Map of a project's stream (GET /:ws/:id/map/:ref). */
-  getMapSummary(workspaceSlug: string, projectId: string, stream?: string): Promise<MapSummary>;
+  // The project screens: the Overview, the Reader and Decide over one stream.
+  /** The Overview of a project's stream (GET /:ws/:id/map/:ref). */
+  getOverviewSummary(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<OverviewSummary>;
   /** One item as the Reader draws it (GET /:ws/:id/reader/:ref?item=). */
   getReaderFile(
     workspaceSlug: string,

@@ -27,7 +27,7 @@ parameters:
     help: |
       À ḿàŕķéŕ þļàçéđ àƒţéŕ ţĥé þšéüđö-ţŕàñšļàţéđ ţéẋţ, ḿîŕŕöŕîñĝ ţĥé þŕéƒîẋ.
     values: "šţŕîñĝ (đéƒàüļţ ` ▒`)"
-  expansionPercent:
+  expansion_percent:
     description: Éẋţŕà þàđđîñĝ ţö šîḿüļàţé ţŕàñšļàţîöñ éẋþàñšîöñ.
     help: |
       Àđđš þàđđîñĝ çĥàŕàçţéŕš þŕöþöŕţîöñàļ ţö ţĥé ţéẋţ ļéñĝţĥ, šö ţĥé öüţþüţ îš
@@ -49,4 +49,4 @@ examples:
   - title: Šîḿüļàţé 30% éẋþàñšîöñ
     description: Þàđ öüţþüţ ţö šüŕƒàçé ļàýöüţ çļîþþîñĝ.
     config: |
-      expansionPercent: 30
+      expansion_percent: 30

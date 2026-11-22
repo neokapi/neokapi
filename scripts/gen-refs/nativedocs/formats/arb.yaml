@@ -21,7 +21,7 @@ overview: |
   key order, JSON escaping, and all `@`/`@@` metadata round-trip untouched,
   and an edit rewrites only the value it changes.
 parameters:
-  descriptionNotes:
+  description_notes:
     description: Surface each resource's @description as a translator note.
     help: |
       When enabled (the default), the `description` field of a message's
@@ -37,4 +37,4 @@ examples:
   - title: Ignore descriptions
     description: Do not turn @description values into translator notes.
     config: |
-      descriptionNotes: false
+      description_notes: false

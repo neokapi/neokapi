@@ -14,9 +14,10 @@ type ServerKnownTermsLoader struct {
 	workspaceSlug string
 }
 
-// LoadKnownTerms returns all term texts for the given locale from the workspace terms.
-func (l *ServerKnownTermsLoader) LoadKnownTerms(ctx context.Context, _ string, locale string) ([]string, error) {
-	tb, err := l.wsStores.getTerms(ctx, l.workspaceSlug)
+// LoadKnownTerms returns the texts of the terms in the locale that apply in
+// the project.
+func (l *ServerKnownTermsLoader) LoadKnownTerms(ctx context.Context, projectID string, locale string) ([]string, error) {
+	tb, err := l.wsStores.getProjectTerms(ctx, l.workspaceSlug, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("init terms: %w", err)
 	}

@@ -1,6 +1,10 @@
 package json
 
-import "github.com/neokapi/neokapi/core/config"
+import (
+	"github.com/neokapi/neokapi/core/config"
+
+	coreschema "github.com/neokapi/neokapi/core/schema"
+)
 
 // okapiJSONTransformer converts OkfJsonFilterConfig specs to JsonFormatConfig.
 // The native JSON format supports the same parameter set as the okapi bridge,
@@ -16,7 +20,7 @@ func (okapiJSONTransformer) Transform(spec map[string]any) (map[string]any, erro
 		case "escapeExtendedChars", "bom":
 			continue
 		default:
-			result[key] = val
+			result[coreschema.SnakeCase(key)] = val
 		}
 	}
 	return result, nil

@@ -47,7 +47,7 @@ func NewWriter() *Writer {
 		cfg:        cfg,
 	}
 	w.inner = jsonfmt.NewWriter()
-	// Apply the design-tokens-derived settings (notably escapeForwardSlashes) to
+	// Apply the design-tokens-derived settings (notably escape_forward_slashes) to
 	// the inner writer's live config. Config() returns the writer's own pointer,
 	// so mutating it in place is what actually takes effect.
 	cfg.applyToJSON(w.inner.Config())

@@ -45,28 +45,30 @@ jobs:
           # The preview's channel banner names the version from `git describe`,
           # which needs the tags a shallow clone leaves behind.
           fetch-depth: 0
-      - uses: voidzero-dev/setup-vp@v1.21.2
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "22"
+          node-version: "26"
           cache: true
+          # A pull request restores the dependency cache and saves none.
+          cache-save: ${{ github.event_name != 'pull_request' }}
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install workspace dependencies
         run: vp install
 
-      # Bowrain docs videos AND screenshots — produced by the harness on a desktop
-      # against a real running stack, which CI cannot reproduce — are served from
-      # the CDN (R2) for push and same-repo PRs: ThemedVideo / ThemedImage
-      # reference them by URL, nothing is staged into the artifact. The
-      # bowrain-docs-assets release is retired; publish from the desktop with
-      # `make publish-cdn-bowrain-videos` and `make publish-cdn-bowrain-images`.
-      # Fork PRs (CDN off) build without them and never deploy a preview.
+      # Bowrain docs videos and screenshots come from the harness on a desktop
+      # against a running stack, which CI cannot reproduce. For push and
+      # same-repo PRs they are served from the CDN (R2): ThemedVideo and
+      # ThemedImage reference them by URL, and nothing is staged into the
+      # artifact. Publish them with `make publish-cdn-bowrain-videos` and
+      # `make publish-cdn-bowrain-images`. Fork PRs (CDN off) build without them
+      # and never deploy a preview.
 
-      # bowrain/web/docs is a standalone Docusaurus app (not in the pnpm
-      # workspace, by design — see PR #425); install it on its own.
+      # bowrain/web/docs is a standalone Docusaurus app outside the pnpm
+      # workspace (PR #425), so it installs on its own.
       - name: Install bowrain docs site dependencies
         # strict-dep-builds=false: core-js' build is intentionally ignored
-        # (allowBuilds in pnpm-workspace.yaml); without it pnpm 11 exits non-zero
+        # (allowBuilds in pnpm-workspace.yaml); without it pnpm exits non-zero
         # with ERR_PNPM_IGNORED_BUILDS and fails the docs build.
         run: corepack pnpm install --ignore-workspace --config.strict-dep-builds=false
         working-directory: bowrain/web/docs
@@ -83,8 +85,8 @@ jobs:
             echo "docs_base=/web/bowrain/docs/" >> "$GITHUB_OUTPUT"
           fi
 
-      # The qps pseudo-locale is generated here, not committed — see
-      # .github/actions/pseudo-locale for why. It must run BEFORE the build that
+      # The qps pseudo-locale is generated here and never committed
+      # (.github/actions/pseudo-locale says why). It runs before the build that
       # reads i18n/qps/.
       - name: Generate the qps pseudo-locale
         uses: ./.github/actions/pseudo-locale

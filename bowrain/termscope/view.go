@@ -1,0 +1,274 @@
+package termscope
+
+import (
+	"context"
+	"iter"
+	"maps"
+	"sync"
+
+	"github.com/neokapi/neokapi/core/graph"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/terms"
+)
+
+// searchPage is the page size a view reads a search in. A view filters a
+// search before it pages it, so it reads every page of the underlying one.
+const searchPage = 500
+
+// View is the terms of one project: the store's concepts that apply in the
+// project (AppliesIn), and the relations between them. Reads see nothing
+// else. Writes go to the store unchanged, so a concept written through a view
+// keeps the limit it carries. An empty project id returns tb itself.
+//
+// Lookups and relation reads without a stream share a snapshot of eligible IDs.
+// Create a view for each request or job.
+func View(tb terms.Terminology, projectID string) terms.Terminology {
+	if tb == nil || projectID == "" {
+		return tb
+	}
+	return &view{Terminology: tb, project: projectID}
+}
+
+// StoreView is View for a terms.Store: the stream-aware reads are narrowed
+// the same way. The view names the store's revision when the store names
+// one, so a cache keyed by the revision must also key by the project.
+// A stream relation requires both endpoints to apply in the project and stream chain.
+func StoreView(tb terms.Store, projectID string) terms.Store {
+	if tb == nil || projectID == "" {
+		return tb
+	}
+	sv := &storeView{store: tb}
+	sv.Terminology, sv.project = tb, projectID
+	return sv
+}
+
+type view struct {
+	terms.Terminology
+	project string
+
+	once    sync.Once
+	visible map[string]bool
+	err     error
+}
+
+func (v *view) visibleIDs(ctx context.Context) (map[string]bool, error) {
+	v.once.Do(func() {
+		concepts, err := v.Terminology.Concepts(ctx)
+		if err != nil {
+			v.err = err
+			return
+		}
+		v.visible = map[string]bool{}
+		for _, cp := range concepts {
+			if AppliesIn(cp, v.project) {
+				v.visible[cp.ID] = true
+			}
+		}
+	})
+	return v.visible, v.err
+}
+
+func (v *view) GetConcept(ctx context.Context, id string) (terms.Concept, bool, error) {
+	cp, ok, err := v.Terminology.GetConcept(ctx, id)
+	if err != nil || !ok || AppliesIn(cp, v.project) {
+		return cp, ok, err
+	}
+	return terms.Concept{}, false, nil
+}
+
+func (v *view) Concepts(ctx context.Context) ([]terms.Concept, error) {
+	concepts, err := v.Terminology.Concepts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return Filter(concepts, v.project), nil
+}
+
+func (v *view) Count(ctx context.Context) (int, error) {
+	concepts, err := v.Concepts(ctx)
+	return len(concepts), err
+}
+
+func (v *view) Lookup(ctx context.Context, sourceText string, opts terms.LookupOptions) ([]terms.TermMatch, error) {
+	return v.matches(ctx, v.Terminology.Lookup, sourceText, opts)
+}
+
+func (v *view) LookupAll(ctx context.Context, sourceText string, opts terms.LookupOptions) ([]terms.TermMatch, error) {
+	return v.matches(ctx, v.Terminology.LookupAll, sourceText, opts)
+}
+
+func (v *view) matches(ctx context.Context, lookup func(context.Context, string, terms.LookupOptions) ([]terms.TermMatch, error), sourceText string, opts terms.LookupOptions) ([]terms.TermMatch, error) {
+	if sourceText == "" {
+		return nil, nil
+	}
+	visible, err := v.visibleIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if opts.ConceptIDs == nil {
+		opts.ConceptIDs = visible
+	} else {
+		ids := maps.Clone(opts.ConceptIDs)
+		maps.DeleteFunc(ids, func(id string, allowed bool) bool { return !allowed || !visible[id] })
+		opts.ConceptIDs = ids
+	}
+	if len(opts.ConceptIDs) == 0 {
+		return nil, nil
+	}
+	found, err := lookup(ctx, sourceText, opts)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]terms.TermMatch, 0, len(found))
+	for _, m := range found {
+		if opts.ConceptIDs[m.Concept.ID] {
+			out = append(out, m)
+		}
+	}
+	return out, nil
+}
+
+func (v *view) Search(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]terms.Concept, int, error) {
+	return v.search(func(off, lim int) ([]terms.Concept, int, error) {
+		return v.Terminology.Search(ctx, query, sourceLocale, targetLocale, off, lim)
+	}, offset, limit)
+}
+
+type conceptPage func(offset, limit int) ([]terms.Concept, int, error)
+
+func (v *view) projectConcepts(page conceptPage) iter.Seq2[terms.Concept, error] {
+	return func(yield func(terms.Concept, error) bool) {
+		for offset := 0; ; {
+			got, total, err := page(offset, searchPage)
+			if err != nil {
+				yield(terms.Concept{}, err)
+				return
+			}
+			for _, cp := range got {
+				if AppliesIn(cp, v.project) && !yield(cp, nil) {
+					return
+				}
+			}
+			offset += len(got)
+			if len(got) == 0 || offset >= total {
+				return
+			}
+		}
+	}
+}
+
+func (v *view) search(page conceptPage, offset, limit int) ([]terms.Concept, int, error) {
+	kept := []terms.Concept{}
+	total := 0
+	for cp, err := range v.projectConcepts(page) {
+		if err != nil {
+			return nil, 0, err
+		}
+		if total >= offset && (limit <= 0 || len(kept) < limit) {
+			kept = append(kept, cp)
+		}
+		total++
+	}
+	return kept, total, nil
+}
+
+func (v *view) RelationsOf(ctx context.Context, conceptID string, scope *graph.Scope) ([]terms.ConceptRelation, error) {
+	rels, err := v.Terminology.RelationsOf(ctx, conceptID, scope)
+	if err != nil {
+		return nil, err
+	}
+	return v.relations(ctx, rels)
+}
+
+func (v *view) ListRelations(ctx context.Context, scope *graph.Scope) ([]terms.ConceptRelation, error) {
+	rels, err := v.Terminology.ListRelations(ctx, scope)
+	if err != nil {
+		return nil, err
+	}
+	return v.relations(ctx, rels)
+}
+
+// relations drops the relations that touch a hidden concept.
+func (v *view) relations(ctx context.Context, rels []terms.ConceptRelation) ([]terms.ConceptRelation, error) {
+	if len(rels) == 0 {
+		return rels, nil
+	}
+	visible, err := v.visibleIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return relationsWithin(rels, visible), nil
+}
+
+func relationsWithin(rels []terms.ConceptRelation, visible map[string]bool) []terms.ConceptRelation {
+	out := make([]terms.ConceptRelation, 0, len(rels))
+	for _, r := range rels {
+		if visible[r.SourceID] && visible[r.TargetID] {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+type storeView struct {
+	view
+	store terms.Store
+}
+
+func (v *storeView) AddConceptWithStream(ctx context.Context, concept terms.Concept, stream string) error {
+	return v.store.AddConceptWithStream(ctx, concept, stream)
+}
+
+func (v *storeView) AddRelationWithStream(ctx context.Context, rel terms.ConceptRelation, stream string) error {
+	return v.store.AddRelationWithStream(ctx, rel, stream)
+}
+
+func (v *storeView) streamPage(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string) conceptPage {
+	return func(offset, limit int) ([]terms.Concept, int, error) {
+		return v.store.SearchForStream(ctx, query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
+	}
+}
+
+func (v *storeView) SearchForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, stream string, streamChain []string, offset, limit int) ([]terms.Concept, int, error) {
+	return v.search(v.streamPage(ctx, query, sourceLocale, targetLocale, stream, streamChain), offset, limit)
+}
+
+func (v *storeView) RelationsForStream(ctx context.Context, conceptID string, stream string, streamChain []string, scope *graph.Scope) ([]terms.ConceptRelation, error) {
+	rels, err := v.store.RelationsForStream(ctx, conceptID, stream, streamChain, scope)
+	if err != nil {
+		return nil, err
+	}
+	if len(rels) == 0 {
+		return rels, nil
+	}
+	visible := make(map[string]bool)
+	for _, rel := range rels {
+		visible[rel.SourceID] = false
+		visible[rel.TargetID] = false
+	}
+	missing := len(visible)
+	for cp, err := range v.projectConcepts(v.streamPage(ctx, "", "", "", stream, streamChain)) {
+		if err != nil {
+			return nil, err
+		}
+		if found, needed := visible[cp.ID]; needed && !found {
+			visible[cp.ID] = true
+			missing--
+			if missing == 0 {
+				break
+			}
+		}
+	}
+	return relationsWithin(rels, visible), nil
+}
+
+// Revision is the store's revision, empty when the store names none. The
+// project is not part of it: the view reads the same rows at every revision.
+func (v *storeView) Revision(ctx context.Context) (string, error) {
+	if r, ok := v.store.(interface {
+		Revision(ctx context.Context) (string, error)
+	}); ok {
+		return r.Revision(ctx)
+	}
+	return "", nil
+}

@@ -23,31 +23,31 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"extractComments", "skipNonTranslatable", "skipResourceReferences",
-					"extractNonTranslatableContent",
+					"extract_comments", "skip_non_translatable", "skip_resource_references",
+					"extract_non_translatable_content",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"extractComments": schema.Prop(coreschema.PropertySchema{
+			"extract_comments": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Extract comments as notes",
 				Default:     true,
 				Description: "Surface an XML comment immediately preceding an entry as a translator note on the emitted block. Comments always round-trip verbatim regardless of this setting.",
 			}),
-			"skipNonTranslatable": schema.Prop(coreschema.PropertySchema{
+			"skip_non_translatable": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Skip translatable=\"false\" entries",
 				Default:     true,
 				Description: "Exclude <string>/<string-array>/<plurals> entries marked translatable=\"false\" from extraction. Such resources are developer-owned and round-trip verbatim.",
 			}),
-			"skipResourceReferences": schema.Prop(coreschema.PropertySchema{
+			"skip_resource_references": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Skip resource references",
 				Default:     true,
 				Description: "Exclude <string> values that are a bare resource reference (e.g. @string/foo, ?attr/bar). A reference is an alias, not translatable UI text.",
 			}),
-			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+			"extract_non_translatable_content": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Surface non-translatable content",
 				Default:     true,

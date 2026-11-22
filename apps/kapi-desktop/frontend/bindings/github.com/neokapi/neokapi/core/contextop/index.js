@@ -5,14 +5,19 @@
 export {
     Actor,
     ActorKind,
+    Attestation,
     Basis,
     CheckFinding,
     CheckRun,
     Correction,
     Evidence,
+    ImportSource,
+    ItemKind,
+    ItemRef,
     Kind,
     Level,
     MemoryPair,
+    ReviewBasis,
     Scope,
     Signal,
     SignalSource,
@@ -20,5 +25,7 @@ export {
     Status,
     Subject,
     SubjectKind,
-    Uses
+    Uses,
+    VoiceChange,
+    VoiceEdit
 } from "./models.js";

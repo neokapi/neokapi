@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -27,7 +27,7 @@ import (
 // Promoting a marked entity to a term candidate or a concept is its own action.
 
 // HandlePromoteEntity promotes an entity annotation to a term candidate review item.
-func (s *Server) HandlePromoteEntity(c echo.Context) error {
+func (s *Server) HandlePromoteEntity(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 // (the same one HandleCreateConcept uses).
 //
 // POST /:ws/:id/blocks/:ref/:bid/entities/:idx/promote-to-concept
-func (s *Server) HandlePromoteEntityToConcept(c echo.Context) error {
+func (s *Server) HandlePromoteEntityToConcept(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
 	}
@@ -232,7 +232,7 @@ func entityAt(block *model.Block, key string) (*model.EntityAnnotation, error) {
 
 // entityWriteErr answers an entity write that did not land: a block that is not
 // stored, an entity that is not there, or a store error.
-func entityWriteErr(c echo.Context, updated *venue.StoredBlock, err error) error {
+func entityWriteErr(c *echo.Context, updated *venue.StoredBlock, err error) error {
 	switch {
 	case updated == nil:
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})

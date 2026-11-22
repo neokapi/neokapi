@@ -11,7 +11,7 @@ describe("ConvergeRunView: a project with no ship gates", () => {
       {
         type: "converge_event",
         flow_id: "up",
-        converge_event: { type: "pass_start", pass: 1, maxPasses: 3, pending: ["nb"] },
+        converge_event: { type: "pass_start", pass: 1, max_passes: 3, pending: ["nb"] },
       },
       {
         type: "converge_event",
@@ -20,8 +20,8 @@ describe("ConvergeRunView: a project with no ship gates", () => {
           type: "pass_done",
           pass: 1,
           produced: 1,
-          producedDelta: 1,
-          failingChecks: 0,
+          produced_delta: 1,
+          failing_checks: 0,
           pending: [],
         },
       },
@@ -32,7 +32,7 @@ describe("ConvergeRunView: a project with no ship gates", () => {
           flow: "up",
           passes: 1,
           converged: true,
-          locales: [{ locale: "nb", shippable: true, shipState: "not_gated", gated: false }],
+          locales: [{ locale: "nb", shippable: true, ship_state: "not_gated", gated: false }],
         },
       },
     ];

@@ -16,8 +16,8 @@ function makeRun(overrides: Partial<ConvergenceRun> = {}): ConvergenceRun {
     state: "converged",
     passes: 1,
     locales: [
-      { locale: "fr-FR", state: "shippable", units: 12, produced: 12, viaTM: 4, viaAI: 8 },
-      { locale: "de-DE", state: "shippable", units: 8, produced: 8, viaTM: 0, viaAI: 8 },
+      { locale: "fr-FR", state: "shippable", units: 12, produced: 12, via_memory: 4, via_ai: 8 },
+      { locale: "de-DE", state: "shippable", units: 8, produced: 8, via_memory: 0, via_ai: 8 },
     ],
     created_at: "2026-07-18T10:00:00Z",
     finished_at: "2026-07-18T10:01:00Z",
@@ -63,7 +63,7 @@ describe("ConvergenceRunContext awaiting review", () => {
 
   it("uses the singular form for a single block", () => {
     const run = makeRun({
-      locales: [{ locale: "fr-FR", state: "shippable", units: 1, produced: 1, viaAI: 1 }],
+      locales: [{ locale: "fr-FR", state: "shippable", units: 1, produced: 1, via_ai: 1 }],
     });
     render(<ConvergenceRunContext run={run} />);
 

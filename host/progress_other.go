@@ -77,7 +77,15 @@ func (m *mpbDownload) wait() { m.p.Wait() }
 
 type mpbFile struct{ bar *mpb.Bar }
 
-func (f *mpbFile) wrap(r io.Reader) io.Reader { return f.bar.ProxyReader(r) }
+// wrap counts the bytes read from r on the bar. A bar that has already
+// completed or been aborted cannot count them, so r is read unwrapped.
+func (f *mpbFile) wrap(r io.Reader) io.Reader {
+	pr, err := f.bar.ProxyReader(r)
+	if err != nil {
+		return r
+	}
+	return pr
+}
 func (f *mpbFile) done(n int64) {
 	// Settle the bar at the actual byte count so an over/under-estimated total
 	// still completes cleanly.

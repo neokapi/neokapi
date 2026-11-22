@@ -12,11 +12,11 @@ import (
 func testSchema() *schema.ComponentSchema {
 	return &schema.ComponentSchema{
 		Properties: map[string]schema.PropertySchema{
-			"enabled":          {Type: "boolean", Default: true, Description: "Enable feature"},
-			"mode":             {Type: "string", Default: "fast", Options: []schema.OptionItem{{Value: "fast", Label: "fast"}, {Value: "slow", Label: "slow"}}, Description: "Processing mode"},
-			"maxRetries":       {Type: "integer", Default: 3, Description: "Max retry count"},
-			"threshold":        {Type: "number", Default: 0.75, Description: "Score threshold"},
-			"expansionPercent": {Type: "integer", Default: 0, Description: "Expansion percent"},
+			"enabled":           {Type: "boolean", Default: true, Description: "Enable feature"},
+			"mode":              {Type: "string", Default: "fast", Options: []schema.OptionItem{{Value: "fast", Label: "fast"}, {Value: "slow", Label: "slow"}}, Description: "Processing mode"},
+			"maxRetries":        {Type: "integer", Default: 3, Description: "Max retry count"},
+			"threshold":         {Type: "number", Default: 0.75, Description: "Score threshold"},
+			"expansion_percent": {Type: "integer", Default: 0, Description: "Expansion percent"},
 		},
 	}
 }
@@ -79,7 +79,7 @@ func TestReadAllSchemaFlags(t *testing.T) {
 	assert.Equal(t, "fast", result["mode"])
 	assert.Equal(t, 3, result["maxRetries"])
 	assert.Equal(t, 0.75, result["threshold"])
-	assert.Equal(t, 0, result["expansionPercent"])
+	assert.Equal(t, 0, result["expansion_percent"])
 }
 
 func TestReadSchemaFlags_NilSchema(t *testing.T) {
@@ -93,14 +93,14 @@ func TestToKebabCase(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"fuzzyThreshold", "fuzzy-threshold"},
-		{"applyTarget", "apply-target"},
+		{"fuzzy_threshold", "fuzzy-threshold"},
+		{"apply_target", "apply-target"},
 		{"enabled", "enabled"},
-		{"XMLParser", "x-m-l-parser"},
+		{"text_unit_ids", "text-unit-ids"},
 		{"", ""},
 		{"a", "a"},
-		{"checkEmptyTarget", "check-empty-target"},
-		{"expansionPercent", "expansion-percent"},
+		{"check_empty_target", "check-empty-target"},
+		{"expansion_percent", "expansion-percent"},
 	}
 	for _, tt := range tests {
 		assert.Equal(t, tt.expected, toKebabCase(tt.input), "toKebabCase(%q)", tt.input)

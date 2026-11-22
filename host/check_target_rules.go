@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/neokapi/neokapi/core/check"
@@ -22,9 +23,12 @@ import (
 // target drops are the placeholder family's (collectBilingualDiagnostics).
 // The commit check runs none of these: a translation an agent writes may be
 // its source's text where the language keeps it.
-func (a *App) collectTargetRuleDiagnostics(ctx context.Context, cmd Command, blocks []*model.Block, sourcePath string, loc model.LocaleID, execution *checkExecution) ([]check.Diagnostic, error) {
+//
+// identity is the run's resolved rule, shared by every file and language the
+// run checks; nil resolves one for this call alone.
+func (a *App) collectTargetRuleDiagnostics(ctx context.Context, cmd Command, blocks []*model.Block, sourcePath string, loc model.LocaleID, execution *checkExecution, identity *targetIdentity) ([]check.Diagnostic, error) {
 	start := time.Now()
-	identical := a.targetIdentityRule(ctx, cmd)
+	identical := identity.resolve(ctx, a, cmd)
 	cfg := coretools.NewRuleCheckConfig(loc)
 	checker := coretools.NewRuleCheckTool(cfg)
 	var diags []check.Diagnostic
@@ -58,6 +62,26 @@ func (a *App) collectTargetRuleDiagnostics(ctx context.Context, cmd Command, blo
 // untranslatedCategories are the rule-check findings that say a unit is not
 // translated.
 var untranslatedCategories = map[string]bool{"empty-target": true, checkCategoryTargetSameAsSource: true}
+
+// targetIdentity holds the project's identicalTargetRule for one check run.
+// The rule reads the project, its terms store, its recorded decisions and its
+// block history, and a check changes none of them, so a run over many files
+// and languages resolves the rule once, on first use. Every translation the
+// run checks then shares the rule and its caches.
+type targetIdentity struct {
+	once sync.Once
+	rule *identicalTargetRule
+}
+
+// resolve returns the run's rule, resolving it on the first call. A nil
+// targetIdentity resolves a rule for the caller alone.
+func (t *targetIdentity) resolve(ctx context.Context, a *App, cmd Command) *identicalTargetRule {
+	if t == nil {
+		return a.targetIdentityRule(ctx, cmd)
+	}
+	t.once.Do(func() { t.rule = a.targetIdentityRule(ctx, cmd) })
+	return t.rule
+}
 
 // targetIdentityRule is the project's identicalTargetRule when the command
 // names a project, and nil (which settles nothing) outside one or when the

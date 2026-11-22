@@ -49,13 +49,7 @@ function installBowrainPlugin(): void {
  * demo's cosmetic cwd label, so a viewer sees `~/project`, not a temp dir.
  */
 function cleanBowrainOutput(out: string, sandbox: string, cwdLabel: string): string {
-  let real = sandbox;
-  try {
-    real = fs.realpathSync(sandbox);
-  } catch {
-    /* sandbox may already be gone */
-  }
-  return out
+  return rewriteSandboxPath(out, sandbox, cwdLabel)
     .split("\n")
     .filter((line) => {
       const t = line.trim();
@@ -71,12 +65,23 @@ function cleanBowrainOutput(out: string, sandbox: string, cwdLabel: string): str
       );
     })
     .join("\n")
-    .split(real)
-    .join(cwdLabel)
-    .split(sandbox)
-    .join(cwdLabel)
     .replace(/\n{2,}/g, "\n")
     .replace(/(^\n+|\n+$)/g, "");
+}
+
+/**
+ * Rewrite the absolute sandbox path (e.g. /private/tmp/…/sandbox/<id>), in both
+ * its spellings, to the demo's cosmetic cwd label, so a command that prints a
+ * path (kapi init's recipe line) shows `~/project` rather than a temp dir.
+ */
+export function rewriteSandboxPath(out: string, sandbox: string, cwdLabel: string): string {
+  let real = sandbox;
+  try {
+    real = fs.realpathSync(sandbox);
+  } catch {
+    /* sandbox may already be gone */
+  }
+  return out.split(real).join(cwdLabel).split(sandbox).join(cwdLabel);
 }
 
 /**
@@ -94,7 +99,7 @@ function cleanBowrainOutput(out: string, sandbox: string, cwdLabel: string): str
  */
 export async function captureScript(m: DemoManifest, opts: { force?: boolean } = {}): Promise<void> {
   const id = m.id;
-  const sb = sandboxDir(id);
+  const sb = sandboxDir(id, m.cwd);
   const cap = ensureDir(captureDir(id));
   const pub = ensureDir(publicDemoDir(id));
   const captureJson = path.join(pub, "capture.json");
@@ -109,7 +114,7 @@ export async function captureScript(m: DemoManifest, opts: { force?: boolean } =
   }
 
   // 1. Fresh sandbox from fixtures (the sandbox IS the project the commands act on).
-  rmrf(sb);
+  rmrf(sandboxDir(id));
   ensureDir(sb);
   const fixtures = demoFixturesDirFor(m);
   if (m.fixturesFrom && !fs.existsSync(fixtures)) {
@@ -175,7 +180,9 @@ export async function captureScript(m: DemoManifest, opts: { force?: boolean } =
     cwd: sb,
     env,
     timeoutMs: (m.captureTimeoutSec ?? 120) * 1000,
-    ...(isBowrain ? { clean: (out: string) => cleanBowrainOutput(out, sb, m.cwd ?? "~/project") } : {}),
+    clean: isBowrain
+      ? (out: string) => cleanBowrainOutput(out, sb, m.cwd ?? "~/project")
+      : (out: string) => rewriteSandboxPath(out, sb, m.cwd ?? "~/project"),
   });
 
   const capture: DemoCapture = {

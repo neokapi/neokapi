@@ -134,8 +134,8 @@ describe("CollectionsPanel with a based collection", () => {
     await userEvent.click(editors[1]);
     const counts = await screen.findAllByTestId("pattern-match-count");
     expect(counts).toHaveLength(2);
-    expect(counts[0]).toHaveTextContent("1 file(s)");
-    expect(counts[1]).toHaveTextContent("1 file(s)");
+    expect(counts[0]).toHaveTextContent("1 file");
+    expect(counts[1]).toHaveTextContent("1 file");
   });
 });
 

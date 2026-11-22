@@ -17,12 +17,14 @@ import (
 
 // readParts runs the MDX reader over src with a skeleton store and returns
 // the ordered Block/Data parts plus the populated skeleton store. The
-// store is left flushed (ready for reading) so a writer can replay it.
+// store is left flushed (ready for reading) so a writer can replay it, and
+// is closed when the test ends, which removes its temporary file.
 func readParts(t *testing.T, src []byte) ([]*model.Part, *format.SkeletonStore) {
 	t.Helper()
 	r := NewReader()
 	store, err := format.NewSkeletonStore()
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
 	r.SetSkeletonStore(store)
 	doc := &model.RawDocument{
 		Reader:       io.NopCloser(bytes.NewReader(src)),
@@ -154,7 +156,7 @@ export default function X() {}
 // TestJSXPreservedOpaque verifies block-level JSX handling: a self-closing
 // element (no text children) stays opaque, while an element-with-children and a
 // fragment surface their text children as NON-translatable content blocks
-// (#928) — visible to ingestion, skipped by MT — with tags/attributes kept in
+// (#928), visible to ingestion and skipped by MT, with tags/attributes kept in
 // the skeleton. Component/attribute names are never surfaced, and the
 // untranslated round-trip stays byte-for-byte.
 func TestJSXPreservedOpaque(t *testing.T) {
@@ -415,17 +417,18 @@ func TestEmptyAndWhitespace(t *testing.T) {
 }
 
 // TestConfigForwardsToMarkdown verifies an MDX config parameter (e.g.
-// translateCodeBlocks) is forwarded to the delegated markdown reader.
+// translate_code_blocks) is forwarded to the delegated markdown reader.
 func TestConfigForwardsToMarkdown(t *testing.T) {
 	src := []byte("# Title\n\n```js\nconst x = 1;\n```\n")
 
 	r := NewReader()
 	cfg := r.Config().(*Config)
 	cfg.Reset()
-	require.NoError(t, cfg.ApplyMap(map[string]any{"translateCodeBlocks": true}))
+	require.NoError(t, cfg.ApplyMap(map[string]any{"translate_code_blocks": true}))
 
 	store, err := format.NewSkeletonStore()
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
 	r.SetSkeletonStore(store)
 	doc := &model.RawDocument{Reader: io.NopCloser(bytes.NewReader(src)), SourceLocale: model.LocaleEnglish}
 	require.NoError(t, r.Open(context.Background(), doc))
@@ -439,7 +442,7 @@ func TestConfigForwardsToMarkdown(t *testing.T) {
 			}
 		}
 	}
-	assert.True(t, codeBlockExtracted, "translateCodeBlocks=true should extract the code block as a translatable Block")
+	assert.True(t, codeBlockExtracted, "translate_code_blocks=true should extract the code block as a translatable Block")
 }
 
 // TestConfigRejectsUnknownKey verifies the config validates parameter names
@@ -567,7 +570,7 @@ func TestMalformedMDXFailsBeforeEmitting(t *testing.T) {
 }
 
 // TestUnclosedFenceIsNotAnError verifies a code fence left open at end of
-// document — which CommonMark closes implicitly — reads and round-trips
+// document, which CommonMark closes implicitly, reads and round-trips
 // normally. Only an unclosed MDX construct is a parse failure.
 func TestUnclosedFenceIsNotAnError(t *testing.T) {
 	src := []byte("# Title\n\nProse.\n\n```\n<binary> version\n")

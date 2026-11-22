@@ -63,32 +63,83 @@ func ordinalStep(name string, ordinal int) string {
 // element is `<p id="p">` from naming it the same as a bare second `<p>`.
 func idStep(id string) string { return id + "-id" }
 
-// nodeStep returns the path step for one DOM node.
-func nodeStep(n *html.Node) string {
-	if n.Type == html.TextNode {
+// domNamer names the nodes of one parsed document. A node's ordinal depends on
+// every preceding sibling. Counting them on each call makes naming every child
+// of a flat parent cost O(siblings²), and a page with 250,000 paragraphs under
+// <body> takes minutes. domNamer numbers all children of a parent in one pass,
+// the first time any of them is named, and keeps the result. Naming a whole
+// document is then linear in its size.
+//
+// The zero value is ready to use. The DOM must not change while a domNamer is
+// in use, since the kept ordinals describe the tree as it was first seen.
+type domNamer struct {
+	ordinals map[*html.Node]int
+	indexed  map[*html.Node]bool
+	// scans counts the sibling-list passes made, so a test can assert that each
+	// parent is scanned once.
+	scans int
+}
+
+// ordinalKey is the name a node is counted under among its siblings: its tag
+// for an element, textStepName for a text node, and "" for any other node,
+// which takes no ordinal.
+func ordinalKey(n *html.Node) string {
+	switch n.Type {
+	case html.TextNode:
+		return textStepName
+	case html.ElementNode:
+		return n.Data
+	default:
+		return ""
+	}
+}
+
+// ordinal returns n's 1-based position among its siblings with the same
+// ordinal key.
+func (d *domNamer) ordinal(n *html.Node) int {
+	parent := n.Parent
+	if parent == nil {
+		key := ordinalKey(n)
 		ordinal := 1
 		for sib := n.PrevSibling; sib != nil; sib = sib.PrevSibling {
-			if sib.Type == html.TextNode {
+			if ordinalKey(sib) == key {
 				ordinal++
 			}
 		}
-		return ordinalStep(textStepName, ordinal)
+		return ordinal
+	}
+	if !d.indexed[parent] {
+		if d.ordinals == nil {
+			d.ordinals = map[*html.Node]int{}
+			d.indexed = map[*html.Node]bool{}
+		}
+		d.scans++
+		counts := map[string]int{}
+		for c := parent.FirstChild; c != nil; c = c.NextSibling {
+			if key := ordinalKey(c); key != "" {
+				counts[key]++
+				d.ordinals[c] = counts[key]
+			}
+		}
+		d.indexed[parent] = true
+	}
+	return d.ordinals[n]
+}
+
+// step returns the path step for one DOM node.
+func (d *domNamer) step(n *html.Node) string {
+	if n.Type == html.TextNode {
+		return ordinalStep(textStepName, d.ordinal(n))
 	}
 	if id := getAttr(n, "id"); id != "" {
 		return idStep(id)
 	}
-	ordinal := 1
-	for sib := n.PrevSibling; sib != nil; sib = sib.PrevSibling {
-		if sib.Type == html.ElementNode && sib.Data == n.Data {
-			ordinal++
-		}
-	}
-	return ordinalStep(n.Data, ordinal)
+	return ordinalStep(n.Data, d.ordinal(n))
 }
 
-// nodePath returns the structural name for a DOM node: its step, prefixed by the
+// path returns the structural name for a DOM node: its step, prefixed by the
 // steps of its ancestors up to the document root or the nearest id anchor.
-func nodePath(n *html.Node) string {
+func (d *domNamer) path(n *html.Node) string {
 	if n == nil {
 		return ""
 	}
@@ -97,7 +148,7 @@ func nodePath(n *html.Node) string {
 		if cur != n && cur.Type == html.ElementNode && implicitStructureTags[cur.DataAtom] {
 			continue
 		}
-		steps = append(steps, nodeStep(cur))
+		steps = append(steps, d.step(cur))
 		if cur.Type == html.ElementNode && getAttr(cur, "id") != "" {
 			break
 		}
@@ -108,8 +159,8 @@ func nodePath(n *html.Node) string {
 
 // attributePath names a block extracted from an element's attribute, so a
 // translatable `alt` and the element's own text never share an address.
-func attributePath(n *html.Node, attrKey string) string {
-	return nodePath(n) + "@" + attrKey
+func (d *domNamer) attributePath(n *html.Node, attrKey string) string {
+	return d.path(n) + "@" + attrKey
 }
 
 // pathFrame is one open element on the tokenizer path. The tokenizer has no DOM
@@ -150,7 +201,7 @@ func (s *tokenReaderState) popPath(tag string) {
 
 // ancestorPath renders the open elements as path steps, dropping the implicit
 // html/head/body wrappers and stopping at the nearest id anchor — the same
-// composition nodePath performs on the DOM side.
+// composition domNamer.path performs on the DOM side.
 func (s *tokenReaderState) ancestorPath() []string {
 	var steps []string
 	for i := len(s.pathStack) - 1; i >= 0; i-- {

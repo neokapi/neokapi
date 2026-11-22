@@ -17,8 +17,8 @@ applies the returned targets to the translations of the project's sources,
 through the change service ([E-09](../engine/e-09-the-change-contract.md)). The
 project's
 [content memory](../context/c-09-content-memory.md) participates on both sides of
-that loop, pre-filling on extract and absorbing on merge, which is what makes
-each pass cheaper than the last.
+that loop, pre-filling on extract and absorbing on merge, so each pass costs
+less than the last.
 
 Interchange has two tiers, chosen by who receives the file. The **bilingual
 `.kpz`** is the native carrier: lossless, deterministic, content-addressed, read
@@ -28,7 +28,7 @@ translation tool.
 
 Both tiers flow through the same two verbs. Every unit carries the revisions
 it was extracted against, and segmentation is a stand-off overlay over the runs
-rather than a rewrite of them ([M-02](m-02-segmentation.md)), so a project can
+([M-02](m-02-segmentation.md)), so a project can
 turn segmentation on or off between extractions without breaking a merge.
 
 <RoundTripDiagram

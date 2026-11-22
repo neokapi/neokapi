@@ -35,7 +35,7 @@ type AgentContextView struct {
 // limit caps the terms rendered, and zero takes the same default the CLI and
 // the resource take, so the app's list is the agent's list.
 func (a *App) AgentContextAt(tabID, relPath string, limit int) (*AgentContextView, error) {
-	answer, err := a.ContextAt(tabID, relPath, limit)
+	answer, err := a.ContextAt(tabID, relPath, "", limit)
 	if err != nil {
 		return nil, err
 	}

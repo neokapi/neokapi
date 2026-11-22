@@ -95,7 +95,7 @@ type ShareView struct {
 	Rung    string          `json:"rung"`
 	Sharing *ProjectSharing `json:"sharing"`
 	// Rules counts the rules in force at the project's own point, the count
-	// the Map shows. Nil when they could not be counted.
+	// the Overview shows. Nil when they could not be counted.
 	Rules *int `json:"rules,omitempty"`
 	// BowrainPlugin reports whether the kapi-bowrain plugin is installed,
 	// which connecting a project to a Bowrain server needs.
@@ -143,6 +143,9 @@ func (a *App) ShareView(tabID string) (*ShareView, error) {
 		return out, nil
 	}
 	out.Rung, out.BowrainPlugin = res.Rung, res.BowrainPlugin
+	if res.Problem != "" {
+		out.Error = res.Problem
+	}
 	if b := res.Backend; b != nil {
 		out.Sharing.Kind, out.Sharing.Location, out.Sharing.From = b.Kind, b.Location, b.From
 	}
@@ -181,6 +184,10 @@ func (a *App) SetProjectSharing(tabID string, spec project.ContextBackend) (*Pro
 	if op.contextOnly || op.Project == nil || op.Path == "" {
 		a.mu.Unlock()
 		return nil, errNoCheckout
+	}
+	if err := host.RefuseSplitContext(op.Path, spec); err != nil {
+		a.mu.Unlock()
+		return nil, err
 	}
 	if spec.Shared() {
 		block := spec

@@ -19,14 +19,14 @@ func (c *Config) Schema() *schema.FormatSchema {
 		},
 		Presets: map[string]map[string]any{
 			"i18next": {
-				"useFullKeyPath": true,
-				"subfilter":      "html",
-				"subfilterRules": "_html$",
+				"use_full_key_path": true,
+				"subfilter":         "html",
+				"subfilter_rules":   "_html$",
 			},
 			"Chrome Extension": {
-				"extractAllPairs": false,
-				"exceptions":      "^message$",
-				"noteRules":       "^description$",
+				"extract_all_pairs": false,
+				"exceptions":        "^message$",
+				"note_rules":        "^description$",
 			},
 		},
 		Groups: []schema.ParameterGroup{
@@ -34,111 +34,111 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"extractAllPairs", "exceptions", "extractIsolatedStrings",
-					"extractNonTranslatableContent", "extractionRules",
+					"extract_all_pairs", "exceptions", "extract_isolated_strings",
+					"extract_non_translatable_content", "extraction_rules",
 				},
 			},
 			{
 				ID:    "naming",
 				Label: "Block Naming",
 				Fields: []string{
-					"useKeyAsName", "useFullKeyPath", "useLeadingSlashOnKeyPath",
-					"idRules", "useIdStack",
+					"use_key_as_name", "use_full_key_path", "use_leading_slash_on_key_path",
+					"id_rules", "use_id_stack",
 				},
 			},
 			{
 				ID:    "subfilters",
 				Label: "Subfilters",
 				Fields: []string{
-					"subfilters", "subfilter", "subfilterRules",
+					"subfilters", "subfilter", "subfilter_rules",
 				},
 			},
 			{
 				ID:    "metadata",
 				Label: "Metadata",
 				Fields: []string{
-					"noteRules", "genericMetaRules", "maxwidthRules", "maxwidthSizeUnit",
+					"note_rules", "generic_meta_rules", "maxwidth_rules", "maxwidth_size_unit",
 				},
 			},
 			{
 				ID:    "output",
 				Label: "Output",
 				Fields: []string{
-					"escapeForwardSlashes",
+					"escape_forward_slashes",
 				},
 			},
 			{
 				ID:    "inlineCodes",
 				Label: "Inline Codes",
 				Fields: []string{
-					"useCodeFinder", "codeFinderRules",
+					"use_code_finder", "code_finder_rules",
 				},
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"extractAllPairs": schema.Prop(coreschema.PropertySchema{
+			"extract_all_pairs": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Extract all key/string pairs",
 				Default:     true,
-				Description: "Extract all key-value pairs for translation. When false, use extractionRules to specify which paths to extract.",
+				Description: "Extract all key-value pairs for translation. When false, use extraction_rules to specify which paths to extract.",
 			}),
 			"exceptions": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Title:       "Key exception pattern",
-				Description: "Regex pattern for key names. When extractAllPairs is true, matching keys are excluded. When false, matching keys are included.",
+				Description: "Regex pattern for key names. When extract_all_pairs is true, matching keys are excluded. When false, matching keys are included.",
 				Widget:      "regex",
 			}),
-			"extractIsolatedStrings": schema.Prop(coreschema.PropertySchema{
+			"extract_isolated_strings": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Extract strings without associated key",
 				Default:     false,
 				Description: "Extract string values in arrays (without keys) as translatable blocks.",
 			}),
-			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+			"extract_non_translatable_content": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Extract non-translatable content",
 				Description: "If true (default), non-translatable string content (isolated array strings and values excluded by the extraction rules) is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
 			}),
-			"extractionRules": schema.Prop(coreschema.PropertySchema{
+			"extraction_rules": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Title:       "Extraction rules",
-				Description: "Regex pattern for JSON paths to extract. Overrides extractAllPairs when specified.",
+				Description: "Regex pattern for JSON paths to extract. Overrides extract_all_pairs when specified.",
 				Widget:      "regex",
 				Placeholder: "/messages/.*|/labels/.*",
 			}),
-			"useKeyAsName": schema.Prop(coreschema.PropertySchema{
+			"use_key_as_name": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Use the key as the resname",
 				Default:     true,
 				Description: "Use JSON key as the Block (TextUnit) name for reference.",
 			}),
-			"useFullKeyPath": schema.Prop(coreschema.PropertySchema{
+			"use_full_key_path": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Use the full key path",
 				Default:     false,
 				Description: "Use full path (/key1/key2) instead of immediate key as name.",
 			}),
-			"useLeadingSlashOnKeyPath": schema.Prop(coreschema.PropertySchema{
+			"use_leading_slash_on_key_path": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Include leading \"/\" on key path",
 				Default:     true,
 				Description: "Include leading slash in key path names.",
 			}),
-			"idRules": schema.Prop(coreschema.PropertySchema{
+			"id_rules": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Title:       "ID rules",
-				Description: "Regex for keys whose values become Block IDs (overrides useKeyAsName).",
+				Description: "Regex for keys whose values become Block IDs (overrides use_key_as_name).",
 				Widget:      "regex",
 				Placeholder: "/id|/key",
 			}),
-			"useIdStack": schema.Prop(coreschema.PropertySchema{
+			"use_id_stack": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Use the full path of IDs for resname",
 				Default:     false,
 				Description: "Build TextUnit IDs from nested key stack.",
 			}),
-			"escapeForwardSlashes": schema.Prop(coreschema.PropertySchema{
+			"escape_forward_slashes": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Escape forward slashes",
 				Default:     true,
@@ -154,51 +154,51 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Title:       "Subfilter format",
 				Description: "Global subfilter format name (e.g., 'html') applied to all or matching extracted strings.",
 			}),
-			"subfilterRules": schema.Prop(coreschema.PropertySchema{
+			"subfilter_rules": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Title:       "Sub-filter rules",
 				Description: "Regex matching keys for which values should be processed with the sub-filter.",
 				Widget:      "regex",
 				Visible:     &coreschema.ConditionExpr{Field: "subfilter", Empty: new(false)},
 			}),
-			"noteRules": schema.Prop(coreschema.PropertySchema{
+			"note_rules": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Title:       "Note rules",
 				Description: "Regex for keys whose values become translator notes.",
 				Widget:      "regex",
 				Placeholder: "/description|/comment",
 			}),
-			"genericMetaRules": schema.Prop(coreschema.PropertySchema{
+			"generic_meta_rules": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Title:       "Generic metadata rules",
 				Description: "Regex for keys whose values become generic metadata.",
 				Widget:      "regex",
 			}),
-			"maxwidthRules": schema.Prop(coreschema.PropertySchema{
+			"maxwidth_rules": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Title:       "Maxwidth rules",
 				Description: "Regex for keys whose values set max width constraints.",
 				Widget:      "regex",
 			}),
-			"maxwidthSizeUnit": schema.Prop(coreschema.PropertySchema{
+			"maxwidth_size_unit": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Title:       "Maxwidth size unit",
 				Default:     "pixel",
 				Description: "Size unit for maxwidth.",
 				Options:     []coreschema.OptionItem{{Value: "pixel", Label: "Pixel"}, {Value: "char", Label: "Character"}},
 			}),
-			"useCodeFinder": schema.Prop(coreschema.PropertySchema{
+			"use_code_finder": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Title:       "Enable Inline Code Detection",
 				Default:     false,
 				Description: "Enable pattern-based detection of inline codes (placeholders, tags, etc.).",
 			}),
-			"codeFinderRules": schema.Prop(coreschema.PropertySchema{
+			"code_finder_rules": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Title:       "Code Finder Rules",
 				Description: "Regex patterns that match inline codes within translatable text.",
 				Widget:      "code-finder",
-				Visible:     &coreschema.ConditionExpr{Field: "useCodeFinder", Eq: true},
+				Visible:     &coreschema.ConditionExpr{Field: "use_code_finder", Eq: true},
 			}),
 		},
 	}

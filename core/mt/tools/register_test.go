@@ -25,7 +25,7 @@ func TestProvidersListed(t *testing.T) {
 // engine is an implementation detail of --provider).
 func TestNewMTTranslateFromConfigBuildsRegisteredEngine(t *testing.T) {
 	factory := tools.NewMTTranslateFromConfig(mtprovider.Demo)
-	tl, err := factory(map[string]any{"apiKey": "test-key"}, "fr")
+	tl, err := factory(map[string]any{"api_key": "test-key"}, "fr")
 	require.NoError(t, err, "registered engine should build from config")
 	require.NotNil(t, tl)
 	assert.Equal(t, "translate", tl.Name(), "engine reports the unified tool name")

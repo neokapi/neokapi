@@ -176,6 +176,21 @@ func (s *memStore) LatestRev(_ context.Context, ws, conceptID string) (int64, er
 	return max, nil
 }
 
+func (s *memStore) LatestRevisions(_ context.Context, ws string) (map[string]*ConceptRevision, error) {
+	out := map[string]*ConceptRevision{}
+	for _, list := range s.revisions {
+		for _, e := range list {
+			if e.WorkspaceID != ws {
+				continue
+			}
+			if cur, ok := out[e.ConceptID]; !ok || e.Rev > cur.Rev {
+				out[e.ConceptID] = e
+			}
+		}
+	}
+	return out, nil
+}
+
 // --- Change-sets -----------------------------------------------------------
 
 func (s *memStore) CreateChangeSet(_ context.Context, cs *ChangeSet) error {

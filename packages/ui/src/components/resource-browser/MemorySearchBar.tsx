@@ -75,7 +75,7 @@ export function MemorySearchBar({
   onEntitiesChange,
   sourceLocale,
   targetLocale,
-  placeholder = t("Search content memory..."),
+  placeholder = t("Search content memory…"),
 }: MemorySearchBarProps) {
   const [draft, setDraft] = useState(value);
   const [entities, setEntities] = useState<MarkedEntity[]>([]);

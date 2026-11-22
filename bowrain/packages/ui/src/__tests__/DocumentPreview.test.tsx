@@ -4,7 +4,7 @@
  * ever fetched on its own.
  */
 import { describe, it, expect, vi } from "vite-plus/test";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { DocumentPreview, blockKeyOf, idTranslation } from "../components/editor/DocumentPreview";
@@ -169,6 +169,14 @@ function storedBlock(id: string, sourceId?: string): BlockInfo {
   };
 }
 
+// A browser loads the frame's srcdoc after React has mounted it, and the load
+// event marks the frame ready. jsdom does not load srcdoc. Its only load event
+// is the initial about:blank one, which fires during insertion while React is
+// committing and so never reaches onLoad. Fire the load a browser would fire.
+function loaded(frame: HTMLIFrameElement) {
+  fireEvent.load(frame);
+}
+
 function postedOfType(frame: HTMLIFrameElement, type: string) {
   const posted = vi.spyOn(frame.contentWindow!, "postMessage");
   return () =>
@@ -203,6 +211,7 @@ describe.each(KEYED)("DocumentPreview — $shape", ({ rowId, key }) => {
     renderPreview(() => {}, { blocks: [storedBlock(rowId, key)], selectedBlockId: rowId });
     const frame = (await screen.findByTestId("preview-iframe")) as HTMLIFrameElement;
     const selections = postedOfType(frame, "kat-select-block");
+    loaded(frame);
 
     await waitFor(() => {
       expect(selections().length).toBeGreaterThan(0);
@@ -214,6 +223,7 @@ describe.each(KEYED)("DocumentPreview — $shape", ({ rowId, key }) => {
     renderPreview(() => {}, { blocks: [storedBlock(rowId, key)] });
     const frame = (await screen.findByTestId("preview-iframe")) as HTMLIFrameElement;
     const updates = postedOfType(frame, "kat-update-block");
+    loaded(frame);
 
     await waitFor(() => {
       expect(updates().length).toBeGreaterThan(0);

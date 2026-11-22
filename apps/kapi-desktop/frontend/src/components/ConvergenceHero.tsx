@@ -35,10 +35,10 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-  parseAppError,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import type {
+  AISetupNeed,
   ConvergePlan,
   ConvergenceReport,
   LocaleCoverage,
@@ -53,6 +53,7 @@ import { useStoreSyncState } from "../hooks/useProjectStoreSync";
 import { useJobFeed } from "../context/JobFeedContext";
 import { ActiveModelBadge } from "./ActiveModelBadge";
 import { AIModelPromptDialog } from "./AIModelPromptDialog";
+import { AICredentialMissingDialog } from "./AICredentialMissingDialog";
 
 /** The backend's typed marker for a tab whose recipe vanished from disk. */
 const MISSING_FILES_MARKER = "missing or moved";
@@ -71,7 +72,7 @@ export interface ConvergenceHeroProps {
   plan?: ConvergePlan;
   /** Pre-loaded run venue for Storybook/tests — skips api.getProjectServer(). */
   server?: ProjectServer;
-  /** Pre-loaded last-run failure for Storybook/tests — skips api.getLastRunError(). */
+  /** Preloaded failure from this project’s last run. */
   lastRunError?: RunError | null;
   /** Open an in-app settings view named by a remediation action's target. */
   onOpenSettings?: (target: string) => void;
@@ -84,14 +85,14 @@ export interface ConvergenceHeroProps {
 /**
  * The convergence hero strip at the top of the project home (issue #1078 C4):
  * the project's standing as three labelled counts, split by who acts on them,
- * a "Bring up to date" that runs the shared `kapi up` engine, and a "Plan…"
- * pre-flight dialog. Translations to draft are the run's work; translations
+ * one action that runs the shared `kapi up` engine, and a "Plan…" pre-flight
+ * dialog. The action is named for the work it does ("Translate 12 blocks",
+ * "Run again", "Catch up") and is absent when the run has nothing to do. Translations to draft are the run's work; translations
  * waiting for review and languages held back from shipping are a person's, and
  * each count leads to where that person deals with it. The block cache is the
  * app's own business: while it catches up with the files the hero says the
  * files are being read, and never asks anyone to extract. When everything is
- * converged and the gates are green it renders the calm state with the button
- * disabled. Both derivations are cheap, read-only calls made on load and after
+ * converged and the gates are green it renders the calm state with no action. Both derivations are cheap, read-only calls made on load and after
  * a run or a sync.
  */
 export function ConvergenceHero({
@@ -105,7 +106,7 @@ export function ConvergenceHero({
   onOpenReview,
   onOpenChecks,
 }: ConvergenceHeroProps) {
-  const { hasActive, startJob, failActiveJob } = useJobFeed();
+  const { hasActive, launchJob } = useJobFeed();
   const sync = useStoreSyncState(tabID);
   const [planOpen, setPlanOpen] = useState(false);
   const [heldOpen, setHeldOpen] = useState(false);
@@ -113,6 +114,7 @@ export function ConvergenceHero({
   // home instead of landing in a runner view with nothing running behind it.
   const [launchError, setLaunchError] = useState<unknown>(null);
   const [modelPromptOpen, setModelPromptOpen] = useState(false);
+  const [missingKey, setMissingKey] = useState<AISetupNeed | null>(null);
 
   // Both derivations are cheap read-only calls; react-query owns caching and the
   // "project:extracted" event invalidates them. A single query fn keeps the
@@ -125,7 +127,7 @@ export function ConvergenceHero({
         propConvergence ? Promise.resolve(null) : api.getConvergence(tabID),
         propPlan ? Promise.resolve(null) : api.getConvergePlan(tabID),
         propServer ? Promise.resolve(null) : api.getProjectServer(tabID),
-        api.getLastRunError(),
+        api.getProjectLastRunError(tabID),
       ]);
       // The backend answers both derivations with a single typed error when the
       // recipe is gone from disk — render the quiet reopen state.
@@ -189,18 +191,14 @@ export function ConvergenceHero({
   // to the runner only once the launch call succeeded. A rejected launch
   // settles the pre-created job and surfaces the message inline right here.
   const doLaunch = useCallback(async () => {
-    startJob("up");
     try {
-      await api.bringUpToDate(tabID);
+      await launchJob({ flowName: "up", tabID, converge: true }, () => api.bringUpToDate(tabID));
     } catch (err) {
-      // Keep the friendly line in the job feed; keep the full error here for
-      // the inline notice (the user stays on home — no navigation on failure).
-      failActiveJob(parseAppError(err).title);
       setLaunchError(err);
       return;
     }
     onBringUpToDate?.();
-  }, [tabID, startJob, failActiveJob, onBringUpToDate]);
+  }, [tabID, launchJob, onBringUpToDate]);
 
   // ── Derived standing ──────────────────────────────────────────────────────
   // Source files that changed since the cache was built. The cache follows
@@ -214,7 +212,7 @@ export function ConvergenceHero({
   // work the run will do — and a hero that read only the missing ones claimed a
   // project was up to date while the plan beside it quoted provider calls.
   const planned =
-    (totalsPlanned?.missingTarget ?? 0) +
+    (totalsPlanned?.missing_target ?? 0) +
     (totalsPlanned?.stale ?? 0) +
     (totalsPlanned?.unanswered ?? 0);
   const parked = convergence?.review?.length ?? 0;
@@ -233,7 +231,7 @@ export function ConvergenceHero({
   const notGatedLanguages = [
     ...new Set(
       locales
-        .filter((l) => (l.shipState ? l.shipState === "not_gated" : !l.gated && l.shippable))
+        .filter((l) => (l.ship_state ? l.ship_state === "not_gated" : !l.gated && l.shippable))
         .map((l) => l.locale),
     ),
   ];
@@ -241,7 +239,11 @@ export function ConvergenceHero({
   // file-derived tally says, so it is drift in its own right — the state cannot
   // be trusted as converged until a run completes.
   const runFailed = lastRunError != null && lastRunError.kind !== "canceled";
-  const upToDate = loaded && !cachePending && planned === 0 && !runFailed && heldBack.length === 0;
+  // Target languages are set but no collection has a target path, so a run
+  // has nowhere to write a translation. That is a setup step, not "up to date".
+  const noTargets = !!plan?.plan?.no_targets;
+  const upToDate =
+    loaded && !cachePending && !noTargets && planned === 0 && !runFailed && heldBack.length === 0;
   // Reading the files: the cache is behind them and a sync is on its way or
   // under way. A sync that failed is reported below instead.
   const reading = loaded && cachePending && sync.error == null;
@@ -255,9 +257,9 @@ export function ConvergenceHero({
     cachePending ||
     heldBack.some(
       (l) =>
-        (l.staleAwaitingDraft ?? 0) > 0 ||
-        (l.rejectedAwaitingDraft ?? 0) > 0 ||
-        (l.termsNotChecked ?? 0) > 0 ||
+        (l.stale_awaiting_draft ?? 0) > 0 ||
+        (l.rejected_awaiting_draft ?? 0) > 0 ||
+        (l.terms_not_checked ?? 0) > 0 ||
         (l.pending ?? []).length > 0,
     );
 
@@ -271,7 +273,9 @@ export function ConvergenceHero({
         { count: planned },
       ),
       tone: planned > 0 ? "default" : "muted",
-      hint: t("Bring up to date drafts these from the content memory and the AI model."),
+      hint: t(
+        "Exact content-memory matches are recycled as the files change. A run drafts the rest.",
+      ),
     },
     {
       id: "waiting-for-review",
@@ -303,9 +307,29 @@ export function ConvergenceHero({
   else if (!loaded) headline = t("Reading the project…");
   else if (reading) headline = t("Reading the project's files…");
   else if (runFailed) headline = t("The last run failed");
+  else if (noTargets) headline = t("No target folder set");
   else if (planned > 0) headline = t("Translations are missing");
   else if (parked > 0 || heldBack.length > 0) headline = t("Waiting for a person");
   else headline = t("Not up to date");
+
+  // The run's action says what it will do. Blocks to draft come first; a
+  // failed run with nothing new to draft is repeated; anything else the run
+  // can clear (a redraft, a term check) is a catch-up.
+  const actionLabel =
+    planned > 0
+      ? t(
+          "{count, plural, one {Translate # block} other {Translate # blocks}}",
+          "the project home's run button: drafts the blocks that have no translation",
+          { count: planned },
+        )
+      : runFailed
+        ? t("Run again", "the project home's run button after a failed run")
+        : t("Catch up", "the project home's run button: the desktop form of kapi up");
+  const fromMemory = totalsPlanned?.memory_exact ?? 0;
+  const recycled = plan?.recycled?.blocks ?? 0;
+  const fromDrafts = totalsPlanned?.drafts ?? 0;
+  const byAI = totalsPlanned?.ai_remaining ?? 0;
+  const tokens = totalsPlanned?.token_estimate ?? 0;
 
   // launch: model pre-flight first (the built-in default flow's translate step
   // is provider-backed), then the actual run.
@@ -315,8 +339,13 @@ export function ConvergenceHero({
     if (!onBringUpToDate) return;
     void (async () => {
       try {
-        if (await api.aiNeedsModelChoice(tabID, "")) {
+        const need = await api.checkAISetup(tabID, "");
+        if (need?.kind === "choose_model") {
           setModelPromptOpen(true);
+          return;
+        }
+        if (need?.kind === "missing_credential") {
+          setMissingKey(need);
           return;
         }
       } catch {
@@ -368,6 +397,52 @@ export function ConvergenceHero({
                 {headline}
               </p>
             )}
+            {planned > 0 &&
+              !reading &&
+              loaded &&
+              !noTargets &&
+              (fromMemory > 0 || fromDrafts > 0 || byAI > 0) && (
+                <p className="text-xs text-muted-foreground" data-slot="hero-run-size">
+                  {[
+                    fromMemory > 0 &&
+                      t("{count} recycled", "how many blocks content-memory reuse fills", {
+                        count: fromMemory,
+                      }),
+                    fromDrafts > 0 &&
+                      t("{count} from stored drafts", "how many blocks a stored draft fills", {
+                        count: fromDrafts,
+                      }),
+                    byAI > 0 &&
+                      (plan?.plan?.subscription
+                        ? t("{count} by the AI model", "how many blocks the AI model drafts", {
+                            count: byAI,
+                          })
+                        : t(
+                            "{count} by the AI model, about {tokens} tokens",
+                            "how many blocks the AI model drafts, and the token estimate",
+                            { count: byAI, tokens: tokens.toLocaleString() },
+                          )),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              )}
+            {/* What the last sync filled on its own, so a target that appeared
+                without a run has a visible source. */}
+            {recycled > 0 && loaded && !reading && (
+              <p className="text-xs text-muted-foreground" data-slot="hero-recycled">
+                {t(
+                  "{count, plural, one {# block recycled} other {# blocks recycled}}",
+                  "targets the app filled from exact content-memory matches when the files changed",
+                  { count: recycled },
+                )}
+              </p>
+            )}
+            {noTargets && !reading && loaded && (
+              <p className="text-xs text-muted-foreground" data-slot="hero-no-targets">
+                {t("Set where each collection's translations go.")}
+              </p>
+            )}
             {(upToDate || plan?.plan?.subscription) && (
               <p className="text-xs text-muted-foreground">
                 {upToDate &&
@@ -387,15 +462,25 @@ export function ConvergenceHero({
                 )}
               </p>
             )}
-            {/* Which model this run will use — visible where the run is
-                launched, not only in Settings. */}
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {server?.connected && <VenueBadge server={server} />}
-              <ActiveModelBadge tabID={tabID} />
-            </div>
+            {/* The model a run uses is named in the Plan dialog, beside the
+                work it will do; launching without one asks for one. */}
+            {server?.connected && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <VenueBadge server={server} />
+              </div>
+            )}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {noTargets && onOpenSettings && (
+            <Button
+              size="sm"
+              onClick={() => onOpenSettings("project-settings:content")}
+              data-slot="hero-set-targets"
+            >
+              {t("Set target folder")}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -407,21 +492,27 @@ export function ConvergenceHero({
             <ClipboardList size={13} />
             {t("Plan…")}
           </Button>
-          <Button
-            size="sm"
-            variant={runHasWork ? "default" : "outline"}
-            onClick={launch}
-            disabled={upToDate || hasActive || sync.syncing || !onBringUpToDate}
-            data-slot="hero-bring-up-to-date"
-            aria-label={t("Bring the project up to date")}
-          >
-            {hasActive ? <Loader2 size={13} className="animate-spin" /> : <PlayCircle size={13} />}
-            {t("Bring up to date")}
-          </Button>
+          {/* The run is offered only when it has work; a project waiting for a
+              person leads to Review through its counts instead. */}
+          {runHasWork && !upToDate && !noTargets && onBringUpToDate && (
+            <Button
+              size="sm"
+              onClick={launch}
+              disabled={hasActive || sync.syncing || !loaded}
+              data-slot="hero-bring-up-to-date"
+            >
+              {hasActive ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <PlayCircle size={13} />
+              )}
+              {actionLabel}
+            </Button>
+          )}
         </div>
       </div>
 
-      {loaded && !upToDate && !reading && derivationError == null && (
+      {loaded && !upToDate && !noTargets && !reading && derivationError == null && (
         <StatRow className="mt-4" data-slot="hero-counts" items={counts} />
       )}
 
@@ -494,8 +585,10 @@ export function ConvergenceHero({
         onOpenChange={setPlanOpen}
         plan={plan}
         server={server}
-        onConfirm={onBringUpToDate ? launch : undefined}
+        onConfirm={onBringUpToDate && runHasWork && !noTargets ? launch : undefined}
+        confirmLabel={actionLabel}
         confirmDisabled={hasActive || upToDate}
+        tabID={tabID}
       />
 
       <HeldBackDialog
@@ -513,6 +606,18 @@ export function ConvergenceHero({
           void doLaunch();
         }}
         onCancel={() => setModelPromptOpen(false)}
+      />
+      <AICredentialMissingDialog
+        need={missingKey}
+        onAddKey={
+          onOpenSettings
+            ? () => {
+                setMissingKey(null);
+                onOpenSettings("app-settings:credentials");
+              }
+            : undefined
+        }
+        onCancel={() => setMissingKey(null)}
       />
     </Card>
   );
@@ -539,7 +644,7 @@ export function VenueBadge({ server }: { server: ProjectServer }) {
         </TooltipTrigger>
         <TooltipContent className="max-w-xs">
           {t(
-            "This project is connected to Bowrain, so kapi up runs on the server. Bringing it up to date here runs the same engine locally.",
+            "This project is connected to Bowrain, so kapi up runs on the server. Catching up here runs the same engine locally.",
           )}
         </TooltipContent>
       </Tooltip>
@@ -555,7 +660,11 @@ export interface ConvergePlanDialogProps {
   server?: ProjectServer | null;
   /** Confirm the pre-flight and launch the run. Hidden when absent. */
   onConfirm?: () => void;
+  /** The confirm button's label: the same words as the action on the home. */
+  confirmLabel?: string;
   confirmDisabled?: boolean;
+  /** The project tab, so the dialog names the model the run will use. */
+  tabID?: string;
 }
 
 /** One row label: locale pill + optional collection. */
@@ -584,7 +693,9 @@ export function ConvergePlanDialog({
   plan,
   server,
   onConfirm,
+  confirmLabel,
   confirmDisabled,
+  tabID,
 }: ConvergePlanDialogProps) {
   const scopes = plan?.plan?.scopes ?? [];
   const totals = plan?.plan?.totals;
@@ -599,6 +710,16 @@ export function ConvergePlanDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {tabID !== undefined && (
+          <div
+            className="flex items-center gap-2 text-xs text-muted-foreground"
+            data-slot="plan-model"
+          >
+            {t("Model")}
+            <ActiveModelBadge tabID={tabID} />
+          </div>
+        )}
+
         {server?.connected && (
           <p
             className="flex items-center gap-1.5 text-xs text-muted-foreground"
@@ -607,16 +728,20 @@ export function ConvergePlanDialog({
             <Cloud size={12} className="shrink-0" />
             {server.host
               ? t(
-                  "Connected to Bowrain ({host}): kapi up runs on the server; bringing up to date here runs the same engine locally.",
+                  "Connected to Bowrain ({host}): kapi up runs on the server; catching up here runs the same engine locally.",
                   { host: server.host },
                 )
               : t(
-                  "Connected to Bowrain: kapi up runs on the server; bringing up to date here runs the same engine locally.",
+                  "Connected to Bowrain: kapi up runs on the server; catching up here runs the same engine locally.",
                 )}
           </p>
         )}
 
-        {scopes.length === 0 ? (
+        {plan?.plan?.no_targets ? (
+          <p className="py-2 text-sm text-muted-foreground" data-slot="plan-no-targets">
+            {t("No collection has a target folder, so there is nothing to translate.")}
+          </p>
+        ) : scopes.length === 0 ? (
           <p className="py-2 text-sm text-muted-foreground" data-slot="plan-empty">
             {t("Every block is translated.")}
           </p>
@@ -631,7 +756,7 @@ export function ConvergePlanDialog({
                   {t("Missing")}
                 </TableHead>
                 <TableHead className="h-auto px-2 py-1.5 text-right text-muted-foreground">
-                  {t("Memory exact")}
+                  {t("Recycled")}
                 </TableHead>
                 <TableHead className="h-auto px-2 py-1.5 text-right text-muted-foreground">
                   {t("Stored drafts")}
@@ -652,19 +777,19 @@ export function ConvergePlanDialog({
                 >
                   <TableCell className="py-1.5 pr-2">{scopeName(s)}</TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {s.missingTarget}
+                    {s.missing_target}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {s.memoryExact}
+                    {s.memory_exact}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {s.drafts ?? 0}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {s.aiRemaining}
+                    {s.ai_remaining}
                   </TableCell>
                   <TableCell className="py-1.5 pl-2 text-right tabular-nums">
-                    {s.tokenEstimate}
+                    {s.token_estimate}
                   </TableCell>
                 </TableRow>
               ))}
@@ -672,19 +797,19 @@ export function ConvergePlanDialog({
                 <TableRow className="font-medium hover:bg-transparent" data-slot="plan-totals">
                   <TableCell className="py-1.5 pr-2">{t("Total")}</TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {totals.missingTarget}
+                    {totals.missing_target}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {totals.memoryExact}
+                    {totals.memory_exact}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {totals.drafts ?? 0}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {totals.aiRemaining}
+                    {totals.ai_remaining}
                   </TableCell>
                   <TableCell className="py-1.5 pl-2 text-right tabular-nums">
-                    {totals.tokenEstimate}
+                    {totals.token_estimate}
                   </TableCell>
                 </TableRow>
               )}
@@ -716,7 +841,8 @@ export function ConvergePlanDialog({
               data-slot="plan-confirm"
             >
               <PlayCircle size={13} />
-              {t("Bring up to date")}
+              {confirmLabel ??
+                t("Catch up", "the project home's run button: the desktop form of kapi up")}
             </Button>
           )}
         </DialogFooter>
@@ -738,26 +864,26 @@ function heldBackReasons(l: LocaleCoverage): string[] {
     );
   }
   const n = (v: number | undefined) => v ?? 0;
-  if (n(l.staleAwaitingReview) > 0) {
+  if (n(l.stale_awaiting_review) > 0) {
     out.push(
       t("{count} redrafted after a source change, waiting for review", {
-        count: n(l.staleAwaitingReview),
+        count: n(l.stale_awaiting_review),
       }),
     );
   }
-  if (n(l.staleAwaitingDraft) > 0) {
+  if (n(l.stale_awaiting_draft) > 0) {
     out.push(
-      t("{count} with a source that changed after approval", { count: n(l.staleAwaitingDraft) }),
+      t("{count} with a source that changed after approval", { count: n(l.stale_awaiting_draft) }),
     );
   }
-  if (n(l.rejectedAwaitingDraft) > 0) {
-    out.push(t("{count} turned down by a reviewer", { count: n(l.rejectedAwaitingDraft) }));
+  if (n(l.rejected_awaiting_draft) > 0) {
+    out.push(t("{count} turned down by a reviewer", { count: n(l.rejected_awaiting_draft) }));
   }
-  if (n(l.failingChecks) > 0) {
-    out.push(t("{count} failing a check", { count: n(l.failingChecks) }));
+  if (n(l.failing_checks) > 0) {
+    out.push(t("{count} failing a check", { count: n(l.failing_checks) }));
   }
-  if (n(l.termsNotChecked) > 0) {
-    out.push(t("{count} not checked against the terms", { count: n(l.termsNotChecked) }));
+  if (n(l.terms_not_checked) > 0) {
+    out.push(t("{count} not checked against the terms", { count: n(l.terms_not_checked) }));
   }
   return out;
 }
@@ -783,7 +909,7 @@ export function HeldBackDialog({
   onOpenReview,
   onOpenChecks,
 }: HeldBackDialogProps) {
-  const failing = scopes.some((l) => (l.failingChecks ?? 0) > 0);
+  const failing = scopes.some((l) => (l.failing_checks ?? 0) > 0);
   const toGo = (go?: () => void) =>
     go
       ? () => {
@@ -799,7 +925,7 @@ export function HeldBackDialog({
         <DialogHeader>
           <DialogTitle>{t("Held back from shipping")}</DialogTitle>
           <DialogDescription>
-            {t("Bring up to date redrafts and checks what it can. The rest waits for a person.")}
+            {t("Catch up redrafts and checks what it can. The rest waits for a person.")}
           </DialogDescription>
         </DialogHeader>
         <Table className="text-xs">
@@ -825,10 +951,10 @@ export function HeldBackDialog({
                     {scopeName({
                       locale: l.locale,
                       collection: l.collection,
-                      missingTarget: 0,
-                      memoryExact: 0,
-                      aiRemaining: 0,
-                      tokenEstimate: 0,
+                      missing_target: 0,
+                      memory_exact: 0,
+                      ai_remaining: 0,
+                      token_estimate: 0,
                     })}
                   </TableCell>
                   <TableCell className="py-1.5 pl-2 whitespace-normal">
@@ -850,12 +976,12 @@ export function HeldBackDialog({
         <DialogFooter>
           {failing && checks && (
             <Button variant="outline" size="sm" onClick={checks}>
-              {t("Open Checks")}
+              {t("Open checks")}
             </Button>
           )}
           {review && (
             <Button size="sm" onClick={review}>
-              {t("Open Review")}
+              {t("Open review")}
             </Button>
           )}
         </DialogFooter>

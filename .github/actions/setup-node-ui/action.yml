@@ -5,59 +5,44 @@ inputs:
   node-version:
     description: Node.js version to install
     required: false
-    default: "22"
+    default: "26"
 
 runs:
   using: composite
   steps:
-    # Drift between the vite-plus devDependency and the `vite` catalog alias
-    # breaks vp itself: the overrides force vite-plus's own vendored core down
-    # to the aliased version, and a core that far from the CLI cannot load its
-    # rolldown binding. Every step below is a vp invocation, so the guard has to
-    # precede all of them. Behind them it never runs. It sat inside `make
-    # ci-frontend` and stayed skipped while eight jobs failed on the binding
-    # trace instead, which is the failure it exists to translate.
-    - name: Guard — the vite catalog alias tracks vite-plus
+    # The vite alias must name the core the installed vite-plus uses. On drift
+    # the overrides force vite-plus onto the aliased core, which cannot load its
+    # rolldown binding, and every later vp step fails on that trace. So the
+    # guard runs first. Before the install it checks that every setup-vp
+    # `version:` names the catalog's vite-plus. The alias check reads the
+    # installed vite-plus manifest, so it runs after the install, whose
+    # postinstall uses esbuild, and before the first `vp run`.
+    - name: Guard — the setup-vp pins track vite-plus
       shell: bash
       run: bash scripts/audit-vite-alias.sh
 
-    # `vp env use <node-version>` downloads a Node.js runtime from the Vite+
-    # CDN whenever the runner has no matching one cached. That download is the
-    # single point of failure for every job that uses this action: a transient
-    # CDN timeout once skipped every later step in three unrelated jobs within
-    # twenty minutes, and all three passed on re-run. The action retries across
-    # mirrors of the installer script, but every script downloads the same
-    # runtime artefact, and setup-vp exposes no input to point elsewhere. So
-    # the retry lives here: one more attempt after a pause long enough for a
-    # transient CDN failure to clear. The step is named for what it does, not
-    # for the action it wraps, so a failure here is not mistaken for a code
-    # failure in the calling job.
+    # `vp env use` downloads a Node.js runtime from the Vite+ CDN when the
+    # runner has none cached, and a transient CDN timeout skips every later
+    # step. setup-vp has no input to point elsewhere, so the retry lives here.
     #
-    # setup-vp is pinned to an exact release. Its floating v1 tag stopped at
-    # v1.15.0, which runs whatever installer viteplus.dev serves that day.
-    # From v1.18.0 the action fetches the installer from the requested
-    # version's release tag (the catalog's vite-plus, mirrored on jsDelivr) and uses
-    # the live script only when every pinned source fails. Dependabot moves
-    # the pin.
-    #
-    # On that fallback path the live script hands a version this old to
-    # install-legacy.ps1 (Windows) or install-legacy.sh, downloaded from
-    # VP_LEGACY_INSTALLER_URL. viteplus.dev serves both as
-    # application/octet-stream, bytes PowerShell cannot run, so the variable
-    # points at GitHub, which serves them as text. The pin is at or after
-    # vite-plus commit ae0ec12d0: the live installer sets Set-StrictMode, and
-    # that commit is the first whose legacy script wraps its pipeline results
-    # in @(...) before reading .Count.
+    # setup-vp is pinned to an exact release, which fetches the installer from
+    # the requested version's release tag. If every pinned source fails it
+    # runs the live script, which hands this version to install-legacy.sh or
+    # install-legacy.ps1 from VP_LEGACY_INSTALLER_URL. GitHub serves those as
+    # text. Commit ae0ec12d0 is the first whose legacy script runs under
+    # Set-StrictMode.
     - name: Install Vite+ and the Node.js runtime
       id: vp-setup
-      uses: voidzero-dev/setup-vp@v1.21.2
+      uses: voidzero-dev/setup-vp@v1.22.0
       continue-on-error: true
       env:
         VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.sh' }}
       with:
-        version: "1.4.0"
+        version: "1.7.0"
         node-version: ${{ inputs.node-version }}
         cache: true
+        # A pull request restores the dependency cache and saves none.
+        cache-save: ${{ github.event_name != 'pull_request' }}
         cache-dependency-path: pnpm-lock.yaml
         run-install: false
 
@@ -70,19 +55,25 @@ runs:
 
     - name: Install Vite+ and the Node.js runtime (retry)
       if: steps.vp-setup.outcome == 'failure'
-      uses: voidzero-dev/setup-vp@v1.21.2
+      uses: voidzero-dev/setup-vp@v1.22.0
       env:
         VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.sh' }}
       with:
-        version: "1.4.0"
+        version: "1.7.0"
         node-version: ${{ inputs.node-version }}
         cache: true
+        # A pull request restores the dependency cache and saves none.
+        cache-save: ${{ github.event_name != 'pull_request' }}
         cache-dependency-path: pnpm-lock.yaml
         run-install: false
 
     - name: Install workspace dependencies
       shell: bash
       run: vp install --frozen-lockfile
+
+    - name: Guard — the vite catalog alias names the core vite-plus uses
+      shell: bash
+      run: bash scripts/audit-vite-alias.sh --installed
 
     # @neokapi/i18n-react ships dist-only subpath exports (./runtime, ./vite, …)
     # that other workspace packages import; its dist/ is not committed, so any

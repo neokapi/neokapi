@@ -90,7 +90,7 @@ func TestClientServerRouteSurface(t *testing.T) {
 	e := srv.GetEcho()
 
 	registered := map[string]bool{}
-	for _, r := range e.Routes() {
+	for _, r := range e.Router().Routes() {
 		registered[r.Method+" "+r.Path] = true
 	}
 
@@ -103,6 +103,7 @@ func TestClientServerRouteSurface(t *testing.T) {
 		"POST /api/v1/auth/refresh",       // RefreshToken
 		"GET /api/v1/:ws/:id/sync/:ref/pull",
 		"GET /api/v1/:ws/:id/sync/:ref/tree",
+		"POST /api/v1/:ws/:id/sync/:ref/tree",
 		"GET /api/v1/:ws/:id/sync/:ref/status",
 		"GET /api/v1/:ws/:id/sync/:ref/blocks",
 		"POST /api/v1/:ws/:id/sync/:ref/push/init",

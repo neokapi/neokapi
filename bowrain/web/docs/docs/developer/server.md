@@ -112,11 +112,11 @@ The server holds each operation to what the sender may do on the project:
   it approves is approving the sender's own wording. `reject` returns the translation to draft and
   `withdraw` to translated; moving an approved translation takes `review`.
   Each decision is written to the decision ledger and the workspace's content
-  memory, as approve-passing writes it. `advise` records a pre-review: the
+  memory, as approve-passing writes it. `prereview` records a pre-review: the
   `score` (required, 0 to 100) and `reasons` an agent gives the translation,
   filed under `agent/<client>` against the revision in `if_match`. It moves no
   status and takes `translate` for the language. Only an agent sends it, over
-  the server MCP; the changes route refuses a person's `advise` with
+  the server MCP; the changes route refuses a person's `prereview` with
   `not_permitted`, because the queue shows a pre-review as AI advice. Each
   entry of the pending-review queue carries it as `pre_review`, and the review
   context as the judgement's `ai_score`, `ai_model` and `ai_findings`, while
@@ -128,7 +128,7 @@ The server holds each operation to what the sender may do on the project:
   note on a translation is refused. An entity is an annotation of type
   `entity` on the source, and takes `edit_source`.
 - An agent may neither send `gate: report` nor write without the revision it
-  read, and records no review decision other than a pre-review (`advise`).
+  read, and records no review decision other than a pre-review (`prereview`).
   The server MCP holds an agent to the permissions the project access
   middleware resolves for the user it acts for, with the same resolver; when
   the workspace or the user's membership cannot be read, the call fails and
@@ -302,8 +302,8 @@ applying push to commit and a push waits for the block writes already in
 progress, and both complete. A write-back that waited skips the blocks the push
 removed or changed.
 
-Approving a source proposal is refused when the block's source no longer
-matches the source the proposal was made against, and the proposal stays open.
+Approving a source proposal is refused when the block's source differs from
+the source the proposal was made against, and the proposal stays open.
 A block removed in the meantime stays removed, as it does for a rollback, a
 batch revert or a flow run over the project's blocks.
 
@@ -348,6 +348,8 @@ POST /api/v1/:ws/:id/review/approve-passing   # Bulk-approve every block passing
 POST /api/v1/:ws/:id/blocks/:ref/bulk-review  # One review decision on the translations of chosen blocks
 GET  /api/v1/projects/:id/ship.json           # Public per-locale ship manifest
 GET  /api/v1/:ws/audit-log/verify             # Verify the workspace audit chain
+GET  /api/v1/:ws/:id/feed                     # The project's feed: pushes, runs, reviews, recipe, context and change sets
+GET  /api/v1/:ws/:id/feed/:entry/decisions    # The decisions a review entry counts, with the translations as they stand
 ```
 
 ### Webhooks (inbound)

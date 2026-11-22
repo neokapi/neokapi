@@ -2,6 +2,7 @@ package registry
 
 import (
 	"fmt"
+	"maps"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -27,7 +28,7 @@ type ToolInfo struct {
 	Name        ToolID `json:"name"`
 	DisplayName string `json:"display_name,omitempty"`
 	// Description is markdown (inline emphasis/code/links). UIs render it
-	// through the shared Markdown primitive — see
+	// through the shared Markdown primitive, see
 	// web/docs/contribute/implementation/repo/markdown-in-ui.md.
 	Description string   `json:"description,omitempty"`
 	Category    string   `json:"category,omitempty"`
@@ -44,7 +45,7 @@ type ToolInfo struct {
 	SideEffects   []schema.SideEffect      `json:"side_effects,omitempty"`
 
 	// IsSourceTransform reports whether the tool can rewrite source
-	// (tool.CapTransform) — a transformer in AD-006 terms; the placement pass
+	// (tool.CapTransform), a transformer in AD-006 terms; the placement pass
 	// validates where such a tool sits among the ordered steps. Derived from
 	// the tool's handler at registration.
 	IsSourceTransform bool `json:"is_source_transform,omitempty"`
@@ -59,7 +60,7 @@ type ToolInfo struct {
 	Aliases               []string `json:"aliases,omitempty"`
 
 	// Internal withholds the tool from the CLI/MCP surface even though it has a
-	// schema and a config factory — see schema.ToolMeta.Internal. It says
+	// schema and a config factory, see schema.ToolMeta.Internal. It says
 	// nothing about configurability: an internal tool's step config is applied
 	// like any other tool's.
 	Internal bool `json:"internal,omitempty"`
@@ -67,7 +68,7 @@ type ToolInfo struct {
 	// Bridge step metadata (only for Okapi bridge step tools).
 	StepMeta *schema.StepMeta `json:"step_meta,omitempty"`
 
-	// Group is set when this tool is a ToolGroup — a tool whose behaviour is
+	// Group is set when this tool is a ToolGroup, a tool whose behaviour is
 	// provided by one of several self-describing members selected by a
 	// discriminator field. Flat consumers (CLI flags, docs, MCP) read the
 	// composed Schema as before; group-aware consumers (the config UI) use this
@@ -95,7 +96,7 @@ type ToolGroupMemberInfo struct {
 
 // probeTool default-constructs a tool from factory and reports whether it is
 // source-transform-capable (tool.CapTransform). It is the DRY source of
-// truth — capability comes from the tool's handler, not a hand-maintained flag.
+// truth, capability comes from the tool's handler, not a hand-maintained flag.
 // It also enforces the exactly-one-capability-handler contract at registration:
 // a tool whose default construction sets more than one typed handler panics
 // here (init-time programmer error, matching the registry's other invariants)
@@ -148,10 +149,18 @@ func copyToolMeta(info *ToolInfo, m *schema.ToolMeta) {
 type ToolRegistration struct {
 	Factory       ToolFactory
 	ConfigFactory ToolConfigFactory // optional: creates tool from step config
-	Schema        *schema.ComponentSchema
-	Info          ToolInfo
+
+	// DefersCredentials marks a tool that may be built without its
+	// credentials. A step can have no units for the provider (a translate
+	// step after recycle filled every target), and such a step must not need
+	// a key. When the preprocessor's credential resolution fails, the factory
+	// still runs, with the failure under DeferredCredentialErrorKey; the tool
+	// returns it on its first provider call.
+	DefersCredentials bool
+	Schema            *schema.ComponentSchema
+	Info              ToolInfo
 	// ContractResolver, when set, refines the static IO contract (Consumes/
-	// Produces/Requires) for a specific node config — e.g. a port that is
+	// Produces/Requires) for a specific node config, e.g. a port that is
 	// required only when an option is enabled (redact's entity overlay when
 	// entity detection is on). It must not mutate base in place; return a copy
 	// with the adjusted fields. nil means the static contract always applies.
@@ -217,7 +226,7 @@ func (r *ToolRegistry) RegisterWithSchema(name ToolID, factory ToolFactory, s *s
 }
 
 // RegisterMetadata registers a tool's schema and metadata without a factory.
-// Used for plugin tools that are executed remotely via a bridge — they appear
+// Used for plugin tools that are executed remotely via a bridge, they appear
 // in listings and have schemas for config UI, but cannot be instantiated locally.
 func (r *ToolRegistry) RegisterMetadata(name ToolID, s *schema.ComponentSchema, source string) {
 	r.mu.Lock()
@@ -252,12 +261,35 @@ func (r *ToolRegistry) SetConfigFactory(name ToolID, factory ToolConfigFactory) 
 	}
 }
 
+// DeferredCredentialErrorKey is where NewToolWithConfig puts a credential
+// failure for a tool that DefersCredentials. The value is an error.
+const DeferredCredentialErrorKey = "__deferred_credential_error"
+
+// SetDefersCredentials marks a registered tool as one built without its
+// credentials when they do not resolve (ToolRegistration.DefersCredentials).
+func (r *ToolRegistry) SetDefersCredentials(name ToolID) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if reg, ok := r.tools[name]; ok {
+		reg.DefersCredentials = true
+	}
+}
+
+// DefersCredentials reports whether a tool is built without its credentials
+// when they do not resolve, and asks for them only on a provider call.
+func (r *ToolRegistry) DefersCredentials(name ToolID) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	reg, ok := r.tools[name]
+	return ok && reg.DefersCredentials
+}
+
 // HasConfigFactory reports whether a tool can be built from a step's config
 // map. Without one, ToolRegistry.NewToolWithConfig falls back to the zero-arg
 // factory and throws the step's `config:` block away without a word, so this is
 // the difference between a configurable tool and one whose configuration is
 // silently ignored (#1476). Exported so the registration invariants can be
-// asserted over the populated registry — the field itself is package-private.
+// asserted over the populated registry, the field itself is package-private.
 func (r *ToolRegistry) HasConfigFactory(name ToolID) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -267,7 +299,7 @@ func (r *ToolRegistry) HasConfigFactory(name ToolID) bool {
 
 // SetContractResolver registers a contract resolver for an already-registered
 // tool (see ToolRegistration.ContractResolver). The resolver refines the tool's
-// IO contract from a node's config — used by data-flow validation so a port that
+// IO contract from a node's config, used by data-flow validation so a port that
 // is required only under certain options (e.g. redact's entity overlay when
 // entity detection is enabled) is enforced exactly when it applies.
 func (r *ToolRegistry) SetContractResolver(name ToolID, fn func(config map[string]any, base ToolInfo) ToolInfo) {
@@ -347,6 +379,14 @@ func (r *ToolRegistry) NewToolWithConfig(name ToolID, config map[string]any, tar
 		return nil, UnknownToolError(name)
 	}
 
+	// A camelCase spelling of one of the tool's snake_case config keys is
+	// refused with the key to write, at any depth the schema describes.
+	if reg.Schema != nil {
+		if err := schema.RenamedKeyError(reg.Schema.Properties, config, fmt.Sprintf("tool %s config", name)); err != nil {
+			return nil, err
+		}
+	}
+
 	// Run preprocessor if set (e.g. credential resolution). The requirements
 	// are config-resolved: a tool whose contract drops a requirement under a
 	// given config (entity-extract with engine "ner" needs no credentials)
@@ -356,9 +396,16 @@ func (r *ToolRegistry) NewToolWithConfig(name ToolID, config map[string]any, tar
 		if reg.ContractResolver != nil {
 			requires = reg.ContractResolver(config, reg.Info).Requires
 		}
-		var err error
-		config, err = r.preprocessor(string(name), requires, config)
-		if err != nil {
+		resolved, err := r.preprocessor(string(name), requires, config)
+		switch {
+		case err == nil:
+			config = resolved
+		case reg.DefersCredentials:
+			deferred := make(map[string]any, len(config)+1)
+			maps.Copy(deferred, config)
+			deferred[DeferredCredentialErrorKey] = fmt.Errorf("tool %s config: %w", name, err)
+			config = deferred
+		default:
 			return nil, fmt.Errorf("tool %s config: %w", name, err)
 		}
 	}
@@ -437,10 +484,9 @@ type CLIToolEntry struct {
 // with NewToolFromConfig) or is a plugin tool with a Factory and schema, and is
 // not declared Internal.
 //
-// Internal is a declaration, not an inference: a missing ConfigFactory used to
-// double as "deliberately internal", which is why thirteen built-in tools sat
-// silently unreachable with their step config discarded (#1476). Withholding a
-// tool from the CLI is now said out loud, in its ToolMeta.
+// Internal is declared in a tool's ToolMeta and never inferred from a
+// missing ConfigFactory, which would leave a tool unreachable with its step
+// config discarded (#1476).
 func (r *ToolRegistry) CLITools() []CLIToolEntry {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

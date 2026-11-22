@@ -7,7 +7,7 @@ keywords: [neokapi-i18n, quick start, Vite, React, install, pseudo-translate, i1
 
 # Quick start
 
-Add neokapi-i18n to a Vite + React project. ~5 minutes; you'll finish with a running app that flips between English and pseudo-English from a toolbar.
+In about five minutes you'll have a Vite + React app that switches between English and pseudo-English from a language picker. You write the JSX as usual, and the build finds the text to translate.
 
 ## 1. Install
 
@@ -15,9 +15,9 @@ Add neokapi-i18n to a Vite + React project. ~5 minutes; you'll finish with a run
 npm install -D @neokapi/i18n-react
 ```
 
-The package ships a build plugin (Vite, Rollup, webpack, Rspack, esbuild), the `extract` / `compile` / `split` / `explain` CLI subcommands, and the tiny runtime (~2 kB). No peer dependencies beyond React 18+.
+The package ships a build plugin (Vite, Rollup, webpack, Rspack, esbuild), the `extract` / `compile` / `split` / `explain` CLI subcommands, and the runtime (~2 kB). No peer dependencies beyond React 18+.
 
-The [`kapi` CLI](/kapi/cli) is the translation pipeline that produces pseudo-translations from the KBF directory neokapi-i18n extracts. Install it too:
+The [`kapi` CLI](/kapi/cli) fills the KBF directory that neokapi-i18n extracts with translations. This guide uses it for pseudo-translation. Install it too:
 
 ```bash
 # macOS / Linux
@@ -69,7 +69,7 @@ export default function App() {
 }
 ```
 
-No `t(...)` calls, no keys. The plugin walks the JSX at build time and rewrites each translatable site to a hash-based lookup.
+There are no `t(...)` calls and no keys. The plugin walks the JSX at build time and rewrites each translatable site to a hash-based lookup.
 
 ## 4. Extract to a KBF directory
 
@@ -101,13 +101,13 @@ Extracted 3 blocks from 1 files → i18n/
 
 `i18n/` is a directory carrying one `.kbf.json` document per source file, mirroring
 your source tree (e.g. `i18n/src/App.kbf.json`). The three blocks are
-"Welcome to Acme", the paragraph, and "Get started". Each one is plain JSON, and
-the suffix says so: your editor, `jq`, and GitHub read it without any setup, so
-it stays human-readable and git-diffable.
+"Welcome to Acme", the paragraph, and "Get started". Each file is plain JSON, as
+the suffix says, so your editor, `jq` and GitHub read it with no setup and its
+diffs stay readable.
 
 ## 5. Pseudo-translate with `kapi`
 
-Pseudo-translation generates `▒ Wëlcömé tö Âcmé ▒`-style accented strings that make it obvious what's been picked up for translation, and which strings are still English. Perfect first pass.
+Pseudo-translation produces accented strings such as `▒ Wëlcömé tö Âcmé ▒`. Every extracted string changes, so a string that still reads as plain English is one the extractor missed.
 
 ```bash
 kapi pseudo-translate i18n/
@@ -146,7 +146,7 @@ async function bootstrap() {
 void bootstrap();
 ```
 
-`loadTranslations(locale, url)` fetches the dict and activates it. After it resolves, every rendered `<h1>Welcome to Acme</h1>` renders as `▒ Wëlcömé tö Âcmé ▒`. (Pass an array of URLs instead of one to build a [fallback chain](./modes#fallback-chain), `pt-BR` over `pt`, say.)
+`loadTranslations(locale, url)` fetches the dict and activates it. After it resolves, every rendered `<h1>Welcome to Acme</h1>` renders as `▒ Wëlcömé tö Âcmé ▒`. To build a [fallback chain](./modes#fallback-chain), such as `pt-BR` over `pt`, pass an array of URLs instead of one.
 
 ## 8. Add a language switcher (optional)
 
@@ -173,17 +173,17 @@ export function LocaleSwitcher() {
 }
 ```
 
-`useNeokapi()` wires the root of your tree into neokapi-i18n's translation store so a locale change re-renders the whole subscribed subtree, with no navigation required.
+`useNeokapi()` subscribes the component to neokapi-i18n's translation store, so a locale change re-renders it and its subtree without a navigation.
 
-## What just happened
+## What each step did
 
-- **Zero wrappers**: you wrote normal JSX.
-- **Plugin extracted** every translatable element at build time, computed stable hashes, and rewrote the JSX to look them up at render time.
-- **kapi pseudo-translated** the KBF → another KBF with `qps` targets populated.
-- **neokapi-i18n compiled** that KBF to a JSON dict your app loads.
-- **The runtime** resolved each hash on render; unknown hashes fall back to the JSX source text, so the app never shows raw identifiers.
+1. **You wrote plain JSX**, with no wrappers.
+2. **The plugin** found every translatable element at build time, computed stable hashes, and rewrote the JSX to look them up at render time.
+3. **kapi** added `qps` targets to the KBF catalogs.
+4. **neokapi-i18n compile** turned the catalogs into a JSON dict your app loads.
+5. **The runtime** resolved each hash on render. An unknown hash renders the JSX source text, so the app never shows a raw identifier.
 
-## Next steps
+## Related
 
 - [Writing translatable components](./writing-components): what neokapi-i18n picks up automatically, what it warns about, and how to opt out.
 - [Plurals and select](./plurals-and-select): CLDR-aware plural authoring without ICU strings in your source.

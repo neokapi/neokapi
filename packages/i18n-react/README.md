@@ -1010,6 +1010,10 @@ pay nothing for the import.
   back to source text if the translation file can't be loaded.
 - `neokapiDecorator(opts)` — renders the story in the locale that is in
   force, re-keying it on a locale switch and on a host-posted dictionary.
+  With `hostTranslations: true`, a host may post a dictionary into the
+  story's frame; with `markKeys: true` in that message, every rendered
+  message carries invisible key marks (`readKeyMarks` in the runtime), so
+  the host finds a message's element by key rather than by text.
 
 Pass the same options object to all three. Storybook runs loaders, then
 mounts the story, then runs its `play` function, so registering the loader

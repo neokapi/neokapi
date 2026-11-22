@@ -161,10 +161,10 @@ func (c *Config) SetExtractNonTranslatableContent(v bool) {
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
 		switch key {
-		case "extractAllPairs":
+		case "extract_all_pairs":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractAllPairs: expected bool, got %T", val)
+				return fmt.Errorf("extract_all_pairs: expected bool, got %T", val)
 			}
 			c.ExtractAllPairs = b
 		case "exceptions":
@@ -173,40 +173,40 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("exceptions: expected string, got %T", val)
 			}
 			c.Exceptions = s
-		case "extractIsolatedStrings", "extractArrayStrings":
+		case "extract_isolated_strings":
 			b, ok := val.(bool)
 			if !ok {
 				return fmt.Errorf("%s: expected bool, got %T", key, val)
 			}
 			c.ExtractIsolatedStrings = b
-		case "extractNonTranslatableContent":
+		case "extract_non_translatable_content":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
+				return fmt.Errorf("extract_non_translatable_content: expected bool, got %T", val)
 			}
 			c.disableNonTranslatableContent = !b
-		case "useKeyAsName":
+		case "use_key_as_name":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useKeyAsName: expected bool, got %T", val)
+				return fmt.Errorf("use_key_as_name: expected bool, got %T", val)
 			}
 			c.UseKeyAsName = b
-		case "useFullKeyPath":
+		case "use_full_key_path":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useFullKeyPath: expected bool, got %T", val)
+				return fmt.Errorf("use_full_key_path: expected bool, got %T", val)
 			}
 			c.UseFullKeyPath = b
-		case "useLeadingSlashOnKeyPath":
+		case "use_leading_slash_on_key_path":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useLeadingSlashOnKeyPath: expected bool, got %T", val)
+				return fmt.Errorf("use_leading_slash_on_key_path: expected bool, got %T", val)
 			}
 			c.UseLeadingSlashOnKeyPath = b
-		case "escapeForwardSlashes":
+		case "escape_forward_slashes":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("escapeForwardSlashes: expected bool, got %T", val)
+				return fmt.Errorf("escape_forward_slashes: expected bool, got %T", val)
 			}
 			c.EscapeForwardSlashes = b
 		case "subfilters":
@@ -221,68 +221,68 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("subfilter: expected string, got %T", val)
 			}
 			c.SubfilterFormat = s
-		case "subfilterRules":
+		case "subfilter_rules":
 			s, ok := val.(string)
 			if !ok {
-				return fmt.Errorf("subfilterRules: expected string, got %T", val)
+				return fmt.Errorf("subfilter_rules: expected string, got %T", val)
 			}
 			c.SubfilterRules = s
-		case "noteRules":
+		case "note_rules":
 			s, ok := val.(string)
 			if !ok {
-				return fmt.Errorf("noteRules: expected string, got %T", val)
+				return fmt.Errorf("note_rules: expected string, got %T", val)
 			}
 			c.NoteRules = s
-		case "idRules":
+		case "id_rules":
 			s, ok := val.(string)
 			if !ok {
-				return fmt.Errorf("idRules: expected string, got %T", val)
+				return fmt.Errorf("id_rules: expected string, got %T", val)
 			}
 			c.IDRules = s
-		case "useIdStack":
+		case "use_id_stack":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useIdStack: expected bool, got %T", val)
+				return fmt.Errorf("use_id_stack: expected bool, got %T", val)
 			}
 			c.UseIDStack = b
-		case "genericMetaRules":
+		case "generic_meta_rules":
 			s, ok := val.(string)
 			if !ok {
-				return fmt.Errorf("genericMetaRules: expected string, got %T", val)
+				return fmt.Errorf("generic_meta_rules: expected string, got %T", val)
 			}
 			c.GenericMetaRules = s
-		case "extractionRules":
+		case "extraction_rules":
 			s, ok := val.(string)
 			if !ok {
-				return fmt.Errorf("extractionRules: expected string, got %T", val)
+				return fmt.Errorf("extraction_rules: expected string, got %T", val)
 			}
 			c.ExtractionRules = s
-		case "maxwidthRules":
+		case "maxwidth_rules":
 			s, ok := val.(string)
 			if !ok {
-				return fmt.Errorf("maxwidthRules: expected string, got %T", val)
+				return fmt.Errorf("maxwidth_rules: expected string, got %T", val)
 			}
 			c.MaxwidthRules = s
-		case "maxwidthSizeUnit":
+		case "maxwidth_size_unit":
 			s, ok := val.(string)
 			if !ok {
-				return fmt.Errorf("maxwidthSizeUnit: expected string, got %T", val)
+				return fmt.Errorf("maxwidth_size_unit: expected string, got %T", val)
 			}
 			c.MaxwidthSizeUnit = s
-		case "useCodeFinder":
+		case "use_code_finder":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useCodeFinder: expected bool, got %T", val)
+				return fmt.Errorf("use_code_finder: expected bool, got %T", val)
 			}
 			c.UseCodeFinder = b
-		case "codeFinderRules":
+		case "code_finder_rules":
 			rules, err := parseCodeFinderRules(val)
 			if err != nil {
-				return fmt.Errorf("codeFinderRules: %w", err)
+				return fmt.Errorf("code_finder_rules: %w", err)
 			}
 			c.CodeFinderRules = rules
 		default:
-			return fmt.Errorf("json: unknown parameter: %s", key)
+			return format.UnknownParameterError(c, "json", key)
 		}
 	}
 	c.clearCompiledRegex()
@@ -373,12 +373,12 @@ func (c *Config) shouldExtract(keyName, fullPath string) bool {
 		matchTarget = fullPath
 	}
 
-	// If extractionRules is set, only extract keys matching it
+	// If extraction_rules is set, only extract keys matching it
 	if re := c.getExtractionRules(); re != nil {
 		return re.MatchString(matchTarget)
 	}
 
-	// Default: extractAllPairs with exceptions
+	// Default: extract_all_pairs with exceptions
 	if c.ExtractAllPairs {
 		if re := c.getExceptions(); re != nil {
 			return !re.MatchString(matchTarget)
@@ -386,14 +386,14 @@ func (c *Config) shouldExtract(keyName, fullPath string) bool {
 		return true
 	}
 
-	// extractAllPairs=false: only extract if key matches exceptions
+	// extract_all_pairs=false: only extract if key matches exceptions
 	if re := c.getExceptions(); re != nil {
 		return re.MatchString(matchTarget)
 	}
 	return false
 }
 
-// isNote returns true if the key matches noteRules.
+// isNote returns true if the key matches note_rules.
 func (c *Config) isNote(keyName, fullPath string) bool {
 	re := c.getNoteRules()
 	if re == nil {
@@ -405,7 +405,7 @@ func (c *Config) isNote(keyName, fullPath string) bool {
 	return re.MatchString(keyName)
 }
 
-// isID returns true if the key matches idRules.
+// isID returns true if the key matches id_rules.
 func (c *Config) isID(keyName, fullPath string) bool {
 	re := c.getIDRules()
 	if re == nil {
@@ -417,7 +417,7 @@ func (c *Config) isID(keyName, fullPath string) bool {
 	return re.MatchString(keyName)
 }
 
-// isGenericMeta returns true if the key matches genericMetaRules.
+// isGenericMeta returns true if the key matches generic_meta_rules.
 func (c *Config) isGenericMeta(keyName, fullPath string) bool {
 	re := c.getGenericMetaRules()
 	if re == nil {
@@ -429,7 +429,7 @@ func (c *Config) isGenericMeta(keyName, fullPath string) bool {
 	return re.MatchString(keyName)
 }
 
-// isMaxwidth returns true if the key matches maxwidthRules.
+// isMaxwidth returns true if the key matches maxwidth_rules.
 func (c *Config) isMaxwidth(keyName, fullPath string) bool {
 	re := c.getMaxwidthRules()
 	if re == nil {

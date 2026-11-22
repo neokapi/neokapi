@@ -126,16 +126,16 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			if err := c.applyParserSettings(m); err != nil {
 				return err
 			}
-		case "extractNonTranslatableContent":
+		case "extract_non_translatable_content":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
+				return fmt.Errorf("extract_non_translatable_content: expected bool, got %T", val)
 			}
 			c.disableNonTranslatableContent = !b
-		case "compactOutput":
+		case "compact_output":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("compactOutput: expected bool, got %T", val)
+				return fmt.Errorf("compact_output: expected bool, got %T", val)
 			}
 			c.CompactOutput = b
 		case "indent":
@@ -144,16 +144,16 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("indent: expected string, got %T", val)
 			}
 			c.IndentString = s
-		case "useCodeFinder":
+		case "use_code_finder":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("useCodeFinder: expected bool, got %T", val)
+				return fmt.Errorf("use_code_finder: expected bool, got %T", val)
 			}
 			c.UseCodeFinder = b
-		case "codeFinderRules":
+		case "code_finder_rules":
 			rules, ok := val.([]string)
 			if !ok {
-				return fmt.Errorf("codeFinderRules: expected []string, got %T", val)
+				return fmt.Errorf("code_finder_rules: expected []string, got %T", val)
 			}
 			c.CodeFinderRules = rules
 		case "elements":
@@ -173,7 +173,11 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return err
 			}
 		default:
-			// Ignore unknown parameters for forward compatibility
+			// A camelCase spelling of a renamed key fails; any other
+			// unknown key is ignored for forward compatibility.
+			if err := format.RenamedParameterError(c, "html", key); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -182,10 +186,10 @@ func (c *Config) ApplyMap(values map[string]any) error {
 func (c *Config) applyParserSettings(m map[string]any) error {
 	for key, val := range m {
 		switch key {
-		case "preserveWhitespace":
+		case "preserve_whitespace":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("parser.preserveWhitespace: expected bool, got %T", val)
+				return fmt.Errorf("parser.preserve_whitespace: expected bool, got %T", val)
 			}
 			c.PreserveWhitespace = b
 		default:
@@ -205,16 +209,16 @@ func (c *Config) applyElementRules(m map[string]any) error {
 			continue
 		}
 		rule := &ElementRule{}
-		if rt, ok := ruleMap["ruleTypes"].([]string); ok {
+		if rt, ok := ruleMap["rule_types"].([]string); ok {
 			rule.RuleTypes = rt
 		}
 		if cond, ok := ruleMap["conditions"].([]string); ok {
 			rule.Conditions = cond
 		}
-		if ids, ok := ruleMap["idAttributes"].([]string); ok {
+		if ids, ok := ruleMap["id_attributes"].([]string); ok {
 			rule.IDAttributes = ids
 		}
-		if ta, ok := ruleMap["translatableAttributes"]; ok {
+		if ta, ok := ruleMap["translatable_attributes"]; ok {
 			switch v := ta.(type) {
 			case []string:
 				rule.TranslatableAttributes = make(map[string]any)
@@ -225,10 +229,10 @@ func (c *Config) applyElementRules(m map[string]any) error {
 				rule.TranslatableAttributes = v
 			}
 		}
-		if wa, ok := ruleMap["writableLocalizableAttributes"].([]string); ok {
+		if wa, ok := ruleMap["writable_localizable_attributes"].([]string); ok {
 			rule.WritableAttributes = wa
 		}
-		if ra, ok := ruleMap["readOnlyLocalizableAttributes"].([]string); ok {
+		if ra, ok := ruleMap["read_only_localizable_attributes"].([]string); ok {
 			rule.ReadOnlyAttributes = ra
 		}
 		c.Elements[name] = rule
@@ -246,13 +250,13 @@ func (c *Config) applyAttributeRules(m map[string]any) error {
 			continue
 		}
 		rule := &AttributeRule{}
-		if rt, ok := ruleMap["ruleTypes"].([]string); ok {
+		if rt, ok := ruleMap["rule_types"].([]string); ok {
 			rule.RuleTypes = rt
 		}
-		if exc, ok := ruleMap["allElementsExcept"].([]string); ok {
+		if exc, ok := ruleMap["all_elements_except"].([]string); ok {
 			rule.AllElementsExcept = exc
 		}
-		if only, ok := ruleMap["onlyTheseElements"].([]string); ok {
+		if only, ok := ruleMap["only_these_elements"].([]string); ok {
 			rule.OnlyTheseElements = only
 		}
 		if cond, ok := ruleMap["conditions"].([]string); ok {

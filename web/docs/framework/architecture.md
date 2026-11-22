@@ -16,9 +16,9 @@ app and agent interfaces use this engine. Applications can also import the Go
 library directly.
 
 The engine separates content processing from the project's applicable terms,
-writing guidance and check policy. A check result names the analysis performed;
-a successful gate does not establish factual accuracy or other qualities that
-were not assessed. Multilingual content, AI ingestion and programmatic editing
+writing guidance and check policy. A check result names the analysis it
+performed, and a passing gate covers only that analysis: factual accuracy and
+other unassessed qualities stay open. Multilingual content, AI ingestion and programmatic editing
 use the same format-aware processing interfaces.
 
 Fidelity depends on the format and operation. No-op byte preservation,
@@ -32,7 +32,7 @@ for the system's design.
 
 <ArchitectureDiagram />
 
-The edges are the flow's **source** and **sink**: bindings that decide where
+The edges are the flow's **source** and **sink**: bindings that set where
 content enters and leaves. The default, shown above, is the **file binding**: a
 [reader](/framework/formats) turns supported source files into a stream of
 [Parts](/framework/content-model) and a [writer](/framework/formats) turns the
@@ -100,10 +100,10 @@ neokapi/
 ```
 
 The framework module (repo root) stays platform-agnostic. `memory/`,
-`terms/`, `kpz/` and `providers/` are top-level framework packages rather than
-nested under `core/`. Front-ends such as the CLI and the desktop app, and any
-other consumer, attach through the plugin and extension registries rather than
-by direct imports, so the framework never depends on a particular platform.
+`terms/`, `kpz/` and `providers/` are framework packages at the top level,
+outside `core/`. Front-ends such as the CLI and the desktop app, and any other
+consumer, attach through the plugin and extension registries. The framework
+imports none of them, so it depends on no particular platform.
 
 ## The framework concepts
 
@@ -124,6 +124,8 @@ a few concepts, each with its own page:
 - **[Pipeline](/framework/pipeline)**: the concurrent executor that runs a flow:
   goroutines, buffered channels, and context-driven cancellation.
 
-For the concrete Go interfaces and method signatures behind these concepts, see
-the [Interface Reference](/contribute/interfaces). For the design rationale, see
-the [Architecture Decisions](/contribute/architecture/foundations/f-01-framework-and-modules).
+## Related
+
+- [Concepts](/framework/concepts): every term above in one table.
+- [Interface Reference](/contribute/interfaces): the Go interfaces and method signatures.
+- [Architecture Decisions](/contribute/architecture/foundations/f-01-framework-and-modules): the design rationale.

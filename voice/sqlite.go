@@ -81,7 +81,6 @@ var migrations = []storage.Migration{
 			version INTEGER NOT NULL,
 			snapshot TEXT NOT NULL,
 			note TEXT NOT NULL DEFAULT '',
-			created_by TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL,
 			PRIMARY KEY (profile_id, version)
 		);
@@ -326,10 +325,10 @@ func (s *SQLiteStore) UpdateProfileAt(ctx context.Context, profile *coreprofile.
 	snapshotJSON, _ := json.Marshal(existing)
 	now := at
 	_, _ = s.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO voice_profile_versions (profile_id, version, snapshot, note, created_by, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
+		`INSERT OR IGNORE INTO voice_profile_versions (profile_id, version, snapshot, note, created_at)
+		 VALUES (?, ?, ?, ?, ?)`,
 		existing.ID, existing.Version, string(snapshotJSON),
-		profile.VersionNote, existing.CreatedBy, now.Format(time.RFC3339))
+		profile.VersionNote, now.Format(time.RFC3339))
 
 	profile.UpdatedAt = now
 	profile.Version = existing.Version + 1
@@ -622,7 +621,7 @@ func scanRuleDecision(sc scanner) (*coreprofile.RuleDecision, error) {
 
 func (s *SQLiteStore) ListProfileVersions(ctx context.Context, profileID string) ([]*coreprofile.ProfileVersion, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT profile_id, version, snapshot, note, created_by, created_at
+		`SELECT profile_id, version, snapshot, note, created_at
 		 FROM voice_profile_versions WHERE profile_id = ? ORDER BY version DESC`, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("list profile versions: %w", err)
@@ -633,7 +632,7 @@ func (s *SQLiteStore) ListProfileVersions(ctx context.Context, profileID string)
 	for rows.Next() {
 		var v coreprofile.ProfileVersion
 		var snapshotJSON, createdStr string
-		if err := rows.Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedBy, &createdStr); err != nil {
+		if err := rows.Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &createdStr); err != nil {
 			continue
 		}
 		if err := json.Unmarshal([]byte(snapshotJSON), &v.Snapshot); err != nil {
@@ -655,9 +654,9 @@ func (s *SQLiteStore) GetProfileVersion(ctx context.Context, profileID string, v
 	var v coreprofile.ProfileVersion
 	var snapshotJSON, createdStr string
 	err := s.db.QueryRowContext(ctx,
-		`SELECT profile_id, version, snapshot, note, created_by, created_at
+		`SELECT profile_id, version, snapshot, note, created_at
 		 FROM voice_profile_versions WHERE profile_id = ? AND version = ?`, profileID, version).
-		Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedBy, &createdStr)
+		Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &createdStr)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("profile version not found: %s v%d", profileID, version)
 	}

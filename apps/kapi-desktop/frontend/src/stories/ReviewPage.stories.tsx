@@ -34,7 +34,7 @@ const QUEUE: ReviewItem[] = [
     collection: "Marketing",
     source: "Ship every language without the toil",
     target: "Send lokalisert innhold uten slitet",
-    hasFindings: false,
+    has_findings: false,
   },
   {
     locale: "nb",
@@ -43,7 +43,7 @@ const QUEUE: ReviewItem[] = [
     collection: "Marketing",
     source: "Get started with {product}",
     target: "Kom i gang",
-    hasFindings: true,
+    has_findings: true,
   },
   {
     locale: "nb",
@@ -52,7 +52,7 @@ const QUEUE: ReviewItem[] = [
     collection: "Docs",
     source: "KapiMart is a sample storefront used across the documentation.",
     target: "KapiMart er en eksempelbutikk brukt i dokumentasjonen.",
-    hasFindings: false,
+    has_findings: false,
   },
   {
     locale: "de-DE",
@@ -61,7 +61,7 @@ const QUEUE: ReviewItem[] = [
     collection: "Marketing",
     source: "Ship every language without the toil",
     target: "Lokalisierte Inhalte ohne Mühsal ausliefern",
-    hasFindings: false,
+    has_findings: false,
   },
   {
     locale: "de-DE",
@@ -70,7 +70,7 @@ const QUEUE: ReviewItem[] = [
     collection: "Marketing",
     source: "Get started with {product}",
     target: "Loslegen mit {product}",
-    hasFindings: false,
+    has_findings: false,
   },
 ];
 
@@ -82,7 +82,7 @@ const DETAILS: Record<string, Partial<ReviewUnitDetail>> = {
     findings: [
       {
         category: "placeholder",
-        severity: "major",
+        fails: true,
         message: "placeholder {product} missing from target",
         suggestion: "Carry {product} into the translation verbatim",
       },
@@ -165,7 +165,7 @@ const LARGE_QUEUE: ReviewItem[] = (() => {
         collection: f % 2 === 0 ? "Marketing" : "Docs",
         source: `Source string ${f}.${k} — ship every language without the toil`,
         target: `Target ${f}.${k}`,
-        hasFindings: (f + k) % 5 === 0,
+        has_findings: (f + k) % 5 === 0,
       });
     }
   }
@@ -200,11 +200,9 @@ const CONTEXT: ReviewContext = {
       field: "defaults.voice",
       guide: "Write in the second person. Keep sentences under twenty words.",
     },
-    // Context, not findings. Most of these come from the terms store and carry
-    // no severity, which is why the card draws them all in one neutral chip.
     term_rules: [
-      { term: "cart", replacement: "basket", severity: "major" },
-      { term: "sign in", replacement: "log in", severity: "minor" },
+      { term: "cart", replacement: "basket" },
+      { term: "sign in", replacement: "log in", advisory: true },
       { term: "checkout", replacement: "pay" },
       { term: "Kapimart", do_not_translate: true },
     ],
@@ -257,12 +255,12 @@ const SOURCE_ROWS: ReviewItem[] = [
   {
     locale: "en-US",
     language: "en-US",
-    isSource: true,
+    is_source: true,
     file: "locales/en-US.json",
     relative: "locales/en-US.json",
     key: "hero.title",
     collection: "Marketing",
-    sourceLocale: "en-US",
+    source_locale: "en-US",
     source: "Ship every language without the toil",
     status: "written",
     held: true,
@@ -270,12 +268,12 @@ const SOURCE_ROWS: ReviewItem[] = [
   {
     locale: "en-US",
     language: "en-US",
-    isSource: true,
+    is_source: true,
     file: "locales/en-US.json",
     relative: "locales/en-US.json",
     key: "cta.primary",
     collection: "Marketing",
-    sourceLocale: "en-US",
+    source_locale: "en-US",
     source: "Get started with {product}",
     status: "written",
     held: true,
@@ -285,7 +283,7 @@ const SOURCE_ROWS: ReviewItem[] = [
 /** Every language the project has work in, the source language among them. */
 const UNIFIED_QUEUE: ReviewItem[] = [
   ...SOURCE_ROWS,
-  ...QUEUE.map((it) => ({ ...it, language: it.locale, sourceLocale: "en-US" })),
+  ...QUEUE.map((it) => ({ ...it, language: it.locale, source_locale: "en-US" })),
 ];
 
 /**

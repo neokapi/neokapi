@@ -78,6 +78,12 @@ export interface HostTranslations {
   locale: string;
   /** Message key → translated text. Keys are `hashKey(text, descriptor)`. */
   translations: Record<string, string>;
+  /**
+   * Bracket every rendered message with invisible key marks
+   * (`@neokapi/i18n-react/runtime`, keymarks), so the host can find the
+   * element that renders a message by its key rather than by its text.
+   */
+  markKeys?: boolean;
 }
 
 /**
@@ -90,7 +96,7 @@ interface Session {
   /** The locale whose catalog is in force, or null before the first apply. */
   locale: string | null;
   /** What the host most recently posted, so a locale switch can re-apply it. */
-  host: { locale: string; translations: Record<string, string> } | null;
+  host: { locale: string; translations: Record<string, string>; markKeys: boolean } | null;
 }
 
 const sessions = new WeakMap<NeokapiStorybookOptions, Session>();
@@ -112,6 +118,7 @@ function readHostTranslations(data: unknown): HostTranslations | null {
     type: HOST_TRANSLATIONS_MESSAGE,
     locale: msg.locale,
     translations: msg.translations ?? {},
+    markKeys: msg.markKeys === true,
   };
 }
 
@@ -127,6 +134,7 @@ async function getRuntime() {
       options?: { merge?: boolean },
     ) => void;
     loadTranslations: (locale: string, url: string) => Promise<void>;
+    setKeyMarking: (on: boolean) => void;
   };
 }
 
@@ -166,6 +174,7 @@ function makeApplier(opts: NeokapiStorybookOptions): (locale: string) => Promise
     if (session.host && session.host.locale === locale) {
       runtime.setTranslations(locale, session.host.translations, { merge: true });
     }
+    runtime.setKeyMarking(session.host?.markKeys ?? false);
     session.locale = locale;
   };
 }
@@ -237,7 +246,11 @@ export function neokapiDecorator(opts: NeokapiStorybookOptions): Decorator {
       const onMessage = (event: MessageEvent) => {
         const msg = readHostTranslations(event.data);
         if (!msg) return;
-        session.host = { locale: msg.locale, translations: msg.translations };
+        session.host = {
+          locale: msg.locale,
+          translations: msg.translations,
+          markKeys: msg.markKeys === true,
+        };
         void (async () => {
           await apply(msg.locale);
           setRevision((n) => n + 1);

@@ -22,6 +22,7 @@ import {
   Separator,
   Switch,
   useSetBreadcrumb,
+  PageContainer,
 } from "@neokapi/ui";
 import { AlertTriangle, Check, Star } from "lucide-react";
 import {
@@ -81,9 +82,9 @@ export function PlatformRoute() {
 
   if (isLoading || !data) {
     return (
-      <div className="mx-auto w-full max-w-3xl">
+      <PageContainer width="standard">
         <p className="text-sm text-muted-foreground">Loading platform settings…</p>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -106,7 +107,7 @@ function PlatformSettings({
   const readOnly = !persistent;
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+    <PageContainer width="standard" className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <p className="text-sm text-muted-foreground">
           Instance-wide runtime settings. Changes apply to every server and worker within seconds,
@@ -131,7 +132,7 @@ function PlatformSettings({
       <MaintenanceCard snapshot={snapshot} readOnly={readOnly} onSaved={onSaved} />
       <WorkspaceDefaultsCard snapshot={snapshot} readOnly={readOnly} onSaved={onSaved} />
       <FeaturesCard snapshot={snapshot} readOnly={readOnly} onSaved={onSaved} />
-    </div>
+    </PageContainer>
   );
 }
 
@@ -185,13 +186,16 @@ function AICard({
   // both onboard/offboard from the static catalog and free-text ids are managed
   // in one list.
   const rows: CatalogModel[] = useMemo(() => {
+    // A provider without a curated catalog, or no enabled models, may come
+    // back as null from an older server.
+    const catalog = snapshot.model_catalog ?? [];
     const byId = new Map<string, CatalogModel>();
-    for (const m of snapshot.model_catalog) byId.set(m.id, m);
+    for (const m of catalog) byId.set(m.id, m);
     const extras: CatalogModel[] = [];
-    for (const id of ai.enabled_models) {
+    for (const id of ai.enabled_models ?? []) {
       if (!byId.has(id)) extras.push({ id, name: id, tier: "balanced" });
     }
-    return [...snapshot.model_catalog, ...extras];
+    return [...catalog, ...extras];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snapshot.model_catalog, ai.enabled_models]);
 

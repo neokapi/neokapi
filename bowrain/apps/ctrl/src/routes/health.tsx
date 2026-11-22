@@ -1,5 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { useSetBreadcrumb, Card, CardHeader, CardTitle, CardContent, Button } from "@neokapi/ui";
+import {
+  useSetBreadcrumb,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  PageContainer,
+} from "@neokapi/ui";
 import { RefreshCw, ExternalLink } from "lucide-react";
 import {
   getHealth,
@@ -185,7 +193,7 @@ export function HealthRoute() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6">
+    <PageContainer width="wide" className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">System Health</h1>
@@ -245,6 +253,6 @@ export function HealthRoute() {
           )}
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }

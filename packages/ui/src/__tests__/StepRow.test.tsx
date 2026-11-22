@@ -1,10 +1,23 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { StepRow } from "../components/flow-editor";
 import type { FlowTool } from "../components/flow-editor";
 import type { ComponentSchema } from "../components/schema-form";
+
+// The remove control's tooltip measures itself with ResizeObserver, which
+// jsdom lacks; when the hover opens it before the click lands, the throw ate
+// the click.
+beforeAll(() => {
+  if (typeof globalThis.ResizeObserver === "undefined") {
+    globalThis.ResizeObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+  }
+});
 
 const TOOL: FlowTool = {
   name: "translate",
@@ -24,10 +37,22 @@ const SCHEMA: ComponentSchema = {
 afterEach(cleanup);
 
 describe("StepRow", () => {
+  it("offers the command that runs its tool on files", () => {
+    render(
+      <ul>
+        <StepRow step={{ tool: "translate" }} tool={TOOL} index={0} readOnly />
+      </ul>,
+    );
+    const copy = screen.getByRole("button", {
+      name: "Copy kapi exec translate <files...> for the terminal",
+    });
+    expect(copy.getAttribute("data-command")).toBe("kapi exec translate <files...>");
+  });
+
   it("shows the tool's name and description", () => {
     render(
       <ul>
-        <StepRow step={{ tool: "translate" }} tool={TOOL} index={0} count={2} />
+        <StepRow step={{ tool: "translate" }} tool={TOOL} index={0} />
       </ul>,
     );
     expect(screen.getByText("Translate")).toBeTruthy();
@@ -37,14 +62,7 @@ describe("StepRow", () => {
   it("renders the options form when opened by default and a schema is present", () => {
     render(
       <ul>
-        <StepRow
-          step={{ tool: "translate" }}
-          tool={TOOL}
-          index={0}
-          count={1}
-          schema={SCHEMA}
-          defaultOpen
-        />
+        <StepRow step={{ tool: "translate" }} tool={TOOL} index={0} schema={SCHEMA} defaultOpen />
       </ul>,
     );
     expect(screen.getByTestId("step-options")).toBeTruthy();
@@ -53,32 +71,30 @@ describe("StepRow", () => {
   it("shows no options control without a schema", () => {
     render(
       <ul>
-        <StepRow step={{ tool: "qa" }} index={0} count={1} />
+        <StepRow step={{ tool: "qa" }} index={0} />
       </ul>,
     );
     expect(screen.queryByLabelText("Options")).toBeNull();
   });
 
-  it("wires the move and remove controls", async () => {
+  it("wires the remove control", async () => {
     const onRemove = vi.fn();
-    const onMoveDown = vi.fn();
     render(
       <ul>
-        <StepRow
-          step={{ tool: "translate" }}
-          tool={TOOL}
-          index={0}
-          count={2}
-          onRemove={onRemove}
-          onMoveDown={onMoveDown}
-        />
+        <StepRow step={{ tool: "translate" }} tool={TOOL} index={0} onRemove={onRemove} />
       </ul>,
     );
-    expect((screen.getByLabelText("Move up") as HTMLButtonElement).disabled).toBe(true);
-    await userEvent.click(screen.getByLabelText("Move down"));
     await userEvent.click(screen.getByLabelText("Remove Translate"));
-    expect(onMoveDown).toHaveBeenCalledOnce();
     expect(onRemove).toHaveBeenCalledOnce();
+  });
+
+  it("shows a grip only when the step can be reordered", () => {
+    render(
+      <ul>
+        <StepRow step={{ tool: "translate" }} tool={TOOL} index={0} />
+      </ul>,
+    );
+    expect(screen.queryByLabelText("Reorder Translate")).toBeNull();
   });
 
   it("labels a parallel group when the step carries no tool", () => {
@@ -87,7 +103,6 @@ describe("StepRow", () => {
         <StepRow
           step={{ tool: "", parallel: [{ tool: "qa" }, { tool: "voice-check" }] }}
           index={0}
-          count={1}
         />
       </ul>,
     );

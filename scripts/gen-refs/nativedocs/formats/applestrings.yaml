@@ -16,13 +16,13 @@ overview: |
   preserved. The modern `.xcstrings` String Catalog is handled by the
   separate `xcstrings` format.
 parameters:
-  extractComments:
+  extract_comments:
     description: Attach a preceding comment as a translator note (.strings).
     help: |
       When enabled (the default), a `/* … */` or `// …` comment preceding a
       `.strings` entry is attached to the block as a translator note.
     values: "`true` / `false` (default `true`)"
-  protectPlaceholders:
+  protect_placeholders:
     description: Protect printf and %#@var@ tokens as inline codes.
     help: |
       When enabled (the default), printf specifiers (`%@`, `%lld`, `%1$@`)
@@ -37,4 +37,4 @@ examples:
   - title: Leave placeholders inline
     description: Do not protect printf/%#@var@ tokens as codes.
     config: |
-      protectPlaceholders: false
+      protect_placeholders: false

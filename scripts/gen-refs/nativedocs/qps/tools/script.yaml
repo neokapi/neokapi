@@ -28,7 +28,7 @@ parameters:
     description: Ŵĥéŕé ţĥé šçŕîþţ çöḿéš ƒŕöḿ.
     help: |
       `îñļîñé` ŕüñš ţĥé šçŕîþţ šüþþļîéđ îñ ţĥé `çöđé` ƒîéļđ; `ƒîļé` ļöàđš ţĥé
-      šçŕîþţ ƒŕöḿ ţĥé þàţĥ îñ `šçŕîþţƑîļé`.
+      šçŕîþţ ƒŕöḿ ţĥé þàţĥ îñ `šçŕîþţ_ƒîļé`.
     values: "`îñļîñé` / `ƒîļé` (đéƒàüļţ `îñļîñé`)"
   code:
     description: Îñļîñé ÉŠ5 ĴàṽàŠçŕîþţ šöüŕçé.
@@ -38,7 +38,7 @@ parameters:
     dependsOn:
       - property: source
         condition: üšéđ ŵĥéñ šöüŕçé îš `îñļîñé`
-  scriptFile:
+  script_file:
     description: Þàţĥ ţö à ĴàṽàŠçŕîþţ ƒîļé.
     help: |
       Þàţĥ ţö à `.ĵš` ƒîļé ţö ļöàđ àñđ ŕüñ, üšéđ ŵĥéñ `šöüŕçé` îš `ƒîļé`.
@@ -67,4 +67,4 @@ examples:
     description: Ŕüñ à šçŕîþţ šţöŕéđ àļöñĝšîđé ţĥé þŕöĵéçţ.
     config: |
       source: file
-      scriptFile: ./scripts/transform.js
+      script_file: ./scripts/transform.js

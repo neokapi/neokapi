@@ -50,7 +50,7 @@ export const Text: Story = {
 export const Number: Story = {
   render: () => (
     <FieldHarness
-      name="expansionPercent"
+      name="expansion_percent"
       schema={{
         type: "integer",
         title: "Expansion Percent",
@@ -91,7 +91,7 @@ export const WithError: Story = {
   render: () => (
     <div className="w-80 rounded-lg border p-4">
       <PropertyField
-        name="apiKey"
+        name="api_key"
         schema={{ type: "string", title: "API Key", description: "Provider credential" }}
         value=""
         onChange={() => {}}

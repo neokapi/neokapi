@@ -1,7 +1,7 @@
 // Package visionproto is the line-independent, binary-framed stdin/stdout
 // protocol the kapi-vision plugin speaks. Unlike the SaT segmenter's
 // line-delimited JSON, vision requests carry raw image bytes (MB-scale), which
-// would blow a bufio.Scanner line buffer and waste 33% on base64 — so each
+// would blow a bufio.Scanner line buffer and waste 33% on base64. So each
 // message is length-prefixed binary: a JSON header frame followed by a binary
 // payload frame.
 //
@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -35,7 +36,7 @@ const (
 )
 
 // Request is the header for one operation. For OpOCR the image is referenced by
-// Path (a local filesystem path the plugin opens itself) — the host never loads
+// Path (a local filesystem path the plugin opens itself). The host never loads
 // the image bytes. The payload frame is reserved for future streaming use.
 type Request struct {
 	Op    string `json:"op"`
@@ -98,8 +99,8 @@ type ModelInfo struct {
 	Loaded  bool   `json:"loaded,omitempty"`
 }
 
-// maxFrame caps a single frame at 256 MB — generous for any page image, a guard
-// against a corrupt length header allocating unbounded memory.
+// maxFrame caps a single frame at 256 MB. That is generous for any page image
+// and guards against a corrupt length header allocating unbounded memory.
 const maxFrame = 256 << 20
 
 // WriteMessage writes one framed message: the header (marshaled to JSON) then
@@ -196,7 +197,7 @@ func Serve(r io.Reader, w io.Writer, h Handler) error {
 	bw := bufio.NewWriter(w)
 	for {
 		req, payload, err := ReadRequest(br)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return nil
 		}
 		if err != nil {

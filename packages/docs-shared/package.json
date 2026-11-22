@@ -8,6 +8,7 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./capability": "./src/capability/index.ts",
     "./*": "./src/*",
     "./package.json": "./package.json"
   },
@@ -19,11 +20,14 @@
     "test": "vp test"
   },
   "dependencies": {
-    "posthog-js": "^1.438.9"
+    "posthog-js": "^1.448.0"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
+    "jsdom": "^31.0.1",
     "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {

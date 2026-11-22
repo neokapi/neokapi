@@ -1,4 +1,4 @@
-// lucide-react no longer ships brand icons, so render the GitHub mark inline.
+// lucide-react ships no brand icons, so render the GitHub mark inline.
 export function GithubIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

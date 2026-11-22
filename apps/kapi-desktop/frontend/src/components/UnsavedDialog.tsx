@@ -9,32 +9,35 @@ import {
 } from "@neokapi/ui-primitives";
 
 interface UnsavedDialogProps {
+  saving?: boolean;
   onSave: () => void;
   onDiscard: () => void;
   onCancel: () => void;
 }
 
-export function UnsavedDialog({ onSave, onDiscard, onCancel }: UnsavedDialogProps) {
+export function UnsavedDialog({ saving = false, onSave, onDiscard, onCancel }: UnsavedDialogProps) {
   return (
     <Dialog
       open
       onOpenChange={(o) => {
-        if (!o) onCancel();
+        if (!o && !saving) onCancel();
       }}
     >
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>Unsaved Changes</DialogTitle>
+          <DialogTitle>Unsaved changes</DialogTitle>
           <DialogDescription>Do you want to save changes before closing?</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={onDiscard}>
+          <Button disabled={saving} variant="outline" onClick={onDiscard}>
             Don&apos;t Save
           </Button>
-          <Button variant="outline" onClick={onCancel}>
+          <Button disabled={saving} variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button onClick={onSave}>Save</Button>
+          <Button disabled={saving} onClick={onSave}>
+            Save
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

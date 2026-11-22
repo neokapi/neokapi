@@ -20,13 +20,12 @@ or PO hand-off start with `kapi init` and run them inside the project. The `.kpz
 _conversion_ is plain `kapi run -i <file>`.
 :::
 
-kapi can translate your content on its own. But when a person should do the
-translation (a professional translator, a native-speaking colleague, an outside
-agency) you hand the work out and take it back: kapi produces a file the
-translator opens in whatever tool they already use, accepts the returned
-version, and rebuilds your original files byte-for-byte. It is an escape hatch
-beside the normal path, and the corrections that come back are captured so
-they carry into the next run. For the memory model behind it (matching, fuzzy
+When a person should translate (a professional translator, a native-speaking
+colleague, an outside agency), you hand the work out and take it back. kapi
+writes a file the translator opens in the tool they already use, accepts the
+returned version, and rebuilds your original files byte for byte. The
+corrections that come back go into the content memory, so the next run reuses
+them. For the memory model behind it (matching, fuzzy
 thresholds, pre-fill/absorb), see
 [Content memory](/framework/content-memory).
 
@@ -35,7 +34,7 @@ lossless **bilingual `.kpz`** (`kapi extract --format kpz`), for a recipient
 working in kapi or the neokapi review tool; it carries inline codes, memory
 matches, and term context in one integrity-verified, diffable parcel. For a
 third-party CAT tool, `kapi extract` emits **XLIFF 2.x / PO** (the default), the
-interop tier this page focuses on. Both go out and come back through the same
+formats the rest of this page uses. Both go out and come back through the same
 `extract` / `merge` verbs; see [KBF vs XLIFF](/reference/serialization/choosing). (Memory
 and terminology have their own interchange: `kapi memory import/export` for TMX,
 `kapi terms import/export` for TBX.)
@@ -144,8 +143,8 @@ Multi-target in one pass is the default. Common options: `--target-lang fr,de`
 placeholders only and `kapi merge` restores the originals from the local vault
 (see [Redaction](/framework/redaction)).
 
-The translator phase is out of scope for kapi: any bilingual tool that speaks
-XLIFF 2.x works, and kapi is entirely out of the loop until the file returns.
+Any bilingual tool that reads XLIFF 2.x works for the translator, and kapi
+takes no part until the file returns.
 
 ## Merge the return
 
@@ -156,7 +155,7 @@ kapi merge -i vendor-return/            # every .xliff in the directory; -i repe
 
 Merge reads the source file and the language each returned file names, and
 what each block was extracted against travels in the file, so a renamed file
-merges, and so does one whose extraction batch is no longer in the cache. Each
+merges, and so does one whose extraction batch is gone from the cache. Each
 returned translation is written to the file the collection's `target` names,
 and the translated file follows its source's structure. A translation the file
 held for a block the return does not carry stays where the file names its blocks
@@ -180,7 +179,8 @@ reported and the exit code reflects any failure.
   the returned one, `existing-wins` keeps it and skips the returned one, and
   `newest-wins` takes the returned one when the returned file is newer than the
   translation's file. A block whose translation is the one it was extracted
-  against takes the returned translation under every policy. Never interactive.
+  against takes the returned translation under every policy. Merge never
+  prompts.
 - **Refusals.** A returned translation that drops an inline code its source
   protects, or that breaks a rule the project holds it to (a required term,
   say), is refused and reported on stderr; the rest of the file still lands.
@@ -207,7 +207,7 @@ comments (`#. kapi-batch:`, `#. kapi-block:`, and each entry's revisions as
 `Language` field, and `#, fuzzy` on fuzzy memory pre-fills. If an editor
 rewrites the header to a language the recipe does not list, merge takes the
 language from the extraction that wrote the file, and fails for that file when
-the extraction is no longer in the cache.
+the extraction is gone from the cache.
 A single merge invocation can mix XLIFF and PO from the same batch. PO cannot
 carry sentence-level segmentation; projects with `segmentation.source: true`
 must emit XLIFF (the combination errors early).
@@ -220,8 +220,8 @@ each translated file from the source in the project, byte-for-byte outside the
 translated text. Everything else stays in project state: the content memory, the
 terms store, and the stand-off overlays, variants, and per-target status the
 [content model](/framework/content-model) records. The bilingual file is the
-lean, tool-neutral handoff; the project is the system of record, which is why
-merge needs the same project the extract ran in.
+lean, tool-neutral handoff. The project holds the full record, so merge needs
+the same project the extract ran in.
 
 ## Related
 

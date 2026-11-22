@@ -56,7 +56,7 @@ func resultText(res *mcp.CallToolResult) string {
 }
 
 // An agent that entered a correction backwards takes it back in the same
-// session, and it stops advising.
+// session, and checks stop reporting it.
 func TestContextWithdrawTakesBackThisSessionsCandidate(t *testing.T) {
 	app, _ := contextOpsApp(t)
 	root := contextOpsProject(t, "withdraw-own")
