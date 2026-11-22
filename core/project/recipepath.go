@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 )
 
 // ProjectEnvVar names a project recipe (kapi.yaml), or the directory holding
@@ -79,9 +81,16 @@ type NotAProjectError struct {
 	Source string
 	// Dir reports that Given is a directory, which holds no kapi.yaml.
 	Dir bool
+	// NotRecipe reports that Given is a file that is not a recipe: its
+	// content is not a YAML mapping.
+	NotRecipe bool
 }
 
 func (e *NotAProjectError) Error() string {
+	if e.NotRecipe {
+		return fmt.Sprintf("%s %s is not a kapi recipe. Pass the path to a %s recipe or the directory that holds it",
+			e.Source, e.Given, RecipeFileName)
+	}
 	if e.Dir {
 		return fmt.Sprintf("%s %s is not a kapi project: the directory holds no %s. Pass the directory that holds the recipe, or run kapi init there",
 			e.Source, e.Given, RecipeFileName)
@@ -95,6 +104,9 @@ func (e *NotAProjectError) Error() string {
 func namedRecipe(given, source string) (string, error) {
 	recipe := RecipeIn(given)
 	if info, err := os.Stat(recipe); err == nil && !info.IsDir() {
+		if !isRecipe(recipe) {
+			return "", &NotAProjectError{Given: given, Source: source, NotRecipe: true}
+		}
 		return recipe, nil
 	}
 	info, err := os.Stat(given)
@@ -112,6 +124,10 @@ func namedRecipe(given, source string) (string, error) {
 // a file that travels in git. Discovery already returns an absolute path, so
 // only the branches a user spells need this.
 //
+// A recipe that is a symbolic link resolves to the file it names, so the
+// project roots at the directory that holds the recipe itself, not at the
+// link's directory.
+//
 // A path that does not resolve is returned as given. ResolveRecipePath then
 // reports it, naming the path the person wrote.
 func RecipeIn(path string) string {
@@ -126,5 +142,37 @@ func RecipeIn(path string) string {
 	if err != nil {
 		return path
 	}
-	return abs
+	return followRecipeLink(abs)
+}
+
+// followRecipeLink returns the file a recipe that is a symbolic link names,
+// following each link in turn. Only the recipe file itself is followed; the
+// directories above it keep the spelling the person used.
+func followRecipeLink(path string) string {
+	for range 40 {
+		info, err := os.Lstat(path)
+		if err != nil || info.Mode()&os.ModeSymlink == 0 {
+			return path
+		}
+		target, err := os.Readlink(path)
+		if err != nil {
+			return path
+		}
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(filepath.Dir(path), target)
+		}
+		path = filepath.Clean(target)
+	}
+	return path
+}
+
+// isRecipe reports whether the file at path reads as a recipe: a YAML mapping.
+// A file that cannot be read is left for the command to report.
+func isRecipe(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return true
+	}
+	var head map[string]any
+	return yaml.Unmarshal(data, &head) == nil
 }

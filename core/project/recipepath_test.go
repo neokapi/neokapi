@@ -65,3 +65,23 @@ func TestResolveRecipePathNamesAPathThatIsNotAProject(t *testing.T) {
 		assert.Empty(t, got)
 	})
 }
+
+// A recipe named through a symbolic link resolves to the file the link names,
+// and a file that is not a recipe is refused naming the path.
+func TestResolveRecipePathFollowsALinkAndRefusesANonRecipe(t *testing.T) {
+	dir := t.TempDir()
+	recipe := filepath.Join(dir, "project", RecipeFileName)
+	require.NoError(t, os.MkdirAll(filepath.Dir(recipe), 0o755))
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: linked\n"), 0o644))
+	link := filepath.Join(dir, "linked.yaml")
+	require.NoError(t, os.Symlink(recipe, link))
+
+	got, err := ResolveRecipePath(link)
+	require.NoError(t, err)
+	assert.Equal(t, recipe, got)
+
+	notes := filepath.Join(dir, "notes.txt")
+	require.NoError(t, os.WriteFile(notes, []byte("- a list\n"), 0o644))
+	_, err = ResolveRecipePath(notes)
+	require.ErrorContains(t, err, notes+" is not a kapi recipe")
+}
