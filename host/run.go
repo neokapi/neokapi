@@ -38,7 +38,7 @@ func BuiltinComposedFlowNames() map[string]bool {
 }
 
 // BuiltinFlowNames returns every built-in catalog flow ID, single-node flows
-// included — the resolution set for `kapi run <flow>` and the flow-backed
+// included: the resolution set for `kapi run <flow>` and the flow-backed
 // porcelain. (BuiltinComposedFlowNames stays the ≥2-tool subset used by
 // listings that present "composed" pipelines.)
 func BuiltinFlowNames() map[string]bool {
@@ -103,6 +103,9 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 
 	inputPaths, _ := cmd.Flags().GetStringSlice("input")
 	explain, _ := cmd.Flags().GetBool("explain")
+	if err := refusePackWithoutKpz(cmd, inputPaths); err != nil {
+		return err
+	}
 
 	// A built-in flow given files (or asked to explain itself) runs them as it
 	// does outside a project. Given none, it runs over the project's
@@ -117,6 +120,9 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 		}
 	} else if pf, err = ResolveProjectFlow(proj, ctx.ProjectDir, flowName, runFlagToolConfig(cmd)); err != nil {
 		return err
+	}
+	if pf != nil {
+		PrintRunConfigNotes(cmd, pf.Notes)
 	}
 	if pf != nil && pf.Source == FlowSourceBuiltin && (len(inputPaths) > 0 || explain) {
 		return a.RunFlow(cmd.Context(), cmd, flowName)
@@ -187,8 +193,8 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	// honor them with no flags (defaults.voice and the project's terms), per
 	// content collection: the input set splits into one group per distinct
 	// binding, and each group runs the flow with its own. A recipe where no
-	// collection overrides anything yields one group over every input — the
-	// single run, with the single tool chain, that this has always been.
+	// collection overrides anything yields one group over every input: a
+	// single run with a single tool chain.
 	groups, err := a.groupInputsByBinding(cmd, proj, ctx.ProjectDir, inputPaths)
 	if err != nil {
 		return err
@@ -210,8 +216,8 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 
 	// One run per binding group: the group's bindings go on the App before the
 	// run, because that is where the tool chain reads them (buildFlowTools →
-	// applyBindings). One group — no collection naming a context — is one run
-	// over every input, exactly as before.
+	// applyBindings). One group (no collection naming a context) is one run
+	// over every input.
 	runGroups := func() error {
 		for _, group := range groups {
 			b, berr := groupBindings.at(group.Point, a.TargetLang)
@@ -228,12 +234,12 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	}
 
 	// Locale selection: an explicit --target-lang wins (one pass with it);
-	// otherwise the flow's locale passes come from flow.ResolveFlowLocales —
+	// otherwise the flow's locale passes come from flow.ResolveFlowLocales,
 	// the SAME applicability-based selection the desktop runner and the
 	// shared orchestrator (RunFlowAllLocales) use, so the CLI and the desktop
-	// can never disagree about which locales a flow runs for. (Convergence
-	// deliberately answers a different question — "which locales still need
-	// work" — via localesNeedingPass in converge.go.) A source-only flow
+	// agree about which locales a flow runs for. (Convergence answers a
+	// different question, "which locales still need work", via
+	// localesNeedingPass in converge.go.) A source-only flow
 	// (nil passes) keeps the single default-target run.
 	if !cmd.Flags().Changed("target-lang") {
 		passes := flow.ResolveFlowLocales(spec, flow.BuildToolInfoMap(a.ToolReg), a.SourceLocale(), localeStrings(ctx.TargetLocales))
@@ -277,6 +283,9 @@ type ProjectFlow struct {
 	Spec   *flow.StepsSpec
 	// Path is the flow file, for a flow from `flows_dir:`.
 	Path string
+	// Notes names each run flag a step keeps its own value over
+	// (seedRunConfig). PrintRunConfigNotes writes them.
+	Notes []string
 }
 
 // ResolveProjectFlow resolves a flow name against the recipe in projectDir,
@@ -288,17 +297,20 @@ type ProjectFlow struct {
 // verbs (`kapi translate`, `kapi pseudo-translate`) are kapi's own and always
 // run the built-in they are named for (RunCmdOptions.Builtin).
 //
-// runConfig seeds every step of a built-in flow (the run flags a caller
-// honours). Nil, nil when nothing declares the name; an error when the flow
-// file of that name does not load.
+// runConfig is the run flags' tool config (RunFlagToolConfig), nil for none.
+// It seeds every step of the resolved flow, wherever the flow is defined, by
+// the rule seedRunConfig states. Nil, nil when nothing declares the name; an
+// error when the flow file of that name does not load.
 func ResolveProjectFlow(proj *project.KapiProject, projectDir, name string, runConfig map[string]any) (*ProjectFlow, error) {
 	if spec := proj.Flow(name); spec != nil {
-		return &ProjectFlow{Name: name, Source: FlowSourceInline, Spec: spec}, nil
+		seeded, notes := seedRunConfigSpec(spec, runConfig)
+		return &ProjectFlow{Name: name, Source: FlowSourceInline, Spec: seeded, Notes: notes}, nil
 	}
 	dirFlow, err := project.LoadDirFlow(proj.FlowsDirIn(projectDir), name)
 	switch {
 	case err == nil:
-		return &ProjectFlow{Name: name, Source: FlowSourceFile, Spec: dirFlow.Spec, Path: dirFlow.Path}, nil
+		seeded, notes := seedRunConfigSpec(dirFlow.Spec, runConfig)
+		return &ProjectFlow{Name: name, Source: FlowSourceFile, Spec: seeded, Path: dirFlow.Path, Notes: notes}, nil
 	case !errors.Is(err, os.ErrNotExist):
 		return nil, err
 	}
@@ -306,6 +318,14 @@ func ResolveProjectFlow(proj *project.KapiProject, projectDir, name string, runC
 		return &ProjectFlow{Name: name, Source: FlowSourceBuiltin, Spec: spec}, nil
 	}
 	return nil, nil
+}
+
+// PrintRunConfigNotes writes each note seedRunConfig returned to stderr, so a
+// run flag a step overrides is said rather than dropped.
+func PrintRunConfigNotes(cmd Command, notes []string) {
+	for _, n := range notes {
+		fmt.Fprintf(cmd.ErrOrStderr(), "Note: %s\n", n)
+	}
 }
 
 // builtInFlowSteps renders a built-in flow's tool chain as the steps spec the
@@ -320,11 +340,8 @@ func builtInFlowSteps(flowName string, runConfig map[string]any) *flow.StepsSpec
 	nodes := orderedToolNodes(def)
 	steps := make([]flow.FlowStep, 0, len(nodes))
 	for _, n := range nodes {
-		steps = append(steps, flow.FlowStep{
-			Tool:   n.Name,
-			Label:  n.Label,
-			Config: mergeFlowNodeConfig(runConfig, n.Config),
-		})
+		steps = append(steps, flow.FlowStep{Tool: n.Name, Label: n.Label, Config: n.Config})
 	}
+	steps, _ = seedRunConfig(steps, runConfig)
 	return &flow.StepsSpec{Steps: steps}
 }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T09:01:30Z",
+  "generatedAt": "2026-11-22T15:02:55Z",
   "commands": [
     {
       "id": "add",
@@ -7698,12 +7698,6 @@
           "type": "string"
         },
         {
-          "name": "stats",
-          "usage": "inkluder del-/blokk-antall i utdata",
-          "default": "false",
-          "type": "bool"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
@@ -8177,12 +8171,6 @@
           "name": "source-lang",
           "usage": "kildespråk (f.eks. en, en-US; standard er prosjektets source_language, ellers en)",
           "type": "string"
-        },
-        {
-          "name": "stats",
-          "usage": "inkluder del-/blokktellinger i utdata",
-          "default": "false",
-          "type": "bool"
         },
         {
           "name": "strict",
@@ -9348,12 +9336,6 @@
           "type": "string"
         },
         {
-          "name": "stats",
-          "usage": "inkluder del-/blokkantall i utdata",
-          "default": "false",
-          "type": "bool"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
@@ -9559,13 +9541,6 @@
           "type": "string"
         },
         {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "antall filer som behandles samtidig (0 = automatisk)",
-          "default": "0",
-          "type": "int"
-        },
-        {
           "name": "context",
           "usage": "hva modellen får vite om en blokk utover selve blokken: none, key (standard), neighbours",
           "type": "string"
@@ -9582,17 +9557,6 @@
           "type": "string"
         },
         {
-          "name": "engine",
-          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
-          "type": "string"
-        },
-        {
-          "name": "explain",
-          "usage": "skriv ut de løste kilde → mål-bindingene og avslutt uten å kjøre",
-          "default": "false",
-          "type": "bool"
-        },
-        {
           "name": "fail-on-incomplete-watch",
           "usage": "server venue: mislykkes når kjøringens hendelsesstrøm avsluttes før kjøringen er ferdig, i stedet for å rapportere det og hente det som kom inn",
           "default": "false",
@@ -9603,19 +9567,6 @@
           "usage": "avslutt med feil hvis noen fil ikke kan behandles (standard: hopp over med en advarsel)",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "overstyr gjenkjenning av inngangsformat",
-          "type": "string"
-        },
-        {
-          "name": "input",
-          "shorthand": "i",
-          "usage": "inndatafilsti(er); gjenta for flere filer",
-          "default": "[]",
-          "type": "stringSlice"
         },
         {
           "name": "instruction",
@@ -9669,24 +9620,6 @@
           "type": "bool"
         },
         {
-          "name": "output",
-          "shorthand": "o",
-          "usage": "utdatasti eller mal (f.eks. ./out/{name}_{lang}.{ext})",
-          "type": "string"
-        },
-        {
-          "name": "pack",
-          "usage": "når en .kpz transformeres, eject også resultatet til .kpz-filen (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fordel blokkbehandling på N goroutiner (0 = av)",
-          "default": "0",
-          "type": "int"
-        },
-        {
           "name": "passes",
           "usage": "maksimalt antall avstemmingsrunder (0 = løkke til oppdatert eller parkert, maks 5; 1 = enkelt pass)",
           "default": "0",
@@ -9735,26 +9668,10 @@
           "type": "bool"
         },
         {
-          "name": "source-lang",
-          "usage": "kildespråk (f.eks. en, en-US; bruker prosjektets source_language som standard, ellers en)",
-          "type": "string"
-        },
-        {
-          "name": "stats",
-          "usage": "inkluder del-/blokkantall i utdata",
-          "default": "false",
-          "type": "bool"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "termstore",
