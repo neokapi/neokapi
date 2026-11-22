@@ -2,6 +2,7 @@
   "name": "kapi-claude-harness",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@12.21.0",
   "type": "module",
   "description": "Test harness that demonstrates and records kapi driven by Claude Code as narrated videos.",
   "scripts": {

@@ -11,8 +11,9 @@ packages: []
 # in this directory then fails with "must use a registry package path and an
 # integrity-only resolution". The repo-root pnpm-workspace.yaml carries the same
 # setting and the full explanation; this standalone workspace needs its own copy
-# because `--ignore-workspace` never reads the root file. Only the
-# package-manager bootstrap is governed; dependency resolution still follows
+# because `--ignore-workspace` never reads the root file. A pnpm 11 that switches
+# to the pin reads it; pnpm 12 ignores it in a project file with a warning. Only
+# the package-manager bootstrap is governed; dependency resolution still follows
 # .npmrc.
 packageManagerRegistries:
   default: https://registry.npmjs.org/

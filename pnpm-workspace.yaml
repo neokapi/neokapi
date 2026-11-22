@@ -1,5 +1,5 @@
 # pnpm workspace + settings — migrated from the root package.json "workspaces"
-# field and npm "overrides"/.npmrc on the move to pnpm. pnpm 11 reads overrides
+# field and npm "overrides"/.npmrc on the move to pnpm. pnpm reads overrides
 # and most settings from THIS file (the package.json "pnpm" field and several
 # .npmrc keys are no longer honored) — see https://pnpm.io/settings.
 #
@@ -67,10 +67,15 @@ enablePrePostScripts: true
 #
 # pnpm deliberately ignores .npmrc and `registry=` for this decision (a
 # committed file must not be able to redirect where the package manager binary
-# comes from), so this setting is the supported way to state it. It only governs
-# the package-manager bootstrap; ordinary dependency resolution still follows
-# .npmrc, including the @neokapi scope. On a machine whose default registry is
-# already npmjs — every CI runner — this changes nothing.
+# comes from). A pnpm 11 that switches to the pinned version reads this setting
+# from here; pnpm 12 refuses it in a project file, prints a warning that it was
+# ignored, and takes the package-manager registry from outside the project
+# (PNPM_CONFIG_REGISTRY, for one). The setting stays for the first case: a
+# global pnpm 11 on a machine whose default registry is a mirror cannot switch
+# to the pin without it. It only governs the package-manager bootstrap; ordinary
+# dependency resolution still follows .npmrc, including the @neokapi scope. On a
+# machine whose default registry is already npmjs — every CI runner — this
+# changes nothing.
 packageManagerRegistries:
   default: https://registry.npmjs.org/
 

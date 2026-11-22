@@ -67,9 +67,14 @@ PINS = [
     },
     {
         "name": "pnpm",
-        "where": [("package.json", r'"packageManager": "pnpm@(\d+\.\d+\.\d+)"')],
+        "where": [
+            ("package.json", r'"packageManager": "pnpm@(\d+\.\d+\.\d+)"'),
+            ("bowrain/e2e/cloud/package.json", r'"packageManager": "pnpm@(\d+\.\d+\.\d+)"'),
+            ("bowrain/web/docs/package.json", r'"packageManager": "pnpm@(\d+\.\d+\.\d+)"'),
+            ("harness/package.json", r'"packageManager": "pnpm@(\d+\.\d+\.\d+)"'),
+        ],
         "latest": ("npm", "pnpm"),
-        "note": "Re-resolve the lockfile and run scripts/check-lockfile-idempotent.sh.",
+        "note": "Each standalone tree re-locks with its own vp install. Re-resolve the root lockfile and run scripts/check-lockfile-idempotent.sh.",
     },
     {
         "name": "Node.js in CI",
