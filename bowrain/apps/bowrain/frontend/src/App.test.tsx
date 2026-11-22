@@ -141,6 +141,21 @@ describe("desktop launch gate (#1284)", () => {
     expect(screen.getByTestId("bowrain-app")).toBeInTheDocument();
   });
 
+  it("opens the working copy, not sign-in, when the window loads during a reconnect attempt", async () => {
+    backend.GetConnectionState.mockResolvedValue({
+      state: "reconnecting",
+      server_url: "https://acme.test",
+      workspace: "w",
+    });
+    getConfig.mockResolvedValue({ mode: "server" });
+
+    await renderApp();
+    await flushUntil(() => screen.queryByTestId("bowrain-app") !== null);
+
+    expect(screen.getByTestId("bowrain-app")).toBeInTheDocument();
+    expect(screen.queryByText(/welcome to bowrain/i)).toBeNull();
+  });
+
   it("shows the offline-launch state (not sign-in, not the app) when the server is unreachable", async () => {
     backend.GetConnectionState.mockResolvedValue({
       state: "connected",
@@ -258,13 +273,13 @@ describe("desktop launch gate (#1284)", () => {
 
     // The backend reports an attempt in flight; only a disconnect leaves the app.
     backend.GetConnectionState.mockResolvedValue({
-      state: "connecting",
+      state: "reconnecting",
       server_url: "https://acme.test",
     });
     await act(async () => {
       for (const [event, handler] of vi.mocked(Events.On).mock.calls) {
         if (event === "connection-state-changed")
-          (handler as (e: unknown) => void)({ data: { state: "connecting" } });
+          (handler as (e: unknown) => void)({ data: { state: "reconnecting" } });
       }
     });
     await flushUntil(() => backend.GetConnectionState.mock.calls.length >= 2);

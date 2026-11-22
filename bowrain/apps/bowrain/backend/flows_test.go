@@ -2,6 +2,7 @@ package backend
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -66,7 +67,11 @@ func TestSaveFlowDefinition_OfflineRequiresConnection(t *testing.T) {
 		Source: "project",
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not connected")
+	assert.Contains(t, err.Error(), "the app is offline")
+	// The frontend is told the request did not reach the server.
+	wire, merr := json.Marshal(&err)
+	require.NoError(t, merr)
+	assert.JSONEq(t, `{"network":true}`, string(wire))
 }
 
 func TestSaveFlowDefinition_BuiltInRejected(t *testing.T) {
@@ -86,7 +91,11 @@ func TestDeleteFlowDefinition_OfflineRequiresConnection(t *testing.T) {
 	app := NewApp()
 	err := app.DeleteFlowDefinition("proj-1", "custom")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not connected")
+	assert.Contains(t, err.Error(), "the app is offline")
+	// The frontend is told the request did not reach the server.
+	wire, merr := json.Marshal(&err)
+	require.NoError(t, merr)
+	assert.JSONEq(t, `{"network":true}`, string(wire))
 }
 
 func TestFlowDefToInfo_Serialization(t *testing.T) {
@@ -202,6 +211,38 @@ func TestSaveFlowDefinition_RefusalReadsAsTheServersSentence(t *testing.T) {
 			})
 			require.Error(t, err)
 			assert.Equal(t, sentence, err.Error())
+
+			// The frontend receives the error as Wails marshals it, with the
+			// server's status and answer, and renders it as the web does.
+			wire, merr := json.Marshal(&err)
+			require.NoError(t, merr)
+			assert.JSONEq(t, fmt.Sprintf(`{"status":%d,"body":{"error":%q}}`, status, sentence), string(wire))
 		})
 	}
+}
+
+// A save that cannot reach the server tells the frontend so, rather than
+// handing it the transport's message with the server's URL in it.
+func TestSaveFlowDefinition_UnreachableServerIsReportedAsSuch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	serverURL := srv.URL
+	srv.Close()
+
+	app := newTestApp(t)
+	app.mu.Lock()
+	app.connState = StateConnected
+	app.serverURL = serverURL
+	app.activeWS = "acme"
+	app.remoteHTTP = editorclient.New(serverURL, "tok")
+	app.authInfo = &config.StoredAuth{ServerURL: serverURL, AccessToken: "tok"}
+	app.mu.Unlock()
+
+	_, err := app.SaveFlowDefinition("proj-1", FlowDefinitionInfo{
+		ID: "flow-1", Name: "Mine", Source: "project", Revision: "r1",
+		Nodes: []FlowNodeInfo{}, Edges: []FlowEdgeInfo{},
+	})
+	require.Error(t, err)
+	wire, merr := json.Marshal(&err)
+	require.NoError(t, merr)
+	assert.JSONEq(t, `{"network":true}`, string(wire))
 }

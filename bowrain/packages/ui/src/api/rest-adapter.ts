@@ -12,6 +12,7 @@ import type {
 } from "@neokapi/project-screens";
 import { ApiError, apiErrorFromResponse } from "../errors/ApiError";
 import { asFlowChanged } from "../errors/FlowChangedError";
+import { asNetworkError } from "../errors/NetworkError";
 import type { ApiAdapter } from "./adapter";
 import type { ChangeResult, ContentChangeSet } from "./contentChanges";
 import type {
@@ -356,7 +357,13 @@ export class RestApiAdapter implements ApiAdapter {
     this.baseUrl = baseUrl;
     this.token = token;
     this.refreshToken = null;
-    this.fetchImpl = transport ?? ((input, init) => fetch(input, init));
+    const send: ApiTransport = transport ?? ((input, init) => fetch(input, init));
+    // A request that never reached the server rejects as a NetworkError, which
+    // the error notice renders as such rather than as the browser's message.
+    this.fetchImpl = (input, init) =>
+      send(input, init).catch((e: unknown) => {
+        throw asNetworkError(e);
+      });
   }
 
   setToken(token: string) {
