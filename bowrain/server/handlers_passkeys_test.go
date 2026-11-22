@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -66,7 +66,7 @@ func elevated(t *testing.T, s *Server, userID, token string) {
 	require.NoError(t, s.storeElevatedToken(context.Background(), userID, token, time.Time{}))
 }
 
-func newPasskeyCtx(t *testing.T, method, target, body, userID string) (echo.Context, *httptest.ResponseRecorder) {
+func newPasskeyCtx(t *testing.T, method, target, body, userID string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	e := echo.New()
 	var req *http.Request

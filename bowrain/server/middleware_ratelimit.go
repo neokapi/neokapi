@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"golang.org/x/time/rate"
 )
 
@@ -55,7 +55,7 @@ func RateLimitSyncPush(perMinute int, burst int) echo.MiddlewareFunc {
 	limiter := newProjectRateLimiter(rate.Limit(float64(perMinute)/60.0), burst)
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			projectID := c.Param("id")
 			if projectID == "" {
 				return next(c)
@@ -102,7 +102,7 @@ func newIPThrottle(perMinute, burst int) *ipThrottle {
 // throttled response; nil gives the generic 429 with a Retry-After hint.
 func (t *ipThrottle) middleware(deny echo.HandlerFunc) echo.MiddlewareFunc {
 	if deny == nil {
-		deny = func(c echo.Context) error {
+		deny = func(c *echo.Context) error {
 			c.Response().Header().Set("Retry-After", "60")
 			return c.JSON(http.StatusTooManyRequests, ErrorResponse{
 				Error: "rate limit exceeded: too many requests from this client, retry later",
@@ -110,7 +110,7 @@ func (t *ipThrottle) middleware(deny echo.HandlerFunc) echo.MiddlewareFunc {
 		}
 	}
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			ip := c.RealIP()
 			if ip == "" {
 				return next(c) // cannot key — do not block

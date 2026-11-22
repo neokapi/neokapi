@@ -14,7 +14,7 @@ import (
 
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -40,7 +40,7 @@ import (
 
 // HandleSyncPushInit handles the first step of a push: Merkle tree diff negotiation.
 // POST /sync/push/init
-func (s *Server) HandleSyncPushInit(c echo.Context) error {
+func (s *Server) HandleSyncPushInit(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
 		return err
 	}
@@ -268,7 +268,7 @@ type pushCommitManifest struct {
 
 // HandleSyncPushCommit finalizes a push by validating the manifest and enqueuing the worker job.
 // POST /sync/push/commit
-func (s *Server) HandleSyncPushCommit(c echo.Context) error {
+func (s *Server) HandleSyncPushCommit(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
 		return err
 	}
@@ -432,7 +432,7 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 
 // settingsPusher describes the caller of a push for the recipe-settings
 // decision: the stream it pushes to, and whether it may manage the project.
-func (s *Server) settingsPusher(c echo.Context, stream string) store.SettingsPusher {
+func (s *Server) settingsPusher(c *echo.Context, stream string) store.SettingsPusher {
 	return store.SettingsPusher{Stream: stream, MayLoosen: hasPermission(c, platauth.PermManageProject)}
 }
 
@@ -440,7 +440,7 @@ func (s *Server) settingsPusher(c echo.Context, stream string) store.SettingsPus
 // and returns them, with the ones the project keeps. Each change is audited
 // with the pusher, the setting and its value before and after. A push that
 // carries no settings reads nothing.
-func (s *Server) applyRecipeSettings(c echo.Context, projectID, stream string, settings venue.ProjectSettings) (venue.ProjectSettings, []venue.SettingRefusal, error) {
+func (s *Server) applyRecipeSettings(c *echo.Context, projectID, stream string, settings venue.ProjectSettings) (venue.ProjectSettings, []venue.SettingRefusal, error) {
 	if len(settings) == 0 || s.ContentStore == nil {
 		return nil, nil, nil
 	}
@@ -502,7 +502,7 @@ func (s *Server) applyRecipeSettings(c echo.Context, projectID, stream string, s
 // response. It is not a 403 for the push: the content is not in question, and
 // refusing to store it would lose work over a permission the pusher can be
 // granted afterwards.
-func (s *Server) precheckPushVerdicts(c echo.Context, raw json.RawMessage) venue.PushGovernance {
+func (s *Server) precheckPushVerdicts(c *echo.Context, raw json.RawMessage) venue.PushGovernance {
 	if len(raw) == 0 {
 		return venue.PushGovernance{}
 	}
@@ -585,7 +585,7 @@ func (s *Server) pushPartsFor(ctx context.Context, pushID string) *venue.PushPar
 // HandleSyncProxyChunkUpload handles chunk uploads for the proxy transport mode
 // (local dev / self-hosted without Azure Blob SAS URLs).
 // PUT /sync/push/chunks/:uploadId/:chunkIndex
-func (s *Server) HandleSyncProxyChunkUpload(c echo.Context) error {
+func (s *Server) HandleSyncProxyChunkUpload(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
 		return err
 	}
@@ -616,7 +616,7 @@ type chunkRef struct {
 }
 
 // readBody reads up to maxBytes from the request body.
-func readBody(c echo.Context, maxBytes int64) ([]byte, error) {
+func readBody(c *echo.Context, maxBytes int64) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(c.Request().Body, maxBytes))
 }
 
@@ -624,7 +624,7 @@ func readBody(c echo.Context, maxBytes int64) ([]byte, error) {
 // given cursor. The response is a RichPullResponse (Bowrain AD-009 Phase 7) with structured
 // SyncBlock records instead of raw change log entries. When the client sends
 // Accept-Encoding: zstd, the response is zstd-compressed.
-func (s *Server) HandleSyncPull(c echo.Context) error {
+func (s *Server) HandleSyncPull(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -865,7 +865,7 @@ func writtenComponents(contexts, decisions bool) []ref.Component {
 var syncCompressorPool = compression.NewPool(nil)
 
 // writePullResponse marshals the response as JSON and optionally compresses with zstd.
-func writePullResponse(c echo.Context, resp apiclient.RichPullResponse) error {
+func writePullResponse(c *echo.Context, resp apiclient.RichPullResponse) error {
 	data, err := json.Marshal(resp)
 	if err != nil {
 		return apiErr(c, http.StatusInternalServerError, "marshal response")
@@ -887,7 +887,7 @@ func writePullResponse(c echo.Context, resp apiclient.RichPullResponse) error {
 
 // HandleSyncGetBlocks returns blocks with full structured content for a specific item.
 // Returns []SyncBlock with segments, spans, annotations, and metadata.
-func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
+func (s *Server) HandleSyncGetBlocks(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -955,7 +955,7 @@ func pushStatus(total, completed, failed, inProgress int) string {
 
 // HandleSyncPushStatus returns the aggregated status of jobs triggered by a push.
 // GET /api/v1/projects/:id/sync/status?push_id=xxx
-func (s *Server) HandleSyncPushStatus(c echo.Context) error {
+func (s *Server) HandleSyncPushStatus(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}

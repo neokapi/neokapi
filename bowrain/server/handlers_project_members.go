@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 )
@@ -85,7 +85,7 @@ type ProjectMemberRequest struct {
 // one. Delegation cannot exceed the grantor, so the region being granted must
 // lie inside the region the caller reaches. An unbounded caller — the workspace
 // owner — grants anywhere, as before.
-func (s *Server) requireGrantWithinReach(c echo.Context, coords platauth.CoordinateFilter) error {
+func (s *Server) requireGrantWithinReach(c *echo.Context, coords platauth.CoordinateFilter) error {
 	if coords.Unconstrained() {
 		// Granting no region grants no custody, so there is nothing to exceed.
 		return nil
@@ -118,7 +118,7 @@ func coordinatesFrom(raw map[string]string) (platauth.CoordinateFilter, error) {
 }
 
 // HandleListProjectMembers returns all members of a project.
-func (s *Server) HandleListProjectMembers(c echo.Context) error {
+func (s *Server) HandleListProjectMembers(c *echo.Context) error {
 	projectID := projectParam(c)
 	ctx := c.Request().Context()
 
@@ -130,7 +130,7 @@ func (s *Server) HandleListProjectMembers(c echo.Context) error {
 }
 
 // HandleAddProjectMember adds a member to a project. Requires PermManageMembers.
-func (s *Server) HandleAddProjectMember(c echo.Context) error {
+func (s *Server) HandleAddProjectMember(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageMembers); err != nil {
 		return err
 	}
@@ -195,7 +195,7 @@ func (s *Server) HandleAddProjectMember(c echo.Context) error {
 
 // HandleUpdateProjectMember updates a project member's role or language scope.
 // Requires PermManageMembers.
-func (s *Server) HandleUpdateProjectMember(c echo.Context) error {
+func (s *Server) HandleUpdateProjectMember(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageMembers); err != nil {
 		return err
 	}
@@ -254,7 +254,7 @@ func (s *Server) HandleUpdateProjectMember(c echo.Context) error {
 }
 
 // HandleRemoveProjectMember removes a member from a project. Requires PermManageMembers.
-func (s *Server) HandleRemoveProjectMember(c echo.Context) error {
+func (s *Server) HandleRemoveProjectMember(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageMembers); err != nil {
 		return err
 	}

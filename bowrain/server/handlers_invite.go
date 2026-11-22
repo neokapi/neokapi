@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/mailer"
@@ -22,7 +22,7 @@ type InviteRequest struct {
 
 // HandleCreateInvite creates an invitation for the workspace.
 // Admin/owner only.
-func (s *Server) HandleCreateInvite(c echo.Context) error {
+func (s *Server) HandleCreateInvite(c *echo.Context) error {
 	if s.Services == nil || s.Services.Auth == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
@@ -103,7 +103,7 @@ func (s *Server) sendInviteEmail(ctx context.Context, inv *platauth.Invite, base
 }
 
 // HandleListInvites lists all invitations for the workspace.
-func (s *Server) HandleListInvites(c echo.Context) error {
+func (s *Server) HandleListInvites(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
@@ -120,7 +120,7 @@ func (s *Server) HandleListInvites(c echo.Context) error {
 }
 
 // HandleDeleteInvite revokes an invitation. Admin/owner only.
-func (s *Server) HandleDeleteInvite(c echo.Context) error {
+func (s *Server) HandleDeleteInvite(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
@@ -145,7 +145,7 @@ func (s *Server) HandleDeleteInvite(c echo.Context) error {
 
 // HandleAcceptInvite accepts an invitation and joins the workspace.
 // Any authenticated user can accept.
-func (s *Server) HandleAcceptInvite(c echo.Context) error {
+func (s *Server) HandleAcceptInvite(c *echo.Context) error {
 	if s.Services == nil || s.Services.Auth == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}

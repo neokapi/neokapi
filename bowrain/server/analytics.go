@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 )
 
@@ -31,7 +31,7 @@ func (s *Server) trackEvent(userID, event string, properties map[string]any) {
 
 // trackUserLogin captures a login or signup event.
 // If the user was created within the last 10 seconds, it's treated as a signup.
-func (s *Server) trackUserLogin(c echo.Context, userID, email string, createdAt time.Time) {
+func (s *Server) trackUserLogin(c *echo.Context, userID, email string, createdAt time.Time) {
 	if s.PostHogClient == nil {
 		return
 	}
@@ -58,7 +58,7 @@ func (s *Server) trackUserLogin(c echo.Context, userID, email string, createdAt 
 // the characters a campaign name or a host is made of. A value outside that
 // shape is dropped rather than repaired — a label that had to be cleaned up is
 // not one to group by.
-func acquisitionSource(c echo.Context) string {
+func acquisitionSource(c *echo.Context) string {
 	if c == nil {
 		return ""
 	}

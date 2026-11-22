@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -18,7 +18,7 @@ import (
 // the signup gate, maintenance banner, and (optionally) a model picker.
 //
 // GET /api/v1/config
-func (s *Server) HandleGetPublicConfig(c echo.Context) error {
+func (s *Server) HandleGetPublicConfig(c *echo.Context) error {
 	return c.JSON(http.StatusOK, s.PlatformConfig.PublicSnapshot())
 }
 
@@ -27,7 +27,7 @@ func (s *Server) HandleGetPublicConfig(c echo.Context) error {
 // so the UI can render onboard/offboard without a second call).
 //
 // GET /api/admin/platform
-func (s *Server) HandleAdminGetPlatformConfig(c echo.Context) error {
+func (s *Server) HandleAdminGetPlatformConfig(c *echo.Context) error {
 	return c.JSON(http.StatusOK, platformConfigResponse{
 		Snapshot:   s.PlatformConfig.Snapshot(),
 		Persistent: s.PlatformConfig.Persistent(),
@@ -115,7 +115,7 @@ func setIfPresent(set func(string, any) error, key string, v any) error {
 // server and worker reloads its cached settings without a redeploy.
 //
 // PUT /api/admin/platform
-func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
+func (s *Server) HandleAdminUpdatePlatformConfig(c *echo.Context) error {
 	if !s.PlatformConfig.Persistent() {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{
 			Error: "platform config is not persistent on this instance (no database configured)"})

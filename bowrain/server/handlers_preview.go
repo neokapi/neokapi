@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
@@ -23,7 +23,7 @@ import (
 // the application, and the markup it returns is reproduced verbatim from an
 // uploaded document rather than escaped — which is the feature, not an
 // oversight.
-func (s *Server) HandleRenderDocumentPreview(c echo.Context) error {
+func (s *Server) HandleRenderDocumentPreview(c *echo.Context) error {
 	// Set before any branch: every response from this route is sandboxed, so
 	// the guarantee cannot be lost by an early return added later.
 	applySandboxCSP(c)
@@ -85,7 +85,7 @@ func (s *Server) HandleRenderDocumentPreview(c echo.Context) error {
 // Served sandboxed for the same reason as the document preview, and with one
 // more: the target text is whatever a translator submitted, so this response
 // can carry markup that no document ever contained.
-func (s *Server) HandleRenderBlockHTML(c echo.Context) error {
+func (s *Server) HandleRenderBlockHTML(c *echo.Context) error {
 	// Set before any branch, as in HandleRenderDocumentPreview.
 	applySandboxCSP(c)
 

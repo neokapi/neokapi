@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
@@ -23,7 +23,7 @@ import (
 // A verdict that is not an approval carries the row's existing basis forward
 // rather than stamping the source and context in front of it, so the one row
 // this call reads is the row it is about to replace.
-func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, ledger *reviewLedger, projectID, stream string, sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool) {
+func (s *Server) recordReviewDecision(ctx context.Context, c *echo.Context, ledger *reviewLedger, projectID, stream string, sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool) {
 	if sb == nil || sb.SourceID == "" {
 		return
 	}
@@ -121,7 +121,7 @@ type blockReviewOutcome struct {
 // operation a stream applies goes through it (streamDecisions). The caller
 // owns the dashboard-cache invalidation and the review-loop continuation,
 // which are per change set rather than per block.
-func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockReviewInput) (blockReviewOutcome, error) {
+func (s *Server) applyBlockReview(ctx context.Context, c *echo.Context, in blockReviewInput) (blockReviewOutcome, error) {
 	req := in.Request
 	loc := model.LocaleID(req.TargetLocale)
 
@@ -235,7 +235,7 @@ type PresenceRequest struct {
 // backend-mediated presence indicators.
 //
 // POST /:ws/:id/presence  { "item_name": "file.html", "block_id": "b-1" }
-func (s *Server) HandleUpdatePresence(c echo.Context) error {
+func (s *Server) HandleUpdatePresence(c *echo.Context) error {
 	if s.EventBus == nil {
 		return c.NoContent(http.StatusNoContent) // presence is best-effort
 	}
@@ -276,7 +276,7 @@ func (s *Server) HandleUpdatePresence(c echo.Context) error {
 
 // emitEditorBlockChange publishes an editor.block.<changeType> event so watchers
 // refresh the affected block. Mirrors the event the gRPC editor used to emit.
-func (s *Server) emitEditorBlockChange(c echo.Context, projectID, blockID, itemName, stream, changeType string) {
+func (s *Server) emitEditorBlockChange(c *echo.Context, projectID, blockID, itemName, stream, changeType string) {
 	userName, _ := c.Get("name").(string)
 	userID, _ := c.Get("user_id").(string)
 	s.publishEditorBlockChange(projectID, blockID, itemName, stream, changeType, userID, userName)

@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -55,7 +55,7 @@ type reviewDeckCollectionsResponse struct {
 // group counts fill in as the deck is used.
 //
 // GET /:ws/:id/review-deck/:ref/collections?locale=nb
-func (s *Server) HandleGetReviewDeckCollections(c echo.Context) error {
+func (s *Server) HandleGetReviewDeckCollections(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}

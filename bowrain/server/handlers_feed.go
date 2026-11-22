@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -119,7 +119,7 @@ type FeedResponse struct {
 // Filters: kind (comma-separated), locale, coordinate (axis:value,
 // repeatable), actor (a user id), actor_kind and since (RFC 3339). Paging is
 // the (created_at, id) cursor the activity store issues.
-func (s *Server) HandleProjectFeed(c echo.Context) error {
+func (s *Server) HandleProjectFeed(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}

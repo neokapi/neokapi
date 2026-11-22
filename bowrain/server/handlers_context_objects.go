@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -55,10 +55,10 @@ const (
 	contextOperationConflictCode = apiclient.ContextOperationConflictCode
 )
 
-// requestBodyLimit bounds every request body the server reads. A push of
-// context objects travels as base64 in JSON, so the client remote splits a
-// push into batches that stay under it.
-const requestBodyLimit = "50M"
+// requestBodyLimit bounds every request body the server reads, in bytes
+// (50 MB). A push of context objects travels as base64 in JSON, so the client
+// remote splits a push into batches that stay under it.
+const requestBodyLimit = 50_000_000
 
 // contextObjectWritePermission gates a push of context objects: a member
 // holding any of the permissions a decision can need (governingPermissions)
@@ -92,14 +92,14 @@ func (s *Server) contextObjects() (platstore.ContextObjectStore, bool) {
 
 // contextObjectsUnavailable answers a route whose content store holds no
 // context objects.
-func contextObjectsUnavailable(c echo.Context) error {
+func contextObjectsUnavailable(c *echo.Context) error {
 	return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "context objects not configured"})
 }
 
 // HandleListContextObjects answers GET /:ws/:id/context/objects?dir=, the
 // names under one directory of the context layout (log/, blobs/,
 // checkpoints/), sorted.
-func (s *Server) HandleListContextObjects(c echo.Context) error {
+func (s *Server) HandleListContextObjects(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func (s *Server) HandleListContextObjects(c echo.Context) error {
 
 // HandleGetContextObject answers GET /:ws/:id/context/objects/<name> with the
 // object's bytes.
-func (s *Server) HandleGetContextObject(c echo.Context) error {
+func (s *Server) HandleGetContextObject(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func (s *Server) HandleGetContextObject(c echo.Context) error {
 // written in one transaction and every new object is stamped with the
 // signed-in member. A name the project holds with other bytes refuses the
 // whole batch with 409.
-func (s *Server) HandlePutContextObjects(c echo.Context) error {
+func (s *Server) HandlePutContextObjects(c *echo.Context) error {
 	if perms, _ := c.Get("project_permissions").(platauth.Permission); perms&contextObjectWritePermission == 0 {
 		if err := s.requirePermission(c, contextObjectWritePermission); err != nil {
 			return err
@@ -228,7 +228,7 @@ type acceptedContext struct {
 // refused reports that the answer has been written. bind binds an unbound
 // project here; a caller that stores the batch in a transaction of its own
 // passes false and binds accepted.bindKey there.
-func (s *Server) acceptContextBatch(c echo.Context, cos platstore.ContextObjectStore, batch []platstore.ContextObject, bind bool) (accepted acceptedContext, refused bool, err error) {
+func (s *Server) acceptContextBatch(c *echo.Context, cos platstore.ContextObjectStore, batch []platstore.ContextObject, bind bool) (accepted acceptedContext, refused bool, err error) {
 	ctx := c.Request().Context()
 	projectID := c.Param("id")
 	member := ledgerMemberOf(c)
@@ -406,7 +406,7 @@ func compactJSON(raw []byte) string {
 }
 
 // keyMismatch answers a push naming a key other than the bound one.
-func keyMismatch(c echo.Context, bound, pushed workspace.ProjectKey) error {
+func keyMismatch(c *echo.Context, bound, pushed workspace.ProjectKey) error {
 	return c.JSON(http.StatusConflict, ErrorResponse{
 		Error:   keyMismatchRefusal(bound, pushed),
 		Details: string(pushed),

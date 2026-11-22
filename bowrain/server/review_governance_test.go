@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -295,8 +296,7 @@ func callBulkReviewGoverned(t *testing.T, s *Server, wsID, projID, body string, 
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "ref")
-	c.SetParamValues("rc", projID, "main")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "rc"}, {Name: "id", Value: projID}, {Name: "ref", Value: "main"}})
 	c.Set("workspace_id", wsID)
 	c.Set("user_id", userID)
 	c.Set("project_permissions", perms)

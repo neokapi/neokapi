@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -24,8 +24,7 @@ func feedDecisionsOf(t *testing.T, srv *Server, pid, entry, user string) (int, f
 	r := httptest.NewRequest(http.MethodGet, "/api/v1/acme/"+pid+"/feed/"+entry+"/decisions", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "entry")
-	c.SetParamValues("acme", pid, entry)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: pid}, {Name: "entry", Value: entry}})
 	c.Set("project_permissions", fullCaller.perms)
 	c.Set("user_id", user)
 	require.NoError(t, srv.HandleFeedDecisions(c))

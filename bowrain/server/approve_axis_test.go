@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/stretchr/testify/assert"
@@ -43,8 +43,7 @@ func approveAxis(t *testing.T, srv *Server, projectID, body string) *httptest.Re
 		strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
 	c := e.NewContext(r, rec)
-	c.SetParamNames("id")
-	c.SetParamValues(projectID)
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: projectID}})
 	c.Set("project_permissions", platauth.PermAll)
 	c.Set("workspace_id", "ws-1")
 	c.Set("user_id", "u-1")
@@ -159,8 +158,7 @@ func TestApproveAxis_NeedsManageVoice(t *testing.T) {
 		strings.NewReader(`{"axis":"audience","value":"developer"}`))
 	r.Header.Set("Content-Type", "application/json")
 	c := e.NewContext(r, rec)
-	c.SetParamNames("id")
-	c.SetParamValues(projectID)
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: projectID}})
 	c.Set("project_permissions", platauth.PermViewContent)
 
 	// requirePermission writes the 403 itself and returns the sentinel, so the

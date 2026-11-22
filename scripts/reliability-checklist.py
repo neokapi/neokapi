@@ -652,14 +652,28 @@ FIXTURES = [
         "expect": ["new-route-applies-sibling-access-rules"],
     },
     {
-        "name": "Echo proxy middleware",
-        "files": {"bowrain/server/server.go": ["\te.Use(middleware.Proxy(balancer))"]},
-        "expect": ["echo-accepted-advisories"],
+        "name": "proxy trust widened",
+        "files": {"bowrain/server/server.go": [
+            "\topts = append(opts, echo.TrustIPRange(ipNet))",
+            "\te.SchemeExtractor = echo.ExtractSchemeFromHeaders(opts...)",
+        ]},
+        "expect": ["proxy-trust"],
     },
     {
-        "name": "accepted advisory list edited",
-        "files": {"scripts/govulncheck-accepted.txt": ["GO-2026-0001  2027-01-01  reason"]},
-        "expect": ["echo-accepted-advisories"],
+        "name": "Echo proxy middleware",
+        "files": {"bowrain/server/server.go": ["\te.Use(middleware.Proxy(balancer))"]},
+        "expect": ["proxy-trust"],
+    },
+    {
+        "name": "trusted proxies configured in compose",
+        "files": {"bowrain/compose.full.yaml": ["      BOWRAIN_TRUSTED_PROXIES: 203.0.113.0/24"]},
+        "expect": ["proxy-trust"],
+    },
+    {
+        "name": "proxy trust named outside the server",
+        "files": {"host/proxy.go": ["\t// configureIPExtractor lives in the server"]},
+        "expect": [],
+        "reject": ["proxy-trust"],
     },
     {
         "name": "sync wire field",

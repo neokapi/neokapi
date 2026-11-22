@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -104,8 +105,7 @@ func TestHandleListActivities_ListsEveryWorkspaceKey(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/acme/activities", nil)
 	rec := httptest.NewRecorder()
 	c := srv.GetEcho().NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues(ws.Slug)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: ws.Slug}})
 	c.Set("workspace_id", ws.ID)
 
 	require.NoError(t, srv.HandleListActivities(c))
@@ -120,8 +120,7 @@ func TestHandleListActivities_RejectsForeignCursor(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/acme/activities?cursor=2026-11-14T09:30:00Z", nil)
 	rec := httptest.NewRecorder()
 	c := srv.GetEcho().NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("acme")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}})
 
 	require.NoError(t, srv.HandleListActivities(c))
 	assert.Equal(t, http.StatusBadRequest, rec.Code)

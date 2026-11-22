@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -33,7 +33,7 @@ func TestForwardedProtoFromAPublicClientIsIgnored(t *testing.T) {
 }
 
 func TestCookieSecureDoesNotDependOnAForwardedHeaderAlone(t *testing.T) {
-	req := func(proto string) echo.Context {
+	req := func(proto string) *echo.Context {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		r.RemoteAddr = loadBalancerAddr
 		if proto != "" {
@@ -100,7 +100,7 @@ func TestZeroConfigIsProductionForOriginPolicy(t *testing.T) {
 		s := &Server{Config: cfg}
 
 		cors := s.corsConfig()
-		assert.Nil(t, cors.AllowOriginFunc,
+		assert.Nil(t, cors.UnsafeAllowOriginFunc,
 			"the dynamic localhost policy must be reachable only via DevMode")
 		assert.NotContains(t, cors.AllowOrigins, "*")
 

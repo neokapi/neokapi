@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/core/project"
 
@@ -49,7 +49,7 @@ type ApproveAxisRequest struct {
 // waits for a pull to write `defaults.coordinates.<axis>` into kapi.yaml, where
 // git reviews it, and the axis exists once that lands and a push carries
 // content at it. The recipe remains the only thing that mints a coordinate.
-func (s *Server) HandleApproveAxis(c echo.Context) error {
+func (s *Server) HandleApproveAxis(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func (s *Server) collectionPoint(ctx context.Context, projectID, collection stri
 
 // recipeChangeActor is the signed-in user recorded on a proposal, so a recipe
 // line that lands in someone's working tree names who decided it.
-func recipeChangeActor(c echo.Context) string {
+func recipeChangeActor(c *echo.Context) string {
 	actor, _ := c.Get("user_id").(string)
 	return actor
 }
@@ -200,7 +200,7 @@ func recipeChangeActor(c echo.Context) string {
 // HandleListPendingRecipeChanges answers what a project's working tree has not
 // yet taken. The pull reads this, applies each through the same setRecipeField
 // the local fix loop uses, and marks them applied.
-func (s *Server) HandleListPendingRecipeChanges(c echo.Context) error {
+func (s *Server) HandleListPendingRecipeChanges(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -220,7 +220,7 @@ func (s *Server) HandleListPendingRecipeChanges(c echo.Context) error {
 // HandleMarkRecipeChangeApplied settles one change once a working tree has
 // taken it. Marking an already-applied change is a no-op: a retried pull must
 // converge rather than fail.
-func (s *Server) HandleMarkRecipeChangeApplied(c echo.Context) error {
+func (s *Server) HandleMarkRecipeChangeApplied(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}

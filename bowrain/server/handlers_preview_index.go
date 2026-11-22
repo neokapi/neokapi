@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/safehttp"
 )
@@ -44,7 +44,7 @@ const previewIndexTimeout = 10 * time.Second
 // HandlePreviewIndex proxies the collection's preview host index.
 //
 // GET /…/collections/:ref/:cid/preview/index
-func (s *Server) HandlePreviewIndex(c echo.Context) error {
+func (s *Server) HandlePreviewIndex(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func previewIndexURL(previewURL string) (string, error) {
 }
 
 // fetchPreviewIndex reads the index through the SSRF-safe client.
-func (s *Server) fetchPreviewIndex(c echo.Context, indexURL string) ([]byte, string, error) {
+func (s *Server) fetchPreviewIndex(c *echo.Context, indexURL string) ([]byte, string, error) {
 	client := safehttp.NewPolicy().Client(previewIndexTimeout)
 
 	req, err := http.NewRequestWithContext(c.Request().Context(), http.MethodGet, indexURL, nil)

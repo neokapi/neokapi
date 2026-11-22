@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -59,7 +59,7 @@ func newKGHarness(t *testing.T) *kgHarness {
 // the standard workspace context. params are name/value pairs for the route's path
 // parameters (":ws", ":cid", ":id", …). The "ws" path param is always set to
 // kgTestWS so it keys the same in-memory terms the test seeds.
-func (h *kgHarness) req(method, target, body string, perms platauth.Permission, params ...string) (echo.Context, *httptest.ResponseRecorder) {
+func (h *kgHarness) req(method, target, body string, perms platauth.Permission, params ...string) (*echo.Context, *httptest.ResponseRecorder) {
 	var r io.Reader
 	if body != "" {
 		r = strings.NewReader(body)
@@ -79,8 +79,7 @@ func (h *kgHarness) req(method, target, body string, perms platauth.Permission, 
 		names = append(names, params[i])
 		values = append(values, params[i+1])
 	}
-	c.SetParamNames(names...)
-	c.SetParamValues(values...)
+	c.SetPathValues(pathValuesOf(names, values))
 	return c, rec
 }
 
@@ -95,7 +94,7 @@ func (h *kgHarness) tb(t *testing.T) terms.Store {
 
 // withActor sets the authenticated user id on a context (the change-set author /
 // reviewer identity the SoD gate compares).
-func withActor(c echo.Context, userID string) echo.Context {
+func withActor(c *echo.Context, userID string) *echo.Context {
 	c.Set("user_id", userID)
 	return c
 }
@@ -117,7 +116,7 @@ func TestKnowledgeRoutesRegistered(t *testing.T) {
 	})
 
 	got := map[string]bool{}
-	for _, r := range e.Routes() {
+	for _, r := range e.Router().Routes() {
 		got[r.Method+" "+r.Path] = true
 	}
 
@@ -167,7 +166,7 @@ func TestKnowledgeRoutesRegistered(t *testing.T) {
 	}
 
 	// Design-from-the-start: the concept API replaces the old /:ws/terms routes.
-	for _, r := range e.Routes() {
+	for _, r := range e.Router().Routes() {
 		assert.False(t, strings.HasPrefix(r.Path, "/:ws/terms"),
 			"legacy /:ws/terms route should have been removed, found %s %s", r.Method, r.Path)
 	}
@@ -556,8 +555,7 @@ func TestKnowledgeStoreUnavailable(t *testing.T) {
 			names = append(names, params[i])
 			values = append(values, params[i+1])
 		}
-		c.SetParamNames(names...)
-		c.SetParamValues(values...)
+		c.SetPathValues(pathValuesOf(names, values))
 		require.NoError(t, h(c))
 		return rec.Code
 	}

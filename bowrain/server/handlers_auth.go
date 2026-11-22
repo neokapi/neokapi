@@ -19,7 +19,7 @@ import (
 	venueauth "github.com/neokapi/neokapi/host/venue/auth"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platformAuth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -130,7 +130,7 @@ const maxDeviceVerifyAttempts = 10
 // HandleDeviceAuthStart starts the device authorization flow (RFC 8628).
 // The client receives a device_code and user_code. The user opens the
 // verification_uri in a browser and enters the user_code to authorize.
-func (s *Server) HandleDeviceAuthStart(c echo.Context) error {
+func (s *Server) HandleDeviceAuthStart(c *echo.Context) error {
 	clientID := c.FormValue("client_id")
 	if clientID == "" {
 		return apiErr(c, http.StatusBadRequest, "client_id required")
@@ -167,7 +167,7 @@ func (s *Server) HandleDeviceAuthStart(c echo.Context) error {
 
 // HandleDeviceAuthPoll is called by the CLI to poll for a token.
 // Returns authorization_pending until the user authorizes via the callback.
-func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
+func (s *Server) HandleDeviceAuthPoll(c *echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -281,7 +281,7 @@ func (t *urlRewriteTransport) RoundTrip(req *http.Request) (*http.Response, erro
 // HandleAuthLogin initiates the OIDC authorization code flow by redirecting
 // the browser to the OIDC authorization URL. After the user authenticates,
 // they are redirected back to /api/v1/auth/callback with a code.
-func (s *Server) HandleAuthLogin(c echo.Context) error {
+func (s *Server) HandleAuthLogin(c *echo.Context) error {
 	if s.Config.OIDCIssuerURL == "" || s.Config.OIDCClientID == "" {
 		return apiErr(c, http.StatusServiceUnavailable, "OIDC not configured")
 	}
@@ -335,7 +335,7 @@ func (s *Server) HandleAuthLogin(c echo.Context) error {
 // HandleAuthCallback handles the OIDC redirect callback.
 // After the user authenticates with the OIDC provider, they are redirected here.
 // For the device flow, this also verifies the user_code and authorizes the pending device.
-func (s *Server) HandleAuthCallback(c echo.Context) error {
+func (s *Server) HandleAuthCallback(c *echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -365,7 +365,7 @@ func (s *Server) HandleAuthCallback(c echo.Context) error {
 // desktop app. The desktop provides a localhost redirect_uri and a PKCE
 // code_challenge. We store the state and redirect the browser to the OIDC
 // provider's authorization endpoint.
-func (s *Server) HandleDesktopLogin(c echo.Context) error {
+func (s *Server) HandleDesktopLogin(c *echo.Context) error {
 	if s.Config.OIDCIssuerURL == "" || s.Config.OIDCClientID == "" {
 		return apiErr(c, http.StatusServiceUnavailable, "OIDC not configured")
 	}
@@ -465,7 +465,7 @@ func (s *Server) HandleDesktopLogin(c echo.Context) error {
 // (see redirectWithLoginCode). Otherwise it generates a Bowrain JWT and refresh
 // token and redirects with them as query parameters, for installed desktop
 // releases that predate the code redirect.
-func (s *Server) HandleDesktopCallback(c echo.Context) error {
+func (s *Server) HandleDesktopCallback(c *echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -598,7 +598,7 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 // device from the request itself, no identity provider involved) is reachable
 // only when the operator set [Config.AllowInsecureDeviceAuth]; see that field
 // for why it has no configuration-derived fallback.
-func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error {
+func (s *Server) handleDeviceVerification(c *echo.Context, userCode string) error {
 	// Find the matching device code via the secondary userCode → deviceCode index.
 	ctx := c.Request().Context()
 	deviceCodeBytes, err := s.SessionStore.Get(ctx, prefixUserCode+userCode)
@@ -650,7 +650,7 @@ func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error
 // handleDeviceVerificationOIDC redirects the browser to the OIDC provider for
 // authentication. After the user authenticates, the provider redirects to
 // /api/v1/auth/device/callback, which completes the device authorization.
-func (s *Server) handleDeviceVerificationOIDC(c echo.Context, deviceCode string) error {
+func (s *Server) handleDeviceVerificationOIDC(c *echo.Context, deviceCode string) error {
 	oidcCtx := s.oidcContext(c.Request().Context())
 	provider, err := oidc.NewProvider(oidcCtx, s.Config.OIDCIssuerURL)
 	if err != nil {
@@ -700,7 +700,7 @@ func (s *Server) handleDeviceVerificationOIDC(c echo.Context, deviceCode string)
 // itself, for the identity the request names, with no identity provider in the
 // path. It is a local-development and test affordance, guarded here as well as
 // at the call site so no future caller can reach it by accident.
-func (s *Server) handleDeviceVerificationDirect(c echo.Context, deviceCode string) error {
+func (s *Server) handleDeviceVerificationDirect(c *echo.Context, deviceCode string) error {
 	if !s.Config.AllowInsecureDeviceAuth {
 		return apiErr(c, http.StatusForbidden,
 			"direct device authorization is disabled: device authorization goes through the identity provider")
@@ -742,7 +742,7 @@ func (s *Server) handleDeviceVerificationDirect(c echo.Context, deviceCode strin
 // HandleDeviceAuthCallback handles the OIDC redirect after the user authenticated
 // to authorize a pending device code. It exchanges the authorization code,
 // verifies the ID token, extracts claims, and marks the device as authorized.
-func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
+func (s *Server) HandleDeviceAuthCallback(c *echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -847,7 +847,7 @@ const signedInHintCookie = "bowrain_signed_in"
 // the Domain attribute" (a host-only cookie), for localhost, IP hosts, or any
 // host with fewer than three labels, where a parent Domain would either be
 // rejected by the browser (public suffix) or be pointless.
-func parentCookieDomain(c echo.Context) string {
+func parentCookieDomain(c *echo.Context) string {
 	host := c.Request().Header.Get("X-Forwarded-Host")
 	if host == "" {
 		host = c.Request().Host
@@ -878,12 +878,12 @@ func parentCookieDomain(c echo.Context) string {
 // ALB→task hop is plaintext, so c.Scheme() depends on X-Forwarded-Proto
 // reaching the task. Forcing it in prod removes that implicit dependency so a
 // proxy-header change can never silently drop Secure.
-func (s *Server) cookieSecure(c echo.Context) bool {
+func (s *Server) cookieSecure(c *echo.Context) bool {
 	return c.Scheme() == "https" || s.Config.ForceSecureCookies
 }
 
 // setSessionCookies sets HttpOnly cookies for the access and refresh tokens.
-func (s *Server) setSessionCookies(c echo.Context, accessToken, refreshToken string) {
+func (s *Server) setSessionCookies(c *echo.Context, accessToken, refreshToken string) {
 	secure := s.cookieSecure(c)
 
 	c.SetCookie(&http.Cookie{
@@ -924,7 +924,7 @@ func (s *Server) setSessionCookies(c echo.Context, accessToken, refreshToken str
 }
 
 // clearSessionCookies removes the session and refresh cookies.
-func (s *Server) clearSessionCookies(c echo.Context) {
+func (s *Server) clearSessionCookies(c *echo.Context) {
 	secure := s.cookieSecure(c)
 
 	c.SetCookie(&http.Cookie{
@@ -961,7 +961,7 @@ func (s *Server) clearSessionCookies(c echo.Context) {
 // handleOIDCCodeExchange performs the OAuth2 authorization code exchange for
 // the web flow. It validates the state parameter, sends the PKCE verifier,
 // and checks the nonce in the returned ID token.
-func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) error {
+func (s *Server) handleOIDCCodeExchange(c *echo.Context, code, state string) error {
 	ctx := c.Request().Context()
 
 	if s.Config.OIDCIssuerURL == "" || s.Config.OIDCClientID == "" {
@@ -1083,7 +1083,7 @@ type RefreshRequest struct {
 
 // HandleTokenRefresh exchanges a valid refresh token for a new access token
 // and a rotated refresh token. The old refresh token is consumed (single-use).
-func (s *Server) HandleTokenRefresh(c echo.Context) error {
+func (s *Server) HandleTokenRefresh(c *echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -1181,7 +1181,7 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 }
 
 // HandleAuthMe returns the current authenticated user.
-func (s *Server) HandleAuthMe(c echo.Context) error {
+func (s *Server) HandleAuthMe(c *echo.Context) error {
 	if s.AuthStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -1223,7 +1223,7 @@ type WhoAmIResponse struct {
 // decide between a "Sign in" and a "Go to app" CTA. The response is display-only
 // by construction (WhoAmIResponse); it never leaks a token or the full user
 // record across origins.
-func (s *Server) HandleAuthWhoami(c echo.Context) error {
+func (s *Server) HandleAuthWhoami(c *echo.Context) error {
 	claims := validateSessionCookie(c, s.Config.JWTSecret)
 	if claims == nil {
 		return c.JSON(http.StatusOK, WhoAmIResponse{Authenticated: false})
@@ -1269,7 +1269,7 @@ type logoutRequest struct {
 // native sign-in redirect (a bowrain:// or loopback URL) and must also be
 // registered with the identity provider: a Keycloak client's post-logout
 // redirect URIs, a Cognito app client's sign-out URLs.
-func (s *Server) HandleAuthLogout(c echo.Context) error {
+func (s *Server) HandleAuthLogout(c *echo.Context) error {
 	ctx := c.Request().Context()
 
 	var req logoutRequest
@@ -1325,7 +1325,7 @@ func (s *Server) HandleAuthLogout(c echo.Context) error {
 // postLogout is where the provider sends the browser afterwards. Empty means
 // the app origin, which matches the web client's registered sign-out URL
 // (trailing /).
-func (s *Server) buildEndSessionURL(ctx context.Context, c echo.Context, rawIDToken, postLogout string) string {
+func (s *Server) buildEndSessionURL(ctx context.Context, c *echo.Context, rawIDToken, postLogout string) string {
 	endSession := s.discoverEndSessionEndpoint(ctx)
 	if endSession == "" {
 		return ""
@@ -1400,7 +1400,7 @@ func (s *Server) discoverEndSessionEndpoint(ctx context.Context) string {
 // and revoke all their refresh tokens.
 //
 // Spec: https://openid.net/specs/openid-connect-backchannel-1_0.html
-func (s *Server) HandleBackChannelLogout(c echo.Context) error {
+func (s *Server) HandleBackChannelLogout(c *echo.Context) error {
 	if s.Config.OIDCIssuerURL == "" || s.AuthStore == nil {
 		return c.NoContent(http.StatusBadRequest)
 	}
@@ -1522,7 +1522,7 @@ func sanitizeReturnPath(raw string) string {
 // "nb-NO;q=0.9, en;q=0.8" → "nb"). Returns "" when the header is absent or
 // unparsable. Used to capture a user's locale at sign-in; consumers (e.g.
 // the transactional-email send path) always fall back to English.
-func requestLocale(c echo.Context) string {
+func requestLocale(c *echo.Context) string {
 	header := c.Request().Header.Get("Accept-Language")
 	if header == "" {
 		return ""

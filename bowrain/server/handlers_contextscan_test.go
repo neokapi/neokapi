@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -141,8 +141,7 @@ func TestContextScanCreate_InsufficientCredits402(t *testing.T) {
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("test")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "test"}})
 	c.Set("workspace_id", "test-ws")
 	c.Set("project_permissions", platauth.PermAll)
 
@@ -315,15 +314,14 @@ func contextScanMultipart(t *testing.T, files map[string][]byte) (*bytes.Buffer,
 	return &buf, w.FormDataContentType()
 }
 
-func newContextScanUploadContext(t *testing.T, body *bytes.Buffer, contentType string) (echo.Context, *httptest.ResponseRecorder) {
+func newContextScanUploadContext(t *testing.T, body *bytes.Buffer, contentType string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	e := echo.New()
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/acme/context-scans/uploads", body)
 	r.Header.Set("Content-Type", contentType)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("acme")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}})
 	c.Set("project_permissions", platauth.PermAll)
 	return c, rec
 }
@@ -439,8 +437,7 @@ func TestContextScanCheckDraft(t *testing.T) {
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("acme")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}})
 
 	require.NoError(t, s.HandleCheckVoiceDraft(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())

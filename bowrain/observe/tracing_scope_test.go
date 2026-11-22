@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +24,7 @@ func TestTagScope_HTTPCarriesTheFilterableDimensions(t *testing.T) {
 	e.Use(TracingMiddleware())
 	// Stands in for the auth middleware, which resolves the workspace and its
 	// plan and runs INSIDE the tracing middleware.
-	e.GET("/api/v1/:ws/:id/dashboard/:ref", func(c echo.Context) error {
+	e.GET("/api/v1/:ws/:id/dashboard/:ref", func(c *echo.Context) error {
 		c.Set("workspace_id", "ws_4a1")
 		c.Set("workspace_plan", "enterprise")
 		c.Set("user_id", "usr_88")
@@ -59,13 +59,13 @@ func TestTagScope_ReadsDimensionsSetByInnerMiddleware(t *testing.T) {
 	e.Use(RequestIDMiddleware())
 	e.Use(TracingMiddleware())
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("workspace_id", "ws_set_by_inner_middleware")
 			c.Set("workspace_plan", "pro")
 			return next(c)
 		}
 	})
-	e.GET("/api/v1/:ws/projects", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
+	e.GET("/api/v1/:ws/projects", func(c *echo.Context) error { return c.NoContent(http.StatusOK) })
 	e.ServeHTTP(httptest.NewRecorder(),
 		httptest.NewRequest(http.MethodGet, "/api/v1/acme/projects", nil))
 

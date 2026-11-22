@@ -19,7 +19,7 @@ func TestShippedClientEndpointsAreRegistered(t *testing.T) {
 	srv, _ := newTestServer(t)
 
 	registered := map[string]bool{}
-	for _, r := range srv.GetEcho().Routes() {
+	for _, r := range srv.GetEcho().Router().Routes() {
 		registered[r.Method+" "+r.Path] = true
 	}
 
