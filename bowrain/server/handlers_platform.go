@@ -2,7 +2,9 @@ package server
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
+	"slices"
 
 	"github.com/labstack/echo/v5"
 
@@ -13,8 +15,8 @@ import (
 
 // HandleGetPublicConfig returns the unauthenticated, public-safe subset of the
 // instance-wide platform configuration: whether signups are open, any
-// maintenance banner, and — when the customer model-choice feature is enabled —
-// the enabled models and default. The web app calls this on bootstrap to render
+// maintenance banner, and, when the customer model-choice feature is enabled,
+// the enabled models and the default. The web app calls this on bootstrap to render
 // the signup gate, maintenance banner, and (optionally) a model picker.
 //
 // GET /api/v1/config
@@ -243,8 +245,8 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c *echo.Context) error {
 
 	if r := req.Resilience; r != nil {
 		// Validation refuses values that would make a breaker harm a healthy
-		// dependency — a ratio outside (0,1] trips on success, and a zero
-		// window/cooldown/probe count either spins or never recovers. The
+		// dependency. A ratio outside (0,1] trips on success, and a zero
+		// window, cooldown or probe count either spins or never recovers. The
 		// resilience package refuses them too; rejecting here means the admin is
 		// told, rather than having the value silently ignored.
 		if r.FailureRatio != nil && (*r.FailureRatio <= 0 || *r.FailureRatio > 1) {
@@ -276,7 +278,7 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c *echo.Context) error {
 	}
 
 	if len(updates) == 0 {
-		// Nothing to change — return the current snapshot rather than error.
+		// Nothing to change: return the current snapshot rather than an error.
 		return c.JSON(http.StatusOK, platformConfigResponse{
 			Snapshot:   s.PlatformConfig.Snapshot(),
 			Persistent: true,
@@ -306,10 +308,11 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c *echo.Context) error {
 	})
 }
 
+// joinKeys lists the keys of m, sorted and comma-separated.
 func joinKeys(m map[string]json.RawMessage) string {
 	first := true
 	var b []byte
-	for k := range m {
+	for _, k := range slices.Sorted(maps.Keys(m)) {
 		if !first {
 			b = append(b, ',')
 		}

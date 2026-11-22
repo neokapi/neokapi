@@ -4,8 +4,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -20,9 +18,8 @@ import (
 func eventConstants(t *testing.T) map[string]string {
 	t.Helper()
 
-	_, thisFile, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	src := filepath.Join(filepath.Dir(thisFile), "events.go")
+	// go test runs a package's tests in the package directory.
+	src := "events.go"
 
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, src, nil, 0)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/occurrence"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/spf13/cobra"
@@ -56,7 +57,7 @@ Outside a project and with no flag: same as --local (uses ./terms.db).`,
 		AddResourceFlags(cmd)
 	}
 	// The project's terms are a subsystem of `.kapi/work/store.db`, not a file a
-	// caller can name — so with no resource flag these resolve the project,
+	// caller can name, so with no resource flag these resolve the project,
 	// and -p is how you say WHICH, exactly as for every other project-aware
 	// verb. It also matters under KAPI_NO_PROJECT, where the upward walk is
 	// off and an explicit -p is the only way in.
@@ -239,6 +240,9 @@ func newTermsExportCmd(a *App) *cobra.Command {
 	return cmd
 }
 
+// lookupSourceLocaleUsage describes --source-locale on the store lookups.
+const lookupSourceLocaleUsage = "source locale (default: the project's source_language in the project's own store, else en)"
+
 func newTermsLookupCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "lookup [term]",
@@ -257,8 +261,16 @@ func newTermsLookupCmd(a *App) *cobra.Command {
 			}
 			defer releaseTerms()
 
+			sel, err := a.ResolveTermsCmdStore(cmd)
+			if err != nil {
+				return err
+			}
+			srcLoc, err := a.StoreSourceLocale(cmd, sel, srcLocale)
+			if err != nil {
+				return err
+			}
 			opts := terms.LookupOptions{
-				SourceLocale: model.LocaleID(srcLocale),
+				SourceLocale: srcLoc,
 				TargetLocale: model.LocaleID(tgtLocale),
 			}
 			if domain != "" {
@@ -278,7 +290,7 @@ func newTermsLookupCmd(a *App) *cobra.Command {
 				}
 			}
 
-			matches, err := tb.Lookup(cmd.Context(), args[0], opts)
+			matches, err := tb.Lookup(host.CmdContext(cmd), args[0], opts)
 			if err != nil {
 				return fmt.Errorf("lookup: %w", err)
 			}
@@ -313,7 +325,7 @@ func newTermsLookupCmd(a *App) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringP("source-locale", "s", "en", "source locale")
+	cmd.Flags().StringP("source-locale", "s", "", lookupSourceLocaleUsage)
 	cmd.Flags().StringP("target-locale", "t", "", "target locale to show translations")
 	cmd.Flags().String("domain", "", "filter by domain")
 	cmd.Flags().Bool("fuzzy", false, "also show approximate matches")
@@ -376,7 +388,7 @@ func newTermsSearchCmd(a *App) *cobra.Command {
 }
 
 // newTermsOccurrencesCmd answers where a term is actually used, by joining the
-// project's terms against the text of its extracted blocks — one query inside
+// project's terms against the text of its extracted blocks: one query inside
 // `.kapi/work/store.db`, with no server and no account.
 func newTermsOccurrencesCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
@@ -431,7 +443,7 @@ inside the project store, which ` + "`kapi up`" + ` and ` + "`kapi extract`" + `
 
 // occurrenceLocales turns --locale into the query's locale filter. "source" is
 // spelled out because the source text's own key is the empty string, which is
-// not something a user can type — and "" on the command line is how you ask for
+// not something a user can type, and "" on the command line is how you ask for
 // no filter at all.
 func occurrenceLocales(cmd *cobra.Command) ([]string, error) {
 	raw, _ := cmd.Flags().GetStringSlice("locale")

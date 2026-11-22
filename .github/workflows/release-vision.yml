@@ -17,6 +17,8 @@ permissions:
   id-token: write # cosign keyless OIDC (tag publishes)
 
 env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
   # onnxruntime 1.31.1 matches yalue/onnxruntime_go v1.38.0 (ORT_API_VERSION 31),
   # the same pin as kapi-sat/kapi-check. Keep in lockstep with plugins/vision/go.mod.
   ONNXRUNTIME_VERSION: "1.31.1"

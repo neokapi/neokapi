@@ -17,23 +17,13 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 )
 
-// kconv — the format-aware `cat`-family converter: read any format kapi
-// understands and re-express it in another. It is the clean projection of the
-// content model + the structural-role layer: headings, lists, tables and inline
-// formatting are carried by role, so a Word .docx, a DocLang document or a
-// Docling JSON all project to clean Markdown / HTML (and back to DocLang),
-// driven by the role layer rather than the source bytes.
-//
-// `kconv report.docx --to md`        → Markdown on stdout
-// `kconv report.dclg.xml -o out.html` → HTML file
-// `kconv fr.xliff --to md --target fr` → the French translation as Markdown
-// `kconv ~/Downloads/* --to md -o out/` → one .md per input, in out/
-// `kconv -r docs --to html -o site/`  → the docs tree, mirrored as HTML
-//
-// Like the rest of the toolbox it is exposed as a `kconv` busybox symlink and as
-// the hidden `kapi convert` subcommand. A same-format conversion (e.g. .docx →
-// .docx) still round-trips faithfully via the skeleton; a cross-format one
-// projects through the model.
+// kconv reads any format kapi understands and writes it in another. Headings,
+// lists, tables and inline formatting are carried by their structural role,
+// so a .docx, a DocLang document or a Docling JSON projects to clean Markdown
+// or HTML. It runs as the `kconv` busybox name and the hidden `kapi convert`
+// subcommand. A same-format conversion (.docx to .docx) round-trips through
+// the format's writer and skeleton. A cross-format one projects through the
+// content model.
 
 // ConvOptions carries one `kconv` invocation's flags.
 type ConvOptions struct {
@@ -91,7 +81,7 @@ func (a *App) RunConv(ctx context.Context, args []string, opts ConvOptions) erro
 		start := time.Now()
 		cerr := a.convertDocument(ctx, file, opts.To, opts.TargetLocale, outPath)
 		if cerr == nil && a.ConvTiming {
-			// Self-reported so the number excludes process start-up — the
+			// Self-reported so the number excludes process start-up: the
 			// comparable figure for a conversion library. Milliseconds with the
 			// literal "ms" so it is trivially machine-parseable.
 			fmt.Fprintf(os.Stderr, "kconv: converted %s in %.2fms\n",
@@ -106,7 +96,7 @@ func (a *App) RunConv(ctx context.Context, args []string, opts ConvOptions) erro
 				cerr = errBinaryStdout("pass -o FILE, redirect stdout to a file, or pass `-o -` to write it here anyway")
 			}
 			// Report the bad file and continue, so one failure doesn't abort the
-			// rest — matching kgrep/ksed/kcat.
+			// rest, as kgrep, ksed and kcat do.
 			hadError = true
 			fmt.Fprintf(os.Stderr, "kconv: %s: %v\n", DisplayName(file), cerr)
 			continue
@@ -119,7 +109,7 @@ func (a *App) RunConv(ctx context.Context, args []string, opts ConvOptions) erro
 }
 
 // convertDocument reads path (or stdin), detects its input format, and writes it
-// as toFmt — to outPath when set, else stdout. With targetLoc empty the source
+// as toFmt, to outPath when set, else to stdout. With targetLoc empty the source
 // is projected (a monolingual conversion); with a locale the writer emits that
 // translation. The skeleton store and source bytes are wired to the writer ONLY
 // for a same-format conversion; for a cross-format one they would be foreign to
@@ -150,7 +140,12 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 		return fmt.Errorf("no reader for format %q: %w", inFmt, err)
 	}
 	defer reader.Close()
-	writer, err := a.conversionWriter(toFmt)
+	// Reading a file of a write-only format refuses every document, so a
+	// same-format conversion has nothing to round-trip.
+	if _, writeOnly := reader.(format.WriteOnlyReader); writeOnly {
+		return fmt.Errorf("kapi writes %s files and does not read them", inFmt)
+	}
+	writer, err := a.conversionWriter(registry.FormatID(inFmt), toFmt)
 	if err != nil {
 		return fmt.Errorf("no writer for format %q: %w", toFmt, err)
 	}
@@ -172,7 +167,7 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 	}
 	// Same-format conversion is a faithful round-trip through the typed skeleton.
 	// NewWiredSkeleton stamps the store with the source format's origin and
-	// connects the writer only when it is that same format — so a cross-format
+	// connects the writer only when it is that same format, so a cross-format
 	// target can never consume this foreign skeleton (it reconstructs from the
 	// model). A store that cannot be created fails the conversion rather than
 	// quietly turning a faithful round-trip into a re-serialization.
@@ -183,6 +178,17 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 		}
 		if store != nil {
 			defer store.Close()
+		}
+	}
+
+	// Only a same-format round-trip consumes the original: a cross-format
+	// target reconstructs from the content model, and handing it foreign bytes
+	// would materialize the input for nothing. The binding reads the source
+	// file, so it runs before the reader's document is rewound to the start.
+	// A reader that reads lazily (eml) would otherwise find the file at its end.
+	if sameFormat {
+		if err := bindWriterSource(writer, path, outPath, src); err != nil {
+			return err
 		}
 	}
 
@@ -198,12 +204,9 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 		return fmt.Errorf("open %s: %w", DisplayName(path), err)
 	}
 
-	// The writer is configured before the read, not after, so the Part stream
-	// can go straight from one to the other. Collecting it first — which is all
-	// this used to do, only to replay the slice into the channel below — held
-	// the whole document for no reason, and did it a second time inside a writer
-	// that was already collecting. See #1710: neither buffer is visible while
-	// the other one exists.
+	// The writer is configured before the read, so the Part stream goes
+	// straight from the reader to the writer and the document is never held
+	// in a slice between them (#1710).
 	flushOut := func() error { return nil }
 	if outPath != "" {
 		if err := writer.SetOutput(outPath); err != nil {
@@ -217,14 +220,6 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 			out, flushOut = a.guardedStdout()
 		}
 		if err := writer.SetOutputWriter(out); err != nil {
-			return err
-		}
-	}
-	// Only a same-format round-trip consumes the original: a cross-format
-	// target reconstructs from the content model, and handing it foreign bytes
-	// would materialize the input for nothing.
-	if sameFormat {
-		if err := bindWriterSource(writer, path, outPath, src); err != nil {
 			return err
 		}
 	}
@@ -314,7 +309,7 @@ func prepareOutputDir(out string, inputs int) (string, error) {
 // convOutputPath is where one input lands under an output directory: its stem,
 // re-extensioned for the target format, under the input's own position in the
 // tree relative to root. So `kconv 'docs/**/*.md' --to html -o site/` writes
-// site/guide/intro.html for docs/guide/intro.md — the shape survives the
+// site/guide/intro.html for docs/guide/intro.md. The shape survives the
 // conversion, and two same-named files in different directories cannot collide.
 func (a *App) convOutputPath(dir, root, input string, toFmt registry.FormatID) (string, error) {
 	if input == "" || input == StdinName {
@@ -332,8 +327,8 @@ func (a *App) convOutputPath(dir, root, input string, toFmt registry.FormatID) (
 }
 
 // subdirUnder returns input's directory relative to root, or "" when it does
-// not lie under root (a mixed absolute/relative argument list, say) — in which
-// case the file flattens into the output directory and claimOutput catches any
+// not lie under root (a mixed absolute/relative argument list, say). Then
+// the file flattens into the output directory and claimOutput catches any
 // resulting collision.
 func subdirUnder(root, input string) string {
 	if root == "" {
@@ -346,7 +341,7 @@ func subdirUnder(root, input string) string {
 	return rel
 }
 
-// commonDir is the deepest directory every input sits under — the root of the
+// commonDir is the deepest directory every input sits under: the root of the
 // tree the output mirrors. It needs no provenance from the arguments: a list of
 // files in one directory shares that directory (so the output is flat), and
 // `docs/**/*.md` shares docs/ (so the output keeps the sub-tree). Returns ""
@@ -411,21 +406,23 @@ func (a *App) formatExt(id registry.FormatID) string {
 	return ""
 }
 
-// conversionWriter returns the writer for a `convert` target. JSON and YAML
-// document conversions are served by the STRUCTURAL writers — an array of block
-// records (the `kapi inspect` shape) — rather than the catalog key→value
-// writers. A document (DocLang, Markdown, HTML, docx, …) has no catalog keys, so
-// the catalog writers collapse every block onto the empty key; the structural
-// writers capture its structure instead. The catalog json/yaml writers remain
-// the i18n round-trip format, reached by translate/merge/same-format editing or
-// an explicit `--to json-catalog` / `--to yaml-catalog` target. Every other
+// conversionWriter returns the writer for a `convert` from inFmt to toFmt.
+// A same-format conversion uses the format's registered writer, so the
+// document round-trips through its skeleton. A cross-format conversion to
+// JSON or YAML uses the structural writers, which write an array of block
+// records (the `kapi inspect` shape). A document (DocLang, Markdown, HTML,
+// docx) has no catalog keys, so the catalog writers would collapse every
+// block onto the empty key. An explicit `--to json-catalog` or
+// `--to yaml-catalog` reaches the catalog writers across formats. Every other
 // target uses its registered writer.
-func (a *App) conversionWriter(toFmt registry.FormatID) (format.DataFormatWriter, error) {
-	switch toFmt {
-	case "json":
-		return structdoc.NewJSONWriter(), nil
-	case "yaml":
-		return structdoc.NewYAMLWriter(), nil
+func (a *App) conversionWriter(inFmt, toFmt registry.FormatID) (format.DataFormatWriter, error) {
+	if inFmt != toFmt {
+		switch toFmt {
+		case "json":
+			return structdoc.NewJSONWriter(), nil
+		case "yaml":
+			return structdoc.NewYAMLWriter(), nil
+		}
 	}
 	return a.FormatReg.NewWriter(toFmt)
 }
@@ -448,14 +445,21 @@ func (a *App) ResolveTargetFormat(to, outPath string) (registry.FormatID, error)
 		if a.FormatReg.HasWriter(id) {
 			return id, nil
 		}
-		if det := a.writerByExt("." + strings.TrimPrefix(strings.ToLower(to), ".")); det != "" {
+		ext := "." + strings.TrimPrefix(strings.ToLower(to), ".")
+		if det := a.writerByExt(ext); det != "" {
 			return det, nil
+		}
+		if readOnly := a.readOnlyFormat(id, ext); readOnly != "" {
+			return "", fmt.Errorf("cannot convert to %q: kapi reads %s files and has no writer for them", to, readOnly)
 		}
 		return "", fmt.Errorf("unknown target format %q. Try a format id (markdown, html, doclang) or an extension (md, html)", to)
 	}
 	if outPath != "" && outPath != StdoutName {
 		if det := a.writerForOutputPath(outPath); det != "" {
 			return det, nil
+		}
+		if readOnly := a.readOnlyFormat("", format.Ext(outPath)); readOnly != "" {
+			return "", fmt.Errorf("cannot convert to %s: kapi reads %s files and has no writer for them", filepath.Base(outPath), readOnly)
 		}
 		// An output directory carries no extension to infer from, and saying
 		// "cannot infer a target format from out" reads like a broken filename.
@@ -475,6 +479,19 @@ func (a *App) writerForOutputPath(path string) registry.FormatID {
 		return "doclang"
 	}
 	return a.writerByExt(format.Ext(path))
+}
+
+// readOnlyFormat returns the format named by id, or else detected by ext,
+// when kapi has a reader for it and no writer. It returns "" otherwise.
+func (a *App) readOnlyFormat(id registry.FormatID, ext string) registry.FormatID {
+	if a.FormatReg.HasReader(id) && !a.FormatReg.HasWriter(id) {
+		return id
+	}
+	if det, err := a.FormatReg.Detect(ext, registry.DetectOptions{ExtensionOnly: true}); err == nil && det != "" &&
+		a.FormatReg.HasReader(det) && !a.FormatReg.HasWriter(det) {
+		return det
+	}
+	return ""
 }
 
 // writerByExt returns the highest-priority writable format registered for ext,
