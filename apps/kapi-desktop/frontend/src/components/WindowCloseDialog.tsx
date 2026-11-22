@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import {
   Button,
   Dialog,
@@ -35,6 +36,8 @@ export function WindowCloseDialog({
   onCancel,
 }: WindowCloseDialogProps) {
   const failedIDs = new Set(failed.map((tab) => tab.id));
+  // Focus starts on Save all, so Enter keeps the work rather than discarding it.
+  const saveAllRef = useRef<HTMLButtonElement>(null);
   return (
     <Dialog
       open
@@ -42,7 +45,14 @@ export function WindowCloseDialog({
         if (!o && !saving) onCancel();
       }}
     >
-      <DialogContent showCloseButton={false} data-testid="window-close-dialog">
+      <DialogContent
+        showCloseButton={false}
+        data-testid="window-close-dialog"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          saveAllRef.current?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Unsaved changes</DialogTitle>
           <DialogDescription>Save before closing?</DialogDescription>
@@ -80,7 +90,7 @@ export function WindowCloseDialog({
           <Button disabled={saving} variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button disabled={saving} onClick={onSaveAll} className="sm:ml-4">
+          <Button ref={saveAllRef} disabled={saving} onClick={onSaveAll} className="sm:ml-4">
             Save all
           </Button>
         </DialogFooter>

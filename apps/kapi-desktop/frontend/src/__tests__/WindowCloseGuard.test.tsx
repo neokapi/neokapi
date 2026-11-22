@@ -80,6 +80,12 @@ describe("closing the window with unsaved changes", () => {
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
+  it("starts with focus on Save all, so Enter keeps the work", async () => {
+    render(<Harness dirty={["a"]} saveTab={vi.fn()} />);
+    fireEvent.click(screen.getByText("close window"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save all" })).toHaveFocus());
+  });
+
   it("Save all saves each listed tab, then closes", async () => {
     const saveTab = vi.fn().mockResolvedValue(true);
     render(<Harness dirty={["a", "b"]} saveTab={saveTab} />);
