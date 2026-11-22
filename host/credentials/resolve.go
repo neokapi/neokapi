@@ -147,6 +147,24 @@ func MissingCredential(store *Store, toolName string, toolRequires []string, con
 	return err
 }
 
+// CredentialProvider is the provider a tool configured with config calls, as
+// ResolveCredentials resolves it, reading no key: the config's own provider,
+// else that of the saved credential the resolution finds, else the tool
+// default (inferProviderID). It is "" for a tool that requires no
+// credentials.
+func CredentialProvider(store *Store, toolName string, toolRequires []string, config map[string]any) string {
+	if !slices.Contains(toolRequires, "credentials") {
+		return ""
+	}
+	if p, ok := config["provider"].(string); ok && p != "" {
+		return p
+	}
+	if src, err := findCredential(store, toolName, toolRequires, config); err == nil && src.stored != nil && src.stored.ProviderType != "" {
+		return src.stored.ProviderType
+	}
+	return inferProviderID(toolName, config)
+}
+
 // credentialSource is where ResolveCredentials takes a config's key from. The
 // zero value means the config needs nothing looked up: the tool requires no
 // credentials, the config carries its own key, or the provider is keyless.
@@ -192,8 +210,12 @@ func findCredential(store *Store, toolName string, toolRequires []string, config
 	}
 	// Auto-detect matches on the config's explicit provider, not the inferred
 	// default, so a config with no provider matches every saved credential.
+	// A miss names the provider the run falls back to.
 	storeProvider, _ := config["provider"].(string)
-	cfg, err := autoDetect(store, storeProvider)
+	cfg, err := autoDetect(store, storeProvider, providerType)
+	if missing, ok := errors.AsType[*MissingCredentialError](err); ok && storeProvider == "" {
+		missing.Default = true
+	}
 	if err != nil {
 		return credentialSource{}, err
 	}
@@ -235,26 +257,33 @@ func stripRecipeEndpoint(config map[string]any) map[string]any {
 // for every command (MissingKeyMessage without the flag); a command that reads
 // --api-key adds the flag with WithAPIKeyFlag.
 type MissingCredentialError struct {
-	// Provider is the provider the key is for, or "" when the config names
-	// none (every saved credential was a candidate).
+	// Provider is the provider the key is for: the config's, else the tool
+	// default the run falls back to (inferProviderID).
 	Provider string
+	// Default is set when nothing named Provider: it is the tool default, and
+	// choosing another provider is a remedy too.
+	Default bool
 }
 
-func (e *MissingCredentialError) Error() string { return MissingKeyMessage(e.Provider, false) }
+func (e *MissingCredentialError) Error() string { return e.Message(false) }
 
-// MissingKeyMessage says that provider has no key and what gives it one: a
-// saved credential, the provider's environment variable, and, for a command
-// that reads it, --api-key. It is the one statement of that advice: the
-// runtime error, the pre-run refusal of `kapi up` and the desktop's
-// missing-key dialog all print it.
-func MissingKeyMessage(provider string, apiKeyFlag bool) string {
+// Message says that the provider has no key and what gives it one: a saved
+// credential, the provider's environment variable, for a command that reads
+// it --api-key, and, for the default provider, choosing another. It is the
+// one statement of that advice: the runtime error, the pre-run refusal of
+// `kapi up` and the up plan all print it.
+func (e *MissingCredentialError) Message(apiKeyFlag bool) string {
 	var b strings.Builder
-	if provider == "" {
+	if e.Provider == "" {
 		b.WriteString("no saved credentials found; save one with 'kapi credentials add'")
 	} else {
-		fmt.Fprintf(&b, "no saved credentials found for provider %q; save one with 'kapi credentials add'", provider)
+		fmt.Fprintf(&b, "no saved credentials found for provider %q", e.Provider)
+		if e.Default {
+			b.WriteString(" (the default)")
+		}
+		b.WriteString("; save one with 'kapi credentials add'")
 	}
-	if vars := providerEnvVars[strings.ToLower(provider)]; len(vars) > 0 {
+	if vars := providerEnvVars[strings.ToLower(e.Provider)]; len(vars) > 0 {
 		if apiKeyFlag {
 			b.WriteString(", set " + vars[0])
 		} else {
@@ -264,7 +293,16 @@ func MissingKeyMessage(provider string, apiKeyFlag bool) string {
 	if apiKeyFlag {
 		b.WriteString(" or pass --api-key")
 	}
+	if e.Default {
+		b.WriteString(", or choose another with 'kapi models default'")
+	}
 	return b.String()
+}
+
+// MissingKeyMessage is the advice for a provider that something named and
+// that has no key (MissingCredentialError.Message).
+func MissingKeyMessage(provider string, apiKeyFlag bool) string {
+	return (&MissingCredentialError{Provider: provider}).Message(apiKeyFlag)
 }
 
 // WithAPIKeyFlag returns err with a missing credential's advice naming
@@ -275,7 +313,7 @@ func WithAPIKeyFlag(err error) error {
 	if !ok {
 		return err
 	}
-	return &flagHintError{err: err, msg: MissingKeyMessage(missing.Provider, true)}
+	return &flagHintError{err: err, msg: missing.Message(true)}
 }
 
 // flagHintError keeps the wrapped chain (errors.As still finds the
@@ -311,14 +349,16 @@ func lookupRef(store *Store, ref string) (ProviderConfig, error) {
 
 // autoDetect finds the single matching credential in the store. Several
 // matches resolve only when exactly one of them is marked default.
-func autoDetect(store *Store, providerType string) (ProviderConfig, error) {
+// providerType filters the match ("" matches every provider); provider is the
+// one the run would call, which a miss names.
+func autoDetect(store *Store, providerType, provider string) (ProviderConfig, error) {
 	var matches []ProviderConfig
 	if store != nil {
 		matches = store.FindByType(providerType)
 	}
 	switch len(matches) {
 	case 0:
-		return ProviderConfig{}, &MissingCredentialError{Provider: providerType}
+		return ProviderConfig{}, &MissingCredentialError{Provider: provider}
 	case 1:
 		return matches[0], nil
 	default:

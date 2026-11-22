@@ -120,6 +120,10 @@ The registries above run inside one binary. A plugin ships as its own binary, so
 
 Which project a command acts on is decided once, by `host.ResolveProjectPath`: `-p`, then `KAPI_NO_PROJECT`, then `KAPI_PROJECT`, then the upward walk from the working directory. A plugin route reads the path that rule returns and loads exactly that recipe (`host/venue/project.Load`, which never walks). The daemon receives the project as `ProjectRef.Root` from the host's dispatcher; `kapi status` and `kapi ls` hand the plugin's `server-status` and `server-ls` plumbing `--project=<recipe>`; `kapi up` hands `server-up` the same; and every command the plugin serves itself takes `-p` and resolves through `cli.RequireProjectPath`. With `KAPI_NO_PROJECT` set and no `-p`, each of them refuses before contacting a server. A second walk from the working directory is how a run that named one project once pushed another.
 
+### A dispatched command declares the flags it reads
+
+`kapi up` parses the user's flags against its own command and hands the server run to `server-up`. It forwards only the flags the plugin's manifest lists under that command's `flags`, and refuses every other flag before dispatch. The embedded dispatch, used by the MCP `up` tool and the desktop, follows the same list. A missing `flags` key and `"flags": []` are different statements. The first declares nothing, so kapi refuses the server run and names the command that updates the plugin (`kapi plugin update <name>`, or `brew upgrade <formula>` for a Homebrew install). The second declares that the command reads no flags. A plugin keeps the list equal to the flags its server run reads, and a test (`TestManifestDeclaresTheServerRunFlags`) holds the two equal.
+
 kapi links no plugin's code here either. The proxy speaks MCP to a subprocess over stdio, so a plugin's dependencies and its licence stay inside its own binary.
 
 ## Writing a new plugin: a worked example

@@ -68,6 +68,7 @@ export {
     RulesFileAction,
     RulesFilesResult,
     UpPlanOutput,
+    UpPlanProviderGroup,
     UpPlanScope
 } from "./models.js";
 

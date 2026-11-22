@@ -46,7 +46,7 @@ type Plugin struct {
 
 	// Retired is set when this discovered plugin matches a compiled-in
 	// Tombstone. A retired plugin stays listed (so it can be surfaced and
-	// pruned) but contributes nothing to dispatch — kapi never loads or runs
+	// pruned) but contributes nothing to dispatch: kapi never loads or runs
 	// it. Nil for an active plugin.
 	Retired *Tombstone
 }
@@ -56,6 +56,10 @@ func (p *Plugin) Name() string { return p.Manifest.Plugin }
 
 // Version returns the plugin's declared version.
 func (p *Plugin) Version() string { return p.Manifest.Version }
+
+// System reports whether the plugin came from an OS-managed install root
+// (Homebrew and the like), which the OS package manager updates.
+func (p *Plugin) System() bool { return p.Source.Order >= systemSourceOrder }
 
 // Host is the in-memory state of all discovered plugins for one kapi
 // process. It is built once at startup and consumed by command
@@ -338,7 +342,7 @@ func (h *Host) Plugin(name string) *Plugin {
 // Remove uninstalls the named plugin, deleting it from the exact directory it
 // was discovered in (Plugin.Dir) and dropping it from the host's dispatch
 // tables. This is the single uninstall entry point for every front-end (CLI,
-// desktop): callers pass only the plugin name — the plugin system owns where
+// desktop): callers pass only the plugin name, the plugin system owns where
 // each plugin lives, so install, discovery, and removal can never disagree on
 // the directory.
 //

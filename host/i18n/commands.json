@@ -4513,6 +4513,9 @@
             "batching": {
               "usage": "how many blocks share one LLM call: auto (default), single"
             },
+            "concurrency": {
+              "usage": "number of files to process at once (0 = auto)"
+            },
             "context": {
               "usage": "what the model is told about a block besides the block: none, key (default), neighbours"
             },

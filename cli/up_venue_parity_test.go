@@ -16,10 +16,9 @@ import (
 )
 
 // `kapi up` is offered by two surfaces: this cobra command and the MCP `up`
-// tool an agent calls. Each used to answer "where does this run" for itself,
-// and only one of them knew about the venue — so the same recipe converged on
-// the server for a human and on the laptop for an agent. The decision belongs
-// to host.ResolveUpVenue; this test holds the two surfaces to it.
+// tool an agent calls. Both take the decision "where does this run" from
+// host.ResolveUpVenue, so one recipe converges in one place for a human and an
+// agent; this test holds the two surfaces to it.
 
 // venueParityProject writes a server-connected recipe and returns its path.
 func venueParityProject(t *testing.T) string {
@@ -60,15 +59,25 @@ bowrain:
 }
 
 // venuePluginHost returns a plugin host owning the `server-up` plumbing, so the
-// server venue is reachable in this process.
-func venuePluginHost(t *testing.T) *pluginhost.Host {
+// server venue is reachable in this process. The plumbing's manifest declares
+// the flags named by declared, and the stub writes the arguments it is given
+// to the file "args" beside it.
+func venuePluginHost(t *testing.T, declared ...string) *pluginhost.Host {
+	t.Helper()
+	return venuePluginHostWith(t, flagSpecs(declared))
+}
+
+// venuePluginHostWith is venuePluginHost with the manifest's flag
+// declaration as given: nil declares none, an empty list declares that the
+// plumbing reads no flag.
+func venuePluginHostWith(t *testing.T, flags []manifest.FlagSpec) *pluginhost.Host {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("shell-script plugin stub is not portable to Windows")
 	}
 	dir := t.TempDir()
 	binPath := filepath.Join(dir, "kapi-venue-stub")
-	require.NoError(t, os.WriteFile(binPath, []byte("#!/bin/sh\nexit 0\n"), 0o755))
+	require.NoError(t, os.WriteFile(binPath, []byte("#!/bin/sh\necho \"$@\" > \"$(dirname \"$0\")/args\"\n"), 0o755))
 
 	m := &manifest.Manifest{
 		ManifestVersion: manifest.CurrentVersion,
@@ -76,7 +85,7 @@ func venuePluginHost(t *testing.T) *pluginhost.Host {
 		Version:         "0.0.1",
 		Binary:          filepath.Base(binPath),
 		Capabilities: manifest.Capabilities{
-			Commands: []manifest.Command{{Name: "server-up", Hidden: true}},
+			Commands: []manifest.Command{{Name: "server-up", Hidden: true, Flags: flags}},
 		},
 	}
 	require.NoError(t, m.Validate())
@@ -97,14 +106,14 @@ func TestUpVenue_CLIAndMCPAgree(t *testing.T) {
 	a := &App{}
 	a.PluginHost = venuePluginHost(t)
 
-	// The CLI's own reading of its flags, on a command with none set — a plain
+	// The CLI's own reading of its flags, on a command with none set: a plain
 	// `kapi up` in a connected project.
 	cmd := NewUpCmd(a)
 	require.NoError(t, cmd.ParseFlags(nil))
 	cliDecision, err := a.ResolveUpVenue(recipe, upVenueOptions(cmd))
 	require.NoError(t, err)
 
-	// What RunUpDispatch — the MCP tool's entry point — resolves for a default
+	// What RunUpDispatch, the MCP tool's entry point, resolves for a default
 	// agent call.
 	mcpDecision, err := a.ResolveUpVenue(recipe, host.UpOptions{}.VenueOptions())
 	require.NoError(t, err)
@@ -140,8 +149,8 @@ func TestUpVenue_CLIAndMCPAgreeWithoutAServer(t *testing.T) {
 }
 
 // TestUpVenue_LocalFlagStillDispatches pins the one that reads backwards:
-// --local is not "skip the venue", it is "converge here, then push" — so it
-// still dispatches to the plumbing, on both surfaces.
+// --local means "converge here, then push", so it still dispatches to the
+// plumbing, on both surfaces.
 func TestUpVenue_LocalFlagStillDispatches(t *testing.T) {
 	recipe := venueParityProject(t)
 	a := &App{}
@@ -179,4 +188,115 @@ func TestUpVenue_TheServerFlagIsNotForwarded(t *testing.T) {
 	require.NoError(t, cmd.ParseFlags([]string{"--server"}))
 
 	assert.NotContains(t, forwardedFlagArgs(cmd.Flags(), "server"), "--server=true")
+}
+
+// flagSpecs declares names as bool flags.
+func flagSpecs(names []string) []manifest.FlagSpec {
+	var specs []manifest.FlagSpec
+	for _, n := range names {
+		specs = append(specs, manifest.FlagSpec{Name: n, Type: "bool"})
+	}
+	return specs
+}
+
+// serverRunFlags stands in for the flags the bowrain plumbing declares.
+var serverRunFlags = []string{"project", "json", "local", "timeout", "fail-on-incomplete-watch"}
+
+// stubArgs is what the stub plumbing of ph was last run with.
+func stubArgs(t *testing.T, ph *pluginhost.Host) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(ph.CommandRoute("server-up").Plugin.Dir, "args"))
+	require.NoError(t, err)
+	return string(b)
+}
+
+// At the server venue the host refuses, before it dispatches, every flag the
+// plumbing does not declare, so a plugin that would accept the flag (the stub
+// exits 0 on anything) never runs. Under --local the plumbing runs this
+// machine's loop, and the same flag is forwarded.
+func TestUpVenue_ServerRefusesUndeclaredFlagsBeforeDispatch(t *testing.T) {
+	recipe := venueParityProject(t)
+	for _, args := range [][]string{
+		{"--provider", "demo"}, {"--model", "m"}, {"--memory", "m.db"}, {"--termstore", "t"},
+		{"--trace", "t.json"}, {"--encoding", "utf-8"}, {"--concurrency", "2"},
+		{"--fail-on-unknown"}, {"--strict"},
+		{"--jobs", "2"}, {"--no-extract"}, {"--no-checks"}, {"--materialize"}, {"--passes", "1"},
+	} {
+		t.Run(args[0], func(t *testing.T) {
+			a := &App{}
+			ph := venuePluginHost(t, serverRunFlags...)
+			a.PluginHost = ph
+			cmd := NewUpCmd(a)
+			require.NoError(t, cmd.ParseFlags(args))
+
+			err := runUpWithVenue(a, cmd, recipe)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), args[0]+" applies to a run on this machine")
+			assert.Contains(t, err.Error(), "--local")
+
+			cmd = NewUpCmd(a)
+			require.NoError(t, cmd.ParseFlags(append([]string{"--local"}, args...)))
+			require.NoError(t, runUpWithVenue(a, cmd, recipe), "--local runs the loop here, which reads %s", args[0])
+			assert.Contains(t, stubArgs(t, ph), args[0])
+		})
+	}
+}
+
+// The flags forwarded to a server run are the ones the plumbing's manifest
+// declares: a declared flag reaches it, and plumbing that declares none is
+// forwarded none.
+func TestUpVenue_ServerForwardsWhatTheManifestDeclares(t *testing.T) {
+	recipe := venueParityProject(t)
+
+	a := &App{}
+	ph := venuePluginHost(t, serverRunFlags...)
+	a.PluginHost = ph
+	cmd := NewUpCmd(a)
+	require.NoError(t, cmd.ParseFlags([]string{"--project", recipe, "--json", "--timeout", "1m", "--fail-on-incomplete-watch"}))
+	require.NoError(t, runUpWithVenue(a, cmd, recipe))
+	for _, want := range []string{"--project=" + recipe, "--json=true", "--timeout=1m0s", "--fail-on-incomplete-watch=true"} {
+		assert.Contains(t, stubArgs(t, ph), want, "a server run reads it, so it reaches the plumbing")
+	}
+
+	// A declaration that lists no flag forwards none: the run itself is
+	// dispatched, and every flag is refused.
+	a = &App{}
+	ph = venuePluginHostWith(t, []manifest.FlagSpec{})
+	a.PluginHost = ph
+	cmd = NewUpCmd(a)
+	require.NoError(t, cmd.ParseFlags([]string{"--json"}))
+	require.ErrorContains(t, runUpWithVenue(a, cmd, recipe), "--json applies to a run on this machine")
+	cmd = NewUpCmd(a)
+	require.NoError(t, runUpWithVenue(a, cmd, recipe))
+	assert.NotContains(t, stubArgs(t, ph), "--", "no flag is forwarded")
+}
+
+// A plugin whose manifest declares no flags predates this kapi. A server run
+// through it is refused before dispatch, naming the plugin and the command
+// that updates it, whatever flags were set; under --local it runs as before.
+func TestUpVenue_APluginWithNoDeclarationIsRefusedWithTheUpdate(t *testing.T) {
+	recipe := venueParityProject(t)
+	for _, args := range [][]string{nil, {"--project", recipe}, {"--json"}} {
+		a := &App{}
+		ph := venuePluginHost(t)
+		a.PluginHost = ph
+		cmd := NewUpCmd(a)
+		require.NoError(t, cmd.ParseFlags(args))
+		err := runUpWithVenue(a, cmd, recipe)
+		require.Error(t, err, "%v", args)
+		assert.Contains(t, err.Error(), "venue-stub plugin 0.0.1")
+		assert.Contains(t, err.Error(), "older than this kapi")
+		assert.Contains(t, err.Error(), "kapi plugin update venue-stub")
+		assert.NotContains(t, err.Error(), "applies to a run on this machine")
+		_, statErr := os.Stat(filepath.Join(ph.CommandRoute("server-up").Plugin.Dir, "args"))
+		assert.True(t, os.IsNotExist(statErr), "nothing was dispatched")
+	}
+
+	a := &App{}
+	ph := venuePluginHost(t)
+	a.PluginHost = ph
+	cmd := NewUpCmd(a)
+	require.NoError(t, cmd.ParseFlags([]string{"--local", "--jobs", "2"}))
+	require.NoError(t, runUpWithVenue(a, cmd, recipe))
+	assert.Contains(t, stubArgs(t, ph), "--jobs=2")
 }

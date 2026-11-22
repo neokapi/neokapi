@@ -120,7 +120,7 @@ func TestResolveCredentials_DefaultKeyDisambiguates(t *testing.T) {
 	_, err := ResolveCredentials(store, "translate", []string{"credentials"}, map[string]any{"provider": "openai"})
 	require.Error(t, err)
 
-	// With a default marked, resolution must NOT be ambiguous — it picks "B".
+	// With a default marked, resolution is not ambiguous: it picks "B".
 	// (No real keychain in tests, so the only remaining failure is the missing
 	// key for the chosen credential.)
 	var amb *AmbiguousCredentialError
@@ -345,4 +345,19 @@ func TestMissingCredentialError_FlagHint(t *testing.T) {
 
 	other := errors.New("disk full")
 	assert.Equal(t, other, WithAPIKeyFlag(other))
+}
+
+// A config that names no provider and finds no key names the provider the
+// run falls back to, and its environment variable.
+func TestResolveCredentials_NothingConfiguredNamesTheFallback(t *testing.T) {
+	clearProviderEnv(t)
+	store := newTestStore(t)
+	_, err := ResolveCredentials(store, "translate", []string{"credentials"}, map[string]any{})
+	missing, ok := errors.AsType[*MissingCredentialError](err)
+	require.True(t, ok, "%v", err)
+	assert.Equal(t, "anthropic", missing.Provider)
+	assert.True(t, missing.Default)
+	assert.Equal(t, `no saved credentials found for provider "anthropic" (the default); save one with 'kapi credentials add' or set ANTHROPIC_API_KEY, or choose another with 'kapi models default'`, err.Error())
+	assert.Equal(t, `no saved credentials found for provider "anthropic" (the default); save one with 'kapi credentials add', set ANTHROPIC_API_KEY or pass --api-key, or choose another with 'kapi models default'`, WithAPIKeyFlag(err).Error())
+	assert.Equal(t, err.Error(), MissingCredential(store, "translate", []string{"credentials"}, map[string]any{}).Error())
 }
