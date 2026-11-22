@@ -194,7 +194,11 @@ Bilingual interchange (XLIFF, PO, TMX, KBF) is not a conversion target; use
 (`.docx`, ODT, InDesign, EPUB) and read-only ones (PDF) convert from, not to.
 Converting to a **different** format is a clean projection (structure and
 prose, without the source's packaging); converting to the **same** format is a
-faithful round-trip. A conversion that would produce a binary document at a
+faithful round-trip through that format's writer, for every format kapi writes,
+packaged and bilingual ones included. So `kconv en.json --to json` writes the
+JSON file back, while `kconv report.docx --to json` writes the document's
+blocks as a list of records. A format kapi writes and never reads (MO) is
+refused as an input, with an error. A conversion that would produce a binary document at a
 terminal is refused, as with `ksed`: pass `-o`, redirect, or `-o -`. Two inputs
 that would write the same output file are reported (exit 2) rather than
 overwritten.

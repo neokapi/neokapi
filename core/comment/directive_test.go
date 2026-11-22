@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -57,9 +56,9 @@ func spanText(src []byte, c comment.Comment) string { return string(src[c.Start:
 
 func isSpace(b byte) bool { return b == ' ' || b == '\t' || b == '\r' || b == '\n' }
 
-// accounted holds got to the provider's own reading, plain, of the same bytes:
-// every byte of a comment plain located that is not whitespace is claimed by
-// exactly one comment or exclusion of got, got claims no byte plain does not,
+// accounted holds got to the provider's own reading, plain, of the same bytes.
+// Every byte of a comment plain located that is not whitespace is claimed by
+// exactly one comment or exclusion of got. Got claims no byte plain does not,
 // and each claim reports the lines the file puts it on.
 func accounted(t *testing.T, name string, src []byte, plain, got *comment.File) {
 	t.Helper()
@@ -371,11 +370,12 @@ func TestDeclaredDirectivesRefuseAReadingThatDoesNotLineUp(t *testing.T) {
 // a comment of this repository's Go files is set aside, and each file's comments
 // stay accounted for exactly once.
 func TestDeclaredDirectivesOverTheRepositorysMarkers(t *testing.T) {
-	_, here, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	root := filepath.Join(filepath.Dir(here), "..", "..")
+	// go test runs a package's tests in the package directory, <root>/core/comment.
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	require.NoError(t, err)
+	require.FileExists(t, filepath.Join(root, "go.work"), "repo root detection")
 	files, set := 0, 0
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

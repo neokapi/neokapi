@@ -12,8 +12,8 @@ import type { VoiceProfile } from "../voice/types";
 
 // `min_score` is the profile's own compliance bar: the server excludes a block
 // scoring below it from the compliance rate and refuses to auto-approve it. The
-// surfaces have READ it since #1771, but the create/update request omitted it,
-// so the only bar anyone could actually apply was the default. These cases pin
+// surfaces read it. A create/update request that omits it leaves the default
+// as the only bar anyone can apply. These cases pin
 // the field onto both profile editors and the parse it goes through.
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "..");

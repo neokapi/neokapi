@@ -9,6 +9,10 @@ on:
     - cron: "0 6 * * 1" # weekly, Mondays at 06:00 UTC
   workflow_dispatch:
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   build:
     name: Build Bowrain (${{ matrix.build.platform }})

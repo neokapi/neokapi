@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/spf13/cobra"
@@ -358,23 +359,20 @@ func newMemoryLookupCmd(a *App) *cobra.Command {
 				MaxResults: maxResults,
 			}
 
-			matches, err := tm.LookupText(cmd.Context(), args[0], model.LocaleID(srcLocale), model.LocaleID(tgtLocale), opts)
+			sel, err := a.ResolveMemoryStore(cmd)
+			if err != nil {
+				return err
+			}
+			srcLoc, err := a.StoreSourceLocale(cmd, sel, srcLocale)
+			if err != nil {
+				return err
+			}
+			tgtLoc := model.LocaleID(tgtLocale)
+			matches, err := tm.LookupText(host.CmdContext(cmd), args[0], srcLoc, tgtLoc, opts)
 			if err != nil {
 				return fmt.Errorf("lookup: %w", err)
 			}
-
-			entries := make([]output.MemoryLookupEntry, len(matches))
-			srcLoc := model.LocaleID(srcLocale)
-			tgtLoc := model.LocaleID(tgtLocale)
-			for i, m := range matches {
-				entries[i] = output.MemoryLookupEntry{
-					Source:    m.Entry.VariantText(srcLoc),
-					Target:    m.Entry.VariantText(tgtLoc),
-					Score:     m.Score,
-					MatchType: string(m.MatchType),
-					EntryID:   m.Entry.ID,
-				}
-			}
+			entries := host.MemoryLookupEntries(matches, srcLoc, tgtLoc)
 
 			return output.Print(cmd, output.MemoryLookupOutput{
 				Matches: entries,
@@ -383,7 +381,7 @@ func newMemoryLookupCmd(a *App) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringP("source-locale", "s", "en", "source locale")
+	cmd.Flags().StringP("source-locale", "s", "", lookupSourceLocaleUsage)
 	cmd.Flags().StringP("target-locale", "t", "", "target locale")
 	cmd.Flags().Float64("min-score", 0.7, "minimum match score (0.0-1.0)")
 	cmd.Flags().Int("max-results", 10, "maximum results to return")

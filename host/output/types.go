@@ -50,15 +50,15 @@ type FormatInfo struct {
 	HasReader   bool   `json:"has_reader"`
 	HasWriter   bool   `json:"has_writer"`
 	// Generative reports the writer can produce a complete document from the
-	// content model alone — so this format is a valid cross-format conversion
+	// content model alone, so this format is a valid cross-format conversion
 	// target (`kconv --to`). False = skeleton-bound (writes back into its own
 	// original file only). Declarative; resolved without loading any plugin.
 	Generative bool `json:"generative,omitempty"`
 	// Interchange reports a bilingual translation-interchange format (XLIFF, PO,
-	// TMX, …) — the extract/merge loop, excluded as a `convert` target.
+	// TMX, …): the extract/merge loop, excluded as a `convert` target.
 	Interchange bool `json:"interchange,omitempty"`
 	// Editable reports kapi can faithfully write this format back after an edit
-	// (reader + writer, not interchange) — the set a caller-supplied content edit
+	// (reader + writer, not interchange): the set a caller-supplied content edit
 	// (`kapi apply` / `kapi rewrite --edits`) can target, including binary.
 	Editable bool `json:"editable"`
 	// RoundTrip reports the writer reconstructs from a skeleton, so an edit
@@ -427,9 +427,8 @@ func (o ExtractOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Extracting batch %s (format=%s, targets=%s, sources=%d)\n\n",
 		s.Accent.Render(o.BatchID), o.Format, strings.Join(o.Targets, ", "), o.Sources)
 
-	// One row per target locale. These were "fr: 2 files, 10 blocks, content memory
-	// exact=4 fuzzy=1 new=5" lines — a record set spelled out as prose, which
-	// stops being readable the moment there is more than a handful of locales.
+	// One row per target locale, as a table, so the record set stays
+	// readable with more than a handful of locales.
 	t := NewTable(w).Accent(0).Headers("LOCALE", "FILES", "BLOCKS", "EXACT", "FUZZY", "NEW")
 	for _, p := range o.Pairs {
 		t.Rowf(p.TargetLocale, p.Files, p.Blocks,
@@ -1033,7 +1032,14 @@ type MemoryLookupEntry struct {
 	Target    string  `json:"target"`
 	Score     float64 `json:"score"`
 	MatchType string  `json:"match_type"`
-	EntryID   string  `json:"entry_id"`
+	// EntryID is the first stored entry the result stands for.
+	EntryID string `json:"entry_id"`
+	// EntryIDs is every stored entry with this source and target. One
+	// translation recorded by two origins is one result naming both.
+	EntryIDs []string `json:"entry_ids,omitempty"`
+	// Origins names where the stored entries came from (merge, record,
+	// import), once each.
+	Origins []string `json:"origins,omitempty"`
 }
 
 // MemoryLookupOutput represents the result of a content-memory lookup.
@@ -1050,10 +1056,10 @@ func (o MemoryLookupOutput) FormatText(w io.Writer) error {
 
 	t := NewTable(w).Accent(0).Headers(
 		T("tm.header.source"), T("tm.header.target"),
-		T("tm.header.score"), T("tm.header.matchType"))
+		T("tm.header.score"), T("tm.header.matchType"), T("tm.header.origin"))
 	s := t.Styles()
 	for _, m := range o.Matches {
-		t.Row(m.Source, m.Target, fmt.Sprintf("%.0f%%", m.Score*100), s.Dim(m.MatchType))
+		t.Row(m.Source, m.Target, fmt.Sprintf("%.0f%%", m.Score*100), s.Dim(m.MatchType), s.Dim(strings.Join(m.Origins, ", ")))
 	}
 	t.Render()
 

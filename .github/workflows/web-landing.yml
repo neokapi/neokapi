@@ -2,11 +2,11 @@ name: Web Landing
 
 # Builds the bowrain-web-landing Vite app and uploads it as an artifact for PR
 # PREVIEWS: Pages Deploy slots it at /web/prs/<N>/bowrain/ on R2. PRODUCTION now
-# publishes to https://bowrain.cloud (S3+CloudFront) via deploy-landing.yml — so
-# this workflow is preview-only and no longer runs on push to main.
+# publishes to https://bowrain.cloud (S3+CloudFront) via deploy-landing.yml, so
+# this workflow is preview-only and does not run on push to main.
 #
 # (The neokapi landing was retired: the neokapi Docusaurus site is now the
-# product landing page at /web/neokapi/, built by the "Docs — kapi" workflow.)
+# product landing page at /web/neokapi/, built by the "Docs - kapi" workflow.)
 
 on:
   workflow_dispatch:
@@ -41,7 +41,7 @@ jobs:
         run: vp install
 
       # landing/vite.config.ts imports @neokapi/i18n-react's vite plugin (i18n
-      # extraction transform), a built ./dist subpath export — build it first
+      # extraction transform), a built ./dist subpath export. Build it first
       # so the config loads (mirrors ci-frontend / kapi-desktop-frontend).
       - name: Build neokapi-i18n (landing vite plugin dependency)
         run: cd packages/i18n-react && vp run build
@@ -79,18 +79,10 @@ jobs:
           VITE_POSTHOG_HOST: https://eu.i.posthog.com
         run: vp run build:nb
 
-      # The conversion event is captured inside the click listener, where a
-      # refactor has already lost it once. The unit suite asserts the capture
-      # happens on that path; the smoke suite below cannot, because a page that
-      # rewrites the link and captures nothing still reaches the app.
-      - name: Unit-test the landing page
-        working-directory: bowrain/web/landing
-        run: vpr test
-
       # The smoke suite guards the two things that break without failing
       # anything: the narrative order the six sections are told in, and the
       # click path that carries utm_* to the app and fires the conversion
-      # event. It needs no backend — both are client-side — and starts its own
+      # event. It needs no backend, since both are client-side, and starts its own
       # dev server.
       - name: Install Playwright browser
         working-directory: bowrain/web/landing

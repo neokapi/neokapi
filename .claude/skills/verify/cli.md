@@ -71,12 +71,14 @@ $S run check -p . site/locales/en-GB.json; echo "exit=$?"   # FAILS terms.vocabu
 **A store command:**
 
 ```bash
-$S run terms stats -p .                                # concepts and terms by locale
-$S run terms lookup alert -s en-GB -t de -p .          # alert -> Warnung
-$S run memory lookup "Berth plan" -s en-GB -t nb -p .  # Kaiplan, exact
+$S run terms stats -p .                          # concepts and terms by locale
+$S run terms lookup alert -t de -p .             # alert -> Warnung
+$S run memory lookup "Berth plan" -t nb -p .     # Kaiplan, exact, origin merge, record
 ```
 
-Pass `-s en-GB`: the lookups default to `en` and find nothing in this project.
+The lookups read in the project's source language, `en-GB` here, unless `-s`
+names another. "Berth plan" is in the content memory after the first
+`kapi up`.
 
 ## The edges of a changed command
 

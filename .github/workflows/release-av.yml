@@ -23,6 +23,8 @@ permissions:
   id-token: write # cosign keyless
 
 env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
   # BtbN's rolling `latest` tag carries stable asset names
   # (ffmpeg-master-latest-<plat>-lgpl.*); the build's exact version is captured at
   # bundle time (ffmpeg -version) for the LGPL source-correspondence record.

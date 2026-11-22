@@ -1,10 +1,12 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -419,6 +421,7 @@ func (s *Server) HandlePulseLeaderboard(c *echo.Context) error {
 		}
 		languages = append(languages, *rank)
 	}
+	rankPulseLanguages(languages)
 
 	leaderboard := store.PulseLeaderboard{
 		Contributors: []store.PulseContributor{},
@@ -513,6 +516,17 @@ func (s *Server) pulseVisibleProjectIDs(ctx context.Context, workspaceID string)
 	return ids, nil
 }
 
+// rankPulseLanguages orders languages as the Pulse pages show them: the
+// highest translated percentage first, then by locale.
+func rankPulseLanguages(languages []store.PulseLanguageRank) {
+	slices.SortFunc(languages, func(a, b store.PulseLanguageRank) int {
+		if c := cmp.Compare(b.Percentage, a.Percentage); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Locale, b.Locale)
+	})
+}
+
 // buildPulseOverview constructs the full overview response.
 func (s *Server) buildPulseOverview(ctx context.Context, ws *platauth.Workspace, projects []*store.Project) store.PulseOverview {
 	projectSummaries := make([]store.PulseProjectSummary, 0, len(projects))
@@ -550,6 +564,7 @@ func (s *Server) buildPulseOverview(ctx context.Context, ws *platauth.Workspace,
 		}
 		topLanguages = append(topLanguages, *rank)
 	}
+	rankPulseLanguages(topLanguages)
 
 	overallPct := 0.0
 	if totalWords > 0 {
