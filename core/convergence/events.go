@@ -8,7 +8,7 @@ type EventType string
 // concurrently), and after the pass coverage is re-derived with the project's
 // bound checks. The stream ends with exactly one EventDone.
 const (
-	// EventPassStart opens pass Pass (1-based, capped at MaxPasses) over the
+	// EventPassStart opens the pass numbered by Pass (1-based, capped at MaxPasses) over the
 	// Pending locales. ExtractedFiles/ExtractedBlocks report the pre-pass
 	// auto-extract on block-store drift (both zero when in sync).
 	EventPassStart EventType = "pass_start"
@@ -25,8 +25,9 @@ const (
 	// current pass, with the final Done/ViaMemory/ViaAI counts for the pass.
 	EventLocaleDone EventType = "locale_done"
 	// EventPassDone closes a pass after post-derivation: Produced units at
-	// ≥ draft, the pass's ProducedDelta, FailingChecks demoted by the bound
-	// checks, and the locales still Pending (short of their gate).
+	// ≥ draft that are written, the pass's ProducedDelta, the drafts held
+	// WaitingForReview, FailingChecks demoted by the bound checks, and the
+	// locales still Pending (short of their gate).
 	EventPassDone EventType = "pass_done"
 	// EventMaterialized reports the post-loop materialize step: Files written
 	// across every shippable locale.
@@ -53,9 +54,9 @@ var eventTypes = map[EventType]bool{
 // KnownEventType reports whether t names a progress event.
 //
 // A reader of a mixed NDJSON document uses it to tell a run's events from the
-// other records that share the stream's `type` key: it forwards what it
-// recognises and leaves the rest to the reader that owns it, so a record added
-// beside the events (a proposed change-set, a pushed voice profile) never
+// other records that share the stream's `type` key. It forwards what it
+// recognises and leaves the rest to the reader that owns it. A record added
+// beside the events (a proposed change-set, a pushed voice profile) then never
 // reaches a run view as an event with every field zero.
 func KnownEventType(t EventType) bool { return eventTypes[t] }
 
@@ -67,10 +68,10 @@ const (
 )
 
 // Run states reported by EventDone. A run ends converged (every gated scope
-// shippable) or parked (work remains for a human) on the happy path; failed
-// (the loop errored — e.g. a provider outage) and canceled (stopped by a user
-// or a server restart) are terminal error states that must be distinguishable
-// so a caller does not mistake a broken run for parked work and exit 0.
+// shippable) or parked (work remains for a human) on the happy path. Failed
+// (the loop errored, e.g. a provider outage) and canceled (stopped by a user
+// or a server restart) are terminal error states. They stay distinct so a
+// caller does not mistake a broken run for parked work and exit 0.
 const (
 	RunConverged = "converged"
 	RunParked    = "parked"
@@ -78,7 +79,7 @@ const (
 	RunCanceled  = "canceled"
 )
 
-// Stage names the loop phase an event was emitted from — the venue-neutral
+// Stage names the loop phase an event was emitted from, the venue-neutral
 // vocabulary a surface renders as "where in the loop the run is" (strategy
 // 2026-07-dogfood doc 06, theme D). The Event.Stage field is optional: a
 // consumer that predates it ignores an empty Stage, and a venue that does not
@@ -95,7 +96,7 @@ const (
 	StageMaterialize  = "materialize"   // writing shippable output
 )
 
-// StallReason is the machine-readable cause a run did not converge — the label
+// StallReason is the machine-readable cause a run did not converge, the label
 // that turns a silent stuck spinner into an actionable state (strategy
 // 2026-07-dogfood doc 06, theme C). It is set on the run row and carried on the
 // terminal done event so the UI and analytics can distinguish, say, "pending
@@ -113,7 +114,7 @@ const (
 	// StallRateLimited: the provider returned repeated 429s.
 	StallRateLimited StallReason = "rate_limited"
 	// StallNoProgress: a full pass produced nothing new and the remainder
-	// cannot advance unaided — ordinary parking (genuine pending work).
+	// cannot advance unaided, ordinary parking (genuine pending work).
 	StallNoProgress StallReason = "no_progress"
 	// StallChecksFailing: coverage is complete but bound checks demote units
 	// below the gate, so the locale parks on failing terminology/length checks.
@@ -132,16 +133,16 @@ const (
 	// is the fan-out.
 	//
 	// It is a SERVER-venue reason. The local venue reads the same recipe as
-	// monolingual — the front door, where one language is the answer rather than
-	// a missing setting — and reconciles the source alone, reporting the run as
+	// monolingual, the front door, where one language is the answer rather than
+	// a missing setting, and reconciles the source alone, reporting the run as
 	// monolingual instead of stalled.
 	StallNoTargetLocales StallReason = "no_target_locales"
 )
 
-// Event is one progress event of a convergence run — the single protocol every
-// venue and surface speaks: the CLI's live renderer, `kapi up --json` (NDJSON,
+// Event is one progress event of a convergence run, the single protocol every
+// venue and surface speaks. The CLI's live renderer, `kapi up --json` (NDJSON,
 // one event per line), the desktop's run view, and a Bowrain server run's SSE
-// stream all carry exactly this shape, so nothing about rendering a run knows
+// stream all carry exactly this shape. So nothing about rendering a run knows
 // where it executes.
 //
 // The struct is deliberately flat with a Type discriminator (not an interface)
@@ -180,14 +181,17 @@ type Event struct {
 	// stand. It is a subset of the produced units, disjoint from ViaAI.
 	ViaDraft int `json:"via_drafts,omitempty"`
 
-	// Post-derivation fields (pass_done).
-	Produced      int `json:"produced,omitempty"`
-	ProducedDelta int `json:"produced_delta,omitempty"`
-	FailingChecks int `json:"failing_checks,omitempty"`
+	// Post-derivation fields (pass_done). Produced counts the units written
+	// so far and ProducedDelta what this pass wrote. WaitingForReview counts
+	// the drafts held for review, which neither of the two includes.
+	Produced         int `json:"produced,omitempty"`
+	ProducedDelta    int `json:"produced_delta,omitempty"`
+	WaitingForReview int `json:"waiting_for_review,omitempty"`
+	FailingChecks    int `json:"failing_checks,omitempty"`
 
 	// Source-first fields (settle_source stage / pass_done / done). SettledSource
 	// is how many source blocks the settlement phase stamped this pass;
-	// BlockedOnSource is how many remain below the translate_after level — the count the UI
+	// BlockedOnSource is how many remain below the translate_after level, the count the UI
 	// renders as "N segments need source review before translating" and the
 	// signal that a run held on source (source_not_ready). Both are omitted when
 	// zero, so a project at `translate_after: none` (or with a fully-settled source) carries

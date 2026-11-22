@@ -1879,23 +1879,23 @@ func checkFindingSuggestion(f check.Finding) string {
 
 // --- shared block helpers ---------------------------------------------------
 
-// bilingualBlocks reads the source file (source text) and the target file
-// (translated text), overlaying each target block's text onto the matching
-// source block as the unit's target locale. Blocks are paired by Name (the
-// format's stable key, e.g. the JSON key path), falling back to ID. Source
-// blocks with no matching target keep an empty target so the checks flag them
-// as untranslated. Returns missing=true when the target file does not exist
-// or the path is BLOCKED (see below). Measurement treats the two alike.
 // errTargetUnreadable signals that a unit's target file exists but its format
 // cannot be read back to measure it (a write-only compiled catalog like .mo).
 // Coverage treats such a target as present (file-presence); quality and review
 // paths skip the unit. Test with errors.Is.
 var errTargetUnreadable = errors.New("target format is not readable")
 
-// A blocked target path (see host/targetpath.go) is deliberately NOT
-// errTargetUnreadable: the file-presence fallback exists for a real, written
-// target that merely cannot be parsed back (a compiled catalog), and counting an
-// obstruction as a complete translation is what #1449 was.
+// bilingualBlocks reads the source file and the target file, and overlays each
+// target block's text onto the matching source block as the unit's target
+// locale. Blocks pair by Name (the format's stable key, such as the JSON key
+// path), then by ID. A source block with no matching target keeps an empty
+// target, so the checks flag it as untranslated. It returns missing=true when
+// the target file does not exist or its path is blocked.
+//
+// A blocked target path (host/targetpath.go) reads as missing, never as
+// errTargetUnreadable. The file-presence fallback is for a written target that
+// cannot be parsed back, such as a compiled catalog; an obstruction is not a
+// translation (#1449).
 func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block, bool, error) {
 	// A blocked path holds no translation, whatever it holds. Report it as
 	// missing so every measurement path (coverage, plan, checks, review) treats
@@ -1992,7 +1992,10 @@ func (a *App) readBlocksAs(ctx context.Context, path, fmtName string, cfg map[st
 	// streaming the parts one at a time and projecting out the translatable
 	// blocks. The read/coverage path never reconstructs output, so it never opens
 	// the skeleton. The key is namespaced ("rbw|") and disjoint from the runner's.
-	if a.docCache != nil {
+	// A convergence run's draft tree is rebuilt on every run and removed at its
+	// end, so its files are never cached: an entry for one would be refreshed
+	// on every run that changes nothing, and outlive the file.
+	if a.docCache != nil && !a.inConvergeDraftTree(path) {
 		configKey := readBlocksConfigKey(fmtName, cfg, sourceLang)
 		if doc := a.docCache.OpenDocument(path, configKey); doc != nil {
 			blocks, err := streamTranslatableBlocks(ctx, doc)

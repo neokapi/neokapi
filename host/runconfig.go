@@ -32,7 +32,7 @@ var runConfigFlags = []runConfigFlag{
 // AddRunConfigFlags registers the AI run flags on cmd.
 func AddRunConfigFlags(cmd Command) {
 	cmd.Flags().String("credential", "", "saved credential name to use (see 'kapi credentials list')")
-	cmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, ollama)")
+	cmd.Flags().String("provider", "anthropic", providerFlagUsage())
 	cmd.Flags().String("api-key", "", "API key for the AI provider")
 	cmd.Flags().String("model", "", "AI model name")
 	cmd.Flags().String("instruction", "", "extra guidance for the model while translating (e.g. \"informal register; keep product names in English\")")

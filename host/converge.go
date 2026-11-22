@@ -7,6 +7,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
@@ -117,6 +118,16 @@ type ConvergeOutput struct {
 	Passes    int                    `json:"passes"`
 	Converged bool                   `json:"converged"` // no scope is withheld: every gated scope clears its gate
 	Locales   []ConvergeLocaleResult `json:"locales"`
+	// Produced counts the units this run wrote to the project's files, by its
+	// passes or by the delivery after its loop, from this run's drafts or an
+	// earlier run's. A run that changed nothing reports 0. Nil when the venue
+	// does not report it: a server run writes to the server, and its summary
+	// leaves the figure out rather than give it another meaning.
+	Produced *int `json:"produced,omitempty"`
+	// WaitingForReview counts the drafts the run holds for review in locales
+	// short of their ship gate. They are not written to the project, so
+	// Produced leaves them out.
+	WaitingForReview int `json:"waiting_for_review,omitempty"`
 	// ParkedScopes lists the gated (collection, locale) scopes that remain
 	// short of their gate: per-scope detail under the per-locale rollup, so
 	// a UI can link each parked scope to its review queue.
@@ -235,6 +246,13 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		verb = "passes"
 	}
 	fmt.Fprintf(w, "Ran flow %q over %d locale(s) in %d %s.\n\n", o.Flow, len(o.Locales), o.Passes, verb)
+	if o.Produced != nil {
+		fmt.Fprintf(w, "  produced            %d\n", *o.Produced)
+	}
+	if o.WaitingForReview > 0 {
+		fmt.Fprintf(w, "  waiting for review  %d\n", o.WaitingForReview)
+	}
+	fmt.Fprintln(w)
 	t := output.NewTable(w).Accent(0).
 		Headers("locale", "drafted", "translated", "state", "checks")
 	s := t.Styles()
@@ -541,16 +559,15 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	a.convergeWriteFiles = true
 	defer func() { a.convergeWriteFiles = false }()
 
-	// Under a policy that gates delivery, those files are DRAFTS: the pass
-	// writes them into the run's own tree and the policy-gated materialize in
+	// Under a policy that gates delivery, those files are drafts. The pass
+	// writes them into the run's own tree, and the gated materialize in
 	// finishConverge is the only write that reaches a collection's `target:`
 	// path. That keeps the promise `on-converge` makes: a locale short of its
 	// ship gate gets no files, and no unreviewed draft sits where a site build
 	// globs (#1936). See host/convergedrafts.go.
 	//
-	// A run that prints its change set drafts the same way, into the same
-	// private tree, so its gate evaluates the same output; delivery then
-	// prints what it would commit.
+	// A run that prints its change set drafts into the same tree, so its gate
+	// evaluates the same output, and delivery prints what it would commit.
 	if deliveryIsGated(proj, opts) {
 		endDrafts, derr := a.beginConvergeDrafts(projectPath, projectDir)
 		if derr != nil {
@@ -588,15 +605,35 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	// are the CLI venue's IO: working-tree drift re-extract, file-derived
 	// coverage with bound checks, and the default flow on per-locale worker
 	// Apps.
+	//
+	//
+	// Produced is the run's tally of the translations it wrote to target
+	// files (unitWriteTally), counted where the change service records each
+	// write. Under gated delivery a pass drafts into the draft tree and writes
+	// no target file, and a withheld locale's drafts are counted as waiting
+	// for review instead.
+	gatedDelivery := deliveryIsGated(proj, opts)
+	tally := a.writeTally
+	a.writeTally = &unitWriteTally{}
+	defer func() { a.writeTally = tally }()
+	var productionMu sync.Mutex
+	production := map[string]convergence.PassProduction{}
 	derive := func(cov []LocaleCoverage, excl *CheckExclusions, unstamped map[string]int) convergence.PassState {
 		pending := localesNeedingWork(cov, locales, unstamped)
 		facts.noteRedraftable(cov, pending)
+		waiting := 0
+		if gatedDelivery {
+			productionMu.Lock()
+			waiting = heldDrafts(cov, production)
+			productionMu.Unlock()
+		}
 		return convergence.PassState{
-			Pending:       localeStrings(pending),
-			Produced:      producedUnits(cov),
-			FailingChecks: excl.totalFailing(),
-			UnitTotals:    localeUnitTotals(cov),
-			Detail:        derivedState{cov: cov, excl: excl},
+			Pending:          localeStrings(pending),
+			Produced:         a.writeTally.total(),
+			WaitingForReview: waiting,
+			FailingChecks:    excl.totalFailing(),
+			UnitTotals:       localeUnitTotals(cov),
+			Detail:           derivedState{cov: cov, excl: excl},
 		}
 	}
 	funcs := convergence.LoopFuncs{
@@ -642,7 +679,11 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			if err != nil {
 				return convergence.PassProduction{}, err
 			}
-			return tap.snapshot(), nil
+			made := tap.snapshot()
+			productionMu.Lock()
+			production[locale] = made
+			productionMu.Unlock()
+			return made, nil
 		},
 	}
 	if !opts.noExtract {
@@ -765,6 +806,11 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			Jobs:      jobs,
 		}, funcs, emitter)
 		if err != nil {
+			// A pass may have written files before the run failed. Say how
+			// many, so the person knows what changed on disk.
+			if n := a.writeTally.total(); n > 0 {
+				fmt.Fprintf(cmd.ErrOrStderr(), "kapi up: wrote %d translation(s) to target files before it failed\n", n)
+			}
 			return err
 		}
 		// The run read the whole source, so how it writes each suggestion's
@@ -773,6 +819,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			a.countProjectUsage(ctx, cmd, projectPath, resolved)
 		}
 		d := res.Final.Detail.(derivedState)
+		facts.waitingForReview = res.Final.WaitingForReview
 		if err := a.finishConverge(ctx, cmd, proj, projectPath, flowLabel, res.Passes, d.cov, locales,
 			translateAfter, blockedOnSource, totalSource, facts, opts, emitter.Emit); err != nil {
 			return err
@@ -792,6 +839,9 @@ type convergeFacts struct {
 	noTargets       bool
 	extractedFiles  int
 	extractedBlocks int
+	// waitingForReview is the drafts the run holds for review
+	// (convergence.LoopResult).
+	waitingForReview int
 	// redraftable is, per locale, how many stale units the run STARTED with in
 	// scopes it then fanned out over. The final rollup cannot recover it: a
 	// re-drafted unit is still stale (its basis names source that is gone, and
@@ -1085,7 +1135,7 @@ func localesNeedingPass(cov []LocaleCoverage, locales []model.LocaleID) []model.
 			}
 			// Ungated scope: there is work while any unit has no committed target
 			// yet (below `draft`, the lowest rung).
-			if !c.Gated && c.Pct["draft"] < 100 {
+			if !c.Gated && c.AtLeast["draft"] < c.Total {
 				needs = true
 				break
 			}
@@ -1097,13 +1147,34 @@ func localesNeedingPass(cov []LocaleCoverage, locales []model.LocaleID) []model.
 	return out
 }
 
-// producedUnits is the progress metric: the count of units that have reached at
-// least `draft` (any committed target), summed across scopes. A pass that does
-// not raise it has stalled.
-func producedUnits(cov []LocaleCoverage) int {
-	total := 0
+// withheldLocales names the locales with a scope that does not ship. Under
+// gated delivery such a locale gets none of its files, whatever its other
+// scopes clear (finishConverge delivers a locale only when it is shippable).
+func withheldLocales(cov []LocaleCoverage) map[string]bool {
+	withheld := map[string]bool{}
 	for _, c := range cov {
-		total += c.Total * c.Pct["draft"] / 100
+		if !c.Shippable {
+			withheld[c.Locale] = true
+		}
+	}
+	return withheld
+}
+
+// heldDrafts counts the drafts a run that owns delivery holds for review: in
+// each withheld locale, the units its last pass drafted with a provider or
+// took from a stored draft, at most the locale's unit count. Units recycled
+// from the content memory are approved wording, not drafts. A withheld locale
+// gets no files, so these drafts are written nowhere in the project, and the
+// write tally counts none of them.
+func heldDrafts(cov []LocaleCoverage, production map[string]convergence.PassProduction) int {
+	units := map[string]int{}
+	for _, c := range cov {
+		units[c.Locale] += c.Total
+	}
+	total := 0
+	for locale := range withheldLocales(cov) {
+		p := production[locale]
+		total += min(p.ViaAI+p.ViaDraft, units[locale])
 	}
 	return total
 }
@@ -1126,6 +1197,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	out.NoTargets = facts.noTargets
 	out.ExtractedFiles = facts.extractedFiles
 	out.ExtractedBlocks = facts.extractedBlocks
+	out.WaitingForReview = facts.waitingForReview
 	out.BlockedOnSource = blockedOnSource
 	out.Findings = facts.placeholderReport()
 	if translateAfter != "" {
@@ -1269,6 +1341,12 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 		}
 	}
 
+	// Produced is what the run wrote to target files, by a pass or by the
+	// delivery above: each translation the change service recorded with
+	// content its file did not hold.
+	produced := a.writeTally.total()
+	out.Produced = &produced
+
 	state := convergence.RunConverged
 	if !out.Converged {
 		state = convergence.RunParked
@@ -1305,15 +1383,16 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 			Pct: map[string]int{}, Redrafted: redraftable[l]}
 		gatedSomewhere := false
 		scoped := false
+		total := 0
+		atLeast := map[string]int{}
 		for _, c := range cov {
 			if c.Locale != l {
 				continue
 			}
 			scoped = true
-			for k, v := range c.Pct {
-				if v > res.Pct[k] {
-					res.Pct[k] = v
-				}
+			total += c.Total
+			for k, v := range c.AtLeast {
+				atLeast[k] += v
 			}
 			res.Stale += c.Stale
 			res.Rejected += c.RejectedAwaitingDraft
@@ -1329,6 +1408,10 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 				gatedSomewhere = true
 			}
 			res.ShipState = weakerShipState(res.ShipState, c.ShipState)
+		}
+		// The locale's percentages are over its scopes' units together.
+		for k, v := range atLeast {
+			res.Pct[k] = convergence.Percent(v, total)
 		}
 		res.Gated = gatedSomewhere
 		// A locale with no coverage row at all has nothing no gate matched.

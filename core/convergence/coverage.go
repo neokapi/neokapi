@@ -13,9 +13,9 @@ import (
 
 // This file is the ONE coverage engine: per-scope state tallying plus the
 // ship-gate rollup that turns a tally into LocaleCoverage rows. Venues differ
-// only in their block source — the CLI/desktop convergence paths tally from
+// only in their block source (the CLI/desktop convergence paths tally from
 // working-tree file reads (cli.computeShipCoverage), the desktop status panel
-// tallies from the project block store (TallyBlockStore) — so both surfaces
+// tallies from the project block store (TallyBlockStore), so both surfaces
 // report the same numbers for the same underlying data.
 
 // Scope identifies one (collection, locale) coverage rollup scope. Collection
@@ -66,16 +66,16 @@ func (t *CoverageTally) Add(s Scope, state string) {
 	t.tally(s).cov.Add(state)
 }
 
-// AddStale tallies one unit whose recorded basis — a decision's, or the loop's
-// own record of the source it translated — names source wording that has since
-// changed. It counts at `draft` — a committed target exists, so the unit is not
-// below the ladder, but it is not a translation of the current source either —
-// and again as stale, which is what withholds the scope from shipping.
+// AddStale tallies one unit whose recorded basis (a decision's, or the loop's
+// own record of the source it translated) names source wording that has since
+// changed. It counts at `draft`, because a committed target exists that is not
+// a translation of the current source, and again as stale, which withholds the
+// scope from shipping.
 //
-// redrafted says which half of the stale count the unit belongs to: false while
-// the record still describes the translation on disk, so the loop owes the unit
-// a draft against the source the project holds now, and true once something has
-// replaced that translation, so the unit is waiting on a person instead. The
+// redrafted says which half of the stale count the unit belongs to. It is
+// false while the record still describes the translation on disk, so the loop
+// owes the unit a draft against the current source. It is true once something
+// has replaced that translation, so the unit waits on a person instead. The
 // verdict is the same either way; what differs is who the scope is waiting for.
 func (t *CoverageTally) AddStale(s Scope, redrafted bool) {
 	st := t.tally(s)
@@ -98,17 +98,17 @@ func (t *CoverageTally) AddStale(s Scope, redrafted bool) {
 func (t *CoverageTally) NoteRejectedAwaitingDraft(s Scope) { t.tally(s).rejectedOwed++ }
 
 // NoteUnknownBasis records that a unit's record says nothing about the source in
-// front of the reader — a decision written before the basis was tracked, or a
-// basis the loop recorded for a translation somebody has since rewritten —
-// without tallying it: the unit is counted at its rung by the accompanying Add,
-// and this only makes the assumption behind that rung countable.
+// front of the reader: a decision written before the basis was tracked, or a
+// basis the loop recorded for a translation somebody has since rewritten. It
+// tallies nothing; the unit is counted at its rung by the accompanying Add,
+// and this makes the assumption behind that rung countable.
 func (t *CoverageTally) NoteUnknownBasis(s Scope) { t.tally(s).basisUnknown++ }
 
 // NoteFailingCheck records that a unit fails the project's bound checks,
 // without tallying it: the unit is counted at its true rung by the accompanying
 // Add, and this withholds the scope's verdict.
 //
-// The unit IS translated — someone may even have reviewed it — so a percentage
+// The unit IS translated (someone may even have reviewed it) so a percentage
 // that said otherwise would be a false statement about the content, and the
 // same percentage would then differ between a surface that runs the checks and
 // one that does not. What a failing check withholds is the verdict, exactly as
@@ -199,8 +199,11 @@ func (t *CoverageTally) RollupGates(ship, established gate.RuleSet) []LocaleCove
 			BasisUnknown:          st.basisUnknown,
 			TermsNotChecked:       st.termsNotChecked,
 		}
+		lc.AtLeast = map[string]int{}
 		for _, rung := range ladder {
-			lc.Pct[rung] = int(math.Round(cov.AtLeastPct(ladder, rung)))
+			n := cov.AtLeastCount(ladder, rung)
+			lc.AtLeast[rung] = n
+			lc.Pct[rung] = Percent(n, cov.Total)
 		}
 		if g, ok := ship.Resolve(s.Collection, s.Locale); ok {
 			lc.Gated = true
@@ -221,17 +224,12 @@ func (t *CoverageTally) RollupGates(ship, established gate.RuleSet) []LocaleCove
 			establishedMet = gate.Evaluate(eg, cov, ladder).Pass
 		}
 		// Stale content, content a reviewer turned down, and content failing the
-		// project's bound checks are withheld whether or not a bar was declared.
-		// A project that sets no coverage threshold has still asked for none of
-		// them: wording whose source has been rewritten, a translation somebody
-		// refused, or one that drops a placeholder. A project with no gates is
-		// exactly the one with nothing else to catch them. A unit the terms govern
+		// project's bound checks are withheld whether or not a bar was declared:
+		// a project with no gates has nothing else to catch them. A unit the terms govern
 		// with no terminology result is withheld too, because nobody checked it.
 		//
 		// This is the one place the verdict is decided, so every surface reading a
-		// LocaleCoverage gets the same answer to "does this ship" — which is the
-		// whole point of the withholding living here rather than in a percentage
-		// one caller demotes and another does not.
+		// LocaleCoverage gets the same answer to "does this ship".
 		if lc.Stale > 0 || lc.RejectedAwaitingDraft > 0 || lc.FailingChecks > 0 || lc.TermsNotChecked > 0 {
 			lc.Shippable = false
 		}
@@ -260,7 +258,7 @@ func shipState(lc LocaleCoverage, establishedMet bool) ShipState {
 
 // BlockStoreScope describes one collection to tally from a project block
 // store: the recipe collection name (the scope key gates resolve against),
-// its block-store label (project.CollectionLabel — "(unnamed)" for a bare
+// its block-store label (project.CollectionLabel, "(unnamed)" for a bare
 // entry), and the target locales to measure.
 type BlockStoreScope struct {
 	Collection string
@@ -289,7 +287,7 @@ func TallyBlockStore(sess blockstore.Session, scopes []BlockStoreScope) (*Covera
 				return nil, nil, err
 			}
 			// The block's Hash is the key its overlays are written under
-			// (blockstore.StoreKey — the source file's path plus the file-local id).
+			// (blockstore.StoreKey: the source file's path plus the file-local id).
 			// The bare ID restarts in every source file, so asking for it finds
 			// nothing and reads as "untranslated" for content that is translated.
 			key := b.Hash
@@ -322,4 +320,22 @@ func TallyBlockStore(sess blockstore.Session, scopes []BlockStoreScope) (*Covera
 		}
 	}
 	return tally, totals, nil
+}
+
+// Percent is n of total as a whole percentage, rounded to the nearest. It
+// reads 100 only when every unit is counted and 0 only when none is, so a
+// scope with one unit missing never shows as complete. A scope with no units
+// is fully covered.
+func Percent(n, total int) int {
+	if total <= 0 {
+		return 100
+	}
+	p := int(math.Round(float64(n) * 100 / float64(total)))
+	switch {
+	case p >= 100 && n < total:
+		return 99
+	case p <= 0 && n > 0:
+		return 1
+	}
+	return p
 }

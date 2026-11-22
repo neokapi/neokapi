@@ -1041,9 +1041,16 @@ func (m *memoryAbsorber) absorb(ctx context.Context, block *model.Block, source,
 		maps.Copy(m.entries[i].Variants, entry.Variants)
 		return 0, 0, nil
 	}
-	_, existed, gerr := m.tm.GetEntry(ctx, entry.ID)
+	stored, existed, gerr := m.tm.GetEntry(ctx, entry.ID)
 	if gerr != nil {
 		return 0, 0, fmt.Errorf("read content-memory entry %s: %w", entry.ID, gerr)
+	}
+	if existed && stored.VariantText(source) == entry.VariantText(source) &&
+		stored.VariantText(target) == entry.VariantText(target) {
+		// The store already holds this pair: there is nothing to learn, and
+		// writing it again would add an operation to the workspace log on
+		// every run over an unchanged project.
+		return 0, 0, nil
 	}
 	m.staged[entry.ID] = len(m.entries)
 	m.entries = append(m.entries, entry)
@@ -1150,9 +1157,9 @@ func expandMergeInputs(inputs []string, root string) ([]string, error) {
 			}
 			continue
 		}
-		// A glob or a plain path: the shared expander handles both, and a
-		// pattern that matches nothing simply contributes nothing (merge
-		// reports the empty result itself).
+		// A glob or a plain path: the shared expander handles both. A pattern
+		// that matches nothing contributes nothing, and merge reports the
+		// empty result itself.
 		matches, err := expandArgs([]string{abs}, InputOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("merge: %w", err)
