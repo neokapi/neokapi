@@ -1,19 +1,36 @@
 #!/usr/bin/env python3
-"""Guard: no step a pull request runs saves an Actions cache.
+"""Guard: only main saves an Actions cache.
 
-A pull request can restore the caches saved on main and on its own ref, and
-nothing else. A cache it saves serves only its own later pushes, while it
-counts against the repository's 10 GiB and pushes out the caches every other
-pull request restores. So on a pull request every cache step restores and
-none saves; main saves.
+A run can restore the caches saved on main and on its own ref, and nothing
+else. A cache saved on a pull request, or by a run on another branch (a
+workflow started by hand there, a push to a release branch), serves only
+that ref, while it counts against the repository's 10 GiB and pushes out
+the caches every pull request restores. So off main every cache step
+restores and none saves.
+
+Each workflow under .github/workflows is evaluated once for every kind of
+run off main that its triggers admit:
+
+  * `pull_request`, as scripts/check-test-scripts.py evaluates it;
+  * `pull_request_review` and `pull_request_review_comment`, on refs/pull/;
+  * `workflow_dispatch`, started by hand on a branch other than main;
+  * `push` whose filter admits a branch other than main, or a tag;
+  * `release`, on the release's tag.
+
+In the runs after the first, `github.ref` is a ref other than
+refs/heads/main under the prefix named, so `github.ref == 'refs/heads/main'`
+is false there, `startsWith(github.ref, 'refs/tags/')` is true on a tag, and
+a comparison with any other ref under that prefix may be true: a save behind
+one is reported. `github.ref_type` is `branch` or `tag` to match. The inputs
+of a `workflow_dispatch` are unknown, so a condition on one admits the step.
 
     scripts/check-ci-caches.py              check the repository
     scripts/check-ci-caches.py --self-test  prove it on fixtures
 
-It reads every workflow under .github/workflows that runs on `pull_request`,
-every step that can run there (the `if:` conditions are evaluated as
-scripts/check-test-scripts.py does), and the steps of the local composite
-actions those steps use, with the caller's inputs. A step saves when it is:
+For each run it reads every job and step whose `if:` admits that run, the
+steps of the local composite actions those steps use, and the jobs of the
+local reusable workflows a job calls, each with the caller's inputs. A step
+saves when it is:
 
   * actions/cache (not actions/cache/restore), or actions/cache/save;
   * actions/setup-go whose `cache` is not false (it defaults to true);
@@ -25,12 +42,13 @@ actions those steps use, with the caller's inputs. A step saves when it is:
 
 An input or condition the guard cannot decide is an error naming the step.
 
-Exit status: 0 nothing a pull request runs saves a cache, 1 something does,
-2 an input is unreadable.
+Exit status: 0 nothing off main saves a cache, 1 something does, 2 an input
+is unreadable or a condition cannot be decided.
 """
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import os
 import re
@@ -51,9 +69,129 @@ class Unreadable(Exception):
     pass
 
 
-def substitute(value: object, inputs: dict[str, str]) -> object:
-    """Replace `inputs.<name>` in an expression with the caller's literal."""
-    if not isinstance(value, str) or "inputs." not in value:
+class OffMainRef:
+    """github.ref (or ref_name) of a run on a ref other than main."""
+
+    def __init__(self, prefix: str, main: str):
+        self.prefix, self.main = prefix, main
+
+
+@contextlib.contextmanager
+def off_main(event: str, prefix: str):
+    """Evaluate conditions as a run of `event` on a ref under `prefix`
+    (refs/heads/, refs/tags/ or refs/pull/) that is not main. The pull
+    request evaluator in check-test-scripts.py reads its contexts and
+    operators by name, so they are swapped for the length of the block."""
+    ref = OffMainRef(prefix, "refs/heads/main")
+    ref_name = OffMainRef("", "main")
+    ref_type = {"refs/heads/": "branch", "refs/tags/": "tag"}.get(prefix, cts.UNDECIDED)
+    saved = cts.context, cts.compare, cts.call, cts.truth
+
+    def context(name: str) -> object:
+        lower = name.lower()
+        if lower == "github.event_name":
+            return event
+        if lower == "github.ref":
+            return ref
+        if lower == "github.ref_name":
+            return ref_name
+        if lower == "github.ref_type":
+            return ref_type
+        if lower in ("github.head_ref", "github.base_ref"):
+            return cts.UNDECIDED if prefix == "refs/pull/" else ""
+        if lower == "github.event.repository.default_branch":
+            return "main"
+        if lower == "github.ref_protected":
+            return cts.UNDECIDED
+        return cts.UNKNOWN
+
+    def compare(op: str, a: object, b: object) -> object:
+        for sentinel in (ref, ref_name):
+            if sentinel in (a, b):
+                other = b if a is sentinel else a
+                if other is cts.UNKNOWN and op in ("==", "!="):
+                    return cts.UNKNOWN
+                if op not in ("==", "!=") or not isinstance(other, str):
+                    return cts.UNDECIDED
+                other = other.lower()
+                if other == sentinel.main:
+                    return op == "!="
+                # A full ref under another prefix is never this run's ref.
+                if sentinel.prefix and other.startswith("refs/") and not other.startswith(sentinel.prefix):
+                    return op == "!="
+                # Another ref under the same prefix may be the one this run is on.
+                return cts.UNKNOWN
+        return saved[1](op, a, b)
+
+    def call(name: str, args: list[object]) -> object:
+        if name.lower() == "startswith" and len(args) == 2 and args[0] is ref and isinstance(args[1], str):
+            want = args[1].lower()
+            if ref.prefix.startswith(want):
+                return True
+            if want.startswith(ref.prefix):
+                return cts.UNKNOWN  # depends on which ref
+            return False
+        if ref in args or ref_name in args:
+            return cts.UNDECIDED
+        return saved[2](name, args)
+
+    def truth(value: object) -> object:
+        if value is ref or value is ref_name:
+            return True
+        return saved[3](value)
+
+    cts.context, cts.compare, cts.call, cts.truth = context, compare, call, truth
+    try:
+        yield
+    finally:
+        cts.context, cts.compare, cts.call, cts.truth = saved
+
+
+def triggers(doc: dict) -> dict:
+    on = doc.get("on", doc.get(True))  # YAML 1.1 reads a bare `on` as True
+    if isinstance(on, str):
+        return {on: {}}
+    if isinstance(on, list):
+        return {t: {} for t in on}
+    if isinstance(on, dict):
+        return {k: (v or {}) for k, v in on.items()}
+    return {}
+
+
+def scenarios(doc: dict) -> list[tuple[str, str, str]]:
+    """Return (label, event, ref prefix) for each kind of off-main run.
+    An empty prefix is the pull request evaluator of check-test-scripts.py."""
+    on = triggers(doc)
+    out = []
+    if "pull_request" in on:
+        out.append(("a pull request", "pull_request", ""))
+    for event in ("pull_request_review", "pull_request_review_comment"):
+        if event in on:
+            out.append((f"a {event.replace('_', ' ')}", event, "refs/pull/"))
+    if "workflow_dispatch" in on:
+        out.append(("a run started by hand on a branch", "workflow_dispatch", "refs/heads/"))
+    if "push" in on:
+        push = on["push"] if isinstance(on["push"], dict) else {}
+        has_branch_filter = "branches" in push or "branches-ignore" in push
+        has_tag_filter = "tags" in push or "tags-ignore" in push
+        # A push with a filter for one kind of ref only runs for that kind.
+        if has_tag_filter or not has_branch_filter:
+            if push.get("tags") != []:
+                out.append(("a push of a tag", "push", "refs/tags/"))
+        if has_branch_filter or not has_tag_filter:
+            branches = push.get("branches")
+            if branches is None or any(str(b) != "main" for b in branches):
+                out.append(("a push to a branch", "push", "refs/heads/"))
+    if "release" in on:
+        out.append(("a release", "release", "refs/tags/"))
+    return out
+
+
+def substitute(value: object, inputs: dict[str, str] | None) -> object:
+    """Replace `inputs.<name>` in an expression with the caller's literal.
+    With inputs None (a run started by hand, whose inputs are unknown) the
+    expression keeps its references, which evaluate as unknown."""
+    if inputs is None or not isinstance(value, str) or "inputs." not in value:
         return value
 
     def lit(m: re.Match) -> str:
@@ -108,9 +246,14 @@ def saves(uses: str, with_: dict, inputs: dict[str, str], where: str) -> object:
         to = with_.get("cache-to")
         if not to:
             return False
-        if "type=gha" not in str(to):
+        text = str(to)
+        if "type=gha" not in text:
             return False
-        return on_pr(to, inputs, f"{where} input cache-to") if "${{" in str(to) else True
+        if re.fullmatch(r"\s*\$\{\{.*\}\}\s*", text, re.S):
+            return on_pr(to, inputs, f"{where} input cache-to")
+        # type=gha written outside an expression saves whatever the rest says.
+        outside = re.sub(r"\$\{\{.*?\}\}", "", text, flags=re.S)
+        return True if "type=gha" in outside else cts.UNKNOWN
     if name == "msys2/setup-msys2":
         return truthy_input(with_, "cache", True, inputs, where)
     return False
@@ -136,9 +279,14 @@ def walk_steps(root: str, steps: list, inputs: dict[str, str], where: str, probl
         uses = str(step["uses"])
         with_ = step.get("with") or {}
         if uses.startswith("./"):
-            action = os.path.join(root, uses[2:], "action.yml")
+            local = uses[2:]
+            # A job that checks this repository out into a subdirectory
+            # (contract-audit's ./neokapi) names the action under it.
+            if not local.startswith(".github/") and "/.github/actions/" in local:
+                local = local[local.index(".github/actions/"):]
+            action = os.path.join(root, local, "action.yml")
             if not os.path.isfile(action):
-                action = os.path.join(root, uses[2:], "action.yaml")
+                action = os.path.join(root, local, "action.yaml")
             doc = load(action)
             runs = doc.get("runs") or {}
             if runs.get("using") != "composite":
@@ -156,9 +304,39 @@ def walk_steps(root: str, steps: list, inputs: dict[str, str], where: str, probl
             continue
         verdict = saves(uses, with_, inputs, label)
         if verdict is True:
-            problems.append(f"{label}: {uses} saves a cache on a pull request")
+            problems.append(f"{label}: {uses} saves a cache on {SCENARIO[0]}")
         elif verdict is cts.UNKNOWN:
-            problems.append(f"{label}: {uses} may save a cache on a pull request (its inputs turn on a value the event does not fix)")
+            problems.append(f"{label}: {uses} may save a cache on {SCENARIO[0]} (its inputs turn on a value the run does not fix)")
+
+
+def walk_jobs(root: str, rel: str, doc: dict, inputs: dict[str, str] | None, where: str,
+              problems: list[str], called: tuple[str, ...]) -> None:
+    """Walk the jobs of a workflow that admit the current run. A job that
+    calls a local reusable workflow walks that workflow's jobs with the
+    inputs it passes, defaulted from the callee's `workflow_call` inputs."""
+    jobs = {}
+    for job_id, job in (doc.get("jobs") or {}).items():
+        if isinstance(job, dict):
+            jobs[job_id] = dict(job, **{"if": substitute(job["if"], inputs)}) if "if" in job else job
+    for job_id in sorted(set(jobs) - cts.skipped_jobs(where, jobs), key=list(jobs).index):
+        job = jobs[job_id]
+        label = f"{where} job {job_id}"
+        uses = job.get("uses")
+        if isinstance(uses, str) and uses.startswith("./"):
+            target = uses[2:].split("@", 1)[0]
+            if target in called:
+                raise Unreadable(f"{label}: {target} calls itself through {' > '.join(called)}")
+            callee = load(os.path.join(root, target))
+            spec = triggers(callee).get("workflow_call") or {}
+            with_ = job.get("with") or {}
+            resolved = {}
+            for name, item in (spec.get("inputs") or {}).items():
+                default = item.get("default") if isinstance(item, dict) else None
+                value = with_.get(name, default)
+                resolved[name] = substitute(value, inputs) if value is not None else None
+            walk_jobs(root, target, callee, resolved, f"{label} > {target}", problems, called + (target,))
+            continue
+        walk_steps(root, job.get("steps"), inputs, label, problems, set())
 
 
 def check(root: str) -> list[str]:
@@ -169,21 +347,21 @@ def check(root: str) -> list[str]:
             continue
         rel = f".github/workflows/{name}"
         doc = load(os.path.join(directory, name))
-        if not cts.runs_on_pull_request(doc):
-            continue
-        jobs = {k: v for k, v in (doc.get("jobs") or {}).items() if isinstance(v, dict)}
-        try:
-            skipped = cts.skipped_jobs(rel, jobs)
-        except cts.Unreadable as err:
-            raise Unreadable(str(err)) from err
-        for job_id, job in jobs.items():
-            if job_id in skipped:
-                continue
-            try:
-                walk_steps(root, job.get("steps"), {}, f"{rel} job {job_id}", problems, set())
-            except cts.Unreadable as err:
-                raise Unreadable(str(err)) from err
+        for label, event, prefix in scenarios(doc):
+            SCENARIO[0] = label
+            scope = off_main(event, prefix) if prefix else contextlib.nullcontext()
+            # A run started by hand has inputs nobody fixes; other runs have none.
+            inputs = None if event == "workflow_dispatch" else {}
+            with scope:
+                try:
+                    walk_jobs(root, rel, doc, inputs, rel, problems, (rel,))
+                except cts.Unreadable as err:
+                    raise Unreadable(f"{err} (on {label})") from err
     return problems
+
+
+# The kind of run being checked, for the messages walk_steps writes.
+SCENARIO = ["a pull request"]
 
 
 def main() -> int:
@@ -193,13 +371,15 @@ def main() -> int:
         print(f"check-ci-caches: cannot read {err}", file=sys.stderr)
         return 2
     if problems:
-        print("check-ci-caches: a step a pull request runs saves an Actions cache\n")
+        print("check-ci-caches: a step that runs off main saves an Actions cache\n")
         for p in problems:
             print("  " + p)
-        print("\nRestore on a pull request and save on main: actions/cache/restore with\n"
-              "`if: github.event_name == 'pull_request'` beside actions/cache with the\n"
-              "opposite condition, or the action's own switch (setup-go `cache: false`,\n"
-              "setup-vp `cache-save: ${{ github.event_name != 'pull_request' }}`).")
+        print("\nSave only on main: actions/cache/restore with\n"
+              "`if: github.ref != 'refs/heads/main'` beside actions/cache with\n"
+              "`if: github.ref == 'refs/heads/main'`, or the action's own switch\n"
+              "(setup-go `cache: ${{ github.ref == 'refs/heads/main' }}`, setup-vp\n"
+              "`cache-save: ${{ github.ref == 'refs/heads/main' }}`). A release\n"
+              "workflow runs on tags, so it restores and saves nothing.")
         return 1
     print("check-ci-caches: OK")
     return 0
@@ -207,7 +387,10 @@ def main() -> int:
 
 FIXTURE_WORKFLOW = """\
 name: CI
-on: [pull_request, push]
+on:
+  pull_request:
+  push:
+    branches: [main]
 jobs:
   a:
     runs-on: ubuntu-latest
@@ -237,6 +420,123 @@ jobs:
         uses: actions/setup-go@v7
         with:
           cache: ${{ inputs.x == github.ref_name }}
+"""
+
+FIXTURE_DISPATCH = """\
+name: E2E
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: saves on any branch
+        uses: actions/cache@v6
+      - name: saves on main only
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache@v6
+      - name: restore only
+        uses: actions/cache/restore@v6
+      - name: cache-to on any branch
+        uses: docker/build-push-action@v7
+        with:
+          cache-to: type=gha,mode=max
+      - name: cache-to on main
+        uses: docker/build-push-action@v7
+        with:
+          cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max' || '' }}
+      - name: saves when a dispatch input asks
+        if: inputs.save == 'yes'
+        uses: actions/cache@v6
+  only-on-push:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: push-only job
+        uses: actions/cache@v6
+  calls:
+    uses: ./.github/workflows/_called.yml
+    with:
+      save: "no"
+"""
+
+FIXTURE_CALLED = """\
+name: Called
+on:
+  workflow_call:
+    inputs:
+      save:
+        type: string
+        default: "yes"
+jobs:
+  inner:
+    runs-on: ubuntu-latest
+    steps:
+      - name: callee saves always
+        uses: actions/cache@v6
+      - name: callee saves when its input asks
+        if: inputs.save == 'yes'
+        uses: actions/cache@v6
+"""
+
+FIXTURE_PUSH = """\
+name: Release
+on:
+  push:
+    branches: [main, "release/**"]
+    tags: ["v*"]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: saves on any ref
+        uses: actions/cache@v6
+      - name: saves on a tag
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/cache@v6
+      - name: saves on a branch
+        if: github.ref_type == 'branch'
+        uses: actions/cache@v6
+      - name: saves on one release branch
+        if: github.ref == 'refs/heads/release/1'
+        uses: actions/cache@v6
+      - name: saves on main only
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache@v6
+      - name: msys2 on main only
+        uses: msys2/setup-msys2@v2
+        with:
+          cache: ${{ github.ref == 'refs/heads/main' }}
+      - name: setup-go on main only
+        uses: actions/setup-go@v7
+        with:
+          cache: ${{ github.ref == 'refs/heads/main' }}
+"""
+
+FIXTURE_TAGS_ONLY = """\
+name: Plugin release
+on:
+  push:
+    tags: ["sat-v*"]
+  release:
+    types: [published]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: tag-only save
+        uses: actions/cache@v6
+"""
+
+FIXTURE_UNDECIDED = """\
+  undecided:
+    runs-on: ubuntu-latest
+    steps:
+      - name: release branch
+        if: github.ref == 'refs/heads/release'
+        uses: actions/cache@v6
 """
 
 FIXTURE_ACTION = """\
@@ -277,6 +577,55 @@ def self_test() -> int:
         except Unreadable as err:
             if "undecided" not in str(err):
                 failures.append(f"the undecided input was not named: {err}")
+    with tempfile.TemporaryDirectory() as root:
+        os.makedirs(os.path.join(root, ".github", "workflows"))
+        with open(os.path.join(root, ".github", "workflows", "e2e.yml"), "w") as fh:
+            fh.write(FIXTURE_DISPATCH)
+        with open(os.path.join(root, ".github", "workflows", "_called.yml"), "w") as fh:
+            fh.write(FIXTURE_CALLED)
+        problems = check(root)
+        if not any("saves on any branch" in p and "by hand on a branch" in p for p in problems):
+            failures.append(f"a save on a dispatched branch run must be reported; got {problems}")
+        for quiet in ("saves on main only", "push-only job", "restore only", "callee saves when its input asks"):
+            if any(quiet in p for p in problems):
+                failures.append(f"{quiet!r} saves nothing off main; got {problems}")
+        if not any("cache-to on any branch" in p for p in problems):
+            failures.append(f"a BuildKit gha cache-to on a branch run must be reported; got {problems}")
+        if not any("saves when a dispatch input asks" in p for p in problems):
+            failures.append(f"a dispatch input is unknown, so a save behind one must be reported; got {problems}")
+        if not any("job calls > .github/workflows/_called.yml job inner step callee saves always" in p
+                   and "by hand on a branch" in p for p in problems):
+            failures.append(f"a save in a called workflow must be reported on the caller's run; got {problems}")
+        with open(os.path.join(root, ".github", "workflows", "e2e.yml"), "w") as fh:
+            fh.write(FIXTURE_DISPATCH + FIXTURE_UNDECIDED)
+        problems = check(root)
+        if not any("release branch" in p for p in problems):
+            failures.append(f"a save behind another branch's ref may run on this one and must be reported; got {problems}")
+    with tempfile.TemporaryDirectory() as root:
+        os.makedirs(os.path.join(root, ".github", "workflows"))
+        with open(os.path.join(root, ".github", "workflows", "release.yml"), "w") as fh:
+            fh.write(FIXTURE_PUSH)
+        problems = check(root)
+        tag, branch = "a push of a tag", "a push to a branch"
+        expect = {
+            ("saves on any ref", tag): True, ("saves on any ref", branch): True,
+            ("saves on a tag", tag): True, ("saves on a tag", branch): False,
+            ("saves on a branch", tag): False, ("saves on a branch", branch): True,
+            ("saves on one release branch", tag): False, ("saves on one release branch", branch): True,
+            ("saves on main only", tag): False, ("saves on main only", branch): False,
+            ("msys2 on main only", tag): False, ("msys2 on main only", branch): False,
+            ("setup-go on main only", tag): False, ("setup-go on main only", branch): False,
+        }
+        for (step, run), want in expect.items():
+            got = any(f"step {step}:" in p and p.endswith(run) for p in problems)
+            if got != want:
+                failures.append(f"{step!r} on {run}: expected {'a report' if want else 'none'}; got {problems}")
+        with open(os.path.join(root, ".github", "workflows", "release.yml"), "w") as fh:
+            fh.write(FIXTURE_TAGS_ONLY)
+        problems = check(root)
+        runs = sorted(p.rsplit(" on ", 1)[1] for p in problems)
+        if runs != ["a push of a tag", "a release"]:
+            failures.append(f"a tag-only push and a release run on tags, never on a branch; got {problems}")
     if failures:
         print("check-ci-caches self-test: FAIL")
         for f in failures:

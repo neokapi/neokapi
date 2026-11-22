@@ -309,7 +309,7 @@ check-go-trimpath: ## Guard: every Go command in make, scripts and CI builds wit
 	@python3 ./scripts/check-go-trimpath.py --self-test
 	@python3 ./scripts/check-go-trimpath.py
 
-check-ci-caches: ## Guard: no step a pull request runs saves an Actions cache
+check-ci-caches: ## Guard: only a run on main saves an Actions cache
 	@python3 ./scripts/check-ci-caches.py --self-test
 	@python3 ./scripts/check-ci-caches.py
 	@python3 ./scripts/ci-cache-budget.py --self-test

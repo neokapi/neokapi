@@ -24,14 +24,14 @@ inputs:
     default: race
   save-cache:
     description: >
-      Whether the job saves the caches it restored: "true", "false", or "auto",
-      which saves on every event except pull_request. A pull request can read a
-      cache saved on main or on its own branch and no other, so a cache a pull
-      request saves serves only its own later pushes while counting against the
-      repository's 10 GiB, where it evicts the caches on main that every pull
-      request reads. Pass "false" from a job that reads a flavor another job
-      owns: every job of a run writes the same key, and the first to finish
-      wins.
+      Whether the job saves the caches it restored: "auto" or "true", which
+      save on a run on main and nowhere else, or "false". A run can read a
+      cache saved on main or on its own ref and no other, so a cache saved on
+      a pull request, a branch or a tag serves only that ref while counting
+      against the repository's 10 GiB, where it evicts the caches on main that
+      every pull request reads. Pass "false" from a job that reads a flavor
+      another job owns: every job of a run writes the same key, and the first
+      to finish wins.
     required: false
     default: auto
   modules:
@@ -96,15 +96,15 @@ runs:
       shell: bash
       env:
         REQUESTED: ${{ inputs.save-cache }}
-        EVENT: ${{ github.event_name }}
+        REF: ${{ github.ref }}
       run: |
         case "$REQUESTED" in
-          true | false) echo "value=$REQUESTED" >> "$GITHUB_OUTPUT" ;;
-          auto)
-            if [ "$EVENT" = "pull_request" ]; then
-              echo "value=false" >> "$GITHUB_OUTPUT"
-            else
+          false) echo "value=false" >> "$GITHUB_OUTPUT" ;;
+          true | auto)
+            if [ "$REF" = "refs/heads/main" ]; then
               echo "value=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "value=false" >> "$GITHUB_OUTPUT"
             fi
             ;;
           *)
@@ -114,7 +114,7 @@ runs:
         esac
 
     - name: Restore and save module download cache (flavor-independent)
-      if: inputs.save-cache == 'true' || (inputs.save-cache == 'auto' && github.event_name != 'pull_request')
+      if: github.ref == 'refs/heads/main' && inputs.save-cache != 'false'
       uses: actions/cache@v6
       with:
         path: ${{ steps.gocache.outputs.mod }}
@@ -123,7 +123,7 @@ runs:
           go-mod-${{ runner.os }}-
 
     - name: Restore module download cache
-      if: inputs.save-cache == 'false' || (inputs.save-cache == 'auto' && github.event_name == 'pull_request')
+      if: github.ref != 'refs/heads/main' || inputs.save-cache == 'false'
       uses: actions/cache/restore@v6
       with:
         path: ${{ steps.gocache.outputs.mod }}
@@ -132,7 +132,7 @@ runs:
           go-mod-${{ runner.os }}-
 
     - name: Restore and save build cache (flavor-scoped)
-      if: inputs.save-cache == 'true' || (inputs.save-cache == 'auto' && github.event_name != 'pull_request')
+      if: github.ref == 'refs/heads/main' && inputs.save-cache != 'false'
       uses: actions/cache@v6
       with:
         path: ${{ steps.gocache.outputs.build }}
@@ -143,7 +143,7 @@ runs:
           go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-trimpath-
 
     - name: Restore build cache
-      if: inputs.save-cache == 'false' || (inputs.save-cache == 'auto' && github.event_name == 'pull_request')
+      if: github.ref != 'refs/heads/main' || inputs.save-cache == 'false'
       uses: actions/cache/restore@v6
       with:
         path: ${{ steps.gocache.outputs.build }}
@@ -158,7 +158,7 @@ runs:
     # used the entry in a day. Those are dropped before this job starts;
     # whatever this job uses it compiles or restamps, and the save keeps.
     - name: Drop build cache entries unused for a day
-      if: inputs.save-cache == 'true' || (inputs.save-cache == 'auto' && github.event_name != 'pull_request')
+      if: github.ref == 'refs/heads/main' && inputs.save-cache != 'false'
       shell: bash
       env:
         GOCACHE_DIR: ${{ steps.gocache.outputs.build }}

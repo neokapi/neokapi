@@ -55,9 +55,20 @@ jobs:
         run: echo "dir=$(go env GOCACHE)/fuzz" >> "$GITHUB_OUTPUT"
 
       # The corpus Go grows under $GOCACHE/fuzz, so a night starts from the
-      # inputs earlier nights found. Keyed by run, so every night saves the
-      # corpus it grew; the prefix restores the latest one for this shard.
+      # inputs earlier nights found. Keyed by run, so every night on main
+      # saves the corpus it grew; the prefix restores the latest one for this
+      # shard. A run on another branch restores it and saves nothing.
       - name: Restore the fuzz corpus
+        if: github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ steps.fuzzcache.outputs.dir }}
+          key: go-fuzz-corpus-${{ runner.os }}-shard${{ matrix.shard }}of4-${{ github.run_id }}
+          restore-keys: |
+            go-fuzz-corpus-${{ runner.os }}-shard${{ matrix.shard }}of4-
+
+      - name: Restore and save the fuzz corpus
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache@v6
         with:
           path: ${{ steps.fuzzcache.outputs.dir }}

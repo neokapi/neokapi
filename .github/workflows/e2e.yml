@@ -122,16 +122,16 @@ jobs:
       # Bindings are committed and already patched (sed fix for $0. bug).
       # Do NOT regenerate with wails3 — it would overwrite the fixed files.
 
-      # The nightly run on main saves the browsers; a pull request restores.
+      # A run on main saves the browsers; any other ref restores them.
       - name: Restore Playwright browsers
-        if: github.event_name == 'pull_request'
+        if: github.ref != 'refs/heads/main'
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Cache Playwright browsers
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
@@ -265,7 +265,8 @@ jobs:
             ghcr.io/neokapi/bowrain-keycloak:${{ steps.meta.outputs.tag }}
             ghcr.io/neokapi/bowrain-keycloak:e2e
           cache-from: type=gha,scope=bowrain-keycloak
-          cache-to: type=gha,mode=max,scope=bowrain-keycloak
+          # Only a run on main saves the layer cache; any other ref reads it.
+          cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max,scope=bowrain-keycloak' || '' }}
 
   # ── Bowrain server Docker stack E2E ────────────────────────────────────────
   # Rehabilitated (#867) and BLOCKING: the async bowrain-worker (+redis) now
@@ -328,8 +329,16 @@ jobs:
         run: go test -tags "fts5,e2e" -count=1 -v -run 'TestRevisionE2E' ./venue/source/
         timeout-minutes: 5
 
+      # A run on main saves the browsers; any other ref restores them.
+      - name: Restore Playwright browsers
+        if: ${{ !cancelled() && steps.stack.outcome == 'success' && github.ref != 'refs/heads/main' }}
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Cache Playwright browsers
-        if: ${{ !cancelled() && steps.stack.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.stack.outcome == 'success' && github.ref == 'refs/heads/main' }}
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright

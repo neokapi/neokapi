@@ -95,6 +95,9 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
+          # A tag run saves no cache: one saved there serves only that tag,
+          # and setup-go has no restore-only mode.
+          cache: false
 
       - name: Compute build metadata
         id: meta
@@ -116,9 +119,10 @@ jobs:
       # macOS and Linux build ICU from source with the trimmed data set
       # (scripts/icu-data-filter.json); see the matching comment in
       # release.yml's build-cli job. Cached on the filter + script hash.
-      - name: Cache static ICU
+      # Restores what a run on main saved; a tag run saves nothing.
+      - name: Restore static ICU
         if: matrix.target.goos != 'windows'
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ~/icu-static
           key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
@@ -179,6 +183,8 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: ${{ matrix.target.msystem }}
+          # A tag run saves no cache.
+          cache: false
           path-type: inherit
           install: >-
             mingw-w64-${{ matrix.target.mtriple }}-${{ matrix.target.cc }}
@@ -235,6 +241,9 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
+          # A tag run saves no cache: one saved there serves only that tag,
+          # and setup-go has no restore-only mode.
+          cache: false
 
       # Release gate: shared UI must type-check + pass unit tests.
       - uses: ./.github/actions/setup-node-ui
@@ -485,7 +494,7 @@ jobs:
             COMMIT=${{ steps.version.outputs.COMMIT }}
             BUILD_DATE=${{ steps.version.outputs.BUILD_DATE }}
           cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.arch }}
+          # A tag run saves no layer cache: one saved there serves only that tag.
 
   docker-manifest:
     name: Docker Manifests
@@ -579,7 +588,7 @@ jobs:
             ghcr.io/neokapi/bowrain-keycloak:${{ github.sha }}
             ghcr.io/neokapi/bowrain-keycloak:latest
           cache-from: type=gha,scope=bowrain-keycloak
-          cache-to: type=gha,mode=max,scope=bowrain-keycloak
+          # A tag run saves no layer cache: one saved there serves only that tag.
 
   build-bowrain:
     name: Build Bowrain (${{ matrix.build.platform }})
@@ -604,6 +613,9 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
+          # A tag run saves no cache: one saved there serves only that tag,
+          # and setup-go has no restore-only mode.
+          cache: false
 
       - uses: ./.github/actions/setup-node-ui
 
@@ -624,9 +636,10 @@ jobs:
       # (scripts/icu-data-filter.json), same as the CLI jobs; see the
       # provisioning comment in release.yml's build-cli job. Cached on the
       # filter + script hash.
-      - name: Cache static ICU
+      # Restores what a run on main saved; a tag run saves nothing.
+      - name: Restore static ICU
         if: runner.os != 'Windows'
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ~/icu-static
           key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
@@ -674,6 +687,8 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: ${{ matrix.build.msystem }}
+          # A tag run saves no cache.
+          cache: false
           path-type: inherit
           install: >-
             mingw-w64-${{ matrix.build.mtriple }}-${{ matrix.build.cc }}

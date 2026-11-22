@@ -102,8 +102,10 @@ gh pr view <n> --json state,mergeStateStatus,autoMergeRequest   # MERGED, or wha
 
 The repository may keep 10 GiB of Actions caches. `scripts/ci-cache-budget.py`
 deletes superseded copies after each main run and fails the daily Cache Budget
-run past 9 GiB; `scripts/check-ci-caches.py` fails a pull request step that can
-save a cache. Before adding a cache family, measure it and add it to this
+run past 9 GiB; `scripts/check-ci-caches.py` fails a step that can save a cache
+on any ref other than main: a pull request, a run started by hand on a branch,
+a tag. A cache step there restores; one on main saves. Release workflows run on
+tags, so they restore and save nothing. Before adding a cache family, measure it and add it to this
 table. A main-only job that saves a large family saves it with
 `actions/cache/save` and prunes in the next step, so the old and new copies
 overlap for seconds.

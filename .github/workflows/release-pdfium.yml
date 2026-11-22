@@ -201,6 +201,9 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: stable
+          # A tag run saves no cache: one saved there serves only that tag,
+          # and setup-go has no restore-only mode.
+          cache: false
 
       - name: Download checksum artifacts
         uses: actions/download-artifact@v8
