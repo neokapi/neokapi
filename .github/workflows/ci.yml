@@ -1571,7 +1571,6 @@ jobs:
       - warm-pr-cache
       - tidy-check
       - module-boundaries
-      - build
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
