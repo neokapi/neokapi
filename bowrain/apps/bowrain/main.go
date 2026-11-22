@@ -137,9 +137,9 @@ func main() {
 		go appService.LoadPlugins()
 	})
 
-	// The first SIGTERM or SIGINT asks like any quit; Wails v3.1.0 stops
-	// listening after it, so the second one ends the process here.
-	desktopclose.ExitOnSecondSignal(os.Exit)
+	// A SIGTERM or SIGINT asks like any quit; a second one while that quit
+	// is held ends the process. Wails v3.1.0 stops listening after the first.
+	backend.ExitOnSecondSignal(appService, app.Quit, os.Exit)
 
 	if err := app.Run(); err != nil {
 		slog.Error("bowrain: fatal error", "error", err)
