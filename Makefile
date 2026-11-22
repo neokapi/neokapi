@@ -482,7 +482,7 @@ test-host-oneconn: i18n-catalogs ## Run the host suite natively with every pool 
 # conformance suite and its JSON entry points, which record each edit in the
 # workspace log on the browser's SQLite, and the browser engine's own tests:
 # the order its commands, change calls and resets take turns in.
-CHANGE_WASM_PKGS := ./core/change/... ./core/storage/filelock/
+CHANGE_WASM_PKGS := ./core/change/... ./core/storage/filelock/ ./core/rootpath/
 CHANGE_WASM_HOST_TESTS := ^(TestChangeService_Conformance|TestChangesJSON_)
 
 test-wasm-stores: i18n-catalogs ## Run the store suites and the change service's conformance suites under GOOS=js in Node over the browser's SQLite driver

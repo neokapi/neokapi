@@ -121,14 +121,15 @@ func CheckRegular(root, p string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// Contain resolved every link where the platform resolves them, so the
-	// resolved path is judged as it is. Where Contain is lexical (Supported is
-	// false) the path may still be a link, and the file it names is judged.
-	stat := os.Lstat
 	if !Supported {
-		stat = os.Stat
+		// Contain was lexical, so real may still be a link (Node's file system,
+		// which the js/wasm tests run over, holds them). Resolve it and judge
+		// where it leads, as Contain does where links are resolved.
+		if real, err = resolveWithin(root, p, real); err != nil {
+			return "", err
+		}
 	}
-	info, err := stat(real)
+	info, err := os.Lstat(real)
 	if err != nil {
 		return "", err
 	}
@@ -136,6 +137,26 @@ func CheckRegular(root, p string) (string, error) {
 		return "", fmt.Errorf("%s: %w", relativeTo(root, p), ErrNotRegular)
 	}
 	return real, nil
+}
+
+// resolveWithin resolves every link on real and returns the result when it
+// lies under root, resolved the same way, and an *EscapeError naming p when it
+// does not. It stands in for Contain's resolution where Contain is lexical.
+func resolveWithin(root, p, real string) (string, error) {
+	resolved, err := filepath.EvalSymlinks(real)
+	if err != nil {
+		return "", err
+	}
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", err
+	}
+	rel, err := filepath.Rel(realRoot, resolved)
+	if err != nil || !filepath.IsLocal(rel) {
+		name := relativeTo(root, p)
+		return "", &EscapeError{Path: name, Link: name}
+	}
+	return resolved, nil
 }
 
 // OpenRegular opens p for reading when it is a regular file inside root. The
