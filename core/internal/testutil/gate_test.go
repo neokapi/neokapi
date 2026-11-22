@@ -91,7 +91,8 @@ func TestSamplePeakCountsWhatTheReaderKeeps(t *testing.T) {
 func TestSamplePeakIgnoresWhatAPoolHeldBeforeTheRun(t *testing.T) {
 	var pool sync.Pool
 	for range 8 {
-		pool.Put(make([]byte, 128<<10))
+		b := make([]byte, 128<<10)
+		pool.Put(&b)
 	}
 	line := strings.Repeat("x", 1023) + "\n"
 	doc := strings.Repeat(line, 1024)

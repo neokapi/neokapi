@@ -102,7 +102,7 @@ func runPlainRoundTripPeak(t *testing.T, inPath, outPath string, size int) uint6
 	}
 	require.True(t, store.IsStreaming(), "the runner streams the round trip")
 	gate := <-gates
-	peak := testutil.SamplePeakStops(gate, int64(size), 256, store, done)
+	peak := testutil.SamplePeakStops(gate, int64(size), 64, store, done)
 	<-done
 	require.NoError(t, runErr, "round-trip")
 	return peak

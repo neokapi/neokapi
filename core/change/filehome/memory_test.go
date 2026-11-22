@@ -102,7 +102,7 @@ func assertLargeEditBounded(t *testing.T, key, text, want string, ceiling uint64
 		defer close(sampled)
 		for st := range streams {
 			passes++
-			peak = max(peak, testutil.SamplePeakStops(st.gate, size, 256, st.store, st.done))
+			peak = max(peak, testutil.SamplePeakStops(st.gate, size, 64, st.store, st.done))
 		}
 	}()
 	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{{
