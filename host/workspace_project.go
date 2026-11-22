@@ -21,8 +21,8 @@ import (
 	"github.com/neokapi/neokapi/terms/ktb"
 )
 
-// RunPack snapshots a .kapi project's working state — block-store overlays
-// (and any blocks), the authoritative content memory, and the terms store — into a
+// RunPack snapshots a .kapi project's working state (block-store overlays and
+// any blocks, the authoritative content memory, and the terms store) into a
 // portable .kpz. Regenerable caches and secrets are excluded (AD-025 §4).
 func (a *App) RunPack(cmd Command) error {
 	projectPath, err := RequireProjectPath(cmd)
@@ -45,12 +45,12 @@ func (a *App) RunPack(cmd Command) error {
 	withSource, _ := cmd.Flags().GetBool("with-source")
 	pkg := &kpz.Package{Kind: kpz.KindProject, Generator: &kpz.GeneratorInfo{ID: "kapi"}}
 
-	// Full project recipe — the one source of truth for intent (AD-025 §6).
+	// Full project recipe: the one source of truth for intent (AD-025 §6).
 	// Everything side-effecting is stripped so the recipe travels inert (see
 	// kpz.SanitizeRecipe); secrets never live in a recipe (keychain). The same
-	// sweep runs again on ingest, since this side only binds honest packers —
-	// but running it here is what tells the AUTHOR which parts of their own
-	// recipe a hand-off cannot carry.
+	// sweep runs again on ingest, since this side only binds honest packers.
+	// Running it here tells the AUTHOR which parts of their own recipe a
+	// hand-off cannot carry.
 	if recipe, lerr := project.Load(projectPath); lerr == nil {
 		sanitized, removed := kpz.SanitizeRecipe(recipe)
 		pkg.Recipe = sanitized
@@ -70,9 +70,9 @@ func (a *App) RunPack(cmd Command) error {
 
 	// The three stores a snapshot carries all live in the one project store now,
 	// so each part is gated on that subsystem holding ROWS rather than on a file
-	// existing. The schemas exist from the store's first open, which is why file
-	// presence stopped distinguishing "has a content memory" from "has a state
-	// directory" — a stat would have packed an empty part for every project.
+	// existing. The schemas exist from the store's first open, so file presence
+	// does not distinguish "has a content memory" from "has a state directory",
+	// and a stat would pack an empty part for every project.
 	db, err := a.ProjectDB(ctx, layout.Root)
 	if err != nil {
 		return fmt.Errorf("open project store: %w", err)
@@ -120,7 +120,7 @@ func (a *App) RunPack(cmd Command) error {
 	}
 
 	// Opt-in tamper-evident provenance: a hash-chained line recording this
-	// pack. Advisory and content-subordinate — excluded from the package
+	// pack. Advisory and content-subordinate: excluded from the package
 	// rootHash, never read to decide anything, safe to delete (AD-025 §5).
 	if logIt, _ := cmd.Flags().GetBool("log"); logIt {
 		pkg.History = kpz.AppendHistory(pkg.History, kpz.HistoryEvent{
@@ -130,7 +130,7 @@ func (a *App) RunPack(cmd Command) error {
 		})
 	}
 
-	// Refuse to write a content-less snapshot — the way `git bundle` refuses an
+	// Refuse to write a content-less snapshot, the way `git bundle` refuses an
 	// empty bundle. A project with no extracted content, content memory, or terminology has
 	// nothing worth packing; its intent is the .kapi recipe, which is shared via
 	// git, not a .kpz.
@@ -217,9 +217,9 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 	// reconstitutes one, since a project snapshot carries the full recipe
 	// (AD-025 §6) and can rebuild a complete project in a file.
 	//
-	// Either way the layout that comes back names a recipe that exists on disk
-	// — project.LayoutFor stats it — so there is no later branch where unpack
-	// might still have to write one.
+	// Either way the layout that comes back names a recipe that exists on disk,
+	// because project.LayoutFor stats it, so there is no later branch where
+	// unpack might still have to write one.
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil {
 		return err
@@ -237,7 +237,7 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 		return err
 	}
 	// Verify the advisory provenance chain if present. It is advisory, so a
-	// broken chain warns rather than blocks — the content is what matters.
+	// broken chain warns rather than blocks: the content is what matters.
 	if len(pkg.History) > 0 {
 		if verr := kpz.VerifyHistory(pkg.History); verr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: snapshot provenance log is broken: %v\n", verr)
@@ -295,8 +295,8 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 
 	// Restore raw source bytes when the snapshot carries them. `pack
 	// --with-source` embeds them precisely so the recipient can *re-extract*
-	// (AD-025 §6), which needs the file on disk — packing bytes that unpack
-	// dropped made the flag a one-way trip. An existing file is left alone: the
+	// (AD-025 §6), which needs the file on disk. Bytes that unpack dropped
+	// would make the flag a one-way trip. An existing file is left alone: the
 	// working tree is authoritative wherever it already has an answer, the same
 	// rule the recipe follows above.
 	if err := restoreSources(pkg, layout.Root); err != nil {
@@ -334,15 +334,14 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 // recipient who has none in scope. AD-025 §6 calls a .kpz a project in a file
 // and says unpack reconstitutes a complete kapi.yaml; this is the half that
 // makes that true, and it is the only path on which unpack writes a recipe at
-// all. (Until #1537's follow-up it was unreachable: the path was computed and
-// handed straight to project.LayoutFor, which stats the recipe and failed,
-// so `kapi unpack` outside a project always died on a missing-file error and
-// the adoption prompt guarding it never ran.)
+// all. It writes the recipe before it calls project.LayoutFor, which stats
+// the recipe and fails on a missing file. Called first, LayoutFor would end
+// `kapi unpack` outside a project before the adoption prompt runs.
 //
 // Writing that recipe is the moment the package stops being data and starts
 // being intent, so it is the moment there is something to ask about.
-// LoadWorkspace has already made the recipe inert — exec-class steps and
-// non-local paths are gone — and the question that remains is whether this
+// LoadWorkspace has already made the recipe inert (exec-class steps and
+// non-local paths are gone), and the question that remains is whether this
 // directory becomes a project someone else designed.
 func (a *App) reconstituteProject(cmd Command, snapshotPath string, pkg *kpz.Package) (project.Layout, error) {
 	base := filepath.Base(snapshotPath)
@@ -383,7 +382,7 @@ func (a *App) reconstituteProject(cmd Command, snapshotPath string, pkg *kpz.Pac
 // directory's project recipe. --yes adopts; an interactive terminal is asked;
 // anything else declines and says how to adopt deliberately.
 //
-// Declining is not a failure in itself — it withholds only the intent, which is
+// Declining is not a failure in itself. It withholds only the intent, which is
 // the part that makes later runs execute steps someone else wrote. Whether the
 // unpack can continue afterwards is the caller's question: today the only
 // caller is reconstituteProject, where a declined recipe leaves no project for
@@ -414,7 +413,7 @@ func (a *App) confirmAdoptRecipe(cmd Command, snapshotPath string) (bool, error)
 //
 // A file already present is kept: unpack restores state, and the working tree is
 // the authority on its own sources. A member whose logical path escapes the
-// project root is refused rather than skipped — an archive from elsewhere must
+// project root is refused rather than skipped: an archive from elsewhere must
 // not be able to write outside the directory it was unpacked into.
 func restoreSources(pkg *kpz.Package, root string) error {
 	if len(pkg.Source) == 0 {
@@ -450,7 +449,7 @@ func restoreSources(pkg *kpz.Package, root string) error {
 // snapshot's base name) holding the kapi.yaml recipe.
 //
 // The recipe's name is package-controlled, so it is accepted only as a single
-// directory segment — a name carrying a separator or ".." would place the
+// directory segment. A name carrying a separator or ".." would place the
 // reconstituted project (and the block store, content memory and terms that
 // follow it) outside the directory the snapshot was unpacked in. It falls back
 // to the snapshot's own base name rather than failing: the folder is a
