@@ -1,8 +1,8 @@
 // Package audio reads audio files as localizable content: when an ASR engine is
 // available (the kapi-asr plugin), it transcribes the speech into timing-anchored
-// Blocks (AD-030); otherwise the audio is emitted as a Media asset. Like the
-// image reader + vision, transcription is PATH-based — the engine opens the file
-// itself, so the audio bytes never travel through the part stream.
+// Blocks (AD-030). The audio is emitted as a Media asset either way. Like the
+// image reader with vision, transcription is path-based: the engine opens the
+// file itself, so the audio bytes never travel through the part stream.
 package audio
 
 import (
