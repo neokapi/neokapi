@@ -20,6 +20,11 @@ import (
 // by the OS package manager and must not be removed by kapi.
 const systemSourceOrder = 3
 
+// UserSourceOrder is the Source.Order of the user plugin root
+// ($XDG_DATA_HOME/kapi/plugins), the root `kapi plugin install` writes to
+// when no $KAPI_PLUGINS_DIR is set.
+const UserSourceOrder = 2
+
 // Source identifies which discovery root a plugin came from. Lower
 // numeric values win on conflict (KAPI_PLUGINS_DIR > XDG > system).
 type Source struct {

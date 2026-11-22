@@ -15,7 +15,7 @@ import (
 )
 
 // TestRunUp_EmbeddedConverge: the exported RunUp drives the same engine as
-// `kapi up` — auto-extract on drift, loop to the gate, materialized targets —
+// `kapi up` (auto-extract on drift, loop to the gate, materialized targets)
 // and returns the structured result, streaming the convergence.Event
 // protocol instead of printing.
 func TestRunUp_EmbeddedConverge(t *testing.T) {
@@ -43,6 +43,8 @@ func TestRunUp_EmbeddedConverge(t *testing.T) {
 	// one pass and the presence baseline meets translated:100.
 	assert.True(t, out.Converged)
 	assert.Equal(t, 1, out.Passes)
+	require.NotNil(t, out.Produced, "the embedded result reports what the run wrote")
+	assert.Equal(t, 2, *out.Produced)
 	require.Len(t, out.Locales, 1)
 	assert.Equal(t, "nb-NO", out.Locales[0].Locale)
 	assert.True(t, out.Locales[0].Shippable)
@@ -70,7 +72,7 @@ func TestRunUp_EmbeddedConverge(t *testing.T) {
 }
 
 // TestRunUp_ParksUnreachableGate: a gate the flow cannot satisfy parks with
-// per-scope detail — and is a result, never an error.
+// per-scope detail, and is a result, never an error.
 func TestRunUp_ParksUnreachableGate(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"established": {Pct: 100}})

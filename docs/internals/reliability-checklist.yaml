@@ -1064,6 +1064,39 @@ items:
       golangci-lint version gate, new gosec rules and non-deterministic Wails
       bindings.
 
+  - id: plugin-contract-both-directions
+    title: A change to what kapi requires of a plugin is checked against the released binaries
+    owner_surface: release
+    trigger:
+      paths:
+        - 'host/pluginhost/**/*.go'
+        - 'core/plugin/manifest/**/*.go'
+        - 'core/plugin/proto/**'
+        - '**/manifest.json'
+        - 'host/upvenue.go'
+      exclude:
+        - '**/*_test.go'
+        - '**/testdata/**'
+    check: >-
+      kapi and its plugins are released and installed separately (independent
+      tags; a Homebrew plugin formula bound to no kapi version; a CI plugin
+      cache keyed on the plugin list alone), so a person can hold a new kapi
+      with an old plugin or the reverse. Run both directions on real binaries:
+      this branch's kapi with the released plugin, and the released kapi with
+      a plugin built from this branch (copy the released plugin into a scratch
+      KAPI_PLUGINS_DIR; never modify the installed one). When the change makes
+      kapi refuse an older plugin, the pull request says so in its first line
+      and states the release order: the plugin ships first or in the same
+      coordinated release (`make release-coordinated`), never after kapi.
+    incident: >-
+      PR #3724 (2026-11-22) made the kapi-bowrain manifest the list of flags a
+      server run reads. The released 1.4.0-rc5 plugin declares none, so the
+      first version of the change refused every flag on a server run, -p
+      included; review found it with the released plugin before merge, and
+      it would have broken `kapi up -p` in CI (kapi-action passes -p). The
+      merged version refuses an older plugin with its update command, which
+      works only once the plugin release that declares the flags is published.
+
   # ── Docs ─────────────────────────────────────────────────────────────────
 
   - id: cdn-object-headers
