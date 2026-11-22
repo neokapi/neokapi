@@ -15,6 +15,7 @@ import { CaughtUpCard, NextUpCard } from "../../../components/home/NextUpCard";
 import { EmptyState, SectionHeader, SkeletonCards } from "../../../components/home/parts";
 import { useAuth } from "../../../lib/auth";
 import { homeStep, summarize, useReviewHome, type HomeStep } from "../../../lib/home";
+import { usePullRefresh } from "../../../lib/pullRefresh";
 import { useRecentProject } from "../../../lib/recentProject";
 import { openContext, openDeck, openSetup, openStep } from "../../../lib/reviewNav";
 
@@ -59,6 +60,8 @@ export default function Workspaces() {
     }, [refetchInbox]),
   );
 
+  const pull = usePullRefresh(() => Promise.all([workspaces.refetch(), refetchInbox()]));
+
   const summary = useMemo(() => summarize(inbox.data), [inbox.data]);
   const next = useMemo(() => homeStep(inbox.data, recent), [inbox.data, recent]);
   const showWorkspace = (workspaces.data?.length ?? 0) > 1;
@@ -94,7 +97,11 @@ export default function Workspaces() {
     hero = <CaughtUpCard />;
   }
 
-  const hasWorkspaces = (workspaces.data?.length ?? 0) > 0;
+  // The screen draws its cards once, when both queries have answered their
+  // first request, so the next step never arrives above the workspaces and
+  // pushes them down.
+  const settling = workspaces.isPending || inbox.isPending;
+  const hasWorkspaces = !settling && (workspaces.data?.length ?? 0) > 0;
 
   return (
     <View collapsable={false} className="bg-background flex-1">
@@ -102,22 +109,19 @@ export default function Workspaces() {
         testID="workspace-list"
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="pb-8"
-        data={workspaces.data ?? []}
+        data={settling ? [] : (workspaces.data ?? [])}
         keyExtractor={(w) => w.id}
         renderItem={renderItem}
-        refreshing={workspaces.isRefetching || inbox.isRefetching}
-        onRefresh={() => {
-          void workspaces.refetch();
-          void refetchInbox();
-        }}
+        refreshing={pull.refreshing}
+        onRefresh={pull.onRefresh}
         ListHeaderComponent={
           <View className="pt-2">
-            {inbox.isPending && workspaces.isPending ? null : hero}
+            {settling ? null : hero}
             {hasWorkspaces ? <SectionHeader title={t("home.workspacesHeader")} /> : null}
           </View>
         }
         ListEmptyComponent={
-          workspaces.isPending ? (
+          settling ? (
             <SkeletonCards testID="workspaces-loading" />
           ) : workspaces.isSuccess ? (
             <EmptyState icon="business-outline" title={t("workspaces.empty")} />

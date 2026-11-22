@@ -19,6 +19,7 @@ import { EmptyState, SkeletonCards } from "../../../components/home/parts";
 import { PlanCard } from "../../../components/home/PlanCard";
 import { QueryState } from "../../../components/List";
 import { useReviewHome } from "../../../lib/home";
+import { usePullRefresh } from "../../../lib/pullRefresh";
 import { languageLabel } from "../../../lib/feed";
 import { followedChipLabel } from "../../../lib/languages";
 import { setRecentProject } from "../../../lib/recentProject";
@@ -57,6 +58,7 @@ export default function ReviewInbox() {
   const { t, i18n } = useTranslation();
   const inbox = useReviewHome();
   const { refetch } = inbox;
+  const pull = usePullRefresh(refetch);
 
   // Back from a deck, the counts have moved.
   useFocusEffect(
@@ -171,8 +173,8 @@ export default function ReviewInbox() {
             </View>
           ) : undefined
         }
-        refreshing={inbox.isRefetching}
-        onRefresh={() => void refetch()}
+        refreshing={pull.refreshing}
+        onRefresh={pull.onRefresh}
         ListEmptyComponent={empty ?? <QueryState query={inbox} />}
       />
     </View>
