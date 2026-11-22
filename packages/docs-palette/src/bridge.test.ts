@@ -136,7 +136,9 @@ describe("the generator entry point", () => {
     expect(existsSync(join(REPO_ROOT, ENTRY))).toBe(true);
     const makefile = readFileSync(join(REPO_ROOT, "Makefile"), "utf8");
     expect(makefile).toContain(`${ENTRY}\n`);
-    expect(makefile).toContain(`${ENTRY} -check`);
+    // The drift gate is a repo guard, registered in its own file.
+    const guard = readFileSync(join(REPO_ROOT, "scripts/guards/check-docs-palette.mk"), "utf8");
+    expect(guard).toContain(`${ENTRY} -check`);
   });
 
   it("sits outside every gitignored directory", () => {
