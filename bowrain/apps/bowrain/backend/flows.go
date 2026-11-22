@@ -40,7 +40,7 @@ type FlowDefinitionInfo struct {
 	ModifiedAt  string         `json:"modified_at,omitempty"`
 	// Revision is the stored flow's save count; a save sends the revision it
 	// was based on so the server can refuse one made against an older read.
-	Revision int64 `json:"revision,omitempty"`
+	Revision string `json:"revision,omitempty"`
 }
 
 // FlowSaveResult is the outcome of a flow save: the flow as stored, or, when
@@ -104,7 +104,6 @@ func flowDefToInfo(def flow.FlowDefinition) FlowDefinitionInfo {
 		Source:      def.Source,
 		CreatedAt:   def.CreatedAt,
 		ModifiedAt:  def.ModifiedAt,
-		Revision:    def.Revision,
 	}
 }
 
@@ -230,14 +229,13 @@ func flowChanged(err error) (*FlowDefinitionInfo, bool) {
 		return nil, false
 	}
 	var body struct {
-		Code    string               `json:"code"`
-		Current *flow.FlowDefinition `json:"current"`
+		Code    string              `json:"code"`
+		Current *FlowDefinitionInfo `json:"current"`
 	}
 	if json.Unmarshal(apiErr.body, &body) != nil || body.Code != "flow_changed" || body.Current == nil {
 		return nil, false
 	}
-	info := flowDefToInfo(*body.Current)
-	return &info, true
+	return body.Current, true
 }
 
 // SaveFlowDefinition creates or updates a project flow definition on the server.
@@ -266,7 +264,7 @@ func (a *App) SaveFlowDefinition(projectID string, info FlowDefinitionInfo) (*Fl
 	// Update, based on the revision the edit was made against.
 	body := struct {
 		FlowDefinitionInfo
-		BaseRevision int64 `json:"base_revision,omitempty"`
+		BaseRevision string `json:"base_revision"`
 	}{info, info.Revision}
 	if err := flowDo(http.MethodPut, base+"/"+url.PathEscape(info.ID), token, body, &out); err != nil {
 		if current, ok := flowChanged(err); ok {

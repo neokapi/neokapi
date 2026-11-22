@@ -81,7 +81,47 @@ describe("ProjectFlowsEditor when someone else saved the flow", () => {
     await waitFor(() => {
       const stored = flows.find((f) => f.id === "flow-review");
       expect(stored?.name).toBe("Translate and review");
-      expect(stored?.revision).toBe(3);
+      expect(stored?.revision).not.toBe("r-review");
     });
+  });
+
+  it("dismissing the dialog keeps the person's edit unsaved and on screen", async () => {
+    const { api, flows, user } = setup();
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("linear-flow-editor");
+    const before = screen.getAllByText("Quality Check").length;
+    await teammateSaves(api);
+    await addAStep(user);
+    await screen.findByTestId("flow-changed-dialog");
+
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByTestId("flow-changed-dialog")).toBeNull());
+    // The added step is still in the editor, and nothing was written.
+    expect(screen.getAllByText("Quality Check").length).toBeGreaterThan(before);
+    expect(screen.getByTestId("flow-save-state")).not.toHaveTextContent("Saved");
+    expect(flows.find((f) => f.id === "flow-review")?.name).toBe("Teammate's flow");
+  });
+});
+
+describe("ProjectFlowsEditor after the person's own save", () => {
+  it("reopening the flow before the list refreshes saves against the revision just written", async () => {
+    const { api, update, user } = setup();
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("linear-flow-editor");
+    // The list's refetch after the save does not arrive before the person
+    // reopens the flow.
+    vi.spyOn(api, "listFlowDefinitions").mockImplementation(() => new Promise(() => {}));
+    await addAStep(user);
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByTestId("flow-save-state")).toHaveTextContent("Saved"));
+
+    await user.click(screen.getByLabelText("Back to flow list"));
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("linear-flow-editor");
+    await addAStep(user);
+
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByTestId("flow-save-state")).toHaveTextContent("Saved"));
+    expect(screen.queryByTestId("flow-changed-dialog")).toBeNull();
   });
 });

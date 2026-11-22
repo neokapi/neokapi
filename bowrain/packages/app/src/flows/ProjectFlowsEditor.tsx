@@ -106,6 +106,13 @@ export function ProjectFlowsEditor({
             edit.flow.id,
             specToDefinition(edit.spec, edit.flow),
           );
+          // Every view of this flow saves against the revision just written:
+          // an editor reopened from the list before its refetch arrives would
+          // otherwise base its next save on the older revision and be refused
+          // as if someone else had saved.
+          queryClient.setQueryData<FlowDefinitionInfo[]>(flowsKey, (list) =>
+            list?.map((f) => (f.id === saved.id ? saved : f)),
+          );
           void invalidate();
           if (!current()) return;
           const now = openRef.current!;
@@ -135,7 +142,7 @@ export function ProjectFlowsEditor({
         }
       });
     },
-    [api, workspaceSlug, projectId, invalidate, setOpen],
+    [api, workspaceSlug, projectId, invalidate, setOpen, queryClient, flowsKey],
   );
 
   /** Saves a resting edit now rather than after the pause. */
@@ -192,6 +199,17 @@ export function ProjectFlowsEditor({
     enqueueSave(next);
   }, [conflict, enqueueSave, setOpen]);
 
+  /** Closes the dialog and leaves the person's version on screen, unsaved. */
+  const dismissConflict = useCallback(() => {
+    if (!conflict) return;
+    const { edit } = conflict;
+    setConflict(null);
+    if (openRef.current?.flow.id !== edit.flow.id) return;
+    // Still the person's latest word; the next change or flush retries it.
+    dirtyRef.current = true;
+    setSaveState("unsaved");
+  }, [conflict]);
+
   const conflictDialog = (
     <FlowChangedDialog
       state={
@@ -202,6 +220,7 @@ export function ProjectFlowsEditor({
       }
       tools={tools}
       onKeep={keepCurrent}
+      onDismiss={dismissConflict}
       onSaveMine={saveMine}
     />
   );

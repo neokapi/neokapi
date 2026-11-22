@@ -382,13 +382,13 @@ export async function injectMockBackend(page: Page) {
         if (!def.id) def.id = `flow-${++flowDefCounter}`;
         if (builtInFlowDefs[def.id]) throw new Error("Cannot modify built-in flows");
         const stored = userFlowDefs[def.id];
-        if (stored && def.revision && def.revision !== stored.revision) {
+        if (stored && def.revision !== stored.revision) {
           return { changed: { ...stored } };
         }
         def.source = "project";
         def.modified_at = new Date().toISOString();
         if (!def.created_at) def.created_at = def.modified_at;
-        def.revision = (stored?.revision ?? 0) + 1;
+        def.revision = `r${++flowDefCounter}`;
         userFlowDefs[def.id] = { ...def };
         return { flow: { ...def } };
       };

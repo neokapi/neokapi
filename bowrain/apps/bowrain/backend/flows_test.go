@@ -141,9 +141,9 @@ func TestSaveFlowDefinition_StaleSaveCarriesTheCurrentFlow(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"code":  "flow_changed",
 			"error": "changed",
-			"current": flow.FlowDefinition{
-				ID: "flow-1", Name: "Alex's edit", Source: "project", Revision: 2,
-				Nodes: []flow.FlowNode{}, Edges: []flow.FlowEdge{},
+			"current": map[string]any{
+				"id": "flow-1", "name": "Alex's edit", "source": "project", "revision": "r2",
+				"nodes": []any{}, "edges": []any{},
 			},
 		})
 	}))
@@ -159,13 +159,13 @@ func TestSaveFlowDefinition_StaleSaveCarriesTheCurrentFlow(t *testing.T) {
 	app.mu.Unlock()
 
 	res, err := app.SaveFlowDefinition("proj-1", FlowDefinitionInfo{
-		ID: "flow-1", Name: "Blake's edit", Source: "project", Revision: 1,
+		ID: "flow-1", Name: "Blake's edit", Source: "project", Revision: "r1",
 		Nodes: []FlowNodeInfo{}, Edges: []FlowEdgeInfo{},
 	})
 	require.NoError(t, err)
-	assert.InDelta(t, 1, gotBase, 0, "the save names the revision it was based on")
+	assert.Equal(t, "r1", gotBase, "the save names the revision it was based on")
 	require.NotNil(t, res.Changed)
 	assert.Nil(t, res.Flow)
 	assert.Equal(t, "Alex's edit", res.Changed.Name)
-	assert.Equal(t, int64(2), res.Changed.Revision)
+	assert.Equal(t, "r2", res.Changed.Revision)
 }

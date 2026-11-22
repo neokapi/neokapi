@@ -1838,7 +1838,7 @@ export class FlowDefinitionInfo {
              * Revision is the stored flow's save count; a save sends the revision it
              * was based on so the server can refuse one made against an older read.
              * @member
-             * @type {number | undefined}
+             * @type {string | undefined}
              */
             this["revision"] = undefined;
         }

@@ -25,12 +25,12 @@ const mine: FlowDefinitionInfo = {
   source: "project",
   nodes: [],
   edges: [],
-  revision: 1,
+  revision: "r1",
 };
 
 describe("updateFlowDefinition", () => {
   it("sends the revision the edit was based on", async () => {
-    const fetchMock = mockFetch({ ...mine, revision: 2 });
+    const fetchMock = mockFetch({ ...mine, revision: "r2" });
     const saved = await new RestApiAdapter("http://server").updateFlowDefinition(
       "acme",
       "p-1",
@@ -38,12 +38,12 @@ describe("updateFlowDefinition", () => {
       mine,
     );
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-    expect(body.base_revision).toBe(1);
-    expect(saved.revision).toBe(2);
+    expect(body.base_revision).toBe("r1");
+    expect(saved.revision).toBe("r2");
   });
 
   it("turns the server's refusal of a stale save into FlowChangedError with the current flow", async () => {
-    const current = { ...mine, name: "Alex's edit", revision: 2 };
+    const current = { ...mine, name: "Alex's edit", revision: "r2" };
     mockFetch({ code: "flow_changed", error: "changed", current }, 409);
     const err = await new RestApiAdapter("http://server")
       .updateFlowDefinition("acme", "p-1", "flow-1", mine)

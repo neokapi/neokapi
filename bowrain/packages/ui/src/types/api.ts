@@ -2151,10 +2151,11 @@ export interface FlowDefinitionInfo {
   created_at?: string;
   modified_at?: string;
   /**
-   * The stored flow's save count. A save sends the revision it was based on,
-   * and the server refuses one made against an older read (FlowChangedError).
+   * The stored flow's revision, a token the server replaces on every save.
+   * A save sends the revision it was based on, and the server refuses one
+   * made against an older read (FlowChangedError). Built-in flows have none.
    */
-  revision?: number;
+  revision?: string;
 }
 
 // ---------------------------------------------------------------------------

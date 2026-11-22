@@ -22,6 +22,12 @@ export interface FlowChangedDialogProps {
   tools: FlowToolName[];
   /** Reload the flow as it now stands, dropping the refused version. */
   onKeep: () => void;
+  /**
+   * Close the dialog and decide later: the person's version stays on screen,
+   * unsaved. Escape, a click outside and the close control do this; only the
+   * Keep the current flow button drops the person's version.
+   */
+  onDismiss: () => void;
   /** Save the person's version over the current one. */
   onSaveMine: () => void;
 }
@@ -51,9 +57,15 @@ function Steps({
  * stands and the person's version, so they keep the current flow or save
  * theirs over it. It follows the translation editor's StaleChangeDialog.
  */
-export function FlowChangedDialog({ state, tools, onKeep, onSaveMine }: FlowChangedDialogProps) {
+export function FlowChangedDialog({
+  state,
+  tools,
+  onKeep,
+  onDismiss,
+  onSaveMine,
+}: FlowChangedDialogProps) {
   return (
-    <Dialog open={state !== null} onOpenChange={(open) => !open && onKeep()}>
+    <Dialog open={state !== null} onOpenChange={(open) => !open && onDismiss()}>
       <DialogContent className="sm:max-w-[560px]" data-testid="flow-changed-dialog">
         <DialogHeader>
           <DialogTitle>This flow changed since you opened it</DialogTitle>
