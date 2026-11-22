@@ -151,6 +151,36 @@ describe("closing the window with unsaved changes or a running flow", () => {
     expect(api.confirmClose).not.toHaveBeenCalled();
   });
 
+  // An edit made in the moment before the close has not reached the backend.
+  it("lists the page's own unsaved tab the backend does not know, and Save all saves it", async () => {
+    const saveTab = vi.fn().mockResolvedValue(true);
+    render(<Harness dirty={["a", "b"]} saveTab={saveTab} payload={request(["a"])} />);
+    await closeWindow();
+    expect(list()).toHaveTextContent("compass");
+    expect(list()).toHaveTextContent("northsea");
+    fireEvent.click(screen.getByRole("button", { name: "Save all" }));
+    await waitFor(() => expect(api.confirmClose).toHaveBeenCalledTimes(1));
+    expect(saveTab.mock.calls).toEqual([["a"], ["b"]]);
+  });
+
+  it("asks when only the page knows of an unsaved tab", async () => {
+    const { result } = setup({ dirty: ["b"] });
+    await act(() => result.current.onCloseRequested(request([])));
+    expect(result.current.open).toBe(true);
+    expect(result.current.rows).toEqual([
+      { id: "b", name: "northsea", unsaved: true, running: false },
+    ]);
+    expect(api.confirmClose).not.toHaveBeenCalled();
+  });
+
+  it("names the page's own unsaved tab beside a running flow, so Cancel Flow & Close cannot drop it", async () => {
+    render(<Harness dirty={["a"]} payload={request([], ["c"])} />);
+    await closeWindow();
+    expect(list()).toHaveTextContent("compass");
+    expect(screen.getByRole("button", { name: "Save all" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel Flow & Close" })).toBeNull();
+  });
+
   it("keeps the backend's name for a tab the page does not show", async () => {
     const { result } = setup({});
     await act(() => result.current.onCloseRequested(request([], ["z"])));
@@ -190,8 +220,14 @@ describe("closing the window with unsaved changes or a running flow", () => {
     });
 
     it("a failed save keeps the window open and names the tab", async () => {
-      const saveTab = vi.fn(async (id: string) => id !== "b");
-      render(<Harness dirty={["a", "b"]} saveTab={saveTab} payload={request(["a", "b"])} />);
+      // A tab that saves is clean afterwards, as the tab history makes it.
+      const dirty = ["a", "b"];
+      const saveTab = vi.fn(async (id: string) => {
+        if (id === "b") return false;
+        dirty.splice(dirty.indexOf(id), 1);
+        return true;
+      });
+      render(<Harness dirty={dirty} saveTab={saveTab} payload={request(["a", "b"])} />);
       await closeWindow();
       fireEvent.click(screen.getByRole("button", { name: "Save all" }));
       await screen.findByRole("alert");

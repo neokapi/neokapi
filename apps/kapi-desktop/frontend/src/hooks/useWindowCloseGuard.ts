@@ -63,6 +63,12 @@ export function closeRows(
     .map((tab) => ({ ...tab, unsaved: unsavedIDs.has(tab.id), running: running.has(tab.id) }));
 }
 
+/** mergeTabs is first followed by the tabs of second it does not list. */
+function mergeTabs(first: UnsavedTab[], second: UnsavedTab[]): UnsavedTab[] {
+  const ids = new Set(first.map((tab) => tab.id));
+  return [...first, ...second.filter((tab) => !ids.has(tab.id))];
+}
+
 interface WindowCloseGuardOptions {
   /** Every open tab, in tab order. */
   tabs: UnsavedTab[];
@@ -114,6 +120,8 @@ export function useWindowCloseGuard({
 }: WindowCloseGuardOptions) {
   const unsaved = tabs.filter((tab) => hasChanges(tab.id));
   const unsavedKey = unsaved.map((tab) => tab.id).join("\n");
+  const unsavedRef = useRef(unsaved);
+  unsavedRef.current = unsaved;
 
   useEffect(() => {
     const ids = unsavedKey ? unsavedKey.split("\n") : [];
@@ -149,14 +157,20 @@ export function useWindowCloseGuard({
         ...[...request.names].filter(([id]) => !known.has(id)).map(([id, name]) => ({ id, name })),
       ]
     : [];
-  const rows = request ? closeRows(rowTabs, request.unsaved, stillRunning) : [];
+  // The backend's unsaved tabs, plus any edit the page made that has not
+  // reached the backend yet (one made in the moment before the close), so
+  // Save all saves it and Discard all names it.
+  const toSave = request ? mergeTabs(request.unsaved, unsaved) : [];
+  const toSaveRef = useRef(toSave);
+  toSaveRef.current = toSave;
+  const rows = request ? closeRows(rowTabs, toSave, stillRunning) : [];
 
   const onCloseRequested = useCallback(async (data: unknown) => {
     const show = await api.acknowledgeClose().catch(() => true);
     // The backend's native dialog already asks; one question on screen.
     if (show === false) return;
     const blockers = (data as CloseRequest | undefined)?.blockers ?? [];
-    if (blockers.length === 0) {
+    if (blockers.length === 0 && unsavedRef.current.length === 0) {
       void api.confirmClose();
       return;
     }
@@ -190,7 +204,7 @@ export function useWindowCloseGuard({
     if (!request || saving) return;
     setSaving(true);
     try {
-      const notSaved = await saveTabs(request.unsaved, saveTab);
+      const notSaved = await saveTabs(toSaveRef.current, saveTab);
       if (notSaved.length > 0) {
         setFailed(notSaved);
         setRequest({ ...request, unsaved: notSaved });

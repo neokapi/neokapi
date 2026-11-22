@@ -70,6 +70,14 @@ func SetClosers(a *App, closeWindow, quit func()) {
 	a.closeGuard().SetClosers(closeWindow, quit)
 }
 
+// ExitOnSecondSignal makes a SIGTERM or SIGINT call quit, which the guard
+// holds like any quit, and a second one while that quit is held end the
+// process (desktopclose.Guard.ExitOnSecondSignal). Answering the held quit
+// starts the count again.
+func ExitOnSecondSignal(a *App, quit func(), exit func(code int)) (stop func()) {
+	return a.closeGuard().ExitOnSecondSignal(quit, exit)
+}
+
 // SetCloseFallback sets the native dialog that asks when the page does not
 // acknowledge a held close in time. It lists each tab that holds the window
 // with its reasons, and returns true to stop running flows and close without
