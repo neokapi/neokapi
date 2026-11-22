@@ -52,7 +52,7 @@ func (a *App) govRequest(method, path string, body, out any) error {
 		reqBody = bytes.NewReader(data)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), governanceTimeout)
+	ctx, cancel := context.WithTimeout(a.requestContext(), governanceTimeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, method, serverURL+path, reqBody)
@@ -64,7 +64,7 @@ func (a *App) govRequest(method, path string, body, out any) error {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := a.client().do(ctx, req)
 	if err != nil {
 		return fmt.Errorf("%s %s: %w", method, path, err)
 	}
@@ -332,8 +332,8 @@ type VoiceRollupResult struct {
 // The rollup is the server's aggregation: it reads stored per-project scores
 // and resolves each project's effective profile through a ladder (collection →
 // stream → project → workspace default) that lives server-side. Composing it
-// from per-project reads produces a different board — a blank profile column
-// and a trend derived from a different window — so offline this returns the
+// from per-project reads produces a different board (a blank profile column
+// and a trend derived from a different window), so offline this returns the
 // empty rollup marked Offline rather than a locally computed one.
 func (a *App) GetVoiceRollup(workspaceSlug string, args VoiceRollupArgs) (VoiceRollupResult, error) {
 	if !a.isConnected() {

@@ -146,7 +146,7 @@ func (a *App) GetFailedChanges() ([]FailedChange, error) {
 	if a.offlineQueue == nil {
 		return []FailedChange{}, nil
 	}
-	entries, err := a.offlineQueue.Failed()
+	entries, err := a.offlineQueue.Failed(a.queueCtx())
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func (a *App) GetFailedChangeIDs() ([]int64, error) {
 	if a.offlineQueue == nil {
 		return []int64{}, nil
 	}
-	return a.offlineQueue.FailedIDs()
+	return a.offlineQueue.FailedIDs(a.queueCtx())
 }
 
 // DismissFailedChange removes one failed or dropped change from the list.
@@ -173,7 +173,7 @@ func (a *App) DismissFailedChange(id int64) error {
 	if a.offlineQueue == nil {
 		return errors.New("there is no offline queue")
 	}
-	return a.offlineQueue.Dismiss(id)
+	return a.offlineQueue.Dismiss(a.queueCtx(), id)
 }
 
 // DismissFailedChanges removes every failed and dropped change from the list.
@@ -181,5 +181,5 @@ func (a *App) DismissFailedChanges() error {
 	if a.offlineQueue == nil {
 		return nil
 	}
-	return a.offlineQueue.DismissAll()
+	return a.offlineQueue.DismissAll(a.queueCtx())
 }

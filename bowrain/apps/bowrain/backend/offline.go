@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -50,7 +51,7 @@ func NewOfflineQueue(dbPath string) (*OfflineQueue, error) {
 }
 
 func initQueueSchema(db *storage.DB) error {
-	_, err := db.Exec(`
+	_, err := db.ExecContext(context.Background(), `
 		CREATE TABLE IF NOT EXISTS pending_changes (
 			id         INTEGER PRIMARY KEY AUTOINCREMENT,
 			operation  TEXT NOT NULL,
@@ -66,7 +67,7 @@ func initQueueSchema(db *storage.DB) error {
 }
 
 // Enqueue adds a pending change to the queue. The payload is serialized as JSON.
-func (q *OfflineQueue) Enqueue(operation string, payload any) error {
+func (q *OfflineQueue) Enqueue(ctx context.Context, operation string, payload any) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
@@ -75,7 +76,7 @@ func (q *OfflineQueue) Enqueue(operation string, payload any) error {
 		return fmt.Errorf("marshal payload: %w", err)
 	}
 
-	_, err = q.db.Exec(
+	_, err = q.db.ExecContext(ctx,
 		`INSERT INTO pending_changes (operation, payload) VALUES (?, ?)`,
 		operation, string(data),
 	)
@@ -83,21 +84,21 @@ func (q *OfflineQueue) Enqueue(operation string, payload any) error {
 }
 
 // PendingCount returns the number of pending (not yet replayed) changes.
-func (q *OfflineQueue) PendingCount() int {
+func (q *OfflineQueue) PendingCount(ctx context.Context) int {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
 	var count int
-	_ = q.db.QueryRow(`SELECT COUNT(*) FROM pending_changes WHERE status = 'pending'`).Scan(&count)
+	_ = q.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pending_changes WHERE status = 'pending'`).Scan(&count)
 	return count
 }
 
 // PeekPending returns up to `limit` pending changes in FIFO order.
-func (q *OfflineQueue) PeekPending(limit int) ([]PendingChange, error) {
+func (q *OfflineQueue) PeekPending(ctx context.Context, limit int) ([]PendingChange, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	rows, err := q.db.Query(
+	rows, err := q.db.QueryContext(ctx,
 		`SELECT id, operation, payload, status, created_at, attempts, last_error
 		 FROM pending_changes WHERE status = 'pending' ORDER BY id ASC LIMIT ?`, limit)
 	if err != nil {
@@ -119,11 +120,11 @@ func (q *OfflineQueue) PeekPending(limit int) ([]PendingChange, error) {
 }
 
 // MarkCompleted marks a change as successfully replayed.
-func (q *OfflineQueue) MarkCompleted(id int64) error {
+func (q *OfflineQueue) MarkCompleted(ctx context.Context, id int64) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	_, err := q.db.Exec(`UPDATE pending_changes SET status = 'completed' WHERE id = ?`, id)
+	_, err := q.db.ExecContext(ctx, `UPDATE pending_changes SET status = 'completed' WHERE id = ?`, id)
 	return err
 }
 
@@ -136,11 +137,11 @@ const maxReplayAttempts = 5
 // MarkFailed records a transient replay failure, incrementing the attempt
 // count. A change that reaches maxReplayAttempts is marked terminally failed
 // ('failed', excluded from PeekPending) so the queue drains past it.
-func (q *OfflineQueue) MarkFailed(id int64, errMsg string) error {
+func (q *OfflineQueue) MarkFailed(ctx context.Context, id int64, errMsg string) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	_, err := q.db.Exec(
+	_, err := q.db.ExecContext(ctx,
 		`UPDATE pending_changes
 		 SET attempts = attempts + 1, last_error = ?,
 		     status = CASE WHEN attempts + 1 >= ? THEN 'failed' ELSE status END
@@ -154,11 +155,11 @@ func (q *OfflineQueue) MarkFailed(id int64, errMsg string) error {
 // succeed. The change leaves the pending set immediately (status 'failed') —
 // replay must not busy-loop on it — but stays in the queue for inspection
 // until Clear.
-func (q *OfflineQueue) MarkFailedPermanent(id int64, errMsg string) error {
+func (q *OfflineQueue) MarkFailedPermanent(ctx context.Context, id int64, errMsg string) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	_, err := q.db.Exec(
+	_, err := q.db.ExecContext(ctx,
 		`UPDATE pending_changes SET attempts = attempts + 1, last_error = ?, status = 'failed' WHERE id = ?`,
 		errMsg, id)
 	return err
@@ -167,21 +168,21 @@ func (q *OfflineQueue) MarkFailedPermanent(id int64, errMsg string) error {
 // MarkDropped retires an entry of a kind this version no longer sends. It
 // leaves the pending set and the failed count, and stays listed with its
 // notice until a person dismisses it.
-func (q *OfflineQueue) MarkDropped(id int64, notice string) error {
+func (q *OfflineQueue) MarkDropped(ctx context.Context, id int64, notice string) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	_, err := q.db.Exec(`UPDATE pending_changes SET last_error = ?, status = 'dropped' WHERE id = ?`, notice, id)
+	_, err := q.db.ExecContext(ctx, `UPDATE pending_changes SET last_error = ?, status = 'dropped' WHERE id = ?`, notice, id)
 	return err
 }
 
 // Failed returns the changes that did not reach the server, failed or
 // dropped, oldest first.
-func (q *OfflineQueue) Failed() ([]PendingChange, error) {
+func (q *OfflineQueue) Failed(ctx context.Context) ([]PendingChange, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	rows, err := q.db.Query(
+	rows, err := q.db.QueryContext(ctx,
 		`SELECT id, operation, payload, status, created_at, attempts, last_error
 		 FROM pending_changes WHERE status IN ('failed', 'dropped') ORDER BY id ASC`)
 	if err != nil {
@@ -205,11 +206,11 @@ func (q *OfflineQueue) Failed() ([]PendingChange, error) {
 // FailedIDs returns the ids of the changes that did not reach the server,
 // failed or dropped, oldest first. It reads no payload, so the chrome can poll
 // it and read the list itself only when the ids change.
-func (q *OfflineQueue) FailedIDs() ([]int64, error) {
+func (q *OfflineQueue) FailedIDs(ctx context.Context) ([]int64, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	rows, err := q.db.Query(`SELECT id FROM pending_changes WHERE status IN ('failed', 'dropped') ORDER BY id ASC`)
+	rows, err := q.db.QueryContext(ctx, `SELECT id FROM pending_changes WHERE status IN ('failed', 'dropped') ORDER BY id ASC`)
 	if err != nil {
 		return nil, err
 	}
@@ -227,54 +228,64 @@ func (q *OfflineQueue) FailedIDs() ([]int64, error) {
 }
 
 // Dismiss removes one failed or dropped change. A pending change stays.
-func (q *OfflineQueue) Dismiss(id int64) error {
+func (q *OfflineQueue) Dismiss(ctx context.Context, id int64) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	_, err := q.db.Exec(`DELETE FROM pending_changes WHERE id = ? AND status IN ('failed', 'dropped')`, id)
+	_, err := q.db.ExecContext(ctx, `DELETE FROM pending_changes WHERE id = ? AND status IN ('failed', 'dropped')`, id)
 	return err
 }
 
 // DismissAll removes every failed and dropped change.
-func (q *OfflineQueue) DismissAll() error {
+func (q *OfflineQueue) DismissAll(ctx context.Context) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	_, err := q.db.Exec(`DELETE FROM pending_changes WHERE status IN ('failed', 'dropped')`)
+	_, err := q.db.ExecContext(ctx, `DELETE FROM pending_changes WHERE status IN ('failed', 'dropped')`)
 	return err
 }
 
 // FailedCount returns the number of terminally failed changes — queued offline
 // mutations the server permanently rejected on replay. Exposed so the UI can
 // surface that some offline edits did not apply.
-func (q *OfflineQueue) FailedCount() int {
+func (q *OfflineQueue) FailedCount(ctx context.Context) int {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
 	var count int
-	_ = q.db.QueryRow(`SELECT COUNT(*) FROM pending_changes WHERE status = 'failed'`).Scan(&count)
+	_ = q.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pending_changes WHERE status = 'failed'`).Scan(&count)
 	return count
 }
 
 // PurgeCompleted removes all completed changes from the queue.
-func (q *OfflineQueue) PurgeCompleted() error {
+func (q *OfflineQueue) PurgeCompleted(ctx context.Context) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	_, err := q.db.Exec(`DELETE FROM pending_changes WHERE status = 'completed'`)
+	_, err := q.db.ExecContext(ctx, `DELETE FROM pending_changes WHERE status = 'completed'`)
 	return err
 }
 
 // Clear removes all changes from the queue.
-func (q *OfflineQueue) Clear() error {
+func (q *OfflineQueue) Clear(ctx context.Context) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	_, err := q.db.Exec(`DELETE FROM pending_changes`)
+	_, err := q.db.ExecContext(ctx, `DELETE FROM pending_changes`)
 	return err
 }
 
 // Close closes the underlying database.
+// queueCtx is the context for the outbox's own reads and writes. The outbox
+// is a local file, and an edit queued while the app shuts down must still
+// reach it, so shutdown does not cancel these calls.
+func (a *App) queueCtx() context.Context {
+	if a.lifetime == nil {
+		return context.Background()
+	}
+	return context.WithoutCancel(a.lifetime)
+}
+
 func (q *OfflineQueue) Close() error {
 	return q.db.Close()
 }

@@ -508,13 +508,6 @@ jobs:
 
           GOBIN=/tmp go install github.com/neokapi/registry/tools/registry-update@main
 
-          declare -A SHAS
-          while IFS= read -r line; do
-            sum=$(echo "$line" | awk '{print $1}')
-            file=$(echo "$line" | awk '{print $2}')
-            SHAS[$file]=$sum
-          done < dist/checksums.txt
-
           REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
           # The signer identity cosign put in the certificate, not the one this
           # release "ought" to have: Fulcio's SAN is the OIDC `job_workflow_ref`
@@ -528,27 +521,16 @@ jobs:
           RELEASED="$(date -u +%Y-%m-%d)"
           ISSUER="https://token.actions.githubusercontent.com"
 
-          # Build per-platform args for a given archive prefix (kapi-cli). The
-          # index covers darwin/linux only: the Windows kapi is Authenticode-
+          # The index covers darwin/linux only: the Windows kapi is Authenticode-
           # signed and published out of band, and installs and updates through
           # winget (Neokapi.KapiCli), so `kapi update` on Windows points at
           # winget instead of at this index (#2628).
-          build_args() {
-            local prefix="$1"; shift
-            CLI_ARGS=()
-            for plat in "$@"; do
-              local os=${plat%/*} arch=${plat#*/}
-              local file="${prefix}_${VERSION}_${os}_${arch}.tar.gz"
-              if [ -n "${SHAS[$file]:-}" ]; then
-                CLI_ARGS+=(
-                  "--platform" "$plat"
-                  "--url" "${REPO_URL}/${file}"
-                  "--sha256" "${SHAS[$file]}"
-                  "--signature" "${REPO_URL}/${file}.sigstore.json"
-                )
-              fi
-            done
-          }
+          # The platforms scripts/lib/release-assets.json declares, each with its
+          # checksum from dist/checksums.txt, or the step fails: a release never
+          # registers part of what it builds.
+          args="$(python3 "${GITHUB_WORKSPACE}/scripts/release-assets.py" registry-args kapi "$VERSION" dist/checksums.txt "$REPO_URL")"
+          mapfile -t CLI_ARGS <<< "$args"
+          mapfile -t PLATFORMS < <(printf '%s\n' "${CLI_ARGS[@]}" | awk 'prev == "--platform" { print } { prev = $0 }')
 
           git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
           git -C /tmp/registry config user.email "release-bot@neokapi.dev"
@@ -559,7 +541,9 @@ jobs:
             # index key stays "kapi" (what the CLI's self-updater looks up).
             # Seed the index on first use; registry-update needs valid JSON.
             [ -f /tmp/registry/cli.json ] || echo '{"schema":"v2","plugins":{}}' > /tmp/registry/cli.json
-            build_args kapi-cli darwin/arm64 linux/arm64 linux/amd64
+            # No version may drop a platform the previous one had, unless
+            # release-assets.json lists it under 'removed'.
+            python3 "${GITHUB_WORKSPACE}/scripts/release-assets.py" check-registry /tmp/registry/cli.json kapi "$VERSION" "${PLATFORMS[@]}"
             /tmp/registry-update \
               --registry /tmp/registry/cli.json \
               --plugin kapi \
@@ -1360,3 +1344,29 @@ jobs:
             echo "This run's Windows artifacts expire on ${deadline}. After that the tag can be"
             echo "signed only by re-running this run's Windows jobs first."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # The release fails when it lacks an asset scripts/lib/release-assets.json
+  # promises for any platform, or when the Windows build artifacts the
+  # out-of-band signing step downloads are missing. Without this a release
+  # finished green with no Windows CLI for thirteen candidates.
+  verify-release-assets:
+    name: Verify the release carries every promised asset
+    needs: [setup, build-cli, package-cli, build-kapi-desktop, update-casks]
+    if: ${{ always() && needs.setup.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compare the release with scripts/lib/release-assets.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.setup.outputs.tag }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          status=0
+          python3 scripts/release-assets.py check-release kapi "$TAG" || status=1
+          python3 scripts/release-assets.py check-artifacts kapi "$RUN_ID" || status=1
+          exit "$status"

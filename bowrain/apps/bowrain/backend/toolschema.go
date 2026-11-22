@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -29,14 +28,14 @@ func (a *App) GetToolSchema(name string) (map[string]any, error) {
 	a.mu.RUnlock()
 
 	target := serverURL + "/api/v1/tools/" + url.PathEscape(name) + "/schema"
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, target, nil)
+	req, err := http.NewRequestWithContext(a.requestContext(), http.MethodGet, target, nil)
 	if err != nil {
 		return nil, err
 	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := a.client().do(a.requestContext(), req)
 	if err != nil {
 		return nil, err
 	}

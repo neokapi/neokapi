@@ -172,7 +172,7 @@ func (a *App) GetPendingChangesCount() int {
 	if a.offlineQueue == nil {
 		return 0
 	}
-	return a.offlineQueue.PendingCount()
+	return a.offlineQueue.PendingCount(a.queueCtx())
 }
 
 // credentialsFor returns the credentials to present to serverURL, preferring the

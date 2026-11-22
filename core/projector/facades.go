@@ -256,6 +256,56 @@ func (m *Memory) BulkAddWithStream(ctx context.Context, entries []memory.Entry, 
 	return m.to.put(ctx, KindMemory, entryStep(fresh, stream, true))
 }
 
+// OriginAdd names an origin to record on an entry the store holds, and the
+// properties that come with it.
+type OriginAdd struct {
+	EntryID    string
+	Origin     memory.Origin
+	Properties map[string]string
+}
+
+// AddOrigins records each origin on its entry in one write. The store adds
+// it to the entry as it holds it when the write is applied, replacing an
+// origin with the same source and key and leaving everything else on the
+// entry as it is. An origin the entry already carries, with the properties
+// already set, writes nothing.
+func (m *Memory) AddOrigins(ctx context.Context, adds []OriginAdd) error {
+	var s step
+	for _, add := range adds {
+		held, ok, err := m.GetEntry(ctx, add.EntryID)
+		if err != nil {
+			return err
+		}
+		if !ok || carriesOrigin(held, add) {
+			continue
+		}
+		o := kmb.FromModel([]memory.Entry{{ID: add.EntryID, Origins: []memory.Origin{add.Origin}}}, nil).Entries[0].Origins[0]
+		s.AddOrigins = append(s.AddOrigins, originAdd{EntryID: add.EntryID, Origin: o, Properties: add.Properties})
+	}
+	if len(s.AddOrigins) == 0 {
+		return nil
+	}
+	return m.to.put(ctx, KindMemory, s)
+}
+
+// carriesOrigin reports whether e already carries add's origin, apart from
+// the instant it was added, and every one of add's properties.
+func carriesOrigin(e memory.Entry, add OriginAdd) bool {
+	for k, v := range add.Properties {
+		if e.Properties[k] != v {
+			return false
+		}
+	}
+	for _, o := range e.Origins {
+		if o.Source != add.Origin.Source || o.Key != add.Origin.Key {
+			continue
+		}
+		o.AddedAt = add.Origin.AddedAt
+		return o == add.Origin
+	}
+	return false
+}
+
 // Delete removes an entry. Removing one the store does not hold writes
 // nothing.
 func (m *Memory) Delete(ctx context.Context, id string) error {

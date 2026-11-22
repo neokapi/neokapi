@@ -444,7 +444,7 @@ func TestReconnectAfterTheRelayDropsAndReturns(t *testing.T) {
 	for _, text := range []string{"Bonjour", "Bonsoir"} {
 		app.enqueue(queuedSave(t, text))
 	}
-	require.Equal(t, 2, q.PendingCount())
+	require.Equal(t, 2, q.PendingCount(t.Context()))
 
 	// Attempts keep failing while the relay is down.
 	require.Never(t, func() bool {
@@ -454,7 +454,7 @@ func TestReconnectAfterTheRelayDropsAndReturns(t *testing.T) {
 	relay.restore(t)
 
 	require.Eventually(t, func() bool {
-		return app.GetConnectionState().State == StateConnected && q.PendingCount() == 0
+		return app.GetConnectionState().State == StateConnected && q.PendingCount(t.Context()) == 0
 	}, 30*time.Second, 100*time.Millisecond,
 		"the connection came back on its own and the queue drained behind it")
 	assert.Equal(t, int64(2), replays.Load(), "both queued edits reached the server")

@@ -40,6 +40,17 @@ export function AbandonChangeset(workspaceSlug, changesetID) {
 }
 
 /**
+ * AcknowledgeClose tells the guard that the page received the close request.
+ * It returns true when the page should flush and answer, and false when the
+ * native fallback already asks or nothing is pending, so only one question is
+ * ever on screen.
+ * @returns {$CancellablePromise<boolean>}
+ */
+export function AcknowledgeClose() {
+    return $Call.ByID(4279527968);
+}
+
+/**
  * AddConcept adds a new concept to the terms store.
  * @param {$models.AddConceptRequest} req
  * @returns {$CancellablePromise<$models.ConceptInfo | null>}
@@ -218,6 +229,14 @@ export function BulkReviewBlocks(projectID, req) {
 }
 
 /**
+ * CancelClose drops the held close and keeps the window open.
+ * @returns {$CancellablePromise<void>}
+ */
+export function CancelClose() {
+    return $Call.ByID(2500169918);
+}
+
+/**
  * CancelLogin cancels any active PKCE login flow.
  * @returns {$CancellablePromise<void>}
  */
@@ -275,6 +294,15 @@ export function ConfigureConnector(connectorType, config) {
     return $Call.ByID(4176435679, connectorType, config).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType11($result);
     }));
+}
+
+/**
+ * ConfirmClose lets the held close go ahead, after the page flushed its saves
+ * or the person chose to close anyway. Every later close goes ahead too.
+ * @returns {$CancellablePromise<void>}
+ */
+export function ConfirmClose() {
+    return $Call.ByID(2117853212);
 }
 
 /**
@@ -947,8 +975,8 @@ export function GetVoiceProfile(workspaceSlug, profileID) {
  * The rollup is the server's aggregation: it reads stored per-project scores
  * and resolves each project's effective profile through a ladder (collection →
  * stream → project → workspace default) that lives server-side. Composing it
- * from per-project reads produces a different board — a blank profile column
- * and a trend derived from a different window — so offline this returns the
+ * from per-project reads produces a different board (a blank profile column
+ * and a trend derived from a different window), so offline this returns the
  * empty rollup marked Offline rather than a locally computed one.
  * @param {string} workspaceSlug
  * @param {$models.VoiceRollupArgs} args
@@ -1316,7 +1344,7 @@ export function ListWorkspaces() {
 /**
  * LoadPlugins discovers manifest-driven plugins from the configured
  * plugin directory and caches the result. Safe to call from a goroutine.
- * Errors are logged and otherwise ignored — a missing or empty plugin
+ * Errors are logged and otherwise ignored: a missing or empty plugin
  * dir is a normal state for a fresh install.
  * @returns {$CancellablePromise<void>}
  */
@@ -1663,14 +1691,17 @@ export function RetryConnection() {
 
 /**
  * SaveFlowDefinition creates or updates a project flow definition on the server.
- * Built-in flows are immutable; the server rejects writes to them.
+ * Built-in flows are immutable; the server rejects writes to them. An update
+ * names the revision it was based on (info.Revision); when someone saved the
+ * flow since, nothing is written and the result carries the flow as it now
+ * stands.
  * @param {string} projectID
  * @param {$models.FlowDefinitionInfo} info
- * @returns {$CancellablePromise<$models.FlowDefinitionInfo | null>}
+ * @returns {$CancellablePromise<$models.FlowSaveResult | null>}
  */
 export function SaveFlowDefinition(projectID, info) {
     return $Call.ByID(1456548112, projectID, info).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType30($result);
+        return $$createType79($result);
     }));
 }
 
@@ -1681,7 +1712,7 @@ export function SaveFlowDefinition(projectID, info) {
  */
 export function SaveProviderConfig(req) {
     return $Call.ByID(832952266, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType78($result);
+        return $$createType80($result);
     }));
 }
 
@@ -1701,6 +1732,16 @@ export function SelectWorkspace(slug) {
  */
 export function SetApplication(app) {
     return $Call.ByID(1103546806, app);
+}
+
+/**
+ * SetPendingSaves records whether the page has saves waiting. The page calls
+ * it whenever that changes, and with false when it unloads.
+ * @param {boolean} pending
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetPendingSaves(pending) {
+    return $Call.ByID(4089742023, pending);
 }
 
 /**
@@ -1772,7 +1813,7 @@ export function SubmitChangeset(workspaceSlug, changesetID) {
  */
 export function TermEnforceItem(projectID, itemName, targetLocale) {
     return $Call.ByID(88031319, projectID, itemName, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType80($result);
+        return $$createType82($result);
     }));
 }
 
@@ -1955,6 +1996,8 @@ const $$createType74 = $Create.Array($$createType73);
 const $$createType75 = $models.TranslationStats.createFrom;
 const $$createType76 = $Create.Nullable($$createType75);
 const $$createType77 = $models.ProxyResponse.createFrom;
-const $$createType78 = $Create.Nullable($$createType61);
-const $$createType79 = $models.TermEnforceResult.createFrom;
-const $$createType80 = $Create.Array($$createType79);
+const $$createType78 = $models.FlowSaveResult.createFrom;
+const $$createType79 = $Create.Nullable($$createType78);
+const $$createType80 = $Create.Nullable($$createType61);
+const $$createType81 = $models.TermEnforceResult.createFrom;
+const $$createType82 = $Create.Array($$createType81);

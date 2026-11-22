@@ -396,6 +396,9 @@ importers:
       '@neokapi/ui':
         specifier: '*'
         version: link:../../../packages/ui
+      '@neokapi/ui-primitives':
+        specifier: '*'
+        version: link:../../../../packages/ui
       '@tailwindcss/vite':
         specifier: ^4.3.5
         version: 4.3.5(@voidzero-dev/vite-plus-core@8.3.8000(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.15)(typescript@7.0.2))

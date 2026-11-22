@@ -183,7 +183,9 @@ type Event struct {
 
 	// Post-derivation fields (pass_done). Produced counts the units written
 	// so far and ProducedDelta what this pass wrote. WaitingForReview counts
-	// the drafts held for review, which neither of the two includes.
+	// the drafts held for review, which neither of the two includes. On
+	// pass_done, ViaMemory, ViaAI and ViaDraft sum the pass's locales. On
+	// materialized, ProducedDelta is the units the delivery wrote.
 	Produced         int `json:"produced,omitempty"`
 	ProducedDelta    int `json:"produced_delta,omitempty"`
 	WaitingForReview int `json:"waiting_for_review,omitempty"`

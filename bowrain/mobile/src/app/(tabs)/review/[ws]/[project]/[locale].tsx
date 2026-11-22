@@ -16,6 +16,7 @@ import { useCSSVariable } from "uniwind";
 
 import { QueryState } from "../../../../../components/List";
 import { useAuth } from "../../../../../lib/auth";
+import { usePullRefresh } from "../../../../../lib/pullRefresh";
 import {
   collectionParam,
   collectionsKey,
@@ -118,6 +119,7 @@ export default function LanguageCollections() {
     queryFn: () => client.deckCollections({ workspace: ws, project }, locale),
   });
   const { refetch } = list;
+  const pull = usePullRefresh(refetch);
 
   // Back from a deck, the counts have moved.
   useFocusEffect(
@@ -173,8 +175,8 @@ export default function LanguageCollections() {
         data={data?.collections ?? []}
         keyExtractor={(c) => c.collection_id || "-"}
         renderItem={renderItem}
-        refreshing={list.isRefetching}
-        onRefresh={() => void refetch()}
+        refreshing={pull.refreshing}
+        onRefresh={pull.onRefresh}
         ListHeaderComponent={
           data ? (
             <View className="pb-4">
