@@ -3189,13 +3189,13 @@
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-locale": {
-                "usage": "source locale (default: the project's source_language in the project's own store, else en)"
+                "usage": "source locale; without it each unit is read in the store's source language when it holds it, else in the language it declares, and skipped otherwise"
               },
               "target-locale": {
                 "usage": "target locale"
               }
             },
-            "long": "Import a single TMX file (plain or .gz) or a native .memory.json\nbundle into the content memory.\n\nThe bundle is the native content-memory form: a deterministic, lossless JSON\nserialization that round-trips every Entry field (entity mappings, provenance\norigins, properties, notes) that TMX drops. Importing one preserves entry\nidentity verbatim, so re-seeding a content memory from committed bundles is\nfully reproducible. The format is selected by file extension; --format\noverrides.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU. Multilingual TMX files need this (e.g. EUR-Lex Euramis exports, where\na single TU may carry every official EU language). Combine with --locales to\nrestrict the pair set (e.g. --all-pairs --locales en-GB,fr,de).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
+            "long": "Import a single TMX file (plain or .gz) or a native .memory.json\nbundle into the content memory.\n\nThe bundle is the native content-memory form: a deterministic, lossless JSON\nserialization that round-trips every Entry field (entity mappings, provenance\norigins, properties, notes) that TMX drops. Importing one preserves entry\nidentity verbatim, so re-seeding a content memory from committed bundles is\nfully reproducible. The format is selected by file extension; --format\noverrides.\n\nEach unit is imported as a source and a target. Its source language is\n--source-locale when given; otherwise the store's source language when the\nunit holds it, else the language the unit or the file declares (srclang) when\nthe unit holds that. A unit with none of these, with no translation, or whose\nsource would equal the target is skipped, and the summary counts each reason.\nAn import that keeps no unit fails. Region tags are never folded: an en-US\nunit is stored as en-US, and a lookup in en-GB does not match it.\n\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU. Multilingual TMX files need this (e.g. EUR-Lex Euramis exports, where\na single TU may carry every official EU language). Combine with --locales to\nrestrict the pair set (e.g. --all-pairs --locales en-GB,fr,de).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
             "short": "Import a TMX file or a native .memory.json bundle into content memory"
           },
           "import-dir": {
@@ -3222,13 +3222,13 @@
                 "usage": "recurse into subdirectories"
               },
               "source-locale": {
-                "usage": "source locale (default: the project's source_language in the project's own store, else en)"
+                "usage": "source locale; without it each unit is read in the store's source language when it holds it, else in the language it declares, and skipped otherwise"
               },
               "target-locale": {
                 "usage": "target locale"
               }
             },
-            "long": "Walk a directory and import every matching TMX file into the content memory.\n\nAuto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)\nbecomes the Origin.Key on each imported entry so you can trace which file a\nsegment came from.\n\nBy default, imports entries matching --source-locale and --target-locale from\nevery file. Use --pattern to filter (glob against filename) and --all-pairs to\nemit the full language cross-product from multilingual files.\n\nExamples:\n  kapi memory import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\"\n  kapi memory import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr,de",
+            "long": "Walk a directory and import every matching TMX file into the content memory.\n\nAuto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)\nbecomes the Origin.Key on each imported entry so you can trace which file a\nsegment came from.\n\nEach unit is imported as a source and a target. Its source language is\n--source-locale when given; otherwise the store's source language when the\nunit holds it, else the language the unit or the file declares (srclang) when\nthe unit holds that. A unit with none of these, with no translation, or whose\nsource would equal the target is skipped, and the summary counts each reason.\nAn import that keeps no unit fails. Region tags are never folded: an en-US\nunit is stored as en-US, and a lookup in en-GB does not match it. A file\nthat imports nothing fails the command; the others are kept.\n\nUse --pattern to filter (glob against filename) and --all-pairs to\nemit the full language cross-product from multilingual files.\n\nExamples:\n  kapi memory import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\"\n  kapi memory import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr,de",
             "short": "Import all TMX files from a directory into content memory"
           },
           "list": {
@@ -4191,7 +4191,7 @@
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "source-locale": {
-                "usage": "source locale for CSV import (default: the project's source_language in the project's own store, else en)"
+                "usage": "source locale of a CSV import (default: the project's source_language in the project's own store, else en); a TBX import keeps every concept in every language"
               },
               "target-locale": {
                 "usage": "target locale for CSV import"
