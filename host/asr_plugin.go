@@ -19,11 +19,24 @@ import (
 // stdin/stdout. Keeping whisper + models out of the kapi binary is deliberate
 // (same rationale as kapi-vision/kapi-sat). The host knows the wire format but
 // does not import the plugin module, so the CLI stays free of the plugin's build
-// requirements — the small structs below mirror plugins/asr/asrproto
+// requirements, the small structs below mirror plugins/asr/asrproto
 // (asrproto-line-json-v1). Audio crosses to the plugin by path, never as bytes.
 func init() {
-	asr.RegisterEngine("asr", newASREngine)
+	asr.RegisterEngineWithProbe("asr", newASREngine, asrPluginInstalled)
 }
+
+// asrPluginInstalled reports whether the kapi-asr plugin can be found. When it
+// cannot, an audio or video file is read as media without transcription, and
+// the person is told so once.
+func asrPluginInstalled() bool {
+	if _, err := findASRPlugin(); err != nil {
+		noteEngineMissing(&asrMissingNote, "speech is not transcribed: the \"asr\" plugin is not installed (kapi plugins install asr)")
+		return false
+	}
+	return true
+}
+
+var asrMissingNote sync.Once
 
 const asrPluginName = "asr"
 
