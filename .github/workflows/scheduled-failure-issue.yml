@@ -30,6 +30,7 @@ on:
       - Evals Refresh
       - Bowrain Build
       - Fuzz
+      - Cache Budget
     types: [completed]
 
 permissions:
