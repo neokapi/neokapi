@@ -121,7 +121,14 @@ func CheckRegular(root, p string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	info, err := os.Lstat(real)
+	// Contain resolved every link where the platform resolves them, so the
+	// resolved path is judged as it is. Where Contain is lexical (Supported is
+	// false) the path may still be a link, and the file it names is judged.
+	stat := os.Lstat
+	if !Supported {
+		stat = os.Stat
+	}
+	info, err := stat(real)
 	if err != nil {
 		return "", err
 	}

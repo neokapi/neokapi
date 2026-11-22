@@ -187,6 +187,10 @@ func check(patterns []string, allow map[string]string) ([]finding, error) {
 	var found []finding
 	checked := 0
 	seen := map[string]bool{}
+	// compiled holds the files this build configuration compiles. An entry for
+	// a file built only on another platform (host/agentrunsession_linux.go on
+	// macOS) is checked where that file builds, never reported stale here.
+	compiled := map[string]bool{}
 	for _, p := range pkgs {
 		if p.DepOnly || p.Standard || !inScope(p.ImportPath, checkedPrefixes) || len(p.CompiledGoFiles) == 0 {
 			continue
@@ -194,6 +198,11 @@ func check(patterns []string, allow map[string]string) ([]finding, error) {
 		files, err := p.ParseFiles(fset)
 		if err != nil {
 			return nil, err
+		}
+		for _, f := range files {
+			if rel, rerr := filepath.Rel(root, fset.Position(f.Pos()).Filename); rerr == nil {
+				compiled[filepath.ToSlash(rel)] = true
+			}
 		}
 		hits, cerr := checkPackage(fset, imp, p.ImportPath, files, func(pos token.Pos) string {
 			rel, rerr := filepath.Rel(root, fset.Position(pos).Filename)
@@ -214,7 +223,8 @@ func check(patterns []string, allow map[string]string) ([]finding, error) {
 		return nil, errors.New("no package to check: run from the repository root")
 	}
 	for where := range allow {
-		if !seen[where] {
+		file, _, _ := strings.Cut(where, ":")
+		if !seen[where] && compiled[file] {
 			found = append(found, finding{pkg: "(allowlist)", text: where + ": listed in allowed but reaches no file by path here any more; remove the entry"})
 		}
 	}

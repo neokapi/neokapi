@@ -248,6 +248,8 @@ The `kapi.change/v1` freeze is one such decision. `apply_edits` reads `find` as 
 
 The snake_case rule for config keys is another. The input fields of a registry tool on the MCP surface are its config keys, so `translate` takes `api_key`, `batch_concurrency`, `context_window` and `skip_matched`, `redact` takes `entity_types` and `rules_path`, and `term-check` takes `case_sensitive`. The frozen file records the rename.
 
+A tool takes only the fields its input schema lists, and refuses a call that passes any other. A field that names a file carries `x-path` in its schema, and the server checks it against the directories a call may reach before the tool runs. `term-check` takes the rules it checks as `term_rules`, a list of `term` and `replacement` pairs.
+
 `check_text` accepts an optional `context_path`, a project-relative destination
 whose voice and terms apply to the supplied draft. It requires a bound project
 and cannot be combined with `profile_file` or `profile_pack`. The result keeps
