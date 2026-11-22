@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"runtime"
 	"runtime/debug"
 	"testing"
 
@@ -18,7 +17,7 @@ import (
 
 // blockDataSig reduces a Part stream to the Block/Data signal (ignoring the
 // layer, whose properties legitimately differ between the streaming and buffered
-// paths — the buffered cross-format path stashes json.original).
+// paths: the buffered cross-format path stashes json.original).
 func blockDataSig(parts []*model.Part) []string {
 	var sig []string
 	for _, p := range parts {
@@ -36,8 +35,8 @@ func blockDataSig(parts []*model.Part) []string {
 
 // TestStreamingReaderMatchesBuffered asserts the streaming JSON read (skeleton
 // store wired, validation off → streaming path) emits the same Block/Data part
-// stream as the buffered read (no skeleton store) for the same document — i.e.
-// the streaming walk is identical to the buffered walk.
+// stream as the buffered read (no skeleton store) for the same document. That
+// is, the streaming walk is identical to the buffered walk.
 func TestStreamingReaderMatchesBuffered(t *testing.T) {
 	inputs := []string{
 		`{"key":"Text1"}`,
@@ -83,7 +82,7 @@ func readPlain(t *testing.T, in string) []*model.Part {
 // TestStreamingReaderBoundedMemory reads a large JSON document supplied as a pure
 // stream (an io.Pipe generator, never a whole buffer) through the streaming
 // reader path, draining and discarding parts, and asserts peak heap is a small,
-// flat window — independent of document size.
+// flat window, independent of document size.
 func TestStreamingReaderBoundedMemory(t *testing.T) {
 	if testing.Short() {
 		t.Skip("memory test skipped in -short")
@@ -97,46 +96,22 @@ func TestStreamingReaderBoundedMemory(t *testing.T) {
 		require.NoError(t, err)
 		defer store.Close()
 		reader.SetSkeletonStore(store)
+		gate := testutil.NewGate(pr)
 		require.NoError(t, reader.Open(context.Background(), &model.RawDocument{
 			URI:          "big.json",
 			SourceLocale: model.LocaleEnglish,
-			Reader:       io.NopCloser(pr),
+			Reader:       io.NopCloser(gate),
 		}))
 
-		// liveHeap forces a GC so HeapAlloc reflects the *retained* working set
-		// rather than transient per-part garbage that a streaming reader
-		// legitimately produces. Sampling raw HeapAlloc (garbage included) made
-		// the absolute bound below flaky on slower CI runners, where more
-		// uncollected garbage accumulates between samples; live heap is the
-		// metric this test actually means. A reader that buffered the whole
-		// document would keep it *live*, so this still trips the bound below.
-		liveHeap := func() uint64 {
-			runtime.GC()
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-			return m.HeapAlloc
-		}
-
-		// Sample ~256 times regardless of document size (stride scales with n)
-		// rather than at a fixed stride. A streaming reader's live heap fluctuates
-		// by a bounded, document-size-independent amount (up to ~64 in-flight parts
-		// queued in its channel), so a fixed stride samples the 20x-larger run 20x
-		// more often and reliably catches that bounded burst while the small run
-		// misses it — which made the ps*3 ratio bound flaky for this low-footprint
-		// format. Equal sample density makes ps and pl estimate the same bounded
-		// working set, so the ratio reflects real scaling, not sampling luck.
-		stride := max(n/256, 1)
-		base := liveHeap()
-		count := 0
-		for res := range reader.Read(context.Background()) {
+		// The gate stops the reader at 256 points through the document, the
+		// same density for both sizes, so the two runs estimate the same
+		// bounded working set. Each sample is taken with the reader waiting at
+		// the gate and every part it produced received: nothing allocates
+		// during the collection. A reader that held the document would keep it
+		// live, so the bound below still trips.
+		peak = testutil.SamplePeak(gate, int64(sz), 256, reader.Read(context.Background()), func(res model.PartResult) {
 			require.NoError(t, res.Error)
-			count++
-			if count%stride == 0 {
-				if h := liveHeap(); h > base && h-base > peak {
-					peak = h - base
-				}
-			}
-		}
+		})
 		reader.Close()
 		return peak, sz
 	}

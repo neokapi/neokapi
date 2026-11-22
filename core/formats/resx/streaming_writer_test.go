@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"runtime"
 	"runtime/debug"
 	"testing"
 
@@ -76,7 +75,7 @@ func TestStreamingPair_ByteExactRESX(t *testing.T) {
 }
 
 // TestStreamingPair_BoundedWriterRESX asserts the writer's peak live heap stays
-// flat across a 20x document-size change — it does not buffer the whole block
+// flat across a 20x document-size change: it does not buffer the whole block
 // map. Reader and writer run concurrently against a streaming store, mirroring
 // the file-runner's isStreamingPair path.
 func TestStreamingPair_BoundedWriterRESX(t *testing.T) {
@@ -85,22 +84,19 @@ func TestStreamingPair_BoundedWriterRESX(t *testing.T) {
 	}
 	defer debug.SetGCPercent(debug.SetGCPercent(20))
 
-	liveHeap := func() uint64 {
-		runtime.GC()
-		var m runtime.MemStats
-		runtime.ReadMemStats(&m)
-		return m.HeapAlloc
-	}
-
+	// The gate stops the reader at 256 points through the document. At each
+	// stop the writer catches up and waits on the skeleton store, so every
+	// sample is taken with every stage of the pipeline waiting.
 	peakWriting := func(n int) (peak uint64, size int) {
 		pr, sz := genRESX(n)
+		gate := testutil.NewGate(pr)
 		reader := resx.NewReader()
 		writer := resx.NewWriter()
 		store := format.NewStreamingSkeletonStore()
 		reader.SetSkeletonStore(store)
 		writer.SetSkeletonStore(store)
 		require.NoError(t, reader.Open(context.Background(), &model.RawDocument{
-			URI: "big.resx", SourceLocale: model.LocaleEnglish, Reader: io.NopCloser(pr),
+			URI: "big.resx", SourceLocale: model.LocaleEnglish, Reader: io.NopCloser(gate),
 		}))
 		require.NoError(t, writer.SetOutputWriter(io.Discard))
 
@@ -109,32 +105,13 @@ func TestStreamingPair_BoundedWriterRESX(t *testing.T) {
 			defer close(partsCh)
 			defer store.CloseWrite()
 			defer reader.Close()
-			for res := range reader.Read(context.Background()) {
-				if res.Error != nil || res.Part == nil {
-					continue
+			peak = testutil.SamplePeakPair(gate, int64(sz), 256, reader.Read(context.Background()), func(res model.PartResult) {
+				if res.Error == nil && res.Part != nil {
+					partsCh <- res.Part
 				}
-				partsCh <- res.Part
-			}
+			}, store)
 		}()
-
-		stride := max(n/256, 1)
-		base := liveHeap()
-		// Sample from the writer side: it pulls blocks + consumes skeleton.
-		wrapped := make(chan *model.Part)
-		go func() {
-			defer close(wrapped)
-			count := 0
-			for p := range partsCh {
-				wrapped <- p
-				count++
-				if count%stride == 0 {
-					if h := liveHeap(); h > base && h-base > peak {
-						peak = h - base
-					}
-				}
-			}
-		}()
-		require.NoError(t, writer.Write(context.Background(), wrapped))
+		require.NoError(t, writer.Write(context.Background(), partsCh))
 		writer.Close()
 		return peak, sz
 	}

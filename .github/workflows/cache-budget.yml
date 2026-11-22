@@ -1,0 +1,49 @@
+name: Cache Budget
+
+# Keeps the repository's Actions caches under 9 GiB, a gibibyte short of the
+# 10 GiB at which GitHub starts evicting the oldest. After each CI run on main
+# it deletes the caches nothing will restore (scripts/ci-cache-budget.py names
+# them), then checks the total. The daily run checks the total too, and a
+# failed scheduled run files an issue through scheduled-failure-issue.yml.
+#
+# The token here is the default branch's: a pull request never runs this.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: cache-budget
+  cancel-in-progress: false
+
+jobs:
+  budget:
+    name: Prune and check the Actions caches
+    runs-on: ubuntu-latest
+    # A workflow_run fires for a pull request whose head branch is named main
+    # as well, so require a push.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.event == 'push'
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      - name: Delete superseded and stale caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 scripts/ci-cache-budget.py prune
+      - name: Check the total against the budget
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 scripts/ci-cache-budget.py check

@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"testing"
 
@@ -93,34 +93,24 @@ func TestStreaming_BoundedMemoryARB(t *testing.T) {
 		t.Skip("memory test skipped in -short")
 	}
 	defer debug.SetGCPercent(debug.SetGCPercent(20))
-	liveHeap := func() uint64 {
-		runtime.GC()
-		var m runtime.MemStats
-		runtime.ReadMemStats(&m)
-		return m.HeapAlloc
-	}
 	peakReading := func(n int) (peak uint64, size int) {
 		path, sz := genARB(t, n)
 		f, err := os.Open(path)
 		require.NoError(t, err)
+		defer f.Close()
+		gate := testutil.NewGate(f)
 		reader := arb.NewReader()
 		store, err := format.NewSkeletonStore()
 		require.NoError(t, err)
 		defer store.Close()
 		reader.SetSkeletonStore(store)
-		require.NoError(t, reader.Open(context.Background(), &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: f, ReaderAt: f}))
-		stride := max(n/256, 1)
-		base := liveHeap()
-		count := 0
-		for res := range reader.Read(context.Background()) {
+		require.NoError(t, reader.Open(context.Background(), &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: io.NopCloser(gate), ReaderAt: f}))
+		// The gate stops the reader at 256 points through the document. Each
+		// sample is taken with the reader waiting at the gate and every part
+		// it produced received, so nothing allocates during the collection.
+		peak = testutil.SamplePeak(gate, int64(sz), 256, reader.Read(context.Background()), func(res model.PartResult) {
 			require.NoError(t, res.Error)
-			count++
-			if count%stride == 0 {
-				if h := liveHeap(); h > base && h-base > peak {
-					peak = h - base
-				}
-			}
-		}
+		})
 		reader.Close()
 		return peak, sz
 	}
