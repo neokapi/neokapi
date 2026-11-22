@@ -20,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/observe"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/structure"
 	"github.com/neokapi/neokapi/core/tool"
@@ -54,8 +55,13 @@ func (b *budgetedSource) Close() error {
 // memory; a whole-document format still io.ReadAll-s it, but only once (no
 // separate up-front os.ReadFile buffer). A container format takes neither copy:
 // it reads entries through the random-access view carried alongside.
-func openBudgetedFile(path string) (io.ReadCloser, error) {
-	f, err := os.Open(path)
+//
+// A file beneath root (the project, when the run has one) is opened through
+// rootpath.OpenRegular, so a symbolic link that leads out of the project, or
+// anything that is not a regular file, is refused at the moment of reading.
+// A file outside root is one a person named, and is opened as named.
+func openBudgetedFile(root, path string) (io.ReadCloser, error) {
+	f, err := openInRoot(root, path)
 	if err != nil {
 		return nil, err
 	}
@@ -472,7 +478,7 @@ func (r *FileRunner) recordDocument(ctx context.Context, reader format.DataForma
 			emitter.SetSkeletonStore(store)
 		}
 	}
-	source, err := openBudgetedFile(inputPath)
+	source, err := r.openInput(inputPath)
 	if err != nil {
 		reader.Close()
 		rec.Abort()
@@ -784,7 +790,7 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 		return err
 	}
 
-	source, err := openBudgetedFile(inputPath)
+	source, err := r.openInput(inputPath)
 	if err != nil {
 		reader.Close()
 		return fmt.Errorf("open %q: %w", filepath.Base(inputPath), err)
@@ -952,7 +958,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	// StreamingReaders), so that buffered-only concern is excluded by
 	// construction.
 	if streaming {
-		source, oerr := openBudgetedFile(inputPath)
+		source, oerr := r.openInput(inputPath)
 		if oerr != nil {
 			reader.Close()
 			if skeletonStore != nil {
@@ -976,7 +982,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	if preReadContent != nil {
 		source = budgetedBytes(preReadContent)
 	} else {
-		s, oerr := openBudgetedFile(inputPath)
+		s, oerr := r.openInput(inputPath)
 		if oerr != nil {
 			reader.Close()
 			if skeletonStore != nil {
@@ -1525,4 +1531,24 @@ func (r *FileRunner) RunStream(ctx context.Context, flowName string, tools []too
 		return err
 	}
 	return writer.Close()
+}
+
+// openInput opens one input of the run (openBudgetedFile).
+func (r *FileRunner) openInput(path string) (io.ReadCloser, error) {
+	return openBudgetedFile(r.cfg.ProjectRoot, path)
+}
+
+// openInRoot opens path through rootpath when it lies beneath root as
+// written, and as named otherwise.
+func openInRoot(root, path string) (*os.File, error) {
+	if root != "" {
+		absRoot, err1 := filepath.Abs(root)
+		abs, err2 := filepath.Abs(path)
+		if err1 == nil && err2 == nil {
+			if rel, err := filepath.Rel(absRoot, abs); err == nil && filepath.IsLocal(rel) {
+				return rootpath.OpenRegular(absRoot, abs)
+			}
+		}
+	}
+	return os.Open(path)
 }

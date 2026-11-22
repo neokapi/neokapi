@@ -140,10 +140,9 @@ func (r *Reader) transcribe(ctx context.Context, ch chan<- model.PartResult, pat
 // doc.Reader to a temp file (never holding the whole track in memory).
 func (r *Reader) materialize() (path string, cleanup func(), err error) {
 	noop := func() {}
-	if r.Doc.URI != "" {
-		if info, statErr := os.Stat(r.Doc.URI); statErr == nil && !info.IsDir() {
-			return r.Doc.URI, noop, nil
-		}
+	// The file the document was opened from, never a file named by its URI.
+	if name, ok := format.SourceFile(r.Doc); ok {
+		return name, noop, nil
 	}
 	ext := ".audio"
 	if r.Doc.URI != "" {

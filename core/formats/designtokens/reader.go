@@ -28,7 +28,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -169,9 +168,8 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	// the inner JSON reader to stream in pass 2. Non-file inputs (and validation
 	// mode) fall back to the whole-document read below.
 	if r.skeletonStore != nil && r.ValidationMode() == format.ValidationOff {
-		if f, ferr := os.Open(doc.URI); ferr == nil {
+		if f, ok := format.ReopenSource(doc); ok {
 			r.scanDeprecatedStream(safeio.DefaultBudget().Reader(f))
-			_ = f.Close()
 			if err := inner.Open(ctx, doc); err != nil {
 				return err
 			}

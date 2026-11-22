@@ -27,16 +27,33 @@ import (
 // EscapeError says a path leads outside its root. Link is the symbolic link,
 // relative to the root, through which it does; it names the path itself when
 // that is the link. The error never names where the link points.
+//
+// Err is fs.ErrNotExist for a link whose file does not exist, which is refused
+// because where it leads cannot be decided; it is nil otherwise.
 type EscapeError struct {
 	Path string
 	Link string
+	Err  error
 }
 
 func (e *EscapeError) Error() string {
+	if e.Err != nil {
+		return fmt.Sprintf("%s: the symbolic link %s names a file that does not exist", e.Path, e.linkName())
+	}
 	if e.Link == "" || e.Link == e.Path {
 		return e.Path + " is a symbolic link that leads outside the root"
 	}
 	return fmt.Sprintf("%s: the symbolic link %s leads outside the root", e.Path, e.Link)
+}
+
+// Unwrap returns Err.
+func (e *EscapeError) Unwrap() error { return e.Err }
+
+func (e *EscapeError) linkName() string {
+	if e.Link == "" {
+		return e.Path
+	}
+	return e.Link
 }
 
 // ErrNotRegular is the error OpenRegular and CheckRegular return for a path
@@ -76,7 +93,7 @@ func Contain(root, p string) (string, error) {
 		}
 		if info, lerr := os.Lstat(cur); lerr == nil && info.Mode()&fs.ModeSymlink != 0 {
 			// A link whose target is missing, at cur or below it.
-			return "", &EscapeError{Path: rel, Link: firstLink(root, abs)}
+			return "", &EscapeError{Path: rel, Link: firstLink(root, abs), Err: fs.ErrNotExist}
 		}
 		missing = append(missing, filepath.Base(cur))
 		parent := filepath.Dir(cur)

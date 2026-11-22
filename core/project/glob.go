@@ -248,12 +248,11 @@ func (w *globWalker) walk(rel, abs string, states []globState) {
 		// A link that leads out of the root is never listed and never read
 		// through, whatever the pattern: its content is not the project's.
 		escaped := false
-		// A link to a missing file is left to the stat below, which reports it.
+		// Every link is decided by Contain alone: a link to a missing file is
+		// refused there too, and reported as unreadable.
 		if isLink {
-			if _, serr := os.Stat(childAbs); serr == nil {
-				if _, cerr := rootpath.Contain(w.root, childAbs); cerr != nil {
-					escaped, linkErr = true, cerr
-				}
+			if _, cerr := rootpath.Contain(w.root, childAbs); cerr != nil {
+				escaped, linkErr = true, cerr
 			}
 		}
 		if isLink && !escaped && (w.opts.FilesOnly || w.followsLink(states, name)) {

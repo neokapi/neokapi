@@ -114,12 +114,11 @@ func (r *daemonReader) Open(_ context.Context, doc *model.RawDocument) error {
 	r.Doc = doc
 
 	// Prefer a real on-disk path so the daemon can resolve companion files
-	// (linked rules, standoff XML, etc.).
-	if filepath.IsAbs(doc.URI) {
-		if _, err := os.Stat(doc.URI); err == nil {
-			r.sourcePath = doc.URI
-		}
-	}
+	// (linked rules, standoff XML, etc.). The path is the file the host
+	// opened the document from, with every link resolved, and only while it
+	// is still that file: the daemon opens what it is given without a check
+	// of its own, so it is never handed the URI or a link to follow.
+	r.sourcePath = daemonSourcePath(doc)
 	if r.sourcePath == "" && doc.Reader != nil {
 		var err error
 		r.content, err = io.ReadAll(doc.Reader)
@@ -476,3 +475,34 @@ var (
 	_ format.SourcePathSetter      = (*daemonWriter)(nil)
 	_ format.OriginalContentSetter = (*daemonWriter)(nil)
 )
+
+// daemonSourcePath is the resolved path of the regular file doc was opened
+// from, or "" when it was not opened from one or the path no longer names the
+// file the host holds open.
+func daemonSourcePath(doc *model.RawDocument) string {
+	name, ok := format.SourceFile(doc)
+	if !ok {
+		return ""
+	}
+	held, ok := doc.ReaderAt.(*os.File)
+	if !ok {
+		return ""
+	}
+	heldInfo, err := held.Stat()
+	if err != nil || !heldInfo.Mode().IsRegular() {
+		return ""
+	}
+	real, err := filepath.EvalSymlinks(name)
+	if err != nil {
+		return ""
+	}
+	real, err = filepath.Abs(real)
+	if err != nil {
+		return ""
+	}
+	now, err := os.Stat(real)
+	if err != nil || !os.SameFile(heldInfo, now) {
+		return ""
+	}
+	return real
+}

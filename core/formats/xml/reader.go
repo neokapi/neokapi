@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -276,14 +275,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 // documents stream just like ITS-free ones.
 func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartResult, layer *model.Layer) bool {
 	// Pass 1 — extract ITS rules from a re-opened copy of the input, leaving
-	// doc.Reader untouched for pass 2. A non-file URI (a pipe, an in-memory
-	// test doc) can't be reopened, so we decline and let the buffered path run.
-	f, err := os.Open(r.Doc.URI)
-	if err != nil {
+	// doc.Reader untouched for pass 2. A document with no random-access view
+	// (a pipe, an archive member) can't be scanned twice, so we decline and
+	// let the buffered path run. The URI is never opened as a file.
+	f, ok := format.ReopenSource(r.Doc)
+	if !ok {
 		return false
 	}
 	embedded, externals, rerr := its.ExtractRulesReaderWith(safeio.DefaultBudget().Reader(f), format.XMLCharsetReader(r.Doc))
-	f.Close()
 	if rerr != nil {
 		// The rules scan parses the whole document, so a malformed file fails
 		// here — the same well-formedness gate as the buffered path (the
@@ -319,10 +318,14 @@ func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartR
 // unresolvable references.
 func (r *Reader) loadExternalITSRules(refs []its.ExternalRef) *its.RuleSet {
 	combined := &its.RuleSet{}
-	if len(refs) == 0 || r.Doc == nil || r.Doc.URI == "" {
+	// The rules are read beside the file the document was opened from, never
+	// beside its URI: a URI may name an archive member or an upload, not a
+	// place on this machine.
+	source, ok := format.SourceFile(r.Doc)
+	if len(refs) == 0 || !ok {
 		return combined
 	}
-	baseDir := filepath.Dir(r.Doc.URI)
+	baseDir := filepath.Dir(source)
 	visited := map[string]bool{}
 	var walk func(href string)
 	walk = func(href string) {

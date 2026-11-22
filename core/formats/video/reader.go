@@ -192,10 +192,9 @@ func (r *Reader) ocrFrames(ctx context.Context, ch chan<- model.PartResult, fram
 
 func (r *Reader) materialize() (path string, cleanup func(), err error) {
 	noop := func() {}
-	if r.Doc.URI != "" {
-		if info, statErr := os.Stat(r.Doc.URI); statErr == nil && !info.IsDir() {
-			return r.Doc.URI, noop, nil
-		}
+	// The file the document was opened from, never a file named by its URI.
+	if name, ok := format.SourceFile(r.Doc); ok {
+		return name, noop, nil
 	}
 	ext := ".mp4"
 	if r.Doc.URI != "" {

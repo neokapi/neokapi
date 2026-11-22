@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 
@@ -100,12 +99,11 @@ func scanMetadata(rd io.Reader) (locale string, keyOrder []string, descriptions 
 // doc.Reader) for a non-file input so the caller falls back to the buffered
 // walk; true once it has handled the document.
 func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult) bool {
-	f, ferr := os.Open(r.Doc.URI)
-	if ferr != nil {
+	f, ok := format.ReopenSource(r.Doc)
+	if !ok {
 		return false
 	}
 	locale, _, descriptions, hints, err := scanMetadata(safeio.DefaultBudget().Reader(f))
-	_ = f.Close()
 	if err != nil {
 		ch <- model.PartResult{Error: err}
 		return true

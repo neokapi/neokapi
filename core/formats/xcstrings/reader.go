@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 
@@ -75,12 +74,11 @@ func scanHeader(rd io.Reader) (sourceLanguage, version string, err error) {
 // (without consuming doc.Reader) for a non-file input so the caller falls back
 // to the buffered walk; true once it has handled the document.
 func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult) bool {
-	f, ferr := os.Open(r.Doc.URI)
-	if ferr != nil {
+	f, ok := format.ReopenSource(r.Doc)
+	if !ok {
 		return false
 	}
 	sourceLanguage, version, err := scanHeader(safeio.DefaultBudget().Reader(f))
-	_ = f.Close()
 	if err != nil {
 		ch <- model.PartResult{Error: err}
 		return true

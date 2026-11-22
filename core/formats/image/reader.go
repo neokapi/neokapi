@@ -190,7 +190,10 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 
 		// An "<image>.alt.txt" sidecar (beside the original file) carries the
 		// image's alt text / caption, the localizable accessible text.
-		altText := readAltSidecar(r.Doc.URI)
+		altText := ""
+		if source, ok := format.SourceFile(r.Doc); ok {
+			altText = readAltSidecar(source)
+		}
 
 		// The image as a Media part, by URI reference, never inline bytes, so the
 		// page's binary never travels through the kapi Part stream.
@@ -245,10 +248,9 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 // temp file with a bounded buffer and returns that path; cleanup removes it.
 func (r *Reader) materialize() (string, func(), error) {
 	noop := func() {}
-	if r.Doc.URI != "" {
-		if info, err := os.Stat(r.Doc.URI); err == nil && !info.IsDir() {
-			return r.Doc.URI, noop, nil
-		}
+	// The file the document was opened from, never a file named by its URI.
+	if name, ok := format.SourceFile(r.Doc); ok {
+		return name, noop, nil
 	}
 	if r.Doc.Reader == nil {
 		return "", noop, errors.New("image: no readable source")

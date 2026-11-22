@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // A code comment is a block of a source file: kapi check and kapi inspect
@@ -263,6 +264,14 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 			continue
 		}
 		path := docPath(root, op.At.Doc)
+		// A file of the project is read and written only when it resolves
+		// inside the project: a link that leads out of it is refused.
+		if root != "" && under(root, path) {
+			if _, cerr := rootpath.Contain(root, path); cerr != nil {
+				refuse(i, &change.Error{Code: change.CodeInvalid, Field: "at/doc", Message: cerr.Error()})
+				continue
+			}
+		}
 		key := path + "\x00" + op.At.Block
 		if j, dup := seen[key]; dup {
 			refuse(i, &change.Error{Code: change.CodeInvalid, Field: "at/block",

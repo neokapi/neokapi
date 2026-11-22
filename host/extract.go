@@ -24,6 +24,7 @@ import (
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/host/output"
@@ -323,6 +324,7 @@ func (a *App) RunExtract(cmd Command) error {
 				sourceHash:     sourceHash,
 				targetLocale:   tgt,
 				outputPath:     outPath,
+				outRoot:        absOut,
 				batchDir:       batchDir,
 				batchID:        batchID,
 				format:         format,
@@ -402,6 +404,9 @@ type extractTask struct {
 	sourceHash   string
 	targetLocale model.LocaleID
 	outputPath   string
+	// outRoot is the output directory; the file is written only where it
+	// resolves inside it.
+	outRoot      string
 	batchDir     string
 	batchID      string
 	format       string // xliff2 | po
@@ -579,10 +584,9 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	}
 
 	// Write the bilingual output file in the requested format.
-	if err := os.MkdirAll(filepath.Dir(task.outputPath), 0o755); err != nil {
-		return project.ExtractionFile{}, fmt.Errorf("mkdir output: %w", err)
-	}
-	outFile, err := os.Create(task.outputPath)
+	// Created through rootpath: no directory is made, and no file written,
+	// through a link that leads out of the output directory.
+	outFile, err := createExtractOutput(task.outRoot, task.outputPath)
 	if err != nil {
 		return project.ExtractionFile{}, fmt.Errorf("create %s: %w", task.outputPath, err)
 	}
@@ -1392,3 +1396,15 @@ var (
 	_ = sort.Strings
 	_ = io.Discard
 )
+
+// createExtractOutput creates the bilingual file at path, beneath root when
+// one is given, through rootpath.
+func createExtractOutput(root, path string) (*os.File, error) {
+	if root == "" {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return nil, err
+		}
+		return os.Create(path)
+	}
+	return rootpath.CreateRegular(root, path)
+}
