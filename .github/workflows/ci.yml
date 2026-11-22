@@ -1295,6 +1295,8 @@ jobs:
         run: ./scripts/go-test-shard.sh --self-test
       - name: "Guard: the reliability checklist validates and each trigger selects its fixture"
         run: python3 scripts/reliability-checklist.py --self-test
+      - name: "Guard: the CI passed job answers for every job"
+        run: python3 scripts/ci-passed.py --self-test && python3 scripts/ci-passed.py needs
       - name: "Guard: the commit gate hook passes its self-test"
         run: ./.claude/hooks/commit-gate.sh --self-test
       - name: "Guard: the build cache warmer passes its self-test"
@@ -1525,3 +1527,68 @@ jobs:
       - name: Build binaries + verify module isolation
         run: make ci-build
 
+  # ── The one required check ────────────────────────────────────────────────
+  # The main branch requires this job and no other. It answers for every job
+  # above, and on a pull request for every other workflow on the same commit,
+  # so `gh pr merge --auto` merges when all of it is green.
+  #
+  # `needs` lists every job, and `scripts/ci-passed.py needs` (a repo guard)
+  # fails when one is missing: a job outside the list would not hold a merge.
+  # `if: always()` matters: without it a failed need skips this job, and a
+  # skipped required check counts as passed.
+  ci-passed:
+    name: CI passed
+    if: always()
+    needs:
+      - changes
+      - frontend
+      - kapi-desktop
+      - kapi-desktop-backend
+      - desktop-bindings
+      - bowrain-desktop
+      - bowrain-desktop-backend
+      - neokapi-i18n
+      - harness
+      - test-framework
+      - test-wasm-stores
+      - test-platform
+      - test-cli
+      - face-parity
+      - test-kapi
+      - test-bowrain-plugin
+      - test-bowrain
+      - test-plugins
+      - test-integration
+      - migration-schema
+      - eval-index
+      - race-changed
+      - coverage
+      - lint-framework
+      - lint-platform
+      - fieldguard
+      - docs-guard
+      - gha-lint
+      - warm-pr-cache
+      - tidy-check
+      - module-boundaries
+      - build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Every job of this workflow passed or was skipped
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: python3 scripts/ci-passed.py jobs
+      # The path-filtered workflows (E2E, the docs builds, format acceptance
+      # and the rest) cannot be required themselves: a pull request outside
+      # their paths never reports them and would wait forever.
+      - name: Every other workflow on this commit passed
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/ci-passed.py workflows

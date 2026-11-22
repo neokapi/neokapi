@@ -139,6 +139,7 @@ run_check "Test shards cover every test once" ./scripts/go-test-shard.sh --self-
 run_check "Fuzz runner reports a failing target" ./scripts/go-fuzz.sh --self-test
 run_check "Copies of each tool pin agree" python3 scripts/check-tool-versions.py --offline
 run_check "Reliability checklist validates" python3 scripts/reliability-checklist.py --self-test
+run_check "CI passed answers for every job" make --no-print-directory check-ci-passed
 run_check "Commit gate hook" ./.claude/hooks/commit-gate.sh --self-test
 run_check "Build cache warmer" ./scripts/ci-warm-build-cache.sh --self-test
 run_check "Bindings generator warnings about our code fail" ./scripts/wails-generate.sh --self-test
