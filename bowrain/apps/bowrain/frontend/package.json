@@ -27,7 +27,7 @@
     "@tanstack/react-query": "^5.107.1",
     "@tanstack/react-router": "^1.170.46",
     "@wailsio/runtime": "^3.1.0",
-    "@xyflow/react": "^12.11.6",
+    "@xyflow/react": "^12.12.1",
     "lexical": "^0.53.0",
     "lucide-react": "^1.70.0",
     "posthog-js": "^1.448.0",
@@ -36,7 +36,7 @@
     "tailwindcss": "^4.3.5"
   },
   "devDependencies": {
-    "@playwright/test": "^1.65.0",
+    "@playwright/test": "^1.65.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.10",
