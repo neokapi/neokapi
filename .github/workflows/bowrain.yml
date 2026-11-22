@@ -50,12 +50,12 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/icu-static
-          key: icu-static-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
+          key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
         env:
-          MACOSX_DEPLOYMENT_TARGET: "11.0"
+          MACOSX_DEPLOYMENT_TARGET: "13.0"
         run: |
           brew install pkg-config
           [ -f "$HOME/icu-static/lib/libicuuc.a" ] || bash scripts/build-icu-static.sh "$HOME/icu-static"
@@ -63,7 +63,7 @@ jobs:
           {
             echo "PKG_CONFIG_PATH=${PCDIR}"
             echo "CPPFLAGS=-I$HOME/icu-static/include"
-            echo "MACOSX_DEPLOYMENT_TARGET=11.0"
+            echo "MACOSX_DEPLOYMENT_TARGET=13.0"
           } >> "$GITHUB_ENV"
 
       - name: Set up MSYS2 (Windows)
