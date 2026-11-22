@@ -236,6 +236,70 @@ func (tm *SQLiteStore) ReplayWithStream(ctx context.Context, entries []Entry, st
 	return nil
 }
 
+// AddOrigin records one more origin on the entry id holds, with the
+// properties that come with it, in one transaction against the entry as the
+// store holds it then. It replaces an origin with the same source and key,
+// and leaves every variant, every other origin and every other property as
+// they are. It reports false when the store holds no entry id.
+func (tm *SQLiteStore) AddOrigin(ctx context.Context, id string, origin Origin, properties map[string]string) (bool, error) {
+	tx, err := tm.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var propertiesJSON string
+	err = tx.QueryRowContext(ctx, `SELECT properties FROM tm_entries WHERE id = ?`, id).Scan(&propertiesJSON)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read entry %s: %w", id, err)
+	}
+	if len(properties) > 0 {
+		merged := map[string]string{}
+		if propertiesJSON != "" {
+			if err := json.Unmarshal([]byte(propertiesJSON), &merged); err != nil {
+				return false, fmt.Errorf("read the properties of entry %s: %w", id, err)
+			}
+		}
+		maps.Copy(merged, properties)
+		b, err := json.Marshal(merged)
+		if err != nil {
+			return false, fmt.Errorf("marshal properties: %w", err)
+		}
+		propertiesJSON = string(b)
+	}
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM tm_entry_origins WHERE entry_id = ? AND source = ? AND key = ?`,
+		id, origin.Source, origin.Key); err != nil {
+		return false, fmt.Errorf("replace origin: %w", err)
+	}
+	var next int
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(ordinal) + 1, 0) FROM tm_entry_origins WHERE entry_id = ?`, id).Scan(&next); err != nil {
+		return false, fmt.Errorf("read origins of entry %s: %w", id, err)
+	}
+	addedAt := origin.AddedAt
+	if addedAt.IsZero() {
+		addedAt = time.Now().UTC()
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO tm_entry_origins
+		(entry_id, ordinal, source, key, reference, added_at, added_by, session_id, context_fp)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, next, origin.Source, origin.Key, origin.Reference,
+		addedAt.Format(time.RFC3339), origin.AddedBy, origin.SessionID, origin.ContextFingerprint); err != nil {
+		return false, fmt.Errorf("insert origin: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE tm_entries SET properties = ?, updated_at = ? WHERE id = ?`,
+		propertiesJSON, addedAt.Format(time.RFC3339), id); err != nil {
+		return false, fmt.Errorf("update entry %s: %w", id, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit: %w", err)
+	}
+	return true, nil
+}
+
 // BulkAddWithStream inserts or updates many content-memory entries inside a single
 // transaction, using prepared statements that are reused across all rows.
 // The FTS5 trigram (fuzzy-candidate) index is NOT populated in the bulk

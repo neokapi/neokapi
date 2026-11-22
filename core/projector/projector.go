@@ -370,6 +370,11 @@ func split(w pending) []pending {
 			steps = append(steps, head)
 			s.PutEntries = s.PutEntries[maxEntriesPerStep:]
 		}
+		for len(s.AddOrigins) > maxEntriesPerStep {
+			head := step{Stream: s.Stream, AddOrigins: s.AddOrigins[:maxEntriesPerStep]}
+			steps = append(steps, head)
+			s.AddOrigins = s.AddOrigins[maxEntriesPerStep:]
+		}
 		for len(s.PutConcepts) > maxEntriesPerStep {
 			head := step{Stream: s.Stream, PutConcepts: s.PutConcepts[:maxEntriesPerStep]}
 			steps = append(steps, head)

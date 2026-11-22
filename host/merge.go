@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/change"
@@ -27,6 +30,7 @@ import (
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/memory/kmb"
 )
 
 // restoreRedactedBlocks restores redacted originals into the incoming
@@ -1008,6 +1012,10 @@ type memoryAbsorber struct {
 	// merged for a second target locale, is one entry, and the bulk path would
 	// otherwise carry it twice.
 	staged map[string]int
+	// origins are the merge origins to record on entries the store already
+	// holds for a merged pair, keyed by entry id and origin key. They are
+	// applied at flush against each entry as the store holds it then.
+	origins map[[2]string]projector.OriginAdd
 }
 
 // newMemoryAbsorber returns an absorber over tm, or nil when there is no
@@ -1017,7 +1025,7 @@ func (a *App) newMemoryAbsorber(tm *projector.Memory) *memoryAbsorber {
 	if tm == nil {
 		return nil
 	}
-	return &memoryAbsorber{app: a, tm: tm, staged: map[string]int{}}
+	return &memoryAbsorber{app: a, tm: tm, staged: map[string]int{}, origins: map[[2]string]projector.OriginAdd{}}
 }
 
 // absorb stages one merged block. The new/updated split is decided here, while
@@ -1048,26 +1056,15 @@ func (m *memoryAbsorber) absorb(ctx context.Context, block *model.Block, source,
 		return 0, 0, herr
 	}
 	if found {
+		// Only the origin and its properties are recorded, at flush, as a
+		// write the store applies to the entry as it holds it then. A copy of
+		// the entry read now would put back anything written to it in between.
 		origin := entry.Origins[0]
-		if i, staged := m.staged[holder.ID]; staged {
-			m.entries[i].Origins, _ = withMergeOrigin(m.entries[i].Origins, origin)
+		key := [2]string{holder.ID, origin.Key}
+		if _, pending := m.origins[key]; pending || carriesMergeOrigin(holder, origin, entry.Properties) {
 			return 0, 0, nil
 		}
-		origins, changed := withMergeOrigin(holder.Origins, origin)
-		if !changed {
-			return 0, 0, nil
-		}
-		holder.Origins = origins
-		// The merge's properties name the block and the file it came from,
-		// which `kapi memory audit` reads beside the merge origin.
-		holder.Properties = maps.Clone(holder.Properties)
-		if holder.Properties == nil {
-			holder.Properties = map[string]string{}
-		}
-		maps.Copy(holder.Properties, entry.Properties)
-		holder.UpdatedAt = entry.UpdatedAt
-		m.staged[holder.ID] = len(m.entries)
-		m.entries = append(m.entries, holder)
+		m.origins[key] = projector.OriginAdd{EntryID: holder.ID, Origin: origin, Properties: entry.Properties}
 		return 0, 1, nil
 	}
 	_, existed, gerr := m.tm.GetEntry(ctx, entry.ID)
@@ -1084,20 +1081,23 @@ func (m *memoryAbsorber) absorb(ctx context.Context, block *model.Block, source,
 
 // samePair returns the entry the store already holds for entry's source and
 // target under another id. It reports found=false when no such entry exists,
-// and when the store holds entry's own id, which the merge then updates.
+// and when the store holds entry's own id, which the merge then updates. The
+// targets are compared as run sequences, inline codes included, with only the
+// Unicode normalization the store applies to text: a target that differs in
+// whitespace or in a code is another translation.
 func (m *memoryAbsorber) samePair(ctx context.Context, entry memory.Entry, source, target model.LocaleID) (memory.Entry, bool, error) {
 	held, err := m.tm.FullScoreEntries(ctx, entry.Variants[source], source)
 	if err != nil {
 		return memory.Entry{}, false, fmt.Errorf("read content-memory entries for %s: %w", entry.ID, err)
 	}
-	want := memory.NormalizeText(entry.VariantText(target))
+	want := storedRuns(entry.Variant(target))
 	var pair *memory.Entry
 	for i := range held {
 		e := &held[i]
 		if e.ID == entry.ID {
 			return memory.Entry{}, false, nil
 		}
-		if pair == nil && e.HasLocale(target) && memory.NormalizeText(e.VariantText(target)) == want {
+		if pair == nil && e.HasLocale(target) && storedRuns(e.Variant(target)) == want {
 			pair = e
 		}
 	}
@@ -1107,30 +1107,57 @@ func (m *memoryAbsorber) samePair(ctx context.Context, entry memory.Entry, sourc
 	return *pair, true, nil
 }
 
-// withMergeOrigin records origin on an entry's origins: it replaces a merge
-// origin for the same file and adds one otherwise. changed is false when the
-// entry already carries the origin, apart from the instant it was added.
-func withMergeOrigin(origins []memory.Origin, origin memory.Origin) (out []memory.Origin, changed bool) {
-	for i, o := range origins {
+// storedRuns renders a run sequence as the store's bundle form keeps it, with
+// its text in Unicode NFC, so two sequences compare equal exactly when the
+// store would hold the same target for both.
+func storedRuns(runs []model.Run) string {
+	f := kmb.FromModel([]memory.Entry{{ID: "x", Variants: map[model.LocaleID][]model.Run{"x": runs}}}, nil)
+	b, err := json.Marshal(f.Entries[0].Variants)
+	if err != nil {
+		return ""
+	}
+	return norm.NFC.String(string(b))
+}
+
+// carriesMergeOrigin reports whether e already carries origin, apart from the
+// instant it was added, with every one of the properties set.
+func carriesMergeOrigin(e memory.Entry, origin memory.Origin, properties map[string]string) bool {
+	for k, v := range properties {
+		if e.Properties[k] != v {
+			return false
+		}
+	}
+	for _, o := range e.Origins {
 		if o.Source != origin.Source || o.Key != origin.Key {
 			continue
 		}
 		o.AddedAt = origin.AddedAt
-		if o == origin {
-			return origins, false
-		}
-		out = slices.Clone(origins)
-		out[i] = origin
-		return out, true
+		return o == origin
 	}
-	return append(slices.Clone(origins), origin), true
+	return false
 }
 
 // flush writes everything the run learned, then repopulates the search and
 // fuzzy indexes the bulk path skipped. A run that learned nothing writes
 // nothing, including no rebuild.
 func (m *memoryAbsorber) flush(ctx context.Context) error {
-	if m == nil || len(m.entries) == 0 {
+	if m == nil {
+		return nil
+	}
+	if len(m.origins) > 0 {
+		adds := make([]projector.OriginAdd, 0, len(m.origins))
+		for _, add := range m.origins {
+			adds = append(adds, add)
+		}
+		slices.SortFunc(adds, func(a, b projector.OriginAdd) int {
+			return strings.Compare(a.EntryID+"\x00"+a.Origin.Key, b.EntryID+"\x00"+b.Origin.Key)
+		})
+		if err := m.tm.AddOrigins(ctx, adds); err != nil {
+			return fmt.Errorf("record %d merge origin(s): %w", len(adds), err)
+		}
+		m.origins = map[[2]string]projector.OriginAdd{}
+	}
+	if len(m.entries) == 0 {
 		return nil
 	}
 	if err := m.tm.BulkAddWithStream(ctx, m.entries, ""); err != nil {
@@ -1150,6 +1177,10 @@ func mergeMemoryEntry(block *model.Block, source, target model.LocaleID, batchID
 	if srcText == "" || tgtText == "" {
 		return memory.Entry{}, false
 	}
+	// The entry keeps the runs, inline codes included, as the record absorber
+	// does, so the two find each other's entries for the same unit.
+	srcRuns := model.CloneRuns(block.SourceRuns())
+	tgtRuns := model.CloneRuns(block.TargetRuns(target))
 	// block.Identity can be nil on blocks built by readers that don't
 	// compute content hashes eagerly; fall back to hashing the source
 	// text so the TU id is still deterministic.
@@ -1164,8 +1195,8 @@ func mergeMemoryEntry(block *model.Block, source, target model.LocaleID, batchID
 	entry := memory.Entry{
 		ID: fmt.Sprintf("merge:%s:%s", batchID, contentHash),
 		Variants: map[model.LocaleID][]model.Run{
-			source: {{Text: &model.TextRun{Text: srcText}}},
-			target: {{Text: &model.TextRun{Text: tgtText}}},
+			source: srcRuns,
+			target: tgtRuns,
 		},
 		HintSrcLang: source,
 		Origins: []memory.Origin{{
