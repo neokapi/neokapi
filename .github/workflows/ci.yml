@@ -1547,12 +1547,19 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     timeout-minutes: 30
+    # The job deletes the copy of the cache it replaces (see the last step).
+    permissions:
+      contents: read
+      actions: write
     steps:
       - uses: actions/checkout@v7
+      # Restore only: the job saves the build cache itself below, so the old
+      # and new copies of this 2 GiB family overlap for seconds, not for the
+      # rest of the run before the Cache Budget prune.
       - uses: ./.github/actions/setup-go-modules
         with:
           cache-flavor: pr
-          save-cache: "true"
+          save-cache: "false"
       # The desktop apps link GTK and WebKit through Wails, and the linter
       # compiles those packages on a pull request.
       - name: Install Linux dependencies for Wails
@@ -1561,6 +1568,20 @@ jobs:
           packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
       - name: Compile what pull request jobs compile
         run: make warm-build-cache
+      - name: Resolve the Go build cache path
+        id: gocache
+        run: echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+      # The key setup-go-modules restores by prefix (flavor "pr").
+      - name: Save the pull request build cache
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ steps.gocache.outputs.build }}
+          key: go-build-${{ runner.os }}-go1.27.4-pr-trimpath-${{ github.sha }}
+      - name: Delete the copy it replaces
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 scripts/ci-cache-budget.py prune
 
   # ── go mod tidy drift check ──────────────────────────────────────────────
   tidy-check:
