@@ -4,7 +4,7 @@
 // init(), so importing the package is what exposes the tools.
 //
 // It is a library rather than part of `package main` so the tool surface can be
-// enumerated without running the binary — the reference generator and the
+// enumerated without running the binary. The reference generator and the
 // surface snapshot both link it directly.
 package mcptools
 
@@ -12,15 +12,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host"
 )
@@ -31,6 +34,9 @@ func init() {
 
 // registerKapiTools registers all kapi MCP tools on the given server.
 func registerKapiTools(server *mcp.Server, a *cli.App) {
+	// Outside a project a call writes under the directory the server was
+	// started in and the roots its client declares (writescope.go).
+	startDir, _ := os.Getwd()
 	if a.MCPSurface.AllTools {
 		mcp.AddTool(server, &mcp.Tool{
 			Name:        "list_formats",
@@ -52,7 +58,7 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 			Name:        "run_flow",
 			Description: "Execute a processing flow (e.g. pseudo-translate, qa) on a file",
 		}, func(ctx context.Context, req *mcp.CallToolRequest, input RunFlowInput) (*mcp.CallToolResult, RunFlowOutput, error) {
-			return handleRunFlow(ctx, a, input)
+			return handleRunFlow(withWriteRoots(ctx, sessionWriteRoots(ctx, req, startDir)), a, input)
 		})
 	}
 
@@ -79,7 +85,7 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 			Name:        "pseudo_translate",
 			Description: "Pseudo-translate a file to test how the UI holds expanded text",
 		}, func(ctx context.Context, req *mcp.CallToolRequest, input PseudoTranslateInput) (*mcp.CallToolResult, RunFlowOutput, error) {
-			return handlePseudoTranslate(ctx, a, input)
+			return handlePseudoTranslate(withWriteRoots(ctx, sessionWriteRoots(ctx, req, startDir)), a, input)
 		})
 	}
 }
@@ -416,8 +422,7 @@ func handlePseudoTranslate(ctx context.Context, a *cli.App, input PseudoTranslat
 
 // executeFlow runs a built-in flow on a file and writes the result. The tool
 // chain is assembled by the host so the AD-006 placement gate, data-flow
-// validation and per-node config all apply — the reason this no longer hand-
-// rolls the loop.
+// validation and per-node config all apply.
 func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLang, targetLang, outputPath string, pctx *project.ProjectContext) (string, error) {
 	flowTools, cleanup, err := a.BuildFlowTools(flowName, inputPath, sourceLang, targetLang)
 	if err != nil {
@@ -429,6 +434,7 @@ func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLan
 
 func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, sourceLang, targetLang, outputPath string, flowTools []tool.Tool, pctx *project.ProjectContext) (string, error) {
 	// Compute output path if not specified.
+	named := outputPath != ""
 	if outputPath == "" {
 		ext := filepath.Ext(inputPath)
 		base := inputPath[:len(inputPath)-len(ext)]
@@ -447,6 +453,19 @@ func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, 
 		root = pctx.ProjectDir
 	}
 	home, docs := a.FlowDocuments(ctx, root, model.LocaleID(sourceLang))
+	if root != "" {
+		if err := outputInside(root, outputPath); err != nil {
+			return "", err
+		}
+	} else {
+		// Outside a project the destination lies under a directory a person
+		// chose, and the home commits through that directory as its root.
+		writeRoot, err := writeRootFor(writeRootsFrom(ctx), outputPath, inputPath, named)
+		if err != nil {
+			return "", err
+		}
+		home = filehome.New(nil, filehome.Options{Root: writeRoot, LockDir: filepath.Join(host.DataDir(), "locks")})
+	}
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:    a.FormatReg,
 		SourceLocale: model.LocaleID(sourceLang),
@@ -472,4 +491,29 @@ func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, 
 	}
 
 	return outputPath, nil
+}
+
+// outputInside refuses an output path outside the project at root, after
+// links are resolved. The path is a tool argument, which an agent writes, so
+// it never permits a destination outside the project the way a path a person
+// types after -o does.
+func outputInside(root, outputPath string) error {
+	if root == "" {
+		return nil
+	}
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	abs, err := filepath.Abs(outputPath)
+	if err != nil {
+		return err
+	}
+	if rel, rerr := filepath.Rel(absRoot, abs); rerr != nil || !filepath.IsLocal(rel) {
+		return fmt.Errorf("output_path: %q lies outside the project. Name an output_path inside the project", outputPath)
+	}
+	if _, err := rootpath.Contain(absRoot, abs); err != nil {
+		return fmt.Errorf("output_path: %w", err)
+	}
+	return nil
 }

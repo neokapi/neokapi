@@ -10,9 +10,11 @@
 // reached through a link (/tmp and /var on macOS) is resolved first, so a
 // path inside it stays inside.
 //
-// OpenRegular and CreateRegular then open through os.Root, which refuses a
-// link that leads out of the root at the moment of the open, so a link
-// swapped in after Contain is refused too.
+// OpenRegular then opens through os.Root, which refuses a link that leads
+// out of the root at the moment of the open, so a link swapped in after
+// Contain is refused too. A write goes through atomicfile.StageWithin, which
+// stages and renames through the same kind of root and never cuts a file in
+// place.
 package rootpath
 
 import (
@@ -26,14 +28,19 @@ import (
 
 // EscapeError says a path leads outside its root. Link is the symbolic link,
 // relative to the root, through which it does; it names the path itself when
-// that is the link. The error never names where the link points.
+// that is the link, and is empty when no link was found on the way. The
+// error never names where the link points.
 type EscapeError struct {
 	Path string
 	Link string
 }
 
 func (e *EscapeError) Error() string {
-	if e.Link == "" || e.Link == e.Path {
+	if e.Link == "" {
+		// No link was found on the way: the path itself lies outside.
+		return e.Path + " lies outside the root"
+	}
+	if e.Link == e.Path {
 		return e.Path + " is a symbolic link that leads outside the root"
 	}
 	return fmt.Sprintf("%s: the symbolic link %s leads outside the root", e.Path, e.Link)
@@ -50,6 +57,9 @@ var ErrNotRegular = errors.New("not a regular file")
 // a new file beneath a directory link is judged by where the link leads. A
 // link to a missing file is refused: what it would create cannot be decided.
 func Contain(root, p string) (string, error) {
+	if !Supported {
+		return containLexically(root, p)
+	}
 	realRoot, err := realDir(root)
 	if err != nil {
 		return "", err
@@ -66,7 +76,7 @@ func Contain(root, p string) (string, error) {
 		if rerr == nil {
 			slices.Reverse(missing)
 			resolved := filepath.Join(append([]string{real}, missing...)...)
-			if !inside(realRoot, real) {
+			if _, ok := Beneath(realRoot, real); !ok {
 				return "", &EscapeError{Path: rel, Link: firstLink(root, abs)}
 			}
 			return resolved, nil
@@ -109,10 +119,11 @@ func CheckRegular(root, p string) (string, error) {
 // inside root, so a link swapped in after Contain is refused rather than read.
 // A FIFO is opened without blocking and refused.
 func OpenRegular(root, p string) (*os.File, error) {
-	if _, err := Contain(root, p); err != nil {
+	real, err := Contain(root, p)
+	if err != nil {
 		return nil, err
 	}
-	r, rel, err := openRoot(root, p)
+	r, rel, err := openRoot(root, real)
 	if err != nil {
 		return nil, err
 	}
@@ -132,58 +143,20 @@ func OpenRegular(root, p string) (*os.File, error) {
 	return f, nil
 }
 
-// CreateRegular creates or truncates p for writing when it lies inside root,
-// creating the missing directories first. Both go through os.Root, so no
-// directory is created and no file is written through a link that leads out
-// of root, even one swapped in after Contain.
-func CreateRegular(root, p string) (*os.File, error) {
-	if _, err := Contain(root, p); err != nil {
-		return nil, err
-	}
-	r, rel, err := openRoot(root, p)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-	if dir := filepath.Dir(rel); dir != "." {
-		if err := r.MkdirAll(dir, 0o755); err != nil {
-			return nil, explain(root, p, err)
-		}
-	}
-	// No O_TRUNC: the file is cut only once it is known to be a regular file.
-	f, err := r.OpenFile(rel, os.O_WRONLY|os.O_CREATE|openNonBlock, 0o666)
-	if err != nil {
-		return nil, explain(root, p, err)
-	}
-	info, err := f.Stat()
-	if err == nil && !info.Mode().IsRegular() {
-		err = fmt.Errorf("%s: %w", relativeTo(root, p), ErrNotRegular)
-	}
-	if err == nil {
-		err = f.Truncate(0)
-	}
-	if err != nil {
-		_ = f.Close()
-		return nil, err
-	}
-	return f, nil
-}
-
-// openRoot opens root and returns p relative to it.
-func openRoot(root, p string) (*os.Root, string, error) {
-	absRoot, err := filepath.Abs(root)
+// openRoot opens the directory root resolves to and returns real, the path
+// Contain resolved, relative to it. The name handed to the root holds no
+// link, so a link Contain followed (an absolute one inside the root
+// included) is not refused by the root, while one swapped in afterwards is.
+func openRoot(root, real string) (*os.Root, string, error) {
+	realRoot, err := realDir(root)
 	if err != nil {
 		return nil, "", err
 	}
-	abs, err := filepath.Abs(p)
-	if err != nil {
-		return nil, "", err
+	rel, ok := Beneath(realRoot, real)
+	if !ok || rel == "." {
+		return nil, "", &EscapeError{Path: filepath.Base(real)}
 	}
-	rel, err := filepath.Rel(absRoot, abs)
-	if err != nil || !filepath.IsLocal(rel) {
-		return nil, "", &EscapeError{Path: filepath.Base(p)}
-	}
-	r, err := os.OpenRoot(absRoot)
+	r, err := os.OpenRoot(realRoot)
 	if err != nil {
 		return nil, "", err
 	}
@@ -208,6 +181,34 @@ func realDir(root string) (string, error) {
 	return filepath.EvalSymlinks(abs)
 }
 
+// Beneath returns real relative to realRoot when real is realRoot or lies
+// beneath it. Both are resolved paths, free of links. The spelling decides
+// first; failing that, an ancestor of real that is the same directory as
+// realRoot does, so a path spelled in another case on a case-insensitive
+// volume is beneath the root it names. The relative path keeps real's
+// spelling.
+func Beneath(realRoot, real string) (string, bool) {
+	if rel, err := filepath.Rel(realRoot, real); err == nil && (rel == "." || filepath.IsLocal(rel)) {
+		return rel, true
+	}
+	if !Supported {
+		return "", false
+	}
+	rootInfo, err := os.Stat(realRoot)
+	if err != nil {
+		return "", false
+	}
+	for dir := real; ; dir = filepath.Dir(dir) {
+		if info, serr := os.Stat(dir); serr == nil && os.SameFile(info, rootInfo) {
+			rel, rerr := filepath.Rel(dir, real)
+			return rel, rerr == nil
+		}
+		if parent := filepath.Dir(dir); parent == dir {
+			return "", false
+		}
+	}
+}
+
 // inside reports whether p is root or lies beneath it.
 func inside(root, p string) bool {
 	rel, err := filepath.Rel(root, p)
@@ -220,7 +221,7 @@ func relativeTo(root, p string) string {
 	absRoot, err1 := filepath.Abs(root)
 	abs, err2 := filepath.Abs(p)
 	if err1 == nil && err2 == nil {
-		if rel, err := filepath.Rel(absRoot, abs); err == nil && filepath.IsLocal(rel) {
+		if rel, ok := Beneath(absRoot, abs); ok && rel != "." {
 			return filepath.ToSlash(rel)
 		}
 	}
@@ -234,8 +235,8 @@ func firstLink(root, abs string) string {
 	if err != nil {
 		return ""
 	}
-	rel, err := filepath.Rel(absRoot, abs)
-	if err != nil || !filepath.IsLocal(rel) {
+	rel, ok := Beneath(absRoot, abs)
+	if !ok || rel == "." {
 		return ""
 	}
 	cur := absRoot
@@ -264,4 +265,21 @@ func splitPath(rel string) []string {
 	}
 	slices.Reverse(parts)
 	return parts
+}
+
+// containLexically is Contain where the file system has no links: p, made
+// absolute, must lie beneath root as written.
+func containLexically(root, p string) (string, error) {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", err
+	}
+	if !inside(absRoot, abs) {
+		return "", &EscapeError{Path: relativeTo(root, p)}
+	}
+	return abs, nil
 }

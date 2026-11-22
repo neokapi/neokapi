@@ -99,6 +99,11 @@ type Staged struct {
 	// outermost first. Commit creates them; until then the temporary file
 	// waits in the nearest directory that does exist.
 	mkdir []string
+	// root, for a file staged with StageWithin, is the handle every
+	// operation goes through; name, target and mkdir are then relative to
+	// it, and abs is the target as an absolute path.
+	root *os.Root
+	abs  string
 }
 
 // Stage writes what write produces to a temporary file beside the file a
@@ -177,7 +182,12 @@ func existingDir(dir string) (string, []string, error) {
 
 // Target is the file Commit replaces: the path the replacement was staged
 // for, with any symlink resolved.
-func (s *Staged) Target() string { return s.target }
+func (s *Staged) Target() string {
+	if s.root != nil {
+		return s.abs
+	}
+	return s.target
+}
 
 // Name is the temporary file that holds the staged bytes.
 func (s *Staged) Name() string { return s.name }
@@ -185,27 +195,40 @@ func (s *Staged) Name() string { return s.name }
 // Commit renames the staged file onto its target, creating the directories
 // the target needs first. A failed rename removes the staged file and the
 // directories Commit created, and leaves the target as it was.
+//
+// A file staged with StageWithin is committed through its root: the
+// directories and the rename resolve their names inside it, and a link that
+// leads out of it is refused at the moment of the operation.
 func (s *Staged) Commit() error {
+	if s.root == nil {
+		return s.commit(os.Mkdir, os.Rename, os.Remove)
+	}
+	defer s.root.Close()
+	return s.commit(s.root.Mkdir, s.root.Rename, s.root.Remove)
+}
+
+// commit renames the staged file onto its target with the given operations.
+func (s *Staged) commit(mkdir func(string, fs.FileMode) error, rename func(string, string) error, remove func(string) error) error {
 	if s.done {
 		return &Error{Op: "replace", Path: s.target, Err: errors.New("the staged file was already committed or discarded")}
 	}
 	s.done = true
 	var made []string
 	undo := func() {
-		_ = os.Remove(s.name)
+		_ = remove(s.name)
 		for _, dir := range slices.Backward(made) {
-			_ = os.Remove(dir)
+			_ = remove(dir)
 		}
 	}
 	for _, dir := range s.mkdir {
-		if err := os.Mkdir(dir, 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
+		if err := mkdir(dir, 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
 			undo()
 			return &Error{Op: "create the directory of", Path: s.target, Err: err}
 		} else if err == nil {
 			made = append(made, dir)
 		}
 	}
-	if err := os.Rename(s.name, s.target); err != nil {
+	if err := rename(s.name, s.target); err != nil {
 		undo()
 		return &Error{Op: "replace", Path: s.target, Err: err}
 	}
@@ -219,7 +242,12 @@ func (s *Staged) Discard() error {
 		return nil
 	}
 	s.done = true
-	if err := os.Remove(s.name); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	remove := os.Remove
+	if s.root != nil {
+		defer s.root.Close()
+		remove = s.root.Remove
+	}
+	if err := remove(s.name); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
 	return nil

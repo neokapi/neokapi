@@ -117,35 +117,18 @@ func TestOpenRegular(t *testing.T) {
 	})
 }
 
-func TestCreateRegular(t *testing.T) {
-	t.Run("a file link out of the root is never written", func(t *testing.T) {
-		root, _, secret := tree(t)
-		link := filepath.Join(root, "docs", "fr.txt")
-		require.NoError(t, os.Symlink(secret, link))
-		_, err := rootpath.CreateRegular(root, link)
-		requireEscape(t, err, "docs/fr.txt")
-		b, _ := os.ReadFile(secret)
-		assert.Equal(t, "outside", string(b))
-	})
+// An absolute link that leads inside the root is followed by a read, as
+// Contain follows it.
+func TestAnAbsoluteLinkInsideTheRoot(t *testing.T) {
+	root, _, _ := tree(t)
+	real := filepath.Join(root, "docs", "en.md")
+	require.NoError(t, os.WriteFile(real, []byte("hello"), 0o644))
+	link := filepath.Join(root, "docs", "abs.md")
+	require.NoError(t, os.Symlink(real, link))
 
-	t.Run("no directory is created beneath a directory link out of the root", func(t *testing.T) {
-		root, outside, _ := tree(t)
-		require.NoError(t, os.Symlink(outside, filepath.Join(root, "locales")))
-		_, err := rootpath.CreateRegular(root, filepath.Join(root, "locales", "fr", "app.json"))
-		requireEscape(t, err, "locales")
-		assert.NoDirExists(t, filepath.Join(outside, "fr"))
-	})
-
-	t.Run("a new file with new directories inside the root is written", func(t *testing.T) {
-		root, _, _ := tree(t)
-		p := filepath.Join(root, "locales", "fr", "app.json")
-		f, err := rootpath.CreateRegular(root, p)
-		require.NoError(t, err)
-		_, err = f.WriteString("{}")
-		require.NoError(t, err)
-		require.NoError(t, f.Close())
-		b, err := os.ReadFile(p)
-		require.NoError(t, err)
-		assert.Equal(t, "{}", string(b))
-	})
+	f, err := rootpath.OpenRegular(root, link)
+	require.NoError(t, err)
+	b, _ := io.ReadAll(f)
+	require.NoError(t, f.Close())
+	assert.Equal(t, "hello", string(b))
 }

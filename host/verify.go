@@ -1289,6 +1289,9 @@ func (a *App) unitsOfFile(proj *project.KapiProject, root string, rf project.Res
 			continue
 		}
 		targetPath := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root, proj.Defaults.LocaleFormat)
+		if targetPath == "" {
+			continue // a name the template cannot hold safely has no target
+		}
 		rel, relErr := filepath.Rel(root, targetPath)
 		if relErr != nil {
 			rel = targetPath
@@ -1430,6 +1433,9 @@ func matchTargetIn(proj *project.KapiProject, root, targetAbs string, resolved [
 		}
 		for _, loc := range rf.Item.ResolvedTargetLanguages(nil, proj.Defaults) {
 			candidate := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root, proj.Defaults.LocaleFormat)
+			if candidate == "" {
+				continue
+			}
 			candAbs, _ := filepath.Abs(candidate)
 			if candAbs == targetAbs {
 				return rf, string(loc), true
@@ -1448,7 +1454,12 @@ func matchTargetIn(proj *project.KapiProject, root, targetAbs string, resolved [
 // directory-mirror targets). Resolving only {lang} here (the old behavior) made
 // every {path}-templated target look "missing", falsely reporting untranslated.
 func expandTargetTemplate(itemPath, base, tmpl, sourceRel, locale, root, localeFormat string) string {
-	out := project.ResolveTargetPathIn(itemPath, base, tmpl, sourceRel, locale, localeFormat)
+	out, err := project.ResolveTargetPathIn(itemPath, base, tmpl, sourceRel, locale, localeFormat)
+	if err != nil {
+		// A name the template cannot hold safely has no target, and up
+		// writes none for it.
+		return ""
+	}
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)
 	}

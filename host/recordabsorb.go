@@ -1187,6 +1187,9 @@ func recordUnits(ctx context.Context, a *App, proj *project.KapiProject, pctx *p
 		}
 		for _, loc := range rf.Item.ResolvedTargetLanguages(nil, proj.Defaults) {
 			targetPath := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root, proj.Defaults.LocaleFormat)
+			if targetPath == "" {
+				continue // a name the template cannot hold safely has no target
+			}
 			if blockedTargetPath(targetPath) != nil {
 				continue // an obstructed destination holds no translation
 			}

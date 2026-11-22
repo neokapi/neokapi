@@ -31,7 +31,7 @@ import (
 	"github.com/spf13/pflag"
 )
 func quiet(fs *pflag.FlagSet, l *log.Logger) { fs.SetOutput(io.Discard); l.SetOutput(io.Discard) }`},
-	{"a file replaced outside the file home", 2, `package f
+	{"a file replaced outside the file home", 3, `package f
 import (
 	"io"
 	"github.com/neokapi/neokapi/core/atomicfile"
@@ -40,15 +40,15 @@ func write(w func(io.Writer) error) error {
 	if _, err := atomicfile.Replace("out.html", w); err != nil {
 		return err
 	}
-	_, err := atomicfile.Stage("out.html", w)
+	if _, err := atomicfile.Stage("out.html", w); err != nil {
+		return err
+	}
+	_, err := atomicfile.StageWithin(".", "out.html", w)
 	return err
 }`},
 	{"reading a file's target with atomicfile", 0, `package f
 import "github.com/neokapi/neokapi/core/atomicfile"
 func where(p string) (string, error) { t, _, _, err := atomicfile.Resolve(p); return t, err }`},
-	{"a file created for writing inside a root", 1, `package f
-import "github.com/neokapi/neokapi/core/rootpath"
-func write(root, p string) error { f, err := rootpath.CreateRegular(root, p); if err == nil { f.Close() }; return err }`},
 	{"a file opened for reading inside a root", 0, `package f
 import "github.com/neokapi/neokapi/core/rootpath"
 func read(root, p string) error { f, err := rootpath.OpenRegular(root, p); if err == nil { f.Close() }; return err }`},

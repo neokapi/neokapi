@@ -146,3 +146,20 @@ func TestPublishRefusesALinkOutOfTheRoot(t *testing.T) {
 		assert.FileExists(t, filepath.Join(base, "locales", "de.json"))
 	})
 }
+
+// A target that is a hard link to a file outside the root is replaced by a
+// rename: the name now holds the delivery, and the outside file its bytes.
+func TestPublishNeverWritesThroughAHardLink(t *testing.T) {
+	base, _, secret := linkTree(t)
+	target := filepath.Join(base, "locales", "fr.json")
+	require.NoError(t, os.Link(secret, target))
+	c := setupFileConnector(t, base)
+	require.NoError(t, c.Publish(t.Context(), []*platconn.ContentItem{publishItem("locales/fr.json")}, platconn.PublishOptions{}))
+	b, _ := os.ReadFile(secret)
+	assert.JSONEq(t, `{"secret":"outside the root"}`, string(b), "the outside file is untouched")
+	ti, err := os.Stat(target)
+	require.NoError(t, err)
+	si, err := os.Stat(secret)
+	require.NoError(t, err)
+	assert.False(t, os.SameFile(ti, si), "the name now holds a file of its own")
+}

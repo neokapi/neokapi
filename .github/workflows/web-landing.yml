@@ -35,6 +35,8 @@ jobs:
         with:
           node-version: "26"
           cache: true
+          # A pull request restores the dependency cache and saves none.
+          cache-save: ${{ github.event_name != 'pull_request' }}
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install workspace dependencies
