@@ -121,7 +121,7 @@ func TestReplayPendingChangesNoClient(t *testing.T) {
 	// No remote client → replay should fail and mark change as failed.
 	app.replayPendingChanges(context.Background())
 
-	changes, err := q.PeekPending(10)
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 1)
 	assert.Equal(t, 1, changes[0].Attempts)
@@ -162,8 +162,8 @@ func TestReplayPendingChangesPermanent4xx(t *testing.T) {
 			app.replayPendingChanges(context.Background())
 
 			assert.Equal(t, 1, calls, "one pass sends the change set once")
-			assert.Equal(t, tc.pending, q.PendingCount())
-			assert.Equal(t, tc.failed, q.FailedCount())
+			assert.Equal(t, tc.pending, q.PendingCount(t.Context()))
+			assert.Equal(t, tc.failed, q.FailedCount(t.Context()))
 		})
 	}
 }
@@ -189,9 +189,9 @@ func TestReplayPendingChangesNoProgress(t *testing.T) {
 	app.replayPendingChanges(context.Background())
 
 	assert.Equal(t, 1, calls, "a no-progress pass must stop, not re-peek immediately")
-	assert.Equal(t, 1, q.PendingCount())
+	assert.Equal(t, 1, q.PendingCount(t.Context()))
 
-	changes, err := q.PeekPending(10)
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 1)
 	assert.Equal(t, 1, changes[0].Attempts)
@@ -253,8 +253,8 @@ func TestOfflineQueueIntegrationWithMemory(t *testing.T) {
 	assert.NotEmpty(t, entry.ID)
 
 	// Verify queued.
-	assert.Equal(t, 1, q.PendingCount())
-	changes, err := q.PeekPending(10)
+	assert.Equal(t, 1, q.PendingCount(t.Context()))
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	assert.Equal(t, "add_tm_entry", changes[0].Operation)
 }
@@ -290,8 +290,8 @@ func TestOfflineQueueIntegrationWithTerms(t *testing.T) {
 	assert.NotEmpty(t, concept.ID)
 
 	// Verify queued.
-	assert.Equal(t, 1, q.PendingCount())
-	changes, err := q.PeekPending(10)
+	assert.Equal(t, 1, q.PendingCount(t.Context()))
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	assert.Equal(t, "add_concept", changes[0].Operation)
 }

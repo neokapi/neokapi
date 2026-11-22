@@ -15,7 +15,7 @@ func (a *App) enqueue(op offlineOp) {
 	if a.offlineQueue == nil {
 		return
 	}
-	if err := a.offlineQueue.Enqueue(string(op.opKind()), op); err != nil {
+	if err := a.offlineQueue.Enqueue(a.queueCtx(), string(op.opKind()), op); err != nil {
 		slog.Info("bowrain: failed to enqueue", "id", op.opKind(), "error", err)
 	}
 	// Someone is working through the outage, and the queue they are filling is

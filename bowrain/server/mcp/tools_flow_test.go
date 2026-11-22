@@ -86,7 +86,7 @@ func TestHandleRunFlow_ResolvesProjectFlows(t *testing.T) {
 	projID := seedFlowProject(t, cs)
 	other := seedFlowProject(t, cs)
 
-	require.NoError(t, defs.Upsert(ctx, projID, &flow.FlowDefinition{
+	require.NoError(t, defs.Create(ctx, projID, &flow.FlowDefinition{
 		ID:    "mine",
 		Name:  "Mine",
 		Nodes: []flow.FlowNode{{ID: "p", Type: flow.NodeTool, Name: "pseudo-translate"}},
@@ -153,7 +153,7 @@ func TestHandleListFlows_IncludesProjectFlows(t *testing.T) {
 	ms, cs, defs := newFlowToolServer(t)
 	ctx := t.Context()
 	projID := seedFlowProject(t, cs)
-	require.NoError(t, defs.Upsert(ctx, projID, &flow.FlowDefinition{
+	require.NoError(t, defs.Create(ctx, projID, &flow.FlowDefinition{
 		ID:    "mine",
 		Name:  "Mine",
 		Nodes: []flow.FlowNode{{ID: "q", Type: flow.NodeTool, Name: "qa"}},

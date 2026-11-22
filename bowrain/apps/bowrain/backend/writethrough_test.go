@@ -94,7 +94,7 @@ func TestAddItemsOfflineEnqueues(t *testing.T) {
 	_, err = app.AddItems(proj.ID, []string{dir + "/hello.txt"})
 	require.NoError(t, err)
 
-	changes, err := q.PeekPending(10)
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 1)
 	assert.Equal(t, "add_items", changes[0].Operation)
@@ -140,7 +140,7 @@ func TestRemoveItemOfflineEnqueues(t *testing.T) {
 	_, err = app.RemoveItem(proj.ID, "hello.txt")
 	require.NoError(t, err)
 
-	changes, err := q.PeekPending(10)
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 1)
 	assert.Equal(t, "remove_item", changes[0].Operation)
@@ -183,7 +183,7 @@ func TestPseudoTranslateItemOfflineEnqueues(t *testing.T) {
 	require.NoError(t, err)
 	assert.Positive(t, stats.TotalBlocks)
 
-	changes, err := q.PeekPending(10)
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 1)
 	assert.Equal(t, "pseudo_translate_item", changes[0].Operation)
@@ -302,7 +302,7 @@ func TestRefusedChangeSetSurfacesToCaller(t *testing.T) {
 
 			assert.Equal(t, StateConnected, app.GetConnectionState().State,
 				"a refusal is not a connectivity failure")
-			assert.Zero(t, q.PendingCount(), "a refused change set is not queued for replay")
+			assert.Zero(t, q.PendingCount(t.Context()), "a refused change set is not queued for replay")
 		})
 	}
 }
@@ -337,7 +337,7 @@ func TestTransportFailureStillGoesOffline(t *testing.T) {
 	assert.Equal(t, change.SetApplied, res.Status)
 
 	assert.Equal(t, StateOffline, app.GetConnectionState().State)
-	changes, err := q.PeekPending(10)
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 1)
 	assert.Equal(t, string(opChangeSet), changes[0].Operation)

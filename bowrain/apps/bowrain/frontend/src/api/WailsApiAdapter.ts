@@ -1,5 +1,5 @@
 import type { ApiAdapter, ComponentSchema } from "@neokapi/ui";
-import { ALL_PERMISSIONS, governedRefusalError } from "@neokapi/ui";
+import { ALL_PERMISSIONS, FlowChangedError, governedRefusalError } from "@neokapi/ui";
 import type {
   CallerPermissions,
   ContextQueue,
@@ -1317,10 +1317,11 @@ export class WailsApiAdapter implements ApiAdapter {
     projectId: string,
     def: FlowDefinitionInfo,
   ): Promise<FlowDefinitionInfo> {
-    return Backend.SaveFlowDefinition(projectId, {
+    const result = await Backend.SaveFlowDefinition(projectId, {
       ...def,
       id: "",
-    }) as Promise<FlowDefinitionInfo>;
+    });
+    return result?.flow as unknown as FlowDefinitionInfo;
   }
   async updateFlowDefinition(
     _ws: string,
@@ -1328,10 +1329,15 @@ export class WailsApiAdapter implements ApiAdapter {
     flowId: string,
     def: FlowDefinitionInfo,
   ): Promise<FlowDefinitionInfo> {
-    return Backend.SaveFlowDefinition(projectId, {
+    const result = await Backend.SaveFlowDefinition(projectId, {
       ...def,
       id: flowId,
-    }) as Promise<FlowDefinitionInfo>;
+    });
+    // A save based on an older read is refused, as the web's is.
+    if (result?.changed) {
+      throw new FlowChangedError(result.changed as unknown as FlowDefinitionInfo);
+    }
+    return result?.flow as unknown as FlowDefinitionInfo;
   }
   async deleteFlowDefinition(_ws: string, projectId: string, flowId: string): Promise<void> {
     return Backend.DeleteFlowDefinition(projectId, flowId);

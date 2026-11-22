@@ -17,7 +17,7 @@ import (
 // adapter (bowrain/apps/bowrain/frontend/src/api/desktopAdapter.ts) layers the
 // shared RestApiAdapter over ProxyRequest so every server surface the desktop
 // does not implement with a dedicated Wails binding still reaches the connected
-// bowrain server — authenticated with the keychain token, Go-side, so the
+// bowrain server, authenticated with the keychain token, Go-side, so the
 // webview never holds the token and there is no cross-origin/CORS concern.
 //
 // Unlike govRequest (governance.go), which decodes into a typed out and treats
@@ -60,7 +60,7 @@ func (a *App) ProxyRequest(method, path, body string) (ProxyResponse, error) {
 		reqBody = strings.NewReader(body)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), proxyTimeout)
+	ctx, cancel := context.WithTimeout(a.requestContext(), proxyTimeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, method, serverURL+path, reqBody)
@@ -72,7 +72,7 @@ func (a *App) ProxyRequest(method, path, body string) (ProxyResponse, error) {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := a.client().do(ctx, req)
 	if err != nil {
 		return ProxyResponse{}, err
 	}
@@ -152,7 +152,7 @@ func (a *App) ProxyMultipart(method, path, payloadJSON string) (ProxyResponse, e
 		return ProxyResponse{}, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), proxyTimeout)
+	ctx, cancel := context.WithTimeout(a.requestContext(), proxyTimeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, method, serverURL+path, &body)
@@ -162,7 +162,7 @@ func (a *App) ProxyMultipart(method, path, payloadJSON string) (ProxyResponse, e
 	req.Header.Set("Authorization", "Bearer "+auth.AccessToken)
 	req.Header.Set("Content-Type", w.FormDataContentType())
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := a.client().do(ctx, req)
 	if err != nil {
 		return ProxyResponse{}, err
 	}
