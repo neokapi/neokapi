@@ -52,11 +52,7 @@ func (a *App) OpenMemoryForRead(cmd Command) (memory.Store, string, func(), erro
 	}
 	if sel.InProject() {
 		if path := a.ProjectStorePath(sel.Root); !storeExists(path) {
-			tm, err := memory.NewSQLiteStore(":memory:")
-			if err != nil {
-				return nil, "", func() {}, fmt.Errorf("open content memory: %w", err)
-			}
-			return tm, path, func() { _ = tm.Close() }, nil
+			return memory.NewInMemoryStore(), path, func() {}, nil
 		}
 	} else if err := missingStore(sel.Path, "content memory", "kapi memory import"); err != nil {
 		return nil, sel.Path, func() {}, err
@@ -76,11 +72,7 @@ func (a *App) OpenTermsForRead(cmd Command) (terms.Terminology, string, func(), 
 	switch {
 	case sel.InProject():
 		if path := a.ProjectStorePath(sel.Root); !storeExists(path) {
-			tb, err := terms.NewSQLiteStore(":memory:")
-			if err != nil {
-				return nil, "", func() {}, fmt.Errorf("open terms: %w", err)
-			}
-			return tb, path, func() { _ = tb.Close() }, nil
+			return terms.NewInMemoryStore(), path, func() {}, nil
 		}
 	case sel.Path != "":
 		if err := missingStore(sel.Path, "terms store", "kapi terms import"); err != nil {
