@@ -53,7 +53,7 @@
     "react-native-webview": "14.0.1",
     "react-native-worklets": "0.13.0",
     "tailwindcss": "^4.3.5",
-    "uniwind": "^1.13.2"
+    "uniwind": "^1.14.0"
   },
   "devDependencies": {
     "@testing-library/react-native": "^14.1.0",
