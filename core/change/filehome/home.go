@@ -37,6 +37,7 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/storage/filelock"
 )
 
@@ -52,6 +53,11 @@ type Home struct {
 	writeNothing bool
 	writeUnder   string
 	materialize  bool
+	root         string
+
+	// mu guards permitted, the destinations outside root a person named.
+	mu        sync.Mutex
+	permitted map[string]bool
 }
 
 // Options configures a Home.
@@ -92,6 +98,14 @@ type Options struct {
 	// through its own skeleton, and a change to a block it does not hold is
 	// refused.
 	Materialize bool
+	// Root is the directory the home's documents live under, a project's root
+	// or the directory a layout serves. A file the home writes beneath it
+	// must resolve beneath it too: a path that a symbolic link leads out of
+	// Root is refused before anything is staged, and again under the commit
+	// lock (rootpath.Contain). A path outside Root as written, one a person
+	// named, is written as named. Empty is the DirLayout's Root, if the
+	// layout is one, and otherwise no check.
+	Root string
 }
 
 // DefaultLockDir is where lock files go when the caller names no directory: a
@@ -110,8 +124,135 @@ func New(layout Layout, opts Options) *Home {
 	if dir == "" {
 		dir = DefaultLockDir()
 	}
+	root := opts.Root
+	if l, ok := layout.(DirLayout); ok && root == "" {
+		root = l.Root
+	}
 	return &Home{layout: layout, lockDir: dir, prepareLocks: opts.PrepareLocks, beforeSettle: opts.BeforeSettle, backup: opts.BackupSuffix,
-		writeNothing: opts.WriteNothing, writeUnder: opts.WriteUnder, materialize: opts.Materialize}
+		writeNothing: opts.WriteNothing, writeUnder: opts.WriteUnder, materialize: opts.Materialize, root: root}
+}
+
+// PermitOutside names a destination a person chose outside the home's root:
+// a command-line -o or --out argument, or a file chosen in the desktop. The
+// home writes such a path as named. A host never passes a path computed from
+// recipe content. Every other path outside the root is refused.
+func (h *Home) PermitOutside(path string) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.permitted == nil {
+		h.permitted = map[string]bool{}
+	}
+	h.permitted[filepath.Clean(abs)] = true
+}
+
+// outsidePermitted reports whether path is a destination PermitOutside named.
+func (h *Home) outsidePermitted(path string) bool {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.permitted[filepath.Clean(abs)]
+}
+
+// contain refuses a path beneath the home's root that resolves outside it,
+// and a path outside the root that no person named (PermitOutside).
+func (h *Home) contain(path string) error {
+	if h.root == "" {
+		return nil
+	}
+	absRoot, ok := h.under(path)
+	if !ok {
+		if h.outsidePermitted(path) {
+			return nil
+		}
+		return &change.Error{Code: change.CodeInvalid, Field: "at/doc",
+			Message: path + " lies outside the project. Move the recipe or the target so the target lies inside the project"}
+	}
+	if _, err := rootpath.Contain(absRoot, path); err != nil {
+		return &change.Error{Code: change.CodeInvalid, Field: "at/doc", Message: err.Error()}
+	}
+	return nil
+}
+
+// beforeCommit runs between the last containment check and the rename. A test
+// sets it to put a link in place there.
+var beforeCommit func(path string)
+
+// stage stages what write produces as the new content of the file at path. A
+// path beneath the home's root is staged through an os.Root opened on the
+// root (atomicfile.StageWithin). The temporary file is created there, and the
+// commit renames there. A link that leads out of the root, even one put in
+// place after contain, is refused, and no byte is written outside it. A path
+// outside the root, one a person named, is staged as named.
+func (h *Home) stage(path string, write func(io.Writer) error) (*atomicfile.Staged, error) {
+	if root, ok := h.under(path); ok {
+		return atomicfile.StageWithin(root, path, write)
+	}
+	if err := h.contain(path); err != nil {
+		return nil, err
+	}
+	return atomicfile.StageWithParents(path, write)
+}
+
+// commit puts a staged file at path in place, and names the link when the
+// commit was refused because a link now leads out of the root.
+func (h *Home) commit(path string, tmp *atomicfile.Staged) error {
+	if beforeCommit != nil {
+		beforeCommit(path)
+	}
+	if err := tmp.Commit(); err != nil {
+		if cerr := h.contain(path); cerr != nil {
+			return cerr
+		}
+		return err
+	}
+	return nil
+}
+
+// under reports whether path lies beneath the home's root, and returns the
+// root as an absolute path. It is decided from the file system, not from the
+// spelling: path is beneath the root when the root is the same directory as
+// one of the directories above path, by name, through a link, or under
+// another case on a case-insensitive volume. A path beneath the root is then
+// written through the root, which refuses it when it resolves outside.
+func (h *Home) under(path string) (string, bool) {
+	if h.root == "" {
+		return "", false
+	}
+	absRoot, err := filepath.Abs(h.root)
+	if err != nil {
+		return "", false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", false
+	}
+	if rel, rerr := filepath.Rel(absRoot, abs); rerr == nil && filepath.IsLocal(rel) {
+		return absRoot, true
+	}
+	if !rootpath.Supported {
+		// The browser's file system gives no file an identity of its own, so
+		// os.SameFile would match every directory. Its paths are what they say.
+		return absRoot, false
+	}
+	rootInfo, err := os.Stat(absRoot)
+	if err != nil {
+		return absRoot, false
+	}
+	for dir := filepath.Dir(abs); ; dir = filepath.Dir(dir) {
+		if info, serr := os.Stat(dir); serr == nil && os.SameFile(info, rootInfo) {
+			return absRoot, true
+		}
+		if parent := filepath.Dir(dir); parent == dir {
+			return absRoot, false
+		}
+	}
 }
 
 // writes reports whether the home writes a document it produces at path.

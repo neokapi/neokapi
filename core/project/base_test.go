@@ -87,10 +87,10 @@ collections:
 
 	assert.Equal(t, bi.Path, ai.Path)
 	assert.Equal(t,
-		ResolveTargetPath(bi.Path, bi.Base, bi.Target, source, "nb"),
-		ResolveTargetPath(ai.Path, ai.Base, ai.Target, source, "nb"))
+		mustPath(ResolveTargetPath(bi.Path, bi.Base, bi.Target, source, "nb")),
+		mustPath(ResolveTargetPath(ai.Path, ai.Base, ai.Target, source, "nb")))
 	assert.Equal(t, "web/i18n/nb/current/guide/intro.md",
-		ResolveTargetPath(ai.Path, ai.Base, ai.Target, source, "nb"))
+		mustPath(ResolveTargetPath(ai.Path, ai.Base, ai.Target, source, "nb")))
 }
 
 func TestCollection_EffectiveItems_BareEntry(t *testing.T) {

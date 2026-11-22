@@ -65,7 +65,7 @@ func TestHandleRunFlowRedactsUnderTheFilesCollectionPolicy(t *testing.T) {
 		Project:    filepath.Join(dir, project.RecipeFileName),
 		TargetLang: "fr",
 		Path:       filepath.Join(dir, "legal", "memo.json"),
-		OutputPath: filepath.Join(t.TempDir(), "memo.fr.json"),
+		OutputPath: filepath.Join(dir, "legal", "memo.fr.json"),
 	})
 	require.NoError(t, err)
 

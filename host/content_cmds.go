@@ -169,7 +169,10 @@ func trackedPaths(proj *coreproj.KapiProject, root string) (map[string]bool, err
 				continue
 			}
 			for _, target := range it.Item.ResolvedTargetLanguages(it.Collection, proj.Defaults) {
-				out := coreproj.ResolveTargetPath(pattern, it.Item.Base, it.Item.Target, rel, string(target))
+				out, err := coreproj.ResolveTargetPath(pattern, it.Item.Base, it.Item.Target, rel, string(target))
+				if err != nil {
+					continue // a name the template cannot hold safely has no target
+				}
 				tracked[filepath.ToSlash(out)] = true
 			}
 		}

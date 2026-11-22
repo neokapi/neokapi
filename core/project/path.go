@@ -1,6 +1,7 @@
 package project
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -86,15 +87,20 @@ func GlobFixedPrefix(pattern string) string {
 // "/", or its final segment has no extension and contains no wildcard or token —
 // the source's {relpath} is appended. So `output/{lang}/` (or `output/{lang}`)
 // mirrors the source tree under that root, the intuitive zero-token form.
-func ResolveTargetPath(itemPath, base, target, source, lang string) string {
+func ResolveTargetPath(itemPath, base, target, source, lang string) (string, error) {
 	return ResolveTargetPathIn(itemPath, base, target, source, lang, "")
 }
 
 // ResolveTargetPathIn is ResolveTargetPath rendering the locale in the
 // project's declared style (see the note above ResolvePathPattern). An empty
 // format means BCP-47.
-func ResolveTargetPathIn(itemPath, base, target, source, lang, localeFormat string) string {
+func ResolveTargetPathIn(itemPath, base, target, source, lang, localeFormat string) (string, error) {
 	lang = locale.FormatCode(lang, localeFormat)
+	if strings.Contains(target, "{lang}") && lang != "" {
+		if err := CheckSegment("{lang}", lang); err != nil {
+			return "", err
+		}
+	}
 	source = filepath.ToSlash(source)
 	if base == "" {
 		base = GlobFixedPrefix(itemPath)
@@ -114,13 +120,21 @@ func ResolveTargetPathIn(itemPath, base, target, source, lang, localeFormat stri
 		} else {
 			out += "/" + rel
 		}
-		return filepath.FromSlash(out)
+		return filepath.FromSlash(out), nil
 	}
 
-	out = ExpandTemplate(out, rel)
-	name := format.Stem(rel)
-	out = strings.ReplaceAll(out, "*", name)
-	return filepath.FromSlash(out)
+	out, err := ExpandTemplate(out, rel)
+	if err != nil {
+		return "", err
+	}
+	if strings.Contains(out, "*") {
+		name := format.Stem(rel)
+		if err := CheckSegment("*", name); err != nil {
+			return "", err
+		}
+		out = strings.ReplaceAll(out, "*", name)
+	}
+	return filepath.FromSlash(out), nil
 }
 
 // isDirectoryTarget reports whether target (after {lang} expansion) denotes a
@@ -144,7 +158,7 @@ func isDirectoryTarget(target string) bool {
 // ExpandTemplate expands path-template tokens in `template` using `localPath`
 // (the source path relative to the resolution base, slash-separated). See
 // ResolveTargetPath for the supported token set.
-func ExpandTemplate(template, localPath string) string {
+func ExpandTemplate(template, localPath string) (string, error) {
 	localPath = filepath.ToSlash(localPath)
 	filename := filepath.Base(localPath)
 	// A compound suffix such as ".kbf.json" has to come off whole, or {name}
@@ -156,6 +170,24 @@ func ExpandTemplate(template, localPath string) string {
 		dir = ""
 	}
 
+	// The tokens that stand for one name are filled from a file's name, which
+	// the repository chooses, so each must be one safe segment. {relpath},
+	// {path} and {dir} are paths a walk or the person produced, and a walk
+	// never yields a ".." segment.
+	for _, v := range []struct{ token, value string }{
+		{"{filename}", filename},
+		{"{name}", name},
+		{"{basename}", name},
+		{"{ext}", strings.TrimPrefix(ext, ".")},
+	} {
+		if !strings.Contains(template, v.token) || (v.token == "{ext}" && v.value == "") {
+			continue
+		}
+		if err := CheckSegment(v.token, v.value); err != nil {
+			return "", err
+		}
+	}
+
 	r := template
 	r = strings.ReplaceAll(r, "{relpath}", localPath)
 	r = strings.ReplaceAll(r, "{path}", strings.TrimSuffix(localPath, ext))
@@ -164,5 +196,26 @@ func ExpandTemplate(template, localPath string) string {
 	r = strings.ReplaceAll(r, "{name}", name)
 	r = strings.ReplaceAll(r, "{basename}", name)
 	r = strings.ReplaceAll(r, "{ext}", strings.TrimPrefix(ext, "."))
-	return r
+	return r, nil
+}
+
+// UnsafeSegmentError says a value a path template was to be filled with is
+// not a safe path segment: a file's name of ".." in place of {name} would
+// climb out of the directory the template names.
+type UnsafeSegmentError struct {
+	Token string
+	Value string
+}
+
+func (e *UnsafeSegmentError) Error() string {
+	return fmt.Sprintf("%s would be filled with %q, which is not a safe path segment", e.Token, e.Value)
+}
+
+// CheckSegment refuses a value that is not one path segment: empty, "." or
+// "..", or holding a separator.
+func CheckSegment(token, v string) error {
+	if v == "" || v == "." || v == ".." || strings.ContainsAny(v, `/\`) {
+		return &UnsafeSegmentError{Token: token, Value: v}
+	}
+	return nil
 }
