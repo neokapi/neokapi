@@ -17,12 +17,17 @@ async function setConnectionState(page: any, state: string, pending: number) {
       const ids = (window as any).__wailsIDs;
       const mock = (window as any).__wailsMock;
 
-      mock[ids.GetConnectionState] = () => ({
-        state,
-        server_url: "http://mock-server",
-        user_name: "Test User",
-        workspace: "personal",
-      });
+      // Counted, so a test can wait for the app to have read the new state
+      // instead of waiting for time to pass.
+      mock[ids.GetConnectionState] = () => {
+        (window as any).__connectionStateReads = ((window as any).__connectionStateReads ?? 0) + 1;
+        return {
+          state,
+          server_url: "http://mock-server",
+          user_name: "Test User",
+          workspace: "personal",
+        };
+      };
       mock[ids.GetPendingChangesCount] = () => pending;
 
       const listeners = (window as any).__wailsEventListeners?.["connection-state-changed"];
@@ -156,7 +161,13 @@ test("reports an attempt in flight while reconnecting", async ({ page }) => {
   await setConnectionState(page, "offline", 1);
   await expect(page.getByTestId("connection-offline")).toBeVisible({ timeout: 5000 });
 
+  const reads = await page.evaluate(() => (window as any).__connectionStateReads ?? 0);
   await setConnectionState(page, "connecting", 1);
-  await expect(page.getByTestId("connection-reconnecting")).toBeVisible({ timeout: 5000 });
+  // The app reads the state again on the event; once it has, the indicator
+  // shows what that read decided, and the app stays mounted.
+  await expect
+    .poll(async () => page.evaluate(() => (window as any).__connectionStateReads ?? 0))
+    .toBeGreaterThan(reads);
+  await expect(page.getByTestId("connection-reconnecting")).toBeVisible();
   await expect(page.getByTestId("connection-offline")).toBeHidden();
 });
