@@ -2,6 +2,8 @@ package host
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -13,7 +15,7 @@ import (
 // through one command's output: an explicit --source-lang beats the recipe's
 // `defaults.source_language`, which beats the built-in default. Asserted here
 // because that order is what a run's every content-memory lookup is keyed to,
-// and it was wrong on the ONLY surface nothing asserted — a flag whose registered
+// and it was wrong on the one surface nothing asserted: a flag whose registered
 // default sat in the field before any command parsed anything (#2074).
 
 func TestSourceLangPrecedence(t *testing.T) {
@@ -55,10 +57,10 @@ func TestSourceLangPrecedence(t *testing.T) {
 			cmd := NewEnvCommand(context.Background(), "run")
 			a.AddSourceLangFlag(cmd.Flags())
 
-			// Registration must leave the field empty. This is the whole defect:
-			// pflag writes a flag's default into the bound field HERE, not at
-			// parse, so a literal default is indistinguishable from a typed one
-			// and no recipe can ever be reached.
+			// Registration must leave the field empty. pflag writes a flag's
+			// default into the bound field here, not at parse. A literal
+			// default would look like a typed one, and no recipe would be
+			// reached.
 			// assert, not require: when this does fail, the precedence assertions
 			// below are the ones that say what it cost.
 			assert.Empty(t, a.SourceLang,
@@ -78,8 +80,8 @@ func TestSourceLangPrecedence(t *testing.T) {
 	}
 }
 
-// A run that never resolves a project — `kapi translate notes.md --target-lang
-// fr` outside any recipe, and every file-only verb in the toolbox — still reads
+// A run that never resolves a project (`kapi translate notes.md --target-lang
+// fr` outside any recipe, and every file-only verb in the toolbox) still reads
 // its input as English. That is the built-in default doing its one job, and it
 // is why the flag can register empty at all.
 func TestSourceLocale_AdHocRunWithNoProject(t *testing.T) {
@@ -121,7 +123,7 @@ func TestResolveSourceLang_ScopedToOneRun(t *testing.T) {
 	assert.Equal(t, "ja", a.SourceLang, "an explicitly named language survives the scope")
 }
 
-// The same three sources, same order, for the encoding a run reads in — the
+// The same three sources, same order, for the encoding a run reads in: the
 // other processing flag whose registered default outranked its recipe key.
 func TestEncodingPrecedence(t *testing.T) {
 	cases := []struct {
@@ -166,4 +168,37 @@ func TestAddProcessingFlags_LeavesTheResolvableFieldsEmpty(t *testing.T) {
 	assert.Empty(t, a.Encoding)
 	assert.Equal(t, DefaultSourceLang, a.SourceLocale())
 	assert.Equal(t, DefaultEncoding, a.InputEncoding())
+}
+
+// A store lookup reads in the source language of the project in scope when
+// no --source-locale is given. An explicit one wins, and without a project
+// the built-in default holds.
+func TestStoreSourceLocale(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	root := t.TempDir()
+	recipe := filepath.Join(root, "kapi.yaml")
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: lookup\ndefaults:\n  source_language: en_GB\n"), 0o644))
+	inProject := NewEnvCommand(context.Background(), "lookup")
+	inProject.Flags().String(projectFlagName, recipe, "")
+	outside := NewEnvCommand(context.Background(), "lookup")
+	app := &App{}
+
+	cases := []struct {
+		name  string
+		cmd   Command
+		named string
+		want  model.LocaleID
+	}{
+		{"project source language", inProject, "", "en-GB"},
+		{"explicit wins", inProject, "fr", "fr"},
+		{"no project", outside, "", DefaultSourceLang},
+		{"no project, explicit", outside, " de ", "de"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := app.StoreSourceLocale(tc.cmd, tc.named)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }

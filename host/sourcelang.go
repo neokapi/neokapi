@@ -1,31 +1,22 @@
 package host
 
 import (
+	"strings"
+
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/spf13/pflag"
 )
 
-// The source language a run works in has exactly three sources, and they rank:
-// an explicit --source-lang beats the recipe's `defaults.source_language`, which
-// beats DefaultSourceLang. That order is owned here, by one function, so no
-// surface can hold a different one.
+// The source language a run works in has three sources, in rank order: an
+// explicit --source-lang, the recipe's `defaults.source_language`, then
+// DefaultSourceLang. One function owns that order, so no surface can hold a
+// different one.
 //
-// It is owned here rather than at each call site because a flag default cannot
-// express it. pflag writes a flag's default into the bound field at
-// REGISTRATION, not at parse, so a literal default on --source-lang would sit in
-// the bound field before any command had parsed anything: the field is never
-// empty, every fallback that tests it for empty before adopting a recipe is
-// unreachable, and a project that declares en-GB converges at "en" — every
-// content-memory lookup missing, every unit re-drafted over approved wording
-// (#2074, and #2064 as the instance that surfaced it).
-//
-// So the flag registers EMPTY, and empty is meaningful: it is the field saying
-// nobody named a source language. AddSourceLangFlag is the only registration,
-// ResolveSourceLang adopts the recipe where a project's context is resolved, and
-// SourceLocale supplies the built-in default at the point of use — which is why
-// an ad-hoc `kapi translate notes.md --target-lang fr` outside any project, with
-// no recipe to adopt, still reads its input as English.
+// pflag writes a flag's default into the bound field at registration, so the
+// flag registers empty: empty means nobody named a source language (#2074).
+// ResolveSourceLang adopts the recipe where a project's context is resolved,
+// and SourceLocale supplies the built-in default at the point of use.
 
 // DefaultSourceLang is the source language a run settles on when neither the
 // command line nor a recipe names one.
@@ -40,7 +31,7 @@ const sourceLangUsage = "source language (e.g. en, en-US; defaults to the projec
 // ResolveSourceLocale settles a source language from the three sources in
 // precedence order: named (an explicit --source-lang, or a caller's explicit
 // argument) wins, then the recipe's `defaults.source_language`, then
-// DefaultSourceLang. Either input is empty when its source is silent — a run
+// DefaultSourceLang. Either input is empty when its source is silent: a run
 // with no project passes an empty recipe.
 //
 // The answer is canonical BCP-47 whatever style it was named in, so a
@@ -74,10 +65,30 @@ func (a *App) SourceLocale() string {
 	return ResolveSourceLocale(a.SourceLang, "")
 }
 
+// StoreSourceLocale is the source language a store lookup reads in. named is
+// what the command's --source-locale flag holds. An explicit value wins, then
+// the `defaults.source_language` of the project in scope, then
+// DefaultSourceLang. The error is the project resolution's, for a -p that
+// names no project.
+func (a *App) StoreSourceLocale(cmd Command, named string) (model.LocaleID, error) {
+	named = strings.TrimSpace(named)
+	var recipe model.LocaleID
+	if named == "" {
+		recipePath, err := ResolveProjectPath(cmd)
+		if err != nil {
+			return "", err
+		}
+		if recipePath != "" {
+			recipe = recipeSourceLanguage(recipePath)
+		}
+	}
+	return model.LocaleID(ResolveSourceLocale(named, recipe)), nil
+}
+
 // ResolveSourceLang adopts recipe as the run's source language when nothing was
 // named on the command line, and returns the language the run works in. Called
-// where a project's context is resolved, so everything downstream — the
-// convergence workers, the plan, the checks, the report — reads one answer.
+// where a project's context is resolved, so everything downstream (the
+// convergence workers, the plan, the checks, the report) reads one answer.
 func (a *App) ResolveSourceLang(recipe model.LocaleID) string {
 	a.SourceLang = ResolveSourceLocale(a.SourceLang, recipe)
 	return a.SourceLang
