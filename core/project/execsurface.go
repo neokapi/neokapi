@@ -70,15 +70,59 @@ type ExecSite struct {
 // name. The digest also holds facts, such as hashes of the executable and of
 // configFile, so a change to either gives a different digest.
 func FormatterExecSite(configFile, name string, command []string, facts map[string]any) ExecSite {
-	config := map[string]any{"command": command}
-	maps.Copy(config, facts)
 	return ExecSite{
 		Where:  sanitizeForDisplay(configFile),
 		Kind:   "formatter",
 		Name:   sanitizeForDisplay(name),
 		Detail: sanitizeForDisplay(clip(strings.Join(command, " "), 320)),
-		config: config,
+		config: map[string]any{"command": command},
+	}.WithFacts(facts)
+}
+
+// WithFacts returns the site with facts added to what its digest covers:
+// hashes of the files it runs, the project it belongs to. A recipe's sites
+// and a formatter's carry their facts the same way, so one digest covers
+// both the configuration and what it names.
+func (s ExecSite) WithFacts(facts map[string]any) ExecSite {
+	config := make(map[string]any, len(s.config)+len(facts))
+	maps.Copy(config, s.config)
+	maps.Copy(config, facts)
+	s.config = config
+	return s
+}
+
+// NamedPaths lists what a site's configuration names that may be a file the
+// command runs: external-command's command when it is a path rather than a
+// name looked up on PATH, each of its arguments (an interpreter's script
+// among them), and the script tool's script_file. Whether one is a file in
+// the project is for the caller to decide.
+func (s ExecSite) NamedPaths() []string {
+	var out []string
+	switch s.Name {
+	case "external-command":
+		if c, ok := s.config["command"].(string); ok && strings.ContainsAny(c, `/\`) {
+			out = append(out, c)
+		}
+		switch args := s.config["args"].(type) {
+		case []any:
+			for _, a := range args {
+				if v, ok := a.(string); ok && v != "" {
+					out = append(out, v)
+				}
+			}
+		case []string:
+			for _, v := range args {
+				if v != "" {
+					out = append(out, v)
+				}
+			}
+		}
+	case "script":
+		if f, ok := s.config["script_file"].(string); ok && f != "" {
+			out = append(out, f)
+		}
 	}
+	return out
 }
 
 // ExecSurface enumerates every site in a recipe that would run code the recipe
