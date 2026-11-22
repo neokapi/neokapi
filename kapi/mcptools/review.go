@@ -25,6 +25,7 @@ func init() {
 
 // registerReviewTools registers the review-workflow MCP tools.
 func registerReviewTools(server *mcp.Server, a *cli.App) {
+	host.DeclareMCPPathArgs("review_block", host.MCPArgProjectRelative, "doc")
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "review_queue",
 		Description: "List the review queue: every block awaiting a person, each with ref, the reference review_block reads it by ({doc, block, edition}: the source document, the block key and the translation's language; no edition for a source block). One queue holds every language, the project's source language among them: a translated block not yet approved is one row, and a source block held below the project's translate_after level is another, marked `is_source`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; blocks annotated by an AI pre-review carry their score. Lean by design: call review_block for a block's context (the point governing it, its neighbourhood, its prior version, its findings).",

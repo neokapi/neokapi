@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/profile"
@@ -78,10 +77,7 @@ func voiceRewriteMCP(ctx context.Context, _ *mcp.CallToolRequest, in voiceCheckI
 // loadProfileForMCP resolves a profile from a built-in pack name or a profile YAML path.
 func loadProfileForMCP(ctx context.Context, pack, file string) (*profile.VoiceProfile, error) {
 	if file != "" {
-		if err := MCPReachable(ctx, "profile_file", file); err != nil {
-			return nil, err
-		}
-		f, err := os.Open(file)
+		f, err := openMCPPath(ctx, "profile_file", file)
 		if err != nil {
 			return nil, fmt.Errorf("open profile: %w", err)
 		}

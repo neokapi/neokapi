@@ -218,6 +218,9 @@ func (l Layout) SyncDir() string {
 // naming the directory, so no `git add -A` stages withheld originals or a
 // claim token.
 func EnsureLocalDir(layout Layout, name string) (string, error) {
+	if err := layout.CheckState(); err != nil {
+		return "", err
+	}
 	dir := filepath.Join(layout.StateDir, name)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("project: create %s: %w", name, err)
@@ -340,11 +343,12 @@ func LayoutFor(recipePath string) (Layout, error) {
 		abs = recipe
 	}
 	root := filepath.Dir(abs)
-	return Layout{
+	l := Layout{
 		Root:       root,
 		RecipePath: abs,
 		StateDir:   filepath.Join(root, StateDirName),
-	}, nil
+	}
+	return l, l.CheckState()
 }
 
 // EnsureLayout creates the `.kapi/` directory and the `work/cache/` under it.
@@ -353,6 +357,9 @@ func LayoutFor(recipePath string) (Layout, error) {
 // It writes no context file and creates no directory for one. A project's
 // terms, voice profiles, content memory and decisions live in the workspace.
 func EnsureLayout(layout Layout) error {
+	if err := layout.CheckState(); err != nil {
+		return err
+	}
 	fresh := cacheOnly(layout.StateDir)
 	for _, dir := range []string{
 		layout.StateDir,
@@ -448,9 +455,10 @@ func layoutAtDir(dir string) (Layout, error) {
 	}
 
 	// Recipe present. State dir is optional (may be scaffolded later).
-	return Layout{
+	l := Layout{
 		Root:       dir,
 		RecipePath: filepath.Join(dir, RecipeFileName),
 		StateDir:   filepath.Join(dir, StateDirName),
-	}, nil
+	}
+	return l, l.CheckState()
 }

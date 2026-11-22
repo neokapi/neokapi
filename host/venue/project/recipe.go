@@ -3,8 +3,11 @@ package project
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 
+	"github.com/neokapi/neokapi/core/atomicfile"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/venue/schema"
 	"gopkg.in/yaml.v3"
@@ -119,7 +122,10 @@ func LoadRecipe(path string) (*Recipe, error) {
 }
 
 // SaveRecipe writes the recipe to path, encoding both framework and
-// bowrain fields. Atomic via temp file + rename.
+// bowrain fields. The file is staged beside path and renamed into place
+// through the directory that holds it (atomicfile.StageWithin), so a recipe
+// that is a link out of that directory is refused rather than written
+// through.
 func SaveRecipe(path string, r *Recipe) error {
 	if r.Version == "" {
 		r.Version = coreproj.CurrentVersion
@@ -131,12 +137,15 @@ func SaveRecipe(path string, r *Recipe) error {
 		return fmt.Errorf("marshal recipe: %w", err)
 	}
 	_ = enc.Close()
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, buf.Bytes(), 0o644); err != nil {
+	s, err := atomicfile.StageWithin(filepath.Dir(path), path, func(w io.Writer) error {
+		_, werr := w.Write(buf.Bytes())
+		return werr
+	})
+	if err != nil {
 		return fmt.Errorf("write recipe: %w", err)
 	}
-	if err := os.Rename(tmp, path); err != nil {
-		return fmt.Errorf("rename recipe: %w", err)
+	if err := s.Commit(); err != nil {
+		return fmt.Errorf("write recipe: %w", err)
 	}
 	return nil
 }

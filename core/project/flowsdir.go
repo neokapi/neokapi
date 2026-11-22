@@ -3,12 +3,15 @@ package project
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"gopkg.in/yaml.v3"
 )
 
@@ -42,6 +45,9 @@ func (p *KapiProject) validateFlowsDir() error {
 	if filepath.IsAbs(p.FlowsDir) {
 		return fmt.Errorf("flows_dir: %q is an absolute path. Name the directory relative to the recipe, so every checkout finds it", p.FlowsDir)
 	}
+	if err := validateInside("flows_dir", p.FlowsDir, "the directory"); err != nil {
+		return err
+	}
 	first, _, _ := strings.Cut(filepath.ToSlash(filepath.Clean(p.FlowsDir)), "/")
 	if first == StateDirName {
 		return fmt.Errorf("flows_dir: %q sits under %s/, a disposable cache for one checkout. Keep flow files in a committed directory, such as flows/", p.FlowsDir, StateDirName)
@@ -58,11 +64,24 @@ const cacheFlowsDirName = "flows"
 // recipe at recipePath, sorted by name. kapi never reads them, so a project
 // that keeps flows there runs without them.
 func FlowFilesInCache(recipePath string) []string {
-	dir := filepath.Join(filepath.Dir(recipePath), StateDirName, cacheFlowsDirName)
-	entries, err := os.ReadDir(dir)
+	// Listed through the project directory, so a .kapi/ that is a link out
+	// of the project lists nothing.
+	r, err := os.OpenRoot(filepath.Dir(recipePath))
 	if err != nil {
 		return nil
 	}
+	defer r.Close()
+	d, err := r.Open(filepath.Join(StateDirName, cacheFlowsDirName))
+	if err != nil {
+		return nil
+	}
+	entries, err := d.ReadDir(-1)
+	_ = d.Close()
+	if err != nil {
+		return nil
+	}
+	// By name, as os.ReadDir lists them.
+	slices.SortFunc(entries, func(a, b os.DirEntry) int { return strings.Compare(a.Name(), b.Name()) })
 	var names []string
 	for _, e := range entries {
 		if !e.IsDir() && filepath.Ext(e.Name()) == ".yaml" {
@@ -125,14 +144,28 @@ type dirFlowPathProbe struct {
 // resolved `flows_dir:` (FlowsDirIn). The error wraps os.ErrNotExist when dir
 // is empty or holds no such file, which is how a caller tells "no flow by that
 // name" from "a flow that will not load".
+//
+// Each flow file is read through dir: one that is a link leading out of dir,
+// or is not a regular file, does not load. LoadDirFlowIn also holds dir itself
+// inside the project.
 func LoadDirFlow(dir, name string) (*DirFlow, error) {
+	return LoadDirFlowIn("", dir, name)
+}
+
+// LoadDirFlowIn is LoadDirFlow for the flows directory of the project at
+// root: a flows directory that resolves outside root is refused.
+func LoadDirFlowIn(root, dir, name string) (*DirFlow, error) {
 	if dir == "" {
 		return nil, fmt.Errorf("project: no flow %q: the recipe names no flows_dir: %w", name, os.ErrNotExist)
 	}
 	if name == "" || strings.ContainsAny(name, `/\`) || name == "." || name == ".." {
 		return nil, fmt.Errorf("project: flow name %q is not a file name: %w", name, os.ErrNotExist)
 	}
-	def := loadDirFlowFile(filepath.Join(dir, name+".yaml"), name)
+	held, err := flowsDirWithin(root, dir)
+	if err != nil {
+		return nil, fmt.Errorf("project: flow %q: %w", name, err)
+	}
+	def := loadDirFlowFile(held, filepath.Join(dir, name+".yaml"), name)
 	if def.Err != nil {
 		return nil, def.Err
 	}
@@ -143,15 +176,38 @@ func LoadDirFlow(dir, name string) (*DirFlow, error) {
 // `flows_dir:`, ordered by name. An empty dir lists nothing. An entry that
 // carries an Err named a file that will not run; a listing shows it with its
 // problem, since a flow dropped from the listing is one whose author never
-// learns why it does nothing.
+// learns why it does nothing. Each file is read through dir, as LoadDirFlow
+// reads it.
 func ListDirFlows(dir string) []*DirFlow {
+	return ListDirFlowsIn("", dir)
+}
+
+// ListDirFlowsIn is ListDirFlows for the flows directory of the project at
+// root: a flows directory that resolves outside root lists nothing.
+func ListDirFlowsIn(root, dir string) []*DirFlow {
 	if dir == "" {
 		return nil
 	}
-	entries, err := os.ReadDir(dir)
+	held, err := flowsDirWithin(root, dir)
 	if err != nil {
 		return nil
 	}
+	r, err := os.OpenRoot(held)
+	if err != nil {
+		return nil
+	}
+	defer r.Close()
+	d, err := r.Open(".")
+	if err != nil {
+		return nil
+	}
+	entries, err := d.ReadDir(-1)
+	_ = d.Close()
+	if err != nil {
+		return nil
+	}
+	// By name, as os.ReadDir lists them.
+	slices.SortFunc(entries, func(a, b os.DirEntry) int { return strings.Compare(a.Name(), b.Name()) })
 
 	var flows []*DirFlow
 	for _, e := range entries {
@@ -159,18 +215,28 @@ func ListDirFlows(dir string) []*DirFlow {
 			continue
 		}
 		name := strings.TrimSuffix(e.Name(), ".yaml")
-		flows = append(flows, loadDirFlowFile(filepath.Join(dir, e.Name()), name))
+		flows = append(flows, loadDirFlowFile(held, filepath.Join(dir, e.Name()), name))
 	}
 	sort.Slice(flows, func(i, j int) bool { return flows[i].Name < flows[j].Name })
 	return flows
 }
 
-// loadDirFlowFile reads one flow file. The returned DirFlow always carries the
-// name and path, so a listing can show a file it could not load.
-func loadDirFlowFile(path, name string) *DirFlow {
+// flowsDirWithin returns the directory the flow files are read through: dir
+// as it resolves, refused when root is set and dir resolves outside it.
+func flowsDirWithin(root, dir string) (string, error) {
+	if root == "" {
+		return filepath.EvalSymlinks(dir)
+	}
+	return rootpath.Contain(root, dir)
+}
+
+// loadDirFlowFile reads one flow file through the directory held, so a file
+// that is a link leading out of it is refused. The returned DirFlow always
+// carries the name and path, so a listing can show a file it could not load.
+func loadDirFlowFile(held, path, name string) *DirFlow {
 	def := &DirFlow{Name: name, Path: path}
 
-	data, err := os.ReadFile(path)
+	data, err := readFlowFile(held, name+".yaml")
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			def.Err = fmt.Errorf("project: no flow %q under %s: %w", name, filepath.Dir(path), os.ErrNotExist)
@@ -202,6 +268,16 @@ func loadDirFlowFile(path, name string) *DirFlow {
 	spec := file.StepsSpec
 	def.Spec = &spec
 	return def
+}
+
+// readFlowFile reads the file name in the directory held, through it.
+func readFlowFile(held, name string) ([]byte, error) {
+	f, err := rootpath.OpenRegular(held, filepath.Join(held, name))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(f)
 }
 
 // checkDirFlowPaths rejects a step that names a file. A flow declares what to

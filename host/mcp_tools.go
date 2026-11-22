@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -132,7 +133,7 @@ func registerFrameworkMCPTools(server *mcp.Server, a *App) {
 		}
 
 		policy := targetPolicyFor(entry.Info)
-		inputSchema, err := frameworkToolInputSchema(entry.Schema, policy)
+		inputSchema, err := frameworkToolInputSchema(name, entry.Schema, policy)
 		if err != nil {
 			continue // a tool whose schema can't be projected is simply not exposed
 		}
@@ -217,12 +218,36 @@ func targetPolicyFor(info registry.ToolInfo) targetPolicy {
 	return targetAccepted
 }
 
+// mcpCallerArgs are the configuration fields a tool keeps out of its schema,
+// because kapi sets them from the project in a flow, that a call over MCP still
+// supplies itself: the rules term-check checks are the subject of the call,
+// with no recipe behind it to inject them. Each is published in the tool's
+// MCP input schema, so a call decodes only what tools/list declares.
+var mcpCallerArgs = map[string]map[string]any{
+	"term-check": {
+		"term_rules": map[string]any{
+			"type":        "array",
+			"description": "The terms to check. Where the source contains a term, the translation should contain its replacement.",
+			"items": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"term":        map[string]any{"type": "string"},
+					"replacement": map[string]any{"type": "string"},
+					"forms":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+					"advisory":    map[string]any{"type": "boolean"},
+					"note":        map[string]any{"type": "string"},
+				},
+			},
+		},
+	},
+}
+
 // frameworkToolInputSchema projects a tool's ComponentSchema into the MCP input
 // schema: the tool's own parameters, plus a required `text` field (the content
 // to process), an optional `target_lang`, and, for a bilingual tool that reads
 // one, a `target` field carrying the translation to run over.
 // MCP requires a top-level object schema, which ComponentSchema already is.
-func frameworkToolInputSchema(s *schema.ComponentSchema, policy targetPolicy) (json.RawMessage, error) {
+func frameworkToolInputSchema(name string, s *schema.ComponentSchema, policy targetPolicy) (json.RawMessage, error) {
 	base := map[string]any{"type": "object", "properties": map[string]any{}}
 	if s != nil {
 		raw, err := json.Marshal(s)
@@ -238,6 +263,7 @@ func frameworkToolInputSchema(s *schema.ComponentSchema, policy targetPolicy) (j
 		props = map[string]any{}
 		base["properties"] = props
 	}
+	maps.Copy(props, mcpCallerArgs[name])
 	props["text"] = map[string]any{
 		"type":        "string",
 		"description": "The content (text) to run the tool over.",
@@ -340,10 +366,24 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 			targetLang = string(id)
 		}
 
+		// Only the parameters the tool's schema publishes reach its config. A
+		// field the schema hides (schema:"-") is set by kapi, never by a call.
+		published := map[string]bool{}
+		if s := a.ToolReg.Schema(name); s != nil {
+			for k := range s.Properties {
+				published[k] = true
+			}
+		}
+		for k := range mcpCallerArgs[string(name)] {
+			published[k] = true
+		}
 		config := make(map[string]any, len(args))
 		for k, v := range args {
 			if k == "text" || k == "target" || k == "target_lang" || k == "project" {
 				continue
+			}
+			if !published[k] {
+				return nil, fmt.Errorf("%q takes no argument %s", name, k)
 			}
 			config[k] = v
 		}

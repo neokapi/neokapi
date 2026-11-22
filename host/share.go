@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/pluginhost"
 )
@@ -775,15 +776,37 @@ func setBowrainBackend(recipe string, res *ShareResult) error {
 	return nil
 }
 
+// holdsStateDir reports whether the project at root holds its state
+// directory, asked through an os.Root on root so a .kapi that leads out of
+// the project is not followed.
+func holdsStateDir(root string) bool {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return false
+	}
+	defer r.Close()
+	_, err = r.Lstat(project.StateDirName)
+	return err == nil
+}
+
+// removeStateDir removes the project's state directory through an os.Root on
+// root, which removes a link as the name it is and never what it points at.
+func removeStateDir(root string) {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	_ = r.RemoveAll(project.StateDirName)
+}
+
 // connectBowrain runs the plugin's connect handler on the project.
 func (a *App) connectBowrain(ctx context.Context, plugin *pluginhost.Plugin, req ShareRequest, res *ShareResult) error {
 	// The plugin's handler connects the project its recipe describes, so the
 	// recipe is written first. A recipe this share wrote is taken away again
 	// when the connect fails, and the folder is left as it was.
 	root := filepath.Dir(req.Project)
-	stateDir := filepath.Join(root, project.StateDirName)
-	_, statErr := os.Stat(stateDir)
-	hadStateDir := statErr == nil
+	hadStateDir := holdsStateDir(root)
 	file, err := a.ensureRecipe(req.Project)
 	if err != nil {
 		return err
@@ -795,9 +818,9 @@ func (a *App) connectBowrain(ctx context.Context, plugin *pluginhost.Plugin, req
 	args := []string{"command", bowrainConnect, "--server", req.Location}
 	if err := pluginhost.RunContributionSubprocess(ctx, plugin, args, root); err != nil {
 		if file.Action == ShareFileCreated {
-			_ = os.Remove(req.Project)
+			_ = rootpath.Remove(root, req.Project)
 			if !hadStateDir {
-				_ = os.RemoveAll(stateDir)
+				removeStateDir(root)
 			}
 		}
 		return err

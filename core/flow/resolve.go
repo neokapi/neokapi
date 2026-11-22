@@ -119,14 +119,31 @@ func resolvePathValue(value, key string, cs *schema.ComponentSchema, ctx Resourc
 	}
 
 	// 3. Substitute Okapi variables.
+	given := value
 	value = substituteVariables(value, ctx)
 
-	// 4. Resolve relative paths against ProjectDir.
-	if !filepath.IsAbs(value) && ctx.ProjectDir != "" {
+	// 4. Resolve relative paths against ProjectDir. A project flow's step
+	// config is recipe content, so the path must stay inside the project (or
+	// the run's output directory) once joined.
+	if ctx.ProjectDir == "" {
+		return value, nil
+	}
+	if !filepath.IsAbs(value) {
 		value = filepath.Join(ctx.ProjectDir, value)
 	}
-
+	if !lexicallyWithin(ctx.ProjectDir, value) && (ctx.OutputDir == "" || !lexicallyWithin(ctx.OutputDir, value)) {
+		return "", fmt.Errorf("%s: %q lies outside the project. Name a path inside the project, or a named resource (%s, %s, %s)",
+			key, given, PrefixMemory, PrefixTerms, PrefixSRX)
+	}
 	return value, nil
+}
+
+// lexicallyWithin reports whether p, as written, is dir or lies beneath it.
+// The file is opened later through the project root, which refuses a link
+// that leads out of it.
+func lexicallyWithin(dir, p string) bool {
+	rel, err := filepath.Rel(filepath.Clean(dir), filepath.Clean(p))
+	return err == nil && (rel == "." || filepath.IsLocal(rel))
 }
 
 // resolveURIPrefix checks for tm:, terms:, or srx: prefixes and resolves them.

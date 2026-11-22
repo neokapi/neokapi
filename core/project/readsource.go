@@ -3,12 +3,12 @@ package project
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // ReadSourceBlocks opens path with the given format reader, applies per-item
@@ -22,7 +22,7 @@ import (
 func ReadSourceBlocks(
 	ctx context.Context,
 	reg *registry.FormatRegistry,
-	formatName, path string,
+	root, formatName, path string,
 	src, tgt model.LocaleID,
 	cfg map[string]any,
 ) ([]*model.Block, *model.Layer, error) {
@@ -39,7 +39,9 @@ func ReadSourceBlocks(
 	if store := WireReadSkeleton(reg, formatName, reader); store != nil {
 		defer func() { _ = store.Close() }()
 	}
-	f, err := os.Open(path)
+	// A file beneath root is project content and is read through it
+	// (rootpath.Open); root is empty for a file a person named.
+	f, err := rootpath.Open(root, path)
 	if err != nil {
 		return nil, nil, err
 	}

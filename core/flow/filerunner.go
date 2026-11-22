@@ -809,6 +809,7 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 func (r *FileRunner) runProcessOnly(ctx context.Context, flowName string, tools []tool.Tool, targetLang string, feed func(context.Context, chan<- *model.Part) error) error {
 	fb := NewFlow(flowName)
 	for _, t := range tools {
+		bindProjectRoot(t, r.cfg.ProjectRoot)
 		fb.AddTool(t)
 	}
 	// Append the implicit commit-targets step so channel-based translate tools
@@ -1181,8 +1182,10 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 
 	fb := NewFlow(flowName)
 	for _, t := range tools {
+		bindProjectRoot(t, r.cfg.ProjectRoot)
 		fb.AddTool(t)
 	}
+	bindProjectRoot(writer, r.cfg.ProjectRoot)
 	// Against a store that outlives the run, the file is only half the deliverable:
 	// the `targets/<locale>` overlays are what a later merge replays. The
 	// channel-based producers (recycle, which is the first step of the built-in
@@ -1538,19 +1541,26 @@ func (r *FileRunner) openInput(path string) (io.ReadCloser, error) {
 	return openBudgetedFile(r.cfg.ProjectRoot, path)
 }
 
-// openInRoot opens path through rootpath when it lies beneath root as
-// written, and as named otherwise.
-func openInRoot(root, path string) (*os.File, error) {
-	if root != "" {
-		absRoot, err1 := filepath.Abs(root)
-		abs, err2 := filepath.Abs(path)
-		if err1 == nil && err2 == nil {
-			if rel, err := filepath.Rel(absRoot, abs); err == nil && filepath.IsLocal(rel) {
-				return rootpath.OpenRegular(absRoot, abs)
-			}
-		}
+// ProjectRootSetter is implemented by a tool or writer that reads a file the
+// content names (a Media URI, a source path): it then reads it only through
+// the project directory. The runner sets it before the run, with "" when the
+// run has no project.
+type ProjectRootSetter interface {
+	SetProjectRoot(root string)
+}
+
+// bindProjectRoot hands root to v when v reads files the content names.
+func bindProjectRoot(v any, root string) {
+	if s, ok := v.(ProjectRootSetter); ok {
+		s.SetProjectRoot(root)
 	}
-	return os.Open(path)
+}
+
+// openInRoot opens path through the root when it lies beneath root, decided
+// by directory identity rather than spelling (rootpath.Open), and as named
+// otherwise: a path beneath no root is one a person named.
+func openInRoot(root, path string) (*os.File, error) {
+	return rootpath.Open(root, path)
 }
 
 // readInput reads one input of the run whole, through rootpath when it lies

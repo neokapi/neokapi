@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -39,13 +40,18 @@ func (s source) String() string {
 	return filepath.Base(s.path)
 }
 
-// exists reports whether the source's file is there.
+// exists reports whether something is at the source's name, as open finds
+// it. A name open refuses (a link out of the root, a directory) exists, so
+// the read that follows reports the refusal.
 func (s source) exists() bool {
 	if s.data != nil {
 		return true
 	}
-	_, err := os.Stat(s.path)
-	return err == nil
+	f, err := s.open()
+	if err == nil {
+		_ = f.Close()
+	}
+	return !errors.Is(err, fs.ErrNotExist)
 }
 
 // entryBytes reads an archive member.
@@ -119,6 +125,11 @@ func (p pass) run(ctx context.Context) (err error) {
 	// cannot.
 	var original []byte
 	if p.out != nil {
+		// A writer that reads files the content names (the source path below,
+		// a Media URI) reads them through the home's root.
+		if rs, ok := writer.(interface{ SetProjectRoot(string) }); ok {
+			rs.SetProjectRoot(ws.root)
+		}
 		if sps, ok := writer.(format.SourcePathSetter); ok && ws.entry == "" && ws.data == nil {
 			abs, aerr := filepath.Abs(ws.path)
 			if aerr != nil {

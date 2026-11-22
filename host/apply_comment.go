@@ -163,7 +163,7 @@ func (w *commentFileWrite) refuse(i int, reason, detail string) {
 }
 
 func (w *commentFileWrite) apply(ctx context.Context, formats *checkFormats, canaries map[string]error) {
-	src, err := os.ReadFile(w.file)
+	src, _, err := w.read(w.file)
 	if err != nil {
 		w.notRun(reasonIO, err.Error())
 		return
@@ -308,7 +308,7 @@ type writeError struct{ reason, detail string }
 // are read back from the file they landed on.
 func (w *commentFileWrite) write(src, out []byte) *writeError {
 	inRoot := w.root != "" && under(w.root, w.file)
-	now, mode, err := w.read(w.file, inRoot)
+	now, mode, err := w.read(w.file)
 	if err != nil {
 		return &writeError{reasonIO, err.Error()}
 	}
@@ -322,7 +322,7 @@ func (w *commentFileWrite) write(src, out []byte) *writeError {
 		// file alone.
 		var berr error
 		if !inRoot {
-			berr = os.WriteFile(w.file+w.backupSuffix, src, mode)
+			berr = writeNamedBackup(w.file+w.backupSuffix, src, mode)
 		} else {
 			var s *atomicfile.Staged
 			if s, berr = atomicfile.StageWithinMode(w.root, w.file+w.backupSuffix, mode, func(dst io.Writer) error {
@@ -356,7 +356,7 @@ func (w *commentFileWrite) write(src, out []byte) *writeError {
 	if err != nil {
 		return &writeError{reasonIO, err.Error()}
 	}
-	written, _, err := w.read(file, inRoot)
+	written, _, err := w.read(file)
 	if err != nil {
 		return &writeError{reasonIO, err.Error()}
 	}
@@ -452,15 +452,9 @@ func (a *App) checkWrittenComments(ctx context.Context, cmd Command, file, diff,
 }
 
 // read returns the bytes and the mode of the file at path, through rootpath
-// when the file lies in the project.
-func (w *commentFileWrite) read(path string, inRoot bool) ([]byte, os.FileMode, error) {
-	var f *os.File
-	var err error
-	if inRoot {
-		f, err = rootpath.OpenRegular(w.root, path)
-	} else {
-		f, err = os.Open(path)
-	}
+// when the file lies in the project (rootpath.Open).
+func (w *commentFileWrite) read(path string) ([]byte, os.FileMode, error) {
+	f, err := rootpath.Open(w.root, path)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -471,4 +465,10 @@ func (w *commentFileWrite) read(path string, inRoot bool) ([]byte, os.FileMode, 
 	}
 	data, err := io.ReadAll(f)
 	return data, info.Mode().Perm(), err
+}
+
+// writeNamedBackup writes the backup of a file a person named outside any
+// project, beside it as named.
+func writeNamedBackup(path string, src []byte, mode os.FileMode) error {
+	return os.WriteFile(path, src, mode)
 }

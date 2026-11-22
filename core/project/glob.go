@@ -230,7 +230,7 @@ func (w *globWalker) advance(states []globState, name string) []globState {
 }
 
 func (w *globWalker) walk(rel, abs string, states []globState) {
-	entries, err := os.ReadDir(abs)
+	entries, err := w.readDir(abs)
 	if err != nil {
 		return
 	}
@@ -264,7 +264,7 @@ func (w *globWalker) walk(rel, abs string, states []globState) {
 			}
 		}
 		if isLink && !escaped && (w.opts.FilesOnly || w.followsLink(states, name)) {
-			info, serr := os.Stat(childAbs)
+			info, serr := w.stat(childAbs)
 			switch {
 			case serr != nil:
 				linkErr = serr
@@ -319,6 +319,31 @@ func (w *globWalker) walk(rel, abs string, states []globState) {
 		}
 	}
 }
+
+// readDir lists the directory abs. A walk of project content lists it
+// through the root, so a directory that leads out of it, even one swapped in
+// after its link was checked, is refused. A pattern a person typed
+// (LinksAnywhere) lists it as named.
+func (w *globWalker) readDir(abs string) ([]os.DirEntry, error) {
+	if w.opts.LinksAnywhere {
+		return readDirAsNamed(abs)
+	}
+	return rootpath.ReadDir(w.root, abs)
+}
+
+// stat is readDir's counterpart for one entry, links followed.
+func (w *globWalker) stat(abs string) (os.FileInfo, error) {
+	if w.opts.LinksAnywhere {
+		return statAsNamed(abs)
+	}
+	return rootpath.Stat(w.root, abs)
+}
+
+// readDirAsNamed lists a directory a pattern a person typed reaches.
+func readDirAsNamed(abs string) ([]os.DirEntry, error) { return os.ReadDir(abs) }
+
+// statAsNamed states an entry a pattern a person typed reaches.
+func statAsNamed(abs string) (os.FileInfo, error) { return os.Stat(abs) }
 
 // followsLink reports whether a symbolic link named name is read through: some
 // pattern names it before its first wildcard.

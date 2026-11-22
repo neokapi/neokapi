@@ -133,27 +133,28 @@ func mimeForFormat(f string) string {
 // engine is registered) OCR text Blocks with tier-2 structure, then the
 // LayerEnds.
 //
-// The image bytes are never loaded into the kapi process. The source is resolved
-// to a local file path (the original file when it is one, else a bounded
-// streaming spill to a temp file). The Media part references it by URI, and the
-// OCR engine (the plugin) opens and decodes that path itself.
+// The image bytes are never loaded whole into the kapi process. The reader
+// works from the descriptor the caller opened (doc.ReaderAt), or from a
+// bounded spill of doc.Reader to a temp file, and never reopens a file by
+// name. The Media part references the image by URI, and the OCR engine (the
+// plugin) reads a private copy (see imageSource.privateCopy).
 func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 	return format.StreamParts(ctx, func(ctx context.Context, ch chan<- model.PartResult) error {
-		imgPath, cleanup, err := r.materialize()
+		src, err := openImageSource(r.Doc)
 		if err != nil {
 			return err
 		}
-		defer cleanup()
+		defer src.close()
 
 		// DecodeConfig reads only the image header, not the whole file. A decode
 		// failure is fatal only when the bytes are not a recognized raster at all;
 		// formats with no in-core Go decoder (HEIC/AVIF) are still valid Media
 		// assets, so we fall back to content-classified MIME and unknown
 		// dimensions rather than failing the read.
-		cfg, fmtName, derr := decodeConfigFile(imgPath)
+		cfg, fmtName, derr := image.DecodeConfig(src.section())
 		mime := mimeForFormat(fmtName)
 		if derr != nil {
-			kind, _ := classifyFile(imgPath)
+			kind, _ := classifyReader(src.section())
 			if kind == kindUnknown {
 				return fmt.Errorf("image: decode: %w", derr)
 			}
@@ -162,7 +163,7 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 
 		uri := r.Doc.URI
 		if uri == "" {
-			uri = imgPath
+			uri, _ = format.SourceFile(r.Doc)
 		}
 		locale := r.Doc.SourceLocale
 		if locale.IsEmpty() {
@@ -176,7 +177,7 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 		// Image metadata (PNG text chunks, XMP): translatable fields become
 		// metadata-plane Blocks on the document layer; the rest are namespaced
 		// Properties. Populate the layer before emitting its LayerStart.
-		metaBlocks := docmeta.Apply(root, readImageMetadata(imgPath, mime), "meta")
+		metaBlocks := docmeta.Apply(root, readImageMetadata(src.section(), mime), "meta")
 		ch <- model.PartResult{Part: &model.Part{Type: model.PartLayerStart, Resource: root}}
 		for _, b := range metaBlocks {
 			ch <- model.PartResult{Part: &model.Part{Type: model.PartBlock, Resource: b}}
@@ -229,7 +230,7 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 			fcfg = c
 		}
 		if fcfg.OCR && vision.Available("") {
-			if parts := r.ocrParts(ctx, imgPath, locale, fcfg.Layout); parts != nil {
+			if parts := r.ocrParts(ctx, src, locale, fcfg.Layout); parts != nil {
 				for _, p := range parts {
 					ch <- model.PartResult{Part: p}
 				}
@@ -242,35 +243,84 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 	})
 }
 
-// materialize resolves the document to a readable local file path without ever
-// holding the whole image in memory. If the source URI is already a local file,
-// it is used directly (no copy). Otherwise the reader streams doc.Reader to a
-// temp file with a bounded buffer and returns that path; cleanup removes it.
-func (r *Reader) materialize() (string, func(), error) {
-	noop := func() {}
-	// The file the document was opened from, never a file named by its URI.
-	if name, ok := format.SourceFile(r.Doc); ok {
-		return name, noop, nil
+// imageSource is the image the reader works from: a random-access view over
+// the bytes the caller opened, or over a temp file this process spilled
+// doc.Reader into when the caller gave no such view.
+type imageSource struct {
+	ra    io.ReaderAt
+	size  int64
+	spill *os.File // the temp file holding the bytes, when the reader spilled them
+}
+
+// openImageSource returns the document's bytes without holding the whole
+// image in memory. It reads through doc.ReaderAt when the caller opened one.
+// It never opens a file by the document's URI or by the descriptor's name,
+// because that name can be replaced after the caller opened it. Otherwise it
+// streams doc.Reader to a temp file with a bounded buffer; close removes it.
+func openImageSource(doc *model.RawDocument) (*imageSource, error) {
+	if doc.ReaderAt != nil {
+		if sec, ok := format.ReopenSource(doc); ok {
+			if sr, ok := sec.(*io.SectionReader); ok {
+				return &imageSource{ra: sr, size: sr.Size()}, nil
+			}
+		}
 	}
-	if r.Doc.Reader == nil {
-		return "", noop, errors.New("image: no readable source")
+	if doc.Reader == nil {
+		return nil, errors.New("image: no readable source")
 	}
 	tmp, err := os.CreateTemp("", "kapi-image-*")
 	if err != nil {
-		return "", noop, fmt.Errorf("image: temp: %w", err)
+		return nil, fmt.Errorf("image: temp: %w", err)
 	}
 	// io.Copy streams in ~32 KiB chunks, the full image is never buffered.
-	if _, err := io.Copy(tmp, r.Doc.Reader); err != nil {
+	n, err := io.Copy(tmp, doc.Reader)
+	if err != nil {
 		_ = tmp.Close()
 		_ = os.Remove(tmp.Name())
-		return "", noop, fmt.Errorf("image: spill: %w", err)
+		return nil, fmt.Errorf("image: spill: %w", err)
 	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmp.Name())
-		return "", noop, err
+	return &imageSource{ra: tmp, size: n, spill: tmp}, nil
+}
+
+// section returns a fresh reader over the whole image.
+func (s *imageSource) section() *io.SectionReader {
+	return io.NewSectionReader(s.ra, 0, s.size)
+}
+
+// close removes the spill file, when there is one.
+func (s *imageSource) close() {
+	if s.spill != nil {
+		_ = s.spill.Close()
+		_ = os.Remove(s.spill.Name())
+	}
+}
+
+// privateCopy returns the name of a file holding the image bytes, for a
+// program that reads a path (the OCR engine, ffmpeg). The program gets a temp
+// file this process created and wrote from the descriptor, never the source's
+// own name. That name lies in the project, and a link put in its place after
+// the caller opened it would lead the program to any file. The spill file is
+// such a copy already. cleanup removes a file privateCopy wrote.
+func (s *imageSource) privateCopy() (string, func(), error) {
+	noop := func() {}
+	if s.spill != nil {
+		return s.spill.Name(), noop, nil
+	}
+	tmp, err := os.CreateTemp("", "kapi-image-copy-*")
+	if err != nil {
+		return "", noop, fmt.Errorf("image: temp: %w", err)
 	}
 	name := tmp.Name()
-	return name, func() { _ = os.Remove(name) }, nil
+	cleanup := func() { _ = os.Remove(name) }
+	_, err = io.Copy(tmp, s.section())
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		cleanup()
+		return "", noop, fmt.Errorf("image: copy: %w", err)
+	}
+	return name, cleanup, nil
 }
 
 // altSidecarPath returns the convention path for an image's alt-text/caption
@@ -305,24 +355,14 @@ func readAltSidecar(uri string) string {
 	return strings.TrimSpace(string(b))
 }
 
-// decodeConfigFile reads just the header of the image at path.
-func decodeConfigFile(path string) (image.Config, string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return image.Config{}, "", err
-	}
-	defer func() { _ = f.Close() }()
-	return image.DecodeConfig(f)
-}
-
-// ocrParts runs the registered vision engine over the image at imgPath and
-// returns the structured Part stream (tier-2 structure over the OCR line
-// geometry), or nil on any failure (best-effort: the Media is already emitted).
-func (r *Reader) ocrParts(ctx context.Context, imgPath string, locale model.LocaleID, useLayout bool) []*model.Part {
+// ocrParts runs the registered vision engine over the image and returns the
+// structured Part stream (tier-2 structure over the OCR line geometry), or
+// nil on any failure (best-effort: the Media is already emitted).
+func (r *Reader) ocrParts(ctx context.Context, src *imageSource, locale model.LocaleID, useLayout bool) []*model.Part {
 	// The vision engine decodes PNG/JPEG only; normalize other rasters
 	// (GIF/BMP/TIFF/WebP in-core, HEIC/AVIF via ffmpeg) to a temp PNG first. A
 	// normalization failure means OCR is skipped, the Media is already emitted.
-	ocrPath, cleanup, err := normalizeForOCR(ctx, imgPath)
+	ocrPath, cleanup, err := normalizeForOCR(ctx, src)
 	if err != nil {
 		return nil
 	}

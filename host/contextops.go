@@ -39,6 +39,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -52,6 +53,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/core/workspace"
 )
@@ -500,14 +502,12 @@ func (s *contextOpsSession) observedInFiles(ctx context.Context, subject context
 		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			continue
 		}
-		info, err := os.Stat(path)
-		if err != nil || info.IsDir() {
+		holds, err := fileHoldsAnyForm(s.root, path, forms)
+		if err != nil {
 			continue
 		}
-		if info.Size() <= maxObservedFile {
-			if data, err := os.ReadFile(path); err == nil && holdsAnyForm(string(data), forms) {
-				continue
-			}
+		if holds {
+			continue
 		}
 		seen, read := s.blocksHoldForm(ctx, filepath.ToSlash(rel), forms)
 		if !read || seen {
@@ -517,6 +517,27 @@ func (s *contextOpsSession) observedInFiles(ctx context.Context, subject context
 			"name the file you saw it in, or record what you know in text", e.Path, subject.Term.Replacement)
 	}
 	return nil
+}
+
+// fileHoldsAnyForm reports whether the file at path, read through root, holds
+// one of forms. A file that is not a regular file beneath root, such as a
+// link that leads out of the project, is an error. A file larger than
+// maxObservedFile is not read and holds none.
+func fileHoldsAnyForm(root, path string, forms []string) (bool, error) {
+	f, err := rootpath.OpenRegular(root, path)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || info.Size() > maxObservedFile {
+		return false, err
+	}
+	data, err := io.ReadAll(io.LimitReader(f, maxObservedFile))
+	if err != nil {
+		return false, nil
+	}
+	return holdsAnyForm(string(data), forms), nil
 }
 
 // blocksHoldForm reports whether the text of a block of the project's file at

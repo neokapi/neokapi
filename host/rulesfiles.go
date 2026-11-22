@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/agentrules"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // The rules files: a project's context, written where agents load it without a
@@ -232,7 +233,7 @@ func (a *App) RefreshRulesFiles(ctx context.Context, recipePath string) (*RulesF
 // kapi's section, which is what makes a refresh keep the rules files current.
 func HasRulesFiles(root string) bool {
 	for _, name := range agentrules.Names {
-		if doc, err := os.ReadFile(filepath.Join(root, name)); err == nil && agentrules.Holds(doc) {
+		if doc, err := rootpath.ReadFile(root, filepath.Join(root, name)); err == nil && agentrules.Holds(doc) {
 			return true
 		}
 	}
@@ -362,7 +363,7 @@ func (a *App) planRulesFiles(cmd Command, root string, proj *project.KapiProject
 	seen := map[string]map[string]bool{}
 	for _, place := range a.rulePlaces(proj, root) {
 		if place.Dir != "" {
-			if info, serr := os.Stat(filepath.Join(root, filepath.FromSlash(place.Dir))); serr != nil || !info.IsDir() {
+			if info, serr := rootpath.Stat(root, filepath.Join(root, filepath.FromSlash(place.Dir))); serr != nil || !info.IsDir() {
 				continue
 			}
 		}
@@ -1089,7 +1090,7 @@ func (a *App) PlanRulesFiles(ctx context.Context, recipePath string) ([]RulesFil
 		claude := filepath.Join(root, filepath.FromSlash(dir), "CLAUDE.md")
 		for _, path := range []string{agents, claude} {
 			doc, rerr := projectWrites{root: root}.read(path)
-			if path == claude && (sameInode(agents, claude) || (rerr == nil && agentrules.ImportsAgents(doc))) {
+			if path == claude && (sameInode(root, agents, claude) || (rerr == nil && agentrules.ImportsAgents(doc))) {
 				continue
 			}
 			out = append(out, RulesFilePlan{
@@ -1113,7 +1114,7 @@ func writeFolderRules(w projectWrites, root, dir, section string) ([]RulesFile, 
 	for _, path := range []string{agents, claude} {
 		rel := relSlash(root, path)
 		if path == claude {
-			if sameInode(agents, claude) {
+			if sameInode(root, agents, claude) {
 				continue
 			}
 			if doc, err := w.read(claude); err == nil && agentrules.ImportsAgents(doc) {
@@ -1194,14 +1195,22 @@ func removeRulesSection(w projectWrites, path string) (RulesFileAction, error) {
 // trees, the folders the project ignores and nested projects.
 func staleRulesFiles(root string, want map[string]string) ([]string, error) {
 	var out []string
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	// The walk goes through an os.Root on root, so a directory link that
+	// leads out of the project is not entered.
+	err = fs.WalkDir(r.FS(), ".", func(rel string, d fs.DirEntry, err error) error {
+		path := filepath.Join(root, filepath.FromSlash(rel))
 		if err != nil {
 			if path == root {
 				return err
 			}
 			return nil
 		}
-		rel := relSlash(root, path)
+		rel = relSlash(root, path)
 		if d.IsDir() {
 			if path == root {
 				return nil
@@ -1210,7 +1219,7 @@ func staleRulesFiles(root string, want map[string]string) ([]string, error) {
 			if strings.HasPrefix(name, ".") || name == "node_modules" || name == "vendor" || name == "testdata" || ProjectIgnores(root, rel) {
 				return filepath.SkipDir
 			}
-			if _, err := os.Stat(filepath.Join(path, project.RecipeFileName)); err == nil {
+			if _, err := r.Stat(filepath.Join(filepath.FromSlash(rel), project.RecipeFileName)); err == nil {
 				return filepath.SkipDir
 			}
 			return nil
@@ -1225,7 +1234,7 @@ func staleRulesFiles(root string, want map[string]string) ([]string, error) {
 		if _, wanted := want[dir]; wanted {
 			return nil
 		}
-		if doc, rerr := os.ReadFile(path); rerr == nil && agentrules.Holds(doc) {
+		if doc, rerr := r.ReadFile(filepath.FromSlash(rel)); rerr == nil && agentrules.Holds(doc) {
 			out = append(out, rel)
 		}
 		return nil
@@ -1235,13 +1244,13 @@ func staleRulesFiles(root string, want map[string]string) ([]string, error) {
 }
 
 // sameInode reports whether two paths name one file, as a CLAUDE.md linked to
-// AGENTS.md does.
-func sameInode(a, b string) bool {
-	ia, err := os.Stat(a)
+// AGENTS.md does. Both lie beneath root and are stated through it.
+func sameInode(root, a, b string) bool {
+	ia, err := rootpath.Stat(root, a)
 	if err != nil {
 		return false
 	}
-	ib, err := os.Stat(b)
+	ib, err := rootpath.Stat(root, b)
 	if err != nil {
 		return false
 	}

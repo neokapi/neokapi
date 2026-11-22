@@ -3,6 +3,7 @@ package host
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // Input conventions (one resolver for every command that takes file inputs).
@@ -430,3 +432,68 @@ var stdinIsPipe = func() bool {
 	fd := os.Stdin.Fd()
 	return !isatty.IsTerminal(fd) && !isatty.IsCygwinTerminal(fd)
 }
+
+// statIn stats p the way rootpath.Open opens it. When p lies beneath root it
+// is stated through the root, so a link on the way that leads out of root is
+// refused. Otherwise, an empty root included, p is a path a person named and
+// is stated as named.
+func statIn(root, p string) (fs.FileInfo, error) {
+	if !rootpath.IsBeneath(root, p) {
+		return statNamed(p)
+	}
+	r, name, err := openRootFor(root, p)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	return r.Stat(name)
+}
+
+// readDirIn lists the directory dir as statIn stats it, sorted by name.
+func readDirIn(root, dir string) ([]os.DirEntry, error) {
+	if !rootpath.IsBeneath(root, dir) {
+		return readDirNamed(dir)
+	}
+	r, name, err := openRootFor(root, dir)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	d, err := r.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer d.Close()
+	entries, err := d.ReadDir(-1)
+	slices.SortFunc(entries, func(a, b os.DirEntry) int { return strings.Compare(a.Name(), b.Name()) })
+	return entries, err
+}
+
+// openRootFor opens the directory root resolves to as an os.Root and returns
+// p's name in it. p must lie beneath root; one that resolves outside it is an
+// *rootpath.EscapeError. The root refuses a link swapped in afterwards.
+func openRootFor(root, p string) (*os.Root, string, error) {
+	real, err := rootpath.Contain(root, p)
+	if err != nil {
+		return nil, "", err
+	}
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, "", err
+	}
+	rel, err := filepath.Rel(realRoot, real)
+	if err != nil {
+		return nil, "", err
+	}
+	r, err := os.OpenRoot(realRoot)
+	if err != nil {
+		return nil, "", err
+	}
+	return r, rel, nil
+}
+
+// statNamed stats a path a person named, links followed.
+func statNamed(p string) (fs.FileInfo, error) { return os.Stat(p) }
+
+// readDirNamed lists a directory a person named, links followed.
+func readDirNamed(dir string) ([]os.DirEntry, error) { return os.ReadDir(dir) }

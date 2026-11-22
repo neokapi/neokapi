@@ -26,6 +26,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/output"
@@ -929,7 +930,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 			// The voice governs a comment layer the way it governs any content.
 			var layer *commentLayer
 			locate := func(src []byte) (*commentLayer, error) { return locateComments(f, src, p, formats.directivesFor(f)) }
-			if layer, rerr = a.readCommentLayer(ctx, f, nil, locate); layer != nil {
+			if layer, rerr = a.readCommentLayerIn(ctx, root, f, nil, locate); layer != nil {
 				blocks = layer.blocks
 			}
 		} else if formats.commentsOnly(f) {
@@ -939,7 +940,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 				blocks = layer.blocks
 			}
 		} else {
-			blocks, rerr = a.readBlocksAs(ctx, f, fmtName, fmtCfg, a.SourceLocale())
+			blocks, rerr = a.readBlocksAs(ctx, root, f, fmtName, fmtCfg, a.SourceLocale())
 			if rerr == nil {
 				// Comments the recipe declares beside the reader's blocks are
 				// governed the same way.
@@ -1194,13 +1195,13 @@ func (a *App) readSource(ctx context.Context, u VerifyUnit) ([]*model.Block, err
 		return nil, nil
 	}
 	name, cfg := a.unitFormat(u.SourceFormat, u.SourceConfig)
-	return a.readBlocksAs(ctx, u.SourcePath, name, cfg, a.SourceLocale())
+	return a.readBlocksAs(ctx, u.ProjectRoot, u.SourcePath, name, cfg, a.SourceLocale())
 }
 
 // readTarget reads the unit's target file under its declared reader binding.
 func (a *App) readTarget(ctx context.Context, u VerifyUnit) ([]*model.Block, error) {
 	name, cfg := a.unitFormat(u.TargetFormat, u.TargetConfig)
-	return a.readBlocksAs(ctx, u.TargetPath, name, cfg, a.SourceLocale())
+	return a.readBlocksAs(ctx, u.ProjectRoot, u.TargetPath, name, cfg, a.SourceLocale())
 }
 
 // unitFormat resolves the reader binding to read one of a unit's files under.
@@ -1909,7 +1910,7 @@ func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block
 	if blockedTargetPath(u.TargetPath) != nil {
 		return nil, true, nil
 	}
-	if _, err := os.Stat(u.TargetPath); err != nil {
+	if _, err := statIn(u.ProjectRoot, u.TargetPath); err != nil {
 		if os.IsNotExist(err) {
 			// No delivered file, and under a gate that is what a parked locale
 			// looks like: the pass drafted it and delivery was withheld, so its
@@ -1979,7 +1980,7 @@ func fileUnderSource(blocks []*model.Block, source model.LocaleID) {
 // any output — verify only inspects content. The app-wide --format override
 // (a.FormatFlag) applies; ReadBlocksForCheck is the per-file-format variant.
 func (a *App) readBlocks(ctx context.Context, path, sourceLang string) ([]*model.Block, error) {
-	return a.readBlocksAs(ctx, path, a.FormatFlag, nil, sourceLang)
+	return a.readBlocksAs(ctx, a.projectRoot(), path, a.FormatFlag, nil, sourceLang)
 }
 
 // readBlocksAs is readBlocks with an explicit format override (empty =
@@ -1987,7 +1988,7 @@ func (a *App) readBlocks(ctx context.Context, path, sourceLang string) ([]*model
 // reader's defaults). It is the validation-off wrapper around
 // readBlocksValidated, so every caller that does not opt into Reader
 // Validation-Mode keeps the byte-identical lenient behavior.
-func (a *App) readBlocksAs(ctx context.Context, path, fmtName string, cfg map[string]any, sourceLang string) ([]*model.Block, error) {
+func (a *App) readBlocksAs(ctx context.Context, root, path, fmtName string, cfg map[string]any, sourceLang string) ([]*model.Block, error) {
 	// The plugin the format comes from, for the evaluation record of the check
 	// or gate run reading under ctx. A cached read reached it too.
 	a.recordFormatPlugin(ctx, path, fmtName)
@@ -2005,9 +2006,9 @@ func (a *App) readBlocksAs(ctx context.Context, path, fmtName string, cfg map[st
 			}
 			// A corrupt log → fall through and re-parse (re-records the entry).
 		}
-		return a.recordAndCollectBlocks(ctx, path, fmtName, cfg, configKey, sourceLang)
+		return a.recordAndCollectBlocks(ctx, root, path, fmtName, cfg, configKey, sourceLang)
 	}
-	blocks, _, err := a.readBlocksValidated(ctx, path, fmtName, cfg, sourceLang, format.ValidationOff)
+	blocks, _, err := a.readBlocksValidated(ctx, root, path, fmtName, cfg, sourceLang, format.ValidationOff)
 	return blocks, err
 }
 
@@ -2067,7 +2068,7 @@ func streamTranslatableBlocks(ctx context.Context, doc flow.CachedDocument) ([]*
 // emitter writes into a store that keeps nothing): the read path never
 // reconstructs output, and its "rbw|" key is disjoint from the runner's, so no
 // writer ever reads a skeleton-less entry.
-func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName string, cfg map[string]any, configKey, sourceLang string) ([]*model.Block, error) {
+func (a *App) recordAndCollectBlocks(ctx context.Context, root, path, fmtName string, cfg map[string]any, configKey, sourceLang string) ([]*model.Block, error) {
 	if fmtName == "" {
 		detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 		if err != nil {
@@ -2092,7 +2093,8 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName string, 
 	// of them names.
 	project.WireReadSkeleton(a.FormatReg, fmtName, reader)
 
-	content, err := os.ReadFile(path)
+	// A file beneath the project is read through its root (rootpath.ReadFile).
+	content, err := rootpath.ReadFile(root, path)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
@@ -2160,7 +2162,7 @@ func streamIntoRecorder(ctx context.Context, reader format.DataFormatReader, rec
 // operational failure). With mode ValidationOff this is byte-identical to the
 // pre-RVM readBlocks: no diagnostics, errors propagate unchanged. fmtName
 // overrides format detection (empty = detect by extension).
-func (a *App) readBlocksValidated(ctx context.Context, path, fmtName string, cfg map[string]any, sourceLang string, mode format.ValidationMode) ([]*model.Block, []format.Diagnostic, error) {
+func (a *App) readBlocksValidated(ctx context.Context, root, path, fmtName string, cfg map[string]any, sourceLang string, mode format.ValidationMode) ([]*model.Block, []format.Diagnostic, error) {
 	a.recordFormatPlugin(ctx, path, fmtName)
 	if fmtName == "" {
 		detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
@@ -2191,7 +2193,8 @@ func (a *App) readBlocksValidated(ctx context.Context, path, fmtName string, cfg
 		vc.SetValidationMode(mode)
 	}
 
-	content, err := os.ReadFile(path)
+	// A file beneath the project is read through its root (rootpath.ReadFile).
+	content, err := rootpath.ReadFile(root, path)
 	if err != nil {
 		return nil, nil, fmt.Errorf("read %s: %w", path, err)
 	}

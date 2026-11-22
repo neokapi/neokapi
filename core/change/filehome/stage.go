@@ -1071,6 +1071,12 @@ func (h *Home) backUp(path, suffix string) error {
 	if inRoot {
 		return backUpWithin(root, path, suffix)
 	}
+	return backUpAsNamed(path, suffix)
+}
+
+// backUpAsNamed is backUp for a file beneath no root: a destination a person
+// named outside the home's root (PermitOutside), read and copied as named.
+func backUpAsNamed(path, suffix string) error {
 	in, err := os.Open(path)
 	if err != nil {
 		return err

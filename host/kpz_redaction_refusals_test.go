@@ -222,7 +222,7 @@ func TestRedactedKpzRevisionsAreThoseOfTheProjectSource(t *testing.T) {
 		pkg, err := LoadWorkspace(p)
 		require.NoError(t, err)
 		doc := pkg.Sources[0].SourcePath
-		blocks, _, err := project.ReadSourceBlocks(context.Background(), a.FormatReg, "json", filepath.Join(dir, filepath.FromSlash(doc)), "en", "", nil)
+		blocks, _, err := project.ReadSourceBlocks(context.Background(), a.FormatReg, "", "json", filepath.Join(dir, filepath.FromSlash(doc)), "en", "", nil)
 		require.NoError(t, err)
 		assert.Equal(t, extractedRevision(blocks[0], "en", nil).Basis, pkg.InterchangeTask.Revisions["tu1"].Basis, doc)
 	}
@@ -306,7 +306,7 @@ func TestMergeRedactedKpzRestoresEveryPluralForm(t *testing.T) {
 	assertPackageWithholds(t, packages[0], map[string]string{"a": "Alice Archer"})
 
 	// The translator keeps the placeholder and the {count} code in each form.
-	blocks, _, err := project.ReadSourceBlocks(context.Background(), a.FormatReg, "arb", filepath.Join(dir, "l10n", "app_en.arb"), "en", "", nil)
+	blocks, _, err := project.ReadSourceBlocks(context.Background(), a.FormatReg, "", "arb", filepath.Join(dir, "l10n", "app_en.arb"), "en", "", nil)
 	require.NoError(t, err)
 	require.Len(t, blocks, 1)
 	src := blocks[0].SourceRuns()

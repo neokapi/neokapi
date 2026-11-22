@@ -76,20 +76,36 @@ func TestResolveToolConfig_RelativePaths(t *testing.T) {
 	}
 }
 
-func TestResolveToolConfig_AbsolutePaths(t *testing.T) {
-	config := map[string]any{
-		"outputPath": "/absolute/path/report.html",
-	}
-
-	ctx := ResourceContext{ProjectDir: "/project"}
-	resolved, err := ResolveToolConfig(config, nil, ctx)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	got := resolved["outputPath"].(string)
-	if got != "/absolute/path/report.html" {
-		t.Errorf("absolute path should be unchanged, got %q", got)
+// A project flow's step config is recipe content: a path property that is
+// absolute outside the project, or climbs out of it, is refused with the key
+// named. One inside the project or the output directory resolves, and without
+// a project an absolute path is kept as given.
+func TestResolveToolConfig_PathsStayInTheProject(t *testing.T) {
+	project := filepath.FromSlash("/project")
+	out := filepath.FromSlash("/out/fr")
+	for _, tc := range []struct {
+		name, value, want string
+		ctx               ResourceContext
+	}{
+		{"absolute outside", "/absolute/path/report.html", "", ResourceContext{ProjectDir: project}},
+		{"climbs out", "../../etc/passwd", "", ResourceContext{ProjectDir: project}},
+		{"rootDir climbs out", "${rootDir}/../x.html", "", ResourceContext{ProjectDir: project}},
+		{"absolute inside", "/project/reports/r.html", filepath.FromSlash("/project/reports/r.html"), ResourceContext{ProjectDir: project}},
+		{"relative inside", "reports/r.html", filepath.Join(project, "reports", "r.html"), ResourceContext{ProjectDir: project}},
+		{"output dir", "${outputDir}/r.html", filepath.Join(out, "r.html"), ResourceContext{ProjectDir: project, OutputDir: out}},
+		{"no project", "/absolute/path/report.html", "/absolute/path/report.html", ResourceContext{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resolved, err := ResolveToolConfig(map[string]any{"outputPath": tc.value}, nil, tc.ctx)
+			if tc.want == "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "outputPath")
+				require.Contains(t, err.Error(), "lies outside the project")
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, resolved["outputPath"])
+		})
 	}
 }
 

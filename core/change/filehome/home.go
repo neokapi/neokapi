@@ -234,7 +234,7 @@ func (h *Home) under(path string) (string, bool) {
 // FIFO is refused without blocking.
 func (h *Home) openRead(path string) (*os.File, error) {
 	if h == nil {
-		return os.Open(path)
+		return rootpath.Open("", path)
 	}
 	return openBeneath(h.root, path)
 }
@@ -261,16 +261,15 @@ func (h *Home) hashFile(path string) (string, error) {
 }
 
 // openBeneath opens path through rootpath.OpenRegular when it lies beneath
-// root, and as named otherwise.
+// root, and as named otherwise (rootpath.Open). A path beneath the root is
+// never opened by path.
 func openBeneath(root, path string) (*os.File, error) {
-	if absRoot, ok := beneath(root, path); ok {
-		return rootpath.OpenRegular(absRoot, path)
-	}
-	return os.Open(path)
+	return rootpath.Open(root, path)
 }
 
 // beneath reports whether path lies beneath root, decided from the file
-// system rather than from the spelling, and returns root as an absolute path.
+// system rather than from the spelling (rootpath.IsBeneath), and returns root
+// as an absolute path.
 func beneath(root, path string) (string, bool) {
 	if root == "" {
 		return "", false
@@ -279,30 +278,7 @@ func beneath(root, path string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return "", false
-	}
-	if rel, rerr := filepath.Rel(absRoot, abs); rerr == nil && filepath.IsLocal(rel) {
-		return absRoot, true
-	}
-	if !rootpath.Supported {
-		// The browser's file system gives no file an identity of its own, so
-		// os.SameFile would match every directory. Its paths are what they say.
-		return absRoot, false
-	}
-	rootInfo, err := os.Stat(absRoot)
-	if err != nil {
-		return absRoot, false
-	}
-	for dir := filepath.Dir(abs); ; dir = filepath.Dir(dir) {
-		if info, serr := os.Stat(dir); serr == nil && os.SameFile(info, rootInfo) {
-			return absRoot, true
-		}
-		if parent := filepath.Dir(dir); parent == dir {
-			return absRoot, false
-		}
-	}
+	return absRoot, rootpath.IsBeneath(absRoot, path)
 }
 
 // writes reports whether the home writes a document it produces at path.

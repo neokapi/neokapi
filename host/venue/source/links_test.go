@@ -44,4 +44,47 @@ func TestPushReadsNoLinkOutOfTheProject(t *testing.T) {
 	assert.Equal(t, []string{"src/en.json"}, conn.contentPaths(), "the link is not listed")
 	_, _, err = conn.readBlocksAndMedia(context.Background(), link, "json")
 	require.ErrorContains(t, err, "leads outside the root")
+
+	// A path named for the push that is the link stops the scan.
+	_, err = conn.scanLocal(context.Background(), []string{link})
+	require.ErrorContains(t, err, "leads outside the root")
+}
+
+// A push reads the translations the checkout holds through the project: a
+// target file that is a link to a file outside the project is refused, and
+// the file it points at is neither read nor written.
+func TestPushReadsNoTargetLinkOutOfTheProject(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "project")
+	outside := filepath.Join(base, "outside")
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "src"), 0o755))
+	require.NoError(t, os.MkdirAll(outside, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "en.json"), []byte(`{"a":"Hello"}`), 0o644))
+	secret := filepath.Join(outside, "secret.json")
+	const held = `{"a":"outside the project"}`
+	require.NoError(t, os.WriteFile(secret, []byte(held), 0o644))
+	require.NoError(t, os.Symlink(secret, filepath.Join(root, "src", "fr.json")))
+	before, err := os.Stat(secret)
+	require.NoError(t, err)
+
+	proj, err := bproject.InitProject(root, &bproject.Recipe{
+		Defaults: coreproj.Defaults{SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}},
+		Collections: []coreproj.Collection{{Content: []coreproj.ContentItem{
+			{Path: "src/en.json", Target: "src/{lang}.json"},
+		}}},
+	})
+	require.NoError(t, err)
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+	conn := &BowrainSourceConnector{app: testApp(t), project: proj, formatReg: reg}
+
+	_, err = conn.app.EditionRevisions(context.Background(), proj.RecipePath(), "src/en.json", []model.EditionKey{{Locale: "fr"}})
+	require.ErrorContains(t, err, "leads outside the root")
+
+	got, err := os.ReadFile(secret)
+	require.NoError(t, err)
+	assert.Equal(t, held, string(got), "the file outside is left as it was")
+	after, err := os.Stat(secret)
+	require.NoError(t, err)
+	assert.Equal(t, before.ModTime(), after.ModTime())
 }

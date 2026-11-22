@@ -1441,7 +1441,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 
 				// Read source, inject targets, write output.
 				absSource := c.project.ResolvePath(itemName)
-				if _, statErr := os.Stat(absSource); errors.Is(statErr, fs.ErrNotExist) {
+				if _, statErr := rootpath.CheckRegular(c.project.Root, absSource); errors.Is(statErr, fs.ErrNotExist) && !escapes(statErr) {
 					// The source was deleted or renamed after it was pushed;
 					// additive-only push means the server never forgets it.
 					// There is nothing to reconstruct a target from, on this
@@ -1660,9 +1660,13 @@ func (c *BowrainSourceConnector) scanLocal(ctx context.Context, paths []string) 
 	for _, p := range paths {
 		absPath := c.project.ResolvePath(p)
 
-		// Skip if file doesn't exist.
-		info, err := os.Stat(absPath)
-		if err != nil || info.IsDir() {
+		// Skip a file that does not exist or is not a regular file. A file
+		// that resolves outside the project is never read, and the push stops
+		// rather than leave it out of the tree it declares.
+		if _, err := rootpath.CheckRegular(c.project.Root, absPath); err != nil {
+			if escapes(err) {
+				return nil, err
+			}
 			continue
 		}
 
@@ -2382,7 +2386,13 @@ func (c *BowrainSourceConnector) fetchMediaReplacements(
 					return nil, noop, append(errs, fmt.Errorf("create a temp dir for media: %w", err))
 				}
 			}
-			variantPath := filepath.Join(tmpDir, fmt.Sprintf("%s-%s", asset.ID, v.Locale))
+			name := fmt.Sprintf("%s-%s", asset.ID, v.Locale)
+			if strings.ContainsAny(name, `/\`) || !filepath.IsLocal(name) {
+				errs = append(errs, fmt.Errorf(
+					"variant %s of %s: the venue named the asset %q, which is not a file name", v.Locale, asset.Filename, asset.ID))
+				continue
+			}
+			variantPath := filepath.Join(tmpDir, name)
 			if err := os.WriteFile(variantPath, data, 0o644); err != nil {
 				errs = append(errs, fmt.Errorf(
 					"materialize variant %s of %s: %w", v.Locale, asset.Filename, err))
@@ -2611,6 +2621,12 @@ func allScannedBlocks(blockMap map[string][]*model.Block) []*model.Block {
 		all = append(all, blocks...)
 	}
 	return all
+}
+
+// escapes reports whether err says a path leads outside the project.
+func escapes(err error) bool {
+	_, ok := errors.AsType[*rootpath.EscapeError](err)
+	return ok
 }
 
 // readInRoot reads the file at path when it is a regular file that resolves

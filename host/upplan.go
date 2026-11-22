@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -694,7 +693,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 		// on disk, which decides whether the corpus's silence about its units is
 		// final (see App.recordSettlement).
 		settled := basis.settled[u.TargetPath]
-		delivered := !missing && targetDelivered(u.TargetPath)
+		delivered := !missing && targetDelivered(basis.root, u.TargetPath)
 		scope := basis.docs.Scope(basis.root, u.SourcePath)
 		for _, b := range blocks {
 			if !b.Translatable {
@@ -817,12 +816,13 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 	return out, nil
 }
 
-// targetDelivered reports whether a unit's target file is on disk. A produced
+// targetDelivered reports whether a unit's target file is on disk beneath
+// root; a target that leads out of the project is not delivered. A produced
 // unit without one was read out of the workspace home, which is what a parked
 // locale's drafts look like between the run that drafted them and the review
 // that delivers them.
-func targetDelivered(targetPath string) bool {
-	_, err := os.Stat(targetPath)
+func targetDelivered(root, targetPath string) bool {
+	_, err := statThrough(root, targetPath)
 	return err == nil
 }
 

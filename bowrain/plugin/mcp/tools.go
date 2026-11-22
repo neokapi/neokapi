@@ -22,6 +22,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/venue/project"
 	"github.com/neokapi/neokapi/host/venue/source"
 	"github.com/neokapi/neokapi/host/venue/transfer"
@@ -34,6 +35,10 @@ func init() {
 
 // registerBowrainTools registers all Bowrain CLI MCP tools on the given server.
 func registerBowrainTools(server *mcp.Server, a *cli.App) {
+	// The arguments that name a location inside the project, which the kapi
+	// mcp roots middleware checks (host/mcp_args.go).
+	host.DeclareMCPPathArgs("project_push", host.MCPArgProjectRelative, "paths")
+	host.DeclareMCPPathArgs("project_ls", host.MCPArgProjectRelative, "paths")
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "project_status",
 		Description: "Show project sync status including pending push/pull counts and server connection",

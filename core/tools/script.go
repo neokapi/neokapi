@@ -19,7 +19,7 @@ import (
 type ScriptConfig struct {
 	Source     string `json:"source,omitempty"     schema:"title=Script Source,description=Script source mode,enum=inline|file,default=inline,widget=segmented"`
 	Code       string `json:"code,omitempty"       schema:"title=Inline Code,description=Inline ES5 JavaScript code,widget=code-editor,showIf=source:inline"`
-	ScriptFile string `json:"script_file,omitempty" schema:"title=Script File,description=Path to a .js file,widget=file-picker,showIf=source:file"`
+	ScriptFile string `json:"script_file,omitempty" schema:"title=Script File,description=Path to a .js file,widget=file-picker,showIf=source:file,path=file"`
 	// AllowSourceMutation opts the script into writing the block's SOURCE.
 	// Off by default: source is read-only to the script (its source edits are
 	// ignored), matching the content-model immutability contract; only target

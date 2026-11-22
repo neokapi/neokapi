@@ -668,7 +668,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 	extractionStart := time.Now()
 
 	if validateMode != format.ValidationOff {
-		bl, fdiags, rerr := a.readBlocksValidated(ctx, file, fmtName, fmtCfg, opts.source(a), validateMode)
+		bl, fdiags, rerr := a.readBlocksValidated(ctx, a.projectRoot(), file, fmtName, fmtCfg, opts.source(a), validateMode)
 		if rerr != nil {
 			return nil, nil, asReadFailure(rerr)
 		}
@@ -677,7 +677,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 			diags = append(diags, check.DiagnosticFromReader(fd, DisplayName(file), validateMode == format.ValidationStrict))
 		}
 	} else {
-		bl, rerr := a.readBlocksAs(ctx, file, fmtName, fmtCfg, opts.source(a))
+		bl, rerr := a.readBlocksAs(ctx, a.projectRoot(), file, fmtName, fmtCfg, opts.source(a))
 		if rerr != nil {
 			// A read failure is operational in off mode: the lenient readers
 			// extract from imperfect inputs, so a hard error means the file

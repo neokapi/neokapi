@@ -24,6 +24,7 @@ import (
 	"github.com/neokapi/neokapi/core/profile/packs"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/review"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -616,19 +617,36 @@ func displaySource(root, src string) string {
 // directory is missing too, the location is a typo (or a mistyped address such
 // as `context://file/docs/x.md`) rather than a plan, and answering it would
 // state a governance nobody asked about.
+//
+// Both are stated through root: a location reached through a link that leads
+// out of the project is refused.
 func contextLocationErr(root, rel, asked string) error {
 	abs := filepath.Join(root, filepath.FromSlash(rel))
-	if _, err := os.Stat(abs); err == nil || !errors.Is(err, fs.ErrNotExist) {
+	_, err := statIn(root, abs)
+	if escapes(err) {
+		return fmt.Errorf("%s: %w", asked, err)
+	}
+	if err == nil || !errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
 	dir := filepath.Dir(abs)
-	if info, err := os.Stat(dir); err == nil && info.IsDir() {
+	info, err := statIn(root, dir)
+	if escapes(err) {
+		return fmt.Errorf("%s: %w", asked, err)
+	}
+	if err == nil && info.IsDir() {
 		return nil
 	}
 	shown := path.Dir(rel)
 	return fmt.Errorf(
 		"%s does not exist, and neither does its directory %s, so there is no file to answer for. Name a file in the project, or a new file in a directory that exists",
 		asked, shown)
+}
+
+// escapes reports whether err says a path leads out of its root.
+func escapes(err error) bool {
+	var esc *rootpath.EscapeError
+	return errors.As(err, &esc)
 }
 
 // projectRelative renders a location as the project-relative, slash-separated

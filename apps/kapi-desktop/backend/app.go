@@ -1050,7 +1050,7 @@ func (a *App) ListFlows(tabID string) []FlowInfo {
 	for _, name := range inline {
 		infos = append(infos, info(name, host.FlowSourceInline, "", "", op.Project.Flow(name)))
 	}
-	for _, def := range project.ListDirFlows(op.Project.FlowsDirIn(filepath.Dir(op.Path))) {
+	for _, def := range project.ListDirFlowsIn(filepath.Dir(op.Path), op.Project.FlowsDirIn(filepath.Dir(op.Path))) {
 		if op.Project.Flow(def.Name) != nil {
 			continue
 		}

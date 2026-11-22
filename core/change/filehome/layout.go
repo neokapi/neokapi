@@ -228,26 +228,36 @@ func ResolvePath(root, doc string) (ref, path, entry string, err error) {
 	path = filepath.Join(root, clean)
 	// The reference is judged by the file it resolves to as well: a symbolic
 	// link that leads out of root is refused, and the error names the link.
-	if _, cerr := rootpath.Contain(root, path); cerr != nil {
-		if _, ok := errors.AsType[*rootpath.EscapeError](cerr); ok {
-			return "", "", "", &change.Error{Code: change.CodeInvalid, Field: "at/doc", Message: cerr.Error()}
-		}
+	_, cerr := rootpath.CheckRegular(root, path)
+	if _, ok := errors.AsType[*rootpath.EscapeError](cerr); ok {
+		return "", "", "", &change.Error{Code: change.CodeInvalid, Field: "at/doc", Message: cerr.Error()}
 	}
-	info, serr := os.Stat(path)
 	switch {
-	case serr != nil:
-		return "", "", "", &change.Error{Code: change.CodeNotFound, Field: "at/doc", Message: "no document " + doc}
-	case info.IsDir():
+	case errors.Is(cerr, rootpath.ErrNotRegular) && isDirInRoot(root, clean):
 		return "", "", "", &change.Error{Code: change.CodeNotFound, Field: "at/doc", Message: doc + " is a directory, not a document"}
-	case !info.Mode().IsRegular():
+	case errors.Is(cerr, rootpath.ErrNotRegular):
 		// A FIFO, a device or a socket: reading one could block or never end.
 		return "", "", "", &change.Error{Code: change.CodeNotFound, Field: "at/doc", Message: doc + " is not a regular file"}
+	case cerr != nil:
+		return "", "", "", &change.Error{Code: change.CodeNotFound, Field: "at/doc", Message: "no document " + doc}
 	}
 	ref = filepath.ToSlash(clean)
 	if entry != "" {
 		ref += "!" + entry
 	}
 	return ref, path, entry, nil
+}
+
+// isDirInRoot reports whether rel beneath root is a directory, stated through
+// an os.Root, which follows a link only while it stays inside root.
+func isDirInRoot(root, rel string) bool {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return false
+	}
+	defer r.Close()
+	info, err := r.Stat(rel)
+	return err == nil && info.IsDir()
 }
 
 func outside(doc string) error {
@@ -269,7 +279,9 @@ func splitEntry(root, doc string) (string, string) {
 		if !filepath.IsAbs(p) {
 			p = filepath.Join(root, filepath.FromSlash(left))
 		}
-		if fi, err := os.Stat(p); err != nil || fi.IsDir() {
+		// The archive must be a regular file beneath root once links are
+		// resolved; anything else is no archive, and the reference a path.
+		if _, err := rootpath.CheckRegular(root, p); err != nil {
 			continue
 		}
 		return left, strings.TrimPrefix(right, "/")

@@ -259,7 +259,7 @@ func DetectAgentHosts(root string) []AgentHost {
 		if !ok {
 			continue
 		}
-		if info, err := os.Stat(filepath.Join(root, dir)); err == nil && info.IsDir() {
+		if info, err := rootpath.Stat(root, filepath.Join(root, dir)); err == nil && info.IsDir() {
 			hosts = append(hosts, h)
 		}
 	}
@@ -495,10 +495,10 @@ func ReadAgentWiring(root, recipe string, skills fs.FS) map[AgentHost]AgentWirin
 		var args []string
 		if cfg, ok := agentMCPConfigs[host]; ok {
 			configPath = cfg.path
-			args = jsonMCPServerArgs(filepath.Join(root, filepath.FromSlash(cfg.path)), cfg.serversKey)
+			args = jsonMCPServerArgs(root, filepath.Join(root, filepath.FromSlash(cfg.path)), cfg.serversKey)
 		} else if host == AgentHostCodex {
 			configPath = codexMCPConfigPath
-			args = codexMCPServerArgs(filepath.Join(root, filepath.FromSlash(codexMCPConfigPath)))
+			args = codexMCPServerArgs(root, filepath.Join(root, filepath.FromSlash(codexMCPConfigPath)))
 		}
 		if args != nil && ServesRecipe(args, name, filepath.Join(root, name)) {
 			st.Wired = true
@@ -507,7 +507,7 @@ func ReadAgentWiring(root, recipe string, skills fs.FS) map[AgentHost]AgentWirin
 		if dir, ok := agentSkillDirs[host]; ok {
 			for _, skill := range shipped {
 				rel := path.Join(dir, skill)
-				if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err == nil && info.IsDir() {
+				if info, err := rootpath.Stat(root, filepath.Join(root, filepath.FromSlash(rel))); err == nil && info.IsDir() {
 					st.Files = append(st.Files, rel)
 				}
 			}
@@ -537,8 +537,8 @@ func ServesRecipe(args []string, name, abs string) bool {
 
 // jsonMCPServerArgs is the arguments of the server called kapi in a JSON MCP
 // configuration, nil when the file names none or cannot be read.
-func jsonMCPServerArgs(path, serversKey string) []string {
-	raw, err := os.ReadFile(path)
+func jsonMCPServerArgs(root, path, serversKey string) []string {
+	raw, err := rootpath.ReadFile(root, path)
 	if err != nil {
 		return nil
 	}
@@ -561,8 +561,8 @@ func jsonMCPServerArgs(path, serversKey string) []string {
 
 // codexMCPServerArgs is the arguments of the server called kapi in a Codex
 // configuration, nil when the file names none or cannot be read.
-func codexMCPServerArgs(path string) []string {
-	raw, err := os.ReadFile(path)
+func codexMCPServerArgs(root, path string) []string {
+	raw, err := rootpath.ReadFile(root, path)
 	if err != nil {
 		return nil
 	}
@@ -912,7 +912,7 @@ func writeOneSkill(w projectWrites, dir string, skill fs.FS, retired func([]byte
 // not write them. Directories the sweep empties are removed too.
 func sweepSkillDir(w projectWrites, dir string, shipped map[string]bool, retired func([]byte) bool) (removed, kept []string, err error) {
 	var dirs []string
-	werr := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+	werr := w.walkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
 				return nil
@@ -956,20 +956,62 @@ func sweepSkillDir(w projectWrites, dir string, shipped map[string]bool, retired
 	// Deepest first, so a directory is tried after everything under it.
 	sort.Slice(dirs, func(i, j int) bool { return len(dirs[i]) > len(dirs[j]) })
 	for _, d := range dirs {
-		if entries, rerr := os.ReadDir(d); rerr == nil && len(entries) == 0 {
-			_ = os.Remove(d)
-		}
+		w.removeEmptyDir(d)
 	}
 	return removed, kept, nil
 }
 
-// projectWrites writes and removes the files of one wiring run. A dry run
-// does neither, so the run reports what it would do and the tree stays as it
-// is.
-//
-// With root set, every read, write and removal goes through rootpath, so a
-// symbolic link in the project that leads out of root is refused rather than
-// followed.
+// walkDir walks the tree at dir beneath root through an os.Root opened on
+// root, so a directory link that leads out of root is not entered; fn
+// receives each path joined to root.
+func (w projectWrites) walkDir(dir string, fn fs.WalkDirFunc) error {
+	r, rel, err := w.openRoot(dir)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	return fs.WalkDir(r.FS(), filepath.ToSlash(rel), func(p string, d fs.DirEntry, err error) error {
+		return fn(filepath.Join(w.root, filepath.FromSlash(p)), d, err)
+	})
+}
+
+// removeEmptyDir removes dir when it holds nothing. os.Root removes a
+// directory only when it is empty, and refuses a name that leads out of root.
+func (w projectWrites) removeEmptyDir(dir string) {
+	r, rel, err := w.openRoot(dir)
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	_ = r.Remove(rel)
+}
+
+// openRoot opens an os.Root on root and returns p's name in it. p must lie
+// beneath root as written.
+func (w projectWrites) openRoot(p string) (*os.Root, string, error) {
+	if w.root == "" {
+		return nil, "", errNoWiringRoot
+	}
+	rel, err := filepath.Rel(w.root, p)
+	if err != nil || !filepath.IsLocal(rel) {
+		return nil, "", fmt.Errorf("%s lies outside the project", p)
+	}
+	r, err := os.OpenRoot(w.root)
+	if err != nil {
+		return nil, "", err
+	}
+	return r, rel, nil
+}
+
+// errNoWiringRoot is the error of a wiring run that names no directory to
+// write under.
+var errNoWiringRoot = errors.New("agent wiring: no project root to write under")
+
+// projectWrites writes and removes the files of one wiring run, beneath
+// root. A dry run does neither, so the run reports what it would do and the
+// tree stays as it is. Every read, write and removal goes through rootpath or
+// an os.Root opened on root, so a symbolic link in the project that leads out
+// of root is refused rather than followed.
 type projectWrites struct {
 	// ctx is the context the writes run under; nil is context.Background.
 	ctx  context.Context
@@ -980,7 +1022,7 @@ type projectWrites struct {
 // read reads one file.
 func (w projectWrites) read(path string) ([]byte, error) {
 	if w.root == "" {
-		return os.ReadFile(path)
+		return nil, errNoWiringRoot
 	}
 	f, err := rootpath.OpenRegular(w.root, path)
 	if err != nil {
@@ -995,27 +1037,21 @@ func (w projectWrites) write(path string, body []byte) error {
 	if w.dry {
 		return nil
 	}
-	if w.root != "" {
-		return w.create(path, body)
-	}
-	return writeProjectFile(path, body)
+	return w.create(path, body)
 }
 
 // writeFile writes one file into a directory that exists.
 func (w projectWrites) writeFile(path string, body []byte) error {
-	if w.dry {
-		return nil
-	}
-	if w.root != "" {
-		return w.create(path, body)
-	}
-	return os.WriteFile(path, body, 0o644)
+	return w.write(path, body)
 }
 
 // create writes one file beneath root through a file home rooted there
 // (commitWithin): staged and renamed, never cut in place, so a file that is a
 // hard link to another one leaves that other file alone.
 func (w projectWrites) create(path string, body []byte) error {
+	if w.root == "" {
+		return errNoWiringRoot
+	}
 	ctx := w.ctx
 	if ctx == nil {
 		ctx = context.Background()
@@ -1034,19 +1070,8 @@ func (w projectWrites) remove(path string) error {
 	if w.dry {
 		return nil
 	}
-	if w.root != "" {
-		return rootpath.Remove(w.root, path)
+	if w.root == "" {
+		return errNoWiringRoot
 	}
-	return os.Remove(path)
-}
-
-// writeProjectFile writes one file, creating the directories above it.
-func writeProjectFile(path string, body []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create %s: %w", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, body, 0o644); err != nil {
-		return fmt.Errorf("write %s: %w", path, err)
-	}
-	return nil
+	return rootpath.Remove(w.root, path)
 }

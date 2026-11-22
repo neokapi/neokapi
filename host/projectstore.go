@@ -243,6 +243,14 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 		return db, nil
 	}
 	layout := s.layoutFor(abs)
+	// The store is opened by path inside the state directory, so a state
+	// directory that leads out of the project is refused before it opens. A
+	// draft keeps its state under the data directory, outside the folder.
+	if _, draft := s.drafts[abs]; !draft {
+		if err := layout.CheckState(); err != nil {
+			return nil, err
+		}
+	}
 	if existingStoresOnly(ctx) {
 		if _, err := os.Stat(layout.StorePath()); err != nil {
 			return nil, errNoProjectStore

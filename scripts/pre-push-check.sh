@@ -116,6 +116,10 @@ run_check "Only the projector writes the context stores" make check-projection-w
 # guard, which type-checks them, notices a new place a document reaches disk.
 run_check "A document reaches a file only where the edit guard lists it" make check-edit-writes
 
+# Ungated: a by-path file-system call can be added in any package that handles
+# project content, and only this guard, which type-checks them, notices it.
+run_check "Project content reaches a file through core/rootpath or the file home" make check-path-reads
+
 # Ungated: a read of a block's edition storage can be added in any module, and
 # only this guard, which type-checks them all, notices one that goes past the
 # edition accessors.

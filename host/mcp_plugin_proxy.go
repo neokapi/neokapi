@@ -90,6 +90,12 @@ func registerPluginMCPTools(server *mcp.Server, a *App) {
 			if desc == "" {
 				desc = decl.Description
 			}
+			// A plugin is another program and may not annotate its location
+			// arguments: every string argument that reads as one is checked by
+			// the roots middleware as a path (mcp_args.go).
+			if args, err := locationArgs(decl.Name, schemaProperties(pluginInputSchema(tool))); err == nil && len(args) > 0 {
+				DeclareMCPPathArgs(decl.Name, MCPArgPath, args...)
+			}
 			server.AddTool(&mcp.Tool{
 				Name:        decl.Name,
 				Description: desc,

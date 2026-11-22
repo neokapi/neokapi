@@ -2,13 +2,16 @@ package host
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
-	"os"
+	"io"
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // What a read says about itself.
@@ -125,17 +128,10 @@ func projectionDrift(ctx context.Context, db *projectdb.DB, root string) (bool, 
 	var changed, removed int
 	for rel, stamp := range db.LoadSourceStamps(ctx) {
 		abs := filepath.Join(root, filepath.FromSlash(rel))
-		info, serr := os.Stat(abs)
-		if serr != nil {
+		switch sourceMoved(root, abs, stamp) {
+		case sourceGone:
 			removed++
-			continue
-		}
-		if info.Size() == stamp.Size && info.ModTime().UnixNano() == stamp.MTimeNS {
-			continue
-		}
-		// The stat moved, which a touch does as readily as an edit, so the
-		// bytes decide.
-		if hash, herr := project.HashFile(abs); herr != nil || hash != stamp.Hash {
+		case sourceChanged:
 			changed++
 		}
 	}
@@ -148,4 +144,36 @@ func projectionDrift(ctx context.Context, db *projectdb.DB, root string) (bool, 
 		return true, fmt.Sprintf("%d file(s) were removed since kapi read them. `kapi up` reads them again", removed)
 	}
 	return false, ""
+}
+
+// What sourceMoved finds of a source file kapi read.
+const (
+	sourceSame = iota
+	sourceChanged
+	sourceGone
+)
+
+// sourceMoved compares the source file abs with the stamp kapi recorded when
+// it read it. The file is opened through root, so a file that is now a link
+// out of the project, or no longer a regular file, counts as gone. A size and
+// time of change that match decide alone; otherwise the bytes do, since a
+// touch moves the stat as readily as an edit.
+func sourceMoved(root, abs string, stamp project.SourceStamp) int {
+	f, err := rootpath.OpenRegular(root, abs)
+	if err != nil {
+		return sourceGone
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return sourceGone
+	}
+	if info.Size() == stamp.Size && info.ModTime().UnixNano() == stamp.MTimeNS {
+		return sourceSame
+	}
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil || "sha256:"+hex.EncodeToString(h.Sum(nil)) != stamp.Hash {
+		return sourceChanged
+	}
+	return sourceSame
 }

@@ -32,6 +32,16 @@ func TestOpenInputStaysInsideTheProject(t *testing.T) {
 	_, err = openBudgetedFile(root, filepath.Join(root, "vendor", "secret.json"))
 	require.ErrorContains(t, err, "leads outside the root")
 
+	// The same input spelled through another name for the project directory
+	// is still beneath it, and still refused: the decision follows the
+	// directory's identity, not the spelling.
+	alias := filepath.Join(base, "alias")
+	require.NoError(t, os.Symlink(root, alias))
+	_, err = openBudgetedFile(root, filepath.Join(alias, "src", "fr.json"))
+	require.ErrorContains(t, err, "leads outside the root")
+	_, err = openBudgetedFile(alias, link)
+	require.ErrorContains(t, err, "leads outside the root")
+
 	src, err := openBudgetedFile(root, secret)
 	require.NoError(t, err, "a path outside the project, as named, is read")
 	b, err := io.ReadAll(src)

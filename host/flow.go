@@ -29,6 +29,7 @@ import (
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/storage"
@@ -278,7 +279,7 @@ func projectFlowInfosAt(path string) ([]output.FlowInfo, error) {
 		}
 		infos = append(infos, info)
 	}
-	for _, def := range project.ListDirFlows(proj.FlowsDirIn(filepath.Dir(path))) {
+	for _, def := range project.ListDirFlowsIn(filepath.Dir(path), proj.FlowsDirIn(filepath.Dir(path))) {
 		if proj.Flow(def.Name) != nil {
 			continue
 		}
@@ -564,7 +565,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 			srcFmt = string(det)
 		}
 	}
-	if preserveAssetVariant(srcFmt, inputPath, outputPath) {
+	if preserveAssetVariantIn(a.projectRoot(), srcFmt, inputPath, outputPath) {
 		if stopProgress != nil {
 			stopProgress()
 		}
@@ -627,7 +628,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 // run that writes none must not exit 0 (the user would open a visualizer on
 // nothing). The batch path (runMultipleFiles) returns the same errors.
 func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath string, recorder *flow.TraceRecorder, toolNames []string) error {
-	trace := newFlowTrace(flowName, fmtName, inputPath, outputPath, recorder, toolNames)
+	trace := newFlowTraceIn(a.projectRoot(), flowName, fmtName, inputPath, outputPath, recorder, toolNames)
 	traceJSON, err := json.MarshalIndent(trace, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal trace: %w", err)
@@ -637,6 +638,22 @@ func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath
 	}
 	if err := os.WriteFile(tracePath, traceJSON, 0o644); err != nil {
 		return fmt.Errorf("write trace %s: %w", tracePath, err)
+	}
+	return nil
+}
+
+// writeBatchTrace writes a batch run's trace to tracePath, the file --trace
+// names.
+func writeBatchTrace(tracePath string, batchTrace *flow.BatchFlowTrace) error {
+	traceJSON, err := json.MarshalIndent(batchTrace, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal batch trace: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(tracePath), 0o755); err != nil {
+		return fmt.Errorf("create trace dir: %w", err)
+	}
+	if err := os.WriteFile(tracePath, traceJSON, 0o644); err != nil {
+		return fmt.Errorf("write batch trace: %w", err)
 	}
 	return nil
 }
@@ -653,11 +670,11 @@ func wrapWithTracing(tools []tool.Tool, recorder *flow.TraceRecorder) []tool.Too
 	return wrapped
 }
 
-// newFlowTrace assembles the trace of one finished file run: the reader →
+// newFlowTraceIn assembles the trace of one finished file run: the reader →
 // tool-N → writer node list (toolNames label the tool nodes, in order), the
 // recorder's events and part snapshots, and a clipped preview of the input
-// and output files.
-func newFlowTrace(flowName, fmtName, inputPath, outputPath string, recorder *flow.TraceRecorder, toolNames []string) *flow.FlowTrace {
+// and output files, read through the project at root (filePreviewIn).
+func newFlowTraceIn(root, flowName, fmtName, inputPath, outputPath string, recorder *flow.TraceRecorder, toolNames []string) *flow.FlowTrace {
 	traceNodes := []flow.TraceNode{
 		{ID: "reader", Type: flow.NodeReader, Name: fmtName, Label: fmtName + " reader"},
 	}
@@ -676,8 +693,8 @@ func newFlowTrace(flowName, fmtName, inputPath, outputPath string, recorder *flo
 		ChannelSize: 64,
 		Events:      recorder.Events(),
 		Parts:       recorder.Snapshots(),
-		InputFile:   flow.TraceFile{Name: filepath.Base(inputPath), Format: fmtName, Preview: filePreview(inputPath)},
-		OutputFile:  flow.TraceFile{Name: filepath.Base(outputPath), Preview: filePreview(outputPath)},
+		InputFile:   flow.TraceFile{Name: filepath.Base(inputPath), Format: fmtName, Preview: filePreviewIn(root, inputPath)},
+		OutputFile:  flow.TraceFile{Name: filepath.Base(outputPath), Preview: filePreviewIn(root, outputPath)},
 		DurationUs:  recorder.DurationUs(),
 		Truncated:   recorder.Truncated(),
 	}
@@ -689,8 +706,13 @@ const tracePreviewBytes = 2000
 // filePreview returns the head of a file for a trace, marked when clipped. It
 // reads only what it shows, so a large input costs the preview and no more; a
 // file that cannot be read previews as empty.
-func filePreview(path string) string {
-	f, err := os.Open(path)
+func filePreview(path string) string { return filePreviewIn("", path) }
+
+// filePreviewIn is filePreview for a file of the project at root. A file
+// beneath root is read through it, so one reached through a link out of the
+// project previews as empty.
+func filePreviewIn(root, path string) string {
+	f, err := rootpath.Open(root, path)
 	if err != nil {
 		return ""
 	}
@@ -893,15 +915,8 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 			batchTrace.FileTraces = append(batchTrace.FileTraces, ft)
 		}
 
-		traceJSON, err := json.MarshalIndent(batchTrace, "", "  ")
-		if err != nil {
-			return fmt.Errorf("marshal batch trace: %w", err)
-		}
-		if err := os.MkdirAll(filepath.Dir(tracePath), 0o755); err != nil {
-			return fmt.Errorf("create trace dir: %w", err)
-		}
-		if err := os.WriteFile(tracePath, traceJSON, 0o644); err != nil {
-			return fmt.Errorf("write batch trace: %w", err)
+		if err := writeBatchTrace(tracePath, batchTrace); err != nil {
+			return err
 		}
 	}
 

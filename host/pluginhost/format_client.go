@@ -148,7 +148,9 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 			}
 		}
 
-		client, err := r.pool.Acquire(ctx, r.plugin)
+		// The daemon may open the source in the directory it lies under, and
+		// nothing else (KAPI_PLUGIN_ROOTS).
+		client, err := r.pool.Acquire(WithPathRoots(ctx, PathRootsFor(r.sourcePath)), r.plugin)
 		if err != nil {
 			emit(model.PartResult{Error: fmt.Errorf("acquire daemon for plugin %q: %w", r.plugin.Name(), err)})
 			return
@@ -314,7 +316,10 @@ func (w *daemonWriter) SetOriginalContent(content []byte) {
 // via SetOriginalContent. If neither is set, the daemon will fail, so
 // callers should always wire one of them before calling Write.
 func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) error {
-	client, err := w.pool.Acquire(ctx, w.plugin)
+	// The daemon may open the source it rebuilds from, and write the output it
+	// is sent a path for, in the directories they lie under, and nothing else
+	// (KAPI_PLUGIN_ROOTS).
+	client, err := w.pool.Acquire(WithPathRoots(ctx, PathRootsFor(w.sourcePath, w.outPath)), w.plugin)
 	if err != nil {
 		return fmt.Errorf("acquire daemon for plugin %q: %w", w.plugin.Name(), err)
 	}

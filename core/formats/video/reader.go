@@ -67,16 +67,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	if locale.IsEmpty() {
 		locale = model.LocaleEnglish
 	}
-	videoPath, cleanup, err := r.materialize()
-	if err != nil {
-		ch <- model.PartResult{Error: err}
-		return
-	}
-	defer cleanup()
-
 	uri := r.Doc.URI
 	if uri == "" {
-		uri = videoPath
+		uri, _ = format.SourceFile(r.Doc)
 	}
 	// The video itself, as the writer copies it. It is emitted on both paths:
 	// a document read where ffmpeg is installed is written back as one read
@@ -94,6 +87,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		r.emit(ctx, ch, &model.Part{Type: model.PartMedia, Resource: media})
 		return
 	}
+
+	videoPath, cleanup, err := r.materialize()
+	if err != nil {
+		ch <- model.PartResult{Error: err}
+		return
+	}
+	defer cleanup()
 
 	work, err := os.MkdirTemp("", "kapi-video-*")
 	if err != nil {
@@ -190,11 +190,16 @@ func (r *Reader) ocrFrames(ctx context.Context, ch chan<- model.PartResult, fram
 	return r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
+// materialize returns the path of a private copy of the video for ffmpeg,
+// which reads a path. ffmpeg gets a temp file this process created and wrote
+// from the descriptor the caller opened (doc.ReaderAt, else doc.Reader), never
+// the source's own name. That name lies in the project, and a link put in its
+// place after the caller opened it would lead ffmpeg to any file.
 func (r *Reader) materialize() (path string, cleanup func(), err error) {
 	noop := func() {}
-	// The file the document was opened from, never a file named by its URI.
-	if name, ok := format.SourceFile(r.Doc); ok {
-		return name, noop, nil
+	src := io.Reader(r.Doc.Reader)
+	if sec, ok := format.ReopenSource(r.Doc); ok {
+		src = sec
 	}
 	ext := ".mp4"
 	if r.Doc.URI != "" {
@@ -206,7 +211,7 @@ func (r *Reader) materialize() (path string, cleanup func(), err error) {
 	if err != nil {
 		return "", noop, fmt.Errorf("video: temp file: %w", err)
 	}
-	if _, err := io.Copy(tmp, r.Doc.Reader); err != nil {
+	if _, err := io.Copy(tmp, src); err != nil {
 		_ = tmp.Close()
 		_ = os.Remove(tmp.Name())
 		return "", noop, fmt.Errorf("video: spool: %w", err)

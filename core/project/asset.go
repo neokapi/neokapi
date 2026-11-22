@@ -1,10 +1,10 @@
 package project
 
 import (
-	"os"
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // IsBinaryAssetFormat reports whether a format name denotes a binary asset — one
@@ -54,10 +54,10 @@ func ResolveAssetVariants(root string, item ContentItem, source string, locales 
 		if !filepath.IsAbs(p) {
 			p = filepath.Join(root, p)
 		}
-		exists := false
-		if st, err := os.Stat(p); err == nil && !st.IsDir() {
-			exists = true
-		}
+		// A variant exists when it is a regular file inside the project once
+		// links are resolved; a link that leads out of it is no variant.
+		_, err = rootpath.CheckRegular(root, p)
+		exists := err == nil
 		out = append(out, AssetVariant{Locale: loc, Path: p, Exists: exists})
 	}
 	return out

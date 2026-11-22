@@ -3,12 +3,14 @@ package host
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
@@ -113,7 +115,9 @@ func InitProject(root string, opts InitOptions) (*InitResult, error) {
 		// edit.
 		res.ID, res.IDMinted = project.NewID(), true
 		recipe := ScaffoldRecipe(name, res.ID, sourceLocale, opts.TargetLocales, proposals)
-		if err := os.WriteFile(recipePath, recipe, 0o644); err != nil {
+		// Written through the root: a kapi.yaml the folder holds as a link
+		// that leads out of it is refused rather than written through.
+		if err := writeWithin(root, recipePath, recipe); err != nil {
 			return nil, fmt.Errorf("write recipe: %w", err)
 		}
 	default:
@@ -255,6 +259,20 @@ func ResolveDir(flag string) (string, error) {
 		return "", fmt.Errorf("create %s: %w", abs, err)
 	}
 	return abs, nil
+}
+
+// writeWithin writes data as the file path beneath root, through the root
+// (atomicfile.StageWithin): staged beside it and renamed into place, with a
+// link that leads out of root refused.
+func writeWithin(root, path string, data []byte) error {
+	s, err := atomicfile.StageWithin(root, path, func(w io.Writer) error {
+		_, err := w.Write(data)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	return s.Commit()
 }
 
 // RecipeExists reports whether dir already holds a kapi.yaml recipe. Used to

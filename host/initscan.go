@@ -414,14 +414,20 @@ func displayName(reg *registry.FormatRegistry, id string) string {
 // scanContentTree lists the files under root a proposal may read, as sorted
 // project-relative slash paths. It honours every `.gitignore` and the
 // project's `.kapiignore` on the way down, and skips hidden entries and the
-// directories in initScanSkipDirs.
+// directories in initScanSkipDirs. The walk goes through an os.Root, so a
+// link that leads out of root is neither followed nor read.
 func scanContentTree(root string) ([]string, error) {
 	type scope struct {
 		dir     string // slash path relative to root, "" for root
 		matcher *ignore.Matcher
 	}
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, fmt.Errorf("scan %s: %w", root, err)
+	}
+	defer r.Close()
 	rootMatcher := ignore.ForProjectDir(root)
-	if err := rootMatcher.LoadFile(filepath.Join(root, ".gitignore")); err != nil {
+	if err := loadIgnoreIn(r, rootMatcher, ".gitignore"); err != nil {
 		return nil, fmt.Errorf("read .gitignore: %w", err)
 	}
 	scopes := []scope{{dir: "", matcher: rootMatcher}}
@@ -443,30 +449,25 @@ func scanContentTree(root string) ([]string, error) {
 	}
 
 	var files []string
-	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+	err = fs.WalkDir(r.FS(), ".", func(rel string, d fs.DirEntry, err error) error {
 		if err != nil {
-			if p == root {
+			if rel == "." {
 				return err
 			}
 			return nil // an unreadable entry is not content
 		}
-		if p == root {
+		if rel == "." {
 			return nil
 		}
-		rel, rerr := filepath.Rel(root, p)
-		if rerr != nil {
-			return nil
-		}
-		rel = filepath.ToSlash(rel)
 		name := d.Name()
 		if d.IsDir() {
 			if strings.HasPrefix(name, ".") || initScanSkipDirs[name] || ignored(rel, true) {
 				return filepath.SkipDir
 			}
 			// A nested .gitignore governs the tree below it.
-			if _, serr := os.Stat(filepath.Join(p, ".gitignore")); serr == nil {
+			if _, serr := r.Stat(path.Join(rel, ".gitignore")); serr == nil {
 				m := ignore.New()
-				if lerr := m.LoadFile(filepath.Join(p, ".gitignore")); lerr == nil {
+				if lerr := loadIgnoreIn(r, m, path.Join(rel, ".gitignore")); lerr == nil {
 					// Scopes are kept outermost first; WalkDir visits a
 					// directory before anything under it, so a scope whose
 					// directory the walk has left no longer matches a path.
@@ -489,4 +490,20 @@ func scanContentTree(root string) ([]string, error) {
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+// loadIgnoreIn adds the rules of the ignore file name, relative to r, to m.
+// A file that does not exist adds none.
+func loadIgnoreIn(r *os.Root, m *ignore.Matcher, name string) error {
+	data, err := r.ReadFile(name)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for line := range strings.Lines(string(data)) {
+		m.AddPattern(strings.TrimRight(line, "\r\n"))
+	}
+	return nil
 }

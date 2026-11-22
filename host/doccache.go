@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -15,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/version"
 )
@@ -54,6 +56,12 @@ type docCache struct {
 	DB  *storage.DB
 	dir string // directory holding the per-document logs + skeleton files
 
+	// root is the project the cache belongs to. A source is read through it,
+	// so a file reached through a link that leads out of the project is
+	// neither recorded nor served. Empty for a cache outside a project, whose
+	// sources are read as named.
+	root string
+
 	// inflight guards against two concurrent recordings of the same document
 	// (same content + config): converge passes fan locales out concurrently,
 	// and every worker that misses on the same source would otherwise record
@@ -82,8 +90,33 @@ var docCacheMigrations = []storage.Migration{
 }
 
 // OpenDocCache opens (creating + migrating) the streaming document cache under
-// cacheDir/docs.
+// cacheDir/docs. A cacheDir that is a project's cache directory
+// (<root>/.kapi/work/cache) binds the cache to that project: the state
+// directory is checked first, and sources are read through the root.
 func OpenDocCache(cacheDir string) (*docCache, error) {
+	root := projectOfCacheDir(cacheDir)
+	if root != "" {
+		if err := project.LayoutAt(root).CheckState(); err != nil {
+			return nil, err
+		}
+	}
+	return openDocCacheAt(root, cacheDir)
+}
+
+// projectOfCacheDir returns the project root whose cache directory cacheDir
+// is, or "" when cacheDir is not one.
+func projectOfCacheDir(cacheDir string) string {
+	work := filepath.Dir(cacheDir)
+	state := filepath.Dir(work)
+	if filepath.Base(cacheDir) != "cache" || filepath.Base(work) != project.WorkDirName || filepath.Base(state) != project.StateDirName {
+		return ""
+	}
+	return filepath.Dir(state)
+}
+
+// openDocCacheAt opens the cache files beneath cacheDir: a project's cache
+// directory that passed Layout.CheckState, or a directory outside any project.
+func openDocCacheAt(root, cacheDir string) (*docCache, error) {
 	dir := filepath.Join(cacheDir, "docs")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
@@ -96,7 +129,7 @@ func OpenDocCache(cacheDir string) (*docCache, error) {
 		_ = db.Close()
 		return nil, err
 	}
-	return &docCache{DB: db, dir: dir}, nil
+	return &docCache{DB: db, dir: dir, root: root}, nil
 }
 
 func (c *docCache) Close() {
@@ -129,9 +162,43 @@ func buildKey(configKey string) string {
 	return version.Version + "\x00" + partsFormat + "\x00" + configKey
 }
 
+// openSource opens the source file path. In a project the file must be a
+// regular file reached through the root; outside one it is opened as named.
+func (c *docCache) openSource(path string) (*os.File, os.FileInfo, error) {
+	var f *os.File
+	var err error
+	if c.root == "" {
+		f, err = rootpath.Open("", path)
+	} else {
+		f, err = rootpath.OpenRegular(c.root, path)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	st, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, nil, err
+	}
+	return f, st, nil
+}
+
+// hashOpen returns the digest of the open file f, read from its start, in the
+// form project.HashFile gives.
+func hashOpen(f *os.File) (string, error) {
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return "", err
+	}
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
+}
+
 // lookup returns the fresh index row for (path, configKey), or ok=false when the
-// entry is missing or stale relative to the file on disk.
-func (c *docCache) lookup(path, configKey string, st os.FileInfo) (docRow, bool) {
+// entry is missing or stale relative to the open source f.
+func (c *docCache) lookup(path, configKey string, f *os.File, st os.FileInfo) (docRow, bool) {
 	configKey = buildKey(configKey)
 	var row docRow
 	var mtime, size int64
@@ -145,7 +212,7 @@ func (c *docCache) lookup(path, configKey string, st os.FileInfo) (docRow, bool)
 		return row, true
 	}
 	// Stat changed — re-hash to Confirm the bytes actually changed.
-	h, err := project.HashFile(path)
+	h, err := hashOpen(f)
 	if err != nil || h != row.contentHash {
 		return docRow{}, false
 	}
@@ -157,17 +224,24 @@ func (c *docCache) lookup(path, configKey string, st os.FileInfo) (docRow, bool)
 // OpenDocument returns a streaming reader for a fresh cached document, or nil on
 // a miss. Implements flow.PartCache.
 func (c *docCache) OpenDocument(path, configKey string) flow.CachedDocument {
-	st, err := os.Stat(path)
+	f, st, err := c.openSource(path)
 	if err != nil {
 		return nil
 	}
-	row, found := c.lookup(path, configKey, st)
+	row, found := c.lookup(path, configKey, f, st)
+	_ = f.Close()
 	if !found {
 		return nil
 	}
+	return c.recorded(row)
+}
+
+// recorded returns the recorded files of row, or nil when its log file has
+// gone, which reads as a miss.
+func (c *docCache) recorded(row docRow) flow.CachedDocument {
 	partsPath := filepath.Join(c.dir, row.partsRef)
 	if _, err := os.Stat(partsPath); err != nil {
-		return nil // log file vanished — treat as a miss, re-parse
+		return nil
 	}
 	skelPath := ""
 	if row.skeletonRef != "" {
@@ -190,11 +264,12 @@ func (c *docCache) RecordDocument(path, configKey, formatName string) flow.Docum
 // newRecorder builds a docRecorder for a fresh parse, or nil on setup failure.
 func (c *docCache) newRecorder(path, configKey, formatName string) *docRecorder {
 	configKey = buildKey(configKey)
-	st, err := os.Stat(path)
+	f, st, err := c.openSource(path)
 	if err != nil {
 		return nil
 	}
-	hash, err := project.HashFile(path)
+	hash, err := hashOpen(f)
+	_ = f.Close()
 	if err != nil {
 		return nil
 	}

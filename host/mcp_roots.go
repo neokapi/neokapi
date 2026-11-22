@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -74,19 +75,69 @@ func MCPRootsSet(ctx context.Context) ([]string, bool) {
 // was started in, the root of the project it was started for, and the roots
 // the client declares.
 func (a *App) MCPRootsMiddleware() mcp.Middleware {
+	var (
+		mu      sync.Mutex
+		cached  = map[*mcp.ServerSession][]string{}
+		schemas mcpToolSchemas
+	)
+	sessionRoots := func(ctx context.Context, ss *mcp.ServerSession) []string {
+		mu.Lock()
+		roots, ok := cached[ss]
+		mu.Unlock()
+		if ok {
+			return roots
+		}
+		roots = MCPSessionRoots(ctx, ss, a.mcpStartDir)
+		if a.mcpRecipePath != "" {
+			// The project the server was started for, which a person named
+			// with -p or by where they started it.
+			roots = append(roots, filepath.Dir(a.mcpRecipePath))
+		}
+		mu.Lock()
+		cached[ss] = roots
+		mu.Unlock()
+		return roots
+	}
 	return func(next mcp.MethodHandler) mcp.MethodHandler {
 		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
 			var ss *mcp.ServerSession
 			if req != nil {
 				ss, _ = req.GetSession().(*mcp.ServerSession)
 			}
-			roots := MCPSessionRoots(ctx, ss, a.mcpStartDir)
-			if a.mcpRecipePath != "" {
-				// The project the server was started for, which a person named
-				// with -p or by where they started it.
-				roots = append(roots, filepath.Dir(a.mcpRecipePath))
+			switch method {
+			case "notifications/roots/list_changed":
+				// The client's roots changed: the next call asks again.
+				mu.Lock()
+				delete(cached, ss)
+				mu.Unlock()
+				return next(ctx, method, req)
+			case "tools/call", "resources/read":
+			default:
+				// Only a call or a read names a location; nothing else waits
+				// on the client's roots.
+				return next(ctx, method, req)
 			}
-			return next(WithMCPRoots(ctx, roots), method, req)
+			ctx = WithMCPRoots(ctx, sessionRoots(ctx, ss))
+			switch r := req.(type) {
+			case *mcp.CallToolRequest:
+				schemas.load(ctx, next, ss)
+				if schemas.err != nil {
+					return nil, schemas.err
+				}
+				props, known := schemas.props[r.Params.Name]
+				if known {
+					if err := checkMCPCallArgs(ctx, r.Params.Name, props, r.Params.Arguments); err != nil {
+						// A refused argument is the call's result, as a tool's own
+						// error is, so the agent reads why.
+						return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: err.Error()}}}, nil
+					}
+				}
+			case *mcp.ReadResourceRequest:
+				if err := checkMCPResourceURI(ctx, r.Params.URI); err != nil {
+					return nil, err
+				}
+			}
+			return next(ctx, method, req)
 		}
 	}
 }
@@ -170,6 +221,42 @@ func MCPUnderRoots(roots []string, p string) (string, error) {
 		}
 	}
 	return "", escape
+}
+
+// mcpRootOf returns the directory among those ctx carries that p, named in
+// arg, lies under, refusing as MCPReachable does.
+func mcpRootOf(ctx context.Context, arg, p string) (string, error) {
+	if err := MCPReachable(ctx, arg, p); err != nil {
+		return "", err
+	}
+	root, escape := MCPUnderRoots(MCPRootsFrom(ctx), p)
+	if root == "" {
+		if escape != nil {
+			return "", fmt.Errorf("%s: %w", arg, escape)
+		}
+		return "", fmt.Errorf("%s: %q lies outside the directories this server may reach", arg, p)
+	}
+	return root, nil
+}
+
+// openMCPPath opens the file p an MCP call named in arg, through the
+// directory it lies under, so a link swapped in after the check is refused.
+func openMCPPath(ctx context.Context, arg, p string) (*os.File, error) {
+	root, err := mcpRootOf(ctx, arg, p)
+	if err != nil {
+		return nil, err
+	}
+	return rootpath.OpenRegular(root, p)
+}
+
+// statMCPPath stats what p, named in arg, resolves to beneath the directory
+// it lies under.
+func statMCPPath(ctx context.Context, arg, p string) (os.FileInfo, error) {
+	root, err := mcpRootOf(ctx, arg, p)
+	if err != nil {
+		return nil, err
+	}
+	return rootpath.Stat(root, p)
 }
 
 // MCPReachable refuses a path an MCP call named in arg when it lies under

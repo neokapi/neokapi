@@ -12,6 +12,8 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/host"
 )
 
 // pseudoTranslateOver calls pseudo_translate through a real MCP session whose
@@ -32,6 +34,10 @@ func pseudoTranslateOn(t *testing.T, protocol string, roots []string, args map[s
 	a.MCPSurface.AllTools = true
 	server := mcp.NewServer(&mcp.Implementation{Name: "kapi-test", Version: "0"}, nil)
 	registerKapiTools(server, a)
+	// As `kapi mcp` serves it: the roots middleware in front, the start
+	// directory the working directory.
+	require.NoError(t, a.ResolveMCPProject(host.NewEnvCommand(t.Context(), "mcp")))
+	server.AddReceivingMiddleware(a.MCPRootsMiddleware())
 
 	opts := &mcp.ClientOptions{Capabilities: &mcp.ClientCapabilities{}}
 	if roots != nil {
@@ -90,7 +96,7 @@ func TestMCPWritesOnlyUnderTheServerDirectoryAndTheClientRoots(t *testing.T) {
 		msg, failed := pseudoTranslateOver(t, nil, map[string]any{"path": input, "output_path": out})
 		require.True(t, failed)
 		assert.Contains(t, msg, "output_path")
-		assert.Contains(t, msg, "lies outside the directories this server may write")
+		assert.Contains(t, msg, "lies outside the directories this server may reach")
 		assert.NoFileExists(t, out)
 	})
 
@@ -128,12 +134,13 @@ func TestMCPWritesOnlyUnderTheServerDirectoryAndTheClientRoots(t *testing.T) {
 		assert.NoFileExists(t, filepath.Join(elsewhere, "qps.json"))
 	})
 
-	t.Run("the default beside an input outside the roots is refused, saying where it may write", func(t *testing.T) {
+	t.Run("an input outside the roots is refused, saying where the call may reach, and nothing is written beside it", func(t *testing.T) {
 		outsideInput := writeInput(t, elsewhere)
 		msg, failed := pseudoTranslateOver(t, nil, map[string]any{"path": outsideInput})
 		require.True(t, failed)
-		assert.Contains(t, msg, "the output beside")
-		assert.Contains(t, msg, "Pass an output_path under one of them")
+		assert.Contains(t, msg, "path:")
+		assert.Contains(t, msg, "lies outside the directories this server may reach")
+		assert.Contains(t, msg, filepath.Base(filepath.Dir(start)), "the message names where the call may reach")
 		assert.NoFileExists(t, filepath.Join(elsewhere, "in_qps.json"))
 	})
 }
