@@ -528,7 +528,11 @@ func (r *FileRunner) tracedReplay(feed func(context.Context, chan<- *model.Part)
 				// and closes its channel.
 				for range replayed {
 				}
-				<-done
+				// The feed has stopped. An error of its own, other than the
+				// cancellation it was stopped by, travels with the cancellation.
+				if err := <-done; err != nil && !errors.Is(err, ctx.Err()) {
+					return errors.Join(ctx.Err(), err)
+				}
 				return ctx.Err()
 			}
 		}

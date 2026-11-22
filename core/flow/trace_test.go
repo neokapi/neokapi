@@ -497,7 +497,12 @@ func TestTracingTool_NoInterceptorLeakOnCancel(t *testing.T) {
 	cancel()
 
 	select {
-	case <-done:
+	case err := <-done:
+		// Returning is what the test is about. An error, if there is one, is
+		// the cancellation.
+		if err != nil {
+			require.ErrorIs(t, err, context.Canceled)
+		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("TracingTool.Process did not return after cancel (interceptor leaked)")
 	}

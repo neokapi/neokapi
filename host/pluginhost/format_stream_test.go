@@ -122,8 +122,7 @@ func TestDaemonWriterRejectsEarlyTermination(t *testing.T) {
 		require.ErrorIs(t, err, io.ErrUnexpectedEOF)
 	case <-time.After(time.Second):
 		cancel()
-		<-done
-		t.Fatal("writer waited for input after the daemon ended its response without completion")
+		t.Fatalf("writer waited for input after the daemon ended its response without completion (it then returned: %v)", <-done)
 	}
 }
 

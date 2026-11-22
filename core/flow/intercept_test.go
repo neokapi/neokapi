@@ -194,7 +194,9 @@ func TestInterceptTool_StopsWithIdleInput(t *testing.T) {
 				case <-time.After(time.Second):
 					t.Error("wrapper is waiting for input after it stopped")
 					close(in)
-					<-done
+					if err := <-done; err != nil {
+						t.Logf("the wrapper then stopped with: %v", err)
+					}
 				}
 			})
 		})
