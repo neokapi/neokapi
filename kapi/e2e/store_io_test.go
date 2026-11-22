@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -120,44 +121,129 @@ func TestStoreImportExportUseTheProjectSourceLanguage(t *testing.T) {
 		"terms export with no -s reads the en-GB source terms")
 }
 
-// A TMX or TBX import with no -s reads in the language the file declares.
-// When that differs from the store's in region only, the import says so on
-// standard error. When no unit or concept holds the source language, the
-// import fails, names both languages and stores nothing.
-func TestStoreImportUsesTheFileSourceLanguage(t *testing.T) {
+// A TMX import with no -s reads each unit in the store's source language
+// when the unit holds it, else in the language the unit or the file declares.
+// A unit read in another region of the store's language is stored under its
+// own tag, and the import says so; nothing is folded.
+func TestStoreImportChoosesTheSourcePerUnit(t *testing.T) {
 	p := newStoreProject(t)
 
-	usTMX := p.write("us.tmx", tmx("en-US", "en-US", "Color"))
-	out := p.run("memory", "import", usTMX, "-t", "fr")
-	assert.Contains(t, out, "us.tmx declares en-US and this store reads in en-GB", "the region-only difference is reported")
-	assert.Equal(t, 1, p.total("memory", "lookup", "Color", "-s", "en-US", "-t", "fr"),
-		"the en-US text is imported as en-US")
+	// The header says fr, the unit holds fr and the project's en-GB: the
+	// unit is read in en-GB, so a lookup of the English finds it.
+	p.run("memory", "import", p.write("fr.tmx", tmxUnits("fr", tuv("fr", "Bouée"), tuv("en-GB", "Buoy"))), "-t", "fr")
+	assert.Equal(t, 1, p.total("memory", "lookup", "Buoy", "-t", "fr"), "the en-GB/fr pair is stored")
 
-	out, err := p.try("memory", "import", usTMX, "-s", "en-GB", "-t", "fr")
-	require.Error(t, err, "an import of which no unit holds the source language fails:\n%s", out)
-	assert.Contains(t, out, "en-GB")
-	assert.Contains(t, out, "declares en-US")
-	assert.Zero(t, p.total("memory", "lookup", "Color", "-s", "en-GB", "-t", "fr"), "nothing was stored")
+	// The header says en-US and the unit holds en-GB: en-GB, with no note.
+	out := p.run("memory", "import", p.write("mislabel.tmx", tmxUnits("en-US", tuv("en-GB", "Harbour"), tuv("fr", "Port"))), "-t", "fr")
+	assert.NotContains(t, out, "note:", "a unit read in the store's language needs no note")
+	assert.Equal(t, 1, p.total("memory", "lookup", "Harbour", "-t", "fr"))
 
-	usTBX := p.write("us.tbx", tbx("en-US", "colour chart"))
-	out = p.run("terms", "import", usTBX, "-t", "fr")
-	assert.Contains(t, out, "us.tbx declares en-US and this store reads in en-GB")
-	assert.Equal(t, 1, p.total("terms", "lookup", "colour chart", "-s", "en-US", "-t", "fr"))
+	// An en-US unit is stored as en-US, and the note says what happened
+	// without offering a flag that would not change it.
+	out = p.run("memory", "import", p.write("us.tmx", tmx("en-US", "en-US", "Color")), "-t", "fr")
+	assert.Contains(t, out, "1 unit(s) of us.tmx hold en-US text and no en-GB text; they were imported as en-US")
+	assert.NotContains(t, out, "--source-locale")
+	assert.Equal(t, 1, p.total("memory", "lookup", "Color", "-s", "en-US", "-t", "fr"))
 
-	other := newStoreProject(t)
-	usTBX = other.write("us.tbx", tbx("en-US", "colour chart"))
-	out, err = other.try("terms", "import", usTBX, "-s", "en-GB", "-t", "fr")
-	require.Error(t, err, "a TBX import with no en-GB term fails:\n%s", out)
-	assert.Contains(t, out, "en-GB")
-	assert.Contains(t, out, "declares en-US")
-	assert.Zero(t, other.total("terms", "lookup", "colour chart", "-s", "en-US", "-t", "fr"), "nothing was stored")
+	// An explicit -s the units do not hold imports nothing, names why, and
+	// prints no note claiming an import.
+	out, err := p.try("memory", "import", p.write("us2.tmx", tmx("en-US", "en-US", "Gray")), "-s", "en-GB", "-t", "fr")
+	require.Error(t, err, "an import that keeps no unit fails:\n%s", out)
+	assert.Contains(t, out, "1 unit(s) hold no en-GB text")
+	assert.NotContains(t, out, "were imported")
+	assert.Zero(t, p.total("memory", "lookup", "Gray", "-s", "en-US", "-t", "fr"), "nothing was stored")
+}
 
-	// A standalone store reads in en; an en-GB TMX is imported as en-GB with
-	// the note.
-	legacy := filepath.Join(p.dir, "legacy.db")
-	out = p.run("memory", "import", p.write("gb.tmx", tmx("en-GB", "en-GB", "Harbour")), "-t", "fr", "--file", legacy)
-	assert.Contains(t, out, "gb.tmx declares en-GB and this store reads in en")
-	assert.Equal(t, 1, p.total("memory", "lookup", "Harbour", "-s", "en-GB", "-t", "fr", "--file", legacy))
+// Nothing is skipped silently: the summary and --json count each reason.
+func TestStoreImportCountsWhatItSkips(t *testing.T) {
+	p := newStoreProject(t)
+	mixed := p.write("mixed.tmx", tmxUnits("",
+		"<tu>"+tuv("en-GB", "Quay")+tuv("fr", "Quai")+"</tu>",
+		"<tu>"+tuv("de", "Kai")+tuv("fr", "Quai")+"</tu>",
+		"<tu srclang=\"fr\">"+tuv("fr", "Quai")+tuv("de", "Kai")+"</tu>",
+		"<tu>"+tuv("en-GB", "Wharf")+"</tu>"))
+	res := importCounts(t, p.run("memory", "import", mixed, "-t", "fr", "--json"))
+	assert.Equal(t, 1, res.Imported)
+	assert.Equal(t, 1, res.NoSource, "the de/fr unit holds neither en-GB nor a declared language")
+	assert.Equal(t, 1, res.SameLanguage, "the unit declaring fr would pair fr with fr")
+	assert.Equal(t, 1, res.NoTarget, "the en-GB unit holds no fr")
+
+	out := p.run("memory", "import", mixed, "-t", "fr")
+	assert.Contains(t, out, "skipped 1 unit(s) with no text in the source language")
+	assert.Contains(t, out, "skipped 1 unit(s) whose source would equal the target")
+	assert.Contains(t, out, "skipped 1 unit(s) with no translation")
+}
+
+// A TBX import keeps every concept and every language: a terms store holds
+// concepts across languages.
+func TestTermsImportKeepsEveryTBXConcept(t *testing.T) {
+	p := newStoreProject(t)
+	doc := `<?xml version="1.0" encoding="UTF-8"?>
+<tbx style="dca" type="TBX-Basic"><text><body>
+  <conceptEntry id="c1"><langSec xml:lang="en-GB"><termSec><term>buoy</term></termSec></langSec><langSec xml:lang="fr"><termSec><term>bouée</term></termSec></langSec></conceptEntry>
+  <conceptEntry id="c2"><langSec xml:lang="en"><termSec><term>harbour</term></termSec></langSec><langSec xml:lang="fr"><termSec><term>port</term></termSec></langSec></conceptEntry>
+  <conceptEntry id="c3"><langSec xml:lang="de"><termSec><term>Hafen</term></termSec></langSec><langSec xml:lang="fr"><termSec><term>port</term></termSec></langSec></conceptEntry>
+</body></text></tbx>
+`
+	store := filepath.Join(p.dir, "standalone.db")
+	out := p.run("terms", "import", p.write("three.tbx", doc), "--file", store)
+	assert.Contains(t, out, "3 concepts", "every concept is imported:\n%s", out)
+}
+
+// A mixed-language store exports srclang="*all*" with a srclang on each unit;
+// imported into an empty standalone store with no -s, every pair comes back.
+func TestMemoryExportOfAMixedStoreImportsBack(t *testing.T) {
+	p := newStoreProject(t)
+	src := filepath.Join(p.dir, "src.db")
+	p.run("memory", "import", p.write("gb.tmx", tmx("en-GB", "en-GB", "Harbour")), "-t", "fr", "--file", src)
+	p.run("memory", "import", p.write("de.tmx", tmx("de", "de", "Hafen")), "-t", "fr", "--file", src)
+	exported := filepath.Join(p.dir, "mixed.tmx")
+	p.run("memory", "export", "-o", exported, "--format", "tmx", "--file", src)
+	data, err := os.ReadFile(exported)
+	require.NoError(t, err)
+	require.Contains(t, string(data), `srclang="*all*"`)
+
+	dst := filepath.Join(p.dir, "dst.db")
+	out := p.run("memory", "import", exported, "-t", "fr", "--file", dst, "--json")
+	assert.Equal(t, 2, importCounts(t, out).Imported, "every pair is imported:\n%s", out)
+}
+
+// importCounts decodes the counts of `memory import --json`.
+func importCounts(t *testing.T, out string) (c struct {
+	Imported     int `json:"imported"`
+	NoSource     int `json:"skipped_no_source"`
+	SameLanguage int `json:"skipped_source_equals_target"`
+	NoTarget     int `json:"skipped_no_target"`
+}) {
+	t.Helper()
+	require.NoError(t, json.Unmarshal([]byte(out[strings.Index(out, "{"):]), &c), out)
+	return c
+}
+
+// tuv is one TUV.
+func tuv(lang, text string) string {
+	return fmt.Sprintf(`<tuv xml:lang="%s"><seg>%s</seg></tuv>`, lang, text)
+}
+
+// tmxUnits is a TMX whose header declares srclang (empty for none) and whose
+// body holds units: each a full <tu> element, or bare TUVs wrapped in one.
+func tmxUnits(srclang string, units ...string) string {
+	header := `<header creationtool="e2e" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" datatype="plaintext"`
+	if srclang != "" {
+		header += fmt.Sprintf(` srclang="%s"`, srclang)
+	}
+	var body strings.Builder
+	if len(units) > 0 && strings.HasPrefix(units[0], "<tuv") {
+		body.WriteString("<tu>" + strings.Join(units, "") + "</tu>")
+	} else {
+		body.WriteString(strings.Join(units, "\n"))
+	}
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  ` + header + `/>
+  <body>` + body.String() + `</body>
+</tmx>
+`
 }
 
 // A standalone store holds content of no particular project, so with no -s

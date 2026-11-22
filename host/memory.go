@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -246,15 +247,18 @@ type TMXImport struct {
 }
 
 // ImportTMXFile imports one TMX file into the content memory. With AllPairs
-// it keeps every TUV (ImportTMXLocalePairs). Otherwise it imports in one
-// source language (ImportSource): --source-locale when given, else the
-// language the file declares, else the store's. A TU that does not hold the
-// source, and the target when one is given, is dropped, and a file of which
-// no TU survives imports nothing and fails, naming the languages.
-func ImportTMXFile(ctx context.Context, tm memory.Store, imp TMXImport) (int, error) {
+// it keeps every TUV (ImportTMXLocalePairs). Otherwise each unit is imported
+// as a bilingual entry whose source language memory.ChooseSource picks:
+// --source-locale when given; else the store's source language when the unit
+// holds it; else the language the unit or the file declares when the unit
+// holds that. A unit the rule cannot use is skipped and counted by reason, a
+// file of which no unit is kept imports nothing and fails with the counts,
+// and region tags are never folded: an en-US unit is stored as en-US, and the
+// note says so.
+func ImportTMXFile(ctx context.Context, tm memory.Store, imp TMXImport) (memory.ImportCounts, error) {
 	f, err := os.Open(imp.Path)
 	if err != nil {
-		return 0, fmt.Errorf("open %s: %w", imp.Path, err)
+		return memory.ImportCounts{}, fmt.Errorf("open %s: %w", imp.Path, err)
 	}
 	defer f.Close()
 
@@ -262,14 +266,14 @@ func ImportTMXFile(ctx context.Context, tm memory.Store, imp TMXImport) (int, er
 	if strings.HasSuffix(strings.ToLower(imp.Path), ".gz") {
 		gz, err := gzip.NewReader(f)
 		if err != nil {
-			return 0, fmt.Errorf("gunzip %s: %w", imp.Path, err)
+			return memory.ImportCounts{}, fmt.Errorf("gunzip %s: %w", imp.Path, err)
 		}
 		defer gz.Close()
 		reader = gz
 	}
 	data, err := io.ReadAll(reader)
 	if err != nil {
-		return 0, fmt.Errorf("read %s: %w", imp.Path, err)
+		return memory.ImportCounts{}, fmt.Errorf("read %s: %w", imp.Path, err)
 	}
 
 	opts := memory.ImportTMXOptions{
@@ -285,56 +289,61 @@ func ImportTMXFile(ctx context.Context, tm memory.Store, imp TMXImport) (int, er
 		SkipIndexRebuild: true,
 	}
 	if imp.AllPairs {
-		return memory.ImportTMXLocalePairs(ctx, tm, bytes.NewReader(data), imp.Locales, opts)
+		n, err := memory.ImportTMXLocalePairs(ctx, tm, bytes.NewReader(data), imp.Locales, opts)
+		return memory.ImportCounts{Imported: n}, err
 	}
 
-	declared, err := memory.TMXSourceLanguage(bytes.NewReader(data))
-	if err != nil {
-		return 0, fmt.Errorf("%s: %w", imp.Path, err)
+	rule := memory.SourceRule{Store: imp.StoreSource}
+	if named := strings.TrimSpace(imp.Named); named != "" {
+		rule.Explicit = model.NormalizeLocale(model.LocaleID(named))
 	}
-	src := ImportSource(imp.Named, declared, imp.StoreSource, filepath.Base(imp.Path), imp.Note)
-	tgt := model.LocaleID(imp.Target)
-	if tgt != "" {
-		tgt = model.NormalizeLocale(tgt)
+	if imp.Target != "" {
+		rule.Target = model.NormalizeLocale(model.LocaleID(imp.Target))
 	}
-	n, err := memory.ImportTMXWithOptions(ctx, tm, bytes.NewReader(data), src, tgt, opts)
+	file := filepath.Base(imp.Path)
+	counts, err := memory.ImportTMXWithRule(ctx, tm, bytes.NewReader(data), rule, opts)
 	if errors.Is(err, memory.ErrNoUsablePair) {
-		return 0, noUsablePairError(filepath.Base(imp.Path), src, tgt, declared)
+		return counts, fmt.Errorf("%s: nothing was imported: %s", file, SkipSummary(counts, rule))
 	}
-	return n, err
+	if err != nil {
+		return counts, err
+	}
+	if imp.Note != nil && rule.Explicit == "" {
+		for _, src := range slices.Sorted(maps.Keys(counts.Sources)) {
+			if src != rule.Store && rule.Store != "" && sameLanguage(src, rule.Store) {
+				fmt.Fprintf(imp.Note, "note: %d unit(s) of %s hold %s text and no %s text; they were imported as %s, which a lookup in %s does not match.\n",
+					counts.Sources[src], file, src, rule.Store, src, rule.Store)
+			}
+		}
+	}
+	return counts, nil
 }
 
-// noUsablePairError names the languages a TMX import looked for and the one
-// the file declares, when no TU held them.
-func noUsablePairError(file string, src, tgt, declared model.LocaleID) error {
-	want := string(src) + " source text"
-	if tgt != "" {
-		want = fmt.Sprintf("%s source text with a %s translation", src, tgt)
+// SkipSummary says how many units an import skipped, by reason, naming the
+// languages the rule looked for.
+func SkipSummary(c memory.ImportCounts, rule memory.SourceRule) string {
+	src := "the store's " + string(rule.Store) + " or the language the unit declares"
+	if rule.Explicit != "" {
+		src = string(rule.Explicit)
 	}
-	says := "the file declares no source language"
-	if declared != "" {
-		says = "the file declares " + string(declared)
+	var parts []string
+	if c.NoSource > 0 {
+		parts = append(parts, fmt.Sprintf("%d unit(s) hold no %s text", c.NoSource, src))
 	}
-	return fmt.Errorf("%s: no translation unit holds %s (%s), so nothing was imported. Pass --source-locale with the language the file holds", file, want, says)
-}
-
-// ImportSource is the source language an import of file reads in: named
-// (--source-locale) when given, else the language the file declares, else the
-// store's. When the file's language is used and differs from the store's in
-// region only (en-US into an en-GB store), one line on note says what was
-// done, because the store's lookups will not match it.
-func ImportSource(named string, declared, store model.LocaleID, file string, note io.Writer) model.LocaleID {
-	if named = strings.TrimSpace(named); named != "" {
-		return model.NormalizeLocale(model.LocaleID(named))
+	if c.SameLanguage > 0 {
+		parts = append(parts, fmt.Sprintf("%d unit(s) would pair %s with itself", c.SameLanguage, rule.Target))
 	}
-	if declared == "" {
-		return store
+	if c.NoTarget > 0 {
+		if rule.Target != "" {
+			parts = append(parts, fmt.Sprintf("%d unit(s) hold no %s translation", c.NoTarget, rule.Target))
+		} else {
+			parts = append(parts, fmt.Sprintf("%d unit(s) hold no translation", c.NoTarget))
+		}
 	}
-	if note != nil && store != "" && declared != store && sameLanguage(declared, store) {
-		fmt.Fprintf(note, "note: %s declares %s and this store reads in %s; its %s text was imported as %s, which a lookup in %s does not match. Pass --source-locale %s to import only %s text.\n",
-			file, declared, store, declared, declared, store, store, store)
+	if len(parts) == 0 {
+		return "the file holds no translation units"
 	}
-	return declared
+	return strings.Join(parts, "; ") + ". Pass --source-locale with the language the units hold"
 }
 
 // sameLanguage reports whether a and b name one language, whatever their
@@ -348,7 +357,7 @@ func sameLanguage(a, b model.LocaleID) bool {
 }
 
 // RebuildMemorySearchIndexes restores the FTS5 search + fuzzy side-tables after a
-// bulk TMX import. ImportTMXWithOptions / ImportTMXLocalePairs use the bulk
+// bulk TMX import. ImportTMXWithRule / ImportTMXLocalePairs use the bulk
 // add path, which deliberately skips per-row FTS5 inserts (the dominant cost on
 // large corpora), leaving tm_variant_search / tm_variant_trigram empty until
 // they are rebuilt set-wise here. Without this, imported entries are invisible

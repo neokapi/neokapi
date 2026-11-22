@@ -80,70 +80,113 @@ type ImportTMXOptions struct {
 	// once at the end (the import-dir path): rebuilding per file is the
 	// dominant cost on large corpora.
 	SkipIndexRebuild bool
-	// RequireLocales drops every TU that holds no variant in one of these
-	// locales: a bilingual import keeps only the TUs that pair its source with
-	// its target. When TUs exist and none survives, the import stores nothing
-	// and fails with ErrNoUsablePair.
-	RequireLocales []model.LocaleID
+	// Rule, when set, makes the import bilingual: each TU's source language is
+	// chosen by ChooseSource, the TU keeps that source and the target (every
+	// other variant when Rule.Target is empty), and a TU the rule cannot use
+	// is skipped and counted in Counts. When TUs exist and none is kept, the
+	// import stores nothing and fails with ErrNoUsablePair.
+	Rule *SourceRule
+	// Counts, when set, receives what a Rule import kept and skipped.
+	Counts *ImportCounts
 }
 
-// ErrNoUsablePair reports a TMX import that would store nothing: the file
-// holds translation units, and none of them carries every required locale.
-var ErrNoUsablePair = errors.New("no translation unit holds the required languages")
+// SourceRule is how a bilingual import chooses each unit's source language.
+type SourceRule struct {
+	// Explicit is --source-locale, empty when it was not given.
+	Explicit model.LocaleID
+	// Store is the source language of the store the import writes to.
+	Store model.LocaleID
+	// Target is --target-locale, empty to keep every other variant.
+	Target model.LocaleID
+}
 
-// TMXSourceLanguage returns the source language a TMX file declares in its
-// header (srclang), canonicalized. It returns "" when the header declares
-// none, or declares "*all*", which names no single language.
-func TMXSourceLanguage(reader io.Reader) (model.LocaleID, error) {
-	dec := xml.NewDecoder(reader)
-	for {
-		tok, err := dec.Token()
-		if errors.Is(err, io.EOF) {
-			return "", nil
+// ChooseSource returns the source language of one unit. It is Explicit when
+// given, and only if the unit holds it. Otherwise it is Store when the unit
+// holds it, else declared (the unit's own srclang, else the file's) when the
+// unit holds that, else "", and the unit is skipped. A TBX import takes no
+// source rule: a terms store keeps every concept in every language.
+func ChooseSource(rule SourceRule, declared model.LocaleID, holds func(model.LocaleID) bool) model.LocaleID {
+	pick := func(l model.LocaleID) model.LocaleID {
+		if l == "" {
+			return ""
 		}
-		if err != nil {
-			return "", fmt.Errorf("parse TMX: %w", err)
+		l = model.NormalizeLocale(l)
+		if holds(l) {
+			return l
 		}
-		start, ok := tok.(xml.StartElement)
-		if !ok {
-			continue
+		return ""
+	}
+	if rule.Explicit != "" {
+		return pick(rule.Explicit)
+	}
+	if l := pick(rule.Store); l != "" {
+		return l
+	}
+	return pick(declared)
+}
+
+// ImportCounts is what a bilingual import kept and why it skipped the rest.
+type ImportCounts struct {
+	Imported int `json:"imported"`
+	// NoSource counts units holding none of the languages ChooseSource tries.
+	NoSource int `json:"skipped_no_source"`
+	// SameLanguage counts units whose source would equal the target.
+	SameLanguage int `json:"skipped_source_equals_target"`
+	// NoTarget counts units holding no translation: no target-language
+	// variant, or no variant besides the source.
+	NoTarget int `json:"skipped_no_target"`
+	// Sources counts the kept units by the source language each was read in.
+	Sources map[model.LocaleID]int `json:"sources,omitempty"`
+}
+
+// Skipped is the number of units skipped for any reason.
+func (c ImportCounts) Skipped() int { return c.NoSource + c.SameLanguage + c.NoTarget }
+
+// Add adds o's counts to c.
+func (c *ImportCounts) Add(o ImportCounts) {
+	c.Imported += o.Imported
+	c.NoSource += o.NoSource
+	c.SameLanguage += o.SameLanguage
+	c.NoTarget += o.NoTarget
+	for l, n := range o.Sources {
+		if c.Sources == nil {
+			c.Sources = map[model.LocaleID]int{}
 		}
-		switch start.Name.Local {
-		case "header":
-			for _, a := range start.Attr {
-				if a.Name.Local == "srclang" {
-					if v := strings.TrimSpace(a.Value); v != "" && !strings.EqualFold(v, "*all*") {
-						return model.NormalizeLocale(model.LocaleID(v)), nil
-					}
-				}
-			}
-			return "", nil
-		case "body", "tu":
-			return "", nil
-		}
+		c.Sources[l] += n
 	}
 }
 
-// ImportTMXWithOptions imports a TMX file into the content memory, recording
-// an Origin. With both locales set it keeps the (src, tgt) pair of each TU and
-// drops other TUVs. A TU that does not hold the source locale, and the target
-// when one is set, is dropped. When TUs exist and none survives, it stores
-// nothing and returns ErrNoUsablePair.
-func ImportTMXWithOptions(ctx context.Context, tm ContentMemory, reader io.Reader, sourceLocale, targetLocale model.LocaleID, opts ImportTMXOptions) (int, error) {
+// ErrNoUsablePair reports a bilingual TMX import that would store nothing:
+// the file holds translation units, and the source rule kept none of them.
+var ErrNoUsablePair = errors.New("no translation unit holds a usable source and target")
+
+// declaredSource is the language a unit declares as its source: its own
+// srclang, else the file's, canonicalized; "" for none or "*all*".
+func declaredSource(unit, header string) model.LocaleID {
+	for _, v := range []string{unit, header} {
+		if v = strings.TrimSpace(v); v != "" && !strings.EqualFold(v, "*all*") {
+			return model.NormalizeLocale(model.LocaleID(v))
+		}
+	}
+	return ""
+}
+
+// ImportTMXWithRule imports a TMX file into the content memory as bilingual
+// entries, choosing each unit's source language by rule (ChooseSource) and
+// recording an Origin. It returns what it kept and skipped; when the file
+// holds units and none is kept, it stores nothing and returns ErrNoUsablePair
+// with the counts.
+func ImportTMXWithRule(ctx context.Context, tm ContentMemory, reader io.Reader, rule SourceRule, opts ImportTMXOptions) (ImportCounts, error) {
+	var counts ImportCounts
+	opts.Rule = &rule
+	opts.Counts = &counts
 	store, ok := tm.(Store)
 	if !ok {
-		return 0, errors.New("content memory does not support import sessions")
-	}
-	if sourceLocale != "" && targetLocale != "" {
-		opts.Locales = []model.LocaleID{sourceLocale, targetLocale}
-	}
-	for _, l := range []model.LocaleID{sourceLocale, targetLocale} {
-		if l != "" {
-			opts.RequireLocales = append(opts.RequireLocales, l)
-		}
+		return counts, errors.New("content memory does not support import sessions")
 	}
 	_, imported, err := ImportTMXSession(ctx, store, reader, opts)
-	return imported, err
+	counts.Imported = imported
+	return counts, err
 }
 
 // ImportTMXLocalePairs reads a TMX file and imports TUs into the content memory, keeping
@@ -270,8 +313,15 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 				}
 			}
 		}
-		if len(variants) == 0 || !holdsLocales(variants, opts.RequireLocales) {
+		if len(variants) == 0 {
 			continue
+		}
+		if opts.Rule != nil {
+			var keep bool
+			variants, hintLang, keep = applySourceRule(*opts.Rule, declaredSource(tu.SrcLang, doc.Header.SrcLang), variants, opts.Counts)
+			if !keep {
+				continue
+			}
 		}
 
 		// Merge TU-level props into entry-level props.
@@ -314,7 +364,7 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 		})
 	}
 
-	if len(entries) == 0 && len(doc.TUs) > 0 && len(opts.RequireLocales) > 0 {
+	if len(entries) == 0 && len(doc.TUs) > 0 && opts.Rule != nil {
 		return "", 0, ErrNoUsablePair
 	}
 	if err := store.CreateImportSession(ctx, session); err != nil {
@@ -359,15 +409,43 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 	return session.ID, imported, nil
 }
 
-// holdsLocales reports whether variants holds every one of locales, compared
-// in canonical form.
-func holdsLocales(variants map[model.LocaleID][]model.Run, locales []model.LocaleID) bool {
-	for _, l := range locales {
-		if _, ok := variants[model.NormalizeLocale(l)]; !ok {
-			return false
-		}
+// applySourceRule chooses a unit's source language and narrows its variants
+// to the source and the target (every variant when the rule names no
+// target). It reports false, counting the reason, for a unit the rule cannot
+// use.
+func applySourceRule(rule SourceRule, declared model.LocaleID, variants map[model.LocaleID][]model.Run, counts *ImportCounts) (map[model.LocaleID][]model.Run, model.LocaleID, bool) {
+	if counts == nil {
+		counts = &ImportCounts{}
 	}
-	return true
+	holds := func(l model.LocaleID) bool { _, ok := variants[l]; return ok }
+	src := ChooseSource(rule, declared, holds)
+	if src == "" {
+		counts.NoSource++
+		return nil, "", false
+	}
+	tgt := rule.Target
+	if tgt != "" {
+		tgt = model.NormalizeLocale(tgt)
+	}
+	switch {
+	case tgt != "" && tgt == src:
+		counts.SameLanguage++
+		return nil, "", false
+	case tgt != "" && !holds(tgt):
+		counts.NoTarget++
+		return nil, "", false
+	case tgt == "" && len(variants) < 2:
+		counts.NoTarget++
+		return nil, "", false
+	}
+	if tgt != "" {
+		variants = map[model.LocaleID][]model.Run{src: variants[src], tgt: variants[tgt]}
+	}
+	if counts.Sources == nil {
+		counts.Sources = map[model.LocaleID]int{}
+	}
+	counts.Sources[src]++
+	return variants, src, true
 }
 
 func newSessionID(hash string, t time.Time) string {

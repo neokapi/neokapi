@@ -82,7 +82,14 @@ identity verbatim, so re-seeding a content memory from committed bundles is
 fully reproducible. The format is selected by file extension; --format
 overrides.
 
-By default, imports entries matching the given --source-locale and --target-locale.
+Each unit is imported as a source and a target. Its source language is
+--source-locale when given; otherwise the store's source language when the
+unit holds it, else the language the unit or the file declares (srclang) when
+the unit holds that. A unit with none of these, with no translation, or whose
+source would equal the target is skipped, and the summary counts each reason.
+An import that keeps no unit fails. Region tags are never folded: an en-US
+unit is stored as en-US, and a lookup in en-GB does not match it.
+
 Use --all-pairs to emit entries for every (src, tgt) language pair present in
 each TU. Multilingual TMX files need this (e.g. EUR-Lex Euramis exports, where
 a single TU may carry every official EU language). Combine with --locales to
@@ -117,12 +124,12 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			}
 			defer releaseMemory()
 
-			var count int
+			var counts memory.ImportCounts
 			switch inputFormat {
 			case "bundle":
-				count, err = ImportKMBFile(host.CmdContext(cmd), tm, args[0])
+				counts.Imported, err = ImportKMBFile(host.CmdContext(cmd), tm, args[0])
 			case "tmx":
-				count, err = ImportTMXFile(host.CmdContext(cmd), tm, host.TMXImport{
+				counts, err = ImportTMXFile(host.CmdContext(cmd), tm, host.TMXImport{
 					Path: args[0], Named: srcLocale, StoreSource: storeSrc, Target: tgtLocale,
 					AllPairs: allPairs, Locales: ParseLocaleList(localesRaw), Note: cmd.ErrOrStderr(),
 				})
@@ -147,15 +154,11 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			if err != nil {
 				return fmt.Errorf("count content-memory entries: %w", err)
 			}
-			return output.Print(cmd, output.MemoryImportOutput{
-				Imported: count,
-				DBPath:   dbPath,
-				Total:    memoryTotal,
-			})
+			return output.Print(cmd, memoryImportOutput(counts, dbPath, memoryTotal))
 		},
 	}
 
-	cmd.Flags().StringP("source-locale", "s", "", storeSourceLocaleUsage)
+	cmd.Flags().StringP("source-locale", "s", "", tmxSourceLocaleUsage)
 	cmd.Flags().StringP("target-locale", "t", "", "target locale")
 	cmd.Flags().Bool("all-pairs", false, "emit entries for every (src,tgt) pair present in each TU (multilingual TMX)")
 	cmd.Flags().String("locales", "", "comma-separated locale subset for --all-pairs (empty = all languages in file)")
@@ -174,8 +177,16 @@ Auto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)
 becomes the Origin.Key on each imported entry so you can trace which file a
 segment came from.
 
-By default, imports entries matching --source-locale and --target-locale from
-every file. Use --pattern to filter (glob against filename) and --all-pairs to
+Each unit is imported as a source and a target. Its source language is
+--source-locale when given; otherwise the store's source language when the
+unit holds it, else the language the unit or the file declares (srclang) when
+the unit holds that. A unit with none of these, with no translation, or whose
+source would equal the target is skipped, and the summary counts each reason.
+An import that keeps no unit fails. Region tags are never folded: an en-US
+unit is stored as en-US, and a lookup in en-GB does not match it. A file
+that imports nothing fails the command; the others are kept.
+
+Use --pattern to filter (glob against filename) and --all-pairs to
 emit the full language cross-product from multilingual files.
 
 Examples:
@@ -219,14 +230,14 @@ Examples:
 				return fmt.Errorf("no TMX files found in %s", dir)
 			}
 
-			var totalImported int
+			var total memory.ImportCounts
 			var failed int
 			for i, path := range files {
 				rel, _ := filepath.Rel(dir, path)
 				if !a.Quiet {
 					fmt.Fprintf(os.Stderr, "[%d/%d] %s ", i+1, len(files), rel)
 				}
-				n, err := ImportTMXFile(host.CmdContext(cmd), tm, host.TMXImport{
+				c, err := ImportTMXFile(host.CmdContext(cmd), tm, host.TMXImport{
 					Path: path, Named: srcLocale, StoreSource: storeSrc, Target: tgtLocale,
 					AllPairs: allPairs, Locales: locales, Note: cmd.ErrOrStderr(),
 				})
@@ -237,9 +248,9 @@ Examples:
 					}
 					continue
 				}
-				totalImported += n
+				total.Add(c)
 				if !a.Quiet {
-					fmt.Fprintf(os.Stderr, "%d entries\n", n)
+					fmt.Fprintf(os.Stderr, "%d entries, %d skipped\n", c.Imported, c.Skipped())
 				}
 			}
 
@@ -252,7 +263,7 @@ Examples:
 			// A file that imported nothing usable is a failure, and a run with
 			// failures is not reported as a success.
 			if failed > 0 {
-				return fmt.Errorf("%d of %d files failed to import (see the lines above); %d entries imported from the rest", failed, len(files), totalImported)
+				return fmt.Errorf("%d of %d files failed to import (see the lines above); %d entries imported from the rest", failed, len(files), total.Imported)
 			}
 			if a.Quiet {
 				return nil
@@ -263,16 +274,12 @@ Examples:
 				return fmt.Errorf("count content-memory entries: %w", err)
 			}
 			fmt.Fprintf(os.Stderr, "\nDone. %d files processed (%d failed), %d entries imported, content memory now has %d entries\n",
-				len(files), failed, totalImported, memoryTotal)
-			return output.Print(cmd, output.MemoryImportOutput{
-				Imported: totalImported,
-				DBPath:   dbPath,
-				Total:    memoryTotal,
-			})
+				len(files), failed, total.Imported, memoryTotal)
+			return output.Print(cmd, memoryImportOutput(total, dbPath, memoryTotal))
 		},
 	}
 
-	cmd.Flags().StringP("source-locale", "s", "", storeSourceLocaleUsage)
+	cmd.Flags().StringP("source-locale", "s", "", tmxSourceLocaleUsage)
 	cmd.Flags().StringP("target-locale", "t", "", "target locale")
 	cmd.Flags().Bool("all-pairs", false, "emit entries for every (src,tgt) pair present in each TU")
 	cmd.Flags().String("locales", "", "comma-separated locale subset for --all-pairs")
@@ -625,4 +632,21 @@ func memoryStoreSourceLocale(a *App, cmd *cobra.Command, named string) (model.Lo
 		return "", err
 	}
 	return a.StoreSourceLocale(cmd, sel, named)
+}
+
+// tmxSourceLocaleUsage is the -s help of the TMX imports, which choose the
+// source language per unit.
+const tmxSourceLocaleUsage = "source locale; without it each unit is read in the store's source language when it holds it, else in the language it declares, and skipped otherwise"
+
+// memoryImportOutput is the summary of a content-memory import: what was
+// imported and, by reason, what was skipped.
+func memoryImportOutput(c memory.ImportCounts, dbPath string, total int) output.MemoryImportOutput {
+	return output.MemoryImportOutput{
+		Imported:                  c.Imported,
+		DBPath:                    dbPath,
+		Total:                     total,
+		SkippedNoSource:           c.NoSource,
+		SkippedSourceEqualsTarget: c.SameLanguage,
+		SkippedNoTarget:           c.NoTarget,
+	}
 }
