@@ -60,7 +60,7 @@ func newDraftDeliveries() *draftDeliveries {
 // first returns the delivery of dest, digesting the destination the first
 // time a pass opens a draft of it. The digest is taken outside the run-wide
 // lock, so the converge workers' passes do not wait on each other's reads.
-func (d *draftDeliveries) first(dest string) (*draftDelivery, error) {
+func (d *draftDeliveries) first(home *filehome.Home, dest string) (*draftDelivery, error) {
 	if d == nil {
 		return nil, nil
 	}
@@ -72,7 +72,7 @@ func (d *draftDeliveries) first(dest string) (*draftDelivery, error) {
 		d.byDest[key] = dd
 	}
 	d.mu.Unlock()
-	dd.digested.Do(func() { dd.before, dd.err = filehome.Digest(dest) })
+	dd.digested.Do(func() { dd.before, dd.err = home.Digest(dest) })
 	return dd, dd.err
 }
 
@@ -208,7 +208,7 @@ func (a *App) deliverDraft(ctx context.Context, home *filehome.Home, path, dest 
 		// A draft no pass opened through a follower: the destination as it
 		// stands now.
 		var err error
-		if before, err = filehome.Digest(dest); err != nil {
+		if before, err = home.Digest(dest); err != nil {
 			return err
 		}
 	}
@@ -218,7 +218,7 @@ func (a *App) deliverDraft(ctx context.Context, home *filehome.Home, path, dest 
 		if doc == nil || !doc.track {
 			return nil
 		}
-		want, err := filehome.Digest(path)
+		want, err := home.Digest(path)
 		if err != nil {
 			return err
 		}

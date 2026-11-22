@@ -89,7 +89,7 @@ func (st *staged) run(ctx context.Context) error {
 	s := st.s
 	own := &stagedFile{ref: s.doc.Ref, path: s.doc.Path}
 	var err error
-	if own.before, err = hashFile(s.doc.Path); err != nil {
+	if own.before, err = s.h.hashFile(s.doc.Path); err != nil {
 		return err
 	}
 	if own.before == "" {
@@ -105,7 +105,7 @@ func (st *staged) run(ctx context.Context) error {
 	before := map[string]string{}
 	for _, k := range st.want.Editions {
 		if f, ok := s.editionFile(k); ok && f.Kept == nil {
-			if before[f.Path], err = hashFile(f.Path); err != nil {
+			if before[f.Path], err = s.h.hashFile(f.Path); err != nil {
 				return err
 			}
 		}
@@ -756,7 +756,7 @@ func (st *staged) verifyEditionRemoved(ctx context.Context, f *stagedFile, je *j
 	s := st.s
 	var kept *change.Error
 	var keptKey string
-	p := pass{src: source{path: je.file.Path}.with(data), format: je.file.Format, locale: s.doc.SourceLocale, target: je.key.Locale,
+	p := pass{src: source{path: je.file.Path, root: s.h.root}.with(data), format: je.file.Format, locale: s.doc.SourceLocale, target: je.key.Locale,
 		encoding: s.doc.Encoding, fn: func(b *model.Block) error {
 			docKey, ok := removed[change.BlockKey(b)]
 			if _, held := b.Edition(je.key); held && ok && kept == nil {
@@ -812,14 +812,21 @@ func (st *staged) write(ctx context.Context, path string, src source, produce fu
 			return nil, "", nil, err
 		}
 		after := digestOf(h)
-		return tmp, after, func() string { return stagedDiff(src.path, tmp, st.label(path)) }, nil
+		return tmp, after, func() string { return stagedDiff(st.s.h, src.path, tmp, st.label(path)) }, nil
 	}
 	var member bytes.Buffer
 	if err := produce(&member); err != nil {
 		return nil, "", nil, err
 	}
 	tmp, err := st.s.h.stage(path, func(w io.Writer) error {
-		return container.Transform(path, io.MultiWriter(w, h), func(name string, _ func() ([]byte, error)) ([]byte, bool, error) {
+		// The archive is read through the descriptor openRead holds, so a
+		// link put in its place cannot bring another archive's members in.
+		archive, err := st.s.h.openRead(path)
+		if err != nil {
+			return err
+		}
+		defer archive.Close()
+		return container.TransformFile(archive, io.MultiWriter(w, h), func(name string, _ func() ([]byte, error)) ([]byte, bool, error) {
 			if sameEntry(name, src.entry) {
 				return member.Bytes(), true, nil
 			}
@@ -832,7 +839,7 @@ func (st *staged) write(ctx context.Context, path string, src source, produce fu
 	after := digestOf(h)
 	edited := member.Bytes()
 	return tmp, after, func() string {
-		before, berr := source{path: src.path, entry: src.entry}.entryBytes()
+		before, berr := source{path: src.path, entry: src.entry, root: st.s.h.root}.entryBytes()
 		if berr != nil {
 			return ""
 		}
@@ -989,7 +996,7 @@ func (st *staged) moved(ctx context.Context) (*stagedFile, error) {
 			}
 			continue
 		}
-		now, err := hashFile(f.path)
+		now, err := st.s.h.hashFile(f.path)
 		if err != nil {
 			return nil, err
 		}
@@ -1110,8 +1117,8 @@ const diffLimit = 1 << 20
 
 // stagedDiff renders the change from the file at before to the staged bytes
 // of after, which are read back through the staging's own root.
-func stagedDiff(before string, after *atomicfile.Staged, label string) string {
-	a, err := readLimited(before)
+func stagedDiff(h *Home, before string, after *atomicfile.Staged, label string) string {
+	a, err := readLimited(h, before)
 	if errors.Is(err, fs.ErrNotExist) {
 		// The change creates the file.
 		a, err = nil, nil
@@ -1126,8 +1133,8 @@ func stagedDiff(before string, after *atomicfile.Staged, label string) string {
 	return textDiff(a, b, label)
 }
 
-func readLimited(path string) ([]byte, error) {
-	f, err := os.Open(path)
+func readLimited(h *Home, path string) ([]byte, error) {
+	f, err := h.openRead(path)
 	if err != nil {
 		return nil, err
 	}

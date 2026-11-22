@@ -222,10 +222,60 @@ func (h *Home) commit(path string, tmp *atomicfile.Staged) error {
 // another case on a case-insensitive volume. A path beneath the root is then
 // written through the root, which refuses it when it resolves outside.
 func (h *Home) under(path string) (string, bool) {
-	if h.root == "" {
+	if h == nil {
 		return "", false
 	}
-	absRoot, err := filepath.Abs(h.root)
+	return beneath(h.root, path)
+}
+
+// openRead opens the file at path for reading. A file beneath the home's
+// root is opened through rootpath.OpenRegular: a link that leads out of the
+// root, or anything that is not a regular file, is refused at the open, and a
+// FIFO is refused without blocking.
+func (h *Home) openRead(path string) (*os.File, error) {
+	if h == nil {
+		return os.Open(path)
+	}
+	return openBeneath(h.root, path)
+}
+
+// Digest is the digest of the file at path in the form Produce takes as
+// before, or "" when there is none, read as openRead reads it.
+func (h *Home) Digest(path string) (string, error) { return h.hashFile(path) }
+
+// hashFile is the digest of the file at path, or "" when there is none.
+func (h *Home) hashFile(path string) (string, error) {
+	f, err := h.openRead(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	sum := sha256.New()
+	if _, err := io.Copy(sum, f); err != nil {
+		return "", err
+	}
+	return "sha256:" + hex.EncodeToString(sum.Sum(nil)), nil
+}
+
+// openBeneath opens path through rootpath.OpenRegular when it lies beneath
+// root, and as named otherwise.
+func openBeneath(root, path string) (*os.File, error) {
+	if absRoot, ok := beneath(root, path); ok {
+		return rootpath.OpenRegular(absRoot, path)
+	}
+	return os.Open(path)
+}
+
+// beneath reports whether path lies beneath root, decided from the file
+// system rather than from the spelling, and returns root as an absolute path.
+func beneath(root, path string) (string, bool) {
+	if root == "" {
+		return "", false
+	}
+	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		return "", false
 	}
@@ -374,6 +424,7 @@ func (s *session) ownSource() source {
 // fileSource is src as the stage reads it: from the overlay when a
 // structural edit rewrote it.
 func (s *session) fileSource(src source) source {
+	src.root = s.h.root
 	if data, ok := s.overlay[overlayKey(src)]; ok {
 		return src.with(data)
 	}
@@ -406,6 +457,9 @@ func (s *session) Structural() []change.Kind {
 
 // readPass is a read of src in format f, as this document is read.
 func (s *session) readPass(src source, f Binding, fn func(*model.Block) error) pass {
+	if src.root == "" {
+		src.root = s.h.root
+	}
 	return pass{src: src, format: f, locale: s.doc.SourceLocale, encoding: s.doc.Encoding, fn: fn}
 }
 
@@ -422,7 +476,7 @@ func (s *session) ownPass(fn func(*model.Block) error) pass {
 }
 
 func (s *session) Read(ctx context.Context, want change.Want, fn func(*model.Block) error) (string, error) {
-	head, err := hashFile(s.doc.Path)
+	head, err := s.h.hashFile(s.doc.Path)
 	if err != nil {
 		return "", err
 	}
@@ -562,21 +616,4 @@ func ensureLockDir(dir string) error {
 		return fmt.Errorf("the lock directory %s can be written by other users; remove it, or name a lock directory of your own", dir)
 	}
 	return nil
-}
-
-// hashFile is the digest of the file at path, or "" when there is none.
-func hashFile(path string) (string, error) {
-	f, err := os.Open(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return "", nil
-	}
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }

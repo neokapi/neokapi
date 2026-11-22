@@ -157,7 +157,7 @@ func (fc *flowChanges) Open(ctx context.Context, d flow.Document) (flow.Document
 		// the drafts are the run's, and the destination keeps what it held.
 		// Delivery commits the draft only while the destination still holds
 		// it, whether or not the run follows the document.
-		dd, err := fc.app.convergeDeliveries.first(dest)
+		dd, err := fc.app.convergeDeliveries.first(fc.home, dest)
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", dest, err)
 		}

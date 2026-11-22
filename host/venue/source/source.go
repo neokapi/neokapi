@@ -2255,13 +2255,13 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 	// The translated file commits through the file home a flow commits
 	// through: staged beside the destination, renamed under its lock, and only
 	// while the destination still holds what it held when the write began.
-	before, err := filehome.Digest(outputPath)
-	if err != nil {
-		return fmt.Errorf("read %s: %w", outputPath, err)
-	}
 	home := filehome.New(nil, filehome.Options{Root: c.project.Root})
 	if c.app != nil {
 		home = c.app.FlowHome(c.project.Root)
+	}
+	before, err := home.Digest(outputPath)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", outputPath, err)
 	}
 	produced, err := home.Produce(ctx, outputPath, before, func(w io.Writer) error {
 		if err := writer.SetOutputWriter(w); err != nil {

@@ -1430,7 +1430,7 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 		// save that lands during the read can make the reader fail on bytes
 		// that are half old and half new, and the save is then the cause.
 		if !IsMoved(werr) {
-			if now, derr := filehome.Digest(outputPath); derr == nil && now != doc.before {
+			if now, derr := r.home().Digest(outputPath); derr == nil && now != doc.before {
 				return errors.Join(&filehome.MovedError{Path: outputPath, Before: doc.before, Now: now}, werr)
 			}
 		}
