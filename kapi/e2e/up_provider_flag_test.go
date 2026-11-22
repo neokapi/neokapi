@@ -93,9 +93,9 @@ func TestRunFlagsThatWouldNotActAreRefused(t *testing.T) {
 		args []string
 		says string
 	}{
-		{[]string{"up", "-p", "kapi.yaml", "-o", "out/"}, "each target is written where its collection's target: pattern says (collections[].target)"},
+		{[]string{"up", "-p", "kapi.yaml", "-o", "out/"}, "collections[].target, or collections[].content[].target in a collection with a content list"},
 		{[]string{"up", "-p", "kapi.yaml", "--output=out/"}, "run kapi translate <file> --target-lang <locale> -o <path>"},
-		{[]string{"up", "-p", "kapi.yaml", "-i", "src/messages_en.json"}, "it converges the files the recipe's collections name (collections[].path)"},
+		{[]string{"up", "-p", "kapi.yaml", "-i", "src/messages_en.json"}, "collections[].path, or collections[].content[].path in a collection with a content list"},
 		{[]string{"up", "-p", "kapi.yaml", "--target-lang", "de"}, "the recipe sets the languages, under defaults.target_languages"},
 		{[]string{"up", "-p", "kapi.yaml", "--stats"}, "unknown flag: --stats"},
 		{[]string{"up", "-p", "kapi.yaml", "--format", "properties"}, "collections[].format.name"},

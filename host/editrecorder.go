@@ -241,16 +241,24 @@ func (t *unitWriteTally) total() int {
 	return len(t.units)
 }
 
-// byLocale is the count per target language.
-func (t *unitWriteTally) byLocale() map[string]int {
-	out := map[string]int{}
+// editionAt is one edition of a target language: the language, and the
+// edition's text ("nb", or "nb;tone=formal" for a variant of it).
+type editionAt struct {
+	locale, edition string
+}
+
+// byEdition is the count per edition. Each edition of a language is a
+// separate set of translations of the language's units, so a block written
+// in two editions of one language counts once in each.
+func (t *unitWriteTally) byEdition() map[editionAt]int {
+	out := map[editionAt]int{}
 	if t == nil {
 		return out
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	for u := range t.units {
-		out[string(u.locale)]++
+		out[editionAt{locale: string(u.locale), edition: u.edition}]++
 	}
 	return out
 }

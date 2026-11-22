@@ -1228,26 +1228,32 @@ func sumCounts(m map[string]int) int {
 	return total
 }
 
-// checkUnitCounts refuses a summary whose counts exceed a language's units:
-// for every locale, the units the run wrote and the units it holds for review
-// are disjoint subsets of that locale's units. A violation is a counting
+// checkUnitCounts refuses a summary whose counts exceed a language's units.
+// Each edition of a language translates that language's units, so for every
+// edition the units the run wrote are at most the language's units; for the
+// language's own edition, which a gate holds, the units written and the units
+// held for review are disjoint subsets of them. A violation is a counting
 // defect, and printing it would report work that does not exist.
-func checkUnitCounts(cov []LocaleCoverage, produced, waiting map[string]int) error {
+func checkUnitCounts(cov []LocaleCoverage, produced map[editionAt]int, waiting map[string]int) error {
 	units := localeUnits(cov)
-	locales := make([]string, 0, len(units))
-	for l := range units {
-		locales = append(locales, l)
+	editions := make([]editionAt, 0, len(produced)+len(waiting))
+	for e := range produced {
+		editions = append(editions, e)
 	}
-	for l := range produced {
-		if _, ok := units[l]; !ok {
-			locales = append(locales, l)
+	for l := range waiting {
+		if plain := (editionAt{locale: l, edition: l}); produced[plain] == 0 {
+			editions = append(editions, plain)
 		}
 	}
-	slices.Sort(locales)
-	for _, l := range locales {
-		if produced[l]+waiting[l] > units[l] {
+	slices.SortFunc(editions, func(x, y editionAt) int { return strings.Compare(x.edition, y.edition) })
+	for _, e := range editions {
+		held := 0
+		if e.edition == e.locale {
+			held = waiting[e.locale]
+		}
+		if produced[e]+held > units[e.locale] {
 			return fmt.Errorf("internal error: %s counts %d produced and %d waiting for review for %d unit(s); the run's summary would overstate its work",
-				l, produced[l], waiting[l], units[l])
+				e.edition, produced[e], held, units[e.locale])
 		}
 	}
 	return nil
@@ -1424,7 +1430,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// content its file did not hold.
 	produced := a.writeTally.total()
 	out.Produced = &produced
-	if err := checkUnitCounts(cov, a.writeTally.byLocale(), facts.held); err != nil {
+	if err := checkUnitCounts(cov, a.writeTally.byEdition(), facts.held); err != nil {
 		return err
 	}
 

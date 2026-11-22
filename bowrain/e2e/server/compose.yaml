@@ -71,6 +71,12 @@ services:
       # set this on a real deployment: it approves a pending device for the
       # identity the request names, with no identity-provider check.
       BOWRAIN_ALLOW_INSECURE_DEV: "1"
+    # As in production: a read-only root filesystem, a tmpfs for TMPDIR, and
+    # the blob volume as the only other writable path. The image runs as
+    # uid 10001.
+    read_only: true
+    tmpfs:
+      - /tmp
     volumes:
       - web-dist:/web:ro
       - blob-data:/data
@@ -107,6 +113,12 @@ services:
       # Same shared volume as the server (note: worker uses LOCAL_BLOB_DIR).
       LOCAL_BLOB_DIR: /data/blobs
       BOWRAIN_PLATFORM_PROVIDER: demo
+    # As in production: a read-only root filesystem, a tmpfs for TMPDIR, and
+    # the blob volume as the only other writable path. The image runs as
+    # uid 10001.
+    read_only: true
+    tmpfs:
+      - /tmp
     volumes:
       - blob-data:/data
     healthcheck:

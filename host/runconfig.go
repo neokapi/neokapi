@@ -108,9 +108,9 @@ var upRecipeFlags = map[string]string{
 	"engine": "--engine does not apply to kapi up: the recipe selects the format engine, under defaults.engine (or defaults.formats.<name>.engine for one format)",
 	"target-lang": "--target-lang does not apply to kapi up: the recipe sets the languages, under defaults.target_languages. " +
 		"To translate one file into one language, run kapi translate <file> --target-lang <locale>",
-	"input": "--input does not apply to kapi up: it converges the files the recipe's collections name (collections[].path). " +
+	"input": "--input does not apply to kapi up: it converges the files the recipe's collections name (collections[].path, or collections[].content[].path in a collection with a content list). " +
 		"To translate one file, run kapi translate <file> --target-lang <locale>",
-	"output": "--output does not apply to kapi up: each target is written where its collection's target: pattern says (collections[].target). " +
+	"output": "--output does not apply to kapi up: each target is written where its collection's target: pattern says (collections[].target, or collections[].content[].target in a collection with a content list). " +
 		"To write one translated file elsewhere, run kapi translate <file> --target-lang <locale> -o <path>",
 }
 

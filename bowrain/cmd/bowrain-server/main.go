@@ -26,13 +26,14 @@ import (
 	"github.com/neokapi/neokapi/bowrain/migrations"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
+	"github.com/neokapi/neokapi/bowrain/runtimedirs"
 	"github.com/neokapi/neokapi/bowrain/server"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/core/version"
 )
 
 func main() {
-	// Structured logging — bridges existing log.Printf calls through slog.
+	// Structured logging bridges existing log.Printf calls through slog.
 	observe.SetupLogger(
 		os.Getenv("BOWRAIN_LOG_FORMAT"),
 		os.Getenv("BOWRAIN_LOG_LEVEL"),
@@ -75,7 +76,7 @@ func guardSecretsKey(secretsKey, databaseURL string) error {
 }
 
 // acceptSecretValue returns the environment value for a provisioned credential
-// when it looks like the identifier it should be, and "" otherwise — so an
+// when it looks like the identifier it should be, and "" otherwise, so an
 // unprovisioned or mistyped value degrades to "this deployment does not carry
 // that surface", never to a half-configured one that advertises itself and
 // fails every call. The distinction between the Terraform placeholder and a
@@ -83,7 +84,7 @@ func guardSecretsKey(secretsKey, databaseURL string) error {
 // state before provisioning, the second is an operator error.
 //
 // billing.IsPlaceholder names the seeded value, which Terraform writes into
-// every one of these parameters — it is a provisioning fact, not a billing one,
+// every one of these parameters. It is a provisioning fact, not a billing one,
 // and it is defined once.
 func acceptSecretValue(envVar string, valid func(string) bool, want string) string {
 	v := os.Getenv(envVar)
@@ -336,7 +337,7 @@ func run() error {
 	// Terraform seeds these SSM parameters as "CHANGEME" (epic 002), and a
 	// placeholder that reads as "configured" would put the deployment in the worst
 	// state available: billing advertised, every Stripe call failing. Rejecting it
-	// here means an unprovisioned deployment simply has no checkout surface.
+	// here means an unprovisioned deployment has no checkout surface.
 	cfg.StripeSecretKey = acceptSecretValue("STRIPE_SECRET_KEY", billing.IsStripeSecretKey, "sk_… or rk_…")
 	cfg.StripeWebhookSecret = acceptSecretValue("STRIPE_WEBHOOK_SECRET", billing.IsStripeWebhookSecret, "whsec_…")
 	cfg.StripeProPriceID = acceptSecretValue("STRIPE_PRO_PRICE_ID", billing.IsStripePriceID, "price_…")
@@ -411,9 +412,9 @@ func run() error {
 	cfg.AllowInsecureDeviceAuth = insecureDev
 
 	// The CORS and WebSocket origin policies ride on the same signal, for the
-	// same reason. They used to key off whether OIDCPublicURL happened to be
-	// set, so a production deployment configuring only the issuer URL — the
-	// documented, supported shape — silently ran the development policy.
+	// same reason, and not on whether OIDCPublicURL happens to be set: a
+	// production deployment configuring only the issuer URL (the documented,
+	// supported shape) would otherwise run the development policy.
 	cfg.DevMode = insecureDev
 
 	// Secure session cookies are the production default. Without one, a
@@ -431,11 +432,17 @@ func run() error {
 		cfg.ForceSecureCookies = b
 	}
 
+	// Every directory the server writes is writable, or it stops here with
+	// the directory and the variable that sets it.
+	if err := runtimedirs.Check(server.RuntimeDirs(cfg)...); err != nil {
+		return fmt.Errorf("bowrain-server cannot start: %w", err)
+	}
+
 	srv := server.NewServer(cfg)
 
 	// Build gRPC server with tracing, plus auth interceptors when JWT is
 	// configured. Tracing is chained FIRST, so it is outermost and a call
-	// refused for its credentials is still a transaction — "auth is slow" and
+	// refused for its credentials is still a transaction: "auth is slow" and
 	// "auth refuses everything" both matter and neither is visible from a
 	// handler that never ran.
 	grpcOpts := []grpc.ServerOption{

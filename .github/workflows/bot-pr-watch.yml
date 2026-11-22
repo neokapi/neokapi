@@ -1,0 +1,42 @@
+name: Bot PR Watch
+
+# Reports pull requests a workflow opened or pushed to that have waited too
+# long: a bot pull request open for days, or workflow runs held for approval
+# on a pull request's head commit. A push made with GITHUB_TOKEN holds them,
+# and main requires `CI passed`, so such a pull request waits until a person
+# looks. scripts/stale-bot-prs.py holds the rules. A failed scheduled run files
+# an issue through scheduled-failure-issue.yml.
+
+on:
+  schedule:
+    - cron: "41 6 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/bot-pr-watch.yml"
+      - "scripts/stale-bot-prs.py"
+
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+
+jobs:
+  watch:
+    name: Report waiting bot pull requests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      - name: Self-test
+        run: python3 scripts/stale-bot-prs.py --self-test
+      # On a pull request that changes the watch, only the self-test runs: the
+      # repository's current bot pull requests are not that change's to fix.
+      - name: Report waiting bot pull requests
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 scripts/stale-bot-prs.py
