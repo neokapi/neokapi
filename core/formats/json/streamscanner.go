@@ -21,7 +21,7 @@ import (
 // scanner targets parity on well-formed JSON/JSON5 (objects, arrays, strings with
 // escapes/surrogates, numbers, literals, bare identifiers, and //, /* */, #,
 // <!-- --> comments). Malformed-input error byte-offsets and the validation-mode
-// snippet window are out of scope — those callers keep the buffered scanner.
+// snippet window are out of scope; those callers keep the buffered scanner.
 //
 // All lookahead is bounded (<= 10 bytes, well within bufio's 4 KiB window), so a
 // bufio.Reader.Peek drives it without holding the document.
@@ -82,8 +82,16 @@ func (s *streamScanner) drop() {
 	}
 }
 
-// next returns the next token, mirroring scanner.next().
+// next returns the next token, with its byte offset, mirroring scanner.next().
 func (s *streamScanner) next() (token, error) {
+	start := s.pos
+	tok, err := s.scanToken()
+	tok.offset = start + len(tok.prefix)
+	return tok, err
+}
+
+// scanToken scans the token at the current position.
+func (s *streamScanner) scanToken() (token, error) {
 	prefix := s.skipWhitespaceAndComments()
 
 	ch, ok := s.peekByte()
@@ -376,7 +384,7 @@ func (s *streamScanner) scanUnicodeEscape(raw *strings.Builder) (rune, error) {
 	}
 	// Surrogate pair: high surrogate followed by \uXXXX low surrogate.
 	if r1 >= 0xD800 && r1 <= 0xDBFF {
-		nb := s.peekN(6) // \ u X X X X
+		nb := s.peekN(6) // \uXXXX
 		if len(nb) == 6 && nb[0] == '\\' && nb[1] == 'u' {
 			r2, err := strconv.ParseUint(string(nb[2:6]), 16, 32)
 			if err == nil && r2 >= 0xDC00 && r2 <= 0xDFFF {

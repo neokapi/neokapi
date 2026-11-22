@@ -24,6 +24,35 @@ type Reader struct {
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 	layerSeq      int          // counter for generating unique child layer IDs
+
+	// structErr is the first grammar violation the walk met: a token where
+	// the grammar allows none of its kind. The walk stops there and the read
+	// fails with it, so a file that is not JSON or JSON5 yields no write-back.
+	structErr    error
+	structOffset int
+}
+
+// failAt records a grammar violation at tok, keeping the first one.
+func (r *Reader) failAt(tok token, expected string) {
+	if r.structErr != nil {
+		return
+	}
+	r.structOffset = tok.offset
+	r.structErr = fmt.Errorf("json reader: expected %s, found %s at position %d", expected, tok.describe(), tok.offset)
+}
+
+// describe names a token for an error message.
+func (t token) describe() string {
+	switch t.typ {
+	case tokenEOF:
+		return "end of input"
+	case tokenString:
+		return "string " + strconv.Quote(t.raw)
+	case tokenNumber:
+		return "number " + t.raw
+	default:
+		return strconv.Quote(t.raw)
+	}
 }
 
 // Ensure Reader implements SubfilterAware, SkeletonStoreEmitter, and StreamingReader.
@@ -168,7 +197,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// Streaming path: a same-format skeleton round-trip with validation off reads
 	// the document token-by-token from a bounded bufio window (no whole-buffer
 	// io.ReadAll, no materialised token slice). The walk is identical to the
-	// buffered path — only the token source differs. Validation mode needs the
+	// buffered path; only the token source differs. Validation mode needs the
 	// whole buffer for snippet windows, and the non-skeleton (cross-format) path
 	// stores json.original, so both stay buffered below.
 	if r.skeletonStore != nil && r.ValidationMode() == format.ValidationOff {
@@ -178,7 +207,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Read all content, bounded by the shared safeio byte budget so an
 	// unbounded/oversized stream fails with a typed error (identical limit
-	// across CLI/server/WASM — see core/safeio).
+	// across CLI/server/WASM; see core/safeio).
 	content, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
 	if err != nil {
 		r.emitErr(ctx, ch, fmt.Errorf("json: reading: %w", err))
@@ -187,7 +216,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Store original JSON for non-skeleton roundtrip. The view shares content's
 	// backing array rather than copying the whole file (safeio.NoCopyString
-	// states the contract); content is only read from here on — newScanner
+	// states the contract). Content is only read from here on: newScanner
 	// reads it but never writes to it.
 	if r.skeletonStore == nil {
 		layer.Properties["json.original"] = safeio.NoCopyString(content)
@@ -201,7 +230,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	tokens, err := sc.scan()
 	if err != nil {
 		// RVM: surface the syntax error as a located structure diagnostic (the
-		// scanner tracked the offset + category). The lenient path is unchanged —
+		// scanner tracked the offset + category). The lenient path is unchanged:
 		// we still emit the error on the channel below.
 		if r.ValidationMode() != format.ValidationOff {
 			category := sc.errCategory
@@ -227,7 +256,23 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	dataCounter := 0
 	state := &readState{pendingMaxwidth: -1}
 	ts := &sliceStream{toks: tokens}
-	r.walkTokenValue(ctx, ch, ts, "", "", layer.ID, &blockCounter, &dataCounter, state)
+	r.walkDocument(ctx, ch, ts, layer.ID, &blockCounter, &dataCounter, state)
+	if r.structErr != nil {
+		if r.ValidationMode() != format.ValidationOff {
+			line, col := format.LineColumn(content, r.structOffset)
+			r.AddDiagnostic(format.Diagnostic{
+				Severity:   format.SeverityMajor,
+				Category:   "structure.json-syntax",
+				Message:    r.structErr.Error(),
+				Line:       line,
+				Column:     col,
+				ByteOffset: r.structOffset,
+				Snippet:    format.SnippetAround(content, r.structOffset, 0),
+			})
+		}
+		r.emitErr(ctx, ch, fmt.Errorf("json: parsing: %w", r.structErr))
+		return
+	}
 
 	// Write trailing whitespace/comments to skeleton store
 	if r.skeletonStore != nil && !ts.done() && ts.cur().typ == tokenEOF {
@@ -255,10 +300,16 @@ func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartR
 	blockCounter := 0
 	dataCounter := 0
 	state := &readState{pendingMaxwidth: -1}
-	r.walkTokenValue(ctx, ch, ts, "", "", layer.ID, &blockCounter, &dataCounter, state)
+	r.walkDocument(ctx, ch, ts, layer.ID, &blockCounter, &dataCounter, state)
 
+	// A scan error ends the stream as if at end of input, so it comes first:
+	// the grammar error it causes ("found end of input") is its consequence.
 	if err := ts.err(); err != nil {
 		r.emitErr(ctx, ch, fmt.Errorf("json: parsing: %w", err))
+		return
+	}
+	if r.structErr != nil {
+		r.emitErr(ctx, ch, fmt.Errorf("json: parsing: %w", r.structErr))
 		return
 	}
 
@@ -269,6 +320,21 @@ func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartR
 	r.skelFlush()
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// walkDocument reads the document: nothing at all, or one value followed by
+// the end of input.
+func (r *Reader) walkDocument(ctx context.Context, ch chan<- model.PartResult,
+	ts tokenStream, parentLayerID string, blockCounter, dataCounter *int, state *readState) {
+
+	r.structErr = nil
+	if ts.cur().typ == tokenEOF {
+		return // an empty document; its whitespace rides on the EOF token
+	}
+	r.walkTokenValue(ctx, ch, ts, "", "", parentLayerID, blockCounter, dataCounter, state)
+	if r.structErr == nil && ts.cur().typ != tokenEOF {
+		r.failAt(ts.cur(), "end of input after the top-level value")
+	}
 }
 
 // walkTokenValue reads a JSON value from the token stream. It is forward and
@@ -296,8 +362,7 @@ func (r *Reader) walkTokenValue(ctx context.Context, ch chan<- model.PartResult,
 		ts.next()
 		r.handleNonStringValue(ctx, ch, tok, keyName, path, parentLayerID, blockCounter, dataCounter, state)
 	default:
-		r.skelToken(tok)
-		ts.next() // skip unexpected tokens
+		r.failAt(tok, "a value")
 	}
 }
 
@@ -316,44 +381,54 @@ func (r *Reader) walkTokenObject(ctx context.Context, ch chan<- model.PartResult
 	state.pendingMeta = nil
 	state.pendingMaxwidth = -1
 
-	for !ts.done() {
+	// A member may follow the opening brace or a comma; after a member only a
+	// comma or the closing brace may. A comma before the closing brace is the
+	// JSON5 trailing comma.
+	expectMember := true
+	for r.structErr == nil {
 		tok := ts.cur()
 		if tok.typ == tokenObjectEnd {
 			r.skelToken(tok)
 			ts.next()
 			break
 		}
-		if tok.typ == tokenComma {
+		if !expectMember {
+			if tok.typ != tokenComma {
+				r.failAt(tok, `"," or "}" after an object member`)
+				break
+			}
 			r.skelToken(tok)
 			ts.next()
+			expectMember = true
 			continue
 		}
 		if tok.typ != tokenString {
-			r.skelToken(tok)
-			ts.next()
-			continue
+			r.failAt(tok, `an object key or "}"`)
+			break
 		}
 
 		key := tok.value
 		r.skelToken(tok) // key string
 		ts.next()
-		// skip colon
-		if !ts.done() && ts.cur().typ == tokenColon {
-			r.skelToken(ts.cur())
-			ts.next()
+		if ts.cur().typ != tokenColon {
+			r.failAt(ts.cur(), `":" after an object key`)
+			break
 		}
+		r.skelToken(ts.cur())
+		ts.next()
 
 		childPath := r.buildPath(key, parentPath)
 
 		// Walk the value (skeleton writing handled by value/handle functions)
 		r.walkTokenValue(ctx, ch, ts, key, childPath, parentLayerID, blockCounter, dataCounter, state)
+		expectMember = false
 	}
 
 	// Flush a dangling note: a configured note/description/comment whose owning
 	// object scope closed with no following translatable block to attach it to.
 	// (Consumed notes ride along as a NoteAnnotation via consumePendingState;
 	// only the unconsumed remainder reaches here.) The note key + delimiters
-	// already live in the skeleton, but the text would otherwise be dropped — so
+	// already live in the skeleton, but the text would otherwise be dropped, so
 	// surface it as a non-translatable Data part carrying the text, visible to
 	// ingestion/LLM consumers. Gated behind ExtractNonTranslatableContent so the
 	// flag-off (parity) path emits the exact same part stream as before. A
@@ -382,24 +457,33 @@ func (r *Reader) walkTokenArray(ctx context.Context, ch chan<- model.PartResult,
 	ts.next()
 	index := 0
 
-	for !ts.done() {
+	// The same shape as an object: a value after the opening bracket or a
+	// comma, then a comma or the closing bracket.
+	expectValue := true
+	for r.structErr == nil {
 		tok := ts.cur()
 		if tok.typ == tokenArrayEnd {
 			r.skelToken(tok)
 			ts.next()
 			break
 		}
-		if tok.typ == tokenComma {
+		if !expectValue {
+			if tok.typ != tokenComma {
+				r.failAt(tok, `"," or "]" after an array element`)
+				break
+			}
 			r.skelToken(tok)
 			ts.next()
+			expectValue = true
 			continue
 		}
+		expectValue = false
 
 		childPath := parentPath + "[" + strconv.Itoa(index) + "]"
 
 		if tok.typ == tokenString && !r.cfg.ExtractIsolatedStrings {
 			if r.cfg.ExtractNonTranslatableContent() {
-				// Isolated string in an array — not extracted for translation,
+				// Isolated string in an array: not extracted for translation,
 				// but surfaced as non-translatable content (visible to
 				// ingestion/LLM consumers, still skipped by MT). The quotes /
 				// delimiters stay in the skeleton (re-synthesized by the writer)
@@ -419,7 +503,7 @@ func (r *Reader) walkTokenArray(ctx context.Context, ch chan<- model.PartResult,
 				}
 				r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 			} else {
-				// Standalone string in array — skip extraction (opaque Data;
+				// Standalone string in array: skip extraction (opaque Data;
 				// byte-identical to the pre-surfacing behavior).
 				r.skelToken(tok)
 				ts.next()
@@ -449,7 +533,7 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 	value := tok.value
 	fullPath := r.fullKeyPath(path)
 
-	// Check metadata rules first — these consume the value without emitting a block
+	// Check metadata rules first. These consume the value without emitting a block
 	if r.cfg.isNote(keyName, fullPath) {
 		state.pendingNote = value
 		state.pendingNotePath = path
@@ -477,7 +561,7 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 	if !r.cfg.shouldExtract(keyName, fullPath) {
 		if r.cfg.ExtractNonTranslatableContent() {
 			// Value excluded from translation by the extraction rules
-			// (Exceptions/ExtractionRules/ExtractAllPairs=false) — surface it as
+			// (Exceptions/ExtractionRules/ExtractAllPairs=false): surface it as
 			// non-translatable content (visible to ingestion/LLM consumers,
 			// still skipped by MT) instead of opaque Data. The key/delimiters
 			// stay in the skeleton and the body rides a skeleton ref, exactly
@@ -567,7 +651,7 @@ func (r *Reader) handleNonStringValue(ctx context.Context, ch chan<- model.PartR
 
 	fullPath := r.fullKeyPath(path)
 
-	// Check maxwidth rules — numeric values set max width
+	// Check maxwidth rules: numeric values set max width
 	if tok.typ == tokenNumber && r.cfg.isMaxwidth(keyName, fullPath) {
 		if v, err := strconv.ParseFloat(tok.value, 64); err == nil {
 			state.pendingMaxwidth = int(v)

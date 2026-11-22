@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	jsonfmt "github.com/neokapi/neokapi/core/formats/json"
 	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
@@ -81,6 +82,20 @@ func TestReadMalformedSurfacesError(t *testing.T) {
 			name:  "dangling escape at eof",
 			input: `{"k": "\`,
 		},
+		// The rest tokenize cleanly and break the grammar.
+		{name: "member with no value (#3616)", input: `{"a": "one", "b": }`},
+		{name: "key with no colon", input: `{"a" "b"}`},
+		{name: "members with no comma", input: `{"a": "b" "c": "d"}`},
+		{name: "elements with no comma", input: `["a" "b"]`},
+		{name: "comma before any member", input: `{, "a": "b"}`},
+		{name: "two commas in an array", input: `["a",, "b"]`},
+		{name: "stray close bracket in an object", input: `{"a": "b", ] }`},
+		{name: "unbalanced open braces", input: "{{{{"},
+		{name: "unbalanced close braces", input: "}}}}"},
+		{name: "truncated array", input: `["a", "b"`},
+		{name: "truncated object after comma", input: `{"a": 1, `},
+		{name: "a second top-level value", input: `{"a": "b"} {"c": "d"}`},
+		{name: "fuzz crasher with no colons", input: `{"a""""a""0"0`},
 	}
 
 	for _, tt := range tests {
@@ -92,60 +107,65 @@ func TestReadMalformedSurfacesError(t *testing.T) {
 	}
 }
 
-// TestReadLenientInputsDoNotPanic feeds inputs the scanner deliberately
-// tolerates. The JSON reader's scanner is a permissive tokenizer (not a
-// validating parser): it accepts JSON5 niceties and recovers from unbalanced
-// structure rather than rejecting it (see scanner.go and reader.go's walk
-// functions). These inputs must therefore not panic and not race; whether they
-// surface an error or parse leniently is an implementation detail we do not
-// over-assert here. The single contract is robustness: no panic.
-//
-// Run with -race to surface any data race in the reader goroutine.
-func TestReadLenientInputsDoNotPanic(t *testing.T) {
+// TestReadMalformedErrorNamesThePosition checks that a grammar error names
+// what was expected and the byte offset of the token found instead, on both the
+// buffered path and the streaming path a skeleton round-trip reads through.
+func TestReadMalformedErrorNamesThePosition(t *testing.T) {
+	t.Parallel()
+	const input = `{"a": "one", "b": }`
+	want := `expected a value, found "}" at position 18`
+
+	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Open(t.Context(), testutil.RawDocFromString(input, model.LocaleEnglish)))
+	require.ErrorContains(t, firstError(t, reader), want)
+
+	streaming := jsonfmt.NewReader()
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	streaming.SetSkeletonStore(store)
+	require.NoError(t, streaming.Open(t.Context(), testutil.RawDocFromString(input, model.LocaleEnglish)))
+	require.ErrorContains(t, firstError(t, streaming), want)
+}
+
+func firstError(t *testing.T, reader *jsonfmt.Reader) error {
+	t.Helper()
+	defer reader.Close()
+	var first error
+	for result := range reader.Read(t.Context()) {
+		if result.Error != nil && first == nil {
+			first = result.Error
+		}
+	}
+	return first
+}
+
+// TestReadAcceptsJSON5 checks that the grammar keeps the JSON5 forms the
+// scanner reads: comments, a trailing comma, bare keys, single quotes, and an
+// empty document.
+func TestReadAcceptsJSON5(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name  string
-		input string
+		name   string
+		input  string
+		blocks int
 	}{
-		{
-			name:  "empty input",
-			input: "",
-		},
-		{
-			// A lone byte-order mark with no following content. The scanner
-			// treats U+FEFF as leading whitespace, so this reduces to empty.
-			name:  "lone bom",
-			input: "\uFEFF",
-		},
-		{
-			// Unbalanced opening braces with no matching close.
-			name:  "unbalanced open braces",
-			input: "{{{{",
-		},
-		{
-			// Unbalanced closing braces with nothing opened.
-			name:  "unbalanced close braces",
-			input: "}}}}",
-		},
-		{
-			// Truncated array: closing bracket missing.
-			name:  "truncated array",
-			input: `["a", "b"`,
-		},
-		{
-			// Truncated object that ends on structural tokens (no open
-			// string), so the tokenizer reaches EOF without an error.
-			name:  "truncated object after comma",
-			input: `{"a": 1, `,
-		},
+		{name: "empty input", input: "", blocks: 0},
+		{name: "lone bom", input: "\uFEFF", blocks: 0},
+		{name: "whitespace and a comment only", input: "  // nothing\n", blocks: 0},
+		{name: "trailing comma in an object", input: `{"a": "b",}`, blocks: 1},
+		{name: "trailing comma in an array", input: `{"a": ["b", "c",]}`, blocks: 2},
+		{name: "bare key and single quotes", input: `{a: 'b'}`, blocks: 1},
+		{name: "comments between tokens", input: "{/* c */ \"a\" /* c */ : // c\n \"b\" # c\n}", blocks: 1},
+		{name: "empty containers", input: `{"a": {}, "b": []}`, blocks: 0},
+		{name: "top-level scalar", input: `"just text"`, blocks: 1},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			require.NotPanics(t, func() {
-				readAll(t, tt.input)
-			})
+			foundError, blocks := readAll(t, tt.input)
+			assert.False(t, foundError)
+			assert.Equal(t, tt.blocks, blocks)
 		})
 	}
 }
