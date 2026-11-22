@@ -74,13 +74,15 @@ func TestExpandOutputPathDirPlaceholder(t *testing.T) {
 	commonDir := filepath.Join(tmp, "locales") + string(filepath.Separator)
 
 	// {dir} expands to the input's directory.
-	got := expandOutputPath(filepath.Join("{dir}", "{lang}", "{name}.{ext}"), input, commonDir, "fr")
+	got, err := expandOutputPath(filepath.Join("{dir}", "{lang}", "{name}.{ext}"), input, commonDir, "fr")
+	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(tmp, "locales", "fr", "messages.json"), got)
 
 	// A trailing-separator dir template (as produced by --output-dir) joins the
 	// file relative to the common dir under DIR/{lang}/.
 	outDir := filepath.Join(tmp, "build")
-	got = expandOutputPath(filepath.Join(outDir, "{lang}")+string(filepath.Separator), input, commonDir, "de")
+	got, err = expandOutputPath(filepath.Join(outDir, "{lang}")+string(filepath.Separator), input, commonDir, "de")
+	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(outDir, "de", "messages.json"), got)
 }
 

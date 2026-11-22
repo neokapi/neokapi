@@ -140,8 +140,11 @@ func compileCollection(
 			// form — it is split, rejoined with a locale, logged, and reported
 			// as a repo-relative path, and each read converts back with
 			// FromSlash — so the one native form entering is normalized here.
-			pattern := filepath.ToSlash(
-				project.ResolveTargetPath(item.Path, item.Base, item.Target, src, langMark))
+			target, err := project.ResolveTargetPath(item.Path, item.Base, item.Target, src, langMark)
+			if err != nil {
+				return nil, fmt.Errorf("target for %s: %w", src, err)
+			}
+			pattern := filepath.ToSlash(target)
 			prefix, suffix, ok := strings.Cut(pattern, langMark)
 			if !ok {
 				return nil, fmt.Errorf("target %q names no {lang}: one catalog per locale needs it", item.Target)

@@ -16,7 +16,8 @@ import (
 // the root and refuses a link that leads out. This drives that second line on
 // its own, as a swap after the check would reach it.
 func TestTheOpenRefusesALinkContainNeverSaw(t *testing.T) {
-	base := t.TempDir()
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
 	root := filepath.Join(base, "root")
 	outside := filepath.Join(base, "outside")
 	require.NoError(t, os.MkdirAll(root, 0o755))

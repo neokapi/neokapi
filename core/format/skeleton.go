@@ -25,7 +25,7 @@ const (
 	// that retarget the document language emit the target locale when the
 	// stored value matches the document's source locale, otherwise they emit
 	// the stored value verbatim. Writers that do not understand this entry
-	// type must treat it as inert — emitting nothing for it would drop the
+	// type must treat it as inert; emitting nothing for it would drop the
 	// attribute value. Only the HTML reader emits SkeletonLang today; other
 	// formats never see it, and their entry-type switches ignore unknown
 	// types (no default case), so this addition is purely additive.
@@ -33,8 +33,8 @@ const (
 	// SkeletonOriginal carries the source bytes that the NEXT SkeletonRef
 	// stands in for, paired with the text that ref renders to while nothing
 	// has edited its block. A reader emits it when extraction normalized the
-	// block — collapsing source line breaks inside the text, dropping edge
-	// whitespace — so the bytes it hands the writer differ from the bytes it
+	// block (collapsing source line breaks inside the text, dropping edge
+	// whitespace), so the bytes it hands the writer differ from the bytes it
 	// read. A writer that understands it replays the original bytes in place
 	// of the ref when the block still renders to the paired text, and takes
 	// its ordinary ref path otherwise; a document nothing edited therefore
@@ -44,9 +44,9 @@ const (
 	// Payload: EncodeSkeletonPair(rendered, original).
 	SkeletonOriginal SkeletonEntryType = 3
 	// SkeletonTrimmed carries source bytes a reader trimmed off the trailing
-	// edge of the text unit named by the PRECEDING SkeletonRef — whitespace
-	// that belongs to neither the extracted text nor any other skeleton entry,
-	// paired with the text that ref renders to while nothing has edited its
+	// edge of the text unit named by the PRECEDING SkeletonRef: whitespace
+	// that belongs to neither the extracted text nor any other skeleton entry.
+	// The bytes are paired with the text that ref renders to while nothing has edited its
 	// block. A writer that understands it emits the bytes when the preceding
 	// block still renders to the paired text, restoring source formatting the
 	// extraction dropped, and suppresses them otherwise.
@@ -68,8 +68,8 @@ const (
 
 // EncodeSkeletonPair packs two byte strings into one length-prefixed payload:
 // a 4-byte big-endian length for a, then a, then b. Both SkeletonOriginal and
-// SkeletonTrimmed carry a pair whose first half is a block's rendered text —
-// content that can hold any byte — so a separator would need escaping and a
+// SkeletonTrimmed carry a pair whose first half is a block's rendered text,
+// which can hold any byte, so a separator would need escaping and a
 // length prefix does not.
 func EncodeSkeletonPair(a, b []byte) []byte {
 	out := make([]byte, 4, 4+len(a)+len(b))
@@ -81,7 +81,7 @@ func EncodeSkeletonPair(a, b []byte) []byte {
 
 // DecodeSkeletonPair splits a payload written by EncodeSkeletonPair. ok is
 // false for a truncated payload, which a writer treats as an entry it cannot
-// act on rather than an error — the SkeletonRef beside it still carries the
+// act on rather than an error. The SkeletonRef beside it still carries the
 // content, so the round-trip degrades to the un-restored output instead of
 // losing text.
 func DecodeSkeletonPair(data []byte) (a, b []byte, ok bool) {
@@ -118,7 +118,7 @@ type SkeletonStore struct {
 	// the writer's no-skeleton path instead of producing empty output.
 
 	// originFormat names the format that produced this skeleton. A skeleton is
-	// the typed scaffolding of ONE format — it is meaningful only to that
+	// the typed scaffolding of ONE format, meaningful only to that
 	// format's writer. WireSkeleton stamps it and refuses to feed the skeleton
 	// to a writer of a different format, so a cross-format conversion can never
 	// consume a foreign skeleton (it reconstructs from the content model
@@ -135,9 +135,9 @@ type SkeletonStore struct {
 	// writeErr holds the first error a buffered write hit. WriteText/WriteRef/
 	// WriteLang do not return an error: a memory- or streaming-backed store
 	// cannot fail a write, and a file-backed store buffers through a bufio.Writer
-	// whose I/O only reaches disk on an internal flush — an error there is
+	// whose I/O only reaches disk on an internal flush. An error there is
 	// retained here (and by bufio) and surfaced at Flush/Bytes, which every
-	// consumer already checks before replaying the skeleton. Recording it once,
+	// consumer checks before replaying the skeleton. Recording it once,
 	// stickily, keeps that single surface honest without a per-write error return
 	// that all ~113 reader call sites would otherwise discard.
 	writeErr error
@@ -156,6 +156,10 @@ type skeletonStream struct {
 	cond   *sync.Cond
 	queue  []SkeletonEntry
 	closed bool
+	// waiting is true while Next waits on an empty queue.
+	waiting bool
+	// onWait, when set, runs under mu each time Next starts to wait.
+	onWait func()
 }
 
 // NewStreamingSkeletonStore creates a skeleton store in concurrent streaming
@@ -188,6 +192,32 @@ func (s *SkeletonStore) CloseWrite() {
 	s.stream.mu.Unlock()
 }
 
+// SetWaitHook makes a streaming store call f each time Next starts to wait
+// on an empty queue. f runs with the store locked, so it must not block or
+// call the store. A memory test uses it to learn that the writer has written
+// everything the reader has given it (see Waiting). A no-op on a buffered
+// store.
+func (s *SkeletonStore) SetWaitHook(f func()) {
+	if s.stream == nil {
+		return
+	}
+	s.stream.mu.Lock()
+	s.stream.onWait = f
+	s.stream.mu.Unlock()
+}
+
+// Waiting reports whether a streaming store's Next is waiting on an empty
+// queue, which holds until the reader writes another entry or closes the
+// store. Always false on a buffered store.
+func (s *SkeletonStore) Waiting() bool {
+	if s.stream == nil {
+		return false
+	}
+	s.stream.mu.Lock()
+	defer s.stream.mu.Unlock()
+	return s.stream.waiting && len(s.stream.queue) == 0 && !s.stream.closed
+}
+
 // OriginFormat returns the format id that produced this skeleton, or "".
 func (s *SkeletonStore) OriginFormat() string { return s.originFormat }
 
@@ -197,7 +227,7 @@ func (s *SkeletonStore) SetOriginFormat(name string) { s.originFormat = name }
 // EntriesWritten returns the number of skeleton entries written so far.
 // Useful for callers that wire SetSkeletonStore on both reader and writer
 // but want to avoid the writer's skeleton path when the reader produced
-// nothing — typically a partial implementation that satisfies
+// nothing, typically a partial implementation that satisfies
 // SkeletonStoreEmitter without actually emitting.
 // In streaming mode the counter is incremented by the reader's goroutine while
 // the writer's goroutine may be asking, so the read takes the same lock the
@@ -249,19 +279,17 @@ func (s *SkeletonStore) Bytes() ([]byte, error) {
 }
 
 // NewSkeletonStore creates a new skeleton store backed by a temporary file.
-// The file is removed when Close is called — use NewSkeletonStoreAt for a
+// The file is removed when Close is called. Use NewSkeletonStoreAt for a
 // store that survives Close() for later reuse (e.g. kapi extract capturing
 // a source-file skeleton for kapi merge).
 //
-// On a platform with no temp filesystem at all (js/wasm — see
+// On a platform with no temp filesystem at all (js/wasm, see
 // tempFilesystemAvailable) the backing is in-memory *by design*: there is no
 // alternative there, and browser documents are small. On every platform that
 // does have one, a temp file that cannot be created is an operational fault and
-// is returned as an error. It used to fall back to memory unconditionally, which
-// silently substituted an unbounded in-memory buffer for a spill-to-disk store —
-// and, worse, made this error unreachable, so the callers that discarded it (all
-// seven of them, silently degrading a faithful round-trip into a reconstruction)
-// could never be caught. Callers must propagate: see NewWiredSkeleton.
+// is returned as an error, never replaced by an unbounded in-memory buffer.
+// A caller that discards the error degrades a faithful round-trip into a
+// reconstruction, so callers must propagate it: see NewWiredSkeleton.
 func NewSkeletonStore() (*SkeletonStore, error) {
 	if !tempFilesystemAvailable {
 		return NewMemorySkeletonStore(), nil
@@ -316,7 +344,7 @@ func NewSkeletonStoreAt(path string) (*SkeletonStore, error) {
 
 // NewSkeletonStoreFromBytes returns a read-mode skeleton store backed by the
 // given serialized stream (the bytes a prior Bytes() call produced). Use it to
-// consume a skeleton carried inline rather than on the filesystem — e.g. a
+// consume a skeleton carried inline rather than on the filesystem, e.g. a
 // .kpz package that embeds the round-trip skeleton as a member (AD-025 §6).
 // The store is ready to read via Next(); Close() is a no-op (no backing file).
 func NewSkeletonStoreFromBytes(data []byte) *SkeletonStore {
@@ -329,7 +357,7 @@ func NewSkeletonStoreFromBytes(data []byte) *SkeletonStore {
 
 // OpenSkeletonStore opens an existing persisted skeleton file for reading.
 // Used by kapi merge to load the source-file skeleton captured by a prior
-// extract run. Callers do not need to call Flush — the store is returned
+// extract run. Callers do not need to call Flush: the store is returned
 // in read mode. Close() will not remove the backing file.
 func OpenSkeletonStore(path string) (*SkeletonStore, error) {
 	f, err := os.Open(path)
@@ -343,7 +371,7 @@ func OpenSkeletonStore(path string) (*SkeletonStore, error) {
 	}, nil
 }
 
-// WriteText writes a non-translatable text entry to the store. It does not
+// WriteText writes a text entry (document bytes no block holds) to the store. It does not
 // return an error: writes buffer (memory/streaming backings cannot fail; a
 // file backing goes through a bufio.Writer), so any I/O error is retained on
 // the store and surfaced at Flush/Bytes, which every consumer checks before
@@ -446,7 +474,7 @@ func (s *SkeletonStore) Flush() error {
 		return fmt.Errorf("skeleton store: deferred write: %w", s.writeErr)
 	}
 	if s.reader != nil && s.writer == nil {
-		// Already prepared for reading by OpenSkeletonStore — nothing to
+		// Already prepared for reading by OpenSkeletonStore, so nothing to
 		// flush. The seek-to-start guarantee still holds since the file
 		// hasn't been read yet.
 		return nil
@@ -475,7 +503,12 @@ func (s *SkeletonStore) Next() (SkeletonEntry, error) {
 		s.stream.mu.Lock()
 		defer s.stream.mu.Unlock()
 		for len(s.stream.queue) == 0 && !s.stream.closed {
+			s.stream.waiting = true
+			if s.stream.onWait != nil {
+				s.stream.onWait()
+			}
 			s.stream.cond.Wait()
+			s.stream.waiting = false
 		}
 		if len(s.stream.queue) == 0 {
 			return SkeletonEntry{}, io.EOF
@@ -515,9 +548,9 @@ func (s *SkeletonStore) Next() (SkeletonEntry, error) {
 //
 // Close is a surfacing point for s.writeErr, not just Flush/Bytes: the
 // *persistent* producers (kapi extract, the project document cache) only ever
-// call Close, so dropping the deferred write error here left a TRUNCATED
-// skeleton file that stats clean. A later replay then stops at the short record
-// boundary and reads it as end-of-document — a truncated deliverable reported as
+// call Close. Dropping the deferred write error here would leave a TRUNCATED
+// skeleton file that stats clean. A later replay would stop at the short record
+// boundary and read it as end-of-document: a truncated deliverable reported as
 // success, the same family of defect as #1449.
 func (s *SkeletonStore) Close() error {
 	if s.stream != nil {
@@ -560,14 +593,14 @@ type SkeletonStoreEmitter interface {
 // Consuming a skeleton (for byte-exact same-format fidelity) is ORTHOGONAL to
 // being generative: HTML both consumes a skeleton when given one and writes a
 // clean document without one. So this interface does not say a writer needs a
-// skeleton — only that it will use one if offered (see GenerativeWriter).
+// skeleton, only that it will use one if offered (see GenerativeWriter).
 type SkeletonStoreConsumer interface {
 	SetSkeletonStore(store *SkeletonStore)
 }
 
 // SkeletonPairEligible reports whether a reader→writer pair has a skeleton path
 // at all: the reader emits one, the writer consumes one, and they are the same
-// format (a skeleton is meaningless to a foreign writer — see WireSkeleton).
+// format (a skeleton is meaningless to a foreign writer; see WireSkeleton).
 // When this is false the writer legitimately reconstructs from the content
 // model, which is the documented lower-fidelity path; when it is true, the
 // skeleton is the only thing that carries the structure the reader could not
@@ -586,29 +619,26 @@ func SkeletonPairEligible(reader DataFormatReader, writer DataFormatWriter) bool
 }
 
 // NewWiredSkeleton creates the temp-file-backed skeleton store a same-format
-// reader→writer pair needs and wires both ends. It is the single seam for "give
-// this round-trip its skeleton", so the decision cannot drift across the call
-// sites that make it (core/flow's file and stream runners, the toolbox
-// edit/convert/archive paths, the tool runner, and the desktop's in-place
-// rewrite).
+// reader→writer pair needs and wires both ends. Every call site uses it
+// (core/flow's runners, the toolbox edit/convert/archive paths, the tool
+// runner, the desktop's in-place rewrite), so the decision cannot drift.
 //
-// The backing is deliberately NOT chosen from the pair's streaming capability.
-// A streaming store blocks the writer inside Next() until the reader's feeder
-// calls CloseWrite, which only the concurrent read↔write protocol in core/flow
-// does; a caller that buffers the whole part stream and then writes would
-// deadlock. Callers that drive that protocol use NewWiredStreamingSkeleton.
+// The backing is NOT chosen from the pair's streaming capability. A streaming
+// store blocks the writer in Next() until the reader's feeder calls
+// CloseWrite, which only core/flow's concurrent read↔write protocol does; a
+// caller that buffers the part stream would deadlock. That protocol uses
+// NewWiredStreamingSkeleton.
 //
 // Returns:
 //
-//   - (nil, nil) — the pair has no skeleton path (SkeletonPairEligible is
-//     false). The writer reconstructs from the content model; that is the
-//     documented behaviour, not a degradation.
-//   - (nil, err) — a skeleton path exists but the store could not be created.
-//     This must never be swallowed. Discarding it silently turns a byte-exact
-//     same-format pass into a re-serialization from the content model: the
-//     structure the reader could not model (WordprocessingML fragments, unknown
-//     elements, comment and whitespace layout, attribute spacing) is dropped
-//     while the command still reports success.
+//   - (nil, nil): the pair has no skeleton path (SkeletonPairEligible is
+//     false), and the writer reconstructs from the content model as
+//     documented.
+//   - (nil, err): a skeleton path exists but the store could not be created.
+//     Never swallow it. Discarding it turns a byte-exact pass into a
+//     re-serialization that drops what the reader could not model
+//     (WordprocessingML fragments, unknown elements, whitespace layout,
+//     attribute spacing) while the command reports success.
 func NewWiredSkeleton(reader DataFormatReader, writer DataFormatWriter) (*SkeletonStore, error) {
 	if !SkeletonPairEligible(reader, writer) {
 		return nil, nil
@@ -640,7 +670,7 @@ func NewWiredReadSkeleton(reader DataFormatReader, writer DataFormatWriter) *Ske
 // drives the concurrent streaming protocol (the reader feeds entries from its
 // read goroutine and calls CloseWrite; the writer pops them interleaved with the
 // Part stream). The store is channel-backed, so it needs no temp file and cannot
-// fail — the error return exists on NewWiredSkeleton alone. Returns nil when the
+// fail; the error return exists on NewWiredSkeleton alone. Returns nil when the
 // pair has no skeleton path.
 func NewWiredStreamingSkeleton(reader DataFormatReader, writer DataFormatWriter) *SkeletonStore {
 	if !SkeletonPairEligible(reader, writer) {
@@ -651,7 +681,7 @@ func NewWiredStreamingSkeleton(reader DataFormatReader, writer DataFormatWriter)
 	return store
 }
 
-// WireSkeleton connects a reader's skeleton emission to a writer — but only when
+// WireSkeleton connects a reader's skeleton emission to a writer, but only when
 // they are the SAME format. A skeleton is the typed scaffolding of one format
 // (origin-tagged on the store), foreign to any other writer, so a cross-format
 // conversion must never feed it to the target writer; that writer reconstructs
@@ -682,7 +712,7 @@ func WireSkeleton(store *SkeletonStore, reader DataFormatReader, writer DataForm
 // serialize a complete document from the content model alone. BaseFormatWriter
 // implements it (via the RequiresSkeleton declaration), so every writer that
 // embeds the base exposes it. The registry probes this once at registration to
-// record FormatInfo.Generative — the declarative, no-plugin-load source of truth
+// record FormatInfo.Generative: the declarative, no-plugin-load source of truth
 // for whether a format is a valid cross-format conversion target.
 type GenerativeWriter interface {
 	Generative() bool
@@ -690,7 +720,7 @@ type GenerativeWriter interface {
 
 // InterchangeWriter is implemented by bilingual translation-interchange writers
 // (XLIFF, PO, TMX, …). The registry records it on FormatInfo.Interchange so
-// `convert` can exclude them — they belong to the extract/merge loop, not to
+// `convert` can exclude them, since they belong to the extract/merge loop, not to
 // document conversion. BaseFormatWriter implements it via the Interchange field.
 type InterchangeWriter interface {
 	IsInterchange() bool

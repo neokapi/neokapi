@@ -160,6 +160,11 @@ collections:
         format: { name: sourcecode, config: { language: ruby, node_path_patterns: [desc, caveats] } }
 ```
 
+A `target:` lies inside the project. An absolute target, or one that climbs out
+with `..`, is refused when the recipe loads; move the recipe or the target so the
+target lies inside the project. A target that a symbolic link leads outside the
+project is refused when it is written.
+
 - **Voice profile**: `kapi voice import <file.yaml>` files one in the project's
   voice store and prints its id; bind that id under `defaults.voice.profile`.
   `kapi voice check <file>`, `voice rewrite` and `kapi context <file>` then resolve it

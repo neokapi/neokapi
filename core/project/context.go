@@ -116,7 +116,7 @@ func (ctx *ProjectContext) PathLocale(id model.LocaleID) string {
 
 // TargetPath expands a content item's target template for one source file and
 // locale, rendering the locale in the project's declared style.
-func (ctx *ProjectContext) TargetPath(item ContentItem, sourceRel string, id model.LocaleID) string {
+func (ctx *ProjectContext) TargetPath(item ContentItem, sourceRel string, id model.LocaleID) (string, error) {
 	format := ""
 	if ctx != nil {
 		format = ctx.LocaleFormat
@@ -125,12 +125,17 @@ func (ctx *ProjectContext) TargetPath(item ContentItem, sourceRel string, id mod
 }
 
 // TargetFile is TargetPath as a path on disk: a relative expansion is joined
-// to the project directory. It returns "" when the item declares no target.
+// to the project directory. It returns "" when the item declares no target,
+// or when the source's name is not a safe segment for the template.
 func (ctx *ProjectContext) TargetFile(item ContentItem, sourceRel string, id model.LocaleID) string {
 	if item.Target == "" {
 		return ""
 	}
-	out := ctx.TargetPath(item, sourceRel, id)
+	out, err := ctx.TargetPath(item, sourceRel, id)
+	if err != nil {
+		// A name the template cannot hold safely has no target.
+		return ""
+	}
 	if filepath.IsAbs(out) || ctx == nil {
 		return out
 	}

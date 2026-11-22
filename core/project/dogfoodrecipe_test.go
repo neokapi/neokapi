@@ -102,7 +102,7 @@ func TestDogfoodRecipeResolves(t *testing.T) {
 			require.NotNil(t, matched, "no item pattern matches %s", tt.source)
 			assert.Equal(t, tt.wantPath, matched.Path)
 			assert.Equal(t, tt.wantTarget,
-				filepath.ToSlash(ResolveTargetPath(matched.Path, matched.Base, matched.Target, tt.source, "nb")))
+				filepath.ToSlash(mustPath(ResolveTargetPath(matched.Path, matched.Base, matched.Target, tt.source, "nb"))))
 		})
 	}
 }

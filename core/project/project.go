@@ -796,6 +796,23 @@ func (c *Collection) IsBareEntry() bool {
 	return c.Path != "" && len(c.Content) == 0
 }
 
+// validateTargetInside refuses a target template that lies outside the
+// project: an absolute path, or one that climbs out of the project directory
+// with "..". The template is judged as written, with each token taken as a
+// name, so every file it expands to stays beneath the project. A target that a
+// symbolic link inside the project leads outside is refused when it is
+// written.
+func validateTargetInside(field, target string) error {
+	if target == "" {
+		return nil
+	}
+	t := filepath.FromSlash(target)
+	if filepath.IsAbs(t) || filepath.VolumeName(t) != "" || strings.HasPrefix(target, "/") || !filepath.IsLocal(filepath.Clean(t)) {
+		return fmt.Errorf("%s: %q lies outside the project. Move the recipe or the target so the target lies inside the project", field, target)
+	}
+	return nil
+}
+
 // validateSourceOnly rejects a collection that declares source_only and then
 // contradicts it.
 //
@@ -840,9 +857,9 @@ func (c *Collection) validateSourceOnly(i int) error {
 // target tokens then relativize against the joined pattern's own fixed prefix,
 // which is what makes `base:` a location and not a second relativization root.
 //
-// For bare entries it wraps the promoted fields as a single-item slice
-// (carrying the bare entry's Extras through, so platform-specific per-item
-// fields survive).
+// For bare entries it wraps the promoted fields as a single-item slice,
+// carrying the bare entry's Extras so platform-specific per-item fields
+// survive.
 //
 // The collection's languages fold in the same way its base does: an item that
 // declares none of its own carries the collection's. Every host path resolves
@@ -1200,6 +1217,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 		if err := c.Redaction.validateAt(fmt.Sprintf("collections[%d].redaction", i)); err != nil {
 			return err
 		}
+		if err := validateTargetInside(fmt.Sprintf("collections[%d].target", i), JoinBase(c.Base, c.Target)); err != nil {
+			return err
+		}
 		if c.IsBareEntry() {
 			if c.Path == "" {
 				return fmt.Errorf("collections[%d]: path is required for bare entries", i)
@@ -1214,6 +1234,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 			for j, item := range c.Content {
 				if item.Path == "" {
 					return fmt.Errorf("collections[%d].content[%d]: path is required", i, j)
+				}
+				if err := validateTargetInside(fmt.Sprintf("collections[%d].content[%d].target", i, j), JoinBase(c.Base, item.Target)); err != nil {
+					return err
 				}
 				if err := item.validateCommentsOnly(fmt.Sprintf("collections[%d].content[%d]", i, j)); err != nil {
 					return err
