@@ -128,7 +128,7 @@ PINS = [
         "name": "whisper.cpp",
         "where": [(".github/workflows/release-asr.yml", r'WHISPER_CPP_VERSION: "v(\d+\.\d+\.\d+)"')],
         "latest": ("github-tag", "ggml-org/whisper.cpp"),
-        "note": "Upstream publishes prebuilt binaries under separate build tags (b<number>), not under the version tag. The workflow needs both pins before this can move.",
+        "note": "Coupled: upstream publishes prebuilt binaries under a build tag (b<number>), not under the version tag. Raise WHISPER_CPP_BUILD to the build tag cut from the same commit, WHISPER_CPP_COMMIT to that commit, and every sha256 in the matrix; the workflow's pin check fails when the two tags name different commits. Dry-run release-asr.yml.",
     },
     {
         "name": "actionlint",
