@@ -117,20 +117,37 @@ What grows, and what is safe to trim while other builds run:
   agent session builds with `-trimpath`, so worktrees at one commit share it
   ([go-build-flags.md](../../../docs/internals/go-build-flags.md)). A raw `go`
   without `GOFLAGS=-trimpath` fills a second copy. Never run `go clean -cache`
-  while builds run. To trim, delete only entries older than 150 minutes:
+  while builds run. To trim, delete only entries older than 100 minutes:
 
   ```bash
-  find "$(go env GOCACHE)" -type f -mmin +150 ! -name README ! -name trim.txt -delete
+  find "$(go env GOCACHE)" -type f -mmin +100 ! -name README ! -name trim.txt -delete
   ```
 
   Go refreshes an entry's modification time only when a build uses an entry
   older than an hour, and a build reads the entries it compiled against again
   when it links. So an entry a running build still needs can be an hour old
-  plus that build's duration. A 45-minute trim broke a running build in
-  November 2026. 150 minutes covers builds of up to 90 minutes.
+  plus that build's duration, and the trim age must be over 60 minutes plus
+  the longest build that is running. In November 2026 a 45-minute trim broke
+  a running build, and with a 150-minute trim the disk still filled twice in
+  an afternoon. 100 minutes covers builds of up to 40 minutes.
+
+  One cold compile of `go test ./core/... ./host/...` writes 1.3 GB. After
+  that, an edit to a package whose exported API does not change adds about
+  10 MB, and a second worktree at the same commit adds 3 MB.
+- **Docker's build cache.** `docker system df` shows it. A few hours of stack
+  builds from several worktrees left 11 GB. `docker builder prune -f` removes
+  only cache no image uses; never prune volumes or images another agent's
+  stack runs on.
+- **The temporary directory** (`getconf DARWIN_USER_TEMP_DIR`). Nothing of
+  ours should stay there after a run: the CI test jobs run through
+  `scripts/check-temp-leaks.sh`, which fails a run that leaves a file behind.
+  Run a suite you changed through it the same way.
+- **Test binaries.** `go test ./...` links every package's test binary in the
+  build work directory at once: 1.34 GB at peak for the bowrain module. The
+  make targets link them without DWARF, which saves about a quarter.
 - **Your own measurements.** Use a scratch `GOCACHE` and a scratch `TMPDIR`,
-  and delete them when you are done. Never delete under the shared temporary
-  directory or another worktree.
+  keep only one at a time, and delete each the moment the measurement is done.
+  Never delete under the shared temporary directory or another worktree.
 
 ## A change to a check
 
