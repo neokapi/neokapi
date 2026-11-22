@@ -11,11 +11,11 @@ import (
 // oversized total payload, and an entry-count flood. The semantics mirror
 // Apache POI's ZipSecureFile, which is the canonical Java implementation:
 //
-//   - MaxEntrySize    — POI setMaxEntrySize (per-entry uncompressed cap).
-//   - MinInflateRatio — POI setMinInflateRatio (compressed/uncompressed; below
+//   - MaxEntrySize: POI setMaxEntrySize (per-entry uncompressed cap).
+//   - MinInflateRatio: POI setMinInflateRatio (compressed/uncompressed; below
 //     this an entry is treated as a bomb). POI's default is 0.01 (100:1).
-//   - MaxTotalSize    — cumulative uncompressed cap across the archive.
-//   - MaxEntries      — entry-count cap.
+//   - MaxTotalSize: cumulative uncompressed cap across the archive.
+//   - MaxEntries: entry-count cap.
 //
 // The zero value is not useful; use [DefaultZipLimits], compose from a
 // [Budget], or fill the fields and let withDefaults backfill zero fields.
@@ -216,3 +216,46 @@ func (e *entryReader) Read(p []byte) (int, error) {
 
 // Close closes the underlying entry reader.
 func (e *entryReader) Close() error { return e.rc.Close() }
+
+// extTimeExtraID is the zip "extended timestamp" extra field (0x5455, "UT").
+const extTimeExtraID = 0x5455
+
+// RewriteHeader returns a copy of src for writing an entry whose content is
+// rewritten: the sizes and checksum are cleared for the writer to fill, and
+// any extended-timestamp field is dropped from the extra data.
+//
+// [zip.Writer.CreateHeader] appends an extended-timestamp field whenever the
+// header carries a modification time, and [zip.Reader] fills that time in
+// from the entry it read. Copying a read header without this would add one
+// more field on every rewrite, so a document written twice would differ from
+// one written once.
+func RewriteHeader(src *zip.FileHeader) *zip.FileHeader {
+	fh := *src
+	fh.CompressedSize64 = 0
+	fh.UncompressedSize64 = 0
+	fh.CRC32 = 0
+	fh.Extra = withoutExtraField(src.Extra, extTimeExtraID)
+	return &fh
+}
+
+// withoutExtraField returns extra with every field carrying id removed. A
+// truncated trailing field is kept as it is.
+func withoutExtraField(extra []byte, id uint16) []byte {
+	var out []byte
+	for rest := extra; len(rest) > 0; {
+		if len(rest) < 4 {
+			out = append(out, rest...)
+			break
+		}
+		size := int(rest[2]) | int(rest[3])<<8
+		if 4+size > len(rest) {
+			out = append(out, rest...)
+			break
+		}
+		if fieldID := uint16(rest[0]) | uint16(rest[1])<<8; fieldID != id {
+			out = append(out, rest[:4+size]...)
+		}
+		rest = rest[4+size:]
+	}
+	return out
+}

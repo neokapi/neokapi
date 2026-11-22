@@ -16,6 +16,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/xmlesc"
 )
 
@@ -1091,12 +1092,9 @@ func openMediaReplacement(m *model.Media) (io.ReadCloser, error) {
 // writeMediaReplacement streams a locale-variant media reference into the output
 // ZIP under the original entry's recompressed header.
 func writeMediaReplacement(zw *zip.Writer, f *zip.File, media *model.Media) error {
-	fh := f.FileHeader
+	fh := safeio.RewriteHeader(&f.FileHeader)
 	fh.Method = zip.Deflate
-	fh.CompressedSize64 = 0
-	fh.UncompressedSize64 = 0
-	fh.CRC32 = 0
-	fw, err := zw.CreateHeader(&fh)
+	fw, err := zw.CreateHeader(fh)
 	if err != nil {
 		return err
 	}
@@ -1577,13 +1575,9 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 			}
 			content = postWML(f.Name, content)
 			content = restoreWMLReplays(content, replays[f.Name])
-			fh := f.FileHeader
+			fh := safeio.RewriteHeader(&f.FileHeader)
 			fh.Method = zip.Deflate
-			// Clear data descriptor fields to avoid checksum issues
-			fh.CompressedSize64 = 0
-			fh.UncompressedSize64 = 0
-			fh.CRC32 = 0
-			fw, err := zw.CreateHeader(&fh)
+			fw, err := zw.CreateHeader(fh)
 			if err != nil {
 				return err
 			}
@@ -1615,12 +1609,9 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 				}
 				continue
 			}
-			fh := f.FileHeader
+			fh := safeio.RewriteHeader(&f.FileHeader)
 			fh.Method = zip.Deflate
-			fh.CompressedSize64 = 0
-			fh.UncompressedSize64 = 0
-			fh.CRC32 = 0
-			fw, err := zw.CreateHeader(&fh)
+			fw, err := zw.CreateHeader(fh)
 			if err != nil {
 				return err
 			}

@@ -151,8 +151,8 @@ func isSubfilteredLayer(layer *model.Layer) bool {
 // Reconstruction splices translated text into the entry's *original* bytes
 // (replaceXHTMLText) rather than re-rendering the Part stream through the
 // sub-format writer. The sub-writer only has the content model, so it returns
-// normalized markup — a synthesized doctype, the XML declaration rewritten as a
-// comment, `<title>` duplicated into the body, indentation gone — and an
+// normalized markup (a synthesized doctype, the XML declaration rewritten as a
+// comment, `<title>` duplicated into the body, indentation gone), and an
 // untouched EPUB stops round-tripping byte-for-byte. The splice touches only the
 // character data of the blocks that changed, which is the same guarantee the
 // non-subfiltered path gives.
@@ -246,7 +246,7 @@ collected:
 
 // sourceEntry returns the named entry's bytes from the source archive, reading
 // the archive once and caching every entry. Returns false when there is no
-// source, or the archive has no such entry — a generated entry with no original
+// source, or the archive has no such entry. A generated entry with no original
 // is written by the sub-writer from the content model, which is correct for it.
 func (w *Writer) sourceEntry(name string) ([]byte, bool) {
 	if name == "" || !w.hasSource() {
@@ -342,7 +342,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerVal
 				continue
 			}
 
-			// Regular block ref or layer ref — render translated text
+			// Regular block ref or layer ref: render translated text
 			if currentPart != "" {
 				if strings.HasPrefix(refID, "layer:") {
 					layerPath := refID[6:]
@@ -369,11 +369,8 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerVal
 	for _, file := range zr.File {
 		if content, ok := partContents[file.Name]; ok && len(content) > 0 {
 			// Replace with skeleton-reconstructed content
-			fh := file.FileHeader
-			fh.CompressedSize64 = 0
-			fh.UncompressedSize64 = 0
-			fh.CRC32 = 0
-			fw, err := zw.CreateHeader(&fh)
+			fh := safeio.RewriteHeader(&file.FileHeader)
+			fw, err := zw.CreateHeader(fh)
 			if err != nil {
 				return err
 			}
@@ -381,7 +378,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerVal
 				return err
 			}
 		} else {
-			// Copy unchanged — use raw copy to preserve CRC/data descriptors
+			// Copy unchanged: use raw copy to preserve CRC/data descriptors
 			if err := zw.Copy(file); err != nil {
 				return err
 			}
@@ -445,8 +442,7 @@ func (w *Writer) writeEPUB(parts []*model.Part, childLayerValues map[string]stri
 		}
 
 		// Preserve compression settings via header copy
-		header := file.FileHeader
-		writer, err := zw.CreateHeader(&header)
+		writer, err := zw.CreateHeader(safeio.RewriteHeader(&file.FileHeader))
 		if err != nil {
 			return err
 		}
@@ -459,7 +455,7 @@ func (w *Writer) writeEPUB(parts []*model.Part, childLayerValues map[string]stri
 		} else if blocks, ok := entryBlocks[file.Name]; ok && len(blocks) > 0 {
 			// Read original content, bounded by the shared safeio zip limits
 			// (per-entry uncompressed size + inflate-ratio zip-bomb guard on
-			// the actual stream) — the writer may re-open the archive from
+			// the actual stream). The writer may re-open the archive from
 			// disk, so it cannot rely on the reader's earlier validation.
 			origContent, err := safeio.DefaultZipLimits.ReadEntry(file)
 			if err != nil {
@@ -488,30 +484,28 @@ func (w *Writer) writeEPUB(parts []*model.Part, childLayerValues map[string]stri
 	return nil
 }
 
-// replaceXHTMLText rewrites an XHTML entry in place: every span of character
+// replaceXHTMLText rewrites an XHTML entry in place. Every span of character
 // data that belongs to a translatable block is replaced with the text the
 // pipeline produced (the target for locale when the block has one, otherwise the
-// block's own source), and every other byte of the entry is the original byte.
+// block's own source). Every other byte of the entry is the original byte.
 //
-// Two things are load-bearing here.
-//
-// The lookup key is the text the reader recorded for the block (propXHTMLText) —
-// what actually stands in this entry — never the block's current source. Keyed on
-// the current source the comparison is tautological: after a source edit the
-// needle IS the new text, so it matches nothing in the original entry, the
-// replacement no-ops, and the write reports success with the edit missing from
-// the file (#1482). Blocks carrying no recorded witness (built by something other
-// than this reader) fall back to their source, the best available statement of
-// what they replace.
-//
-// And the entry is spliced, not re-encoded. Round-tripping the token stream
-// through encoding/xml re-declared the default namespace on every element
-// (`<html xmlns="…" xmlns="…">`, `<p xmlns="…">`) because the decoder resolves
-// each name into Name.Space and the encoder re-emits it — invalid XML, produced
-// even when nothing had been edited. Splicing preserves the entry byte for byte
-// outside the replaced spans, which is the same "keep the original, overwrite
-// only what changed" discipline the other package writers follow.
+// The lookup key is the text the reader recorded for the block (propXHTMLText),
+// which is what actually stands in this entry, never the block's current source.
+// Keyed on the current source, the comparison is tautological: after a source
+// edit the needle IS the new text, so it matches nothing in the original entry.
+// The replacement no-ops, and the write reports success with the edit missing
+// from the file (#1482). Blocks carrying no recorded witness (built by something
+// other than this reader) fall back to their source, the best available
+// statement of what they replace.
 func replaceXHTMLText(content []byte, blocks []*model.Block, locale model.LocaleID) []byte {
+	// The entry is spliced, not re-encoded. Round-tripping the token stream
+	// through encoding/xml re-declares the default namespace on every element
+	// (`<html xmlns="…" xmlns="…">`, `<p xmlns="…">`), because the decoder
+	// resolves each name into Name.Space and the encoder re-emits it. The result
+	// is invalid XML, even when nothing was edited. Splicing preserves the entry
+	// byte for byte outside the replaced spans, the same "keep the original,
+	// overwrite only what changed" discipline the other package writers follow.
+
 	// Build a map from the text as read to the text to write.
 	replacements := make(map[string]string)
 	for _, block := range blocks {
