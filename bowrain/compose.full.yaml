@@ -129,7 +129,7 @@ services:
     # The Versity S3 gateway (Apache-2.0) over a directory, pinned to the
     # release the test suites use (bowrain/testutil/testimage), so the local
     # stack and the tests stand up the same server.
-    image: versity/versitygw:v1.8.0
+    image: versity/versitygw:v1.11.0
     command: ["--access", "bowrainlocal", "--secret", "bowrainlocal-secret", "posix", "/data"]
     ports:
       - "9000:7070"
@@ -138,7 +138,7 @@ services:
 
   # One-shot: create the blob bucket, mirroring the Terraform S3 bucket in prod.
   s3-init:
-    image: amazon/aws-cli:2.27.50
+    image: amazon/aws-cli:2.41.1
     depends_on:
       s3:
         condition: service_started
