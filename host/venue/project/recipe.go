@@ -106,7 +106,7 @@ func LoadRecipe(path string) (*Recipe, error) {
 	}
 	var r Recipe
 	if err := yaml.Unmarshal(data, &r); err != nil {
-		return nil, fmt.Errorf("parse recipe: %w", err)
+		return nil, fmt.Errorf("parse recipe: %w", coreproj.RecipeYAMLError(err))
 	}
 	// Recipe embeds KapiProject inline, so a top-level key no field matches is
 	// dropped rather than routed to Extras, and the registered decoder for a

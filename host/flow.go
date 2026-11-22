@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -864,7 +865,7 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 
 			if errors.Is(err, errSkippedFile) {
 				mu.Lock()
-				if use := (*project.UnsafeSegmentError)(nil); errors.As(err, &use) {
+				if use := unnamedTarget(err); use != nil {
 					unnamed = append(unnamed, fmt.Sprintf("%s (%v)", inputPath, use))
 				} else {
 					skipped = append(skipped, inputPath)
@@ -1154,9 +1155,10 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 	}
 
 	outputPath, err := a.resolveOutputPathFrom(inputPath, outputTemplate, outputBase)
-	if use := (*project.UnsafeSegmentError)(nil); errors.As(err, &use) {
-		// The file's name cannot fill the target template. The batch passes
-		// over it and names it, and writes every other file.
+	if unnamedTarget(err) != nil {
+		// The file's name cannot fill the target template, or its target is a
+		// link out of the project. The batch passes over it and names it, and
+		// writes every other file.
 		return traceNodes, wrapSkip(inputPath, err)
 	}
 	if err != nil {
@@ -1365,13 +1367,27 @@ func (a *App) projectItemFor(inputPath string) *project.ContentItem {
 	return &item
 }
 
+// unnamedTarget returns the reason a source has no target a batch can write:
+// an unsafe name, or a target that is a link out of the project. It returns
+// nil for any other error.
+func unnamedTarget(err error) error {
+	if use := (*project.UnsafeSegmentError)(nil); errors.As(err, &use) {
+		return use
+	}
+	if out := (*project.TargetOutsideError)(nil); errors.As(err, &out) {
+		return out
+	}
+	return nil
+}
+
 // projectItemTargetPath resolves inputPath to its output path via the claiming
 // content item's target template, using the one core resolver
 // (project.ResolveTargetPath). Returns ("", false) when no kapi project is in
 // scope, the input is outside the project root, no item claims it, or the
 // claiming item declares no target: a file listed under a source-only item
 // before a targeted glob is source-only, and the glob's target is never
-// borrowed for it.
+// borrowed for it. A target that is a link out of the project is refused with
+// a *project.TargetOutsideError.
 func (a *App) projectItemTargetPath(inputPath, lang string) (string, bool, error) {
 	item := a.projectItemFor(inputPath)
 	if item == nil || item.Target == "" {
@@ -1385,6 +1401,9 @@ func (a *App) projectItemTargetPath(inputPath, lang string) (string, bool, error
 	}
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)
+	}
+	if err := project.CheckTargetInside(root, out); err != nil {
+		return "", false, fmt.Errorf("%s: %w", relSlash, err)
 	}
 	return out, true, nil
 }
@@ -2259,7 +2278,10 @@ func governedTermsPath(rc *project.ResolvedGovernance) (string, error) {
 	if rc == nil || rc.TermStore == "" {
 		return "", nil
 	}
-	path, err := resolveNamedResource("terms", rc.TermStore)
+	path, err := recipeNamedStore("terms", rc.TermStore)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("resolve termstore: %w", missingTermsStore(rc.TermStore))
+	}
 	if err != nil {
 		return "", fmt.Errorf("resolve termstore %q: %w", rc.TermStore, err)
 	}

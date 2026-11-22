@@ -9,14 +9,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// writeStore creates the named store file under the config dir, as the person
+// would before a recipe names it.
+func writeStore(t *testing.T, configDir string, rel ...string) {
+	t.Helper()
+	p := filepath.Join(append([]string{configDir}, rel...)...)
+	require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+	require.NoError(t, os.WriteFile(p, nil, 0o644))
+}
+
+// realTempDir is t.TempDir with its links resolved (/var is /private/var on
+// macOS), the spelling a resolved path carries.
+func realTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	return dir
+}
+
 func TestResolveToolConfig_URIPrefixes(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := realTempDir(t)
 	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
 
-	// Create expected directories.
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "memory"), 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "terms"), 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "srx"), 0755))
+	writeStore(t, tmpDir, "memory", "project-memory.db")
+	writeStore(t, tmpDir, "terms", "product.db")
+	writeStore(t, tmpDir, "srx", "custom-rules.srx")
 
 	config := map[string]any{
 		"tmx_path":  "memory:project-memory",
@@ -157,9 +174,9 @@ func TestResolveToolConfig_LanguageVariables(t *testing.T) {
 }
 
 func TestResolveToolConfig_SchemaAnnotation(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := realTempDir(t)
 	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "terms"), 0755))
+	writeStore(t, tmpDir, "terms", "product.db")
 
 	cs := &schema.ComponentSchema{
 		Properties: map[string]schema.PropertySchema{

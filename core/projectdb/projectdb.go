@@ -165,6 +165,11 @@ func Open(ctx context.Context, layout project.Layout, opts ...Option) (*DB, erro
 	for _, opt := range opts {
 		opt(&cfg)
 	}
+	// EnsureLayout checks the state layout and writes the rule that keeps it
+	// out of version control into a state directory it creates.
+	if err := project.EnsureLayout(layout); err != nil {
+		return nil, fmt.Errorf("projectdb: %w", err)
+	}
 	if err := os.MkdirAll(layout.WorkDir(), 0o755); err != nil {
 		return nil, fmt.Errorf("projectdb: create work dir: %w", err)
 	}

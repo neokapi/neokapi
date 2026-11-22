@@ -17,7 +17,7 @@ var allowHostB = map[string]string{
 	"host/workhome.go:keptRedactionAt":              "the size and time of change of the recipe kapi resolved, before project.Load reads it by path",
 	"host/venue/project/recipe.go:LoadRecipe":       "the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), which venue/project.Load reads by path",
 	"host/workspace_project.go:fileExists":          "whether a folder named as the project (-p, the unpack destination, or an MCP call's project argument) holds kapi.yaml, which then loads as -p would",
-	"host/workspaceinfo.go:fileSize":                "the size of the recipe kapi resolved, the store in the state directory Layout.CheckState keeps inside the project, or the .kpz named on the command line",
+	"host/workspaceinfo.go:fileSize":                "stats the recipe of a layout LayoutFor checked, the project store under Layout.CheckState, which refuses any link or irregular file beneath .kapi/, or the .kpz named on the command line",
 	"host/workspace_project.go:reconstituteProject": "the folder beside the .kpz named on the command line that unpack makes for the recipe it carries",
 
 	// A path a person named on the command line.
@@ -52,13 +52,12 @@ var allowHostB = map[string]string{
 	"host/workspace_project.go:statThrough":     "a path named on the command line that lies beneath no project root; one beneath it is asked through the root",
 
 	// kapi's own files in the project state directory.
-	"host/merge.go:restoreRedactedBlocks":           "kapi's own file in the project state directory, which Layout.CheckState keeps inside the project; the batch ID is checked as one path segment",
-	"host/projectstore.go:ProjectDB":                "kapi's own file in the project state directory, which Layout.CheckState keeps inside the project, or a draft's state under the data directory",
-	"host/redactpolicy.go:ensureVaultDir":           "the redaction vault's directory: in the project state directory, which Layout.CheckState keeps inside the project, or beside the .kpz named on the command line",
-	"host/workhome_redact.go:valuesFor":             "kapi's own file in the project state directory, which Layout.CheckState keeps inside the project",
-	"host/workspace.go:copyContentToFile":           "the .kpz shadow cache in the user cache directory, or kapi's own file in the project state directory, which Layout.CheckState keeps inside the project",
-	"host/venue/project/synccache.go:LoadSyncCache": "kapi's own file in the project state directory, which Layout.CheckState keeps inside the project",
-	"host/venue/project/synccache.go:Save":          "kapi's own file in the project state directory, which Layout.CheckState keeps inside the project",
+	"host/merge.go:restoreRedactedBlocks":  "the batch vault in .kapi/vault of a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/; the batch ID is checked as one path segment",
+	"host/projectstore.go:ProjectDB":       "stats the project store after ProjectDB runs Layout.CheckState, which refuses any link or irregular file beneath .kapi/, or a draft's state under the data directory",
+	"host/redactpolicy.go:ensureVaultDir":  "creates the vault's directory: .kapi/vault, which every caller prepared with PrepareVault (EnsureLocalDir runs Layout.CheckState, which refuses any link or irregular file beneath .kapi/), beside the .kpz a person named with --out, or a temp dir the caller made",
+	"host/workhome_redact.go:valuesFor":    "the project vault of a layout keptRedactionAt checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/ before newRecordRedaction prepared it",
+	"host/workspace.go:copyContentToFile":  "writes a package member into the .kpz shadow cache in the user cache directory under its base name, or a skeleton into the unpack batch directory, which EnsureExtractionDir created after Layout.CheckState, which refuses any link or irregular file beneath .kapi/, named by a hash checked as one path segment",
+	"host/venue/project/synccache.go:Save": "writes the sync cache into .kapi/sync after EnsureLocalDir ran Layout.CheckState, which refuses any link or irregular file beneath .kapi/, and removes the copy at its old path as the name it is",
 
 	// System locations.
 	"host/modelassets.go:EnsureModel":                        "the model asset cache under the user cache directory",
@@ -67,7 +66,7 @@ var allowHostB = map[string]string{
 	"host/modelassets.go:acquireModelLock":                   "the model asset cache under the user cache directory",
 	"host/open.go:withDefaults":                              "the places an install puts Kapi Desktop",
 	"host/plugincmds.go:DiagnosePlugin":                      "an installed plugin's binary in a plugin install directory",
-	"host/resource.go:resolveNamedResource":                  "the user config directory",
+	"host/resource.go:resolveNamedResource":                  "creates <ConfigDir>/<kind> for a store a person names on the command line (--name, --termstore, --memory); a store name a recipe gives goes through recipeNamedStore, which creates nothing",
 	"host/resource.go:ListNamedResources":                    "the user config directory",
 	"host/venue/config/auth.go:SaveAuth":                     "the sign-in file in the user config directory",
 	"host/venue/config/auth.go:LoadAuth":                     "the sign-in file in the user config directory",

@@ -257,6 +257,14 @@ func Beneath(realRoot, real string) (string, bool) {
 		return rel, true
 	}
 	if !Supported {
+		// Links were not resolved on the way here (containLexically), so the
+		// two may be spelled through different links to one directory.
+		rr, rerr := resolveExisting(realRoot)
+		ra, aerr := resolveExisting(real)
+		rel, err := filepath.Rel(rr, ra)
+		if rerr == nil && aerr == nil && err == nil && (rel == "." || filepath.IsLocal(rel)) {
+			return rel, true
+		}
 		return "", false
 	}
 	rootInfo, err := os.Stat(realRoot)
@@ -332,8 +340,15 @@ func splitPath(rel string) []string {
 	return parts
 }
 
-// containLexically is Contain where the file system has no links: p, made
-// absolute, must lie beneath root as written.
+// containLexically is Contain where the platform gives no os.Root (Supported
+// is false, the js/wasm build). Where its file system resolves links (Node's,
+// which the js/wasm tests run over), it judges p as Contain does: the links on
+// the longest existing prefix of p are resolved, a link to nothing is refused,
+// and the result must lie beneath root with its links resolved. Comparing the
+// resolved spellings also makes a root and a path named through different
+// links to one directory (a temporary directory under /var, which is
+// /private/var on macOS) one place. Where the file system resolves nothing
+// (the browser's), p, made absolute, must lie beneath root as written.
 func containLexically(root, p string) (string, error) {
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
@@ -343,8 +358,45 @@ func containLexically(root, p string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !inside(absRoot, abs) {
-		return "", &EscapeError{Path: relativeTo(root, p)}
+	realRoot, rerr := filepath.EvalSymlinks(absRoot)
+	if rerr != nil {
+		if !inside(absRoot, abs) {
+			return "", &EscapeError{Path: relativeTo(root, p)}
+		}
+		return abs, nil
 	}
-	return abs, nil
+	resolved, err := resolveExisting(abs)
+	if err != nil {
+		name := relativeTo(root, p)
+		return "", &EscapeError{Path: name, Link: name, Err: err}
+	}
+	if !inside(realRoot, resolved) {
+		name := relativeTo(root, p)
+		if inside(absRoot, abs) {
+			return "", &EscapeError{Path: name, Link: name}
+		}
+		return "", &EscapeError{Path: name}
+	}
+	return resolved, nil
+}
+
+// resolveExisting resolves the links on the longest existing prefix of abs and
+// appends the names that do not exist yet. A name on the way that exists and
+// cannot be resolved is a link to nothing, and its error is returned.
+func resolveExisting(abs string) (string, error) {
+	var missing []string
+	for cur := abs; ; cur = filepath.Dir(cur) {
+		real, err := filepath.EvalSymlinks(cur)
+		if err == nil {
+			slices.Reverse(missing)
+			return filepath.Join(append([]string{real}, missing...)...), nil
+		}
+		if _, lerr := os.Lstat(cur); lerr == nil {
+			return "", err
+		}
+		if filepath.Dir(cur) == cur {
+			return abs, nil
+		}
+		missing = append(missing, filepath.Base(cur))
+	}
 }

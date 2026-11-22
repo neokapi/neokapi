@@ -1466,6 +1466,11 @@ func expandTargetTemplate(itemPath, base, tmpl, sourceRel, locale, root, localeF
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)
 	}
+	if project.CheckTargetInside(root, out) != nil {
+		// A target that is a link out of the project is neither read nor
+		// written (unsafeTargetWarnings names it).
+		return ""
+	}
 	return out
 }
 

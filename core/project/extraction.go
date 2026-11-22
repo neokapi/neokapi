@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -130,9 +132,13 @@ func ExtractionDir(layout Layout, batchID string) string {
 	return filepath.Join(ExtractionsRoot(layout), batchID)
 }
 
-// EnsureExtractionDir creates the batch directory idempotently.
+// EnsureExtractionDir creates the batch directory idempotently, in a state
+// directory Layout.CheckState accepts.
 func EnsureExtractionDir(layout Layout, batchID string) (string, error) {
 	if err := checkBatchID(batchID); err != nil {
+		return "", err
+	}
+	if err := layout.CheckState(); err != nil {
 		return "", err
 	}
 	dir := ExtractionDir(layout, batchID)
@@ -194,13 +200,14 @@ func SaveExtractionManifest(layout Layout, m *ExtractionManifest) error {
 	return nil
 }
 
-// LoadExtractionManifest reads a manifest from the given batch directory.
+// LoadExtractionManifest reads a manifest from the given batch directory,
+// through the project root.
 func LoadExtractionManifest(layout Layout, batchID string) (*ExtractionManifest, error) {
 	if err := checkBatchID(batchID); err != nil {
 		return nil, err
 	}
 	path := filepath.Join(ExtractionDir(layout, batchID), ExtractionManifestFilename)
-	data, err := os.ReadFile(path)
+	data, err := rootpath.ReadFile(layout.Root, path)
 	if err != nil {
 		return nil, fmt.Errorf("project: read extraction manifest: %w", err)
 	}
@@ -216,12 +223,12 @@ func LoadExtractionManifest(layout Layout, batchID string) (*ExtractionManifest,
 
 // ListExtractionManifests returns every extraction batch known to the
 // project, loaded and ready to consult. Errors on any one batch abort
-// the listing — merge must never silently skip a candidate manifest.
+// the listing, so merge never silently skips a candidate manifest. The
+// batches are listed through the project root.
 func ListExtractionManifests(layout Layout) ([]*ExtractionManifest, error) {
-	root := ExtractionsRoot(layout)
-	entries, err := os.ReadDir(root)
+	entries, err := rootpath.ReadDir(layout.Root, ExtractionsRoot(layout))
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("project: read extractions dir: %w", err)

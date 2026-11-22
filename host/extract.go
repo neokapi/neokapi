@@ -935,7 +935,7 @@ func loadReusablePrior(layout project.Layout, inputsHash string, force bool) *pr
 	// List the batch dirs directly and skip any that fail to load. One such dir
 	// is the current run's own, which exists (created above) but has no
 	// manifest yet.
-	entries, err := os.ReadDir(project.ExtractionsRoot(layout))
+	entries, err := rootpath.ReadDir(layout.Root, project.ExtractionsRoot(layout))
 	if err != nil {
 		return nil
 	}

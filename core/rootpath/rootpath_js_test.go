@@ -39,3 +39,28 @@ func TestCheckRegularResolvesALinkWhereContainIsLexical(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, realInside, got)
 }
+
+// A root and a path spelled through different links to one directory (as a
+// temporary directory under /var, which is /private/var on macOS) are one
+// place: the lexical containment compares them with those links resolved, so
+// the file opens whichever way each is spelled.
+func TestALinkedSpellingOfTheRootIsTheSameRoot(t *testing.T) {
+	base := t.TempDir()
+	real := filepath.Join(base, "real")
+	require.NoError(t, os.MkdirAll(real, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(real, "a.json"), []byte("{}"), 0o644))
+	linked := filepath.Join(base, "linked")
+	require.NoError(t, os.Symlink(real, linked))
+
+	for _, tc := range [][2]string{
+		{linked, filepath.Join(real, "a.json")},
+		{real, filepath.Join(linked, "a.json")},
+		{linked, filepath.Join(linked, "a.json")},
+	} {
+		f, err := rootpath.OpenRegular(tc[0], tc[1])
+		require.NoError(t, err, "root %s, path %s", tc[0], tc[1])
+		require.NoError(t, f.Close())
+	}
+	_, err := rootpath.Contain(linked, filepath.Join(base, "elsewhere.json"))
+	require.Error(t, err, "a path beside the root is still outside it")
+}

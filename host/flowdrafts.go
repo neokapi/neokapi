@@ -14,6 +14,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // A convergence pass under a delivery gate writes drafts into the run's own
@@ -163,6 +164,10 @@ func (a *App) deliverDrafts(ctx context.Context, locale model.LocaleID) ([]strin
 	if a.convergeDraftDir == "" || a.convergeDraftRoot == "" {
 		return nil, nil
 	}
+	// The locale names one subtree of the draft tree, and nothing else.
+	if loc := string(locale); loc == "" || !filepath.IsLocal(loc) || filepath.Base(loc) != loc {
+		return nil, fmt.Errorf("deliver drafts: %q is not a locale", loc)
+	}
 	base := filepath.Join(a.convergeDraftDir, string(locale))
 	if _, err := os.Stat(base); err != nil {
 		return nil, nil
@@ -225,7 +230,7 @@ func (a *App) deliverDraft(ctx context.Context, home *filehome.Home, path, dest 
 		return doc.printDocument(ctx, dest, want)
 	}
 	p, err := home.Produce(ctx, dest, before, func(w io.Writer) error {
-		f, oerr := os.Open(path)
+		f, oerr := rootpath.OpenRegular(a.convergeDraftDir, path)
 		if oerr != nil {
 			return oerr
 		}

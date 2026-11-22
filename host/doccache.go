@@ -237,17 +237,18 @@ func (c *docCache) OpenDocument(path, configKey string) flow.CachedDocument {
 }
 
 // recorded returns the recorded files of row, or nil when its log file has
-// gone, which reads as a miss.
+// gone, or is not a regular file inside the cache directory, which reads as a
+// miss.
 func (c *docCache) recorded(row docRow) flow.CachedDocument {
 	partsPath := filepath.Join(c.dir, row.partsRef)
-	if _, err := os.Stat(partsPath); err != nil {
+	if _, err := rootpath.CheckRegular(c.dir, partsPath); err != nil {
 		return nil
 	}
 	skelPath := ""
 	if row.skeletonRef != "" {
 		skelPath = filepath.Join(c.dir, row.skeletonRef)
 	}
-	return &cachedDocument{partsPath: partsPath, skeletonPath: skelPath}
+	return &cachedDocument{dir: c.dir, partsPath: partsPath, skeletonPath: skelPath}
 }
 
 // RecordDocument returns a sink that persists a freshly-parsed document as it
@@ -316,6 +317,8 @@ func (c *docCache) newRecorder(path, configKey, formatName string) *docRecorder 
 
 // cachedDocument streams a previously-recorded document from disk.
 type cachedDocument struct {
+	// dir is the cache directory that holds both files.
+	dir          string
 	partsPath    string
 	skeletonPath string
 }
@@ -324,7 +327,7 @@ type cachedDocument struct {
 // log line by line so the whole document is never held in memory. It closes inCh.
 func (d *cachedDocument) Feed(ctx context.Context, inCh chan<- *model.Part) error {
 	defer close(inCh)
-	f, err := os.Open(d.partsPath)
+	f, err := rootpath.OpenRegular(d.dir, d.partsPath)
 	if err != nil {
 		return err
 	}

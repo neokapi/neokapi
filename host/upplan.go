@@ -438,6 +438,9 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	plan.Drift = drift
 	plan.upToDate = basis.passing != nil && len(basis.passing) == 0
 	plan.Warnings = basis.unread.warnings()
+	// A source with no target a run can write (an unsafe name, or a target
+	// that is a link out of the project) is passed over and named.
+	plan.Warnings = append(plan.Warnings, a.unsafeTargetWarnings(proj, root, "")...)
 	_, plan.readNothing = basis.unread.unitsSkipped(root, units)
 	plan.Monolingual = !proj.DeclaresTargetLanguages()
 	plan.NoTargets = !plan.Monolingual && !proj.WritesTargets()

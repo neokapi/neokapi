@@ -248,7 +248,7 @@ func loadDirFlowFile(held, path, name string) *DirFlow {
 
 	var file dirFlowFile
 	if err := yaml.Unmarshal(data, &file); err != nil {
-		def.Err = fmt.Errorf("project: parse flow %s: %w", path, err)
+		def.Err = fmt.Errorf("project: parse flow %s: %w", path, RecipeYAMLError(err))
 		return def
 	}
 	def.Description = file.Description

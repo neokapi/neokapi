@@ -38,6 +38,12 @@ const WarningFormatNoReader = "format.no_reader"
 // goes on, and the warning's Source is that file. Renaming it gives it one.
 const WarningUnsafeTargetName = "target.unsafe_name"
 
+// WarningTargetOutside is the code of a warning naming a source file whose
+// target is a symbolic link out of the project (project.TargetOutsideError).
+// kapi neither reads nor writes that target, the rest of the run goes on, and
+// the warning's Source is the source file. Removing the link gives it one.
+const WarningTargetOutside = "target.outside_project"
+
 // WarningContextUnread is the code of a warning naming context files a
 // checkout holds whose project store has never held context. The check ran
 // against what the store holds, and those files say nothing until

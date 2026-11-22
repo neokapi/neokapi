@@ -1009,12 +1009,19 @@ func resolveMergeOutputPath(entry *project.ExtractionFile, proj *project.KapiPro
 			if !filepath.IsAbs(tmpl) {
 				tmpl = filepath.Join(root, tmpl)
 			}
+			if err := project.CheckTargetInside(root, tmpl); err != nil {
+				return "", fmt.Errorf("%s: %w", entry.Source, err)
+			}
 			return tmpl, nil
 		}
 	}
 	// Default: <source-dir>/<locale>/<basename>
 	base := filepath.Base(entry.Source)
-	return filepath.Join(root, filepath.Dir(entry.Source), string(locale), base), nil
+	out := filepath.Join(root, filepath.Dir(entry.Source), string(locale), base)
+	if err := project.CheckTargetInside(root, out); err != nil {
+		return "", fmt.Errorf("%s: %w", entry.Source, err)
+	}
+	return out, nil
 }
 
 // memoryAbsorber stages merged source/target pairs with kapi-merge provenance

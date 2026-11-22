@@ -7,11 +7,8 @@ var allowCore = map[string]string{
 	"core/change/filehome/stage.go:backUpAsNamed": "a destination outside the home's root, which a person named (PermitOutside)",
 
 	// Output destinations: diagnosis only, the write goes through the file home.
-	"core/flow/outputpath.go:CheckOutputPath":         "a pre-flight that only refuses or classifies an output destination; the write itself goes through the file home, which keeps it inside the root",
-	"core/flow/outputpath.go:ClassifyOutputPathError": "classifies a failed write to an output destination for the error message; it decides nothing the write does",
-
-	// Named resources live in the user config dir.
-	"core/flow/resolve.go:resolveNamedResource": "the user config dir (KAPI_CONFIG_DIR or os.UserConfigDir), where named memory:, terms: and srx: resources live",
+	"core/flow/outputpath.go:CheckOutputPath":         "stats a destination and its parent only to refuse or classify it; nothing it returns names a file to open, and the write itself goes through the file home, which keeps it inside the root",
+	"core/flow/outputpath.go:ClassifyOutputPathError": "stats a destination only to classify a failed write for the error message; it decides nothing the write does",
 
 	// Temp files and directories a reader created itself.
 	"core/formats/audio/reader.go:materialize":           "removes the temp file the reader created with os.CreateTemp",

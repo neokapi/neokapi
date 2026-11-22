@@ -316,15 +316,8 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 		if derr != nil {
 			return fmt.Errorf("unpack: create extraction dir: %w", derr)
 		}
-		for _, skel := range pkg.Skeletons {
-			hash := strings.TrimPrefix(skel.ContentHash, "sha256:")
-			if hash == "" {
-				hash = skel.SourcePath
-			}
-			dst := filepath.Join(batchDir, project.SkeletonFilename(hash))
-			if werr := copyContentToFile(skel.Content, dst); werr != nil {
-				return fmt.Errorf("unpack: write skeleton: %w", werr)
-			}
+		if err := unpackSkeletons(batchDir, pkg.Skeletons); err != nil {
+			return err
 		}
 	}
 
@@ -577,4 +570,28 @@ type simpleMessage struct {
 func (m simpleMessage) FormatText(w io.Writer) error {
 	_, err := fmt.Fprintln(w, m.Message)
 	return err
+}
+
+// unpackSkeletons writes each skeleton a package carries into batchDir, named
+// by its content hash. The hash is the package's word, so it must name one
+// file in batchDir: a hash spelled as a path is refused before anything is
+// written.
+func unpackSkeletons(batchDir string, skels []kpz.SkeletonDoc) error {
+	names := make([]string, len(skels))
+	for i, skel := range skels {
+		hash := strings.TrimPrefix(skel.ContentHash, "sha256:")
+		if hash == "" {
+			hash = skel.SourcePath
+		}
+		if err := checkPathSegment(hash, "unpack: the skeleton's content hash"); err != nil {
+			return err
+		}
+		names[i] = project.SkeletonFilename(hash)
+	}
+	for i, skel := range skels {
+		if err := copyContentToFile(skel.Content, filepath.Join(batchDir, names[i])); err != nil {
+			return fmt.Errorf("unpack: write skeleton: %w", err)
+		}
+	}
+	return nil
 }

@@ -171,13 +171,36 @@ func checkMCPCallArgs(ctx context.Context, tool string, props map[string]json.Ra
 		if kind == MCPArgNotLocation {
 			continue
 		}
-		for _, v := range stringValues(args[name]) {
+		for _, v := range valuesNamed(args, name) {
 			if err := checkMCPLocation(ctx, name, kind, v); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// valuesNamed returns the strings held under the key name anywhere in v: at
+// the top level of the arguments and in every nested object and array. A
+// declared argument a tool takes inside a structure is checked like one passed
+// on its own: apply_edits reads its document from ops[].at.doc, and
+// review_block from at.doc.
+func valuesNamed(v any, name string) []string {
+	var out []string
+	switch t := v.(type) {
+	case map[string]any:
+		for k, e := range t {
+			if k == name {
+				out = append(out, stringValues(e)...)
+			}
+			out = append(out, valuesNamed(e, name)...)
+		}
+	case []any:
+		for _, e := range t {
+			out = append(out, valuesNamed(e, name)...)
+		}
+	}
+	return out
 }
 
 // stringValues returns the strings an argument holds: one for a string, each
