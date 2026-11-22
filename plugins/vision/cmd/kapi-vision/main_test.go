@@ -1,3 +1,5 @@
+//go:build !onnx
+
 package main
 
 import (
@@ -8,9 +10,10 @@ import (
 	"github.com/neokapi/neokapi/plugins/vision/visionproto"
 )
 
-// The serve handler answers ping/info regardless of OCR backend, and on the
-// default (stub) build reports the ErrNoONNX limitation per OCR request — so a
-// host can probe capability and degrade gracefully.
+// TestServeHandler_Stub covers the build without ONNX: the handler answers ping
+// and info, and reports the missing runtime on each OCR request, so a host can
+// probe what the plugin does. A build with the onnx tag has a real engine, which
+// needs model files to start, so this file is left out of it.
 func TestServeHandler_Stub(t *testing.T) {
 	engine, err := ocr.NewEngine(nil)
 	if err != nil {
