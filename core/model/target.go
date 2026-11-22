@@ -40,23 +40,34 @@ func (k EditionKey) IsZero() bool { return k == EditionKey{} }
 // MarshalText encodes an EditionKey as text so it can serve as a JSON/YAML map
 // key. A locale-only key encodes as the bare locale ("fr"); optional
 // dimensions append as ";tone=…" / ";channel=…".
+//
+// A ";" or "%" inside a part is written as "%3B" or "%25", so the encoding is
+// one-to-one: a block can hold a target under a string that is not a locale
+// (a reader files what a document says), and that string must not decode as
+// another key. A locale, a tone and a channel name never contain either
+// character, so their text is unchanged.
 func (k EditionKey) MarshalText() ([]byte, error) {
-	s := string(k.Locale)
+	s := editionKeyEscaper.Replace(string(k.Locale))
 	if k.Tone != "" {
-		s += ";tone=" + k.Tone
+		s += ";tone=" + editionKeyEscaper.Replace(k.Tone)
 	}
 	if k.Channel != "" {
-		s += ";channel=" + k.Channel
+		s += ";channel=" + editionKeyEscaper.Replace(k.Channel)
 	}
 	return []byte(s), nil
 }
+
+var (
+	editionKeyEscaper   = strings.NewReplacer("%", "%25", ";", "%3B")
+	editionKeyUnescaper = strings.NewReplacer("%25", "%", "%3B", ";")
+)
 
 // UnmarshalText decodes an EditionKey produced by MarshalText. The locale is
 // normalized on the way in, so a document that spelled it another way still
 // keys the variant every reader looks up.
 func (k *EditionKey) UnmarshalText(b []byte) error {
 	parts := strings.Split(string(b), ";")
-	*k = EditionKey{Locale: NormalizeLocale(LocaleID(parts[0]))}
+	*k = EditionKey{Locale: NormalizeLocale(LocaleID(editionKeyUnescaper.Replace(parts[0])))}
 	for _, p := range parts[1:] {
 		name, val, ok := strings.Cut(p, "=")
 		if !ok {
@@ -64,9 +75,9 @@ func (k *EditionKey) UnmarshalText(b []byte) error {
 		}
 		switch name {
 		case "tone":
-			k.Tone = val
+			k.Tone = editionKeyUnescaper.Replace(val)
 		case "channel":
-			k.Channel = val
+			k.Channel = editionKeyUnescaper.Replace(val)
 		}
 	}
 	return nil
@@ -86,7 +97,7 @@ const (
 
 // TargetStatusLadder is the lifecycle order, lowest to highest. Membership and
 // order define "at least this status" coverage (used by ship gates). New ("") is
-// not listed — it means "no committed status yet" and sits below every rung.
+// not listed: it means "no committed status yet" and sits below every rung.
 func TargetStatusLadder() []TargetStatus {
 	return []TargetStatus{
 		TargetStatusDraft,
@@ -115,7 +126,7 @@ func (s TargetStatus) Rank() int {
 // The Kind/Engine/Tool/Reference/Timestamp/Confidence group answers *how* it was
 // made. The Profile group answers *what governed it*: which named context was in
 // force at the moment of production. That second half cannot be reconstructed
-// after the fact — a profile is edited in place and a timestamp is only a proxy
+// after the fact: a profile is edited in place and a timestamp is only a proxy
 // for it, one that breaks for imported content and for anything produced while a
 // pilot shadowed a stream. So it is recorded at production time or approximated
 // forever.
@@ -132,19 +143,19 @@ type Origin struct {
 	// Profile identifies the context profile that governed production, and
 	// ProfileVersion pins the revision of it that was in force. Both are opaque
 	// to the model: the producer stamps whatever its resolver handed it, and
-	// nothing here parses them. Empty when the producer resolved no profile —
+	// nothing here parses them. Empty when the producer resolved no profile:
 	// an ad-hoc run, or a tool that takes no context (pseudo-translation).
 	Profile        string `json:"profile,omitempty"`
 	ProfileVersion string `json:"profile_version,omitempty"`
 	// ContextFingerprint is a content hash of the governing context as it
-	// actually reached the producer — the rendered voice guidance and the
+	// actually reached the producer: the rendered voice guidance and the
 	// terminology it was given. It exists because Profile/ProfileVersion pin
 	// only half of that: terminology reaches a producer separately from the
 	// profile and carries no version of its own, so a profile stamp alone
 	// cannot tell whether the terms have moved since.
 	//
 	// It answers "have the governing inputs changed since this was produced?"
-	// — a change detector, not a snapshot: it cannot reconstruct what the
+	// It is a change detector, not a snapshot: it cannot reconstruct what the
 	// context was, only tell you this target no longer matches it.
 	//
 	// Deliberately NOT the engine's config fingerprint. That one also covers
@@ -158,7 +169,7 @@ type Origin struct {
 // derived edition was produced; the extraction kinds (ocr, asr) describe how a recognized
 // source was produced. OriginLLMRefined is a derived extraction kind: a recognized
 // source (ocr/asr) that a multimodal LLM re-read and rewrote (media-refine), the
-// least-verified recognition tier — distinguished so refined units are queryable
+// least-verified recognition tier, distinguished so refined units are queryable
 // without parsing the Engine string. The original recognizer's engine is
 // preserved in Origin.Engine; the refining tool/provider lives in Tool/Reference.
 const (
@@ -175,7 +186,7 @@ const (
 )
 
 // IsRecognized reports whether an Origin Kind denotes machine-recognized source
-// content (ocr, asr, or an llm-refined recognition) — content a review/refine
+// content (ocr, asr, or an llm-refined recognition): content a review/refine
 // tier treats as provisional, as opposed to losslessly parsed or human-authored
 // source.
 func IsRecognized(kind string) bool {
@@ -188,7 +199,7 @@ func IsRecognized(kind string) bool {
 }
 
 // AnnoSourceOrigin is the block-scoped annotation key carrying a Block's source
-// *Origin — how its source content was produced when it was extracted rather
+// *Origin: how its source content was produced when it was extracted rather
 // than parsed (the source-side counterpart of a derived edition's Origin).
 // Absent for content read losslessly from a text format.
 const AnnoSourceOrigin = "source-origin"
