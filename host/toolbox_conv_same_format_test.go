@@ -178,11 +178,15 @@ const repoRoot = ".."
 func sameFormatSamples(t *testing.T, reg *registry.FormatRegistry) map[registry.FormatID][]string {
 	t.Helper()
 	out := map[registry.FormatID][]string{}
-	seen := map[string]bool{}
+	type sample struct {
+		id   registry.FormatID
+		path string
+	}
+	seen := map[sample]bool{}
 	add := func(id registry.FormatID, path string) {
 		path = filepath.Clean(path)
-		if !seen[string(id)+"\x00"+path] {
-			seen[string(id)+"\x00"+path] = true
+		if !seen[sample{id, path}] {
+			seen[sample{id, path}] = true
 			out[id] = append(out[id], path)
 		}
 	}
