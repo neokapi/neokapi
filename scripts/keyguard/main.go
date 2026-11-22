@@ -1,36 +1,35 @@
 // Command keyguard reports map keys built by joining parts with a control
 // character delimiter.
 //
-// A key such as a + "\x00" + b names two different tuples the same way when a
-// part contains the delimiter: ("a\x00b", "c") and ("a", "b\x00c") share the
-// key "a\x00b\x00c". A struct or array key (struct{a, b string}, [2]string)
-// keeps every tuple apart. So this type-checks the packages in targets and
-// reports each string joined with a delimiter that is used as a key:
+// The key a + "\x00" + b is the same for ("a\x00b", "c") and ("a", "b\x00c").
+// A struct or array key (struct{a, b string}, [2]string) keeps them apart. The
+// command type-checks the packages in targets and reports a join used as a
+// key:
 //
-//   - a join is a + chain with a delimiter operand, strings.Join(parts,
-//     delimiter), or fmt.Sprintf with a delimiter in its format;
-//   - a key is the index of a map with string keys, a key in a map literal,
-//     the key of delete, or the key argument of a sync.Map method;
-//   - the join reaches the key directly, through a variable assigned it, or
-//     through a function (or a function literal held in a variable) that
-//     returns it as any of its results.
+//   - a join is a + chain of two or more parts with a delimiter,
+//     strings.Join(parts, delimiter), or fmt.Sprintf of two or more values
+//     with a delimiter in its format. A constant prefix on one value names
+//     one value and is not a join;
+//   - a key is the index of a string-keyed map, a map literal key, the key
+//     of delete, or the key argument of a sync.Map method;
+//   - the join reaches the key directly, through a variable or a struct field
+//     assigned it, or through a function or function literal that returns it.
+//     Functions and fields carry their joins into the packages checked later.
 //
-// A delimiter is a constant string holding a control character other than
-// tab, newline, carriage return and escape, such as "\x00", "\x1f" or
-// "\x00kind\x00". A + chain also counts when one operand is a join passed
-// through strings.ToLower, strings.ToUpper or strings.TrimSpace. A function
-// that returns a join carries it to every caller, in its own package and in
-// the packages checked after it.
+// A delimiter is a constant holding a control character other than tab,
+// newline, carriage return and escape, such as "\x00" or "\x1f". A join
+// passed through strings.ToLower, ToUpper or TrimSpace is still a join.
 //
-// A join used for something else, such as a log line or a hash input, is not
-// reported. A join that is a persisted identity, where a new spelling would
-// change stored keys, is exempt when its line holds, or the line above it
-// holds, the directive
+// With -compared it also lists each == or != on a struct field assigned a
+// join. Such a comparison is not a key, so the list does not fail the run.
 //
-//	//keyguard:persisted <reason>
+// A join used for anything else, such as a log line or a hash input, is not
+// reported. A persisted identity is exempt when its line, or the line above,
+// holds the directive
 //
-// The reason says where the identity is stored. A directive without a reason,
-// or on no delimiter join, is reported too.
+//	//keyguard:persisted <where it is stored; the test that pins it>
+//
+// A directive without a reason, or on no join, is reported.
 //
 // Run from the repository root:
 //
@@ -67,6 +66,7 @@ const directive = "//keyguard:persisted"
 
 func main() {
 	selfTest := flag.Bool("self-test", false, "prove the check on fixtures")
+	compared := flag.Bool("compared", false, "also list comparisons of struct fields assigned a join")
 	configName := flag.String("config", "host", "build configuration to check under (scripts/internal/buildconfigs)")
 	flag.Parse()
 	var (
@@ -78,7 +78,7 @@ func main() {
 	} else {
 		var cfgs []buildconfigs.Config
 		if cfgs, err = buildconfigs.Named(*configName); err == nil {
-			found, err = check(cfgs[0], targets)
+			found, err = check(cfgs[0], targets, *compared)
 		}
 	}
 	if err != nil {
@@ -98,7 +98,7 @@ func main() {
 // check type-checks every target package and reports each keyed join found.
 // In a configuration after the first, only the packages holding a file no
 // earlier configuration compiles are checked.
-func check(cfg buildconfigs.Config, patterns []string) ([]string, error) {
+func check(cfg buildconfigs.Config, patterns []string, compared bool) ([]string, error) {
 	first := buildconfigs.Index(cfg.Name) == 0
 	pkgs, err := guardpackages.ListConfig(cfg, patterns...)
 	if err != nil {
@@ -140,6 +140,12 @@ func check(cfg buildconfigs.Config, patterns []string) ([]string, error) {
 		return nil, errors.New("no package to check: run from the repository root")
 	}
 	fmt.Printf("keyguard: checked %d packages (%s)\n", checked, cfg.Name)
+	if compared {
+		sort.Strings(st.compared)
+		for _, c := range st.compared {
+			fmt.Println("keyguard: compared: " + c)
+		}
+	}
 	sort.Strings(st.found)
 	return st.found, nil
 }
@@ -173,6 +179,11 @@ type state struct {
 	// funcs maps a function's full name to the joins each of its results
 	// carries.
 	funcs map[string]map[int]*joins
+	// fields maps a struct field, named by fieldName, to the joins assigned
+	// to it.
+	fields map[string]*joins
+	// compared lists the comparisons of a field assigned a join.
+	compared []string
 	// exempt holds the lines a directive covers, per file.
 	exempt   map[string]map[int]bool
 	reported map[token.Pos]bool
@@ -184,6 +195,7 @@ func newState(fset *token.FileSet, relFile func(token.Pos) string) *state {
 		fset:     fset,
 		relFile:  relFile,
 		funcs:    map[string]map[int]*joins{},
+		fields:   map[string]*joins{},
 		exempt:   map[string]map[int]bool{},
 		reported: map[token.Pos]bool{},
 	}
@@ -208,9 +220,10 @@ type pkgCheck struct {
 func (st *state) checkPackage(imp types.Importer, path string, files []*ast.File) (*types.Package, error) {
 	fset := st.fset
 	info := &types.Info{
-		Types: map[ast.Expr]types.TypeAndValue{},
-		Uses:  map[*ast.Ident]types.Object{},
-		Defs:  map[*ast.Ident]types.Object{},
+		Types:      map[ast.Expr]types.TypeAndValue{},
+		Selections: map[*ast.SelectorExpr]*types.Selection{},
+		Uses:       map[*ast.Ident]types.Object{},
+		Defs:       map[*ast.Ident]types.Object{},
 	}
 	var typeErrs []error
 	conf := types.Config{Importer: imp, Error: func(err error) { typeErrs = append(typeErrs, err) }}
@@ -257,6 +270,9 @@ func (st *state) checkPackage(imp types.Importer, path string, files []*ast.File
 
 	for _, f := range files {
 		ast.Inspect(f, func(n ast.Node) bool {
+			if b, ok := n.(*ast.BinaryExpr); ok && (b.Op == token.EQL || b.Op == token.NEQ) {
+				c.noteCompared(b)
+			}
 			for _, k := range c.mapKeys(n) {
 				for _, j := range c.carried(k) {
 					st.report(j, k)
@@ -296,6 +312,25 @@ func (st *state) directive(cm *ast.Comment, joinLines map[string]map[int]bool) {
 	st.exempt[p.Filename][line] = true
 }
 
+// noteCompared records a comparison whose operand is a struct field assigned
+// a join.
+func (c *pkgCheck) noteCompared(b *ast.BinaryExpr) {
+	for _, op := range []ast.Expr{b.X, b.Y} {
+		sel, ok := ast.Unparen(op).(*ast.SelectorExpr)
+		if !ok {
+			continue
+		}
+		name := c.selectedField(sel)
+		if name == "" || c.fields[name] == nil {
+			continue
+		}
+		p := c.fset.Position(b.Pos())
+		j := c.fields[name].list[0]
+		c.compared = append(c.compared, fmt.Sprintf("%s:%d: compares %s, assigned a join at %s:%d", c.relFile(b.Pos()), p.Line, name, c.relFile(j.Pos()), c.fset.Position(j.Pos()).Line))
+		return
+	}
+}
+
 // report records a join used as a key, once, unless a directive exempts it.
 func (st *state) report(join, use ast.Expr) {
 	if st.reported[join.Pos()] {
@@ -329,7 +364,9 @@ func isDelimiterRune(r rune) bool {
 	return r < 0x20 && r != '\t' && r != '\n' && r != '\r' && r != 0x1b
 }
 
-// isJoin reports whether e builds a string by joining parts with a delimiter.
+// isJoin reports whether e builds a string by joining two or more parts with
+// a delimiter. A constant prefix or suffix on one part, such as
+// "\x00" + strconv.Itoa(k), names one value, so two values cannot share it.
 func (c *pkgCheck) isJoin(e ast.Expr) bool {
 	e = ast.Unparen(e)
 	switch x := e.(type) {
@@ -337,11 +374,8 @@ func (c *pkgCheck) isJoin(e ast.Expr) bool {
 		if x.Op != token.ADD || !c.isString(x) {
 			return false
 		}
-		for _, op := range flatten(x) {
-			if c.isDelimiter(op) || c.isFoldedJoin(op) {
-				return true
-			}
-		}
+		delimited, parts := c.chainParts(x)
+		return delimited && parts >= 2
 	case *ast.CallExpr:
 		fn := c.calledFunc(x)
 		if fn == nil || fn.Pkg() == nil {
@@ -351,10 +385,44 @@ func (c *pkgCheck) isJoin(e ast.Expr) bool {
 		case "strings.Join":
 			return len(x.Args) == 2 && c.isDelimiter(x.Args[1])
 		case "fmt.Sprintf":
-			return len(x.Args) > 0 && c.isDelimiter(x.Args[0])
+			return len(x.Args) > 2 && c.isDelimiter(x.Args[0])
 		}
 	}
 	return false
+}
+
+// chainParts reports whether a + chain holds a delimiter, and how many of its
+// operands are not constants. A folded join counts as two parts.
+func (c *pkgCheck) chainParts(x *ast.BinaryExpr) (delimited bool, parts int) {
+	for _, op := range flatten(x) {
+		switch {
+		case c.isDelimiter(op):
+			delimited = true
+		case c.isFoldedJoin(op):
+			delimited = true
+			parts += 2
+		default:
+			if tv, ok := c.info.Types[op]; !ok || tv.Value == nil {
+				parts++
+			}
+		}
+	}
+	return delimited, parts
+}
+
+// isAppendedJoin reports whether rhs, in s += rhs, appends a delimiter and at
+// least one more part to s.
+func (c *pkgCheck) isAppendedJoin(rhs ast.Expr) bool {
+	rhs = ast.Unparen(rhs)
+	if c.isJoin(rhs) {
+		return true
+	}
+	x, ok := rhs.(*ast.BinaryExpr)
+	if !ok || x.Op != token.ADD || !c.isString(x) {
+		return false
+	}
+	delimited, parts := c.chainParts(x)
+	return delimited && parts >= 1
 }
 
 // isFoldedJoin reports whether e is a join passed through a function that
@@ -432,8 +500,23 @@ func (c *pkgCheck) object(e ast.Expr) types.Object {
 // function in f, and reports whether it learned anything new.
 func (c *pkgCheck) collect(f *ast.File) bool {
 	changed := false
+	addField := func(name string, es []ast.Expr) {
+		if name == "" || len(es) == 0 {
+			return
+		}
+		if c.fields[name] == nil {
+			c.fields[name] = &joins{}
+		}
+		if c.fields[name].add(es...) {
+			changed = true
+		}
+	}
 	addVar := func(lhs ast.Expr, es []ast.Expr) {
 		if len(es) == 0 {
+			return
+		}
+		if sel, ok := ast.Unparen(lhs).(*ast.SelectorExpr); ok {
+			addField(c.selectedField(sel), es)
 			return
 		}
 		id, ok := ast.Unparen(lhs).(*ast.Ident)
@@ -520,6 +603,10 @@ func (c *pkgCheck) collect(f *ast.File) bool {
 				addFunc(c.funcs[name], x.Body)
 			}
 		case *ast.AssignStmt:
+			if x.Tok == token.ADD_ASSIGN && len(x.Lhs) == 1 && len(x.Rhs) == 1 && c.isAppendedJoin(x.Rhs[0]) {
+				addVar(x.Lhs[0], []ast.Expr{x.Rhs[0]})
+				return true
+			}
 			assign(x.Lhs, x.Rhs)
 			litFor(x.Lhs, x.Rhs)
 		case *ast.ValueSpec:
@@ -529,10 +616,53 @@ func (c *pkgCheck) collect(f *ast.File) bool {
 			}
 			assign(lhs, x.Values)
 			litFor(lhs, x.Values)
+		case *ast.CompositeLit:
+			owner := c.info.TypeOf(x)
+			for _, el := range x.Elts {
+				kv, ok := el.(*ast.KeyValueExpr)
+				if !ok {
+					continue
+				}
+				if id, ok := kv.Key.(*ast.Ident); ok {
+					addField(fieldName(owner, id.Name), c.carried(kv.Value))
+				}
+			}
 		}
 		return true
 	})
 	return changed
+}
+
+// selectedField returns the fieldName of a selector that reads a struct
+// field, or "" for any other selector.
+func (c *pkgCheck) selectedField(sel *ast.SelectorExpr) string {
+	s, ok := c.info.Selections[sel]
+	if !ok || s.Kind() != types.FieldVal {
+		return ""
+	}
+	return fieldName(s.Recv(), sel.Sel.Name)
+}
+
+// fieldName names a field by the named struct type that holds it, so the
+// name is the same in the package that declares the field and in every
+// package that imports it. A field of an unnamed struct has no such name and
+// is not followed.
+func fieldName(owner types.Type, field string) string {
+	if owner == nil {
+		return ""
+	}
+	if p, ok := owner.Underlying().(*types.Pointer); ok {
+		owner = p.Elem()
+	}
+	named, ok := types.Unalias(owner).(*types.Named)
+	if !ok {
+		return ""
+	}
+	obj := named.Origin().Obj()
+	if obj.Pkg() == nil {
+		return ""
+	}
+	return obj.Pkg().Path() + "." + obj.Name() + "." + field
 }
 
 // carried returns the joins an expression carries: itself, the joins
@@ -547,6 +677,10 @@ func (c *pkgCheck) carried(e ast.Expr) []ast.Expr {
 	case *ast.Ident:
 		if o := c.object(x); o != nil && c.vars[o] != nil {
 			return c.vars[o].list
+		}
+	case *ast.SelectorExpr:
+		if name := c.selectedField(x); name != "" && c.fields[name] != nil {
+			return c.fields[name].list
 		}
 	case *ast.CallExpr:
 		if tv, ok := c.info.Types[x.Fun]; ok && tv.IsType() && len(x.Args) == 1 {

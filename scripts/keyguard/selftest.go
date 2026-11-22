@@ -104,6 +104,17 @@ func f(m map[string]int, a, b string) int {
 	k += "\x00" + b
 	return m[k]
 }`},
+	{"a struct field assigned a join", 2, `package f
+type ref struct{ key, name string }
+func f(m map[string]int, a, b string) int {
+	r := ref{key: a + "\x00" + b}
+	var s ref
+	s.name = b + "\x00" + a
+	return m[r.key] + m[s.name]
+}`},
+	{"a field of a struct in another package", 1, `package f
+import "fixture/dep"
+func f(m map[string]int, a, b string) int { return m[dep.Of(a, b).ID] }`},
 	{"a log line", 0, `package f
 import "log"
 func f(a, b string) { log.Printf("%s", a+"\x00"+b) }`},
@@ -137,6 +148,9 @@ func f(m map[struct{ a, b string }]int, n map[[2]string]int, a, b string) int {
 }`},
 	{"a slice index", 0, `package f
 func f(s []string, i int, a string) string { s[i] = a + "\x00"; return s[i] }`},
+	{"a constant prefix on one value", 0, `package f
+import "strconv"
+func f(m map[string]int, k int, a string) int { return m["\x00"+strconv.Itoa(k)] + m["kind\x00"+a] }`},
 	{"an escape sequence in a key", 0, `package f
 func f(m map[string]int, a string) int { return m["\x1b[1m"+a] }`},
 	{"a persisted identity with a directive", 0, `package f
@@ -157,6 +171,9 @@ func f(m map[string]int, a string) int { return m[a] }`},
 
 // fixtureDeps holds, by fixture name, a package checked first as fixture/dep.
 var fixtureDeps = map[string]string{
+	"a field of a struct in another package": `package dep
+type Ref struct{ ID string }
+func Of(a, b string) Ref { return Ref{ID: a + "\x00" + b} }`,
 	"a key function in another package": `package dep
 type Ref struct{ A, B string }
 func (r Ref) Key() string { return r.A + "\x00" + r.B }`,
@@ -165,7 +182,7 @@ func (r Ref) Key() string { return r.A + "\x00" + r.B }`,
 // runSelfTest checks every fixture and fails when one reports other than it
 // expects.
 func runSelfTest() error {
-	pkgs, err := guardpackages.List("strings", "fmt", "log", "hash", "crypto/sha256", "encoding/hex", "sync")
+	pkgs, err := guardpackages.List("strings", "strconv", "fmt", "log", "hash", "crypto/sha256", "encoding/hex", "sync")
 	if err != nil {
 		return err
 	}

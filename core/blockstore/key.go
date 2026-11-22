@@ -18,10 +18,10 @@ import (
 // (file, block) distinct while staying stable across re-reads so overlays
 // written by a run are found again at merge time.
 func StoreKey(sourceRel, blockID, sourceText string) string {
-	//keyguard:persisted hashed into the block store key the SQLite block store files blocks and overlays under
+	//keyguard:persisted hashed into the key the SQLite block store files blocks and overlays under; pinned by TestStoreKeyIsStable
 	seed := sourceRel + "\x00" + blockID
 	if blockID == "" {
-		//keyguard:persisted hashed into the block store key the SQLite block store files blocks and overlays under
+		//keyguard:persisted hashed into the key the SQLite block store files blocks and overlays under; pinned by TestStoreKeyIsStable
 		seed = sourceRel + "\x00" + sourceText
 	}
 	return model.ComputeContentHash(seed)

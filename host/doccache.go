@@ -19,6 +19,13 @@ import (
 	"github.com/neokapi/neokapi/core/version"
 )
 
+// recordingBase names the parts and skeleton files a recording of one source
+// writes under one config key.
+func recordingBase(configKey, sourceHash string) string {
+	//keyguard:persisted the names of the document cache's parts and skeleton files; pinned by TestDocCacheNamesAreStable
+	return hashKey(configKey + "\x00" + sourceHash)
+}
+
 // hashKey returns a short stable hex digest that names the content-addressed
 // cache files for a (config, source-hash) pair.
 func hashKey(s string) string {
@@ -118,7 +125,7 @@ const partsFormat = "editions/2"
 // entry and the shape of its records, so an entry another build produced reads
 // as a miss and is re-parsed.
 func buildKey(configKey string) string {
-	//keyguard:persisted the config_key column of the document cache's documents table
+	//keyguard:persisted the config_key column of the document cache's documents table; pinned by TestDocCacheNamesAreStable
 	return version.Version + "\x00" + partsFormat + "\x00" + configKey
 }
 
@@ -195,8 +202,7 @@ func (c *docCache) newRecorder(path, configKey, formatName string) *docRecorder 
 	// re-parses reuse the same final files. Only one recording per document
 	// may be in flight in this process (converge workers share the cache and
 	// race on shared sources); losers fall back to the live read path.
-	//keyguard:persisted hashed into the names of the cache's parts and skeleton files
-	base := hashKey(configKey + "\x00" + hash)
+	base := recordingBase(configKey, hash)
 	c.mu.Lock()
 	if c.inflight == nil {
 		c.inflight = make(map[string]bool)

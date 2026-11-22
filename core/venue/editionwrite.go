@@ -100,7 +100,7 @@ func (w EditionWrite) KnowsNoBasis() bool {
 // Edition names the translation the write is about within its item: the unit
 // and the variant.
 func (w EditionWrite) Edition() string {
-	//keyguard:persisted the key of the sync cache's writes_sent map (host/venue/project/synccache.go), written to disk
+	//keyguard:persisted the key of the sync cache's writes_sent map (host/venue/project/synccache.go), written to disk; pinned by TestEditionWriteEditionIsStable
 	return w.Unit + "\x00" + w.Variant
 }
 

@@ -130,7 +130,7 @@ func msgidWithContext(ctx, msgid string) string {
 	if ctx == "" {
 		return msgid
 	}
-	//keyguard:persisted the msgid string a gettext MO file stores for an entry with a context
+	//keyguard:persisted the msgid string a gettext MO file stores for an entry with a context; pinned by TestMsgidWithContextIsGettexts
 	return ctx + eot + msgid
 }
 

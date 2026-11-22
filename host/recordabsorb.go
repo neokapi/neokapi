@@ -1224,7 +1224,7 @@ func recordDigest(u recordUnit) (string, bool, error) {
 // occurrences of the same string in the same shape are one pair with two votes
 // rather than two competing entries.
 func recordSourceKey(runs []model.Run) string {
-	//keyguard:persisted hashed into the id of the content memory entry an absorbed record writes (recordEntryID)
+	//keyguard:persisted hashed into the id of the content memory entry an absorbed record writes (recordEntryID); pinned by TestRecordEntryIDIsStable
 	return memory.NormalizeText(model.RunsStructuralText(runs)) + "\x00" +
 		memory.NormalizeText(model.FlattenRuns(runs))
 }

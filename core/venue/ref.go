@@ -68,7 +68,7 @@ func DecisionRecordsHash(decisions []UnitDecision) string {
 
 // decisionKey is the ledger's own primary key, rendered for the fold.
 func decisionKey(d UnitDecision) string {
-	//keyguard:persisted hashed by ref.Fold into the decisions component, which core/ref/refcache, the sync cache (decisions_synced) and the server compare
+	//keyguard:persisted hashed by ref.Fold into the decisions component, which core/ref/refcache, the sync cache (decisions_synced) and the server compare; pinned by TestDecisionsComponentIsStable
 	return d.ItemName + "\x00" + d.Unit + "\x00" + d.Variant
 }
 
@@ -135,11 +135,9 @@ func TermsComponent(concepts []terms.Concept, relations []terms.ConceptRelation)
 	}
 	parts := make(map[string]string, len(concepts)+len(relations))
 	for _, c := range concepts {
-		//keyguard:persisted hashed by ref.Fold into the terms component, which core/ref/refcache and the server compare
 		parts["concept\x00"+c.ID] = conceptIdentity(c)
 	}
 	for _, r := range relations {
-		//keyguard:persisted hashed by ref.Fold into the terms component, which core/ref/refcache and the server compare
 		parts["relation\x00"+r.ID] = relationIdentity(r)
 	}
 	return ref.Fold(parts)
@@ -152,7 +150,7 @@ func conceptIdentity(c terms.Concept) string {
 	// same, so the term list is folded rather than concatenated in place.
 	byTerm := make(map[string]string, len(c.Terms))
 	for _, t := range c.Terms {
-		//keyguard:persisted hashed by ref.Fold into the concept identity inside the terms component
+		//keyguard:persisted hashed by ref.Fold into the concept identity inside the terms component, which core/ref/refcache and the server compare; pinned by TestTermsComponentIsStable
 		key := string(t.Locale) + "\x00" + t.Text
 		byTerm[key] = ref.Identity(string(t.Status), t.PartOfSpeech, t.Gender, t.Note)
 	}

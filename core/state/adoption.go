@@ -48,7 +48,7 @@ type Adoption struct {
 // same state make the same adoption, and a document that returns to a path or
 // a content it held before makes a new one.
 func AdoptionID(a Adoption) string {
-	//keyguard:persisted hashed into the adoption id the document_adoption table stores
+	//keyguard:persisted hashed into the adoption id the document_adoption table stores; pinned by TestAdoptionIDIsStable
 	sum := sha256.Sum256([]byte(a.Key + "\x00" + a.Path + "\x00" + a.Digest + "\x00" + a.Prev))
 	return hex.EncodeToString(sum[:])
 }

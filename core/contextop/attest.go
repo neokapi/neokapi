@@ -29,7 +29,7 @@ type ItemRef struct {
 
 // Key is the item's identity as one string, for indexing attestations.
 func (r ItemRef) Key() string {
-	//keyguard:persisted the item key the Bowrain context session tables store for holds and decisions
+	//keyguard:persisted the item key the Bowrain context session tables store for holds and decisions; pinned by TestItemRefKeyIsStable
 	return strings.Join([]string{string(r.Kind), r.Profile, r.ID}, "\x00")
 }
 
