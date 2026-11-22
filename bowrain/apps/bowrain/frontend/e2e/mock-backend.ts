@@ -374,14 +374,19 @@ export async function injectMockBackend(page: Page) {
       };
 
       // Like the server: a flow without an id is created under a fresh one,
-      // every stored flow is a project flow, each save raises its revision, and
-      // a save based on an older revision comes back as the flow as it stands
-      // (FlowSaveResult.changed) with nothing written.
+      // every stored flow is a project flow, each save gives it a new
+      // revision, a save based on an older revision comes back as the flow as
+      // it stands (FlowSaveResult.changed) with nothing written, and an update
+      // of a flow that is not stored is refused.
       mock[IDS.SaveFlowDefinition] = (_projectId: string, def: any) => {
         if (def.source === "built-in") throw new Error("Cannot modify built-in flows");
-        if (!def.id) def.id = `flow-${++flowDefCounter}`;
+        const creating = !def.id;
+        if (creating) def.id = `flow-${++flowDefCounter}`;
         if (builtInFlowDefs[def.id]) throw new Error("Cannot modify built-in flows");
         const stored = userFlowDefs[def.id];
+        // An update never creates: a flow deleted since it was read is gone,
+        // as the server answers (404).
+        if (!creating && !stored) throw new Error("this flow was deleted after it was read");
         if (stored && def.revision !== stored.revision) {
           return { changed: { ...stored } };
         }

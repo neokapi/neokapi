@@ -1,28 +1,33 @@
-import { describe, it, expect, vi } from "vite-plus/test";
+import { afterEach, describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiProvider, TooltipProvider } from "@neokapi/ui";
 import { ProjectFlowsEditor } from "./ProjectFlowsEditor";
 import { createFlowsApi } from "./fixtures";
+import { discardAllPendingSaves } from "../pendingSaves";
+
+// The record of refused versions outlives the editor, so each test starts clean.
+afterEach(() => discardAllPendingSaves());
 
 // Two people edit the same project flow. The second save, based on the flow as
 // it was before the first, is refused, and the person decides what stands.
 
-function setup() {
+function setup(saveDelayMs = 10) {
   const { api, flows } = createFlowsApi();
+  const realUpdate = api.updateFlowDefinition.bind(api);
   const update = vi.spyOn(api, "updateFlowDefinition");
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
       <ApiProvider adapter={api}>
         <TooltipProvider>
-          <ProjectFlowsEditor workspaceSlug="acme" projectId="p-1" saveDelayMs={10} />
+          <ProjectFlowsEditor workspaceSlug="acme" projectId="p-1" saveDelayMs={saveDelayMs} />
         </TooltipProvider>
       </ApiProvider>
     </QueryClientProvider>,
   );
-  return { api, flows, update, user: userEvent.setup() };
+  return { api, flows, update, realUpdate, user: userEvent.setup() };
 }
 
 /** A teammate renames the flow from another window. */
@@ -123,5 +128,77 @@ describe("ProjectFlowsEditor after the person's own save", () => {
     await waitFor(() => expect(update).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getByTestId("flow-save-state")).toHaveTextContent("Saved"));
     expect(screen.queryByTestId("flow-changed-dialog")).toBeNull();
+  });
+});
+
+describe("ProjectFlowsEditor when the refused save is dismissed away from the flow", () => {
+  it("a conflict raised by Back and dismissed on the list keeps the edit for the flow", async () => {
+    const { api, flows, user } = setup(60_000);
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("linear-flow-editor");
+    await teammateSaves(api);
+    const before = screen.getAllByText("Quality Check").length;
+    await addAStep(user);
+    const edited = screen.getAllByText("Quality Check").length;
+    expect(edited).toBeGreaterThan(before);
+
+    // Back sends the resting edit; the refusal arrives over the list.
+    await user.click(screen.getByLabelText("Back to flow list"));
+    await screen.findByTestId("flow-changed-dialog");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByTestId("flow-changed-dialog")).toBeNull());
+
+    expect(await screen.findByTestId("flow-unsaved-flow-review")).toBeInTheDocument();
+    await user.click(await screen.findByText("Teammate's flow"));
+    await screen.findByTestId("linear-flow-editor");
+    expect(screen.getByTestId("flow-changed-elsewhere")).toBeInTheDocument();
+    expect(screen.getAllByText("Quality Check").length).toBe(edited);
+    expect(flows.find((f) => f.id === "flow-review")?.name).toBe("Teammate's flow");
+  });
+
+  it("a conflict that arrives while another flow is open keeps the edit for its own flow", async () => {
+    const { api, update, realUpdate, user } = setup(60_000);
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("linear-flow-editor");
+    await teammateSaves(api);
+    // The person's save is held until another flow is open.
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    update.mockImplementation(async (...args) => {
+      await gate;
+      return realUpdate(...args);
+    });
+    await addAStep(user);
+    await user.click(screen.getByLabelText("Back to flow list"));
+    // The person opens another flow before the save's refusal comes back.
+    await user.click(await screen.findByText("Pseudo Translate"));
+    await screen.findByTestId("linear-flow-editor");
+    release();
+
+    await screen.findByTestId("flow-changed-dialog");
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByLabelText("Back to flow list"));
+    expect(await screen.findByTestId("flow-unsaved-flow-review")).toBeInTheDocument();
+  });
+
+  it("after a dismissal later changes do not ask again; Review does", async () => {
+    const { api, update, user } = setup();
+    await user.click(await screen.findByText("Translate and review"));
+    await screen.findByTestId("linear-flow-editor");
+    await teammateSaves(api);
+    await addAStep(user);
+    await screen.findByTestId("flow-changed-dialog");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByTestId("flow-changed-dialog")).toBeNull());
+    const calls = update.mock.calls.length;
+
+    await addAStep(user);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(screen.queryByTestId("flow-changed-dialog")).toBeNull();
+    expect(update.mock.calls.length).toBe(calls);
+    expect(screen.getByTestId("flow-save-state")).toHaveTextContent("Changed elsewhere");
+
+    await user.click(screen.getByRole("button", { name: "Review" }));
+    expect(await screen.findByTestId("flow-changed-dialog")).toBeInTheDocument();
   });
 });

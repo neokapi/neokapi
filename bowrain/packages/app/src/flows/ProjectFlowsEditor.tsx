@@ -6,7 +6,7 @@
 // Flows are connector-agnostic: they apply to content from any connector, and
 // the flow graph never names one.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { t } from "@neokapi/i18n-react/runtime";
 import { useToolSchemas } from "@neokapi/flow-editor";
@@ -16,7 +16,22 @@ import { definitionToSpec, specToDefinition, toEditorDefinition, toEditorTools }
 import { ProjectFlowList } from "./ProjectFlowList";
 import { ProjectFlowPane, type FlowSaveState } from "./ProjectFlowPane";
 import { FlowChangedDialog } from "./FlowChangedDialog";
+import {
+  discardPendingEdit,
+  pendingEdit,
+  pendingEdits,
+  recordPendingEdit,
+  subscribePendingSaves,
+} from "../pendingSaves";
 import { useSchemaFormHost } from "./useSchemaFormHost";
+
+/** A save refused because the flow changed elsewhere, as pendingSaves keeps it. */
+interface RefusedSave {
+  /** The person's version, which the server did not take. */
+  edit: OpenFlow;
+  /** The flow as the server held it when it refused. */
+  current: FlowDefinitionInfo;
+}
 
 interface OpenFlow {
   flow: FlowDefinitionInfo;
@@ -69,11 +84,27 @@ export function ProjectFlowsEditor({
   const [saveError, setSaveError] = useState<unknown>(null);
   const [actionError, setActionError] = useState<unknown>(null);
   // A save the server refused because someone saved the flow after it was
-  // opened: the person's version and the flow as it now stands.
-  const [conflict, setConflict] = useState<{
-    edit: OpenFlow;
-    current: FlowDefinitionInfo;
-  } | null>(null);
+  // opened is recorded per flow (pendingSaves): the person's version and the
+  // flow as it now stands. Only Keep the current flow or Save my version
+  // clears it. conflictKey is the record the dialog is open on.
+  const scope = `flows:${workspaceSlug}/${projectId}`;
+  const keyOf = useCallback((flowId: string) => `${scope}/${flowId}`, [scope]);
+  const records = useSyncExternalStore(subscribePendingSaves, pendingEdits);
+  const refused = useMemo(
+    () =>
+      new Map(
+        records
+          .filter((r) => r.scope === scope)
+          .map((r) => [r.key, r.data as RefusedSave] as const),
+      ),
+    [records, scope],
+  );
+  const unsavedIds = useMemo(
+    () => new Set([...refused.values()].map((r) => r.edit.flow.id)),
+    [refused],
+  );
+  const [conflictKey, setConflictKey] = useState<string | null>(null);
+  const conflict = conflictKey ? (refused.get(conflictKey) ?? null) : null;
 
   // The open flow as the surface last knew it, readable from a timer or an
   // in-flight save, which see no render. Every local change goes through
@@ -132,17 +163,30 @@ export function ProjectFlowsEditor({
           const changed = asFlowChanged(e);
           if (changed) {
             // Someone saved the flow since it was opened. Nothing was written;
-            // the person decides, whichever flow is on screen now.
-            setConflict({ edit, current: changed.current });
+            // the person's version is recorded for the flow and they decide,
+            // whichever flow is on screen now.
+            const key = keyOf(edit.flow.id);
+            recordPendingEdit({
+              key,
+              label: edit.flow.name,
+              scope,
+              error: changed,
+              data: { edit, current: changed.current } satisfies RefusedSave,
+            });
+            setConflictKey(key);
+            // The list shows the flow as it now stands.
+            void invalidate();
+            if (current()) dirtyRef.current = false;
+            return;
           }
           if (!current()) return;
-          dirtyRef.current = !changed;
+          dirtyRef.current = true;
           setSaveError(e);
           setSaveState("error");
         }
       });
     },
-    [api, workspaceSlug, projectId, invalidate, setOpen, queryClient, flowsKey],
+    [api, workspaceSlug, projectId, invalidate, setOpen, queryClient, flowsKey, keyOf, scope],
   );
 
   /** Saves a resting edit now rather than after the pause. */
@@ -162,20 +206,32 @@ export function ProjectFlowsEditor({
     (spec: LinearFlowSpec) => {
       const cur = openRef.current;
       if (!cur || cur.flow.source === "built-in") return;
-      setOpen({ flow: cur.flow, spec });
+      const next = { flow: cur.flow, spec };
+      setOpen(next);
+      // A flow someone else changed waits for the person's decision: the
+      // record follows their edits, and nothing is sent until they choose.
+      const record = pendingEdit(keyOf(cur.flow.id));
+      if (record) {
+        recordPendingEdit({
+          ...record,
+          data: { ...(record.data as RefusedSave), edit: next } satisfies RefusedSave,
+        });
+        return;
+      }
       dirtyRef.current = true;
       setSaveState("unsaved");
       clearTimeout(timerRef.current);
       timerRef.current = setTimeout(flush, saveDelayMs);
     },
-    [setOpen, flush, saveDelayMs],
+    [setOpen, flush, saveDelayMs, keyOf],
   );
 
   /** Keeps the flow as it now stands and drops the refused version. */
   const keepCurrent = useCallback(() => {
-    if (!conflict) return;
+    if (!conflict || !conflictKey) return;
     const { current } = conflict;
-    setConflict(null);
+    discardPendingEdit(conflictKey);
+    setConflictKey(null);
     void invalidate();
     if (openRef.current?.flow.id !== current.id) return;
     clearTimeout(timerRef.current);
@@ -183,13 +239,14 @@ export function ProjectFlowsEditor({
     setOpen({ flow: current, spec: definitionToSpec(current) });
     setSaveError(null);
     setSaveState("saved");
-  }, [conflict, invalidate, setOpen]);
+  }, [conflict, conflictKey, invalidate, setOpen]);
 
   /** Saves the person's version over the flow as it now stands. */
   const saveMine = useCallback(() => {
-    if (!conflict) return;
+    if (!conflict || !conflictKey) return;
     const { edit, current } = conflict;
-    setConflict(null);
+    discardPendingEdit(conflictKey);
+    setConflictKey(null);
     const live = openRef.current;
     // The open flow holds any edit made since the refused save.
     const mine = live && live.flow.id === edit.flow.id ? live : edit;
@@ -197,18 +254,20 @@ export function ProjectFlowsEditor({
     if (live && live.flow.id === edit.flow.id) setOpen(next);
     dirtyRef.current = false;
     enqueueSave(next);
-  }, [conflict, enqueueSave, setOpen]);
+  }, [conflict, conflictKey, enqueueSave, setOpen]);
 
-  /** Closes the dialog and leaves the person's version on screen, unsaved. */
-  const dismissConflict = useCallback(() => {
-    if (!conflict) return;
-    const { edit } = conflict;
-    setConflict(null);
-    if (openRef.current?.flow.id !== edit.flow.id) return;
-    // Still the person's latest word; the next change or flush retries it.
-    dirtyRef.current = true;
-    setSaveState("unsaved");
-  }, [conflict]);
+  /**
+   * Closes the dialog without a choice. The person's version stays recorded
+   * and on screen, marked as not saved; they are asked again when they ask
+   * (Review) or leave the flow, never on each change.
+   */
+  const dismissConflict = useCallback(() => setConflictKey(null), []);
+
+  /** Asks again about the open flow's refused version, on leaving it. */
+  const askOnLeave = useCallback(() => {
+    const cur = openRef.current;
+    if (cur && pendingEdit(keyOf(cur.flow.id))) setConflictKey(keyOf(cur.flow.id));
+  }, [keyOf]);
 
   const conflictDialog = (
     <FlowChangedDialog
@@ -228,18 +287,22 @@ export function ProjectFlowsEditor({
   const openFlow = useCallback(
     (flow: FlowDefinitionInfo) => {
       flush();
-      setOpen({ flow, spec: definitionToSpec(flow) });
+      askOnLeave();
+      // A version the server refused opens as the person left it.
+      const record = pendingEdit(keyOf(flow.id));
+      setOpen(record ? (record.data as RefusedSave).edit : { flow, spec: definitionToSpec(flow) });
       setSaveState("saved");
       setSaveError(null);
       setActionError(null);
     },
-    [flush, setOpen],
+    [flush, setOpen, askOnLeave, keyOf],
   );
 
   const handleBack = useCallback(() => {
     flush();
+    askOnLeave();
     setOpen(null);
-  }, [flush, setOpen]);
+  }, [flush, setOpen, askOnLeave]);
 
   const createFlow = useCallback(
     async (def: FlowDefinitionInfo) => {
@@ -295,6 +358,8 @@ export function ProjectFlowsEditor({
       }
       try {
         await api.deleteFlowDefinition(workspaceSlug, projectId, flow.id);
+        // A deleted flow has no version left to decide about.
+        discardPendingEdit(keyOf(flow.id));
         if (openRef.current?.flow.id === flow.id) setOpen(null);
         setActionError(null);
         void invalidate();
@@ -302,11 +367,13 @@ export function ProjectFlowsEditor({
         setActionError(e);
       }
     },
-    [api, workspaceSlug, projectId, invalidate, setOpen],
+    [api, workspaceSlug, projectId, invalidate, setOpen, keyOf],
   );
 
   if (open) {
     const readOnly = open.flow.source === "built-in";
+    const openKey = keyOf(open.flow.id);
+    const changedElsewhere = refused.has(openKey);
     return (
       <>
         {actionError != null && (
@@ -317,8 +384,9 @@ export function ProjectFlowsEditor({
           spec={open.spec}
           tools={tools}
           readOnly={readOnly}
-          saveState={saveState}
+          saveState={changedElsewhere ? "changed" : saveState}
           saveError={saveError}
+          onReviewChange={changedElsewhere ? () => setConflictKey(openKey) : undefined}
           onGetSchema={getSchema}
           host={host}
           onBack={handleBack}
@@ -343,6 +411,7 @@ export function ProjectFlowsEditor({
         onCreate={handleCreate}
         onCopy={(flow) => void handleCopy(flow)}
         onDelete={(flow) => void handleDelete(flow)}
+        unsaved={unsavedIds}
       />
       {conflictDialog}
     </>
