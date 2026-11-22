@@ -239,6 +239,19 @@ export function ApplyWorkspaceDocument(changeSet) {
 }
 
 /**
+ * ApproveContextStore records that the person allows the folder a tab's
+ * recipe keeps its context in. shown is the resolved folder the dialog
+ * showed; when the recipe leads elsewhere by the time of the click, nothing
+ * is recorded and the person is asked again.
+ * @param {string} tabID
+ * @param {string} shown
+ * @returns {$CancellablePromise<string>}
+ */
+export function ApproveContextStore(tabID, shown) {
+    return $Call.ByID(4149791345, tabID, shown);
+}
+
+/**
  * AssistantsView reads a tab's Assistants page: each assistant and whether it
  * is connected, the rules count, and the newest sessions.
  * @param {string} tabID
@@ -2359,6 +2372,18 @@ export function OverviewSummary(tabID) {
     return $Call.ByID(2431996517, tabID).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType163($result);
     }));
+}
+
+/**
+ * PendingContextStore is the folder a tab's recipe keeps its context in when
+ * nobody has allowed it yet, and "" when the recipe keeps no context in a
+ * folder or the folder is allowed. The share view asks the person, showing
+ * this path, before it syncs.
+ * @param {string} tabID
+ * @returns {$CancellablePromise<string>}
+ */
+export function PendingContextStore(tabID) {
+    return $Call.ByID(1401683387, tabID);
 }
 
 /**

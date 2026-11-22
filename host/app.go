@@ -61,6 +61,10 @@ type App struct {
 	// command line does (commandActor).
 	actingActor *contextop.Actor
 
+	// servingMCP is set once this App answers an MCP client (NoteMCPSession):
+	// whatever the environment says, an agent is asking.
+	servingMCP bool
+
 	// Processing flags bound by AddProcessingFlags.
 	FormatFlag string
 	Encoding   string

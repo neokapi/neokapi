@@ -530,6 +530,14 @@ func (a *App) shareVia(ctx context.Context, req ShareRequest, res *ShareResult) 
 			file.Action = ShareFileUpdated
 		}
 	}
+	// A person who names the folder with --via folder has chosen it, which
+	// is the approval a sync through it needs (requireContextStore). An
+	// agent's choice is not one.
+	if req.Via == ShareViaFolder && !a.agentRunning() {
+		if _, err := a.ApproveContextStore(req.Project); err != nil {
+			return err
+		}
+	}
 	res.Files = append(res.Files, file)
 	return nil
 }
@@ -734,7 +742,7 @@ func (a *App) readContextToMove(ctx context.Context, recipe string) (*ContextMov
 	if err != nil {
 		return nil, err
 	}
-	s, err := a.contextSync(ctx, layout, prev, w)
+	s, err := a.contextSync(ctx, layout, prev, w, true)
 	if err != nil {
 		return nil, fmt.Errorf("read the context from %s %s before moving it to Bowrain: %w; nothing was changed", prev.Kind, prev.Location, err)
 	}
