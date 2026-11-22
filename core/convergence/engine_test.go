@@ -2,6 +2,7 @@ package convergence_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -78,4 +79,32 @@ func TestLoopSumsProducedAcrossPasses(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, res.Passes)
 	assert.Equal(t, 14, res.Produced)
+}
+
+// A derivation that fails after a pass ends the run with an error, and the
+// result still carries what the earlier passes wrote.
+func TestLoopKeepsProducedWhenADerivationFails(t *testing.T) {
+	states := []convergence.PassState{
+		{Pending: []string{"fr"}, Produced: 0},
+		{Pending: []string{"fr"}, Produced: 10},
+		{Pending: []string{"fr"}, Produced: 10},
+	}
+	derived := 0
+	res, err := convergence.Loop(context.Background(), convergence.LoopOptions{UntilGate: true, MaxPasses: 5},
+		convergence.LoopFuncs{
+			Derive: func(context.Context) (convergence.PassState, error) {
+				if derived == len(states) {
+					return convergence.PassState{}, errors.New("derive failed")
+				}
+				s := states[derived]
+				derived++
+				return s, nil
+			},
+			Produce: func(context.Context, string, int, *convergence.Emitter) (convergence.PassProduction, error) {
+				return convergence.PassProduction{}, nil
+			},
+		}, nil)
+	require.Error(t, err)
+	assert.Equal(t, 2, res.Passes)
+	assert.Equal(t, 10, res.Produced)
 }

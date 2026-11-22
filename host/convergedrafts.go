@@ -10,8 +10,8 @@ import (
 
 // A convergence pass drafts; only delivery puts a file where something reads it.
 //
-// The loop's coverage is derived from files — it reads each unit's target and
-// grades it — so a pass has to write its output somewhere before the pass after
+// The loop's coverage is derived from files, it reads each unit's target and
+// grades it, so a pass has to write its output somewhere before the pass after
 // it can tell whether the locale moved. Writing it at the collection's own
 // `target:` path made measuring and delivering the same act, and delivering is
 // the one the ship gate exists to hold back: `materialize: on-converge` promises
@@ -38,8 +38,8 @@ const convergeDraftsDirName = "drafts"
 // the runs that promise a locale short of its ship gate gets no files, so those
 // are the runs whose passes draft rather than deliver.
 //
-// `materialize: manual` promises the opposite — that delivery is a separate
-// `kapi merge` — and claims nothing about a gate, so its passes keep writing
+// `materialize: manual` promises the opposite, that delivery is a separate
+// `kapi merge`, and claims nothing about a gate, so its passes keep writing
 // where the recipe points.
 func deliveryIsGated(proj *project.KapiProject, opts ConvergeOptions) bool {
 	return opts.materialize || proj.Defaults.ResolvedMaterialize() == project.MaterializeOnConverge
@@ -72,8 +72,8 @@ func (a *App) beginConvergeDrafts(projectPath, root string) (func(), error) {
 
 // endConvergeDrafts closes the draft tree: nothing is graded against a draft
 // after it, and the tree is gone. Safe to call more than once, which is what
-// lets the run end the drafts as soon as delivery is done — so the standing it
-// reports is read off the delivered tree — while the caller's defer still holds
+// lets the run end the drafts as soon as delivery is done, so the standing it
+// reports is read off the delivered tree, while the caller's defer still holds
 // the guarantee on every error path.
 func (a *App) endConvergeDrafts() {
 	dir := a.convergeDraftDir
@@ -87,7 +87,7 @@ func (a *App) endConvergeDrafts() {
 
 // draftPathFor maps a resolved target path into one locale's draft subtree. It
 // returns (path, false) unchanged when no convergence run is drafting, when the
-// locale is unknown, or when the target lies outside the project root — a
+// locale is unknown, or when the target lies outside the project root, a
 // destination the recipe's gates do not reach is not one this can hold back.
 func (a *App) draftPathFor(locale, targetPath string) (string, bool) {
 	if a.convergeDraftDir == "" || a.convergeDraftRoot == "" || locale == "" {
@@ -100,6 +100,16 @@ func (a *App) draftPathFor(locale, targetPath string) (string, bool) {
 	return filepath.Join(a.convergeDraftDir, locale, rel), true
 }
 
+// inConvergeDraftTree reports whether path lies in the draft tree of the
+// convergence run in progress.
+func (a *App) inConvergeDraftTree(path string) bool {
+	if a.convergeDraftDir == "" {
+		return false
+	}
+	rel, err := filepath.Rel(a.convergeDraftDir, path)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
+}
+
 // draftedTargetPath is draftPathFor for a reader: the draft when one exists,
 // otherwise the delivered file. Coverage asks it, so a pass grades its own
 // output while a locale with nothing drafted yet is still graded on what was
@@ -107,7 +117,7 @@ func (a *App) draftPathFor(locale, targetPath string) (string, bool) {
 //
 // This is the LOOP's subject, and only the loop's: it answers "did this pass
 // move the locale", which is what decides whether another pass runs and whether
-// the locale is delivered. It is not the subject of what the run reports —
+// the locale is delivered. It is not the subject of what the run reports,
 // a parked locale's draft is discarded, so a closing table derived from it
 // describes a tree that no longer exists and that `kapi status`, run a second
 // later, contradicts. The run ends the drafts before it reports (#2024).

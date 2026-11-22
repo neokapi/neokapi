@@ -64,6 +64,28 @@ collections:
     target: docs/{lang}/*.md
 `
 
+// upTwiceScopeHeldRecipe gates one collection of one language: nl/docs needs
+// established wording and nl/app has no gate. A language is delivered only
+// when every scope of it ships, so no nl file is written, and every nl draft,
+// the app's included, waits for review.
+const upTwiceScopeHeldRecipe = `version: v1
+name: up-twice-scope-held-e2e
+defaults:
+  source_language: en
+  target_languages: [nl]
+  materialize: on-converge
+ship_gates:
+  - when: {collections: [docs], locales: [nl]}
+    gate: {established: 100}
+collections:
+  - name: app
+    path: src/messages_en.json
+    target: src/messages_{lang}.json
+  - name: docs
+    path: docs/en/*.md
+    target: docs/{lang}/*.md
+`
+
 // A second `kapi up` over a project the first one converged does nothing: it
 // changes no byte of the project tree, its state under .kapi/ included, or of
 // the workspace under the data root, where the content memory, terms and
@@ -79,7 +101,7 @@ collections:
 // apart from produced.
 func TestUpTwiceIsANoOp(t *testing.T) {
 	t.Run("converged", func(t *testing.T) {
-		first, second := upTwice(t, upTwiceRecipe, false)
+		first, second := upTwice(t, upTwiceRecipe, []string{"fr", "de"}, nil)
 		require.True(t, first.Converged, "the first run converges")
 		require.Len(t, first.Locales, 2)
 		for _, l := range first.Locales {
@@ -95,7 +117,7 @@ func TestUpTwiceIsANoOp(t *testing.T) {
 	})
 
 	t.Run("drafts wait for review", func(t *testing.T) {
-		first, second := upTwice(t, upTwiceHeldRecipe, true)
+		first, second := upTwice(t, upTwiceHeldRecipe, []string{"fr", "de"}, []string{"nl"})
 		require.False(t, first.Converged, "nl waits for review")
 		require.Len(t, first.Locales, 3)
 		assert.Positive(t, first.Produced, "the first run's summary reports what it wrote")
@@ -109,6 +131,17 @@ func TestUpTwiceIsANoOp(t *testing.T) {
 		for _, ev := range second.passes {
 			assert.Zero(t, ev.ProducedDelta, "pass %d of the second run wrote nothing", ev.Pass)
 			assert.Equal(t, first.WaitingForReview, ev.WaitingForReview, "pass %d reports the drafts waiting", ev.Pass)
+		}
+	})
+
+	t.Run("one scope of a language waits for review", func(t *testing.T) {
+		first, second := upTwice(t, upTwiceScopeHeldRecipe, nil, []string{"nl"})
+		units := first.units["nl"]
+		require.Positive(t, units)
+		for _, run := range []*upTwiceResult{first, second} {
+			assert.Zero(t, run.Produced, "no nl file is written, so nothing is produced")
+			assert.Equal(t, units, run.WaitingForReview,
+				"every nl draft waits for review, and none is also counted as produced")
 		}
 	})
 }
@@ -128,19 +161,19 @@ type upTwiceResult struct {
 			Translated int `json:"translated"`
 		} `json:"pct"`
 	} `json:"locales"`
+	Locale string `json:"locale"`
+	Units  int    `json:"units"`
 	passes []upTwiceResult
+	// units is each locale's unit count, from its locale_done events.
+	units map[string]int
 }
 
 // upTwice runs `kapi up` twice over a project with recipe and returns both
-// runs' results. It asserts that the first run translated the fr and de
-// targets and that the second run changed no file of the project or the data
-// root.
-//
-// With parked set, a language waits for review, so the second run passes over
-// it again and rewrites its working caches under .kapi/work/. The project is
-// then compared outside that directory, as the cli verify recipe compares it;
-// the data root is still compared whole.
-func upTwice(t *testing.T, recipe string, parked bool) (first, second *upTwiceResult) {
+// runs' results. It asserts that the first run translated the targets of
+// each delivered language, that no target of a withheld language exists after
+// either run, and that the second run changed no file of the project or the
+// data root.
+func upTwice(t *testing.T, recipe string, delivered, withheld []string) (first, second *upTwiceResult) {
 	t.Helper()
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
@@ -167,6 +200,7 @@ func upTwice(t *testing.T, recipe string, parked bool) (first, second *upTwiceRe
 		require.NoError(t, err, "kapi up failed:\n%s", out)
 		var result *upTwiceResult
 		var passes []upTwiceResult
+		units := map[string]int{}
 		for line := range strings.Lines(string(out)) {
 			var e upTwiceResult
 			if json.Unmarshal([]byte(line), &e) != nil {
@@ -177,41 +211,42 @@ func upTwice(t *testing.T, recipe string, parked bool) (first, second *upTwiceRe
 				result = &e
 			case "pass_done":
 				passes = append(passes, e)
+			case "locale_done":
+				units[e.Locale] = e.Units
 			}
 		}
 		require.NotNil(t, result, "the run reports a result:\n%s", out)
-		result.passes = passes
+		result.passes, result.units = passes, units
 		return result
+	}
+	assertWithheld := func() {
+		t.Helper()
+		for _, lang := range withheld {
+			for _, path := range []string{"src/messages_" + lang + ".json", "docs/" + lang + "/guide.md"} {
+				assert.NoFileExists(t, filepath.Join(dir, path), "%s waits for review, so no file of it is written", lang)
+			}
+		}
 	}
 
 	first = up()
 	require.GreaterOrEqual(t, first.Passes, 1, "the first run did a pass")
-	for _, target := range []struct{ path, lang string }{
-		{"src/messages_fr.json", "fr"}, {"src/messages_de.json", "de"},
-		{"docs/fr/guide.md", "fr"}, {"docs/de/guide.md", "de"},
-	} {
-		content, err := os.ReadFile(filepath.Join(dir, target.path))
-		require.NoError(t, err)
-		assert.Contains(t, string(content), "⟦"+target.lang+"⟧", "%s carries translated text", target.path)
+	for _, lang := range delivered {
+		for _, path := range []string{"src/messages_" + lang + ".json", "docs/" + lang + "/guide.md"} {
+			content, err := os.ReadFile(filepath.Join(dir, path))
+			require.NoError(t, err)
+			assert.Contains(t, string(content), "⟦"+lang+"⟧", "%s carries translated text", path)
+		}
 	}
+	assertWithheld()
 	beforeTree, beforeData := snapshotTree(t, dir), snapshotTree(t, dataRoot)
 	require.Contains(t, beforeData, workspaceDB, "the run wrote its workspace under the data root")
 	beforeRows := workspaceRows(t, filepath.Join(dataRoot, workspaceDB))
 	require.NotEmpty(t, beforeRows["workspace_projects"], "the run registered the project")
 
 	second = up()
+	assertWithheld()
 
-	afterTree := snapshotTree(t, dir)
-	if parked {
-		for _, tree := range []map[string]string{beforeTree, afterTree} {
-			for path := range tree {
-				if strings.HasPrefix(path, ".kapi/work/") {
-					delete(tree, path)
-				}
-			}
-		}
-	}
-	assertUnchanged(t, "project", beforeTree, afterTree)
+	assertUnchanged(t, "project", beforeTree, snapshotTree(t, dir))
 	afterData := snapshotTree(t, dataRoot)
 	delete(beforeData, workspaceDB)
 	delete(afterData, workspaceDB)

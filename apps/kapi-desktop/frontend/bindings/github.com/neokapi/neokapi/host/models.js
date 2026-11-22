@@ -4156,14 +4156,16 @@ export class ConvergeOutput {
              */
             this["locales"] = [];
         }
-        if (!("produced" in $$source)) {
+        if (/** @type {any} */(false)) {
             /**
-             * Produced counts the units this run wrote, across every pass. A run that
-             * changed nothing reports 0.
+             * Produced counts the units this run wrote to the project's files, across
+             * every pass. A run that changed nothing reports 0. Nil when the venue
+             * does not report it: a server run writes to the server, and its summary
+             * leaves the figure out rather than give it another meaning.
              * @member
-             * @type {number}
+             * @type {number | null | undefined}
              */
-            this["produced"] = 0;
+            this["produced"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**

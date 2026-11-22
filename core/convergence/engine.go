@@ -158,7 +158,7 @@ func Loop(ctx context.Context, opts LoopOptions, f LoopFuncs, emit *Emitter) (Lo
 		if f.Sync != nil {
 			s, err := f.Sync(ctx)
 			if err != nil {
-				return LoopResult{Passes: passes}, err
+				return LoopResult{Passes: passes, Produced: produced}, err
 			}
 			synced = s
 			if synced != nil {
@@ -170,7 +170,7 @@ func Loop(ctx context.Context, opts LoopOptions, f LoopFuncs, emit *Emitter) (Lo
 
 		state, err := f.Derive(ctx)
 		if err != nil {
-			return LoopResult{Passes: passes}, err
+			return LoopResult{Passes: passes, Produced: produced}, err
 		}
 		if len(state.Pending) == 0 {
 			// Already converged before this pass (or after the previous one).
@@ -225,7 +225,7 @@ func Loop(ctx context.Context, opts LoopOptions, f LoopFuncs, emit *Emitter) (Lo
 			})
 		}
 		if err := g.Wait(); err != nil {
-			return LoopResult{Passes: passes}, err
+			return LoopResult{Passes: passes, Produced: produced}, err
 		}
 
 		// Post-pass derivation: the venue re-runs its bound checks over what
@@ -233,7 +233,7 @@ func Loop(ctx context.Context, opts LoopOptions, f LoopFuncs, emit *Emitter) (Lo
 		// lift its locale over the gate.
 		after, err := f.Derive(ctx)
 		if err != nil {
-			return LoopResult{Passes: passes}, err
+			return LoopResult{Passes: passes, Produced: produced}, err
 		}
 		delta := after.Produced - before
 		produced += max(delta, 0)

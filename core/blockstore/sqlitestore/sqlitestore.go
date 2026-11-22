@@ -23,7 +23,7 @@ import (
 // New opens (or creates) a SQLite-backed block store at the given path.
 // Intended use: project-local persistence in the project store,
 // `.kapi/work/store.db`, where core/projectdb binds it alongside the other
-// subsystems — full random access, append-friendly for concurrent overlay
+// subsystems, full random access, append-friendly for concurrent overlay
 // writes.
 //
 // The database schema is internal to this package and versioned by
@@ -40,7 +40,7 @@ func New(path string) (blockstore.Store, error) {
 // file-run holding a session): run-long read+write transactions on one SQLite
 // file deadlock-avoid into immediate SQLITE_BUSY, bypassing busy_timeout.
 // Overlays/blocks are idempotent per key and durable the moment the write
-// returns — matching the executor's long-standing intent (it already opens
+// returns, matching the executor's long-standing intent (it already opens
 // sessions on the parent context precisely so cancellation does NOT roll back
 // written overlays). Use New for single-writer, all-or-nothing work
 // (extraction's purge-and-refill).
@@ -48,7 +48,7 @@ func NewAutocommit(path string) (blockstore.Store, error) {
 	return open(path, true)
 }
 
-// NewFromDB adopts an already-open database — the project's merged
+// NewFromDB adopts an already-open database, the project's merged
 // `.kapi/work/store.db`, where the block cache is one schema among the content
 // memory, the terms store and the unit working set. The migrations and the
 // `cache_migrations` ledger are the same ones a standalone file gets, which is
@@ -96,7 +96,7 @@ func (k *cacheStore) Capabilities() blockstore.Capabilities {
 
 // Begin opens a session. In the default (transactional) mode the session is
 // backed by one *sql.Tx: writes become visible at Commit and Rollback
-// discards them — the all-or-nothing contract extraction relies on. In
+// discards them, the all-or-nothing contract extraction relies on. In
 // autocommit mode (NewAutocommit) there is no session transaction; see
 // NewAutocommit for why concurrent flow runs need that.
 func (k *cacheStore) Begin(ctx context.Context) (blockstore.Session, error) {
@@ -133,7 +133,7 @@ type cacheSession struct {
 	store *cacheStore
 	// tx is nil in autocommit mode: statements run on the pool. On a gated
 	// handle it also carries the write permit, taken at Begin and returned at
-	// Commit or Rollback — so a session is the project store's single writer
+	// Commit or Rollback, so a session is the project store's single writer
 	// for its whole life, which is what a purge-and-refill needs anyway.
 	tx   *storage.Tx
 	ctx  context.Context
@@ -283,7 +283,7 @@ func (s *cacheSession) PutBlock(collection string, b *blockstore.Block) error {
 	// text_indexed goes back to 0: this block's searchable text is now stale,
 	// and the text index reconciles it the next time something searches. The
 	// column costs nothing to write and is the whole of extraction's share of
-	// the index — see textindex.go for why the build is not on this path.
+	// the index, see textindex.go for why the build is not on this path.
 	_, err = s.q().ExecContext(s.ctx, `
 		INSERT INTO blocks (hash, collection, translatable, payload)
 		VALUES (?, ?, ?, ?)
@@ -393,6 +393,7 @@ func (s *cacheSession) PutOverlay(sc blockstore.Overlay) error {
 		ON CONFLICT(kind, block_hash) DO UPDATE SET
 			payload=excluded.payload,
 			updated_at=excluded.updated_at
+		WHERE overlays.payload IS NOT excluded.payload
 	`, sc.Kind, sc.BlockHash, sc.Payload, sc.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("blockstore: put overlay: %w", err)
@@ -490,7 +491,7 @@ func (s *cacheSession) Rollback() error {
 	s.done = true
 	if s.tx == nil {
 		// Autocommit session: completed writes stay (idempotent per-key
-		// caches — valid work a later pass reuses). Rollback only closes.
+		// caches, valid work a later pass reuses). Rollback only closes.
 		return nil
 	}
 	return s.tx.Rollback()

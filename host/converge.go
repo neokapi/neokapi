@@ -119,9 +119,11 @@ type ConvergeOutput struct {
 	Passes    int                    `json:"passes"`
 	Converged bool                   `json:"converged"` // no scope is withheld: every gated scope clears its gate
 	Locales   []ConvergeLocaleResult `json:"locales"`
-	// Produced counts the units this run wrote, across every pass. A run that
-	// changed nothing reports 0.
-	Produced int `json:"produced"`
+	// Produced counts the units this run wrote to the project's files, across
+	// every pass. A run that changed nothing reports 0. Nil when the venue
+	// does not report it: a server run writes to the server, and its summary
+	// leaves the figure out rather than give it another meaning.
+	Produced *int `json:"produced,omitempty"`
 	// WaitingForReview counts the drafts the run holds for review in locales
 	// short of their ship gate. They are not written to the project, so
 	// Produced leaves them out.
@@ -245,7 +247,9 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		verb = "passes"
 	}
 	fmt.Fprintf(w, "Ran flow %q over %d locale(s) in %d %s.\n\n", o.Flow, len(o.Locales), o.Passes, verb)
-	fmt.Fprintf(w, "  produced            %d\n", o.Produced)
+	if o.Produced != nil {
+		fmt.Fprintf(w, "  produced            %d\n", *o.Produced)
+	}
 	if o.WaitingForReview > 0 {
 		fmt.Fprintf(w, "  waiting for review  %d\n", o.WaitingForReview)
 	}
@@ -1192,37 +1196,50 @@ func draftedByScope(cov []LocaleCoverage) map[coverageScope]int {
 	return out
 }
 
-// writtenUnits counts the units at `draft` or above that a run which owns
-// delivery has written: every unit of a scope that ships, and, for a scope
-// that does not, what the delivered tree held before the run (delivered).
-func writtenUnits(cov []LocaleCoverage, delivered map[coverageScope]int) int {
-	total := 0
-	for _, c := range cov {
-		if c.Shippable {
-			total += c.Total * c.Pct["draft"] / 100
-			continue
-		}
-		total += delivered[coverageScope{c.Locale, c.Collection}]
-	}
-	return total
-}
-
-// heldDrafts counts the drafts a run that owns delivery holds for review: in
-// each locale with a scope that does not ship, the units its last pass drafted
-// with a provider or took from a stored draft. Units recycled from the content
-// memory are approved wording, not drafts. A withheld scope gets no files, so
-// these drafts are written nowhere in the project.
-func heldDrafts(cov []LocaleCoverage, production map[string]convergence.PassProduction) int {
+// withheldLocales names the locales with a scope that does not ship. Under
+// gated delivery such a locale gets none of its files, whatever its other
+// scopes clear (finishConverge delivers a locale only when it is shippable).
+func withheldLocales(cov []LocaleCoverage) map[string]bool {
 	withheld := map[string]bool{}
 	for _, c := range cov {
 		if !c.Shippable {
 			withheld[c.Locale] = true
 		}
 	}
+	return withheld
+}
+
+// writtenUnits counts the units at `draft` or above that a run which owns
+// delivery has written: every unit of a locale that is delivered, and, for a
+// withheld locale, what the delivered tree held before the run (delivered).
+func writtenUnits(cov []LocaleCoverage, delivered map[coverageScope]int) int {
+	withheld := withheldLocales(cov)
 	total := 0
-	for locale := range withheld {
+	for _, c := range cov {
+		if withheld[c.Locale] {
+			total += delivered[coverageScope{c.Locale, c.Collection}]
+			continue
+		}
+		total += c.Total * c.Pct["draft"] / 100
+	}
+	return total
+}
+
+// heldDrafts counts the drafts a run that owns delivery holds for review: in
+// each withheld locale, the units its last pass drafted with a provider or
+// took from a stored draft, at most the locale's unit count. Units recycled
+// from the content memory are approved wording, not drafts. A withheld locale
+// gets no files, so these drafts are written nowhere in the project, and
+// writtenUnits counts none of them.
+func heldDrafts(cov []LocaleCoverage, production map[string]convergence.PassProduction) int {
+	units := map[string]int{}
+	for _, c := range cov {
+		units[c.Locale] += c.Total
+	}
+	total := 0
+	for locale := range withheldLocales(cov) {
 		p := production[locale]
-		total += p.ViaAI + p.ViaDraft
+		total += min(p.ViaAI+p.ViaDraft, units[locale])
 	}
 	return total
 }
@@ -1245,7 +1262,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	out.NoTargets = facts.noTargets
 	out.ExtractedFiles = facts.extractedFiles
 	out.ExtractedBlocks = facts.extractedBlocks
-	out.Produced = facts.produced
+	out.Produced = &facts.produced
 	out.WaitingForReview = facts.waitingForReview
 	out.BlockedOnSource = blockedOnSource
 	out.Findings = facts.placeholderReport()

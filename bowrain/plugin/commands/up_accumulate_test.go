@@ -39,17 +39,16 @@ func TestRunAccumulator_PreservesFinalStandingState(t *testing.T) {
 	assert.NoError(t, acc.terminalError(final))
 }
 
-// TestRunAccumulator_ProducedAndWaiting: the summary of a server run reports
-// what its passes wrote and the drafts its last pass held for review, as a
-// local run's summary does.
-func TestRunAccumulator_ProducedAndWaiting(t *testing.T) {
+// TestRunAccumulator_NoProducedFigure: a server run writes to the server, so
+// its summary carries no produced figure, whatever its passes counted. The
+// local summary's produced means units written to the project's files.
+func TestRunAccumulator_NoProducedFigure(t *testing.T) {
 	acc := newRunAccumulator()
-	acc.observe(convergence.Event{Type: convergence.EventPassDone, Pass: 1, Produced: 10, ProducedDelta: 10, WaitingForReview: 4})
-	acc.observe(convergence.Event{Type: convergence.EventPassDone, Pass: 2, Produced: 10, WaitingForReview: 4})
+	acc.observe(convergence.Event{Type: convergence.EventPassDone, Pass: 1, Produced: 10, ProducedDelta: 10})
 	acc.observe(convergence.Event{Type: convergence.EventDone, State: convergence.RunParked})
 	out := acc.output(nil)
-	assert.Equal(t, 10, out.Produced)
-	assert.Equal(t, 4, out.WaitingForReview)
+	assert.Nil(t, out.Produced)
+	assert.Zero(t, out.WaitingForReview)
 }
 
 // TestRunAccumulator_ParkedFromFinalStanding: a parked run's parked locale is

@@ -20,22 +20,13 @@ import (
 // anything the stream did not carry (a run joined mid-flight, a cut stream).
 type runAccumulator struct {
 	standing *convergence.Standing
-	// produced sums the passes' produced_delta: the units the run wrote.
-	// waiting is the last pass's count of drafts held for review.
-	produced, waiting int
 }
 
 func newRunAccumulator() *runAccumulator {
 	return &runAccumulator{standing: convergence.NewStanding()}
 }
 
-func (a *runAccumulator) observe(ev convergence.Event) {
-	a.standing.Observe(ev)
-	if ev.Type == convergence.EventPassDone {
-		a.produced += max(ev.ProducedDelta, 0)
-		a.waiting = ev.WaitingForReview
-	}
-}
+func (a *runAccumulator) observe(ev convergence.Event) { a.standing.Observe(ev) }
 
 // terminalError returns a non-nil error when the run ended in a failure state
 // (failed or canceled), so `kapi up` exits non-zero instead of reporting a
@@ -64,8 +55,10 @@ func (a *runAccumulator) terminalError(final *apiclient.ConvergenceRun) error {
 // stream did not carry.
 func (a *runAccumulator) output(final *apiclient.ConvergenceRun) cli.ConvergeOutput {
 	runState, sawDone := a.standing.RunState()
-	out := cli.ConvergeOutput{Flow: "default (server)", Passes: a.standing.Passes(),
-		Produced: a.produced, WaitingForReview: a.waiting}
+	// A server run writes to the server, not to the project's files, and
+	// reports no drafts held for review, so the summary carries neither
+	// figure (ConvergeOutput.Produced stays nil).
+	out := cli.ConvergeOutput{Flow: "default (server)", Passes: a.standing.Passes()}
 
 	converged := runState == convergence.RunConverged
 	if !sawDone && final != nil {

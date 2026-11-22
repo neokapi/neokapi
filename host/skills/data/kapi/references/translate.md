@@ -167,7 +167,8 @@ a machine can't finish *waits for review* (reported, exit 0), so neither blocks 
 The summary's `produced` counts what this run wrote, and `waiting for review`
 counts the drafts held back, apart from it. The result record carries both as
 `produced` and `waiting_for_review`. A run over a project with nothing new
-reports `produced 0`, whatever waits for review. To try kapi with no
+reports `produced 0`, whatever waits for review. A server run (kapi-bowrain)
+writes to the server, so its summary leaves both figures out. To try kapi with no
 credentials, `kapi translate --provider demo` (or `provider: demo` on a flow's
 translate step) drafts offline with illustrative output.
 

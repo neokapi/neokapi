@@ -52,7 +52,7 @@ the output, as with `status` above.
 $S run up -p .                                 # "materialized 2 target file(s)"
 SB=$($S path); rm -rf "$SB/before"; /bin/cp -R "$SB/project" "$SB/before"
 $S run up -p .
-diff -r -x work "$SB/before" "$SB/project" && echo unchanged
+diff -r "$SB/before" "$SB/project" && echo unchanged
 ```
 
 Both runs exit 0 and end `Not yet up to date`, because the sample's Dutch waits
