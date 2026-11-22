@@ -736,6 +736,9 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 	// silent skip is how a batch comes to look complete while a format nobody
 	// registered went by untouched.
 	var skipped []string
+	// unnamed holds the files passed over because their name cannot fill the
+	// target template, each with the reason.
+	var unnamed []string
 	// Files that failed for a real reason. Collected rather than returned, so
 	// one bad file does not take the readable ones down with it, and so the
 	// report names every failure instead of whichever lost the race.
@@ -818,7 +821,11 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 
 			if errors.Is(err, errSkippedFile) {
 				mu.Lock()
-				skipped = append(skipped, inputPath)
+				if use := (*project.UnsafeSegmentError)(nil); errors.As(err, &use) {
+					unnamed = append(unnamed, fmt.Sprintf("%s (%v)", inputPath, use))
+				} else {
+					skipped = append(skipped, inputPath)
+				}
 				mu.Unlock()
 				return nil
 			}
@@ -901,6 +908,9 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 	if len(skipped) > 0 {
 		warnf(nil, "Warning: skipped %d file(s) with no registered format: %s\n",
 			len(skipped), strings.Join(shortList(skipped, 3), ", "))
+	}
+	for _, u := range unnamed {
+		warnf(nil, "Warning: no target was written for %s. Rename the file to give it one\n", u)
 	}
 	// A truncated progress feed is reported after the result, so the deliverable
 	// still lands and the consumer still learns its feed was incomplete.
@@ -1108,6 +1118,11 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 	}
 
 	outputPath, err := a.resolveOutputPathFrom(inputPath, outputTemplate, outputBase)
+	if use := (*project.UnsafeSegmentError)(nil); errors.As(err, &use) {
+		// The file's name cannot fill the target template. The batch passes
+		// over it and names it, and writes every other file.
+		return traceNodes, wrapSkip(inputPath, err)
+	}
 	if err != nil {
 		return traceNodes, err
 	}

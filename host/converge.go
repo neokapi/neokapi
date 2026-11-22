@@ -1122,6 +1122,9 @@ func producedUnits(cov []LocaleCoverage) int {
 func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, translateAfter model.TranslateAfterLevel, blockedOnSource, totalSource int, facts *convergeFacts, opts ConvergeOptions, emit func(convergence.Event)) error {
 	out := buildConvergeOutput(flowName, passes, cov, locales, facts.redraftable)
 	out.Warnings = facts.unread.warnings()
+	// A source whose name cannot fill its target template got no file; the
+	// run passed over it and names it here.
+	out.Warnings = append(out.Warnings, a.unsafeTargetWarnings(proj, filepath.Dir(projectPath), "")...)
 	out.Monolingual = facts.monolingual
 	out.NoTargets = facts.noTargets
 	out.ExtractedFiles = facts.extractedFiles

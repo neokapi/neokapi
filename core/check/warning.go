@@ -32,6 +32,12 @@ type Warning struct {
 // file.
 const WarningFormatNoReader = "format.no_reader"
 
+// WarningUnsafeTargetName is the code of a warning naming a source file whose
+// name cannot fill its collection's target template safely, such as a stem
+// of ".." in place of {name}. The file gets no target, the rest of the run
+// goes on, and the warning's Source is that file. Renaming it gives it one.
+const WarningUnsafeTargetName = "target.unsafe_name"
+
 // WarningContextUnread is the code of a warning naming context files a
 // checkout holds whose project store has never held context. The check ran
 // against what the store holds, and those files say nothing until

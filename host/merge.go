@@ -13,6 +13,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
@@ -274,7 +275,13 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 		return err
 	}
 	unread.warn(a, cmd)
-	return output.Print(cmd, output.MergeStoreOutput{Written: written, Stale: stale.Blocks, Unstamped: stale.Unstamped, FromProjectStore: true, Warnings: unread.warnings()})
+	warnings := append(unread.warnings(), stale.Unnamed...)
+	if perr := output.Print(cmd, output.MergeStoreOutput{Written: written, Stale: stale.Blocks, Unstamped: stale.Unstamped, FromProjectStore: true, Warnings: warnings}); perr != nil {
+		return perr
+	}
+	// A target merge cannot write fails the merge, as a blocked destination
+	// does (checkMaterializeTargetsWritable), once every other file is written.
+	return unsafeTargetsError(stale.Unnamed)
 }
 
 // materializeFromProjectStore is the shared materialize path (#1078 C2/C3):
@@ -401,6 +408,12 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 		for _, locale := range locales {
 			entry := &project.ExtractionFile{Source: f.Relative}
 			targetPath, terr := resolveMergeOutputPath(entry, proj, layout.Root, locale)
+			if w, ok := unsafeTargetWarning(f.Relative, locale, terr); ok {
+				// A name the repository chose cannot stop the rest of the pass:
+				// the file is named and the other files are written.
+				stale.Unnamed = append(stale.Unnamed, w)
+				continue
+			}
 			if terr != nil {
 				return written, stale, terr
 			}
@@ -469,6 +482,10 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 type staleDrafts struct {
 	Blocks    int
 	Unstamped []output.UnstampedDrafts
+	// Unnamed names each source whose name cannot fill its collection's
+	// target template safely: it has no target, and nothing was written for
+	// it (check.WarningUnsafeTargetName).
+	Unnamed []check.Warning
 }
 
 func (s *staleDrafts) add(file string, locale model.LocaleID, e editionStale) {

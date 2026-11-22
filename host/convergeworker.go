@@ -61,6 +61,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		ProjectContext:      a.ProjectContext,
 		MCPSurface:          a.MCPSurface,
 		mcpRecipePath:       a.mcpRecipePath,
+		mcpStartDir:         a.mcpStartDir,
 		mcpNamedSourceLang:  a.mcpNamedSourceLang,
 		execTrustGranted:    a.execTrustGranted,
 		ProjectBindings:     a.ProjectBindings,
@@ -155,6 +156,7 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	// the clone stays a faithful copy.
 	"MCPSurface":         fieldShared,
 	"mcpRecipePath":      fieldShared, // immutable identity of the server's bound project
+	"mcpStartDir":        fieldShared, // where the server started, fixed for its lifetime
 	"mcpNamedSourceLang": fieldShared, // what the server's command line named, fixed for its lifetime
 	"ProjectBindings":    fieldShared,
 	"convergeWriteFiles": fieldShared,
