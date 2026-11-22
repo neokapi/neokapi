@@ -790,7 +790,10 @@ $(GO_EMBED_PAGES):
 	@mkdir -p $(@D)
 	@touch $@
 
+# The download comes first and retries, so a request the module proxy drops is
+# not reported as a manifest that is out of date.
 ci-tidy: ## Check isolated module manifests and sums for drift
+	@GO="$(GO)" ./scripts/go-mod-download.sh $(TIDY_MODULES)
 	@set -e; for dir in $(TIDY_MODULES); do \
 	  echo "Checking $$dir..."; \
 	  (cd "$$dir" && GOWORK=off $(GO) mod tidy -diff); \
@@ -1062,8 +1065,8 @@ test-pdfium-plugin: ## Run kapi-pdfium tests (CGO; needs libpdfium on PKG_CONFIG
 # CI-safe; -tags onnx links the real RapidOCR/PP-OCRv5 pipeline. For DISTRIBUTION
 # the release tarball is self-contained — it bundles the onnxruntime shared lib
 # (lib/) AND the PP-OCRv5 model assets (models/) beside the binary
-# (scripts/package-vision-plugin.sh). onnxruntime is pinned to 1.25.0 to match
-# yalue/onnxruntime_go (ORT_API_VERSION 25). See plugins/vision/README.md.
+# (scripts/package-vision-plugin.sh). onnxruntime is pinned to 1.31.1 to match
+# yalue/onnxruntime_go (ORT_API_VERSION 31). See plugins/vision/README.md.
 build-vision-plugin: ## Build the kapi-vision plugin (no ONNX backend; pure Go)
 	@mkdir -p $(BIN_DIR)
 	cd plugins/vision && GOWORK=off $(GO) build $(LDFLAGS) -o $(BIN_DIR)/kapi-vision ./cmd/kapi-vision

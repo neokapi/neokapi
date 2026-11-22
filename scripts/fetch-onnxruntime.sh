@@ -21,14 +21,15 @@
 # ONNXRUNTIME_VERSION selects the version (default: the pin below). A version
 # with no recorded checksum is refused: add its SHA-256 here in the same change
 # that raises the pin. The version must match the ORT_API_VERSION of the
-# yalue/onnxruntime_go release in plugins/sat/go.mod and plugins/vision/go.mod.
+# yalue/onnxruntime_go release in plugins/sat/go.mod, plugins/vision/go.mod and
+# plugins/check/go.mod.
 set -euo pipefail
 
-readonly DEFAULT_VERSION="1.25.0"
+readonly DEFAULT_VERSION="1.31.1"
 version="${ONNXRUNTIME_VERSION:-$DEFAULT_VERSION}"
 
 case "$version" in
-  1.25.0) sha256="c12a4e043c7ae1cee4ef99a347193eceabe2f6c828eb04f6d58ab21bcccddd8d" ;;
+  1.31.1) sha256="6871ccbc97f3d5bdb4095a1dcec33aa78d56f6ed8de5980ef5fa1d9f2e7c679a" ;;
   *)
     echo "fetch-onnxruntime: no checksum recorded for onnxruntime $version" >&2
     echo "fetch-onnxruntime: add its SHA-256 to scripts/fetch-onnxruntime.sh" >&2

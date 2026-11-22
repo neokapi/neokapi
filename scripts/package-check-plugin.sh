@@ -172,7 +172,7 @@ sed 's/^  "version": *"[^"]*"/  "version": "'"$VERSION"'"/' "$STAGE/manifest.jso
 # ── stage onnxruntime shared library at lib/<unversioned-name> ────────────────
 # Find the platform shared library inside the extracted onnxruntime dir. Prefer
 # $ORT_DIR/lib; fall back to a recursive search. onnxruntime ships versioned
-# names (libonnxruntime.1.25.0.dylib, libonnxruntime.so.1.25.0) alongside an
+# names (libonnxruntime.1.31.1.dylib, libonnxruntime.so.1.31.1) alongside an
 # unversioned alias (libonnxruntime.dylib / libonnxruntime.so); we normalise to
 # the unversioned name the loader path points at. On Windows the DLL is
 # unversioned already (onnxruntime.dll).

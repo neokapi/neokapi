@@ -5,7 +5,7 @@ name: Nightly
 # Go `stable` with the race detector, so a toolchain regression surfaces within
 # a day without taxing the per-commit path. The event is `schedule`, so the
 # Makefile's event-aware profile uses the FULL mode (race + shuffle + coverage,
-# containers included) — same as a push to main.
+# containers included), the same as a push to main.
 
 on:
   schedule:
@@ -112,19 +112,18 @@ jobs:
 
   # ── Vision ONNX (real models) ───────────────────────────────────────────────
   # Exercises the kapi-vision plugin against the REAL PP-OCRv5 (OCR) and
-  # PP-DocLayoutV3 (layout) models and a real onnxruntime — the numeric/inference
+  # PP-DocLayoutV3 (layout) models and a real onnxruntime: the numeric/inference
   # path the per-PR suite can't reach. Those tests are gated behind `-tags onnx`
   # plus KAPI_VISION_ORT_LIB / KAPI_VISION_MODELS_DIR (everything else uses fakes),
   # so they only run here. onnxruntime + the models are cached by version/tag, so
-  # only the first run pays the ~350 MB download. (A full render→layout e2e over a
-  # real PDF — kapi-pdfium tier3 → vision — is a planned extension; this validates
-  # OCR + layout model inference directly, which local/fake tests cannot.)
+  # only the first run pays the ~350 MB download. This job runs model inference
+  # directly; vision-pdf-e2e below runs the render-to-layout chain over a real PDF.
   vision-onnx:
     name: Vision ONNX (real models)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      ONNXRUNTIME_VERSION: "1.25.0" # matches yalue/onnxruntime_go (ORT_API_VERSION 25)
+      ONNXRUNTIME_VERSION: "1.31.1" # matches yalue/onnxruntime_go (ORT_API_VERSION 31)
       VISION_MODELS_TAG: "vision-models-v1"
     steps:
       - uses: actions/checkout@v7
@@ -180,9 +179,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
-      ONNXRUNTIME_VERSION: "1.25.0"
+      ONNXRUNTIME_VERSION: "1.31.1"
       VISION_MODELS_TAG: "vision-models-v1"
-      PDFIUM_RELEASE: "chromium/7891" # matches release-pdfium.yml
+      PDFIUM_RELEASE: "chromium/8165" # matches release-pdfium.yml
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
@@ -229,10 +228,7 @@ jobs:
           key: pdfium-linux-x64-${{ env.PDFIUM_RELEASE }}
       - name: Download libpdfium (bblanchon)
         if: steps.cache-pdfium.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p "$RUNNER_TEMP/pdfium"
-          url="https://github.com/bblanchon/pdfium-binaries/releases/download/${PDFIUM_RELEASE}/pdfium-linux-x64.tgz"
-          curl -sSfL "$url" | tar xz -C "$RUNNER_TEMP/pdfium"
+        run: scripts/fetch-pdfium.sh linux amd64 "$RUNNER_TEMP/pdfium"
 
       - name: Build kapi
         run: make build

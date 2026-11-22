@@ -111,9 +111,12 @@ PINS = [
     },
     {
         "name": "libpdfium",
-        "where": [(".github/workflows/*.yml", r'PDFIUM_RELEASE: "?chromium/(\d+)')],
+        "where": [
+            ("scripts/fetch-pdfium.sh", r'readonly DEFAULT_RELEASE="chromium/(\d+)"'),
+            (".github/workflows/*.yml", r'PDFIUM_RELEASE: "?chromium/(\d+)'),
+        ],
         "latest": ("github-release", "bblanchon/pdfium-binaries"),
-        "note": "Dry-run release-pdfium.yml and the nightly PDF job.",
+        "note": "Coupled: the release must be the one the go-pdfium version in plugins/pdfium/go.mod builds against, and scripts/fetch-pdfium.sh needs the SHA-256 of every platform archive. Dry-run release-pdfium.yml and the nightly PDF job.",
     },
     {
         "name": "ICU (static build)",
