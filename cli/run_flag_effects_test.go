@@ -113,7 +113,7 @@ func TestRunTraceOnAProcessOnlyRun(t *testing.T) {
 
 // The translate-qa flow's judge takes the provider the run resolves, so
 // --provider reaches it as it reaches translate.
-func TestTranslateQAJudgeTakesTheRunProvider(t *testing.T) {
+func TestTranslateReviewFlowJudgeTakesTheRunProvider(t *testing.T) {
 	pf, err := ResolveProjectFlow(&project.KapiProject{}, t.TempDir(), "translate-qa", map[string]any{"provider": "demo"})
 	require.NoError(t, err)
 	require.NotNil(t, pf)
