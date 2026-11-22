@@ -2460,6 +2460,14 @@ export class MarketArgs {
              */
             this["locales"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * BaseRevision is the revision an update was based on.
+             * @member
+             * @type {string | undefined}
+             */
+            this["base_revision"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

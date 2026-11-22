@@ -603,6 +603,7 @@ kg_markets.description text NOT NULL DEFAULT ''::text
 kg_markets.id text NOT NULL
 kg_markets.locales jsonb NOT NULL DEFAULT '[]'::jsonb
 kg_markets.name text NOT NULL
+kg_markets.revision text NOT NULL DEFAULT (gen_random_uuid())::text
 kg_markets.updated_at timestamp with time zone NOT NULL DEFAULT now()
 kg_markets.workspace_id text NOT NULL
 kg_observations.concept_id text NOT NULL
