@@ -88,6 +88,10 @@ func newTermsImportCmd(a *App) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			srcLoc, err := termsStoreSourceLocale(a, cmd, srcLocale)
+			if err != nil {
+				return err
+			}
 
 			tb, dbPath, releaseTerms, err := a.OpenTermsSQLite(cmd)
 			if err != nil {
@@ -109,7 +113,7 @@ func newTermsImportCmd(a *App) *cobra.Command {
 			switch strings.ToLower(format) {
 			case "csv", "tsv":
 				opts := terms.CSVImportOptions{
-					SourceLocale: model.LocaleID(srcLocale),
+					SourceLocale: srcLoc,
 					TargetLocale: model.LocaleID(tgtLocale),
 					Domain:       domain,
 					HasHeader:    hasHeader,
@@ -157,7 +161,7 @@ func newTermsImportCmd(a *App) *cobra.Command {
 	}
 
 	cmd.Flags().String("format", "auto", "input format (auto, csv, tsv, json, tbx, bundle); auto selects by file extension")
-	cmd.Flags().StringP("source-locale", "s", "en", "source locale for CSV import")
+	cmd.Flags().StringP("source-locale", "s", "", "source locale for CSV import (default: the project's source_language in the project's own store, else en)")
 	cmd.Flags().StringP("target-locale", "t", "", "target locale for CSV import")
 	cmd.Flags().String("domain", "", "domain to assign to imported concepts")
 	cmd.Flags().Bool("header", false, "CSV has header row")
@@ -178,6 +182,10 @@ func newTermsExportCmd(a *App) *cobra.Command {
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			tbName, _ := cmd.Flags().GetString("export-name")
+			srcLoc, err := termsStoreSourceLocale(a, cmd, srcLocale)
+			if err != nil {
+				return err
+			}
 
 			tb, dbPath, releaseTerms, err := a.OpenTermsSQLite(cmd)
 			if err != nil {
@@ -197,7 +205,7 @@ func newTermsExportCmd(a *App) *cobra.Command {
 			format = ResolveTermsExportFormat(format, outputPath, cmd.Flags().Changed("format"))
 			switch strings.ToLower(format) {
 			case "csv":
-				err = terms.ExportCSV(cmd.Context(), tb, w, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), true)
+				err = terms.ExportCSV(cmd.Context(), tb, w, srcLoc, model.LocaleID(tgtLocale), true)
 			case "json":
 				if tbName == "" {
 					tbName = dbPath
@@ -205,7 +213,7 @@ func newTermsExportCmd(a *App) *cobra.Command {
 				err = terms.ExportJSON(cmd.Context(), tb, w, tbName)
 			case "tbx":
 				err = terms.ExportTBX(cmd.Context(), tb, w, terms.TBXExportOptions{
-					SourceLocale: model.LocaleID(srcLocale),
+					SourceLocale: srcLoc,
 				})
 			case "bundle":
 				err = ExportKTB(cmd.Context(), tb, w)
@@ -233,15 +241,16 @@ func newTermsExportCmd(a *App) *cobra.Command {
 
 	cmd.Flags().StringP("output", "o", "", "output file (default: stdout)")
 	cmd.Flags().String("format", "json", "export format (csv, json, tbx, bundle); a .terms.json -o path is detected automatically")
-	cmd.Flags().StringP("source-locale", "s", "en", "source locale for CSV export")
+	cmd.Flags().StringP("source-locale", "s", "", "source locale for CSV and TBX export (default: the project's source_language in the project's own store, else en)")
 	cmd.Flags().StringP("target-locale", "t", "", "target locale for CSV export")
 	cmd.Flags().String("export-name", "", "terms name for JSON export")
 
 	return cmd
 }
 
-// lookupSourceLocaleUsage describes --source-locale on the store lookups.
-const lookupSourceLocaleUsage = "source locale (default: the project's source_language in the project's own store, else en)"
+// storeSourceLocaleUsage describes --source-locale on the store commands that
+// read or write in one source language (App.StoreSourceLocale).
+const storeSourceLocaleUsage = "source locale (default: the project's source_language in the project's own store, else en)"
 
 func newTermsLookupCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
@@ -325,7 +334,7 @@ func newTermsLookupCmd(a *App) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringP("source-locale", "s", "", lookupSourceLocaleUsage)
+	cmd.Flags().StringP("source-locale", "s", "", storeSourceLocaleUsage)
 	cmd.Flags().StringP("target-locale", "t", "", "target locale to show translations")
 	cmd.Flags().String("domain", "", "filter by domain")
 	cmd.Flags().Bool("fuzzy", false, "also show approximate matches")
@@ -540,4 +549,15 @@ func newTermsListCmd(a *App) *cobra.Command {
 			})
 		},
 	}
+}
+
+// termsStoreSourceLocale resolves --source-locale for a command on the terms
+// store the command selects, by the rule the lookups use
+// (App.StoreSourceLocale).
+func termsStoreSourceLocale(a *App, cmd *cobra.Command, named string) (model.LocaleID, error) {
+	sel, err := a.ResolveTermsCmdStore(cmd)
+	if err != nil {
+		return "", err
+	}
+	return a.StoreSourceLocale(cmd, sel, named)
 }

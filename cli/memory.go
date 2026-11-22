@@ -106,6 +106,10 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			if err != nil {
 				return err
 			}
+			srcLoc, err := memoryStoreSourceLocale(a, cmd, srcLocale)
+			if err != nil {
+				return err
+			}
 
 			tm, dbPath, releaseMemory, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
@@ -118,7 +122,7 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			case "bundle":
 				count, err = ImportKMBFile(cmd.Context(), tm, args[0])
 			case "tmx":
-				count, err = ImportTMXFile(cmd.Context(), tm, args[0], srcLocale, tgtLocale, allPairs, ParseLocaleList(localesRaw))
+				count, err = ImportTMXFile(cmd.Context(), tm, args[0], string(srcLoc), tgtLocale, allPairs, ParseLocaleList(localesRaw))
 			default:
 				return fmt.Errorf("unsupported format: %s (use tmx or bundle)", inputFormat)
 			}
@@ -148,7 +152,7 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 		},
 	}
 
-	cmd.Flags().StringP("source-locale", "s", "en", "source locale")
+	cmd.Flags().StringP("source-locale", "s", "", storeSourceLocaleUsage)
 	cmd.Flags().StringP("target-locale", "t", "", "target locale")
 	cmd.Flags().Bool("all-pairs", false, "emit entries for every (src,tgt) pair present in each TU (multilingual TMX)")
 	cmd.Flags().String("locales", "", "comma-separated locale subset for --all-pairs (empty = all languages in file)")
@@ -182,6 +186,10 @@ Examples:
 			localesRaw, _ := cmd.Flags().GetString("locales")
 			pattern, _ := cmd.Flags().GetString("pattern")
 			recursive, _ := cmd.Flags().GetBool("recursive")
+			srcLoc, err := memoryStoreSourceLocale(a, cmd, srcLocale)
+			if err != nil {
+				return err
+			}
 
 			tm, dbPath, releaseMemory, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
@@ -215,7 +223,7 @@ Examples:
 				if !a.Quiet {
 					fmt.Fprintf(os.Stderr, "[%d/%d] %s ", i+1, len(files), rel)
 				}
-				n, err := ImportTMXFile(cmd.Context(), tm, path, srcLocale, tgtLocale, allPairs, locales)
+				n, err := ImportTMXFile(cmd.Context(), tm, path, string(srcLoc), tgtLocale, allPairs, locales)
 				if err != nil {
 					failed++
 					if !a.Quiet {
@@ -253,7 +261,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringP("source-locale", "s", "en", "source locale")
+	cmd.Flags().StringP("source-locale", "s", "", storeSourceLocaleUsage)
 	cmd.Flags().StringP("target-locale", "t", "", "target locale")
 	cmd.Flags().Bool("all-pairs", false, "emit entries for every (src,tgt) pair present in each TU")
 	cmd.Flags().String("locales", "", "comma-separated locale subset for --all-pairs")
@@ -381,7 +389,7 @@ func newMemoryLookupCmd(a *App) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringP("source-locale", "s", "", lookupSourceLocaleUsage)
+	cmd.Flags().StringP("source-locale", "s", "", storeSourceLocaleUsage)
 	cmd.Flags().StringP("target-locale", "t", "", "target locale")
 	cmd.Flags().Float64("min-score", 0.7, "minimum match score (0.0-1.0)")
 	cmd.Flags().Int("max-results", 10, "maximum results to return")
@@ -595,4 +603,15 @@ that added them so you can filter the content memory by import source.`,
 	}
 	sessionsCmd.AddCommand(listCmd, showCmd, deleteCmd)
 	return sessionsCmd
+}
+
+// memoryStoreSourceLocale resolves --source-locale for a command on the
+// content memory the command selects, by the rule the lookups use
+// (App.StoreSourceLocale).
+func memoryStoreSourceLocale(a *App, cmd *cobra.Command, named string) (model.LocaleID, error) {
+	sel, err := a.ResolveMemoryStore(cmd)
+	if err != nil {
+		return "", err
+	}
+	return a.StoreSourceLocale(cmd, sel, named)
 }
