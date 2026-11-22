@@ -31,7 +31,13 @@ import (
 // App is the Bowrain UI backend. It exposes methods that can be
 // bound to a Wails frontend or called from tests.
 type App struct {
-	app          *application.App
+	app *application.App
+	// lifetime is cancelled by ServiceShutdown; every request to the server
+	// runs under it (requestContext).
+	lifetime     context.Context
+	stopLifetime context.CancelFunc
+	// remote sends requests to the connected server (client).
+	remote       *remoteClient
 	formatReg    *registry.FormatRegistry
 	toolReg      *registry.ToolRegistry
 	store        store.ContentStore  // persistent SQLite
@@ -118,7 +124,11 @@ func newAppWithStore(cs store.ContentStore) *App {
 	connReg := platconn.NewRegistry()
 	connector.RegisterRemote(connReg)
 
+	lifetime, stopLifetime := context.WithCancel(context.Background())
 	a := &App{
+		lifetime:     lifetime,
+		stopLifetime: stopLifetime,
+		remote:       newRemoteClient(remoteRequestTimeout),
 		formatReg:    reg,
 		toolReg:      toolReg,
 		store:        cs,
@@ -451,6 +461,10 @@ func (a *App) PluginDir() string {
 
 // ServiceShutdown is called by Wails v3 when the application exits.
 func (a *App) ServiceShutdown() error {
+	// Cancel every request still in flight to the server.
+	if a.stopLifetime != nil {
+		a.stopLifetime()
+	}
 	// Stop reconnection goroutine.
 	a.stopReconnect()
 	// Stop project watcher and close server connection.

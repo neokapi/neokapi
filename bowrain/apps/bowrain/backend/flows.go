@@ -2,7 +2,6 @@ package backend
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,9 +15,8 @@ import (
 
 // Flow definitions on the desktop (Bowrain AD-013, #766).
 //
-// Flows are server-side, project-scoped pipeline graphs. The desktop is a
-// working copy of the server — it does NOT author flows to a local
-// ~/.bowrain/flows store any more. These Wails methods proxy to the Bowrain
+// Flows are server-side, project-scoped pipeline graphs, and the desktop is a
+// working copy of the server. These Wails methods proxy to the Bowrain
 // server's flow-definition REST API (/api/v1/{ws}/{projectId}/flows) over the
 // authenticated HTTP base URL, so a flow created on the desktop is the same
 // row the web superset editor and the automation engine see.
@@ -42,7 +40,7 @@ type FlowDefinitionInfo struct {
 }
 
 // FlowNodeInfo is the frontend-facing flow node type. Tool nodes are one
-// ordered list — transformers are ordinary steps (AD-006).
+// ordered list, transformers are ordinary steps (AD-006).
 type FlowNodeInfo struct {
 	ID       string         `json:"id"`
 	Type     string         `json:"type"`
@@ -118,7 +116,7 @@ func (a *App) flowREST(projectID string) (base, token string, ok bool) {
 	return base, token, true
 }
 
-func flowDo(method, urlStr, token string, body any, out any) error {
+func (a *App) flowDo(method, urlStr, token string, body any, out any) error {
 	var reader io.Reader
 	if body != nil {
 		buf, err := json.Marshal(body)
@@ -127,7 +125,7 @@ func flowDo(method, urlStr, token string, body any, out any) error {
 		}
 		reader = bytes.NewReader(buf)
 	}
-	req, err := http.NewRequestWithContext(context.Background(), method, urlStr, reader)
+	req, err := http.NewRequestWithContext(a.requestContext(), method, urlStr, reader)
 	if err != nil {
 		return err
 	}
@@ -137,7 +135,7 @@ func flowDo(method, urlStr, token string, body any, out any) error {
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := a.client().do(a.requestContext(), req)
 	if err != nil {
 		return err
 	}
@@ -171,8 +169,8 @@ func (a *App) ListFlowDefinitions(projectID string) ([]FlowDefinitionInfo, error
 		return builtInFlowInfos(), nil
 	}
 	var out []FlowDefinitionInfo
-	if err := flowDo(http.MethodGet, base, token, nil, &out); err != nil {
-		// Server unreachable — fall back to built-ins so the editor still works.
+	if err := a.flowDo(http.MethodGet, base, token, nil, &out); err != nil {
+		// Server unreachable, fall back to built-ins so the editor still works.
 		return builtInFlowInfos(), nil
 	}
 	if out == nil {
@@ -193,7 +191,7 @@ func (a *App) GetFlowDefinition(projectID, id string) (*FlowDefinitionInfo, erro
 		return nil, fmt.Errorf("flow %q not found (offline)", id)
 	}
 	var out FlowDefinitionInfo
-	if err := flowDo(http.MethodGet, base+"/"+url.PathEscape(id), token, nil, &out); err != nil {
+	if err := a.flowDo(http.MethodGet, base+"/"+url.PathEscape(id), token, nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -214,13 +212,13 @@ func (a *App) SaveFlowDefinition(projectID string, info FlowDefinitionInfo) (*Fl
 	var out FlowDefinitionInfo
 	if info.ID == "" {
 		// Create.
-		if err := flowDo(http.MethodPost, base, token, info, &out); err != nil {
+		if err := a.flowDo(http.MethodPost, base, token, info, &out); err != nil {
 			return nil, err
 		}
 		return &out, nil
 	}
 	// Update (create-or-replace by id).
-	if err := flowDo(http.MethodPut, base+"/"+url.PathEscape(info.ID), token, info, &out); err != nil {
+	if err := a.flowDo(http.MethodPut, base+"/"+url.PathEscape(info.ID), token, info, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -232,5 +230,5 @@ func (a *App) DeleteFlowDefinition(projectID, id string) error {
 	if !ok {
 		return errors.New("not connected: connect to a server to delete flows")
 	}
-	return flowDo(http.MethodDelete, base+"/"+url.PathEscape(id), token, nil, nil)
+	return a.flowDo(http.MethodDelete, base+"/"+url.PathEscape(id), token, nil, nil)
 }
