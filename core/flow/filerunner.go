@@ -1426,6 +1426,14 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 		if perr, ok := errors.AsType[*atomicfile.Error](werr); ok {
 			return ClassifyOutputPathError(outputPath, outputDir, perr.Err)
 		}
+		// A run that edits its file in place reads the file it watches. A
+		// save that lands during the read can make the reader fail on bytes
+		// that are half old and half new, and the save is then the cause.
+		if !IsMoved(werr) {
+			if now, derr := filehome.Digest(outputPath); derr == nil && now != doc.before {
+				return errors.Join(&filehome.MovedError{Path: outputPath, Before: doc.before, Now: now}, werr)
+			}
+		}
 		return werr
 	}
 	return nil
