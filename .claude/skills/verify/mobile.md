@@ -39,12 +39,12 @@ SIM=<udid from the list>; xcrun simctl boot "$SIM"
 vpr ios --no-bundler --device "iPhone 17 Pro"   # prebuild into ios/ and pod install: 2 min
 ```
 
-With Xcode 27.2 and `--device`, this ends with `CommandError: No code signing
-certificates are available to use`. Xcode 27's `xcrun devicectl list devices`
-lists the simulators too, and Expo CLI 58 reads every entry there as a
-physical device, so a simulator named by `--device` is built for a phone. The
-cause is in Expo CLI, not in this repository. The prebuild and pods are done
-by then, so finish with Xcode:
+With Xcode 27.2 this ends with `CommandError: No code signing certificates are
+available to use`, with `--device` and without it. Xcode 27's `xcrun devicectl
+list devices` lists the simulators too, and Expo CLI 58 reads every entry
+there as a physical device, so the simulator is built for a phone. The cause
+is in Expo CLI, not in this repository. The prebuild and pods are done by
+then, so finish with Xcode:
 
 ```bash
 xcodebuild -workspace ios/Bowrain.xcworkspace -scheme Bowrain -configuration Debug \
