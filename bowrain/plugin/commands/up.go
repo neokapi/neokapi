@@ -99,8 +99,8 @@ func runUp(cmd *cobra.Command, _ []string) error {
 
 	// The server runs the loop with the provider and settings its workspace
 	// is configured with, so a run flag has nothing to act on there.
-	if set := cli.ChangedRunConfigFlags(cmd); len(set) > 0 {
-		return fmt.Errorf("%s applies to a run on this machine; the server runs with the provider its workspace is configured with. Add --local to run here with %s",
+	if set := cli.ChangedLocalRunFlags(cmd); len(set) > 0 {
+		return fmt.Errorf("%s applies to a run on this machine; the server runs its own loop with its workspace's settings. Add --local to run here with %s",
 			strings.Join(set, ", "), strings.Join(set, ", "))
 	}
 	return runServerUp(cmd, proj)
@@ -470,6 +470,7 @@ func init() {
 	// which receives the App.
 	cli.AddProjectFlag(upCmd)
 	cli.AddUpFlags(upCmd)
+	upCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return cli.UpFlagError(err) })
 	upCmd.Flags().BoolVar(&upLocal, "local", false, "run the loop on this machine instead of the server, then push the results")
 	upCmd.Flags().Bool("fail-on-incomplete-watch", false, "fail when the run's event stream ends before the run does, instead of reporting it and pulling what landed")
 	upCmd.Flags().DurationVar(&upTimeout, "timeout", 15*time.Minute, "maximum time to wait for a server run to finish before pulling available results")

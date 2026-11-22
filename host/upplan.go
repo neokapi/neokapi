@@ -21,7 +21,6 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/storage"
-	"github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/memory"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -464,10 +463,13 @@ func (a *App) planPassingLocales(ctx context.Context, run planRun, proj *project
 }
 
 // applyPlanProvider annotates a plan with the AI providers the converge run's
-// steps call, resolved per step as the run resolves them (aiStepConfigs,
-// stepProvider): a step's own config, the run flags, the recipe's presets,
-// then the stored default. When the one provider bills a personal subscription
-// (claude-code), the plan swaps the metered-cost framing for "runs on your
+// steps call. Each is resolved by the run's own functions (aiStepConfigs, then
+// ToolRegistry.PreprocessConfig): a step's own config, the run flags, the
+// recipe's presets, the stored default, a saved credential or a provider key
+// in the environment, then the tool's default.
+//
+// When the one provider bills a personal subscription (claude-code), the
+// plan swaps the metered-cost framing for "runs on your
 // Claude subscription" in both text and JSON.
 //
 // A flow that reaches no provider is left unannotated: which provider the app
@@ -484,14 +486,20 @@ func (a *App) applyPlanProvider(plan *UpPlanOutput, proj *project.KapiProject, p
 	if err != nil {
 		return err
 	}
-	def := config.ResolveAIDefault(a.Config)
 	var providers []string
-	for _, cfg := range steps {
-		p := stepProvider(cfg, def)
-		if p == "" {
-			// A step that names no provider leaves the run asking for one.
+	for _, s := range steps {
+		// The step's config as the tool will be constructed with it: the
+		// run's own preprocessor applies the stored default and resolves
+		// credentials, a saved one or a provider key in the environment.
+		resolved, err := a.ToolReg.PreprocessConfig(registry.ToolID(s.Tool), s.Config)
+		if err != nil {
+			// The run would stop here asking for a provider.
 			plan.Provider = ""
 			return nil
+		}
+		p := presetString(resolved, "provider")
+		if p == "" {
+			p = string(aiprovider.Anthropic) // the tool's own default
 		}
 		if !slices.Contains(providers, p) {
 			providers = append(providers, p)

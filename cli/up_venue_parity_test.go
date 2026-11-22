@@ -184,13 +184,21 @@ func TestUpVenue_TheServerFlagIsNotForwarded(t *testing.T) {
 // plugin that would accept the flag (the stub exits 0 on anything) never runs.
 func TestUpVenue_ServerRefusesRunFlagsBeforeDispatch(t *testing.T) {
 	recipe := venueParityProject(t)
-	a := &App{}
-	a.PluginHost = venuePluginHost(t)
-	cmd := NewUpCmd(a)
-	require.NoError(t, cmd.ParseFlags([]string{"--provider", "demo"}))
+	for _, args := range [][]string{
+		{"--provider", "demo"}, {"--model", "m"}, {"--memory", "m.db"}, {"--termstore", "t"},
+		{"--trace", "t.json"}, {"--encoding", "utf-8"}, {"--concurrency", "2"},
+		{"--fail-on-unknown"}, {"--strict"},
+	} {
+		t.Run(args[0], func(t *testing.T) {
+			a := &App{}
+			a.PluginHost = venuePluginHost(t)
+			cmd := NewUpCmd(a)
+			require.NoError(t, cmd.ParseFlags(args))
 
-	err := runUpWithVenue(a, cmd, recipe)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--provider applies to a run on this machine")
-	assert.Contains(t, err.Error(), "--local")
+			err := runUpWithVenue(a, cmd, recipe)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), args[0]+" applies to a run on this machine")
+			assert.Contains(t, err.Error(), "--local")
+		})
+	}
 }

@@ -117,6 +117,7 @@ advisory: it never approves a block, and 'kapi status --review' lists it.`,
 	AddProjectFlag(cmd)
 	a.AddUpRunFlags(cmd)
 	AddUpFlags(cmd)
+	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return host.UpFlagError(err) })
 	cmd.Flags().Bool("local", false, "run the loop on this machine even when the recipe declares a server (the results are then pushed so the server stays current)")
 	cmd.Flags().Bool("server", false, "require the server venue: fail rather than run the loop locally when the recipe has no server or the server plumbing is unavailable")
 	cmd.Flags().Duration("timeout", 15*time.Minute, "server venue: maximum time to wait for the server run to finish before pulling available results")
@@ -161,8 +162,8 @@ func runUpWithVenue(a *App, cmd *cobra.Command, projectPath string) error {
 		}
 		// Refused here, before dispatch, so an installed plugin of any
 		// version cannot accept a run flag it has nothing to act on.
-		if set := host.ChangedRunConfigFlags(cmd); len(set) > 0 {
-			return fmt.Errorf("%s applies to a run on this machine; the server runs with the provider its workspace is configured with. Add --local to run here with %s",
+		if set := host.ChangedLocalRunFlags(cmd); len(set) > 0 {
+			return fmt.Errorf("%s applies to a run on this machine; the server runs its own loop with its workspace's settings. Add --local to run here with %s",
 				strings.Join(set, ", "), strings.Join(set, ", "))
 		}
 		printUpVenue(a, cmd, local, dec.ServerURL)

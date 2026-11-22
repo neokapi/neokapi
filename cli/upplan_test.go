@@ -14,14 +14,13 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/host"
-	"github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // planFixture is convergeFixture with the flow a plan is normally read for:
-// recycle, then draft the remainder through a provider — the shape of the
+// recycle, then draft the remainder through a provider: the shape of the
 // built-in default. The plan prices the work the CONFIGURED flow would do, so a
 // fixture whose flow neither recycles nor calls out has no leverage to report
 // and no bill to quote; those cases have their own tests below (#1866).
@@ -70,7 +69,7 @@ func seedPlanEntryInto(t *testing.T, db *projectdb.DB, id, source, target string
 
 // TestUpPlan_MemoryLeverageAndTokenEstimate: --plan reports, per locale, the units
 // missing a target split into exact content-memory hits and remaining AI work with a
-// chars/4 token estimate — and writes nothing.
+// chars/4 token estimate, and writes nothing.
 func TestUpPlan_MemoryLeverageAndTokenEstimate(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
@@ -93,15 +92,14 @@ func TestUpPlan_MemoryLeverageAndTokenEstimate(t *testing.T) {
 	assert.NotEmpty(t, plan.Note, "the estimation method is disclosed")
 
 	// Dry run: no targets written. The store exists here only because the test
-	// seeded it — see TestUpPlan_NeverCreatesTheProjectStore for the invariant.
+	// seeded it; see TestUpPlan_NeverCreatesTheProjectStore for the invariant.
 	_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
 	assert.True(t, os.IsNotExist(statErr), "--plan must not write targets")
 }
 
-// TestUpPlan_NeverCreatesTheProjectStore is the invariant the merged store
-// sharpened. Leverage used to come from a `memory.db` a plan could decline to
-// open; it now comes from `.kapi/work/store.db`, and OPENING that store creates it —
-// the handle runs every subsystem's migrations at open.
+// TestUpPlan_NeverCreatesTheProjectStore: leverage comes from
+// `.kapi/work/store.db`, and OPENING that store creates it, since the handle
+// runs every subsystem's migrations at open.
 //
 // So a plan on a fresh project must reach its answer without opening anything,
 // and leave the state directory with no store in it. Otherwise `kapi up --plan`
@@ -181,7 +179,7 @@ func TestUpPlan_TextTable(t *testing.T) {
 //
 // The assertion is on CONTENT, not on mtime: opening a SQLite database
 // checkpoints its WAL, so a read-only pass legitimately touches the file. What
-// must not change is what the store holds — no blocks extracted, no entries
+// must not change is what the store holds: no blocks extracted, no entries
 // learned, by a command that only reports.
 func TestUpPlan_NoWritesToExistingStore(t *testing.T) {
 	a := processOnlyApp(t)
@@ -254,7 +252,7 @@ func TestUpPlan_ReportsStoreDrift(t *testing.T) {
 }
 
 // TestUpPlan_ConvergedProjectHasNoWork: after a converged up, --plan reports
-// nothing to do — when the corpus answers the units the targets hold. That, and
+// nothing to do when the corpus answers the units the targets hold. That, and
 // not the presence of a target file, is what "nothing to do" means: the pass
 // reads the source documents and fills from the content memory, so a unit it
 // cannot recycle is drafted however finished the target file looks.
@@ -313,8 +311,8 @@ func TestUpPlan_ProducedUnitsTheCorpusCannotFillAreWorkWhenAPassRuns(t *testing.
 // flow it is planning. A recipe whose flow is exact-match content-memory reuse
 // and nothing else has no step that could produce a unit the corpus does not
 // answer, so those units are reported as out of reach rather than quoted as AI
-// work — and the run that follows makes no provider calls and spends nothing,
-// which the plan now says (#1866).
+// work. The run that follows makes no provider calls and spends nothing, and
+// the plan says so (#1866).
 func TestUpPlan_RecycleOnlyFlowPricesNothingItCannotProduce(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
@@ -347,7 +345,7 @@ func TestUpPlan_RecycleOnlyFlowPricesNothingItCannotProduce(t *testing.T) {
 
 // TestUpPlan_LocalDraftingFlowIsNotAProviderBill: a flow that drafts without
 // reaching a provider (pseudo-translation) produces the units and bills
-// nothing. They are work, not out of reach — and they carry no token estimate.
+// nothing. They are work, and they carry no token estimate.
 func TestUpPlan_LocalDraftingFlowIsNotAProviderBill(t *testing.T) {
 	a := processOnlyApp(t)
 	// convergeFixture's own flow is a single pseudo-translate step.
@@ -369,7 +367,7 @@ func TestUpPlan_LocalDraftingFlowIsNotAProviderBill(t *testing.T) {
 }
 
 // TestUpPlan_UnresolvableFlowIsAnError: a recipe naming a flow it does not
-// define cannot run, so it cannot be planned either — the plan fails with the
+// define cannot run, so it cannot be planned either: the plan fails with the
 // message the run gives rather than quoting figures for a run that never starts.
 func TestUpPlan_UnresolvableFlowIsAnError(t *testing.T) {
 	a := processOnlyApp(t)
@@ -393,24 +391,19 @@ func TestEstimateTokens(t *testing.T) {
 }
 
 // TestUpPlan_SubscriptionProviderNote: with the claude-code default provider,
-// the plan swaps the metered framing for subscription wording — in the text
+// the plan swaps the metered framing for subscription wording, in the text
 // table and in the JSON (provider + subscription fields).
 func TestUpPlan_SubscriptionProviderNote(t *testing.T) {
-	a := processOnlyApp(t)
-	a.Config = config.NewAppConfig()
-	a.Config.Set(config.KeyAIProvider, "claude-code")
+	isolate(t)
 	// The step names no provider, so the stored default is what the run calls.
 	recipe := bareTranslateFixture(t, "")
 
-	out, err := runUp(t, a, recipe, "--plan")
+	out, _, err := upWith(t, recipe, "claude-code", "--plan")
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "runs on your Claude subscription")
 	assert.Contains(t, out, "no per-token API cost")
 
-	a2 := processOnlyApp(t)
-	a2.Config = config.NewAppConfig()
-	a2.Config.Set(config.KeyAIProvider, "claude-code")
-	outJSON, err := runUp(t, a2, recipe, "--plan", "--json")
+	outJSON, _, err := upWith(t, recipe, "claude-code", "--plan", "--json")
 	require.NoError(t, err, outJSON)
 	var plan UpPlanOutput
 	require.NoError(t, json.Unmarshal([]byte(outJSON), &plan))
@@ -422,13 +415,12 @@ func TestUpPlan_SubscriptionProviderNote(t *testing.T) {
 // TestUpPlan_MeteredProviderKeepsNote: a metered provider keeps the standard
 // estimation note with no subscription framing.
 func TestUpPlan_MeteredProviderKeepsNote(t *testing.T) {
-	a := processOnlyApp(t)
-	a.Config = config.NewAppConfig()
-	a.Config.Set(config.KeyAIProvider, "anthropic")
+	isolate(t)
+	t.Setenv("ANTHROPIC_API_KEY", "sk-test")
 	// The step names no provider, so the stored default is what the run calls.
 	recipe := bareTranslateFixture(t, "")
 
-	outJSON, err := runUp(t, a, recipe, "--plan", "--json")
+	outJSON, _, err := upWith(t, recipe, "anthropic", "--plan", "--json")
 	require.NoError(t, err, outJSON)
 	var plan UpPlanOutput
 	require.NoError(t, json.Unmarshal([]byte(outJSON), &plan))

@@ -27,7 +27,7 @@ type ToolInfo struct {
 	Name        ToolID `json:"name"`
 	DisplayName string `json:"display_name,omitempty"`
 	// Description is markdown (inline emphasis/code/links). UIs render it
-	// through the shared Markdown primitive — see
+	// through the shared Markdown primitive; see
 	// web/docs/contribute/implementation/repo/markdown-in-ui.md.
 	Description string   `json:"description,omitempty"`
 	Category    string   `json:"category,omitempty"`
@@ -44,7 +44,7 @@ type ToolInfo struct {
 	SideEffects   []schema.SideEffect      `json:"side_effects,omitempty"`
 
 	// IsSourceTransform reports whether the tool can rewrite source
-	// (tool.CapTransform) — a transformer in AD-006 terms; the placement pass
+	// (tool.CapTransform), a transformer in AD-006 terms; the placement pass
 	// validates where such a tool sits among the ordered steps. Derived from
 	// the tool's handler at registration.
 	IsSourceTransform bool `json:"is_source_transform,omitempty"`
@@ -59,7 +59,7 @@ type ToolInfo struct {
 	Aliases               []string `json:"aliases,omitempty"`
 
 	// Internal withholds the tool from the CLI/MCP surface even though it has a
-	// schema and a config factory — see schema.ToolMeta.Internal. It says
+	// schema and a config factory; see schema.ToolMeta.Internal. It says
 	// nothing about configurability: an internal tool's step config is applied
 	// like any other tool's.
 	Internal bool `json:"internal,omitempty"`
@@ -67,7 +67,7 @@ type ToolInfo struct {
 	// Bridge step metadata (only for Okapi bridge step tools).
 	StepMeta *schema.StepMeta `json:"step_meta,omitempty"`
 
-	// Group is set when this tool is a ToolGroup — a tool whose behaviour is
+	// Group is set when this tool is a ToolGroup: a tool whose behaviour is
 	// provided by one of several self-describing members selected by a
 	// discriminator field. Flat consumers (CLI flags, docs, MCP) read the
 	// composed Schema as before; group-aware consumers (the config UI) use this
@@ -95,7 +95,7 @@ type ToolGroupMemberInfo struct {
 
 // probeTool default-constructs a tool from factory and reports whether it is
 // source-transform-capable (tool.CapTransform). It is the DRY source of
-// truth — capability comes from the tool's handler, not a hand-maintained flag.
+// truth: capability comes from the tool's handler, not a hand-maintained flag.
 // It also enforces the exactly-one-capability-handler contract at registration:
 // a tool whose default construction sets more than one typed handler panics
 // here (init-time programmer error, matching the registry's other invariants)
@@ -151,7 +151,7 @@ type ToolRegistration struct {
 	Schema        *schema.ComponentSchema
 	Info          ToolInfo
 	// ContractResolver, when set, refines the static IO contract (Consumes/
-	// Produces/Requires) for a specific node config — e.g. a port that is
+	// Produces/Requires) for a specific node config, e.g. a port that is
 	// required only when an option is enabled (redact's entity overlay when
 	// entity detection is on). It must not mutate base in place; return a copy
 	// with the adjusted fields. nil means the static contract always applies.
@@ -217,7 +217,7 @@ func (r *ToolRegistry) RegisterWithSchema(name ToolID, factory ToolFactory, s *s
 }
 
 // RegisterMetadata registers a tool's schema and metadata without a factory.
-// Used for plugin tools that are executed remotely via a bridge — they appear
+// Used for plugin tools that are executed remotely via a bridge: they appear
 // in listings and have schemas for config UI, but cannot be instantiated locally.
 func (r *ToolRegistry) RegisterMetadata(name ToolID, s *schema.ComponentSchema, source string) {
 	r.mu.Lock()
@@ -257,7 +257,7 @@ func (r *ToolRegistry) SetConfigFactory(name ToolID, factory ToolConfigFactory) 
 // factory and throws the step's `config:` block away without a word, so this is
 // the difference between a configurable tool and one whose configuration is
 // silently ignored (#1476). Exported so the registration invariants can be
-// asserted over the populated registry — the field itself is package-private.
+// asserted over the populated registry; the field itself is package-private.
 func (r *ToolRegistry) HasConfigFactory(name ToolID) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -267,7 +267,7 @@ func (r *ToolRegistry) HasConfigFactory(name ToolID) bool {
 
 // SetContractResolver registers a contract resolver for an already-registered
 // tool (see ToolRegistration.ContractResolver). The resolver refines the tool's
-// IO contract from a node's config — used by data-flow validation so a port that
+// IO contract from a node's config, used by data-flow validation so a port that
 // is required only under certain options (e.g. redact's entity overlay when
 // entity detection is enabled) is enforced exactly when it applies.
 func (r *ToolRegistry) SetContractResolver(name ToolID, fn func(config map[string]any, base ToolInfo) ToolInfo) {
@@ -335,6 +335,40 @@ func (r *ToolRegistry) ToolInfo(name ToolID) *ToolInfo {
 	return &info
 }
 
+// PreprocessConfig returns config as the tool named name would be constructed
+// with: the registered preprocessor (default provider, credential
+// resolution) applied, or config unchanged when none is set. A surface that
+// reports what a step will use (the up plan) asks this, so its answer is the
+// run's.
+func (r *ToolRegistry) PreprocessConfig(name ToolID, config map[string]any) (map[string]any, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	reg, ok := r.tools[name]
+	if !ok {
+		return nil, UnknownToolError(name)
+	}
+	return r.preprocessLocked(name, reg, config)
+}
+
+// preprocessLocked runs the preprocessor, if set, on config. The requirements
+// are config-resolved: a tool whose contract drops a requirement under a
+// given config (entity-extract with engine "ner" needs no credentials) must
+// not have the preprocessor demand it anyway. r.mu is held.
+func (r *ToolRegistry) preprocessLocked(name ToolID, reg *ToolRegistration, config map[string]any) (map[string]any, error) {
+	if r.preprocessor == nil {
+		return config, nil
+	}
+	requires := reg.Info.Requires
+	if reg.ContractResolver != nil {
+		requires = reg.ContractResolver(config, reg.Info).Requires
+	}
+	out, err := r.preprocessor(string(name), requires, config)
+	if err != nil {
+		return nil, fmt.Errorf("tool %s config: %w", name, err)
+	}
+	return out, nil
+}
+
 // NewToolWithConfig creates a Tool from a step config map and target language.
 // If a ConfigPreprocessor is set, it runs first to enrich the config (e.g.
 // credential resolution). Falls back to the zero-arg Factory if no
@@ -355,19 +389,10 @@ func (r *ToolRegistry) NewToolWithConfig(name ToolID, config map[string]any, tar
 		}
 	}
 
-	// Run preprocessor if set (e.g. credential resolution). The requirements
-	// are config-resolved: a tool whose contract drops a requirement under a
-	// given config (entity-extract with engine "ner" needs no credentials)
-	// must not have the preprocessor demand it anyway.
-	if r.preprocessor != nil && reg.ConfigFactory != nil {
-		requires := reg.Info.Requires
-		if reg.ContractResolver != nil {
-			requires = reg.ContractResolver(config, reg.Info).Requires
-		}
+	if reg.ConfigFactory != nil {
 		var err error
-		config, err = r.preprocessor(string(name), requires, config)
-		if err != nil {
-			return nil, fmt.Errorf("tool %s config: %w", name, err)
+		if config, err = r.preprocessLocked(name, reg, config); err != nil {
+			return nil, err
 		}
 	}
 
@@ -445,10 +470,8 @@ type CLIToolEntry struct {
 // with NewToolFromConfig) or is a plugin tool with a Factory and schema, and is
 // not declared Internal.
 //
-// Internal is a declaration, not an inference: a missing ConfigFactory used to
-// double as "deliberately internal", which is why thirteen built-in tools sat
-// silently unreachable with their step config discarded (#1476). Withholding a
-// tool from the CLI is now said out loud, in its ToolMeta.
+// Internal is a declaration in the tool's ToolMeta, never inferred from a
+// missing ConfigFactory (#1476).
 func (r *ToolRegistry) CLITools() []CLIToolEntry {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

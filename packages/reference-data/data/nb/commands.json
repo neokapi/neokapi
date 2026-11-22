@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T16:14:46Z",
+  "generatedAt": "2026-11-22T17:12:13Z",
   "commands": [
     {
       "id": "add",
@@ -9541,6 +9541,13 @@
           "type": "string"
         },
         {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "antall filer som behandles samtidig (0 = automatisk)",
+          "default": "0",
+          "type": "int"
+        },
+        {
           "name": "context",
           "usage": "hva modellen får vite om en blokk utover selve blokken: none, key (standard), neighbours",
           "type": "string"
@@ -9596,6 +9603,11 @@
           "usage": "etter løkken, skriv målspråkfiler fra prosjektlageret for alle leveringsklare språkkoder (tvinger defaults.materialize: on-converge)",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "memory",
+          "usage": "navngitt memory for resirkuleringsflyt (løses opp fra KAPI_HOME)",
+          "type": "string"
         },
         {
           "name": "model",

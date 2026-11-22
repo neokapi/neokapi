@@ -1,10 +1,8 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/flow"
@@ -12,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/config"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,11 +35,11 @@ func bareTranslateFixture(t *testing.T, preset string) string {
 	return recipe
 }
 
-// planProvider runs `kapi up --plan --json` with args and returns the
-// provider the plan names.
-func planProvider(t *testing.T, a *App, recipe string, args ...string) string {
+// planProvider runs `kapi up --plan --json` with args, stored as the stored
+// AI provider, and returns the provider the plan names.
+func planProvider(t *testing.T, stored, recipe string, args ...string) string {
 	t.Helper()
-	out, err := runUp(t, a, recipe, append([]string{"--plan", "--json"}, args...)...)
+	out, _, err := upWith(t, recipe, stored, append([]string{"--plan", "--json"}, args...)...)
 	require.NoError(t, err, out)
 	var plan UpPlanOutput
 	require.NoError(t, json.Unmarshal([]byte(out), &plan), out)
@@ -51,50 +50,95 @@ func planProvider(t *testing.T, a *App, recipe string, args ...string) string {
 // applies: a step's own config, the run flag, the recipe's presets, the stored
 // default. A plan with nothing configured says so.
 func TestUpPlan_ProviderFollowsThePrecedenceRule(t *testing.T) {
-	t.Setenv("KAPI_NO_PROJECT", "1")
-	t.Setenv("KAPI_AI_PROVIDER", "")
-	stored := func(provider string) *App {
-		a := processOnlyApp(t)
-		a.Config = config.NewAppConfig()
-		if provider != "" {
-			a.Config.Set(config.KeyAIProvider, provider)
-		}
-		return a
-	}
+	isolate(t)
+	t.Setenv("ANTHROPIC_API_KEY", "sk-test")
+	t.Setenv("OPENAI_API_KEY", "sk-test")
 	pinned, _ := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
-	assert.Equal(t, "demo", planProvider(t, stored("anthropic"), pinned, "--provider", "openai"),
+	assert.Equal(t, "demo", planProvider(t, "anthropic", pinned, "--provider", "openai"),
 		"a step's own provider wins over the flag and the stored default")
-	assert.Equal(t, "demo", planProvider(t, stored("anthropic"), bareTranslateFixture(t, "openai"), "--provider", "demo"),
+	assert.Equal(t, "demo", planProvider(t, "anthropic", bareTranslateFixture(t, "openai"), "--provider", "demo"),
 		"the flag wins over the preset and the stored default")
-	assert.Equal(t, "openai", planProvider(t, stored("anthropic"), bareTranslateFixture(t, "openai")),
+	assert.Equal(t, "openai", planProvider(t, "anthropic", bareTranslateFixture(t, "openai")),
 		"the preset wins over the stored default")
-	assert.Equal(t, "ollama", planProvider(t, stored("ollama"), bareTranslateFixture(t, "")),
+	assert.Equal(t, "ollama", planProvider(t, "ollama", bareTranslateFixture(t, "")),
 		"the stored default applies when nothing else names a provider")
-	assert.Empty(t, planProvider(t, stored(""), bareTranslateFixture(t, "")),
-		"nothing names a provider")
 
-	out, err := runUp(t, stored(""), bareTranslateFixture(t, ""), "--plan", "--provider", "demo")
+	t.Setenv("ANTHROPIC_API_KEY", "")
+	assert.Empty(t, planProvider(t, "", bareTranslateFixture(t, "")), "nothing names a provider")
+	out, _, err := upWith(t, bareTranslateFixture(t, ""), "", "--plan", "--provider", "demo")
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "AI provider: demo")
 	assert.NotContains(t, out, "none configured", "the plan gives no setup advice the run does not need")
 }
 
-// The plan and the run agree: the run given the same arguments drafts with
-// the provider the plan names.
-func TestUpPlan_ProviderMatchesTheRun(t *testing.T) {
-	t.Setenv("KAPI_NO_PROJECT", "1")
-	t.Setenv("KAPI_AI_PROVIDER", "")
+// upWith runs `kapi up` on recipe as the binary does (the root's
+// initialization, then the command) with stored as the stored AI provider,
+// recording the config the translate step is constructed with.
+func upWith(t *testing.T, recipe, stored string, args ...string) (string, *recorder, error) {
+	t.Helper()
 	a := processOnlyApp(t)
-	a.Config = config.NewAppConfig()
-	recipe := bareTranslateFixture(t, "")
-	require.Equal(t, "demo", planProvider(t, a, recipe, "--provider", "demo"))
+	rec := &recorder{}
+	cmd := NewUpCmd(a)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetContext(t.Context())
+	cmd.SetArgs(append([]string{"--project", recipe}, args...))
+	cmd.PersistentPreRunE = func(*cobra.Command, []string) error {
+		if err := a.Init(); err != nil {
+			return err
+		}
+		if stored != "" {
+			a.Config.Set(config.KeyAIProvider, stored)
+		}
+		rec.install(a)
+		return nil
+	}
+	err := cmd.Execute()
+	return out.String(), rec, err
+}
 
-	run := processOnlyApp(t)
-	run.Config = config.NewAppConfig()
-	out, err := runUp(t, run, recipe, "--provider", "demo")
-	require.NoError(t, err, out)
-	got, err := os.ReadFile(filepath.Join(filepath.Dir(recipe), "src", "locales", "nb-NO", "a.json"))
-	require.NoError(t, err, out)
-	assert.True(t, strings.Contains(string(got), "⟦nb"), "the demo provider drafted the target: %s", got)
+// The plan and the run agree for the same arguments, on every rung: the
+// plan names the provider the run's translate step is constructed with, and
+// says none is configured exactly when the run stops for want of one.
+func TestUpPlan_ProviderMatchesTheRun(t *testing.T) {
+	for _, tc := range []struct {
+		name, preset, stored string
+		env                  map[string]string
+		args                 []string
+		want                 string
+	}{
+		{name: "a provider key in the environment", env: map[string]string{"ANTHROPIC_API_KEY": "sk-test"}, want: "anthropic"},
+		{name: "the run flag", args: []string{"--provider", "demo"}, want: "demo"},
+		{name: "the recipe preset", preset: "openai", env: map[string]string{"OPENAI_API_KEY": "sk-test"}, want: "openai"},
+		{name: "the stored default", stored: "ollama", want: "ollama"},
+		{name: "nothing configured"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			isolate(t)
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			recipe := bareTranslateFixture(t, tc.preset)
+
+			out, _, err := upWith(t, recipe, tc.stored, append([]string{"--plan", "--json"}, tc.args...)...)
+			require.NoError(t, err, out)
+			var plan UpPlanOutput
+			require.NoError(t, json.Unmarshal([]byte(out), &plan), out)
+			assert.Equal(t, tc.want, plan.Provider, "the plan names the run's provider")
+
+			out, rec, err := upWith(t, recipe, tc.stored, tc.args...)
+			if tc.want == "" {
+				require.Error(t, err, "the run stops asking for a provider:\n%s", out)
+				return
+			}
+			require.NoError(t, err, out)
+			built := rec.constructed()
+			require.NotEmpty(t, built, out)
+			for _, c := range built {
+				assert.Equal(t, tc.want, c["provider"], "the run's translate step calls the provider the plan names")
+			}
+		})
+	}
 }

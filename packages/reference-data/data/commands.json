@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T16:14:46Z",
+  "generatedAt": "2026-11-22T17:12:13Z",
   "commands": [
     {
       "id": "add",
@@ -9541,6 +9541,13 @@
           "type": "string"
         },
         {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "number of files to process at once (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
           "name": "context",
           "usage": "what the model is told about a block besides the block: none, key (default), neighbours",
           "type": "string"
@@ -9596,6 +9603,11 @@
           "usage": "after the loop, write target-language files from the project store for every shippable locale (forces defaults.materialize: on-converge)",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "memory",
+          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
+          "type": "string"
         },
         {
           "name": "model",
