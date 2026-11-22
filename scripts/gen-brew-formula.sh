@@ -2,8 +2,8 @@
 #
 # gen-brew-formula.sh — emit the kapi-cli and/or bowrain-cli Homebrew formulae.
 #
-# Replaces GoReleaser's `brews:` block (we no longer run GoReleaser for the
-# CLI). Reads the per-archive sha256 from a checksums.txt and writes Ruby
+# The CLI release does not run GoReleaser, so this script writes the
+# formulae. Reads the per-archive sha256 from a checksums.txt and writes Ruby
 # formulae that download the matching release archive per OS/arch from the
 # public GitHub release (the repo is public).
 #
