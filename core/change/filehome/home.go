@@ -145,21 +145,26 @@ func (h *Home) contain(path string) error {
 // sets it to put a link in place there.
 var beforeCommit func(path string)
 
-// commit puts a staged file at path in place. A path beneath the home's root
-// is renamed through an os.Root opened on the root, so a link that leads out
-// of it, even one put in place after contain, is refused by the rename
-// itself. A path outside the root, one a person named, is renamed as named.
+// stage stages what write produces as the new content of the file at path. A
+// path beneath the home's root is staged through an os.Root opened on the
+// root (atomicfile.StageWithin). The temporary file is created there, and the
+// commit renames there. A link that leads out of the root, even one put in
+// place after contain, is refused, and no byte is written outside it. A path
+// outside the root, one a person named, is staged as named.
+func (h *Home) stage(path string, write func(io.Writer) error) (*atomicfile.Staged, error) {
+	if root, ok := h.under(path); ok {
+		return atomicfile.StageWithin(root, path, write)
+	}
+	return atomicfile.StageWithParents(path, write)
+}
+
+// commit puts a staged file at path in place, and names the link when the
+// commit was refused because a link now leads out of the root.
 func (h *Home) commit(path string, tmp *atomicfile.Staged) error {
 	if beforeCommit != nil {
 		beforeCommit(path)
 	}
-	root, ok := h.under(path)
-	if !ok {
-		return tmp.Commit()
-	}
-	if err := tmp.CommitWithin(root); err != nil {
-		// The rename refused the path; say which link, if a link leads out
-		// of the root now.
+	if err := tmp.Commit(); err != nil {
 		if cerr := h.contain(path); cerr != nil {
 			return cerr
 		}

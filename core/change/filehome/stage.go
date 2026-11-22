@@ -197,7 +197,7 @@ func (st *staged) run(ctx context.Context) error {
 		own.tmp, own.after, own.diff = nil, own.before, nil
 	}
 	if len(removed) > 0 && own.tmp != nil && s.doc.Entry == "" {
-		if err := st.verifyRemoved(ctx, own.tmp.Name(), removed); err != nil {
+		if err := st.verifyRemoved(ctx, own.tmp, removed); err != nil {
 			return err
 		}
 	}
@@ -248,8 +248,8 @@ func (st *staged) run(ctx context.Context) error {
 // unit and fill one the block does not hold from its source, as the Okapi
 // filters they follow do: such a write would replace the translation with the
 // source rather than remove it.
-func (st *staged) verifyRemoved(ctx context.Context, staged string, removed map[int][]model.EditionKey) error {
-	data, err := os.ReadFile(staged)
+func (st *staged) verifyRemoved(ctx context.Context, staged *atomicfile.Staged, removed map[int][]model.EditionKey) error {
+	data, err := staged.ReadAll()
 	if err != nil {
 		return err
 	}
@@ -613,7 +613,7 @@ func (st *staged) restructureEditionFile(ctx context.Context, f *stagedFile, je 
 	var data []byte
 	var err error
 	if f.tmp != nil {
-		data, err = os.ReadFile(f.tmp.Name())
+		data, err = f.tmp.ReadAll()
 	} else {
 		data, err = readAll(je.src)
 	}
@@ -749,7 +749,7 @@ func (st *staged) verifyEditionRemoved(ctx context.Context, f *stagedFile, je *j
 	if f.tmp == nil {
 		return nil
 	}
-	data, err := os.ReadFile(f.tmp.Name())
+	data, err := f.tmp.ReadAll()
 	if err != nil {
 		return err
 	}
@@ -801,7 +801,7 @@ func (st *staged) write(ctx context.Context, path string, src source, produce fu
 	}
 	h := sha256.New()
 	if src.entry == "" {
-		tmp, err := atomicfile.StageWithParents(path, func(w io.Writer) error {
+		tmp, err := st.s.h.stage(path, func(w io.Writer) error {
 			bw := bufio.NewWriterSize(io.MultiWriter(w, h), 64*1024)
 			if err := produce(bw); err != nil {
 				return err
@@ -812,13 +812,13 @@ func (st *staged) write(ctx context.Context, path string, src source, produce fu
 			return nil, "", nil, err
 		}
 		after := digestOf(h)
-		return tmp, after, func() string { return fileDiff(src.path, tmp.Name(), st.label(path)) }, nil
+		return tmp, after, func() string { return stagedDiff(src.path, tmp, st.label(path)) }, nil
 	}
 	var member bytes.Buffer
 	if err := produce(&member); err != nil {
 		return nil, "", nil, err
 	}
-	tmp, err := atomicfile.Stage(path, func(w io.Writer) error {
+	tmp, err := st.s.h.stage(path, func(w io.Writer) error {
 		return container.Transform(path, io.MultiWriter(w, h), func(name string, _ func() ([]byte, error)) ([]byte, bool, error) {
 			if sameEntry(name, src.entry) {
 				return member.Bytes(), true, nil
@@ -1112,8 +1112,9 @@ func (st *staged) discard() {
 // diffLimit bounds the size of a file a preview renders as a diff.
 const diffLimit = 1 << 20
 
-// fileDiff renders the change from the file at before to the file at after.
-func fileDiff(before, after, label string) string {
+// stagedDiff renders the change from the file at before to the staged bytes
+// of after, which are read back through the staging's own root.
+func stagedDiff(before string, after *atomicfile.Staged, label string) string {
 	a, err := readLimited(before)
 	if errors.Is(err, fs.ErrNotExist) {
 		// The change creates the file.
@@ -1122,8 +1123,8 @@ func fileDiff(before, after, label string) string {
 	if err != nil {
 		return ""
 	}
-	b, err := readLimited(after)
-	if err != nil {
+	b, err := after.ReadAll()
+	if err != nil || len(b) > diffLimit {
 		return ""
 	}
 	return textDiff(a, b, label)
