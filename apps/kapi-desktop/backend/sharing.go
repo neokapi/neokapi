@@ -201,6 +201,13 @@ func (a *App) SetProjectSharing(tabID string, spec project.ContextBackend) (*Pro
 	if err != nil {
 		return nil, err
 	}
+	// The person chose the folder in the setup dialog, which shows it: that
+	// is the approval a sync through it needs.
+	if spec.Kind() == project.ContextBackendFile {
+		if _, err := a.hostEngine().ApproveContextStore(path); err != nil {
+			return nil, err
+		}
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), sharingTimeout)
 	defer cancel()
@@ -246,4 +253,48 @@ func (a *App) SyncProjectContext(tabID string) (*host.ContextSyncResult, error) 
 // and the place are.
 func syncMoved(res host.ContextSyncResult) bool {
 	return (res.Pull != nil && res.Pull.Merged > 0) || (res.Push != nil && res.Push.Pushed > 0)
+}
+
+// PendingContextStore is the folder a tab's recipe keeps its context in when
+// nobody has allowed it yet, and "" when the recipe keeps no context in a
+// folder or the folder is allowed. The share view asks the person, showing
+// this path, before it syncs.
+func (a *App) PendingContextStore(tabID string) (string, error) {
+	path, err := a.checkoutRecipe(tabID)
+	if err != nil {
+		return "", err
+	}
+	location, err := host.ContextStoreLocation(path)
+	if err != nil || location == "" {
+		return "", err
+	}
+	if host.ContextStoreAllowed(path) {
+		return "", nil
+	}
+	return location, nil
+}
+
+// ApproveContextStore records that the person allows the folder a tab's
+// recipe keeps its context in, after the share view showed it.
+func (a *App) ApproveContextStore(tabID string) (string, error) {
+	path, err := a.checkoutRecipe(tabID)
+	if err != nil {
+		return "", err
+	}
+	return a.hostEngine().ApproveContextStore(path)
+}
+
+// checkoutRecipe is the recipe path of a tab with a checkout.
+func (a *App) checkoutRecipe(tabID string) (string, error) {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return "", fmt.Errorf("project tab %q not found", tabID)
+	}
+	a.mu.RLock()
+	path, contextOnly := op.Path, op.contextOnly
+	a.mu.RUnlock()
+	if contextOnly || path == "" {
+		return "", errNoCheckout
+	}
+	return path, nil
 }

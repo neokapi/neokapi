@@ -115,9 +115,9 @@ func SyncLine(st *workspace.SyncStatus) string {
 }
 
 // pushedSplit says how many of the operations a push counts `kapi context log`
-// lists, when not all of them: the rest are the writes to the project's stores
-// that keeping a rule or importing a voice or terms made, which travel with
-// the context and are not context operations of their own.
+// lists, when not all of them. The rest are store writes made by keeping a rule
+// or importing a voice or terms. They travel with the context and are not
+// context operations of their own.
 func pushedSplit(total, logged int) string {
 	if total == 0 || logged == total {
 		return ""
@@ -159,7 +159,7 @@ func (a *App) ContextBackend(ctx context.Context, projectPath string) (ContextBa
 	if err != nil {
 		return info, err
 	}
-	if s, err := a.contextSync(ctx, layout, info, w); err == nil && s != nil {
+	if s, err := a.contextSync(ctx, layout, info, w, false); err == nil && s != nil {
 		st, err := s.Status(ctx)
 		if err == nil {
 			info.Status = &st
@@ -314,10 +314,16 @@ func openRemote(ctx context.Context, layout project.Layout, info ContextBackendI
 	return open(ctx, spec)
 }
 
-// contextSync links the project to its backend; nil for a local one.
-func (a *App) contextSync(ctx context.Context, layout project.Layout, info ContextBackendInfo, w *projector.Projector) (*workspace.Sync, error) {
+// contextSync links the project to its backend; nil for a local one. A
+// folder backend is linked only once the person allowed it
+// (requireContextStore): with ask set, a person at a terminal is asked, and
+// otherwise the sync is refused with the command that approves.
+func (a *App) contextSync(ctx context.Context, layout project.Layout, info ContextBackendInfo, w *projector.Projector, ask bool) (*workspace.Sync, error) {
 	if !w.Logged() || info.Kind == project.ContextBackendLocal {
 		return nil, nil
+	}
+	if err := a.requireContextStore(layout, info, ask); err != nil {
+		return nil, err
 	}
 	remote, err := openRemote(ctx, layout, info)
 	if err != nil || remote == nil {
@@ -348,7 +354,7 @@ func (a *App) projectSync(ctx context.Context, projectPath string) (*workspace.S
 	if info.Kind == project.ContextBackendLocal {
 		return nil, errors.New("there is nowhere to sync with: the recipe declares no context backend. Declare one in kapi.yaml, for example `context: {backend: git}`")
 	}
-	s, err := a.contextSync(ctx, layout, info, w)
+	s, err := a.contextSync(ctx, layout, info, w, true)
 	if err != nil {
 		return nil, err
 	}
@@ -468,7 +474,7 @@ func (a *App) StageVenueContextPush(ctx context.Context, projectPath string) (*w
 	if err != nil {
 		return nil, err
 	}
-	s, err := a.contextSync(ctx, layout, info, w)
+	s, err := a.contextSync(ctx, layout, info, w, false)
 	if err != nil || s == nil {
 		return nil, err
 	}
@@ -556,7 +562,7 @@ func (a *App) ContextSyncStatus(ctx context.Context, root string) *workspace.Syn
 	if err != nil || info.Kind == project.ContextBackendLocal {
 		return nil
 	}
-	s, err := a.contextSync(ctx, layout, info, w)
+	s, err := a.contextSync(ctx, layout, info, w, false)
 	if err != nil || s == nil {
 		return nil
 	}

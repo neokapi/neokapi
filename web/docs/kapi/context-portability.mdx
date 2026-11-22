@@ -103,6 +103,20 @@ context:
 | `file` | a directory, such as a mounted team share | `path` | the filesystem's |
 | `s3` | an S3-compatible bucket | `bucket`, `prefix`, `region`, `endpoint` | the standard AWS environment, shared configuration and profile |
 
+kapi uses a `file` backend only after you allow it. The first sync through a
+folder shows the folder and asks. Your answer is kept for you, against that
+folder, so a recipe that later names another folder asks again. Naming the
+folder yourself with `kapi share --via folder <path>`, or in the desktop's
+setup dialog, counts as the answer. Without a terminal, as in CI, the sync
+stops before it reads or writes the folder and names the command that allows
+it:
+
+```bash
+kapi trust allow --context-store -p kapi.yaml --yes
+```
+
+An assistant can neither answer the question nor run that command for you.
+
 Credentials never go in the recipe. Then sync before you work and when you are
 done:
 

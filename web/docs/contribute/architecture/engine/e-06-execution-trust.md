@@ -202,6 +202,27 @@ comment, so its row in the table above holds for formatters too: an agent that
 may write files can write the configuration a formatter loads, and nobody is
 present to ask. A decision is recorded only by answering that prompt.
 
+### A folder context store is decided in the same record
+
+A recipe's `context:` block with `backend: file` names a directory that a sync
+writes the project's operation log to and merges into the person's context.
+A cloned recipe can name any directory, so whoever can write there could add
+decisions and terms to that person's context. `host/contextstoretrust.go`
+decides the folder with the same record: the key is the recipe's key with a
+`#context-store` suffix, and the digest is the SHA-256 of the folder's
+absolute path, resolved against the recipe's directory, so a recipe that
+names another folder asks again.
+
+The gate sits in `contextSync`, before the remote is opened, so nothing reads
+or writes the folder first. `kapi context sync` and `kapi share` ask at a
+terminal. A status read and a venue push never ask, and refuse with the
+command that records an allow, `kapi trust allow --context-store`. A person
+naming the folder (`kapi share --via folder`, the desktop's setup dialog)
+records the allow, and the desktop asks through a dialog that shows the
+folder before its first sync. An agent cannot record one: an MCP server, an
+actor that resolves to an agent, and an agent host's marker beside
+`KAPI_ACTOR=person` are all refused.
+
 ## Consequences
 
 - **No recipe in this repository arms an exec-class tool.** No recipe here, no

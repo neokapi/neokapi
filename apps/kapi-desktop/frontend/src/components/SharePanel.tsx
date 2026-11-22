@@ -15,6 +15,7 @@
 // has none.
 
 import { useState } from "react";
+import { ContextStoreApprovalDialog } from "./ContextStoreApprovalDialog";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ProjectScreensPort } from "@neokapi/project-screens";
 import { t } from "@neokapi/i18n-react/runtime";
@@ -130,6 +131,8 @@ export function SharePanel({
   const [previewing, setPreviewing] = useState(false);
   const [result, setResult] = useState<ContextSyncResult | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  // The folder waiting for the person's approval before the first sync.
+  const [pendingStore, setPendingStore] = useState<string | null>(null);
 
   const key = qk.shareView(tabID);
   const query = useQuery({
@@ -156,6 +159,14 @@ export function SharePanel({
     onError: (e) => setSyncError(parseAppError(e).title),
     onSettled: refresh,
   });
+
+  // A folder the recipe names is allowed once, by the person, before
+  // anything is read from or written to it.
+  const syncAfterApproval = async () => {
+    const location = await api.pendingContextStore(tabID);
+    if (location) setPendingStore(location);
+    else sync.mutate();
+  };
 
   const view = given ?? query.data ?? null;
   const preview = usePreviewPort(tabID, view);
@@ -196,7 +207,7 @@ export function SharePanel({
               <TeamDetail
                 sharing={view.sharing}
                 onChange={change}
-                onSync={() => sync.mutate()}
+                onSync={() => void syncAfterApproval()}
                 syncing={sync.isPending}
                 result={result}
                 syncError={syncError}
@@ -220,7 +231,7 @@ export function SharePanel({
               <TeamDetail
                 sharing={view.sharing}
                 onChange={change}
-                onSync={() => sync.mutate()}
+                onSync={() => void syncAfterApproval()}
                 syncing={sync.isPending}
                 result={result}
                 syncError={syncError}
@@ -252,9 +263,20 @@ export function SharePanel({
             refresh();
             onSetUp?.(s);
           }}
-          onSync={() => sync.mutate()}
+          onSync={() => void syncAfterApproval()}
         />
       )}
+      <ContextStoreApprovalDialog
+        location={pendingStore}
+        onCancel={() => setPendingStore(null)}
+        onAllow={() => {
+          setPendingStore(null);
+          void api
+            .approveContextStore(tabID)
+            .then(() => sync.mutate())
+            .catch((e) => setSyncError(parseAppError(e).title));
+        }}
+      />
     </div>
   );
 }
