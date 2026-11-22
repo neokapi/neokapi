@@ -1435,6 +1435,12 @@ jobs:
         with:
           cache-flavor: pr
           save-cache: "true"
+      # The desktop apps link GTK and WebKit through Wails, and the linter
+      # compiles those packages on a pull request.
+      - name: Install Linux dependencies for Wails
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
       - name: Compile what pull request jobs compile
         run: make warm-build-cache
 

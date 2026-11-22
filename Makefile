@@ -403,13 +403,14 @@ STORE_PKGS := ./core/storage/ ./core/workspace/... ./core/projector/ ./core/proj
 # What the `Warm the pull request build cache` job on main runs. It compiles
 # and runs no test: the native test binaries of every workspace module, then
 # the two other builds the store suites job makes, under js/wasm and with one
-# connection per pool. See scripts/ci-warm-build-cache.sh for why main has to
-# do this for pull requests.
+# connection per pool. `-run '^$$'` matches no test, and under js/wasm
+# `-exec true` stands in for the Node runner, so each test binary is built and
+# never started. See scripts/ci-warm-build-cache.sh for why main has to do
+# this for pull requests.
 warm-build-cache: i18n-catalogs ## Compile what pull request test jobs compile, to fill the Go build cache (CI, on main)
 	@./scripts/ci-warm-build-cache.sh
-	@out="$$(mktemp -d)" && trap 'rm -rf "$$out"' EXIT && \
-		GOOS=js GOARCH=wasm $(GO) test -c -o "$$out/" $(STORE_PKGS) $(CHANGE_WASM_PKGS) ./host/ ./kapi/cmd/kapi-wasm-cli/ && \
-		$(GO) test -tags "fts5,storage_oneconn" -c -o "$$out/" $(STORE_PKGS)
+	GOOS=js GOARCH=wasm $(GO) test -exec true -run '^$$' $(STORE_PKGS) $(CHANGE_WASM_PKGS) ./host/ ./kapi/cmd/kapi-wasm-cli/ > /dev/null
+	$(GO) test -tags "fts5,storage_oneconn" -run '^$$' $(STORE_PKGS) > /dev/null
 
 test-stores-oneconn: i18n-catalogs ## Run the store suites natively with every pool held to one connection and WAL off
 	$(GO) test -tags "fts5,storage_oneconn" -count=1 -timeout 15m $(STORE_PKGS)
