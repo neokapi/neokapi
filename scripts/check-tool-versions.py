@@ -155,6 +155,45 @@ PINS = [
         "latest": ("github-release", "voidzero-dev/setup-vp"),
         "note": "Dependabot raises this one; the row keeps its copies equal.",
     },
+    {
+        "name": "Versity S3 gateway image",
+        "where": [
+            ("bowrain/compose*.yaml", r"versity/versitygw:v?([\w.]+)"),
+            ("bowrain/deploy/docker/compose.yaml", r"versity/versitygw:v?([\w.]+)"),
+            ("bowrain/testutil/testimage/testimage.go", r"versity/versitygw:v?([\w.]+)"),
+            (".github/workflows/mirror-images.yml", r"default: v(\d+\.\d+\.\d+)"),
+        ],
+        "latest": ("github-release", "versity/versitygw"),
+        "note": "The local stack and the blob store tests run the same server: raise testimage.go with the compose file, then run the s3blob tests.",
+    },
+    {
+        "name": "AWS CLI image",
+        "where": [
+            ("bowrain/compose*.yaml", r"amazon/aws-cli:([\w.]+)"),
+            ("bowrain/deploy/docker/compose.yaml", r"amazon/aws-cli:([\w.]+)"),
+        ],
+        "latest": ("github-tag", "aws/aws-cli"),
+        "note": "Dependabot raises the compose files; the row keeps every copy equal and none on latest.",
+    },
+    {
+        "name": "Traefik image",
+        "where": [
+            ("bowrain/compose*.yaml", r"image: traefik:v?([\w.]+)"),
+            ("bowrain/deploy/docker/compose.yaml", r"image: traefik:v?([\w.]+)"),
+        ],
+        "latest": ("github-release", "traefik/traefik"),
+        "note": "Pinned to a minor release, so patch releases arrive on the next pull.",
+    },
+    {
+        "name": "ElasticMQ image",
+        "where": [
+            ("bowrain/compose*.yaml", r"softwaremill/elasticmq-native:([\w.]+)"),
+            ("bowrain/deploy/docker/compose.yaml", r"softwaremill/elasticmq-native:([\w.]+)"),
+            ("bowrain/testutil/testimage/testimage.go", r"softwaremill/elasticmq-native:([\w.]+)"),
+        ],
+        "latest": ("github-tag", "softwaremill/elasticmq"),
+        "note": "The local stack and the job queue tests run the same server: raise testimage.go with the compose files.",
+    },
 ]
 
 

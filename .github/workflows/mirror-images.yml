@@ -15,7 +15,7 @@ on:
       tag:
         description: Tag to mirror
         required: true
-        default: v1.8.0
+        default: v1.11.0
 
 permissions:
   contents: read
