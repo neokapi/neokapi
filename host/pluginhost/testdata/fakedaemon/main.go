@@ -100,13 +100,17 @@ func main() {
 		}
 	}()
 
+	// Settle the signal disposition before the handshake: a test may send
+	// SIGTERM as soon as it reads the line, and a signal that arrives before
+	// Notify kills the process before it can remove its socket.
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+
 	// Print handshake unless explicitly suppressed. When suppressed, we
 	// also do NOT emit any subsequent stdout lines — the daemon just
 	// hangs, which is what the pool's startup-timeout test expects.
 	if os.Getenv("FAKE_DAEMON_NO_HANDSHAKE") == "1" {
 		// Block forever (until SIGTERM).
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 		<-sigCh
 		_ = lis.Close()
 		_ = os.Remove(socket)
@@ -135,8 +139,6 @@ func main() {
 		}
 	}
 
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 	<-sigCh
 
 	server.GracefulStop()

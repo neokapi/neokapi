@@ -11,16 +11,7 @@
  */
 
 import { describe, expect, it, vi } from "vite-plus/test";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import type { Block, File } from "@neokapi/kapi-format";
@@ -28,12 +19,13 @@ import { marshalFile, sourceRuns } from "@neokapi/kapi-format";
 
 import { runCompile } from "../src/commands/compile.ts";
 import { runExtract } from "../src/commands/extract.ts";
+import { tempDir } from "./temp-dir";
 
 type Sources = Record<string, string>;
 
 /** A package with the given source files under src/. */
 function workspace(sources: Sources): string {
-  const root = mkdtempSync(join(tmpdir(), "i18n-react-prune-"));
+  const root = tempDir("i18n-react-prune");
   for (const [file, code] of Object.entries(sources)) {
     const path = join(root, file);
     mkdirSync(join(path, ".."), { recursive: true });
@@ -176,7 +168,7 @@ describe("extract keeps --out a mirror of the sources scanned", () => {
 
     // Declaring the root re-keys the surface: every catalog moves, and the one
     // at the old position records a document this run would write there too.
-    const parent = mkdtempSync(join(tmpdir(), "i18n-react-prune-parent-"));
+    const parent = tempDir("i18n-react-prune-parent");
     const nested = join(parent, "pkg");
     mkdirSync(nested);
     rmSync(nested, { recursive: true });

@@ -1,30 +1,8 @@
 # Reliability checklist: checks selected by what a diff touches.
 #
-# Each item has a trigger that can be read from a diff, a check to perform, and
-# the incident or pull request behind it. `make reliability-checklist` (or
-# scripts/reliability-checklist.py) prints the items whose trigger matches the
-# current diff, so a change is checked against past failures without anyone
-# having to remember them. See docs/internals/reliability-checklist.md.
-#
-# Trigger fields:
-#   paths     globs; a changed file that matches selects the item.
-#   added     regular expressions (Python re) searched in each added line.
-#   added_in  globs; when present, `added` reads only lines of matching files.
-#   exclude   globs; files never considered, for paths or added lines.
-#   note      when a match is a false alarm.
-# Globs: ** spans directories, * and ? stay inside one segment, {a,b} is a
-# choice. Quote every glob and regex in single quotes ('' is a literal quote).
-#
-# Adding an item: the failure happened twice, or once and cost a day or more,
-# and its trigger can be read from a diff. A person approves the item. Add a
-# fixture for it in scripts/reliability-checklist.py (the self-test fails
-# without one), then tune the trigger on recent merged pull requests so a
-# typical one selects 3 to 10 items and a docs-only one selects none.
-#
-# Retiring an item: a guard (a make target in `make lint` or
-# scripts/pre-push-check.sh, or a CI job that runs on pull requests) now
-# enforces it, or it has not led to a real finding in six months. Delete it in
-# the same commit that adds the guard, and say which guard.
+# `make reliability-checklist` prints the items whose trigger matches the
+# current diff. docs/internals/reliability-checklist.md describes the trigger
+# fields, the quoting rules, and how to add or retire an item.
 
 version: 1
 items:
@@ -1158,3 +1136,31 @@ items:
       two hours because builds lacked -trimpath. Turning the flag on broke six
       runtime.Caller lookups, and scripts/modelcheck silently dropped its price
       check instead of failing.
+
+  - id: temporary-file-owner
+    title: A temporary file or directory has an owner that removes it
+    owner_surface: framework
+    trigger:
+      added:
+        - 'os\.(CreateTemp|MkdirTemp)\('
+        - 'ioutil\.Temp(File|Dir)\('
+        - 'NewSkeletonStore\('
+        - 'mkdtempSync\('
+      exclude:
+        - 'docs/**'
+    check: >-
+      Name who removes what the line creates, on every path, including an
+      early return and a process that is killed. A test writes under
+      t.TempDir() (Go) or registers removal in afterAll (TypeScript); a store
+      or reader that owns a temporary file is closed with defer or
+      t.Cleanup; a daemon removes its socket directory with a defer, and the
+      host stops a daemon with SIGTERM before SIGKILL so it can. The CI test
+      jobs run through scripts/check-temp-leaks.sh, which fails a run that
+      leaves anything in its temporary directory; run the suite you changed
+      through it.
+    incident: >-
+      2026-11-22: 6,055 neokapi-skeleton-* files, a 481 MB kapi-test-data
+      root and dozens of daemon sockets had accumulated in the shared
+      temporary directory of one machine, from MDX tests that never closed
+      their skeleton stores, test packages without a TestMain, and daemons
+      killed before they could clean up.

@@ -143,6 +143,7 @@ run_check "CI passed answers for every job" make --no-print-directory check-ci-p
 run_check "Every package test script runs in CI" make --no-print-directory check-test-scripts
 run_check "Every Go command builds with -trimpath" make --no-print-directory check-go-trimpath
 run_check "Every macOS minimum agrees" make --no-print-directory check-macos-minimum
+run_check "The temporary-file leak check works" make --no-print-directory check-temp-leaks
 run_check "Commit gate hook" ./.claude/hooks/commit-gate.sh --self-test
 run_check "Build cache warmer" ./scripts/ci-warm-build-cache.sh --self-test
 run_check "Bindings generator warnings about our code fail" ./scripts/wails-generate.sh --self-test
