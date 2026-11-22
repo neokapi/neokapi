@@ -1,0 +1,90 @@
+name: Fuzz
+
+# Every native Go fuzz target, fuzzed for a fixed time each night. ci.yml runs
+# the targets only as ordinary tests, which replays their seed corpora and
+# generates no new input. scripts/go-fuzz.sh discovers the targets, so a new
+# one joins this run without an edit here. A failed scheduled run files an
+# issue through scheduled-failure-issue.yml.
+#
+# The matrix splits the sorted target list round-robin. Each shard runs its
+# targets one after another, because `go test -fuzz` takes one target per
+# invocation and uses every core of the runner for it.
+
+on:
+  schedule:
+    - cron: "30 1 * * *" # 01:30 UTC daily, clear of E2E (02:00) and Nightly (03:00)
+  workflow_dispatch:
+    inputs:
+      fuzztime:
+        description: Fuzzing time per target (a Go duration, such as 30s or 2m)
+        required: false
+        default: 30s
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz:
+    name: Fuzz (shard ${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      FUZZTIME: ${{ inputs.fuzztime || '30s' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-go-modules
+        with:
+          cache-flavor: fuzz
+
+      - name: Resolve the fuzz cache path
+        id: fuzzcache
+        run: echo "dir=$(go env GOCACHE)/fuzz" >> "$GITHUB_OUTPUT"
+
+      # The corpus Go grows under $GOCACHE/fuzz, so a night starts from the
+      # inputs earlier nights found. Keyed by run, so every night saves the
+      # corpus it grew; the prefix restores the latest one for this shard.
+      - name: Restore the fuzz corpus
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.fuzzcache.outputs.dir }}
+          key: go-fuzz-corpus-${{ runner.os }}-shard${{ matrix.shard }}of4-${{ github.run_id }}
+          restore-keys: |
+            go-fuzz-corpus-${{ runner.os }}-shard${{ matrix.shard }}of4-
+
+      - name: List the targets
+        run: ./scripts/go-fuzz.sh --list --shard ${{ matrix.shard }}/4
+
+      - name: Fuzz
+        run: make fuzz FUZZTIME="$FUZZTIME" SHARD=${{ matrix.shard }}/4
+
+      # A failing target saves the input that broke it under testdata/fuzz/
+      # in its package, as a new, untracked file. Committed beside the fix, it
+      # becomes a seed that every ordinary test run replays.
+      - name: Collect the failing inputs
+        if: failure()
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/fuzz-failures"
+          git ls-files --others --exclude-standard -- '*/testdata/fuzz/*' |
+            while IFS= read -r f; do
+              mkdir -p "$RUNNER_TEMP/fuzz-failures/$(dirname "$f")"
+              cp "$f" "$RUNNER_TEMP/fuzz-failures/$f"
+            done
+          find "$RUNNER_TEMP/fuzz-failures" -type f
+
+      - name: Upload the failing inputs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fuzz-failures-shard${{ matrix.shard }}
+          path: ${{ runner.temp }}/fuzz-failures
+          if-no-files-found: ignore
+          retention-days: 30

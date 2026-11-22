@@ -46,7 +46,8 @@ GO := go
 #   Linux:  sudo apt-get install libicu-dev pkg-config
 #   macOS:  brew bundle   (see Brewfile; this Makefile finds the keg itself)
 # `make doctor` reports what is missing.
-GOTAGS  := -tags "fts5"
+GOTAG_LIST := fts5
+GOTAGS  := -tags "$(GOTAG_LIST)"
 
 # macOS Homebrew ICU: expose the keg to pkg-config if it is not already there.
 #
@@ -219,6 +220,13 @@ test-race-changed: i18n-catalogs ## Race-test only the Go packages changed vs BA
 test-verbose: ## Run tests with verbose output
 	@$(MAKE) --no-print-directory _fw-test-verbose
 	@$(MAKE) -C bowrain test-verbose
+
+# The fuzz targets, each for FUZZTIME. The nightly fuzz.yml runs the same
+# script, split by SHARD. The tags are $(GOTAGS)'s, spelled as the list the
+# script hands to its own single -tags flag (GOTAG_LIST).
+FUZZTIME ?= 30s
+fuzz: i18n-catalogs ## Run every Go fuzz target (FUZZTIME=30s, PKG=core/formats/json, SHARD=1/4)
+	@./scripts/go-fuzz.sh --fuzztime $(FUZZTIME) --tags $(GOTAG_LIST) $(if $(PKG),--package $(PKG)) $(if $(filter-out all,$(SHARD)),--shard $(SHARD))
 
 test-integration: ## Run the //go:build integration lane (Postgres-backed cross-store suites; needs Docker or BOWRAIN_TEST_POSTGRES_URL)
 	@$(MAKE) --no-print-directory _fw-test-integration
@@ -3258,7 +3266,7 @@ help: ## Show this help
 	@echo "  Sub-Makefile:  make -C bowrain help"
 	@echo ""
 
-.PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
+.PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration fuzz \
         check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
         fmt vet lint check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist warm-build-cache workspace-paths test-parallel \
