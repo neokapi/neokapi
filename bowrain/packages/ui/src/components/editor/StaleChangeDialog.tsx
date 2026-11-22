@@ -52,7 +52,10 @@ export function StaleChangeDialog({ state }: StaleChangeDialogProps) {
   const removed = action !== "save" && state?.current.rev === ABSENT_REVISION;
 
   return (
-    <Dialog open={state !== null} onOpenChange={(open) => !open && state?.onKeep()}>
+    // Escape, a click outside and the close control only close the dialog:
+    // the person's change stays where it was, unsent. Only the keep button
+    // drops it.
+    <Dialog open={state !== null} onOpenChange={(open) => !open && state?.onDismiss()}>
       <DialogContent className="sm:max-w-[560px]" data-testid="stale-change-dialog">
         <DialogHeader>
           <DialogTitle>This translation changed since you opened it</DialogTitle>
