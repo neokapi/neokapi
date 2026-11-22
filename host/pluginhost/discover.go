@@ -111,7 +111,7 @@ func Discover(opts DiscoverOptions) []*Plugin {
 			})
 		}
 	}
-	return out
+	return safePlugins(out, warn)
 }
 
 // isDirFollowingLinks reports whether path is a directory, resolving symlinks.

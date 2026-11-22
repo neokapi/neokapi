@@ -65,7 +65,7 @@ type RuntimeOptions struct {
 	// OnSegmentersChanged is invoked (when set) after a (re)scan registers one
 	// or more plugin-provided segmentation engines into the global segment
 	// registry. Front-ends use it to refresh anything derived from the engine
-	// set — notably the composed segmentation tool schema, so plugin engines
+	// set: notably the composed segmentation tool schema, so plugin engines
 	// appear in the selector. Optional.
 	OnSegmentersChanged func()
 }
@@ -140,7 +140,7 @@ func (r *Runtime) discover() []*Plugin {
 		return Discover(r.opts)
 	}
 	if cache, err := LoadCache(CacheLocation()); err == nil && IsFresh(cache, r.opts) {
-		return PluginsFromCache(cache)
+		return safePlugins(PluginsFromCache(cache), r.onWarnOrNop())
 	}
 	plugins := Discover(r.opts)
 	// Best-effort cache write; an unwritable cache dir must not break startup.
@@ -160,8 +160,8 @@ func (r *Runtime) build(plugins []*Plugin) *Host {
 	return host
 }
 
-// pluginSignature returns a stable fingerprint of a plugin set — each plugin's
-// install dir and version — so Watch can detect installs, removals, and version
+// pluginSignature returns a stable fingerprint of a plugin set (each plugin's
+// install dir and version) so Watch can detect installs, removals, and version
 // changes without rebuilding on every poll.
 func pluginSignature(plugins []*Plugin) string {
 	parts := make([]string, 0, len(plugins))
@@ -174,4 +174,12 @@ func pluginSignature(plugins []*Plugin) string {
 	}
 	sort.Strings(parts)
 	return strings.Join(parts, "\n")
+}
+
+// onWarnOrNop is the runtime's warning sink, or one that drops the warning.
+func (r *Runtime) onWarnOrNop() func(string) {
+	if r.onWarn != nil {
+		return r.onWarn
+	}
+	return func(string) {}
 }

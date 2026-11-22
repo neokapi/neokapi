@@ -14,12 +14,10 @@ import (
 // scanner fix makes previously-written contents wrong. On version mismatch,
 // kapi discards the cache and rescans.
 //
-// 2: discovery used to skip symlinked plugin directories, so every cache a
-// pre-fix kapi wrote omits the package-manager-installed plugins (Homebrew
-// links its kegs into the shared root). Freshness is judged by root mtimes
-// alone, which do not change when kapi is upgraded — without this bump those
-// plugins would stay invisible after the fix until something happened to touch
-// a root.
+// 2: a version 1 cache can omit the package-manager-installed plugins
+// (Homebrew links its kegs into the shared root, and version 1 discovery did
+// not follow the links). Freshness is judged by root mtimes alone, which do
+// not change when kapi is upgraded, so the bump is what makes kapi rescan.
 const cacheVersion = "2"
 
 // Cache is the on-disk dispatch cache. It is built as a side effect of
@@ -53,16 +51,17 @@ type CachedPlugin struct {
 }
 
 // xdgCacheDir returns the effective XDG cache base directory, falling back to
-// ~/.cache or a tmp dir when neither XDG_CACHE_HOME nor $HOME is available.
-// Extracted so every cache/registry/install path resolves via one code path.
+// ~/.cache. With neither XDG_CACHE_HOME nor a home directory it returns "":
+// the cache names plugin binaries kapi runs, so it is never kept in a shared
+// directory another user could write to.
 func xdgCacheDir() string {
 	if dir := os.Getenv("XDG_CACHE_HOME"); dir != "" {
 		return dir
 	}
-	if home, err := os.UserHomeDir(); err == nil {
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
 		return filepath.Join(home, ".cache")
 	}
-	return filepath.Join(os.TempDir(), "kapi-cache")
+	return ""
 }
 
 // CacheLocation returns the path to the dispatch cache file.
@@ -70,13 +69,20 @@ func CacheLocation() string {
 	if v := os.Getenv("KAPI_PLUGIN_CACHE"); v != "" {
 		return v
 	}
-	return filepath.Join(xdgCacheDir(), "kapi", "plugins-cache.json")
+	dir := xdgCacheDir()
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, "kapi", "plugins-cache.json")
 }
 
 // LoadCache reads the cache file. Returns nil and a nil error when the
 // cache does not exist; returns a non-nil error only on read/parse
 // failure.
 func LoadCache(path string) (*Cache, error) {
+	if path == "" {
+		return nil, nil
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -93,6 +99,9 @@ func LoadCache(path string) (*Cache, error) {
 
 // SaveCache atomically writes the cache to path. Creates parent dirs.
 func SaveCache(path string, cache *Cache) error {
+	if path == "" {
+		return nil
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("plugin cache: mkdir: %w", err)
 	}

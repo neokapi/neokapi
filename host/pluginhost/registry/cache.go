@@ -20,17 +20,19 @@ type CachedIndex struct {
 	Index     IndexV2 `json:"index"`
 }
 
-// xdgCacheDir returns the effective XDG cache base directory.
-// Mirrors the helper in the pluginhost package; duplicated here to avoid an
-// import cycle (registry is a sub-package of pluginhost).
+// xdgCacheDir returns the effective XDG cache base directory, or "" with
+// neither XDG_CACHE_HOME nor a home directory. The index names the plugin
+// archives and their signing identities, so it is never kept in a shared
+// directory another user could write to. Mirrors the helper in the
+// pluginhost package; duplicated here to avoid an import cycle.
 func xdgCacheDir() string {
 	if dir := os.Getenv("XDG_CACHE_HOME"); dir != "" {
 		return dir
 	}
-	if home, err := os.UserHomeDir(); err == nil {
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
 		return filepath.Join(home, ".cache")
 	}
-	return filepath.Join(os.TempDir(), "kapi-cache")
+	return ""
 }
 
 // CacheLocation returns the on-disk path of the registry index cache.
@@ -39,13 +41,21 @@ func CacheLocation() string {
 	if v := os.Getenv("KAPI_REGISTRY_CACHE"); v != "" {
 		return v
 	}
-	return filepath.Join(xdgCacheDir(), "kapi", "registry-index.json")
+	dir := xdgCacheDir()
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, "kapi", "registry-index.json")
 }
 
 // LoadCache returns the cached entry for url, or (nil, nil) when none
 // is present.
 func LoadCache(url string) (*CachedIndex, error) {
-	data, err := os.ReadFile(CacheLocation())
+	path := CacheLocation()
+	if path == "" {
+		return nil, nil
+	}
+	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -65,6 +75,9 @@ func LoadCache(url string) (*CachedIndex, error) {
 // SaveCache atomically persists the cached index.
 func SaveCache(c *CachedIndex) error {
 	path := CacheLocation()
+	if path == "" {
+		return nil
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("registry cache: mkdir: %w", err)
 	}

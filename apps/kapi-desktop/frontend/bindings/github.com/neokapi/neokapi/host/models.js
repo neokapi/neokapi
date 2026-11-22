@@ -4406,6 +4406,16 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
+             * UnreadMedia names the files read without an engine their content needs
+             * (speech recognition, OCR). Their text is not translated, so a run with
+             * any is not up to date.
+             * @member
+             * @type {UnreadMedia[] | undefined}
+             */
+            this["unread_media"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Findings holds the failing findings of a program step whose output
              * changed a redaction placeholder (tools.RulePlaceholder). Each such block
              * was left as it was, and the run exits with the code a failed check uses.
@@ -4439,6 +4449,7 @@ export class ConvergeOutput {
         const $$createField18_0 = $$createType100;
         const $$createField19_0 = $$createType102;
         const $$createField20_0 = $$createType104;
+        const $$createField21_0 = $$createType106;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -4449,11 +4460,14 @@ export class ConvergeOutput {
         if ("warnings" in $$parsedSource) {
             $$parsedSource["warnings"] = $$createField18_0($$parsedSource["warnings"]);
         }
+        if ("unread_media" in $$parsedSource) {
+            $$parsedSource["unread_media"] = $$createField19_0($$parsedSource["unread_media"]);
+        }
         if ("findings" in $$parsedSource) {
-            $$parsedSource["findings"] = $$createField19_0($$parsedSource["findings"]);
+            $$parsedSource["findings"] = $$createField20_0($$parsedSource["findings"]);
         }
         if ("pre_review" in $$parsedSource) {
-            $$parsedSource["pre_review"] = $$createField20_0($$parsedSource["pre_review"]);
+            $$parsedSource["pre_review"] = $$createField21_0($$parsedSource["pre_review"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }
@@ -4700,7 +4714,7 @@ export class DigestTheme {
      * @returns {DigestTheme}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType106;
+        const $$createField2_0 = $$createType108;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("groups" in $$parsedSource) {
             $$parsedSource["groups"] = $$createField2_0($$parsedSource["groups"]);
@@ -4778,9 +4792,9 @@ export class FindingsReport {
      * @returns {FindingsReport}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType107;
-        const $$createField1_0 = $$createType108;
-        const $$createField2_0 = $$createType110;
+        const $$createField0_0 = $$createType109;
+        const $$createField1_0 = $$createType110;
+        const $$createField2_0 = $$createType112;
         const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target" in $$parsedSource) {
@@ -5038,7 +5052,7 @@ export class RulesFilesResult {
      * @returns {RulesFilesResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType112;
+        const $$createField0_0 = $$createType114;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
@@ -5056,6 +5070,48 @@ export class RulesFilesResult {
  * the generated Wails bindings — are unchanged.
  * @typedef {convergence$0.ShipState} ShipState
  */
+
+/**
+ * UnreadMedia is a source file read without an engine its content needs.
+ */
+export class UnreadMedia {
+    /**
+     * Creates a new UnreadMedia instance.
+     * @param {Partial<UnreadMedia>} [$$source = {}] - The source object to create the UnreadMedia.
+     */
+    constructor($$source = {}) {
+        if (!("file" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["file"] = "";
+        }
+        if (!("engines" in $$source)) {
+            /**
+             * @member
+             * @type {string[]}
+             */
+            this["engines"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UnreadMedia instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {UnreadMedia}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("engines" in $$parsedSource) {
+            $$parsedSource["engines"] = $$createField1_0($$parsedSource["engines"]);
+        }
+        return new UnreadMedia(/** @type {Partial<UnreadMedia>} */($$parsedSource));
+    }
+}
 
 /**
  * UpPlanOutput is the structured result of `kapi up --plan`: the dry-run work
@@ -5210,11 +5266,11 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType114;
-        const $$createField4_0 = $$createType113;
-        const $$createField7_0 = $$createType116;
+        const $$createField3_0 = $$createType116;
+        const $$createField4_0 = $$createType115;
+        const $$createField7_0 = $$createType118;
         const $$createField11_0 = $$createType100;
-        const $$createField12_0 = $$createType117;
+        const $$createField12_0 = $$createType119;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -5554,20 +5610,22 @@ const $$createType97 = ParkedScope.createFrom;
 const $$createType98 = $Create.Array($$createType97);
 const $$createType99 = check$0.Warning.createFrom;
 const $$createType100 = $Create.Array($$createType99);
-const $$createType101 = FindingsReport.createFrom;
-const $$createType102 = $Create.Nullable($$createType101);
-const $$createType103 = PreReviewResult.createFrom;
+const $$createType101 = UnreadMedia.createFrom;
+const $$createType102 = $Create.Array($$createType101);
+const $$createType103 = FindingsReport.createFrom;
 const $$createType104 = $Create.Nullable($$createType103);
-const $$createType105 = DigestGroup.createFrom;
-const $$createType106 = $Create.Array($$createType105);
-const $$createType107 = check$0.Target.createFrom;
-const $$createType108 = check$0.Summary.createFrom;
-const $$createType109 = check$0.Diagnostic.createFrom;
-const $$createType110 = $Create.Array($$createType109);
-const $$createType111 = RulesFile.createFrom;
+const $$createType105 = PreReviewResult.createFrom;
+const $$createType106 = $Create.Nullable($$createType105);
+const $$createType107 = DigestGroup.createFrom;
+const $$createType108 = $Create.Array($$createType107);
+const $$createType109 = check$0.Target.createFrom;
+const $$createType110 = check$0.Summary.createFrom;
+const $$createType111 = check$0.Diagnostic.createFrom;
 const $$createType112 = $Create.Array($$createType111);
-const $$createType113 = UpPlanScope.createFrom;
+const $$createType113 = RulesFile.createFrom;
 const $$createType114 = $Create.Array($$createType113);
-const $$createType115 = UpPlanProviderGroup.createFrom;
+const $$createType115 = UpPlanScope.createFrom;
 const $$createType116 = $Create.Array($$createType115);
-const $$createType117 = project$0.StoreDrift.createFrom;
+const $$createType117 = UpPlanProviderGroup.createFrom;
+const $$createType118 = $Create.Array($$createType117);
+const $$createType119 = project$0.StoreDrift.createFrom;

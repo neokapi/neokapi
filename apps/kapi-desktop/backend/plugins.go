@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 
@@ -61,7 +62,7 @@ func (a *App) ensureFormatPlugin(formatName string) {
 // enginePluginProviders maps a media format to the plugin that provides its
 // recognition/demux ENGINE: kapi-vision (image OCR), kapi-asr (audio speech),
 // kapi-av (video demux). Unlike formatPluginProviders, these formats already have
-// an in-core reader — the file opens as Media without the engine — so the
+// an in-core reader (the file opens as Media without the engine) so the
 // on-demand trigger is the engine's availability, not the reader's.
 var enginePluginProviders = map[string]string{
 	"image": "vision",
@@ -105,6 +106,8 @@ func (a *App) ensureMediaEngine(formatName string, config map[string]any) {
 	}
 	if plugin, ok := enginePluginProviders[formatName]; ok {
 		a.installPluginOnDemand(plugin, formatName)
+		// A cached parse made without the engine is not the document now.
+		host.RefreshMediaEngines()
 	}
 }
 
@@ -137,6 +140,7 @@ func (a *App) installPluginOnDemand(plugin, forWhat string) {
 		a.emitEvent("plugin-error", map[string]string{"name": plugin, "error": err.Error()})
 		return
 	}
+	a.removeLegacyPlugin(plugin)
 	a.rescanPlugins() // re-registers a newly installed plugin's format reader
 	a.emitEvent("plugin-installed", map[string]string{"name": plugin})
 	a.emitEvent("plugins-changed", nil)
@@ -151,7 +155,7 @@ type AvailablePlugin struct {
 	Installed   bool   `json:"installed"`
 	// Available is true when the registry has a stable, kapi-compatible build
 	// of this plugin for the running OS/arch. When false the UI disables the
-	// Install button — e.g. a plugin with no windows/arm64 tarball.
+	// Install button: e.g. a plugin with no windows/arm64 tarball.
 	Available bool `json:"available"`
 	// Platform is the running OS/arch ("windows/arm64"), for the UI to explain
 	// why an unavailable plugin can't be installed.
@@ -233,6 +237,7 @@ func (a *App) InstallPlugin(name string) {
 			return
 		}
 
+		a.removeLegacyPlugin(name)
 		a.rescanPlugins()
 		a.emitEvent("plugin-installed", map[string]string{"name": name})
 		a.emitEvent("plugins-changed", nil)
@@ -270,6 +275,7 @@ func (a *App) UpdatePlugin(name string) {
 			return
 		}
 
+		a.removeLegacyPlugin(name)
 		a.rescanPlugins()
 		a.emitEvent("plugin-installed", map[string]string{"name": name})
 		a.emitEvent("plugins-changed", nil)
@@ -278,7 +284,7 @@ func (a *App) UpdatePlugin(name string) {
 }
 
 // RemovePlugin uninstalls a plugin via the plugin host, which deletes it from
-// the directory it was discovered in — the same one InstallPlugin installs into.
+// the directory it was discovered in: the same one InstallPlugin installs into.
 //
 // The frontend may pass either a plugin name ("okapi-bridge") or the composite
 // installation ID surfaced by ListPlugins ("okapi-bridge/1.39.0"). We resolve
@@ -392,4 +398,29 @@ func (a *App) installedPluginList() []project.InstalledPlugin {
 		})
 	}
 	return result
+}
+
+// legacyPluginDir is where earlier desktop releases installed plugins (the
+// config directory's plugins/), which no discovery root reads now.
+func legacyPluginDir() string { return filepath.Join(kapiConfigDir(), "plugins") }
+
+// removeLegacyPlugin removes name's copy from legacyPluginDir once the plugin
+// is installed where it is found, so no unused executable stays behind, and
+// removes the directory when nothing is left in it.
+func (a *App) removeLegacyPlugin(name string) {
+	legacy := legacyPluginDir()
+	if a.pluginDir == "" || filepath.Clean(legacy) == filepath.Clean(a.pluginDir) {
+		return
+	}
+	old := filepath.Join(legacy, name)
+	if _, err := os.Stat(old); err != nil {
+		return
+	}
+	if err := os.RemoveAll(old); err != nil {
+		a.logger.Printf("remove the earlier install of %s at %s: %v", name, old, err)
+		return
+	}
+	if entries, err := os.ReadDir(legacy); err == nil && len(entries) == 0 {
+		_ = os.Remove(legacy)
+	}
 }

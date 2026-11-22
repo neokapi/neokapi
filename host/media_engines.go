@@ -6,6 +6,7 @@ import (
 	"io"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/asr"
 	"github.com/neokapi/neokapi/core/project"
@@ -57,9 +58,32 @@ func imageOCRRequested(rf project.ResolvedFile) bool {
 }
 
 // mediaEngineStamp is the availability of every media engine, for keys that
-// must change when one is installed or removed (the parse cache).
+// must change when one is installed or removed (the parse cache). It is
+// worked out once per process, from the plugins found then, without the
+// notes a read prints; RefreshMediaEngines works it out again after a plugin
+// is installed or removed in a long-lived process (Kapi Desktop).
 func mediaEngineStamp() string {
-	return fmt.Sprintf("asr=%t,vision=%t", asr.Available(""), vision.Available(""))
+	engineStampMu.Lock()
+	defer engineStampMu.Unlock()
+	if engineStamp == "" {
+		_, asrErr := findASRPlugin()
+		_, visionErr := findVisionPlugin()
+		engineStamp = fmt.Sprintf("asr=%t,vision=%t", asrErr == nil, visionErr == nil)
+	}
+	return engineStamp
+}
+
+var (
+	engineStampMu sync.Mutex
+	engineStamp   string
+)
+
+// RefreshMediaEngines forgets the engine stamp, so the next parse-cache key
+// reflects the plugins installed now.
+func RefreshMediaEngines() {
+	engineStampMu.Lock()
+	engineStamp = ""
+	engineStampMu.Unlock()
 }
 
 // UnreadMedia is a source file read without an engine its content needs.

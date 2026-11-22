@@ -67,6 +67,7 @@ export {
     RulesFile,
     RulesFileAction,
     RulesFilesResult,
+    UnreadMedia,
     UpPlanOutput,
     UpPlanProviderGroup,
     UpPlanScope

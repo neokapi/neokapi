@@ -2112,10 +2112,10 @@ func InjectEventSink(a *App, sink func(name string, data any)) {
 }
 
 // defaultPluginDir is where the desktop installs plugins: the directory the
-// CLI installs into and every probe searches (pluginhost.DefaultInstallTarget),
+// CLI installs into and every probe searches (pluginhost.InstallTarget),
 // so a plugin either front end installs is found by both.
 func defaultPluginDir() string {
-	dir, err := pluginhost.DefaultInstallTarget()
+	dir, err := pluginhost.InstallTarget()
 	if err != nil {
 		// KAPI_PLUGINS_DIR_ONLY with no KAPI_PLUGINS_DIR: there is nowhere to
 		// install, and discovery finds nothing either.

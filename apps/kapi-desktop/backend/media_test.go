@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/host/pluginhost"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -59,6 +60,53 @@ func TestEnsureMediaEngine_Noop(t *testing.T) {
 	app := NewApp()
 	require.NotPanics(t, func() { app.ensureMediaEngine("json", nil) })         // no engine provider
 	require.NotPanics(t, func() { app.ensureMediaEngine("not-a-format", nil) }) // unknown
+}
+
+// An image read with OCR off needs no OCR engine, so opening it fetches no
+// plugin; with OCR on (the default) and for audio and video, the engine is
+// needed.
+func TestEnsureMediaEngine_FetchesOnlyWhatTheReadNeeds(t *testing.T) {
+	assert.False(t, readNeedsEngine("image", map[string]any{"ocr": false}))
+	assert.True(t, readNeedsEngine("image", nil))
+	assert.True(t, readNeedsEngine("image", map[string]any{"ocr": true}))
+	assert.True(t, readNeedsEngine("audio", nil))
+
+	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
+	t.Setenv("KAPI_PLUGINS_DIR", t.TempDir())
+	app := NewApp()
+	var events []string
+	InjectEventSink(app, func(name string, _ any) { events = append(events, name) })
+	app.ensureMediaEngine("image", map[string]any{"ocr": false})
+	assert.Empty(t, events, "no plugin is installed for a read that does not use it")
+}
+
+// The desktop installs plugins where the CLI does and the probes search.
+func TestDefaultPluginDirIsTheSharedInstallTarget(t *testing.T) {
+	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "")
+	t.Setenv("KAPI_PLUGINS_DIR", "")
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	want, err := pluginhost.InstallTarget()
+	require.NoError(t, err)
+	assert.Equal(t, want, defaultPluginDir())
+}
+
+// Once a plugin is installed in the shared directory, the copy an earlier
+// desktop installed under its config directory is removed, and the directory
+// with it when it is empty.
+func TestRemoveLegacyPlugin(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	legacy := legacyPluginDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(legacy, "vision"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(legacy, "vision", "kapi-vision"), []byte("x"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(legacy, "asr"), 0o755))
+
+	app := NewApp()
+	app.pluginDir = t.TempDir()
+	app.removeLegacyPlugin("vision")
+	assert.NoDirExists(t, filepath.Join(legacy, "vision"))
+	assert.DirExists(t, filepath.Join(legacy, "asr"), "another plugin's copy waits for its own install")
+	app.removeLegacyPlugin("asr")
+	assert.NoDirExists(t, legacy, "an empty legacy directory is removed")
 }
 
 // The engine provider map must point each media format at its engine plugin.
