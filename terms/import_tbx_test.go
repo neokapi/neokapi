@@ -356,3 +356,25 @@ func TestExportTBXSourceLocaleFilter(t *testing.T) {
 	assert.Contains(t, out, `id="has-en"`)
 	assert.NotContains(t, out, `id="no-en"`, "concept without the source locale should be filtered out")
 }
+
+// The root element's xml:lang is the language a TBX document declares.
+func TestTBXSourceLanguage(t *testing.T) {
+	assert.Equal(t, model.LocaleID("en"), TBXSourceLanguage([]byte(tbxBasicWellFormed)))
+	assert.Empty(t, TBXSourceLanguage([]byte(`<martif type="TBX"><text/></martif>`)))
+}
+
+// With a source locale, an import keeps the concepts that have a term in it.
+// When none has one, it stores nothing and says so.
+func TestImportTBXWithASourceLocale(t *testing.T) {
+	tb := NewInMemoryStore()
+	n, err := ImportTBX(context.Background(), tb, strings.NewReader(tbxBasicWellFormed), TBXImportOptions{SourceLocale: "en-GB"})
+	require.ErrorIs(t, err, ErrNoSourceTerms)
+	assert.Zero(t, n)
+	total, err := tb.Count(context.Background())
+	require.NoError(t, err)
+	assert.Zero(t, total, "an import that matched no source term stores nothing")
+
+	n, err = ImportTBX(context.Background(), tb, strings.NewReader(tbxBasicWellFormed), TBXImportOptions{SourceLocale: "en"})
+	require.NoError(t, err)
+	assert.Positive(t, n)
+}

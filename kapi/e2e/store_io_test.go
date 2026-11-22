@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,56 +14,173 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Store imports and exports read and write in the project's source language
-// when no -s is given, as the lookups do. Inside the compass sample (en-GB),
-// an en-GB TMX and a source-and-target CSV import into the project's stores
-// with no -s, the lookups find them, and a terms export with no -s reads the
-// en-GB source terms.
-func TestStoreImportExportUseTheProjectSourceLanguage(t *testing.T) {
-	dir, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
-	dataRoot, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
-	copyFixture(t, filepath.Join(findRoot(), "samples", "compass"), dir)
+// storeProject is a copy of the compass sample (source language en-GB) with
+// its own data root and config directory.
+type storeProject struct {
+	t                      *testing.T
+	dir, dataRoot, cfgRoot string
+}
 
-	run := func(args ...string) string {
-		t.Helper()
-		cmd := exec.Command(kapiBin, append(args, "-p", ".")...)
-		cmd.Dir = dir
-		cmd.Env = append(append(os.Environ(), isoEnv...), "KAPI_DATA_DIR="+dataRoot)
-		out, err := cmd.CombinedOutput()
-		require.NoError(t, err, "kapi %v failed:\n%s", args, out)
-		return string(out)
+func newStoreProject(t *testing.T) *storeProject {
+	t.Helper()
+	p := &storeProject{t: t}
+	for _, d := range []*string{&p.dir, &p.dataRoot, &p.cfgRoot} {
+		v, err := filepath.EvalSymlinks(t.TempDir())
+		require.NoError(t, err)
+		*d = v
 	}
-	total := func(out string) int {
-		t.Helper()
-		var res struct {
-			Total int `json:"total"`
-		}
-		require.NoError(t, json.Unmarshal([]byte(out), &res), out)
-		return res.Total
-	}
+	copyFixture(t, filepath.Join(findRoot(), "samples", "compass"), p.dir)
+	return p
+}
 
-	tmx := filepath.Join(dir, "legacy.tmx")
-	require.NoError(t, os.WriteFile(tmx, []byte(`<?xml version="1.0" encoding="UTF-8"?>
+// try runs kapi in the project and returns its combined output and error.
+func (p *storeProject) try(args ...string) (string, error) {
+	p.t.Helper()
+	cmd := exec.Command(kapiBin, append(args, "-p", ".")...)
+	cmd.Dir = p.dir
+	cmd.Env = append(append(os.Environ(), isoEnv...), "KAPI_DATA_DIR="+p.dataRoot, "KAPI_CONFIG_DIR="+p.cfgRoot)
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+// run runs kapi in the project and fails the test when it fails.
+func (p *storeProject) run(args ...string) string {
+	p.t.Helper()
+	out, err := p.try(args...)
+	require.NoError(p.t, err, "kapi %v failed:\n%s", args, out)
+	return out
+}
+
+// total runs a lookup with --json and returns its match count.
+func (p *storeProject) total(args ...string) int {
+	p.t.Helper()
+	cmd := exec.Command(kapiBin, append(append(args, "--json"), "-p", ".")...)
+	cmd.Dir = p.dir
+	cmd.Env = append(append(os.Environ(), isoEnv...), "KAPI_DATA_DIR="+p.dataRoot, "KAPI_CONFIG_DIR="+p.cfgRoot)
+	out, err := cmd.Output()
+	require.NoError(p.t, err, "kapi %v failed:\n%s", args, out)
+	var res struct {
+		Total int `json:"total"`
+	}
+	require.NoError(p.t, json.Unmarshal(out, &res), string(out))
+	return res.Total
+}
+
+// write writes a file into the project and returns its path.
+func (p *storeProject) write(name, body string) string {
+	p.t.Helper()
+	path := filepath.Join(p.dir, name)
+	require.NoError(p.t, os.WriteFile(path, []byte(body), 0o644))
+	return path
+}
+
+// tmx is a one-unit TMX whose header declares srclang and whose unit holds
+// source text in src and a French translation.
+func tmx(srclang, src, text string) string {
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <tmx version="1.4">
-  <header creationtool="e2e" creationtoolversion="1" segtype="sentence" o-tmf="unknown" adminlang="en-GB" srclang="en-GB" datatype="plaintext"/>
+  <header creationtool="e2e" creationtoolversion="1" segtype="sentence" o-tmf="x" adminlang="en" srclang="%s" datatype="plaintext"/>
   <body>
-    <tu>
-      <tuv xml:lang="en-GB"><seg>Harbour master</seg></tuv>
-      <tuv xml:lang="fr"><seg>Capitaine de port</seg></tuv>
-    </tu>
+    <tu><tuv xml:lang="%s"><seg>%s</seg></tuv><tuv xml:lang="fr"><seg>Traduction</seg></tuv></tu>
   </body>
 </tmx>
-`), 0o644))
-	run("memory", "import", tmx, "-t", "fr")
-	assert.Equal(t, 1, total(run("memory", "lookup", "Harbour master", "-t", "fr", "--json")),
-		"memory import with no -s reads the TMX in the project's en-GB")
+`, srclang, src, text)
+}
 
-	run("terms", "import", filepath.Join(testdata, "terms.csv"), "--format", "csv", "-t", "fr", "--header")
-	assert.Equal(t, 1, total(run("terms", "lookup", "password", "-t", "fr", "--json")),
+// tbx is a one-concept TBX whose root declares lang and whose concept holds a
+// term in lang and a French one.
+func tbx(lang, term string) string {
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<tbx style="dca" type="TBX-Basic" xml:lang="%s"><text><body>
+  <conceptEntry id="c1">
+    <langSec xml:lang="%s"><termSec><term>%s</term></termSec></langSec>
+    <langSec xml:lang="fr"><termSec><term>terme</term></termSec></langSec>
+  </conceptEntry>
+</body></text></tbx>
+`, lang, lang, term)
+}
+
+// Store imports and exports with no -s use the project's source language
+// for the project's own store, when the file declares none. Inside the
+// compass sample (en-GB), a TMX that declares srclang="*all*" and a
+// source-and-target CSV import in en-GB, the lookups find them, and a terms
+// export reads the en-GB source terms.
+func TestStoreImportExportUseTheProjectSourceLanguage(t *testing.T) {
+	p := newStoreProject(t)
+
+	p.run("memory", "import", p.write("all.tmx", tmx("*all*", "en-GB", "Harbour master")), "-t", "fr")
+	assert.Equal(t, 1, p.total("memory", "lookup", "Harbour master", "-t", "fr"),
+		"memory import with no -s reads a TMX that declares no single language in the project's en-GB")
+
+	p.run("terms", "import", filepath.Join(testdata, "terms.csv"), "--format", "csv", "-t", "fr", "--header")
+	assert.Equal(t, 1, p.total("terms", "lookup", "password", "-t", "fr"),
 		"terms import with no -s stores the CSV's source column as en-GB")
 
-	csv := run("terms", "export", "--format", "csv", "-t", "fr")
-	assert.Contains(t, csv, "password,mot de passe", "terms export with no -s reads the en-GB source terms")
+	assert.Contains(t, p.run("terms", "export", "--format", "csv", "-t", "fr"), "password,mot de passe",
+		"terms export with no -s reads the en-GB source terms")
+}
+
+// A TMX or TBX import with no -s reads in the language the file declares.
+// When that differs from the store's in region only, the import says so on
+// standard error. When no unit or concept holds the source language, the
+// import fails, names both languages and stores nothing.
+func TestStoreImportUsesTheFileSourceLanguage(t *testing.T) {
+	p := newStoreProject(t)
+
+	usTMX := p.write("us.tmx", tmx("en-US", "en-US", "Color"))
+	out := p.run("memory", "import", usTMX, "-t", "fr")
+	assert.Contains(t, out, "us.tmx declares en-US and this store reads in en-GB", "the region-only difference is reported")
+	assert.Equal(t, 1, p.total("memory", "lookup", "Color", "-s", "en-US", "-t", "fr"),
+		"the en-US text is imported as en-US")
+
+	out, err := p.try("memory", "import", usTMX, "-s", "en-GB", "-t", "fr")
+	require.Error(t, err, "an import of which no unit holds the source language fails:\n%s", out)
+	assert.Contains(t, out, "en-GB")
+	assert.Contains(t, out, "declares en-US")
+	assert.Zero(t, p.total("memory", "lookup", "Color", "-s", "en-GB", "-t", "fr"), "nothing was stored")
+
+	usTBX := p.write("us.tbx", tbx("en-US", "colour chart"))
+	out = p.run("terms", "import", usTBX, "-t", "fr")
+	assert.Contains(t, out, "us.tbx declares en-US and this store reads in en-GB")
+	assert.Equal(t, 1, p.total("terms", "lookup", "colour chart", "-s", "en-US", "-t", "fr"))
+
+	other := newStoreProject(t)
+	usTBX = other.write("us.tbx", tbx("en-US", "colour chart"))
+	out, err = other.try("terms", "import", usTBX, "-s", "en-GB", "-t", "fr")
+	require.Error(t, err, "a TBX import with no en-GB term fails:\n%s", out)
+	assert.Contains(t, out, "en-GB")
+	assert.Contains(t, out, "declares en-US")
+	assert.Zero(t, other.total("terms", "lookup", "colour chart", "-s", "en-US", "-t", "fr"), "nothing was stored")
+
+	// A standalone store reads in en; an en-GB TMX is imported as en-GB with
+	// the note.
+	legacy := filepath.Join(p.dir, "legacy.db")
+	out = p.run("memory", "import", p.write("gb.tmx", tmx("en-GB", "en-GB", "Harbour")), "-t", "fr", "--file", legacy)
+	assert.Contains(t, out, "gb.tmx declares en-GB and this store reads in en")
+	assert.Equal(t, 1, p.total("memory", "lookup", "Harbour", "-s", "en-GB", "-t", "fr", "--file", legacy))
+}
+
+// A standalone store holds content of no particular project, so with no -s
+// an import that declares no language, and an export, read in en, for each
+// selector of memory and terms.
+func TestStoreImportExportInAStandaloneStoreKeepTheDefault(t *testing.T) {
+	p := newStoreProject(t)
+	allTMX := p.write("all.tmx", tmx("*all*", "en", "Settings"))
+	for _, sel := range [][]string{
+		{"--file", filepath.Join(p.dir, "legacy.db")},
+		{"--name", "legacy"},
+		{"--local"},
+	} {
+		t.Run(sel[0], func(t *testing.T) {
+			p.run(append([]string{"memory", "import", allTMX, "-t", "fr"}, sel...)...)
+			assert.Equal(t, 1, p.total(append([]string{"memory", "lookup", "Settings", "-s", "en", "-t", "fr"}, sel...)...),
+				"memory import %s with no -s reads in en", sel[0])
+
+			p.run(append([]string{"terms", "import", filepath.Join(testdata, "terms.csv"), "--format", "csv", "-t", "fr", "--header"}, sel...)...)
+			assert.Equal(t, 1, p.total(append([]string{"terms", "lookup", "password", "-s", "en", "-t", "fr"}, sel...)...),
+				"terms import %s with no -s stores en terms", sel[0])
+			assert.Contains(t, p.run(append([]string{"terms", "export", "--format", "csv", "-t", "fr"}, sel...)...), "password,mot de passe",
+				"terms export %s with no -s reads the en terms", sel[0])
+		})
+	}
 }

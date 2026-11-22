@@ -80,11 +80,55 @@ type ImportTMXOptions struct {
 	// once at the end (the import-dir path): rebuilding per file is the
 	// dominant cost on large corpora.
 	SkipIndexRebuild bool
+	// RequireLocales drops every TU that holds no variant in one of these
+	// locales: a bilingual import keeps only the TUs that pair its source with
+	// its target. When TUs exist and none survives, the import stores nothing
+	// and fails with ErrNoUsablePair.
+	RequireLocales []model.LocaleID
 }
 
-// ImportTMXWithOptions imports a TMX file into the content memory, supports recording an Origin
-// and filtering to a specific (src, tgt) bilingual pair when both locales
-// are set. Other TUVs are dropped.
+// ErrNoUsablePair reports a TMX import that would store nothing: the file
+// holds translation units, and none of them carries every required locale.
+var ErrNoUsablePair = errors.New("no translation unit holds the required languages")
+
+// TMXSourceLanguage returns the source language a TMX file declares in its
+// header (srclang), canonicalized. It returns "" when the header declares
+// none, or declares "*all*", which names no single language.
+func TMXSourceLanguage(reader io.Reader) (model.LocaleID, error) {
+	dec := xml.NewDecoder(reader)
+	for {
+		tok, err := dec.Token()
+		if errors.Is(err, io.EOF) {
+			return "", nil
+		}
+		if err != nil {
+			return "", fmt.Errorf("parse TMX: %w", err)
+		}
+		start, ok := tok.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		switch start.Name.Local {
+		case "header":
+			for _, a := range start.Attr {
+				if a.Name.Local == "srclang" {
+					if v := strings.TrimSpace(a.Value); v != "" && !strings.EqualFold(v, "*all*") {
+						return model.NormalizeLocale(model.LocaleID(v)), nil
+					}
+				}
+			}
+			return "", nil
+		case "body", "tu":
+			return "", nil
+		}
+	}
+}
+
+// ImportTMXWithOptions imports a TMX file into the content memory, recording
+// an Origin. With both locales set it keeps the (src, tgt) pair of each TU and
+// drops other TUVs. A TU that does not hold the source locale, and the target
+// when one is set, is dropped. When TUs exist and none survives, it stores
+// nothing and returns ErrNoUsablePair.
 func ImportTMXWithOptions(ctx context.Context, tm ContentMemory, reader io.Reader, sourceLocale, targetLocale model.LocaleID, opts ImportTMXOptions) (int, error) {
 	store, ok := tm.(Store)
 	if !ok {
@@ -92,6 +136,11 @@ func ImportTMXWithOptions(ctx context.Context, tm ContentMemory, reader io.Reade
 	}
 	if sourceLocale != "" && targetLocale != "" {
 		opts.Locales = []model.LocaleID{sourceLocale, targetLocale}
+	}
+	for _, l := range []model.LocaleID{sourceLocale, targetLocale} {
+		if l != "" {
+			opts.RequireLocales = append(opts.RequireLocales, l)
+		}
 	}
 	_, imported, err := ImportTMXSession(ctx, store, reader, opts)
 	return imported, err
@@ -181,9 +230,6 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 	if session.FileKey == "" {
 		session.FileKey = "tmx-import"
 	}
-	if err := store.CreateImportSession(ctx, session); err != nil {
-		return "", 0, err
-	}
 
 	// 6. Build locale filter (empty = keep all).
 	// Canonical on both sides: a filter written "en-US" keeps a TUV declaring
@@ -225,7 +271,7 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 				}
 			}
 		}
-		if len(variants) == 0 {
+		if len(variants) == 0 || !holdsLocales(variants, opts.RequireLocales) {
 			continue
 		}
 
@@ -269,6 +315,13 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 		})
 	}
 
+	if len(entries) == 0 && len(doc.TUs) > 0 && len(opts.RequireLocales) > 0 {
+		return "", 0, ErrNoUsablePair
+	}
+	if err := store.CreateImportSession(ctx, session); err != nil {
+		return "", 0, err
+	}
+
 	// 8. Persist. Use BulkAddWithStream when available — this collapses
 	//    thousands of per-entry commits into a single transaction and is
 	//    the only way TMX imports of large corpora finish in a reasonable
@@ -307,6 +360,17 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 		return session.ID, imported, err
 	}
 	return session.ID, imported, nil
+}
+
+// holdsLocales reports whether variants holds every one of locales, compared
+// in canonical form.
+func holdsLocales(variants map[model.LocaleID][]model.Run, locales []model.LocaleID) bool {
+	for _, l := range locales {
+		if _, ok := variants[model.NormalizeLocale(l)]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func newSessionID(hash string, t time.Time) string {

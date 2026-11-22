@@ -1,8 +1,10 @@
 package terms
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -23,6 +25,37 @@ type TBXImportOptions struct {
 	Source TermSource
 	// IDPrefix is used to generate concept IDs when an entry has no id attribute.
 	IDPrefix string
+	// SourceLocale, when set, keeps only the concepts with a term in it: a
+	// concept without a source term answers no lookup. When concepts exist and
+	// none has one, the import stores nothing and fails with ErrNoSourceTerms.
+	SourceLocale model.LocaleID
+}
+
+// ErrNoSourceTerms reports a TBX import that would store nothing: the file
+// holds concepts, and none of them has a term in the source language.
+var ErrNoSourceTerms = errors.New("no concept has a term in the source language")
+
+// TBXSourceLanguage returns the language a TBX document declares on its root
+// element (xml:lang on <tbx> or <martif>), canonicalized, or "" when it
+// declares none.
+func TBXSourceLanguage(data []byte) model.LocaleID {
+	dec := xml.NewDecoder(bytes.NewReader(data))
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return ""
+		}
+		if se, ok := tok.(xml.StartElement); ok {
+			for _, a := range se.Attr {
+				if a.Name.Local == "lang" {
+					if v := strings.TrimSpace(a.Value); v != "" {
+						return model.NormalizeLocale(model.LocaleID(v))
+					}
+				}
+			}
+			return ""
+		}
+	}
 }
 
 // --- Permissive XML structures covering both TBX dialects ---------------------
@@ -128,7 +161,7 @@ func ImportTBX(ctx context.Context, tb Terminology, reader io.Reader, opts TBXIm
 		prefix = "tbx"
 	}
 
-	imported := 0
+	var concepts []Concept
 	for _, entry := range entries {
 		concept := Concept{
 			ID:     entry.ID,
@@ -136,7 +169,7 @@ func ImportTBX(ctx context.Context, tb Terminology, reader io.Reader, opts TBXIm
 			Source: opts.Source,
 		}
 		if concept.ID == "" {
-			concept.ID = fmt.Sprintf("%s-%d", prefix, imported+1)
+			concept.ID = fmt.Sprintf("%s-%d", prefix, len(concepts)+1)
 		}
 
 		// Concept-level descriptions (definition, subjectField).
@@ -174,14 +207,35 @@ func ImportTBX(ctx context.Context, tb Terminology, reader io.Reader, opts TBXIm
 			// Skip entries that yielded no usable terms.
 			continue
 		}
+		if opts.SourceLocale != "" && !hasTermIn(concept, opts.SourceLocale) {
+			continue
+		}
+		concepts = append(concepts, concept)
+	}
+	if len(concepts) == 0 && len(entries) > 0 && opts.SourceLocale != "" {
+		return 0, ErrNoSourceTerms
+	}
 
+	imported := 0
+	for _, concept := range concepts {
 		if err := tb.AddConcept(ctx, concept); err != nil {
 			return imported, fmt.Errorf("add concept %s: %w", concept.ID, err)
 		}
 		imported++
 	}
-
 	return imported, nil
+}
+
+// hasTermIn reports whether concept has a term in locale, compared in
+// canonical form.
+func hasTermIn(concept Concept, locale model.LocaleID) bool {
+	want := model.NormalizeLocale(locale)
+	for _, t := range concept.Terms {
+		if model.NormalizeLocale(t.Locale) == want {
+			return true
+		}
+	}
+	return false
 }
 
 // decodeTBX parses the document under either supported root element.

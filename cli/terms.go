@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -128,9 +131,7 @@ func newTermsImportCmd(a *App) *cobra.Command {
 			case "json":
 				count, err = terms.ImportJSON(host.CmdContext(cmd), into, f)
 			case "tbx":
-				count, err = terms.ImportTBX(host.CmdContext(cmd), into, f, terms.TBXImportOptions{
-					Domain: domain,
-				})
+				count, err = importTBXFile(host.CmdContext(cmd), into, f, args[0], srcLocale, a, cmd, domain)
 			case "bundle":
 				count, err = ImportKTBFile(host.CmdContext(cmd), into, f)
 			default:
@@ -560,4 +561,31 @@ func termsStoreSourceLocale(a *App, cmd *cobra.Command, named string) (model.Loc
 		return "", err
 	}
 	return a.StoreSourceLocale(cmd, sel, named)
+}
+
+// importTBXFile imports a TBX document read from r in one source language:
+// --source-locale when given, else the language the document declares on its
+// root, else the store's (host.ImportSource). A concept with no term in that
+// language is dropped, and a document of which none is left imports nothing
+// and fails, naming the languages.
+func importTBXFile(ctx context.Context, into terms.Terminology, r io.Reader, path, named string, a *App, cmd *cobra.Command, domain string) (int, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return 0, fmt.Errorf("read %s: %w", path, err)
+	}
+	storeSrc, err := termsStoreSourceLocale(a, cmd, "")
+	if err != nil {
+		return 0, err
+	}
+	declared := terms.TBXSourceLanguage(data)
+	src := host.ImportSource(named, declared, storeSrc, filepath.Base(path), cmd.ErrOrStderr())
+	n, err := terms.ImportTBX(ctx, into, bytes.NewReader(data), terms.TBXImportOptions{Domain: domain, SourceLocale: src})
+	if errors.Is(err, terms.ErrNoSourceTerms) {
+		says := "the file declares no language"
+		if declared != "" {
+			says = "the file declares " + string(declared)
+		}
+		return 0, fmt.Errorf("%s: no concept has a %s term (%s), so nothing was imported. Pass --source-locale with the language the file holds", filepath.Base(path), src, says)
+	}
+	return n, err
 }

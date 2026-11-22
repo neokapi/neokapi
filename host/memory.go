@@ -1,8 +1,10 @@
 package host
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -224,43 +226,126 @@ func ParseLocaleList(raw string) []model.LocaleID {
 	return out
 }
 
-// ImportTMXFile imports a single TMX file (plain or .gz) into the content memory.
-// Uses ImportTMXLocalePairs when allPairs is true, otherwise single-pair import.
-func ImportTMXFile(ctx context.Context, tm memory.Store, path, srcLocale, tgtLocale string, allPairs bool, locales []model.LocaleID) (int, error) {
-	f, err := os.Open(path)
+// TMXImport is one TMX file imported into a content memory.
+type TMXImport struct {
+	// Path is the TMX file, plain or .gz.
+	Path string
+	// Named is --source-locale as given, empty when it was not.
+	Named string
+	// StoreSource is the source language of the store the import writes to:
+	// App.StoreSourceLocale with nothing named.
+	StoreSource model.LocaleID
+	// Target is --target-locale, empty for every TUV.
+	Target string
+	// AllPairs imports every TUV, or those in Locales, as one multilingual
+	// entry per TU; Named, StoreSource and Target do not apply.
+	AllPairs bool
+	Locales  []model.LocaleID
+	// Note receives one line when the import reads its source in a language
+	// that differs from the store's in region only. Nil discards it.
+	Note io.Writer
+}
+
+// ImportTMXFile imports one TMX file into the content memory. With AllPairs
+// it keeps every TUV (ImportTMXLocalePairs). Otherwise it imports in one
+// source language (ImportSource): --source-locale when given, else the
+// language the file declares, else the store's. A TU that does not hold the
+// source, and the target when one is given, is dropped, and a file of which
+// no TU survives imports nothing and fails, naming the languages.
+func ImportTMXFile(ctx context.Context, tm memory.Store, imp TMXImport) (int, error) {
+	f, err := os.Open(imp.Path)
 	if err != nil {
-		return 0, fmt.Errorf("open %s: %w", path, err)
+		return 0, fmt.Errorf("open %s: %w", imp.Path, err)
 	}
 	defer f.Close()
 
 	var reader io.Reader = f
-	if strings.HasSuffix(strings.ToLower(path), ".gz") {
+	if strings.HasSuffix(strings.ToLower(imp.Path), ".gz") {
 		gz, err := gzip.NewReader(f)
 		if err != nil {
-			return 0, fmt.Errorf("gunzip %s: %w", path, err)
+			return 0, fmt.Errorf("gunzip %s: %w", imp.Path, err)
 		}
 		defer gz.Close()
 		reader = gz
 	}
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return 0, fmt.Errorf("read %s: %w", imp.Path, err)
+	}
 
 	opts := memory.ImportTMXOptions{
-		OriginKey:     filepath.Base(path),
+		OriginKey:     filepath.Base(imp.Path),
 		OriginAddedBy: "kapi memory import",
 		WarnFunc: func(msg string) {
 			fmt.Fprintf(os.Stderr, "warning: %s\n", msg)
 		},
-		// The CLI rebuilds the search/fuzzy side-tables itself — once, after the
-		// whole batch (import-dir) or the single file — via
-		// RebuildMemorySearchIndexes. Defer the per-session rebuild so a
-		// directory import of thousands of files does not rebuild N times.
+		// The CLI rebuilds the search and fuzzy side-tables itself, once,
+		// after the whole batch (import-dir) or the single file, with
+		// RebuildMemorySearchIndexes, so a directory of many files does not
+		// rebuild once per file.
 		SkipIndexRebuild: true,
 	}
-
-	if allPairs {
-		return memory.ImportTMXLocalePairs(ctx, tm, reader, locales, opts)
+	if imp.AllPairs {
+		return memory.ImportTMXLocalePairs(ctx, tm, bytes.NewReader(data), imp.Locales, opts)
 	}
-	return memory.ImportTMXWithOptions(ctx, tm, reader,
-		model.LocaleID(srcLocale), model.LocaleID(tgtLocale), opts)
+
+	declared, err := memory.TMXSourceLanguage(bytes.NewReader(data))
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", imp.Path, err)
+	}
+	src := ImportSource(imp.Named, declared, imp.StoreSource, filepath.Base(imp.Path), imp.Note)
+	tgt := model.LocaleID(imp.Target)
+	if tgt != "" {
+		tgt = model.NormalizeLocale(tgt)
+	}
+	n, err := memory.ImportTMXWithOptions(ctx, tm, bytes.NewReader(data), src, tgt, opts)
+	if errors.Is(err, memory.ErrNoUsablePair) {
+		return 0, noUsablePairError(filepath.Base(imp.Path), src, tgt, declared)
+	}
+	return n, err
+}
+
+// noUsablePairError names the languages a TMX import looked for and the one
+// the file declares, when no TU held them.
+func noUsablePairError(file string, src, tgt, declared model.LocaleID) error {
+	want := string(src) + " source text"
+	if tgt != "" {
+		want = fmt.Sprintf("%s source text with a %s translation", src, tgt)
+	}
+	says := "the file declares no source language"
+	if declared != "" {
+		says = "the file declares " + string(declared)
+	}
+	return fmt.Errorf("%s: no translation unit holds %s (%s), so nothing was imported. Pass --source-locale with the language the file holds", file, want, says)
+}
+
+// ImportSource is the source language an import of file reads in: named
+// (--source-locale) when given, else the language the file declares, else the
+// store's. When the file's language is used and differs from the store's in
+// region only (en-US into an en-GB store), one line on note says what was
+// done, because the store's lookups will not match it.
+func ImportSource(named string, declared, store model.LocaleID, file string, note io.Writer) model.LocaleID {
+	if named = strings.TrimSpace(named); named != "" {
+		return model.NormalizeLocale(model.LocaleID(named))
+	}
+	if declared == "" {
+		return store
+	}
+	if note != nil && store != "" && declared != store && sameLanguage(declared, store) {
+		fmt.Fprintf(note, "note: %s declares %s and this store reads in %s; its %s text was imported as %s, which a lookup in %s does not match. Pass --source-locale %s to import only %s text.\n",
+			file, declared, store, declared, declared, store, store, store)
+	}
+	return declared
+}
+
+// sameLanguage reports whether a and b name one language, whatever their
+// regions or scripts.
+func sameLanguage(a, b model.LocaleID) bool {
+	base := func(l model.LocaleID) string {
+		s, _, _ := strings.Cut(string(model.NormalizeLocale(l)), "-")
+		return strings.ToLower(s)
+	}
+	return base(a) == base(b)
 }
 
 // RebuildMemorySearchIndexes restores the FTS5 search + fuzzy side-tables after a

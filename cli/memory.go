@@ -106,7 +106,7 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			if err != nil {
 				return err
 			}
-			srcLoc, err := memoryStoreSourceLocale(a, cmd, srcLocale)
+			storeSrc, err := memoryStoreSourceLocale(a, cmd, "")
 			if err != nil {
 				return err
 			}
@@ -122,7 +122,10 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			case "bundle":
 				count, err = ImportKMBFile(host.CmdContext(cmd), tm, args[0])
 			case "tmx":
-				count, err = ImportTMXFile(host.CmdContext(cmd), tm, args[0], string(srcLoc), tgtLocale, allPairs, ParseLocaleList(localesRaw))
+				count, err = ImportTMXFile(host.CmdContext(cmd), tm, host.TMXImport{
+					Path: args[0], Named: srcLocale, StoreSource: storeSrc, Target: tgtLocale,
+					AllPairs: allPairs, Locales: ParseLocaleList(localesRaw), Note: cmd.ErrOrStderr(),
+				})
 			default:
 				return fmt.Errorf("unsupported format: %s (use tmx or bundle)", inputFormat)
 			}
@@ -186,7 +189,7 @@ Examples:
 			localesRaw, _ := cmd.Flags().GetString("locales")
 			pattern, _ := cmd.Flags().GetString("pattern")
 			recursive, _ := cmd.Flags().GetBool("recursive")
-			srcLoc, err := memoryStoreSourceLocale(a, cmd, srcLocale)
+			storeSrc, err := memoryStoreSourceLocale(a, cmd, "")
 			if err != nil {
 				return err
 			}
@@ -223,7 +226,10 @@ Examples:
 				if !a.Quiet {
 					fmt.Fprintf(os.Stderr, "[%d/%d] %s ", i+1, len(files), rel)
 				}
-				n, err := ImportTMXFile(host.CmdContext(cmd), tm, path, string(srcLoc), tgtLocale, allPairs, locales)
+				n, err := ImportTMXFile(host.CmdContext(cmd), tm, host.TMXImport{
+					Path: path, Named: srcLocale, StoreSource: storeSrc, Target: tgtLocale,
+					AllPairs: allPairs, Locales: locales, Note: cmd.ErrOrStderr(),
+				})
 				if err != nil {
 					failed++
 					if !a.Quiet {
@@ -243,6 +249,11 @@ Examples:
 			// and fuzzy matching.
 			a.RebuildMemorySearchIndexes(host.CmdContext(cmd), tm)
 
+			// A file that imported nothing usable is a failure, and a run with
+			// failures is not reported as a success.
+			if failed > 0 {
+				return fmt.Errorf("%d of %d files failed to import (see the lines above); %d entries imported from the rest", failed, len(files), totalImported)
+			}
 			if a.Quiet {
 				return nil
 			}
