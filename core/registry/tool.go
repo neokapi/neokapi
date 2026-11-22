@@ -3,6 +3,8 @@ package registry
 import (
 	"fmt"
 	"maps"
+	"slices"
+	"strings"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -487,6 +489,9 @@ type CLIToolEntry struct {
 // Internal is declared in a tool's ToolMeta and never inferred from a
 // missing ConfigFactory, which would leave a tool unreachable with its step
 // config discarded (#1476).
+//
+// The entries are in tool-name order, so every listing built from them is the
+// same on every run.
 func (r *ToolRegistry) CLITools() []CLIToolEntry {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -511,5 +516,6 @@ func (r *ToolRegistry) CLITools() []CLIToolEntry {
 			Schema: reg.Schema,
 		})
 	}
+	slices.SortFunc(entries, func(x, y CLIToolEntry) int { return strings.Compare(string(x.Info.Name), string(y.Info.Name)) })
 	return entries
 }

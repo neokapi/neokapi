@@ -189,6 +189,11 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 // removed edition and a record of a translation the file already held are
 // not writes of one.
 func writesTranslation(t change.Transition) bool {
+	if t.Block != nil && !t.Block.Translatable {
+		// A block with nothing to translate (a code block) is written into
+		// the target file as it is; that is not a translation.
+		return false
+	}
 	return t.Role == change.RoleDerived && t.AfterRev != model.AbsentRevision && t.AfterRev != t.BeforeRev
 }
 
@@ -197,10 +202,11 @@ func writesTranslation(t change.Transition) bool {
 // is a struct, so two units never share a key whatever their names hold.
 type writtenUnit struct {
 	doc, block, edition string
+	locale              model.LocaleID
 }
 
 func unitOf(ref change.Ref) writtenUnit {
-	return writtenUnit{doc: ref.Doc, block: ref.Block, edition: ref.EditionText()}
+	return writtenUnit{doc: ref.Doc, block: ref.Block, edition: ref.EditionText(), locale: ref.Edition.Locale}
 }
 
 // unitWriteTally counts, for one run, the translation units it wrote to a
@@ -233,6 +239,20 @@ func (t *unitWriteTally) total() int {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return len(t.units)
+}
+
+// byLocale is the count per target language.
+func (t *unitWriteTally) byLocale() map[string]int {
+	out := map[string]int{}
+	if t == nil {
+		return out
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for u := range t.units {
+		out[string(u.locale)]++
+	}
+	return out
 }
 
 // basisAt names an edition of a block a change set's operation addresses.

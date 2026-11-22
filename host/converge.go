@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -624,8 +625,10 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		waiting := 0
 		if gatedDelivery {
 			productionMu.Lock()
-			waiting = heldDrafts(cov, production)
+			held := heldDrafts(cov, production)
 			productionMu.Unlock()
+			waiting = sumCounts(held)
+			facts.held = held
 		}
 		return convergence.PassState{
 			Pending:          localeStrings(pending),
@@ -867,6 +870,9 @@ type convergeFacts struct {
 	// waitingForReview is the drafts the run holds for review
 	// (convergence.LoopResult).
 	waitingForReview int
+	// held is the units the run holds for review, per locale, as the last
+	// derivation counted them (heldDrafts).
+	held map[string]int
 	// redraftable is, per locale, how many stale units the run STARTED with in
 	// scopes it then fanned out over. The final rollup cannot recover it: a
 	// re-drafted unit is still stale (its basis names source that is gone, and
@@ -1185,23 +1191,66 @@ func withheldLocales(cov []LocaleCoverage) map[string]bool {
 	return withheld
 }
 
-// heldDrafts counts the drafts a run that owns delivery holds for review: in
-// each withheld locale, the units its last pass drafted with a provider or
-// took from a stored draft, at most the locale's unit count. Units recycled
-// from the content memory are approved wording, not drafts. A withheld locale
-// gets no files, so these drafts are written nowhere in the project, and the
-// write tally counts none of them.
-func heldDrafts(cov []LocaleCoverage, production map[string]convergence.PassProduction) int {
+// heldDrafts counts, per locale, the units a run that owns delivery holds for
+// review: in each withheld locale, the units its last pass produced (drafted
+// with a provider, taken from a stored draft, or recycled from the content
+// memory), at most the locale's unit count. A recycled unit the gate holds
+// waits for review as a drafted one does. A withheld locale gets no files, so
+// these units are written nowhere in the project, and the write tally counts
+// none of them.
+func heldDrafts(cov []LocaleCoverage, production map[string]convergence.PassProduction) map[string]int {
+	units := localeUnits(cov)
+	held := map[string]int{}
+	for locale := range withheldLocales(cov) {
+		p := production[locale]
+		if n := min(p.ViaAI+p.ViaDraft+p.ViaMemory, units[locale]); n > 0 {
+			held[locale] = n
+		}
+	}
+	return held
+}
+
+// localeUnits is each locale's unit count across its scopes.
+func localeUnits(cov []LocaleCoverage) map[string]int {
 	units := map[string]int{}
 	for _, c := range cov {
 		units[c.Locale] += c.Total
 	}
+	return units
+}
+
+// sumCounts is the total of a per-locale count.
+func sumCounts(m map[string]int) int {
 	total := 0
-	for locale := range withheldLocales(cov) {
-		p := production[locale]
-		total += min(p.ViaAI+p.ViaDraft, units[locale])
+	for _, n := range m {
+		total += n
 	}
 	return total
+}
+
+// checkUnitCounts refuses a summary whose counts exceed a language's units:
+// for every locale, the units the run wrote and the units it holds for review
+// are disjoint subsets of that locale's units. A violation is a counting
+// defect, and printing it would report work that does not exist.
+func checkUnitCounts(cov []LocaleCoverage, produced, waiting map[string]int) error {
+	units := localeUnits(cov)
+	locales := make([]string, 0, len(units))
+	for l := range units {
+		locales = append(locales, l)
+	}
+	for l := range produced {
+		if _, ok := units[l]; !ok {
+			locales = append(locales, l)
+		}
+	}
+	slices.Sort(locales)
+	for _, l := range locales {
+		if produced[l]+waiting[l] > units[l] {
+			return fmt.Errorf("internal error: %s counts %d produced and %d waiting for review for %d unit(s); the run's summary would overstate its work",
+				l, produced[l], waiting[l], units[l])
+		}
+	}
+	return nil
 }
 
 // finishConverge derives the final per-locale standing, applies the
@@ -1262,6 +1311,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 		a.printOps.note("the source is not ready to translate, so kapi up delivers no file and none is printed")
 	}
 
+	producedBeforeDelivery := a.writeTally.total()
 	if gated && out.StallReason != convergence.StallSourceNotReady {
 		for i := range out.Locales {
 			lc := &out.Locales[i]
@@ -1318,7 +1368,10 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 			out.MaterializedFiles += n
 		}
 		if out.MaterializedFiles > 0 {
-			emit(convergence.Event{Type: convergence.EventMaterialized, Files: out.MaterializedFiles})
+			// The delivery is where a gated run writes its target files, so
+			// the units it wrote are reported here.
+			emit(convergence.Event{Type: convergence.EventMaterialized, Files: out.MaterializedFiles,
+				ProducedDelta: a.writeTally.total() - producedBeforeDelivery})
 		}
 
 		// Delivery is done, so the drafts stop being anybody's subject and the
@@ -1371,6 +1424,9 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// content its file did not hold.
 	produced := a.writeTally.total()
 	out.Produced = &produced
+	if err := checkUnitCounts(cov, a.writeTally.byLocale(), facts.held); err != nil {
+		return err
+	}
 
 	state := convergence.RunConverged
 	if !out.Converged {
