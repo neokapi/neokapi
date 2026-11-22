@@ -97,3 +97,17 @@ gh pr view <n> --json state,mergeStateStatus,autoMergeRequest   # MERGED, or wha
   removed instead of added.
 - **Cost on every pull request.** Note the job's duration in the pull request.
   A job over three minutes on the pull request path needs a reason.
+
+## Traps that pass on a rerun
+
+- **A test that moves `XDG_DATA_HOME` and runs a Node tool.** On CI, and on
+  any machine set up with setup-vp, `node` is the vite-plus shim, which keeps
+  its Node.js runtimes under `XDG_DATA_HOME`. Point that at a throwaway
+  directory and the shim downloads a whole Node.js release on every call,
+  which is how oxfmt ran into its one-minute limit. `host/main_test.go`
+  (`pinNode`) puts the real binary on PATH first.
+- **A plugin daemon that installs its signal handler after the handshake.**
+  A host may send SIGTERM as soon as it reads the handshake line, and a
+  signal that arrives before `signal.Notify` kills the daemon before it
+  removes its socket. Call `signal.Notify` first, as
+  `host/pluginhost/testdata/fakedaemon/main.go` does (#3713).
