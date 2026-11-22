@@ -57,8 +57,8 @@ func TestMediaMimeType(t *testing.T) {
 // the pluginhost install tests.
 func TestEnsureMediaEngine_Noop(t *testing.T) {
 	app := NewApp()
-	require.NotPanics(t, func() { app.ensureMediaEngine("json") })         // no engine provider
-	require.NotPanics(t, func() { app.ensureMediaEngine("not-a-format") }) // unknown
+	require.NotPanics(t, func() { app.ensureMediaEngine("json", nil) })         // no engine provider
+	require.NotPanics(t, func() { app.ensureMediaEngine("not-a-format", nil) }) // unknown
 }
 
 // The engine provider map must point each media format at its engine plugin.

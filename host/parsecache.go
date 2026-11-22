@@ -254,6 +254,10 @@ func (a *App) runnerPartCache(root string, mergedConfig map[string]any) (flow.Pa
 	// to the translator, with nothing failing to say so. A table whose cells
 	// became translatable kept coming back untranslated exactly this way.
 	fmt.Fprintf(h, "%s\x00%s\x00", version.Version, version.Commit)
+	// Which media engines are installed: a reader with its engine parses a
+	// different document from one without (speech transcribed, or not), so
+	// installing or removing a plugin parses again.
+	fmt.Fprintf(h, "%s\x00", mediaEngineStamp())
 	fmt.Fprintf(h, "%s\x00", a.SourceLocale())
 	if len(mergedConfig) > 0 {
 		if b, err := json.Marshal(mergedConfig); err == nil {

@@ -131,10 +131,7 @@ func (e *visionEngine) dial() (visionTransport, error) {
 }
 
 func findVisionPlugin() (*pluginhost.Plugin, error) {
-	plugins := pluginhost.Discover(pluginhost.DiscoverOptions{
-		EnvPluginsDir: os.Getenv("KAPI_PLUGINS_DIR"),
-	})
-	for _, p := range plugins {
+	for _, p := range pluginhost.Discover(pluginhost.DefaultDiscoverOptions()) {
 		if p.Name() == visionPluginName {
 			return p, nil
 		}

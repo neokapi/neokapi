@@ -69,6 +69,16 @@ var enginePluginProviders = map[string]string{
 	"video": "av",
 }
 
+// readNeedsEngine reports whether reading formatName with config uses its
+// engine: an image only when OCR is on, which is the reader's default.
+func readNeedsEngine(formatName string, config map[string]any) bool {
+	if formatName == "image" {
+		ocr, ok := config["ocr"].(bool)
+		return !ok || ocr
+	}
+	return true
+}
+
 // mediaEngineAvailable reports whether the local engine that enriches a media
 // format is already usable, so ensureMediaEngine can skip a redundant install.
 func mediaEngineAvailable(formatName string) bool {
@@ -84,12 +94,13 @@ func mediaEngineAvailable(formatName string) bool {
 }
 
 // ensureMediaEngine installs, once and on demand, the engine plugin that enriches
-// a media format (OCR/ASR/demux) when that engine isn't already available. A
-// no-op when the engine is present or the format has no engine provider.
+// a media format (OCR/ASR/demux) when the read needs it and it isn't already
+// available. A no-op when the engine is present, when the read does not use
+// it (an image read with OCR off), or when the format has no engine provider.
 // Best-effort and synchronous, emitting the same plugin-* events as
 // ensureFormatPlugin so the UI can show progress.
-func (a *App) ensureMediaEngine(formatName string) {
-	if mediaEngineAvailable(formatName) {
+func (a *App) ensureMediaEngine(formatName string, config map[string]any) {
+	if !readNeedsEngine(formatName, config) || mediaEngineAvailable(formatName) {
 		return
 	}
 	if plugin, ok := enginePluginProviders[formatName]; ok {

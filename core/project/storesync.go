@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/kbf"
@@ -40,6 +41,24 @@ type SourceStamp struct {
 	// file, the bytes are assumed unchanged and the hash is not recomputed.
 	Size    int64 `json:"size"`
 	MTimeNS int64 `json:"mtimeNs"`
+	// MissingEngines names the engines the file's reader needed and did not
+	// have when it was extracted (ReaderEngines), such as "asr" for audio read
+	// without its speech recognizer. Installing or removing one makes the
+	// file drift, so the next run reads it again.
+	MissingEngines []string `json:"missing_engines,omitempty"`
+}
+
+// MissingReaderEngines names, for a resolved file, the engines its reader
+// would need and cannot use now: the plugin-backed recognizers a host
+// registers (speech for audio, OCR for images). A host that wires such
+// engines sets it; with none set, a file needs no engine.
+var MissingReaderEngines func(rf ResolvedFile) []string
+
+func missingEnginesFor(rf ResolvedFile) []string {
+	if MissingReaderEngines == nil {
+		return nil
+	}
+	return MissingReaderEngines(rf)
 }
 
 // StoreDrift describes how the block store has fallen behind the working tree.
@@ -79,7 +98,9 @@ func CompareSourceStamps(stamps map[string]SourceStamp, files []ResolvedFile) (c
 		}
 		seen[rf.Relative] = true
 		stamp, ok := stamps[rf.Relative]
-		if !ok {
+		if !ok || !slices.Equal(stamp.MissingEngines, missingEnginesFor(rf)) {
+			// An engine the reader needed was installed or removed since the
+			// file was read, so what it reads now differs.
 			changed = append(changed, rf.Relative)
 			continue
 		}
@@ -279,7 +300,7 @@ func ExtractToBlockStore(
 		// stat/hash fails again every time. And stats.Files++ above has already
 		// counted the file as extracted, so silence here makes the stats and the
 		// stamp map disagree about the same file.
-		stamp, serr := sourceStampFor(rf.Path)
+		stamp, serr := sourceStampFor(rf)
 		if serr != nil {
 			_ = sess.Rollback()
 			return stats, fmt.Errorf("stamp source %q for drift detection: %w. Without a stamp "+
@@ -329,15 +350,16 @@ func ExtractToBlockStore(
 	return stats, nil
 }
 
-// sourceStampFor captures a source file's drift stamp (hash + stat fast path).
-func sourceStampFor(path string) (SourceStamp, error) {
-	info, err := os.Stat(path)
+// sourceStampFor captures a source file's drift stamp (hash + stat fast
+// path), and the engines its reader is missing now.
+func sourceStampFor(rf ResolvedFile) (SourceStamp, error) {
+	info, err := os.Stat(rf.Path)
 	if err != nil {
 		return SourceStamp{}, err
 	}
-	hash, err := HashFile(path)
+	hash, err := HashFile(rf.Path)
 	if err != nil {
 		return SourceStamp{}, err
 	}
-	return SourceStamp{Hash: hash, Size: info.Size(), MTimeNS: info.ModTime().UnixNano()}, nil
+	return SourceStamp{Hash: hash, Size: info.Size(), MTimeNS: info.ModTime().UnixNano(), MissingEngines: missingEnginesFor(rf)}, nil
 }

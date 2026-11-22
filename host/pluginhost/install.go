@@ -48,6 +48,22 @@ func InstallTargetFor(pluginsDir string) (string, error) {
 	return filepath.Clean(paths[0]), nil
 }
 
+// DefaultInstallTarget is where kapi installs a plugin when no --plugin-dir
+// is given: InstallTargetFor over $KAPI_PLUGINS_DIR. The CLI, Kapi Desktop
+// and the media-engine probes all install and look here
+// (DefaultDiscoverOptions), so a plugin one of them installs is found by the
+// others.
+func DefaultInstallTarget() (string, error) {
+	return InstallTargetFor(os.Getenv("KAPI_PLUGINS_DIR"))
+}
+
+// DefaultDiscoverOptions are the discovery roots for a front end with no
+// --plugin-dir: $KAPI_PLUGINS_DIR, then the user root DefaultInstallTarget
+// writes to, then the system roots.
+func DefaultDiscoverOptions() DiscoverOptions {
+	return DiscoverOptions{EnvPluginsDir: os.Getenv("KAPI_PLUGINS_DIR")}
+}
+
 // dataInstallTarget returns $XDG_DATA_HOME/kapi/plugins, the per-user install
 // root that discovery scans second.
 func dataInstallTarget() string {

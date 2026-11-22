@@ -183,6 +183,10 @@ type ConvergeOutput struct {
 	// a format no installed reader opens (check.WarningFormatNoReader). The run
 	// set that content aside and converged the rest.
 	Warnings []check.Warning `json:"warnings,omitempty"`
+	// UnreadMedia names the files read without an engine their content needs
+	// (speech recognition, OCR). Their text is not translated, so a run with
+	// any is not up to date.
+	UnreadMedia []UnreadMedia `json:"unread_media,omitempty"`
 	// Findings holds the failing findings of a program step whose output
 	// changed a redaction placeholder (tools.RulePlaceholder). Each such block
 	// was left as it was, and the run exits with the code a failed check uses.
@@ -311,8 +315,11 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "%d block(s) still hold wording a reviewer turned down. "+
 			"They do not ship until a pass drafts something else for them.\n", rejected)
 	}
+	writeUnreadMedia(w, o.UnreadMedia)
 	if o.Findings != nil {
 		o.formatPlaceholderFindings(w)
+	} else if len(o.UnreadMedia) > 0 {
+		fmt.Fprintln(w, "Not up to date: files wait for an engine to read them.")
 	} else if o.Converged {
 		fmt.Fprintln(w, o.upToDateLine())
 	} else if o.StallReason == convergence.StallSourceNotReady {
@@ -1430,6 +1437,11 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// content its file did not hold.
 	produced := a.writeTally.total()
 	out.Produced = &produced
+	if db, derr := a.ProjectDB(ctx, filepath.Dir(projectPath)); derr == nil {
+		if out.UnreadMedia = unreadMedia(ctx, db); len(out.UnreadMedia) > 0 {
+			out.Converged = false
+		}
+	}
 	if err := checkUnitCounts(cov, a.writeTally.byEdition(), facts.held); err != nil {
 		return err
 	}

@@ -235,7 +235,7 @@ func NewApp() *App {
 	// off so a rescan always reflects on-disk truth (live installs); connectors
 	// are off because the desktop doesn't source through plugin connectors.
 	app.pluginRuntime = pluginhost.NewRuntime(pluginhost.RuntimeOptions{
-		Discover:  pluginhost.DiscoverOptions{EnvPluginsDir: pluginDir, OnWarn: func(msg string) { logger.Printf("plugin: %s", msg) }},
+		Discover:  withWarn(pluginhost.DefaultDiscoverOptions(), func(msg string) { logger.Printf("plugin: %s", msg) }),
 		FormatReg: formatReg,
 		OnWarn:    func(msg string) { logger.Printf("plugin: %s", msg) },
 		PoolLogger: func(format string, args ...any) {
@@ -1821,7 +1821,7 @@ func (a *App) RunFormatReader(formatName string, filePath string, config map[str
 	// For media formats the in-core reader exists, but OCR/ASR/demux need the
 	// engine plugin (kapi-vision/asr/av); install it on first open. No-op once
 	// the engine is available or for non-media formats.
-	a.ensureMediaEngine(formatName)
+	a.ensureMediaEngine(formatName, config)
 
 	reader, err := a.formatReg.NewReader(registry.FormatID(formatName))
 	if err != nil {
@@ -2111,12 +2111,17 @@ func InjectEventSink(a *App, sink func(name string, data any)) {
 	a.eventMu.Unlock()
 }
 
+// defaultPluginDir is where the desktop installs plugins: the directory the
+// CLI installs into and every probe searches (pluginhost.DefaultInstallTarget),
+// so a plugin either front end installs is found by both.
 func defaultPluginDir() string {
-	dir := os.Getenv("KAPI_PLUGINS_DIR")
-	if dir != "" {
-		return dir
+	dir, err := pluginhost.DefaultInstallTarget()
+	if err != nil {
+		// KAPI_PLUGINS_DIR_ONLY with no KAPI_PLUGINS_DIR: there is nowhere to
+		// install, and discovery finds nothing either.
+		return ""
 	}
-	return filepath.Join(kapiConfigDir(), "plugins")
+	return dir
 }
 
 // sameRecipePath reports whether two recipe paths name one file, following
@@ -2131,4 +2136,10 @@ func sameRecipePath(a, b string) bool {
 		return false
 	}
 	return ra == rb
+}
+
+// withWarn is opts with OnWarn set.
+func withWarn(opts pluginhost.DiscoverOptions, warn func(string)) pluginhost.DiscoverOptions {
+	opts.OnWarn = warn
+	return opts
 }

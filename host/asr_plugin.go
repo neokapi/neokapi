@@ -97,7 +97,7 @@ func findASRPlugin() (string, error) {
 	if p := os.Getenv("KAPI_ASR_PLUGIN"); p != "" {
 		return p, nil
 	}
-	for _, p := range pluginhost.Discover(pluginhost.DiscoverOptions{EnvPluginsDir: os.Getenv("KAPI_PLUGINS_DIR")}) {
+	for _, p := range pluginhost.Discover(pluginhost.DefaultDiscoverOptions()) {
 		if p.Name() == asrPluginName {
 			return p.BinaryPath, nil
 		}
