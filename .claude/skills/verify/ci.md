@@ -55,6 +55,31 @@ gh run view --job <job-id> --log-failed
 gh api repos/{owner}/{repo}/actions/jobs/<job-id> --jq '.steps[] | "\(.conclusion)\t\(.name)"'
 ```
 
+## Merging: one required check
+
+The main branch requires one status check, `CI passed`, the last job of
+`ci.yml`. It fails unless every job of that workflow passed or was skipped,
+and on a pull request it also waits for every other workflow on the same
+commit (E2E, the docs builds, format acceptance and the rest) and fails when
+one of them does. Queue the merge and carry on with other work:
+
+```bash
+gh pr merge <n> --auto --squash
+gh pr view <n> --json state,mergeStateStatus,autoMergeRequest   # MERGED, or what holds it
+```
+
+- **A new job in `ci.yml` goes in the `needs` of `ci-passed`.** `make
+  check-ci-passed` fails until it is there.
+- **After you rerun a failed workflow, rerun `CI passed` too.** It failed when
+  the other run did and does not notice the rerun: `gh run rerun <ci-run-id>
+  --failed`.
+- **A commit a workflow pushes with the workflow token starts no CI**, so the
+  pull request never reports `CI passed` and stays queued. This covers the
+  catalog commit a workflow adds to your pull request and the pull requests a
+  workflow opens itself. Push a commit of your own to start CI. A pull request a bot opened needs the
+  person, who can merge with `--admin`.
+- **Never pass `--admin` yourself.** It merges over a red or missing check.
+
 ## What to look for
 
 - **A download with no checksum.** Every fetched binary, model or archive is
