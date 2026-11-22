@@ -203,7 +203,8 @@ jobs:
             COMMIT=${{ steps.meta.outputs.commit }}
             BUILD_DATE=${{ steps.meta.outputs.build_date }}
           cache-from: type=gha,scope=bowrain-server
-          cache-to: type=gha,mode=max,scope=bowrain-server
+          # main saves the layer cache; a dispatch on a branch reads it.
+          cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max,scope=bowrain-server' || '' }}
 
       - name: Build and push worker image
         uses: docker/build-push-action@v7
@@ -219,7 +220,8 @@ jobs:
             COMMIT=${{ steps.meta.outputs.commit }}
             BUILD_DATE=${{ steps.meta.outputs.build_date }}
           cache-from: type=gha,scope=bowrain-worker
-          cache-to: type=gha,mode=max,scope=bowrain-worker
+          # main saves the layer cache; a dispatch on a branch reads it.
+          cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max,scope=bowrain-worker' || '' }}
 
       - name: Build and push web image
         uses: docker/build-push-action@v7
@@ -235,7 +237,8 @@ jobs:
             COMMIT=${{ steps.meta.outputs.commit }}
             BUILD_DATE=${{ steps.meta.outputs.build_date }}
           cache-from: type=gha,scope=bowrain-web
-          cache-to: type=gha,mode=max,scope=bowrain-web
+          # main saves the layer cache; a dispatch on a branch reads it.
+          cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max,scope=bowrain-web' || '' }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v6

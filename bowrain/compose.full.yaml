@@ -240,6 +240,11 @@ services:
       # deployment: it approves a pending device for the identity the request
       # names, with no identity-provider check.
       BOWRAIN_ALLOW_INSECURE_DEV: "1"
+    # As in production: a read-only root filesystem and a tmpfs for TMPDIR.
+    # The image runs as uid 10001.
+    read_only: true
+    tmpfs:
+      - /tmp
     ports:
       - "8080:8080"
     volumes:
@@ -305,6 +310,11 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       BOWRAIN_LOG_FORMAT: text
+    # As in production: a read-only root filesystem and a tmpfs for TMPDIR.
+    # The image runs as uid 10001.
+    read_only: true
+    tmpfs:
+      - /tmp
     volumes:
       - blob-data:/data
     depends_on:

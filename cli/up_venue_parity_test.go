@@ -286,7 +286,7 @@ func TestUpVenue_APluginWithNoDeclarationIsRefusedWithTheUpdate(t *testing.T) {
 		require.Error(t, err, "%v", args)
 		assert.Contains(t, err.Error(), "venue-stub plugin 0.0.1")
 		assert.Contains(t, err.Error(), "older than this kapi")
-		assert.Contains(t, err.Error(), "kapi plugin update venue-stub")
+		assert.Contains(t, err.Error(), "Replace the plugin in", "the stub sits in a directory kapi does not manage")
 		assert.NotContains(t, err.Error(), "applies to a run on this machine")
 		_, statErr := os.Stat(filepath.Join(ph.CommandRoute("server-up").Plugin.Dir, "args"))
 		assert.True(t, os.IsNotExist(statErr), "nothing was dispatched")

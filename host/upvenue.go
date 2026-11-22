@@ -330,17 +330,32 @@ func ServerRunFlags(route *pluginhost.CommandRoute) ([]string, error) {
 // outdatedVenuePluginError says that p predates the flag declaration a
 // server run needs, and how to update it.
 func outdatedVenuePluginError(p *pluginhost.Plugin) error {
-	update := "kapi plugin update " + p.Name()
-	if p.System() {
-		update = "update it with your package manager"
-		if formula := brewFormulaOf(p.Dir); formula != "" {
-			update = "brew upgrade " + formula
-		} else if hint, ok := PluginHintFor(p.Name()); ok && hint.Formula != "" {
-			update = "brew upgrade " + hint.Formula
-		}
+	return fmt.Errorf("the %s plugin %s (%s) is older than this kapi: its manifest does not declare the flags a server run reads, so kapi up cannot hand it the run. %s",
+		p.Name(), p.Version(), p.Dir, pluginUpdateAdvice(p))
+}
+
+// pluginUpdateAdvice says how to update p, from how it was installed. A
+// plugin in a Homebrew Cellar gets the formula's upgrade, and one kapi's own
+// installer manages (kapiManagedPlugin) gets `kapi plugin update`. Any other
+// gets the directory that holds it and the advice to replace it, with no
+// command that would not apply.
+func pluginUpdateAdvice(p *pluginhost.Plugin) string {
+	if formula := brewFormulaOf(p.Dir); formula != "" {
+		return "Update the plugin: brew upgrade " + formula
 	}
-	return fmt.Errorf("the %s plugin %s (%s) is older than this kapi: its manifest does not declare the flags a server run reads, so kapi up cannot hand it the run. Update the plugin: %s",
-		p.Name(), p.Version(), p.Dir, update)
+	if kapiManagedPlugin(p) {
+		return "Update the plugin: kapi plugin update " + p.Name()
+	}
+	return "Replace the plugin in " + p.Dir + " with a newer release; kapi's installer does not manage " + p.Source.Label
+}
+
+// kapiManagedPlugin reports whether kapi's plugin installer manages p: it
+// recorded the install (installed.json), or p sits in the user plugin root.
+func kapiManagedPlugin(p *pluginhost.Plugin) bool {
+	if _, err := pluginhost.ReadInstalledMetadata(p.Dir); err == nil {
+		return true
+	}
+	return p.Source.Order == pluginhost.UserSourceOrder
 }
 
 // UndeclaredServerFlagError refuses the flags set, which a server run does

@@ -806,12 +806,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			Jobs:      jobs,
 		}, funcs, emitter)
 		if err != nil {
-			// A pass may have written files before the run failed. Say how
-			// many, so the person knows what changed on disk.
-			if n := a.writeTally.total(); n > 0 {
-				fmt.Fprintf(cmd.ErrOrStderr(), "kapi up: wrote %d translation(s) to target files before it failed\n", n)
-			}
-			return err
+			return a.failedAfterWrites(cmd, err)
 		}
 		// The run read the whole source, so how it writes each suggestion's
 		// forms is evidence for and against the suggestion (core/contextop).
@@ -822,13 +817,43 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		facts.waitingForReview = res.Final.WaitingForReview
 		if err := a.finishConverge(ctx, cmd, proj, projectPath, flowLabel, res.Passes, d.cov, locales,
 			translateAfter, blockedOnSource, totalSource, facts, opts, emitter.Emit); err != nil {
-			return err
+			return a.failedAfterWrites(cmd, err)
 		}
 		if r := facts.placeholderReport(); r != nil {
 			return placeholderGateError(*r)
 		}
 		return nil
 	})
+}
+
+// failedAfterWrites is err for a run that failed after it may have written
+// target files. It carries how many translation units the run wrote, which
+// --json prints beside the error (ConvergeFailedError); a text run says so on
+// stderr when it wrote any.
+func (a *App) failedAfterWrites(cmd Command, err error) error {
+	n := a.writeTally.total()
+	if n > 0 && output.ResolveFormat(cmd) != output.FormatJSON {
+		fmt.Fprintf(cmd.ErrOrStderr(), "kapi up: wrote %d translation(s) to target files before it failed\n", n)
+	}
+	return &ConvergeFailedError{Err: err, Produced: n}
+}
+
+// ConvergeFailedError is a convergence run that failed, carrying how many
+// translation units it wrote to target files first, so a --json caller reads
+// the count beside the error.
+type ConvergeFailedError struct {
+	Err      error
+	Produced int `json:"produced"`
+}
+
+func (e *ConvergeFailedError) Error() string { return e.Err.Error() }
+func (e *ConvergeFailedError) Unwrap() error { return e.Err }
+
+// ErrorFields is the count --json prints beside the error.
+func (e *ConvergeFailedError) ErrorFields() any {
+	return struct {
+		Produced int `json:"produced"`
+	}{e.Produced}
 }
 
 // convergeFacts are the run-scoped facts finishConverge reports that the

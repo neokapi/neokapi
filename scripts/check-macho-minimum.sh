@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# Check that every Mach-O a build produced records the macOS minimum in
-# scripts/lib/macos-minimum, and that the build log has no "built for newer
-# macOS version" warning.
+# Check that every Mach-O a build produced records the macOS minimum it
+# declares, and that the build log has no "built for newer macOS version"
+# warning.
 #
-#   scripts/check-macho-minimum.sh [--log <build log>] <path>...
+#   scripts/check-macho-minimum.sh [--minimum <version>] [--log <build log>] <path>...
+#
+# The minimum is scripts/lib/macos-minimum unless --minimum names another; a
+# plugin release passes its own (scripts/macos-minimum.sh <plugin>).
 #
 # Each path is a binary, a static archive (every member object is checked) or
 # a directory such as an app bundle (every Mach-O file under it is checked).
@@ -22,11 +25,13 @@ log=""
 paths=()
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    --minimum) want="${2:-}"; shift 2 ;;
     --log) log="${2:-}"; shift 2 ;;
     *) paths+=("$1"); shift ;;
   esac
 done
-[ "${#paths[@]}" -gt 0 ] || { echo "usage: scripts/check-macho-minimum.sh [--log <file>] <path>..." >&2; exit 2; }
+[ "${#paths[@]}" -gt 0 ] || { echo "usage: scripts/check-macho-minimum.sh [--minimum <version>] [--log <file>] <path>..." >&2; exit 2; }
+[ -n "$want" ] || { echo "check-macho-minimum: no minimum given" >&2; exit 2; }
 
 problems=0
 checked=0

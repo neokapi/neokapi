@@ -1,0 +1,7 @@
+# The oldest macOS this plugin runs on. It is newer than the shared minimum
+# (scripts/lib/macos-minimum) because the plugin bundles the onnxruntime release
+# pinned in scripts/fetch-onnxruntime.sh, whose prebuilt libonnxruntime.dylib
+# records a minimum of macOS 14.0. A prebuilt library cannot be built for an
+# older system, so this is the plugin's real minimum. Lower it only together
+# with an onnxruntime release built for an older macOS.
+14.0

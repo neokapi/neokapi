@@ -283,6 +283,9 @@ export function TranslationEditor({
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
+      // A key pressed in a dialog is the dialog's: Escape there closes the
+      // dialog, never the editor behind it.
+      if ((e.target as HTMLElement)?.closest?.('[role="dialog"], [role="alertdialog"]')) return;
       if (editingIndex !== null) {
         if (e.key === "Escape") setEditingIndex(null);
         return;
@@ -417,7 +420,9 @@ export function TranslationEditor({
         await refreshBlock(block.id);
         return "kept";
       }
-      if (outcome.status === "revise") return "revise";
+      // Going back to their wording, or closing the dialog without choosing,
+      // leaves the editor open on it.
+      if (outcome.status === "revise" || outcome.status === "unsent") return "revise";
       setBlocks((prev) =>
         prev.map((b) =>
           b.id === block.id
@@ -525,7 +530,8 @@ export function TranslationEditor({
           renderedRevision(block, targetLocale),
           { action: outcome, locale: targetLocale },
         );
-        if (done.status === "kept") {
+        // Nothing was recorded: the block is read back as it stands.
+        if (done.status === "kept" || done.status === "unsent") {
           await refreshBlock(block.id);
           return false;
         }

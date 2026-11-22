@@ -177,7 +177,7 @@ func assembleRoots(opts DiscoverOptions) []Source {
 	}
 	if xdg != "" {
 		roots = append(roots, Source{
-			Order: 2,
+			Order: UserSourceOrder,
 			Label: filepath.Join(xdg, "kapi", "plugins"),
 			Path:  filepath.Join(xdg, "kapi", "plugins"),
 		})
