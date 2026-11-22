@@ -656,6 +656,9 @@ func anyStrings(in []string) []any {
 
 // ─── SQL for overlay sync ───────────────────────────────────────
 
+// sqlUpsertTranslation writes one translation row. A write of the content the
+// row already holds changes nothing, its updated_at included, so a reader
+// that orders or skips by timestamp sees no change where there was none.
 func sqlUpsertTranslation(dialect string) string {
 	if dialect == "sqlite" {
 		return `INSERT INTO translations (project_id, stream, block_id, locale, text, target_json, provider, metadata, updated_at)
@@ -665,7 +668,11 @@ func sqlUpsertTranslation(dialect string) string {
 				target_json = excluded.target_json,
 				provider = excluded.provider,
 				metadata = excluded.metadata,
-				updated_at = excluded.updated_at`
+				updated_at = excluded.updated_at
+			WHERE translations.text IS NOT excluded.text
+				OR translations.target_json IS NOT excluded.target_json
+				OR translations.provider IS NOT excluded.provider
+				OR translations.metadata IS NOT excluded.metadata`
 	}
 	return `INSERT INTO translations (project_id, stream, block_id, locale, text, target_json, provider, metadata, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -674,22 +681,28 @@ func sqlUpsertTranslation(dialect string) string {
 			target_json = EXCLUDED.target_json,
 			provider = EXCLUDED.provider,
 			metadata = EXCLUDED.metadata,
-			updated_at = EXCLUDED.updated_at`
+			updated_at = EXCLUDED.updated_at
+		WHERE (translations.text, translations.target_json, translations.provider, translations.metadata)
+			IS DISTINCT FROM (EXCLUDED.text, EXCLUDED.target_json, EXCLUDED.provider, EXCLUDED.metadata)`
 }
 
+// sqlUpsertAnnotation writes one annotation row. A write of the payload the
+// row already holds changes nothing, its updated_at included.
 func sqlUpsertAnnotation(dialect string) string {
 	if dialect == "sqlite" {
 		return `INSERT INTO annotations (project_id, stream, block_id, kind, payload, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?)
 			ON CONFLICT(project_id, stream, block_id, kind) DO UPDATE SET
 				payload = excluded.payload,
-				updated_at = excluded.updated_at`
+				updated_at = excluded.updated_at
+			WHERE annotations.payload IS NOT excluded.payload`
 	}
 	return `INSERT INTO annotations (project_id, stream, block_id, kind, payload, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (project_id, stream, block_id, kind) DO UPDATE SET
 			payload = EXCLUDED.payload,
-			updated_at = EXCLUDED.updated_at`
+			updated_at = EXCLUDED.updated_at
+		WHERE annotations.payload IS DISTINCT FROM EXCLUDED.payload`
 }
 
 // sqlListTranslationsByBlocks returns a SELECT that pulls all

@@ -476,3 +476,45 @@ func TestHydration_StoreBlocksRoundtripsTargets(t *testing.T) {
 		t.Fatalf("single-fetch fr didn't round-trip: %q", single.Block.TargetText("fr"))
 	}
 }
+
+// A PutOverlay of the payload an overlay already holds changes nothing, its
+// timestamp included, in each of the three tables an overlay is filed in; a
+// new payload takes the new timestamp. This is the blockstore.Session
+// contract the framework stores keep.
+func TestSession_PutOverlayOfTheHeldPayloadChangesNothing(t *testing.T) {
+	ctx := context.Background()
+	bs, cs, projectID := newTestStore(t)
+	block := seedBlock(t, cs, projectID, "blk-same", "Hello")
+
+	for _, tc := range []struct{ kind, v1, v2 string }{
+		{"targets/fr", `{"runs":[{"text":"Bonjour"}]}`, `{"runs":[{"text":"Salut"}]}`},
+		{"annotations/qa", `{"findings":[]}`, `{"findings":[{"rule":"x"}]}`},
+		{"plugins/lint", `{"ruleId":"X"}`, `{"ruleId":"Y"}`},
+	} {
+		t.Run(tc.kind, func(t *testing.T) {
+			put := func(payload string, at int64) {
+				t.Helper()
+				sess, err := bs.Begin(ctx)
+				require.NoError(t, err)
+				require.NoError(t, sess.PutOverlay(blockstore.Overlay{
+					Kind: tc.kind, BlockHash: block.ContentHash, Payload: []byte(payload), UpdatedAt: at,
+				}))
+				require.NoError(t, sess.Commit())
+			}
+			get := func() blockstore.Overlay {
+				t.Helper()
+				sess, err := bs.Begin(ctx)
+				require.NoError(t, err)
+				defer sess.Close()
+				got, err := sess.GetOverlay(tc.kind, block.ContentHash)
+				require.NoError(t, err)
+				return got
+			}
+			put(tc.v1, 1_000)
+			put(tc.v1, 2_000)
+			require.Equal(t, int64(1_000), get().UpdatedAt, "the same payload keeps its timestamp")
+			put(tc.v2, 3_000)
+			require.Equal(t, int64(3_000), get().UpdatedAt, "a new payload takes the new timestamp")
+		})
+	}
+}

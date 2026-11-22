@@ -709,6 +709,9 @@ func (s *session) sqlListExt() string {
 	}
 }
 
+// sqlUpsertExt writes one plugin overlay row. A write of the payload the row
+// already holds changes nothing, its updated_at included, as the
+// blockstore.Session contract states for PutOverlay.
 func (s *session) sqlUpsertExt() string {
 	switch s.opts.Dialect {
 	case SQLiteDialect:
@@ -716,13 +719,15 @@ func (s *session) sqlUpsertExt() string {
 			VALUES (?, ?, ?, ?, ?, ?)
 			ON CONFLICT(project_id, stream, block_id, kind) DO UPDATE SET
 				payload = excluded.payload,
-				updated_at = excluded.updated_at`
+				updated_at = excluded.updated_at
+			WHERE overlays_ext.payload IS NOT excluded.payload`
 	default:
 		return `INSERT INTO overlays_ext (project_id, stream, block_id, kind, payload, updated_at)
 			VALUES ($1, $2, $3, $4, $5, $6)
 			ON CONFLICT (project_id, stream, block_id, kind) DO UPDATE SET
 				payload = EXCLUDED.payload,
-				updated_at = EXCLUDED.updated_at`
+				updated_at = EXCLUDED.updated_at
+			WHERE overlays_ext.payload IS DISTINCT FROM EXCLUDED.payload`
 	}
 }
 
