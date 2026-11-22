@@ -103,7 +103,6 @@ const htmlTemplate = `<!DOCTYPE html>
                     <th>Files</th>
                     <th class="numeric">Wall Time (ms)</th>
                     <th class="numeric">Peak RSS (KB)</th>
-                    <th class="numeric">Daemon RSS (KB)</th>
                 </tr>
             </thead>
             <tbody>
@@ -114,7 +113,6 @@ const htmlTemplate = `<!DOCTYPE html>
                     <td>{{successCount .FileTimings}}/{{len .FileTimings}}</td>
                     <td class="numeric">{{printf "%.0f" .WallTimeMs.Median}} &plusmn; {{printf "%.0f" .WallTimeMs.Stddev}}</td>
                     <td class="numeric">{{printf "%.0f" .PeakRssKB.Max}}</td>
-                    <td class="numeric">{{if .DaemonRssKB}}{{printf "%.0f" .DaemonRssKB.Max}}{{else}}&mdash;{{end}}</td>
                 </tr>
                 {{end}}
             </tbody>
@@ -197,8 +195,6 @@ const htmlTemplate = `<!DOCTYPE html>
     // ---------------------------------------------------------------------------
     // 2. Peak RSS chart
     // ---------------------------------------------------------------------------
-    var hasDaemon = experiments.some(function(e) { return e.daemonRssKB; });
-
     var rssDatasets = [{
         label: "Peak RSS (kapi)",
         data: experiments.map(function(e) { return e.peakRssKB.max; }),
@@ -206,20 +202,6 @@ const htmlTemplate = `<!DOCTYPE html>
         borderColor: experiments.map(function(e) { return colorFor(e.engine).border; }),
         borderWidth: 1,
     }];
-
-    if (hasDaemon) {
-        rssDatasets.push({
-            label: "Daemon JVM RSS",
-            data: experiments.map(function(e) { return e.daemonRssKB ? e.daemonRssKB.max : 0; }),
-            backgroundColor: experiments.map(function(e) {
-                return e.daemonRssKB ? "rgba(76,175,80,0.35)" : "rgba(0,0,0,0)";
-            }),
-            borderColor: experiments.map(function(e) {
-                return e.daemonRssKB ? "#388E3C" : "rgba(0,0,0,0)";
-            }),
-            borderWidth: 1,
-        });
-    }
 
     new Chart(document.getElementById("rssChart"), {
         type: "bar",
@@ -230,7 +212,7 @@ const htmlTemplate = `<!DOCTYPE html>
         options: {
             responsive: true,
             plugins: {
-                legend: { display: hasDaemon, position: "bottom" },
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
                         label: function(ctx) {
@@ -240,8 +222,8 @@ const htmlTemplate = `<!DOCTYPE html>
                 }
             },
             scales: {
-                x: { grid: { display: false }, stacked: hasDaemon },
-                y: { beginAtZero: true, stacked: hasDaemon, title: { display: true, text: "KB" } }
+                x: { grid: { display: false } },
+                y: { beginAtZero: true, title: { display: true, text: "KB" } }
             }
         }
     });
@@ -404,9 +386,6 @@ const htmlTemplate = `<!DOCTYPE html>
             var rssKB = exp.peakRssKB.max.toFixed(0);
             var rssMB = (exp.peakRssKB.max / 1024).toFixed(1);
             var statsText = totalMs + " ms total \u00b7 " + rssMB + " MB RSS \u00b7 " + bt.concurrency + " lanes \u00b7 " + traces.length + " files";
-            if (exp.daemonRssKB) {
-                statsText += " \u00b7 " + (exp.daemonRssKB.max / 1024).toFixed(1) + " MB daemon";
-            }
             stats.textContent = statsText;
             header.appendChild(stats);
             container.appendChild(header);

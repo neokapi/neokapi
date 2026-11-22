@@ -105,9 +105,6 @@ var allowed = map[string]string{
 	"host/facetest/fixture/fixture.go:SeedTerms":      "seeds the terms of a throwaway fixture store for a screenshot",
 	"apps/kapi-desktop/backend/memory.go:OpenMemory":  "opens a content-memory file a person picked",
 	"apps/kapi-desktop/backend/termbase.go:OpenTerms": "opens a terms file a person picked",
-	// The browser build's workspace export and import, seen under js-wasm.
-	"kapi/cmd/kapi-wasm-cli/workspace.go:termStoreBundle": "packs a terms store that belongs to no project into a workspace package",
-	"kapi/cmd/kapi-wasm-cli/workspace.go:importTermStore": "writes a workspace package's terms store that belongs to no project",
 }
 
 func set(names ...string) map[string]bool {
