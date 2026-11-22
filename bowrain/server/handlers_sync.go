@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"slices"
 	"strconv"
@@ -732,7 +733,7 @@ func (s *Server) HandleSyncPull(c *echo.Context) error {
 
 		// Fetch media assets for affected items.
 		if s.ContentStore != nil && len(itemSet) > 0 {
-			for itemName := range itemSet {
+			for _, itemName := range slices.Sorted(maps.Keys(itemSet)) {
 				assets, err := s.ContentStore.ListAssets(ctx, projectID, stream, itemName)
 				if err != nil {
 					continue // best-effort: skip media on error

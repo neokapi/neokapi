@@ -11,6 +11,7 @@ package sync
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
@@ -121,6 +122,11 @@ func (d *DiffEngine) CompareItems(ctx context.Context, projectID, stream string,
 		}
 	}
 
+	// Each list is sorted, so the same hashes always produce the same answer.
+	slices.Sort(result.NewItems)
+	slices.Sort(result.ChangedItems)
+	slices.Sort(result.DeletedItems)
+
 	return result, nil
 }
 
@@ -164,6 +170,10 @@ func (d *DiffEngine) CompareBlocks(ctx context.Context, projectID, stream, itemN
 			result.Deleted = append(result.Deleted, blockID)
 		}
 	}
+
+	// Each list is sorted, so the same hashes always produce the same answer.
+	slices.Sort(result.Needed)
+	slices.Sort(result.Deleted)
 
 	return result, nil
 }
