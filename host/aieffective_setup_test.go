@@ -46,7 +46,7 @@ func setupProject(t *testing.T, stepConfig map[string]any) (*project.KapiProject
 // clearProviderEnv (contextdeeper_test.go) removes every provider key and AI
 // default from the environment, so the developer's own ANTHROPIC_API_KEY or
 // KAPI_AI_PROVIDER cannot decide these tests.
-func TestProjectFlowNeedsAISetup_ByProviderCredentials(t *testing.T) {
+func TestProjectFlowAISetup_ByProviderCredentials(t *testing.T) {
 	clearProviderEnv(t)
 
 	withCredential := func(t *testing.T, providerType string) *credentials.Store {
@@ -58,25 +58,36 @@ func TestProjectFlowNeedsAISetup_ByProviderCredentials(t *testing.T) {
 	empty := func(t *testing.T) *credentials.Store {
 		return credentials.NewStore(filepath.Join(t.TempDir(), "credentials.json"))
 	}
+	openaiKey := func(t *testing.T) *credentials.Store { return withCredential(t, "openai") }
+	anthropicKey := func(t *testing.T) *credentials.Store { return withCredential(t, "anthropic") }
 
+	const (
+		none    = AISetupNone
+		model   = AISetupChooseModel
+		missing = AISetupMissingCredential
+	)
 	tests := []struct {
 		name   string
 		step   map[string]any
 		store  func(*testing.T) *credentials.Store
 		config *appconfig.AppConfig
 		env    map[string]string
-		want   bool
+		want   AISetupKind
 	}{
-		{name: "credential-free provider on the step", step: map[string]any{"provider": "demo"}, store: empty, want: false},
-		{name: "credential-free provider with no store at all", step: map[string]any{"provider": "ollama"}, want: false},
-		{name: "provider named with its credential missing", step: map[string]any{"provider": "anthropic"}, store: empty, want: true},
-		{name: "provider named with a credential for another provider", step: map[string]any{"provider": "anthropic"}, store: func(t *testing.T) *credentials.Store { return withCredential(t, "openai") }, want: true},
-		{name: "provider named with its credential saved", step: map[string]any{"provider": "anthropic"}, store: func(t *testing.T) *credentials.Store { return withCredential(t, "anthropic") }, want: false},
-		{name: "provider named with its key in the environment", step: map[string]any{"provider": "anthropic"}, store: empty, env: map[string]string{"ANTHROPIC_API_KEY": "sk-test"}, want: false},
-		{name: "no provider and nothing configured", step: nil, store: empty, want: true},
-		{name: "no provider and one saved credential", step: nil, store: func(t *testing.T) *credentials.Store { return withCredential(t, "openai") }, want: false},
-		{name: "no provider and a credential-free stored default", step: nil, store: empty, config: cfgWith("demo", ""), want: false},
-		{name: "no provider and a stored default whose credential is missing", step: nil, store: empty, config: cfgWith("openai", ""), want: true},
+		{name: "credential-free provider on the step", step: map[string]any{"provider": "demo"}, store: empty, want: none},
+		{name: "credential-free provider with no store at all", step: map[string]any{"provider": "ollama"}, want: none},
+		{name: "provider named with its credential missing", step: map[string]any{"provider": "anthropic"}, store: empty, want: missing},
+		{name: "provider named with a credential for another provider", step: map[string]any{"provider": "anthropic"}, store: openaiKey, want: missing},
+		// The reviewer's scenario: a stored default for another provider
+		// cannot help, because it never overrides the named one.
+		{name: "provider named, no key, stored default for another provider", step: map[string]any{"provider": "anthropic"}, store: empty, config: cfgWith("ollama", "llama3.2:3b"), want: missing},
+		{name: "saved credential named but not saved", step: map[string]any{"credential": "work"}, store: empty, want: missing},
+		{name: "provider named with its credential saved", step: map[string]any{"provider": "anthropic"}, store: anthropicKey, want: none},
+		{name: "provider named with its key in the environment", step: map[string]any{"provider": "anthropic"}, store: empty, env: map[string]string{"ANTHROPIC_API_KEY": "sk-test"}, want: none},
+		{name: "no provider and nothing configured", step: nil, store: empty, want: model},
+		{name: "no provider and one saved credential", step: nil, store: openaiKey, want: none},
+		{name: "no provider and a credential-free stored default", step: nil, store: empty, config: cfgWith("demo", ""), want: none},
+		{name: "no provider and a stored default whose credential is missing", step: nil, store: empty, config: cfgWith("openai", ""), want: model},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -88,25 +99,55 @@ func TestProjectFlowNeedsAISetup_ByProviderCredentials(t *testing.T) {
 			if tt.store != nil {
 				a.Credentials = tt.store(t)
 			}
-			got, err := a.ProjectFlowNeedsAISetup(proj, recipe, "")
+			got, err := a.ProjectFlowAISetup(proj, recipe, "")
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want, got.Kind)
 
-			named, err := a.ProjectFlowNeedsAISetup(proj, recipe, "draft")
+			named, err := a.ProjectFlowAISetup(proj, recipe, "draft")
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, named, "running the flow by name answers as convergence does")
+			assert.Equal(t, tt.want, named.Kind, "running the flow by name answers as convergence does")
+
+			if tt.want == missing {
+				assert.Equal(t, "draft", got.Flow)
+				assert.Equal(t, "translate", got.Tool)
+				assert.NotEmpty(t, got.Message)
+				require.Error(t, got.Err())
+			} else {
+				assert.NoError(t, got.Err())
+			}
 		})
 	}
 }
 
+// A missing credential names the provider and carries the error the run
+// would fail with, so the CLI and the desktop can show it before the run.
+func TestProjectFlowAISetup_MissingCredentialNamesTheProvider(t *testing.T) {
+	clearProviderEnv(t)
+	proj, recipe := setupProject(t, map[string]any{"provider": "anthropic"})
+	a := &App{
+		Config:      cfgWith("ollama", "llama3.2:3b"),
+		Credentials: credentials.NewStore(filepath.Join(t.TempDir(), "credentials.json")),
+	}
+	need, err := a.ProjectFlowAISetup(proj, recipe, "")
+	require.NoError(t, err)
+	assert.Equal(t, AISetupNeed{
+		Kind:     AISetupMissingCredential,
+		Flow:     "draft",
+		Tool:     "translate",
+		Provider: "anthropic",
+		Message:  `no saved credentials found for provider "anthropic"; use 'kapi credentials add' to save one or pass --api-key directly`,
+	}, need)
+	assert.EqualError(t, need.Err(), `flow "draft": tool "translate": no saved credentials found for provider "anthropic"; use 'kapi credentials add' to save one or pass --api-key directly`)
+}
+
 // The decision reads the recipe's step config and must leave it as it was:
 // the stored default it applies belongs to this one question.
-func TestProjectFlowNeedsAISetup_LeavesTheRecipeUntouched(t *testing.T) {
+func TestProjectFlowAISetup_LeavesTheRecipeUntouched(t *testing.T) {
 	clearProviderEnv(t)
 	proj, recipe := setupProject(t, map[string]any{"skip_matched": true})
 	a := &App{Config: cfgWith("demo", "")}
-	got, err := a.ProjectFlowNeedsAISetup(proj, recipe, "draft")
+	got, err := a.ProjectFlowAISetup(proj, recipe, "draft")
 	require.NoError(t, err)
-	assert.False(t, got)
+	assert.Equal(t, AISetupNone, got.Kind)
 	assert.Equal(t, map[string]any{"skip_matched": true}, proj.Flows["draft"].Steps[1].Config)
 }

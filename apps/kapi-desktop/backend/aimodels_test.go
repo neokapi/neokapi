@@ -6,6 +6,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/credentials/providerenv"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host"
 	appconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/stretchr/testify/assert"
@@ -90,16 +91,45 @@ func TestConvergenceModelChoiceUsesResolvedRecipe(t *testing.T) {
 	app := NewApp()
 	tab, _ := newConvergenceProject(t, app)
 	proj := app.getOpenProject(tab.ID).Project
-	assert.False(t, app.AINeedsModelChoice(tab.ID, ""))
+	kind := func() host.AISetupKind { return app.CheckAISetup(tab.ID, "").Kind }
+	assert.Equal(t, host.AISetupNone, kind())
 	proj.Defaults.Flow = ""
-	assert.True(t, app.AINeedsModelChoice(tab.ID, ""))
+	assert.Equal(t, host.AISetupChooseModel, kind())
 	proj.Defaults.Locales = map[string]project.LocaleDefaults{
 		"de-DE": {Tools: map[string]map[string]any{"translate": {"provider": "demo"}}},
 	}
-	assert.True(t, app.AINeedsModelChoice(tab.ID, ""))
+	assert.Equal(t, host.AISetupChooseModel, kind())
 	proj.Defaults.Locales["fr-FR"] = proj.Defaults.Locales["de-DE"]
-	assert.False(t, app.AINeedsModelChoice(tab.ID, ""))
+	assert.Equal(t, host.AISetupNone, kind())
 	proj.Defaults.Locales = nil
 	proj.Defaults.TargetLanguages = nil
-	assert.False(t, app.AINeedsModelChoice(tab.ID, ""))
+	assert.Equal(t, host.AISetupNone, kind())
+}
+
+// The reviewer's scenario: the recipe names anthropic, no key is saved, and
+// the stored default is another provider. A model choice cannot fix that, so
+// the desktop is told the key is missing for anthropic, and asking changes no
+// stored default.
+func TestCheckAISetup_NamedProviderWithoutKey(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	for _, names := range providerenv.Vars {
+		for _, n := range names {
+			t.Setenv(n, "")
+		}
+	}
+	t.Setenv("KAPI_AI_PROVIDER", "")
+	t.Setenv("KAPI_AI_MODEL", "")
+	app := NewApp()
+	app.aiConfig.Set(appconfig.KeyAIProvider, "ollama")
+	app.aiConfig.Set(appconfig.KeyAIModel, "llama3.2:3b")
+	tab, _ := newConvergenceProject(t, app)
+	proj := app.getOpenProject(tab.ID).Project
+	proj.Defaults.Flow = ""
+	proj.Defaults.Tools = map[string]map[string]any{"translate": {"provider": "anthropic"}}
+
+	need := app.CheckAISetup(tab.ID, "")
+	assert.Equal(t, host.AISetupMissingCredential, need.Kind)
+	assert.Equal(t, "anthropic", need.Provider)
+	assert.Contains(t, need.Message, `no saved credentials found for provider "anthropic"`)
+	assert.Equal(t, DefaultModelInfo{Provider: "ollama", Model: "llama3.2:3b"}, app.GetDefaultModel())
 }

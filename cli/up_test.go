@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/credentials/providerenv"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
@@ -104,7 +105,7 @@ func TestUp_SinglePass(t *testing.T) {
 }
 
 // TestUp_ParksUnreachableGate: a gate the deterministic flow cannot satisfy
-// (reviewed needs a human) parks after the loop stalls — reported, never a
+// (reviewed needs a human) parks after the loop stalls: reported, never a
 // build failure. This is the default `up` behavior (no flag needed).
 func TestUp_ParksUnreachableGate(t *testing.T) {
 	a := processOnlyApp(t)
@@ -182,8 +183,8 @@ func storeBlockTexts(t *testing.T, root string) []string {
 }
 
 // TestUp_AutoExtractsOnDrift: `kapi up` populates the project block store on
-// first run (missing store = drift), stamps it, and — after a source edit
-// between runs — re-extracts so the store mirrors the edited working tree.
+// first run (missing store = drift), stamps it, and after a source edit
+// between runs re-extracts so the store mirrors the edited working tree.
 func TestUp_AutoExtractsOnDrift(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
@@ -211,7 +212,7 @@ func TestUp_AutoExtractsOnDrift(t *testing.T) {
 	assert.Contains(t, out3, "source file(s) changed", "edited source must trigger a re-extract")
 	texts := storeBlockTexts(t, root)
 	assert.Contains(t, texts, "Hello, edited world.")
-	assert.NotContains(t, texts, "Hello, world.", "re-extraction is a full rebuild — no stale blocks")
+	assert.NotContains(t, texts, "Hello, world.", "re-extraction is a full rebuild: no stale blocks")
 }
 
 // TestUp_NoExtractOptsOut: --no-extract skips the drift check entirely; the
@@ -225,7 +226,7 @@ func TestUp_NoExtractOptsOut(t *testing.T) {
 	assert.NotContains(t, out, "into the project store")
 
 	// The stamp is a row now, not a sidecar, so "never stamped" reads as the
-	// store reporting itself stale — the same conclusion, asked of the table.
+	// store reporting itself stale: the same conclusion, asked of the table.
 	db := openStore(t, root)
 	assert.True(t, db.BlockStoreStale(t.Context()), "--no-extract must not stamp the store")
 	has, herr := db.HasBlocks(t.Context())
@@ -242,7 +243,7 @@ func TestUp_MaterializePolicyManualByDefault(t *testing.T) {
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "Up to date", out)
-	assert.NotContains(t, out, "Materialized", "defaults.materialize is manual — no post-loop write")
+	assert.NotContains(t, out, "Materialized", "defaults.materialize is manual: no post-loop write")
 }
 
 // TestUp_MaterializeOnConverge: with defaults.materialize: on-converge, a
@@ -274,7 +275,7 @@ func TestUp_MaterializeOnConverge(t *testing.T) {
 }
 
 // TestUp_MaterializeFlagForces: --materialize forces the post-loop write even
-// when the recipe policy is manual — and, like the policy, writes what the store
+// when the recipe policy is manual, and, like the policy, writes what the store
 // holds rather than source fallback over the run's own output.
 func TestUp_MaterializeFlagForces(t *testing.T) {
 	a := processOnlyApp(t)
@@ -289,7 +290,7 @@ func TestUp_MaterializeFlagForces(t *testing.T) {
 }
 
 // TestUp_MaterializeSkipsParkedLocale: a locale short of its gate (parked)
-// does not materialize — its content isn't at the bar yet.
+// does not materialize: its content isn't at the bar yet.
 //
 // The assertion that matters is the second one. Reading the run's own report
 // only asks whether the gate was consulted; #1936 is that it was consulted after
@@ -312,7 +313,7 @@ func TestUp_MaterializeSkipsParkedLocale(t *testing.T) {
 	}
 }
 
-// TestRun_BareRunErrors: `kapi run` takes a flow name only — the bare form
+// TestRun_BareRunErrors: `kapi run` takes a flow name only; the bare form
 // errors and points at `kapi up` (hard cutover; run never converges).
 func TestRun_BareRunErrors(t *testing.T) {
 	a := processOnlyApp(t)
@@ -374,6 +375,42 @@ func TestUp_ConfiguredSkipsWizard(t *testing.T) {
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
 	assert.NotContains(t, out, "No AI provider is configured")
+}
+
+// TestUp_NamedProviderWithoutKeyFailsBeforeTheRun: a recipe that names a
+// provider with no credential fails on a TTY before the run starts, with the
+// run's own error, and never opens the wizard: a stored default for another
+// provider is set and cannot help, because it never overrides the named one.
+func TestUp_NamedProviderWithoutKeyFailsBeforeTheRun(t *testing.T) {
+	for _, names := range providerenv.Vars {
+		for _, n := range names {
+			t.Setenv(n, "")
+		}
+	}
+	t.Setenv("KAPI_AI_PROVIDER", "")
+	t.Setenv("KAPI_AI_MODEL", "")
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+
+	a := processOnlyApp(t)
+	a.Config = config.NewAppConfig()
+	a.Config.Set(config.KeyAIProvider, "ollama")
+	a.Config.Set(config.KeyAIModel, "llama3.2:3b")
+	a.AISetupIOOverride = &AISetupIO{IsTTY: func() bool { return true }, Detect: func(context.Context) AIDetection {
+		t.Fatal("the wizard opened for a provider the recipe names")
+		return AIDetection{}
+	}}
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Flow = ""
+	proj.Defaults.Tools = map[string]map[string]any{"translate": {"provider": "anthropic"}}
+	require.NoError(t, project.Save(recipe, proj))
+
+	out, err := runUp(t, a, recipe)
+	require.Error(t, err, out)
+	assert.Contains(t, err.Error(), `no saved credentials found for provider "anthropic"`)
+	_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
+	assert.True(t, os.IsNotExist(statErr), "the run must not start")
 }
 
 func TestUp_ProviderIndependentRunsSkipSetup(t *testing.T) {

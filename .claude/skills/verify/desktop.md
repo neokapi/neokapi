@@ -104,12 +104,14 @@ gitignored `.playwright-mcp/`. Read each screenshot before you describe it.
   "$D/home/compass"/kapi.yaml` shows the flow.
 - **The model prompt.** Compass names the offline `demo` provider on its
   converge flow, so the overview's Translate button and Flows, converge, Run
-  both run with no prompt. Copy compass, change that step to `provider:
-  anthropic`, open it, and Translate opens Choose an AI model, because no
-  credential resolves. The built-in Translate flow names no provider, so
-  added to compass it asks for a model too. Cancel the dialog: picking a
-  model bills a real one.
-  `curl -s -XPOST -d '{"method":"AINeedsModelChoice","args":["<tab id>","converge"]}'
+  both run with no prompt. Copy compass and change that step to `provider:
+  anthropic`: Translate opens No key for anthropic, with Add a key leading to
+  App Settings, Credentials, and never Choose an AI model, because a stored
+  default does not override a provider the recipe names. The built-in
+  Translate flow names no provider, so added to compass it opens Choose an AI
+  model while no usable default is stored. Cancel both dialogs: picking a model bills a real one, and the
+  stored default is the developer's.
+  `curl -s -XPOST -d '{"method":"CheckAISetup","args":["<tab id>","converge"]}'
   http://127.0.0.1:5175/wbridge` gives the same answer without the page.
 - **Cancel** cannot be exercised on the samples: their runs take milliseconds.
 - **Save As and Open** use native dialogs; check them in the native app.

@@ -30,7 +30,7 @@ import {
   SelectItem,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
-import type { FlowSpec, KapiProject } from "../types/api";
+import type { AISetupNeed, FlowSpec, KapiProject } from "../types/api";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
@@ -39,6 +39,7 @@ import { useActiveFilter } from "../context/ActiveFilterContext";
 import { filterFiles, filterLanguages } from "../lib/filter";
 import { PipelineProgress } from "./PipelineProgress";
 import { AIModelPromptDialog } from "./AIModelPromptDialog";
+import { AICredentialMissingDialog } from "./AICredentialMissingDialog";
 import { ConvergeRunView } from "./ConvergeRunView";
 
 type RunState = "idle" | "running" | "complete" | "error" | "canceled";
@@ -75,6 +76,8 @@ export interface RunnerPageProps {
   jobID?: string;
   /** Open the Review page filtered to a (collection, locale) scope waiting for review. */
   onOpenReview?: (scope: { collection?: string; locale?: string }) => void;
+  /** Navigate to a view; used to open App Settings on Credentials. */
+  onNavigate?: (view: string) => void;
 }
 
 export function RunnerPage({
@@ -90,6 +93,7 @@ export function RunnerPage({
   converge,
   jobID,
   onOpenReview,
+  onNavigate,
 }: RunnerPageProps) {
   const { jobs, launchJob, hasActive } = useJobFeed();
   const { active: activeFilter } = useActiveFilter();
@@ -133,6 +137,8 @@ export function RunnerPage({
     targets: string[];
     converge?: boolean;
   } | null>(null);
+  // The recipe names a provider whose key is missing: no model choice helps.
+  const [missingKey, setMissingKey] = useState<AISetupNeed | null>(null);
 
   const runNow = useCallback(
     async (paths: string[], targets: string[]) => {
@@ -153,7 +159,12 @@ export function RunnerPage({
   const launchFlow = useCallback(
     async (paths: string[], targets: string[]) => {
       setLaunchError(null);
-      if (await api.aiNeedsModelChoice(tabID, flowName)) {
+      const need = await api.checkAISetup(tabID, flowName);
+      if (need?.kind === "missing_credential") {
+        setMissingKey(need);
+        return;
+      }
+      if (need?.kind === "choose_model") {
         setModelPrompt({ paths, targets });
         return;
       }
@@ -174,7 +185,12 @@ export function RunnerPage({
 
   const launchConverge = useCallback(async () => {
     setLaunchError(null);
-    if (await api.aiNeedsModelChoice(tabID, flowName)) {
+    const need = await api.checkAISetup(tabID, flowName);
+    if (need?.kind === "missing_credential") {
+      setMissingKey(need);
+      return;
+    }
+    if (need?.kind === "choose_model") {
       setModelPrompt({ paths: [], targets: [], converge: true });
       return;
     }
@@ -526,6 +542,18 @@ export function RunnerPage({
           else void runNow(pending.paths, pending.targets);
         }}
         onCancel={() => setModelPrompt(null)}
+      />
+      <AICredentialMissingDialog
+        need={missingKey}
+        onAddKey={
+          onNavigate
+            ? () => {
+                setMissingKey(null);
+                onNavigate("app-settings:credentials");
+              }
+            : undefined
+        }
+        onCancel={() => setMissingKey(null)}
       />
     </PageContainer>
   );

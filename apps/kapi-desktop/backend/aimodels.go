@@ -186,17 +186,24 @@ func (a *App) ListAIModels() []AIModelOption {
 	return out
 }
 
-// AINeedsModelChoice reports whether running a flow should prompt the user to
-// pick an AI model first. It is host.ProjectFlowNeedsAISetup, the decision
-// `kapi up` makes: some AI step's provider, after the recipe and the stored
-// default apply, has no credential that resolves. A keyless provider such as
-// the offline demo never prompts. The frontend checks this before launching so
-// the user chooses up front instead of hitting a run error.
-func (a *App) AINeedsModelChoice(tabID, flowName string) bool {
+// CheckAISetup reports what running a flow needs before its AI steps can run.
+// It is host.ProjectFlowAISetup, the decision `kapi up` makes. Kind
+// "choose_model" means no step names a provider and no usable default
+// resolves, which choosing a model fixes. Kind "missing_credential" means the
+// recipe names a provider whose key is missing; only a key for that provider
+// fixes it, because the stored default never overrides a named provider. A
+// keyless provider such as the offline demo needs nothing. The frontend
+// checks this before launching, so the person acts up front instead of
+// hitting a run error. An empty Kind means the flow can run.
+func (a *App) CheckAISetup(tabID, flowName string) host.AISetupNeed {
 	op := a.getOpenProject(tabID)
 	if op == nil {
-		return false
+		return host.AISetupNeed{}
 	}
-	needsSetup, err := a.newProjectEngine(op).ProjectFlowNeedsAISetup(op.Project, op.Path, flowName)
-	return err == nil && needsSetup
+	need, err := a.newProjectEngine(op).ProjectFlowAISetup(op.Project, op.Path, flowName)
+	if err != nil {
+		// The run reports a flow it cannot resolve with its own error.
+		return host.AISetupNeed{}
+	}
+	return need
 }

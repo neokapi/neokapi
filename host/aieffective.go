@@ -1,6 +1,7 @@
 package host
 
 import (
+	"fmt"
 	"maps"
 	"path/filepath"
 	"slices"
@@ -142,32 +143,73 @@ func presetString(preset map[string]any, key string) string {
 	return strings.TrimSpace(s)
 }
 
-// ProjectFlowNeedsAISetup reports whether running a flow needs the person to
-// set up an AI model first: some AI step, after the recipe and locale presets
-// and the stored default apply, has a provider whose credentials do not
-// resolve. A step on a keyless provider, or on a provider with a usable
-// credential (inline, named, in the environment or the single saved match),
-// needs nothing. An empty flow name selects convergence. The CLI (`kapi up`)
-// and Kapi Desktop both ask this function, so they prompt in the same cases.
-func (a *App) ProjectFlowNeedsAISetup(proj *project.KapiProject, projectPath, flowName string) (bool, error) {
+// AISetupKind says what a flow needs before its AI steps can run.
+type AISetupKind string
+
+const (
+	// AISetupNone means every AI step's credentials resolve.
+	AISetupNone AISetupKind = ""
+	// AISetupChooseModel means an AI step names no provider and the stored
+	// default does not resolve to a usable one. Choosing a model, which sets
+	// the stored default, fixes it.
+	AISetupChooseModel AISetupKind = "choose_model"
+	// AISetupMissingCredential means the recipe names a provider (or a saved
+	// credential) for an AI step and no credential for it resolves. A stored
+	// default never overrides a named provider, so only a credential for that
+	// provider fixes it.
+	AISetupMissingCredential AISetupKind = "missing_credential"
+)
+
+// AISetupNeed is what running a flow needs before its AI steps can run.
+type AISetupNeed struct {
+	Kind AISetupKind `json:"kind"`
+	// Flow and Tool name the step a missing credential belongs to.
+	Flow string `json:"flow,omitempty"`
+	Tool string `json:"tool,omitempty"`
+	// Provider is the provider the recipe names, for a missing credential.
+	Provider string `json:"provider,omitempty"`
+	// Message is the error the run would fail with, for a missing credential:
+	// the same text `kapi up` prints.
+	Message string `json:"message,omitempty"`
+}
+
+// Err returns a missing credential as the error a run reports, or nil for
+// any other kind.
+func (n AISetupNeed) Err() error {
+	if n.Kind != AISetupMissingCredential {
+		return nil
+	}
+	return fmt.Errorf("flow %q: tool %q: %s", n.Flow, n.Tool, n.Message)
+}
+
+// ProjectFlowAISetup reports what running a flow needs before its AI steps
+// can run, after the recipe and locale presets and the stored default apply.
+// A step on a keyless provider, or on a provider with a usable credential
+// (inline, named, in the environment or the single saved match), needs
+// nothing. A missing credential for a provider the recipe names outranks a
+// model choice, because no model choice can fix it. An empty flow name
+// selects convergence. The CLI (`kapi up`) and Kapi Desktop both ask this
+// function, so they prompt, or refuse, in the same cases.
+func (a *App) ProjectFlowAISetup(proj *project.KapiProject, projectPath, flowName string) (AISetupNeed, error) {
 	if proj == nil {
-		return false, nil
+		return AISetupNeed{}, nil
 	}
 	root := filepath.Dir(projectPath)
 	var spec *flow.StepsSpec
+	label := flowName
 	if flowName == "" {
 		if !proj.DeclaresTargetLanguages() || !proj.WritesTargets() {
-			return false, nil
+			return AISetupNeed{}, nil
 		}
 		resolved, err := convergeFlowSpec(proj, root)
 		if err != nil {
-			return false, err
+			return AISetupNeed{}, err
 		}
-		spec = resolved.spec
+		spec, label = resolved.spec, resolved.name
 	} else {
 		resolved, err := ResolveProjectFlow(proj, root, flowName, nil)
 		if err != nil || resolved == nil {
-			return false, err
+			return AISetupNeed{}, err
 		}
 		spec = resolved.Spec
 	}
@@ -176,13 +218,14 @@ func (a *App) ProjectFlowNeedsAISetup(proj *project.KapiProject, projectPath, fl
 	if len(proj.Defaults.Locales) > 0 {
 		files, err := project.NewProjectContext(proj, projectPath).ResolveContent(a.FormatReg)
 		if err != nil {
-			return false, err
+			return AISetupNeed{}, err
 		}
 		if targets := contentTargetLocales(proj.Defaults, files); len(targets) > 0 {
 			locales = targets
 		}
 	}
 	bindings := recipePresets(proj)
+	need := AISetupNeed{}
 	for _, step := range spec.Steps {
 		name := registry.ToolID(step.Tool)
 		for _, locale := range locales {
@@ -191,23 +234,36 @@ func (a *App) ProjectFlowNeedsAISetup(proj *project.KapiProject, projectPath, fl
 			if info == nil || !slices.Contains(info.Requires, schema.RequiresCredentials) {
 				continue
 			}
-			if !a.stepCredentialsResolve(string(name), info.Requires, cfg) {
-				return true, nil
+			err := a.stepMissingCredential(string(name), info.Requires, cfg)
+			if err == nil {
+				continue
 			}
+			named := presetString(cfg, "provider") != "" || presetString(cfg, "credential") != ""
+			if !named {
+				need.Kind = AISetupChooseModel
+				continue
+			}
+			return AISetupNeed{
+				Kind:     AISetupMissingCredential,
+				Flow:     label,
+				Tool:     string(name),
+				Provider: presetString(cfg, "provider"),
+				Message:  err.Error(),
+			}, nil
 		}
 	}
-	return false, nil
+	return need, nil
 }
 
-// stepCredentialsResolve reports whether an AI step's credentials resolve the
-// way the run resolves them: the stored ai.provider/ai.model default fills a
-// step that names no provider (appconfig.ApplyAIToolDefaults), then
-// credentials.CredentialsResolvable applies the order of
-// credentials.ResolveCredentials. A keyless provider (demo, ollama,
-// claude-code) always resolves. Nothing is read from the keychain.
-func (a *App) stepCredentialsResolve(toolName string, requires []string, cfg map[string]any) bool {
+// stepMissingCredential returns the error an AI step's credential resolution
+// would fail with, or nil when it resolves the way the run resolves it: the
+// stored ai.provider/ai.model default fills a step that names no provider
+// (appconfig.ApplyAIToolDefaults), then credentials.MissingCredential applies
+// the order of credentials.ResolveCredentials. A keyless provider (demo,
+// ollama, claude-code) always resolves. Nothing is read from the keychain.
+func (a *App) stepMissingCredential(toolName string, requires []string, cfg map[string]any) error {
 	// ApplyAIToolDefaults writes into the map it is given, and cfg can be the
 	// recipe's own step config.
 	cfg = appconfig.ApplyAIToolDefaults(a.Config, toolName, requires, maps.Clone(cfg))
-	return credentials.CredentialsResolvable(a.Credentials, toolName, requires, cfg)
+	return credentials.MissingCredential(a.Credentials, toolName, requires, cfg)
 }

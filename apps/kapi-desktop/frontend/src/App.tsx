@@ -102,7 +102,8 @@ function AppInner() {
   useEffect(() => {
     const view = tm.effectiveView;
     // The "projects/" prefix keeps the routes the analytics already hold.
-    const route = GLOBAL_OVERLAYS.has(view) ? view : `projects/${view.split(":")[0]}`;
+    const base = view.split(":")[0];
+    const route = GLOBAL_OVERLAYS.has(base) ? base : `projects/${base}`;
     capturePageview(route);
   }, [tm.effectiveView]);
 

@@ -5,6 +5,8 @@
 export {
     AIModelOrigin,
     AIModelResolution,
+    AISetupKind,
+    AISetupNeed,
     AgentHost,
     AgentWiringAction,
     AgentWiringFile,

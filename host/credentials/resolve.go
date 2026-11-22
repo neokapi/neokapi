@@ -130,13 +130,21 @@ func ResolveCredentials(store *Store, toolName string, toolRequires []string, co
 	}
 }
 
-// CredentialsResolvable reports whether ResolveCredentials would find a key
-// for config. It applies the same order through findCredential and stops
-// before reading a key from the keychain, so asking never prompts for
-// keychain access. A nil store holds no credentials.
-func CredentialsResolvable(store *Store, toolName string, toolRequires []string, config map[string]any) bool {
+// MissingCredential returns the error ResolveCredentials would return for
+// config when it finds no credential, or nil when it would find one. It
+// applies the same order through findCredential and stops before reading a
+// key from the keychain, so asking never prompts for keychain access. A nil
+// store holds no credentials.
+//
+// Reading no keychain is the design, and it has two consequences. A saved
+// credential whose keychain entry is gone counts as found here; the run then
+// fails with `API key for credential "<name>" not found in keychain`. A
+// keyless provider (ollama, claude-code) counts as found even when Ollama is
+// not running or Claude Code is not logged in; the run reports that through
+// the provider's own error.
+func MissingCredential(store *Store, toolName string, toolRequires []string, config map[string]any) error {
 	_, err := findCredential(store, toolName, toolRequires, config)
-	return err == nil
+	return err
 }
 
 // credentialSource is where ResolveCredentials takes a config's key from. The
