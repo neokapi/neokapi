@@ -13,7 +13,7 @@ import (
 )
 
 // These tests require the FTS5 ICU tokenizer, which is a cgo-only extension
-// (statically linked via core/storage/icu_tokenizer.go). Under no-cgo builds
+// (statically linked from core/internal/icu). Under no-cgo builds
 // the word-search table uses unicode61, which does not segment scripts without
 // explicit word boundaries; see sqlite_nocgo_test.go for the matching
 // unicode61 expectations.
@@ -43,14 +43,14 @@ func TestSQLiteMemory_SearchCJK(t *testing.T) {
 		HintSrcLang: "zh-CN",
 	}))
 
-	// Search for "经济" (economy) in Chinese — ICU segments at word boundaries.
+	// Search for "经济" (economy) in Chinese. ICU segments at word boundaries.
 	entries, total, _ := tm.SearchEntries(context.Background(), memory.SearchParams{Query: "经济", AnyLocale: "zh-CN", RequireLocale: "", Offset: 0, Limit: 10})
 	assert.Equal(t, 1, total, "ICU should segment Chinese and find 经济")
 	if len(entries) > 0 {
 		assert.Equal(t, "e1", entries[0].ID)
 	}
 
-	// Search for "贸易" (trade) — should find e2.
+	// Search for "贸易" (trade), which should find e2.
 	entries, total, _ = tm.SearchEntries(context.Background(), memory.SearchParams{Query: "贸易", AnyLocale: "zh-CN", RequireLocale: "", Offset: 0, Limit: 10})
 	assert.Equal(t, 1, total)
 	if len(entries) > 0 {

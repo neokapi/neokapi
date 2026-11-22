@@ -1395,6 +1395,8 @@ jobs:
         run: python3 scripts/check-test-scripts.py --self-test && python3 scripts/check-test-scripts.py
       - name: "Guard: every Go command in make, scripts and CI builds with -trimpath"
         run: python3 scripts/check-go-trimpath.py --self-test && python3 scripts/check-go-trimpath.py
+      - name: "Guard: every declared macOS minimum agrees with what Go builds for"
+        run: ./scripts/check-macos-minimum.sh --self-test && ./scripts/check-macos-minimum.sh
       - name: "Guard: the commit gate hook passes its self-test"
         run: ./.claude/hooks/commit-gate.sh --self-test
       - name: "Guard: the build cache warmer passes its self-test"
