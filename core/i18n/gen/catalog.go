@@ -21,7 +21,7 @@ import (
 
 // CatalogCollections names the recipe collections whose committed translated
 // JSON compiles into the gettext MO catalogs the binary embeds. Everything
-// else about them — source document, reader configuration, target pattern —
+// else about them, source document, reader configuration, target pattern,
 // is read from the recipe, so the compiler and the pull that writes those
 // targets cannot disagree about what a catalog entry is.
 var CatalogCollections = []string{"neokapi-engine", "neokapi-cli"}
@@ -49,12 +49,12 @@ type CatalogSummary struct {
 
 // CompileCatalogs compiles the committed translated JSON catalogs named by
 // CatalogCollections into the sibling MO files that core/i18n and host/i18n
-// embed. root is the repository root — the directory holding kapi.yaml.
+// embed. root is the repository root, the directory holding kapi.yaml.
 //
 // Pairing is by block name: the JSON reader, configured exactly as the recipe
 // configures it, derives a key path for every translatable string, and that
 // key path is both the runtime lookup scope and the MO msgctxt. A source
-// string the translated catalog does not carry — or carries unchanged — is
+// string the translated catalog does not carry, or carries unchanged, is
 // left out of the MO, so the runtime falls back to the English source.
 //
 // Progress is written to log. The only errors returned are structural: a
@@ -137,9 +137,9 @@ func compileCollection(
 			}
 			// ResolveTargetPath names a file to write, so it returns an
 			// OS-native path. Everything below treats the pattern as slash
-			// form — it is split, rejoined with a locale, logged, and reported
+			// form, it is split, rejoined with a locale, logged, and reported
 			// as a repo-relative path, and each read converts back with
-			// FromSlash — so the one native form entering is normalized here.
+			// FromSlash, so the one native form entering is normalized here.
 			target, err := project.ResolveTargetPath(item.Path, item.Base, item.Target, src, langMark)
 			if err != nil {
 				return nil, fmt.Errorf("target for %s: %w", src, err)
@@ -265,7 +265,7 @@ func expandSources(root, itemPath string) ([]string, error) {
 
 // discoverLocales lists the locales that have a committed catalog, by matching
 // the target pattern's two fixed halves against the directory.
-// The halves and the match are compared in one normalization — the platform's
+// The halves and the match are compared in one normalization, the platform's
 // own. filepath.Rel returns a native path, so trimming a slash-spelled half off
 // it silently matches nothing on a platform whose separator is not "/", which
 // reads as a locale having no committed catalog rather than as a path bug.

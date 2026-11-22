@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T16:31:00Z",
+  "generatedAt": "2026-11-22T19:36:08Z",
   "commands": [
     {
       "id": "add",
@@ -9356,7 +9356,8 @@
       "examples": [
         "kapi translate messages.json --target-lang fr",
         "kapi translate docs/*.md --target-lang de -o out/{name}_{lang}.{ext}",
-        "kapi translate app.xliff --target-lang ja --provider ollama"
+        "kapi translate app.xliff --target-lang ja --provider ollama",
+        "kapi translate messages.json --target-lang fr --provider demo"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
@@ -9535,6 +9536,13 @@
           "name": "batching",
           "usage": "hvor mange blokker som deler ett LLM-kall: auto (standard), single",
           "type": "string"
+        },
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "antall filer som behandles samtidig (0 = automatisk)",
+          "default": "0",
+          "type": "int"
         },
         {
           "name": "context",

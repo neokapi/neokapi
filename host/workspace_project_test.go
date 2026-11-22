@@ -117,8 +117,8 @@ func TestSourceMovedTreatsALinkOutOfTheProjectAsGone(t *testing.T) {
 }
 
 // kapi init writes no recipe through a kapi.yaml that is a link out of the
-// folder: the link to a missing file is replaced by the recipe, and nothing
-// is created where it pointed.
+// folder: init refuses, naming the link, and nothing is created where it
+// pointed.
 func TestInitProjectWritesNoRecipeThroughALink(t *testing.T) {
 	base := t.TempDir()
 	root := filepath.Join(base, "project")
@@ -130,11 +130,11 @@ func TestInitProjectWritesNoRecipeThroughALink(t *testing.T) {
 	require.NoError(t, os.Symlink(target, recipe))
 
 	_, err := InitProject(root, InitOptions{})
-	require.NoError(t, err)
+	require.ErrorContains(t, err, "symbolic link")
 	assert.NoFileExists(t, target)
 	info, err := os.Lstat(recipe)
 	require.NoError(t, err)
-	assert.True(t, info.Mode().IsRegular(), "the recipe is a file in the folder")
+	assert.NotZero(t, info.Mode()&os.ModeSymlink, "the link is left as it was")
 }
 
 // A returned file names its redaction batch; a batch that is not one file

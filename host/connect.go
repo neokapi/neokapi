@@ -313,7 +313,7 @@ func (a *App) ConnectHosts(ctx context.Context, cmd Command, opts ConnectOptions
 
 	// The recipe first: the MCP entry names it, and the rules files are read
 	// from the context it opens.
-	recipeFile, targets, haveRecipe, err := a.connectRecipe(root, recipe, opts.DryRun)
+	recipeFile, targets, haveRecipe, err := a.connectRecipe(ctx, root, recipe, opts.DryRun)
 	if err != nil {
 		return nil, err
 	}
@@ -440,7 +440,7 @@ func connectDir(dir string, dry bool) (string, error) {
 // writes it, and returns the target languages it declares. haveRecipe is
 // false only for a dry run over a folder with no recipe, which leaves the
 // recipe unwritten.
-func (a *App) connectRecipe(root, recipe string, dry bool) (file ConnectFile, targets []string, haveRecipe bool, err error) {
+func (a *App) connectRecipe(ctx context.Context, root, recipe string, dry bool) (file ConnectFile, targets []string, haveRecipe bool, err error) {
 	file = ConnectFile{Path: relSlash(root, recipe), Kind: ConnectRecipe}
 	if _, serr := statIn(root, recipe); serr == nil {
 		proj, lerr := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
@@ -457,7 +457,7 @@ func (a *App) connectRecipe(root, recipe string, dry bool) (file ConnectFile, ta
 	if dry {
 		return file, nil, false, nil
 	}
-	res, ierr := InitProject(root, InitOptions{Formats: a.FormatReg})
+	res, ierr := InitProjectContext(ctx, root, InitOptions{Formats: a.FormatReg})
 	if ierr != nil {
 		return file, nil, false, ierr
 	}

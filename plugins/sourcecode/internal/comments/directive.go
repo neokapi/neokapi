@@ -2,6 +2,7 @@ package comments
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -36,10 +37,8 @@ func leadingWord(line string) string {
 func wordForm(name string, words ...string) directiveForm {
 	return directiveForm{name: name, match: func(t commentText) (string, bool) {
 		w := leadingWord(t.first())
-		for _, want := range words {
-			if w == want {
-				return w, true
-			}
+		if slices.Contains(words, w) {
+			return w, true
 		}
 		return "", false
 	}}
@@ -70,10 +69,5 @@ func regexpForm(name, form string, kinds []unitKind, re *regexp.Regexp) directiv
 }
 
 func hasKind(kinds []unitKind, k unitKind) bool {
-	for _, want := range kinds {
-		if want == k {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(kinds, k)
 }

@@ -7,14 +7,14 @@ import (
 	"github.com/neokapi/neokapi/core/rootpath"
 )
 
-// IsBinaryAssetFormat reports whether a format name denotes a binary asset — one
+// IsBinaryAssetFormat reports whether a format name denotes a binary asset, one
 // whose file *is* the localizable unit, localized by supplying a per-locale
 // variant file, rather than text kapi can regenerate from a source. Images,
-// audio and video are all whole-file assets: kapi can extract text from them
+// audio and video are all whole-file assets. kapi can extract text from them
 // (OCR / ASR) but cannot reproduce a real localized rendering (a redrawn image,
-// a dubbed audio track, a re-shot video), so a per-locale variant the user (or a
-// connector) supplies is authoritative and must not be clobbered by reprocessing
-// the source.
+// a dubbed audio track, a re-shot video). A per-locale variant the user (or a
+// connector) supplies is therefore authoritative, and reprocessing the source
+// must not clobber it.
 func IsBinaryAssetFormat(name string) bool {
 	switch name {
 	case "image", "audio", "video":
@@ -39,7 +39,7 @@ type AssetVariant struct {
 // per-locale target files for the given content item: each locale's target
 // template is resolved via ResolveTargetPath and checked for existence on disk.
 // root anchors any relative target path. The result enumerates which locales
-// have a localized variant present and which are missing — the coverage view a
+// have a localized variant present and which are missing, the coverage view a
 // whole-image-replacement workflow needs.
 func ResolveAssetVariants(root string, item ContentItem, source string, locales []model.LocaleID) []AssetVariant {
 	if item.Target == "" {

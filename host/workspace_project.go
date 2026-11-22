@@ -1,6 +1,7 @@
 package host
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 
-	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/blockstore/exporter"
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/project"
@@ -448,10 +448,10 @@ func restoreSources(pkg *kpz.Package, root string) error {
 }
 
 // stageContentWithin writes a parcel member's Content as the file dst beneath
-// root, through the root (atomicfile.StageWithin): a link that leads out of
-// root is refused, and the directories dst needs are made at commit.
+// root, committed through the file home on root (commitWithin), so a link that
+// leads out of root is refused.
 func stageContentWithin(root, dst string, c kpz.Content) error {
-	s, err := atomicfile.StageWithin(root, dst, func(w io.Writer) error {
+	return commitWithin(context.Background(), root, dst, func(w io.Writer) error {
 		rc, err := c.Open()
 		if err != nil {
 			return err
@@ -460,10 +460,6 @@ func stageContentWithin(root, dst string, c kpz.Content) error {
 		_, err = io.Copy(w, rc)
 		return err
 	})
-	if err != nil {
-		return err
-	}
-	return s.Commit()
 }
 
 // statThrough describes the file p names as rootpath.Open opens it: through

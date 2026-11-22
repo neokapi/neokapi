@@ -28,10 +28,8 @@ type Engine interface {
 var ErrNoONNX = errors.New("sat: built without ONNX support (rebuild with -tags onnx and the onnxruntime + tokenizer native libraries)")
 
 // resolveThreshold returns the effective threshold: the model default when t
-// is zero (or out of range), else t. It is consumed by the ONNX-backed engine
-// (engine_onnx.go); the unused linter cannot see that cross-build-tag use.
-//
-//nolint:unused // used by the onnx-tagged engine
+// is zero (or out of range), else t. The ONNX-backed engine (engine_onnx.go)
+// applies it.
 func resolveThreshold(t float64) float64 {
 	if t <= 0 || t >= 1 {
 		return DefaultThreshold

@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -106,9 +108,7 @@ func runCase(c selfTestCase) (int, string, error) {
 	}
 	defer os.RemoveAll(dir)
 	files := map[string]string{"kapi.yaml": fixtureRecipe(c.exclude)}
-	for rel, body := range c.files {
-		files[rel] = body
-	}
+	maps.Copy(files, c.files)
 	for rel, body := range files {
 		path := filepath.Join(dir, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -123,10 +123,10 @@ func runCase(c selfTestCase) (int, string, error) {
 		steps = append(steps, []string{"rm", "--cached", "-q", "kapi.yaml"})
 	}
 	for _, args := range steps {
-		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		cmd := exec.CommandContext(context.Background(), "git", append([]string{"-C", dir}, args...)...)
 		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
 		if out, err := cmd.CombinedOutput(); err != nil {
-			return 0, "", fmt.Errorf("git %s: %v: %s", args[0], err, out)
+			return 0, "", fmt.Errorf("git %s: %w: %s", args[0], err, out)
 		}
 	}
 	var out bytes.Buffer

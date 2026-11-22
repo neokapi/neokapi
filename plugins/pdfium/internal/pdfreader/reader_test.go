@@ -13,7 +13,7 @@ import (
 
 // These contract tests were migrated from the retired in-core hand-rolled PDF
 // reader (core/formats/pdf). The decoder-internal cases (TJ-array/operator
-// parsing, manual FlateDecode, escaped-paren balancing) were dropped — PDFium
+// parsing, manual FlateDecode, escaped-paren balancing) were dropped; PDFium
 // handles all of that natively. What survives is the format-agnostic contract:
 // real-world extraction, page/layer structure, geometry, and crash-safe
 // handling of malformed input (the reason the reader lives in a plugin).
@@ -173,7 +173,7 @@ func TestReadParts_Glyphs(t *testing.T) {
 		for _, gb := range g.Glyphs {
 			assert.GreaterOrEqual(t, gb.BBox.X+eps, g.BBox.X, "glyph left within block")
 			assert.LessOrEqual(t, gb.BBox.X+gb.BBox.W, g.BBox.X+g.BBox.W+eps, "glyph right within block")
-			assert.Equal(t, g.Origin, "top-left")
+			assert.Equal(t, "top-left", g.Origin)
 		}
 	}
 	require.Positive(t, withGlyphs, "at least one block has per-glyph geometry")
@@ -184,7 +184,7 @@ func TestReadParts_Glyphs(t *testing.T) {
 // the experimental marked-content API (tier-1) is compiled in. With the
 // pdfium_experimental tag the struct tree drives structure; without it,
 // structRegions returns false and ReadParts falls back to the geometric analyzer
-// (tier-2) — but either way the document's text and table survive. This is the
+// (tier-2). Either way the document's text and table survive. This is the
 // graceful-degradation contract, exercised here without a build tag so it runs in
 // both CI configurations. (The tier-1-specific assertions live in
 // structtree_test.go, gated to the experimental tag.)
@@ -214,8 +214,8 @@ func TestReadParts_TaggedFallback(t *testing.T) {
 	assert.Positive(t, tableGroups, "the tagged table is detected in either tier")
 }
 
-// an empty (but structurally valid) PDF opens cleanly and yields no text blocks
-// — no error, no panic.
+// an empty (but structurally valid) PDF opens cleanly and yields no text
+// blocks, with no error and no panic.
 func TestReadParts_Empty(t *testing.T) {
 	data, err := os.ReadFile("testdata/empty.pdf")
 	require.NoError(t, err)

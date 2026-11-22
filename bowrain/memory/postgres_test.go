@@ -34,8 +34,8 @@ func openTestPostgresMemory(t *testing.T) *pgmemory.PostgresStore {
 	tm, err := pgmemory.NewPostgresStoreFromDB(db, wsID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		db.Exec("DELETE FROM tm_entries WHERE workspace_id = $1", wsID)
-		db.Exec("DELETE FROM tm_import_sessions WHERE workspace_id = $1", wsID)
+		_, _ = db.Exec("DELETE FROM tm_entries WHERE workspace_id = $1", wsID)
+		_, _ = db.Exec("DELETE FROM tm_import_sessions WHERE workspace_id = $1", wsID)
 		db.Close()
 	})
 	return tm
@@ -155,7 +155,7 @@ func TestPostgresMemory_DeleteSessionKeepsOrigins(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Len(t, got.Origins, 1)
-	assert.Equal(t, "", got.Origins[0].SessionID)
+	assert.Empty(t, got.Origins[0].SessionID)
 }
 
 func TestPostgresMemory_EntityRoundtrip(t *testing.T) {

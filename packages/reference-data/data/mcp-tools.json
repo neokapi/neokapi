@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-17T09:59:05Z",
+  "generatedAt": "2026-11-22T19:36:08Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -2025,7 +2025,7 @@
           "name": "jobs",
           "type": "integer",
           "required": false,
-          "description": "how many languages to catch up concurrently per pass (0 = project default, else 4)"
+          "description": "how many languages to catch up concurrently per pass (0 = project default, else 4); runs on this machine, so a server-connected project also needs local"
         },
         {
           "name": "local",
@@ -2037,19 +2037,19 @@
           "name": "materialize",
           "type": "boolean",
           "required": false,
-          "description": "after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy)"
+          "description": "after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy); runs on this machine, so a server-connected project also needs local"
         },
         {
           "name": "no_checks",
           "type": "boolean",
           "required": false,
-          "description": "skip the project's bound checks inside the loop (failing blocks then count as translated)"
+          "description": "skip the project's bound checks inside the loop (failing blocks then count as translated); runs on this machine, so a server-connected project also needs local"
         },
         {
           "name": "passes",
           "type": "integer",
           "required": false,
-          "description": "maximum reconciliation passes (0 = loop until up to date or waiting for review; 1 = single pass)"
+          "description": "maximum reconciliation passes (0 = loop until up to date or waiting for review; 1 = single pass); runs on this machine, so a server-connected project also needs local"
         },
         {
           "name": "pre_review",

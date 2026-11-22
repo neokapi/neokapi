@@ -1,3 +1,8 @@
+//go:build !js
+
+// The MCP tool registry and command these tests use are in aliases_mcp.go, which
+// a js build leaves out.
+
 package cli
 
 import (

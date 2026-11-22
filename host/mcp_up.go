@@ -12,7 +12,7 @@ import (
 // init registers the kapi-loop MCP tools on the shared `mcp` server: `up`
 // (bring the project up to date) and `up_plan` (the dry-run work plan with a
 // token estimate). They drive exactly the CLI's `kapi up` engine at the venue
-// the recipe binds, so an agent runs the same loop a human does — a connected
+// the recipe binds, so an agent runs the same loop a human does: a connected
 // project pushes, converges on the server and pulls the results back.
 func init() {
 	RegisterMCPToolFactory(registerUpMCPTools)
@@ -21,10 +21,10 @@ func init() {
 // upMCPInput is the input to the `up` MCP tool.
 type upMCPInput struct {
 	Project     string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
-	Passes      int    `json:"passes,omitempty" jsonschema:"maximum reconciliation passes (0 = loop until up to date or waiting for review; 1 = single pass)"`
-	Jobs        int    `json:"jobs,omitempty" jsonschema:"how many languages to catch up concurrently per pass (0 = project default, else 4)"`
-	Materialize bool   `json:"materialize,omitempty" jsonschema:"after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy)"`
-	NoChecks    bool   `json:"no_checks,omitempty" jsonschema:"skip the project's bound checks inside the loop (failing blocks then count as translated)"`
+	Passes      int    `json:"passes,omitempty" jsonschema:"maximum reconciliation passes (0 = loop until up to date or waiting for review; 1 = single pass); runs on this machine, so a server-connected project also needs local"`
+	Jobs        int    `json:"jobs,omitempty" jsonschema:"how many languages to catch up concurrently per pass (0 = project default, else 4); runs on this machine, so a server-connected project also needs local"`
+	Materialize bool   `json:"materialize,omitempty" jsonschema:"after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy); runs on this machine, so a server-connected project also needs local"`
+	NoChecks    bool   `json:"no_checks,omitempty" jsonschema:"skip the project's bound checks inside the loop (failing blocks then count as translated); runs on this machine, so a server-connected project also needs local"`
 	Local       bool   `json:"local,omitempty" jsonschema:"in a server-connected project, run the loop on this machine and push the results, instead of running it on the server"`
 	RecycleOnly bool   `json:"recycle_only,omitempty" jsonschema:"fill only the targets the content memory answers exactly, in one pass, with no provider calls; runs on this machine, so a server-connected project also needs local"`
 	PreReview   bool   `json:"pre_review,omitempty" jsonschema:"after the run, have the AI review tool score each translation awaiting review; a score is advisory and never approves a block; runs on this machine, so a server-connected project also needs local"`

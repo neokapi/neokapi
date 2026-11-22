@@ -4252,6 +4252,28 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Produced counts the units this run wrote to the project's files, by its
+             * passes or by the delivery after its loop, from this run's drafts or an
+             * earlier run's. A run that changed nothing reports 0. Nil when the venue
+             * does not report it: a server run writes to the server, and its summary
+             * leaves the figure out rather than give it another meaning.
+             * @member
+             * @type {number | null | undefined}
+             */
+            this["produced"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * WaitingForReview counts the drafts the run holds for review in locales
+             * short of their ship gate. They are not written to the project, so
+             * Produced leaves them out.
+             * @member
+             * @type {number | undefined}
+             */
+            this["waiting_for_review"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * ParkedScopes lists the gated (collection, locale) scopes that remain
              * short of their gate: per-scope detail under the per-locale rollup, so
              * a UI can link each parked scope to its review queue.
@@ -4413,25 +4435,25 @@ export class ConvergeOutput {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType96;
-        const $$createField4_0 = $$createType98;
-        const $$createField16_0 = $$createType100;
-        const $$createField17_0 = $$createType102;
-        const $$createField18_0 = $$createType104;
+        const $$createField6_0 = $$createType98;
+        const $$createField18_0 = $$createType100;
+        const $$createField19_0 = $$createType102;
+        const $$createField20_0 = $$createType104;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
         }
         if ("parked_scopes" in $$parsedSource) {
-            $$parsedSource["parked_scopes"] = $$createField4_0($$parsedSource["parked_scopes"]);
+            $$parsedSource["parked_scopes"] = $$createField6_0($$parsedSource["parked_scopes"]);
         }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField16_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField18_0($$parsedSource["warnings"]);
         }
         if ("findings" in $$parsedSource) {
-            $$parsedSource["findings"] = $$createField17_0($$parsedSource["findings"]);
+            $$parsedSource["findings"] = $$createField19_0($$parsedSource["findings"]);
         }
         if ("pre_review" in $$parsedSource) {
-            $$parsedSource["pre_review"] = $$createField18_0($$parsedSource["pre_review"]);
+            $$parsedSource["pre_review"] = $$createField20_0($$parsedSource["pre_review"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }
@@ -5091,12 +5113,32 @@ export class UpPlanOutput {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Provider is the AI provider a converge run would use (the shared
-             * ai.provider default), when one is configured.
+             * Provider is the AI provider a converge run would use, as the run
+             * resolves it.
              * @member
              * @type {string | undefined}
              */
             this["provider"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Credential is what the run would say when it stops for want of that
+             * provider's credential (none saved or set, or the named one missing),
+             * and "" when the credential is available.
+             * @member
+             * @type {string | undefined}
+             */
+            this["credential"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Providers is set when target languages differ in what they use (a
+             * per-language preset): one group per distinct answer. Provider and
+             * Credential then summarize the groups.
+             * @member
+             * @type {UpPlanProviderGroup[] | undefined}
+             */
+            this["providers"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -5170,8 +5212,9 @@ export class UpPlanOutput {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType114;
         const $$createField4_0 = $$createType113;
-        const $$createField9_0 = $$createType100;
-        const $$createField10_0 = $$createType115;
+        const $$createField7_0 = $$createType116;
+        const $$createField11_0 = $$createType100;
+        const $$createField12_0 = $$createType117;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -5179,13 +5222,66 @@ export class UpPlanOutput {
         if ("totals" in $$parsedSource) {
             $$parsedSource["totals"] = $$createField4_0($$parsedSource["totals"]);
         }
+        if ("providers" in $$parsedSource) {
+            $$parsedSource["providers"] = $$createField7_0($$parsedSource["providers"]);
+        }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField9_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField11_0($$parsedSource["warnings"]);
         }
         if ("drift" in $$parsedSource) {
-            $$parsedSource["drift"] = $$createField10_0($$parsedSource["drift"]);
+            $$parsedSource["drift"] = $$createField12_0($$parsedSource["drift"]);
         }
         return new UpPlanOutput(/** @type {Partial<UpPlanOutput>} */($$parsedSource));
+    }
+}
+
+/**
+ * UpPlanProviderGroup is the target languages that use the same providers
+ * and get the same answer about their credential.
+ */
+export class UpPlanProviderGroup {
+    /**
+     * Creates a new UpPlanProviderGroup instance.
+     * @param {Partial<UpPlanProviderGroup>} [$$source = {}] - The source object to create the UpPlanProviderGroup.
+     */
+    constructor($$source = {}) {
+        if (!("locales" in $$source)) {
+            /**
+             * @member
+             * @type {string[]}
+             */
+            this["locales"] = [];
+        }
+        if (!("provider" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["provider"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["credential"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpPlanProviderGroup instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {UpPlanProviderGroup}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("locales" in $$parsedSource) {
+            $$parsedSource["locales"] = $$createField0_0($$parsedSource["locales"]);
+        }
+        return new UpPlanProviderGroup(/** @type {Partial<UpPlanProviderGroup>} */($$parsedSource));
     }
 }
 
@@ -5472,4 +5568,6 @@ const $$createType111 = RulesFile.createFrom;
 const $$createType112 = $Create.Array($$createType111);
 const $$createType113 = UpPlanScope.createFrom;
 const $$createType114 = $Create.Array($$createType113);
-const $$createType115 = project$0.StoreDrift.createFrom;
+const $$createType115 = UpPlanProviderGroup.createFrom;
+const $$createType116 = $Create.Array($$createType115);
+const $$createType117 = project$0.StoreDrift.createFrom;

@@ -22,7 +22,7 @@ import (
 )
 
 // updateGolden regenerates testdata/schema.golden from the current migration
-// set. Run it deliberately, and read the diff — the golden is the record of
+// set. Run it deliberately, and read the diff. The golden is the record of
 // what production's schema actually is, so an unexamined regeneration turns
 // the guard into a rubber stamp.
 //
@@ -35,7 +35,7 @@ const goldenPath = "testdata/schema.golden"
 // migration histories into fifteen baselines a safe change rather than a hope.
 //
 // The golden file was generated from the migration CHAINS as they stood before
-// consolidation — the exact schema production had been built by, replayed from
+// consolidation: the exact schema production had been built by, replayed from
 // empty. Folding each chain into one baseline had to reproduce that schema
 // byte for byte: same tables, columns, types, defaults, nullability, named
 // constraints and indexes. Anything a fold silently dropped shows up here as a
@@ -71,8 +71,8 @@ func TestBaselineSchemaMatchesGolden(t *testing.T) {
 // A second Apply over a schema that already has everything must be a no-op,
 // not a failure. Before consolidation it was neither: the migrations used bare
 // CREATE TABLE and ALTER TABLE ADD COLUMN, so replaying them over a live schema
-// failed on "already exists" — which is precisely what a truncated bookkeeping
-// table caused on 2026-08-01.
+// failed on "already exists". A truncated bookkeeping table caused exactly that
+// on 2026-08-01.
 //
 // This also covers the case the reset cannot: an environment that never ran
 // the reset, whose bookkeeping is intact and whose schema is already current.
@@ -140,24 +140,16 @@ func TestEverySubsystemIsRegistered(t *testing.T) {
 
 // freshDatabase hands back an empty database of its very own.
 //
-// It has to be a whole database, not a schema. The golden records what
-// Postgres built, and Postgres writes the schema name into what it reports —
-// every index line reads `ON public.tb_terms`. Run these migrations under a
-// schema called anything else and the golden differs on every one of them, so
-// the only ways to use a schema are to rename it back out of the snapshot
-// afterwards (a substitution that can hide a real difference) or to accept a
-// golden that says something production does not. In its own database `public`
-// is genuinely public and the snapshot needs no help.
+// It has to be a whole database, not a schema. Postgres writes the schema
+// name into what it reports: every index line reads `ON public.tb_terms`.
+// Under any other schema name the golden differs on every line. The snapshot
+// would then need a rename (which can hide a real difference) or a golden that
+// does not match production. In its own database `public` is genuinely public.
 //
-// It also must not be the database everyone else is using, which is what it
-// was. The integration lane runs five packages against one server, four of
-// them through testutil/pgtest — which gives each test its own schema and
-// anchors the extensions those schemas share INTO public, because an extension
-// belongs to a database but installs into a schema. This package then reset
-// itself by dropping public CASCADE, taking the extensions with it, while
-// those packages were still running: `go test` runs packages in parallel, so
-// whether terms and memory found pg_trgm depended on where this package
-// happened to be. Nothing said so; the failures read as unrelated flakes.
+// It is also separate from the shared test database. The integration lane runs
+// five packages against one server in parallel. Four use testutil/pgtest, which
+// gives each test its own schema and installs shared extensions INTO public.
+// Resetting public there would drop pg_trgm under those packages mid-run.
 func freshDatabase(t *testing.T) *storage.PgDB {
 	t.Helper()
 
@@ -181,7 +173,7 @@ func freshDatabase(t *testing.T) *storage.PgDB {
 	t.Cleanup(func() {
 		// FORCE detaches anything still connected (PostgreSQL 13+). A server
 		// too old for it drops the database the ordinary way, which is enough
-		// once the pool above is closed — this cleanup runs after it.
+		// once the pool above is closed. This cleanup runs after it.
 		if _, err := admin.Exec(`DROP DATABASE IF EXISTS "` + name + `" WITH (FORCE)`); err != nil {
 			_, _ = admin.Exec(`DROP DATABASE IF EXISTS "` + name + `"`)
 		}
@@ -215,8 +207,8 @@ var (
 // withDatabase points a connection string at another database on the same
 // server.
 //
-// A failure here is a misconfiguration, not an absence — the URL is either the
-// package default or something the operator set — so it is reported rather
+// A failure here is a misconfiguration, not an absence. The URL is either the
+// package default or something the operator set, so it is reported rather
 // than skipped. A skip would read as "PostgreSQL is not available" and the
 // golden would silently stop being checked, which is the shape of failure this
 // guard exists to prevent in the first place.
@@ -236,8 +228,8 @@ func withDatabase(connStr, name string) (string, error) {
 //
 // The column, constraint and index definitions come from Postgres's own
 // pg_get_constraintdef and pg_indexes rather than from parsing the migration
-// SQL, so the comparison is against what the database actually built — the
-// only thing that matters — and normalization is Postgres's problem, not ours.
+// SQL. The comparison is against what the database actually built, and
+// Postgres handles the normalization.
 func snapshotSchema(t *testing.T, db *storage.PgDB) string {
 	t.Helper()
 
@@ -298,21 +290,21 @@ func queryLines(t *testing.T, db *storage.PgDB, query string) []string {
 // dropped.
 func unifiedDiff(want, got string) string {
 	inWant := map[string]bool{}
-	for _, l := range strings.Split(want, "\n") {
+	for l := range strings.SplitSeq(want, "\n") {
 		inWant[l] = true
 	}
 	inGot := map[string]bool{}
-	for _, l := range strings.Split(got, "\n") {
+	for l := range strings.SplitSeq(got, "\n") {
 		inGot[l] = true
 	}
 
 	var b strings.Builder
-	for _, l := range strings.Split(want, "\n") {
+	for l := range strings.SplitSeq(want, "\n") {
 		if l != "" && !inGot[l] {
 			fmt.Fprintf(&b, "- %s\n", l)
 		}
 	}
-	for _, l := range strings.Split(got, "\n") {
+	for l := range strings.SplitSeq(got, "\n") {
 		if l != "" && !inWant[l] {
 			fmt.Fprintf(&b, "+ %s\n", l)
 		}

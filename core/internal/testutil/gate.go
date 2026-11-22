@@ -1,7 +1,6 @@
 package testutil
 
 import (
-	"fmt"
 	"io"
 	"math"
 	"runtime"
@@ -127,18 +126,6 @@ func measureBaseline() uint64 {
 	return Measure()
 }
 
-// minPeak is the least a pipeline that has read input holds above its
-// baseline: at least the part in hand. A smaller peak means the samples did
-// not see the pipeline at all, and it would pass any bound.
-const minPeak = 1 << 10
-
-// checkPeak panics on a peak too small to have measured anything.
-func checkPeak(peak uint64) {
-	if peak < minPeak {
-		panic(fmt.Sprintf("testutil: the measured peak is %d bytes, below the %d a pipeline holding one part reaches: the baseline was taken over something the samples no longer hold", peak, minPeak))
-	}
-}
-
 // SamplePeak drives a pipeline fed through g in samples equal steps of total
 // input bytes. It returns the largest live heap it measured above the
 // pipeline's heap before any input. handle receives every value ch carries,
@@ -227,13 +214,20 @@ func SamplePeakStops(g *Gate, total int64, samples int, store StreamingStore, do
 	if stops == 0 {
 		panic(errNoStop)
 	}
-	checkPeak(peak)
 	return peak
 }
 
 // errNoStop is the panic of a sampler whose pipeline finished without
 // stopping at the gate. Its peak would be zero and pass any bound, so the
 // test fails instead.
+//
+// A sampler that did stop has measured the pipeline, whatever the peak. No
+// value of the peak marks a vacuous run: a lean reader on a small document
+// holds a few hundred bytes at a stop, and the JSON reader can hold less at
+// every later stop than at the first, which gives a peak of zero. The other
+// way a run measured nothing was a baseline inflated by a sync.Pool, which
+// measureBaseline's second collection removes and
+// TestSamplePeakIgnoresWhatAPoolHeldBeforeTheRun proves.
 const errNoStop = "testutil: the pipeline finished without stopping at the gate, so nothing was measured: does its reader read the gated input?"
 
 func samplePeak[T any](g *Gate, total int64, samples int, ch <-chan T, handle func(T), settle func()) uint64 {
@@ -265,7 +259,6 @@ func samplePeak[T any](g *Gate, total int64, samples int, ch <-chan T, handle fu
 	if stops == 0 {
 		panic(errNoStop)
 	}
-	checkPeak(peak)
 	return peak
 }
 

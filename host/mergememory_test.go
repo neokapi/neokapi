@@ -10,17 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A merge used to teach the content memory one block at a time: N merged blocks,
-// N write transactions. That was affordable while the content memory owned a
-// database nobody else wrote to. In the merged store those N commits contend
-// with the block cache and the working set for one writer, and SQLite's deferred
-// write transactions do not queue fairly — a long run of one-row commits starves
-// whichever writer arrives second.
-//
-// So the run stages what it learns and writes it once. These tests pin that
-// shape from the outside: nothing is durable until flush, and then all of it is.
-// A test cannot count SQLite transactions, but it can pin the property that
-// makes the count bounded — the store is untouched for the duration of the run.
+// A merge stages what it teaches the content memory and writes it once. In
+// the shared store, one commit per block would contend with the block cache
+// and the working set for one writer, and SQLite's deferred write
+// transactions do not queue fairly. These tests pin the shape from the
+// outside: nothing is durable until flush, and then all of it is.
 
 func absorberFixture(t *testing.T) *memoryAbsorber {
 	t.Helper()
@@ -63,7 +57,7 @@ func TestMemoryAbsorber_WritesOncePerRun(t *testing.T) {
 
 	entries, err := tm.Entries(t.Context())
 	require.NoError(t, err)
-	assert.Empty(t, entries, "absorbing must not write — the whole point is one transaction per run")
+	assert.Empty(t, entries, "absorbing must not write: a run writes in one transaction")
 
 	require.NoError(t, absorber.flush(t.Context()))
 
@@ -74,7 +68,7 @@ func TestMemoryAbsorber_WritesOncePerRun(t *testing.T) {
 
 // The bulk path skips per-row FTS5 maintenance, so a run that does not rebuild
 // the indexes leaves everything it learned invisible to search and to fuzzy
-// lookup — present in the store, unreachable by the next run's leverage. One
+// lookup, present in the store, unreachable by the next run's leverage. One
 // rebuild per flush is what pays for the bulk write.
 func TestMemoryAbsorber_FlushRebuildsTheSearchIndexes(t *testing.T) {
 	absorber := absorberFixture(t)
@@ -115,7 +109,31 @@ func TestMemoryAbsorber_DedupesWithinARun(t *testing.T) {
 	assert.Len(t, entries, 1)
 }
 
-// A run that learned nothing must write nothing — including no index rebuild,
+// A pair the store already holds is nothing to learn: a second run over the
+// same merged block stages nothing and writes nothing, and a changed target
+// is still an update.
+func TestMemoryAbsorber_SkipsAPairTheStoreHolds(t *testing.T) {
+	absorber := absorberFixture(t)
+	_, _, err := absorber.absorb(t.Context(),
+		mergedBlock("a", "Save", "Enregistrer"), "en", "fr", "batch", "a.json", "a.xliff")
+	require.NoError(t, err)
+	require.NoError(t, absorber.flush(t.Context()))
+
+	n, u, err := absorber.absorb(t.Context(),
+		mergedBlock("a", "Save", "Enregistrer"), "en", "fr", "batch", "a.json", "a.xliff")
+	require.NoError(t, err)
+	assert.Zero(t, n)
+	assert.Zero(t, u, "an unchanged pair is not an update")
+	assert.Empty(t, absorber.entries, "an unchanged pair is not staged")
+
+	n, u, err = absorber.absorb(t.Context(),
+		mergedBlock("a", "Save", "Sauvegarder"), "en", "fr", "batch", "a.json", "a.xliff")
+	require.NoError(t, err)
+	assert.Zero(t, n)
+	assert.Equal(t, 1, u, "a changed target updates the entry")
+}
+
+// A run that learned nothing must write nothing, including no index rebuild,
 // which is a full pass over the variant table and would otherwise be paid by
 // every merge that happened to change no wording.
 func TestMemoryAbsorber_EmptyRunWritesNothing(t *testing.T) {

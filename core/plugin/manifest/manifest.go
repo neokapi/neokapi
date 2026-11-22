@@ -2,14 +2,14 @@
 // used by the unified plugin model (issue #438).
 //
 // Every plugin directory contains a manifest.json declaring everything
-// the plugin provides — commands, MCP tools, format readers/writers,
+// the plugin provides: commands, MCP tools, format readers/writers,
 // flow tools, source connectors, and recipe schema extensions.
 //
 // Kapi reads all manifests at startup and builds dispatch tables from
 // them; there is no name fall-through or "command not found" magic.
 //
 // This is distinct from the registry index entry in
-// cli/pluginhost/registry — the registry index points at downloadable
+// cli/pluginhost/registry: the registry index points at downloadable
 // plugin tarballs, while a manifest.json sits inside an installed plugin.
 package manifest
 
@@ -56,7 +56,7 @@ type Manifest struct {
 	Version string `json:"version"`
 
 	// Description is a one-line human-readable description. Markdown
-	// (inline emphasis/code/links) — rendered through the shared Markdown
+	// (inline emphasis/code/links): rendered through the shared Markdown
 	// primitive in the UIs. See markdown-in-ui.md.
 	Description string `json:"description,omitempty"`
 
@@ -84,7 +84,7 @@ type Manifest struct {
 	Group string `json:"group,omitempty"`
 
 	// Capabilities lists everything the plugin provides. Each capability
-	// section is independent — a plugin may declare commands but no
+	// section is independent: a plugin may declare commands but no
 	// formats, or formats but no commands, etc.
 	Capabilities Capabilities `json:"capabilities"`
 
@@ -96,7 +96,7 @@ type Manifest struct {
 	// Models declares large model/data assets the plugin needs at runtime.
 	// Unlike Capabilities (things the plugin provides TO kapi), these are data
 	// DEPENDENCIES the host fetches, verifies, and caches on the plugin's
-	// behalf — so the plugin binary stays a pure compute engine and asset
+	// behalf, so the plugin binary stays a pure compute engine and asset
 	// downloads are uniform with the rest of kapi (shared progress bar,
 	// concurrency, integrity, one cache). Because the manifest ships inside the
 	// cosign + SHA-256 verified plugin tarball, the per-file digests below are
@@ -127,7 +127,7 @@ type ModelAsset struct {
 	// Bundled marks a model that ships inside the plugin tarball rather than
 	// being downloaded by the host. Bundled assets are surfaced by `kapi models`
 	// for visibility but cannot be pulled or pruned (there is nothing to fetch
-	// or remove), and their files need only a Path — no URL or SHA-256, since
+	// or remove), and their files need only a Path: no URL or SHA-256, since
 	// integrity is already covered by the signed tarball.
 	Bundled bool `json:"bundled,omitempty"`
 
@@ -135,7 +135,7 @@ type ModelAsset struct {
 	Description string `json:"description,omitempty"`
 
 	// License is the SPDX identifier (or upstream license name) for the model
-	// weights — surfaced so users can see terms before a multi-GB download.
+	// weights: surfaced so users can see terms before a multi-GB download.
 	License string `json:"license,omitempty"`
 
 	// Files are the artifacts to fetch. Every file is stored flat under its
@@ -147,7 +147,7 @@ type ModelAsset struct {
 // ModelFile is one artifact within a ModelAsset.
 type ModelFile struct {
 	// Path is the basename the file is stored under in the cache dir
-	// (e.g. "decoder_model_merged_q4.onnx"). Must be a bare name — no slashes,
+	// (e.g. "decoder_model_merged_q4.onnx"). Must be a bare name: no slashes,
 	// no "..".
 	Path string `json:"path"`
 
@@ -161,8 +161,8 @@ type ModelFile struct {
 	// digest (no --unsafe escape hatch for declared assets).
 	SHA256 string `json:"sha256"`
 
-	// Size, when > 0, is the expected byte length, checked alongside SHA256 and
-	// used to pre-size the progress bar before the response arrives.
+	// Size, when > 0, is the expected byte length. It is checked alongside
+	// SHA256 and sizes the progress bar before the response arrives.
 	Size int64 `json:"size,omitempty"`
 }
 
@@ -197,15 +197,15 @@ func (m *Manifest) Model(id string) (ModelAsset, bool) {
 // implements. Empty sections are omitted.
 type Capabilities struct {
 	// Commands declares top-level CLI commands the plugin provides
-	// (Mode A — one-shot subprocess).
+	// (Mode A: one-shot subprocess).
 	Commands []Command `json:"commands,omitempty"`
 
-	// MCPTools declares MCP tools the plugin exposes (Mode B —
+	// MCPTools declares MCP tools the plugin exposes (Mode B:
 	// session subprocess speaking MCP-over-stdio).
 	MCPTools []MCPTool `json:"mcp_tools,omitempty"`
 
 	// Formats declares format readers/writers the plugin provides
-	// (Mode C — daemon over local socket).
+	// (Mode C: daemon over local socket).
 	Formats []Format `json:"formats,omitempty"`
 
 	// Tools declares flow tools the plugin provides (Mode C).
@@ -249,9 +249,8 @@ type Capabilities struct {
 	// self-check that `kapi plugins doctor` invokes. Plugins that bundle native
 	// binaries, models, or in-process engines set this so doctor can confirm
 	// those runtime dependencies resolve; plugins without runtime dependencies
-	// omit it (doctor still verifies their binary presence and version). This
-	// replaces the per-plugin self-check verbs that used to clutter the
-	// top-level command surface.
+	// omit it (doctor still verifies their binary presence and version). It
+	// keeps per-plugin self-check verbs off the top-level command surface.
 	SelfCheck bool `json:"selfcheck,omitempty"`
 }
 
@@ -269,7 +268,7 @@ type ConfigNamespace struct {
 	Prefix string `json:"prefix"`
 
 	// App is the config app name whose global file backs the namespace
-	// (config.GlobalConfigFilePath(App) — e.g. ~/.config/bowrain/bowrain.yaml).
+	// (config.GlobalConfigFilePath(App): e.g. ~/.config/bowrain/bowrain.yaml).
 	// Defaults to Prefix when empty.
 	App string `json:"app,omitempty"`
 
@@ -293,8 +292,8 @@ type ConfigKey struct {
 // CommandContribution declares a plugin hook into a built-in kapi command.
 //
 // kapi adds the contribution's Flags to the named built-in command and, when
-// the contribution is engaged (EngageWhen flag set, or — if EngageWhen is empty
-// — any contributed flag set), dispatches the plugin handler after the built-in
+// the contribution is engaged (its EngageWhen flag set or, with no
+// EngageWhen, any contributed flag set), dispatches the plugin handler after the built-in
 // command's own action runs. The handler is dispatched as a Mode-A subcommand
 // (`<binary> command <Handler> <engaged flags>`) in the command's project
 // directory (KAPI_PROJECT_DIR). Handlers must be idempotent.
@@ -333,9 +332,16 @@ type Command struct {
 	// subprocess; this is purely declarative metadata.
 	Args []ArgSpec `json:"args,omitempty"`
 
-	// Flags declares command flags. Used for shell completion and the
-	// usage string. The plugin subprocess parses flags itself.
-	Flags []FlagSpec `json:"flags,omitempty"`
+	// Flags declares the flags the command reads. They drive shell
+	// completion and the usage string, and kapi forwards a command it
+	// dispatches on a user's behalf (server-up, behind kapi up) only the
+	// flags declared here. The plugin subprocess parses flags itself.
+	//
+	// Absent and empty differ: a manifest without "flags" declares nothing
+	// (DeclaresFlags is false), while "flags": [] declares that the command
+	// reads none. The field is written without omitempty so a manifest that
+	// is parsed and written again keeps the difference.
+	Flags []FlagSpec `json:"flags"`
 
 	// Subcommands lists nested subcommands (e.g., for "auth": ["login",
 	// "logout", "status"]). Subcommands inherit the parent's transport and
@@ -351,6 +357,10 @@ type Command struct {
 	// completion but stay routable.
 	Hidden bool `json:"hidden,omitempty"`
 }
+
+// DeclaresFlags reports whether the manifest states the flags c reads, an
+// empty list included.
+func (c Command) DeclaresFlags() bool { return c.Flags != nil }
 
 // Subcommand describes one nested subcommand under a Command (or under
 // another Subcommand). It supports two JSON forms for ergonomics:
@@ -949,7 +959,7 @@ func (m *Manifest) Validate() error {
 			}
 			seenFile[f.Path] = true
 			if a.Bundled {
-				continue // bundled files ship in the (signed) tarball — no URL/digest
+				continue // bundled files ship in the (signed) tarball, with no URL or digest
 			}
 			if f.URL == "" {
 				return fmt.Errorf("models[%d] (%s).files[%d] (%s): url is required", i, a.ID, j, f.Path)

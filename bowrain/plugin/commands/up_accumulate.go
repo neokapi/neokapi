@@ -13,7 +13,7 @@ import (
 // cli.ConvergeOutput a local run produces, so `kapi up`'s final summary is
 // identical whichever venue executed.
 //
-// The fold itself is convergence.Standing — the very fold the server persists
+// The fold itself is convergence.Standing, the very fold the server persists
 // its run standing from, so client and server can't disagree about a locale's
 // verdict. What is left here is the venue's own concern: mapping that standing
 // onto the CLI's output type, and falling back to the run's persisted state for
@@ -55,6 +55,9 @@ func (a *runAccumulator) terminalError(final *apiclient.ConvergenceRun) error {
 // stream did not carry.
 func (a *runAccumulator) output(final *apiclient.ConvergenceRun) cli.ConvergeOutput {
 	runState, sawDone := a.standing.RunState()
+	// A server run writes to the server, not to the project's files, and
+	// reports no drafts held for review, so the summary carries neither
+	// figure (ConvergeOutput.Produced stays nil).
 	out := cli.ConvergeOutput{Flow: "default (server)", Passes: a.standing.Passes()}
 
 	converged := runState == convergence.RunConverged
@@ -65,7 +68,7 @@ func (a *runAccumulator) output(final *apiclient.ConvergenceRun) cli.ConvergeOut
 		out.Passes = final.Passes
 	}
 
-	// Both sides ran the same fold over the same events, so they agree — except
+	// Both sides ran the same fold over the same events, so they agree, except
 	// where one of them is incomplete. A stream that reached its terminal event
 	// is complete and is the richer view (it saw every pass); a stream that was
 	// cut short is not, and the run row the server wrote after the loop is.

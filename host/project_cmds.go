@@ -1,6 +1,7 @@
 package host
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,7 +11,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
@@ -69,6 +69,12 @@ type InitResult struct {
 // re-running on an initialized project adopts the existing recipe, leaves its
 // collections alone and reports what content no collection reads yet.
 func InitProject(root string, opts InitOptions) (*InitResult, error) {
+	return InitProjectContext(context.Background(), root, opts)
+}
+
+// InitProjectContext is InitProject under ctx, which the recipe write commits
+// under.
+func InitProjectContext(ctx context.Context, root string, opts InitOptions) (*InitResult, error) {
 	name := opts.Name
 	if name == "" {
 		name = filepath.Base(root)
@@ -117,7 +123,7 @@ func InitProject(root string, opts InitOptions) (*InitResult, error) {
 		recipe := ScaffoldRecipe(name, res.ID, sourceLocale, opts.TargetLocales, proposals)
 		// Written through the root: a kapi.yaml the folder holds as a link
 		// that leads out of it is refused rather than written through.
-		if err := writeWithin(root, recipePath, recipe); err != nil {
+		if err := writeWithin(ctx, root, recipePath, recipe); err != nil {
 			return nil, fmt.Errorf("write recipe: %w", err)
 		}
 	default:
@@ -261,18 +267,14 @@ func ResolveDir(flag string) (string, error) {
 	return abs, nil
 }
 
-// writeWithin writes data as the file path beneath root, through the root
-// (atomicfile.StageWithin): staged beside it and renamed into place, with a
-// link that leads out of root refused.
-func writeWithin(root, path string, data []byte) error {
-	s, err := atomicfile.StageWithin(root, path, func(w io.Writer) error {
+// writeWithin writes data as the file path beneath root, committed through
+// the file home on root (commitWithin), so a link that leads out of root is
+// refused.
+func writeWithin(ctx context.Context, root, path string, data []byte) error {
+	return commitWithin(ctx, root, path, func(w io.Writer) error {
 		_, err := w.Write(data)
 		return err
 	})
-	if err != nil {
-		return err
-	}
-	return s.Commit()
 }
 
 // RecipeExists reports whether dir already holds a kapi.yaml recipe. Used to

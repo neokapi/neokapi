@@ -513,7 +513,7 @@ func (a *App) shareVia(ctx context.Context, req ShareRequest, res *ShareResult) 
 	if err := RefuseSplitContext(req.Project, spec); err != nil {
 		return WithExitCode(ExitUsage, err)
 	}
-	file, err := a.ensureRecipe(req.Project)
+	file, err := a.ensureRecipe(ctx, req.Project)
 	if err != nil {
 		return err
 	}
@@ -636,7 +636,7 @@ func parseS3URL(url string) (bucket, prefix string) {
 
 // ensureRecipe writes the draft `kapi init` writes when the folder has no
 // recipe, and reports kapi.yaml as created or kept.
-func (a *App) ensureRecipe(recipe string) (ShareFile, error) {
+func (a *App) ensureRecipe(ctx context.Context, recipe string) (ShareFile, error) {
 	file := ShareFile{Path: project.RecipeFileName, Action: ShareFileKept}
 	if _, err := os.Stat(recipe); err == nil {
 		return file, nil
@@ -644,7 +644,7 @@ func (a *App) ensureRecipe(recipe string) (ShareFile, error) {
 		return file, err
 	}
 	a.InitRegistries()
-	if _, err := InitProject(filepath.Dir(recipe), InitOptions{Formats: a.FormatReg}); err != nil {
+	if _, err := InitProjectContext(ctx, filepath.Dir(recipe), InitOptions{Formats: a.FormatReg}); err != nil {
 		return file, err
 	}
 	file.Action = ShareFileCreated
@@ -807,7 +807,7 @@ func (a *App) connectBowrain(ctx context.Context, plugin *pluginhost.Plugin, req
 	// when the connect fails, and the folder is left as it was.
 	root := filepath.Dir(req.Project)
 	hadStateDir := holdsStateDir(root)
-	file, err := a.ensureRecipe(req.Project)
+	file, err := a.ensureRecipe(ctx, req.Project)
 	if err != nil {
 		return err
 	}

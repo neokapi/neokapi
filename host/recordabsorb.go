@@ -25,25 +25,19 @@ import (
 	"github.com/neokapi/neokapi/memory"
 )
 
-// The committed record is the other half of the rebuild AD-009 promises: the
-// content memory reconstructs from "the committed translations plus an optional
-// read-only seed", and a seed is only the accelerant. Compiling the seeds alone
-// leaves every pair that a venue approved after the seed was written living in
-// exactly one place — the per-locale target artifact in git — with nothing that
-// reads it back. The next convergence from a cold store then produces less than
-// the artifact it overwrites, and only a report shows it.
+// AD-009 rebuilds the content memory from "the committed translations plus an
+// optional read-only seed". A pair a venue approved after the seed was written
+// lives only in the per-locale target artifact in git, so the seeds alone would
+// let a cold-store convergence overwrite that artifact with less.
 //
-// So after the seeds compile, the target documents themselves are absorbed: each
-// committed target is paired with its source through the collection's own
-// binding — the same reader, the same format config — and the resulting
-// source→target pairs are written into the memory in one bulk transaction with
-// one index rebuild, the same write discipline the merge path uses.
-//
-// Digest-keyed like the seeds: a target whose bytes have not moved since it was
-// last absorbed costs two reads and no writes.
+// After the seeds compile, each committed target is paired with its source
+// through the collection's own binding (reader and format config). The pairs
+// are written in one bulk transaction with one index rebuild, as on the merge
+// path. Absorption is digest-keyed like the seeds: an unchanged target costs
+// two reads and no writes.
 
 // MetaRecordDigests is the store-metadata key holding the digest each committed
-// target artifact carried when its pairs were last absorbed — a JSON object of
+// target artifact carried when its pairs were last absorbed, a JSON object of
 // project-relative slash path to digest.
 const MetaRecordDigests = "context.recordDigests"
 
@@ -51,7 +45,7 @@ const MetaRecordDigests = "context.recordDigests"
 // absorber's own entries were last written under. A store written under an
 // older one is re-learned rather than migrated: everything the absorber taught
 // the corpus is, by construction, reproducible from the committed translations
-// it read — that IS what this file does — so re-reading them costs one pass and
+// it read, that IS what this file does, so re-reading them costs one pass and
 // carries no risk of a half-converted row.
 const MetaRecordScheme = "context.recordScheme"
 
@@ -77,7 +71,7 @@ type RecordAbsorbResult struct {
 	Learned    int `json:"learned,omitempty"`
 	Reconciled int `json:"reconciled,omitempty"`
 	// Refused counts pairs whose target does not carry its source's
-	// placeholders, in either spelling — an inline code the reader lifted out
+	// placeholders, in either spelling, an inline code the reader lifted out
 	// of the text, or an interpolation token left in it. Such a pair can only
 	// produce a translation with a hole in it, so it is not absorbed.
 	Refused int `json:"refused,omitempty"`
@@ -92,7 +86,7 @@ type RecordAbsorbResult struct {
 	// the committed target translates source wording that has since been
 	// rewritten, so it is not a translation of the sentence now beside it. Such
 	// a pair is absorbed against the source it actually translates when that
-	// wording is still recoverable, and otherwise not at all — never against the
+	// wording is still recoverable, and otherwise not at all, never against the
 	// source now sitting beside it.
 	Superseded int `json:"superseded,omitempty"`
 	// Skipped counts target artifacts already absorbed at their current digest.
@@ -157,11 +151,9 @@ func formatRecordLine(r RecordAbsorbResult) string {
 // formatContestedSources names the sources the record answers more than one
 // way: each answer, where it was approved, and which of them governs there.
 //
-// The count alone was unauditable. Both candidates are real translations a
-// reader approved, so no gate tells them apart on quality and no reader can
-// look at a number; what settles them is where each was approved, and that is
-// exactly what a person needs in front of them to agree with the settlement or
-// to go and change one of the two decisions.
+// Both candidates are approved translations, so no gate tells them apart on
+// quality. Where each was approved settles them. A person needs that place in
+// front of them to accept the settlement or to change one of the decisions.
 func formatContestedSources(sources []ContestedSource) string {
 	if len(sources) == 0 {
 		return ""
@@ -197,16 +189,16 @@ type recordUnit struct {
 	// root is the project root the unit's files are read through.
 	root                  string
 	sourcePath, sourceRel string
-	// scope is the document the source file IS — its durable key, or its path
-	// where the project holds none. sourceRel is its ADDRESS, which is what the
-	// block store places a block by; the two are the same string until a file
-	// is renamed, and telling them apart is the whole point of holding both.
+	// scope is the document the source file IS: its durable key, or its path
+	// where the project holds none. sourceRel is its ADDRESS, which the block
+	// store places a block by. The two are the same string until a file is
+	// renamed, which is why both are held.
 	scope                 string
 	targetPath, targetRel string
 	format                string
 	config                map[string]any
 	locale                model.LocaleID
-	// point is where the source document sits in the project's context space —
+	// point is where the source document sits in the project's context space,
 	// the product, the channel and the collection that claim it. It is the
 	// approval point of every pair this unit carries: a committed translation
 	// was reviewed where its document lives, and that is what qualifies it
@@ -236,8 +228,8 @@ type recordPair struct {
 	// what came before.
 	unit string
 	// answers is keyed by (point, target text): one point can answer a source
-	// twice — two keys of one catalog holding the same English and different
-	// Norwegian — and two points can give the same answer.
+	// twice, two keys of one catalog holding the same English and different
+	// Norwegian, and two points can give the same answer.
 	answers map[string]*recordAnswer
 	origin  memory.Origin
 }
@@ -247,7 +239,7 @@ type recordPair struct {
 func answerKey(point, text string) string { return point + "\x00" + text }
 
 // contested reports whether the record gives this source more than one answer.
-// Two points giving the SAME wording are not a disagreement — the pick does not
+// Two points giving the SAME wording are not a disagreement, the pick does not
 // matter, and splitting them would put a copy of one answer in the store per
 // collection that carries the string.
 func (p *recordPair) contested() bool {
@@ -277,7 +269,7 @@ func (p *recordPair) ordered() []*recordAnswer {
 }
 
 // points returns the distinct context points the record answered this source
-// at, in the order they were first seen — one entry per point is what lets a
+// at, in the order they were first seen, one entry per point is what lets a
 // contested source keep every approval instead of collapsing to one.
 func (p *recordPair) points() []string {
 	var out []string
@@ -340,7 +332,7 @@ type ContestedAnswer struct {
 	// (`profile/channel/collection`). Empty at the project's default point.
 	Point string `json:"point,omitempty"`
 	// Governs reports that this answer is the one the resolver hands back at
-	// its own point — false for an answer another approval outranks even there,
+	// its own point, false for an answer another approval outranks even there,
 	// which is what a genuine tie at one point looks like.
 	Governs bool `json:"governs,omitempty"`
 }
@@ -365,7 +357,7 @@ func displayPoint(point string) string {
 //
 // The digest stamp decides more than cost here: it decides who spoke last. An
 // artifact whose bytes have not moved since it was absorbed has already had its
-// say, and the store may legitimately have moved on since — a recompiled seed, a
+// say, and the store may legitimately have moved on since, a recompiled seed, a
 // venue pull, an approval. Re-asserting the unchanged artifact over that later
 // state would be the very erasure this reads the record to prevent. So a fresh
 // clone (no stamps at all) absorbs everything and the record supersedes the
@@ -381,7 +373,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 	tm := writer.Memory()
 	if tm == nil || a.FormatReg == nil {
 		// No content memory bound, or no format registry to read the documents
-		// with — the same posture the seed phase takes: nothing to project
+		// with, the same posture the seed phase takes: nothing to project
 		// into, and no stamp recorded, so the record absorbs the first time a
 		// store is there.
 		return res, nil
@@ -403,7 +395,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 	// The decisions the project holds, so a pair the record's own basis
 	// contradicts is not written into the memory as if it were a translation of
 	// the source beside it. A state store that cannot be read yields an empty
-	// index — no decisions, so no pair is contradicted — which is the same
+	// index, no decisions, so no pair is contradicted, which is the same
 	// posture every other reader of it takes.
 	reviewed, rerr := a.loadReviewedCorrections(ctx, proj, layout.Root)
 	if rerr != nil {
@@ -484,20 +476,16 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 			}
 			if !model.DiffRunCodes(srcRuns, tgtRuns).Balanced() ||
 				!coretools.PlaceholdersCarried(model.RunsText(srcRuns), model.RunsText(tgtRuns)) {
-				// The three-layer protection holds here too: an asymmetric pair
-				// is one side of which has already lost a placeholder, and
-				// recycle would refuse to fill from it anyway.
+				// The three-layer protection holds here too: one side of an
+				// asymmetric pair has already lost a placeholder, and recycle
+				// would refuse to fill from it anyway.
 				//
-				// Both spellings of a placeholder are asked about, because a
-				// surface carries them one way or the other and the committed
-				// record holds every surface. The JSX extraction lifts `{count}`
-				// into an inline code, which DiffRunCodes reads; a plain JSON or
-				// gettext catalog leaves it in the text, where only the text
-				// comparison can see it. Reading one and not the other is how a
-				// help string that gained `--target` documentation kept the
-				// translation of the sentence before it: the pair paired by
-				// scope, absorbed at full score against wording it does not
-				// translate, and recycle filled it back over itself every run.
+				// Both placeholder spellings are checked. JSX extraction lifts
+				// `{count}` into an inline code, which DiffRunCodes reads; a
+				// plain JSON or gettext catalog leaves it in the text, which
+				// only the text comparison sees. Checking only one would let a
+				// pair whose source gained a placeholder absorb at full score,
+				// and recycle would refill the stale translation every run.
 				res.Refused++
 				continue
 			}
@@ -554,7 +542,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 // Without it a convergence launders its own output back in: the targets it
 // materializes are, to the next run, artifacts it has never seen, so they read
 // as a statement from git and are absorbed over whatever the store recorded in
-// the meantime — a seed edit pulled since, an approval. What the loop wrote is
+// the meantime, a seed edit pulled since, an approval. What the loop wrote is
 // by definition already in the store; only a target that changed OUTSIDE the
 // loop carries anything new.
 //
@@ -590,16 +578,15 @@ func (a *App) stampCommittedRecord(ctx context.Context, proj *project.KapiProjec
 }
 
 // recordSettlement is the set of committed target artifacts the absorber has
-// already had its say about at the bytes they hold now — the ones the next pass
+// already had its say about at the bytes they hold now, the ones the next pass
 // stamps as skipped. It is read-only: the stamps and a digest, no store write.
 //
-// The plan needs it to read the content memory's silence. What a run spends a
-// provider call on is a unit the corpus does not answer, but the corpus is only
-// finished being taught once the absorber has read the artifacts: before that,
-// silence about a produced unit means "not asked yet", and pricing it would quote
-// a provider call for every translation the run is about to recycle. After it,
-// silence is the absorber's answer — a pairing it declined — and the pass will
-// draft the unit.
+// The plan needs it to read the content memory's silence. A run spends a
+// provider call on a unit the corpus does not answer. Before the absorber has
+// read the artifacts, silence about a produced unit means "not asked yet", and
+// pricing it would quote a provider call for every translation the run is
+// about to recycle. After it, silence means the absorber declined a pairing,
+// and the pass will draft the unit.
 //
 // Keyed by absolute target path, expanded exactly as recordUnits and
 // UnitsFromProject both expand it, so the two resolutions cannot drift apart.
@@ -650,7 +637,7 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *projector.Memory, pairs 
 	now := time.Now().UTC()
 	var write []memory.Entry
 	// One staged copy per entry id. An entry can be reached by two locales' pairs
-	// — the same source string, a target in each — and each read returns the
+	// the same source string, a target in each, and each read returns the
 	// store's PRE-RUN state. Appending both would write two copies whose locale
 	// sets disagree, and since a write replaces variants per locale, the second
 	// would put the first locale back the way it was. Correcting one staged copy
@@ -677,7 +664,7 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *projector.Memory, pairs 
 		}
 
 		// The ordinary case: the record answers this source one way, wherever it
-		// asked. One entry, bound to no point, exactly as before — an answer
+		// asked. One entry, bound to no point, exactly as before, an answer
 		// every point agrees on is not a decision about a place, and giving it
 		// one would put a copy of it in the store per collection that carries
 		// the string.
@@ -700,7 +687,7 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *projector.Memory, pairs 
 				// record is the later, reviewed answer, so the entry is
 				// corrected to it rather than left to compete. Left competing,
 				// the ambiguity rule (AD-009) would demote both and a full-score
-				// fill policy would take neither — the disagreement would cost
+				// fill policy would take neither, the disagreement would cost
 				// the translation instead of resolving it.
 				s, fresh := stage(e)
 				s.Variants[p.locale] = win.runs
@@ -758,7 +745,7 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *projector.Memory, pairs 
 		// translation a reader approved, so none of them can be discarded and no
 		// gate can tell them apart on quality; what tells them apart is where
 		// each was approved. So each point keeps an entry of its own, and the
-		// fill resolves between them by asking from where it is — instead of the
+		// fill resolves between them by asking from where it is, instead of the
 		// whole project being handed whichever spelling the corpus repeats most.
 		res.Contested++
 		res.ContestedSources = append(res.ContestedSources, p.listContested())
@@ -805,11 +792,11 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *projector.Memory, pairs 
 			}
 		}
 
-		// Every other entry the store answers this source with — a seed, an
-		// import, an approval promoted by `kapi apply` — is corrected to the
-		// answer that governs at ITS point rather than to a project-wide winner,
-		// so an entry bound to no location does not carry one collection's
-		// wording into every reader that finds it first.
+		// Every other entry the store answers this source with (a seed, an
+		// import, an approval promoted by `kapi apply`) is corrected to the
+		// answer that governs at ITS point. A project-wide winner would let an
+		// entry bound to no location carry one collection's wording into every
+		// reader that finds it first.
 		for _, e := range existing {
 			if written[e.ID] || !e.HasLocale(p.locale) {
 				continue
@@ -855,45 +842,25 @@ func supersededSource(
 	b *model.Block, u recordUnit, e reviewedEntry, basis basisVerdict,
 	srcRuns, tgtRuns []model.Run, prior *priorSourceIndex, corpus *memoryAnswers,
 ) (blessed []model.Run, superseded bool, err error) {
-	// The record's own basis contradicts the adjacency: it names source wording
-	// that is gone, and the translation it names is still on disk. Recovering
-	// that wording by the basis is verified by construction — a block whose
-	// revision IS the basis is the pairing the record was made against,
-	// reconstructed rather than guessed at. A record written before revisions
-	// names the basis by hash, and is recovered by it. The recovered wording is
-	// the text at the basis revision, which is what the content memory then
-	// pairs the translation with, and what a later lookup classifies the
-	// source in hand against (edit.Classify).
-	//
-	// A decision and a basis the loop recorded for a target it wrote answer here
-	// alike, which is what lets a source rewrite under an undecided translation
-	// be caught where the block store cannot help: on a fresh clone the prior
-	// wording is unrecoverable, so nothing is written for the pair at all, and
-	// the loop re-drafts against the source the project now has.
-	//
-	// Scoped to the record's other half still holding. Once the target has moved
-	// on too — the loop re-drafted it, or a person rewrote it — the record
-	// describes neither side of what is on disk, and the pair is absorbed as the
-	// fresh pairing it is. That is also what keeps the re-draft from repeating:
-	// the next run learns the fresh draft and recycles it rather than paying to
-	// produce it again.
+	// The record's basis names source wording that is gone, while its
+	// translation is still on disk. The block whose revision (or, for an older
+	// record, hash) IS the basis gives that wording exactly; the memory pairs
+	// the translation with it (edit.Classify). Decisions and loop-recorded
+	// bases are handled alike. On a fresh clone the wording is unrecoverable,
+	// so no pair is written and the loop re-drafts. Once the target has also
+	// changed, the pair is absorbed as a fresh pairing.
 	if basis == basisStale && e.blessesTarget(b, u.locale) {
 		runs, _ := prior.runsFor(e.basis, e.contentHash, b)
 		return runs, true, nil
 	}
 
-	// No decision, or one that no longer describes either half. The block store
-	// still holds the source this unit had when the pass last read the working
-	// tree, and the committed target was produced against THAT. A unit whose
-	// source has moved since is mispaired in every locale, decided or not.
+	// No usable decision. The block store still holds the source this unit had
+	// at the last pass, which the committed target was produced against; a
+	// unit whose source has moved since is mispaired in every locale.
 	//
-	// Scoped the same way the basis is, and by the same evidence: the corpus
-	// already answering the prior wording with exactly this target is what says
-	// the target has not moved with the source — it is the loop's own last
-	// output for the sentence that is gone. A target rewritten alongside its
-	// source answers nothing, and is absorbed as the fresh pairing it is, so a
-	// person who edits both halves together is not made to re-review their own
-	// work.
+	// The same scope applies: the target is stale only when the corpus answers
+	// the prior wording with exactly this target. A target rewritten alongside
+	// its source is absorbed as a fresh pairing.
 	runs, ok := prior.runsForUnit(u.sourceRel, b.ID)
 	if !ok || model.RunsText(runs) == model.RunsText(srcRuns) {
 		return nil, false, nil
@@ -911,17 +878,14 @@ func supersededSource(
 // for a decision recorded before revisions, its hash (state.SourceHash of a
 // block's source text), and by the unit the block store keys the source under.
 //
-// The store is the only carrier of that wording: a decision keeps the basis,
-// not the sentence, and an undecided unit keeps nothing at all. It holds
-// it because the absorber runs BEFORE the pass re-extracts the working tree, so
-// at this moment the store still describes the project as it was when the
-// committed targets were last produced.
+// The store alone carries that wording: a decision keeps only the basis, and
+// an undecided unit keeps nothing. The absorber runs BEFORE the pass
+// re-extracts the working tree, so the store still describes the project as
+// it was when the committed targets were last produced.
 //
-// The scan is deferred until something actually asks, and asked once for the
-// run. Only a document the digest stamp did not skip puts the question at all,
-// and reading that document's source and target back through their format
-// readers — which the absorber has already done by then — costs more than the
-// scan does.
+// The scan runs once per run, on the first question. Only a document the
+// digest stamp did not skip asks one, and the absorber has already read that
+// document through its format readers, which costs more than the scan.
 type priorSourceIndex struct {
 	ctx    context.Context
 	store  blockstore.Store
@@ -945,14 +909,14 @@ func newPriorSourceIndex(ctx context.Context, store blockstore.Store, source mod
 // runsFor returns the source runs at the basis a record names for b: by its
 // revision where it names one, and by its hash where it was recorded before
 // revisions. A revision covers the key it was taken under, and the readers of
-// one document file its source under different keys (model.Block.SourceRevisions),
-// so a revision is looked up under each: the project's source language, no
-// language, and the language b's reader declared. A revision found under none
-// of them names content the store no longer holds, and its text hash would
-// recover another source with the same words and other inline codes, so ok is
-// false. ok is also false when the store cannot supply the runs (nothing
-// extracted yet, a build with no block store, or a store already re-read past
-// the edit).
+// one document file its source under different keys
+// (model.Block.SourceRevisions). A revision is therefore looked up under each:
+// the project's source language, no language, and the language b's reader
+// declared. A revision found under none of them names content the store no
+// longer holds. Its text hash could recover another source with the same words
+// and other inline codes, so ok is false. ok is also false when the store
+// cannot supply the runs (nothing extracted yet, a build with no block store,
+// or a store already re-read past the edit).
 func (p *priorSourceIndex) runsFor(rev, hash string, b *model.Block) ([]model.Run, bool) {
 	if rev == "" && hash == "" {
 		return nil, false
@@ -991,7 +955,7 @@ func (p *priorSourceIndex) indexUnder(k model.EditionKey) {
 }
 
 // runsForUnit returns the source runs the store holds for one unit of one source
-// document — the wording that unit had when the working tree was last read.
+// document, the wording that unit had when the working tree was last read.
 func (p *priorSourceIndex) runsForUnit(sourceRel, id string) ([]model.Run, bool) {
 	if sourceRel == "" || id == "" {
 		return nil, false
@@ -1003,7 +967,7 @@ func (p *priorSourceIndex) runsForUnit(sourceRel, id string) ([]model.Run, bool)
 
 // priorUnitKey is the identity the block store places a block by: the source
 // document it was extracted from and its in-file id. It is what
-// project.BlockStoreHash keys a stored block on, minus the source text — which
+// project.BlockStoreHash keys a stored block on, minus the source text, which
 // is exactly the part a rewrite moves.
 func priorUnitKey(sourceRel, id string) string { return sourceRel + "\x00" + id }
 
@@ -1020,7 +984,7 @@ func (p *priorSourceIndex) load() {
 // runs by hash and by unit, keeping each for the revision index. Autocommit,
 // not the session-transactional store: this is a read beside the run's own
 // writes, and holding the write permit for the length of a full scan would
-// stall them. Any failure yields empty indexes — the caller then absorbs no
+// stall them. Any failure yields empty indexes, the caller then absorbs no
 // differently than it did before the store existed, rather than acting on half
 // a scan.
 func (p *priorSourceIndex) scan() (sources [][]model.Run, byHash, byUnit map[string][]model.Run) {
@@ -1059,7 +1023,7 @@ func (p *priorSourceIndex) scan() (sources [][]model.Run, byHash, byUnit map[str
 // memoryAnswers asks the content memory the question `recycle` asks: for this
 // source, in this locale, does the corpus already give exactly this translation?
 //
-// It reads the store's PRE-RUN state, which is the point — an absorbing pass
+// It reads the store's PRE-RUN state, which is the point, an absorbing pass
 // stages its writes and flushes them at the end, so what this sees is what the
 // previous run left, not what this one is about to assert.
 //
@@ -1113,22 +1077,14 @@ func withRecordOrigin(origins []memory.Origin, origin memory.Origin, now time.Ti
 // approved says the project's committed record holds an approval for this unit
 // in this locale, with both halves of what it blessed still on disk.
 //
-// A target identical to its source is not a pair unless a person decided it is.
-// Unapproved, the identity is far more often a catalog carrying its untranslated
-// leaves verbatim than a translation that happens to coincide, and absorbing one
-// is worse than absorbing nothing: it teaches the memory nothing an unfilled
-// target would not produce anyway, it competes at full score with the real
-// translation another surface gives the same string, and — since the convergence
-// flow skips what recycle matched — it would fill the unit with its own source
-// and take it away from the AI step for good, freezing an untranslated leaf as
-// translated.
+// A target identical to its source is a pair only when a person approved it.
+// Unapproved, the identity is usually an untranslated catalog leaf. Absorbing
+// it would compete at full score with real translations, and since the flow
+// skips what recycle matched, it would freeze the leaf untranslated.
 //
-// Approved, all three arguments fall away. The record is not guessing at what
-// the identity means: a person read the pairing and said this wording is right,
-// which is what proper nouns, product names and short labels look like when they
-// are correct. Dropping it re-drafted them on every pass and overwrote the
-// approval bound to each — the automated pass discarding the decision the unit
-// ledger exists to keep.
+// Approved, the identity is a person's decision that the wording is right, as
+// it is for proper nouns, product names and short labels. Keeping the pair
+// stops each pass from re-drafting the unit and overwriting its approval.
 func recordRuns(b *model.Block, locale model.LocaleID, approved bool) (src, tgt []model.Run, keep bool) {
 	if !b.Translatable {
 		return nil, nil, false
@@ -1169,7 +1125,7 @@ func (a *App) pairedRecordBlocks(ctx context.Context, u recordUnit, sourceLocale
 }
 
 // recordUnits enumerates the (source, target, locale) triples whose target the
-// recipe names — the same resolution `kapi up` writes through, so the absorber
+// recipe names, the same resolution `kapi up` writes through, so the absorber
 // reads back exactly where the loop writes.
 func recordUnits(ctx context.Context, a *App, proj *project.KapiProject, pctx *project.ProjectContext, root string) ([]recordUnit, error) {
 	resolved, err := pctx.ResolveContent(a.FormatReg)
@@ -1285,7 +1241,7 @@ func recordKey(locale model.LocaleID, runs []model.Run) string {
 }
 
 // recordEntryPrefix marks an id the record absorber minted, and nothing else
-// does — which is what lets a pass tell what it taught the corpus from what the
+// does, which is what lets a pass tell what it taught the corpus from what the
 // corpus was taught elsewhere.
 const recordEntryPrefix = "record:"
 
@@ -1312,18 +1268,15 @@ func recordEntryID(sourceKey, point string) string {
 // under the identity in force, because the store was last written under an
 // older one.
 //
-// The rows it may have to drop are the ids the absorber mints, and nobody else
-// does. What the corpus learned elsewhere is not the record's to forget: a
-// seed, an import and an approval are corrected the way they always were.
+// It drops only ids the absorber mints. Seeds, imports and approvals are
+// corrected through the usual path.
 //
-// The drop happens AFTER the pass rather than before it. A row the current
-// identity still mints is re-asserted by the pass and stays exactly as it is,
-// which is what lets an entry a context bundle carried keep the instants it
-// arrived with; only the rows the pass did not reach are swept. Left in place,
-// an entry keyed on its source alone would sit beside the point-keyed ones as a
-// rival answer bound to no location, competing at full score with the approvals
-// that actually govern and demoting them for every reader who cannot say where
-// they are asking from.
+// The drop runs AFTER the pass. A row the current identity still mints is
+// re-asserted unchanged, so an entry a context bundle carried keeps the
+// instants it arrived with; only rows the pass did not reach are swept. An
+// entry keyed on its source alone would otherwise remain as a rival answer
+// bound to no location, competing at full score with the governing approvals
+// for every reader that cannot name its point.
 type recordRelearn struct {
 	// stale is the absorber's entry ids as the store held them before the pass.
 	// Nil for a store already under the current identity, which is every pass
@@ -1411,7 +1364,7 @@ func recordEntryHolds(e memory.Entry, point string, locale model.LocaleID, text 
 }
 
 // loadRecordDigests reads the per-artifact absorb stamps. Any uncertainty
-// yields an empty map, so every artifact reads as needing an absorb — the safe
+// yields an empty map, so every artifact reads as needing an absorb, the safe
 // direction, since absorbing again is idempotent while skipping leaves the store
 // behind git.
 func loadRecordDigests(ctx context.Context, db *projectdb.DB) map[string]string {

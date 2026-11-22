@@ -4,7 +4,7 @@
 // to ICU4X running as a companion WebAssembly module on the host page. Go's wasm
 // target has no cgo, so the cgo ICU `uax29` engine is absent in the browser and
 // the only in-binary segmenter is the pure-Go SRX engine. This package fills the
-// gap by calling out — via syscall/js — to ICU4X (the Unicode Consortium's Rust
+// gap by calling out, via syscall/js, to ICU4X (the Unicode Consortium's Rust
 // reimplementation of ICU, shipped to JS/WASM through its official `icu` npm
 // package). It registers under the name "uax29" so the same `engine: uax29`
 // selection works in the browser as on native, letting the segmentation lab
@@ -15,7 +15,7 @@
 //	globalThis.kapiICU4XSentenceBreaks(text: string, locale: string) => number[]
 //
 // or a Promise of that array, returning the INTERIOR sentence-break offsets as Unicode code-point (rune)
-// indices into text — excluding 0 and text length, ascending. The JS glue that
+// indices into text, excluding 0 and text length, ascending. The JS glue that
 // wraps ICU4X's SentenceSegmenter is responsible for converting ICU4X's offsets
 // to code-point indices (JS strings are UTF-16; Go spans are rune-indexed). When
 // the function is absent (ICU4X not loaded) Segment returns a clear error rather
@@ -53,8 +53,8 @@ func init() {
 		},
 	})
 	// Also expose ICU4X as the base breaker, so the SRX engine can run Okapi's
-	// useIcu4jBreakRules hybrid (ICU base + SRX exceptions) in the browser — the
-	// same composition that runs natively over cgo ICU. When ICU4X isn't loaded
+	// useIcu4jBreakRules hybrid (ICU base + SRX exceptions) in the browser. It is
+	// the same composition that runs natively over cgo ICU. When ICU4X isn't loaded
 	// the breaker errors and the SRX engine falls back to pure-rule.
 	segment.RegisterBaseBreaker(icu4xBaseBreaker{})
 }
@@ -89,7 +89,7 @@ func interiorBreaks(ctx context.Context, res js.Value, n int) ([]int, error) {
 	}
 	count := res.Length()
 	breaks := make([]int, 0, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		off := res.Index(i).Int()
 		if off > 0 && off < n {
 			breaks = append(breaks, off)
@@ -141,8 +141,8 @@ type engine struct {
 func (e *engine) Layer() string { return segment.LayerSentence }
 
 // Segment flattens the runs, asks the host ICU4X bridge for the interior
-// sentence breaks over the masked text, and projects them to run-anchored spans
-// — mirroring the native uax29/srx engines, which also operate over the same
+// sentence breaks over the masked text, and projects them to run-anchored spans.
+// This mirrors the native uax29/srx engines, which also operate over the same
 // flattened rune text and call [segment.Flattened.Spans].
 func (e *engine) Segment(ctx context.Context, runs []model.Run, loc model.LocaleID) ([]model.Span, error) {
 	if err := ctx.Err(); err != nil {
