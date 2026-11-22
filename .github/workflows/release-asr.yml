@@ -179,8 +179,13 @@ jobs:
           git clone --branch "${WHISPER_CPP_VERSION}" --depth 1 https://github.com/ggml-org/whisper.cpp "$RUNNER_TEMP/wsrc"
           head="$(git -C "$RUNNER_TEMP/wsrc" rev-parse HEAD)"
           [ "$head" = "$WHISPER_CPP_COMMIT" ] || { echo "::error::whisper.cpp ${WHISPER_CPP_VERSION} cloned at ${head}, expected ${WHISPER_CPP_COMMIT}"; exit 1; }
+          # whisper.cpp v1.9.5's examples/common.cpp calls std::partial_sort
+          # without including <algorithm>, and the CLANGARM64 libc++ does not
+          # pull it in through another header. Upstream added the include after
+          # v1.9.5 (it is in b5907); drop -include once the pin is past it.
           cmake -S "$RUNNER_TEMP/wsrc" -B "$RUNNER_TEMP/wbuild" -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DGGML_NATIVE=OFF
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DGGML_NATIVE=OFF \
+            -DCMAKE_CXX_FLAGS="-include algorithm"
           cmake --build "$RUNNER_TEMP/wbuild" --target whisper-cli
           out="$RUNNER_TEMP/wdir"; mkdir -p "$out"
           cp "$(find "$RUNNER_TEMP/wbuild" -name 'whisper-cli.exe' | head -n1)" "$out/"
