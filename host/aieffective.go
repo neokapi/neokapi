@@ -1,6 +1,7 @@
 package host
 
 import (
+	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -11,16 +12,14 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	appconfig "github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/credentials"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
-// Which provider and model an AI step will actually use is decided by a layered
-// merge (`buildFlowTools` → `applyBindings` → the tool registry's config
-// preprocessor → the tool's own fallback). That is the right place to *apply*
-// the precedence, but it means the answer only exists once a run is under way —
-// so a surface that wants to *tell* the user what is configured has, until now,
-// had to re-derive it, and every re-derivation was a chance to disagree with the
-// run.
+// A layered merge decides which provider and model an AI step uses:
+// `buildFlowTools` → `applyBindings` → the tool registry's config
+// preprocessor → the tool's own fallback. The merge applies the precedence
+// during a run, so its answer exists only once a run is under way.
 //
 // EffectiveAIModel states the same precedence once, as a query. Both the CLI and
 // Kapi Desktop read it to display the active provider/model, so what the UI
@@ -30,15 +29,15 @@ import (
 type AIModelOrigin string
 
 const (
-	// AIModelFromLocalePreset — `defaults.locales.<lang>.tools.<tool>` in the recipe.
+	// AIModelFromLocalePreset is `defaults.locales.<lang>.tools.<tool>` in the recipe.
 	AIModelFromLocalePreset AIModelOrigin = "locale-preset"
-	// AIModelFromProjectPreset — `defaults.tools.<tool>` in the recipe.
+	// AIModelFromProjectPreset is `defaults.tools.<tool>` in the recipe.
 	AIModelFromProjectPreset AIModelOrigin = "project-preset"
-	// AIModelFromAppConfig — the stored `ai.provider` / `ai.model` (the file at
+	// AIModelFromAppConfig is the stored `ai.provider` / `ai.model` (the file at
 	// config.GlobalConfigFilePath, or the KAPI_AI_* environment overrides), which
 	// is what `kapi models setup` and `kapi models default` write.
 	AIModelFromAppConfig AIModelOrigin = "app-config"
-	// AIModelFromBuiltIn — nothing configured; the tool's own default applies.
+	// AIModelFromBuiltIn means nothing is configured; the tool's own default applies.
 	AIModelFromBuiltIn AIModelOrigin = "built-in"
 )
 
@@ -55,7 +54,7 @@ type AIModelResolution struct {
 	// default").
 	ProviderOrigin AIModelOrigin `json:"provider_origin"`
 	ModelOrigin    AIModelOrigin `json:"model_origin"`
-	// Configured is false when neither half is configured anywhere — the
+	// Configured is false when neither half is configured anywhere: the
 	// built-in fallback is carrying the run, which is worth surfacing rather
 	// than presenting as a deliberate choice.
 	Configured bool `json:"configured"`
@@ -83,8 +82,8 @@ func EffectiveAIModel(
 		ModelOrigin:    AIModelFromBuiltIn,
 	}
 
-	// Lowest configured layer first, so each higher layer simply overwrites and
-	// records itself — the precedence reads top-to-bottom in one direction.
+	// Lowest configured layer first, so each higher layer overwrites and
+	// records itself, and the precedence reads top-to-bottom in one direction.
 	//
 	// The app-config layer comes from appconfig.ResolveAIDefault, not from reading
 	// ai.provider / ai.model here: this query and the run must agree about what is
@@ -143,8 +142,13 @@ func presetString(preset map[string]any, key string) string {
 	return strings.TrimSpace(s)
 }
 
-// ProjectFlowNeedsAISetup reports whether a step needs a provider choice after
-// applying the recipe and locale presets. An empty flow name selects convergence.
+// ProjectFlowNeedsAISetup reports whether running a flow needs the person to
+// set up an AI model first: some AI step, after the recipe and locale presets
+// and the stored default apply, has a provider whose credentials do not
+// resolve. A step on a keyless provider, or on a provider with a usable
+// credential (inline, named, in the environment or the single saved match),
+// needs nothing. An empty flow name selects convergence. The CLI (`kapi up`)
+// and Kapi Desktop both ask this function, so they prompt in the same cases.
 func (a *App) ProjectFlowNeedsAISetup(proj *project.KapiProject, projectPath, flowName string) (bool, error) {
 	if proj == nil {
 		return false, nil
@@ -184,11 +188,26 @@ func (a *App) ProjectFlowNeedsAISetup(proj *project.KapiProject, projectPath, fl
 		for _, locale := range locales {
 			cfg := a.applyBindingsFor(bindings, step.Tool, a.ToolReg.Schema(name), step.Config, string(locale))
 			info := a.ToolReg.ResolveToolInfo(name, cfg)
-			if info != nil && slices.Contains(info.Requires, schema.RequiresCredentials) &&
-				presetString(cfg, "provider") == "" && presetString(cfg, "credential") == "" && presetString(cfg, "api_key") == "" {
+			if info == nil || !slices.Contains(info.Requires, schema.RequiresCredentials) {
+				continue
+			}
+			if !a.stepCredentialsResolve(string(name), info.Requires, cfg) {
 				return true, nil
 			}
 		}
 	}
 	return false, nil
+}
+
+// stepCredentialsResolve reports whether an AI step's credentials resolve the
+// way the run resolves them: the stored ai.provider/ai.model default fills a
+// step that names no provider (appconfig.ApplyAIToolDefaults), then
+// credentials.CredentialsResolvable applies the order of
+// credentials.ResolveCredentials. A keyless provider (demo, ollama,
+// claude-code) always resolves. Nothing is read from the keychain.
+func (a *App) stepCredentialsResolve(toolName string, requires []string, cfg map[string]any) bool {
+	// ApplyAIToolDefaults writes into the map it is given, and cfg can be the
+	// recipe's own step config.
+	cfg = appconfig.ApplyAIToolDefaults(a.Config, toolName, requires, maps.Clone(cfg))
+	return credentials.CredentialsResolvable(a.Credentials, toolName, requires, cfg)
 }

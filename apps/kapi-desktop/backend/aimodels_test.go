@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/credentials/providerenv"
 	"github.com/neokapi/neokapi/core/project"
 	appconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/host/credentials"
@@ -78,6 +79,14 @@ func TestListAIModels_IncludesRecommendedAndMarksDefault(t *testing.T) {
 
 func TestConvergenceModelChoiceUsesResolvedRecipe(t *testing.T) {
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	// A provider key in the developer's environment resolves credentials, and
+	// so would answer the question before the recipe does.
+	for _, names := range providerenv.Vars {
+		for _, n := range names {
+			t.Setenv(n, "")
+		}
+	}
+	t.Setenv("KAPI_AI_PROVIDER", "")
 	app := NewApp()
 	tab, _ := newConvergenceProject(t, app)
 	proj := app.getOpenProject(tab.ID).Project

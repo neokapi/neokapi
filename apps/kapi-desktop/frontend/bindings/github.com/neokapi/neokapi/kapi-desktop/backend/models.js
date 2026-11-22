@@ -410,7 +410,7 @@ export class AIModelOption {
         if (/** @type {any} */(false)) {
             /**
              * Subscription is true when the model runs on a personal subscription via
-             * a detected keyless provider (claude-code) — no API key, no metered cost.
+             * a detected keyless provider (claude-code), with no API key and no metered cost.
              * @member
              * @type {boolean | undefined}
              */
@@ -4921,7 +4921,7 @@ export class DeeperLookModelDTO {
 
 /**
  * DefaultModelInfo is the configured default AI model and the provider it
- * implies — the shared ai.provider/ai.model convention both kapi surfaces read.
+ * implies: the shared ai.provider/ai.model convention both kapi surfaces read.
  */
 export class DefaultModelInfo {
     /**

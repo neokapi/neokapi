@@ -46,24 +46,24 @@ export const AIModelOrigin = {
     $zero: "",
 
     /**
-     * AIModelFromLocalePreset — `defaults.locales.<lang>.tools.<tool>` in the recipe.
+     * AIModelFromLocalePreset is `defaults.locales.<lang>.tools.<tool>` in the recipe.
      */
     AIModelFromLocalePreset: "locale-preset",
 
     /**
-     * AIModelFromProjectPreset — `defaults.tools.<tool>` in the recipe.
+     * AIModelFromProjectPreset is `defaults.tools.<tool>` in the recipe.
      */
     AIModelFromProjectPreset: "project-preset",
 
     /**
-     * AIModelFromAppConfig — the stored `ai.provider` / `ai.model` (the file at
+     * AIModelFromAppConfig is the stored `ai.provider` / `ai.model` (the file at
      * config.GlobalConfigFilePath, or the KAPI_AI_* environment overrides), which
      * is what `kapi models setup` and `kapi models default` write.
      */
     AIModelFromAppConfig: "app-config",
 
     /**
-     * AIModelFromBuiltIn — nothing configured; the tool's own default applies.
+     * AIModelFromBuiltIn means nothing is configured; the tool's own default applies.
      */
     AIModelFromBuiltIn: "built-in",
 };
@@ -114,7 +114,7 @@ export class AIModelResolution {
         }
         if (!("configured" in $$source)) {
             /**
-             * Configured is false when neither half is configured anywhere — the
+             * Configured is false when neither half is configured anywhere: the
              * built-in fallback is carrying the run, which is worth surfacing rather
              * than presenting as a deliberate choice.
              * @member
