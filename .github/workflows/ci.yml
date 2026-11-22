@@ -327,6 +327,9 @@ jobs:
       - name: Materialize the Kapi Desktop embeds
         run: make kapi-desktop-lint-deps
 
+      # One restore of golangci-lint's cache for every module this job lints.
+      - uses: ./.github/actions/golangci-cache
+
       - name: Lint Kapi Desktop
         uses: ./.github/actions/golangci
         with:
@@ -937,15 +940,42 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      # setup-go's own cache, keyed on the Go version and the root go.sum. A
-      # pull request restores the entry a push to main saved under that key
-      # and, on that exact hit, saves nothing. The shared setup-go-modules
-      # action primes the go.work modules, which these are outside, and its
-      # setup costs more than this whole job. Each recipe runs GOWORK=off in
-      # its own module.
+      # Not setup-go-modules: that action primes the go.work modules, which
+      # these are outside, and its setup costs more than this whole job. Each
+      # recipe runs GOWORK=off in its own module.
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
+          cache: false
+      - name: Resolve the Go cache paths
+        id: gocache
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+      # Keyed on the plugin modules' own go.sum files, which decide what this
+      # job downloads and builds. A push to main saves it; a pull request only
+      # restores, so one that changes a plugin's go.sum falls back to main's
+      # latest entry and saves nothing of its own.
+      - name: Restore the plugin build and module cache
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ steps.gocache.outputs.build }}
+            ${{ steps.gocache.outputs.mod }}
+          key: go-plugins-${{ runner.os }}-go1.27.4-${{ hashFiles('plugins/*/go.sum') }}
+          restore-keys: |
+            go-plugins-${{ runner.os }}-go1.27.4-
+      - name: Restore and save the plugin build and module cache
+        if: github.event_name != 'pull_request'
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ steps.gocache.outputs.build }}
+            ${{ steps.gocache.outputs.mod }}
+          key: go-plugins-${{ runner.os }}-go1.27.4-${{ hashFiles('plugins/*/go.sum') }}
+          restore-keys: |
+            go-plugins-${{ runner.os }}-go1.27.4-
       - name: Test the pure-Go plugin modules
         run: make test-plugins
   # ── The //go:build integration lane ───────────────────────────────────────
@@ -1158,6 +1188,9 @@ jobs:
           save-cache: "false"
           modules: ". host cli kapi scripts/gen-refs scripts/gen-contract-types scripts/proseprobe"
 
+      # One restore of golangci-lint's cache for every module this job lints.
+      - uses: ./.github/actions/golangci-cache
+
       - name: Lint framework
         uses: ./.github/actions/golangci
         with:
@@ -1221,6 +1254,9 @@ jobs:
           cache-flavor: pr
           save-cache: "false"
           modules: "bowrain/core bowrain"
+
+      # One restore of golangci-lint's cache for every module this job lints.
+      - uses: ./.github/actions/golangci-cache
 
       - name: Lint platform
         uses: ./.github/actions/golangci
@@ -1357,6 +1393,8 @@ jobs:
         run: python3 scripts/check-test-scripts.py --self-test && python3 scripts/check-test-scripts.py
       - name: "Guard: every Go command in make, scripts and CI builds with -trimpath"
         run: python3 scripts/check-go-trimpath.py --self-test && python3 scripts/check-go-trimpath.py
+      - name: "Guard: every declared macOS minimum agrees with what Go builds for"
+        run: ./scripts/check-macos-minimum.sh --self-test && ./scripts/check-macos-minimum.sh
       - name: "Guard: the commit gate hook passes its self-test"
         run: ./.claude/hooks/commit-gate.sh --self-test
       - name: "Guard: the build cache warmer passes its self-test"

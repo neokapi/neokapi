@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T12:42:48Z",
+  "generatedAt": "2026-11-22T15:02:55Z",
   "commands": [
     {
       "id": "add",
@@ -6545,7 +6545,8 @@
         {
           "name": "source-locale",
           "shorthand": "s",
-          "usage": "source locale (default: the project's source_language in the project's own store, else en)",
+          "usage": "source locale",
+          "default": "en",
           "type": "string"
         },
         {
@@ -6617,7 +6618,8 @@
         {
           "name": "source-locale",
           "shorthand": "s",
-          "usage": "source locale (default: the project's source_language in the project's own store, else en)",
+          "usage": "source locale",
+          "default": "en",
           "type": "string"
         },
         {
@@ -7696,12 +7698,6 @@
           "type": "string"
         },
         {
-          "name": "stats",
-          "usage": "include part/block counts in output",
-          "default": "false",
-          "type": "bool"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
@@ -8175,12 +8171,6 @@
           "name": "source-lang",
           "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
-        },
-        {
-          "name": "stats",
-          "usage": "include part/block counts in output",
-          "default": "false",
-          "type": "bool"
         },
         {
           "name": "strict",
@@ -8751,7 +8741,8 @@
         {
           "name": "source-locale",
           "shorthand": "s",
-          "usage": "source locale for CSV and TBX export (default: the project's source_language in the project's own store, else en)",
+          "usage": "source locale for CSV export",
+          "default": "en",
           "type": "string"
         },
         {
@@ -8833,7 +8824,8 @@
         {
           "name": "source-locale",
           "shorthand": "s",
-          "usage": "source locale for CSV import (default: the project's source_language in the project's own store, else en)",
+          "usage": "source locale for CSV import",
+          "default": "en",
           "type": "string"
         },
         {
@@ -9344,12 +9336,6 @@
           "type": "string"
         },
         {
-          "name": "stats",
-          "usage": "include part/block counts in output",
-          "default": "false",
-          "type": "bool"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
@@ -9555,13 +9541,6 @@
           "type": "string"
         },
         {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "number of files to process at once (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
           "name": "context",
           "usage": "what the model is told about a block besides the block: none, key (default), neighbours",
           "type": "string"
@@ -9578,17 +9557,6 @@
           "type": "string"
         },
         {
-          "name": "engine",
-          "usage": "format engine for detected files: native or a plugin name (default: native, then plugins)",
-          "type": "string"
-        },
-        {
-          "name": "explain",
-          "usage": "print the resolved source → sink bindings and exit without running",
-          "default": "false",
-          "type": "bool"
-        },
-        {
           "name": "fail-on-incomplete-watch",
           "usage": "server venue: fail when the run's event stream ends before the run does, instead of reporting it and pulling what landed",
           "default": "false",
@@ -9599,19 +9567,6 @@
           "usage": "exit with error if any file cannot be processed (default: skip with a warning)",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "input",
-          "shorthand": "i",
-          "usage": "input file path(s); repeat for multiple files",
-          "default": "[]",
-          "type": "stringSlice"
         },
         {
           "name": "instruction",
@@ -9665,24 +9620,6 @@
           "type": "bool"
         },
         {
-          "name": "output",
-          "shorthand": "o",
-          "usage": "output path or template (e.g. ./out/{name}_{lang}.{ext})",
-          "type": "string"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
           "name": "passes",
           "usage": "maximum reconciliation passes (0 = loop until up to date or waiting for review, capped at 5; 1 = single pass)",
           "default": "0",
@@ -9731,26 +9668,10 @@
           "type": "bool"
         },
         {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
-          "type": "string"
-        },
-        {
-          "name": "stats",
-          "usage": "include part/block counts in output",
-          "default": "false",
-          "type": "bool"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE); one per run",
-          "type": "string"
         },
         {
           "name": "termstore",

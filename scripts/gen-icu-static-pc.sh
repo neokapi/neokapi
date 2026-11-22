@@ -6,8 +6,8 @@
 # ---------------
 # The release binaries (kapi/kapi-bowrain CLIs and the Wails desktop apps) are
 # all cgo, and the framework links ICU through `#cgo pkg-config: icu-uc icu-i18n`
-# (the FTS5 ICU tokenizer in core/storage and the UAX-29 segmenter in
-# core/segment/uax29). Stock icu-uc.pc / icu-i18n.pc emit `-licui18n -licuuc`,
+# in one package, core/internal/icu (the FTS5 ICU tokenizer and the UAX-29
+# sentence break iterator). Stock icu-uc.pc / icu-i18n.pc emit `-licui18n -licuuc`,
 # which the linker resolves to a shared library, which is fatal for a distributable:
 #   * macOS: a notarized .app/binary aborts in dyld at launch because Homebrew's
 #     icu dylib is absent on users' machines and, when present, has a different

@@ -311,7 +311,7 @@ plain JSON, so it reviews line by line in a diff. --locales does not apply.`,
 			localesRaw, _ := cmd.Flags().GetString("locales")
 			format, _ := cmd.Flags().GetString("format")
 
-			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemoryForRead(cmd)
 			if err != nil {
 				return err
 			}
@@ -374,7 +374,7 @@ func newMemoryLookupCmd(a *App) *cobra.Command {
 			minScore, _ := cmd.Flags().GetFloat64("min-score")
 			maxResults, _ := cmd.Flags().GetInt("max-results")
 
-			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemoryForRead(cmd)
 			if err != nil {
 				return err
 			}
@@ -427,7 +427,7 @@ func newMemorySearchCmd(a *App) *cobra.Command {
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			limit, _ := cmd.Flags().GetInt("limit")
 
-			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemoryForRead(cmd)
 			if err != nil {
 				return err
 			}
@@ -490,7 +490,7 @@ func newMemoryStatsCmd(a *App) *cobra.Command {
 		Short:   "Show content memory statistics",
 		Example: "  kapi memory stats\n  kapi memory stats --name my-tm",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tm, dbPath, releaseMemory, err := a.OpenMemorySQLite(cmd)
+			tm, dbPath, releaseMemory, err := a.OpenMemoryForRead(cmd)
 			if err != nil {
 				return err
 			}
@@ -565,7 +565,7 @@ that added them so you can filter the content memory by import source.`,
 		Use:   "list",
 		Short: "List all import sessions",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemoryForRead(cmd)
 			if err != nil {
 				return err
 			}
@@ -583,7 +583,7 @@ that added them so you can filter the content memory by import source.`,
 		Short: "Show details for a single import session",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemoryForRead(cmd)
 			if err != nil {
 				return err
 			}

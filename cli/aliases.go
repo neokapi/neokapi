@@ -125,6 +125,7 @@ var (
 	AddResourceFlags             = host.AddResourceFlags
 	AddStatusFlags               = host.AddStatusFlags
 	AddUpFlags                   = host.AddUpFlags
+	ChangedRunConfigFlags        = host.ChangedRunConfigFlags
 	AddVerifyFlags               = host.AddVerifyFlags
 	AgentHosts                   = host.AgentHosts
 	DetectAgentHosts             = host.DetectAgentHosts
@@ -228,6 +229,7 @@ var (
 	ResetMCPToolFactoriesForTest = host.ResetMCPToolFactoriesForTest
 	ResolveDir                   = host.ResolveDir
 	ResolveProjectPath           = host.ResolveProjectPath
+	ResolveNewProjectPath        = host.ResolveNewProjectPath
 	MemoryFileFormats            = host.MemoryFileFormats
 	ResolveMemoryExportFormat    = host.ResolveMemoryExportFormat
 	ResolveMemoryImportFormat    = host.ResolveMemoryImportFormat

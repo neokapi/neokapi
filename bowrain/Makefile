@@ -4,13 +4,6 @@
 # Modules: neokapi/bowrain/core (interface), neokapi/bowrain/plugin (kapi-bowrain plugin), neokapi/bowrain (server+app).
 # Can be used standalone (cd bowrain && make test) or delegated from root.
 
-# Suppress macOS linker warnings for CGO (Wails WebView)
-ifeq ($(shell uname -s),Darwin)
-export MACOSX_DEPLOYMENT_TARGET := 10.15
-export CGO_CFLAGS := -mmacosx-version-min=10.15
-export CGO_LDFLAGS := -mmacosx-version-min=10.15
-endif
-
 # Node 22 requires --experimental-strip-types to load .ts config files
 # (vite.config.ts) via native ESM in tools like vite-plus (vp check/lint).
 export NODE_OPTIONS := --experimental-strip-types
@@ -38,7 +31,14 @@ ifneq ($(ICU_PKGCONFIG),)
 export PKG_CONFIG_PATH := $(ICU_PKGCONFIG):$(PKG_CONFIG_PATH)
 endif
 endif
-GOTEST      := $(GO) test $(GOTAGS)
+# Test binaries are linked without DWARF (-ldflags=-w): stack traces, panics
+# and the race detector read the symbol table and pclntab, which stay, and a
+# debugger builds its own binary (dlv test). DWARF is about a quarter of each
+# test binary (bowrain/server: 143.6 MB with it, 108.5 MB without), and a
+# `go test ./...` links every package's binary in the build work directory at
+# once (1.34 GB at peak for the bowrain module). A target that passes its own
+# -ldflags replaces this one.
+GOTEST      := $(GO) test $(GOTAGS) -ldflags=-w
 GOBUILD     := $(GO) build $(GOTAGS)
 GOVET       := $(GO) vet $(GOTAGS)
 GOFMT       := gofmt
