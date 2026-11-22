@@ -13,6 +13,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/apps/bowrain/backend"
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/host/desktopclose"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -41,6 +42,13 @@ func main() {
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
+		// Every quit asks here first: Quit in the app menu, Cmd+Q, the Dock,
+		// a logout, a signal, the updater, and app.Quit() on Windows and
+		// Linux. Saves the page still has waiting hold the quit until the
+		// page has flushed them.
+		ShouldQuit: func() bool {
+			return backend.GuardClose(appService, desktopclose.RouteQuit)
+		},
 	})
 
 	// Store app reference so the service can use dialogs and events.
@@ -61,6 +69,32 @@ func main() {
 			TitleBar:                application.MacTitleBarHiddenInsetUnified,
 			InvisibleTitleBarHeight: 50,
 		},
+	})
+
+	// The window's close button, Close Window (Cmd+W) and win.Close() all reach
+	// WindowClosing, from the macOS windowShouldClose, the Windows WM_CLOSE
+	// and the Linux delete-event. The hook holds the close while the page has
+	// saves waiting; the page flushes them and confirms.
+	win.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
+		if !backend.GuardClose(appService, desktopclose.RouteWindow) {
+			event.Cancel()
+		}
+	})
+	backend.SetClosers(appService, win.Close, app.Quit)
+	// When the page does not acknowledge a held close in time (a render error,
+	// a crashed web content process), a native dialog asks instead, so the app
+	// can always be closed and never drops an edit without asking.
+	backend.SetCloseFallback(appService, func(desktopclose.Route, []desktopclose.Blocker) bool {
+		answer := make(chan bool, 1)
+		dialog := app.Dialog.Question().
+			SetTitle("Changes Not Yet Saved").
+			SetMessage("Some changes have not reached the server, and the window did not answer.")
+		dialog.AddButton("Close Without Saving").OnClick(func() { answer <- true })
+		cancel := dialog.AddButton("Cancel").OnClick(func() { answer <- false })
+		dialog.SetDefaultButton(cancel)
+		dialog.SetCancelButton(cancel)
+		dialog.Show()
+		return <-answer
 	})
 
 	// Forward dropped files to the frontend via a custom event.
@@ -87,7 +121,7 @@ func main() {
 
 		switch {
 		case strings.HasPrefix(rawURL, "bowrain://auth/"):
-			// OIDC auth callback — unchanged.
+			// OIDC auth callback.
 			go appService.HandleAuthURL(rawURL)
 		case strings.HasPrefix(rawURL, "bowrain:"):
 			// Deep link: strip "bowrain:" prefix, rest is a web URL.
@@ -102,6 +136,10 @@ func main() {
 	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(event *application.ApplicationEvent) {
 		go appService.LoadPlugins()
 	})
+
+	// A SIGTERM or SIGINT asks like any quit; a second one while that quit
+	// is held ends the process. Wails v3.1.0 stops listening after the first.
+	backend.ExitOnSecondSignal(appService, app.Quit, os.Exit)
 
 	if err := app.Run(); err != nil {
 		slog.Error("bowrain: fatal error", "error", err)

@@ -65,109 +65,20 @@ matches() {
 
 echo ""
 
-# ── Repo hygiene (never gated: an absolute home path can land in any file) ──
+# ── Repo guards (scripts/guards/) ─────────────────────────────────────────
 
-run_check "Absolute home paths" ./scripts/check-abs-paths.sh
-run_check "Public documentation boundary" ./scripts/check-docs-bowrain-clean.sh
-
-# A copied seed document can only land under one of the two e2e trees.
-if matches '^bowrain/e2e/' '^bowrain/apps/web/e2e/'; then
-    run_check "E2E seed documents live once" ./scripts/check-e2e-seed-dupes.sh
-fi
-
-# Ungated too: retired framing lands wherever prose is edited, and it degrades
-# quietly: a stale phrase reads as intentional to the next reader.
-run_check "Retired framing in user-facing prose" ./scripts/check-vocabulary.sh
-
-# Ungated: the interchange chrome came back once as one adapter method and one
-# header action, and neither touched a file this check could have been gated on.
-run_check "Desktop names no interchange format" ./scripts/check-desktop-interchange.sh
-
-run_check "Reference dataset provenance" ./scripts/check-reference-provenance.sh
-
-# The documentation palettes are computed from the brand tokens, so an edit to
-# either side without a regeneration ships a site painted in the previous brand.
-# Runs in well under a second and links nothing, so it stays ungated.
-run_check "Documentation palettes are fresh" make check-docs-palette
-
-# Ungated: a hand-rolled run walk is written wherever someone needs "just the
-# text", and it fails by showing less content rather than by failing. ~1s.
-run_check "Run projections are declared" ./scripts/check-run-projection.sh
-run_check "No surface shows coded text" ./scripts/check-code-display.sh
-
-# Ungated: a camelCase json tag on an output type changes a field name every
-# script and agent reads. ~1s.
-run_check "Output JSON field names are snake_case" ./scripts/check-json-tags.sh
-
-# Ungated: prose describing a project's context as a file is written wherever
-# someone reaches for a path, and it teaches the habit the store-only model
-# exists to end. ~1s.
-run_check "The written record is store-only" ./scripts/check-docs-store-only.sh
-
-# Ungated: a directory added anywhere can hold files whose comments no
-# kapi.yaml collection reaches, and only this guard notices.
-run_check "Comment coverage" make check-comment-coverage
-
-# Ungated: a store write can be added in any Apache module, and only this
-# guard, which type-checks them, notices one that bypasses the projector.
-run_check "Only the projector writes the context stores" make check-projection-writes
-
-# Ungated: a writer can be pointed at a file in any module, and only this
-# guard, which type-checks them, notices a new place a document reaches disk.
-run_check "A document reaches a file only where the edit guard lists it" make check-edit-writes
-
-# Ungated: a by-path file-system call can be added in any package that handles
-# project content, and only this guard, which type-checks them, notices it.
-run_check "Project content reaches a file through core/rootpath or the file home" make check-path-reads
-
-# Ungated: a read of a block's edition storage can be added in any module, and
-# only this guard, which type-checks them all, notices one that goes past the
-# edition accessors.
-run_check "Only core/model reaches the block's edition storage" make fieldguard
-
-# Ungated: a walk selector dies in the app, not in the recorder that names it,
-# so gating this on the recorder's own path would never fire. ~2s.
-run_check "Walk selectors still exist" ./scripts/check-walk-selectors.sh
-
-# Ungated because an em dash lands wherever prose is written, in any of the
-# three tiers a reader sees it through: a Go string, an extracted catalog, a
-# docs page. The catalogs part reports rather than fails on a surface the local
-# tree has not extracted; the l10n workflow runs it with --require-extracted.
-run_check "Em dashes in shipped prose" ./scripts/check-em-dashes.sh
-
-# Ungated because the gate it proves runs only in the nightly convergence:
-# nothing else here would notice it losing its teeth. ~1s, all in a scratch repo.
-run_check "Test shards cover every test once" ./scripts/go-test-shard.sh --self-test
-# The fuzz runner runs only in the nightly fuzz.yml. ~15s: it fuzzes a scratch
-# module for a few seconds per target.
-run_check "Fuzz runner reports a failing target" ./scripts/go-fuzz.sh --self-test
-run_check "Copies of each tool pin agree" python3 scripts/check-tool-versions.py --offline
-run_check "Reliability checklist validates" python3 scripts/reliability-checklist.py --self-test
-run_check "CI passed answers for every job" make --no-print-directory check-ci-passed
-run_check "Every package test script runs in CI" make --no-print-directory check-test-scripts
-run_check "Every Go command builds with -trimpath" make --no-print-directory check-go-trimpath
-run_check "Every macOS minimum agrees" make --no-print-directory check-macos-minimum
-run_check "The temporary-file leak check works" make --no-print-directory check-temp-leaks
-run_check "The server and worker images run unprivileged" make --no-print-directory check-image-user
-run_check "Commit gate hook" ./.claude/hooks/commit-gate.sh --self-test
-run_check "Build cache warmer" ./scripts/ci-warm-build-cache.sh --self-test
-run_check "Bindings generator warnings about our code fail" ./scripts/wails-generate.sh --self-test
-run_check "Loop output gate" ./scripts/check-loop-output.sh --self-test
-
-# Ungated for the same reason: the delivery it proves runs only in scheduled
-# jobs, so nothing else here would notice it pushing to the wrong place or
-# staging more than the job owns. ~1s, all in scratch repos.
-run_check "Scheduled auto-PR delivery" ./scripts/auto-pr.sh --self-test
-
-# The ratchet runs on extraction in l10n.yml. This proves its comparison on
-# planted warnings. Well under a second.
-run_check "Extractor warning ratchet" node scripts/check-extract-warnings.mjs --self-test
-
-# Ungated for the same reason, plus one specific to this repo: the bowrain
-# checks below are gated on ^bowrain/core/ and ^bowrain/plugin/ only, so the
-# main bowrain module has no local format gate at all, which is how nine files
-# there drifted. ~1s for the whole tree.
-run_check "Go formatting (gofmt -l -s)" ./scripts/check-gofmt.sh
+# Every guard of the pre-push lane. One with no GUARD_PATHS runs on every push;
+# one with GUARD_PATHS runs when a changed path matches one of them. Each guard
+# file says why it is gated or not.
+GUARD_LIST="$(./scripts/run-guards.sh --list pre-push)"
+while IFS=$'\t' read -r -u 3 target desc paths; do
+    [ -n "$target" ] || continue
+    if [ -n "$paths" ]; then
+        read -r -a patterns <<< "$paths"
+        matches "${patterns[@]}" || continue
+    fi
+    run_check "$desc" make --no-print-directory "$target"
+done 3<<< "$GUARD_LIST"
 
 # ── Go checks ──────────────────────────────────────────────────────────────
 

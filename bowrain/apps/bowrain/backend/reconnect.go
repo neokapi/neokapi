@@ -222,7 +222,12 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 		return
 	}
 
-	count := a.offlineQueue.PendingCount()
+	// The server's answer to a change is recorded even when the replay is
+	// cancelled after the request went out, so a change the server accepted
+	// is never sent a second time.
+	record := context.WithoutCancel(ctx)
+
+	count := a.offlineQueue.PendingCount(ctx)
 	if count == 0 {
 		return
 	}
@@ -230,7 +235,7 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 	slog.Info("bowrain: replaying pending changes", "count", count)
 
 	for {
-		changes, err := a.offlineQueue.PeekPending(10)
+		changes, err := a.offlineQueue.PeekPending(ctx, 10)
 		if err != nil || len(changes) == 0 {
 			break
 		}
@@ -249,7 +254,7 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 					// was made on. It is dropped rather than failed, and the
 					// failed-changes list says what it was.
 					slog.Warn("bowrain: dropping a change queued by an earlier version", "change_id", change.ID, "operation", change.Operation)
-					_ = a.offlineQueue.MarkDropped(change.ID, errRetired.Error())
+					_ = a.offlineQueue.MarkDropped(record, change.ID, errRetired.Error())
 					progressed = true
 					continue
 				}
@@ -261,13 +266,13 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 					// this build cannot replay the entry at all. Retrying can never
 					// succeed, so retire it and keep draining the queue.
 					slog.Warn("bowrain: dropping permanently failed change", "change_id", change.ID, "operation", change.Operation, "error", err)
-					_ = a.offlineQueue.MarkFailedPermanent(change.ID, err.Error())
+					_ = a.offlineQueue.MarkFailedPermanent(record, change.ID, err.Error())
 					progressed = true
 					continue
 				}
 
 				slog.Warn("bowrain: replay failed for change", "change_id", change.ID, "operation", change.Operation, "error", err)
-				_ = a.offlineQueue.MarkFailed(change.ID, err.Error())
+				_ = a.offlineQueue.MarkFailed(record, change.ID, err.Error())
 
 				// If we lost connection again during replay, go offline. This
 				// spins up a fresh, independent reconnect loop whose lifetime is
@@ -278,7 +283,7 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 				}
 				continue
 			}
-			_ = a.offlineQueue.MarkCompleted(change.ID)
+			_ = a.offlineQueue.MarkCompleted(record, change.ID)
 			progressed = true
 		}
 
@@ -288,8 +293,8 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 		}
 	}
 
-	_ = a.offlineQueue.PurgeCompleted()
-	if failed := a.offlineQueue.FailedCount(); failed > 0 {
+	_ = a.offlineQueue.PurgeCompleted(record)
+	if failed := a.offlineQueue.FailedCount(record); failed > 0 {
 		slog.Warn("bowrain: some offline changes were permanently rejected by the server", "count", failed)
 	}
 	slog.Info("bowrain: pending changes replayed")

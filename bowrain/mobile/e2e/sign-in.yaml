@@ -39,7 +39,9 @@ appId: cloud.bowrain.app
 - inputText: ${USERNAME || 'e2e-reviewer@example.com'}
 - tapOn: "Password"
 - inputText: ${PASSWORD || 'e2e-password'}
-- tapOn: "Sign In"
+# Return submits the form. On iOS 26.2 the keyboard's floating toolbar sits
+# over the "Sign In" button, and a tap on the button lands on the toolbar.
+- pressKey: Enter
 - extendedWaitUntil:
     visible:
       id: workspace-list

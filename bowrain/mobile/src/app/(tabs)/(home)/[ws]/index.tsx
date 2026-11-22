@@ -14,6 +14,7 @@ import { ProjectCard } from "../../../../components/home/HomeCards";
 import { EmptyState, SkeletonCards } from "../../../../components/home/parts";
 import { useAuth } from "../../../../lib/auth";
 import { projectKey, summarize, useReviewHome } from "../../../../lib/home";
+import { usePullRefresh } from "../../../../lib/pullRefresh";
 import { routeValue } from "../../../../lib/routeParams";
 
 // The screen waits for a workspace: a parameter that is a route group's name
@@ -39,6 +40,8 @@ function ProjectList({ ws }: { ws: string }) {
     }, [refetchInbox]),
   );
 
+  const pull = usePullRefresh(() => Promise.all([projects.refetch(), refetchInbox()]));
+
   const summary = useMemo(() => summarize(inbox.data), [inbox.data]);
   const sorted = useMemo(() => {
     const list = projects.data ?? [];
@@ -49,6 +52,11 @@ function ProjectList({ ws }: { ws: string }) {
     // Array.prototype.sort is stable, so the server's order holds within each part.
     return [...list].sort((a, b) => waits(b) - waits(a));
   }, [projects.data, summary, ws]);
+
+  // The projects with work waiting come first, and the inbox says which those
+  // are. The list waits for both queries, so no card moves when the inbox
+  // answers after the projects.
+  const settling = projects.isPending || inbox.isPending;
 
   const open = useCallback(
     (p: Project) => router.push({ pathname: "/[ws]/[project]", params: { ws, project: p.id } }),
@@ -72,16 +80,13 @@ function ProjectList({ ws }: { ws: string }) {
         testID="project-list"
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="pt-2 pb-8"
-        data={sorted}
+        data={settling ? [] : sorted}
         keyExtractor={(p) => p.id}
         renderItem={renderItem}
-        refreshing={projects.isRefetching || inbox.isRefetching}
-        onRefresh={() => {
-          void projects.refetch();
-          void refetchInbox();
-        }}
+        refreshing={pull.refreshing}
+        onRefresh={pull.onRefresh}
         ListEmptyComponent={
-          projects.isPending ? (
+          settling ? (
             <SkeletonCards testID="projects-loading" />
           ) : projects.isSuccess ? (
             <EmptyState icon="folder-open-outline" title={t("projects.empty")} />

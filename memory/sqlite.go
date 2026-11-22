@@ -21,7 +21,7 @@ import (
 // migrationsTable names the bookkeeping table that records which schema
 // migrations this database has already applied.
 //
-// It keeps the historical "sievepen" spelling on purpose. The name is written
+// It keeps its historical spelling on purpose. The name is written
 // into every content-memory database ever created, so it is persisted state,
 // not an internal identifier. Renaming it would make Migrate find no
 // bookkeeping table in an existing database, conclude that nothing had been
@@ -52,7 +52,7 @@ type SQLiteStore struct {
 // fuzzyIndexState is what the store records about tm_variant_trigram, the FTS5
 // side-table the fuzzy tier queries for candidates. The bulk write path
 // deliberately leaves it unpopulated, so an empty MATCH result does not mean
-// "no match" — the store has to know which it is before it can trust one.
+// "no match": the store has to know which it is before it can trust one.
 type fuzzyIndexState int
 
 const (
@@ -128,10 +128,10 @@ var memoryMigrations = []storage.Migration{
 		// An answer is approved somewhere, and where it was approved is what
 		// qualifies it: one source string can carry a different reviewed
 		// wording per collection, and only the point tells them apart.
-		//
+
 		// Additive, so nothing is copied and nothing is lost. An entry written
 		// before the column existed reads as the project's default point, which
-		// is a true statement about it rather than a placeholder — a seed, an
+		// is a true statement about it rather than a placeholder: a seed, an
 		// import and an ad-hoc addition are bound to no location, and that is
 		// exactly what the empty point means. The entries that DO have a point,
 		// the ones read back out of committed translations, are re-learned with
@@ -144,18 +144,18 @@ var memoryMigrations = []storage.Migration{
 		// The corpus already held every version of a block's answer: a changed
 		// source writes a new entry beside the old rather than replacing it.
 		// What it could not do was say the two were the same block, because the
-		// only key was the text — and the text is the thing that moved.
+		// only key was the text, and the text is the thing that moved.
 		//
 		// The unit is that link. It is resolved by reconciliation, so it
 		// survives an edit and a reorder, and it is the same identity a decision
 		// and a history entry are filed under.
-		//
+
 		// Additive, and deliberately not backfilled. An entry written before the
 		// column existed has no unit and never will: the corpus seeds from
 		// committed bundles rather than from live content, so nothing walks the
 		// repo re-reconciling old answers. Version lookups therefore begin from
 		// here rather than reaching backwards, which is the honest reading of an
-		// empty unit — not "no block", but "approved before the chain existed".
+		// empty unit, not "no block", but "approved before the chain existed".
 		Description: "the durable block identity an entry's answer was approved for",
 		SQL:         schema.RenderMemorySQLiteV5(),
 	},
@@ -238,10 +238,74 @@ func (tm *SQLiteStore) ReplayWithStream(ctx context.Context, entries []Entry, st
 	return nil
 }
 
+// AddOrigin records one more origin on the entry id holds, with the
+// properties that come with it, in one transaction against the entry as the
+// store holds it then. It replaces an origin with the same source and key,
+// and leaves every variant, every other origin and every other property as
+// they are. It reports false when the store holds no entry id.
+func (tm *SQLiteStore) AddOrigin(ctx context.Context, id string, origin Origin, properties map[string]string) (bool, error) {
+	tx, err := tm.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var propertiesJSON string
+	err = tx.QueryRowContext(ctx, `SELECT properties FROM tm_entries WHERE id = ?`, id).Scan(&propertiesJSON)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read entry %s: %w", id, err)
+	}
+	if len(properties) > 0 {
+		merged := map[string]string{}
+		if propertiesJSON != "" {
+			if err := json.Unmarshal([]byte(propertiesJSON), &merged); err != nil {
+				return false, fmt.Errorf("read the properties of entry %s: %w", id, err)
+			}
+		}
+		maps.Copy(merged, properties)
+		b, err := json.Marshal(merged)
+		if err != nil {
+			return false, fmt.Errorf("marshal properties: %w", err)
+		}
+		propertiesJSON = string(b)
+	}
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM tm_entry_origins WHERE entry_id = ? AND source = ? AND key = ?`,
+		id, origin.Source, origin.Key); err != nil {
+		return false, fmt.Errorf("replace origin: %w", err)
+	}
+	var next int
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(ordinal) + 1, 0) FROM tm_entry_origins WHERE entry_id = ?`, id).Scan(&next); err != nil {
+		return false, fmt.Errorf("read origins of entry %s: %w", id, err)
+	}
+	addedAt := origin.AddedAt
+	if addedAt.IsZero() {
+		addedAt = time.Now().UTC()
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO tm_entry_origins
+		(entry_id, ordinal, source, key, reference, added_at, added_by, session_id, context_fp)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, next, origin.Source, origin.Key, origin.Reference,
+		addedAt.Format(time.RFC3339), origin.AddedBy, origin.SessionID, origin.ContextFingerprint); err != nil {
+		return false, fmt.Errorf("insert origin: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE tm_entries SET properties = ?, updated_at = ? WHERE id = ?`,
+		propertiesJSON, addedAt.Format(time.RFC3339), id); err != nil {
+		return false, fmt.Errorf("update entry %s: %w", id, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit: %w", err)
+	}
+	return true, nil
+}
+
 // BulkAddWithStream inserts or updates many content-memory entries inside a single
 // transaction, using prepared statements that are reused across all rows.
 // The FTS5 trigram (fuzzy-candidate) index is NOT populated in the bulk
-// path — for large corpora its n-gram build cost dominates everything
+// path: for large corpora its n-gram build cost dominates everything
 // else. Call RebuildFuzzyIndex(ctx) at the end of the import to repopulate
 // it in a single set-based SELECT INTO, which is orders of magnitude
 // faster than row-by-row inserts.
@@ -279,15 +343,15 @@ func (tm *SQLiteStore) BulkAddWithStream(ctx context.Context, entries []Entry, s
 
 // RebuildFuzzyIndex rebuilds the FTS5 trigram index (tm_variant_trigram)
 // from the current contents of tm_variants. This is the recommended way
-// to populate the fuzzy-candidate index after a bulk load — per-row
+// to populate the fuzzy-candidate index after a bulk load: per-row
 // inserts during the bulk pass are prohibitively slow because FTS5
 // trigram tokenization allocates heavily on every insert.
 //
 // Until this is called, fuzzy lookups fall back to length-filtered
 // scanning over tm_variants, which is functional but slower on huge Memories.
 //
-// It is the largest single write the content memory makes — seconds over a
-// dogfood-sized corpus, holding the write lock throughout — so ctx is the
+// It is the largest single write the content memory makes (seconds over a
+// dogfood-sized corpus, holding the write lock throughout) so ctx is the
 // caller's only way to stop it, and is honoured rather than discarded.
 func (tm *SQLiteStore) RebuildFuzzyIndex(ctx context.Context) error {
 	if _, err := tm.db.ExecContext(ctx, `DELETE FROM tm_variant_trigram`); err != nil {
@@ -304,7 +368,7 @@ func (tm *SQLiteStore) RebuildFuzzyIndex(ctx context.Context) error {
 
 // RebuildSearchIndex rebuilds the FTS5 word-search index
 // (tm_variant_search) in a single set-based INSERT … SELECT. Like
-// RebuildFuzzyIndex this is a post-bulk-load step — the bulk path
+// RebuildFuzzyIndex this is a post-bulk-load step: the bulk path
 // deliberately skips per-row FTS5 inserts because FTS5 ICU
 // tokenization is expensive.
 //
@@ -375,7 +439,7 @@ func (tm *SQLiteStore) probeFuzzyIndex(ctx context.Context) (fuzzyIndexState, er
 // bulkStmts holds the set of prepared statements used by BulkAddWithStream.
 // Each BulkAdd call prepares them once and reuses across all entries.
 // Note: the FTS5 search tables (tm_variant_search, tm_variant_trigram)
-// are deliberately NOT maintained here — see BulkAddWithStream doc
+// are deliberately NOT maintained here, see BulkAddWithStream doc
 // comment for rationale. Call RebuildFuzzyIndex(ctx) and RebuildSearchIndex(ctx)
 // after the bulk import to populate them in one set-based pass.
 type bulkStmts struct {
@@ -411,7 +475,7 @@ func prepareBulkStmts(ctx context.Context, tx *sql.Tx) (*bulkStmts, error) {
 	}
 
 	// Per locale, not per entry: see variantLocaleDeletes. The FTS5 side-tables
-	// are not maintained here at all — the bulk path rebuilds them set-wise.
+	// are not maintained here at all: the bulk path rebuilds them set-wise.
 	if s.delVariants, err = tx.PrepareContext(ctx, `DELETE FROM tm_variants WHERE entry_id = ? AND locale = ?`); err != nil {
 		return nil, err
 	}
@@ -460,7 +524,7 @@ func (s *bulkStmts) Close() {
 }
 
 // addEntry is the prepared-statement counterpart of addInTx used by the
-// bulk-import hot path. It mirrors the same upsert semantics — variants
+// bulk-import hot path. It mirrors the same upsert semantics: variants
 // replaced per locale, entities and origins wholesale.
 func (s *bulkStmts) addEntry(ctx context.Context, entry Entry, stream string) error {
 	if entry.ID == "" {
@@ -523,16 +587,16 @@ func (s *bulkStmts) addEntry(ctx context.Context, entry Entry, stream string) er
 			continue
 		}
 		// Fast path: runs that are a single TextRun are stored as raw
-		// plain text — TMX imports are overwhelmingly plain text, and
+		// plain text, TMX imports are overwhelmingly plain text, and
 		// skipping the JSON wrapper cuts both CPU time and row size
 		// meaningfully. On read the plain-text storage form is detected
 		// by the absence of a leading '[' bracket.
 		//
 		// `coded` is the authoritative content and stays VERBATIM;
 		// NormalizeText applies only to the derived matching keys.
-		// Normalizing coded here used to collapse line structure on
-		// every bulk-imported variant (multi-line targets came back as
-		// one line), which the non-bulk addInTx path never did.
+		// Normalizing coded here would collapse line structure on every
+		// bulk-imported variant (multi-line targets would come back as one
+		// line), which the non-bulk addInTx path never does.
 		var coded, plain, structKey, generalKey string
 		if isPlainTextRuns(runs) && !strings.HasPrefix(runs[0].Text.Text, "[") {
 			coded = runs[0].Text.Text
@@ -597,9 +661,9 @@ func (s *bulkStmts) addEntry(ctx context.Context, entry Entry, stream string) er
 // and the two manually-maintained FTS5 side-tables.
 //
 // A write replaces the locales it carries and leaves the rest of the entry
-// standing. One source text is taught one target locale at a time — materialize
+// standing. One source text is taught one target locale at a time (materialize
 // runs per locale, and every locale keys the same entry off the source content
-// hash — so clearing the whole variant set would leave an entry holding only
+// hash) so clearing the whole variant set would leave an entry holding only
 // the locale written last.
 //
 // The index rows go first, found by the variant's key: they share its vid as
@@ -775,11 +839,11 @@ func (tm *SQLiteStore) addInTx(ctx context.Context, tx *sql.Tx, entry Entry, str
 }
 
 // Delete removes an entry by ID together with every child row it owns, in a
-// single transaction. All deletes — the indexed child tables (tm_variants,
+// single transaction. All deletes (the indexed child tables (tm_variants,
 // tm_entry_entities, tm_entry_entity_values, tm_entry_origins), the two
 // manually-maintained FTS5 side-tables (tm_variant_search, tm_variant_trigram),
-// and the main tm_entries row — are issued explicitly so correctness does not
-// depend on ON DELETE CASCADE (and therefore on the foreign_keys pragma state).
+// and the main tm_entries row) are issued explicitly so correctness does not
+// depend on the cascade clauses (and therefore on the foreign_keys pragma state).
 // On any error the whole transaction is rolled back, so a partial delete can
 // never leave orphaned child rows.
 func (tm *SQLiteStore) Delete(ctx context.Context, id string) error {
@@ -920,7 +984,7 @@ func (tm *SQLiteStore) exactTiers() func(ctx context.Context, column, key string
 }
 
 // sortMatches orders matches by score (desc), then match-type priority,
-// then entry ID — the last key makes equal candidates deterministic
+// then entry ID: the last key makes equal candidates deterministic
 // instead of inheriting incidental storage order.
 func sortMatches(matches []Match) []Match {
 	slices.SortFunc(matches, func(a, b Match) int {
@@ -1331,7 +1395,7 @@ func (tm *SQLiteStore) scanEntriesWithChildren(ctx context.Context, rows interfa
 }
 
 // parseStoredTime parses an RFC3339 timestamp read back from one of our own
-// rows. An empty string (a NULL or never-set column) is not an error — it
+// rows. An empty string (a NULL or never-set column) is not an error: it
 // yields the zero time; a non-empty but unparseable value is stored corruption
 // and is returned so the caller can surface it rather than silently substitute
 // the zero time.
@@ -1378,7 +1442,7 @@ func uniqueStrings(in []string) []string {
 }
 
 // FullScoreEntries returns every entry whose sourceLocale variant would match
-// the given source runs at score 1.0 — the exact tiers' generalized and
+// the given source runs at score 1.0: the exact tiers' generalized and
 // structural hits, plus the plain hits whose own inline-code structure matches
 // (a plain hit with a differing structure takes the tag-mismatch penalty and
 // never reaches full score).
@@ -1547,7 +1611,7 @@ func (tm *SQLiteStore) searchInternal(ctx context.Context, params SearchParams) 
 		return nil, 0, nil
 	}
 
-	// Page query — select IDs in the proper order.
+	// Page query: select IDs in the proper order.
 	orderBy := "e.updated_at DESC"
 	if streamCase != "" {
 		orderBy = streamCase + ", " + orderBy
@@ -2004,7 +2068,7 @@ func (tm *SQLiteStore) UpdateImportSessionCount(ctx context.Context, id string, 
 }
 
 // DeleteImportSession removes a session row. Origins referencing it have
-// their session_id cleared to empty (no true FK SET NULL — emulated here).
+// their session_id cleared to empty (no true FK SET NULL: emulated here).
 func (tm *SQLiteStore) DeleteImportSession(ctx context.Context, id string) error {
 	if _, err := tm.db.ExecContext(ctx, `UPDATE tm_entry_origins SET session_id = '' WHERE session_id = ?`, id); err != nil {
 		return fmt.Errorf("clear origin session_id: %w", err)
@@ -2029,7 +2093,7 @@ type sessionScanner interface {
 }
 
 // scanSession scans a single import-session row. A scan failure (including no
-// row) yields ok=false with a nil error — the callers treat that as "not
+// row) yields ok=false with a nil error: the callers treat that as "not
 // found". A non-nil error means the row exists but stored corruption (a
 // malformed imported_at timestamp or properties JSON) was surfaced instead of
 // silently substituting zero values.

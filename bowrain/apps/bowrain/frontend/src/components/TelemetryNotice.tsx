@@ -1,13 +1,13 @@
 import { useState } from "react";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import {
-  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@neokapi/ui";
+} from "@neokapi/ui-primitives/components/ui/dialog";
 import {
   analyticsAvailable,
   isNoticeShown,

@@ -38,7 +38,7 @@ func textRuns(s string) []model.Run { return []model.Run{{Text: &model.TextRun{T
 // greetingEdit is the record of a change to the greeting's source and its
 // Norwegian translation in one document, as the service hands it over.
 func greetingEdit(doc string) []change.Transition {
-	b := &model.Block{ID: "greeting", Name: "greeting", Key: "u-greeting", SourceLocale: "en"}
+	b := &model.Block{ID: "greeting", Name: "greeting", Key: "u-greeting", SourceLocale: "en", Translatable: true}
 	b.SetSourceRuns(textRuns("Hello there"))
 	b.SetTargetText("nb", "Hei der")
 	en, _ := model.ParseEditionKey("en")
@@ -414,6 +414,21 @@ func TestRecorderCountsAUnitWrittenTwiceOnce(t *testing.T) {
 	_, err := rec.Record(ctx, change.Record{Actor: flow, Origin: "flow:up", Transitions: greetingEdit("src/outro.en.json")})
 	require.NoError(t, err)
 	assert.Equal(t, 2, a.writeTally.total())
+}
+
+// A block with nothing to translate (a code block) is written into its target
+// file as it is, and that write is not a translation the run produced.
+func TestRecorderDoesNotCountABlockWithNothingToTranslate(t *testing.T) {
+	a, _, rec := recorderProject(t)
+	a.writeTally = &unitWriteTally{}
+	t.Cleanup(func() { a.writeTally = nil })
+	transitions := greetingEdit("src/intro.en.json")
+	code := *transitions[1].Block
+	code.Translatable = false
+	transitions[1].Block = &code
+	_, err := rec.Record(t.Context(), change.Record{Actor: change.Actor{Kind: change.ActorTool, Name: "translate"}, Origin: "flow:up", Transitions: transitions})
+	require.NoError(t, err)
+	assert.Zero(t, a.writeTally.total())
 }
 
 // Two units whose names the old joined key ran together ("a\x00b" + "c" and

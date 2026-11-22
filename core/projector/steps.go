@@ -36,6 +36,7 @@ type step struct {
 	PutEntries     []kmb.Entry         `json:"put_entries,omitempty"`
 	Bulk           bool                `json:"bulk,omitempty"`
 	DeleteEntries  []string            `json:"delete_entries,omitempty"`
+	AddOrigins     []originAdd         `json:"add_origins,omitempty"`
 	PutSessions    []kmb.ImportSession `json:"put_sessions,omitempty"`
 	SessionCounts  map[string]int      `json:"session_counts,omitempty"`
 	DeleteSessions []string            `json:"delete_sessions,omitempty"`
@@ -88,6 +89,11 @@ func (s *step) stamp(at time.Time) {
 			}
 		}
 	}
+	for i := range s.AddOrigins {
+		if s.AddOrigins[i].Origin.AddedAt == "" {
+			s.AddOrigins[i].Origin.AddedAt = stamp
+		}
+	}
 	for i := range s.PutSessions {
 		if s.PutSessions[i].ImportedAt == "" {
 			s.PutSessions[i].ImportedAt = stamp
@@ -118,6 +124,20 @@ func (s *step) stamp(at time.Time) {
 			s.Adoptions[i].At = at
 		}
 	}
+}
+
+// originAdd is one origin recorded on an entry the store already holds,
+// with the properties that come with it.
+type originAdd struct {
+	EntryID    string            `json:"entry_id"`
+	Origin     kmb.Origin        `json:"origin"`
+	Properties map[string]string `json:"properties,omitempty"`
+}
+
+// origin reads the origin back as the store's own.
+func (a originAdd) origin() memory.Origin {
+	e := (&kmb.File{Entries: []kmb.Entry{{ID: a.EntryID, Origins: []kmb.Origin{a.Origin}}}}).ModelEntries()
+	return e[0].Origins[0]
 }
 
 // entries reads the step's content-memory entries back as the store's own.
@@ -191,7 +211,7 @@ const minReplay = 32
 // replayable reports a content-memory step that only puts entries the way a
 // single write does.
 func replayable(s step) bool {
-	return !s.Bulk && len(s.PutEntries) > 0 && len(s.DeleteEntries) == 0 && len(s.PutSessions) == 0 &&
+	return !s.Bulk && len(s.PutEntries) > 0 && len(s.DeleteEntries) == 0 && len(s.AddOrigins) == 0 && len(s.PutSessions) == 0 &&
 		len(s.SessionCounts) == 0 && len(s.DeleteSessions) == 0
 }
 
@@ -286,6 +306,13 @@ func (p *Projector) applyMemory(ctx context.Context, s step) error {
 	}
 	for _, id := range s.DeleteEntries {
 		if err := tm.Delete(ctx, id); err != nil && !notFound(err) {
+			return err
+		}
+	}
+	// An origin is added to the entry as the store holds it when the step is
+	// applied, so a write made between the reading and this step stands.
+	for _, add := range s.AddOrigins {
+		if _, err := tm.AddOrigin(ctx, add.EntryID, add.origin(), add.Properties); err != nil {
 			return err
 		}
 	}

@@ -32,6 +32,8 @@ export interface ProjectFlowListProps {
   onCreate: (name: string) => Promise<void>;
   onCopy: (flow: FlowDefinitionInfo) => void;
   onDelete: (flow: FlowDefinitionInfo) => void;
+  /** Flows with a version of the person's that the server has not taken. */
+  unsaved?: ReadonlySet<string>;
 }
 
 export function ProjectFlowList({
@@ -43,6 +45,7 @@ export function ProjectFlowList({
   onCreate,
   onCopy,
   onDelete,
+  unsaved,
 }: ProjectFlowListProps) {
   const [creating, setCreating] = useState(false);
 
@@ -83,6 +86,14 @@ export function ProjectFlowList({
                       onCopy={builtIn ? () => onCopy(flow) : undefined}
                       onDelete={builtIn ? undefined : () => onDelete(flow)}
                     />
+                    {unsaved?.has(flow.id) && (
+                      <p
+                        className="mt-1 text-xs text-destructive"
+                        data-testid={`flow-unsaved-${flow.id}`}
+                      >
+                        Your version is not saved
+                      </p>
+                    )}
                   </div>
                 );
               })}

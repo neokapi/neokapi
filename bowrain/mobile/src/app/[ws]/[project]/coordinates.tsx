@@ -32,6 +32,7 @@ import {
 } from "../../../components/CoordinatesTreemap";
 import { QueryState } from "../../../components/List";
 import { useAuth } from "../../../lib/auth";
+import { usePullRefresh } from "../../../lib/pullRefresh";
 import { languageLabel } from "../../../lib/feed";
 import { reviewCoordinatesKey, reviewPlanKey } from "../../../lib/plan";
 
@@ -128,13 +129,15 @@ export default function CoordinatesScreen() {
     queryFn: () => client.permissions(ws, project),
   });
   const mayManage = perms.data?.permissions.includes("manage_project") ?? false;
-  const refresh = () => {
-    void qc.invalidateQueries({ queryKey: reviewCoordinatesKey(ws, project) });
-    void qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) });
-  };
+  const refresh = () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: reviewCoordinatesKey(ws, project) }),
+      qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) }),
+    ]);
+  const pull = usePullRefresh(refresh);
   const confirm = useMutation({
     mutationFn: () => client.confirmCoordinates(scope),
-    onSuccess: refresh,
+    onSuccess: () => void refresh(),
     onError: (e: Error) => Alert.alert(t("plan.failed"), e.message),
   });
 
@@ -168,7 +171,7 @@ export default function CoordinatesScreen() {
         testID="coordinates-screen"
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="pt-2 pb-10"
-        refreshControl={<RefreshControl refreshing={map.isRefetching} onRefresh={refresh} />}
+        refreshControl={<RefreshControl {...pull} />}
       >
         <Text className="text-muted-foreground px-5 pb-3 text-sm leading-5">
           {t("plan.coordinates.languages", {
