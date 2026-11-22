@@ -170,16 +170,12 @@ function AppInner() {
   // handleServerConnect, handleOfflineRetry) — never a bare "connected" state,
   // which is optimistic and would mount against an unreachable server.
 
-  // Demote out of the mounted app when the session drops — the desktop sign-out
+  // Demote out of the mounted app when the session drops: the desktop sign-out
   // (platform.signOut → Logout) disconnects, returning the user to ServerConnect.
-  // A transient network blip reports "offline" (still a valid working copy), so
-  // only a true disconnect/unauthenticated state demotes.
+  // A network blip reports "offline" and a reconnect attempt "connecting"; both
+  // keep a valid working copy, so only a disconnect demotes.
   useEffect(() => {
-    if (
-      mode === "ready" &&
-      connection.info.state !== "connected" &&
-      connection.info.state !== "offline"
-    ) {
+    if (mode === "ready" && connection.info.state === "disconnected") {
       setMode("connecting");
     }
   }, [connection.info.state, mode]);

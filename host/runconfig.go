@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/flow"
 )
@@ -46,6 +47,10 @@ func addTraceFlag(cmd Command) {
 
 func addStoreFlags(cmd Command) {
 	cmd.Flags().String("memory", "", "named Memory for recycle flow (resolves from KAPI_HOME)")
+	addTermstoreFlag(cmd)
+}
+
+func addTermstoreFlag(cmd Command) {
 	cmd.Flags().String("termstore", "", "named terms store for term-lookup/enforce (resolves from KAPI_HOME)")
 }
 
@@ -64,20 +69,69 @@ func refusePackWithoutKpz(cmd Command, inputPaths []string) error {
 	return nil
 }
 
+func addConcurrencyFlag(cmd Command) {
+	cmd.Flags().IntP("concurrency", "j", 0, "number of files to process at once (0 = auto)")
+}
+
+func addParallelBlocksFlag(cmd Command) {
+	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
+}
+
 // AddUpRunFlags registers the run flags `kapi up` honours: the AI run flags,
-// the input encoding, the named stores, --trace, --fail-on-unknown and
-// --print-ops. The flags that pick files, formats, languages and outputs for
-// one run (-i, -o, --target-lang, --source-lang, --format with its --engine,
-// -j, --parallel-blocks, --explain, --pack) belong to `kapi run`; the recipe
-// and the config decide them for `kapi up`, which refuses them as unknown
-// flags. The kapi-bowrain plugin's `up` registers the same set.
+// the input encoding, --memory and --termstore, -j, --trace,
+// --fail-on-unknown and --print-ops. The kapi-bowrain plugin's `up` registers
+// the same set.
+//
+// The flags that pick files, formats, languages and outputs for one run (-i,
+// -o, --target-lang, --source-lang, --format with its --engine, --explain,
+// --pack) belong to `kapi run`; for `kapi up` the recipe and the config
+// decide them. --parallel-blocks is left out because a convergence pass's
+// wrapped tools cannot fan out.
 func (a *App) AddUpRunFlags(cmd Command) {
 	AddRunConfigFlags(cmd)
 	a.AddEncodingFlag(cmd.Flags(), "e", "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)")
 	addStoreFlags(cmd)
+	addConcurrencyFlag(cmd)
 	addTraceFlag(cmd)
 	addStrictFlags(cmd)
 	cmd.Flags().Bool(printOpsFlag, false, printOpsUsage)
+}
+
+// upRecipeFlags are flags kapi up does not take. Each has the refusal that
+// says what to do instead: the recipe key that decides it, or the command
+// that takes it. The --format flag read every file of a run as one format
+// and wrote targets from what it misread. The --engine flag came only with
+// it. The file-level flags of kapi translate are the ones people reach for
+// most.
+var upRecipeFlags = map[string]string{
+	"format": "--format does not apply to kapi up: set a collection's format in the recipe, under the collection's format: key (collections[].format.name)",
+	"engine": "--engine does not apply to kapi up: the recipe selects the format engine, under defaults.engine (or defaults.formats.<name>.engine for one format)",
+	"target-lang": "--target-lang does not apply to kapi up: the recipe sets the languages, under defaults.target_languages. " +
+		"To translate one file into one language, run kapi translate <file> --target-lang <locale>",
+	"input": "--input does not apply to kapi up: it converges the files the recipe's collections name (collections[].path, or collections[].content[].path in a collection with a content list). " +
+		"To translate one file, run kapi translate <file> --target-lang <locale>",
+	"output": "--output does not apply to kapi up: each target is written where its collection's target: pattern says (collections[].target, or collections[].content[].target in a collection with a content list). " +
+		"To write one translated file elsewhere, run kapi translate <file> --target-lang <locale> -o <path>",
+}
+
+// upRecipeShorthands are the one-letter forms of upRecipeFlags.
+var upRecipeShorthands = map[string]string{"i": "input", "o": "output", "f": "format"}
+
+// UpFlagError is the error `kapi up` gives for a flag it does not parse: the
+// refusal for a flag in upRecipeFlags, else err.
+func UpFlagError(err error) error {
+	msg := err.Error()
+	name := ""
+	if rest, ok := strings.CutPrefix(msg, "unknown flag: --"); ok {
+		name, _, _ = strings.Cut(rest, "=")
+	} else if rest, ok := strings.CutPrefix(msg, "unknown shorthand flag: '"); ok {
+		short, _, _ := strings.Cut(rest, "'")
+		name = upRecipeShorthands[short]
+	}
+	if refusal, ok := upRecipeFlags[name]; ok {
+		return errors.New(refusal)
+	}
+	return err
 }
 
 // ChangedRunConfigFlags names the AI run flags the person set on cmd, as

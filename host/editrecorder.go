@@ -129,7 +129,7 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 	}
 
 	var edits []projector.Edit
-	written := 0
+	var written []writtenUnit
 	for _, doc := range order {
 		transitions := byDoc[doc]
 		if len(transitions) == 0 {
@@ -160,7 +160,7 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 			}
 			e.Transitions = append(e.Transitions, editTransition(t, keep))
 			if writesTranslation(t) {
-				written++
+				written = append(written, unitOf(t.Ref))
 			}
 		}
 		edits = append(edits, e)
@@ -169,7 +169,7 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 	// run's tally counts them whether or not the record below succeeds. An
 	// observed record describes a change made outside kapi.
 	if rec.Origin != history.OriginObserved {
-		r.app.writeTally.add(written)
+		r.app.writeTally.add(written...)
 	}
 	if len(edits) == 0 {
 		return "", nil
@@ -189,24 +189,47 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 // removed edition and a record of a translation the file already held are
 // not writes of one.
 func writesTranslation(t change.Transition) bool {
+	if t.Block != nil && !t.Block.Translatable {
+		// A block with nothing to translate (a code block) is written into
+		// the target file as it is; that is not a translation.
+		return false
+	}
 	return t.Role == change.RoleDerived && t.AfterRev != model.AbsentRevision && t.AfterRev != t.BeforeRev
 }
 
-// unitWriteTally counts, for one run, the translations it wrote to a home
-// other than the workspace home: a file. A nil tally counts nothing, so a run
-// that does not ask for the count pays nothing for it.
-type unitWriteTally struct {
-	mu sync.Mutex
-	n  int
+// writtenUnit is the identity a write tally counts a translation by: the
+// document, the block and the edition (its target language and variant). It
+// is a struct, so two units never share a key whatever their names hold.
+type writtenUnit struct {
+	doc, block, edition string
+	locale              model.LocaleID
 }
 
-func (t *unitWriteTally) add(n int) {
-	if t == nil || n == 0 {
+func unitOf(ref change.Ref) writtenUnit {
+	return writtenUnit{doc: ref.Doc, block: ref.Block, edition: ref.EditionText(), locale: ref.Edition.Locale}
+}
+
+// unitWriteTally counts, for one run, the translation units it wrote to a
+// home other than the workspace home: a file. A unit written twice in a run
+// (two passes rewriting it) counts once. A nil tally counts nothing, so a run
+// that does not ask for the count pays nothing for it.
+type unitWriteTally struct {
+	mu    sync.Mutex
+	units map[writtenUnit]struct{}
+}
+
+func (t *unitWriteTally) add(units ...writtenUnit) {
+	if t == nil || len(units) == 0 {
 		return
 	}
 	t.mu.Lock()
-	t.n += n
-	t.mu.Unlock()
+	defer t.mu.Unlock()
+	if t.units == nil {
+		t.units = map[writtenUnit]struct{}{}
+	}
+	for _, u := range units {
+		t.units[u] = struct{}{}
+	}
 }
 
 func (t *unitWriteTally) total() int {
@@ -215,7 +238,29 @@ func (t *unitWriteTally) total() int {
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return t.n
+	return len(t.units)
+}
+
+// editionAt is one edition of a target language: the language, and the
+// edition's text ("nb", or "nb;tone=formal" for a variant of it).
+type editionAt struct {
+	locale, edition string
+}
+
+// byEdition is the count per edition. Each edition of a language is a
+// separate set of translations of the language's units, so a block written
+// in two editions of one language counts once in each.
+func (t *unitWriteTally) byEdition() map[editionAt]int {
+	out := map[editionAt]int{}
+	if t == nil {
+		return out
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for u := range t.units {
+		out[editionAt{locale: string(u.locale), edition: u.edition}]++
+	}
+	return out
 }
 
 // basisAt names an edition of a block a change set's operation addresses.

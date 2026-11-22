@@ -139,7 +139,9 @@ export class Event {
             /**
              * Post-derivation fields (pass_done). Produced counts the units written
              * so far and ProducedDelta what this pass wrote. WaitingForReview counts
-             * the drafts held for review, which neither of the two includes.
+             * the drafts held for review, which neither of the two includes. On
+             * pass_done, ViaMemory, ViaAI and ViaDraft sum the pass's locales. On
+             * materialized, ProducedDelta is the units the delivery wrote.
              * @member
              * @type {number | undefined}
              */

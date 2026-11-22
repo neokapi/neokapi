@@ -199,6 +199,8 @@ func Loop(ctx context.Context, opts LoopOptions, f LoopFuncs, emit *Emitter) (Lo
 		// whole pass (g.Wait) before the next one starts.
 		g, gctx := errgroup.WithContext(ctx)
 		g.SetLimit(opts.Jobs)
+		var passMu sync.Mutex
+		var pass PassProduction
 		for _, loc := range state.Pending {
 			g.Go(func() error {
 				emit.Emit(Event{
@@ -211,6 +213,12 @@ func Loop(ctx context.Context, opts LoopOptions, f LoopFuncs, emit *Emitter) (Lo
 				if err != nil {
 					return fmt.Errorf("converge %s: %w", loc, err)
 				}
+				passMu.Lock()
+				pass.Done += produced.Done
+				pass.ViaMemory += produced.ViaMemory
+				pass.ViaAI += produced.ViaAI
+				pass.ViaDraft += produced.ViaDraft
+				passMu.Unlock()
 				emit.Emit(Event{
 					Type:      EventLocaleDone,
 					Pass:      passes,
@@ -247,6 +255,9 @@ func Loop(ctx context.Context, opts LoopOptions, f LoopFuncs, emit *Emitter) (Lo
 			WaitingForReview: after.WaitingForReview,
 			FailingChecks:    after.FailingChecks,
 			Pending:          after.Pending,
+			ViaMemory:        pass.ViaMemory,
+			ViaAI:            pass.ViaAI,
+			ViaDraft:         pass.ViaDraft,
 		})
 
 		if !opts.UntilGate || len(after.Pending) == 0 {
