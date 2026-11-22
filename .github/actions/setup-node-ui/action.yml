@@ -13,11 +13,17 @@ runs:
     # Drift between the vite-plus devDependency and the `vite` catalog alias
     # breaks vp itself: the overrides force vite-plus's own vendored core down
     # to the aliased version, and a core that far from the CLI cannot load its
-    # rolldown binding. Every step below is a vp invocation, so the guard has to
-    # precede all of them. Behind them it never runs. It sat inside `make
-    # ci-frontend` and stayed skipped while eight jobs failed on the binding
-    # trace instead, which is the failure it exists to translate.
-    - name: Guard — the vite catalog alias tracks vite-plus
+    # rolldown binding. The guard has to precede every vp invocation that loads
+    # that core, or it never runs: it once sat inside `make ci-frontend` and
+    # stayed skipped while eight jobs failed on the binding trace instead,
+    # which is the failure it exists to translate.
+    #
+    # It runs twice. Before anything is installed it checks that every
+    # setup-vp `version:` names the catalog's vite-plus. The alias check needs
+    # the core version the installed vite-plus declares in its own
+    # package.json, so it runs after the install (whose postinstall builds with
+    # esbuild, not vite) and before the first `vp run`.
+    - name: Guard — the setup-vp pins track vite-plus
       shell: bash
       run: bash scripts/audit-vite-alias.sh
 
@@ -55,7 +61,7 @@ runs:
       env:
         VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.sh' }}
       with:
-        version: "1.6.0"
+        version: "1.7.0"
         node-version: ${{ inputs.node-version }}
         cache: true
         cache-dependency-path: pnpm-lock.yaml
@@ -74,7 +80,7 @@ runs:
       env:
         VP_LEGACY_INSTALLER_URL: ${{ runner.os == 'Windows' && 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.ps1' || 'https://raw.githubusercontent.com/voidzero-dev/vite-plus/ae0ec12d06181bad1549b98ef3aac70c970c3556/packages/cli/install-legacy.sh' }}
       with:
-        version: "1.6.0"
+        version: "1.7.0"
         node-version: ${{ inputs.node-version }}
         cache: true
         cache-dependency-path: pnpm-lock.yaml
@@ -83,6 +89,10 @@ runs:
     - name: Install workspace dependencies
       shell: bash
       run: vp install --frozen-lockfile
+
+    - name: Guard — the vite catalog alias names the core vite-plus uses
+      shell: bash
+      run: bash scripts/audit-vite-alias.sh --installed
 
     # @neokapi/i18n-react ships dist-only subpath exports (./runtime, ./vite, …)
     # that other workspace packages import; its dist/ is not committed, so any

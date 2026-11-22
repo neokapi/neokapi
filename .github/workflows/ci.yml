@@ -1312,6 +1312,8 @@ jobs:
         run: |
           python3 scripts/check-tool-versions.py --self-test
           python3 scripts/check-tool-versions.py --offline
+      - name: "Guard: the vite alias audit fails on drift and passes on both core layouts"
+        run: bash scripts/audit-vite-alias.sh --self-test
       - name: "Guard: a bindings generator warning about our own code fails"
         run: ./scripts/wails-generate.sh --self-test
       - name: Guard — the sync commits only sound loop output

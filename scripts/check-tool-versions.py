@@ -63,7 +63,7 @@ PINS = [
             (".github/workflows/publish-npm.yml", r'version: "(\d+\.\d+\.\d+)"'),
         ],
         "latest": ("npm", "vite-plus"),
-        "note": "Moves with the `vite` alias in pnpm-workspace.yaml (scripts/audit-vite-alias.sh). From 1.7.0 the core package has its own version, so that script changes first.",
+        "note": "Moves with the `vite` alias in pnpm-workspace.yaml, which names the core version this release depends on (`npm view vite-plus@<version> dependencies.vite`), not the vite-plus version. `vp migrate` moves both; scripts/audit-vite-alias.sh --installed checks them.",
     },
     {
         "name": "pnpm",

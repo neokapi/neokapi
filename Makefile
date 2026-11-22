@@ -669,7 +669,7 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	node scripts/format-ops/check-vocab-packs.mjs
 	# Guard against vite-plus / vite-alias version drift before any vp check runs,
 	# so the failure is an actionable one-liner rather than a puzzling TS2321.
-	bash scripts/audit-vite-alias.sh
+	bash scripts/audit-vite-alias.sh --installed
 	# The tree must already be formatted the way `vp check --fix` formats it —
 	# see check-fmt-fixed-point. ~0.4s over the whole workspace.
 	$(MAKE) --no-print-directory check-fmt-fixed-point
@@ -2565,8 +2565,9 @@ context-eval-validate: ## Measure judge–human agreement on the labeled seed se
 
 # ── Frontend Checks ──────────────────────────────────────────────────────────
 
-audit-vite-alias: ## Assert the vite catalog alias tracks the vite-plus devDependency version
-	bash scripts/audit-vite-alias.sh
+audit-vite-alias: ## Assert the vite catalog alias names the core the installed vite-plus depends on
+	bash scripts/audit-vite-alias.sh --self-test
+	bash scripts/audit-vite-alias.sh --installed
 
 frontend-check-all: audit-vite-alias ## Run lint, format, and typecheck across all frontend projects
 	$(MAKE) -C bowrain frontend-check-all
