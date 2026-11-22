@@ -975,8 +975,8 @@ export function GetVoiceProfile(workspaceSlug, profileID) {
  * The rollup is the server's aggregation: it reads stored per-project scores
  * and resolves each project's effective profile through a ladder (collection →
  * stream → project → workspace default) that lives server-side. Composing it
- * from per-project reads produces a different board — a blank profile column
- * and a trend derived from a different window — so offline this returns the
+ * from per-project reads produces a different board (a blank profile column
+ * and a trend derived from a different window), so offline this returns the
  * empty rollup marked Offline rather than a locally computed one.
  * @param {string} workspaceSlug
  * @param {$models.VoiceRollupArgs} args

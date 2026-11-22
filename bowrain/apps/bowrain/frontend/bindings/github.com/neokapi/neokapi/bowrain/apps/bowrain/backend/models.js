@@ -1903,7 +1903,7 @@ export class FlowEdgeInfo {
 
 /**
  * FlowNodeInfo is the frontend-facing flow node type. Tool nodes are one
- * ordered list — transformers are ordinary steps (AD-006).
+ * ordered list, transformers are ordinary steps (AD-006).
  */
 export class FlowNodeInfo {
     /**
