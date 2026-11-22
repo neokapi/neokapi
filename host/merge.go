@@ -8,6 +8,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -33,19 +34,17 @@ import (
 // sidecar (batch wasn't redacted) is a no-op. Merge runs it before it compiles
 // the units into a change set.
 //
-// The incoming source is ALWAYS restored: a unit that carries no basis is
-// compared with the source as it stands, which holds the originals, so the
-// placeholders must be reverted for that comparison to hold. The translated
-// target is restored only when restoreTarget is set. Passing false (the
-// --no-restore flag) leaves placeholders in the merged output.
+// The incoming source is always restored. A unit with no basis is compared
+// with the source as it stands, which holds the originals. The target is
+// restored only when restoreTarget is set; --no-restore leaves placeholders
+// in the merged output.
 //
 // doc is the source document the blocks translate. The vault keeps each
 // original under its document, block and token. A sidecar an earlier kapi
 // wrote is refused, and the refusal names the command that writes a new one.
 //
 // With check_placeholders set (a redacted .kpz), a restored translation that
-// still holds a placeholder stops the merge: a translator changed it, and
-// the file would carry it.
+// still holds a placeholder stops the merge, because a translator changed it.
 func restoreRedactedBlocks(layout project.Layout, batchID, doc string, blocks []*model.Block, targetLocale model.LocaleID, restoreTarget, checkPlaceholders bool) error {
 	sidecar := layout.RedactionSidecarPath(batchID)
 	if _, err := os.Stat(sidecar); err != nil {
@@ -145,7 +144,7 @@ func (a *App) RunMerge(cmd Command) error {
 			tm = w.With(projector.Origin{By: "merge"}).Memory()
 		}
 	}
-	// One write for the whole run, not one per merged block — see memoryAbsorber.
+	// One write for the whole run, not one per merged block, see memoryAbsorber.
 	absorber := a.newMemoryAbsorber(tm)
 
 	policy := proj.Defaults.Merge.ResolvedConflictPolicy()
@@ -205,7 +204,7 @@ func (a *App) RunMerge(cmd Command) error {
 	res.Failures = failures
 
 	// The complete event closes the stream whatever happened (errors travel as
-	// the returned error, per the FlowRunEvent contract) — but its message must
+	// the returned error, per the FlowRunEvent contract), but its message must
 	// not read like an unqualified success when inputs failed.
 	message := fmt.Sprintf("Merged %d file(s)", len(expanded)-failures)
 	if failures > 0 {
@@ -241,7 +240,7 @@ func (a *App) RunMerge(cmd Command) error {
 // store (AD-026 §3): for each project source × target locale it gives the
 // source's translation the stored `targets/<locale>` overlays (recomputing
 // nothing) through the change service, which writes the file the source's
-// target template names. This is the sink half of the process-only loop —
+// target template names. This is the sink half of the process-only loop,
 // `kapi run flow -i src.json` (in a project, no -o) commits overlays; `kapi
 // merge` (no -i) writes the files.
 func (a *App) MergeFromProjectStore(cmd Command) error {
@@ -277,16 +276,17 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 	return output.Print(cmd, output.MergeStoreOutput{Written: written, Stale: stale.Blocks, Unstamped: stale.Unstamped, FromProjectStore: true, Warnings: unread.warnings()})
 }
 
-// materializeFromProjectStore is the shared materialize path (#1078 C2/C3):
-// it writes the localized files for the given locales from the project block
-// store — for each source and locale one change set of set_content operations
-// carrying the stored `targets/<locale>` overlays, which the change service
-// writes from the source's skeleton (materializeEdition). A collection that
-// names no target is source-only and gets no file, and a translation the
-// store holds nothing for is left as it is. `kapi merge` (no -i) calls it over
-// every target language; `kapi up` calls it after the loop for the shippable
-// locales when the materialize policy (defaults.materialize / --materialize)
-// says so. Returns the number of files written.
+// materializeFromProjectStore is the shared materialize path (#1078 C2/C3).
+// It writes the target files for the given locales from the project block
+// store. Each source and locale is one change set of set_content operations,
+// which carry the stored `targets/<locale>` overlays. The change service
+// writes them from the source's skeleton (materializeEdition).
+//
+// A collection that names no target is source-only and gets no file. A
+// translation the store holds nothing for is left as it is. `kapi merge`
+// with no -i calls it over every target language. `kapi up` calls it after
+// the loop for the shippable locales, when the recipe's materialize policy or
+// --materialize asks for it. It returns the number of files written.
 func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, proj *project.KapiProject, projectPath string, locales []model.LocaleID, noMemoryUpdate bool) (int, error) {
 	written, _, err := a.materializeProject(ctx, out, proj, projectPath, locales, noMemoryUpdate, nil)
 	return written, err
@@ -349,7 +349,7 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	}
 
 	// Admission: refuse the whole materialize pass when any destination is
-	// blocked (#1449), rather than writing some locales and then failing —
+	// blocked (#1449), rather than writing some locales and then failing,
 	// nothing is written yet, and every blocked path is named at once.
 	if berr := checkMaterializeTargetsWritable(proj, layout.Root, files, locales); berr != nil {
 		return 0, staleDrafts{}, fmt.Errorf("merge: %w", berr)
@@ -367,11 +367,10 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	absorber := a.newMemoryAbsorber(tm)
 
 	// Materializing means writing what the store produced. A locale the store
-	// holds no target for produces source fallback for every block, and writing
-	// that over the committed translations destroys them — the exact loss on a
-	// fresh clone, where the catalogs are complete (so the loop correctly runs no
-	// pass, having nothing pending) and the block store is empty (so it has
-	// nothing to say). Silence is the honest output for a store with nothing to
+	// holds no target for produces source fallback for every block. Writing
+	// that over the committed translations destroys them. That is the loss on a
+	// fresh clone: the catalogs are complete, so the loop runs no pass, and the
+	// block store is empty. Silence is the honest output for a store with nothing to
 	// say; the locale's standing is what coverage already reports.
 	keptLocales, err := a.keptLocales(ctx, layout.Root)
 	if err != nil {
@@ -406,7 +405,7 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 			}
 
 			// Whole-image (target-asset) replacement: an existing localized
-			// binary-asset variant is authoritative — keep it rather than clobber
+			// binary-asset variant is authoritative, keep it rather than clobber
 			// it by re-materializing the source.
 			if preserveAssetVariant(srcFormat, f.Path, targetPath) {
 				written++
@@ -437,8 +436,8 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 
 			// Absorb the materialized targets into the project content memory with merge
 			// provenance, mirroring the XLIFF/PO/.kpz merge paths. TM write-back
-			// is best-effort — the localized file is already on disk and is the
-			// deliverable — but a failure is REPORTED rather than dropped: the
+			// is best-effort, the localized file is already on disk and is the
+			// deliverable, but a failure is REPORTED rather than dropped: the
 			// TM is how the next run recycles this work, and a silent failure to
 			// record it looks like the translation never happened.
 			if absorber != nil {
@@ -591,7 +590,7 @@ func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFo
 			// be read" are DIFFERENT outcomes and must not share a branch: the
 			// first is ordinary pending work, the second loses translations that
 			// exist. Conflating them made every absorb report a short count as
-			// success — the same shape as #1449, one layer up. ErrNotFound is the
+			// success, the same shape as #1449, one layer up. ErrNotFound is the
 			// documented absence sentinel (core/blockstore); anything else is a
 			// read failure and fails the absorb.
 			if errors.Is(oerr, blockstore.ErrNotFound) {
@@ -655,10 +654,10 @@ func (s *mergeStats) accumulate(o mergeStats) {
 }
 
 // MergeOneKpz ingests a bilingual interchange .kpz returned by a translator
-// (kind=kapi-interchange, AD-025 §7): it validates the profile and merges the
-// target overlays of each source it carries through the change service, as
-// kapi merge -i merges an XLIFF or PO file, with the revisions the
-// interchange task records for each unit as their if_match and basis.
+// (kind=kapi-interchange, AD-025 §7). It validates the profile and merges the
+// target overlays of each source through the change service, as kapi merge -i
+// merges an XLIFF or PO file. The revisions the interchange task records for
+// each unit are their if_match and basis.
 func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	ctx := cmd.Context()
 	pkg, err := LoadWorkspace(kpzInput)
@@ -701,7 +700,7 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	if !BoolFlag(cmd, "no-memory-update") {
 		// Warned, like the two sibling merge paths above: a content memory that
 		// failed to open reported `memory_new=0 memory_updated=0`, which reads as
-		// "nothing new to learn" rather than "it was never opened" — so the
+		// "nothing new to learn" rather than "it was never opened", so the
 		// leverage is lost for this bundle with no way to tell.
 		if w, derr := a.Projector(CmdContext(cmd), layout.Root); derr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: merge: open project store: %v (continuing without write-back)\n", derr)
@@ -959,7 +958,7 @@ func detectSourceFormat(reg *registry.FormatRegistry, ctx *project.ProjectContex
 // the recipe does not declare a target template.
 //
 // Two inputs decide the destination and they carry different trust. The target
-// template comes from the LOCAL recipe — the project owner's own file — so an
+// template comes from the LOCAL recipe, the project owner's own file, so an
 // absolute template stays a supported way to write outside the tree. The source
 // path may come from a package, and it feeds both the default layout and the
 // template's {path}/{filename} substitutions, so it is contained first: a
@@ -974,7 +973,7 @@ func resolveMergeOutputPath(entry *project.ExtractionFile, proj *project.KapiPro
 	// The content item that claims entry.Source decides the destination; one
 	// that declares no target falls through to the default below. The target
 	// template supports {lang}, {path}, {filename}, {basename}, and the legacy
-	// bare `*` — see project.ResolveTargetPath.
+	// bare `*`, see project.ResolveTargetPath.
 	if proj != nil {
 		if item, _, ok := proj.ItemForPath(entry.Source); ok && item.Target != "" {
 			tmpl := project.ResolveTargetPathIn(item.Path, item.Base, item.Target, entry.Source, string(locale), proj.Defaults.LocaleFormat)
@@ -1005,14 +1004,14 @@ type memoryAbsorber struct {
 	tm      *projector.Memory
 	entries []memory.Entry
 	// staged maps an entry id to its position in entries. Entry ids are
-	// content-derived, so one string merged from two files — or the same source
-	// merged for a second target locale — is one entry, and the bulk path would
+	// content-derived, so one string merged from two files, or the same source
+	// merged for a second target locale, is one entry, and the bulk path would
 	// otherwise carry it twice.
 	staged map[string]int
 }
 
 // newMemoryAbsorber returns an absorber over tm, or nil when there is no
-// content memory to write to — every call site already guards on nil, which is
+// content memory to write to, every call site already guards on nil, which is
 // the "--no-memory-update, or the store would not open" case.
 func (a *App) newMemoryAbsorber(tm *projector.Memory) *memoryAbsorber {
 	if tm == nil {
@@ -1022,7 +1021,7 @@ func (a *App) newMemoryAbsorber(tm *projector.Memory) *memoryAbsorber {
 }
 
 // absorb stages one merged block. The new/updated split is decided here, while
-// the store still reflects the run's starting state — a read, so it takes no
+// the store still reflects the run's starting state, a read, so it takes no
 // write lock.
 func (m *memoryAbsorber) absorb(ctx context.Context, block *model.Block, source, target model.LocaleID, batchID, sourceRel, xliffPath string) (newCount, updatedCount int, err error) {
 	if m == nil {
@@ -1040,6 +1039,37 @@ func (m *memoryAbsorber) absorb(ctx context.Context, block *model.Block, source,
 		maps.Copy(m.entries[i].Variants, entry.Variants)
 		return 0, 0, nil
 	}
+	// One translation is one entry. When the store already holds this source
+	// and target under another entry (the record absorber's, an import's), the
+	// merge is recorded as one more origin on that entry rather than as a
+	// second entry with the same pair.
+	holder, found, herr := m.samePair(ctx, entry, source, target)
+	if herr != nil {
+		return 0, 0, herr
+	}
+	if found {
+		origin := entry.Origins[0]
+		if i, staged := m.staged[holder.ID]; staged {
+			m.entries[i].Origins, _ = withMergeOrigin(m.entries[i].Origins, origin)
+			return 0, 0, nil
+		}
+		origins, changed := withMergeOrigin(holder.Origins, origin)
+		if !changed {
+			return 0, 0, nil
+		}
+		holder.Origins = origins
+		// The merge's properties name the block and the file it came from,
+		// which `kapi memory audit` reads beside the merge origin.
+		holder.Properties = maps.Clone(holder.Properties)
+		if holder.Properties == nil {
+			holder.Properties = map[string]string{}
+		}
+		maps.Copy(holder.Properties, entry.Properties)
+		holder.UpdatedAt = entry.UpdatedAt
+		m.staged[holder.ID] = len(m.entries)
+		m.entries = append(m.entries, holder)
+		return 0, 1, nil
+	}
 	_, existed, gerr := m.tm.GetEntry(ctx, entry.ID)
 	if gerr != nil {
 		return 0, 0, fmt.Errorf("read content-memory entry %s: %w", entry.ID, gerr)
@@ -1052,9 +1082,53 @@ func (m *memoryAbsorber) absorb(ctx context.Context, block *model.Block, source,
 	return 1, 0, nil
 }
 
+// samePair returns the entry the store already holds for entry's source and
+// target under another id. It reports found=false when no such entry exists,
+// and when the store holds entry's own id, which the merge then updates.
+func (m *memoryAbsorber) samePair(ctx context.Context, entry memory.Entry, source, target model.LocaleID) (memory.Entry, bool, error) {
+	held, err := m.tm.FullScoreEntries(ctx, entry.Variants[source], source)
+	if err != nil {
+		return memory.Entry{}, false, fmt.Errorf("read content-memory entries for %s: %w", entry.ID, err)
+	}
+	want := memory.NormalizeText(entry.VariantText(target))
+	var pair *memory.Entry
+	for i := range held {
+		e := &held[i]
+		if e.ID == entry.ID {
+			return memory.Entry{}, false, nil
+		}
+		if pair == nil && e.HasLocale(target) && memory.NormalizeText(e.VariantText(target)) == want {
+			pair = e
+		}
+	}
+	if pair == nil {
+		return memory.Entry{}, false, nil
+	}
+	return *pair, true, nil
+}
+
+// withMergeOrigin records origin on an entry's origins: it replaces a merge
+// origin for the same file and adds one otherwise. changed is false when the
+// entry already carries the origin, apart from the instant it was added.
+func withMergeOrigin(origins []memory.Origin, origin memory.Origin) (out []memory.Origin, changed bool) {
+	for i, o := range origins {
+		if o.Source != origin.Source || o.Key != origin.Key {
+			continue
+		}
+		o.AddedAt = origin.AddedAt
+		if o == origin {
+			return origins, false
+		}
+		out = slices.Clone(origins)
+		out[i] = origin
+		return out, true
+	}
+	return append(slices.Clone(origins), origin), true
+}
+
 // flush writes everything the run learned, then repopulates the search and
 // fuzzy indexes the bulk path skipped. A run that learned nothing writes
-// nothing — including no rebuild.
+// nothing, including no rebuild.
 func (m *memoryAbsorber) flush(ctx context.Context) error {
 	if m == nil || len(m.entries) == 0 {
 		return nil
@@ -1149,9 +1223,9 @@ func expandMergeInputs(inputs []string, root string) ([]string, error) {
 			}
 			continue
 		}
-		// A glob or a plain path: the shared expander handles both, and a
-		// pattern that matches nothing simply contributes nothing (merge
-		// reports the empty result itself).
+		// A glob or a plain path: the shared expander handles both. A pattern
+		// that matches nothing contributes nothing, and merge reports the
+		// empty result itself.
 		matches, err := expandArgs([]string{abs}, InputOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("merge: %w", err)
