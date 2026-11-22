@@ -48,6 +48,11 @@ func MCPRootsFrom(ctx context.Context) []string {
 	if roots, ok := ctx.Value(mcpRootsKey{}).([]string); ok {
 		return roots
 	}
+	if !rootpath.Supported {
+		// The browser build's file system holds the page's own files and
+		// nothing else, and the page, not an agent, names what it reads.
+		return []string{"/"}
+	}
 	roots := []string{}
 	if wd, err := os.Getwd(); err == nil {
 		roots = append(roots, wd)
@@ -66,7 +71,8 @@ func MCPRootsSet(ctx context.Context) ([]string, bool) {
 }
 
 // MCPRootsMiddleware puts on every call's context the directory the server
-// was started in and the roots the client declares.
+// was started in, the root of the project it was started for, and the roots
+// the client declares.
 func (a *App) MCPRootsMiddleware() mcp.Middleware {
 	return func(next mcp.MethodHandler) mcp.MethodHandler {
 		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
@@ -74,7 +80,13 @@ func (a *App) MCPRootsMiddleware() mcp.Middleware {
 			if req != nil {
 				ss, _ = req.GetSession().(*mcp.ServerSession)
 			}
-			return next(WithMCPRoots(ctx, MCPSessionRoots(ctx, ss, a.mcpStartDir)), method, req)
+			roots := MCPSessionRoots(ctx, ss, a.mcpStartDir)
+			if a.mcpRecipePath != "" {
+				// The project the server was started for, which a person named
+				// with -p or by where they started it.
+				roots = append(roots, filepath.Dir(a.mcpRecipePath))
+			}
+			return next(WithMCPRoots(ctx, roots), method, req)
 		}
 	}
 }

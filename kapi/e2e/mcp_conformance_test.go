@@ -248,14 +248,24 @@ func mcpServer(t *testing.T, args ...string) (*mcp.ClientSession, context.Contex
 	return startMCPServer(t, args...)
 }
 
-// startMCPServer starts `kapi mcp` with exactly the given arguments.
+// startMCPServer starts `kapi mcp` with exactly the given arguments, in the
+// system temporary directory. A call reaches only the directory the server
+// was started in (host/mcp_roots.go), and every test keeps its projects
+// under that directory, so the server is started where a person would start
+// it: in the directory that holds the projects it serves.
 func startMCPServer(t *testing.T, args ...string) (*mcp.ClientSession, context.Context) {
+	t.Helper()
+	return startMCPServerIn(t, os.TempDir(), args...)
+}
+
+// startMCPServerIn starts `kapi mcp` in dir with exactly the given arguments.
+func startMCPServerIn(t *testing.T, dir string, args ...string) (*mcp.ClientSession, context.Context) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
 
 	cmd := exec.CommandContext(ctx, kapiBin, append([]string{"mcp"}, args...)...)
-	cmd.Dir = t.TempDir()
+	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), isoEnv...)
 	cmd.Stderr = os.Stderr
 
@@ -1518,4 +1528,25 @@ func TestMCPConformanceEditLoop(t *testing.T) {
 	described := callTool(t, ctx, session, "describe_format", map[string]any{"doc": "docs/clean.md"})
 	assert.Equal(t, "markdown", described["format"])
 	assert.Equal(t, "one-per-file", described["editions"])
+}
+
+// A project or file a call names outside the directory the server was
+// started in, and outside the project it was started for, is refused naming
+// the argument; the server's own project still answers.
+func TestMCPConformanceRefusesAProjectOutsideItsDirectories(t *testing.T) {
+	alpha := writeConformanceProject(t, "alpha", "translation memory", "content memory", "nb", "innholdsminne")
+	beta := writeConformanceProject(t, "beta", "termbase", "terms store", "fr", "magasin de termes")
+	session, ctx := startMCPServerIn(t, alpha.Root, "-p", alpha.Recipe, "--tools", "all")
+
+	report := callTool(t, ctx, session, "check_file", map[string]any{"file": alpha.Violating})
+	assert.NotEmpty(t, findings(report), "the server's own project answers")
+
+	res := rawCallTool(t, ctx, session, "check_text", map[string]any{"text": "the " + beta.Forbidden, "project": beta.Recipe})
+	require.True(t, res.IsError)
+	assert.Contains(t, resultText(res), "project")
+	assert.Contains(t, resultText(res), "lies outside the directories this server may reach")
+
+	res = rawCallTool(t, ctx, session, "check_file", map[string]any{"file": beta.Violating})
+	require.True(t, res.IsError)
+	assert.Contains(t, resultText(res), "file:")
 }
