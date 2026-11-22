@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -42,8 +41,8 @@ var projectionAllowlist = map[string][]string{
 var messageDefRe = regexp.MustCompile(`^\s*message\s+(\w*(?:Run|Block|Segment)(?:s|List|Message)?)\s*\{`)
 
 // skipDirs are directory names never scanned for proto files. `.claude` holds
-// agent git worktrees — whole checkouts of this repo — whose copy of the
-// canonical schema is the same file, not a second definition of it.
+// agent git worktrees, whole checkouts of this repository, and their copy of
+// the canonical schema is the same file rather than a second definition.
 var skipDirs = map[string]bool{
 	".git": true, "node_modules": true, "bin": true, "dist": true,
 	"build": true, ".kapi": true, ".kapi-iso": true, "coverage": true,
@@ -52,10 +51,10 @@ var skipDirs = map[string]bool{
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	require.True(t, ok, "runtime.Caller must resolve the test file path")
-	// file = <root>/core/proto/content/guard_test.go
-	root := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(file))))
+	// go test runs a package's tests in the package directory,
+	// <root>/core/proto/content.
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	require.NoError(t, err)
 	require.FileExists(t, filepath.Join(root, "go.work"), "repo root detection")
 	return root
 }

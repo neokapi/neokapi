@@ -3,7 +3,6 @@ package profile
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -28,10 +27,9 @@ var repoVoicePacks = []string{
 // from the tree under test rather than from a developer's working directory.
 func repoRoot(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	require.True(t, ok, "runtime.Caller must resolve the test file path")
-	// file = <root>/core/profile/repopacks_test.go
-	root := filepath.Dir(filepath.Dir(filepath.Dir(file)))
+	// go test runs a package's tests in the package directory, <root>/core/profile.
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	require.NoError(t, err)
 	require.FileExists(t, filepath.Join(root, "go.work"), "repo root detection")
 	return root
 }
@@ -71,8 +69,8 @@ func TestRepoVoicePacksAreValid(t *testing.T) {
 // the word as a claim about the product is a major finding, and the technical
 // compound that names a file-format signature is not a finding at all. RE2 has
 // no lookahead, so the exclusion cannot be written as `\bmagic\b(?!\s+bytes)`
-// and the marketing register is written positively instead — which makes the
-// clean half of this table the load-bearing half.
+// and the marketing register is written positively instead. So the clean half
+// of this table is the half that tests the exclusion.
 func TestRepoVoicePacksJudgeMagicByRegister(t *testing.T) {
 	tests := []struct {
 		name    string
