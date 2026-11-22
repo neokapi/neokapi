@@ -1,0 +1,42 @@
+name: Tool versions
+
+# Reports the pinned tools that have fallen behind their latest release.
+#
+# Dependabot keeps module, package, action and image versions current. It
+# cannot see a version written into a workflow `env:` value, a shell script or
+# an action input: the Go toolchain CI installs, the linter, a native library
+# fetched at build time. scripts/check-tool-versions.py holds one row per such
+# pin and asks each one's registry for the latest stable release.
+#
+# The job fails when a pin is behind or when two copies of one pin disagree.
+# scheduled-failure-issue.yml listens for that and opens one issue, which it
+# updates each week until the job passes again. The log lists each pin, its
+# latest release and what moving it involves.
+#
+# The agreement half runs on every pull request in Repo guards; only the
+# question to the registries is scheduled.
+
+on:
+  schedule:
+    - cron: "0 5 * * 1" # Mondays 05:00 UTC, before the week's Dependabot run
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tool-versions
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Pinned tools are current
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compare each pin with its latest release
+        env:
+          # Raises the GitHub API rate limit for the release lookups.
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/check-tool-versions.py

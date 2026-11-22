@@ -63,7 +63,7 @@ jobs:
           # 22 to match every other workflow and satisfy pnpm 11 (corepack),
           # which requires Node >= 22.13; on 20 the ajv-cli install fails and the
           # schema checks error out.
-          node-version: "22"
+          node-version: "26"
 
       - name: Install ajv-cli
         # The tests prefer the global executable and can use pnpm when it is absent.

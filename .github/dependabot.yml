@@ -122,8 +122,13 @@ updates:
         exclude-patterns: ["@types/react", "@types/react-dom"]
         update-types: [minor, patch]
       npm-toolchain:
-        patterns: ["vite-plus", "@swc/*", "eslint", "@oxlint/*", "@playwright/test", "typescript"]
+        patterns: ["@swc/*", "eslint", "@oxlint/*", "@playwright/test", "typescript"]
         update-types: [minor, patch]
+    ignore:
+      # Vite+ moves with the `vite` alias and the setup-vp inputs, which
+      # Dependabot cannot follow: every pull request it raised for it failed
+      # (#3532). scripts/check-tool-versions.py reports when it falls behind.
+      - dependency-name: vite-plus
 
   # ── npm trees outside the root workspace ───────────────────────────────────
   # Each has a lockfile of its own, which the root entry above never reads.
@@ -173,6 +178,10 @@ updates:
       # The base image sets the glibc floor of the binaries built in it.
       - dependency-name: ubuntu
         update-types: ["version-update:semver-major"]
+      # A Python minor release is a new language version: the sandbox image
+      # moves to one deliberately, with its packages checked against it.
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   # ── Compose files ──────────────────────────────────────────────────────────
   - package-ecosystem: docker-compose
@@ -190,6 +199,9 @@ updates:
       compose-minor-patch:
         update-types: [minor, patch]
     ignore:
-      # The local and test databases follow the production engine's major.
+      # The local and test databases and cache follow the production engines'
+      # majors.
       - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+      - dependency-name: redis
         update-types: ["version-update:semver-major"]

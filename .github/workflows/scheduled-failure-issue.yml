@@ -26,6 +26,7 @@ on:
       - Dogfood Sync
       - Container Scan
       - Contract Audit
+      - Tool versions
       - Evals Refresh
       - Bowrain Build
     types: [completed]

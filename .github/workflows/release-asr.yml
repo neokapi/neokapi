@@ -210,7 +210,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          go install github.com/sigstore/cosign/v2/cmd/cosign@v2.4.1
+          go install github.com/sigstore/cosign/v2/cmd/cosign@v2.6.5
           # setup-go doesn't add GOPATH/bin to PATH; do it so the sign step finds cosign.
           cygpath -w "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Cosign sign

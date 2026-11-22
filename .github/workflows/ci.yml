@@ -1308,6 +1308,10 @@ jobs:
       # nightly there.
       - name: "Guard: the test shards of a package cover every test once"
         run: ./scripts/go-test-shard.sh --self-test
+      - name: "Guard: every copy of a tool pin names the same version"
+        run: |
+          python3 scripts/check-tool-versions.py --self-test
+          python3 scripts/check-tool-versions.py --offline
       - name: "Guard: a bindings generator warning about our own code fails"
         run: ./scripts/wails-generate.sh --self-test
       - name: Guard — the sync commits only sound loop output
@@ -1368,7 +1372,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "26"
       - name: Guard — no test or story file is extracted into a shipped catalog
         run: node scripts/check-extract-fixtures.mjs
 
