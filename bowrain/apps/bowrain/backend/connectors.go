@@ -1,9 +1,11 @@
 package backend
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -48,7 +50,7 @@ func (a *App) ListConnectorTypes() []string {
 	return names
 }
 
-// ListConnectors returns all active connector instances.
+// ListConnectors returns all active connector instances, sorted by ID.
 func (a *App) ListConnectors() []ConnectorInfo {
 	var result []ConnectorInfo
 	for _, c := range activeConnectors {
@@ -59,6 +61,7 @@ func (a *App) ListConnectors() []ConnectorInfo {
 			Category: string(c.Category()),
 		})
 	}
+	slices.SortFunc(result, func(a, b ConnectorInfo) int { return cmp.Compare(a.ID, b.ID) })
 	return result
 }
 

@@ -7,12 +7,12 @@
 //
 // Localization: templates/*.html is the English (source-locale) set;
 // templates/<locale>/*.html holds a localized variant set produced by the
-// dogfood l10n pipeline (make l10n — neokapi-i18n extraction over
-// bowrain/emails/src, content memory-driven recycle, per-locale re-render). Subjects
+// dogfood l10n pipeline (make l10n: neokapi-i18n extraction over
+// bowrain/emails/src, recycling from content memory, per-locale re-render). Subjects
 // live in subjects/<locale>.json (subjects/en.json is the source; the
 // others are generated the same way). Every Send*/Render* method takes the
 // recipient's locale; unknown locales, missing variant sets, and missing
-// per-template files all fall back to English — a missing translation must
+// per-template files all fall back to English. A missing translation must
 // never block a send (see CLAUDE.md "Target-language drift must never
 // block the build").
 //
@@ -42,6 +42,8 @@ import (
 	"fmt"
 	"html"
 	"io/fs"
+	"maps"
+	"slices"
 	"strings"
 	"text/template"
 )
@@ -141,14 +143,10 @@ func loadSubjects(fsys fs.FS) (map[string]map[string]*template.Template, error) 
 	return out, nil
 }
 
-// Locales lists the locales with an embedded template set (always
+// Locales lists the locales with an embedded template set, sorted (always
 // includes "en").
 func (m *Mailer) Locales() []string {
-	out := make([]string, 0, len(m.templates))
-	for l := range m.templates {
-		out = append(out, l)
-	}
-	return out
+	return slices.Sorted(maps.Keys(m.templates))
 }
 
 // normalizeLocale lowercases a BCP-47 tag and reduces it to its primary
@@ -178,8 +176,8 @@ func (m *Mailer) execute(locale, name string, data any) (string, error) {
 }
 
 // subject renders the named subject line in the given locale (English
-// fallback). data is the raw (unescaped) per-email data struct — subjects
-// are plain text, not HTML.
+// fallback). data is the raw (unescaped) per-email data struct, because
+// subjects are plain text, not HTML.
 func (m *Mailer) subject(locale, name string, data any) (string, error) {
 	locale = normalizeLocale(locale)
 	t := m.subjects[locale][name]
@@ -409,8 +407,8 @@ func (m *Mailer) renderSubscriptionChanged(locale string, data SubscriptionChang
 	return m.execute(locale, "subscription-changed.html", td)
 }
 
-// ReviewRequestData holds the dynamic values for the review-request email —
-// the summons a governed change-set sends to the people who may approve it.
+// ReviewRequestData holds the dynamic values for the review-request email: the
+// summons a governed change-set sends to the people who may approve it.
 type ReviewRequestData struct {
 	// WorkspaceName is the human-readable workspace name.
 	WorkspaceName string
@@ -456,14 +454,15 @@ func (m *Mailer) renderReviewRequest(locale string, data ReviewRequestData) (str
 	return m.execute(locale, "review-request.html", td)
 }
 
-// JobFailedData holds the dynamic values for the job-failure email — the one
-// message about work that stopped, sent after retries rather than per attempt.
+// JobFailedData holds the dynamic values for the job-failure email. It is the
+// one message about work that stopped, sent after retries rather than per
+// attempt.
 type JobFailedData struct {
 	// WorkspaceName is the human-readable workspace name.
 	WorkspaceName string
 	// JobKind names the work in prose: "translation", "push", "extraction".
 	JobKind string
-	// Subject is what the job was working on — an item and locale, or a project.
+	// Subject is what the job was working on: an item and locale, or a project.
 	Subject string
 	// Reason is the one-line failure the worker recorded, already summarised.
 	Reason string
@@ -497,8 +496,8 @@ func (m *Mailer) renderJobFailed(locale string, data JobFailedData) (string, err
 		"WorkspaceName": html.EscapeString(data.WorkspaceName),
 		"JobKind":       html.EscapeString(data.JobKind),
 		"Subject":       html.EscapeString(data.Subject),
-		// The reason is upstream text — a provider's error body reaches this
-		// field verbatim — so escaping it is not a formality.
+		// The reason is upstream text: a provider's error body reaches this
+		// field verbatim, so it must be escaped.
 		"Reason": html.EscapeString(data.Reason),
 		"JobURL": escapeURL(data.JobURL),
 	}
@@ -648,7 +647,7 @@ func (m *Mailer) renderNotification(locale string, data NotificationData) (strin
 	return m.execute(locale, "notification.html", td)
 }
 
-// WelcomeData holds the dynamic values for the welcome email — the one greeting
+// WelcomeData holds the dynamic values for the welcome email: the one greeting
 // a new account receives, when its first workspace is provisioned.
 type WelcomeData struct {
 	// WorkspaceName is the human-readable name of the workspace just created.
@@ -703,7 +702,7 @@ type EmailChangeVerifyData struct {
 	ExpiresIn string
 }
 
-// SendEmailChangeVerify sends the verification email used to confirm an
+// SendEmailChangeVerify sends the verification email that confirms an
 // email-change request. The email is delivered to the *new* address, so a
 // successful click proves ownership.
 func (m *Mailer) SendEmailChangeVerify(ctx context.Context, to, locale string, data EmailChangeVerifyData) error {

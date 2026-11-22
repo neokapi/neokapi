@@ -11,6 +11,7 @@ package sync
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
@@ -121,6 +122,11 @@ func (d *DiffEngine) CompareItems(ctx context.Context, projectID, stream string,
 		}
 	}
 
+	// Each list is sorted, so the same hashes always produce the same answer.
+	slices.Sort(result.NewItems)
+	slices.Sort(result.ChangedItems)
+	slices.Sort(result.DeletedItems)
+
 	return result, nil
 }
 
@@ -149,10 +155,10 @@ func (d *DiffEngine) CompareBlocks(ctx context.Context, projectID, stream, itemN
 	for blockID, clientHash := range clientBlockHashes {
 		serverHash, exists := serverHashes[blockID]
 		if !exists {
-			// New block — client has it, server doesn't.
+			// New block: the client has it and the server does not.
 			result.Needed = append(result.Needed, blockID)
 		} else if clientHash != serverHash {
-			// Changed — content differs.
+			// Changed: the content differs.
 			result.Needed = append(result.Needed, blockID)
 		}
 		// else: matching hash, skip.
@@ -164,6 +170,10 @@ func (d *DiffEngine) CompareBlocks(ctx context.Context, projectID, stream, itemN
 			result.Deleted = append(result.Deleted, blockID)
 		}
 	}
+
+	// Each list is sorted, so the same hashes always produce the same answer.
+	slices.Sort(result.Needed)
+	slices.Sort(result.Deleted)
 
 	return result, nil
 }
@@ -236,7 +246,7 @@ func (d *DiffEngine) loadBlockHashes(ctx context.Context, view HashView, project
 
 	hashes := make(map[string]string, len(blocks))
 	for _, sb := range blocks {
-		// Use source_id as key when available — this is the stable client-facing
+		// Use source_id as the key when available. It is the stable client-facing
 		// block ID. The internal ID may differ due to source_id remapping in
 		// StoreBlocksForItem. Clients compute hashes keyed by their original IDs.
 		key := sb.SourceID
@@ -247,7 +257,7 @@ func (d *DiffEngine) loadBlockHashes(ctx context.Context, view HashView, project
 		// with a property this row was written before, or with an inline code
 		// this row's source does not carry, does not match, so the push that
 		// carries it is asked for it. Every part is a column here, so the fold
-		// costs nothing — see venue.RecordHash.
+		// costs nothing (see venue.RecordHash).
 		hashes[key] = model.ComputeRecordHash(sb.ContentHash, sb.ContextHash, sb.SourceRevision)
 	}
 

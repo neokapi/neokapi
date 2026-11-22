@@ -4,8 +4,8 @@ import { RestApiAdapter } from "../api/rest-adapter";
 /**
  * Pins the auth contract of the multipart upload paths.
  *
- * The server has required `X-Bowrain-Csrf` on every cookie-authenticated
- * state-changing request since #1239. The three upload methods hand-rolled
+ * The server requires `X-Bowrain-Csrf` on every cookie-authenticated
+ * state-changing request. The three upload methods hand-rolled
  * their headers instead of deriving them from the adapter's `headers()`, so in
  * cookie (BFF) mode they sent none — and every upload from the web app came
  * back 403 "missing CSRF header" from 2026-07-15 onwards (#1587). Nothing in

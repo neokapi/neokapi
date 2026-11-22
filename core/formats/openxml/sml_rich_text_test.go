@@ -19,11 +19,11 @@ import (
 // formatting the model names and become the codes a translator sees; the rest
 // carry the colour, the size and the typeface, and travel as one opaque paired
 // code holding their source bytes.
-//
+
 // Both halves matter. Without the codes a translator cannot see where the red
 // stretch begins. Without the opaque half the colour is gone from the workbook
 // and the runs merge into one, which is what #2478 reported.
-//
+
 // Okapi keeps the whole <rPr> as a Property on the run
 // (okapi/filters/openxml/RunProperties.java); the WordprocessingML path in this
 // package keeps it on a sidecar annotation (source_rpr.go). A shared string's
@@ -173,7 +173,7 @@ func TestSMLRichText_PropertiesDoNotLeakBetweenItems(t *testing.T) {
 
 // TestSMLRichText_InlineStringRunProperties covers the other CT_Rst carrier: a
 // cell that holds its text inline (ECMA-376 Part 1 §18.3.1.4), routed through
-// the same reader and writer since #2480.
+// the same reader and writer as a shared string.
 func TestSMLRichText_InlineStringRunProperties(t *testing.T) {
 	sheet := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
 		`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
