@@ -60,7 +60,7 @@
     "@types/jest": "^30.0.0",
     "@types/react": "~19.3.0",
     "jest": "^30.0.0",
-    "jest-expo": "~58.0.14",
+    "jest-expo": "~58.0.15",
     "test-renderer": "^1.0.0",
     "typescript": "~7.0.2"
   },
