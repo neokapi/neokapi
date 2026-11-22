@@ -14,12 +14,16 @@ import (
 
 // editionKeyVector is one entry of testdata/edition_key_text.json: a key and
 // the text MarshalText writes for it. packages/kapi-format reads the same file,
-// so the Go and TypeScript printers and parsers agree on one list.
+// so the Go and TypeScript printers and parsers agree on one list. A ReadOnly
+// vector is text the printer never writes (a malformed escape, a bare "=" or
+// "%" as main wrote them): every parser leaves it as it is, and it is read but
+// not printed.
 type editionKeyVector struct {
-	Locale  string `json:"locale"`
-	Tone    string `json:"tone"`
-	Channel string `json:"channel"`
-	Text    string `json:"text"`
+	ReadOnly bool   `json:"readOnly"`
+	Locale   string `json:"locale"`
+	Tone     string `json:"tone"`
+	Channel  string `json:"channel"`
+	Text     string `json:"text"`
 }
 
 func editionKeyVectors(t *testing.T) []editionKeyVector {
@@ -39,9 +43,12 @@ func editionKeyVectors(t *testing.T) []editionKeyVector {
 func TestEditionKeyTextIsOneToOne(t *testing.T) {
 	for _, v := range editionKeyVectors(t) {
 		key := model.EditionKey{Locale: model.LocaleID(v.Locale), Tone: v.Tone, Channel: v.Channel}
-		text, err := key.MarshalText()
-		require.NoError(t, err)
-		assert.Equal(t, v.Text, string(text))
+		text := []byte(v.Text)
+		if !v.ReadOnly {
+			printed, err := key.MarshalText()
+			require.NoError(t, err)
+			assert.Equal(t, v.Text, string(printed))
+		}
 		var got model.EditionKey
 		require.NoError(t, got.UnmarshalText(text))
 		assert.Equal(t, key, got, "UnmarshalText(%q)", text)

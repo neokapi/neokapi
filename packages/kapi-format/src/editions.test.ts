@@ -6,6 +6,8 @@ import { formatEditionKey, parseEditionKey, type EditionKeyParts } from "./editi
 
 interface Vector extends EditionKeyParts {
   text: string;
+  /** Text the printer never writes (a malformed escape, a bare `=` or `%`): read, not printed. */
+  readOnly?: boolean;
 }
 
 // The vectors the Go printer and parsers are tested against
@@ -27,9 +29,11 @@ describe("edition key text form", () => {
     if (v.tone) parts.tone = v.tone;
     if (v.channel) parts.channel = v.channel;
 
-    it(`prints ${JSON.stringify(parts)} as ${v.text}`, () => {
-      expect(formatEditionKey(parts)).toBe(v.text);
-    });
+    if (!v.readOnly) {
+      it(`prints ${JSON.stringify(parts)} as ${v.text}`, () => {
+        expect(formatEditionKey(parts)).toBe(v.text);
+      });
+    }
 
     it(`reads ${v.text} back`, () => {
       expect(parseEditionKey(v.text)).toEqual(parts);

@@ -35,7 +35,7 @@ import (
 // that implements its reader. Every format with a writer must have one, and
 // every sample must read. Fuzz seeds are not documents. A format whose reader
 // refuses every document by design (format.WriteOnlyReader) has nothing to
-// read back, and is the one kind of format left out.
+// read back; the test checks that its reader does refuse to open one.
 func TestWriterIsAFixedPoint(t *testing.T) {
 	t.Parallel()
 	reg := registry.NewFormatRegistry()
@@ -43,7 +43,23 @@ func TestWriterIsAFixedPoint(t *testing.T) {
 
 	samples := fixedPointSamples(t, reg)
 	for _, id := range reg.WriterNames() {
-		if !reg.HasReader(id) || writeOnly(reg, id) {
+		if !reg.HasReader(id) {
+			continue
+		}
+		if writeOnly(reg, id) {
+			// The marker is checked, not trusted: a reader that declares it
+			// must refuse to open a document.
+			t.Run(string(id), func(t *testing.T) {
+				r, err := reg.NewReader(id)
+				if err != nil {
+					t.Fatal(err)
+				}
+				doc := &model.RawDocument{URI: "sample", Reader: io.NopCloser(bytes.NewReader([]byte("x")))}
+				if err := r.Open(t.Context(), doc); err == nil {
+					_ = r.Close()
+					t.Fatalf("%s declares format.WriteOnlyReader but its reader opened a document", id)
+				}
+			})
 			continue
 		}
 		t.Run(string(id), func(t *testing.T) {

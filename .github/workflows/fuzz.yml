@@ -40,13 +40,14 @@ jobs:
       FUZZTIME: ${{ inputs.fuzztime || '30s' }}
     steps:
       - uses: actions/checkout@v7
-      # Reads the plain build cache main saves and saves none of its own: fuzz
+      # Reads the pr build cache main warms, as every job that builds without
+      # the race detector does, and saves none of its own: fuzz
       # builds are instrumented, so their objects would serve only the next
       # night while taking space from the caches pull requests read. The
       # corpus has its own small cache below.
       - uses: ./.github/actions/setup-go-modules
         with:
-          cache-flavor: plain
+          cache-flavor: pr
           save-cache: "false"
 
       - name: Resolve the fuzz cache path
