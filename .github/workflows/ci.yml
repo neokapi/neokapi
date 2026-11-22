@@ -304,6 +304,12 @@ jobs:
       # the warm job saves on main. setup-go's own cache is keyed on go.sum
       # alone, and a pull request that misses it saves 800 MB of its own.
       - uses: ./.github/actions/setup-go-modules
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       - name: Install Wails system dependencies (Linux)
         uses: ./.github/actions/apt-install
@@ -347,6 +353,14 @@ jobs:
 
       - name: Kapi Desktop Wails bindings are fresh
         run: make check-kapi-desktop-bindings
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # ── Desktop bindings, for the changes the desktop jobs cannot see ────────
   # The two desktop jobs run their own freshness gate, but they are path-gated
@@ -368,6 +382,12 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-ui
       - uses: ./.github/actions/setup-go-modules
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
       - name: Install Wails system dependencies (Linux)
         uses: ./.github/actions/apt-install
         with:
@@ -378,6 +398,14 @@ jobs:
         run: make check-kapi-desktop-bindings
       - name: Bowrain Desktop Wails bindings are fresh
         run: make check-bowrain-desktop-bindings
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # ── Bowrain Desktop (Wails app: frontend vitest, and the Go backend beside it) ──
   bowrain-desktop:
@@ -405,6 +433,12 @@ jobs:
       # the warm job saves on main. setup-go's own cache is keyed on go.sum
       # alone, and a pull request that misses it saves 800 MB of its own.
       - uses: ./.github/actions/setup-go-modules
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       # The Wails app backend links the GTK/WebKit runtime on Linux; these dev
       # packages also pull in libicu-dev that the framework's cgo build needs.
@@ -425,6 +459,14 @@ jobs:
 
       - name: Bowrain Desktop Wails bindings are fresh
         run: make check-bowrain-desktop-bindings
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # ── Kapi React (TS extractor + schema) ──────────────────────────────────
   neokapi-i18n:
@@ -482,6 +524,12 @@ jobs:
       - uses: ./.github/actions/setup-go-modules
         with:
           go-version: ${{ matrix.go-version }}
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       # xmllint enforces the DocLang XSD conformance test (core/formats/doclang);
       # without it that test self-skips. Tiny package; keeps the schema gate real.
@@ -531,6 +579,14 @@ jobs:
           name: test-results-native
           path: test-results-framework.json
           retention-days: 1
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # The store suites (core/storage, the workspace, the projector, the project
   # store, the ledger, the block history, the block cache, content memory,
@@ -548,6 +604,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
       - uses: ./.github/actions/setup-node-ui
       # host/s3remote runs the mirrored S3 gateway from ghcr.io.
       - name: Login to ghcr.io
@@ -563,6 +625,14 @@ jobs:
       - name: Run the host suite with one connection per pool
         if: github.event_name == 'push'
         run: make test-host-oneconn
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   test-platform:
     name: Test (platform)
@@ -572,6 +642,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       - name: Run platform tests
         id: run-tests
@@ -605,6 +681,14 @@ jobs:
           name: coverage-platform
           path: coverage/platform.out
           retention-days: 1
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # The host package holds most of this job's time, and Go runs one package's
   # tests one after another. A pull request runs it as three shards beside a
@@ -623,6 +707,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
       # A comment rewrite in a language the sourcecode plugin declares writable
       # is held to the project's formatter, and host's tests hold TypeScript to
       # the oxfmt this workspace installs, so they need node_modules.
@@ -673,6 +763,14 @@ jobs:
             coverage/cli.out
             coverage/host.out
           retention-days: 1
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   face-parity:
     name: Face parity (CLI/MCP/desktop)
@@ -686,6 +784,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       # The desktop leg compiles the backend package, which links Wails.
       - name: Install Wails system dependencies (Linux)
@@ -695,6 +799,14 @@ jobs:
 
       - name: Run the face parity suite
         run: make face-parity
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   test-kapi:
     name: Test (kapi)
@@ -704,6 +816,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       - name: Run kapi tests
         id: run-tests
@@ -745,6 +863,14 @@ jobs:
           name: coverage-kapi
           path: coverage/kapi.out
           retention-days: 1
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   test-bowrain-plugin:
     name: Test (Bowrain Plugin)
@@ -754,6 +880,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       # The shared setup action already downloads bowrain/plugin (it is in its
       # "all" set). What is not shared is `go mod verify`: the action omits it
@@ -800,6 +932,14 @@ jobs:
           path: |
             coverage/bowrain-plugin.out
           retention-days: 1
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # A pull request runs the server package, the largest in the module, as two
   # shards beside a third job for every other package (see SHARD in
@@ -852,6 +992,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       # Under -short (pull_request) the container suites skip, so there is
       # nothing to warm the cache for.
@@ -916,6 +1062,14 @@ jobs:
           name: coverage-bowrain
           path: coverage/bowrain.out
           retention-days: 1
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # ── Plugin modules ────────────────────────────────────────────────────────
   # plugins/{sat,check,vision,asr,sourcecode} are separate go.mod modules
@@ -990,9 +1144,23 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       - name: Run the integration lane
         run: make test-integration
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # ── The schema a baseline builds, on PRs that edit one ───────────────────
   # TestBaselineSchemaMatchesGolden states what schema the migrations build, so
@@ -1027,9 +1195,23 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
       - name: The schema the baselines build matches the golden
         run: go test -tags "fts5,integration" ./migrations/ -run 'TestBaselineSchemaMatchesGolden|TestBaselineVersionsSitAboveRetiredOnes' -v
         working-directory: bowrain
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # ── The /evals index matches its datasets ─────────────────────────────────
   # TestCommittedIndexIsCurrent also runs in Test (framework), which a pull
@@ -1048,8 +1230,22 @@ jobs:
           cache-flavor: pr
           save-cache: "false"
           modules: "."
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
       - name: The committed index matches the eval datasets
         run: go test ./scripts/evalindex/
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # Races the Go packages a pull request changed (scripts/test-race-changed.sh),
   # only when the PR carries the `race` label. Every push to main runs the full
@@ -1076,6 +1272,12 @@ jobs:
           # "pr" on pull_request (see the action), poisoning that cache with
           # instrumented objects, so key it separately.
           cache-flavor: race-changed
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
       # host's tests hold a TypeScript comment rewrite to the oxfmt this
       # workspace installs, and a changed host package races them here.
       - uses: ./.github/actions/setup-node-ui
@@ -1092,6 +1294,14 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: make test-race-changed
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # ── Merge coverage from all test jobs ─────────────────────────────────────
   coverage:
@@ -1157,6 +1367,12 @@ jobs:
           cache-flavor: pr
           save-cache: "false"
           modules: ". host cli kapi scripts/gen-refs scripts/gen-contract-types scripts/proseprobe"
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       - name: Lint framework
         uses: ./.github/actions/golangci
@@ -1199,6 +1415,14 @@ jobs:
         uses: ./.github/actions/golangci
         with:
           working-directory: scripts/proseprobe
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   lint-platform:
     name: Lint (platform)
@@ -1221,6 +1445,12 @@ jobs:
           cache-flavor: pr
           save-cache: "false"
           modules: "bowrain/core bowrain"
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       - name: Lint platform
         uses: ./.github/actions/golangci
@@ -1241,6 +1471,14 @@ jobs:
         uses: ./.github/actions/golangci
         with:
           working-directory: bowrain
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # ── Edition storage guard ────────────────────────────────────────────────
   # Type-checks Go: every module on a push to main, and the directories a pull
@@ -1264,6 +1502,12 @@ jobs:
         with:
           cache-flavor: pr
           save-cache: "false"
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
       - name: Install the GTK and WebKit headers the desktop modules type-check against
         uses: ./.github/actions/apt-install
         with:
@@ -1272,6 +1516,14 @@ jobs:
         run: make fieldguard
         env:
           FIELDGUARD_ARGS: ${{ github.event_name == 'pull_request' && format('-changed-since origin/{0}', github.base_ref) || '' }}
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # ── Docs stay bowrain-clean (always-on, cheap) ───────────────────────────
   docs-guard:
@@ -1338,6 +1590,12 @@ jobs:
         with:
           cache-flavor: pr
           save-cache: "false"
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       - name: Deploy workflow covers the framework
         run: ./scripts/check-deploy-paths.sh
@@ -1472,6 +1730,14 @@ jobs:
         run: ./scripts/check-em-dashes.sh --part dossier
       - name: Guard — docs prose stays within its em-dash allowance
         run: ./scripts/check-em-dashes.sh --part docs
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # ── GitHub Actions Lint ──────────────────────────────────────────────────
   gha-lint:
@@ -1509,6 +1775,12 @@ jobs:
         with:
           cache-flavor: pr
           save-cache: "true"
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
       # The desktop apps link GTK and WebKit through Wails, and the linter
       # compiles those packages on a pull request.
       - name: Install Linux dependencies for Wails
@@ -1517,6 +1789,14 @@ jobs:
           packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
       - name: Compile what pull request jobs compile
         run: make warm-build-cache
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # ── go mod tidy drift check ──────────────────────────────────────────────
   tidy-check:
@@ -1530,10 +1810,24 @@ jobs:
         with:
           cache-flavor: pr
           save-cache: "false"
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       # Job body lives in `make ci-tidy` (single source of truth).
       - name: Check go.mod tidiness
         run: make ci-tidy
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # ── Module boundaries (package-level license/architecture guards) ─────────
   module-boundaries:
@@ -1551,6 +1845,12 @@ jobs:
         with:
           cache-flavor: pr
           save-cache: "false"
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       - name: Install Wails libraries for desktop package analysis
         uses: ./.github/actions/apt-install
@@ -1564,6 +1864,14 @@ jobs:
         run: make check-projection-writes
       - name: Assert a document reaches a file only where the edit guard lists it
         run: make check-edit-writes
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # ── Build (runs in parallel with test/lint) ───────────────────────────────
   build:
@@ -1577,6 +1885,12 @@ jobs:
         with:
           cache-flavor: pr
           save-cache: "false"
+      - name: "MEASURE: age the restored build cache"
+        run: |
+          c="$(go env GOCACHE)"
+          find "$c" -type f -exec touch -a -d '2000-01-01' {} +
+          touch "$RUNNER_TEMP/gocache-stamp"
+          echo "restored: $(du -sm "$c" | cut -f1) MB, $(find "$c" -type f | wc -l) files"
 
       # Job body lives in `make ci-build` (single source of truth, runnable
       # locally). It builds all three binaries with bare `go build` (no fts5)
@@ -1586,6 +1900,14 @@ jobs:
       # via sigstore-go (cosign signature verification of plugin tarballs).
       - name: Build binaries + verify module isolation
         run: make ci-build
+      - name: "MEASURE: build cache read and written"
+        if: always()
+        run: |
+          c="$(go env GOCACHE)"; s="$RUNNER_TEMP/gocache-stamp"
+          [ -f "$s" ] || { echo 'no stamp'; exit 0; }
+          r=$(find "$c" -type f -anewer "$s" ! -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          w=$(find "$c" -type f -newer "$s" -printf '%s\n' | awk '{t+=$1} END {printf "%d", t/1048576}')
+          echo "::notice title=gocache ${{ github.job }}::read ${r} MB, wrote ${w} MB, total $(du -sm "$c" | cut -f1) MB"
 
   # ── The one required check ────────────────────────────────────────────────
   # The main branch requires this job and no other. It answers for every job
