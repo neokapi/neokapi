@@ -276,9 +276,9 @@ func (s *PostgresStore) MergeStream(ctx context.Context, projectID, streamName s
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// The parent becomes the branch. Its rows go first — a fast-forward
-	// replaces state rather than merging into it — and all of it is one
-	// transaction, so a failure leaves the parent exactly as it was.
+	// The parent becomes the branch. Its rows go first, because a
+	// fast-forward replaces state rather than merging into it. All of it is
+	// one transaction, so a failure leaves the parent exactly as it was.
 	for _, table := range storeutil.StreamScopedTables() {
 		if table == "change_log" {
 			continue // the parent's history is appended to below, not replaced
@@ -313,7 +313,7 @@ func (s *PostgresStore) MergeStream(ctx context.Context, projectID, streamName s
 // It reads both sides rather than replaying the change log. The log records
 // what a stream DID; a diff has to answer what the two streams ARE, and those
 // stop agreeing the moment a branch edits a unit back to the value its parent
-// already held — the log has two entries and the streams have no difference.
+// already held: the log has two entries and the streams have no difference.
 //
 // The comparison is by key, which is what stable ids across streams buy: the
 // same unit carries the same id on both sides, so a difference is a hash

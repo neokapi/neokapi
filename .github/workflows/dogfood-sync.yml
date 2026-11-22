@@ -29,6 +29,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   converge:
     # The single gate. No secret is referenced and no content moves unless the
