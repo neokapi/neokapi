@@ -1473,6 +1473,8 @@ jobs:
         run: python3 scripts/ci-passed.py --self-test && python3 scripts/ci-passed.py needs
       - name: "Guard: a test run that leaves files in the temporary directory fails"
         run: scripts/check-temp-leaks.sh --self-test
+      - name: "Guard: the server and worker images run as an unprivileged numeric user"
+        run: scripts/check-image-user.sh --self-test && scripts/check-image-user.sh
       - name: "Guard: every package test script runs in a pull request job"
         run: python3 scripts/check-test-scripts.py --self-test && python3 scripts/check-test-scripts.py
       - name: "Guard: every Go command in make, scripts and CI builds with -trimpath"

@@ -33,6 +33,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/platformconfig"
 	"github.com/neokapi/neokapi/bowrain/resilience"
+	"github.com/neokapi/neokapi/bowrain/runtimedirs"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/storage/blobcfg"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
@@ -53,7 +54,7 @@ import (
 )
 
 func main() {
-	// Structured logging — bridges existing log.Printf calls through slog.
+	// Structured logging bridges existing log.Printf calls through slog.
 	observe.SetupLogger(
 		os.Getenv("BOWRAIN_LOG_FORMAT"),
 		os.Getenv("BOWRAIN_LOG_LEVEL"),
@@ -102,13 +103,18 @@ func validateWorkerDBURL(dbURL string, insecureDev bool) error {
 		}
 		return fmt.Errorf("BOWRAIN_DATABASE_URL is required (set --allow-insecure-dev or %s=1 to override for local development)", boot.InsecureDevEnv)
 	}
-	// A non-empty but malformed URL is always fatal — never excusable as dev mode.
+	// A non-empty but malformed URL is always fatal, never excusable as dev mode.
 	return boot.ValidatePostgresURL("BOWRAIN_DATABASE_URL", dbURL)
 }
 
 func runWorker(dbURL string) error {
 	if err := guardSecretsKey(os.Getenv("BOWRAIN_SECRETS_KEY"), dbURL); err != nil {
 		return err
+	}
+	// Every directory the worker writes is writable, or it stops here with the
+	// directory and the variable that sets it.
+	if err := runtimedirs.Check(workerRuntimeDirs()...); err != nil {
+		return fmt.Errorf("bowrain-worker cannot start: %w", err)
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -228,9 +234,8 @@ func runWorker(dbURL string) error {
 		// server's per-workspace, PostgreSQL-backed content memory (NewPostgresStoreFromDB).
 		MemoryResolver: newWorkerMemoryResolver(pgdb),
 		// Durable forge ingest (webhook/bind-triggered source ingests, enqueued
-		// by the server): the worker performs the clone+fetch+store the server
-		// used to fire-and-forget in-process, so a mid-deploy task death can no
-		// longer lose an acked webhook.
+		// by the server): the worker performs the clone+fetch+store as a durable
+		// job, so a task that dies mid-deploy does not lose an acked webhook.
 		ConnectorFetcher: newIngestFetcher(cs, connectorConfigs),
 		ConnectorConfigs: connectorConfigs,
 	}
@@ -250,7 +255,7 @@ func runWorker(dbURL string) error {
 	// Voice context (parity with the CLI flow's project bindings): the voice
 	// store + workspace-default resolver bind the project's voice into
 	// every AI translation the worker runs, and the terms store resolver supplies
-	// the per-locale terminology. All optional — a failure here (or an
+	// the per-locale terminology. All optional: a failure here (or an
 	// unbound project) degrades translations to bare, never blocks them.
 	bs, err := voicepg.NewPostgresVoiceStore(pgdb)
 	if err != nil {
@@ -286,7 +291,7 @@ func runWorker(dbURL string) error {
 	// Product analytics (epic 018): the worker emits content_pushed after sync
 	// push processing. Keyless deployments stay silent (nil tracker). Mirrors
 	// the server's POSTHOG_API_KEY / POSTHOG_HOST configuration, including its
-	// rejection of the provisioning placeholder — a token that reads as
+	// rejection of the provisioning placeholder: a token that reads as
 	// configured builds a client whose every enqueue is dropped in silence.
 	if phKey := os.Getenv("POSTHOG_API_KEY"); analytics.IsProjectAPIKey(phKey) {
 		phClient, err := analytics.NewPostHogClient(phKey, os.Getenv("POSTHOG_HOST"))
@@ -322,7 +327,7 @@ func runWorker(dbURL string) error {
 	if blobStore == nil {
 		// Accept the server's BLOB_STORAGE_LOCAL_DIR too, so a shared-volume
 		// deployment can't point the two at different directories.
-		localDir := envOrDefault("BLOB_STORAGE_LOCAL_DIR", envOrDefault("LOCAL_BLOB_DIR", "/tmp/bowrain-blobs"))
+		localDir := workerLocalBlobDir()
 		if bs, err := bloblocal.New(localDir); err == nil {
 			blobStore = bs
 		}
@@ -358,7 +363,7 @@ func runWorker(dbURL string) error {
 		}
 	}
 
-	// Configure the platform translation provider — used by jobs that carry no
+	// Configure the platform translation provider, used by jobs that carry no
 	// per-workspace credential (the built-in auto-translate-on-push automation).
 	//
 	//   - BOWRAIN_PLATFORM_PROVIDER (e.g. "gemini", "openai", "anthropic",
@@ -405,7 +410,7 @@ func runWorker(dbURL string) error {
 			slog.Warn("platform_config: initial worker load failed (serving env defaults)", "error", err)
 		}
 		// Circuit-breaker thresholds. The worker keeps its own registry, so it
-		// trips on what it observes rather than inheriting the server's view —
+		// trips on what it observes rather than inheriting the server's view;
 		// the two run different call volumes against the same upstreams.
 		resilience.Default().Configure(pcSvc.ResilienceOverrides())
 		// The shared auth-store handle (opened above) lets the resolver apply a
@@ -416,7 +421,7 @@ func runWorker(dbURL string) error {
 		platformResolver = func(ctx context.Context, wsID string) *jobs.PlatformProviderConfig {
 			cfg := platformConfigFromService(pcSvc)
 			// Skip the workspace lookup unless model choice is on and we have a
-			// workspace to look up — the common path stays a pure in-memory read.
+			// workspace to look up; the common path stays a pure in-memory read.
 			if cfg == nil || wsID == "" || wsGetter == nil || !pcSvc.AICustomerChoice() {
 				return cfg
 			}
@@ -450,7 +455,7 @@ func runWorker(dbURL string) error {
 
 		// Fan-out reload: every worker reacts to a config change from ctrl.
 		// Fine-to-miss: this only refreshes a cache loaded fresh at startup and
-		// re-read on the next change event — no state advances here.
+		// re-read on the next change event; no state advances here.
 		if bus := translationDeps.EventBus; bus != nil {
 			bus.Subscribe(platev.EventPlatformConfigChanged, func(platev.Event) {
 				if err := pcSvc.Refresh(ctx); err != nil {
@@ -475,7 +480,7 @@ func runWorker(dbURL string) error {
 		// only.
 		mux.Handle("/metrics", observe.MetricsAccessMiddlewareStd(
 			os.Getenv("BOWRAIN_METRICS_TOKEN"), promhttp.Handler()))
-		// Liveness: the process is up. Cheap, dependency-free — used by the
+		// Liveness: the process is up. Cheap and dependency-free, used by the
 		// container/orchestrator to decide whether to restart the task.
 		mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -513,7 +518,7 @@ func runWorker(dbURL string) error {
 				}
 			}
 
-			// Blob store (presence — the worker cannot run extraction without it).
+			// Blob store (presence: the worker cannot run extraction without it).
 			if blobStore != nil {
 				components["blob"] = comp{Status: "up"}
 			} else {
@@ -575,7 +580,7 @@ func runWorker(dbURL string) error {
 		// KnownTermsLoader and NERProvider stay nil here: known-term
 		// filtering reads workspace terms stores that live on the server box,
 		// and NER needs per-deployment Azure config. Both are documented
-		// optional — extraction degrades to the plain LLM pass.
+		// optional: extraction degrades to the plain LLM pass.
 		Platform:         translationDeps.Platform,
 		PlatformResolver: platformResolver,
 		// A workspace that saved its own provider key extracts on it.
@@ -660,8 +665,8 @@ func runWorker(dbURL string) error {
 
 	// Brand-scan upload retention: uploaded source envelopes (customer brand
 	// material) are deleted once their job has been terminal for the retention
-	// window. The window is what keeps Regenerate — which reuses the original
-	// upload keys — working across a review session.
+	// window. The window is what keeps Regenerate, which reuses the original
+	// upload keys, working across a review session.
 	if blobStore != nil {
 		contextScanUploadSweeper := jobs.NewContextScanUploadSweeper(pgBSS, blobStore, 0, 0)
 		g.Go(func() error {
@@ -671,7 +676,7 @@ func runWorker(dbURL string) error {
 	}
 
 	// Trial expiry: the 14-day Pro trial is local and card-free, so no Stripe
-	// event ever ends it — this sweep is the only thing that does. Without it
+	// event ever ends it; this sweep is the only thing that does. Without it
 	// every signup keeps Pro limits and Pro weekly credits indefinitely.
 	if sweeper := buildTrialSweeper(pgdb); sweeper != nil {
 		g.Go(func() error {
@@ -736,7 +741,7 @@ func newWorkerMemoryResolver(pgdb *storage.PgDB) jobs.MemoryResolver {
 }
 
 // workerWorkspaceDefault resolves the workspace-level default voice
-// profile from the workspace record — the base rung of the voicescope ladder.
+// profile from the workspace record, the base rung of the voicescope ladder.
 // Mirrors the server's mcpWorkspaceDefaultAdapter.
 type workerWorkspaceDefault struct{ auth auth.AuthStore }
 
@@ -844,4 +849,21 @@ func platformConfigFromService(svc *platformconfig.Service) *jobs.PlatformProvid
 		}
 	}
 	return nil
+}
+
+// workerLocalBlobDir is the directory the local blob backend writes. The
+// worker accepts the server's BLOB_STORAGE_LOCAL_DIR too, so a shared-volume
+// deployment cannot point the two at different directories.
+func workerLocalBlobDir() string {
+	return envOrDefault("BLOB_STORAGE_LOCAL_DIR", envOrDefault("LOCAL_BLOB_DIR", "/tmp/bowrain-blobs"))
+}
+
+// workerRuntimeDirs names the directories the worker writes at run time: the
+// temporary directory always, and the blob directory when blobs are not in S3.
+func workerRuntimeDirs() []runtimedirs.Dir {
+	dirs := []runtimedirs.Dir{runtimedirs.Temp()}
+	if !blobcfg.S3Configured() {
+		dirs = append(dirs, runtimedirs.Dir{Purpose: "blob", Env: "BLOB_STORAGE_LOCAL_DIR", Path: workerLocalBlobDir()})
+	}
+	return dirs
 }
