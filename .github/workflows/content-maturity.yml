@@ -76,7 +76,8 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-go-modules
         with:
-          cache-flavor: plain
+          cache-flavor: pr
+          save-cache: "false"
       - uses: ./.github/actions/setup-node-ui
       - uses: ./.github/actions/apt-install
         with:
