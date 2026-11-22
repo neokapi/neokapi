@@ -177,6 +177,7 @@ type EditorMemoryEntry struct {
 	SourceLanguage string `json:"source_language"`
 	TargetLanguage string `json:"target_language"`
 	UpdatedAt      string `json:"updated_at"`
+	Revision       string `json:"revision,omitempty"`
 }
 
 // EditorMemorySearchResult mirrors MemorySearchResponse.
@@ -732,13 +733,17 @@ func (c *EditorClient) AddMemoryEntry(ctx context.Context, ws, source, target, s
 }
 
 // UpdateMemoryEntry updates an existing content-memory entry.
-func (c *EditorClient) UpdateMemoryEntry(ctx context.Context, ws, entryID, source, target, sourceLocale, targetLocale string) error {
+//
+// baseRevision is the revision of the entry the edit was made on; the server
+// refuses an edit based on an entry that changed since.
+func (c *EditorClient) UpdateMemoryEntry(ctx context.Context, ws, entryID, source, target, sourceLocale, targetLocale, baseRevision string) error {
 	body := struct {
 		Source       string `json:"source"`
 		Target       string `json:"target"`
 		SourceLocale string `json:"source_locale"`
 		TargetLocale string `json:"target_locale"`
-	}{source, target, sourceLocale, targetLocale}
+		BaseRevision string `json:"base_revision"`
+	}{source, target, sourceLocale, targetLocale, baseRevision}
 	return c.DoJSON(ctx, http.MethodPut, wsPath(ws, "/translation-memory/"+url.PathEscape(entryID)), nil, body, nil)
 }
 

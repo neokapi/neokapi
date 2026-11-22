@@ -150,7 +150,7 @@ type updateMemoryEntryOp struct{ MemoryUpdateRequest }
 func (updateMemoryEntryOp) opKind() opKind { return opUpdateMemoryEntry }
 
 func (o updateMemoryEntryOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
-	return client.UpdateMemoryEntry(ctx, ws, o.EntryID, o.Source, o.Target, o.SourceLocale, o.TargetLocale)
+	return client.UpdateMemoryEntry(ctx, ws, o.EntryID, o.Source, o.Target, o.SourceLocale, o.TargetLocale, o.BaseRevision)
 }
 
 // deleteMemoryEntryOp queues a content-memory entry deletion.

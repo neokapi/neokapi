@@ -39,7 +39,7 @@ func RevisionColumn(table string, first int) []Migration {
 	return []Migration{
 		{
 			Version:     first,
-			Description: fmt.Sprintf("a revision column on %s", table),
+			Description: "a revision column on " + table,
 			SQL: fmt.Sprintf(`
 				ALTER TABLE %[1]s ADD COLUMN IF NOT EXISTS revision TEXT;
 				ALTER TABLE %[1]s ALTER COLUMN revision SET DEFAULT gen_random_uuid()::text;
@@ -47,7 +47,7 @@ func RevisionColumn(table string, first int) []Migration {
 		},
 		{
 			Version:     first + 1,
-			Description: fmt.Sprintf("a revision for each existing row of %s", table),
+			Description: "a revision for each existing row of " + table,
 			SQL:         fmt.Sprintf(`UPDATE %s SET revision = gen_random_uuid()::text WHERE revision IS NULL;`, table),
 		},
 		{
@@ -62,7 +62,7 @@ func RevisionColumn(table string, first int) []Migration {
 		},
 		{
 			Version:     first + 4,
-			Description: fmt.Sprintf("%s revisions are not null", table),
+			Description: table + " revisions are not null",
 			SQL: fmt.Sprintf(`
 				ALTER TABLE %[1]s ALTER COLUMN revision SET NOT NULL;
 				ALTER TABLE %[1]s DROP CONSTRAINT %[2]s;

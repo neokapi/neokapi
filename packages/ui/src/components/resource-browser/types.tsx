@@ -46,6 +46,11 @@ export interface MemoryPointDTO {
 export interface MemoryEntryDTO {
   id: string;
   project_id: string;
+  /**
+   * The entry's revision, when its store keeps one: an edit names it, and the
+   * store refuses an edit based on an entry that changed since.
+   */
+  revision?: string;
   /** Per-locale variants keyed by locale tag (e.g. "en-US"). */
   variants: Record<string, VariantDTO>;
   /** Locale pointer used as the default source for display. */
@@ -215,6 +220,8 @@ export interface AddMemoryEntryRequest {
 /** Request payload for updating a multilingual content-memory entry. Variants replace wholesale. */
 export interface UpdateMemoryEntryRequest {
   entry_id: string;
+  /** The revision of the entry the edit was made on, when its store keeps one. */
+  base_revision?: string;
   variants: Record<string, VariantInputDTO>;
   hint_src_lang: string;
   project_id?: string;

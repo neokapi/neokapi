@@ -2592,6 +2592,14 @@ export class MemoryEntryInfo {
              */
             this["updated_at"] = "";
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Revision is the server's revision of the entry, which an edit names.
+             * @member
+             * @type {string | undefined}
+             */
+            this["revision"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -2765,6 +2773,14 @@ export class MemoryUpdateRequest {
              * @type {string}
              */
             this["target_locale"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * BaseRevision is the revision of the entry the edit was made on.
+             * @member
+             * @type {string | undefined}
+             */
+            this["base_revision"] = undefined;
         }
 
         Object.assign(this, $$source);

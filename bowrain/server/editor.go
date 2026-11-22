@@ -80,10 +80,11 @@ type workspaceStores struct {
 	pgDB   *storage.PgDB // PostgreSQL database (required in production)
 
 	// memoryFactory and termsFactory are optional factory functions for
-	// creating content memory / terms stores without PostgreSQL. Used by tests
-	// to inject in-memory stores. They are installed during setup, before the
-	// server serves, and never written afterwards.
-	memoryFactory func() memory.Store
+	// creating content memory / terms stores without the pgDB path. Used by
+	// tests to inject stores. memoryFactory gets the workspace slug. They are
+	// installed during setup, before the server serves, and never written
+	// afterwards.
+	memoryFactory func(wsSlug string) memory.Store
 	termsFactory  func() terms.Store
 }
 
@@ -127,7 +128,7 @@ func (ws *workspaceStores) getMemory(ctx context.Context, wsSlug string) (memory
 
 	if ws.pgDB == nil {
 		if ws.memoryFactory != nil {
-			w.memory = ws.memoryFactory()
+			w.memory = ws.memoryFactory(wsSlug)
 			return w.memory, nil
 		}
 		return nil, errNoPgDB
@@ -366,6 +367,9 @@ type MemoryEntryInfoResponse struct {
 	TargetLanguage string `json:"target_language"`
 	ProjectID      string `json:"project_id,omitempty"`
 	UpdatedAt      string `json:"updated_at"`
+	// Revision is replaced on every write of the entry's text. An edit names
+	// the revision it was based on.
+	Revision string `json:"revision,omitempty"`
 }
 
 // MemorySearchResponse holds a page of content-memory search results.
@@ -384,11 +388,13 @@ type MemoryAddRequest struct {
 }
 
 // MemoryUpdateRequest holds parameters for updating a content-memory entry.
+// BaseRevision is the revision of the entry the edit was made on.
 type MemoryUpdateRequest struct {
 	Source       string `json:"source"`
 	Target       string `json:"target"`
 	SourceLocale string `json:"source_locale"`
 	TargetLocale string `json:"target_locale"`
+	BaseRevision string `json:"base_revision,omitempty"`
 }
 
 // --- Terminology types ---

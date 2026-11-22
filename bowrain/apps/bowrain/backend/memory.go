@@ -22,6 +22,8 @@ type MemoryEntryInfo struct {
 	SourceLocale string `json:"source_locale"`
 	TargetLocale string `json:"target_locale"`
 	UpdatedAt    string `json:"updated_at"`
+	// Revision is the server's revision of the entry, which an edit names.
+	Revision string `json:"revision,omitempty"`
 }
 
 // MemorySearchResult holds a page of content-memory search results.
@@ -38,6 +40,8 @@ type MemoryUpdateRequest struct {
 	Target       string `json:"target"`
 	SourceLocale string `json:"source_locale"`
 	TargetLocale string `json:"target_locale"`
+	// BaseRevision is the revision of the entry the edit was made on.
+	BaseRevision string `json:"base_revision,omitempty"`
 }
 
 // getOrCreateMemory lazily initializes the app-level persistent SQLite content memory.
@@ -152,7 +156,7 @@ func (a *App) UpdateMemoryEntry(req MemoryUpdateRequest) error {
 	return a.writeThroughVoid(updateMemoryEntryOp{req},
 		func() error {
 			client, ws := a.editorRemote()
-			return client.UpdateMemoryEntry(context.Background(), ws, req.EntryID, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
+			return client.UpdateMemoryEntry(context.Background(), ws, req.EntryID, req.Source, req.Target, req.SourceLocale, req.TargetLocale, req.BaseRevision)
 		},
 		func() error { return nil }, // server-authoritative: skip the local mirror on success
 		func() error { return a.updateMemoryEntryLocal(req) },

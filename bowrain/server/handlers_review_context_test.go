@@ -419,7 +419,7 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 	}
 	// The same store implementation on both sides, so the two lookups classify
 	// a match the same way and the comparison is about the assemblers.
-	s.wsStores.memoryFactory = func() memory.Store { return memory.NewInMemoryStore() }
+	s.wsStores.memoryFactory = func(string) memory.Store { return memory.NewInMemoryStore() }
 	serverMemory, merr := s.wsStores.getMemory(t.Context(), "rc")
 	require.NoError(t, merr)
 	require.NoError(t, serverMemory.Add(ctx, entry))

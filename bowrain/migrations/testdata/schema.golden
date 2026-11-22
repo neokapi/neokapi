@@ -1020,6 +1020,7 @@ tm_entries.note text NOT NULL DEFAULT ''::text
 tm_entries.point text NOT NULL DEFAULT ''::text
 tm_entries.project_id text NOT NULL DEFAULT ''::text
 tm_entries.properties jsonb NOT NULL DEFAULT '{}'::jsonb
+tm_entries.revision text NOT NULL DEFAULT (gen_random_uuid())::text
 tm_entries.stream text NOT NULL DEFAULT ''::text
 tm_entries.unit text NOT NULL DEFAULT ''::text
 tm_entries.updated_at timestamp with time zone NOT NULL DEFAULT now()
