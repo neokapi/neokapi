@@ -63,13 +63,18 @@ PINS = [
             (".github/workflows/publish-npm.yml", r'version: "(\d+\.\d+\.\d+)"'),
         ],
         "latest": ("npm", "vite-plus"),
-        "note": "Moves with the `vite` alias in pnpm-workspace.yaml (scripts/audit-vite-alias.sh). From 1.7.0 the core package has its own version, so that script changes first.",
+        "note": "Moves with the `vite` alias in pnpm-workspace.yaml, which names the core version this release depends on (`npm view vite-plus@<version> dependencies.vite`), not the vite-plus version. `vp migrate` moves both; scripts/audit-vite-alias.sh --installed checks them.",
     },
     {
         "name": "pnpm",
-        "where": [("package.json", r'"packageManager": "pnpm@(\d+\.\d+\.\d+)"')],
+        "where": [
+            ("package.json", r'"packageManager": "pnpm@(\d+\.\d+\.\d+)"'),
+            ("bowrain/e2e/cloud/package.json", r'"packageManager": "pnpm@(\d+\.\d+\.\d+)"'),
+            ("bowrain/web/docs/package.json", r'"packageManager": "pnpm@(\d+\.\d+\.\d+)"'),
+            ("harness/package.json", r'"packageManager": "pnpm@(\d+\.\d+\.\d+)"'),
+        ],
         "latest": ("npm", "pnpm"),
-        "note": "Re-resolve the lockfile and run scripts/check-lockfile-idempotent.sh.",
+        "note": "Each standalone tree re-locks with its own vp install. Re-resolve the root lockfile and run scripts/check-lockfile-idempotent.sh.",
     },
     {
         "name": "Node.js in CI",

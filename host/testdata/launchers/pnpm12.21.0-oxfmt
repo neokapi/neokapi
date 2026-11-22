@@ -1,0 +1,111 @@
+#!/bin/sh
+# Resolve $0 through symlinks so basedir is the shim's real directory.
+# Cap hops at the kernel's ELOOP limit so a cycle cannot hang the shim.
+#
+# A shim runs with node_modules/.bin at the front of PATH, so readlink, sed,
+# and printf go through `command -p`, which searches the system default path
+# instead. A dependency's bin cannot stand in for one of them and take over the
+# shim before it reaches its target. Directories come from `${link%/*}`, which
+# needs no helper at all.
+#
+# Under Cygwin and MSYS every helper a shim runs is another Windows process, so
+# the header runs one only where shell syntax cannot do the job.
+#
+# A helper the default path lacks, as in a Nix build sandbox, comes from PATH
+# instead, with node_modules and relative entries dropped from it.
+caller_path_set=${PATH+set}
+caller_path=${PATH-}
+helper_path=
+rest=$caller_path:
+while [ -n "$rest" ]; do
+  dir=${rest%%:*}
+  rest=${rest#*:}
+  case "$dir" in
+    */node_modules/*|*/node_modules) ;;
+    /*) helper_path=${helper_path:+$helper_path:}$dir ;;
+  esac
+done
+# An empty PATH searches the current directory.
+PATH=${helper_path:-/}
+# A helper comes from PATH only when /usr/bin and /bin lack it and PATH has it.
+# `command -p -v` cannot tell, because the bash 3.2 that macOS ships as sh
+# answers it from PATH. `[ -x ]` also fails where a sandbox denies the file.
+run_helper() {
+  if [ -x "/usr/bin/$1" ] || [ -x "/bin/$1" ] || ! command -v "$1" >/dev/null 2>&1; then command -p "$@"; else command "$@"; fi
+}
+link="$0"
+# `${link%/*}` needs a separator to strip. A bare name came from a PATH lookup
+# and stands for a file in the current directory.
+case "$link" in
+  */*|*\\*) ;;
+  *) link="./$link" ;;
+esac
+hops=0
+while [ -L "$link" ] && [ "$hops" -lt 40 ]; do
+  hops=$((hops+1))
+  target=$(run_helper readlink "$link")
+  case "$target" in
+    /*) link="$target" ;;
+    *)  link="${link%/*}/$target" ;;
+  esac
+done
+case "$link" in
+  *\\*) basedir=$(run_helper printf '%s\n' "$link" | run_helper sed -e 's,\\,/,g') ;;
+  *) basedir=$link ;;
+esac
+basedir="${basedir%/*}"
+basedir_abs=$(CDPATH= cd -P -- "$basedir" && pwd -P) || exit $?
+basedir="$basedir_abs"
+basedir_win="$basedir"
+exe=""
+msys=""
+
+# /proc/version starts with the system name `uname -a` reports, and reading it
+# starts no process. Systems without it, such as macOS, take no branch.
+os=
+{ read -r os < /proc/version; } 2> /dev/null || :
+case "$os" in
+  *CYGWIN*|*MINGW*|*MSYS*)
+    if converted=$(command -p cygpath -w "$basedir" 2>/dev/null) && [ -n "$converted" ]; then
+      basedir_win="$converted"
+    elif command -v cygpath > /dev/null 2>&1; then
+      basedir_win=`cygpath -w "$basedir"`
+    fi
+    exe=".exe"
+    msys="true"
+  ;;
+  *WSL2*)
+    if converted=$(command -p wslpath -w "$basedir" 2>/dev/null) && [ -n "$converted" ]; then
+      basedir_win="$converted"
+      exe=".exe"
+    elif command -v wslpath > /dev/null 2>&1; then
+      basedir_win="$(wslpath -w "$basedir" 2> /dev/null)"
+      if [ $? -ne 0 ] || [ -z "$basedir_win" ]; then
+        basedir_win="$basedir"
+      else
+        exe=".exe"
+      fi
+    fi
+  ;;
+esac
+if [ -n "$caller_path_set" ]; then PATH=$caller_path; else unset PATH; fi
+
+if [ -z "$NODE_PATH" ]; then
+  export NODE_PATH="$basedir_abs"/'../.pnpm/oxfmt@0.79.0_vite-plus@1.7.0_@types+node@26.6.6_@vitest+ui@5.1.0_esbuild@0.28.2_jiti@2._2ce4b6ad2894019449197584a0f63826/node_modules/oxfmt/node_modules':"$basedir_abs"/'../.pnpm/oxfmt@0.79.0_vite-plus@1.7.0_@types+node@26.6.6_@vitest+ui@5.1.0_esbuild@0.28.2_jiti@2._2ce4b6ad2894019449197584a0f63826/node_modules':"$basedir_abs"/'../.pnpm/node_modules'
+else
+  export NODE_PATH="$basedir_abs"/'../.pnpm/oxfmt@0.79.0_vite-plus@1.7.0_@types+node@26.6.6_@vitest+ui@5.1.0_esbuild@0.28.2_jiti@2._2ce4b6ad2894019449197584a0f63826/node_modules/oxfmt/node_modules':"$basedir_abs"/'../.pnpm/oxfmt@0.79.0_vite-plus@1.7.0_@types+node@26.6.6_@vitest+ui@5.1.0_esbuild@0.28.2_jiti@2._2ce4b6ad2894019449197584a0f63826/node_modules':"$basedir_abs"/'../.pnpm/node_modules':"$NODE_PATH"
+fi
+if [ -n "$exe" ] && [ -x "$basedir/node.exe" ]; then
+  exec "$basedir/node.exe"  "$basedir_win"/'../.pnpm/oxfmt@0.79.0_vite-plus@1.7.0_@types+node@26.6.6_@vitest+ui@5.1.0_esbuild@0.28.2_jiti@2._2ce4b6ad2894019449197584a0f63826/node_modules/oxfmt/bin/oxfmt' "$@"
+elif [ -x "$basedir/node" ]; then
+  exec "$basedir/node"  "$basedir_abs"/'../.pnpm/oxfmt@0.79.0_vite-plus@1.7.0_@types+node@26.6.6_@vitest+ui@5.1.0_esbuild@0.28.2_jiti@2._2ce4b6ad2894019449197584a0f63826/node_modules/oxfmt/bin/oxfmt' "$@"
+elif [ -n "$msys" ] && command -v node >/dev/null 2>&1; then
+  exec node  "$basedir_win"/'../.pnpm/oxfmt@0.79.0_vite-plus@1.7.0_@types+node@26.6.6_@vitest+ui@5.1.0_esbuild@0.28.2_jiti@2._2ce4b6ad2894019449197584a0f63826/node_modules/oxfmt/bin/oxfmt' "$@"
+elif command -v node >/dev/null 2>&1; then
+  exec node  "$basedir_abs"/'../.pnpm/oxfmt@0.79.0_vite-plus@1.7.0_@types+node@26.6.6_@vitest+ui@5.1.0_esbuild@0.28.2_jiti@2._2ce4b6ad2894019449197584a0f63826/node_modules/oxfmt/bin/oxfmt' "$@"
+elif [ -n "$exe" ] && command -v node.exe >/dev/null 2>&1; then
+  exec node.exe  "$basedir_win"/'../.pnpm/oxfmt@0.79.0_vite-plus@1.7.0_@types+node@26.6.6_@vitest+ui@5.1.0_esbuild@0.28.2_jiti@2._2ce4b6ad2894019449197584a0f63826/node_modules/oxfmt/bin/oxfmt' "$@"
+else
+  exec node  "$basedir_abs"/'../.pnpm/oxfmt@0.79.0_vite-plus@1.7.0_@types+node@26.6.6_@vitest+ui@5.1.0_esbuild@0.28.2_jiti@2._2ce4b6ad2894019449197584a0f63826/node_modules/oxfmt/bin/oxfmt' "$@"
+fi
+# cmd-shim-target=../.pnpm/oxfmt@0.79.0_vite-plus@1.7.0_@types+node@26.6.6_@vitest+ui@5.1.0_esbuild@0.28.2_jiti@2._2ce4b6ad2894019449197584a0f63826/node_modules/oxfmt/bin/oxfmt
