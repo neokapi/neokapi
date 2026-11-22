@@ -25,7 +25,7 @@
     "@tanstack/react-query-persist-client": "5.107.1",
     "expo": "58.0.23",
     "expo-application": "~58.1.2",
-    "expo-auth-session": "~58.0.18",
+    "expo-auth-session": "~58.0.19",
     "expo-constants": "~58.0.16",
     "expo-crypto": "~58.0.8",
     "expo-dev-client": "58.0.20",
