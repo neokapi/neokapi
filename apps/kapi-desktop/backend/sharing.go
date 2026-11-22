@@ -275,13 +275,15 @@ func (a *App) PendingContextStore(tabID string) (string, error) {
 }
 
 // ApproveContextStore records that the person allows the folder a tab's
-// recipe keeps its context in, after the share view showed it.
-func (a *App) ApproveContextStore(tabID string) (string, error) {
+// recipe keeps its context in. shown is the resolved folder the dialog
+// showed; when the recipe leads elsewhere by the time of the click, nothing
+// is recorded and the person is asked again.
+func (a *App) ApproveContextStore(tabID, shown string) (string, error) {
 	path, err := a.checkoutRecipe(tabID)
 	if err != nil {
 		return "", err
 	}
-	return a.hostEngine().ApproveContextStore(path)
+	return a.hostEngine().ApproveContextStoreAt(path, shown)
 }
 
 // checkoutRecipe is the recipe path of a tab with a checkout.

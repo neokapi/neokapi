@@ -27,11 +27,12 @@ configuration file that selects it.
 
 A recipe whose context block names a folder (backend: file) makes kapi write
 the project's decisions, terms and voice there and merge in what the folder
-holds. The first sync through it shows the folder and asks; the answer is kept
-in the same record, keyed to that folder, and a recipe that names another one
-asks again. kapi share --via folder records the allow for the folder it names.
-With no terminal attached, kapi trust allow --context-store --yes records it.
-An agent can neither answer nor record one.
+holds. The first sync through it shows the folder, with links resolved, and
+asks. The answer is kept in the same record, bound to the project and that
+folder, and a path that leads to another folder asks again. kapi share --via
+folder records the allow for the folder it names. With no terminal attached,
+kapi trust allow --context-store --yes records it. A tool call through kapi
+mcp cannot record one, and an assistant that identifies itself is refused.
 
 These commands read and change that record, which is kept in the kapi config
 directory, not in the project. Plugin installs and package adoption are

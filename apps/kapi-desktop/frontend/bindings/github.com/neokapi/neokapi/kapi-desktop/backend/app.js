@@ -240,12 +240,15 @@ export function ApplyWorkspaceDocument(changeSet) {
 
 /**
  * ApproveContextStore records that the person allows the folder a tab's
- * recipe keeps its context in, after the share view showed it.
+ * recipe keeps its context in. shown is the resolved folder the dialog
+ * showed; when the recipe leads elsewhere by the time of the click, nothing
+ * is recorded and the person is asked again.
  * @param {string} tabID
+ * @param {string} shown
  * @returns {$CancellablePromise<string>}
  */
-export function ApproveContextStore(tabID) {
-    return $Call.ByID(4149791345, tabID);
+export function ApproveContextStore(tabID, shown) {
+    return $Call.ByID(4149791345, tabID, shown);
 }
 
 /**

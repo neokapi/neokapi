@@ -270,9 +270,10 @@ export function SharePanel({
         location={pendingStore}
         onCancel={() => setPendingStore(null)}
         onAllow={() => {
+          const shown = pendingStore ?? "";
           setPendingStore(null);
           void api
-            .approveContextStore(tabID)
+            .approveContextStore(tabID, shown)
             .then(() => sync.mutate())
             .catch((e) => setSyncError(parseAppError(e).title));
         }}

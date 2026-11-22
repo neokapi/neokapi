@@ -26,6 +26,16 @@ func folderProject(t *testing.T, app *App, folder string) string {
 	return recipeOf(root)
 }
 
+// realTempDir is a temporary directory named by its resolved path, so a
+// comparison with the folder an approval resolves is not thrown off by a
+// linked temporary root (macOS /var).
+func realTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	return dir
+}
+
 // The first sync through a folder the recipe names, with nobody to ask, is
 // refused with the folder and the command that allows it, and nothing is
 // read from or written to the folder.
@@ -49,7 +59,7 @@ func TestContextStore_FirstSyncIsRefusedWithoutAnApproval(t *testing.T) {
 func TestContextStore_ApprovalIsStoredAndAChangedPathAsksAgain(t *testing.T) {
 	app, _ := contextOpsApp(t)
 	app.isTTY = func() bool { return false }
-	folder := filepath.Join(t.TempDir(), "team")
+	folder := filepath.Join(realTempDir(t), "team")
 	recipe := folderProject(t, app, folder)
 
 	location, err := app.ApproveContextStore(recipe)

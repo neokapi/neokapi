@@ -186,7 +186,9 @@ func TestContextStore_TheDesktopAsksBeforeAFolderSync(t *testing.T) {
 	app := newWorkspaceApp(t)
 	tab, recipe := openSharingProject(t, app, "Folder")
 	recordNote(t, app, recipe)
-	folder := filepath.Join(t.TempDir(), "team")
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	folder := filepath.Join(base, "team")
 
 	// The recipe arrives naming the folder, as a cloned repository's would.
 	proj, err := project.Load(recipe)
@@ -194,14 +196,23 @@ func TestContextStore_TheDesktopAsksBeforeAFolderSync(t *testing.T) {
 	proj.Context = &project.ContextBackend{Backend: project.ContextBackendFile, Path: folder}
 	require.NoError(t, project.Save(recipe, proj))
 
+	// The share view's refresh and the home's listing leave the folder alone.
+	_, err = app.ShareView(tab)
+	require.NoError(t, err)
+	_, err = app.ListWorkspaceProjects()
+	require.NoError(t, err)
+	assert.NoDirExists(t, folder)
+
 	pending, err := app.PendingContextStore(tab)
 	require.NoError(t, err)
 	assert.Equal(t, folder, pending, "the dialog shows the resolved folder")
+	_, err = app.ApproveContextStore(tab, filepath.Join(filepath.Dir(folder), "other"))
+	require.Error(t, err, "an approval of a folder the dialog did not show is refused")
 	_, err = app.SyncProjectContext(tab)
 	require.ErrorIs(t, err, host.ErrContextStoreNotApproved)
 	assert.NoDirExists(t, folder, "nothing is written before the approval")
 
-	allowed, err := app.ApproveContextStore(tab)
+	allowed, err := app.ApproveContextStore(tab, pending)
 	require.NoError(t, err)
 	assert.Equal(t, folder, allowed)
 	pending, err = app.PendingContextStore(tab)

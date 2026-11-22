@@ -60,16 +60,16 @@ func execTrustEntryKind(key string) string {
 func execTrustStanding(key, kind, digest string) (status, detail string) {
 	if kind == "context-store" {
 		recipe := strings.TrimSuffix(key, contextStoreKeySuffix)
-		location, err := ContextStoreLocation(recipe)
+		location, now, err := contextStoreFor(recipe)
 		switch {
 		case err != nil:
 			return output.TrustStatusUnreadable, err.Error()
 		case location == "":
 			return output.TrustStatusChanged, "the recipe keeps no context in a folder now"
-		case contextStoreDigest(location) == digest:
+		case now == digest:
 			return output.TrustStatusCurrent, location
 		default:
-			return output.TrustStatusChanged, "the recipe names another folder (" + location + "); the next sync asks again"
+			return output.TrustStatusChanged, "the recipe, its project or the folder it leads to changed (" + location + "); the next sync asks again"
 		}
 	}
 	if _, err := os.Stat(key); err != nil {

@@ -226,6 +226,11 @@ func declaredBackend(layout project.Layout) (ContextBackendInfo, error) {
 // describeBackend fills in where a backend spec keeps the context.
 func describeBackend(layout project.Layout, spec project.ContextBackend, from string) (ContextBackendInfo, error) {
 	info := ContextBackendInfo{From: from, Kind: spec.Kind(), spec: spec}
+	if spec.Kind() == project.ContextBackendFile {
+		if err := checkContextPath(spec.Path); err != nil {
+			return ContextBackendInfo{}, err
+		}
+	}
 	if spec.Kind() == project.ContextBackendFile && !filepath.IsAbs(spec.Path) {
 		info.spec.Path = filepath.Join(layout.Root, spec.Path)
 	}
@@ -322,8 +327,12 @@ func (a *App) contextSync(ctx context.Context, layout project.Layout, info Conte
 	if !w.Logged() || info.Kind == project.ContextBackendLocal {
 		return nil, nil
 	}
-	if err := a.requireContextStore(layout, info, ask); err != nil {
+	resolved, err := a.requireContextStore(layout, info, ask)
+	if err != nil {
 		return nil, err
+	}
+	if resolved != "" {
+		info.spec.Path = resolved
 	}
 	remote, err := openRemote(ctx, layout, info)
 	if err != nil || remote == nil {

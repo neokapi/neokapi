@@ -394,7 +394,7 @@ describe("a folder nobody has allowed", () => {
     expect(sync).not.toHaveBeenCalled();
     await userEvent.click(within(dialog).getByRole("button", { name: "Allow and sync" }));
 
-    expect(approve).toHaveBeenCalledWith("t1");
+    expect(approve).toHaveBeenCalledWith("t1", FOLDER);
     await waitFor(() => expect(sync).toHaveBeenCalledWith("t1"));
   });
 

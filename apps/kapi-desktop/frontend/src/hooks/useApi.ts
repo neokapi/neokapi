@@ -511,8 +511,9 @@ export const api = {
   syncProjectContext: (tabID: string) => call<ContextSyncResult>("SyncProjectContext", tabID),
   /** The folder the tab's recipe keeps its context in, when nobody has allowed it yet; "" otherwise. */
   pendingContextStore: (tabID: string) => call<string>("PendingContextStore", tabID),
-  /** Record that the person allows the folder the tab's recipe keeps its context in. */
-  approveContextStore: (tabID: string) => call<string>("ApproveContextStore", tabID),
+  /** Record that the person allows the folder the dialog showed; refused when the recipe now leads elsewhere. */
+  approveContextStore: (tabID: string, shown: string) =>
+    call<string>("ApproveContextStore", tabID, shown),
 
   // What an assistant reads: the connection per host, and the rules files.
   /** The assistants the tab's project can be connected to, and whether each is. */

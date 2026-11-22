@@ -103,19 +103,32 @@ context:
 | `file` | a directory, such as a mounted team share | `path` | the filesystem's |
 | `s3` | an S3-compatible bucket | `bucket`, `prefix`, `region`, `endpoint` | the standard AWS environment, shared configuration and profile |
 
+With a `file` backend, kapi writes the project's decisions, terms and voice
+there, and merges in what other machines put there. Anyone who can write to
+that folder can add to this project's context. An entry in the folder can
+name any person as its author, and kapi does not check who wrote it.
+
 kapi uses a `file` backend only after you allow it. The first sync through a
-folder shows the folder and asks. Your answer is kept for you, against that
-folder, so a recipe that later names another folder asks again. Naming the
-folder yourself with `kapi share --via folder <path>`, or in the desktop's
-setup dialog, counts as the answer. Without a terminal, as in CI, the sync
-stops before it reads or writes the folder and names the command that allows
-it:
+folder shows the folder, with every link on the way resolved, and asks. Your
+answer is kept for you, for this project and that folder. kapi resolves the
+folder again on every sync, so a recipe that names another folder, or a path
+that now leads elsewhere, asks again. A folder inside the project that is a
+link, or is reached through one, is refused. So is a `path:` that starts with
+`~` or names an environment variable, since kapi expands neither; write the
+full path. Naming the folder yourself with `kapi share --via folder <path>`,
+or in the desktop's setup dialog, counts as the answer. Without a terminal,
+as in CI, the sync stops before it reads or writes the folder and names the
+command that allows it:
 
 ```bash
 kapi trust allow --context-store -p kapi.yaml --yes
 ```
 
-An assistant can neither answer the question nor run that command for you.
+A recipe cannot give the answer, and neither can a tool call through kapi's
+MCP server. An assistant that identifies itself to kapi as one is refused.
+An assistant that runs commands in your shell acts with your permissions: it
+can run that command or edit kapi's record of your answers, and this
+question does not stop it.
 
 Credentials never go in the recipe. Then sync before you work and when you are
 done:

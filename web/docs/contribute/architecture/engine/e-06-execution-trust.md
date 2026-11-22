@@ -208,20 +208,40 @@ A recipe's `context:` block with `backend: file` names a directory that a sync
 writes the project's operation log to and merges into the person's context.
 A cloned recipe can name any directory, so whoever can write there could add
 decisions and terms to that person's context. `host/contextstoretrust.go`
-decides the folder with the same record: the key is the recipe's key with a
-`#context-store` suffix, and the digest is the SHA-256 of the folder's
-absolute path, resolved against the recipe's directory, so a recipe that
-names another folder asks again.
+decides the folder with the same record. The key is the recipe's key with a
+`#context-store` suffix. The digest is the SHA-256 of the project's id and the
+folder with every link resolved, so another repository cloned to the same
+path, a recipe that names another folder, and a path that now leads
+elsewhere all ask again. A folder inside the project that is or passes
+through a link is refused outright, because a pull can replace a directory
+with one. A `path:` starting with `~` or naming an environment variable is
+refused, since neither is expanded.
 
-The gate sits in `contextSync`, before the remote is opened, so nothing reads
-or writes the folder first. `kapi context sync` and `kapi share` ask at a
+The gate sits in `contextSync`, before the remote is opened. With no allow
+recorded for the project it does not touch the folder; with one, it resolves
+the folder again and compares. `kapi context sync` and `kapi share` ask at a
 terminal. A status read and a venue push never ask, and refuse with the
 command that records an allow, `kapi trust allow --context-store`. A person
 naming the folder (`kapi share --via folder`, the desktop's setup dialog)
-records the allow, and the desktop asks through a dialog that shows the
-folder before its first sync. An agent cannot record one: an MCP server, an
-actor that resolves to an agent, and an agent host's marker beside
-`KAPI_ACTOR=person` are all refused.
+records the allow. The desktop asks through a dialog that shows the resolved
+folder and records the allow only for the folder it showed.
+
+`workspace.FileRemote` opens the approved folder once as an `os.Root` and does
+every read, listing and write beneath it, so a link another writer plants
+inside the folder leads nothing out of it, and replacing the path after the
+open does not move the remote.
+
+What the gate holds against: a recipe cannot answer, a tool call through the
+MCP server cannot answer, and an assistant that announces itself (an agent
+actor, or an agent host's marker beside `KAPI_ACTOR=person`) is refused. An
+assistant with a shell on the machine acts with the person's permissions; it
+can run `kapi trust allow` or edit `trust.json`, and the gate does not
+contain it.
+
+An allow covers where the context is kept, never what the folder holds. A
+pull checks object names against the layout and nothing about who wrote an
+entry, so anyone who can write to the folder can add entries naming any
+actor.
 
 ## Consequences
 
