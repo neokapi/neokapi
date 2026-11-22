@@ -1,10 +1,15 @@
 package backend
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -120,4 +125,47 @@ func TestSecureTranslateBuiltInOrdersRedactFirst(t *testing.T) {
 	// first tool node, ahead of the remote-egress translate step.
 	require.NotEmpty(t, info.Nodes)
 	assert.Equal(t, "redact", info.Nodes[0].Name, "secure-translate starts with redact")
+}
+
+// A desktop save names the revision it was based on, and a save the server
+// refuses as stale comes back as the flow as it now stands, not as an error
+// string.
+func TestSaveFlowDefinition_StaleSaveCarriesTheCurrentFlow(t *testing.T) {
+	var gotBase any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		gotBase = body["base_revision"]
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"code":  "flow_changed",
+			"error": "changed",
+			"current": flow.FlowDefinition{
+				ID: "flow-1", Name: "Alex's edit", Source: "project", Revision: 2,
+				Nodes: []flow.FlowNode{}, Edges: []flow.FlowEdge{},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	app := newTestApp(t)
+	app.mu.Lock()
+	app.connState = StateConnected
+	app.serverURL = srv.URL
+	app.activeWS = "acme"
+	app.remoteHTTP = editorclient.New(srv.URL, "tok")
+	app.authInfo = &config.StoredAuth{ServerURL: srv.URL, AccessToken: "tok"}
+	app.mu.Unlock()
+
+	res, err := app.SaveFlowDefinition("proj-1", FlowDefinitionInfo{
+		ID: "flow-1", Name: "Blake's edit", Source: "project", Revision: 1,
+		Nodes: []FlowNodeInfo{}, Edges: []FlowEdgeInfo{},
+	})
+	require.NoError(t, err)
+	assert.InDelta(t, 1, gotBase, 0, "the save names the revision it was based on")
+	require.NotNil(t, res.Changed)
+	assert.Nil(t, res.Flow)
+	assert.Equal(t, "Alex's edit", res.Changed.Name)
+	assert.Equal(t, int64(2), res.Changed.Revision)
 }

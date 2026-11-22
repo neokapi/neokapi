@@ -76,7 +76,10 @@ func (s *Server) HandleCreateFlowDefinition(c *echo.Context) error {
 	if err := def.Validate(); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	if err := s.FlowDefStore.Upsert(c.Request().Context(), projectID, &def); err != nil {
+	if err := s.FlowDefStore.Create(c.Request().Context(), projectID, &def); err != nil {
+		if errors.Is(err, bstore.ErrFlowDefExists) {
+			return c.JSON(http.StatusConflict, ErrorResponse{Error: "a flow with this id exists; save it with a PUT to change it"})
+		}
 		return serverErr(c, err)
 	}
 	stored, err := s.FlowDefStore.Get(c.Request().Context(), projectID, def.ID)
@@ -84,6 +87,24 @@ func (s *Server) HandleCreateFlowDefinition(c *echo.Context) error {
 		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusCreated, stored)
+}
+
+// UpdateFlowDefinitionRequest is a flow definition save. BaseRevision is the
+// revision the edit was based on: when it is set and the stored flow has moved
+// past it, the save is refused with 409 and the flow as it now stands. Zero
+// saves unconditionally.
+type UpdateFlowDefinitionRequest struct {
+	flow.FlowDefinition
+	BaseRevision int64 `json:"base_revision,omitempty"`
+}
+
+// FlowChangedResponse answers a flow save made against an older read: why it
+// was refused, and the flow as it now stands, so the person can reload it or
+// save their version over it.
+type FlowChangedResponse struct {
+	Code    string               `json:"code"`
+	Error   string               `json:"error"`
+	Current *flow.FlowDefinition `json:"current"`
 }
 
 // HandleUpdateFlowDefinition replaces an existing project flow definition.
@@ -100,17 +121,33 @@ func (s *Server) HandleUpdateFlowDefinition(c *echo.Context) error {
 		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "cannot modify a built-in flow"})
 	}
 
-	var def flow.FlowDefinition
-	if err := c.Bind(&def); err != nil {
+	var req UpdateFlowDefinitionRequest
+	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
+	def := req.FlowDefinition
 	def.ID = flowID // path wins over body
 	def.Source = "project"
 	if err := def.Validate(); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	if err := s.FlowDefStore.Upsert(c.Request().Context(), projectID, &def); err != nil {
-		return serverErr(c, err)
+	ctx := c.Request().Context()
+	if err := s.FlowDefStore.Save(ctx, projectID, &def, req.BaseRevision); err != nil {
+		if !errors.Is(err, bstore.ErrFlowDefChanged) {
+			return serverErr(c, err)
+		}
+		current, gerr := s.FlowDefStore.Get(ctx, projectID, flowID)
+		if errors.Is(gerr, bstore.ErrFlowDefNotFound) {
+			return c.JSON(http.StatusNotFound, ErrorResponse{Error: "this flow was deleted after it was read"})
+		}
+		if gerr != nil {
+			return serverErr(c, gerr)
+		}
+		return c.JSON(http.StatusConflict, FlowChangedResponse{
+			Code:    "flow_changed",
+			Error:   "this flow was saved by someone else after it was read; the current flow is attached",
+			Current: current,
+		})
 	}
 	stored, err := s.FlowDefStore.Get(c.Request().Context(), projectID, flowID)
 	if err != nil {

@@ -11,6 +11,7 @@ import type {
   ScreenMember,
 } from "@neokapi/project-screens";
 import { ApiError, apiErrorFromResponse } from "../errors/ApiError";
+import { asFlowChanged } from "../errors/FlowChangedError";
 import type { ApiAdapter } from "./adapter";
 import type { ChangeResult, ContentChangeSet } from "./contentChanges";
 import type {
@@ -2601,13 +2602,18 @@ export class RestApiAdapter implements ApiAdapter {
     flowId: string,
     def: FlowDefinitionInfo,
   ): Promise<FlowDefinitionInfo> {
-    return this.fetchJSON(
-      `${this.flowsEp(workspaceSlug, projectId)}/${encodeURIComponent(flowId)}`,
-      {
-        method: "PUT",
-        body: JSON.stringify(def),
-      },
-    );
+    try {
+      return await this.fetchJSON(
+        `${this.flowsEp(workspaceSlug, projectId)}/${encodeURIComponent(flowId)}`,
+        {
+          method: "PUT",
+          // The revision the edit was based on, so a stale save is refused.
+          body: JSON.stringify({ ...def, base_revision: def.revision }),
+        },
+      );
+    } catch (e) {
+      throw asFlowChanged(e) ?? e;
+    }
   }
 
   async deleteFlowDefinition(

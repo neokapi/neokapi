@@ -198,3 +198,91 @@ func TestHandleCreateFlowDefinition_Invalid(t *testing.T) {
 	rec := flowReq(t, srv, http.MethodPost, base, bad, projectID, "")
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
+
+// withName returns sampleFlowBody renamed and, when base > 0, carrying the
+// revision the edit was based on.
+func withName(t *testing.T, name string, base int64) string {
+	t.Helper()
+	var m map[string]any
+	require.NoError(t, json.Unmarshal([]byte(sampleFlowBody), &m))
+	m["name"] = name
+	if base > 0 {
+		m["base_revision"] = base
+	}
+	b, err := json.Marshal(m)
+	require.NoError(t, err)
+	return string(b)
+}
+
+// Two people open the same flow. The first save wins and moves the revision;
+// the second, based on the revision both read, is refused with the flow as it
+// now stands, and nothing of it is written.
+func TestHandleUpdateFlowDefinition_StaleSaveRefused(t *testing.T) {
+	srv, projectID := setupTestServerWithFlowStore(t)
+	base := "/api/v1/demo/" + projectID + "/flows"
+
+	rec := flowReq(t, srv, http.MethodPost, base, sampleFlowBody, projectID, "")
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+	var created flow.FlowDefinition
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
+	require.Equal(t, int64(1), created.Revision)
+
+	rec = flowReq(t, srv, http.MethodPut, base+"/"+created.ID, withName(t, "Alex's edit", 1), projectID, created.ID)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var saved flow.FlowDefinition
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &saved))
+	assert.Equal(t, int64(2), saved.Revision)
+
+	rec = flowReq(t, srv, http.MethodPut, base+"/"+created.ID, withName(t, "Blake's edit", 1), projectID, created.ID)
+	require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+	var changed FlowChangedResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &changed))
+	assert.Equal(t, "flow_changed", changed.Code)
+	require.NotNil(t, changed.Current)
+	assert.Equal(t, "Alex's edit", changed.Current.Name)
+	assert.Equal(t, int64(2), changed.Current.Revision)
+
+	// Saving over it on purpose names the revision it now has.
+	rec = flowReq(t, srv, http.MethodPut, base+"/"+created.ID, withName(t, "Blake's edit", 2), projectID, created.ID)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &saved))
+	assert.Equal(t, "Blake's edit", saved.Name)
+	assert.Equal(t, int64(3), saved.Revision)
+}
+
+// A save based on a flow someone deleted since is refused as not found.
+func TestHandleUpdateFlowDefinition_DeletedSinceRead(t *testing.T) {
+	srv, projectID := setupTestServerWithFlowStore(t)
+	base := "/api/v1/demo/" + projectID + "/flows"
+	rec := flowReq(t, srv, http.MethodPost, base, sampleFlowBody, projectID, "")
+	require.Equal(t, http.StatusCreated, rec.Code)
+	var created flow.FlowDefinition
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
+	rec = flowReq(t, srv, http.MethodDelete, base+"/"+created.ID, "", projectID, created.ID)
+	require.Equal(t, http.StatusNoContent, rec.Code)
+
+	rec = flowReq(t, srv, http.MethodPut, base+"/"+created.ID, withName(t, "edit", 1), projectID, created.ID)
+	assert.Equal(t, http.StatusNotFound, rec.Code, rec.Body.String())
+}
+
+// A create never replaces a stored flow of the same id.
+func TestHandleCreateFlowDefinition_ExistingIDRefused(t *testing.T) {
+	srv, projectID := setupTestServerWithFlowStore(t)
+	base := "/api/v1/demo/" + projectID + "/flows"
+	rec := flowReq(t, srv, http.MethodPost, base, sampleFlowBody, projectID, "")
+	require.Equal(t, http.StatusCreated, rec.Code)
+	var created flow.FlowDefinition
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
+
+	var m map[string]any
+	require.NoError(t, json.Unmarshal([]byte(withName(t, "Overwrite", 0)), &m))
+	m["id"] = created.ID
+	b, _ := json.Marshal(m)
+	rec = flowReq(t, srv, http.MethodPost, base, string(b), projectID, "")
+	assert.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+
+	rec = flowReq(t, srv, http.MethodGet, base+"/"+created.ID, "", projectID, created.ID)
+	var stored flow.FlowDefinition
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &stored))
+	assert.Equal(t, created.Name, stored.Name)
+}

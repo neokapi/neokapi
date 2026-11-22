@@ -1663,14 +1663,17 @@ export function RetryConnection() {
 
 /**
  * SaveFlowDefinition creates or updates a project flow definition on the server.
- * Built-in flows are immutable; the server rejects writes to them.
+ * Built-in flows are immutable; the server rejects writes to them. An update
+ * names the revision it was based on (info.Revision); when someone saved the
+ * flow since, nothing is written and the result carries the flow as it now
+ * stands.
  * @param {string} projectID
  * @param {$models.FlowDefinitionInfo} info
- * @returns {$CancellablePromise<$models.FlowDefinitionInfo | null>}
+ * @returns {$CancellablePromise<$models.FlowSaveResult | null>}
  */
 export function SaveFlowDefinition(projectID, info) {
     return $Call.ByID(1456548112, projectID, info).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType30($result);
+        return $$createType79($result);
     }));
 }
 
@@ -1681,7 +1684,7 @@ export function SaveFlowDefinition(projectID, info) {
  */
 export function SaveProviderConfig(req) {
     return $Call.ByID(832952266, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType78($result);
+        return $$createType80($result);
     }));
 }
 
@@ -1772,7 +1775,7 @@ export function SubmitChangeset(workspaceSlug, changesetID) {
  */
 export function TermEnforceItem(projectID, itemName, targetLocale) {
     return $Call.ByID(88031319, projectID, itemName, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType80($result);
+        return $$createType82($result);
     }));
 }
 
@@ -1955,6 +1958,8 @@ const $$createType74 = $Create.Array($$createType73);
 const $$createType75 = $models.TranslationStats.createFrom;
 const $$createType76 = $Create.Nullable($$createType75);
 const $$createType77 = $models.ProxyResponse.createFrom;
-const $$createType78 = $Create.Nullable($$createType61);
-const $$createType79 = $models.TermEnforceResult.createFrom;
-const $$createType80 = $Create.Array($$createType79);
+const $$createType78 = $models.FlowSaveResult.createFrom;
+const $$createType79 = $Create.Nullable($$createType78);
+const $$createType80 = $Create.Nullable($$createType61);
+const $$createType81 = $models.TermEnforceResult.createFrom;
+const $$createType82 = $Create.Array($$createType81);

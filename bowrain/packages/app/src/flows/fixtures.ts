@@ -8,6 +8,7 @@ import type {
   ProviderConfig,
   ToolInfo,
 } from "@neokapi/ui";
+import { FlowChangedError } from "@neokapi/ui";
 
 export const sampleTools: ToolInfo[] = [
   {
@@ -186,6 +187,7 @@ export const projectReview: FlowDefinitionInfo = {
   ],
   created_at: "2026-09-01T09:00:00Z",
   modified_at: "2026-09-02T14:30:00Z",
+  revision: 1,
 };
 
 export const sampleFlows: FlowDefinitionInfo[] = [builtInTranslate, builtInPseudo, projectReview];
@@ -251,6 +253,7 @@ export function createFlowsApi(options: FlowsApiOptions = {}) {
         source: "project",
         created_at: "2026-09-03T10:00:00Z",
         modified_at: "2026-09-03T10:00:00Z",
+        revision: 1,
       };
       flows.push(created);
       return structuredClone(created);
@@ -265,12 +268,19 @@ export function createFlowsApi(options: FlowsApiOptions = {}) {
       guard();
       const i = flows.findIndex((f) => f.id === id);
       if (i < 0) throw new Error(`flow ${id} not found`);
+      // As the server does: a save based on an older revision is refused
+      // with the flow as it stands.
+      const stored = flows[i].revision ?? 1;
+      if (def.revision !== undefined && def.revision !== stored) {
+        throw new FlowChangedError(structuredClone(flows[i]));
+      }
       flows[i] = {
         ...structuredClone(def),
         id,
         source: "project",
         created_at: flows[i].created_at,
         modified_at: "2026-09-03T10:05:00Z",
+        revision: stored + 1,
       };
       return structuredClone(flows[i]);
     },

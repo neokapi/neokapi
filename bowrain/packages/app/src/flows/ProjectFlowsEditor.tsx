@@ -10,11 +10,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { t } from "@neokapi/i18n-react/runtime";
 import { useToolSchemas } from "@neokapi/flow-editor";
-import { ErrorNotice, useApi } from "@neokapi/ui";
+import { ErrorNotice, asFlowChanged, useApi } from "@neokapi/ui";
 import type { FlowDefinitionInfo, LinearFlowSpec } from "@neokapi/ui";
 import { definitionToSpec, specToDefinition, toEditorDefinition, toEditorTools } from "./flowGraph";
 import { ProjectFlowList } from "./ProjectFlowList";
 import { ProjectFlowPane, type FlowSaveState } from "./ProjectFlowPane";
+import { FlowChangedDialog } from "./FlowChangedDialog";
 import { useSchemaFormHost } from "./useSchemaFormHost";
 
 interface OpenFlow {
@@ -67,6 +68,12 @@ export function ProjectFlowsEditor({
   const [saveState, setSaveState] = useState<FlowSaveState>("saved");
   const [saveError, setSaveError] = useState<unknown>(null);
   const [actionError, setActionError] = useState<unknown>(null);
+  // A save the server refused because someone saved the flow after it was
+  // opened: the person's version and the flow as it now stands.
+  const [conflict, setConflict] = useState<{
+    edit: OpenFlow;
+    current: FlowDefinitionInfo;
+  } | null>(null);
 
   // The open flow as the surface last knew it, readable from a timer or an
   // in-flight save, which see no render. Every local change goes through
@@ -104,13 +111,25 @@ export function ProjectFlowsEditor({
           const now = openRef.current!;
           setOpen({
             ...now,
-            flow: { ...now.flow, created_at: saved.created_at, modified_at: saved.modified_at },
+            flow: {
+              ...now.flow,
+              created_at: saved.created_at,
+              modified_at: saved.modified_at,
+              // The next save is based on this one.
+              revision: saved.revision,
+            },
           });
           setSaveError(null);
           setSaveState(dirtyRef.current ? "unsaved" : "saved");
         } catch (e) {
+          const changed = asFlowChanged(e);
+          if (changed) {
+            // Someone saved the flow since it was opened. Nothing was written;
+            // the person decides, whichever flow is on screen now.
+            setConflict({ edit, current: changed.current });
+          }
           if (!current()) return;
-          dirtyRef.current = true;
+          dirtyRef.current = !changed;
           setSaveError(e);
           setSaveState("error");
         }
@@ -143,6 +162,48 @@ export function ProjectFlowsEditor({
       timerRef.current = setTimeout(flush, saveDelayMs);
     },
     [setOpen, flush, saveDelayMs],
+  );
+
+  /** Keeps the flow as it now stands and drops the refused version. */
+  const keepCurrent = useCallback(() => {
+    if (!conflict) return;
+    const { current } = conflict;
+    setConflict(null);
+    void invalidate();
+    if (openRef.current?.flow.id !== current.id) return;
+    clearTimeout(timerRef.current);
+    dirtyRef.current = false;
+    setOpen({ flow: current, spec: definitionToSpec(current) });
+    setSaveError(null);
+    setSaveState("saved");
+  }, [conflict, invalidate, setOpen]);
+
+  /** Saves the person's version over the flow as it now stands. */
+  const saveMine = useCallback(() => {
+    if (!conflict) return;
+    const { edit, current } = conflict;
+    setConflict(null);
+    const live = openRef.current;
+    // The open flow holds any edit made since the refused save.
+    const mine = live && live.flow.id === edit.flow.id ? live : edit;
+    const next = { ...mine, flow: { ...mine.flow, revision: current.revision } };
+    if (live && live.flow.id === edit.flow.id) setOpen(next);
+    dirtyRef.current = false;
+    enqueueSave(next);
+  }, [conflict, enqueueSave, setOpen]);
+
+  const conflictDialog = (
+    <FlowChangedDialog
+      state={
+        conflict && {
+          current: conflict.current,
+          mine: specToDefinition(conflict.edit.spec, conflict.edit.flow),
+        }
+      }
+      tools={tools}
+      onKeep={keepCurrent}
+      onSaveMine={saveMine}
+    />
   );
 
   const openFlow = useCallback(
@@ -247,20 +308,24 @@ export function ProjectFlowsEditor({
           onCopy={readOnly ? () => void handleCopy(open.flow) : undefined}
           onDelete={readOnly ? undefined : () => void handleDelete(open.flow)}
         />
+        {conflictDialog}
       </>
     );
   }
 
   return (
-    <ProjectFlowList
-      flows={flows}
-      tools={tools}
-      loading={flowsQuery.isLoading}
-      error={flowsQuery.error ?? actionError}
-      onOpen={openFlow}
-      onCreate={handleCreate}
-      onCopy={(flow) => void handleCopy(flow)}
-      onDelete={(flow) => void handleDelete(flow)}
-    />
+    <>
+      <ProjectFlowList
+        flows={flows}
+        tools={tools}
+        loading={flowsQuery.isLoading}
+        error={flowsQuery.error ?? actionError}
+        onOpen={openFlow}
+        onCreate={handleCreate}
+        onCopy={(flow) => void handleCopy(flow)}
+        onDelete={(flow) => void handleDelete(flow)}
+      />
+      {conflictDialog}
+    </>
   );
 }

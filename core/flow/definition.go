@@ -30,13 +30,17 @@ const (
 type FlowDefinition struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
-	// Description is markdown — see markdown-in-ui.md.
+	// Description is markdown (see markdown-in-ui.md).
 	Description string     `json:"description,omitempty"`
 	Nodes       []FlowNode `json:"nodes"`
 	Edges       []FlowEdge `json:"edges"`
 	Source      string     `json:"source"` // "built-in", "user", or "project"
 	CreatedAt   string     `json:"created_at,omitempty"`
 	ModifiedAt  string     `json:"modified_at,omitempty"`
+	// Revision counts the saves of a stored flow, starting at 1. A save sends
+	// the revision it was based on, so a store can refuse one made against an
+	// older read. Zero for a flow that is not stored.
+	Revision int64 `json:"revision,omitempty"`
 	// Binding carries the flow's source/sink binding intent (AD-026). The graph
 	// nodes are tools only; the I/O ends are bindings, not nodes. Nested to avoid
 	// colliding with Source (the provenance field).
@@ -44,7 +48,7 @@ type FlowDefinition struct {
 }
 
 // FlowBinding is a flow's declared source/sink binding intent (AD-026). Values
-// are binding locators — "file", "store", "none", "xliff", … — matching the
+// are binding locators ("file", "store", "none", "xliff", …) matching the
 // steps-format source:/sink: fields and the CLI locator vocabulary. An empty
 // field means the binding is supplied at invocation, not by the flow.
 type FlowBinding struct {
@@ -53,8 +57,8 @@ type FlowBinding struct {
 }
 
 // FlowNode represents a node in the flow graph. Tool nodes are one ordered
-// list — transformers are ordinary steps (AD-006); placement safety is
-// validated by ValidatePlacement, not by a structural stage.
+// list, in which transformers are ordinary steps (AD-006). ValidatePlacement
+// checks placement safety.
 type FlowNode struct {
 	ID       string         `json:"id"`
 	Type     NodeType       `json:"type"` // NodeReader, NodeWriter, or NodeTool

@@ -16,9 +16,8 @@ import (
 
 // Flow definitions on the desktop (Bowrain AD-013, #766).
 //
-// Flows are server-side, project-scoped pipeline graphs. The desktop is a
-// working copy of the server — it does NOT author flows to a local
-// ~/.bowrain/flows store any more. These Wails methods proxy to the Bowrain
+// Flows are server-side, project-scoped pipeline graphs, and the desktop is a
+// working copy of the server. These Wails methods proxy to the Bowrain
 // server's flow-definition REST API (/api/v1/{ws}/{projectId}/flows) over the
 // authenticated HTTP base URL, so a flow created on the desktop is the same
 // row the web superset editor and the automation engine see.
@@ -39,10 +38,21 @@ type FlowDefinitionInfo struct {
 	Source      string         `json:"source"`
 	CreatedAt   string         `json:"created_at,omitempty"`
 	ModifiedAt  string         `json:"modified_at,omitempty"`
+	// Revision is the stored flow's save count; a save sends the revision it
+	// was based on so the server can refuse one made against an older read.
+	Revision int64 `json:"revision,omitempty"`
+}
+
+// FlowSaveResult is the outcome of a flow save: the flow as stored, or, when
+// someone saved it after it was read, the flow as it now stands (Changed) and
+// nothing written.
+type FlowSaveResult struct {
+	Flow    *FlowDefinitionInfo `json:"flow,omitempty"`
+	Changed *FlowDefinitionInfo `json:"changed,omitempty"`
 }
 
 // FlowNodeInfo is the frontend-facing flow node type. Tool nodes are one
-// ordered list — transformers are ordinary steps (AD-006).
+// ordered list, transformers are ordinary steps (AD-006).
 type FlowNodeInfo struct {
 	ID       string         `json:"id"`
 	Type     string         `json:"type"`
@@ -94,6 +104,7 @@ func flowDefToInfo(def flow.FlowDefinition) FlowDefinitionInfo {
 		Source:      def.Source,
 		CreatedAt:   def.CreatedAt,
 		ModifiedAt:  def.ModifiedAt,
+		Revision:    def.Revision,
 	}
 }
 
@@ -144,7 +155,7 @@ func flowDo(method, urlStr, token string, body any, out any) error {
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		b, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("flow API %s %s: %d %s", method, urlStr, resp.StatusCode, b)
+		return &flowAPIError{method: method, url: urlStr, status: resp.StatusCode, body: b}
 	}
 	if out != nil && resp.StatusCode != http.StatusNoContent {
 		return json.NewDecoder(resp.Body).Decode(out)
@@ -172,7 +183,7 @@ func (a *App) ListFlowDefinitions(projectID string) ([]FlowDefinitionInfo, error
 	}
 	var out []FlowDefinitionInfo
 	if err := flowDo(http.MethodGet, base, token, nil, &out); err != nil {
-		// Server unreachable — fall back to built-ins so the editor still works.
+		// Server unreachable, fall back to built-ins so the editor still works.
 		return builtInFlowInfos(), nil
 	}
 	if out == nil {
@@ -199,9 +210,42 @@ func (a *App) GetFlowDefinition(projectID, id string) (*FlowDefinitionInfo, erro
 	return &out, nil
 }
 
+// flowAPIError is a refused flow API request, with the status and body the
+// server answered.
+type flowAPIError struct {
+	method, url string
+	status      int
+	body        []byte
+}
+
+func (e *flowAPIError) Error() string {
+	return fmt.Sprintf("flow API %s %s: %d %s", e.method, e.url, e.status, e.body)
+}
+
+// flowChanged reads the flow as it now stands out of a save the server
+// refused because the flow changed after it was read, or reports false.
+func flowChanged(err error) (*FlowDefinitionInfo, bool) {
+	apiErr, ok := errors.AsType[*flowAPIError](err)
+	if !ok || apiErr.status != http.StatusConflict {
+		return nil, false
+	}
+	var body struct {
+		Code    string               `json:"code"`
+		Current *flow.FlowDefinition `json:"current"`
+	}
+	if json.Unmarshal(apiErr.body, &body) != nil || body.Code != "flow_changed" || body.Current == nil {
+		return nil, false
+	}
+	info := flowDefToInfo(*body.Current)
+	return &info, true
+}
+
 // SaveFlowDefinition creates or updates a project flow definition on the server.
-// Built-in flows are immutable; the server rejects writes to them.
-func (a *App) SaveFlowDefinition(projectID string, info FlowDefinitionInfo) (*FlowDefinitionInfo, error) {
+// Built-in flows are immutable; the server rejects writes to them. An update
+// names the revision it was based on (info.Revision); when someone saved the
+// flow since, nothing is written and the result carries the flow as it now
+// stands.
+func (a *App) SaveFlowDefinition(projectID string, info FlowDefinitionInfo) (*FlowSaveResult, error) {
 	base, token, ok := a.flowREST(projectID)
 	if !ok {
 		return nil, errors.New("not connected: connect to a server to save flows")
@@ -217,13 +261,20 @@ func (a *App) SaveFlowDefinition(projectID string, info FlowDefinitionInfo) (*Fl
 		if err := flowDo(http.MethodPost, base, token, info, &out); err != nil {
 			return nil, err
 		}
-		return &out, nil
+		return &FlowSaveResult{Flow: &out}, nil
 	}
-	// Update (create-or-replace by id).
-	if err := flowDo(http.MethodPut, base+"/"+url.PathEscape(info.ID), token, info, &out); err != nil {
+	// Update, based on the revision the edit was made against.
+	body := struct {
+		FlowDefinitionInfo
+		BaseRevision int64 `json:"base_revision,omitempty"`
+	}{info, info.Revision}
+	if err := flowDo(http.MethodPut, base+"/"+url.PathEscape(info.ID), token, body, &out); err != nil {
+		if current, ok := flowChanged(err); ok {
+			return &FlowSaveResult{Changed: current}, nil
+		}
 		return nil, err
 	}
-	return &out, nil
+	return &FlowSaveResult{Flow: &out}, nil
 }
 
 // DeleteFlowDefinition removes a project flow definition on the server.

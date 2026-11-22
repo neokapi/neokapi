@@ -1982,4 +1982,14 @@ var Migrations = []storage.Migration{
 				ON review_plan_snapshots (workspace_id);
 		`,
 	},
+	{
+		Version:     58,
+		Description: "a revision on each project flow definition",
+		SQL: `
+			-- Counts the saves of a flow. A save names the revision it was
+			-- based on and the store refuses it when the flow has moved on,
+			-- so a later save never silently replaces an earlier one.
+			ALTER TABLE flow_definitions ADD COLUMN IF NOT EXISTS revision BIGINT NOT NULL DEFAULT 1;
+		`,
+	},
 }

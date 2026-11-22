@@ -1,6 +1,8 @@
 package store
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/flow"
@@ -96,4 +98,42 @@ func TestFlowDefStore_ProjectScoped(t *testing.T) {
 	// projB's flow is not visible from projA.
 	_, err = store.Get(ctx, projA.ID, "b")
 	assert.ErrorIs(t, err, ErrFlowDefNotFound)
+}
+
+// Saves based on the same revision race; exactly one is written and the rest
+// are refused, because the check and the write are one statement.
+func TestFlowDefStore_SaveBasedOnTheSameRevision(t *testing.T) {
+	s := newTestStore(t)
+	store := NewFlowDefStore(s.SQLDB())
+	proj := createTestProject(t, s)
+	ctx := t.Context()
+	require.NoError(t, store.Create(ctx, proj.ID, sampleDef("flow-1", "Translate")))
+
+	const writers = 8
+	errs := make(chan error, writers)
+	for i := range writers {
+		go func() {
+			def := sampleDef("flow-1", fmt.Sprintf("edit %d", i))
+			errs <- store.Save(ctx, proj.ID, def, 1)
+		}()
+	}
+	var won, refused int
+	for range writers {
+		switch err := <-errs; {
+		case err == nil:
+			won++
+		case errors.Is(err, ErrFlowDefChanged):
+			refused++
+		default:
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	assert.Equal(t, 1, won)
+	assert.Equal(t, writers-1, refused)
+	got, err := store.Get(ctx, proj.ID, "flow-1")
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), got.Revision)
+
+	require.ErrorIs(t, store.Create(ctx, proj.ID, sampleDef("flow-1", "again")), ErrFlowDefExists)
+	require.ErrorIs(t, store.Save(ctx, proj.ID, sampleDef("gone", "x"), 1), ErrFlowDefChanged)
 }
