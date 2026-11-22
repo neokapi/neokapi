@@ -9,8 +9,10 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/history"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projector"
@@ -131,6 +133,7 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 	}
 
 	var edits []projector.Edit
+	written := 0
 	for _, doc := range order {
 		transitions := byDoc[doc]
 		if len(transitions) == 0 {
@@ -160,8 +163,17 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 				t.Basis = ""
 			}
 			e.Transitions = append(e.Transitions, editTransition(t, keep))
+			if writesTranslation(t) {
+				written++
+			}
 		}
 		edits = append(edits, e)
+	}
+	// The files are committed by the time the service records them, so the
+	// run's tally counts them whether or not the record below succeeds. An
+	// observed record describes a change made outside kapi.
+	if rec.Origin != history.OriginObserved {
+		r.app.writeTally.add(written)
 	}
 	if len(edits) == 0 {
 		return "", nil
@@ -174,6 +186,40 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 		return "", fmt.Errorf("record edit: %w", err)
 	}
 	return ids[0], nil
+}
+
+// writesTranslation reports whether t wrote a translation with content its
+// file did not hold: a derived edition the change created or changed. A
+// removed edition and a record of a translation the file already held are
+// not writes of one.
+func writesTranslation(t change.Transition) bool {
+	return t.Role == change.RoleDerived && t.AfterRev != model.AbsentRevision && t.AfterRev != t.BeforeRev
+}
+
+// unitWriteTally counts, for one run, the translations it wrote to a home
+// other than the workspace home: a file. A nil tally counts nothing, so a run
+// that does not ask for the count pays nothing for it.
+type unitWriteTally struct {
+	mu sync.Mutex
+	n  int
+}
+
+func (t *unitWriteTally) add(n int) {
+	if t == nil || n == 0 {
+		return
+	}
+	t.mu.Lock()
+	t.n += n
+	t.mu.Unlock()
+}
+
+func (t *unitWriteTally) total() int {
+	if t == nil {
+		return 0
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.n
 }
 
 // basisAt names an edition of a block a change set's operation addresses.

@@ -66,6 +66,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		ProjectBindings:     a.ProjectBindings,
 		convergeWriteFiles:  a.convergeWriteFiles,
 		convergeDraftDir:    a.convergeDraftDir,
+		writeTally:          a.writeTally,
 		convergeDraftRoot:   a.convergeDraftRoot,
 		convergeDeliveries:  a.convergeDeliveries,
 		printOps:            a.printOps,
@@ -162,9 +163,8 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	// would be a per-locale answer to a question the run asks once.
 	"convergeDraftDir":  fieldShared,
 	"convergeDraftRoot": fieldShared,
-	// Set only while the parent counts what the target files hold, between
-	// passes; a worker drafts and grades with it off.
-	"coverageFilesOnly": fieldOwned,
+	// One tally for the whole run: every locale's writes are the run's.
+	"writeTally": fieldShared,
 	// The drafts' deliveries, like the tree, are the run's: finishConverge
 	// delivers what every locale's worker drafted.
 	"convergeDeliveries": fieldShared,

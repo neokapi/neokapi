@@ -199,8 +199,11 @@ func (t *CoverageTally) RollupGates(ship, established gate.RuleSet) []LocaleCove
 			BasisUnknown:          st.basisUnknown,
 			TermsNotChecked:       st.termsNotChecked,
 		}
+		lc.AtLeast = map[string]int{}
 		for _, rung := range ladder {
-			lc.Pct[rung] = int(math.Round(cov.AtLeastPct(ladder, rung)))
+			n := cov.AtLeastCount(ladder, rung)
+			lc.AtLeast[rung] = n
+			lc.Pct[rung] = Percent(n, cov.Total)
 		}
 		if g, ok := ship.Resolve(s.Collection, s.Locale); ok {
 			lc.Gated = true
@@ -322,4 +325,22 @@ func TallyBlockStore(sess blockstore.Session, scopes []BlockStoreScope) (*Covera
 		}
 	}
 	return tally, totals, nil
+}
+
+// Percent is n of total as a whole percentage, rounded to the nearest. It
+// reads 100 only when every unit is counted and 0 only when none is, so a
+// scope with one unit missing never shows as complete. A scope with no units
+// is fully covered.
+func Percent(n, total int) int {
+	if total <= 0 {
+		return 100
+	}
+	p := int(math.Round(float64(n) * 100 / float64(total)))
+	switch {
+	case p >= 100 && n < total:
+		return 99
+	case p <= 0 && n > 0:
+		return 1
+	}
+	return p
 }

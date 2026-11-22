@@ -1898,9 +1898,6 @@ func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block
 			// looks like: the pass drafted it and delivery was withheld, so its
 			// home is the workspace home. Read it there, so the work is
 			// measurable and reviewable where it stands (#2356).
-			if a.coverageFilesOnly {
-				return nil, true, nil
-			}
 			blocks, ok, serr := a.keptTargetBlocks(ctx, u)
 			if serr != nil {
 				return nil, false, serr

@@ -62,13 +62,17 @@ const (
 // which thresholds are still pending. Collection is empty for content not in a
 // named collection (the common case), where the rows are effectively per-locale.
 type LocaleCoverage struct {
-	Locale     string           `json:"locale"`
-	Collection string           `json:"collection,omitempty"`
-	Total      int              `json:"total"`
-	Pct        map[string]int   `json:"pct"`               // ladder state → "at least" percent (rounded)
-	Gated      bool             `json:"gated"`             // a ship gate matches this scope
-	Shippable  bool             `json:"shippable"`         // nothing withholds the scope: its gate is met, or none matches
-	Pending    []gate.Shortfall `json:"pending,omitempty"` // unmet ship-gate thresholds
+	Locale     string         `json:"locale"`
+	Collection string         `json:"collection,omitempty"`
+	Total      int            `json:"total"`
+	Pct        map[string]int `json:"pct"` // ladder state → "at least" percent (Percent)
+	// AtLeast is the number of units at each ladder state or higher, the
+	// count behind Pct. A count over units reads it rather than deriving one
+	// from a rounded percentage.
+	AtLeast   map[string]int   `json:"at_least,omitempty"`
+	Gated     bool             `json:"gated"`             // a ship gate matches this scope
+	Shippable bool             `json:"shippable"`         // nothing withholds the scope: its gate is met, or none matches
+	Pending   []gate.Shortfall `json:"pending,omitempty"` // unmet ship-gate thresholds
 	// ShipState is the scope's standing in one value: established, translated,
 	// withheld or not_gated. Shippable is true for every state but withheld,
 	// because nothing holds the others back, so a reader that only asks "does

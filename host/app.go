@@ -149,10 +149,9 @@ type App struct {
 	// where the recipe says.
 	convergeDraftDir string
 
-	// coverageFilesOnly makes coverage read each target from its file on disk
-	// alone: no draft tree and no workspace home. It is what counts the units
-	// a run wrote to files (unitsInFiles).
-	coverageFilesOnly bool
+	// writeTally counts the translations a convergence run writes to target
+	// files, as the edit recorder records them. Nil outside a run.
+	writeTally *unitWriteTally
 
 	// convergeDraftRoot is the project root the draft tree mirrors paths
 	// against, so a target outside the project, which no recipe gate reaches,
