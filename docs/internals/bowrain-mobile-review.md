@@ -592,6 +592,12 @@ dependency, and covers the new directory once it has its `LICENSE`.
   splash screen. Under an open sheet it offers Restart in a banner instead.
   Held decisions are sent and the cache saved before the reload
   (`src/lib/appUpdates.ts`).
+- The runtime version follows Expo's `fingerprint` policy: a hash of the
+  native dependencies, the config plugins and the app config. A build takes
+  only updates made from the same native code, so a native dependency can
+  merge at any time. Updates made after it reach only builds made after it.
+  The steps are in
+  [Updates and new builds](bowrain-mobile-testflight.md#updates-and-new-builds).
 - Store requirements in 2026: Google Play requires target API level 36 for
   new apps and updates since 2026-08-31; Apple requires privacy manifests for
   the SDKs an app uses and the account-deletion rule above.

@@ -16,6 +16,11 @@ vpr test        # 10 s, jest-expo
 vpr export      # 21 s, Metro resolves the workspace for iOS and Android
 ```
 
+Pull request CI runs `vpr test` in the `frontend-packages` job
+(`make ci-frontend-packages`), which runs when a pull request touches
+`bowrain/mobile/`, `packages/`, the lockfile or the Makefile. No pull
+request job runs `vpr export`, so run it yourself.
+
 ## What the machine needs
 
 ```bash

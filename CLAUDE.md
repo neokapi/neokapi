@@ -131,6 +131,10 @@ done when it has been run, not when its tests pass.
   E2E stack, the race detector (unless the pull request carries the `race`
   label) and the release workflows run later or on request. The verify recipes
   say when to run them yourself.
+- **Merge with `gh pr merge <n> --auto --squash`.** The main branch requires
+  the `CI passed` check, which answers for every job and workflow on the
+  commit, so a queued pull request merges when all of it is green. Never pass
+  `--admin`.
 - **Three rounds, then stop.** When a check still fails after three attempts
   to fix it, bring in the person with what fails and what you tried.
 - **Never weaken a check to pass it**: no skipped or deleted test, no sleep or

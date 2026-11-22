@@ -16,8 +16,7 @@
     "typecheck": "vp check --no-fmt --no-lint",
     "check": "vp check",
     "lint": "vp lint",
-    "fmt": "vp fmt",
-    "test": "vp test"
+    "fmt": "vp fmt"
   },
   "dependencies": {
     "@neokapi/contract-types": "*"

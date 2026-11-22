@@ -139,6 +139,8 @@ run_check "Test shards cover every test once" ./scripts/go-test-shard.sh --self-
 run_check "Fuzz runner reports a failing target" ./scripts/go-fuzz.sh --self-test
 run_check "Copies of each tool pin agree" python3 scripts/check-tool-versions.py --offline
 run_check "Reliability checklist validates" python3 scripts/reliability-checklist.py --self-test
+run_check "CI passed answers for every job" make --no-print-directory check-ci-passed
+run_check "Every package test script runs in CI" make --no-print-directory check-test-scripts
 run_check "Commit gate hook" ./.claude/hooks/commit-gate.sh --self-test
 run_check "Build cache warmer" ./scripts/ci-warm-build-cache.sh --self-test
 run_check "Bindings generator warnings about our code fail" ./scripts/wails-generate.sh --self-test
@@ -261,6 +263,15 @@ fi
 
 if matches '^bowrain/packages/ui/' '^bowrain/apps/web/' '^bowrain/apps/bowrain/frontend/'; then
     run_check "Frontend (bowrain)" make frontend-check-all
+fi
+
+# The unit suites of the shared packages, the docs site, the landing page and
+# the mobile app. Same filter as the CI `frontend-packages` job, and the same
+# target that job runs. About a minute.
+if matches '^packages/' '^web/' '^bowrain/web/landing/' '^bowrain/mobile/' '^core/place/testdata/' \
+    '^bowrain/web/docs/src/css/palette\.generated\.css$' '^Makefile$' '^\.github/workflows/ci\.yml$' \
+    '^pnpm-lock\.yaml$' '^package\.json$' '^pnpm-workspace\.yaml$'; then
+    run_check "Frontend package suites" make ci-frontend-packages
 fi
 
 # ── Walkthrough harness ────────────────────────────────────────────────────

@@ -15,8 +15,10 @@ The app's design is in [bowrain-mobile-review.md](bowrain-mobile-review.md).
   makes a store build and raises the build number on every build (the number
   lives on EAS, `appVersionSource: remote`).
 - `bowrain/mobile/app.config.ts` sets the bundle identifier
-  `cloud.bowrain.app`, the `bowrain` scheme, version `0.1.0`, the associated
-  domain `app.bowrain.cloud`, and `ITSAppUsesNonExemptEncryption: false`.
+  `cloud.bowrain.app`, the `bowrain` scheme, the version, the associated
+  domain `app.bowrain.cloud`, and `ITSAppUsesNonExemptEncryption: false`. Its
+  runtime version follows the `fingerprint` policy (see
+  [Updates and new builds](#updates-and-new-builds)).
 - `bowrain/apps/web/public/.well-known/apple-app-site-association` lists the
   app for `https://app.bowrain.cloud/auth/callback`. The web deploy uploads it
   as `application/json`.
@@ -113,6 +115,42 @@ The association file is served at
       decisions and edited text sent to the Bowrain server).
     - Privacy policy URL: required. Give the URL of the Bowrain privacy
       policy, and open it first to check that it shows the policy.
+
+## Updates and new builds
+
+An installed build takes an over-the-air update only when both have the same
+runtime version. `app.config.ts` sets the `fingerprint` policy: the runtime
+version is a hash of what shapes the native app, the native dependencies,
+the config plugins and the app config. `bowrain/mobile/fingerprint.config.js`
+leaves out the version numbers, `eas.json` and the config's `extra` section,
+which holds JavaScript data only. EAS Build and `eas update` each compute the
+hash from the checkout they run on.
+
+To see which runtime version the checkout has, from `bowrain/mobile/`:
+
+```bash
+vp exec expo-updates runtimeversion:resolve --platform ios
+```
+
+**A JavaScript-only change** keeps the hash. Publish it to the builds that
+have it:
+
+```bash
+eas update --channel production --environment production --message "<what changed>"
+```
+
+**A native change** (a native package, a config plugin, a native setting in
+`app.config.ts`) gives a new hash. An update made after it reaches no build
+already installed: those builds keep the last update made for their hash.
+Make and submit a new build, and raise `version` in `app.config.ts` for a
+store release:
+
+```bash
+eas build --platform ios --profile production --auto-submit
+```
+
+Updates published after the change reach people once they install the new
+build from TestFlight or the App Store.
 
 ## Before external testing or release
 
