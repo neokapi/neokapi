@@ -21,7 +21,7 @@ import (
 // byte cap and exercise the budget-exceeded path without streaming 1 GiB.
 var docBudget = safeio.DefaultBudget()
 
-// Reader implements DataFormatReader for TMX (Translation Memory eXchange) files.
+// Reader implements DataFormatReader for TMX files.
 type Reader struct {
 	format.BaseFormatReader
 	cfg           *Config
@@ -37,7 +37,7 @@ var (
 
 // StreamingReader marks that the reader can read incrementally from doc.Reader
 // (via a bounded CaptureReader window) without materialising the whole document
-// — see readStreaming. The file-runner uses this to concurrent-feed the reader.
+// (see readStreaming). The file-runner uses this to concurrent-feed the reader.
 func (r *Reader) StreamingReader() {}
 
 // NewReader creates a new TMX reader.
@@ -109,7 +109,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Bound the whole-input read with the shared safeio byte budget so an
 	// unbounded/oversized stream fails with a typed error (identical limit
-	// across CLI/server/WASM — see core/safeio). Peek (non-consuming) resolves
+	// across CLI/server/WASM; see core/safeio). Peek (non-consuming) resolves
 	// the BOM-detected encoding without reading the whole document.
 	br := bufio.NewReader(docBudget.Reader(r.Doc.Reader))
 	head, _ := br.Peek(3)
@@ -198,7 +198,7 @@ func newTMXDecoder(r io.Reader, charsetReader func(string, io.Reader) (io.Reader
 // walkTokens is the shared TMX token walk. rawAt returns the raw source bytes
 // for an absolute byte range (from the buffer or the CaptureReader window);
 // discard releases window bytes below an offset (a no-op in buffered mode).
-// Skeleton is emitted incrementally — segments are non-overlapping leaves in
+// Skeleton is emitted incrementally: segments are non-overlapping leaves in
 // document order, so a monotonic emit frontier reproduces the byte-exact
 // skeleton without a whole-buffer post-pass. On success it emits PartLayerEnd.
 func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, decoder *xml.Decoder, layer *model.Layer, locale model.LocaleID, rawAt func(start, end int64) string, discard func(int64), hadUTF8BOM bool) {
@@ -246,9 +246,9 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 	var names nameOrdinals
 	// ids separates the `tuid`s this document repeats. TMX declares `tuid` as
 	// CDATA #IMPLIED rather than an XML ID and states that its value is not
-	// defined by the standard, so a memory whose units all carry `tuid="1"` — or
-	// none at all, where the positional fallback below can meet a literal `tu3` —
-	// is a conforming file, and the block store still needs to tell its units
+	// defined by the standard. A memory whose units all carry `tuid="1"`, or
+	// none at all (where the positional fallback below can meet a literal
+	// `tu3`), is a conforming file, and the block store still needs to tell its units
 	// apart. See core/model/blockid.go.
 	var ids model.IDBuilder
 
@@ -302,7 +302,7 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 					inTUNote = true
 					noteBuilder.Reset()
 				}
-				// <note> inside a <seg> — not per TMX spec, ignored
+				// <note> inside a <seg>: not per TMX spec, ignored
 
 			case "prop":
 				propType := ""
@@ -395,7 +395,7 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 
 			case "sub":
 				if inSeg && segBuilder != nil {
-					// <sub> inside an inline element — capture its text content
+					// <sub> inside an inline element: capture its text content
 					segBuilder.startSub()
 				}
 			}
@@ -683,7 +683,7 @@ func (b *segContentBuilder) endInline(elemType string) {
 			ID: spanID, SubType: "tmx-ept", Data: data, Equiv: inline.sourceX,
 		}})
 	case "ph":
-		// Disp carries the optional `assoc` attribute (TMX-specific —
+		// Disp carries the optional `assoc` attribute (TMX-specific:
 		// "p"=preceding, "f"=following, "b"=both) so the writer can
 		// re-emit it; PlaceholderRun has no dedicated property bag.
 		b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
@@ -796,14 +796,12 @@ func extractInlineAttrs(attrs []xml.Attr) (id string, spanType string, sourceX s
 //
 // A TMX file has no structure above `<tu>` and no meaning in the order of its
 // units: it is a set, and reordering it changes nothing about what it says. So
-// there is no structural path to compose — only the unit's own key.
+// there is no structural path to compose, only the unit's own key.
 //
 // `tuid` is that key where a producer wrote one. Where none was written, the
-// name is the source segment, which is what a translation memory matches on
-// anyway and is stable under every edit to the rest of the file. The name it
-// replaces, `tu7`, said only how many units had gone past: deleting one unit
-// renamed every unit after it, and in a memory file — where units are added and
-// dropped constantly — that renamed nearly everything on nearly every write.
+// name is the source segment, which is what a content memory matches on
+// anyway and is stable under every edit to the rest of the file. A positional
+// name such as `tu7` would rename every unit after a deleted one.
 //
 // Two units with the same source and no tuid are indistinguishable by key, and
 // the builder's ordinal separates them. That ordinal counts occurrences of that
@@ -817,8 +815,10 @@ func unitName(nb *nameOrdinals, tuid, sourceText string) string {
 
 // buildBlock constructs a model.Block from parsed TU data.
 func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale model.LocaleID) *model.Block {
+	// A header naming no source language, or "*all*", which names none in
+	// particular, leaves the run's source language to pick the variant.
 	srcLangLower := strings.ToLower(srcLang)
-	if srcLangLower == "" {
+	if srcLangLower == "" || srcLangLower == "*all*" {
 		srcLangLower = strings.ToLower(string(locale))
 	}
 

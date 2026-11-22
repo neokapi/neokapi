@@ -171,6 +171,9 @@ func TestBringUpToDate_RunsSharedUpEngine(t *testing.T) {
 	require.NotNil(t, result, "the complete event carries the structured result")
 	assert.True(t, result.Converged)
 	assert.Empty(t, result.ParkedScopes)
+	// Two units in each of two languages, each written once by this run.
+	require.NotNil(t, result.Produced, "the desktop's result reports what the run wrote")
+	assert.Equal(t, 4, *result.Produced)
 }
 
 func TestBringUpToDate_ResolvesRecipeLanguages(t *testing.T) {
@@ -221,7 +224,7 @@ func TestBringUpToDate_RefusesConcurrentRun(t *testing.T) {
 	// While the first run is live, a second launch is refused.
 	err := app.BringUpToDate(tab.ID)
 	if err == nil {
-		// The first run may already have finished on a fast machine — only a
+		// The first run may already have finished on a fast machine: only a
 		// still-running state must refuse.
 		t.Skip("first run finished before the second launch; nothing to assert")
 	}
@@ -302,7 +305,7 @@ func TestGetConvergePlan_UnknownTab(t *testing.T) {
 }
 
 // TestBringUpToDate_NoDefaultFlowUsesBuiltinDefault: a recipe with no
-// defaults.flow launches fine — the shared up engine synthesizes the built-in
+// defaults.flow launches fine, the shared up engine synthesizes the built-in
 // default flow (#1078 G6: recycle → translate). With the offline demo provider
 // the run converges and materializes every target.
 func TestBringUpToDate_NoDefaultFlowUsesBuiltinDefault(t *testing.T) {
@@ -336,7 +339,7 @@ func TestBringUpToDate_NoDefaultFlowUsesBuiltinDefault(t *testing.T) {
 
 // TestGetConvergence_MissingProjectFiles: a tab whose recipe vanished from
 // disk (moved/deleted directory) gets the typed friendly error, not a raw
-// open-error — and both derivation bindings agree.
+// open-error, and both derivation bindings agree.
 func TestGetConvergence_MissingProjectFiles(t *testing.T) {
 	app := NewApp()
 	tab, root := newConvergenceProject(t, app)

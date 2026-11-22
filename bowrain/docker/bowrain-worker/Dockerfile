@@ -55,7 +55,30 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 FROM alpine:3.24
 # git: brand-scan repo sources shell out to the git binary (bowrain/connector).
 RUN apk add --no-cache ca-certificates tzdata git
+# The process runs as an unprivileged user with a fixed id, so a deployment
+# can name it (and own its volumes) without reading /etc/passwd. The passwd
+# entry exists for tools that look the user up, such as git.
+RUN addgroup -S -g 10001 bowrain \
+    && adduser -S -D -H -u 10001 -G bowrain -h /tmp -s /sbin/nologin bowrain
 
 COPY --from=builder /out/bowrain-worker /usr/local/bin/bowrain-worker
 
+# The worker writes only these directories, and checks at start-up that each is
+# writable (bowrain/runtimedirs). Everything else can be a read-only root
+# filesystem.
+#   TMPDIR                  git clones and per-job scratch files. A tmpfs or a
+#                           writable volume.
+#   BLOB_STORAGE_LOCAL_DIR  blob storage, only when S3 is not configured
+#                           (default $TMPDIR/bowrain-blobs).
+# /data is owned by the worker's user, so a volume the worker and the server
+# share there, whichever of them creates it, is too.
+RUN mkdir -p /data && chown 10001:10001 /data
+# /tmp is a VOLUME so that a platform mounting a writable volume there, as
+# ECS does on Fargate for a read-only root filesystem, copies its mode (1777)
+# instead of creating a directory only root can write.
+RUN chmod 1777 /tmp
+VOLUME /tmp
+ENV TMPDIR=/tmp HOME=/tmp
+
+USER 10001:10001
 ENTRYPOINT ["bowrain-worker"]

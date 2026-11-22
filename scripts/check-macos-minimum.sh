@@ -14,6 +14,11 @@
 # macOS it supports in cmd/link/internal/ld/macho.go; Go 1.27 builds for macOS
 # 13 while the apps declared 10.15 and the release workflows 11.0.
 #
+# The Homebrew files are generated at release time, so the generators are
+# checked too: the CLI formulae, each plugin formula and the two Casks must
+# carry `depends_on macos:` with the symbol for their minimum. A plugin may
+# declare a newer minimum in plugins/<plugin>/macos-minimum, never an older one.
+#
 # Exit status: 0 every declaration agrees, 1 one does not, 2 an input is
 # unreadable.
 set -uo pipefail
@@ -81,6 +86,78 @@ declarations() {
     done
 }
 
+# opens_with_requirement <formula file> <codename> reports whether every
+# `on_macos do` block opens with `depends_on macos: :<codename>`.
+opens_with_requirement() {
+  local f=$1 codename=$2 blocks good
+  blocks=$(grep -c '^  on_macos do$' "$f")
+  good=$(grep -A1 '^  on_macos do$' "$f" | grep -cx "    depends_on macos: :${codename}")
+  [ "$blocks" -gt 0 ] && [ "$blocks" -eq "$good" ]
+}
+
+# The patterns below match literal workflow text, so they are single-quoted.
+# shellcheck disable=SC2016
+# check_generated renders the Homebrew formulae with stand-in checksums and
+# checks each one's requirement, then the Cask templates in the workflows.
+check_generated() {
+  local dir=$1 tmp problems=0 fam leg p shared want
+  tmp="$(mktemp -d)" || return 2
+  shared="$("$dir/scripts/macos-minimum.sh")"
+  for fam in kapi-cli kapi-bowrain; do
+    for leg in darwin_arm64 linux_arm64 linux_amd64; do
+      printf '%064d  %s_9.9.9_%s.tar.gz\n' 0 "$fam" "$leg" >> "$tmp/checksums.txt"
+    done
+  done
+  if ! bash "$dir/scripts/gen-brew-formula.sh" 9.9.9 neokapi/neokapi "$tmp/checksums.txt" "$tmp/out" stable both > /dev/null 2>&1; then
+    echo "check-macos-minimum: scripts/gen-brew-formula.sh did not render" >&2
+    problems=1
+  fi
+  want="$("$dir/scripts/macos-minimum.sh" --codename "$shared")"
+  for f in "$tmp/out/kapi-cli.rb" "$tmp/out/bowrain-cli.rb"; do
+    if [ -f "$f" ] && ! opens_with_requirement "$f" "$want"; then
+      echo "check-macos-minimum: $(basename "$f") from scripts/gen-brew-formula.sh does not open on_macos with depends_on macos: :${want}" >&2
+      problems=1
+    fi
+  done
+  for p in asr av pdfium vision; do
+    mkdir -p "$tmp/sums-$p"
+    for leg in darwin_arm64 linux_arm64 linux_amd64; do
+      printf '%064d  kapi-%s_9.9.9_%s.tar.gz\n' 1 "$p" "$leg" > "$tmp/sums-$p/$leg.sha256"
+    done
+    if ! bash "$dir/scripts/gen-brew-plugin-formula.sh" "$p" 9.9.9 neokapi/neokapi "$tmp/sums-$p" "$tmp/out" > /dev/null 2>&1; then
+      echo "check-macos-minimum: scripts/gen-brew-plugin-formula.sh did not render kapi-$p" >&2
+      problems=1
+      continue
+    fi
+    want="$("$dir/scripts/macos-minimum.sh" --codename "$("$dir/scripts/macos-minimum.sh" "$p")")"
+    if ! opens_with_requirement "$tmp/out/kapi-$p.rb" "$want"; then
+      echo "check-macos-minimum: kapi-$p.rb does not open on_macos with depends_on macos: :${want}" >&2
+      problems=1
+    fi
+  done
+  for f in .github/workflows/release.yml .github/workflows/release-bowrain.yml; do
+    if ! grep -q 'depends_on macos: :${MACOS_CODENAME}' "$dir/$f" ||
+      ! grep -q 'MACOS_CODENAME="$(scripts/macos-minimum.sh --codename "$(scripts/macos-minimum.sh)")"' "$dir/$f"; then
+      echo "check-macos-minimum: the Cask in $f does not take depends_on macos: from scripts/macos-minimum.sh" >&2
+      problems=1
+    fi
+    if grep -nE 'depends_on :macos|depends_on macos: *"' "$dir/$f" >&2; then
+      echo "check-macos-minimum: $f writes a Cask macOS requirement by hand" >&2
+      problems=1
+    fi
+  done
+  for f in "$dir"/plugins/*/macos-minimum; do
+    [ -f "$f" ] || continue
+    p="$(basename "$(dirname "$f")")"
+    if version_lt "$("$dir/scripts/macos-minimum.sh" "$p")" "$shared"; then
+      echo "check-macos-minimum: plugins/$p/macos-minimum is older than the shared minimum $shared" >&2
+      problems=1
+    fi
+  done
+  rm -rf "${tmp:?}"
+  return "$problems"
+}
+
 self_test() {
   local tmp failures=0 out
   tmp="$(mktemp -d)" || return 2
@@ -110,6 +187,16 @@ self_test() {
   expect 1 "a workflow deployment target below the minimum" 13.0
   sed -i.bak 's/TARGET=11.0/TARGET=13.0/' "$tmp/.github/workflows/release.yml"
   expect 2 "an unreadable Go minimum" ""
+  printf 'class X < Formula\n  on_macos do\n    depends_on macos: :ventura\n    on_arm do\n    end\n  end\nend\n' > "$tmp/good.rb"
+  printf 'class X < Formula\n  on_macos do\n    on_arm do\n    end\n  end\nend\n' > "$tmp/bare.rb"
+  if ! opens_with_requirement "$tmp/good.rb" ventura; then
+    echo "self-test: a formula that opens on_macos with its requirement is reported" >&2
+    failures=$((failures + 1))
+  fi
+  if opens_with_requirement "$tmp/bare.rb" ventura || opens_with_requirement "$tmp/good.rb" sonoma; then
+    echo "self-test: a formula without the right requirement passes" >&2
+    failures=$((failures + 1))
+  fi
   rm -rf "${tmp:?}"
   if [ "$failures" -gt 0 ]; then
     return 1
@@ -125,7 +212,8 @@ case "${1:-}" in
   "")
     check "$root" "$(go_minimum)"
     status=$?
-    [ "$status" -eq 0 ] && echo "check-macos-minimum: every declaration says macOS $(tr -d '[:space:]' < "$root/scripts/lib/macos-minimum")"
+    check_generated "$root" || status=1
+    [ "$status" -eq 0 ] && echo "check-macos-minimum: every declaration says macOS $(tr -d '[:space:]' < "$root/scripts/lib/macos-minimum"), and the generated Homebrew files require it"
     exit "$status"
     ;;
   *)

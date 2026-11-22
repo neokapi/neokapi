@@ -92,7 +92,11 @@ LLM `--provider` uses that [LLM provider](/framework/translation) to assess
 qualities a rule expresses poorly (fluency, accuracy against the source,
 and terminology appropriateness) and attaches its assessment to each block.
 The built-in `translate-qa` flow runs translation and then this review in one
-pass.
+pass. Its review uses the provider the run resolves for translation: `--provider`
+when you pass one, else the recipe's `defaults.tools` preset, else your stored
+default (`kapi models default`). The same provider then writes the translation
+and judges it. To judge with a different provider, define the flow in your
+recipe and set `provider:` on its `qa` step.
 
 ```bash
 kapi run translate-qa -i app.xliff --target-lang fr

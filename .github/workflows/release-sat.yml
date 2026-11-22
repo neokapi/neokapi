@@ -60,14 +60,31 @@ jobs:
       #     API headers (ORT_API_VERSION 31). An older runtime cannot serve API
       #     31, so the runtime and the binding move together.
       #   * daulet/tokenizers: the version and its checksums are pinned in
-      #     scripts/fetch-tokenizers.sh. darwin/linux use the prebuilt
-      #     libtokenizers.a; Windows has no prebuilt lib and is built from
-      #     the pinned commit's Rust source (see the Windows leg).
+      #     scripts/fetch-tokenizers.sh. linux uses the prebuilt
+      #     libtokenizers.a; macOS and Windows build the pinned commit's Rust
+      #     source (see those legs).
       ONNXRUNTIME_VERSION: "1.31.1"
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # The darwin leg builds every Mach-O it ships for the plugin's macOS
+      # minimum (scripts/macos-minimum.sh): the Go link, the cgo objects and
+      # the third-party code built here. The check after packaging fails the
+      # release when a binary records a newer one.
+      - name: Set the macOS deployment target
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          min="$(scripts/macos-minimum.sh sat)"
+          {
+            echo "MACOS_MINIMUM=$min"
+            echo "MACOSX_DEPLOYMENT_TARGET=$min"
+            echo "CGO_CFLAGS=-O2 -g -mmacosx-version-min=$min"
+            echo "CGO_CXXFLAGS=-O2 -g -mmacosx-version-min=$min"
+          } >> "$GITHUB_ENV"
 
       - uses: actions/setup-go@v7
         with:
@@ -116,10 +133,9 @@ jobs:
           echo "ORT_DIR=$RUNNER_TEMP/ort" >> "$GITHUB_ENV"
 
       # ── daulet/tokenizers static library (build-time dep) ─────────────────────
-      # darwin/linux: prebuilt libtokenizers.a from the pinned release tag.
-      # Asset naming: darwin uses arm64/x86_64, linux uses amd64/arm64.
-      - name: Download libtokenizers (Unix prebuilt)
-        if: runner.os != 'Windows'
+      # linux: prebuilt libtokenizers.a from the pinned release tag (amd64/arm64).
+      - name: Download libtokenizers (Linux prebuilt)
+        if: runner.os == 'Linux'
         shell: bash
         env:
           GOOS: ${{ matrix.build.goos }}
@@ -127,6 +143,27 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/fetch-tokenizers.sh lib "$GOOS" "$GOARCH" "$RUNNER_TEMP/tok"
+          echo "TOKENIZERS_LIB=$RUNNER_TEMP/tok" >> "$GITHUB_ENV"
+
+      # macOS: the prebuilt archive carries C objects (esaxx, oniguruma) built
+      # for macOS 15.5, newer than this plugin's minimum, so the crate is built
+      # here from the pinned source for the deployment target set above.
+      - name: Install Rust (macOS)
+        if: runner.os == 'macOS'
+        uses: dtolnay/rust-toolchain@1.99.1
+
+      - name: Build libtokenizers from source (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/fetch-tokenizers.sh source "$RUNNER_TEMP/tokenizers-src"
+          cd "$RUNNER_TEMP/tokenizers-src"
+          cargo build --release -p tokenizers-ffi
+          mkdir -p "$RUNNER_TEMP/tok"
+          # The staticlib is libtokenizers_ffi.a; the cgo directive looks for
+          # -ltokenizers => libtokenizers.a.
+          cp target/release/libtokenizers_ffi.a "$RUNNER_TEMP/tok/libtokenizers.a"
           echo "TOKENIZERS_LIB=$RUNNER_TEMP/tok" >> "$GITHUB_ENV"
 
       # Windows: daulet/tokenizers publishes no prebuilt lib, so build the
@@ -138,6 +175,7 @@ jobs:
       #   * arm64 -> aarch64-pc-windows-gnullvm (LLVM mingw / libc++). cgo links
       #     with CLANGARM64 clang, so the runtime is libc++: the upstream
       #     -lstdc++ is wrong for this leg and the link needs -lc++ (see #804).
+
       - name: Install Rust (Windows)
         if: runner.os == 'Windows'
         uses: dtolnay/rust-toolchain@1.99.1
@@ -246,6 +284,18 @@ jobs:
             --out-dir "$RUNNER_TEMP/sat-out"
 
       # ── cosign keyless sign + upload ──────────────────────────────────────────
+      - name: Check the macOS minimum the tarball's binaries record
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          TARBALL: ${{ steps.package.outputs.tarball }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/macho-check"
+          mkdir -p "$dir"
+          tar -xzf "$TARBALL" -C "$dir"
+          scripts/check-macho-minimum.sh --minimum "$MACOS_MINIMUM" "$dir"
+
       - name: Cosign sign tarball (keyless)
         if: startsWith(github.ref, 'refs/tags/sat-v')
         shell: bash

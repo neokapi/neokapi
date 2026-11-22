@@ -1475,11 +1475,29 @@ jobs:
         uses: ./.github/actions/apt-install
         with:
           packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+      - name: Note when compiling starts
+        id: start
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
       - name: Compile what pull request jobs compile
         run: make warm-build-cache
       - name: Resolve the Go build cache path
         id: gocache
         run: echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+      # The restored cache holds every object an earlier main commit compiled,
+      # and each save would carry them all forward: the cache grew from 2.1 to
+      # 3.2 GiB in a day. Go stamps an entry it uses when the entry's stamp is
+      # over an hour old, so a file whose stamp is still more than an hour
+      # before this run started was not used by it. Deleting those leaves what
+      # pull requests compile today.
+      - name: Drop the cache entries this run did not use
+        env:
+          GOCACHE_DIR: ${{ steps.gocache.outputs.build }}
+          START: ${{ steps.start.outputs.epoch }}
+        run: |
+          set -euo pipefail
+          before=$(du -sm "$GOCACHE_DIR" | cut -f1)
+          find "$GOCACHE_DIR" -type f ! -newermt "@$((START - 3700))" -delete
+          echo "Go build cache: ${before} MiB before, $(du -sm "$GOCACHE_DIR" | cut -f1) MiB after dropping unused entries"
       # The key setup-go-modules restores by prefix (flavor "pr").
       - name: Save the pull request build cache
         uses: actions/cache/save@v6

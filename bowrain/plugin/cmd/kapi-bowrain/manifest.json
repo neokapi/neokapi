@@ -12,7 +12,14 @@
   "capabilities": {
     "commands": [
       {"name": "server-up", "hidden": true,
-        "short": "Plumbing for kapi up's server venue: push, run the loop on the server, stream progress, pull results"},
+        "short": "Plumbing for kapi up's server venue: push, run the loop on the server, stream progress, pull results",
+        "flags": [
+          {"name": "project", "short": "p", "type": "string", "description": "path to the project recipe"},
+          {"name": "json", "type": "bool", "description": "output the structured result as JSON"},
+          {"name": "local", "type": "bool", "description": "run the loop on this machine instead of the server, then push the results"},
+          {"name": "timeout", "type": "string", "description": "maximum time to wait for a server run to finish before pulling available results"},
+          {"name": "fail-on-incomplete-watch", "type": "bool", "description": "fail when the run's event stream ends before the run does"}
+        ]},
       {"name": "push",   "short": "Upload local changes to the server",
         "args": [{"name": "paths", "variadic": true, "optional": true}]},
       {"name": "pull",   "short": "Download translations from the server"},
