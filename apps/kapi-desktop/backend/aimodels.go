@@ -192,7 +192,9 @@ func (a *App) ListAIModels() []AIModelOption {
 // resolves, which choosing a model fixes. Kind "missing_credential" means the
 // recipe names a provider whose key is missing; only a key for that provider
 // fixes it, because the stored default never overrides a named provider. A
-// keyless provider such as the offline demo needs nothing. The frontend
+// keyless provider such as the offline demo needs nothing. An empty flow name
+// asks about a convergence run, which needs nothing when it has no work for
+// the AI step. The frontend
 // checks this before launching, so the person acts up front instead of
 // hitting a run error. An empty Kind means the flow can run.
 func (a *App) CheckAISetup(tabID, flowName string) host.AISetupNeed {
@@ -200,7 +202,16 @@ func (a *App) CheckAISetup(tabID, flowName string) host.AISetupNeed {
 	if op == nil {
 		return host.AISetupNeed{}
 	}
-	need, err := a.newProjectEngine(op).ProjectFlowAISetup(op.Project, op.Path, flowName)
+	engine := a.newProjectEngine(op)
+	var need host.AISetupNeed
+	var err error
+	if flowName == "" {
+		// A convergence run needs a model or a key only when it has work for
+		// the AI step, as `kapi up` decides.
+		need, err = engine.ConvergeAISetup(context.Background(), op.Project, op.Path)
+	} else {
+		need, err = engine.ProjectFlowAISetup(op.Project, op.Path, flowName)
+	}
 	if err != nil {
 		// The run reports a flow it cannot resolve with its own error.
 		return host.AISetupNeed{}

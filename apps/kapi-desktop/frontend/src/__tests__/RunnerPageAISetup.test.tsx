@@ -102,6 +102,14 @@ describe("RunnerPage AI setup before a run", () => {
     renderRunner();
     await waitFor(() => expect(bringUpToDateMock).toHaveBeenCalledWith("t1"));
   });
+
+  // Catch up is a convergence run: it asks as `kapi up` does, with no flow
+  // name, so an up-to-date project is not asked for a key.
+  it("asks about a convergence run, not about the recipe's flow by name", async () => {
+    checkAISetupMock.mockResolvedValue({ kind: "" });
+    renderRunner();
+    await waitFor(() => expect(checkAISetupMock).toHaveBeenCalledWith("t1", ""));
+  });
 });
 
 describe("opening App Settings on a section", () => {

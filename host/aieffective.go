@@ -1,12 +1,14 @@
 package host
 
 import (
+	"context"
 	"fmt"
 	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/credentials/providerenv"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -243,12 +245,17 @@ func (a *App) ProjectFlowAISetup(proj *project.KapiProject, projectPath, flowNam
 				need.Kind = AISetupChooseModel
 				continue
 			}
+			provider := presetString(cfg, "provider")
+			msg := err.Error()
+			if provider != "" && presetString(cfg, "credential") == "" {
+				msg = missingKeyMessage(provider)
+			}
 			return AISetupNeed{
 				Kind:     AISetupMissingCredential,
 				Flow:     label,
 				Tool:     string(name),
-				Provider: presetString(cfg, "provider"),
-				Message:  err.Error(),
+				Provider: provider,
+				Message:  msg,
 			}, nil
 		}
 	}
@@ -266,4 +273,42 @@ func (a *App) stepMissingCredential(toolName string, requires []string, cfg map[
 	// recipe's own step config.
 	cfg = appconfig.ApplyAIToolDefaults(a.Config, toolName, requires, maps.Clone(cfg))
 	return credentials.MissingCredential(a.Credentials, toolName, requires, cfg)
+}
+
+// ConvergeAISetup is ProjectFlowAISetup for a convergence run (`kapi up`, the
+// desktop's Translate and Catch up), asked only when the run would call a
+// provider: the dry-run plan the run's first pass works from (the plan `kapi
+// up --plan` prints) must hold units left for the AI step. A project that is
+// up to date, or whose remaining work the content memory answers, needs no
+// model and no key, whatever the recipe names. The CLI and Kapi Desktop both
+// ask this function.
+func (a *App) ConvergeAISetup(ctx context.Context, proj *project.KapiProject, projectPath string) (AISetupNeed, error) {
+	return a.convergeAISetup(ctx, proj, projectPath, planRun{})
+}
+
+func (a *App) convergeAISetup(ctx context.Context, proj *project.KapiProject, projectPath string, run planRun) (AISetupNeed, error) {
+	need, err := a.ProjectFlowAISetup(proj, projectPath, "")
+	if err != nil || need.Kind == AISetupNone {
+		return need, err
+	}
+	// The setup check is cheap and the plan is not, so the plan is computed
+	// only when a step would need a model or a key. A plan that cannot be
+	// computed leaves the answer standing: it cannot show there is no work.
+	plan, perr := a.computeProjectPlan(ctxOrBackground(ctx), proj, projectPath, run)
+	if perr == nil && (plan.upToDate || plan.Totals.AIRemaining == 0) {
+		return AISetupNeed{}, nil
+	}
+	return need, nil
+}
+
+// missingKeyMessage says what to do about a provider the recipe names whose
+// key is missing. It names the ways that work for every run (a saved
+// credential, the provider's environment variable) and not --api-key, which a
+// recipe flow does not read.
+func missingKeyMessage(provider string) string {
+	msg := fmt.Sprintf("no saved credentials found for provider %q; save one with 'kapi credentials add'", provider)
+	if vars := providerenv.Vars[strings.ToLower(provider)]; len(vars) > 0 {
+		msg += " or set " + vars[0]
+	}
+	return msg
 }

@@ -185,7 +185,9 @@ export function RunnerPage({
 
   const launchConverge = useCallback(async () => {
     setLaunchError(null);
-    const need = await api.checkAISetup(tabID, flowName);
+    // Catch up runs convergence (`kapi up`), which needs a model or a key only
+    // when it has work for the AI step: asked with no flow name.
+    const need = await api.checkAISetup(tabID, "");
     if (need?.kind === "missing_credential") {
       setMissingKey(need);
       return;
@@ -195,7 +197,7 @@ export function RunnerPage({
       return;
     }
     await convergeNow();
-  }, [tabID, flowName, convergeNow]);
+  }, [tabID, convergeNow]);
 
   // Auto-run (convergence): launch Catch up once per request.
   useEffect(() => {

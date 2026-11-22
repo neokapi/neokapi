@@ -326,7 +326,9 @@ export function ChannelMap(tabID) {
  * resolves, which choosing a model fixes. Kind "missing_credential" means the
  * recipe names a provider whose key is missing; only a key for that provider
  * fixes it, because the stored default never overrides a named provider. A
- * keyless provider such as the offline demo needs nothing. The frontend
+ * keyless provider such as the offline demo needs nothing. An empty flow name
+ * asks about a convergence run, which needs nothing when it has no work for
+ * the AI step. The frontend
  * checks this before launching, so the person acts up front instead of
  * hitting a run error. An empty Kind means the flow can run.
  * @param {string} tabID

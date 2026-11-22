@@ -135,9 +135,9 @@ func TestProjectFlowAISetup_MissingCredentialNamesTheProvider(t *testing.T) {
 		Flow:     "draft",
 		Tool:     "translate",
 		Provider: "anthropic",
-		Message:  `no saved credentials found for provider "anthropic"; use 'kapi credentials add' to save one or pass --api-key directly`,
+		Message:  `no saved credentials found for provider "anthropic"; save one with 'kapi credentials add' or set ANTHROPIC_API_KEY`,
 	}, need)
-	assert.EqualError(t, need.Err(), `flow "draft": tool "translate": no saved credentials found for provider "anthropic"; use 'kapi credentials add' to save one or pass --api-key directly`)
+	assert.EqualError(t, need.Err(), `flow "draft": tool "translate": no saved credentials found for provider "anthropic"; save one with 'kapi credentials add' or set ANTHROPIC_API_KEY`)
 }
 
 // The decision reads the recipe's step config and must leave it as it was:

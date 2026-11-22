@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/credentials/providerenv"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
@@ -377,40 +376,76 @@ func TestUp_ConfiguredSkipsWizard(t *testing.T) {
 	assert.NotContains(t, out, "No AI provider is configured")
 }
 
-// TestUp_NamedProviderWithoutKeyFailsBeforeTheRun: a recipe that names a
-// provider with no credential fails on a TTY before the run starts, with the
-// run's own error, and never opens the wizard: a stored default for another
-// provider is set and cannot help, because it never overrides the named one.
-func TestUp_NamedProviderWithoutKeyFailsBeforeTheRun(t *testing.T) {
-	for _, names := range providerenv.Vars {
-		for _, n := range names {
-			t.Setenv(n, "")
-		}
-	}
-	t.Setenv("KAPI_AI_PROVIDER", "")
-	t.Setenv("KAPI_AI_MODEL", "")
+// isolateAI removes provider keys and AI defaults from the environment
+// (clearAIEnv, context_suggest_test.go) and isolates the credential store, so
+// nothing on the developer's machine resolves a key.
+func isolateAI(t *testing.T) {
+	t.Helper()
+	clearAIEnv(t)
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+}
 
+// namedProviderApp is an app with a stored default for another provider, on
+// a terminal or off one. The wizard must never open: the stored default
+// never overrides a provider the recipe names.
+func namedProviderApp(t *testing.T, tty bool) *App {
+	t.Helper()
 	a := processOnlyApp(t)
 	a.Config = config.NewAppConfig()
 	a.Config.Set(config.KeyAIProvider, "ollama")
 	a.Config.Set(config.KeyAIModel, "llama3.2:3b")
-	a.AISetupIOOverride = &AISetupIO{IsTTY: func() bool { return true }, Detect: func(context.Context) AIDetection {
+	a.AISetupIOOverride = &AISetupIO{IsTTY: func() bool { return tty }, Detect: func(context.Context) AIDetection {
 		t.Fatal("the wizard opened for a provider the recipe names")
 		return AIDetection{}
 	}}
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+	return a
+}
+
+func nameProvider(t *testing.T, recipe, provider string) {
+	t.Helper()
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 	proj.Defaults.Flow = ""
-	proj.Defaults.Tools = map[string]map[string]any{"translate": {"provider": "anthropic"}}
+	proj.Defaults.Tools = map[string]map[string]any{"translate": {"provider": provider}}
 	require.NoError(t, project.Save(recipe, proj))
+}
 
-	out, err := runUp(t, a, recipe)
-	require.Error(t, err, out)
-	assert.Contains(t, err.Error(), `no saved credentials found for provider "anthropic"`)
-	_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
-	assert.True(t, os.IsNotExist(statErr), "the run must not start")
+// TestUp_NamedProviderWithoutKey: a recipe that names a provider with no key
+// refuses before the run starts when the run has work for it, and runs when
+// it has none, on a terminal and off one alike.
+func TestUp_NamedProviderWithoutKey(t *testing.T) {
+	for _, tty := range []bool{true, false} {
+		mode := map[bool]string{true: "terminal", false: "no terminal"}[tty]
+
+		t.Run(mode+": work to translate refuses before the run", func(t *testing.T) {
+			isolateAI(t)
+			recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+			nameProvider(t, recipe, "anthropic")
+
+			out, err := runUp(t, namedProviderApp(t, tty), recipe)
+			require.Error(t, err, out)
+			assert.Contains(t, err.Error(), `no saved credentials found for provider "anthropic"`)
+			assert.Contains(t, err.Error(), "ANTHROPIC_API_KEY")
+			assert.NotContains(t, err.Error(), "--api-key", "a recipe flow does not read --api-key")
+			_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
+			assert.True(t, os.IsNotExist(statErr), "the run must not start")
+		})
+
+		t.Run(mode+": up to date runs without the key", func(t *testing.T) {
+			isolateAI(t)
+			recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+			nameProvider(t, recipe, "demo")
+			out, err := runUp(t, demoProviderApp(t), recipe)
+			require.NoError(t, err, out)
+
+			// A teammate's recipe now names a provider this person has no
+			// key for; nothing is left to translate.
+			nameProvider(t, recipe, "anthropic")
+			out, err = runUp(t, namedProviderApp(t, tty), recipe)
+			require.NoError(t, err, out)
+			assert.Contains(t, out, "Up to date")
+		})
+	}
 }
 
 func TestUp_ProviderIndependentRunsSkipSetup(t *testing.T) {
