@@ -18,12 +18,12 @@ import (
 const convergeJobsDefault = 4
 
 // convergeWorker builds the per-locale worker App a convergence pass fans out
-// on. Workers share everything immutable-during-a-run with the parent,
-// registries, config, credentials, the project context/bindings, the document
-// cache (SQLite, WAL), the plugin runtime, and own only the per-run mutable
-// state that made App single-locale: TargetLang, the projectFlowTools slot
-// (each worker builds its own tool instances, so no LLM provider or content-memory handle
-// is shared mid-flight), and the progress tap.
+// on. A worker shares with the parent what does not change during a run:
+// registries, config, credentials, the project context and bindings, the
+// document cache (SQLite, WAL) and the plugin runtime. It owns the per-run
+// state that is per locale: TargetLang, the projectFlowTools slot (each worker
+// builds its own tool instances, so no provider or content-memory handle is
+// shared mid-flight) and the progress tap.
 //
 // This is an explicit field-by-field copy, NOT a struct copy: App carries a
 // sync.Once (pluginRuntimeOnce), and the plugin runtime must be pre-seeded
@@ -108,13 +108,12 @@ const (
 	fieldOwned
 )
 
-// convergeWorkerFields classifies every App field for the worker clone. It
-// exists so the clone can be checked for completeness: App is copied
-// field-by-field (it holds a sync.Once, so a struct copy is out), and a field
-// added to App but forgotten here would silently read as its zero value inside
-// every converge worker, a project context or credential store that is simply
-// absent once a run fans out. TestConvergeWorker_CoversEveryAppField reconciles
-// this map against App's actual fields and against what the clone produces.
+// convergeWorkerFields classifies every App field for the worker clone, so the
+// clone can be checked for completeness. App is copied field by field (it
+// holds a sync.Once, so a struct copy is out). A field added to App and
+// missing here would read as its zero value in every converge worker.
+// TestConvergeWorker_CoversEveryAppField reconciles this map against App's
+// fields and against what the clone produces.
 var convergeWorkerFields = map[string]workerFieldPolicy{
 	"FormatReg":         fieldShared,
 	"ToolReg":           fieldShared,

@@ -2,32 +2,21 @@ package host
 
 import (
 	"fmt"
-	"github.com/neokapi/neokapi/core/project"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/project"
 )
 
 // A convergence pass drafts; only delivery puts a file where something reads it.
 //
-// The loop's coverage is derived from files, it reads each unit's target and
-// grades it, so a pass has to write its output somewhere before the pass after
-// it can tell whether the locale moved. Writing it at the collection's own
-// `target:` path made measuring and delivering the same act, and delivering is
-// the one the ship gate exists to hold back: `materialize: on-converge` promises
-// that a locale short of its gate does not get its files, and the parked
-// locale's unreviewed draft was already sitting in the tree a site build globs
-// before the gate was ever consulted (#1936). A gate documented to withhold and
-// observably withholding nothing is worse than no gate.
-//
-// So under a policy that claims a gate, a pass writes into a run-local draft
-// tree under `.kapi/work/`, one subtree per locale, and coverage grades the
-// draft. Delivery happens once, at the end of the run, for the locales that
-// cleared their gate: their drafts are promoted to the destination and the
-// materialize pass writes what the workspace home keeps of the locale on top.
-// A parked locale's drafts are kept in the workspace home (host/workhome.go)
-// when the tree is discarded, where a reviewer reads and edits them and
-// `kapi merge` or `up --materialize` delivers them.
+// Coverage grades each unit's target from a file, so a pass writes its output
+// before the next pass measures the locale. Under `materialize: on-converge` a
+// locale short of its gate gets no files (#1936). So a pass writes into a
+// run-local draft tree under `.kapi/work/`, one subtree per locale, and
+// delivery happens once, at the end of the run. A parked locale's drafts stay
+// in the workspace home (host/workhome.go).
 
 // convergeDraftsDirName is the run-local draft tree, inside the project's
 // derived state (never version control, never a build input).

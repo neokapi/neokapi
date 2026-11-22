@@ -411,14 +411,13 @@ func (a *App) InitPluginHost() {
 func (a *App) Init() error {
 	a.InitRegistries()
 
-	// A recipe key that is nearly a field is preserved like any other unknown
-	// one, so nothing in the loader catches `source:` where the field is
-	// `source_language:` and the project loads as a valid monolingual one.
-	// core/project reports the near misses through this hook rather than
-	// printing on its own; the CLI is where they become stderr. See #2223.
-	// Once each. A single command loads the recipe several times over, `kapi
-	// check` reads it twice before it reads a file, and the same three
-	// warnings three times over reads as a fault in the warning.
+	// The loader keeps a recipe key that is nearly a field like any other
+	// unknown key, so `source:` for `source_language:` loads as a valid
+	// monolingual project. core/project reports such near misses through this
+	// hook, and the CLI prints them on stderr (#2223).
+	// Each warning prints once. A single command loads the recipe several
+	// times (`kapi check` reads it twice before it reads a file), and a
+	// warning repeated three times reads as a fault in the warning.
 	var warned sync.Map
 	project.OnKeyWarnings = func(recipePath string, warnings []string) {
 		for _, w := range warnings {

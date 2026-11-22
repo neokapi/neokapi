@@ -27,8 +27,8 @@ import (
 // writes.
 //
 // The database schema is internal to this package and versioned by
-// `cache_migrations`. Safe to delete and rebuild from another source
-// (the file is a cache in the "easily reconstructable" sense).
+// `cache_migrations`. The file is a cache: it is safe to delete and rebuild
+// from another source.
 func New(path string) (blockstore.Store, error) {
 	return open(path, false)
 }
