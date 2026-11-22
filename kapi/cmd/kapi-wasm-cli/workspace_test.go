@@ -47,7 +47,15 @@ func TestWorkspace_ExportThenImportRestoresFilesAndContext(t *testing.T) {
 	exported, err := exportWorkspace(ctx, root)
 	engineMu.Unlock()
 	require.NoError(t, err)
-	assert.Equal(t, 2, exported.Files)
+	// The recipe, the document, and the ignore rule kapi writes into the
+	// state directory it creates, which keeps the restored checkout's state
+	// out of version control.
+	var paths []string
+	for _, f := range exported.pkg.Files {
+		paths = append(paths, f.Path)
+	}
+	assert.ElementsMatch(t, []string{"files/site/kapi.yaml", "files/site/docs/app.json", "files/site/.kapi/.gitignore"}, paths)
+	assert.Equal(t, 3, exported.Files)
 	require.Len(t, exported.Projects, 1)
 	assert.Positive(t, exported.Projects[0].Operations)
 	assert.Empty(t, exported.Skipped)
@@ -67,7 +75,7 @@ func TestWorkspace_ExportThenImportRestoresFilesAndContext(t *testing.T) {
 	imported, err := importWorkspace(ctx, root, data)
 	engineMu.Unlock()
 	require.NoError(t, err)
-	assert.Equal(t, 2, imported.Files)
+	assert.Equal(t, 3, imported.Files)
 	require.Len(t, imported.Projects, 1)
 	assert.Positive(t, imported.Projects[0].Merged)
 	got, err := os.ReadFile(filepath.Join(proj, "docs", "app.json"))

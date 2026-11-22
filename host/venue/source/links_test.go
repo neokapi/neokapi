@@ -51,7 +51,8 @@ func TestPushReadsNoLinkOutOfTheProject(t *testing.T) {
 }
 
 // A push reads the translations the checkout holds through the project: a
-// target file that is a link to a file outside the project is refused, and
+// target file that is a link to a file outside the project holds no edition a
+// push reads (status and the plan name it, check.WarningTargetOutside), and
 // the file it points at is neither read nor written.
 func TestPushReadsNoTargetLinkOutOfTheProject(t *testing.T) {
 	base := t.TempDir()
@@ -78,8 +79,11 @@ func TestPushReadsNoTargetLinkOutOfTheProject(t *testing.T) {
 	formats.RegisterAll(reg)
 	conn := &BowrainSourceConnector{app: testApp(t), project: proj, formatReg: reg}
 
-	_, err = conn.app.EditionRevisions(context.Background(), proj.RecipePath(), "src/en.json", []model.EditionKey{{Locale: "fr"}})
-	require.ErrorContains(t, err, "leads outside the root")
+	revs, err := conn.app.EditionRevisions(context.Background(), proj.RecipePath(), "src/en.json", []model.EditionKey{{Locale: "fr"}})
+	require.NoError(t, err)
+	for ref := range revs {
+		assert.NotContains(t, ref.Edition, "fr", "no fr edition is read through the link")
+	}
 
 	got, err := os.ReadFile(secret)
 	require.NoError(t, err)

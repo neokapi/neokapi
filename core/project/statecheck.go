@@ -38,7 +38,15 @@ func (l Layout) CheckState() error {
 	if _, err := os.Lstat(l.StateDir); errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
-	real, err := rootpath.Contain(l.Root, l.StateDir)
+	// A layout kapi places outside the project (the desktop keeps the state of
+	// a folder with no recipe in its own data directory) is checked beneath
+	// itself: no repository holds it, so git is not asked about it.
+	inProject := rootpath.IsBeneath(l.Root, l.StateDir)
+	containIn := l.Root
+	if !inProject {
+		containIn = l.StateDir
+	}
+	real, err := rootpath.Contain(containIn, l.StateDir)
 	if err != nil {
 		return stateError(l.Root, l.StateDir, "leads outside the project", err)
 	}
@@ -73,6 +81,9 @@ func (l Layout) CheckState() error {
 	})
 	if err != nil {
 		return err
+	}
+	if !inProject {
+		return nil
 	}
 	return checkStateUntracked(l, present)
 }
