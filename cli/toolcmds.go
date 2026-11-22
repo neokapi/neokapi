@@ -12,7 +12,6 @@ import (
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host"
-	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 )
@@ -134,10 +133,7 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 		Short:   short,
 		Example: ToolExamples[toolName],
 		Args:    cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) (runErr error) {
-			// A tool command reads --api-key, so a missing key's advice
-			// names the flag here.
-			defer func() { runErr = credentials.WithAPIKeyFlag(runErr) }()
+		RunE: func(cmd *cobra.Command, args []string) error {
 			jsonOut, _ := cmd.Flags().GetBool("json")
 			jqFilter, _ := cmd.Flags().GetString("jq")
 			jsonOut = jsonOut || jqFilter != "" // --jq implies JSON

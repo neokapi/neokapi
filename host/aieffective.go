@@ -171,6 +171,10 @@ type AISetupNeed struct {
 	// the same text `kapi up` prints.
 	Message string `json:"message,omitempty"`
 
+	// cause is the credential error Err wraps, so a command that reads
+	// --api-key can name the flag (credentials.WithAPIKeyFlag).
+	cause error
+
 	// onCall is true when every step lacking its key is built without it and
 	// asks for it only on a provider call (registry DefersCredentials, the
 	// translate step). Such a run needs the key only for units the AI step
@@ -184,6 +188,9 @@ type AISetupNeed struct {
 func (n AISetupNeed) Err() error {
 	if n.Kind != AISetupMissingCredential {
 		return nil
+	}
+	if n.cause != nil {
+		return fmt.Errorf("flow %q: tool %q: %w", n.Flow, n.Tool, n.cause)
 	}
 	return fmt.Errorf("flow %q: tool %q: %s", n.Flow, n.Tool, n.Message)
 }
@@ -233,7 +240,16 @@ func (a *App) ProjectFlowAISetup(proj *project.KapiProject, projectPath, flowNam
 			locales = targets
 		}
 	}
-	bindings := recipePresets(proj)
+	return a.specAISetup(spec, label, recipePresets(proj), locales), nil
+}
+
+// specAISetup is ProjectFlowAISetup over a resolved flow: each AI step's
+// config after the presets in bindings (nil for none) apply at each locale.
+func (a *App) specAISetup(spec *flow.StepsSpec, label string, bindings *ProjectBindings, locales []model.LocaleID) AISetupNeed {
+	a.InitRegistries()
+	if len(locales) == 0 {
+		locales = []model.LocaleID{""}
+	}
 	need := AISetupNeed{}
 	var missing *AISetupNeed
 	onCall := true
@@ -261,25 +277,77 @@ func (a *App) ProjectFlowAISetup(proj *project.KapiProject, projectPath, flowNam
 				continue
 			}
 			provider := presetString(cfg, "provider")
-			msg := err.Error()
+			cause := err
 			if provider != "" && presetString(cfg, "credential") == "" {
-				msg = credentials.MissingKeyMessage(provider, false)
+				cause = &credentials.MissingCredentialError{Provider: provider}
 			}
 			missing = &AISetupNeed{
 				Kind:     AISetupMissingCredential,
 				Flow:     label,
 				Tool:     string(name),
 				Provider: provider,
-				Message:  msg,
+				Message:  cause.Error(),
+				cause:    cause,
 			}
 		}
 	}
 	if missing != nil {
 		missing.onCall = onCall
-		return *missing, nil
+		return *missing
 	}
 	need.onCall = onCall
-	return need, nil
+	return need
+}
+
+// ToolAISetup is the decision for one AI tool built from cfg outside a flow
+// (a desktop review action): what it needs before it can call its provider.
+func (a *App) ToolAISetup(toolName string, cfg map[string]any) AISetupNeed {
+	spec := &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: toolName, Config: cfg}}}
+	return a.specAISetup(spec, "", nil, nil)
+}
+
+// RunAISetupRefusal is the check `kapi up` makes before pass 1, for a run
+// that writes each file as it finishes it (`kapi run`, `kapi translate`): a
+// missing key refuses before anything is written, so the run never stops
+// halfway with some files done. A run whose only keyless-looking step is the
+// translate step (built without its key, asking for it on a call) goes ahead
+// when the project's dry-run plan, for this flow and every target language,
+// leaves it no unit to translate. A run over files named on the command line
+// is not planned, so a missing key there always refuses. proj is nil for a
+// run outside a project. A model choice is not refused here: these commands
+// never prompted for one.
+func (a *App) RunAISetupRefusal(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, label string, spec *flow.StepsSpec, locales []model.LocaleID, namedFiles bool) error {
+	if spec == nil {
+		return nil
+	}
+	var bindings *ProjectBindings
+	if proj != nil {
+		bindings = recipePresets(proj)
+	}
+	need := a.specAISetup(spec, label, bindings, locales)
+	if need.Kind != AISetupMissingCredential {
+		return nil
+	}
+	if need.onCall && !namedFiles && proj != nil && a.specRecycles(spec) {
+		plan, err := a.computeProjectPlan(ctxOrBackground(ctx), proj, projectPath,
+			planRun{cmd: cmd, spec: spec, allLocales: true})
+		if err == nil && plan.Totals.AIRemaining == 0 {
+			return nil
+		}
+	}
+	return need.Err()
+}
+
+// specRecycles reports whether a step of spec fills targets from the content
+// memory, read off the tool registry as the plan reads it.
+func (a *App) specRecycles(spec *flow.StepsSpec) bool {
+	for _, step := range spec.Steps {
+		s := a.ToolReg.Schema(registry.ToolID(step.Tool))
+		if toolProducesTarget(s) && ToolRequires(s, schema.RequiresMemory) {
+			return true
+		}
+	}
+	return false
 }
 
 // stepMissingCredential returns the error an AI step's credential resolution

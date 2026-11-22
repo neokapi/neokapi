@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -398,6 +399,13 @@ func namedProviderApp(t *testing.T, tty bool) *App {
 		t.Fatal("the wizard opened for a provider the recipe names")
 		return AIDetection{}
 	}}
+	// Credentials resolve as in the kapi binary, from an empty store, so a
+	// step whose key is missing fails to resolve and never reaches a provider.
+	a.Credentials = credentials.NewStore(filepath.Join(t.TempDir(), "credentials.json"))
+	a.ToolReg.SetConfigPreprocessor(func(toolName string, requires []string, cfg map[string]any) (map[string]any, error) {
+		cfg = ApplyAIDefaults(a.Config, toolName, requires, cfg)
+		return credentials.ResolveCredentials(a.Credentials, toolName, requires, cfg)
+	})
 	return a
 }
 
@@ -426,7 +434,8 @@ func TestUp_NamedProviderWithoutKey(t *testing.T) {
 			require.Error(t, err, out)
 			assert.Contains(t, err.Error(), `no saved credentials found for provider "anthropic"`)
 			assert.Contains(t, err.Error(), "ANTHROPIC_API_KEY")
-			assert.NotContains(t, err.Error(), "--api-key", "a recipe flow does not read --api-key")
+			assert.Contains(t, AdviseAPIKey(NewUpCmd(processOnlyApp(t)), err).Error(), "or pass --api-key",
+				"kapi up reads --api-key, so its advice names it")
 			_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
 			assert.True(t, os.IsNotExist(statErr), "the run must not start")
 		})
@@ -599,4 +608,81 @@ func TestUp_ProviderFlagOverAPresetWithoutKey(t *testing.T) {
 			assert.True(t, os.IsNotExist(statErr), "the run must not start")
 		})
 	}
+}
+
+// recycledProject is a converged project whose content memory answers both
+// source files, with its targets removed and a recipe flow `draft` that
+// recycles, then translates on a provider with no key. It returns the recipe,
+// the target directory and the source directory.
+func recycledProject(t *testing.T) (recipe, targetDir, srcDir string) {
+	t.Helper()
+	isolateAI(t)
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+	writeCommittedTargets(t, root)
+	nameProvider(t, recipe, "demo")
+	out, err := runUp(t, demoProviderApp(t), recipe)
+	require.NoError(t, err, out)
+	targetDir = filepath.Join(root, "src/locales/nb-NO")
+	require.NoError(t, os.RemoveAll(targetDir))
+
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Flows["draft"] = &flow.StepsSpec{Steps: []flow.FlowStep{
+		{Tool: "recycle"},
+		{Tool: "translate", Config: map[string]any{"provider": "anthropic", "skip_matched": true}},
+	}}
+	require.NoError(t, project.Save(recipe, proj))
+	return recipe, targetDir, filepath.Join(root, "src/locales/en")
+}
+
+// TestRun_MissingKeyRefusesBeforeAnyFileIsWritten: `kapi run` writes each
+// file as it finishes it, so a provider the run calls with no key refuses
+// before the first file, never after some are done.
+func TestRun_MissingKeyRefusesBeforeAnyFileIsWritten(t *testing.T) {
+	recipe, targetDir, srcDir := recycledProject(t)
+	// b.json now holds a sentence the content memory has never seen.
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "b.json"), []byte(`{"farewell":"See you tomorrow."}`), 0o644))
+
+	out, err := runRunCmd(t, namedProviderApp(t, false), recipe, "draft")
+	require.Error(t, err, out)
+	assert.Contains(t, err.Error(), `no saved credentials found for provider "anthropic"`)
+	_, statErr := os.Stat(filepath.Join(targetDir, "a.json"))
+	assert.True(t, os.IsNotExist(statErr), "a.json was written before the run refused")
+}
+
+// TestRun_RecycledOnlyRunNeedsNoKey: when the content memory answers every
+// unit, the translate step is never called, so the run needs no key.
+func TestRun_RecycledOnlyRunNeedsNoKey(t *testing.T) {
+	recipe, targetDir, _ := recycledProject(t)
+	out, err := runRunCmd(t, namedProviderApp(t, false), recipe, "draft")
+	require.NoError(t, err, out)
+	for _, f := range []string{"a.json", "b.json"} {
+		_, statErr := os.Stat(filepath.Join(targetDir, f))
+		require.NoError(t, statErr, f)
+	}
+}
+
+// TestTranslate_MissingKeyRefusesBeforeAnyFileIsWritten: `kapi translate`
+// over named files cannot be planned, so a missing key refuses before the
+// first file.
+func TestTranslate_MissingKeyRefusesBeforeAnyFileIsWritten(t *testing.T) {
+	recipe, _, srcDir := recycledProject(t)
+	// b.json now holds a sentence nothing has translated.
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "b.json"), []byte(`{"farewell":"See you tomorrow."}`), 0o644))
+	outDir := t.TempDir()
+	cmd := NewTranslateCmd(namedProviderApp(t, false))
+	cmd.SetArgs([]string{
+		filepath.Join(srcDir, "a.json"), filepath.Join(srcDir, "b.json"),
+		"--project", recipe, "--target-lang", "nb-NO", "--provider", "anthropic",
+		"-o", filepath.Join(outDir, "{name}_{lang}.{ext}"),
+	})
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	err := cmd.Execute()
+	require.Error(t, err, buf.String())
+	assert.Contains(t, err.Error(), `no saved credentials found for provider "anthropic"`)
+	entries, rerr := os.ReadDir(outDir)
+	require.NoError(t, rerr)
+	assert.Empty(t, entries, "a file was written before the run refused")
 }

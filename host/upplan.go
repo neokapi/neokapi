@@ -329,6 +329,12 @@ func (a *App) runUpPlan(cmd Command, proj *project.KapiProject, projectPath stri
 type planRun struct {
 	cmd      Command
 	noChecks bool
+	// spec plans this flow in place of the one `kapi up` runs (a `kapi run`
+	// of a named flow), already resolved with the run's configuration.
+	spec *flow.StepsSpec
+	// allLocales prices every target language, for a run that passes over
+	// all of them rather than the ones convergence's first pass picks.
+	allLocales bool
 }
 
 // runConfig is the run flags' tool config the plan's flow resolves with, so
@@ -359,7 +365,7 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	// opening creates it and a dry run leaves no `.kapi/work/store.db` behind.
 	// The project's decisions are read under the same guard; an absent store
 	// gives an empty index, so nothing is stale.
-	basis := upPlanBasis{root: root, projectPath: projectPath, runConfig: run.runConfig()}
+	basis := upPlanBasis{root: root, projectPath: projectPath, runConfig: run.runConfig(), spec: run.spec}
 	// A collection in a format no installed reader opens is left unpriced, and
 	// the plan names it.
 	basis.unread = a.newUnreadSetFor("priced")
@@ -390,11 +396,13 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 		// live in the same store, and only there: past the stat above the store
 		// exists, so asking it creates nothing.
 		basis.store = a.storedTargetStore(ctx, layout.Root)
-		passing, perr := a.planPassingLocales(ctx, run, proj, projectPath, units, basis.unread)
-		if perr != nil {
-			return UpPlanOutput{}, perr
+		if !run.allLocales {
+			passing, perr := a.planPassingLocales(ctx, run, proj, projectPath, units, basis.unread)
+			if perr != nil {
+				return UpPlanOutput{}, perr
+			}
+			basis.passing = passing
 		}
-		basis.passing = passing
 		resolved, rerr := project.NewProjectContext(proj, projectPath).ResolveContent(a.FormatReg)
 		if rerr != nil {
 			return UpPlanOutput{}, fmt.Errorf("resolve content: %w", rerr)
@@ -542,10 +550,16 @@ type upPlanFlow struct {
 // exactly as RunDefaultFlowConverge does, including its errors: a plan that
 // quotes figures for a run that cannot start is the same fault as a plan that
 // quotes figures the run would not produce.
-func (a *App) resolveUpPlanFlow(proj *project.KapiProject, projectDir string, runConfig map[string]any) (upPlanFlow, error) {
-	cf, err := convergeFlowSpec(proj, projectDir, runConfig)
-	if err != nil {
-		return upPlanFlow{Label: cf.label}, err
+func (a *App) resolveUpPlanFlow(proj *project.KapiProject, projectDir string, runConfig map[string]any, spec *flow.StepsSpec) (upPlanFlow, error) {
+	var cf convergeFlow
+	if spec != nil {
+		cf = convergeFlow{spec: spec}
+	} else {
+		var err error
+		cf, err = convergeFlowSpec(proj, projectDir, runConfig)
+		if err != nil {
+			return upPlanFlow{Label: cf.label}, err
+		}
 	}
 	out := upPlanFlow{Name: cf.name, Spec: cf.spec, Label: cf.label}
 
@@ -596,8 +610,10 @@ type upPlanBasis struct {
 	// runConfig is the run flags' tool config the flow resolves with
 	// (convergeFlowSpec).
 	runConfig map[string]any
-	memory    memory.ContentMemory
-	reviewed  reviewedIndex
+	// spec, when set, is the flow to plan in place of convergence's.
+	spec     *flow.StepsSpec
+	memory   memory.ContentMemory
+	reviewed reviewedIndex
 	// settled keys absolute target paths; see App.recordSettlement.
 	settled map[string]bool
 	// root is the project root a unit's source path is resolved against to name
@@ -626,7 +642,7 @@ type upPlanBasis struct {
 // the flow a run would execute: what that flow can produce is what the plan
 // counts as work, and what it cannot is reported rather than priced.
 func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *project.KapiProject, units []VerifyUnit) (UpPlanOutput, error) {
-	fl, ferr := a.resolveUpPlanFlow(proj, basis.root, basis.runConfig)
+	fl, ferr := a.resolveUpPlanFlow(proj, basis.root, basis.runConfig, basis.spec)
 	if ferr != nil {
 		return UpPlanOutput{}, ferr
 	}
