@@ -1060,15 +1060,11 @@ func (st *staged) Commit(ctx context.Context) error {
 // A file beneath the home's root is read and its copy written through an
 // os.Root opened on the root (rootpath), so neither follows a link out of it.
 func (h *Home) backUp(path, suffix string) error {
-	open := func() (*os.File, error) { return os.Open(path) }
-	create := func() (*os.File, error) {
-		return os.OpenFile(path+suffix, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
+	root, inRoot := h.under(path)
+	if inRoot {
+		return backUpWithin(root, path, suffix)
 	}
-	if root, ok := h.under(path); ok {
-		open = func() (*os.File, error) { return rootpath.OpenRegular(root, path) }
-		create = func() (*os.File, error) { return rootpath.CreateRegular(root, path+suffix) }
-	}
-	in, err := open()
+	in, err := os.Open(path)
 	if err != nil {
 		return err
 	}
@@ -1077,7 +1073,7 @@ func (h *Home) backUp(path, suffix string) error {
 	if err != nil {
 		return err
 	}
-	out, err := create()
+	out, err := os.OpenFile(path+suffix, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
 	if err != nil {
 		return fmt.Errorf("write backup: %w", err)
 	}
@@ -1163,4 +1159,31 @@ func textDiff(a, b []byte, label string) string {
 
 func isText(b []byte) bool {
 	return len(b) <= diffLimit && utf8.Valid(b) && bytes.IndexByte(b, 0) < 0
+}
+
+// backUpWithin writes the copy of a file beneath root through
+// atomicfile.StageWithinMode: staged and renamed into place through the
+// root, never cut in place, so a copy name that is a hard link to a file
+// elsewhere replaces that name and leaves the other file alone.
+func backUpWithin(root, path, suffix string) error {
+	in, err := rootpath.OpenRegular(root, path)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	info, err := in.Stat()
+	if err != nil {
+		return err
+	}
+	s, err := atomicfile.StageWithinMode(root, path+suffix, info.Mode().Perm(), func(out io.Writer) error {
+		_, err := io.Copy(out, in)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("write backup: %w", err)
+	}
+	if err := s.Commit(); err != nil {
+		return fmt.Errorf("write backup: %w", err)
+	}
+	return nil
 }

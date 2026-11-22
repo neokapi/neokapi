@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
+	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
@@ -24,7 +25,6 @@ import (
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/host/output"
@@ -585,31 +585,25 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		}
 	}
 
-	// Write the bilingual output file in the requested format.
-	// Created through rootpath: no directory is made, and no file written,
-	// through a link that leads out of the output directory.
-	outFile, err := createExtractOutput(task.outRoot, task.outputPath)
-	if err != nil {
-		return project.ExtractionFile{}, fmt.Errorf("create %s: %w", task.outputPath, err)
-	}
-
-	switch task.format {
-	case extractFormatPO:
-		if err := WritePOExtract(outFile, task.targetLocale, task.batchID, task.source.Relative, task.sourceHash, blocks); err != nil {
-			_ = outFile.Close()
-			_ = os.Remove(task.outputPath)
-			return project.ExtractionFile{}, fmt.Errorf("po writer: %w", err)
+	// Write the bilingual output file in the requested format. Beneath the
+	// output directory it is staged and renamed through an os.Root opened on
+	// that directory: no directory is made, and no byte is written, through a
+	// link that leads out of it, and an existing file is replaced, never cut
+	// in place.
+	write := func(out io.Writer) error {
+		if task.format == extractFormatPO {
+			if err := WritePOExtract(out, task.targetLocale, task.batchID, task.source.Relative, task.sourceHash, blocks); err != nil {
+				return fmt.Errorf("po writer: %w", err)
+			}
+			return nil
 		}
-	default: // xliff2
 		writer := xliff2.NewWriter()
-		if err := writer.SetOutputWriter(outFile); err != nil {
-			_ = outFile.Close()
-			return project.ExtractionFile{}, err
+		if err := writer.SetOutputWriter(out); err != nil {
+			return err
 		}
 		if task.xliffVersion != "" {
 			if err := writer.SetVersion(task.xliffVersion); err != nil {
-				_ = outFile.Close()
-				return project.ExtractionFile{}, err
+				return err
 			}
 		}
 		writer.SetLocale(task.targetLocale)
@@ -638,12 +632,11 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		close(parts)
 
 		if err := writer.Write(ctx, parts); err != nil {
-			_ = outFile.Close()
-			return project.ExtractionFile{}, fmt.Errorf("writer.Write: %w", err)
+			return fmt.Errorf("writer.Write: %w", err)
 		}
+		return writer.Close()
 	}
-
-	if err := outFile.Close(); err != nil {
+	if err := writeExtractOutput(task.outRoot, task.outputPath, write); err != nil {
 		return project.ExtractionFile{}, err
 	}
 
@@ -1402,14 +1395,30 @@ var (
 	_ = io.Discard
 )
 
-// createExtractOutput creates the bilingual file at path, beneath root when
-// one is given, through rootpath.
-func createExtractOutput(root, path string) (*os.File, error) {
+// writeExtractOutput writes the bilingual file at path with write. Beneath
+// root it is staged and renamed through an os.Root opened on root
+// (atomicfile.StageWithin), so a failed write leaves the file as it was.
+func writeExtractOutput(root, path string, write func(io.Writer) error) error {
 	if root == "" {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return nil, err
+			return fmt.Errorf("mkdir output: %w", err)
 		}
-		return os.Create(path)
+		f, err := os.Create(path)
+		if err != nil {
+			return fmt.Errorf("create %s: %w", path, err)
+		}
+		werr := write(f)
+		if cerr := f.Close(); werr == nil {
+			werr = cerr
+		}
+		return werr
 	}
-	return rootpath.CreateRegular(root, path)
+	s, err := atomicfile.StageWithin(root, path, write)
+	if err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	if err := s.Commit(); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
 }

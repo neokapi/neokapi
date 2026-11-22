@@ -425,19 +425,16 @@ func (w *commentFileWrite) writeBackup(src []byte, mode os.FileMode, inRoot bool
 	if !inRoot {
 		return os.WriteFile(w.file+w.backupSuffix, src, mode)
 	}
-	f, err := rootpath.CreateRegular(w.root, w.file+w.backupSuffix)
+	// Staged and renamed through the root, never cut in place: a backup
+	// name that is a hard link to another file leaves that file alone.
+	s, err := atomicfile.StageWithinMode(w.root, w.file+w.backupSuffix, mode, func(out io.Writer) error {
+		_, err := out.Write(src)
+		return err
+	})
 	if err != nil {
 		return err
 	}
-	if err := f.Chmod(mode); err != nil {
-		_ = f.Close()
-		return err
-	}
-	if _, err := f.Write(src); err != nil {
-		_ = f.Close()
-		return err
-	}
-	return f.Close()
+	return s.Commit()
 }
 
 // read returns the bytes and the mode of the file at path, through rootpath

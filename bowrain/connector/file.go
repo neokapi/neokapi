@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
@@ -230,21 +232,27 @@ func (c *FileConnector) publishFile(ctx context.Context, item *platconn.ContentI
 	}
 
 	// Delivering to a new locale directory (values-fr/, locales/fr/, …) must not
-	// fail because the directory does not exist yet, so CreateRegular creates
-	// it, as the local merge path (host/merge.go) does. It refuses a target, or
-	// a directory on the way to it, that a symbolic link leads outside the root.
-	out, err := rootpath.CreateRegular(c.basePath, path)
+	// fail because the directory does not exist yet: the staging creates it
+	// on commit, as the local merge path (host/merge.go) does. Every operation
+	// goes through an os.Root opened on the connector root
+	// (atomicfile.StageWithin), so a target, or a directory on the way to it,
+	// that a symbolic link leads outside the root is refused. The file is
+	// replaced by a rename, never cut in place, so a target that is a hard
+	// link to a file elsewhere leaves that file alone.
+	staged, err := atomicfile.StageWithin(c.basePath, path, func(out io.Writer) error {
+		if err := writer.SetOutputWriter(out); err != nil {
+			return fmt.Errorf("set output %s: %w", item.Path, err)
+		}
+		werr := c.writeItem(ctx, writer, item)
+		return errors.Join(werr, writer.Close())
+	})
 	if err != nil {
-		return fmt.Errorf("open %s for writing: %w", item.Path, err)
+		return fmt.Errorf("write %s: %w", item.Path, err)
 	}
-	if err := writer.SetOutputWriter(out); err != nil {
-		_ = out.Close()
-		return fmt.Errorf("set output %s: %w", item.Path, err)
+	if err := staged.Commit(); err != nil {
+		return fmt.Errorf("write %s: %w", item.Path, err)
 	}
-	werr := c.writeItem(ctx, writer, item)
-	cerr := writer.Close()
-	ferr := out.Close()
-	return errors.Join(werr, cerr, ferr)
+	return nil
 }
 
 // writeItem drives writer over the item's blocks, spliced onto the source's

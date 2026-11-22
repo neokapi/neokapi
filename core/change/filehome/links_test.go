@@ -84,8 +84,18 @@ func TestProduceRefusesALinkOutOfTheRoot(t *testing.T) {
 	t.Run("a path a person named outside the root is written as named", func(t *testing.T) {
 		root, outside, _ := linkProject(t)
 		out := filepath.Join(outside, "export.json")
-		require.NoError(t, produce(t, filehome.New(nil, filehome.Options{Root: root}), out))
+		home := filehome.New(nil, filehome.Options{Root: root})
+		home.PermitOutside(out)
+		require.NoError(t, produce(t, home, out))
 		assert.FileExists(t, out)
+	})
+
+	t.Run("a path outside the root that no person named is refused", func(t *testing.T) {
+		root, outside, _ := linkProject(t)
+		out := filepath.Join(root, "..", "outside", "fr.json")
+		err := produce(t, filehome.New(nil, filehome.Options{Root: root}), out)
+		require.ErrorContains(t, err, "lies outside the project")
+		assert.NoFileExists(t, filepath.Join(outside, "fr.json"))
 	})
 
 	t.Run("a link put in place while the run worked is refused at the commit", func(t *testing.T) {
@@ -136,4 +146,67 @@ func TestChangeRefusesALinkOutOfTheRoot(t *testing.T) {
 	assert.Equal(t, change.CodeInvalid, ce.Code)
 	assert.Contains(t, ce.Message, "locales/en.json")
 	assert.NotContains(t, ce.Message, "secret.json")
+}
+
+// applyGreeting applies one set_content to doc in the fixture.
+func applyGreeting(t *testing.T, f *fixture, doc string) *change.Result {
+	t.Helper()
+	text := "Hi"
+	set := change.Set{Mode: change.ModeApply, Gate: change.GateEnforce, Ops: []change.Op{{
+		Kind: change.KindSetContent, At: change.Ref{Doc: doc, Block: "greeting"}, IfMatch: change.AnyRevision,
+		Body: &change.SetContent{Text: &text},
+	}}}
+	res, err := f.svc.Apply(context.Background(), set, person)
+	require.NoError(t, err)
+	return res
+}
+
+// The backup copy is staged and renamed into place: a copy name that is a
+// hard link to a file outside the root replaces that name, and the outside
+// file keeps its bytes.
+func TestBackupNeverWritesThroughAHardLink(t *testing.T) {
+	const src = `{"greeting": "Hello"}` + "\n"
+	f := newFixture(t, map[string]string{"a.json": src}, filehome.Options{BackupSuffix: ".bak"})
+	outside := filepath.Join(t.TempDir(), "victim.json")
+	require.NoError(t, os.WriteFile(outside, []byte("kept"), 0o644))
+	require.NoError(t, os.Link(outside, filepath.Join(f.dir, "a.json.bak")))
+
+	res := applyGreeting(t, f, "a.json")
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops[0].Error)
+	b, _ := os.ReadFile(outside)
+	assert.Equal(t, "kept", string(b), "the file the hard link shared is untouched")
+	assert.Equal(t, src, f.read(t, "a.json.bak"))
+}
+
+// A directory link put in place in the change-set commit, after the last
+// check and before the rename, is refused, and nothing lands outside.
+func TestChangeCommitRefusesALinkSwappedInAfterTheCheck(t *testing.T) {
+	f := newFixture(t, map[string]string{"locales/a.json": `{"greeting": "Hello"}` + "\n"})
+	outside := t.TempDir()
+	filehome.SetBeforeCommit(func(string) {
+		require.NoError(t, os.Rename(filepath.Join(f.dir, "locales"), filepath.Join(f.dir, "locales.moved")))
+		require.NoError(t, os.Symlink(outside, filepath.Join(f.dir, "locales")))
+	})
+	t.Cleanup(func() { filehome.SetBeforeCommit(nil) })
+
+	res := applyGreeting(t, f, "locales/a.json")
+	assert.NotEqual(t, change.SetApplied, res.Status)
+	entries, err := os.ReadDir(outside)
+	require.NoError(t, err)
+	assert.Empty(t, entries, "nothing is written outside the root")
+}
+
+// On a case-insensitive volume a path spelled with another case is still
+// beneath the root, and a link out of the root under it is refused.
+func TestProduceRefusesALinkOutOfTheRootUnderAnotherCase(t *testing.T) {
+	root, outside, _ := linkProject(t)
+	upper := filepath.Join(filepath.Dir(root), "PROJECT")
+	if _, err := os.Stat(upper); err != nil {
+		t.Skip("the volume is case-sensitive")
+	}
+	require.NoError(t, os.RemoveAll(filepath.Join(root, "locales")))
+	require.NoError(t, os.Symlink(outside, filepath.Join(root, "locales")))
+	err := produce(t, filehome.New(nil, filehome.Options{Root: root}), filepath.Join(upper, "locales", "fr.json"))
+	require.Error(t, err)
+	assert.NoFileExists(t, filepath.Join(outside, "fr.json"))
 }

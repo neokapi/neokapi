@@ -149,3 +149,38 @@ func TestCreateRegular(t *testing.T) {
 		assert.Equal(t, "{}", string(b))
 	})
 }
+
+// An absolute link that leads inside the root is followed by reads and
+// writes alike, as Contain follows it.
+func TestAnAbsoluteLinkInsideTheRoot(t *testing.T) {
+	root, _, _ := tree(t)
+	real := filepath.Join(root, "docs", "en.md")
+	require.NoError(t, os.WriteFile(real, []byte("hello"), 0o644))
+	link := filepath.Join(root, "docs", "abs.md")
+	require.NoError(t, os.Symlink(real, link))
+
+	f, err := rootpath.OpenRegular(root, link)
+	require.NoError(t, err)
+	b, _ := io.ReadAll(f)
+	require.NoError(t, f.Close())
+	assert.Equal(t, "hello", string(b))
+
+	w, err := rootpath.CreateRegular(root, link)
+	require.NoError(t, err)
+	_, _ = w.WriteString("bye")
+	require.NoError(t, w.Close())
+	b, _ = os.ReadFile(real)
+	assert.Equal(t, "bye", string(b))
+}
+
+// A file with another name, which may lie outside the root, is never cut in
+// place: writing it would change the other name too.
+func TestCreateRegularRefusesAHardLinkedFile(t *testing.T) {
+	root, _, secret := tree(t)
+	inside := filepath.Join(root, "docs", "de.json.bak")
+	require.NoError(t, os.Link(secret, inside))
+	_, err := rootpath.CreateRegular(root, inside)
+	require.ErrorIs(t, err, rootpath.ErrHardLinked)
+	b, _ := os.ReadFile(secret)
+	assert.Equal(t, "outside", string(b))
+}

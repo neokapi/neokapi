@@ -16,6 +16,7 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
+	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/rootpath"
 )
@@ -1007,17 +1008,21 @@ func (w projectWrites) writeFile(path string, body []byte) error {
 	return os.WriteFile(path, body, 0o644)
 }
 
-// create writes one file beneath root through rootpath.
+// create writes one file beneath root. It is staged and renamed through an
+// os.Root opened on root (atomicfile.StageWithin), never cut in place, so a
+// file that is a hard link to another one leaves that other file alone.
 func (w projectWrites) create(path string, body []byte) error {
-	f, err := rootpath.CreateRegular(w.root, path)
+	s, err := atomicfile.StageWithin(w.root, path, func(out io.Writer) error {
+		_, err := out.Write(body)
+		return err
+	})
 	if err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
-	if _, err := f.Write(body); err != nil {
-		_ = f.Close()
+	if err := s.Commit(); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
-	return f.Close()
+	return nil
 }
 
 // remove removes one file.
