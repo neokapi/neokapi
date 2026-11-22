@@ -40,6 +40,9 @@ func TestDemoProvider_TranslateLexicon(t *testing.T) {
 		{"fr", "Hello world", "⟦fr⟧ Bonjour worldé"},
 		{"es-ES", "Welcome", "⟦es⟧ Bienvenido"},
 		{"de-DE", "Settings", "⟦de⟧ Einstellungen"},
+		// The lexicon entry starts with a two-byte letter; capitalising it
+		// must keep the whole rune.
+		{"de-DE", "Open", "⟦de⟧ Öffnen"},
 		{"ja", "Save", "⟦ja⟧ Save~"},
 	}
 	for _, tc := range cases {
@@ -78,9 +81,9 @@ func TestDemoProvider_PreservesMarkup(t *testing.T) {
 	assert.Contains(t, resp.Translation, "!")
 }
 
-// A placeholder is structure, not prose. The demo used to accent the inside of
-// one — `%d` split into `%` and the word `d`, `{0}` into braces around `0` — so
-// its own output failed kapi's placeholder check. Nothing that ships in kapi is
+// A placeholder is structure, not prose. A demo that accents the inside of one
+// (splitting `%d` into `%` and the word `d`, `{0}` into braces around `0`) fails
+// kapi's own placeholder check. Nothing that ships in kapi is
 // allowed to produce a translation kapi cannot write back.
 func TestDemoProvider_PreservesPlaceholders(t *testing.T) {
 	p := newTestDemo()
@@ -137,7 +140,7 @@ func TestDemoProvider_BatchTranslations(t *testing.T) {
 
 	// Drive the real prompt builder, and carry intent in prompt.Meta the way the
 	// translate tool does. The demo provider reads the target locale from that
-	// metadata — it must not recover it by parsing the prompt's English.
+	// metadata; it must not recover it by parsing the prompt's English.
 	pt := prompt.Translate{SourceLocale: "en", TargetLocale: "fr"}
 	turns := pt.Batch(prompt.BatchSegments([]string{"Hello", "Save", "world"}))
 	ctx := prompt.WithMeta(context.Background(), pt.Meta(prompt.IDTranslateBatch))
@@ -282,7 +285,7 @@ func TestDemoProvider_ImplementsStreaming(t *testing.T) {
 
 // An ICU plural or select is a brace pair that contains brace pairs. Its
 // argument name, keyword and category keywords are program syntax, and a demo
-// that accents them writes a message no ICU formatter accepts — into the
+// that accents them writes a message no ICU formatter accepts into the
 // catalog a sample's own page reads. Everything from an opening brace to its
 // match passes through untouched.
 func TestDemoProvider_PreservesICUMessages(t *testing.T) {
