@@ -69,7 +69,7 @@ func registerBowrainTools(server *mcp.Server, a *cli.App) {
 		Name:        "project_config",
 		Description: "Read project configuration from the .kapi recipe",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input MCPProjectInput) (*mcp.CallToolResult, MCPConfigOutput, error) {
-		return handleProjectConfig(a, input)
+		return handleProjectConfig(ctx, a, input)
 	})
 
 	// Undeclared: kapi answers "what do we call this here" with
@@ -112,8 +112,8 @@ type MCPProjectInput struct {
 // project the server started in, else discovery from the working directory
 // with KAPI_NO_PROJECT honoured. It refuses when none is in scope, before any
 // server is contacted.
-func loadProject(a *cli.App, named string) (*project.Project, error) {
-	path, err := a.RequireMCPCallProject(named)
+func loadProject(ctx context.Context, a *cli.App, named string) (*project.Project, error) {
+	path, err := a.RequireMCPCallProject(ctx, named)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ type MCPConfigOutput struct {
 // --- Handlers ---
 
 func handleProjectStatus(ctx context.Context, a *cli.App, input MCPProjectInput) (*mcp.CallToolResult, MCPStatusOutput, error) {
-	proj, err := loadProject(a, input.Project)
+	proj, err := loadProject(ctx, a, input.Project)
 	if err != nil {
 		return nil, MCPStatusOutput{}, err
 	}
@@ -247,7 +247,7 @@ func handleProjectStatus(ctx context.Context, a *cli.App, input MCPProjectInput)
 }
 
 func handleProjectPush(ctx context.Context, a *cli.App, input MCPPushInput) (*mcp.CallToolResult, MCPPushOutput, error) {
-	proj, err := loadProject(a, input.Project)
+	proj, err := loadProject(ctx, a, input.Project)
 	if err != nil {
 		return nil, MCPPushOutput{}, err
 	}
@@ -284,7 +284,7 @@ func handleProjectPush(ctx context.Context, a *cli.App, input MCPPushInput) (*mc
 }
 
 func handleProjectPull(ctx context.Context, a *cli.App, input MCPPullInput) (*mcp.CallToolResult, MCPPullOutput, error) {
-	proj, err := loadProject(a, input.Project)
+	proj, err := loadProject(ctx, a, input.Project)
 	if err != nil {
 		return nil, MCPPullOutput{}, err
 	}
@@ -324,7 +324,7 @@ func handleProjectPull(ctx context.Context, a *cli.App, input MCPPullInput) (*mc
 }
 
 func handleProjectLs(ctx context.Context, a *cli.App, input MCPLsInput) (*mcp.CallToolResult, MCPLsOutput, error) {
-	proj, err := loadProject(a, input.Project)
+	proj, err := loadProject(ctx, a, input.Project)
 	if err != nil {
 		return nil, MCPLsOutput{}, err
 	}
@@ -411,8 +411,8 @@ func handleProjectLsWithStats(ctx context.Context, a *cli.App, proj *project.Pro
 	return nil, out, nil
 }
 
-func handleProjectConfig(a *cli.App, input MCPProjectInput) (*mcp.CallToolResult, MCPConfigOutput, error) {
-	proj, err := loadProject(a, input.Project)
+func handleProjectConfig(ctx context.Context, a *cli.App, input MCPProjectInput) (*mcp.CallToolResult, MCPConfigOutput, error) {
+	proj, err := loadProject(ctx, a, input.Project)
 	if err != nil {
 		return nil, MCPConfigOutput{}, err
 	}

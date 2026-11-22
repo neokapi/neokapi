@@ -106,6 +106,10 @@ type App struct {
 	// mcpRecipePath retains the explicitly resolved recipe for MCP calls.
 	mcpRecipePath string
 
+	// mcpStartDir is the directory `kapi mcp` was started in: with the roots
+	// a client declares, the only directories a call may reach (mcp_roots.go).
+	mcpStartDir string
+
 	// mcpNamedSourceLang is the source language already named when the MCP
 	// server started, empty when nothing named one. Starting the server adopts
 	// the start project's language into SourceLang, which fills the slot that

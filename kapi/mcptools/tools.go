@@ -66,7 +66,7 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 			Name:        "list_flows",
 			Description: "List the processing flows run_flow can run: the project's own (inline in its recipe, then its flows_dir files), then kapi's built-in flows, each name once",
 		}, func(ctx context.Context, req *mcp.CallToolRequest, input ListFlowsInput) (*mcp.CallToolResult, ListFlowsOutput, error) {
-			return handleListFlows(a, input)
+			return handleListFlows(ctx, a, input)
 		})
 	}
 
@@ -214,7 +214,7 @@ func handleDetectFormat(a *cli.App, input DetectFormatInput) (*mcp.CallToolResul
 func handleRunFlow(ctx context.Context, a *cli.App, input RunFlowInput) (*mcp.CallToolResult, RunFlowOutput, error) {
 	// With a project in scope, ProjectContext supplies the defaults and the
 	// content resolution.
-	projectPath, err := a.ResolveMCPCallProject(input.Project)
+	projectPath, err := a.ResolveMCPCallProject(ctx, input.Project)
 	if err != nil {
 		return nil, RunFlowOutput{}, err
 	}
@@ -354,8 +354,8 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, projectPath strin
 // handleListFlows lists what `kapi flows` lists for the project the call
 // names (host.FlowList), each name once for the flow run_flow and `kapi run`
 // resolve it to.
-func handleListFlows(a *cli.App, input ListFlowsInput) (*mcp.CallToolResult, ListFlowsOutput, error) {
-	recipePath, err := a.ResolveMCPCallProject(input.Project)
+func handleListFlows(ctx context.Context, a *cli.App, input ListFlowsInput) (*mcp.CallToolResult, ListFlowsOutput, error) {
+	recipePath, err := a.ResolveMCPCallProject(ctx, input.Project)
 	if err != nil {
 		return nil, ListFlowsOutput{}, err
 	}

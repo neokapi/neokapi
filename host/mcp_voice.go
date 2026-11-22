@@ -31,7 +31,7 @@ func registerVoiceMCPTools(server *mcp.Server, a *App) {
 		Name:        "voice_check",
 		Description: "Score text against a voice profile using deterministic vocabulary rules; returns a 0-100 compliance score and findings",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in voiceCheckInput) (*mcp.CallToolResult, voiceCheckMCPOutput, error) {
-		p, err := loadProfileForMCP(in.ProfilePack, in.ProfileFile)
+		p, err := loadProfileForMCP(ctx, in.ProfilePack, in.ProfileFile)
 		if err != nil {
 			return nil, voiceCheckMCPOutput{}, err
 		}
@@ -62,8 +62,8 @@ func registerVoiceMCPTools(server *mcp.Server, a *App) {
 // voiceRewriteMCP is the voice_rewrite tool: the rule-based rewrite over the
 // profile the input names, with the substitutions made and the rules that
 // matched and were left in place.
-func voiceRewriteMCP(_ context.Context, _ *mcp.CallToolRequest, in voiceCheckInput) (*mcp.CallToolResult, voiceRewriteMCPOutput, error) {
-	p, err := loadProfileForMCP(in.ProfilePack, in.ProfileFile)
+func voiceRewriteMCP(ctx context.Context, _ *mcp.CallToolRequest, in voiceCheckInput) (*mcp.CallToolResult, voiceRewriteMCPOutput, error) {
+	p, err := loadProfileForMCP(ctx, in.ProfilePack, in.ProfileFile)
 	if err != nil {
 		return nil, voiceRewriteMCPOutput{}, err
 	}
@@ -76,8 +76,11 @@ func voiceRewriteMCP(_ context.Context, _ *mcp.CallToolRequest, in voiceCheckInp
 }
 
 // loadProfileForMCP resolves a profile from a built-in pack name or a profile YAML path.
-func loadProfileForMCP(pack, file string) (*profile.VoiceProfile, error) {
+func loadProfileForMCP(ctx context.Context, pack, file string) (*profile.VoiceProfile, error) {
 	if file != "" {
+		if err := MCPReachable(ctx, "profile_file", file); err != nil {
+			return nil, err
+		}
 		f, err := os.Open(file)
 		if err != nil {
 			return nil, fmt.Errorf("open profile: %w", err)

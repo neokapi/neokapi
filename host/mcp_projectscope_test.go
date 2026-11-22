@@ -89,38 +89,38 @@ func TestResolveMCPCallProject(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(other, ".kapi"), 0o700))
 
 	t.Run("no argument takes the project the server started in", func(t *testing.T) {
-		got, err := app.ResolveMCPCallProject("")
+		got, err := app.ResolveMCPCallProject(t.Context(), "")
 		require.NoError(t, err)
 		assert.Equal(t, recipe, got)
 	})
 
 	t.Run("a recipe path", func(t *testing.T) {
-		got, err := app.ResolveMCPCallProject(filepath.Join(other, "kapi.yaml"))
+		got, err := app.ResolveMCPCallProject(t.Context(), filepath.Join(other, "kapi.yaml"))
 		require.NoError(t, err)
 		assert.Equal(t, filepath.Join(other, "kapi.yaml"), got)
 	})
 
 	t.Run("a project root", func(t *testing.T) {
-		got, err := app.ResolveMCPCallProject(other)
+		got, err := app.ResolveMCPCallProject(t.Context(), other)
 		require.NoError(t, err)
 		assert.Equal(t, filepath.Join(other, "kapi.yaml"), got)
 	})
 
 	t.Run("a file inside the project", func(t *testing.T) {
-		got, err := app.ResolveMCPCallProject(filepath.Join(other, "docs", "bad.md"))
+		got, err := app.ResolveMCPCallProject(t.Context(), filepath.Join(other, "docs", "bad.md"))
 		require.NoError(t, err)
 		assert.Equal(t, filepath.Join(other, "kapi.yaml"), got)
 	})
 
 	t.Run("a directory inside the project", func(t *testing.T) {
-		got, err := app.ResolveMCPCallProject(filepath.Join(other, "docs"))
+		got, err := app.ResolveMCPCallProject(t.Context(), filepath.Join(other, "docs"))
 		require.NoError(t, err)
 		assert.Equal(t, filepath.Join(other, "kapi.yaml"), got)
 	})
 
 	t.Run("a path that holds no project names itself in the error", func(t *testing.T) {
 		outside := t.TempDir()
-		_, err := app.ResolveMCPCallProject(outside)
+		_, err := app.ResolveMCPCallProject(t.Context(), outside)
 		require.Error(t, err)
 		var perr *MCPProjectError
 		require.ErrorAs(t, err, &perr)
@@ -130,7 +130,7 @@ func TestResolveMCPCallProject(t *testing.T) {
 
 	t.Run("a path that does not exist names itself in the error", func(t *testing.T) {
 		missing := filepath.Join(other, "nowhere", "kapi.yaml")
-		_, err := app.ResolveMCPCallProject(missing)
+		_, err := app.ResolveMCPCallProject(t.Context(), missing)
 		require.Error(t, err)
 		var perr *MCPProjectError
 		require.ErrorAs(t, err, &perr)
@@ -139,10 +139,10 @@ func TestResolveMCPCallProject(t *testing.T) {
 
 	t.Run("KAPI_NO_PROJECT leaves an unbound server with no project", func(t *testing.T) {
 		bare := &App{}
-		got, err := bare.ResolveMCPCallProject("")
+		got, err := bare.ResolveMCPCallProject(t.Context(), "")
 		require.NoError(t, err)
 		assert.Empty(t, got, "discovery is off, so nothing is in scope")
-		_, err = bare.RequireMCPCallProject("")
+		_, err = bare.RequireMCPCallProject(t.Context(), "")
 		require.Error(t, err)
 		var perr *MCPProjectError
 		require.ErrorAs(t, err, &perr)
@@ -150,7 +150,7 @@ func TestResolveMCPCallProject(t *testing.T) {
 
 	t.Run("an explicit path still resolves under KAPI_NO_PROJECT", func(t *testing.T) {
 		bare := &App{}
-		got, err := bare.RequireMCPCallProject(filepath.Join(other, "docs", "good.md"))
+		got, err := bare.RequireMCPCallProject(t.Context(), filepath.Join(other, "docs", "good.md"))
 		require.NoError(t, err)
 		assert.Equal(t, filepath.Join(other, "kapi.yaml"), got)
 	})

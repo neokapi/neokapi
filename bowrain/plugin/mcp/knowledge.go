@@ -26,8 +26,8 @@ import (
 // by an assistant reporting to a person, and a change-set id on its own gives
 // that person nothing to open. The recipe's server and workspace are what turn
 // the id into a review link, and they live on the project, not the client.
-func knowledgeClient(a *cli.App, named string) (*project.Project, *apiclient.BowrainClient, error) {
-	proj, err := loadProject(a, named)
+func knowledgeClient(ctx context.Context, a *cli.App, named string) (*project.Project, *apiclient.BowrainClient, error) {
+	proj, err := loadProject(ctx, a, named)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -88,7 +88,7 @@ type MCPConceptSearchOutput struct {
 }
 
 func handleConceptSearch(ctx context.Context, a *cli.App, input MCPConceptSearchInput) (*mcp.CallToolResult, MCPConceptSearchOutput, error) {
-	_, client, err := knowledgeClient(a, input.Project)
+	_, client, err := knowledgeClient(ctx, a, input.Project)
 	if err != nil {
 		return nil, MCPConceptSearchOutput{}, err
 	}
@@ -144,7 +144,7 @@ func handleConceptStory(ctx context.Context, a *cli.App, input MCPConceptStoryIn
 		return nil, MCPConceptStoryOutput{}, errors.New("concept_id is required")
 	}
 
-	_, client, err := knowledgeClient(a, input.Project)
+	_, client, err := knowledgeClient(ctx, a, input.Project)
 	if err != nil {
 		return nil, MCPConceptStoryOutput{}, err
 	}
@@ -228,7 +228,7 @@ type MCPExperimentStatusOutput struct {
 }
 
 func handleExperimentStatus(ctx context.Context, a *cli.App, input MCPExperimentStatusInput) (*mcp.CallToolResult, MCPExperimentStatusOutput, error) {
-	proj, client, err := knowledgeClient(a, input.Project)
+	proj, client, err := knowledgeClient(ctx, a, input.Project)
 	if err != nil {
 		return nil, MCPExperimentStatusOutput{}, err
 	}

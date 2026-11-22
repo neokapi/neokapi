@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/i18n"
@@ -33,6 +34,9 @@ func init() {
 // a.ProjectContext so the MCP factories can scope themselves to it. Unavailable
 // requested context fails startup instead of silently selecting ad-hoc mode.
 func (a *App) ResolveMCPProject(cmd Command) error {
+	if wd, err := os.Getwd(); err == nil {
+		a.mcpStartDir = wd
+	}
 	// Before anything the server will serve: InitRegistries writes the registry
 	// fields and is not safe to run from two calls at once, and a server
 	// answering several calls concurrently would otherwise reach it lazily from
@@ -276,18 +280,18 @@ func frameworkToolInputSchema(s *schema.ComponentSchema, policy targetPolicy) (j
 // server lists is fixed when it starts (a client reads tools/list once), so the
 // exposed set stays the start project's while each call's language follows the
 // project it acts on.
-func (a *App) mcpDefaultTargetLang(named, serverDefault string) (string, error) {
+func (a *App) mcpDefaultTargetLang(ctx context.Context, named, serverDefault string) (string, error) {
 	if named == "" {
 		return serverDefault, nil
 	}
-	ctx, err := a.mcpProjectContext(named)
+	pctx, err := a.mcpProjectContext(ctx, named)
 	if err != nil {
 		return "", err
 	}
-	if ctx == nil || len(ctx.TargetLocales) == 0 {
+	if pctx == nil || len(pctx.TargetLocales) == 0 {
 		return serverDefault, nil
 	}
-	return string(ctx.TargetLocales[0]), nil
+	return string(pctx.TargetLocales[0]), nil
 }
 
 // frameworkMCPHandler builds the untyped MCP handler for one framework tool: it
@@ -314,7 +318,7 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 		named, _ := args["project"].(string)
 		targetLang, _ := args["target_lang"].(string)
 		if targetLang == "" {
-			resolved, err := a.mcpDefaultTargetLang(named, defaultTargetLang)
+			resolved, err := a.mcpDefaultTargetLang(ctx, named, defaultTargetLang)
 			if err != nil {
 				return nil, err
 			}
@@ -350,7 +354,7 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 		// still stands (ApplySourceLocale).
 		source := a.SourceLocale()
 		if named != "" {
-			recipe, rerr := a.ResolveMCPCallProject(named)
+			recipe, rerr := a.ResolveMCPCallProject(ctx, named)
 			if rerr != nil {
 				return nil, rerr
 			}
@@ -361,7 +365,7 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 		// The call's project settles the redaction policy, as it does for
 		// `kapi exec`: a tool that calls a provider runs between redact and
 		// unredact.
-		runPolicy, err := a.mcpToolRunPolicy(named, string(name), config)
+		runPolicy, err := a.mcpToolRunPolicy(ctx, named, string(name), config)
 		if err != nil {
 			return nil, err
 		}
@@ -431,8 +435,8 @@ func runToolOverText(ctx context.Context, chain []tool.Tool, text string, target
 // mcpToolRunPolicy reads the redaction policy of the project one framework
 // tool call acts on: the one it names, else the one the server started in.
 // The call's text sits in no file, so `defaults.redaction` governs it.
-func (a *App) mcpToolRunPolicy(named, toolName string, config map[string]any) (toolRunPolicy, error) {
-	recipe, err := a.ResolveMCPCallProject(named)
+func (a *App) mcpToolRunPolicy(ctx context.Context, named, toolName string, config map[string]any) (toolRunPolicy, error) {
+	recipe, err := a.ResolveMCPCallProject(ctx, named)
 	if err != nil || recipe == "" {
 		return toolRunPolicy{}, err
 	}

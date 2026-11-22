@@ -66,9 +66,18 @@ func (a *App) MCPRecipePath() string { return a.mcpRecipePath }
 //
 // An empty path and a nil error mean no project is in scope, which the
 // ad-hoc tools (check over a snippet, a profile named by file) run in.
-func (a *App) ResolveMCPCallProject(explicit string) (string, error) {
+func (a *App) ResolveMCPCallProject(ctx context.Context, explicit string) (string, error) {
 	if explicit != "" {
-		return resolveNamedMCPProject(explicit)
+		recipe, err := resolveNamedMCPProject(explicit)
+		if err != nil {
+			return "", err
+		}
+		// A project named in a call is an agent's argument, so it must lie
+		// under a directory a person chose (mcp_roots.go).
+		if rerr := MCPReachable(ctx, "project", filepath.Dir(recipe)); rerr != nil {
+			return "", &MCPProjectError{Path: explicit, Reason: "lies outside the directories this server may reach; name a project under the directory the server was started in or a root the client declares", Err: rerr}
+		}
+		return recipe, nil
 	}
 	if a.mcpRecipePath != "" {
 		return a.mcpRecipePath, nil
@@ -78,8 +87,8 @@ func (a *App) ResolveMCPCallProject(explicit string) (string, error) {
 
 // RequireMCPCallProject is ResolveMCPCallProject for a tool that has no
 // ad-hoc mode, so "no project" is refused rather than returned.
-func (a *App) RequireMCPCallProject(explicit string) (string, error) {
-	path, err := a.ResolveMCPCallProject(explicit)
+func (a *App) RequireMCPCallProject(ctx context.Context, explicit string) (string, error) {
+	path, err := a.ResolveMCPCallProject(ctx, explicit)
 	if err != nil {
 		return "", err
 	}
@@ -150,7 +159,7 @@ func absOrAsGiven(path string) string {
 // without one, the empty flag that makes ResolveProjectPath fall through to
 // discovery.
 func (a *App) mcpCallCommand(ctx context.Context, name, explicit string) (*EnvCommand, string, error) {
-	recipe, err := a.ResolveMCPCallProject(explicit)
+	recipe, err := a.ResolveMCPCallProject(ctx, explicit)
 	if err != nil {
 		return nil, "", err
 	}
@@ -162,8 +171,8 @@ func (a *App) mcpCallCommand(ctx context.Context, name, explicit string) (*EnvCo
 // mcpProjectContext loads the project context for one call's recipe, so a tool
 // can read what that project declares without any of it reaching the App.
 // A call with no project in scope gets (nil, nil).
-func (a *App) mcpProjectContext(explicit string) (*project.ProjectContext, error) {
-	recipe, err := a.ResolveMCPCallProject(explicit)
+func (a *App) mcpProjectContext(ctx context.Context, explicit string) (*project.ProjectContext, error) {
+	recipe, err := a.ResolveMCPCallProject(ctx, explicit)
 	if err != nil || recipe == "" {
 		return nil, err
 	}
