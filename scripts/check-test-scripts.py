@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guard: every package `test` script is run by a pull request workflow.
+"""Guard: every package `test` script is run by exactly one pull request job.
 
 A package.json `test` script that no CI job runs is a suite whose failures
 merge. That happened three times: packages/app (#1533), the Storybook mock
@@ -13,7 +13,10 @@ What it reads:
 
   * every tracked package.json with a `test` script (node_modules aside);
   * every workflow under .github/workflows that runs on `pull_request`, and in
-    it every step whose job and step `if:` do not exclude pull requests;
+    it every step that can run on a pull request. Each job and step `if:` is
+    evaluated as GitHub evaluates it on that event (see "`if:` conditions"
+    below), and a job whose `needs` are skipped is skipped with them. A
+    condition the guard cannot decide is an error naming the step;
   * every make target such a step names, followed through prerequisites,
     `$(MAKE) [-C dir] target` lines and `bash script.sh` calls.
 
@@ -24,11 +27,15 @@ given a file or directory filter runs part of the suite and does not count.
 The directory is the step's `working-directory`, the make directory, and
 any `cd <dir>` before the command on the same line.
 
+A suite run by two jobs is an error too: the second run costs every pull
+request a job and adds no check, and the two path filters drift apart.
+
 EXEMPT names a suite that cannot run in a pull request job, with the reason.
 An entry for a package that has no `test` script, or whose suite is run, is
 an error, so the list cannot outlive its reason.
 
-Exit status: 0 every suite is run, 1 a suite is not, 2 an input is unreadable.
+Exit status: 0 every suite runs in one job, 1 a suite runs in none or in
+several, 2 an input is unreadable or a condition undecidable.
 """
 
 from __future__ import annotations
@@ -70,26 +77,272 @@ RUNNERS = (
 # Prefixes that run a binary from node_modules/.bin; stripped before the
 # command is compared with the script text.
 EXEC_PREFIXES = (("vpx",), ("npx",), ("pnpm", "exec"), ("vp", "exec"))
-PR_EXCLUDING_TERM = re.compile(
-    r"github\.event_name\s*!=\s*'pull_request'"
-    r"|github\.event_name\s*==\s*'(push|schedule|workflow_dispatch|release)'"
-)
-
-
-def excludes_pull_requests(condition: object) -> bool:
-    """Report whether an `if:` keeps its job or step off pull requests.
-
-    It does when it holds a term such as `github.event_name != 'pull_request'`
-    and no `||`. With an `||` the other side can admit a pull request
-    (`event_name != 'pull_request' || needs.changes.outputs.cli == 'true'`),
-    so the step counts as run.
-    """
-    text = str(condition or "")
-    return bool(PR_EXCLUDING_TERM.search(text)) and "||" not in text
 
 
 class Unreadable(Exception):
     """An input has a shape the guard does not read."""
+
+
+# ── `if:` conditions ────────────────────────────────────────────────────────
+#
+# A condition is evaluated as GitHub evaluates it on a pull_request event.
+# github.event_name is 'pull_request'. github.ref is refs/pull/<n>/merge, so a
+# comparison with a branch or tag ref, or startsWith(github.ref, 'refs/tags/'),
+# is false. Every other context (needs.*, steps.*, inputs.*, vars.*, matrix.*,
+# the status functions) can take either value, so it is UNKNOWN. A use of the
+# event or the ref that this table does not model is UNDECIDED, and an
+# UNDECIDED result is an error that names the step: the guard never guesses.
+
+UNKNOWN = object()
+UNDECIDED = object()
+PR_REF = object()  # github.ref on a pull request: refs/pull/<n>/merge
+STATUS_FUNCTIONS = ("always", "success", "failure", "cancelled")
+
+TOKEN_RE = re.compile(
+    r"\s*(?:(?P<str>'(?:[^']|'')*')|(?P<num>-?\d+(?:\.\d+)?)"
+    r"|(?P<op>&&|\|\||==|!=|<=|>=|<|>|!|\(|\)|,)"
+    r"|(?P<name>[A-Za-z_][A-Za-z0-9_\-]*(?:\.(?:[A-Za-z_*][A-Za-z0-9_\-]*)|\[[^\]]*\])*))"
+)
+
+
+def tokenize(text: str) -> list[tuple[str, object]]:
+    tokens, i = [], 0
+    while i < len(text):
+        if text[i:].strip() == "":
+            break
+        m = TOKEN_RE.match(text, i)
+        if not m or m.end() == i:
+            raise ValueError(f"cannot read {text[i:]!r}")
+        i = m.end()
+        if m.group("str") is not None:
+            tokens.append(("lit", m.group("str")[1:-1].replace("''", "'")))
+        elif m.group("num") is not None:
+            tokens.append(("lit", float(m.group("num"))))
+        elif m.group("op") is not None:
+            tokens.append(("op", m.group("op")))
+        else:
+            name = m.group("name")
+            literals = {"true": True, "false": False, "null": None}
+            tokens.append(("lit", literals[name]) if name in literals else ("name", name))
+    return tokens
+
+
+def truth(value: object) -> object:
+    """GitHub's truthiness, with UNKNOWN and UNDECIDED carried through."""
+    if value is UNKNOWN or value is UNDECIDED:
+        return value
+    if value is PR_REF:
+        return True
+    return value not in (False, 0, "", None)
+
+
+def logical_not(value: object) -> object:
+    t = truth(value)
+    return t if t is UNKNOWN or t is UNDECIDED else not t
+
+
+def logical_and(a: object, b: object) -> object:
+    ta, tb = truth(a), truth(b)
+    if ta is False or tb is False:
+        return False
+    if ta is True and tb is True:
+        return True
+    return UNDECIDED if UNDECIDED in (ta, tb) else UNKNOWN
+
+
+def logical_or(a: object, b: object) -> object:
+    ta, tb = truth(a), truth(b)
+    if ta is True or tb is True:
+        return True
+    if ta is False and tb is False:
+        return False
+    return UNDECIDED if UNDECIDED in (ta, tb) else UNKNOWN
+
+
+def compare(op: str, a: object, b: object) -> object:
+    if UNDECIDED in (a, b):
+        return UNDECIDED
+    if PR_REF in (a, b):
+        other = b if a is PR_REF else a
+        if op in ("==", "!=") and isinstance(other, str) and not other.lower().startswith("refs/pull/"):
+            return op == "!="
+        return UNDECIDED
+    if UNKNOWN in (a, b):
+        return UNKNOWN
+    if type(a) is not type(b) and not (a is None or b is None):
+        return UNDECIDED  # GitHub coerces mixed types to numbers; not modelled
+    if isinstance(a, str) and isinstance(b, str):
+        a, b = a.lower(), b.lower()  # string comparison ignores case
+    if op == "==":
+        return a == b
+    if op == "!=":
+        return a != b
+    try:
+        return {"<": a < b, "<=": a <= b, ">": a > b, ">=": a >= b}[op]
+    except TypeError:
+        return UNDECIDED
+
+
+def call(name: str, args: list[object]) -> object:
+    lower = name.lower()
+    if lower in STATUS_FUNCTIONS:
+        return UNKNOWN
+    if lower == "startswith" and len(args) == 2 and args[0] is PR_REF:
+        prefix = args[1]
+        if not isinstance(prefix, str):
+            return UNDECIDED
+        if "refs/pull/".startswith(prefix.lower()):
+            return True
+        if prefix.lower().startswith("refs/pull/"):
+            return UNDECIDED  # depends on the pull request's number
+        return False
+    if UNDECIDED in args or PR_REF in args:
+        return UNDECIDED
+    if UNKNOWN in args:
+        return UNKNOWN
+    if lower == "fromjson" and len(args) == 1 and isinstance(args[0], str):
+        try:
+            return json.loads(args[0])
+        except ValueError:
+            return UNDECIDED
+    if lower == "contains" and len(args) == 2:
+        hay, needle = args
+        if isinstance(hay, list):
+            return any(compare("==", item, needle) is True for item in hay)
+        if isinstance(hay, str) and isinstance(needle, str):
+            return needle.lower() in hay.lower()
+        return UNDECIDED
+    if lower in ("startswith", "endswith") and len(args) == 2 and all(isinstance(a, str) for a in args):
+        s, affix = args[0].lower(), args[1].lower()
+        return s.startswith(affix) if lower == "startswith" else s.endswith(affix)
+    return UNKNOWN  # format(), hashFiles() and the rest yield a value we do not know
+
+
+def context(name: str) -> object:
+    lower = name.lower()
+    if lower == "github.event_name":
+        return "pull_request"
+    if lower == "github.ref":
+        return PR_REF
+    if lower in ("github.ref_name", "github.ref_type", "github.ref_protected", "github.head_ref", "github.base_ref"):
+        return UNDECIDED  # on a pull request these hold the pull request's refs
+    return UNKNOWN
+
+
+class Parser:
+    """Recursive descent over GitHub's expression grammar, by precedence."""
+
+    def __init__(self, tokens: list[tuple[str, object]]):
+        self.tokens, self.i = tokens, 0
+
+    def peek(self) -> tuple[str, object] | None:
+        return self.tokens[self.i] if self.i < len(self.tokens) else None
+
+    def take(self, op: str | None = None) -> tuple[str, object]:
+        tok = self.peek()
+        if tok is None or (op is not None and tok != ("op", op)):
+            raise ValueError(f"expected {op or 'a term'}")
+        self.i += 1
+        return tok
+
+    def parse(self) -> object:
+        value = self.or_expr()
+        if self.peek() is not None:
+            raise ValueError(f"unexpected {self.peek()[1]!r}")
+        return value
+
+    def or_expr(self) -> object:
+        value = self.and_expr()
+        while self.peek() == ("op", "||"):
+            self.take()
+            value = logical_or(value, self.and_expr())
+        return value
+
+    def and_expr(self) -> object:
+        value = self.compare_expr()
+        while self.peek() == ("op", "&&"):
+            self.take()
+            value = logical_and(value, self.compare_expr())
+        return value
+
+    def compare_expr(self) -> object:
+        value = self.unary()
+        while self.peek() in [("op", o) for o in ("==", "!=", "<", "<=", ">", ">=")]:
+            op = self.take()[1]
+            value = compare(op, value, self.unary())
+        return value
+
+    def unary(self) -> object:
+        if self.peek() == ("op", "!"):
+            self.take()
+            return logical_not(self.unary())
+        return self.primary()
+
+    def primary(self) -> object:
+        kind, value = self.take()
+        if kind == "lit":
+            return value
+        if (kind, value) == ("op", "("):
+            inner = self.or_expr()
+            self.take(")")
+            return inner
+        if kind == "name":
+            if self.peek() == ("op", "("):
+                self.take()
+                args = []
+                if self.peek() != ("op", ")"):
+                    args.append(self.or_expr())
+                    while self.peek() == ("op", ","):
+                        self.take()
+                        args.append(self.or_expr())
+                self.take(")")
+                return call(str(value), args)
+            return context(str(value))
+        raise ValueError(f"unexpected {value!r}")
+
+
+def evaluate_on_pull_request(condition: object) -> object:
+    """Return True, False or UNKNOWN for an `if:` on a pull_request event.
+
+    Raises ValueError when the condition cannot be read or decided.
+    """
+    if condition is None:
+        return True
+    if isinstance(condition, bool):
+        return condition
+    if isinstance(condition, (int, float)):
+        return condition != 0
+    text = str(condition).strip()
+    wrapped = re.fullmatch(r"\$\{\{(.*)\}\}", text, re.S)
+    if wrapped:
+        text = wrapped.group(1)
+    elif "${{" in text:
+        raise ValueError("mixes text and ${{ }}, which GitHub reads as a non-empty string")
+    result = truth(Parser(tokenize(text)).parse())
+    if result is UNDECIDED:
+        raise ValueError("tests the event or the ref in a way the guard does not model")
+    return result
+
+
+def excludes_pull_requests(condition: object, where: str) -> bool:
+    """Report whether an `if:` keeps its job or step off every pull request.
+
+    It does only when the condition is false on every pull_request event. A
+    condition that is true, or that turns on a value the event does not fix
+    (a path filter's output, an input), admits a pull request.
+    """
+    try:
+        return evaluate_on_pull_request(condition) is False
+    except ValueError as err:
+        raise Unreadable(f"{where}: if: {condition!r} {err}") from err
+
+
+def uses_status_function(condition: object) -> bool:
+    """Report whether a job condition calls always(), failure() or cancelled().
+
+    Without one, a job whose needs were skipped is skipped too.
+    """
+    return bool(re.search(r"\b(always|failure|cancelled)\s*\(", str(condition or ""), re.I))
 
 
 # ── Packages ────────────────────────────────────────────────────────────────
@@ -189,9 +442,13 @@ class Walker:
         self.root = root
         self.suites = suites
         self.covered: dict[str, str] = {}
+        # Each suite directory and the workflow jobs that run it.
+        self.jobs: dict[str, set[str]] = {}
+        self.job = ""
         self.makefiles: dict[str, dict] = {}
-        self.seen_targets: set[tuple[str, str]] = set()
-        self.seen_scripts: set[str] = set()
+        # Per job: two jobs that call one target both run what it runs.
+        self.seen_targets: set[tuple[str, str, str]] = set()
+        self.seen_scripts: set[tuple[str, str]] = set()
 
     # A command is run in cwd, a repo-relative directory.
     def command(self, command: str, cwd: str, where: str) -> str:
@@ -215,6 +472,7 @@ class Walker:
         script = self.suites.get(cwd)
         if script is not None and runs_suite(argv, script):
             self.covered.setdefault(cwd, where)
+            self.jobs.setdefault(cwd, set()).add(self.job)
         return cwd
 
     def line(self, line: str, cwd: str, where: str) -> str:
@@ -225,9 +483,9 @@ class Walker:
 
     def script(self, path: str, cwd: str, where: str) -> None:
         full = os.path.join(self.root, path)
-        if path in self.seen_scripts or not os.path.isfile(full):
+        if (self.job, path) in self.seen_scripts or not os.path.isfile(full):
             return
-        self.seen_scripts.add(path)
+        self.seen_scripts.add((self.job, path))
         here = os.path.dirname(path) or "."
         with open(full) as fh:
             text = fh.read().replace("\\\n", " ")
@@ -275,7 +533,7 @@ class Walker:
             self.target(directory, target, where)
 
     def target(self, directory: str, name: str, where: str) -> None:
-        key = (directory, name)
+        key = (self.job, directory, name)
         if key in self.seen_targets:
             return
         self.seen_targets.add(key)
@@ -380,14 +638,18 @@ def walk_workflows(root: str, walker: Walker) -> None:
             raise Unreadable(f"{rel}: {err}") from err
         if not isinstance(doc, dict) or not runs_on_pull_request(doc):
             continue
-        for job_id, job in (doc.get("jobs") or {}).items():
-            if not isinstance(job, dict) or excludes_pull_requests(job.get("if")):
+        jobs = {k: v for k, v in (doc.get("jobs") or {}).items() if isinstance(v, dict)}
+        skipped = skipped_jobs(rel, jobs)
+        for job_id, job in jobs.items():
+            if job_id in skipped:
                 continue
+            walker.job = f"{rel} job {job_id}"
             defaults = ((job.get("defaults") or {}).get("run") or {}).get("working-directory", ".")
-            for step in job.get("steps") or []:
+            for n, step in enumerate(job.get("steps") or [], 1):
                 if not isinstance(step, dict) or "run" not in step:
                     continue
-                if excludes_pull_requests(step.get("if")):
+                label = f"{rel} job {job_id} step {step.get('name') or n}"
+                if excludes_pull_requests(step.get("if"), label):
                     continue
                 cwd = norm(step.get("working-directory", defaults))
                 where = f"{rel} job {job_id}"
@@ -396,6 +658,35 @@ def walk_workflows(root: str, walker: Walker) -> None:
                 for line in text.splitlines():
                     if line.strip() and not line.strip().startswith("#"):
                         cwd = walker.line(line.strip(), cwd, where)
+
+
+def skipped_jobs(rel: str, jobs: dict[str, dict]) -> set[str]:
+    """Return the jobs that run on no pull request.
+
+    A job is skipped when its own condition excludes pull requests, or when a
+    job it needs is skipped and its condition calls none of always(),
+    failure() or cancelled(), the functions that run a job past skipped needs.
+    """
+    memo: dict[str, bool] = {}
+
+    def skipped(job_id: str, path: tuple[str, ...]) -> bool:
+        if job_id in memo:
+            return memo[job_id]
+        if job_id in path:
+            raise Unreadable(f"{rel}: job {job_id} needs itself through {' > '.join(path)}")
+        job = jobs.get(job_id)
+        if job is None:
+            raise Unreadable(f"{rel}: a job needs {job_id}, which the workflow does not define")
+        condition = job.get("if")
+        result = excludes_pull_requests(condition, f"{rel} job {job_id}")
+        if not result and not uses_status_function(condition):
+            needs = job.get("needs") or []
+            needs = [needs] if isinstance(needs, str) else needs
+            result = any(skipped(str(n), path + (job_id,)) for n in needs)
+        memo[job_id] = result
+        return result
+
+    return {job_id for job_id in jobs if skipped(job_id, ())}
 
 
 # ── Check ───────────────────────────────────────────────────────────────────
@@ -411,6 +702,12 @@ def check(root: str, exempt: dict[str, str]) -> tuple[list[str], dict[str, str]]
         if directory in walker.covered:
             if directory in exempt:
                 problems.append(f"{directory}: exempt, but {walker.covered[directory]} runs it; drop the entry")
+            jobs = sorted(walker.jobs.get(directory, ()))
+            if len(jobs) > 1:
+                problems.append(
+                    f"{directory}: its test script runs in {len(jobs)} pull request jobs "
+                    f"({'; '.join(jobs)}); keep the one whose path filter covers what it imports"
+                )
             continue
         if directory in exempt:
             continue
@@ -430,14 +727,14 @@ def main_check(root: str) -> int:
         print(f"check-test-scripts: cannot read {err}", file=sys.stderr)
         return 2
     if problems:
-        print("check-test-scripts: a package test suite runs in no pull request job\n")
+        print("check-test-scripts: a package test suite runs in no pull request job, or in several\n")
         for p in problems:
             print("  " + p)
         print(
             "\nRun it from a make target a ci.yml job calls (ci-frontend-packages is the\n"
             "home for workspace packages), in the job whose path filter covers what\n"
-            "the suite imports. EXEMPT in scripts/check-test-scripts.py is only for a\n"
-            "suite that cannot run in CI, with the reason."
+            "the suite imports, and in no other job. EXEMPT in scripts/check-test-scripts.py\n"
+            "is only for a suite that cannot run in CI, with the reason."
         )
         return 1
     print(f"check-test-scripts: OK ({len(covered)} suites run, {len(EXEMPT)} exempt)")
@@ -523,6 +820,44 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: cd packages/push-job && vp test
+  # The `||` heuristic counted each of these as run on pull requests.
+  push-or-schedule:
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - run: cd packages/push-or-schedule && vp test
+  tag-only:
+    runs-on: ubuntu-latest
+    steps:
+      - if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
+        run: cd packages/tag-only && vp test
+  after-pushjob:
+    needs: [pushjob]
+    runs-on: ubuntu-latest
+    steps:
+      - run: cd packages/after-push && vp test
+  after-pushjob-always:
+    needs: pushjob
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: cd packages/after-push-always && vp test
+  dup:
+    runs-on: ubuntu-latest
+    steps:
+      - run: make ci-web
+"""
+
+SELF_TEST_UNDECIDED = """\
+name: Undecided
+on: [pull_request]
+jobs:
+  j:
+    runs-on: ubuntu-latest
+    steps:
+      - name: by branch name
+        if: github.ref_name == 'main'
+        run: echo hi
 """
 
 SELF_TEST_NIGHTLY = """\
@@ -554,6 +889,7 @@ def self_test() -> int:
             "packages/via-prereq": "vp test",
             "packages/wd": "vp test",
             "packages/either": "vp test",  # a cd on the line before
+            "packages/after-push-always": "vp test",
             "tool": 'tsx --test "src/**/*.test.ts"',
             "e2e": "playwright test",
         }
@@ -562,6 +898,9 @@ def self_test() -> int:
             "packages/orphan": "vp test",  # in a target no job calls
             "packages/push-only": "vp test",
             "packages/push-job": "vp test",
+            "packages/push-or-schedule": "vp test",
+            "packages/tag-only": "vp test",
+            "packages/after-push": "vp test",
             "packages/nightly": "vp test",
         }
         for d, t in {**covered_dirs, **uncovered_dirs}.items():
@@ -585,6 +924,10 @@ def self_test() -> int:
             failures.append("a package under node_modules was read")
         if any(p.startswith("packages/no-test:") for p in problems):
             failures.append("a package without a test script was reported")
+        if not any(p.startswith("packages/a: its test script runs in 2 pull request jobs") for p in problems):
+            failures.append("a suite two jobs run was not reported")
+        if any(p.startswith("packages/wd: its test script runs in") for p in problems):
+            failures.append("a suite one job runs was reported as run twice")
 
         exempt = {"packages/orphan": "reason", "packages/a": "stale", "packages/gone": "stale"}
         problems, _ = check(root, exempt)
@@ -594,6 +937,49 @@ def self_test() -> int:
             failures.append("an exemption for a run suite was not reported")
         if not any(p.startswith("packages/gone: exempt, but") for p in problems):
             failures.append("an exemption for a missing suite was not reported")
+
+        write(root, ".github/workflows/undecided.yml", SELF_TEST_UNDECIDED)
+        try:
+            check(root, {})
+            failures.append("a condition the guard cannot decide passed")
+        except Unreadable as err:
+            if "undecided.yml job j step by branch name" not in str(err):
+                failures.append(f"an undecided condition did not name its step: {err}")
+
+    for condition, want in (
+        (None, True),
+        (False, False),
+        ("github.event_name == 'pull_request'", True),
+        ("github.event_name == 'PULL_REQUEST'", True),  # strings compare without case
+        ("github.event_name != 'pull_request'", False),
+        ("github.event_name == 'push' || github.event_name == 'schedule'", False),
+        ("${{ github.event_name != 'pull_request' || needs.changes.outputs.x == 'true' }}", UNKNOWN),
+        ("!(github.event_name == 'workflow_dispatch' && inputs.skip)", True),
+        ("contains(fromJSON('[\"push\",\"schedule\"]'), github.event_name)", False),
+        ("startsWith(github.ref, 'refs/tags/sat-v')", False),
+        ("github.ref != 'refs/heads/main' && success()", UNKNOWN),
+        ("always() && github.event_name == 'push'", False),
+        ("startsWith(github.ref, 'refs/pu')", True),
+        ("github.event_name != 'pull_request' && github.ref_name == 'main'", False),
+    ):
+        try:
+            got = evaluate_on_pull_request(condition)
+        except ValueError as err:
+            got = f"error: {err}"
+        if got is not want:
+            failures.append(f"if: {condition!r} should be {want}, got {got}")
+    for condition in (
+        "github.ref_name == 'main'",
+        "startsWith(github.ref, 'refs/pull/12/')",  # depends on the number
+        "github.event_name == 1",
+        "github.event_name == 'push' ${{ x }}",
+        "github.event_name ==",
+    ):
+        try:
+            got = evaluate_on_pull_request(condition)
+            failures.append(f"if: {condition!r} should be an error, got {got}")
+        except ValueError:
+            pass
 
     for argv, script, want in (
         (["vp", "test"], "vp test", True),

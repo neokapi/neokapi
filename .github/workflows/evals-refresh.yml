@@ -45,6 +45,10 @@ concurrency:
   group: evals-refresh
   cancel-in-progress: false
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   # Free, keyless: the demo stubs prove the harnesses still assemble and run.
   harness-smoke:

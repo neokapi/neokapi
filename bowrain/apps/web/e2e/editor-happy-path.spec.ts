@@ -172,8 +172,8 @@ test.describe("Editor happy path", () => {
     ).toBeVisible();
 
     // ── 6. Export ────────────────────────────────────────────────────────────
-    // Server-side merged-file export is deliberately unimplemented (source
-    // bytes are not stored server-side since #136; `kapi pull` is the export
+    // Server-side merged-file export is deliberately unimplemented (the
+    // server stores no source bytes; `kapi pull` is the export
     // path — the Export button works in the desktop app, which has the local
     // file). The web contract is an EXPLICIT notice, never a silent no-op.
     await page.getByTestId("export-btn").click();

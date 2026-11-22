@@ -774,6 +774,11 @@ FIXTURES = [
         "expect": ["mobile-maestro-flows"],
     },
     {
+        "name": "a test finds its source file through runtime.Caller",
+        "files": {"core/profile/repopacks_test.go": ["\t_, file, _, ok := runtime.Caller(0)"]},
+        "expect": ["source-path-under-trimpath"],
+    },
+    {
         "name": "a test makes a temporary directory",
         "files": {"core/formats/foo/foo_test.go": ['\tdir, err := os.MkdirTemp("", "foo-")']},
         "expect": ["temporary-file-owner"],

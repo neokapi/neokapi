@@ -39,6 +39,7 @@ endif
 export LDFLAGS     := -ldflags "$(LDFLAGS_X)"
 
 GO := go
+include scripts/lib/goflags.mk
 # FTS5 build tag is required by mattn/go-sqlite3 to enable FTS5 full-text
 # search. Without it, content memory and terms migrations fail at runtime.
 #
@@ -244,7 +245,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-e2e-seed-dupes check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-code-display check-json-tags check-comment-coverage check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt check-reliability-checklist check-ci-passed check-test-scripts check-temp-leaks ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-e2e-seed-dupes check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-code-display check-json-tags check-comment-coverage check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-temp-leaks ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) --no-print-directory kapi-desktop-lint
 	@$(MAKE) --no-print-directory harness-check
@@ -289,10 +290,15 @@ check-ci-passed: ## Guard: the CI passed job lists every job of the CI workflow
 	@python3 ./scripts/ci-passed.py needs
 
 # A package `test` script that no pull request job runs is a suite whose
-# failures merge. See the comment on ci-frontend-packages.
-check-test-scripts: ## Guard: every package `test` script is run by a pull request CI job
+# failures merge, and one that two jobs run costs a job and checks nothing
+# more. See the comment on ci-frontend-packages.
+check-test-scripts: ## Guard: every package `test` script is run by exactly one pull request CI job
 	@python3 ./scripts/check-test-scripts.py --self-test
 	@python3 ./scripts/check-test-scripts.py
+
+check-go-trimpath: ## Guard: every Go command in make, scripts and CI builds with -trimpath
+	@python3 ./scripts/check-go-trimpath.py --self-test
+	@python3 ./scripts/check-go-trimpath.py
 
 # The CI test jobs run through scripts/check-temp-leaks.sh, which fails a run
 # that leaves files in its temporary directory. This target proves the script.
@@ -740,9 +746,9 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	# tsc over the package tsconfig is what covers them.
 	cd bowrain/packages/ui && vp run typecheck:stories
 	cd bowrain/packages/ui && vp test
-	# packages/app was never covered here, so a broken viewFromPath sat on main
-	# from #1462 until #1533: the sidebar stopped highlighting on /terms and no
-	# job noticed. It holds the routing every surface depends on.
+	# packages/app holds the routing every surface depends on. Without its
+	# suite here, a broken viewFromPath stops the sidebar highlighting on
+	# /terms and no job notices.
 	cd bowrain/packages/app && vp check
 	cd bowrain/packages/app && vp test
 	cd bowrain/apps/web && vp check
@@ -809,15 +815,11 @@ ci-i18n-react: ## Mirror the CI `neokapi-i18n` job: typecheck/validate/test/buil
 	cd packages/i18n-react-lint && vp run build
 
 # The unit suites of the shared workspace packages, the docs site, the
-# landing page and the mobile app. Each had a `test` script and no job ran it,
-# so two packages/ui tests failed on main from #3668 until this job existed.
-# scripts/check-test-scripts.py fails when a package with a `test` script is
-# run by no pull request job, and this target is where a new one belongs.
-#
-# web, kapi-lab, kapi-playground and engine also run in docs-kapi.yml, and the
-# landing page in web-landing.yml. Those path filters stop at the package's own
-# directory, so an edit to packages/ui that breaks one of them would skip it.
-# The ci.yml `frontend_packages` filter covers what these suites import.
+# landing page and the mobile app. This target is their one pull request
+# home: the ci.yml `frontend_packages` filter covers what they import, so an
+# edit to packages/ui that breaks the docs site runs the docs site's suite.
+# scripts/check-test-scripts.py fails when a package `test` script runs in no
+# pull request job or in more than one, and a new suite belongs here.
 ci-frontend-packages: ## Mirror the CI `frontend-packages` job: unit-test the shared packages, docs site, landing page and mobile app
 	# packages/ui imports `@neokapi/i18n-react/runtime`, a built ./dist subpath.
 	cd packages/i18n-react && vp run build
@@ -3318,7 +3320,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration fuzz \
         check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts check-temp-leaks warm-build-cache workspace-paths test-parallel \
+        fmt vet lint check check-framework check-bowrain check-abs-paths check-e2e-seed-dupes check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-code-display check-json-tags check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt reliability-checklist check-reliability-checklist check-ci-passed check-test-scripts check-go-trimpath check-temp-leaks warm-build-cache workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \

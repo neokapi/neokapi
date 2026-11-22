@@ -13,6 +13,8 @@
 //   - each call to the replacing functions of core/atomicfile (Replace,
 //     ReplaceBytes, Stage, StageWithParents) outside the file home, the one
 //     place that stages and renames a content file;
+//   - each call to core/rootpath's CreateRegular, which opens a file for
+//     writing inside a root;
 //
 // except in the format packages, where one writer wraps another, and at the
 // call sites listed in allowed, keyed by file and function, each with what it
@@ -58,13 +60,16 @@ var exemptPrefixes = []string{
 	"github.com/neokapi/neokapi/core/formats/",
 	"github.com/neokapi/neokapi/core/change/filehome",
 	"github.com/neokapi/neokapi/core/atomicfile",
+	"github.com/neokapi/neokapi/core/rootpath",
 }
 
-// atomicfilePath is the package whose replacing functions stage and rename a
-// file, and replacing names them.
-const atomicfilePath = "github.com/neokapi/neokapi/core/atomicfile"
-
-var replacing = map[string]bool{"Replace": true, "ReplaceBytes": true, "Stage": true, "StageWithParents": true}
+// replacing names, by package, the functions that write a whole file: the
+// replacing functions of core/atomicfile, which stage and rename a file, and
+// core/rootpath's CreateRegular, which opens a file for writing inside a root.
+var replacing = map[string]map[string]bool{
+	"github.com/neokapi/neokapi/core/atomicfile": {"Replace": true, "ReplaceBytes": true, "Stage": true, "StageWithParents": true},
+	"github.com/neokapi/neokapi/core/rootpath":   {"CreateRegular": true},
+}
 
 // allowed lists the functions that point a writer at a file, keyed by the file
 // and the function, with what each writes.
@@ -197,7 +202,7 @@ func checkPackage(fset *token.FileSet, imp types.Importer, path string, files []
 				if recv, ok := writesFile(info, call); ok {
 					what = recv + ".SetOutput writes a document to a file"
 				} else if name, ok := replacesFile(info, call); ok {
-					what = "atomicfile." + name + " replaces a file outside the file home"
+					what = name + " writes a file outside the file home"
 				} else {
 					return true
 				}
@@ -239,19 +244,19 @@ func writesFile(info *types.Info, call *ast.CallExpr) (string, bool) {
 	return types.TypeString(s.Recv(), func(p *types.Package) string { return p.Name() }), true
 }
 
-// replacesFile reports whether a call is one of core/atomicfile's replacing
-// functions, and returns its name.
+// replacesFile reports whether a call is one of the functions in replacing,
+// and returns it as package.Name.
 func replacesFile(info *types.Info, call *ast.CallExpr) (string, bool) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok || !replacing[sel.Sel.Name] {
+	if !ok {
 		return "", false
 	}
 	fn, ok := info.Uses[sel.Sel].(*types.Func)
-	if !ok || fn.Pkg() == nil || fn.Pkg().Path() != atomicfilePath {
+	if !ok || fn.Pkg() == nil || !replacing[fn.Pkg().Path()][fn.Name()] {
 		return "", false
 	}
 	if sig, ok := fn.Type().(*types.Signature); !ok || sig.Recv() != nil {
 		return "", false
 	}
-	return fn.Name(), true
+	return fn.Pkg().Name() + "." + fn.Name(), true
 }

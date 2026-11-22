@@ -1113,6 +1113,30 @@ items:
       onBrokenLinks: throw, until the target tier became a build artefact
       (2026-06; recorded in CLAUDE.md).
 
+  - id: source-path-under-trimpath
+    title: Code that finds a file through its own source path
+    owner_surface: framework
+    trigger:
+      added:
+        - 'runtime\.Caller\('
+        - 'runtime\.FuncForPC\('
+      added_in:
+        - '**/*.go'
+    check: >-
+      Every make target, CI job and agent session builds with -trimpath, so
+      runtime.Caller and runtime.FuncForPC return a module path such as
+      github.com/neokapi/neokapi/core/x/file.go, which is not a file on disk.
+      A test reads files relative to its working directory: go test runs each
+      package's tests in the package directory. A program finds the
+      repository from its working directory (the nearest go.work above it).
+      A lookup that fails must report the failure, never skip the check it
+      feeds. Run the change with GOFLAGS=-trimpath.
+    incident: >-
+      2026-11-22: five worktrees filled the shared Go build cache with 54 GB in
+      two hours because builds lacked -trimpath. Turning the flag on broke six
+      runtime.Caller lookups, and scripts/modelcheck silently dropped its price
+      check instead of failing.
+
   - id: temporary-file-owner
     title: A temporary file or directory has an owner that removes it
     owner_surface: framework
