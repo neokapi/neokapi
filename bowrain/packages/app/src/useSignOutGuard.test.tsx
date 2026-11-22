@@ -31,7 +31,12 @@ describe("useSignOutGuard", () => {
   });
 
   it("asks first when an edit waits, and Cancel keeps both", async () => {
-    recordPendingEdit({ key: "k", label: "Translate and review", scope: "s", send: async () => {} });
+    recordPendingEdit({
+      key: "k",
+      label: "Translate and review",
+      scope: "s",
+      send: async () => {},
+    });
     const signOut = vi.fn().mockResolvedValue(undefined);
     render(<SignOut signOut={signOut} />);
     await userEvent.click(screen.getByText("Sign out now"));
@@ -43,7 +48,12 @@ describe("useSignOutGuard", () => {
   });
 
   it("signing out after the question discards the edits", async () => {
-    recordPendingEdit({ key: "k", label: "Translate and review", scope: "s", send: async () => {} });
+    recordPendingEdit({
+      key: "k",
+      label: "Translate and review",
+      scope: "s",
+      send: async () => {},
+    });
     const signOut = vi.fn().mockResolvedValue(undefined);
     render(<SignOut signOut={signOut} />);
     await userEvent.click(screen.getByText("Sign out now"));
