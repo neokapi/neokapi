@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -64,7 +64,7 @@ type ApprovePassingResponse struct {
 // self-approval.
 //
 // POST /:ws/:id/review/approve-passing { "stream"?: "main", "locales"?: ["fr"] }
-func (s *Server) HandleApprovePassing(c echo.Context) error {
+func (s *Server) HandleApprovePassing(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermReview); err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 // the caller's language scope. Each decision carries reasons in the ledger:
 // the review plan's settle step passes "review policy". The items of
 // skipCollections are left alone ("" names the items in no collection).
-func (s *Server) approvePassing(c echo.Context, proj *platstore.Project, stream string, wantedLocales, reasons, skipCollections []string) (ApprovePassingResponse, error) {
+func (s *Server) approvePassing(c *echo.Context, proj *platstore.Project, stream string, wantedLocales, reasons, skipCollections []string) (ApprovePassingResponse, error) {
 	ctx := c.Request().Context()
 	pid := proj.ID
 	skipItems, err := itemsInCollections(ctx, s.ContentStore, pid, stream, skipCollections)

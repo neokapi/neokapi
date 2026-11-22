@@ -1,16 +1,24 @@
 # Open a deck from the Review tab: the languages waiting for the test user
-# across projects, then the whole language from its collections. The test user needs review permission in the project
-# named, and something waiting in the language.
+# across projects, then the whole language from its collections. The test user
+# needs review permission in the project named, and something waiting in the
+# language; `node e2e/seed.mjs` makes such a project.
 #
 #   -e PROJECT=<project id> -e LOCALE=nb
+#
+# The languages come after each followed project's plan, so the flow scrolls
+# down to the project's language.
 appId: cloud.bowrain.app
 ---
 - runFlow: sign-in.yaml
 - tapOn: "Review"
 - extendedWaitUntil:
     visible:
-      id: inbox-${PROJECT}-${LOCALE}
+      id: inbox-list
     timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: inbox-${PROJECT}-${LOCALE}
+    timeout: 30000
 - tapOn:
     id: inbox-${PROJECT}-${LOCALE}
 - extendedWaitUntil:
@@ -19,6 +27,13 @@ appId: cloud.bowrain.app
     timeout: 20000
 - tapOn:
     id: collection-all
+# The deck opens on its pages; the cards hold the decisions.
+- extendedWaitUntil:
+    visible:
+      id: deck-view-cards
+    timeout: 20000
+- tapOn:
+    id: deck-view-cards
 - extendedWaitUntil:
     visible:
       id: review-card

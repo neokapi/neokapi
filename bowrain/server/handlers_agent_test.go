@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/labstack/echo/v5"
 	bragent "github.com/neokapi/neokapi/bowrain/agent"
 	platagent "github.com/neokapi/neokapi/bowrain/core/agent"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -42,8 +43,7 @@ func TestHandleCreateBravoConversation(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("user_id", "user-1")
 	c.Set("workspace_id", "ws-1")
 
@@ -66,8 +66,7 @@ func TestHandleListBravoConversations_Empty(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("user_id", "user-1")
 	c.Set("workspace_id", "ws-1")
 
@@ -96,8 +95,7 @@ func TestHandleGetBravoConversation(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 	c.Set("user_id", "user-1")
 	c.Set("workspace_id", "ws-1")
 
@@ -126,8 +124,7 @@ func TestHandleSendBravoMessage(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 	c.Set("user_id", "user-1")
 	c.Set("workspace_id", "ws-1")
 
@@ -159,8 +156,7 @@ func TestHandleSendBravoMessage_EmptyContent(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 	c.Set("user_id", "user-1")
 	c.Set("workspace_id", "ws-1")
 
@@ -182,8 +178,7 @@ func TestHandleListBravoMessages(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 
 	err = srv.HandleListBravoMessages(c)
 	require.NoError(t, err)
@@ -206,8 +201,7 @@ func TestHandleDeleteBravoConversation(t *testing.T) {
 	req := httptest.NewRequest(http.MethodDelete, "/", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 
 	err = srv.HandleDeleteBravoConversation(c)
 	require.NoError(t, err)
@@ -225,8 +219,7 @@ func TestHandleCancelBravoConversation(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 
 	err = srv.HandleCancelBravoConversation(c)
 	require.NoError(t, err)
@@ -240,8 +233,7 @@ func TestHandleGetBravoConfig(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("workspace_id", "ws-1")
 
 	err := srv.HandleGetBravoConfig(c)
@@ -263,8 +255,7 @@ func TestHandleUpdateBravoConfig(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("workspace_id", "ws-1")
 	c.Set("workspace_role", platauth.RoleAdmin)
 
@@ -287,8 +278,7 @@ func TestHandleUpdateBravoConfig_RequiresAdmin(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("workspace_id", "ws-1")
 	c.Set("workspace_role", platauth.RoleMember)
 
@@ -304,8 +294,7 @@ func TestHandleListBravoTools(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("workspace_id", "ws-1")
 
 	err := srv.HandleListBravoTools(c)
@@ -328,8 +317,7 @@ func TestHandleSendBravoMessage_SSEStream(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", conv.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: conv.ID}})
 	c.Set("user_id", "user-1")
 	c.Set("workspace_id", "ws-1")
 	c.Set("workspace_role", platauth.RoleMember)
@@ -353,8 +341,7 @@ func TestHandleAgentNotConfigured(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}})
 	c.Set("workspace_id", "ws-1")
 
 	err := srv.HandleGetBravoConfig(c)

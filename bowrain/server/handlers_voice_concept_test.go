@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
@@ -41,8 +42,7 @@ func TestHandleCheckVoice_WholeWordAndConceptID(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("ws", "id")
-		c.SetParamValues("check", profile.ID)
+		c.SetPathValues(echo.PathValues{{Name: "ws", Value: "check"}, {Name: "id", Value: profile.ID}})
 		// WorkspaceAccessMiddleware sets workspace_id in production; set it here so
 		// the handler's cross-tenant guard (profile.WorkspaceID must match the
 		// request workspace) resolves to the profile's own workspace.

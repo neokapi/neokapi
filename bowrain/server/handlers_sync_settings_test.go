@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -38,8 +39,7 @@ func commitWithSettings(t *testing.T, s *Server, projectID, stream string, perms
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := s.GetEcho().NewContext(r, rec)
-	c.SetParamNames("ws", "id", "ref")
-	c.SetParamValues("test", projectID, stream)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "test"}, {Name: "id", Value: projectID}, {Name: "ref", Value: stream}})
 	c.Set("workspace_id", "test-ws")
 	c.Set("user_id", "test-user")
 	c.Set("project_permissions", perms)
@@ -277,8 +277,7 @@ func TestSyncPush_InitPredictsRefusals(t *testing.T) {
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := srv.GetEcho().NewContext(r, rec)
-	c.SetParamNames("ws", "id", "ref")
-	c.SetParamValues("test", pid, "main")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "test"}, {Name: "id", Value: pid}, {Name: "ref", Value: "main"}})
 	c.Set("user_id", "test-user")
 	c.Set("project_permissions", platauth.DefaultPermissionsForRole(platauth.RoleMember).Permissions)
 	require.NoError(t, srv.HandleSyncPushInit(c))

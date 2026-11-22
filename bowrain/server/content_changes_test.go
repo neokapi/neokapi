@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -25,8 +25,7 @@ func readTargetRevision(t *testing.T, srv *Server, pid, bid, locale string) stri
 	r := httptest.NewRequest(http.MethodGet, "/api/v1/acme/"+pid+"/blocks/main?item=greetings.txt", nil)
 	w := httptest.NewRecorder()
 	c := e.NewContext(r, w)
-	c.SetParamNames("ws", "id", "ref")
-	c.SetParamValues("acme", pid, "main")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: pid}, {Name: "ref", Value: "main"}})
 	require.NoError(t, srv.HandleGetFileBlocks(c))
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 	var payload []struct {

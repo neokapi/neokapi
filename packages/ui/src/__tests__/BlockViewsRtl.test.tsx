@@ -56,7 +56,7 @@ describe("BlockInspector — writing direction", () => {
       ...arabicBlock,
       sourceLocale: "en",
       source: [{ text: "Welcome to Kapi Mart" }],
-      targets: { "ar-EG#formal": [{ text: "مرحباً بك في كابي مارت" }] },
+      targets: { "ar-EG;tone=formal": [{ text: "مرحباً بك في كابي مارت" }] },
     };
     const c = renderEl(createElement(BlockInspector, { node: block, defaultOpen: true }));
     const rtl = c.querySelector('[dir="rtl"]');

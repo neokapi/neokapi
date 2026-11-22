@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -73,7 +73,7 @@ func overviewReaderSQLiteServer(t *testing.T, caller *decideCaller) (*Server, *e
 	srv.wsStores.termsFactory = func() terms.Store { return &testTermStore{terms.NewInMemoryStore()} }
 	e := echo.New()
 	g := e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("user_id", caller.userID)
 			c.Set("workspace_id", "ws")
 			c.Set("project_permissions", caller.perms)
@@ -325,7 +325,7 @@ func overviewReaderPgServer(t *testing.T, caller *decideCaller) (*Server, *echo.
 	srv.wsStores.termsFactory = func() terms.Store { return &testTermStore{terms.NewInMemoryStore()} }
 	e := echo.New()
 	g := e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("user_id", caller.userID)
 			c.Set("workspace_id", "ws")
 			c.Set("project_permissions", caller.perms)
@@ -491,7 +491,7 @@ func TestReaderFix_KeepsInlineCodesThroughApproval(t *testing.T) {
 	caller := &decideCaller{userID: ownerID, perms: platauth.PermViewContent | platauth.PermReview}
 	e := echo.New()
 	g := e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("user_id", caller.userID)
 			c.Set("workspace_id", wsID)
 			c.Set("project_permissions", caller.perms)

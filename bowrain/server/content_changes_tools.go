@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/changes"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/change"
@@ -60,7 +60,7 @@ func (p *toolPass) commit(ctx context.Context, commit commitDrafts, tool string,
 // commitTo returns the commitDrafts of one stream of proj. c is the request
 // that started the action, which watchers' refresh events are sent on; nil
 // sends none.
-func (s *Server) commitTo(c echo.Context, proj *store.Project, stream, wsID string) commitDrafts {
+func (s *Server) commitTo(c *echo.Context, proj *store.Project, stream, wsID string) commitDrafts {
 	return func(ctx context.Context, tool string, drafts []changes.Draft) ([]string, error) {
 		sc := s.newStreamChange(ctx, c, proj, stream, wsID, "", changeSender{})
 		ctx, _ = changes.WithChange(ctx, "")
@@ -74,7 +74,7 @@ func (s *Server) commitTo(c echo.Context, proj *store.Project, stream, wsID stri
 }
 
 // requestCommit is the commitDrafts of the stream a request names.
-func (s *Server) requestCommit(c echo.Context, projectID string) (commitDrafts, error) {
+func (s *Server) requestCommit(c *echo.Context, projectID string) (commitDrafts, error) {
 	proj, err := s.ContentStore.GetProject(c.Request().Context(), projectID)
 	if err != nil {
 		return nil, err

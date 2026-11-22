@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -41,7 +41,7 @@ type requestActor struct {
 }
 
 // requestActorOf reads who the request acts as.
-func requestActorOf(c echo.Context) requestActor {
+func requestActorOf(c *echo.Context) requestActor {
 	userID, _ := c.Get("user_id").(string)
 	a := requestActor{Kind: actorKindPerson, UserID: userID}
 	if tool, _ := c.Get(toolNameKey).(string); tool != "" {
@@ -84,7 +84,7 @@ const reviewDeniedToTools = platauth.PermReview
 // work is reviewed by a person, and the member who issued the token reviews
 // it as an agent's (contextop.BasisAgentAuthored), never through the token.
 func (s *Server) refuseTool(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		if a := requestActorOf(c); a.isTool() {
 			s.emitAudit(c, auditEvent{
 				Type:      platev.EventAuthzDenied,

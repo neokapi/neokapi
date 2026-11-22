@@ -4,7 +4,7 @@
 // work waiting come first, in the server's order otherwise.
 import type { Project, Workspace } from "@neokapi/bowrain-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Redirect, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo } from "react";
 import { FlatList, View } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -14,10 +14,18 @@ import { ProjectCard } from "../../../../components/home/HomeCards";
 import { EmptyState, SkeletonCards } from "../../../../components/home/parts";
 import { useAuth } from "../../../../lib/auth";
 import { projectKey, summarize, useReviewHome } from "../../../../lib/home";
+import { routeValue } from "../../../../lib/routeParams";
 
+// The screen waits for a workspace: a parameter that is a route group's name
+// is no workspace, and leads back to the list.
 export default function Projects() {
+  const ws = routeValue(useLocalSearchParams<{ ws: string }>().ws);
+  if (ws === undefined) return <Redirect href="/workspaces" />;
+  return <ProjectList ws={ws} />;
+}
+
+function ProjectList({ ws }: { ws: string }) {
   const { t } = useTranslation();
-  const { ws } = useLocalSearchParams<{ ws: string }>();
   const { client } = useAuth();
   const qc = useQueryClient();
   const projects = useQuery({ queryKey: ["projects", ws], queryFn: () => client.projects(ws) });

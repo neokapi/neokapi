@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -26,7 +26,7 @@ import (
 // the number QuotaGuard actually enforces — so the client can show a Free
 // workspace its remaining trial credits.
 // GET /api/v1/:ws/billing
-func (s *Server) HandleGetBilling(c echo.Context) error {
+func (s *Server) HandleGetBilling(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -108,7 +108,7 @@ type BillingUsageResponse struct {
 // correct however small the page is; entries is the ?limit/?offset page,
 // narrowed by ?operation. total counts the entries the same filter matches.
 // GET /api/v1/:ws/billing/usage
-func (s *Server) HandleGetBillingUsage(c echo.Context) error {
+func (s *Server) HandleGetBillingUsage(c *echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
@@ -170,7 +170,7 @@ func (s *Server) HandleGetBillingUsage(c echo.Context) error {
 
 // HandleGetBillingModelUsage returns token usage grouped by model and operation.
 // GET /api/v1/workspaces/:ws/billing/model-usage
-func (s *Server) HandleGetBillingModelUsage(c echo.Context) error {
+func (s *Server) HandleGetBillingModelUsage(c *echo.Context) error {
 	if s.QuotaStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "usage tracking not configured"})
 	}
@@ -227,7 +227,7 @@ func (s *Server) HandleGetBillingModelUsage(c echo.Context) error {
 // not-yet-provisioned deployment every plan comes back purchasable=false and the
 // UI shows no upgrade buttons rather than buttons that 503.
 // GET /api/v1/:ws/billing/plans
-func (s *Server) HandleListPlans(c echo.Context) error {
+func (s *Server) HandleListPlans(c *echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 
 	current := billing.PlanFree
@@ -275,7 +275,7 @@ func (s *Server) priceForPlan(plan billing.Plan) string {
 // authenticated owner check out against any price in the Stripe account,
 // including a $0 one.)
 // POST /api/v1/:ws/billing/checkout
-func (s *Server) HandleCreateCheckout(c echo.Context) error {
+func (s *Server) HandleCreateCheckout(c *echo.Context) error {
 	if s.StripeClient == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "stripe not configured"})
 	}
@@ -399,7 +399,7 @@ const maxCheckoutSeats = 50
 
 // HandleCreatePortal creates a Stripe Customer Portal session and returns the URL.
 // POST /api/v1/:ws/billing/portal
-func (s *Server) HandleCreatePortal(c echo.Context) error {
+func (s *Server) HandleCreatePortal(c *echo.Context) error {
 	if s.StripeClient == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "stripe not configured"})
 	}
@@ -435,7 +435,7 @@ func (s *Server) HandleCreatePortal(c echo.Context) error {
 
 // HandleGetInvoices returns invoice history from Stripe.
 // GET /api/v1/:ws/billing/invoices
-func (s *Server) HandleGetInvoices(c echo.Context) error {
+func (s *Server) HandleGetInvoices(c *echo.Context) error {
 	if s.StripeClient == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "stripe not configured"})
 	}
@@ -460,7 +460,7 @@ func (s *Server) HandleGetInvoices(c echo.Context) error {
 
 // HandleBuyCredits creates a one-time Stripe Checkout session for purchasing credit packs.
 // POST /api/v1/:ws/billing/buy-credits
-func (s *Server) HandleBuyCredits(c echo.Context) error {
+func (s *Server) HandleBuyCredits(c *echo.Context) error {
 	if s.StripeClient == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "stripe not configured"})
 	}
@@ -517,7 +517,7 @@ func (s *Server) HandleBuyCredits(c echo.Context) error {
 
 // HandleStripeWebhook processes incoming Stripe webhook events.
 // POST /api/webhooks/stripe
-func (s *Server) HandleStripeWebhook(c echo.Context) error {
+func (s *Server) HandleStripeWebhook(c *echo.Context) error {
 	if s.WebhookHandler == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "stripe webhooks not configured"})
 	}

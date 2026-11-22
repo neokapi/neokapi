@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // MetricsAccessMiddleware gates the Prometheus /metrics endpoint, which would
@@ -29,7 +29,7 @@ import (
 // server's other tenancy 404s).
 func MetricsAccessMiddleware(token string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			if token != "" {
 				if metricsBearerMatches(c, token) {
 					return next(c)
@@ -46,7 +46,7 @@ func MetricsAccessMiddleware(token string) echo.MiddlewareFunc {
 
 // metricsBearerMatches reports whether the request carries a Bearer token equal
 // to want, compared in constant time to avoid leaking the token via timing.
-func metricsBearerMatches(c echo.Context, want string) bool {
+func metricsBearerMatches(c *echo.Context, want string) bool {
 	got, ok := strings.CutPrefix(c.Request().Header.Get("Authorization"), "Bearer ")
 	if !ok {
 		return false

@@ -51,9 +51,9 @@ describe("SubtitleTimeline — writing direction", () => {
     const t = cueTree({
       sourceLocale: "en",
       source: [{ text: "Hello world" }],
-      targets: { "ar-EG#formal": [{ text: "مرحباً بالعالم" }] },
+      targets: { "ar-EG;tone=formal": [{ text: "مرحباً بالعالم" }] },
     });
-    const c = render(createElement(SubtitleTimeline, { tree: t, side: "ar-EG#formal" }));
+    const c = render(createElement(SubtitleTimeline, { tree: t, side: "ar-EG;tone=formal" }));
     const row = c.querySelector('[data-testid="cue-target"]');
     expect(row?.getAttribute("dir")).toBe("rtl");
     expect(row?.getAttribute("lang")).toBe("ar-EG");

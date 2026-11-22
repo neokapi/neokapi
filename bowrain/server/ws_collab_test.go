@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -67,8 +67,7 @@ func TestCollabWebSocket_RequiresLocale(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/ws1/p1/collab/main?item=file.html", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "pid")
-	c.SetParamValues("ws1", "p1")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "ws1"}, {Name: "pid", Value: "p1"}})
 
 	err := s.HandleCollabWebSocket(c)
 	require.Error(t, err)
@@ -84,8 +83,7 @@ func TestCollabWebSocket_RequiresAuth(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/ws1/p1/collab/main?item=file.html&locale=fr", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "pid")
-	c.SetParamValues("ws1", "p1")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "ws1"}, {Name: "pid", Value: "p1"}})
 
 	err := s.HandleCollabWebSocket(c)
 	require.Error(t, err)
@@ -98,7 +96,7 @@ func TestCollabWebSocket_RelayMessages(t *testing.T) {
 	s := &Server{collabHub: newCollabHub()}
 	e := echo.New()
 	e.GET("/ws/:ws/:pid/:fname", s.HandleCollabWebSocket, func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			// Inject auth context for test.
 			c.Set("user_id", c.Request().Header.Get("X-Test-User-ID"))
 			c.Set("user_name", c.Request().Header.Get("X-Test-User-Name"))

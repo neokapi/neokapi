@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,14 +28,14 @@ func TestAdminAuthMiddleware(t *testing.T) {
 
 	guardCalled := false
 	guard := func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			guardCalled = true
 			return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "no bearer"})
 		}
 	}
 	mw := s.adminAuthMiddleware(guard)
 
-	run := func(method string, cookieVal string, csrf bool) (*httptest.ResponseRecorder, echo.Context, bool) {
+	run := func(method string, cookieVal string, csrf bool) (*httptest.ResponseRecorder, *echo.Context, bool) {
 		guardCalled = false
 		e := echo.New()
 		req := httptest.NewRequest(method, "/api/admin/x", nil)
@@ -48,7 +48,7 @@ func TestAdminAuthMiddleware(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		reached := false
-		h := mw(func(c echo.Context) error { reached = true; return c.NoContent(http.StatusOK) })
+		h := mw(func(c *echo.Context) error { reached = true; return c.NoContent(http.StatusOK) })
 		_ = h(c)
 		return rec, c, reached
 	}

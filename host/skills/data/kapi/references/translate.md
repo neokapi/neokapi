@@ -38,7 +38,7 @@ kapi extract --target-lang fr                  # → out/<name>.en-to-fr.xliff (
 kapi merge -i out/*.xliff                       # XLIFF/PO come via -i (repeatable); only a .kpz may be positional
 kapi check --ship --json                              # the gate: voice + terminology + rule-based checks in one shot (prefer this)
 kapi exec term-check ./locales/en.json --target ./locales/fr.json --target-lang fr   # source POSITIONAL, its translation via --target; reports, exits 0
-kapi terms lookup "board" -t fr              # approved wording; terms uses -s/-t, not --*-lang
+kapi terms lookup "board" -t fr              # approved wording; -s/-t, not --*-lang; -s defaults to the project's source language
 kapi store locales/en.json                    # the voice and terms that apply to the file
 ```
 

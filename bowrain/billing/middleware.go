@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/apierror"
@@ -24,7 +24,7 @@ const ContextKeyFeatureOverrides = "feature_overrides"
 
 // OverridesFromContext returns the per-workspace feature overrides stored on the
 // echo context by the feature-overrides middleware, or nil if none are set.
-func OverridesFromContext(c echo.Context) map[Feature]bool {
+func OverridesFromContext(c *echo.Context) map[Feature]bool {
 	o, _ := c.Get(ContextKeyFeatureOverrides).(map[Feature]bool)
 	return o
 }
@@ -35,7 +35,7 @@ func OverridesFromContext(c echo.Context) map[Feature]bool {
 // When billing is not configured (plan is empty), all features are allowed.
 func PlanGuard(feature Feature, onBlock ...GuardEventFunc) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			planStr, _ := c.Get(contextKeyWorkspacePlan).(string)
 			// When billing is not configured or plan is not set, allow all.
 			if planStr == "" {
@@ -81,7 +81,7 @@ type GuardEventFunc func(event string, workspaceID string, props map[string]any)
 //
 // Like PlanGuard, it allows everything when no plan is on the context (billing
 // not configured — a self-hosted deployment gates nothing).
-func RequireFeature(c echo.Context, feature Feature, onBlock ...GuardEventFunc) error {
+func RequireFeature(c *echo.Context, feature Feature, onBlock ...GuardEventFunc) error {
 	planStr, _ := c.Get(contextKeyWorkspacePlan).(string)
 	if planStr == "" {
 		return nil
@@ -112,7 +112,7 @@ func RequireFeature(c echo.Context, feature Feature, onBlock ...GuardEventFunc) 
 // When billing is not configured (store is nil or plan is empty), all requests pass.
 func QuotaGuard(store BillingStore, onBlock ...GuardEventFunc) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			// When billing is not configured, allow all.
 			if store == nil {
 				return next(c)
@@ -155,7 +155,7 @@ func QuotaGuard(store BillingStore, onBlock ...GuardEventFunc) echo.MiddlewareFu
 // a Free workspace's way forward is an upgrade or a credit pack, which the
 // client copy explains) and fires the optional analytics callback. Shared by
 // QuotaGuard (middleware) and GuardSyncCredits (handler).
-func creditsExhaustedResponse(c echo.Context, plan Plan, onBlock ...GuardEventFunc) error {
+func creditsExhaustedResponse(c *echo.Context, plan Plan, onBlock ...GuardEventFunc) error {
 	retryAfter := MonthEnd(time.Now().UTC())
 	c.Response().Header().Set("Retry-After", retryAfter.Format(time.RFC1123))
 	if len(onBlock) > 0 && onBlock[0] != nil {
@@ -182,7 +182,7 @@ func creditsExhaustedResponse(c echo.Context, plan Plan, onBlock ...GuardEventFu
 // Like QuotaGuard, it degrades to allow when billing is not configured, the plan
 // is empty or enterprise, there is no workspace context, or the balance is
 // unreadable — so a self-hosted or misconfigured deployment is never blocked.
-func GuardSyncCredits(c echo.Context, store BillingStore, byo bool, onBlock ...GuardEventFunc) error {
+func GuardSyncCredits(c *echo.Context, store BillingStore, byo bool, onBlock ...GuardEventFunc) error {
 	if byo || store == nil {
 		return nil
 	}
@@ -215,7 +215,7 @@ func GuardSyncCredits(c echo.Context, store BillingStore, byo bool, onBlock ...G
 // It sets "admin_email" and "admin_name" on the context.
 func AdminGuard(idTokenVerifier, accessTokenVerifier *oidc.IDTokenVerifier) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			token := extractBearerToken(c)
 			if token == "" {
 				return echo.ErrUnauthorized
@@ -255,7 +255,7 @@ func AdminGuard(idTokenVerifier, accessTokenVerifier *oidc.IDTokenVerifier) echo
 }
 
 // extractBearerToken extracts a bearer token from the Authorization header.
-func extractBearerToken(c echo.Context) string {
+func extractBearerToken(c *echo.Context) string {
 	auth := c.Request().Header.Get("Authorization")
 	if auth == "" {
 		return ""

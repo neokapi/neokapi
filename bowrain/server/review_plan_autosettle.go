@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -114,7 +114,7 @@ func lastSettleOf(p *platstore.Project) *planSettleResultDTO {
 // project is under every (errSettleNone), once the first
 // pass is taken while the context is open (errSettleHeld), and while
 // another pass runs for the project (errSettleBusy).
-func (s *Server) settleReviewPlan(c echo.Context, ws *platauth.Workspace, projectID, stream string, locales []string, automatic bool) (reviewPlanSettleResponse, error) {
+func (s *Server) settleReviewPlan(c *echo.Context, ws *platauth.Workspace, projectID, stream string, locales []string, automatic bool) (reviewPlanSettleResponse, error) {
 	ctx := c.Request().Context()
 	release, ok := s.beginSettle(ctx, projectID)
 	if !ok {
@@ -322,15 +322,14 @@ func (s *Server) settleAfterRun(ctx context.Context, projectID, stream string) *
 // and project, and the permissions and languages they hold there. It lets
 // the pass the server runs share the settle step's code, which reads who
 // acts from the request.
-func (s *Server) actingContext(ctx context.Context, ws *platauth.Workspace, projectID string, a autoSettleActor) echo.Context {
+func (s *Server) actingContext(ctx context.Context, ws *platauth.Workspace, projectID string, a autoSettleActor) *echo.Context {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, "/", http.NoBody)
 	e := s.Echo
 	if e == nil {
 		e = echo.New()
 	}
 	c := e.NewContext(req, discardResponse{header: http.Header{}})
-	c.SetParamNames("ws", "id")
-	c.SetParamValues(ws.Slug, projectID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: ws.Slug}, {Name: "id", Value: projectID}})
 	c.Set("user_id", a.By)
 	c.Set("name", a.ByName)
 	c.Set("workspace_id", ws.ID)

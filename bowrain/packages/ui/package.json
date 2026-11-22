@@ -36,7 +36,7 @@
     "@neokapi/ui-primitives": "*",
     "@radix-ui/react-slot": "^1.5.0",
     "@tailwindcss/vite": "^4.3.5",
-    "lucide-react": "^1.70.0",
+    "lucide-react": "^1.76.0",
     "radix-ui": "^1.8.1",
     "recharts": "^3.10.1",
     "remark-gfm": "^4.0.1",
@@ -50,13 +50,13 @@
   "devDependencies": {
     "@lexical/react": "^0.53.0",
     "@rollup/pluginutils": "^5.5.1",
-    "@tanstack/react-query": "^5.107.1",
+    "@tanstack/react-query": "^5.108.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.10",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "jsdom": "^30.1.3",
+    "jsdom": "^31.0.1",
     "lexical": "^0.53.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -65,7 +65,7 @@
   },
   "peerDependencies": {
     "@lexical/react": "^0.53.0",
-    "@tanstack/react-query": "^5.107.1",
+    "@tanstack/react-query": "^5.108.0",
     "lexical": "^0.53.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

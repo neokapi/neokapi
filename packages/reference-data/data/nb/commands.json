@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T09:42:20Z",
+  "generatedAt": "2026-11-22T09:01:30Z",
   "commands": [
     {
       "id": "add",
@@ -6692,7 +6692,6 @@
           "name": "source-locale",
           "shorthand": "s",
           "usage": "kildespråkkode",
-          "default": "en",
           "type": "string"
         },
         {
@@ -8917,7 +8916,6 @@
           "name": "source-locale",
           "shorthand": "s",
           "usage": "kildespråkkode",
-          "default": "en",
           "type": "string"
         },
         {
@@ -9380,8 +9378,7 @@
       "examples": [
         "kapi translate messages.json --target-lang fr",
         "kapi translate docs/*.md --target-lang de -o out/{name}_{lang}.{ext}",
-        "kapi translate app.xliff --target-lang ja --provider ollama",
-        "kapi translate messages.json --target-lang fr --provider demo"
+        "kapi translate app.xliff --target-lang ja --provider ollama"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,

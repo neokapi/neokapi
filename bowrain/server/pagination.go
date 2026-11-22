@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // maxListPageSize caps a single page for the general list endpoints, so
@@ -21,7 +21,7 @@ const maxListPageSize = 1000
 //
 // This is the one place list endpoints derive their page bounds; a handler
 // copied from a neighbour inherits the clamp for free.
-func pageParams(c echo.Context, def, max int) (limit, offset int) {
+func pageParams(c *echo.Context, def, max int) (limit, offset int) {
 	limit = def
 	if v := c.QueryParam("limit"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
@@ -42,7 +42,7 @@ func pageParams(c echo.Context, def, max int) (limit, offset int) {
 // boolParam parses query flags with strconv.ParseBool. Missing, empty and invalid
 // values return false. Filters that must distinguish absent from false, such as
 // blockQueryFromRequest's translatable filter, must parse and validate separately.
-func boolParam(c echo.Context, name string) bool {
+func boolParam(c *echo.Context, name string) bool {
 	v, _ := strconv.ParseBool(c.QueryParam(name))
 	return v
 }
@@ -50,7 +50,7 @@ func boolParam(c echo.Context, name string) bool {
 // csvParam reads a comma-separated multi-value query parameter, trimming each
 // element and dropping empties. A missing or all-empty parameter returns nil,
 // which every consuming query reads as "no filter".
-func csvParam(c echo.Context, name string) []string {
+func csvParam(c *echo.Context, name string) []string {
 	raw := c.QueryParam(name)
 	if raw == "" {
 		return nil

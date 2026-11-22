@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 )
@@ -55,7 +55,7 @@ type modelRecommendationsResponse struct {
 // enough fixtures).
 //
 // GET /api/v1/:ws/:id/model-recommendations
-func (s *Server) HandleGetModelRecommendations(c echo.Context) error {
+func (s *Server) HandleGetModelRecommendations(c *echo.Context) error {
 	if s.SweepStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "model sweeps not configured"})
 	}
@@ -112,7 +112,7 @@ func (s *Server) HandleGetModelRecommendations(c echo.Context) error {
 // pre-check and no credit deduction.
 //
 // POST /api/v1/:ws/:id/model-recommendations/refresh
-func (s *Server) HandleRefreshModelRecommendations(c echo.Context) error {
+func (s *Server) HandleRefreshModelRecommendations(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -57,8 +57,7 @@ func approveScan(t *testing.T, srv *Server, scanID, body string) (*httptest.Resp
 	c.Set("project_permissions", platauth.PermAll)
 	c.Set("workspace_id", approveWSID)
 	c.Set("user_id", "u-approve")
-	c.SetParamNames("ws", "id")
-	c.SetParamValues(approveWSSlug, scanID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: approveWSSlug}, {Name: "id", Value: scanID}})
 	return rec, srv.HandleApproveContextScan(c)
 }
 
@@ -194,8 +193,7 @@ func TestContextScanApprove_RequiresManageVoice(t *testing.T) {
 	c := srv.GetEcho().NewContext(req, rec)
 	c.Set("project_permissions", platauth.PermViewContent)
 	c.Set("workspace_id", approveWSID)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues(approveWSSlug, scanID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: approveWSSlug}, {Name: "id", Value: scanID}})
 
 	assert.Error(t, srv.HandleApproveContextScan(c))
 }

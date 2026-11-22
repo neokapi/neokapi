@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -246,7 +248,8 @@ func (s *PostgresStore) MergeStream(ctx context.Context, projectID, streamName s
 	for _, c := range changes.Changes {
 		blockChanges[c.BlockID] = c.ChangeType
 	}
-	for blockID, changeType := range blockChanges {
+	for _, blockID := range slices.Sorted(maps.Keys(blockChanges)) {
+		changeType := blockChanges[blockID]
 		var ct platstore.ChangeType
 		switch {
 		case changeType == "source_added":
@@ -291,7 +294,8 @@ func (s *PostgresStore) MergeStream(ctx context.Context, projectID, streamName s
 		return nil, fmt.Errorf("fast-forward %q onto %q: %w", parentStream, streamName, err)
 	}
 
-	for blockID, changeType := range blockChanges {
+	for _, blockID := range slices.Sorted(maps.Keys(blockChanges)) {
+		changeType := blockChanges[blockID]
 		if err := logChange(ctx, tx, projectID, parentStream, blockID, changeType, "", ""); err != nil {
 			return nil, fmt.Errorf("log merge change: %w", err)
 		}

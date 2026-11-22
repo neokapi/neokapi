@@ -20,7 +20,7 @@ import (
 
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -180,8 +180,7 @@ func postForgeWebhook(s *Server, cfgID string, body string, headers map[string]s
 	}
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("configID")
-	c.SetParamValues(cfgID)
+	c.SetPathValues(echo.PathValues{{Name: "configID", Value: cfgID}})
 	_ = s.HandleForgeWebhook(c)
 	return rec
 }

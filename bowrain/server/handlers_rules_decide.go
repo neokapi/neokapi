@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -75,7 +75,7 @@ var errNoProject = errors.New("project not found")
 
 // decideState reads a project for a Decide call made by the request's
 // member.
-func (s *Server) decideState(c echo.Context) (*decideState, error) {
+func (s *Server) decideState(c *echo.Context) (*decideState, error) {
 	if s.ContentStore == nil {
 		return nil, errors.New("content store not configured")
 	}
@@ -385,7 +385,7 @@ const errCannotDecide = "That member cannot decide here"
 // permissions on the project, resolved as a request of theirs would be,
 // include one that governs a rule, by name. Without an auth store there are
 // no members to list, and ok is false.
-func (s *Server) projectDeciders(c echo.Context, proj *platstore.Project) (out []ruleAssignee, ok bool, err error) {
+func (s *Server) projectDeciders(c *echo.Context, proj *platstore.Project) (out []ruleAssignee, ok bool, err error) {
 	if s.AuthStore == nil {
 		return nil, false, nil
 	}
@@ -417,7 +417,7 @@ func (s *Server) projectDeciders(c echo.Context, proj *platstore.Project) (out [
 // members a question of the project can be assigned to: those whose
 // permissions on it govern a rule. Only a member who governs a rule there
 // may read it, as only such a member assigns.
-func (s *Server) HandleRuleAssignees(c echo.Context) error {
+func (s *Server) HandleRuleAssignees(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -441,7 +441,7 @@ func (s *Server) HandleRuleAssignees(c echo.Context) error {
 }
 
 // decideError answers an error reading a Decide call's state.
-func decideError(c echo.Context, err error) error {
+func decideError(c *echo.Context, err error) error {
 	if errors.Is(err, errNoProject) {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
@@ -451,7 +451,7 @@ func decideError(c echo.Context, err error) error {
 // HandleRulesDecideView answers GET /:ws/:id/rules/:ref/decide with every
 // question waiting for a decision (screens.RulesDecideViewDTO), each option
 // counted over the stream's blocks.
-func (s *Server) HandleRulesDecideView(c echo.Context) error {
+func (s *Server) HandleRulesDecideView(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -491,7 +491,7 @@ type ruleConsequence struct {
 // /:ws/:id/rules/:ref/decide/consequence?id=&form= with what keeping the name
 // id names, with form as the one to write, does: the sentence
 // rulesview.Counter.Consequence writes, counted over the stream's blocks.
-func (s *Server) HandleRulesDecideConsequence(c echo.Context) error {
+func (s *Server) HandleRulesDecideConsequence(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -545,7 +545,7 @@ func (e *decideRefusal) Error() string { return e.msg }
 // nothing. The member needs the permission the subject's kind takes
 // (governingPermission) over the coordinates the suggestion holds at. The
 // records of one answer are written together or not at all.
-func (s *Server) HandleDecideRule(c echo.Context) error {
+func (s *Server) HandleDecideRule(c *echo.Context) error {
 	var req ruleDecideRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
@@ -713,7 +713,7 @@ type ruleAssignment struct {
 // question id names to a member, or to no one. An assignment is team
 // workflow and records nothing in the ledger. It needs the permission
 // deciding the question needs.
-func (s *Server) HandleAssignRule(c echo.Context) error {
+func (s *Server) HandleAssignRule(c *echo.Context) error {
 	var req ruleAssignRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
@@ -781,7 +781,7 @@ func (s *Server) HandleAssignRule(c echo.Context) error {
 // HandleKeptRules answers GET /:ws/:id/rules/:ref/kept with every rule in
 // force the project's ledger holds (screens.KeptRuleDTO), newest first, each
 // with who put it in force and when, as the member sees them.
-func (s *Server) HandleKeptRules(c echo.Context) error {
+func (s *Server) HandleKeptRules(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -868,7 +868,7 @@ type contextQueue struct {
 // of the workspace the caller can view, how many questions wait for a
 // decision and how many of them are assigned to the caller. A project whose
 // context no push has bound counts none.
-func (s *Server) HandleContextQueue(c echo.Context) error {
+func (s *Server) HandleContextQueue(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "content store not configured"})
 	}
@@ -926,7 +926,7 @@ func (s *Server) HandleContextQueue(c echo.Context) error {
 // resolved as the project access middleware resolves it for a request that
 // names the project. Without an auth store, the request's own permissions
 // answer.
-func (s *Server) canViewProject(c echo.Context, projectID string) bool {
+func (s *Server) canViewProject(c *echo.Context, projectID string) bool {
 	if s.AuthStore == nil {
 		return hasPermission(c, platauth.PermViewContent)
 	}

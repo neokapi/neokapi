@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/event"
@@ -67,7 +67,7 @@ func (s *Server) validateAutomationRule(ctx context.Context, projectID string, i
 
 // ruleValidationResponse answers a validation failure: 400 for a rule the
 // caller can fix, 500 for a store failure met while checking it.
-func ruleValidationResponse(c echo.Context, err error) error {
+func ruleValidationResponse(c *echo.Context, err error) error {
 	if errors.Is(err, errInvalidAutomationRule) {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
@@ -75,7 +75,7 @@ func ruleValidationResponse(c echo.Context, err error) error {
 }
 
 // HandleListAutomationRules returns all automation rules for a project.
-func (s *Server) HandleListAutomationRules(c echo.Context) error {
+func (s *Server) HandleListAutomationRules(c *echo.Context) error {
 	projectID := c.Param("id")
 	if s.AutomationRuleStore == nil {
 		return c.JSON(http.StatusOK, []event.StoredRule{})
@@ -92,7 +92,7 @@ func (s *Server) HandleListAutomationRules(c echo.Context) error {
 }
 
 // HandleCreateAutomationRule creates a new automation rule.
-func (s *Server) HandleCreateAutomationRule(c echo.Context) error {
+func (s *Server) HandleCreateAutomationRule(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageAutomation); err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func (s *Server) HandleCreateAutomationRule(c echo.Context) error {
 }
 
 // HandleUpdateAutomationRule updates an existing rule.
-func (s *Server) HandleUpdateAutomationRule(c echo.Context) error {
+func (s *Server) HandleUpdateAutomationRule(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageAutomation); err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func (s *Server) HandleUpdateAutomationRule(c echo.Context) error {
 }
 
 // HandleDeleteAutomationRule deletes a custom rule.
-func (s *Server) HandleDeleteAutomationRule(c echo.Context) error {
+func (s *Server) HandleDeleteAutomationRule(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageAutomation); err != nil {
 		return err
 	}
@@ -186,7 +186,7 @@ func (s *Server) HandleDeleteAutomationRule(c echo.Context) error {
 }
 
 // HandleToggleAutomationRule enables or disables a rule.
-func (s *Server) HandleToggleAutomationRule(c echo.Context) error {
+func (s *Server) HandleToggleAutomationRule(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageAutomation); err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func (s *Server) HandleToggleAutomationRule(c echo.Context) error {
 // publishes them, so they are absent.
 // TestListAutomationEvents_EveryOfferedTriggerHasAPublisher reads the platform's
 // source for a publisher of every type offered here.
-func (s *Server) HandleListAutomationEvents(c echo.Context) error {
+func (s *Server) HandleListAutomationEvents(c *echo.Context) error {
 	events := []struct {
 		Type        string `json:"type"`
 		Description string `json:"description"`
@@ -235,7 +235,7 @@ func (s *Server) HandleListAutomationEvents(c echo.Context) error {
 // HandleListAutomationHistory returns one page of execution history, newest
 // first: {entries, next_cursor}. ?limit bounds the page, ?cursor continues from
 // a previous one.
-func (s *Server) HandleListAutomationHistory(c echo.Context) error {
+func (s *Server) HandleListAutomationHistory(c *echo.Context) error {
 	if s.AutomationRuleStore == nil {
 		return c.JSON(http.StatusOK, event.HistoryPage{Entries: []event.HistoryEntry{}})
 	}

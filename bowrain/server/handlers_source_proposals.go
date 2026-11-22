@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -69,7 +69,7 @@ type DecideSourceProposalRequest struct {
 // project — the source owner's review surface.
 //
 // GET /:ws/:id/source-proposals
-func (s *Server) HandleListSourceProposals(c echo.Context) error {
+func (s *Server) HandleListSourceProposals(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (s *Server) HandleListSourceProposals(c echo.Context) error {
 // PermEditSource owner must approve first.
 //
 // POST /:ws/:id/source-proposals
-func (s *Server) HandleCreateSourceProposal(c echo.Context) error {
+func (s *Server) HandleCreateSourceProposal(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermReview); err != nil {
 		return err
 	}
@@ -150,7 +150,7 @@ func (s *Server) HandleCreateSourceProposal(c echo.Context) error {
 // by the request's member, and puts a source-review task in the source
 // owners' queue. proj may be nil, which files the proposal under the
 // request's project id and creates no task.
-func (s *Server) fileSourceProposal(ctx context.Context, c echo.Context, proj *platstore.Project, stream, itemName string, block *model.Block,
+func (s *Server) fileSourceProposal(ctx context.Context, c *echo.Context, proj *platstore.Project, stream, itemName string, block *model.Block,
 	kind bstore.SourceProposalKind, proposed, rationale, foundIn string,
 ) (*bstore.ProposedSourceChange, error) {
 	wsID, _ := c.Get("workspace_id").(string)
@@ -189,7 +189,7 @@ func (s *Server) fileSourceProposal(ctx context.Context, c echo.Context, proj *p
 // changes the source and fans out to every locale.
 //
 // POST /:ws/:id/source-proposals/:pid/decide
-func (s *Server) HandleDecideSourceProposal(c echo.Context) error {
+func (s *Server) HandleDecideSourceProposal(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermEditSource); err != nil {
 		return err
 	}
@@ -266,7 +266,7 @@ func (s *Server) HandleDecideSourceProposal(c echo.Context) error {
 //
 // A target the ledger has no record of stays untouched and is not re-drafted:
 // the platform did not write it and has nothing to say about what it translates.
-func (s *Server) applySourceProposal(c echo.Context, p *bstore.ProposedSourceChange) (bool, error) {
+func (s *Server) applySourceProposal(c *echo.Context, p *bstore.ProposedSourceChange) (bool, error) {
 	ctx := c.Request().Context()
 	stream := p.Stream
 	if stream == "" {

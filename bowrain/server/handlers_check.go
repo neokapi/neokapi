@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
@@ -57,7 +57,7 @@ type CheckRequest struct {
 
 // bindCheckRequest reads the request body, falling back to the query string
 // for each field it leaves empty.
-func bindCheckRequest(c echo.Context) CheckRequest {
+func bindCheckRequest(c *echo.Context) CheckRequest {
 	var req CheckRequest
 	_ = c.Bind(&req)
 	if req.BlockID == "" {
@@ -83,7 +83,7 @@ func firstNonEmpty(values ...string) string {
 
 // HandleCheckBlock runs the checks in force on a single block.
 // POST /:ws/:id/actions/:ref/qa-check-block  {block_id, locale}
-func (s *Server) HandleCheckBlock(c echo.Context) error {
+func (s *Server) HandleCheckBlock(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (s *Server) HandleCheckBlock(c echo.Context) error {
 
 // HandleCheckFile runs the checks in force on every block in an item.
 // POST /:ws/:id/actions/:ref/qa-check  {item, locale}
-func (s *Server) HandleCheckFile(c echo.Context) error {
+func (s *Server) HandleCheckFile(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}

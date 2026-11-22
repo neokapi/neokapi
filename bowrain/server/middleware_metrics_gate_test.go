@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,7 +15,7 @@ import (
 func TestMetricsAccessMiddleware(t *testing.T) {
 	serve := func(token, authHeader, remoteIP string) int {
 		e := echo.New()
-		e.GET("/metrics", func(c echo.Context) error { return c.String(http.StatusOK, "metrics") },
+		e.GET("/metrics", func(c *echo.Context) error { return c.String(http.StatusOK, "metrics") },
 			MetricsAccessMiddleware(token))
 		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 		if authHeader != "" {

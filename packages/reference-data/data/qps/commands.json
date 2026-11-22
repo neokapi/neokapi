@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T09:42:20Z",
+  "generatedAt": "2026-11-22T10:31:44Z",
   "commands": [
     {
       "id": "add",
@@ -6691,8 +6691,7 @@
         {
           "name": "source-locale",
           "shorthand": "s",
-          "usage": "▒ šöüŕçé ļöçàļé ▒",
-          "default": "en",
+          "usage": "▒ šöüŕçé ļöçàļé (đéƒàüļţ: ţĥé þŕöĵéçţ'š šöüŕçé_ļàñĝüàĝé îñ ţĥé þŕöĵéçţ'š öŵñ šţöŕé, éļšé éñ) ▒",
           "type": "string"
         },
         {
@@ -7689,7 +7688,7 @@
         },
         {
           "name": "provider",
-          "usage": "▒ ÀÎ þŕöṽîđéŕ: àñţĥŕöþîç, öþéñàî, ĝéḿîñî, àžüŕéöþéñàî, çļàüđé-çöđé, öļļàḿà, đéḿö. đéḿö ŵöŕķš öƒƒļîñé ŵîţĥ ñö çŕéđéñţîàļš àñđ ŵŕîţéš îļļüšţŕàţîṽé öüţþüţ, ƒöŕ ţŕýîñĝ ķàþî ▒",
+          "usage": "▒ ÀÎ þŕöṽîđéŕ (àñţĥŕöþîç, öþéñàî, öļļàḿà) ▒",
           "default": "anthropic",
           "type": "string"
         },
@@ -8170,7 +8169,7 @@
         },
         {
           "name": "provider",
-          "usage": "▒ ÀÎ þŕöṽîđéŕ: àñţĥŕöþîç, öþéñàî, ĝéḿîñî, àžüŕéöþéñàî, çļàüđé-çöđé, öļļàḿà, đéḿö. đéḿö ŵöŕķš öƒƒļîñé ŵîţĥ ñö çŕéđéñţîàļš àñđ ŵŕîţéš îļļüšţŕàţîṽé öüţþüţ, ƒöŕ ţŕýîñĝ ķàþî ▒",
+          "usage": "▒ ÀÎ þŕöṽîđéŕ (àñţĥŕöþîç, öþéñàî, öļļàḿà) ▒",
           "default": "anthropic",
           "type": "string"
         },
@@ -8916,8 +8915,7 @@
         {
           "name": "source-locale",
           "shorthand": "s",
-          "usage": "▒ šöüŕçé ļöçàļé ▒",
-          "default": "en",
+          "usage": "▒ šöüŕçé ļöçàļé (đéƒàüļţ: ţĥé þŕöĵéçţ'š šöüŕçé_ļàñĝüàĝé îñ ţĥé þŕöĵéçţ'š öŵñ šţöŕé, éļšé éñ) ▒",
           "type": "string"
         },
         {
@@ -9340,7 +9338,7 @@
         },
         {
           "name": "provider",
-          "usage": "▒ ÀÎ þŕöṽîđéŕ: àñţĥŕöþîç, öþéñàî, ĝéḿîñî, àžüŕéöþéñàî, çļàüđé-çöđé, öļļàḿà, đéḿö. đéḿö ŵöŕķš öƒƒļîñé ŵîţĥ ñö çŕéđéñţîàļš àñđ ŵŕîţéš îļļüšţŕàţîṽé öüţþüţ, ƒöŕ ţŕýîñĝ ķàþî ▒",
+          "usage": "▒ ÀÎ þŕöṽîđéŕ (àñţĥŕöþîç, öþéñàî, öļļàḿà) ▒",
           "default": "anthropic",
           "type": "string"
         },
@@ -9380,8 +9378,7 @@
       "examples": [
         "kapi translate messages.json --target-lang fr",
         "kapi translate docs/*.md --target-lang de -o out/{name}_{lang}.{ext}",
-        "kapi translate app.xliff --target-lang ja --provider ollama",
-        "kapi translate messages.json --target-lang fr --provider demo"
+        "kapi translate app.xliff --target-lang ja --provider ollama"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
@@ -9721,7 +9718,7 @@
         },
         {
           "name": "provider",
-          "usage": "▒ ÀÎ þŕöṽîđéŕ: àñţĥŕöþîç, öþéñàî, ĝéḿîñî, àžüŕéöþéñàî, çļàüđé-çöđé, öļļàḿà, đéḿö. đéḿö ŵöŕķš öƒƒļîñé ŵîţĥ ñö çŕéđéñţîàļš àñđ ŵŕîţéš îļļüšţŕàţîṽé öüţþüţ, ƒöŕ ţŕýîñĝ ķàþî ▒",
+          "usage": "▒ ÀÎ þŕöṽîđéŕ (àñţĥŕöþîç, öþéñàî, öļļàḿà) ▒",
           "default": "anthropic",
           "type": "string"
         },

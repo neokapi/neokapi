@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/convergence"
@@ -69,7 +69,7 @@ func (s *Server) workspaceMayPublishProjects(ctx context.Context, workspaceID st
 // unchanged by pointing at this URL instead of a bundled file. No auth: a
 // language picker on a public site must be able to read it. Off unless the
 // project opts in via ShipFeedProperty.
-func (s *Server) HandlePublicShipManifest(c echo.Context) error {
+func (s *Server) HandlePublicShipManifest(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}

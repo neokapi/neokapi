@@ -9,7 +9,7 @@ import (
 	"time"
 
 	sentry "github.com/getsentry/sentry-go"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -86,7 +86,7 @@ func TestTracing_TransactionIsNamedByRouteNotURL(t *testing.T) {
 	tr := capture(t)
 
 	serve(t, "/api/v1/:ws/:id/dashboard/:ref", "/api/v1/acme/p_9f3/dashboard/main",
-		func(c echo.Context) error { return c.NoContent(http.StatusOK) })
+		func(c *echo.Context) error { return c.NoContent(http.StatusOK) })
 
 	txns := tr.transactions()
 	require.Len(t, txns, 1)
@@ -101,7 +101,7 @@ func TestTracing_TransactionIsNamedByRouteNotURL(t *testing.T) {
 func TestTracing_CarriesTheRequestID(t *testing.T) {
 	tr := capture(t)
 
-	rec := serve(t, "/x", "/x", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
+	rec := serve(t, "/x", "/x", func(c *echo.Context) error { return c.NoContent(http.StatusOK) })
 	header := rec.Header().Get(RequestIDHeader)
 	require.NotEmpty(t, header)
 
@@ -116,7 +116,7 @@ func TestTracing_CarriesTheRequestID(t *testing.T) {
 func TestTracing_RecordsASlowSuccess(t *testing.T) {
 	tr := capture(t)
 
-	serve(t, "/slow", "/slow", func(c echo.Context) error {
+	serve(t, "/slow", "/slow", func(c *echo.Context) error {
 		time.Sleep(15 * time.Millisecond)
 		return c.NoContent(http.StatusOK)
 	})
@@ -145,7 +145,7 @@ func TestTracing_SeparatesRefusalFromFailure(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tr := capture(t)
-			serve(t, "/s", "/s", func(c echo.Context) error { return c.NoContent(tc.status) })
+			serve(t, "/s", "/s", func(c *echo.Context) error { return c.NoContent(tc.status) })
 
 			txns := tr.transactions()
 			require.Len(t, txns, 1)
@@ -160,7 +160,7 @@ func TestTracing_SeparatesRefusalFromFailure(t *testing.T) {
 func TestTracing_SpansAttachToTheRequestsTransaction(t *testing.T) {
 	tr := capture(t)
 
-	serve(t, "/q", "/q", func(c echo.Context) error {
+	serve(t, "/q", "/q", func(c *echo.Context) error {
 		end := StartSpan(c.Request().Context(), "db.query", "store.GetBlocks whole-stream")
 		time.Sleep(5 * time.Millisecond)
 		end()
@@ -194,7 +194,7 @@ func TestTracing_NoOpWhenSentryDisabled(t *testing.T) {
 	tr := capture(t)
 	sentryEnabled = false
 
-	rec := serve(t, "/x", "/x", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
+	rec := serve(t, "/x", "/x", func(c *echo.Context) error { return c.NoContent(http.StatusOK) })
 
 	assert.Equal(t, http.StatusOK, rec.Code, "the request is served either way")
 	assert.Empty(t, tr.transactions())
@@ -214,13 +214,13 @@ func TestTracing_AnErrorReturnedIsNotRecordedAsSuccess(t *testing.T) {
 		want sentry.SpanStatus
 	}{
 		{"http error", echo.NewHTTPError(http.StatusInternalServerError, "boom"), sentry.SpanStatusInternalError},
-		{"http error 503", echo.NewHTTPError(http.StatusServiceUnavailable), sentry.SpanStatusUnavailable},
+		{"http error 503", echo.NewHTTPError(http.StatusServiceUnavailable, http.StatusText(http.StatusServiceUnavailable)), sentry.SpanStatusUnavailable},
 		{"plain error", errors.New("boom"), sentry.SpanStatusInternalError},
-		{"refusal", echo.NewHTTPError(http.StatusForbidden), sentry.SpanStatusPermissionDenied},
+		{"refusal", echo.NewHTTPError(http.StatusForbidden, http.StatusText(http.StatusForbidden)), sentry.SpanStatusPermissionDenied},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tr := capture(t)
-			serve(t, "/e", "/e", func(echo.Context) error { return tc.err })
+			serve(t, "/e", "/e", func(*echo.Context) error { return tc.err })
 
 			txns := tr.transactions()
 			require.Len(t, txns, 1)
@@ -234,7 +234,7 @@ func TestTracing_AnErrorReturnedIsNotRecordedAsSuccess(t *testing.T) {
 func TestTracing_ACommittedResponseWins(t *testing.T) {
 	tr := capture(t)
 
-	serve(t, "/c", "/c", func(c echo.Context) error {
+	serve(t, "/c", "/c", func(c *echo.Context) error {
 		_ = c.NoContent(http.StatusOK)
 		return errors.New("failed after answering")
 	})
@@ -257,7 +257,7 @@ func TestTracing_UnmatchedRoutesAreDroppedBySentry(t *testing.T) {
 	e := echo.New()
 	e.Use(RequestIDMiddleware())
 	e.Use(TracingMiddleware())
-	e.GET("/known", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
+	e.GET("/known", func(c *echo.Context) error { return c.NoContent(http.StatusOK) })
 
 	for _, p := range []string{"/wp-admin", "/.env", "/phpmyadmin"} {
 		e.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, p, nil))
@@ -331,7 +331,7 @@ func TestTracing_EndToEndThroughInitSentry(t *testing.T) {
 	sentry.CurrentHub().BindClient(client)
 
 	serve(t, "/api/v1/:ws/:id/dashboard/:ref", "/api/v1/acme/p_9f3/dashboard/main",
-		func(c echo.Context) error {
+		func(c *echo.Context) error {
 			end := StartSpan(c.Request().Context(), "db.query", "store.GetBlocks whole-stream")
 			defer end()
 			return c.NoContent(http.StatusOK)

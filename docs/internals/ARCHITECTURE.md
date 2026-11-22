@@ -139,7 +139,7 @@ neokapi/
 │   ├── core/                        # module github.com/neokapi/neokapi/bowrain/core (framework only)
 │   ├── plugin/                      # module github.com/neokapi/neokapi/bowrain/plugin (schema/commands/connector/mcp + cmd/kapi-bowrain)
 │   ├── auth/ store/ connector/ service/ event/ server/   # server-side packages
-│   ├── cmd/bowrain-server/          # Echo v4 REST API server
+│   ├── cmd/bowrain-server/          # Echo v5 REST API server
 │   ├── cmd/bowrain-worker/          # Background worker
 │   └── apps/                        # bowrain desktop, web, ctrl, pulse
 │

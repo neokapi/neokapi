@@ -3,12 +3,12 @@ package server
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
 // HandleGetNotificationPreferences returns notification preferences for the current user.
-func (s *Server) HandleGetNotificationPreferences(c echo.Context) error {
+func (s *Server) HandleGetNotificationPreferences(c *echo.Context) error {
 	if s.PreferenceStore == nil {
 		return c.JSON(http.StatusOK, map[string]any{"preferences": bstore.DefaultPreferences("", "")})
 	}
@@ -28,7 +28,7 @@ func (s *Server) HandleGetNotificationPreferences(c echo.Context) error {
 }
 
 // HandleUpdateNotificationPreferences updates notification preferences for the current user.
-func (s *Server) HandleUpdateNotificationPreferences(c echo.Context) error {
+func (s *Server) HandleUpdateNotificationPreferences(c *echo.Context) error {
 	if s.PreferenceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "preferences not configured"})
 	}

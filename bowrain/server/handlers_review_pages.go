@@ -5,7 +5,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -48,7 +48,7 @@ type reviewDeckPagesResponse struct {
 // ?locale=nb[&collection=c][&sample=true] with the deck's pages. With sample,
 // it answers the pages the involvement asks a reviewer to read: the sample
 // in a collection under context (see interfaceSample), every page elsewhere.
-func (s *Server) HandleGetReviewDeckPages(c echo.Context) error {
+func (s *Server) HandleGetReviewDeckPages(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}

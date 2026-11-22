@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/check"
@@ -105,7 +105,7 @@ type reviewContainerResponse struct {
 
 // HandleGetReviewContainer answers GET /:ws/:id/blocks/:ref/:bid/container
 // ?target_locale=nb with the block's container.
-func (s *Server) HandleGetReviewContainer(c echo.Context) error {
+func (s *Server) HandleGetReviewContainer(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}

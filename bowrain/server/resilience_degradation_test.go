@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/apierror"
 	"github.com/neokapi/neokapi/bowrain/resilience"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newEchoCtx(t *testing.T) (echo.Context, *httptest.ResponseRecorder) {
+func newEchoCtx(t *testing.T) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/thing", nil)

@@ -3,14 +3,14 @@ package server
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	bevent "github.com/neokapi/neokapi/bowrain/event"
 )
 
 // HandleListAuditLog returns audit log entries for a project.
 // GET /projects/:id/audit-log?type=&limit=&offset=
-func (s *Server) HandleListAuditLog(c echo.Context) error {
+func (s *Server) HandleListAuditLog(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermAuditRead); err != nil {
 		return err
 	}
@@ -36,7 +36,7 @@ func (s *Server) HandleListAuditLog(c echo.Context) error {
 
 // HandleListWorkspaceAuditLog returns audit log entries across all projects in a workspace.
 // GET /audit-log?type=&actor=&search=&project=&limit=&offset=
-func (s *Server) HandleListWorkspaceAuditLog(c echo.Context) error {
+func (s *Server) HandleListWorkspaceAuditLog(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermAuditRead); err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func (s *Server) HandleListWorkspaceAuditLog(c echo.Context) error {
 // HandleVerifyWorkspaceAuditChain verifies the tamper-evidence of the
 // workspace's security audit chain and returns the result. Requires PermAuditRead.
 // GET /:ws/audit-log/verify
-func (s *Server) HandleVerifyWorkspaceAuditChain(c echo.Context) error {
+func (s *Server) HandleVerifyWorkspaceAuditChain(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermAuditRead); err != nil {
 		return err
 	}

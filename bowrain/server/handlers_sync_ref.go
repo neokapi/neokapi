@@ -8,7 +8,7 @@ import (
 
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/neokapi/neokapi/bowrain/apierror"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -30,7 +30,7 @@ import (
 // A client with no cached ref — a fresh clone, a deleted cache — reaches this
 // once and knows everything the cache would have told it. That is the whole cost
 // of the cache being disposable.
-func (s *Server) HandleSyncRef(c echo.Context) error {
+func (s *Server) HandleSyncRef(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func (s *Server) currentComponent(ctx context.Context, projectID, stream string,
 // take no body, or take one whose shape is already the wire contract of a
 // different concern. An absent parameter asserts nothing, which is how a client
 // that predates the ref keeps working unchanged.
-func (s *Server) assertTermsRef(c echo.Context, wsSlug string) error {
+func (s *Server) assertTermsRef(c *echo.Context, wsSlug string) error {
 	expected := c.QueryParam("expected_terms_ref")
 	if expected == "" || s.wsStores == nil || wsSlug == "" {
 		return nil
@@ -184,7 +184,7 @@ func (s *Server) assertTermsRef(c echo.Context, wsSlug string) error {
 
 // governanceConflict renders a compare-and-swap failure as the 409 a client
 // turns into "governance moved — pull first". Any other error is ours.
-func governanceConflict(c echo.Context, err error) (error, bool) {
+func governanceConflict(c *echo.Context, err error) (error, bool) {
 	var conflict *ref.Conflict
 	if !errors.As(err, &conflict) {
 		return nil, false

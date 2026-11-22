@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/change"
@@ -64,7 +64,7 @@ type BulkReviewResponse struct {
 // POST /:ws/:id/blocks/:ref/bulk-review
 //
 //	{ "block_ids": ["b1","b2"], "target_locale": "fr", "approve": true }
-func (s *Server) HandleBulkReviewBlocks(c echo.Context) error {
+func (s *Server) HandleBulkReviewBlocks(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -235,7 +235,7 @@ type BulkApplyMemoryResponse struct {
 // POST /:ws/:id/blocks/:ref/bulk-apply-memory
 //
 //	{ "block_ids": ["b1","b2"], "target_locale": "fr", "threshold": 1 }
-func (s *Server) HandleBulkApplyMemory(c echo.Context) error {
+func (s *Server) HandleBulkApplyMemory(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
 		return err
 	}

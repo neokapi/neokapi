@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -147,7 +147,7 @@ type ConceptProjectsResponse struct {
 // and ?market= the validity tag, so a term whose window has closed or whose
 // market this is not drops out. The instant defaults to now, because "which
 // projects use this" is asked in the present tense.
-func (s *Server) HandleConceptProjects(c echo.Context) error {
+func (s *Server) HandleConceptProjects(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -262,7 +262,7 @@ func (s *Server) conceptIsInGraph(ctx context.Context, filter contextgraph.Scope
 // answer that says it is a floor beats no answer, and both beat an answer that
 // is short without saying so.
 func (s *Server) conceptProjectsByScan(
-	c echo.Context,
+	c *echo.Context,
 	wsID, conceptID string,
 	at coreg.Scope,
 	limit int,
@@ -415,7 +415,7 @@ func (s *Server) workspaceProjectNames(ctx context.Context, wsID string) (map[st
 // conceptAnswerScope reads the point this answer is resolved at. The instant
 // defaults to now: a reader asking which projects use a concept is asking about
 // today unless they say otherwise.
-func conceptAnswerScope(c echo.Context) (coreg.Scope, error) {
+func conceptAnswerScope(c *echo.Context) (coreg.Scope, error) {
 	at, err := validityScopeAt(c.QueryParam("at"), c.QueryParam("market"))
 	if err != nil {
 		return coreg.Scope{}, err

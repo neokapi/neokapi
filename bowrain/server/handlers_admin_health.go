@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/resilience"
 	"github.com/neokapi/neokapi/core/version"
 )
@@ -56,7 +56,7 @@ type ObservabilityLinks struct {
 // Always 200 (the dashboard renders the per-component detail); an unhealthy
 // server is conveyed in the body's status field, not the HTTP code, so the
 // admin UI can always render.
-func (s *Server) HandleAdminHealth(c echo.Context) error {
+func (s *Server) HandleAdminHealth(c *echo.Context) error {
 	ctx := c.Request().Context()
 	components, status := s.readiness(ctx)
 

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -98,7 +98,7 @@ func TestCountsRoutesBeatTheIdParam(t *testing.T) {
 	} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		c := e.NewContext(req, httptest.NewRecorder())
-		e.Router().Find(http.MethodGet, path, c)
+		e.Router().Route(c)
 		assert.Equal(t, want, c.Path(), "%s must route to %s", path, want)
 	}
 }
@@ -218,7 +218,7 @@ func TestTrialFindingsRouteShape(t *testing.T) {
 	path := "/acme/changesets/cs-1/pilots/proj-1/main/findings"
 	req := httptest.NewRequest(http.MethodGet, path, nil)
 	c := e.NewContext(req, httptest.NewRecorder())
-	e.Router().Find(http.MethodGet, path, c)
+	e.Router().Route(c)
 	assert.Equal(t, "/:ws/changesets/:id/pilots/:project/:stream/findings", c.Path())
 }
 

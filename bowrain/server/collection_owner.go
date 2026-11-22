@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/venue"
 )
@@ -30,7 +30,7 @@ import (
 //
 // refused reports that the request has been answered and the caller must return
 // immediately — err carries only the response write, which is nil on success.
-func guardRecipeOwned(c echo.Context, coll *store.Collection) (refused bool, err error) {
+func guardRecipeOwned(c *echo.Context, coll *store.Collection) (refused bool, err error) {
 	if coll == nil || !venue.IsRecipeOwned(coll.Owner) {
 		return false, nil
 	}

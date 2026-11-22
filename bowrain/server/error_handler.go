@@ -1,18 +1,16 @@
 package server
 
 import (
-	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/apierror"
 )
 
 // requestID returns the per-request correlation ID set by
 // observe.RequestIDMiddleware, or "" if absent.
-func requestID(c echo.Context) string {
+func requestID(c *echo.Context) string {
 	return apierror.RequestID(c)
 }
 
@@ -21,20 +19,20 @@ func requestID(c echo.Context) string {
 // It replaces Echo's default handler so that:
 //   - Every error response uses the ErrorResponse envelope, so no handler emits
 //     a bare {"error":…} or echo.NewHTTPError's {"message":…} shape.
-//   - Every response carries a "reference" (the request ID) — the one ID a user
+//   - Every response carries a "reference" (the request ID), the one ID a user
 //     can quote to drill down to logs and the Sentry issue.
 //   - 5xx responses do NOT leak internal error strings to the client; the raw
 //     error is logged server-side (with the reference) instead.
 //
 // The Sentry capture hook is wired in Phase 2 (see captureServerError).
-func (s *Server) httpErrorHandler(err error, c echo.Context) {
-	if c.Response().Committed {
+func (s *Server) httpErrorHandler(c *echo.Context, err error) {
+	if r, rerr := echo.UnwrapResponse(c.Response()); rerr == nil && r.Committed {
 		return
 	}
 
 	// Backstop for an open-circuit rejection that reached the chain unhandled.
 	// It must not become a generic 500: nothing broke, a known-down dependency
-	// was simply not called, and the client needs the typed code and Retry-After
+	// was not called, and the client needs the typed code and Retry-After
 	// to render that honestly.
 	if resp, ok := unavailableErr(c, err); ok {
 		if resp != nil {
@@ -50,13 +48,14 @@ func (s *Server) httpErrorHandler(err error, c echo.Context) {
 	message := "internal server error"
 	details := ""
 
-	if he, ok := errors.AsType[*echo.HTTPError](err); ok {
+	if he, ok := apierror.AsHTTPError(err); ok {
 		status = he.Code
-		if he.Message != nil {
-			message = fmt.Sprintf("%v", he.Message)
+		message = he.Message
+		if message == "" {
+			message = http.StatusText(status)
 		}
-		if he.Internal != nil {
-			details = he.Internal.Error()
+		if internal := he.Unwrap(); internal != nil {
+			details = internal.Error()
 		}
 	} else {
 		// A bare error: treat as 500 and keep the raw string server-side only.
