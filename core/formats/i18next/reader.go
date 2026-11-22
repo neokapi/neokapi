@@ -44,7 +44,7 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 // buffering it. See [AD-005].
 var _ format.StreamingReader = (*Reader)(nil)
 
-// StreamingReader marks this reader as streaming — it inherits the inner JSON
+// StreamingReader marks this reader as streaming: it inherits the inner JSON
 // reader's bounded-memory token walk.
 func (r *Reader) StreamingReader() {}
 
@@ -56,8 +56,10 @@ func NewReader() *Reader {
 		FormatName:        formatID,
 		FormatDisplayName: displayName,
 		FormatMimeType:    formatMime,
-		Cfg:               cfg,
-		cfg:               cfg,
+		// i18next files are .json; detection reads the content, not the name.
+		FormatExtensions: []string{".json"},
+		Cfg:              cfg,
+		cfg:              cfg,
 	}
 }
 
@@ -179,7 +181,7 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 // blockKeyPath recovers the raw dotted JSON key path the inner reader recorded
 // for a block. The JSON reader stores it on the json.keypath property when the
 // block name differs from the path (the UseFullKeyPath case used here, where
-// the name is a slash path); when that property is absent it falls back to the
+// the name is a slash path). When that property is absent it falls back to the
 // block name, normalising a slash path back to the dotted form the analysis
 // helpers expect.
 func blockKeyPath(block *model.Block) string {

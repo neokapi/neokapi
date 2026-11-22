@@ -74,20 +74,23 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 	defer cleanup()
 
+	uri := r.Doc.URI
+	if uri == "" {
+		uri = videoPath
+	}
+	// The video itself, as the writer copies it. It is emitted on both paths:
+	// a document read where ffmpeg is installed is written back as one read
+	// where it is not.
+	media := &model.Media{
+		ID:       "m1",
+		URI:      uri,
+		MimeType: r.Doc.MimeType,
+		Filename: filepath.Base(uri),
+	}
 	if !av.FFmpegAvailable() {
 		// No ffmpeg/av engine: the video cannot be demuxed, but it is still a
 		// localizable Media asset (replace-asset mode). Emit it as opaque Media
 		// rather than erroring, mirroring the audio reader's no-engine path.
-		uri := r.Doc.URI
-		if uri == "" {
-			uri = videoPath
-		}
-		media := &model.Media{
-			ID:       "m1",
-			URI:      uri,
-			MimeType: r.Doc.MimeType,
-			Filename: filepath.Base(uri),
-		}
 		r.emit(ctx, ch, &model.Part{Type: model.PartMedia, Resource: media})
 		return
 	}
@@ -107,6 +110,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	doc := &model.Layer{ID: "doc1", Name: r.Doc.URI, Format: "video", Locale: locale, MimeType: "video/mp4"}
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: doc}) {
+		return
+	}
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartMedia, Resource: media}) {
 		return
 	}
 
@@ -155,7 +161,7 @@ func (r *Reader) transcribe(ctx context.Context, ch chan<- model.PartResult, aud
 
 // ocrFrames emits on-screen text as a child Layer of Blocks carrying both the
 // spatial (geometry) anchor from OCR and the temporal (timing) anchor of the
-// frame they were read from — the composite anchor of AD-002/AD-030.
+// frame they were read from, the composite anchor of AD-002/AD-030.
 func (r *Reader) ocrFrames(ctx context.Context, ch chan<- model.PartResult, frames []av.Frame, locale model.LocaleID, counter *int) bool {
 	eng, err := vision.Open("")
 	if err != nil {

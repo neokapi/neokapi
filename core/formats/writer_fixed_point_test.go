@@ -2,18 +2,23 @@ package formats
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/format/spec"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 )
 
@@ -22,53 +27,46 @@ import (
 // and written three times over each of its sample files; the second and third
 // outputs must be byte-identical.
 //
-// The first pass may normalize (the round-trip and fidelity tests judge that
-// against the source). A writer whose output still moves on the next pass has
-// no stable form, so every run of the loop over an unchanged project rewrites
-// the file, and the diff never settles.
+// The first pass may normalize. A writer whose output still moves on the next
+// pass rewrites the file on every run over an unchanged project.
 //
-// The samples are of two kinds. A corpus manifest entry (corpus.yaml) that
-// carries one of the format's registered extensions must read. A file under
-// the format's testdata directory may not: one the reader rejects is a
-// malformed-input fixture or another format's file, with no output to hold
-// fixed. Fuzz seeds are not documents.
+// A sample is a file that carries one of the format's extensions, from its
+// corpus manifest (corpus.yaml) or from the testdata directory of the package
+// that implements its reader. Every format with a writer must have one, and
+// every sample must read. Fuzz seeds are not documents. A format whose reader
+// refuses every document by design (format.WriteOnlyReader) has nothing to
+// read back, and is the one kind of format left out.
 func TestWriterIsAFixedPoint(t *testing.T) {
 	t.Parallel()
 	reg := registry.NewFormatRegistry()
 	RegisterAll(reg)
 
 	samples := fixedPointSamples(t, reg)
-	tested := 0
-	var noSamples []string
 	for _, id := range reg.WriterNames() {
-		if !reg.HasReader(id) {
+		if !reg.HasReader(id) || writeOnly(reg, id) {
 			continue
 		}
-		if len(samples[string(id)]) == 0 {
-			noSamples = append(noSamples, string(id))
-			continue
-		}
-		tested++
 		t.Run(string(id), func(t *testing.T) {
 			t.Parallel()
-			for _, s := range samples[string(id)] {
-				t.Run(s.path, func(t *testing.T) {
-					src, err := os.ReadFile(s.path)
+			if len(samples[string(id)]) == 0 {
+				t.Fatalf("%s has a writer and no sample file; add a small real document to the testdata of the package that reads it", id)
+			}
+			for _, path := range samples[string(id)] {
+				t.Run(path, func(t *testing.T) {
+					src, err := os.ReadFile(path)
 					if err != nil {
 						t.Fatalf("read sample: %v", err)
 					}
-					out1, err := writePass(reg, id, src)
+					ext := filepath.Ext(path)
+					out1, err := writePass(t, reg, id, ext, src)
 					if err != nil {
-						if !s.mustRead {
-							t.Skipf("not a readable %s document: %v", id, err)
-						}
 						t.Fatalf("first pass: %v", err)
 					}
-					out2, err := writePass(reg, id, out1)
+					out2, err := writePass(t, reg, id, ext, out1)
 					if err != nil {
 						t.Fatalf("second pass over the writer's own output: %v\noutput: %q", err, clip(out1))
 					}
-					out3, err := writePass(reg, id, out2)
+					out3, err := writePass(t, reg, id, ext, out2)
 					if err != nil {
 						t.Fatalf("third pass: %v", err)
 					}
@@ -80,39 +78,82 @@ func TestWriterIsAFixedPoint(t *testing.T) {
 			}
 		})
 	}
-	if tested == 0 {
-		t.Fatal("no format with a writer has a sample file")
+}
+
+// writeOnly reports whether id's reader declares that it reads nothing.
+func writeOnly(reg *registry.FormatRegistry, id registry.FormatID) bool {
+	r, err := reg.NewReader(id)
+	if err != nil {
+		return false
 	}
-	t.Logf("%d formats checked; no sample file for: %s", tested, strings.Join(noSamples, ", "))
+	_, ok := r.(format.WriteOnlyReader)
+	return ok
 }
 
-type fixedPointSample struct {
-	path     string // relative to this package
-	mustRead bool
+// moduleRoot is the repository root relative to this package.
+const moduleRoot = "../.."
+
+// readerPackageDir returns the directory, relative to this package, of the
+// package that implements id's reader.
+func readerPackageDir(reg *registry.FormatRegistry, id registry.FormatID) (string, bool) {
+	r, err := reg.NewReader(id)
+	if err != nil {
+		return "", false
+	}
+	typ := reflect.TypeOf(r)
+	for typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
+	rel, ok := strings.CutPrefix(typ.PkgPath(), "github.com/neokapi/neokapi/")
+	if !ok {
+		return "", false
+	}
+	return filepath.Join(moduleRoot, filepath.FromSlash(rel)), true
 }
 
-// fixedPointSamples maps a format id to its sample files.
-func fixedPointSamples(t *testing.T, reg *registry.FormatRegistry) map[string][]fixedPointSample {
+// formatExtensions returns the extensions id declares: the ones detection
+// uses and the ones its reader names for itself (a format can decline
+// detection by extension, as Qt TS does to stay clear of TypeScript).
+func formatExtensions(reg *registry.FormatRegistry, id registry.FormatID) []string {
+	var exts []string
+	if info := reg.FormatInfo(id); info != nil {
+		exts = append(exts, info.Extensions...)
+	}
+	if r, err := reg.NewReader(id); err == nil {
+		v := reflect.ValueOf(r)
+		for v.Kind() == reflect.Pointer {
+			v = v.Elem()
+		}
+		if v.Kind() == reflect.Struct {
+			if f := v.FieldByName("FormatExtensions"); f.IsValid() {
+				if own, ok := reflect.TypeAssert[[]string](f); ok {
+					exts = append(exts, own...)
+				}
+			}
+		}
+	}
+	return exts
+}
+
+// fixedPointSamples maps a format id to its sample files, as paths relative
+// to this package.
+func fixedPointSamples(t *testing.T, reg *registry.FormatRegistry) map[string][]string {
 	t.Helper()
-	out := map[string][]fixedPointSample{}
+	out := map[string][]string{}
 	seen := map[string]bool{}
-	add := func(id, path string, mustRead bool) {
+	add := func(id, path string) {
+		path = filepath.Clean(path)
 		if seen[id+"\x00"+path] {
 			return
 		}
 		seen[id+"\x00"+path] = true
-		out[id] = append(out[id], fixedPointSample{path: path, mustRead: mustRead})
+		out[id] = append(out[id], path)
 	}
-
-	isFuzzSeed := func(path string) bool {
-		return strings.Contains(filepath.ToSlash(path), "/testdata/fuzz/")
-	}
-	hasExtension := func(id, path string) bool {
-		info := reg.FormatInfo(registry.FormatID(id))
-		if info == nil || isFuzzSeed(path) {
+	isSample := func(id registry.FormatID, path string) bool {
+		if strings.Contains(filepath.ToSlash(path), "/testdata/fuzz/") {
 			return false
 		}
-		return slices.ContainsFunc(info.Extensions, func(ext string) bool {
+		return slices.ContainsFunc(formatExtensions(reg, id), func(ext string) bool {
 			return strings.EqualFold(filepath.Ext(path), ext)
 		})
 	}
@@ -135,28 +176,30 @@ func fixedPointSamples(t *testing.T, reg *registry.FormatRegistry) map[string][]
 		if err := yaml.Unmarshal(data, &manifest); err != nil {
 			t.Fatalf("%s: %v", m, err)
 		}
+		id := registry.FormatID(manifest.Format)
 		for _, e := range manifest.Entries {
-			// Manifest paths are repository-relative; this package is core/formats.
-			if path := strings.TrimPrefix(e.Path, "core/formats/"); hasExtension(manifest.Format, path) {
-				add(manifest.Format, path, true)
+			// Manifest paths are repository-relative.
+			if path := filepath.Join(moduleRoot, filepath.FromSlash(e.Path)); isSample(id, path) {
+				add(manifest.Format, path)
 			}
 		}
 	}
 
-	for _, info := range reg.FormatInfos() {
-		if !info.HasWriter {
+	for _, id := range reg.WriterNames() {
+		dir, ok := readerPackageDir(reg, id)
+		if !ok {
 			continue
 		}
-		dir := filepath.Join(string(info.Name), "testdata")
-		if _, err := os.Stat(dir); err != nil {
+		testdata := filepath.Join(dir, "testdata")
+		if _, err := os.Stat(testdata); err != nil {
 			continue
 		}
-		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		err := filepath.WalkDir(testdata, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
-			if d.Type().IsRegular() && !isFuzzSeed(path) {
-				add(string(info.Name), path, false)
+			if d.Type().IsRegular() && isSample(id, path) {
+				add(string(id), path)
 			}
 			return nil
 		})
@@ -165,14 +208,18 @@ func fixedPointSamples(t *testing.T, reg *registry.FormatRegistry) map[string][]
 		}
 	}
 	for id := range out {
-		slices.SortFunc(out[id], func(a, b fixedPointSample) int { return strings.Compare(a.path, b.path) })
+		slices.Sort(out[id])
 	}
 	return out
 }
 
 // writePass reads src with a fresh reader and writes it back untouched with a
-// fresh writer, wired the way a same-format write-back is.
-func writePass(reg *registry.FormatRegistry, id registry.FormatID, src []byte) ([]byte, error) {
+// fresh writer, wired the way a same-format write-back is. The document is a
+// file named like the sample, as a run reads one: a media format's reader
+// refers to the file it read and its writer copies from it, so the reader
+// stays open until the writer is done.
+func writePass(t *testing.T, reg *registry.FormatRegistry, id registry.FormatID, ext string, src []byte) ([]byte, error) {
+	t.Helper()
 	reader, err := reg.NewReader(id)
 	if err != nil {
 		return nil, fmt.Errorf("new reader: %w", err)
@@ -188,9 +235,29 @@ func writePass(reg *registry.FormatRegistry, id registry.FormatID, src []byte) (
 	if store != nil {
 		defer store.Close()
 	}
-	parts, err := spec.ReadParts(reader, src)
-	if err != nil {
+	path := filepath.Join(t.TempDir(), "sample"+ext)
+	if err := os.WriteFile(path, src, 0o644); err != nil {
 		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	doc := &model.RawDocument{
+		URI:          path,
+		SourceLocale: model.LocaleID("en"),
+		TargetLocale: model.LocaleID("fr"),
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(bytes.NewReader(src)),
+	}
+	if err := format.OpenDocument(ctx, reader, doc); err != nil {
+		return nil, fmt.Errorf("open: %w", err)
+	}
+	defer reader.Close()
+	var parts []*model.Part
+	for pr := range reader.Read(ctx) {
+		if pr.Error != nil {
+			return nil, fmt.Errorf("read: %w", pr.Error)
+		}
+		parts = append(parts, pr.Part)
 	}
 	return spec.WriteParts(writer, parts, src)
 }
