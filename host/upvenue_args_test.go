@@ -45,7 +45,7 @@ func TestVenueArgs_FollowTheManifestDeclaration(t *testing.T) {
 
 	_, err = venueArgs(venueRoute(nil), "/p/kapi.yaml", UpOptions{})
 	require.ErrorContains(t, err, "older than this kapi")
-	assert.ErrorContains(t, err, "kapi plugin update bowrain")
+	assert.ErrorContains(t, err, "Replace the plugin in /plugins/bowrain", "a plugin kapi does not manage gets no command")
 }
 
 // A manifest keeps "no declaration" apart from "declares no flags" through a
@@ -82,4 +82,49 @@ func TestBrewFormulaOf(t *testing.T) {
 	require.NoError(t, os.Symlink(cellar, link))
 	assert.Equal(t, "bowrain-cli-beta", brewFormulaOf(link))
 	assert.Empty(t, brewFormulaOf(t.TempDir()))
+}
+
+// The update advice follows how the plugin was installed, and names no
+// command that would not apply.
+func TestPluginUpdateAdvice(t *testing.T) {
+	plugin := func(dir string, order int) *pluginhost.Plugin {
+		return &pluginhost.Plugin{Dir: dir, Source: pluginhost.Source{Order: order, Label: filepath.Dir(dir)},
+			Manifest: &manifest.Manifest{Plugin: "bowrain", Version: "1.0.0"}}
+	}
+	dirIn := func(t *testing.T) string {
+		d := filepath.Join(t.TempDir(), "bowrain")
+		require.NoError(t, os.MkdirAll(d, 0o755))
+		return d
+	}
+
+	root := t.TempDir()
+	cellar := filepath.Join(root, "Cellar", "bowrain-cli-beta", "1.4.0-rc5", "share", "kapi", "plugins", "bowrain")
+	require.NoError(t, os.MkdirAll(cellar, 0o755))
+	link := filepath.Join(root, "share", "kapi", "plugins", "bowrain")
+	require.NoError(t, os.MkdirAll(filepath.Dir(link), 0o755))
+	require.NoError(t, os.Symlink(cellar, link))
+
+	recorded := dirIn(t)
+	require.NoError(t, os.WriteFile(filepath.Join(recorded, "installed.json"), []byte(`{"version":"1.0.0"}`), 0o644))
+
+	for _, tc := range []struct {
+		name   string
+		p      *pluginhost.Plugin
+		want   string
+		forbid []string
+	}{
+		{"a Homebrew install", plugin(link, 3), "brew upgrade bowrain-cli-beta", []string{"kapi plugin update"}},
+		{"one kapi recorded installing", plugin(recorded, 1), "kapi plugin update bowrain", []string{"brew upgrade"}},
+		{"one in the user plugin root", plugin(dirIn(t), pluginhost.UserSourceOrder), "kapi plugin update bowrain", []string{"brew upgrade"}},
+		{"a system package outside Homebrew", plugin(dirIn(t), 3), "Replace the plugin in", []string{"brew upgrade", "kapi plugin update"}},
+		{"a directory named by KAPI_PLUGINS_DIR", plugin(dirIn(t), 1), "Replace the plugin in", []string{"brew upgrade", "kapi plugin update"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := pluginUpdateAdvice(tc.p)
+			assert.Contains(t, got, tc.want)
+			for _, f := range tc.forbid {
+				assert.NotContains(t, got, f)
+			}
+		})
+	}
 }
