@@ -275,7 +275,7 @@ export class Media {
  * The Kind/Engine/Tool/Reference/Timestamp/Confidence group answers *how* it was
  * made. The Profile group answers *what governed it*: which named context was in
  * force at the moment of production. That second half cannot be reconstructed
- * after the fact — a profile is edited in place and a timestamp is only a proxy
+ * after the fact: a profile is edited in place and a timestamp is only a proxy
  * for it, one that breaks for imported content and for anything produced while a
  * pilot shadowed a stream. So it is recorded at production time or approximated
  * forever.
@@ -341,7 +341,7 @@ export class Origin {
              * Profile identifies the context profile that governed production, and
              * ProfileVersion pins the revision of it that was in force. Both are opaque
              * to the model: the producer stamps whatever its resolver handed it, and
-             * nothing here parses them. Empty when the producer resolved no profile —
+             * nothing here parses them. Empty when the producer resolved no profile:
              * an ad-hoc run, or a tool that takes no context (pseudo-translation).
              * @member
              * @type {string | undefined}
@@ -358,14 +358,14 @@ export class Origin {
         if (/** @type {any} */(false)) {
             /**
              * ContextFingerprint is a content hash of the governing context as it
-             * actually reached the producer — the rendered voice guidance and the
+             * actually reached the producer: the rendered voice guidance and the
              * terminology it was given. It exists because Profile/ProfileVersion pin
              * only half of that: terminology reaches a producer separately from the
              * profile and carries no version of its own, so a profile stamp alone
              * cannot tell whether the terms have moved since.
              * 
              * It answers "have the governing inputs changed since this was produced?"
-             * — a change detector, not a snapshot: it cannot reconstruct what the
+             * It is a change detector, not a snapshot: it cannot reconstruct what the
              * context was, only tell you this target no longer matches it.
              * 
              * Deliberately NOT the engine's config fingerprint. That one also covers
