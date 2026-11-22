@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/structdoc"
 	"github.com/neokapi/neokapi/core/model"
@@ -528,24 +531,39 @@ type stagedOutput struct {
 	tmp, dest string
 }
 
-// stageOutput creates the temporary file for a conversion written to dest. A
-// dest that is a symbolic link is written through: the result replaces the
-// file the link names. The temporary name ends in dest's own name, so a
-// writer that reads its output's extension sees the same one.
+// stageOutput creates the temporary file for a conversion written to dest.
+// The destination resolves as atomicfile.Resolve resolves it: a symbolic link
+// is written through, so the result replaces the file the link names and the
+// link stays a link. A destination that exists keeps its mode; a new one is
+// created under the umask.
+//
+// atomicfile.Stage is not used because it names the temporary file after the
+// destination with a suffix of its own, and a writer handed that name would
+// see an extension the destination does not have. This name ends in the
+// destination's own name.
 func stageOutput(dest string) (*stagedOutput, error) {
-	target := dest
-	if resolved, err := filepath.EvalSymlinks(dest); err == nil {
-		target = resolved
+	target, mode, exists, err := atomicfile.Resolve(dest)
+	if err != nil {
+		return nil, err
 	}
-	f, err := os.CreateTemp(filepath.Dir(target), ".kconv-*-"+filepath.Base(target))
+	var f *os.File
+	for range 100 {
+		name := filepath.Join(filepath.Dir(target), fmt.Sprintf(".kconv-%d-%s", rand.Uint64(), filepath.Base(target)))
+		f, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, mode)
+		if !errors.Is(err, fs.ErrExist) {
+			break
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("create the output beside %s: %w", dest, err)
 	}
-	mode := os.FileMode(0o644)
-	if info, err := os.Stat(target); err == nil {
-		mode = info.Mode().Perm()
+	// The umask applies at creation. That is right for a new file and wrong
+	// for one that existed, which keeps the mode it had.
+	var merr error
+	if exists {
+		merr = f.Chmod(mode)
 	}
-	if err := errors.Join(f.Chmod(mode), f.Close()); err != nil {
+	if err := errors.Join(merr, f.Close()); err != nil {
 		_ = os.Remove(f.Name())
 		return nil, fmt.Errorf("create the output beside %s: %w", dest, err)
 	}
