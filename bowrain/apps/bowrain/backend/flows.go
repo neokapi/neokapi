@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/host/flowdef"
@@ -217,8 +218,23 @@ type flowAPIError struct {
 	body        []byte
 }
 
+// Error is the server's own sentence for the refusal, which says what to do;
+// the URL and status stay out of what a person reads. A body without one
+// (a proxy's error page, say) is named by its status alone.
 func (e *flowAPIError) Error() string {
-	return fmt.Sprintf("flow API %s %s: %d %s", e.method, e.url, e.status, e.body)
+	var body struct {
+		Error   string `json:"error"`
+		Message string `json:"message"`
+	}
+	if json.Unmarshal(e.body, &body) == nil {
+		if msg := strings.TrimSpace(body.Message); msg != "" {
+			return msg
+		}
+		if msg := strings.TrimSpace(body.Error); msg != "" {
+			return msg
+		}
+	}
+	return fmt.Sprintf("the server could not save the flow (%s)", strings.ToLower(http.StatusText(e.status)))
 }
 
 // flowChanged reads the flow as it now stands out of a save the server

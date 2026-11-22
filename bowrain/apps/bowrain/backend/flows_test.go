@@ -169,3 +169,39 @@ func TestSaveFlowDefinition_StaleSaveCarriesTheCurrentFlow(t *testing.T) {
 	assert.Equal(t, "Alex's edit", res.Changed.Name)
 	assert.Equal(t, "r2", res.Changed.Revision)
 }
+
+// A save the server refuses reads as the server's sentence on the desktop,
+// as it does on the web: no URL, no status code, no JSON.
+func TestSaveFlowDefinition_RefusalReadsAsTheServersSentence(t *testing.T) {
+	refusals := map[int]string{
+		http.StatusBadRequest:           "edge e1 references a node that does not exist",
+		http.StatusForbidden:            "cannot modify a built-in flow",
+		http.StatusNotFound:             "this flow was deleted after it was read",
+		http.StatusPreconditionRequired: "this version of the app cannot save flows; update it, then save again",
+	}
+	for status, sentence := range refusals {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(status)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": sentence})
+			}))
+			t.Cleanup(srv.Close)
+			app := newTestApp(t)
+			app.mu.Lock()
+			app.connState = StateConnected
+			app.serverURL = srv.URL
+			app.activeWS = "acme"
+			app.remoteHTTP = editorclient.New(srv.URL, "tok")
+			app.authInfo = &config.StoredAuth{ServerURL: srv.URL, AccessToken: "tok"}
+			app.mu.Unlock()
+
+			_, err := app.SaveFlowDefinition("proj-1", FlowDefinitionInfo{
+				ID: "flow-1", Name: "Mine", Source: "project", Revision: "r1",
+				Nodes: []FlowNodeInfo{}, Edges: []FlowEdgeInfo{},
+			})
+			require.Error(t, err)
+			assert.Equal(t, sentence, err.Error())
+		})
+	}
+}
