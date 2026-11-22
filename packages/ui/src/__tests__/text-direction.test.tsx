@@ -119,9 +119,9 @@ describe("needsIsolation", () => {
 describe("localeOfVariant", () => {
   it("strips a tone and/or channel suffix, keeping the bare locale", () => {
     expect(localeOfVariant("ar-EG")).toBe("ar-EG");
-    expect(localeOfVariant("ar-EG#formal")).toBe("ar-EG");
-    expect(localeOfVariant("ar-EG|social")).toBe("ar-EG");
-    expect(localeOfVariant("ar-EG#formal|social")).toBe("ar-EG");
+    expect(localeOfVariant("ar-EG;tone=formal")).toBe("ar-EG");
+    expect(localeOfVariant("ar-EG;channel=social")).toBe("ar-EG");
+    expect(localeOfVariant("ar-EG;tone=formal;channel=social")).toBe("ar-EG");
   });
 });
 

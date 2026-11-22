@@ -1,6 +1,10 @@
 package model
 
-import "strings"
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
 
 // This file defines the key every edition of a block is filed under (AD-002),
 // the target lifecycle ladder and the provenance record. Locale is the only
@@ -39,13 +43,13 @@ func (k EditionKey) IsZero() bool { return k == EditionKey{} }
 
 // MarshalText encodes an EditionKey as text so it can serve as a JSON/YAML map
 // key. A locale-only key encodes as the bare locale ("fr"); optional
-// dimensions append as ";tone=…" / ";channel=…".
+// dimensions append as ";tone=…" / ";channel=…". It is the one printer of the
+// text form; SplitEditionKey is the one splitter every reader of it uses.
 //
-// A ";" or "%" inside a part is written as "%3B" or "%25", so the encoding is
-// one-to-one: a block can hold a target under a string that is not a locale
-// (a reader files what a document says), and that string must not decode as
-// another key. A locale, a tone and a channel name never contain either
-// character, so their text is unchanged.
+// A "%", ";" or "=" inside a part is written as "%25", "%3B" or "%3D", so the
+// encoding is one-to-one: a block can hold a target under a string that is
+// not a locale (a reader files what a document says), and that string must
+// not decode as another key. A part without those characters keeps its text.
 func (k EditionKey) MarshalText() ([]byte, error) {
 	s := editionKeyEscaper.Replace(string(k.Locale))
 	if k.Tone != "" {
@@ -58,26 +62,74 @@ func (k EditionKey) MarshalText() ([]byte, error) {
 }
 
 var (
-	editionKeyEscaper   = strings.NewReplacer("%", "%25", ";", "%3B")
-	editionKeyUnescaper = strings.NewReplacer("%25", "%", "%3B", ";")
+	editionKeyEscaper   = strings.NewReplacer("%", "%25", ";", "%3B", "=", "%3D")
+	editionKeyUnescaper = strings.NewReplacer("%25", "%", "%3B", ";", "%3D", "=")
 )
+
+// EditionKeyDimension is one ";name=value" part of an edition key's text
+// form. Text is the part as written; Name and Value are split at its first
+// "=" and Value is unescaped. HasValue is false for a part with no "=".
+type EditionKeyDimension struct {
+	Text     string
+	Name     string
+	Value    string
+	HasValue bool
+}
+
+// SplitEditionKey splits the text form MarshalText writes into the locale
+// and the dimensions, each part unescaped. The locale is returned as written,
+// not normalized; each reader decides how strictly to read it.
+func SplitEditionKey(text string) (locale string, dims []EditionKeyDimension) {
+	parts := strings.Split(text, ";")
+	for _, p := range parts[1:] {
+		name, val, ok := strings.Cut(p, "=")
+		dims = append(dims, EditionKeyDimension{Text: p, Name: name, Value: editionKeyUnescaper.Replace(val), HasValue: ok})
+	}
+	return editionKeyUnescaper.Replace(parts[0]), dims
+}
+
+// EditionKeyDimensions reads the dimensions of a key strictly: each part is
+// name=value with a value, the name is tone or channel, and neither is named
+// twice. The error names the offending part; the caller adds the key.
+func EditionKeyDimensions(dims []EditionKeyDimension) (tone, channel string, err error) {
+	for _, d := range dims {
+		if !d.HasValue || d.Value == "" {
+			return "", "", fmt.Errorf("%q is not name=value", d.Text)
+		}
+		switch d.Name {
+		case "tone":
+			if tone != "" {
+				return "", "", errors.New("it names its tone twice")
+			}
+			tone = d.Value
+		case "channel":
+			if channel != "" {
+				return "", "", errors.New("it names its channel twice")
+			}
+			channel = d.Value
+		default:
+			return "", "", fmt.Errorf("a dimension this build does not read: %q; an edition has a language, a tone and a channel", d.Name)
+		}
+	}
+	return tone, channel, nil
+}
 
 // UnmarshalText decodes an EditionKey produced by MarshalText. The locale is
 // normalized on the way in, so a document that spelled it another way still
-// keys the variant every reader looks up.
+// keys the variant every reader looks up. It is lenient: a part it does not
+// understand is skipped.
 func (k *EditionKey) UnmarshalText(b []byte) error {
-	parts := strings.Split(string(b), ";")
-	*k = EditionKey{Locale: NormalizeLocale(LocaleID(editionKeyUnescaper.Replace(parts[0])))}
-	for _, p := range parts[1:] {
-		name, val, ok := strings.Cut(p, "=")
-		if !ok {
+	locale, dims := SplitEditionKey(string(b))
+	*k = EditionKey{Locale: NormalizeLocale(LocaleID(locale))}
+	for _, d := range dims {
+		if !d.HasValue {
 			continue
 		}
-		switch name {
+		switch d.Name {
 		case "tone":
-			k.Tone = editionKeyUnescaper.Replace(val)
+			k.Tone = d.Value
 		case "channel":
-			k.Channel = editionKeyUnescaper.Replace(val)
+			k.Channel = d.Value
 		}
 	}
 	return nil

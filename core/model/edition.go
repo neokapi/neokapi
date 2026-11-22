@@ -12,7 +12,7 @@ import (
 // its canonical key. The accessors in this file address every edition the same
 // way, by key, so code that reads or writes content never depends on how the
 // editions are stored.
-//
+
 // The zero key always reaches the edition the block was read in, and so does
 // a key in the block's source language with no tone and no channel, unless the
 // block holds a same-language edition of its own under that key, as a
@@ -74,36 +74,19 @@ func ParseEditionKey(s string) (EditionKey, error) {
 	if s == "" {
 		return EditionKey{}, nil
 	}
-	parts := strings.Split(s, ";")
-	if parts[0] == "" {
+	language, dims := SplitEditionKey(s)
+	if language == "" {
 		return EditionKey{}, fmt.Errorf("edition %q names no language", s)
 	}
-	locale, err := CanonicalLocale(parts[0])
+	locale, err := CanonicalLocale(language)
 	if err != nil {
 		return EditionKey{}, fmt.Errorf("edition %q: %w", s, err)
 	}
-	k := EditionKey{Locale: locale}
-	for _, p := range parts[1:] {
-		name, val, ok := strings.Cut(p, "=")
-		if !ok || val == "" || strings.Contains(val, "=") {
-			return EditionKey{}, fmt.Errorf("edition %q: %q is not name=value", s, p)
-		}
-		switch name {
-		case "tone":
-			if k.Tone != "" {
-				return EditionKey{}, fmt.Errorf("edition %q names its tone twice", s)
-			}
-			k.Tone = val
-		case "channel":
-			if k.Channel != "" {
-				return EditionKey{}, fmt.Errorf("edition %q names its channel twice", s)
-			}
-			k.Channel = val
-		default:
-			return EditionKey{}, fmt.Errorf("edition %q: unknown dimension %q; an edition has a language, a tone and a channel", s, name)
-		}
+	tone, channel, err := EditionKeyDimensions(dims)
+	if err != nil {
+		return EditionKey{}, fmt.Errorf("edition %q: %w", s, err)
 	}
-	return k, nil
+	return EditionKey{Locale: locale, Tone: tone, Channel: channel}, nil
 }
 
 // keyText is the text form of k (MarshalText), for ordering keys.

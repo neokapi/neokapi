@@ -29,6 +29,7 @@
 // code until RTL content reaches it. Nothing short of never hand-writing that
 // element closes the gap; `DirectionalText` is that closure.
 
+import { parseEditionKey } from "@neokapi/kapi-format";
 import type React from "react";
 
 /** Writing direction of a text run. */
@@ -258,12 +259,10 @@ export function needsIsolation(
 }
 
 /**
- * The locale part of a target variant key ("ar-EG", "ar-EG#formal",
- * "ar-EG|social" → "ar-EG"): a variant key is the locale plus an optional
- * `#tone` and/or `|channel` suffix (model.EditionKey), and only the locale
- * part decides writing direction.
+ * The locale part of an edition key ("ar-EG", "ar-EG;tone=formal",
+ * "ar-EG;channel=social" → "ar-EG"). Only the locale decides writing
+ * direction.
  */
 export function localeOfVariant(variant: string): string {
-  const cut = variant.search(/[#|]/);
-  return cut === -1 ? variant : variant.slice(0, cut);
+  return parseEditionKey(variant).locale;
 }
