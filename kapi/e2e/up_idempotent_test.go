@@ -175,9 +175,36 @@ type upTwiceResult struct {
 // data root.
 func upTwice(t *testing.T, recipe string, delivered, withheld []string) (first, second *upTwiceResult) {
 	t.Helper()
+	dir, dataRoot, up := newUpProject(t, recipe)
+	assertWithheld := func() {
+		t.Helper()
+		for _, lang := range withheld {
+			for _, path := range []string{"src/messages_" + lang + ".json", "docs/" + lang + "/guide.md"} {
+				assert.NoFileExists(t, filepath.Join(dir, path), "%s waits for review, so no file of it is written", lang)
+			}
+		}
+	}
+
+	first = up()
+	require.GreaterOrEqual(t, first.Passes, 1, "the first run did a pass")
+	assertTranslated(t, dir, delivered...)
+	assertWithheld()
+	beforeTree, beforeData, beforeRows := snapshotUpProject(t, dir, dataRoot)
+
+	second = up()
+	assertWithheld()
+	assertUpProjectUnchanged(t, dir, dataRoot, beforeTree, beforeData, beforeRows)
+	return first, second
+}
+
+// newUpProject writes a project with recipe, a JSON catalog and a Markdown
+// guide, and returns its directory, its own data root, and a function that
+// runs `kapi up` over it and returns the run's result.
+func newUpProject(t *testing.T, recipe string) (dir, dataRoot string, up func() *upTwiceResult) {
+	t.Helper()
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
-	dataRoot, err := filepath.EvalSymlinks(t.TempDir())
+	dataRoot, err = filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "src"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "docs", "en"), 0o755))
@@ -190,7 +217,7 @@ func upTwice(t *testing.T, recipe string, delivered, withheld []string) (first, 
 	// The built-in default flow translates with the configured provider; the
 	// demo provider answers offline, with no key. The data root is this test's
 	// own, so its snapshot sees only what these two runs wrote.
-	up := func() *upTwiceResult {
+	up = func() *upTwiceResult {
 		t.Helper()
 		cmd := exec.Command(kapiBin, "up", "-p", "kapi.yaml", "--json")
 		cmd.Dir = dir
@@ -219,41 +246,78 @@ func upTwice(t *testing.T, recipe string, delivered, withheld []string) (first, 
 		result.passes, result.units = passes, units
 		return result
 	}
-	assertWithheld := func() {
-		t.Helper()
-		for _, lang := range withheld {
-			for _, path := range []string{"src/messages_" + lang + ".json", "docs/" + lang + "/guide.md"} {
-				assert.NoFileExists(t, filepath.Join(dir, path), "%s waits for review, so no file of it is written", lang)
-			}
-		}
-	}
+	return dir, dataRoot, up
+}
 
-	first = up()
-	require.GreaterOrEqual(t, first.Passes, 1, "the first run did a pass")
-	for _, lang := range delivered {
+// assertTranslated checks that each language's targets exist and carry the
+// demo provider's translated text.
+func assertTranslated(t *testing.T, dir string, langs ...string) {
+	t.Helper()
+	for _, lang := range langs {
 		for _, path := range []string{"src/messages_" + lang + ".json", "docs/" + lang + "/guide.md"} {
 			content, err := os.ReadFile(filepath.Join(dir, path))
 			require.NoError(t, err)
 			assert.Contains(t, string(content), "⟦"+lang+"⟧", "%s carries translated text", path)
 		}
 	}
-	assertWithheld()
-	beforeTree, beforeData := snapshotTree(t, dir), snapshotTree(t, dataRoot)
-	require.Contains(t, beforeData, workspaceDB, "the run wrote its workspace under the data root")
-	beforeRows := workspaceRows(t, filepath.Join(dataRoot, workspaceDB))
-	require.NotEmpty(t, beforeRows["workspace_projects"], "the run registered the project")
+}
 
-	second = up()
-	assertWithheld()
+// snapshotUpProject records the project tree, the data root and the rows of
+// the workspace registry.
+func snapshotUpProject(t *testing.T, dir, dataRoot string) (tree, data map[string]string, rows map[string][]string) {
+	t.Helper()
+	tree, data = snapshotTree(t, dir), snapshotTree(t, dataRoot)
+	require.Contains(t, data, workspaceDB, "the run wrote its workspace under the data root")
+	rows = workspaceRows(t, filepath.Join(dataRoot, workspaceDB))
+	require.NotEmpty(t, rows["workspace_projects"], "the run registered the project")
+	return tree, data, rows
+}
 
+// assertUpProjectUnchanged checks that a run changed no file of the project
+// or the data root, and no row of the workspace registry beyond its
+// last-opened stamps.
+func assertUpProjectUnchanged(t *testing.T, dir, dataRoot string, beforeTree, beforeData map[string]string, beforeRows map[string][]string) {
+	t.Helper()
 	assertUnchanged(t, "project", beforeTree, snapshotTree(t, dir))
 	afterData := snapshotTree(t, dataRoot)
 	delete(beforeData, workspaceDB)
 	delete(afterData, workspaceDB)
 	assertUnchanged(t, "data root", beforeData, afterData)
 	assert.Equal(t, beforeRows, workspaceRows(t, filepath.Join(dataRoot, workspaceDB)),
-		"the second run changed a row of the workspace registry beyond its last-opened stamps")
-	return first, second
+		"the run changed a row of the workspace registry beyond its last-opened stamps")
+}
+
+// A language held for review on one run and released on the next (here the
+// gate is removed, as a reviewer's approval would clear it) is delivered by
+// the second run after its loop, from the drafts the first run made. The
+// second run reports those units as produced and nothing waiting; a third
+// run reports nothing and changes nothing.
+func TestUpDeliversHeldDraftsWhenReleased(t *testing.T) {
+	dir, dataRoot, up := newUpProject(t, upTwiceHeldRecipe)
+	nlFiles := []string{"src/messages_nl.json", "docs/nl/guide.md"}
+
+	first := up()
+	require.Positive(t, first.WaitingForReview, "nl waits for review")
+	for _, path := range nlFiles {
+		require.NoFileExists(t, filepath.Join(dir, path))
+	}
+	units := first.units["nl"]
+	require.Positive(t, units)
+
+	released := strings.Replace(upTwiceHeldRecipe, "ship_gates:\n  - when: {locales: [nl]}\n    gate: {established: 100}\n", "", 1)
+	require.NotEqual(t, upTwiceHeldRecipe, released)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "kapi.yaml"), []byte(released), 0o644))
+
+	second := up()
+	assertTranslated(t, dir, "nl")
+	assert.Equal(t, units, second.Produced, "the nl units delivered after the loop are produced")
+	assert.Zero(t, second.WaitingForReview)
+	beforeTree, beforeData, beforeRows := snapshotUpProject(t, dir, dataRoot)
+
+	third := up()
+	assert.Zero(t, third.Produced)
+	assert.Zero(t, third.WaitingForReview)
+	assertUpProjectUnchanged(t, dir, dataRoot, beforeTree, beforeData, beforeRows)
 }
 
 // assertUnchanged reports every file the second run created, removed or

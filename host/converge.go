@@ -119,8 +119,9 @@ type ConvergeOutput struct {
 	Passes    int                    `json:"passes"`
 	Converged bool                   `json:"converged"` // no scope is withheld: every gated scope clears its gate
 	Locales   []ConvergeLocaleResult `json:"locales"`
-	// Produced counts the units this run wrote to the project's files, across
-	// every pass. A run that changed nothing reports 0. Nil when the venue
+	// Produced counts the units this run wrote to the project's files, by its
+	// passes or by the delivery after its loop, from this run's drafts or an
+	// earlier run's. A run that changed nothing reports 0. Nil when the venue
 	// does not report it: a server run writes to the server, and its summary
 	// leaves the figure out rather than give it another meaning.
 	Produced *int `json:"produced,omitempty"`
@@ -825,6 +826,14 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			})
 		}
 
+		// What the target files hold before the loop, so the summary can
+		// report what the run wrote to them, by the loop and its delivery.
+		inFilesBefore, err := a.unitsInFiles(ctx, cmd, proj, root, unread)
+		if err != nil {
+			return err
+		}
+		facts.inFilesBefore = inFilesBefore
+
 		res, err := convergence.Loop(ctx, convergence.LoopOptions{
 			UntilGate: untilGate,
 			MaxPasses: maxPasses,
@@ -839,7 +848,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			a.countProjectUsage(ctx, cmd, projectPath, resolved)
 		}
 		d := res.Final.Detail.(derivedState)
-		facts.produced, facts.waitingForReview = res.Produced, res.Final.WaitingForReview
+		facts.waitingForReview = res.Final.WaitingForReview
 		if err := a.finishConverge(ctx, cmd, proj, projectPath, flowLabel, res.Passes, d.cov, locales,
 			translateAfter, blockedOnSource, totalSource, facts, opts, emitter.Emit); err != nil {
 			return err
@@ -859,9 +868,10 @@ type convergeFacts struct {
 	noTargets       bool
 	extractedFiles  int
 	extractedBlocks int
-	// produced is the units the run wrote, and waitingForReview the drafts it
-	// holds for review (convergence.LoopResult).
-	produced         int
+	// inFilesBefore is the units the target files held before the run
+	// (unitsInFiles), and waitingForReview the drafts the run holds for
+	// review (convergence.LoopResult).
+	inFilesBefore    int
 	waitingForReview int
 	// redraftable is, per locale, how many stale units the run STARTED with in
 	// scopes it then fanned out over. The final rollup cannot recover it: a
@@ -1182,6 +1192,21 @@ func producedUnits(cov []LocaleCoverage) int {
 	return total
 }
 
+// unitsInFiles counts the units at `draft` or above that the project's
+// target files hold on disk. Coverage reads each target from its file alone:
+// a draft tree and the workspace home are left out, and a missing file holds
+// nothing. No check runs.
+func (a *App) unitsInFiles(ctx context.Context, cmd Command, proj *project.KapiProject, root string, unread *UnreadSet) (int, error) {
+	drafts := a.convergeDraftDir
+	a.convergeDraftDir, a.coverageFilesOnly = "", true
+	defer func() { a.convergeDraftDir, a.coverageFilesOnly = drafts, false }()
+	cov, _, err := a.deriveCoverage(ctx, cmd, proj, root, false, unread)
+	if err != nil {
+		return 0, fmt.Errorf("count the units the target files hold: %w", err)
+	}
+	return producedUnits(cov), nil
+}
+
 // coverageScope names one (collection, locale) coverage row.
 type coverageScope struct {
 	locale, collection string
@@ -1262,7 +1287,6 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	out.NoTargets = facts.noTargets
 	out.ExtractedFiles = facts.extractedFiles
 	out.ExtractedBlocks = facts.extractedBlocks
-	out.Produced = &facts.produced
 	out.WaitingForReview = facts.waitingForReview
 	out.BlockedOnSource = blockedOnSource
 	out.Findings = facts.placeholderReport()
@@ -1418,6 +1442,16 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 			return fmt.Errorf("settle the drafts the workspace home keeps: %w", rerr)
 		}
 	}
+
+	// Produced is what the run wrote to the target files: the units they hold
+	// now beyond those they held before, delivered by a pass or after the
+	// loop, from this run's drafts or an earlier run's.
+	inFilesAfter, ferr := a.unitsInFiles(ctx, cmd, proj, filepath.Dir(projectPath), facts.unread)
+	if ferr != nil {
+		return ferr
+	}
+	produced := max(inFilesAfter-facts.inFilesBefore, 0)
+	out.Produced = &produced
 
 	state := convergence.RunConverged
 	if !out.Converged {
