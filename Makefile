@@ -905,10 +905,15 @@ check-edit-writes: i18n-catalogs go-embed-placeholders ## Guard: a document reac
 # every other package reaches the editions through the accessors and the
 # storage can change inside core/model alone. A test may write the storage to
 # plant a state no accessor produces; those uses are counted. The desktop
-# placeholder bundle lets its main package type-check.
+# placeholder bundle lets its main package type-check. PDFium is fetched once,
+# pinned and checksummed, into PDFIUM_CACHE_DIR (shared by every worktree).
+PDFIUM_CACHE_DIR ?= $(or $(XDG_CACHE_HOME),$(HOME)/.cache)/neokapi/pdfium
 fieldguard: kapi-desktop-lint-deps ## Gate: no code outside core/model and its tests reaches Block.Editions or Block.Native past the edition accessors
 	@$(GO) run ./scripts/fieldguard -self-test
-	@$(GO) run ./scripts/fieldguard $(FIELDGUARD_ARGS)
+	@# plugins/pdfium type-checks only with PDFium on pkg-config, and a package
+	@# that does not type-check fails the guard.
+	@pc="$$(./scripts/pdfium-pkgconfig.sh "$(PDFIUM_CACHE_DIR)")" && \
+		PKG_CONFIG_PATH="$$pc$${PKG_CONFIG_PATH:+:$$PKG_CONFIG_PATH}" $(GO) run ./scripts/fieldguard $(FIELDGUARD_ARGS)
 
 check-go-module-boundaries: i18n-catalogs go-embed-placeholders
 	@GO="$(GO)" ./scripts/check-go-module-boundaries.sh $(AUDIT_MODULES)
@@ -3157,9 +3162,7 @@ docs-build-prod: web-wasm-demo web-wasm-cli ## Build the kapi docs+landing site 
 bowrain-docs-build-prod: ## Build the standalone bowrain docs site with the production base → bowrain/web/docs/build
 # bowrain/web/docs carries its own pnpm-workspace.yaml (packages: []), so it is
 # already its own workspace root and needs no --ignore-workspace to stay out of
-# the repo workspace. The flag is actively harmful here: it makes pnpm skip that
-# file, including its packageManagerRegistries pin, and the package-manager
-# bootstrap then fails on any machine whose default registry is a mirror.
+# the repo workspace. The flag would make pnpm skip that file and its settings.
 	cd bowrain/web/docs && vp install
 	cd bowrain/web/docs && DOCS_BASE_URL=$(BOWRAIN_DOCS_BASE) vpx docusaurus build
 
