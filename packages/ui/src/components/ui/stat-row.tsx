@@ -123,8 +123,12 @@ function Stat({ item }: { item: StatItem }) {
     </span>
   ) : null;
 
+  // The item is positioned so the screen-reader phrase, which is absolutely
+  // positioned, stays inside it and scrolls with the page. Anchored to a
+  // distant ancestor instead, a phrase below the fold adds height to that
+  // ancestor that no scrollbar reaches.
   return (
-    <li data-slot="stat" data-tone={tone}>
+    <li data-slot="stat" data-tone={tone} className="relative">
       {focusable && hint ? (
         <SimpleTooltip content={hint}>{focusable}</SimpleTooltip>
       ) : (

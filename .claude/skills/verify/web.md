@@ -106,10 +106,10 @@ A failing test leaves `test-failed-1.png` and a trace under
 `bowrain/apps/web/test-results/`. The specs create projects in a workspace
 named `acme` on every run.
 
-`layout-scroll.spec.ts` fails three of its viewport tests on main today
-(1280x440, 1280x720 and 390x844): the project Overview page at
-`/acme/p/<id>/s/main` clips content in its `main` element. Compare against
-those three; a new failure, or one on another route, is yours.
+Every spec passes on main. `layout-scroll.spec.ts` reports the element that
+clips and by how many pixels. When it names `main`, look for an absolutely
+positioned descendant below the fold, such as an `sr-only` label, whose
+nearest positioned ancestor is `main` and not the scroll container.
 
 ## Evidence
 
