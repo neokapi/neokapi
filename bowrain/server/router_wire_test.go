@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -78,6 +80,32 @@ func TestRouterWire_PanicIs500Envelope(t *testing.T) {
 	assert.Equal(t, "internal server error", body["error"])
 	assert.NotContains(t, rec.Body.String(), "exploded")
 	assert.NotEmpty(t, body["reference"])
+}
+
+// The server_error_count alarm counts ERROR log lines. A panic writes two, as a
+// returned 500 does: httpErrorHandler's "request failed" and the request log
+// record. The stack goes out at WARN.
+func TestRouterWire_PanicLogsTwoErrorLines(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	e := wireEcho(t)
+	e.GET("/test/panic-log", func(*echo.Context) error { panic("handler exploded") })
+	buf.Reset()
+
+	rec, _ := serveWire(e, httptest.NewRequest(http.MethodGet, "/test/panic-log", nil))
+	require.Equal(t, http.StatusInternalServerError, rec.Code)
+
+	levels := map[string][]string{}
+	for line := range strings.SplitSeq(strings.TrimSpace(buf.String()), "\n") {
+		var r struct{ Level, Msg string }
+		require.NoError(t, json.Unmarshal([]byte(line), &r))
+		levels[r.Level] = append(levels[r.Level], r.Msg)
+	}
+	assert.Len(t, levels["ERROR"], 2, "ERROR lines: %v", levels["ERROR"])
+	assert.Contains(t, levels["WARN"], "panic recovered")
 }
 
 // Every OPTIONS request is answered 204 before route middleware runs, so an

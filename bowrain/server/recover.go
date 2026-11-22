@@ -8,8 +8,8 @@ import (
 	"github.com/labstack/echo/v5/middleware"
 )
 
-// recoverPanics recovers a panic in the rest of the chain, logs it with its
-// stack, and answers it through the Echo error handler with the panic value
+// recoverPanics recovers a panic in the rest of the chain, logs its stack at
+// WARN, and answers it through the Echo error handler with the panic value
 // as the error, so the handler reports a 500 to Sentry under the panic's own
 // message. It then returns nil: the middleware before it (tracing, metrics,
 // the request log) see a committed 500 and no error.
@@ -23,7 +23,10 @@ func recoverPanics() echo.MiddlewareFunc {
 			if !ok {
 				return err
 			}
-			slog.ErrorContext(c.Request().Context(), "panic recovered",
+			// WARN: httpErrorHandler logs the same failure at ERROR and reports
+			// it to Sentry, and the server_error_count alarm counts ERROR lines.
+			// This line adds the stack without counting the panic twice.
+			slog.WarnContext(c.Request().Context(), "panic recovered",
 				"method", c.Request().Method,
 				"path", c.Path(),
 				"error", pse.Err,
