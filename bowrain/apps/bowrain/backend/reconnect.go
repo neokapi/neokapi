@@ -176,8 +176,12 @@ func (a *App) reconnectLoop(ctx context.Context, nudge <-chan struct{}) {
 // runs so the person sees the app trying rather than a Retry that seems to do
 // nothing. A failed attempt reports the app offline again.
 func (a *App) attemptReconnect(ctx context.Context) error {
+	attempt := a.tryReconnect
+	if a.reconnectAttempt != nil {
+		attempt = a.reconnectAttempt
+	}
 	a.setReconnecting(true)
-	err := a.tryReconnect(ctx)
+	err := attempt(ctx)
 	a.setReconnecting(false)
 	if err != nil && !errors.Is(err, errAuthRequired) {
 		a.emitConnectionState()

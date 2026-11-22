@@ -1,11 +1,15 @@
 package backend
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/neokapi/neokapi/core/change"
@@ -310,11 +314,30 @@ func TestRefusedChangeSetSurfacesToCaller(t *testing.T) {
 // TestTransportFailureStillGoesOffline locks the other half of the split: a
 // change set that cannot reach the server drops the app to offline mode and
 // queues for replay, here for a block the cache does not hold, which the
-// server judges when the change set replays.
+// server judges when the change set replays. The test holds each reconnect
+// attempt open and decides how it ends, so every state the frontend is told
+// is asserted in order: reconnecting while an attempt runs, offline after one
+// fails, connected once one succeeds and the queue has drained.
 func TestTransportFailureStillGoesOffline(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	var up atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !up.Load() {
+			// The connection drops before any answer: a transport failure.
+			conn, _, err := w.(http.Hijacker).Hijack()
+			if err == nil {
+				_ = conn.Close()
+			}
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/changes") {
+			_ = json.NewEncoder(w).Encode(change.Result{Schema: change.ResultSchemaID, Status: change.SetApplied})
+			return
+		}
 		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"id":"u1","email":"a@example.com","name":"A"}`))
 	}))
+	t.Cleanup(srv.Close)
+
 	app := newTestApp(t)
 	q := newTestQueue(t)
 	if app.offlineQueue != nil {
@@ -328,7 +351,19 @@ func TestTransportFailureStillGoesOffline(t *testing.T) {
 	app.remoteHTTP = editorclient.New(srv.URL, "tok-xyz")
 	app.authInfo = &config.StoredAuth{ServerURL: srv.URL, AccessToken: "tok-xyz"}
 	app.mu.Unlock()
-	srv.Close() // connection refused from here on
+
+	// Each attempt waits for the test: nil runs the real attempt, anything
+	// else fails it with that error.
+	started := make(chan struct{})
+	outcome := make(chan error)
+	app.reconnectAttempt = func(ctx context.Context) error {
+		started <- struct{}{}
+		if err := <-outcome; err != nil {
+			return err
+		}
+		return app.tryReconnect(ctx)
+	}
+	t.Cleanup(app.stopReconnect)
 
 	out, err := app.ApplyChanges("p1", changeSet(t, decideTarget("hello.txt", "b1", "fr", "r:00000000000000aa", "establish")))
 	require.NoError(t, err)
@@ -336,12 +371,32 @@ func TestTransportFailureStillGoesOffline(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(out), &res))
 	assert.Equal(t, change.SetApplied, res.Status)
 
-	// The queued edit asks the reconnect loop to try at once, so the state the
-	// frontend is told may already be an attempt under way; the app itself is
-	// offline either way.
+	// The queued edit asks for an attempt at once; it is held open.
+	<-started
+	assert.Equal(t, StateReconnecting, app.GetConnectionState().State)
 	assert.True(t, app.isOffline())
 	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 1)
 	assert.Equal(t, string(opChangeSet), changes[0].Operation)
+
+	// The attempt fails: offline again, the edit still waiting.
+	outcome <- errors.New("still unreachable")
+	require.Eventually(t, func() bool {
+		return app.GetConnectionState().State == StateOffline
+	}, 5*time.Second, 5*time.Millisecond)
+	assert.True(t, app.isOffline())
+	assert.Equal(t, 1, q.PendingCount(t.Context()))
+
+	// The server is back; the next attempt succeeds and the queue drains.
+	up.Store(true)
+	app.RetryConnection()
+	<-started
+	assert.Equal(t, StateReconnecting, app.GetConnectionState().State)
+	assert.True(t, app.isOffline())
+	outcome <- nil
+	require.Eventually(t, func() bool {
+		return app.GetConnectionState().State == StateConnected && q.PendingCount(t.Context()) == 0
+	}, 10*time.Second, 5*time.Millisecond)
+	assert.False(t, app.isOffline())
 }

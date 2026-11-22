@@ -66,7 +66,10 @@ type App struct {
 	reconnectCancel context.CancelFunc         // stops the reconnection goroutine
 	reconnectNudge  chan struct{}              // asks a running reconnect loop to attempt now; nil when no loop runs
 	reconnecting    bool                       // an attempt to leave the offline state is under way
-	autoConnectDone bool                       // true after BOWRAIN_TOKEN auto-connect attempted
+	// reconnectAttempt replaces tryReconnect when set, so a test can hold an
+	// attempt open and decide how it ends. Set before the app goes offline.
+	reconnectAttempt func(ctx context.Context) error
+	autoConnectDone  bool // true after BOWRAIN_TOKEN auto-connect attempted
 
 	// memoryPath overrides the default content-memory database path (for testing).
 	memoryPath string
