@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/redaction"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -35,7 +36,7 @@ type AITranslateTool struct {
 	// can send the rules its own text could use. See termsFor.
 	termRules []coreprofile.TermRule
 	// termMap is every rule projected to term→replacement. It is what the
-	// context fingerprint is computed over — deliberately the whole set, since
+	// context fingerprint is computed over, deliberately the whole set, since
 	// the fingerprint is a staleness detector and a rule added about words a
 	// block does not contain should still re-check that block.
 	termMap     map[string]string
@@ -45,12 +46,12 @@ type AITranslateTool struct {
 	// profileID and profileVersion identify the context profile whose guidance
 	// went into voiceGuide, stamped onto every target this tool produces. The
 	// guidance itself is rendered once and the profile discarded, so these are
-	// kept separately — without them the governing context is unrecoverable
+	// kept separately, without them the governing context is unrecoverable
 	// after the profile is next edited.
 	profileID      string
 	profileVersion string
-	// contextFP hashes the governing context as it actually reached the model —
-	// the rendered voice guidance and the terminology — so a target can be told
+	// contextFP hashes the governing context as it actually reached the model
+	// (the rendered voice guidance and the terminology), so a target can be told
 	// stale against a context that has since moved. Narrower than configFP on
 	// purpose: see tool.ContextFingerprint.
 	contextFP     string
@@ -157,7 +158,7 @@ func (t *AITranslateTool) storedTarget(block *model.Block, target, configFP stri
 	}
 }
 
-// Default values for AITranslateConfig — used in both the schema tags
+// Default values for AITranslateConfig, used in both the schema tags
 // (for UI display) and NewAITranslateTool (for runtime fallback).
 const (
 	// BatchingAuto lets kapi size each call from the model's output ceiling.
@@ -167,11 +168,11 @@ const (
 	BatchingSingle          = "single"
 	DefaultBatchConcurrency = 1
 
-	// ContextNone sends the block and nothing else — what kapi did before, and
+	// ContextNone sends the block and nothing else, what kapi did before, and
 	// what leaves a bare "Save" ambiguous between a verb and a noun.
 	ContextNone = "none"
 	// ContextKey sends the block's key or path. The default: cheap, stable, and
-	// — because a key travels with its block — it cannot make a cached
+	// (because a key travels with its block) it cannot make a cached
 	// translation wrong.
 	ContextKey = "key"
 	// ContextNeighbours also sends the surrounding blocks as reference material.
@@ -187,7 +188,7 @@ const (
 	ReusePrior = "prior"
 	// ReuseNone sends no reference. The block is translated as if it had no
 	// history, which suits a run that re-translates deliberately
-	// — a voice change the old wording should not anchor — or when it does not
+	// (a voice change the old wording should not anchor) or when it does not
 	// want to pay for the lookup.
 	ReuseNone = "none"
 )
@@ -214,7 +215,7 @@ type AITranslateConfig struct {
 	// Instruction is a directive applied while translating, rendered into the
 	// prompt's Instruction section. It is the supported way to steer a
 	// translation without replacing the prompt: "Informal register", "keep
-	// product names in English". Also set programmatically — a reviewer's
+	// product names in English". Also set programmatically, a reviewer's
 	// re-translation guidance, or the findings a fix pass must resolve.
 	//
 	// It feeds aiConfigFingerprint, so changing it re-translates rather than
@@ -245,7 +246,7 @@ type AITranslateConfig struct {
 	//
 	// Its own setting rather than a value of Context, because the two govern
 	// different things and `context:` already promises something else. Context
-	// is about the material AROUND a block — its key, its neighbours — which is
+	// is about the material AROUND a block (its key, its neighbours) which is
 	// free, comes from the document in hand, and cannot fail. A prior version is
 	// the block's OWN history: it costs a corpus read, it is gated on
 	// governance, and it is available on paths where neighbours are not. A user
@@ -254,17 +255,17 @@ type AITranslateConfig struct {
 	Reuse string `json:"reuse,omitempty" schema:"title=Reuse Prior Translation,description=Offer a block's previously approved translation to the model as reference,enum=prior|none,default=prior,group=prompt"`
 
 	// DNT are do-not-translate terms (product names, trademarks, code
-	// identifiers) that must survive VERBATIM into the target — the enforced
+	// identifiers) that must survive VERBATIM into the target, the enforced
 	// counterpart of the advisory TermRules. Where a term rule only asks the
-	// model to prefer a rendering, DNT LOCKS the span: each occurrence in the
+	// model to prefer a rendering, DNT LOCKS the span. Each occurrence in the
 	// source is masked with a sentinel placeholder before the model sees it and
-	// restored to the exact original after, so the term cannot be translated,
-	// transliterated, or dropped no matter what the model returns. Sourced from
+	// restored to the exact original after. The term cannot be translated,
+	// transliterated, or dropped, whatever the model returns. Sourced from
 	// the recipe, a checkset, or terms do-not-translate/forbidden terms.
 	//
 	// Masking a span is only safe per block (the sentinel must survive a single
 	// generation), so a tool configured with DNT terms translates one block per
-	// call regardless of the batching setting — correctness over throughput for
+	// call regardless of the batching setting, correctness over throughput for
 	// the (usually small) set of protected terms.
 	DNT []string `json:"dnt,omitempty" schema:"-"`
 
@@ -274,7 +275,7 @@ type AITranslateConfig struct {
 	//
 	// Deliberately not a number. The right block count depends on the model's
 	// output ceiling, on how long this project's segments happen to be, and on a
-	// quality-vs-batch-size curve nobody has published — none of which a user is
+	// quality-vs-batch-size curve nobody has published, none of which a user is
 	// in a position to know. The old "Batch Size: 100" field asked them to guess,
 	// and a wrong guess truncated the model's reply and failed the run.
 	//
@@ -286,12 +287,12 @@ type AITranslateConfig struct {
 	// Context is what kapi tells the model about a block besides the block.
 	//
 	// `key` sends the block's key or path (`app.settings.title`), which is the
-	// cheapest disambiguation there is — a bare "Save" is a coin flip between a
+	// cheapest disambiguation there is, a bare "Save" is a coin flip between a
 	// verb and a noun, and in German between two different words.
 	//
 	// `neighbours` adds the surrounding source blocks as reference material the
 	// model must read but not translate. It costs tokens, and it makes a block's
-	// translation depend on text that is not the block — so an edit to one string
+	// translation depend on text that is not the block, so an edit to one string
 	// re-translates its neighbours. That is correct, and it is not free, which is
 	// why it is opt-in.
 	Context string `json:"context,omitempty" schema:"title=Context,description=What the model is told about a block besides the block itself,enum=none|key|neighbours,default=key,group=prompt"`
@@ -350,6 +351,12 @@ func ProviderFromConfig(name string, cfg aiprovider.Config) (aiprovider.LLMProvi
 func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	// Extract non-serializable fields before JSON round-trip.
 	injected := TakeInjected(config)
+	// A step whose provider has no key is still built (the registry defers
+	// the failure for a tool that DefersCredentials): its provider returns
+	// the failure on the first call, so a step the content memory answered
+	// completely needs no key.
+	deferredErr, _ := config[registry.DeferredCredentialErrorKey].(error)
+	delete(config, registry.DeferredCredentialErrorKey)
 	var onProgress func(aiprovider.ProgressEvent)
 	if fn, ok := config["onProgress"].(func(aiprovider.ProgressEvent)); ok {
 		onProgress = fn
@@ -378,6 +385,13 @@ func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.To
 		cfg.TargetLocale = model.LocaleID(targetLang)
 	}
 
+	if deferredErr != nil {
+		name := cfg.Provider
+		if name == "" {
+			name = string(aiprovider.Anthropic)
+		}
+		return NewAITranslateTool(aiprovider.Unavailable(aiprovider.ProviderID(name), deferredErr), cfg), nil
+	}
 	p, err := providerFor(injected, cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, BaseURL: cfg.BaseURL, Model: cfg.Model})
 	if err != nil {
 		return nil, err
@@ -448,11 +462,11 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 	}
 	// Do-not-translate enforcement masks each protected span with a sentinel
 	// that must survive a single generation intact, so a tool with DNT terms
-	// translates one block per call — the batch path packs many sources into one
+	// translates one block per call, the batch path packs many sources into one
 	// structured-JSON generation where a per-span sentinel cannot be tracked
 	// safely. Correctness for the (small) protected set outweighs the batch win.
 	// Neighbour context also routes through the batched path (Process), which
-	// never applies the mask, so DNT downgrades context to `key` — the mask,
+	// never applies the mask, so DNT downgrades context to `key`, the mask,
 	// which needs the single-block path, wins over the neighbourhood hint.
 	if len(t.dnt) > 0 {
 		t.batchSize = 1
@@ -478,8 +492,8 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 // unchanged. The API key, batch sizing, and progress callback do not shape the
 // result and are excluded.
 //
-// Everything prompt-shaped — the task and constraint wording, the instruction,
-// the voice profile guidance, the term rules, the locales — enters through the
+// Everything prompt-shaped (the task and constraint wording, the instruction,
+// the voice profile guidance, the term rules, the locales) enters through the
 // prompt builder's own Fingerprint, hashed from the text it actually renders.
 // Listing those inputs here by hand would mean that rewording a prompt (which
 // changes output) left the fingerprint untouched, and cached targets produced by
@@ -495,7 +509,7 @@ func aiConfigFingerprint(cfg AITranslateConfig, voiceGuide string) string {
 	}
 	// The context *policy* is part of the fingerprint: turning context on changes
 	// every prompt, so cached targets produced without it must not be served. The
-	// per-block context is not — it varies per block, and is accounted for by the
+	// per-block context is not, it varies per block, and is accounted for by the
 	// neighbourhood digest on the cache entry itself.
 	contextPolicy := cfg.Context
 	if contextPolicy == "" {
@@ -525,7 +539,7 @@ func aiConfigFingerprint(cfg AITranslateConfig, voiceGuide string) string {
 func (t *AITranslateTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
 	// Neighbour context needs the document in order, and only the batched path
 	// buffers the stream. So `batching: single` + `context: neighbours` routes
-	// here too — and lands on exactly the shape the evidence favours: a large
+	// here too, and lands on exactly the shape the evidence favours: a large
 	// non-translated context with a small translation unit.
 	if t.batchSize <= 1 && t.concurrency <= 1 && t.contextPolicy != ContextNeighbours {
 		return t.BaseTool.Process(ctx, in, out)
@@ -535,12 +549,12 @@ func (t *AITranslateTool) Process(ctx context.Context, in <-chan *model.Part, ou
 
 // SessionProcess consults the session's `targets/<locale>` overlays
 // before calling the LLM. A block whose target is already cached
-// gets hydrated from the overlay and skipped — key for incremental
+// gets hydrated from the overlay and skipped, key for incremental
 // AI translation runs where re-calling the model is expensive.
 // After a fresh translation, the resulting target is written back
 // to the session so the next run can skip it.
 //
-// Batch + concurrent paths remain unchanged — they route through
+// Batch + concurrent paths remain unchanged, they route through
 // Process without session involvement. Users who want session-aware
 // translation run with batchSize/concurrency at defaults (1) so the
 // block-by-block path applies.
@@ -606,11 +620,10 @@ func (t *AITranslateTool) sessionHandleBlock(
 	// The cache key for this block: the tool config, plus the digest of its
 	// neighbourhood when neighbours are being sent.
 	//
-	// Without the digest, sending neighbours would be a correctness bug rather
-	// than a feature: a block's translation would depend on text that is not the
-	// block, while its cache entry pretended otherwise — so editing one string
-	// would leave the strings around it holding translations produced under a
-	// neighbourhood that no longer exists.
+	// The digest keeps sending neighbours correct. A block's translation
+	// depends on text outside the block, and its cache entry must say so.
+	// Otherwise editing one string would leave the strings around it holding
+	// translations produced under a neighbourhood that no longer exists.
 	cacheFP := t.cacheFingerprint(ctx, block)
 
 	// Serve the stored target when it answers this exact source under this
@@ -776,7 +789,7 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 	// Translate-after hold: a block whose source is below the active
 	// translate_after level carries the hold marker set by the leading
 	// translate-after stage.
-	// Do not translate it — its source is un-settled; it holds until settled or
+	// Do not translate it, its source is un-settled; it holds until settled or
 	// the gate is lowered. The gate is off (or the source cleared) when the
 	// marker is absent, so this is a no-op for the ungated path.
 	if v.Property(model.PropSourceHeld) == "1" {
@@ -880,7 +893,7 @@ func (t *AITranslateTool) translateStructured(v tool.VariantView, sourceRuns []m
 // a fragment of a translation is indistinguishable from a translation once it is
 // committed as the target, and every caller of this function commits what it gets
 // back. The block is already alone in its call with a budget sized for it, so
-// there is no smaller request left to make — the run stops and says so.
+// there is no smaller request left to make, the run stops and says so.
 func (t *AITranslateTool) translateBlock(ctx context.Context, req aiprovider.TranslateRequest) (*aiprovider.TranslateResponse, error) {
 	resp, err := t.translateBlockRaw(ctx, req)
 	if err != nil {
@@ -900,7 +913,7 @@ func (t *AITranslateTool) translateBlockRaw(ctx context.Context, req aiprovider.
 		return t.provider.Translate(ctx, req)
 	}
 
-	// Same prompt Translate would build — rendered from the one builder rather
+	// Same prompt Translate would build, rendered from the one builder rather
 	// than restated here, so the streaming and non-streaming paths cannot drift.
 	p := req.Prompt()
 	turns := p.SingleWithContext(req.Source, req.PreserveTags, req.BlockContext)
@@ -948,14 +961,14 @@ func (t *AITranslateTool) translateCoded(ctx context.Context, sourceRuns []model
 
 	// DNT enforcement (epic 019, item 4): mask protected spans in the
 	// placeholder text before translation and restore them in the model's reply
-	// before it is parsed back into runs — the sentinels ride through as plain
+	// before it is parsed back into runs, the sentinels ride through as plain
 	// text runs, so restoration lands the exact original term in the target.
 	maskedSource, dntRestoreMap := dntMask(sourceText, t.dnt)
 
 	// Source is the content to translate, never an instruction: PreserveTags
-	// carries the tag rule into the prompt. (This path used to pass a fully
-	// built instruction as Source, which standardTranslate then wrapped in a
-	// second instruction — so the model was handed a prompt to translate.)
+	// carries the tag rule into the prompt. An instruction passed as Source
+	// would be wrapped in a second instruction by standardTranslate, and the
+	// model would be handed a prompt to translate.
 	ctx = aiprovider.WithMaxOutputTokens(ctx, blockOutputBudget(maskedSource))
 	resp, err := t.translateBlock(ctx, aiprovider.TranslateRequest{
 		Source:         maskedSource,
@@ -974,7 +987,7 @@ func (t *AITranslateTool) translateCoded(ctx context.Context, sourceRuns []model
 
 	targetRuns := model.ParseRunsPlaceholderText(dntRestore(resp.Translation, dntRestoreMap), sourceRuns)
 	// The DNT masking above protects configured TERMS. A code span is
-	// protected structurally instead — the reader marked its runs — so it is
+	// protected structurally instead (the reader marked its runs) so it is
 	// restored from the source rather than matched by string, which cannot
 	// over-match a command that also appears in the prose.
 	return model.RestoreNonTranslatable(targetRuns, sourceRuns), resp, nil
@@ -1043,7 +1056,7 @@ func (t *AITranslateTool) annotateTranslation(v tool.VariantView, resp *aiprovid
 
 // aiOrigin describes a target produced by this AI tool: how it was made (the
 // provider), and which context governed it. The context half is stamped here
-// because it is only knowable at production time — the profile is edited in
+// because it is only knowable at production time, the profile is edited in
 // place and the terminology carries no version at all, so a later reader cannot
 // recover what shaped this target.
 func (t *AITranslateTool) aiOrigin() model.Origin {
@@ -1091,7 +1104,7 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 			continue
 		}
 		// Translate-after hold: a block held on its un-settled source is
-		// not batched — it passes through untranslated (written to output below).
+		// not batched, it passes through untranslated (written to output below).
 		if block.SourceHeld() {
 			continue
 		}
@@ -1121,7 +1134,7 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 
 	// 3. Group into batches the model can actually answer, and translate them
 	// with bounded concurrency. Packing is by output-token budget, not a fixed
-	// count — see pack.go. A block whose source holds a plural or select is
+	// count, see pack.go. A block whose source holds a plural or select is
 	// translated a sequence at a time (translateStructured), so it is a batch
 	// of its own.
 	var packed []blockEntry
@@ -1248,8 +1261,8 @@ func (b *batchTranslations) UnmarshalJSON(data []byte) error {
 	}
 }
 
-// blockContext builds the reference material for one block: its key, and — when
-// asked — the source text of the blocks around it.
+// blockContext builds the reference material for one block: its key and, when
+// asked, the source text of the blocks around it.
 //
 // neighbours is the full document-ordered entry list, and i the block's position
 // in it. A nil list means the caller has no document order to offer (the
@@ -1284,19 +1297,15 @@ func (t *AITranslateTool) blockContext(ctx context.Context, b *model.Block, neig
 //
 // Two things can vary independently of the block: the neighbourhood, and the
 // block's own previously approved translation. Both change what the model was
-// asked, so both belong in the key. A prior version that reached the model
-// without moving this fingerprint would be right once and stale for every run
-// afterwards, serving a translation steered by an answer the chain has left
-// behind.
+// asked, so both belong in the key; otherwise a cached translation would stay
+// steered by an answer the chain has left behind.
 //
 // The block's *key* is deliberately not in here. A key travels with its block,
-// so a cache already keyed by the block accounts for it; folding it in would
-// churn the cache for no gain.
-// It asks the context for its digest unconditionally rather than gating on which
-// context sources are configured. Context.Digest already returns "" when nothing
-// beyond the key is present, so the gate bought nothing but a place for the next
-// context source to be forgotten, which is how the prior version was nearly
-// shipped outside the cache key.
+// so a cache already keyed by the block accounts for it.
+// It asks the context for its digest unconditionally. Context.Digest returns
+// "" when nothing beyond the key is present, and a gate on the configured
+// context sources would only leave room for the next source to be left out
+// of the key.
 //
 // A source a step rewrote also puts the text sent in the key
 // (blockstore.ReuseConfig).
@@ -1313,8 +1322,8 @@ func (t *AITranslateTool) cacheFingerprint(ctx context.Context, b *model.Block) 
 // attachPrior adds the block's previous approved translation to the prompt
 // context, when there is one and it still stands.
 //
-// The fingerprint passed is the tool's own — the governance that is about to
-// reach the model — so the comparison is between what governed the old answer
+// The fingerprint passed is the tool's own (the governance that is about to
+// reach the model), so the comparison is between what governed the old answer
 // and what governs this one, rather than against anything a caller supplied.
 func (t *AITranslateTool) attachPrior(ctx context.Context, unit string, pc *prompt.Context) {
 	if pv := t.priorFor(ctx, unit); pv != nil {
@@ -1327,8 +1336,8 @@ func (t *AITranslateTool) attachPrior(ctx context.Context, unit string, pc *prom
 // One block asks for its prior version five times in a run: the packer asks to
 // decide whether to batch it, cacheFingerprint asks three times (the skip check,
 // the hit comparison and the write-back), and the translation itself asks once.
-// They must all get the same answer — a fingerprint computed from a different
-// answer than the prompt carried is a cache key that describes nothing — and
+// They must all get the same answer: a fingerprint computed from a different
+// answer than the prompt carried is a cache key that describes nothing, and
 // paying for five reads to guarantee that would be the wrong way round.
 //
 // A run has one point and one governing fingerprint, so the unit is the whole
@@ -1366,7 +1375,7 @@ func (t *AITranslateTool) priorFor(ctx context.Context, unit string) *prompt.Pri
 // in the text it carries.
 //
 // Scoped per call rather than per run because that is the grain at which it
-// matters — a batch of twenty segments sends the union of what those twenty can
+// matters, a batch of twenty segments sends the union of what those twenty can
 // use, not the four hundred rules the collection is governed by.
 //
 // The fingerprint is NOT scoped, and the asymmetry is the point: what reaches
@@ -1414,9 +1423,8 @@ func (t *AITranslateTool) contextFor(ctx context.Context, id, name, unit string)
 }
 
 // batchContext is the neighbourhood *around a batch*: the blocks before the
-// first and after the last. The blocks inside the batch are not context for each
-// other — they are being translated, and calling a co-worker "context" is the
-// confusion this whole design exists to avoid.
+// first and after the last. The blocks inside the batch are what is being
+// translated; only the blocks around it are context.
 func (t *AITranslateTool) batchContext(batch []blockEntry, all []blockEntry) prompt.Context {
 	if t.contextPolicy != ContextNeighbours || len(batch) == 0 || all == nil {
 		return prompt.Context{}
@@ -1449,7 +1457,7 @@ func indexOfEntry(all []blockEntry, e blockEntry) int {
 	return -1
 }
 
-// blockKey is where the block lives in the document — `app.settings.title`, the
+// blockKey is where the block lives in the document, `app.settings.title`, the
 // thing that makes a bare "Save" mean something. Readers put it in Name.
 func blockKey(b *model.Block) string {
 	if b == nil {
@@ -1462,12 +1470,10 @@ func blockKey(b *model.Block) string {
 // recipe pin, or the eval harness sweeping N) is honoured verbatim; otherwise
 // kapi sizes the batch from what the model can emit.
 //
-// A block with a previously approved answer used to be packed alone, because
-// the batch payload had one shared context and a key per segment with nowhere
-// to put a per-block reference. That un-batched exactly the blocks the feature
-// applied to — and on a model migration, where every approved block has a
-// governed prior, that was every block in the corpus. BatchSegment.Prior
-// removed the restriction; this is what it bought.
+// A block with a previously approved answer batches like any other:
+// BatchSegment.Prior carries its reference inside the batch payload. On a
+// model migration every approved block has a governed prior, so packing such
+// blocks alone would un-batch the whole corpus.
 func (t *AITranslateTool) packBatches(entries []blockEntry) [][]blockEntry {
 	if t.batchSize > 0 {
 		return chunkBlocks(entries, t.batchSize)
@@ -1532,7 +1538,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	// provider clamps it to the model's ceiling.
 	//
 	// Two costs, and both have to be counted. The translation may run longer than
-	// its source (German, Finnish), hence the doubling — and every reply item drags
+	// its source (German, Finnish), hence the doubling, and every reply item drags
 	// its JSON scaffolding and echoed id along with it, a cost that scales with the
 	// *number* of segments rather than their length. Budgeting for text alone asks
 	// for less than the reply needs on a large batch of short strings, and the
@@ -1564,7 +1570,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	}
 	t.addUsage(resp.Usage)
 
-	// A reply that stopped at the cap is a fragment — under a JSON schema, invalid
+	// A reply that stopped at the cap is a fragment, under a JSON schema, invalid
 	// JSON. Recognise it as *our* batch being too big rather than reporting it as
 	// the model returning garbage.
 	if resp.Truncated && len(entries) > 1 {
@@ -1584,7 +1590,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	//
 	// Keying by id rather than by position is what makes a dropped segment a
 	// detectable absence instead of an off-by-one that silently shifts every
-	// translation after it — the documented failure mode of batching, and the
+	// translation after it, the documented failure mode of batching, and the
 	// one an injected instruction in the content would exploit.
 	want := make(map[string]int, len(segments))
 	for i, seg := range segments {

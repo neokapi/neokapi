@@ -138,6 +138,101 @@ export class AIModelResolution {
 }
 
 /**
+ * AISetupKind says what a flow needs before its AI steps can run.
+ * @readonly
+ * @enum {string}
+ */
+export const AISetupKind = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * AISetupNone means every AI step's credentials resolve.
+     */
+    AISetupNone: "",
+
+    /**
+     * AISetupChooseModel means an AI step names no provider and the stored
+     * default does not resolve to a usable one. Choosing a model, which sets
+     * the stored default, fixes it.
+     */
+    AISetupChooseModel: "choose_model",
+
+    /**
+     * AISetupMissingCredential means the recipe names a provider (or a saved
+     * credential) for an AI step and no credential for it resolves. A stored
+     * default never overrides a named provider, so only a credential for that
+     * provider fixes it.
+     */
+    AISetupMissingCredential: "missing_credential",
+};
+
+/**
+ * AISetupNeed is what running a flow needs before its AI steps can run.
+ */
+export class AISetupNeed {
+    /**
+     * Creates a new AISetupNeed instance.
+     * @param {Partial<AISetupNeed>} [$$source = {}] - The source object to create the AISetupNeed.
+     */
+    constructor($$source = {}) {
+        if (!("kind" in $$source)) {
+            /**
+             * @member
+             * @type {AISetupKind}
+             */
+            this["kind"] = AISetupKind.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Flow and Tool name the step a missing credential belongs to.
+             * @member
+             * @type {string | undefined}
+             */
+            this["flow"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["tool"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Provider is the provider the recipe names, for a missing credential.
+             * @member
+             * @type {string | undefined}
+             */
+            this["provider"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Message is the error the run would fail with, for a missing credential:
+             * the same text `kapi up` prints.
+             * @member
+             * @type {string | undefined}
+             */
+            this["message"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AISetupNeed instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AISetupNeed}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AISetupNeed(/** @type {Partial<AISetupNeed>} */($$parsedSource));
+    }
+}
+
+/**
  * AgentHost names one coding-agent host a project can be wired for.
  * @readonly
  * @enum {string}

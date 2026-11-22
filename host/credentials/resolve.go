@@ -26,12 +26,12 @@ var providerEnvVars = providerenv.Vars
 
 // ProviderKeyEnvNames returns every environment variable that may carry a
 // provider API key, sorted. It is the denylist for anything that hands an
-// environment to a subprocess kapi did not write: see
+// environment to a subprocess kapi did not write. See
 // pluginhost.WithoutProviderKeys.
 func ProviderKeyEnvNames() []string { return providerenv.Names() }
 
 // keylessProviders are the providers that never require an API key: the local,
-// on-device ones (ollama, demo, mirrors aiprovider.IsLocalProvider) plus
+// on-device ones (ollama and demo, as aiprovider.IsLocalProvider lists) plus
 // claude-code, which authenticates through the local Claude Code CLI login and
 // bills the user's Claude subscription. Kept here (not imported) to avoid an
 // import cycle with the provider packages.
@@ -80,11 +80,11 @@ func apiKeyFromEnv(providerType string) (string, bool) {
 
 // inferProviderID determines the provider id to resolve credentials for.
 //
-// The config map's explicit "provider" wins when set: the unified `translate`
+// The config map's explicit "provider" wins when set. The unified `translate`
 // and `qa` tools (and every other AI tool) carry the chosen LLM/MT provider id
-// there. With no explicit provider the id defaults to "anthropic" (the same
-// default the schema applies) so the common `kapi translate` (no --provider)
-// path can still pick up ANTHROPIC_API_KEY from the environment.
+// there. With no explicit provider the id defaults to "anthropic", the default
+// the schema applies, so the common `kapi translate` (no --provider) path can
+// still pick up ANTHROPIC_API_KEY from the environment.
 func inferProviderID(_ string, config map[string]any) string {
 	if p, ok := config["provider"].(string); ok && p != "" {
 		return p
@@ -97,133 +97,125 @@ func inferProviderID(_ string, config map[string]any) string {
 // and injects provider/apiKey/model into the config map.
 //
 // toolName is the registered tool id (e.g. "translate", "qa"). The provider
-// id is read from config["provider"] (defaulting to anthropic), not inferred
-// from the tool.
+// id comes from config["provider"] (defaulting to anthropic), never from the
+// tool name.
 //
-// Resolution order (highest precedence first):
-//  1. If the tool doesn't require "credentials" → return config unchanged
-//  2. If config has "api_key" already set → return unchanged (explicit inline key wins)
-//  3. If config has "credential" → resolve by name or ID from store
-//  4. If a standard per-provider env var is set → inject it as "api_key"
-//  5. Otherwise → auto-detect from store (single match required)
-//
-// Before any of that, the provider endpoint is taken out of the caller's hands:
-// see stripRecipeEndpoint.
+// findCredential states the resolution order. Before it runs, the provider
+// endpoint is taken out of the caller's hands: see stripRecipeEndpoint.
 func ResolveCredentials(store *Store, toolName string, toolRequires []string, config map[string]any) (map[string]any, error) {
 	// Unconditionally, and before every return below: the endpoint is host
 	// configuration, so whatever the config arrived with is discarded here and
 	// only a stored credential can put one back.
 	config = stripRecipeEndpoint(config)
 
-	d, err := decide(store, toolName, toolRequires, config)
+	src, err := findCredential(store, toolName, toolRequires, config)
 	if err != nil {
 		return nil, err
 	}
 	switch {
-	case d.env != "":
-		// The standard per-provider env var fills in the missing key and
-		// keeps the provider.
-		return mergeCredentials(config, &ProviderConfigWithKey{ProviderType: d.provider, APIKey: d.env}), nil
-	case d.stored != nil:
-		resolved, err := loadCredentialKey(store, *d.stored)
+	case src.envKey != "":
+		// Keeps the existing provider: only the missing api_key is filled in.
+		return mergeCredentials(config, &ProviderConfigWithKey{
+			ProviderType: src.envProvider,
+			APIKey:       src.envKey,
+		}), nil
+	case src.stored != nil:
+		resolved, err := loadCredentialKey(store, *src.stored)
 		if err != nil {
 			return nil, err
 		}
 		return mergeCredentials(config, resolved), nil
+	default:
+		return config, nil
 	}
-	return config, nil
 }
 
-// Available reports the provider a tool configured with config would call
-// and whether its credential is available, as ResolveCredentials decides it,
-// without reading a saved key from the keychain. The error is the one
-// ResolveCredentials returns for the same config (a missing or ambiguous
-// credential), so a surface that reports a run in advance says what the run
-// would say. provider is "" for a tool that needs no credentials.
-func Available(store *Store, toolName string, toolRequires []string, config map[string]any) (provider string, err error) {
-	if store == nil {
-		store = &Store{} // no store opened: nothing is saved
-	}
-	d, err := decide(store, toolName, toolRequires, stripRecipeEndpoint(config))
-	return d.provider, err
+// MissingCredential returns the error ResolveCredentials would return for
+// config when it finds no credential, or nil when it would find one. It
+// applies the same order through findCredential and stops before reading a
+// key from the keychain, so asking never prompts for keychain access. A nil
+// store holds no credentials.
+//
+// Reading no keychain is the design, and it has two consequences. A saved
+// credential whose keychain entry is gone counts as found here; the run then
+// fails with `API key for credential "<name>" not found in keychain`. A
+// keyless provider (ollama, claude-code) counts as found even when Ollama is
+// not running or Claude Code is not logged in; the run reports that through
+// the provider's own error.
+func MissingCredential(store *Store, toolName string, toolRequires []string, config map[string]any) error {
+	_, err := findCredential(store, toolName, toolRequires, config)
+	return err
 }
 
-// decision is where a tool's credential comes from. At most one of env and
-// stored is set; neither is set for an inline key, a keyless provider, or a
-// tool that needs no credentials.
-type decision struct {
-	provider string
-	env      string          // the key from the provider's environment variable
-	stored   *ProviderConfig // the saved credential whose key the run reads
-}
-
-// decide resolves where a tool's credential comes from, in the order
-// ResolveCredentials documents, reading only the store's metadata.
-func decide(store *Store, toolName string, toolRequires []string, config map[string]any) (decision, error) {
+// CredentialProvider is the provider a tool configured with config calls, as
+// ResolveCredentials resolves it, reading no key: the config's own provider,
+// else that of the saved credential the resolution finds, else the tool
+// default (inferProviderID). It is "" for a tool that requires no
+// credentials.
+func CredentialProvider(store *Store, toolName string, toolRequires []string, config map[string]any) string {
 	if !slices.Contains(toolRequires, "credentials") {
-		return decision{}, nil
+		return ""
 	}
-	providerType := inferProviderID(toolName, config)
-
-	// Explicit inline API key takes priority.
-	if apiKey, ok := config["api_key"].(string); ok && apiKey != "" {
-		return decision{provider: providerType}, nil
-	}
-
-	// Resolve by credential name/ID.
-	if credRef, ok := config["credential"].(string); ok && credRef != "" {
-		cfg, err := lookupRef(store, credRef)
-		if err != nil {
-			return decision{provider: providerType}, err
-		}
-		return decision{provider: credentialProvider(config, cfg), stored: &cfg}, nil
-	}
-
-	// Keyless local providers (Ollama, Gemma, Demo) run on-device and need no
-	// API key, so credential resolution is a no-op for them: a local run
-	// never fails for want of a saved credential or env var. Kept in sync with
-	// aiprovider.IsLocalProvider; duplicated here (not imported) to avoid an
-	// import cycle with the provider packages, like providerEnvVars above.
-	if isKeylessProvider(providerType) {
-		return decision{provider: providerType}, nil
-	}
-
-	// Environment-variable fallback: with no inline key and no --credential,
-	// the standard per-provider env var for the resolved provider id.
-	if key, ok := apiKeyFromEnv(providerType); ok {
-		return decision{provider: providerType, env: key}, nil
-	}
-
-	// Auto-detect: find matching credentials from store. Use the config's
-	// explicit provider (not the inferred default), so a config that names
-	// none matches a saved credential of any provider.
-	storeProvider, _ := config["provider"].(string)
-	cfg, err := autoDetect(store, storeProvider, providerType)
-	if err != nil {
-		return decision{provider: providerType}, err
-	}
-	return decision{provider: credentialProvider(config, cfg), stored: &cfg}, nil
-}
-
-// credentialProvider is the provider a config resolved through the saved
-// credential cfg calls: the config's own, else the credential's
-// (mergeCredentials).
-func credentialProvider(config map[string]any, cfg ProviderConfig) string {
 	if p, ok := config["provider"].(string); ok && p != "" {
 		return p
 	}
-	return cfg.ProviderType
+	if src, err := findCredential(store, toolName, toolRequires, config); err == nil && src.stored != nil && src.stored.ProviderType != "" {
+		return src.stored.ProviderType
+	}
+	return inferProviderID(toolName, config)
 }
 
-// MissingKeyMessage is what a run says when provider needs an API key and
-// none is set: no inline key, no saved credential, and no key in the
-// provider's environment variable.
-func MissingKeyMessage(provider string) string {
-	how := "save one with 'kapi credentials add'"
-	if vars := providerEnvVars[strings.ToLower(provider)]; len(vars) > 0 {
-		how = "set " + vars[0] + ", " + how
+// credentialSource is where ResolveCredentials takes a config's key from. The
+// zero value means the config needs nothing looked up: the tool requires no
+// credentials, the config carries its own key, or the provider is keyless.
+type credentialSource struct {
+	envProvider string
+	envKey      string
+	stored      *ProviderConfig
+}
+
+// findCredential applies the resolution order of ResolveCredentials without
+// reading any key from the keychain:
+//
+//  1. a tool that does not require "credentials" needs nothing;
+//  2. an inline "api_key" wins;
+//  3. a "credential" names a stored credential by name or ID;
+//  4. a keyless provider (ollama, demo, claude-code) needs nothing;
+//  5. the provider's standard environment variable;
+//  6. otherwise auto-detect from the store, which needs a single match.
+func findCredential(store *Store, toolName string, toolRequires []string, config map[string]any) (credentialSource, error) {
+	if !slices.Contains(toolRequires, "credentials") {
+		return credentialSource{}, nil
 	}
-	return fmt.Sprintf("no saved credentials found for provider %q; %s, or pass --api-key directly", provider, how)
+	if apiKey, ok := config["api_key"].(string); ok && apiKey != "" {
+		return credentialSource{}, nil
+	}
+	if credRef, ok := config["credential"].(string); ok && credRef != "" {
+		cfg, err := lookupRef(store, credRef)
+		if err != nil {
+			return credentialSource{}, err
+		}
+		return credentialSource{stored: &cfg}, nil
+	}
+	// Keyless providers run on-device or on a local login, so a local run never
+	// fails for want of a saved credential or env var. Kept in sync with
+	// aiprovider.IsLocalProvider; duplicated here (not imported) to avoid an
+	// import cycle with the provider packages, like providerEnvVars above.
+	providerType := inferProviderID(toolName, config)
+	if isKeylessProvider(providerType) {
+		return credentialSource{}, nil
+	}
+	if key, ok := apiKeyFromEnv(providerType); ok {
+		return credentialSource{envProvider: providerType, envKey: key}, nil
+	}
+	// Auto-detect matches on the config's explicit provider, not the inferred
+	// default, so a config with no provider matches every saved credential.
+	storeProvider, _ := config["provider"].(string)
+	cfg, err := autoDetect(store, storeProvider)
+	if err != nil {
+		return credentialSource{}, err
+	}
+	return credentialSource{stored: &cfg}, nil
 }
 
 // configKeyBaseURL is the tool-config key naming the endpoint a provider is
@@ -234,15 +226,15 @@ const configKeyBaseURL = "base_url"
 // stripRecipeEndpoint removes any endpoint the tool config arrived with.
 //
 // The endpoint and the secret sent to it are one decision, so they travel
-// together or not at all. A recipe is committable and is authored by whoever
-// wrote the project directory; a credential is per-machine and is authored by
-// the person kapi is running as. A recipe that chose the endpoint would send
-// a user's key to a host the user never picked, so the policy for keys
-// (providerEnvVars) covers the address as well.
+// together or not at all. Whoever wrote the project directory authors the
+// committable recipe; the person kapi runs as authors the per-machine
+// credential. If the recipe could choose the endpoint, it could send a
+// user's key to a host the user never picked. The policy for keys above
+// (`providerEnvVars`) therefore covers the address as well as the secret.
 //
-// Self-hosted endpoints are configured next to the key they authenticate
-// with (`kapi credentials add --base-url`) and re-injected by
-// mergeCredentials.
+// Self-hosted and private-cloud endpoints are configured next to the key they
+// authenticate with, via `kapi credentials add --base-url`, and
+// mergeCredentials puts them back.
 //
 // The map is copied rather than edited, because callers pass configs they
 // still own. Only tool configs carrying the key pay for the copy.
@@ -256,26 +248,95 @@ func stripRecipeEndpoint(config map[string]any) map[string]any {
 	return out
 }
 
-// lookupRef looks up a credential's metadata by name first, then by ID.
-func lookupRef(store *Store, ref string) (ProviderConfig, error) {
-	cfg, err := store.GetByName(ref)
-	if err != nil {
-		cfg, err = store.Get(ref)
-		if err != nil {
-			return ProviderConfig{}, fmt.Errorf("credential %q not found (looked up by name and ID); 'kapi credentials list' shows the saved ones", ref)
+// MissingCredentialError is returned when no saved credential, inline key or
+// environment variable gives a provider its key. Its text names what works
+// for every command (MissingKeyMessage without the flag); a command that reads
+// --api-key adds the flag with WithAPIKeyFlag.
+type MissingCredentialError struct {
+	// Provider is the provider the key is for, or "" when the config names
+	// none (every saved credential was a candidate).
+	Provider string
+}
+
+func (e *MissingCredentialError) Error() string { return MissingKeyMessage(e.Provider, false) }
+
+// MissingKeyMessage says that provider has no key and what gives it one: a
+// saved credential, the provider's environment variable, and, for a command
+// that reads it, --api-key. It is the one statement of that advice: the
+// runtime error, the pre-run refusal of `kapi up` and the desktop's
+// missing-key dialog all print it.
+func MissingKeyMessage(provider string, apiKeyFlag bool) string {
+	var b strings.Builder
+	if provider == "" {
+		b.WriteString("no saved credentials found; save one with 'kapi credentials add'")
+	} else {
+		fmt.Fprintf(&b, "no saved credentials found for provider %q; save one with 'kapi credentials add'", provider)
+	}
+	if vars := providerEnvVars[strings.ToLower(provider)]; len(vars) > 0 {
+		if apiKeyFlag {
+			b.WriteString(", set " + vars[0])
+		} else {
+			b.WriteString(" or set " + vars[0])
 		}
+	}
+	if apiKeyFlag {
+		b.WriteString(" or pass --api-key")
+	}
+	return b.String()
+}
+
+// WithAPIKeyFlag returns err with a missing credential's advice naming
+// --api-key, for a command that reads the flag. Any other error is returned
+// as it is.
+func WithAPIKeyFlag(err error) error {
+	missing, ok := errors.AsType[*MissingCredentialError](err)
+	if !ok {
+		return err
+	}
+	return &flagHintError{err: err, msg: MissingKeyMessage(missing.Provider, true)}
+}
+
+// flagHintError keeps the wrapped chain (errors.As still finds the
+// MissingCredentialError) and replaces only the missing-credential text.
+type flagHintError struct {
+	err error
+	msg string
+}
+
+func (e *flagHintError) Error() string {
+	if missing, ok := errors.AsType[*MissingCredentialError](e.err); ok {
+		return strings.Replace(e.err.Error(), missing.Error(), e.msg, 1)
+	}
+	return e.err.Error()
+}
+
+func (e *flagHintError) Unwrap() error { return e.err }
+
+// lookupRef looks up a credential by name first, then by ID.
+func lookupRef(store *Store, ref string) (ProviderConfig, error) {
+	if store == nil {
+		return ProviderConfig{}, fmt.Errorf("credential %q not found (looked up by name and ID)", ref)
+	}
+	if cfg, err := store.GetByName(ref); err == nil {
+		return cfg, nil
+	}
+	cfg, err := store.Get(ref)
+	if err != nil {
+		return ProviderConfig{}, fmt.Errorf("credential %q not found (looked up by name and ID)", ref)
 	}
 	return cfg, nil
 }
 
-// autoDetect finds a single matching credential in the store, by its
-// metadata. providerType filters the match ("" matches every provider);
-// provider is the one the run would call, which a missing credential names.
-func autoDetect(store *Store, providerType, provider string) (ProviderConfig, error) {
-	matches := store.FindByType(providerType)
+// autoDetect finds the single matching credential in the store. Several
+// matches resolve only when exactly one of them is marked default.
+func autoDetect(store *Store, providerType string) (ProviderConfig, error) {
+	var matches []ProviderConfig
+	if store != nil {
+		matches = store.FindByType(providerType)
+	}
 	switch len(matches) {
 	case 0:
-		return ProviderConfig{}, errors.New(MissingKeyMessage(provider))
+		return ProviderConfig{}, &MissingCredentialError{Provider: providerType}
 	case 1:
 		return matches[0], nil
 	default:

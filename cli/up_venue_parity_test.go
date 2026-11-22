@@ -244,10 +244,11 @@ func TestUpVenue_ServerForwardsWhatTheManifestDeclares(t *testing.T) {
 	ph := venuePluginHost(t, serverRunFlags...)
 	a.PluginHost = ph
 	cmd := NewUpCmd(a)
-	require.NoError(t, cmd.ParseFlags([]string{"--json", "--timeout", "1m"}))
+	require.NoError(t, cmd.ParseFlags([]string{"--project", recipe, "--json", "--timeout", "1m", "--fail-on-incomplete-watch"}))
 	require.NoError(t, runUpWithVenue(a, cmd, recipe))
-	assert.Contains(t, stubArgs(t, ph), "--json=true")
-	assert.Contains(t, stubArgs(t, ph), "--timeout=1m0s")
+	for _, want := range []string{"--project=" + recipe, "--json=true", "--timeout=1m0s", "--fail-on-incomplete-watch=true"} {
+		assert.Contains(t, stubArgs(t, ph), want, "a server run reads it, so it reaches the plumbing")
+	}
 
 	a = &App{}
 	a.PluginHost = venuePluginHost(t)

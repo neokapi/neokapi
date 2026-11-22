@@ -454,7 +454,9 @@ func (a *App) Init() error {
 		// Runs only when nothing more specific is set, so precedence stays:
 		// flag/inline → recipe defaults → app config → built-in. a.Config is
 		// loaded by the time tools run, so reading it here is safe.
-		return credentials.ResolveCredentials(credStore, toolName, requires, a.stepDefaults(toolName, requires, config))
+		config = ApplyAIDefaults(a.Config, toolName, requires, config)
+		config = ApplySourceLocale(a.SourceLocale(), config)
+		return credentials.ResolveCredentials(credStore, toolName, requires, config)
 	})
 
 	if a.Config == nil {
@@ -581,13 +583,4 @@ func ctxOrBackground(ctx context.Context) context.Context {
 		return context.Background()
 	}
 	return ctx
-}
-
-// stepDefaults is a step's config with the configured default AI provider and
-// model and the run's source language applied, before credential resolution:
-// what the run's preprocessor resolves credentials for, and what the up plan
-// checks them for.
-func (a *App) stepDefaults(toolName string, requires []string, config map[string]any) map[string]any {
-	config = ApplyAIDefaults(a.Config, toolName, requires, config)
-	return ApplySourceLocale(a.SourceLocale(), config)
 }

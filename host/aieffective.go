@@ -1,6 +1,9 @@
 package host
 
 import (
+	"context"
+	"fmt"
+	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -11,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	appconfig "github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/credentials"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -138,80 +142,259 @@ func presetString(preset map[string]any, key string) string {
 	return strings.TrimSpace(s)
 }
 
-// ProjectFlowNeedsAISetup reports whether a step needs a provider choice after
-// applying the run configuration and the recipe and locale presets. An empty
-// flow name selects convergence. runConfig is the run flags' tool config
-// (RunFlagToolConfig, nil for none). It applies to the flow by the rule every
-// run applies (seedRunConfig): a run given --provider or --credential needs no
-// setup, and a step that names its own provider is judged by its own.
-func (a *App) ProjectFlowNeedsAISetup(proj *project.KapiProject, projectPath, flowName string, runConfig map[string]any) (bool, error) {
+// AISetupKind says what a flow needs before its AI steps can run.
+type AISetupKind string
+
+const (
+	// AISetupNone means every AI step's credentials resolve.
+	AISetupNone AISetupKind = ""
+	// AISetupChooseModel means an AI step names no provider and the stored
+	// default does not resolve to a usable one. Choosing a model, which sets
+	// the stored default, fixes it.
+	AISetupChooseModel AISetupKind = "choose_model"
+	// AISetupMissingCredential means the recipe names a provider (or a saved
+	// credential) for an AI step and no credential for it resolves. A stored
+	// default never overrides a named provider, so only a credential for that
+	// provider fixes it.
+	AISetupMissingCredential AISetupKind = "missing_credential"
+)
+
+// AISetupNeed is what running a flow needs before its AI steps can run.
+type AISetupNeed struct {
+	Kind AISetupKind `json:"kind"`
+	// Flow and Tool name the step a missing credential belongs to.
+	Flow string `json:"flow,omitempty"`
+	Tool string `json:"tool,omitempty"`
+	// Provider is the provider the recipe names, for a missing credential.
+	Provider string `json:"provider,omitempty"`
+	// Message is the error the run would fail with, for a missing credential:
+	// the same text `kapi up` prints.
+	Message string `json:"message,omitempty"`
+
+	// cause is the credential error Err wraps, so a command that reads
+	// --api-key can name the flag (credentials.WithAPIKeyFlag).
+	cause error
+
+	// onCall is true when every step lacking its key is built without it and
+	// asks for it only on a provider call (registry DefersCredentials, the
+	// translate step). Such a run needs the key only for units the AI step
+	// translates. A step that is not (an AI check, a review) calls its
+	// provider on every unit of a pass.
+	onCall bool
+}
+
+// Err returns a missing credential as the error a run reports, or nil for
+// any other kind.
+func (n AISetupNeed) Err() error {
+	if n.Kind != AISetupMissingCredential {
+		return nil
+	}
+	if n.cause != nil {
+		return fmt.Errorf("flow %q: tool %q: %w", n.Flow, n.Tool, n.cause)
+	}
+	return fmt.Errorf("flow %q: tool %q: %s", n.Flow, n.Tool, n.Message)
+}
+
+// ProjectFlowAISetup reports what running a flow needs before its AI steps
+// can run, after the recipe and locale presets and the stored default apply.
+// A step on a keyless provider, or on a provider with a usable credential
+// (inline, named, in the environment or the single saved match), needs
+// nothing. A missing credential for a provider the recipe names outranks a
+// model choice, because no model choice can fix it. An empty flow name
+// selects convergence. runConfig is the run flags' tool config
+// (RunFlagToolConfig, nil for none), applied by the rule every run applies
+// (seedRunConfig): a step's own config, then the flag, then the presets, then
+// the stored default. The CLI (`kapi up`) and Kapi Desktop both ask this
+// function, so they prompt, or refuse, in the same cases.
+func (a *App) ProjectFlowAISetup(proj *project.KapiProject, projectPath, flowName string, runConfig map[string]any) (AISetupNeed, error) {
 	if proj == nil {
-		return false, nil
+		return AISetupNeed{}, nil
 	}
 	root := filepath.Dir(projectPath)
 	var spec *flow.StepsSpec
+	label := flowName
 	if flowName == "" {
 		if !proj.DeclaresTargetLanguages() || !proj.WritesTargets() {
-			return false, nil
+			return AISetupNeed{}, nil
 		}
 		resolved, err := convergeFlowSpec(proj, root, runConfig)
 		if err != nil {
-			return false, err
+			return AISetupNeed{}, err
 		}
-		spec = resolved.spec
+		spec, label = resolved.spec, resolved.name
 	} else {
 		resolved, err := ResolveProjectFlow(proj, root, flowName, runConfig)
 		if err != nil || resolved == nil {
-			return false, err
+			return AISetupNeed{}, err
 		}
 		spec = resolved.Spec
 	}
-	steps, err := a.aiStepConfigs(proj, projectPath, spec)
-	if err != nil {
-		return false, err
-	}
-	for _, s := range steps {
-		if presetString(s.Config, "provider") == "" && presetString(s.Config, "credential") == "" && presetString(s.Config, "api_key") == "" {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-// aiStep is one provider-calling step of a flow and the config it runs with.
-type aiStep struct {
-	Tool   string
-	Config map[string]any
-}
-
-// aiStepConfigs returns the config each step of spec that calls a provider
-// runs with, for every target locale whose presets differ: the step's config
-// (run flags already seeded by seedRunConfig) with the recipe's presets
-// applied under it, as the run applies them. ProjectFlowNeedsAISetup and the
-// plan both read it, so neither can disagree with the run.
-func (a *App) aiStepConfigs(proj *project.KapiProject, projectPath string, spec *flow.StepsSpec) ([]aiStep, error) {
 	a.InitRegistries()
 	locales := []model.LocaleID{""}
 	if len(proj.Defaults.Locales) > 0 {
 		files, err := project.NewProjectContext(proj, projectPath).ResolveContent(a.FormatReg)
 		if err != nil {
-			return nil, err
+			return AISetupNeed{}, err
 		}
 		if targets := contentTargetLocales(proj.Defaults, files); len(targets) > 0 {
 			locales = targets
 		}
 	}
-	bindings := recipePresets(proj)
-	var out []aiStep
+	return a.specAISetup(spec, label, recipePresets(proj), locales), nil
+}
+
+// specAISetup is ProjectFlowAISetup over a resolved flow: each AI step's
+// config after the presets in bindings (nil for none) apply at each locale.
+func (a *App) specAISetup(spec *flow.StepsSpec, label string, bindings *ProjectBindings, locales []model.LocaleID) AISetupNeed {
+	a.InitRegistries()
+	if len(locales) == 0 {
+		locales = []model.LocaleID{""}
+	}
+	need := AISetupNeed{}
+	var missing *AISetupNeed
+	onCall := true
 	for _, step := range spec.Steps {
 		name := registry.ToolID(step.Tool)
 		for _, locale := range locales {
 			cfg := a.applyBindingsFor(bindings, step.Tool, a.ToolReg.Schema(name), step.Config, string(locale))
 			info := a.ToolReg.ResolveToolInfo(name, cfg)
-			if info != nil && slices.Contains(info.Requires, schema.RequiresCredentials) {
-				out = append(out, aiStep{Tool: step.Tool, Config: cfg})
+			if info == nil || !slices.Contains(info.Requires, schema.RequiresCredentials) {
+				continue
+			}
+			err := a.stepMissingCredential(string(name), info.Requires, cfg)
+			if err == nil {
+				continue
+			}
+			named := presetString(cfg, "provider") != "" || presetString(cfg, "credential") != ""
+			if !named {
+				need.Kind = AISetupChooseModel
+				continue
+			}
+			if !a.ToolReg.DefersCredentials(name) {
+				onCall = false
+			}
+			if missing != nil {
+				continue
+			}
+			provider := presetString(cfg, "provider")
+			cause := err
+			if provider != "" && presetString(cfg, "credential") == "" {
+				cause = &credentials.MissingCredentialError{Provider: provider}
+			}
+			missing = &AISetupNeed{
+				Kind:     AISetupMissingCredential,
+				Flow:     label,
+				Tool:     string(name),
+				Provider: provider,
+				Message:  cause.Error(),
+				cause:    cause,
 			}
 		}
 	}
-	return out, nil
+	if missing != nil {
+		missing.onCall = onCall
+		return *missing
+	}
+	need.onCall = onCall
+	return need
+}
+
+// ToolAISetup is the decision for one AI tool built from cfg outside a flow
+// (a desktop review action): what it needs before it can call its provider.
+func (a *App) ToolAISetup(toolName string, cfg map[string]any) AISetupNeed {
+	spec := &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: toolName, Config: cfg}}}
+	return a.specAISetup(spec, "", nil, nil)
+}
+
+// RunAISetupRefusal is the check `kapi up` makes before pass 1, for a run
+// that writes each file as it finishes it (`kapi run`, `kapi translate`): a
+// missing key refuses before anything is written, so the run never stops
+// halfway with some files done. A run whose only keyless-looking step is the
+// translate step (built without its key, asking for it on a call) goes ahead
+// when the project's dry-run plan, for this flow and every target language,
+// leaves it no unit to translate. A run over files named on the command line
+// is not planned, so a missing key there always refuses. proj is nil for a
+// run outside a project. A model choice is not refused here: these commands
+// never prompted for one.
+func (a *App) RunAISetupRefusal(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, label string, spec *flow.StepsSpec, locales []model.LocaleID, namedFiles bool) error {
+	if spec == nil {
+		return nil
+	}
+	var bindings *ProjectBindings
+	if proj != nil {
+		bindings = recipePresets(proj)
+	}
+	need := a.specAISetup(spec, label, bindings, locales)
+	if need.Kind != AISetupMissingCredential {
+		return nil
+	}
+	if need.onCall && !namedFiles && proj != nil && a.specRecycles(spec) {
+		plan, err := a.computeProjectPlan(ctxOrBackground(ctx), proj, projectPath,
+			planRun{cmd: cmd, spec: spec, allLocales: true})
+		if err == nil && plan.Totals.AIRemaining == 0 {
+			return nil
+		}
+	}
+	return need.Err()
+}
+
+// specRecycles reports whether a step of spec fills targets from the content
+// memory, read off the tool registry as the plan reads it.
+func (a *App) specRecycles(spec *flow.StepsSpec) bool {
+	for _, step := range spec.Steps {
+		s := a.ToolReg.Schema(registry.ToolID(step.Tool))
+		if toolProducesTarget(s) && ToolRequires(s, schema.RequiresMemory) {
+			return true
+		}
+	}
+	return false
+}
+
+// stepMissingCredential returns the error an AI step's credential resolution
+// would fail with, or nil when it resolves the way the run resolves it: the
+// stored ai.provider/ai.model default fills a step that names no provider
+// (appconfig.ApplyAIToolDefaults), then credentials.MissingCredential applies
+// the order of credentials.ResolveCredentials. A keyless provider (demo,
+// ollama, claude-code) always resolves. Nothing is read from the keychain.
+func (a *App) stepMissingCredential(toolName string, requires []string, cfg map[string]any) error {
+	// ApplyAIToolDefaults writes into the map it is given, and cfg can be the
+	// recipe's own step config.
+	cfg = appconfig.ApplyAIToolDefaults(a.Config, toolName, requires, maps.Clone(cfg))
+	return credentials.MissingCredential(a.Credentials, toolName, requires, cfg)
+}
+
+// ConvergeAISetup is ProjectFlowAISetup for a convergence run (`kapi up`, the
+// desktop's Translate and Catch up), asked only when the run would call a
+// provider: the dry-run plan the run's first pass works from (the plan `kapi
+// up --plan` prints) must hold units left for the AI step. A project that is
+// up to date, or whose remaining work the content memory answers, needs no
+// model and no key, whatever the recipe names. The CLI and Kapi Desktop both
+// ask this function.
+func (a *App) ConvergeAISetup(ctx context.Context, proj *project.KapiProject, projectPath string, runConfig map[string]any) (AISetupNeed, error) {
+	return a.convergeAISetup(ctx, proj, projectPath, planRun{}, runConfig)
+}
+
+func (a *App) convergeAISetup(ctx context.Context, proj *project.KapiProject, projectPath string, run planRun, runConfig map[string]any) (AISetupNeed, error) {
+	need, err := a.ProjectFlowAISetup(proj, projectPath, "", runConfig)
+	if err != nil || need.Kind == AISetupNone {
+		return need, err
+	}
+	// The setup check is cheap and the plan is not, so the plan is computed
+	// only when a step would need a model or a key. A plan that cannot be
+	// computed leaves the answer standing: it cannot show there is no work.
+	plan, perr := a.computeProjectPlan(ctxOrBackground(ctx), proj, projectPath, run)
+	if perr != nil {
+		return need, nil
+	}
+	if plan.upToDate {
+		return AISetupNeed{}, nil
+	}
+	// The translate step is built without its key and asks for it only for
+	// a unit it translates, so the run needs the key exactly when the plan
+	// leaves units for it. A step that calls its provider on every unit of a
+	// pass needs it whenever the run has a pass to make.
+	if need.onCall && plan.Totals.AIRemaining == 0 {
+		return AISetupNeed{}, nil
+	}
+	return need, nil
 }

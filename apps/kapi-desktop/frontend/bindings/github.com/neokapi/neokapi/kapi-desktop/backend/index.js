@@ -139,6 +139,7 @@ export {
     ReviewUnitDetail,
     RulesFileView,
     RulesFilesDTO,
+    RunAIOptions,
     RunError,
     RunErrorAction,
     RunErrorActionKind,

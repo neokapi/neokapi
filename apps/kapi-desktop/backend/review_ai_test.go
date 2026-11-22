@@ -10,10 +10,13 @@ import (
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/credentials/providerenv"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/host"
+	appconfig "github.com/neokapi/neokapi/host/config"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -266,4 +269,32 @@ func commitAndReadUnits(t *testing.T, app *App, root string) []state.UnitState {
 	units, err := st.All(t.Context())
 	require.NoError(t, err)
 	return units
+}
+
+// A review action on a provider the recipe names, with no key for it and a
+// stored default for another provider, says which provider needs a key and
+// where in the app it goes, as the run dialog does.
+func TestReviewAIAction_NamedProviderWithoutKey(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	for _, names := range providerenv.Vars {
+		for _, n := range names {
+			t.Setenv(n, "")
+		}
+	}
+	t.Setenv("KAPI_AI_PROVIDER", "")
+	t.Setenv("KAPI_AI_MODEL", "")
+	app := NewApp()
+	app.aiConfig.Set(appconfig.KeyAIProvider, "ollama")
+	app.aiConfig.Set(appconfig.KeyAIModel, "llama3.2:3b")
+	tab, _ := newReviewProject(t, app)
+	app.getOpenProject(tab.ID).Project.Defaults.Tools = map[string]map[string]any{
+		"translate": {"provider": "anthropic"},
+	}
+
+	_, err := app.ReviewAIAction(tab.ID, "fr-FR", filepath.Join("locales", "fr-FR.json"),
+		"greeting", ReviewAIRetranslate, "shorter")
+	require.Error(t, err)
+	assert.Equal(t, desktopAISetupMessage(host.AISetupNeed{Kind: host.AISetupMissingCredential, Provider: "anthropic"}), err.Error())
+	assert.NotContains(t, err.Error(), "ANTHROPIC_API_KEY")
+	assert.NotContains(t, err.Error(), "kapi credentials")
 }

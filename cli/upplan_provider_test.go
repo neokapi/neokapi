@@ -3,6 +3,9 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/flow"
@@ -78,9 +81,15 @@ func TestUpPlan_ProviderFollowsThePrecedenceRule(t *testing.T) {
 // recording the config the translate step is constructed with.
 func upWith(t *testing.T, recipe, stored string, args ...string) (string, *recorder, error) {
 	t.Helper()
+	return commandWith(t, NewUpCmd, recipe, stored, args...)
+}
+
+// commandWith is upWith for the command newCmd builds.
+func commandWith(t *testing.T, newCmd func(*App) *cobra.Command, recipe, stored string, args ...string) (string, *recorder, error) {
+	t.Helper()
 	a := processOnlyApp(t)
 	rec := &recorder{}
-	cmd := NewUpCmd(a)
+	cmd := newCmd(a)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -164,6 +173,29 @@ func TestUpPlan_ProviderMatchesTheRun(t *testing.T) {
 				require.NotEmpty(t, plan.Credential, "the plan says the run would stop")
 				assert.Contains(t, err.Error(), plan.Credential, "the plan says what the run says")
 				assert.Contains(t, text, plan.Credential)
+
+				// kapi run and kapi translate refuse the same project, for the
+				// same provider, before they write anything. kapi translate runs
+				// its own flow, not the recipe's, so a provider the recipe's step
+				// names does not reach it.
+				commands := map[string]func() (string, *recorder, error){
+					"run": func() (string, *recorder, error) {
+						return commandWith(t, NewRunCmd, recipe, tc.stored, append([]string{"converge"}, tc.args...)...)
+					},
+					"translate": func() (string, *recorder, error) {
+						return commandWith(t, NewTranslateCmd, recipe, tc.stored, append([]string{filepath.Join(filepath.Dir(recipe), "src/locales/en/a.json"), "--target-lang", "nb-NO"}, tc.args...)...)
+					},
+				}
+				if tc.step != "" {
+					delete(commands, "translate")
+				}
+				for name, run := range commands {
+					out, _, err := run()
+					require.Error(t, err, "kapi %s stops too:\n%s", name, out)
+					assert.Contains(t, err.Error(), credentialCause(plan.Credential), "kapi %s gives the same cause", name)
+				}
+				_, statErr := os.Stat(filepath.Join(filepath.Dir(recipe), "src/locales/nb-NO"))
+				assert.True(t, os.IsNotExist(statErr), "nothing was written")
 				return
 			}
 			assert.Empty(t, plan.Credential, "the credential is available")
@@ -175,4 +207,18 @@ func TestUpPlan_ProviderMatchesTheRun(t *testing.T) {
 			}
 		})
 	}
+}
+
+// credentialCause is the part of a missing-credential message every command
+// shares: the advice after it names --api-key only for a command that reads
+// it (credentials.WithAPIKeyFlag).
+func credentialCause(msg string) string {
+	cause, _, _ := strings.Cut(msg, "; ")
+	if i := strings.Index(cause, "no saved credentials"); i >= 0 {
+		return cause[i:]
+	}
+	if i := strings.Index(cause, "credential \""); i >= 0 {
+		return cause[i:]
+	}
+	return cause
 }

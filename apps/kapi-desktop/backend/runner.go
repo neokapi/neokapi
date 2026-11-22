@@ -62,12 +62,12 @@ type RunEvent struct {
 	DurationMs     int64 `json:"duration_ms,omitempty"`
 	FilesProcessed int   `json:"files_processed,omitempty"`
 
-	// Convergence-run fields (BringUpToDate — the shared `kapi up` engine):
-	// ConvergeEvent carries one typed progress event of the run (when type ==
-	// "converge_event") — the per-pass/per-locale stream (pass_start,
-	// locale_start, unit_progress, locale_done, pass_done, materialized, done)
-	// the live run view renders locale rows from, the same protocol the CLI's
-	// live renderer and the server's SSE stream speak. ConvergeResult carries
+	// Convergence-run fields (BringUpToDate, the shared `kapi up` engine).
+	// ConvergeEvent carries one typed progress event of the run when type ==
+	// "converge_event". The events form the per-pass and per-locale stream
+	// (pass_start, locale_start, unit_progress, locale_done, pass_done,
+	// materialized, done) the live run view renders locale rows from. The CLI's
+	// live renderer and the server's SSE stream speak the same protocol. ConvergeResult carries
 	// the final structured outcome (on the run's "complete").
 	ConvergeEvent  *convergence.Event   `json:"converge_event,omitempty"`
 	ConvergeResult *host.ConvergeOutput `json:"converge_result,omitempty"`
@@ -222,6 +222,13 @@ func (a *App) GetProjectLastRunError(tabID string) *RunError {
 // RunFlow starts a named project flow. The host resolves its locale passes
 // from the tools and the supplied target languages.
 func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs []string) error {
+	return a.RunFlowWith(tabID, flowName, inputPaths, targetLangs, RunAIOptions{})
+}
+
+// RunFlowWith is RunFlow started with an explicit provider, credential or
+// model, applied to the flow's steps by the rule `kapi run --provider`
+// applies: a step that names its own keeps it.
+func (a *App) RunFlowWith(tabID, flowName string, inputPaths []string, targetLangs []string, opts RunAIOptions) error {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return fmt.Errorf("tab %q not found", tabID)
@@ -231,6 +238,7 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 	if err != nil {
 		return err
 	}
+	spec, _ = host.SeedRunConfigSpec(spec, opts.toolConfig())
 
 	if len(inputPaths) == 0 {
 		return errors.New("no input files specified")
@@ -318,7 +326,7 @@ func runErrorMessage(err error) string {
 }
 
 // toolBuildErrorMessage renders a tool-construction failure for the run feed.
-// Ambiguous-credential failures get GUI-appropriate guidance — the shared
+// Ambiguous-credential failures get GUI-appropriate guidance, the shared
 // resolver's Error() carries the CLI's "--credential" hint, which is meaningless
 // in the desktop, so we catch the typed error and point at the in-app fixes.
 func toolBuildErrorMessage(toolName, lang string, err error) string {

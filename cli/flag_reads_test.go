@@ -65,7 +65,13 @@ func (r *recorder) install(a *App) {
 		r.mu.Lock()
 		r.seen = append(r.seen, got)
 		r.mu.Unlock()
+		// A step built without its key fails on the first block that needs
+		// the provider, as the translate tool's provider does.
+		deferred, _ := cfg[registry.DeferredCredentialErrorKey].(error)
 		return &tool.BaseTool{ToolName: "translate", Annotate: func(v tool.BlockView) error {
+			if deferred != nil {
+				return deferred
+			}
 			r.mu.Lock()
 			r.blocks = append(r.blocks, string(v.SourceLocale())+": "+v.SourceText())
 			r.mu.Unlock()
