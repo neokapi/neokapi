@@ -762,6 +762,27 @@ items:
       PR #3609 (2026-11-21): after an update Home read plan.waiting.length on a
       plan cached without waiting, and the app crashed on start.
 
+  - id: mobile-maestro-flows
+    title: The mobile app's Maestro flows run only from the verify recipe
+    owner_surface: mobile
+    trigger:
+      paths:
+        - 'bowrain/mobile/**'
+      exclude:
+        - 'bowrain/mobile/**/*.md'
+    check: >-
+      No CI job runs bowrain/mobile/e2e/. With the stack, Metro and a
+      development build on the iOS simulator (.claude/skills/verify/mobile.md),
+      run every flow from bowrain/mobile with `maestro test $(node
+      e2e/seed.mjs) e2e/`, and record each flow's result. A changed screen,
+      test id, sign-in step or development-client setting can break a flow
+      without failing anything else.
+    incident: >-
+      Issue #3653 (2026-11-22): every committed flow failed against a
+      development build, and nobody noticed because nothing ran them. Right
+      after sign-in the app also asked for /api/v1/(tabs)/projects (#3652),
+      which a flow run would have shown.
+
   # ── CI ───────────────────────────────────────────────────────────────────
 
   - id: test-that-only-skips

@@ -1,8 +1,9 @@
 // Sign in to a Bowrain server. The server sends the browser to the
 // workspace's identity provider and back to the app. The server is the
-// build's default; the cog opens the sheet that chooses another.
+// build's default; the cog opens the sheet that chooses another. With a
+// session, the screen leads to the workspaces.
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -33,7 +34,7 @@ function Atmosphere() {
 
 export default function SignIn() {
   const { t } = useTranslation();
-  const { signIn } = useAuth();
+  const { signIn, session } = useAuth();
   const { server, isDefault } = useServerChoice();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,14 +48,15 @@ export default function SignIn() {
     setError(null);
     try {
       const res = await signIn(server);
-      if (res.ok) router.replace("/workspaces");
-      else if (res.reason === "failed") setError(t("signIn.failed"));
+      if (!res.ok && res.reason === "failed") setError(t("signIn.failed"));
     } catch {
       setError(t("signIn.unreachable"));
     } finally {
       setBusy(false);
     }
   };
+
+  if (session) return <Redirect href="/workspaces" />;
 
   return (
     <View className="bg-background flex-1">

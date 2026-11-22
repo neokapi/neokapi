@@ -767,6 +767,13 @@ FIXTURES = [
         "expect": ["mobile-reads-cached-shapes"],
     },
     {
+        "name": "a mobile screen changes",
+        "files": {"bowrain/mobile/src/app/sign-in.tsx": [
+            '  if (session) return <Redirect href="/workspaces" />;',
+        ]},
+        "expect": ["mobile-maestro-flows"],
+    },
+    {
         "name": "a test that can only skip",
         "files": {"scripts/authoringeval/fixtures_test.go": ['\t\tt.Skip("no kapi binary")']},
         "expect": ["test-that-only-skips"],
