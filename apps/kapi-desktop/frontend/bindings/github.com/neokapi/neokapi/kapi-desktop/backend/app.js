@@ -1095,7 +1095,7 @@ export function GetConvergence(tabID) {
 
 /**
  * GetDefaultModel returns the configured default AI provider+model (empty when
- * none is set — AI tools then fall back to the built-in provider default). This
+ * none is set, AI tools then fall back to the built-in provider default). This
  * is the raw `ai.provider`/`ai.model` pair the picker edits; for what a run will
  * actually use (recipe presets included) call GetEffectiveModel.
  * @returns {$CancellablePromise<$models.DefaultModelInfo>}
@@ -1108,7 +1108,7 @@ export function GetDefaultModel() {
 
 /**
  * GetEffectiveModel reports the provider and model an AI step of the open
- * project will actually run with, and which layer decided each — the recipe's
+ * project will actually run with, and which layer decided each, the recipe's
  * per-locale preset, its project preset, the shared `ai.*` app config that
  * `kapi models setup` / `kapi models default` write, or the built-in fallback.
  * 

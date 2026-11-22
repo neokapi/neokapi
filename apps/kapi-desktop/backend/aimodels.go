@@ -14,7 +14,7 @@ import (
 )
 
 // DefaultModelInfo is the configured default AI model and the provider it
-// implies — the shared ai.provider/ai.model convention both kapi surfaces read.
+// implies, the shared ai.provider/ai.model convention both kapi surfaces read.
 type DefaultModelInfo struct {
 	Provider string `json:"provider"`
 	Model    string `json:"model"`
@@ -34,7 +34,7 @@ type AIModelOption struct {
 	// NeedsKey is true for a cloud model with no saved credential yet.
 	NeedsKey bool `json:"needs_key"`
 	// Subscription is true when the model runs on a personal subscription via
-	// a detected keyless provider (claude-code) — no API key, no metered cost.
+	// a detected keyless provider (claude-code), no API key, no metered cost.
 	Subscription bool `json:"subscription,omitempty"`
 	// Note is an optional one-line rationale (recommended local models).
 	Note string `json:"note,omitempty"`
@@ -43,7 +43,7 @@ type AIModelOption struct {
 }
 
 // GetDefaultModel returns the configured default AI provider+model (empty when
-// none is set — AI tools then fall back to the built-in provider default). This
+// none is set, AI tools then fall back to the built-in provider default). This
 // is the raw `ai.provider`/`ai.model` pair the picker edits; for what a run will
 // actually use (recipe presets included) call GetEffectiveModel.
 func (a *App) GetDefaultModel() DefaultModelInfo {
@@ -57,7 +57,7 @@ func (a *App) GetDefaultModel() DefaultModelInfo {
 }
 
 // GetEffectiveModel reports the provider and model an AI step of the open
-// project will actually run with, and which layer decided each — the recipe's
+// project will actually run with, and which layer decided each, the recipe's
 // per-locale preset, its project preset, the shared `ai.*` app config that
 // `kapi models setup` / `kapi models default` write, or the built-in fallback.
 //
@@ -134,7 +134,7 @@ func (a *App) ListAIModels() []AIModelOption {
 
 	var out []AIModelOption
 
-	// Detected · Claude Code — keyless, runs on the user's Claude subscription.
+	// Detected · Claude Code, keyless, runs on the user's Claude subscription.
 	// Listed first when the binary is present on this machine.
 	if aiprovider.ClaudeCodeDetected() {
 		cc := string(aiprovider.ClaudeCode)
@@ -145,7 +145,7 @@ func (a *App) ListAIModels() []AIModelOption {
 		})
 	}
 
-	// Local · Ollama — installed models (best-effort; server may be down).
+	// Local · Ollama, installed models (best-effort; server may be down).
 	installed := map[string]bool{}
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	models, err := aiprovider.NewOllamaManager("").List(ctx)
@@ -170,7 +170,7 @@ func (a *App) ListAIModels() []AIModelOption {
 		})
 	}
 
-	// Cloud providers — one default model each, flagged when no key is saved.
+	// Cloud providers, one default model each, flagged when no key is saved.
 	// Keyless providers (local Ollama above, detected claude-code) are covered
 	// by their own sections.
 	for _, p := range aiprovider.Providers() {
@@ -205,6 +205,6 @@ func (a *App) AINeedsModelChoice(tabID, flowName string) bool {
 	if a.credentials != nil && len(a.credentials.List()) == 1 {
 		return false
 	}
-	needsSetup, err := a.newProjectEngine(op).ProjectFlowNeedsAISetup(op.Project, op.Path, flowName)
+	needsSetup, err := a.newProjectEngine(op).ProjectFlowNeedsAISetup(op.Project, op.Path, flowName, nil)
 	return err == nil && needsSetup
 }

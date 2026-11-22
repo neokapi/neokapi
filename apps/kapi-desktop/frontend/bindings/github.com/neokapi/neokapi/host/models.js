@@ -46,24 +46,24 @@ export const AIModelOrigin = {
     $zero: "",
 
     /**
-     * AIModelFromLocalePreset — `defaults.locales.<lang>.tools.<tool>` in the recipe.
+     * AIModelFromLocalePreset, `defaults.locales.<lang>.tools.<tool>` in the recipe.
      */
     AIModelFromLocalePreset: "locale-preset",
 
     /**
-     * AIModelFromProjectPreset — `defaults.tools.<tool>` in the recipe.
+     * AIModelFromProjectPreset, `defaults.tools.<tool>` in the recipe.
      */
     AIModelFromProjectPreset: "project-preset",
 
     /**
-     * AIModelFromAppConfig — the stored `ai.provider` / `ai.model` (the file at
+     * AIModelFromAppConfig, the stored `ai.provider` / `ai.model` (the file at
      * config.GlobalConfigFilePath, or the KAPI_AI_* environment overrides), which
      * is what `kapi models setup` and `kapi models default` write.
      */
     AIModelFromAppConfig: "app-config",
 
     /**
-     * AIModelFromBuiltIn — nothing configured; the tool's own default applies.
+     * AIModelFromBuiltIn, nothing configured; the tool's own default applies.
      */
     AIModelFromBuiltIn: "built-in",
 };
@@ -114,7 +114,7 @@ export class AIModelResolution {
         }
         if (!("configured" in $$source)) {
             /**
-             * Configured is false when neither half is configured anywhere — the
+             * Configured is false when neither half is configured anywhere, the
              * built-in fallback is carrying the run, which is worth surfacing rather
              * than presenting as a deliberate choice.
              * @member
@@ -5018,7 +5018,7 @@ export class UpPlanOutput {
             /**
              * Monolingual reports a project that resolves no target locale: there is no
              * per-language work to price. An empty Scopes list otherwise means the work
-             * is already done — or, with UnreadTargets set, that the plan has not been
+             * is already done, or, with UnreadTargets set, that the plan has not been
              * able to judge it yet. The three must not read the same.
              * @member
              * @type {boolean | undefined}
@@ -5142,7 +5142,7 @@ export class UpPlanScope {
         if (!("memory_exact" in $$source)) {
             /**
              * MemoryExact is the count of counted units covered by an exact-hash
-             * content-memory hit (the cheap leverage estimate — fuzzy leverage is not
+             * content-memory hit (the cheap leverage estimate, fuzzy leverage is not
              * counted).
              * @member
              * @type {number}
@@ -5180,15 +5180,13 @@ export class UpPlanScope {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Stale is the count of units that HAVE a committed target whose decision
-             * was recorded against source wording that has since changed. The run
-             * re-drafts them — recycle against the new wording, AI for the remainder —
-             * so they are PRICED into MemoryExact/AIRemaining/TokenEstimate exactly as a
-             * unit with no target is. They are reported on their own axis as well, and
-             * not folded into MissingTarget, because the two ask different things of the
-             * reader: missing work finishes when the loop finishes it, stale work also
-             * owes a review, and the tokens are being spent on a unit a person had
-             * already decided.
+             * Stale is the count of units with a committed target whose decision was
+             * recorded against source wording that has since changed. The run drafts
+             * them again (recycle against the new wording, AI for the remainder), so
+             * they are priced into MemoryExact, AIRemaining and TokenEstimate as a unit
+             * with no target is. They are also reported on their own, apart from
+             * MissingTarget: missing work ends when the loop finishes it, and stale
+             * work also owes a review of a unit a person had already decided.
              * @member
              * @type {number | undefined}
              */
@@ -5196,16 +5194,15 @@ export class UpPlanScope {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Unanswered is the count of units that HAVE a committed target which the
-             * project content memory does not answer: no decision of theirs has moved,
-             * but the corpus holds no exact answer for their source, so `recycle` cannot
-             * fill them and the pass drafts them again over what is on disk.
+             * Unanswered is the count of units with a committed target that the
+             * project content memory does not answer. No decision of theirs has moved,
+             * but the corpus holds no exact answer for their source, so `recycle`
+             * cannot fill them and the pass drafts them again over what is on disk.
              * 
-             * It is its own axis because it is its own fact. `stale` means a decision's
-             * basis moved — it drives `blocked: stale`, the review worklist and shipping —
-             * and a produced unit the record never paired is none of that. Folding the two
-             * would put the plan and the run summary at odds, since the summary's re-draft
-             * count is the decision-based coverage tally.
+             * It is kept apart from Stale. Stale means a decision's basis moved, and it
+             * drives `blocked: stale`, the review worklist and shipping. A produced
+             * unit the record never paired is none of that, and the run summary's
+             * re-draft count is the decision-based coverage tally.
              * @member
              * @type {number | undefined}
              */
@@ -5228,14 +5225,13 @@ export class UpPlanScope {
         }
         if (/** @type {any} */(false)) {
             /**
-             * UnreadTargets is the count of produced units the plan declines to judge:
-             * their committed translation has not been read into the project store yet,
-             * so the corpus is unfinished and its silence about them means "not asked",
-             * not "the pass will draft this". A run reads them first — the seed phase
-             * absorbs the committed record before the pass — which is why this is a
-             * disclosure and not an axis of work: pricing them would quote a provider
-             * call for every translation the run is about to recycle, and quoting zero
-             * would promise a free run.
+             * UnreadTargets is the count of produced units the plan does not judge.
+             * Their committed translation has not been read into the project store
+             * yet, so the corpus has not been asked about them. A run reads them first:
+             * the seed phase absorbs the committed record before the pass. So this is a
+             * disclosure, not work. Pricing them would quote a provider call for every
+             * translation the run will recycle, and quoting zero would promise a free
+             * run.
              * @member
              * @type {number | undefined}
              */
@@ -5244,7 +5240,7 @@ export class UpPlanScope {
         if (!("token_estimate" in $$source)) {
             /**
              * TokenEstimate approximates the input tokens for the remaining AI work:
-             * source characters / 4 (a common chars-per-token heuristic — the
+             * source characters / 4 (a common chars-per-token heuristic, the
              * providers expose no tokenizer here, so this is an estimate, not a
              * quote).
              * @member
