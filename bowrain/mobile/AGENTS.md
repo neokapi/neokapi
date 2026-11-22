@@ -15,9 +15,12 @@ reads. Read that note before changing a screen.
   (Continuous Native Generation) and gitignored. A native setting goes in
   `app.config.ts` or in a config plugin.
 - **Rebuild after a native dependency changes.** Add packages with
-  `npx expo install <pkg>`, which picks the version the SDK supports, then run
-  `vp install` at the repo root and build again. A JavaScript reload does not
-  pick up native code, and a stale binary looks like a bug in your change.
+  `vp exec expo install <pkg>`, which picks the version the SDK supports, then
+  run `vp install` at the repo root and build again. A JavaScript reload does
+  not pick up native code, and a stale binary looks like a bug in your change.
+  The runtime version follows Expo's `fingerprint` policy, so a native change
+  can merge at any time: updates made after it reach only builds made after it
+  (`docs/internals/bowrain-mobile-testflight.md`).
 - **Reanimated 4's Babel plugin is `react-native-worklets/plugin`.**
   `babel-preset-expo` adds it, so there is no `babel.config.js`. Blog posts
   about `react-native-reanimated/plugin` describe Reanimated 3.
