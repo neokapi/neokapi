@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -23,18 +23,16 @@ import (
 // spCtx builds an authenticated echo context for the source-proposal handlers,
 // setting the workspace/project params, the caller's project permissions, and the
 // acting user. pid, when non-empty, wires the :pid path param (the decide route).
-func spCtx(wsID, projID, pid string, perms platauth.Permission, userID, body string) (echo.Context, *httptest.ResponseRecorder) {
+func spCtx(wsID, projID, pid string, perms platauth.Permission, userID, body string) (*echo.Context, *httptest.ResponseRecorder) {
 	e := echo.New()
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/rc/"+projID+"/source-proposals", strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
 	if pid != "" {
-		c.SetParamNames("ws", "id", "pid")
-		c.SetParamValues("rc", projID, pid)
+		c.SetPathValues(echo.PathValues{{Name: "ws", Value: "rc"}, {Name: "id", Value: projID}, {Name: "pid", Value: pid}})
 	} else {
-		c.SetParamNames("ws", "id")
-		c.SetParamValues("rc", projID)
+		c.SetPathValues(echo.PathValues{{Name: "ws", Value: "rc"}, {Name: "id", Value: projID}})
 	}
 	c.Set("project_permissions", perms)
 	c.Set("workspace_id", wsID)

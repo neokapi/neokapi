@@ -1,11 +1,14 @@
-# Fix a card: open the fix sheet with a left swipe, choose a reason, edit the
-# text with its placeholders locked, and approve the correction.
+# Fix a card: a left swipe opens the reject sheet, "Fix it instead" turns it
+# into the fix sheet, then choose a reason, edit the text with its
+# placeholders locked, and approve the correction.
 #
 #   -e FIX_TEXT="<the corrected text before the first placeholder>"
+#
+# FIX_TEXT defaults to a short Norwegian phrase.
 appId: cloud.bowrain.app
 ---
 - runFlow: sign-in.yaml
-- runFlow: open-deck.yaml
+- runFlow: subflows/open-deck.yaml
 - swipe:
     from:
       id: review-card
@@ -13,15 +16,23 @@ appId: cloud.bowrain.app
 - assertVisible:
     id: fix-draft
 - tapOn:
+    id: fix-instead
+- tapOn:
     id: reason-wrong_term
 - tapOn:
     id: fix-start-edit
 - tapOn:
     id: editor-field-0
 - eraseText
-- inputText: ${FIX_TEXT}
+- inputText: ${FIX_TEXT || 'Rettet tekst'}
 - assertVisible:
     id: fix-edit-diff
+# The keyboard covers the approve button. A tap on the section's label, plain
+# text inside the sheet, dismisses it (keyboardShouldPersistTaps="handled").
+- tapOn: "Edit"
+- scrollUntilVisible:
+    element:
+      id: fix-approve-edit
 - tapOn:
     id: fix-approve-edit
 - assertVisible:

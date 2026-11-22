@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -71,7 +71,7 @@ type reviewContextResponse struct {
 // Every read here is bounded to the unit: the block, its neighbours by position
 // cursor, its term and memory lookups, its notes, its latest score, its ledger
 // row.
-func (s *Server) HandleGetReviewContext(c echo.Context) error {
+func (s *Server) HandleGetReviewContext(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}

@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -102,7 +102,7 @@ func keepFollowed(allowed, followed []string) []string {
 
 // reviewLanguagesOf builds the languages answer for the caller of a project
 // route.
-func (s *Server) reviewLanguagesOf(c echo.Context, proj *platstore.Project) (reviewLanguagesResponse, error) {
+func (s *Server) reviewLanguagesOf(c *echo.Context, proj *platstore.Project) (reviewLanguagesResponse, error) {
 	ctx := c.Request().Context()
 	userID, _ := c.Get("user_id").(string)
 	perms, _ := c.Get("project_permissions").(platauth.Permission)
@@ -161,7 +161,7 @@ func (s *Server) pendingTargetLanguages(ctx context.Context, projectID string) (
 // HandleGetReviewLanguages answers GET /:ws/:id/review/languages: the
 // languages the caller follows in the project, the ones they may follow, and
 // the project's own.
-func (s *Server) HandleGetReviewLanguages(c echo.Context) error {
+func (s *Server) HandleGetReviewLanguages(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -183,7 +183,7 @@ func (s *Server) HandleGetReviewLanguages(c echo.Context) error {
 // {"followed": [...]}: it saves the caller's followed languages. A language
 // the caller may not review is refused (400). An empty list is a saved choice
 // to follow none.
-func (s *Server) HandlePutReviewLanguages(c echo.Context) error {
+func (s *Server) HandlePutReviewLanguages(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -232,7 +232,7 @@ func (s *Server) HandlePutReviewLanguages(c echo.Context) error {
 // languages on or off. The change is filed as a pending recipe change, which
 // the next pull writes into the recipe, and the feed records it. It needs the
 // permission to edit the project's settings, and asks no second person.
-func (s *Server) HandleSetProjectLanguage(c echo.Context) error {
+func (s *Server) HandleSetProjectLanguage(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
 		return err
 	}

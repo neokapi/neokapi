@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 )
 
@@ -33,7 +33,7 @@ type ResolvedRef struct {
 // Write operations through a tag ref return 409 Conflict.
 func RefResolutionMiddleware(contentStore store.ContentStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			ref := unescapeParam(c.Param("ref"))
 			if ref == "" {
 				// No ref param in this route — pass through.
@@ -94,7 +94,7 @@ func RefResolutionMiddleware(contentStore store.ContentStore) echo.MiddlewareFun
 // Use this as middleware on write routes (PUT, POST, DELETE on content).
 func RequireWritableRef() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			resolved, ok := c.Get("ref").(*ResolvedRef)
 			if ok && resolved.Kind == RefKindTag {
 				return c.JSON(http.StatusConflict, ErrorResponse{

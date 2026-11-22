@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -91,8 +91,7 @@ func TestHandleUploadFilesReportsSkipped(t *testing.T) {
 	r.Header.Set("Content-Type", contentType)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("acme", proj.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: proj.ID}})
 	c.Set("project_permissions", platauth.PermAll)
 
 	require.NoError(t, srv.HandleUploadFiles(c))
@@ -135,8 +134,7 @@ func TestHandleUploadFilesDetectsAndroidByContent(t *testing.T) {
 	r.Header.Set("Content-Type", contentType)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("acme", proj.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: proj.ID}})
 	c.Set("project_permissions", platauth.PermAll)
 
 	require.NoError(t, srv.HandleUploadFiles(c))
@@ -172,8 +170,7 @@ func TestHandleUploadFilesNoSkipped(t *testing.T) {
 	r.Header.Set("Content-Type", contentType)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("acme", proj.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: proj.ID}})
 	c.Set("project_permissions", platauth.PermAll)
 
 	require.NoError(t, srv.HandleUploadFiles(c))
@@ -210,8 +207,7 @@ func TestHandleUploadToCollectionReportsSkipped(t *testing.T) {
 	r.Header.Set("Content-Type", contentType)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "cid")
-	c.SetParamValues("acme", proj.ID, coll.ID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: proj.ID}, {Name: "cid", Value: coll.ID}})
 	c.Set("project_permissions", platauth.PermAll)
 
 	require.NoError(t, srv.HandleUploadToCollection(c))

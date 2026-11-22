@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -24,7 +24,7 @@ type createConversationRequest struct {
 }
 
 // HandleCreateBravoConversation creates a new @bravo conversation.
-func (s *Server) HandleCreateBravoConversation(c echo.Context) error {
+func (s *Server) HandleCreateBravoConversation(c *echo.Context) error {
 	if s.AgentService == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "agent not configured"})
 	}
@@ -46,7 +46,7 @@ func (s *Server) HandleCreateBravoConversation(c echo.Context) error {
 }
 
 // HandleListBravoConversations lists conversations for the current user.
-func (s *Server) HandleListBravoConversations(c echo.Context) error {
+func (s *Server) HandleListBravoConversations(c *echo.Context) error {
 	if s.AgentService == nil {
 		return c.JSON(http.StatusOK, map[string]any{"conversations": []any{}, "total": 0})
 	}
@@ -77,7 +77,7 @@ func (s *Server) HandleListBravoConversations(c echo.Context) error {
 }
 
 // HandleGetBravoConversation gets a conversation with recent messages.
-func (s *Server) HandleGetBravoConversation(c echo.Context) error {
+func (s *Server) HandleGetBravoConversation(c *echo.Context) error {
 	if s.AgentService == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "agent not configured"})
 	}
@@ -101,7 +101,7 @@ func (s *Server) HandleGetBravoConversation(c echo.Context) error {
 }
 
 // HandleDeleteBravoConversation deletes a conversation.
-func (s *Server) HandleDeleteBravoConversation(c echo.Context) error {
+func (s *Server) HandleDeleteBravoConversation(c *echo.Context) error {
 	if s.AgentService == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "agent not configured"})
 	}
@@ -132,7 +132,7 @@ type sendMessageContext struct {
 // HandleSendBravoMessage sends a message and returns the agent response.
 // When Accept: text/event-stream is requested, streams SSE events.
 // Otherwise, returns JSON with user + assistant messages.
-func (s *Server) HandleSendBravoMessage(c echo.Context) error {
+func (s *Server) HandleSendBravoMessage(c *echo.Context) error {
 	if s.AgentService == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "agent not configured"})
 	}
@@ -234,7 +234,7 @@ func (s *Server) HandleSendBravoMessage(c echo.Context) error {
 }
 
 // HandleListBravoMessages lists messages in a conversation.
-func (s *Server) HandleListBravoMessages(c echo.Context) error {
+func (s *Server) HandleListBravoMessages(c *echo.Context) error {
 	if s.AgentService == nil {
 		return c.JSON(http.StatusOK, map[string]any{"messages": []any{}})
 	}
@@ -256,7 +256,7 @@ func (s *Server) HandleListBravoMessages(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 // HandleApproveBravoToolCall approves a gated tool call.
-func (s *Server) HandleApproveBravoToolCall(c echo.Context) error {
+func (s *Server) HandleApproveBravoToolCall(c *echo.Context) error {
 	if s.AgentService == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "agent not configured"})
 	}
@@ -272,7 +272,7 @@ func (s *Server) HandleApproveBravoToolCall(c echo.Context) error {
 }
 
 // HandleDenyBravoToolCall denies a gated tool call.
-func (s *Server) HandleDenyBravoToolCall(c echo.Context) error {
+func (s *Server) HandleDenyBravoToolCall(c *echo.Context) error {
 	if s.AgentService == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "agent not configured"})
 	}
@@ -292,7 +292,7 @@ func (s *Server) HandleDenyBravoToolCall(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 // HandleCancelBravoConversation cancels a running agent.
-func (s *Server) HandleCancelBravoConversation(c echo.Context) error {
+func (s *Server) HandleCancelBravoConversation(c *echo.Context) error {
 	if s.AgentService == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "agent not configured"})
 	}
@@ -311,7 +311,7 @@ func (s *Server) HandleCancelBravoConversation(c echo.Context) error {
 // HandleUpdateBravoMode updates the session grant mode for a conversation.
 // Used for step-up prompting: when @bravo suggests switching modes, the frontend
 // calls this endpoint to update the session grant without starting a new conversation.
-func (s *Server) HandleUpdateBravoMode(c echo.Context) error {
+func (s *Server) HandleUpdateBravoMode(c *echo.Context) error {
 	if s.SessionStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "session store not configured"})
 	}
@@ -364,7 +364,7 @@ func (s *Server) HandleUpdateBravoMode(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 // HandleGetBravoConfig returns the workspace agent config.
-func (s *Server) HandleGetBravoConfig(c echo.Context) error {
+func (s *Server) HandleGetBravoConfig(c *echo.Context) error {
 	if s.AgentService == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "agent not configured"})
 	}
@@ -378,7 +378,7 @@ func (s *Server) HandleGetBravoConfig(c echo.Context) error {
 }
 
 // HandleUpdateBravoConfig updates the workspace agent config (admin/owner only).
-func (s *Server) HandleUpdateBravoConfig(c echo.Context) error {
+func (s *Server) HandleUpdateBravoConfig(c *echo.Context) error {
 	if s.AgentService == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "agent not configured"})
 	}
@@ -437,7 +437,7 @@ func (s *Server) HandleUpdateBravoConfig(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 // HandleListBravoTools lists available agent tools (respects policy).
-func (s *Server) HandleListBravoTools(c echo.Context) error {
+func (s *Server) HandleListBravoTools(c *echo.Context) error {
 	if s.AgentService == nil {
 		return c.JSON(http.StatusOK, map[string]any{"tools": []any{}})
 	}
@@ -461,7 +461,7 @@ func agentToolNames() []string {
 
 // HandleGetBravoUsage returns usage summary for the workspace.
 // Query params: from, to (RFC3339 timestamps). Defaults to current month.
-func (s *Server) HandleGetBravoUsage(c echo.Context) error {
+func (s *Server) HandleGetBravoUsage(c *echo.Context) error {
 	if s.AgentService == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "agent not configured"})
 	}

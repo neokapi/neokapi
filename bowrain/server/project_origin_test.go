@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -84,7 +84,7 @@ func bindForgeSource(t *testing.T, ccs *bstore.ConnectorConfigStore, projectID s
 
 // originCtx builds an echo context wired for a project-scoped handler: the ws/id
 // route params (+ any extra), the workspace id, and full permissions.
-func originCtx(e *echo.Echo, r *http.Request, rec *httptest.ResponseRecorder, projectID string, extra ...[2]string) echo.Context {
+func originCtx(e *echo.Echo, r *http.Request, rec *httptest.ResponseRecorder, projectID string, extra ...[2]string) *echo.Context {
 	c := e.NewContext(r, rec)
 	names := []string{"ws", "id"}
 	values := []string{"acme", projectID}
@@ -92,8 +92,7 @@ func originCtx(e *echo.Echo, r *http.Request, rec *httptest.ResponseRecorder, pr
 		names = append(names, p[0])
 		values = append(values, p[1])
 	}
-	c.SetParamNames(names...)
-	c.SetParamValues(values...)
+	c.SetPathValues(pathValuesOf(names, values))
 	c.Set("workspace_id", originTestWS)
 	c.Set("project_permissions", platauth.PermAll)
 	return c

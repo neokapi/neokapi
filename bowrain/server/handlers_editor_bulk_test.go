@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -87,8 +87,7 @@ func editorCall(t *testing.T, srv *Server, method, pid, path, body string, h ech
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "ref")
-	c.SetParamValues("acme", pid, "main")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: pid}, {Name: "ref", Value: "main"}})
 	c.Set("project_permissions", platauth.PermTranslate|platauth.PermReview|platauth.PermViewContent)
 	return rec, h(c)
 }
@@ -101,8 +100,7 @@ func editorBlockCall(t *testing.T, srv *Server, method, pid, bid, path, body str
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "ref", "bid")
-	c.SetParamValues("acme", pid, "main", bid)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "id", Value: pid}, {Name: "ref", Value: "main"}, {Name: "bid", Value: bid}})
 	c.Set("project_permissions", platauth.PermTranslate|platauth.PermReview|platauth.PermViewContent)
 	return rec, h(c)
 }

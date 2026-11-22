@@ -18,7 +18,7 @@ import (
 
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -103,14 +103,14 @@ func setupServerWithAppTrees(t *testing.T, treeFiles map[string][]string) *Serve
 	return s
 }
 
-func setupCtx(t *testing.T, method, body string) (echo.Context, *httptest.ResponseRecorder) {
+func setupCtx(t *testing.T, method, body string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	return setupCtxFor(t, method, body, "42")
 }
 
 // setupCtxFor is setupCtx with the addressed installation spelled out, so a
 // test can aim a ws1 caller at an installation ws1 does not own.
-func setupCtxFor(t *testing.T, method, body, installationID string) (echo.Context, *httptest.ResponseRecorder) {
+func setupCtxFor(t *testing.T, method, body, installationID string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	target := "/github/installations/" + installationID + "/repositories"
 	var r *http.Request
@@ -125,20 +125,19 @@ func setupCtxFor(t *testing.T, method, body, installationID string) (echo.Contex
 	c.Set("workspace_id", "ws1")
 	c.Set("workspace_role", platauth.RoleOwner)
 	c.Set("project_permissions", platauth.PermManageConnectors)
-	c.SetParamNames("installationID")
-	c.SetParamValues(installationID)
+	c.SetPathValues(echo.PathValues{{Name: "installationID", Value: installationID}})
 	return c, rec
 }
 
 // detectCtx builds a request context for the detect endpoint with its
 // :owner/:name params (and optional query string, e.g. "scope=apps/web").
-func detectCtx(t *testing.T, owner, name, query string) (echo.Context, *httptest.ResponseRecorder) {
+func detectCtx(t *testing.T, owner, name, query string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	return detectCtxFor(t, "42", owner, name, query)
 }
 
 // detectCtxFor is detectCtx with the addressed installation spelled out.
-func detectCtxFor(t *testing.T, installationID, owner, name, query string) (echo.Context, *httptest.ResponseRecorder) {
+func detectCtxFor(t *testing.T, installationID, owner, name, query string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	target := "/github/installations/" + installationID + "/repositories/" + owner + "/" + name + "/detect"
 	if query != "" {
@@ -150,8 +149,7 @@ func detectCtxFor(t *testing.T, installationID, owner, name, query string) (echo
 	c.Set("workspace_id", "ws1")
 	c.Set("workspace_role", platauth.RoleOwner)
 	c.Set("project_permissions", platauth.PermManageConnectors)
-	c.SetParamNames("installationID", "owner", "name")
-	c.SetParamValues(installationID, owner, name)
+	c.SetPathValues(echo.PathValues{{Name: "installationID", Value: installationID}, {Name: "owner", Value: owner}, {Name: "name", Value: name}})
 	return c, rec
 }
 
@@ -255,8 +253,7 @@ func TestClaimInstallation(t *testing.T) {
 		c.Set("workspace_id", wsID)
 		c.Set("workspace_role", platauth.RoleOwner)
 		c.Set("project_permissions", platauth.PermManageConnectors)
-		c.SetParamNames("installationID")
-		c.SetParamValues(installationID)
+		c.SetPathValues(echo.PathValues{{Name: "installationID", Value: installationID}})
 		require.NoError(t, s.HandleClaimInstallation(c))
 		return rec
 	}
@@ -640,8 +637,7 @@ func TestBindInstallationRepo_FetchFailureKeepsBinding(t *testing.T) {
 		statusRec := httptest.NewRecorder()
 		sc := echo.New().NewContext(req, statusRec)
 		sc.Set("workspace_id", "ws1")
-		sc.SetParamNames("id")
-		sc.SetParamValues(connID)
+		sc.SetPathValues(echo.PathValues{{Name: "id", Value: connID}})
 		require.NoError(t, s.HandleConnectorStatus(sc))
 		require.Equal(t, http.StatusOK, statusRec.Code, statusRec.Body.String())
 		var status struct {

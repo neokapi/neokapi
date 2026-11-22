@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -254,7 +254,7 @@ func TestSoloReviewerOverrideEndsWithASecondReviewer(t *testing.T) {
 
 	for _, verdict := range []struct {
 		name   string
-		handle func(echo.Context) error
+		handle func(*echo.Context) error
 	}{
 		{"approve", h.srv.HandleApproveChangeSet},
 		{"reject", h.srv.HandleRejectChangeSet},

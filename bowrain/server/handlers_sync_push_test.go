@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	syncengine "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/model"
@@ -291,8 +292,7 @@ func commitWithDecisions(t *testing.T, s *Server, projectID string, perms platau
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "ref")
-	c.SetParamValues("test", projectID, "main")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "test"}, {Name: "id", Value: projectID}, {Name: "ref", Value: "main"}})
 	c.Set("workspace_id", "test-ws")
 	c.Set("user_id", "test-user")
 	c.Set("project_permissions", perms)

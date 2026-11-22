@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platformAuth "github.com/neokapi/neokapi/bowrain/core/auth"
 	venueauth "github.com/neokapi/neokapi/host/venue/auth"
@@ -72,7 +72,7 @@ func validS256Challenge(s string) bool {
 // redirectWithLoginCode ends a code-mode sign-in: it stores a one-time code for
 // the signed-in user, bound to the client's PKCE challenge and redirect, and
 // sends the browser to the client with the code and the client's state.
-func (s *Server) redirectWithLoginCode(c echo.Context, entry *desktopAuthEntry, userID string) error {
+func (s *Server) redirectWithLoginCode(c *echo.Context, entry *desktopAuthEntry, userID string) error {
 	code := randomHex(32)
 	rec := &desktopCodeEntry{UserID: userID, CodeChallenge: entry.CodeChallenge, RedirectURI: entry.RedirectURI}
 	if err := sessionSet(c.Request().Context(), s.SessionStore, prefixDesktopCode, code, rec, desktopCodeTTL); err != nil {
@@ -99,7 +99,7 @@ type desktopTokenRequest struct {
 // HandleDesktopTokenExchange redeems a one-time sign-in code. The code is
 // consumed whether or not the rest of the request holds, so a code that was
 // seen by anyone else is spent by the first attempt.
-func (s *Server) HandleDesktopTokenExchange(c echo.Context) error {
+func (s *Server) HandleDesktopTokenExchange(c *echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil || s.SessionStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
@@ -150,7 +150,7 @@ func (s *Server) HandleDesktopTokenExchange(c echo.Context) error {
 
 // issueSessionTokens mints a 15-minute access token and a persisted 30-day
 // refresh token for a user, as the desktop sign-in does.
-func (s *Server) issueSessionTokens(c echo.Context, user *platformAuth.User) (string, string, error) {
+func (s *Server) issueSessionTokens(c *echo.Context, user *platformAuth.User) (string, string, error) {
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
 		return "", "", fmt.Errorf("generate token: %w", err)

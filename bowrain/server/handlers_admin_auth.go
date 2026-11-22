@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 )
@@ -45,7 +45,7 @@ type AdminIdentityResponse struct {
 // Authorization is unchanged from the Bearer model: holding a valid
 // bowrain-admin realm token is the admin credential. Without an admin OIDC
 // verifier the admin API is not mounted at all, so there is nothing to exchange.
-func (s *Server) HandleAdminAuthExchange(c echo.Context) error {
+func (s *Server) HandleAdminAuthExchange(c *echo.Context) error {
 	if s.AdminVerifier == nil || s.Config.JWTSecret == "" {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "admin auth not configured"})
 	}
@@ -94,7 +94,7 @@ func (s *Server) HandleAdminAuthExchange(c echo.Context) error {
 // HandleAdminAuthLogout clears the admin session cookie. The ctrl SPA then
 // redirects the browser to the admin realm's end-session endpoint to terminate
 // the Keycloak SSO session.
-func (s *Server) HandleAdminAuthLogout(c echo.Context) error {
+func (s *Server) HandleAdminAuthLogout(c *echo.Context) error {
 	s.clearAdminSessionCookie(c)
 	return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 }
@@ -102,7 +102,7 @@ func (s *Server) HandleAdminAuthLogout(c echo.Context) error {
 // HandleAdminAuthMe returns the identity of the current admin session. It runs
 // behind the admin auth middleware, so a valid admin cookie (or Bearer admin
 // token) is required; the identity is read from the context the middleware set.
-func (s *Server) HandleAdminAuthMe(c echo.Context) error {
+func (s *Server) HandleAdminAuthMe(c *echo.Context) error {
 	email, _ := c.Get("admin_email").(string)
 	name, _ := c.Get("admin_name").(string)
 	return c.JSON(http.StatusOK, AdminIdentityResponse{Email: email, Name: name})
@@ -110,7 +110,7 @@ func (s *Server) HandleAdminAuthMe(c echo.Context) error {
 
 // setAdminSessionCookie writes the admin session cookie, path-scoped to
 // /api/admin so it is never sent to user (/api/v1) routes.
-func (s *Server) setAdminSessionCookie(c echo.Context, token string) {
+func (s *Server) setAdminSessionCookie(c *echo.Context, token string) {
 	c.SetCookie(&http.Cookie{
 		Name:     adminSessionCookieName,
 		Value:    token,
@@ -122,7 +122,7 @@ func (s *Server) setAdminSessionCookie(c echo.Context, token string) {
 	})
 }
 
-func (s *Server) clearAdminSessionCookie(c echo.Context) {
+func (s *Server) clearAdminSessionCookie(c *echo.Context) {
 	c.SetCookie(&http.Cookie{
 		Name:     adminSessionCookieName,
 		Value:    "",
@@ -136,7 +136,7 @@ func (s *Server) clearAdminSessionCookie(c echo.Context) {
 
 // validateAdminSessionCookie returns the claims from a valid admin session
 // cookie, or nil when absent/invalid.
-func (s *Server) validateAdminSessionCookie(c echo.Context) *platauth.Claims {
+func (s *Server) validateAdminSessionCookie(c *echo.Context) *platauth.Claims {
 	cookie, err := c.Cookie(adminSessionCookieName)
 	if err != nil || cookie.Value == "" {
 		return nil
@@ -155,7 +155,7 @@ func (s *Server) validateAdminSessionCookie(c echo.Context) *platauth.Claims {
 // cookie path sets admin_email/admin_name on the context, matching AdminGuard.
 func (s *Server) adminAuthMiddleware(guard echo.MiddlewareFunc) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			if claims := s.validateAdminSessionCookie(c); claims != nil {
 				if err := enforceCSRFForCookie(c); err != nil {
 					return err

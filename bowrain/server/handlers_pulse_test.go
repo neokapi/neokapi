@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -71,12 +71,11 @@ func TestPulseAccessMiddleware_PrivateWorkspace(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/pulse/my-workspace", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("workspace")
-	c.SetParamValues("my-workspace")
+	c.SetPathValues(echo.PathValues{{Name: "workspace", Value: "my-workspace"}})
 
 	// No workspace found → 404.
 	mw := PulseAccessMiddleware("secret", &mockPulseAuth{})
-	handler := mw(func(c echo.Context) error {
+	handler := mw(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -90,8 +89,7 @@ func TestPulseAccessMiddleware_PublicWorkspace(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/pulse/my-workspace", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("workspace")
-	c.SetParamValues("my-workspace")
+	c.SetPathValues(echo.PathValues{{Name: "workspace", Value: "my-workspace"}})
 
 	ws := &platauth.Workspace{
 		ID:                  "ws-1",
@@ -102,7 +100,7 @@ func TestPulseAccessMiddleware_PublicWorkspace(t *testing.T) {
 	}
 
 	mw := PulseAccessMiddleware("secret", &mockPulseAuth{workspace: ws})
-	handler := mw(func(c echo.Context) error {
+	handler := mw(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -117,8 +115,7 @@ func TestPulseAccessMiddleware_UnlistedWorkspace(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/pulse/my-workspace", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("workspace")
-	c.SetParamValues("my-workspace")
+	c.SetPathValues(echo.PathValues{{Name: "workspace", Value: "my-workspace"}})
 
 	ws := &platauth.Workspace{
 		ID:                  "ws-1",
@@ -129,7 +126,7 @@ func TestPulseAccessMiddleware_UnlistedWorkspace(t *testing.T) {
 	}
 
 	mw := PulseAccessMiddleware("secret", &mockPulseAuth{workspace: ws})
-	handler := mw(func(c echo.Context) error {
+	handler := mw(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -149,7 +146,7 @@ func TestPulseAccessMiddleware_PersonalWorkspace(t *testing.T) {
 				DashboardVisibility: visibility, PulseAccessKey: "dashboard-key",
 			}
 			api := echo.New()
-			api.GET("/:workspace", func(c echo.Context) error {
+			api.GET("/:workspace", func(c *echo.Context) error {
 				return pulseJSON(c, 60, "dashboard")
 			}, PulseAccessMiddleware("secret", &mockPulseAuth{workspace: ws, membership: &platauth.Membership{}}))
 			for _, path := range []string{"/personal", "/dashboard-key"} {
@@ -266,12 +263,11 @@ func newPulseTestServer(t *testing.T) *Server {
 	return srv
 }
 
-func pulseContext(e *echo.Echo, method, path string, ws *platauth.Workspace) (echo.Context, *httptest.ResponseRecorder) {
+func pulseContext(e *echo.Echo, method, path string, ws *platauth.Workspace) (*echo.Context, *httptest.ResponseRecorder) {
 	req := httptest.NewRequest(method, path, nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("workspace")
-	c.SetParamValues(ws.Slug)
+	c.SetPathValues(echo.PathValues{{Name: "workspace", Value: ws.Slug}})
 	c.Set("pulse_workspace", ws)
 	c.Set("pulse_workspace_id", ws.ID)
 	return c, rec

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	bauth "github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -407,7 +407,7 @@ func TestRetiredProjectHandlersAreOffTheRouter(t *testing.T) {
 		"HandleDeleteProject": true,
 	}
 
-	for _, r := range srv.GetEcho().Routes() {
+	for _, r := range srv.GetEcho().Router().Routes() {
 		name := strings.TrimSuffix(r.Name, "-fm")
 		if i := strings.LastIndex(name, "."); i >= 0 {
 			name = name[i+1:]
@@ -507,8 +507,7 @@ func TestProjectSettingsPreserveInterleavedReviewWrite(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPut, "/", strings.NewReader(tc.body))
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 			c := echo.New().NewContext(req, rec)
-			c.SetParamNames("id")
-			c.SetParamValues(p.ID)
+			c.SetPathValues(echo.PathValues{{Name: "id", Value: p.ID}})
 			c.Set("workspace_id", p.WorkspaceID)
 			c.Set("project_permissions", platauth.PermManageProject)
 			require.NoError(t, update.HandleUpdateEditorProject(c))

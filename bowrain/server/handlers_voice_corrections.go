@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 
@@ -33,7 +33,7 @@ type VoiceCorrectionRequest struct {
 }
 
 // HandleCreateVoiceCorrection records a user correction to a voice finding.
-func (s *Server) HandleCreateVoiceCorrection(c echo.Context) error {
+func (s *Server) HandleCreateVoiceCorrection(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (s *Server) HandleCreateVoiceCorrection(c echo.Context) error {
 }
 
 // HandleGetSuggestedRules returns vocabulary rules suggested from repeated corrections.
-func (s *Server) HandleGetSuggestedRules(c echo.Context) error {
+func (s *Server) HandleGetSuggestedRules(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "voice not configured"})
 	}
@@ -115,7 +115,7 @@ type PromoteRuleRequest struct {
 // replacement, records the decision against the profile, and emits
 // voice.rule_promoted. This closes the correction-learning loop: a correction a
 // team made becomes a deterministic check on every future generation.
-func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
+func (s *Server) HandlePromoteSuggestedRule(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -183,7 +183,7 @@ type DemoteRuleRequest struct {
 // workspace terms store (the inverse of promote). Requires PermManageVoice.
 //
 // POST /:ws/voice-profiles/:id/demote-rule  { "term": "utilize" }
-func (s *Server) HandleDemoteSuggestedRule(c echo.Context) error {
+func (s *Server) HandleDemoteSuggestedRule(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}

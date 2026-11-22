@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -36,7 +36,7 @@ const maxForgeWebhookBody = 1 << 20
 // normal on-push policy. Pushes to any other branch — including the
 // connector's own delivery branch — are acknowledged and ignored, which is
 // what keeps delivery pushes from re-triggering the loop.
-func (s *Server) HandleForgeWebhook(c echo.Context) error {
+func (s *Server) HandleForgeWebhook(c *echo.Context) error {
 	if s.ConnectorConfigStore == nil || s.Services == nil || s.Services.Connector == nil || s.EventBus == nil {
 		return c.NoContent(http.StatusNotFound)
 	}
@@ -163,7 +163,7 @@ func (s *Server) forgeIngest(ctx context.Context, cfg bstore.ConnectorConfig, ev
 // matched to the forge connector tracking it (by repository path); everything
 // downstream is the same flow as the per-connector webhook. Installation
 // lifecycle events and pings are acknowledged without action.
-func (s *Server) HandleGitHubAppWebhook(c echo.Context) error {
+func (s *Server) HandleGitHubAppWebhook(c *echo.Context) error {
 	if s.GitHubApp == nil || s.ConnectorConfigStore == nil || s.Services == nil || s.Services.Connector == nil || s.EventBus == nil {
 		return c.NoContent(http.StatusNotFound)
 	}
@@ -242,7 +242,7 @@ func (s *Server) HandleGitHubAppWebhook(c echo.Context) error {
 // it: leaving the row would keep the setup endpoints willing to act on an
 // installation the workspace no longer holds, and would let a later re-install
 // of the same id inherit the old claim.
-func (s *Server) recordInstallationEvent(c echo.Context, body []byte, event string) error {
+func (s *Server) recordInstallationEvent(c *echo.Context, body []byte, event string) error {
 	ctx := c.Request().Context()
 	delivery := c.Request().Header.Get("X-GitHub-Delivery")
 

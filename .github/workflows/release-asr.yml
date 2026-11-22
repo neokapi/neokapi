@@ -30,6 +30,8 @@ permissions:
 # in its matrix row (GitHub's asset digest, confirmed against a download). A
 # new version changes all three, and every sha256 in the matrix.
 env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
   WHISPER_CPP_VERSION: "v1.9.5"
   WHISPER_CPP_BUILD: "b5454"
   WHISPER_CPP_COMMIT: "d1be6fde11ac6e0407606b4e42fe72d34add8037"

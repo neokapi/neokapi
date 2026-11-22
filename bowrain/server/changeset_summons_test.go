@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -81,7 +81,7 @@ func newSummonsHarness(t *testing.T) *summonsHarness {
 }
 
 // ctx builds an echo context on the workspace route with full permissions.
-func (h *summonsHarness) ctx(method, target, body, actor string, params ...string) (echo.Context, *httptest.ResponseRecorder) {
+func (h *summonsHarness) ctx(method, target, body, actor string, params ...string) (*echo.Context, *httptest.ResponseRecorder) {
 	var r *strings.Reader
 	if body != "" {
 		r = strings.NewReader(body)
@@ -104,8 +104,7 @@ func (h *summonsHarness) ctx(method, target, body, actor string, params ...strin
 		names = append(names, params[i])
 		values = append(values, params[i+1])
 	}
-	c.SetParamNames(names...)
-	c.SetParamValues(values...)
+	c.SetPathValues(pathValuesOf(names, values))
 	return c, rec
 }
 

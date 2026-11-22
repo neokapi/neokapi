@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -148,14 +148,13 @@ func dialWS(t *testing.T, s *Server, handler echo.HandlerFunc, path, origin stri
 
 	e := echo.New()
 	e.GET("/*", handler, func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			// The sockets require an authenticated user; the finding is that a
 			// session cookie satisfies that from any origin, so the test grants
 			// the identity and varies only the origin.
 			c.Set("user_id", "user1")
 			c.Set("user_name", "Alice")
-			c.SetParamNames("ws", "pid")
-			c.SetParamValues("acme", "proj1")
+			c.SetPathValues(echo.PathValues{{Name: "ws", Value: "acme"}, {Name: "pid", Value: "proj1"}})
 			return next(c)
 		}
 	})
@@ -220,8 +219,7 @@ func TestWebSocketsRequireAuthenticationBeforeOrigin(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/ws1/p1/collab/main?item=f.html&locale=fr", nil)
 	c := e.NewContext(req, httptest.NewRecorder())
-	c.SetParamNames("ws", "pid")
-	c.SetParamValues("ws1", "p1")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "ws1"}, {Name: "pid", Value: "p1"}})
 
 	err := s.HandleCollabWebSocket(c)
 	require.Error(t, err)

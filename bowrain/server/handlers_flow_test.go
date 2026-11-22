@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -50,11 +51,9 @@ func flowReq(t *testing.T, srv *Server, method, target, body, projectID, flowID 
 	// grant full permissions so the handlers' permission checks pass.
 	c.Set("project_permissions", platauth.PermAll)
 	if flowID != "" {
-		c.SetParamNames("ws", "id", "flowId")
-		c.SetParamValues("demo", projectID, flowID)
+		c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: projectID}, {Name: "flowId", Value: flowID}})
 	} else {
-		c.SetParamNames("ws", "id")
-		c.SetParamValues("demo", projectID)
+		c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: projectID}})
 	}
 
 	var err error

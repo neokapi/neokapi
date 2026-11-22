@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 )
 
@@ -31,7 +31,7 @@ type ProjectRef struct {
 // streams (branches) and tags — for the GitHub-style /:id/refs endpoint
 // (Bowrain AD-011). Use ?include_archived=true to include archived streams and
 // ?kind=<kind> to filter tags by kind.
-func (s *Server) HandleListProjectRefs(c echo.Context) error {
+func (s *Server) HandleListProjectRefs(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}

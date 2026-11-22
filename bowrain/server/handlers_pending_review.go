@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/locale"
@@ -67,7 +67,7 @@ type pendingReviewResponse struct {
 // absence of one. A reviewer arriving from a collection card used to get the
 // project's whole queue and filter it in the browser over a bounded slice, so a
 // collection larger than the slice showed fewer entries than its card counted.
-func (s *Server) HandleListPendingReview(c echo.Context) error {
+func (s *Server) HandleListPendingReview(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}

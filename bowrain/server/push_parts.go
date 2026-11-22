@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -24,7 +24,7 @@ import (
 // whole push here, with nothing stored and nothing queued.
 //
 // refused reports that the answer has been written.
-func (s *Server) acceptPushParts(c echo.Context, m *pushCommitManifest) (refused bool, err error) {
+func (s *Server) acceptPushParts(c *echo.Context, m *pushCommitManifest) (refused bool, err error) {
 	if refused, err := s.acceptPushTerms(c, m); refused || err != nil {
 		return true, err
 	}
@@ -32,7 +32,7 @@ func (s *Server) acceptPushParts(c echo.Context, m *pushCommitManifest) (refused
 }
 
 // acceptPushTerms checks the terminology part.
-func (s *Server) acceptPushTerms(c echo.Context, m *pushCommitManifest) (bool, error) {
+func (s *Server) acceptPushTerms(c *echo.Context, m *pushCommitManifest) (bool, error) {
 	if len(m.Terms) == 0 || string(m.Terms) == "null" {
 		m.Terms = nil
 		return false, nil
@@ -98,7 +98,7 @@ func (s *Server) acceptPushTerms(c echo.Context, m *pushCommitManifest) (bool, e
 // operation passes the checks a push of context objects passes
 // (acceptContextBatch). The binding of an unbound project is left to the
 // worker's transaction.
-func (s *Server) acceptPushLedger(c echo.Context, m *pushCommitManifest) (bool, error) {
+func (s *Server) acceptPushLedger(c *echo.Context, m *pushCommitManifest) (bool, error) {
 	if len(m.ContextObjects) == 0 {
 		return false, nil
 	}
@@ -128,7 +128,7 @@ func (s *Server) acceptPushLedger(c echo.Context, m *pushCommitManifest) (bool, 
 // contextBatchOf reads the objects of a push into a batch, refusing a name
 // outside the context layout or a blob whose name is not the address of its
 // bytes. refused reports that the answer has been written.
-func contextBatchOf(c echo.Context, objects []apiclient.ContextObjectWire) ([]platstore.ContextObject, bool, error) {
+func contextBatchOf(c *echo.Context, objects []apiclient.ContextObjectWire) ([]platstore.ContextObject, bool, error) {
 	batch := make([]platstore.ContextObject, 0, len(objects))
 	for _, obj := range objects {
 		if !workspace.ValidObjectName(obj.Name) {
@@ -152,7 +152,7 @@ func contextBatchOf(c echo.Context, objects []apiclient.ContextObjectWire) ([]pl
 // workspace role, with workspace denies applied. An API token's scopes and a
 // session's grants narrow the request's own permissions, which the caller
 // checks beside this.
-func (s *Server) workspaceAllows(c echo.Context, projectID string, perm platauth.Permission) bool {
+func (s *Server) workspaceAllows(c *echo.Context, projectID string, perm platauth.Permission) bool {
 	if s.AuthStore == nil || s.ContentStore == nil {
 		return false
 	}

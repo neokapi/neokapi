@@ -1,0 +1,28 @@
+# Start the development build from a clean install and open the app on Metro.
+# Used by ../sign-in.yaml.
+#
+# Clearing the state returns a development build to the development client's
+# launcher, so the flow opens the app through the client's deep link to Metro
+# (METRO_URL, default http://127.0.0.1:8081). The launch arguments set the
+# development menu's preferences for this run: no onboarding sheet, no menu at
+# launch, and no floating Tools button over the sign-in screen's cog.
+appId: cloud.bowrain.app
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+    arguments:
+      -EXDevMenuIsOnboardingFinished: true
+      -EXDevMenuShowsAtLaunch: false
+      -EXDevMenuShowFloatingActionButton: false
+- openLink: ${'bowrain://expo-development-client/?url=' + encodeURIComponent(METRO_URL || 'http://127.0.0.1:8081')}
+# iOS asks before an app opens its own link from outside.
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- extendedWaitUntil:
+    visible:
+      id: sign-in
+    timeout: 90000

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -33,8 +33,7 @@ func TestHandleGetDigestSettings_Default(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/ws-1/digest-settings", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "ws-1"}})
 	c.Set("user_id", "user-1")
 
 	err := srv.HandleGetDigestSettings(c)
@@ -59,8 +58,7 @@ func TestHandleGetDigestSettings_NilStore(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/ws-1/digest-settings", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "ws-1"}})
 	c.Set("user_id", "user-1")
 
 	err := srv.HandleGetDigestSettings(c)
@@ -81,8 +79,7 @@ func TestHandleUpdateDigestSettings_Valid(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "ws-1"}})
 	c.Set("user_id", "user-1")
 
 	err := srv.HandleUpdateDigestSettings(c)
@@ -108,8 +105,7 @@ func TestHandleUpdateDigestSettings_InvalidFrequency(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "ws-1"}})
 	c.Set("user_id", "user-1")
 
 	err := srv.HandleUpdateDigestSettings(c)
@@ -129,8 +125,7 @@ func TestHandleUpdateDigestSettings_Off(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "ws-1"}})
 	c.Set("user_id", "user-1")
 
 	err := srv.HandleUpdateDigestSettings(c)
@@ -154,8 +149,7 @@ func TestHandleUpdateDigestSettings_NilStore(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "ws-1"}})
 	c.Set("user_id", "user-1")
 
 	err := srv.HandleUpdateDigestSettings(c)
@@ -176,8 +170,7 @@ func TestHandleUpdateDigestSettings_Roundtrip(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("ws-1")
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "ws-1"}})
 	c.Set("user_id", "user-1")
 
 	err := srv.HandleUpdateDigestSettings(c)
@@ -188,8 +181,7 @@ func TestHandleUpdateDigestSettings_Roundtrip(t *testing.T) {
 	req2 := httptest.NewRequest(http.MethodGet, "/api/v1/ws-1/digest-settings", nil)
 	rec2 := httptest.NewRecorder()
 	c2 := e.NewContext(req2, rec2)
-	c2.SetParamNames("ws")
-	c2.SetParamValues("ws-1")
+	c2.SetPathValues(echo.PathValues{{Name: "ws", Value: "ws-1"}})
 	c2.Set("user_id", "user-1")
 
 	err = srv.HandleGetDigestSettings(c2)

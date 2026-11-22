@@ -33,7 +33,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"golang.org/x/oauth2"
 )
@@ -123,7 +123,7 @@ func (s *Server) clearElevatedToken(ctx context.Context, userID string) {
 // endpoints: CredentialManager configured (503), authenticated (401), and the
 // provider supports in-app management (409 → steer to the account console). On
 // failure it writes the response and returns ok=false; the caller returns nil.
-func (s *Server) passkeyGuard(c echo.Context) (userID string, ok bool) {
+func (s *Server) passkeyGuard(c *echo.Context) (userID string, ok bool) {
 	if s.CredentialManager == nil {
 		_ = apiErr(c, http.StatusServiceUnavailable, "passkey management is not configured")
 		return "", false
@@ -143,7 +143,7 @@ func (s *Server) passkeyGuard(c echo.Context) (userID string, ok bool) {
 }
 
 // elevationRequiredJSON writes the 409 the UI treats as "start a step-up".
-func elevationRequiredJSON(c echo.Context) error {
+func elevationRequiredJSON(c *echo.Context) error {
 	return apiErr(c, http.StatusConflict, "elevation_required", map[string]any{
 		"elevate_url": elevatePath,
 	})
@@ -163,7 +163,7 @@ func isScopeError(err error) bool {
 // passkeyOpError maps a CredentialManager operation error to a response: a
 // missing-scope failure becomes 409 elevation_required (re-elevate); anything
 // else is a 502 with the given prefix.
-func (s *Server) passkeyOpError(c echo.Context, userID, prefix string, err error) error {
+func (s *Server) passkeyOpError(c *echo.Context, userID, prefix string, err error) error {
 	if isScopeError(err) {
 		s.clearElevatedToken(c.Request().Context(), userID)
 		return elevationRequiredJSON(c)
@@ -202,7 +202,7 @@ func passkeysToJSON(pks []auth.Passkey) []passkeyJSON {
 // configured provider: in-app (Cognito) or via an external account console
 // (Keycloak, with a deep link). It needs no elevated token — it only reports
 // capability.
-func (s *Server) HandleAccountSecurity(c echo.Context) error {
+func (s *Server) HandleAccountSecurity(c *echo.Context) error {
 	if s.CredentialManager == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "account security is not configured")
 	}
@@ -223,7 +223,7 @@ func (s *Server) HandleAccountSecurity(c echo.Context) error {
 // prompt=login (fresh auth). The callback stashes only the resulting access
 // token (encrypted, short TTL). This is a top-level GET navigation, so it rides
 // the SameSite=Lax session cookie and is CSRF-exempt.
-func (s *Server) HandleSecurityElevate(c echo.Context) error {
+func (s *Server) HandleSecurityElevate(c *echo.Context) error {
 	if s.CredentialManager == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "account security is not configured")
 	}
@@ -292,7 +292,7 @@ func (s *Server) HandleSecurityElevate(c echo.Context) error {
 // (encrypted, short TTL), and redirects the browser back to the Security page
 // with ?elevated=1 (or ?elevated=0 on any failure — never a hard error page,
 // since this is a UX gate the user can retry).
-func (s *Server) HandleSecurityElevateCallback(c echo.Context) error {
+func (s *Server) HandleSecurityElevateCallback(c *echo.Context) error {
 	userID, ok := c.Get("user_id").(string)
 	if !ok || userID == "" {
 		return apiErr(c, http.StatusUnauthorized, "not authenticated")
@@ -357,7 +357,7 @@ func (s *Server) HandleSecurityElevateCallback(c echo.Context) error {
 }
 
 // HandleListPasskeys returns the signed-in user's registered passkeys.
-func (s *Server) HandleListPasskeys(c echo.Context) error {
+func (s *Server) HandleListPasskeys(c *echo.Context) error {
 	userID, ok := s.passkeyGuard(c)
 	if !ok {
 		return nil
@@ -377,7 +377,7 @@ func (s *Server) HandleListPasskeys(c echo.Context) error {
 // HandleRegisterStart begins a passkey registration: it fetches the credential
 // creation options from the IdP and returns them plus a single-use nonce that
 // binds the subsequent finish call.
-func (s *Server) HandleRegisterStart(c echo.Context) error {
+func (s *Server) HandleRegisterStart(c *echo.Context) error {
 	userID, ok := s.passkeyGuard(c)
 	if !ok {
 		return nil
@@ -415,7 +415,7 @@ type passkeyFinishRequest struct {
 
 // HandleRegisterFinish completes a passkey registration: it validates and
 // consumes the nonce, then submits the browser's attestation to the IdP.
-func (s *Server) HandleRegisterFinish(c echo.Context) error {
+func (s *Server) HandleRegisterFinish(c *echo.Context) error {
 	userID, ok := s.passkeyGuard(c)
 	if !ok {
 		return nil
@@ -450,7 +450,7 @@ func (s *Server) HandleRegisterFinish(c echo.Context) error {
 }
 
 // HandleDeletePasskey removes a registered passkey by its provider credential id.
-func (s *Server) HandleDeletePasskey(c echo.Context) error {
+func (s *Server) HandleDeletePasskey(c *echo.Context) error {
 	userID, ok := s.passkeyGuard(c)
 	if !ok {
 		return nil

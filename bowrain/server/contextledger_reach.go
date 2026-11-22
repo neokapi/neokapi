@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -38,7 +38,7 @@ func (m LedgerMember) pusher() platstore.Pusher {
 
 // ledgerMemberOf reads the signed-in member of a request, and the tool when a
 // tool token authenticated it.
-func ledgerMemberOf(c echo.Context) LedgerMember {
+func ledgerMemberOf(c *echo.Context) LedgerMember {
 	a := requestActorOf(c)
 	perms, _ := c.Get("project_permissions").(platauth.Permission)
 	return LedgerMember{UserID: a.UserID, Permissions: perms, Reach: callerReach(c), Tool: a.Tool, TokenID: a.TokenID}

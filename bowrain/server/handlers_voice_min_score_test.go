@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -38,8 +38,7 @@ func voiceProfileWrite(t *testing.T, srv *Server, handler echo.HandlerFunc, meth
 	c.Set("workspace_id", wsID)
 	c.Set("user_id", "u-min-score")
 	if profileID != "" {
-		c.SetParamNames("id")
-		c.SetParamValues(profileID)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: profileID}})
 	}
 	require.NoError(t, handler(c))
 	return rec

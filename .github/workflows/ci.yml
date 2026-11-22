@@ -30,6 +30,10 @@ permissions:
   # (scripts/mirror-image.sh) with the workflow token.
   packages: read
 
+env:
+  # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
+  GOFLAGS: -trimpath
+
 jobs:
   # ── Detect which modules changed ──────────────────────────────────────────
   changes:
@@ -44,8 +48,11 @@ jobs:
       bowrain_plugin: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_plugin }}
       bowrain: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain }}
       frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend }}
+      frontend_packages: ${{ github.event_name == 'push' || steps.filter.outputs.frontend_packages }}
       kapi_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_desktop }}
+      kapi_desktop_frontend: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_desktop_frontend }}
       bowrain_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_desktop }}
+      bowrain_desktop_frontend: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_desktop_frontend }}
       i18n_react: ${{ github.event_name == 'push' || steps.filter.outputs.i18n_react }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
       plugins: ${{ github.event_name == 'push' || steps.filter.outputs.plugins }}
@@ -145,13 +152,31 @@ jobs:
           # otherwise matches nothing here, skips the job, and merges the edit
           # unrun. The framework filter does not stand in — it gates the lint,
           # test and build jobs, none of which touch this one.
+          # The suites in `make ci-frontend-packages`. Everything they import is a
+          # package under packages/ (the licence boundary keeps them off
+          # bowrain/packages), plus the files they read: context-atlas reads
+          # core/place/testdata, and docs-palette reads the palettes it
+          # generates into the two docs sites and the Makefile that names the
+          # generator. ci.yml and the Makefile hold the job body.
+          check_paths frontend_packages '^packages/' '^web/' '^bowrain/web/landing/' '^bowrain/mobile/' '^core/place/testdata/' '^bowrain/web/docs/src/css/palette\.generated\.css$' '^Makefile$' '^\.github/workflows/ci\.yml$' "${js_deps[@]}"
+          # The Go half of each desktop app. Its frontend half has a filter of
+          # its own below, because the frontend reads more than the Go half.
           check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/' '^\.github/workflows/ci\.yml$' "${js_deps[@]}"
           check_paths bowrain_desktop '^bowrain/apps/bowrain/' '^bowrain/packages/ui/' "${js_deps[@]}"
+          # The suites in `make ci-kapi-desktop-frontend`. The app imports most
+          # of packages/, flow-editor's suite reads core/schema/annotations.go,
+          # and the guides suite reads the kapi docs pages it links to.
+          check_paths kapi_desktop_frontend '^apps/kapi-desktop/' '^packages/' '^core/schema/annotations\.go$' '^web/docs/kapi/' '^Makefile$' '^\.github/workflows/ci\.yml$' "${js_deps[@]}"
+          # The suite in `make ci-bowrain-desktop-frontend`: the app and the
+          # bowrain and shared packages it imports.
+          check_paths bowrain_desktop_frontend '^bowrain/apps/bowrain/' '^bowrain/packages/' '^packages/' '^Makefile$' '^\.github/workflows/ci\.yml$' "${js_deps[@]}"
           # i18n-react-lint is in this filter because its rules answer for what the
           # extractor does: narrowing what extraction skips retires a rule, and the
           # two have to move together or the rule tells the author to fix code that
-          # already works. Its suite runs in the same job.
-          check_paths i18n_react '^packages/(kapi-format|i18n-react|i18n-react-lint)/' "${js_deps[@]}"
+          # already works. Its suite runs in the same job. The suites also read
+          # packages/ui (the manifest test), and kapi-format's suite reads the Go
+          # edition-key and JSX fixtures it is held to.
+          check_paths i18n_react '^packages/(kapi-format|i18n-react|i18n-react-lint|ui)/' '^core/model/testdata/' '^core/formats/jsx/testdata/' '^Makefile$' '^\.github/workflows/ci\.yml$' "${js_deps[@]}"
           check_paths workflows '^\.github/workflows/'
           check_paths plugins  '^plugins/'
           # The three faces of one question, plus the record they are held to.
@@ -223,6 +248,26 @@ jobs:
       - name: Check + test + build the bowrain web frontends
         run: make ci-frontend
 
+  # ── Shared packages, docs site, landing page and mobile app suites ──────
+  # Unit tests only; the type-checks of these packages run in `frontend` above
+  # through `vp check` over the whole workspace. scripts/check-test-scripts.py
+  # (a repo guard) fails when a package `test` script runs in no pull request
+  # job, and `make ci-frontend-packages` is where a new suite goes.
+  frontend-packages:
+    name: Frontend packages
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend_packages == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-node-ui
+
+      # Job body lives in `make ci-frontend-packages`.
+      - name: Unit-test the shared packages, docs site, landing page and mobile app
+        run: make ci-frontend-packages
+
   # ── Kapi Desktop ────────────────────────────────────────────────────────
   # The frontend half and the Go half share nothing but the checkout, so they
   # are two jobs: the pull request waits for the longer one, not their sum.
@@ -230,7 +275,7 @@ jobs:
     name: Kapi Desktop (frontend)
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.kapi_desktop == 'true'
+    if: needs.changes.outputs.kapi_desktop_frontend == 'true'
     # The derived-catalog gate lives in l10n.yml, so this job needs no write
     # access to the repository.
     permissions:
@@ -338,7 +383,7 @@ jobs:
     name: Bowrain Desktop (frontend)
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.bowrain_desktop == 'true'
+    if: needs.changes.outputs.bowrain_desktop_frontend == 'true'
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-ui
@@ -1297,6 +1342,10 @@ jobs:
         run: python3 scripts/reliability-checklist.py --self-test
       - name: "Guard: the CI passed job answers for every job"
         run: python3 scripts/ci-passed.py --self-test && python3 scripts/ci-passed.py needs
+      - name: "Guard: every package test script runs in a pull request job"
+        run: python3 scripts/check-test-scripts.py --self-test && python3 scripts/check-test-scripts.py
+      - name: "Guard: every Go command in make, scripts and CI builds with -trimpath"
+        run: python3 scripts/check-go-trimpath.py --self-test && python3 scripts/check-go-trimpath.py
       - name: "Guard: the commit gate hook passes its self-test"
         run: ./.claude/hooks/commit-gate.sh --self-test
       - name: "Guard: the build cache warmer passes its self-test"
@@ -1435,7 +1484,7 @@ jobs:
   # A pull request's Go jobs compile without the race detector and restore the
   # "pr" build-cache flavor. Nothing else on main compiles that way, and a pull
   # request cannot read a cache another pull request saved, so this job is the
-  # one writer of that flavor: it compiles every workspace module's packages
+  # one writer of that flavor. It compiles every workspace module's packages
   # and test binaries the way those jobs do, and setup-go-modules saves the
   # result when the job ends. No other job waits for it.
   warm-pr-cache:
@@ -1542,6 +1591,7 @@ jobs:
     needs:
       - changes
       - frontend
+      - frontend-packages
       - kapi-desktop
       - kapi-desktop-backend
       - desktop-bindings

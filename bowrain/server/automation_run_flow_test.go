@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -274,8 +275,7 @@ func automationRuleRequest(t *testing.T, srv *Server, projectID, body string) *h
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
 	c.Set("project_permissions", platauth.PermAll)
-	c.SetParamNames("ws", "id")
-	c.SetParamValues("demo", projectID)
+	c.SetPathValues(echo.PathValues{{Name: "ws", Value: "demo"}, {Name: "id", Value: projectID}})
 	require.NoError(t, srv.HandleCreateAutomationRule(c))
 	return rec
 }

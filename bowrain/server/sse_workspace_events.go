@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 )
 
@@ -39,7 +39,7 @@ func (r *contentStoreWorkspaceResolver) WorkspaceForProject(ctx context.Context,
 // context. The stream sends a JSON ChangeEvent per `data:` frame, emits a
 // periodic heartbeat comment to keep proxies from idling the connection, and
 // tears down cleanly when the client disconnects.
-func (s *Server) HandleWorkspaceEventsSSE(c echo.Context) error {
+func (s *Server) HandleWorkspaceEventsSSE(c *echo.Context) error {
 	if s.changeRelay == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "event relay not configured"})
 	}
@@ -66,7 +66,7 @@ func (s *Server) HandleWorkspaceEventsSSE(c echo.Context) error {
 	// Initial comment so the client's onopen fires immediately and any proxy
 	// flushes the response headers.
 	fmt.Fprint(c.Response(), ": connected\n\n")
-	c.Response().Flush()
+	flushResponse(c)
 
 	heartbeat := time.NewTicker(25 * time.Second)
 	defer heartbeat.Stop()
@@ -84,10 +84,10 @@ func (s *Server) HandleWorkspaceEventsSSE(c echo.Context) error {
 				continue
 			}
 			fmt.Fprintf(c.Response(), "event: change\ndata: %s\n\n", payload)
-			c.Response().Flush()
+			flushResponse(c)
 		case <-heartbeat.C:
 			fmt.Fprint(c.Response(), ": heartbeat\n\n")
-			c.Response().Flush()
+			flushResponse(c)
 		}
 	}
 }

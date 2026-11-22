@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/core/id"
@@ -79,7 +79,7 @@ type CreateFromStarterRequest struct {
 }
 
 // HandleListVoiceProfiles lists all voice profiles in a workspace.
-func (s *Server) HandleListVoiceProfiles(c echo.Context) error {
+func (s *Server) HandleListVoiceProfiles(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
 	}
@@ -92,7 +92,7 @@ func (s *Server) HandleListVoiceProfiles(c echo.Context) error {
 }
 
 // HandleCreateVoiceProfile creates a new voice profile.
-func (s *Server) HandleCreateVoiceProfile(c echo.Context) error {
+func (s *Server) HandleCreateVoiceProfile(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (s *Server) HandleCreateVoiceProfile(c echo.Context) error {
 //     UpdateProfile, which archives the current state as an immutable
 //     ProfileVersion before bumping the version — server-side edits are never
 //     lost, only superseded by a new, revertible version.
-func (s *Server) HandleUpsertVoiceProfile(c echo.Context) error {
+func (s *Server) HandleUpsertVoiceProfile(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -349,13 +349,13 @@ func voiceContentOf(c voiceProfileContent) voiceProfileContent {
 // Callers respond 404 (anti-enumeration) on a mismatch, matching the
 // project-level cross-tenant guard in ProjectAccessMiddleware. Fails closed when
 // the workspace context is missing (wsID empty).
-func profileInRequestWorkspace(c echo.Context, profile *coreprofile.VoiceProfile) bool {
+func profileInRequestWorkspace(c *echo.Context, profile *coreprofile.VoiceProfile) bool {
 	wsID, _ := c.Get("workspace_id").(string)
 	return wsID != "" && profile != nil && profile.Scope == wsID
 }
 
 // HandleGetVoiceProfile returns a single voice profile by ID.
-func (s *Server) HandleGetVoiceProfile(c echo.Context) error {
+func (s *Server) HandleGetVoiceProfile(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
 	}
@@ -371,7 +371,7 @@ func (s *Server) HandleGetVoiceProfile(c echo.Context) error {
 }
 
 // HandleUpdateVoiceProfile updates an existing voice profile.
-func (s *Server) HandleUpdateVoiceProfile(c echo.Context) error {
+func (s *Server) HandleUpdateVoiceProfile(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -426,7 +426,7 @@ func (s *Server) HandleUpdateVoiceProfile(c echo.Context) error {
 }
 
 // HandleDeleteVoiceProfile deletes a voice profile.
-func (s *Server) HandleDeleteVoiceProfile(c echo.Context) error {
+func (s *Server) HandleDeleteVoiceProfile(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -451,7 +451,7 @@ func (s *Server) HandleDeleteVoiceProfile(c echo.Context) error {
 }
 
 // HandleCheckVoice checks text against a voice profile and returns findings and score.
-func (s *Server) HandleCheckVoice(c echo.Context) error {
+func (s *Server) HandleCheckVoice(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
 	}
@@ -497,7 +497,7 @@ func (s *Server) HandleCheckVoice(c echo.Context) error {
 }
 
 // HandleListStarterPacks lists available starter pack templates.
-func (s *Server) HandleListStarterPacks(c echo.Context) error {
+func (s *Server) HandleListStarterPacks(c *echo.Context) error {
 	names, err := packs.List()
 	if err != nil {
 		return serverErr(c, err)
@@ -518,7 +518,7 @@ func (s *Server) HandleListStarterPacks(c echo.Context) error {
 }
 
 // HandleCreateFromStarter creates a voice profile from a starter pack template.
-func (s *Server) HandleCreateFromStarter(c echo.Context) error {
+func (s *Server) HandleCreateFromStarter(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
 	}
@@ -569,7 +569,7 @@ func (s *Server) HandleCreateFromStarter(c echo.Context) error {
 }
 
 // HandleGetVoiceScores returns voice compliance scores for a project.
-func (s *Server) HandleGetVoiceScores(c echo.Context) error {
+func (s *Server) HandleGetVoiceScores(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
 	}
@@ -583,7 +583,7 @@ func (s *Server) HandleGetVoiceScores(c echo.Context) error {
 }
 
 // HandleGetVoiceScoresByLocale returns voice compliance scores filtered by locale.
-func (s *Server) HandleGetVoiceScoresByLocale(c echo.Context) error {
+func (s *Server) HandleGetVoiceScoresByLocale(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
 	}
@@ -598,7 +598,7 @@ func (s *Server) HandleGetVoiceScoresByLocale(c echo.Context) error {
 }
 
 // HandleGetVoiceTrends returns voice compliance score trends for a project.
-func (s *Server) HandleGetVoiceTrends(c echo.Context) error {
+func (s *Server) HandleGetVoiceTrends(c *echo.Context) error {
 	if s.VoiceStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "voice not configured")
 	}

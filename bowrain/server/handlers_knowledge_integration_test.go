@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -57,7 +57,7 @@ func kgIntegrationServer(t *testing.T) *Server {
 
 // kgIntegrationCtx builds an echo context for a knowledge route with full
 // permissions and the given actor, workspace, and path parameters.
-func kgIntegrationCtx(srv *Server, method, target, body, actor string, params ...string) (echo.Context, *httptest.ResponseRecorder) {
+func kgIntegrationCtx(srv *Server, method, target, body, actor string, params ...string) (*echo.Context, *httptest.ResponseRecorder) {
 	const wsID = "ws-kg-int"
 	var r io.Reader
 	if body != "" {
@@ -78,8 +78,7 @@ func kgIntegrationCtx(srv *Server, method, target, body, actor string, params ..
 		names = append(names, params[i])
 		values = append(values, params[i+1])
 	}
-	c.SetParamNames(names...)
-	c.SetParamValues(values...)
+	c.SetPathValues(pathValuesOf(names, values))
 	return c, rec
 }
 

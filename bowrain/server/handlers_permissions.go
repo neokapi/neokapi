@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 )
 
@@ -25,7 +25,7 @@ type CallerPermissionsResponse struct {
 // reports, and enforces nothing; every handler still gates itself.
 //
 // GET /:ws/:id/permissions
-func (s *Server) HandleGetCallerPermissions(c echo.Context) error {
+func (s *Server) HandleGetCallerPermissions(c *echo.Context) error {
 	perms, ok := c.Get("project_permissions").(platauth.Permission)
 	if !ok {
 		// Fail closed, as requirePermission does: an unresolved context is a

@@ -13,7 +13,7 @@ import (
 
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	bconn "github.com/neokapi/neokapi/bowrain/connector"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
@@ -62,7 +62,7 @@ func connectorTestCipher(t *testing.T) *crypto.Cipher {
 
 // connCtx builds an echo context for a manage-connectors caller in a workspace,
 // with the given method/body and optional :id path param.
-func connCtx(t *testing.T, method, body, wsID, pathID string) (echo.Context, *httptest.ResponseRecorder) {
+func connCtx(t *testing.T, method, body, wsID, pathID string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	var r *http.Request
 	if body == "" {
@@ -77,8 +77,7 @@ func connCtx(t *testing.T, method, body, wsID, pathID string) (echo.Context, *ht
 	c.Set("workspace_role", platauth.RoleOwner)
 	c.Set("project_permissions", platauth.PermManageConnectors)
 	if pathID != "" {
-		c.SetParamNames("id")
-		c.SetParamValues(pathID)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: pathID}})
 	}
 	return c, rec
 }
@@ -308,7 +307,7 @@ func (l *listingConnector) Status(context.Context) (*venueconn.SyncStatus, error
 
 // connContentCtx builds an echo context for a workspace-member caller hitting the
 // read-only content route, with the :id path param and an optional ?paths= query.
-func connContentCtx(t *testing.T, wsID, pathID, paths string) (echo.Context, *httptest.ResponseRecorder) {
+func connContentCtx(t *testing.T, wsID, pathID, paths string) (*echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	target := "/connectors/" + pathID + "/content"
 	if paths != "" {
@@ -318,8 +317,7 @@ func connContentCtx(t *testing.T, wsID, pathID, paths string) (echo.Context, *ht
 	rec := httptest.NewRecorder()
 	c := echo.New().NewContext(r, rec)
 	c.Set("workspace_id", wsID)
-	c.SetParamNames("id")
-	c.SetParamValues(pathID)
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: pathID}})
 	return c, rec
 }
 

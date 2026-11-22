@@ -3,13 +3,13 @@ package server
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
 // HandleGetDigestSettings returns the digest settings for the current user.
-func (s *Server) HandleGetDigestSettings(c echo.Context) error {
+func (s *Server) HandleGetDigestSettings(c *echo.Context) error {
 	userID := c.Get("user_id").(string)
 	wsID := c.Param("ws")
 
@@ -26,7 +26,7 @@ func (s *Server) HandleGetDigestSettings(c echo.Context) error {
 }
 
 // HandleUpdateDigestSettings updates the digest settings for the current user.
-func (s *Server) HandleUpdateDigestSettings(c echo.Context) error {
+func (s *Server) HandleUpdateDigestSettings(c *echo.Context) error {
 	userID := c.Get("user_id").(string)
 	wsID := c.Param("ws")
 

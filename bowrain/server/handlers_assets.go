@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 
 	corestorage "github.com/neokapi/neokapi/core/storage"
@@ -150,7 +150,7 @@ func (s *Server) generateDownloadURL(ctx context.Context, blobKey string) string
 // deployment that had not configured S3, every asset variant resolved to
 // nothing, the pull skipped it, and the translated file was written without its
 // media and reported as a success.
-func (s *Server) downloadURLFor(c echo.Context, blobKey string) string {
+func (s *Server) downloadURLFor(c *echo.Context, blobKey string) string {
 	if s.BlobStore == nil || blobKey == "" {
 		return ""
 	}
@@ -163,7 +163,7 @@ func (s *Server) downloadURLFor(c echo.Context, blobKey string) string {
 // blobDownloadPath is this server's streaming route for one blob, on the same
 // project and stream the request arrived on — so the route the caller follows
 // is authorized exactly as the one that handed it over.
-func blobDownloadPath(c echo.Context, blobKey string) string {
+func blobDownloadPath(c *echo.Context, blobKey string) string {
 	projectID := c.Param("id")
 	if projectID == "" || blobKey == "" {
 		return ""
@@ -180,7 +180,7 @@ func blobDownloadPath(c echo.Context, blobKey string) string {
 // ---------------------------------------------------------------------------
 
 // HandleAssetUploadURL returns a pre-signed upload URL for direct client upload.
-func (s *Server) HandleAssetUploadURL(c echo.Context) error {
+func (s *Server) HandleAssetUploadURL(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageAssets); err != nil {
 		return err
 	}
@@ -220,7 +220,7 @@ func (s *Server) HandleAssetUploadURL(c echo.Context) error {
 }
 
 // HandleCreateAsset registers asset metadata after the blob has been uploaded.
-func (s *Server) HandleCreateAsset(c echo.Context) error {
+func (s *Server) HandleCreateAsset(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageAssets); err != nil {
 		return err
 	}
@@ -264,7 +264,7 @@ func (s *Server) HandleCreateAsset(c echo.Context) error {
 }
 
 // HandleListAssets lists assets for a project, optionally filtered by item_name.
-func (s *Server) HandleListAssets(c echo.Context) error {
+func (s *Server) HandleListAssets(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -288,7 +288,7 @@ func (s *Server) HandleListAssets(c echo.Context) error {
 }
 
 // HandleGetAsset returns a single asset with a download URL.
-func (s *Server) HandleGetAsset(c echo.Context) error {
+func (s *Server) HandleGetAsset(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -308,7 +308,7 @@ func (s *Server) HandleGetAsset(c echo.Context) error {
 }
 
 // HandleDeleteAsset deletes an asset and its variants.
-func (s *Server) HandleDeleteAsset(c echo.Context) error {
+func (s *Server) HandleDeleteAsset(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageAssets); err != nil {
 		return err
 	}
@@ -333,7 +333,7 @@ func (s *Server) HandleDeleteAsset(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 // HandleVariantUploadURL returns a pre-signed upload URL for a locale variant.
-func (s *Server) HandleVariantUploadURL(c echo.Context) error {
+func (s *Server) HandleVariantUploadURL(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageAssets); err != nil {
 		return err
 	}
@@ -362,7 +362,7 @@ func (s *Server) HandleVariantUploadURL(c echo.Context) error {
 }
 
 // HandleCreateVariant registers a locale variant for an asset.
-func (s *Server) HandleCreateVariant(c echo.Context) error {
+func (s *Server) HandleCreateVariant(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageAssets); err != nil {
 		return err
 	}
@@ -404,7 +404,7 @@ func (s *Server) HandleCreateVariant(c echo.Context) error {
 }
 
 // HandleListVariants lists all locale variants for an asset.
-func (s *Server) HandleListVariants(c echo.Context) error {
+func (s *Server) HandleListVariants(c *echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
