@@ -775,7 +775,7 @@ ci-lint-tags: i18n-catalogs go-embed-placeholders ## Mirror one CI `lint-tags` l
 	$(if $(LINT_CONFIG),,$(error LINT_CONFIG names the configuration))
 	@$(LINT_PDFIUM) $(TAGMATRIX_LINT) -config $(LINT_CONFIG) $(GO_LINT_ALL)
 	$(GO) run ./scripts/editguard -config $(LINT_CONFIG)
-	$(if $(filter $(LINT_CONFIG),$(PROJECTION_GUARD_CONFIGS)),$(GO) run ./scripts/projectionguard -config $(LINT_CONFIG),@echo "projectionguard: not run under $(LINT_CONFIG) (see PROJECTION_GUARD_CONFIGS)")
+	$(GO) run ./scripts/projectionguard -config $(LINT_CONFIG)
 
 # Prints true when a change since LINT_BASE reaches a package a `lint-tags` leg
 # compiles, and false otherwise. A leg that prints false skips its lint.
@@ -970,14 +970,10 @@ audit-modules: check-module-boundaries ## Build each application module in isola
 # default. The module-boundaries CI job runs the host one; each lint-tags leg
 # runs its own.
 GUARD_CONFIGS ?= host model js-wasm windows linux-nocgo darwin-nocgo
-# The projection guard leaves out js-wasm: the browser build's workspace
-# export and import (kapi/cmd/kapi-wasm-cli/workspace.go) open terms stores
-# outside the projector, and how the guard should treat them is open.
-PROJECTION_GUARD_CONFIGS := $(filter-out js-wasm,$(GUARD_CONFIGS))
 
 check-projection-writes: i18n-catalogs ## Guard: only the projector writes a project's context stores
 	@$(GO) run ./scripts/projectionguard -self-test
-	@for c in $(PROJECTION_GUARD_CONFIGS); do $(GO) run ./scripts/projectionguard -config $$c || exit 1; done
+	@for c in $(GUARD_CONFIGS); do $(GO) run ./scripts/projectionguard -config $$c || exit 1; done
 
 # A format writer pointed at a file writes a whole document to disk. The guard
 # type-checks every module that writes documents and reports each such call
