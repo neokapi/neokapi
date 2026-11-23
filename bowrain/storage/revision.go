@@ -4,12 +4,29 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/neokapi/neokapi/core/id"
 )
 
 // ErrStale is a write refused because the record has changed since the writer
 // read it: the revision the writer named is no longer the record's.
 var ErrStale = errors.New("the record changed after it was read")
+
+// ErrBusy is a write that waited the lock timeout for another write to the
+// same record and gave up. It says nothing about the writer's revision, which
+// may well be current: the writer tries again.
+var ErrBusy = errors.New("another save of this record is still in progress; try again")
+
+// LockTimeout is how long a write waits for another write to the same record.
+const LockTimeout = "5s"
+
+// LockTimedOut reports whether err is a lock wait that ran out (lock_timeout,
+// SQLSTATE 55P03).
+func LockTimedOut(err error) bool {
+	pgErr, ok := errors.AsType[*pgconn.PgError](err)
+	return ok && pgErr.Code == "55P03"
+}
 
 // NewRevision is the token a write gives the record it writes. Tokens never
 // repeat, so a record deleted and created again under the same id never

@@ -42,12 +42,12 @@ func TestReportVoicePush_TextMatchesPushFooter(t *testing.T) {
 		{
 			name: "carried with the push",
 			res:  &transfer.PushVoiceResult{Name: "Acme Voice", Action: "carried"},
-			want: "Voice profile: \"Acme Voice\" carried to the workspace brand hub\n",
+			want: "Voice profile: \"Acme Voice\" is in the workspace as this project has it\n",
 		},
 		{
 			name: "a dry run says what it would carry",
 			res:  &transfer.PushVoiceResult{Name: "Acme Voice", Action: "would-push"},
-			want: "Would push voice profile \"Acme Voice\" to the workspace brand hub\n",
+			want: "Would send voice profile \"Acme Voice\" to the workspace\n",
 		},
 		{
 			name: "--no-brand degrades to a skipped note",

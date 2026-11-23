@@ -275,7 +275,11 @@ func runWorker(dbURL string) error {
 		slog.Warn("knowledge store unavailable; pushes that propose governed terminology fail", "error", kerr)
 		ks = nil
 	}
-	translationDeps.PushTransition = jobs.NewPostgresPushTransition(pgdb, pgCS, bs, ks)
+	pushTransition, terr := jobs.NewPostgresPushTransition(ctx, pgdb, pgCS, bs, ks)
+	if terr != nil {
+		return fmt.Errorf("prepare the push transaction: %w", terr)
+	}
+	translationDeps.PushTransition = pushTransition
 	if authStore != nil {
 		translationDeps.WorkspaceDefault = &workerWorkspaceDefault{auth: authStore}
 		// The platform is authoritative for review governance. A push can

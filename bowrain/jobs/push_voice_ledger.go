@@ -5,6 +5,7 @@ import (
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/voicewrite"
 	"github.com/neokapi/neokapi/core/workspace"
 )
@@ -22,7 +23,7 @@ type contextObjectPutter interface {
 // is looked for among them as well as in what the project already holds.
 type pushVoiceLedger struct {
 	tx      contextObjectPutter
-	held    store.ContextObjectStore
+	held    voicewrite.ContextObjectReader
 	project voicewrite.Project
 	pushed  []store.ContextObject
 	// pusher is the member whose push carries pushed, and the tool when a
@@ -49,10 +50,23 @@ var _ voicewrite.Ledger = (*pushVoiceLedger)(nil)
 // the writes are recorded nowhere.
 func newPushVoiceLedger(ctx context.Context, deps *WorkerDeps, tx contextObjectPutter, projectID, pusher string, l pushLedger) *pushVoiceLedger {
 	out := &pushVoiceLedger{tx: tx, pusher: pusherOf(ctx, pusher), project: voicewrite.Project{ID: projectID, Key: workspace.ProjectKey(l.Key)}}
-	if objects, ok := store.ContextObjects(deps.ContentStore); ok {
-		out.held = objects
+	// The ledger is read on the push's own transaction where it offers the
+	// reads, so a push holding locks never waits on the pool for a second
+	// connection.
+	type keyedReader interface {
+		voicewrite.ContextObjectReader
+		ContextKey(ctx context.Context, projectID string) (string, error)
+	}
+	var reads keyedReader
+	if onTx, ok := tx.(interface{ LedgerReads() bstore.LedgerReads }); ok {
+		reads = onTx.LedgerReads()
+	} else if objects, ok := store.ContextObjects(deps.ContentStore); ok {
+		reads = objects
+	}
+	if reads != nil {
+		out.held = reads
 		if out.project.Key == "" {
-			if key, err := objects.ContextKey(ctx, projectID); err == nil {
+			if key, err := reads.ContextKey(ctx, projectID); err == nil {
 				out.project.Key = workspace.ProjectKey(key)
 			}
 		}

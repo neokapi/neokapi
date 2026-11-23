@@ -144,17 +144,23 @@ func (s *PostgresKnowledgeStore) UpdateMarket(ctx context.Context, m *Market, ba
 	return nil
 }
 
-func (s *PostgresKnowledgeStore) DeleteMarket(ctx context.Context, workspaceID, marketID string) error {
+func (s *PostgresKnowledgeStore) DeleteMarketAt(ctx context.Context, workspaceID, marketID, base string) error {
 	res, err := s.run().ExecContext(ctx,
-		`DELETE FROM kg_markets WHERE workspace_id = $1 AND id = $2`, workspaceID, marketID)
+		`DELETE FROM kg_markets WHERE workspace_id = $1 AND id = $2 AND revision = $3`, workspaceID, marketID, base)
 	if err != nil {
 		return fmt.Errorf("delete market: %w", err)
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("market %s not found", marketID)
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("delete market: %w", err)
 	}
-	return nil
+	if n > 0 {
+		return nil
+	}
+	if _, err := s.GetMarket(ctx, workspaceID, marketID); err != nil {
+		return err
+	}
+	return storage.ErrStale
 }
 
 func (s *PostgresKnowledgeStore) ListMarkets(ctx context.Context, workspaceID string) ([]*Market, error) {

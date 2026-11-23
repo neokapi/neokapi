@@ -144,7 +144,7 @@ func TestPushOutput_FormatText_VoiceLine(t *testing.T) {
 				VoiceProfile: "Acme Voice",
 				VoiceAction:  "carried",
 			},
-			contains: []string{`Voice profile: "Acme Voice" carried to the workspace brand hub`},
+			contains: []string{`Voice profile: "Acme Voice" is in the workspace as this project has it`},
 		},
 		{
 			name: "carried on a push that moved no content",
@@ -153,7 +153,17 @@ func TestPushOutput_FormatText_VoiceLine(t *testing.T) {
 				VoiceProfile: "Acme Voice",
 				VoiceAction:  "carried",
 			},
-			contains: []string{`Voice profile: "Acme Voice" carried to the workspace brand hub`},
+			contains: []string{`Voice profile: "Acme Voice" is in the workspace as this project has it`},
+		},
+		{
+			name: "a profile the workspace holds is left there",
+			out: PushOutput{
+				BlocksPushed: 1,
+				VoiceProfile: "Acme Voice",
+				VoiceAction:  "left",
+			},
+			contains: []string{`Voice profile: "Acme Voice" lives in Bowrain, and this push left it as it is there. Edit it in Bowrain`},
+			absent:   []string{"brand hub"},
 		},
 		{
 			name: "skipped carries the reason",
@@ -173,13 +183,13 @@ func TestPushOutput_FormatText_VoiceLine(t *testing.T) {
 				VoiceProfile: "Acme Voice",
 				VoiceAction:  "would-push",
 			},
-			contains: []string{`Would push voice profile "Acme Voice" to the workspace brand hub`},
+			contains: []string{`Would send voice profile "Acme Voice" to the workspace`},
 			absent:   []string{"Voice profile:"},
 		},
 		{
 			name:     "no brand push, no line",
 			out:      PushOutput{BlocksPushed: 2},
-			absent:   []string{"Voice profile", "brand hub"},
+			absent:   []string{"Voice profile"},
 			contains: []string{"Pushed 2 blocks"},
 		},
 		{

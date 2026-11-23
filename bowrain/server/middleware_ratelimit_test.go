@@ -131,6 +131,24 @@ func TestRateLimitByIPSharedBucket(t *testing.T) {
 	assert.Equal(t, http.StatusOK, call("/a", "198.51.100.6"))
 }
 
+// A throttled push says the limit it ran into.
+func TestRateLimitSyncPush_SaysTheLimit(t *testing.T) {
+	ok := func(c *echo.Context) error { return c.NoContent(http.StatusOK) }
+	e := echo.New()
+	e.POST("/projects/:id/push", ok, RateLimitSyncPush(10, 1))
+	push := func() *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/projects/p1/push", nil))
+		return rec
+	}
+	require.Equal(t, http.StatusOK, push().Code)
+	rec := push()
+	require.Equal(t, http.StatusTooManyRequests, rec.Code)
+	var body ErrorResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	assert.Equal(t, "rate limit exceeded: at most 10 pushes a minute for one project, after a burst of 1; try again shortly", body.Error)
+}
+
 // TestDeviceFlowRateLimit proves every leg of the device flow draws on the
 // shared pre-auth per-IP bucket. Start alone was throttled once; verify and
 // poll are the two calls that turn a user code into a session, so leaving

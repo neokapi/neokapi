@@ -961,13 +961,19 @@ export interface ApiAdapter {
     targetLocale: string,
   ): Promise<MemoryEntryInfo>;
   updateMemoryEntry(workspaceSlug: string, req: MemoryUpdateRequest): Promise<void>;
-  deleteMemoryEntry(workspaceSlug: string, entryId: string): Promise<void>;
+  /** Deletes an entry at the revision the caller read; the server refuses a stale one. */
+  deleteMemoryEntry(workspaceSlug: string, entryId: string, baseRevision: string): Promise<void>;
   /**
    * Delete a selection of content-memory entries in one request. Each id gets
    * its own result, so a missing entry does not strand the rest of the
    * selection. At most 500 ids.
    */
-  bulkDeleteMemoryEntries(workspaceSlug: string, entryIds: string[]): Promise<BulkDeleteResult>;
+  /** Deletes entries, each at the revision the caller read (revisions, by id). */
+  bulkDeleteMemoryEntries(
+    workspaceSlug: string,
+    entryIds: string[],
+    revisions: Record<string, string>,
+  ): Promise<BulkDeleteResult>;
 
   // Terminology
   getTerms(
@@ -1111,7 +1117,8 @@ export interface ApiAdapter {
   getVoiceProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile>;
   createVoiceProfile(workspaceSlug: string, data: CreateVoiceProfileRequest): Promise<VoiceProfile>;
   updateVoiceProfile(workspaceSlug: string, data: UpdateVoiceProfileRequest): Promise<VoiceProfile>;
-  deleteVoiceProfile(workspaceSlug: string, profileId: string): Promise<void>;
+  /** Deletes a profile at the revision the caller read; the server refuses a stale one. */
+  deleteVoiceProfile(workspaceSlug: string, profileId: string, baseRevision: string): Promise<void>;
   getVoiceScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]>;
   getVoiceTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]>;
   /**
@@ -1503,7 +1510,8 @@ export interface ApiAdapter {
   listMarkets(workspaceSlug: string): Promise<Market[]>;
   createMarket(workspaceSlug: string, req: MarketRequest): Promise<Market>;
   updateMarket(workspaceSlug: string, marketId: string, req: MarketRequest): Promise<Market>;
-  deleteMarket(workspaceSlug: string, marketId: string): Promise<void>;
+  /** Deletes a market at the revision the caller read; the server refuses a stale one. */
+  deleteMarket(workspaceSlug: string, marketId: string, baseRevision: string): Promise<void>;
 
   // Brand knowledge graph: Change-sets / experiments (AD-021)
   /** Change-set headers, each carrying `ops_count`. */

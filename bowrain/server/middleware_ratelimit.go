@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -62,7 +63,7 @@ func RateLimitSyncPush(perMinute int, burst int) echo.MiddlewareFunc {
 			}
 			if !limiter.getLimiter(projectID).Allow() {
 				return c.JSON(http.StatusTooManyRequests, ErrorResponse{
-					Error: "rate limit exceeded: max " + c.QueryParam("_rl_info") + " pushes per minute per project",
+					Error: fmt.Sprintf("rate limit exceeded: at most %d pushes a minute for one project, after a burst of %d; try again shortly", perMinute, burst),
 				})
 			}
 			return next(c)

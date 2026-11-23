@@ -169,7 +169,7 @@ func TestEditorMemory(t *testing.T) {
 
 	_, err = c.UpdateMemoryEntry(context.Background(), "acme", "e2", "Bye", "A+", "en", "fr", "r1")
 	require.NoError(t, err)
-	require.NoError(t, c.DeleteMemoryEntry(context.Background(), "acme", "e2"))
+	require.NoError(t, c.DeleteMemoryEntry(context.Background(), "acme", "e2", "r1"))
 	assert.Equal(t, "DELETE", got.method)
 }
 

@@ -31,7 +31,9 @@ func (s *Server) writeVoiceProfile(ctx context.Context, wsID string, w voicewrit
 		var res voicewrite.Result
 		err := vs.DB().Transition(ctx, func(tx storage.Runner) error {
 			applier := cs.Bind(tx)
-			ledger := &workspaceVoiceLedger{s: s, wsID: wsID, objects: objects,
+			// Every read the write makes runs on this transaction, never a
+			// second pooled connection.
+			ledger := &workspaceVoiceLedger{wsID: wsID, reads: cs.LedgerReadsOn(tx),
 				put: func(ctx context.Context, projectID string, pushedBy platstore.Pusher, obj platstore.ContextObject) error {
 					_, err := applier.PutContextObjects(ctx, projectID, pushedBy, []platstore.ContextObject{obj})
 					return err
@@ -44,7 +46,7 @@ func (s *Server) writeVoiceProfile(ctx context.Context, wsID string, w voicewrit
 	}
 	var ledger voicewrite.Ledger
 	if hasLedger {
-		ledger = &workspaceVoiceLedger{s: s, wsID: wsID, objects: objects,
+		ledger = &workspaceVoiceLedger{wsID: wsID, reads: pooledLedgerReads{ContentStore: s.ContentStore, ContextObjectStore: objects},
 			put: func(ctx context.Context, projectID string, pushedBy platstore.Pusher, obj platstore.ContextObject) error {
 				return objects.PutContextObjects(ctx, projectID, pushedBy, []platstore.ContextObject{obj})
 			}}
@@ -55,9 +57,18 @@ func (s *Server) writeVoiceProfile(ctx context.Context, wsID string, w voicewrit
 // memberVoiceWrite is a write of a voice profile by the actor a request acts
 // as: a signed-in member, or a tool under a member's tool token.
 func memberVoiceWrite(a requestActor, before, after *coreprofile.VoiceProfile, note string) voicewrite.Write {
+	return memberVoiceUpdate(a, before, after, "", note)
+}
+
+// memberVoiceUpdate is memberVoiceWrite for an update based on revision base.
+func memberVoiceUpdate(a requestActor, before, after *coreprofile.VoiceProfile, base, note string) voicewrite.Write {
+	if after != nil {
+		after.UpdatedBy = a.UserID
+	}
 	return voicewrite.Write{
 		Before:   before,
 		After:    after,
+		Base:     base,
 		Actor:    a.contextActor(),
 		PushedBy: a.pusher(),
 		Note:     note,
@@ -85,10 +96,28 @@ func postgresContentStore(cs platstore.ContentStore) (*bstore.PostgresStore, boo
 // profile belongs to the workspace, so each project that may bind it holds
 // the record of who wrote it.
 type workspaceVoiceLedger struct {
-	s       *Server
-	wsID    string
-	objects platstore.ContextObjectStore
-	put     func(ctx context.Context, projectID string, pushedBy platstore.Pusher, obj platstore.ContextObject) error
+	wsID  string
+	reads voiceLedgerReads
+	put   func(ctx context.Context, projectID string, pushedBy platstore.Pusher, obj platstore.ContextObject) error
+}
+
+// voiceLedgerReads is what the ledger of a voice write reads.
+type voiceLedgerReads interface {
+	ListProjects(ctx context.Context) ([]*platstore.Project, error)
+	ContextKey(ctx context.Context, projectID string) (string, error)
+	voicewrite.ContextObjectReader
+}
+
+// pooledLedgerReads is the ledger reads through the pool, for a write that
+// runs in no transaction of its own.
+type pooledLedgerReads struct {
+	platstore.ContentStore
+	platstore.ContextObjectStore
+}
+
+// ListProjects resolves the method both embedded stores could offer.
+func (r pooledLedgerReads) ListProjects(ctx context.Context) ([]*platstore.Project, error) {
+	return r.ContentStore.ListProjects(ctx)
 }
 
 var _ voicewrite.Ledger = (*workspaceVoiceLedger)(nil)
@@ -98,7 +127,7 @@ func (l *workspaceVoiceLedger) Projects(ctx context.Context) ([]voicewrite.Proje
 	if l.wsID == "" {
 		return nil, nil
 	}
-	projects, err := l.s.ContentStore.ListProjects(ctx)
+	projects, err := l.reads.ListProjects(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +136,7 @@ func (l *workspaceVoiceLedger) Projects(ctx context.Context) ([]voicewrite.Proje
 		if p == nil || p.WorkspaceID != l.wsID {
 			continue
 		}
-		key, err := l.objects.ContextKey(ctx, p.ID)
+		key, err := l.reads.ContextKey(ctx, p.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -120,7 +149,7 @@ func (l *workspaceVoiceLedger) Projects(ctx context.Context) ([]voicewrite.Proje
 
 // Find implements voicewrite.Ledger.
 func (l *workspaceVoiceLedger) Find(ctx context.Context, p voicewrite.Project, opID string) (voicewrite.HeldOp, bool, error) {
-	return voicewrite.FindStored(ctx, l.objects, p, opID)
+	return voicewrite.FindStored(ctx, l.reads, p, opID)
 }
 
 // Put implements voicewrite.Ledger.

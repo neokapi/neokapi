@@ -757,8 +757,13 @@ func (c *EditorClient) UpdateMemoryEntry(ctx context.Context, ws, entryID, sourc
 }
 
 // DeleteMemoryEntry deletes a content-memory entry.
-func (c *EditorClient) DeleteMemoryEntry(ctx context.Context, ws, entryID string) error {
-	return c.DoJSON(ctx, http.MethodDelete, wsPath(ws, "/translation-memory/"+url.PathEscape(entryID)), nil, nil, nil)
+//
+// baseRevision is the revision of the entry the person saw; the server refuses
+// the delete when the entry has changed since.
+func (c *EditorClient) DeleteMemoryEntry(ctx context.Context, ws, entryID, baseRevision string) error {
+	q := url.Values{}
+	q.Set("base_revision", baseRevision)
+	return c.DoJSON(ctx, http.MethodDelete, wsPath(ws, "/translation-memory/"+url.PathEscape(entryID)), q, nil, nil)
 }
 
 // ---------------------------------------------------------------------------

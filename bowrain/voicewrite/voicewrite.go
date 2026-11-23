@@ -48,6 +48,12 @@ type Ledger interface {
 	Put(ctx context.Context, projectID string, pushedBy platstore.Pusher, obj platstore.ContextObject) error
 }
 
+// ContextObjectReader reads a project's ledger objects.
+type ContextObjectReader interface {
+	ListContextObjects(ctx context.Context, projectID, dir string) ([]string, error)
+	GetContextObject(ctx context.Context, projectID, name string) (*platstore.ContextObject, error)
+}
+
 // HeldOp is an operation a ledger holds and the member who pushed it.
 type HeldOp struct {
 	Op       workspace.Op
@@ -61,6 +67,10 @@ type Write struct {
 	// After is the profile to store, nil when the write removes it. A create
 	// names the id the profile is stored under.
 	After *coreprofile.VoiceProfile
+	// Base is the revision of Before the write was based on. An update names
+	// it, and the store refuses the update when the profile has changed since
+	// (storage.ErrStale); an update without one is ErrNoBase.
+	Base string
 	// Actor is who wrote it. A person is recorded with no name: a reader
 	// names the operation after the member who pushed its segment (PushedBy),
 	// as it does an operation the command line records.
@@ -76,6 +86,21 @@ type Write struct {
 	// when it describes this write (recordedThis); otherwise the write is
 	// recorded as PushedBy's.
 	Recorded string
+}
+
+// ErrNoBase is an update that names no revision it was based on.
+var ErrNoBase = errors.New("voicewrite: an update names the revision it was based on")
+
+// BaseDeleter is a voice store that checks a delete against the revision it
+// was based on.
+type BaseDeleter interface {
+	DeleteProfileAt(ctx context.Context, profileID, base string) error
+}
+
+// BaseUpdater is a voice store that checks an update against the revision it
+// was based on.
+type BaseUpdater interface {
+	UpdateProfileAt(ctx context.Context, profile *coreprofile.VoiceProfile, base string) error
 }
 
 // Result is what Apply did.
@@ -103,11 +128,25 @@ func Apply(ctx context.Context, voice coreprofile.Store, ledger Ledger, w Write)
 			return res, fmt.Errorf("create voice profile %q: %w", w.After.Name, err)
 		}
 	case w.After == nil:
-		if err := voice.DeleteProfile(ctx, w.Before.ID); err != nil {
+		if w.Base == "" {
+			return res, ErrNoBase
+		}
+		at, ok := voice.(BaseDeleter)
+		if !ok {
+			return res, fmt.Errorf("delete voice profile %q: the store cannot check the revision a delete was based on", w.Before.Name)
+		}
+		if err := at.DeleteProfileAt(ctx, w.Before.ID, w.Base); err != nil {
 			return res, fmt.Errorf("delete voice profile %q: %w", w.Before.Name, err)
 		}
 	default:
-		if err := voice.UpdateProfile(ctx, w.After); err != nil {
+		if w.Base == "" {
+			return res, ErrNoBase
+		}
+		at, ok := voice.(BaseUpdater)
+		if !ok {
+			return res, fmt.Errorf("update voice profile %q: the store cannot check the revision an update was based on", w.After.Name)
+		}
+		if err := at.UpdateProfileAt(ctx, w.After, w.Base); err != nil {
 			return res, fmt.Errorf("update voice profile %q: %w", w.After.Name, err)
 		}
 	}
@@ -320,7 +359,7 @@ func FindIn(objects []platstore.ContextObject, key workspace.ProjectKey, opID st
 
 // FindStored returns the operation id names in the project's stored ledger,
 // with the member who pushed its segment.
-func FindStored(ctx context.Context, objects platstore.ContextObjectStore, p Project, opID string) (HeldOp, bool, error) {
+func FindStored(ctx context.Context, objects ContextObjectReader, p Project, opID string) (HeldOp, bool, error) {
 	names, err := objects.ListContextObjects(ctx, p.ID, workspace.RemoteLogDir)
 	if err != nil {
 		return HeldOp{}, false, err

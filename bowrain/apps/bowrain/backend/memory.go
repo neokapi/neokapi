@@ -107,6 +107,22 @@ const localRevisionKey = "bowrain:revision"
 // offline. The edit could only be refused when it reached the server.
 var errUnsentOffline = errors.New("this entry was made by an earlier version of Bowrain and cannot be changed offline; change it when you are connected")
 
+// errRevisionNotSent is a change that does not say which version of the
+// entry it was made on.
+var errRevisionNotSent = errors.New("this change does not say which version of the entry it was made on; reopen the entry and make the change again")
+
+// revisionNotSent is why a change that names no revision is refused: an entry
+// an earlier version of the app made offline holds none to send, and any
+// other entry is to be reopened.
+func (a *App) revisionNotSent(entryID string) error {
+	if tm, err := a.getOrCreateMemory(); err == nil {
+		if entry, ok, err := tm.GetEntry(context.Background(), entryID); err == nil && ok && entry.Properties[localRevisionKey] == "" {
+			return errUnsentOffline
+		}
+	}
+	return errRevisionNotSent
+}
+
 // recordLocalMemoryRevision keeps the server's revision of an entry the local
 // memory holds, after a queued add or edit of it reached the server.
 func (a *App) recordLocalMemoryRevision(id, revision string) {
@@ -256,18 +272,12 @@ func (a *App) UpdateMemoryEntry(req MemoryUpdateRequest) error {
 		if folded {
 			return a.updateMemoryEntryLocal(req)
 		}
-		// Otherwise the edit names the server's version the person saw,
-		// which the local memory kept when it last sent the entry.
-		if req.BaseRevision == "" {
-			if tm, err := a.getOrCreateMemory(); err == nil {
-				if entry, ok, err := tm.GetEntry(context.Background(), req.EntryID); err == nil && ok {
-					req.BaseRevision = entry.Properties[localRevisionKey]
-				}
-			}
-		}
-		if req.BaseRevision == "" {
-			return errUnsentOffline
-		}
+	}
+	// The edit names the version of the entry the person saw, as the screen
+	// they edited on carried it. The app never supplies one: a revision read at
+	// save time would say what the store holds now, not what they saw.
+	if req.BaseRevision == "" && (a.isConnected() || a.isOffline()) {
+		return a.revisionNotSent(req.EntryID)
 	}
 	return a.writeThroughVoid(updateMemoryEntryOp{req},
 		func() error {
@@ -310,21 +320,80 @@ func (a *App) updateMemoryEntryLocal(req MemoryUpdateRequest) error {
 }
 
 // DeleteMemoryEntry deletes a content-memory entry by ID.
-func (a *App) DeleteMemoryEntry(projectID, entryID string) error {
-	return a.writeThroughVoid(deleteMemoryEntryOp{EntryID: entryID},
+//
+// baseRevision is the revision of the entry the person saw, so a delete never
+// removes text someone wrote after they read it.
+func (a *App) DeleteMemoryEntry(projectID, entryID, baseRevision string) error {
+	if a.isOffline() {
+		// An entry whose add has not been sent was never on the server: the
+		// add and any edit queued after it go, and nothing is sent.
+		dropped, err := a.dropUnsentEntry(entryID)
+		if err != nil {
+			return err
+		}
+		if dropped {
+			return a.deleteMemoryEntryLocal(entryID)
+		}
+	}
+	// The delete names the version the person saw; the app never supplies one.
+	if baseRevision == "" && (a.isConnected() || a.isOffline()) {
+		return a.revisionNotSent(entryID)
+	}
+	return a.writeThroughVoid(deleteMemoryEntryOp{EntryID: entryID, BaseRevision: baseRevision},
 		func() error {
 			client, ws := a.editorRemote()
-			return client.DeleteMemoryEntry(context.Background(), ws, entryID)
+			return client.DeleteMemoryEntry(context.Background(), ws, entryID, baseRevision)
 		},
 		func() error { return nil }, // server-authoritative: skip the local mirror on success
-		func() error {
-			tm, err := a.getOrCreateMemory()
-			if err != nil {
-				return fmt.Errorf("init content memory: %w", err)
-			}
-			return tm.Delete(context.Background(), entryID)
-		},
+		func() error { return a.deleteMemoryEntryLocal(entryID) },
 	)
+}
+
+func (a *App) deleteMemoryEntryLocal(entryID string) error {
+	tm, err := a.getOrCreateMemory()
+	if err != nil {
+		return fmt.Errorf("init content memory: %w", err)
+	}
+	return tm.Delete(context.Background(), entryID)
+}
+
+// dropUnsentEntry removes the queued add of entryID, and every edit queued
+// after it, when the add has not been sent. It reports whether it did.
+func (a *App) dropUnsentEntry(entryID string) (bool, error) {
+	if a.offlineQueue == nil {
+		return false, nil
+	}
+	ctx := a.queueCtx()
+	adds, err := a.offlineQueue.Pending(ctx, string(opAddMemoryEntry))
+	if err != nil {
+		return false, err
+	}
+	found := false
+	for _, c := range adds {
+		var add addMemoryEntryOp
+		if json.Unmarshal([]byte(c.Payload), &add) != nil || add.ID != entryID {
+			continue
+		}
+		if found, err = a.offlineQueue.Discard(ctx, c.ID); err != nil {
+			return false, err
+		}
+	}
+	if !found {
+		return false, nil
+	}
+	edits, err := a.offlineQueue.Pending(ctx, string(opUpdateMemoryEntry))
+	if err != nil {
+		return false, err
+	}
+	for _, c := range edits {
+		var edit updateMemoryEntryOp
+		if json.Unmarshal([]byte(c.Payload), &edit) == nil && edit.EntryID == entryID {
+			if _, err := a.offlineQueue.Discard(ctx, c.ID); err != nil {
+				return false, err
+			}
+		}
+	}
+	return true, nil
 }
 
 // AddMemoryEntry adds a new entry to the content memory.
