@@ -157,8 +157,8 @@ func TestLoadObservedReadsAnyDestination(t *testing.T) {
 
 // TestObservedRefAnswersForTheOnlyStreamRecorded: a caller that cannot name the
 // stream is answered from the only one there is. A project on a named stream
-// would otherwise be reported against the default stream's absent ref — read
-// forever as never observed — while two streams recorded leaves it unanswered
+// would otherwise be reported against the default stream's absent ref, read
+// forever as never observed, while two streams recorded leaves it unanswered
 // rather than guessed.
 func TestObservedRefAnswersForTheOnlyStreamRecorded(t *testing.T) {
 	one := &Cache{}
@@ -192,6 +192,10 @@ func TestLegacyPathIsReadAndMovedOnSave(t *testing.T) {
 	data, err := json.Marshal(legacy)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(layout.CacheDir(), Filename), data, 0o644))
+	// An earlier kapi on this machine left it there: the person vouches once.
+	shown, err := coreproj.DescribeState(layout)
+	require.NoError(t, err)
+	require.NoError(t, coreproj.AdoptState(layout, shown))
 
 	cache := Load(layout, "https://one.test", "p1")
 	assert.Equal(t, int64(7), cache.Ref("main").Content, "the cache at its old path is read")

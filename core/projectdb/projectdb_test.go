@@ -59,7 +59,9 @@ func openStore(t *testing.T, layout project.Layout) *projectdb.DB {
 func vouchForStagedState(t *testing.T, layout project.Layout) {
 	t.Helper()
 	if _, err := os.Stat(layout.StateDir); err == nil {
-		require.NoError(t, project.AdoptState(layout))
+		shown, err := project.DescribeState(layout)
+		require.NoError(t, err)
+		require.NoError(t, project.AdoptState(layout, shown))
 	}
 }
 
@@ -152,7 +154,7 @@ func entry(id, en, nb string) memory.Entry {
 }
 
 // Each subsystem must behave through the shared pool exactly as it does through
-// its own file — the migrations are the same, so the round trips must be too.
+// its own file, the migrations are the same, so the round trips must be too.
 func TestSubsystems_RoundTripThroughSharedPool(t *testing.T) {
 	db := openStore(t, newLayout(t))
 	ctx := t.Context()
@@ -394,7 +396,7 @@ func TestClose_IsIdempotent(t *testing.T) {
 // The block cache is two tables, and a flow run writes only the second: it
 // persists the overlays it produced without caching the blocks it parsed. So
 // "has this been extracted?" and "is there anything here worth carrying?" are
-// different questions, and pack must ask the second — under the four-file
+// different questions, and pack must ask the second, under the four-file
 // layout a run-only project still had a blocks.db on disk and packed fine.
 func TestHasBlockCache_TrueForOverlaysAlone(t *testing.T) {
 	db := openStore(t, newLayout(t))

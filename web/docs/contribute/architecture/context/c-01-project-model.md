@@ -162,57 +162,88 @@ Asking git is the early refusal. The guarantee is the next section.
 
 ### State this machine wrote
 
-kapi uses as its own only state that kapi on this machine wrote. When kapi
-creates a state directory it writes `.kapi/state.mark`: an HMAC-SHA256, under a
-key that exists only in the user's configuration directory
-(`KAPI_CONFIG_DIR/state/machine.key`, 32 random bytes, mode 0600 in a 0700
-directory), over the device and inode of the project root and of the state
-directory and a random id minted with the mark. `core/project.CheckStateOwned`
-verifies it, with a constant-time comparison, at every route the tracked-state
-check runs, after that check. The key is never in a project and never in the
-data directory; a Go test binary and every isolated invocation get their own.
+kapi uses as its own only state that kapi on this machine wrote. The state
+directory carries `.kapi/state.mark`, which holds HMAC-SHA256 values under a key
+that exists only in the user's configuration directory
+(`KAPI_CONFIG_DIR/state/machine.key`, 32 random bytes). One value covers the
+directory: the identity of the project root and of the state directory, and a
+random id minted with the mark. One more covers each state entry kapi wrote,
+recorded when kapi creates the entry or writes it:
 
-The identities make a mark copied from another of the same person's checkouts,
-or a state directory moved into another checkout, fail. The path is left out,
-so moving or renaming a checkout on its volume keeps its state. The mark binds
-the directory, not each byte in it: a file another process on this machine
-writes into a marked directory is outside what it covers, as is a process that
-can read the user's key. What it answers is state that arrived from elsewhere: a
-commit, an archive, a copy or a synchronised folder.
+- `work/` by identity: its own, the project store's (`work/store.db`) and that
+  of each file an earlier layout kept there for the store, the vault or the
+  sync state. The project store also records the mark's id, and a store that
+  records another checkout's id is set aside.
+- `vault/`, `sync/` and `filters.local.json` by content: the path and SHA-256
+  of each file. kapi writes these files whole (`core/project.WriteStateFile`):
+  it records the value after the write beside the value before, replaces the
+  file, then drops the value before, so an interrupted write still verifies.
 
-State without a valid mark is not used. Each entry is classified:
+An identity is the device and inode on Unix and the volume serial number and
+file index on Windows. NTFS keeps the file index stable for the life of a file;
+the browser build uses the path. The path is left out of every value, so moving
+or renaming a checkout on its volume keeps its state, while a device number that
+changes (an external or network volume remounted, a container) makes the
+checkout ask again.
 
-| Entry | Rebuilt by kapi | Without a valid mark |
+`core/project.CheckStateOwned` verifies the values, with a constant-time
+comparison, at every route the tracked-state check runs, after that check. The
+values are the only thing that decides: no file's time, recorded id, path or
+origin vouches for state. The key file must be a regular file of mode 0600
+owned by the user, in a directory owned by the user that no one else can write,
+outside the project being opened; kapi refuses anything else and names the fix.
+A Go test binary and every isolated invocation get a key of their own. When kapi
+creates the key, the next refusal says so, since state made earlier cannot
+verify under it.
+
+What a verified mark answers: the state did not arrive with a clone, a copy, a
+restored backup or an archive unpacked into a new place, and no entry was
+swapped under the checkout, whether by an archive unpacked over it, a sync
+client replacing a file or a copy onto a bound file. What it does not answer: a
+process or tool on this machine that rewrites the contents of `work/` in place
+(the project store with its write-ahead log, the caches, the drafts), keeping
+their identity; and a process that can read the user's key.
+
+An entry that does not verify is not used:
+
+| Entry | Rebuilt by kapi | When it does not verify |
 | --- | --- | --- |
-| `work/` (project store, caches, drafts, locks) | yes | moved to `set-aside/work.not-written-on-this-machine.<time>` and rebuilt, with one line saying so |
-| `work/` holding an earlier layout's `vault/` or `state.db` | no | refused until vouched for |
+| `work/` (project store, caches, drafts, locks) | yes | moved to `set-aside/work.not-written-on-this-machine.<time>` and rebuilt, with one line saying so; the latest copy is kept and older ones removed |
+| `work/` holding a file an earlier layout kept | no | refused until vouched for |
 | `vault/` (withheld originals) | no | refused until vouched for |
 | `sync/` (sync state, an anonymous project's claim token) | no | refused until vouched for |
 | `filters.local.json` (personal saved filters) | no | refused until vouched for |
+
+A state directory whose own value does not verify gets a fresh mark that records
+no entry, so every entry already in it stays unverified and only what kapi
+writes from then on is recorded. A refused entry therefore leaves the rest
+alone: a rebuilt `work/` is recorded once and kept. A state directory kapi
+creates is made with its mark in one step, staged beside it and renamed into
+place.
 
 Content memory, terms, voice profiles and recorded decisions live in the
 workspace, outside every checkout, and are not part of the mark.
 
 A person vouches for state with `kapi trust allow --state` (shown with where it
 appears to come from, confirmed at a terminal or with `--yes`) or the desktop's
-dialog, which write a fresh mark. An agent cannot: the MCP server refuses, and
-so does a command whose actor resolves to an agent. `KAPI_TRUST_STATE=1` in the
-process environment vouches for that one process: nothing is refused and
-nothing is written, so a later run without it is refused again.
-
-Only the MAC decides whether state is this machine's own. A state directory
-without a valid mark is unmarked however new its files look; the host, path and
-time a mark records are shown to a person (cleaned, capped and quoted) and
-decide nothing. A state directory kapi creates is made with its mark in one
-step, staged beside it and renamed into place.
+dialog. Both record exactly the entries shown, as they were shown; state that
+changed in between is refused. An agent cannot vouch: the MCP server refuses,
+and so does a command whose actor resolves to an agent. `KAPI_TRUST_STATE=1` in
+the process environment vouches for that one process: nothing is refused and
+nothing is written, so a later run without it is refused again. The host, path
+and time a mark records are shown to a person, cleaned, capped and quoted, and
+decide nothing.
 
 What each case sees:
 
 - A checkout moved or renamed on its volume: nothing changes.
 - A checkout copied, restored from a backup or moved to another volume: the
   work directory is rebuilt; the rest is refused once, until vouched for.
+- A file in the vault, the sync state or the saved filters edited by hand: that
+  entry is refused once, until vouched for.
 - A home directory shared by two machines over the network: one key, and the
-  same identities on both, so both use the state.
+  same identities on both while the volume keeps its device number, so both use
+  the state.
 - The desktop and the CLI on one machine, as one user: one key, so both use it.
 - Two users sharing one checkout: two keys, so each sees the other's state as
   not its own. A checkout's state belongs to one user.

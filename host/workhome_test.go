@@ -372,8 +372,8 @@ func TestChangeService_AVaultANewerKapiWroteKeepsNoEdition(t *testing.T) {
 	require.NoError(t, project.EnsureLayout(project.LayoutAt(root)))
 	vault := project.LayoutAt(root).RedactionVaultPath()
 	newer := []byte(`{"version": 3, "values": []}`)
-	require.NoError(t, os.MkdirAll(filepath.Dir(vault), 0o700))
-	require.NoError(t, os.WriteFile(vault, newer, 0o600))
+	require.NoError(t, project.LayoutAt(root).PrepareVault())
+	require.NoError(t, project.WriteStateFile(vault, newer, 0o600))
 
 	svc := changeService(t, a, recipe)
 	res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{
@@ -491,7 +491,7 @@ func TestChangeService_AVaultAnEarlierKapiWroteFailsTheRead(t *testing.T) {
 
 	vault := project.LayoutAt(root).RedactionVaultPath()
 	older := []byte(`{"version": 1, "values": []}`)
-	require.NoError(t, os.WriteFile(vault, older, 0o600))
+	require.NoError(t, project.WriteStateFile(vault, older, 0o600))
 
 	_, err = changeService(t, a, recipe).Read(ctx, change.ReadRequest{Doc: target, Blocks: []string{"farewell"}})
 	require.ErrorIs(t, err, redaction.ErrOlderVault)

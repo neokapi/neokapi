@@ -22,8 +22,8 @@ const SyncCacheFilename = "sync-cache.json"
 // because the claim token of an anonymous project exists nowhere else. The
 // directory is kept out of version control (project.EnsureLocalDir).
 //
-// FRESHNESS IS NOT HERE. Where a stream stands — the position consumed and the
-// governance identities last confirmed — is one composite ref per stream, kept
+// FRESHNESS IS NOT HERE. Where a stream stands, the position consumed and the
+// governance identities last confirmed, is one composite ref per stream, kept
 // by core/ref/refcache. This file holds what a push must know to build its
 // payload: the block hashes the server confirmed, the claim token, the cached
 // project metadata. The distinction is what the ref replaced: four freshness
@@ -67,7 +67,7 @@ type SyncCache struct {
 	// pull last wrote into the project's bound terms, so a later concept push
 	// can diff local terms edits against what was pulled (ordinary edits go
 	// up directly, governed edits become a reviewed change-set). It is
-	// regenerable — every pull refreshes it.
+	// regenerable, every pull refreshes it.
 	//
 	// It is a DIFF BASIS, not a freshness record: whether it is still current
 	// is the ref's terms component, and the compare-and-swap on a governed push
@@ -80,7 +80,7 @@ type SyncCache struct {
 	// local governance, because kapi.yaml is the authority for those and a pull
 	// that could rewrite them would make the same content resolve differently
 	// depending on where it was last synced. What it buys is the ability to say
-	// so — `kapi status` reports a recipe-owned collection the server governs
+	// so, `kapi status` reports a recipe-owned collection the server governs
 	// differently instead of letting the two diverge unremarked.
 	ServerContext map[string]ServerCollection `json:"server_context,omitempty"`
 }
@@ -93,7 +93,7 @@ type ServerCollection struct {
 	Channel string `json:"channel,omitempty"`
 	// VoiceProfile is the name of the voice profile bound to it server-side.
 	VoiceProfile string `json:"voice_profile,omitempty"`
-	// Owner is "recipe" or "workspace" — which side is authoritative. Every
+	// Owner is "recipe" or "workspace", which side is authoritative. Every
 	// decision about what a pull may act on is a lookup of this field.
 	Owner string `json:"owner,omitempty"`
 }
@@ -159,17 +159,21 @@ func (c *SyncCache) Save(layout coreproj.Layout) error {
 	if err != nil {
 		return fmt.Errorf("project: marshal sync cache: %w", err)
 	}
-	if err := os.WriteFile(SyncCachePathFor(layout), data, 0o600); err != nil {
+	// Written in step with the sync state's mark (project.WriteStateFile).
+	if err := coreproj.WriteStateFile(SyncCachePathFor(layout), data, 0o600); err != nil {
 		return err
 	}
-	_ = os.Remove(legacySyncCachePath(layout))
+	// The copy an earlier layout left in the work directory goes, and the
+	// work directory is recorded as kapi leaves it.
+	if os.Remove(legacySyncCachePath(layout)) == nil {
+		return coreproj.RecordStateEntry(layout, coreproj.WorkDirName)
+	}
 	return nil
 }
 
 // NewEmptySyncCache returns a cache describing nothing yet synced. Callers use
 // it to discard a cache that belongs to a different server or project: what it
-// records — the confirmed block hashes, the claim token, the project metadata —
-// is true of that destination and of no other.
+// records, the confirmed block hashes, the claim token, the project metadata, // is true of that destination and of no other.
 func NewEmptySyncCache() *SyncCache { return newEmptySyncCache() }
 
 func newEmptySyncCache() *SyncCache {

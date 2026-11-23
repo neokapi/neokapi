@@ -51,3 +51,30 @@ func TestOpenProjectAsksToVouchForStateThisMachineDidNotWrite(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, again, "nothing is left to vouch for")
 }
+
+// The desktop records the state its dialog showed and nothing else: a project
+// whose state was not shown, or changed after it was, is refused.
+func TestVouchingInTheDesktopRecordsWhatTheDialogShowed(t *testing.T) {
+	src := t.TempDir()
+	srcRecipe := filepath.Join(src, project.RecipeFileName)
+	require.NoError(t, project.Save(srcRecipe, &project.KapiProject{
+		Version: project.CurrentVersion, Name: "Copied", Defaults: project.Defaults{SourceLanguage: "en"},
+	}))
+	require.NoError(t, project.EnsureLayout(project.LayoutAt(src)))
+	require.NoError(t, project.WriteStateFile(filepath.Join(src, ".kapi", "vault", "redaction.json"), []byte("{}"), 0o600))
+	dst := filepath.Join(t.TempDir(), "copy")
+	out, err := exec.Command("cp", "-R", src, dst).CombinedOutput()
+	require.NoError(t, err, string(out))
+	recipe := filepath.Join(dst, project.RecipeFileName)
+
+	app := newTestApp(t)
+	require.ErrorContains(t, app.VouchForProjectState(recipe), "was not shown yet")
+
+	state, err := app.ProjectStateToVouch(recipe)
+	require.NoError(t, err)
+	require.NotNil(t, state)
+	require.NoError(t, os.WriteFile(filepath.Join(dst, ".kapi", "vault", "added.json"), []byte("{}"), 0o600))
+	require.ErrorContains(t, app.VouchForProjectState(recipe), "changed after it was shown")
+	_, err = app.OpenProject(recipe)
+	require.ErrorContains(t, err, "was not written by kapi on this machine", "nothing was recorded")
+}

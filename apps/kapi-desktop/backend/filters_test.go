@@ -188,7 +188,8 @@ func TestFilterEditsPreserveUnreadablePreferences(t *testing.T) {
 	require.NoError(t, err)
 	path := filepath.Join(root, ".kapi", "filters.local.json")
 	broken := []byte("{broken")
-	require.NoError(t, os.WriteFile(path, broken, 0o600))
+	// The damaged file is kapi's own, so it is decoded rather than refused.
+	require.NoError(t, project.WriteStateFile(path, broken, 0o600))
 
 	_, err = app.GetProjectFilters("t")
 	require.ErrorContains(t, err, "decode personal filters")

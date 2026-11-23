@@ -14,19 +14,19 @@ import (
 	"github.com/neokapi/neokapi/core/storage"
 )
 
-// The block store's bookkeeping — which extraction semantics wrote it, and what
-// each source file looked like when it did — lives in `store_meta`, not in
+// The block store's bookkeeping, which extraction semantics wrote it, and what
+// each source file looked like when it did, lives in `store_meta`, not in
 // sidecar files named after the database. A stamp keyed off a database FILENAME
 // means nothing once the block cache is one schema inside a shared file, and a
 // sidecar beside a merged store is a third thing to keep consistent with it. In
 // `store_meta` a stamp is written by the same transaction that could write the
 // blocks it describes.
-//
+
 // This is the only implementation: the file-based one is gone and the sweep
 // deletes the sidecars it wrote.
 
 // metaMigrationsTable is this package's own ledger. It records only the
-// store-wide metadata schema — every subsystem keeps its own.
+// store-wide metadata schema, every subsystem keeps its own.
 const metaMigrationsTable = "projectdb_migrations"
 
 var metaMigrations = []storage.Migration{{
@@ -53,6 +53,10 @@ const (
 	// different one, which is what anything holding a claim about the store's
 	// contents needs to be able to tell.
 	MetaStoreInstance = "store.instance"
+	// MetaStateMarkID records the id of the state directory's mark the store
+	// was created under (project.StateMarkID). A store that records another
+	// mark's id came from another checkout and is set aside.
+	MetaStateMarkID = "store.stateMarkID"
 )
 
 // ErrNoStore reports an operation that needs the database on a handle that has
@@ -164,7 +168,7 @@ func (d *DB) StampBlockStoreVersion(ctx context.Context) error {
 }
 
 // BlockStoreStale reports whether the block cache was written under different
-// extraction semantics than the running binary — true when the stamp is
+// extraction semantics than the running binary, true when the stamp is
 // missing, unreadable, or does not match. Every uncertainty reads as stale,
 // which is the safe direction: re-extract.
 func (d *DB) BlockStoreStale(ctx context.Context) bool {
@@ -176,7 +180,7 @@ func (d *DB) BlockStoreStale(ctx context.Context) bool {
 }
 
 // LoadSourceStamps reads the per-source extract-time stamps. A missing or
-// unreadable value yields an empty map — every file then reads as drifted,
+// unreadable value yields an empty map, every file then reads as drifted,
 // which is the safe direction.
 func (d *DB) LoadSourceStamps(ctx context.Context) map[string]project.SourceStamp {
 	v, ok, err := d.Meta(ctx, MetaBlocksSourceStamps)

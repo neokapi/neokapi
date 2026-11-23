@@ -182,16 +182,19 @@ The toolbox utilities (`kgrep`) additionally use grep-parity semantics: exit 1 w
 
 A directory that is in no git repository is not asked about.
 
-kapi also uses as its own only state that kapi on this machine wrote, whichever way other state arrived (a commit, an archive, a copy, a synchronised folder). kapi marks each state directory it creates, under a key kept in your configuration directory (`KAPI_CONFIG_DIR/state/machine.key`). When the mark does not verify:
+kapi also uses as its own only state that kapi on this machine wrote, whichever way other state arrived. kapi records each state entry when it writes it, under a key kept in your configuration directory (`KAPI_CONFIG_DIR/state/machine.key`, mode 0600, outside every project): `.kapi/work/` by the identity of the directory and of the project store in it, and `.kapi/vault/`, `.kapi/sync/` and `.kapi/filters.local.json` by their content. An entry that arrived with a clone, a copy, a restored backup or an archive unpacked into a new place does not verify, and neither does one swapped under your checkout, by an archive unpacked over it or a file copied onto it. A process on your machine that rewrites the contents of `.kapi/work/` in place is outside what the record covers. When an entry does not verify:
 
-- `.kapi/work/` is moved to `.kapi/set-aside/` and rebuilt, and kapi prints one line saying so. The command goes on.
-- `.kapi/vault/`, `.kapi/sync/` and `.kapi/filters.local.json` are refused, exit 1, until you vouch for them: `kapi trust allow --state -p <project>` shows them and where they appear to come from, and asks you to confirm (or pass `--yes`). The desktop asks the same in a dialog. An agent cannot vouch for state.
+- `.kapi/work/` is moved to `.kapi/set-aside/` and rebuilt, and kapi prints one line saying so. The command goes on. `.kapi/set-aside/` keeps the latest copy and removes older ones.
+- `.kapi/vault/`, `.kapi/sync/` and `.kapi/filters.local.json` are refused, exit 1, until you vouch for them: `kapi trust allow --state -p <project>` shows them and where they appear to come from, and asks you to confirm (or pass `--yes`). The desktop asks the same in a dialog. Either records the state exactly as it was shown, and refuses it if it changed in between. An agent cannot vouch for state.
+- A key file another user could read or replace, or a `KAPI_CONFIG_DIR` inside the project, is refused, with the command that fixes it.
 
 What you see:
 
-- **The first run after upgrading** to a kapi that marks state: the work directory is rebuilt, and a checkout with a vault, sync state or saved filters asks once for `kapi trust allow --state`.
+- **The first run after upgrading** to a kapi that records state: the work directory is rebuilt, and a checkout with a vault, sync state or saved filters asks once for `kapi trust allow --state`.
 - **A checkout you moved or renamed** on the same volume: nothing.
-- **A copied checkout, a restored backup, or a checkout moved to another volume:** the same as after upgrading.
+- **A copied checkout, a restored backup, or a checkout moved to another volume:** the same as after upgrading. A checkout on a volume whose device number changes when it is mounted again asks again too.
+- **A file in the vault, the sync state or the saved filters you edited by hand:** that entry asks once for `kapi trust allow --state`.
+- **A new key**, created because none was there: the refusal says so, since state made earlier cannot verify under it.
 - **CI with a restored `.kapi` cache on a fresh runner:** the restored work directory is rebuilt. Set `KAPI_TRUST_STATE=1` on each step that runs kapi, only if you trust the cache: the variable vouches for that one process and writes nothing, so a step without it is refused again.
 - **Two users sharing one checkout:** each sees the other's state as not its own.
 

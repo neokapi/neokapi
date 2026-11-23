@@ -56,6 +56,9 @@ type App struct {
 	// refused because kapi on this machine did not write its state; the
 	// frontend asks ProjectStateToVouch about it with an empty path.
 	lastStateRefusal atomic.Value
+	// shownState holds, per recipe path, the state ProjectStateToVouch
+	// showed, which VouchForProjectState records and nothing else.
+	shownState sync.Map
 
 	// bowrain holds one transport per Bowrain server the Share page's
 	// preview reads (venue_preview.go).

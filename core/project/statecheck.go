@@ -108,8 +108,8 @@ var StateEntries = []string{WorkDirName, SyncDirName, VaultDirName, LocalFilters
 
 // Asking git sees only what git tracks. State that arrived untracked (in an
 // archive, or in a checkout copied or synchronised from elsewhere) is not seen
-// here: the walk in CheckState still refuses a link or an irregular file in
-// it, and a regular store or claim token copied in is used as kapi's own.
+// here: the walk in CheckState refuses a link or an irregular file in it, and
+// the mark refuses what this machine did not write (stateorigin.go).
 
 // TrustStateEnv is the environment variable a person sets in kapi's own
 // environment to vouch for the state of the checkout kapi runs in: with it

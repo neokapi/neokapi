@@ -55,7 +55,7 @@ type ExtractionManifest struct {
 	Generator     ExtractionGenerator `yaml:"generator" json:"generator"`
 	CreatedAt     string              `yaml:"createdAt" json:"createdAt"`
 	// InputsHash fingerprints everything besides a source file's own bytes that
-	// shapes its extracted output — the recipe (format config, redaction,
+	// shapes its extracted output, the recipe (format config, redaction,
 	// segmentation), the content memory the prefill drew from, and the output options. An
 	// incremental re-extract skips a file only when this matches a prior batch
 	// AND the file's SourceHash matches, so a changed recipe or content memory re-extracts.
@@ -139,6 +139,11 @@ func EnsureExtractionDir(layout Layout, batchID string) (string, error) {
 		return "", err
 	}
 	if err := layout.CheckState(); err != nil {
+		return "", err
+	}
+	// The work directory comes from the layout, recorded as this machine's
+	// own, rather than from the MkdirAll below.
+	if err := EnsureLayout(layout); err != nil {
 		return "", err
 	}
 	dir := ExtractionDir(layout, batchID)
@@ -285,12 +290,12 @@ func HashBytes(b []byte) string {
 // ExtractionInputsHash fingerprints the non-source inputs that shape a file's
 // extracted *structure*: the recipe (format config, redaction, segmentation) and
 // the output options. An incremental re-extract reuses a file only when this
-// matches a prior batch AND the file's own SourceHash is unchanged — so editing
+// matches a prior batch AND the file's own SourceHash is unchanged, so editing
 // the recipe correctly forces a re-extract.
 //
 // It deliberately omits the content memory. The content memory affects only the *prefilled* targets (a
 // leverage convenience), not the source blocks or skeleton, and extract itself
-// touches the content memory cache on the first run — folding it in would make the hash
+// touches the content memory cache on the first run, folding it in would make the hash
 // differ every time and defeat reuse. A reused file therefore keeps the prefill
 // it had when it was first extracted; `--force` re-extracts to refresh it from a
 // changed content memory.

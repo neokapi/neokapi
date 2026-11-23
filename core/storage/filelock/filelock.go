@@ -82,6 +82,21 @@ func (l *Lock) Lock(ctx context.Context) error {
 	return nil
 }
 
+// LockBrief blocks until this Lock holds the lock, with no context: for a
+// holder that keeps it for one small write, where a wait is bounded by
+// another holder's write of the same size.
+func (l *Lock) LockBrief() error {
+	if l == nil || l.file == nil {
+		return nil
+	}
+	l.mu.Lock()
+	if err := lockFile(l.file); err != nil {
+		l.mu.Unlock()
+		return fmt.Errorf("take the lock on %s: %w", l.path, err)
+	}
+	return nil
+}
+
 // Unlock gives the lock back. It is safe on a nil Lock, so every caller writes
 // it once.
 func (l *Lock) Unlock() {

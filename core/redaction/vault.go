@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -270,10 +271,17 @@ func (f *FileVault) Flush() error {
 	if err != nil {
 		return fmt.Errorf("redaction: encode vault: %w", err)
 	}
-	if err := os.WriteFile(f.path, data, 0o600); err != nil {
+	if err := WriteVaultFile(f.path, data, 0o600); err != nil {
 		return fmt.Errorf("redaction: write vault %s: %w", f.path, err)
 	}
 	return nil
+}
+
+// WriteVaultFile writes a vault file whole. core/project points it at
+// project.WriteStateFile, so a write into a project's vault keeps the vault's
+// mark in step; a program that links no project writes the file as it is.
+var WriteVaultFile = func(path string, data []byte, perm fs.FileMode) error {
+	return os.WriteFile(path, data, perm)
 }
 
 // Close flushes and is provided for callers that prefer defer Close().

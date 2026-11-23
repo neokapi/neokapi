@@ -105,7 +105,7 @@ const ProfilesDirName = "profiles"
 // reason: a project has one vocabulary. The path sits on ExportLayout.
 const MemoryDirName = "memory"
 
-// UnitStateDirName holds an exported decision record — one JSON Lines shard
+// UnitStateDirName holds an exported decision record, one JSON Lines shard
 // per document. The path sits on ExportLayout.
 const UnitStateDirName = "state"
 
@@ -115,8 +115,8 @@ const UnitStateDirName = "state"
 //
 // Everything in it is derived from the working tree beside it, so it belongs
 // beside that tree and a second checkout of the same project keeps one of its
-// own. What the project authored — the terms, the voice profiles, the content
-// memory and the unit working set with its staged decisions — is in the user's
+// own. What the project authored, the terms, the voice profiles, the content
+// memory and the unit working set with its staged decisions, is in the user's
 // workspace, one database per project, shared by every checkout (core/workspace).
 //
 // It sits at the TOP of the work directory rather than under work/cache/
@@ -229,8 +229,15 @@ func EnsureLocalDir(layout Layout, name string) (string, error) {
 		return "", err
 	}
 	dir := filepath.Join(layout.StateDir, name)
+	_, existed := os.Lstat(dir)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("project: create %s: %w", name, err)
+	}
+	// An entry created here is recorded as this machine's own.
+	if errors.Is(existed, fs.ErrNotExist) {
+		if err := RecordStateEntry(layout, name); err != nil {
+			return "", err
+		}
 	}
 	// A directory an earlier layout created keeps its own mode; tighten it.
 	if err := os.Chmod(dir, 0o700); err != nil {
@@ -306,12 +313,11 @@ func ResolveLayout(start string) (Layout, error) {
 	}
 }
 
-// LayoutAt returns the Layout for a project root without touching the disk —
-// the pure path computation behind the two resolvers below.
+// LayoutAt returns the Layout for a project root without touching the disk, // the pure path computation behind the two resolvers below.
 //
 // It exists so that "the store of the project at root" is spelled one way, and
 // not hand-rolled as `filepath.Join(root, StateDirName, StoreFileName)` in
-// every module — a spelling the layout cannot move without breaking at run
+// every module, a spelling the layout cannot move without breaking at run
 // time in a package that still compiles. Callers that have a recipe path or a
 // working directory want LayoutFor or ResolveLayout; this is for the ones that
 // already know the root.
@@ -383,12 +389,19 @@ func EnsureLayout(layout Layout) error {
 		return err
 	}
 	fresh := cacheOnly(layout.StateDir)
+	_, workErr := os.Lstat(layout.WorkDir())
 	for _, dir := range []string{
 		layout.StateDir,
 		layout.CacheDir(),
 	} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("project: create %s: %w", filepath.Base(dir), err)
+		}
+	}
+	// A work directory created here is recorded as this machine's own.
+	if errors.Is(workErr, fs.ErrNotExist) {
+		if err := RecordStateEntry(layout, WorkDirName); err != nil {
+			return err
 		}
 	}
 
@@ -451,8 +464,8 @@ func cacheOnly(dir string) bool {
 }
 
 // Retired state files are not swept here. Every predecessor of the merged store
-// — the vocabulary-renamed `tm.db`/`termbase.db` as well as the four-file
-// `memory.db`/`terms.db`/`cache/blocks.db`/`work/state.db` — is removed by
+// (the vocabulary-renamed `tm.db`/`termbase.db` as well as the four-file
+// `memory.db`/`terms.db`/`cache/blocks.db`/`work/state.db`) is removed by
 // core/projectdb when the project store opens, so one place decides what a
 // state directory may contain.
 

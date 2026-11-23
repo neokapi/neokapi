@@ -22,3 +22,20 @@ func dirIdentity(path string) (string, error) {
 	}
 	return fmt.Sprintf("%d:%d", st.Dev, st.Ino), nil
 }
+
+// keyPrivate refuses a key that another user could read or replace: the key
+// must be a regular file of mode 0600 owned by this user, in a directory owned
+// by this user that no one else can write. dinfo and info are the Lstat of the
+// directory and of the key.
+func keyPrivate(dir, path string, dinfo, info os.FileInfo) error {
+	uid := uint32(os.Getuid())
+	dst, ok := dinfo.Sys().(*syscall.Stat_t)
+	if !dinfo.IsDir() || !ok || dst.Uid != uid || dinfo.Mode().Perm()&0o022 != 0 {
+		return fmt.Errorf("project: the state key directory %s must be a directory you own that only you can write; fix it with `chmod 700 %s`, or remove it and vouch for each checkout's state again", dir, dir)
+	}
+	st, ok := info.Sys().(*syscall.Stat_t)
+	if !info.Mode().IsRegular() || !ok || st.Uid != uid || info.Mode().Perm() != 0o600 {
+		return fmt.Errorf("project: the state key %s must be a regular file you own with mode 0600; fix it with `chmod 600 %s`, or remove it and vouch for each checkout's state again", path, path)
+	}
+	return nil
+}

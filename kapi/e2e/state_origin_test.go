@@ -61,6 +61,9 @@ func TestAMovedCheckoutKeepsItsState(t *testing.T) {
 	kapi(t, "status", "-p", srcRecipe)
 	require.NoError(t, os.MkdirAll(filepath.Join(src, ".kapi", "vault"), 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(src, ".kapi", "vault", "redaction.json"), []byte(`{}`), 0o600))
+	// A vault written by hand is vouched for once, as kapi's own writes are
+	// recorded.
+	kapi(t, "trust", "allow", "--state", "--yes", "-p", srcRecipe)
 	moved := filepath.Join(t.TempDir(), "renamed")
 	require.NoError(t, os.Rename(src, moved))
 	out, err := kapiAllowFail(t, "status", "-p", filepath.Join(moved, "kapi.yaml"))

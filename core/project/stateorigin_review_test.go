@@ -28,7 +28,7 @@ func TestStateThatArrivesAfterKapiLookedIsUnmarked(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(l.VaultDir(), "redaction.json"), []byte(`{"planted":"original"}`), 0o600))
 	var unverified *UnverifiedStateError
 	require.ErrorAs(t, CheckStateOwned(t.Context(), l), &unverified)
-	assert.NoFileExists(t, filepath.Join(l.StateDir, MarkFilename), "no mark is written for state kapi did not create")
+	require.ErrorAs(t, CheckStateOwned(t.Context(), l), &unverified, "a mark for the directory records none of the state already in it")
 }
 
 // The origin a mark records came with the state, from wherever that was: it
@@ -70,7 +70,7 @@ func TestAStateDirectoryKapiCreatesExistsOnlyWithItsMark(t *testing.T) {
 	require.NoError(t, err)
 	mark, err := readMark(l)
 	require.NoError(t, err)
-	assert.True(t, markValid(key, l, mark))
+	assert.True(t, dirValid(key, l, mark))
 	entries, err := os.ReadDir(root)
 	require.NoError(t, err)
 	for _, e := range entries {
@@ -78,14 +78,14 @@ func TestAStateDirectoryKapiCreatesExistsOnlyWithItsMark(t *testing.T) {
 	}
 
 	// A layout call refuses an existing state directory with state and no mark,
-	// and leaves it unmarked.
+	// every time.
 	other := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(other, RecipeFileName), []byte("version: v1\nname: p\n"), 0o644))
 	ol := LayoutAt(other)
 	require.NoError(t, os.MkdirAll(ol.SyncDir(), 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(ol.SyncDir(), "sync-cache.json"), []byte("{}"), 0o600))
 	require.Error(t, EnsureLayout(ol))
-	assert.NoFileExists(t, filepath.Join(ol.StateDir, MarkFilename))
+	require.Error(t, EnsureLayout(ol), "and keeps refusing it")
 }
 
 // Processes that create the key at once all end with the same, whole key.

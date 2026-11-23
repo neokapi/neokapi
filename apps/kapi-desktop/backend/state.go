@@ -40,6 +40,7 @@ func (a *App) ProjectStateToVouch(path string) (*StateToVouch, error) {
 	if origin.Verified || len(origin.Entries) == 0 {
 		return nil, nil
 	}
+	a.shownState.Store(target.recipe, origin)
 	return &StateToVouch{Path: target.recipe, Entries: origin.Entries, Origin: origin.Origin}, nil
 }
 
@@ -55,5 +56,15 @@ func (a *App) VouchForProjectState(path string) error {
 	if target.recipe == "" {
 		return errors.New("name a project to vouch for")
 	}
-	return project.AdoptState(project.LayoutAt(filepath.Dir(target.recipe)))
+	// What is recorded is what the dialog showed: state the dialog did not
+	// show, or that changed after it did, is refused.
+	shown, ok := a.shownState.Load(target.recipe)
+	if !ok {
+		return errors.New("the state of this project was not shown yet; open it again to see it")
+	}
+	if err := project.AdoptState(project.LayoutAt(filepath.Dir(target.recipe)), shown.(project.StateOrigin)); err != nil {
+		return err
+	}
+	a.shownState.Delete(target.recipe)
+	return nil
 }

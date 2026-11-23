@@ -26,8 +26,8 @@ func TestDeletingWorkKeepsTheCheckoutsLocalState(t *testing.T) {
 	refs.Consume("main", 42)
 	require.NoError(t, refs.Save(layout))
 	syncCache := filepath.Join(layout.SyncDir(), "sync-cache.json")
-	require.NoError(t, os.WriteFile(syncCache, []byte(`{"claim_token":"claim-1"}`), 0o600))
-	require.NoError(t, os.WriteFile(layout.LocalFiltersPath(), []byte(`{"filters":[]}`), 0o644))
+	require.NoError(t, project.WriteStateFile(syncCache, []byte(`{"claim_token":"claim-1"}`), 0o600))
+	require.NoError(t, project.WriteStateFile(layout.LocalFiltersPath(), []byte(`{"filters":[]}`), 0o600))
 
 	vault, err := os.ReadFile(layout.RedactionVaultPath())
 	require.NoError(t, err)

@@ -14,13 +14,13 @@ import (
 
 // Predecessor state directories are folded forward here, by two rules.
 //
-// RETIRED — deleted, not migrated: the four-file layout's `memory.db`,
+// RETIRED (deleted, not migrated): the four-file layout's `memory.db`,
 // `terms.db`, `cache/blocks.db` with its two stamp sidecars and
 // `work/state.db` (plus the earlier `tm.db`/`termbase.db` spellings), and the
 // flat layout's `store.db`, its sidecar and `cache/`. Every one of them is a
 // projection of a committed source, so the next command derives it again.
-//
-// MOVED — relocated, never deleted: whatever no source reproduces. The
+
+// MOVED (relocated, never deleted): whatever no source reproduces. The
 // committed unit-state record and the vault's withheld originals, and every
 // committed source under the `context/` umbrella, whose `decisions/` shards
 // land in `state/` under the name the record now has.
@@ -28,20 +28,20 @@ import (
 // A staged unit is the one exception on the retire side: between a review
 // landing and the next commit the working store holds its only copy, so those
 // are read out into the merged store before the old file is deleted.
-//
+
 // Best-effort throughout. A predecessor that will not delete, or a shard that
 // will not move, must not fail a project open; a failed move leaves the data
 // where it was. Every fold is idempotent: after the first open they cost a
 // handful of stats and find nothing.
-//
+
 // The retired names are spelled here rather than read from core/project's
-// layout, because no live code path writes them — a constant in the layout
+// layout, because no live code path writes them. A constant in the layout
 // would invite a new caller to reach for one.
 
 // foldLayoutForward relocates what the previous layout kept in places the
 // current one no longer reads. Filesystem only, and it runs BEFORE the store
 // opens, because one of the two moves carries the committed decision record the
-// working store seeds itself from — folded afterwards, the first open of an
+// working store seeds itself from, folded afterwards, the first open of an
 // upgraded project would come up with an empty working set.
 func foldLayoutForward(layout project.Layout) {
 	moveDirContents(flatDecisionsDir(layout), layout.Export().UnitStateDir())
@@ -54,6 +54,10 @@ func foldLayoutForward(layout project.Layout) {
 	}
 	// Before the cache root is deleted, and that ordering is the whole point.
 	moveDirContents(flatRedactionDir(layout), currentRedactionDir(layout))
+	// The open verified the state before the fold, the files an earlier
+	// layout kept included, so what the fold moved is recorded as it now lies,
+	// before anything checks it again.
+	recordFolded(layout)
 	// A moved vault or sync directory keeps its protection: owner-only, and
 	// out of version control.
 	for _, name := range []string{project.VaultDirName, project.SyncDirName} {
@@ -62,8 +66,16 @@ func foldLayoutForward(layout project.Layout) {
 		}
 	}
 	retireFlatProjections(layout)
+	recordFolded(layout)
 	foldContextUmbrella(layout)
 	foldGovernanceFiles(layout, layout.StateDir)
+}
+
+// recordFolded records the entries a fold changes (project.RecordStateEntry).
+func recordFolded(layout project.Layout) {
+	for _, name := range []string{project.WorkDirName, project.VaultDirName, project.SyncDirName} {
+		_ = project.RecordStateEntry(layout, name)
+	}
 }
 
 // umbrellaContextDir is the retired directory that grouped the committed
@@ -75,8 +87,8 @@ func umbrellaContextDir(layout project.Layout) string {
 // foldContextUmbrella lifts the `context/` generation's committed sources up
 // one level, into the directory that now holds them directly.
 //
-// Everything in there is authored — terms bundle, memory bundles, voice
-// profiles, unit record, whatever notes a project kept beside them — so this
+// Everything in there is authored, terms bundle, memory bundles, voice
+// profiles, unit record, whatever notes a project kept beside them, so this
 // moves and never deletes, entry by entry. The umbrella itself goes only once
 // the last entry has left.
 //
@@ -158,13 +170,13 @@ func sweepPredecessors(ctx context.Context, layout project.Layout, into *DB) {
 }
 
 // oldStateDirDatabases are the top-level state-directory databases the merged
-// store replaces. Both spellings are listed — `memory.db`/`terms.db` and the
-// earlier `tm.db`/`termbase.db` — because a project skipping a release meets
+// store replaces. Both spellings are listed, `memory.db`/`terms.db` and the
+// earlier `tm.db`/`termbase.db`, because a project skipping a release meets
 // the older pair.
 var oldStateDirDatabases = []string{"memory.db", "terms.db", "tm.db", "termbase.db"}
 
 // flatCacheDir, flatDecisionsDir and flatVaultDir name the flat layout's
-// directories — the generation that hung everything directly off `.kapi/`.
+// directories, the generation that hung everything directly off `.kapi/`.
 func flatCacheDir(layout project.Layout) string {
 	return filepath.Join(layout.StateDir, project.CacheDirName)
 }

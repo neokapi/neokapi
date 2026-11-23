@@ -4,6 +4,7 @@ package project
 
 import (
 	"fmt"
+	"os"
 	"syscall"
 )
 
@@ -26,4 +27,14 @@ func dirIdentity(path string) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%d:%d:%d", info.VolumeSerialNumber, info.FileIndexHigh, info.FileIndexLow), nil
+}
+
+// keyPrivate refuses a key that is not a regular file in a directory. On
+// Windows the key stays private through the access control of the user's
+// profile directory, which mode bits do not describe.
+func keyPrivate(_, path string, dinfo, info os.FileInfo) error {
+	if !dinfo.IsDir() || !info.Mode().IsRegular() {
+		return fmt.Errorf("project: the state key %s must be a regular file in a directory; remove it and vouch for each checkout's state again", path)
+	}
+	return nil
 }

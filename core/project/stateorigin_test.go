@@ -26,19 +26,31 @@ func ownedProject(t *testing.T) Layout {
 	return l
 }
 
-// plantState writes a file into every entry of StateEntries.
+// plantState writes a file into every entry of StateEntries the way kapi
+// does: the work directory's files directly, the rest through WriteStateFile.
 func plantState(t *testing.T, l Layout) {
 	t.Helper()
 	for _, e := range StateEntries {
 		p := filepath.Join(l.StateDir, e)
-		if e == LocalFiltersFilename {
-			require.NoError(t, os.MkdirAll(l.StateDir, 0o755))
-			require.NoError(t, os.WriteFile(p, []byte(`{"active":"planted"}`), 0o644))
-			continue
+		switch e {
+		case LocalFiltersFilename:
+			require.NoError(t, WriteStateFile(p, []byte(`{"active":"planted"}`), 0o600))
+		case WorkDirName:
+			require.NoError(t, os.WriteFile(filepath.Join(p, "kept"), []byte("planted"), 0o644))
+		default:
+			_, err := EnsureLocalDir(l, e)
+			require.NoError(t, err)
+			require.NoError(t, WriteStateFile(filepath.Join(p, "kept"), []byte("planted"), 0o600))
 		}
-		require.NoError(t, os.MkdirAll(p, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(p, "kept"), []byte("planted"), 0o644))
 	}
+}
+
+// adopt vouches for the layout's state as DescribeState shows it.
+func adopt(t *testing.T, l Layout) {
+	t.Helper()
+	shown, err := DescribeState(l)
+	require.NoError(t, err)
+	require.NoError(t, AdoptState(l, shown))
 }
 
 // copyTree copies dir to dst as an archive extraction or `cp -r` would.
@@ -70,7 +82,7 @@ func requireRefusedUntilAdopted(t *testing.T, l Layout) {
 	assert.ElementsMatch(t, []string{".kapi/sync", ".kapi/vault", ".kapi/" + LocalFiltersFilename}, unverified.Entries)
 	_, werr := os.Stat(filepath.Join(l.WorkDir(), "kept"))
 	require.ErrorIs(t, werr, os.ErrNotExist, "the work directory this machine did not write is set aside")
-	require.NoError(t, AdoptState(l))
+	adopt(t, l)
 	require.NoError(t, CheckStateOwned(t.Context(), l))
 }
 

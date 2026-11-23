@@ -22,30 +22,26 @@
 // # Cross-store queries
 //
 // DB.Join attaches the projection as main and the context store as context for
-// one read, allowing queries such as finding the blocks that use a term.
+// one read, for queries such as the blocks that use a term.
 //
 // # Writes
 //
 // storage.ProjectOptions configures BEGIN IMMEDIATE and an in-process FIFO write
-// permit for each database file. SQLite busy retries alone do not order waiting
-// writers; repeated short transactions can starve other writes. The FIFO permit
-// provides that ordering within a process.
+// permit for each database file, which orders waiting writers where SQLite busy
+// retries alone do not.
 //
 // The separate files allow context writes during extraction. A block-store session
-// holds the projection permit throughout its purge-and-refill transaction, from
-// Begin to Commit. Close every session. Writing to the same pool from a goroutine
-// that already holds its permit returns storage.ErrWriteGateReentrant.
-//
-// Separate processes still contend through SQLite's file locking and busy_timeout.
-// Reads bypass the write permit and use WAL concurrency.
+// holds the projection permit from Begin to Commit; close every session. Writing
+// to the same pool from a goroutine that already holds its permit returns
+// storage.ErrWriteGateReentrant. Separate processes contend through SQLite's file
+// locking and busy_timeout; reads use WAL concurrency.
 //
 // # Browser build
 //
 // The browser build opens the same stores through its own SQLite driver
 // (core/storage/driver_js.go), whose pools hold one connection per file. Code
-// on these pools therefore never holds a transaction or open rows and then
-// waits for a second session on the same pool; a Join holds its connection
-// for the length of fn, so fn reads through the connection it is given.
+// on these pools never waits for a second session while it holds the first; fn
+// in a Join reads through the connection it is given.
 package projectdb
 
 import (
@@ -70,8 +66,7 @@ import (
 
 // Primary tables the presence helpers probe. Presence is a row question, not a
 // file question: every subsystem's schema exists from the first open, so "is
-// there a content memory?" can only mean "has anything been written to it?" —
-// the file-existence signal the four-file layout used no longer distinguishes
+// there a content memory?" can only mean "has anything been written to it?", // the file-existence signal the four-file layout used no longer distinguishes
 // anything.
 const (
 	memoryTable    = "tm_entries"
@@ -93,7 +88,7 @@ const ContextSchema = "context"
 // Both handles belong to the caller. The project store reads and writes through
 // them and never closes them.
 type Stores struct {
-	// Context is the project's context store — one database in the workspace,
+	// Context is the project's context store, one database in the workspace,
 	// shared by every checkout of the project.
 	Context *storage.DB
 	// Graph is the database holding the context graph. It is the workspace
@@ -123,7 +118,7 @@ func WithWorkspace(s Stores) Option {
 // every subsystem bound to whichever holds its tables.
 //
 // The handle owns the projection pool. It does not own the pools a workspace
-// supplied, and it does not own the subsystem handles it hands out — do not
+// supplied, and it does not own the subsystem handles it hands out, do not
 // Close() those, or the others lose their database; Close this instead.
 type DB struct {
 	layout project.Layout
@@ -158,8 +153,25 @@ type DB struct {
 // first folded any earlier state directory forward and then swept the
 // predecessor four-file layout out of it.
 func Open(ctx context.Context, layout project.Layout, opts ...Option) (*DB, error) {
+	db, foreign, err := open(ctx, layout, opts...)
+	if err != nil || !foreign {
+		return db, err
+	}
+	// The store came from another checkout: it is set aside, and the store
+	// opened again is a new one.
+	_ = db.Close()
+	if err := project.SetAsideWork(layout); err != nil {
+		return nil, fmt.Errorf("projectdb: %w", err)
+	}
+	db, _, err = open(ctx, layout, opts...)
+	return db, err
+}
+
+// open opens the store and reports whether it records the mark of another
+// state directory.
+func open(ctx context.Context, layout project.Layout, opts ...Option) (*DB, bool, error) {
 	if layout.StateDir == "" {
-		return nil, errors.New("projectdb: layout has no state directory")
+		return nil, false, errors.New("projectdb: layout has no state directory")
 	}
 	var cfg settings
 	for _, opt := range opts {
@@ -168,13 +180,13 @@ func Open(ctx context.Context, layout project.Layout, opts ...Option) (*DB, erro
 	// EnsureLayout checks the state layout and writes the rule that keeps it
 	// out of version control into a state directory it creates.
 	if err := project.EnsureLayout(layout); err != nil {
-		return nil, fmt.Errorf("projectdb: %w", err)
+		return nil, false, fmt.Errorf("projectdb: %w", err)
 	}
 	if err := project.CheckStateOwned(ctx, layout); err != nil {
-		return nil, fmt.Errorf("projectdb: %w", err)
+		return nil, false, fmt.Errorf("projectdb: %w", err)
 	}
 	if err := os.MkdirAll(layout.WorkDir(), 0o755); err != nil {
-		return nil, fmt.Errorf("projectdb: create work dir: %w", err)
+		return nil, false, fmt.Errorf("projectdb: create work dir: %w", err)
 	}
 	// Before the store opens: the fold moves the committed decision record the
 	// working store seeds from, so it has to land first.
@@ -182,7 +194,7 @@ func Open(ctx context.Context, layout project.Layout, opts ...Option) (*DB, erro
 
 	projection, err := storage.OpenWith(layout.StorePath(), storage.ProjectOptions())
 	if err != nil {
-		return nil, fmt.Errorf("projectdb: open %s: %w", layout.StorePath(), err)
+		return nil, false, fmt.Errorf("projectdb: open %s: %w", layout.StorePath(), err)
 	}
 
 	db := &DB{layout: layout, projection: projection, context: cfg.stores.Context, graph: cfg.stores.Graph}
@@ -195,15 +207,51 @@ func Open(ctx context.Context, layout project.Layout, opts ...Option) (*DB, erro
 
 	if err := db.bind(ctx); err != nil {
 		_ = projection.Close()
-		return nil, err
+		return nil, false, err
 	}
 	sweepPredecessors(ctx, layout, db)
-	return db, nil
+	foreign, err := db.recordState(ctx)
+	if err != nil {
+		_ = db.Close()
+		return nil, false, err
+	}
+	return db, foreign, nil
+}
+
+// recordState records the work directory, with the store kapi may have just
+// created in it, and the vault and the sync state a fold may have moved files
+// into, as this machine's own (project.RecordStateEntry). It reports a store
+// that records the mark of another state directory instead, and records
+// nothing then. Without a verified mark (KAPI_TRUST_STATE=1 over state from
+// elsewhere) it records nothing.
+func (d *DB) recordState(ctx context.Context) (bool, error) {
+	id := project.StateMarkID(d.layout)
+	if id == "" {
+		return false, nil
+	}
+	got, ok, err := d.Meta(ctx, MetaStateMarkID)
+	if err != nil {
+		return false, err
+	}
+	if ok && got != id {
+		return true, nil
+	}
+	if !ok {
+		if err := d.PutMeta(ctx, MetaStateMarkID, id); err != nil {
+			return false, err
+		}
+	}
+	for _, name := range []string{project.WorkDirName, project.VaultDirName, project.SyncDirName} {
+		if err := project.RecordStateEntry(d.layout, name); err != nil {
+			return false, fmt.Errorf("projectdb: %w", err)
+		}
+	}
+	return false, nil
 }
 
 // bind runs every subsystem's migrations against the pool that holds its tables
-// and attaches its handle. Order within a pool is only bookkeeping — the
-// ledgers are independent — but it is fixed so a failure always names the same
+// and attaches its handle. Order within a pool is only bookkeeping, the
+// ledgers are independent, but it is fixed so a failure always names the same
 // first offender.
 func (d *DB) bind(ctx context.Context) error {
 	if err := storage.Migrate(d.projection, metaMigrationsTable, metaMigrations); err != nil {
@@ -270,7 +318,7 @@ func (d *DB) ContextPath() string {
 	return d.context.Path()
 }
 
-// Raw returns the connection pool the authored subsystems share — the content
+// Raw returns the connection pool the authored subsystems share, the content
 // memory, the terms store, the voice store and the unit working set.
 //
 // It is exported for work that spans them: an approve-and-promote writing a
@@ -294,8 +342,8 @@ func (d *DB) Memory() *memory.SQLiteStore { return d.memory }
 // Terms returns the project's terms store, or nil once the handle is closed.
 func (d *DB) Terms() *terms.SQLiteStore { return d.terms }
 
-// Voice returns the project's voice store — the profiles a recipe's
-// `voice: profile:` binding names — or nil once the handle is closed.
+// Voice returns the project's voice store, the profiles a recipe's
+// `voice: profile:` binding names, or nil once the handle is closed.
 func (d *DB) Voice() *voice.SQLiteStore { return d.voice }
 
 // Blocks returns the session-transactional block store: a session is one
@@ -324,8 +372,8 @@ func (d *DB) Heads() *workhome.Store { return d.heads }
 
 // Join runs fn on one connection that sees both of the project's databases: the
 // projection as `main` and the context store as `context` (ContextSchema). It
-// is how a question that spans them — which blocks use this term, which of them
-// carry a decision — stays one query after the split.
+// is how a question that spans them, which blocks use this term, which of them
+// carry a decision, stays one query after the split.
 //
 // The connection is read-only for the length of fn. A join reads; a write that
 // has to span the two pools is two transactions, and the subsystem that needs
@@ -372,8 +420,8 @@ func (d *DB) Join(ctx context.Context, fn func(context.Context, *sql.Conn) error
 
 // quoteSQLiteString renders a path as a SQL string literal. ATTACH takes a
 // parameter in most drivers, but not on a raw connection under every build, and
-// a path is the one value here that is not caller input in the injection sense
-// — it comes from the layout — so doubling the quote is the whole escape.
+// a path is the one value here that is not caller input in the injection sense.
+// It comes from the layout, so doubling the quote is the whole escape.
 func quoteSQLiteString(s string) string {
 	out := make([]byte, 0, len(s)+2)
 	out = append(out, '\'')
@@ -387,7 +435,7 @@ func quoteSQLiteString(s string) string {
 }
 
 // AdoptDocuments resolves which document each freshly read source file is,
-// against what the project already knows, and records the result — the
+// against what the project already knows, and records the result, the
 // project.DocumentAdopter an extraction looks for.
 //
 // It is on the handle rather than reached through Work() so extraction names a
@@ -420,15 +468,14 @@ func (d *DB) HasDecisions(ctx context.Context) (bool, error) {
 	return hasRows(ctx, d.context, decisionsTable)
 }
 
-// HasBlocks reports whether the block cache holds any extracted block. It
-// answers what a stat of `blocks.db` used to: whether the project has been
-// extracted at all.
+// HasBlocks reports whether the block cache holds any extracted block: whether
+// the project has been extracted at all.
 func (d *DB) HasBlocks(ctx context.Context) (bool, error) {
 	return hasRows(ctx, d.projection, blocksTable)
 }
 
 // HasBlockCache reports whether the block-cache subsystem holds anything worth
-// carrying — blocks or overlays.
+// carrying, blocks or overlays.
 //
 // It is deliberately wider than HasBlocks. A flow run persists the overlays it
 // produced without caching the blocks it parsed, so a project can hold

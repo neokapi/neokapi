@@ -88,3 +88,34 @@ func TestLock_NilIsALockThatDoesNothing(t *testing.T) {
 	require.NoError(t, l.Close())
 	assert.Empty(t, l.Path())
 }
+
+// LockBrief excludes another Lock on the path, as Lock does, without a context.
+func TestLockBrief_TwoLocksOnOnePathExcludeEachOther(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mark.lock")
+	a, err := filelock.Open(path)
+	require.NoError(t, err)
+	defer a.Close()
+	b, err := filelock.Open(path)
+	require.NoError(t, err)
+	defer b.Close()
+
+	require.NoError(t, a.LockBrief())
+	var held atomic.Bool
+	done := make(chan error, 1)
+	go func() {
+		err := b.LockBrief()
+		held.Store(true)
+		done <- err
+	}()
+	assert.False(t, held.Load(), "the second lock is not held while the first is")
+	a.Unlock()
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("the second lock was never taken after the first was released")
+	}
+	b.Unlock()
+	var none *filelock.Lock
+	require.NoError(t, none.LockBrief(), "a nil Lock does nothing")
+}

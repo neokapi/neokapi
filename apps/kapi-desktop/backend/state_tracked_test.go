@@ -46,8 +46,8 @@ func trackedProject(t *testing.T, file string) (root, recipe string) {
 	// kapi on this machine made the state directory, so its mark is valid.
 	require.NoError(t, project.EnsureLayout(project.LayoutAt(root)))
 	p := filepath.Join(root, project.StateDirName, filepath.FromSlash(file))
-	require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
-	require.NoError(t, os.WriteFile(p, []byte(`{"active":"planted"}`), 0o644))
+	// Written as kapi writes it, so the state is this machine's own.
+	require.NoError(t, project.WriteStateFile(p, []byte(`{"active":"planted"}`), 0o600))
 	gitAt(t, root, "init", "-q")
 	return root, recipe
 }

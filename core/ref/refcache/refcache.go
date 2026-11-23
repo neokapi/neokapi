@@ -112,8 +112,8 @@ func (c *Cache) Ref(stream string) ref.Ref {
 //
 // It is the reader's half of Load, for a caller that wants to say what the
 // project last observed but does not know which server or project the recipe
-// binds — the retrieval surfaces, which read the graph and must be able to say
-// it moved, without taking on the transport's configuration to do it.
+// binds. The retrieval surfaces read the graph and must be able to say it
+// moved without taking on the transport's configuration to do it.
 //
 // Nothing decides from what this returns: a report that names the wrong
 // destination is a report to correct, while a WRITE against the wrong
@@ -137,8 +137,8 @@ func LoadObserved(layout coreproj.Layout) *Cache {
 	return &cache
 }
 
-// ObservedRef returns the ref recorded for a stream, and — for a caller that
-// cannot name one — the ref of the only stream recorded when the cache holds
+// ObservedRef returns the ref recorded for a stream, and, for a caller that
+// cannot name one, the ref of the only stream recorded when the cache holds
 // exactly one.
 //
 // The fallback is what makes the cache readable by a surface that has not
@@ -162,7 +162,7 @@ func (c *Cache) ObservedRef(stream string) ref.Ref {
 }
 
 // Observe records the governance identities a contact with the server
-// established for a stream — published by the server, or put in force by a
+// established for a stream, published by the server, or put in force by a
 // write this project confirmed.
 //
 // The observed position is deliberately not taken. A position is what THIS
@@ -188,7 +188,7 @@ func (c *Cache) Observe(stream string, observed ref.Ref) {
 // server answered, empty values included.
 //
 // The difference from Observe is what the answer means. Observe merges a
-// possibly-silent answer — a response that omits a component said nothing about
+// possibly-silent answer, a response that omits a component said nothing about
 // it. Record takes a DEFINITE one: the server was asked for its ref and gave it,
 // so an empty component there is the fact that the component holds nothing, and
 // keeping an older value beside it would be keeping a claim the server has just
@@ -203,7 +203,7 @@ func (c *Cache) Record(stream string, answered ref.Ref) {
 }
 
 // SetIdentity records one governance identity for a stream, including an empty
-// one — which is how a component that genuinely holds nothing (a workspace with
+// one, which is how a component that genuinely holds nothing (a workspace with
 // no terminology, a project with no committed decisions) is recorded as such.
 func (c *Cache) SetIdentity(stream string, component ref.Component, value string) {
 	c.update(stream, func(current ref.Ref) ref.Ref {
@@ -224,20 +224,15 @@ func (c *Cache) Consume(stream string, cursor int64) {
 // BindStore ties the recorded positions to the project store that consumed
 // them, and drops every position when that store is a different one.
 //
-// The cache and the store are two files in the same disposable directory, and
-// they are deleted independently. What a pull consumed lands in the store:
-// target files on disk, and decisions the venue's ledger carried, staged there
-// and published only by `kapi commit`. A position outliving the store it
-// consumed into claims that content is held here, so a later pull asks the
-// venue for the changes after it and the venue answers with nothing.
+// The cache and the store are deleted independently. What a pull consumed lands
+// in the store (target files, and decisions staged until `kapi commit`), so a
+// position outliving its store would make a later pull ask only for the changes
+// after it, and the venue would answer with nothing.
 //
-// Dropping the position costs one replay of the change feed, which rewrites the
-// same target files and re-stages the same decisions: staging leaves a record
-// it already holds alone, so a replay adds nothing twice.
-//
-// The governance identities stay. They identify the committed record and what
-// the venue published, neither of which the store holds, so a new store says
-// nothing about them.
+// Dropping the position costs one replay of the change feed, which adds nothing
+// twice: staging leaves a record it already holds alone. The governance
+// identities stay: a new store says nothing about the committed record or what
+// the venue published.
 //
 // An empty storeID binds nothing. A caller that could not identify its store
 // passes one, and reading that silence as a different store would replay the
@@ -285,10 +280,15 @@ func (c *Cache) Save(layout coreproj.Layout) error {
 	if err != nil {
 		return fmt.Errorf("refcache: marshal refs: %w", err)
 	}
-	if err := os.WriteFile(PathFor(layout), data, 0o600); err != nil {
+	// Written in step with the sync state's mark (project.WriteStateFile).
+	if err := coreproj.WriteStateFile(PathFor(layout), data, 0o600); err != nil {
 		return err
 	}
-	_ = os.Remove(legacyPath(layout))
+	// The copy an earlier layout left in the work directory goes, and the
+	// work directory is recorded as kapi leaves it.
+	if os.Remove(legacyPath(layout)) == nil {
+		return coreproj.RecordStateEntry(layout, coreproj.WorkDirName)
+	}
 	return nil
 }
 

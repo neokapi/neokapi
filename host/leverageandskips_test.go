@@ -19,7 +19,7 @@ import (
 // for a project the memory already largely covered. The user approves a far larger
 // and more expensive run than reality warrants, off a number that looks
 // authoritative. Costing money on a wrong number is worse than an error.
-//
+
 // The discrimination this needs was already sitting in the code, unused: the
 // os.Stat guard exists because a plan must not create the project store, so an
 // ABSENT store is the legitimate no-leverage case. Past the stat, a failure to
@@ -75,6 +75,9 @@ func TestComputeProjectPlan_UnopenableStoreFailsThePlan(t *testing.T) {
 	// are not a database. No production hook, no test-only branch.
 	storePath := layout.StorePath()
 	require.NoError(t, os.WriteFile(storePath, []byte("this is not a sqlite database at all"), 0o644))
+	// kapi's own store, damaged: recorded as this machine's, so it is read
+	// rather than set aside.
+	require.NoError(t, project.RecordStateEntry(layout, project.WorkDirName))
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -90,8 +93,8 @@ func TestComputeProjectPlan_UnopenableStoreFailsThePlan(t *testing.T) {
 // control, and it pins the invariant the merged store made sharper: a plan never
 // creates `.kapi/work/store.db`.
 //
-// Opening the store is what creates it — the handle runs every subsystem's
-// migrations at open — so the guard cannot be "open it and see". Most projects
+// Opening the store is what creates it, the handle runs every subsystem's
+// migrations at open, so the guard cannot be "open it and see". Most projects
 // have no store on their first plan, so "no store present" is the ordinary case,
 // and it must stay silent AND leave the state directory as it found it. Without
 // this, "fail whenever mem is nil" would pass the test above.
@@ -133,8 +136,8 @@ func TestComputeProjectPlan_HealthyStoreStillPlans(t *testing.T) {
 
 // RunExtractKpz's leverage open is the other half of item 2, and it takes the
 // opposite decision on purpose: the .kpz packages are still usable without
-// leverage, so a store that will not open is REPORTED and the extract continues
-// — matching the two siblings on the same call in that file (RunExtract,
+// leverage, so a store that will not open is REPORTED and the extract continues.
+// That matches the two siblings on the same call in that file (RunExtract,
 // MergeOneKpz), whose convention #1466 established. What was wrong was the
 // silence, not the continuing: a translator saw an empty recycling context and
 // no vocabulary on a project that has both, with nothing to explain it.
@@ -145,10 +148,11 @@ func TestRunExtractKpz_UnopenableMemoryAndTermsAreReported(t *testing.T) {
 
 	// A real seam: a file standing where the project store must be, whose bytes
 	// are not a database. Opening CREATES the store when absent, so a failure to
-	// open can only mean present-but-unreadable — which is exactly why the absent
+	// open can only mean present-but-unreadable, which is exactly why the absent
 	// case cannot be used as the control here, and why the assertion below is
 	// about the message rather than about the extract failing.
 	require.NoError(t, os.WriteFile(layout.StorePath(), []byte("not a sqlite database"), 0o644))
+	require.NoError(t, project.RecordStateEntry(layout, project.WorkDirName))
 
 	var stderr bytes.Buffer
 	cmd := NewEnvCommand(t.Context(), "extract")
@@ -184,7 +188,7 @@ func TestRunExtractKpz_HealthyStoresReportNothing(t *testing.T) {
 
 // #1474 item 4. host/inputs.go dropped a glob match whose stat failed without
 // calling skip(), unlike expandOne two functions up, which reports an unreadable
-// file named explicitly — and resolveFiles turns the first skip into a non-zero
+// file named explicitly, and resolveFiles turns the first skip into a non-zero
 // exit. So whether the user was told depended only on whether they typed a
 // wildcard: `kapi stats 'src/**'` silently processed N-1 of N files and exited 0,
 // invisible to --on-skip and to the exit code, while `kapi stats src/locked.json`

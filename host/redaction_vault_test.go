@@ -234,7 +234,7 @@ func TestRedactAtIngestRefusesAProjectVaultAnEarlierKapiWrote(t *testing.T) {
 	vault := layout.RedactionVaultPath()
 	require.NoError(t, layout.PrepareVault())
 	old := []byte(`{"version": 1, "values": []}`)
-	require.NoError(t, os.WriteFile(vault, old, 0o600))
+	require.NoError(t, project.WriteStateFile(vault, old, 0o600))
 
 	blocks := []*model.Block{model.NewBlock("tu1", "Hello Alice Archer")}
 	spec := &project.RedactionSpec{Enabled: true, Rules: "redact.yaml"}
@@ -246,6 +246,10 @@ func TestRedactAtIngestRefusesAProjectVaultAnEarlierKapiWrote(t *testing.T) {
 	assert.Equal(t, old, kept, "the refused vault is left as it is")
 
 	require.NoError(t, os.Rename(vault, vault+".old"))
+	// A vault a person changed by hand is vouched for before kapi writes it.
+	shown, err := project.DescribeState(layout)
+	require.NoError(t, err)
+	require.NoError(t, project.AdoptState(layout, shown))
 	require.NoError(t, RedactFileAtIngest(t.Context(), "src/locales/en/a.json", blocks, spec, dir, vault, "en"))
 	v, err := redaction.OpenFileVault(vault)
 	require.NoError(t, err)

@@ -63,7 +63,9 @@ func (a *App) StateAllow(cmd Command, recipePath string) (output.TrustAllowOutpu
 			return out, nil
 		}
 	}
-	if err := project.AdoptState(layout); err != nil {
+	// What is recorded is what was shown: state that changed in between is
+	// refused.
+	if err := project.AdoptState(layout, origin); err != nil {
 		return out, err
 	}
 	out.Recorded = true

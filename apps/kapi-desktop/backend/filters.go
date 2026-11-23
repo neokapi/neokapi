@@ -1,11 +1,11 @@
 package backend
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -19,7 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/storage/filelock"
 )
 
-// ProjectFilter is a saved "Active Filter" — a named narrowing of the project to
+// ProjectFilter is a saved "Active Filter", a named narrowing of the project to
 // a subset of collections (optionally further by a glob over file paths) and a
 // subset of target languages. It scopes every project view and flow run.
 //
@@ -252,12 +252,15 @@ func writeFiltersFile(path string, local filtersFile) error {
 	if local.Filters == nil {
 		local.Filters = []ProjectFilter{}
 	}
-	_, err := atomicfile.Replace(path, func(w io.Writer) error {
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-		return enc.Encode(local)
-	})
-	return err
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(local); err != nil {
+		return err
+	}
+	// Written whole, in step with the mark that records the file as this
+	// machine's own (project.WriteStateFile).
+	return project.WriteStateFile(path, buf.Bytes(), 0o600)
 }
 
 // ─── filter application ──────────────────────────────────────────────────────
