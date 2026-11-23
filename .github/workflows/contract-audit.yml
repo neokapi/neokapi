@@ -72,6 +72,8 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version-file: neokapi/go.mod
+          # setup-go has no restore-only mode, so only a run on main uses its cache.
+          cache: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install ICU dev libraries
         uses: ./neokapi/.github/actions/apt-install

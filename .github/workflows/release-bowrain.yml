@@ -113,8 +113,25 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
-          # A build-only run saves no cache.
-          cache: ${{ needs.setup.outputs.build_only != 'true' }}
+          # A tag run saves no cache: one saved there serves only that tag.
+          # The next two steps restore what release-caches.yml saves on main.
+          cache: false
+
+      - name: Resolve the Go cache paths
+        id: gopaths
+        shell: bash
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Go caches main saved
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ steps.gopaths.outputs.build }}
+            ${{ steps.gopaths.outputs.mod }}
+          key: go-release-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          restore-keys: go-release-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Compute build metadata
         id: meta
@@ -136,9 +153,10 @@ jobs:
       # macOS and Linux build ICU from source with the trimmed data set
       # (scripts/icu-data-filter.json); see the matching comment in
       # release.yml's build-cli job. Cached on the filter + script hash.
-      - name: Cache static ICU
-        if: ${{ (matrix.target.goos != 'windows') && needs.setup.outputs.build_only != 'true' }}
-        uses: actions/cache@v6
+      # Restores what a run on main saved; a tag run saves nothing.
+      - name: Restore static ICU
+        if: matrix.target.goos != 'windows'
+        uses: actions/cache/restore@v6
         with:
           path: ~/icu-static
           key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
@@ -205,9 +223,9 @@ jobs:
         if: matrix.target.goos == 'windows'
         uses: msys2/setup-msys2@v2
         with:
-          # A build-only run saves no cache.
-          cache: ${{ needs.setup.outputs.build_only != 'true' }}
           msystem: ${{ matrix.target.msystem }}
+          # A tag run saves no cache.
+          cache: false
           path-type: inherit
           install: >-
             mingw-w64-${{ matrix.target.mtriple }}-${{ matrix.target.cc }}
@@ -265,8 +283,25 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
-          # A build-only run saves no cache.
-          cache: ${{ needs.setup.outputs.build_only != 'true' }}
+          # A tag run saves no cache: one saved there serves only that tag.
+          # The next two steps restore what release-caches.yml saves on main.
+          cache: false
+
+      - name: Resolve the Go cache paths
+        id: gopaths
+        shell: bash
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Go caches main saved
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ steps.gopaths.outputs.build }}
+            ${{ steps.gopaths.outputs.mod }}
+          key: go-release-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          restore-keys: go-release-${{ runner.os }}-${{ runner.arch }}-
 
       # Release gate: shared UI must type-check + pass unit tests.
       - uses: ./.github/actions/setup-node-ui
@@ -507,19 +542,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { image: bowrain-server, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
-          - { image: bowrain-server, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
-          - { image: bowrain-worker, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
-          - { image: bowrain-worker, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
-          - { image: bowrain-web, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
-          - { image: bowrain-web, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
-          - { image: bravo-agent, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
-          - { image: bravo-sandbox-node, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
+          - { image: bowrain-server, arch: amd64, runner: ubuntu-latest, platform: linux/amd64, cache_from: 'type=gha,scope=bowrain-server' }
+          - { image: bowrain-server, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64, cache_from: '' }
+          - { image: bowrain-worker, arch: amd64, runner: ubuntu-latest, platform: linux/amd64, cache_from: 'type=gha,scope=bowrain-worker' }
+          - { image: bowrain-worker, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64, cache_from: '' }
+          - { image: bowrain-web, arch: amd64, runner: ubuntu-latest, platform: linux/amd64, cache_from: 'type=gha,scope=bowrain-web' }
+          - { image: bowrain-web, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64, cache_from: '' }
+          - { image: bravo-agent, arch: amd64, runner: ubuntu-latest, platform: linux/amd64, cache_from: 'type=gha,scope=bravo-agent' }
+          - { image: bravo-sandbox-node, arch: amd64, runner: ubuntu-latest, platform: linux/amd64, cache_from: 'type=gha,scope=bravo-sandbox-node' }
           - {
               image: bravo-sandbox-python,
               arch: amd64,
               runner: ubuntu-latest,
               platform: linux/amd64,
+              cache_from: "type=gha,scope=bravo-sandbox-python",
             }
     steps:
       - uses: actions/checkout@v7
@@ -557,8 +593,10 @@ jobs:
             VERSION=${{ steps.version.outputs.VERSION }}
             COMMIT=${{ steps.version.outputs.COMMIT }}
             BUILD_DATE=${{ steps.version.outputs.BUILD_DATE }}
-          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.arch }}
+          # Main saves each image's layers under its own name, built for amd64
+          # (the _build-* workflows and e2e.yml), so an amd64 leg reads them and
+          # an arm64 leg has nothing to read. A tag run saves no layer cache.
+          cache-from: ${{ matrix.cache_from }}
 
   docker-manifest:
     name: Docker Manifests
@@ -660,7 +698,7 @@ jobs:
             ghcr.io/neokapi/bowrain-keycloak:${{ github.sha }}
             ghcr.io/neokapi/bowrain-keycloak:latest
           cache-from: type=gha,scope=bowrain-keycloak
-          cache-to: type=gha,mode=max,scope=bowrain-keycloak
+          # A tag run saves no layer cache: one saved there serves only that tag.
 
   qps-bowrain-app:
     name: Bowrain app qps dictionary
@@ -718,8 +756,25 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
-          # A build-only run saves no cache.
-          cache: ${{ needs.setup.outputs.build_only != 'true' }}
+          # A tag run saves no cache: one saved there serves only that tag.
+          # The next two steps restore what release-caches.yml saves on main.
+          cache: false
+
+      - name: Resolve the Go cache paths
+        id: gopaths
+        shell: bash
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Go caches main saved
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ steps.gopaths.outputs.build }}
+            ${{ steps.gopaths.outputs.mod }}
+          key: go-release-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          restore-keys: go-release-${{ runner.os }}-${{ runner.arch }}-
 
       - uses: ./.github/actions/setup-node-ui
 
@@ -740,9 +795,10 @@ jobs:
       # (scripts/icu-data-filter.json), same as the CLI jobs; see the
       # provisioning comment in release.yml's build-cli job. Cached on the
       # filter + script hash.
-      - name: Cache static ICU
-        if: ${{ (runner.os != 'Windows') && needs.setup.outputs.build_only != 'true' }}
-        uses: actions/cache@v6
+      # Restores what a run on main saved; a tag run saves nothing.
+      - name: Restore static ICU
+        if: runner.os != 'Windows'
+        uses: actions/cache/restore@v6
         with:
           path: ~/icu-static
           key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
@@ -796,9 +852,9 @@ jobs:
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
-          # A build-only run saves no cache.
-          cache: ${{ needs.setup.outputs.build_only != 'true' }}
           msystem: ${{ matrix.build.msystem }}
+          # A tag run saves no cache.
+          cache: false
           path-type: inherit
           install: >-
             mingw-w64-${{ matrix.build.mtriple }}-${{ matrix.build.cc }}

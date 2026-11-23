@@ -131,19 +131,27 @@ jobs:
         with:
           go-version: stable
 
-      - name: Cache onnxruntime
+      # Restored on every run; saved only by a run on main.
+      - name: Restore onnxruntime
         id: cache-ort
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ${{ runner.temp }}/ort
           key: onnxruntime-nuget-linux-x64-${{ env.ONNXRUNTIME_VERSION }}
       - name: Download onnxruntime
         if: steps.cache-ort.outputs.cache-hit != 'true'
         run: scripts/fetch-onnxruntime.sh linux amd64 "$RUNNER_TEMP/ort"
+      - name: Save onnxruntime
+        if: github.ref == 'refs/heads/main' && steps.cache-ort.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/ort
+          key: onnxruntime-nuget-linux-x64-${{ env.ONNXRUNTIME_VERSION }}
 
-      - name: Cache vision models
+      # Restored on every run; saved only by a run on main.
+      - name: Restore vision models
         id: cache-models
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ${{ runner.temp }}/models
           key: vision-models-${{ env.VISION_MODELS_TAG }}
@@ -155,6 +163,12 @@ jobs:
           for f in ppocrv5_det.onnx ppocrv5_rec.onnx ppocrv5_dict.txt ppdoclayoutv3.onnx; do
             curl -sSfL -o "$RUNNER_TEMP/models/$f" "$base/$f"
           done
+      - name: Save vision models
+        if: github.ref == 'refs/heads/main' && steps.cache-models.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/models
+          key: vision-models-${{ env.VISION_MODELS_TAG }}
 
       # The smoke tests verify each model file against its pinned SHA-256 (via
       # models.Ensure) before running, so a corrupt download fails loudly.
@@ -195,19 +209,27 @@ jobs:
         with:
           packages: libicu-dev pkg-config
 
-      - name: Cache onnxruntime
+      # Restored on every run; saved only by a run on main.
+      - name: Restore onnxruntime
         id: cache-ort
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ${{ runner.temp }}/ort
           key: onnxruntime-nuget-linux-x64-${{ env.ONNXRUNTIME_VERSION }}
       - name: Download onnxruntime
         if: steps.cache-ort.outputs.cache-hit != 'true'
         run: scripts/fetch-onnxruntime.sh linux amd64 "$RUNNER_TEMP/ort"
+      - name: Save onnxruntime
+        if: github.ref == 'refs/heads/main' && steps.cache-ort.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/ort
+          key: onnxruntime-nuget-linux-x64-${{ env.ONNXRUNTIME_VERSION }}
 
-      - name: Cache vision models
+      # Restored on every run; saved only by a run on main.
+      - name: Restore vision models
         id: cache-models
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ${{ runner.temp }}/models
           key: vision-models-${{ env.VISION_MODELS_TAG }}
@@ -219,16 +241,29 @@ jobs:
           for f in ppocrv5_det.onnx ppocrv5_rec.onnx ppocrv5_dict.txt ppdoclayoutv3.onnx; do
             curl -sSfL -o "$RUNNER_TEMP/models/$f" "$base/$f"
           done
+      - name: Save vision models
+        if: github.ref == 'refs/heads/main' && steps.cache-models.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/models
+          key: vision-models-${{ env.VISION_MODELS_TAG }}
 
-      - name: Cache libpdfium
+      # Restored on every run; saved only by a run on main.
+      - name: Restore libpdfium
         id: cache-pdfium
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ${{ runner.temp }}/pdfium
           key: pdfium-linux-x64-${{ env.PDFIUM_RELEASE }}
       - name: Download libpdfium (bblanchon)
         if: steps.cache-pdfium.outputs.cache-hit != 'true'
         run: scripts/fetch-pdfium.sh linux amd64 "$RUNNER_TEMP/pdfium"
+      - name: Save libpdfium
+        if: github.ref == 'refs/heads/main' && steps.cache-pdfium.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/pdfium
+          key: pdfium-linux-x64-${{ env.PDFIUM_RELEASE }}
 
       - name: Build kapi
         run: make build
