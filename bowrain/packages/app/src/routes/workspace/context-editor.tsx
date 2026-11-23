@@ -74,7 +74,16 @@ export function ContextEditorRoute() {
         params: { workspace: workspace ?? "" },
       });
     },
-    [isNew, profileId, createMutation, updateMutation, capture, navigate, workspace],
+    [
+      isNew,
+      profileId,
+      profile?.revision,
+      createMutation,
+      updateMutation,
+      capture,
+      navigate,
+      workspace,
+    ],
   );
 
   // Selecting a starter pack creates the profile from the server's authoritative

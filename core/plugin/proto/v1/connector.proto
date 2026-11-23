@@ -180,6 +180,39 @@ message PullRequest {
   repeated string locales = 2;
   bool force = 3;
   bool dry_run = 4;
+  // For each record the venue keeps a revision of whose server version
+  // differs from the local one: take_server writes the server's version
+  // locally; keep_local records that the person has seen the server's
+  // version and means the next push to replace it. Without either, the pull
+  // reports the difference and the next push that changes the record is
+  // refused.
+  bool take_server = 5;
+  bool keep_local = 6;
+}
+
+// FieldDifference is one field of a record whose server and local values
+// differ, each rendered for a reader.
+message FieldDifference {
+  string field = 1;
+  string server = 2;
+  string local = 3;
+}
+
+// RecordDifference is a record the venue keeps a revision of, such as a voice
+// profile, whose server version differs from the local one.
+message RecordDifference {
+  // kind names the record's kind, "voice profile".
+  string kind = 1;
+  string name = 2;
+  // changed_by and changed_at are who last wrote the server's version and
+  // when (RFC 3339), empty when the venue does not say.
+  string changed_by = 3;
+  string changed_at = 4;
+  repeated FieldDifference fields = 5;
+  // outcome is what the pull did: "taken" (the server's version was
+  // written locally), "kept" (the next push replaces the server's version)
+  // or "unresolved" (the next push that changes it is refused).
+  string outcome = 6;
 }
 
 message PullResponse {
@@ -220,6 +253,10 @@ message PullResponse {
   // when the merge produced the bytes already in git, which is the ordinary
   // outcome — a pull that changed nothing must say nothing.
   string terms_projection = 11;
+
+  // The records whose server version differs from the local one, with what
+  // the pull did about each (PullRequest.take_server, keep_local).
+  repeated RecordDifference differences = 12;
 }
 
 // ---------------------------------------------------------------------------

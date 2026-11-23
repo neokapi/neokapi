@@ -74,7 +74,7 @@ func TestReconcileContext_CreatesCollectionWithGovernance(t *testing.T) {
 	entries := []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "kapi", "channel": "docs"}, "docs", "Acme Voice", voice),
 	}
-	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries)
+	res, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"docs"}, res.Created)
 
@@ -114,7 +114,7 @@ func TestReconcileContext_DoublePushIsIdempotent(t *testing.T) {
 		}
 	}
 
-	first, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries())
+	first, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries())
 	require.NoError(t, err)
 	require.Equal(t, []string{"docs"}, first.Created)
 	assert.Equal(t, []platev.CollectionChange{{
@@ -124,7 +124,7 @@ func TestReconcileContext_DoublePushIsIdempotent(t *testing.T) {
 	before, err := deps.ContentStore.GetCollectionByName(ctx, "p1", "docs", "main")
 	require.NoError(t, err)
 
-	second, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries())
+	second, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries())
 	require.NoError(t, err)
 	assert.Empty(t, second.Created, "the second push must not create a second row")
 	assert.Empty(t, second.Updated, "an unchanged recipe must not rewrite the row")
@@ -156,12 +156,12 @@ func TestReconcileContext_ChangedRecipeUpdates(t *testing.T) {
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
-	_, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	_, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "kapi"}, "", "", nil),
 	})
 	require.NoError(t, err)
 
-	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	res, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "bowrain"}, "email", "", nil),
 	})
 	require.NoError(t, err)
@@ -187,14 +187,14 @@ func TestReconcileContext_UndeclaredIsReportedNotDeleted(t *testing.T) {
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
-	_, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	_, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "", nil),
 		contextEntry("marketing", nil, "", "", nil),
 	})
 	require.NoError(t, err)
 
 	// The recipe drops "marketing".
-	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	res, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "", nil),
 	})
 	require.NoError(t, err)
@@ -219,7 +219,7 @@ func TestReconcileContext_WorkspaceOwnedIsNotReported(t *testing.T) {
 		ProjectID: "p1", Name: "uploads", Stream: "main", Owner: venue.ContextOwnerWorkspace,
 	}))
 
-	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	res, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "", nil),
 	})
 	require.NoError(t, err)
@@ -239,7 +239,7 @@ func TestReconcileContext_DeclaringClaimsAWorkspaceCollection(t *testing.T) {
 		ProjectID: "p1", Name: "docs", Stream: "main", Owner: venue.ContextOwnerWorkspace,
 	}))
 
-	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	res, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "kapi"}, "", "", nil),
 	})
 	require.NoError(t, err)
@@ -263,7 +263,7 @@ func TestReconcileContext_ChangedVoiceLandsAsANewVersion(t *testing.T) {
 		Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "neutral"},
 	})
 	require.NoError(t, err)
-	_, err = reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	_, err = reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "Acme Voice", first),
 	})
 	require.NoError(t, err)
@@ -274,7 +274,7 @@ func TestReconcileContext_ChangedVoiceLandsAsANewVersion(t *testing.T) {
 	require.NoError(t, err)
 	changed := contextEntry("docs", nil, "", "Acme Voice", second)
 	changed.VoiceProfileRevision = pulledRevision(t, deps, "ws1", "Acme Voice")
-	_, err = reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{changed})
+	_, err = reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{changed})
 	require.NoError(t, err)
 
 	profiles, err := deps.VoiceStore.ListProfiles(ctx, "ws1")
@@ -296,7 +296,7 @@ func TestReconcileContext_NoVoiceCarriesStructureOnly(t *testing.T) {
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
-	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	res, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "kapi"}, "", "", nil),
 	})
 	require.NoError(t, err)
@@ -321,7 +321,7 @@ func TestReconcileContext_UnclaimedProjectReconcilesStructure(t *testing.T) {
 
 	voice, err := json.Marshal(&coreprofile.VoiceProfile{Name: "Acme Voice"})
 	require.NoError(t, err)
-	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "", "user-1", nil, []*pb.SyncContextEntry{
+	res, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "Acme Voice", voice),
 	})
 	require.NoError(t, err)
@@ -369,7 +369,7 @@ func pushVoice(t *testing.T, deps *WorkerDeps, name, base string, profile *corep
 	require.NoError(t, err)
 	entry := contextEntry("docs", nil, "", name, raw)
 	entry.VoiceProfileRevision = base
-	_, err = reconcileContext(t.Context(), deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{entry})
+	_, err = reconcileAndWriteVoice(t.Context(), deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{entry})
 	return err
 }
 
@@ -396,7 +396,7 @@ func TestReconcileContext_AVoiceChangeNamesTheRevisionItPulled(t *testing.T) {
 	err = pushVoice(t, deps, "Acme Voice", pulled, casual)
 	require.ErrorAs(t, err, &refusal)
 	assert.False(t, refusal.Unversioned)
-	assert.Contains(t, err.Error(), "Run `kapi pull`, then push again")
+	assert.Contains(t, err.Error(), "Run `kapi pull` to see what changed")
 
 	profiles, err := deps.VoiceStore.ListProfiles(t.Context(), "ws1")
 	require.NoError(t, err)

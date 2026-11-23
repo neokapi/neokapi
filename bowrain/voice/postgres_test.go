@@ -58,7 +58,7 @@ func TestVoiceMigrations_SingleBaseline(t *testing.T) {
 	// applied at most once. The baseline is now idempotent and numbered above
 	// every version ever issued, so a live database DOES re-run it, and
 	// declaring personas in the CREATE is how the column arrives.
-	require.Len(t, Migrations, 4, "the voice schema is a consolidated baseline and three later migrations")
+	require.Len(t, Migrations, 5, "the voice schema is a consolidated baseline and four later migrations")
 	assert.Equal(t, 5, Migrations[0].Version, "baseline sits above versions 1-4, which it folds")
 	assert.Equal(t, 6, Migrations[1].Version)
 	assert.Equal(t, 7, Migrations[2].Version)

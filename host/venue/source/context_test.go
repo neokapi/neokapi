@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/venue"
+	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/host"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	bproject "github.com/neokapi/neokapi/host/venue/project"
@@ -131,7 +132,7 @@ func TestApplyPulledContext_RecipeOwnedGovernanceIsNotApplied(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "docs", before.Channel)
 
-	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
+	res := applyPulled(t, conn, []*pb.SyncContextEntry{{
 		Name:                 "docs",
 		Coordinates:          map[string]string{"product": "bowrain"},
 		Channel:              "email",
@@ -156,12 +157,12 @@ func TestApplyPulledContext_RecipeOwnedGovernanceIsNotApplied(t *testing.T) {
 	// What it did do is record the observation, which is what lets the
 	// divergence be reported rather than silently absorbed.
 	assert.Equal(t, bproject.ServerCollection{
-		Coordinates:   map[string]string{"product": "bowrain"},
-		Channel:       "email",
-		VoiceProfile:  "Someone Else's Voice",
-		VoiceRevision: "rev-on-server",
-		Owner:         venue.ContextOwnerRecipe,
-	}, conn.cache.ServerContext["docs"], "the revision a later push names is recorded")
+		Coordinates:  map[string]string{"product": "bowrain"},
+		Channel:      "email",
+		VoiceProfile: "Someone Else's Voice",
+		Owner:        venue.ContextOwnerRecipe,
+	}, conn.cache.ServerContext["docs"])
+	assert.Empty(t, conn.cache.VoiceSeen, "a profile no push from here carries is not marked seen")
 }
 
 // TestApplyPulledContext_AgreementIsNotADivergence keeps the report honest: a
@@ -170,7 +171,7 @@ func TestApplyPulledContext_RecipeOwnedGovernanceIsNotApplied(t *testing.T) {
 func TestApplyPulledContext_AgreementIsNotADivergence(t *testing.T) {
 	conn := newContextProject(t)
 
-	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
+	res := applyPulled(t, conn, []*pb.SyncContextEntry{{
 		Name:        "docs",
 		Coordinates: map[string]string{"product": "kapi", "channel": "docs"},
 		Channel:     "docs",
@@ -188,7 +189,7 @@ func TestApplyPulledContext_AgreementIsNotADivergence(t *testing.T) {
 func TestApplyPulledContext_WorkspaceOwnedIsRecorded(t *testing.T) {
 	conn := newContextProject(t)
 
-	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
+	res := applyPulled(t, conn, []*pb.SyncContextEntry{{
 		Name:        "uploads",
 		Coordinates: map[string]string{"product": "bowrain"},
 		Owner:       venue.ContextOwnerWorkspace,
@@ -206,7 +207,7 @@ func TestApplyPulledContext_WorkspaceOwnedIsRecorded(t *testing.T) {
 func TestApplyPulledContext_UnownedEntryDefaultsToWorkspace(t *testing.T) {
 	conn := newContextProject(t)
 
-	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{Name: "docs"}})
+	res := applyPulled(t, conn, []*pb.SyncContextEntry{{Name: "docs"}})
 
 	assert.Equal(t, []string{"docs"}, res.WorkspaceOwned)
 	assert.Equal(t, venue.ContextOwnerWorkspace, conn.cache.ServerContext["docs"].Owner)
@@ -243,7 +244,7 @@ func TestApplyPulledContext_VoiceDivergenceIsReported(t *testing.T) {
 	conn := newContextProject(t)
 	bindCollectionVoice(t, conn, "Kapi Docs Voice")
 
-	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
+	res := applyPulled(t, conn, []*pb.SyncContextEntry{{
 		Name:         "docs",
 		Coordinates:  map[string]string{"product": "kapi", "channel": "docs"},
 		Channel:      "docs",
@@ -275,7 +276,7 @@ func TestApplyPulledContext_SameVoiceIsSilent(t *testing.T) {
 	conn := newContextProject(t)
 	bindCollectionVoice(t, conn, "Kapi Docs Voice")
 
-	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
+	res := applyPulled(t, conn, []*pb.SyncContextEntry{{
 		Name:         "docs",
 		Coordinates:  map[string]string{"product": "kapi", "channel": "docs"},
 		Channel:      "docs",
@@ -293,7 +294,7 @@ func TestApplyPulledContext_SameVoiceIsSilent(t *testing.T) {
 func TestApplyPulledContext_VoiceAppearingServerSideIsReported(t *testing.T) {
 	conn := newContextProject(t)
 
-	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
+	res := applyPulled(t, conn, []*pb.SyncContextEntry{{
 		Name:         "docs",
 		Coordinates:  map[string]string{"product": "kapi", "channel": "docs"},
 		Channel:      "docs",
@@ -311,7 +312,7 @@ func TestApplyPulledContext_WorkspaceOwnedVoiceIsNotADivergence(t *testing.T) {
 	conn := newContextProject(t)
 	bindCollectionVoice(t, conn, "Kapi Docs Voice")
 
-	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
+	res := applyPulled(t, conn, []*pb.SyncContextEntry{{
 		Name:         "docs",
 		Coordinates:  map[string]string{"product": "kapi", "channel": "docs"},
 		Channel:      "docs",
@@ -346,4 +347,12 @@ func TestPushContextChanged_TracksTheRecipe(t *testing.T) {
 // newTestPushContext builds the push context a caller would hand the connector.
 func newTestPushContext(entries ...*pb.SyncContextEntry) *apiclient.PushContext {
 	return apiclient.NewPushContext(entries)
+}
+
+// applyPulled is applyPulledContext with no pull options, as a plain pull runs.
+func applyPulled(t *testing.T, conn *BowrainSourceConnector, entries []*pb.SyncContextEntry) *ContextPullResult {
+	t.Helper()
+	res, err := conn.applyPulledContext(t.Context(), entries, bowrainconn.PullOptions{})
+	require.NoError(t, err)
+	return res
 }

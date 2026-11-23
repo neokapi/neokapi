@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // defaultClientTimeout is the read/connect timeout applied to all sync operations.
@@ -160,6 +162,9 @@ func (t *Transport) Do(req *http.Request) (*http.Response, error) {
 	}
 
 	sent := t.applyAuth(req)
+	// What this client sends that an older one does not, so the venue can
+	// tell "too old to send it" from "has nothing to send yet".
+	req.Header.Set(venue.ClientCapabilitiesHeader, venue.CapabilityRevisions)
 	resp, err := t.httpClient.Do(req)
 	if err != nil {
 		return nil, err

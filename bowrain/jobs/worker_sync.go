@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/termspush"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/venue"
@@ -381,6 +382,13 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		if termsResult != nil {
 			parts.Terms = termsResult.Outcome
 		}
+		// The voice profile updates last: each takes its profile's row lock,
+		// held until this transaction commits, so taking it here keeps a
+		// person's save of that profile waiting no longer than it must.
+		if aerr = contextResult.writeVoice(ctx); aerr != nil {
+			return aerr
+		}
+		parts.VoiceRevisions = contextResult.VoiceRevisions
 		record, merr := json.Marshal(newPushApplyRecord(parts, outcome, contextResult, termsResult))
 		if merr != nil {
 			return fmt.Errorf("record the push apply: %w", merr)
@@ -394,10 +402,16 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	} else {
 		aerr = applier.ApplyPush(ctx, func(tx store.PushApplier) error {
 			// No shared-pool transition: the voice store cannot join this
-			// transaction, so it is written through the pool and a rollback
-			// leaves it. Content, collections and the context ledger still land
-			// together; terminology edits are refused, as they cannot join it.
-			return apply(PushStores{Content: tx, Voice: deps.VoiceStore})
+			// transaction. It is read, so collections still bind the profile
+			// they name, and a voice write is refused rather than made through
+			// the pool while this transaction holds its locks. Content,
+			// collections and the context ledger still land together;
+			// terminology edits are refused for the same reason.
+			var voice coreprofile.Store
+			if deps.VoiceStore != nil {
+				voice = readOnlyVoice{deps.VoiceStore}
+			}
+			return apply(PushStores{Content: tx, Voice: voice})
 		})
 	}
 	if errors.Is(aerr, errPushAlreadyApplied) {

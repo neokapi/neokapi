@@ -260,6 +260,10 @@ type PushStatusResponse struct {
 	// not carry, and for a push still being applied.
 	Terms  *venue.PushTermsOutcome  `json:"terms,omitempty"`
 	Ledger *venue.PushLedgerOutcome `json:"ledger,omitempty"`
+
+	// VoiceRevisions is the revision of each voice profile the push carried,
+	// by lowercased name, once its transaction committed.
+	VoiceRevisions map[string]string `json:"voice_revisions,omitempty"`
 }
 
 // BlockContent represents a block with its translations from the server.

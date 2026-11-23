@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/neokapi/neokapi/bowrain/apierror"
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -23,19 +24,41 @@ import (
 type VoiceRefusal struct {
 	// Profile is the profile's name.
 	Profile string
-	// Unversioned is set when the push named no revision: a kapi-bowrain
-	// that does not send one, or a project that has not pulled since it
-	// updated. Otherwise the profile changed on the server after the pull.
+	// Unversioned is set when the push named no revision. Otherwise the
+	// profile changed on the server after the project last saw it.
 	Unversioned bool
+	// NotPulled is set beside Unversioned when the client sends revisions
+	// (venue.CapabilityRevisions): the project has not pulled the profile
+	// yet, as on a fresh clone, and a pull is the remedy, not an update.
+	NotPulled bool
+	// ChangedBy and ChangedAt are who last wrote the profile on the server
+	// and when, for a profile that moved. ChangedBy is a member id or a
+	// tool name; the commit handler renders it as a name.
+	ChangedBy string
+	ChangedAt time.Time
 }
 
 func (e *VoiceRefusal) Error() string {
-	return apierror.MessageFor(e.Code(), map[string]any{"profile": e.Profile})
+	return apierror.MessageFor(e.Code(), e.Details(e.ChangedBy))
+}
+
+// Details are the refusal's API error details, with by as the name of who
+// changed the profile.
+func (e *VoiceRefusal) Details(by string) map[string]any {
+	details := map[string]any{"profile": e.Profile}
+	if !e.Unversioned && !e.ChangedAt.IsZero() {
+		details["by"] = by
+		details["at"] = e.ChangedAt.UTC().Format("2006-01-02 15:04 UTC")
+	}
+	return details
 }
 
 // Code is the API error code the refusal is answered with.
 func (e *VoiceRefusal) Code() string {
-	if e.Unversioned {
+	switch {
+	case e.Unversioned && e.NotPulled:
+		return apierror.CodeVoiceProfileNotPulled
+	case e.Unversioned:
 		return apierror.CodeVoiceProfileUnversioned
 	}
 	return apierror.CodeVoiceProfileMoved
@@ -44,8 +67,10 @@ func (e *VoiceRefusal) Code() string {
 // CheckVoiceBases refuses a push whose context entries would change a voice
 // profile of the workspace without naming the profile's current revision.
 // An entry that creates a profile, or carries one the server already holds as
-// pushed, names nothing and needs nothing.
-func CheckVoiceBases(ctx context.Context, voice coreprofile.Store, workspaceID string, raw json.RawMessage) error {
+// pushed, names nothing and needs nothing. sendsRevisions says the client
+// sends revisions at all, which tells a project that has not pulled from a
+// client too old to say.
+func CheckVoiceBases(ctx context.Context, voice coreprofile.Store, workspaceID string, raw json.RawMessage, sendsRevisions bool) error {
 	if voice == nil || workspaceID == "" {
 		return nil
 	}
@@ -82,14 +107,14 @@ func CheckVoiceBases(ctx context.Context, voice coreprofile.Store, workspaceID s
 		}
 		base := e.GetVoiceProfileRevision()
 		if base == "" {
-			return &VoiceRefusal{Profile: existing.Name, Unversioned: true}
+			return &VoiceRefusal{Profile: existing.Name, Unversioned: true, NotPulled: sendsRevisions}
 		}
 		revs, err := revisions.Revisions(ctx, []string{existing.ID})
 		if err != nil {
 			return fmt.Errorf("read voice profile revision: %w", err)
 		}
 		if revs[existing.ID] != base {
-			return &VoiceRefusal{Profile: existing.Name}
+			return &VoiceRefusal{Profile: existing.Name, ChangedBy: existing.UpdatedBy, ChangedAt: existing.UpdatedAt}
 		}
 	}
 	return nil

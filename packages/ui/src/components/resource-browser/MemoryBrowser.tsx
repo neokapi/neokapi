@@ -343,6 +343,7 @@ export function MemoryBrowser({
     }
   }, [
     adapter,
+    entries,
     selected,
     confirmBulkDelete,
     fetchEntries,

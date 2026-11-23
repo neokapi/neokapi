@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/venue"
+	"github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/host/venue/schema"
 )
 
@@ -215,6 +216,11 @@ type PullOutput struct {
 	CollectionsObserved  int      `json:"collections_observed,omitempty"`
 	GovernanceDiverged   []string `json:"governance_diverged,omitempty"`
 	GovernanceDivergence []string `json:"governance_divergence,omitempty"`
+
+	// Differences are the records, such as a voice profile, whose server
+	// version differs from this project's, field by field, with what the
+	// pull did about each.
+	Differences []connector.RecordDifference `json:"differences,omitempty"`
 }
 
 func (o PullOutput) FormatText(w io.Writer) error {
@@ -257,6 +263,7 @@ func (o PullOutput) FormatText(w io.Writer) error {
 			strings.Join(listed, "; "))
 		fmt.Fprintln(w, "The recipe still decides locally. Reconcile them in kapi.yaml rather than by pulling.")
 	}
+	connector.FormatDifferences(w, o.Differences)
 	return nil
 }
 

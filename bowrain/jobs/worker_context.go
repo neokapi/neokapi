@@ -60,6 +60,57 @@ type contextReconcileResult struct {
 	// coordinates it moved, with the coordinates before and after, for the
 	// recipe.changed event.
 	Changes []platev.CollectionChange
+
+	// voiceUpdates are the updates of existing voice profiles the push
+	// carries, held back until writeVoice so the push takes each profile's
+	// row lock at the end of its transaction rather than at the start.
+	voiceUpdates []func(context.Context) error
+	// voiceCarried is the id of each profile the push carried content for,
+	// by lowercased name, and voice the store they were written to.
+	voiceCarried map[string]string
+	voice        coreprofile.Store
+	// VoiceRevisions is each carried profile's revision once writeVoice has
+	// run, by lowercased name.
+	VoiceRevisions map[string]string
+}
+
+// writeVoice writes the voice profile updates the reconcile held back. The
+// push calls it last, after its content, ledger and terms, so a person
+// saving the same profile waits only for the end of the push.
+func (r *contextReconcileResult) writeVoice(ctx context.Context) error {
+	if r == nil {
+		return nil
+	}
+	for _, update := range r.voiceUpdates {
+		if err := update(ctx); err != nil {
+			return err
+		}
+	}
+	r.voiceUpdates = nil
+	if len(r.voiceCarried) == 0 || r.voice == nil {
+		return nil
+	}
+	revisions, ok := r.voice.(interface {
+		Revisions(ctx context.Context, ids []string) (map[string]string, error)
+	})
+	if !ok {
+		return nil
+	}
+	ids := make([]string, 0, len(r.voiceCarried))
+	for _, id := range r.voiceCarried {
+		ids = append(ids, id)
+	}
+	byID, err := revisions.Revisions(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("read voice profile revisions: %w", err)
+	}
+	r.VoiceRevisions = make(map[string]string, len(r.voiceCarried))
+	for name, id := range r.voiceCarried {
+		if rev := byID[id]; rev != "" {
+			r.VoiceRevisions[name] = rev
+		}
+	}
+	return nil
 }
 
 // total reports how many collections the reconcile touched or confirmed.
@@ -222,6 +273,9 @@ func reconcileContext(
 	slices.Sort(result.Claimed)
 	slices.Sort(result.Unchanged)
 	slices.Sort(result.Undeclared)
+	result.voiceUpdates = profileIDs.updates
+	result.voiceCarried = profileIDs.carried
+	result.voice = voice
 
 	if len(result.Undeclared) > 0 {
 		slog.Info("sync push declares fewer collections than the server holds; keeping the rest",
@@ -272,6 +326,11 @@ type profileBinder struct {
 	actorID     string
 	pusher      store.Pusher
 	byName      map[string]string
+	// updates are the held-back updates of existing profiles (writeVoice).
+	updates []func(context.Context) error
+	// carried is the id of each profile the push carried content for, by
+	// lowercased name.
+	carried map[string]string
 }
 
 func newProfileBinder(voice coreprofile.Store, ledger voicewrite.Ledger, workspaceID, actorID string) *profileBinder {
@@ -320,6 +379,12 @@ func (b *profileBinder) bind(ctx context.Context, e *pb.SyncContextEntry) (strin
 	profileID, err := b.upsert(ctx, e.VoiceProfile, existing, pushed, e.GetVoiceOp(), e.GetVoiceProfileRevision())
 	if err != nil {
 		return "", err
+	}
+	if pushed != nil && profileID != "" {
+		if b.carried == nil {
+			b.carried = map[string]string{}
+		}
+		b.carried[strings.ToLower(e.VoiceProfile)] = profileID
 	}
 	b.byName[e.VoiceProfile] = profileID
 	return profileID, nil
@@ -382,9 +447,16 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 	}
 	updated.VersionNote = "superseded by kapi push"
 	updated.UpdatedAt = now
-	if _, err := voicewrite.Apply(ctx, b.voice, b.ledger, b.write(existing, &updated, recorded, base)); err != nil {
-		return "", asVoiceRefusal(err, existing.Name)
-	}
+	updated.UpdatedBy = b.actorID
+	// The collections need only the id, which an update keeps, so the write
+	// itself waits for the end of the push (contextReconcileResult.writeVoice).
+	write := b.write(existing, &updated, recorded, base)
+	b.updates = append(b.updates, func(ctx context.Context) error {
+		if _, err := voicewrite.Apply(ctx, b.voice, b.ledger, write); err != nil {
+			return asVoiceRefusal(err, existing.Name)
+		}
+		return nil
+	})
 	return updated.ID, nil
 }
 
@@ -433,6 +505,7 @@ func sameAuthoredVoice(a, b *coreprofile.VoiceProfile) bool {
 		snapshot.CreatedAt = time.Time{}
 		snapshot.UpdatedAt = time.Time{}
 		snapshot.CreatedBy = ""
+		snapshot.UpdatedBy = ""
 		snapshot.Autonomy = coreprofile.AutonomyConfig{}
 		encoded, err := json.Marshal(snapshot)
 		if err != nil {

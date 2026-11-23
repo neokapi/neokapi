@@ -101,9 +101,14 @@ const (
 	// Detail field: "profile".
 	CodeVoiceProfileUnversioned = "voice_profile_unversioned"
 
+	// CodeVoiceProfileNotPulled is a push from a client that sends revisions
+	// but has none for a voice profile it would change: the project has not
+	// pulled the profile, as on a fresh clone. Detail field: "profile".
+	CodeVoiceProfileNotPulled = "voice_profile_not_pulled"
+
 	// CodeVoiceProfileMoved is a push that would change a voice profile which
-	// changed on the server after the project last pulled. Detail field:
-	// "profile".
+	// changed on the server after the project last saw it. Detail fields:
+	// "profile", and "by" and "at" for who changed it and when.
 	CodeVoiceProfileMoved = "voice_profile_moved"
 )
 
@@ -234,9 +239,17 @@ func MessageFor(code string, details map[string]any) string {
 	case CodeVoiceProfileUnversioned:
 		return fmt.Sprintf("This push does not say which version of the voice profile %q it was based on, so it cannot change it. "+
 			"Update kapi-bowrain with `kapi plugin update bowrain`, run `kapi pull`, then push again.", detailOr(details, "profile", ""))
-	case CodeVoiceProfileMoved:
-		return fmt.Sprintf("The voice profile %q changed on the server after this project last pulled. "+
+	case CodeVoiceProfileNotPulled:
+		return fmt.Sprintf("This project has not pulled the voice profile %q yet, so this push cannot say which version of it it changes. "+
 			"Run `kapi pull`, then push again.", detailOr(details, "profile", ""))
+	case CodeVoiceProfileMoved:
+		changed := "changed on the server"
+		if by, ok := details["by"]; ok {
+			changed = fmt.Sprintf("was changed on the server by %v at %v,", by, detailOr(details, "at", ""))
+		}
+		return fmt.Sprintf("The voice profile %q %s after this project last saw it. "+
+			"Run `kapi pull` to see what changed, then push again to replace it with yours, "+
+			"or run `kapi pull --take-server` to take theirs.", detailOr(details, "profile", ""), changed)
 	case CodeGovernanceMoved:
 		if component, ok := details["component"]; ok {
 			return fmt.Sprintf("The project's %v moved on the server since this client last looked. Pull first, then send this again.", component)

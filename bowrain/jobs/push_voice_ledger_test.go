@@ -195,7 +195,7 @@ func TestPushVoiceLedger_RecordsEachWriteOnce(t *testing.T) {
 			entry.VoiceOp = op
 
 			err = deps.PushTransition(ctx, func(st PushStores) error {
-				if _, rerr := reconcileContext(ctx, st.Content, st.Voice, "p1", "main", "ws1", "user-1",
+				if _, rerr := reconcileAndWriteVoice(ctx, st.Content, st.Voice, "p1", "main", "ws1", "user-1",
 					newPushVoiceLedger(ctx, deps, st.Content, "p1", "user-1", ledger), []*pb.SyncContextEntry{entry}); rerr != nil {
 					return rerr
 				}
@@ -261,7 +261,7 @@ func TestPushVoiceLedger_AToolsPushIsTheTools(t *testing.T) {
 
 	ledger := pushLedger{}
 	err = deps.PushTransition(ctx, func(st PushStores) error {
-		_, rerr := reconcileContext(ctx, st.Content, st.Voice, "p1", "main", "ws1", "user-1",
+		_, rerr := reconcileAndWriteVoice(ctx, st.Content, st.Voice, "p1", "main", "ws1", "user-1",
 			newPushVoiceLedger(ctx, deps, st.Content, "p1", "user-1", ledger), []*pb.SyncContextEntry{entry})
 		return rerr
 	})

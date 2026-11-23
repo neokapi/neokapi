@@ -131,6 +131,31 @@ func TestHandleBulkDeleteMemoryEntries(t *testing.T) {
 		assert.True(t, ok, "the entry stays")
 	})
 
+	t.Run("an entry someone else deleted first counts as deleted", func(t *testing.T) {
+		seedMemoryEntries(t, srv, ws, "gone", "kept")
+		tm, err := srv.wsStores.getMemory(t.Context(), ws)
+		require.NoError(t, err)
+		revs, err := tm.(editableMemory).Revisions(t.Context(), []string{"gone", "kept"})
+		require.NoError(t, err)
+		require.NoError(t, tm.(editableMemory).DeleteAt(t.Context(), "gone", revs["gone"]))
+
+		body, err := json.Marshal(BulkDeleteRequest{IDs: []string{"gone", "kept"}, Revisions: revs})
+		require.NoError(t, err)
+		resp, code := post(t, string(body))
+		require.Equal(t, http.StatusOK, code)
+		assert.Equal(t, 2, resp.Deleted, "what the person asked for is done for both")
+		assert.Equal(t, 1, resp.AlreadyDeleted)
+		assert.Equal(t, 0, resp.Failed)
+		byID := map[string]BulkDeleteResult{}
+		for _, r := range resp.Results {
+			byID[r.ID] = r
+		}
+		assert.True(t, byID["gone"].Deleted)
+		assert.True(t, byID["gone"].AlreadyDeleted, "and the answer says it was already gone")
+		assert.Empty(t, byID["gone"].Error)
+		assert.False(t, byID["kept"].AlreadyDeleted)
+	})
+
 	t.Run("a repeated id is reported once", func(t *testing.T) {
 		seedMemoryEntries(t, srv, ws, "dup")
 		resp, code := post(t, `{"ids":["dup","dup"]}`)

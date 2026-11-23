@@ -17,6 +17,8 @@ var (
 	pullDryRun       bool
 	pullStream       string
 	pullConceptsOnly bool
+	pullTakeServer   bool
+	pullKeepLocal    bool
 )
 
 var pullCmd = &cobra.Command{
@@ -35,7 +37,14 @@ terminology offline against the same governed vocabulary.
 Pull also reports the collections the server holds and how it governs them. It
 does not apply them: for a collection this recipe declares, kapi.yaml is the
 authority, so a divergence is reported and resolved in git rather than pulled
-down over the local governance.`,
+down over the local governance.
+
+When the server's version of a voice profile differs from this project's, pull
+lists the differing fields and who changed the server's version. The next push
+that changes the profile is refused until you choose: --keep-local replaces
+the server's version with yours on that push, and --take-server writes the
+server's version into this project. A run without either flag, in a script or
+at a terminal, only reports the difference.`,
 	RunE: runPull,
 }
 
@@ -81,7 +90,13 @@ func runPull(cmd *cobra.Command, args []string) error {
 		return output.Print(cmd, out)
 	}
 
-	result, err := transfer.Pull(cmd.Context(), conn, pullLocales, pullForce, pullDryRun)
+	result, err := transfer.Pull(cmd.Context(), conn, transfer.PullOptions{
+		Locales:    pullLocales,
+		Force:      pullForce,
+		DryRun:     pullDryRun,
+		TakeServer: pullTakeServer,
+		KeepLocal:  pullKeepLocal,
+	})
 	if err != nil {
 		return err
 	}
@@ -98,6 +113,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 		CollectionsObserved:  result.CollectionsObserved,
 		GovernanceDiverged:   result.GovernanceDiverged,
 		GovernanceDivergence: result.GovernanceDivergence,
+		Differences:          result.Differences,
 	}
 
 	// Fold the workspace's governed terminology into the pull: fetch the
@@ -137,5 +153,8 @@ func init() {
 	pullCmd.Flags().BoolVar(&pullDryRun, "dry-run", false, "Show what would change without writing files")
 	pullCmd.Flags().StringVar(&pullStream, "stream", "", "Source stream (default: auto-detect from git/CI)")
 	pullCmd.Flags().BoolVar(&pullConceptsOnly, "concepts", false, "Sync only the workspace terminology (concepts + relations) into the local terms; no content transport, no automations")
+	pullCmd.Flags().BoolVar(&pullTakeServer, "take-server", false, "Where the server's version of a voice profile differs from yours, write the server's version into this project")
+	pullCmd.Flags().BoolVar(&pullKeepLocal, "keep-local", false, "Where the server's version of a voice profile differs from yours, keep yours: the next push replaces the server's version")
+	pullCmd.MarkFlagsMutuallyExclusive("take-server", "keep-local")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(pullCmd) })
 }

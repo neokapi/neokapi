@@ -132,4 +132,11 @@ var Migrations = []storage.Migration{
 		// row gets a token of its own.
 		SQL: `ALTER TABLE voice_profiles ADD COLUMN IF NOT EXISTS revision TEXT NOT NULL DEFAULT gen_random_uuid()::text;`,
 	},
+	{
+		Version:     9,
+		Description: "who last wrote each voice profile",
+		// A constant default, so adding the column rewrites nothing. Rows
+		// written before it name no one.
+		SQL: `ALTER TABLE voice_profiles ADD COLUMN IF NOT EXISTS updated_by TEXT NOT NULL DEFAULT '';`,
+	},
 }

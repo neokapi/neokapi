@@ -339,7 +339,7 @@ func runServerUp(cmd *cobra.Command, proj *project.Project) error {
 	if !app.Quiet && !jsonOut {
 		fmt.Fprintln(stderr, "Pulling results...")
 	}
-	if _, err := transfer.Pull(ctx, conn, nil, false, false); err != nil {
+	if _, err := transfer.Pull(ctx, conn, transfer.PullOptions{}); err != nil {
 		return fmt.Errorf("pull: %w", err)
 	}
 	pulled, baseline, err := conceptPull(ctx, proj, false)

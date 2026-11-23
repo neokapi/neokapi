@@ -69,7 +69,7 @@ func (s *PostgresVoiceStore) Close() error {
 // just comes back zero, which is exactly how min_score reached the API, the
 // wire and four UI surfaces while the store silently dropped it.
 const profileColumns = `id, workspace_id, name, description, tone, style, examples,
-	locales, channels, personas, autonomy, constraints, min_score, version, created_at, updated_at, created_by`
+	locales, channels, personas, autonomy, constraints, min_score, version, created_at, updated_at, created_by, updated_by`
 
 func (s *PostgresVoiceStore) CreateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error {
 	if profile.ID == "" {
@@ -79,6 +79,9 @@ func (s *PostgresVoiceStore) CreateProfile(ctx context.Context, profile *corepro
 	profile.CreatedAt = now
 	profile.UpdatedAt = now
 	profile.Version = 1
+	if profile.UpdatedBy == "" {
+		profile.UpdatedBy = profile.CreatedBy
+	}
 
 	tone, err := json.Marshal(profile.Tone)
 	if err != nil {
@@ -116,11 +119,11 @@ func (s *PostgresVoiceStore) CreateProfile(ctx context.Context, profile *corepro
 
 	_, err = s.run().ExecContext(ctx,
 		`INSERT INTO voice_profiles (`+profileColumns+`)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
 		profile.ID, profile.Scope, profile.Name, profile.Description,
 		string(tone), string(style), string(examples),
 		string(locales), string(channels), string(personas), string(autonomy), string(constraints),
-		profile.MinScore, profile.Version, now, now, profile.CreatedBy)
+		profile.MinScore, profile.Version, now, now, profile.CreatedBy, profile.UpdatedBy)
 	if err != nil {
 		return fmt.Errorf("insert voice profile: %w", err)
 	}
@@ -194,19 +197,20 @@ func (s *PostgresVoiceStore) updateProfileAt(ctx context.Context, r storage.Runn
 	// The row lock is the weakest an update takes (NO KEY UPDATE), so rows
 	// that only reference the profile (a version, a tag, a rule decision) do
 	// not hold it up. Only another update or delete of the profile does, and
-	// that is waited for, up to a bound: the transaction makes every read on
-	// its own connection, so waiting holds no second one. A writer whose wait
-	// ends finds out whether its revision is still current.
-	if _, err := r.ExecContext(ctx, `SET LOCAL lock_timeout = '`+storage.LockTimeout+`'`); err != nil {
-		return fmt.Errorf("set the lock timeout: %w", err)
-	}
+	// that is waited for, up to a bound on this one statement
+	// (storage.BoundedLock): the transaction makes every read on its own
+	// connection, so waiting holds no second one, and the statements after it
+	// wait as the transaction's own setting says. A writer whose wait ends
+	// finds out whether its revision is still current.
 	var current string
-	err := r.QueryRowContext(ctx,
-		`SELECT revision FROM voice_profiles WHERE id = $1 FOR NO KEY UPDATE`, profile.ID).Scan(&current)
+	err := storage.BoundedLock(ctx, r, func() error {
+		return r.QueryRowContext(ctx,
+			`SELECT revision FROM voice_profiles WHERE id = $1 FOR NO KEY UPDATE`, profile.ID).Scan(&current)
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrProfileNotFound
 	}
-	if storage.LockTimedOut(err) {
+	if errors.Is(err, storage.ErrBusy) {
 		return storage.ErrBusy
 	}
 	if err != nil {
@@ -278,12 +282,12 @@ func (s *PostgresVoiceStore) updateProfileAt(ctx context.Context, r storage.Runn
 		`UPDATE voice_profiles
 		 SET name=$1, description=$2, tone=$3, style=$4, examples=$5,
 		     locales=$6, channels=$7, personas=$8, autonomy=$9, constraints=$10, min_score=$11,
-		     version=$12, updated_at=$13, revision=$15
+		     version=$12, updated_at=$13, revision=$15, updated_by=$16
 		 WHERE id=$14`,
 		profile.Name, profile.Description,
 		string(tone), string(style), string(examples),
 		string(locales), string(channels), string(personas), string(autonomy), string(constraints),
-		profile.MinScore, profile.Version, now, profile.ID, storage.NewRevision())
+		profile.MinScore, profile.Version, now, profile.ID, storage.NewRevision(), profile.UpdatedBy)
 	if err != nil {
 		return fmt.Errorf("update voice profile: %w", err)
 	}
@@ -800,7 +804,7 @@ func scanProfile(row scanner) (*coreprofile.VoiceProfile, error) {
 		&p.ID, &p.Scope, &p.Name, &p.Description,
 		&toneJSON, &styleJSON, &examplesJSON,
 		&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON, &constraintsJSON,
-		&p.MinScore, &p.Version, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy)
+		&p.MinScore, &p.Version, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy, &p.UpdatedBy)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("voice profile not found")

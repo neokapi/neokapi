@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
@@ -185,17 +186,13 @@ func voiceAction(dryRun bool) string {
 }
 
 // pulledVoiceRevisions is the revision of each voice profile, by lowercased
-// name, as the project's last pull saw it on the server.
+// name, of the server's version this project has seen (SyncCache.VoiceSeen).
 func pulledVoiceRevisions(proj *bproject.Project) map[string]string {
 	out := map[string]string{}
 	cache := bproject.LoadSyncCache(proj.Layout)
 	if cache == nil {
 		return out
 	}
-	for _, sc := range cache.ServerContext {
-		if sc.VoiceProfile != "" && sc.VoiceRevision != "" {
-			out[strings.ToLower(sc.VoiceProfile)] = sc.VoiceRevision
-		}
-	}
+	maps.Copy(out, cache.VoiceSeen)
 	return out
 }

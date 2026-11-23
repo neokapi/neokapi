@@ -6,6 +6,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	bmemory "github.com/neokapi/neokapi/bowrain/memory"
 	"github.com/neokapi/neokapi/bowrain/storage"
 )
 
@@ -27,7 +28,10 @@ type BulkDeleteRequest struct {
 type BulkDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
-	Error   string `json:"error,omitempty"`
+	// AlreadyDeleted marks an id someone else had deleted before this call:
+	// what the caller asked for is done, and it counts as deleted.
+	AlreadyDeleted bool   `json:"already_deleted,omitempty"`
+	Error          string `json:"error,omitempty"`
 }
 
 // BulkDeleteResponse reports every id's outcome plus the totals. The call
@@ -36,7 +40,10 @@ type BulkDeleteResult struct {
 type BulkDeleteResponse struct {
 	Results []BulkDeleteResult `json:"results"`
 	Deleted int                `json:"deleted"`
-	Failed  int                `json:"failed"`
+	// AlreadyDeleted counts the deleted ids that someone else had deleted
+	// first. They are included in Deleted.
+	AlreadyDeleted int `json:"already_deleted,omitempty"`
+	Failed         int `json:"failed"`
 }
 
 // bulkDeleteIDs binds and validates the id list, rejecting an empty or
@@ -108,6 +115,11 @@ func (s *Server) HandleBulkDeleteMemoryEntries(c *echo.Context) error {
 			delErr = errors.New("this version of the app cannot delete content-memory entries; update it, then delete again")
 		} else if delErr = editable.DeleteAt(ctx, entryID, base); errors.Is(delErr, storage.ErrStale) {
 			delErr = errors.New("someone else saved this content-memory entry after you opened it; it was not deleted")
+		} else if errors.Is(delErr, bmemory.ErrEntryNotFound) {
+			// Someone else deleted it first: the entry is gone, as asked.
+			delErr = nil
+			result.AlreadyDeleted = true
+			resp.AlreadyDeleted++
 		}
 		if delErr != nil {
 			result.Error = delErr.Error()

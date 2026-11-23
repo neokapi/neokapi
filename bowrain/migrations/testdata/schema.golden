@@ -1261,6 +1261,7 @@ voice_profiles.revision text NOT NULL DEFAULT (gen_random_uuid())::text
 voice_profiles.style jsonb NOT NULL DEFAULT '{}'::jsonb
 voice_profiles.tone jsonb NOT NULL DEFAULT '{}'::jsonb
 voice_profiles.updated_at timestamp with time zone NOT NULL DEFAULT now()
+voice_profiles.updated_by text NOT NULL DEFAULT ''::text
 voice_profiles.version integer NOT NULL DEFAULT 1
 voice_profiles.workspace_id text NOT NULL
 voice_rule_decisions.auto boolean NOT NULL DEFAULT false

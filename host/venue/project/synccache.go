@@ -80,6 +80,14 @@ type SyncCache struct {
 	// so — `kapi status` reports a recipe-owned collection the server governs
 	// differently instead of letting the two diverge unremarked.
 	ServerContext map[string]ServerCollection `json:"server_context,omitempty"`
+
+	// VoiceSeen is, by lowercased profile name, the revision of the server's
+	// version of each voice profile this project has seen: one a pull found
+	// equal to the local profile, took, or was told to keep the local
+	// profile over, or one this project's own push wrote. A push that
+	// changes the profile names it as its base, so the server refuses a
+	// change made over an edit nobody here has seen.
+	VoiceSeen map[string]string `json:"voice_seen,omitempty"`
 }
 
 // ServerCollection is one collection as the server holds it, recorded by a pull.
@@ -90,10 +98,6 @@ type ServerCollection struct {
 	Channel string `json:"channel,omitempty"`
 	// VoiceProfile is the name of the voice profile bound to it server-side.
 	VoiceProfile string `json:"voice_profile,omitempty"`
-	// VoiceRevision is the server's revision of that profile when it was
-	// pulled. A push that changes the profile sends it back, and the server
-	// refuses the change when the profile has moved since.
-	VoiceRevision string `json:"voice_revision,omitempty"`
 	// Owner is "recipe" or "workspace" — which side is authoritative. Every
 	// decision about what a pull may act on is a lookup of this field.
 	Owner string `json:"owner,omitempty"`

@@ -62,6 +62,9 @@ func memberVoiceWrite(a requestActor, before, after *coreprofile.VoiceProfile, n
 
 // memberVoiceUpdate is memberVoiceWrite for an update based on revision base.
 func memberVoiceUpdate(a requestActor, before, after *coreprofile.VoiceProfile, base, note string) voicewrite.Write {
+	if after != nil {
+		after.UpdatedBy = a.UserID
+	}
 	return voicewrite.Write{
 		Before:   before,
 		After:    after,

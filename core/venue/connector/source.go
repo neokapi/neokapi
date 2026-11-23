@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"time"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
@@ -19,6 +20,43 @@ type PullOptions struct {
 	Locales []model.LocaleID // Target locales to pull (empty = all)
 	Force   bool             // Overwrite local changes
 	DryRun  bool             // Report what would be pulled without writing
+
+	// TakeServer and KeepLocal settle each record the venue keeps a
+	// revision of whose server version differs from the local one.
+	// TakeServer writes the server's version locally. KeepLocal records that
+	// the person has seen the server's version and means the next push to
+	// replace it. With neither, the pull reports the difference and the next
+	// push that changes the record is refused.
+	TakeServer bool
+	KeepLocal  bool
+}
+
+// The outcomes of a RecordDifference.
+const (
+	DifferenceTaken      = "taken"
+	DifferenceKept       = "kept"
+	DifferenceUnresolved = "unresolved"
+)
+
+// FieldDifference is one field of a record whose server and local values
+// differ, each rendered for a reader.
+type FieldDifference struct {
+	Field  string `json:"field"`
+	Server string `json:"server"`
+	Local  string `json:"local"`
+}
+
+// RecordDifference is a record the venue keeps a revision of, such as a voice
+// profile, whose server version differs from the local one, and what the
+// pull did about it.
+type RecordDifference struct {
+	Kind      string            `json:"kind"`
+	Name      string            `json:"name"`
+	ChangedBy string            `json:"changed_by,omitempty"`
+	ChangedAt time.Time         `json:"changed_at,omitzero"`
+	Fields    []FieldDifference `json:"fields"`
+	// Outcome is DifferenceTaken, DifferenceKept or DifferenceUnresolved.
+	Outcome string `json:"outcome"`
 }
 
 // PushResult summarizes the result of a push operation.
@@ -141,6 +179,11 @@ type PullResult struct {
 	// channel, its voice — as "<collection>: <parts>". The names alone leave a
 	// reader diffing two sides they cannot see.
 	GovernanceDivergence []string
+
+	// Differences are the records whose server version differs from the
+	// local one, with what the pull did about each (PullOptions.TakeServer,
+	// KeepLocal).
+	Differences []RecordDifference
 }
 
 // SourceConnector represents a content source that pushes to and pulls from Bowrain.
