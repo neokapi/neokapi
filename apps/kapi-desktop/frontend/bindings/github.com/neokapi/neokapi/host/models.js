@@ -2895,6 +2895,15 @@ export class ContextPull {
              */
             this["empty"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * PassedOver names what the remote's listing left out because it is not
+             * a file the layout writes, such as a link placed in a shared folder.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["passed_over"] = undefined;
+        }
         if (!("seconds" in $$source)) {
             /**
              * @member
@@ -2913,9 +2922,13 @@ export class ContextPull {
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType78;
+        const $$createField11_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("remote" in $$parsedSource) {
             $$parsedSource["remote"] = $$createField0_0($$parsedSource["remote"]);
+        }
+        if ("passed_over" in $$parsedSource) {
+            $$parsedSource["passed_over"] = $$createField11_0($$parsedSource["passed_over"]);
         }
         return new ContextPull(/** @type {Partial<ContextPull>} */($$parsedSource));
     }
