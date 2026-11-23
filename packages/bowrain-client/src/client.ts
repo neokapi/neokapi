@@ -794,6 +794,8 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
           card: cardFromServer(d.card),
           decision: d.decision,
           at: d.at,
+          note: d.note || undefined,
+          reasons: d.reasons ?? [],
           current: d.current,
           canUndo: d.can_undo,
         })),
@@ -900,6 +902,8 @@ interface ServerFeedDecisions {
     card: ServerDeckCard;
     decision: string;
     at: string;
+    note?: string;
+    reasons?: string[];
     current: boolean;
     can_undo: boolean;
   }[];

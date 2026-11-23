@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/review"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // reviewTypes is the ordered set of review-model structs rendered into TS. The
@@ -95,5 +96,19 @@ func emitReview() (string, error) {
 		b.WriteString("\n")
 		b.WriteString(iface)
 	}
+
+	var reasons []unionMember
+	for _, r := range venue.DecisionReasons {
+		reasons = append(reasons, unionMember{value: r})
+	}
+	b.WriteString(renderUnion("PersonReason",
+		"A reason code a person may give a rejection or a correction, in the order\na reason sheet offers them. Mirrors core/venue.DecisionReasons.",
+		reasons, "PERSON_REASONS"))
+	reasons = append(reasons, unionMember{value: venue.ReasonReviewPolicy})
+	b.WriteString(renderUnion("DecisionReason",
+		"A reason code a decision may carry: a person's reason, or review_policy on an\napproval a review plan's settle pass made (core/venue.ReasonReviewPolicy).\nEvery client shows each code as a phrase.",
+		reasons, "DECISION_REASONS"))
+	b.WriteString("\n/** The longest note, in characters, a decision keeps (core/venue.MaxDecisionNote). */\n")
+	fmt.Fprintf(&b, "export const MAX_DECISION_NOTE = %d;\n", venue.MaxDecisionNote)
 	return b.String(), nil
 }

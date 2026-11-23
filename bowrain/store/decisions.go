@@ -17,22 +17,20 @@ import (
 )
 
 // The decision ledger is the server counterpart of core/state. It records the
-// reviewer, time, lifecycle state and the pairing each decision blesses, by
-// revision: the translation (revision) and the source it was blessed for
-// (basis). unit_decisions stores the latest decision per (item, unit,
-// variant), while block_history retains events. target_json.status projects
-// the ledger for status readers.
+// reviewer, time, lifecycle state and the pairing each decision blesses: the
+// translation (revision) and the source it was blessed for (basis).
+// unit_decisions stores the latest decision per (item, unit, variant), and
+// block_history keeps the events. target_json.status projects the ledger.
 //
-// Freshness is derived when read. A decision is current while its basis is the
-// revision of the source the block holds (blocks.source_revision) and its
-// revision is the translation's; a change to either, an inline code included,
-// makes it stale. Source writes update the status projection through
-// storeBlocks and decision.stale.
+// Freshness is derived when read. A decision is current while its basis is
+// the source revision the block holds and its revision is the translation's.
+// A change to either, an inline code included, makes it stale. Source writes
+// update the status projection through storeBlocks and decision.stale.
 
 // resolveItemIDPg is the item a decision names, by identity rather than address.
 //
-// Decisions arrive keyed by item NAME — that is the vocabulary of the producer
-// that read the file — and are stored keyed by the item's id, so a rename moves
+// Decisions arrive keyed by item NAME (the vocabulary of the producer
+// that read the file) and are stored keyed by the item's id, so a rename moves
 // the address and the approvals stay put.
 //
 // A name this stream does not hold yet gets a row. The ledger is allowed to
@@ -84,7 +82,7 @@ func deciderRole(by string) string {
 }
 
 // DecisionUnchanged reports whether an incoming decision carries nothing the
-// stored row does not already say — the idempotency test for re-pushes. Shared
+// stored row does not already say: the idempotency test for re-pushes. Shared
 // with the SQLite store so the two backends cannot disagree on what counts as
 // a change.
 //
@@ -98,7 +96,7 @@ func DecisionUnchanged(old, next venue.UnitDecision) bool {
 
 // UpsertUnitDecisions implements platstore.DecisionStore: idempotent
 // last-writer-wins upsert keyed by (item, unit, variant). A record older than
-// the stored one (by Updated) is skipped — both ends send full sets, so a
+// the stored one (by Updated) is skipped: both ends send full sets, so a
 // stale replay must not roll a newer decision back. Each record that actually
 // changes appends a block_history event and re-projects the target status,
 // when the unit resolves to a stored block and the decision still blesses the
@@ -155,8 +153,10 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		default:
 			return changed, fmt.Errorf("read decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
-		d.Reasons, d.Note = venue.NormalizeReasons(d.Reasons), venue.BoundNote(d.Note)
+		d.Reasons = venue.NormalizeReasons(d.Reasons)
+		var stored *venue.UnitDecision
 		if haveOld {
+			stored = &old
 			d = venue.CarryReasons(old, d)
 			if DecisionUnchanged(old, d) {
 				continue
@@ -166,6 +166,14 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 			if old.Updated != "" && d.Updated != "" && d.Updated < old.Updated {
 				continue
 			}
+		}
+		// A store accepts what it already holds. Only what this record states
+		// anew is checked, after the comparisons above, so an echo of a
+		// stored record passes whatever it carries. The push refuses a new
+		// one per decision before it gets here (jobs.pushGovernor), so this
+		// is the last line for any other writer.
+		if err := venue.CheckStatedInput(stored, d); err != nil {
+			return changed, fmt.Errorf("decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 
 		if _, err := tx.ExecContext(ctx,
@@ -212,7 +220,7 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 			return changed, fmt.Errorf("log decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 
-		// Project the status — only while BOTH halves of the pairing the
+		// Project the status: only while BOTH halves of the pairing the
 		// decision blessed still hold: the source it was blessed for
 		// (platstore.DecisionProjects), and the translation the row currently
 		// carries. A decision arriving against a source this store has since
@@ -241,7 +249,7 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 			continue // an unreadable target is not this write's to repair
 		}
 		if d.Revision != platstore.VariantRevision(d.Variant, tgt.Runs) {
-			continue // decision blesses a different translation — stale on arrival
+			continue // decision blesses a different translation: stale on arrival
 		}
 		if _, err := tx.ExecContext(ctx,
 			`UPDATE translations SET target_json = jsonb_set(target_json, '{status}', to_jsonb($5::text)), updated_at=$6
@@ -309,30 +317,22 @@ func (s *PostgresStore) GetUnitDecision(ctx context.Context, projectID, stream, 
 }
 
 // TallyDecisionBasis implements platstore.DecisionStore. The basis a decision
-// blessed and the block's current source revision are taken the same way
-// (venue.SourceRevision), so grading is a plain equality join on (project,
-// item, unit → source_id); a decision whose unit resolves to no stored block
-// is not graded at all, because there is nothing to grade it against. Only
-// translatable blocks are counted: the dashboard's denominators exclude the
-// rest, and a stale count outside the denominator would withhold a scope for
-// content nobody ships.
+// blessed and the block's source revision are taken the same way
+// (venue.SourceRevision), so grading is an equality join on (project, item,
+// unit → source_id). Only translatable blocks that the store holds are
+// counted, as in the dashboard's denominators.
 //
-// A decision is stale when its basis names a revision other than the block's
-// source revision (platstore.BasisStale, pgBasisStale), and unknown when it
-// names none: a translation written outside kapi, which nothing calls stale.
+// A decision is stale when its basis names another revision than the block's
+// source revision (platstore.BasisStale), and unknown when it names none.
 //
-// Owed is the same grading with the draft basis read beside the decision: a
-// stale decision whose row records no draft against the current source, on a
-// unit that carries a target for the variant. The target condition keeps the
-// count inside the translated denominator it is subtracted from; a stale
-// decision on a unit with no target is pending as untranslated already.
+// Owed is a stale decision whose row records no draft against the current
+// source, on a unit that carries a target for the variant, so the count stays
+// inside the translated denominator it is subtracted from.
 //
-// RejectedOwed reads the VERDICT beside the basis, for the units Stale cannot
-// hold: a rejection of a translation of the source the block still carries. A
-// reviewer turning that translation down owes the unit a fresh draft, and the
-// same draft mark says whether the loop has since made one. Excluding the
-// stale rejections keeps the two counts disjoint, so a caller subtracting both
-// from a produced count subtracts each unit once.
+// RejectedOwed reads the verdict beside the basis: a rejection of a
+// translation of the source the block still carries owes the unit a fresh
+// draft, and the draft mark says whether the loop has made one. Stale
+// rejections are left out, so the two counts stay disjoint.
 func (s *PostgresStore) TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]platstore.DecisionBasisTally, error) {
 	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
@@ -493,10 +493,10 @@ const pgDraftCurrent = `(d.draft_basis <> '' AND d.draft_basis = b.source_revisi
 // decision that was already recorded, and the flip is logged so it is auditable
 // rather than silent.
 const (
-	// DecisionStaleEvent — the source moved away from the wording a decision
+	// DecisionStaleEvent: the source moved away from the wording a decision
 	// blessed, so the projection dropped to the presence baseline.
 	DecisionStaleEvent = "decision.stale"
-	// DecisionRestoredEvent — the source moved back to wording a recorded
+	// DecisionRestoredEvent: the source moved back to wording a recorded
 	// decision blesses, so that decision applies again.
 	DecisionRestoredEvent = "decision.restored"
 )
@@ -516,7 +516,7 @@ type DecisionProjection struct {
 	// Status is the rung the row currently projects.
 	Status string
 	// TargetRevision is the revision of the translation the row holds now
-	// (platstore.VariantRevision) — the target half of the pairing a decision
+	// (platstore.VariantRevision): the target half of the pairing a decision
 	// blessed.
 	TargetRevision string
 	// DecisionStatus, DecisionBasis and DecisionRevision are the recorded

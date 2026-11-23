@@ -14,14 +14,14 @@ import (
 	"github.com/neokapi/neokapi/core/venue"
 )
 
-// The decision ledger, SQLite flavor — the same contract the Postgres store
+// The decision ledger, SQLite flavor: the same contract the Postgres store
 // implements (bowrain/store/decisions.go): unit_decisions folds the event log
 // to latest-per-(item, unit, variant), block_history keeps the events, and
 // target_json.status is a written projection. One contract, two backends.
 
 // UpsertUnitDecisions implements platstore.DecisionStore.
 // resolveItemIDSQLite is the item a decision names, by identity rather than
-// address. Mirrors resolveItemIDPg — see it for why an unknown name gets a row
+// address. Mirrors resolveItemIDPg: see it for why an unknown name gets a row
 // rather than an empty key.
 func resolveItemIDSQLite(ctx context.Context, tx *sql.Tx, projectID, stream, itemName string) (string, error) {
 	if itemName == "" {
@@ -95,8 +95,10 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		default:
 			return changed, fmt.Errorf("read decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
-		d.Reasons, d.Note = venue.NormalizeReasons(d.Reasons), venue.BoundNote(d.Note)
+		d.Reasons = venue.NormalizeReasons(d.Reasons)
+		var stored *venue.UnitDecision
 		if haveOld {
+			stored = &old
 			d = venue.CarryReasons(old, d)
 			if bstore.DecisionUnchanged(old, d) {
 				continue
@@ -104,6 +106,14 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 			if old.Updated != "" && d.Updated != "" && d.Updated < old.Updated {
 				continue // last-writer-wins: never roll a newer decision back
 			}
+		}
+		// A store accepts what it already holds. Only what this record states
+		// anew is checked, after the comparisons above, so an echo of a
+		// stored record passes whatever it carries. The push refuses a new
+		// one per decision before it gets here (jobs.pushGovernor), so this
+		// is the last line for any other writer.
+		if err := venue.CheckStatedInput(stored, d); err != nil {
+			return changed, fmt.Errorf("decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 
 		if _, err := tx.ExecContext(ctx,
@@ -169,7 +179,7 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 			continue
 		}
 		if d.Revision != platstore.VariantRevision(d.Variant, tgt.Runs) {
-			continue // decision blesses a different translation — stale on arrival
+			continue // decision blesses a different translation: stale on arrival
 		}
 		if _, err := tx.ExecContext(ctx,
 			`UPDATE translations SET target_json = json_set(target_json, '$.status', ?), updated_at=?
@@ -236,7 +246,7 @@ func (s *SQLiteStore) GetUnitDecision(ctx context.Context, projectID, stream, it
 	return &d, nil
 }
 
-// TallyDecisionBasis implements platstore.DecisionStore — the SQLite mirror of
+// TallyDecisionBasis implements platstore.DecisionStore: the SQLite mirror of
 // the Postgres grading, joining each decision's recorded basis to the revision
 // of the block's current source, and its draft basis beside it for the two
 // owed counts. The rejected count reads the verdict as well, for the units a
@@ -382,7 +392,7 @@ const derivedStale = `(COALESCE(json_extract(t.target_json, '$.derived.rev'), ''
 const draftCurrent = `(d.draft_basis <> '' AND d.draft_basis = b.source_revision)`
 
 // settleDecisionProjections re-derives the projected statuses of every target
-// of a block whose SOURCE just changed, against the decision ledger — the
+// of a block whose SOURCE just changed, against the decision ledger: the
 // SQLite mirror of settleDecisionProjectionsPg, grading through the same
 // shared bstore.SettleDecisionProjection.
 func settleDecisionProjections(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, sourceRevision string) error {

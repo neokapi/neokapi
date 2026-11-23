@@ -65,8 +65,13 @@ func TestFeedDecisions_ListsARollUpsDecisionsWithUndo(t *testing.T) {
 		bid     string
 		outcome change.Outcome
 	}{{hello, change.OutcomeEstablish}, {bye, change.OutcomeReject}} {
-		rec, _ := sendChanges(t, srv, pid, fullCaller, change.Set{Ops: []change.Op{
-			decide(at("greetings.txt", d.bid, "fr"), readTargetRevision(t, srv, pid, d.bid, "fr"), d.outcome)}})
+		op := decide(at("greetings.txt", d.bid, "fr"), readTargetRevision(t, srv, pid, d.bid, "fr"), d.outcome)
+		set := change.Set{Ops: []change.Op{op}}
+		if d.outcome == change.OutcomeReject {
+			op.Body.(*change.Decide).Reasons = []string{"tone", "meaning"}
+			set.Note = "Too casual for a farewell."
+		}
+		rec, _ := sendChanges(t, srv, pid, fullCaller, set)
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	}
 
@@ -93,6 +98,9 @@ func TestFeedDecisions_ListsARollUpsDecisionsWithUndo(t *testing.T) {
 	}
 	assert.Equal(t, "approved", byBlock[hello].Decision)
 	assert.Equal(t, "rejected", byBlock[bye].Decision)
+	assert.Equal(t, []string{"meaning", "tone"}, byBlock[bye].Reasons, "the rejection's reasons, as the audit event keeps them")
+	assert.Equal(t, "Too casual for a farewell.", byBlock[bye].Note)
+	assert.Empty(t, byBlock[hello].Reasons)
 	assert.Equal(t, "Bonjour", byBlock[hello].Card.TargetText)
 	for _, d := range out.Decisions {
 		assert.True(t, d.Current, d.Card.BlockID)

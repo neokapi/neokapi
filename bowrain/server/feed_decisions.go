@@ -13,6 +13,7 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // feedDecisionLimit bounds the decisions one roll-up lists: an hour of one
@@ -27,6 +28,10 @@ type feedDecision struct {
 	Card     deckCard  `json:"card"`
 	Decision string    `json:"decision"`
 	At       time.Time `json:"at"`
+	// Note and Reasons are what the person wrote and the reason codes they
+	// chose with the decision, as the audit event recorded them.
+	Note    string   `json:"note,omitempty"`
+	Reasons []string `json:"reasons,omitempty"`
 	// Current is true while this is the newest decision on the translation
 	// and the translation still stands where the decision left it.
 	Current bool `json:"current"`
@@ -132,6 +137,8 @@ func (s *Server) HandleFeedDecisions(c *echo.Context) error {
 			},
 			Decision: d.decision,
 			At:       d.at,
+			Note:     d.note,
+			Reasons:  d.reasons,
 			Current:  current,
 			CanUndo:  current && viewer != "" && d.actor == viewer && (d.decision == "approved" || d.decision == "rejected"),
 		})
@@ -149,6 +156,9 @@ type auditDecision struct {
 	// to is the status the decision moved the translation to.
 	to string
 	at time.Time
+	// note and reasons are what the person wrote and chose.
+	note    string
+	reasons []string
 }
 
 func parseAuditDecision(r event.AuditEntry) auditDecision {
@@ -165,5 +175,23 @@ func parseAuditDecision(r event.AuditEntry) auditDecision {
 		decision: data["decision"],
 		to:       after["status"],
 		at:       r.CreatedAt,
+		note:     data["reason"],
+		reasons:  auditReasons(data["reasons"]),
 	}
+}
+
+// auditReasons reads the reasons a review.decided event carries, a JSON
+// array. A client shows a code it has no phrase for as recorded.
+func auditReasons(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	var reasons []string
+	if json.Unmarshal([]byte(raw), &reasons) != nil {
+		return nil
+	}
+	if out := venue.NormalizeReasons(reasons); len(out) > 0 {
+		return out
+	}
+	return nil
 }

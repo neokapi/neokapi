@@ -21,31 +21,16 @@ import (
 
 // A push moves content. It does not decide.
 //
-// The payload carries both halves of a review verdict: a target at a rung
-// above translated, and a decision record saying who approved it. Both are
-// written by whoever ran `kapi push`, so storing them as sent would give
-// anyone holding the permission to write files the permission to approve every
-// unit in the project, from a laptop, in one command.
+// Whoever ran `kapi push` wrote the rungs and the decision records it
+// carries. So every rung above translated and every verdict is put to the
+// questions the web's review surfaces ask (bowrain/review): does this user
+// hold review permission for the language, and does separation of duties
+// pass.
 //
-// So every rung above translated and every verdict a push carries is put to the
-// same two questions the platform's own review surfaces ask: does this user
-// hold review permission for that language in that project, and does the
-// workspace separation-of-duties policy pass with them as the decider. The
-// answer comes from bowrain/review, which the web routes ask as well.
-//
-// What fails the gate is demoted, not dropped: the content still lands, at the
-// rung a translation with nobody's blessing sits on. A push is never failed for
-// a rung, because the content is not in question and refusing to store it would
-// lose work over a permission the pusher can be granted afterwards.
-//
-// The other direction is held to one question. A push that lowers a target the
-// venue holds at established, keeping the translation and the source the
-// decision blessed, is withdrawing an established translation: the web asks review permission
-// for that language before it lets an un-review or a rejection do the same,
-// and so does the worker. A refused withdrawal keeps the venue's rung and its
-// ledger record, and the record travels back so the producer can hold the same.
-// A pushed target that carries a different translation or a different source
-// is an edit, and lands at translated as an edit on the web does.
+// What fails is demoted, not dropped: the content lands at translated.
+// Lowering an established target is a withdrawal and needs review permission. A refused withdrawal keeps
+// the venue's record and sends it back. A different translation or source is
+// an edit and lands at translated.
 
 // pushGovernor holds one push's answer: the gate, the identities the answer is
 // about, and the report of what it refused.
@@ -735,11 +720,8 @@ func refusedRung(runs []model.Run, prior model.TargetStatus) model.TargetStatus 
 // vetDecisions returns the decision records this push may write.
 //
 // A record whose verdict the gate refuses is kept as the basis it carries and
-// nothing more: the venue records that a translation exists and which source it
-// was written for, and records nobody as having approved it. A record the
-// ledger already holds passes whatever the gate says: re-sending what the
-// platform decided is not a decision, and refusing it would make every push
-// after a legitimate approval report a refusal.
+// nothing more. A record the ledger already holds passes whatever the gate
+// says: re-sending what the platform decided is not a decision.
 //
 // A record that carries no verdict is a basis, and a basis for a unit the
 // ledger holds an established unit on, over the same pairing, is that decision's
@@ -750,11 +732,11 @@ func refusedRung(runs []model.Run, prior model.TargetStatus) model.TargetStatus 
 // venue holds, so it is dropped before anything else is asked, and the report
 // carries the ledger's record back (see dropStaleRejections).
 //
-// Every accepted verdict is attributed to the authenticated pusher. A
-// client-supplied decider is never trusted: it is a string in a file that
-// anyone with a text editor can write.
+// Every accepted verdict is attributed to the authenticated pusher, never to
+// a decider the client names.
 func (g *pushGovernor) vetDecisions(held []venue.UnitDecision, decisions []venue.UnitDecision) []venue.UnitDecision {
 	decisions = g.dropStaleRejections(held, decisions)
+	decisions = g.dropUnboundedInput(held, decisions)
 	if g.gate == nil || len(decisions) == 0 {
 		return decisions
 	}
@@ -963,6 +945,49 @@ func (g *pushGovernor) dropStaleRejections(held, decisions []venue.UnitDecision)
 		idx := g.noteUnit(d.ItemName, d.Unit, d.Variant, venue.RefusedStaleRejection)
 		if prior, inLedger := ledger[unitVariantRef{item: d.ItemName, unit: d.Unit, variant: d.Variant}]; inLedger && idx >= 0 {
 			g.units[idx].Held = &prior
+		}
+	}
+	return out
+}
+
+// dropUnboundedInput drops each decision that states a note or a reason no
+// decision may carry (venue.CheckStatedInput), counts it and names its unit,
+// and lets every other decision in the push through. Only what a record
+// states anew is checked: a record echoing what the ledger holds passes,
+// whatever note or reasons it carries. The ledger keeps the record it held,
+// and the report carries that record back where there is one.
+func (g *pushGovernor) dropUnboundedInput(held, decisions []venue.UnitDecision) []venue.UnitDecision {
+	if len(decisions) == 0 {
+		return decisions
+	}
+	ledger := make(map[unitVariantRef]venue.UnitDecision, len(held))
+	for _, d := range held {
+		ledger[unitVariantRef{item: d.ItemName, unit: d.Unit, variant: d.Variant}] = d
+	}
+	out := make([]venue.UnitDecision, 0, len(decisions))
+	for _, d := range decisions {
+		ref := unitVariantRef{item: d.ItemName, unit: d.Unit, variant: d.Variant}
+		var stored *venue.UnitDecision
+		if prior, ok := ledger[ref]; ok {
+			stored = &prior
+		}
+		bad := venue.CheckStatedInput(stored, d)
+		if bad == nil {
+			out = append(out, d)
+			continue
+		}
+		reason := venue.RefusedUnknownReason
+		if bad.Field == "note" {
+			reason = venue.RefusedNoteTooLong
+		}
+		kind := venue.VerdictApproval
+		if d.ReviewState == venue.ReviewStateRejected {
+			kind = venue.VerdictDemotion
+		}
+		g.counts[refusalRef{locale: refusalLocale(decisionLocale(d), d.Variant), kind: kind, reason: reason}]++
+		if idx := g.noteUnit(d.ItemName, d.Unit, d.Variant, reason); idx >= 0 && stored != nil {
+			held := *stored
+			g.units[idx].Held = &held
 		}
 	}
 	return out
