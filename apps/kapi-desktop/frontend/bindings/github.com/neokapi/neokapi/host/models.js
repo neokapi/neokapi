@@ -4775,7 +4775,7 @@ export class ExecTrustRequest {
              * @member
              * @type {string[] | undefined}
              */
-            this["shells"] = undefined;
+            this["inline"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4840,8 +4840,8 @@ export class ExecTrustRequest {
         if ("not_checked" in $$parsedSource) {
             $$parsedSource["not_checked"] = $$createField3_0($$parsedSource["not_checked"]);
         }
-        if ("shells" in $$parsedSource) {
-            $$parsedSource["shells"] = $$createField4_0($$parsedSource["shells"]);
+        if ("inline" in $$parsedSource) {
+            $$parsedSource["inline"] = $$createField4_0($$parsedSource["inline"]);
         }
         if ("added" in $$parsedSource) {
             $$parsedSource["added"] = $$createField5_0($$parsedSource["added"]);

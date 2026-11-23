@@ -116,8 +116,13 @@ The stored record answers *what was approved*, not *which project was trusted*:
   that is or passes through a link out of the project is refused rather than
   hashed. The question, the refusal and `kapi trust list` show three groups:
   the files checked by content; what the commands name and kapi does not
-  check (a directory, as in `node lib`); and the commands that hand a string
-  to a shell (`sh -c`), whose files kapi cannot see. Each also says that kapi
+  check (a directory, as in `node lib`); and the commands that hand a program
+  code as a string, whose files kapi cannot see. `ExecSite.InlineCode` reads
+  that from the shape of the invocation: a program, then a flag that takes
+  code (`sh -c`, `node -e`, `python -c`, `perl -e`, `--eval`, `deno eval`,
+  `cmd /c`). An unknown program with `-c` or `-e` is reported the same way,
+  since a step wrongly reported as unchecked costs a clearer question and one
+  passed over in silence reads as checked. Each also says that kapi
   checks the files listed, not what they run or read. kapi does not guess
   what `npm run`, `make`, `python -m` or a `PATH` lookup will execute: a
   person who wants a script checked names it in the recipe

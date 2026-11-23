@@ -21,7 +21,7 @@ const REQUEST: ExecTrustRequest = {
   ],
   checked: ["tools/run.sh"],
   not_checked: ["lib"],
-  shells: ["flows.default.steps[1] external-command"],
+  inline: ["flows.default.steps[1] external-command (node -e)"],
   changed: ["tools/run.sh"],
   limit:
     "kapi checks the content of the files listed, not what those files or the commands run or read.",
@@ -61,7 +61,9 @@ describe("asking about a project's commands before a run", () => {
     const dialog = await screen.findByTestId("exec-trust");
     expect(slot("exec-trust-checked", dialog)).toBe("Checked, by content: tools/run.sh");
     expect(slot("exec-trust-not-checked", dialog)).toBe("Named and not checked (directories): lib");
-    expect(slot("exec-trust-shells", dialog)).toContain("flows.default.steps[1] external-command");
+    expect(slot("exec-trust-inline", dialog)).toBe(
+      "Runs code given inline, so kapi cannot see which files it uses: flows.default.steps[1] external-command (node -e)",
+    );
     expect(slot("exec-trust-changed", dialog)).toBe("Changed since it was answered: tools/run.sh");
     expect(slot("exec-trust-limit", dialog)).toBe(REQUEST.limit);
 

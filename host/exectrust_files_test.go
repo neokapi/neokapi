@@ -236,12 +236,12 @@ func TestExecTrust_TheAnswerClaimsOnlyWhatItChecks(t *testing.T) {
 	assert.Contains(t, prompt, "Checked, by content: no file; the commands name none in the project")
 	assert.NotContains(t, prompt, "Checked, by content: -c")
 	assert.Contains(t, prompt, "Named and not checked (directories): lib")
-	assert.Contains(t, prompt, "Runs through a shell, so kapi cannot see which files it uses: flows.default.steps[0] external-command")
+	assert.Contains(t, prompt, "Runs code given inline, so kapi cannot see which files it uses: flows.default.steps[0] external-command (sh -c)")
 	assert.Contains(t, prompt, execCheckLimit)
 
 	list := (&App{}).ExecTrustList()
 	require.Len(t, list.Entries, 1)
-	assert.Contains(t, list.Entries[0].Detail, "checks 0 files; not checked: lib; through a shell: flows.default.steps[0] external-command; not what they run or read")
+	assert.Contains(t, list.Entries[0].Detail, "checks 0 files; not checked: lib; code given inline: flows.default.steps[0] external-command (sh -c); not what they run or read")
 
 	data, err := os.ReadFile(recipePath)
 	require.NoError(t, err)
@@ -267,6 +267,19 @@ func TestExecTrust_AScriptChangedMidProcessIsRefused(t *testing.T) {
 	require.ErrorIs(t, err, ErrExecNotTrusted)
 	assert.Contains(t, err.Error(), "Changed since it was answered: tools/run.sh")
 	assert.Contains(t, err.Error(), "kapi trust allow -p "+recipePath)
+}
+
+// Code handed to an interpreter inline is flagged as the shell string is:
+// the question names the step and its form rather than passing over it, and
+// a file the code loads is not listed as checked.
+func TestExecTrust_InlineInterpreterCodeIsFlagged(t *testing.T) {
+	step := "      - tool: external-command\n        config:\n          command: node\n          args: [\"-e\", \"require('./lib/x.js')\"]\n"
+	recipePath := namedFileProject(t, idA, step, "lib/x.js", "console.log(1)\n")
+	prompt := answer(t, recipePath)
+	t.Log(prompt)
+	assert.Contains(t, prompt, "Runs code given inline, so kapi cannot see which files it uses: flows.default.steps[0] external-command (node -e)")
+	assert.Contains(t, prompt, "Checked, by content: no file; the commands name none in the project")
+	assert.Contains(t, prompt, execCheckLimit)
 }
 
 // A recipe that sets a key kapi owns on a command is refused at the gate.
