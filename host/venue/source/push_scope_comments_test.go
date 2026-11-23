@@ -57,7 +57,7 @@ func commentsFixture(t *testing.T) *BowrainSourceConnector {
 		require.NoError(t, os.MkdirAll(filepath.Dir(abs), 0o755))
 		require.NoError(t, os.WriteFile(abs, []byte(body), 0o644))
 	}
-	conn := NewLocalConnector(&host.App{}, proj, reg)
+	conn := mustLocalConnector(t, &host.App{}, proj, reg)
 	t.Cleanup(func() { conn.Close() })
 	return conn
 }
@@ -108,7 +108,7 @@ func TestPushScopeKeepsTheDeclarationWhenTheRecipeDoesNotResolve(t *testing.T) {
 		require.NoError(t, os.MkdirAll(filepath.Dir(abs), 0o755))
 		require.NoError(t, os.WriteFile(abs, []byte(body), 0o644))
 	}
-	conn := NewLocalConnector(&host.App{}, proj, reg)
+	conn := mustLocalConnector(t, &host.App{}, proj, reg)
 	t.Cleanup(func() { conn.Close() })
 	_, rerr := conn.projectContext().ResolveContent(reg)
 	require.Error(t, rerr, "the fixture's recipe does not resolve")
@@ -145,7 +145,7 @@ func TestPushScopeKeepsItemsWithValues(t *testing.T) {
 		require.NoError(t, os.MkdirAll(filepath.Dir(abs), 0o755))
 		require.NoError(t, os.WriteFile(abs, []byte(body), 0o644))
 	}
-	conn := NewLocalConnector(&host.App{}, proj, reg)
+	conn := mustLocalConnector(t, &host.App{}, proj, reg)
 	t.Cleanup(func() { conn.Close() })
 
 	scope := []string(conn.pushScope(nil))

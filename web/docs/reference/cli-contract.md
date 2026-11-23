@@ -165,6 +165,23 @@ Under `--json` (or `--jq` / `--output-format=json`), a failing command prints a 
 
 The toolbox utilities (`kgrep`) additionally use grep-parity semantics: exit 1 with no message when nothing matched.
 
+## State kapi keeps for a checkout
+
+`.kapi/work/`, `.kapi/sync/`, `.kapi/vault/` and `.kapi/filters.local.json` belong to one checkout and never come from a repository. kapi exits 1 before it reads any of them in these cases:
+
+- **git tracks one of them**, in any spelling your file system treats as the same name. Run the `git rm -r --cached` command the message names, add the entry to `.kapi/.gitignore`, and commit. If the files came with someone else's repository, delete them as well.
+- **`.kapi/` or one of these entries is a submodule or a git repository of its own.** Remove it, or move it out of `.kapi/`.
+- **kapi cannot ask git.** The message names the cause:
+  - git is not installed: install git;
+  - git refuses a repository another user owns: run the `git config --global --add safe.directory` command the message names;
+  - git gives no answer within five seconds, or fails: the message gives git's own error.
+
+  In each case you can set `KAPI_TRUST_STATE=1` in kapi's environment instead. The variable says you vouch for the state in this checkout, and kapi then asks git nothing. kapi reads it only from its own process environment; no recipe, MCP argument or plugin request sets it. In CI, a step that runs the repository's own code can set it for later steps through the runner's environment file, so set it only in workflows whose earlier steps you trust.
+
+  A very large index that makes git miss the five seconds is refused the same way, with the remedy; it never passes.
+
+A directory that is in no git repository is not checked. kapi asks git about these entries, so it sees only what git tracks. State that arrived untracked, in an archive or a checkout copied or synchronised from elsewhere, is not seen by this check. kapi still refuses a link or an irregular file anywhere under `.kapi/`, but a regular store or claim token that was copied in is used as kapi's own.
+
 ## Streaming progress: `--progress jsonl`
 
 `run`, `extract`, and `merge` accept `--progress jsonl`, which streams progress events to **stderr** as NDJSON (one JSON object per line) while stdout stays reserved for the final result. The events use the flow-run event vocabulary (the same shapes the Kapi Desktop run sink receives), with `flow` naming the verb or flow:
@@ -247,6 +264,8 @@ The [MCP server](/reference/mcp) (`kapi mcp`) is part of the same contract: its 
 The `kapi.change/v1` freeze is one such decision. `apply_edits` reads `find` as placeholder text, takes an optional `path` on a `replace_text` operation, and names a piece of evidence's block `evidence[].block`; `context_note` names it `block` too. `kapi/cmd/kapi/testdata/mcp_tools.frozen.json` holds the frozen surface: a test refuses a tool that is gone and an input schema that no longer extends its frozen one, and the golden, which the snapshot test regenerates, shows every change in review. `apply_edits` declares its result with the generated `kapi.change-result/v1` schema.
 
 The snake_case rule for config keys is another. The input fields of a registry tool on the MCP surface are its config keys, so `translate` takes `api_key`, `batch_concurrency`, `context_window` and `skip_matched`, `redact` takes `entity_types` and `rules_path`, and `term-check` takes `case_sensitive`. The frozen file records the rename.
+
+A tool takes only the fields its input schema lists, and refuses a call that passes any other. A field that names a file carries `x-path` in its schema, and the server checks it against the directories a call may reach before the tool runs. `term-check` takes the rules it checks as `term_rules`, a list of `term` and `replacement` pairs.
 
 `check_text` accepts an optional `context_path`, a project-relative destination
 whose voice and terms apply to the supplied draft. It requires a bound project

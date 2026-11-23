@@ -55,7 +55,9 @@ var rootCmd = &cobra.Command{
 		// only warms the on-disk cache; the notice (if any) is rendered in
 		// PostRun. No-ops in CI / non-TTY / when opted out.
 		selfupdate.StartBackgroundRefresh(updateChannel())
-		return nil
+		// Before any command reads a project's state, it asks whether git
+		// tracks that state.
+		return cli.CheckCommandState(cmd)
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		app.Shutdown()

@@ -3,13 +3,14 @@ package host
 import (
 	"context"
 	"errors"
-	"os"
+	"path/filepath"
 	"slices"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // DocFix is one fix to apply to a document: the name the caller gives it, the
@@ -83,12 +84,18 @@ func (a *App) ApplyDocFixes(ctx context.Context, req DocFixRequest) (*DocFixResu
 	out := &DocFixResult{}
 	ops := groupDocFixes(req.Fixes)
 	actor := changeActorOf(req.Actor)
+	// The document is read through the project root, so a document that is a
+	// link out of the project is refused like any other read of it.
+	root := ""
+	if req.Recipe != "" {
+		root = filepath.Dir(req.Recipe)
+	}
 	for len(ops) > 0 {
 		set := change.Set{Mode: change.ModePreview, Note: req.Note, Ops: make([]change.Op, len(ops))}
 		for i, o := range ops {
 			set.Ops[i] = o.op
 		}
-		original, rerr := os.ReadFile(req.File)
+		original, rerr := rootpath.ReadFile(root, req.File)
 		preview, err := req.Service.Apply(ctx, set, actor)
 		if err != nil {
 			if refuseAll(ops, err, out) {

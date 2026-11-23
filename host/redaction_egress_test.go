@@ -166,7 +166,7 @@ func TestFrameworkMCPHandler_RedactsTheRestOfTheRequest(t *testing.T) {
 		args map[string]any
 	}{
 		{"translate", map[string]any{"instruction": "Address Ada Lovelace formally."}},
-		{"review", map[string]any{"target": "Écrivez à Ada Lovelace aujourd'hui.", "term_rules": egressTermRules()}},
+		{"review", map[string]any{"target": "Écrivez à Ada Lovelace aujourd'hui."}},
 	} {
 		t.Run(tc.tool, func(t *testing.T) {
 			info := app.ToolReg.ToolInfo(registry.ToolID(tc.tool))

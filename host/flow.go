@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -29,6 +30,7 @@ import (
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/storage"
@@ -286,7 +288,7 @@ func projectFlowInfosAt(path string) ([]output.FlowInfo, error) {
 		}
 		infos = append(infos, info)
 	}
-	for _, def := range project.ListDirFlows(proj.FlowsDirIn(filepath.Dir(path))) {
+	for _, def := range project.ListDirFlowsIn(filepath.Dir(path), proj.FlowsDirIn(filepath.Dir(path))) {
 		if proj.Flow(def.Name) != nil {
 			continue
 		}
@@ -572,7 +574,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 			srcFmt = string(det)
 		}
 	}
-	if preserveAssetVariant(srcFmt, inputPath, outputPath) {
+	if preserveAssetVariantIn(a.projectRoot(), srcFmt, inputPath, outputPath) {
 		if stopProgress != nil {
 			stopProgress()
 		}
@@ -635,7 +637,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 // run that writes none must not exit 0 (the user would open a visualizer on
 // nothing). The batch path (runMultipleFiles) returns the same errors.
 func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath string, recorder *flow.TraceRecorder, toolNames []string) error {
-	trace := newFlowTrace(flowName, fmtName, inputPath, outputPath, recorder, toolNames)
+	trace := newFlowTraceIn(a.projectRoot(), flowName, fmtName, inputPath, outputPath, recorder, toolNames)
 	traceJSON, err := json.MarshalIndent(trace, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal trace: %w", err)
@@ -645,6 +647,22 @@ func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath
 	}
 	if err := os.WriteFile(tracePath, traceJSON, 0o644); err != nil {
 		return fmt.Errorf("write trace %s: %w", tracePath, err)
+	}
+	return nil
+}
+
+// writeBatchTrace writes a batch run's trace to tracePath, the file --trace
+// names.
+func writeBatchTrace(tracePath string, batchTrace *flow.BatchFlowTrace) error {
+	traceJSON, err := json.MarshalIndent(batchTrace, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal batch trace: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(tracePath), 0o755); err != nil {
+		return fmt.Errorf("create trace dir: %w", err)
+	}
+	if err := os.WriteFile(tracePath, traceJSON, 0o644); err != nil {
+		return fmt.Errorf("write batch trace: %w", err)
 	}
 	return nil
 }
@@ -661,11 +679,11 @@ func wrapWithTracing(tools []tool.Tool, recorder *flow.TraceRecorder) []tool.Too
 	return wrapped
 }
 
-// newFlowTrace assembles the trace of one finished file run: the reader →
+// newFlowTraceIn assembles the trace of one finished file run: the reader →
 // tool-N → writer node list (toolNames label the tool nodes, in order), the
 // recorder's events and part snapshots, and a clipped preview of the input
-// and output files.
-func newFlowTrace(flowName, fmtName, inputPath, outputPath string, recorder *flow.TraceRecorder, toolNames []string) *flow.FlowTrace {
+// and output files, read through the project at root (filePreviewIn).
+func newFlowTraceIn(root, flowName, fmtName, inputPath, outputPath string, recorder *flow.TraceRecorder, toolNames []string) *flow.FlowTrace {
 	traceNodes := []flow.TraceNode{
 		{ID: "reader", Type: flow.NodeReader, Name: fmtName, Label: fmtName + " reader"},
 	}
@@ -684,8 +702,8 @@ func newFlowTrace(flowName, fmtName, inputPath, outputPath string, recorder *flo
 		ChannelSize: 64,
 		Events:      recorder.Events(),
 		Parts:       recorder.Snapshots(),
-		InputFile:   flow.TraceFile{Name: filepath.Base(inputPath), Format: fmtName, Preview: filePreview(inputPath)},
-		OutputFile:  flow.TraceFile{Name: filepath.Base(outputPath), Preview: filePreview(outputPath)},
+		InputFile:   flow.TraceFile{Name: filepath.Base(inputPath), Format: fmtName, Preview: filePreviewIn(root, inputPath)},
+		OutputFile:  flow.TraceFile{Name: filepath.Base(outputPath), Preview: filePreviewIn(root, outputPath)},
 		DurationUs:  recorder.DurationUs(),
 		Truncated:   recorder.Truncated(),
 	}
@@ -697,8 +715,13 @@ const tracePreviewBytes = 2000
 // filePreview returns the head of a file for a trace, marked when clipped. It
 // reads only what it shows, so a large input costs the preview and no more; a
 // file that cannot be read previews as empty.
-func filePreview(path string) string {
-	f, err := os.Open(path)
+func filePreview(path string) string { return filePreviewIn("", path) }
+
+// filePreviewIn is filePreview for a file of the project at root. A file
+// beneath root is read through it, so one reached through a link out of the
+// project previews as empty.
+func filePreviewIn(root, path string) string {
+	f, err := rootpath.Open(root, path)
 	if err != nil {
 		return ""
 	}
@@ -757,6 +780,9 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 	// silent skip is how a batch comes to look complete while a format nobody
 	// registered went by untouched.
 	var skipped []string
+	// unnamed holds the files passed over because their name cannot fill the
+	// target template, each with the reason.
+	var unnamed []string
 	// Files that failed for a real reason. Collected rather than returned, so
 	// one bad file does not take the readable ones down with it, and so the
 	// report names every failure instead of whichever lost the race.
@@ -839,7 +865,11 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 
 			if errors.Is(err, errSkippedFile) {
 				mu.Lock()
-				skipped = append(skipped, inputPath)
+				if use := unnamedTarget(err); use != nil {
+					unnamed = append(unnamed, fmt.Sprintf("%s (%v)", inputPath, use))
+				} else {
+					skipped = append(skipped, inputPath)
+				}
 				mu.Unlock()
 				return nil
 			}
@@ -894,15 +924,8 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 			batchTrace.FileTraces = append(batchTrace.FileTraces, ft)
 		}
 
-		traceJSON, err := json.MarshalIndent(batchTrace, "", "  ")
-		if err != nil {
-			return fmt.Errorf("marshal batch trace: %w", err)
-		}
-		if err := os.MkdirAll(filepath.Dir(tracePath), 0o755); err != nil {
-			return fmt.Errorf("create trace dir: %w", err)
-		}
-		if err := os.WriteFile(tracePath, traceJSON, 0o644); err != nil {
-			return fmt.Errorf("write batch trace: %w", err)
+		if err := writeBatchTrace(tracePath, batchTrace); err != nil {
+			return err
 		}
 	}
 
@@ -922,6 +945,9 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 	if len(skipped) > 0 {
 		warnf(nil, "Warning: skipped %d file(s) with no registered format: %s\n",
 			len(skipped), strings.Join(shortList(skipped, 3), ", "))
+	}
+	for _, u := range unnamed {
+		warnf(nil, "Warning: no target was written for %s. Rename the file to give it one\n", u)
 	}
 	// A truncated progress feed is reported after the result, so the deliverable
 	// still lands and the consumer still learns its feed was incomplete.
@@ -1129,6 +1155,12 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 	}
 
 	outputPath, err := a.resolveOutputPathFrom(inputPath, outputTemplate, outputBase)
+	if unnamedTarget(err) != nil {
+		// The file's name cannot fill the target template, or its target is a
+		// link out of the project. The batch passes over it and names it, and
+		// writes every other file.
+		return traceNodes, wrapSkip(inputPath, err)
+	}
 	if err != nil {
 		return traceNodes, err
 	}
@@ -1335,13 +1367,27 @@ func (a *App) projectItemFor(inputPath string) *project.ContentItem {
 	return &item
 }
 
+// unnamedTarget returns the reason a source has no target a batch can write:
+// an unsafe name, or a target that is a link out of the project. It returns
+// nil for any other error.
+func unnamedTarget(err error) error {
+	if use := (*project.UnsafeSegmentError)(nil); errors.As(err, &use) {
+		return use
+	}
+	if out := (*project.TargetOutsideError)(nil); errors.As(err, &out) {
+		return out
+	}
+	return nil
+}
+
 // projectItemTargetPath resolves inputPath to its output path via the claiming
 // content item's target template, using the one core resolver
 // (project.ResolveTargetPath). Returns ("", false) when no kapi project is in
 // scope, the input is outside the project root, no item claims it, or the
 // claiming item declares no target: a file listed under a source-only item
 // before a targeted glob is source-only, and the glob's target is never
-// borrowed for it.
+// borrowed for it. A target that is a link out of the project is refused with
+// a *project.TargetOutsideError.
 func (a *App) projectItemTargetPath(inputPath, lang string) (string, bool, error) {
 	item := a.projectItemFor(inputPath)
 	if item == nil || item.Target == "" {
@@ -1355,6 +1401,9 @@ func (a *App) projectItemTargetPath(inputPath, lang string) (string, bool, error
 	}
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)
+	}
+	if err := project.CheckTargetInside(root, out); err != nil {
+		return "", false, fmt.Errorf("%s: %w", relSlash, err)
 	}
 	return out, true, nil
 }
@@ -2229,7 +2278,10 @@ func governedTermsPath(rc *project.ResolvedGovernance) (string, error) {
 	if rc == nil || rc.TermStore == "" {
 		return "", nil
 	}
-	path, err := resolveNamedResource("terms", rc.TermStore)
+	path, err := recipeNamedStore("terms", rc.TermStore)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("resolve termstore: %w", missingTermsStore(rc.TermStore))
+	}
 	if err != nil {
 		return "", fmt.Errorf("resolve termstore %q: %w", rc.TermStore, err)
 	}

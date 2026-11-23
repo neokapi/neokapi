@@ -189,7 +189,9 @@ func (p *projectPass) checkFile(ctx context.Context, a *App, cmd Command, file s
 	pf := ProjectCheckFile{Path: file, Blocks: blocks, Findings: sourceDiags}
 	var all []check.Diagnostic
 	for _, t := range p.targets[file] {
-		if _, err := os.Stat(t.Path); err != nil {
+		// A target is read through the project root, so one that is a link
+		// out of the project is refused here rather than checked.
+		if _, err := statIn(p.root, t.Path); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				continue
 			}
@@ -207,6 +209,7 @@ func (p *projectPass) checkFile(ctx context.Context, a *App, cmd Command, file s
 			SourceConfig: fmtCfg,
 			TargetFormat: fmtName,
 			TargetConfig: fmtCfg,
+			ProjectRoot:  p.root,
 		}
 		tblocks, missing, err := a.bilingualBlocks(ctx, unit)
 		if err != nil {

@@ -318,7 +318,7 @@ func ResolveProjectFlow(proj *project.KapiProject, projectDir, name string, runC
 		seeded, notes := seedRunConfigSpec(spec, runConfig)
 		return &ProjectFlow{Name: name, Source: FlowSourceInline, Spec: seeded, Notes: notes}, nil
 	}
-	dirFlow, err := project.LoadDirFlow(proj.FlowsDirIn(projectDir), name)
+	dirFlow, err := project.LoadDirFlowIn(projectDir, proj.FlowsDirIn(projectDir), name)
 	switch {
 	case err == nil:
 		seeded, notes := seedRunConfigSpec(dirFlow.Spec, runConfig)

@@ -56,7 +56,7 @@ type ChangeCallOptions struct {
 // the source is the language a bilingual file is read in (a PO catalog's
 // msgstr), as kapi apply reads one (targetLocaleOf).
 func (a *App) callChangeService(ctx context.Context, project, origin string, editions []model.EditionKey) (*change.Service, string, error) {
-	recipe, err := a.ResolveMCPCallProject(project)
+	recipe, err := a.ResolveMCPCallProject(ctx, project)
 	if err != nil {
 		return nil, "", err
 	}

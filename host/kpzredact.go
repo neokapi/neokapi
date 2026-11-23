@@ -18,9 +18,11 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/kpz"
+	"gopkg.in/yaml.v3"
 )
 
 // A .kpz written under a redaction policy carries each source file as the
@@ -87,7 +89,8 @@ func (rs *redactedSource) holds(ctx context.Context, v any) (bool, error) {
 }
 
 // policyDetector compiles the rules file a policy names into a detector.
-// Relative paths are read against rootDir.
+// Relative paths are read against rootDir, and a file beneath rootDir is read
+// through it, so a link that leads out of the project is refused.
 func policyDetector(spec *project.RedactionSpec, rootDir string) (redaction.Detector, error) {
 	path := spec.Rules
 	if path == "" {
@@ -96,9 +99,13 @@ func policyDetector(spec *project.RedactionSpec, rootDir string) (redaction.Dete
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(rootDir, path)
 	}
-	rf, err := redaction.LoadRulesFile(path)
+	data, err := rootpath.ReadFile(rootDir, path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("redaction: read rules %s: %w", path, err)
+	}
+	var rf redaction.RulesFile
+	if err := yaml.Unmarshal(data, &rf); err != nil {
+		return nil, fmt.Errorf("redaction: parse rules %s: %w", path, err)
 	}
 	return redaction.NewRuleDetector(rf.Rules)
 }
@@ -215,11 +222,11 @@ func (a *App) redactSourceForKpz(ctx context.Context, in redactedSourceInput) (*
 		return nil, err
 	}
 
-	original, _, err := project.ReadSourceBlocks(ctx, a.FormatReg, string(in.formatID), in.path, in.locale, "", in.formatCfg)
+	original, _, err := project.ReadSourceBlocks(ctx, a.FormatReg, in.rootDir, string(in.formatID), in.path, in.locale, "", in.formatCfg)
 	if err != nil {
 		return nil, fmt.Errorf("%s: read blocks: %w", in.doc, err)
 	}
-	redacted, _, err := project.ReadSourceBlocks(ctx, a.FormatReg, string(in.formatID), out, in.locale, "", in.formatCfg)
+	redacted, _, err := project.ReadSourceBlocks(ctx, a.FormatReg, "", string(in.formatID), out, in.locale, "", in.formatCfg)
 	if err != nil {
 		return nil, fmt.Errorf("%s: read the redacted file back: %w", in.doc, err)
 	}

@@ -317,7 +317,7 @@ func idList(ids []string) string {
 // what the call carries: `withdraw` takes back an earlier one, `from` and `to`
 // record a change a person made, and anything else is something found.
 func (a *App) handleContextNote(ctx context.Context, req *mcp.CallToolRequest, in contextNoteInput) (*mcp.CallToolResult, contextRecordOutput, error) {
-	recipe, err := a.RequireMCPCallProject(in.Project)
+	recipe, err := a.RequireMCPCallProject(ctx, in.Project)
 	if err != nil {
 		return nil, contextRecordOutput{}, err
 	}
@@ -433,7 +433,7 @@ func (a *App) noteWithdraw(ctx context.Context, req *mcp.CallToolRequest, recipe
 }
 
 func (a *App) handleContextSessionSummary(ctx context.Context, req *mcp.CallToolRequest, in contextSessionInput) (*mcp.CallToolResult, contextSessionOutput, error) {
-	recipe, err := a.RequireMCPCallProject(in.Project)
+	recipe, err := a.RequireMCPCallProject(ctx, in.Project)
 	if err != nil {
 		return nil, contextSessionOutput{}, err
 	}

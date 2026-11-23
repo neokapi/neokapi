@@ -281,6 +281,36 @@ func TestAxes_ShapeFileIsCheckedAtLoad(t *testing.T) {
 	assert.Equal(t, "places/bergen.geojson", p.Places["bergen"].Shape)
 }
 
+// A shape is recipe content: one that is absolute, climbs out of the project,
+// or is a link that leads out of it is refused at load.
+func TestAxes_ShapeFileStaysInsideTheProject(t *testing.T) {
+	base := t.TempDir()
+	dir := filepath.Join(base, "project")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "places"), 0o755))
+	outside := filepath.Join(base, "outside.geojson")
+	require.NoError(t, os.WriteFile(outside, []byte(`{"type":"Polygon","coordinates":[]}`), 0o644))
+	linked := os.Symlink(outside, filepath.Join(dir, "places", "linked.geojson")) == nil
+
+	for _, tc := range []struct{ shape, want string }{
+		{"../outside.geojson", "the path leaves the project"},
+		{filepath.ToSlash(outside), "write the path relative to the project"},
+		{"places/linked.geojson", "leads outside the root"},
+	} {
+		if tc.shape == "places/linked.geojson" && !linked {
+			continue
+		}
+		t.Run(tc.shape, func(t *testing.T) {
+			path := filepath.Join(dir, "kapi.yaml")
+			recipe := "version: v1\nname: x\nplaces:\n  bergen: {within: no-46, shape: \"" + tc.shape + "\"}\n"
+			require.NoError(t, os.WriteFile(path, []byte(recipe), 0o644))
+			_, err := Load(path)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "places.bergen.shape")
+			assert.Contains(t, err.Error(), tc.want)
+		})
+	}
+}
+
 // A target language may name a subdivision with the -u-sd- key, and the
 // recipe loads it as written.
 func TestAxes_SubdivisionLocaleLoads(t *testing.T) {

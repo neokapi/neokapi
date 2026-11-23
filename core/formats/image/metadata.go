@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"html"
 	"io"
-	"os"
 	"regexp"
 	"strings"
 
@@ -15,31 +14,26 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// readImageMetadata extracts document metadata from the image at path WITHOUT
+// readImageMetadata extracts document metadata from the image r holds WITHOUT
 // loading the pixel data: it stops scanning at the first image-data chunk (PNG
 // IDAT / JPEG SOS) and skips large chunks by seeking. It reads PNG text chunks
 // (tEXt/iTXt/zTXt) and embedded XMP, and JPEG APP1 XMP. Translatable fields
 // (title, description, keywords, comment) come back as translatable
 // docmeta.Entry; the rest (author, copyright, software) as non-translatable.
 // Binary EXIF/IPTC are not parsed yet (documented in AD-029).
-func readImageMetadata(path, mime string) []docmeta.Entry {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil
-	}
-	defer func() { _ = f.Close() }()
+func readImageMetadata(r io.ReadSeeker, mime string) []docmeta.Entry {
 	switch mime {
 	case "image/png":
-		return pngMetadata(f)
+		return pngMetadata(r)
 	case "image/jpeg":
-		return jpegMetadata(f)
+		return jpegMetadata(r)
 	}
 	return nil
 }
 
 // pngMetadata scans PNG chunks up to the first IDAT (pixel data), reading only
 // the small text chunks and seeking past everything else.
-func pngMetadata(f *os.File) []docmeta.Entry {
+func pngMetadata(f io.ReadSeeker) []docmeta.Entry {
 	var sig [8]byte
 	if _, err := io.ReadFull(f, sig[:]); err != nil || string(sig[1:4]) != "PNG" {
 		return nil
@@ -137,7 +131,7 @@ func pngKeywordEntry(keyword, text string) []docmeta.Entry {
 // jpegMetadata scans JPEG marker segments up to SOS (scan data), extracting XMP
 // from the APP1 segment. APP segments are bounded (≤64 KiB), so reading them is
 // not the pixel payload.
-func jpegMetadata(f *os.File) []docmeta.Entry {
+func jpegMetadata(f io.Reader) []docmeta.Entry {
 	r := bufio.NewReader(f)
 	var soi [2]byte
 	if _, err := io.ReadFull(r, soi[:]); err != nil || soi[0] != 0xFF || soi[1] != 0xD8 {

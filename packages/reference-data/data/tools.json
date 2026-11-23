@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T20:28:34Z",
+  "generatedAt": "2026-11-22T22:39:13Z",
   "kind": "tool",
   "entries": [
     {
@@ -2883,7 +2883,10 @@
           "tmx_path": {
             "type": "string",
             "title": "TMX Output Path",
-            "description": "File path for the generated TMX document"
+            "description": "File path for the generated TMX document",
+            "x-path": {
+              "type": "file"
+            }
           }
         }
       },
@@ -3050,7 +3053,10 @@
           "rules_path": {
             "type": "string",
             "title": "Rules File",
-            "description": "Path to a redaction rules YAML file"
+            "description": "Path to a redaction rules YAML file",
+            "x-path": {
+              "type": "file"
+            }
           }
         }
       },
@@ -3432,6 +3438,9 @@
             "ui:visible": {
               "field": "source",
               "eq": "file"
+            },
+            "x-path": {
+              "type": "file"
             }
           },
           "source": {
@@ -3841,7 +3850,10 @@
             "title": "SRX Rules File",
             "description": "Path to a custom SRX 2.0 rules file (overrides the built-in ruleset)",
             "ui:widget": "file-picker",
-            "ui:order": 10
+            "ui:order": 10,
+            "x-path": {
+              "type": "file"
+            }
           },
           "segment_source": {
             "type": "boolean",

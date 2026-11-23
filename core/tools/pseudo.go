@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -18,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/imageops"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -156,7 +156,13 @@ func NewPseudoTranslateFromConfig(config map[string]any, targetLang string) (too
 type PseudoTranslateTool struct {
 	*tool.BaseTool
 	cfg *PseudoConfig
+	// root is the project directory, when the run has one (SetProjectRoot).
+	root string
 }
+
+// SetProjectRoot sets the project directory. An image Media that names its
+// bytes by URI is then read only when the URI lies beneath it.
+func (t *PseudoTranslateTool) SetProjectRoot(root string) { t.root = root }
 
 // Compile-time assertion: this type satisfies SessionTool.
 var _ tool.SessionTool = (*PseudoTranslateTool)(nil)
@@ -176,8 +182,9 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 	// Media: pseudo-localize images (a clearly-visible watermark + color wash) so
 	// a swapped/localized image is unmistakable in a UI or build — the visual
 	// analog of the text transform. Non-image media passes through.
+	t := &PseudoTranslateTool{BaseTool: base, cfg: cfg}
 	base.HandleMediaFn = func(part *model.Part) (*model.Part, error) {
-		pseudoLocalizeMedia(part, cfg)
+		pseudoLocalizeMedia(part, cfg, t.root)
 		return part, nil
 	}
 	// Translate: pseudo-translate writes a target; source is read-only.
@@ -207,7 +214,7 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 		v.StampTargetProvenance(cfg.TargetLocale, model.TargetStatusDraft, model.Origin{Tool: cfg.ToolName()})
 		return nil
 	}
-	return &PseudoTranslateTool{BaseTool: base, cfg: cfg}
+	return t
 }
 
 // hasPseudoText reports whether a block has text to pseudo-translate. A block
@@ -395,12 +402,14 @@ func pseudoConfigFingerprint(cfg *PseudoConfig) string {
 
 // pseudoLocalizeMedia pseudo-localizes an image Media part in place: it replaces
 // the image with a clearly-visible watermarked variant (tint + border + band)
-// and pseudo-translates the alt-text. It is best-effort — non-image media, or a
+// and pseudo-translates the alt-text. It is best-effort: non-image media, or a
 // transform/decode failure, leaves the part unchanged. Bytes come from the
-// Media's own content — inline or deferred — or, for a URI reference, the
-// source file (read here because pseudo-localization is an explicit pixel
-// transform, distinct from the OCR path that keeps image bytes out of the host).
-func pseudoLocalizeMedia(part *model.Part, cfg *PseudoConfig) {
+// Media's own content (inline or deferred) or, for a URI reference, the
+// source file. The file is read here because pseudo-localization is an
+// explicit pixel transform, distinct from the OCR path that keeps image bytes
+// out of the host. The URI is content, so with a project root it must lie
+// beneath the root.
+func pseudoLocalizeMedia(part *model.Part, cfg *PseudoConfig, root string) {
 	m, ok := part.Resource.(*model.Media)
 	if !ok || m == nil || !isImageMedia(m) {
 		return
@@ -414,7 +423,7 @@ func pseudoLocalizeMedia(part *model.Part, cfg *PseudoConfig) {
 		}
 		data = b
 	case m.URI != "":
-		b, err := os.ReadFile(m.URI)
+		b, err := rootpath.ReadFileWithin(root, m.URI)
 		if err != nil {
 			return
 		}

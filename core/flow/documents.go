@@ -99,7 +99,7 @@ func (r *FileRunner) openDocument(ctx context.Context, flowName string, tools []
 	if err := CheckOutputPath(outputPath); err != nil {
 		return nil, err
 	}
-	before, err := filehome.Digest(outputPath)
+	before, err := r.home().Digest(outputPath)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", filepath.Base(outputPath), err)
 	}

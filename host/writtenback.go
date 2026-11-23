@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/flow"
@@ -14,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -83,7 +83,7 @@ func (a *App) WriteBack(ctx context.Context, opts WriteBackOptions, out io.Write
 	// the thing itself. Sending it through the round trip instead would show a
 	// reader the engine's rendering of the file they can open.
 	if opts.Locale == "" {
-		in, oerr := os.Open(file.Path)
+		in, oerr := rootpath.OpenRegular(pctx.ProjectDir, file.Path)
 		if oerr != nil {
 			return fmt.Errorf("write back: open %s: %w", file.Relative, oerr)
 		}
@@ -126,7 +126,7 @@ func (a *App) WriteBack(ctx context.Context, opts WriteBackOptions, out io.Write
 	ctx = blockstore.WithSourceRel(ctx, file.Relative)
 	tools := []tool.Tool{newHydrateTargetsTool(opts.Locale)}
 
-	in, err := os.Open(file.Path)
+	in, err := rootpath.OpenRegular(pctx.ProjectDir, file.Path)
 	if err != nil {
 		return fmt.Errorf("write back: open %s: %w", file.Relative, err)
 	}

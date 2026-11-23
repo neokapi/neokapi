@@ -304,7 +304,9 @@ func kpzCachesUnder(root string) []string {
 				continue
 			}
 		}
-		if info, err := os.Stat(meta.KpzPath); err != nil || info.IsDir() {
+		// A KPZ under root is stated through it, so one reached through a
+		// link that leads out of root is left out.
+		if info, err := statIn(root, meta.KpzPath); err != nil || info.IsDir() {
 			continue
 		}
 		out = append(out, meta.KpzPath)

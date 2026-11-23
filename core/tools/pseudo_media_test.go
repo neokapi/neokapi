@@ -5,7 +5,11 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -36,7 +40,7 @@ func TestPseudoLocalizeMedia_Image(t *testing.T) {
 	m := &model.Media{MimeType: "image/png", Data: src, Filename: "pic.png", AltText: "a cat"}
 	part := &model.Part{Type: model.PartMedia, Resource: m}
 
-	pseudoLocalizeMedia(part, cfg)
+	pseudoLocalizeMedia(part, cfg, "")
 
 	if bytes.Equal(m.Data, src) {
 		t.Error("image bytes unchanged — expected a pseudo-localized variant")
@@ -62,8 +66,43 @@ func TestPseudoLocalizeMedia_NonImage(t *testing.T) {
 	m := &model.Media{MimeType: "application/pdf", Data: orig, Filename: "doc.pdf"}
 	part := &model.Part{Type: model.PartMedia, Resource: m}
 
-	pseudoLocalizeMedia(part, cfg)
+	pseudoLocalizeMedia(part, cfg, "")
 	if !bytes.Equal(m.Data, orig) {
 		t.Error("non-image media should pass through unchanged")
+	}
+}
+
+// A Media URI is content. With a project root, one that leads outside the
+// project, by its spelling or through a symbolic link, is not read; one
+// beneath the root is.
+func TestPseudoLocalizeMedia_URIStaysInTheProject(t *testing.T) {
+	cfg := &PseudoConfig{TargetLocale: "qps"}
+	cfg.Reset()
+	cfg.TargetLocale = "qps"
+
+	project, outside := t.TempDir(), t.TempDir()
+	secret := filepath.Join(outside, "secret.png")
+	require.NoError(t, os.WriteFile(secret, pngBytes(t, 20, 20), 0o644))
+	inside := filepath.Join(project, "pic.png")
+	require.NoError(t, os.WriteFile(inside, pngBytes(t, 20, 20), 0o644))
+	link := filepath.Join(project, "link.png")
+	if err := os.Symlink(secret, link); err != nil {
+		t.Skipf("symbolic links unavailable: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name, uri string
+		read      bool
+	}{
+		{"outside", secret, false},
+		{"climbs", filepath.Join(project, "..", filepath.Base(outside), "secret.png"), false},
+		{"link out", link, false},
+		{"inside", inside, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := &model.Media{MimeType: "image/png", URI: tc.uri}
+			pseudoLocalizeMedia(&model.Part{Type: model.PartMedia, Resource: m}, cfg, project)
+			require.Equal(t, tc.read, len(m.Data) > 0)
+		})
 	}
 }

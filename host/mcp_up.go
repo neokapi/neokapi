@@ -48,7 +48,7 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 			"structured result (per-locale standing, locales waiting for review, materialized files). Use up_plan " +
 			"first to see the pending work and token estimate.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in upMCPInput) (*mcp.CallToolResult, *ConvergeOutput, error) {
-		path, err := a.mcpProjectPath(in.Project)
+		path, err := a.mcpProjectPath(ctx, in.Project)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -83,7 +83,7 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 			"source files the project store has not read yet (drift). No provider " +
 			"calls, nothing written. The pre-flight for the up tool.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in upPlanMCPInput) (*mcp.CallToolResult, *UpPlanOutput, error) {
-		path, err := a.mcpProjectPath(in.Project)
+		path, err := a.mcpProjectPath(ctx, in.Project)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -106,6 +106,6 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 
 // mcpProjectPath resolves the project the loop verbs run over. Both need one,
 // so "no project" is refused rather than returned (ResolveMCPCallProject).
-func (a *App) mcpProjectPath(explicit string) (string, error) {
-	return a.RequireMCPCallProject(explicit)
+func (a *App) mcpProjectPath(ctx context.Context, explicit string) (string, error) {
+	return a.RequireMCPCallProject(ctx, explicit)
 }

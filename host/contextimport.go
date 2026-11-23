@@ -294,7 +294,7 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 			res.Unchanged++
 			continue
 		}
-		digest, derr := fileDigest(src.path)
+		digest, derr := fileDigest(from.Root, src.path)
 		if derr != nil {
 			return res, derr
 		}
@@ -344,7 +344,7 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 	// A record at bytes this checkout has read is skipped and counted with the
 	// files, so a second run of the same import reads nothing and says so.
 	recordDir := from.Export().UnitStateDir()
-	if committedRecordExists(recordDir) {
+	if committedRecordExists(from.Root, recordDir) {
 		recordRel := relSlash(from.Root, recordDir)
 		digest, derr := state.CommittedDigest(recordDir)
 		if derr != nil {
@@ -383,9 +383,10 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 
 // committedRecordExists reports whether dir holds at least one decision shard.
 // A project with no record has nothing to stamp, and is not counted as a
-// source already read.
-func committedRecordExists(dir string) bool {
-	entries, err := os.ReadDir(dir)
+// source already read. dir is listed through root, so a record directory that
+// is a link out of the layout holds nothing.
+func committedRecordExists(root, dir string) bool {
+	entries, err := readDirIn(root, dir)
 	if err != nil {
 		return false
 	}

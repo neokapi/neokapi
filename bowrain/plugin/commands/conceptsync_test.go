@@ -468,7 +468,7 @@ func TestConceptPull_BaselineSurvivesConnectorCloseThenPushReadsIt(t *testing.T)
 	seedRefs.Consume("main", 7)
 	require.NoError(t, seedRefs.Save(proj.Layout))
 
-	conn, err := bconn.NewSourceConnector(app, proj, reg)
+	conn, err := bconn.NewSourceConnector(t.Context(), app, proj, reg)
 	require.NoError(t, err)
 
 	// Reproduce runPull's exact ordering: the block pull saved the cursor (seeded

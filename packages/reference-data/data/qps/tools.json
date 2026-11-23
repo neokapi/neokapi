@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T20:28:34Z",
+  "generatedAt": "2026-11-22T22:39:13Z",
   "kind": "tool",
   "entries": [
     {
@@ -2883,7 +2883,10 @@
           "tmx_path": {
             "type": "string",
             "title": "▒ ŢḾẊ Öüţþüţ Þàţĥ ▒",
-            "description": "▒ Ƒîļé þàţĥ ƒöŕ ţĥé ĝéñéŕàţéđ ŢḾẊ đöçüḿéñţ ▒"
+            "description": "▒ Ƒîļé þàţĥ ƒöŕ ţĥé ĝéñéŕàţéđ ŢḾẊ đöçüḿéñţ ▒",
+            "x-path": {
+              "type": "file"
+            }
           }
         }
       },
@@ -3050,7 +3053,10 @@
           "rules_path": {
             "type": "string",
             "title": "▒ Ŕüļéš Ƒîļé ▒",
-            "description": "▒ Þàţĥ ţö à ŕéđàçţîöñ ŕüļéš ÝÀḾĻ ƒîļé ▒"
+            "description": "▒ Þàţĥ ţö à ŕéđàçţîöñ ŕüļéš ÝÀḾĻ ƒîļé ▒",
+            "x-path": {
+              "type": "file"
+            }
           }
         }
       },
@@ -3432,6 +3438,9 @@
             "ui:visible": {
               "field": "source",
               "eq": "file"
+            },
+            "x-path": {
+              "type": "file"
             }
           },
           "source": {
@@ -3841,7 +3850,10 @@
             "title": "▒ ŠŔẊ Ŕüļéš Ƒîļé ▒",
             "description": "▒ Þàţĥ ţö à çüšţöḿ ŠŔẊ 2.0 ŕüļéš ƒîļé (öṽéŕŕîđéš ţĥé ƃüîļţ-îñ ŕüļéšéţ) ▒",
             "ui:widget": "file-picker",
-            "ui:order": 10
+            "ui:order": 10,
+            "x-path": {
+              "type": "file"
+            }
           },
           "segment_source": {
             "type": "boolean",

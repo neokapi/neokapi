@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/storage"
 )
 
@@ -75,14 +76,13 @@ func resolveResourcePath(cmd Command, kind, defaultFilename string) (string, err
 	}
 }
 
-// resolveNamedResource returns the path to a named resource in KAPI_HOME.
-// Creates the parent directory on demand.
+// resolveNamedResource returns the path to a named resource in KAPI_HOME, for
+// a name a person gave on the command line (--name, --termstore, --memory).
+// The command may create the store, so the parent directory is created on
+// demand. A name a recipe gives goes through recipeNamedStore instead.
 func resolveNamedResource(kind, name string) (string, error) {
-	if name == "" {
-		return "", errors.New("resource name is required")
-	}
-	if strings.ContainsAny(name, "/\\") {
-		return "", fmt.Errorf("resource name must not contain path separators: %q", name)
+	if err := flow.CheckStoreName(name); err != nil {
+		return "", err
 	}
 
 	dir := filepath.Join(ConfigDir(), kind)
@@ -91,6 +91,16 @@ func resolveNamedResource(kind, name string) (string, error) {
 	}
 
 	return filepath.Join(dir, name+".db"), nil
+}
+
+// recipeNamedStore returns the file of a named store a recipe gives, such as
+// a profile's `termstore:`. The store is one of the person's own, named by
+// name only: it must already exist as a regular file that resolves inside
+// <ConfigDir>/<kind>, and the path returned is the resolved one. A recipe
+// creates neither the store nor its directory (flow.NamedStorePath, the rule
+// a step config's memory: and terms: references follow).
+func recipeNamedStore(kind, name string) (string, error) {
+	return flow.NamedStorePath(filepath.Join(ConfigDir(), kind), kind, name, ".db")
 }
 
 // ListNamedResources lists all .db files in <ConfigDir>/<kind>/. ConfigDir is

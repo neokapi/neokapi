@@ -10,7 +10,7 @@ import (
 
 	// Register the additional in-core raster decoders so image.Decode /
 	// image.DecodeConfig recognize them (PNG and JPEG are registered in
-	// reader.go). HEIC/AVIF have no Go decoder — they transcode via ffmpeg.
+	// reader.go). HEIC/AVIF have no Go decoder, so they transcode via ffmpeg.
 	_ "image/gif" // GIF
 
 	_ "golang.org/x/image/bmp"  // BMP
@@ -33,55 +33,56 @@ var ffmpegConvert = av.ConvertImage
 // the same reason as ffmpegConvert.
 var ffmpegAvailable = av.FFmpegAvailable
 
-// normalizeForOCR returns a path to a PNG/JPEG the vision engine can decode,
-// transcoding srcPath when it is a raster the engine doesn't read natively. The
-// returned cleanup removes any temp file it created (a no-op when srcPath is
-// returned unchanged). A non-nil error means OCR should be skipped for this
-// image; the document is still valid (the Media is emitted regardless).
-func normalizeForOCR(ctx context.Context, srcPath string) (string, func(), error) {
+// normalizeForOCR returns the path of a PNG/JPEG the vision engine can decode:
+// a private copy of src (see imageSource.privateCopy) when the engine reads
+// it natively, or a temp PNG transcoded from it otherwise. The returned
+// cleanup removes any temp file it created. A non-nil error means OCR should
+// be skipped for this image; the document is still valid (the Media is
+// emitted regardless).
+func normalizeForOCR(ctx context.Context, src *imageSource) (string, func(), error) {
 	noop := func() {}
-	kind, err := classifyFile(srcPath)
+	kind, err := classifyReader(src.section())
 	if err != nil {
 		return "", noop, err
 	}
 	switch kind {
-	case kindPNG, kindJPEG:
-		return srcPath, noop, nil // the engine decodes these natively
 	case kindGIF, kindBMP, kindTIFF, kindWebP:
-		return transcodeGoToPNG(srcPath)
+		return transcodeGoToPNG(src)
 	case kindHEIF, kindAVIF:
-		return transcodeFFmpegToPNG(ctx, srcPath)
+		return transcodeFFmpegToPNG(ctx, src)
 	default:
-		// Unrecognized header: hand the original to the engine and let it try.
-		return srcPath, noop, nil
+		// PNG and JPEG the engine decodes natively. For an unrecognized header
+		// the engine gets the bytes as they are and may try.
+		return src.privateCopy()
 	}
 }
 
 // transcodeGoToPNG decodes a pure-Go-decodable raster (GIF/BMP/TIFF/WebP) and
 // re-encodes it as a temp PNG for OCR.
-func transcodeGoToPNG(srcPath string) (string, func(), error) {
+func transcodeGoToPNG(src *imageSource) (string, func(), error) {
 	noop := func() {}
-	f, err := os.Open(srcPath)
+	img, _, err := image.Decode(src.section())
 	if err != nil {
-		return "", noop, err
-	}
-	defer func() { _ = f.Close() }()
-	img, _, err := image.Decode(f)
-	if err != nil {
-		return "", noop, fmt.Errorf("image: decode %s: %w", srcPath, err)
+		return "", noop, fmt.Errorf("image: decode: %w", err)
 	}
 	return encodePNGTemp(img)
 }
 
 // transcodeFFmpegToPNG converts a format the in-core decoders can't read
-// (HEIC/AVIF) to a temp PNG via ffmpeg (the kapi-av bundle or PATH). When
-// ffmpeg is unavailable it returns errUnsupportedOCR so the caller degrades to
-// Media-only rather than failing.
-func transcodeFFmpegToPNG(ctx context.Context, srcPath string) (string, func(), error) {
+// (HEIC/AVIF) to a temp PNG via ffmpeg (the kapi-av bundle or PATH). ffmpeg
+// reads a private copy of the source and writes a temp file this process
+// created. When ffmpeg is unavailable it returns errUnsupportedOCR so the
+// caller degrades to Media-only rather than failing.
+func transcodeFFmpegToPNG(ctx context.Context, src *imageSource) (string, func(), error) {
 	noop := func() {}
 	if !ffmpegAvailable() {
 		return "", noop, errUnsupportedOCR
 	}
+	in, inCleanup, err := src.privateCopy()
+	if err != nil {
+		return "", noop, err
+	}
+	defer inCleanup()
 	tmp, err := os.CreateTemp("", "kapi-image-ocr-*.png")
 	if err != nil {
 		return "", noop, err
@@ -89,7 +90,7 @@ func transcodeFFmpegToPNG(ctx context.Context, srcPath string) (string, func(), 
 	name := tmp.Name()
 	_ = tmp.Close()
 	cleanup := func() { _ = os.Remove(name) }
-	if err := ffmpegConvert(ctx, srcPath, name); err != nil {
+	if err := ffmpegConvert(ctx, in, name); err != nil {
 		cleanup()
 		return "", noop, err
 	}

@@ -31,7 +31,7 @@ func TestStreamingPair_ByteExactXC(t *testing.T) {
 	reader.SetSkeletonStore(store)
 	writer.SetSkeletonStore(store)
 	require.True(t, store.IsStreaming())
-	require.NoError(t, reader.Open(ctx, &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: f}))
+	require.NoError(t, reader.Open(ctx, &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: f, ReaderAt: f}))
 	var buf bytes.Buffer
 	require.NoError(t, writer.SetOutputWriter(&buf))
 	partsCh := make(chan *model.Part, 64)

@@ -141,7 +141,7 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 		for _, file := range files {
 			summary := LookFileSummary{Path: projectRel(root, file)}
 			name, cfg := formats.forFile(a, file)
-			blocks, rerr := a.readBlocksAs(ctx, file, name, cfg, a.SourceLang)
+			blocks, rerr := a.readBlocksAs(ctx, root, file, name, cfg, a.SourceLang)
 			if rerr != nil {
 				summary.Unread = lookUnreadReason(a, file, name, rerr)
 				if a.NoReaderFor(file) && name == "" {
@@ -669,7 +669,7 @@ func (a *App) LookFile(cmd Command, path string) (*LookReader, error) {
 		}
 		_, out.Declared = formats.lookup(abs)
 		name, cfg := formats.forFile(a, abs)
-		blocks, rerr := a.readBlocksAs(ctx, abs, name, cfg, a.SourceLang)
+		blocks, rerr := a.readBlocksAs(ctx, a.projectRoot(), abs, name, cfg, a.SourceLang)
 		if rerr != nil {
 			return NoReaderError(rerr, DisplayName(path), name, a.discoveredPlugins()...)
 		}

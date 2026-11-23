@@ -66,7 +66,7 @@ func stampedProject(t *testing.T) (*App, string, string, blockstore.Store) {
 // returns its blocks by name.
 func readStampedBlocks(t *testing.T, a *App, dir string) map[string]*model.Block {
 	t.Helper()
-	blocks, _, err := project.ReadSourceBlocks(t.Context(), a.FormatReg, "json", filepath.Join(dir, "src", "en.json"), "en", "fr", nil)
+	blocks, _, err := project.ReadSourceBlocks(t.Context(), a.FormatReg, "", "json", filepath.Join(dir, "src", "en.json"), "en", "fr", nil)
 	require.NoError(t, err)
 	byName := map[string]*model.Block{}
 	for _, b := range blocks {
@@ -133,7 +133,7 @@ func TestAbsorbStoreTargets_LeavesAStaleSourceStampOut(t *testing.T) {
 	require.NotNil(t, absorber)
 
 	ctx := blockstore.WithSourceRel(context.Background(), filepath.Join("src", "en.json"))
-	n, u, err := absorbStoreTargets(ctx, a.FormatReg, "json", filepath.Join(dir, "src", "en.json"), "en", "fr", store, nil, absorber, filepath.Join("src", "en.json"), nil)
+	n, u, err := absorbStoreTargets(ctx, a.FormatReg, dir, "json", filepath.Join(dir, "src", "en.json"), "en", "fr", store, nil, absorber, filepath.Join("src", "en.json"), nil)
 	require.NoError(t, err)
 	assert.Equal(t, 1, n+u, "the current translation alone is absorbed")
 	for _, e := range absorber.entries {

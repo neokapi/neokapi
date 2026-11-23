@@ -44,7 +44,7 @@ type MemoryLeverageConfig struct {
 	FillIfTargetIsEmpty           bool   `json:"fill_if_target_is_empty,omitempty" schema:"title=Only If Target Is Empty,description=Fill the target only when it has no existing content"`
 	NoQueryThreshold              int    `json:"no_query_threshold,omitempty" schema:"title=No-Query Threshold,description=Skip content-memory query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
 	MakeTMX                       bool   `json:"make_tmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
-	TMXPath                       string `json:"tmx_path,omitempty"         schema:"title=TMX Output Path,description=File path for the generated TMX document"`
+	TMXPath                       string `json:"tmx_path,omitempty"         schema:"title=TMX Output Path,description=File path for the generated TMX document,path=file"`
 	DowngradeIdenticalBestMatches bool   `json:"downgrade_identical_best_matches,omitempty" schema:"title=Downgrade Identical Exact Matches,description=Reduce score by 1%% when multiple identical exact matches are returned"`
 
 	// Point is where this run's content sits in the project's context space,
