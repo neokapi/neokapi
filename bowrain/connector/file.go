@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -172,6 +173,7 @@ func (c *FileConnector) fetchFile(ctx context.Context, path string) (*platconn.C
 		URI:      path,
 		FormatID: formatName,
 		Reader:   f,
+		ReaderAt: f,
 	}
 	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		f.Close()
@@ -330,6 +332,7 @@ func (c *FileConnector) reparseSourceSkeleton(ctx context.Context, item *platcon
 		URI:          sourcePath,
 		FormatID:     item.Format,
 		Reader:       f,
+		ReaderAt:     f,
 		TargetLocale: item.Locale,
 	}
 	if err := format.OpenDocument(ctx, reader, doc); err != nil {
@@ -421,18 +424,30 @@ func deliveredRuns(b *model.Block, locale model.LocaleID) []model.Run {
 }
 
 // List scans the base directory for files whose extensions match known formats.
-// It lists regular files only: Walk reports a symbolic link as the link, not
-// as what it points at, and a link, a device or a FIFO is skipped.
+// It lists regular files only: the walk reports a symbolic link as the link,
+// not as what it points at, and a link, a device or a FIFO is skipped. It
+// lists through an os.Root opened on the base directory, so a directory
+// swapped for a link during the walk cannot lead it outside.
 func (c *FileConnector) List(ctx context.Context) ([]*platconn.ContentItem, error) {
 	var items []*platconn.ContentItem
 
-	err := filepath.Walk(c.basePath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+	r, err := os.OpenRoot(c.basePath)
+	if err != nil {
+		return nil, fmt.Errorf("walk %s: %w", c.basePath, err)
+	}
+	defer r.Close()
+	err = fs.WalkDir(r.FS(), ".", func(rel string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
 			return err
 		}
-		if !info.Mode().IsRegular() {
+		if !d.Type().IsRegular() {
 			return nil
 		}
+		info, err := d.Info()
+		if err != nil {
+			return nil //nolint:nilerr // a file gone since the listing is not listed
+		}
+		path := filepath.Join(c.basePath, filepath.FromSlash(rel))
 		formatID, detectErr := c.formatRegistry.Detect(path, registry.DetectOptions{})
 		if detectErr != nil {
 			return nil // Skip unrecognized files.

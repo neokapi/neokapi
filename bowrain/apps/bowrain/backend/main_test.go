@@ -1,6 +1,8 @@
 package backend
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"os"
@@ -31,7 +33,25 @@ import (
 // :memory: — and closer to how the app opens its store in production.
 var templateStorePath string
 
+// requireFTS5 stops the test binary at once when SQLite was built without
+// full-text search. The desktop's local terms and content-memory stores use
+// FTS5, which go-sqlite3 compiles in only under the fts5 build tag; the app is
+// always built with it. Without it every store a test opens fails in setup
+// with "no such function: fts5", far from the cause.
+func requireFTS5() {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err == nil {
+		_, err = db.ExecContext(context.Background(), `CREATE VIRTUAL TABLE fts5_probe USING fts5(text)`)
+		_ = db.Close()
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "bowrain desktop backend tests need SQLite FTS5: run go test -tags fts5 ./... (make bowrain-desktop-test adds it)")
+		os.Exit(2)
+	}
+}
+
 func TestMain(m *testing.M) {
+	requireFTS5()
 	// The tests that run the real server against PostgreSQL each get a copy of
 	// a database the migrations built once (pgtest.UseTemplate).
 	pgtest.UseTemplate(func(db *storage.PgDB) error { return migrations.Apply(db, nil) })

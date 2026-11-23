@@ -45,7 +45,7 @@ func TestWorkspaceStores_ConcurrentFirstUseOpensOneStore(t *testing.T) {
 		{
 			name: "content memory",
 			install: func(ws *workspaceStores, opens *atomic.Int64) func(string) (any, error) {
-				ws.memoryFactory = func() memory.Store {
+				ws.memoryFactory = func(string) memory.Store {
 					opens.Add(1)
 					time.Sleep(openCost)
 					return &testMemoryStore{memory.NewInMemoryStore()}
@@ -102,7 +102,7 @@ func TestWorkspaceStores_ConcurrentFirstUseOpensOneStore(t *testing.T) {
 // workspace slug, so two workspaces never share a store.
 func TestWorkspaceStores_DistinctWorkspacesGetDistinctStores(t *testing.T) {
 	ws := newWorkspaceStores()
-	ws.memoryFactory = func() memory.Store { return &testMemoryStore{memory.NewInMemoryStore()} }
+	ws.memoryFactory = func(string) memory.Store { return &testMemoryStore{memory.NewInMemoryStore()} }
 	ws.termsFactory = func() terms.Store { return newTestTermsStore() }
 
 	acmeMemory, err := ws.getMemory(t.Context(), "acme")

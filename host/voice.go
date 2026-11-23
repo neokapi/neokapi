@@ -175,7 +175,8 @@ examples:
 // openVoiceStoreAt opens (creating if needed) the local SQLite voice store at
 // dbPath — the cobra-free leg of OpenVoiceStore.
 func openVoiceStoreAt(dbPath string) (*voicestore.SQLiteStore, error) {
-	db, err := storage.Open(dbPath)
+	// dbPath is a standalone store a person named, so a link on it is followed.
+	db, err := storage.OpenWith(dbPath, storage.Options{FollowLink: true})
 	if err != nil {
 		return nil, fmt.Errorf("open voice store: %w", err)
 	}

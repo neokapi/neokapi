@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sync"
 )
 
@@ -113,7 +114,13 @@ func DispatchViaDaemon(ctx context.Context, pool *DaemonPool, plugin *Plugin, op
 	if err != nil {
 		return err
 	}
-	client, err := pool.Acquire(ctx, plugin)
+	// The daemon acts on the project at call.ProjectRoot and may open paths
+	// there, and nothing else (KAPI_PLUGIN_ROOTS).
+	var roots []string
+	if call.ProjectRoot != "" {
+		roots = PathRootsFor(filepath.Join(call.ProjectRoot, "kapi.yaml"))
+	}
+	client, err := pool.Acquire(WithPathRoots(ctx, roots), plugin)
 	if err != nil {
 		return fmt.Errorf("acquire daemon for %q: %w", plugin.Name(), err)
 	}

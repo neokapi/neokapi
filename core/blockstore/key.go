@@ -7,20 +7,21 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // The project-wide block store keys blocks and overlays by a single string.
 // Format readers assign *file-local* block IDs ("tu1", "tu2", …) that restart in
 // every source file, so keying on the raw ID lets blocks and target overlays
-// from different source files collide — the last writer wins, corrupting
+// from different source files collide. The last writer wins, corrupting
 // per-file coverage and the `kapi run` → `kapi merge` round-trip. StoreKey
 // namespaces the key by the source file's project-relative path, keeping every
 // (file, block) distinct while staying stable across re-reads so overlays
 // written by a run are found again at merge time.
 func StoreKey(sourceRel, blockID, sourceText string) string {
-	seed := sourceRel + "\x00" + blockID
+	seed := partjoin.NUL(sourceRel, blockID)
 	if blockID == "" {
-		seed = sourceRel + "\x00" + sourceText
+		seed = partjoin.NUL(sourceRel, sourceText)
 	}
 	return model.ComputeContentHash(seed)
 }
@@ -30,18 +31,16 @@ func StoreKey(sourceRel, blockID, sourceText string) string {
 // keys use (project.ResolvedFile.Relative, which is filepath.Rel of the
 // resolver's absolute path against the project directory).
 //
-// Both ends of the `kapi run --process-only` → `kapi merge` round-trip must spell
-// this identically or the overlays the run commits cannot be found again, and the
-// symptom is not an error: merge finds no translation for any block, treats that
-// as pending work (blockstore.ErrNotFound is the legitimate "not translated yet"
-// sentinel) and writes the source text into every target file, exit 0. Hence one
-// function, and hence an error rather than a fallback — a run that cannot name
-// its own file the way merge will has nowhere to put its work.
+// Both ends of the `kapi run --process-only` → `kapi merge` round-trip must
+// spell this identically, or the overlays the run commits cannot be found
+// again. Merge then finds no translation, treats every block as pending
+// (blockstore.ErrNotFound means "not translated yet") and writes the source
+// text into every target file, exit 0. So both ends call this one function,
+// and it returns an error rather than a fallback.
 //
-// path may be relative (a CLI argument as the user typed it) and is resolved
-// against the process working directory, exactly as the resolver did. Symlinks
-// are deliberately NOT resolved: the resolver does not resolve them either, and
-// agreement between the two sides is what matters, not canonicality.
+// path may be relative and is resolved against the process working
+// directory, as the resolver does. Symlinks are not resolved, because the
+// resolver does not resolve them either.
 func ProjectRel(projectRoot, path string) (string, error) {
 	absRoot, err := filepath.Abs(projectRoot)
 	if err != nil {
@@ -69,18 +68,15 @@ func ProjectRel(projectRoot, path string) (string, error) {
 // project-relative path when the project root can name it, its absolute path
 // when it cannot.
 //
-// Every key in such a store must name its file distinctly — the file-local block
-// id ("tu1") restarts in every source and so is not a name. A run that
-// legitimately writes output for a file lying outside the project (an explicit
-// `-i`/`-o` pair while a recipe happens to be in scope) therefore still gets a
-// namespace of its own instead of sharing the raw id space with every other such
-// file.
+// Every key in such a store must name its file distinctly, because the
+// file-local block id ("tu1") restarts in every source. A run that writes
+// output for a file outside the project (an explicit `-i`/`-o` pair while a
+// recipe is in scope) still gets a namespace of its own.
 //
-// Only project-relative namespaces are ever looked up again: merge materializes
-// exactly the files the recipe resolves. An absolute-path namespace is write-only
-// overlay cache scope, which is precisely what an out-of-project input is — and
-// why the process-only path, whose only deliverable IS the overlays, refuses that
-// case through ProjectRel rather than storing work nobody will collect.
+// Only project-relative namespaces are looked up again: merge materializes
+// the files the recipe resolves. An absolute-path namespace is write-only
+// overlay cache scope. The process-only path, whose only output is the
+// overlays, refuses that case through ProjectRel.
 func SourceNamespace(projectRoot, path string) string {
 	if rel, err := ProjectRel(projectRoot, path); err == nil {
 		return rel
@@ -98,7 +94,7 @@ type sourceRelKey struct{}
 // overlay-writing session tools (and the merge read-back) address a block's
 // overlays by StoreKey rather than the collision-prone file-local id. When
 // unset (ad-hoc single-file runs with no project), OverlayKey falls back to the
-// raw id — a single document can't collide with itself.
+// raw id, since a single document can't collide with itself.
 func WithSourceRel(ctx context.Context, rel string) context.Context {
 	return context.WithValue(ctx, sourceRelKey{}, rel)
 }

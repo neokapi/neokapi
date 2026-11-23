@@ -16,6 +16,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/xmlesc"
 )
@@ -996,6 +997,8 @@ type Writer struct {
 	// never a second resident copy of the file (#608, S2; the ODF/EPUB
 	// writers do the same).
 	sourcePath string
+	// root is the project directory, when the run has one (SetProjectRoot).
+	root string
 
 	// sourceLocale records the input/source locale supplied to the writer
 	// (defaults to "en", okapi's LocaleId.EMPTY default for OpenXMLFilter).
@@ -1068,10 +1071,11 @@ func (w *Writer) SetMediaReplacement(zipPath string, media *model.Media) {
 // openMediaReplacement resolves a media reference to a reader, streaming from
 // its on-disk path (URI, optionally file://-prefixed) when present and falling
 // back to the slice's own content: inline bytes, or a deferred accessor into
-// the document it came from. The caller closes the reader.
-func openMediaReplacement(m *model.Media) (io.ReadCloser, error) {
+// the document it came from. The caller closes the reader. The URI is
+// content, so with a project root it must lie beneath it.
+func openMediaReplacement(root string, m *model.Media) (io.ReadCloser, error) {
 	if path := strings.TrimPrefix(m.URI, "file://"); path != "" {
-		return os.Open(path)
+		return rootpath.OpenWithin(root, path)
 	}
 	if m.HasContent() {
 		return m.Content()
@@ -1081,14 +1085,14 @@ func openMediaReplacement(m *model.Media) (io.ReadCloser, error) {
 
 // writeMediaReplacement streams a locale-variant media reference into the output
 // ZIP under the original entry's recompressed header.
-func writeMediaReplacement(zw *zip.Writer, f *zip.File, media *model.Media) error {
+func writeMediaReplacement(zw *zip.Writer, f *zip.File, media *model.Media, root string) error {
 	fh := safeio.RewriteHeader(&f.FileHeader)
 	fh.Method = zip.Deflate
 	fw, err := zw.CreateHeader(fh)
 	if err != nil {
 		return err
 	}
-	rc, err := openMediaReplacement(media)
+	rc, err := openMediaReplacement(root, media)
 	if err != nil {
 		return err
 	}
@@ -1126,6 +1130,28 @@ func (w *Writer) SetSourcePath(path string) {
 	w.sourcePath = path
 }
 
+// SetProjectRoot sets the project directory. The source package is then read
+// through it when it lies beneath it, and a media replacement only when its
+// URI lies beneath it.
+func (w *Writer) SetProjectRoot(root string) {
+	w.root = root
+}
+
+// openSource opens the original package, through the project root when it
+// lies beneath it (rootpath.Open).
+func (w *Writer) openSource() (*os.File, int64, error) {
+	f, err := rootpath.Open(w.root, w.sourcePath)
+	if err != nil {
+		return nil, 0, err
+	}
+	info, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, 0, err
+	}
+	return f, info.Size(), nil
+}
+
 // SetSourceLocale records the source/input locale. Used by
 // retargetSkeletonLang (mirrors okapi's GenericSkeletonWriter behavior at
 // lines 808-816 of okapi/core/src/main/java/net/sf/okapi/common/skeleton/
@@ -1140,11 +1166,15 @@ func (w *Writer) SetSourceLocale(locale model.LocaleID) {
 // func releases the file handle and is always safe to call.
 func (w *Writer) openOriginal() (*zip.Reader, func(), error) {
 	if w.sourcePath != "" {
-		zrc, err := zip.OpenReader(w.sourcePath)
-		if err != nil {
-			return nil, func() {}, fmt.Errorf("openxml: open source %q: %w", w.sourcePath, err)
+		f, size, err := w.openSource()
+		if err == nil {
+			var zr *zip.Reader
+			if zr, err = zip.NewReader(f, size); err == nil {
+				return zr, func() { _ = f.Close() }, nil
+			}
+			_ = f.Close()
 		}
-		return &zrc.Reader, func() { zrc.Close() }, nil
+		return nil, func() {}, fmt.Errorf("openxml: open source %q: %w", w.sourcePath, err)
 	}
 	if w.originalContent == nil {
 		return nil, func() {}, errors.New("openxml: writer requires original content for reconstruction")
@@ -1558,7 +1588,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 			}
 		} else if replacement, ok := w.mediaReplacements[f.Name]; ok {
 			// Replace with locale-variant media (Bowrain AD-007).
-			if err := writeMediaReplacement(zw, f, replacement); err != nil {
+			if err := writeMediaReplacement(zw, f, replacement, w.root); err != nil {
 				return err
 			}
 		} else if isDOCX && wmlProcessedPart(f.Name) {
@@ -1668,16 +1698,13 @@ func (w *Writer) reparseSkeleton(ctx context.Context, blocks map[string]*model.B
 	// Reparse from the file when the writer has a path, so the reparse reads
 	// the package in place instead of streaming a held copy of it.
 	if w.sourcePath != "" {
-		f, ferr := os.Open(w.sourcePath)
+		f, size, ferr := w.openSource()
 		if ferr != nil {
 			store.Close()
 			return nil, nil, fmt.Errorf("openxml: reparsing the original package: %w", ferr)
 		}
 		defer f.Close()
-		doc.Reader = f
-		if info, serr := f.Stat(); serr == nil {
-			doc.ReaderAt, doc.Size = f, info.Size()
-		}
+		doc.Reader, doc.ReaderAt, doc.Size = f, f, size
 	} else {
 		doc.Reader = io.NopCloser(bytes.NewReader(w.originalContent))
 	}

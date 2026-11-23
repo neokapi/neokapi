@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T19:36:08Z",
+  "generatedAt": "2026-11-23T06:49:22Z",
   "commands": [
     {
       "id": "add",
@@ -9369,8 +9369,8 @@
         "trust"
       ],
       "use": "trust",
-      "short": "List, inspect and change which projects may run commands",
-      "long": "List, inspect and change which projects may run commands.\n\nA recipe that names an exec-class step (external-command, script, or the exec\nformat) runs code the recipe chooses, with your privileges and your\nenvironment. kapi asks once per project before running it and remembers the\nanswer, allow or deny, against a fingerprint of the commands shown. A recipe\nedit that changes what would run asks again. A comment edit's project\nformatter is decided the same way and kept in the same record, keyed by the\nconfiguration file that selects it.\n\nThese commands read and change that record, which is kept in the kapi config\ndirectory, not in the project. They are about execution only: plugin installs\nand package adoption are confirmed at the time and keep no record.\n\nKAPI_TRUST_EXEC=1 grants trust to one process without consulting or writing\nthe record; it is for automation and is not shown here as a decision.",
+      "short": "List, inspect and change which projects may run commands or use a folder",
+      "long": "List, inspect and change which projects may run commands or keep their\ncontext in a folder.\n\nA recipe that names an exec-class step (external-command, script, or the exec\nformat) runs code the recipe chooses, with your privileges and your\nenvironment. kapi asks once per project before running it and remembers the\nanswer, allow or deny, against a fingerprint of the commands shown, the\nproject's id, and the content of every file in the project the commands name:\na script_file, a program given by a path, a script handed to an interpreter\n(node tools/x.js). A recipe edit that changes what would run, an edit to one\nof those files, or another project at the same path asks again, and the\nquestion says which file changed. A named file that is a link out of the\nproject is refused. The question and kapi trust list show the files checked\nby content, what the commands name and kapi does not check (a directory),\nand the commands that run code given inline (sh -c, node -e, python -c),\nwhose files kapi cannot see. kapi checks the files listed, not what they run\nor read: to have a script checked, name it in the recipe (command:\n./tools/run.sh) rather than inside inline code or behind npm run or make. Flow files in flows_dir are\ncovered as the recipe is, and the check runs at every command run. A recipe's commands run in the project root, wherever kapi is\nstarted, and relative paths are read from there; the directory kapi was\nstarted in reaches the command as KAPI_INVOKE_DIR. A comment edit's project\nformatter is decided the same way and kept in the same record, keyed by the\nconfiguration file that selects it.\n\nA recipe whose context block names a folder (backend: file) makes kapi write\nthe project's decisions, terms and voice there and merge in what the folder\nholds. The first sync through it shows the folder, with links resolved, and\nasks. The answer is kept in the same record, bound to the project and that\nfolder, and a path that leads to another folder asks again. kapi share --via\nfolder records the allow for the folder it names. With no terminal attached,\nkapi trust allow --context-store --yes records it. A tool call through kapi\nmcp cannot record one, and an assistant that identifies itself is refused.\n\nThese commands read and change that record, which is kept in the kapi config\ndirectory, not in the project. Plugin installs and package adoption are\nconfirmed at the time and keep no record.\n\nKAPI_TRUST_EXEC=1 grants trust to one process without consulting or writing\nthe record; it is for automation and is not shown here as a decision.",
       "groupID": "advanced",
       "examples": [
         "kapi trust list",
@@ -9389,9 +9389,15 @@
         "allow"
       ],
       "use": "allow",
-      "short": "Record that a project may run the commands its recipe names",
-      "long": "Record an allow for what the recipe runs now, without starting a run. The\ncommands are shown first and confirmed at the terminal. With no terminal\nattached nothing is recorded unless --yes is given.\n\nAn allow is keyed to the commands shown: a recipe edit that changes them asks\nagain. To grant one process trust without recording anything, set\nKAPI_TRUST_EXEC=1 instead.",
+      "short": "Record that a project may run its commands or use its folder",
+      "long": "Record an allow for what the recipe runs now, without starting a run. The\ncommands are shown first and confirmed at the terminal. With no terminal\nattached nothing is recorded unless --yes is given.\n\nWith --context-store the allow is for the folder the recipe keeps its context\nin instead: the folder is shown, confirmed the same way, and kept against its\nresolved path.\n\nAn allow is keyed to the commands shown: a recipe edit that changes them asks\nagain. To grant one process trust without recording anything, set\nKAPI_TRUST_EXEC=1 instead.",
       "flags": [
+        {
+          "name": "context-store",
+          "usage": "allow the folder the recipe keeps its context in, instead of the commands it runs",
+          "default": "false",
+          "type": "bool"
+        },
         {
           "name": "project",
           "shorthand": "p",
@@ -9401,7 +9407,8 @@
       ],
       "examples": [
         "kapi trust allow -p ./app",
-        "kapi trust allow -p ./app --yes"
+        "kapi trust allow -p ./app --yes",
+        "kapi trust allow --context-store -p ./app"
       ],
       "offlineCapable": true,
       "runnableInBrowser": false,
@@ -9430,6 +9437,12 @@
       "short": "Withdraw the decision recorded for a project",
       "long": "Withdraw the decision recorded for a project, allow or deny, so the next run\nasks again. The path names the recipe or its directory; a formatter decision\nis named by the configuration file kapi trust list shows for it. Withdrawing\na decision nobody recorded reports that and succeeds.",
       "flags": [
+        {
+          "name": "context-store",
+          "usage": "withdraw the folder approval for the project's context, instead of its commands decision",
+          "default": "false",
+          "type": "bool"
+        },
         {
           "name": "project",
           "shorthand": "p",

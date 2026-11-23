@@ -255,7 +255,7 @@ if (part.type === "block") {
 | --------------------- | ------- | --------------------------------------------------------------------------------- |
 | `source`              | string  | Mode selector: `inline` (default) or `file`                                       |
 | `code`                | string  | Inline JavaScript code (ES5)                                                      |
-| `script_file`          | string  | Path to a `.js` file                                                              |
+| `script_file`          | string  | Path to a `.js` file; in a recipe, relative to the project root                   |
 | `allow_source_mutation` | boolean | Permit the script to modify the source text. Off by default: the source is read-only and source edits are ignored unless this is set. |
 
 Provide either `code` or `script_file`. The optional `source` field selects the

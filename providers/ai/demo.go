@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -430,8 +431,11 @@ func matchCase(src, repl string) string {
 func demoBatchTranslations(userTurn string, target model.LocaleID, terms map[string]string) string {
 	var payload struct {
 		Segments []struct {
-			ID   string `json:"id"`
-			Text string `json:"text"`
+			ID             string `json:"id"`
+			Text           string `json:"text"`
+			RejectedDrafts []struct {
+				Text string `json:"rejected"`
+			} `json:"rejected_drafts"`
 		} `json:"segments"`
 	}
 	if err := json.Unmarshal([]byte(userTurn), &payload); err != nil {
@@ -446,9 +450,13 @@ func demoBatchTranslations(userTurn string, target model.LocaleID, terms map[str
 		Translations []entry `json:"translations"`
 	}
 	for _, seg := range payload.Segments {
+		var rejected []string
+		for _, r := range seg.RejectedDrafts {
+			rejected = append(rejected, r.Text)
+		}
 		out.Translations = append(out.Translations, entry{
 			ID:   seg.ID,
-			Text: demoTranslate(strings.TrimSpace(seg.Text), target, terms),
+			Text: demoAvoidRejected(demoTranslate(strings.TrimSpace(seg.Text), target, terms), rejected),
 		})
 	}
 
@@ -764,7 +772,7 @@ func demoChatReply(ctx context.Context, userTurn string) string {
 	// the user turn, and identifies itself via prompt.Meta. Anything else gets a
 	// labeled stub.
 	if m, ok := prompt.MetaFrom(ctx); ok && m.ID == prompt.IDTranslateSingle {
-		return demoTranslate(strings.TrimSpace(userTurn), demoTargetLocale(ctx), m.PreferredTerms)
+		return demoAvoidRejected(demoTranslate(strings.TrimSpace(userTurn), demoTargetLocale(ctx), m.PreferredTerms), m.RejectedDrafts)
 	}
 	return "⟦demo⟧ illustrative stub response (no real language model)"
 }
@@ -853,4 +861,14 @@ func SetDemoNoticeWriter(w io.Writer) {
 	if w != nil {
 		demoNoticeWriter = w
 	}
+}
+
+// demoAvoidRejected keeps the demo from returning a draft a reviewer rejected,
+// as a model told about the rejection is asked to: a draft equal to one is
+// marked as revised, once more for each rejected draft it would equal.
+func demoAvoidRejected(draft string, rejected []string) string {
+	for slices.Contains(rejected, draft) {
+		draft += " ⟦revised⟧"
+	}
+	return draft
 }

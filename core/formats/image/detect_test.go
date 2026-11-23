@@ -1,6 +1,7 @@
 package image
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -120,19 +121,19 @@ func TestClassifyFile(t *testing.T) {
 	if err := os.WriteFile(png, []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n', 0, 0}, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if k, err := classifyFile(png); err != nil || k != kindPNG {
-		t.Errorf("classifyFile(png) = %d, %v; want kindPNG", k, err)
+	if k, err := classifyReader(fileSource(t, png).section()); err != nil || k != kindPNG {
+		t.Errorf("classifyReader(png) = %d, %v; want kindPNG", k, err)
 	}
 
 	avif := filepath.Join(dir, "x.avif")
 	if err := os.WriteFile(avif, ftypBox("avif"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if k, err := classifyFile(avif); err != nil || k != kindAVIF {
-		t.Errorf("classifyFile(avif) = %d, %v; want kindAVIF", k, err)
+	if k, err := classifyReader(fileSource(t, avif).section()); err != nil || k != kindAVIF {
+		t.Errorf("classifyReader(avif) = %d, %v; want kindAVIF", k, err)
 	}
 
-	if _, err := classifyFile(filepath.Join(dir, "missing")); err == nil {
-		t.Error("classifyFile(missing) should error")
+	if k, err := classifyReader(bytes.NewReader(nil)); err != nil || k != kindUnknown {
+		t.Errorf("classifyReader(empty) = %d, %v; want kindUnknown", k, err)
 	}
 }

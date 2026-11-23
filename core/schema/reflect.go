@@ -242,6 +242,10 @@ func applyTag(prop *PropertySchema, tag string) {
 			prop.Title = val
 		case "description":
 			prop.Description = val
+		case "path":
+			// path=file or path=directory: the field names a location, which
+			// the surfaces that pass it on check (the MCP roots middleware).
+			prop.PathInfo = &PathAnnotation{Type: val}
 		case "widget":
 			prop.Widget = val
 		case "placeholder":

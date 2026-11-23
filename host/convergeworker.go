@@ -61,8 +61,9 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		ProjectContext:      a.ProjectContext,
 		MCPSurface:          a.MCPSurface,
 		mcpRecipePath:       a.mcpRecipePath,
+		mcpStartDir:         a.mcpStartDir,
 		mcpNamedSourceLang:  a.mcpNamedSourceLang,
-		execTrustGranted:    a.execTrustGranted,
+		execTrust:           a.execTrust,
 		ProjectBindings:     a.ProjectBindings,
 		convergeWriteFiles:  a.convergeWriteFiles,
 		convergeDraftDir:    a.convergeDraftDir,
@@ -76,6 +77,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		AISetupPrompter:     a.AISetupPrompter,
 		isTTY:               a.isTTY,
 		actingActor:         a.actingActor,
+		servingMCP:          a.servingMCP,
 		convergeProgressTap: tap,
 
 		// Pre-seed the parent's runtime (building it on the parent if needed,
@@ -142,19 +144,21 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	// than reset so the clone stays a faithful copy, like MCPSurface below.
 	"isTTY":            fieldShared,
 	"actingActor":      fieldShared,
+	"servingMCP":       fieldShared,
 	"RegistryResolver": fieldShared,
 	"ProjectContext":   fieldShared,
 	// The execution-trust decision belongs to the run, not to the locale: the
 	// user was asked once about one project's recipe, and every worker fanning
 	// out over that project inherits the answer. Owning it instead would leave
 	// each worker unable to build the step the user approved (AD-038).
-	"execTrustGranted": fieldShared,
+	"execTrust": fieldShared,
 	// The MCP tool surface is set from `kapi mcp` flags and read only while that
 	// server is running. A converge worker never serves MCP, so sharing the
 	// parent's value is correct and inert, it is carried rather than reset so
 	// the clone stays a faithful copy.
 	"MCPSurface":         fieldShared,
 	"mcpRecipePath":      fieldShared, // immutable identity of the server's bound project
+	"mcpStartDir":        fieldShared, // where the server started, fixed for its lifetime
 	"mcpNamedSourceLang": fieldShared, // what the server's command line named, fixed for its lifetime
 	"ProjectBindings":    fieldShared,
 	"convergeWriteFiles": fieldShared,
@@ -169,22 +173,25 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	// delivers what every locale's worker drafted.
 	"convergeDeliveries": fieldShared,
 	// A run that prints its change set prints one, gathered from every worker.
-	"printOps":            fieldShared,
-	"docCache":            fieldShared,
-	"translator":          fieldShared,
-	"pluginRuntime":       fieldShared, // pre-seeded, never rebuilt per worker
-	"projectStores":       fieldShared, // pre-seeded: one store per project, not per locale
-	"governance":          fieldShared, // one instant and one transition report per run
-	"governanceOnce":      fieldOwned,  // a fresh Once that sees the pre-seeded state
-	"freshness":           fieldShared, // one process, one reading history
-	"freshnessOnce":       fieldOwned,  // a fresh Once that sees the pre-seeded watch
-	"projectFlowTools":    fieldOwned,  // each worker builds its own tool instances
-	"flowFindings":        fieldOwned,  // armed per reported run; a silent worker reports none
-	"flowFindingsSink":    fieldOwned,  // scoped to one RunFromProject; a worker gates nothing
-	"convergeProgressTap": fieldOwned,  // one tap per locale
-	"flowRedaction":       fieldOwned,  // set per binding group on the worker that runs it
-	"pluginRuntimeOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded runtime
-	"projectStoresOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded holder
+	"printOps":              fieldShared,
+	"docCache":              fieldShared,
+	"translator":            fieldShared,
+	"pluginRuntime":         fieldShared, // pre-seeded, never rebuilt per worker
+	"projectStores":         fieldShared, // pre-seeded: one store per project, not per locale
+	"governance":            fieldShared, // one instant and one transition report per run
+	"governanceOnce":        fieldOwned,  // a fresh Once that sees the pre-seeded state
+	"freshness":             fieldShared, // one process, one reading history
+	"freshnessOnce":         fieldOwned,  // a fresh Once that sees the pre-seeded watch
+	"projectFlowTools":      fieldOwned,  // each worker builds its own tool instances
+	"flowFindings":          fieldOwned,  // armed per reported run; a silent worker reports none
+	"flowFindingsSink":      fieldOwned,  // scoped to one RunFromProject; a worker gates nothing
+	"convergeProgressTap":   fieldOwned,  // one tap per locale
+	"flowRedaction":         fieldOwned,  // set per binding group on the worker that runs it
+	"flowReviewFeedback":    fieldOwned,  // set per binding group and locale on the worker that runs it
+	"reviewFeedbackMTNoted": fieldOwned,  // each worker says it at most once; a silent worker says nothing
+	"reviewRepeats":         fieldOwned,  // the run's one count, handed to each worker
+	"pluginRuntimeOnce":     fieldOwned,  // a fresh Once that sees the pre-seeded runtime
+	"projectStoresOnce":     fieldOwned,  // a fresh Once that sees the pre-seeded holder
 	// The plugin MCP servers belong to a `kapi mcp` session, and a converge
 	// worker is not one. Sharing them would let a worker's Shutdown close the
 	// parent's plugin subprocesses out from under the agent it is serving.

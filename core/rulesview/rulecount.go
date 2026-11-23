@@ -1,8 +1,8 @@
 package rulesview
 
 import (
-	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -17,7 +17,7 @@ import (
 // the notes a person kept that hold there, and the pattern rules of the voice
 // bound there: the patterns [coreprofile.PatternRuleCount] counts.
 type RuleTally struct {
-	keys map[string]bool
+	keys map[[4]string]bool
 }
 
 // AddWordRule adds one word rule, keyed by its folded wording to use, the
@@ -27,8 +27,11 @@ func (t *RuleTally) AddWordRule(say string, not []string, locale string) {
 	for i, n := range not {
 		folded[i] = FoldWording(n)
 	}
+	for i, f := range folded {
+		folded[i] = strconv.Quote(f)
+	}
 	sort.Strings(folded)
-	t.add("rule|" + FoldWording(say) + "|" + strings.Join(folded, ",") + "|" + locale)
+	t.add([4]string{"rule", FoldWording(say), strings.Join(folded, ","), locale})
 }
 
 // AddWordRules adds each rule of a place's word-rule list.
@@ -41,7 +44,7 @@ func (t *RuleTally) AddWordRules(rules []WordRule) {
 // AddNote adds a note a person kept, by the id of the operation that records
 // it.
 func (t *RuleTally) AddNote(operation string) {
-	t.add("note|" + operation)
+	t.add([4]string{"note", operation})
 }
 
 // AddVoice adds the pattern rules of the voice bound at a place: its
@@ -54,13 +57,13 @@ func (t *RuleTally) AddVoice(v *coreprofile.VoiceProfile) {
 	for _, list := range [][]coreprofile.Pattern{v.Style.ProhibitedPatterns, v.Style.RequiredPatterns} {
 		for _, p := range list {
 			if strings.TrimSpace(p.Regex) != "" {
-				t.add("voice|" + v.Name + "|" + p.Regex)
+				t.add([4]string{"voice", v.Name, p.Regex})
 			}
 		}
 	}
 	for _, r := range coreprofile.ConstraintResolutions(v) {
 		if r.Status == "applicable" && r.Constraint.Kind == coreprofile.ConstraintProhibitedPattern {
-			t.add(fmt.Sprintf("constraint|%s|%s|%d", v.Name, r.Constraint.ID, r.Constraint.Version))
+			t.add([4]string{"constraint", v.Name, r.Constraint.ID, strconv.Itoa(r.Constraint.Version)})
 		}
 	}
 }
@@ -70,9 +73,9 @@ func (t *RuleTally) Len() int {
 	return len(t.keys)
 }
 
-func (t *RuleTally) add(key string) {
+func (t *RuleTally) add(key [4]string) {
 	if t.keys == nil {
-		t.keys = map[string]bool{}
+		t.keys = map[[4]string]bool{}
 	}
 	t.keys[key] = true
 }

@@ -117,7 +117,7 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 	_, derr := ds.UpsertUnitDecisions(ctx, projID, "main", []venue.UnitDecision{{
 		ItemName: sb.ItemName, Unit: sb.SourceID, Variant: "fr", Status: "draft",
 		ReviewState: "rejected", DecidedBy: "owner@rc.test", DecidedAt: "2026-09-01T11:00:00Z",
-		Note: "Reads as machine output", Updated: "2026-09-01T11:00:00Z",
+		Note: "Reads as machine output", Reasons: []string{"tone"}, Updated: "2026-09-01T11:00:00Z",
 	}})
 	require.NoError(t, derr)
 	note, _ := json.Marshal(map[string]string{"text": "Check with legal"})
@@ -187,6 +187,7 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 	assert.Equal(t, "owner@rc.test", got.Provenance.By)
 	assert.Equal(t, "2026-09-01T11:00:00Z", got.Provenance.At)
 	assert.Equal(t, "Reads as machine output", got.Provenance.Note)
+	assert.Equal(t, []string{"tone"}, got.Provenance.Reasons, "the review sheet reads the reasons beside the note")
 	assert.False(t, got.Provenance.Stale)
 	require.NotNil(t, got.Provenance.Origin)
 	assert.Equal(t, "ai", got.Provenance.Origin.Kind)
@@ -355,13 +356,10 @@ func TestReviewContext_HandEditReadsAsHuman(t *testing.T) {
 	assert.Empty(t, rewritten.Provenance.Origin.Engine)
 }
 
-// TestReviewContext_ReadsTheSameFactsAsTheHost seeds one unit here and holds
-// this assembler to the functions in core/review the host's assembler composes
-// (host.AssembleReviewContext, held to them by its own test), over the same
-// blocks, the same memory entry and the same decision: the neighbourhood in
-// document order with each neighbour's rung, the prior version and whether its
-// context still governs, the memory match on one scale, and the decision in
-// force with the target's origin. The point is each venue's own (a recipe on
+// TestReviewContext_ReadsTheSameFactsAsTheHost seeds one unit and holds this
+// assembler to the core/review functions the host's assembler composes, over
+// the same blocks, memory entry and decision. It compares the neighbourhood,
+// the prior version, the memory match and the decision in force. The point is each venue's own (a recipe on
 // the host, a workspace here) and the checks each venue runs are its own, so
 // those two are pinned by the cases above rather than compared.
 func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
@@ -419,7 +417,7 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 	}
 	// The same store implementation on both sides, so the two lookups classify
 	// a match the same way and the comparison is about the assemblers.
-	s.wsStores.memoryFactory = func() memory.Store { return memory.NewInMemoryStore() }
+	s.wsStores.memoryFactory = func(string) memory.Store { return memory.NewInMemoryStore() }
 	serverMemory, merr := s.wsStores.getMemory(t.Context(), "rc")
 	require.NoError(t, merr)
 	require.NoError(t, serverMemory.Add(ctx, entry))

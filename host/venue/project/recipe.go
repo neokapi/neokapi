@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	coreproj "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/host/venue/schema"
 	"gopkg.in/yaml.v3"
 )
@@ -104,7 +106,7 @@ func LoadRecipe(path string) (*Recipe, error) {
 	}
 	var r Recipe
 	if err := yaml.Unmarshal(data, &r); err != nil {
-		return nil, fmt.Errorf("parse recipe: %w", err)
+		return nil, fmt.Errorf("parse recipe: %w", coreproj.RecipeYAMLError(err))
 	}
 	// Recipe embeds KapiProject inline, so a top-level key no field matches is
 	// dropped rather than routed to Extras, and the registered decoder for a
@@ -119,7 +121,9 @@ func LoadRecipe(path string) (*Recipe, error) {
 }
 
 // SaveRecipe writes the recipe to path, encoding both framework and
-// bowrain fields. Atomic via temp file + rename.
+// bowrain fields. The file is written beside path and renamed into place
+// through an os.Root on the directory that holds it. A recipe that is a link
+// out of that directory is refused (rootpath.Contain).
 func SaveRecipe(path string, r *Recipe) error {
 	if r.Version == "" {
 		r.Version = coreproj.CurrentVersion
@@ -131,12 +135,30 @@ func SaveRecipe(path string, r *Recipe) error {
 		return fmt.Errorf("marshal recipe: %w", err)
 	}
 	_ = enc.Close()
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, buf.Bytes(), 0o644); err != nil {
+	if _, err := rootpath.Contain(filepath.Dir(path), path); err != nil {
 		return fmt.Errorf("write recipe: %w", err)
 	}
-	if err := os.Rename(tmp, path); err != nil {
-		return fmt.Errorf("rename recipe: %w", err)
+	root, err := os.OpenRoot(filepath.Dir(path))
+	if err != nil {
+		return fmt.Errorf("write recipe: %w", err)
+	}
+	defer root.Close()
+	name := filepath.Base(path)
+	tmp := name + ".tmp"
+	f, err := root.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	if err != nil {
+		return fmt.Errorf("write recipe: %w", err)
+	}
+	_, werr := f.Write(buf.Bytes())
+	if cerr := f.Close(); werr == nil {
+		werr = cerr
+	}
+	if werr == nil {
+		werr = root.Rename(tmp, name)
+	}
+	if werr != nil {
+		_ = root.Remove(tmp)
+		return fmt.Errorf("write recipe: %w", werr)
 	}
 	return nil
 }
@@ -227,7 +249,7 @@ func (r *Recipe) SetDefaultCollection(name string) error {
 
 // ContentItemView pairs a framework ContentItem with bowrain-specific
 // per-item extension fields decoded from the item's Extras map. Base is the
-// embedded framework field — bowrain does not extend it.
+// embedded framework field; bowrain does not extend it.
 type ContentItemView struct {
 	coreproj.ContentItem
 
@@ -329,7 +351,7 @@ func setEntryExtra(entry *coreproj.Collection, key string, value any) {
 	}
 }
 
-// CollectionPreview decodes a named collection's `preview:` block — where its
+// CollectionPreview decodes a named collection's `preview:` block, where its
 // strings can be read in place. Nil when the collection declares none, which is
 // how a reviewer decides to offer document reading only.
 //

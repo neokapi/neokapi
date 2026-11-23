@@ -262,6 +262,10 @@ fi
 echo "✅ Signed Windows artifacts added to release $TAG:"
 for f in "${signed[@]}"; do echo "   • ${f##*/}"; done
 
+# The release now carries every asset scripts/lib/release-assets.json lists,
+# signed Windows ones included, or this stops before announcing it anywhere.
+python3 "$(dirname "${BASH_SOURCE[0]}")/release-assets.py" check-release "$TRACK" "$TAG" --complete
+
 # Now that the signed CLI zip + desktop setup.exe are on the release, kick off
 # three INDEPENDENT post-signing workflows:
 #

@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"path/filepath"
 	"sort"
 	"strings"
 	"unicode"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // execClassTools are the built-in tool IDs whose whole job is to run code the
@@ -54,8 +56,8 @@ type ExecSite struct {
 	Kind string
 	// Name is the tool ID or format name.
 	Name string
-	// Detail summarises what would run — the command line, or the head of the
-	// script — so a person can answer the prompt on the facts rather than on
+	// Detail summarises what would run (the command line, or the head of the
+	// script), so a person can answer the prompt on the facts rather than on
 	// the tool's name. It is derived from untrusted recipe text and is
 	// sanitised for terminal display; see sanitizeForDisplay.
 	Detail string
@@ -70,15 +72,59 @@ type ExecSite struct {
 // name. The digest also holds facts, such as hashes of the executable and of
 // configFile, so a change to either gives a different digest.
 func FormatterExecSite(configFile, name string, command []string, facts map[string]any) ExecSite {
-	config := map[string]any{"command": command}
-	maps.Copy(config, facts)
 	return ExecSite{
 		Where:  sanitizeForDisplay(configFile),
 		Kind:   "formatter",
 		Name:   sanitizeForDisplay(name),
 		Detail: sanitizeForDisplay(clip(strings.Join(command, " "), 320)),
-		config: config,
+		config: map[string]any{"command": command},
+	}.WithFacts(facts)
+}
+
+// WithFacts returns the site with facts added to what its digest covers:
+// hashes of the files it runs, the project it belongs to. A recipe's sites
+// and a formatter's carry their facts the same way, so one digest covers
+// both the configuration and what it names.
+func (s ExecSite) WithFacts(facts map[string]any) ExecSite {
+	config := make(map[string]any, len(s.config)+len(facts))
+	maps.Copy(config, s.config)
+	maps.Copy(config, facts)
+	s.config = config
+	return s
+}
+
+// NamedPaths lists what a site's configuration names that may be a file the
+// command runs: external-command's command when it is a path rather than a
+// name looked up on PATH, each of its arguments (an interpreter's script
+// among them), and the script tool's script_file. Whether one is a file in
+// the project is for the caller to decide.
+func (s ExecSite) NamedPaths() []string {
+	var out []string
+	switch s.Name {
+	case "external-command":
+		if c, ok := s.config["command"].(string); ok && strings.ContainsAny(c, `/\`) {
+			out = append(out, c)
+		}
+		switch args := s.config["args"].(type) {
+		case []any:
+			for _, a := range args {
+				if v, ok := a.(string); ok && v != "" {
+					out = append(out, v)
+				}
+			}
+		case []string:
+			for _, v := range args {
+				if v != "" {
+					out = append(out, v)
+				}
+			}
+		}
+	case "script":
+		if f, ok := s.config["script_file"].(string); ok && f != "" {
+			out = append(out, f)
+		}
 	}
+	return out
 }
 
 // ExecSurface enumerates every site in a recipe that would run code the recipe
@@ -94,13 +140,16 @@ func FormatterExecSite(configFile, name string, command []string, facts map[stri
 // is part of what a person is being asked to approve.
 //
 // Sites come back in a deterministic order so the digest is stable across runs.
+//
+// ExecSurface reads the recipe alone. ExecSurfaceIn adds what the project's
+// files declare beside it, which is what a decision must cover.
 func ExecSurface(p *KapiProject) []ExecSite {
 	if p == nil {
 		return nil
 	}
 	var sites []ExecSite
 
-	// Flows, in name order — Go map iteration is randomised.
+	// Flows, in name order, since Go map iteration is randomised.
 	flowNames := make([]string, 0, len(p.Flows))
 	for name := range p.Flows {
 		flowNames = append(flowNames, name)
@@ -152,6 +201,140 @@ func ExecSurface(p *KapiProject) []ExecSite {
 	return sites
 }
 
+// ExecSurfaceIn enumerates everything the project at root can make kapi
+// execute: the recipe's own sites (ExecSurface) and the steps of every flow
+// file in its `flows_dir:`, each located by the file's path relative to root.
+// ExecSurfaceSources lists the places this walk reads, and a test holds the
+// recipe's fields to it, so a new place a step can be declared joins the walk.
+// A flow file that does not load is skipped: it runs nothing.
+func ExecSurfaceIn(p *KapiProject, root string) []ExecSite {
+	sites := ExecSurface(p)
+	if p == nil {
+		return sites
+	}
+	for _, def := range ListDirFlows(p.FlowsDirIn(root)) {
+		if def.Err != nil || def.Spec == nil {
+			continue
+		}
+		where := def.Path
+		if rel, err := filepath.Rel(root, def.Path); err == nil {
+			where = filepath.ToSlash(rel)
+		}
+		sites = append(sites, execSitesInSteps(def.Spec.Steps, where+" steps")...)
+		sites = append(sites, execSitesInSteps(def.Spec.SourceTransforms, where+" source_transforms")...)
+	}
+	return sites
+}
+
+// ExecSurfaceSources names the recipe fields ExecSurfaceIn reads steps,
+// presets and formats from. Every other field of KapiProject is listed in
+// ExecSurfaceNonSources with why it declares nothing kapi executes.
+var ExecSurfaceSources = []string{"Flows", "FlowsDir", "Defaults", "Collections"}
+
+// ExecSurfaceNonSources names the recipe fields that declare no step, preset
+// or format, so the walk passes them over.
+var ExecSurfaceNonSources = map[string]string{
+	"Version":          "the recipe format version",
+	"ID":               "the project's identity",
+	"Name":             "a label",
+	"Plugins":          "which installed plugins the project needs; a plugin is installed code, decided at install",
+	"Preset":           "a built-in preset name, which brings kapi's own configuration",
+	"Profiles":         "voice, terms and concept bindings, which run nothing",
+	"Places":           "where content is published, read by venue plugins",
+	"Axes":             "context coordinates",
+	"ShipGate":         "a check gate over findings",
+	"ShipGates":        "check gates over findings",
+	"Gates":            "check gates over findings",
+	"EstablishedGate":  "a check gate over findings",
+	"EstablishedGates": "check gates over findings",
+	"SourceGate":       "a check gate over findings",
+	"Requires":         "the kapi and plugin versions the recipe needs",
+	"Context":          "where the context is kept, decided by the context-store approval",
+	"Extras":           "keys a registered recipe extension decodes, such as a venue's settings; an extension is installed code",
+}
+
+// ExecSurfaceDefaultsSources names the `defaults:` fields ExecSurface reads:
+// the tool presets that would arm a step.
+var ExecSurfaceDefaultsSources = []string{"Tools", "Locales"}
+
+// inlineCodeFlags are the arguments that hand a program code as a string
+// rather than a file: a shell's `-c`, an interpreter's `-e` or `-c` (node,
+// python, perl, ruby), `--eval`, PowerShell's `-Command`, cmd's `/c`. They
+// count for any program, a program kapi does not know included: an unknown
+// program with one of them is reported as running inline code, because a
+// step wrongly reported as unchecked costs a clearer question, and one
+// wrongly passed over in silence reads as checked.
+var inlineCodeFlags = map[string]bool{
+	"-c": true, "-e": true, "-E": true, "--eval": true, "--exec": true,
+	"-command": true, "/c": true,
+}
+
+// inlineCodeForms are a known program's own ways of taking code inline, read
+// beside inlineCodeFlags: node's `-p`, deno's `eval`, php's `-r`, ruby's
+// `-r` (which loads a library the recipe does not name).
+var inlineCodeForms = map[string]map[string]bool{
+	"node":   {"-p": true, "--print": true},
+	"nodejs": {"-p": true, "--print": true},
+	"bun":    {"-p": true, "--print": true},
+	"deno":   {"eval": true},
+	"php":    {"-r": true},
+	"ruby":   {"-r": true},
+}
+
+// InlineCode reports how the site hands a program code as a string, such as
+// "sh -c" or "node -e", or "" when it does not. Code given inline can load
+// any file, and kapi cannot see which, so a question about the step says so.
+// It reads the shape of the invocation: a program, then a flag that takes
+// code.
+func (s ExecSite) InlineCode() string {
+	if s.Name != "external-command" {
+		return ""
+	}
+	command, _ := s.config["command"].(string)
+	words := []string{command}
+	switch args := s.config["args"].(type) {
+	case []any:
+		for _, a := range args {
+			if v, ok := a.(string); ok {
+				words = append(words, v)
+			}
+		}
+	case []string:
+		words = append(words, args...)
+	}
+	// The program is the command, or, behind env, the first word after it
+	// that is not a flag.
+	program := ""
+	for i, w := range words {
+		if i == 0 || program == "env" && !strings.HasPrefix(w, "-") {
+			program = strings.TrimSuffix(strings.ToLower(filepath.Base(w)), ".exe")
+			continue
+		}
+		flag, _, _ := strings.Cut(w, "=")
+		lower := strings.ToLower(flag)
+		caseFree := lower == "/c" || lower == "-command"
+		if inlineCodeFlags[flag] || caseFree || inlineCodeForms[program][flag] {
+			return program + " " + flag
+		}
+	}
+	return ""
+}
+
+// kapiOwnedKeys are configuration keys kapi sets on a recipe's step itself.
+var kapiOwnedKeys = []string{"working_dir", "invoke_dir"}
+
+// KapiOwnedKeys lists the keys in the site's configuration that kapi sets on
+// a recipe's step itself, and a recipe may not.
+func (s ExecSite) KapiOwnedKeys() []string {
+	var out []string
+	for _, k := range kapiOwnedKeys {
+		if _, ok := s.config[k]; ok {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
 // execSitesInSteps collects exec-class steps, recursing into `parallel`
 // branches so a step cannot hide one level down.
 func execSitesInSteps(steps []flow.FlowStep, where string) []ExecSite {
@@ -200,8 +383,8 @@ func execSitesInToolConfig(in map[string]map[string]any, where string) []ExecSit
 var execDetailKeys = []string{"command", "args", "script_file", "script"}
 
 // summariseExecConfig renders the part of a config that says what would run.
-// Values come from an untrusted recipe, so the result is sanitised and clipped
-// — it is evidence for a decision, not a faithful echo of the file.
+// Values come from an untrusted recipe, so the result is sanitised and clipped:
+// it is evidence for a decision, not a faithful echo of the file.
 func summariseExecConfig(config map[string]any) string {
 	if len(config) == 0 {
 		return ""
@@ -254,7 +437,7 @@ func sanitizeForDisplay(s string) string {
 // decision is about the argv a person approved, so adding a target language or
 // a content glob must not invalidate it, while adding an argument to an
 // approved command must. Each site contributes its location, kind, name and
-// canonical configuration — encoding/json sorts map keys, so a reordered YAML
+// canonical configuration. encoding/json sorts map keys, so a reordered YAML
 // mapping digests identically while a changed value does not.
 //
 // An empty surface digests to the empty string; there is nothing to decide.
@@ -264,16 +447,16 @@ func ExecSurfaceDigest(sites []ExecSite) string {
 	}
 	h := sha256.New()
 	for _, s := range sites {
-		fmt.Fprintf(h, "%s\x00%s\x00%s\x00", s.Where, s.Kind, s.Name)
+		config := ""
+		if enc, err := json.Marshal(s.config); err == nil {
+			config = string(enc)
+		} else {
+			config = fmt.Sprintf("unencodable:%v", err)
+		}
 		// A config that cannot be encoded (it came from YAML, so this should
 		// not happen) contributes a marker rather than nothing, so two sites
 		// differing only in an unencodable config never collide.
-		if enc, err := json.Marshal(s.config); err == nil {
-			h.Write(enc)
-		} else {
-			fmt.Fprintf(h, "unencodable:%v", err)
-		}
-		h.Write([]byte{0})
+		partjoin.WriteNUL(h, s.Where, s.Kind, s.Name, config)
 	}
 	return hex.EncodeToString(h.Sum(nil))
 }

@@ -72,6 +72,8 @@ type Server struct {
 	AuthStore      auth.AuthStore
 	EventBus       platev.EventBus
 	Echo           *echo.Echo
+	// echoMu guards GetEcho's first build of Echo.
+	echoMu sync.Mutex
 
 	// wsStores manages per-workspace content memory and terminology stores.
 	wsStores *workspaceStores
@@ -2345,10 +2347,17 @@ func (s *Server) OpenBlockstore(projectID, stream string) (coreblockstore.Store,
 }
 
 // GetEcho returns the underlying Echo instance. Useful for testing.
+//
+// The first call builds the router, and every call waits until it is built:
+// callers that arrive together never serve through a router whose routes are
+// still being registered, which answers every request with Echo's 404.
 func (s *Server) GetEcho() *echo.Echo {
+	s.echoMu.Lock()
+	defer s.echoMu.Unlock()
 	if s.Echo == nil {
-		s.Echo = echo.New()
-		s.SetupRoutes(s.Echo)
+		e := echo.New()
+		s.SetupRoutes(e)
+		s.Echo = e
 	}
 	return s.Echo
 }

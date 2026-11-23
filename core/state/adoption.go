@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/partjoin"
 	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/storage"
 )
@@ -17,12 +18,10 @@ import (
 //
 // A checkout resolves a document's key from the documents it has seen before:
 // by path, then by what the file holds (reconcile.DocumentUnits), and mints a
-// key from the path when nothing claims the file. A checkout that has seen
-// nothing before would mint from wherever the file sits now, and a document
-// another checkout has followed through a rename would then carry two keys,
-// with every decision filed under one of them invisible to the other.
-//
-// So every adoption is recorded in the workspace's log as a document.adopt
+// key from the path when nothing claims the file. A fresh checkout would mint
+// from where the file sits now, so a renamed document would carry two keys.
+
+// Every adoption is recorded in the workspace's log as a document.adopt
 // operation (core/projector), and the projector writes it into the
 // document_adoption table. A checkout resolving a read consults those
 // adoptions after its own documents, so a fresh checkout finds the key the
@@ -50,7 +49,7 @@ type Adoption struct {
 // same state make the same adoption, and a document that returns to a path or
 // a content it held before makes a new one.
 func AdoptionID(a Adoption) string {
-	sum := sha256.Sum256([]byte(a.Key + "\x00" + a.Path + "\x00" + a.Digest + "\x00" + a.Prev))
+	sum := sha256.Sum256([]byte(partjoin.NUL(a.Key, a.Path, a.Digest, a.Prev)))
 	return hex.EncodeToString(sum[:])
 }
 

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -14,6 +15,7 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/storage"
 	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/graph"
@@ -121,11 +123,13 @@ type ResolveCommentRequest struct {
 	Resolved *bool `json:"resolved,omitempty"`
 }
 
-// MarketRequest creates or updates a market.
+// MarketRequest creates or updates a market. An update names the revision it
+// was based on in BaseRevision.
 type MarketRequest struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Locales     []string `json:"locales,omitempty"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description,omitempty"`
+	Locales      []string `json:"locales,omitempty"`
+	BaseRevision string   `json:"base_revision,omitempty"`
 }
 
 // ConceptStoryEntry is one event on a concept's merged timeline. Kind discriminates
@@ -1011,14 +1015,20 @@ func (s *Server) HandleUpdateMarket(c *echo.Context) error {
 	mid := c.Param("mid")
 	ctx := c.Request().Context()
 
-	existing, err := s.KnowledgeStore.GetMarket(ctx, wsID, mid)
-	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
-	}
-
 	var req MarketRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if req.BaseRevision == "" {
+		return refuseUnversioned(c, "markets")
+	}
+
+	existing, err := s.KnowledgeStore.GetMarket(ctx, wsID, mid)
+	if errors.Is(err, knowledge.ErrMarketNotFound) {
+		return refuseGone(c, "market")
+	}
+	if err != nil {
+		return serverErr(c, err)
 	}
 	if strings.TrimSpace(req.Name) != "" {
 		existing.Name = req.Name
@@ -1027,7 +1037,19 @@ func (s *Server) HandleUpdateMarket(c *echo.Context) error {
 	if req.Locales != nil {
 		existing.Locales = localeIDs(req.Locales)
 	}
-	if err := s.KnowledgeStore.UpdateMarket(ctx, existing); err != nil {
+	switch err := s.KnowledgeStore.UpdateMarket(ctx, existing, req.BaseRevision); {
+	case errors.Is(err, knowledge.ErrMarketNotFound):
+		return refuseGone(c, "market")
+	case errors.Is(err, storage.ErrStale):
+		current, gerr := s.KnowledgeStore.GetMarket(ctx, wsID, mid)
+		if errors.Is(gerr, knowledge.ErrMarketNotFound) {
+			return refuseGone(c, "market")
+		}
+		if gerr != nil {
+			return serverErr(c, gerr)
+		}
+		return refuseChanged(c, "market_changed", "market", current)
+	case err != nil:
 		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, existing)
@@ -1042,8 +1064,23 @@ func (s *Server) HandleDeleteMarket(c *echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errKnowledgeUnavailable.Error()})
 	}
 	wsID, _ := c.Get("workspace_id").(string)
-	if err := s.KnowledgeStore.DeleteMarket(c.Request().Context(), wsID, c.Param("mid")); err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	ctx := c.Request().Context()
+	mid := c.Param("mid")
+	base := c.QueryParam("base_revision")
+	if base == "" {
+		return refuseUnversioned(c, "markets")
+	}
+	switch err := s.KnowledgeStore.DeleteMarketAt(ctx, wsID, mid, base); {
+	case errors.Is(err, knowledge.ErrMarketNotFound):
+		return refuseGone(c, "market")
+	case errors.Is(err, storage.ErrStale):
+		current, gerr := s.KnowledgeStore.GetMarket(ctx, wsID, mid)
+		if gerr != nil {
+			return refuseGone(c, "market")
+		}
+		return refuseChanged(c, "market_changed", "market", current)
+	case err != nil:
+		return serverErr(c, err)
 	}
 	return c.NoContent(http.StatusNoContent)
 }

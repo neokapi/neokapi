@@ -40,6 +40,7 @@ import { filterFiles, filterLanguages } from "../lib/filter";
 import { PipelineProgress } from "./PipelineProgress";
 import { AIModelPromptDialog } from "./AIModelPromptDialog";
 import { AICredentialMissingDialog } from "./AICredentialMissingDialog";
+import { useExecTrustGate } from "./ExecTrustDialog";
 import { ConvergeRunView } from "./ConvergeRunView";
 
 type RunState = "idle" | "running" | "complete" | "error" | "canceled";
@@ -139,6 +140,9 @@ export function RunnerPage({
   } | null>(null);
   // The recipe names a provider whose key is missing: no model choice helps.
   const [missingKey, setMissingKey] = useState<AISetupNeed | null>(null);
+  // The project's commands are asked about before each run, so one changed
+  // since the last answer is asked about again rather than run.
+  const execTrust = useExecTrustGate(tabID);
 
   const runNow = useCallback(
     async (paths: string[], targets: string[]) => {
@@ -159,6 +163,7 @@ export function RunnerPage({
   const launchFlow = useCallback(
     async (paths: string[], targets: string[]) => {
       setLaunchError(null);
+      if (!(await execTrust.gate())) return;
       const need = await api.checkAISetup(tabID, flowName);
       if (need?.kind === "missing_credential") {
         setMissingKey(need);
@@ -170,7 +175,7 @@ export function RunnerPage({
       }
       await runNow(paths, targets);
     },
-    [tabID, flowName, runNow],
+    [tabID, flowName, runNow, execTrust],
   );
 
   const convergeNow = useCallback(async () => {
@@ -187,6 +192,7 @@ export function RunnerPage({
     setLaunchError(null);
     // Catch up runs convergence (`kapi up`), which needs a model or a key only
     // when it has work for the AI step: asked with no flow name.
+    if (!(await execTrust.gate())) return;
     const need = await api.checkAISetup(tabID, "");
     if (need?.kind === "missing_credential") {
       setMissingKey(need);
@@ -197,7 +203,7 @@ export function RunnerPage({
       return;
     }
     await convergeNow();
-  }, [tabID, convergeNow]);
+  }, [tabID, convergeNow, execTrust]);
 
   // Auto-run (convergence): launch Catch up once per request.
   useEffect(() => {
@@ -545,6 +551,7 @@ export function RunnerPage({
         }}
         onCancel={() => setModelPrompt(null)}
       />
+      {execTrust.dialog}
       <AICredentialMissingDialog
         need={missingKey}
         onAddKey={

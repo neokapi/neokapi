@@ -14,8 +14,12 @@ import type {
   SchemaFormHost,
 } from "@neokapi/ui";
 
-/** Where the open flow stands against the server. */
-export type FlowSaveState = "saved" | "unsaved" | "saving" | "error";
+/**
+ * Where the open flow stands against the server. `changed` is a version the
+ * server refused because someone else saved the flow; it stays unsaved until
+ * the person decides.
+ */
+export type FlowSaveState = "saved" | "unsaved" | "saving" | "error" | "changed";
 
 export interface ProjectFlowPaneProps {
   flow: FlowDefinitionInfo;
@@ -26,6 +30,8 @@ export interface ProjectFlowPaneProps {
   saveState: FlowSaveState;
   /** The failure behind an `error` save state. */
   saveError?: unknown;
+  /** For a `changed` save state: reopens the choice between the two versions. */
+  onReviewChange?: () => void;
   /** The view to open on; Steps unless told otherwise. */
   defaultView?: FlowView;
   /** Resolve a tool's option schema (cached by the host); a step with one offers its options. */
@@ -56,6 +62,13 @@ function SaveIndicator({ state }: { state: FlowSaveState }) {
           Unsaved changes
         </span>
       );
+    case "changed":
+      return (
+        <span className={`${base} text-destructive`} data-testid="flow-save-state">
+          <AlertTriangle size={11} aria-hidden="true" />
+          Changed elsewhere
+        </span>
+      );
     case "error":
       return (
         <span className={`${base} text-destructive`} data-testid="flow-save-state">
@@ -80,6 +93,7 @@ export function ProjectFlowPane({
   readOnly,
   saveState,
   saveError,
+  onReviewChange,
   defaultView,
   onGetSchema,
   host,
@@ -124,6 +138,20 @@ export function ProjectFlowPane({
           )}
         </div>
       </div>
+
+      {saveState === "changed" && (
+        <div
+          className="flex flex-wrap items-center gap-3 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm"
+          data-testid="flow-changed-elsewhere"
+        >
+          <span>Someone else saved this flow. Your version is not saved.</span>
+          {onReviewChange && (
+            <Button size="sm" variant="outline" onClick={onReviewChange}>
+              Review
+            </Button>
+          )}
+        </div>
+      )}
 
       {saveState === "error" && saveError != null && (
         <ErrorNotice error={saveError} title="Could not save the flow" variant="inline" />

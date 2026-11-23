@@ -1,5 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, type ReactNode } from "react";
 import { usePlatform } from "../platform";
+import { setPendingSavesUser } from "../pendingSaves";
+import { useSignOutGuard } from "../useSignOutGuard";
 import {
   Outlet,
   useNavigate,
@@ -650,6 +652,14 @@ export function WorkspaceLayout() {
   // Handlers
   // -----------------------------------------------------------------------
 
+  // Unsaved edits belong to this user on this server; they are sent and
+  // listed only while the same user is signed in, whichever workspace is open.
+  const userId = user?.id ?? "";
+  useEffect(() => {
+    setPendingSavesUser(userId || null);
+    return () => setPendingSavesUser(null);
+  }, [userId]);
+
   const handleSignOut = useCallback(async () => {
     // Desktop signs out at the host: the OIDC cookie/redirect round-trip below
     // is a browser flow with no meaning in the webview (Bearer-token auth). The
@@ -685,6 +695,10 @@ export function WorkspaceLayout() {
     queryClient.clear();
     setSignedOut(true);
   }, [queryClient, platform]);
+
+  // Signing out with edits the server has not taken asks first: signing out
+  // discards them.
+  const { request: requestSignOut, dialog: signOutDialog } = useSignOutGuard(handleSignOut);
 
   const handleViewChange = useCallback(
     (view: WorkspaceView) => {
@@ -840,7 +854,7 @@ export function WorkspaceLayout() {
               hiddenSubNavIds={bravoEnabled ? undefined : ["bravo"]}
               subNavCounts={{ changes: pendingChangesets?.length ?? 0 }}
               user={user}
-              onSignOut={serverMode === "server" ? handleSignOut : undefined}
+              onSignOut={serverMode === "server" ? requestSignOut : undefined}
               collapsed={sidebarCollapsed}
               onCollapsedChange={setSidebarCollapsed}
               breadcrumbs={breadcrumbs}
@@ -851,7 +865,7 @@ export function WorkspaceLayout() {
               headerSlot={
                 <ConnectedTopBar
                   user={user}
-                  onSignOut={serverMode === "server" ? handleSignOut : undefined}
+                  onSignOut={serverMode === "server" ? requestSignOut : undefined}
                   onSettings={
                     serverMode === "server"
                       ? () =>
@@ -925,6 +939,7 @@ export function WorkspaceLayout() {
           </StreamActionsProvider>
         </MaybeBravoProvider>
 
+        {signOutDialog}
         <CreateWorkspaceDialog
           open={showCreateWs}
           onOpenChange={setShowCreateWs}

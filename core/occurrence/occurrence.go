@@ -1,20 +1,19 @@
 // Package occurrence answers where a term is actually used.
 //
 // "Which blocks use this term, in which collection and document, and in which
-// language?" is the first cross-layer question the merged project store makes
-// answerable ([C-03]). The terms and the blocks live in one file, so the
-// question is a join rather than two lookups and a merge in application code —
-// and it is answerable with no server and no account, which is the point: a
-// connected project asks bowrain the same question over more dimensions, not a
-// different question.
+// language?" is a cross-layer question the merged project store answers
+// ([C-03]). The terms and the blocks live in one file, so the question is a
+// join rather than two lookups and a merge in application code. It needs no
+// server and no account. A connected project asks the server the same
+// question over more dimensions.
 //
 // # The materialized graph
 //
 // The live join above is one answer; the same occurrences also settle into the
 // project's property graph. BuildGraph (graph.go) computes the uses_term /
-// in_collection subgraph — block nodes keyed on content key (F-03), concept
-// and collection nodes on their ids — which a host writer upserts into
-// `graph_nodes` / `graph_edges`. UsesInCollections then answers "term → blocks →
+// in_collection subgraph, which a host writer upserts into `graph_nodes` /
+// `graph_edges`. Block nodes are keyed on content key (F-03), concept and
+// collection nodes on their ids. UsesInCollections then answers "term → blocks →
 // collection" by traversal, a walk the two-table join has no shape for. The
 // identity vocabulary the graph keys on lives in graph.go, settled: a block is
 // its content, a coordinate is edge data.
@@ -74,9 +73,8 @@ type Occurrence struct {
 	Term       string `json:"term"`
 	TermLocale string `json:"term_locale"`
 
-	// BlockHash is the block's durable content key — the identity an edge
-	// would key on, so a re-parse that renumbers a document does not orphan
-	// it.
+	// BlockHash is the block's durable content key, the identity an edge
+	// keys on, so a re-parse that renumbers a document does not orphan it.
 	BlockHash string `json:"block_hash"`
 	// BlockID is the block's structural name within its document.
 	BlockID string `json:"block_id,omitempty"`
@@ -127,47 +125,32 @@ var ErrUnknownSubject = errors.New("occurrence: no such term or concept")
 
 // Find returns every use of the query's term in the project's blocks.
 //
-// # Matching semantics
+// The subject resolves to a set of terms. A concept id takes every term the
+// concept carries, in every language. A term text takes every term whose text
+// matches it after normalization (NFC, trimmed, case-folded, internal
+// whitespace collapsed), which may span several concepts. A term is found
+// under its text and under each form it declares, so the Norwegian plural
+// "varsler" is a use of a term "varsel" that lists it.
 //
-// Precisely, because a near-miss here reads as a bug in the terms store:
-//
-//   - The subject resolves to a set of terms. A concept id takes every term the
-//     concept carries, in every language; a term text takes every term whose
-//     text matches it after normalization (NFC, trimmed, case-folded, internal
-//     whitespace collapsed), which may span several concepts.
-//   - Matching is case-insensitive, always. Terms are recorded in one casing
-//     and written in another; a term that only matched its own capitalization
-//     would answer almost nothing.
-//   - A multi-word term matches across any run of whitespace: "content memory"
-//     is found in "content  memory" and across a line break, because flattened
-//     text keeps whatever the source had.
-//   - A match must sit on a word boundary. "AI" is not found inside "again".
-//     The rule is applied per edge and only where the writing system has
-//     boundaries to speak of: a term in Han, Kana, Thai, Lao, Khmer, Myanmar or
-//     Tibetan is matched without it, since those scripts do not separate words.
-//   - Matches of one term do not overlap: scanning is left to right, and each
-//     match resumes after the last. Matches of DIFFERENT terms may overlap, and
-//     both are reported — "memory" and "content memory" are two findings about
-//     the same words, and collapsing them would hide one. This is where a
-//     question about uses parts company with the gate, which reports the longer
-//     declared term alone: a count of uses that dropped the narrower term would
-//     answer a question nobody asked.
-//   - Both the source text and every target text are searched, unless Locales
-//     says otherwise. A term's own language does not restrict where it is
-//     looked for: finding an English term still standing in a Norwegian target
-//     is exactly the kind of thing worth finding.
-//
-// The matching itself is check.TermMatcher, the one definition terms.LookupAll
-// and the voice-profile vocabulary rules also scan with, so a word is a use here
-// exactly where it is a finding there. What differs is what is done with the
-// matches: this reports every term that covers a passage, because it is read as
-// a fact about the text, while the gate keeps only the longest declared one,
-// because it is read as an instruction about what to write.
-//
-// A term is found under its text and under each form it declares, so the
-// Norwegian plural "varsler" is a use of a term "varsel" that lists it, and a
-// subject typed as a form resolves to its term.
+// The matching is check.TermMatcher, which terms.LookupAll and the
+// voice-profile vocabulary rules also scan with, so a word is a use here where
+// it is a finding there. This reports every term that covers a passage, while
+// the gate keeps only the longest declared one. The comments in the body give
+// the matching rules.
 func Find(ctx context.Context, src Sources, q Query) (*Result, error) {
+	// Matching is case-insensitive. A multi-word term matches across any run
+	// of whitespace, so "content memory" is found in "content  memory" and
+	// across a line break. A match must sit on a word boundary: "AI" is not
+	// found inside "again". The boundary rule applies only where the writing
+	// system separates words, so a term in Han, Kana, Thai, Lao, Khmer, Myanmar
+	// or Tibetan is matched without it.
+
+	// Matches of one term do not overlap: scanning is left to right, and each
+	// match resumes after the last. Matches of different terms may overlap, and
+	// both are reported: "memory" and "content memory" are two findings about
+	// the same words. Both the source text and every target text are searched,
+	// unless Locales says otherwise. A term's own language does not restrict
+	// where it is looked for.
 	if src.Terms == nil {
 		return nil, errors.New("occurrence: no terms store")
 	}
@@ -248,7 +231,7 @@ type target struct {
 // that changes the word ("varsler" for "varsel") does not contain the term's
 // own text, so each surface is searched and the hits merged by block and locale.
 func searchSurfaces(ctx context.Context, store blockstore.Store, surfaces []string, opts blockstore.TextSearchOptions) ([]blockstore.TextHit, error) {
-	seen := map[string]bool{}
+	seen := map[[2]string]bool{}
 	var out []blockstore.TextHit
 	for _, surface := range surfaces {
 		hits, err := blockstore.SearchText(ctx, store, surface, opts)
@@ -256,7 +239,7 @@ func searchSurfaces(ctx context.Context, store blockstore.Store, surfaces []stri
 			return nil, fmt.Errorf("occurrence: search blocks for %q: %w", surface, err)
 		}
 		for _, h := range hits {
-			key := h.Hash + "\x00" + h.Locale
+			key := [2]string{h.Hash, h.Locale}
 			if seen[key] {
 				continue
 			}
@@ -322,17 +305,17 @@ func spells(t terms.Term, want string) bool {
 }
 
 // dedupeTargets drops terms that would search for the same text on behalf of
-// the same concept — a concept holding the same wording in two languages
+// the same concept. A concept holding the same wording in two languages
 // searches once, reports the first locale, and is found under the forms of
 // both.
 func dedupeTargets(in []target) []target {
-	kept := map[string]int{}
+	kept := map[[2]string]int{}
 	var out []target
 	for _, t := range in {
 		if strings.TrimSpace(t.text) == "" {
 			continue
 		}
-		key := t.conceptID + "\x00" + terms.NormalizeTerm(t.text)
+		key := [2]string{t.conceptID, terms.NormalizeTerm(t.text)}
 		if i, ok := kept[key]; ok {
 			out[i].forms = terms.NormalizeForms(out[i].text, append(slices.Clone(out[i].forms), t.forms...))
 			continue
@@ -344,7 +327,7 @@ func dedupeTargets(in []target) []target {
 }
 
 // sortOccurrences puts the list in the order a reader wants it: by document,
-// then block, then locale, then position — so re-running a query produces the
+// then block, then locale, then position. So re-running a query produces the
 // same list, and a truncated list is truncated from a stable end.
 func sortOccurrences(occ []Occurrence) {
 	sort.SliceStable(occ, func(i, j int) bool {

@@ -20,7 +20,7 @@ import (
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
-// Flow-run event types — the vocabulary a RunEventSink receives. It mirrors
+// Flow-run event types, the vocabulary a RunEventSink receives. It mirrors
 // the desktop runner's historical RunEvent stream so the Wails adapter is a
 // field-for-field mapping.
 const (
@@ -141,7 +141,7 @@ func (e *FlowToolBuildError) Error() string { return e.Err.Error() }
 func (e *FlowToolBuildError) Unwrap() error { return e.Err }
 
 // flowFileError reports one input file that failed during a locale pass. Its
-// text is the run-feed line the desktop historically emitted.
+// text is the run-feed line the desktop shows.
 type flowFileError struct {
 	Path   string
 	Locale string
@@ -216,7 +216,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 
 	// The tool builders speak cobra (flag lookups, project discovery); an
 	// embedded run drives them through a synthetic command bound to this
-	// recipe — the RunUp pattern — so resource resolution (project content memory,
+	// recipe, the RunUp pattern, so resource resolution (project content memory,
 	// terms, voice profile) binds to THIS project, never a cwd walk.
 	cmd := NewEnvCommand(ctx, "flow-run")
 	cmd.SetOut(io.Discard)
@@ -232,11 +232,13 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	// output-path resolution; restored on exit so an embedding App can be
 	// reused.
 	savedPctx, savedBindings, savedRedaction := a.ProjectContext, a.ProjectBindings, a.flowRedaction
-	savedSource, savedTarget := a.SourceLang, a.TargetLang
+	savedSource, savedTarget, savedFeedback := a.SourceLang, a.TargetLang, a.flowReviewFeedback
 	defer func() {
 		a.ProjectContext, a.ProjectBindings, a.flowRedaction = savedPctx, savedBindings, savedRedaction
-		a.SourceLang, a.TargetLang = savedSource, savedTarget
+		a.SourceLang, a.TargetLang, a.flowReviewFeedback = savedSource, savedTarget, savedFeedback
 	}()
+	endRepeats := a.beginReviewRepeats(ctx)
+	defer endRepeats(cmd.ErrOrStderr())
 	a.ProjectContext = pctx
 	if source != "" {
 		a.SourceLang = source
@@ -244,9 +246,9 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 
 	// The venue caveat goes to the process's own stderr rather than to cmd: the
 	// synthetic command above discards its error stream on purpose, because it
-	// carries tool-assembly noise an embedder should not see. This is not that —
+	// carries tool-assembly noise an embedder should not see. This is not that:
 	// it says the recipe's coordinates govern here and would not govern a server
-	// run — so discarding it would be the one thing worse than printing it.
+	// run, so discarding it would be the one thing worse than printing it.
 	a.WarnUnsyncedCoordinates(os.Stderr, proj)
 
 	// Governance is per collection: the input set splits into one group per
@@ -261,12 +263,9 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	// Without a recipe path there is nothing to resolve bindings from, and an
 	// embedder's own standing context on the App is left alone.
 	//
-	// Cancellation is not a binding failure. Resolution reads the project store,
-	// so a run cancelled before it starts turns every query into
-	// "context canceled" — and this function's contract is that cancellation
-	// ends the run early with a terminal event, never with an error. Checked
-	// where each pass resolves, rather than swallowed inside each reader, so a
-	// genuine store fault still surfaces.
+	// A cancelled run ends early with a terminal event, never an error. The
+	// check sits where each pass resolves, so a genuine store fault still
+	// surfaces.
 	//
 	// Each pass resolves its own group's bindings for its own locale: the term
 	// rules in them are the wording approved for that target, so one set shared
@@ -362,7 +361,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 		// A real read failure is fatal rather than silent: without the approvals
 		// translate_after would hold units the project has already established,
 		// and a run that quietly translated nothing would look like a converged
-		// one. Cancellation is not that — the run is being torn down, and the
+		// one. Cancellation is not that, the run is being torn down, and the
 		// same convention governs the feeder's error below.
 		return nil, fmt.Errorf("read source approvals: %w", seedErr)
 	}
@@ -392,6 +391,11 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 			a.ProjectBindings = b
 		}
 		a.flowRedaction = &group.Redaction
+		fb, ferr := a.reviewFeedbackFor(ctx, pctx.Project, pctx.ProjectDir, lang, group.Inputs)
+		if ferr != nil {
+			return ferr
+		}
+		a.flowReviewFeedback = fb
 		rCtx := flow.ResourceContext{ProjectDir: pctx.ProjectDir, SourceLocale: source, TargetLocale: lang}
 		tools, cleanup, err := a.buildProjectFlowTools(cmd, opts.FlowName, spec, &rCtx, onProgress)
 		if err != nil {
@@ -474,7 +478,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 				emit(FlowRunEvent{
 					Type: FlowEventFileTrace, Locale: lang,
 					FilePath: inputPath, OutputPath: outputPath,
-					Trace: newFlowTrace(opts.FlowName, string(detectFormat(inputPath)), inputPath, outputPath, recorder, stepNames),
+					Trace: newFlowTraceIn(pctx.ProjectDir, opts.FlowName, string(detectFormat(inputPath)), inputPath, outputPath, recorder, stepNames),
 				})
 			}
 		}
@@ -490,7 +494,7 @@ passLoop:
 		for _, group := range groups {
 			if err := runPass(pass, group); err != nil {
 				// Cancellation mid-file surfaces as a wrapped context error from
-				// the runner; per the documented contract it is not a run error —
+				// the runner; per the documented contract it is not a run error:
 				// stop the loop so the complete event and totals still emit.
 				if ctx.Err() != nil && errors.Is(err, ctx.Err()) {
 					canceled = true
@@ -522,14 +526,14 @@ passLoop:
 }
 
 // buildProjectFlowTools assembles the tool chain for one locale pass of a
-// project flow spec — the single implementation behind both the CLI's project
+// project flow spec, the single implementation behind both the CLI's project
 // flow-run (runProjectStepsOver) and the multi-locale orchestrator
 // (RunFlowAllLocales). It runs the AD-006 placement gate over the compiled
 // steps graph, resolves each step's config (resource references + project
 // bindings/presets, via toolFromStep), injects the project content memory into
 // content memory-requiring steps, and optionally wires a live AI progress callback into
 // every step. The returned cleanup releases every resource the assembly
-// opened (e.g. SQLite content memory handles); callers must run it after the pass — the
+// opened (e.g. SQLite content memory handles); callers must run it after the pass, the
 // desktop's former hand-rolled copy leaked exactly this contract.
 //
 // Step failures are returned wrapped in a *FlowToolBuildError (transparent
@@ -544,7 +548,7 @@ func (a *App) buildProjectFlowTools(cmd Command, flowName string, spec *flow.Ste
 	if err := flow.CheckSequential(spec.Steps); err != nil {
 		return nil, nil, fmt.Errorf("flow %q: %w", flowName, err)
 	}
-	// Transformer placement gate (AD-006) over the compiled steps graph —
+	// Transformer placement gate (AD-006) over the compiled steps graph:
 	// unconditional at load, like the built-in flow path. The gate sees each
 	// node's preset-merged config (defaults.tools), so a preset that enables
 	// entity detection drives the same contract resolution the runtime uses.
@@ -622,16 +626,21 @@ func (a *App) BuildProjectFlowTools(ctx context.Context, flowName string, spec *
 			return nil, nil, err
 		}
 	}
-	savedPctx, savedRedaction := a.ProjectContext, a.flowRedaction
+	savedPctx, savedRedaction, savedFeedback := a.ProjectContext, a.flowRedaction, a.flowReviewFeedback
 	savedSrc, savedTgt := a.SourceLang, a.TargetLang
 	a.ProjectContext = pctx
 	a.SourceLang, a.TargetLang = src, tgt
 	resolved := pctx.Project.RedactionForPath(redactionPath(pctx.ProjectDir, inputPath))
 	a.flowRedaction = &resolved
 	defer func() {
-		a.ProjectContext, a.flowRedaction = savedPctx, savedRedaction
+		a.ProjectContext, a.flowRedaction, a.flowReviewFeedback = savedPctx, savedRedaction, savedFeedback
 		a.SourceLang, a.TargetLang = savedSrc, savedTgt
 	}()
+	fb, err := a.reviewFeedbackFor(ctx, pctx.Project, pctx.ProjectDir, tgt, []string{inputPath})
+	if err != nil {
+		return nil, nil, err
+	}
+	a.flowReviewFeedback = fb
 	rCtx := &flow.ResourceContext{ProjectDir: pctx.ProjectDir, SourceLocale: src, TargetLocale: tgt}
 	return a.buildProjectFlowTools(cmd, flowName, spec, rCtx, nil)
 }

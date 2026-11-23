@@ -290,6 +290,7 @@ export function MemoryBrowser({
         }
         await adapter.updateEntry({
           entry_id: entry.id,
+          base_revision: entry.revision,
           variants: nextVariants,
           hint_src_lang: entry.hint_src_lang,
           project_id: entry.project_id,
@@ -307,7 +308,7 @@ export function MemoryBrowser({
   const handleDelete = useCallback(
     async (id: string) => {
       try {
-        await adapter.deleteEntry(id);
+        await adapter.deleteEntry(id, entries.find((e) => e.id === id)?.revision);
         setSelected((prev) => {
           const next = new Set(prev);
           next.delete(id);
@@ -319,7 +320,7 @@ export function MemoryBrowser({
         onError?.("Failed to delete content-memory entry", err);
       }
     },
-    [adapter, fetchEntries, fetchFacets, debouncedSearch, page, onError],
+    [adapter, entries, fetchEntries, fetchFacets, debouncedSearch, page, onError],
   );
 
   const handleBulkDelete = useCallback(async () => {
@@ -328,7 +329,11 @@ export function MemoryBrowser({
       return;
     }
     try {
-      await adapter.deleteEntries([...selected]);
+      const revisions: Record<string, string> = {};
+      for (const e of entries) {
+        if (selected.has(e.id) && e.revision) revisions[e.id] = e.revision;
+      }
+      await adapter.deleteEntries([...selected], revisions);
       setSelected(new Set());
       setConfirmBulkDelete(false);
       void fetchEntries(debouncedSearch, page);
@@ -338,6 +343,7 @@ export function MemoryBrowser({
     }
   }, [
     adapter,
+    entries,
     selected,
     confirmBulkDelete,
     fetchEntries,
@@ -425,7 +431,7 @@ export function MemoryBrowser({
           filters={filterTokens}
           onFiltersChange={setFilterTokens}
           filterFields={searchBarFilterFields}
-          onLookup={adapter.lookup}
+          onLookup={adapter.lookup ? (req) => adapter.lookup!(req) : undefined}
           onEntitiesChange={setMarkedEntities}
           sourceLocale={bilingualSrc ?? ""}
           targetLocale={bilingualTgt ?? ""}

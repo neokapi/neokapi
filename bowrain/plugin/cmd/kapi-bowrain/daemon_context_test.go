@@ -66,7 +66,7 @@ func TestDaemonPushDeclaresTheRecipeContext(t *testing.T) {
 	_, err = app.ImportProjectContext(t.Context(), proj.Layout.RecipePath, host.ContextImportRequest{})
 	require.NoError(t, err)
 
-	d, entry := daemonWithProject(root, proj)
+	d, entry := daemonWithProject(t, root, proj)
 	resp, err := d.Push(t.Context(), &pb.PushRequest{Project: &pb.ProjectRef{Root: root}, DryRun: true})
 	require.NoError(t, err)
 	assert.Contains(t, resp.GetReport(), "Would push", "the push report travels back to kapi")
@@ -130,7 +130,7 @@ func TestDaemonPushRunsThePrePushAutomations(t *testing.T) {
 </xliff>
 `), 0o644))
 
-	d, _ := daemonWithProject(root, proj)
+	d, _ := daemonWithProject(t, root, proj)
 	resp, err := d.Push(t.Context(), &pb.PushRequest{Project: &pb.ProjectRef{Root: root}, DryRun: true})
 	require.NoError(t, err, "a failed automation rides on the response")
 	assert.Contains(t, resp.GetAutomationError(), "pre-push automation")
@@ -160,11 +160,14 @@ func daemonTestApp(t *testing.T) {
 
 // daemonWithProject is a daemon already serving the project at root over a
 // connector with no server, so a dry-run push runs offline.
-func daemonWithProject(root string, proj *bproject.Project) (*daemonService, *projectEntry) {
+func daemonWithProject(t *testing.T, root string, proj *bproject.Project) (*daemonService, *projectEntry) {
+	t.Helper()
 	d := newDaemonService(nil)
+	conn, err := source.NewLocalConnector(t.Context(), app, proj, app.FormatReg)
+	require.NoError(t, err)
 	entry := &projectEntry{
 		project:   proj,
-		connector: source.NewLocalConnector(app, proj, app.FormatReg),
+		connector: conn,
 	}
 	d.projects[root] = entry
 	return d, entry

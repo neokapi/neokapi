@@ -81,8 +81,8 @@ says so, whatever else you conclude, so a person looks at it. This covers:
   or exemption list inside them;
 - `scripts/govulncheck-accepted.txt`, where each new or extended entry is a
   security decision;
-- `.github/workflows/`, `scripts/pre-push-check.sh` and the check targets in
-  the Makefiles;
+- `.github/workflows/`, `scripts/pre-push-check.sh`, the guard registry
+  under `scripts/guards/` and the check targets in the Makefiles;
 - this file, `CLAUDE.md` and `docs/internals/reliability-checklist.md`;
 - a test that is deleted, skipped, given a sleep or a retry, or whose
   assertion is loosened.

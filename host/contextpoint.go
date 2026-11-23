@@ -24,36 +24,32 @@ import (
 	"github.com/neokapi/neokapi/core/profile/packs"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/review"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/terms"
 )
 
 // Context retrieval, by location. See AD-037.
 //
-// One question — *what applies here?* — answered for a place rather than for a
+// One question, *what applies here?*, answered for a place rather than for a
 // store: the profile in force, the guidance it renders, the terms bound at that
-// point, and the governance windows around them. A caller that had to ask each
-// store in turn would be asked to know where the answer lives before it can ask,
-// which inverts the question.
+// point, and the governance windows around them.
 //
-// This is the single implementation behind BOTH `kapi context <path>` and the
-// `context://` MCP resources. The two surfaces are wrappers over it, so they
-// cannot drift — the fragmentation AD-037 records came from each surface growing
-// its own retrieval path.
+// This is the single implementation behind both `kapi context <path>` and the
+// `context://` MCP resources, so the two surfaces cannot drift.
 //
-// It resolves through project.ResolveGovernanceFor, the same seam a run, a check
-// and a push resolve through. The voice a writer reads here is therefore the
-// voice a run applies to the same file, including a content item's own
-// `channel:` and a profile whose window has closed.
+// It resolves through project.ResolveGovernanceFor, as a run, a check and a
+// push do, so the voice a writer reads here is the voice a run applies to the
+// same file.
 
 // ContextPointRequest is one by-location question.
 type ContextPointRequest struct {
-	// Path is the location to answer for: absolute, or relative — to the working
+	// Path is the location to answer for: absolute, or relative, to the working
 	// directory when that sits inside the project, and to the project root
 	// otherwise. A location outside the project is refused rather than answered.
 	// Empty with a Profile set is the by-name form.
 	Path string
-	// Profile names a governance profile to answer for instead of a location —
+	// Profile names a governance profile to answer for instead of a location,
 	// the ad-hoc form, for a caller with no file in hand. A name the recipe does
 	// not declare falls back to a voice profile of that name (the local store,
 	// then a built-in pack), which is what makes the form usable outside a
@@ -113,7 +109,7 @@ type ContextAnswer struct {
 	// is bound at this point.
 	Voice *ContextVoice `json:"voice,omitempty"`
 	// Terms are the terms bound at this point that are in force, ranked with the
-	// discouraged ones first — a rule to act on before a word to reuse.
+	// discouraged ones first, a rule to act on before a word to reuse.
 	Terms []ContextTermHit `json:"terms,omitempty"`
 	// TermsTotal is how many terms the point binds in all, so a capped list says
 	// what it is a part of.
@@ -132,7 +128,7 @@ type ContextAnswer struct {
 	// note's scope and lifetime window.
 	EstablishedNotes []ContextSuggestion `json:"established_notes,omitempty"`
 	// Profiles are the governance profiles whose validity is bounded, read
-	// against the answer's instant — which voice is in force, and until when.
+	// against the answer's instant, which voice is in force, and until when.
 	// The same shape the by-content answer reports, because it is the same fact.
 	Profiles []ContextProfileHit `json:"profiles,omitempty"`
 	// Rules is what a writer says and avoids here, as one list: the terms in
@@ -191,7 +187,7 @@ type ContextPoint struct {
 	Ref         string            `json:"ref,omitempty"`
 	Coordinates map[string]string `json:"coordinates,omitempty"`
 	// Default reports that resolution fell through to the project's default
-	// point — a real answer, and a different one from "no profile exists".
+	// point, a real answer, and a different one from "no profile exists".
 	Default bool `json:"default"`
 }
 
@@ -311,7 +307,7 @@ type ContextPointSources struct {
 	// note.
 	EstablishedNotes []contextop.Record
 	// Concepts are the terms bound at the point, read through the same
-	// resolution `kapi check` enforces with — so the terms reported here are the
+	// resolution `kapi check` enforces with, so the terms reported here are the
 	// terms a check at this location holds content to.
 	Concepts []terms.Concept
 	// ConceptsErr is set when that resolution failed.
@@ -333,7 +329,7 @@ type ContextPointSources struct {
 	Scope ContextScope
 	// At is the instant governance is read at.
 	At time.Time
-	// Notes are caveats the assembly itself produced — a location outside the
+	// Notes are caveats the assembly itself produced, a location outside the
 	// project, a profile no recipe declares.
 	Notes []string
 	// EditionOf is set when Path is the file of a translation the recipe
@@ -382,7 +378,7 @@ type ContextEditionOf struct {
 	Edition string `json:"edition"`
 }
 
-// ContextSourcesAt assembles what a by-location answer reads — the one path for
+// ContextSourcesAt assembles what a by-location answer reads, the one path for
 // both `kapi context <path>` and the `context://` MCP resources, so the two
 // cannot drift in what they bind.
 //
@@ -425,8 +421,8 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 
 	// The location as the recipe's globs are matched against. A location outside
 	// the project matches nothing, and answering it from the project's default
-	// point would state a governance the caller never asked about — in the same
-	// confident wording a real point gets — so it is refused instead.
+	// point would state a governance the caller never asked about, in the same
+	// confident wording a real point gets, so it is refused instead.
 	point := project.GovernancePoint{At: src.At}
 	if req.Path != "" {
 		matched, inside := projectRelative(root, req.Path)
@@ -476,7 +472,7 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 	src.Governance = rc
 	src.Point = point
 
-	// The voice at the point, composed with the overrides that apply there —
+	// The voice at the point, composed with the overrides that apply there,
 	// the same resolution `kapi voice show` and a translating run take.
 	store, release, serr := a.VoiceLookupStore(cmd)
 	if serr != nil {
@@ -616,19 +612,36 @@ func displaySource(root, src string) string {
 // directory is missing too, the location is a typo (or a mistyped address such
 // as `context://file/docs/x.md`) rather than a plan, and answering it would
 // state a governance nobody asked about.
+//
+// Both are stated through root: a location reached through a link that leads
+// out of the project is refused.
 func contextLocationErr(root, rel, asked string) error {
 	abs := filepath.Join(root, filepath.FromSlash(rel))
-	if _, err := os.Stat(abs); err == nil || !errors.Is(err, fs.ErrNotExist) {
+	_, err := statIn(root, abs)
+	if escapes(err) {
+		return fmt.Errorf("%s: %w", asked, err)
+	}
+	if err == nil || !errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
 	dir := filepath.Dir(abs)
-	if info, err := os.Stat(dir); err == nil && info.IsDir() {
+	info, err := statIn(root, dir)
+	if escapes(err) {
+		return fmt.Errorf("%s: %w", asked, err)
+	}
+	if err == nil && info.IsDir() {
 		return nil
 	}
 	shown := path.Dir(rel)
 	return fmt.Errorf(
 		"%s does not exist, and neither does its directory %s, so there is no file to answer for. Name a file in the project, or a new file in a directory that exists",
 		asked, shown)
+}
+
+// escapes reports whether err says a path leads out of its root.
+func escapes(err error) bool {
+	var esc *rootpath.EscapeError
+	return errors.As(err, &esc)
 }
 
 // projectRelative renders a location as the project-relative, slash-separated
@@ -648,7 +661,7 @@ func projectRelative(root, path string) (string, bool) {
 // root otherwise.
 //
 // The caller that binds a project by `-p` or KAPI_PROJECT is precisely the one
-// with no working directory in the tree — an agent runner, a CI step, an editor
+// with no working directory in the tree, an agent runner, a CI step, an editor
 // extension. Reading its path against cwd lands outside the project every time,
 // where nothing can match, and it is also the caller least able to notice.
 // Against the root, the path means what the recipe means by it, which is the
@@ -965,7 +978,7 @@ func notesAt(records []contextop.Record, coordinates map[string]string, space ax
 			Kind:        string(contextop.SubjectNote),
 			Status:      string(r.Status),
 			Text:        r.Subject.Text,
-			Note:        r.Note,
+			Note:        recordNote(r),
 			SuggestedBy: r.Actor.Name,
 			Session:     r.Actor.Session,
 			Evidence:    r.Evidence,
@@ -1308,4 +1321,11 @@ func capitalSentence(s string) string {
 		s += "."
 	}
 	return s
+}
+
+// recordNote is an operation's note as the person typed it, without the agent
+// host a released client folded into it (contextop.Record.Said).
+func recordNote(r contextop.Record) string {
+	note, _ := r.Said()
+	return note
 }

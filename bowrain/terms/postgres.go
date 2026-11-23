@@ -18,7 +18,6 @@ import (
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	fw "github.com/neokapi/neokapi/terms"
-	termsschema "github.com/neokapi/neokapi/terms/schema"
 )
 
 // PostgresStore is a persistent terms backed by PostgreSQL.
@@ -68,10 +67,27 @@ func NewPostgresStoreFromDB(db *storage.PgDB, workspaceID string) (*PostgresStor
 // NewPostgresStoreFromDBContext is NewPostgresStoreFromDB with the schema
 // migration bounded by the caller's context.
 func NewPostgresStoreFromDBContext(ctx context.Context, db *storage.PgDB, workspaceID string) (*PostgresStore, error) {
-	if err := storage.MigratePostgresNSContext(ctx, db, "tb_schema_migrations", Migrations); err != nil {
-		return nil, fmt.Errorf("migrate terms schema: %w", err)
+	if err := MigratePostgres(ctx, db); err != nil {
+		return nil, err
 	}
-	return &PostgresStore{db: db, workspaceID: workspaceID}, nil
+	return ForWorkspace(db, workspaceID), nil
+}
+
+// MigratePostgres brings the terms schema of db up to date. Every
+// workspace's store shares the one schema, so it is migrated once for all of
+// them.
+func MigratePostgres(ctx context.Context, db *storage.PgDB) error {
+	if err := storage.MigratePostgresNSContext(ctx, db, "tb_schema_migrations", Migrations); err != nil {
+		return fmt.Errorf("migrate terms schema: %w", err)
+	}
+	return nil
+}
+
+// ForWorkspace returns the terms store of one workspace on db, whose schema
+// the caller has migrated with MigratePostgres. It runs no statement, so a
+// caller inside a transaction can open one without reaching the pool.
+func ForWorkspace(db *storage.PgDB, workspaceID string) *PostgresStore {
+	return &PostgresStore{db: db, workspaceID: workspaceID}
 }
 
 //go:embed pilot_upgrade.sql
@@ -82,22 +98,22 @@ var Migrations = []storage.Migration{
 	{
 		Version:     5,
 		Description: "terms baseline (folds 1-4)",
-		SQL:         termsschema.RenderTermsPostgresBaseline("workspace_id"),
+		SQL:         termsPostgresBaseline,
 	},
 	{
 		Version:     6,
 		Description: "declared surface forms on terms",
-		SQL:         termsschema.RenderTermsPostgresV6(),
+		SQL:         termsPostgresV6,
 	},
 	{
 		Version:     7,
 		Description: "do-not-translate flag on concepts",
-		SQL:         termsschema.RenderTermsPostgresV7(),
+		SQL:         termsPostgresV7,
 	},
 	{
 		Version:     8,
 		Description: "advisory flag on concepts",
-		SQL:         termsschema.RenderTermsPostgresV8(),
+		SQL:         termsPostgresV8,
 	},
 	{
 		Version:     9,
@@ -119,7 +135,7 @@ ON CONFLICT (workspace_id) DO NOTHING;`,
 	{
 		Version:     10,
 		Description: "indexed normalized term text",
-		SQL:         termsschema.RenderTermsPostgresV10(),
+		SQL:         termsPostgresV10,
 	},
 	{
 		Version:     11,
@@ -129,6 +145,7 @@ ON CONFLICT (workspace_id) DO NOTHING;`,
 	{
 		Version:     12,
 		Description: "normalized text for terms written before the column",
+		Revision:    "1",
 		Apply: func(ctx context.Context, tx *sql.Tx) error {
 			return fw.BackfillNormalizedText(ctx, tx, true)
 		},
@@ -242,7 +259,7 @@ func (tb *PostgresStore) AddConceptWithStream(ctx context.Context, concept fw.Co
 		return errors.New("concept ID is required")
 	}
 	// Mirror the framework backends: each term status must be a known
-	// lifecycle value (an empty status is allowed — callers may leave it unset).
+	// lifecycle value (an empty status is allowed, callers may leave it unset).
 	for _, t := range concept.Terms {
 		if t.Status != "" && !fw.KnownTermStatus(t.Status) {
 			return fmt.Errorf("term %q (%s): unknown status %q", t.Text, t.Locale, t.Status)
@@ -661,7 +678,7 @@ func (tb *PostgresStore) pgSearchLike(ctx context.Context, query string, sourceL
 	}
 
 	// No DISTINCT: c.id is the table PK (single-table query), so rows are already
-	// unique — and DISTINCT would make ORDER BY c.updated_at illegal in Postgres.
+	// unique, and DISTINCT would make ORDER BY c.updated_at illegal in Postgres.
 	q := fmt.Sprintf(`SELECT c.id FROM tb_concepts c WHERE %s ORDER BY c.updated_at DESC LIMIT $%d OFFSET $%d`, where, argN, argN+1)
 	args = append(args, limit, offset)
 	rows, err := tb.run().QueryContext(ctx, q, args...)
@@ -887,7 +904,7 @@ func (tb *PostgresStore) Close() error {
 // --- internal helpers ---
 
 // scanConcepts hydrates several concepts and all their terms in two queries
-// rather than the 1+2N round trips a per-id scanConcept loop runs — the term
+// rather than the 1+2N round trips a per-id scanConcept loop runs, the term
 // check hydrates the whole store on every request. The result preserves the
 // caller's id order and drops ids with no concept row. A concept whose
 // properties JSON is corrupt is an error, not a silently dropped row.
@@ -993,8 +1010,8 @@ func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept
 
 	c.Source = fw.TermSource(source)
 
-	// tb_concepts.properties is plain TEXT with no NOT NULL, so the nil check
-	// is load-bearing: a row that never had properties is not a corrupt one.
+	// tb_concepts.properties is plain TEXT with no NOT NULL, so a row that
+	// never had properties reads as nil, not as a corrupt one.
 	if propsJSON != nil && *propsJSON != "" {
 		if err := json.Unmarshal([]byte(*propsJSON), &c.Properties); err != nil {
 			return c, fmt.Errorf("concept %s: unmarshal properties: %w", c.ID, err)

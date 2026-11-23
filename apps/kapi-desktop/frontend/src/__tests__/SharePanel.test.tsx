@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import userEvent from "@testing-library/user-event";
 import { render, screen, waitFor, within } from "./testUtils";
 
@@ -341,6 +341,10 @@ describe("Change", () => {
 });
 
 describe("Sync now", () => {
+  beforeEach(() => {
+    vi.spyOn(api, "pendingContextStore").mockResolvedValue("");
+  });
+
   it("calls the sync binding and shows what the sync did under the rung", async () => {
     const sync = vi.spyOn(api, "syncProjectContext").mockResolvedValue(SYNC_RESULT);
     render(<SharePanel tabID="t1" view={GIT_PUSHES_WAITING_VIEW} />);
@@ -364,6 +368,20 @@ describe("Sync now", () => {
     await waitFor(() => expect(slot("share-sync-result")?.textContent).toBe("Pulled 3, pushed 2"));
   });
 
+  it("names what the pull passed over in the folder", async () => {
+    vi.spyOn(api, "syncProjectContext").mockResolvedValue({
+      ...SYNC_RESULT,
+      pull: { ...SYNC_RESULT.pull!, passed_over: ["log/w1/a.jsonl"] },
+    });
+    render(<SharePanel tabID="t1" view={GIT_VIEW} />);
+    await userEvent.click(screen.getByRole("button", { name: "Sync now" }));
+    await waitFor(() =>
+      expect(slot("share-sync-passed-over")?.textContent).toBe(
+        'Passed over, not read: "log/w1/a.jsonl"',
+      ),
+    );
+  });
+
   it("shows the error exactly as the backend returned it", async () => {
     vi.spyOn(api, "syncProjectContext").mockRejectedValue(new Error(SYNC_ERROR));
     render(<SharePanel tabID="t1" view={GIT_VIEW} />);
@@ -372,6 +390,40 @@ describe("Sync now", () => {
     const error = await screen.findByRole("alert");
     expect(error.textContent).toBe(SYNC_ERROR);
     expect(slot("share-sync-result")).toBeNull();
+  });
+});
+
+describe("a folder nobody has allowed", () => {
+  const FOLDER = "/Volumes/team/neokapi-context";
+
+  it("asks before the first sync, showing the folder, and syncs once allowed", async () => {
+    vi.spyOn(api, "pendingContextStore").mockResolvedValue(FOLDER);
+    const approve = vi.spyOn(api, "approveContextStore").mockResolvedValue(FOLDER);
+    const sync = vi.spyOn(api, "syncProjectContext").mockResolvedValue(SYNC_RESULT);
+    render(<SharePanel tabID="t1" view={GIT_VIEW} />);
+    await userEvent.click(screen.getByRole("button", { name: "Sync now" }));
+
+    const dialog = await screen.findByTestId("context-store-approval");
+    expect(slot("context-store-location", dialog)?.textContent).toBe(FOLDER);
+    expect(sync).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Allow and sync" }));
+
+    expect(approve).toHaveBeenCalledWith("t1", FOLDER);
+    await waitFor(() => expect(sync).toHaveBeenCalledWith("t1"));
+  });
+
+  it("does not sync when the person cancels", async () => {
+    vi.spyOn(api, "pendingContextStore").mockResolvedValue(FOLDER);
+    const approve = vi.spyOn(api, "approveContextStore");
+    const sync = vi.spyOn(api, "syncProjectContext");
+    render(<SharePanel tabID="t1" view={GIT_VIEW} />);
+    await userEvent.click(screen.getByRole("button", { name: "Sync now" }));
+    const dialog = await screen.findByTestId("context-store-approval");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(screen.queryByTestId("context-store-approval")).toBeNull());
+    expect(approve).not.toHaveBeenCalled();
+    expect(sync).not.toHaveBeenCalled();
   });
 });
 

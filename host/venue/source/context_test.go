@@ -61,7 +61,7 @@ func newContextProject(t *testing.T) *BowrainSourceConnector {
 		require.NoError(t, os.WriteFile(abs, []byte(`{"greeting":"Hello"}`), 0o644))
 	}
 
-	return NewLocalConnector(&host.App{}, proj, reg)
+	return mustLocalConnector(t, &host.App{}, proj, reg)
 }
 
 // TestBuildItemMeta_NamesTheClaimingCollection pins the linkage the context

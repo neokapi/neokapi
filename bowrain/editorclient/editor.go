@@ -177,6 +177,7 @@ type EditorMemoryEntry struct {
 	SourceLanguage string `json:"source_language"`
 	TargetLanguage string `json:"target_language"`
 	UpdatedAt      string `json:"updated_at"`
+	Revision       string `json:"revision,omitempty"`
 }
 
 // EditorMemorySearchResult mirrors MemorySearchResponse.
@@ -717,13 +718,18 @@ func (c *EditorClient) GetMemoryCount(ctx context.Context, ws string) (int, erro
 }
 
 // AddMemoryEntry adds a content-memory entry and returns the stored record.
-func (c *EditorClient) AddMemoryEntry(ctx context.Context, ws, source, target, sourceLocale, targetLocale string) (*EditorMemoryEntry, error) {
+//
+// entryID names the entry when the client made it offline, so the entry the
+// client holds and the one the server stores are one entry; empty lets the
+// server choose.
+func (c *EditorClient) AddMemoryEntry(ctx context.Context, ws, entryID, source, target, sourceLocale, targetLocale string) (*EditorMemoryEntry, error) {
 	body := struct {
+		ID           string `json:"id,omitempty"`
 		Source       string `json:"source"`
 		Target       string `json:"target"`
 		SourceLocale string `json:"source_locale"`
 		TargetLocale string `json:"target_locale"`
-	}{source, target, sourceLocale, targetLocale}
+	}{entryID, source, target, sourceLocale, targetLocale}
 	var out EditorMemoryEntry
 	if err := c.DoJSON(ctx, http.MethodPost, wsPath(ws, "/translation-memory"), nil, body, &out); err != nil {
 		return nil, err
@@ -732,19 +738,32 @@ func (c *EditorClient) AddMemoryEntry(ctx context.Context, ws, source, target, s
 }
 
 // UpdateMemoryEntry updates an existing content-memory entry.
-func (c *EditorClient) UpdateMemoryEntry(ctx context.Context, ws, entryID, source, target, sourceLocale, targetLocale string) error {
+//
+// baseRevision is the revision of the entry the edit was made on; the server
+// refuses an edit based on an entry that changed since.
+func (c *EditorClient) UpdateMemoryEntry(ctx context.Context, ws, entryID, source, target, sourceLocale, targetLocale, baseRevision string) (*EditorMemoryEntry, error) {
 	body := struct {
 		Source       string `json:"source"`
 		Target       string `json:"target"`
 		SourceLocale string `json:"source_locale"`
 		TargetLocale string `json:"target_locale"`
-	}{source, target, sourceLocale, targetLocale}
-	return c.DoJSON(ctx, http.MethodPut, wsPath(ws, "/translation-memory/"+url.PathEscape(entryID)), nil, body, nil)
+		BaseRevision string `json:"base_revision"`
+	}{source, target, sourceLocale, targetLocale, baseRevision}
+	var out EditorMemoryEntry
+	if err := c.DoJSON(ctx, http.MethodPut, wsPath(ws, "/translation-memory/"+url.PathEscape(entryID)), nil, body, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // DeleteMemoryEntry deletes a content-memory entry.
-func (c *EditorClient) DeleteMemoryEntry(ctx context.Context, ws, entryID string) error {
-	return c.DoJSON(ctx, http.MethodDelete, wsPath(ws, "/translation-memory/"+url.PathEscape(entryID)), nil, nil, nil)
+//
+// baseRevision is the revision of the entry the person saw; the server refuses
+// the delete when the entry has changed since.
+func (c *EditorClient) DeleteMemoryEntry(ctx context.Context, ws, entryID, baseRevision string) error {
+	q := url.Values{}
+	q.Set("base_revision", baseRevision)
+	return c.DoJSON(ctx, http.MethodDelete, wsPath(ws, "/translation-memory/"+url.PathEscape(entryID)), q, nil, nil)
 }
 
 // ---------------------------------------------------------------------------

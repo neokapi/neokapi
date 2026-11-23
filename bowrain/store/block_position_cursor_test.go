@@ -73,41 +73,50 @@ func pgIDOf(t *testing.T, cs *bstore.PostgresStore, name string) string {
 // neighbourhood asked for the blocks either side of a unit and was answered
 // with the unit's id neighbours, which on a file stored in any order but its
 // reading order are two other paragraphs.
+//
+// The store mints random block ids, so the id order of the five blocks is
+// known only once they are stored. The document order is a fixed shuffle of
+// that id order, which makes the two orders differ on every run.
 func TestDocumentCursor_ReadsTheDocument(t *testing.T) {
 	cs, pid := positionCursorStore(t, "a", "b", "c", "d", "e")
 	ctx := t.Context()
 
-	document := []string{"c", "e", "a", "d", "b"}
-	require.NoError(t, cs.SetBlockOrder(ctx, pid, "main", positionCursorItem, document))
-	require.Equal(t, document, pgNames(t, cs, platstore.BlockQuery{Order: platstore.BlockOrderDocument}))
-
 	stored := pgNames(t, cs, platstore.BlockQuery{})
-	require.NotEqual(t, document, stored, "the case needs the two orders to differ")
+	require.Len(t, stored, 5)
+	// d[i] is the block at position i of the document.
+	d := make([]string, 0, len(stored))
+	for _, i := range []int{2, 4, 0, 3, 1} {
+		d = append(d, stored[i])
+	}
+	require.NotEqual(t, d, stored, "the case needs the two orders to differ")
+	require.NoError(t, cs.SetBlockOrder(ctx, pid, "main", positionCursorItem, d))
+	require.Equal(t, d, pgNames(t, cs, platstore.BlockQuery{Order: platstore.BlockOrderDocument}))
+	require.Equal(t, stored, pgNames(t, cs, platstore.BlockQuery{}), "a listing without an order stays in id order")
 
-	anchor := pgIDOf(t, cs, "a")
+	anchor := pgIDOf(t, cs, d[2])
 
-	assert.Equal(t, []string{"e"}, pgNames(t, cs, platstore.BlockQuery{
+	assert.Equal(t, []string{d[1]}, pgNames(t, cs, platstore.BlockQuery{
 		DocumentBefore: anchor, Limit: 1,
 	}), "the nearest predecessor in the document")
-	assert.Equal(t, []string{"d"}, pgNames(t, cs, platstore.BlockQuery{
+	assert.Equal(t, []string{d[3]}, pgNames(t, cs, platstore.BlockQuery{
 		DocumentAfter: anchor, Limit: 1,
 	}), "the nearest successor in the document")
 
 	// A wider window arrives in document order on both sides, so a surface
 	// reading before, unit, after top to bottom reads the file.
-	assert.Equal(t, []string{"c", "e"}, pgNames(t, cs, platstore.BlockQuery{
+	assert.Equal(t, d[:2], pgNames(t, cs, platstore.BlockQuery{
 		DocumentBefore: anchor, Limit: 2,
 	}), "the window's worth, nearest last")
-	assert.Equal(t, []string{"d", "b"}, pgNames(t, cs, platstore.BlockQuery{
+	assert.Equal(t, d[3:], pgNames(t, cs, platstore.BlockQuery{
 		DocumentAfter: anchor, Limit: 2,
 	}), "the window's worth, nearest first")
 
 	// The ends of the document are an empty answer rather than an error.
 	assert.Empty(t, pgNames(t, cs, platstore.BlockQuery{
-		DocumentBefore: pgIDOf(t, cs, "c"), Limit: 2,
+		DocumentBefore: pgIDOf(t, cs, d[0]), Limit: 2,
 	}), "the first block of the document has no predecessor")
 	assert.Empty(t, pgNames(t, cs, platstore.BlockQuery{
-		DocumentAfter: pgIDOf(t, cs, "b"), Limit: 2,
+		DocumentAfter: pgIDOf(t, cs, d[4]), Limit: 2,
 	}), "the last block of the document has no successor")
 
 	// An anchor the item does not hold has no neighbourhood, rather than the

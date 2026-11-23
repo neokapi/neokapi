@@ -49,6 +49,11 @@ const (
 	StateConnecting   ConnectionState = "connecting"
 	StateConnected    ConnectionState = "connected"
 	StateOffline      ConnectionState = "offline"
+	// StateReconnecting is what the frontend is told while the app is offline
+	// and an attempt to reach the server is under way. It is never held as
+	// the connection state: the app stays offline during the attempt, so an
+	// edit made meanwhile still goes to the offline queue.
+	StateReconnecting ConnectionState = "reconnecting"
 )
 
 // ConnectionInfo is the connection status exposed to the frontend.
@@ -95,8 +100,12 @@ func (a *App) GetConnectionState() ConnectionInfo {
 
 	a.mu.RLock()
 	defer a.mu.RUnlock()
+	state = a.connState
+	if state == StateOffline && a.reconnecting {
+		state = StateReconnecting
+	}
 	info := ConnectionInfo{
-		State:     a.connState,
+		State:     state,
 		ServerURL: a.serverURL,
 		Workspace: a.activeWS,
 	}
@@ -172,7 +181,7 @@ func (a *App) GetPendingChangesCount() int {
 	if a.offlineQueue == nil {
 		return 0
 	}
-	return a.offlineQueue.PendingCount()
+	return a.offlineQueue.PendingCount(a.queueCtx())
 }
 
 // credentialsFor returns the credentials to present to serverURL, preferring the

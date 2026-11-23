@@ -41,6 +41,9 @@ type VoiceProfile struct {
 	CreatedAt   time.Time `json:"created_at" yaml:"created_at,omitempty"`
 	UpdatedAt   time.Time `json:"updated_at" yaml:"updated_at,omitempty"`
 	CreatedBy   string    `json:"created_by,omitempty" yaml:"created_by,omitempty"`
+	// UpdatedBy is who made the last write: a member's id, or the tool
+	// that wrote it. A refused push names them.
+	UpdatedBy string `json:"updated_by,omitempty" yaml:"updated_by,omitempty"`
 
 	// carried are the word rules the file the profile was read from carries
 	// beside it: a starter pack's terms, or a voice file's `terms:` list. They
@@ -70,6 +73,7 @@ func Authored(p *VoiceProfile) *VoiceProfile {
 	out.CreatedAt = time.Time{}
 	out.UpdatedAt = time.Time{}
 	out.CreatedBy = ""
+	out.UpdatedBy = ""
 	out.VersionNote = ""
 	return &out
 }

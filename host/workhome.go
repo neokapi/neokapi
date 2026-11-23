@@ -144,6 +144,11 @@ func (a *App) keptRedactionAt(root string) (*keptRedaction, error) {
 		return nil, fmt.Errorf("the workspace home: read the redaction policy: %w", err)
 	}
 	read = keptRedactionRead{size: info.Size(), mod: info.ModTime()}
+	// The vault is kapi's own file in the state directory, read by path, so
+	// a state directory that leads out of the project is refused first.
+	if err := layout.CheckState(); err != nil {
+		return nil, fmt.Errorf("the workspace home: %w", err)
+	}
 	rr, err := newRecordRedaction(a, proj, layout)
 	if err != nil {
 		return nil, fmt.Errorf("the workspace home: %w", err)
@@ -268,7 +273,7 @@ func (p *keptPolicy) keeps(ctx context.Context, ref string, ed model.EditionKey,
 	if p == nil || p.keeper == nil {
 		return nil
 	}
-	if _, err := os.Stat(path); err == nil || !errors.Is(err, os.ErrNotExist) {
+	if _, err := statInProject(p.keeper.root, path); !errors.Is(err, fs.ErrNotExist) {
 		// The file is the edition's home; whatever the workspace still keeps
 		// of the edition is never read beside it.
 		return nil
@@ -403,7 +408,8 @@ func (a *App) keepDrafts(ctx context.Context, root string, locale model.LocaleID
 	}
 	written := 0
 	for _, doc := range docs {
-		if _, err := os.Stat(doc.dest); err == nil {
+		if _, err := statInProject(root, doc.dest); !errors.Is(err, fs.ErrNotExist) {
+			// The file is there, or it is not the project's to keep for.
 			continue
 		}
 		if held && !kept.holds(ctx, doc.ref, doc.edition) {
@@ -713,7 +719,7 @@ func (a *App) keptBesideFiles(ctx context.Context, recipe string) ([]besideFile,
 		if !ok {
 			continue
 		}
-		if _, err := os.Stat(f.Path); err != nil {
+		if _, err := statInProject(root, f.Path); err != nil {
 			continue
 		}
 		read, err := h.Read(ctx, head.Path, key)

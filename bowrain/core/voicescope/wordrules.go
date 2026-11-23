@@ -24,10 +24,10 @@ func WordRules(ctx context.Context, tb terms.Terminology, loc model.LocaleID) ([
 		return terms.SourceWordRules(concepts, loc), nil
 	}
 	var out []coreprofile.TermRule
-	seen := map[string]bool{}
+	seen := map[[2]string]bool{}
 	for _, l := range termLocales(concepts) {
 		for _, r := range terms.SourceWordRules(concepts, l) {
-			key := r.ConceptID + "\x00" + strings.ToLower(r.Term)
+			key := [2]string{r.ConceptID, strings.ToLower(r.Term)}
 			if seen[key] {
 				continue
 			}

@@ -21,6 +21,7 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
@@ -616,6 +617,7 @@ func (f *fakeKnowledgeStore) CreateMarket(_ context.Context, m *knowledge.Market
 		m.CreatedAt = time.Now().UTC()
 	}
 	m.UpdatedAt = m.CreatedAt
+	m.Revision = storage.NewRevision()
 	cp := *m
 	f.markets[fakeKey(m.WorkspaceID, m.ID)] = &cp
 	return nil
@@ -624,26 +626,35 @@ func (f *fakeKnowledgeStore) CreateMarket(_ context.Context, m *knowledge.Market
 func (f *fakeKnowledgeStore) GetMarket(_ context.Context, ws, id string) (*knowledge.Market, error) {
 	m, ok := f.markets[fakeKey(ws, id)]
 	if !ok {
-		return nil, fmt.Errorf("market %s not found", id)
+		return nil, knowledge.ErrMarketNotFound
 	}
 	cp := *m
 	return &cp, nil
 }
 
-func (f *fakeKnowledgeStore) UpdateMarket(_ context.Context, m *knowledge.Market) error {
-	if _, ok := f.markets[fakeKey(m.WorkspaceID, m.ID)]; !ok {
-		return fmt.Errorf("market %s not found", m.ID)
+func (f *fakeKnowledgeStore) UpdateMarket(_ context.Context, m *knowledge.Market, base string) error {
+	stored, ok := f.markets[fakeKey(m.WorkspaceID, m.ID)]
+	if !ok {
+		return knowledge.ErrMarketNotFound
+	}
+	if stored.Revision != base {
+		return storage.ErrStale
 	}
 	m.UpdatedAt = time.Now().UTC()
+	m.Revision = storage.NewRevision()
 	cp := *m
 	f.markets[fakeKey(m.WorkspaceID, m.ID)] = &cp
 	return nil
 }
 
-func (f *fakeKnowledgeStore) DeleteMarket(_ context.Context, ws, id string) error {
+func (f *fakeKnowledgeStore) DeleteMarketAt(_ context.Context, ws, id, base string) error {
 	key := fakeKey(ws, id)
-	if _, ok := f.markets[key]; !ok {
-		return fmt.Errorf("market %s not found", id)
+	stored, ok := f.markets[key]
+	if !ok {
+		return knowledge.ErrMarketNotFound
+	}
+	if stored.Revision != base {
+		return storage.ErrStale
 	}
 	delete(f.markets, key)
 	return nil

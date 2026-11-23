@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -92,15 +93,17 @@ func TestRunFlagsThatWouldNotActAreRefused(t *testing.T) {
 		args []string
 		says string
 	}{
-		{[]string{"up", "-p", "kapi.yaml", "-o", "out/"}, "unknown shorthand flag: 'o'"},
-		{[]string{"up", "-p", "kapi.yaml", "--target-lang", "de"}, "unknown flag: --target-lang"},
+		{[]string{"up", "-p", "kapi.yaml", "-o", "out/"}, "collections[].target, or collections[].content[].target in a collection with a content list"},
+		{[]string{"up", "-p", "kapi.yaml", "--output=out/"}, "run kapi translate <file> --target-lang <locale> -o <path>"},
+		{[]string{"up", "-p", "kapi.yaml", "-i", "src/messages_en.json"}, "collections[].path, or collections[].content[].path in a collection with a content list"},
+		{[]string{"up", "-p", "kapi.yaml", "--target-lang", "de"}, "the recipe sets the languages, under defaults.target_languages"},
 		{[]string{"up", "-p", "kapi.yaml", "--stats"}, "unknown flag: --stats"},
 		{[]string{"up", "-p", "kapi.yaml", "--format", "properties"}, "collections[].format.name"},
 		{[]string{"up", "-p", "kapi.yaml", "--engine", "native"}, "defaults.engine"},
 		{[]string{"up", "-p", "kapi.yaml", "--timeout", "1m"}, "--timeout applies to a server run"},
 		{[]string{"translate", "src/messages_en.json", "--target-lang", "fr", "--pack"}, "--pack applies to a .kpz input"},
 	} {
-		t.Run(tc.args[0]+" "+tc.args[len(tc.args)-2], func(t *testing.T) {
+		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
 			dir, env := runFlagProject(t, "")
 			cmd := exec.Command(kapiBin, tc.args...)
 			cmd.Dir = dir

@@ -30,6 +30,16 @@ import (
 // wsID, optionally with an :id route param, and returns the recorder.
 func voiceProfileWrite(t *testing.T, srv *Server, handler echo.HandlerFunc, method, wsID, profileID, payload string) *httptest.ResponseRecorder {
 	t.Helper()
+	if profileID != "" {
+		payload = withBaseRevision(t, payload, voiceRevisionOf(t, srv, profileID))
+	} else if method == http.MethodPost && strings.Contains(payload, `"name"`) {
+		var named struct {
+			Name string `json:"name"`
+		}
+		if json.Unmarshal([]byte(payload), &named) == nil {
+			payload = withBaseRevision(t, payload, voiceRevisionNamed(t, srv, wsID, named.Name))
+		}
+	}
 	req := httptest.NewRequest(method, "/", strings.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -177,6 +187,11 @@ func assertProfileCarriesRequest(t *testing.T, req VoiceProfileRequest, stored *
 	sv := reflect.ValueOf(*stored)
 	for i := range rv.NumField() {
 		field := rv.Type().Field(i)
+		// The revision a write was based on says what the writer read; it is
+		// not authored content and the profile has no field for it.
+		if field.Name == "BaseRevision" {
+			continue
+		}
 		want := rv.Field(i)
 		require.False(t, want.IsZero(),
 			"authoredProfileRequest leaves %s at its zero value, so this test cannot see it dropped",

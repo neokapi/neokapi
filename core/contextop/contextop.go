@@ -1,52 +1,41 @@
 // Package contextop records how a project's context came to be.
 //
-// A project starts with no terms, no voice rules and an empty content memory,
-// and the context grows out of ordinary work. Someone records a fact or the
-// form the project uses for a word, a person keeps it, checks enforce it, and
-// the next correction is evidence for the rule after that. Every step is an
-// operation: who did it, what it was about, where the evidence was seen, what
-// governed at the time, and what became of it.
+// The context grows out of ordinary work. Someone records a fact or the form
+// the project uses for a word, a person keeps it, and checks enforce it. Every
+// step is an operation: who did it, what it was about, where the evidence was
+// seen, what governed, and what became of it.
 //
 // # Append only
 //
 // Operations go into the workspace's operation log (core/workspace) and are
-// never edited. A status is not a column that moves: keeping a suggestion
-// writes a `keep` operation naming it, dropping writes a `drop` and
-// withdrawing writes a `withdraw`. A `reset` rewinds the whole context to how it
-// stood before one operation: everything after that point is set aside and
-// stays in the log. [Ledger.Records] reads the log and reports the status each
-// subject-bearing operation ended up with, so the history is the whole record
-// and a surface can replay it.
+// never edited. Keeping a suggestion writes a `keep` operation naming it,
+// dropping writes a `drop` and withdrawing writes a `withdraw`. A `reset`
+// sets aside everything after one operation, which stays in the log.
+// [Ledger.Records] reports the status each operation ended up with.
 //
 // # Suggestions report, established rules bind
 //
 // Everything recorded about a project is a suggestion, and checks report it
-// from the moment it is recorded. [Resolve] and [Resolution.RuleSets] project the
-// suggestions at a point into rule sets marked advisory, which the vocabulary
-// matcher reports at neutral severity, below every gate threshold. A
-// suggestion therefore shows up in a check and can never fail one. A person
-// keeping it is what establishes it, and keeping writes the rule into the
-// terms store or the content memory, where every existing reader already
-// looks. What a person imports or edits directly is established from the
-// start. This log is the history and the source of suggestions, not a second
-// home for established rules.
+// from the moment it is recorded. [Resolve] and [Resolution.RuleSets] project
+// the suggestions at a point into advisory rule sets, so a suggestion shows up
+// in a check and never fails one. A person keeping it establishes it, and
+// keeping writes the rule into the terms store or the content memory. What a
+// person imports or edits directly is established from the start.
 //
 // # Contested
 //
-// Two suggestions about one word that name different forms to use disagree:
-// checks report both, both are marked contested, and neither can be kept until a
-// person chooses. A suggestion that contradicts an established rule is
-// contested and the rule stays in force. A person's own correction that
-// reverses an established rule contests the rule, which then reports instead
-// of failing, so a person's edit never fails their own build.
+// Two suggestions about one word that name different forms are contested:
+// checks report both, and neither can be kept until a person chooses. A
+// suggestion that contradicts an established rule is contested and the rule
+// stays in force. A person's correction that reverses an established rule
+// makes the rule report instead of fail.
 //
 // # Scope
 //
-// What is learned is scoped to the point where its evidence was seen, which for
-// a new project is that project. Keeping is also the moment a person may widen
-// a rule to a broader point, or to the whole workspace, where it answers in
-// every project. [Resolve] puts workspace-wide rules beneath project ones, so
-// the most specific rule about a term wins.
+// What is learned is scoped to the point where its evidence was seen. Keeping
+// is the moment a person may widen a rule to a broader point or the whole
+// workspace. [Resolve] puts workspace-wide rules beneath project ones, so the
+// most specific rule about a term wins.
 package contextop
 
 import (
@@ -58,6 +47,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/axis"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/workspace"
 )
@@ -97,6 +87,10 @@ type Actor struct {
 	// that records the operation knows it: the member who issued the token a
 	// tool pushed with. Empty for a person.
 	OnBehalfOf string `json:"on_behalf_of,omitempty"`
+	// AgentHost is the agent host whose shell a person declared themselves in
+	// (KAPI_ACTOR=person), such as "claude-code". Empty for anyone else. It
+	// is recorded here and never inside the operation's note.
+	AgentHost string `json:"agent_host,omitempty"`
 }
 
 // String renders an actor for a log line: "agent claude/abc123", "person asgeir",
@@ -397,10 +391,10 @@ func (s Scope) Covers(point map[string]string) bool { return s.CoversIn(axis.Spa
 
 // CoversIn reports whether a subject at this scope answers at the point given,
 // reading each axis the way the project's axis space types it: the point's
-// value must sit within the scope's (axis.Space.Contains), so a rule scoped to
-// a market of nordics answers at no, and one scoped to an age of 13-17 answers
-// at 14-16. An axis the space does not type compares by equality, which is
-// what Covers does for every axis.
+// value must sit within the scope's (axis.Space.Contains). A rule scoped to a
+// market of nordics answers at no, and one scoped to an age of 13-17 answers
+// at 14-16. An axis the space does not type compares by equality, as Covers
+// does.
 func (s Scope) CoversIn(space axis.Space, point map[string]string) bool {
 	for name, want := range s.Coordinates {
 		got := point[name]
@@ -666,4 +660,14 @@ func sortStrings(in []string) {
 			in[j], in[j-1] = in[j-1], in[j]
 		}
 	}
+}
+
+// Said is the operation's note as the person typed it, and the agent host
+// they recorded it from. A record a released client wrote carries the host
+// inside its note, and is read the same way (change.SplitNote).
+func (r Record) Said() (note, host string) {
+	if r.Actor.AgentHost != "" {
+		return r.Note, r.Actor.AgentHost
+	}
+	return change.SplitNote(r.Note)
 }

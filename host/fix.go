@@ -220,7 +220,7 @@ type fixOp struct {
 func fixesByDoc(findings []check.Diagnostic) (map[string]*docFixes, []string) {
 	docs := map[string]*docFixes{}
 	var order []string
-	seen := map[string]int{}
+	seen := map[[2]string]int{}
 	for _, d := range findings {
 		if !d.Fails || d.Fix == nil {
 			continue
@@ -232,7 +232,7 @@ func fixesByDoc(findings []check.Diagnostic) (map[string]*docFixes, []string) {
 			docs[doc] = df
 			order = append(order, doc)
 		}
-		key := doc + "\x00" + opKey(*d.Fix)
+		key := [2]string{doc, opKey(*d.Fix)}
 		if i, dup := seen[key]; dup {
 			df.ops[i].findings = append(df.ops[i].findings, d)
 			continue
@@ -302,7 +302,7 @@ func (a *App) applyFixes(cmd Command, recipe string, opts FixOptions, docs map[s
 		return err
 	}
 	f := &fixer{app: a, cmd: cmd, recipe: recipe, root: root, resolved: resolved,
-		note: resolved.NoteWith("applied with `kapi fix`"), services: map[bool]*change.Service{}}
+		note: "applied with `kapi fix`", services: map[bool]*change.Service{}}
 	for _, doc := range order {
 		if err := f.fixDoc(doc, docs[doc], opts.DryRun, res); err != nil {
 			return err

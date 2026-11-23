@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -14,7 +13,9 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // A code comment is a block of a source file: kapi check and kapi inspect
@@ -22,11 +23,10 @@ import (
 // rewrites it with set_content. Its revision is "r:" and the first sixteen hex
 // digits of the comment's fingerprint (the comment_sha256 kapi check
 // reports), so an edit to a comment whose bytes changed since it was read is
-// refused stale. The comment write path keeps its guarantees: the file is read
-// again before it is written, every byte outside the comment stays, the result
-// must parse, the language's formatter must agree, and what was written is
-// checked again.
-//
+// refused stale. The file is read again before it is written, every byte
+// outside the comment stays, the result must parse, the language's formatter
+// must agree, and what was written is checked again.
+
 // A change set edits code comments or documents. The comment path writes
 // through core/comment rather than a format's writer, so one change set holds
 // operations of one kind, and a set that mixes them is refused before
@@ -79,7 +79,7 @@ func (c *commentDocs) is(path string) bool {
 			return false
 		}
 	}
-	return !a.formatReads(path) && !c.bound(path)
+	return !a.formatReads(c.root, path) && !c.bound(path)
 }
 
 // bound reports whether the project binds the file at path to a format: a
@@ -110,9 +110,10 @@ func (c *commentDocs) bound(path string) bool {
 }
 
 // formatReads reports whether detection finds a format for the file at path,
-// by its extension or, when the file can be opened, by its content.
-func (a *App) formatReads(path string) bool {
-	f, err := os.Open(path)
+// by its extension or, when the file can be opened, by its content. A file
+// beneath root is opened through it (rootpath.Open).
+func (a *App) formatReads(root, path string) bool {
+	f, err := rootpath.Open(root, path)
 	if err != nil {
 		_, derr := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 		return derr == nil
@@ -176,9 +177,9 @@ type commentFile struct {
 
 // commentsIn locates the comments of the file at path. A file no comment
 // reader reads, or whose comments could not be located, holds none here; the
-// rewrite reports why.
-func (a *App) commentsIn(path string, formats *checkFormats) (commentFile, error) {
-	src, err := os.ReadFile(path)
+// rewrite reports why. A file beneath root is read through it.
+func (a *App) commentsIn(root, path string, formats *checkFormats) (commentFile, error) {
+	src, err := rootpath.ReadFile(root, path)
 	if err != nil {
 		return commentFile{}, err
 	}
@@ -222,6 +223,14 @@ type commentOp struct {
 // the preview's outcomes when the set was refused or previewed, the write's
 // when it ran, none when the set was refused before the comment path ran.
 func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, root, backup string, trust *formatterTrust) (*change.Result, []commentFileResult, error) {
+	// References resolve under root, the project root or, outside a project,
+	// the working directory. Only a project root contains the files: outside
+	// a project the change set names files the person chose, and a link among
+	// them is followed, as an editor would.
+	contain := ""
+	if root != "" && fileExists(filepath.Join(root, project.RecipeFileName)) {
+		contain = root
+	}
 	res := &change.Result{Schema: change.ResultSchemaID, Ops: make([]change.OpResult, len(set.Ops)), Docs: []change.DocResult{}}
 	for i, op := range set.Ops {
 		at := op.At
@@ -240,7 +249,7 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 		return nil, nil, err
 	}
 	var ops []commentOp
-	seen := map[string]int{}
+	seen := map[[2]string]int{}
 	located := map[string]commentFile{}
 	for i, op := range set.Ops {
 		body, ok := op.Body.(*change.SetContent)
@@ -263,7 +272,15 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 			continue
 		}
 		path := docPath(root, op.At.Doc)
-		key := path + "\x00" + op.At.Block
+		// A file of the project is read and written only when it resolves
+		// inside the project: a link that leads out of it is refused.
+		if contain != "" && under(contain, path) {
+			if _, cerr := rootpath.Contain(contain, path); cerr != nil {
+				refuse(i, &change.Error{Code: change.CodeInvalid, Field: "at/doc", Message: cerr.Error()})
+				continue
+			}
+		}
+		key := [2]string{path, op.At.Block}
 		if j, dup := seen[key]; dup {
 			refuse(i, &change.Error{Code: change.CodeInvalid, Field: "at/block",
 				Message: fmt.Sprintf("operation %d rewrites %s too; send one operation per comment", j, op.At.Block)})
@@ -271,7 +288,7 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 		}
 		seen[key] = i
 		if _, ok := located[path]; !ok {
-			file, lerr := a.commentsIn(path, formats)
+			file, lerr := a.commentsIn(contain, path, formats)
 			if lerr != nil {
 				refuse(i, &change.Error{Code: change.CodeNotFound, Field: "at/doc", Message: "no document " + op.At.Doc + ": " + lerr.Error()})
 				continue
@@ -302,7 +319,7 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 	}
 	// The preview runs every rewrite and writes nothing, so a refusal in any
 	// file refuses the whole change set before one comment is written.
-	preview := a.applyComments(ctx, cmd, entries, true, "", trust, "")
+	preview := a.applyComments(ctx, cmd, entries, true, "", trust, "", contain)
 	byOp := commentOutcomes(ops, preview)
 	for _, o := range ops {
 		if e := byOp[o.i]; e != nil && (e.Status == commentRefused || (e.Status == commentNotRun && e.Reason != reasonPreview)) {
@@ -324,17 +341,17 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 			}
 		}
 		for _, f := range preview {
-			res.Docs = append(res.Docs, commentDocResult(root, f, located[f.File].digest, false))
+			res.Docs = append(res.Docs, commentDocResult(root, contain, f, located[f.File].digest, false))
 		}
 		res.Status = change.SetPreviewed
 		return res, preview, nil
 	}
 
-	results := a.applyComments(ctx, cmd, entries, false, backup, trust, "")
+	results := a.applyComments(ctx, cmd, entries, false, backup, trust, "", contain)
 	byOp = commentOutcomes(ops, results)
 	written := false
 	for _, f := range results {
-		d := commentDocResult(root, f, located[f.File].digest, true)
+		d := commentDocResult(root, contain, f, located[f.File].digest, true)
 		written = written || d.Written
 		res.Docs = append(res.Docs, d)
 	}
@@ -347,7 +364,7 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 		case e.Status == commentWritten:
 			res.Ops[o.i].Status = change.OpApplied
 			if _, ok := after[o.path]; !ok {
-				after[o.path], _ = a.commentsIn(o.path, formats)
+				after[o.path], _ = a.commentsIn(contain, o.path, formats)
 			}
 			if c, ok := after[o.path].comments[o.entry.ID]; ok {
 				res.Ops[o.i].After = commentRevision(c.fingerprint)
@@ -446,12 +463,13 @@ func commentOutcomes(ops []commentOp, results []commentFileResult) map[int]*comm
 }
 
 // commentDocResult is the outcome for one file of a comment change set, whose
-// bytes had the digest before when it was read.
-func commentDocResult(root string, f commentFileResult, before string, apply bool) change.DocResult {
+// bytes had the digest before when it was read. contain is the project root
+// the file is read back through, empty outside a project.
+func commentDocResult(root, contain string, f commentFileResult, before string, apply bool) change.DocResult {
 	d := change.DocResult{Doc: relRef(root, f.File), Home: "file", Before: before}
 	if apply && slices.ContainsFunc(f.Edits, func(e commentEdit) bool { return e.Status == commentWritten }) {
 		d.Written = true
-		if data, err := os.ReadFile(f.File); err == nil {
+		if data, err := rootpath.ReadFile(contain, f.File); err == nil {
 			sum := sha256.Sum256(data)
 			after := "sha256:" + hex.EncodeToString(sum[:])
 			d.After = &after

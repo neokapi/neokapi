@@ -22,6 +22,7 @@ import { entriesOf, languageLabel, useFeed } from "../../../../../lib/feed";
 import { projectKey, summarize, useReviewHome } from "../../../../../lib/home";
 import { setRecentProject } from "../../../../../lib/recentProject";
 import { reviewPlanKey } from "../../../../../lib/plan";
+import { usePullRefresh } from "../../../../../lib/pullRefresh";
 import { routeValue } from "../../../../../lib/routeParams";
 
 /** The title key of each plan level, for the project's plan card. */
@@ -130,10 +131,16 @@ function Languages({ ws, project }: { ws: string; project: string }) {
     [waiting, inbox.isPending, openLanguage],
   );
 
-  const refresh = () => {
-    void feed.refetch();
-    void inbox.refetch();
-  };
+  // The screen draws its cards once, when every query it lays out has answered
+  // its first request, so a card that arrives late never pushes the others down.
+  const settling =
+    perms.isPending ||
+    (projects.isPending && !info) ||
+    plan.isPending ||
+    inbox.isPending ||
+    feed.isPending;
+
+  const pull = usePullRefresh(() => Promise.all([feed.refetch(), inbox.refetch(), plan.refetch()]));
 
   return (
     <View collapsable={false} className="bg-background flex-1">
@@ -144,15 +151,15 @@ function Languages({ ws, project }: { ws: string; project: string }) {
         testID="language-list"
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="pb-8"
-        data={languages}
+        data={settling ? [] : languages}
         keyExtractor={(l) => l}
         renderItem={renderItem}
-        refreshing={false}
-        onRefresh={refresh}
+        refreshing={pull.refreshing}
+        onRefresh={pull.onRefresh}
         ListHeaderComponent={
           <View>
             {info ? <ProjectHeader project={info} /> : null}
-            {planDetail ? (
+            {!settling && planDetail ? (
               <Pressable
                 testID="project-plan"
                 accessibilityRole="button"
@@ -165,7 +172,7 @@ function Languages({ ws, project }: { ws: string; project: string }) {
                 <Text className="text-muted-foreground text-sm">{planDetail}</Text>
               </Pressable>
             ) : null}
-            {contextWaiting > 0 ? (
+            {!settling && contextWaiting > 0 ? (
               <ContextEntryCard
                 count={contextWaiting}
                 detail={contextDetail}
@@ -174,12 +181,16 @@ function Languages({ ws, project }: { ws: string; project: string }) {
                 }
               />
             ) : null}
-            <ActivityStrip entries={entries} onPress={() => router.navigate("/activity")} />
-            {languages.length > 0 ? <SectionHeader title={t("home.languagesHeader")} /> : null}
+            {settling ? null : (
+              <ActivityStrip entries={entries} onPress={() => router.navigate("/activity")} />
+            )}
+            {!settling && languages.length > 0 ? (
+              <SectionHeader title={t("home.languagesHeader")} />
+            ) : null}
           </View>
         }
         ListEmptyComponent={
-          perms.isPending || (projects.isPending && !info) ? (
+          settling ? (
             <SkeletonCards testID="languages-loading" />
           ) : perms.isSuccess ? (
             <EmptyState

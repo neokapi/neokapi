@@ -97,22 +97,39 @@ func (a *App) AddUpRunFlags(cmd Command) {
 	cmd.Flags().Bool(printOpsFlag, false, printOpsUsage)
 }
 
-// upRecipeFlags are the flags `kapi up` does not take because the recipe
-// decides what they would, each with the refusal naming the recipe key.
-// --format read every file of a run as one format, re-reading the rest and
-// writing their targets from what it misread; --engine came only with it.
+// upRecipeFlags are flags kapi up does not take. Each has the refusal that
+// says what to do instead: the recipe key that decides it, or the command
+// that takes it. The --format flag read every file of a run as one format
+// and wrote targets from what it misread. The --engine flag came only with
+// it. The file-level flags of kapi translate are the ones people reach for
+// most.
 var upRecipeFlags = map[string]string{
 	"format": "--format does not apply to kapi up: set a collection's format in the recipe, under the collection's format: key (collections[].format.name)",
 	"engine": "--engine does not apply to kapi up: the recipe selects the format engine, under defaults.engine (or defaults.formats.<name>.engine for one format)",
+	"target-lang": "--target-lang does not apply to kapi up: the recipe sets the languages, under defaults.target_languages. " +
+		"To translate one file into one language, run kapi translate <file> --target-lang <locale>",
+	"input": "--input does not apply to kapi up: it converges the files the recipe's collections name (collections[].path, or collections[].content[].path in a collection with a content list). " +
+		"To translate one file, run kapi translate <file> --target-lang <locale>",
+	"output": "--output does not apply to kapi up: each target is written where its collection's target: pattern says (collections[].target, or collections[].content[].target in a collection with a content list). " +
+		"To write one translated file elsewhere, run kapi translate <file> --target-lang <locale> -o <path>",
 }
 
+// upRecipeShorthands are the one-letter forms of upRecipeFlags.
+var upRecipeShorthands = map[string]string{"i": "input", "o": "output", "f": "format"}
+
 // UpFlagError is the error `kapi up` gives for a flag it does not parse: the
-// refusal naming the recipe key for a flag the recipe decides, else err.
+// refusal for a flag in upRecipeFlags, else err.
 func UpFlagError(err error) error {
-	for name, refusal := range upRecipeFlags {
-		if strings.Contains(err.Error(), "unknown flag: --"+name) {
-			return errors.New(refusal)
-		}
+	msg := err.Error()
+	name := ""
+	if rest, ok := strings.CutPrefix(msg, "unknown flag: --"); ok {
+		name, _, _ = strings.Cut(rest, "=")
+	} else if rest, ok := strings.CutPrefix(msg, "unknown shorthand flag: '"); ok {
+		short, _, _ := strings.Cut(rest, "'")
+		name = upRecipeShorthands[short]
+	}
+	if refusal, ok := upRecipeFlags[name]; ok {
+		return errors.New(refusal)
 	}
 	return err
 }

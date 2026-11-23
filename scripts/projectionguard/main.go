@@ -64,7 +64,7 @@ var exempt = map[string]bool{
 
 // writes names each store type and the methods that write it.
 var writes = map[string]map[string]bool{
-	"github.com/neokapi/neokapi/memory.SQLiteStore": set("Add", "AddWithStream", "BulkAddWithStream", "ReplayWithStream", "Delete",
+	"github.com/neokapi/neokapi/memory.SQLiteStore": set("Add", "AddWithStream", "BulkAddWithStream", "BulkAddReplacing", "ReplayWithStream", "AddOrigin", "Delete",
 		"CreateImportSession", "UpdateImportSessionCount", "DeleteImportSession"),
 	"github.com/neokapi/neokapi/terms.SQLiteStore": set("AddConcept", "AddConceptWithStream", "DeleteConcept", "DeleteShadowConcepts",
 		"AddRelation", "AddRelationWithStream", "DeleteRelation"),

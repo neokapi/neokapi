@@ -96,7 +96,7 @@ func (a *AuditLogger) VerifyChain(ctx context.Context, chainKey string) (ChainVe
 		}
 
 		canonical := canonicalPayload(ev, reMarshal(dataJSON), reMarshal(before), reMarshal(after))
-		sum := sha256.Sum256([]byte(storedPv + "\x1e" + canonical))
+		sum := sha256.Sum256([]byte(auditChainInput(storedPv, canonical)))
 		want := hex.EncodeToString(sum[:])
 		if want != storedHs {
 			result.Valid = false

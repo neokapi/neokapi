@@ -569,6 +569,7 @@ function mockMarket(id: string, req: MarketRequest): Market {
     locales: req.locales ?? [],
     created_at: MOCK_NOW,
     updated_at: MOCK_NOW,
+    revision: `${id}-r1`,
   };
 }
 

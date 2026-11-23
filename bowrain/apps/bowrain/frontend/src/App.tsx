@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { ThemeProvider } from "@neokapi/ui";
-import { BowrainApp } from "@neokapi/bowrain-app";
+import { ThemeProvider } from "@neokapi/ui/context/ThemeContext.tsx";
+import { BowrainApp, setPendingSavesServer } from "@neokapi/bowrain-app";
 import { createHashHistory } from "@tanstack/react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
@@ -13,6 +13,9 @@ import { createDesktopPlatform } from "./api/desktopPlatform";
 import { queryClient } from "./lib/queryClient";
 import { initAnalytics } from "./analytics";
 import { TelemetryNotice } from "./components/TelemetryNotice";
+import { SaveFailedOnClose } from "./components/SaveFailedOnClose";
+import { useFlushOnClose } from "./hooks/useFlushOnClose";
+import { UnsavedEditsNotice } from "./components/UnsavedEditsNotice";
 
 // "offline" is the designed launch state (#1284): the server is configured but
 // unreachable, distinct from "connecting" (no/expired session → sign in).
@@ -30,6 +33,9 @@ const desktopPlatform = createDesktopPlatform();
 // Opt-out desktop analytics (D1): keyless builds and DNT stay silent; the
 // persisted telemetry setting gates capture (first-run notice below).
 initAnalytics();
+// The webview's own origin is not a server: no edit is recorded or sent until
+// the app is in and names the server it is connected to.
+setPendingSavesServer(null);
 // Hash history: the Wails webview serves the frontend from a static asset root,
 // so browser history would 404 on refresh or deep navigation. Hash keeps every
 // route change client-side.
@@ -172,13 +178,20 @@ function AppInner() {
 
   // Demote out of the mounted app when the session drops: the desktop sign-out
   // (platform.signOut → Logout) disconnects, returning the user to ServerConnect.
-  // A network blip reports "offline" and a reconnect attempt "connecting"; both
+  // A network blip reports "offline" and a reconnect attempt "reconnecting"; both
   // keep a valid working copy, so only a disconnect demotes.
   useEffect(() => {
     if (mode === "ready" && connection.info.state === "disconnected") {
       setMode("connecting");
     }
   }, [connection.info.state, mode]);
+
+  // Unsaved edits belong to the server they were made on: they are sent
+  // only while the app is in, connected to that server.
+  const serverURL = connection.info.server_url || "";
+  useEffect(() => {
+    setPendingSavesServer(mode === "ready" && serverURL ? serverURL : null);
+  }, [mode, serverURL]);
 
   // Launch: reuse a stored/auto session if present. "connected" is optimistic, so
   // verify reachability — reachable enters the app, unreachable shows the
@@ -191,7 +204,7 @@ function AppInner() {
         if (aborted) return;
         if (ci.state === "connected") {
           if (!aborted) await applyProbeOutcome(ci);
-        } else if (ci.state === "offline") {
+        } else if (ci.state === "offline" || ci.state === "reconnecting") {
           // Backend already holds a mid-session offline working copy — mount it.
           await ensureWorkspaceSelected(ci);
           if (!aborted) setMode("ready");
@@ -244,6 +257,7 @@ function AppInner() {
             when it fits and scrolls when it does not.
           */}
           <div className="flex-1 min-h-0 overflow-y-auto">
+            <UnsavedEditsNotice />
             <ServerConnect
               info={connection.info}
               onConnect={handleServerConnect}
@@ -269,6 +283,7 @@ function AppInner() {
             }}
           />
           <div className="flex-1 min-h-0 overflow-y-auto">
+            <UnsavedEditsNotice />
             <OfflineLaunch
               serverURL={connection.info.server_url || ""}
               onRetry={handleOfflineRetry}
@@ -297,6 +312,22 @@ function AppInner() {
 }
 
 /**
+ * Saves every waiting edit before the window closes, and keeps the window
+ * open with the reason when one does not reach the server.
+ */
+function FlushOnClose() {
+  const { failure, closeAnyway, stay } = useFlushOnClose();
+  if (!failure) return null;
+  return (
+    <SaveFailedOnClose
+      failure={failure}
+      onCloseAnyway={() => void closeAnyway()}
+      onStay={() => void stay()}
+    />
+  );
+}
+
+/**
  * App root. Provides the app-wide react-query client so the connection gate and
  * the shared app share one cache; the shared app's RootLayout re-provides the
  * same client, so invalidations are visible across both.
@@ -305,6 +336,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppInner />
+      {/* Above the sign-in gate: losing the session must not release the
+          window while an edit has not reached the server. */}
+      <FlushOnClose />
     </QueryClientProvider>
   );
 }

@@ -14,14 +14,14 @@ import (
 	"github.com/neokapi/neokapi/core/venue"
 )
 
-// The decision ledger, SQLite flavor — the same contract the Postgres store
+// The decision ledger, SQLite flavor: the same contract the Postgres store
 // implements (bowrain/store/decisions.go): unit_decisions folds the event log
 // to latest-per-(item, unit, variant), block_history keeps the events, and
 // target_json.status is a written projection. One contract, two backends.
 
 // UpsertUnitDecisions implements platstore.DecisionStore.
 // resolveItemIDSQLite is the item a decision names, by identity rather than
-// address. Mirrors resolveItemIDPg — see it for why an unknown name gets a row
+// address. Mirrors resolveItemIDPg: see it for why an unknown name gets a row
 // rather than an empty key.
 func resolveItemIDSQLite(ctx context.Context, tx *sql.Tx, projectID, stream, itemName string) (string, error) {
 	if itemName == "" {
@@ -81,13 +81,13 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		var haveOld bool
 		var parked int
 		row := tx.QueryRowContext(ctx,
-			`SELECT status, revision, basis, review_state, decided_by, decided_at, note, parked, assignee,
+			`SELECT status, revision, basis, review_state, decided_by, decided_at, note, reasons, agent_host, parked, assignee,
 				governing_fingerprint, updated
 			 FROM unit_decisions
 			 WHERE project_id=? AND stream=? AND item_id=? AND unit=? AND variant=?`,
 			projectID, stream, itemID, d.Unit, d.Variant)
 		switch err := row.Scan(&old.Status, &old.Revision, &old.Basis, &old.ReviewState, &old.DecidedBy,
-			&old.DecidedAt, &old.Note, &parked, &old.Assignee, &old.GoverningFingerprint, &old.Updated); {
+			&old.DecidedAt, &old.Note, reasonsInto(&old.Reasons), &old.AgentHost, &parked, &old.Assignee, &old.GoverningFingerprint, &old.Updated); {
 		case err == nil:
 			old.Parked = parked != 0
 			haveOld = true
@@ -95,7 +95,18 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		default:
 			return changed, fmt.Errorf("read decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
+		d.Reasons = venue.NormalizeReasons(d.Reasons)
+		// A client older than agent_host folds the agent host into the
+		// note; the store keeps the note as the person typed it and the host
+		// as its own column. A stored row written that way is left as it
+		// is: it is the same record (venue.SameDecision) and is read the
+		// same way.
+		d = venue.SplitNote(d)
+		var stored *venue.UnitDecision
 		if haveOld {
+			stored = &old
+			d = venue.CarryReasons(old, d)
+			d = venue.CarryHost(venue.SplitNote(old), d)
 			if bstore.DecisionUnchanged(old, d) {
 				continue
 			}
@@ -103,21 +114,29 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 				continue // last-writer-wins: never roll a newer decision back
 			}
 		}
+		// A store accepts what it already holds. Only what this record states
+		// anew is checked, after the comparisons above, so an echo of a
+		// stored record passes whatever it carries. The push refuses a new
+		// one per decision before it gets here (jobs.pushGovernor), so this
+		// is the last line for any other writer.
+		if err := venue.CheckStatedInput(stored, d); err != nil {
+			return changed, fmt.Errorf("decision %s/%s: %w", d.Unit, d.Variant, err)
+		}
 
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO unit_decisions
 				(project_id, stream, item_id, item_name, unit, variant, status, revision, basis,
-				 review_state, decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated, updated_at)
-			 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+				 review_state, decided_by, decided_at, note, reasons, agent_host, parked, assignee, governing_fingerprint, updated, updated_at)
+			 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 			 ON CONFLICT (project_id, stream, item_id, unit, variant) DO UPDATE SET
 				item_name=excluded.item_name,
 				status=excluded.status, revision=excluded.revision, basis=excluded.basis,
 				review_state=excluded.review_state, decided_by=excluded.decided_by,
-				decided_at=excluded.decided_at, note=excluded.note, parked=excluded.parked,
+				decided_at=excluded.decided_at, note=excluded.note, reasons=excluded.reasons, agent_host=excluded.agent_host, parked=excluded.parked,
 				assignee=excluded.assignee, governing_fingerprint=excluded.governing_fingerprint,
 				updated=excluded.updated, updated_at=excluded.updated_at`,
 			projectID, stream, itemID, d.ItemName, d.Unit, d.Variant, d.Status, d.Revision, d.Basis,
-			d.ReviewState, d.DecidedBy, d.DecidedAt, d.Note, boolInt(d.Parked), d.Assignee, d.GoverningFingerprint, d.Updated, now); err != nil {
+			d.ReviewState, d.DecidedBy, d.DecidedAt, d.Note, encodeReasons(d.Reasons), d.AgentHost, boolInt(d.Parked), d.Assignee, d.GoverningFingerprint, d.Updated, now); err != nil {
 			return changed, fmt.Errorf("upsert decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 		changed++
@@ -167,7 +186,7 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 			continue
 		}
 		if d.Revision != platstore.VariantRevision(d.Variant, tgt.Runs) {
-			continue // decision blesses a different translation — stale on arrival
+			continue // decision blesses a different translation: stale on arrival
 		}
 		if _, err := tx.ExecContext(ctx,
 			`UPDATE translations SET target_json = json_set(target_json, '$.status', ?), updated_at=?
@@ -188,7 +207,7 @@ func (s *SQLiteStore) ListUnitDecisions(ctx context.Context, projectID, stream s
 	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT item_name, unit, variant, status, revision, basis, review_state,
-			decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated
+			decided_by, decided_at, note, reasons, agent_host, parked, assignee, governing_fingerprint, updated
 		 FROM unit_decisions WHERE project_id=? AND stream=?
 		 ORDER BY item_name, unit, variant`,
 		projectID, stream)
@@ -202,7 +221,7 @@ func (s *SQLiteStore) ListUnitDecisions(ctx context.Context, projectID, stream s
 		d := venue.UnitDecision{ProjectID: projectID, Stream: stream}
 		var parked int
 		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.Revision, &d.Basis,
-			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated); err != nil {
+			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, reasonsInto(&d.Reasons), &d.AgentHost, &parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated); err != nil {
 			return nil, fmt.Errorf("scan decision: %w", err)
 		}
 		d.Parked = parked != 0
@@ -218,12 +237,12 @@ func (s *SQLiteStore) GetUnitDecision(ctx context.Context, projectID, stream, it
 	var parked int
 	err := s.db.QueryRowContext(ctx,
 		`SELECT item_name, unit, variant, status, revision, basis, review_state,
-			decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated
+			decided_by, decided_at, note, reasons, agent_host, parked, assignee, governing_fingerprint, updated
 		 FROM unit_decisions
 		 WHERE project_id=? AND stream=? AND item_name=? AND unit=? AND variant=?`,
 		projectID, stream, itemName, unit, variant).
 		Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.Revision, &d.Basis,
-			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated)
+			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, reasonsInto(&d.Reasons), &d.AgentHost, &parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -234,7 +253,7 @@ func (s *SQLiteStore) GetUnitDecision(ctx context.Context, projectID, stream, it
 	return &d, nil
 }
 
-// TallyDecisionBasis implements platstore.DecisionStore — the SQLite mirror of
+// TallyDecisionBasis implements platstore.DecisionStore: the SQLite mirror of
 // the Postgres grading, joining each decision's recorded basis to the revision
 // of the block's current source, and its draft basis beside it for the two
 // owed counts. The rejected count reads the verdict as well, for the units a
@@ -380,7 +399,7 @@ const derivedStale = `(COALESCE(json_extract(t.target_json, '$.derived.rev'), ''
 const draftCurrent = `(d.draft_basis <> '' AND d.draft_basis = b.source_revision)`
 
 // settleDecisionProjections re-derives the projected statuses of every target
-// of a block whose SOURCE just changed, against the decision ledger — the
+// of a block whose SOURCE just changed, against the decision ledger: the
 // SQLite mirror of settleDecisionProjectionsPg, grading through the same
 // shared bstore.SettleDecisionProjection.
 func settleDecisionProjections(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, sourceRevision string) error {

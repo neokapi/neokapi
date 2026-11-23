@@ -3,6 +3,7 @@ package host
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/host/output"
 )
 
@@ -29,7 +31,22 @@ import (
 // cfg is the recipe's format config for the item that claims the file. The read
 // applies it and wires the read skeleton, as a check does, so the counts are
 // the blocks a check reports.
+//
+// The file is read through the root of the project that holds it, found by
+// the upward walk from its directory, so a link that leads out of the project
+// is refused. A file in no project is read as named.
 func (a *App) CountFileBlocks(ctx context.Context, absPath string, fmtID registry.FormatID, srcLocale model.LocaleID, cfg map[string]any) (blocks, words int, err error) {
+	root := ""
+	if layout, lerr := coreproj.ResolveLayout(filepath.Dir(absPath)); lerr == nil {
+		root = layout.Root
+	} else if !errors.Is(lerr, coreproj.ErrNoProject) {
+		return 0, 0, lerr
+	}
+	return a.CountFileBlocksIn(ctx, root, absPath, fmtID, srcLocale, cfg)
+}
+
+// CountFileBlocksIn is CountFileBlocks for a file of the project at root.
+func (a *App) CountFileBlocksIn(ctx context.Context, root, absPath string, fmtID registry.FormatID, srcLocale model.LocaleID, cfg map[string]any) (blocks, words int, err error) {
 	reader, err := a.FormatReg.NewReader(fmtID)
 	if err != nil {
 		return 0, 0, err
@@ -39,7 +56,7 @@ func (a *App) CountFileBlocks(ctx context.Context, absPath string, fmtID registr
 		return 0, 0, err
 	}
 	coreproj.WireReadSkeleton(a.FormatReg, string(fmtID), reader)
-	data, err := os.ReadFile(absPath)
+	data, err := rootpath.ReadFile(root, absPath)
 	if err != nil {
 		return 0, 0, err
 	}

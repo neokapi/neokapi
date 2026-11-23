@@ -1,10 +1,16 @@
 package backend
 
 import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -61,7 +67,11 @@ func TestSaveFlowDefinition_OfflineRequiresConnection(t *testing.T) {
 		Source: "project",
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not connected")
+	assert.Contains(t, err.Error(), "the app is offline")
+	// The frontend is told the request did not reach the server.
+	wire, merr := json.Marshal(&err)
+	require.NoError(t, merr)
+	assert.JSONEq(t, `{"network":true}`, string(wire))
 }
 
 func TestSaveFlowDefinition_BuiltInRejected(t *testing.T) {
@@ -81,7 +91,11 @@ func TestDeleteFlowDefinition_OfflineRequiresConnection(t *testing.T) {
 	app := NewApp()
 	err := app.DeleteFlowDefinition("proj-1", "custom")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not connected")
+	assert.Contains(t, err.Error(), "the app is offline")
+	// The frontend is told the request did not reach the server.
+	wire, merr := json.Marshal(&err)
+	require.NoError(t, merr)
+	assert.JSONEq(t, `{"network":true}`, string(wire))
 }
 
 func TestFlowDefToInfo_Serialization(t *testing.T) {
@@ -120,4 +134,115 @@ func TestSecureTranslateBuiltInOrdersRedactFirst(t *testing.T) {
 	// first tool node, ahead of the remote-egress translate step.
 	require.NotEmpty(t, info.Nodes)
 	assert.Equal(t, "redact", info.Nodes[0].Name, "secure-translate starts with redact")
+}
+
+// A desktop save names the revision it was based on, and a save the server
+// refuses as stale comes back as the flow as it now stands, not as an error
+// string.
+func TestSaveFlowDefinition_StaleSaveCarriesTheCurrentFlow(t *testing.T) {
+	var gotBase any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		gotBase = body["base_revision"]
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"code":  "flow_changed",
+			"error": "changed",
+			"current": map[string]any{
+				"id": "flow-1", "name": "Alex's edit", "source": "project", "revision": "r2",
+				"nodes": []any{}, "edges": []any{},
+			},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	app := newTestApp(t)
+	app.mu.Lock()
+	app.connState = StateConnected
+	app.serverURL = srv.URL
+	app.activeWS = "acme"
+	app.remoteHTTP = editorclient.New(srv.URL, "tok")
+	app.authInfo = &config.StoredAuth{ServerURL: srv.URL, AccessToken: "tok"}
+	app.mu.Unlock()
+
+	res, err := app.SaveFlowDefinition("proj-1", FlowDefinitionInfo{
+		ID: "flow-1", Name: "Blake's edit", Source: "project", Revision: "r1",
+		Nodes: []FlowNodeInfo{}, Edges: []FlowEdgeInfo{},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "r1", gotBase, "the save names the revision it was based on")
+	require.NotNil(t, res.Changed)
+	assert.Nil(t, res.Flow)
+	assert.Equal(t, "Alex's edit", res.Changed.Name)
+	assert.Equal(t, "r2", res.Changed.Revision)
+}
+
+// A save the server refuses reads as the server's sentence on the desktop,
+// as it does on the web: no URL, no status code, no JSON.
+func TestSaveFlowDefinition_RefusalReadsAsTheServersSentence(t *testing.T) {
+	refusals := map[int]string{
+		http.StatusBadRequest:           "edge e1 references a node that does not exist",
+		http.StatusForbidden:            "cannot modify a built-in flow",
+		http.StatusNotFound:             "this flow was deleted after it was read",
+		http.StatusPreconditionRequired: "this version of the app cannot save flows; update it, then save again",
+	}
+	for status, sentence := range refusals {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(status)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": sentence})
+			}))
+			t.Cleanup(srv.Close)
+			app := newTestApp(t)
+			app.mu.Lock()
+			app.connState = StateConnected
+			app.serverURL = srv.URL
+			app.activeWS = "acme"
+			app.remoteHTTP = editorclient.New(srv.URL, "tok")
+			app.authInfo = &config.StoredAuth{ServerURL: srv.URL, AccessToken: "tok"}
+			app.mu.Unlock()
+
+			_, err := app.SaveFlowDefinition("proj-1", FlowDefinitionInfo{
+				ID: "flow-1", Name: "Mine", Source: "project", Revision: "r1",
+				Nodes: []FlowNodeInfo{}, Edges: []FlowEdgeInfo{},
+			})
+			require.Error(t, err)
+			assert.Equal(t, sentence, err.Error())
+
+			// The frontend receives the error as Wails marshals it, with the
+			// server's status and answer, and renders it as the web does.
+			wire, merr := json.Marshal(&err)
+			require.NoError(t, merr)
+			assert.JSONEq(t, fmt.Sprintf(`{"status":%d,"body":{"error":%q}}`, status, sentence), string(wire))
+		})
+	}
+}
+
+// A save that cannot reach the server tells the frontend so, rather than
+// handing it the transport's message with the server's URL in it.
+func TestSaveFlowDefinition_UnreachableServerIsReportedAsSuch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	serverURL := srv.URL
+	srv.Close()
+
+	app := newTestApp(t)
+	app.mu.Lock()
+	app.connState = StateConnected
+	app.serverURL = serverURL
+	app.activeWS = "acme"
+	app.remoteHTTP = editorclient.New(serverURL, "tok")
+	app.authInfo = &config.StoredAuth{ServerURL: serverURL, AccessToken: "tok"}
+	app.mu.Unlock()
+
+	_, err := app.SaveFlowDefinition("proj-1", FlowDefinitionInfo{
+		ID: "flow-1", Name: "Mine", Source: "project", Revision: "r1",
+		Nodes: []FlowNodeInfo{}, Edges: []FlowEdgeInfo{},
+	})
+	require.Error(t, err)
+	wire, merr := json.Marshal(&err)
+	require.NoError(t, merr)
+	assert.JSONEq(t, `{"network":true}`, string(wire))
 }

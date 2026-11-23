@@ -259,11 +259,11 @@ func (s *Server) coordinateCells(ctx context.Context, projectID, stream string, 
 		established map[string]int
 		translated  int
 	}
-	var order []string
-	cells := map[string]*acc{}
+	var order [][2]string
+	cells := map[[2]string]*acc{}
 	for _, p := range coords.Points {
 		product, channel := p.Coordinates[coreproject.ProductAxis], p.Coordinates[coreproject.ChannelAxis]
-		key := product + "\x00" + channel
+		key := [2]string{product, channel}
 		a := cells[key]
 		if a == nil {
 			a = &acc{

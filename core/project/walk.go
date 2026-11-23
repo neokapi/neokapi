@@ -1,6 +1,7 @@
 package project
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,53 +9,54 @@ import (
 	"github.com/neokapi/neokapi/core/ignore"
 )
 
-// WalkProjectDir walks the project tree rooted at root in lexical order,
-// applying the project's standard visibility rules — the one walk behind
-// every "files in this project" listing (the desktop's file browser, its
-// file watcher, emptiness probes), so they cannot diverge on what counts as
-// project content:
+// WalkProjectDir walks the project tree rooted at root in lexical order. It
+// is the one walk behind every listing of project files (the desktop's file
+// browser, its file watcher, emptiness probes), so they agree on what counts
+// as project content. Hidden entries (.kapi/, .git/) and entries the ignore
+// rules match (ignore.ForProjectDir) are skipped, directories with all they
+// hold.
 //
-//   - hidden entries (dot-prefixed, e.g. .kapi/, .git/) are skipped, with
-//     hidden directories pruned entirely;
-//   - entries matched by the project's ignore rules (.kapiignore /
-//     KAPI_IGNORE — ignore.ForProjectDir) are skipped the same way.
+// visit receives each other entry, file or directory, as its root-relative
+// path and FileInfo; the root itself is not visited. An error from visit
+// stops the walk and is returned; filepath.SkipDir and filepath.SkipAll keep
+// their usual meaning. An entry that cannot be read is skipped.
 //
-// visit receives each surviving entry — files AND directories — as its
-// root-relative path (OS separators) and FileInfo; the root itself is not
-// visited. A non-nil error from visit stops the walk and propagates
-// (filepath.SkipDir and filepath.SkipAll keep their filepath.Walk meaning).
-// Filesystem errors on individual entries are skipped, keeping the walk
-// best-effort like a directory listing.
+// The walk lists through an os.Root opened on root. A symbolic link is
+// visited as the link it is and never descended into, and a directory
+// swapped for a link during the walk cannot lead the listing out of root.
 func WalkProjectDir(root string, visit func(rel string, info os.FileInfo) error) error {
 	ig := ignore.ForProjectDir(root)
-	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return nil //nolint:nilerr // best-effort: an unreadable root lists nothing
+	}
+	defer r.Close()
+	return fs.WalkDir(r.FS(), ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil //nolint:nilerr // best-effort: unreadable entries are skipped
 		}
-		if path == root {
+		if path == "." {
 			// The starting point is not an entry of the project, so none of the
-			// rules below apply to it. They cannot: a root given as "." (or as
-			// any dot-prefixed directory) reads as a hidden entry, and pruning
-			// it returns an empty walk with no error — a caller sees a project
-			// with no files rather than a mistake.
+			// rules below apply to it. A root given as "." reads as a hidden
+			// entry, and pruning it would return an empty walk with no error.
 			return nil
 		}
-		if strings.HasPrefix(info.Name(), ".") {
-			if info.IsDir() {
+		if strings.HasPrefix(d.Name(), ".") {
+			if d.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		rel, rerr := filepath.Rel(root, path)
-		if rerr != nil {
-			return nil
-		}
-		if ig.Match(filepath.ToSlash(rel), info.IsDir()) {
-			if info.IsDir() {
+		if ig.Match(path, d.IsDir()) {
+			if d.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		return visit(rel, info)
+		info, ierr := d.Info()
+		if ierr != nil {
+			return nil //nolint:nilerr // best-effort: an entry gone since the listing is skipped
+		}
+		return visit(filepath.FromSlash(path), info)
 	})
 }

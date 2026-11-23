@@ -129,7 +129,7 @@ func runServerStatus(cmd *cobra.Command, _ []string) error {
 	// cannot be reached leaves the local snapshot standing exactly as before.
 	addPendingChangesets(ctx, proj, &out)
 
-	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(cmd.Context(), app, proj, app.FormatReg)
 	if err != nil {
 		// No server configured — return the empty standing rather than error,
 		// so the built-in status degrades gracefully.

@@ -5,12 +5,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/check"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/profile/packs"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/host/output"
 )
 
@@ -23,7 +23,9 @@ import (
 // as authored, because a resolver hands back the profile with its locale,
 // channel and persona overrides applied, and a warning about an override names
 // the profile as it was written. A store profile is looked up in store; with a
-// nil store there is nowhere to look, and it reports none.
+// nil store there is nowhere to look, and it reports none. A file beneath the
+// project in scope is read through its root, so a voice file that is a link
+// out of the project is refused.
 func (a *App) VoiceProfileWarnings(ctx context.Context, store coreprofile.Store, source string) ([]check.Warning, error) {
 	var (
 		problems []coreprofile.ProfileProblem
@@ -43,7 +45,7 @@ func (a *App) VoiceProfileWarnings(ctx context.Context, store coreprofile.Store,
 		authored, err = lookupProfileIn(ctx, store, strings.TrimPrefix(source, "store:"))
 	default:
 		shown = displayRelative(source)
-		data, rerr := os.ReadFile(source)
+		data, rerr := rootpath.ReadFile(a.projectRoot(), source)
 		if rerr != nil {
 			return nil, fmt.Errorf("read voice profile %s: %w", shown, rerr)
 		}

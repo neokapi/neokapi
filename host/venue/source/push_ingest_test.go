@@ -60,6 +60,16 @@ func TestConfirmIngest(t *testing.T) {
 			wantErr:  "failed to apply it",
 		},
 		{
+			name: "a failed ingest says why, as the server recorded it",
+			body: map[string]any{
+				"status": "failed", "total": 1, "failed": 1,
+				"reason": "The voice profile \"Acme Voice\" changed on the server after this project last pulled. Run `kapi pull`, then push again.",
+			},
+			httpCode: http.StatusOK,
+			pushID:   "push-3",
+			wantErr:  "was not applied: The voice profile \"Acme Voice\" changed on the server after this project last pulled. Run `kapi pull`, then push again.",
+		},
+		{
 			name:      "translation jobs still running do not mask a landed ingest",
 			body:      map[string]any{"status": "in_progress", "total": 4, "completed": 1, "in_progress": 3},
 			httpCode:  http.StatusOK,
@@ -104,4 +114,19 @@ func TestConfirmIngest(t *testing.T) {
 			assert.Equal(t, tt.wantState, state)
 		})
 	}
+}
+
+// An applied push names the voice profiles the venue held and left as they
+// were, so the push can say where the project's voice is edited.
+func TestConfirmIngest_NamesTheVoiceProfilesTheVenueLeft(t *testing.T) {
+	srv := statusTestServer(t, map[string]any{
+		"status": "completed", "total": 1, "completed": 1,
+		"voice_left": []string{"Acme Voice"},
+	}, http.StatusOK)
+	c := newPullTestConnector(t, srv, []string{"fr"}, 0)
+
+	state, _, parts, err := c.confirmIngest(t.Context(), "push-voice")
+	require.NoError(t, err)
+	assert.Equal(t, bowrainconn.IngestApplied, state)
+	assert.Equal(t, []string{"Acme Voice"}, parts.VoiceLeft)
 }

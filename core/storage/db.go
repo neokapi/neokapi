@@ -35,6 +35,8 @@ package storage
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -116,6 +118,12 @@ type Options struct {
 	// store, opened at once by an agent's server, a CLI run and the desktop. A
 	// file one process writes pays a lock acquisition for nothing.
 	CrossProcessWrites bool
+
+	// FollowLink opens a database whose file, or one of SQLite's files beside
+	// it, is a symbolic link. Without it such a database is refused before
+	// SQLite opens anything (refuseLinks). It is for a store a person named,
+	// whose link is their choice; a file kapi keeps for a project never sets it.
+	FollowLink bool
 }
 
 // ProjectOptions configures a multi-subsystem store: three settings that
@@ -183,6 +191,11 @@ func Open(dbPath string) (*DB, error) {
 // OpenWith opens a SQLite database with the shared pragmas and the given write
 // discipline. Open is OpenWith with the zero Options.
 func OpenWith(dbPath string, opts Options) (*DB, error) {
+	if !isMemoryDSN(dbPath) && !opts.FollowLink {
+		if err := refuseLinks(dbPath); err != nil {
+			return nil, err
+		}
+	}
 	profile := DriverProfile()
 	if !isMemoryDSN(dbPath) {
 		l := openLocks.get(dbPath)
@@ -190,7 +203,7 @@ func OpenWith(dbPath string, opts Options) (*DB, error) {
 		defer l.Unlock()
 	}
 	// Set the busy timeout in the DSN so every pooled connection waits for locks
-	// from the moment it is established — before any pragma runs. Without this,
+	// from the moment it is established, before any pragma runs. Without this,
 	// the very first `PRAGMA journal_mode=WAL` can hit "database is locked" when a
 	// second short-lived kapi process (e.g. the verify hook) touches the same DB
 	// concurrently, because the per-connection PRAGMA busy_timeout below has not
@@ -290,6 +303,33 @@ func (db *DB) Close() error {
 		db.cleanup = nil
 	}
 	return err
+}
+
+// sqliteSidecars are the files kept beside a database and opened by the
+// database's name: SQLite's own, and the advisory lock (lockSuffix).
+var sqliteSidecars = []string{"", "-wal", "-shm", "-journal", lockSuffix}
+
+// refuseLinks reports an error when the database file, or a file SQLite keeps
+// beside it, is a symbolic link. SQLite opens each by name and follows a link
+// wherever it leads, so a link left where kapi keeps a database (a project's
+// state directory a repository commits, say) would have every write land in
+// the file it names. A file that does not exist yet passes: SQLite creates it
+// as a file.
+func refuseLinks(dbPath string) error {
+	for _, suffix := range sqliteSidecars {
+		p := dbPath + suffix
+		info, err := os.Lstat(p)
+		if err != nil {
+			continue
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("open database %s: %s is a symbolic link, and kapi opens a database only at its own file. Remove the link and run again", dbPath, filepath.Base(p))
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("open database %s: %s is not a regular file", dbPath, filepath.Base(p))
+		}
+	}
+	return nil
 }
 
 // isMemoryDSN reports whether dbPath addresses an in-memory database. The

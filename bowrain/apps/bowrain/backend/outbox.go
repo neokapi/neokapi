@@ -57,9 +57,29 @@ func failedChangeOf(c PendingChange) FailedChange {
 		out.Edits = changeSetEdits(c.Payload)
 	case opUpdateBlockTarget, opUpdateBlockTargetRuns, opReviewBlock:
 		out.Edits = retiredEdits(opKind(c.Operation), c.Payload)
+	case opUpdateMemoryEntry:
+		// The wording the person wrote stays readable beside why it was
+		// refused, so a conflict loses nothing.
+		var op updateMemoryEntryOp
+		if json.Unmarshal([]byte(c.Payload), &op) == nil {
+			out.Edits = []FailedEdit{{Op: failedMemoryEdit, Locale: op.TargetLocale, Text: op.Target}}
+		}
+	case opAddMemoryEntry:
+		// An add carries the entry as the person left it, edits made before it
+		// was sent included.
+		var op addMemoryEntryOp
+		if json.Unmarshal([]byte(c.Payload), &op) == nil {
+			out.Edits = []FailedEdit{{Op: failedMemoryAdd, Locale: op.TargetLocale, Text: op.Target}}
+		}
 	}
 	return out
 }
+
+// The FailedEdit ops of a content-memory edit and add.
+const (
+	failedMemoryEdit = "update_memory_entry"
+	failedMemoryAdd  = "add_memory_entry"
+)
 
 // changeSetEdits lists the operations of a queued change set.
 func changeSetEdits(payload string) []FailedEdit {
@@ -146,7 +166,7 @@ func (a *App) GetFailedChanges() ([]FailedChange, error) {
 	if a.offlineQueue == nil {
 		return []FailedChange{}, nil
 	}
-	entries, err := a.offlineQueue.Failed()
+	entries, err := a.offlineQueue.Failed(a.queueCtx())
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +185,7 @@ func (a *App) GetFailedChangeIDs() ([]int64, error) {
 	if a.offlineQueue == nil {
 		return []int64{}, nil
 	}
-	return a.offlineQueue.FailedIDs()
+	return a.offlineQueue.FailedIDs(a.queueCtx())
 }
 
 // DismissFailedChange removes one failed or dropped change from the list.
@@ -173,7 +193,7 @@ func (a *App) DismissFailedChange(id int64) error {
 	if a.offlineQueue == nil {
 		return errors.New("there is no offline queue")
 	}
-	return a.offlineQueue.Dismiss(id)
+	return a.offlineQueue.Dismiss(a.queueCtx(), id)
 }
 
 // DismissFailedChanges removes every failed and dropped change from the list.
@@ -181,5 +201,5 @@ func (a *App) DismissFailedChanges() error {
 	if a.offlineQueue == nil {
 		return nil
 	}
-	return a.offlineQueue.DismissAll()
+	return a.offlineQueue.DismissAll(a.queueCtx())
 }

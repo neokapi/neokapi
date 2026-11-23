@@ -99,6 +99,15 @@ when that answer was produced, so an answer absorbed into the corpus keeps the
 statement about what governed it; it is empty for an import, a seed, or a
 producer that ran ungoverned.
 
+One translation is one entry, and each path that learns it adds an origin.
+The record absorber learns a pair from a committed target file and creates
+the entry (`record:<hash>`). A merge or a delivery that writes the same
+source and target afterwards adds a `merge` origin to the entry that holds
+the pair rather than minting a `merge:<batch>:<hash>` entry beside it. A
+merge mints its own entry only for a pair the store does not hold. A store
+written before this rule may hold both entries for one pair; the lookup
+returns them as one result, and resetting the store removes the second.
+
 The store normalizes the locale beside the text. Every variant key, entity
 value key and lookup locale is held in canonical BCP-47 form
 (`locale.Normalize`, the lenient form of the canonicalization every locale

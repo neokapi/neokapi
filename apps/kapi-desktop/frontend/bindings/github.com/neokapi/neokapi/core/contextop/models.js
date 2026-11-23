@@ -57,6 +57,16 @@ export class Actor {
              */
             this["on_behalf_of"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * AgentHost is the agent host whose shell a person declared themselves in
+             * (KAPI_ACTOR=person), such as "claude-code". Empty for anyone else. It
+             * is recorded here and never inside the operation's note.
+             * @member
+             * @type {string | undefined}
+             */
+            this["agent_host"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
