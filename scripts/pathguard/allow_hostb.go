@@ -94,4 +94,5 @@ var allowHostB = map[string]string{
 	"host/pluginhost/schema_ext.go:loadSchemaDecoder":        "a schema file in an installed plugin's directory",
 	"host/pluginhost/segment_factory.go:loadSegmenterSchema": "a schema file in an installed plugin's directory",
 	"host/pluginhost/tier3_reader.go:enrichTier3":            "a page raster the plugin rendered to a temporary file; the plugin is code the user installed",
+	"host/contextstoretrust.go:resolveContextFolder":         "the check itself: it lstats each component of a recipe-named folder beneath the project, following no link, to refuse one that is or passes through a link",
 }
