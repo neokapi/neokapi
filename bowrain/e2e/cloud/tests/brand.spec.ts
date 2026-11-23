@@ -101,4 +101,31 @@ test.describe("Voice Profiles", () => {
     const found = profiles.find((p) => p.id === profile.id);
     expect(found).toBeUndefined();
   });
+  // The server holds every write to the revision it was based on.
+  test("an update with no revision is refused with 428", async ({ api }) => {
+    const profile = await api.createBrandProfileFromStarter(
+      wsSlug,
+      "professional-b2b",
+      "No Revision",
+    );
+    await expect(
+      api.updateVoiceProfile(wsSlug, profile.id, { name: "Changed" }, null),
+    ).rejects.toThrow(/: 428 /);
+    await expect(api.deleteVoiceProfile(wsSlug, profile.id, null)).rejects.toThrow(/: 428 /);
+  });
+
+  test("an update based on an older revision is refused with 409", async ({ api }) => {
+    const profile = await api.createBrandProfileFromStarter(
+      wsSlug,
+      "professional-b2b",
+      "Stale Revision",
+    );
+    const first = (await api.getVoiceProfile(wsSlug, profile.id)).revision;
+    expect(first).toBeTruthy();
+    await api.updateVoiceProfile(wsSlug, profile.id, { name: "Saved Once" }, first);
+    await expect(
+      api.updateVoiceProfile(wsSlug, profile.id, { name: "Saved Twice" }, first),
+    ).rejects.toThrow(/: 409 /);
+    await expect(api.deleteVoiceProfile(wsSlug, profile.id, first)).rejects.toThrow(/: 409 /);
+  });
 });

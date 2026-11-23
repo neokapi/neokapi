@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
-# Run cloud e2e tests against a live Bowrain server.
+# Run the cloud e2e suite against a disposable Bowrain stack.
+#
+# The suite deletes every project in the workspace it uses, so it runs only
+# against a server that reports itself disposable on /api/v1/health
+# (bowrain/e2e/shared/disposable-stack.ts). CI's stack,
+# bowrain/e2e/server/compose.yaml, is one; so is a local stack started with
+# `make -C bowrain stack-up-disposable`.
 #
 # Usage:
-#   ./run.sh                                              # Local Docker stack
-#   BOWRAIN_URL=https://dev.bowrain.cloud ./run.sh        # Dev environment
-#   BOWRAIN_URL=https://dev.bowrain.cloud \
-#     KEYCLOAK_ADMIN_PASSWORD=$(az keyvault secret show \
-#       --vault-name kv-bowrain-dev \
-#       --name keycloak-admin-password \
-#       --query value -o tsv) ./run.sh                    # Dev with Key Vault
+#   ./run.sh                                  # the stack at http://localhost:8080
+#   BOWRAIN_URL=http://host:8080 ./run.sh     # another disposable stack
 #
 # Environment variables:
-#   BOWRAIN_URL             — Server URL (default: http://localhost:8080)
-#   KEYCLOAK_URL            — Keycloak URL (default: derived from BOWRAIN_URL)
-#   KEYCLOAK_ADMIN_PASSWORD — Keycloak admin password (default: admin)
-#   E2E_USER_EMAIL          — Override test user email
+#   BOWRAIN_URL             Server URL (default: http://localhost:8080)
+#   KEYCLOAK_URL            Keycloak URL (default: derived from BOWRAIN_URL)
+#   KEYCLOAK_ADMIN_PASSWORD Keycloak admin password (default: admin)
+#   E2E_USER_EMAIL          Override test user email
 
 set -euo pipefail
 

@@ -14,6 +14,18 @@ same one (pnpm reads no .npmrc above a project outside the workspace).
 Every lockfile must parse as pnpm reads it, resolve every dependency of an
 importer or a package to an entry with an integrity hash, and hold no
 resolution other than that hash.
+
+Two consequences are deliberate:
+
+- A git or URL dependency fails the check: its resolution is a commit or a
+  tarball, not a registry integrity hash. Such a dependency would need its own
+  rule here, decided by a person; this script has none.
+- A scope registry in a developer's own ~/.npmrc (`@scope:registry=…`) still
+  applies to that scope, because the repository's .npmrc names the default
+  registry only. The repository installs no scoped package from a registry of
+  its own (the @neokapi packages are linked from the workspace), so nothing
+  here sets a scope; a lockfile written that way fails this check, which names
+  the packages.
 """
 
 import os
