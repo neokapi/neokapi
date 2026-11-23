@@ -280,6 +280,8 @@ type MarketArgs struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description,omitempty"`
 	Locales     []string `json:"locales,omitempty"`
+	// BaseRevision is the revision an update was based on.
+	BaseRevision string `json:"base_revision,omitempty"`
 }
 
 // ListMarkets returns the workspace-defined market scopes.

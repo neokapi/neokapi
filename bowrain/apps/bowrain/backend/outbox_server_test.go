@@ -172,7 +172,9 @@ func TestOfflineEditToATranslationChangedOnTheServerIsRefusedOnReplay(t *testing
 	assert.Equal(t, 1, q.FailedCount(t.Context()), "the stale edit is refused and kept as failed")
 	var lastError string
 	require.NoError(t, q.db.QueryRow(`SELECT last_error FROM pending_changes WHERE status = 'failed'`).Scan(&lastError))
-	assert.Contains(t, lastError, "HTTP 409", "the server refused it stale")
+	// The reason is the server's own sentence, without the request around it.
+	assert.Contains(t, lastError, "changed after you read it", "the server refused it stale")
+	assert.NotContains(t, lastError, "HTTP 409")
 
 	// The failed-changes list says what the refused edit was, so Alice can
 	// make it again on the wording that stands.

@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	bmemory "github.com/neokapi/neokapi/bowrain/memory"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
@@ -115,7 +117,7 @@ func TestLocaleTargetHelpers(t *testing.T) {
 func TestPromoteDecisionsToMemory(t *testing.T) {
 	deps := newTestWorkerDeps(t)
 	ctx := t.Context()
-	tm := memory.NewInMemoryStore()
+	tm := promotionMemory(t)
 
 	projectID := "promote-project"
 	require.NoError(t, deps.ContentStore.CreateProject(ctx, &store.Project{ID: projectID, Name: "Promote"}))
@@ -137,9 +139,10 @@ func TestPromoteDecisionsToMemory(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 
-	// Idempotent: the entry ID is content-derived.
+	// Idempotent: the entry ID is content-derived, and a second approval of
+	// the pair records its origin on the entry that holds it.
 	promoted, _ = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []venue.UnitDecision{approval})
-	assert.Equal(t, 1, promoted, "re-promotion upserts the same row")
+	assert.Equal(t, 1, promoted, "re-promotion records the approval on the same row")
 	count, err = tm.Count(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
@@ -159,7 +162,7 @@ func TestPromoteDecisionsToMemory(t *testing.T) {
 	assert.Equal(t, 1, evicted)
 	count, err = tm.Count(ctx)
 	require.NoError(t, err)
-	assert.Zero(t, count, "rejected wording leaves the corpus")
+	assert.Zero(t, count, "rejected wording no origin still holds leaves the corpus")
 
 	// Disabled paths are no-ops, never panics.
 	p, e := PromoteDecisionsToMemory(ctx, deps.ContentStore, nil, projectID, "main", "en", []venue.UnitDecision{approval})
@@ -224,4 +227,97 @@ func TestRecycleBlocks_FillsUnambiguousLeavesAmbiguous(t *testing.T) {
 	require.Len(t, res.remainder, 1, "the ambiguous exact is left for review, not filled by an arbitrary pick")
 	assert.Equal(t, "b2", res.remainder[0].ID)
 	assert.Empty(t, res.remainder[0].TargetText("fr"))
+}
+
+// promotionMemory is the workspace content memory the promotion writes in
+// production: the Bowrain PostgreSQL store, on a database of its own.
+func promotionMemory(t *testing.T) *bmemory.PostgresStore {
+	t.Helper()
+	tm, err := bmemory.NewPostgresStoreFromDB(pgtest.NewTestDB(t), "ws-promote")
+	require.NoError(t, err)
+	return tm
+}
+
+// TestPromotionKeepsAPersonsEdit is the first of the two ways the promotion
+// lost a person's work. It keys an entry by its (source, target) pair, and a
+// person's edit of the entry kept the key while changing the target. The next
+// promotion of the same approval (every push replays the decisions) wrote the
+// approved pair back over the edit.
+func TestPromotionKeepsAPersonsEdit(t *testing.T) {
+	deps := newTestWorkerDeps(t)
+	ctx := t.Context()
+	tm := promotionMemory(t)
+
+	projectID := "promote-edit"
+	require.NoError(t, deps.ContentStore.CreateProject(ctx, &store.Project{ID: projectID, Name: "Promote"}))
+	b := model.NewBlock("greeting", "Hello")
+	b.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}})
+	require.NoError(t, deps.ContentStore.StoreBlocksForItem(ctx, projectID, "main", "en.json", []*model.Block{b}))
+	approval := venue.UnitDecision{
+		ItemName: "en.json", Unit: "greeting", Variant: "fr",
+		ReviewState: "approved", Status: "established",
+		Revision:  frRevision("Bonjour"),
+		DecidedBy: "reviewer@example.com",
+	}
+	promoted, _ := PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []venue.UnitDecision{approval})
+	require.Equal(t, 1, promoted)
+	entries, err := tm.Entries(ctx)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+
+	// A person changes the target of the promoted entry, as the editor's
+	// content-memory page writes it.
+	edited := entries[0]
+	edited.Variants["fr"] = []model.Run{{Text: &model.TextRun{Text: "Salut"}}}
+	require.NoError(t, tm.Add(ctx, edited))
+
+	_, _ = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []venue.UnitDecision{approval})
+
+	kept, ok, err := tm.GetEntry(ctx, edited.ID)
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.Equal(t, "Salut", kept.VariantText("fr"), "a promotion never writes over a person's edit")
+}
+
+// An approval of a pair is recorded only on an entry that still holds the
+// pair: an entry under the pair's id whose text a person changed is theirs,
+// and it neither takes the approval's text nor carries the approval as if it
+// had approved that text.
+func TestPromotionDoesNotClaimAnEntryWhoseTextChanged(t *testing.T) {
+	deps := newTestWorkerDeps(t)
+	ctx := t.Context()
+	tm := promotionMemory(t)
+
+	projectID := "promote-claim"
+	require.NoError(t, deps.ContentStore.CreateProject(ctx, &store.Project{ID: projectID, Name: "Promote"}))
+	b := model.NewBlock("greeting", "Hello")
+	b.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}})
+	require.NoError(t, deps.ContentStore.StoreBlocksForItem(ctx, projectID, "main", "en.json", []*model.Block{b}))
+
+	hello := []model.Run{{Text: &model.TextRun{Text: "Hello"}}}
+	bonjour := []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}
+	entryID := memoryEntryID("en", "fr", hello, bonjour)
+	require.NoError(t, tm.Add(ctx, memory.Entry{
+		ID:          entryID,
+		Variants:    map[model.LocaleID][]model.Run{"en": hello, "fr": {{Text: &model.TextRun{Text: "Salut"}}}},
+		HintSrcLang: "en",
+		Origins:     []memory.Origin{{Source: bmemory.OriginPerson, Key: "alice"}},
+	}))
+
+	approval := venue.UnitDecision{
+		ItemName: "en.json", Unit: "greeting", Variant: "fr",
+		ReviewState: "approved", Status: "established",
+		Revision:  frRevision("Bonjour"),
+		DecidedBy: "reviewer@example.com",
+	}
+	promoted, _ := PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []venue.UnitDecision{approval})
+	assert.Zero(t, promoted)
+
+	got, ok, err := tm.GetEntry(ctx, entryID)
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.Equal(t, "Salut", got.VariantText("fr"))
+	for _, o := range got.Origins {
+		assert.NotEqual(t, promotionOrigin, o.Source, "the approval is not recorded on text it did not approve")
+	}
 }

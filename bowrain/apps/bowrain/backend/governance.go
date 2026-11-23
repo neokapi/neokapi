@@ -66,13 +66,19 @@ func (a *App) govRequest(method, path string, body, out any) error {
 
 	resp, err := a.client().do(ctx, req)
 	if err != nil {
-		return fmt.Errorf("%s %s: %w", method, path, err)
+		if a.requestContext().Err() != nil {
+			return fmt.Errorf("%s %s: %w", method, path, err)
+		}
+		return &serverUnreachableError{err: fmt.Errorf("%s %s: %w", method, path, err)}
 	}
 	defer resp.Body.Close()
 
+	// A refusal reaches the frontend with the server's status and answer, as
+	// the web receives it; a stale write's answer carries the record as it
+	// now stands, so the limit leaves room for one.
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("%s %s: server returned %d: %s", method, path, resp.StatusCode, bytes.TrimSpace(b))
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		return apiclient.NewStatusError(method+" "+path, resp.StatusCode, bytes.TrimSpace(b))
 	}
 
 	if out == nil {

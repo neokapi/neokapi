@@ -51,6 +51,7 @@ function memoryEntryToDTO(e: MemoryEntryInfo): MemoryEntryDTO {
   return {
     id: e.id,
     project_id: e.project_id ?? "",
+    revision: e.revision,
     variants: {
       [e.source_language]: {
         locale: e.source_language,
@@ -130,6 +131,7 @@ function createMemoryAdapter(
       await api.updateMemoryEntry(ws, {
         project_id: req.project_id ?? "",
         entry_id: req.entry_id,
+        base_revision: req.base_revision,
         source,
         target,
         source_locale: sourceLocale,

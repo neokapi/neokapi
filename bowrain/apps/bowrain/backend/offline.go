@@ -119,6 +119,51 @@ func (q *OfflineQueue) PeekPending(ctx context.Context, limit int) ([]PendingCha
 	return changes, rows.Err()
 }
 
+// Pending returns the changes of operation that have not been sent, oldest
+// first.
+func (q *OfflineQueue) Pending(ctx context.Context, operation string) ([]PendingChange, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	rows, err := q.db.QueryContext(ctx,
+		`SELECT id, operation, payload, status, created_at, attempts, last_error
+		 FROM pending_changes WHERE status = 'pending' AND operation = ? ORDER BY id ASC`, operation)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var changes []PendingChange
+	for rows.Next() {
+		var c PendingChange
+		var createdAt string
+		if err := rows.Scan(&c.ID, &c.Operation, &c.Payload, &c.Status, &createdAt, &c.Attempts, &c.LastError); err != nil {
+			return nil, err
+		}
+		c.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		changes = append(changes, c)
+	}
+	return changes, rows.Err()
+}
+
+// Rewrite replaces the payload of a change that has not been sent. It reports
+// false when the change was sent or removed meanwhile.
+func (q *OfflineQueue) Rewrite(ctx context.Context, id int64, payload any) (bool, error) {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return false, fmt.Errorf("marshal payload: %w", err)
+	}
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	res, err := q.db.ExecContext(ctx,
+		`UPDATE pending_changes SET payload = ? WHERE id = ? AND status = 'pending'`, string(data), id)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
+
 // MarkCompleted marks a change as successfully replayed.
 func (q *OfflineQueue) MarkCompleted(ctx context.Context, id int64) error {
 	q.mu.Lock()
