@@ -103,10 +103,9 @@ The stored record answers *what was approved*, not *which project was trusted*:
   by a path, and each argument that resolves to a file in the project (an
   interpreter's script, as in `node tools/x.js`) are hashed into the digest
   through `ExecSite.WithFacts`, the same mechanism the formatter arm uses for
-  its executable and configuration. A path is resolved as the command
-  resolves it, against the working directory, and read through the project
-  root (`core/rootpath`); a named file that is or passes through a link out
-  of the project is refused rather than hashed. A named file that is absent
+  its executable and configuration. A relative path is read against the
+  project root and through it (`core/rootpath`); a named file that is or
+  passes through a link out of the project is refused rather than hashed. A named file that is absent
   is recorded as absent, so one that appears later asks again. The record
   keeps each file's hash, so the next question names the file that changed.
   The id is plain text in the recipe: it tells two projects at one path apart
@@ -121,6 +120,24 @@ The stored record answers *what was approved*, not *which project was trusted*:
 
 Declines are remembered too, and a declined recipe says how to answer again,
 so a person is never asked repeatedly for an answer they have already given.
+
+### A recipe's commands run from the project root
+
+A recipe is found by walking up from wherever the person stands, so a
+command that ran in the invoking directory would mean a different
+`./tool.sh` from each directory under the project, and its approval would
+have to ask again in each. `host.recipeCommandConfig` fixes the meaning
+instead: every flow builds its tools through `toolFromStep` or
+`buildToolByName`, both pass an exec-class step's configuration through it,
+and it sets `external-command`'s working directory to the project root
+(replacing any the recipe gave) and reads a relative `script_file` from the
+root. The directory kapi was started in reaches the command as
+`KAPI_INVOKE_DIR`, for a command that needs it. The CLI, the desktop, a
+plugin daemon and a convergence run all build their steps there. `kapi exec`
+builds no recipe step: the command a person types runs in their own
+directory. A project's formatter already follows the same rule: it runs in
+the directory of the configuration file that selects it, with its executable
+resolved to an absolute path.
 
 ### `kapi trust` is the record's front door
 

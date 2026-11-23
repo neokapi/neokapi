@@ -38,7 +38,12 @@ parameters:
     description: The executable to run.
     help: |
       Path or name of the command-line program to execute for each block. Its
-      standard output replaces the block text.
+      standard output replaces the block text. A name is looked up on `PATH`.
+      In a recipe, the command runs in the project root, the directory that
+      holds `kapi.yaml`, wherever kapi was started, and a relative path is read
+      from there. The directory kapi was started in reaches the command as
+      `KAPI_INVOKE_DIR`. `kapi exec external-command` runs the command you
+      type in the current directory.
     values: "string (required)"
   args:
     description: Arguments passed to the command.

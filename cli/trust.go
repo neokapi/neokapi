@@ -27,7 +27,9 @@ a script_file, a program given by a path, a script handed to an interpreter
 of those files, or another project at the same path asks again, and the
 question says which file changed. A named file that is a link out of the
 project is refused. A file a command reads without the recipe naming it is
-not covered. A comment edit's project
+not covered. A recipe's commands run in the project root, wherever kapi is
+started, and relative paths are read from there; the directory kapi was
+started in reaches the command as KAPI_INVOKE_DIR. A comment edit's project
 formatter is decided the same way and kept in the same record, keyed by the
 configuration file that selects it.
 

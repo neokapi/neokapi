@@ -147,6 +147,41 @@ func TestExecTrust_ASystemProgramNamesNoProjectFile(t *testing.T) {
 
 // The formatter approval already covers the files it runs: the walk the
 // recipe's commands now take holds for it.
+// One approval covers the recipe from anywhere under the project: the named
+// file is read against the project root, not the directory kapi starts in.
+func TestExecTrust_OneApprovalFromEveryDirectory(t *testing.T) {
+	recipePath := namedFileProject(t, "prj_a", relativeExec, "tools/run.sh", "#!/bin/sh\necho one\n")
+	root := filepath.Dir(recipePath)
+	answer(t, recipePath)
+	for _, sub := range []string{"docs", filepath.Join("src", "deep")} {
+		require.NoError(t, os.MkdirAll(filepath.Join(root, sub), 0o755))
+		t.Chdir(filepath.Join(root, sub))
+		require.NoError(t, gateWithoutTerminal(t, recipePath), "from %s", sub)
+	}
+}
+
+// A recipe's exec-class step runs from the project root: the working
+// directory is the root whatever the recipe says, a relative script_file is
+// read from the root, and with no project bound the configuration is the
+// person's own and passes through.
+func TestRecipeCommandConfig_FixesTheProjectRoot(t *testing.T) {
+	root := t.TempDir()
+	a := &App{ProjectContext: &project.ProjectContext{ProjectDir: root}}
+
+	cmd := a.recipeCommandConfig("external-command", map[string]any{"command": "./run.sh", "working_dir": "/elsewhere"})
+	assert.Equal(t, root, cmd["working_dir"])
+	assert.NotEmpty(t, cmd["invoke_dir"])
+	assert.Equal(t, "./run.sh", cmd["command"])
+
+	script := a.recipeCommandConfig("script", map[string]any{"script_file": "tools/x.js"})
+	assert.Equal(t, filepath.Join(root, "tools", "x.js"), script["script_file"])
+
+	other := map[string]any{"locale": "fr"}
+	assert.Equal(t, other, a.recipeCommandConfig("pseudo-translate", other))
+	none := map[string]any{"command": "./run.sh"}
+	assert.Equal(t, none, (&App{}).recipeCommandConfig("external-command", none))
+}
+
 func TestFormatterTrust_CoversTheFilesItRuns(t *testing.T) {
 	setup := func(t *testing.T) (config, exe string, trust *formatterTrust) {
 		t.Helper()

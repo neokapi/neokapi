@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
@@ -36,25 +37,22 @@ type execSurface struct {
 // covers the file's content, the command line and the project's id, so an
 // edited script or another repository at the same path asks again.
 //
-// A path is resolved as the command resolves it, against the working
-// directory, and read through the project root. One that is or passes through
-// a link out of the project is refused. What a command reads at run time
-// without the recipe naming it is not covered.
+// A relative path is read against the project root, the directory a recipe's
+// command runs in (recipeCommandConfig), and through it, so the approval
+// covers the file the command runs from wherever kapi is started. One that is
+// or passes through a link out of the project is refused. What a command
+// reads at run time without the recipe naming it is not covered.
 func execSurfaceOf(recipePath string, proj *project.KapiProject) (execSurface, error) {
 	sites := project.ExecSurface(proj)
 	if len(sites) == 0 {
 		return execSurface{}, nil
 	}
 	root := filepath.Dir(execTrustKey(recipePath))
-	cwd, err := os.Getwd()
-	if err != nil {
-		return execSurface{}, err
-	}
 	files := map[string]string{}
 	for i, site := range sites {
 		named := map[string]string{}
 		for _, p := range site.NamedPaths() {
-			rel, sum, err := hashNamedFile(root, cwd, p)
+			rel, sum, err := hashNamedFile(root, p)
 			if err != nil {
 				return execSurface{}, fmt.Errorf("%s %s names %s: %w", site.Where, site.Name, p, err)
 			}
@@ -71,14 +69,14 @@ func execSurfaceOf(recipePath string, proj *project.KapiProject) (execSurface, e
 	return execSurface{Sites: sites, Digest: project.ExecSurfaceDigest(sites), Files: files}, nil
 }
 
-// hashNamedFile resolves p as a command resolves it and, when it lies in the
-// project, returns its project-relative name and SHA-256. A path outside the
-// project (a system program) returns "". A link that leads out of the project
-// is refused.
-func hashNamedFile(root, cwd, p string) (rel, sum string, err error) {
+// hashNamedFile resolves p against the project root, as a recipe's command
+// resolves it, and, when it lies in the project, returns its project-relative
+// name and SHA-256. A path outside the project (a system program) returns "".
+// A link that leads out of the project is refused.
+func hashNamedFile(root, p string) (rel, sum string, err error) {
 	abs := p
 	if !filepath.IsAbs(abs) {
-		abs = filepath.Join(cwd, abs)
+		abs = filepath.Join(root, abs)
 	}
 	realRoot, err := filepath.EvalSymlinks(root)
 	if err != nil {
@@ -158,4 +156,37 @@ func formatExecFiles(files map[string]string, changed []string) string {
 		fmt.Fprintf(&b, "Changed since it was answered: %s\n", strings.Join(changed, ", "))
 	}
 	return b.String()
+}
+
+// recipeCommandConfig fixes what a recipe's exec-class step resolves against:
+// the project root. Every flow builds its tools through toolFromStep or
+// buildToolByName, and both pass the step's configuration through here. A
+// recipe then means the same command, named files and working directory from
+// wherever kapi is started: the CLI anywhere under the project, the desktop,
+// a daemon, a convergence run.
+//
+// external-command runs in the root, reads a relative command from it, and
+// gets the directory kapi was started in as KAPI_INVOKE_DIR. The script tool
+// reads a relative script_file from the root. A working directory the recipe
+// gave is replaced. With no project bound the configuration passes through,
+// as for `kapi exec`, whose command a person typed.
+func (a *App) recipeCommandConfig(toolName string, config map[string]any) map[string]any {
+	if !project.IsExecClassTool(toolName) || a.ProjectContext == nil || a.ProjectContext.ProjectDir == "" {
+		return config
+	}
+	root := a.ProjectContext.ProjectDir
+	out := make(map[string]any, len(config)+2)
+	maps.Copy(out, config)
+	switch toolName {
+	case "external-command":
+		out["working_dir"] = root
+		if cwd, err := os.Getwd(); err == nil {
+			out["invoke_dir"] = cwd
+		}
+	case "script":
+		if f, ok := out["script_file"].(string); ok && f != "" && !filepath.IsAbs(f) {
+			out["script_file"] = filepath.Join(root, f)
+		}
+	}
+	return out
 }
