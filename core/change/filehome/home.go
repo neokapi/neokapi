@@ -16,7 +16,8 @@
 // renames that result; an operation whose precondition the new content breaks
 // is refused stale. Two processes editing different blocks of one file both
 // land. The lock file sits under work/locks in the checkout's state
-// directory for a project, and under the temporary directory outside one.
+// directory for a project, and under locks in the user's data root outside
+// one.
 package filehome
 
 import (
@@ -30,11 +31,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/rootpath"
@@ -108,12 +109,15 @@ type Options struct {
 	Root string
 }
 
-// DefaultLockDir is where lock files go when the caller names no directory: a
-// directory under the temporary directory, one per user, created with mode
-// 0700. The kapi host names one in the project's .kapi directory, or in its
-// data directory outside a project.
+// DefaultLockDir is where lock files go when the caller names no directory:
+// locks in the user's data root (dataroot.Dir), created with mode 0700. It is
+// the directory the kapi host locks in outside a project, so a home that
+// names none and a kapi process writing the same file take turns. The data
+// root does not follow TMPDIR, so a process locks in one directory whatever
+// its temporary directory. Inside a project the host names the project's own
+// directory under the checkout's state.
 func DefaultLockDir() string {
-	return filepath.Join(os.TempDir(), "kapi-locks-"+strconv.Itoa(os.Getuid()))
+	return filepath.Join(dataroot.Dir(), "locks")
 }
 
 // New returns a file home over layout. A home that only commits the
@@ -559,11 +563,17 @@ func (s *session) Close() error { return nil }
 
 // lockPath is the lock file that orders the writers of the file at path: one
 // per file, named for the file it guards with any symlink resolved, so two
-// links to one file share it. It names the file and creates nothing.
+// links to one file share it. A file that does not exist yet is named by its
+// nearest existing directory, resolved, so the commit that creates it and a
+// later one that replaces it take the same lock. It names the file and
+// creates nothing.
 func (h *Home) lockPath(path string) (string, error) {
-	target, _, _, err := atomicfile.Resolve(path)
+	target, _, exists, err := atomicfile.Resolve(path)
 	if err != nil {
 		return "", err
+	}
+	if !exists {
+		target = resolveExistingPrefix(target)
 	}
 	abs, err := filepath.Abs(target)
 	if err != nil {
@@ -571,6 +581,24 @@ func (h *Home) lockPath(path string) (string, error) {
 	}
 	sum := sha256.Sum256([]byte(abs))
 	return filepath.Join(h.lockDir, hex.EncodeToString(sum[:16])+".lock"), nil
+}
+
+// resolveExistingPrefix resolves the symlinks of the longest leading part of
+// path that exists and keeps the rest as written. It answers path when no
+// part of it resolves.
+func resolveExistingPrefix(path string) string {
+	rest := ""
+	for dir := path; ; {
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return path
+		}
+		rest = filepath.Join(filepath.Base(dir), rest)
+		if resolved, err := filepath.EvalSymlinks(parent); err == nil {
+			return filepath.Join(resolved, rest)
+		}
+		dir = parent
+	}
 }
 
 // openLock opens the lock file at path, creating the lock directory, which
@@ -588,20 +616,21 @@ func (h *Home) openLock(path string) (*filelock.Lock, error) {
 	return filelock.Open(path)
 }
 
-// ensureLockDir creates dir with mode 0700 and refuses one this user cannot
-// hold alone: a link, or a directory others may write. A lock directory
-// under a temporary directory other users share could otherwise be made in
-// advance by one of them, and the lock files opened there redirected.
+// ensureLockDir creates dir with mode 0700 and refuses a lock directory this
+// user does not hold alone: a link, something other than a directory, a
+// directory another user owns (dataroot.CheckOwnedDir, the check the data
+// root and the state directories pass), or one group or other users may
+// write.
 func ensureLockDir(dir string) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("create the lock directory: %w", err)
 	}
+	if err := dataroot.CheckOwnedDir(dir); err != nil {
+		return fmt.Errorf("refused the lock directory %w; remove it, or name a lock directory of your own", err)
+	}
 	info, err := os.Lstat(dir)
 	if err != nil {
 		return fmt.Errorf("create the lock directory: %w", err)
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("the lock directory %s is not a directory", dir)
 	}
 	if runtime.GOOS != "windows" && info.Mode().Perm()&0o022 != 0 {
 		return fmt.Errorf("the lock directory %s can be written by other users; remove it, or name a lock directory of your own", dir)

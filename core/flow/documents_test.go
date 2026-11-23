@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"testing"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change/filehome"
+	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
@@ -186,34 +186,68 @@ func TestFileRunner_CommitsUnderTheHomesLock(t *testing.T) {
 	assert.Equal(t, 1, prepared, "the commit took a lock in the home")
 }
 
-// TestRunFile_LockDirectoryFollowsTMPDIR pins where a runner with no home of
-// its own puts its lock files: under TMPDIR as it is when each run commits. A
-// runner that kept the directory of its first commit for the life of the
-// process created that directory again on every later commit, inside a
-// temporary directory a test had already removed.
-func TestRunFile_LockDirectoryFollowsTMPDIR(t *testing.T) {
+// TestRunFile_LocksInTheDataRoot pins where a runner with no home of its own
+// puts its lock files: under locks in the user's data root, where the kapi
+// host locks outside a project. Two commits to one file under two values of
+// TMPDIR take the same lock file, and neither writes into a temporary
+// directory.
+func TestRunFile_LocksInTheDataRoot(t *testing.T) {
 	runner, reg := skeletonTestRunner(t)
-	lockDirName := "kapi-locks-" + strconv.Itoa(os.Getuid())
+	data, dir, firstTmp, secondTmp := t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir()
+	t.Setenv(dataroot.EnvDir, data)
+	in := filepath.Join(dir, "notes.md")
+	out := filepath.Join(dir, "out.md")
+	require.NoError(t, os.WriteFile(in, []byte(markdownOnlyASkeletonPreserves), 0o644))
 
-	run := func(tmp string) {
+	commit := func(tmp string) {
 		t.Helper()
 		t.Setenv("TMPDIR", tmp)
-		dir := t.TempDir()
-		in := filepath.Join(dir, "notes.md")
-		require.NoError(t, os.WriteFile(in, []byte(markdownOnlyASkeletonPreserves), 0o644))
 		rd, err := reg.NewReader("markdown")
 		require.NoError(t, err)
 		wr, err := reg.NewWriter("markdown")
 		require.NoError(t, err)
-		require.NoError(t, runner.RunFileWithReaderWriter(context.Background(), "noop", noopTools(), in, filepath.Join(dir, "out.md"), "", rd, wr))
+		require.NoError(t, runner.RunFileWithReaderWriter(context.Background(), "noop", noopTools(), in, out, "", rd, wr))
 	}
+	commit(firstTmp)
+	commit(secondTmp)
 
-	first, second := t.TempDir(), t.TempDir()
-	run(first)
-	require.DirExists(t, filepath.Join(first, lockDirName), "the first commit locks under the TMPDIR it ran with")
-	require.NoError(t, os.RemoveAll(filepath.Join(first, lockDirName)))
+	locks, err := os.ReadDir(filepath.Join(data, "locks"))
+	require.NoError(t, err, "the commits lock under the data root")
+	assert.Len(t, locks, 1, "both commits take the one lock file of the target")
+	for _, tmp := range []string{firstTmp, secondTmp} {
+		entries, err := os.ReadDir(tmp)
+		require.NoError(t, err)
+		assert.Empty(t, entries, "nothing is written under TMPDIR %s", tmp)
+	}
+}
 
-	run(second)
-	assert.DirExists(t, filepath.Join(second, lockDirName), "a later commit locks under the TMPDIR it runs with")
-	assert.NoDirExists(t, filepath.Join(first, lockDirName), "and never recreates the lock directory of an earlier TMPDIR")
+// TestRunFile_CreatingAndReplacingAFileTakeOneLock pins that the commit that
+// creates a file and a later commit that replaces it take the same lock file
+// when the file is named through a linked directory: the lock is named for
+// the resolved path whether or not the file exists yet.
+func TestRunFile_CreatingAndReplacingAFileTakeOneLock(t *testing.T) {
+	runner, reg := skeletonTestRunner(t)
+	data, real := t.TempDir(), t.TempDir()
+	t.Setenv(dataroot.EnvDir, data)
+	link := filepath.Join(t.TempDir(), "linked")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("symlinks: %v", err)
+	}
+	in := filepath.Join(real, "notes.md")
+	require.NoError(t, os.WriteFile(in, []byte(markdownOnlyASkeletonPreserves), 0o644))
+
+	commit := func(out string) {
+		t.Helper()
+		rd, err := reg.NewReader("markdown")
+		require.NoError(t, err)
+		wr, err := reg.NewWriter("markdown")
+		require.NoError(t, err)
+		require.NoError(t, runner.RunFileWithReaderWriter(context.Background(), "noop", noopTools(), in, out, "", rd, wr))
+	}
+	commit(filepath.Join(link, "out", "notes.md")) // creates the file and its directory
+	commit(filepath.Join(real, "out", "notes.md")) // replaces it
+
+	locks, err := os.ReadDir(filepath.Join(data, "locks"))
+	require.NoError(t, err)
+	assert.Len(t, locks, 1, "both commits take the one lock file of the target")
 }

@@ -40,6 +40,18 @@ func checkPrivateDir(dir string) error {
 	return nil
 }
 
+// CheckOwnedDir reports why dir is not a real directory owned by this user: a
+// link, something other than a directory, or a directory another user owns.
+// It answers nil for a directory this user owns, whatever its mode. A caller
+// that also limits who may reach the directory checks the mode itself.
+func CheckOwnedDir(dir string) error {
+	info, err := os.Lstat(dir)
+	if err != nil {
+		return err
+	}
+	return checkOwnedDir(dir, info)
+}
+
 // checkOwnedDir reports why dir, described by its Lstat result, is not a real
 // directory owned by this user. The sweep removes only what passes it, so it
 // cannot be made to delete through a link or inside another user's directory.
