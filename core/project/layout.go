@@ -439,8 +439,8 @@ func cacheOnly(dir string) bool {
 }
 
 // Retired state files are not swept here. Every predecessor of the merged store
-//, the vocabulary-renamed `tm.db`/`termbase.db` as well as the four-file
-// `memory.db`/`terms.db`/`cache/blocks.db`/`work/state.db`, is removed by
+// (the vocabulary-renamed `tm.db`/`termbase.db` as well as the four-file
+// `memory.db`/`terms.db`/`cache/blocks.db`/`work/state.db`) is removed by
 // core/projectdb when the project store opens, so one place decides what a
 // state directory may contain.
 
