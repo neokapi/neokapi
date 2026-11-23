@@ -11,7 +11,7 @@ import (
 
 // BusyboxRoot returns a standalone root command when prog names a multi-call
 // toolbox utility (kgrep / ksed / kcat / kconv / kdiff, with an optional .exe suffix), or nil
-// when it does not — signalling the caller to run the normal kapi root. The
+// when it does not, which tells the caller to run the normal kapi root. The
 // returned command owns the app lifecycle (config load, Init, Shutdown) so the
 // utility behaves identically whether launched as `kgrep` or `kapi kgrep`.
 func BusyboxRoot(app *App, prog string) *cobra.Command {
@@ -61,7 +61,7 @@ func BusyboxRoot(app *App, prog string) *cobra.Command {
 
 // NewToolboxProxies returns the hidden `kapi kgrep|ksed|kcat|kconv|kdiff` subcommands. Each is
 // a thin proxy with DisableFlagParsing set, so kapi's persistent flags are NOT
-// merged into it — the toolbox utilities keep their full classic option surface
+// merged into it: the toolbox utilities keep their full classic option surface
 // (including -v / -c, which kapi's globals would otherwise shadow). The proxy
 // delegates the raw argument list to the very same standalone command the
 // kgrep / ksed / kcat binaries run, so `kapi kgrep` and `kgrep` behave
@@ -69,7 +69,9 @@ func BusyboxRoot(app *App, prog string) *cobra.Command {
 // kgrep / ksed / kcat commands.
 func NewToolboxProxies(a *App) []*cobra.Command {
 	proxy := func(verb, short string, build func() *cobra.Command, normalize func([]string) []string) *cobra.Command {
-		return &cobra.Command{
+		// A proxy hands its arguments to the standalone command, which keeps
+		// its own prerun, so kapi's prerun resolves no project for it.
+		return NoProject(&cobra.Command{
 			Use:                verb,
 			Short:              short,
 			GroupID:            "",
@@ -86,11 +88,11 @@ func NewToolboxProxies(a *App) []*cobra.Command {
 				std.SetArgs(args)
 				return MapToolboxErr(std.ExecuteContext(cmd.Context()))
 			},
-		}
+		})
 	}
 	// The proxies carry the k-names verbatim (`kapi kgrep` = `kgrep`):
 	// one consistent, collision-free spelling that keeps every bare verb
-	// (grep, cat, diff, …) available to real commands — bare `kapi diff`
+	// (grep, cat, diff, …) available to real commands; bare `kapi diff`
 	// belongs to the bowrain plugin's local-vs-server sync diff. The
 	// proxies keep the toolbox reachable where the busybox symlinks don't
 	// exist (the winget install ships one kapi binary).

@@ -99,7 +99,7 @@ Discover tools and their options with 'kapi tools list' and
 		toolGroup.AddCommand(sub)
 	}
 
-	return append(cmds, toolGroup)
+	return append(cmds, NoProject(toolGroup))
 }
 
 // newToolCommand builds the cobra command for one CLI-visible registry tool,

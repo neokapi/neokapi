@@ -51,5 +51,5 @@ PowerShell:
 			return nil
 		},
 	}
-	return cmd
+	return NoProject(cmd)
 }

@@ -35,5 +35,5 @@ func NewToolsCmd(a *App) *cobra.Command {
 	}
 
 	toolsCmd.AddCommand(listCmd, schemaCmd)
-	return toolsCmd
+	return NoProject(toolsCmd)
 }

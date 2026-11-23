@@ -521,7 +521,7 @@ func newTermsStatsCmd(a *App) *cobra.Command {
 }
 
 func newTermsListCmd(a *App) *cobra.Command {
-	return &cobra.Command{
+	return NoProject(&cobra.Command{
 		Use:   "list",
 		Short: "List named terms stores in KAPI_HOME",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -546,7 +546,7 @@ func newTermsListCmd(a *App) *cobra.Command {
 				Total:     len(entries),
 			})
 		},
-	}
+	})
 }
 
 // termsStoreSourceLocale resolves --source-locale for a command on the terms

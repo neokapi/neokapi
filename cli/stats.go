@@ -2,7 +2,7 @@ package cli
 
 import "github.com/spf13/cobra"
 
-// NewStatsCmd builds `kapi stats`: a content-metrics overview for any file —
+// NewStatsCmd builds `kapi stats`: a content-metrics overview for any file:
 // blocks, words, characters, segments, and a by-role breakdown. It is the
 // aggregate sibling of `kapi inspect` (per-block detail) and shares the same
 // --json plumbing, so an AI assistant or pipeline can size content the same way
@@ -39,5 +39,6 @@ no FILE means the project's tracked content; FILE "-" reads standard input.`,
 	a.AddEngineFlag(f)
 	a.AddSourceLangFlag(f)
 	a.AddEncodingFlag(f, "", "charset the input is read in; a byte-order mark in the file wins (default: the project's defaults.encoding, then UTF-8)")
-	return cmd
+	// With no file, stats measures the tracked content of the project it is run in.
+	return UsesProject(cmd)
 }
