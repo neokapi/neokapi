@@ -81,7 +81,8 @@ describe("a failed inbox", () => {
     mockAnswers.set("feed", async () => ({ entries: [] }));
     mockAnswers.set("reviewHome", fail);
     await render(withTestProviders(<ProjectHome />));
-    expect(await screen.findByText("Not loaded")).toBeTruthy();
+    // The language card and the context row both say so.
+    expect(await screen.findAllByText("Not loaded")).toHaveLength(2);
     expect(screen.queryByText("Nothing waiting for you")).toBeNull();
     expect(await screen.findByTestId("counts-failed")).toBeTruthy();
   });

@@ -585,9 +585,12 @@ A first load shows placeholders in the shape of what replaces them, and a
 "loading more" row sits at the end of a list. On a project's screen each
 section fills in place as its own request answers. The header, the plan card
 and the language cards keep their height while they load, and a failed plan
-says so in the card. The context row and the activity strip show only when
-something is there, so they sit below the languages and appear once the
-sections above them have their final height. The workspaces and projects
+says so in the card. The context row sits above the languages, because a
+translation is checked against the context, and it is always there: it
+shows what waits, that the context is up to date, or that its count could
+not be loaded, in one line. The activity strip shows only when there is
+activity, so it sits below the languages and appears once the sections
+above it have their final height. The workspaces and projects
 lists wait for the inbox's first answer, because the inbox decides the next
 step above the workspaces, the order of the projects and the height of each
 card. A failed attempt counts as an answer, so a failing inbox costs one
@@ -595,7 +598,8 @@ attempt.
 
 A count the app could not load is never shown as zero. When the inbox
 failed, or the server has no inbox route, the workspace, project and
-language cards say "Not loaded" in place of their counts, and a line below
+language cards and the context row say "Not loaded" in place of their
+counts, and a line below
 the list offers a retry. The Review tab shows its load failure with a retry.
 A failed plan says so in the plan card.
 

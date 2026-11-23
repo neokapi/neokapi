@@ -171,21 +171,28 @@ export const ProjectCard = memo(function ProjectCard({
 /** A project's context waiting for review: voice rules, terms and notes. */
 export function ContextEntryCard({
   count,
+  title,
   detail,
+  detailLines = 2,
   onPress,
   testID = "project-context",
 }: {
   count: number;
+  /** The title in place of the count, for a row that is always present. */
+  title?: string;
   detail?: string;
+  /** The lines the detail may take; one keeps the card's height fixed. */
+  detailLines?: number;
   onPress: () => void;
   testID?: string;
 }) {
   const { t } = useTranslation();
+  const heading = title ?? t("context.entry", { count });
   return (
     <Pressable
       testID={testID}
       accessibilityRole="button"
-      accessibilityLabel={[t("context.entry", { count }), detail].filter(Boolean).join(", ")}
+      accessibilityLabel={[heading, detail].filter(Boolean).join(", ")}
       onPress={onPress}
       className={CARD}
     >
@@ -197,11 +204,9 @@ export function ContextEntryCard({
         <Ionicons name="sparkles" size={22} color="#ffffff" />
       </View>
       <View className="flex-1 gap-0.5">
-        <Text className="text-foreground text-[17px] font-semibold">
-          {t("context.entry", { count })}
-        </Text>
+        <Text className="text-foreground text-[17px] font-semibold">{heading}</Text>
         {detail ? (
-          <Text className="text-muted-foreground text-sm tabular-nums" numberOfLines={2}>
+          <Text className="text-muted-foreground text-sm tabular-nums" numberOfLines={detailLines}>
             {detail}
           </Text>
         ) : null}

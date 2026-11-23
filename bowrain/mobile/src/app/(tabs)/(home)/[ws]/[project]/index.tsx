@@ -1,7 +1,8 @@
 // A project's home, under its name as a large title: the project's mark and
-// languages, its review plan, the languages the person may review, each with
-// the translations waiting and how the deck groups them, and then its context
-// waiting for review and who worked on it lately. A language opens its deck in one tap. The server says
+// languages, its review plan, its context, and the languages the person may
+// review, each with the translations waiting and how the deck groups them,
+// and then who worked on it lately. The context comes before the languages
+// because a translation is checked against it. A language opens its deck in one tap. The server says
 // which languages the review permission covers; the app lists those and no
 // others. What waits comes from the review inbox the Review tab reads, so a
 // project shows the numbers the Review tab shows.
@@ -161,16 +162,25 @@ function Languages({ ws, project }: { ws: string; project: string }) {
   const pull = usePullRefresh(() => Promise.all([feed.refetch(), inbox.refetch(), plan.refetch()]));
 
   // Each section fills in place as its query answers. The header, the plan
-  // card and the language cards hold their size while loading. The context
-  // row and the activity strip show only when something is there, so they sit
-  // below the languages and appear once everything above them has its final
-  // size: a late one is added below the content, never above it.
+  // card, the context row and the language cards hold their size while
+  // loading: the context row is always there, with its count, that the context
+  // is up to date, or that its count could not be loaded, in one line. The
+  // activity strip shows only when there is activity, so it sits below the
+  // languages and appears once everything above it has its final size.
   const languagesFinal = !perms.isPending && (info !== undefined || !projects.isPending);
   const extrasReady = languagesFinal && !inbox.isPending && !feed.isPending;
   // Before the permissions answer, the project's own languages hold the place
   // of the list the permissions narrow, as cards still loading.
   const listed = perms.isPending ? (info?.target_languages ?? []) : languages;
   const planText = planDetail ?? (plan.isError ? t("common.loadFailed") : t("home.loading"));
+  const contextText =
+    counts === "loading"
+      ? t("home.loading")
+      : counts === "unknown"
+        ? t("home.countsUnavailable")
+        : contextWaiting > 0
+          ? contextDetail
+          : t("context.upToDate");
 
   return (
     <View collapsable={false} className="bg-background flex-1">
@@ -203,6 +213,15 @@ function Languages({ ws, project }: { ws: string; project: string }) {
                 {planText}
               </Text>
             </Pressable>
+            <ContextEntryCard
+              count={contextWaiting}
+              title={counts === "known" && contextWaiting > 0 ? undefined : t("context.title")}
+              detail={contextText}
+              detailLines={1}
+              onPress={() =>
+                router.push({ pathname: "/[ws]/[project]/context", params: { ws, project } })
+              }
+            />
             {listed.length > 0 || !languagesFinal ? (
               <SectionHeader title={t("home.languagesHeader")} />
             ) : null}
@@ -225,15 +244,6 @@ function Languages({ ws, project }: { ws: string; project: string }) {
             <View className="pt-3">
               {inboxFailed(inbox) && !inbox.data ? (
                 <CountsNotice onRetry={() => void inbox.refetch()} />
-              ) : null}
-              {contextWaiting > 0 ? (
-                <ContextEntryCard
-                  count={contextWaiting}
-                  detail={contextDetail}
-                  onPress={() =>
-                    router.push({ pathname: "/[ws]/[project]/context", params: { ws, project } })
-                  }
-                />
               ) : null}
               <ActivityStrip entries={entries} onPress={() => router.navigate("/activity")} />
             </View>

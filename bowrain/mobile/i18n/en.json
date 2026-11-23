@@ -213,6 +213,7 @@
   },
   "context": {
     "title": "Context",
+    "upToDate": "Up to date",
     "entry_one": "Context: 1 to review",
     "entry_other": "Context: {{count, number}} to review",
     "entryLabel_one": "Context in {{where}}, 1 item to review",

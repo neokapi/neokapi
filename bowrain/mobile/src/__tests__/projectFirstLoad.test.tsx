@@ -1,8 +1,8 @@
 // A project's screen fills each section in place as its request answers. The
-// header, the plan card and the language cards hold their place while they
-// load; the context row and the activity strip, which show only when there is
-// something to show, come below the languages once the sections above them
-// have answered.
+// header, the plan card, the context row and the language cards hold their
+// place while they load; the activity strip, which shows only when there is
+// activity, comes below the languages once the sections above it have
+// answered.
 import { act, render, screen, waitFor } from "@testing-library/react-native";
 
 import { withTestProviders } from "./testProviders";
@@ -89,7 +89,8 @@ describe("a project's first load", () => {
     // The permissions have not answered: the project's languages hold the place.
     expect(screen.getByTestId("language-nb")).toBeTruthy();
     expect(screen.getByTestId("language-de")).toBeTruthy();
-    expect(screen.queryByTestId("project-context")).toBeNull();
+    // The context row is there from the start, loading in one line.
+    expect(screen.getByTestId("project-context")).toHaveTextContent(/Loading/);
 
     await answer("reviewPlan", { next: null });
     await waitFor(() =>
@@ -105,16 +106,23 @@ describe("a project's first load", () => {
     );
   });
 
-  it("adds the context row below the languages once the sections above have answered", async () => {
+  it("fills the context row in place with what waits", async () => {
     await render(withTestProviders(<ProjectHome />));
     await answer("projects", [project]);
     await answer("reviewHome", inbox);
+    await waitFor(() =>
+      expect(screen.getByTestId("project-context")).toHaveTextContent(/Context: 3 to review/),
+    );
     await answer("feed", { entries: [feedEntry] });
-    // The languages are not final until the permissions answer.
-    expect(screen.queryByTestId("project-context")).toBeNull();
-
     await answer("permissions", { permissions: ["review"], languages: ["nb"] });
-    expect(await screen.findByTestId("project-context")).toBeTruthy();
-    expect(screen.queryByTestId("language-de")).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId("language-de")).toBeNull());
+  });
+
+  it("says the context is up to date when nothing waits there", async () => {
+    await render(withTestProviders(<ProjectHome />));
+    await answer("reviewHome", { projects: [], languages: [], context: [] });
+    await waitFor(() =>
+      expect(screen.getByTestId("project-context")).toHaveTextContent(/Up to date/),
+    );
   });
 });
