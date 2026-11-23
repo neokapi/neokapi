@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,4 +116,72 @@ func TestImportTMXMovesAnEntryStoredUnderItsOldID(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, entries, 1, "the import moves the entry rather than adding a copy")
 	assert.Equal(t, "docs%0a:b@"+session[:12], entries[0].ID)
+}
+
+// TestImportTMXKeepsAnEditedEntryUnderItsOldID pins that an entry a person
+// edited after an earlier import is neither deleted nor copied when its id
+// moves: it stays under the earlier id with the person's text, the import
+// writes no second entry for the unit, and the warning names its tuid.
+func TestImportTMXKeepsAnEditedEntryUnderItsOldID(t *testing.T) {
+	tm, err := memory.NewSQLiteStore(":memory:")
+	require.NoError(t, err)
+	defer tm.Close()
+
+	body := tmxWith(`
+    <tu tuid="b"><tuv xml:lang="en"><seg>Bee</seg></tuv><tuv xml:lang="fr"><seg>Abeille</seg></tuv></tu>`)
+	session, _, err := memory.ImportTMXSession(t.Context(), tm, strings.NewReader(body), memory.ImportTMXOptions{OriginKey: "docs:a"})
+	require.NoError(t, err)
+	entries, err := tm.Entries(t.Context())
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	// The entry as an earlier release stored it, then edited by a person.
+	old := entries[0]
+	require.NoError(t, tm.Delete(t.Context(), old.ID))
+	old.ID = "docs:a:b@" + session[:12]
+	old.Variants["fr"] = []model.Run{{Text: &model.TextRun{Text: "Une abeille"}}}
+	require.NoError(t, tm.Add(t.Context(), old))
+
+	var warned []string
+	_, _, err = memory.ImportTMXSession(t.Context(), tm, strings.NewReader(body), memory.ImportTMXOptions{
+		OriginKey: "docs:a",
+		WarnFunc:  func(msg string) { warned = append(warned, msg) },
+	})
+	require.NoError(t, err)
+
+	entries, err = tm.Entries(t.Context())
+	require.NoError(t, err)
+	require.Len(t, entries, 1, "the edited entry is kept, and no copy is written")
+	assert.Equal(t, old.ID, entries[0].ID)
+	assert.Equal(t, "Une abeille", entries[0].VariantText("fr"))
+	require.NotEmpty(t, warned)
+	assert.Contains(t, warned[len(warned)-1], "tuid b")
+}
+
+// TestBulkAddReplacingIsOneWrite pins that the entries a write moves are
+// deleted in the transaction that adds their replacements: when an add fails,
+// the entry it was to replace is still there.
+func TestBulkAddReplacingIsOneWrite(t *testing.T) {
+	tm, err := memory.NewSQLiteStore(":memory:")
+	require.NoError(t, err)
+	defer tm.Close()
+
+	run := func(s string) []model.Run { return []model.Run{{Text: &model.TextRun{Text: s}}} }
+	old := memory.Entry{ID: "old", Variants: map[model.LocaleID][]model.Run{"en": run("Bee"), "fr": run("Abeille")}}
+	require.NoError(t, tm.Add(t.Context(), old))
+
+	err = tm.BulkAddReplacing(t.Context(), []memory.Entry{{ID: "new"}}, "", []string{"old"})
+	require.Error(t, err, "an entry with no variants is refused")
+	_, held, err := tm.GetEntry(t.Context(), "old")
+	require.NoError(t, err)
+	assert.True(t, held, "the failed write deleted nothing")
+
+	moved := old
+	moved.ID = "new"
+	require.NoError(t, tm.BulkAddReplacing(t.Context(), []memory.Entry{moved}, "", []string{"old"}))
+	_, held, err = tm.GetEntry(t.Context(), "old")
+	require.NoError(t, err)
+	assert.False(t, held)
+	_, held, err = tm.GetEntry(t.Context(), "new")
+	require.NoError(t, err)
+	assert.True(t, held)
 }

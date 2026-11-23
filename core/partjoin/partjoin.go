@@ -54,6 +54,11 @@ func JoinTail(sep, esc byte, parts ...string) string {
 
 // NUL joins parts with NUL, escaping with U+0001. It is the join for a hash
 // input.
+//
+// The number of parts is part of the caller's contract: NUL() and NUL("")
+// both return "". Lists of any one length, and lists of different lengths
+// above zero, never share a result, so a caller whose list can be empty puts
+// a fixed part first.
 func NUL(parts ...string) string {
 	return Join(NULSep, NULEscape, parts...)
 }

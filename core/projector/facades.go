@@ -257,6 +257,34 @@ func (m *Memory) BulkAddWithStream(ctx context.Context, entries []memory.Entry, 
 	return m.to.put(ctx, KindMemory, entryStep(fresh, stream, true))
 }
 
+// BulkAddReplacing is BulkAddWithStream that also deletes the entries named in
+// replaced, in the same write.
+func (m *Memory) BulkAddReplacing(ctx context.Context, entries []memory.Entry, stream string, replaced []string) error {
+	fresh := make([]memory.Entry, 0, len(entries))
+	for _, e := range entries {
+		if err := checkEntry(e); err != nil {
+			return fmt.Errorf("bulk add entry %s: %w", e.ID, err)
+		}
+		if !m.holds(ctx, e) {
+			fresh = append(fresh, e)
+		}
+	}
+	var gone []string
+	for _, id := range replaced {
+		if _, ok, err := m.GetEntry(ctx, id); err != nil {
+			return err
+		} else if ok {
+			gone = append(gone, id)
+		}
+	}
+	if len(fresh) == 0 && len(gone) == 0 {
+		return nil
+	}
+	s := entryStep(fresh, stream, true)
+	s.DeleteEntries = gone
+	return m.to.put(ctx, KindMemory, s)
+}
+
 // OriginAdd names an origin to record on an entry the store holds, and the
 // properties that come with it.
 type OriginAdd struct {
