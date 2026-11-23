@@ -3115,8 +3115,8 @@ publish-website: docs-build-prod bowrain-docs-build-prod ## Build + deploy the k
 # v2 lives under the /v2 module path: the v1 path installs a v1 binary, which
 # cannot read the version 2 .golangci.yml.
 tools: ## Install development tools
-	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
-	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
+	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
 	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
 setup-remote: ## Install dependencies for cloud environments

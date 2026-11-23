@@ -187,6 +187,11 @@ type App struct {
 	// project), which parse directly.
 	docCache *docCache
 
+	// parseCacheOff is why the parse cache could not be opened for the
+	// current command, "" when it is open or not wanted. A run summary reports
+	// it as "parse cache: off".
+	parseCacheOff string
+
 	// projectFlowTools is set temporarily by runProjectSteps to override
 	// buildFlowTools for project-defined flows.
 	projectFlowTools []tool.Tool

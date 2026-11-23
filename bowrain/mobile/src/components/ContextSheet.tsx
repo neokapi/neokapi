@@ -155,9 +155,12 @@ export function ContextSheetBody({
   const [tab, setTab] = useState<"context" | "details">(inContext ? "context" : "details");
   return (
     <SafeAreaView className="bg-background flex-1" edges={["bottom", "left", "right"]}>
-      <View className="border-border flex-row items-center justify-between border-b px-4 py-3">
+      <View className="border-border flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-3">
         {inContext ? (
-          <View accessibilityRole="tablist" className="bg-muted flex-row rounded-lg p-0.5">
+          <View
+            accessibilityRole="tablist"
+            className="bg-muted max-w-full flex-row flex-wrap rounded-lg p-0.5"
+          >
             {(["context", "details"] as const).map((k) => (
               <Pressable
                 key={k}
@@ -178,7 +181,13 @@ export function ContextSheetBody({
         ) : (
           <Text className="text-foreground text-lg font-semibold">{t("details.title")}</Text>
         )}
-        <Pressable testID="details-close" accessibilityRole="button" onPress={onClose} hitSlop={12}>
+        <Pressable
+          testID="details-close"
+          accessibilityRole="button"
+          onPress={onClose}
+          hitSlop={12}
+          className="ml-auto"
+        >
           <Text className="text-primary text-base">{t("common.close")}</Text>
         </Pressable>
       </View>

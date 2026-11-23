@@ -362,7 +362,7 @@ export function LiveView({
 
   return (
     <SafeAreaView className="bg-background flex-1">
-      <View className="border-border flex-row items-center gap-2 border-b px-2 py-2">
+      <View className="border-border flex-row flex-wrap items-center gap-2 border-b px-2 py-2">
         <Pressable
           testID="live-close"
           accessibilityRole="button"
@@ -375,7 +375,10 @@ export function LiveView({
         <Text className="text-foreground flex-1 text-base font-semibold" numberOfLines={1}>
           {container.title}
         </Text>
-        <View accessibilityRole="tablist" className="bg-muted flex-row rounded-lg p-0.5">
+        <View
+          accessibilityRole="tablist"
+          className="bg-muted max-w-full flex-row flex-wrap rounded-lg p-0.5"
+        >
           {[false, true].map((s) => (
             <Pressable
               key={String(s)}
