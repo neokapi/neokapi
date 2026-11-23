@@ -3,7 +3,6 @@ package backend
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
@@ -70,7 +69,7 @@ func startLiveServer(t *testing.T) liveServer {
 		tokens[m.user.Name] = token
 	}
 
-	ts := httptest.NewServer(srv.GetEcho())
+	ts := newTestServer(t, srv.GetEcho())
 	t.Cleanup(ts.Close)
 	return liveServer{url: ts.URL, ws: ws.Slug, tokens: tokens}
 }

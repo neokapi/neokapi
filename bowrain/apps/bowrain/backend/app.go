@@ -1,12 +1,16 @@
 package backend
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
+	"time"
 
 	"github.com/neokapi/neokapi/core/dataroot"
 
@@ -68,10 +72,17 @@ type App struct {
 	offlineQueue    *OfflineQueue              // pending mutations when offline
 	reconnectCancel context.CancelFunc         // stops the reconnection goroutine
 	// background counts the goroutines the app starts and owns (the
-	// reconnect loop, the project watcher), so ServiceShutdown returns only
-	// once they have stopped. They act on sign-in state and the offline
-	// queue, which another App in the same process must not see them touch.
-	background     sync.WaitGroup
+	// reconnect loop, the project watcher), so ServiceShutdown waits for
+	// them. They act on sign-in state and the offline queue, which another
+	// App in the same process must not see them touch. bgMu guards bgClosed,
+	// set when shutdown begins, and bgRunning, each running goroutine's name.
+	background sync.WaitGroup
+	bgMu       sync.Mutex
+	bgClosed   bool
+	bgRunning  map[string]int
+	// shutdownWait bounds how long ServiceShutdown waits for them; zero is
+	// defaultShutdownWait.
+	shutdownWait   time.Duration
 	reconnectNudge chan struct{} // asks a running reconnect loop to attempt now; nil when no loop runs
 	reconnecting   bool          // an attempt to leave the offline state is under way
 	// reconnectAttempt replaces tryReconnect when set, so a test can hold an
@@ -471,8 +482,16 @@ func (a *App) PluginDir() string {
 	return a.pluginDir
 }
 
+// defaultShutdownWait is how long ServiceShutdown waits for the app's
+// background goroutines before it quits without them.
+const defaultShutdownWait = 5 * time.Second
+
 // ServiceShutdown is called by Wails v3 when the application exits.
 func (a *App) ServiceShutdown() error {
+	// Nothing starts in the background from here on.
+	a.bgMu.Lock()
+	a.bgClosed = true
+	a.bgMu.Unlock()
 	// Cancel every request still in flight to the server.
 	if a.stopLifetime != nil {
 		a.stopLifetime()
@@ -482,8 +501,10 @@ func (a *App) ServiceShutdown() error {
 	// Stop project watcher and close server connection.
 	a.StopWatching()
 	// Wait for both to return: a reconnect attempt or a replay under way
-	// stops at the cancelled lifetime, and nothing starts again after it.
-	a.background.Wait()
+	// stops at the cancelled lifetime.
+	if running := a.waitForBackground(); len(running) > 0 {
+		slog.Warn("bowrain: quitting while background work has not returned", "running", running)
+	}
 	// The app's server clients share the default transport; its idle
 	// keep-alive connections each hold two goroutines until closed.
 	if t, ok := http.DefaultTransport.(*http.Transport); ok {
@@ -502,6 +523,28 @@ func (a *App) ServiceShutdown() error {
 		a.store.Close()
 	}
 	return nil
+}
+
+// waitForBackground waits for the app's background goroutines to return,
+// for at most the shutdown wait, and answers the names of those still
+// running when it gave up. A goroutine that ignores its context cannot keep
+// the app from quitting.
+func (a *App) waitForBackground() []string {
+	done := make(chan struct{})
+	go func() {
+		a.background.Wait()
+		close(done)
+	}()
+	timer := time.NewTimer(cmp.Or(a.shutdownWait, defaultShutdownWait))
+	defer timer.Stop()
+	select {
+	case <-done:
+		return nil
+	case <-timer.C:
+		a.bgMu.Lock()
+		defer a.bgMu.Unlock()
+		return slices.Sorted(maps.Keys(a.bgRunning))
+	}
 }
 
 // stopReconnect cancels the reconnection goroutine if running.

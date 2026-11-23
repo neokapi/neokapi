@@ -107,7 +107,7 @@ func (a *App) StartWatching(projectID string) {
 	watcher := &ProjectWatcher{app: a}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	cancel := a.startBackground(func(ctx context.Context) { watcher.run(ctx, client, ws, projectID) })
+	cancel := a.startBackground("project watcher", func(ctx context.Context) { watcher.run(ctx, client, ws, projectID) })
 	if cancel == nil {
 		return // shutting down
 	}

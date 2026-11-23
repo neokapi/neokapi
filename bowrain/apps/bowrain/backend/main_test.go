@@ -5,8 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"go.uber.org/goleak"
@@ -145,12 +148,13 @@ func newTestApp(t *testing.T) *App {
 		if err := app.ServiceShutdown(); err != nil {
 			t.Errorf("shutdown app: %v", err)
 		}
+		// The test's servers close next, with their connections, so what
+		// remains after them is the app's.
+		closeTestServers(t)
 		// Every goroutine the app started has returned by the end of its
 		// test, so none of them acts on the next test's sign-in state or
 		// directories.
-		// A test server's own connection goroutines belong to the test, which
-		// closes the server after this.
-		goleak.VerifyNone(t, running, goleak.IgnoreAnyFunction("net/http.(*conn).serve"))
+		goleak.VerifyNone(t, running)
 	})
 	return app
 }
@@ -175,5 +179,42 @@ func copyFile(t *testing.T, src, dst string) {
 	}
 	if err := out.Close(); err != nil {
 		t.Fatalf("close test store: %v", err)
+	}
+}
+
+// testServers holds each test's servers (newTestServer), which newTestApp
+// closes after its app shuts down and before it checks for leaks.
+var testServers sync.Map // *testing.T -> *[]*httptest.Server
+
+var testServersMu sync.Mutex
+
+// newTestServer starts a test server for h and registers it with the test,
+// so newTestApp closes it, with its connections, after the app shuts down. A
+// test without an app closes it at the end.
+func newTestServer(t *testing.T, h http.Handler) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(h)
+	testServersMu.Lock()
+	v, _ := testServers.LoadOrStore(t, &[]*httptest.Server{})
+	list := v.(*[]*httptest.Server)
+	*list = append(*list, srv)
+	testServersMu.Unlock()
+	t.Cleanup(func() { closeTestServers(t) })
+	return srv
+}
+
+// closeTestServers closes the test's servers: their open connections first,
+// then the servers, which wait for their handlers to return.
+func closeTestServers(t *testing.T) {
+	v, ok := testServers.LoadAndDelete(t)
+	if !ok {
+		return
+	}
+	testServersMu.Lock()
+	list := *v.(*[]*httptest.Server)
+	testServersMu.Unlock()
+	for _, srv := range list {
+		srv.CloseClientConnections()
+		srv.Close()
 	}
 }

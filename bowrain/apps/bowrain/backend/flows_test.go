@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/editorclient"
@@ -141,7 +140,7 @@ func TestSecureTranslateBuiltInOrdersRedactFirst(t *testing.T) {
 // string.
 func TestSaveFlowDefinition_StaleSaveCarriesTheCurrentFlow(t *testing.T) {
 	var gotBase any
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		gotBase = body["base_revision"]
@@ -190,7 +189,7 @@ func TestSaveFlowDefinition_RefusalReadsAsTheServersSentence(t *testing.T) {
 	}
 	for status, sentence := range refusals {
 		t.Run(http.StatusText(status), func(t *testing.T) {
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			srv := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(status)
 				_ = json.NewEncoder(w).Encode(map[string]string{"error": sentence})
@@ -224,7 +223,7 @@ func TestSaveFlowDefinition_RefusalReadsAsTheServersSentence(t *testing.T) {
 // A save that cannot reach the server tells the frontend so, rather than
 // handing it the transport's message with the server's URL in it.
 func TestSaveFlowDefinition_UnreachableServerIsReportedAsSuch(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	srv := newTestServer(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	serverURL := srv.URL
 	srv.Close()
 

@@ -73,7 +73,7 @@ func (a *App) startReconnect() {
 	nudge := make(chan struct{}, 1)
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	cancel := a.startBackground(func(ctx context.Context) { a.reconnectLoop(ctx, nudge) })
+	cancel := a.startBackground("reconnect loop", func(ctx context.Context) { a.reconnectLoop(ctx, nudge) })
 	if cancel == nil {
 		return // shutting down
 	}
