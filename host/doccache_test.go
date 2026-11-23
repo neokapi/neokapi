@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/jsx"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,7 +79,7 @@ func TestDocCache_StreamingRoundTrip(t *testing.T) {
 
 // #1449 (same family). A recorded-but-missing skeleton is an ERROR, not "this
 // document has no skeleton". Conflating the two made a run reconstruct the file
-// from the content model alone — losing the source's exact formatting — and
+// from the content model alone (losing the source's exact formatting) and
 // report success.
 func TestDocCache_RecordedSkeletonMissing_IsAnError(t *testing.T) {
 	dir := t.TempDir()
@@ -113,7 +114,7 @@ func TestDocCache_RecordedSkeletonMissing_IsAnError(t *testing.T) {
 }
 
 // The other half: a document that recorded NO skeleton (a generative format)
-// still reports (nil, nil) — the guard refuses faults, not skeleton-less formats.
+// still reports (nil, nil), the guard refuses faults, not skeleton-less formats.
 func TestDocCache_NoSkeletonRecorded_IsNotAnError(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "m.json")
@@ -125,7 +126,7 @@ func TestDocCache_NoSkeletonRecorded_IsNotAnError(t *testing.T) {
 
 	rec := c.RecordDocument(src, "k", "json")
 	require.NotNil(t, rec)
-	// No SkeletonStore() calls at all — a lean, skeleton-less recording.
+	// No SkeletonStore() calls at all, a lean, skeleton-less recording.
 	require.NoError(t, rec.Add(&model.Part{Type: model.PartBlock, Resource: mkBlock("a", "Apple")}))
 	require.NoError(t, rec.Commit())
 
@@ -143,10 +144,10 @@ func TestDocCache_NoSkeletonRecorded_IsNotAnError(t *testing.T) {
 // drops any whose payload type is not registered (see fromCachedAnnotations). A
 // block served from cache must come back with its annotations intact. The
 // jsx/.kbf.json reader stashes the block's content hash (plus placeholders and
-// preview) in a KBFAnnotation; if that type isn't registered, cache replay
-// silently strips it and reconstructed .kbf.json targets lose their hashes — which
-// broke `kapi up` non-deterministically, since its concurrent per-locale
-// converge workers share the cache and race on the same cached source document.
+// preview) in a KBFAnnotation. If that type is not registered, cache replay
+// strips it and reconstructed .kbf.json targets lose their hashes. `kapi up`
+// then fails at random, since its per-locale converge workers share the cache
+// and race on the same cached source document.
 func TestDocCache_PreservesBlockAnnotations(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "App.kbf.json")
@@ -189,10 +190,10 @@ func TestDocCache_PreservesBlockAnnotations(t *testing.T) {
 
 // TestDocCache_EntryFromAnotherBuildIsAMiss pins that an entry another build
 // recorded is re-parsed rather than replayed. What a reader emits from a file is
-// decided by the reader's code as much as by the bytes: a release that names
-// blocks differently, or emits an annotation it did not emit before, produces a
-// different part stream from the same content hash, and replaying the previous
-// release's parse measures content the current reader would not produce.
+// decided by the reader's code as much as by the bytes. A release that names
+// blocks differently, or emits a new annotation, produces a different part
+// stream from the same content hash. Replaying the previous release's parse
+// measures content the current reader would not produce.
 func TestDocCache_EntryFromAnotherBuildIsAMiss(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "m.json")
@@ -288,7 +289,50 @@ func TestDocCache_KeepsEveryEdition(t *testing.T) {
 // the records, so a development build, whose version never moves, reads an
 // entry of another shape as a miss.
 func TestDocCache_KeyNamesTheRecordShape(t *testing.T) {
-	assert.Contains(t, buildKey("k"), "\x00"+partsFormat+"\x00")
+	assert.Equal(t, partsFormat, buildKey("k").partsFormat)
+}
+
+// TestDocCache_KeysKeepPartsApart pins that two keys whose parts would join to
+// the same string with a delimiter between them are two entries and name two
+// recordings.
+func TestDocCache_KeysKeepPartsApart(t *testing.T) {
+	a := docKey{build: "v1", partsFormat: "f", config: "a\x00b"}
+	b := docKey{build: "v1", partsFormat: "f\x00a", config: "b"}
+	assert.NotEqual(t, a, b)
+	assert.NotEqual(t, recordingBase(a, "h"), recordingBase(b, "h"))
+}
+
+// TestDocCache_OpensACacheOfTheFirstSchema pins that a cache written with the
+// joined config key opens under the split key: its entries are dropped and a
+// new recording is filed and found again.
+func TestDocCache_OpensACacheOfTheFirstSchema(t *testing.T) {
+	cacheDir := t.TempDir()
+	dir := filepath.Join(cacheDir, "docs")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	db, err := storage.Open(filepath.Join(dir, "index.db"))
+	require.NoError(t, err)
+	require.NoError(t, storage.Migrate(db, "doc_cache_migrations", docCacheMigrations[:1]))
+	_, err = db.Exec(`INSERT INTO documents VALUES ('a.json', 'dev', 'h', 1, 1, 'p', 's', 'json')`)
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
+
+	c, err := OpenDocCache(cacheDir)
+	require.NoError(t, err)
+	defer c.Close()
+	var n int
+	require.NoError(t, c.DB.QueryRow(`SELECT COUNT(*) FROM documents`).Scan(&n))
+	assert.Zero(t, n, "the entries of the first schema are dropped")
+
+	src := filepath.Join(t.TempDir(), "a.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"k":"v"}`), 0o644))
+	rec := c.newRecorder(src, "cfg", "json")
+	require.NotNil(t, rec)
+	require.NoError(t, rec.Commit())
+	f, st, err := c.openSource(src)
+	require.NoError(t, err)
+	defer f.Close()
+	_, found := c.lookup(src, "cfg", f, st)
+	assert.True(t, found, "a recording under the split key is found again")
 }
 
 func mkBlock(id, text string) *model.Block {

@@ -347,9 +347,17 @@ func (a *App) replayChange(ctx context.Context, change PendingChange, moved revi
 	// made on builds on the revision that edit returned: both are this
 	// person's, and the first must not refuse the second as someone else's.
 	var base string
-	if edit, ok := op.(updateMemoryEntryOp); ok {
+	switch edit := op.(type) {
+	case updateMemoryEntryOp:
 		base = edit.BaseRevision
 		if m, ok := moved[edit.EntryID]; ok && m.from == base {
+			edit.BaseRevision = m.to
+			op = edit
+		}
+	case deleteMemoryEntryOp:
+		// A delete made after the person's own queued edit builds on the
+		// revision that edit returned.
+		if m, ok := moved[edit.EntryID]; ok && m.from == edit.BaseRevision {
 			edit.BaseRevision = m.to
 			op = edit
 		}

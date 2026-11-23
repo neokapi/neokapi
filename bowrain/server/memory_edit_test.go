@@ -138,8 +138,12 @@ func TestMemoryEditIsBasedOnARevision(t *testing.T) {
 	rec = editMemory(t, s, token, entry.ID, "Heisann", "")
 	assert.Equal(t, http.StatusPreconditionRequired, rec.Code, "an edit that names no revision is refused")
 
-	require.Equal(t, http.StatusNoContent,
-		memoryReq(t, s, http.MethodDelete, "/api/v1/test/translation-memory/"+entry.ID, token, "").Code)
+	del := func(base string) int {
+		return memoryReq(t, s, http.MethodDelete, "/api/v1/test/translation-memory/"+entry.ID+"?base_revision="+base, token, "").Code
+	}
+	assert.Equal(t, http.StatusPreconditionRequired, del(""), "a delete that names no revision is refused")
+	assert.Equal(t, http.StatusConflict, del(entry.Revision), "a delete on an older revision is refused")
+	require.Equal(t, http.StatusNoContent, del(saved.Revision))
 	rec = editMemory(t, s, token, entry.ID, "Heisann", saved.Revision)
 	assert.Equal(t, http.StatusNotFound, rec.Code, "an edit never brings a deleted entry back")
 	assert.Empty(t, listMemory(t, s, token))

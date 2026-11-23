@@ -220,7 +220,7 @@ type fixOp struct {
 func fixesByDoc(findings []check.Diagnostic) (map[string]*docFixes, []string) {
 	docs := map[string]*docFixes{}
 	var order []string
-	seen := map[string]int{}
+	seen := map[[2]string]int{}
 	for _, d := range findings {
 		if !d.Fails || d.Fix == nil {
 			continue
@@ -232,7 +232,7 @@ func fixesByDoc(findings []check.Diagnostic) (map[string]*docFixes, []string) {
 			docs[doc] = df
 			order = append(order, doc)
 		}
-		key := doc + "\x00" + opKey(*d.Fix)
+		key := [2]string{doc, opKey(*d.Fix)}
 		if i, dup := seen[key]; dup {
 			df.ops[i].findings = append(df.ops[i].findings, d)
 			continue

@@ -87,7 +87,7 @@ type DaemonClient struct {
 	// Roots are the directories this daemon may be sent paths in, fixed for
 	// its life (KAPI_PLUGIN_ROOTS). key is the pool's key: plugin and roots.
 	Roots []string
-	key   string
+	key   poolKey
 
 	// Conn is the gRPC client connection to the daemon's Unix socket.
 	// Always non-nil when Acquire returns successfully.
@@ -274,8 +274,8 @@ type DaemonPool struct {
 	opts DaemonPoolOptions
 
 	mu         sync.Mutex
-	clients    map[string]*DaemonClient // key: plugin name
-	spawnLocks map[string]*sync.Mutex   // per-plugin spawn coordination; prevents concurrent first-callers from each spawning a JVM only to kill all but one
+	clients    map[poolKey]*DaemonClient
+	spawnLocks map[poolKey]*sync.Mutex // per-plugin spawn coordination; prevents concurrent first-callers from each spawning a JVM only to kill all but one
 	closed     bool
 }
 
@@ -293,8 +293,8 @@ func NewDaemonPool(opts DaemonPoolOptions) *DaemonPool {
 	}
 	return &DaemonPool{
 		opts:       opts,
-		clients:    map[string]*DaemonClient{},
-		spawnLocks: map[string]*sync.Mutex{},
+		clients:    map[poolKey]*DaemonClient{},
+		spawnLocks: map[poolKey]*sync.Mutex{},
 	}
 }
 
@@ -429,7 +429,7 @@ func (p *DaemonPool) Acquire(ctx context.Context, plugin *Plugin) (*DaemonClient
 // spawnLockFor returns the spawn-coordination mutex for a plugin,
 // creating one on first use. Per-plugin (not per-pool) so spawns for
 // different plugins remain parallel.
-func (p *DaemonPool) spawnLockFor(name string) *sync.Mutex {
+func (p *DaemonPool) spawnLockFor(name poolKey) *sync.Mutex {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if l, ok := p.spawnLocks[name]; ok {
@@ -529,7 +529,7 @@ func (p *DaemonPool) Shutdown() {
 	for _, c := range p.clients {
 		clients = append(clients, c)
 	}
-	p.clients = map[string]*DaemonClient{}
+	p.clients = map[poolKey]*DaemonClient{}
 	p.mu.Unlock()
 
 	var wg sync.WaitGroup

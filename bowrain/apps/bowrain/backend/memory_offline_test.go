@@ -79,13 +79,24 @@ func (m *memoryServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(e)
 	case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, prefix+"/"):
 		id := strings.TrimPrefix(r.URL.Path, prefix+"/")
-		if _, ok := m.entries[id]; !ok {
+		base := r.URL.Query().Get("base_revision")
+		e, ok := m.entries[id]
+		switch {
+		case base == "":
+			w.WriteHeader(http.StatusPreconditionRequired)
+			_, _ = w.Write([]byte(`{"error":"this version of the app cannot save content-memory entries; update it, then save again"}`))
+		case !ok:
 			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte(`{"error":"entry not found: ` + id + `"}`))
-			return
+			_, _ = w.Write([]byte(`{"error":"this content-memory entry was deleted after it was opened"}`))
+		case e.Revision != base:
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"code": "memory_entry_changed", "error": "someone else saved this content-memory entry after you opened it; the current version is attached", "current": e,
+			})
+		default:
+			delete(m.entries, id)
+			w.WriteHeader(http.StatusNoContent)
 		}
-		delete(m.entries, id)
-		w.WriteHeader(http.StatusNoContent)
 	case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, prefix+"/"):
 		id := strings.TrimPrefix(r.URL.Path, prefix+"/")
 		var req struct {
@@ -323,7 +334,7 @@ func TestEditEditDeleteOffline(t *testing.T) {
 	app, ms, reconnect, entry := sentOffline(t)
 	editOffline(t, app, entry, "Hallo")
 	editOffline(t, app, entry, "Halloen")
-	require.NoError(t, app.DeleteMemoryEntry("", entry.ID))
+	require.NoError(t, app.DeleteMemoryEntry("", entry.ID, entry.Revision))
 	reconnect()
 
 	failed, err := app.GetFailedChanges()
@@ -355,4 +366,94 @@ func TestARefusedAddKeepsThePersonsWording(t *testing.T) {
 	require.Len(t, failed, 1)
 	require.Len(t, failed[0].Edits, 1)
 	assert.Equal(t, "Hallo", failed[0].Edits[0].Text, "the person's wording is visible with the refusal")
+}
+
+// An offline edit refused as a conflict, then an offline delete of the same
+// entry: the delete names the version the person saw, so it is refused too,
+// and the teammate's text stays on the server.
+func TestAnOfflineDeleteOfAChangedEntryIsAConflict(t *testing.T) {
+	app, ms, reconnect, entry := sentOffline(t)
+	ms.mu.Lock()
+	ms.entries[entry.ID].Target = "Heisann"
+	ms.revise(ms.entries[entry.ID])
+	ms.mu.Unlock()
+
+	editOffline(t, app, entry, "Hallo")
+	require.NoError(t, app.DeleteMemoryEntry("", entry.ID, entry.Revision))
+	reconnect()
+
+	assert.Equal(t, "Heisann", serverTarget(ms, entry.ID), "the teammate's text is never removed by a delete made over it")
+	failed, err := app.GetFailedChanges()
+	require.NoError(t, err)
+	require.Len(t, failed, 2, "the edit and the delete are both refused, each with why")
+}
+
+// A delete of an entry whose add has not been sent sends nothing: the add and
+// the edit queued after it go with it.
+func TestDeletingAnUnsentEntrySendsNothing(t *testing.T) {
+	app, ms, reconnect := offlineMemoryApp(t)
+	added, err := app.AddMemoryEntry("", "Hello", "Hei", "en", "nb")
+	require.NoError(t, err)
+	require.NoError(t, app.UpdateMemoryEntry(MemoryUpdateRequest{
+		EntryID: added.ID, Source: "Hello", Target: "Hallo", SourceLocale: "en", TargetLocale: "nb",
+	}))
+	require.NoError(t, app.DeleteMemoryEntry("", added.ID, ""))
+	assert.Zero(t, app.offlineQueue.PendingCount(t.Context()), "nothing is left to send")
+
+	reconnect()
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+	assert.Empty(t, ms.entries)
+}
+
+// A delete queued before deletes named a revision is retired, not sent.
+func TestADeleteQueuedBeforeRevisionsIsRetired(t *testing.T) {
+	app, ms, reconnect, entry := sentOffline(t)
+	app.enqueue(deleteMemoryEntryOp{EntryID: entry.ID})
+	reconnect()
+
+	assert.Equal(t, "Hei", serverTarget(ms, entry.ID))
+	failed, err := app.GetFailedChanges()
+	require.NoError(t, err)
+	require.Len(t, failed, 1)
+	assert.Equal(t, "dropped", failed[0].Status)
+}
+
+// The person edits an entry as their screen showed it. A replay landed after
+// that screen was drawn, moving the entry on: the edit names the version the
+// person saw, so it is a conflict with their wording kept, never a silent save
+// over the version they did not see.
+func TestAnEditOfAnEntryThatMovedSinceItWasShownIsAConflict(t *testing.T) {
+	app, ms, reconnect, shown := sentOffline(t)
+
+	// An edit queued earlier replays in between, moving the entry on.
+	editOffline(t, app, shown, "Hallo")
+	reconnect()
+	app.mu.Lock()
+	app.connState = StateOffline
+	app.mu.Unlock()
+
+	// The person's screen still shows the entry as it was.
+	editOffline(t, app, shown, "Halloen")
+	reconnect()
+
+	assert.Equal(t, "Hallo", serverTarget(ms, shown.ID), "nothing lands over a version the person did not see")
+	failed, err := app.GetFailedChanges()
+	require.NoError(t, err)
+	require.Len(t, failed, 1)
+	require.Len(t, failed[0].Edits, 1)
+	assert.Equal(t, "Halloen", failed[0].Edits[0].Text, "the person's wording is kept with the conflict")
+}
+
+// A change that names no revision is refused at once: the app never supplies
+// one from the store.
+func TestAChangeThatNamesNoRevisionIsRefused(t *testing.T) {
+	app, _, _, entry := sentOffline(t)
+
+	err := app.UpdateMemoryEntry(MemoryUpdateRequest{
+		EntryID: entry.ID, Source: "Hello", Target: "Hallo", SourceLocale: "en", TargetLocale: "nb",
+	})
+	require.ErrorIs(t, err, errRevisionNotSent)
+	require.ErrorIs(t, app.DeleteMemoryEntry("", entry.ID, ""), errRevisionNotSent)
+	assert.Zero(t, app.offlineQueue.PendingCount(t.Context()), "nothing is queued")
 }

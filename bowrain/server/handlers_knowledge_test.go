@@ -647,10 +647,14 @@ func (f *fakeKnowledgeStore) UpdateMarket(_ context.Context, m *knowledge.Market
 	return nil
 }
 
-func (f *fakeKnowledgeStore) DeleteMarket(_ context.Context, ws, id string) error {
+func (f *fakeKnowledgeStore) DeleteMarketAt(_ context.Context, ws, id, base string) error {
 	key := fakeKey(ws, id)
-	if _, ok := f.markets[key]; !ok {
-		return fmt.Errorf("market %s not found", id)
+	stored, ok := f.markets[key]
+	if !ok {
+		return knowledge.ErrMarketNotFound
+	}
+	if stored.Revision != base {
+		return storage.ErrStale
 	}
 	delete(f.markets, key)
 	return nil

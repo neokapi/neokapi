@@ -68,10 +68,27 @@ func NewPostgresStoreFromDB(db *storage.PgDB, workspaceID string) (*PostgresStor
 // NewPostgresStoreFromDBContext is NewPostgresStoreFromDB with the schema
 // migration bounded by the caller's context.
 func NewPostgresStoreFromDBContext(ctx context.Context, db *storage.PgDB, workspaceID string) (*PostgresStore, error) {
-	if err := storage.MigratePostgresNSContext(ctx, db, "tb_schema_migrations", Migrations); err != nil {
-		return nil, fmt.Errorf("migrate terms schema: %w", err)
+	if err := MigratePostgres(ctx, db); err != nil {
+		return nil, err
 	}
-	return &PostgresStore{db: db, workspaceID: workspaceID}, nil
+	return ForWorkspace(db, workspaceID), nil
+}
+
+// MigratePostgres brings the terms schema of db up to date. Every
+// workspace's store shares the one schema, so it is migrated once for all of
+// them.
+func MigratePostgres(ctx context.Context, db *storage.PgDB) error {
+	if err := storage.MigratePostgresNSContext(ctx, db, "tb_schema_migrations", Migrations); err != nil {
+		return fmt.Errorf("migrate terms schema: %w", err)
+	}
+	return nil
+}
+
+// ForWorkspace returns the terms store of one workspace on db, whose schema
+// the caller has migrated with MigratePostgres. It runs no statement, so a
+// caller inside a transaction can open one without reaching the pool.
+func ForWorkspace(db *storage.PgDB, workspaceID string) *PostgresStore {
+	return &PostgresStore{db: db, workspaceID: workspaceID}
 }
 
 //go:embed pilot_upgrade.sql

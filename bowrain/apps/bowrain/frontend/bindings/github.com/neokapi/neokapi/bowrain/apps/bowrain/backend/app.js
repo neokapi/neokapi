@@ -451,22 +451,30 @@ export function DeleteInvite(workspaceSlug, inviteID) {
 
 /**
  * DeleteMarket removes a market scope.
+ * 
+ * baseRevision is the revision of the market the person saw; the server
+ * refuses the delete when the market has changed since.
  * @param {string} workspaceSlug
  * @param {string} marketID
+ * @param {string} baseRevision
  * @returns {$CancellablePromise<void>}
  */
-export function DeleteMarket(workspaceSlug, marketID) {
-    return $Call.ByID(1340556279, workspaceSlug, marketID);
+export function DeleteMarket(workspaceSlug, marketID, baseRevision) {
+    return $Call.ByID(1340556279, workspaceSlug, marketID, baseRevision);
 }
 
 /**
  * DeleteMemoryEntry deletes a content-memory entry by ID.
+ * 
+ * baseRevision is the revision of the entry the person saw, so a delete never
+ * removes text someone wrote after they read it.
  * @param {string} projectID
  * @param {string} entryID
+ * @param {string} baseRevision
  * @returns {$CancellablePromise<void>}
  */
-export function DeleteMemoryEntry(projectID, entryID) {
-    return $Call.ByID(3893874464, projectID, entryID);
+export function DeleteMemoryEntry(projectID, entryID, baseRevision) {
+    return $Call.ByID(3893874464, projectID, entryID, baseRevision);
 }
 
 /**

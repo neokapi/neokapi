@@ -60,10 +60,10 @@ type streamDecisions struct {
 	// correction that the separation-of-duties policy refuses, keyed by
 	// block id and locale. The correction lands, and Apply refuses the
 	// decision.
-	heldForSecondReviewer map[string]error
+	heldForSecondReviewer map[[2]string]error
 }
 
-func heldKey(blockID, locale string) string { return blockID + "\x00" + locale }
+func heldKey(blockID, locale string) [2]string { return [2]string{blockID, locale} }
 
 var _ change.Assets = (*streamDecisions)(nil)
 
@@ -126,7 +126,7 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 		if err := sod.vet(row.Block.ID, locale); err != nil {
 			if fault, ok := errors.AsType[reviewFault](err); ok && edited && fault.msg == sodRefusal {
 				if d.heldForSecondReviewer == nil {
-					d.heldForSecondReviewer = map[string]error{}
+					d.heldForSecondReviewer = map[[2]string]error{}
 				}
 				d.heldForSecondReviewer[heldKey(row.Block.ID, locale)] = err
 				return nil

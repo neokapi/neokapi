@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -54,7 +54,7 @@ type TrialReport struct {
 	ChangedBlocks int `json:"changed_blocks"`
 
 	// Raised are the findings the draft adds, Cleared the ones it removes.
-	// Both are capped — a trial is read, not exported.
+	// Both are capped, a trial is read, not exported.
 	Raised  []TrialFinding `json:"raised"`
 	Cleared []TrialFinding `json:"cleared"`
 	// RaisedTotal and ClearedTotal count before the cap, so a truncated list
@@ -193,8 +193,8 @@ func diffFindings(ctx context.Context, before, after *terms.InMemoryStore, local
 // forbiddenTerms returns the forbidden designations a text contains under one
 // graph, keyed by concept + lowered designation so the same term is comparable
 // across the two graphs.
-func forbiddenTerms(ctx context.Context, tb *terms.InMemoryStore, locale model.LocaleID, text string) (map[string]TrialFinding, error) {
-	out := map[string]TrialFinding{}
+func forbiddenTerms(ctx context.Context, tb *terms.InMemoryStore, locale model.LocaleID, text string) (map[conceptTerm]TrialFinding, error) {
+	out := map[conceptTerm]TrialFinding{}
 	if tb == nil {
 		return out, nil
 	}
@@ -206,7 +206,7 @@ func forbiddenTerms(ctx context.Context, tb *terms.InMemoryStore, locale model.L
 		if m.Term.Status != model.TermForbidden {
 			continue
 		}
-		key := m.Concept.ID + "|" + strings.ToLower(m.Term.Text)
+		key := conceptTerm{m.Concept.ID, strings.ToLower(m.Term.Text)}
 		out[key] = TrialFinding{
 			Kind:        "term",
 			Rule:        m.Term.Text,
@@ -217,11 +217,15 @@ func forbiddenTerms(ctx context.Context, tb *terms.InMemoryStore, locale model.L
 	return out, nil
 }
 
-func sortedKeys(m map[string]TrialFinding) []string {
-	keys := make([]string, 0, len(m))
+// sortedKeys orders the findings as the text "concept|term" sorts, which is
+// the order a trial reports them in.
+func sortedKeys(m map[conceptTerm]TrialFinding) []conceptTerm {
+	keys := make([]conceptTerm, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.SortFunc(keys, func(a, b conceptTerm) int {
+		return strings.Compare(a.concept+"|"+a.term, b.concept+"|"+b.term)
+	})
 	return keys
 }

@@ -1275,9 +1275,11 @@ voice_profiles.locales jsonb NOT NULL DEFAULT '{}'::jsonb
 voice_profiles.min_score integer NOT NULL DEFAULT 0
 voice_profiles.name text NOT NULL
 voice_profiles.personas jsonb NOT NULL DEFAULT '{}'::jsonb
+voice_profiles.revision text NOT NULL DEFAULT (gen_random_uuid())::text
 voice_profiles.style jsonb NOT NULL DEFAULT '{}'::jsonb
 voice_profiles.tone jsonb NOT NULL DEFAULT '{}'::jsonb
 voice_profiles.updated_at timestamp with time zone NOT NULL DEFAULT now()
+voice_profiles.updated_by text NOT NULL DEFAULT ''::text
 voice_profiles.version integer NOT NULL DEFAULT 1
 voice_profiles.workspace_id text NOT NULL
 voice_rule_decisions.auto boolean NOT NULL DEFAULT false

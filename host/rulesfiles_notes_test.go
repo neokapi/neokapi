@@ -193,7 +193,7 @@ func TestRenderSectionBody_Notes(t *testing.T) {
 			section: deltaSection(
 				rulesPointAnswer{notes: []rulesNote{{ID: "b", Text: "Root only."}, {ID: "a", Text: "Both."}}},
 				rulesPointAnswer{notes: []rulesNote{{ID: "a", Text: "Both."}, {ID: "c", Text: "Here only."}}},
-				map[string]bool{}),
+				map[[2]string]bool{}),
 			want: []string{
 				"\nNotes a person kept:\n- Here only.\n",
 				"\nThe project's notes that do not hold for these files:\n- Root only.\n",

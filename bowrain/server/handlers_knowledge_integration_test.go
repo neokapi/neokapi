@@ -247,9 +247,15 @@ func TestMarketUpdateIsBasedOnARevision(t *testing.T) {
 	rec = update(`{"name":"Germany"}`)
 	assert.Equal(t, http.StatusPreconditionRequired, rec.Code, "an update that names no revision is refused")
 
-	c, rec = kgIntegrationCtx(srv, http.MethodDelete, "/", "", author, "mid", created.ID)
-	require.NoError(t, srv.HandleDeleteMarket(c))
-	require.Equal(t, http.StatusNoContent, rec.Code)
+	del := func(base string) *httptest.ResponseRecorder {
+		c, rec := kgIntegrationCtx(srv, http.MethodDelete, "/?base_revision="+base, "", author, "mid", created.ID)
+		require.NoError(t, srv.HandleDeleteMarket(c))
+		return rec
+	}
+	assert.Equal(t, http.StatusPreconditionRequired, del("").Code, "a delete that names no revision is refused")
+	rec = del(created.Revision)
+	require.Equal(t, http.StatusConflict, rec.Code, "a delete on an older revision is refused: %s", rec.Body.String())
+	require.Equal(t, http.StatusNoContent, del(saved.Revision).Code)
 	rec = update(`{"name":"Germany","base_revision":"` + saved.Revision + `"}`)
 	assert.Equal(t, http.StatusNotFound, rec.Code, "an update never brings a deleted market back")
 }

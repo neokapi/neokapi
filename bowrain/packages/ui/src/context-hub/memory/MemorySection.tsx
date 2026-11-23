@@ -143,7 +143,8 @@ export function MemorySection({ defaultSelected, defaultMarked }: MemorySectionP
     onSettled: refresh,
   });
   const remove = useMutation({
-    mutationFn: (entry: MemoryEntryInfo) => api.deleteMemoryEntry(ws, entry.id),
+    mutationFn: (entry: MemoryEntryInfo) =>
+      api.deleteMemoryEntry(ws, entry.id, entry.revision ?? ""),
     onSuccess: () => setSelectedId(null),
     onSettled: refresh,
   });
@@ -155,7 +156,15 @@ export function MemorySection({ defaultSelected, defaultMarked }: MemorySectionP
       let failed = 0;
       let reason: string | undefined;
       for (let i = 0; i < ids.length; i += MAX_BULK_DELETE_IDS) {
-        const result = await api.bulkDeleteMemoryEntries(ws, ids.slice(i, i + MAX_BULK_DELETE_IDS));
+        const revisions: Record<string, string> = {};
+        for (const [id, entry] of marked) {
+          if (entry.revision) revisions[id] = entry.revision;
+        }
+        const result = await api.bulkDeleteMemoryEntries(
+          ws,
+          ids.slice(i, i + MAX_BULK_DELETE_IDS),
+          revisions,
+        );
         for (const r of result.results) {
           if (r.deleted) continue;
           failed++;

@@ -112,7 +112,11 @@ func (s *PostgresStore) GetProject(ctx context.Context, id string) (*platstore.P
 }
 
 func (s *PostgresStore) ListProjects(ctx context.Context) ([]*platstore.Project, error) {
-	rows, err := s.db.QueryContext(ctx,
+	return listProjects(ctx, s.db)
+}
+
+func listProjects(ctx context.Context, q Runner) ([]*platstore.Project, error) {
+	rows, err := q.QueryContext(ctx,
 		`SELECT `+storeutil.ProjectColumns+`
 		 FROM projects WHERE archived=FALSE ORDER BY name`)
 	if err != nil {

@@ -138,16 +138,16 @@ function createMemoryAdapter(
         target_locale: targetLocale,
       });
     },
-    async deleteEntry(id: string): Promise<void> {
-      await api.deleteMemoryEntry(ws, id);
+    async deleteEntry(id: string, revision?: string): Promise<void> {
+      await api.deleteMemoryEntry(ws, id, revision ?? "");
     },
     // One request per batch instead of one per row. There is no transaction
     // behind it: each id carries its own outcome, so a selection that partly
     // fails has really partly deleted, and saying so is the honest report.
-    async deleteEntries(ids: string[]): Promise<void> {
+    async deleteEntries(ids: string[], revisions?: Record<string, string>): Promise<void> {
       const failures: BulkDeleteEntryResult[] = [];
       for (const batch of chunk(ids, MAX_BULK_DELETE_IDS)) {
-        const result = await api.bulkDeleteMemoryEntries(ws, batch);
+        const result = await api.bulkDeleteMemoryEntries(ws, batch, revisions ?? {});
         failures.push(...result.results.filter((r) => !r.deleted));
       }
       if (failures.length > 0) {

@@ -61,7 +61,9 @@ func newPartsEnv(t *testing.T) *partsEnv {
 	bs, err := bloblocal.New(t.TempDir())
 	require.NoError(t, err)
 	deps := &WorkerDeps{JobStore: js, ContentStore: cs, VoiceStore: voice, BlobStore: bs}
-	deps.PushTransition = NewPostgresPushTransition(db, cs, voice, ks)
+	transition, err := NewPostgresPushTransition(t.Context(), db, cs, voice, ks)
+	require.NoError(t, err)
+	deps.PushTransition = transition
 	require.NoError(t, cs.CreateProject(t.Context(), &store.Project{
 		ID: partsProject, Name: "Parts", WorkspaceID: partsWorkspace,
 	}))
@@ -80,12 +82,25 @@ func (e *partsEnv) termsStore(t *testing.T) *sqlterms.PostgresStore {
 // runs the push job.
 func (e *partsEnv) push(t *testing.T, jobID string, parts map[string]any) error {
 	t.Helper()
+	return e.pushBlocks(t, jobID, "Hello", parts)
+}
+
+// pushBlocks is push with the first block's source text given.
+func (e *partsEnv) pushBlocks(t *testing.T, jobID, first string, parts map[string]any) error {
+	t.Helper()
+	return e.stagePush(t, jobID, first, parts)()
+}
+
+// stagePush uploads the push and queues its job, and returns what runs the
+// job. Running it asserts nothing, so it may run on another goroutine.
+func (e *partsEnv) stagePush(t *testing.T, jobID, first string, parts map[string]any) func() error {
+	t.Helper()
 	ctx := t.Context()
 	chunk := &pb.SyncChunk{
 		ContentType: "blocks",
 		RecordCount: 2,
 		Blocks: []*pb.SyncBlock{
-			{Id: "b1", ItemName: "en.json", SourceText: "Hello", Translatable: true},
+			{Id: "b1", ItemName: "en.json", SourceText: first, Translatable: true},
 			{Id: "b2", ItemName: "en.json", SourceText: "World", Translatable: true},
 		},
 	}
@@ -116,7 +131,7 @@ func (e *partsEnv) push(t *testing.T, jobID string, parts map[string]any) error 
 		ID: jobID, ProjectID: partsProject, ItemName: SyncPushItemName,
 		Model: ref.Key, PushID: "push-" + jobID, Status: StatusQueued, CreatedBy: "user-1",
 	}))
-	return ProcessSyncPushJobForTest(ctx, e.deps, jobID)
+	return func() error { return ProcessSyncPushJobForTest(ctx, e.deps, jobID) }
 }
 
 func (e *partsEnv) blocks(t *testing.T) int {

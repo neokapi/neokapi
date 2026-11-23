@@ -60,6 +60,12 @@ type contextReconcileResult struct {
 	// coordinates it moved, with the coordinates before and after, for the
 	// recipe.changed event.
 	Changes []platev.CollectionChange
+
+	// VoiceLeft names the voice profiles the push carried, with content that
+	// differs from the workspace's, that the workspace already holds: they
+	// live there, people edit them there, and the push left them as they
+	// were (venue.PushParts.VoiceLeft).
+	VoiceLeft []string
 }
 
 // total reports how many collections the reconcile touched or confirmed.
@@ -222,6 +228,7 @@ func reconcileContext(
 	slices.Sort(result.Claimed)
 	slices.Sort(result.Unchanged)
 	slices.Sort(result.Undeclared)
+	result.VoiceLeft = profileIDs.left
 
 	if len(result.Undeclared) > 0 {
 		slog.Info("sync push declares fewer collections than the server holds; keeping the rest",
@@ -272,6 +279,9 @@ type profileBinder struct {
 	actorID     string
 	pusher      store.Pusher
 	byName      map[string]string
+	// left names the profiles the workspace already held whose pushed
+	// content differed (contextReconcileResult.VoiceLeft).
+	left []string
 }
 
 func newProfileBinder(voice coreprofile.Store, ledger voicewrite.Ledger, workspaceID, actorID string) *profileBinder {
@@ -325,9 +335,11 @@ func (b *profileBinder) bind(ctx context.Context, e *pb.SyncContextEntry) (strin
 	return profileID, nil
 }
 
-// upsert applies the pushed profile content to the hub and returns the id to
-// bind. With no pushed content it binds whatever the hub already holds under
-// that name.
+// upsert returns the id of the profile to bind. A profile the workspace does
+// not hold is created from the pushed content. One it holds lives there:
+// people edit it there, so the push never writes it, and a pushed version
+// that differs is named in left so the push can say where it is edited. With
+// no pushed content it binds whatever the workspace holds under that name.
 //
 // The write goes through voicewrite.Apply, which records it on the project's
 // ledger. recorded is the operation the pushing client recorded for the
@@ -342,8 +354,8 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 		return existing.ID, nil
 	}
 
-	now := time.Now().UTC()
 	if existing == nil {
+		now := time.Now().UTC()
 		created := *pushed
 		created.ID = id.New()
 		created.Name = name
@@ -358,27 +370,10 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 		return created.ID, nil
 	}
 
-	// Unchanged authored content is a no-op, so a re-push of an unedited voice
-	// does not manufacture a version. When it did change, UpdateProfile archives
-	// the current state before bumping — a server-side edit is superseded by a
-	// revertible version, never clobbered.
-	if sameAuthoredVoice(existing, pushed) {
-		return existing.ID, nil
+	if !sameAuthoredVoice(existing, pushedOver(existing, pushed)) {
+		b.left = append(b.left, existing.Name)
 	}
-	updated := *existing
-	updated.Description = pushed.Description
-	updated.Tone = pushed.Tone
-	updated.Style = pushed.Style
-	updated.Examples = pushed.Examples
-	updated.Locales = pushed.Locales
-	updated.Channels = pushed.Channels
-	updated.Personas = pushed.Personas
-	updated.VersionNote = "superseded by kapi push"
-	updated.UpdatedAt = now
-	if _, err := voicewrite.Apply(ctx, b.voice, b.ledger, b.write(existing, &updated, recorded)); err != nil {
-		return "", err
-	}
-	return updated.ID, nil
+	return existing.ID, nil
 }
 
 // write is the voicewrite.Write of one pushed profile, by the pusher: the
@@ -412,7 +407,9 @@ func decodeVoiceProfile(raw []byte) (*coreprofile.VoiceProfile, error) {
 
 // sameAuthoredVoice compares the authored surface of two profiles — everything
 // a recipe can write — ignoring the server-managed metadata (id, workspace,
-// version, timestamps) that would otherwise make every comparison unequal.
+// version, timestamps, autonomy) that would otherwise make every comparison
+// unequal. It compares exactly what upsert copies, so a push that differs only
+// in what upsert would not write never makes a version.
 func sameAuthoredVoice(a, b *coreprofile.VoiceProfile) bool {
 	authored := func(p *coreprofile.VoiceProfile) string {
 		snapshot := *p
@@ -423,6 +420,8 @@ func sameAuthoredVoice(a, b *coreprofile.VoiceProfile) bool {
 		snapshot.CreatedAt = time.Time{}
 		snapshot.UpdatedAt = time.Time{}
 		snapshot.CreatedBy = ""
+		snapshot.UpdatedBy = ""
+		snapshot.Autonomy = coreprofile.AutonomyConfig{}
 		encoded, err := json.Marshal(snapshot)
 		if err != nil {
 			return ""
@@ -431,4 +430,16 @@ func sameAuthoredVoice(a, b *coreprofile.VoiceProfile) bool {
 	}
 	left, right := authored(a), authored(b)
 	return left != "" && left == right
+}
+
+// pushedOver is the pushed profile as it would stand over existing: the push
+// keeps the stored name (the two match by name, case aside), and a push that
+// carries no constraints keeps the stored ones.
+func pushedOver(existing, pushed *coreprofile.VoiceProfile) *coreprofile.VoiceProfile {
+	effective := *pushed
+	effective.Name = existing.Name
+	if effective.Constraints == nil {
+		effective.Constraints = existing.Constraints
+	}
+	return &effective
 }

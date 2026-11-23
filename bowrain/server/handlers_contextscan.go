@@ -291,11 +291,11 @@ type ContextScanApproveRequest struct {
 // profile and which action produced it, plus the concepts created and the ones
 // that were already there.
 type ContextScanApproveResponse struct {
-	Profile          *coreprofile.VoiceProfile `json:"profile"`
-	ProfileAction    string                    `json:"profile_action"`
-	ConceptsCreated  int                       `json:"concepts_created"`
-	ConceptsExisting int                       `json:"concepts_existing"`
-	ConceptIDs       []string                  `json:"concept_ids"`
+	Profile          *VoiceProfileResponse `json:"profile"`
+	ProfileAction    string                `json:"profile_action"`
+	ConceptsCreated  int                   `json:"concepts_created"`
+	ConceptsExisting int                   `json:"concepts_existing"`
+	ConceptIDs       []string              `json:"concept_ids"`
 	// ConceptsProposed counts the terms marked do-not-translate, each proposed in
 	// a change-set of its own, and ChangeSetIDs names those change-sets.
 	ConceptsProposed int      `json:"concepts_proposed,omitempty"`
@@ -383,11 +383,11 @@ func (s *Server) HandleApproveContextScan(c *echo.Context) error {
 	actor, _ := c.Get("user_id").(string)
 	upsert, err := s.upsertVoiceProfile(ctx, wsID, requestActorOf(c), req.Profile, "superseded by a brand-scan approval", "approved from a context scan")
 	if err != nil {
-		return serverErr(c, err)
+		return s.refuseVoiceWrite(c, err)
 	}
 
 	resp := ContextScanApproveResponse{
-		Profile:       upsert.Profile,
+		Profile:       upsert.Response,
 		ProfileAction: upsert.Action,
 		ConceptIDs:    []string{},
 	}

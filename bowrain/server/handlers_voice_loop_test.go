@@ -164,7 +164,7 @@ func TestVoiceLoop_EndToEnd(t *testing.T) {
 	got, err := srv.VoiceStore.GetProfile(ctx, profile.ID)
 	require.NoError(t, err)
 	got.Autonomy = coreprofile.AutonomyConfig{AutoPromoteAtCount: 2}
-	require.NoError(t, srv.VoiceStore.UpdateProfile(ctx, got))
+	require.NoError(t, updateVoiceProfileAt(ctx, t, srv, got))
 	first := correct("synergy", "teamwork")
 	assert.Nil(t, first["auto_promoted"], "one correction is below the threshold")
 	second := correct("synergy", "teamwork")

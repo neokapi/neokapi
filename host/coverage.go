@@ -177,15 +177,17 @@ func (a *App) settleAndCountHeldSource(ctx context.Context, root, sourceLang str
 // reviewedIndex maps each unit (document + block identity + locale) to its
 // committed review decision, loaded from the project state store (core/state).
 // A unit reads at its decided rung (established for an approval, draft for a
-// rejection) only while the decision still judges the current translation.
-// The decision carries the targetHash it applied to, so an edit since then
-// drops the unit back to the `translated` presence baseline. It is the
-// carrier for review state, since a plain target file holds no status.
+// rejection) only while the recorded decision still judges the CURRENT
+// translation. The decision carries the targetHash it applied to. An edit since
+// the decision invalidates it, and the unit drops back to the `translated`
+// presence baseline; a rejected unit re-enters review once retranslated. This
+// is the authoritative carrier for review state, since a plain target file
+// holds no status. The content memory is the recycle corpus only.
 type reviewedIndex struct {
-	byUnit map[string]reviewedEntry
+	byUnit map[reviewUnit]reviewedEntry
 	// aiReviews carries advisory AI pre-review annotations (score + model),
 	// independent of any decision, so the review queue can display them.
-	aiReviews map[string]aiReviewEntry
+	aiReviews map[reviewUnit]aiReviewEntry
 	// loop is the block history, which holds the basis of each translation a
 	// flow wrote (host/loopbasis.go). A unit with no record in byUnit is
 	// graded by the flow's last write to it.
@@ -247,9 +249,10 @@ func (r reviewedIndex) governingFingerprint(scope string, b *model.Block, locale
 // treated as still holding, the same "no content to compare" convention
 // state.UnitState.Stale reads an absent hash by.
 //
-// It tells apart the two ways a decision stops applying. When the target half
-// holds but the source moved, the decision sits beside a sentence it never
-// judged. When the target moved too, it says nothing about what is on disk.
+// It tells apart the two ways a decision stops applying. A decision whose
+// target half still holds but whose source moved is a blessing beside a
+// sentence it never judged. One whose target has moved too says nothing at all
+// about what is on disk.
 func (e reviewedEntry) blessesTarget(b *model.Block, locale model.LocaleID) bool {
 	if e.revision != "" {
 		return targetRevision(b, locale) == e.revision
@@ -257,11 +260,12 @@ func (e reviewedEntry) blessesTarget(b *model.Block, locale model.LocaleID) bool
 	return e.targetHash == "" || targetHash(b.TargetText(locale)) == e.targetHash
 }
 
-// lookup returns the record a block's unit is graded by. The unit's recorded
-// decision comes first. Next is whichever of the undecided record and the
-// flow's last write (from the block history) describes the translation on
-// disk, the flow's write when both do. Then the undecided record, then the
-// flow's write.
+// lookup returns the record a block's unit is graded by. That is the unit's
+// recorded decision when it has one. Otherwise it is whichever of the unit's
+// undecided record and the flow's last write to the translation (the loop's
+// basis, from the block history) describes the translation on disk, the flow's
+// write when both do. Failing that, it is the undecided record, then the flow's
+// write, then nothing.
 //
 // An undecided record in the ledger is a basis an earlier release recorded
 // beside a translation, for a Kapi Desktop edit or a loop pass; a project's
@@ -299,24 +303,24 @@ func (r reviewedIndex) loopWrite(scope string, b *model.Block, locale string) (r
 }
 
 // basisVerdict grades a recorded basis against the source in front of the
-// reader, the derived half of the basis: a record is a fact and is never
-// rewritten, so what a source edit changes is not the record but whether it
-// still describes the project.
+// reader. This is the derived half of the basis: a record is a fact and is
+// never rewritten, so a source edit changes whether the record still describes
+// the project.
 type basisVerdict int
 
 const (
-	// basisNone, nothing is recorded for this unit and locale. A target here is
+	// basisNone: nothing is recorded for this unit and locale. A target here is
 	// one the project has no record of: written by hand, or present before
 	// kapi ever ran. Nothing can call it stale, and the loop leaves it alone.
 	basisNone basisVerdict = iota
-	// basisUnknown, a record whose basis says nothing about the source in front
+	// basisUnknown: a record whose basis says nothing about the source in front
 	// of the reader: a decision written before the basis was tracked, or a basis
 	// the loop recorded for a translation somebody has since rewritten. It keeps
 	// its rung; only the count of such records is reported.
 	basisUnknown
-	// basisCurrent, the record was made against the source the project holds now.
+	// basisCurrent: the record was made against the source the project holds now.
 	basisCurrent
-	// basisStale, the source moved since the record was made.
+	// basisStale: the source moved since the record was made.
 	basisStale
 )
 
@@ -330,26 +334,30 @@ type aiReviewEntry struct {
 
 // reviewUnitKey is the index's identity: the document a decision was made in,
 // the unit it was made about, and the locale it was made for. The document
-// belongs in it because a unit id is unique only inside its document. Without
-// it, one page's decision would answer for every page carrying the same id.
-func reviewUnitKey(scope, unit, locale string) string {
-	return scope + "\x00" + unit + "\x00" + locale
+// belongs in it because a unit id is unique inside its document and nowhere
+// wider. Without it, one page's decision would answer for every page in the
+// collection with the same id.
+func reviewUnitKey(scope, unit, locale string) reviewUnit {
+	return reviewUnit{scope, unit, locale}
 }
 
+// reviewUnit is the key reviewUnitKey returns.
+type reviewUnit struct{ scope, unit, locale string }
+
 // grade looks a block's record up once and reports the entry, how its basis
-// stands against the current source, and whether a decision on it applies.
+// stands against the CURRENT source, and whether a decision on it still
+// applies.
 //
-// A decision applies only while both halves of the pairing it blessed still hold
-// (the translation it judged, and the source it judged it for). Either having
-// moved retires it, and the basis is reported separately because the two
-// demotions mean different things to a caller: a moved translation puts the unit
-// back at its presence baseline, a moved source says the target no longer
-// translates anything the project has.
+// A decision applies only while both halves of the pairing it blessed hold: the
+// translation it judged and the source it judged it for. Either moving retires
+// it. The basis is reported separately because a moved translation puts the
+// unit back at its presence baseline, while a moved source says the target no
+// longer translates anything the project has.
 //
 // A basis the loop recorded decides nothing, so `applies` is false for it. Its
 // target half is read more strictly than a decision's. A loop-recorded basis
 // whose translation was rewritten describes work a person has taken over, so
-// the pairing grades unknown and the loop leaves the edit in place.
+// the pairing grades unknown, and the loop leaves that edit where it is.
 func (r reviewedIndex) grade(scope string, b *model.Block, locale string) (e reviewedEntry, basis basisVerdict, applies bool) {
 	e, ok := r.lookup(scope, b, locale)
 	if !ok {
@@ -367,10 +375,10 @@ func (r reviewedIndex) grade(scope string, b *model.Block, locale string) (e rev
 }
 
 // gradeBasis grades the source the record was made against with the block's
-// source as it stands. A record that names a revision is graded by it, under
-// any key a read of the document gives the source (state.Reading.HoldsBasis).
-// A record made before revisions is graded by hash. source is the project's
-// source language.
+// source as it stands. Where the record names a revision (the one a
+// translation's derivation names), it compares under any key a read of the
+// document gives the source (state.Reading.HoldsBasis). A record made before
+// revisions is compared by hash. source is the project's source language.
 func (e reviewedEntry) gradeBasis(b *model.Block, source model.LocaleID) basisVerdict {
 	if e.basis != "" {
 		if state.ReadSource(b, source).HoldsBasis(e.basis) {
@@ -398,7 +406,7 @@ func (r reviewedIndex) entryFor(scope string, b *model.Block, locale string) (re
 	return e, true
 }
 
-// basisFor grades the basis recorded for (block, locale), a decision's, or the
+// basisFor grades the basis recorded for (block, locale), a decision's or the
 // loop's own, against the block's current source.
 func (r reviewedIndex) basisFor(scope string, b *model.Block, locale string) basisVerdict {
 	_, basis, _ := r.grade(scope, b, locale)
@@ -455,8 +463,8 @@ type unitReading struct {
 	rejectedOwed bool
 }
 
-// apply moves a `translated` unit to its recorded decision rung, up to
-// established for an approval, down to draft for a rejection, when the block
+// apply moves a `translated` unit to its recorded decision rung (up to
+// established for an approval, down to draft for a rejection) when the block
 // has an applicable decision for the locale; otherwise the base state stands.
 //
 // A unit with no target at all grades basisNone whatever the store holds: there
@@ -503,10 +511,10 @@ func (r reviewedIndex) aiReviewFor(scope string, b *model.Block, locale string) 
 }
 
 // loadReviewedCorrections builds the reviewedIndex from the project state store.
-// An absent store yields an empty index (nothing decided yet), never an error,
-// so status stays informational.
+// An absent store yields an empty index (nothing decided yet) and no error, so
+// status stays informational.
 func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiProject, root string) (reviewedIndex, error) {
-	idx := reviewedIndex{byUnit: map[string]reviewedEntry{}, aiReviews: map[string]aiReviewEntry{}, source: model.LocaleID(a.SourceLocale())}
+	idx := reviewedIndex{byUnit: map[reviewUnit]reviewedEntry{}, aiReviews: map[reviewUnit]aiReviewEntry{}, source: model.LocaleID(a.SourceLocale())}
 	if root == "" {
 		return idx, nil
 	}
@@ -586,21 +594,18 @@ func scopeAliases(scope string) []string {
 // against (collection, locale); content outside a named collection has an
 // empty collection.
 //
-// It is the file-scan source of the shared coverage engine
-// (convergence.CoverageTally). The desktop's block-store path
-// (convergence.TallyBlockStore) feeds the same tally, so both report the same
-// numbers.
+// Unit states come from working-tree reads and feed the shared coverage
+// engine (convergence.CoverageTally) that the desktop's block-store path also
+// uses, so both report the same numbers.
 //
-// `reviewed` (decisions from the state store) lifts a unit to its decided rung.
+// The decisions loaded from the project state store upgrade a unit from the
+// `translated` presence baseline to its decided rung.
 //
-// `excl` (optional, nil = off) is the check-findings set (#1078 G4): a unit in
-// it is produced but failing the project's bound checks. It is counted at its
-// true rung and recorded as a failing check, which withholds the scope's ship
-// verdict. The percentage reads the same on every surface; only the verdict
-// is withheld.
-//
-// A caller that passes nil gets a verdict that ignores the checks, so every
-// surface that publishes a verdict supplies it (#2024).
+// `excl` (optional, nil = off) is the check-findings set (#1078 G4): units that
+// are produced but fail the project's bound checks. Such a unit is counted at
+// its true rung and recorded as a failing check, which withholds the scope's
+// ship verdict. The percentage stays a fact about the content. Every surface
+// that publishes a verdict supplies excl (#2024).
 func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, excl *CheckExclusions) ([]LocaleCoverage, error) {
 	return a.shipCoverage(ctx, proj, root, units, excl, nil)
 }
@@ -645,9 +650,9 @@ func (a *App) shipCoverage(ctx context.Context, proj *project.KapiProject, root 
 // per-(collection, locale) unit states behind everything `kapi status` prints.
 //
 // ComputeShipCoverage is this plus the gate rollup. A surface that needs
-// absolute counts (how many units of a collection are translated into a
-// locale) cannot recover them from the rolled-up percentages. Deriving them a
-// second way lets two surfaces disagree about one project.
+// ABSOLUTE counts (how many units of this collection are translated into this
+// locale) cannot recover them from the rolled-up rows, which carry
+// percentages. It reads them here, so every surface counts the same units.
 func (a *App) ProjectCoverageTally(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit, excl *CheckExclusions) (*convergence.CoverageTally, error) {
 	return a.coverageTally(ctx, proj, root, units, excl, nil)
 }
@@ -702,7 +707,7 @@ func (a *App) coverageTally(ctx context.Context, proj *project.KapiProject, root
 			continue
 		}
 		if missing {
-			// No target file yet, every translatable source unit is untranslated.
+			// No target file yet, so every translatable source unit is untranslated.
 			srcs, serr := a.readSource(ctx, u)
 			if unread.skipUnit(nil, serr, root, u) {
 				continue
@@ -734,7 +739,7 @@ func (a *App) coverageTally(ctx context.Context, proj *project.KapiProject, root
 			}
 			// The basis: a decision blessed a specific source, and if that
 			// source has been rewritten the translation under it renders a
-			// sentence the project no longer has. Derived on every read, the
+			// sentence the project no longer has. Derived on every read; the
 			// decision itself is history and is never rewritten.
 			switch read.basis {
 			case basisStale:
@@ -777,7 +782,7 @@ func (a *App) warnUnreadableFormats(cmd Command, unreadable []string) {
 
 // sortedFormatSet renders a set of format names as a stable, sorted slice. A
 // name is empty when the recipe left the format to extension detection, which
-// never reaches a plugin format, say so rather than printing "".
+// never reaches a plugin format. Say so rather than printing "".
 func sortedFormatSet(set map[string]bool) []string {
 	if len(set) == 0 {
 		return nil
