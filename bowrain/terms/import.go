@@ -130,7 +130,7 @@ func ImportRows(ctx context.Context, st Store, rows []fw.ImportRow, src ImportSo
 	if err != nil {
 		return report, fmt.Errorf("read the terms: %w", err)
 	}
-	holders := map[string]string{} // term key -> the concept holding it
+	holders := map[termIdentity]string{} // term -> the concept holding it
 	for _, c := range all {
 		for _, t := range c.Terms {
 			holders[termKey(t.Text, t.Locale)] = c.ID
@@ -231,7 +231,7 @@ const (
 
 // importRow decides one row against the stored concept and writes it. When
 // another write lands first it decides again on what is stored then.
-func importRow(ctx context.Context, st Store, row fw.ImportRow, given, fp string, src ImportSource, holders map[string]string) (importOutcome, string, error) {
+func importRow(ctx context.Context, st Store, row fw.ImportRow, given, fp string, src ImportSource, holders map[termIdentity]string) (importOutcome, string, error) {
 	id := row.Concept.ID
 	key := termKey(row.SourceTerm, row.SourceLocale)
 	if row.IDGiven && given != id {
@@ -372,11 +372,18 @@ func importFingerprint(c fw.Concept) string {
 	return hex.EncodeToString(sum[:12])
 }
 
-func termKey(text string, locale model.LocaleID) string {
-	return string(model.NormalizeLocale(locale)) + "\x00" + strings.ToLower(strings.TrimSpace(text))
+// termIdentity is a term as the import compares terms: its locale and its
+// text, case and surrounding space aside.
+type termIdentity struct {
+	locale model.LocaleID
+	text   string
 }
 
-func holdsTerm(c fw.Concept, key string) bool {
+func termKey(text string, locale model.LocaleID) termIdentity {
+	return termIdentity{model.NormalizeLocale(locale), strings.ToLower(strings.TrimSpace(text))}
+}
+
+func holdsTerm(c fw.Concept, key termIdentity) bool {
 	for _, t := range c.Terms {
 		if termKey(t.Text, t.Locale) == key {
 			return true
