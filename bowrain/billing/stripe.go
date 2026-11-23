@@ -9,6 +9,7 @@ import (
 	"maps"
 	"strconv"
 
+	"github.com/neokapi/neokapi/core/partjoin"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/billingportal/session"
 	checkoutsession "github.com/stripe/stripe-go/v82/checkout/session"
@@ -47,7 +48,7 @@ func (c *StripeClient) CreateCustomer(_ context.Context, workspaceID, email, nam
 // CheckoutOptions configures optional checkout behavior.
 type CheckoutOptions struct {
 	Metadata map[string]string
-	// Quantity is the subscription quantity — for a per-seat plan (Team) this is
+	// Quantity is the subscription quantity, for a per-seat plan (Team) this is
 	// the seat count Stripe multiplies the per-seat price by. Zero means 1.
 	Quantity int64
 	// TrialDays puts the Stripe subscription into a trial. Unused at launch: the
@@ -154,7 +155,7 @@ func (c *StripeClient) ReportMeterEvent(ctx context.Context, customerID, eventNa
 // deduction and stable across retries (e.g. "<jobID>:<chunkOffset>"). Hashing
 // keeps the identifier a fixed, charset-safe length regardless of input.
 func meterEventIdentifier(workspaceID, eventName, op, refID string) string {
-	sum := sha256.Sum256([]byte(workspaceID + "|" + eventName + "|" + op + "|" + refID))
+	sum := sha256.Sum256([]byte(partjoin.Join('|', partjoin.NULEscape, workspaceID, eventName, op, refID)))
 	return hex.EncodeToString(sum[:])
 }
 

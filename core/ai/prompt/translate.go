@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // Translate renders the prompts for the translate tool. One builder serves
@@ -133,10 +134,7 @@ func (t Translate) Fingerprint() string {
 		t.Batch(nil),
 	} {
 		for _, turn := range turns {
-			b.WriteString(turn.Role)
-			b.WriteByte('\x00')
-			b.WriteString(turn.Text)
-			b.WriteByte('\x00')
+			partjoin.WriteNUL(&b, turn.Role, turn.Text)
 		}
 	}
 	sum := sha256.Sum256([]byte(b.String()))

@@ -3,13 +3,15 @@ package model
 import (
 	"crypto/sha256"
 	"encoding/hex"
+
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // An edition revision names the content of one edition as a reader saw it. A
 // change made against that read names the revision, and lands only while the
 // edition still has it. The revision covers the edition's key and its runs,
 // inline codes with their data and attributes included, and nothing else:
-//
+
 //   - Codes count, so a changed link target or a removed link moves it. The
 //     content hash (ComputeContentHash) hashes plain text and is blind to both.
 //   - Status and origin are left out. A review decision changes them and no
@@ -17,7 +19,7 @@ import (
 //   - Other editions are left out. A derived edition records the revision of
 //     the edition it was made from separately (its basis), so a fix to the
 //     source wording does not refuse a concurrent save of a translation.
-//
+
 // Being a function of content alone, the same token is valid wherever the
 // content is held: a file, a server row or a store.
 
@@ -31,12 +33,8 @@ const AbsentRevision = "absent"
 // CanonicalRunsJSON.
 func RunsRevision(k EditionKey, runs []Run) string {
 	text, _ := k.Canonical().MarshalText()
-	h := sha256.New()
-	h.Write(text)
-	h.Write([]byte{0})
-	h.Write(CanonicalRunsJSON(runs))
-	var sum [sha256.Size]byte
-	return "r:" + hex.EncodeToString(h.Sum(sum[:0])[:8])
+	sum := sha256.Sum256([]byte(partjoin.NUL(string(text), string(CanonicalRunsJSON(runs)))))
+	return "r:" + hex.EncodeToString(sum[:8])
 }
 
 // EditionRevision returns the revision of edition k of b, or AbsentRevision
