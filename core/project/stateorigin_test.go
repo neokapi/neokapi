@@ -162,15 +162,18 @@ func TestStateThisMachineWroteKeepsWorking(t *testing.T) {
 		require.NoError(t, CheckStateOwned(t.Context(), l), "the key is read from the configuration directory, not held in one process")
 	})
 
-	t.Run("KAPI_TRUST_STATE=1 vouches for state this machine did not write", func(t *testing.T) {
+	t.Run("KAPI_TRUST_STATE=1 vouches for this run only", func(t *testing.T) {
 		src := ownedProject(t)
 		dst := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dst, RecipeFileName), []byte("version: v1\nname: p\n"), 0o644))
 		copyTree(t, src.StateDir, filepath.Join(dst, StateDirName))
 		t.Setenv(TrustStateEnv, "1")
 		require.NoError(t, CheckStateOwned(t.Context(), LayoutAt(dst)))
+		assert.NoFileExists(t, filepath.Join(dst, StateDirName, "set-aside"), "nothing is set aside or written while the person vouches")
 		t.Setenv(TrustStateEnv, "")
-		require.NoError(t, CheckStateOwned(t.Context(), LayoutAt(dst)), "the vouched state now carries this machine's mark")
+		captureNotices(t)
+		var unverified *UnverifiedStateError
+		require.ErrorAs(t, CheckStateOwned(t.Context(), LayoutAt(dst)), &unverified, "the variable adopts nothing: a later run without it is refused")
 	})
 
 	t.Run("a state directory with nothing kapi keeps in it is marked, not refused", func(t *testing.T) {

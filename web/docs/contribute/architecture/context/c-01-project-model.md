@@ -194,9 +194,17 @@ Content memory, terms, voice profiles and recorded decisions live in the
 workspace, outside every checkout, and are not part of the mark.
 
 A person vouches for state with `kapi trust allow --state` (shown with where it
-appears to come from, confirmed at a terminal or with `--yes`), the desktop's
-dialog, or `KAPI_TRUST_STATE=1` in the process environment. An agent cannot:
-the MCP server refuses, and so does a command whose actor resolves to an agent.
+appears to come from, confirmed at a terminal or with `--yes`) or the desktop's
+dialog, which write a fresh mark. An agent cannot: the MCP server refuses, and
+so does a command whose actor resolves to an agent. `KAPI_TRUST_STATE=1` in the
+process environment vouches for that one process: nothing is refused and
+nothing is written, so a later run without it is refused again.
+
+Only the MAC decides whether state is this machine's own. A state directory
+without a valid mark is unmarked however new its files look; the host, path and
+time a mark records are shown to a person (cleaned, capped and quoted) and
+decide nothing. A state directory kapi creates is made with its mark in one
+step, staged beside it and renamed into place.
 
 What each case sees:
 

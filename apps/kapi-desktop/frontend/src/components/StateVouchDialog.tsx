@@ -46,7 +46,7 @@ export function StateVouchDialog({
         </ul>
         <p className="text-sm text-muted-foreground">
           {state.origin
-            ? `It appears to come from ${state.origin}.`
+            ? `It appears to come from "${state.origin}".`
             : "Nothing in it says where it comes from."}
         </p>
         <DialogFooter>

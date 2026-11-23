@@ -16,7 +16,7 @@ describe("StateVouchDialog", () => {
     );
     expect(getByText(".kapi/vault")).toBeTruthy();
     expect(getByText(".kapi/sync")).toBeTruthy();
-    expect(getByText(/It appears to come from host laptop/)).toBeTruthy();
+    expect(getByText(/It appears to come from "host laptop, \/home\/someone\/app/)).toBeTruthy();
   });
 
   it("vouches only when the person chooses to", () => {

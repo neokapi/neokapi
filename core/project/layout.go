@@ -368,7 +368,18 @@ func EnsureLayout(layout Layout) error {
 		return err
 	}
 	// State already there is verified before anything is created beside it.
-	if err := checkStateMark(layout); err != nil {
+	// A state directory kapi creates is created with its mark.
+	if _, err := os.Lstat(layout.StateDir); errors.Is(err, fs.ErrNotExist) {
+		if rootpath.IsBeneath(layout.Root, layout.StateDir) {
+			// The project root may not exist yet.
+			if err := os.MkdirAll(filepath.Dir(layout.StateDir), 0o755); err != nil {
+				return fmt.Errorf("project: create %s: %w", StateDirName, err)
+			}
+			if err := createStateDir(layout); err != nil {
+				return fmt.Errorf("project: create %s: %w", StateDirName, err)
+			}
+		}
+	} else if err := checkStateMark(layout); err != nil {
 		return err
 	}
 	fresh := cacheOnly(layout.StateDir)
@@ -419,9 +430,7 @@ func EnsureLayout(layout Layout) error {
 			return fmt.Errorf("project: write %s: %w", StateGitignoreFilename, err)
 		}
 	}
-	// The state directory this machine created carries its mark from the
-	// start.
-	return ensureStateMark(layout)
+	return nil
 }
 
 // cacheOnly reports whether dir is absent or holds only what kapi writes into

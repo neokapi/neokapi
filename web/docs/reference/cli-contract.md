@@ -192,7 +192,7 @@ What you see:
 - **The first run after upgrading** to a kapi that marks state: the work directory is rebuilt, and a checkout with a vault, sync state or saved filters asks once for `kapi trust allow --state`.
 - **A checkout you moved or renamed** on the same volume: nothing.
 - **A copied checkout, a restored backup, or a checkout moved to another volume:** the same as after upgrading.
-- **CI with a restored `.kapi` cache on a fresh runner:** the restored work directory is rebuilt. Set `KAPI_TRUST_STATE=1` (or run `kapi trust allow --state --yes`) only if you trust the cache.
+- **CI with a restored `.kapi` cache on a fresh runner:** the restored work directory is rebuilt. Set `KAPI_TRUST_STATE=1` on each step that runs kapi, only if you trust the cache: the variable vouches for that one process and writes nothing, so a step without it is refused again.
 - **Two users sharing one checkout:** each sees the other's state as not its own.
 
 ## Streaming progress: `--progress jsonl`

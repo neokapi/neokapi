@@ -325,8 +325,9 @@ stage.
   kapi uses as its own only state that kapi on this machine wrote, and a
   restored cache on a fresh runner was written by another one, so kapi sets it
   aside and rebuilds it. To keep using the restored cache, set
-  `KAPI_TRUST_STATE=1` for the steps that run kapi, in a workflow whose earlier
-  steps you trust: it says you vouch for the restored state.
+  `KAPI_TRUST_STATE=1` on each step that runs kapi, in a workflow whose earlier
+  steps you trust. It vouches for that one process and records nothing, so a
+  step that leaves it out is refused again.
 
   Without the action, cache that one directory:
 

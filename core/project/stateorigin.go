@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/rootpath"
 )
@@ -30,7 +32,8 @@ import (
 // State without a valid mark is not used: what kapi rebuilds anyway (the work
 // directory) is set aside and rebuilt, and what it cannot rebuild (the vault,
 // the sync state, the saved filters) is refused until a person vouches for it
-// (`kapi trust allow --state`, or KAPI_TRUST_STATE=1 in kapi's environment).
+// (`kapi trust allow --state`). KAPI_TRUST_STATE=1 in kapi's environment
+// skips the refusal for that one process and writes nothing.
 
 // What a valid mark says: kapi on this machine, as this user, created this
 // state directory in this checkout. It binds the directory, not each byte in
@@ -97,7 +100,7 @@ type UnverifiedStateError struct {
 func (e *UnverifiedStateError) Error() string {
 	from := ""
 	if e.Origin != "" {
-		from = " It appears to come from " + e.Origin + "."
+		from = fmt.Sprintf(" It appears to come from %q.", e.Origin)
 	}
 	return fmt.Sprintf("project: %s was not written by kapi on this machine, so kapi does not use it.%s "+
 		"If you vouch for it, run `kapi trust allow --state -p %s`; otherwise delete it and run again",
@@ -115,8 +118,13 @@ func CheckStateOwned(ctx context.Context, l Layout) error {
 }
 
 // checkStateMark verifies the state directory's mark, and when it does not
-// verify, sets aside what kapi rebuilds and refuses what it cannot. A state
-// directory with no state in it yet gets a fresh mark. A state directory kapi
+// verify, sets aside what kapi rebuilds and refuses what it cannot. Whether
+// state is this machine's own is decided by the MAC and nothing else: a
+// state directory without a valid mark is unmarked however new its files
+// look, and no file's time, recorded id, path or origin vouches for it. A
+// state directory with no state in it yet gets a fresh mark, since there is
+// nothing in it to vouch for. With KAPI_TRUST_STATE=1 the person running this
+// process vouches for this run only: nothing is refused and nothing written. A state directory kapi
 // keeps outside the project (the desktop's drafts, in its data directory) is
 // not marked: no project can name it.
 func checkStateMark(l Layout) error {
@@ -124,10 +132,7 @@ func checkStateMark(l Layout) error {
 		return nil
 	}
 	if _, err := rootpath.Stat(l.Root, l.StateDir); err != nil {
-		// No state directory yet: whatever appears there from now on, this
-		// process wrote (stateSeen).
-		stateSeen.LoadOrStore(l.Root, time.Now())
-		return nil
+		return nil // no state directory yet
 	}
 	present := presentState(l)
 	key, err := stateKey()
@@ -136,14 +141,12 @@ func checkStateMark(l Layout) error {
 	}
 	mark, merr := readMark(l)
 	if merr == nil && markValid(key, l, mark) {
-		stateSeen.LoadOrStore(l.Root, time.Now())
 		return nil
 	}
 	if os.Getenv(TrustStateEnv) == "1" {
-		// The person running this process vouches for the state.
-		return writeMark(key, l)
+		return nil
 	}
-	if len(present) == 0 || (errors.Is(merr, fs.ErrNotExist) && writtenSinceSeen(l, present)) {
+	if len(present) == 0 {
 		return writeMark(key, l)
 	}
 	var refused []string
@@ -165,29 +168,6 @@ func checkStateMark(l Layout) error {
 	return writeMark(key, l)
 }
 
-// stateSeen holds, per project root, when this process first found its state
-// directory absent or carrying a valid mark. State that appears unmarked after
-// that, and was written after it, is this process's own (a draft or a cache a
-// route made before the store opened), and gets the mark instead of being set
-// aside.
-var stateSeen sync.Map // project root -> time.Time
-
-// writtenSinceSeen reports whether this process saw the state directory empty
-// or marked, and every present entry was modified since.
-func writtenSinceSeen(l Layout, present []string) bool {
-	seen, ok := stateSeen.Load(l.Root)
-	if !ok {
-		return false
-	}
-	for _, name := range present {
-		info, err := rootpath.Stat(l.Root, filepath.Join(l.StateDir, name))
-		if err != nil || info.ModTime().Before(seen.(time.Time)) {
-			return false
-		}
-	}
-	return true
-}
-
 // legacyWorkState are files earlier layouts kept under the work directory that
 // cannot be rebuilt: the vault and the working store with its staged
 // decisions, which core/projectdb folds forward. A work directory holding one
@@ -207,22 +187,6 @@ func regenerable(l Layout, name string) bool {
 		}
 	}
 	return true
-}
-
-// ensureStateMark writes a mark into a state directory that has no valid one.
-// Its callers have just created the directory, or verified the state in it.
-func ensureStateMark(l Layout) error {
-	if l.Root == "" || !rootpath.IsBeneath(l.Root, l.StateDir) {
-		return nil
-	}
-	key, err := stateKey()
-	if err != nil {
-		return err
-	}
-	if mark, err := readMark(l); err == nil && markValid(key, l, mark) {
-		return nil
-	}
-	return writeMark(key, l)
 }
 
 // AdoptState writes a fresh mark over the state directory, so the state in it
@@ -336,7 +300,72 @@ func readMark(l Layout) (*stateMark, error) {
 	if err := json.Unmarshal(data, &m); err != nil {
 		return nil, err
 	}
+	// The display fields come from a mark that may have arrived from anywhere:
+	// they are made safe to show here, where they are read, so no caller can
+	// forget. Whoever shows them also quotes them.
+	m.Host, m.Path, m.Created = displaySafe(m.Host), displaySafe(m.Path), displaySafe(m.Created)
 	return &m, nil
+}
+
+// maxDisplayField caps a display field of a mark, in runes.
+const maxDisplayField = 200
+
+// displaySafe drops control and invisible format characters from s and caps
+// its length.
+func displaySafe(s string) string {
+	var b strings.Builder
+	n := 0
+	for _, r := range s {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || r == utf8.RuneError {
+			continue
+		}
+		if n == maxDisplayField {
+			b.WriteString("...")
+			break
+		}
+		b.WriteRune(r)
+		n++
+	}
+	return b.String()
+}
+
+// createStateDir creates the layout's state directory with its mark in one
+// step: the mark is written into a staged directory beside it, which is then
+// renamed into place, so no state directory kapi creates is ever there without
+// its mark. A state directory that appeared meanwhile (another process) is
+// left as it is, and the staged one removed.
+func createStateDir(l Layout) error {
+	key, err := stateKey()
+	if err != nil {
+		return err
+	}
+	parent, err := os.OpenRoot(filepath.Dir(l.StateDir))
+	if err != nil {
+		return err
+	}
+	defer parent.Close()
+	suffix := make([]byte, 8)
+	if _, err := rand.Read(suffix); err != nil {
+		return err
+	}
+	staged := filepath.Base(l.StateDir) + ".creating-" + hex.EncodeToString(suffix)
+	if err := parent.Mkdir(staged, 0o755); err != nil {
+		return err
+	}
+	stagedLayout := l
+	stagedLayout.StateDir = filepath.Join(filepath.Dir(l.StateDir), staged)
+	if err := writeMark(key, stagedLayout); err != nil {
+		_ = parent.RemoveAll(staged)
+		return err
+	}
+	if err := parent.Rename(staged, filepath.Base(l.StateDir)); err != nil {
+		_ = parent.RemoveAll(staged)
+		if _, serr := parent.Stat(filepath.Base(l.StateDir)); serr == nil {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 // writeMark mints a fresh id and writes the mark into the state directory
