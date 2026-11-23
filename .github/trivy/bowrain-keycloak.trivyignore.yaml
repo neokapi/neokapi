@@ -1,0 +1,29 @@
+# Findings in ghcr.io/neokapi/bowrain-keycloak that have no fix to take. The
+# founder approved the five base-image entries on 2026-11-23, with an expiry;
+# the guava entry joins them under that decision because no Keycloak release
+# ships the fixed guava yet. Trivy honours
+# `expired_at`: on that date an entry stops applying and the scan fails on the
+# finding again. Renew one only after checking for a fix.
+#
+# container-scan.yml passes this file to the Keycloak image only, so the same
+# identifier in any other image still fails its scan. Nothing else is ignored:
+# no ignore-unfixed and no severity change.
+vulnerabilities:
+  - id: CVE-2026-91403
+    statement: "java-21-openjdk-headless (Red Hat 9 base): Red Hat marks it will_not_fix"
+    expired_at: 2027-01-22
+  - id: CVE-2026-119373
+    statement: "sqlite-libs 3.34.1 (Red Hat 9 base): affected, no fix published"
+    expired_at: 2027-01-22
+  - id: CVE-2026-119374
+    statement: "sqlite-libs 3.34.1 (Red Hat 9 base): affected, no fix published"
+    expired_at: 2027-01-22
+  - id: CVE-2026-119379
+    statement: "sqlite-libs 3.34.1 (Red Hat 9 base): affected, no fix published"
+    expired_at: 2027-01-22
+  - id: CVE-2026-119586
+    statement: "sqlite-libs 3.34.1 (Red Hat 9 base): affected, no fix published"
+    expired_at: 2027-01-22
+  - id: CVE-2026-102554
+    statement: "guava 33.6.0 inside Keycloak 26.8.2 (the latest release, 26.8.2-3); fixed in guava 33.7.2, which no Keycloak release ships yet"
+    expired_at: 2027-01-22
