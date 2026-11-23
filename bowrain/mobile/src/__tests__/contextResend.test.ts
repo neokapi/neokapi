@@ -1,53 +1,107 @@
-// A context decision whose answer is lost is sent again, and a repeat refused
-// as no longer pending is the first attempt's landing, not a failure.
-import { ApiError, NetworkError, type ContextDecision } from "@neokapi/bowrain-client";
+// A context decision whose answer is lost is sent again. A repeat refused as
+// no longer pending is the first attempt's landing only when the feed shows
+// the reader made the same decision; otherwise it names who decided and how.
+import {
+  ApiError,
+  NetworkError,
+  type ContextDecision,
+  type FeedEntry,
+} from "@neokapi/bowrain-client";
 
-import { sendContextDecision } from "../lib/contextDeck";
+import { feedDecision, sendContextDecision } from "../lib/contextDeck";
 
-const decision = {
-  item: { kind: "concept", id: "c1" },
-  revision: "r1",
+const keep = {
+  item: { kind: "op", id: "op1" },
+  revision: "op1",
   action: "keep",
-} as unknown as ContextDecision;
+} as ContextDecision;
 
 const noWait = async () => undefined;
 
-/** A client whose answers to decideContext come from the list, in order. */
-function client(answers: (() => Promise<unknown>)[]) {
+function entry(over: Partial<FeedEntry>): FeedEntry {
+  return {
+    id: "e1",
+    kind: "context_change",
+    at: new Date().toISOString(),
+    actor: { id: "u1", kind: "person", name: "Ada", viewer: true },
+    counts: { keep: 1, attest: 1, term_rule: 2 },
+    link: { screen: "context_deck", mode: "replay", items: ["op1"] },
+    ...over,
+  } as FeedEntry;
+}
+
+/** A client whose decideContext answers come from the list, in order, over a feed. */
+function client(answers: (() => Promise<unknown>)[], entries: FeedEntry[] = []) {
   let calls = 0;
   return {
     get calls() {
       return calls;
     },
     decideContext: () => answers[calls++](),
-  } as never as { calls: number; decideContext: () => Promise<never> };
+    feed: async () => ({ entries }),
+  } as never as {
+    calls: number;
+    decideContext: () => Promise<never>;
+    feed: () => Promise<never>;
+  };
 }
 
 const lost = () =>
   Promise.reject(new NetworkError("fetch failed: The network connection was lost."));
 const notPending = () =>
-  Promise.reject(new ApiError(409, "it waits no longer", { code: "not_pending" }));
+  Promise.reject(new ApiError(409, "the item is not waiting for review", { code: "not_pending" }));
 const kept = () => Promise.resolve({ outcome: "kept" });
 
 describe("sendContextDecision", () => {
-  it("takes a repeat refused as no longer pending, after a lost answer, as landed", async () => {
-    const c = client([lost, notPending]);
-    await expect(sendContextDecision(c, "acme", "p1", decision, noWait)).resolves.toEqual({
+  it("counts a repeat as landed when the feed shows the reader made the same decision", async () => {
+    const c = client([lost, notPending], [entry({})]);
+    await expect(sendContextDecision(c, "acme", "p1", keep, noWait)).resolves.toEqual({
       outcome: "landed",
     });
     expect(c.calls).toBe(2);
   });
 
+  it("names a teammate who decided the item first, with what they did", async () => {
+    const theirs = entry({
+      actor: { id: "u2", kind: "person", name: "Grace" },
+      counts: { drop: 1, term_rule: 1 },
+    });
+    const c = client([lost, notPending], [theirs]);
+    await expect(sendContextDecision(c, "acme", "p1", keep, noWait)).resolves.toEqual({
+      outcome: "decided_by",
+      name: "Grace",
+      action: "reject",
+    });
+  });
+
+  it("does not take the reader's own opposite decision as this one landing", async () => {
+    const c = client([lost, notPending], [entry({ counts: { drop: 1 } })]);
+    await expect(sendContextDecision(c, "acme", "p1", keep, noWait)).resolves.toMatchObject({
+      outcome: "decided_by",
+      action: "reject",
+    });
+  });
+
+  it("says the item is gone when the feed does not name it", async () => {
+    const c = client(
+      [lost, notPending],
+      [entry({ link: { screen: "context_deck", items: ["other"] } })],
+    );
+    await expect(sendContextDecision(c, "acme", "p1", keep, noWait)).resolves.toEqual({
+      outcome: "gone",
+    });
+  });
+
   it("gives the server's answer when a repeat lands", async () => {
     const c = client([lost, kept]);
-    await expect(sendContextDecision(c, "acme", "p1", decision, noWait)).resolves.toEqual({
+    await expect(sendContextDecision(c, "acme", "p1", keep, noWait)).resolves.toEqual({
       outcome: "kept",
     });
   });
 
   it("reports a no-longer-pending refusal that follows no lost answer", async () => {
     const c = client([notPending]);
-    await expect(sendContextDecision(c, "acme", "p1", decision, noWait)).rejects.toBeInstanceOf(
+    await expect(sendContextDecision(c, "acme", "p1", keep, noWait)).rejects.toBeInstanceOf(
       ApiError,
     );
     expect(c.calls).toBe(1);
@@ -55,9 +109,19 @@ describe("sendContextDecision", () => {
 
   it("gives up after three attempts with no answer", async () => {
     const c = client([lost, lost, lost]);
-    await expect(sendContextDecision(c, "acme", "p1", decision, noWait)).rejects.toBeInstanceOf(
+    await expect(sendContextDecision(c, "acme", "p1", keep, noWait)).rejects.toBeInstanceOf(
       NetworkError,
     );
     expect(c.calls).toBe(3);
+  });
+});
+
+describe("feedDecision", () => {
+  it("reads an agent's change made for the reader as the reader's", () => {
+    const forReader = entry({
+      actor: { id: "a1", kind: "agent", name: "codex" },
+      on_behalf_of: { id: "u1", name: "Ada", viewer: true },
+    });
+    expect(feedDecision([forReader], "op1")).toEqual({ mine: true, name: "Ada", action: "keep" });
   });
 });

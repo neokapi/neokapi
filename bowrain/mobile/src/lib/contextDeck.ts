@@ -10,21 +10,60 @@ import {
   type ContextDecision,
   type ContextDecisionResult,
   type ContextSessionSince,
+  type FeedEntry,
 } from "@neokapi/bowrain-client";
 
-/** A context decision's answer, or that an earlier attempt whose answer was lost landed it. */
-export type ContextSendResult = ContextDecisionResult | { outcome: "landed" };
+/**
+ * What became of a context decision. `landed`: an earlier attempt whose
+ * answer was lost made it, as the feed shows. `decided_by`: someone else
+ * decided the item first, with what they did. `gone`: the item no longer
+ * waits, and the feed does not say who decided it.
+ */
+export type ContextSendResult =
+  | ContextDecisionResult
+  | { outcome: "landed" }
+  | { outcome: "decided_by"; name: string; action: "keep" | "reject" }
+  | { outcome: "gone" };
 
 /** How long to wait before sending a context decision again, per attempt. */
 const RESEND_MS = [1000, 2000];
 
+/** The feed operations a keep and a reject record. */
+const KEEP_OPS = ["keep", "attest"];
+const REJECT_OPS = ["drop", "reject", "forget"];
+
+/**
+ * What the newest feed entry about an item says was decided, and whether the
+ * reader decided it. Undefined when no entry on the first page names the item.
+ */
+export function feedDecision(
+  entries: readonly FeedEntry[],
+  itemId: string,
+): { mine: boolean; name: string; action: "keep" | "reject" } | undefined {
+  for (const e of entries) {
+    if (e.kind !== "context_change" || !e.link.items?.includes(itemId)) continue;
+    const ops = Object.keys(e.counts);
+    const action = ops.some((o) => REJECT_OPS.includes(o))
+      ? "reject"
+      : ops.some((o) => KEEP_OPS.includes(o))
+        ? "keep"
+        : undefined;
+    if (!action) continue;
+    const mine = e.actor.viewer === true || e.on_behalf_of?.viewer === true;
+    return { mine, name: e.on_behalf_of?.name ?? e.actor.name ?? "", action };
+  }
+  return undefined;
+}
+
 /**
  * Send a context decision. When no answer comes back, it is sent again, up to
- * twice. A decision whose first answer was lost may have landed, so a repeat
- * refused as no longer pending is that landing, not a failure.
+ * twice. A repeat refused as no longer pending may be the first attempt's
+ * landing or a teammate's decision, so the app reads the project's feed: the
+ * decision landed only when the newest entry about the item is the reader's
+ * and records the same action.
  */
 export async function sendContextDecision(
-  client: Pick<BowrainClient, "decideContext">,
+  client: Pick<BowrainClient, "decideContext" | "feed">,
   ws: string,
   project: string,
   decision: ContextDecision,
@@ -36,7 +75,11 @@ export async function sendContextDecision(
       return await client.decideContext(ws, project, decision);
     } catch (err) {
       if (lost && err instanceof ApiError && refusalCode(err) === "not_pending") {
-        return { outcome: "landed" };
+        const page = await client.feed(ws, project, { limit: 50 });
+        const found = feedDecision(page.entries, decision.item.id);
+        if (!found) return { outcome: "gone" };
+        if (found.mine && found.action === decision.action) return { outcome: "landed" };
+        return { outcome: "decided_by", name: found.name, action: found.action };
       }
       if (!isNetworkError(err) || attempt >= RESEND_MS.length) throw err;
       lost = true;

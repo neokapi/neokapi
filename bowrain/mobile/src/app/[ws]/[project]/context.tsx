@@ -166,6 +166,10 @@ export default function ContextSessionScreen() {
       const p = sendContextDecision(client, ws, project, d)
         .then((result) => {
           if (result.outcome === "proposed") setNotice(t("context.outcome.proposed"));
+          // The item no longer waits either way, so it stays out of the deck.
+          else if (result.outcome === "decided_by")
+            setNotice(t(`context.decidedBy.${result.action}`, { name: result.name }));
+          else if (result.outcome === "gone") setNotice(t("context.refused.not_pending"));
           void qc.invalidateQueries({ queryKey: ["review-inbox"] });
         })
         .catch((err: unknown) => {

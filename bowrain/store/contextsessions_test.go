@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/contextop"
 )
 
 // Two sessions started on one project hold disjoint cards; a decision
@@ -90,4 +91,41 @@ func TestContextSessions_HoldsAreDisjointAndExpire(t *testing.T) {
 	last, _, err = s.LastEndedContextSession(ctx, p.ID, late.Add(2*time.Minute))
 	require.NoError(t, err)
 	assert.Equal(t, "s-c", last.ID)
+}
+
+// A context item's key joins its kind, profile and id with NUL bytes, which
+// PostgreSQL refuses in text and jsonb. A session holds, records and reads
+// back such keys as they were given.
+func TestContextSessions_KeysWithNULBytes(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+	at := time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC)
+	key := contextop.ItemRef{Kind: contextop.ItemOp, ID: "0recs8gt14ph9003v6nd4jr1"}.Key()
+	require.Contains(t, key, "\x00")
+
+	sess := platstore.ContextSession{
+		ID: "s-nul", ProjectID: p.ID, UserID: "ada", StartedAt: at, ExpiresAt: at.Add(30 * time.Minute),
+		Cards: []platstore.ContextSessionCard{{Item: key, Kind: "term_rule", Term: "Sign In"}},
+	}
+	held, err := s.StartContextSession(ctx, sess, []string{key}, 10)
+	require.NoError(t, err)
+	assert.Equal(t, []string{key}, held)
+
+	holds, err := s.ContextSessionHolds(ctx, p.ID, at.Add(time.Minute))
+	require.NoError(t, err)
+	require.Len(t, holds, 1)
+	assert.Equal(t, key, holds[0].Item)
+
+	decided := platstore.ContextSessionDecision{Item: key, Outcome: platstore.SessionKept, At: at.Add(2 * time.Minute)}
+	require.NoError(t, s.RecordContextSessionDecision(ctx, "s-nul", decided, at.Add(32*time.Minute)))
+	got, ok, err := s.GetContextSession(ctx, "s-nul")
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.Equal(t, key, got.Cards[0].Item)
+	assert.Equal(t, []platstore.ContextSessionDecision{decided}, got.Decisions)
+
+	holds, err = s.ContextSessionHolds(ctx, p.ID, at.Add(3*time.Minute))
+	require.NoError(t, err)
+	assert.Empty(t, holds, "the decision releases the card it names")
 }

@@ -94,8 +94,11 @@ export class ApiError extends Error {
  */
 export class NetworkError extends TypeError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
+    super(message);
     this.name = "NetworkError";
+    // Set here rather than through the constructor's options, which not every
+    // consumer's target library declares.
+    if (options && "cause" in options) (this as { cause?: unknown }).cause = options.cause;
   }
 }
 

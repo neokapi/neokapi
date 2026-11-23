@@ -298,6 +298,10 @@
     "outcome": {
       "proposed": "Sent for review as a change set."
     },
+    "decidedBy": {
+      "keep": "{{name}} kept this item before your decision arrived.",
+      "reject": "{{name}} rejected this item before your decision arrived."
+    },
     "refused": {
       "stale": "This item changed. It is back at the end of the deck.",
       "not_pending": "Someone reviewed this item already.",
