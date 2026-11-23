@@ -1,5 +1,11 @@
 import type { ApiAdapter, ComponentSchema } from "@neokapi/ui";
-import { ALL_PERMISSIONS, FlowChangedError, governedRefusalError } from "@neokapi/ui";
+import {
+  ALL_PERMISSIONS,
+  FlowChangedError,
+  flowDefinitionFromWire,
+  flowDefinitionsFromWire,
+  governedRefusalError,
+} from "@neokapi/ui";
 import type {
   CallerPermissions,
   ContextQueue,
@@ -1307,14 +1313,14 @@ export class WailsApiAdapter implements ApiAdapter {
   // server's flow-definition REST API. The workspace is implicit (the active
   // workspace tracked by the Go backend), so the ws arg is unused here.
   async listFlowDefinitions(_ws: string, projectId: string): Promise<FlowDefinitionInfo[]> {
-    return Backend.ListFlowDefinitions(projectId) as Promise<FlowDefinitionInfo[]>;
+    return flowDefinitionsFromWire(await Backend.ListFlowDefinitions(projectId));
   }
   async getFlowDefinition(
     _ws: string,
     projectId: string,
     flowId: string,
   ): Promise<FlowDefinitionInfo> {
-    return Backend.GetFlowDefinition(projectId, flowId) as Promise<FlowDefinitionInfo>;
+    return flowDefinitionFromWire(await Backend.GetFlowDefinition(projectId, flowId));
   }
   async createFlowDefinition(
     _ws: string,
@@ -1325,7 +1331,7 @@ export class WailsApiAdapter implements ApiAdapter {
       ...def,
       id: "",
     });
-    return result?.flow as unknown as FlowDefinitionInfo;
+    return flowDefinitionFromWire(result?.flow);
   }
   async updateFlowDefinition(
     _ws: string,
@@ -1339,9 +1345,9 @@ export class WailsApiAdapter implements ApiAdapter {
     });
     // A save based on an older read is refused, as the web's is.
     if (result?.changed) {
-      throw new FlowChangedError(result.changed as unknown as FlowDefinitionInfo);
+      throw new FlowChangedError(flowDefinitionFromWire(result.changed));
     }
-    return result?.flow as unknown as FlowDefinitionInfo;
+    return flowDefinitionFromWire(result?.flow);
   }
   async deleteFlowDefinition(_ws: string, projectId: string, flowId: string): Promise<void> {
     return Backend.DeleteFlowDefinition(projectId, flowId);
