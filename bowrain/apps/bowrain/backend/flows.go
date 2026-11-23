@@ -12,6 +12,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/host/flowdef"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
 
 // Flow definitions on the desktop (Bowrain AD-013, #766).
@@ -149,7 +150,10 @@ func (a *App) flowDo(method, urlStr, token string, body any, out any) error {
 	}
 	resp, err := a.client().do(a.requestContext(), req)
 	if err != nil {
-		return err
+		if a.requestContext().Err() != nil {
+			return err
+		}
+		return &serverUnreachableError{err: err}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -236,6 +240,30 @@ func (e *flowAPIError) Error() string {
 	return fmt.Sprintf("the server could not save the flow (%s)", strings.ToLower(http.StatusText(e.status)))
 }
 
+// MarshalJSON gives the refusal to the frontend as the web receives it: the
+// status and the server's own body, which one function renders on both.
+func (e *flowAPIError) MarshalJSON() ([]byte, error) {
+	return apiclient.RefusalJSON(e.status, e.body), nil
+}
+
+// errOffline is why a flow request made while the app is offline was not sent.
+var errOffline = errors.New("the app is offline")
+
+// serverUnreachableError is a flow request that never reached the server.
+type serverUnreachableError struct{ err error }
+
+func (e *serverUnreachableError) Error() string {
+	return "could not reach the server: " + e.err.Error()
+}
+
+func (e *serverUnreachableError) Unwrap() error { return e.err }
+
+// MarshalJSON tells the frontend the request did not reach the server, so it
+// says so rather than showing the transport's message.
+func (e *serverUnreachableError) MarshalJSON() ([]byte, error) {
+	return apiclient.UnreachableJSON(), nil
+}
+
 // flowChanged reads the flow as it now stands out of a save the server
 // refused because the flow changed after it was read, or reports false.
 func flowChanged(err error) (*FlowDefinitionInfo, bool) {
@@ -261,7 +289,7 @@ func flowChanged(err error) (*FlowDefinitionInfo, bool) {
 func (a *App) SaveFlowDefinition(projectID string, info FlowDefinitionInfo) (*FlowSaveResult, error) {
 	base, token, ok := a.flowREST(projectID)
 	if !ok {
-		return nil, errors.New("not connected: connect to a server to save flows")
+		return nil, &serverUnreachableError{err: errOffline}
 	}
 	if info.Source == "built-in" {
 		return nil, errors.New("cannot modify built-in flows")
@@ -294,7 +322,7 @@ func (a *App) SaveFlowDefinition(projectID string, info FlowDefinitionInfo) (*Fl
 func (a *App) DeleteFlowDefinition(projectID, id string) error {
 	base, token, ok := a.flowREST(projectID)
 	if !ok {
-		return errors.New("not connected: connect to a server to delete flows")
+		return &serverUnreachableError{err: errOffline}
 	}
 	return a.flowDo(http.MethodDelete, base+"/"+url.PathEscape(id), token, nil, nil)
 }

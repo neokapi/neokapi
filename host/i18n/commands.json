@@ -4444,24 +4444,30 @@
         },
         "trust": {
           "allow": {
-            "example": "  kapi trust allow -p ./app\n  kapi trust allow -p ./app --yes",
+            "example": "  kapi trust allow -p ./app\n  kapi trust allow -p ./app --yes\n  kapi trust allow --context-store -p ./app",
             "flags": {
+              "context-store": {
+                "usage": "allow the folder the recipe keeps its context in, instead of the commands it runs"
+              },
               "project": {
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               }
             },
-            "long": "Record an allow for what the recipe runs now, without starting a run. The\ncommands are shown first and confirmed at the terminal. With no terminal\nattached nothing is recorded unless --yes is given.\n\nAn allow is keyed to the commands shown: a recipe edit that changes them asks\nagain. To grant one process trust without recording anything, set\nKAPI_TRUST_EXEC=1 instead.",
-            "short": "Record that a project may run the commands its recipe names"
+            "long": "Record an allow for what the recipe runs now, without starting a run. The\ncommands are shown first and confirmed at the terminal. With no terminal\nattached nothing is recorded unless --yes is given.\n\nWith --context-store the allow is for the folder the recipe keeps its context\nin instead: the folder is shown, confirmed the same way, and kept against its\nresolved path.\n\nAn allow is keyed to the commands shown: a recipe edit that changes them asks\nagain. To grant one process trust without recording anything, set\nKAPI_TRUST_EXEC=1 instead.",
+            "short": "Record that a project may run its commands or use its folder"
           },
           "example": "  kapi trust list\n  kapi trust show -p ./app\n  kapi trust allow -p ./app\n  kapi trust revoke ./app",
           "list": {
             "long": "List every recorded decision: the path it is keyed by, allow or deny, when it\nwas recorded, and how it stands against what is at the path now.\n\n  current     the recipe still runs what was decided; the next run honours it\n  changed     the recipe runs something else now; the next run asks again\n  missing     nothing is at the path any more\n  unreadable  the recipe at the path does not load\n  unverified  a formatter decision; kapi apply checks it at the edit",
             "short": "List every recorded decision and whether it still applies"
           },
-          "long": "List, inspect and change which projects may run commands.\n\nA recipe that names an exec-class step (external-command, script, or the exec\nformat) runs code the recipe chooses, with your privileges and your\nenvironment. kapi asks once per project before running it and remembers the\nanswer, allow or deny, against a fingerprint of the commands shown. A recipe\nedit that changes what would run asks again. A comment edit's project\nformatter is decided the same way and kept in the same record, keyed by the\nconfiguration file that selects it.\n\nThese commands read and change that record, which is kept in the kapi config\ndirectory, not in the project. They are about execution only: plugin installs\nand package adoption are confirmed at the time and keep no record.\n\nKAPI_TRUST_EXEC=1 grants trust to one process without consulting or writing\nthe record; it is for automation and is not shown here as a decision.",
+          "long": "List, inspect and change which projects may run commands or keep their\ncontext in a folder.\n\nA recipe that names an exec-class step (external-command, script, or the exec\nformat) runs code the recipe chooses, with your privileges and your\nenvironment. kapi asks once per project before running it and remembers the\nanswer, allow or deny, against a fingerprint of the commands shown. A recipe\nedit that changes what would run asks again. A comment edit's project\nformatter is decided the same way and kept in the same record, keyed by the\nconfiguration file that selects it.\n\nA recipe whose context block names a folder (backend: file) makes kapi write\nthe project's decisions, terms and voice there and merge in what the folder\nholds. The first sync through it shows the folder, with links resolved, and\nasks. The answer is kept in the same record, bound to the project and that\nfolder, and a path that leads to another folder asks again. kapi share --via\nfolder records the allow for the folder it names. With no terminal attached,\nkapi trust allow --context-store --yes records it. A tool call through kapi\nmcp cannot record one, and an assistant that identifies itself is refused.\n\nThese commands read and change that record, which is kept in the kapi config\ndirectory, not in the project. Plugin installs and package adoption are\nconfirmed at the time and keep no record.\n\nKAPI_TRUST_EXEC=1 grants trust to one process without consulting or writing\nthe record; it is for automation and is not shown here as a decision.",
           "revoke": {
             "example": "  kapi trust revoke ./app\n  kapi trust revoke -p ./app",
             "flags": {
+              "context-store": {
+                "usage": "withdraw the folder approval for the project's context, instead of its commands decision"
+              },
               "project": {
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               }
@@ -4469,7 +4475,7 @@
             "long": "Withdraw the decision recorded for a project, allow or deny, so the next run\nasks again. The path names the recipe or its directory; a formatter decision\nis named by the configuration file kapi trust list shows for it. Withdrawing\na decision nobody recorded reports that and succeeds.",
             "short": "Withdraw the decision recorded for a project"
           },
-          "short": "List, inspect and change which projects may run commands",
+          "short": "List, inspect and change which projects may run commands or use a folder",
           "show": {
             "flags": {
               "project": {

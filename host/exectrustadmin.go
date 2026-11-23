@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/output"
@@ -45,6 +46,9 @@ func (a *App) ExecTrustList() output.TrustListOutput {
 // recipe arm keys by the recipe file, the formatter arm by the configuration
 // file that selected the formatter.
 func execTrustEntryKind(key string) string {
+	if isContextStoreKey(key) {
+		return "context-store"
+	}
 	if filepath.Base(key) == project.RecipeFileName {
 		return "recipe"
 	}
@@ -54,6 +58,20 @@ func execTrustEntryKind(key string) string {
 // execTrustStanding compares a recorded digest with what the file at key
 // would run now.
 func execTrustStanding(key, kind, digest string) (status, detail string) {
+	if kind == "context-store" {
+		recipe := strings.TrimSuffix(key, contextStoreKeySuffix)
+		location, now, err := contextStoreFor(recipe)
+		switch {
+		case err != nil:
+			return output.TrustStatusUnreadable, err.Error()
+		case location == "":
+			return output.TrustStatusChanged, "the recipe keeps no context in a folder now"
+		case now == digest:
+			return output.TrustStatusCurrent, location
+		default:
+			return output.TrustStatusChanged, "the recipe, its project or the folder it leads to changed (" + location + "); the next sync asks again"
+		}
+	}
 	if _, err := os.Stat(key); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return output.TrustStatusMissing, ""

@@ -21,21 +21,17 @@ import (
 
 // Growing a project's context out of ordinary work (C-11), agent half.
 //
-// Most projects record nothing. Their conventions live in the heads of the
-// people who write them, and an agent working in such a project has to work out
-// the same facts in every session. These tools are where that
-// goes instead: one small call per habit, cheap enough to make mid-task.
+// These tools let an agent record a project's conventions, one small call
+// each.
+// The one recording tool is context_note, in parity with `kapi context note`.
+// It wraps the calls in contextops.go.
 //
-// context_note is the one recording tool, in parity with `kapi context note`:
-// what the agent found, what a person changed, and taking back a note of its
-// own. It wraps the calls in host/contextops.go and adds no rule of its own.
-// What an agent may record is decided by core/contextop's policy, not here:
-// checks report every note and none can fail. Keeping, dropping, widening and
-// resetting belong to a person, so this surface carries no tool for them.
+// The contextop policy decides what an agent may record. Checks report every
+// note and none fails. Keeping, dropping,
+// widening and resetting belong to a person, so no tool here does them.
 //
-// The actor is never the caller's to state. Kind is agent, the name is what the
-// client called itself at initialize, and the session is minted once per server
-// process, so everything one run recorded reads back together.
+// The actor is always an agent named by what the client called itself at
+// initialize, in one session per server process.
 
 func init() { RegisterMCPToolFactory(registerContextGrowthMCPTools) }
 
@@ -147,6 +143,7 @@ func clientNameOf(ss *mcp.ServerSession) string {
 // that will not open; failing its call over a note would be the tool getting in
 // the way of the work it exists to support.
 func (a *App) NoteMCPSession(ctx context.Context, recipe, agent string) {
+	a.servingMCP = true
 	ws, err := a.Workspace(ctx)
 	if err != nil || ws == nil {
 		return

@@ -178,7 +178,7 @@ function AppInner() {
 
   // Demote out of the mounted app when the session drops: the desktop sign-out
   // (platform.signOut → Logout) disconnects, returning the user to ServerConnect.
-  // A network blip reports "offline" and a reconnect attempt "connecting"; both
+  // A network blip reports "offline" and a reconnect attempt "reconnecting"; both
   // keep a valid working copy, so only a disconnect demotes.
   useEffect(() => {
     if (mode === "ready" && connection.info.state === "disconnected") {
@@ -204,7 +204,7 @@ function AppInner() {
         if (aborted) return;
         if (ci.state === "connected") {
           if (!aborted) await applyProbeOutcome(ci);
-        } else if (ci.state === "offline") {
+        } else if (ci.state === "offline" || ci.state === "reconnecting") {
           // Backend already holds a mid-session offline working copy — mount it.
           await ensureWorkspaceSelected(ci);
           if (!aborted) setMode("ready");
