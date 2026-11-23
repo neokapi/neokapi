@@ -407,17 +407,12 @@ func (c *docCache) subformatsHold(recorded string) bool {
 	return true
 }
 
-// validLog reports whether the regular file p inside dir is a part log whose
-// every line decodes as one part and whose bytes digest to want. It reads the
-// log once, line by line, as Feed does.
-func validLog(dir, p, want string) bool {
-	f, err := openCacheEntry(dir, p)
-	if err != nil {
-		return false
-	}
-	defer f.Close()
+// validLog reports whether the first size bytes of the open log f are a part
+// log whose every line decodes as one part and whose bytes digest to want. It
+// reads the log once, line by line, as Feed does, and leaves f open.
+func validLog(f *os.File, size int64, want string) bool {
 	h := sha256.New()
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(io.NewSectionReader(f, 0, size))
 	sc.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
 	for sc.Scan() {
 		line := sc.Bytes()
@@ -486,8 +481,13 @@ func (c *docCache) recorded(row docRow) flow.CachedDocument {
 		c.discard(row)
 		return nil
 	}
-	partsPath := filepath.Join(c.dir, row.partsRef)
-	if row.partsDigest == "" || !validLog(c.dir, partsPath, row.partsDigest) {
+	// The log is checked and replayed through one handle, so a file put in
+	// its place after the check is never what Feed reads.
+	log, size, ok := openLog(c.dir, filepath.Join(c.dir, row.partsRef))
+	if !ok || row.partsDigest == "" || !validLog(log, size, row.partsDigest) {
+		if log != nil {
+			_ = log.Close()
+		}
 		c.discard(row)
 		return nil
 	}
@@ -495,11 +495,27 @@ func (c *docCache) recorded(row docRow) flow.CachedDocument {
 	if row.skeletonRef != "" {
 		skelPath = filepath.Join(c.dir, row.skeletonRef)
 		if fileDigestIn(c.dir, skelPath) != row.skeletonDigest {
+			_ = log.Close()
 			c.discard(row)
 			return nil
 		}
 	}
-	return &cachedDocument{dir: c.dir, partsPath: partsPath, skeletonPath: skelPath}
+	return &cachedDocument{dir: c.dir, log: log, logSize: size, skeletonPath: skelPath}
+}
+
+// openLog opens the part log p inside dir and returns it with its size; ok is
+// false, with no file to close, when it cannot be opened or sized.
+func openLog(dir, p string) (f *os.File, size int64, ok bool) {
+	f, err := openCacheEntry(dir, p)
+	if err != nil {
+		return nil, 0, false
+	}
+	st, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, 0, false
+	}
+	return f, st.Size(), true
 }
 
 // RecordDocument returns a sink that persists a freshly-parsed document as it
@@ -569,21 +585,21 @@ func (c *docCache) newRecorder(path, configKey, formatName string) *docRecorder 
 // cachedDocument streams a previously-recorded document from disk.
 type cachedDocument struct {
 	// dir is the cache directory that holds both files.
-	dir          string
-	partsPath    string
+	dir string
+	// log is the part log, open from the check in recorded until Close, and
+	// logSize its size at the check.
+	log          *os.File
+	logSize      int64
 	skeletonPath string
 }
 
 // Feed streams the document's parts to inCh one at a time, reading the append
-// log line by line so the whole document is never held in memory. It closes inCh.
+// log line by line so the whole document is never held in memory. It reads the
+// handle recorded checked, from its start, so it may run more than once before
+// Close. It closes inCh.
 func (d *cachedDocument) Feed(ctx context.Context, inCh chan<- *model.Part) error {
 	defer close(inCh)
-	f, err := openCacheEntry(d.dir, d.partsPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(io.NewSectionReader(d.log, 0, d.logSize))
 	sc.Buffer(make([]byte, 0, 64*1024), 16*1024*1024) // allow large single-part lines
 	for sc.Scan() {
 		var cp cachedPart
@@ -626,7 +642,8 @@ func (d *cachedDocument) OpenSkeleton() (*format.SkeletonStore, error) {
 	return s, nil
 }
 
-func (d *cachedDocument) Close() error { return nil }
+// Close closes the part log.
+func (d *cachedDocument) Close() error { return d.log.Close() }
 
 // docRecorder persists a document as it parses: each part appended to the log,
 // the skeleton written to its file by the reader's emitter.
