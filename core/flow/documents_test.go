@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -183,4 +184,36 @@ func TestFileRunner_CommitsUnderTheHomesLock(t *testing.T) {
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{FormatReg: newTestRegistry(), SourceLocale: "en-US", Home: home})
 	require.NoError(t, runner.RunFile(t.Context(), "pseudo", []tool.Tool{pseudoTool(t)}, input, filepath.Join(dir, "qps.json"), "qps"))
 	assert.Equal(t, 1, prepared, "the commit took a lock in the home")
+}
+
+// TestRunFile_LockDirectoryFollowsTMPDIR pins where a runner with no home of
+// its own puts its lock files: under TMPDIR as it is when each run commits. A
+// runner that kept the directory of its first commit for the life of the
+// process created that directory again on every later commit, inside a
+// temporary directory a test had already removed.
+func TestRunFile_LockDirectoryFollowsTMPDIR(t *testing.T) {
+	runner, reg := skeletonTestRunner(t)
+	lockDirName := "kapi-locks-" + strconv.Itoa(os.Getuid())
+
+	run := func(tmp string) {
+		t.Helper()
+		t.Setenv("TMPDIR", tmp)
+		dir := t.TempDir()
+		in := filepath.Join(dir, "notes.md")
+		require.NoError(t, os.WriteFile(in, []byte(markdownOnlyASkeletonPreserves), 0o644))
+		rd, err := reg.NewReader("markdown")
+		require.NoError(t, err)
+		wr, err := reg.NewWriter("markdown")
+		require.NoError(t, err)
+		require.NoError(t, runner.RunFileWithReaderWriter(context.Background(), "noop", noopTools(), in, filepath.Join(dir, "out.md"), "", rd, wr))
+	}
+
+	first, second := t.TempDir(), t.TempDir()
+	run(first)
+	require.DirExists(t, filepath.Join(first, lockDirName), "the first commit locks under the TMPDIR it ran with")
+	require.NoError(t, os.RemoveAll(filepath.Join(first, lockDirName)))
+
+	run(second)
+	assert.DirExists(t, filepath.Join(second, lockDirName), "a later commit locks under the TMPDIR it runs with")
+	assert.NoDirExists(t, filepath.Join(first, lockDirName), "and never recreates the lock directory of an earlier TMPDIR")
 }

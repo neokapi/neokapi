@@ -38,7 +38,9 @@ saves when it is:
   * actions/setup-node with a `cache` input;
   * golangci/golangci-lint-action without `skip-cache` or `skip-save-cache`;
   * docker/build-push-action whose `cache-to` names the gha cache;
-  * msys2/setup-msys2 whose `cache` is not false (it defaults to true).
+  * msys2/setup-msys2 whose `cache` is not false (it defaults to true);
+  * aquasecurity/trivy-action whose `cache` is not false (it defaults to true
+    and saves the vulnerability database through actions/cache).
 
 An input or condition the guard cannot decide is an error naming the step,
 and so is a workflow on an event it does not model (merge_group,
@@ -263,6 +265,8 @@ def saves(uses: str, with_: dict, inputs: dict[str, str], where: str) -> object:
         return cts.logical_and(cache, save)
     if name == "actions/setup-node":
         return "cache" in with_ and on_pr(with_["cache"], inputs, f"{where} input cache")
+    if name == "aquasecurity/trivy-action":
+        return truthy_input(with_, "cache", True, inputs, where)
     if name == "golangci/golangci-lint-action":
         skip = truthy_input(with_, "skip-cache", False, inputs, where)
         skip_save = truthy_input(with_, "skip-save-cache", False, inputs, where)
@@ -599,6 +603,12 @@ jobs:
         uses: actions/setup-go@v7
         with:
           cache: ${{ github.ref == 'refs/heads/main' }}
+      - name: trivy on any ref
+        uses: aquasecurity/trivy-action@0000000000000000000000000000000000000000
+      - name: trivy on main only
+        uses: aquasecurity/trivy-action@0000000000000000000000000000000000000000
+        with:
+          cache: ${{ github.ref == 'refs/heads/main' }}
 """
 
 FIXTURE_TAGS_ONLY = """\
@@ -790,6 +800,8 @@ def self_test() -> int:
             ("saves on main only", tag): False, ("saves on main only", branch): False,
             ("msys2 on main only", tag): False, ("msys2 on main only", branch): False,
             ("setup-go on main only", tag): False, ("setup-go on main only", branch): False,
+            ("trivy on any ref", tag): True, ("trivy on any ref", branch): True,
+            ("trivy on main only", tag): False, ("trivy on main only", branch): False,
         }
         for (step, run), want in expect.items():
             got = any(f"step {step}:" in p and p.endswith(run) for p in problems)

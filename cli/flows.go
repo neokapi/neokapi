@@ -27,5 +27,6 @@ func NewFlowsCmd(a *App) *cobra.Command {
 	}
 
 	flowsCmd.AddCommand(listCmd)
-	return flowsCmd
+	// The listing names the flows the recipe declares beside the built-in ones.
+	return UsesProject(flowsCmd)
 }

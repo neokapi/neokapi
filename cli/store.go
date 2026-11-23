@@ -36,7 +36,7 @@ approved wording, the voice profiles and the history of every decision.
 		newStoreRebuildCmd(a),
 		newStoreLocalesCmd(a),
 	)
-	return cmd
+	return NoProject(cmd)
 }
 
 func newStoreImportCmd(a *App) *cobra.Command {

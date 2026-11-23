@@ -185,7 +185,8 @@ later.`,
 	cmd.Flags().BoolVar(&mintID, "mint-id", false, "Write a stable project id into a recipe that has none, and print the id")
 	cmd.Flags().StringVar(&agents, "agents", "", "Coding agents to wire this project for: a comma-separated list of claude-code, cursor, vscode, codex, agents; 'all'; or 'none' (default: claude-code plus every host already used here)")
 	cmd.MarkFlagsMutuallyExclusive("preset", "framework")
-	return cmd
+	// init writes a new recipe; it does not act on a project found above it.
+	return NoProject(cmd)
 }
 
 // printMintedID reports the project's stable id and whether this run wrote it,

@@ -15,13 +15,13 @@ import (
 )
 
 // NewPluginCmd creates the manifest-driven plugin command tree
-// (singular `plugin`). This is the only plugin command tree, the
+// (singular `plugin`). This is the only plugin command tree; the
 // legacy `plugins` (plural) command tree was removed in #438 phase 9
 // when the v1 gRPC plugin runtime was deleted.
 func NewPluginCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "plugin",
-		// Accept "plugins" too, the plural reads naturally ("kapi plugins
+		// Accept "plugins" too: the plural reads naturally ("kapi plugins
 		// install") and matches how the command is referenced across the docs.
 		Aliases: []string{"plugins"},
 		Short:   "Install and manage manifest-driven plugins",
@@ -44,7 +44,7 @@ func NewPluginCmd(a *App) *cobra.Command {
 	registry := NewRegistryCmd(a)
 	registry.GroupID = ""
 	cmd.AddCommand(registry)
-	return cmd
+	return NoProject(cmd)
 }
 
 func newPluginListCmd(a *App) *cobra.Command {
@@ -260,10 +260,10 @@ func newPluginRemoveCmd(a *App) *cobra.Command {
 	}
 }
 
-// newPluginPruneCmd implements `kapi plugins prune`, clean up plugins kapi has
+// newPluginPruneCmd implements `kapi plugins prune`: clean up plugins kapi has
 // retired but that are still installed from a previous version. Retired plugins
 // are already inert (never loaded); this removes them from disk. It never
-// touches system (Homebrew) installs, it prints the OS command instead, and
+// touches system (Homebrew) installs (it prints the OS command instead), and
 // never removes a plugin's downloaded model cache or config.
 func newPluginPruneCmd(a *App) *cobra.Command {
 	var yes, dryRun bool
@@ -461,11 +461,12 @@ func newPluginVerifyCmd(a *App) *cobra.Command {
 
 // newPluginDoctorCmd implements `kapi plugins doctor [name]`.
 //
-// Doctor is the single, consistent health surface for installed plugins, in
-// place of a self-check verb per plugin as a top-level command. For
+// Doctor is the single, consistent health surface for installed plugins. It
+// replaces the per-plugin self-check verbs (the old `kapi av`, `kapi asr`,
+// `kapi vision`, …) that each plugin minted as a top-level command. For
 // every plugin it confirms the binary is present and its reported version
-// matches the manifest, then, for plugins that declare a self-check
-// (capabilities.selfcheck), runs the plugin's own `<binary> doctor`
+// matches the manifest. For a plugin that declares a self-check
+// (capabilities.selfcheck) it then runs the plugin's own `<binary> doctor`
 // diagnostics, which Confirm bundled binaries, models, or engines resolve at
 // runtime.
 //

@@ -15,6 +15,9 @@ import (
 // a link swapped in after the check is refused by the open itself. A regular
 // file renamed over the name in the meantime (a concurrent writer replacing
 // a content-addressed file with identical bytes) is opened as what it now is.
+// On Windows, where os.OpenFile takes no flag that refuses a reparse point, a
+// link swapped in for the last component between the check and the open is
+// followed; the open still cannot leave root.
 func OpenRegularNoLink(root, p string) (*os.File, error) {
 	abs, err := filepath.Abs(p)
 	if err != nil {

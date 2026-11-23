@@ -3,6 +3,8 @@
 package project
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,14 +34,100 @@ func withVault(t *testing.T, l Layout, content string) {
 	require.NoError(t, os.WriteFile(l.RedactionVaultPath(), []byte(content), 0o600))
 }
 
-// captureStateNotices collects the one-time lines kapi prints.
+// captureStateNotices collects the one-time lines kapi shows, as a person at
+// a terminal would see them.
 func captureStateNotices(t *testing.T) *[]string {
 	t.Helper()
 	var got []string
 	prev := StateNotice
-	StateNotice = func(msg string) { got = append(got, msg) }
+	StateNotice = func(msg string) bool { got = append(got, msg); return true }
 	t.Cleanup(func() { StateNotice = prev })
 	return &got
+}
+
+// unseenStateNotices collects the lines kapi offers when nobody is there to
+// see them: StateNotice reports each as not shown.
+func unseenStateNotices(t *testing.T) *[]string {
+	t.Helper()
+	var got []string
+	prev := StateNotice
+	StateNotice = func(msg string) bool { got = append(got, msg); return false }
+	t.Cleanup(func() { StateNotice = prev })
+	return &got
+}
+
+// dataRootEntries lists what the data root holds under checkouts/.
+func dataRootEntries(t *testing.T) []string {
+	t.Helper()
+	entries, err := os.ReadDir(dataroot.CheckoutsDir())
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	require.NoError(t, err)
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	return names
+}
+
+// Looking at a checkout writes nothing: NoticeState on a checkout with no
+// state and nothing to tell leaves the data root as it found it.
+func TestNoticeStateOnACheckoutWithNothingToTellWritesNothing(t *testing.T) {
+	notices := captureStateNotices(t)
+	l := newCheckout(t, filepath.Join(t.TempDir(), "app"))
+	before := dataRootEntries(t)
+	NoticeState(l)
+	assert.Empty(t, *notices)
+	assert.Equal(t, before, dataRootEntries(t), "no checkout record was created")
+	assert.False(t, dataroot.CheckoutExists(l.Root))
+}
+
+// A notice nobody was shown is not recorded as given, and creates no record;
+// the next run with a person to tell shows it, once.
+func TestANoticeNobodySawIsGivenOnTheNextShownRun(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "app")
+	l := newCheckout(t, root)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, StateDirName, WorkDirName), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, StateDirName, VaultDirName), 0o700))
+
+	unseen := unseenStateNotices(t)
+	before := dataRootEntries(t)
+	NoticeState(l)
+	assert.Len(t, *unseen, 2, "both lines were offered")
+	assert.Equal(t, before, dataRootEntries(t), "a notice nobody saw creates no record")
+
+	shown := captureStateNotices(t)
+	NoticeState(l)
+	require.Len(t, *shown, 2)
+	assert.Contains(t, (*shown)[0], ".kapi/work in this checkout is no longer used")
+	assert.Contains(t, (*shown)[1], "kapi state import -p "+root)
+	rec, err := dataroot.ReadRecord(dataroot.CheckoutDir(root))
+	require.NoError(t, err)
+	assert.Equal(t, map[string]bool{"work-in-tree": true, "state-in-tree": true}, rec.Told)
+
+	NoticeState(l)
+	assert.Len(t, *shown, 2, "each is shown once")
+}
+
+// A notice offered while the checkout's state is created, and not shown, stays
+// unrecorded: the store opened for a `--json` run does not consume it.
+func TestANoticeNotShownWhileStateIsCreatedStaysOwed(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "app")
+	l := newCheckout(t, root)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, StateDirName, WorkDirName), 0o755))
+
+	unseenStateNotices(t)
+	require.NoError(t, EnsureLayout(l))
+	rec, err := dataroot.ReadRecord(dataroot.CheckoutDir(root))
+	require.NoError(t, err)
+	assert.Empty(t, rec.Told, "the record exists for the state, and holds no notice")
+
+	shown := captureStateNotices(t)
+	NoticeState(l)
+	require.Len(t, *shown, 1)
+	NoticeState(l)
+	assert.Len(t, *shown, 1, "shown once")
 }
 
 func within(t *testing.T, p, dir string) bool {
@@ -75,8 +163,8 @@ func TestTwoCheckoutsOfOneProjectKeepSeparateState(t *testing.T) {
 	assert.NoFileExists(t, b.RedactionVaultPath())
 }
 
-// A repository cloned where another checkout used to be is another directory
-// at the same location: it sees none of that checkout's state, the person is
+// A repository cloned where another checkout was is another directory at the
+// same location: it sees none of that checkout's state, the person is
 // told once, and the earlier state is kept for a relink a person asks for.
 func TestACheckoutClonedWhereAnotherWasSeesNoneOfItsState(t *testing.T) {
 	notices := captureStateNotices(t)

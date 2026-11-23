@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -19,6 +20,30 @@ func statePath(t *testing.T, recipe string) string {
 	return strings.TrimSpace(kapi(t, "state", "path", "-p", recipe))
 }
 
+// kapiAtTerminal runs kapi on a terminal, as a person does, through script(1),
+// which gives the command a pseudo-terminal. It returns everything the command
+// wrote there. The one-time notices about a checkout's state are shown, and
+// recorded as given, only on a terminal.
+func kapiAtTerminal(t *testing.T, args ...string) (string, error) {
+	t.Helper()
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("script", append([]string{"-q", "/dev/null", kapiBin}, args...)...)
+	default:
+		quoted := make([]string, 0, len(args)+1)
+		for _, a := range append([]string{kapiBin}, args...) {
+			quoted = append(quoted, "'"+strings.ReplaceAll(a, "'", `'\''`)+"'")
+		}
+		cmd = exec.Command("script", "-qec", strings.Join(quoted, " "), "/dev/null")
+	}
+	// A dumb terminal answers no colour query, so kapi asks none and waits for
+	// no reply.
+	cmd.Env = append(append(os.Environ(), isoEnv...), "TERM=dumb", "NO_COLOR=1")
+	out, err := cmd.CombinedOutput()
+	return strings.ReplaceAll(string(out), "\r\n", "\n"), err
+}
+
 // A checkout's state lives outside it, and kapi writes nothing into the
 // checkout to keep it.
 func TestACheckoutsStateLivesOutsideIt(t *testing.T) {
@@ -30,8 +55,8 @@ func TestACheckoutsStateLivesOutsideIt(t *testing.T) {
 	assert.NoDirExists(t, filepath.Join(root, ".kapi"))
 }
 
-// A repository cloned where another checkout used to be sees none of that
-// checkout's state, and kapi says so once.
+// A repository cloned where another checkout was sees none of that checkout's
+// state, and kapi tells the person at the terminal, once.
 func TestACheckoutClonedWhereAnotherWasSeesNoneOfItsState(t *testing.T) {
 	parent := t.TempDir()
 	root := filepath.Join(parent, "app")
@@ -46,24 +71,45 @@ func TestACheckoutClonedWhereAnotherWasSeesNoneOfItsState(t *testing.T) {
 	require.NoError(t, os.RemoveAll(root))
 	second, _ := writeBareProject(t, "second")
 	require.NoError(t, os.Rename(second, root))
-	out, err := kapiAllowFail(t, "status", "-p", recipe)
+	const notice = "belongs to another directory, so this checkout starts with none"
+	out, err := kapiAtTerminal(t, "status", "-p", recipe)
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "belongs to another directory, so this checkout starts with none")
+	assert.Contains(t, out, notice)
 	assert.NotEqual(t, earlier, statePath(t, recipe))
 	assert.NoFileExists(t, filepath.Join(statePath(t, recipe), "sync", "sync-cache.json"))
+
+	out, err = kapiAtTerminal(t, "status", "-p", recipe)
+	require.NoError(t, err, out)
+	assert.NotContains(t, out, notice, "told once")
 }
 
 // State an earlier kapi left inside a checkout is not read. A person imports
 // it with `kapi state import`, which shows what it takes; an agent cannot.
+// The person is told at a terminal; a run whose output a program reads, or a
+// `--json` run, tells nobody and leaves the notice owed.
 func TestStateInsideACheckoutIsImportedOnlyByAPerson(t *testing.T) {
 	root, recipe := writeBareProject(t, "legacy")
 	vault := filepath.Join(root, ".kapi", "vault", "redaction.json")
 	require.NoError(t, os.MkdirAll(filepath.Dir(vault), 0o700))
 	require.NoError(t, os.WriteFile(vault, []byte(`{"version":3,"values":[]}`), 0o600))
+	notice := "kapi state import -p " + root
 
 	out, err := kapiAllowFail(t, "status", "-p", recipe)
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "kapi state import -p "+root)
+	assert.NotContains(t, out, notice, "a run whose output a program reads tells nobody")
+	out, err = kapiAtTerminal(t, "version")
+	require.NoError(t, err, out)
+	assert.NotContains(t, out, notice, "a version check concerns no project")
+	out, err = kapiAtTerminal(t, "status", "-p", recipe, "--json")
+	require.NoError(t, err, out)
+	assert.NotContains(t, out, notice, "a --json run tells nobody")
+
+	out, err = kapiAtTerminal(t, "status", "-p", recipe)
+	require.NoError(t, err, out)
+	assert.Contains(t, out, notice)
+	out, err = kapiAtTerminal(t, "status", "-p", recipe)
+	require.NoError(t, err, out)
+	assert.NotContains(t, out, notice, "told once")
 	dir := statePath(t, recipe)
 	assert.NoFileExists(t, filepath.Join(dir, "vault", "redaction.json"), "nothing is taken unasked")
 

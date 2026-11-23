@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewModelsCmd builds `kapi models` — manage the large model assets that
+// NewModelsCmd builds `kapi models`, which manages the large model assets that
 // plugins declare in their manifest and that kapi (not the plugin) downloads,
 // verifies, and caches in a shared location. See cli/modelassets.go.
 func NewModelsCmd(a *App) *cobra.Command {
@@ -42,10 +42,10 @@ func NewModelsCmd(a *App) *cobra.Command {
 	cmd.AddCommand(newModelsPullCmd(a))
 	cmd.AddCommand(newModelsPruneCmd(a))
 	cmd.AddCommand(NewOllamaCmd(a))
-	return cmd
+	return NoProject(cmd)
 }
 
-// newModelsDefaultCmd builds `kapi models default` — show or set the default AI
+// newModelsDefaultCmd builds `kapi models default`: show or set the default AI
 // model (and the provider it implies). The default is the shared ai.provider /
 // ai.model app config that both the CLI and Kapi Desktop honor when a run names
 // no provider.
@@ -69,7 +69,7 @@ func newModelsDefaultCmd(a *App) *cobra.Command {
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Read and write both go through config.ResolveAIDefault /
-			// config.SetAIDefault — the one resolver and the one writer every
+			// config.SetAIDefault: the one resolver and the one writer every
 			// surface shares. Reading the config directly here is what let the
 			// read-back disagree with what every consumer actually resolved.
 			if len(args) == 0 {
