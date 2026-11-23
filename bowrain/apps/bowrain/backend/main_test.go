@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"github.com/neokapi/neokapi/core/keychain"
 	"context"
 	"database/sql"
 	"fmt"
@@ -9,7 +10,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/zalando/go-keyring"
 
 	"github.com/neokapi/neokapi/bowrain/migrations"
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -58,9 +58,9 @@ func TestMain(m *testing.M) {
 
 	// Replace the OS keychain with an in-memory mock for the whole package, so
 	// no test can ever read or write the developer's real bowrain tokens — even
-	// one that forgets to call keyring.MockInit() itself. Defense in depth on
+	// one that forgets to call keychain.Reset() itself. Defense in depth on
 	// top of the per-test mocks.
-	keyring.MockInit()
+	keychain.Reset()
 
 	// Isolate auth from the developer's real ~/.config/bowrain/auth.json. Desktop
 	// credentials now persist through the shared host/venue/config store, which

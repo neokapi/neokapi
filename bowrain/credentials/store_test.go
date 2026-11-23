@@ -1,6 +1,7 @@
 package credentials
 
 import (
+	"github.com/neokapi/neokapi/core/keychain"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,11 +9,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 )
 
 func TestMain(m *testing.M) {
-	keyring.MockInit()
+	keychain.Reset()
 	os.Exit(m.Run())
 }
 

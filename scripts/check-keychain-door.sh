@@ -4,14 +4,24 @@
 #   scripts/check-keychain-door.sh              # check this repository
 #   scripts/check-keychain-door.sh --self-test  # plant each door and see it caught
 #
-# core/keychain opens an in-memory keyring in a test binary, so a test that
-# reaches a secret through it never touches the developer's real keychain.
-# Any other door would: a keyring library, the macOS `security` tool, the
+# core/keychain opens an in-memory keyring in a test binary, and a test
+# empties it with keychain.Reset, so a test that reaches a secret through it
+# never touches the developer's real keychain. Any other door would: a keyring
+# library (go-keyring included, in tests too), the macOS `security` tool, the
 # Linux Secret Service (`secret-tool`, org.freedesktop.secrets), the Windows
 # credential manager (CredRead/CredWrite, `cmdkey`), or a keyring package in
-# the apps' TypeScript. This fails on any of them in the Go code (tests
-# included, which may import go-keyring only for keyring.MockInit) and in the
-# TypeScript of the apps and packages.
+# the apps' TypeScript. This fails on any of them in the Go code, tests
+# included, and in the TypeScript of the apps and packages.
+#
+# It is a text check: it matches names in the source. It does not see a
+# command name held in a variable or passed through a helper, cgo into the
+# Security framework, a Secret Service client that never spells the bus name,
+# or a keyring library published under a name not listed here. A review
+# still has to catch those.
+#
+# The mobile app (bowrain/mobile) is outside the rule. It stores its session
+# in the device keystore through expo-secure-store, which is the store it is
+# meant to use, and it runs on a phone, never inside a Go test binary.
 #
 # One call is exempt, approved by the founder on 2026-11-23: the skill
 # evaluation in scripts/skilleval/paired_isolation.go reads the developer's
@@ -23,7 +33,7 @@ set -euo pipefail
 
 # Go: forbidden in every Go file outside core/keychain.
 go_doors='99designs/keyring|keybase/go-keychain|danieljoos/wincred|"org\.freedesktop\.[Ss]ecret|Cred(Read|Write|Delete|Enumerate)W|advapi32|exec\.Command(Context)?\(.*"(/usr/bin/)?(security|secret-tool|cmdkey)"|(find|add|delete)-(generic|internet)-password'
-# Go: the one library core/keychain wraps, allowed in tests for MockInit.
+# Go: the one library core/keychain wraps, refused everywhere else, tests too.
 go_lib='zalando/go-keyring'
 # The one exempt call (see above): its file and its exact, trimmed line.
 exempt_file='scripts/skilleval/paired_isolation.go'
@@ -48,7 +58,7 @@ scan() {
 	local found=""
 	found+=$(go_door_hits)
 	found+=$'\n'
-	found+=$(git grep -nE "$go_lib" -- '*.go' ':!*_test.go' ':!core/keychain/**' || true)
+	found+=$(git grep -nE "$go_lib" -- '*.go' ':!core/keychain/**' || true)
 	found+=$'\n'
 	found+=$(git grep -nE "$ts_doors" -- 'apps/**/*.ts' 'apps/**/*.tsx' 'apps/**/*.js' \
 		'bowrain/apps/**/*.ts' 'bowrain/apps/**/*.tsx' 'bowrain/apps/**/*.js' \
@@ -65,7 +75,6 @@ if [ "${1:-}" = "--self-test" ]; then
 		git init -q
 		mkdir -p core/keychain host apps/kapi-desktop/frontend/src scripts/tool
 		printf 'package keychain\nimport _ "github.com/zalando/go-keyring"\n' >core/keychain/k.go
-		printf 'package host\nimport _ "github.com/zalando/go-keyring"\n' >host/mock_test.go
 		mkdir -p scripts/skilleval
 		printf 'package main\n\t%s\n' "$exempt_line" >"$exempt_file"
 		git add -A
@@ -85,6 +94,7 @@ if [ "${1:-}" = "--self-test" ]; then
 			rm "$1"
 		}
 		plant host/a.go 'import _ "github.com/zalando/go-keyring"'
+		plant host/mock_test.go 'import _ "github.com/zalando/go-keyring"'
 		plant host/b.go 'out, _ := exec.Command("security", "find-generic-password", "-s", "x").Output()'
 		plant host/c_test.go 'exec.CommandContext(ctx, "/usr/bin/security", "dump-keychain")'
 		plant host/d.go 'cmd := exec.Command("secret-tool", "lookup", "service", "kapi")'

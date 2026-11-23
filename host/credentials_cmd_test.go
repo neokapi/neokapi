@@ -1,20 +1,20 @@
 package host
 
 import (
+	"github.com/neokapi/neokapi/core/keychain"
 	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 )
 
 func newTestCredStore(t *testing.T) *credentials.Store {
 	t.Helper()
 	// Swap go-keyring's global provider for the in-memory one so key writes
 	// never reach the OS keychain (and pass on a headless CI runner).
-	keyring.MockInit()
+	keychain.Reset()
 	return credentials.NewStore(filepath.Join(t.TempDir(), "providers.json"))
 }
 

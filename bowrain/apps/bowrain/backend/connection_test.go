@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"github.com/neokapi/neokapi/core/keychain"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -10,7 +11,6 @@ import (
 	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 )
 
 // --- GetDefaultServerURL tests ---
@@ -42,7 +42,7 @@ func TestGetDefaultServerURLTrimsTrailingSlash(t *testing.T) {
 // exercise that shared store via the desktop's loadDesktopAuth wrapper.
 
 func TestSaveAndLoadDesktopAuth(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	tmpDir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
@@ -84,7 +84,7 @@ func TestLoadDesktopAuthMissing(t *testing.T) {
 }
 
 func TestSaveDesktopAuthPermissions(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	tmpDir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
@@ -114,7 +114,7 @@ func TestSaveDesktopAuthPermissions(t *testing.T) {
 }
 
 func TestDesktopAuthJSONFormat(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	tmpDir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
@@ -149,7 +149,7 @@ func TestDesktopAuthJSONFormat(t *testing.T) {
 // desktop-only keychain scheme ("bowrain" service + bowrain-desktop/auth.json)
 // into the shared host/venue/config store.
 func TestMigrateLegacyDesktopAuth(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	legacyDir := t.TempDir()
 	sharedDir := t.TempDir()
 	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", legacyDir)
@@ -158,8 +158,8 @@ func TestMigrateLegacyDesktopAuth(t *testing.T) {
 	// Seed the legacy scheme: metadata file + keychain tokens.
 	legacyMeta := `{"server_url":"http://localhost:8080","expiry":"2099-01-01T00:00:00Z","user":{"id":"u1","email":"a@b.com","name":"Alice"}}`
 	require.NoError(t, os.WriteFile(legacyDesktopAuthFilePath(), []byte(legacyMeta), 0o600))
-	require.NoError(t, keyring.Set(legacyKeyringService(), legacyAccessTokenKey, "legacy-access"))
-	require.NoError(t, keyring.Set(legacyKeyringService(), legacyRefreshTokenKey, "legacy-refresh"))
+	require.NoError(t, keychain.Set(legacyKeyringService(), legacyAccessTokenKey, "legacy-access"))
+	require.NoError(t, keychain.Set(legacyKeyringService(), legacyRefreshTokenKey, "legacy-refresh"))
 
 	// loadDesktopAuth triggers the migration, then reads from the shared store.
 	loaded, err := loadDesktopAuth()
@@ -176,7 +176,7 @@ func TestMigrateLegacyDesktopAuth(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "legacy auth.json should be removed")
 
 	// Legacy keychain entries are cleared.
-	_, err = keyring.Get(legacyKeyringService(), legacyAccessTokenKey)
+	_, err = keychain.Get(legacyKeyringService(), legacyAccessTokenKey)
 	assert.Error(t, err)
 }
 
@@ -252,7 +252,7 @@ func TestDisconnectEmitsStateChange(t *testing.T) {
 }
 
 func TestLogoutRemovesAuthFile(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	tmpDir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
@@ -292,7 +292,7 @@ func TestConnectToServerNoStoredAuth(t *testing.T) {
 }
 
 func TestConnectToServerExpiredToken(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	tmpDir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
@@ -347,7 +347,7 @@ func TestHandleDeepLinkMissingID(t *testing.T) {
 }
 
 func TestTryAutoConnectExpiredAuth(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	tmpDir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 

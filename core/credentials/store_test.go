@@ -1,13 +1,13 @@
 package credentials
 
 import (
+	"github.com/neokapi/neokapi/core/keychain"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 )
 
 // newStore returns a Store backed by a file under t.TempDir, so no test in this
@@ -24,7 +24,7 @@ func newStore(t *testing.T) *Store {
 // keychain by accident.
 func mockKeyring(t *testing.T) {
 	t.Helper()
-	keyring.MockInit()
+	keychain.Reset()
 }
 
 func mustUpsert(t *testing.T, s *Store, cfg ProviderConfig) ProviderConfig {
@@ -221,7 +221,7 @@ func TestAPIKeyRoundTrip(t *testing.T) {
 
 	require.NoError(t, s.DeleteAPIKey(cfg.ID))
 	_, err = s.GetAPIKey(cfg.ID)
-	assert.ErrorIs(t, err, keyring.ErrNotFound)
+	assert.ErrorIs(t, err, keychain.ErrNotFound)
 }
 
 func TestAPIKeysNeverReachTheConfigFile(t *testing.T) {

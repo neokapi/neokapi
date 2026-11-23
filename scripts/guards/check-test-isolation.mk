@@ -7,4 +7,5 @@ GUARDS += check-test-isolation
 GUARD_LANES.check-test-isolation := pre-push
 GUARD_PATHS.check-test-isolation = ^core/dataroot/ ^core/keychain/ ^core/credentials/ ^core/channel/ ^core/flow/ ^host/ ^cli/selfupdate/ ^apps/kapi-desktop/backend/ ^bowrain/credentials/ ^bowrain/apps/bowrain/backend/ ^scripts/check-test-isolation\.sh$
 check-test-isolation: ## Guard: Go tests write nothing under the user's home (config, data, caches, plugins)
+	@./scripts/check-test-isolation.sh --self-test
 	@./scripts/check-test-isolation.sh

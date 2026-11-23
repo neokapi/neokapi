@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neokapi/neokapi/core/keychain"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -8,7 +9,6 @@ import (
 	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 )
 
 // newCredTestApp returns an App with a Credentials store backed by a throwaway
@@ -16,11 +16,10 @@ import (
 // real ~/.config/kapi/providers.json.
 func newCredTestApp(t *testing.T) *App {
 	t.Helper()
-	// Use an in-memory keyring: SetAPIKey writes to the OS keychain via
-	// go-keyring, and CI's headless Linux runner has no D-Bus secret service
-	// (org.freedesktop.secrets), so a real write fails there. MockInit keeps the
-	// API-key path exercised without depending on a desktop keychain.
-	keyring.MockInit()
+	// Start from an empty in-memory keyring (core/keychain keeps a test
+	// binary's secrets in memory), so the API-key path is exercised without a
+	// desktop keychain, which CI's headless Linux runner does not have.
+	keychain.Reset()
 	path := filepath.Join(t.TempDir(), "providers.json")
 	return &App{Credentials: credentials.NewStore(path)}
 }

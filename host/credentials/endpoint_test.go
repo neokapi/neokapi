@@ -1,11 +1,11 @@
 package credentials
 
 import (
+	"github.com/neokapi/neokapi/core/keychain"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 )
 
 // TestResolveCredentials_EndpointIsNotRecipeSettable is the invariant that keeps
@@ -70,7 +70,7 @@ func TestResolveCredentials_OnlyAStoredCredentialCarriesAnEndpoint(t *testing.T)
 	// The keychain is the developer's, so the key goes to the in-memory
 	// keyring rather than the real one — the same guard cli's credential
 	// tests use.
-	keyring.MockInit()
+	keychain.Reset()
 
 	newStoreWithEndpoint := func(t *testing.T) *Store {
 		t.Helper()
