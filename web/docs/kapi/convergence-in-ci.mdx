@@ -331,7 +331,7 @@ stage.
   `setup-kapi`'s `parse-cache` input does the same, from the release that
   supports it; the released `setup-kapi` caches a directory inside the
   checkout, which this kapi neither reads nor writes. The directory must be an
-  absolute path outside the checkout, and on Linux and macOS a directory you
+  absolute path outside the repository that holds the project, and on Linux and macOS a directory you
   own that no other user can reach; kapi creates it that way when it is
   missing, and a restored cache keeps that mode. Leave the directory for kapi
   or the cache step to create: one made beforehand with a wider mode is

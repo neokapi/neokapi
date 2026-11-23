@@ -91,3 +91,16 @@ func TestPrepareCacheDir_StaysInTheTemporaryDirectoryUnderTest(t *testing.T) {
 	require.Error(t, err)
 	assert.NoDirExists(t, outside)
 }
+
+// A project inside a larger repository: a directory in the repository but
+// outside the project is inside the checkout too, because git would list it.
+func TestPrepareCacheDir_RefusesADirectoryInTheEnclosingWorkTree(t *testing.T) {
+	repo := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(repo, ".git"), 0o700))
+	project := filepath.Join(repo, "test", "fixture")
+	require.NoError(t, os.MkdirAll(project, 0o700))
+	_, err := PrepareCacheDir(testCacheEnv, filepath.Join(repo, ".kapi-parse"), project)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "inside the checkout")
+	assert.NoDirExists(t, filepath.Join(repo, ".kapi-parse"))
+}

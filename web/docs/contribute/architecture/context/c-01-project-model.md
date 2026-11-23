@@ -187,8 +187,9 @@ or an MCP call cannot run either. `kapi state path` prints the directory.
 The parse cache is the one part of the state a CI job carries between runs.
 `host.ParseCacheDir` names its directory for every reader and writer:
 `work/cache/docs` in the state directory, or the absolute directory
-`KAPI_PARSE_CACHE_DIR` names, which must lie outside the checkout and be no
-link, and which several checkouts may share. An entry is filed under the
+`KAPI_PARSE_CACHE_DIR` names, which must lie outside the git work tree that
+holds the project, be no link and, on unix, be private to the user
+(`dataroot.PrepareCacheDir`). Several checkouts may share it. An entry is filed under the
 source's path relative to the project root, the content hash and a key over the
 parse configuration, the recipe and the build, so a clone in another folder
 finds it and another project's file does not. The size and modification time

@@ -19,8 +19,9 @@ import (
 //     or other access (checkPrivateDir, the test root's check); the cache
 //     opens each file beneath it with no link followed. On Windows access is
 //     an ACL, which the check does not read;
-//   - it lies outside the checkout, ignored or not: a cache inside one can be
-//     committed by accident;
+//   - it lies outside the checkout, ignored or not: outside the git work tree
+//     that holds the project, or the project root when none does. A cache
+//     inside one can be committed by accident;
 //   - in a test binary it lies beneath the temporary directory, so a test
 //     cannot write outside its own tree.
 func PrepareCacheDir(env, dir, checkout string) (string, error) {
@@ -34,8 +35,11 @@ func PrepareCacheDir(env, dir, checkout string) (string, error) {
 	if UnderTest() && !within(NormalizePath(os.TempDir()), resolved) {
 		return "", fmt.Errorf("%s names %s, outside the temporary directory a test binary writes in", env, dir)
 	}
-	if checkout != "" && within(NormalizePath(checkout), resolved) {
-		return "", fmt.Errorf("%s names %s, inside the checkout %s; name a directory outside the checkout", env, dir, checkout)
+	if checkout != "" {
+		tree := workTreeOf(NormalizePath(checkout))
+		if within(tree, resolved) {
+			return "", fmt.Errorf("%s names %s, inside the checkout %s; name a directory outside the checkout", env, dir, tree)
+		}
 	}
 	if _, err := os.Lstat(dir); errors.Is(err, fs.ErrNotExist) {
 		if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -49,6 +53,21 @@ func PrepareCacheDir(env, dir, checkout string) (string, error) {
 		return "", fmt.Errorf("%s is refused: %w", env, err)
 	}
 	return dir, nil
+}
+
+// workTreeOf is the top of the git work tree that holds root: the nearest
+// directory at or above root with a .git entry (a directory, or the file a
+// worktree or submodule keeps). It is root itself when no directory above
+// has one. No git program runs.
+func workTreeOf(root string) string {
+	for dir := root; ; dir = filepath.Dir(dir) {
+		if _, err := os.Lstat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+		if filepath.Dir(dir) == dir {
+			return root
+		}
+	}
 }
 
 // within reports whether path is dir or lies beneath it.
