@@ -52,6 +52,11 @@ import (
 
 // App is the Wails service that bridges Go backend to the React frontend.
 type App struct {
+	// lastStateRefusal is the recipe path of the last project OpenProject
+	// refused because kapi on this machine did not write its state; the
+	// frontend asks ProjectStateToVouch about it with an empty path.
+	lastStateRefusal atomic.Value
+
 	// bowrain holds one transport per Bowrain server the Share page's
 	// preview reads (venue_preview.go).
 	bowrain bowrainSignIns
@@ -634,9 +639,14 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 		return a.openFolder(path)
 	}
 
-	// Opening a project is where the desktop asks whether git tracks kapi's
-	// state in it; the reads that follow ask again when the index changes.
-	if err := project.CheckStateTracked(context.Background(), project.LayoutAt(filepath.Dir(path))); err != nil {
+	// Opening a project is where the desktop asks whether its state is this
+	// machine's own: not tracked by git, and written by kapi here. State it
+	// cannot rebuild and did not write is refused, and the frontend asks the
+	// person to vouch for it (ProjectStateToVouch).
+	if err := project.CheckStateOwned(context.Background(), project.LayoutAt(filepath.Dir(path))); err != nil {
+		if unverified := (*project.UnverifiedStateError)(nil); errors.As(err, &unverified) {
+			a.lastStateRefusal.Store(path)
+		}
 		return nil, err
 	}
 	proj, err := project.Load(path)

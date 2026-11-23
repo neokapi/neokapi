@@ -243,7 +243,7 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 	// a cached handle included: one stat of the index while it is unchanged,
 	// so a long-lived host sees a pull that brought state in at the next read.
 	if _, draft := s.drafts[abs]; !draft {
-		if err := project.CheckStateTracked(ctx, s.layoutFor(abs)); err != nil {
+		if err := project.CheckStateOwned(ctx, s.layoutFor(abs)); err != nil {
 			return nil, err
 		}
 	}

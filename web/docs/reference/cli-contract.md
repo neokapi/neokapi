@@ -180,7 +180,20 @@ The toolbox utilities (`kgrep`) additionally use grep-parity semantics: exit 1 w
 
   A very large index that makes git miss the five seconds is refused the same way, with the remedy; it never passes.
 
-A directory that is in no git repository is not checked. kapi asks git about these entries, so it sees only what git tracks. State that arrived untracked, in an archive or a checkout copied or synchronised from elsewhere, is not seen by this check. kapi still refuses a link or an irregular file anywhere under `.kapi/`, but a regular store or claim token that was copied in is used as kapi's own.
+A directory that is in no git repository is not asked about.
+
+kapi also uses as its own only state that kapi on this machine wrote, whichever way other state arrived (a commit, an archive, a copy, a synchronised folder). kapi marks each state directory it creates, under a key kept in your configuration directory (`KAPI_CONFIG_DIR/state/machine.key`). When the mark does not verify:
+
+- `.kapi/work/` is moved to `.kapi/set-aside/` and rebuilt, and kapi prints one line saying so. The command goes on.
+- `.kapi/vault/`, `.kapi/sync/` and `.kapi/filters.local.json` are refused, exit 1, until you vouch for them: `kapi trust allow --state -p <project>` shows them and where they appear to come from, and asks you to confirm (or pass `--yes`). The desktop asks the same in a dialog. An agent cannot vouch for state.
+
+What you see:
+
+- **The first run after upgrading** to a kapi that marks state: the work directory is rebuilt, and a checkout with a vault, sync state or saved filters asks once for `kapi trust allow --state`.
+- **A checkout you moved or renamed** on the same volume: nothing.
+- **A copied checkout, a restored backup, or a checkout moved to another volume:** the same as after upgrading.
+- **CI with a restored `.kapi` cache on a fresh runner:** the restored work directory is rebuilt. Set `KAPI_TRUST_STATE=1` (or run `kapi trust allow --state --yes`) only if you trust the cache.
+- **Two users sharing one checkout:** each sees the other's state as not its own.
 
 ## Streaming progress: `--progress jsonl`
 

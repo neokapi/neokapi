@@ -191,12 +191,13 @@ func TestEnsureLayout_LeavesADirectoryWithCommittedFilesAlone(t *testing.T) {
 
 	rule, err := os.ReadFile(filepath.Join(layout.StateDir, project.StateGitignoreFilename))
 	require.NoError(t, err)
-	assert.Equal(t, "work/\n", string(rule))
+	assert.Equal(t, "work/\nstate.mark\nset-aside/\n", string(rule))
 	assert.False(t, project.GitignoreCovers(string(rule), "terms.json"), "the committed file stays in the commit")
 	assert.DirExists(t, layout.CacheDir())
 }
 
-// A rule someone wrote is theirs, and a re-run keeps it byte for byte.
+// A rule someone wrote is theirs: every line of it is kept, in order, and
+// only the lines for kapi's own state that it lacks are added after it.
 func TestEnsureLayout_KeepsAnExistingRule(t *testing.T) {
 	layout := testLayout(t)
 	require.NoError(t, os.MkdirAll(layout.StateDir, 0o755))
@@ -208,7 +209,12 @@ func TestEnsureLayout_KeepsAnExistingRule(t *testing.T) {
 
 	got, err := os.ReadFile(ignorePath)
 	require.NoError(t, err)
-	assert.Equal(t, own, string(got))
+	assert.Equal(t, own+"state.mark\nset-aside/\n", string(got))
+
+	require.NoError(t, project.EnsureLayout(layout))
+	again, err := os.ReadFile(ignorePath)
+	require.NoError(t, err)
+	assert.Equal(t, string(got), string(again), "a re-run changes nothing")
 }
 
 func TestGitignoreCovers(t *testing.T) {
@@ -262,11 +268,11 @@ func TestEnsureLocalDir_ProtectsTheDirectory(t *testing.T) {
 	assert.Equal(t, os.FileMode(0o700), info.Mode().Perm())
 	rule, err := os.ReadFile(ignore)
 	require.NoError(t, err)
-	assert.Equal(t, "work/\nvault/\n", string(rule), "the existing rule is kept and the vault added")
+	assert.Equal(t, "work/\nstate.mark\nset-aside/\nvault/\n", string(rule), "the existing rule is kept, and the mark, what kapi set aside and the vault added")
 
 	_, err = project.EnsureLocalDir(layout, project.VaultDirName)
 	require.NoError(t, err)
 	rule, err = os.ReadFile(ignore)
 	require.NoError(t, err)
-	assert.Equal(t, "work/\nvault/\n", string(rule), "a second call adds nothing")
+	assert.Equal(t, "work/\nstate.mark\nset-aside/\nvault/\n", string(rule), "a second call adds nothing")
 }

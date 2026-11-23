@@ -367,6 +367,9 @@ func TestChangeService_AnEntityPolicyKeepsNoEdition(t *testing.T) {
 func TestChangeService_AVaultANewerKapiWroteKeepsNoEdition(t *testing.T) {
 	a, recipe := redactingKeptProject(t, "rules")
 	root := filepath.Dir(recipe)
+	// The state directory is this machine's, as kapi made it; the vault in it
+	// is in a newer format.
+	require.NoError(t, project.EnsureLayout(project.LayoutAt(root)))
 	vault := project.LayoutAt(root).RedactionVaultPath()
 	newer := []byte(`{"version": 3, "values": []}`)
 	require.NoError(t, os.MkdirAll(filepath.Dir(vault), 0o700))

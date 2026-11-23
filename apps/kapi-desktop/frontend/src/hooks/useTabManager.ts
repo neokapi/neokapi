@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import type { KapiProject, TabInfo, PluginIssue } from "../types/api";
+import type { KapiProject, TabInfo, PluginIssue, StateToVouch } from "../types/api";
 import { api } from "./useApi";
 import { useError } from "../components/ErrorBanner";
 import { useWailsEvent } from "./useWailsEvent";
@@ -209,6 +209,22 @@ export function useTabManager() {
     );
   }, []);
 
+  // A project whose state kapi on this machine did not write is refused; the
+  // person is asked to vouch for it, and the project opens once they do.
+  const [stateToVouch, setStateToVouch] = useState<{ state: StateToVouch; view?: string } | null>(
+    null,
+  );
+  const askToVouch = useCallback(async (path: string, view?: string): Promise<boolean> => {
+    try {
+      const state = await api.projectStateToVouch(path);
+      if (!state) return false;
+      setStateToVouch({ state, view });
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const openProject = useCallback(async () => {
     try {
       const tab = await api.openProjectDialog();
@@ -217,9 +233,9 @@ export function useTabManager() {
         if (proj) await addTab(tab, proj);
       }
     } catch (err) {
-      showError("Failed to open project", err);
+      if (!(await askToVouch(""))) showError("Failed to open project", err);
     }
-  }, [addTab, showError]);
+  }, [addTab, askToVouch, showError]);
 
   // Open a project from one of its checkouts, by recipe path. The workspace
   // home and the native Projects menu both land here.
@@ -232,11 +248,29 @@ export function useTabManager() {
           if (proj) await addTab(tab, proj, view);
         }
       } catch (err) {
-        showError("Failed to open the project", err);
+        if (!(await askToVouch(path, view))) showError("Failed to open the project", err);
       }
     },
-    [addTab, showError],
+    [addTab, askToVouch, showError],
   );
+
+  const vouchForState = useCallback(async () => {
+    if (!stateToVouch) return;
+    const { state, view } = stateToVouch;
+    try {
+      await api.vouchForProjectState(state.path);
+      setStateToVouch(null);
+      const tab = await api.openProject(state.path);
+      if (tab) {
+        const proj = await api.getProject(tab.id);
+        if (proj) await addTab(tab, proj, view);
+      }
+    } catch (err) {
+      setStateToVouch(null);
+      showError("Failed to open the project", err);
+    }
+  }, [addTab, showError, stateToVouch]);
+  const cancelVouch = useCallback(() => setStateToVouch(null), []);
 
   // Open a project the workspace holds and no checkout on this machine
   // carries. The tab reads its context and has no files to show.
@@ -451,6 +485,9 @@ export function useTabManager() {
     openTabOn,
     openProject,
     openRecent,
+    stateToVouch: stateToVouch?.state ?? null,
+    vouchForState,
+    cancelVouch,
     openWorkspaceContext,
     createProject,
     createSampleProject,

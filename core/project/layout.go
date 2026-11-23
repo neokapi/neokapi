@@ -223,6 +223,11 @@ func EnsureLocalDir(layout Layout, name string) (string, error) {
 	if err := layout.CheckState(); err != nil {
 		return "", err
 	}
+	// The state directory and its mark come first (EnsureLayout), so what is
+	// created here is this machine's own.
+	if err := EnsureLayout(layout); err != nil {
+		return "", err
+	}
 	dir := filepath.Join(layout.StateDir, name)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("project: create %s: %w", name, err)
@@ -362,6 +367,10 @@ func EnsureLayout(layout Layout) error {
 	if err := layout.CheckState(); err != nil {
 		return err
 	}
+	// State already there is verified before anything is created beside it.
+	if err := checkStateMark(layout); err != nil {
+		return err
+	}
 	fresh := cacheOnly(layout.StateDir)
 	for _, dir := range []string{
 		layout.StateDir,
@@ -386,25 +395,33 @@ func EnsureLayout(layout Layout) error {
 			return fmt.Errorf("project: write %s: %w", StateGitignoreFilename, err)
 		}
 	}
-	// A .kapi/ that holds files of its own still keeps the work directory
-	// out: a line for it is added to the rule, as EnsureLocalDir adds one for
-	// the vault and the sync state.
+	// A .kapi/ that holds files of its own still keeps the work directory, the
+	// mark and what kapi set aside out: a line for each is added to the rule,
+	// as EnsureLocalDir adds one for the vault and the sync state.
 	existing, err := os.ReadFile(ignorePath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("project: read %s: %w", StateGitignoreFilename, err)
 	}
 	content := string(existing)
-	if GitignoreCovers(content, WorkDirName) || GitignoreCovers(content, WorkDirName+"/") {
-		return nil
+	changed := false
+	for _, line := range []string{WorkDirName + "/", MarkFilename, SetAsideDirName + "/"} {
+		if GitignoreCovers(content, line) || GitignoreCovers(content, strings.TrimSuffix(line, "/")) {
+			continue
+		}
+		if content != "" && !strings.HasSuffix(content, "\n") {
+			content += "\n"
+		}
+		content += line + "\n"
+		changed = true
 	}
-	if content != "" && !strings.HasSuffix(content, "\n") {
-		content += "\n"
+	if changed {
+		if err := os.WriteFile(ignorePath, []byte(content), 0o644); err != nil {
+			return fmt.Errorf("project: write %s: %w", StateGitignoreFilename, err)
+		}
 	}
-	content += WorkDirName + "/\n"
-	if err := os.WriteFile(ignorePath, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("project: write %s: %w", StateGitignoreFilename, err)
-	}
-	return nil
+	// The state directory this machine created carries its mark from the
+	// start.
+	return ensureStateMark(layout)
 }
 
 // cacheOnly reports whether dir is absent or holds only what kapi writes into
@@ -416,7 +433,7 @@ func cacheOnly(dir string) bool {
 	}
 	for _, e := range entries {
 		switch e.Name() {
-		case WorkDirName, LocalFiltersFilename, StateGitignoreFilename, VaultDirName, SyncDirName:
+		case WorkDirName, LocalFiltersFilename, StateGitignoreFilename, VaultDirName, SyncDirName, MarkFilename, SetAsideDirName:
 		default:
 			return false
 		}

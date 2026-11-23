@@ -153,6 +153,7 @@ export {
     SessionState,
     SetTermStatusRequest,
     ShareView,
+    StateToVouch,
     StoreSyncResult,
     TabInfo,
     TermDTO,

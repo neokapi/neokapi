@@ -73,7 +73,7 @@ func (a *App) ResolveMCPCallProject(ctx context.Context, explicit string) (strin
 	}
 	// Every call that acts on a project resolves it here, so each asks whether
 	// git tracks kapi's state in it (cheap while the index is unchanged).
-	if err := project.CheckStateTracked(ctx, project.LayoutAt(filepath.Dir(recipe))); err != nil {
+	if err := project.CheckStateOwned(ctx, project.LayoutAt(filepath.Dir(recipe))); err != nil {
 		return "", err
 	}
 	return recipe, nil

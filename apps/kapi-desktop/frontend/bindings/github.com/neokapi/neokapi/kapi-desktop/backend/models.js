@@ -10431,6 +10431,57 @@ export class ShareView {
 }
 
 /**
+ * StateToVouch is the state of a project the desktop could not open because
+ * kapi on this machine did not write it: the entries, relative to the project
+ * root, and where the state appears to come from.
+ */
+export class StateToVouch {
+    /**
+     * Creates a new StateToVouch instance.
+     * @param {Partial<StateToVouch>} [$$source = {}] - The source object to create the StateToVouch.
+     */
+    constructor($$source = {}) {
+        if (!("path" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["path"] = "";
+        }
+        if (!("entries" in $$source)) {
+            /**
+             * @member
+             * @type {string[]}
+             */
+            this["entries"] = [];
+        }
+        if (!("origin" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["origin"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StateToVouch instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {StateToVouch}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("entries" in $$parsedSource) {
+            $$parsedSource["entries"] = $$createField1_0($$parsedSource["entries"]);
+        }
+        return new StateToVouch(/** @type {Partial<StateToVouch>} */($$parsedSource));
+    }
+}
+
+/**
  * StoreSyncResult reports one SyncProjectStore call.
  */
 export class StoreSyncResult {

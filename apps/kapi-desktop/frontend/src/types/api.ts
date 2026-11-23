@@ -539,6 +539,14 @@ export interface AIDetectionResult {
   configured: boolean;
 }
 
+// StateToVouch is the state of a project kapi on this machine did not write,
+// which the person is asked to vouch for before it opens.
+export interface StateToVouch {
+  path: string;
+  entries: string[];
+  origin: string;
+}
+
 export interface TabInfo {
   id: string;
   name: string;

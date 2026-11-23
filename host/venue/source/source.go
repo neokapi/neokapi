@@ -136,7 +136,7 @@ type itemBlock struct {
 func NewSourceConnector(ctx context.Context, app *host.App, project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
 	// The sync state holds the claim token a push authenticates with, so it is
 	// read only once git is known not to track it (coreproj.CheckStateTracked).
-	if err := coreproj.CheckStateTracked(ctx, project.Layout); err != nil {
+	if err := coreproj.CheckStateOwned(ctx, project.Layout); err != nil {
 		return nil, err
 	}
 	recipe := project.Recipe
@@ -237,7 +237,7 @@ func NewSourceConnector(ctx context.Context, app *host.App, project *Project, fo
 // takes the same App for the same reason: local-only is about the server, not
 // about the project's store.
 func NewLocalConnector(ctx context.Context, app *host.App, project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
-	if err := coreproj.CheckStateTracked(ctx, project.Layout); err != nil {
+	if err := coreproj.CheckStateOwned(ctx, project.Layout); err != nil {
 		return nil, err
 	}
 	cache := LoadSyncCache(project.Layout)

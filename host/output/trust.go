@@ -199,11 +199,18 @@ type TrustAllowOutput struct {
 	// ContextStore is the folder an allow for the project's context store
 	// covers (kapi trust allow --context-store), empty for a commands allow.
 	ContextStore string `json:"context_store,omitempty"`
+	// State lists the state a person vouched for (kapi trust allow --state),
+	// empty for any other allow.
+	State []string `json:"state,omitempty"`
 }
 
 func (o TrustAllowOutput) FormatText(w io.Writer) error {
 	if !o.Recorded {
 		fmt.Fprintf(w, "Nothing recorded for %s: %s\n", o.Path, o.Reason)
+		return nil
+	}
+	if len(o.State) > 0 {
+		fmt.Fprintf(w, "Recorded: kapi on this machine uses the state in %s as its own.\n", o.Path)
 		return nil
 	}
 	if o.ContextStore != "" {

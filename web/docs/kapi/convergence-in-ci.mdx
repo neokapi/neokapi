@@ -322,6 +322,12 @@ stage.
       # cache-tm: false turns the parse cache off
   ```
 
+  kapi uses as its own only state that kapi on this machine wrote, and a
+  restored cache on a fresh runner was written by another one, so kapi sets it
+  aside and rebuilds it. To keep using the restored cache, set
+  `KAPI_TRUST_STATE=1` for the steps that run kapi, in a workflow whose earlier
+  steps you trust: it says you vouch for the restored state.
+
   Without the action, cache that one directory:
 
   ```yaml

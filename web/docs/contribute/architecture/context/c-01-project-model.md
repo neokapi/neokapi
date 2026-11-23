@@ -158,11 +158,56 @@ daemon call. A directory in no repository passes without running git. Inside a
 repository, a git that cannot answer refuses with the cause and its remedy;
 `KAPI_TRUST_STATE=1` in kapi's own environment vouches for the state instead.
 
-Asking git sees only what git tracks. State that arrived untracked, in an
-archive or a checkout copied or synchronised from elsewhere, is not seen by this
-check. The walk that refuses a link or an irregular file anywhere under `.kapi/`
-still applies to it, and a regular store or claim token copied in is used as
-kapi's own.
+Asking git is the early refusal. The guarantee is the next section.
+
+### State this machine wrote
+
+kapi uses as its own only state that kapi on this machine wrote. When kapi
+creates a state directory it writes `.kapi/state.mark`: an HMAC-SHA256, under a
+key that exists only in the user's configuration directory
+(`KAPI_CONFIG_DIR/state/machine.key`, 32 random bytes, mode 0600 in a 0700
+directory), over the device and inode of the project root and of the state
+directory and a random id minted with the mark. `core/project.CheckStateOwned`
+verifies it, with a constant-time comparison, at every route the tracked-state
+check runs, after that check. The key is never in a project and never in the
+data directory; a Go test binary and every isolated invocation get their own.
+
+The identities make a mark copied from another of the same person's checkouts,
+or a state directory moved into another checkout, fail. The path is left out,
+so moving or renaming a checkout on its volume keeps its state. The mark binds
+the directory, not each byte in it: a file another process on this machine
+writes into a marked directory is outside what it covers, as is a process that
+can read the user's key. What it answers is state that arrived from elsewhere: a
+commit, an archive, a copy or a synchronised folder.
+
+State without a valid mark is not used. Each entry is classified:
+
+| Entry | Rebuilt by kapi | Without a valid mark |
+| --- | --- | --- |
+| `work/` (project store, caches, drafts, locks) | yes | moved to `set-aside/work.not-written-on-this-machine.<time>` and rebuilt, with one line saying so |
+| `work/` holding an earlier layout's `vault/` or `state.db` | no | refused until vouched for |
+| `vault/` (withheld originals) | no | refused until vouched for |
+| `sync/` (sync state, an anonymous project's claim token) | no | refused until vouched for |
+| `filters.local.json` (personal saved filters) | no | refused until vouched for |
+
+Content memory, terms, voice profiles and recorded decisions live in the
+workspace, outside every checkout, and are not part of the mark.
+
+A person vouches for state with `kapi trust allow --state` (shown with where it
+appears to come from, confirmed at a terminal or with `--yes`), the desktop's
+dialog, or `KAPI_TRUST_STATE=1` in the process environment. An agent cannot:
+the MCP server refuses, and so does a command whose actor resolves to an agent.
+
+What each case sees:
+
+- A checkout moved or renamed on its volume: nothing changes.
+- A checkout copied, restored from a backup or moved to another volume: the
+  work directory is rebuilt; the rest is refused once, until vouched for.
+- A home directory shared by two machines over the network: one key, and the
+  same identities on both, so both use the state.
+- The desktop and the CLI on one machine, as one user: one key, so both use it.
+- Two users sharing one checkout: two keys, so each sees the other's state as
+  not its own. A checkout's state belongs to one user.
 
 What deleting costs, stated exactly:
 

@@ -17,6 +17,9 @@ var allowProject = map[string]string{
 	"core/project/layout.go:ResolveLayout":            "stats the start directory a caller names (the working directory, a file a person named, an MCP path within the server's roots) to walk up from it; a found recipe goes through checkFoundRecipe",
 	"core/project/layout.go:layoutAtDir":              "lists the start directory of discovery and its ancestors, reading only entry names; a found recipe that is not a regular file inside its directory is refused (checkFoundRecipe)",
 	"core/project/statecheck.go:CheckState":           "the check itself: it lstats the state directory and walks it (WalkDir follows no link) to refuse a link or irregular file beneath it",
+	"core/project/stateorigin.go:stateKey":            "this user's state key under the configuration directory, which no project names",
+	"core/project/stateorigin.go:createStateKey":      "creates this user's state key, owner-only, under the configuration directory, which no project names",
+	"core/project/statid_unix.go:dirIdentity":         "stats the project root and its state directory, which CheckState has walked, for their device and inode; reads nothing",
 	"core/project/statecheck.go:gitIndexStamp":        "stats the index of the repository findGitDir found, to tell whether git must be asked again; it reads nothing",
 	"core/project/statecheck.go:findGitDir":           "walks up from the project root to the repository holding it; of a .git pointer file it reads only the gitdir line, and it reads or writes nothing that line names",
 

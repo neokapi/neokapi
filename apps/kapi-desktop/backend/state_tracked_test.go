@@ -43,6 +43,8 @@ func trackedProject(t *testing.T, file string) (root, recipe string) {
 	require.NoError(t, project.Save(recipe, &project.KapiProject{
 		Version: project.CurrentVersion, Name: "Tracked", Defaults: project.Defaults{SourceLanguage: "en"},
 	}))
+	// kapi on this machine made the state directory, so its mark is valid.
+	require.NoError(t, project.EnsureLayout(project.LayoutAt(root)))
 	p := filepath.Join(root, project.StateDirName, filepath.FromSlash(file))
 	require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
 	require.NoError(t, os.WriteFile(p, []byte(`{"active":"planted"}`), 0o644))

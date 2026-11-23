@@ -226,6 +226,11 @@ func (a *App) openParseCacheDefer(root string) func() {
 	if err != nil {
 		return func() {}
 	}
+	// The cache lives in the state directory, which is created, and marked as
+	// this machine's, before the cache is (project.EnsureLayout).
+	if err := project.EnsureLayout(layout); err != nil {
+		return func() {}
+	}
 	c, err := OpenDocCache(layout.CacheDir())
 	if err != nil {
 		return func() {}

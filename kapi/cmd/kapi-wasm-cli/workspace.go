@@ -161,6 +161,11 @@ func exportWorkspace(ctx context.Context, root string) (*workspaceExport, error)
 		if !d.Type().IsRegular() {
 			return nil
 		}
+		// A state directory's mark binds it to this browser's key: another
+		// browser that imports the workspace marks the state it writes itself.
+		if d.Name() == project.MarkFilename && filepath.Base(filepath.Dir(p)) == project.StateDirName {
+			return nil
+		}
 		rel, err := filepath.Rel(root, p)
 		if err != nil {
 			return err

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T23:29:41Z",
+  "generatedAt": "2026-11-23T06:50:10Z",
   "commands": [
     {
       "id": "add",
@@ -9403,12 +9403,19 @@
           "shorthand": "p",
           "usage": "▒ þàţĥ ţö à ķàþî.ýàḿļ þŕöĵéçţ ŕéçîþé öŕ îţš đîŕéçţöŕý (àüţö-đîšçöṽéŕéđ ƒŕöḿ çŵđ îƒ öḿîţţéđ) ▒",
           "type": "string"
+        },
+        {
+          "name": "state",
+          "usage": "vouch for the state in the project's .kapi/ directory that kapi on this machine did not write",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
         "kapi trust allow -p ./app",
         "kapi trust allow -p ./app --yes",
-        "kapi trust allow --context-store -p ./app"
+        "kapi trust allow --context-store -p ./app",
+        "kapi trust allow --state -p ./app"
       ],
       "offlineCapable": true,
       "runnableInBrowser": false,

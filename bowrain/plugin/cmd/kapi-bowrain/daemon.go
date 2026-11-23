@@ -260,7 +260,7 @@ func (d *daemonService) projectFor(ctx context.Context, root string) (*projectEn
 	if err != nil {
 		return nil, fmt.Errorf("absolute path: %w", err)
 	}
-	if err := coreproj.CheckStateTracked(ctx, coreproj.LayoutAt(abs)); err != nil {
+	if err := coreproj.CheckStateOwned(ctx, coreproj.LayoutAt(abs)); err != nil {
 		return nil, err
 	}
 

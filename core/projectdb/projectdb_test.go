@@ -3,6 +3,7 @@ package projectdb_test
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -45,10 +46,21 @@ func newLayout(t *testing.T) project.Layout {
 
 func openStore(t *testing.T, layout project.Layout) *projectdb.DB {
 	t.Helper()
+	vouchForStagedState(t, layout)
 	db, err := projectdb.Open(t.Context(), layout)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 	return db
+}
+
+// vouchForStagedState adopts a state directory a test staged by hand, as an
+// earlier kapi on this machine left it: a person upgrading answers once, with
+// `kapi trust allow --state`, for state that carries no mark.
+func vouchForStagedState(t *testing.T, layout project.Layout) {
+	t.Helper()
+	if _, err := os.Stat(layout.StateDir); err == nil {
+		require.NoError(t, project.AdoptState(layout))
+	}
 }
 
 func tableExists(t *testing.T, db *projectdb.DB, name string) bool {

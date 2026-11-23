@@ -94,12 +94,18 @@ With --context-store the allow is for the folder the recipe keeps its context
 in instead: the folder is shown, confirmed the same way, and kept against its
 resolved path.
 
+With --state you vouch for the state in the project's .kapi/ directory that kapi
+on this machine did not write (a copied checkout, a restored backup): the state
+is shown with where it appears to come from, confirmed the same way, and used
+as this machine's own from then on. An agent cannot vouch for state.
+
 An allow is keyed to the commands shown: a recipe edit that changes them asks
 again. To grant one process trust without recording anything, set
 KAPI_TRUST_EXEC=1 instead.`,
 		Example: `  kapi trust allow -p ./app
   kapi trust allow -p ./app --yes
-  kapi trust allow --context-store -p ./app`,
+  kapi trust allow --context-store -p ./app
+  kapi trust allow --state -p ./app`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			recipePath, err := RequireProjectPath(cmd)
@@ -107,8 +113,13 @@ KAPI_TRUST_EXEC=1 instead.`,
 				return err
 			}
 			allow := a.ExecTrustAllow
-			if BoolFlag(cmd, "context-store") {
+			switch {
+			case BoolFlag(cmd, "context-store") && BoolFlag(cmd, "state"):
+				return errors.New("--context-store and --state allow different things: pass one")
+			case BoolFlag(cmd, "context-store"):
 				allow = a.ContextStoreAllow
+			case BoolFlag(cmd, "state"):
+				allow = a.StateAllow
 			}
 			out, err := allow(cmd, recipePath)
 			if err != nil {
@@ -119,6 +130,11 @@ KAPI_TRUST_EXEC=1 instead.`,
 	}
 	AddProjectFlag(allowCmd)
 	allowCmd.Flags().Bool("context-store", false, "allow the folder the recipe keeps its context in, instead of the commands it runs")
+	allowCmd.Flags().Bool("state", false, "vouch for the state in the project's .kapi/ directory that kapi on this machine did not write")
+	// Vouching for state is how state kapi refuses is answered, so the check
+	// that refuses it before every command does not run for this one
+	// (CheckCommandState).
+	allowCmd.Annotations = map[string]string{StateAdoptAnnotation: "true"}
 
 	revokeCmd := &cobra.Command{
 		Use:   "revoke [path]",

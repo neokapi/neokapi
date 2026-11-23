@@ -18,6 +18,7 @@ import { FilterMenu } from "./components/FilterMenu";
 import { TabBar } from "./components/TabBar";
 import { SaveBar } from "./components/SaveBar";
 import { UnsavedDialog } from "./components/UnsavedDialog";
+import { StateVouchDialog } from "./components/StateVouchDialog";
 import { WindowCloseDialog } from "./components/WindowCloseDialog";
 import { useWindowCloseGuard } from "./hooks/useWindowCloseGuard";
 import { RunningFlowDialog } from "./components/RunningFlowDialog";
@@ -248,6 +249,13 @@ function AppInner() {
   });
   const dialogs = (
     <>
+      {tm.stateToVouch && (
+        <StateVouchDialog
+          state={tm.stateToVouch}
+          onVouch={() => void tm.vouchForState()}
+          onCancel={tm.cancelVouch}
+        />
+      )}
       {tm.showNewProjectForm && (
         <NewProjectDialog
           onCreate={tm.createProject}

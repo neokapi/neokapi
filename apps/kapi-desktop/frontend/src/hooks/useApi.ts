@@ -8,6 +8,7 @@
 import type {
   KapiProject,
   TabInfo,
+  StateToVouch,
   FlowInfo,
   FlowSpec,
   ToolInfo,
@@ -139,6 +140,10 @@ export const api = {
   newProject: (name: string, sourceLang: string, targetLangs: string[], savePath?: string) =>
     call<TabInfo>("NewProject", name, sourceLang, targetLangs, savePath ?? ""),
   openProject: (path: string) => call<TabInfo>("OpenProject", path),
+  // The state a person is asked to vouch for before a refused project opens
+  // (empty path: the project OpenProject refused last), or null.
+  projectStateToVouch: (path: string) => call<StateToVouch | null>("ProjectStateToVouch", path),
+  vouchForProjectState: (path: string) => call<void>("VouchForProjectState", path),
   openProjectDialog: () => call<TabInfo>("OpenProjectDialog"),
   createSampleProject: (name: string) => call<TabInfo>("CreateSampleProject", name),
   getSampleInfo: (tabID: string) => call<SampleInfo>("GetSampleInfo", tabID),

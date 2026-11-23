@@ -225,6 +225,7 @@ func TestSweep_UnreadablePredecessorDoesNotFailOpen(t *testing.T) {
 	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
 	require.NoError(t, os.WriteFile(oldWorkStorePath(layout), []byte("this is not a database"), 0o644))
 
+	vouchForStagedState(t, layout)
 	db, err := projectdb.Open(t.Context(), layout)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })

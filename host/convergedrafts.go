@@ -46,6 +46,11 @@ func (a *App) beginConvergeDrafts(projectPath, root string) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
+	// The state directory and its mark come first, so the draft tree is this
+	// machine's own state.
+	if err := project.EnsureLayout(layout); err != nil {
+		return nil, err
+	}
 	dir := filepath.Join(layout.WorkDir(), convergeDraftsDirName)
 	if err := os.RemoveAll(dir); err != nil {
 		return nil, fmt.Errorf("clear the convergence draft tree: %w", err)
