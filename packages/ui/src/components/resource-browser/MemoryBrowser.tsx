@@ -290,6 +290,7 @@ export function MemoryBrowser({
         }
         await adapter.updateEntry({
           entry_id: entry.id,
+          base_revision: entry.revision,
           variants: nextVariants,
           hint_src_lang: entry.hint_src_lang,
           project_id: entry.project_id,
@@ -425,7 +426,7 @@ export function MemoryBrowser({
           filters={filterTokens}
           onFiltersChange={setFilterTokens}
           filterFields={searchBarFilterFields}
-          onLookup={adapter.lookup}
+          onLookup={adapter.lookup ? (req) => adapter.lookup!(req) : undefined}
           onEntitiesChange={setMarkedEntities}
           sourceLocale={bilingualSrc ?? ""}
           targetLocale={bilingualTgt ?? ""}

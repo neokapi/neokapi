@@ -1769,7 +1769,10 @@
         "rules_path": {
           "description": "Path to a redaction rules YAML file",
           "title": "Rules File",
-          "type": "string"
+          "type": "string",
+          "x-path": {
+            "type": "file"
+          }
         },
         "target_lang": {
           "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
@@ -1926,6 +1929,33 @@
         "target_lang": {
           "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
           "type": "string"
+        },
+        "term_rules": {
+          "description": "The terms to check. Where the source contains a term, the translation should contain its replacement.",
+          "items": {
+            "properties": {
+              "advisory": {
+                "type": "boolean"
+              },
+              "forms": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "note": {
+                "type": "string"
+              },
+              "replacement": {
+                "type": "string"
+              },
+              "term": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
         },
         "text": {
           "description": "The content (text) to run the tool over.",

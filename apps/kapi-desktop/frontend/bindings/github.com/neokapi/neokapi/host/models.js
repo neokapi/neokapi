@@ -2895,6 +2895,24 @@ export class ContextPull {
              */
             this["empty"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * PassedOver names what the remote's listing left out because it is not
+             * a file the layout writes, such as a link placed in a shared folder: at
+             * most FileRemote's PassedOverShown names, as the folder spells them.
+             * PassedOverTotal counts them all.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["passed_over"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["passed_over_total"] = undefined;
+        }
         if (!("seconds" in $$source)) {
             /**
              * @member
@@ -2913,9 +2931,13 @@ export class ContextPull {
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType78;
+        const $$createField11_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("remote" in $$parsedSource) {
             $$parsedSource["remote"] = $$createField0_0($$parsedSource["remote"]);
+        }
+        if ("passed_over" in $$parsedSource) {
+            $$parsedSource["passed_over"] = $$createField11_0($$parsedSource["passed_over"]);
         }
         return new ContextPull(/** @type {Partial<ContextPull>} */($$parsedSource));
     }
@@ -4143,6 +4165,16 @@ export class ConvergeLocaleResult {
         }
         if (/** @type {any} */(false)) {
             /**
+             * LeftForPerson counts units whose drafts a reviewer rejected as many
+             * times as the loop allows (tool.MaxRejections). The loop drafts them no
+             * more; a person writes their translation.
+             * @member
+             * @type {number | undefined}
+             */
+            this["left_for_person"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Redrafted counts the stale units this run produced over: recycled against
              * the rewritten source, or drafted for the remainder. Each now holds a
              * translation of the current source. The decision they carried is NOT
@@ -4198,13 +4230,13 @@ export class ConvergeLocaleResult {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType19;
-        const $$createField12_0 = $$createType94;
+        const $$createField13_0 = $$createType94;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
         }
         if ("unstamped_drafts" in $$parsedSource) {
-            $$parsedSource["unstamped_drafts"] = $$createField12_0($$parsedSource["unstamped_drafts"]);
+            $$parsedSource["unstamped_drafts"] = $$createField13_0($$parsedSource["unstamped_drafts"]);
         }
         return new ConvergeLocaleResult(/** @type {Partial<ConvergeLocaleResult>} */($$parsedSource));
     }
@@ -4303,6 +4335,16 @@ export class ConvergeOutput {
              * @type {number | undefined}
              */
             this["blocked_on_source"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * RepeatedRejected counts the drafts this run made that came back equal to
+             * one a reviewer had rejected. None was kept, so those units stay owed,
+             * and each counts towards the unit's stop (tool.MaxRejections).
+             * @member
+             * @type {number | undefined}
+             */
+            this["repeated_rejected"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4436,9 +4478,9 @@ export class ConvergeOutput {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType96;
         const $$createField6_0 = $$createType98;
-        const $$createField18_0 = $$createType100;
-        const $$createField19_0 = $$createType102;
-        const $$createField20_0 = $$createType104;
+        const $$createField19_0 = $$createType100;
+        const $$createField20_0 = $$createType102;
+        const $$createField21_0 = $$createType104;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -4447,13 +4489,13 @@ export class ConvergeOutput {
             $$parsedSource["parked_scopes"] = $$createField6_0($$parsedSource["parked_scopes"]);
         }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField18_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField19_0($$parsedSource["warnings"]);
         }
         if ("findings" in $$parsedSource) {
-            $$parsedSource["findings"] = $$createField19_0($$parsedSource["findings"]);
+            $$parsedSource["findings"] = $$createField20_0($$parsedSource["findings"]);
         }
         if ("pre_review" in $$parsedSource) {
-            $$parsedSource["pre_review"] = $$createField20_0($$parsedSource["pre_review"]);
+            $$parsedSource["pre_review"] = $$createField21_0($$parsedSource["pre_review"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }
@@ -4710,6 +4752,128 @@ export class DigestTheme {
 }
 
 /**
+ * ExecTrustRequest is what a surface that asks through its own dialog (the
+ * desktop) shows before a run: what the project's commands run, what an
+ * answer checks and does not, what changed, and the limit.
+ */
+export class ExecTrustRequest {
+    /**
+     * Creates a new ExecTrustRequest instance.
+     * @param {Partial<ExecTrustRequest>} [$$source = {}] - The source object to create the ExecTrustRequest.
+     */
+    constructor($$source = {}) {
+        if (!("recipe" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["recipe"] = "";
+        }
+        if (!("sites" in $$source)) {
+            /**
+             * @member
+             * @type {output$0.TrustSite[]}
+             */
+            this["sites"] = [];
+        }
+        if (!("checked" in $$source)) {
+            /**
+             * @member
+             * @type {string[]}
+             */
+            this["checked"] = [];
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["not_checked"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["inline"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["added"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["changed"] = undefined;
+        }
+        if (!("limit" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["limit"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["declined"] = undefined;
+        }
+        if (!("digest" in $$source)) {
+            /**
+             * Digest is what an answer covers; ApproveExecTrustAt records it only
+             * while the project still digests to it.
+             * @member
+             * @type {string}
+             */
+            this["digest"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExecTrustRequest instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ExecTrustRequest}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType108;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sites" in $$parsedSource) {
+            $$parsedSource["sites"] = $$createField1_0($$parsedSource["sites"]);
+        }
+        if ("checked" in $$parsedSource) {
+            $$parsedSource["checked"] = $$createField2_0($$parsedSource["checked"]);
+        }
+        if ("not_checked" in $$parsedSource) {
+            $$parsedSource["not_checked"] = $$createField3_0($$parsedSource["not_checked"]);
+        }
+        if ("inline" in $$parsedSource) {
+            $$parsedSource["inline"] = $$createField4_0($$parsedSource["inline"]);
+        }
+        if ("added" in $$parsedSource) {
+            $$parsedSource["added"] = $$createField5_0($$parsedSource["added"]);
+        }
+        if ("changed" in $$parsedSource) {
+            $$parsedSource["changed"] = $$createField6_0($$parsedSource["changed"]);
+        }
+        return new ExecTrustRequest(/** @type {Partial<ExecTrustRequest>} */($$parsedSource));
+    }
+}
+
+/**
  * FindingsReport is what a run that is not the gate reports: the findings and
  * their roll-up, field-for-field as the kapi.check/v2 Report carries them, so
  * `.findings[]` and `.summary` read the same whichever command produced them.
@@ -4778,9 +4942,9 @@ export class FindingsReport {
      * @returns {FindingsReport}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType107;
-        const $$createField1_0 = $$createType108;
-        const $$createField2_0 = $$createType110;
+        const $$createField0_0 = $$createType109;
+        const $$createField1_0 = $$createType110;
+        const $$createField2_0 = $$createType112;
         const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target" in $$parsedSource) {
@@ -5038,7 +5202,7 @@ export class RulesFilesResult {
      * @returns {RulesFilesResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType112;
+        const $$createField0_0 = $$createType114;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
@@ -5210,11 +5374,11 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType114;
-        const $$createField4_0 = $$createType113;
-        const $$createField7_0 = $$createType116;
+        const $$createField3_0 = $$createType116;
+        const $$createField4_0 = $$createType115;
+        const $$createField7_0 = $$createType118;
         const $$createField11_0 = $$createType100;
-        const $$createField12_0 = $$createType117;
+        const $$createField12_0 = $$createType119;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -5560,14 +5724,16 @@ const $$createType103 = PreReviewResult.createFrom;
 const $$createType104 = $Create.Nullable($$createType103);
 const $$createType105 = DigestGroup.createFrom;
 const $$createType106 = $Create.Array($$createType105);
-const $$createType107 = check$0.Target.createFrom;
-const $$createType108 = check$0.Summary.createFrom;
-const $$createType109 = check$0.Diagnostic.createFrom;
-const $$createType110 = $Create.Array($$createType109);
-const $$createType111 = RulesFile.createFrom;
+const $$createType107 = output$0.TrustSite.createFrom;
+const $$createType108 = $Create.Array($$createType107);
+const $$createType109 = check$0.Target.createFrom;
+const $$createType110 = check$0.Summary.createFrom;
+const $$createType111 = check$0.Diagnostic.createFrom;
 const $$createType112 = $Create.Array($$createType111);
-const $$createType113 = UpPlanScope.createFrom;
+const $$createType113 = RulesFile.createFrom;
 const $$createType114 = $Create.Array($$createType113);
-const $$createType115 = UpPlanProviderGroup.createFrom;
+const $$createType115 = UpPlanScope.createFrom;
 const $$createType116 = $Create.Array($$createType115);
-const $$createType117 = project$0.StoreDrift.createFrom;
+const $$createType117 = UpPlanProviderGroup.createFrom;
+const $$createType118 = $Create.Array($$createType117);
+const $$createType119 = project$0.StoreDrift.createFrom;

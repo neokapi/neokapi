@@ -15,19 +15,18 @@ import (
 // view; the writable output surface is overlays, annotations, and properties.
 //
 // A tool's capability is expressed by which handler field it sets on BaseTool:
-//   - Annotate(BlockView)   — analysis / annotation (the default; no content
-//     writes possible — the methods simply don't exist here)
-//   - Produce(VariantView) — writes target content
-//   - Transform(BlockView)  — a read-only edit producer returning an EditPlan;
+//   - Annotate(BlockView), analysis / annotation (the default; no content
+//     writes possible, the methods simply don't exist here)
+//   - Produce(VariantView), writes target content
+//   - Transform(BlockView), a read-only edit producer returning an EditPlan;
 //     the framework applier is the sole source mutator (AD-006)
 //
-// Because the read methods hand back the Block's live run slices, tools must
-// treat returned runs as read-only; the dispatcher's backstop check
-// (EnforceImmutability) catches accidental in-place edits in dev/test.
+// The read methods hand back the Block's live run slices, so tools treat them
+// as read-only; EnforceImmutability catches in-place edits in dev and test.
 //
-// BlockView is composed from named facets grouped by concern — BlockReader
+// BlockView is composed from named facets grouped by concern, BlockReader
 // (all reads), OverlayWriter, AnnotationWriter, and PropertyWriter (the three
-// writable output surfaces) — so tests can mock a facet and readers of the
+// writable output surfaces), so tests can mock a facet and readers of the
 // code can see at a glance what a tool may touch.
 type BlockView interface {
 	BlockReader
@@ -64,6 +63,9 @@ type BlockReader interface {
 	// the ID, which is assigned per read. Exposed here rather than by handing
 	// out the block, so a view stays a view.
 	ChainKey() string
+	// UnitKey is the key the unit's decisions and review feedback are filed
+	// under (model.Block.UnitKey).
+	UnitKey() string
 	PreserveWhitespace() bool
 
 	// Source (read-only).
@@ -163,7 +165,7 @@ type PropertyWriter interface {
 	SetProperty(key, value string)
 	// SetSourceStatus stamps the block's authoring lifecycle state. This is
 	// metadata about the source, not a rewrite of its runs, so it is available
-	// at the read-only Annotate tier (like SetProperty) — a check tool that
+	// at the read-only Annotate tier (like SetProperty), a check tool that
 	// clears a block stamps `written` without touching the source content.
 	SetSourceStatus(s model.SourceStatus)
 }
@@ -379,6 +381,7 @@ func (v *blockView) Translatable() bool             { return v.b.Translatable }
 func (v *blockView) SourceLocale() model.LocaleID   { return v.b.SourceLocale }
 func (v *blockView) Identity() *model.BlockIdentity { return v.b.Identity }
 func (v *blockView) ChainKey() string               { return v.b.ChainKey() }
+func (v *blockView) UnitKey() string                { return v.b.UnitKey() }
 func (v *blockView) PreserveWhitespace() bool       { return v.b.PreserveWhitespace }
 
 func (v *blockView) SourceRuns() []model.Run             { return authoritative(v.b).Runs }

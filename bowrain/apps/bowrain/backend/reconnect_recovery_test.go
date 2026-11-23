@@ -238,6 +238,53 @@ func TestRetryConnectionAttemptsWithoutWaitingOutTheBackoff(t *testing.T) {
 	assert.Positive(t, probes.Load())
 }
 
+// TestAReconnectAttemptIsReportedWhileItRuns: the person sees the app trying
+// while an attempt is under way, and the app stays offline throughout, so an
+// edit made meanwhile still goes to the queue.
+func TestAReconnectAttemptIsReportedWhileItRuns(t *testing.T) {
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-release
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(srv.Close)
+
+	app := newTestApp(t)
+	var mu sync.Mutex
+	var states []ConnectionState
+	InjectEventSink(app, func(name string, data any) {
+		if ci, ok := data.(ConnectionInfo); ok && name == "connection-state-changed" {
+			mu.Lock()
+			states = append(states, ci.State)
+			mu.Unlock()
+		}
+	})
+	app.mu.Lock()
+	app.connState = StateConnected
+	app.serverURL = srv.URL
+	app.authInfo = &config.StoredAuth{ServerURL: srv.URL, AccessToken: "tok"}
+	app.mu.Unlock()
+	t.Cleanup(app.stopReconnect)
+
+	app.goOffline()
+	app.RetryConnection()
+
+	require.Eventually(t, func() bool {
+		return app.GetConnectionState().State == StateReconnecting
+	}, 10*time.Second, 10*time.Millisecond, "an attempt under way is reported")
+	assert.True(t, app.isOffline(), "the app stays offline while it tries")
+
+	close(release)
+	require.Eventually(t, func() bool {
+		return app.GetConnectionState().State == StateOffline
+	}, 15*time.Second, 10*time.Millisecond, "a failed attempt reports the app offline again")
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.GreaterOrEqual(t, len(states), 3)
+	assert.Equal(t, []ConnectionState{StateOffline, StateReconnecting, StateOffline}, states[:3])
+}
+
 func TestRetryConnectionStartsALoopThatIsNotRunning(t *testing.T) {
 	srv, _ := authOnlyServer(t, http.StatusOK)
 

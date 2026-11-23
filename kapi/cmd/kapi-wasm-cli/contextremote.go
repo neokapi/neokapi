@@ -12,6 +12,7 @@ import (
 	"syscall/js"
 
 	"github.com/neokapi/neokapi/core/workspace"
+	"github.com/neokapi/neokapi/host"
 )
 
 // A page shares a project's context through a remote it holds: an object with
@@ -229,7 +230,9 @@ func kapiSyncContext(_ js.Value, args []js.Value) any {
 
 // syncContext runs a sync through the page's remote. The caller holds engineMu.
 func syncContext(ctx context.Context, remote workspace.Remote, opts syncOptions) (any, error) {
-	recipe, err := app.RequireMCPCallProject(opts.Project)
+	// The page names the project, not an agent, and the browser's file system
+	// holds nothing but the page's own files, so every directory is reachable.
+	recipe, err := app.RequireMCPCallProject(host.WithMCPRoots(ctx, []string{"/"}), opts.Project)
 	if err != nil {
 		return nil, err
 	}

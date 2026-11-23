@@ -112,6 +112,8 @@ export default function ReviewedScreen() {
               item.vars.kind === "fix" && item.vars.runs ? item.vars.runs : item.vars.card.target
             }
             source={item.vars.card.source}
+            reasons={item.vars.reasons}
+            note={item.vars.note}
             canUndo={planUndo(qc, item) !== null}
             onUndo={() => undo(item.vars.id)}
           />

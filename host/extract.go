@@ -24,6 +24,7 @@ import (
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/host/output"
@@ -159,8 +160,16 @@ func (a *App) RunExtract(cmd Command) error {
 	if !filepath.IsAbs(absOut) {
 		absOut = filepath.Join(layout.Root, absOut)
 	}
-	if err := os.MkdirAll(absOut, 0o755); err != nil {
-		return fmt.Errorf("extract: create out dir: %w", err)
+	// The output goes through the project root unless the person named the
+	// directory with --out-dir, which is theirs to choose. The default out/
+	// is a directory the repository may hold, so a link there cannot move
+	// the files out of the project.
+	outRoot := layout.Root
+	if cmd.Flags().Changed("out-dir") {
+		outRoot = ""
+		if err := makeNamedOutDir(absOut); err != nil {
+			return fmt.Errorf("extract: create out dir: %w", err)
+		}
 	}
 
 	batchID := uuid.NewString()
@@ -282,7 +291,7 @@ func (a *App) RunExtract(cmd Command) error {
 			prog.Advance()
 			pairIndex++
 
-			sourceHash, err := project.HashFile(src.Path)
+			sourceHash, err := project.HashFileIn(layout.Root, src.Path)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "extract: hash %s: %v\n", src.Path, err)
 				failures++
@@ -323,6 +332,7 @@ func (a *App) RunExtract(cmd Command) error {
 				sourceHash:     sourceHash,
 				targetLocale:   tgt,
 				outputPath:     outPath,
+				outRoot:        outRoot,
 				batchDir:       batchDir,
 				batchID:        batchID,
 				format:         format,
@@ -402,6 +412,9 @@ type extractTask struct {
 	sourceHash   string
 	targetLocale model.LocaleID
 	outputPath   string
+	// outRoot is the project root the file is written through, or empty for
+	// an --out-dir the person named.
+	outRoot      string
 	batchDir     string
 	batchID      string
 	format       string // xliff2 | po
@@ -452,7 +465,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		// Only capture if we don't already have one from an earlier pair
 		// for the same source (batch may extract N target locales off
 		// the same source file); a later pair's store keeps nothing.
-		if _, err := os.Stat(skeletonPath); os.IsNotExist(err) {
+		if !stateFileExists(skeletonPath) {
 			skelStore, err = format.NewSkeletonStoreAt(skeletonPath)
 			if err != nil {
 				return project.ExtractionFile{}, fmt.Errorf("create skeleton store: %w", err)
@@ -463,7 +476,8 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		emitter.SetSkeletonStore(skelStore)
 	}
 
-	sourceFile, err := os.Open(task.source.Path)
+	// The source is project content, read through the project root.
+	sourceFile, err := rootpath.Open(task.ctx.ProjectDir, task.source.Path)
 	if err != nil {
 		return project.ExtractionFile{}, fmt.Errorf("open %s: %w", task.source.Path, err)
 	}
@@ -475,6 +489,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		TargetLocale: task.targetLocale,
 		FormatID:     task.source.Format,
 		Reader:       sourceFile,
+		ReaderAt:     sourceFile,
 	}
 	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		if skelStore != nil {
@@ -578,32 +593,25 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		}
 	}
 
-	// Write the bilingual output file in the requested format.
-	if err := os.MkdirAll(filepath.Dir(task.outputPath), 0o755); err != nil {
-		return project.ExtractionFile{}, fmt.Errorf("mkdir output: %w", err)
-	}
-	outFile, err := os.Create(task.outputPath)
-	if err != nil {
-		return project.ExtractionFile{}, fmt.Errorf("create %s: %w", task.outputPath, err)
-	}
-
-	switch task.format {
-	case extractFormatPO:
-		if err := WritePOExtract(outFile, task.targetLocale, task.batchID, task.source.Relative, task.sourceHash, blocks); err != nil {
-			_ = outFile.Close()
-			_ = os.Remove(task.outputPath)
-			return project.ExtractionFile{}, fmt.Errorf("po writer: %w", err)
+	// Write the bilingual output file in the requested format. Beneath the
+	// output directory it is staged and renamed through an os.Root opened on
+	// that directory: no directory is made, and no byte is written, through a
+	// link that leads out of it, and an existing file is replaced, never cut
+	// in place.
+	write := func(out io.Writer) error {
+		if task.format == extractFormatPO {
+			if err := WritePOExtract(out, task.targetLocale, task.batchID, task.source.Relative, task.sourceHash, blocks); err != nil {
+				return fmt.Errorf("po writer: %w", err)
+			}
+			return nil
 		}
-	default: // xliff2
 		writer := xliff2.NewWriter()
-		if err := writer.SetOutputWriter(outFile); err != nil {
-			_ = outFile.Close()
-			return project.ExtractionFile{}, err
+		if err := writer.SetOutputWriter(out); err != nil {
+			return err
 		}
 		if task.xliffVersion != "" {
 			if err := writer.SetVersion(task.xliffVersion); err != nil {
-				_ = outFile.Close()
-				return project.ExtractionFile{}, err
+				return err
 			}
 		}
 		writer.SetLocale(task.targetLocale)
@@ -632,12 +640,11 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		close(parts)
 
 		if err := writer.Write(ctx, parts); err != nil {
-			_ = outFile.Close()
-			return project.ExtractionFile{}, fmt.Errorf("writer.Write: %w", err)
+			return fmt.Errorf("writer.Write: %w", err)
 		}
+		return writer.Close()
 	}
-
-	if err := outFile.Close(); err != nil {
+	if err := writeExtractOutput(ctx, task.outRoot, task.outputPath, write); err != nil {
 		return project.ExtractionFile{}, err
 	}
 
@@ -924,9 +931,10 @@ func loadReusablePrior(layout project.Layout, inputsHash string, force bool) *pr
 	if force || inputsHash == "" {
 		return nil
 	}
-	// List the batch dirs directly and skip any that fail to load, notably the
-	// current run's own dir, which exists (created above) but has no manifest yet.
-	entries, err := os.ReadDir(project.ExtractionsRoot(layout))
+	// List the batch dirs directly and skip any that fail to load. One such dir
+	// is the current run's own, which exists (created above) but has no
+	// manifest yet.
+	entries, err := rootpath.ReadDir(layout.Root, project.ExtractionsRoot(layout))
 	if err != nil {
 		return nil
 	}
@@ -969,8 +977,8 @@ func (p *priorBatch) reuse(tgt, srcRel, sourceHash string) (priorEntry, bool) {
 // batch dir and verifies the bilingual output still exists, so the reused result
 // is fully resolvable from this batch. It is a byte copy with no re-parse.
 func (e priorEntry) copySkeleton(layout project.Layout, batchDir, outPath string) error {
-	if _, err := os.Stat(outPath); err != nil {
-		return err // the prior bilingual output is gone, so re-extract
+	if _, err := statIn(layout.Root, outPath); err != nil {
+		return err // the prior bilingual output is gone; re-extract
 	}
 	src := filepath.Join(layout.ExtractionsDir(), e.batchID, e.ef.Skeleton)
 	dst := filepath.Join(batchDir, e.ef.Skeleton)
@@ -1066,8 +1074,14 @@ func (a *App) RunExtractKpz(cmd Command) error {
 	if !filepath.IsAbs(absOut) {
 		absOut = filepath.Join(layout.Root, absOut)
 	}
-	if err := os.MkdirAll(absOut, 0o755); err != nil {
-		return fmt.Errorf("extract: create out dir: %w", err)
+	// As for the bilingual files: through the project root unless the person
+	// named the directory.
+	kpzOutRoot := layout.Root
+	if cmd.Flags().Changed("out-dir") {
+		kpzOutRoot = ""
+		if err := makeNamedOutDir(absOut); err != nil {
+			return fmt.Errorf("extract: create out dir: %w", err)
+		}
 	}
 
 	// Each source is redacted under the policy that governs it, once for
@@ -1114,7 +1128,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 				return fmt.Errorf("extract: %s → %s: read the revisions its blocks carry: %w", src.Relative, tgt, err)
 			}
 			if err := a.extractOneKpz(cmd.Context(), kpzInterchangeTask{
-				ctx: pctx, source: src, targetLocale: tgt, outputPath: outPath, tm: mem, tb: tb, revisions: revisions,
+				ctx: pctx, source: src, targetLocale: tgt, outputPath: outPath, outRoot: kpzOutRoot, tm: mem, tb: tb, revisions: revisions,
 				redacted: redacted[src.Relative], vaultID: vaultID,
 			}); err != nil {
 				return fmt.Errorf("extract: %s → %s: %w", src.Relative, tgt, err)
@@ -1188,7 +1202,7 @@ func (a *App) redactKpzSources(cmd Command, pctx *project.ProjectContext, layout
 			locale:    pctx.SourceLocale,
 		})
 		if err != nil {
-			_ = os.Remove(final)
+			removeStateFile(final)
 			return nil, "", fmt.Errorf("extract: %w", err)
 		}
 		out[src.Relative] = rs
@@ -1196,13 +1210,17 @@ func (a *App) redactKpzSources(cmd Command, pctx *project.ProjectContext, layout
 	return out, id, nil
 }
 
+// kpzInterchangeTask is one (source, target) package an extract writes.
 type kpzInterchangeTask struct {
 	ctx          *project.ProjectContext
 	source       project.ResolvedFile
 	targetLocale model.LocaleID
 	outputPath   string
-	tm           memory.ContentMemory
-	tb           terms.Terminology
+	// outRoot is the project root the package is written through, or empty
+	// for an --out-dir the person named.
+	outRoot string
+	tm      memory.ContentMemory
+	tb      terms.Terminology
 	// revisions is, by block ID, what each unit is extracted against.
 	revisions map[string]unitRevision
 	// redacted, when set, is the source as its redaction policy leaves it,
@@ -1218,14 +1236,14 @@ type kpzInterchangeTask struct {
 // content memory/terms context, and writes the .kpz.
 func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error {
 	srcAbs := task.source.Path
-	data, err := os.ReadFile(srcAbs)
+	data, err := rootpath.ReadFile(task.ctx.ProjectDir, srcAbs)
 	if err != nil {
 		return fmt.Errorf("read source: %w", err)
 	}
 	formatID := registry.FormatID(task.source.Format)
 	sourceHash := project.HashBytes(data)
 
-	blocks, _, err := project.ReadSourceBlocks(ctx, a.FormatReg, string(formatID), srcAbs, task.ctx.SourceLocale, task.targetLocale,
+	blocks, _, err := project.ReadSourceBlocks(ctx, a.FormatReg, task.ctx.ProjectDir, string(formatID), srcAbs, task.ctx.SourceLocale, task.targetLocale,
 		mergedFormatConfig(task.ctx.Project, string(formatID), task.source.Item))
 	if err != nil {
 		return fmt.Errorf("read blocks: %w", err)
@@ -1377,10 +1395,19 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 	if task.redacted != nil {
 		pkg.Redaction = &kpz.Redaction{VaultID: task.vaultID}
 	}
-	if err := os.MkdirAll(filepath.Dir(task.outputPath), 0o755); err != nil {
-		return err
+	data, err = pkg.Marshal()
+	if err != nil {
+		return fmt.Errorf("encode snapshot: %w", err)
 	}
-	return saveWorkspace(pkg, task.outputPath)
+	return writeExtractOutput(ctx, task.outRoot, task.outputPath, func(w io.Writer) error {
+		_, err := w.Write(data)
+		return err
+	})
+}
+
+// makeNamedOutDir creates the --out-dir the person named on the command line.
+func makeNamedOutDir(dir string) error {
+	return os.MkdirAll(dir, 0o755)
 }
 
 // Unused imports workaround: bytes/sort/io are here for helpers that
@@ -1391,3 +1418,44 @@ var (
 	_ = sort.Strings
 	_ = io.Discard
 )
+
+// writeExtractOutput writes the bilingual file at path with write. Beneath
+// root it commits through a file home rooted there (commitWithin), so a
+// failed write leaves the file as it was.
+func writeExtractOutput(ctx context.Context, root, path string, write func(io.Writer) error) error {
+	if root == "" {
+		return writeNamedExtractOutput(path, write)
+	}
+	if err := commitWithin(ctx, root, path, write); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
+}
+
+// writeNamedExtractOutput writes the bilingual file into the --out-dir the
+// person named, creating the directories above it.
+func writeNamedExtractOutput(path string, write func(io.Writer) error) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("mkdir output: %w", err)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("create %s: %w", path, err)
+	}
+	werr := write(f)
+	if cerr := f.Close(); werr == nil {
+		werr = cerr
+	}
+	return werr
+}
+
+// stateFileExists reports whether kapi's own file at path, in the project
+// state directory, exists.
+func stateFileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// removeStateFile removes kapi's own file at path in the project state
+// directory.
+func removeStateFile(path string) { _ = os.Remove(path) }

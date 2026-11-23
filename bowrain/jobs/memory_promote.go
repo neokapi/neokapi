@@ -23,16 +23,39 @@ import (
 // (worker) and the editor's review endpoint (server). One implementation, so
 // the two entry points cannot disagree about what an approval admits.
 
+// PromotionMemory is the content memory as decision promotion writes it. The
+// promotion is one writer among several (a person's edit, an import, a merge),
+// so it changes nothing it did not put there: it creates an entry only when
+// the memory holds none for the pair, adds its origin to an entry that holds
+// the pair, and on a rejection removes its own origin, which removes the entry
+// only when no other origin is left.
+type PromotionMemory interface {
+	GetEntry(ctx context.Context, id string) (memory.Entry, bool, error)
+	AddIfAbsent(ctx context.Context, entry memory.Entry) (bool, error)
+	AddOrigin(ctx context.Context, id string, origin memory.Origin, properties map[string]string) (bool, error)
+	RemoveOrigin(ctx context.Context, id, source, key string) (bool, error)
+}
+
+// promotionOrigin is the origin source an approval records on the entry that
+// holds the pair it approved; the origin's key is the decision's unit.
+const promotionOrigin = "approval"
+
 // PromoteDecisionsToMemory applies the decisions' verdicts to the workspace
 // content memory: approved pairs are promoted, rejected pairs are
 // evicted. A decision is applied only when its unit resolves to a stored block
 // whose current translation the decision still blesses (Revision) — a stale
 // decision moves no wording, in either direction. Returns how many entries
 // were promoted and evicted.
+//
+// An approval of a pair the memory already holds adds its origin and leaves
+// the text alone. An entry under the pair's id whose text a person has since
+// changed is that person's, and the approval leaves it as it is. A rejection
+// removes the approval's origin; an entry another origin still holds, a
+// person's edit among them, stays.
 func PromoteDecisionsToMemory(
 	ctx context.Context,
 	cs store.ContentStore,
-	tm memory.Store,
+	tm PromotionMemory,
 	projectID, stream string,
 	sourceLocale model.LocaleID,
 	decisions []venue.UnitDecision,
@@ -106,7 +129,13 @@ func PromoteDecisionsToMemory(
 
 			entryID := memoryEntryID(sourceLocale, variant.Locale, sourceRuns, targetRuns)
 			if d.ReviewState == "rejected" {
-				if err := tm.Delete(ctx, entryID); err == nil {
+				removed, err := tm.RemoveOrigin(ctx, entryID, promotionOrigin, d.Unit)
+				if err != nil {
+					slog.WarnContext(ctx, "memory eviction failed",
+						"project", projectID, "unit", d.Unit, "error", err)
+					continue
+				}
+				if removed {
 					evicted++
 				}
 				continue
@@ -120,7 +149,7 @@ func PromoteDecisionsToMemory(
 				HintSrcLang: sourceLocale,
 				ProjectID:   projectID,
 				Origins: []memory.Origin{{
-					Source:    "approval",
+					Source:    promotionOrigin,
 					Key:       d.Unit,
 					Reference: d.DecidedAt,
 					AddedAt:   now,
@@ -133,13 +162,38 @@ func PromoteDecisionsToMemory(
 				CreatedAt: now,
 				UpdatedAt: now,
 			}
-			if err := tm.Add(ctx, entry); err != nil {
+			ok, err := promote(ctx, tm, entry)
+			if err != nil {
 				slog.WarnContext(ctx, "memory promotion failed",
 					"project", projectID, "unit", d.Unit, "error", err)
 				continue
 			}
-			promoted++
+			if ok {
+				promoted++
+			}
 		}
 	}
 	return promoted, evicted
+}
+
+// promote stores entry, or adds its origin to the entry the memory already
+// holds under its id when that entry still holds the same pair. It reports
+// whether the memory now records the approval.
+func promote(ctx context.Context, tm PromotionMemory, entry memory.Entry) (bool, error) {
+	created, err := tm.AddIfAbsent(ctx, entry)
+	if err != nil || created {
+		return created, err
+	}
+	existing, ok, err := tm.GetEntry(ctx, entry.ID)
+	if err != nil || !ok {
+		return false, err
+	}
+	for loc, runs := range entry.Variants {
+		if existing.VariantText(loc) != model.RunsText(runs) {
+			// A person changed the text after the pair was promoted; the
+			// entry is theirs now.
+			return false, nil
+		}
+	}
+	return tm.AddOrigin(ctx, entry.ID, entry.Origins[0], nil)
 }

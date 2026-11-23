@@ -17,17 +17,14 @@ import (
 
 // Sync moves one project's operations between this workspace and a remote.
 //
-// Pull reads the segments of the remote this workspace has not seen, merges
-// their operations into the log by id and hands them to the Applier; push
-// writes the project's operations the remote does not hold as one new segment
-// under this workspace's writer id. What the workspace knows about a remote
-// (the ids the remote holds, the segments it has read) is kept in the registry
-// database, keyed by the project and the remote, so switching a project to
-// another remote starts that remote's knowledge afresh.
+// Pull merges the remote's unseen segments into the log by id and hands them
+// to the Applier. Push writes what the remote lacks as one new segment under
+// this workspace's writer id. What the workspace knows about a remote is kept
+// in the registry database per project and remote, so another remote starts
+// afresh.
 //
-// Only one project's operations travel: a remote belongs to one project. The
-// kinds named in SyncOptions.LocalKinds stay on the machine that recorded
-// them: the project's registration and its checkpoints.
+// A remote belongs to one project. The kinds in SyncOptions.LocalKinds (the
+// registration, the checkpoints) stay on the machine that recorded them.
 
 // syncMigrationsTable is the sync state's own migration ledger inside
 // `workspace.db`.
@@ -144,6 +141,18 @@ type PullReport struct {
 	// Empty reports that the remote lists no segments at all: nothing has
 	// been pushed to it yet.
 	Empty bool `json:"empty,omitempty"`
+	// PassedOver names what the remote's listing left out because it is not
+	// a file the layout writes, such as a link placed in a shared folder: at
+	// most FileRemote's PassedOverShown names, as the folder spells them.
+	// PassedOverTotal counts them all.
+	PassedOver      []string `json:"passed_over,omitempty"`
+	PassedOverTotal int      `json:"passed_over_total,omitempty"`
+}
+
+// passedOverReporter is a remote that leaves entries out of a listing and
+// can say which (FileRemote).
+type passedOverReporter interface {
+	TakePassedOver() ([]string, int)
 }
 
 // PushReport says what a push wrote.
@@ -599,6 +608,9 @@ func (s *Sync) Pull(ctx context.Context) (PullReport, error) {
 		return report, err
 	}
 	names, ferr := s.fetch(ctx, db)
+	if p, ok := s.remote.(passedOverReporter); ok {
+		report.PassedOver, report.PassedOverTotal = p.TakePassedOver()
+	}
 	s.noteContact(ctx, db, ferr)
 	if ferr != nil {
 		report.SyncStatus, _ = s.Status(ctx)

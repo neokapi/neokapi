@@ -234,7 +234,7 @@ func (a *App) countProjectUsage(ctx context.Context, cmd Command, recipe string,
 			continue
 		}
 		name, cfg := formats.forFile(a, rf.Path)
-		blocks, berr := a.readBlocksAs(ctx, rf.Path, name, cfg, a.SourceLocale())
+		blocks, berr := a.readBlocksAs(ctx, filepath.Dir(recipe), rf.Path, name, cfg, a.SourceLocale())
 		if berr != nil {
 			continue
 		}

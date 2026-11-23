@@ -689,7 +689,7 @@ func contextScanRepoPaths(dir string, all []*platconn.ContentItem) []string {
 		if err != nil || real != filepath.Join(realDir, item.Path) {
 			continue
 		}
-		if info, err := os.Lstat(real); err != nil || info.Size() > contextScanRepoMaxFileBytes {
+		if info, err := rootpath.Stat(dir, real); err != nil || info.Size() > contextScanRepoMaxFileBytes {
 			continue
 		}
 		paths = append(paths, item.Path)

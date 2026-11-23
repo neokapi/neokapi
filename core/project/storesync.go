@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // This file centralizes block-store synchronization — the version stamp, the
@@ -83,16 +85,9 @@ func CompareSourceStamps(stamps map[string]SourceStamp, files []ResolvedFile) (c
 			changed = append(changed, rf.Relative)
 			continue
 		}
-		info, err := os.Stat(rf.Path)
-		if err != nil {
-			changed = append(changed, rf.Relative)
-			continue
-		}
-		if info.Size() == stamp.Size && info.ModTime().UnixNano() == stamp.MTimeNS {
-			continue // stat fast path: unchanged
-		}
-		hash, err := HashFile(rf.Path)
-		if err != nil || hash != stamp.Hash {
+		// Read through the project directory: a source that is now a link out
+		// of the project reads as changed, and its extraction refuses it.
+		if sourceChanged(resolvedFileRoot(rf), rf.Path, stamp) {
 			changed = append(changed, rf.Relative)
 		}
 		// Touched but byte-identical: not drift. The refreshed (size, mtime)
@@ -236,7 +231,7 @@ func ExtractToBlockStore(
 		// and an item's extraction rules decide which leaves become blocks at
 		// all.
 		cfg := pctx.FormatConfigFor(rf.Format, rf.Item)
-		blocks, _, rerr := ReadSourceBlocks(ctx, reg, rf.Format, rf.Path, pctx.SourceLocale, "", cfg)
+		blocks, _, rerr := ReadSourceBlocks(ctx, reg, pctx.ProjectDir, rf.Format, rf.Path, pctx.SourceLocale, "", cfg)
 		if rerr != nil {
 			stats.Skipped = append(stats.Skipped, ExtractSkip{Path: rf.Relative, Reason: rerr.Error()})
 			continue
@@ -279,7 +274,7 @@ func ExtractToBlockStore(
 		// stat/hash fails again every time. And stats.Files++ above has already
 		// counted the file as extracted, so silence here makes the stats and the
 		// stamp map disagree about the same file.
-		stamp, serr := sourceStampFor(rf.Path)
+		stamp, serr := sourceStampFor(pctx.ProjectDir, rf.Path)
 		if serr != nil {
 			_ = sess.Rollback()
 			return stats, fmt.Errorf("stamp source %q for drift detection: %w. Without a stamp "+
@@ -330,14 +325,51 @@ func ExtractToBlockStore(
 }
 
 // sourceStampFor captures a source file's drift stamp (hash + stat fast path).
-func sourceStampFor(path string) (SourceStamp, error) {
-	info, err := os.Stat(path)
+// The file is opened once, through root when it lies beneath it, and stated
+// and hashed through that one descriptor.
+func sourceStampFor(root, path string) (SourceStamp, error) {
+	f, err := rootpath.Open(root, path)
 	if err != nil {
 		return SourceStamp{}, err
 	}
-	hash, err := HashFile(path)
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return SourceStamp{}, err
+	}
+	hash, err := hashOpen(f)
 	if err != nil {
 		return SourceStamp{}, err
 	}
 	return SourceStamp{Hash: hash, Size: info.Size(), MTimeNS: info.ModTime().UnixNano()}, nil
+}
+
+// sourceChanged reports whether the file at path differs from its stamp:
+// unchanged when size and modification time match, otherwise when its hash
+// differs. A file that cannot be read through root has changed.
+func sourceChanged(root, path string, stamp SourceStamp) bool {
+	f, err := rootpath.Open(root, path)
+	if err != nil {
+		return true
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return true
+	}
+	if info.Size() == stamp.Size && info.ModTime().UnixNano() == stamp.MTimeNS {
+		return false // stat fast path: unchanged
+	}
+	hash, err := hashOpen(f)
+	return err != nil || hash != stamp.Hash
+}
+
+// resolvedFileRoot is the project directory a resolved file lies in: its
+// absolute path with its project-relative path taken off the end.
+func resolvedFileRoot(rf ResolvedFile) string {
+	rel := filepath.FromSlash(rf.Relative)
+	if rel == "" || !strings.HasSuffix(rf.Path, string(filepath.Separator)+rel) {
+		return ""
+	}
+	return strings.TrimSuffix(rf.Path, string(filepath.Separator)+rel)
 }

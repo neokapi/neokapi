@@ -1,9 +1,6 @@
 package contextop
 
-import (
-	"strings"
-	"time"
-)
+import "time"
 
 // ItemKind names the store an attested item lives in.
 type ItemKind string
@@ -25,12 +22,6 @@ type ItemRef struct {
 	Kind    ItemKind `json:"kind"`
 	ID      string   `json:"id"`
 	Profile string   `json:"profile,omitempty"`
-}
-
-// Key is the item's identity as one string, for indexing attestations.
-func (r ItemRef) Key() string {
-	//keyguard:persisted the item key the Bowrain context session tables store for holds and decisions; pinned by TestItemRefKeyIsStable
-	return strings.Join([]string{string(r.Kind), r.Profile, r.ID}, "\x00")
 }
 
 // ReviewBasis is the ground an attestation is valid on, decided by the
@@ -86,9 +77,9 @@ func (r *Review) Current(revision string) bool {
 // a reset is left out, and so is one an agent or a tool recorded: only a
 // person reviews (PersonDecides), and a server reads an operation a tool
 // pushed as the tool's, whatever actor the operation names.
-func Reviews(records []Record) map[string]*Review {
-	out := map[string]*Review{}
-	var latest map[string]string
+func Reviews(records []Record) map[ItemRef]*Review {
+	out := map[ItemRef]*Review{}
+	var latest map[ItemRef]string
 	for _, r := range records {
 		if r.Kind != KindAttest || r.Attest == nil || r.Status == StatusReset {
 			continue
@@ -96,9 +87,9 @@ func Reviews(records []Record) map[string]*Review {
 		if r.Actor.Kind != "" && r.Actor.Kind != ActorPerson {
 			continue
 		}
-		key := r.Attest.Item.Key()
+		key := r.Attest.Item
 		if latest == nil {
-			latest = map[string]string{}
+			latest = map[ItemRef]string{}
 		}
 		if prev, ok := latest[key]; ok && prev > r.ID {
 			continue

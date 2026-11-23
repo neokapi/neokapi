@@ -135,7 +135,7 @@ func Push(ctx context.Context, app *host.App, proj *project.Project, opts PushOp
 	if proj == nil {
 		return nil, nil, errors.New("push: no project")
 	}
-	conn, err := source.NewSourceConnector(app, proj, app.FormatReg)
+	conn, err := source.NewSourceConnector(ctx, app, proj, app.FormatReg)
 	if err != nil {
 		return nil, nil, err
 	}

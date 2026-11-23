@@ -95,6 +95,9 @@ func checkMaterializeTargetsWritable(proj *project.KapiProject, root string, fil
 		for _, locale := range locales {
 			entry := &project.ExtractionFile{Source: f.Relative}
 			target, err := resolveMergeOutputPath(entry, proj, root, locale)
+			if _, unsafe := unsafeTargetWarning(f.Relative, locale, err); unsafe {
+				continue // named by the pass, which writes the rest
+			}
 			if err != nil {
 				return err
 			}

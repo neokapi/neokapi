@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/diffscope"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/pmezard/go-difflib/difflib"
 )
 
@@ -76,16 +78,11 @@ type commentFileResult struct {
 
 // applyComments applies a change-set's comment entries, one file at a time.
 //
-// A language's write canary runs before the first comment of that language is
-// written in the run, and when it fails no entry in the language runs. Entries
-// in a plugin language are held to the project's formatter, and run only when
-// it does, which it does only when execution trust allows it (formatterTrust).
-// A file's entries are applied from its last comment to its first, so
-// an edit never moves the lines of a comment still to come, and each rewrite is
-// held to comment.Contain. The file is read again before it is written, and a file
-// that changed meanwhile is left alone. After writing, the bytes on disk are
-// read back and compared with the rewrite, and a check scoped to the written
-// change runs over the file.
+// A file's entries are applied from its last comment to its first, so an edit
+// never moves the lines of a comment still to come. Each rewrite is held to
+// comment.Contain, and the file is read again before it is written; a file
+// that changed meanwhile is left alone. The bytes on disk are then read back
+// and compared with the rewrite, and a scoped check runs over the file.
 //
 // With preview set, nothing is written or checked, and each file's diff is
 // reported.
@@ -93,7 +90,7 @@ type commentFileResult struct {
 // sourceLocale is the language that check reads the file in. A command-line run
 // passes "" and gets the language the invocation settled on; an MCP call passes
 // the language of the project it named, which the App does not hold.
-func (a *App) applyComments(ctx context.Context, cmd Command, entries []changeEntry, preview bool, backupSuffix string, trust *formatterTrust, sourceLocale string) []commentFileResult {
+func (a *App) applyComments(ctx context.Context, cmd Command, entries []changeEntry, preview bool, backupSuffix string, trust *formatterTrust, sourceLocale, root string) []commentFileResult {
 	a.InitRegistries()
 	byFile := map[string][]changeEntry{}
 	var order []string
@@ -104,10 +101,15 @@ func (a *App) applyComments(ctx context.Context, cmd Command, entries []changeEn
 		byFile[e.File] = append(byFile[e.File], e)
 	}
 	formats, formatsErr := a.newCheckFormats(cmd)
+	// A language's write canary runs before the first comment of that language
+	// is written in the run, and when it fails no entry in the language runs.
+	// Entries in a plugin language are held to the project's formatter, and run
+	// only when it does, which it does only when execution trust allows it
+	// (formatterTrust).
 	canaries := map[string]error{}
 	results := make([]commentFileResult, 0, len(order))
 	for _, file := range order {
-		w := &commentFileWrite{app: a, cmd: cmd, file: file, entries: byFile[file], preview: preview, backupSuffix: backupSuffix, trust: trust, sourceLocale: sourceLocale}
+		w := &commentFileWrite{app: a, cmd: cmd, file: file, entries: byFile[file], preview: preview, backupSuffix: backupSuffix, trust: trust, sourceLocale: sourceLocale, root: root}
 		w.result = commentFileResult{File: file, Edits: make([]commentEdit, len(w.entries))}
 		for i, e := range w.entries {
 			w.result.Edits[i] = commentEdit{ID: e.ID}
@@ -137,7 +139,11 @@ type commentFileWrite struct {
 	// sourceLocale is the language the check of the written comments reads the
 	// file in, empty when the run resolved none of its own.
 	sourceLocale string
-	result       commentFileResult
+	// root is the project's root, empty outside a project. A file beneath it
+	// is written, and backed up, through rootpath and an os.Root rename, so a
+	// link that leads out of the project is refused rather than followed.
+	root   string
+	result commentFileResult
 }
 
 // notRun marks every edit not already refused or unchanged as did-not-run.
@@ -157,7 +163,7 @@ func (w *commentFileWrite) refuse(i int, reason, detail string) {
 }
 
 func (w *commentFileWrite) apply(ctx context.Context, formats *checkFormats, canaries map[string]error) {
-	src, err := os.ReadFile(w.file)
+	src, _, err := w.read(w.file)
 	if err != nil {
 		w.notRun(reasonIO, err.Error())
 		return
@@ -301,28 +307,56 @@ type writeError struct{ reason, detail string }
 // write leaves it as it was and a path that is a symlink stays one. The bytes
 // are read back from the file they landed on.
 func (w *commentFileWrite) write(src, out []byte) *writeError {
-	now, err := os.ReadFile(w.file)
+	inRoot := w.root != "" && under(w.root, w.file)
+	now, mode, err := w.read(w.file)
 	if err != nil {
 		return &writeError{reasonIO, err.Error()}
 	}
 	if !bytes.Equal(now, src) {
 		return &writeError{string(comment.RefusedStale), "the file changed while its comment edits were applied; read it again and send the edits again"}
 	}
-	info, err := os.Stat(w.file)
-	if err != nil {
-		return &writeError{reasonIO, err.Error()}
-	}
-	mode := info.Mode().Perm()
 	if w.backupSuffix != "" {
-		if err := os.WriteFile(w.file+w.backupSuffix, src, mode); err != nil {
-			return &writeError{reasonIO, "write backup: " + err.Error()}
+		// The bytes the rewrite replaces, beside the file. In the project
+		// they are staged and renamed through the root, never cut in place,
+		// so a backup name that is a hard link to another file leaves that
+		// file alone.
+		var berr error
+		if !inRoot {
+			berr = writeNamedBackup(w.file+w.backupSuffix, src, mode)
+		} else {
+			var s *atomicfile.Staged
+			if s, berr = atomicfile.StageWithinMode(w.root, w.file+w.backupSuffix, mode, func(dst io.Writer) error {
+				_, err := dst.Write(src)
+				return err
+			}); berr == nil {
+				berr = s.Commit()
+			}
+		}
+		if berr != nil {
+			return &writeError{reasonIO, "write backup: " + berr.Error()}
 		}
 	}
-	file, err := atomicfile.ReplaceBytes(w.file, out)
+	// The rewrite replaces the file atomically. In the project it is staged,
+	// written and renamed through an os.Root opened on the project root
+	// (atomicfile.StageWithin), so no byte is written outside it.
+	var file string
+	if !inRoot {
+		file, err = atomicfile.ReplaceBytes(w.file, out)
+	} else {
+		var s *atomicfile.Staged
+		if s, err = atomicfile.StageWithin(w.root, w.file, func(dst io.Writer) error {
+			_, err := dst.Write(out)
+			return err
+		}); err == nil {
+			if err = s.Commit(); err == nil {
+				file = s.Target()
+			}
+		}
+	}
 	if err != nil {
 		return &writeError{reasonIO, err.Error()}
 	}
-	written, err := os.ReadFile(file)
+	written, _, err := w.read(file)
 	if err != nil {
 		return &writeError{reasonIO, err.Error()}
 	}
@@ -415,4 +449,26 @@ func (a *App) checkWrittenComments(ctx context.Context, cmd Command, file, diff,
 		voice: voice,
 		vocab: vocab,
 	})
+}
+
+// read returns the bytes and the mode of the file at path, through rootpath
+// when the file lies in the project (rootpath.Open).
+func (w *commentFileWrite) read(path string) ([]byte, os.FileMode, error) {
+	f, err := rootpath.Open(w.root, path)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return nil, 0, err
+	}
+	data, err := io.ReadAll(f)
+	return data, info.Mode().Perm(), err
+}
+
+// writeNamedBackup writes the backup of a file a person named outside any
+// project, beside it as named.
+func writeNamedBackup(path string, src []byte, mode os.FileMode) error {
+	return os.WriteFile(path, src, mode)
 }

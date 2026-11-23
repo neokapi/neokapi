@@ -15,6 +15,7 @@
 // has none.
 
 import { useState } from "react";
+import { ContextStoreApprovalDialog } from "./ContextStoreApprovalDialog";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ProjectScreensPort } from "@neokapi/project-screens";
 import { t } from "@neokapi/i18n-react/runtime";
@@ -130,6 +131,8 @@ export function SharePanel({
   const [previewing, setPreviewing] = useState(false);
   const [result, setResult] = useState<ContextSyncResult | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  // The folder waiting for the person's approval before the first sync.
+  const [pendingStore, setPendingStore] = useState<string | null>(null);
 
   const key = qk.shareView(tabID);
   const query = useQuery({
@@ -156,6 +159,14 @@ export function SharePanel({
     onError: (e) => setSyncError(parseAppError(e).title),
     onSettled: refresh,
   });
+
+  // A folder the recipe names is allowed once, by the person, before
+  // anything is read from or written to it.
+  const syncAfterApproval = async () => {
+    const location = await api.pendingContextStore(tabID);
+    if (location) setPendingStore(location);
+    else sync.mutate();
+  };
 
   const view = given ?? query.data ?? null;
   const preview = usePreviewPort(tabID, view);
@@ -196,7 +207,7 @@ export function SharePanel({
               <TeamDetail
                 sharing={view.sharing}
                 onChange={change}
-                onSync={() => sync.mutate()}
+                onSync={() => void syncAfterApproval()}
                 syncing={sync.isPending}
                 result={result}
                 syncError={syncError}
@@ -220,7 +231,7 @@ export function SharePanel({
               <TeamDetail
                 sharing={view.sharing}
                 onChange={change}
-                onSync={() => sync.mutate()}
+                onSync={() => void syncAfterApproval()}
                 syncing={sync.isPending}
                 result={result}
                 syncError={syncError}
@@ -252,9 +263,21 @@ export function SharePanel({
             refresh();
             onSetUp?.(s);
           }}
-          onSync={() => sync.mutate()}
+          onSync={() => void syncAfterApproval()}
         />
       )}
+      <ContextStoreApprovalDialog
+        location={pendingStore}
+        onCancel={() => setPendingStore(null)}
+        onAllow={() => {
+          const shown = pendingStore ?? "";
+          setPendingStore(null);
+          void api
+            .approveContextStore(tabID, shown)
+            .then(() => sync.mutate())
+            .catch((e) => setSyncError(parseAppError(e).title));
+        }}
+      />
     </div>
   );
 }
@@ -617,6 +640,18 @@ function SyncResultLine({ result }: { result: ContextSyncResult }) {
           ? t("Pulled {pulled}, pushed {pushed}, rules files written", { pulled, pushed })
           : t("Pulled {pulled}, pushed {pushed}", { pulled, pushed })}
       </p>
+      {(result.pull?.passed_over?.length ?? 0) > 0 && (
+        <p data-slot="share-sync-passed-over" className="mt-1 text-[11px] text-muted-foreground">
+          {t("Passed over, not read:")}{" "}
+          <span className="font-mono" translate="no">
+            {result.pull?.passed_over?.map((name) => JSON.stringify(name)).join(", ")}
+          </span>
+          {(result.pull?.passed_over_total ?? 0) > (result.pull?.passed_over?.length ?? 0) &&
+            t(", and {more} more", {
+              more: (result.pull?.passed_over_total ?? 0) - (result.pull?.passed_over?.length ?? 0),
+            })}
+        </p>
+      )}
       {result.rules_files_error && (
         <p className="mt-1 text-[11px] text-muted-foreground">
           The rules files could not be written:{" "}

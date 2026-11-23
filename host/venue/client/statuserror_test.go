@@ -1,10 +1,12 @@
 package client
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewStatusError(t *testing.T) {
@@ -63,4 +65,23 @@ func TestNewStatusError_StructuredFields(t *testing.T) {
 	assert.Equal(t, "m.", err.Message)
 	assert.Equal(t, "req-1", err.Reference)
 	assert.True(t, err.Permanent())
+}
+
+// TestRefusalJSONCarriesTheServersAnswer pins the wire form a desktop frontend
+// reads: flow-save-refusals.test.ts in bowrain/packages/ui feeds the same
+// shape to the function that renders the web's refusals.
+func TestRefusalJSONCarriesTheServersAnswer(t *testing.T) {
+	assert.JSONEq(t, `{"status":403,"body":{"error":"insufficient permissions"}}`,
+		string(RefusalJSON(http.StatusForbidden, []byte(`{"error":"insufficient permissions"}`))))
+	assert.JSONEq(t, `{"status":502,"body":"<html>Bad gateway</html>"}`,
+		string(RefusalJSON(http.StatusBadGateway, []byte(`<html>Bad gateway</html>`))))
+	assert.JSONEq(t, `{"status":500}`, string(RefusalJSON(http.StatusInternalServerError, nil)))
+
+	// A StatusError returned from a desktop binding marshals the same way.
+	var err error = NewStatusError("push", http.StatusConflict, []byte(`{"error":"stale","message":"Someone changed it"}`))
+	wire, merr := json.Marshal(&err)
+	require.NoError(t, merr)
+	assert.JSONEq(t, `{"status":409,"body":{"error":"stale","message":"Someone changed it"}}`, string(wire))
+
+	assert.JSONEq(t, `{"network":true}`, string(UnreachableJSON()))
 }

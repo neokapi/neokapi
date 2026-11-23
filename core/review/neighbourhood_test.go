@@ -144,6 +144,7 @@ func TestProvenanceOfGroupsTheDecision(t *testing.T) {
 					By:          "agent/claude-code",
 					At:          "2026-02-01T09:00:00Z",
 					Note:        "matches the approved wording",
+					Reasons:     []string{"wrong_term"},
 				},
 			},
 			want: Provenance{
@@ -153,6 +154,7 @@ func TestProvenanceOfGroupsTheDecision(t *testing.T) {
 				By:          "agent/claude-code",
 				At:          "2026-02-01T09:00:00Z",
 				Note:        "matches the approved wording",
+				Reasons:     []string{"wrong_term"},
 			},
 		},
 		{

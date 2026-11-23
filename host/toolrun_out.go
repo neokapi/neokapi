@@ -76,12 +76,13 @@ func (a *App) openToolOutput(ctx context.Context, cfg ToolRunConfig, d flow.Docu
 	if err := flow.CheckOutputPath(d.OutputPath); err != nil {
 		return nil, err
 	}
-	before, err := filehome.Digest(d.OutputPath)
+	root := cfg.toolRunRoot(d.InputPath, d.OutputPath)
+	home, docs := a.flowDocumentsIn(ctx, nil, root, a.toolSourceLocale(root))
+	// The destination is read through the home, so its root decides it.
+	before, err := home.Digest(d.OutputPath)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", d.OutputPath, err)
 	}
-	root := cfg.toolRunRoot(d.InputPath, d.OutputPath)
-	home, docs := a.flowDocumentsIn(ctx, nil, root, a.toolSourceLocale(root))
 	out := &toolOutput{home: home, before: before}
 	if docs != nil {
 		if out.run, err = docs.Open(ctx, d); err != nil {

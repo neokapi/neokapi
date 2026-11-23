@@ -178,6 +178,59 @@ func TestSyncProjectContext_PushesThroughTheNamedPlace(t *testing.T) {
 	assert.Zero(t, view.Sharing.Status.ToPush)
 }
 
+// TestContextStore_TheDesktopAsksBeforeAFolderSync: a folder the recipe
+// names, which nobody here chose, is pending: the sync is refused and writes
+// nothing until the person allows it through the dialog. A folder the person
+// picks in the setup dialog is allowed by that choice.
+func TestContextStore_TheDesktopAsksBeforeAFolderSync(t *testing.T) {
+	app := newWorkspaceApp(t)
+	tab, recipe := openSharingProject(t, app, "Folder")
+	recordNote(t, app, recipe)
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	folder := filepath.Join(base, "team")
+
+	// The recipe arrives naming the folder, as a cloned repository's would.
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Context = &project.ContextBackend{Backend: project.ContextBackendFile, Path: folder}
+	require.NoError(t, project.Save(recipe, proj))
+
+	// The share view's refresh and the home's listing leave the folder alone.
+	_, err = app.ShareView(tab)
+	require.NoError(t, err)
+	_, err = app.ListWorkspaceProjects()
+	require.NoError(t, err)
+	assert.NoDirExists(t, folder)
+
+	pending, err := app.PendingContextStore(tab)
+	require.NoError(t, err)
+	assert.Equal(t, folder, pending, "the dialog shows the resolved folder")
+	_, err = app.ApproveContextStore(tab, filepath.Join(filepath.Dir(folder), "other"))
+	require.Error(t, err, "an approval of a folder the dialog did not show is refused")
+	_, err = app.SyncProjectContext(tab)
+	require.ErrorIs(t, err, host.ErrContextStoreNotApproved)
+	assert.NoDirExists(t, folder, "nothing is written before the approval")
+
+	allowed, err := app.ApproveContextStore(tab, pending)
+	require.NoError(t, err)
+	assert.Equal(t, folder, allowed)
+	pending, err = app.PendingContextStore(tab)
+	require.NoError(t, err)
+	assert.Empty(t, pending)
+	res, err := app.SyncProjectContext(tab)
+	require.NoError(t, err)
+	require.NotNil(t, res.Push)
+	assert.Positive(t, res.Push.Pushed)
+
+	picked := filepath.Join(t.TempDir(), "picked")
+	_, err = app.SetProjectSharing(tab, project.ContextBackend{Backend: project.ContextBackendFile, Path: picked})
+	require.NoError(t, err)
+	pending, err = app.PendingContextStore(tab)
+	require.NoError(t, err)
+	assert.Empty(t, pending, "a folder picked in the setup dialog is allowed by the choice")
+}
+
 // recordNote records one observation on a project, as an assistant's `kapi
 // context note` does: one operation for a sync to push.
 func recordNote(t *testing.T, app *App, recipe string) {

@@ -12,21 +12,44 @@ import (
 func NewTrustCmd(a *App) *cobra.Command {
 	trustCmd := &cobra.Command{
 		Use:     "trust",
-		Short:   "List, inspect and change which projects may run commands",
+		Short:   "List, inspect and change which projects may run commands or use a folder",
 		GroupID: "advanced",
-		Long: `List, inspect and change which projects may run commands.
+		Long: `List, inspect and change which projects may run commands or keep their
+context in a folder.
 
 A recipe that names an exec-class step (external-command, script, or the exec
 format) runs code the recipe chooses, with your privileges and your
 environment. kapi asks once per project before running it and remembers the
-answer, allow or deny, against a fingerprint of the commands shown. A recipe
-edit that changes what would run asks again. A comment edit's project
+answer, allow or deny, against a fingerprint of the commands shown, the
+project's id, and the content of every file in the project the commands name:
+a script_file, a program given by a path, a script handed to an interpreter
+(node tools/x.js). A recipe edit that changes what would run, an edit to one
+of those files, or another project at the same path asks again, and the
+question says which file changed. A named file that is a link out of the
+project is refused. The question and kapi trust list show the files checked
+by content, what the commands name and kapi does not check (a directory),
+and the commands that run code given inline (sh -c, node -e, python -c),
+whose files kapi cannot see. kapi checks the files listed, not what they run
+or read: to have a script checked, name it in the recipe (command:
+./tools/run.sh) rather than inside inline code or behind npm run or make. Flow files in flows_dir are
+covered as the recipe is, and the check runs at every command run. A recipe's commands run in the project root, wherever kapi is
+started, and relative paths are read from there; the directory kapi was
+started in reaches the command as KAPI_INVOKE_DIR. A comment edit's project
 formatter is decided the same way and kept in the same record, keyed by the
 configuration file that selects it.
 
+A recipe whose context block names a folder (backend: file) makes kapi write
+the project's decisions, terms and voice there and merge in what the folder
+holds. The first sync through it shows the folder, with links resolved, and
+asks. The answer is kept in the same record, bound to the project and that
+folder, and a path that leads to another folder asks again. kapi share --via
+folder records the allow for the folder it names. With no terminal attached,
+kapi trust allow --context-store --yes records it. A tool call through kapi
+mcp cannot record one, and an assistant that identifies itself is refused.
+
 These commands read and change that record, which is kept in the kapi config
-directory, not in the project. They are about execution only: plugin installs
-and package adoption are confirmed at the time and keep no record.
+directory, not in the project. Plugin installs and package adoption are
+confirmed at the time and keep no record.
 
 KAPI_TRUST_EXEC=1 grants trust to one process without consulting or writing
 the record; it is for automation and is not shown here as a decision.`,
@@ -75,23 +98,32 @@ without starting a run. Inside a project no flag is needed; -p names one.`,
 
 	allowCmd := &cobra.Command{
 		Use:   "allow",
-		Short: "Record that a project may run the commands its recipe names",
+		Short: "Record that a project may run its commands or use its folder",
 		Long: `Record an allow for what the recipe runs now, without starting a run. The
 commands are shown first and confirmed at the terminal. With no terminal
 attached nothing is recorded unless --yes is given.
+
+With --context-store the allow is for the folder the recipe keeps its context
+in instead: the folder is shown, confirmed the same way, and kept against its
+resolved path.
 
 An allow is keyed to the commands shown: a recipe edit that changes them asks
 again. To grant one process trust without recording anything, set
 KAPI_TRUST_EXEC=1 instead.`,
 		Example: `  kapi trust allow -p ./app
-  kapi trust allow -p ./app --yes`,
+  kapi trust allow -p ./app --yes
+  kapi trust allow --context-store -p ./app`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			recipePath, err := RequireProjectPath(cmd)
 			if err != nil {
 				return err
 			}
-			out, err := a.ExecTrustAllow(cmd, recipePath)
+			allow := a.ExecTrustAllow
+			if BoolFlag(cmd, "context-store") {
+				allow = a.ContextStoreAllow
+			}
+			out, err := allow(cmd, recipePath)
 			if err != nil {
 				return err
 			}
@@ -99,6 +131,7 @@ KAPI_TRUST_EXEC=1 instead.`,
 		},
 	}
 	AddProjectFlag(allowCmd)
+	allowCmd.Flags().Bool("context-store", false, "allow the folder the recipe keeps its context in, instead of the commands it runs")
 
 	revokeCmd := &cobra.Command{
 		Use:   "revoke [path]",
@@ -124,7 +157,11 @@ a decision nobody recorded reports that and succeeds.`,
 				}
 				path = resolved
 			}
-			out, err := a.ExecTrustRevoke(path)
+			revoke := a.ExecTrustRevoke
+			if BoolFlag(cmd, "context-store") {
+				revoke = a.ContextStoreRevoke
+			}
+			out, err := revoke(path)
 			if err != nil {
 				return err
 			}
@@ -132,6 +169,7 @@ a decision nobody recorded reports that and succeeds.`,
 		},
 	}
 	AddProjectFlag(revokeCmd)
+	revokeCmd.Flags().Bool("context-store", false, "withdraw the folder approval for the project's context, instead of its commands decision")
 
 	trustCmd.AddCommand(listCmd, showCmd, allowCmd, revokeCmd)
 	return trustCmd

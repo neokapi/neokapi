@@ -276,13 +276,16 @@ func (s *Server) HandleContextDeckDecide(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
+	if !platstore.StorableItem(req.Item) {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "the item names a NUL byte, which no item holds"})
+	}
 	css, sessions := s.contextSessionStore()
 	if !sessions || req.Action == deckActionLater {
 		return s.decideContextCard(c, req)
 	}
 	ctx := c.Request().Context()
 	userID := ledgerMemberOf(c).UserID
-	own, held, err := s.sessionHolding(ctx, css, projectParam(c), userID, req.Item.Key())
+	own, held, err := s.sessionHolding(ctx, css, projectParam(c), userID, req.Item)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -293,7 +296,7 @@ func (s *Server) HandleContextDeckDecide(c *echo.Context) error {
 		return err
 	}
 	now := sessionNow().UTC()
-	d := platstore.ContextSessionDecision{Item: req.Item.Key(), Outcome: sessionOutcome(req), At: now}
+	d := platstore.ContextSessionDecision{Item: req.Item, Outcome: sessionOutcome(req), At: now}
 	if err := css.RecordContextSessionDecision(ctx, own, d, now.Add(contextSessionIdle)); err != nil {
 		c.Logger().Error("record a decision in context session", "session", own, "error", err)
 	}

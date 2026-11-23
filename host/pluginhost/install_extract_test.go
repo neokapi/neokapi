@@ -305,3 +305,20 @@ func fileExists(path string) bool {
 	_, err := os.Lstat(path)
 	return err == nil
 }
+
+// A chain of links, each inside the plugin directory by its own spelling,
+// can still lead out once followed together (a -> ., then a/x -> ..). Every
+// write goes through an os.Root on the plugin directory, so the entry written
+// through the chain is refused and nothing lands beside the plugin.
+func TestExtractTarGzRefusesALinkChainOut(t *testing.T) {
+	const plugin = "myplugin"
+	target := t.TempDir()
+	body := makeTarGz(t, []tarEntry{
+		{name: plugin + "/a", typeflag: tar.TypeSymlink, linkname: "."},
+		{name: plugin + "/a/x", typeflag: tar.TypeSymlink, linkname: ".."},
+		{name: plugin + "/a/x/escaped.txt", typeflag: tar.TypeReg, body: "escaped"},
+	})
+	err := extractTarGz(body, target, plugin)
+	require.Error(t, err)
+	assert.NoFileExists(t, filepath.Join(target, "escaped.txt"), "nothing is written above the plugin directory")
+}

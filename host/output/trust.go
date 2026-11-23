@@ -196,11 +196,18 @@ type TrustAllowOutput struct {
 	// Reason says why nothing was recorded.
 	Reason string `json:"reason,omitempty"`
 	Record string `json:"record"`
+	// ContextStore is the folder an allow for the project's context store
+	// covers (kapi trust allow --context-store), empty for a commands allow.
+	ContextStore string `json:"context_store,omitempty"`
 }
 
 func (o TrustAllowOutput) FormatText(w io.Writer) error {
 	if !o.Recorded {
 		fmt.Fprintf(w, "Nothing recorded for %s: %s\n", o.Path, o.Reason)
+		return nil
+	}
+	if o.ContextStore != "" {
+		fmt.Fprintf(w, "Recorded: %s may keep its context in %s. kapi trust revoke --context-store %s withdraws it.\n", o.Path, o.ContextStore, o.Path)
 		return nil
 	}
 	fmt.Fprintf(w, "Recorded: %s may run the commands shown. kapi trust revoke %s withdraws it.\n", o.Path, o.Path)

@@ -205,7 +205,7 @@ func TestReplayChangeNoClient(t *testing.T) {
 	payload, err := json.Marshal(queuedSave(t, "Bonjour"))
 	require.NoError(t, err)
 	pending := PendingChange{ID: 1, Operation: string(opChangeSet), Payload: string(payload)}
-	err = app.replayChange(context.Background(), pending)
+	err = app.replayChange(context.Background(), pending, nil)
 	assert.ErrorIs(t, err, errNotConnected)
 }
 

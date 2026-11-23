@@ -7,7 +7,6 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/container"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
@@ -47,12 +46,13 @@ func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, ou
 	}
 	// The archive commits through the file home a flow commits through, only
 	// while the destination still holds what it held when the run began.
-	before, err := filehome.Digest(outputPath)
+	home := a.flowHome(cfg.toolRunRoot(inputPath, outputPath))
+	before, err := home.Digest(outputPath)
 	if err != nil {
 		return err
 	}
 	base := filepath.Base(inputPath)
-	produced, err := a.flowHome(cfg.toolRunRoot(inputPath, outputPath)).Produce(ctx, outputPath, before, func(f io.Writer) error {
+	produced, err := home.Produce(ctx, outputPath, before, func(f io.Writer) error {
 		return container.Transform(inputPath, f, func(name string, read func() ([]byte, error)) ([]byte, bool, error) {
 			fmtName, eligible := a.containerEntryFormat(name)
 			if !eligible {

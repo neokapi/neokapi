@@ -331,6 +331,7 @@ func (a *App) reviewHistory(ctx context.Context, req ReviewContextRequest, b *mo
 	var h ReviewHistory
 	if req.Root != "" {
 		_, h.Unread = a.ContextFilesUnread(ctx, req.Root)
+		h.Rejections = a.reviewRejections(ctx, req, b)
 	}
 	if req.Memory == nil {
 		return h

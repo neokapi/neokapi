@@ -20,6 +20,7 @@ export {
   ProvenanceCard,
   originLabel,
   decisionLabel,
+  reasonLabel,
   type ProvenanceCardProps,
 } from "./ProvenanceCard";
 export { FindingSnippet, type FindingMark, type FindingSnippetProps } from "./FindingSnippet";

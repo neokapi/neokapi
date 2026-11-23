@@ -44,8 +44,8 @@ func TargetHash(targetText string) string {
 }
 
 // SourceHash is the BASIS a decision blesses: the hash of the source wording a
-// reviewer had in front of them. It is model.ComputeContentHash — the same
-// normalization core/reconcile matches identity on — so a unit's basis and its
+// reviewer had in front of them. It is model.ComputeContentHash, the same
+// normalization core/reconcile matches identity on, so a unit's basis and its
 // identity signal are one number, and a decision recorded on one path is
 // comparable with a source read on another.
 //
@@ -121,7 +121,7 @@ func ReadingOf(s UnitState) Reading {
 
 // UnitState is the workflow state of one translatable unit in one locale variant.
 type UnitState struct {
-	// Unit is the unit identity — the block's content hash / stable id, the same
+	// Unit is the unit identity: the block's content hash / stable id, the same
 	// key the document cache and overlays address it by.
 	Unit string `json:"unit"`
 	// Variant is the locale (and optional tone/channel) this state applies to.
@@ -134,7 +134,7 @@ type UnitState struct {
 	Origin model.Origin `json:"origin,omitzero"`
 	// TargetHash is the content hash of the translation this state blesses, so an
 	// edit to the translation invalidates a stale decision (e.g. an approval). It
-	// does NOT duplicate the translation text — that lives in the deliverable.
+	// does NOT duplicate the translation text; that lives in the deliverable.
 	TargetHash string `json:"targetHash,omitempty"`
 	// Revision is the revision of the edition this state is about
 	// (model.EditionRevision): the translation a decision blesses. It binds the
@@ -163,22 +163,18 @@ type UnitState struct {
 	// Scope, ContentHash and ContextHash are the identity signals core/reconcile
 	// matches a unit by when a source file is re-read.
 	//
-	// They live here rather than in a separate ledger because there is nothing to
-	// separate: the thing a decision is recorded against and the thing identity
-	// is matched on are the same unit. Keeping them together means a decision and
-	// the evidence for which block it belongs to cannot drift apart, and it is
-	// what lets a block removed in one revision and restored in a later one come
-	// back to its own history instead of being re-translated.
+	// A decision is recorded against the same unit identity is matched on, so
+	// the two live together and cannot drift apart. A block removed in one
+	// revision and restored in a later one comes back to its own history.
 	//
-	// ContentHash is therefore also the decision's BASIS by hash: the source
-	// wording the decision blessed (state.SourceHash), which Basis names by
-	// revision. A record whose basis no longer matches the unit's current
-	// source is stale (SourceStale), which is what stops an approval outliving
-	// the sentence it approved.
+	// ContentHash is also the decision's basis by hash: the source wording the
+	// decision blessed (state.SourceHash), which Basis names by revision. A
+	// record whose basis no longer matches the unit's source is stale
+	// (SourceStale), so an approval does not outlive the sentence it approved.
 	//
 	// Scope is the document's resolved key, never its path, so renaming a file
 	// does not disturb the units inside it. It is also half of the record's
-	// identity — see Key.
+	// identity: see Key.
 	Scope       string `json:"scope,omitempty"`
 	ContentHash string `json:"contentHash,omitempty"`
 	ContextHash string `json:"contextHash,omitempty"`
@@ -192,18 +188,12 @@ type UnitState struct {
 	// that context was ungoverned (no voice, no terms) or when the record was
 	// written before the field existed.
 	//
-	// It is a different quantity from ContextHash, and neither is derivable
-	// from the other. ContextHash identifies WHICH block this is
-	// (model.ComputeContextHash over the block's name, type and properties) and
-	// moves when the block's surroundings move; GoverningFingerprint identifies
-	// WHAT GOVERNED the answer and moves when the voice or the terminology
-	// moves. Either changes with the other holding still.
+	// ContextHash identifies which block this is and moves with the block's
+	// surroundings. GoverningFingerprint identifies what governed the answer
+	// and moves with the voice or the terminology.
 	//
-	// The record is the durable carrier of this value. A target file in a
-	// format with a slot for provenance carries the same stamp in flight, but
-	// most delivered formats (a JSON catalog, a .properties file) hold strings
-	// and nothing else, so a reader pairing such a file with its source finds
-	// what governed the answer here or nowhere.
+	// The record is the durable carrier of this value. Most delivered formats
+	// (a JSON catalog, a .properties file) hold strings and nothing else.
 	GoverningFingerprint string `json:"governingFingerprint,omitempty"`
 }
 
@@ -241,11 +231,15 @@ type Decision struct {
 	// By is the person's identity where a hosted surface knows it; empty for
 	// the person at the keyboard. An agent never records a decision: the
 	// change service refuses a decide other than prereview from one.
-	By       string `json:"by,omitempty"`
-	At       string `json:"at,omitempty"` // RFC 3339
-	Note     string `json:"note,omitempty"`
-	Parked   bool   `json:"parked,omitempty"`
-	Assignee string `json:"assignee,omitempty"`
+	By   string `json:"by,omitempty"`
+	At   string `json:"at,omitempty"` // RFC 3339
+	Note string `json:"note,omitempty"`
+	// Reasons are the reason codes chosen with a rejection or a correction
+	// (venue.DecisionReasons), sorted: "wrong_term", "meaning", "tone",
+	// "placeholder", "grammar".
+	Reasons  []string `json:"reasons,omitempty"`
+	Parked   bool     `json:"parked,omitempty"`
+	Assignee string   `json:"assignee,omitempty"`
 }
 
 // AIIdentityPrefix marks an identity that is an AI model ("ai/<model>").
@@ -292,7 +286,7 @@ func (r *AIReview) Fresh(in Reading) bool {
 // Key uniquely identifies a UnitState within a project.
 //
 // Scope is part of the identity, not a payload beside it. A unit id is unique
-// inside its document and nowhere wider — a reader names blocks by what the
+// inside its document and nowhere wider: a reader names blocks by what the
 // format gives it, so every markdown page in a collection carries an `h`, a `p`
 // and an `fm_title`. Keyed on (unit, variant) alone, the second page's decision
 // overwrote the first's: a reviewer's approvals were accepted, reported applied,
@@ -315,7 +309,7 @@ func (s UnitState) Key() Key { return Key{Scope: s.Scope, Unit: s.Unit, Variant:
 // other change to the edition, and the ledger holds decisions only.
 func (s UnitState) Decides() bool {
 	d := s.Decision
-	return d.ReviewState != "" || d.Parked || d.Assignee != "" || d.Note != "" ||
+	return d.ReviewState != "" || d.Parked || d.Assignee != "" || d.Note != "" || len(d.Reasons) > 0 ||
 		s.Status.Rank() > model.TargetStatusTranslated.Rank() ||
 		s.SourceStatus == model.SourceStatusEstablished ||
 		s.AIReview != nil

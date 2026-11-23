@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T20:28:34Z",
+  "generatedAt": "2026-11-23T09:53:18Z",
   "kind": "tool",
   "entries": [
     {
@@ -1398,7 +1398,7 @@
           },
           "command": {
             "description": "The executable to run.",
-            "help": "Path or name of the command-line program to execute for each block. Its\nstandard output replaces the block text.\n",
+            "help": "Path or name of the command-line program to execute for each block. Its\nstandard output replaces the block text. A name is looked up on `PATH`.\nIn a recipe, the command runs in the project root, the directory that\nholds `kapi.yaml`, wherever kapi was started, and a relative path is read\nfrom there. The directory kapi was started in reaches the command as\n`KAPI_INVOKE_DIR`. `kapi exec external-command` runs the command you\ntype in the current directory. A project's approval checks the content\nof a script named here or as an argument, not one that code given\ninline (`sh -c '...'`, `node -e '...'`), `npm run` or `make` runs: name\nthe script itself to have it checked.\n",
             "values": "string (required)"
           },
           "send_as_stdin": {
@@ -2883,7 +2883,10 @@
           "tmx_path": {
             "type": "string",
             "title": "TMX Output Path",
-            "description": "File path for the generated TMX document"
+            "description": "File path for the generated TMX document",
+            "x-path": {
+              "type": "file"
+            }
           }
         }
       },
@@ -3050,7 +3053,10 @@
           "rules_path": {
             "type": "string",
             "title": "Rules File",
-            "description": "Path to a redaction rules YAML file"
+            "description": "Path to a redaction rules YAML file",
+            "x-path": {
+              "type": "file"
+            }
           }
         }
       },
@@ -3432,6 +3438,9 @@
             "ui:visible": {
               "field": "source",
               "eq": "file"
+            },
+            "x-path": {
+              "type": "file"
             }
           },
           "source": {
@@ -3469,7 +3478,7 @@
           },
           "script_file": {
             "description": "Path to a JavaScript file.",
-            "help": "Path to a `.js` file to load and run, used when `source` is `file`.\nRequired in that mode.\n",
+            "help": "Path to a `.js` file to load and run, used when `source` is `file`.\nRequired in that mode. In a recipe, a relative path is read from the\nproject root, the directory that holds `kapi.yaml`, wherever kapi was\nstarted; with `kapi exec script` it is read from the current directory.\n",
             "values": "file path",
             "dependsOn": [
               {
@@ -3841,7 +3850,10 @@
             "title": "SRX Rules File",
             "description": "Path to a custom SRX 2.0 rules file (overrides the built-in ruleset)",
             "ui:widget": "file-picker",
-            "ui:order": 10
+            "ui:order": 10,
+            "x-path": {
+              "type": "file"
+            }
           },
           "segment_source": {
             "type": "boolean",
@@ -4530,7 +4542,8 @@
         "processingNotes": [
           "Operates on translatable blocks with non-empty source; other parts pass through unchanged.",
           "Blocks with inline codes are translated through a placeholder-preserving prompt and reconstructed from the response.",
-          "Each translation is recorded as an alternate-translation annotation tagged with the provider."
+          "Each translation is recorded as an alternate-translation annotation tagged with the provider.",
+          "In a project, a block a reviewer rejected is drafted again, and the prompt carries the latest three rejected drafts of it with the reasons and the reviewer's note. The notes are quoted, cut when long, and stated after the terms and rules, which they do not change. The note is redacted under the project's redaction policy like the rest of the request. A machine translation engine is sent none of it. A draft that comes back in rejected wording is not kept and counts towards the stop. After three rejections of drafts of one source the block is drafted no more and waits for a person. A recipe cannot set `review_feedback`."
         ],
         "examples": [
           {

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -35,8 +34,8 @@ var _ format.SubfilterAware = (*Reader)(nil)
 var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // Ensure Reader implements StreamingReader: the skeleton round-trip over a
-// re-openable file input reads incrementally (bounded to one top-level subtree)
-// — see readContentStreaming. The file-runner uses this to concurrent-feed.
+// re-openable file input reads incrementally (bounded to one top-level
+// subtree); see readContentStreaming. The file-runner uses this to concurrent-feed.
 var _ format.StreamingReader = (*Reader)(nil)
 
 // StreamingReader marks the bounded-memory two-pass skeleton path.
@@ -109,7 +108,7 @@ type elementFrame struct {
 	// qname is the element's prefix:localname form as it appears in
 	// the source (`z:汇集`, `its:rules`, or just `myDoc` when
 	// unprefixed). Used by skeleton-tracking code to find the matching
-	// closing tag in the source bytes — searching for `</localname`
+	// closing tag in the source bytes. Searching for `</localname`
 	// alone misses prefixed elements like `</z:汇集>` and the closing
 	// search returns -1 (no skeleton range, content stays untranslated
 	// in the round-trip).
@@ -133,8 +132,8 @@ type elementFrame struct {
 	// element children of its parent, and childOrdinals counts those
 	// children as they open. Together they make elemPath a structural
 	// address rather than a reading order: an element is named by where it
-	// sits under ITS OWN parent, so an edit in another subtree — or in
-	// another document part entirely — cannot move it. See
+	// sits under ITS OWN parent, so an edit in another subtree, or in
+	// another document part entirely, cannot move it. See
 	// core/model/structural.go.
 	ordinal       int
 	childOrdinals map[string]int
@@ -143,7 +142,7 @@ type elementFrame struct {
 	// strongExclude is set when the exclusion comes from an ITS
 	// `translate="no"` attribute. Strong exclusion propagates to every
 	// descendant and drops their text on the floor regardless of
-	// whether the descendant frame is itself marked excluded — this is
+	// whether the descendant frame is itself marked excluded. This is
 	// what makes `<its:rules its:translate="no">` correctly suppress
 	// `<its:locNote>` text inside it. Distinct from isExcluded because
 	// config-driven exclusion (ExcludeByDefault) is overridable by
@@ -162,7 +161,7 @@ type elementFrame struct {
 	// each such segment is flushed in turn so okapi-style fixtures with
 	// shapes like
 	//   <p>before<x/>middle<x/>after</p>
-	// — where x is a non-inline child — produce one block per text
+	// where x is a non-inline child, produce one block per text
 	// segment ("before", "middle", "after"), each with its own
 	// non-overlapping skeleton range. Without per-segment flushes,
 	// post-child text would be dropped or the parent's full content
@@ -225,7 +224,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Bound the whole-input read with the shared safeio byte budget so an
 	// unbounded/oversized stream fails with a typed error (identical limit
-	// across CLI/server/WASM — see core/safeio). The element walk itself is
+	// across CLI/server/WASM; see core/safeio). The element walk itself is
 	// iterative (an explicit *elementFrame stack driven by encoding/xml's
 	// streaming Decoder, not Go recursion), so it is already stack-safe under
 	// pathological nesting and needs no DepthGuard.
@@ -250,7 +249,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 	// Resolve any <its:rules xlink:href="..."> references against the
 	// document's directory. Per ITS 2.0 §5.4, externally-linked rules
-	// are processed first and embedded rules win on conflict — so we
+	// are processed first and embedded rules win on conflict, so we
 	// build the combined set as (externals ++ embedded).
 	itsRules := r.loadExternalITSRules(externals)
 	itsRules.Append(embedded)
@@ -265,28 +264,28 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
-// readContentStreaming runs the bounded-memory two-pass. It returns false —
-// without consuming doc.Reader — when the input is not a re-openable file, so
+// readContentStreaming runs the bounded-memory two-pass. It returns false,
+// without consuming doc.Reader, when the input is not a re-openable file, so
 // the caller falls back to the buffered walk. It returns true once it has
 // handled the document (streamed it, or surfaced a parse error).
 //
 // The two passes are sound because the ITS resolver is ancestor-only (selectors
 // match the element's ancestor path, never forward/descendant/sibling axes), so
-// rules extracted in pass 1 can be applied during the forward pass-2 walk — ITS
-// documents stream just like ITS-free ones.
+// rules extracted in pass 1 can be applied during the forward pass-2 walk.
+// ITS documents stream just like ITS-free ones.
 func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartResult, layer *model.Layer) bool {
-	// Pass 1 — extract ITS rules from a re-opened copy of the input, leaving
-	// doc.Reader untouched for pass 2. A non-file URI (a pipe, an in-memory
-	// test doc) can't be reopened, so we decline and let the buffered path run.
-	f, err := os.Open(r.Doc.URI)
-	if err != nil {
+	// Pass 1: extract ITS rules from a re-opened copy of the input, leaving
+	// doc.Reader untouched for pass 2. A document with no random-access view
+	// (a pipe, an archive member) can't be scanned twice, so we decline and
+	// let the buffered path run. The URI is never opened as a file.
+	f, ok := format.ReopenSource(r.Doc)
+	if !ok {
 		return false
 	}
 	embedded, externals, rerr := its.ExtractRulesReaderWith(safeio.DefaultBudget().Reader(f), format.XMLCharsetReader(r.Doc))
-	f.Close()
 	if rerr != nil {
 		// The rules scan parses the whole document, so a malformed file fails
-		// here — the same well-formedness gate as the buffered path (the
+		// here. That is the same well-formedness gate as the buffered path (the
 		// diagnostic is a no-op under ValidationOff).
 		ch <- model.PartResult{Error: fmt.Errorf("xml: parsing ITS rules: %w", rerr)}
 		return true
@@ -295,7 +294,7 @@ func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartR
 	itsRules.Append(embedded)
 	resolver := its.NewResolver(itsRules)
 
-	// Pass 2 — stream the extraction from doc.Reader through a bounded window.
+	// Pass 2: stream the extraction from doc.Reader through a bounded window.
 	cr := format.NewCaptureReader(bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader)))
 	var contentRanges []skelContentRange
 	var attrRanges []skelAttrRange
@@ -306,45 +305,50 @@ func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartR
 // loadExternalITSRules walks the supplied list of `<its:rules
 // xlink:href="...">` references and returns the combined RuleSet of
 // every rule successfully read. Each href is resolved relative to the
-// document's URI directory; references with absolute paths or URIs
-// (http://…, file:///…) are skipped, and a relative href that would
-// climb out of that directory is skipped too, because the parity
-// contract scopes linked ITS rules to sibling files in the project
-// tree — a document says which rules it uses, not where on the disk to
-// go looking. Recursive
-// xlink:href chains are followed; cycles are short-circuited via a
-// visited map. Read failures and parse errors are silently skipped —
-// missing rule files leave the round-trip behaving as if no external
-// rules were declared, matching okapi-bridge's lenient behavior on
-// unresolvable references.
+// document's directory. References with absolute paths or URIs
+// (http://…, file:///…) are skipped.
+//
+// A relative href that would climb out of that directory is skipped too.
+// The parity contract scopes linked ITS rules to sibling files in the
+// project tree: a document says which rules it uses, not where on the disk
+// to go looking.
+//
+// Recursive xlink:href chains are followed; cycles are short-circuited via
+// a visited map. Read failures and parse errors are silently skipped. A
+// missing rule file leaves the round-trip behaving as if no external rules
+// were declared, matching okapi-bridge's lenient behavior on unresolvable
+// references.
 func (r *Reader) loadExternalITSRules(refs []its.ExternalRef) *its.RuleSet {
 	combined := &its.RuleSet{}
-	if len(refs) == 0 || r.Doc == nil || r.Doc.URI == "" {
+	// The rules are read beside the file the document was opened from, never
+	// beside its URI: a URI may name an archive member or an upload, not a
+	// place on this machine.
+	source, ok := format.SourceFile(r.Doc)
+	if len(refs) == 0 || !ok {
 		return combined
 	}
-	baseDir := filepath.Dir(r.Doc.URI)
+	baseDir := filepath.Dir(source)
 	visited := map[string]bool{}
 	var walk func(href string)
 	walk = func(href string) {
 		if href == "" || strings.Contains(href, "://") || filepath.IsAbs(href) {
-			// Skip URIs (http://, file:///) and absolute paths — okapi
+			// Skip URIs (http://, file:///) and absolute paths. Okapi
 			// resolves these via its catalog/EntityResolver mechanism
 			// which we don't reproduce here.
 			return
 		}
 		// Key the cycle guard on the cleaned relative name rather than the raw
-		// href, so "a.xml" and "./a.xml" are recognised as the same document —
-		// the joined absolute path used to provide that normalisation.
+		// href, so "a.xml" and "./a.xml" are recognised as the same document.
 		key := filepath.Clean(filepath.FromSlash(href))
 		if visited[key] {
 			return
 		}
 		visited[key] = true
-		// The doc comment above states the invariant — linked rules are sibling
-		// files in the project tree — and os.ReadFile of a joined path did not
-		// enforce it: "../../.." cleaned to a real path outside the document's
-		// directory. OpenInRoot confines the open to baseDir at the OS level, so
-		// a symlink inside the tree cannot lead out of it either.
+		// The doc comment above states the invariant: linked rules are sibling
+		// files in the project tree. A joined path does not enforce it, since
+		// "../../.." cleans to a real path outside the document's directory.
+		// OpenInRoot confines the open to baseDir at the OS level, so a symlink
+		// inside the tree cannot lead out of it either.
 		f, err := safeio.OpenInRoot(baseDir, href)
 		if err != nil {
 			return
@@ -374,28 +378,28 @@ func (r *Reader) loadExternalITSRules(refs []its.ExternalRef) *its.RuleSet {
 
 // layerRefPrefix marks a skeleton ref that names an embedded child layer
 // rather than a block. The parent's writer renders the layer through its own
-// sub-format writer and puts the result where the ref stands — the shape json,
-// odf and epub already use for a delegated member.
+// sub-format writer and puts the result where the ref stands. That is the
+// shape json, odf and epub use for a delegated member.
 const layerRefPrefix = "layer:"
 
 // A subfiltered element's content reaches the sub-reader decoded, so the
-// carrier — how the element wrote that content — is what decides how the
+// carrier (how the element wrote that content) is what decides how the
 // translated child layer goes back in. The two carriers are the two ways XML
 // spells character data, and each returns as itself: a document that arrived
 // with a CDATA section leaves with one, and escaped text leaves escaped. XML
 // 1.0 §2.7 makes them the same content, so converting between them would be a
 // rewrite of every such element for no gain, and §2.4 makes the escaping
-// obligatory for the second — text handed back raw would close its own element.
+// obligatory for the second: text handed back raw would close its own element.
 const (
 	// subfilterCarrierProperty names the child layer property holding it.
 	subfilterCarrierProperty = "subfilter.carrier"
 	// subfilterOriginalProperty names the child layer property holding the
 	// content the sub-reader was handed. The sub-writer takes it back as its
 	// original content, so it splices translations into the member's own
-	// markup instead of serializing a fresh document from the content model —
-	// which for an HTML fragment means a synthesized doctype and an <html>
-	// shell wrapped around an element that had neither. The whole member is
-	// one delegated element, the same span the writer already collects
+	// markup instead of serializing a fresh document from the content model.
+	// For an HTML fragment, a fresh document means a synthesized doctype and
+	// an <html> shell wrapped around an element that had neither. The whole
+	// member is one delegated element, the same span the writer collects
 	// through its LayerEnd, so nothing new is held. `json.original` on the
 	// JSON reader's root layer carries a whole document the same way.
 	subfilterOriginalProperty = "subfilter.original"
@@ -436,9 +440,9 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 	itsRanges := r.readContentCore(ctx, ch, content, layer, &contentRanges, &attrRanges, resolver, nil)
 
 	// Drop any block content range that would overwrite an
-	// `<its:rules>` element — those bytes must round-trip verbatim
+	// `<its:rules>` element. Those bytes must round-trip verbatim
 	// per ITS 2.0 §5. The parent block (typically a <head>) has no
-	// translatable text once the rules are stripped, and we want the
+	// text to translate once the rules are stripped, and we want the
 	// skeleton text to preserve it untouched.
 	if len(itsRanges) > 0 {
 		contentRanges = filterContentRangesContainingITSRules(contentRanges, itsRanges)
@@ -471,7 +475,7 @@ func filterContentRangesContainingITSRules(ranges []skelContentRange, itsRanges 
 }
 
 // flushPending emits skeleton for the pending ranges whose bytes are now fully
-// decided — every enclosing top-level subtree has closed — then releases the
+// decided (every enclosing top-level subtree has closed), then releases the
 // CaptureReader window below the emit frontier. It is the incremental,
 // bounded-memory equivalent of writeSkeletonEntries: same sort +
 // removeOverlappingParents, but per-batch and with a cross-batch parent guard.
@@ -500,7 +504,7 @@ func (s *xmlParseState) flushPending() {
 	for _, ref := range refs {
 		// Cross-batch parent guard: a range starting before the emit frontier is
 		// a translatable ancestor (e.g. a translatable root) whose inner content
-		// was already emitted in an earlier batch — its bytes are already in the
+		// was already emitted in an earlier batch. Its bytes are already in the
 		// skeleton, so it must not be re-emitted as a ref.
 		if ref.start < s.emitPos {
 			continue
@@ -514,8 +518,8 @@ func (s *xmlParseState) flushPending() {
 	// Emit settled skeleton text past the last ref. Without this, a batch with
 	// no refs (non-translatable content) never advances emitPos, so the window
 	// would never be discarded. "Settled" means below the content of the
-	// outermost still-open frame that is accumulating real translatable text —
-	// that frame's eventual range may still fold those bytes into a ref, so they
+	// outermost still-open frame that is accumulating non-whitespace text.
+	// That frame's eventual range may still fold those bytes into a ref, so they
 	// must wait; everything before it is final skeleton.
 	if safe := s.settledTextOffset(); safe > s.emitPos {
 		store.WriteText(s.win(s.emitPos, safe))
@@ -529,11 +533,11 @@ func (s *xmlParseState) flushPending() {
 
 	// Bound run accumulation on long-open container frames. A still-open frame
 	// that has accumulated only whitespace / comment placeholders (no
-	// translatable text) will never produce a block — its bytes are settled
-	// skeleton already emitted above — so drop its runs. Without this a container
-	// with thousands of direct children/comments (e.g. a comment per entry) grows
-	// O(children) even though its window is bounded. Frames holding real
-	// translatable text keep their runs (they may still become a block).
+	// real text) will never produce a block. Its bytes are settled skeleton
+	// already emitted above, so drop its runs. Without this a container with
+	// thousands of direct children/comments (e.g. a comment per entry) grows
+	// O(children) even though its window is bounded. Frames holding real text
+	// keep their runs (they may still become a block).
 	for _, f := range s.stack {
 		if f.hasRuns && !f.preserveWS && !runsHaveNonWhitespaceText(f.runs) {
 			f.runs = nil
@@ -543,10 +547,10 @@ func (s *xmlParseState) flushPending() {
 }
 
 // settledTextOffset returns the highest offset up to which skeleton text is
-// final — i.e. no still-open frame's content range could cover it. It is the
+// final: no still-open frame's content range could cover it. It is the
 // content start of the outermost open frame that has accumulated non-whitespace
 // runs (that frame may still emit a content ref folding in later bytes), or the
-// current decoder position if no open frame is accumulating translatable text.
+// current decoder position if no open frame is accumulating such text.
 func (s *xmlParseState) settledTextOffset() int {
 	for _, f := range s.stack {
 		if f.contentByteStart > 0 && f.hasRuns && runsHaveNonWhitespaceText(f.runs) {
@@ -599,15 +603,15 @@ type xmlParseState struct {
 	// encountered during streaming. The pre-pass already extracted the
 	// rules; we skip them in the streaming reader so they don't pollute
 	// the parent element's text accumulator. Their bytes still belong
-	// in the output (per ITS 2.0 — rules are document-level metadata
-	// that round-trip). After parsing, writeSkeletonEntries drops any
+	// in the output: per ITS 2.0, rules are document-level metadata
+	// that round-trip. After parsing, writeSkeletonEntries drops any
 	// content range that fully contains an itsRulesRange so the
 	// surrounding skeleton text preserves the rules verbatim.
 	itsRulesRanges []skelByteRange
 
 	// Bounded-memory streaming mode. When cr != nil the source bytes are
 	// read from a sliding CaptureReader window (via win/srcLen) rather than a
-	// whole-document content slice, and skeleton is emitted incrementally as
+	// whole-document content slice. Skeleton is then emitted incrementally as
 	// top-level subtrees complete (flushPending) rather than sliced in one
 	// pass at the end. emitPos is the absolute offset up to which streaming
 	// skeleton has been written. content is nil in this mode.
@@ -618,8 +622,8 @@ type xmlParseState struct {
 // win returns the raw source bytes for the absolute range [start,end). In
 // buffered mode it slices the whole-document content; in streaming mode it
 // reads from the CaptureReader window (which retains the current subtree). The
-// returned slice must be consumed before the next decoder token / DiscardTo —
-// every caller copies (string(...)) or scans it synchronously.
+// returned slice must be consumed before the next decoder token / DiscardTo.
+// Every caller copies (string(...)) or scans it synchronously.
 func (s *xmlParseState) win(start, end int) []byte {
 	if s.cr != nil {
 		b, _ := s.cr.Slice(int64(start), int64(end))
@@ -628,7 +632,7 @@ func (s *xmlParseState) win(start, end int) []byte {
 	return s.content[start:end]
 }
 
-// srcLen reports the highest source offset currently readable — len(content) in
+// srcLen reports the highest source offset currently readable: len(content) in
 // buffered mode, or the bytes read so far (window extent) in streaming mode.
 // Decoder offsets never exceed it, so the existing `<= srcLen()` bounds checks
 // stay valid.
@@ -717,7 +721,7 @@ func (s *xmlParseState) isInExcludedScope() bool {
 // isWhitespaceOnly returns true when s contains only ASCII whitespace
 // (space, tab, CR, LF). Used by flushBlock to skip emitting blocks
 // for elements whose only "text" is inter-element whitespace around
-// excluded children — those bytes belong in skeleton, not in a block
+// excluded children. Those bytes belong in skeleton, not in a block
 // content range.
 func isWhitespaceOnly(s string) bool {
 	for i := range len(s) {
@@ -734,7 +738,7 @@ func isWhitespaceOnly(s string) bool {
 // hasStrongExcludeAncestor returns true if any frame on the stack is
 // strongly excluded (via ITS `translate="no"`). Used by character-data
 // handling to drop text inside `<its:rules its:translate="no">` even
-// when the immediate text frame is unmarked — the text frame's own
+// when the immediate text frame is unmarked. The text frame's own
 // `isExcluded=false` is correct (no INCLUDE override needed) but the
 // ancestor's strong exclusion still applies.
 func (s *xmlParseState) hasStrongExcludeAncestor() bool {
@@ -748,7 +752,7 @@ func (s *xmlParseState) hasStrongExcludeAncestor() bool {
 
 // elemPath builds the dot-separated path for the current element stack. It
 // names element TYPES, not occurrences, because it is what subfilter patterns
-// and config selectors are matched against — `root.data.value` has to match
+// and config selectors are matched against: `root.data.value` has to match
 // every `value` under `data`, not just the first.
 func (s *xmlParseState) elemPath() string {
 	var parts []string
@@ -819,13 +823,14 @@ func (s *xmlParseState) isTranslatable(frame *elementFrame) bool {
 // endTagOffset is the byte offset of the end tag (for skeleton tracking).
 //
 // When interimEnd > 0, the block's skeleton content range ends at that
-// explicit offset (used by interimFlush when a non-inline child is
-// about to open inside a text-bearing parent). interimEnd == 0 selects
-// the default behavior: the range ends at the parent's closing tag,
-// located by searching backwards from endTagOffset.
-// namePath is the same location with sibling ordinals (see elemNamePath) and is
-// what becomes the block's structural Name; path stays ordinal-free because
-// subfilter patterns are matched against it.
+// explicit offset. The interimFlush path uses it when a non-inline child is
+// about to open inside a text-bearing parent. With interimEnd == 0 the range
+// ends at the parent's closing tag, located by searching backwards from
+// endTagOffset.
+//
+// The namePath argument is the same location with sibling ordinals (see
+// elemNamePath) and becomes the block's structural Name. The path argument
+// stays ordinal-free because subfilter patterns are matched against it.
 func (s *xmlParseState) flushBlock(frame *elementFrame, path, namePath string, endTagOffset, interimEnd int) {
 	if frame == nil || !frame.hasRuns {
 		return
@@ -848,15 +853,15 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path, namePath string, e
 
 	// Whitespace-only text without inline codes isn't translatable.
 	// This case fires when an element wraps an excluded subtree
-	// (e.g. `<info>\n  <its:rules its:translate="no">...</its:rules>\n </info>`)
-	// — the only "text" left in the parent's frame is the
+	// (e.g. `<info>\n  <its:rules its:translate="no">...</its:rules>\n </info>`).
+	// The only "text" left in the parent's frame is the
 	// inter-element whitespace. Emitting a block here would attach a
 	// content range covering the entire `<info>` interior, and the
 	// writer would then replace the excluded subtree's bytes with the
 	// joined whitespace on merge, dropping the structural content.
 	// Letting it fall through keeps the whole interior in skeleton
-	// text where the writer preserves it verbatim. preserveWS skips
-	// this filter — when whitespace is explicitly significant we
+	// text where the writer preserves it verbatim. The preserveWS flag
+	// skips this filter: when whitespace is explicitly significant we
 	// want the block.
 	if !frame.preserveWS && !model.RunsHaveInlineCodes(finalRuns) && isWhitespaceOnly(text) {
 		return
@@ -865,19 +870,19 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path, namePath string, e
 	// self-closed inline placeholders, plus whitespace text) aren't
 	// translatable on their own. The `<root><!-- note --><msg>...
 	// </msg></root>` shape leaves root's accumulator with [WS, Ph,
-	// WS] runs — these belong in skeleton verbatim rather than as a
+	// WS] runs. These belong in skeleton verbatim rather than as a
 	// substituted block whose rendered bytes would duplicate the
 	// comment. Only emit a block when there is non-whitespace text or
-	// at least one PcOpen (translatable mixed content). FlattenRuns
-	// renders Ph as `{equiv}`, so isWhitespaceOnly(text) can't gate
-	// this — the runs themselves drive the decision.
+	// at least one PcOpen (mixed content). FlattenRuns renders Ph as
+	// `{equiv}`, so isWhitespaceOnly(text) can't gate this. The runs
+	// themselves drive the decision.
 	if !frame.preserveWS && !runsHaveNonWhitespaceText(finalRuns) {
 		return
 	}
 
 	if !s.isTranslatable(frame) {
 		if s.reader.cfg.ExtractNonTranslatableContent() {
-			// Surface the non-translatable text as a content block
+			// Surface the excluded text as a content block
 			// (visible to ingestion/LLM consumers, skipped by MT) instead
 			// of discarding the runs into a contentless Data part (#928).
 			// Byte-exact round-trip is preserved: the body rides a
@@ -887,8 +892,8 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path, namePath string, e
 			s.emitNonTranslatableBlock(frame, namePath, finalRuns, endTagOffset, interimEnd)
 			return
 		}
-		// Flag off: byte-identical prior behavior — emit a contentless
-		// Data part, leaving the element's bytes in skeleton verbatim.
+		// Flag off: emit a contentless Data part, the byte-identical default,
+		// leaving the element's bytes in skeleton verbatim.
 		s.dataCounter++
 		data := &model.Data{
 			ID:   "d" + strconv.Itoa(s.dataCounter),
@@ -904,15 +909,15 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path, namePath string, e
 		// the child layer takes the place of a block id in the skeleton, so
 		// what the sub-reader produced is what the writer puts back. Without
 		// the range the element's bytes stay skeleton text and the whole child
-		// layer — translated, stored, reported done — reaches no file.
+		// layer reaches no file, even once translated, stored and reported done.
 		start, end := s.contentSpan(frame, endTagOffset, interimEnd)
 		carrier := carrierText
 		if start >= 0 && end <= s.srcLen() {
 			if cs, ce, ok := cdataSectionInterior(s.win(start, end), start); ok {
 				// A CDATA section is a carrier, not content: its delimiters
 				// stay in skeleton and only its interior is the child layer,
-				// so what comes back is written between them unescaped —
-				// upstream Okapi passes a CDATA subfilter a nil parent encoder
+				// so what comes back is written between them unescaped.
+				// Upstream Okapi passes a CDATA subfilter a nil parent encoder
 				// for the same reason (AbstractMarkupFilter.handleCdataSection),
 				// where a PCDATA one gets an XMLEncoder.
 				carrier, start, end = carrierCDATA, cs, ce
@@ -991,10 +996,10 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path, namePath string, e
 // (-1, -1) when this parse has no byte view of it (no skeleton) or the closing
 // tag cannot be located.
 //
-// interimEnd > 0 is an interim flush — a non-inline child is about to open
-// inside a text-bearing parent — and the range ends at that child's start tag,
-// leaving the inter-child and post-child bytes free for further interim ranges
-// or the parent's final flush. Otherwise the range ends at the element's own
+// A value of interimEnd > 0 marks an interim flush: a non-inline child is about
+// to open inside a text-bearing parent. The range then ends at that child's
+// start tag, leaving the inter-child and post-child bytes free for further
+// interim ranges or the parent's final flush. Otherwise the range ends at the element's own
 // closing tag, found by searching back from endTagOffset for the source qname
 // (`z:汇集`): searching for the local name alone misses the `z:` in `</z:汇集>`,
 // the search returns -1, the range is dropped, and the translation never gets
@@ -1030,8 +1035,8 @@ func (s *xmlParseState) contentSpan(frame *elementFrame, endTagOffset, interimEn
 	return -1, -1
 }
 
-// cdataSectionInterior reports whether content is exactly one CDATA section —
-// nothing before it, nothing after — and returns the absolute range of its
+// cdataSectionInterior reports whether content is exactly one CDATA section
+// (nothing before it, nothing after) and returns the absolute range of its
 // interior, given the absolute offset content starts at.
 //
 // Exactly one, because the interior is what the sub-reader was handed: text
@@ -1059,13 +1064,13 @@ func cdataSectionInterior(content []byte, offset int) (start, end int, ok bool) 
 // contextual content while machine translation skips it (#928). It is used for
 // whitelist-excluded element text (flushBlock's !isTranslatable branch) and for
 // config-excluded code/pre subtrees (handleEndElement). Whitespace-preserving
-// (code/pre) elements carry RoleCode + PreserveWhitespace; other
-// non-translatable text is surfaced verbatim without a code role.
+// (code/pre) elements carry RoleCode + PreserveWhitespace; other excluded
+// text is surfaced verbatim without a code role.
 //
 // Byte-exact round-trip: the body rides a skeleton content range only when the
 // block's rendered runs reproduce the source byte range exactly (leaf / inline
-// content). When they don't — non-inline children, CDATA, inline-attribute
-// reference markers — the bytes stay in skeleton verbatim and the block is
+// content). When they don't (non-inline children, CDATA, inline-attribute
+// reference markers), the bytes stay in skeleton verbatim and the block is
 // purely informational (the skeleton writer ignores unreferenced blocks). In
 // either case the skeleton output is unchanged from leaving the content in
 // skeleton, so the round-trip stays byte-exact.
@@ -1078,7 +1083,7 @@ func (s *xmlParseState) emitNonTranslatableBlock(frame *elementFrame, path strin
 	block.PreserveWhitespace = frame.preserveWS
 	block.Type = s.reader.cfg.getBlockType(frame.name)
 	if frame.preserveWS {
-		// Whitespace-preserving content is verbatim code / pre / CSS — the
+		// Whitespace-preserving content is verbatim code / pre / CSS. The
 		// RoleCode role marks it as renderable-but-non-translatable.
 		block.SetSemanticRole(model.RoleCode, 0)
 	}
@@ -1115,8 +1120,8 @@ func (s *xmlParseState) emitNonTranslatableBlock(frame *elementFrame, path strin
 }
 
 // renderRunsForRoundtripCheck renders runs the way the XML writer renders a
-// source (untranslated) block — XML-escaping TextRun content and writing
-// inline / placeholder Data verbatim — so emitNonTranslatableBlock can verify a
+// source (untranslated) block: it XML-escapes TextRun content and writes
+// inline / placeholder Data verbatim. That lets emitNonTranslatableBlock verify a
 // non-translatable block's runs reproduce the source byte range before it rides
 // a skeleton ref. It returns "" (forcing the caller to keep the bytes in
 // skeleton) for any run shape it cannot faithfully reproduce: inline-attribute
@@ -1186,7 +1191,7 @@ func (s *xmlParseState) emitTranslatableAttrs(elem xml.StartElement, tokOffset, 
 		// ITS attribute rules win over cfg defaults (translate="yes"
 		// promotes a non-translatable attribute; translate="no"
 		// suppresses one cfg would have emitted). Attributes in the
-		// ITS namespace itself never become content blocks — they are
+		// ITS namespace itself never become content blocks. They are
 		// metadata.
 		if attr.Name.Space == its.NamespaceURI {
 			continue
@@ -1302,7 +1307,7 @@ func buildITSAttributes(attrs []xml.Attr) []its.Attribute {
 func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 	// `<its:rules>` is document-level metadata (per W3C ITS 2.0 §5).
 	// The pre-pass already extracted every rule it carries, so we skip
-	// the element entirely here — pushing a frame would pollute the
+	// the element entirely here. Pushing a frame would pollute the
 	// parent's text accumulator (whitespace + comments around the
 	// rules block would land in the parent's runs). Recording the
 	// byte range lets writeSkeletonEntries preserve the rules verbatim
@@ -1341,7 +1346,7 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 	}
 
 	// Parent element's name + attributes, for namespace-/parent-scoped
-	// rules and conditions that target the ancestor — e.g. the ResX
+	// rules and conditions that target the ancestor. For example, the ResX
 	// selector //data[not(@type)]/value tests the <data> parent while
 	// <value> is the unit, and the DocBook inline rules are scoped to the
 	// DocBook namespace.
@@ -1432,27 +1437,27 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 	// <b> is automatically treated as inline so <para> stays a single
 	// text unit with <b> as an inline code, instead of being split
 	// into three half-translated blocks.
-	//
+
 	// The promotion is gated on:
 	//   - no explicit decision was made by config or ITS rules (both
 	//     leave isInline at the auto-detected default of false),
 	//   - the nearest non-inline ancestor (the prospective text frame)
-	//     already has non-WS text or an open inline span — i.e. the
+	//     already has non-WS text or an open inline span, so the
 	//     new element is inside mixed content rather than between
 	//     sibling elements separated only by indentation,
 	//   - that ancestor is itself translatable and not excluded,
 	//   - the new element isn't excluded itself,
 	//   - the new element's own content begins with character data
-	//     before any nested element. This last gate distinguishes
-	//     <p>Text before list:<ul><li>…</li></ul>…</p> (where <ul>'s
-	//     first child is an element, so <ul> stays structural and its
-	//     <li> children remain their own translatable blocks) from
-	//     <para>This is <b>bold</b>.</para> (where <b>'s content
-	//     begins with text, so <b> is inlined and folds into the
-	//     parent block). Empty / self-closing inline-friendly elements
-	//     pass the gate as well so <para>here is <icon/> some text</para>
-	//     keeps <icon> as an inline placeholder rather than splitting
-	//     the parent.
+	//     before any nested element.
+
+	// The last gate distinguishes <p>Text before list:<ul><li>…</li></ul>…</p>
+	// from <para>This is <b>bold</b>.</para>. In the first, <ul>'s first child
+	// is an element, so <ul> stays structural and its <li> children remain
+	// their own translatable blocks. In the second, <b>'s content begins with
+	// text, so <b> is inlined and folds into the parent block. Empty /
+	// self-closing inline-friendly elements pass the gate as well, so
+	// <para>here is <icon/> some text</para> keeps <icon> as an inline
+	// placeholder rather than splitting the parent.
 	if !isInline && !isExcluded && resolved.WithinText == its.Unset && !s.reader.cfg.isInlineElementNS(t.Name.Local, t.Name.Space, parentName) {
 		if parent := s.findTextFrame(); parent != nil && parent.hasRuns && !parent.isExcluded && s.isTranslatable(parent) {
 			if runsHaveNonWhitespaceText(parent.runs) && s.contentStartsWithText(contentStart) {
@@ -1491,7 +1496,7 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 		// round-trip verbatim. Without this, descendant text gets
 		// dropped (hasStrongExcludeAncestor) and inline child markup
 		// gets emitted into the parent's runs without the surrounding
-		// excluded text — producing `<del><img/></del>` instead of
+		// excluded text, producing `<del><img/></del>` instead of
 		// `<del> the icon <img/></del>`.
 		if strongExclude {
 			parent := s.findTextFrame()
@@ -1598,23 +1603,24 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 		// ancestor already has translatable mixed content (non-WS text
 		// or an open inline span). The ancestor's accumulated runs
 		// become their own translatable block whose skeleton content
-		// range ends at this child's start tag — without this, the
+		// range ends at this child's start tag. Without this, the
 		// ancestor's full-element content range overlaps every block
 		// extracted from the child's subtree (p, p1, one_out, …) and
-		// removeOverlappingParents drops it. After the child subtree
-		// closes, handleEndElement advances the ancestor's
-		// contentByteStart to just past the child's end tag so
+		// removeOverlappingParents drops it.
+
+		// After the child subtree closes, handleEndElement advances the
+		// ancestor's contentByteStart to just past the child's end tag so
 		// subsequent text segments flush as separate, non-overlapping
-		// blocks. Mirrors okapi ITSFilter's per-text-segment TU
+		// blocks. This mirrors okapi ITSFilter's per-text-segment TU
 		// emission for fixtures like XRTT-Source1's <mixed> and
 		// openoffice_input.xml's mixed paragraphs.
-		//
-		// hasNonInlineChild is set on every non-inline child (not
-		// only when an interim flush fires) so the ancestor's final
-		// block range starts past the last non-inline child even when
-		// no preceding text triggered an interim flush — needed for
-		// shapes like <p><frame/>Illustration <seq>1</seq></p> where
-		// the parent's text appears after a non-inline first child.
+
+		// The hasNonInlineChild flag is set on every non-inline child, not
+		// only when an interim flush fires. The ancestor's final block range
+		// then starts past the last non-inline child even when no preceding
+		// text triggered an interim flush. Shapes like
+		// <p><frame/>Illustration <seq>1</seq></p> need this, since the
+		// parent's text appears after a non-inline first child.
 		// The ancestor's flushBlock guards against emitting a block
 		// for purely structural (Ph + whitespace) runs so this
 		// doesn't double-emit comments inside container elements like
@@ -1626,13 +1632,13 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 					s.flushBlock(parent, s.elemPath(), s.elemNamePath(), 0, tokOffset)
 				} else {
 					// No block for purely structural runs (whitespace
-					// between children, a comment's Ph) — but the runs
+					// between children, a comment's Ph), but the runs
 					// must still go. Setting hasNonInlineChild below moves
 					// the parent's contentByteStart past this child, so
 					// these bytes are emitted as literal skeleton text.
 					// Leaving them in the accumulator puts them in the
 					// parent's NEXT block too, and the writer then emits
-					// them twice — once as skeleton text, once inside the
+					// them twice: once as skeleton text, once inside the
 					// ref expansion. That is a byte of growth per separator
 					// per pass, without bound (#1605).
 					parent.resetRuns()
@@ -1690,7 +1696,7 @@ func (s *xmlParseState) handleEndElement(t xml.EndElement) {
 				// Self-closing / empty inline: replace the opening run with a Ph.
 				// Rewrite the captured start-tag (`<tag attrs>`) into the
 				// self-closing form (`<tag attrs/>`) so the writer emits
-				// the same shape the source had — preserving the empty
+				// the same shape the source had. That preserves the empty
 				// element shape okapi readers expect from `<img/>`-style
 				// inline placeholders.
 				spanID := strconv.Itoa(frame.spanID)
@@ -1706,7 +1712,7 @@ func (s *xmlParseState) handleEndElement(t xml.EndElement) {
 				}
 			} else {
 				// Add closing run to parent's accumulator. Use the source
-				// qname (`its:span`) when available — `t.Name.Local` alone
+				// qname (`its:span`) when available. `t.Name.Local` alone
 				// drops the namespace prefix, producing invalid XML like
 				// `<its:span ...>...</span>` that fails to round-trip
 				// through any namespace-aware parser.
@@ -1741,8 +1747,8 @@ func (s *xmlParseState) handleEndElement(t xml.EndElement) {
 	// a non-overlapping content range. Mirrors okapi's per-segment
 	// TU emission for shapes like <p>before<x/>middle<x/>after</p>.
 	// Auto-promoted inline frames (a non-inline element folded into
-	// the parent block as a Ph) must NOT advance contentByteStart —
-	// their bytes are part of the parent's existing range, not a
+	// the parent block as a Ph) must NOT advance contentByteStart.
+	// Their bytes are part of the parent's existing range, not a
 	// boundary.
 	if !frame.isInline {
 		if parent := s.findTextFrame(); parent != nil && parent.hasNonInlineChild {
@@ -1756,8 +1762,8 @@ func (s *xmlParseState) handleCharData(t xml.CharData) {
 	text := string(t)
 
 	// Strongly excluded subtree (e.g. `<its:rules its:translate="no">`)
-	// drops every descendant's text — descendants do not get an
-	// INCLUDE override, the exclusion is intentional ITS metadata.
+	// drops every descendant's text. Descendants do not get an
+	// INCLUDE override, because the exclusion is intentional ITS metadata.
 	if s.hasStrongExcludeAncestor() {
 		return
 	}
@@ -1813,7 +1819,7 @@ func (s *xmlParseState) handleCharData(t xml.CharData) {
 		return
 	}
 
-	// No parent frame — standalone text (shouldn't normally happen with
+	// No parent frame: standalone text (shouldn't normally happen with
 	// well-formed XML). A leading UTF-8 BOM (U+FEFF) decoded by Go's
 	// encoding/xml surfaces here as a standalone text node before the
 	// root element; it is document encoding metadata, not content, so we
@@ -1955,7 +1961,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 		case xml.EndElement:
 			s.handleEndElement(t)
 			// A return to the document root (or above) means the just-closed
-			// top-level subtree — and every range within it — is decided; flush
+			// top-level subtree and every range within it are decided. Flush
 			// it and discard the window so peak memory stays bounded to one
 			// top-level subtree.
 			if cr != nil && len(s.stack) <= 1 {
@@ -1992,7 +1998,7 @@ func (r *Reader) writeSkeletonEntries(content []byte, contentRanges []skelConten
 
 	// Remove parent ranges that contain child ranges (overlapping nesting).
 	// A parent range [pStart, pEnd) that fully contains a child range [cStart, cEnd)
-	// should be removed — the child range's ref handles the translatable content,
+	// should be removed. The child range's ref handles the translatable content,
 	// and the structural bytes between/around it are skeleton text.
 	refs = removeOverlappingParents(refs)
 
@@ -2031,13 +2037,13 @@ func removeOverlappingParents(refs []skelRefEntry) []skelRefEntry {
 	// stack holds indices of refs whose end we haven't passed yet.
 	stack := make([]int, 0, 8)
 	for i := range refs {
-		// Pop entries that end before the current ref starts — they can't be
+		// Pop entries that end before the current ref starts. They can't be
 		// parents of this ref.
 		for len(stack) > 0 && refs[stack[len(stack)-1]].end <= refs[i].start {
 			stack = stack[:len(stack)-1]
 		}
 		// Any remaining entries on the stack started at or before refs[i].start
-		// and end after it — check if they fully contain refs[i].
+		// and end after it. Check if they fully contain refs[i].
 		for _, si := range stack {
 			if refs[si].start <= refs[i].start && refs[i].end <= refs[si].end {
 				remove[si] = true
@@ -2057,7 +2063,7 @@ func removeOverlappingParents(refs []skelRefEntry) []skelRefEntry {
 // extractElementQName returns the prefix:localname form of the element
 // whose start tag begins at tokOffset. Falls back to localName when the
 // source bytes are unavailable or unparseable. Used to find matching
-// close tags in source bytes — `</prefix:localname>` won't be found if
+// close tags in source bytes: `</prefix:localname>` won't be found if
 // we search for just `</localname>`.
 func extractElementQName(content []byte, tokOffset int, localName string) string {
 	if tokOffset < 0 || tokOffset >= len(content) {
@@ -2162,7 +2168,7 @@ func findAttrValueByteRange(content []byte, tagStart, tagEnd int, attrName, attr
 
 // inlineAttrRefMarker wraps a block ID with C0 control characters
 // (`\x01` and `\x02`) that are forbidden in well-formed XML 1.0
-// character data — making the marker impossible to confuse with real
+// character data, making the marker impossible to confuse with real
 // content. The xml writer scans for this marker inside captured inline-
 // element start-tag bytes (Ph.Data / PcOpen.Data) and substitutes the
 // translated attribute value from the referenced block.
@@ -2175,7 +2181,7 @@ func inlineAttrRefMarker(blockID string) string {
 // The replacement walks the raw bytes (looking for `attrName="..."` or
 // `attrName='...'`) so namespace prefixes and entity-escaped values
 // pass through untouched. Attributes not found in the bytes are skipped
-// silently — the writer falls back to the literal source value when no
+// silently; the writer falls back to the literal source value when no
 // marker is present.
 func injectInlineAttrRefs(rawTag string, refs []inlineAttrRef) string {
 	if len(refs) == 0 || rawTag == "" {
@@ -2327,7 +2333,7 @@ func (s *xmlParseState) startTagBytes(t xml.StartElement, tokOffset, contentStar
 	// Normalize self-closing form (`<tag/>` or `<tag />`) to open form
 	// (`<tag>`) so the writer's open/close inline-code shape is
 	// consistent. The writer rewrites empty inlines back to self-close
-	// via selfCloseStartTag — that path expects an open-form tag.
+	// via selfCloseStartTag, and that path expects an open-form tag.
 	if n := len(raw); n >= 2 && raw[n-1] == '>' {
 		j := n - 2
 		// Skip optional whitespace between attributes and `/>`
@@ -2364,8 +2370,9 @@ func appendTextRun(runs []model.Run, text string) []model.Run {
 // contains non-whitespace text or an open inline span before a child
 // element opens means the child is part of mixed content and should
 // be treated as inline. Pure indentation between sibling elements
-// (e.g. <list>\n  <item>...</item>\n</list>) does not trigger
-// promotion — those siblings remain separate translatable blocks.
+// (e.g. newlines and spaces between the <item> children of a <list>)
+// does not trigger promotion. Those siblings remain separate
+// translatable blocks.
 //
 // Standalone Ph runs (XML comments, processing instructions, the
 // captured bytes of self-closed inline placeholders that already
@@ -2396,7 +2403,7 @@ func runsHaveNonWhitespaceText(runs []model.Run) bool {
 
 // elementContentStartsWithText reports whether the bytes immediately
 // following an element's start tag (at contentStart) begin with
-// character data — meaning the element has the shape <e>text...</e>
+// character data: the element has the shape <e>text...</e>
 // rather than <e><child>...</child>...</e>. Used by the inline
 // auto-promotion heuristic to distinguish leaf-text-bearing elements
 // (which should be inlined into a mixed-content parent) from
@@ -2407,7 +2414,7 @@ func runsHaveNonWhitespaceText(runs []model.Run) bool {
 //   - any non-tag character (including whitespace) followed by a
 //     non-whitespace character before the next `<`,
 //   - empty content (e.g. self-closing tag handled before reaching
-//     here, or <e></e>) — empty inline elements are always safe to
+//     here, or <e></e>). Empty inline elements are always safe to
 //     promote because they contribute no text frame.
 //
 // "Starts with element" means the first non-whitespace byte in the
@@ -2428,7 +2435,7 @@ func elementContentStartsWithText(content []byte, contentStart int) bool {
 		// First non-whitespace byte: text if not a tag opener.
 		return c != '<'
 	}
-	// Reached EOF without finding any non-whitespace byte — treat as
+	// Reached EOF without finding any non-whitespace byte: treat as
 	// empty content, which is safe to inline.
 	return true
 }
@@ -2501,8 +2508,8 @@ func (r *Reader) matchSubfilter(path string) *format.SubfilterMapping {
 }
 
 // emitSubfiltered emits a child layer with content parsed by the subfilter
-// format reader, and returns the child layer's id — the name the skeleton
-// refers to it by. It returns "" when no child layer was made, which is when
+// format reader, and returns the child layer's id (the name the skeleton
+// refers to it by). It returns "" when no child layer was made, which is when
 // the sub-format is unavailable and the content stays one plain block.
 func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult, content, path, parentLayerID string, mapping *format.SubfilterMapping, carrier string, blockCounter *int) string {
 	subReader, err := r.resolver.ResolveReader(mapping.Format)

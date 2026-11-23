@@ -1267,6 +1267,40 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS context_session_holds_session ON context_session_holds (session_id);
 		`,
 	},
+	{
+		Version:     47,
+		Description: "the reasons of a review decision",
+		SQL:         `-- Mirrors bowrain/store/migrations.go version 63; Apply adds the column.`,
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return addMissingColumns(ctx, tx, "unit_decisions", []string{
+				"reasons TEXT NOT NULL DEFAULT '[]'",
+			})
+		},
+	},
+	{
+		Version:     48,
+		Description: "context session holds keyed by the item's parts",
+		SQL: `
+			-- A hold and a session's cards and decisions named an item by one
+			-- string joined from its kind, profile and id. Each part is now
+			-- stored as itself: the holds get a column per part with the key
+			-- over them, and the cards and decisions an object per item. The
+			-- sessions written before cannot be read as such, so they go:
+			-- they are short passes over a deck, and the next one starts
+			-- from the deck as it is.
+			DROP TABLE IF EXISTS context_session_holds;
+			DELETE FROM context_sessions;
+			CREATE TABLE context_session_holds (
+				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				item_kind    TEXT NOT NULL,
+				item_profile TEXT NOT NULL DEFAULT '',
+				item_id      TEXT NOT NULL,
+				session_id   TEXT NOT NULL REFERENCES context_sessions(id) ON DELETE CASCADE,
+				PRIMARY KEY (project_id, item_kind, item_profile, item_id)
+			);
+			CREATE INDEX context_session_holds_session ON context_session_holds (session_id);
+		`,
+	},
 }
 
 // addMissingColumns adds each column definition to table unless the table

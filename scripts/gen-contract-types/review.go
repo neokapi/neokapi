@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/review"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // reviewTypes is the ordered set of review-model structs rendered into TS. The
@@ -43,7 +44,9 @@ var reviewTypes = []emitType{
 	{"ReviewNeighbour", reflect.TypeFor[review.Neighbour](),
 		"One neighbouring block. Mirrors core/review.Neighbour."},
 	{"ReviewHistory", reflect.TypeFor[review.History](),
-		"What has already been approved for this unit.\nMirrors core/review.History."},
+		"What has already been approved for this unit, and the earlier drafts a\nreviewer rejected. Mirrors core/review.History."},
+	{"ReviewRejection", reflect.TypeFor[review.Rejection](),
+		"One rejected draft of the unit's current source: its wording while the\ntarget still holds it, the reasons as words, and the reviewer's note.\nMirrors core/review.Rejection."},
 	{"ReviewPriorVersion", reflect.TypeFor[review.PriorVersion](),
 		"The unit's previous source and the target approved for it, with whether\nthe context it was approved under still governs.\nMirrors core/review.PriorVersion."},
 	{"ReviewMemoryMatch", reflect.TypeFor[review.MemoryMatch](),
@@ -93,5 +96,19 @@ func emitReview() (string, error) {
 		b.WriteString("\n")
 		b.WriteString(iface)
 	}
+
+	var reasons []unionMember
+	for _, r := range venue.DecisionReasons {
+		reasons = append(reasons, unionMember{value: r})
+	}
+	b.WriteString(renderUnion("PersonReason",
+		"A reason code a person may give a rejection or a correction, in the order\na reason sheet offers them. Mirrors core/venue.DecisionReasons.",
+		reasons, "PERSON_REASONS"))
+	reasons = append(reasons, unionMember{value: venue.ReasonReviewPolicy})
+	b.WriteString(renderUnion("DecisionReason",
+		"A reason code a decision may carry: a person's reason, or review_policy on an\napproval a review plan's settle pass made (core/venue.ReasonReviewPolicy).\nEvery client shows each code as a phrase.",
+		reasons, "DECISION_REASONS"))
+	b.WriteString("\n/** The longest note, in characters, a decision keeps (core/venue.MaxDecisionNote). */\n")
+	fmt.Fprintf(&b, "export const MAX_DECISION_NOTE = %d;\n", venue.MaxDecisionNote)
 	return b.String(), nil
 }

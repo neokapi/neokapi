@@ -159,7 +159,7 @@ func TestEditorMemory(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 42, n)
 
-	entry, err := c.AddMemoryEntry(context.Background(), "acme", "Bye", "Au revoir", "en", "fr")
+	entry, err := c.AddMemoryEntry(context.Background(), "acme", "", "Bye", "Au revoir", "en", "fr")
 	require.NoError(t, err)
 	assert.Equal(t, "e2", entry.ID)
 	var addBody map[string]string
@@ -167,7 +167,8 @@ func TestEditorMemory(t *testing.T) {
 	assert.Equal(t, "Bye", addBody["source"])
 	assert.Equal(t, "fr", addBody["target_locale"])
 
-	require.NoError(t, c.UpdateMemoryEntry(context.Background(), "acme", "e2", "Bye", "A+", "en", "fr"))
+	_, err = c.UpdateMemoryEntry(context.Background(), "acme", "e2", "Bye", "A+", "en", "fr", "r1")
+	require.NoError(t, err)
 	require.NoError(t, c.DeleteMemoryEntry(context.Background(), "acme", "e2"))
 	assert.Equal(t, "DELETE", got.method)
 }

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -233,7 +234,13 @@ func (l *reviewLedger) write(ctx context.Context, decisions []venue.UnitDecision
 	if len(corpus) == 0 || !l.resolveCorpus(ctx) {
 		return
 	}
-	jobs.PromoteDecisionsToMemory(ctx, l.srv.ContentStore, l.memory, l.projectID, l.stream, l.sourceLang, corpus)
+	pm, ok := l.memory.(jobs.PromotionMemory)
+	if !ok {
+		slog.WarnContext(ctx, "memory promotion skipped: the workspace memory cannot record an approval as one writer among others",
+			"project", l.projectID)
+		return
+	}
+	jobs.PromoteDecisionsToMemory(ctx, l.srv.ContentStore, pm, l.projectID, l.stream, l.sourceLang, corpus)
 }
 
 // clearDraftBasis removes the platform's mark that it has already drafted this
@@ -321,13 +328,11 @@ func (l *reviewLedger) resolveCorpus(ctx context.Context) bool {
 // this answer stands under this context, so the context travels with it, on
 // the wire and into the content memory the approval promotes to.
 //
-// Only an approval re-stamps the row's BASIS, the source it
-// vouches for and the context it vouches for it under, which is what the
-// grading reads to answer whether a unit still translates the source the
-// project holds. A rejection or a withdrawn approval vouches for nothing, so
-// it carries prev's basis forward and the unit stays graded exactly as it was
-// before the verdict. prev is the row the ledger already holds for the unit,
-// nil where it holds none or the caller is approving.
+// Only an approval re-stamps the row's basis and context, which the grading
+// reads. A rejection or a withdrawn approval vouches for nothing, so it
+// carries prev's basis forward and the unit stays graded as before. prev is
+// the row the ledger holds for the unit, nil where it holds none or the
+// caller is approving.
 //
 // The row names its pairing by revision: the revision of the translation it
 // judges, and for an approval the revision of the source as the store stamped
@@ -379,14 +384,20 @@ func reviewGateFor(approving bool) platauth.Permission {
 // decided, on which block and locale, and the rungs the target moved between.
 // The decision ledger carries the same verdict for the content pipeline; this
 // is the security trail, and it is written for every rung change a person makes.
-func (s *Server) emitReviewDecisionAudit(c *echo.Context, projectID, stream, blockID, locale string, from, to model.TargetStatus, approved bool, reason string) {
+func (s *Server) emitReviewDecisionAudit(c *echo.Context, projectID, stream, blockID, locale string, from, to model.TargetStatus, approved bool, note string, reasons []string) {
 	data := map[string]string{
 		"locale":   locale,
 		"stream":   stream,
 		"decision": review.DecisionName(approved, to),
 	}
-	if reason != "" {
-		data["reason"] = reason
+	if note != "" {
+		data["reason"] = note
+	}
+	if len(reasons) > 0 {
+		// A JSON array, so each reason stays whole.
+		if b, err := json.Marshal(reasons); err == nil {
+			data["reasons"] = string(b)
+		}
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventReviewDecided,

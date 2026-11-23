@@ -328,9 +328,10 @@ func TestDocCache_OpensACacheOfTheFirstSchema(t *testing.T) {
 	rec := c.newRecorder(src, "cfg", "json")
 	require.NotNil(t, rec)
 	require.NoError(t, rec.Commit())
-	st, err := os.Stat(src)
+	f, st, err := c.openSource(src)
 	require.NoError(t, err)
-	_, found := c.lookup(src, "cfg", st)
+	defer f.Close()
+	_, found := c.lookup(src, "cfg", f, st)
 	assert.True(t, found, "a recording under the split key is found again")
 }
 

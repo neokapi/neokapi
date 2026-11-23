@@ -59,7 +59,7 @@ func TestMeasureReconcileOnRead(t *testing.T) {
 	reg := appWithFormats().FormatReg
 
 	read := func(p string) []*model.Block {
-		blocks, _, err := project.ReadSourceBlocks(ctx, reg, "mdx", p, "en", "", nil)
+		blocks, _, err := project.ReadSourceBlocks(ctx, reg, "", "mdx", p, "en", "", nil)
 		require.NoError(t, err, p)
 		return blocks
 	}

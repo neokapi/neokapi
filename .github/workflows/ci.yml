@@ -1606,6 +1606,8 @@ jobs:
         run: make check-edit-writes GUARD_CONFIGS=host
       - name: Assert no map key is joined from parts with a delimiter
         run: make check-delimiter-keys GUARD_CONFIGS=host
+      - name: Assert project content reaches a file through core/rootpath or the file home
+        run: make check-path-reads
 
   # ── Build (runs in parallel with test/lint) ───────────────────────────────
   build:

@@ -88,7 +88,7 @@ func translatePointFixture(t *testing.T) (platstore.ContentStore, editorVoiceCon
 
 	wsStores := newWorkspaceStores()
 	wsStores.termsFactory = func() terms.Store { return &testTermStore{tb} }
-	wsStores.memoryFactory = func() memory.Store { return tm }
+	wsStores.memoryFactory = func(string) memory.Store { return tm }
 
 	voiceCtx := editorVoiceContext{
 		Voice: &editorFakeVoiceStore{profiles: map[string]*coreprofile.VoiceProfile{

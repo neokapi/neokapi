@@ -104,9 +104,6 @@ func (a *App) handleContextRead(ctx context.Context, _ *mcp.CallToolRequest, in 
 	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: body}}}, nil, nil
 }
 
-// contextURIScheme is the address space the by-location primitive lives in.
-const contextURIScheme = "context://"
-
 // The two resource templates, by location and by profile name.
 const (
 	contextLocationTemplate = contextURIScheme + "{+path}{?format,project,comments}"

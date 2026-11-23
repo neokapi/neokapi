@@ -96,8 +96,11 @@ this machine and the shared copy were at the last sync:
 | **To pull** | 0 |
 
 **Change** opens the same dialog, to name another place. A teammate who pulls
-the recipe opens the project and clicks **Sync now** under the same rung. A
-fresh clone fetches branches and tags and leaves the context ref alone, so the
+the recipe opens the project and clicks **Sync now** under the same rung. When
+the place is a folder that teammate has not chosen on this Mac, **Share
+through this folder?** shows the folder's full path first, and the sync runs
+only after **Allow and sync**. The answer is kept for that folder, so the
+question comes back only when the recipe names another one. A fresh clone fetches branches and tags and leaves the context ref alone, so the
 first sync is what brings the context in.
 
 When the place cannot be reached, the rung says "The place could not be

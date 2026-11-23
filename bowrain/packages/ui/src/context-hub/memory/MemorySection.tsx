@@ -134,6 +134,7 @@ export function MemorySection({ defaultSelected, defaultMarked }: MemorySectionP
       api.updateMemoryEntry(ws, {
         project_id: entry.project_id ?? "",
         entry_id: entry.id,
+        base_revision: entry.revision,
         source: edit.source,
         target: edit.target,
         source_locale: entry.source_language,

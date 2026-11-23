@@ -13,20 +13,14 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// Execution trust: a recipe that names an exec-class step runs code chosen by
-// whoever wrote the recipe, with the privileges and the environment of whoever
-// runs kapi. Because a recipe is discovered by an upward walk from the working
-// directory (core/project.ResolveLayout), entering a directory is enough to
-// bind one — so the decision to let a particular project run commands is taken
-// once, by a person, and remembered.
+// Execution trust: a recipe that names an exec-class step runs code its author
+// chose, with the privileges of whoever runs kapi. Entering a directory binds
+// its recipe (core/project.ResolveLayout), so a person decides once per
+// project whether it may run commands, and the answer is remembered.
 //
-// This is the recipe arm of a classification the codebase already applies
-// elsewhere: MCP withholds the same tools from the agent surface even under
-// --all-tools (AD-037), and a recipe arriving inside a .kpz has them stripped
-// on ingest (kpz.SanitizeRecipe). Those two surfaces can refuse outright
-// because no person is present to ask. A recipe in the working directory is
-// the one case where the answer legitimately depends on the user, so it is the
-// one case that asks.
+// MCP withholds the same tools even under --all-tools (AD-037), and a recipe
+// inside a .kpz has them stripped (kpz.SanitizeRecipe): nobody is there to
+// ask. A recipe in the working directory is the case that asks.
 
 // Trust decisions.
 const (
@@ -36,26 +30,21 @@ const (
 
 // execTrustEnvVar grants execution trust for the current process without
 // consulting or writing the record. It exists for CI, where no terminal is
-// attached and the pipeline author — not the repository being processed — is
-// the one deciding.
+// attached and the pipeline's author decides, not the repository it checks out.
 //
-// It is deliberately NOT the global --yes flag. --yes means "do not stop for
-// prompts I would obviously accept", and it is already passed by scripts that
-// want unattended plugin installation; reusing it would mean every existing
-// automation silently acquired the right to execute whatever a checked-out
-// recipe names, on the day this gate shipped. Same reasoning AD-037 applied to
-// `kapi mcp --all-tools`: "show me everything" and "run arbitrary commands" are
-// different classes of decision, and bundling them grants the second by
-// accident.
+// It is not the global --yes flag. Scripts pass --yes for unattended plugin
+// installs, and reading it as a grant would let each of them run whatever a
+// checked-out recipe names. As with `kapi mcp --all-tools` (AD-037), "do not
+// stop for prompts" and "run arbitrary commands" are different decisions.
 const execTrustEnvVar = "KAPI_TRUST_EXEC"
 
 // execTrustFileName is the record's name under ConfigDir().
 //
 // It lives in the kapi config root, not in the project's own `.kapi/` state
 // directory: `.kapi/` is documented as safe to delete and regenerate from the
-// block store (core/project.StateManifest), so a trust record kept there would
-// evaporate on a routine clean and re-arm the prompt — or, worse, ship inside
-// the project for the next person to inherit. ConfigDir() honours
+// block store (core/project.StateManifest). A trust record kept there would be
+// lost on a routine clean, or ship inside the project for the next person to
+// inherit. ConfigDir() honours
 // KAPI_CONFIG_DIR, so a run isolated per the in-repo contract reads and writes
 // a throwaway record rather than the developer's real decisions.
 const execTrustFileName = "trust.json"
@@ -70,6 +59,13 @@ type execTrustRecord struct {
 	Decision string `json:"decision"`
 	// RecordedAt is when the answer was given, for a person auditing the file.
 	RecordedAt string `json:"recordedAt"`
+	// Files is the SHA-256 of each project file the commands name, as they
+	// were when the answer was given, so the next question can say which
+	// one changed (execSurfaceOf).
+	Files map[string]string `json:"files,omitempty"`
+	// Sites locates each command the answer was given about, so the next
+	// question can say which one was added since.
+	Sites []string `json:"sites,omitempty"`
 }
 
 // execTrustFile is the on-disk shape of the record, keyed by absolute recipe
@@ -178,6 +174,20 @@ func recordExecTrust(recipePath, digest, decision string) error {
 	return saveExecTrust(f)
 }
 
+// recordExecTrustSurface remembers a decision about the project's commands
+// with the files it checked and the commands it was shown.
+func recordExecTrustSurface(recipePath, decision string, surface execSurface) error {
+	f := loadExecTrust()
+	f.Projects[execTrustKey(recipePath)] = execTrustRecord{
+		Digest:     surface.Digest,
+		Decision:   decision,
+		RecordedAt: time.Now().UTC().Format(time.RFC3339),
+		Files:      surface.Files,
+		Sites:      siteNames(surface.Sites),
+	}
+	return saveExecTrust(f)
+}
+
 // ErrExecNotTrusted is returned when a recipe would run commands that the user
 // has not approved. Callers surface it as-is: the message names the project,
 // what it would run, and how to answer.
@@ -194,20 +204,21 @@ var ErrExecNotTrusted = errors.New("project not approved to run commands")
 //  4. An interactive terminal prompts and records the decision.
 //  5. Other runs return ErrExecNotTrusted.
 func (a *App) ensureExecTrust(recipePath string, proj *project.KapiProject, opts LoadProjectInteractiveOptions) error {
-	sites := project.ExecSurface(proj)
-	if len(sites) == 0 {
-		return nil
-	}
-	digest := project.ExecSurfaceDigest(sites)
-
 	if execTrustImplied || execTrustEnvGranted() {
-		a.execTrustGranted = true
 		return nil
 	}
+	surface, err := execSurfaceOf(recipePath, proj)
+	if err != nil {
+		return fmt.Errorf("%w: %s: %w", ErrExecNotTrusted, recipePath, err)
+	}
+	if len(surface.Sites) == 0 {
+		return nil
+	}
+	digest := surface.Digest
 
 	switch decision, found := lookupExecTrust(recipePath, digest); {
 	case found && decision == execTrustAllow:
-		a.execTrustGranted = true
+		a.execTrust = execTrustAnswer{recipe: recipePath, proj: proj, digest: digest}
 		return nil
 	case found && decision == execTrustDeny:
 		return fmt.Errorf("%w: %s was declined (run kapi trust revoke %s to answer again)",
@@ -224,15 +235,14 @@ func (a *App) ensureExecTrust(recipePath string, proj *project.KapiProject, opts
 	}
 
 	if !isTTY() {
-		return fmt.Errorf("%w: %s\n%s\nno terminal is attached, so there is nobody to ask. Approve it from a terminal with kapi trust allow -p %s, or set %s=1 if this project is trusted by whoever configured this environment",
-			ErrExecNotTrusted, recipePath, formatExecSites(sites), recipePath, execTrustEnvVar)
+		return execNotTrustedError(recipePath, surface, "no terminal is attached, so there is nobody to ask")
 	}
 
 	in := opts.In
 	if in == nil {
 		in = os.Stdin
 	}
-	printExecTrustPrompt(out, recipePath, sites)
+	printExecTrustPrompt(out, recipePath, surface)
 
 	ok, err := ConfirmDefaultNo(in, out, "Allow this project to run these commands? [y/N] ")
 	if err != nil {
@@ -242,7 +252,7 @@ func (a *App) ensureExecTrust(recipePath string, proj *project.KapiProject, opts
 	if ok {
 		decision = execTrustAllow
 	}
-	if rerr := recordExecTrust(recipePath, digest, decision); rerr != nil {
+	if rerr := recordExecTrustSurface(recipePath, decision, surface); rerr != nil {
 		// A decision that cannot be written is still a decision for this run;
 		// say so rather than failing an approved run on a config-dir problem.
 		fmt.Fprintf(out, "Warning: could not record the answer in %s: %v\n", ExecTrustPath(), rerr)
@@ -250,18 +260,27 @@ func (a *App) ensureExecTrust(recipePath string, proj *project.KapiProject, opts
 	if !ok {
 		return fmt.Errorf("%w: %s", ErrExecNotTrusted, recipePath)
 	}
-	a.execTrustGranted = true
+	a.execTrust = execTrustAnswer{recipe: recipePath, proj: proj, digest: digest}
 	return nil
+}
+
+// execNotTrustedError refuses the project's commands where nobody can answer,
+// with what they run, what an answer would check, and the approving command.
+func execNotTrustedError(recipePath string, surface execSurface, why string) error {
+	return fmt.Errorf("%w: %s\n%s\n%s%s. Approve it from a terminal with kapi trust allow -p %s, or set %s=1 if this project is trusted by whoever configured this environment",
+		ErrExecNotTrusted, recipePath, formatExecSites(surface.Sites), formatExecCoverage(surface, execTrustKey(recipePath)), why, recipePath, execTrustEnvVar)
 }
 
 // printExecTrustPrompt states the facts the answer depends on: which recipe,
 // what it would run, and what those commands would have access to.
-func printExecTrustPrompt(w io.Writer, recipePath string, sites []project.ExecSite) {
-	fmt.Fprintf(w, "\n%s runs commands chosen by the recipe:\n\n", recipePath)
-	fmt.Fprintln(w, formatExecSites(sites))
+func printExecTrustPrompt(w io.Writer, recipePath string, surface execSurface) {
+	fmt.Fprintf(w, "\n%s runs commands chosen by the project:\n\n", recipePath)
+	fmt.Fprintln(w, formatExecSites(surface.Sites))
+	fmt.Fprint(w, "\n"+formatExecCoverage(surface, execTrustKey(recipePath)))
 	fmt.Fprintln(w, "They run with your privileges and your environment, including any provider")
 	fmt.Fprintln(w, "API keys kapi can read. Approve only if you trust the source of this project.")
-	fmt.Fprintf(w, "The answer is remembered in %s and is asked again if the recipe changes what it runs.\n", ExecTrustPath())
+	fmt.Fprintf(w, "The answer is remembered in %s and is asked again if the project changes what it runs\n", ExecTrustPath())
+	fmt.Fprintln(w, "or a checked file changes.")
 	fmt.Fprintln(w, "kapi trust list shows the recorded answers and kapi trust revoke withdraws one.")
 	fmt.Fprintln(w)
 }
@@ -281,46 +300,52 @@ func formatExecSites(sites []project.ExecSite) string {
 
 // checkExecToolAllowed is the backstop under tool construction. The prompt runs
 // at project load, which every project-aware command reaches through
-// LoadProjectInteractive — but a handful of internal paths load a recipe
+// LoadProjectInteractive, but a handful of internal paths load a recipe
 // directly, and a tool that runs commands should not depend on which of them
 // got there first. This refuses to build an exec-class tool from recipe-driven
 // configuration unless trust is established.
 //
 // It never prompts: by the time a flow is assembling its steps there is no
-// sensible place to stop and ask. It re-reads the record instead, so a project
-// already approved keeps working on the paths that skip the prompt.
+// sensible place to stop and ask. It checks again at every build, reading the
+// project's commands and named files (rehashing only a file whose size or
+// modification time moved), so a long-running process (the desktop, a
+// daemon) refuses a script changed after the answer, naming it.
 //
-// `kapi exec <tool>` is unaffected — it constructs tools straight from the
+// `kapi exec <tool>` is unaffected: it constructs tools straight from the
 // registry with an argv the user typed, which is the user's own intent rather
 // than a file's.
 func (a *App) checkExecToolAllowed(toolName string) error {
 	if !project.IsExecClassTool(toolName) {
 		return nil
 	}
-	if execTrustImplied || a.execTrustGranted || execTrustEnvGranted() {
+	if execTrustImplied || execTrustEnvGranted() {
 		return nil
 	}
-	if a.execTrustRecordedAllow() {
-		a.execTrustGranted = true
+	recipePath, proj := a.execTrust.recipe, a.execTrust.proj
+	if a.ProjectContext != nil && a.ProjectContext.Project != nil {
+		recipePath, proj = filepath.Join(a.ProjectContext.ProjectDir, project.RecipeFileName), a.ProjectContext.Project
+	}
+	if proj == nil {
+		return fmt.Errorf("%w: the %q step has not been approved for this project (approve it with kapi trust allow, or set %s=1)",
+			ErrExecNotTrusted, toolName, execTrustEnvVar)
+	}
+	surface, err := execSurfaceOf(recipePath, proj)
+	if err != nil {
+		return fmt.Errorf("%w: %s: %w", ErrExecNotTrusted, recipePath, err)
+	}
+	if surface.Digest != "" && surface.Digest == a.execTrust.digest && execTrustKey(recipePath) == execTrustKey(a.execTrust.recipe) {
 		return nil
 	}
-	return fmt.Errorf("%w: the %q step has not been approved for this project (approve it with kapi trust allow, or set %s=1)",
-		ErrExecNotTrusted, toolName, execTrustEnvVar)
+	if decision, found := lookupExecTrust(recipePath, surface.Digest); found && decision == execTrustAllow {
+		return nil
+	}
+	return execNotTrustedError(recipePath, surface, fmt.Sprintf("the %q step has not been approved as the project stands now", toolName))
 }
 
-// execTrustRecordedAllow reports whether the active project has a recorded
-// allow at its current digest. Returns false when no project is bound, which
-// is the safe answer: recipe-driven configuration with no identifiable recipe
-// has no decision attached to it.
-func (a *App) execTrustRecordedAllow() bool {
-	if a.ProjectContext == nil || a.ProjectContext.Project == nil {
-		return false
-	}
-	recipePath := filepath.Join(a.ProjectContext.ProjectDir, project.RecipeFileName)
-	sites := project.ExecSurface(a.ProjectContext.Project)
-	if len(sites) == 0 {
-		return false
-	}
-	decision, found := lookupExecTrust(recipePath, project.ExecSurfaceDigest(sites))
-	return found && decision == execTrustAllow
+// execTrustAnswer is the project a decision in this process covered: the
+// recipe, the project as loaded, and the digest of its commands then.
+type execTrustAnswer struct {
+	recipe string
+	proj   *project.KapiProject
+	digest string
 }

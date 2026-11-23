@@ -3,6 +3,8 @@ package workspace
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -10,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // FileRemote keeps a project's shared context in a directory: a mounted team
@@ -20,8 +23,41 @@ import (
 // name finds it there. A synchronizing client copies whole files it did not
 // write and never meets two writers of one file, which is why the layout, and
 // not a database, is what lives in a synchronized folder.
+//
+// The directory is opened once, as an os.Root, and every read and write goes
+// beneath it. A link that another writer of the folder plants inside it
+// cannot lead a read or a write out of the folder, and a change to the path
+// after the open does not move the remote.
 type FileRemote struct {
 	dir string
+	// expect, when set, is the directory the remote must open: its identity
+	// was taken when the path was resolved and approved (Expect).
+	expect fs.FileInfo
+
+	mu   sync.Mutex
+	root *os.Root
+	// passedOver names what the listings left out because it is not a
+	// regular file or a directory (a link, a device, a pipe), up to
+	// PassedOverShown of them; passedOverTotal counts them all. Whoever can
+	// write the folder chooses these names and how many there are.
+	passedOver      []string
+	passedOverTotal int
+}
+
+// PassedOverShown is how many passed-over names a listing keeps. The rest are
+// counted.
+const PassedOverShown = 10
+
+// ErrRemoteReplaced is the error a remote returns when the directory it
+// opened is not the directory Expect named: a component of the path was
+// replaced between resolving the path and opening it.
+var ErrRemoteReplaced = errors.New("workspace: the folder was replaced after it was resolved")
+
+// Expect makes the remote open only the directory info describes, compared
+// with os.SameFile, and refuse another one at the same path.
+func (r *FileRemote) Expect(info fs.FileInfo) *FileRemote {
+	r.expect = info
+	return r
 }
 
 // NewFileRemote names a directory as a remote. The directory is created on
@@ -33,17 +69,99 @@ func (r *FileRemote) Describe() RemoteDescriptor {
 	return RemoteDescriptor{Kind: "file", Location: r.dir}
 }
 
+// open returns the directory opened as a root, opening it on the first call.
+// A directory that is not there yet is nil with no error, unless create is
+// set, which makes it first.
+func (r *FileRemote) open(create bool) (*os.Root, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.root != nil {
+		return r.root, nil
+	}
+	root, err := os.OpenRoot(r.dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		if !create {
+			return nil, r.reachable()
+		}
+		root, err = makeRoot(r.dir)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s: %w", ErrRemoteUnreachable, r.dir, err)
+	}
+	if r.expect != nil {
+		opened, err := root.Stat(".")
+		if err != nil || !os.SameFile(opened, r.expect) {
+			_ = root.Close()
+			return nil, fmt.Errorf("%w: %s", ErrRemoteReplaced, r.dir)
+		}
+	}
+	r.root = root
+	return root, nil
+}
+
+// TakePassedOver returns what the listings since the last call left out, the
+// first PassedOverShown names and the count of all of them, and forgets it.
+func (r *FileRemote) TakePassedOver() ([]string, int) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	names, total := r.passedOver, r.passedOverTotal
+	r.passedOver, r.passedOverTotal = nil, 0
+	return names, total
+}
+
+func (r *FileRemote) notePassedOver(name string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.passedOverTotal++
+	if len(r.passedOver) < PassedOverShown {
+		r.passedOver = append(r.passedOver, name)
+	}
+}
+
+// makeRoot creates dir beneath its nearest existing ancestor, opened as a
+// root itself, and opens the result.
+func makeRoot(dir string) (*os.Root, error) {
+	base := filepath.Dir(dir)
+	for {
+		if _, err := os.Stat(base); err == nil {
+			break
+		}
+		next := filepath.Dir(base)
+		if next == base {
+			break
+		}
+		base = next
+	}
+	parent, err := os.OpenRoot(base)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = parent.Close() }()
+	rel, err := filepath.Rel(base, dir)
+	if err != nil {
+		return nil, err
+	}
+	if err := parent.MkdirAll(rel, 0o755); err != nil {
+		return nil, err
+	}
+	return parent.OpenRoot(rel)
+}
+
 // List walks one directory of the layout.
 func (r *FileRemote) List(ctx context.Context, dir string) ([]string, error) {
 	if err := checkListDir(dir); err != nil {
 		return nil, err
 	}
-	if err := r.reachable(); err != nil {
+	root, err := r.open(false)
+	if err != nil || root == nil {
 		return nil, err
 	}
-	root := filepath.Join(r.dir, filepath.FromSlash(dir))
+	start := strings.Trim(dir, "/")
+	if start == "" {
+		start = "."
+	}
 	var out []string
-	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+	err = fs.WalkDir(root.FS(), start, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
 				return nil
@@ -56,20 +174,22 @@ func (r *FileRemote) List(ctx context.Context, dir string) ([]string, error) {
 		if d.IsDir() {
 			return nil
 		}
-		rel, err := filepath.Rel(r.dir, p)
-		if err != nil {
-			return err
+		// A link is neither walked into nor listed: an object is a file the
+		// layout wrote. What is left out is reported (TakePassedOver), so two
+		// machines that see the folder differently can tell why.
+		if !d.Type().IsRegular() {
+			r.notePassedOver(p)
+			return nil
 		}
-		name := filepath.ToSlash(rel)
 		// Temporary files of a write in progress, and anything a person or a
 		// sync client left beside the layout, are not objects.
-		if ValidObjectName(name) {
-			out = append(out, name)
+		if ValidObjectName(p) {
+			out = append(out, p)
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("workspace: list %s: %w", root, err)
+		return nil, fmt.Errorf("workspace: list %s: %w", filepath.Join(r.dir, filepath.FromSlash(dir)), err)
 	}
 	sort.Strings(out)
 	return out, nil
@@ -80,17 +200,34 @@ func (r *FileRemote) Get(_ context.Context, name string) ([]byte, error) {
 	if err := checkObjectName(name); err != nil {
 		return nil, err
 	}
-	data, err := os.ReadFile(r.path(name))
+	root, err := r.open(false)
+	if err != nil {
+		return nil, err
+	}
+	if root == nil {
+		return nil, fmt.Errorf("%w: %s", ErrNoObject, name)
+	}
+	data, err := readRegular(root, filepath.FromSlash(name))
 	if errors.Is(err, fs.ErrNotExist) {
-		if rerr := r.reachable(); rerr != nil {
-			return nil, rerr
-		}
 		return nil, fmt.Errorf("%w: %s", ErrNoObject, name)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("workspace: read %s: %w", name, err)
 	}
 	return data, nil
+}
+
+// readRegular reads a regular file beneath root and refuses anything else,
+// a link among them.
+func readRegular(root *os.Root, name string) ([]byte, error) {
+	info, err := root.Lstat(name)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("%s is not a regular file", name)
+	}
+	return root.ReadFile(name)
 }
 
 // Put creates each object that is not there yet.
@@ -100,11 +237,18 @@ func (r *FileRemote) Put(ctx context.Context, objs ...Object) error {
 			return err
 		}
 	}
+	if len(objs) == 0 {
+		return nil
+	}
+	root, err := r.open(true)
+	if err != nil {
+		return err
+	}
 	for _, obj := range objs {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		if err := r.create(obj); err != nil {
+		if err := create(root, obj); err != nil {
 			return err
 		}
 	}
@@ -114,17 +258,16 @@ func (r *FileRemote) Put(ctx context.Context, objs ...Object) error {
 // create writes one object under a temporary name and links it into place.
 // A link fails when the name exists, which is the create-only write every
 // filesystem offers, local or mounted.
-func (r *FileRemote) create(obj Object) error {
-	final := r.path(obj.Name)
-	if err := os.MkdirAll(filepath.Dir(final), 0o755); err != nil {
-		return fmt.Errorf("%w: %s: %w", ErrRemoteUnreachable, r.dir, err)
+func create(root *os.Root, obj Object) error {
+	final := filepath.FromSlash(obj.Name)
+	if err := root.MkdirAll(filepath.Dir(final), 0o755); err != nil {
+		return fmt.Errorf("%w: %s: %w", ErrRemoteUnreachable, root.Name(), err)
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(final), ".tmp-*")
+	tmp, tmpName, err := createTemp(root, filepath.Dir(final))
 	if err != nil {
 		return fmt.Errorf("workspace: write %s: %w", obj.Name, err)
 	}
-	tmpName := tmp.Name()
-	defer func() { _ = os.Remove(tmpName) }()
+	defer func() { _ = root.Remove(tmpName) }()
 	if _, err := tmp.Write(obj.Data); err != nil {
 		_ = tmp.Close()
 		return fmt.Errorf("workspace: write %s: %w", obj.Name, err)
@@ -136,14 +279,14 @@ func (r *FileRemote) create(obj Object) error {
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("workspace: write %s: %w", obj.Name, err)
 	}
-	err = os.Link(tmpName, final)
+	err = root.Link(tmpName, final)
 	if err == nil {
 		return nil
 	}
 	if !errors.Is(err, fs.ErrExist) {
 		return fmt.Errorf("workspace: write %s: %w", obj.Name, err)
 	}
-	held, rerr := os.ReadFile(final)
+	held, rerr := readRegular(root, final)
 	if rerr != nil {
 		return fmt.Errorf("workspace: read %s: %w", obj.Name, rerr)
 	}
@@ -153,11 +296,33 @@ func (r *FileRemote) create(obj Object) error {
 	return nil
 }
 
-// Close holds nothing open.
-func (r *FileRemote) Close() error { return nil }
+// createTemp makes a new file named .tmp-<random> in dir beneath root.
+func createTemp(root *os.Root, dir string) (*os.File, string, error) {
+	for range 16 {
+		var b [8]byte
+		if _, err := rand.Read(b[:]); err != nil {
+			return nil, "", err
+		}
+		name := filepath.Join(dir, ".tmp-"+hex.EncodeToString(b[:]))
+		f, err := root.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o644)
+		if errors.Is(err, fs.ErrExist) {
+			continue
+		}
+		return f, name, err
+	}
+	return nil, "", errors.New("no free temporary name")
+}
 
-func (r *FileRemote) path(name string) string {
-	return filepath.Join(r.dir, filepath.FromSlash(name))
+// Close releases the opened directory.
+func (r *FileRemote) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.root == nil {
+		return nil
+	}
+	err := r.root.Close()
+	r.root = nil
+	return err
 }
 
 // reachable reports a remote directory that is not there as unreachable

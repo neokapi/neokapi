@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T20:28:34Z",
+  "generatedAt": "2026-11-22T22:39:13Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -1817,6 +1817,12 @@
           "type": "string",
           "required": false,
           "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        },
+        {
+          "name": "term_rules",
+          "type": "array",
+          "required": false,
+          "description": "The terms to check. Where the source contains a term, the translation should contain its replacement."
         }
       ]
     },
