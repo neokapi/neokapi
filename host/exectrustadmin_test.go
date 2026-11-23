@@ -19,7 +19,9 @@ func execRecipeAt(t *testing.T) (string, string) {
 	t.Helper()
 	recipePath := filepath.Join(t.TempDir(), project.RecipeFileName)
 	require.NoError(t, os.WriteFile(recipePath, []byte(execStepRecipe), 0o644))
-	return recipePath, project.ExecSurfaceDigest(project.ExecSurface(execProject(t)))
+	surface, err := execSurfaceOf(recipePath, execProject(t))
+	require.NoError(t, err)
+	return recipePath, surface.Digest
 }
 
 // trustCommand is a Command with captured IO, for the verbs that confirm.

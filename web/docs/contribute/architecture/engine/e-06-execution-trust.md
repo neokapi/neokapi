@@ -98,6 +98,20 @@ The stored record answers *what was approved*, not *which project was trusted*:
   command does not. This is what makes a sticky decision safe: it attaches to the
   argv a person read, so a recipe cannot be approved once and rewritten
   afterwards.
+- **It covers the files the commands name inside the project, and the
+  project's id** (`host.execSurfaceOf`). A `script_file`, an executable given
+  by a path, and each argument that resolves to a file in the project (an
+  interpreter's script, as in `node tools/x.js`) are hashed into the digest
+  through `ExecSite.WithFacts`, the same mechanism the formatter arm uses for
+  its executable and configuration. A path is resolved as the command
+  resolves it, against the working directory, and read through the project
+  root (`core/rootpath`); a named file that is or passes through a link out
+  of the project is refused rather than hashed. A named file that is absent
+  is recorded as absent, so one that appears later asks again. The record
+  keeps each file's hash, so the next question names the file that changed.
+  The id is plain text in the recipe: it tells two projects at one path apart
+  and proves nothing about which one a recipe is. What a command reads at run
+  time without the recipe naming it is not covered.
 - **It lives under `ConfigDir()`**, not in the project's `.kapi/`. The state
   directory is documented as safe to delete and regenerate, so a record there
   would evaporate on a routine clean, and could also ship inside the project

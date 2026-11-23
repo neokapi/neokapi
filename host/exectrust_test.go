@@ -96,8 +96,9 @@ func TestCheckExecToolAllowed_ReadsTheRecordForPathsThatSkipThePrompt(t *testing
 	a := &App{ProjectContext: project.NewProjectContext(proj, recipePath)}
 	require.Error(t, a.checkExecToolAllowed("external-command"), "no record yet")
 
-	require.NoError(t, recordExecTrust(recipePath,
-		project.ExecSurfaceDigest(project.ExecSurface(proj)), execTrustAllow))
+	surface, err := execSurfaceOf(recipePath, proj)
+	require.NoError(t, err)
+	require.NoError(t, recordExecTrust(recipePath, surface.Digest, execTrustAllow))
 
 	b := &App{ProjectContext: project.NewProjectContext(proj, recipePath)}
 	assert.NoError(t, b.checkExecToolAllowed("external-command"))

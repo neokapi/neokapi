@@ -20,8 +20,14 @@ context in a folder.
 A recipe that names an exec-class step (external-command, script, or the exec
 format) runs code the recipe chooses, with your privileges and your
 environment. kapi asks once per project before running it and remembers the
-answer, allow or deny, against a fingerprint of the commands shown. A recipe
-edit that changes what would run asks again. A comment edit's project
+answer, allow or deny, against a fingerprint of the commands shown, the
+project's id, and the content of every file in the project the commands name:
+a script_file, a program given by a path, a script handed to an interpreter
+(node tools/x.js). A recipe edit that changes what would run, an edit to one
+of those files, or another project at the same path asks again, and the
+question says which file changed. A named file that is a link out of the
+project is refused. A file a command reads without the recipe naming it is
+not covered. A comment edit's project
 formatter is decided the same way and kept in the same record, keyed by the
 configuration file that selects it.
 
