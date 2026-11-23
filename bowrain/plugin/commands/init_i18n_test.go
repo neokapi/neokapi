@@ -30,13 +30,9 @@ func TestApplyFrameworkPreset_NeokapiI18nCleanLayout(t *testing.T) {
 	proj, err := project.InitProject(dir, recipe)
 	require.NoError(t, err)
 
-	assert.DirExists(t, proj.StateDir(), "init creates the cache directory")
-	assert.NoFileExists(t, filepath.Join(proj.StateDir(), "manifest.yaml"))
+	assert.NoDirExists(t, proj.StateDir(), "init writes no state into the checkout")
+	assert.DirExists(t, proj.Layout.WorkDir(), "the checkout's state directory is created outside it")
 	assert.Empty(t, proj.FlowsDirPath(), "init names no flows directory")
-
-	gi, err := os.ReadFile(filepath.Join(proj.StateDir(), ".gitignore"))
-	require.NoError(t, err)
-	assert.Equal(t, "*\n", string(gi), "the whole cache directory stays out of version control")
 }
 
 // The plugin's init proposes collections from the tree the way `kapi init`

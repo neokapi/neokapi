@@ -232,7 +232,7 @@ and calls `LookupSegment` for sentence-level leverage
 ## Extraction bookkeeping
 
 Each `kapi extract` run writes a manifest under
-`.kapi/work/cache/extractions/<batch-id>/`, alongside the per-source skeletons,
+`work/cache/extractions/<batch-id>/` in the checkout's state directory, alongside the per-source skeletons,
 for the next extract to reuse:
 
 ```yaml

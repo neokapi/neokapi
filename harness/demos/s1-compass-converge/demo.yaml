@@ -17,7 +17,7 @@ project: true
 # The sample ships its context as files, and a fresh sandbox has a store that
 # has never held them, so the take starts where a reader does.
 setup:
-  - kapi store import ./context
+  - kapi store import ./context --yes
 captureTimeoutSec: 240
 aspects:
   - one point, one more axis

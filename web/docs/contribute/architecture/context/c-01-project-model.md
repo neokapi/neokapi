@@ -2,7 +2,7 @@
 id: c-01-project-model
 sidebar_position: 1
 title: "C-01: The project model"
-description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root. The .kapi/ directory holds checkout-local data, and the project's context lives in a per-user workspace outside every checkout."
+description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root. Each checkout's own state lives under the data root, keyed by the checkout, and the project's context lives in a per-user workspace outside every checkout."
 keywords: [kapi project, kapi.yaml, .kapi, YAML recipe, project model, context, workspace, store.db, architecture decision, neokapi]
 ---
 
@@ -19,11 +19,11 @@ The project's **context** lives in a per-user workspace outside every checkout,
 one database per project, reached by every clone and worktree of it
 ([C-03](c-03-context-store-and-graph.md)).
 
-`.kapi/` holds checkout-local data: the derived block store and caches under
-`work/`, and beside them the personal reader filters, a venue's sync state and
-any redaction vault. `kapi init` excludes the directory from version control.
-Deleting `work/` loses nothing; the filters, the sync state and withheld
-originals in the vault require separate preservation.
+Each checkout's own state lives outside it, in a directory of its own under the
+data root: the derived block store and caches under `work/`, and beside them the
+personal reader filters, a venue's sync state and any redaction vault. Nothing a
+checkout contains is read as state. `.kapi/` in a checkout holds only context
+files a project commits.
 
 A `ProjectContext` resolves the recipe into a runtime configuration, and a
 `Store` interface with pluggable providers gives tools random-access storage
@@ -65,20 +65,24 @@ my-app/
 ├── kapi.yaml                   ← RECIPE (user edits; committed)
 ├── .mcp.json                   ← agent wiring written by kapi init (committed)
 ├── .claude/skills/kapi/SKILL.md
-├── .kapi/                      ← THIS CHECKOUT'S CACHE (ignored as a whole)
-│   ├── .gitignore              ← `*`, written by kapi init
-│   ├── filters.local.json      ← personal saved filters
-│   ├── vault/                  ← withheld originals (C-10), local-only, owner-only
-│   │   └── batches/            ← per-batch vault sidecars (C-10)
-│   ├── sync/                   ← a venue's refs (C-05) and sync cache
-│   └── work/                   ← free to delete, always
-│       ├── store.db            ← this checkout's projection (C-03)
-│       └── cache/
-│           ├── extractions/    ← per-extract batch state (M-01)
-│           └── collections/    ← overlay layers per collection
+├── .kapi/                      ← context files a project commits, when it keeps any
+│   ├── voice.yaml, terms.json  ← read by `kapi store import`
+│   ├── profiles/  memory/  state/
 ├── flows/                      ← file-per-flow definitions named by flows_dir (E-04), when used
 ├── src/                        ← authored sources (user-owned)
 └── i18n/                       ← writer output (generated)
+
+<data root>/checkouts/<key>/    ← THIS CHECKOUT'S STATE (never in the checkout)
+├── checkout.json               ← the checkout's location and its folder's identity
+├── filters.local.json          ← personal saved filters
+├── vault/                      ← withheld originals (C-10), owner-only
+│   └── batches/                ← per-batch vault sidecars (C-10)
+├── sync/                       ← a venue's refs (C-05) and sync cache
+└── work/                       ← free to delete, always
+    ├── store.db                ← this checkout's projection (C-03)
+    └── cache/
+        ├── extractions/        ← per-extract batch state (M-01)
+        └── collections/        ← overlay layers per collection
 ```
 
 Ownership, zone by zone:
@@ -100,29 +104,28 @@ Ownership, zone by zone:
   for the coding agents that work in the project
   ([S-01](../surfaces/s-01-kapi-cli.md)). It is committed with the recipe.
 
-- **`.kapi/`** holds data specific to this checkout.
+- **The checkout's state directory** holds data specific to this checkout.
   `work/store.db` is the projection of the working tree: the block cache, the
   overlays a flow wrote, the extraction stamps
   ([C-03](c-03-context-store-and-graph.md)), with the caches beside it under
   `work/`. Outside `work/` sit the redaction vault ([C-10](c-10-redaction.md)),
   a venue's sync state and the personal saved reader filters with the choice of
   the active one. `core/project.EnsureLocalDir` writes the vault and the sync
-  directory owner-only and adds each to `.kapi/.gitignore` when the file
-  ignores less than the whole directory. Shared reader filters are project settings kept in the context store
+  directory owner-only. Shared reader filters are project settings kept in the context store
   (`core/projectdb.SettingSavedFilters`), and a project's flow files sit in the committed
   directory its recipe names with `flows_dir:`
   ([E-04](../engine/e-04-flows-and-io-binding.md)), and kapi reads nothing
   from `.kapi/flows/`.
-  A second clone and a git worktree each keep a `.kapi/` of their own and share
-  one context store.
+  A second clone and a git worktree each have a state directory of their own
+  and share one context store.
 
 - **Context files** are an input to the store, never a source a gate reads.
   `kapi store import <dir>` reads a directory of them, a terms bundle, a voice
   profile, content-memory bundles and decision-record shards, into operations
   ([C-11](c-11-context-operations.md)). The context itself moves between machines
   through a context backend or a transfer file ([C-03](c-03-context-store-and-graph.md)).
-  With no path, import reads `.kapi/`, so a project that commits a snapshot
-  there keeps its own `.kapi/.gitignore`, which kapi never overwrites. The
+  With no path, import reads `.kapi/`, where a project may commit a snapshot;
+  kapi writes nothing there. The
   recipe names none of these files: it binds the voice and terms they carry by
   name.
 
@@ -132,47 +135,75 @@ Ownership, zone by zone:
 - **Writer outputs** are produced by the format writers the recipe declares. The
   application runtime consumes these; kapi does not.
 
-### One directory, one ignore rule
+### A checkout's own state
 
-`core/project.EnsureLayout` writes `.kapi/.gitignore` holding one line, `*`, so
-the whole directory, the rule included, stays out of version control. The rule
-is the constant `core/project.StateGitignore`.
+kapi keeps a checkout's state under the data root (`core/dataroot`), in
+`checkouts/<key>/`, and reads no state from inside a checkout.
+`core/project.Layout.LocalStateDir` names the directory, and every path to the
+store, the caches, the drafts, the locks, the sync state, the vault and the
+saved filters goes through it.
 
-The `*` rule is written only into a `.kapi/` that is new or holds nothing but
-what kapi keeps there. A directory that already carries other files, such as
-committed context files, gets a line for `work/` instead, so those files stay
-in the commit and the work directory stays out. A rule already present is never
-rewritten, only added to.
+The key is a hash of the checkout's resolved location and its root folder's
+identity, which kapi reads from the operating system: the device, inode and
+birth time on Unix (the birth time where the file system records one) and the
+volume serial number and file index on Windows. The browser build uses the
+location alone. Nothing the checkout contains feeds the key. A recipe can copy
+another project's id; it cannot give its folder another folder's identity. So
+a repository cloned where a project used to live starts with no state, and two
+checkouts of one project keep separate state. `checkout.json` beside the state
+records the location and the identity.
 
-### State that git tracks
+- **A checkout renamed or moved on its volume** keeps its identity. When no state
+  exists for its new location and a record has its identity and a location that
+  no longer exists, the state directory follows it. Without a birth time the
+  identity cannot tell the checkout from a new folder that reuses its inode, so
+  kapi follows no rename there (or on a platform with no identity): the checkout
+  gets fresh state and the relink command.
+- **One folder typed in two spellings** on a volume that folds case gets one
+  state directory: when no state exists under the spelling given, a record whose
+  location names the same folder now is used.
+- **Another folder at a recorded location** (a checkout deleted and something
+  else cloned there) gets fresh state. The earlier state is kept under its own
+  key, and kapi says so once, with the command that relinks it.
+- **A copy, a restored backup or a checkout moved to another volume** has
+  another identity and starts without state. kapi rebuilds `work/`; a person
+  brings the rest across with `kapi state relink --from <old location>`.
+- **A volume mounted again with new device numbers** gives the checkout fresh
+  state. kapi reports the earlier record at the location once, and the vault
+  and the sync state wait for `kapi state relink`.
+- **A state directory with no record** (one a CI cache restored into the
+  directory `kapi state path` printed) is the checkout's by its key alone, and
+  kapi writes the record on first use.
 
-`work/`, `sync/`, `vault/` and `filters.local.json` are kapi's own state for one
-checkout. `core/project.CheckStateTracked` asks git, under the caller's
-context, for every path its index holds beneath the project, and refuses the
-checkout when one of them is beneath a state entry in any spelling the file
-system resolves to it, or when the state directory or an entry is a submodule or
-a repository of its own. It runs before every command, for every MCP call that
-resolves a project, on every hand-out of a project store, when the desktop opens
-a project or reads its filters, in the source connectors, and on every plugin
-daemon call. A directory in no repository passes without running git. Inside a
-repository, a git that cannot answer refuses with the cause and its remedy;
-`KAPI_TRUST_STATE=1` in kapi's own environment vouches for the state instead.
+`kapi state import` takes the state an earlier kapi left inside a checkout's
+`.kapi/` (the vault, the sync state, the saved filters, and the places earlier
+layouts kept them) into the checkout's state directory. `kapi state relink`
+takes the state recorded for another location. Both list every file with its
+size and the server any sync state was issued by, ask at a terminal or take
+`--yes`, take exactly what they listed, and refuse a link or an irregular file.
+`import` leaves the copies in the checkout unless asked to remove them. An agent
+or an MCP call cannot run either. `kapi state path` prints the directory, for a
+CI cache.
 
-Asking git sees only what git tracks. State that arrived untracked, in an
-archive or a checkout copied or synchronised from elsewhere, is not seen by this
-check. The walk that refuses a link or an irregular file anywhere under `.kapi/`
-still applies to it, and a regular store or claim token copied in is used as
-kapi's own.
+A claim token in the sync state is sent only to the server and project the sync
+state records it was issued for. A sync state that records none sends no token.
+
+kapi also asks git whether it tracks `work/`, `sync/`, `vault/` or
+`filters.local.json` under `.kapi/` (`core/project.CheckStateTracked`), and
+refuses a checkout that tracks one. `KAPI_TRUST_STATE=1` in kapi's own
+environment skips that question. The walk that refuses a link or an irregular
+file applies to everything kapi still opens under `.kapi/`.
 
 What deleting costs, stated exactly:
 
-- `rm -rf .kapi/work` is **always free** beyond a re-extraction. Everything
-  under it is rebuilt on the next run, and a held-back locale's drafts are served
-  again from the workspace home ([C-03](c-03-context-store-and-graph.md)).
-- `rm -rf .kapi` costs more: the redaction vault under `.kapi/vault/` holds
+- Deleting `work/` from the state directory is **always free** beyond a
+  re-extraction. Everything under it is rebuilt on the next run, and a held-back
+  locale's drafts are served again from the workspace home
+  ([C-03](c-03-context-store-and-graph.md)).
+- Deleting the whole state directory costs more: the redaction vault holds
   withheld originals that are **local-only and not regenerable**
   ([C-10](c-10-redaction.md)): never committed, never synced, so nothing
-  anywhere else has a copy. `.kapi/sync/` holds a venue's sync state, an
+  anywhere else has a copy. The sync state holds a venue's position, an
   anonymous project's claim token among it. The project's terms, voice profiles,
   content memory and decisions are in the workspace and stay
   ([C-03](c-03-context-store-and-graph.md)).
@@ -503,7 +534,7 @@ type Capabilities struct {
 ```
 
 Two providers back it: an ephemeral map-based one for tests and ad-hoc CLI
-invocations, and the block tables inside `.kapi/work/store.db` for long-lived
+invocations, and the block tables inside the checkout's `work/store.db` for long-lived
 project work. Tools never open the database directly; they operate on a session.
 In the browser the block store is a path-keyed in-memory implementation
 ([C-03](c-03-context-store-and-graph.md)); nothing above the `Store` interface
@@ -600,7 +631,7 @@ undeclared plugins produce warnings during validation.
 
 ### Bookkeeping
 
-`.kapi/work/cache/extractions/<batch-id>/manifest.yaml` records each `kapi
+`work/cache/extractions/<batch-id>/manifest.yaml` in the checkout's state directory records each `kapi
 extract` run ([M-01](../multilingual/m-01-bilingual-interop.md)): the emitted
 source→output pairs, per-file source SHA-256, leverage counts, the bilingual
 format version and the skeleton filenames. The batch id is stamped in each
@@ -627,7 +658,7 @@ right extraction without guessing from its name.
 - [C-02: Coordinates and governance](c-02-coordinates-and-governance.md): the
   point a collection sits at and what governs it.
 - [C-03: The context store and graph](c-03-context-store-and-graph.md):
-  `.kapi/work/store.db` and the workspace holding the other half.
+  the checkout's `work/store.db` and the workspace holding the other half.
 - [C-04: Block state and the decision record](c-04-block-state-and-decisions.md):
   the ledger and the shards a snapshot writes.
 - [E-01: Processing Engine](../engine/e-01-processing-engine.md): flow

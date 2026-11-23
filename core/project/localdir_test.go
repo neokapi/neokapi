@@ -2,8 +2,10 @@ package project
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +15,7 @@ import (
 func TestLocalDirHoldsEveryPathToTheCheckoutsOwnState(t *testing.T) {
 	root := t.TempDir()
 	l := LayoutAt(root)
-	assert.Equal(t, l.StateDir, l.LocalStateDir(), "without LocalDir the state stays beside the recipe")
+	assert.True(t, strings.HasPrefix(l.LocalStateDir(), dataroot.CheckoutsDir()), "without LocalDir the state is under the data root")
 
 	local := filepath.Join(t.TempDir(), "checkout-state")
 	l.LocalDir = local

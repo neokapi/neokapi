@@ -95,7 +95,7 @@ func TestApply_ADryRunInAFreshProjectWritesNothing(t *testing.T) {
 // nothing.
 func TestApply_ADryRunReadsTheProjectsStore(t *testing.T) {
 	f := newCommitFixture(t)
-	locks := filepath.Join(f.root, ".kapi", "work", "locks")
+	locks := filepath.Join(project.LayoutAt(f.root).WorkDir(), "locks")
 	require.NoDirExists(t, locks)
 	original := readFile(t, f.recipe, "docs/guide.md")
 	body := guideEdit(t, f.app, f.recipe, "We utilize the widget every day.")

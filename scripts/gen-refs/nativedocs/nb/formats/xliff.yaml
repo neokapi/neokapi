@@ -3,153 +3,164 @@
 # Behaviour grounded in core/formats/xliff/reader.go, writer.go and spec.yaml,
 # mirroring Okapi's XLIFF filter (okf_xliff) and the OASIS XLIFF 1.2 standard.
 displayName: XLIFF 1.2
-description: Les og skriv OASIS XLIFF 1.2 tospråklige utvekslingsdokumenter.
+description: Les og skriv tospråklige utvekslingsdokumenter i OASIS XLIFF 1.2-format.
 overview: |
-  XLIFF 1.2 er OASIS XML-utvekslingsstandarden for tospråklig innhold,
-  utvekslingsformatet som oversettelsesverktøy og TMS-plattformer bruker
-  til å flytte innhold mellom uttrekk og oversettelse. Et dokument grupperer
-  `<trans-unit>`-elementer under `<file>`-beholdere, der hver enhet inneholder en
-  `<source>` og en valgfri `<target>`, med inline-markup representert
-  gjennom parvise (`bpt`/`ept`, `g`) eller frittstående (`x`, `ph`) kode-
-  elementer og segmentering uttrykt via `<seg-source>` og
+  XLIFF 1.2 er OASIS-standarden for utveksling av tospråklig innhold i XML.
+  Oversettelsesverktøy og TMS-plattformer bruker formatet til å flytte
+  innhold mellom uttrekk og oversettelse. Et dokument grupperer
+  `<trans-unit>`-elementer under `<file>`-beholdere. Hver enhet inneholder
+  en `<source>` og eventuelt en `<target>`. Innebygd markering representeres
+  med parvise (`bpt`/`ept`, `g`) eller frittstående (`x`, `ph`)
+  kodeelementer. Segmentering uttrykkes med `<seg-source>` og
   `<mrk mtype="seg">`.
 
-  Leseren sender ut én blokk per `<trans-unit>` med tekst, og bærer
-  kilden, eventuell eksisterende målverdi, segmentering, alt-trans-treff og
-  enhetens metadata. Skriveren oppdaterer mål og som standard
-  `state`-attributtet på målet, slik at en fil etter rundtur gjenspeiler
-  oversettelsesfremdriften. Dette speiler Okapis XLIFF 1.2-filter.
+  Leseren oppretter én blokk per oversettbare `<trans-unit>`. Blokken
+  inneholder kildeteksten, eventuell eksisterende måltekst, segmentering,
+  alt-trans-treff og metadata for enheten. Skriveren oppdaterer måltekstene
+  og, som standard, måltekstens `state`-attributt. Filen gjenspeiler dermed
+  oversettelsesfremdriften etter at den er lest og skrevet. Dette tilsvarer
+  Okapis XLIFF 1.2-filter.
 parameters:
-  preserveSpaceByDefault:
-    description: Behandle alt innhold som `xml:space="preserve"` med mindre annet er angitt.
+  preserve_space_by_default:
+    description: Behandle alt innhold som `xml:space="preserve"` med mindre det er overstyrt.
     help: |
-      Når aktivert, behandles hvert element som blanktegn-bevarende
-      uavhengig av et eksplisitt `xml:space`-attributt. Når deaktivert (standard),
-      respekterer leseren `xml:space` per element, og komprimerer
-      ubetydelige blanktegn andre steder.
-    values: "`true` / `false` (standard `false`)"
-  includeExtensions:
-    description: Inkluder ikke-standard navnerom-utvidelse-elementer i trukket ut innhold.
+      Når dette er aktivert, bevares blanktegn i alle elementer, uavhengig
+      av om attributtet `xml:space` er angitt. Når det er deaktivert
+      (standard), følger leseren `xml:space` for hvert element og slår sammen
+      blanktegn uten betydning andre steder.
+    values: "`true` / `false` (standard: `false`)"
+  include_extensions:
+    description: Ta med utvidelseselementer fra ikke-standardiserte navnerom i det uttrukne innholdet.
     help: |
-      Når aktivert (standard), beholdes elementer fra ikke-XLIFF-navnerom (leverandør- eller verktøyutvidelser) som finnes i innhold, i den uttrukne blokken. Når deaktivert, fjernes slike utvidelseselementer fra det uttrukne innholdet.
+      Når dette er aktivert (standard), beholdes elementer fra andre navnerom enn
+      XLIFF-navnerommet (leverandør- eller verktøyutvidelser) i innholdet i den
+      uttrukne blokken. Når det er deaktivert, utelates slike utvidelseselementer
+      fra det uttrukne innholdet.
     values: "`true` / `false` (standard `true`)"
-  includeIts:
-    description: Inkluder ITS-oppmerkingen (Internationalization Tag Set) i uttrukket innhold.
+  include_its:
+    description: Ta med ITS-merking (Internationalization Tag Set) i det ekstraherte innholdet.
     help: |
-      Når aktivert (standard), bevares ITS-markup i XLIFF (f.eks.
-      oversett, locale-filter eller terminologiannotering)
-      i det trukket ut innholdet. Når deaktivert, utelates ITS-markup.
-    values: "`true` / `false` (standard `true`)"
-  ignoreInputSegmentation:
-    description: "Behandle hele kildeteksten som ett segment, og ignorer inndata-segmentering."
+      Når dette er aktivert (standard), bevares ITS-oppmerking fra XLIFF-filen
+      (f.eks. translate-, locale-filter- eller terminologianotasjoner) i det
+      uttrukne innholdet. Når det er deaktivert, utelates ITS-oppmerkingen.
+    values: "`true` / `false` (standard: `true`)"
+  ignore_input_segmentation:
+    description: "Behandle hele kildeteksten som ett segment, og ignorer segmenteringen i inndataene."
     help: |
-      Når aktivert, ignoreres `<seg-source>`/`<mrk mtype="seg">` segmentering i
-      inndataene, og hele `<source>` behandles som ett enkelt
-      segment. Når deaktivert (standard), respekteres eksisterende segmentering
-      og hvert `<mrk>`-segment blir sitt eget segment i
-      blokken.
-    values: "`true` / `false` (standard `false`)"
-  fallbackToID:
-    description: Bruk trans-unit-id-en som blokknavn når ingen resname er til stede.
+      Når dette er aktivert, ignoreres segmentering med `<seg-source>`/`<mrk mtype="seg">` i inndataene, og hele `<source>` behandles som ett segment. Når det er deaktivert (standard), beholdes den eksisterende segmenteringen, og hvert `<mrk>`-segment blir et eget segment i blokken.
+    values: "`true` / `false` (standard: `false`)"
+  fallback_to_id:
+    description: Bruk trans-unit-ID-en som blokknavn når resname mangler.
     help: |
-      Når aktivert, bruker en `<trans-unit>` uten `resname`-attributt sitt `id`-attributt som blokknavn, slik at blokken likevel har en menneskelig meningsfull identifikator. Når deaktivert (standard), forblir blokknavnet tomt når `resname` mangler.
-    values: "`true` / `false` (standard `false`)"
-  forceUniqueIds:
-    description: Skriv om trans-unit-id-er for å håndheve unikhet på tvers av filen.
+      Når dette er aktivert, brukes `id`-attributtet som blokknavn for en
+      `<trans-unit>` uten `resname`-attributt. Da får blokken en identifikator
+      som er forståelig for mennesker. Når det er deaktivert (standard),
+      forblir blokknavnet tomt når `resname` mangler.
+    values: "`true` / `false` (standardverdi `false`)"
+  force_unique_ids:
+    description: Skriv om trans-unit-ID-er slik at de er unike i filen.
     help: |
-      Når aktivert, skrives dupliserte `<trans-unit>` `id`-verdier om slik at
-      hver id er unik i hele filen. Når deaktivert (standard), beholdes id-ene
-      slik de er. Aktiver dette for inndata der id-ene ikke er garantert unike
-      og der nedstrøms verktøy krever unikhet.
-    values: "`true` / `false` (standard `false`)"
-  useTranslationTargetState:
-    description: Oppdater `state`-attributtet for målet når oversatt XLIFF skrives.
+      Når dette er aktivert, skrives dupliserte `id`-verdier for `<trans-unit>`
+      om slik at alle ID-er er unike i filen. Når det er deaktivert (standard),
+      beholdes ID-ene uendret. Aktiver dette når inndataene kan ha dupliserte
+      ID-er og verktøy senere i prosessen krever unike ID-er.
+    values: "`true` / `false` (standard: `false`)"
+  use_translation_target_state:
+    description: Oppdater målelementets `state`-attributt ved skriving av oversatt XLIFF.
     help: |
-      Når aktivert (standard), setter skriveren `state`-attributtet på `<target>`-elementer for å gjenspeile oversettelsesstatus, ved hjelp av `targetStateValue`. Når deaktivert, forblir den eksisterende `state` uendret.
-    values: "`true` / `false` (standard `true`)"
-  targetStateValue:
+      Når dette er aktivert (standard), setter skriveren attributtet `state`
+      på `<target>`-elementer ved hjelp av `target_state_value` for å gjenspeile
+      oversettelsesstatusen. Når det er deaktivert, beholdes eksisterende
+      `state` uendret.
+    values: "`true` / `false` (standard: `true`)"
+  target_state_value:
     description: Tilstandsverdien som skrives til målelementer.
     help: |
-      XLIFF-tilstandsverdien som brukes på `<target>`-elementer når
-      `useTranslationTargetState` er aktivert. Standard er
-      `needs-translation`. Sett den til en standard XLIFF 1.2-tilstand som
-      `translated`, `needs-review-translation` eller `final` for å samsvare med
+      XLIFF-tilstandsverdien som settes på `<target>`-elementer når
+      `use_translation_target_state` er aktivert. Standardverdien er
+      `needs-translation`. Sett den til en standard XLIFF 1.2-tilstand, for eksempel
+      `translated`, `needs-review-translation` eller `final`, for å tilpasse den til
       arbeidsflyten din.
-    values: "Streng (standard `needs-translation`)"
+    values: "Streng (standardverdi `needs-translation`)"
     examples:
       - "`translated`"
       - "`final`"
     dependsOn:
-      - property: useTranslationTargetState
-        condition: gjelder kun når oppdatering av måltilstand er aktivert
-  editAltTrans:
+      - property: use_translation_target_state
+        condition: brukes bare når oppdatering av måltekststatus er aktivert
+  edit_alt_trans:
     description: Tillat redigering av eksisterende alt-trans-elementer.
     help: |
-      Når aktivert, kan eksisterende `<alt-trans>`-elementer (alternativ oversettelse / treff) endres ved skriving. Når deaktivert (standard), bevares de uendret.
-    values: "`true` / `false` (standard `false`)"
-  addAltTrans:
+      Når dette er aktivert, kan eksisterende `<alt-trans>`-elementer
+      (alternativ oversettelse / treff) endres ved skriving. Når det er
+      deaktivert (standard), beholdes de uendret.
+    values: "`true` / `false` (standardverdi `false`)"
+  add_alt_trans:
     description: Tillat at nye alt-trans-elementer legges til.
     help: |
-      Når aktivert, kan nye `<alt-trans>`-elementer (for eksempel maskin- eller
-      memory-treff) skrives inn i enheter. Når deaktivert (standard),
-      legges ingen nye alt-trans-elementer til.
-    values: "`true` / `false` (standard `false`)"
-  addTargetLanguage:
-    description: Legg til target-language-attributtet i file-elementer hvis det mangler.
+      Når dette er aktivert, kan nye `<alt-trans>`-elementer, for eksempel treff fra maskinoversettelse eller innholdsminnet, skrives til enheter. Når det er deaktivert (standard), legges det ikke til nye alt-trans-elementer.
+    values: "`true` / `false` (standard: `false`)"
+  add_target_language:
+    description: Legg til målspråkattributtet i file-elementer hvis det mangler.
     help: |
-      Når aktivert (standard), legges `target-language`-attributtet til
-      `<file>`-elementer som mangler ett, ved hjelp av pipeline-målspråkkoden.
-      Når deaktivert, beholdes attributtet slik det ble funnet i inndataene.
-    values: "`true` / `false` (standard `true`)"
-  overrideTargetLanguage:
-    description: Erstatt målspråk-attributtet med pipeline-målspråkkoden.
+      Når dette er aktivert (standard), legges attributtet `target-language` til
+      i `<file>`-elementer som mangler det, med målspråket fra pipelinen.
+      Når det er deaktivert, beholdes attributtet slik det er i inndataene.
+    values: "`true` / `false` (standard: `true`)"
+  override_target_language:
+    description: Erstatt attributtet for målspråk med pipelinens mål-lokale.
     help: |
-      Når aktivert, overskrives `target-language`-attributtet i utdataene med pipelinens målspråkkode, selv om inndataene allerede hadde erklært en. Når deaktivert (standard), bevares en eksisterende `target-language`.
-    values: "`true` / `false` (standard `false`)"
-  allowEmptyTargets:
+      Når dette er aktivert, overskrives attributtet `target-language` i
+      utdataene med pipelinens mål-lokale, selv om inndataene allerede har
+      angitt en verdi. Når det er deaktivert (standard), beholdes en
+      eksisterende verdi for `target-language`.
+    values: "`true` / `false` (standard: `false`)"
+  allow_empty_targets:
     description: Tillat at målelementer med tomt innhold skrives.
     help: |
-      Når aktivert, kan `<target>`-elementer skrives med tomt innhold.
-      Når deaktivert (standard), emitteres ikke tomme mål. Aktiver det
-      når nedstrøms verktøy forventer at en `<target>`-plassholder skal eksistere
-      før oversettelse.
-    values: "`true` / `false` (standard `false`)"
-  alwaysAddTargets:
-    description: Legg til målelementer for enspråklig XLIFF som ikke har noen.
+      Når dette er aktivert, kan `<target>`-elementer skrives med tomt innhold.
+      Når det er deaktivert (standard), blir ikke tomme målelementer skrevet ut.
+      Aktiver det når nedstrømsverktøy forventer en `<target>`-plassholder
+      også før oversettelse.
+    values: "`true` / `false` (standard: `false`)"
+  always_add_targets:
+    description: Legg til målelementer i enspråklige XLIFF-filer som mangler dem.
     help: |
-      Når aktivert, legges `<target>`-elementer til for enspråklige XLIFF-inndataene som bare inneholder kilder. Når deaktivert (standard), syntetiseres ingen mål for kildebaserte filer.
+      Når dette er aktivert, legges `<target>`-elementer til for enspråklige
+      XLIFF-inndata som bare inneholder kildetekster. Når det er deaktivert
+      (standard), opprettes ingen målelementer for filer med bare kildetekster.
     values: "`true` / `false` (standard `false`)"
-  useCodeFinder:
-    description: Oppdag inline-koder i innhold ved hjelp av regulære uttrykk.
+  use_code_finder:
+    description: Finn innebygde koder i innholdet ved hjelp av regulære uttrykk.
     help: |
-      Aktiverer regex-basert deteksjon av inline-koder i trukket ut tekst,
-      ved hjelp av mønstrene i `codeFinderRules`. Dette supplerer de innebygde
-      XLIFF-inline-elementene. Når deaktivert (standard), gjenkjennes kun XLIFF-
-      inline-elementene.
-    values: "`true` / `false` (standard `false`)"
-  codeFinderRules:
-    description: Regulære uttrykksmønstre som samsvarer med inline-kode i innhold.
+      Aktiverer gjenkjenning av innebygde koder i uttrekt tekst ved hjelp av
+      regulære uttrykk fra `code_finder_rules`. Dette supplerer de innebygde
+      XLIFF-elementene. Når dette er deaktivert (standard), gjenkjennes bare
+      de innebygde XLIFF-elementene.
+    values: "`true` / `false` (standardverdi `false`)"
+  code_finder_rules:
+    description: Mønstre for regulære uttrykk som samsvarer med innebygde koder i innholdet.
     help: |
-      En liste over regulære uttrykk; hvert treff i trukket ut tekst er
-      beskyttet som en inline-kode i stedet for å bli oversatt. Har kun effekt
-      når `useCodeFinder` er aktivert; ugyldige mønstre hoppes over.
-    values: "Array av strenger med regulære uttrykk"
+      En liste med regulære uttrykk. Hvert treff i uttrekt tekst beskyttes som
+      en innebygd kode i stedet for å bli oversatt. Trer bare i kraft når
+      `use_code_finder` er aktivert. Ugyldige mønstre hoppes over.
+    values: "En matrise med strenger som inneholder regulære uttrykk"
     examples:
-      - "`%[0-9]*[sd]` beskytter `printf`-formatspesifikatorer"
+      - "`%[0-9]*[sd]` beskytter formatspesifikatorer av typen `printf`"
     dependsOn:
-      - property: useCodeFinder
+      - property: use_code_finder
         condition: må være aktivert for at reglene skal tre i kraft
 processingNotes:
-  - Én blokk emitteres per oversettbar `<trans-unit>`; enheter merket `translate="no"` sendes gjennom som ikke-oversettbare.
-  - "Inline-markup (`bpt`/`ept`, `g`, `x`, `ph`) og `<seg-source>`/`<mrk mtype=\"seg\">` segmentering leses inn i blokken."
+  - Det opprettes én blokk per oversettbare `<trans-unit>`; enheter merket med `translate="no"` sendes videre som ikke-oversettbare.
+  - "Innebygd merking (`bpt`/`ept`, `g`, `x`, `ph`) og segmentering med `<seg-source>`/`<mrk mtype=\"seg\">` leses inn i blokken."
 examples:
   - title: Merk måltekster som oversatt
-    description: Skriv en endelig måltilstand i stedet for standard needs-translation.
+    description: Skriv måltilstanden final i stedet for standardverdien needs-translation.
     config: |
-      useTranslationTargetState: true
-      targetStateValue: translated
-  - title: Flat ut inndata-segmentering
+      use_translation_target_state: true
+      target_state_value: translated
+  - title: Slå sammen segmenteringen i inndataene
     description: "Behandle hver kilde som ett segment, og ignorer seg-source-markører."
     config: |
-      ignoreInputSegmentation: true
+      ignore_input_segmentation: true
 wikiUrl: https://docs.oasis-open.org/xliff/v1.2/os/xliff-core.html

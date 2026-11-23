@@ -2,32 +2,55 @@
 # Source: core/check/sourcechecks.go (NewSourcePatternTool, PatternRule);
 # flags in cli/check.go.
 # A check, not a registry tool: it is configured by CLI flags, not a schema.
-description: "Krev at et mønster vises i hver kildeblokk, eller forby ett fra å vises i det hele tatt."
+# The rule ids are held to the ones core/check.SourceChecks reports.
+displayName: Mønstersjekk
+description: "Krev at et mønster finnes i hver kildeblokk, eller forby ett fra å finnes i det hele tatt."
+rules:
+  - id: pattern.forbidden-pattern
+    severity: major
+    reports: The block's source text matches a pattern given with `--forbid`. The finding carries the text it matched.
+    fix: Remove or reword the matched text, or drop the pattern from the run when the text is intended.
+  - id: pattern.pattern-missing
+    severity: major
+    reports: The block's source text does not match a pattern given with `--require`. Every block is held to every required pattern.
+    fix: Add the required text to the block, or narrow the run to the files the requirement applies to.
 overview: |
-  **Mønsterkontrollen** holder kildeteksten i hver blokk opp mot regulære uttrykk som kalleren navngir. `--forbid` angir et uttrykk som ikke må forekomme, og `--require` ett som må forekomme – begge kan gjentas, og begge rapporteres med alvorlighetsgrad major: `pattern.forbidden-pattern` når et forbudt uttrykk finnes, og `pattern.pattern-missing` når et påkrevd uttrykk mangler. Et forbidden-pattern-funn bærer med seg teksten det matchet, slik at både blokken og de problematiske ordene er navngitt.
+  **Mønstersjekken** holder kildeteksten til hver oversettbare blokk opp mot
+  regulære uttrykk som kalleren angir. `--forbid` gir et mønster som ikke må finnes,
+  og `--require` ett som må finnes – begge kan gjentas, og begge rapporteres med
+  alvorlighetsgrad major: `pattern.forbidden-pattern` når et forbudt mønster finnes, og
+  `pattern.pattern-missing` når et påkrevd mønster mangler. Et forbidden-pattern-funn
+  bærer med seg teksten det matchet, slik at både blokken og det støtende ordet navngis.
 
-  Uttrykkene er Go-regulære uttrykk, matchet slik de er skrevet: ingen implisitt folding av store/små bokstaver og ingen implisitte ordgrenser, så `(?i)todo` er måten du ignorerer store/små bokstaver på, og `\bdraft\b` er måten du krever et helt ord på. Et tomt uttrykk, ett som ikke kompilerer, eller en regel som både krever og forbyr, avvises når kontrollen bygges – i stedet for å la alt passere stille.
+  Mønstrene er Go-regulære uttrykk, matchet som skrevet: ingen implisitt case-folding
+  og ingen implisitte ordgrenser, så `(?i)todo` er måten å ignorere store/små bokstaver
+  på, og `\bdraft\b` er måten å be om et helt ord på. Et tomt mønster, ett som
+  ikke kompilerer, eller en regel som både krever og forbyr, avvises når
+  sjekken bygges – i stedet for å la alt passere stille.
 
-  Dette er rømningsveien ved siden av kontrollene som vet hva de leter etter. En stempelprofil bærer vokabularet et prosjekt har bestemt seg for, og termer bærer ordene det har avtalt; et uttrykk er for listen som ikke har noe vokabular bak seg – for eksempel en plassholdersyntaks som må overleve, eller en markør som aldri må sendes ut.
+  Det er rømningsveien ved siden av sjekkene som vet hva de leter etter.
+  En stemprofil bærer vokabularet et prosjekt bestemte seg for, og termer bærer
+  ordene det ble enige om; et mønster er for regelen som ikke har noe vokabular bak seg,
+  som en plassholdersyntaks som må overleve, eller en markør som aldri må sendes ut.
 parameters:
   --forbid:
-    description: Et regulært uttrykk som ikke må vises i kilden.
+    description: Et regulært uttrykk som ikke må finnes i kilden.
     help: |
-      Rapporterer alle blokker hvis kilde samsvarer. Kan gjentas, slik at flere
+      Rapporterer hver blokk der kilden matcher. Kan gjentas, slik at flere
       forbud kan angis i én kjøring.
-    values: "Go regulært uttrykk, kan gjentas"
+    values: "Go-regulært uttrykk, kan gjentas"
   --require:
-    description: Et regulært uttrykk som må vises i kilden.
+    description: Et regulært uttrykk som må finnes i kilden.
     help: |
-      Rapporterer alle blokker hvis kilde ikke samsvarer. Kan gjentas. Brukes per
+      Rapporterer hver blokk der kilden ikke matcher. Kan gjentas. Brukes per
       blokk, så et mønster som bare én del av et dokument har, rapporteres
       overalt ellers.
-    values: "Go regulært uttrykk, kan gjentas"
+    values: "Go-regulært uttrykk, kan gjentas"
 limitations:
-  - Leser kun kildetekst; om en oversettelse bevarte et mønster er spørsmålet for den tospråklige `qa`-kontrollen.
-  - "Et obligatorisk mønster kreves av alle blokker, så det passer en regel som gjelder for hver blokk snarere enn for et dokument som helhet."
-  - "Matching skjer over blokkens ren tekst, så et mønster kan ikke adressere kjøringene en plassholder eller en inline-kode representerer."
+  - Leser bare kildetekst; om en oversettelse bevarte et mønster er et spørsmål for den tospråklige `qa`-sjekken.
+  - "Et påkrevd mønster sjekkes mot hver blokk, så det passer for en regel som gjelder per blokk og ikke for dokumentet som helhet."
+  - "Matching skjer mot blokkens rene tekst, så et mønster kan ikke adressere kjøringene en plassholder eller en innebygd kode representerer."
 processingNotes:
-  - "Av med mindre et mønster er oppgitt, så en vanlig kontrollkjøring rapporterer ingenting fra den."
-  - Kjører over oversettbare blokker; innhold som en leser presenterer som struktur eller kode matches aldri.
-  - "Et tomt eller ikke-kompilerbart mønster, og en regel som både krever og forbyr, er feil når kontrollen bygges."
+  - "Av med mindre et mønster er angitt, så en vanlig sjekkkjøring rapporterer ingenting fra den."
+  - Kjører over oversettbare blokker; innhold en leser ser som struktur eller kode matches aldri.
+  - "Et tomt eller ikke-kompilerbart mønster, og en regel som både krever og forbyr, er feil når sjekken bygges."

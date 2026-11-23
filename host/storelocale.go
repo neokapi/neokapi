@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
@@ -77,14 +76,10 @@ func StoreLocaleDriftWarning(drift []projectdb.LocaleDrift, layout project.Layou
 	return b.String()
 }
 
-// projectionName is the projection's path as a reader of the project
-// recognises it.
+// projectionName is the projection's path: in the checkout's state directory,
+// outside the checkout, so it is named in full.
 func projectionName(layout project.Layout) string {
-	store := layout.StorePath()
-	if rel, err := filepath.Rel(layout.Root, store); err == nil {
-		return filepath.ToSlash(rel)
-	}
-	return store
+	return layout.StorePath()
 }
 
 // StoreLocales reports the locale spellings a project's stored rows are keyed
@@ -94,8 +89,7 @@ type StoreLocales struct {
 	// store every lookup can read, and for a pass that was asked to fix them,
 	// only what it could not move.
 	Drift []projectdb.LocaleDrift `json:"drift,omitempty"`
-	// Projection is the file to delete for the rows a rebuild clears, relative
-	// to the project. Empty when no row in it drifted.
+	// Projection is the file to delete for the rows a rebuild clears. Empty when no row in it drifted.
 	Projection string `json:"projection,omitempty"`
 }
 

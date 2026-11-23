@@ -17,7 +17,7 @@ project: true
 # The sample ships its context as files, and a fresh sandbox has a store that
 # has never held them, so the take starts where a reader does.
 setup:
-  - kapi store import ./context
+  - kapi store import ./context --yes
 captureTimeoutSec: 240
 aspects:
   - review moves the edge
@@ -85,12 +85,13 @@ narration:
   - id: review
     kind: terminal
     through: 10
-    caption: Twenty decisions, on the record, and the loop drafts nothing.
+    caption: Twenty approvals recorded, and the held Dutch drafts written to site/locales/nl.json.
     text: >-
-      The queue names what each decision addresses, and this filter takes the
-      Dutch a person wrote and leaves what the stub drafted. Twenty
-      approvals land in the record as they are made. Running the loop again asks
-      the provider for nothing.
+      The review queue lists each unit with its file, key and language. This
+      filter picks the Dutch a person wrote and leaves the stub's drafts alone,
+      and the twenty approvals are recorded as they are made. Run kapi up again
+      and it writes the nineteen held Dutch drafts to site/locales/nl.json,
+      without asking the provider for anything.
 
   - id: offered
     kind: terminal

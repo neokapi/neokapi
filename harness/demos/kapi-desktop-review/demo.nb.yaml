@@ -1,0 +1,63 @@
+id: kapi-desktop-review
+title: Gjennomgå en oversettelse
+subtitle: "Les hver oversettelse på dens plass, og godkjenn den med én tast."
+kind: use-case
+publishAs: kapi-desktop-review
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read: uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - The review list
+  - Source and translation
+  - What helps you judge it
+  - Approve
+outro:
+  line: "Åpne Review, og trykk A på en oversettelse som leser riktig."
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Du leser en oversettelse på dens plass og godkjenner den med én tast.
+  - id: queue
+    kind: desktop
+    beat: queue
+    caption: Alle oversettelser til gjennomgang.
+    text: >-
+      Åpne Review. Listen til venstre viser alle oversettelser til gjennomgang.
+  - id: filters
+    kind: desktop
+    beat: filters
+    caption: Filtrer etter språk eller problem.
+    text: >-
+      Bruk menyene øverst til å filtrere etter språk, eller til å vise bare oversettelser med problemer.
+  - id: open-unit
+    kind: desktop
+    beat: open-unit
+    caption: Den engelske teksten og oversettelsen.
+    text: >-
+      Klikk på en oversettelse. Den engelske teksten og oversettelsen vises side om side.
+  - id: details
+    kind: desktop
+    beat: details
+    caption: Konteksten for denne oversettelsen.
+    text: >-
+      Nedenfor leser du teksten rundt den og versjonen som ble godkjent sist.
+  - id: checks
+    kind: desktop
+    beat: checks
+    caption: Det sjekkene fant.
+    text: >-
+      Problemer sjekkene fant, vises også her.
+  - id: decide
+    kind: desktop
+    beat: decide
+    caption: Godkjenn med én tast.
+    text: >-
+      Trykk A for å godkjenne den, og neste oversettelse åpnes. Klikk Approve clean blocks for å godkjenne alle oversettelser uten problemer.
+  - id: outro
+    kind: outro
+    text: >-
+      Åpne Review og trykk A på hver oversettelse du godkjenner.

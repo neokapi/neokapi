@@ -1,0 +1,50 @@
+id: kapi-desktop-config
+title: Innstillinger og API-nøkler
+subtitle: "Legg til en leverandørnøkkel, velg utseende, og se programtilleggene dine."
+kind: use-case
+publishAs: kapi-desktop-config
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read: uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - Appearance
+  - API keys
+  - Plugins
+outro:
+  line: "Legg til nøkkelen én gang, under Appinnstillinger."
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Du legger til en API-nøkkel og ser på de andre appinnstillingene.
+  - id: open-settings
+    kind: desktop
+    beat: open-settings
+    caption: Åpne appinnstillingene.
+    text: >-
+      På Åpne-skjermen klikker du på Innstillinger.
+  - id: general
+    kind: desktop
+    beat: general
+    caption: "Lyst, mørkt eller samme som systemet ditt."
+    text: >-
+      Under Generelt velger du Lyst, Mørkt eller System, og appspråk.
+  - id: credentials
+    kind: desktop
+    beat: credentials
+    caption: Nøkkelen din lagres i nøkkelringen.
+    text: >-
+      Under AI-modeller klikker du på Legg til legitimasjon, velger en modell og limer inn API-nøkkelen. Nøkkelen lagres i nøkkelringen på Macen din, adskilt fra prosjektfilene dine.
+  - id: plugins
+    kind: desktop
+    beat: plugins
+    caption: Programtillegg legger til filformater og verktøy.
+    text: >-
+      Programtillegg viser hva som er installert. Et programtillegg legger til filformater eller verktøy. Åpne fanen Tilgjengelig for å installere ett.
+  - id: outro
+    kind: outro
+    text: >-
+      Legg til nøkkelen én gang. Alle prosjekter på denne Macen bruker den.

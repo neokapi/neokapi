@@ -1,0 +1,115 @@
+id: kapi-cli-first-project
+title: "Ditt første prosjekt, fra terminalen"
+subtitle: "Sett opp et prosjekt, velg reglene dine, rett teksten som bryter dem, og del reglene."
+kind: use-case
+publishAs: kapi-cli-first-project
+# The CLI half of "Your first project" (web/docs/kapi/get-started/first-project.mdx),
+# step for step. Every command is deterministic and offline, and nothing calls
+# a model. The last line of each `kapi look` names the next step, so the looks
+# walk the guide's order.
+#
+# `kapi rules` runs in a pseudo-terminal (`keys:`), so it asks as it does for a
+# person, and the two answers are typed at its prompts. The `kapi check` with
+# `expectExit: 3` is the kept rule failing on camera; a take where it passed
+# fails the capture.
+terminal: shell
+brand: kapi
+cwd: ~/acme-docs
+needsAi: false
+# The sandbox is the folder; kapi init writes the recipe on camera, and every
+# command after it finds the project by walking up.
+project: true
+captureTimeoutSec: 240
+aspects:
+  - one project, start to finish
+  - the next step on every look
+  - rules Claude Code follows
+outro:
+  line: Prøv det i en egen mappe.
+  pointer: kapi init
+
+# A repository with a remote, so `kapi share --via git` has somewhere to push.
+# The remote is a bare repository inside the sandbox, kept out of the tree.
+setup:
+  - git init -q
+  - git config user.email docs@acme.example
+  - git config user.name Acme
+  - git init -q --bare .origin.git
+  - echo .origin.git >> .git/info/exclude
+  - git remote add origin "$PWD/.origin.git"
+  - git add -A
+  - git commit -qm "Acme help center"
+  - git push -q origin HEAD
+
+script:
+  - comment: A folder of help-center docs, with a README and five pages.
+  - command: ls README.md docs
+  - comment: Set up the project and Claude Code.
+  - command: kapi init
+  - comment: See a summary of the project.
+  - command: kapi look
+  - comment: Press k to keep each suggestion.
+  - command: kapi rules
+    keys: [k, k]
+  - comment: Find the text that breaks a rule.
+  # The kept rule must fail here: this is the beat.
+  - command: kapi check docs/guide.md
+    expectExit: 3
+  - comment: Fix the text that breaks a rule.
+  - command: kapi fix
+  - comment: Commit, then share the rules through git.
+  - command: git add -A && git commit -qm "Add kapi"
+  - command: kapi share --via git
+  - command: kapi look
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Dette er en mappe med hjelpesenterdokumenter. Du setter opp kapi, beholder to skriveregler, retter teksten som bryter dem, og deler reglene.
+  - id: init
+    kind: terminal
+    through: 4
+    highlight: { text: [collections, CLAUDE.md] }
+    caption: Sett opp prosjektet.
+    text: >-
+      Skriv kapi init. Det lister opp filene det vil lese, lagrer prosjektet i kapi.yaml, og skriver reglene dine inn i CLAUDE.md for Claude Code.
+  - id: look
+    kind: terminal
+    through: 6
+    highlight: { text: ["kapi suggests 2", "Decide with"] }
+    caption: To foreslåtte regler.
+    text: >-
+      Skriv kapi look for et sammendrag: seks filer, ingen regler ennå, og to forslag basert på hvordan filene er skrevet. Det ene er email i stedet for e-mail. Det andre er å tiltale leseren som du. Siste linje viser neste kommando.
+  - id: decide
+    kind: terminal
+    through: 8
+    highlight: { text: ["Which spelling should the project use?", "Kept 2"] }
+    caption: Behold reglene du vil ha.
+    text: >-
+      Skriv kapi rules og trykk k for å beholde hvert forslag. Prosjektet har nå to regler.
+  - id: check
+    kind: terminal
+    through: 10
+    highlight: { text: [FAILS] }
+    caption: Finn teksten som bryter en regel.
+    text: >-
+      Skriv kapi check with the guide. Det rapporterer e-mail to ganger og avslutter med en feil, så du kan kjøre den samme kommandoen i CI for å blokkere slike endringer.
+  - id: fix
+    kind: terminal
+    through: 12
+    highlight: { text: ["2 fixed"] }
+    caption: Rett teksten.
+    text: >-
+      Skriv kapi fix. Det erstatter e-mail med email og lar resten av filen være uendret.
+  - id: share
+    kind: terminal
+    through: 16
+    highlight: { text: ["With your team", "Check with"] }
+    caption: Del reglene via git.
+    text: >-
+      Commit filene, skriv deretter kapi share with git. Alle som henter repoet får de samme reglene.
+  - id: outro
+    kind: outro
+    text: >-
+      Prøv det i en egen mappe. Skriv kapi init, kjør deretter kommandoen på siste linje i kapi look.

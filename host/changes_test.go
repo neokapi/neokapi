@@ -298,7 +298,7 @@ func TestChangeService_OutsideAProjectReadsTheWorkingDirectory(t *testing.T) {
 // TestChangeAssets_ADecisionBindsToTheContentThatLanded pins that a decision
 // is recorded on the content the change service hands the host, which it read
 // under the commit lock, and never on what the file says by the time the
-// decision is written: a save that reaches the file in between leaves the
+// decision is written. A save that reaches the file in between leaves the
 // decision stale instead of taking it over.
 func TestChangeAssets_ADecisionBindsToTheContentThatLanded(t *testing.T) {
 	item := project.ContentItem{Path: "locales/en.json", Target: "locales/{lang}.json"}
@@ -451,12 +451,12 @@ func TestChangeService_ABilingualFileIsEditedInTheLanguageItHolds(t *testing.T) 
 
 // TestChangeService_AProjectCatalogsTranslationLivesInItsTargetFile pins that
 // a PO source the recipe gives a target template keeps each translation in
-// the file the template names, for every service: the French of po/en.po (or
+// the file the template names, for every service. The French of po/en.po (or
 // of the template po/messages.pot) is read from and written to po/fr.po,
-// whether the service is told a target language (kapi apply, MCP, the
-// browser and Kapi Desktop derive one from the change set) or not, and
-// whether the change names the source or the translation's file. The source
-// catalog keeps its bytes.
+// whether or not the service is told a target language (kapi apply, MCP, the
+// browser and Kapi Desktop derive one from the change set). It holds whether
+// the change names the source or the translation's file. The source catalog
+// keeps its bytes.
 func TestChangeService_AProjectCatalogsTranslationLivesInItsTargetFile(t *testing.T) {
 	const msgs = "msgid \"Hello\"\nmsgstr \"%s\"\n"
 	catalog := func(lang, msgstr string) string {
@@ -507,8 +507,8 @@ func TestChangeService_AProjectCatalogsTranslationLivesInItsTargetFile(t *testin
 }
 
 // TestChangeService_KeepsItsLockFilesOutOfACommit pins that the lock files a
-// project's change service takes sit in .kapi/work, under the ignore rule the
-// project's state directory is created with.
+// project's change service takes sit in the checkout's state directory, outside
+// the checkout, so no commit can carry them.
 func TestChangeService_KeepsItsLockFilesOutOfACommit(t *testing.T) {
 	item := project.ContentItem{Path: "locales/en.json"}
 	a, recipe := changeProject(t, item, map[string]string{"locales/en.json": `{"title": "Welcome"}` + "\n"})
@@ -521,17 +521,15 @@ func TestChangeService_KeepsItsLockFilesOutOfACommit(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 
-	locks, err := os.ReadDir(filepath.Join(root, project.StateDirName, project.WorkDirName, "locks"))
+	locks, err := os.ReadDir(filepath.Join(project.LayoutAt(root).WorkDir(), "locks"))
 	require.NoError(t, err)
-	assert.NotEmpty(t, locks, "the lock files sit under .kapi/work/locks")
-	ignore, err := os.ReadFile(filepath.Join(root, project.StateDirName, project.StateGitignoreFilename))
-	require.NoError(t, err)
-	assert.True(t, project.GitignoreCovers(string(ignore), project.WorkDirName), "the state directory's ignore rule covers them: %q", ignore)
+	assert.NotEmpty(t, locks, "the lock files sit under work/locks in the checkout's state directory")
+	assert.NoDirExists(t, filepath.Join(root, project.StateDirName), "and nothing is written in the checkout")
 }
 
 // TestChangeService_AReadWritesNothing pins that reading a project's document
 // and describing its format leave the project as they found it: the state
-// directory and its ignore rule are written by the first commit.
+// directory is written by the first commit.
 func TestChangeService_AReadWritesNothing(t *testing.T) {
 	item := project.ContentItem{Path: "locales/en.json", Target: "locales/{lang}.json"}
 	a, recipe := changeProject(t, item, map[string]string{"locales/en.json": `{"title": "Welcome"}` + "\n"})
@@ -545,8 +543,9 @@ func TestChangeService_AReadWritesNothing(t *testing.T) {
 	h, err := svc.History(ctx, change.HistoryRequest{Ref: change.Ref{Doc: "locales/en.json", Block: "title"}})
 	require.NoError(t, err)
 	assert.Empty(t, h.Entries, "a project with no store has recorded no change")
-	_, err = os.Stat(filepath.Join(root, project.StateDirName))
-	assert.ErrorIs(t, err, os.ErrNotExist, "a read creates no state directory")
+	assert.NoDirExists(t, filepath.Join(root, project.StateDirName), "a read writes nothing in the checkout")
+	_, err = os.Stat(project.LayoutAt(root).LocalStateDir())
+	require.ErrorIs(t, err, os.ErrNotExist, "and creates no state directory")
 }
 
 // TestChangeService_ASourceDocumentResolvesWithoutTheWholeRecipe pins that a

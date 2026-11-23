@@ -1,13 +1,26 @@
 # Native reference doc for the built-in `mdx` format.
 # Schema source: core/formats/mdx/config.go (Config, forwards markdown params) + schema.go.
 # Reuses the markdown reader for prose; MDX-specific constructs are opaque.
-description: "Trekk ut og oppdater oversettbar prosa i MDX-filer (.mdx) samtidig som JSX, ESM og uttrykk bevares."
+description: "Trekk ut og oppdater prosa som kan oversettes, i MDX-filer (.mdx), og bevar JSX, ESM og uttrykk."
 overview: |
-  **MDX**-formatet leser `.mdx`-filer – CommonMark Markdown utvidet med JSX-komponenter, ESM `import`/`export`-setninger og `{expression}`-klammeparenteser. Det er forfatterformatet til moderne dokumentasjons- og innholdssider (Docusaurus, Next.js, Astro).
+  **MDX**-formatet leser `.mdx`-filer. Disse inneholder CommonMark Markdown
+  utvidet med JSX-komponenter, ESM-setningene `import` og `export` og
+  klammeparenteser med `{expression}`. MDX brukes til å skrive innhold for
+  moderne dokumentasjons- og innholdssider (Docusaurus, Next.js, Astro).
 
-  Markdown-prosa som skal oversettes, trekkes ut med samme maskineri og konfigurasjon som Markdown-formatet (avsnitt, overskrifter, listeelementer, lenke- og bildetekst, innebygd formatering). MDX-spesifikke konstruksjoner (ESM-setninger, JSX-tagger med attributter og barn, `{expression}`-blokker på toppnivå og GFM-tabeller) bevares byte-for-byte og oversettes aldri – komponentnavn, attributtverdier, importstier og uttrykk forblir urørte. Les→skriv reproduserer virkelige `.mdx`-filer nøyaktig når ingenting er oversatt; leseren selvverifiserer hver prosaregion og faller tilbake til ugjennomsiktig bevaring dersom en region ikke ville overleve en byte-tro rundtur.
+  Markdown-prosa som kan oversettes, trekkes ut med samme mekanisme og
+  konfigurasjon som for Markdown-formatet. Det omfatter avsnitt, overskrifter,
+  listeelementer, lenke- og bildetekst og innebygd fremheving. MDX-spesifikke
+  konstruksjoner behandles som ufortolket innhold, bevares byte for byte og
+  oversettes aldri. Dette gjelder ESM-setninger, JSX-tagger med attributter og
+  underordnede elementer, `{expression}`-blokker på toppnivå og GFM-tabeller.
+  Komponentnavn, attributtverdier, importstier og uttrykk forblir uendret.
+  Lesing etterfulgt av skriving gjengir faktiske `.mdx`-filer nøyaktig når
+  intet er oversatt. Leseren kontrollerer selv hver prosaregion og bevarer den
+  som ufortolket innhold hvis den ikke ville blitt gjengitt identisk på
+  bytenivå etter lesing og skriving.
 parameters: {}
 processingNotes:
-  - "Markdown-prosa er oversettbar; ESM, JSX (inkludert barn, i denne versjonen), uttrykk og GFM-tabeller er ugjennomsiktige og bevares ordrett."
-  - Konfigurasjonsparametere speiler Markdown-formatet (f.eks. håndtering av frontmatter og kodeblokker).
-  - Gjenkjenning skjer via den unike `.mdx`-utvidelsen.
+  - "Markdown-prosa kan oversettes. ESM, JSX (inkludert underordnede elementer i denne versjonen), uttrykk og GFM-tabeller behandles som ufortolket innhold og bevares ordrett."
+  - "Konfigurasjonsparameterne tilsvarer dem for Markdown-formatet, for eksempel håndtering av frontmatter og kodeblokker."
+  - Formatet gjenkjennes på det unike filnavnsuffikset `.mdx`.

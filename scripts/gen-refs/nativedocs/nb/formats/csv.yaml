@@ -1,108 +1,107 @@
 # Native reference doc for the built-in `csv` format.
 # Schema source: core/formats/csv/config.go (Config) + schema.go.
 # Mirrors the Okapi okf_table_csv filter (Table filter, CSV mode).
-description: "Trekk ut og sett inn igjen oversettbare celler fra CSV-filer, med kolonnebasert utvalg og siteringskontroll."
+description: "Trekk ut og sett inn igjen oversettbare celler fra CSV-filer, med kolonnebasert utvalg og kontroll over bruk av anførselstegn."
 overview: |
-  **CSV**-formatet leser kommaseparerte verdi-filer, trekker ut valgte
-  kolonner som oversettbare blokker, og skriver oversettelsene tilbake i de
-  samme radene. Det håndterer siterte felt som inneholder skilletegn eller linjeskift og
-  valgfrie hodelinjer. Den samme implementasjonen ligger til grunn for det tabulatorseparerte TSV-
-  formatet med en tabulatorskilletegn.
+  **CSV**-formatet leser filer med kommaseparerte verdier, trekker ut valgte
+  kolonner som oversettbare blokker og skriver oversettelsene tilbake til de
+  samme radene. Formatet håndterer felt med anførselstegn som inneholder skilletegn eller linjeskift, og valgfrie overskriftsrader. Den samme implementeringen brukes for det tabulatorseparerte TSV-formatet, med tabulator som skilletegn.
 
-  Som standard behandles den første raden som en hodelinje og hver datakolonne er
-  oversettbar. Du kan begrense uttrekk til bestemte kolonner, angi nøkkelkolonner
-  som leverer hver blokks ID, merke kommentarkolonner hvis verdier blir notater,
-  og justere skilletegn, sitattegn og radforskyvninger.
+  Som standard behandles den første raden som en overskriftsrad, og alle datakolonner
+  kan oversettes. Du kan begrense uttrekket til bestemte kolonner, angi nøkkelkolonner
+  som gir hver blokk en ID, markere kommentarkolonner der verdiene blir til merknader,
+  og justere skilletegn, anførselstegn og radforskyvninger.
 parameters:
   separator:
-    description: Feltskilletegn.
+    description: Skilletegn mellom felt.
     help: |
-      Tegnet som skiller feltene – komma for CSV og tabulator for TSV.
-    values: "Enkelt tegn (standard `,`)"
-  textQualifier:
-    description: Anførselstegn for felt med skilletegn eller linjeskift.
+      Tegnet som skiller felt: komma for CSV og tabulator for TSV.
+    values: "Ett tegn (standard `,`)"
+  text_qualifier:
+    description: Anførselstegn for felt som inneholder skilletegn eller linjeskift.
     help: |
-      Tegnet som brukes til å sitere feltverdier som inneholder skilletegnet, et
-      linjeskift eller sitattegnet selv.
-    values: Enkelt tegn (standard `"`)
-  hasHeader:
-    description: Behandle første rad som en ikke-oversettbar overskrift.
+      Tegnet som brukes til å omslutte feltverdier som inneholder skilletegnet,
+      et linjeskift eller selve anførselstegnet.
+    values: Ett tegn (standard `"`)
+  has_header:
+    description: Behandle den første raden som en ikke-oversettbar overskriftsrad.
     help: |
-      Når dette er aktivert (standardinnstillingen), behandles første rad som kolonneoverskrifter
-      og trekkes ikke ut. Deaktiver det for filer der data begynner på
+      Når dette er aktivert (standard), behandles den første raden som kolonneoverskrifter
+      og trekkes ikke ut. Deaktiver dette for filer der dataene begynner på
       første rad.
-    values: "`true` / `false` (standard `true`)"
-  columnNamesRow:
-    description: 1-basert radnummer som inneholder kolonnenavn.
+    values: "`true` / `false` (standard: `true`)"
+  column_names_row:
+    description: 1-basert radnummer for raden som inneholder kolonnenavn.
     help: |
-      Den 1-baserte raden som inneholder kolonnenavnene. `0` betyr automatisk gjenkjenning: rad
-      1 brukes når `hasHeader` er aktivert.
-    values: Heltall; `0` = automatisk gjenkjenning (standard `0`)
-  valuesStartRow:
-    description: 1-basert rad der dataverdier begynner.
+      Det 1-baserte radnummeret for raden som inneholder kolonnenavnene. `0` betyr automatisk registrering:
+      Rad 1 brukes når `has_header` er aktivert.
+    values: "Heltall; `0` = automatisk registrering (standard: `0`)"
+  values_start_row:
+    description: 1-basert radnummer for raden der dataverdiene begynner.
     help: |
-      Den 1-baserte raden som dataverdier leses fra. `0` betyr automatisk gjenkjenning:
-      raden etter overskriften, eller rad 1 når det ikke finnes noen overskrift.
-    values: Heltall; `0` = automatisk gjenkjenning (standard `0`)
-  translatableColumns:
-    description: 0-baserte indekser for kolonner som skal trekkes ut.
+      Det 1-baserte radnummeret der lesingen av dataverdier starter. `0` betyr
+      automatisk registrering: raden etter overskriftsraden, eller rad 1 hvis det ikke finnes en overskriftsrad.
+    values: Heltall; `0` = automatisk registrering (standard `0`)
+  translatable_columns:
+    description: Nullbaserte indekser for kolonner som skal trekkes ut.
     help: |
-      De 0-baserte kolonneindeksene hvis celler trekkes ut som oversettbart
-      innhold. Når tom, behandles hver kolonne som oversettbar.
-    values: "Array av 0-baserte heltall (standard tom, alle kolonner)"
+      De 0-baserte indeksene til kolonnene der cellene trekkes ut som
+      oversettbart innhold. Når listen er tom, behandles alle kolonner som oversettbare.
+    values: "Liste med 0-baserte heltall (standard: tom liste, alle kolonner)"
     examples:
       - "`[1, 2]` trekker ut den andre og tredje kolonnen"
-  keyColumns:
-    description: 0-baserte indekser for kolonner som angir blokk-ID.
+  key_columns:
+    description: Nullbaserte indekser for kolonner som gir blokken en ID.
     help: |
-      De 0-baserte kolonneindeksene hvis verdier angir hver blokks ID
-      (kilde-/post-identifikator). Når flere er oppgitt, slås verdiene deres
-      sammen med `.`. Når tom, brukes radbaserte ID-er.
-    values: "Array av 0-baserte heltall (standard tom, radbaserte ID-er)"
+      De nullbaserte kolonneindeksene til kolonnene som gir hver blokk en ID
+      (kilde- eller postidentifikator). Når flere er angitt, settes verdiene
+      sammen med `.`. Når listen er tom, brukes radbaserte ID-er.
+    values: "Liste med 0-baserte heltall (standard: tom liste, radbaserte ID-er)"
     examples:
       - "`[0]` bruker den første kolonnen som post-ID"
-  commentColumns:
-    description: 0-baserte indekser for kolonner som inneholder kommentarer eller notater.
+  comment_columns:
+    description: Nullbaserte indekser for kolonner med kommentarer eller merknader.
     help: |
-      De 0-baserte kolonneindeksene hvis verdier registreres som notater på
+      De 0-baserte indeksene til kolonnene der verdiene lagres som merknader til
       radens oversettbare blokker i stedet for å trekkes ut som innhold.
-    values: Array av 0-baserte heltall (standard tom)
-  trimValues:
-    description: Fjern omgivende blanktegn fra celleverdier.
+    values: Liste med nullbaserte heltall (tom som standard)
+  trim_values:
+    description: Fjern innledende og avsluttende blanktegn fra celleverdier.
     help: |
-      Når aktivert, fjernes ledende og etterfølgende blanktegn fra hver celleverdi før uttrekk.
+      Når dette er aktivert, fjernes innledende og etterfølgende blanktegn fra
+      hver celleverdi før uttrekk.
+    values: "`true` / `false` (standardverdi `false`)"
+  use_code_finder:
+    description: Aktiver gjenkjenning av innebygd kode basert på regulære uttrykk.
+    help: |
+      Aktiverer registrering av innebygde koder i celleverdier ved hjelp av
+      regulære uttrykk. Uttrykkene angis via `code_finder_rules`.
     values: "`true` / `false` (standard `false`)"
-  useCodeFinder:
-    description: Aktiver regex-basert inline-kode-deteksjon.
+  code_finder_rules:
+    description: Regulære uttrykk som samsvarer med innebygde koder i celler.
     help: |
-      Aktiverer regex-basert gjenkjenning av inline-kode i celleverdier. Mønstrene
-      oppgis via `codeFinderRules`.
-    values: "`true` / `false` (standard `false`)"
-  codeFinderRules:
-    description: Regex-mønstre som matcher inline-koder i celler.
-    help: |
-      En array med regulære uttrykk; tekst som samsvarer med noen av dem behandles
-      som inline-kode i stedet for oversettbare ord. Brukes bare når
-      `useCodeFinder` er aktivert.
-    values: Array med regulære uttrykk (standard tom)
+      En liste med regulære uttrykk. Tekst som samsvarer med et av uttrykkene, behandles
+      som en innebygd kode i stedet for oversettbare ord. Brukes bare når
+      `use_code_finder` er aktivert.
+    values: "Liste med regulære uttrykk (standard: tom liste)"
     dependsOn:
-      - property: useCodeFinder
+      - property: use_code_finder
         condition: må være aktivert for at disse mønstrene skal gjelde
 limitations:
-  - Kolonnevalg er indeksbasert; kolonner adresseres ikke etter overskriftsnavn.
+  - "Kolonner velges etter indeks, ikke etter kolonnenavn i overskriftsraden."
 processingNotes:
-  - "Hver valgte celle blir en oversettbar blokk; radstruktur, skilletegn og sitering utgjør det ikke-oversettbare skjelettet."
-  - Nøkkelkolonner leverer ID-er og kommentarkolonner leverer notater; de trekkes ikke selv ut som oversettbart innhold.
+  - "Hver valgt celle blir en oversettbar blokk. Radstruktur, skilletegn og bruk av anførselstegn utgjør det ikke-oversettbare skjelettet."
+  - "Nøkkelkolonner gir ID-er, og kommentarkolonner gir merknader. De trekkes ikke selv ut som oversettbart innhold."
 examples:
-  - title: "Oversett én kolonne, nøklet av en annen"
-    description: "Trekk ut kolonne 2, med kolonne 0 som post-ID."
+  - title: Oversett én kolonne med nøkler fra en annen
+    description: Trekk ut kolonne 2 og bruk kolonne 0 som post-ID.
     config: |
-      translatableColumns:
+      translatable_columns:
         - 2
-      keyColumns:
+      key_columns:
         - 0
-  - title: Hodelos semikolondelt fil
-    description: Les en fil uten hodelinje og med semikolon som skilletegn.
+  - title: Semikolonseparert fil uten overskriftsrad
+    description: "Les en fil uten overskriftsrad, med semikolon som skilletegn."
     config: |
       separator: ";"
-      hasHeader: false
+      has_header: false

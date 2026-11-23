@@ -2,43 +2,44 @@
 # Schema source: core/tools/casetransform.go (CaseTransformConfig).
 description: "Endre bokstavstørrelsen i kilde- og/eller måltekst til store, små eller tittelbokstaver."
 overview: |
-  **Case Transform**-verktøyet skriver om store og små bokstaver i tekst i oversettbare blokker.
-  Det kan gjøre kildetekst, måltekst eller begge deler om til store bokstaver, små bokstaver eller tittelbokstaver. Det er nyttig for å normalisere visningsstrenger (for eksempel for å tvinge UI-etiketter til store bokstaver) eller for å forberede sammenligninger som er ufølsomme for store og små bokstaver.
+  **Case Transform**-verktøyet skriver om bokstavstørrelsen i tekst i oversettbare blokker.
+  Det kan gjøre kildeteksten, målteksten eller begge om til store bokstaver, små bokstaver eller tittelbokstaver.
+  Det er nyttig for å normalisere visningsstrenger (for eksempel for å tvinge UI-etiketter til store bokstaver) eller for å forberede skifteuavhengige sammenligninger.
 
-  Når verktøyet brukes på målteksten, må en målspråkkode være satt; verktøyet transformerer bare språkkoder som allerede har en måltekst. Blokker som ikke skal oversettes, sendes uendret videre.
+  Når det brukes på målet, må en mållokal være angitt; verktøyet transformerer bare lokaler som allerede har et mål. Ikke-oversettbare blokker passerer uendret gjennom.
 parameters:
   mode:
-    description: Bokstavstransformasjonen som skal brukes.
+    description: Bokstavstørrelsetransformasjonen som skal brukes.
     help: |
       Velger transformasjonen. `upper` konverterer tekst til store bokstaver, `lower`
-      til små bokstaver, og `title` til tittelbokstaver (hver bokstav gjøres stor, ved hjelp av
-      Unicodes tittelbokstav-mapping).
+      til små bokstaver og `title` til tittelbokstaver (hver enkelt bokstav gjøres stor, ved hjelp av
+      Unicodes tittelbokstavtilordning).
     values: "`upper` / `lower` / `title` (standard `upper`)"
-  applySource:
-    description: Bruk transformasjonen på kildeteksten.
+  apply_source:
+    description: Bruk transformasjonen på kildetekst.
     help: |
-      Når dette er aktivert, transformeres kildeteksten til hver oversettbar blokk.
+      Når dette er aktivert, transformeres kildeteksten i hver oversettbare blokk.
     values: "`true` / `false` (standard `true`)"
-  applyTarget:
-    description: Bruk transformasjonen på målteksten.
+  apply_target:
+    description: Bruk transformasjonen på måltekst.
     help: |
-      Når dette er aktivert, transformeres målteksten for den konfigurerte
-      målspråkkoden. En målspråkkode må være angitt; bare eksisterende mål berøres.
+      Når dette er aktivert, transformeres målteksten for den konfigurerte mållokalens vedkommende.
+      En mållokal må være angitt; bare eksisterende mål berøres.
     values: "`true` / `false` (standard `false`)"
 limitations:
-  - "Tittelbokstaver bruker Unicodes tittelbokstav-mapping på hver bokstav, ikke innledende stor bokstav per ord."
+  - "Tittelbokstav bruker Unicodes tittelbokstavtilordning på hver enkelt bokstav, ikke bare forbokstaven i hvert ord."
 processingNotes:
-  - Opererer kun på oversettbare blokker; ikke-oversettbare blokker passerer gjennom uendret.
-  - Måltransformasjon krever en målspråkkode og påvirker bare språkkoder som allerede har et mål.
+  - Opererer bare på oversettbare blokker; ikke-oversettbare blokker passerer uendret gjennom.
+  - Måltransformasjon krever en mållokal og påvirker bare lokaler som allerede har et mål.
 examples:
   - title: Kildetekst med store bokstaver
-    description: Tving alle kildestrenger til store bokstaver.
+    description: Konverter alle kildestrenger til store bokstaver.
     config: |
       mode: upper
-      applySource: true
-  - title: Gjør måloversettelsen om til små bokstaver
-    description: Normaliser måltekst til små bokstaver for en språkkode.
+      apply_source: true
+  - title: Gjør måloversettelsen til små bokstaver
+    description: Normaliser målteksten til små bokstaver for en lokal.
     config: |
       mode: lower
-      applySource: false
-      applyTarget: true
+      apply_source: false
+      apply_target: true

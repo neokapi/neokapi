@@ -59,9 +59,9 @@ per lifetime:
 | Backing | Where | For |
 | --- | --- | --- |
 | An in-process secret annotation on the block | memory | single-run flows |
-| A per-batch JSON sidecar | `.kapi/vault/batches/<batch-id>.json` | the extract → external tool → merge round trip, a project's redacted `.kpz` packages among them |
+| A per-batch JSON sidecar | `vault/batches/<batch-id>.json` in the checkout's state directory | the extract → external tool → merge round trip, a project's redacted `.kpz` packages among them |
 | A package sidecar | `<package>.kpz.vault`, beside the package | a redacted `.kpz` extracted from source files outside a project |
-| The project vault | `.kapi/vault/redaction.json` | continuous ingest, which has no batch id to look under |
+| The project vault | `vault/redaction.json` in the checkout's state directory | continuous ingest, which has no batch id to look under |
 
 The in-process annotation is keyed under a name no format writer serializes, and
 `unredact` deletes it after restoring, so it cannot reach an output file. The
@@ -92,7 +92,7 @@ leaves a refused file as it is.
 `vault/` sits beside `work/`, outside it. **`work/` is defined by being
 disposable**: losing it costs CPU. **The vault is defined by an exclusion**: a
 named destination must never read it, and losing it means redacted content can
-never be restored. So `rm -rf .kapi/work` stays free, and kapi never deletes the
+never be restored. So `rm -rf "$(kapi state path)/work"` stays free, and kapi never deletes the
 vault on its own initiative. `core/project.Layout.PrepareVault` writes the
 directory owner-only and adds it to `.kapi/.gitignore` when that file ignores
 less than the whole of `.kapi/`, before anything is withheld into it.

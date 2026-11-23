@@ -48,6 +48,28 @@ type StoredFlow struct {
 	Revision string `json:"revision,omitempty"`
 }
 
+// MarshalJSON writes the definition and then the revision. The embedded
+// FlowDefinition has its own MarshalJSON, which Go promotes to StoredFlow,
+// so without this the revision would be left out.
+func (f StoredFlow) MarshalJSON() ([]byte, error) {
+	def, err := json.Marshal(f.FlowDefinition)
+	if err != nil {
+		return nil, err
+	}
+	if f.Revision == "" {
+		return def, nil
+	}
+	rev, err := json.Marshal(f.Revision)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]byte, 0, len(def)+len(rev)+13)
+	out = append(out, def[:len(def)-1]...)
+	out = append(out, `,"revision":`...)
+	out = append(out, rev...)
+	return append(out, '}'), nil
+}
+
 // List returns all project-stored flow definitions, ordered by name.
 func (s *FlowDefStore) List(ctx context.Context, projectID string) ([]StoredFlow, error) {
 	rows, err := s.db.QueryContext(ctx,

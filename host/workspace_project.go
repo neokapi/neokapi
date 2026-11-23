@@ -324,7 +324,7 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 	if a.Quiet {
 		return nil
 	}
-	return outputPrint(cmd, fmt.Sprintf("Unpacked %s → %s", snapshotPath, layout.StateDir))
+	return outputPrint(cmd, fmt.Sprintf("Unpacked %s → %s", snapshotPath, layout.LocalStateDir()))
 }
 
 // reconstituteProject materializes the project a snapshot describes, for a

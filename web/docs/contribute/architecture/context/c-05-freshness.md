@@ -143,7 +143,7 @@ protocol that carries refs between two sides is where the assertion is enforced.
 
 ### The observed ref lives on disk, not on the wire
 
-`core/ref/refcache` holds a project's refs at `.kapi/sync/refs.json`: for
+`core/ref/refcache` holds a project's refs at `sync/refs.json` in the checkout's state directory: for
 each stream, the position this project has consumed and the governance identities
 its last contact established.
 
@@ -153,7 +153,7 @@ rather than reconciled. A position is a place in one change feed and a
 governance identity is one scope's state, so carrying either across a re-point
 would answer a question about the new destination with a fact about the old one.
 A file this side cannot read is a file this side re-fetches, and it is not
-versioned or repaired. It sits outside `.kapi/work/`, so deleting the derived
+versioned or repaired. It sits outside the checkout's `work/`, so deleting the derived
 cache leaves the position a checkout consumed in place.
 
 The position is bound to the project store that consumed it. The two files sit

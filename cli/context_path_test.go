@@ -112,6 +112,13 @@ func runStore(t *testing.T, a *App, args ...string) string {
 // runStoreE is runStore for the cases where the refusal is the result.
 func runStoreE(t *testing.T, a *App, args ...string) (string, error) {
 	t.Helper()
+	out, _, err := runStoreIO(t, a, args...)
+	return out, err
+}
+
+// runStoreIO executes `kapi store` and returns stdout and stderr apart.
+func runStoreIO(t *testing.T, a *App, args ...string) (stdout, stderr string, err error) {
+	t.Helper()
 	root := &cobra.Command{Use: "kapi"}
 	AddCommandGroups(a, root)
 	output.AddPersistentFlags(root.PersistentFlags())
@@ -119,11 +126,11 @@ func runStoreE(t *testing.T, a *App, args ...string) (string, error) {
 	root.SetArgs(append([]string{"store"}, args...))
 	root.SilenceUsage, root.SilenceErrors = true, true
 
-	var out bytes.Buffer
+	var out, errOut bytes.Buffer
 	root.SetOut(&out)
-	root.SetErr(&out)
-	err := root.Execute()
-	return out.String(), err
+	root.SetErr(&errOut)
+	err = root.Execute()
+	return out.String(), errOut.String(), err
 }
 
 // TestContextPath_PrintsTheHostRender is the CLI leg of the parity contract:
