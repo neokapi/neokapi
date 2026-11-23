@@ -4444,16 +4444,19 @@
         },
         "trust": {
           "allow": {
-            "example": "  kapi trust allow -p ./app\n  kapi trust allow -p ./app --yes\n  kapi trust allow --context-store -p ./app",
+            "example": "  kapi trust allow -p ./app\n  kapi trust allow -p ./app --yes\n  kapi trust allow --context-store -p ./app\n  kapi trust allow --state -p ./app",
             "flags": {
               "context-store": {
                 "usage": "allow the folder the recipe keeps its context in, instead of the commands it runs"
               },
               "project": {
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
+              "state": {
+                "usage": "vouch for the state in the project's .kapi/ directory that kapi on this machine did not write"
               }
             },
-            "long": "Record an allow for what the recipe runs now, without starting a run. The\ncommands are shown first and confirmed at the terminal. With no terminal\nattached nothing is recorded unless --yes is given.\n\nWith --context-store the allow is for the folder the recipe keeps its context\nin instead: the folder is shown, confirmed the same way, and kept against its\nresolved path.\n\nAn allow is keyed to the commands shown: a recipe edit that changes them asks\nagain. To grant one process trust without recording anything, set\nKAPI_TRUST_EXEC=1 instead.",
+            "long": "Record an allow for what the recipe runs now, without starting a run. The\ncommands are shown first and confirmed at the terminal. With no terminal\nattached nothing is recorded unless --yes is given.\n\nWith --context-store the allow is for the folder the recipe keeps its context\nin instead: the folder is shown, confirmed the same way, and kept against its\nresolved path.\n\nWith --state you vouch for the state in the project's .kapi/ directory that kapi\non this machine did not write (a copied checkout, a restored backup): the state\nis shown with where it appears to come from, confirmed the same way, and used\nas this machine's own from then on. An agent cannot vouch for state.\n\nAn allow is keyed to the commands shown: a recipe edit that changes them asks\nagain. To grant one process trust without recording anything, set\nKAPI_TRUST_EXEC=1 instead.",
             "short": "Record that a project may run its commands or use its folder"
           },
           "example": "  kapi trust list\n  kapi trust show -p ./app\n  kapi trust allow -p ./app\n  kapi trust revoke ./app",
