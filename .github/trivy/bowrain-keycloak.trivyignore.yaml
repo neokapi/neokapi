@@ -5,27 +5,35 @@
 # finding again. Renew one only after checking for a fix.
 #
 # container-scan.yml passes this file to the Keycloak image only, so the same
-# identifier in any other image still fails its scan. Nothing else is ignored:
-# no ignore-unfixed and no severity change.
+# identifier in any other image still fails its scan. Each entry also names
+# its package by `purls`, so the same identifier in another package of this
+# image still fails. Nothing else is ignored: no ignore-unfixed and no
+# severity change.
 vulnerabilities:
   - id: CVE-2026-91403
+    purls: ["pkg:rpm/redhat/java-21-openjdk-headless"]
     statement: "java-21-openjdk-headless (Red Hat 9 base): Red Hat marks it will_not_fix"
     expired_at: 2027-01-22
   - id: CVE-2026-119373
+    purls: ["pkg:rpm/redhat/sqlite-libs"]
     statement: "sqlite-libs 3.34.1 (Red Hat 9 base): affected, no fix published"
     expired_at: 2027-01-22
   - id: CVE-2026-119374
+    purls: ["pkg:rpm/redhat/sqlite-libs"]
     statement: "sqlite-libs 3.34.1 (Red Hat 9 base): affected, no fix published"
     expired_at: 2027-01-22
   - id: CVE-2026-119379
+    purls: ["pkg:rpm/redhat/sqlite-libs"]
     statement: "sqlite-libs 3.34.1 (Red Hat 9 base): affected, no fix published"
     expired_at: 2027-01-22
   - id: CVE-2026-119586
+    purls: ["pkg:rpm/redhat/sqlite-libs"]
     statement: "sqlite-libs 3.34.1 (Red Hat 9 base): affected, no fix published"
     expired_at: 2027-01-22
   - id: CVE-2026-102554
     # Goes when a Keycloak release ships guava 33.7.2:
     # scripts/check-tool-versions.py reports a newer Keycloak, and its note
     # says to check this entry.
+    purls: ["pkg:maven/com.google.guava/guava@33.6.0"]
     statement: "guava 33.6.0 inside Keycloak 26.8.2 (the latest release, 26.8.2-3); fixed in guava 33.7.2, which no Keycloak release ships yet"
     expired_at: 2027-01-22
