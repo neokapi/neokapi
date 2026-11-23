@@ -66,22 +66,14 @@ func (a *App) stateTransfer(cmd Command, layout project.Layout, action string, p
 		return out, nil
 	}
 	printStateTransfer(cmd.ErrOrStderr(), out)
-	if !a.AssumeYes {
-		isTTY := a.isTTY
-		if isTTY == nil {
-			isTTY = defaultIsStdinTTY
-		}
-		if !isTTY() {
-			return out, errors.New("no terminal is attached, so there is nobody to confirm; pass --yes to take this state")
-		}
-		ok, err := ConfirmDefaultNo(cmd.InOrStdin(), cmd.ErrOrStderr(), "Take this state into this checkout? [y/N] ")
-		if err != nil {
-			return out, err
-		}
-		if !ok {
-			out.Reason = "not confirmed"
-			return out, nil
-		}
+	ok, err := a.confirmAtTerminal(cmd, "Take this state into this checkout? [y/N] ",
+		"no terminal is attached, so there is nobody to confirm; pass --yes to take this state")
+	if err != nil {
+		return out, err
+	}
+	if !ok {
+		out.Reason = "not confirmed"
+		return out, nil
 	}
 	if err := project.ApplyTransfer(layout, plan, removeSource); err != nil {
 		return out, err

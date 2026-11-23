@@ -21,7 +21,7 @@ needsAi: false
 # way a user types it. The sandbox lives in os.tmpdir(), outside the repo.
 project: true
 setup:
-  - kapi store import ./context
+  - kapi store import ./context --yes
 captureTimeoutSec: 180
 aspects:
   - coordinates, not folders

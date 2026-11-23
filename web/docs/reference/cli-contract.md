@@ -171,8 +171,10 @@ kapi keeps each checkout's own state outside the checkout, in a directory of its
 
 The directory is found by the checkout's location and the identity of its folder, never by anything the checkout contains. What you see:
 
-- **A checkout you moved or renamed** on the same volume: nothing; its state follows it.
-- **A copied checkout, a restored backup, a checkout moved to another volume, or a volume whose device number changes when it is mounted again:** no state. kapi rebuilds `work/`. Bring the vault, the sync state and the filters across with `kapi state relink --from <old location>`.
+- **A checkout you moved or renamed** on the same volume: nothing; its state follows it. On a file system that records no creation time, the state stays at the old location and `kapi state relink --from <old location>` brings it across.
+- **The same folder typed in another spelling** on a volume that ignores case (`~/src/App` and `~/src/app`): the same state.
+- **A copied checkout, a restored backup or a checkout moved to another volume:** no state. kapi rebuilds `work/`. Bring the vault, the sync state and the filters across with `kapi state relink --from <old location>`.
+- **A volume mounted again with new device numbers:** fresh state, and kapi says once that the earlier state at that location was kept; the vault and the sync state wait for `kapi state relink --from <location>`.
 - **Another folder at a location where a checkout was** (one deleted and another cloned in its place): no state, and kapi says once that the earlier state was kept, with the `kapi state relink` command for it.
 - **State an earlier kapi left in the checkout's `.kapi/`:** kapi says once that `.kapi/work` is no longer used, and that the vault, sync state or filters there need `kapi state import -p <project>`.
 

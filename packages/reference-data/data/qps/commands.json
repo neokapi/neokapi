@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-23T14:13:23Z",
+  "generatedAt": "2026-11-23T15:28:23Z",
   "commands": [
     {
       "id": "add",
@@ -8439,6 +8439,7 @@
       ],
       "examples": [
         "kapi store import",
+        "kapi store import ./context --yes",
         "kapi store import ../other-project/.kapi",
         "kapi store import --force",
         "kapi store import context.kpz"

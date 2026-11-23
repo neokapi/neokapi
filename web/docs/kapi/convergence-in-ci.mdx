@@ -323,22 +323,44 @@ stage.
       # cache-tm: false turns the parse cache off
   ```
 
-  Without the action, find the directory first and cache that one entry:
+  Without the action, ask for the directory after the checkout on every run,
+  and move the cache in and out of it through a fixed path:
 
   ```yaml
+  - uses: actions/checkout@v5
   - id: kapi-state
     run: echo "dir=$(kapi state path -p .)" >> "$GITHUB_OUTPUT"
   - uses: actions/cache@v6
     with:
-      path: ${{ steps.kapi-state.outputs.dir }}/work/cache/docs
+      path: ${{ runner.temp }}/kapi-parse
       key: kapi-parse-${{ runner.os }}-${{ hashFiles('kapi.yaml', 'src/locales/en/**') }}
       restore-keys: kapi-parse-${{ runner.os }}-
+  - env:
+      STATE: ${{ steps.kapi-state.outputs.dir }}
+    run: |
+      mkdir -p "$STATE/work/cache"
+      if [ -d "$RUNNER_TEMP/kapi-parse" ]; then cp -R "$RUNNER_TEMP/kapi-parse" "$STATE/work/cache/docs"; fi
+  # ... the kapi steps ...
+  - if: always()
+    env:
+      STATE: ${{ steps.kapi-state.outputs.dir }}
+    run: |
+      rm -rf "$RUNNER_TEMP/kapi-parse"
+      if [ -d "$STATE/work/cache/docs" ]; then cp -R "$STATE/work/cache/docs" "$RUNNER_TEMP/kapi-parse"; fi
   ```
 
-  A runner checks out the repository at the same path on every run, so the
-  directory is the same on every run, and kapi uses what the cache restored.
-  Whether to trust that is a question about the cache: its key, and who can
-  write to it. In GitHub Actions a pull request from a fork cannot write to the
+  The state directory is named for the checkout's folder, not only its path.
+  A fresh runner clones into a new folder, so `kapi state path` prints a
+  different directory on each run, and a cache path that named it would never
+  match the cache an earlier run saved. The fixed path under `runner.temp`
+  keeps the cache's path the same from run to run.
+
+  A state directory the restore created holds no record of its checkout. kapi
+  takes it as this checkout's, because its name comes from this checkout, and
+  writes the record on first use.
+
+  Whether to trust what the cache restored is a question about the cache: its
+  key, and who can write to it. In GitHub Actions a pull request from a fork cannot write to the
   repository's caches, and a cache written on one branch is read by branches
   created from it.
 

@@ -28,3 +28,7 @@ func identity(path string) (string, error) {
 	}
 	return fmt.Sprintf("%d:%d:%d", info.VolumeSerialNumber, info.FileIndexHigh, info.FileIndexLow), nil
 }
+
+// followable reports whether a rename may be followed by identity. NTFS
+// changes the sequence part of a file index when the index is reused.
+func followable(string) bool { return true }

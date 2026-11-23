@@ -204,9 +204,18 @@ kapi store import
 ```
 
 ```
+kapi would read these into the project store from .kapi:
+  .kapi/terms.json  1 term concept
+What you read is in force for every checkout of this project on this machine. Read only context you trust.
+Read these into the project store? [y/N] y
 Read .kapi into the project store:
   1 concept
 ```
+
+kapi lists each file and what it carries (term concepts, content-memory
+entries, voice profiles and their word rules, approvals) before it reads
+anything. With no terminal attached, as in CI, it reads nothing unless you pass
+`--yes`.
 
 What it reads is in force for every checkout of this project on this machine,
 and for everyone else after the next `kapi context sync`. Only a person reads

@@ -14,3 +14,7 @@ func identity(path string) (string, error) {
 	}
 	return "path", nil
 }
+
+// followable reports whether a rename may be followed by identity: never here,
+// where the identity says nothing about the directory.
+func followable(string) bool { return false }

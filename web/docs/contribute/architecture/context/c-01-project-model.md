@@ -155,14 +155,25 @@ records the location and the identity.
 
 - **A checkout renamed or moved on its volume** keeps its identity. When no state
   exists for its new location and a record has its identity and a location that
-  no longer exists, the state directory follows it.
+  no longer exists, the state directory follows it. Without a birth time the
+  identity cannot tell the checkout from a new folder that reuses its inode, so
+  kapi follows no rename there (or on a platform with no identity): the checkout
+  gets fresh state and the relink command.
+- **One folder typed in two spellings** on a volume that folds case gets one
+  state directory: when no state exists under the spelling given, a record whose
+  location names the same folder now is used.
 - **Another folder at a recorded location** (a checkout deleted and something
   else cloned there) gets fresh state. The earlier state is kept under its own
   key, and kapi says so once, with the command that relinks it.
-- **A copy, a restored backup, a checkout moved to another volume, or a
-  volume whose device number changes when it is mounted again** has another
-  identity and starts without state. kapi rebuilds `work/`; a person brings the
-  rest across with `kapi state relink --from <old location>`.
+- **A copy, a restored backup or a checkout moved to another volume** has
+  another identity and starts without state. kapi rebuilds `work/`; a person
+  brings the rest across with `kapi state relink --from <old location>`.
+- **A volume mounted again with new device numbers** gives the checkout fresh
+  state. kapi reports the earlier record at the location once, and the vault
+  and the sync state wait for `kapi state relink`.
+- **A state directory with no record** (one a CI cache restored into the
+  directory `kapi state path` printed) is the checkout's by its key alone, and
+  kapi writes the record on first use.
 
 `kapi state import` takes the state an earlier kapi left inside a checkout's
 `.kapi/` (the vault, the sync state, the saved filters, and the places earlier

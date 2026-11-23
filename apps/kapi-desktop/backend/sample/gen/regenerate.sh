@@ -89,7 +89,7 @@ python3 "$GEN/lib/recipe.py" pin-recycle "$P/kapi.yaml"
 # The context files are inert until they are read into this machine's store,
 # which a person decides, so the import says whose decision this run is.
 echo "==> read the context in"
-KAPI_ACTOR=person "$KAPI" store import "$P/context" -p "$P/kapi.yaml" >/dev/null
+KAPI_ACTOR=person "$KAPI" store import --yes "$P/context" -p "$P/kapi.yaml" >/dev/null
 
 echo "==> converge (offline: content memory only)"
 "$KAPI" up -p "$P/kapi.yaml" >/dev/null 2>&1 || true

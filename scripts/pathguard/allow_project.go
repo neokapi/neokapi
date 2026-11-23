@@ -21,10 +21,10 @@ var allowProject = map[string]string{
 	"core/project/statecheck.go:findGitDir":           "walks up from the project root to the repository holding it; of a .git pointer file it reads only the gitdir line, and it reads or writes nothing that line names",
 
 	// The project state directory.
-	"core/project/layout.go:EnsureLocalDir":             "creates a named subdirectory of .kapi/ and edits .kapi/.gitignore, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks",
-	"core/project/layout.go:EnsureLayout":               "creates .kapi/ and .kapi/work/cache and writes .kapi/.gitignore, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks",
-	"core/project/extraction.go:EnsureExtractionDir":    "creates a batch directory named by a checked batch ID (checkBatchID) under .kapi/work/cache/extractions, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks",
-	"core/project/extraction.go:SaveExtractionManifest": "writes the manifest into the batch directory EnsureExtractionDir created after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks",
+	"core/project/layout.go:EnsureLocalDir":             "creates a named subdirectory of the checkout's state directory under the data root (Layout.LocalStateDir), which kapi creates and no checkout supplies",
+	"core/project/layout.go:EnsureLayout":               "creates the project root when a scaffold names one that is not there yet, and work/cache in the checkout's state directory under the data root (dataroot.EnsureCheckoutDir), which no checkout supplies; nothing is written in the checkout",
+	"core/project/extraction.go:EnsureExtractionDir":    "creates a batch directory named by a checked batch ID (checkBatchID) under work/cache/extractions in the checkout's state directory under the data root, which no checkout supplies",
+	"core/project/extraction.go:SaveExtractionManifest": "writes the manifest into the batch directory EnsureExtractionDir created in the checkout's state directory under the data root, which no checkout supplies",
 
 	// A pattern a person typed.
 	"core/project/glob.go:readDirAsNamed": "a directory a command-line pattern reaches (GlobOptions.LinksAnywhere, set only by host/inputs.go expandGlobArg)",

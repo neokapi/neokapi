@@ -5,6 +5,7 @@ package dataroot
 import (
 	"fmt"
 	"os"
+	"strings"
 	"syscall"
 )
 
@@ -28,3 +29,8 @@ func identity(path string) (string, error) {
 // file system say so, and "" elsewhere; the device and inode alone identify a
 // directory there. birth_linux.go and birth_darwin.go set it.
 var birthTimeOf = func(string, *syscall.Stat_t) string { return "" }
+
+// followable reports whether a rename may be followed by identity: only when
+// the identity carries a birth time, so a new directory that reuses a deleted
+// one's inode is not taken for it.
+func followable(id string) bool { return !strings.HasSuffix(id, ":") }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-23T14:13:23Z",
+  "generatedAt": "2026-11-23T15:28:23Z",
   "commands": [
     {
       "id": "add",
@@ -8422,7 +8422,7 @@
       ],
       "use": "import [path | file.kpz]",
       "short": "Read context files, or a file written by export, into this project",
-      "long": "Read a checkout's context files into this project's store: the terms,\nthe voice profiles, the wording already approved, and the record of who approved\nit.\n\nName a .kpz written by \"kapi store export\" to merge it instead, the way\n\"kapi context sync\" merges what others shared: everything it carries that this\nproject does not hold, with its history.\n\nThis is the one command that opens those files. Everything else answers from the\nstore, so what you read here is in force for every checkout of this project on\nthis machine, and for everyone else once they run it too. A person runs it: it\nis a decision about the project, and it appears in \"kapi context log\" with each\nfile and the bytes that were read.\n\nWith no path it reads the project's own \".kapi\" directory. Name a path to read\nanother checkout's directory instead, when you are bringing an existing\nproject's context across.\n\nRunning it twice changes nothing. Everything is matched by the identity the file\ncarries, so a second read finds the store already holding what the file says.\nA file whose bytes have not moved since this checkout read it is skipped;\n--force reads it anyway.",
+      "long": "Read a checkout's context files into this project's store: the terms,\nthe voice profiles, the wording already approved, and the record of who approved\nit.\n\nName a .kpz written by \"kapi store export\" to merge it instead, the way\n\"kapi context sync\" merges what others shared: everything it carries that this\nproject does not hold, with its history.\n\nThis is the one command that opens those files. Everything else answers from the\nstore, so what you read here is in force for every checkout of this project on\nthis machine, and for everyone else once they run it too. A person runs it: it\nis a decision about the project, and it appears in \"kapi context log\" with each\nfile and the bytes that were read.\n\nWith no path it reads the project's own \".kapi\" directory. Name a path to read\nanother checkout's directory instead, when you are bringing an existing\nproject's context across.\n\nIt lists the files it would read and what each carries (term concepts,\ncontent-memory entries, voice profiles and their word rules, approvals from\nthe decision record) and asks before reading. With no terminal attached it\nreads nothing unless --yes is given.\n\nRunning it twice changes nothing. Everything is matched by the identity the file\ncarries, so a second read finds the store already holding what the file says.\nA file whose bytes have not moved since this checkout read it is skipped;\n--force reads it anyway.",
       "flags": [
         {
           "name": "force",
@@ -8439,6 +8439,7 @@
       ],
       "examples": [
         "kapi store import",
+        "kapi store import ./context --yes",
         "kapi store import ../other-project/.kapi",
         "kapi store import --force",
         "kapi store import context.kpz"

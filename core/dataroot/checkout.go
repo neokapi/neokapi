@@ -93,10 +93,37 @@ func CheckoutDir(root string) string {
 	}
 	dir := filepath.Join(CheckoutsDir(), checkoutKey(path, id))
 	if _, err := os.Stat(dir); errors.Is(err, fs.ErrNotExist) {
-		followRename(dir, path, id)
+		if same := recordedUnderAnotherSpelling(path, id); same != "" {
+			// The same directory, typed another way on a volume that does not
+			// tell spellings apart: one checkout, one state directory.
+			dir = same
+		} else if followable(id) {
+			followRename(dir, path, id)
+		}
 	}
 	followed.Store(cacheKey, dir)
 	return dir
+}
+
+// recordedUnderAnotherSpelling returns the state directory recorded for this
+// very directory under another spelling of its location (Docs and docs on a
+// volume that folds case), and "" when there is none. The recorded location
+// must still name the same directory now.
+func recordedUnderAnotherSpelling(path, id string) string {
+	here, err := os.Stat(path)
+	if err != nil {
+		return ""
+	}
+	for _, c := range Checkouts() {
+		if c.Record.Identity != id || c.Record.Path == path {
+			continue
+		}
+		there, err := os.Stat(c.Record.Path)
+		if err == nil && os.SameFile(here, there) {
+			return c.Dir
+		}
+	}
+	return ""
 }
 
 // followRename moves the state of a checkout that had this identity at a
@@ -133,6 +160,15 @@ func EnsureCheckoutDir(root string) (dir string, earlier []Checkout, err error) 
 	}
 	dir = CheckoutDir(root)
 	if _, err := os.Stat(dir); err == nil {
+		// A state directory with no record (one a CI cache restored into the
+		// directory `kapi state path` named) is this checkout's by its key
+		// alone, and gets its record now.
+		if _, rerr := ReadRecord(dir); rerr != nil {
+			if werr := writeRecord(dir, CheckoutRecord{Path: path, Identity: id, Created: time.Now().UTC().Format(time.RFC3339)}); werr != nil {
+				return "", nil, werr
+			}
+			return dir, recordedAt(path, id), nil
+		}
 		return dir, nil, nil
 	}
 	parent := CheckoutsDir()
@@ -152,11 +188,7 @@ func EnsureCheckoutDir(root string) (dir string, earlier []Checkout, err error) 
 		_ = os.RemoveAll(staged)
 		return "", nil, err
 	}
-	for _, c := range Checkouts() {
-		if c.Record.Path == path && c.Record.Identity != id {
-			earlier = append(earlier, c)
-		}
-	}
+	earlier = recordedAt(path, id)
 	if err := os.Rename(staged, dir); err != nil {
 		_ = os.RemoveAll(staged)
 		if _, serr := os.Stat(dir); serr == nil {
@@ -165,6 +197,18 @@ func EnsureCheckoutDir(root string) (dir string, earlier []Checkout, err error) 
 		return "", nil, err
 	}
 	return dir, earlier, nil
+}
+
+// recordedAt lists the state directories recorded for other directories at
+// path: those with another identity.
+func recordedAt(path, id string) []Checkout {
+	var out []Checkout
+	for _, c := range Checkouts() {
+		if c.Record.Path == path && c.Record.Identity != id {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // Checkouts lists every checkout's state directory with its record, ordered by
