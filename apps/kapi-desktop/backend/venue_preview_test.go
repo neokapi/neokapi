@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"github.com/neokapi/neokapi/core/keychain"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +13,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/neokapi/neokapi/core/keychain"
 
 	"github.com/neokapi/neokapi/core/project"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"

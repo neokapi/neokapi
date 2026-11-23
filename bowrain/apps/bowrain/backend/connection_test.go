@@ -1,12 +1,13 @@
 package backend
 
 import (
-	"github.com/neokapi/neokapi/core/keychain"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/neokapi/neokapi/core/keychain"
 
 	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/stretchr/testify/assert"
@@ -37,7 +38,7 @@ func TestGetDefaultServerURLTrimsTrailingSlash(t *testing.T) {
 //
 // Desktop credentials now persist through the shared host/venue/config store
 // (keychain service "kapi", URL-namespaced keys, metadata at
-// $BOWRAIN_CONFIG_DIR/auth.json) — the same scheme the kapi CLI uses, which is
+// $BOWRAIN_CONFIG_DIR/auth.json), the same scheme the kapi CLI uses, which is
 // what makes a desktop login and a CLI login mutually visible. These tests
 // exercise that shared store via the desktop's loadDesktopAuth wrapper.
 

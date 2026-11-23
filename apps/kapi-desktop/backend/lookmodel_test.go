@@ -1,9 +1,10 @@
 package backend
 
 import (
-	"github.com/neokapi/neokapi/core/keychain"
 	"testing"
 	"time"
+
+	"github.com/neokapi/neokapi/core/keychain"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

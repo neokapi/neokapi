@@ -1,10 +1,11 @@
 package cli
 
 import (
-	"github.com/neokapi/neokapi/core/keychain"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/neokapi/neokapi/core/keychain"
 
 	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/stretchr/testify/assert"

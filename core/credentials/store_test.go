@@ -1,10 +1,11 @@
 package credentials
 
 import (
-	"github.com/neokapi/neokapi/core/keychain"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/neokapi/neokapi/core/keychain"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,11 +18,9 @@ func newStore(t *testing.T) *Store {
 	return NewStore(filepath.Join(t.TempDir(), "providers.json"), "kapi-test")
 }
 
-// mockKeyring swaps go-keyring's global provider for the in-memory one, so the
-// keychain assertions below never reach the OS keychain. go-keyring exposes no
-// way to restore the real provider, which is precisely what we want: once a
-// test binary in this package has called it, nothing can fall back to the real
-// keychain by accident.
+// mockKeyring empties the in-memory keyring core/keychain gives a test binary,
+// so each test starts with no secrets. The keychain assertions below never
+// reach the OS keychain.
 func mockKeyring(t *testing.T) {
 	t.Helper()
 	keychain.Reset()

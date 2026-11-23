@@ -1,8 +1,9 @@
 package credentials
 
 import (
-	"github.com/neokapi/neokapi/core/keychain"
 	"testing"
+
+	"github.com/neokapi/neokapi/core/keychain"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,9 +13,9 @@ import (
 // a provider key and the address it is sent to as one decision.
 //
 // A recipe is committable and is authored by whoever wrote the project
-// directory; a credential is per-machine and belongs to the person kapi runs
-// as. `schema:"-"` on the MT tool's BaseURL hides the field from the CLI and
-// the form but does nothing here — core/schema.ApplyConfig is a json
+// directory. A credential is per-machine and belongs to the person kapi runs
+// as. The MT tool's BaseURL carries `schema:"-"`, which hides the field from
+// the CLI and the form but does nothing here. core/schema.ApplyConfig is a json
 // round-trip, so a step's config: map reaches anything with a json tag. The
 // resolver therefore clears the key itself, on every path out.
 func TestResolveCredentials_EndpointIsNotRecipeSettable(t *testing.T) {
@@ -59,7 +60,7 @@ func TestResolveCredentials_EndpointIsNotRecipeSettable(t *testing.T) {
 // credential and through nothing else.
 //
 // Both of the other ways to supply a key resolve BEFORE any endpoint could be
-// injected — an inline key returns immediately, and the environment fallback
+// injected, an inline key returns immediately, and the environment fallback
 // builds a provider config that has no endpoint to give. So a self-hosted
 // endpoint plus `--api-key`, or a self-hosted endpoint plus OPENAI_API_KEY,
 // silently calls the public host. `kapi credentials add --base-url` with
@@ -68,7 +69,7 @@ func TestResolveCredentials_OnlyAStoredCredentialCarriesAnEndpoint(t *testing.T)
 	const endpoint = "https://mt.internal.example/v1"
 
 	// The keychain is the developer's, so the key goes to the in-memory
-	// keyring rather than the real one — the same guard cli's credential
+	// keyring rather than the real one, the same guard cli's credential
 	// tests use.
 	keychain.Reset()
 
@@ -131,7 +132,7 @@ func TestMergeCredentials_EndpointComesFromTheCredential(t *testing.T) {
 }
 
 // TestMergeCredentials_NoEndpointWhenTheCredentialNamesNone: the ordinary case
-// stays clean — no key appears merely because resolution ran.
+// stays clean, no key appears merely because resolution ran.
 func TestMergeCredentials_NoEndpointWhenTheCredentialNamesNone(t *testing.T) {
 	got := mergeCredentials(
 		map[string]any{},

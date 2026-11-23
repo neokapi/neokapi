@@ -1,12 +1,13 @@
 package backend
 
 import (
-	"github.com/neokapi/neokapi/core/keychain"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
+
+	"github.com/neokapi/neokapi/core/keychain"
 
 	venueauth "github.com/neokapi/neokapi/host/venue/auth"
 	"github.com/neokapi/neokapi/host/venue/config"

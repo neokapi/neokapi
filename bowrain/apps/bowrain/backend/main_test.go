@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"github.com/neokapi/neokapi/core/keychain"
 	"context"
 	"database/sql"
 	"fmt"
@@ -10,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/keychain"
 
 	"github.com/neokapi/neokapi/bowrain/migrations"
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -23,14 +23,14 @@ import (
 //
 // Building that schema is what this suite would otherwise spend its time on.
 // Under -race the pure-Go SQLite parser is instrumented, so parsing the store's
-// migration SQL costs ~0.4s — and a test that opens its own :memory: store pays
+// migration SQL costs ~0.4s, and a test that opens its own :memory: store pays
 // it again. Across a couple of hundred tests that is three quarters of the
 // suite's CPU, and enough to cross the 120s test timeout on CI while no single
 // test is slow and none hangs.
 //
 // A file-backed template costs one build and a file copy per test. The copy is
 // a fresh database on disk, so tests stay as isolated as they were with
-// :memory: — and closer to how the app opens its store in production.
+// :memory:, and closer to how the app opens its store in production.
 var templateStorePath string
 
 // requireFTS5 stops the test binary at once when SQLite was built without
@@ -57,7 +57,7 @@ func TestMain(m *testing.M) {
 	pgtest.UseTemplate(func(db *storage.PgDB) error { return migrations.Apply(db, nil) })
 
 	// Replace the OS keychain with an in-memory mock for the whole package, so
-	// no test can ever read or write the developer's real bowrain tokens — even
+	// no test can ever read or write the developer's real bowrain tokens, even
 	// one that forgets to call keychain.Reset() itself. Defense in depth on
 	// top of the per-test mocks.
 	keychain.Reset()

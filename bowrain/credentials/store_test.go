@@ -1,11 +1,12 @@
 package credentials
 
 import (
-	"github.com/neokapi/neokapi/core/keychain"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/neokapi/neokapi/core/keychain"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

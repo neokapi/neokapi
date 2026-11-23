@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"github.com/neokapi/neokapi/core/keychain"
 	"context"
 	"io"
 	"net"
@@ -11,6 +10,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/neokapi/neokapi/core/keychain"
 
 	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/neokapi/neokapi/host/venue/config"

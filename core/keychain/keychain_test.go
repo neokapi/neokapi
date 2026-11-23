@@ -21,12 +21,12 @@ func TestATestBinaryKeepsSecretsInMemory(t *testing.T) {
 
 	Reset()
 	_, err = Get("kapi-test", "user")
-	assert.ErrorIs(t, err, ErrNotFound)
+	require.ErrorIs(t, err, ErrNotFound)
 
 	require.NoError(t, Set("kapi-test", "user", "again"))
 	require.NoError(t, Delete("kapi-test", "user"))
 	_, err = Get("kapi-test", "user")
-	assert.ErrorIs(t, err, ErrNotFound)
+	require.ErrorIs(t, err, ErrNotFound)
 }
 
 // Reset in a binary `go test` did not build panics: the real keychain is

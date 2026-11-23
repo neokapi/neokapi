@@ -1,9 +1,10 @@
 package host
 
 import (
-	"github.com/neokapi/neokapi/core/keychain"
 	"path/filepath"
 	"testing"
+
+	"github.com/neokapi/neokapi/core/keychain"
 
 	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/stretchr/testify/assert"
@@ -18,9 +19,8 @@ func newTestCredStore(t *testing.T) *credentials.Store {
 	return credentials.NewStore(filepath.Join(t.TempDir(), "providers.json"))
 }
 
-// TestSaveCredential_RejectsUnknownProvider is finding 5: the desktop used to
-// persist a typo'd provider type because only the CLI validated. The shared
-// host path rejects it, so neither surface can.
+// TestSaveCredential_RejectsUnknownProvider: the shared host path rejects a
+// typo'd provider type, so neither the desktop nor the CLI can persist one.
 func TestSaveCredential_RejectsUnknownProvider(t *testing.T) {
 	store := newTestCredStore(t)
 
