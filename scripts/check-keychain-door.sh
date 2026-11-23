@@ -13,8 +13,8 @@
 # included, which may import go-keyring only for keyring.MockInit) and in the
 # TypeScript of the apps and packages.
 #
-# scripts/ is outside the scope: it holds developer tooling a person runs on
-# purpose, never a test or a shipped binary.
+# scripts/ holds developer tooling a person runs on purpose, never a test or a
+# shipped binary, so only the go-keyring import is refused there.
 set -euo pipefail
 
 # Go: forbidden in every Go file outside core/keychain.
@@ -28,7 +28,7 @@ scan() {
 	local found=""
 	found+=$(git grep -nE "$go_doors" -- '*.go' ':!core/keychain/**' ':!scripts/**' || true)
 	found+=$'\n'
-	found+=$(git grep -nE "$go_lib" -- '*.go' ':!*_test.go' ':!core/keychain/**' ':!scripts/**' || true)
+	found+=$(git grep -nE "$go_lib" -- '*.go' ':!*_test.go' ':!core/keychain/**' || true)
 	found+=$'\n'
 	found+=$(git grep -nE "$ts_doors" -- 'apps/**/*.ts' 'apps/**/*.tsx' 'apps/**/*.js' \
 		'bowrain/apps/**/*.ts' 'bowrain/apps/**/*.tsx' 'bowrain/apps/**/*.js' \
@@ -72,6 +72,7 @@ if [ "${1:-}" = "--self-test" ]; then
 		plant host/g.go 'import _ "github.com/99designs/keyring"'
 		plant host/h.go 'exec.Command("cmdkey", "/list")'
 		plant apps/kapi-desktop/frontend/src/x.ts 'import keytar from "keytar";'
+		plant scripts/tool/k.go 'import _ "github.com/zalando/go-keyring"'
 	) || exit 1
 	echo "✓ check-keychain-door self-test: every planted door is caught, permitted uses pass"
 	exit 0
