@@ -12,11 +12,13 @@ package models
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -53,7 +55,7 @@ var Registry = []Asset{
 		SHA256: "d1979e9f794c464c0d2e0b70a7fe14dd978e9dc644c0e71f14158cdf8342af1b",
 	},
 	{
-		// PP-DocLayoutV3 layout detector (RT-DETR, 25 region classes). ~132 MB —
+		// PP-DocLayoutV3 layout detector (RT-DETR, 25 region classes). ~132 MB,
 		// download-on-demand (NOT bundled in the tarball like the OCR models), so
 		// the layout capability is acquired only when first used.
 		Key:    "layout",
@@ -73,16 +75,16 @@ func Get(key string) (Asset, bool) {
 	return Asset{}, false
 }
 
-// Dir is the WRITABLE model directory — the download target — in precedence
+// Dir is the WRITABLE model directory, the download target, in precedence
 // order:
-//  1. $KAPI_VISION_MODELS_DIR (explicit override — local/offline);
+//  1. $KAPI_VISION_MODELS_DIR (explicit override, local/offline);
 //  2. $KAPI_VISION_CACHE/models/vision;
 //  3. $XDG_CACHE_HOME/kapi/models/vision;
 //  4. ~/.cache/kapi/models/vision.
 //
-// The read-only bundled dir (beside the executable, where the release tarball
-// ships the OCR models) is NOT a download target — it is searched by Ensure but
-// downloads (e.g. the on-demand layout model) always go to this writable dir.
+// Ensure also searches the read-only bundled dir beside the executable, where
+// the release tarball ships the OCR models. Downloads (e.g. the on-demand
+// layout model) always go to this writable dir.
 func Dir() string {
 	if d := os.Getenv("KAPI_VISION_MODELS_DIR"); d != "" {
 		return d
@@ -92,6 +94,14 @@ func Dir() string {
 	}
 	if d := os.Getenv("XDG_CACHE_HOME"); d != "" {
 		return filepath.Join(d, "kapi", "models", "vision")
+	}
+	if flag.Lookup("test.v") != nil {
+		// A test binary keeps off the developer's cache (core/dataroot), in a
+		// private directory of its own that no other user can name in advance.
+		if dir, err := testModelsDir(); err == nil {
+			return filepath.Join(dir, "vision")
+		}
+		panic("models: no private test cache directory could be made")
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -114,8 +124,8 @@ func searchDirs() []string {
 	return append(ds, Dir())
 }
 
-// bundledDir returns "<executable-dir>/models" if it exists — the layout the
-// release tarball installs — else "".
+// bundledDir returns "<executable-dir>/models" if it exists, the layout the
+// release tarball installs, else "".
 func bundledDir() string {
 	exe, err := os.Executable()
 	if err != nil {
@@ -208,4 +218,35 @@ func download(url, dst string) error {
 		return err
 	}
 	return os.Rename(tmpName, dst)
+}
+
+// testModels is the test binary's model cache root, made on first use by
+// os.MkdirTemp (mode 0700, a name no other user can predict) and removed by
+// removeTestModelsDir from the package's TestMain.
+var testModels struct {
+	sync.Mutex
+	dir string
+}
+
+func testModelsDir() (string, error) {
+	testModels.Lock()
+	defer testModels.Unlock()
+	if testModels.dir == "" {
+		dir, err := os.MkdirTemp("", "kapi-test-models-")
+		if err != nil {
+			return "", err
+		}
+		testModels.dir = dir
+	}
+	return testModels.dir, nil
+}
+
+// removeTestModelsDir removes the test model cache root, if a test made one.
+func removeTestModelsDir() {
+	testModels.Lock()
+	defer testModels.Unlock()
+	if testModels.dir != "" {
+		_ = os.RemoveAll(testModels.dir)
+		testModels.dir = ""
+	}
 }

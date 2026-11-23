@@ -258,6 +258,8 @@ export interface ConceptDTO {
   properties?: Record<string, string>;
   created_at: string;
   updated_at: string;
+  /** The concept's revision, when its store keeps one: an edit names it. */
+  revision?: string;
 }
 
 export interface TermDTO {
@@ -295,6 +297,8 @@ export interface UpdateConceptRequest {
   domain: string;
   definition: string;
   terms: TermDTO[];
+  /** The revision of the concept the edit was made on, when its store keeps one. */
+  base_revision?: string;
 }
 
 // --- Shared ---

@@ -6,17 +6,17 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/neokapi/neokapi/core/keychain"
+
 	"github.com/neokapi/neokapi/host/venue/config"
-	"github.com/zalando/go-keyring"
 )
 
-// Legacy desktop-only auth scheme (pre-unification). The desktop used to
-// persist its own tokens under keychain service "bowrain" (keys
-// "access-token"/"refresh-token") plus a bowrain-desktop/auth.json metadata
-// file — a stack entirely separate from the shared kapi/kapi-bowrain scheme in
+// Legacy desktop-only auth scheme. An older desktop kept its own tokens under
+// keychain service "bowrain" (keys "access-token"/"refresh-token") and a
+// bowrain-desktop/auth.json metadata file, apart from the shared scheme in
 // host/venue/config. migrateLegacyDesktopAuth() folds any such credentials
-// into the shared store once, so an existing desktop login survives the switch
-// and a CLI login and a desktop login become mutually visible.
+// into the shared store once. An existing desktop login carries over, and the
+// CLI and the desktop see the same login.
 const (
 	legacyKeyringServiceBase = "bowrain"
 	legacyAccessTokenKey     = "access-token"
@@ -53,7 +53,7 @@ type legacyDesktopAuth struct {
 // migration) or when no legacy data exists. Cleanup of the legacy entries is
 // best-effort.
 func migrateLegacyDesktopAuth() {
-	// If the shared store already has metadata, don't touch it — a desktop or
+	// If the shared store already has metadata, don't touch it, a desktop or
 	// CLI login has already populated the unified scheme.
 	if _, err := os.Stat(config.AuthFilePath()); err == nil {
 		return
@@ -68,11 +68,11 @@ func migrateLegacyDesktopAuth() {
 		return
 	}
 
-	access, err := keyring.Get(legacyKeyringService(), legacyAccessTokenKey)
+	access, err := keychain.Get(legacyKeyringService(), legacyAccessTokenKey)
 	if err != nil || access == "" {
 		return
 	}
-	refresh, _ := keyring.Get(legacyKeyringService(), legacyRefreshTokenKey)
+	refresh, _ := keychain.Get(legacyKeyringService(), legacyRefreshTokenKey)
 
 	if err := config.SaveAuth(config.StoredAuth{
 		ServerURL:    legacy.ServerURL,
@@ -89,7 +89,7 @@ func migrateLegacyDesktopAuth() {
 	}
 
 	// Best-effort cleanup of the legacy scheme.
-	_ = keyring.Delete(legacyKeyringService(), legacyAccessTokenKey)
-	_ = keyring.Delete(legacyKeyringService(), legacyRefreshTokenKey)
+	_ = keychain.Delete(legacyKeyringService(), legacyAccessTokenKey)
+	_ = keychain.Delete(legacyKeyringService(), legacyRefreshTokenKey)
 	_ = os.Remove(legacyDesktopAuthFilePath())
 }

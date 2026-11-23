@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/memory"
@@ -144,12 +145,18 @@ func TestRecoverResource_StandaloneStoreMovesOnlyItsOwnFile(t *testing.T) {
 // projectStoreRoot must recognize a project's own store and nothing else: a
 // named store that happens to be called store.db is still standalone.
 func TestProjectStoreRoot(t *testing.T) {
-	root, ok := projectStoreRoot(filepath.Join("/p", project.StateDirName, project.WorkDirName, project.StoreFileName))
+	checkout := t.TempDir()
+	require.NoError(t, project.EnsureLayout(project.LayoutAt(checkout)))
+	layout := project.LayoutAt(checkout)
+	root, ok := projectStoreRoot(layout.StorePath())
 	assert.True(t, ok)
-	assert.Equal(t, "/p", root)
+	assert.Equal(t, dataroot.NormalizePath(checkout), root)
 
-	_, ok = projectStoreRoot(filepath.Join("/p", project.StateDirName, project.StoreFileName))
+	_, ok = projectStoreRoot(filepath.Join(layout.LocalStateDir(), project.StoreFileName))
 	assert.False(t, ok, "the store sits under work/, not at the top of the state directory")
+
+	_, ok = projectStoreRoot(filepath.Join(checkout, project.StateDirName, project.WorkDirName, project.StoreFileName))
+	assert.False(t, ok, "a store inside a checkout is not the project's")
 
 	_, ok = projectStoreRoot(filepath.Join("/p", "stores", project.StoreFileName))
 	assert.False(t, ok, "the store must sit in the state directory's work dir")

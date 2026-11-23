@@ -83,7 +83,7 @@ func TestContextDeck_KeepCandidatePromotesIt(t *testing.T) {
 	card := deckCardWhere(t, readContextDeck(t, e, pid, ""), candidateCard(cid))
 	var out contextDeckDecideResponse
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "keep"}, &out))
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: "keep"}, &out))
 	assert.Equal(t, deckOutcomeKept, out.Outcome)
 	assert.Empty(t, ks.changesets, "keeping a candidate proposes no change set")
 
@@ -110,7 +110,7 @@ func TestContextDeck_RejectCandidateForgetsIt(t *testing.T) {
 	card := deckCardWhere(t, readContextDeck(t, e, pid, ""), candidateCard(cid))
 	var out contextDeckDecideResponse
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "reject"}, &out))
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: "reject"}, &out))
 	assert.Equal(t, deckOutcomeDropped, out.Outcome)
 	assert.Empty(t, ks.changesets, "a candidate is deleted, not retired through a change set")
 

@@ -861,7 +861,7 @@ Prose    P1 : TestProseP1_<subject> passes (spans, line ranges, directives, corp
 ```
 
 <!-- BEGIN: gap-analysis report (generated) -->
-## Maturity report (snapshot: 2026-11-20)
+## Maturity report (snapshot: 2026-11-23)
 
 The repository audit measures the format axes. The Prose probe runs the rung tests.
 The [dashboard](/format-maturity) shows the measurements and support declarations.

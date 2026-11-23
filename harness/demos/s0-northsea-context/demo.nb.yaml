@@ -1,6 +1,6 @@
 id: s0-northsea-context
-title: Finn veiledningen for en fil
-subtitle: "To spørsmål en assistent trenger svar på, og filer i repositoriet som svarer på dem."
+title: Finn retningslinjene for en fil
+subtitle: "To spørsmål en assistent trenger svar på, og filer i repositoriet som gir svarene."
 kind: use-case
 publishAs: monolingual-context
 # A scripted plain-shell demo: every command is deterministic, so it runs for
@@ -19,7 +19,7 @@ aspects:
   - by location
   - by content
 outro:
-  line: Still ditt eget repositorium de samme to spørsmålene.
+  line: Still de samme to spørsmålene til ditt eget repositorium.
   pointer: kapi context search <word>
 
 # The sample ships its context files as the assistant drafted them, untracked,
@@ -40,13 +40,13 @@ script:
   - comment: Commit the prepared guidance so its changes can be inspected in version control.
   - command: git add -A && git commit -qm "Adopt the context graph" && git log --oneline -1
   - comment: The files are a proposal until somebody reads them in. One command puts them in force for this project.
-  - command: kapi context import ./context
+  - command: kapi store import ./context
   - comment: One verb reconciles the project's context and the sources. No target languages, no provider, nothing to ask for.
   - command: kapi up
   - comment: The first question an agent asks. Where am I, and what governs here?
-  - command: kapi context docs/berths.md
+  - command: kapi context docs/berths.md --explain
   - comment: The same question, three directories away, at a different point and in a different register.
-  - command: kapi context landing/index.html
+  - command: kapi context landing/index.html --explain
   - comment: The second question. What do we call this, and why?
   - command: kapi context search mooring
 
@@ -62,34 +62,34 @@ narration:
   - id: title
     kind: title
     text: >-
-      En assistent som arbeider i repositoriet ditt trenger to svar før den skriver: hvilken veiledning gjelder her, og hva kaller vi dette? kapi leser prosjektfilene som registrerer disse beslutningene.
+      En assistent som jobber i repositoriet ditt, trenger svar på to spørsmål før den skriver: Hvilke retningslinjer gjelder her, og hva kaller vi dette? kapi leser prosjektfilene som dokumenterer disse beslutningene.
   - id: adopt
     kind: terminal
     through: 10
-    caption: "Forberedt veiledning, lest inn og avstemt."
+    caption: "Klargjorte retningslinjer, lest inn og avstemt."
     text: >-
-      Denne demonstrasjonen starter med en forberedt oppskrift, voice profile og termer. Vi committer dem, leser dem inn i prosjektets kontekst med én kommando, og kjører kapi up for å avstemme dem mot kildefilene. Opptaket erstatter ikke en menneskelig gjennomgang av veiledningen.
+      Denne demonstrasjonen starter med en klargjort oppskrift, stemmeprofil og termer. Vi committer dem, leser dem inn i prosjektets kontekst med én kommando og kjører kapi up for å avstemme dem mot kildefilene. Opptaket erstatter ikke en menneskelig gjennomgang av retningslinjene.
   - id: landing
     kind: artifact
     artifact: landing
-    caption: "Én av tre flater, og den varmeste registeret av dem."
+    caption: "Én av tre flater, og den med varmest tone."
     text: >-
-      Dette er én av de tre flatene, markedsføringssiden. Den ligger på northsea slash landing, der registeret er varmere enn dokumentasjonens. Vokabularet er det samme uansett.
+      Dette er én av de tre flatene: markedsføringssiden. Den ligger på northsea/landing, der tonen er varmere enn i dokumentasjonen. Termene er de samme begge steder.
   - id: where
     kind: terminal
     through: 14
     highlight: { text: [northsea/docs, northsea/landing] }
     caption: "To stier, to punkter, én stemme."
     text: >-
-      Spør etter plassering og dokumentasjonen svarer med sitt eget punkt, landingssiden med et annet. Samme stempelprofil, ulikt register – og ingen av svarene kom fra katalogen filen tilfeldigvis ligger i.
+      Spør etter plassering, så får dokumentasjonen sitt eget punkt i svaret, mens landingssiden får et annet. Stemmeprofilen er den samme, men tonen er forskjellig. Ingen av svarene ble hentet fra katalogen der filen ligger.
   - id: search
     kind: terminal
     through: 16
     highlight: { text: [mooring, berth] }
-    caption: "Beslutningen, og hvert sted den lander."
+    caption: Beslutningen og alle stedene den brukes.
     text: >-
-      Spør etter innhold og du får beslutningen bak et ord. Northsea omdøpte et sted fra mooring til berth, og svaret bærer begge halvdeler: hva som skal sies, og det ene feltet på tråden som beholder det utgåtte navnet.
+      Spør etter innhold, så får du beslutningen bak et ord. Northsea endret navnet på en plass ved kai fra «mooring» til «berth». Svaret viser både hva du skal si, og hvilket felt i dataene som sendes, som beholder det gamle navnet.
   - id: outro
     kind: outro
     text: >-
-      Begge spørsmål kjøres offline mot filer du kan lese. Still dem til ditt eget repositorium før en assistent skriver en linje i det.
+      Begge spørsmålene besvares uten nettilkobling ved hjelp av filer du kan lese. Still spørsmålene til ditt eget repositorium før en assistent skriver en eneste linje der.

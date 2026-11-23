@@ -1,6 +1,6 @@
 id: 03-translate-docx
 title: Et Word-dokument ingen åpnet
-subtitle: "Oversatt til japansk med alle overskrifter, lister og fete datoer på plass."
+subtitle: "Oversatt til japansk med alle overskrifter, lister og datoer i fet skrift på plass."
 kind: use-case
 publishAs: claude-translate-document
 aspects:
@@ -11,7 +11,7 @@ needsAi: true
 model: sonnet
 captureTimeoutSec: 240
 outro:
-  line: Sett en person på det før det sendes ut.
+  line: La en person gå gjennom den før den publiseres.
   pointer: kapi status --review
 
 prompt: >
@@ -40,30 +40,30 @@ narration:
   - id: title
     kind: title
     text: >-
-      Et Word-dokument kan oversettes uten at noen åpner Word. Én forespørsel til Claude, og kapi leser filen, oversetter teksten og skriver et nytt dokument med alle overskrifter og fete datoer på plass.
+      Et Word-dokument kan oversettes uten at noen åpner Word. Med én forespørsel til Claude leser kapi filen, oversetter teksten og skriver et nytt dokument med alle overskrifter og datoer i fet skrift på samme sted som før.
   - id: before
     kind: artifact
     artifact: before
-    caption: "Overskrifter, en punktliste, fete datoer og en kontaktlinje."
+    caption: "Overskrifter, en punktliste, datoer i fet skrift og en kontaktlinje."
     text: >-
-      Her er originalen. Overskrifter, en punktliste, fete datoer og en kontaktlinje – den delen av et dokument som tåler kopiering og innliming dårligst.
+      Her er originalen. Overskrifter, en punktliste, datoer i fet skrift og en kontaktlinje – den delen av et dokument som tåler kopiering og innliming dårligst.
   - id: read
     kind: terminal
-    caption: "Lest som et dokument, med lister og fet tekst intakt."
+    caption: "Lest som et dokument, med lister og fet skrift."
     text: >-
-      Claude gir filen til kapi, som åpner Word-formatet direkte og trekker ut avsnittene, listeelementene og de fete tekstdelene i dem. Ingenting konverteres til ren tekst underveis.
+      Claude sender filen til kapi, som åpner Word-formatet direkte og henter ut avsnittene, listepunktene og tekstpartiene i fet skrift. Ingenting konverteres til ren tekst underveis.
   - id: write
     kind: terminal
-    caption: "Et nytt dokument, skrevet fra den samme strukturen."
+    caption: Et nytt dokument med samme struktur som originalen.
     text: >-
-      Teksten sendes til den konfigurerte leverandøren, og det som kommer tilbake skrives inn i et nytt dokument som beholder den opprinnelige strukturen. Den samme kommandoen leser alle dokumentformater kapi støtter.
+      Teksten sendes til den konfigurerte leverandøren. Resultatet skrives til et nytt dokument med samme struktur som originalen. Den samme kommandoen leser alle dokumentformatene kapi støtter.
   - id: after
     kind: artifact
     artifact: after
-    caption: Japansk tekst i det engelske dokumentets form.
+    caption: Japansk tekst med samme struktur som det engelske dokumentet.
     text: >-
-      Og den japanske versjonen. Overskriftene er fortsatt overskrifter, listen er fortsatt en liste, datoene er fortsatt fete, og produktnavnet er fortsatt produktnavnet.
+      Og her er den japanske versjonen. Overskriftene er fortsatt overskrifter, listen er fortsatt en liste, datoene er fortsatt i fet skrift, og produktnavnet er uendret.
   - id: outro
     kind: outro
     text: >-
-      Dette er en ren maskinoversettelse. Kjør gjennomgangskøen over den, og kapi lister opp hva en person bør lese før det sendes ut.
+      Dette er en ren maskinoversettelse. Kjør gjennomgangskøen på den, så lister kapi opp det en person bør lese før den publiseres.

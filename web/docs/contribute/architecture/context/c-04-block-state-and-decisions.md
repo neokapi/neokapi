@@ -16,7 +16,7 @@ project's **work**, and that work is itself two kinds of thing:
 
 - **Derived state**: parsed content, coverage percentages, the rungs of the
   ladder reachable from content. Rebuildable; it lives in the cache under
-  `.kapi/work/cache/` and is ignored. Delete it and a re-run reconstructs
+  the checkout's `work/cache/` and is ignored. Delete it and a re-run reconstructs
   identical results.
 - **Authored block state**: a person approving a translation, holding a block for review, or recording who reviewed what. Nothing can derive it,
   so it must be **kept**.
@@ -73,7 +73,7 @@ two are separated:
 
 | Kind | Examples | Home | Authoritative? |
 | --- | --- | --- | --- |
-| Derived | parsed blocks, coverage, rungs reachable from content, the overlays a producer serves a draft from | `.kapi/work/cache/`, and the checkout's projection at `.kapi/work/store.db` | no: rebuildable, ignored |
+| Derived | parsed blocks, coverage, rungs reachable from content, the overlays a producer serves a draft from | the checkout's `work/cache/`, and the checkout's projection at the checkout's `work/store.db` | no: rebuildable, ignored |
 | Authored block state | approvals, review holds, reviewer, notes | the decision ledger (`core/state`) in the project's context store | yes |
 | A held-back locale's drafts, and the edits made to them | the text of translations whose files a gate withholds | the workspace home (`core/workhome`) in the project's context store | yes, until a delivery writes them to their files |
 
@@ -538,7 +538,7 @@ held-back locale's whole draft set reads this way on the run after the one that
 drafted it. The block store is a cache: the workspace home keeps each held-back
 draft with the stamp its producer serves it by (the overlay's key,
 configuration fingerprint and source stamp), and a run writes the overlays it
-lacks back before its first pass, so a checkout whose `.kapi/work/` was deleted
+lacks back before its first pass, so a checkout whose the checkout's `work/` was deleted
 serves its held-back drafts without a provider call. A draft a person or an agent
 edited since is restored from the latest draft a producer wrote for it, which
 the log keeps.

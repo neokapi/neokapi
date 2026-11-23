@@ -153,10 +153,10 @@ func TestReviewPlan_SettleTakesOneFirstPassThenWaitsForTheContext(t *testing.T) 
 	rec = planWrite(t, s, s.HandleSettleReviewPlan, wsID, projID, `{}`, platauth.PermAll)
 	assert.Equal(t, http.StatusConflict, rec.Code, "a second pass waits for the context")
 
-	require.NoError(t, tb.AddConcept(ctx, terms.Concept{ID: "c-workspace", Terms: []terms.Term{
+	rewriteConcept(t, tb, terms.Concept{ID: "c-workspace", Terms: []terms.Term{
 		{Text: "workspace", Locale: "en", Status: model.TermPreferred},
 		{Text: "espace de travail", Locale: "fr", Status: model.TermPreferred},
-	}}))
+	}})
 	plan = readPlan(t, s, wsID, projID)
 	assert.Equal(t, settlePolicy, plan.Policy.Settle, "the context is decided")
 	rec = planWrite(t, s, s.HandleSettleReviewPlan, wsID, projID, `{}`, platauth.PermAll)

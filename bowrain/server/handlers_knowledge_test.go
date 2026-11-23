@@ -272,7 +272,7 @@ func TestConceptGovernedConflicts(t *testing.T) {
 		}
 		require.NoError(t, h.tb(t).AddConcept(ctx, seed))
 
-		body := `{"domain":"d","terms":[{"text":"utilize","locale":"en","status":"forbidden"}]}`
+		body := withBase(`{"domain":"d","terms":[{"text":"utilize","locale":"en","status":"forbidden"}]}`, conceptRevision(t, h.tb(t), "c-gov"))
 		c, rec := h.req(http.MethodPut, "/", body, platauth.PermManageTerms, "cid", "c-gov")
 		require.NoError(t, h.srv.HandleUpdateConcept(c))
 		assertGoverned(t, rec)
@@ -289,7 +289,7 @@ func TestConceptGovernedConflicts(t *testing.T) {
 		}
 		require.NoError(t, h.tb(t).AddConcept(ctx, seed))
 
-		body := `{"domain":"ui","definition":"the home view","terms":[{"text":"dashboard","locale":"en","status":"admitted"}]}`
+		body := withBase(`{"domain":"ui","definition":"the home view","terms":[{"text":"dashboard","locale":"en","status":"admitted"}]}`, conceptRevision(t, h.tb(t), "c-ord"))
 		c, rec := h.req(http.MethodPut, "/", body, platauth.PermManageTerms, "cid", "c-ord")
 		require.NoError(t, h.srv.HandleUpdateConcept(c))
 		assert.Equal(t, http.StatusNoContent, rec.Code)

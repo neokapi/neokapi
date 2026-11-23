@@ -24,8 +24,9 @@ A content memory stores previously produced content as a SQLite database: source
 segments with the targets settled for them. Use these commands to import/export
 TMX, look up matches, and manage entries.
 
-Inside a project, no flag means the project's own content memory, a subsystem of
-.kapi/work/store.db, which is why it is addressed by project rather than by path.
+Inside a project, no flag means the project's own content memory, kept in the
+project's context store in the workspace, which is why it is addressed by project
+rather than by path.
 Use -p to name the project explicitly.
 
 Standalone store instead (mutually exclusive):

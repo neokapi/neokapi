@@ -58,6 +58,27 @@ export function feedDecision(
 }
 
 /**
+ * The decision about a card: its item, the revision it showed, and the base
+ * revision a decision that writes a concept acts at, so the server refuses
+ * it when the concept moved since the deal. text is the reviewer's wording
+ * for a term-translation card, sent only when it differs from the proposal.
+ */
+export function contextDecision(
+  card: Pick<ContextCard, "item" | "revision" | "base_revision" | "translation">,
+  action: ContextDecision["action"],
+  text?: string,
+): ContextDecision {
+  const wording = text && text !== card.translation?.proposed ? text : undefined;
+  return {
+    item: card.item,
+    revision: card.revision,
+    base_revision: card.base_revision,
+    action,
+    text: wording,
+  };
+}
+
+/**
  * Send a context decision. When no answer comes back, it is sent again, up to
  * twice. A repeat refused as no longer pending may be the first attempt's
  * landing or a teammate's decision, so the app reads the project's feed: the

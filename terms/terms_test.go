@@ -637,7 +637,6 @@ Repository,Depot,software,Code repository,approved
 	count, err := terms.ImportCSV(context.Background(), tb, strings.NewReader(csvContent), terms.CSVImportOptions{
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
-		IDPrefix:     "csv",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 3, count)

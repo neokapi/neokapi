@@ -54,7 +54,7 @@ func TestPostgresTerms_EveryWriteMovesTheRevision(t *testing.T) {
 	moved(t, "adding a concept")
 	require.NoError(t, tb.AddConcept(ctx, termConcept("c-shop", "shop")))
 	moved(t, "adding another")
-	require.NoError(t, tb.AddConcept(ctx, termConcept("c-kapi", "Kapi")))
+	rewriteConcept(t, tb, termConcept("c-kapi", "Kapi"))
 	moved(t, "rewriting a concept's terms")
 	require.NoError(t, tb.AddRelation(ctx, terms.ConceptRelation{ID: "r-1", SourceID: "c-kapi", TargetID: "c-shop", RelationType: graph.LabelRelated}))
 	moved(t, "adding a relation")
@@ -66,12 +66,12 @@ func TestPostgresTerms_EveryWriteMovesTheRevision(t *testing.T) {
 	_, err = tb.LookupAll(ctx, "kapi", terms.LookupOptions{SourceLocale: model.LocaleEnglish})
 	require.NoError(t, err)
 	held(t, "reading the terms")
-	require.Error(t, tb.DeleteConcept(ctx, "c-missing"))
+	require.Error(t, tb.DeleteConceptAt(ctx, "c-missing", "any"))
 	held(t, "a delete that fails")
 	require.NoError(t, other.AddConcept(ctx, termConcept("c-other", "other")))
 	held(t, "another workspace's write")
 
-	require.NoError(t, tb.DeleteConcept(ctx, "c-shop"))
+	require.NoError(t, tb.DeleteConceptAt(ctx, "c-shop", conceptRevision(t, tb, "c-shop")))
 	moved(t, "deleting a concept")
 }
 

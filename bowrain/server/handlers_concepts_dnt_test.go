@@ -61,28 +61,28 @@ func TestConceptAPI_DoNotTranslateIsGoverned(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
 	assert.Equal(t, true, got["do_not_translate"], "the response carries the stored flag")
 
-	c, rec = h.req(http.MethodPut, "/concepts/c-kapi", `{
+	c, rec = h.req(http.MethodPut, "/concepts/c-kapi", withBase(`{
 		"domain": "product", "definition": "Cleared.", "do_not_translate": false,
 		"terms": [{"text": "kapi", "locale": "en", "status": "approved"}]
-	}`, platauth.PermManageTerms, "cid", "c-kapi")
+	}`, conceptRevision(t, h.tb(t), "c-kapi")), platauth.PermManageTerms, "cid", "c-kapi")
 	require.NoError(t, h.srv.HandleUpdateConcept(c))
 	refused(rec.Code, rec.Body.String())
 	assert.True(t, stored().DoNotTranslate, "a refused update leaves the flag")
 	assert.Equal(t, "The CLI.", stored().Definition, "a refused update writes nothing")
 
-	c, rec = h.req(http.MethodPut, "/concepts/c-kapi", `{
+	c, rec = h.req(http.MethodPut, "/concepts/c-kapi", withBase(`{
 		"domain": "product", "definition": "The kapi CLI.",
 		"terms": [{"text": "kapi", "locale": "en", "status": "approved"}]
-	}`, platauth.PermManageTerms, "cid", "c-kapi")
+	}`, conceptRevision(t, h.tb(t), "c-kapi")), platauth.PermManageTerms, "cid", "c-kapi")
 	require.NoError(t, h.srv.HandleUpdateConcept(c))
 	require.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
 	assert.Equal(t, "The kapi CLI.", stored().Definition)
 	assert.True(t, stored().DoNotTranslate, "an update that omits the flag keeps it")
 
-	c, rec = h.req(http.MethodPut, "/concepts/c-kapi", `{
+	c, rec = h.req(http.MethodPut, "/concepts/c-kapi", withBase(`{
 		"domain": "product", "definition": "The kapi command-line tool.", "do_not_translate": true,
 		"terms": [{"text": "kapi", "locale": "en", "status": "approved"}]
-	}`, platauth.PermManageTerms, "cid", "c-kapi")
+	}`, conceptRevision(t, h.tb(t), "c-kapi")), platauth.PermManageTerms, "cid", "c-kapi")
 	require.NoError(t, h.srv.HandleUpdateConcept(c))
 	require.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
 	assert.Equal(t, "The kapi command-line tool.", stored().Definition, "repeating the stored flag applies")

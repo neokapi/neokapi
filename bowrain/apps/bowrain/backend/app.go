@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
 	"github.com/neokapi/neokapi/bowrain/connector"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -223,7 +225,7 @@ func discoverManifestPlugins(dir string) []manifestedPlugin {
 
 // defaultPluginDir returns the default plugin directory.
 func defaultPluginDir() string {
-	if dir, err := os.UserConfigDir(); err == nil {
+	if dir := dataroot.UserConfigDir(); dir != "" {
 		return filepath.Join(dir, "kapi", "plugins")
 	}
 	return "./plugins"
@@ -506,10 +508,7 @@ func desktopConfigDir() string {
 	if dir := os.Getenv("BOWRAIN_DESKTOP_CONFIG_DIR"); dir != "" {
 		return dir
 	}
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
-	}
+	configDir := dataroot.UserConfigDir()
 	return filepath.Join(configDir, "bowrain-desktop")
 }
 

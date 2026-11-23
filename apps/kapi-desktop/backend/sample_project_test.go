@@ -207,11 +207,11 @@ func TestSampleProjectFilesExist(t *testing.T) {
 		"kapi.yaml",
 		"src/en/store-ui.json",
 		"web/en/getting-started.md",
-		".kapi/work/store.db",
 	} {
 		_, err := os.Stat(filepath.Join(dir, path))
-		assert.NoError(t, err, "missing: %s", path)
+		require.NoError(t, err, "missing: %s", path)
 	}
+	assert.FileExists(t, project.LayoutAt(dir).StorePath(), "the seeded store is in the checkout's state directory")
 }
 
 // Scaffolding stamps a sample manifest; an older on-disk revision is reported as

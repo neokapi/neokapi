@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/venue"
@@ -110,7 +111,18 @@ func (s *MCPServer) handlePromoteRule(ctx context.Context, req *mcp.CallToolRequ
 		return nil, promoteRuleOutput{}, fmt.Errorf("open terms store: %w", err)
 	}
 	rule := coreprofile.SuggestedRule{Term: input.Term, Replacement: input.Replacement}
-	changed, err := terms.PromoteRule(ctx, tb, loc, rule)
+	st, ok := tb.(sqlterms.Store)
+	if !ok {
+		return nil, promoteRuleOutput{}, errors.New("promote rule: the terms store cannot write a concept at a revision")
+	}
+	// Derived from the concepts as they stand when written, so an edit saved
+	// in between stays (sqlterms.Rewrite).
+	var changed bool
+	err = sqlterms.Rewrite(ctx, st, func(t terms.Terminology) error {
+		var perr error
+		changed, perr = terms.PromoteRule(ctx, t, loc, rule)
+		return perr
+	})
 	if err != nil {
 		return nil, promoteRuleOutput{}, fmt.Errorf("promote rule: %w", err)
 	}

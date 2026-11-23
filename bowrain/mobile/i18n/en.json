@@ -304,6 +304,7 @@
     },
     "refused": {
       "stale": "This item changed. It is back at the end of the deck.",
+      "update_app": "Update the app, then open the deck again to decide on this item.",
       "not_pending": "Someone reviewed this item already.",
       "action_not_offered": "You cannot do that with this item.",
       "retire_needs_approval": "Retiring this needs a second person's approval.",

@@ -17,7 +17,6 @@ type CSVImportOptions struct {
 	SourceLocale model.LocaleID // locale for source column
 	TargetLocale model.LocaleID // locale for target column
 	Domain       string         // domain to assign to imported concepts
-	IDPrefix     string         // prefix for generated concept IDs
 
 	// Monolingual imports a single-locale concept list — one term column plus
 	// an optional definition column — instead of source/target term pairs. Each
@@ -30,58 +29,26 @@ type CSVImportOptions struct {
 // Bilingual (default): source_term, target_term[, domain][, definition][, status].
 // Monolingual (opts.Monolingual): term[, definition][, domain][, status] — one
 // term per concept in SourceLocale, with no translation pair.
+// Each concept takes the id a concept_id column gives it, or ImportID of its
+// source term, so importing the same file again writes the same concepts.
 // Returns the number of concepts imported.
 func ImportCSV(ctx context.Context, tb Terminology, reader io.Reader, opts CSVImportOptions) (int, error) {
-	csvReader := csv.NewReader(reader)
-	if opts.Delimiter != 0 {
-		csvReader.Comma = opts.Delimiter
-	}
-	csvReader.FieldsPerRecord = -1 // allow variable field count
-	csvReader.TrimLeadingSpace = true
-
-	records, err := csvReader.ReadAll()
+	rows, err := ParseCSV(reader, opts)
 	if err != nil {
-		return 0, fmt.Errorf("read CSV: %w", err)
+		return 0, err
 	}
+	return writeRows(ctx, tb, rows)
+}
 
-	if len(records) == 0 {
-		return 0, nil
-	}
-
-	startIdx := 0
-	if opts.HasHeader {
-		startIdx = 1
-	}
-
+// writeRows writes each row's concept to tb, in file order.
+func writeRows(ctx context.Context, tb Terminology, rows []ImportRow) (int, error) {
 	imported := 0
-	prefix := opts.IDPrefix
-	if prefix == "" {
-		prefix = "csv"
-	}
-
-	for i := startIdx; i < len(records); i++ {
-		row := records[i]
-		conceptID := fmt.Sprintf("%s-%d", prefix, i-startIdx+1)
-
-		var (
-			concept Concept
-			ok      bool
-		)
-		if opts.Monolingual {
-			concept, ok = monolingualConcept(row, conceptID, opts)
-		} else {
-			concept, ok = bilingualConcept(row, conceptID, opts)
-		}
-		if !ok {
-			continue
-		}
-
-		if err := tb.AddConcept(ctx, concept); err != nil {
-			return imported, fmt.Errorf("add concept %s: %w", conceptID, err)
+	for _, row := range rows {
+		if err := tb.AddConcept(ctx, row.Concept); err != nil {
+			return imported, fmt.Errorf("add concept %s: %w", row.Concept.ID, err)
 		}
 		imported++
 	}
-
 	return imported, nil
 }
 

@@ -37,7 +37,7 @@ A recipe that states neither an `id:` nor a `name:` takes
 bytes of `SHA-256` over the slash-separated normalized checkout path, in
 lowercase unpadded base32.
 
-The projection stays in the checkout at `.kapi/work/store.db`
+The projection stays in the checkout at the checkout's `work/store.db`
 (`project.Layout.StorePath()`).
 
 ## The tables each pool holds

@@ -525,6 +525,36 @@
       "identity": "80bcee189d97cedc307f42497685a6fc",
       "names": ["normalized text for terms written before the column"]
     },
+    "13": {
+      "description": "a revision column on tb_concepts",
+      "identity": "ebf891e2ed4fcb9b50fc8ad130f49158",
+      "names": ["a revision column on tb_concepts"]
+    },
+    "14": {
+      "description": "a revision for each existing row of tb_concepts",
+      "identity": "ec8346184a3a92875dc965a859681b82",
+      "names": ["a revision for each existing row of tb_concepts"]
+    },
+    "15": {
+      "description": "a not-null check on tb_concepts revisions, not yet validated",
+      "identity": "aed63e2899739b0f3a9daf7e4408a33f",
+      "names": ["a not-null check on tb_concepts revisions, not yet validated"]
+    },
+    "16": {
+      "description": "validate the tb_concepts revision check",
+      "identity": "af86f23f946bfefe24baaf471c692b2d",
+      "names": ["validate the tb_concepts revision check"]
+    },
+    "17": {
+      "description": "tb_concepts revisions are not null",
+      "identity": "0861c7b342876fffaca627617cc6c9c5",
+      "names": ["tb_concepts revisions are not null"]
+    },
+    "18": {
+      "description": "a record of each terms import",
+      "identity": "feb95535cab2ce049cb3f472de707555",
+      "names": ["a record of each terms import"]
+    },
     "5": {
       "description": "terms baseline (folds 1-4)",
       "identity": "bd2d041895d161479330f9773efe295b",

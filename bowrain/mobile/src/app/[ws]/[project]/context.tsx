@@ -37,6 +37,7 @@ import {
   contextCardId,
   contextCopyPrefix,
   contextDeckView,
+  contextDecision,
   refusalCode,
   sendContextDecision,
   sessionThrough,
@@ -190,8 +191,7 @@ export default function ContextSessionScreen() {
   const record = useCallback(
     (card: Card, action: "keep" | "reject", text?: string) => {
       setDecided((ids) => [...ids, contextCardId(card)]);
-      const wording = text && text !== card.translation?.proposed ? text : undefined;
-      send({ item: card.item, revision: card.revision, action, text: wording });
+      send(contextDecision(card, action, text));
       if (action === "keep")
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       else void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

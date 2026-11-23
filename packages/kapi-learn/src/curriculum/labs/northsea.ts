@@ -142,7 +142,7 @@ export const northseaContext: Lab = {
       title: "Read the context in",
       narration:
         "One command reads the files into the project's store, where every later answer comes from. The recipe binds the voice by the name the import stores it under, so an edit to the files takes effect when you import again.",
-      command: "kapi store import ./context",
+      command: "kapi store import ./context --yes",
       expect: ["7 concepts", "1 voice profile"],
     },
     {
@@ -205,7 +205,7 @@ export const northseaChecks: Lab = {
   summary:
     "kapi check runs the project's configured checks the way a test suite runs: it exits 3 on a finding that fails and reports the rest. This lab runs the gate on Northsea, corrects the source where the wording was wrong, records one decision the graph had never been told, and watches the next run enforce it.",
   sample: "northsea",
-  setup: ["kapi store import ./context", "kapi up"],
+  setup: ["kapi store import ./context --yes", "kapi up"],
   concepts: [
     "check",
     "finding",
@@ -343,7 +343,7 @@ export const northseaEdit: Lab = {
   summary:
     "kapi apply is the one write verb: a change set names a block by its ref and the revision it read, and the format's writer lands the new text with everything around it unchanged. This lab edits the landing page's heading, compares the page before and after, and sees what happens when the same change set is sent twice.",
   sample: "northsea",
-  setup: ["kapi store import ./context", "kapi up"],
+  setup: ["kapi store import ./context --yes", "kapi up"],
   concepts: ["change contract", "revision", "if_match", "write-back fidelity", "kdiff"],
   docs: [DOCS.edit, DOCS.change, DOCS.toolbox],
   minutes: 5,

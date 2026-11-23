@@ -104,6 +104,10 @@ func TestHandleListFlowDefinitions_BuiltInOnly(t *testing.T) {
 		}
 	}
 	assert.True(t, hasBuiltIn, "built-in translate flow should be listed")
+	// The one-step built-ins have no edges; the web app iterates `edges` and
+	// failed on null.
+	assert.NotContains(t, rec.Body.String(), `"edges":null`)
+	assert.NotContains(t, rec.Body.String(), `"nodes":null`)
 }
 
 func TestHandleFlowDefinition_CRUD(t *testing.T) {

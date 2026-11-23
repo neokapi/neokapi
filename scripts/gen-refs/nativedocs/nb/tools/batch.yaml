@@ -1,25 +1,32 @@
 # Native reference doc for the built-in `batch` tool.
 # Schema source: core/tools/batch.go (BatchConfig).
-description: Samle blokker i grupper med fast størrelse før de sendes videre nedstrøms.
+description: Samle blokker i puljer med fast størrelse før de videresendes til neste verktøy.
 overview: |
-  **Batch Collector** buffererer blokker og videresender dem i grupper av en konfigurert størrelse, i stedet for én om gangen. Dette gjør det mulig for et nedstrøms verktøy som er billigere å kalle i bulk (for eksempel en batch-oversettelsesforespørsel) å motta flere blokker samlet i stedet for blokk for blokk.
+  **Batch Collector** mellomlagrer oversettbare blokker og videresender dem i
+  puljer av en angitt størrelse, i stedet for én om gangen. Slik kan et
+  etterfølgende verktøy som er billigere å kalle med flere blokker samtidig
+  (for eksempel en forespørsel om puljeoversettelse), motta flere blokker samlet
+  i stedet for én etter én.
 
-  Ikke-blokk-elementer (lagmarkører, data, media) sendes videre umiddelbart og buffereres aldri. Blokker akkumuleres til batchen når den konfigurerte størrelsen og slippes deretter gjennom i rekkefølge; eventuelle gjenværende blokker tømmes når innstrømmen avsluttes. Rekkefølgen i strømmen bevares.
+  Deler som ikke er blokker (lagmarkører, data og medier), passerer umiddelbart
+  og mellomlagres aldri. Blokkene samles opp til puljen når den angitte størrelsen,
+  og frigis deretter i rekkefølge. Eventuelle gjenværende blokker videresendes
+  når inndatastrømmen avsluttes. Rekkefølgen i strømmen bevares.
 parameters:
   size:
-    description: Antall blokker som skal samles før en gruppe sendes videre.
+    description: Antall blokker som skal samles før en pulje videresendes.
     help: |
-      Verktøyet bufrer blokker til dette antallet er akkumulert, og sender dem
-      deretter videre som en gruppe. En større størrelse betyr færre, større overleveringer til neste
-      verktøy; en størrelse på `1` sender i praksis hver blokk videre så snart den ankommer.
-    values: "heltall ≥ 1 (standard `10`)"
+      Verktøyet mellomlagrer blokker til dette antallet er nådd, og videresender
+      dem deretter samlet. En større verdi gir færre og større overleveringer til
+      neste verktøy. Verdien `1` videresender i praksis hver blokk så snart den ankommer.
+    values: "heltall ≥ 1 (standardverdi `10`)"
 limitations:
-  - Bare blokker grupperes; alle andre deltyper passerer uten bufring.
+  - Bare blokker samles i puljer. Alle andre deltyper passerer uten mellomlagring.
 processingNotes:
-  - Gjenværende bufrede blokker tømmes når innstrømmen lukkes.
-  - Blokkenes rekkefølge innenfor og på tvers av grupper bevares.
+  - Gjenværende mellomlagrede blokker videresendes når inndatastrømmen lukkes.
+  - Rekkefølgen på blokkene bevares både innenfor og mellom puljene.
 examples:
-  - title: Samle blokker i grupper på 50
-    description: Buffer 50 blokker per overlevering for et bulk-vennlig nedstrøms verktøy.
+  - title: Samle blokker i puljer på 50
+    description: Mellomlagre 50 blokker per overlevering til et etterfølgende verktøy som kan behandle flere blokker samtidig.
     config: |
       size: 50

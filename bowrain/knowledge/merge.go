@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -14,6 +15,23 @@ import (
 // ops were authored against a concept revision that is no longer current. The
 // returned *MergeResult carries the per-op conflicts; nothing was applied.
 var ErrMergeConflict = errors.New("knowledge: change-set has stale-draft conflicts")
+
+// The reasons a concept deletion conflicts.
+const (
+	deleteChanged         = "the concept changed after its deletion was proposed; review the change, then propose the deletion again"
+	deleteNamesNoRevision = "the deletion does not say which version of the concept it was proposed against; propose it again"
+	deleteAfterEdit       = "the change-set edits the concept and then deletes it; propose the deletion on its own"
+)
+
+// staleDeleteError is a concept deletion the store refused because the
+// concept is no longer the one it was proposed against.
+type staleDeleteError struct{ conflict OpConflict }
+
+func (e *staleDeleteError) Error() string {
+	return fmt.Sprintf("concept %s: %s", e.conflict.ConceptID, e.conflict.Reason)
+}
+
+func (e *staleDeleteError) Unwrap() error { return ErrMergeConflict }
 
 // MergeEvent describes a domain event a merge (or a pilot stop) produced. The
 // engine does not touch the platform event bus — it returns these descriptors
@@ -131,6 +149,13 @@ func (e *Engine) MergeChangeSet(ctx context.Context, workspaceID string, store S
 	if err != nil {
 		return nil, err
 	}
+	if w, ok := e.concepts.(sqlterms.ConceptWriter); ok {
+		deletes, err := detectDeleteConflicts(ctx, w, ops)
+		if err != nil {
+			return nil, err
+		}
+		conflicts = append(conflicts, deletes...)
+	}
 	if len(conflicts) > 0 {
 		res.Conflicts = conflicts
 		return res, fmt.Errorf("merge aborted with %d conflict(s): %w", len(conflicts), ErrMergeConflict)
@@ -146,6 +171,12 @@ func (e *Engine) MergeChangeSet(ctx context.Context, workspaceID string, store S
 	var events []MergeEvent
 	for _, op := range ops {
 		if err := applyTermsOp(ctx, live, op); err != nil {
+			// A deletion whose concept changed between the conflict pass
+			// and its delete is the same conflict, found by the statement
+			// that deletes.
+			if stale, ok := errors.AsType[*staleDeleteError](err); ok {
+				res.Conflicts = []OpConflict{stale.conflict}
+			}
 			return res, fmt.Errorf("apply op seq %d (%s): %w", op.Seq, op.Op, err)
 		}
 		res.AppliedOps = append(res.AppliedOps, op.Seq)
@@ -229,6 +260,46 @@ func detectConflicts(ctx context.Context, store Store, workspaceID string, ops [
 		if c := CheckBaseRev(op, current); c != nil {
 			conflicts = append(conflicts, *c)
 		}
+	}
+	return conflicts, nil
+}
+
+// detectDeleteConflicts reports each concept deletion the merge would refuse,
+// before anything is written: one whose concept changed after the deletion
+// was proposed (with the concept as it stands), one that names no revision,
+// and one the change-set itself edits first. A concept that is gone already
+// is no conflict.
+func detectDeleteConflicts(ctx context.Context, w sqlterms.ConceptWriter, ops []ChangeSetOp) ([]OpConflict, error) {
+	var conflicts []OpConflict
+	edited := map[string]bool{}
+	for _, op := range ops {
+		if op.Op != OpConceptDelete {
+			if cid := conceptIDOf(op); cid != "" {
+				edited[cid] = true
+			}
+			continue
+		}
+		var p ConceptDeletePayload
+		if err := decodePayload(op, &p); err != nil {
+			return nil, err
+		}
+		conflict := OpConflict{Seq: op.Seq, ConceptID: p.ConceptID}
+		switch {
+		case p.Revision == "":
+			conflict.Reason = deleteNamesNoRevision
+		case edited[p.ConceptID]:
+			conflict.Reason = deleteAfterEdit
+		default:
+			current, rev, held, err := w.GetConceptAt(ctx, p.ConceptID)
+			if err != nil {
+				return nil, fmt.Errorf("read concept %q: %w", p.ConceptID, err)
+			}
+			if !held || rev == p.Revision {
+				continue
+			}
+			conflict.Reason, conflict.Current = deleteChanged, &current
+		}
+		conflicts = append(conflicts, conflict)
 	}
 	return conflicts, nil
 }

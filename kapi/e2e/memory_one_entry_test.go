@@ -35,7 +35,7 @@ func TestContentMemoryHoldsOneEntryPerTranslation(t *testing.T) {
 		require.NoError(t, err, "kapi %v failed:\n%s", args, out)
 		return string(out)
 	}
-	run("store", "import", "./context")
+	run("store", "import", "--yes", "./context")
 	run("up")
 
 	var lookup struct {

@@ -133,7 +133,7 @@ var archivePartAbsentNotes = map[string]string{
 
 // projectArchiveExcluded names what a snapshot deliberately omits.
 var projectArchiveExcluded = []string{
-	".kapi/work/cache/ (regenerable: parse cache, extractions, collections)",
+	"the checkout's work/cache/ (regenerable: parse cache, extractions, collections)",
 	"credentials (OS keychain, never in an archive)",
 	"server sync tokens",
 }

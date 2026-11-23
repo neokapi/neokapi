@@ -276,7 +276,7 @@ func TestContextDeck_RejectConceptProposesChangeSet_SQLite(t *testing.T) {
 
 	var out contextDeckDecideResponse
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: concept.Item, Revision: concept.Revision, Action: "reject"}, &out))
+		contextDeckDecideRequest{Item: concept.Item, Revision: concept.Revision, BaseRevision: concept.BaseRevision, Action: "reject"}, &out))
 	assert.Equal(t, deckOutcomeProposed, out.Outcome)
 	require.NotEmpty(t, out.ChangesetID)
 
@@ -308,7 +308,7 @@ func TestContextDeck_PermissionsAndBinding_SQLite(t *testing.T) {
 	signIn := deckCardWhere(t, deck, termCard("Sign In", "Sign in"))
 	var refused ErrorResponse
 	assert.Equal(t, http.StatusForbidden, decideRoute(t, e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: signIn.Item, Revision: signIn.Revision, Action: "keep"}, &refused))
+		contextDeckDecideRequest{Item: signIn.Item, Revision: signIn.Revision, BaseRevision: signIn.BaseRevision, Action: "keep"}, &refused))
 
 	// A project no push has bound deals its concepts and offers no keep.
 	p := &platstore.Project{Name: "unbound", DefaultSourceLanguage: "en", WorkspaceID: "ws", Properties: map[string]string{}}
@@ -319,7 +319,7 @@ func TestContextDeck_PermissionsAndBinding_SQLite(t *testing.T) {
 	require.Len(t, unbound.Cards, 1)
 	assert.Equal(t, []string{"later"}, unbound.Cards[0].Actions)
 	assert.Equal(t, http.StatusConflict, decideRoute(t, e, http.MethodPost, p.ID, "/context/deck/decide",
-		contextDeckDecideRequest{Item: unbound.Cards[0].Item, Revision: unbound.Cards[0].Revision, Action: "keep"}, &refused))
+		contextDeckDecideRequest{Item: unbound.Cards[0].Item, Revision: unbound.Cards[0].Revision, BaseRevision: unbound.Cards[0].BaseRevision, Action: "keep"}, &refused))
 }
 
 func TestOpAuthor(t *testing.T) {

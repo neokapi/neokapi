@@ -83,6 +83,9 @@ type ConceptInfo struct {
 	Properties     map[string]string `json:"properties,omitempty"`
 	CreatedAt      string            `json:"created_at"`
 	UpdatedAt      string            `json:"updated_at"`
+	// Revision is the stored concept's revision when this was read. An
+	// update names it as its base revision.
+	Revision string `json:"revision,omitempty"`
 }
 
 // EditedTerms applies editable fields and keeps each matching term's validity and competitor flag.

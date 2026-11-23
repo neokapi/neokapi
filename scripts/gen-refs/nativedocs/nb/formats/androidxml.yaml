@@ -1,37 +1,50 @@
 # Native reference doc for the built-in `androidxml` format.
 # Schema source: core/formats/androidxml/config.go (Config) + schema.go.
 # Supersedes treating Android strings.xml as generic XML.
-description: Trekk ut og oppdater oversettbare strenger i Android-strengressursfiler (res/values/strings.xml).
+description: Hent ut og oppdater oversettbare strenger i Android-strengressursfiler (res/values/strings.xml).
 overview: |
-  **Android String Resources**-formatet leser `res/values/strings.xml`-filer som Android-strengressurser, ikke som generisk XML. Det trekker ut `<string>`-, `<string-array>`-elementer og `<plurals>`-elementer (etter CLDR `quantity`) som blokker.
+  Formatet **Android String Resources** leser `res/values/strings.xml`-filer
+  som Android-strengressurser, ikke som generisk XML. Det
+  henter ut `<string>`, elementer i `<string-array>` og elementer i `<plurals>`
+  (etter CLDR-`quantity`) som oversettbare blokker.
 
-  Androids ressurssemantikk følges: oppføringer merket `translatable="false"` og rene ressursreferanser (`@string/foo`, `?attr/bar`) hoppes over; posisjonelle/printf-argumenter (`%1$s`, `%d`, `%%`), `<xliff:g>`-spenner som ikke skal oversettes, inline-stilkoder og `<![CDATA[…]]>`-seksjoner beskyttes som inline-koder; og en kommentar rett før en oppføring blir en oversetternote. Deteksjon er innholdsbasert (en `<resources>`-rot med minst ett streng-, array- eller plurals-element), slik at generisk XML fremdeles rutes til XML-formatet. Utdata er en bytettro sammenføying av originalen: bare endrede verdier skrives om, og prolog, kommentarer, blanktegn, attributtrekkefølge, entiteter og Androids skråstrekescape-sekvenser bevares.
+  Androids ressurssemantikk følges: oppføringer merket
+  `translatable="false"` og rene ressursreferanser (`@string/foo`,
+  `?attr/bar`) hoppes over;
+  posisjons-/printf-argumenter (`%1$s`, `%d`, `%%`), `<xliff:g>`-spenner for ikke-oversettbar tekst,
+  innebygde formateringskoder og `<![CDATA[…]]>`-seksjoner beskyttes som
+  innebygde koder; og en kommentar rett foran en oppføring blir et
+  oversetternotat. Deteksjon er innholdsbasert (en `<resources>`-rot med minst
+  ett streng-/array-/flertallselement), slik at generisk XML fremdeles rutes til
+  XML-formatet. Utdata er en byte-tro sammenslåing av originalen: bare endrede
+  verdier skrives om, og prolog, kommentarer, mellomrom, attributtrekkefølge,
+  entiteter og Androids omvendt skråstrek-escape-sekvenser bevares.
 parameters:
-  extractComments:
-    description: Legg ved en foregående XML-kommentar som en oversetternotat.
+  extract_comments:
+    description: Knytt en foregående XML-kommentar til blokken som et oversetternotat.
     help: |
-      Når aktivert (standard), legges en XML `<!-- comment -->` umiddelbart
-      foran en oppføring ved som et oversetternotat til blokken.
+      Når dette er aktivert (standard), knyttes en XML-kommentar (`<!-- comment -->`) som står
+      rett foran en oppføring til blokken som et oversetternotat.
     values: "`true` / `false` (standard `true`)"
-  skipNonTranslatable:
+  skip_non_translatable:
     description: Hopp over oppføringer merket translatable="false".
     help: |
-      Når aktivert (standard), sendes `<string>`/`<string-array>`/`<plurals>`
-      oppføringer med `translatable="false"` gjennom urørt
-      og trekkes ikke ut.
+      Når dette er aktivert (standard), sendes `<string>`-/`<string-array>`-/`<plurals>`-oppføringer
+      med `translatable="false"` gjennom uendret
+      og hentes ikke ut.
     values: "`true` / `false` (standard `true`)"
-  skipResourceReferences:
+  skip_resource_references:
     description: Hopp over verdier som er rene ressursreferanser.
     help: |
-      Når aktivert (standard), trekkes ikke verdier som er en enkelt ressursreferanse
+      Når dette er aktivert (standard), hentes ikke verdier som er en enkelt ressursreferanse
       (`@string/foo`, `?attr/bar`) ut.
     values: "`true` / `false` (standard `true`)"
 processingNotes:
-  - "`<string>`, `<string-array>`-elementer og `<plurals>`-elementer blir oversettbare blokker; flertallselementer er nøklet etter CLDR quantity."
-  - "Posisjonsargumenter/printf-args, `<xliff:g>`, inline-styling og CDATA er beskyttet som inline-kode; Android-omvendt skråstrek-escape gjennomfører rundtur verbatim."
-  - "Deteksjon er Sniff-basert, slik at vanlige XML-dokumenter ikke kreves."
+  - "`<string>`, elementer i `<string-array>` og elementer i `<plurals>` blir oversettbare blokker; flertallselementer er nøklet etter CLDR-mengde."
+  - "Posisjons-/printf-argumenter, `<xliff:g>`, innebygd formatering og CDATA beskyttes som innebygde koder; Androids omvendt skråstrek-escape-sekvenser bevares uendret."
+  - "Deteksjon er sniff-basert, så vanlige XML-dokumenter blir ikke tatt hånd om."
 examples:
   - title: Behold ikke-oversettbare oppføringer i omfang
-    description: Trekk ut også oppføringer merket translatable="false".
+    description: Hent ut også oppføringer merket translatable="false".
     config: |
-      skipNonTranslatable: false
+      skip_non_translatable: false

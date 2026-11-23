@@ -1,13 +1,13 @@
 // Package channel resolves and persists the kapi update channel (stable | beta),
 // shared by the CLI and both desktop apps so a machine follows one channel
-// consistently. It uses a plain one-line file alongside kapi.yaml — no Viper —
+// consistently. It uses a plain one-line file alongside kapi.yaml, no Viper,
 // so the bowrain desktop (which stays Viper-free) can read and write it too.
 //
 // Resolution precedence: KAPI_UPDATE_CHANNEL env > persisted preference > the
 // channel inferred from this build's version (a prerelease defaults to beta).
 // The persisted preference makes beta membership sticky: a beta build that later
 // updates to a final (non-prerelease) version stays on the fast track instead of
-// inferring stable — which matters because the beta channel also carries final
+// inferring stable, which matters because the beta channel also carries final
 // releases (so beta users never fall behind stable).
 package channel
 
@@ -15,6 +15,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/dataroot"
 
 	"github.com/neokapi/neokapi/core/version"
 )
@@ -31,10 +33,7 @@ func dir() string {
 	if d := strings.TrimSpace(os.Getenv("KAPI_CONFIG_DIR")); d != "" {
 		return d
 	}
-	d, err := os.UserConfigDir()
-	if err != nil || d == "" {
-		d = filepath.Join(os.Getenv("HOME"), ".config")
-	}
+	d := dataroot.UserConfigDir()
 	return filepath.Join(d, "kapi")
 }
 
@@ -77,7 +76,7 @@ func Pin(c string) error {
 // survives a later update to a final version. No-op otherwise. Best-effort.
 func EnsurePinned() {
 	if strings.TrimSpace(os.Getenv(Env)) != "" {
-		return // explicit, ephemeral override — don't persist it
+		return // explicit, ephemeral override, don't persist it
 	}
 	if Persisted() != "" {
 		return // already pinned

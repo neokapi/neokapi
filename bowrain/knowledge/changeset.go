@@ -2,9 +2,11 @@ package knowledge
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
@@ -41,6 +43,47 @@ type ConceptUpdatePayload struct {
 // ConceptDeletePayload is the payload for OpConceptDelete (governed).
 type ConceptDeletePayload struct {
 	ConceptID string `json:"concept_id"`
+	// Revision is the revision of the concept the deletion was proposed
+	// against (PinDeleteRevision). The merge deletes the concept only at
+	// that revision, so an edit made after the proposal is never deleted
+	// unseen: it is a conflict.
+	Revision string `json:"revision,omitempty"`
+}
+
+// PinDeleteRevision records on a concept.delete op the revision of the
+// concept as it stands now, when the op names none: the deletion a reviewer
+// approves is of that concept. Any other op, and a store that keeps no
+// revisions, is left as it is. A delete of a concept the store does not hold
+// is refused.
+func PinDeleteRevision(ctx context.Context, concepts any, op *ChangeSetOp) error {
+	if op.Op != OpConceptDelete {
+		return nil
+	}
+	w, ok := concepts.(sqlterms.ConceptWriter)
+	if !ok {
+		return nil
+	}
+	var p ConceptDeletePayload
+	if err := decodePayload(*op, &p); err != nil {
+		return err
+	}
+	if p.Revision != "" {
+		return nil
+	}
+	_, rev, held, err := w.GetConceptAt(ctx, p.ConceptID)
+	if err != nil {
+		return fmt.Errorf("read concept %q: %w", p.ConceptID, err)
+	}
+	if !held {
+		return fmt.Errorf("%s: concept %q is not in the workspace", op.Op, p.ConceptID)
+	}
+	p.Revision = rev
+	body, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	op.Payload = body
+	return nil
 }
 
 // TermAddPayload is the payload for OpTermAdd: a new term on an existing concept.
@@ -448,6 +491,10 @@ type OpConflict struct {
 	Seq       int64  `json:"seq"`
 	ConceptID string `json:"concept_id"`
 	Reason    string `json:"reason"`
+	// Current is the concept as it stands, when the conflict is a deletion
+	// of a concept that changed after it was proposed: what the reviewer
+	// would delete unseen.
+	Current *terms.Concept `json:"current,omitempty"`
 }
 
 // CheckBaseRev compares an op's BaseRev against the concept's current revision.

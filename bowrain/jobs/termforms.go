@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/model"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -149,24 +150,31 @@ func fileTermForms(ctx context.Context, tb terms.Terminology, proposals []expand
 		}
 		byConcept[p.ConceptID] = append(byConcept[p.ConceptID], p)
 	}
+	w, ok := tb.(sqlterms.ConceptWriter)
+	if !ok {
+		return 0, errors.New("the terms store cannot write a concept at a revision; no forms were written")
+	}
 	written := 0
 	for _, cid := range order {
-		cp, ok, err := tb.GetConcept(ctx, cid)
+		// The forms are derived from the concept as it stands when written:
+		// a person's edit saved while the job ran stays, with the forms on
+		// top (sqlterms.Rederive).
+		n := 0
+		_, wrote, err := sqlterms.Rederive(ctx, w, cid, "", func(cp terms.Concept, exists bool) (terms.Concept, bool, error) {
+			if !exists {
+				return cp, false, nil
+			}
+			one := []terms.Concept{cp}
+			changed, added := expand.Apply(one, byConcept[cid], false)
+			n = added
+			return one[0], changed[cid], nil
+		})
 		if err != nil {
-			return written, fmt.Errorf("read concept %s: %w", cid, err)
-		}
-		if !ok {
-			continue
-		}
-		one := []terms.Concept{cp}
-		changed, n := expand.Apply(one, byConcept[cid], false)
-		if !changed[cid] {
-			continue
-		}
-		if err := tb.AddConcept(ctx, one[0]); err != nil {
 			return written, fmt.Errorf("write the forms of %s: %w", cid, err)
 		}
-		written += n
+		if wrote {
+			written += n
+		}
 	}
 	return written, nil
 }

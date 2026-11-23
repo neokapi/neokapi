@@ -1,80 +1,80 @@
 # Native reference doc for the built-in `html` format.
 # Schema source: core/formats/html/config.go (Config) + schema.go.
 # Mirrors the Okapi okf_html filter; element/attribute rule model.
-description: "Trekk ut og sett inn tekst fra HTML, med regler for uttrekk av elementer og attributter."
+description: "Hent ut tekst fra HTML og sett den inn igjen, med uttrekksregler for elementer og attributter."
 overview: |
   **HTML**-formatet leser HTML-dokumenter, trekker ut elementtekst og
-  attributtverdier, og skriver oversettelsene tilbake mens det omgivende
-  markeringsspråket bevares. Inline-elementer (som `b`, `i`, `a`) blir inline-koder
-  inom en blokk, slik at formatering og koblinger overlever oversettelsen.
+  attributtverdier og skriver oversettelsene tilbake med den omkringliggende
+  oppmerkingen intakt. Inline-elementer (som `b`, `i`, `a`) blir til inline-koder
+  i en blokk, slik at formatering og lenker bevares i oversettelsen.
 
-  Leseren leveres med fornuftige standardverdier for hvilke elementer som inneholder innhold,
-  hvilke som er inline, og hvilke attributter (som `alt` og `title`) som
-  trekkes ut. Tilordningene `elements` og `attributes` lar deg overstyre eller utvide
-  disse reglene per element og per attributt, i tråd med okf_html-bro-
-  konfigurasjonen. Parseradferd (håndtering av blanktegn) er gruppert under
-  `parser`.
+  Leseren har innebygde standardregler for hvilke elementer som inneholder
+  innhold, hvilke som er inline-elementer, og hvilke attributter (som `alt` og
+  `title`) som trekkes ut. Med tilordningene `elements` og `attributes` kan du
+  overstyre eller utvide reglene per element og attributt, tilsvarende
+  konfigurasjonen for okf_html-broen. Parserens håndtering av blanktegn er
+  samlet under `parser`.
 parameters:
-  parser.preserveWhitespace:
-    description: Bevar blanktegn i trukket ut tekst i stedet for å slå det sammen.
+  parser.preserve_whitespace:
+    description: Bevar blanktegn i uttrukket tekst i stedet for å slå dem sammen.
     help: |
-      Når dette er aktivert, bevares det opprinnelige blanktegnet i tekstinnhold. Som
-      standard slås blanktegn sammen, i tråd med hvordan nettlesere gjengir HTML.
+      Når dette er aktivert, bevares de opprinnelige blanktegnene i tekstinnholdet.
+      Som standard slås blanktegn sammen, slik nettlesere gjengir HTML.
       Gruppert under `parser`-objektet i konfigurasjonen.
     values: "`true` / `false` (standard `false`)"
   elements:
     description: Uttrekksregler per element.
     help: |
       En tilordning fra elementnavn til et regelobjekt som styrer hvordan elementet
-      behandles. En regel kan inneholde `ruleTypes` (`TEXTUNIT`, `INLINE`,
+      behandles. En regel kan inneholde `rule_types` (`TEXTUNIT`, `INLINE`,
       `EXCLUDE`, `INCLUDE`, `ATTRIBUTES_ONLY`, `PRESERVE_WHITESPACE`, `GROUP`),
-      en `conditions`-triplett, `idAttributes` og en `translatableAttributes`-
+      en `conditions`-trippel, `id_attributes` og en `translatable_attributes`-
       tilordning. Disse overstyrer eller utvider den innebygde elementhåndteringen.
-    values: "Tilordning av elementnavn → regelobjekt (standard: innebygde regler)"
+    values: "Tilordning fra elementnavn → regelobjekt (standard: innebygde regler)"
     examples:
-      - "`{ summary: { ruleTypes: [TEXTUNIT] } }` trekker ut tekst fra `summary`-elementet"
+      - "`{ summary: { rule_types: [TEXTUNIT] } }` trekker ut teksten i `summary`-elementer"
   attributes:
     description: Uttrekksregler per attributt.
     help: |
-      En tilordning fra attributtnavn til et regelobjekt. En regel kan inneholde `ruleTypes`
-      (`ATTRIBUTE_TRANS`, `ATTRIBUTE_ID`, `ATTRIBUTE_WRITABLE`,
-      `ATTRIBUTE_READONLY`), et elementomfang via `onlyTheseElements` eller
-      `allElementsExcept`, og en `conditions`-triplett.
+      En tilordning fra attributtnavn til et regelobjekt. En regel kan inneholde
+      `rule_types` (`ATTRIBUTE_TRANS`, `ATTRIBUTE_ID`, `ATTRIBUTE_WRITABLE`,
+      `ATTRIBUTE_READONLY`), en avgrensning til elementer via `only_these_elements`
+      eller `all_elements_except` og en `conditions`-trippel.
     values: "Tilordning av attributtnavn → regelobjekt (standard: innebygde regler)"
     examples:
-      - "`{ alt: { ruleTypes: [ATTRIBUTE_TRANS] } }` trekker ut alle `alt`-verdier"
-  useCodeFinder:
-    description: Aktiver regex-basert inline-kode-deteksjon.
+      - "`{ alt: { rule_types: [ATTRIBUTE_TRANS] } }` trekker ut alle `alt`-verdier"
+  use_code_finder:
+    description: Aktiver gjenkjenning av inline-kode basert på regulære uttrykk.
     help: |
-      Aktiverer regex-basert deteksjon av inline-koder (plassholdere, variabler,
-      tagger) i uttrukket tekst, utover de inline HTML-elementene som allerede
-      gjenkjennes. Mønstrene angis via `codeFinderRules`.
+      Aktiverer gjenkjenning av inline-koder (plassholdere, variabler og tagger)
+      i uttrukket tekst med regulære uttrykk, i tillegg til inline-elementene i HTML
+      som allerede gjenkjennes. Mønstrene angis via `code_finder_rules`.
     values: "`true` / `false` (standard `false`)"
-  codeFinderRules:
-    description: Regex-mønstre som samsvarer med inline-koder i tekst.
+  code_finder_rules:
+    description: Regulære uttrykk som gjenkjenner inline-koder i tekst.
     help: |
-      Et array av regulære uttrykk; tekst som samsvarer med noen av dem, behandles
-      som inline-kode i stedet for oversettbare ord. Brukes bare når
-      `useCodeFinder` er aktivert.
-    values: Array av regulære uttrykk (standard tom)
+      En liste med regulære uttrykk. Tekst som samsvarer med et av uttrykkene,
+      behandles som inline-kode i stedet for oversettbare ord. Brukes bare når
+      `use_code_finder` er aktivert.
+    values: Liste med regulære uttrykk (tom som standard)
     dependsOn:
-      - property: useCodeFinder
+      - property: use_code_finder
         condition: må være aktivert for at disse mønstrene skal gjelde
 limitations:
-  - Leseren bruker innebygde standardverdier for elementer/attributter; tilordningene `elements` og `attributes` justerer dem i stedet for å erstatte hele regelsettet.
+  - Leseren bruker innebygde standardregler for elementer og attributter. Tilordningene `elements` og `attributes` justerer reglene i stedet for å erstatte hele regelsettet.
 processingNotes:
-  - Inline-elementer blir inline-koder innom blokker; elementer på blokknivå danner den omgivende strukturen.
-  - Oversettbare attributter (som `alt` og `title`) trekkes ut som egne enheter.
+  - Inline-elementer blir til inline-koder i blokker. Blokknivåelementer danner den omkringliggende strukturen.
+  - Oversettbare attributter (som `alt` og `title`) trekkes ut som egne blokker.
 examples:
   - title: Bevar blanktegn
-    description: Behold betydningsfulle blanktegn i tekstnoder i stedet for å komprimere dem.
+    description: Bevar betydningsfulle blanktegn i tekstnoder i stedet for å slå dem sammen.
     config: |
       parser:
-        preserveWhitespace: true
+        preserve_whitespace: true
   - title: Gjør et egendefinert element oversettbart
     description: Trekk ut teksten fra et egendefinert <summary>-element.
     config: |
       elements:
         summary:
-          ruleTypes:
+          rule_types:
             - TEXTUNIT

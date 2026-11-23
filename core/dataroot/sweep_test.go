@@ -146,6 +146,9 @@ func TestATestBinaryLeavesNoDataRootBehind(t *testing.T) {
 	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
 		t.Skip("no subprocesses")
 	}
+	// The test binary's own root is what is checked, so a data root an
+	// isolated run names for every process is cleared for the child.
+	t.Setenv(EnvDir, "")
 	tmp := t.TempDir()
 	stale := filepath.Join(tmp, testDataDirPrefix+strconv.Itoa(exitedPID(t)))
 	require.NoError(t, os.MkdirAll(filepath.Join(stale, "workspaces"), 0o700))

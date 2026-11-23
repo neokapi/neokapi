@@ -8,6 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
@@ -56,7 +57,14 @@ func (s *Server) promoteRuleToTerms(ctx context.Context, wsSlug, wsID string, ru
 		existed[c.ID] = true
 	}
 	rule.Term = term
-	changed, err := terms.PromoteRule(ctx, tb, locale, rule)
+	// The promotion is derived from the concepts as they stand when written
+	// (sqlterms.Rewrite), so an edit saved in between stays.
+	var changed bool
+	err = sqlterms.Rewrite(ctx, tb, func(t terms.Terminology) error {
+		var perr error
+		changed, perr = terms.PromoteRule(ctx, t, locale, rule)
+		return perr
+	})
 	if err != nil || !changed {
 		return false, "", nil, err
 	}
@@ -86,7 +94,14 @@ func (s *Server) demoteRuleFromTerms(ctx context.Context, wsSlug, wsID, term str
 	if err != nil {
 		return false, err
 	}
-	return terms.DemoteRule(ctx, tb, s.voiceConceptLocale(ctx, wsID), term)
+	locale := s.voiceConceptLocale(ctx, wsID)
+	var changed bool
+	err = sqlterms.Rewrite(ctx, tb, func(t terms.Terminology) error {
+		var derr error
+		changed, derr = terms.DemoteRule(ctx, t, locale, term)
+		return derr
+	})
+	return changed, err
 }
 
 // landWordRules writes word rules a voice file carries (a starter pack's terms)
@@ -105,10 +120,6 @@ func (s *Server) landWordRules(ctx context.Context, wsSlug, wsID string, rules [
 		slog.WarnContext(ctx, "no terms store: a voice file's word rules were not landed", "workspace", wsSlug, "rules", len(rules))
 		return 0, nil
 	}
-	if err != nil {
-		return 0, err
-	}
-	concepts, err := tb.Concepts(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -131,24 +142,37 @@ func (s *Server) landWordRules(ctx context.Context, wsSlug, wsID string, rules [
 		if d.Text == "" {
 			continue
 		}
-		var target, left int
-		var changed bool
-		concepts, target, left, changed = terms.UpsertDecision(concepts, d)
-		if !changed {
-			continue
-		}
-		if left >= 0 {
-			// The term moved out of a concept whose other rules are marked
-			// otherwise (terms.UpsertDecision).
-			if err := tb.AddConcept(ctx, concepts[left]); err != nil {
-				return written, err
+		// Each rule is folded into the concepts as they stand when written
+		// (sqlterms.Rewrite), so an edit saved in between stays.
+		n := 0
+		err := sqlterms.Rewrite(ctx, tb, func(t terms.Terminology) error {
+			n = 0
+			concepts, err := t.Concepts(ctx)
+			if err != nil {
+				return err
 			}
-			written++
-		}
-		if err := tb.AddConcept(ctx, concepts[target]); err != nil {
+			concepts, target, left, changed := terms.UpsertDecision(concepts, d)
+			if !changed {
+				return nil
+			}
+			if left >= 0 {
+				// The term moved out of a concept whose other rules are
+				// marked otherwise (terms.UpsertDecision).
+				if err := t.AddConcept(ctx, concepts[left]); err != nil {
+					return err
+				}
+				n++
+			}
+			if err := t.AddConcept(ctx, concepts[target]); err != nil {
+				return err
+			}
+			n++
+			return nil
+		})
+		written += n
+		if err != nil {
 			return written, err
 		}
-		written++
 	}
 	return written, nil
 }

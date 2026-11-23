@@ -176,12 +176,15 @@ the kapi process environment:
   over `XDG_DATA_HOME`**, so setting only the latter leaves a developer's
   exported `KAPI_DATA_DIR` in force. The root holds the **workspace**
   (`<root>/workspaces/default/`): every project's terms, voice profiles,
-  content memory, recorded decisions and context graph. An in-repo kapi that
-  reached it would read and write the developer's own context.
+  content memory, recorded decisions and context graph, and every checkout's
+  own state (`<root>/checkouts/<key>/`: the project store, caches, sync state
+  and vault). An in-repo kapi that reached it would read and write the
+  developer's own context and the dogfood checkout's state.
 
-  A Go test binary is covered without the variable — `host.DataDir()` answers
-  with a per-process directory under `os.TempDir()` unless `KAPI_DATA_DIR` names
-  one — so no `go test` run can touch the real workspace. A released binary is
+  A Go test binary is covered without the variables: `host.DataDir()` and
+  `host.ConfigDir()` answer with a per-process directory under `os.TempDir()`
+  unless `KAPI_DATA_DIR` or `KAPI_CONFIG_DIR` names one, so no `go test` run can
+  touch the real workspace or configuration. A released binary is
   not a test binary, which is why every surface that launches one (the Makefile,
   `kapi/e2e`, `harness/`) sets it.
 - `KAPI_PLUGINS_DIR_ONLY=1` — discover plugins only from `$KAPI_PLUGINS_DIR`

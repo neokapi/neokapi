@@ -137,15 +137,13 @@ func TestCheckRunWritesNothingForOneFileOrMany(t *testing.T) {
 	assert.Equal(t, []string{"index.md"}, markdownFiles(t, dir))
 }
 
-// `.kapi/` is this checkout's cache, so the rule that keeps it out of version
-// control has to be there from the moment the directory is.
-func TestInitProjectWritesTheStateIgnoreRule(t *testing.T) {
+// `kapi init` keeps the checkout's state outside the checkout: it writes no
+// `.kapi/` and no ignore rule for one.
+func TestInitProjectWritesNoStateIntoTheCheckout(t *testing.T) {
 	dir := t.TempDir()
 	_, err := InitProject(dir, InitOptions{Name: "demo"})
 	require.NoError(t, err)
 
-	path := filepath.Join(dir, project.StateDirName, project.StateGitignoreFilename)
-	content, rerr := os.ReadFile(path)
-	require.NoError(t, rerr, "`kapi init` must write %s", path)
-	assert.Equal(t, project.StateGitignore, string(content))
+	assert.NoDirExists(t, filepath.Join(dir, project.StateDirName))
+	assert.DirExists(t, project.LayoutAt(dir).WorkDir())
 }

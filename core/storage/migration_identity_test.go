@@ -161,6 +161,9 @@ func TestMigrate_RefusesALedgerTheCodeDisagreesWith(t *testing.T) {
 // listed there before it merges; a ledger the file does not hold (one a test
 // writes for itself) is not asked.
 func TestShippedCoverage(t *testing.T) {
+	// make migration-ledger runs this package while recording; the first
+	// assertions are about a run that is not.
+	t.Setenv(storage.RecordLedgerEnv, "")
 	ms := []storage.Migration{{Version: 1, Description: "a"}, {Version: 2, Retired: true}, {Version: 3, Description: "new"}}
 	shipped := map[int]storage.ShippedMigration{1: {Description: "a"}}
 	err := storage.ShippedCoverage("t", ms, shipped)

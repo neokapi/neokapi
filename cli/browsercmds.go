@@ -220,6 +220,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 		newBrowserGapCmd("credentials"),
 		NewConfigCmd(a),
 		newBrowserGapCmd("trust"),
+		NewStateCmd(a),
 		newBrowserGapCmd("telemetry"),
 		NewVersionCmd(a, "kapi"),
 		newBrowserGapCmd("update"),

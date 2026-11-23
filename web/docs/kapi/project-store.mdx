@@ -30,12 +30,12 @@ project's checkouts in the local workspace.
 | **context store** | a workspace under your data directory | **authored**: terms, voice profiles, content memory, recorded decisions | **back it up with [`kapi store export`](/kapi/context-portability#carrying-context-in-one-file)** |
 | history | the same workspace | every note, suggestion and decision, with the evidence behind each ([Growing context](/kapi/context-decisions)) | shared by `kapi context sync`, and included in an export |
 | drafts waiting for review | the same workspace | **authored**: the drafts of a language whose files `materialize: on-converge` withholds, and the edits made to them | kept until a delivery writes them to their files |
-| checkout index | `.kapi/work/store.db` | **derived from your files**: the block cache, the overlays a run wrote, the extraction stamps | rebuilds on the next run |
-| cache | `.kapi/work/cache/` | **derived**: parse cache, extractions, collections, sync cache | rebuilds on the next run |
+| checkout index | the checkout's `work/store.db` | **derived from your files**: the block cache, the overlays a run wrote, the extraction stamps | rebuilds on the next run |
+| cache | the checkout's `work/cache/` | **derived**: parse cache, extractions, collections, sync cache | rebuilds on the next run |
 
 ### The checkout index stays with your checkout
 
-`.kapi/work/store.db` holds what kapi read out of the working tree: the parsed
+the checkout's `work/store.db` holds what kapi read out of the working tree: the parsed
 blocks, the translations a run produced before you merged them, and the stamps
 that let the next run skip a file it has already read. A second checkout of the
 project keeps one of its own, because each describes the tree beside it.
@@ -77,10 +77,10 @@ filters are kept in the project's context store. By default, `kapi init` writes
 
 Deletion has different consequences for each location:
 
-- **`rm -rf .kapi/work/cache` is always safe.** Everything under it is rebuilt on
+- **`rm -rf "$(kapi state path)/work/cache"` is always safe.** Everything under it is rebuilt on
   the next run.
 - **Deleting `.kapi/` removes derived data, personal filters and any redaction
-  vault.** The [redaction](/framework/redaction) vault at `.kapi/vault/`
+  vault.** The [redaction](/framework/redaction) vault at the checkout's `vault/`
   contains withheld originals that are neither committed nor synced. Merge
   in-flight batches before deleting it. Workspace context is unaffected, and so
   are the drafts of a language waiting for review and the edits made to them: the next `kapi up`
@@ -111,7 +111,7 @@ kapi files every row under the canonical identifier as it writes it, so
 form.
 
 Rows in the checkout index are what kapi read out of your own files, so kapi
-rebuilds them from the files: delete `.kapi/work/store.db` and the next
+rebuilds them from the files: delete the checkout's `work/store.db` and the next
 `kapi up` reads your files again.
 
 ## Rebuilding the context store from its history

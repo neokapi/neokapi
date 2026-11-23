@@ -990,10 +990,18 @@ tb_concepts.do_not_translate boolean NOT NULL DEFAULT false
 tb_concepts.domain text NOT NULL DEFAULT ''::text
 tb_concepts.id text NOT NULL
 tb_concepts.properties text NULL
+tb_concepts.revision text NOT NULL DEFAULT (gen_random_uuid())::text
 tb_concepts.source text NOT NULL DEFAULT 'terminology'::text
 tb_concepts.stream text NOT NULL DEFAULT ''::text
 tb_concepts.updated_at timestamp with time zone NOT NULL DEFAULT now()
 tb_concepts.workspace_id text NOT NULL
+tb_imports.created_at timestamp with time zone NOT NULL
+tb_imports.created_by text NOT NULL DEFAULT ''::text
+tb_imports.id text NOT NULL
+tb_imports.name text NOT NULL DEFAULT ''::text
+tb_imports.updated_at timestamp with time zone NOT NULL
+tb_imports.updated_by text NOT NULL DEFAULT ''::text
+tb_imports.workspace_id text NOT NULL
 tb_relations.created_at timestamp with time zone NOT NULL DEFAULT now()
 tb_relations.id text NOT NULL
 tb_relations.note text NOT NULL DEFAULT ''::text
@@ -1542,6 +1550,7 @@ subscriptions subscriptions_pkey PRIMARY KEY (id)
 subscriptions subscriptions_workspace_id_key UNIQUE (workspace_id)
 tasks tasks_pkey PRIMARY KEY (id)
 tb_concepts tb_concepts_pkey PRIMARY KEY (workspace_id, id)
+tb_imports tb_imports_pkey PRIMARY KEY (workspace_id, id)
 tb_relations tb_relations_pkey PRIMARY KEY (workspace_id, id)
 tb_relations tb_relations_workspace_id_source_id_fkey FOREIGN KEY (workspace_id, source_id) REFERENCES tb_concepts(workspace_id, id) ON DELETE CASCADE
 tb_relations tb_relations_workspace_id_target_id_fkey FOREIGN KEY (workspace_id, target_id) REFERENCES tb_concepts(workspace_id, id) ON DELETE CASCADE
@@ -1798,6 +1807,7 @@ CREATE INDEX overlays_ext_p7_project_id_stream_block_id_idx ON public.overlays_e
 CREATE INDEX overlays_ext_p7_project_id_stream_kind_idx ON public.overlays_ext_p7 USING btree (project_id, stream, kind)
 CREATE INDEX review_plan_snapshots_due ON public.review_plan_snapshots USING btree (first_dirty_at) WHERE (dirty_seq > computed_seq)
 CREATE INDEX review_plan_snapshots_workspace ON public.review_plan_snapshots USING btree (workspace_id)
+CREATE INDEX tb_imports_updated ON public.tb_imports USING btree (workspace_id, updated_at DESC)
 CREATE INDEX translations_p0_project_id_stream_block_id_idx ON public.translations_p0 USING btree (project_id, stream, block_id)
 CREATE INDEX translations_p0_project_id_stream_locale_block_id_idx ON public.translations_p0 USING btree (project_id, stream, locale, block_id) WHERE ((text <> ''::text) AND (COALESCE((target_json ->> 'status'::text), ''::text) <> 'established'::text))
 CREATE INDEX translations_p0_project_id_stream_locale_updated_at_idx ON public.translations_p0 USING btree (project_id, stream, locale, updated_at DESC)
@@ -1966,6 +1976,7 @@ CREATE UNIQUE INDEX subscriptions_stripe_customer_id_key ON public.subscriptions
 CREATE UNIQUE INDEX subscriptions_workspace_id_key ON public.subscriptions USING btree (workspace_id)
 CREATE UNIQUE INDEX tasks_pkey ON public.tasks USING btree (id)
 CREATE UNIQUE INDEX tb_concepts_pkey ON public.tb_concepts USING btree (workspace_id, id)
+CREATE UNIQUE INDEX tb_imports_pkey ON public.tb_imports USING btree (workspace_id, id)
 CREATE UNIQUE INDEX tb_relations_pkey ON public.tb_relations USING btree (workspace_id, id)
 CREATE UNIQUE INDEX tb_revision_pkey ON public.tb_revision USING btree (workspace_id)
 CREATE UNIQUE INDEX tb_schema_migrations_pkey ON public.tb_schema_migrations USING btree (version)

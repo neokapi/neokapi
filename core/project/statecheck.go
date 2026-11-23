@@ -201,8 +201,8 @@ func CheckStateTracked(ctx context.Context, l Layout) error {
 		lines[i] = name
 	}
 	return fmt.Errorf("project: git tracks %s, which kapi keeps for one checkout, so kapi does not read it as its own. "+
-		"If it is yours, run `git rm -r --cached %s`, add %s to %s/%s, and commit; if it came with someone else's repository, delete it as well. Then run again",
-		strings.Join(tracked, ", "), strings.Join(tracked, " "), strings.Join(lines, " and "), rel, StateGitignoreFilename)
+		"If it is yours, run `git rm -r --cached %s`, add %s to %s/.gitignore, and commit; if it came with someone else's repository, delete it as well. Then run again",
+		strings.Join(tracked, ", "), strings.Join(tracked, " "), strings.Join(lines, " and "), rel)
 }
 
 // stateRel is the state directory relative to the project root, with

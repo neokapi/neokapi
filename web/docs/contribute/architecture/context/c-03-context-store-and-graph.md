@@ -2,7 +2,7 @@
 id: c-03-context-store-and-graph
 sidebar_position: 3
 title: "C-03: The context store and graph"
-description: "Architecture decision: a project keeps two databases. The projection of its working tree stays in the checkout at .kapi/work/store.db; its authored context lives in a workspace outside every checkout, one database per project, beside the workspace's project registry and context graph."
+description: "Architecture decision: a project keeps two databases. The projection of its working tree is the checkout's own, at work/store.db in the checkout's state directory under the data root; its authored context lives in a workspace outside every checkout, one database per project, beside the workspace's project registry and context graph."
 keywords: [workspace, context store, store.db, context graph, graph_nodes, graph_edges, project registry, projection, backend, neokapi, architecture decision]
 ---
 
@@ -12,7 +12,7 @@ keywords: [workspace, context store, store.db, context graph, graph_nodes, graph
 
 A project keeps **two** databases, split by what produces the rows.
 
-The **projection** stays in the checkout, at `.kapi/work/store.db`: the block
+The **projection** stays in the checkout, at the checkout's `work/store.db`: the block
 cache, the overlays a flow wrote, the extraction stamps. Everything in it is
 derived from the working tree by long transactions that rewrite large parts of
 it, so it belongs beside the tree it describes and a second checkout of the same
@@ -247,7 +247,7 @@ above has to know which is which. The table-by-table layout is in
 ### Opening without a workspace
 
 `projectdb.Open` with no workspace option puts the context tables beside the
-projection in `.kapi/work/store.db`, which is the **embedded layout**. The
+projection in the checkout's `work/store.db`, which is the **embedded layout**. The
 workspace location is an explicit option the host layer supplies
 (`host/projectstore.go`, from `host.DataDir()`), and the framework holds no
 default for it.
@@ -658,15 +658,15 @@ projection like the others: a rebuild replays it and a checkpoint carries it.
 
 The parse cache, extraction batches, collection overlays and `store.db` can be
 rebuilt from content files. A held-back locale's drafts are kept in the workspace
-home, so deleting `.kapi/work/` loses none of them: the next `kapi up` writes the
+home, so deleting the checkout's `work/` loses none of them: the next `kapi up` writes the
 overlays a producer serves them from back into the block store from the stamps
 the workspace home keeps, and the pass calls no provider for them. A draft a
 person or an agent has edited since is restored from the latest draft a
 producer wrote for it, which the log keeps, so the producer serves that draft
 and the edit stays kept. What no source reproduces sits beside `work/`: the
-redaction vault at `.kapi/vault/`, which holds withheld originals that are
+redaction vault at the checkout's `vault/`, which holds withheld originals that are
 neither committed nor sent to a service, and a venue's sync state at
-`.kapi/sync/`. Deleting the vault loses those values, in kept drafts too
+the checkout's `sync/`. Deleting the vault loses those values, in kept drafts too
 ([C-10](c-10-redaction.md)).
 
 The context store has a separate lifetime in the workspace. Deleting
@@ -959,7 +959,7 @@ sets `$KAPI_DATA_DIR` as part of the isolation contract.
   binding. Standalone stores outside a project keep
   their own selectors (`--termstore`, `--memory`); those address a file the user
   owns, which is a different thing.
-- **CI caches `.kapi/work/cache/docs`, and nothing else under `work/`.** The
+- **CI caches the checkout's `work/cache/docs`, and nothing else under `work/`.** The
   parse cache is keyed by content, configuration and build, so a restored entry
   changes no result, and `setup-kapi` carries it by default. The remaining
   entries under `cache/` belong to the checkout that wrote them

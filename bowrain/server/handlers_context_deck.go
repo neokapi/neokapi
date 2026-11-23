@@ -16,7 +16,9 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
@@ -33,6 +35,7 @@ const (
 // Codes a context deck decision is refused with.
 const (
 	deckCodeStale         = "stale"
+	deckCodeUpdateApp     = "update_app"
 	deckCodeNotPending    = "not_pending"
 	deckCodeNotOffered    = "action_not_offered"
 	deckCodeRetireHeld    = "retire_needs_approval"
@@ -70,6 +73,11 @@ type contextDeckDecideRequest struct {
 	// Revision is the revision the card showed. A decision about a revision
 	// that has moved is refused as stale.
 	Revision string `json:"revision"`
+	// BaseRevision is the card's base_revision: the terms-store revision of
+	// the concept it showed. A decision that writes the concept (keeping or
+	// dropping a candidate, retiring a concept) acts at it, and is refused
+	// without it.
+	BaseRevision string `json:"base_revision,omitempty"`
 	// Action is keep, reject or later.
 	Action string `json:"action"`
 	Note   string `json:"note,omitempty"`
@@ -351,6 +359,19 @@ func (s *Server) decideContextCard(c *echo.Context, req contextDeckDecideRequest
 	if card.Kind == deckKindTermTranslation {
 		return s.decideTermTranslation(c, src, rv, cards, card, req)
 	}
+	if writesConcept(card, req.Action) {
+		// The decision acts on the concept as the card showed it. An app
+		// that does not say which version that was is refused, never applied
+		// to the concept as it stands now.
+		if req.BaseRevision == "" {
+			return c.JSON(http.StatusPreconditionRequired, ErrorResponse{
+				Error: "this app does not say which version of the term it decided on; update the app and refresh the deck", Code: deckCodeUpdateApp,
+			})
+		}
+		if req.BaseRevision != card.BaseRevision {
+			return s.refuseStaleCard(c, src, rv, card)
+		}
+	}
 	promoted := false
 	if card.Proposed && card.Item.Kind == contextop.ItemConcept {
 		if req.Action == deckActionReject {
@@ -359,6 +380,9 @@ func (s *Server) decideContextCard(c *echo.Context, req contextDeckDecideRequest
 		fresh, err := s.keepCandidate(c, src, rv, card)
 		if errors.Is(err, errCandidateGone) {
 			return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error(), Code: deckCodeNotPending})
+		}
+		if errors.Is(err, storage.ErrStale) {
+			return s.refuseStaleCard(c, src, rv, card)
 		}
 		if err != nil {
 			return serverErr(c, err)
@@ -401,6 +425,15 @@ func (s *Server) decideContextCard(c *echo.Context, req contextDeckDecideRequest
 	return c.JSON(http.StatusOK, contextDeckDecideResponse{Outcome: outcome})
 }
 
+// writesConcept reports whether action on card writes its concept: keeping
+// or dropping a candidate, and rejecting (retiring) any concept.
+func writesConcept(card contextDeckCard, action string) bool {
+	if card.Item.Kind != contextop.ItemConcept {
+		return false
+	}
+	return card.Proposed || action == deckActionReject
+}
+
 // errCandidateGone is a candidate term deleted between the deal and the
 // decision.
 var errCandidateGone = errors.New("the candidate term is gone")
@@ -410,6 +443,10 @@ var errCandidateGone = errors.New("the candidate term is gone")
 // project only. It returns the card as the deck
 // deals it after the write, whose revision the keep then attests, so the
 // concept does not come back for review as changed.
+//
+// The keep is the person's decision on the candidate the card showed: it is
+// written at the card's revision, and a candidate written since is
+// storage.ErrStale, with nothing kept.
 //
 // A move to preferred is a governed transition (terms.IsGovernedTransition),
 // which other surfaces route through a change set. Here the keep is that
@@ -425,14 +462,18 @@ func (s *Server) keepCandidate(c *echo.Context, src deckSource, rv deckReviewer,
 	if err != nil {
 		return card, err
 	}
-	concept, ok, err := tb.GetConcept(ctx, card.Item.ID)
+	concept, rev, found, err := tb.GetConceptAt(ctx, card.Item.ID)
 	if err != nil {
 		return card, err
 	}
-	if !ok {
+	if !found {
 		return card, errCandidateGone
 	}
-	if termcandidate.Promote(&concept, src.project.DefaultSourceLanguage) {
+	if rev != card.BaseRevision {
+		return card, storage.ErrStale
+	}
+	kept := termcandidate.Promote(&concept, src.project.DefaultSourceLanguage)
+	if kept {
 		// A term kept in a project applies in that project. A candidate the
 		// scan filed is limited to it already; one with no limit is limited
 		// here. Widening it to the whole workspace is a separate decision
@@ -441,11 +482,16 @@ func (s *Server) keepCandidate(c *echo.Context, src deckSource, rv deckReviewer,
 			termscope.Limit(&concept, src.project.ID)
 		}
 		concept.UpdatedAt = time.Now().UTC()
-		if err := tb.AddConcept(ctx, concept); err != nil {
+		if _, err := tb.UpdateConcept(ctx, concept, "", card.BaseRevision); err != nil {
+			if errors.Is(err, sqlterms.ErrConceptNotFound) {
+				return card, errCandidateGone
+			}
 			return card, err
 		}
+	}
+	if kept {
 		s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
-			conceptEvent(knowledge.EventConceptUpdated, src.wsID, concept.ID, rv.userID),
+			conceptEvent(knowledge.EventConceptUpdated, src.wsID, card.Item.ID, rv.userID),
 		})
 	}
 	cards, err := s.contextItems(ctx, src, rv)
@@ -465,6 +511,10 @@ func (s *Server) keepCandidate(c *echo.Context, src deckSource, rv deckReviewer,
 // it again. The rejection is recorded first: a deletion that fails after it
 // leaves a candidate the next decision deletes, never one the next scan
 // brings back.
+//
+// The candidate is deleted at the revision the card was dealt at. One that
+// someone wrote since is not the candidate the person dropped: the drop is
+// refused with the card as it stands, and the rejection is taken back.
 func (s *Server) forgetCandidate(c *echo.Context, src deckSource, rv deckReviewer, card contextDeckCard) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errKnowledgeUnavailable.Error()})
@@ -485,14 +535,20 @@ func (s *Server) forgetCandidate(c *echo.Context, src deckSource, rv deckReviewe
 	if term == "" && len(card.Terms) > 0 {
 		term = card.Terms[0].Text
 	}
+	added := false
 	_, _, err = s.ContentStore.EditProject(ctx, src.project.ID, func(p *platstore.Project) (bool, error) {
-		return termcandidate.AddRejected(p.Properties, term), nil
+		added = termcandidate.AddRejected(p.Properties, term)
+		return added, nil
 	})
 	if err != nil {
 		return serverErr(c, err)
 	}
 	if ok {
-		if err := tb.DeleteConcept(ctx, concept.ID); err != nil {
+		err := tb.DeleteConceptAt(ctx, concept.ID, card.BaseRevision)
+		if _, stale := errors.AsType[*sqlterms.StaleConceptError](err); stale {
+			return s.refuseStaleDrop(c, src, rv, card, term, added)
+		}
+		if err != nil && !errors.Is(err, sqlterms.ErrConceptNotFound) {
 			return serverErr(c, err)
 		}
 		s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
@@ -500,6 +556,37 @@ func (s *Server) forgetCandidate(c *echo.Context, src deckSource, rv deckReviewe
 		})
 	}
 	return c.JSON(http.StatusOK, contextDeckDecideResponse{Outcome: deckOutcomeDropped})
+}
+
+// refuseStaleDrop answers a drop whose candidate was written after the card
+// was dealt: the rejection this drop recorded is taken back, and the
+// response carries the card as it stands, as a decision on a stale card does.
+func (s *Server) refuseStaleDrop(c *echo.Context, src deckSource, rv deckReviewer, card contextDeckCard, term string, added bool) error {
+	ctx := c.Request().Context()
+	if added {
+		if _, _, err := s.ContentStore.EditProject(ctx, src.project.ID, func(p *platstore.Project) (bool, error) {
+			return termcandidate.RemoveRejected(p.Properties, term), nil
+		}); err != nil {
+			return serverErr(c, err)
+		}
+	}
+	return s.refuseStaleCard(c, src, rv, card)
+}
+
+// refuseStaleCard answers a decision whose item was written after the card
+// was dealt with 409 stale and the card as it stands.
+func (s *Server) refuseStaleCard(c *echo.Context, src deckSource, rv deckReviewer, card contextDeckCard) error {
+	ctx := c.Request().Context()
+	cards, err := s.pendingContext(ctx, src, rv)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	if fresh, ok := findCard(cards, card.Item); ok {
+		card = fresh
+	}
+	return c.JSON(http.StatusConflict, map[string]any{
+		"error": "the item changed since the card was dealt", "code": deckCodeStale, "card": card,
+	})
 }
 
 // deckPlan is the ledger records a keep or a reject of card writes, or the
@@ -598,7 +685,7 @@ func (s *Server) proposeConceptRetire(c *echo.Context, src deckSource, rv deckRe
 		}})
 	}
 	if len(payloads) == 0 {
-		payloads = append(payloads, retireOp{knowledge.OpConceptDelete, knowledge.ConceptDeletePayload{ConceptID: concept.ID}})
+		payloads = append(payloads, retireOp{knowledge.OpConceptDelete, knowledge.ConceptDeletePayload{ConceptID: concept.ID, Revision: card.BaseRevision}})
 	}
 	if err := s.KnowledgeStore.CreateChangeSet(ctx, cs); err != nil {
 		return serverErr(c, err)

@@ -224,7 +224,10 @@ type updateConceptOp struct{ UpdateConceptRequest }
 func (updateConceptOp) opKind() opKind { return opUpdateConcept }
 
 func (o updateConceptOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
-	return client.EditorUpdateConcept(ctx, ws, o.ConceptID, o.Domain, o.Definition, termInfosToEditor(o.Terms))
+	if o.BaseRevision == "" {
+		return errConceptRevisionNotSent
+	}
+	return client.EditorUpdateConcept(ctx, ws, o.ConceptID, o.BaseRevision, o.Domain, o.Definition, termInfosToEditor(o.Terms))
 }
 
 // deleteConceptOp queues a concept deletion.

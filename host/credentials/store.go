@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
 	corecreds "github.com/neokapi/neokapi/core/credentials"
 )
 
@@ -39,14 +41,12 @@ func NewStore(filePath string) *Store {
 // (mirroring cli/config and cli/resource), so providers.json lands under it.
 // This keeps isolated (dogfood/test) kapi invocations from reading or writing
 // the developer's real ~/.config/kapi/providers.json. An empty KAPI_CONFIG_DIR
-// falls back to os.UserConfigDir()/kapi.
+// falls back to dataroot.UserConfigDir()/kapi, which a test binary answers
+// with a directory of its own.
 func DefaultPath() string {
 	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
 		return filepath.Join(dir, "providers.json")
 	}
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
-	}
+	configDir := dataroot.UserConfigDir()
 	return filepath.Join(configDir, "kapi", "providers.json")
 }
