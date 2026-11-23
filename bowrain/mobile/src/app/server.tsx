@@ -1,12 +1,14 @@
 // The server sheet, opened from the cog on the sign-in screen and from the
 // account screen. A choice of rows: Bowrain Cloud, the local stack
 // (development builds only), or a server the person types in. The choice is
-// the server the next sign-in uses; a signed-in session stays on its own. A fixed row applies at once and closes the
-// sheet; the custom row reveals the address field and its confirm button.
+// the server the next sign-in uses; a signed-in session stays on its own. A
+// fixed row applies at once and closes the sheet; the custom row reveals the
+// address field and its confirm button. The sheet's content scrolls, so every
+// option and the field stay reachable at the largest text sizes.
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Platform, Pressable, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
@@ -97,7 +99,12 @@ export default function Server() {
   };
 
   return (
-    <View className="bg-background flex-1 gap-4 px-4 pt-6">
+    <ScrollView
+      testID="server-sheet"
+      className="bg-background flex-1"
+      contentContainerClassName="gap-4 px-4 pt-6 pb-10"
+      keyboardShouldPersistTaps="handled"
+    >
       <Text accessibilityRole="header" className="text-foreground px-2 text-xl font-semibold">
         {t("server.title")}
       </Text>
@@ -169,6 +176,6 @@ export default function Server() {
           </Pressable>
         </View>
       ) : null}
-    </View>
+    </ScrollView>
   );
 }
