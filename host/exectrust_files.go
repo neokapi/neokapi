@@ -141,7 +141,7 @@ func hashNamedFile(root, p string) (rel, state string, err error) {
 	case errors.As(err, &escape):
 		return "", "", errors.New("a link that leads out of the project, which kapi refuses rather than reads: name the file itself")
 	case errors.Is(err, rootpath.ErrNotRegular):
-		if info, serr := os.Stat(abs); serr == nil && info.IsDir() {
+		if info, serr := rootpath.Stat(root, abs); serr == nil && info.IsDir() {
 			return rel, fileDirectory, nil
 		}
 		return rel, fileAbsent, nil
