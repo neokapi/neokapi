@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"time"
+
+	"github.com/neokapi/neokapi/core/contextop"
 )
 
 // A ContextSession is one person's short pass over a project's context deck.
@@ -28,11 +30,11 @@ type ContextSession struct {
 	EndedAt time.Time
 }
 
-// ContextSessionCard is one card a session dealt: the item's key
-// (contextop.ItemRef.Key), and what the session summary reads about it.
+// ContextSessionCard is one card a session dealt: the item it names, and what
+// the session summary reads about it.
 type ContextSessionCard struct {
-	Item string `json:"item"`
-	Kind string `json:"kind"`
+	Item contextop.ItemRef `json:"item"`
+	Kind string            `json:"kind"`
 	// Term is the card's term, when it names one.
 	Term string `json:"term,omitempty"`
 	// Concept is the concept a concept card or a term-translation card
@@ -51,7 +53,7 @@ const (
 
 // ContextSessionDecision is one decision made in a session.
 type ContextSessionDecision struct {
-	Item string `json:"item"`
+	Item contextop.ItemRef `json:"item"`
 	// Outcome is kept, changed (kept in the reviewer's own wording) or
 	// rejected.
 	Outcome string    `json:"outcome"`
@@ -65,7 +67,7 @@ func (s ContextSession) Live(now time.Time) bool {
 
 // ContextSessionHold is a card a live session holds.
 type ContextSessionHold struct {
-	Item      string
+	Item      contextop.ItemRef
 	SessionID string
 	UserID    string
 }
@@ -78,7 +80,7 @@ type ContextSessionStore interface {
 	// them. It first ends the project's sessions that expired, and releases
 	// their holds. Two sessions started at once hold disjoint cards. It
 	// returns the items it holds, in the order given.
-	StartContextSession(ctx context.Context, sess ContextSession, items []string, limit int) ([]string, error)
+	StartContextSession(ctx context.Context, sess ContextSession, items []contextop.ItemRef, limit int) ([]contextop.ItemRef, error)
 	// SetContextSessionCards records the cards a session dealt.
 	SetContextSessionCards(ctx context.Context, id string, cards []ContextSessionCard) error
 	// GetContextSession reads one session; false when none has that id.

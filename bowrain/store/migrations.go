@@ -2053,4 +2053,28 @@ var Migrations = []storage.Migration{
 			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS reasons JSONB NOT NULL DEFAULT '[]';
 		`,
 	},
+	{
+		Version:     64,
+		Description: "context session holds keyed by the item's parts",
+		SQL: `
+			-- A hold named its card by one string joined from the item's
+			-- kind, profile and id with NUL bytes. PostgreSQL refuses NUL in
+			-- text, so no hold was ever written. Each part gets a column of
+			-- its own and the key spans them, so no two items share a key.
+			-- A session row a failed hold left behind names its cards the
+			-- old way, so those go too: a session is a short pass over a
+			-- deck, and the next one starts from the deck as it is.
+			DROP TABLE IF EXISTS context_session_holds;
+			DELETE FROM context_sessions;
+			CREATE TABLE context_session_holds (
+				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				item_kind    TEXT NOT NULL,
+				item_profile TEXT NOT NULL DEFAULT '',
+				item_id      TEXT NOT NULL,
+				session_id   TEXT NOT NULL REFERENCES context_sessions(id) ON DELETE CASCADE,
+				PRIMARY KEY (project_id, item_kind, item_profile, item_id)
+			);
+			CREATE INDEX context_session_holds_session ON context_session_holds (session_id);
+		`,
+	},
 }

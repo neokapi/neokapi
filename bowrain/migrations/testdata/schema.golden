@@ -382,7 +382,9 @@ context_scan_jobs.workspace_slug text NOT NULL DEFAULT ''::text
 context_scan_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 context_scan_schema_migrations.description text NOT NULL
 context_scan_schema_migrations.version integer NOT NULL
-context_session_holds.item_key text NOT NULL
+context_session_holds.item_id text NOT NULL
+context_session_holds.item_kind text NOT NULL
+context_session_holds.item_profile text NOT NULL DEFAULT ''::text
 context_session_holds.project_id text NOT NULL
 context_session_holds.session_id text NOT NULL
 context_sessions.cards jsonb NOT NULL DEFAULT '[]'::jsonb
@@ -1399,7 +1401,7 @@ context_objects context_objects_pkey PRIMARY KEY (project_id, name)
 context_objects context_objects_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 context_scan_jobs context_scan_jobs_pkey PRIMARY KEY (id)
 context_scan_schema_migrations context_scan_schema_migrations_pkey PRIMARY KEY (version)
-context_session_holds context_session_holds_pkey PRIMARY KEY (project_id, item_key)
+context_session_holds context_session_holds_pkey PRIMARY KEY (project_id, item_kind, item_profile, item_id)
 context_session_holds context_session_holds_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 context_session_holds context_session_holds_session_id_fkey FOREIGN KEY (session_id) REFERENCES context_sessions(id) ON DELETE CASCADE
 context_sessions context_sessions_pkey PRIMARY KEY (id)
@@ -1849,7 +1851,7 @@ CREATE UNIQUE INDEX context_assignments_pkey ON public.context_assignments USING
 CREATE UNIQUE INDEX context_objects_pkey ON public.context_objects USING btree (project_id, name)
 CREATE UNIQUE INDEX context_scan_jobs_pkey ON public.context_scan_jobs USING btree (id)
 CREATE UNIQUE INDEX context_scan_schema_migrations_pkey ON public.context_scan_schema_migrations USING btree (version)
-CREATE UNIQUE INDEX context_session_holds_pkey ON public.context_session_holds USING btree (project_id, item_key)
+CREATE UNIQUE INDEX context_session_holds_pkey ON public.context_session_holds USING btree (project_id, item_kind, item_profile, item_id)
 CREATE UNIQUE INDEX context_sessions_pkey ON public.context_sessions USING btree (id)
 CREATE UNIQUE INDEX convergence_run_events_pkey ON public.convergence_run_events USING btree (run_id, seq)
 CREATE UNIQUE INDEX convergence_runs_pkey ON public.convergence_runs USING btree (id)
