@@ -210,7 +210,7 @@ catalogs:
       version: 1.7.0
 
 overrides:
-  '@tanstack/react-query': 5.108.0
+  '@tanstack/react-query': 5.108.2
   webpackbar: ^7.0.0
   vite@*: npm:@voidzero-dev/vite-plus-core@8.3.8000
 
@@ -291,8 +291,8 @@ importers:
         specifier: ^4.3.5
         version: 4.3.5(@voidzero-dev/vite-plus-core@8.3.8000(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.15)(typescript@7.0.2))
       '@tanstack/react-query':
-        specifier: 5.108.0
-        version: 5.108.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: 5.108.2
+        version: 5.108.2(@types/react@19.3.0)(react@19.3.1)
       '@wailsio/runtime':
         specifier: ^3.1.0
         version: 3.1.0
@@ -403,8 +403,8 @@ importers:
         specifier: ^4.3.5
         version: 4.3.5(@voidzero-dev/vite-plus-core@8.3.8000(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.15)(typescript@7.0.2))
       '@tanstack/react-query':
-        specifier: 5.108.0
-        version: 5.108.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: 5.108.2
+        version: 5.108.2(@types/react@19.3.0)(react@19.3.1)
       '@tanstack/react-router':
         specifier: ^1.170.46
         version: 1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -476,8 +476,8 @@ importers:
         specifier: ^4.3.5
         version: 4.3.5(@voidzero-dev/vite-plus-core@8.3.8000(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.15)(typescript@7.0.2))
       '@tanstack/react-query':
-        specifier: 5.108.0
-        version: 5.108.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: 5.108.2
+        version: 5.108.2(@types/react@19.3.0)(react@19.3.1)
       '@tanstack/react-router':
         specifier: ^1.170.46
         version: 1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -571,8 +571,8 @@ importers:
         specifier: ^4.3.5
         version: 4.3.5(@voidzero-dev/vite-plus-core@8.3.8000(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.15)(typescript@7.0.2))
       '@tanstack/react-query':
-        specifier: 5.108.0
-        version: 5.108.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: 5.108.2
+        version: 5.108.2(@types/react@19.3.0)(react@19.3.1)
       '@tanstack/react-router':
         specifier: ^1.170.46
         version: 1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -730,14 +730,14 @@ importers:
         specifier: '*'
         version: link:../../packages/kapi-format
       '@tanstack/query-async-storage-persister':
-        specifier: 5.108.0
-        version: 5.108.0
+        specifier: 5.108.2
+        version: 5.108.2
       '@tanstack/react-query':
-        specifier: 5.108.0
-        version: 5.108.0(@types/react@19.3.0)(react@19.3.0)
+        specifier: 5.108.2
+        version: 5.108.2(@types/react@19.3.0)(react@19.3.0)
       '@tanstack/react-query-persist-client':
-        specifier: 5.108.0
-        version: 5.108.0(@tanstack/react-query@5.108.0(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
+        specifier: 5.108.2
+        version: 5.108.2(@tanstack/react-query@5.108.2(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
       expo:
         specifier: 58.0.26
         version: 58.0.26(5ff973e220ecdfed0a9612eee2a30a84)
@@ -875,8 +875,8 @@ importers:
         specifier: '*'
         version: link:../ui
       '@tanstack/react-query':
-        specifier: 5.108.0
-        version: 5.108.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: 5.108.2
+        version: 5.108.2(@types/react@19.3.0)(react@19.3.1)
       '@tanstack/react-router':
         specifier: ^1.170.46
         version: 1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -1024,8 +1024,8 @@ importers:
         specifier: ^5.5.1
         version: 5.5.1
       '@tanstack/react-query':
-        specifier: 5.108.0
-        version: 5.108.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: 5.108.2
+        version: 5.108.2(@types/react@19.3.0)(react@19.3.1)
       '@testing-library/jest-dom':
         specifier: ^7.0.1
         version: 7.0.1(@testing-library/dom@10.4.2)(vitest@5.1.0)
@@ -1847,8 +1847,8 @@ importers:
         specifier: ^4.3.5
         version: 4.3.5(@voidzero-dev/vite-plus-core@8.3.8000(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.15)(typescript@7.0.2))
       '@tanstack/react-query':
-        specifier: 5.108.0
-        version: 5.108.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: 5.108.2
+        version: 5.108.2(@types/react@19.3.0)(react@19.3.1)
       '@tanstack/react-router':
         specifier: ^1.170.46
         version: 1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -7140,27 +7140,27 @@ packages:
     resolution: {integrity: sha512-w1+YvwmTkwt5n8yUqEH3IWZ9DsmorCZW/EQ3KYHnqEgIkOZpH54NvW6/Epq3Dzb8H0ifIeYX8PExvrNLIH5FIA==, tarball: https://registry.npmjs.org/@tanstack/history/-/history-1.162.5.tgz}
     engines: {node: '>=20.19'}
 
-  '@tanstack/query-async-storage-persister@5.108.0':
-    resolution: {integrity: sha512-N8yuuSqQjGL43sLSNDbgpgATlaeI7FtpHRQkQrxU6cJNnsm9YnPBk6xJy3q293e/TFYllitoHJAyJNkAJa9cPQ==, tarball: https://registry.npmjs.org/@tanstack/query-async-storage-persister/-/query-async-storage-persister-5.108.0.tgz}
+  '@tanstack/query-async-storage-persister@5.108.2':
+    resolution: {integrity: sha512-Abtxibhp9H5g2OXvEdAVJM4oVjIKP0ntKnyDmD2gp2z0cWDZtXqLJ8BsmCy+KnN4ikC0e3xDfJpu/hy2ScHv8A==, tarball: https://registry.npmjs.org/@tanstack/query-async-storage-persister/-/query-async-storage-persister-5.108.2.tgz}
 
-  '@tanstack/query-core@5.108.0':
-    resolution: {integrity: sha512-X9zJUtEV/0D2q9pmGS/Bza8S4bNovSBhZOtdhtu0fzsHwizC6C+Eh/q5CX3MQBchsRMrirWVQmv7Fp4OStzV9g==, tarball: https://registry.npmjs.org/@tanstack/query-core/-/query-core-5.108.0.tgz}
+  '@tanstack/query-core@5.108.2':
+    resolution: {integrity: sha512-0l+0xDKqn71hfJBKaAvFP/X7WYM0TbscEk6nK1pHaWQUWUEA+WJD0VlT8wF+HIJANMV9B/DouPWwDnX3w/l9BA==, tarball: https://registry.npmjs.org/@tanstack/query-core/-/query-core-5.108.2.tgz}
 
-  '@tanstack/query-persist-client-core@5.108.0':
-    resolution: {integrity: sha512-gmMIk+46b7PPRR/llm25XTox7Ag8pDMNFmkLzkvQnUIPnN3m/MexSNipIZFgnxmdf+svZUG+YrLaBcJcaKS96w==, tarball: https://registry.npmjs.org/@tanstack/query-persist-client-core/-/query-persist-client-core-5.108.0.tgz}
+  '@tanstack/query-persist-client-core@5.108.2':
+    resolution: {integrity: sha512-IMl2Cmu6aau4mTuHXROVYuDmSAXEdwAjVG3Hsb6KkcW/praiTCSRdBOzoVvBridhrIHkFX3VUSYSVu5xEKap8A==, tarball: https://registry.npmjs.org/@tanstack/query-persist-client-core/-/query-persist-client-core-5.108.2.tgz}
 
-  '@tanstack/react-query-persist-client@5.108.0':
-    resolution: {integrity: sha512-Uj/BtQJZSR3UsIZH2FJQPrJSgRtA8SnZ+kZVhpOw3JHMsD5jfDGpg0FbTQUt8ZN0/oeaFWgPvqPx13vikJ/RwQ==, tarball: https://registry.npmjs.org/@tanstack/react-query-persist-client/-/react-query-persist-client-5.108.0.tgz}
+  '@tanstack/react-query-persist-client@5.108.2':
+    resolution: {integrity: sha512-bqqlo7Gr3OBbVtbRfTY+yvdCByl7MWaE8wLRkB5dL+AGrSlYwgABSzo7J4x100Stiv09+aN2SyBrnw/HU98olg==, tarball: https://registry.npmjs.org/@tanstack/react-query-persist-client/-/react-query-persist-client-5.108.2.tgz}
     peerDependencies:
-      '@tanstack/react-query': 5.108.0
+      '@tanstack/react-query': 5.108.2
       '@types/react': ^18 || ^19
       react: ^18 || ^19
     peerDependenciesMeta:
       '@types/react':
         optional: true
 
-  '@tanstack/react-query@5.108.0':
-    resolution: {integrity: sha512-DpMbB8pVorEZcsHRa0Z13KQGfmndqvJbuLy9h+xfP8XpuEZBOxzq+QfXGonQ0fAgRSWhc+QsfoRETSTWxAEAVw==, tarball: https://registry.npmjs.org/@tanstack/react-query/-/react-query-5.108.0.tgz}
+  '@tanstack/react-query@5.108.2':
+    resolution: {integrity: sha512-wV6hEjVGTfh9rvu3uREYW0hgBfS9klDejGelhPY575jD5jg6qbAb1nzT7hR1Q+wemR66ZjtE5p9pAGUwqK8zbg==, tarball: https://registry.npmjs.org/@tanstack/react-query/-/react-query-5.108.2.tgz}
     peerDependencies:
       '@types/react': ^18 || ^19
       react: ^18 || ^19
@@ -15451,10 +15451,12 @@ packages:
   yuku-core@0.19.0:
     resolution: {integrity: sha512-kYK9e1XdfirNhkipzW0wmMcSWcVF/CWnuugodfVYRCUwvoBefweL9HzB96OiKEhsx78V5WbUxbJqlizMX869Qg==, tarball: https://registry.npmjs.org/yuku-core/-/yuku-core-0.19.0.tgz}
     engines: {node: '>=14.18.0'}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-parser@0.19.0:
     resolution: {integrity: sha512-XrBh9ZiQK5mJVRxZBAvD6LwRyAYrK3MFtH3+onyuxFL5hFD44EC3QOmIC1FjTj6H2MMwq46/NAI+NZxLZPZgxg==, tarball: https://registry.npmjs.org/yuku-parser/-/yuku-parser-0.19.0.tgz}
     engines: {node: '>=14.18.0'}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   zod@4.6.7:
     resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==, tarball: https://registry.npmjs.org/zod/-/zod-4.6.7.tgz}
@@ -21824,35 +21826,35 @@ snapshots:
 
   '@tanstack/history@1.162.5': {}
 
-  '@tanstack/query-async-storage-persister@5.108.0':
+  '@tanstack/query-async-storage-persister@5.108.2':
     dependencies:
-      '@tanstack/query-core': 5.108.0
-      '@tanstack/query-persist-client-core': 5.108.0
+      '@tanstack/query-core': 5.108.2
+      '@tanstack/query-persist-client-core': 5.108.2
 
-  '@tanstack/query-core@5.108.0': {}
+  '@tanstack/query-core@5.108.2': {}
 
-  '@tanstack/query-persist-client-core@5.108.0':
+  '@tanstack/query-persist-client-core@5.108.2':
     dependencies:
-      '@tanstack/query-core': 5.108.0
+      '@tanstack/query-core': 5.108.2
 
-  '@tanstack/react-query-persist-client@5.108.0(@tanstack/react-query@5.108.0(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)':
+  '@tanstack/react-query-persist-client@5.108.2(@tanstack/react-query@5.108.2(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)':
     dependencies:
-      '@tanstack/query-persist-client-core': 5.108.0
-      '@tanstack/react-query': 5.108.0(@types/react@19.3.0)(react@19.3.0)
+      '@tanstack/query-persist-client-core': 5.108.2
+      '@tanstack/react-query': 5.108.2(@types/react@19.3.0)(react@19.3.0)
       react: 19.3.0
     optionalDependencies:
       '@types/react': 19.3.0
 
-  '@tanstack/react-query@5.108.0(@types/react@19.3.0)(react@19.3.0)':
+  '@tanstack/react-query@5.108.2(@types/react@19.3.0)(react@19.3.0)':
     dependencies:
-      '@tanstack/query-core': 5.108.0
+      '@tanstack/query-core': 5.108.2
       react: 19.3.0
     optionalDependencies:
       '@types/react': 19.3.0
 
-  '@tanstack/react-query@5.108.0(@types/react@19.3.0)(react@19.3.1)':
+  '@tanstack/react-query@5.108.2(@types/react@19.3.0)(react@19.3.1)':
     dependencies:
-      '@tanstack/query-core': 5.108.0
+      '@tanstack/query-core': 5.108.2
       react: 19.3.1
     optionalDependencies:
       '@types/react': 19.3.0
