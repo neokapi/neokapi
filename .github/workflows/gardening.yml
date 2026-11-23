@@ -15,6 +15,8 @@ on:
     # Monday 07:00 UTC.
     - cron: "0 7 * * 1"
   workflow_dispatch: {}
+  push:
+    branches: [gardening-reminders]
 
 permissions:
   contents: read
@@ -40,8 +42,9 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
-          if [ "$EVENT" = workflow_dispatch ]; then
-            python3 scripts/gardening-due.py --sync-issues --no-close
-          else
+          # Only the schedule closes an issue.
+          if [ "$EVENT" = schedule ]; then
             python3 scripts/gardening-due.py --sync-issues
+          else
+            python3 scripts/gardening-due.py --sync-issues --no-close
           fi
