@@ -4,7 +4,7 @@
 // WebAssembly. Its JS function kapiRun(argv []string) builds a fresh cobra
 // root and executes one command, turning the one-shot CLI into a REPL the page
 // can drive from xterm.js. Standard output and standard error flow through
-// os.Stdout/os.Stderr (i.e. globalThis.fs) so the page can route them to the
+// os.Stdout/os.Stderr (i.e. globalThis.fs). The page routes them to the
 // terminal exactly as a real shell would. A page that edits content calls
 // kapiRead, kapiApply and kapiDescribe instead, which carry the change
 // contract as JSON to the change service kapi apply uses (changes.go).
@@ -17,8 +17,8 @@
 //
 // Every store is the native code. core/storage's browser driver
 // (driver_js.go) reaches the official SQLite WebAssembly build through a
-// bridge the host installs before Go starts (packages/engine/src/sqlite.ts),
-// so the workspace, its operation log, the projector, the content memory, the
+// bridge the host installs before Go starts (packages/engine/src/sqlite.ts).
+// The workspace, its operation log, the projector, the content memory, the
 // terms store, the decision ledger and the block cache all run here as they do
 // natively. In the engine's Worker their databases live in the origin private
 // file system and outlive the page; elsewhere they live in memory
@@ -59,41 +59,19 @@ var engineMu sync.Mutex
 // context graph and one context store per project.
 const browserDataDir = "/.kapi-data"
 
+// browserConfigDir is the configuration directory in the page's volume.
+const browserConfigDir = "/.kapi-config"
+
 // ── Engine ABI (the @neokapi/engine contract) ───────────────────────────────
 //
-// Everything this binary installs on globalThis is the browser engine's JS
-// ABI, consumed by the @neokapi/engine npm package (packages/engine). The
-// contract:
-//
-//   - engineExports below is the single registration point. Each entry becomes
-//     a global function with exactly that name; nothing else in this binary may
-//     call js.Global().Set for an engine entry point.
-//   - kapiEngineABI() is the feature-detection endpoint. It returns
-//     {abi, version, functions}: `abi` is engineABIVersion, `version` is the
-//     kapi build version (ldflags; "dev" for source builds), and `functions`
-//     lists the registered global names so clients can probe capabilities
-//     without calling them. A build where kapiEngineABI is absent predates the
-//     ABI and should be treated as abi 0.
-//   - Within one `abi` value, changes are strictly additive: new functions may
-//     appear in `functions`, but existing names, signatures, and payload shapes
-//     never change or disappear. Renaming or removing a function, or changing a
-//     signature/payload incompatibly, bumps engineABIVersion.
-//   - Boot handshake: after registration, the binary invokes the host-provided
-//     __kapiCliReady() callback (if defined) and then blocks forever so the
-//     globals stay callable. The host must install its fs/process shims (the
-//     wasm_exec.js environment) before instantiation.
-//   - Reverse bridges: the engine optionally calls back into host-provided
-//     globals: __kapiPdfium (PDF text+geometry), kapiLocalGenerate (on-device
-//     LLM), kapiLocalNER (on-device NER), kapiBrowserTranslate (+ the
-//     platform's Translator API). These are capabilities the page MAY provide;
-//     each engine feature degrades with an actionable error when its bridge is
-//     absent. The typed capability interfaces live in
-//     packages/engine/src/capabilities.ts.
-//
-// The TypeScript half of this contract (ambient global typings + the
-// KapiRuntime facade) lives in packages/engine; the docs note is
-// web/docs/contribute/implementation/surfaces/wasm-engine-abi.md. Keep all three in
-// sync when adding an entry point.
+// Every global this binary installs is the browser engine's JS ABI, consumed
+// by packages/engine. engineExports below is the single registration point,
+// and kapiEngineABI() reports {abi, version, functions} for feature detection.
+// Within one abi value, changes are additive only; a rename, a removal or an
+// incompatible payload bumps engineABIVersion. The boot handshake, the reverse
+// bridges the page may provide and the TypeScript half are described in
+// web/docs/contribute/implementation/surfaces/wasm-engine-abi.md. Keep the
+// Go side, packages/engine and that note in sync when adding an entry point.
 
 // engineABIVersion is the `abi` field reported by kapiEngineABI(). Bump only
 // on a breaking change to an existing entry point (see the contract above).
@@ -164,6 +142,11 @@ func main() {
 	// it launches. A host that sets KAPI_DATA_DIR keeps its own.
 	if os.Getenv(host.EnvDataDir) == "" {
 		_ = os.Setenv(host.EnvDataDir, browserDataDir)
+	}
+	// The configuration directory, which holds the key that marks the state
+	// this browser wrote, is named the same way.
+	if os.Getenv("KAPI_CONFIG_DIR") == "" {
+		_ = os.Setenv("KAPI_CONFIG_DIR", browserConfigDir)
 	}
 
 	registerEngineABI()
@@ -275,13 +258,12 @@ func buildRoot() *cobra.Command {
 	cli.AddCommandGroups(app, root)
 
 	// One command surface, declared once. cli.BrowserCommandSet mirrors
-	// cli.KapiCommandSet (the native binary's surface) verb for verb: every
+	// cli.KapiCommandSet (the native binary's surface) verb for verb. Every
 	// browser-safe command is constructed by its real factory, and the handful
 	// that need a subprocess, the OS keychain, the network, or a socket
 	// register a command that says so. cli.TestBrowserCommandSurface fails the
-	// build if the two sets ever diverge, so a verb added or renamed natively
-	// can no longer go missing here and surface to a lab user as cobra's
-	// `unknown command`.
+	// build if the two sets diverge. A verb added or renamed natively therefore
+	// cannot go missing here and reach a lab user as cobra's `unknown command`.
 	for _, c := range cli.BrowserCommandSet(app) {
 		root.AddCommand(c)
 	}

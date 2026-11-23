@@ -427,9 +427,16 @@ var stateKeys sync.Map // key path -> []byte
 
 // stateKey returns this user's per-machine state key, creating it on first
 // use: 32 random bytes in a file only this user can read, in a directory only
-// this user can open.
+// this user can open. A test binary with no KAPI_CONFIG_DIR keeps a key of its
+// own in memory, so it neither reads the developer's key nor leaves one behind.
 func stateKey() ([]byte, error) {
-	dir := stateKeyDir()
+	if os.Getenv("KAPI_CONFIG_DIR") == "" && flag.Lookup("test.v") != nil {
+		return testStateKey()
+	}
+	dir, err := stateKeyDir()
+	if err != nil {
+		return nil, err
+	}
 	path := filepath.Join(dir, stateKeyFile)
 	if k, ok := stateKeys.Load(path); ok {
 		return k.([]byte), nil
@@ -459,35 +466,59 @@ func createStateKey(dir, path string) ([]byte, error) {
 	if _, err := rand.Read(key); err != nil {
 		return nil, err
 	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //pathguard: this user's own key file under the configuration directory
-	if errors.Is(err, fs.ErrExist) {
-		// Another process created it first: use that one.
-		return os.ReadFile(path) //pathguard: this user's own key file under the configuration directory
-	}
+	// The key is written whole to a temporary file and linked into place, so
+	// no reader sees a partly written key, and a key another process linked
+	// first is the one every process uses.
+	f, err := os.CreateTemp(dir, ".machine.key-*") //pathguard: this user's own key directory under the configuration directory
 	if err != nil {
 		return nil, err
 	}
+	tmp := f.Name()
+	defer func() { _ = os.Remove(tmp) }() //pathguard: the temporary key file this function created
 	if _, err := f.Write(key); err != nil {
 		_ = f.Close()
 		return nil, err
 	}
-	return key, f.Close()
+	if err := f.Close(); err != nil {
+		return nil, err
+	}
+	err = os.Link(tmp, path) //pathguard: this user's own key file under the configuration directory
+	if errors.Is(err, errors.ErrUnsupported) {
+		// A platform without links (the browser) runs one kapi at a time.
+		err = os.Rename(tmp, path) //pathguard: this user's own key file under the configuration directory
+	}
+	if errors.Is(err, fs.ErrExist) {
+		return os.ReadFile(path) //pathguard: this user's own key file under the configuration directory
+	} else if err != nil {
+		return nil, err
+	}
+	return key, nil
 }
 
 // stateKeyDir is the directory of the state key: under KAPI_CONFIG_DIR when it
 // is set, as every isolated invocation sets it; in a test binary with none,
 // one of the process's own under the temporary directory; otherwise under the
 // user's configuration directory.
-func stateKeyDir() string {
-	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
-		return filepath.Join(dir, stateKeyDirName)
+// testStateKey is a test binary's process-lifetime key.
+var testStateKey = sync.OnceValues(func() ([]byte, error) {
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		return nil, err
 	}
-	if flag.Lookup("test.v") != nil {
-		return filepath.Join(os.TempDir(), fmt.Sprintf("kapi-test-statekey-%d", os.Getpid()))
+	return key, nil
+})
+
+// stateKeyDir is the directory the key lives in. It is absolute, so no working
+// directory, and so no project, can decide where the key is.
+func stateKeyDir() (string, error) {
+	dir := os.Getenv("KAPI_CONFIG_DIR")
+	if dir != "" {
+		dir = filepath.Join(dir, stateKeyDirName)
+	} else if configDir, err := os.UserConfigDir(); err == nil {
+		dir = filepath.Join(configDir, "kapi", stateKeyDirName)
 	}
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
+	if !filepath.IsAbs(dir) {
+		return "", errors.New("project: no configuration directory to keep the state key in; set KAPI_CONFIG_DIR to an absolute path")
 	}
-	return filepath.Join(configDir, "kapi", stateKeyDirName)
+	return dir, nil
 }

@@ -20,7 +20,7 @@ func dirIdentity(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer syscall.CloseHandle(h)
+	defer func() { _ = syscall.CloseHandle(h) }() // a read-only handle: nothing to flush
 	var info syscall.ByHandleFileInformation
 	if err := syscall.GetFileInformationByHandle(h, &info); err != nil {
 		return "", err

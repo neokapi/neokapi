@@ -6,7 +6,7 @@ import { StateVouchDialog } from "../components/StateVouchDialog";
 const STATE = {
   path: "/work/app/kapi.yaml",
   entries: [".kapi/vault", ".kapi/sync"],
-  origin: "host laptop, /home/someone/app, created 2026-11-01T10:00:00Z",
+  origin: "host laptop, /srv/checkouts/app, created 2026-11-01T10:00:00Z",
 };
 
 describe("StateVouchDialog", () => {
@@ -16,7 +16,7 @@ describe("StateVouchDialog", () => {
     );
     expect(getByText(".kapi/vault")).toBeTruthy();
     expect(getByText(".kapi/sync")).toBeTruthy();
-    expect(getByText(/It appears to come from "host laptop, \/home\/someone\/app/)).toBeTruthy();
+    expect(getByText(/It appears to come from "host laptop, \/srv\/checkouts\/app/)).toBeTruthy();
   });
 
   it("vouches only when the person chooses to", () => {

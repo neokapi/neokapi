@@ -199,5 +199,7 @@ func TestStateKeyIsPrivateToTheUser(t *testing.T) {
 	info, err = os.Stat(filepath.Join(dir, stateKeyDirName, stateKeyFile))
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
-	assert.True(t, strings.HasPrefix(stateKeyDir(), dir))
+	keyDir, err := stateKeyDir()
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(keyDir, dir))
 }

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -85,4 +86,27 @@ func TestAStateDirectoryKapiCreatesExistsOnlyWithItsMark(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(ol.SyncDir(), "sync-cache.json"), []byte("{}"), 0o600))
 	require.Error(t, EnsureLayout(ol))
 	assert.NoFileExists(t, filepath.Join(ol.StateDir, MarkFilename))
+}
+
+// Processes that create the key at once all end with the same, whole key.
+func TestTheStateKeyIsCreatedWholeOnce(t *testing.T) {
+	for range 20 {
+		dir := filepath.Join(t.TempDir(), stateKeyDirName)
+		path := filepath.Join(dir, stateKeyFile)
+		keys := make([][]byte, 16)
+		errs := make([]error, 16)
+		var wg sync.WaitGroup
+		for i := range keys {
+			wg.Go(func() { keys[i], errs[i] = createStateKey(dir, path) })
+		}
+		wg.Wait()
+		for i := range keys {
+			require.NoError(t, errs[i])
+			require.Len(t, keys[i], 32, "no process reads a partly written key")
+			require.Equal(t, keys[0], keys[i], "every process uses the same key")
+		}
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
+		require.Len(t, entries, 1, "no temporary file is left")
+	}
 }
