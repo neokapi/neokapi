@@ -2,7 +2,8 @@
 #
 # `make gardening-due` prints what is overdue. The Gardening workflow runs the
 # same script each week and keeps one issue per overdue item, labelled
-# `gardening`, until the item is done. The work itself stays local.
+# `gardening`, until the item is done. The work stays local, and upkeep CI
+# does by itself is not listed.
 #
 # Each item names where "last done" is read from:
 #   json-field   a date field in a committed JSON file
@@ -10,9 +11,6 @@
 #   format-ops   the rituals in docs/internals/format-ops-ledger.json, with
 #                their own cadence_days and last_run; this file holds no
 #                cadence for them
-#
-# Upkeep that CI already does by itself (evals refresh, content maturity, tool
-# versions) is not listed here.
 items:
   - id: format-ops
     purpose: Keep the format estate's maturity scores, parity report, corpus and upstream watch current.
