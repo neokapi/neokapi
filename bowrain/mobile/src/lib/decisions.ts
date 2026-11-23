@@ -12,6 +12,10 @@
 // or queued decision is dropped, a sent one is withdrawn with a new decision.
 import {
   approveSet,
+  confirmSet,
+  decidedOf,
+  sameContent,
+  type Decided,
   fixSet,
   isNetworkError,
   readOutcome,
@@ -71,7 +75,7 @@ export interface DecisionResult {
    * a second reviewer. stale: the text moved after the card was read. refused:
    * the server refused it, with the message.
    */
-  outcome: "applied" | "held" | "stale" | "refused";
+  outcome: "applied" | "partial" | "held" | "stale" | "refused";
   /** The revision the decision left, which an undo names. */
   revision?: string;
   /** The revision it left on each copy the card stood for, by block. */
@@ -90,7 +94,7 @@ export interface WithdrawVars {
 /** A notice the deck shows about a decision that did not land as made. */
 export interface DecisionNotice {
   id: string;
-  kind: "stale" | "held" | "refused";
+  kind: "stale" | "partial" | "held" | "refused";
   card: DeckCard;
   message?: string;
 }
@@ -130,9 +134,69 @@ export async function sendDecision(c: BowrainClient, v: DecisionVars): Promise<D
     case "held":
       return { id: v.id, outcome: "held", message: outcome.error?.message };
     case "stale":
+      // A correction sent again after its first answer was lost is refused
+      // by its own first attempt: the edition already holds its text.
+      if (v.kind === "fix") {
+        const confirmed = await confirmStanding(c, v);
+        if (confirmed) return confirmed;
+      }
       return { id: v.id, outcome: "stale", message: outcome.op.error?.message };
     case "refused":
       return { id: v.id, outcome: "refused", message: outcome.error.message };
+  }
+}
+
+/**
+ * A correction refused as stale whose text may already stand: its own first
+ * attempt, when that answer was lost, or someone else's identical edit. Each
+ * block the correction covers (the card's and each copy's) is read again, and
+ * the person's approval, with their reasons and note, is sent for each block
+ * whose translation is the correction's content run for run, at the revision
+ * the server holds. A block whose content differs (a code, a plural, other
+ * words) is left for the person to look at. Undefined when no block matches:
+ * the text changed, and the card comes back to the deck.
+ */
+async function confirmStanding(
+  c: BowrainClient,
+  v: DecisionVars,
+): Promise<DecisionResult | undefined> {
+  const runs = v.runs ?? v.card.target;
+  const matched: Decided[] = [];
+  let unmatched = 0;
+  for (const d of decidedOf(v.card)) {
+    const container = await c.reviewContainer(v.scope, d.blockId, v.card.locale);
+    const unit = container.units.find((u) => u.blockId === d.blockId);
+    if (unit && sameContent(runs, unit.target)) {
+      matched.push({
+        ...d,
+        targetRevision: unit.targetRevision,
+        sourceRevision: unit.sourceRevision,
+      });
+    } else {
+      unmatched++;
+    }
+  }
+  if (matched.length === 0) return undefined;
+  const set = confirmSet(v.card, matched, v.reasons ?? [], v.note);
+  const confirmed = readOutcome(await c.applyChanges(v.scope, set));
+  switch (confirmed.status) {
+    case "applied": {
+      const { [v.card.blockId]: own, ...copyRevisions } = revisionsOf(set, confirmed.result);
+      return {
+        id: v.id,
+        // A copy whose content another edit changed is not this person's
+        // decision, and the card says the correction stands only in part.
+        outcome: unmatched > 0 ? "partial" : "applied",
+        revision: own,
+        ...(Object.keys(copyRevisions).length > 0 ? { copyRevisions } : {}),
+      };
+    }
+    case "held":
+      return { id: v.id, outcome: "held", message: confirmed.error?.message };
+    case "stale":
+      return { id: v.id, outcome: "stale", message: confirmed.op.error?.message };
+    case "refused":
+      return { id: v.id, outcome: "refused", message: confirmed.error.message };
   }
 }
 

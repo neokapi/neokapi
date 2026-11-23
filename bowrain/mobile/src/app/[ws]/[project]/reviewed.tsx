@@ -39,6 +39,8 @@ export function statusKey(e: LoggedDecision, online: boolean): string {
           return "reviewed.status.secondReview";
         case "stale":
           return "reviewed.status.stale";
+        case "partial":
+          return "reviewed.status.partial";
         case "refused":
           return "reviewed.status.refused";
         default:
