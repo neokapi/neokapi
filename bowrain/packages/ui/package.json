@@ -38,7 +38,7 @@
     "@tailwindcss/vite": "^4.3.5",
     "lucide-react": "^1.76.0",
     "radix-ui": "^1.8.1",
-    "recharts": "^3.10.1",
+    "recharts": "^3.11.0",
     "remark-gfm": "^4.0.1",
     "shadcn": "^4.22.1",
     "tailwindcss": "^4.3.5",

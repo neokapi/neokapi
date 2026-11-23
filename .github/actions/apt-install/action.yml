@@ -42,8 +42,8 @@ runs:
         #                         the retry uses archive.ubuntu.com, which was
         #                         answering throughout.
         #
-        # Worst case is about five minutes and an explicit error, against a
-        # six-hour hang.
+        # Worst case is about 15 minutes and an explicit error, against a
+        # six-hour hang; a healthy mirror costs nothing extra.
         # A package the runner image already holds needs no apt at all: the
         # image ships libicu-dev and pkg-config, and an `apt-get update` to
         # learn that took 4 to 6 seconds of every Go job. Only a list with a
@@ -59,22 +59,12 @@ runs:
           exit 0
         fi
         echo "apt-install: installing:$missing"
-        APT_PACKAGES="${missing# }"
-        opts="-o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15"
-        for attempt in 1 2 3; do
-          if timeout 90 sudo apt-get $opts update &&
-             timeout 180 sudo apt-get $opts install -y $APT_PACKAGES; then
-            exit 0
-          fi
-          echo "::warning::apt attempt $attempt failed"
-          # Drop the Azure mirror only if the list holds something else; an
-          # empty mirrorlist turns a slow install into no install at all.
-          if [ "$attempt" -eq 2 ] && [ -f /etc/apt/apt-mirrors.txt ] &&
-             grep -qv 'azure\.archive\.ubuntu\.com' /etc/apt/apt-mirrors.txt; then
-            echo "::warning::dropping the Azure mirror; retrying against the rest"
-            sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt
-          fi
-          sleep $((attempt * 5))
-        done
-        echo "::error::apt could not install '$APT_PACKAGES' after 3 attempts"
-        exit 1
+        # The download and the unpack are bounded apart, each attempt first
+        # finishes any interrupted dpkg run, and the whole install stays
+        # inside 15 minutes, so a mirror that stays down fails here with apt's
+        # own error instead of as a cancelled job. On 2026-11-23 a single
+        # 180-second ceiling over both killed dpkg mid-unpack after a slow
+        # download, and every retry stopped at "dpkg was interrupted".
+        # apt-retry.sh holds the bounds and proves them in its self-test.
+        # shellcheck disable=SC2086 # the package list is a word list
+        bash "$GITHUB_ACTION_PATH/apt-retry.sh" $missing
