@@ -1149,7 +1149,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 // the values it withholds replaced by their visible tokens, keyed by the
 // source's project-relative path. The policy is the one the recipe declares
 // for the file, or the one --redact and --redact-rules ask for
-// (resolveRedaction). The originals go to one batch vault under .kapi/vault/,
+// (resolveRedaction). The originals go to one batch vault under the vault directory in the checkout's state directory,
 // whose ID it returns; with no policy for any source it returns no sources
 // and no ID.
 func (a *App) redactKpzSources(cmd Command, pctx *project.ProjectContext, layout project.Layout, files []project.ResolvedFile) (map[string]*redactedSource, string, error) {

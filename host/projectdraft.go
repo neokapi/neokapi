@@ -85,7 +85,7 @@ func (a *App) UnbindDraftProject(root string) error {
 }
 
 // ProjectStorePath is the file the store of the project rooted at root keeps
-// its block cache and working set in: the folder's `.kapi/work/store.db`, or
+// its block cache and working set in: the folder's `work/store.db` in the checkout's state directory, or
 // the draft's state directory for a folder bound as a draft.
 func (a *App) ProjectStorePath(root string) string {
 	abs, err := filepath.Abs(root)

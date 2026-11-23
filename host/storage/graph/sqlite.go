@@ -56,10 +56,10 @@ var migrations = []storage.Migration{
 // schema into it under the `graph` ledger.
 //
 // The store never owns db. Its intended local tenant is a project's merged
-// `.kapi/work/store.db`, where `graph_nodes` / `graph_edges` sit beside the block
-// cache, the terms store, the content memory and the unit working set — which
-// is the whole point of the single file: an edge from a term to a block is a
-// join, not a cross-database merge. Whoever opened the pool closes it.
+// `work/store.db` in the checkout's state directory, where `graph_nodes` and
+// `graph_edges` sit beside the block cache, the terms store, the content
+// memory and the unit working set. In one file an edge from a term to a block
+// is a join, not a cross-database merge. Whoever opened the pool closes it.
 func NewSQLiteGraphStore(db *storage.DB) (*SQLiteGraphStore, error) {
 	if db == nil {
 		return nil, errors.New("graph: adopt store: nil database")
@@ -344,7 +344,7 @@ func (s *SQLiteGraphStore) EdgesOf(ctx context.Context, nodeID string, direction
 
 // HasNodes reports whether any node carries the label. It is one indexed probe
 // rather than a read of the nodes, for a caller that has to tell an empty
-// projection from one that was never written: a project whose graph holds no
+// projection from one that was never written. A project whose graph holds no
 // block has not been extracted, and a count of zero read from it means unread
 // rather than unused.
 func (s *SQLiteGraphStore) HasNodes(ctx context.Context, label string) (bool, error) {
@@ -688,7 +688,7 @@ func parseValidity(validFrom, validTo *string, tagsJSON string) *coreg.Validity 
 }
 
 // parseStoredTime parses an RFC3339 timestamp read back from one of our own
-// rows. An empty string (a NULL or never-set column) is not an error — it
+// rows. An empty string (a NULL or never-set column) is not an error, it
 // yields the zero time; a non-empty but unparseable value is stored corruption
 // and is returned so the caller can surface it rather than silently substitute
 // the zero time.

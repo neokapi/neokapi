@@ -3,7 +3,7 @@
 // the unit-state working set and the context graph.
 //
 // A project keeps two pools. The PROJECTION lives in the checkout, at
-// `.kapi/work/store.db`, and holds what a parse produced: blocks, overlays and
+// `work/store.db` in the checkout's state directory, and holds what a parse produced: blocks, overlays and
 // extraction stamps. The CONTEXT store lives here, outside every checkout, and
 // holds what a person authored or decided. Two checkouts of one project (a
 // second clone, a git worktree) each keep a projection of their own and share

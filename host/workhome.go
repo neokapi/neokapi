@@ -28,24 +28,23 @@ import (
 // have no file yet: a parked locale's drafts under `materialize: on-converge`,
 // the drafts a gated run produced that kapi merge has not delivered, and every
 // edit a person or an agent makes to them. They live in the project's
-// operation log, outside the checkout, so deleting `.kapi/work/` loses none of
-// them and costs no provider call to rebuild.
-//
+// operation log, outside the checkout, so deleting `work/` in the checkout's
+// state directory loses none of them and costs no provider call to rebuild.
+
 // The recipe picks an edition's home. Under `materialize: on-converge` a
 // translation whose file does not exist lives in the workspace home until a
-// delivery writes its file, whether or not the workspace holds anything of it
-// yet; under `manual` it lives in its file, except while the workspace still
-// keeps a draft of it (a recipe switched from on-converge). Once the file
-// exists, the file is the edition's home and the workspace's copy is never
-// read or written there. A gated run keeps the drafts of every locale it
-// parks (keepDrafts); a delivery (kapi merge, or kapi up for a locale that
-// cleared its gate) writes the file from what the workspace keeps and then
-// releases exactly what it read, so the workspace never keeps a second copy
-// of an edition a file holds. A file that appears by any other path (a
-// person, kapi pull, a checkout) is settled at the end of the next run
-// (settleKept): what the file already holds and a tool's drafts are
-// released, and a person's or an agent's wording the file does not hold stays
-// kept, listed by kapi status, until kapi merge writes it.
+// delivery writes its file. Under `manual` it lives in its file, except while
+// the workspace still keeps a draft of it (a recipe switched from
+// on-converge). Once the file exists, the file is the edition's home and the
+// workspace's copy is never read or written there.
+
+// A gated run keeps the drafts of every locale it parks (keepDrafts). A
+// delivery (kapi merge, or kapi up for a locale that cleared its gate) writes
+// the file from what the workspace keeps and releases exactly what it read,
+// so the workspace never keeps a second copy of an edition a file holds. A
+// file that appears by another path is settled at the end of the next run
+// (settleKept): a person's or an agent's wording the file lacks stays kept
+// until kapi merge writes it, and the rest is released.
 
 // keptEditions is the workspace home of the project rooted at root, as a file
 // home reaches it for the editions that have no file (filehome.Keeper). It
@@ -285,12 +284,12 @@ func (p *keptPolicy) keeps(ctx context.Context, ref string, ed model.EditionKey,
 }
 
 // draftStamp is what a producer recognizes a draft it made by, kept beside
-// the draft in the workspace home: the block-store key of its overlay, the
-// overlay's own reuse fields (blockstore.TargetOverlay), and the overlay's
-// runs where they differ from the draft's (a step after the producer, such as
-// unredact, changed the draft). A run whose `.kapi/work/` was deleted writes
-// the overlay again from it, so the producer serves the draft rather than
-// paying a provider for it again.
+// the draft in the workspace home. It holds the block-store key of its
+// overlay, the overlay's own reuse fields (blockstore.TargetOverlay), and the
+// overlay's runs where they differ from the draft's (a step after the producer, such as
+// unredact, changed the draft). A run whose `work/` was deleted from the
+// checkout's state directory writes the overlay again from it, so the producer
+// serves the draft rather than paying a provider for it again.
 type draftStamp struct {
 	Key      string      `json:"key"`
 	Provider string      `json:"provider,omitempty"`
@@ -301,7 +300,7 @@ type draftStamp struct {
 
 // keptTargetBlocks reads a unit's source blocks with the edition the
 // workspace home keeps for its locale joined in, which is where a parked
-// locale's drafts are: the read surfaces (coverage, status, the review queue,
+// locale's drafts are. The read surfaces (coverage, status, the review queue,
 // checks) measure and review the drafts where they live. found is false when
 // the workspace home keeps nothing of the edition.
 func (a *App) keptTargetBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block, bool, error) {
@@ -347,10 +346,10 @@ func (a *App) keptTargetBlocks(ctx context.Context, u VerifyUnit) ([]*model.Bloc
 
 // normalizeKeptStatus grades a kept draft at the rung its delivered copy
 // would read. A JSON or YAML target file carries no lifecycle metadata, so a
-// delivered translation reads as `translated` (convergence.TargetState); a
-// producer stamps `draft` on what it writes, and honoring that stamp would
-// grade one record of the work a rung below the other, so the locale would
-// read `blocked: translate` while holding a translation of every unit. A rung
+// delivered translation reads as `translated` (convergence.TargetState). A
+// producer stamps `draft` on what it writes. Honoring that stamp would grade
+// one record of the work a rung below the other, so the locale would read
+// `blocked: translate` while holding a translation of every unit. A rung
 // above translated is a decision, and it is kept.
 func normalizeKeptStatus(b *model.Block, loc model.LocaleID) {
 	t, ok := b.TargetEdition(loc)
@@ -368,9 +367,9 @@ func normalizeKeptStatus(b *model.Block, loc model.LocaleID) {
 // many blocks it wrote. The drafts are the run's own (what each document's
 // latest pass left, against the edition as the run first read it), with the
 // basis each was made from and the stamp its producer serves it again by. A
-// block a person or an agent changed while the run worked keeps their
-// edition, and so does one they wrote from the source the draft was made
-// from. A translation whose file exists is never kept: its file is its home.
+// block a person or an agent changed while the run worked, or wrote from the
+// draft's source, keeps their edition. A translation whose file exists is
+// never kept: its file is its home.
 //
 // A parked locale keeps every draft. A locale about to be delivered keeps
 // drafts only of the editions the workspace already holds (held), so the
@@ -497,9 +496,10 @@ func draftStampOf(sess blockstore.Session, doc *flowDoc, lb *leftBlock, ed leftE
 }
 
 // restoreKeptOverlays writes into the project's block store the overlay of
-// every draft the workspace home keeps, where the store holds none: the block
-// store is a cache under `.kapi/work/`, and a draft whose overlay is gone
-// would otherwise cost a provider call in the next pass. A block a person or
+// every draft the workspace home keeps, where the store holds none. The block
+// store is a cache under `work/` in the checkout's state directory, and a
+// draft whose overlay is gone would otherwise cost a provider call in the next
+// pass. A block a person or
 // an agent edited is restored from the latest draft a producer wrote for it,
 // which the log keeps, so the producer serves that draft and the person's
 // wording stays where it is kept. It returns how many overlays it wrote.

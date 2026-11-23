@@ -13,17 +13,18 @@ import (
 )
 
 // A producer (the AI and MT translate tools) keeps what it drafted as a
-// `targets/<locale>` overlay in the project block store, a cache under
-// `.kapi/work/`, and serves a block from it rather than calling a provider
-// while the source and its configuration stand (tool.StoredTargetReuser).
+// `targets/<locale>` overlay in the project block store, a cache under `work/`
+// in the checkout's state directory. It serves a block from it rather than
+// calling a provider while the source and its configuration stand
+// (tool.StoredTargetReuser).
 // `kapi up --plan` asks the same question of the same store, through the
 // helpers here. The drafts themselves live in their homes: a delivered file,
 // or the workspace home for a locale whose files are withheld (workhome.go).
 
 // storedTargetKey names the overlay the store holds for one block of a unit:
-// the `targets/<locale>` kind and the key the producers wrote it under, which
-// is blockstore.OverlayKey as the file runner tags it (the source's project
-// namespace, the block's id). ok is false for a block no producer keys a
+// the `targets/<locale>` kind and the key the producers wrote it under. That
+// key is blockstore.OverlayKey as the file runner tags it (the source's
+// project namespace, the block's id). ok is false for a block no producer keys a
 // stored target by, so a reader skips exactly what a writer never wrote.
 func storedTargetKey(u VerifyUnit, b *model.Block) (kind, key string, ok bool) {
 	if b == nil || !b.Translatable || b.ID == "" {

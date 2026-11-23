@@ -80,7 +80,7 @@ func WithCollectors(c ...Collector) ExecutorOption {
 }
 
 // WithImmutabilityCheck controls whether tool dispatch runs the immutability
-// hash backstop on every block this executor processes — a dev/test aid that
+// hash backstop on every block this executor processes, a dev/test aid that
 // catches handlers mutating content in place through the live run slices their
 // read-only view hands back. Off by default in production executors (the
 // per-block hashing is measurable overhead); pass true in tests or when
@@ -93,7 +93,7 @@ func WithImmutabilityCheck(enabled bool) ExecutorOption {
 
 // WithBlockStore sets the BlockStore used for SessionTool dispatch.
 // Defaults to blockstore.NewMemoryStore(). Pass a persistent store
-// (e.g. the block cache inside a project's .kapi/work/store.db) to enable
+// (e.g. the block cache inside a project's work/store.db in the checkout's state directory) to enable
 // incremental work across runs.
 func WithBlockStore(store blockstore.Store) ExecutorOption {
 	return func(cfg *ExecutorConfig) {
@@ -119,7 +119,7 @@ func NewExecutor(opts ...ExecutorOption) *DefaultExecutor {
 		ChannelSize:    64,
 		FailFast:       true,
 		// Seed the default once, at construction, from the compatibility
-		// knob — embeddings that still set the global keep their behavior.
+		// knob, embeddings that still set the global keep their behavior.
 		ImmutabilityCheck: tool.EnforceImmutability, //nolint:staticcheck // deliberate: the deprecated global seeds the executor default
 	}
 	for _, opt := range opts {
@@ -272,27 +272,21 @@ func (e *DefaultExecutor) processItemCollect(ctx context.Context, f *Flow, item 
 // sharing one session don't race on its underlying transaction.
 //
 // The executor opens a single session per item (processItemCollect) or per
-// channel pipeline (ExecuteWithChannels) and hands it to every tool. Tools
-// run in their own goroutines, so when a persistent store is wired (e.g.
-// sqlitestore.New via WithBlockStore) two SessionTools can call
-// SessionProcess against the same session — and a persistent session is
-// backed by a single *sql.Tx, which database/sql does not allow to be used
-// concurrently (concurrent statements on one transaction corrupt the
-// connection). syncSession serializes every Session method behind a mutex so
-// that contract holds regardless of the provider.
+// channel pipeline (ExecuteWithChannels) and hands it to every tool. Tools run
+// in their own goroutines, so with a persistent store wired (e.g.
+// sqlitestore.New via WithBlockStore) two SessionTools can call SessionProcess
+// on one session. A persistent session is backed by a single *sql.Tx, which
+// database/sql does not allow to be used concurrently. syncSession serializes
+// every Session method behind a mutex so that contract holds for any provider.
 //
 // Iterator-returning methods (Blocks, ListOverlays) hold the lock for the
-// whole iteration, because the underlying provider keeps its *sql.Rows open
-// across yields; releasing the lock between rows would let another tool's
-// query interleave on the same transaction.
+// whole iteration, because the provider keeps its *sql.Rows open across
+// yields.
 //
-// Residual concern: this guard makes concurrent access *safe* (no torn
-// transaction state), not concurrent. A persistent SQLite-backed session
-// serializes its tools' store access; the throughput win from a persistent
-// store is cross-run caching, not intra-run parallelism, so this is the
-// intended trade-off. The deeper fix — per-tool transactions, or a session
-// type that fans out to independent connections — lives in core/blockstore
-// and is out of scope here (tracked by #609).
+// The guard makes concurrent access safe, not concurrent: a persistent
+// session serializes its tools' store access. The gain from a persistent store
+// is caching across runs. Per-tool transactions belong in core/blockstore
+// (#609).
 type syncSession struct {
 	mu    *sync.Mutex
 	inner blockstore.Session
@@ -379,7 +373,7 @@ var _ blockstore.Session = (*syncSession)(nil)
 
 // recoverToolPanic converts a panic inside a tool goroutine into an error on
 // *err. Every tool runs on its own errgroup goroutine, and errgroup does not
-// recover panics — an unrecovered panic there crashes the whole process, since
+// recover panics, an unrecovered panic there crashes the whole process, since
 // no recover middleware up the caller's stack can catch a panic on another
 // goroutine. Callers wrap the result with the tool's name.
 func recoverToolPanic(err *error) {
@@ -388,7 +382,7 @@ func recoverToolPanic(err *error) {
 	}
 }
 
-// runTool dispatches a tool invocation through the right contract —
+// runTool dispatches a tool invocation through the right contract ,
 // SessionTool.SessionProcess when the tool opts in AND the store is
 // persistent, otherwise the plain streaming Tool.Process.
 //
@@ -457,14 +451,14 @@ func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in 
 	// Open the session with the parent context, NOT the errgroup's derived
 	// context: errgroup cancels its context the moment Wait() returns, and a
 	// persistent session backed by a *sql.Tx (sqlitestore.New) is
-	// aborted by database/sql when its context is cancelled — which would
+	// aborted by database/sql when its context is cancelled, which would
 	// roll back every overlay the SessionTools wrote, right before Commit.
 	// The tool goroutines still observe cancellation through the errgroup
 	// context they each receive.
 	rawSession, err := e.config.Store.Begin(ctx)
 	if err != nil {
 		cancel()
-		// The caller's feeder goroutine SENDS on `in` and closes it when done —
+		// The caller's feeder goroutine SENDS on `in` and closes it when done ,
 		// a failed Begin (e.g. a sibling pipeline's error canceling a shared
 		// parent context mid-converge-pass) must not hand it a closed channel,
 		// or its send panics. Give it a drained channel instead; `out` closes

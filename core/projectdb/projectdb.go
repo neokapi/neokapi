@@ -1,21 +1,18 @@
 // Package projectdb opens a project's projection and context stores.
 //
-// The projection is per checkout, at .kapi/work/store.db. It holds the block cache,
-// flow overlays and extraction stamps derived from the working tree. Extraction
-// can rewrite these tables in long transactions.
+// The projection is per checkout, at work/store.db in the checkout's state
+// directory. It holds the block cache, flow overlays and extraction stamps
+// derived from the working tree.
 //
 // The context store lives in a workspace (core/workspace), outside the checkout.
 // It holds terms, voice profiles, content memory and the unit-state working set
 // with staged decisions. Checkouts of the same project share this authored data.
 //
-// Each subsystem retains its own migration ledger, including sievepen_migrations,
-// termbase_migrations, cache_migrations and state, regardless of its database pool.
-//
 // # Embedded layout
 //
-// Without a workspace, Open uses .kapi/work/store.db for both context and
-// projection tables through one handle. The host supplies the workspace location
-// through host.DataDir(); the framework has no default pointing to user data.
+// Without a workspace, Open uses that work/store.db for both context and
+// projection tables through one handle. The host supplies the workspace
+// location through host.DataDir(); the framework has no default for it.
 // A project opened with a workspace keeps its context in the workspace; the
 // context tables of an earlier embedded store are not read.
 //
@@ -108,7 +105,7 @@ type settings struct {
 // workspace database holding the context graph.
 //
 // Without it the context tables sit beside the projection in
-// `.kapi/work/store.db` and the graph with them, which is the embedded layout
+// `work/store.db` in the checkout's state directory and the graph with them, which is the embedded layout
 // the package documentation describes.
 func WithWorkspace(s Stores) Option {
 	return func(o *settings) { o.stores = s }

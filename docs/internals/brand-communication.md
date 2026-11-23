@@ -94,7 +94,7 @@ Three things are **not** ours to rename, and must stay factual:
   The names a user actually types or sees on disk are *not* on that list, and
   match the concepts: recipe keys are `memory:` and `termstore:`; flags are
   `--memory` and `--termstore`; a project keeps its
-  projection at `.kapi/work/store.db` with its committed sources beside it and
+  projection at `work/store.db` in the checkout's state directory with its committed sources beside it and
   its context store in the workspace; named stores live under
   `<ConfigDir>/terms/`. Finding `tm` or `termbase` in one of those is a
   leftover, not a boundary.
