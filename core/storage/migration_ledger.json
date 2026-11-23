@@ -83,6 +83,13 @@
       "names": [
         "key entries by the path the project names, and record the checkout and the digests of the recorded files"
       ]
+    },
+    "4": {
+      "description": "key entries by the media engines installed when they were read",
+      "identity": "e3e0935b2efce2f50ae52c242f74bf55",
+      "names": [
+        "key entries by the media engines installed when they were read"
+      ]
     }
   },
   "graph": {

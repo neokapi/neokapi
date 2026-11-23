@@ -29,8 +29,8 @@ func init() {
 // cannot, an audio or video file is read as media without transcription, and
 // the person is told so once.
 func asrPluginInstalled() bool {
-	if _, err := findASRPlugin(); err != nil {
-		noteEngineMissing(&asrMissingNote, "speech is not transcribed: the \"asr\" plugin is not installed (kapi plugins install asr)")
+	if _, _, err := findASRPlugin(); err != nil {
+		noteEngineMissing(&asrMissingNote, err.Error())
 		return false
 	}
 	return true
@@ -76,9 +76,14 @@ func (e *asrEngine) Close() error {
 }
 
 func (e *asrEngine) dial() (*asrProcess, error) {
-	bin, err := findASRPlugin()
+	bin, p, err := findASRPlugin()
 	if err != nil {
 		return nil, err
+	}
+	if p != nil {
+		if err := pluginhost.CheckLaunch(p); err != nil {
+			return nil, err
+		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	proc, err := startASRProcess(ctx, bin)
@@ -91,20 +96,18 @@ func (e *asrEngine) dial() (*asrProcess, error) {
 }
 
 // findASRPlugin resolves the kapi-asr binary: an explicit KAPI_ASR_PLUGIN path
-// (dev/local override) wins; otherwise the unified plugin discovery locates it
-// by manifest name, like kapi-vision.
-func findASRPlugin() (string, error) {
+// (dev/local override, the person's own choice) wins; otherwise the run's
+// plugin discovery locates it by manifest name, like kapi-vision, and returns
+// the plugin so its launch can be checked.
+func findASRPlugin() (string, *pluginhost.Plugin, error) {
 	if p := os.Getenv("KAPI_ASR_PLUGIN"); p != "" {
-		return p, nil
+		return p, nil, nil
 	}
-	for _, p := range pluginhost.Discover(pluginhost.DefaultDiscoverOptions()) {
-		if p.Name() == asrPluginName {
-			return p.BinaryPath, nil
-		}
+	p, err := findMediaPlugin(asrPluginName, "speech is not transcribed")
+	if err != nil {
+		return "", nil, err
 	}
-	return "", fmt.Errorf(
-		"audio transcription requires the %q plugin; install it with `kapi plugins install asr` "+
-			"or set KAPI_ASR_PLUGIN to a built kapi-asr binary", asrPluginName)
+	return p.BinaryPath, p, nil
 }
 
 // --- wire format (mirrors plugins/asr/asrproto, intentionally duplicated) ---

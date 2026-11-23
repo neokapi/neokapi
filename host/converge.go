@@ -511,6 +511,13 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		if rf.Item == nil || rf.Item.Target == "" {
 			continue
 		}
+		// A media file whose engine is missing now extracts and is stamped
+		// with the engine it waits for, and no locale pass runs over it: a
+		// target written from what was read would be a copy of the source
+		// claiming a translation of text nobody read. The run names it.
+		if len(missingMediaEngines(rf)) > 0 {
+			continue
+		}
 		sources = append(sources, rf.Path)
 	}
 	resolved = kept
@@ -1486,7 +1493,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	produced := a.writeTally.total()
 	out.Produced = &produced
 	if db, derr := a.ProjectDB(ctx, filepath.Dir(projectPath)); derr == nil {
-		if out.UnreadMedia = unreadMedia(ctx, db); len(out.UnreadMedia) > 0 {
+		if out.UnreadMedia = unreadMedia(ctx, db, a.collectionsOf(proj, projectPath)); len(out.UnreadMedia) > 0 {
 			out.Converged = false
 		}
 	}

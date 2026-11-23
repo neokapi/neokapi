@@ -49,14 +49,9 @@ func hashKey(s string) string {
 //   - A small SQLite index records per-file staleness (content hash, mtime,
 //     size) and the document's log and skeleton refs.
 //
-// The cache is a pure optimization. The index key includes the content hash and
-// config, so a stale entry is never served.
-//
-// The key also carries the build that recorded the entry and the media
-// engines installed then, because a reader's code and its engines decide what
-// it emits for a file (a recording transcribed, or not). An upgraded kapi, or
-// one with an engine installed or removed, therefore parses a
-// file again rather than replaying the previous release's parts.
+// The cache is a pure optimization: its key holds the content hash, config,
+// build and the media engines installed, so a stale entry is never served and
+// an upgrade or a new engine parses the file again.
 type docCache struct {
 	DB  *storage.DB
 	dir string // directory holding the per-document logs + skeleton files

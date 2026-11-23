@@ -15,13 +15,13 @@ import (
 )
 
 // NewPluginCmd creates the manifest-driven plugin command tree
-// (singular `plugin`). This is the only plugin command tree — the
+// (singular `plugin`). This is the only plugin command tree, the
 // legacy `plugins` (plural) command tree was removed in #438 phase 9
 // when the v1 gRPC plugin runtime was deleted.
 func NewPluginCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "plugin",
-		// Accept "plugins" too — the plural reads naturally ("kapi plugins
+		// Accept "plugins" too, the plural reads naturally ("kapi plugins
 		// install") and matches how the command is referenced across the docs.
 		Aliases: []string{"plugins"},
 		Short:   "Install and manage manifest-driven plugins",
@@ -71,6 +71,9 @@ func newPluginListCmd(a *App) *cobra.Command {
 				}
 				rows = append(rows, row)
 			}
+			for _, r := range a.PluginHost.Refused() {
+				rows = append(rows, output.PluginListRow{Name: r.Name, Source: r.Dir, Status: "refused", Refusal: r.Reason})
+			}
 			return output.Print(cmd, output.PluginListOutput{Plugins: rows, Total: len(rows)})
 		},
 	}
@@ -87,7 +90,7 @@ func newPluginInfoCmd(a *App) *cobra.Command {
 			}
 			p := a.PluginHost.Plugin(args[0])
 			if p == nil {
-				return fmt.Errorf("plugin %q is not installed", args[0])
+				return notLoadedError(a, args[0])
 			}
 			c := p.Manifest.Capabilities
 			return output.Print(cmd, output.PluginInfoOutput{
@@ -257,10 +260,10 @@ func newPluginRemoveCmd(a *App) *cobra.Command {
 	}
 }
 
-// newPluginPruneCmd implements `kapi plugins prune` — clean up plugins kapi has
+// newPluginPruneCmd implements `kapi plugins prune`, clean up plugins kapi has
 // retired but that are still installed from a previous version. Retired plugins
 // are already inert (never loaded); this removes them from disk. It never
-// touches system (Homebrew) installs — it prints the OS command instead — and
+// touches system (Homebrew) installs, it prints the OS command instead, and
 // never removes a plugin's downloaded model cache or config.
 func newPluginPruneCmd(a *App) *cobra.Command {
 	var yes, dryRun bool
@@ -414,8 +417,8 @@ func newPluginRebuildCacheCmd(a *App) *cobra.Command {
 					fmt.Fprintln(cmd.ErrOrStderr(), "Warning:", s)
 				},
 			}
-			plugins := pluginhost.Discover(opts)
-			cache := pluginhost.BuildCache(opts, plugins)
+			plugins, refused := pluginhost.DiscoverAll(opts)
+			cache := pluginhost.BuildCache(opts, plugins, refused)
 			if err := pluginhost.SaveCache(pluginhost.CacheLocation(), cache); err != nil {
 				return err
 			}
@@ -436,7 +439,10 @@ func newPluginVerifyCmd(a *App) *cobra.Command {
 			}
 			p := a.PluginHost.Plugin(args[0])
 			if p == nil {
-				return fmt.Errorf("plugin %q is not installed", args[0])
+				return notLoadedError(a, args[0])
+			}
+			if err := pluginhost.CheckLaunch(p); err != nil {
+				return err
 			}
 			out, err := RunVersionProbe(cmd.Context(), p.BinaryPath)
 			if err != nil {
@@ -455,12 +461,11 @@ func newPluginVerifyCmd(a *App) *cobra.Command {
 
 // newPluginDoctorCmd implements `kapi plugins doctor [name]`.
 //
-// Doctor is the single, consistent health surface for installed plugins. It
-// replaces the per-plugin self-check verbs (the old `kapi av`, `kapi asr`,
-// `kapi vision`, …) that each plugin used to mint as a top-level command. For
+// Doctor is the single, consistent health surface for installed plugins, in
+// place of a self-check verb per plugin as a top-level command. For
 // every plugin it confirms the binary is present and its reported version
-// matches the manifest, then — for plugins that declare a self-check
-// (capabilities.selfcheck) — runs the plugin's own `<binary> doctor`
+// matches the manifest, then, for plugins that declare a self-check
+// (capabilities.selfcheck), runs the plugin's own `<binary> doctor`
 // diagnostics, which Confirm bundled binaries, models, or engines resolve at
 // runtime.
 //
@@ -497,14 +502,18 @@ Examples:
 			if len(args) == 1 {
 				p := a.PluginHost.Plugin(args[0])
 				if p == nil {
-					return fmt.Errorf("plugin %q is not installed", args[0])
+					return notLoadedError(a, args[0])
 				}
 				targets = []*pluginhost.Plugin{p}
 			} else {
 				targets = a.PluginHost.Plugins()
 			}
 
-			if len(targets) == 0 {
+			refused := a.PluginHost.Refused()
+			if len(args) == 1 {
+				refused = nil
+			}
+			if len(targets) == 0 && len(refused) == 0 {
 				fmt.Fprintln(cmd.OutOrStdout(), "No plugins installed.")
 				return nil
 			}
@@ -529,12 +538,30 @@ Examples:
 				}
 				t.Row(p.Name(), p.Version(), health)
 			}
-			t.Render()
+			for _, r := range refused {
+				unhealthy++
+				t.Row(r.Name, "", s.Error.Render("✗ not loaded"))
+			}
+			if !verbose {
+				t.Render()
+			}
+			for _, r := range refused {
+				fmt.Fprintf(cmd.OutOrStdout(), "\n%s is not loaded: %s\n", r.Name, r.Reason)
+			}
 
 			if unhealthy > 0 {
-				return WithExitCode(1, fmt.Errorf("%d of %d plugin(s) unhealthy", unhealthy, len(targets)))
+				return WithExitCode(1, fmt.Errorf("%d of %d plugin(s) unhealthy", unhealthy, len(targets)+len(refused)))
 			}
 			return nil
 		},
 	}
+}
+
+// notLoadedError says why the plugin name is not available: refused, with the
+// reason and the fix, or not installed.
+func notLoadedError(a *App, name string) error {
+	if r, ok := a.PluginHost.RefusedPlugin(name); ok {
+		return fmt.Errorf("plugin %q is installed but not loaded: %s", name, r.Reason)
+	}
+	return fmt.Errorf("plugin %q is not installed", name)
 }

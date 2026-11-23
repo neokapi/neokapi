@@ -603,6 +603,9 @@ func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin, roots []string) 
 	// shortly after we read the handshake (defer cancel() at function
 	// exit), and we need the daemon to keep running until the pool's
 	// own Shutdown path tears it down.
+	if err := CheckLaunch(plugin); err != nil {
+		return nil, fmt.Errorf("daemon pool: %w", err)
+	}
 	cmd := exec.Command(plugin.BinaryPath, "daemon") //nolint:noctx // long-lived daemon subprocess
 	cmd.Env = append(pluginEnviron(),
 		"KAPI_PLUGIN_DIR="+plugin.Dir,

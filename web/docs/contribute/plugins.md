@@ -94,8 +94,37 @@ and links it into the shared root (Homebrew links
 First-match-wins on plugin name. Two or more different plugins declaring the
 same capability is an error: kapi names the providers and dispatches that
 capability to none of them. A consolidated dispatch cache at
-`$XDG_CACHE_HOME/kapi/plugins-cache.json` skips manifest parsing when no
-discovery root has changed.
+`$XDG_CACHE_HOME/kapi/plugins-cache.json` skips manifest parsing when nothing
+discovery read has changed.
+
+### Which plugins kapi runs
+
+A plugin is an executable kapi runs as you, so kapi loads one only when no
+other user can replace it. For the binary, the plugin's directory and the root
+it was found in, in every root including the system ones:
+
+- the owner is you or root;
+- no other user may write it;
+- its group may write it only when that group is root's or an administrators'
+  group (`admin`, `wheel`, `sudo`). Homebrew's plugin directories, owned by you
+  with mode 755, pass.
+
+kapi checks when it discovers plugins and again just before it runs a binary.
+A refused plugin is listed by `kapi plugin list` and `kapi plugin doctor` with
+the reason and the command that fixes it, such as `chmod o-w <path>`. The fix
+takes effect on the next command. The dispatch cache is read only when nobody
+else can write it, and kapi takes each cached plugin's root from the roots it
+searches now, not from the cache file.
+
+The check does not cover:
+
+- the directories above a plugin root, such as `$HOME` or
+  `/opt/homebrew/share`, which kapi neither creates nor inspects;
+- Windows, where access is an access control list rather than mode bits. A
+  faithful check would read each path's owner and access control list and
+  refuse an entry that lets anyone but you, SYSTEM and Administrators write.
+  kapi does not do that, so on Windows the check refuses nothing;
+- a change between the check and the moment the binary starts.
 
 ## Three transport modes
 

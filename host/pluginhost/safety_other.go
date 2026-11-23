@@ -5,4 +5,4 @@ package pluginhost
 import "os"
 
 // fileOwner reports no owner where the platform has no uid.
-func fileOwner(os.FileInfo) (int, bool) { return 0, false }
+func fileOwner(os.FileInfo) (uid, gid int, ok bool) { return 0, 0, false }

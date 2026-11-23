@@ -413,6 +413,9 @@ func (a *App) host() *pluginhost.Host {
 // the kapi CLI) are picked up live. Runs in the foreground; callers needing
 // async startup wrap with a goroutine.
 func (a *App) LoadPlugins() {
+	if moved := a.migrateLegacyPlugins(); len(moved) > 0 {
+		a.emitEvent("plugins-moved", map[string]any{"plugins": moved, "to": a.pluginDir})
+	}
 	a.rescanPlugins()
 	// Prime the metadata Translator from the persisted UI language so
 	// tool/format listings come back localized on the very first
@@ -445,8 +448,7 @@ func (a *App) startPluginWatch() {
 	a.watchCancel = cancel
 	go a.pluginRuntime.Watch(ctx, 3*time.Second, func(*pluginhost.Host) {
 		a.logger.Println("plugin change detected on disk, rescanned")
-		a.emitEvent("plugins-changed", nil)
-		a.emitEvent("registries-changed", nil)
+		a.pluginsChanged(false)
 	})
 }
 

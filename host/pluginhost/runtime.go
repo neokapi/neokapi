@@ -117,15 +117,15 @@ func (r *Runtime) Watch(ctx context.Context, interval time.Duration, onChange fu
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			plugins := Discover(r.opts)
-			sig := pluginSignature(plugins)
+			plugins, refused := DiscoverAll(r.opts)
+			sig := pluginSignature(plugins, refused)
 			r.mu.RLock()
 			unchanged := sig == r.sig
 			r.mu.RUnlock()
 			if unchanged {
 				continue
 			}
-			host := r.build(plugins)
+			host := r.build(plugins, refused)
 			if onChange != nil {
 				onChange(host)
 			}
@@ -133,26 +133,29 @@ func (r *Runtime) Watch(ctx context.Context, interval time.Duration, onChange fu
 	}
 }
 
-// discover returns the current plugin set, honoring the cache fast path when
-// UseCache is set (and refreshing the cache on a miss).
-func (r *Runtime) discover() []*Plugin {
+// discover returns the current plugin set and the plugins refused, honoring
+// the cache fast path when UseCache is set (and refreshing the cache on a
+// miss). A plugin taken from the cache passes the safety rule again here.
+func (r *Runtime) discover() ([]*Plugin, []Refusal) {
 	if !r.useCache {
-		return Discover(r.opts)
+		return DiscoverAll(r.opts)
 	}
 	if cache, err := LoadCache(CacheLocation()); err == nil && IsFresh(cache, r.opts) {
-		return safePlugins(PluginsFromCache(cache), r.onWarnOrNop())
+		plugins, refused := safePlugins(PluginsFromCache(cache, r.opts), r.onWarnOrNop())
+		return plugins, append(append([]Refusal(nil), cache.Refused...), refused...)
 	}
-	plugins := Discover(r.opts)
+	plugins, refused := DiscoverAll(r.opts)
 	// Best-effort cache write; an unwritable cache dir must not break startup.
-	_ = SaveCache(CacheLocation(), BuildCache(r.opts, plugins))
-	return plugins
+	_ = SaveCache(CacheLocation(), BuildCache(r.opts, plugins, refused))
+	return plugins, refused
 }
 
 // build constructs a host from plugins, wires it, and stores it as current.
-func (r *Runtime) build(plugins []*Plugin) *Host {
+func (r *Runtime) build(plugins []*Plugin, refused []Refusal) *Host {
 	host := NewHost(plugins, r.onWarn)
+	host.SetRefused(refused)
 	r.wire(host)
-	sig := pluginSignature(plugins)
+	sig := pluginSignature(plugins, refused)
 	r.mu.Lock()
 	r.host = host
 	r.sig = sig
@@ -163,8 +166,11 @@ func (r *Runtime) build(plugins []*Plugin) *Host {
 // pluginSignature returns a stable fingerprint of a plugin set (each plugin's
 // install dir and version) so Watch can detect installs, removals, and version
 // changes without rebuilding on every poll.
-func pluginSignature(plugins []*Plugin) string {
-	parts := make([]string, 0, len(plugins))
+func pluginSignature(plugins []*Plugin, refused []Refusal) string {
+	parts := make([]string, 0, len(plugins)+len(refused))
+	for _, r := range refused {
+		parts = append(parts, "refused:"+r.Dir+":"+r.Reason)
+	}
 	for _, p := range plugins {
 		ver := ""
 		if p.Manifest != nil {

@@ -38,7 +38,7 @@ func TestInstallFromRegistry_InstallsOnlyIntoAPrivateDirectory(t *testing.T) {
 	_, err = InstallPluginFromRegistry(context.Background(), pluginhost.InstallOptions{
 		IndexURL: server.URL + "/plugins.json", PluginName: "demo", TargetDir: shared, Unsafe: true,
 	})
-	require.ErrorContains(t, err, "writable by other users")
+	require.ErrorContains(t, err, "writable by every user")
 	assert.NoDirExists(t, filepath.Join(shared, "demo"), "nothing is unpacked there")
 }
 

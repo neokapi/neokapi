@@ -19,6 +19,8 @@ func TestMediaEnginesAreAbsentWithoutTheirPlugins(t *testing.T) {
 	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
 	t.Setenv("KAPI_PLUGINS_DIR", "")
 	t.Setenv("KAPI_ASR_PLUGIN", "")
+	RefreshMediaEngines()
+	t.Cleanup(RefreshMediaEngines)
 
 	assert.False(t, asr.Available(""), "no asr plugin is installed")
 	assert.False(t, vision.Available(""), "no vision plugin is installed")

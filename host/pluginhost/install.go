@@ -213,7 +213,7 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 	}
 	// A plugin is an executable: kapi installs one only where no other user
 	// can replace it (safety.go).
-	if err := ownedAndPrivate(target); err != nil {
+	if err := checkPath(target); err != nil {
 		return nil, fmt.Errorf("install: %w", err)
 	}
 	// Remove any prior install of the same plugin name.

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,12 +33,15 @@ func fakeMediaPlugin(t *testing.T, dir, name string) {
 
 // The probes find a plugin in the directory kapi installs into, the one the
 // CLI and Kapi Desktop share (pluginhost.InstallTarget), and in a
-// $KAPI_PLUGINS_DIR; without one, the engine is absent.
+// $KAPI_PLUGINS_DIR; without one, the engine is absent. The plugins are
+// discovered once per run, so each change below is followed by the refresh a
+// long-lived process makes after an install.
 func TestMediaEngineProbesSearchWhereKapiInstalls(t *testing.T) {
 	t.Setenv("KAPI_ASR_PLUGIN", "")
 	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "")
 	t.Setenv("KAPI_PLUGINS_DIR", "")
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	RefreshMediaEngines()
 	t.Cleanup(RefreshMediaEngines)
 
 	target, err := pluginhost.InstallTarget()
@@ -47,6 +51,7 @@ func TestMediaEngineProbesSearchWhereKapiInstalls(t *testing.T) {
 
 	fakeMediaPlugin(t, target, "asr")
 	fakeMediaPlugin(t, target, "vision")
+	RefreshMediaEngines()
 	assert.True(t, asr.Available(""), "found where kapi installs")
 	assert.True(t, vision.Available(""))
 
@@ -54,9 +59,63 @@ func TestMediaEngineProbesSearchWhereKapiInstalls(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
 	t.Setenv("KAPI_PLUGINS_DIR", scratch)
+	RefreshMediaEngines()
 	assert.False(t, asr.Available(""))
 	fakeMediaPlugin(t, scratch, "asr")
+	RefreshMediaEngines()
 	assert.True(t, asr.Available(""), "found in $KAPI_PLUGINS_DIR")
+}
+
+// A sync asks whether an engine is available once per media file; the
+// plugins behind the answer are discovered once per run, and again only after
+// RefreshMediaEngines.
+func TestMediaEnginesDiscoverOncePerRun(t *testing.T) {
+	RefreshMediaEngines()
+	t.Cleanup(RefreshMediaEngines)
+	calls := 0
+	real := discoverMediaPlugins
+	discoverMediaPlugins = func() ([]*pluginhost.Plugin, []pluginhost.Refusal) {
+		calls++
+		return nil, nil
+	}
+	t.Cleanup(func() { discoverMediaPlugins = real })
+	t.Setenv("KAPI_ASR_PLUGIN", "")
+
+	audio := project.ResolvedFile{Format: "audio"}
+	for range 50 {
+		missingMediaEngines(audio)
+		asr.Available("")
+		vision.Available("")
+	}
+	assert.Equal(t, 1, calls, "fifty files, one discovery")
+
+	RefreshMediaEngines()
+	missingMediaEngines(audio)
+	assert.Equal(t, 2, calls, "a refresh discovers again")
+}
+
+// A plugin installed and refused is named with its reason and fix, never with
+// an instruction to install it.
+func TestUnreadMediaNamesARefusedEngine(t *testing.T) {
+	scratch := t.TempDir()
+	t.Setenv("KAPI_ASR_PLUGIN", "")
+	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
+	t.Setenv("KAPI_PLUGINS_DIR", scratch)
+	fakeMediaPlugin(t, scratch, "vision")
+	require.NoError(t, os.Chmod(filepath.Join(scratch, "vision"), 0o777))
+	RefreshMediaEngines()
+	t.Cleanup(RefreshMediaEngines)
+
+	assert.False(t, vision.Available(""))
+	var out strings.Builder
+	writeUnreadMedia(&out, []UnreadMedia{{File: "media/logo.png", Engines: []string{"vision"}}, {File: "media/talk.wav", Engines: []string{"asr"}}})
+	text := out.String()
+	assert.Contains(t, text, `The "vision" plugin is installed but not loaded`)
+	assert.Contains(t, text, "chmod o-w")
+	assert.Contains(t, text, "kapi plugins install asr", "a plugin that is not there is still to be installed")
+	assert.NotContains(t, text, "install asr vision")
+	assert.NotContains(t, text, "install vision")
+	assert.Contains(t, text, "No target is written for them")
 }
 
 // A file whose reader is missing its engine is stamped with it, and the
@@ -67,6 +126,7 @@ func TestMissingMediaEnginesFollowThePlugins(t *testing.T) {
 	t.Setenv("KAPI_ASR_PLUGIN", "")
 	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
 	t.Setenv("KAPI_PLUGINS_DIR", scratch)
+	RefreshMediaEngines()
 	t.Cleanup(RefreshMediaEngines)
 
 	audio := project.ResolvedFile{Format: "audio"}
@@ -79,7 +139,7 @@ func TestMissingMediaEnginesFollowThePlugins(t *testing.T) {
 
 	before := mediaEngineStamp()
 	fakeMediaPlugin(t, scratch, "asr")
-	assert.Empty(t, missingMediaEngines(audio))
 	RefreshMediaEngines()
+	assert.Empty(t, missingMediaEngines(audio))
 	assert.NotEqual(t, before, mediaEngineStamp(), "the parse cache keys on the installed engines")
 }

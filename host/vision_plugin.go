@@ -31,7 +31,7 @@ func init() {
 // the person is told so once.
 func visionPluginInstalled() bool {
 	if _, err := findVisionPlugin(); err != nil {
-		noteEngineMissing(&visionMissingNote, "text in images is not read: the \"vision\" plugin is not installed (kapi plugins install vision)")
+		noteEngineMissing(&visionMissingNote, err.Error())
 		return false
 	}
 	return true
@@ -120,6 +120,9 @@ func (e *visionEngine) dial() (visionTransport, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := pluginhost.CheckLaunch(p); err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	proc, err := startVisionProcess(ctx, p.BinaryPath)
 	if err != nil {
@@ -131,15 +134,7 @@ func (e *visionEngine) dial() (visionTransport, error) {
 }
 
 func findVisionPlugin() (*pluginhost.Plugin, error) {
-	for _, p := range pluginhost.Discover(pluginhost.DefaultDiscoverOptions()) {
-		if p.Name() == visionPluginName {
-			return p, nil
-		}
-	}
-	return nil, fmt.Errorf(
-		"vision (OCR) requires the %q plugin; install it with `kapi plugins install vision` "+
-			"or build it locally (see plugins/vision/README.md)",
-		visionPluginName)
+	return findMediaPlugin(visionPluginName, "text in images is not read")
 }
 
 // --- wire format (mirrors plugins/vision/visionproto, intentionally duplicated) ---

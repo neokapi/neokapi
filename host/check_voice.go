@@ -57,7 +57,7 @@ type voiceTransport interface {
 const DefaultVoiceSimilarity = 0.80
 
 // voiceExamples returns the on-voice reference texts from a profile (its
-// examples' "after" strings — the desired voice). Empty when the profile has no
+// examples' "after" strings, the desired voice). Empty when the profile has no
 // examples, in which case the voice check has nothing to compare against.
 func voiceExamples(p *profile.VoiceProfile) []string {
 	if p == nil {
@@ -123,6 +123,9 @@ func dialVoicePlugin(ctx context.Context) (voiceTransport, func(), string, error
 	var bin, pluginVersion string
 	for _, p := range plugins {
 		if p.Name() == checkPluginName {
+			if err := pluginhost.CheckLaunch(p); err != nil {
+				return nil, nil, "", err
+			}
 			bin, pluginVersion = p.BinaryPath, p.Version()
 			break
 		}

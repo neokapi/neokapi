@@ -62,10 +62,17 @@ func DefaultSystemDirs() []string {
 }
 
 // Discover scans configured plugin roots and returns every successfully
-// parsed plugin. Manifests that fail to parse or fail Validate are
-// skipped with a warning; discovery never returns a fatal error
-// (missing dirs are silently ignored).
+// parsed plugin the safety rule lets kapi load (safety.go). Manifests that
+// fail to parse or fail Validate are skipped with a warning; discovery never
+// returns a fatal error (missing dirs are silently ignored).
 func Discover(opts DiscoverOptions) []*Plugin {
+	plugins, _ := DiscoverAll(opts)
+	return plugins
+}
+
+// DiscoverAll is Discover, also returning the plugins found and refused by
+// the safety rule, each with its reason, so a listing can show them.
+func DiscoverAll(opts DiscoverOptions) ([]*Plugin, []Refusal) {
 	warn := opts.OnWarn
 	if warn == nil {
 		warn = func(string) {}

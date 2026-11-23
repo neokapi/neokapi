@@ -275,6 +275,14 @@ func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 		cells = append(cells, pipelineCell(lc, bars))
 		t.Row(append(cells, shipCell(lc, s))...)
 	}
+	for _, row := range unreadMediaRows(o.UnreadMedia, o.Locales) {
+		cells := make([]string, 0, len(headers))
+		cells = append(cells, row[0], "—")
+		for range statusLadder {
+			cells = append(cells, "—")
+		}
+		t.Row(append(cells, row[1], s.Warn.Render("not read"))...)
+	}
 	t.Render()
 	o.writeBasisLines(w)
 	o.writeShipSummary(w, s)
@@ -809,7 +817,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		}
 		a.warnUnreadableFormats(cmd, src.Unreadable)
 		if db, derr := a.ProjectDB(CmdContext(cmd), root); derr == nil {
-			out.UnreadMedia = unreadMedia(CmdContext(cmd), db)
+			out.UnreadMedia = unreadMedia(CmdContext(cmd), db, a.collectionsOf(proj, projectPath))
 		}
 		a.appendServerStatus(cmd, projectPath, proj, &out)
 		out.Venue = a.statusVenue(proj)
