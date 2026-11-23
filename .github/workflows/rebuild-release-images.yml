@@ -9,7 +9,8 @@ name: Rebuild release images
 # them. A rebuild publishes under its own tag, `<version>-r<YYYYMMDD>`,
 # and moves `latest` to it; the release's version tag is never overwritten.
 # A rebuild that scans worse than the image `latest` points at now, a finding
-# the current image does not have, publishes nothing.
+# the current image does not have, publishes nothing; so does a scan that
+# cannot prove it read the image (scripts/image-scan-compare.py).
 #
 # A dispatch builds and scans only, on any branch. Only the schedule, on
 # main, publishes (scripts/check-release-build-only.py holds the shape).
@@ -145,7 +146,7 @@ jobs:
 
       # No cache, and fresh base images: the point of the rebuild is to take
       # what the bases fixed since the release.
-      - name: Build ${{ matrix.image }} into an OCI archive
+      - name: Build ${{ matrix.image }} into an OCI layout
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -156,7 +157,7 @@ jobs:
           no-cache: true
           sbom: true
           provenance: mode=max
-          outputs: type=oci,dest=${{ runner.temp }}/image.tar
+          outputs: type=oci,dest=${{ runner.temp }}/image,tar=false
           build-args: |
             VERSION=${{ needs.setup.outputs.version }}
             COMMIT=${{ steps.meta.outputs.commit }}
@@ -169,9 +170,10 @@ jobs:
           TRIVY_PLATFORM: ${{ matrix.platform }}
         with:
           version: ${{ env.TRIVY_VERSION }}
-          input: ${{ runner.temp }}/image.tar
+          input: ${{ runner.temp }}/image
           severity: CRITICAL,HIGH
           format: json
+          list-all-pkgs: true
           output: ${{ runner.temp }}/out/candidate.json
           exit-code: "0"
           trivyignores: ${{ matrix.ignorefile && format('tools/{0}', matrix.ignorefile) || '' }}
@@ -183,7 +185,7 @@ jobs:
           TRIVY_PLATFORM: ${{ matrix.platform }}
         with:
           version: ${{ env.TRIVY_VERSION }}
-          input: ${{ runner.temp }}/image.tar
+          input: ${{ runner.temp }}/image
           format: cyclonedx
           output: ${{ runner.temp }}/out/sbom.cdx.json
           skip-setup-trivy: true
@@ -192,16 +194,28 @@ jobs:
       - name: Check the scanner's databases are fresh
         run: python3 tools/scripts/check-trivy-db.py "$GITHUB_WORKSPACE/.cache/trivy"
 
-      - name: Report the rebuilt image's findings
+      # The scan must prove it read this image: its image id is the config
+      # digest of the layout about to be published, and it lists packages.
+      # Findings are reported here and judged in the publish job.
+      - name: Check the scan read this image
         env:
           OUT: ${{ runner.temp }}/out
-        run: python3 tools/scripts/image-scan-compare.py "$OUT/candidate.json" /dev/null || true
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -uo pipefail
+          id="$(python3 tools/scripts/image-scan-compare.py image-id "$RUNNER_TEMP/image" "$PLATFORM")" || exit 1
+          echo "$id" > "$OUT/image-id.txt"
+          python3 tools/scripts/image-scan-compare.py compare "$OUT/candidate.json" --image-id "$id" --no-current
+          status=$?
+          if [ "$status" -ne 0 ] && [ "$status" -ne 1 ]; then
+            exit "$status"
+          fi
 
       - name: Upload the image
         uses: actions/upload-artifact@v7
         with:
           name: image-${{ matrix.image }}-${{ matrix.arch }}
-          path: ${{ runner.temp }}/image.tar
+          path: ${{ runner.temp }}/image/
           if-no-files-found: error
           retention-days: 1
 
@@ -249,7 +263,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Is an image published under latest?
+        id: exists
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/current"
+          if docker buildx imagetools inspect "ghcr.io/neokapi/$IMAGE:latest" > /dev/null; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "no image under latest" > "$RUNNER_TEMP/current/absent"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Scan ghcr.io/neokapi/${{ matrix.image }}:latest
+        if: steps.exists.outputs.present == 'true'
         uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec
         env:
           TRIVY_PLATFORM: ${{ matrix.platform }}
@@ -258,18 +289,20 @@ jobs:
           image-ref: ghcr.io/neokapi/${{ matrix.image }}:latest
           severity: CRITICAL,HIGH
           format: json
-          output: ${{ runner.temp }}/current.json
+          list-all-pkgs: true
+          output: ${{ runner.temp }}/current/current.json
           exit-code: "0"
           trivyignores: ${{ matrix.ignorefile || '' }}
           cache: false
 
       - name: Check the scanner's databases are fresh
+        if: steps.exists.outputs.present == 'true'
         run: python3 scripts/check-trivy-db.py "$GITHUB_WORKSPACE/.cache/trivy"
 
       - uses: actions/upload-artifact@v7
         with:
           name: current-${{ matrix.image }}-${{ matrix.arch }}
-          path: ${{ runner.temp }}/current.json
+          path: ${{ runner.temp }}/current/
           if-no-files-found: error
           retention-days: 90
 
@@ -304,7 +337,15 @@ jobs:
           worse=0
           for leg in server-amd64 server-arm64 worker-amd64 worker-arm64 web-amd64 web-arm64 keycloak-amd64; do
             echo "::group::bowrain-$leg"
-            python3 scripts/image-scan-compare.py "$A/record-bowrain-$leg/candidate.json" "$A/current-bowrain-$leg/current.json" || worse=1
+            rec="$A/record-bowrain-$leg"
+            cur="$A/current-bowrain-$leg"
+            if [ -f "$cur/absent" ]; then
+              baseline=(--no-current)
+            else
+              baseline=(--current "$cur/current.json")
+            fi
+            python3 scripts/image-scan-compare.py compare "$rec/candidate.json" \
+              --image-id "$(cat "$rec/image-id.txt")" "${baseline[@]}" || worse=1
             echo "::endgroup::"
           done
           if [ "$worse" -ne 0 ]; then
@@ -335,12 +376,12 @@ jobs:
           done
           for image in bowrain-server bowrain-worker bowrain-web; do
             for arch in amd64 arm64; do
-              skopeo copy --all "oci-archive:$A/image-$image-$arch/image.tar" "docker://ghcr.io/neokapi/$image:$TAG-$arch"
+              skopeo copy --all "oci:$A/image-$image-$arch" "docker://ghcr.io/neokapi/$image:$TAG-$arch"
             done
             docker buildx imagetools create -t "ghcr.io/neokapi/$image:$TAG" \
               "ghcr.io/neokapi/$image:$TAG-amd64" "ghcr.io/neokapi/$image:$TAG-arm64"
           done
-          skopeo copy --all "oci-archive:$A/image-bowrain-keycloak-amd64/image.tar" "docker://ghcr.io/neokapi/bowrain-keycloak:$TAG"
+          skopeo copy --all "oci:$A/image-bowrain-keycloak-amd64" "docker://ghcr.io/neokapi/bowrain-keycloak:$TAG"
           for image in bowrain-server bowrain-worker bowrain-web bowrain-keycloak; do
             docker buildx imagetools create -t "ghcr.io/neokapi/$image:latest" "ghcr.io/neokapi/$image:$TAG"
           done
