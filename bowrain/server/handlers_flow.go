@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -96,6 +97,17 @@ func (s *Server) HandleCreateFlowDefinition(c *echo.Context) error {
 type UpdateFlowDefinitionRequest struct {
 	flow.FlowDefinition
 	BaseRevision string `json:"base_revision"`
+}
+
+// MarshalJSON writes the definition's fields and base_revision. The embedded
+// FlowDefinition's MarshalJSON is promoted to this type and would leave
+// base_revision out, so a client marshalling the request would send a save
+// the server refuses with 428.
+func (r UpdateFlowDefinitionRequest) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		flow.FlowDefinitionFields
+		BaseRevision string `json:"base_revision"`
+	}{r.Fields(), r.BaseRevision})
 }
 
 // FlowChangedResponse answers a flow save made against an older read: why it

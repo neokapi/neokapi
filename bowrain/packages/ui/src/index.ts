@@ -554,6 +554,7 @@ export { countBucket, creditBucket, percentBucket, sharePercentBucket } from "./
 export type { ApiAdapter } from "./api/adapter";
 export { fetchConnectorStatuses, CONNECTOR_STATUS_BATCH_SIZE } from "./api/connector-status";
 export { RestApiAdapter, type ApiTransport } from "./api/rest-adapter";
+export { flowDefinitionFromWire, flowDefinitionsFromWire } from "./api/flowDefinition";
 // Content changes: the change sets the editor surfaces send.
 export {
   ABSENT_REVISION,
