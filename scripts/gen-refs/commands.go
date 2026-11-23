@@ -18,22 +18,22 @@ import (
 //
 // This is a different axis from runnable-in-browser (which comes from
 // cli.BrowserUnavailableReason): `kapi models list` is offline yet unavailable
-// in the browser, and `kapi translate` is available in the browser — against
-// the deterministic demo provider — yet not offline on a real machine.
+// in the browser, and `kapi translate` is available in the browser, against
+// the deterministic demo provider, yet not offline on a real machine.
 var offlineOverride = map[string]bool{
-	// Network / AI / MT — require API keys + outbound TLS. (qa is offline by
-	// default — rule-based — so it is left to the heuristic rather than
+	// Network / AI / MT: require API keys + outbound TLS. (qa is offline by
+	// default, being rule-based, so it is left to the heuristic rather than
 	// force-marked here; with --provider it needs network at run time.)
 	"translate":    false,
 	"voice-check":  false,
 	"voice-review": false,
-	// Credentials — require the OS keychain (cgo, subprocess).
+	// Credentials: require the OS keychain (cgo, subprocess).
 	"credentials":        false,
 	"credentials.add":    false,
 	"credentials.list":   false,
 	"credentials.remove": false,
 	"credentials.test":   false,
-	// Plugin management — network-dependent operations.
+	// Plugin management: network-dependent operations.
 	// plugin.list / plugin.info / plugin.rebuild-cache / plugin.verify are
 	// local-only, so they remain offline (not overridden here).
 	"plugin.install":      false,
@@ -41,16 +41,16 @@ var offlineOverride = map[string]bool{
 	"plugin.update":       false,
 	"plugin.search":       false,
 	"plugin.update-index": false,
-	// Plugin registry — requires network (GitHub API / plugin index).
+	// Plugin registry: requires network (GitHub API / plugin index).
 	"plugin.registry": false,
-	// Model assets — downloaded from a release feed into the shared cache.
+	// Model assets: downloaded from a release feed into the shared cache.
 	"models.download": false,
 	"models.pull":     false,
-	// Self-update — resolves and downloads a release.
+	// Self-update: resolves and downloads a release.
 	"update": false,
-	// MCP server — requires a running process.
+	// MCP server: requires a running process.
 	"mcp": false,
-	// Voice profile — check and rewrite reach an AI provider; the rest of the
+	// Voice profile: check and rewrite reach an AI provider; the rest of the
 	// group (guide, show, profiles, validate, new, import, pack) is local.
 	"voice.check":   false,
 	"voice.rewrite": false,
@@ -70,13 +70,9 @@ var offlineOverride = map[string]bool{
 // running process). The resulting tree is used only for metadata extraction;
 // none of the RunE functions are called.
 //
-// The command set comes from cli.KapiCommandSet — the same function
-// kapi/cmd/kapi registers and the cli/i18n generator walks — so the reference
-// dataset can never document a different surface than the binary ships. It
-// used to re-declare the tree by hand, and had silently fallen thirteen verbs
-// behind (status, apply, inspect, ls, add, rm, config, hook, pack, unpack,
-// info, telemetry, update) while still documenting verbs the hard cutover in
-// #1180 had retired.
+// The command set comes from cli.KapiCommandSet, the same function
+// kapi/cmd/kapi registers and the cli/i18n generator walks, so the reference
+// dataset documents the surface the binary ships.
 func buildKapiRoot() *cobra.Command {
 	app := &cli.App{}
 	// InitRegistries populates FormatReg/ToolReg so NewToolCommands and
@@ -106,7 +102,7 @@ func buildKapiRoot() *cobra.Command {
 // collectCommands walks the cobra command tree rooted at root and returns a
 // flat slice of CommandEntry values. parentPath is the dot-joined path to the
 // parent command (empty for root's direct children). The root itself ("kapi")
-// is not emitted — only its descendants are.
+// is not emitted, only its descendants are.
 func collectCommands(cmd *cobra.Command, parentPath []string) []CommandEntry {
 	var out []CommandEntry
 
@@ -116,9 +112,10 @@ func collectCommands(cmd *cobra.Command, parentPath []string) []CommandEntry {
 			continue
 		}
 		// Hidden commands are shortcuts and machine plumbing (the hidden
-		// top-level tool dispatch, engine, toolbox proxies): they must not
-		// surface in the reference — the docs document the visible surface.
-		if sub.Hidden {
+		// top-level tool dispatch, engine, toolbox proxies), and stay out of
+		// the reference. A hidden command marked with cli.ListInReference is
+		// kept off the root help and still gets its page.
+		if !cli.InReference(sub) {
 			continue
 		}
 
@@ -141,8 +138,8 @@ func collectCommands(cmd *cobra.Command, parentPath []string) []CommandEntry {
 		// Runnable-in-browser comes straight from the browser build's own
 		// command set (cli.BrowserCommandSet): a verb the browser cannot run is
 		// recorded there with the facility it needs, and everything else is
-		// wired up for real. Deriving it here — rather than from a second
-		// allowlist — is what keeps the badge honest when the surface changes.
+		// wired up for real. Deriving it here, rather than from a second
+		// allowlist, keeps the badge honest when the surface changes.
 		//
 		// Demo mode is then exactly the overlap: a command that runs in the
 		// browser but would need an AI or MT provider on a real machine, so the
@@ -170,8 +167,8 @@ func isOfflineCapableCmd(dotPath string, cmd *cobra.Command) bool {
 	return cmd.Flags().Lookup("credential") == nil
 }
 
-// offlineCapableOverride returns (value, true) when the dot-path — or any
-// ancestor prefix marked offline=false, which propagates to descendants —
+// offlineCapableOverride returns (value, true) when the dot-path, or any
+// ancestor prefix marked offline=false, which propagates to descendants,
 // appears in offlineOverride, otherwise (false, false).
 func offlineCapableOverride(dotPath string) (bool, bool) {
 	segments := strings.Split(dotPath, ".")

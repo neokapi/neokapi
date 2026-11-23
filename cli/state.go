@@ -121,5 +121,6 @@ system's own cache key.`,
 	AddProjectFlag(pathCmd)
 
 	stateCmd.AddCommand(importCmd, relinkCmd, pathCmd)
-	return stateCmd
+	// Hidden from the root help, and listed in the command reference.
+	return ListInReference(stateCmd)
 }

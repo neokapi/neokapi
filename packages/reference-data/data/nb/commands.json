@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-23T15:28:23Z",
+  "generatedAt": "2026-11-23T17:18:57Z",
   "commands": [
     {
       "id": "add",
@@ -5992,6 +5992,58 @@
       "demoMode": false
     },
     {
+      "id": "hook",
+      "path": [
+        "hook"
+      ],
+      "use": "hook",
+      "short": "Integrasjonskroker for AI-kodingsassistenter (Claude Code)",
+      "long": "Lim-kommandoer for AI-kodingsassistenter. Hver underkommando leser\nassistentens hook-nyttelast på stdin og skriver assistentens forventede svar\npå stdout. Disse kobles til av assistentens tillegg, ikke kjøres manuelt.\n\nBeslutningsprotokollen alle kapi-hooks følger:\n\n  - en beslutning er JSON på stdout, og avslutt-koden forblir 0, fordi assistenten\n    leser en ikke-null avslutning som en ødelagt hook heller enn en avvisning;\n  - en avvisning navngir hooken og gir en grunn assistenten kan handle på;\n  - når vakten ikke kunne kjøre i det hele tatt (en uleselig eller feilformatert nyttelast, en\n    sesjonskatalog som ikke kan gås inn i, et prosjekt som ikke vil laste) tillater\n    hooken operasjonen og sender ut {\"systemMessage\":\"…\"} på stdout pluss samme\n    advarsel på stderr, og navngir hooken. kapi-hooks feiler åpent, men en\n    uhørt hook er aldri stille: en vakt som aldri kjørte må ikke se ut som en\n    vakt som besto.\n\nMerk: dette er assistentintegrasjonshooks. De er uten tilknytning til\noppskriftens hooks: blokk, som er en annen (og uimplementert) mekanisme.",
+      "groupID": "advanced",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "hook.post-edit",
+      "path": [
+        "hook",
+        "post-edit"
+      ],
+      "use": "post-edit",
+      "short": "Claude Code PostToolUse hook: run kapi check on each file an edit wrote",
+      "long": "Claude Code PostToolUse hook for Edit/Write/MultiEdit. Reads the\nPostToolUse-event JSON on stdin (cwd, session_id, tool_use_id and\ntool_input.file_path), resolves the .kapi project in the session's working\ndirectory, runs the check \"kapi check \u003cfile\u003e\" runs on that one file, and:\n\n  - emits {\"decision\":\"block\",\"reason\":\"…findings…\"} (exit 0) when a finding\n    fails: names, spellings and word rules fail, and tone reports unless a\n    rule marks it. The edit has already happened; Claude Code shows the\n    reason to Claude beside the edit's result, so Claude fixes the file before\n    it reports done;\n  - emits nothing (exit 0) when the file passes, outside a project, on a file\n    the project's collections do not read, and on a generated target. A file\n    whose format no installed reader opens on this machine also emits\n    nothing, and its run is on record as one that did not run; or\n  - emits {\"systemMessage\":\"…\"} (exit 0), and the same warning on stderr, when\n    the check could not run: an unreadable, empty, or malformed payload, a\n    session directory it cannot enter, a project that will not load, or a\n    check that did not run. The edit stands. When the check reports that it\n    did not run, the run is on record as unchecked rather than passing.\n\nEach run that reaches the check is recorded in the project's log, under the\nsession's assistant, as the Stop hook's runs are: the file, the failing\nfindings and whether the run was clean. A finding one run reports and the\nsession's next run on the same file no longer finds counts as caught. --json\nprints the decision with the id of that record.\n\nThe Stop hook (\"kapi hook stop\") runs the ship gates over the whole project as\nthe turn ends; this hook runs the writing check on one file after each edit.\nWire it up via the kapi Claude Code plugin (hooks/hooks.json) with a matcher of\nEdit|Write|MultiEdit. A block here stops nothing: the assistant reads the\nfindings and carries on, so an unfixable finding cannot trap it.",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "hook.pre-edit",
+      "path": [
+        "hook",
+        "pre-edit"
+      ],
+      "use": "pre-edit",
+      "short": "Claude Code PreToolUse-hook: blokkér direkte redigeringer av kapi-genererte oversettelsesmål",
+      "long": "Claude Code PreToolUse-hook for Edit/Write/MultiEdit. Leser\nPreToolUse-hendelsens JSON på stdin, løser .kapi-prosjektet i sesjonens\narbeidsmappe, og:\n\n  - sender ut {\"hookSpecificOutput\":{\"permissionDecision\":\"deny\",…}} (avslutt 0) når\n    filen som skrives er et prosjektinnholdsmål (en sti som\n    \"kapi merge\" genererer), slik at Claude ruter endringen gjennom\n    trekk ut → oversett → flett i stedet;\n  - sender ingenting (avslutt 0) utenfor et prosjekt, på kildefiler og på filer\n    prosjektet ikke genererer, og lar den normale tillatelsesflyten være urørt; eller\n  - sender ut {\"systemMessage\":\"…\"} (avslutt 0), og samme advarsel på stderr, når\n    vakten ikke kunne kjøre i det hele tatt: en uleselig, tom eller feilformatert nyttelast,\n    en sesjonskatalog den ikke kan gå inn i, eller et prosjekt som ikke vil laste (for\n    eksempel fordi det krever et tillegg som ikke er installert). Redigeringen\n    fortsetter uten noen beslutning, slik at den normale tillatelsesflyt er\n    urørt, og forbikjøringen er registrert i stedet for usynlig.\n\nKoble det til via kapi Claude Code-tillegget (hooks/hooks.json) med en matcher av\nEdit|Write|MultiEdit. Det feiler åpent: alt annet enn et bekreftet måltreff\nlar redigeringen fortsette, så vakten trapper aldri assistenten på en\nurelatert fil.",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "hook.stop",
+      "path": [
+        "hook",
+        "stop"
+      ],
+      "use": "stop",
+      "short": "Claude Code Stop-hook: fortsett å arbeide til prosjektets kapi check --ship-porter passerer",
+      "long": "Claude Code Stop-hook. Leser Stop-hendelsens JSON på stdin, kjører\nverifiseringskontrollene for prosjektet i sesjonens arbeidsmappe, og:\n\n  - sender ut {\"decision\":\"block\",\"reason\":\"…findings…\"} (avslutt 0) når en kontroll\n    feiler, slik at Claude fortsetter å jobbe og retter funnene før stopp;\n  - sender ingenting (avslutt 0) når prosjektet består, eller når det ikke finnes noe .kapi-\n    prosjekt å kontrollere, slik at Claude kan avslutte fritt; eller\n  - sender ut {\"systemMessage\":\"…\"} (avslutt 0), og samme advarsel på stderr, når\n    kontrollene ikke kunne evalueres i det hele tatt: en uleselig, tom eller feilformatert\n    nyttelast, en sesjonskatalog den ikke kan gå inn i, eller et prosjekt der kontrollene\n    feiler. Claude kan likevel avslutte fritt, og kjøringen registreres som\n    ukontrollert heller enn bestått.\n\nKoble det til via kapi Claude Code-tillegget (hooks/hooks.json). Det feiler åpent:\nalt annet enn en ren kontrollfeil lar Claude stoppe, så et manglende prosjekt\neller en verifiseringsfeil trapper aldri assistenten.",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "info",
       "path": [
         "info"
@@ -8265,6 +8317,108 @@
       ],
       "offlineCapable": true,
       "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "state",
+      "path": [
+        "state"
+      ],
+      "use": "state",
+      "short": "Show where a checkout's state lives, and bring state into it",
+      "long": "Show where a checkout's own state lives, and bring state into it.\n\nkapi keeps each checkout's state outside the checkout, in a directory of its\nown under the data root: the project store and caches, which kapi rebuilds,\nand the redaction vault, the sync state and the saved filters, which it\ncannot. The directory is found by the checkout's location and the identity of\nits folder, never by anything the checkout contains, so a repository cannot\nreach another project's state, and kapi reads nothing a checkout carries as\nstate.\n\nA checkout moved or renamed on its volume keeps its state. Any other move,\na restored backup, or a fresh clone starts without it; kapi rebuilds what it\ncan, and a person brings the rest across:\n\n  kapi state import   takes the state an earlier kapi left inside the\n                      checkout's .kapi/ folder\n  kapi state relink   takes the state kapi recorded for another location\n  kapi state path     prints the checkout's state directory, for a CI cache\n\nBoth import and relink show every file they would take, with its size and\nthe server any sync state was issued by, ask at the terminal (or take --yes),\nand take exactly what they showed. An agent or an MCP call cannot run them.",
+      "groupID": "advanced",
+      "examples": [
+        "kapi state path -p ./app",
+        "kapi state import -p ./app",
+        "kapi state relink --from ~/old/app -p ./app"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "state.import",
+      "path": [
+        "state",
+        "import"
+      ],
+      "use": "import",
+      "short": "Take the state an earlier kapi left inside the checkout",
+      "long": "Take the state an earlier kapi left inside the checkout's .kapi/ folder (the\nredaction vault, the sync state and the saved filters) into the checkout's\nstate directory. The files are shown first and confirmed at the terminal.\nWith no terminal attached nothing is taken unless --yes is given.\n\nThe copies inside the checkout stay where they are unless --remove is given;\nkapi no longer reads them either way.",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "remove",
+          "usage": "remove the copies inside the checkout once they are taken",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
+      "examples": [
+        "kapi state import -p ./app",
+        "kapi state import -p ./app --yes --remove"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "state.path",
+      "path": [
+        "state",
+        "path"
+      ],
+      "use": "path",
+      "short": "Print the directory that holds the checkout's state",
+      "long": "Print the directory that holds the checkout's own state. A CI workflow that\ncaches kapi's work between runs caches this directory, keyed by the CI\nsystem's own cache key.",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi state path -p ."
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "state.relink",
+      "path": [
+        "state",
+        "relink"
+      ],
+      "use": "relink",
+      "short": "Take the state kapi recorded for the checkout's earlier location",
+      "long": "Take the state kapi recorded for a checkout at another location into this\ncheckout's state directory: for a checkout moved to another volume, restored\nfrom a backup, or cloned again. The files are shown first and confirmed at the\nterminal. With no terminal attached nothing is taken unless --yes is given.\nThe work directory is rebuilt here rather than taken, and the state directory\nthe files came from is removed once they are in place.",
+      "flags": [
+        {
+          "name": "from",
+          "usage": "the location the checkout's state was recorded for",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi state relink --from ~/old/app -p ./app"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {
