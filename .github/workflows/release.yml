@@ -790,9 +790,40 @@ jobs:
           # user-level install or config.
           docker run --rm "${IMAGE}:${VERSION}" kapi plugins list
 
+  qps-kapi-desktop:
+    name: Kapi Desktop qps dictionary
+    needs: [setup]
+    # The qps dictionary is the same file on every platform: the pinned
+    # released kapi pseudo-translates the app's catalog. It is made once
+    # here, on Linux, and every build leg ships this copy. A released kapi
+    # carries no Windows CLI assets on GitHub (they are signed by hand after
+    # the run), so a Windows leg cannot install one.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-node-ui
+
+      - name: Build @neokapi/i18n-react
+        working-directory: packages/i18n-react
+        run: vp run build
+
+      - name: Generate the qps dictionary
+        uses: ./.github/actions/app-pseudo-locale
+        with:
+          targets: kapi-desktop-qps
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: qps-kapi-desktop
+          path: |
+            apps/kapi-desktop/frontend/public/translations/qps.json
+          if-no-files-found: error
+          retention-days: 1
+
   build-kapi-desktop:
     name: Build Kapi Desktop (${{ matrix.build.platform }})
-    needs: [setup, package-cli]
+    needs: [setup, package-cli, qps-kapi-desktop]
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
     strategy:
@@ -927,11 +958,12 @@ jobs:
         run: vp run build
 
       # public/translations/qps.json is build output that the vite config
-      # skips under CI, so it is generated here before the build ships it.
-      - name: Generate the qps dictionary
-        uses: ./.github/actions/app-pseudo-locale
+      # skips under CI; the qps-kapi-desktop job made it.
+      - name: Fetch the qps dictionary
+        uses: actions/download-artifact@v8
         with:
-          targets: kapi-desktop-qps
+          name: qps-kapi-desktop
+          path: apps/kapi-desktop/frontend/public/translations
 
       - name: Build Kapi Desktop frontend
         working-directory: apps/kapi-desktop/frontend
