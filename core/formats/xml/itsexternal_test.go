@@ -36,7 +36,7 @@ func readXMLFileBlocks(t *testing.T, path string) []string {
 
 	ctx := context.Background()
 	require.NoError(t, reader.Open(ctx, &model.RawDocument{
-		URI: path, SourceLocale: "en", FormatID: "xml", Reader: f,
+		URI: path, SourceLocale: "en", FormatID: "xml", Reader: f, ReaderAt: f,
 	}))
 	defer reader.Close()
 
@@ -104,7 +104,7 @@ func TestExternalITSRulesLoadFromASubdirectory(t *testing.T) {
 
 // TestExternalITSRulesCannotClimbOutOfTheDocumentDirectory: the href is written
 // by whoever wrote the document, so it must not be able to reach a file the
-// project never offered — the same rule the absolute-path and URI cases already
+// project never offered. That is the same rule the absolute-path and URI cases already
 // followed. An unreadable reference degrades to "no external rules", which is
 // this reader's documented behaviour for one that does not resolve.
 func TestExternalITSRulesCannotClimbOutOfTheDocumentDirectory(t *testing.T) {

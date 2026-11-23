@@ -1,8 +1,6 @@
 package host
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -195,11 +193,10 @@ func (t *formatterTrust) hash(path string) (string, error) {
 		return "", err
 	}
 	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
+	sum, err := sha256Of(f)
+	if err != nil {
 		return "", err
 	}
-	sum := hex.EncodeToString(h.Sum(nil))
 	t.hashed[path] = sum
 	return sum, nil
 }

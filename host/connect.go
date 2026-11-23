@@ -6,12 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/host/skills"
 )
 
@@ -216,7 +218,7 @@ var claudeSettingsFiles = []string{".claude/settings.json", ".claude/settings.lo
 // Claude Code plugin, empty when none does.
 func claudePluginEnabledIn(root string) string {
 	for _, rel := range claudeSettingsFiles {
-		if enablesKapiPlugin(filepath.Join(root, filepath.FromSlash(rel))) {
+		if enablesKapiPlugin(root, filepath.Join(root, filepath.FromSlash(rel))) {
 			return rel
 		}
 	}
@@ -241,13 +243,15 @@ func claudeUserSettings() (string, bool) {
 // settings enable the kapi plugin. It reads that file and writes nothing.
 func claudePluginEnabledForUser() bool {
 	path, ok := claudeUserSettings()
-	return ok && enablesKapiPlugin(path)
+	return ok && enablesKapiPlugin("", path)
 }
 
 // enablesKapiPlugin reports whether a Claude Code settings file enables a
-// plugin named kapi, from any marketplace.
-func enablesKapiPlugin(path string) bool {
-	raw, err := os.ReadFile(path)
+// plugin named kapi, from any marketplace. A project's settings file is read
+// through root, so a link that leads out of the project is not read; the
+// person's own settings file, with an empty root, is read as named.
+func enablesKapiPlugin(root, path string) bool {
+	raw, err := rootpath.ReadFile(root, path)
 	if err != nil {
 		return false
 	}
@@ -269,7 +273,7 @@ func enablesKapiPlugin(path string) bool {
 // project folder, its MCP file or its rules file.
 func claudeCodeFound(root string) bool {
 	for _, rel := range []string{".claude", ".mcp.json", "CLAUDE.md"} {
-		if _, err := os.Stat(filepath.Join(root, rel)); err == nil {
+		if _, err := statIn(root, filepath.Join(root, rel)); err == nil {
 			return true
 		}
 	}
@@ -309,7 +313,7 @@ func (a *App) ConnectHosts(ctx context.Context, cmd Command, opts ConnectOptions
 
 	// The recipe first: the MCP entry names it, and the rules files are read
 	// from the context it opens.
-	recipeFile, targets, haveRecipe, err := a.connectRecipe(root, recipe, opts.DryRun)
+	recipeFile, targets, haveRecipe, err := a.connectRecipe(ctx, root, recipe, opts.DryRun)
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +325,8 @@ func (a *App) ConnectHosts(ctx context.Context, cmd Command, opts ConnectOptions
 		res.Default = len(hosts) == 1 && !claudeCodeFound(root)
 	}
 
-	wiring, err := WriteAgentWiring(AgentWiringOptions{
+	wiring, err := WriteAgentWiring(AgentWiringOptions{ //nolint:contextcheck // ctx travels on AgentWiringOptions.Context
+		Context: ctx,
 		Root:    root,
 		Hosts:   hosts,
 		Recipe:  filepath.Base(recipe),
@@ -401,11 +406,15 @@ func (a *App) ConnectHosts(ctx context.Context, cmd Command, opts ConnectOptions
 // exist under a name other than kapi.yaml, which kapi init never writes, or
 // one whose folder does not exist. It runs before anything is written.
 func connectableRecipe(recipe string) error {
-	if _, err := os.Stat(recipe); err == nil {
+	dir := filepath.Dir(recipe)
+	_, err := statIn(dir, recipe)
+	if err == nil {
 		return nil
 	}
-	dir := filepath.Dir(recipe)
-	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+	if !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	if info, err := statNamed(dir); err != nil || !info.IsDir() {
 		return fmt.Errorf("no folder at %s: name an existing folder, or a recipe in one", dir)
 	}
 	if filepath.Base(recipe) != project.RecipeFileName {
@@ -431,9 +440,9 @@ func connectDir(dir string, dry bool) (string, error) {
 // writes it, and returns the target languages it declares. haveRecipe is
 // false only for a dry run over a folder with no recipe, which leaves the
 // recipe unwritten.
-func (a *App) connectRecipe(root, recipe string, dry bool) (file ConnectFile, targets []string, haveRecipe bool, err error) {
+func (a *App) connectRecipe(ctx context.Context, root, recipe string, dry bool) (file ConnectFile, targets []string, haveRecipe bool, err error) {
 	file = ConnectFile{Path: relSlash(root, recipe), Kind: ConnectRecipe}
-	if _, serr := os.Stat(recipe); serr == nil {
+	if _, serr := statIn(root, recipe); serr == nil {
 		proj, lerr := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 		if lerr != nil {
 			return file, nil, false, fmt.Errorf("load project: %w", lerr)
@@ -448,7 +457,7 @@ func (a *App) connectRecipe(root, recipe string, dry bool) (file ConnectFile, ta
 	if dry {
 		return file, nil, false, nil
 	}
-	res, ierr := InitProject(root, InitOptions{Formats: a.FormatReg})
+	res, ierr := InitProjectContext(ctx, root, InitOptions{Formats: a.FormatReg})
 	if ierr != nil {
 		return file, nil, false, ierr
 	}
@@ -467,7 +476,7 @@ func (a *App) connectRulesFiles(ctx context.Context, root, recipe string, haveRe
 	)
 	switch {
 	case !haveRecipe:
-		res, err = writeRulesPlan(projectWrites{dry: true}, root, rulesPlan{})
+		res, err = writeRulesPlan(projectWrites{ctx: ctx, dry: true, root: root}, root, rulesPlan{}) //nolint:contextcheck // ctx travels on projectWrites
 	case dry:
 		res, err = a.PreviewRulesFiles(ctx, recipe)
 	default:

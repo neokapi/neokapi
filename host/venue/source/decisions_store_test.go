@@ -22,7 +22,7 @@ func newDecisionsConnector(t *testing.T, a *host.App) *BowrainSourceConnector {
 		Defaults: coreproj.Defaults{SourceLanguage: "en"},
 	})
 	require.NoError(t, err)
-	return NewLocalConnector(a, proj, registry.NewFormatRegistry())
+	return mustLocalConnector(t, a, proj, registry.NewFormatRegistry())
 }
 
 // Staging a pulled decision writes through the App's handle — the same one every

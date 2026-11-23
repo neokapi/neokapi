@@ -7,6 +7,62 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * TrustSite is one place a recipe arms code execution.
+ */
+export class TrustSite {
+    /**
+     * Creates a new TrustSite instance.
+     * @param {Partial<TrustSite>} [$$source = {}] - The source object to create the TrustSite.
+     */
+    constructor($$source = {}) {
+        if (!("where" in $$source)) {
+            /**
+             * Where locates the site in the recipe's own vocabulary.
+             * @member
+             * @type {string}
+             */
+            this["where"] = "";
+        }
+        if (!("kind" in $$source)) {
+            /**
+             * Kind is "tool", "format" or "formatter".
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (!("name" in $$source)) {
+            /**
+             * Name is the tool ID or format name.
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Detail summarises what would run.
+             * @member
+             * @type {string | undefined}
+             */
+            this["detail"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TrustSite instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {TrustSite}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TrustSite(/** @type {Partial<TrustSite>} */($$parsedSource));
+    }
+}
+
+/**
  * UnstampedDrafts names a file whose stored drafts for one locale an earlier
  * kapi wrote. They name no source they translate, so a merge counts them as
  * stale and writes none of them, and a translating pass drafts them again.

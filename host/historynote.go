@@ -3,9 +3,9 @@ package host
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // The loop's basis lives in the project's context. Every document a run writes
@@ -38,7 +38,8 @@ func (a *App) historyNotPulled(ctx context.Context, root string, units []VerifyU
 		if u.TargetPath == "" {
 			continue
 		}
-		if fi, err := os.Stat(u.TargetPath); err == nil && fi.Mode().IsRegular() {
+		// A target that is a link out of the project is no translation here.
+		if _, err := rootpath.CheckRegular(root, u.TargetPath); err == nil {
 			return !a.newLoopWrites(ctx, root).recorded() && a.sharesContext(ctx, root)
 		}
 	}

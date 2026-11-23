@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/neokapi/neokapi/core/check"
@@ -20,6 +19,7 @@ import (
 	yamlformat "github.com/neokapi/neokapi/core/formats/yaml"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // commentProviders supply comment layers: the Go language provider for files no
@@ -140,7 +140,7 @@ func (a *App) checkCommentsOnlyFile(ctx context.Context, file, fmtName string, v
 // content. Reader validation never runs on such a file, and unvalidated says
 // why when it was requested.
 func (a *App) checkCommentLayer(ctx context.Context, file string, validateMode format.ValidationMode, opts checkRunOptions, unvalidated string, locate func(src []byte) (*commentLayer, error)) ([]*model.Block, []check.Diagnostic, error) {
-	layer, err := a.readCommentLayer(ctx, file, opts.execution, locate)
+	layer, err := a.readCommentLayerIn(ctx, opts.formats.projectRoot(), file, opts.execution, locate)
 	if err != nil {
 		return nil, nil, asReadFailure(err)
 	}
@@ -165,15 +165,17 @@ func (a *App) checkCommentLayer(ctx context.Context, file string, validateMode f
 	return layer.blocks, diags, nil
 }
 
-// readCommentLayer reads a file from disk and locates its comments with locate,
-// counting the time as extraction. It records no analyzer: the caller runs the
-// layer's analyzers over the comments it has in scope.
-func (a *App) readCommentLayer(ctx context.Context, file string, execution *checkExecution, locate func(src []byte) (*commentLayer, error)) (*commentLayer, error) {
+// readCommentLayerIn reads a file of the project at root and locates its
+// comments with locate, counting the time as extraction. It records no
+// analyzer: the caller runs the layer's analyzers over the comments it has in
+// scope. A file beneath root is read through it (rootpath.ReadFile), so one
+// reached through a link out of the project is refused.
+func (a *App) readCommentLayerIn(ctx context.Context, root, file string, execution *checkExecution, locate func(src []byte) (*commentLayer, error)) (*commentLayer, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	start := time.Now()
-	src, err := os.ReadFile(file)
+	src, err := rootpath.ReadFile(root, file)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", DisplayName(file), err)
 	}
@@ -257,7 +259,7 @@ func (a *App) readDeclaredComments(ctx context.Context, file, fmtName string, op
 		}
 		name = string(id)
 	}
-	return a.readCommentLayer(ctx, file, opts.execution, func(src []byte) (*commentLayer, error) {
+	return a.readCommentLayerIn(ctx, opts.formats.projectRoot(), file, opts.execution, func(src []byte) (*commentLayer, error) {
 		return a.declaredComments(ctx, file, name, src, opts.formats.directivesFor(file))
 	})
 }
@@ -354,7 +356,7 @@ func formatterAnalyzer(file string, src []byte, located *comment.File, blocks []
 func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *checkExecution) ([]*model.Block, []check.Diagnostic, error) {
 	name, _ := a.unitFormat(u.SourceFormat, u.SourceConfig)
 	if p, ok := a.commentLayerFor(ctx, u.SourcePath, name); ok {
-		layer, err := a.readCommentLayer(ctx, u.SourcePath, execution, func(src []byte) (*commentLayer, error) {
+		layer, err := a.readCommentLayerIn(ctx, u.ProjectRoot, u.SourcePath, execution, func(src []byte) (*commentLayer, error) {
 			return locateComments(u.SourcePath, src, p, u.Directives)
 		})
 		if err != nil {
@@ -383,7 +385,7 @@ func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *c
 		}
 		name = string(id)
 	}
-	layer, err := a.readCommentLayer(ctx, u.SourcePath, execution, func(src []byte) (*commentLayer, error) {
+	layer, err := a.readCommentLayerIn(ctx, u.ProjectRoot, u.SourcePath, execution, func(src []byte) (*commentLayer, error) {
 		return a.declaredComments(ctx, u.SourcePath, name, src, u.Directives)
 	})
 	if err != nil {
@@ -394,4 +396,13 @@ func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *c
 		return nil, nil, err
 	}
 	return append(blocks, layer.blocks...), diags, nil
+}
+
+// projectRoot is the project directory the formats were bound in, empty
+// outside a project.
+func (f *checkFormats) projectRoot() string {
+	if f == nil {
+		return ""
+	}
+	return f.root
 }

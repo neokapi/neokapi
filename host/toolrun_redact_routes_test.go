@@ -332,10 +332,17 @@ func TestFrameworkMCPHandler_RedactsTheTargetItIsGiven(t *testing.T) {
 			require.NotNil(t, info)
 			handler := app.frameworkMCPHandler(registry.ToolID(name), "", targetPolicyFor(*info))
 			sent := exchangesSent(t)
-			args, err := json.Marshal(map[string]any{
+			call := map[string]any{
 				"text": "Write to Ada Lovelace today.", "target": "Écrivez à Ada Lovelace aujourd'hui.",
-				"target_lang": "fr", "provider": "demo", "mode": "ai", "project": recipe,
-			})
+				"target_lang": "fr", "provider": "demo", "project": recipe,
+			}
+			// Only qa publishes a mode; a call passes only what the tool takes.
+			if s := app.ToolReg.Schema(registry.ToolID(name)); s != nil {
+				if _, ok := s.Properties["mode"]; ok {
+					call["mode"] = "ai"
+				}
+			}
+			args, err := json.Marshal(call)
 			require.NoError(t, err)
 			res, err := handler(context.Background(), &mcp.CallToolRequest{Params: &mcp.CallToolParamsRaw{Arguments: args}})
 			require.NoError(t, err)

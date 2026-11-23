@@ -45,6 +45,7 @@ import (
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v1"
+	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	cliconfig "github.com/neokapi/neokapi/host/config"
@@ -247,14 +248,20 @@ func (d *daemonService) gracefulStop(server *grpc.Server) {
 // recipe under another name, exactly as kapi resolved it (it never walks up),
 // caching the result.
 // Returns the cached entry on subsequent calls. The entry holds a live
-// SourceConnector with sync-cache state.
-func (d *daemonService) projectFor(root string) (*projectEntry, error) {
+// SourceConnector with sync-cache state. Every call asks first whether git
+// tracks the project's state (coreproj.CheckStateTracked), which costs a stat
+// while the repository's index is unchanged, so a daemon serving a project
+// for a long time catches state tracked after it opened it.
+func (d *daemonService) projectFor(ctx context.Context, root string) (*projectEntry, error) {
 	if root == "" {
 		return nil, errors.New("project root is empty")
 	}
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		return nil, fmt.Errorf("absolute path: %w", err)
+	}
+	if err := coreproj.CheckStateTracked(ctx, coreproj.LayoutAt(abs)); err != nil {
+		return nil, err
 	}
 
 	d.mu.Lock()
@@ -272,11 +279,13 @@ func (d *daemonService) projectFor(root string) (*projectEntry, error) {
 	}
 
 	formatReg := d.formatReg
-	conn, err := source.NewSourceConnector(app, proj, formatReg)
+	conn, err := source.NewSourceConnector(ctx, app, proj, formatReg)
 	if err != nil {
 		// Some calls (ListFiles, Status) don't need the server, so fall
 		// back to a local-only source.
-		conn = source.NewLocalConnector(app, proj, formatReg)
+		if conn, err = source.NewLocalConnector(ctx, app, proj, formatReg); err != nil {
+			return nil, err
+		}
 	}
 
 	entry := &projectEntry{
@@ -308,7 +317,7 @@ func (d *daemonService) Status(ctx context.Context, req *pb.StatusRequest) (*pb.
 	if req.GetProject() == nil {
 		return nil, errors.New("project ref required")
 	}
-	entry, err := d.projectFor(req.GetProject().GetRoot())
+	entry, err := d.projectFor(ctx, req.GetProject().GetRoot())
 	if err != nil {
 		return nil, err
 	}
@@ -336,7 +345,7 @@ func (d *daemonService) ListFiles(ctx context.Context, req *pb.ListFilesRequest)
 	if req.GetProject() == nil {
 		return nil, errors.New("project ref required")
 	}
-	entry, err := d.projectFor(req.GetProject().GetRoot())
+	entry, err := d.projectFor(ctx, req.GetProject().GetRoot())
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +371,7 @@ func (d *daemonService) Push(ctx context.Context, req *pb.PushRequest) (*pb.Push
 	if req.GetProject() == nil {
 		return nil, errors.New("project ref required")
 	}
-	entry, err := d.projectFor(req.GetProject().GetRoot())
+	entry, err := d.projectFor(ctx, req.GetProject().GetRoot())
 	if err != nil {
 		return nil, err
 	}
@@ -423,7 +432,7 @@ func (d *daemonService) Pull(ctx context.Context, req *pb.PullRequest) (*pb.Pull
 	if req.GetProject() == nil {
 		return nil, errors.New("project ref required")
 	}
-	entry, err := d.projectFor(req.GetProject().GetRoot())
+	entry, err := d.projectFor(ctx, req.GetProject().GetRoot())
 	if err != nil {
 		return nil, err
 	}

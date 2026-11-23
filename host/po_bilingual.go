@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/redaction"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // Kapi uses `#.` (extracted) PO comments to carry its bookkeeping. The
@@ -164,7 +164,13 @@ type poMergeFile struct {
 // handles that); it only reads what merge needs: the kapi bookkeeping
 // comments and msgid/msgstr pairs keyed by block id.
 func ReadPOForMerge(path string) (*poMergeFile, error) {
-	f, err := os.Open(path)
+	return readPOForMergeIn("", path)
+}
+
+// readPOForMergeIn is ReadPOForMerge for a file that may lie beneath the
+// project root, which is then read through it (rootpath.Open).
+func readPOForMergeIn(root, path string) (*poMergeFile, error) {
+	f, err := rootpath.Open(root, path)
 	if err != nil {
 		return nil, err
 	}

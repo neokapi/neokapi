@@ -179,8 +179,9 @@ func TestEnsureLayout_IgnoresTheWholeDirectory(t *testing.T) {
 }
 
 // A `.kapi/` that already carries files a project commits (this repository's
-// own dogfood export is one) keeps its own arrangement: an ignore-everything
-// rule dropped beside those files would keep the next one out of the commit.
+// own dogfood export is one) gets no ignore-everything rule, which would keep
+// the next of those files out of the commit. Its rule names the work directory
+// alone, so `git add .` stages the committed files and never kapi's state.
 func TestEnsureLayout_LeavesADirectoryWithCommittedFilesAlone(t *testing.T) {
 	layout := testLayout(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(layout.StateDir, "state"), 0o755))
@@ -188,7 +189,10 @@ func TestEnsureLayout_LeavesADirectoryWithCommittedFilesAlone(t *testing.T) {
 
 	require.NoError(t, project.EnsureLayout(layout))
 
-	assert.NoFileExists(t, filepath.Join(layout.StateDir, project.StateGitignoreFilename))
+	rule, err := os.ReadFile(filepath.Join(layout.StateDir, project.StateGitignoreFilename))
+	require.NoError(t, err)
+	assert.Equal(t, "work/\n", string(rule))
+	assert.False(t, project.GitignoreCovers(string(rule), "terms.json"), "the committed file stays in the commit")
 	assert.DirExists(t, layout.CacheDir())
 }
 

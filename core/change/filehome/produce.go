@@ -54,7 +54,7 @@ func (e *MovedError) Is(target error) bool { return target == ErrMoved }
 
 // Digest is the digest of the file at path in the form Produce takes as
 // before, or "" when there is no file.
-func Digest(path string) (string, error) { return hashFile(path) }
+func Digest(path string) (string, error) { return (*Home)(nil).hashFile(path) }
 
 // Produced is a document a producer wrote, staged and not yet committed.
 type Produced struct {
@@ -148,7 +148,7 @@ func (p *Produced) Commit(ctx context.Context) error {
 		return err
 	}
 	defer l.Unlock()
-	now, err := hashFile(p.path)
+	now, err := p.h.hashFile(p.path)
 	if err != nil {
 		_ = tmp.Discard()
 		return err

@@ -348,9 +348,21 @@ func extractTarGz(body []byte, target, pluginName string) error {
 	}
 	defer gz.Close()
 	// pluginRoot is the per-plugin extraction boundary (target/<plugin>).
-	// Symlink targets must resolve inside it — not merely inside the
-	// shared install root, which would allow cross-plugin escapes.
+	// Symlink targets must resolve inside it, not merely inside the shared
+	// install root, which would allow cross-plugin escapes.
 	pluginRoot := filepath.Join(target, pluginName)
+	// Every entry is written through an os.Root opened on the plugin's own
+	// directory, so a chain of links an earlier entry planted (a -> ., then
+	// a/x -> ..) cannot lead a later write out of it: the root refuses any
+	// name that resolves outside, whatever the links on the way.
+	if err := os.MkdirAll(pluginRoot, 0o755); err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(pluginRoot)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
 	tr := tar.NewReader(gz)
 	for {
 		hdr, err := tr.Next()
@@ -367,22 +379,28 @@ func extractTarGz(body []byte, target, pluginName string) error {
 			return err
 		}
 		if !ok {
-			continue // the plugin-dir root entry — nothing to write
+			continue // the plugin-dir root entry, with nothing to write
+		}
+		rel, rerr := filepath.Rel(pluginRoot, clean)
+		if rerr != nil || !filepath.IsLocal(rel) {
+			return fmt.Errorf("tarball entry %q lies outside plugin dir %q", hdr.Name, pluginRoot)
 		}
 		switch hdr.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(clean, 0o755); err != nil {
-				return err
+			if err := root.MkdirAll(rel, 0o755); err != nil {
+				return fmt.Errorf("tarball entry %q: %w", hdr.Name, err)
 			}
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
-				return err
+			if dir := filepath.Dir(rel); dir != "." {
+				if err := root.MkdirAll(dir, 0o755); err != nil {
+					return fmt.Errorf("tarball entry %q: %w", hdr.Name, err)
+				}
 			}
 			// O_NOFOLLOW: refuse to write through a symlink that a prior
 			// (malicious) entry may have planted at this path. The flag is
-			// platform-specific (oNoFollow); on js/wasm it is 0 — the wasm
-			// build has no filesystem symlink surface to harden against.
-			f, err := os.OpenFile(clean, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|oNoFollow, os.FileMode(hdr.Mode)&0o777)
+			// platform-specific (oNoFollow); on js/wasm it is 0, as the
+			// wasm build has no filesystem symlink surface to harden against.
+			f, err := root.OpenFile(rel, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|oNoFollow, os.FileMode(hdr.Mode)&0o777)
 			if err != nil {
 				return fmt.Errorf("tarball entry %q: %w", hdr.Name, err)
 			}
@@ -403,9 +421,9 @@ func extractTarGz(body []byte, target, pluginName string) error {
 			if !withinDir(pluginRoot, resolved) {
 				return fmt.Errorf("tarball symlink %q points outside plugin dir %q", hdr.Name, pluginRoot)
 			}
-			_ = os.Remove(clean)
-			if err := os.Symlink(hdr.Linkname, clean); err != nil {
-				return err
+			_ = root.Remove(rel)
+			if err := root.Symlink(hdr.Linkname, rel); err != nil {
+				return fmt.Errorf("tarball entry %q: %w", hdr.Name, err)
 			}
 		}
 	}

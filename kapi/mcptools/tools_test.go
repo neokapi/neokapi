@@ -79,7 +79,7 @@ func TestHandleDetectFormat(t *testing.T) {
 // lists.
 func TestHandleListFlows(t *testing.T) {
 	t.Setenv(project.NoProjectEnvVar, "1")
-	_, out, err := handleListFlows(testApp(), ListFlowsInput{})
+	_, out, err := handleListFlows(t.Context(), testApp(), ListFlowsInput{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, out.Flows)
 	assert.Equal(t, len(out.Flows), out.Total)
@@ -123,7 +123,7 @@ flows:
 	require.NoError(t, os.WriteFile(filepath.Join(root, "flows", "guard.yaml"),
 		[]byte("steps:\n  - tool: qa\n"), 0o644))
 
-	_, out, err := handleListFlows(testApp(), ListFlowsInput{Project: root})
+	_, out, err := handleListFlows(withWriteRoots(t.Context(), []string{root}), testApp(), ListFlowsInput{Project: root})
 	require.NoError(t, err)
 	assert.Empty(t, out.Warning)
 

@@ -54,6 +54,10 @@ type StatusOutput struct {
 	// other is wording a person or an agent wrote into a draft whose file has
 	// appeared since without it, which kapi merge writes into the file.
 	Conflicts []StatusConflict `json:"conflicts,omitempty"`
+	// Warnings name the source files the coverage left out because their name
+	// cannot fill their collection's target template safely
+	// (check.WarningUnsafeTargetName): each has no target to count.
+	Warnings []check.Warning `json:"warnings,omitempty"`
 }
 
 // StatusConflict is an edit to a kept draft that did not land, wording a
@@ -230,6 +234,9 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 		}
 		fmt.Fprintf(w, "Conflict: the %s draft of %s holds another edit to %s; edit %s did not land, and a new edit to %s settles it.\n",
 			c.Locale, c.Doc, units, workspace.ShortOpID(c.Edit), units)
+	}
+	for _, warn := range o.Warnings {
+		fmt.Fprintf(w, "Warning: %s\n", warn.Message)
 	}
 	return nil
 }
@@ -801,6 +808,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		}
 		out.HistoryNotPulled = a.historyNotPulled(CmdContext(cmd), root, units)
 		out.Conflicts = a.statusConflicts(CmdContext(cmd), projectPath)
+		out.Warnings = a.unsafeTargetWarnings(proj, root, localeFilter)
 		a.WarnInertRecipeFields(cmd, proj)
 		a.WarnStoreLocaleDrift(cmd, projectPath)
 		return output.Print(cmd, out)

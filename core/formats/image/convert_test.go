@@ -1,6 +1,7 @@
 package image
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"image"
@@ -12,6 +13,8 @@ import (
 
 	"golang.org/x/image/bmp"
 	"golang.org/x/image/tiff"
+
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // solid returns a w×h image with a single fill color.
@@ -39,6 +42,43 @@ func writeFile(t *testing.T, path string, encode func(*os.File) error) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+// fileSource opens path as the reader would receive it: a descriptor the
+// caller opened, read through its random-access view.
+func fileSource(t *testing.T, path string) *imageSource {
+	t.Helper()
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = f.Close() })
+	info, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	src, err := openImageSource(&model.RawDocument{Reader: f, ReaderAt: f, Size: info.Size()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(src.close)
+	return src
+}
+
+// requireSameBytes checks that the file at got holds the bytes of the file at want.
+func requireSameBytes(t *testing.T, got, want string) {
+	t.Helper()
+	g, err := os.ReadFile(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err := os.ReadFile(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(g, w) {
+		t.Errorf("%s does not hold the bytes of %s", got, want)
+	}
 }
 
 func makeGIFFile(t *testing.T, dir string) string {
@@ -100,14 +140,16 @@ func TestNormalizeForOCR_PassThrough(t *testing.T) {
 	} {
 		t.Run(mk.name, func(t *testing.T) {
 			src := mk.make()
-			out, cleanup, err := normalizeForOCR(context.Background(), src)
+			out, cleanup, err := normalizeForOCR(context.Background(), fileSource(t, src))
 			defer cleanup()
 			if err != nil {
 				t.Fatalf("normalize: %v", err)
 			}
-			if out != src {
-				t.Errorf("PNG/JPEG should pass through unchanged: out=%q src=%q", out, src)
+			// The engine gets a private copy of the bytes, never the source's name.
+			if out == src {
+				t.Fatalf("PNG/JPEG should reach the engine as a private copy, got the source %q", src)
 			}
+			requireSameBytes(t, out, src)
 		})
 	}
 }
@@ -121,7 +163,7 @@ func TestNormalizeForOCR_TranscodeGo(t *testing.T) {
 	}
 	for name, src := range cases {
 		t.Run(name, func(t *testing.T) {
-			out, cleanup, err := normalizeForOCR(context.Background(), src)
+			out, cleanup, err := normalizeForOCR(context.Background(), fileSource(t, src))
 			if err != nil {
 				t.Fatalf("normalize %s: %v", name, err)
 			}
@@ -143,14 +185,15 @@ func TestNormalizeForOCR_UnknownPassThrough(t *testing.T) {
 		_, err := f.Write([]byte("definitely not an image"))
 		return err
 	})
-	out, cleanup, err := normalizeForOCR(context.Background(), src)
+	out, cleanup, err := normalizeForOCR(context.Background(), fileSource(t, src))
 	defer cleanup()
 	if err != nil {
 		t.Fatalf("unknown should pass through, got err: %v", err)
 	}
-	if out != src {
-		t.Errorf("unknown should pass through unchanged: out=%q", out)
+	if out == src {
+		t.Fatalf("unknown should reach the engine as a private copy, got the source %q", src)
 	}
+	requireSameBytes(t, out, src)
 }
 
 // withFakeFFmpeg swaps the ffmpeg seams for the duration of the test. convert
@@ -177,17 +220,19 @@ func TestNormalizeForOCR_ISOBMFF_Routing(t *testing.T) {
 	var gotSrc string
 	withFakeFFmpeg(t, true, func(_ context.Context, s, dst string) error {
 		gotSrc = s
+		// ffmpeg reads a private copy holding the source bytes.
+		requireSameBytes(t, s, src)
 		// Stand in for ffmpeg: write a real PNG to dst.
 		return os.WriteFile(dst, makePNG(t, 64, 16), 0o644)
 	})
 
-	out, cleanup, err := normalizeForOCR(context.Background(), src)
+	out, cleanup, err := normalizeForOCR(context.Background(), fileSource(t, src))
 	if err != nil {
 		t.Fatalf("normalize avif: %v", err)
 	}
 	defer cleanup()
-	if gotSrc != src {
-		t.Errorf("ffmpeg seam received src %q, want %q", gotSrc, src)
+	if gotSrc == "" || gotSrc == src {
+		t.Errorf("ffmpeg seam received src %q, want a private copy of %q", gotSrc, src)
 	}
 	if out == src {
 		t.Fatal("avif should be transcoded to a new temp PNG")
@@ -208,7 +253,7 @@ func TestNormalizeForOCR_ISOBMFF_NoFFmpeg(t *testing.T) {
 		return nil
 	})
 
-	out, cleanup, err := normalizeForOCR(context.Background(), src)
+	out, cleanup, err := normalizeForOCR(context.Background(), fileSource(t, src))
 	defer cleanup()
 	if !errors.Is(err, errUnsupportedOCR) {
 		t.Fatalf("err = %v, want errUnsupportedOCR", err)

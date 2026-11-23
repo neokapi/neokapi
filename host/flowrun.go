@@ -474,7 +474,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 				emit(FlowRunEvent{
 					Type: FlowEventFileTrace, Locale: lang,
 					FilePath: inputPath, OutputPath: outputPath,
-					Trace: newFlowTrace(opts.FlowName, string(detectFormat(inputPath)), inputPath, outputPath, recorder, stepNames),
+					Trace: newFlowTraceIn(pctx.ProjectDir, opts.FlowName, string(detectFormat(inputPath)), inputPath, outputPath, recorder, stepNames),
 				})
 			}
 		}
