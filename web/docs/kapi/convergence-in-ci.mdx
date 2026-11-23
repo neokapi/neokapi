@@ -313,18 +313,15 @@ stage.
 - **The parse cache is the part to carry between runs**: `work/cache/docs` in
   the checkout's state directory is rebuilt on a fresh runner, and keyed by each
   file's path and content, the parse configuration, the recipe and the kapi
-  build, so a restored entry changes no result. `setup-kapi` carries it by
-  default, and a job that uses the action needs no cache step of its own:
+  build, so a restored entry changes no result.
 
-  ```yaml
-  - uses: neokapi/setup-kapi@v1
-    with:
-      version: "1.2.0"
-      # cache-tm: false turns the parse cache off
-  ```
-
-  Without the action, ask for the directory after the checkout on every run,
-  and move the cache in and out of it through a fixed path:
+  The released `setup-kapi` caches `.kapi/work/cache/docs` inside the
+  checkout, which this kapi neither reads nor writes, so its cache input has no
+  effect with this kapi. A later `setup-kapi` release caches the directory
+  `kapi state path` prints, through its `parse-cache` input. Until you use that
+  release, carry the cache with the steps below, which work with any
+  `setup-kapi`. Ask for the directory after the checkout on every run, and move
+  the cache in and out of it through a fixed path:
 
   ```yaml
   - uses: actions/checkout@v5
