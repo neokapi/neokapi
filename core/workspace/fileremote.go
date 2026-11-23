@@ -30,9 +30,34 @@ import (
 // after the open does not move the remote.
 type FileRemote struct {
 	dir string
+	// expect, when set, is the directory the remote must open: its identity
+	// was taken when the path was resolved and approved (Expect).
+	expect fs.FileInfo
 
 	mu   sync.Mutex
 	root *os.Root
+	// passedOver names what the listings left out because it is not a
+	// regular file or a directory (a link, a device, a pipe), up to
+	// PassedOverShown of them; passedOverTotal counts them all. Whoever can
+	// write the folder chooses these names and how many there are.
+	passedOver      []string
+	passedOverTotal int
+}
+
+// PassedOverShown is how many passed-over names a listing keeps. The rest are
+// counted.
+const PassedOverShown = 10
+
+// ErrRemoteReplaced is the error a remote returns when the directory it
+// opened is not the directory Expect named: a component of the path was
+// replaced between resolving the path and opening it.
+var ErrRemoteReplaced = errors.New("workspace: the folder was replaced after it was resolved")
+
+// Expect makes the remote open only the directory info describes, compared
+// with os.SameFile, and refuse another one at the same path.
+func (r *FileRemote) Expect(info fs.FileInfo) *FileRemote {
+	r.expect = info
+	return r
 }
 
 // NewFileRemote names a directory as a remote. The directory is created on
@@ -63,8 +88,34 @@ func (r *FileRemote) open(create bool) (*os.Root, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s: %w", ErrRemoteUnreachable, r.dir, err)
 	}
+	if r.expect != nil {
+		opened, err := root.Stat(".")
+		if err != nil || !os.SameFile(opened, r.expect) {
+			_ = root.Close()
+			return nil, fmt.Errorf("%w: %s", ErrRemoteReplaced, r.dir)
+		}
+	}
 	r.root = root
 	return root, nil
+}
+
+// TakePassedOver returns what the listings since the last call left out, the
+// first PassedOverShown names and the count of all of them, and forgets it.
+func (r *FileRemote) TakePassedOver() ([]string, int) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	names, total := r.passedOver, r.passedOverTotal
+	r.passedOver, r.passedOverTotal = nil, 0
+	return names, total
+}
+
+func (r *FileRemote) notePassedOver(name string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.passedOverTotal++
+	if len(r.passedOver) < PassedOverShown {
+		r.passedOver = append(r.passedOver, name)
+	}
 }
 
 // makeRoot creates dir beneath its nearest existing ancestor, opened as a
@@ -120,9 +171,14 @@ func (r *FileRemote) List(ctx context.Context, dir string) ([]string, error) {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+		if d.IsDir() {
+			return nil
+		}
 		// A link is neither walked into nor listed: an object is a file the
-		// layout wrote.
-		if d.IsDir() || !d.Type().IsRegular() {
+		// layout wrote. What is left out is reported (TakePassedOver), so two
+		// machines that see the folder differently can tell why.
+		if !d.Type().IsRegular() {
+			r.notePassedOver(p)
 			return nil
 		}
 		// Temporary files of a write in progress, and anything a person or a

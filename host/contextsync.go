@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -68,6 +71,9 @@ type ContextBackendInfo struct {
 	Status *workspace.SyncStatus `json:"status,omitempty"`
 
 	spec project.ContextBackend
+	// folderInfo identifies an approved folder as it was resolved; the
+	// remote refuses to open another directory at its path.
+	folderInfo fs.FileInfo
 }
 
 // FormatText renders the backend for a reader.
@@ -302,7 +308,11 @@ func openRemote(ctx context.Context, layout project.Layout, info ContextBackendI
 	case project.ContextBackendLocal:
 		return nil, nil
 	case project.ContextBackendFile:
-		return workspace.NewFileRemote(spec.Path), nil
+		remote := workspace.NewFileRemote(spec.Path)
+		if info.folderInfo != nil {
+			remote.Expect(info.folderInfo)
+		}
+		return remote, nil
 	case project.ContextBackendGit:
 		repo, ok := workspace.GitRepoRoot(ctx, layout.Root)
 		if !ok {
@@ -327,12 +337,12 @@ func (a *App) contextSync(ctx context.Context, layout project.Layout, info Conte
 	if !w.Logged() || info.Kind == project.ContextBackendLocal {
 		return nil, nil
 	}
-	resolved, err := a.requireContextStore(layout, info, ask)
+	folder, err := a.requireContextStore(layout, info, ask)
 	if err != nil {
 		return nil, err
 	}
-	if resolved != "" {
-		info.spec.Path = resolved
+	if folder.Resolved != "" {
+		info.spec.Path, info.folderInfo = folder.Resolved, folder.Info
 	}
 	remote, err := openRemote(ctx, layout, info)
 	if err != nil || remote == nil {
@@ -396,6 +406,10 @@ func (r ContextPull) FormatText(w io.Writer) error {
 	}
 	if r.Error != "" {
 		fmt.Fprintf(w, "  note: %s\n", r.Error)
+	}
+	if r.PassedOverTotal > 0 {
+		fmt.Fprintf(w, "  note: passed over %s in the folder that kapi does not read, such as a link: %s\n",
+			pluralUnit(r.PassedOverTotal, "entry", "entries"), quotedList(r.PassedOver, r.PassedOverTotal))
 	}
 	fmt.Fprintln(w, SyncLine(&r.SyncStatus))
 	return nil
@@ -726,4 +740,19 @@ func (r ContextSyncResult) formatRulesFiles(w io.Writer) (err error) {
 		return nil
 	}
 	return (&RulesFilesResult{Files: changed}).FormatText(w)
+}
+
+// quotedList prints names a shared folder supplies, each quoted so a control
+// character in one reaches the terminal as an escape rather than as itself,
+// and says how many of total it leaves out.
+func quotedList(names []string, total int) string {
+	quoted := make([]string, len(names))
+	for i, name := range names {
+		quoted[i] = strconv.Quote(name)
+	}
+	out := strings.Join(quoted, ", ")
+	if more := total - len(names); more > 0 {
+		out += fmt.Sprintf(", and %d more", more)
+	}
+	return out
 }
