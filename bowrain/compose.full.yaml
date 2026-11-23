@@ -240,10 +240,6 @@ services:
       # deployment: it approves a pending device for the identity the request
       # names, with no identity-provider check.
       BOWRAIN_ALLOW_INSECURE_DEV: "1"
-      # Unset by default: the e2e suites delete every project in the workspace
-      # they use and refuse a server that is not marked disposable. Start the
-      # stack with BOWRAIN_DISPOSABLE_STACK=1 to run them against it.
-      BOWRAIN_DISPOSABLE_STACK: ${BOWRAIN_DISPOSABLE_STACK:-}
     # As in production: a read-only root filesystem and a tmpfs for TMPDIR.
     # The image runs as uid 10001.
     read_only: true

@@ -214,14 +214,14 @@ function Reach({ card }: { card: Card }) {
           ? t("context.candidate.reach", { count: reach.blocks })
           : t("context.candidate.reachNone")}
       </Label>
-      {(reach?.collections ?? []).map((c) => (
-        <Text key={c.name} className="text-foreground text-sm" testID="context-reach-collection">
-          {t("context.candidate.collection", {
-            name: c.name || t("context.candidate.noCollection"),
-            count: c.blocks,
-          })}
-        </Text>
-      ))}
+      {(reach?.collections ?? []).map((c) => {
+        const unnamed = t("context.candidate.noCollection");
+        return (
+          <Text key={c.name} className="text-foreground text-sm" testID="context-reach-collection">
+            {t("context.candidate.collection", { name: c.name || unnamed, count: c.blocks })}
+          </Text>
+        );
+      })}
     </View>
   );
 }

@@ -129,6 +129,8 @@ jobs:
         with:
           node-version: "26"
           cache: true
+          # Only a run on main saves the dependency cache; any other ref restores it.
+          cache-save: ${{ github.ref == 'refs/heads/main' }}
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install workspace dependencies

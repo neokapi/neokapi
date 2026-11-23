@@ -143,7 +143,7 @@ describe("terms in a string", () => {
     await fireEvent.press(screen.getByTestId("term-next"));
     expect(screen.getByTestId("term-source").props.children).toBe("workspace");
     expect(screen.getByTestId("term-unused")).toBeTruthy();
-    expect(loadConcept).toHaveBeenCalledWith("c-ws");
+    expect(loadConcept).toHaveBeenCalledWith("c-ws", expect.any(AbortSignal));
   });
 });
 

@@ -32,7 +32,7 @@ export function useProfile(): Profile {
   const { client, session } = useAuth();
   const me = useQuery({
     queryKey: ["me"],
-    queryFn: () => client.me(),
+    queryFn: ({ signal }) => client.with({ signal }).me(),
     enabled: !!session,
     staleTime: 60 * 60 * 1000,
   });

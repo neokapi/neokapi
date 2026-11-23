@@ -31,6 +31,8 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
+          # setup-go has no restore-only mode, so only a run on main uses its cache.
+          cache: ${{ github.ref == 'refs/heads/main' }}
 
       - uses: ./.github/actions/setup-node-ui
 
@@ -45,8 +47,15 @@ jobs:
       # included. macOS and Windows provision it the way release-bowrain.yml
       # does: a cached static ICU on macOS, the MSYS2 mingw toolchain on
       # Windows.
-      - name: Cache static ICU
-        if: runner.os == 'macOS'
+      - name: Restore static ICU
+        if: runner.os == 'macOS' && github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/icu-static
+          key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
+
+      - name: Restore and save static ICU
+        if: runner.os == 'macOS' && github.ref == 'refs/heads/main'
         uses: actions/cache@v6
         with:
           path: ~/icu-static
@@ -71,6 +80,8 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: ${{ matrix.build.msystem }}
+          # setup-msys2 has no restore-only mode, so only a run on main uses its cache.
+          cache: ${{ github.ref == 'refs/heads/main' }}
           path-type: inherit
           install: >-
             mingw-w64-${{ matrix.build.mtriple }}-${{ matrix.build.cc }}

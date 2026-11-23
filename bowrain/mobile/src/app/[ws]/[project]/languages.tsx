@@ -73,12 +73,12 @@ export default function ReviewLanguagesScreen() {
 
   const languages = useQuery({
     queryKey: reviewLanguagesKey(ws, project),
-    queryFn: () => client.reviewLanguages(ws, project),
+    queryFn: ({ signal }) => client.with({ signal }).reviewLanguages(ws, project),
   });
   const canManage = languages.data?.canManage ?? false;
   const plan = useQuery({
     queryKey: reviewPlanKey(ws, project),
-    queryFn: () => client.reviewPlan({ workspace: ws, project }),
+    queryFn: ({ signal }) => client.with({ signal }).reviewPlan({ workspace: ws, project }),
     enabled: canManage,
   });
 

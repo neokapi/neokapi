@@ -967,7 +967,7 @@ jobs:
           restore-keys: |
             go-plugins-${{ runner.os }}-go1.27.4-
       - name: Restore and save the plugin build and module cache
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache@v6
         with:
           path: |
@@ -1419,6 +1419,8 @@ jobs:
         uses: ./.github/actions/apt-install
         with:
           packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+      - name: "Guard self-test: a test that writes into the home is caught"
+        run: ./scripts/check-test-isolation.sh --self-test
       - name: "Guard: Go tests write nothing under the user's home"
         run: ./scripts/check-test-isolation.sh
 

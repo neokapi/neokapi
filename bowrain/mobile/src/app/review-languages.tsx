@@ -16,10 +16,11 @@ export default function ReviewLanguagesPicker() {
   const { client } = useAuth();
   const all = useQuery({
     queryKey: ["projects-everywhere"],
-    queryFn: async () => {
-      const workspaces = await client.workspaces();
+    queryFn: async ({ signal }) => {
+      const c = client.with({ signal });
+      const workspaces = await c.workspaces();
       return Promise.all(
-        workspaces.map(async (w) => ({ workspace: w, projects: await client.projects(w.slug) })),
+        workspaces.map(async (w) => ({ workspace: w, projects: await c.projects(w.slug) })),
       );
     },
   });

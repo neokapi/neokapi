@@ -170,11 +170,19 @@ func compareLedgers(file string, here, there []byte) ([]string, error) {
 }
 
 // ensureMain makes origin/main readable; a shallow CI checkout lacks it.
+// The fetch keeps the repository's depth: --depth=1 only in a repository that
+// is already shallow, so a full clone, and every worktree sharing its object
+// store, stays full.
 func ensureMain() error {
 	if _, err := git("rev-parse", "--verify", "--quiet", mainRef); err == nil {
 		return nil
 	}
-	if _, err := git("fetch", "--no-tags", "--depth=1", "origin", "+refs/heads/main:refs/remotes/origin/main"); err != nil {
+	args := []string{"fetch", "--no-tags"}
+	if out, err := git("rev-parse", "--is-shallow-repository"); err == nil && strings.TrimSpace(out) == "true" {
+		args = append(args, "--depth=1")
+	}
+	args = append(args, "origin", "+refs/heads/main:refs/remotes/origin/main")
+	if _, err := git(args...); err != nil {
 		return fmt.Errorf("fetch %s: %w", mainRef, err)
 	}
 	return nil

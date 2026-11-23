@@ -40,7 +40,7 @@ export function ReviewDecisions({
   const qc = useQueryClient();
   const decisions = useQuery({
     queryKey: feedDecisionsKey(ws, project, entry),
-    queryFn: () => client.feedDecisions(ws, project, entry),
+    queryFn: ({ signal }) => client.with({ signal }).feedDecisions(ws, project, entry),
   });
   const withdraw = useMutation<unknown, unknown, WithdrawVars>({ mutationKey: WITHDRAW_KEY });
   const [undoing, setUndoing] = useState<string[]>([]);

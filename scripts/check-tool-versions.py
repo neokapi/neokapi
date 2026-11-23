@@ -134,7 +134,7 @@ PINS = [
     },
     {
         "name": "Rust toolchain (Windows tokenizers build)",
-        "where": [(".github/workflows/*.yml", r"dtolnay/rust-toolchain@(\d+\.\d+\.\d+)")],
+        "where": [(".github/workflows/*.yml", r'uses: dtolnay/rust-toolchain@[0-9a-f]{40}\n\s+with:\n\s+toolchain: "(\d+\.\d+\.\d+)"')],
         "latest": ("github-release", "rust-lang/rust"),
         "note": "Builds the tokenizers static library on the Windows legs of release-sat.yml and release-check.yml. Dry-run the sat release.",
     },
@@ -158,6 +158,12 @@ PINS = [
         "where": [(".github/workflows/release-asr.yml", r'WHISPER_CPP_VERSION: "v(\d+\.\d+\.\d+)"')],
         "latest": ("github-tag", "ggml-org/whisper.cpp"),
         "note": "Coupled: upstream publishes prebuilt binaries under a build tag (b<number>), not under the version tag. Raise WHISPER_CPP_BUILD to the build tag cut from the same commit, WHISPER_CPP_COMMIT to that commit, and every sha256 in the matrix; the workflow's pin check fails when the two tags name different commits. Dry-run release-asr.yml.",
+    },
+    {
+        "name": "Trivy (container scan)",
+        "where": [(".github/workflows/container-scan.yml", r"uses: aquasecurity/trivy-action@[0-9a-f]{40}\n\s+with:\n\s+version: v(\d+\.\d+\.\d+)")],
+        "latest": ("github-release", "aquasecurity/trivy"),
+        "note": "The scanner version is set beside the action's pinned commit. Take a newer one together with the trivy-action commit that defaults to it, and compare a dispatch's findings before and after.",
     },
     {
         "name": "actionlint",

@@ -97,6 +97,23 @@ test.describe("Routing", () => {
     });
   });
 
+  test("the Flows tab lists the built-in flows", async ({ page }) => {
+    // The tab failed on every project because the server listed the one-step
+    // built-ins with "edges": null and the flow cards iterate the edges.
+    const errors: string[] = [];
+    page.on("pageerror", (err) => errors.push(err.message));
+    await injectAuthCookie(page, token);
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main/automations`);
+    await page.getByRole("button", { name: "Flows", exact: true }).click();
+
+    await expect(page.getByTestId("flow-list")).toBeVisible({ timeout: 10000 });
+    // Two one-step built-ins (no edges) and one with edges.
+    for (const id of ["pseudo-translate", "recycle", "translate"]) {
+      await expect(page.getByTestId(`flow-item-${id}`)).toBeVisible();
+    }
+    expect(errors).toEqual([]);
+  });
+
   test("deep link to the source view loads the file list", async ({ page }) => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}/p/${projectId}/s/main/source`);

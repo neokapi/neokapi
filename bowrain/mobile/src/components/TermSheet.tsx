@@ -35,7 +35,7 @@ export interface TermSheetProps {
   at: number | null;
   locale: string;
   workspace: string;
-  loadConcept?: (conceptId: string) => Promise<Concept>;
+  loadConcept?: (conceptId: string, signal?: AbortSignal) => Promise<Concept>;
   onMove: (at: number) => void;
   onClose: () => void;
 }
@@ -87,7 +87,7 @@ function TermBody({
   count: number;
   locale: string;
   workspace: string;
-  loadConcept?: (conceptId: string) => Promise<Concept>;
+  loadConcept?: (conceptId: string, signal?: AbortSignal) => Promise<Concept>;
   onMove: (at: number) => void;
   onClose: () => void;
 }) {
@@ -96,7 +96,7 @@ function TermBody({
   const conceptId = term.conceptId ?? "";
   const concept = useQuery({
     queryKey: ["concept", workspace, conceptId],
-    queryFn: () => loadConcept!(conceptId),
+    queryFn: ({ signal }) => loadConcept!(conceptId, signal),
     enabled: !!loadConcept && !!conceptId,
     staleTime: 5 * 60_000,
   });

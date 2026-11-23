@@ -1,12 +1,12 @@
 name: Set up Go with a cache main writes
 description: >
   actions/setup-go with its own cache off, and the Go build and module caches
-  restored under a key family this action names. A push saves the family; a
-  pull request only restores it, so a pull request that changes a go.sum
-  restores main's latest entry and saves nothing. setup-go's built-in cache
-  saves from a pull request whenever its key misses, and such a cache serves
-  only that pull request while it pushes out the caches every other one
-  restores. For a job outside the go.work modules or one that needs a single
+  restored under a key family this action names. A run on main saves the
+  family; a run on any other ref only restores it, so a pull request that
+  changes a go.sum restores main's latest entry and saves nothing.
+  setup-go's built-in cache saves on any ref whenever its key misses, and
+  such a cache serves only that ref while it pushes out the caches every
+  pull request restores. For a job outside the go.work modules or one that needs a single
   module; the go.work jobs use setup-go-modules.
 
 inputs:
@@ -38,7 +38,7 @@ runs:
         echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
 
     - name: Restore the Go caches
-      if: github.event_name == 'pull_request'
+      if: github.ref != 'refs/heads/main'
       uses: actions/cache/restore@v6
       with:
         path: |
@@ -49,7 +49,7 @@ runs:
           ${{ inputs.family }}-${{ runner.os }}-go${{ inputs.go-version }}-
 
     - name: Restore and save the Go caches
-      if: github.event_name != 'pull_request'
+      if: github.ref == 'refs/heads/main'
       uses: actions/cache@v6
       with:
         path: |
