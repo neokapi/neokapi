@@ -10,6 +10,15 @@ on:
   # Reusable entry point for release-coordinated.yml; see release.yml for the
   # mirror. Lets the coordinator run the bowrain track with an explicit version
   # and gate the publish jobs so kapi + bowrain land together.
+  # A build-only run on any branch: every build job runs, and nothing is
+  # signed, published or pushed. For measuring a change to the release
+  # builds (their caches, their duration) without making a release.
+  workflow_dispatch:
+    inputs:
+      build_only:
+        description: "Build only; sign, publish and push nothing (must stay true)."
+        type: boolean
+        default: true
   workflow_call:
     inputs:
       version:
@@ -45,14 +54,23 @@ jobs:
       tag: ${{ steps.r.outputs.tag }}
       coordinated: ${{ steps.r.outputs.coordinated }}
       prerelease: ${{ steps.r.outputs.prerelease }}
+      build_only: ${{ steps.r.outputs.build_only }}
     steps:
       - id: r
         env:
           IN_VERSION: ${{ inputs.version }}
           IN_COORD: ${{ inputs.coordinated }}
           PUSH_REF: ${{ github.ref_name }}
+          EVENT: ${{ github.event_name }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
+          build_only=false
+          if [ "$EVENT" = workflow_dispatch ]; then
+            # A dispatch always builds only, whatever the input says.
+            build_only=true
+            IN_VERSION="0.0.0-dispatch.${RUN_NUMBER}"
+          fi
           if [ -n "${IN_VERSION:-}" ]; then
             ver="${IN_VERSION#bowrain-v}"; ver="${ver#v}"
             tag="bowrain-v${ver}"; coord="${IN_COORD:-false}"
@@ -65,6 +83,7 @@ jobs:
             echo "tag=$tag"
             echo "coordinated=$coord"
             echo "prerelease=$pre"
+            echo "build_only=$build_only"
           } >> "$GITHUB_OUTPUT"
 
   # Build the kapi-bowrain plugin binary natively per OS/arch with cgo +
@@ -95,6 +114,8 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
+          # A build-only run saves no cache.
+          cache: ${{ needs.setup.outputs.build_only != 'true' }}
 
       - name: Compute build metadata
         id: meta
@@ -117,8 +138,15 @@ jobs:
       # (scripts/icu-data-filter.json); see the matching comment in
       # release.yml's build-cli job. Cached on the filter + script hash.
       - name: Cache static ICU
-        if: matrix.target.goos != 'windows'
+        if: ${{ (matrix.target.goos != 'windows') && needs.setup.outputs.build_only != 'true' }}
         uses: actions/cache@v6
+        with:
+          path: ~/icu-static
+          key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
+      # A build-only run restores the same key and saves nothing.
+      - name: Restore static ICU (build-only run)
+        if: ${{ (matrix.target.goos != 'windows') && needs.setup.outputs.build_only == 'true' }}
+        uses: actions/cache/restore@v6
         with:
           path: ~/icu-static
           key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
@@ -178,6 +206,8 @@ jobs:
         if: matrix.target.goos == 'windows'
         uses: msys2/setup-msys2@v2
         with:
+          # A build-only run saves no cache.
+          cache: ${{ needs.setup.outputs.build_only != 'true' }}
           msystem: ${{ matrix.target.msystem }}
           path-type: inherit
           install: >-
@@ -235,6 +265,8 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
+          # A build-only run saves no cache.
+          cache: ${{ needs.setup.outputs.build_only != 'true' }}
 
       # Release gate: shared UI must type-check + pass unit tests.
       - uses: ./.github/actions/setup-node-ui
@@ -249,6 +281,7 @@ jobs:
         run: vp test
 
       - name: Install cosign (for kapi-bowrain plugin signing)
+        if: needs.setup.outputs.build_only != 'true'
         uses: sigstore/cosign-installer@v3
 
       - name: Download CLI binaries
@@ -267,6 +300,7 @@ jobs:
       # Keyless cosign signature (sigstore bundle) for the kapi-bowrain plugin
       # tarballs; kapi's plugin-install verifier requires it.
       - name: Sign plugin archives (cosign)
+        if: needs.setup.outputs.build_only != 'true'
         env:
           COSIGN_EXPERIMENTAL: "true"
         run: |
@@ -309,9 +343,11 @@ jobs:
       # notes file for this tag; the fetch-depth: 0 checkout above gives it full
       # history + tags. REF_NAME is the job env.
       - name: Generate release notes
+        if: needs.setup.outputs.build_only != 'true'
         run: bash scripts/release-notes/generate.sh "$REF_NAME"
 
       - name: Publish plugin archives to release
+        if: needs.setup.outputs.build_only != 'true'
         uses: softprops/action-gh-release@v3
         with:
           # kapi-bowrain is a plugin on its own tag line, so it never becomes
@@ -329,6 +365,7 @@ jobs:
           body_path: scripts/release-notes/${{ needs.setup.outputs.tag }}.md
 
       - name: Push brew formula to homebrew-tap
+        if: needs.setup.outputs.build_only != 'true'
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           CHANNEL: ${{ steps.channel.outputs.channel }}
@@ -352,6 +389,7 @@ jobs:
       # Includes cosign signature URLs + cert-identity so kapi's verifier can
       # validate the install (signatures are mandatory unless --unsafe).
       - name: Update manifest plugin registry
+        if: needs.setup.outputs.build_only != 'true'
         env:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           REF_NAME: ${{ needs.setup.outputs.tag }}
@@ -413,6 +451,7 @@ jobs:
     name: Docker (${{ matrix.image }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     needs: [setup, package-bowrain-cli]
+    if: needs.setup.outputs.build_only != 'true'
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
     strategy:
@@ -476,6 +515,7 @@ jobs:
     name: Docker Manifests
     runs-on: ubuntu-latest
     needs: [setup, docker]
+    if: needs.setup.outputs.build_only != 'true'
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
@@ -517,6 +557,7 @@ jobs:
     name: Docker (bowrain-keycloak)
     runs-on: ubuntu-latest
     needs: [setup, package-bowrain-cli]
+    if: needs.setup.outputs.build_only != 'true'
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
@@ -589,6 +630,8 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
+          # A build-only run saves no cache.
+          cache: ${{ needs.setup.outputs.build_only != 'true' }}
 
       - uses: ./.github/actions/setup-node-ui
 
@@ -610,8 +653,15 @@ jobs:
       # provisioning comment in release.yml's build-cli job. Cached on the
       # filter + script hash.
       - name: Cache static ICU
-        if: runner.os != 'Windows'
+        if: ${{ (runner.os != 'Windows') && needs.setup.outputs.build_only != 'true' }}
         uses: actions/cache@v6
+        with:
+          path: ~/icu-static
+          key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
+      # A build-only run restores the same key and saves nothing.
+      - name: Restore static ICU (build-only run)
+        if: ${{ (runner.os != 'Windows') && needs.setup.outputs.build_only == 'true' }}
+        uses: actions/cache/restore@v6
         with:
           path: ~/icu-static
           key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
@@ -658,6 +708,8 @@ jobs:
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
+          # A build-only run saves no cache.
+          cache: ${{ needs.setup.outputs.build_only != 'true' }}
           msystem: ${{ matrix.build.msystem }}
           path-type: inherit
           install: >-
@@ -834,7 +886,7 @@ jobs:
 
       - name: Import signing certificate
         id: signing
-        if: runner.os == 'macOS'
+        if: ${{ (runner.os == 'macOS') && needs.setup.outputs.build_only != 'true' }}
         env:
           APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
           APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
@@ -863,7 +915,7 @@ jobs:
           echo "enabled=true" >> "$GITHUB_OUTPUT"
 
       - name: Store notarization credentials (App Store Connect API key)
-        if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
+        if: ${{ (runner.os == 'macOS' && steps.signing.outputs.enabled == 'true') && needs.setup.outputs.build_only != 'true' }}
         env:
           APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
@@ -879,7 +931,7 @@ jobs:
           rm -f "$KEY_PATH"
 
       - name: Sign + notarize app bundle (Wails)
-        if: runner.os == 'macOS'
+        if: ${{ (runner.os == 'macOS') && needs.setup.outputs.build_only != 'true' }}
         working-directory: bowrain/apps/bowrain
         env:
           SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
@@ -927,7 +979,7 @@ jobs:
           done
 
       - name: Sign + notarize DMG
-        if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
+        if: ${{ (runner.os == 'macOS' && steps.signing.outputs.enabled == 'true') && needs.setup.outputs.build_only != 'true' }}
         env:
           APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
           VERSION: ${{ steps.version.outputs.VERSION }}
@@ -950,7 +1002,7 @@ jobs:
           fi
 
       - name: Upload DMG to release
-        if: runner.os == 'macOS'
+        if: ${{ (runner.os == 'macOS') && needs.setup.outputs.build_only != 'true' }}
         uses: softprops/action-gh-release@v3
         with:
           # kapi-bowrain is a plugin on its own tag line, so it never becomes
@@ -972,7 +1024,7 @@ jobs:
         # must never block cask publication or zombie the runner for hours. The
         # with_timeout retries inside publish-appcast.sh handle the common stall;
         # these caps bound the worst case; the in-app-update feed is recoverable.
-        if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
+        if: ${{ (runner.os == 'macOS' && steps.signing.outputs.enabled == 'true') && needs.setup.outputs.build_only != 'true' }}
         timeout-minutes: 25
         continue-on-error: true
         env:
@@ -1034,7 +1086,7 @@ jobs:
             -C bowrain/apps/bowrain/bin Bowrain
 
       - name: Upload tarball to release
-        if: runner.os == 'Linux'
+        if: ${{ (runner.os == 'Linux') && needs.setup.outputs.build_only != 'true' }}
         uses: softprops/action-gh-release@v3
         with:
           # kapi-bowrain is a plugin on its own tag line, so it never becomes
@@ -1047,7 +1099,7 @@ jobs:
 
       # Linux in-app-update feed: sign the tarball into the linux/<arch> appcast.
       - name: Publish updater appcast (Linux)
-        if: runner.os == 'Linux'
+        if: ${{ (runner.os == 'Linux') && needs.setup.outputs.build_only != 'true' }}
         env:
           UPDATE_ED25519_PRIVATE_KEY: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY }}
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
@@ -1072,6 +1124,7 @@ jobs:
     # the bowrain@beta cask (which depends on the bowrain-cli-beta formula).
     runs-on: ubuntu-latest
     needs: [setup, build-bowrain]
+    if: needs.setup.outputs.build_only != 'true'
     environment: ${{ needs.setup.outputs.coordinated == 'true' && 'coordinated-release' || '' }}
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
@@ -1191,6 +1244,7 @@ jobs:
   windows-signing:
     name: Windows signing (manual, after this run)
     needs: [setup, build-bowrain]
+    if: needs.setup.outputs.build_only != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Record the outstanding Windows signing step
@@ -1225,7 +1279,7 @@ jobs:
   verify-release-assets:
     name: Verify the release carries every promised asset
     needs: [setup, build-bowrain-cli, package-bowrain-cli, build-bowrain, update-casks]
-    if: ${{ always() && needs.setup.result == 'success' }}
+    if: ${{ (always() && needs.setup.result == 'success') && needs.setup.outputs.build_only != 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
