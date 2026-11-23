@@ -142,14 +142,17 @@ type PullReport struct {
 	// been pushed to it yet.
 	Empty bool `json:"empty,omitempty"`
 	// PassedOver names what the remote's listing left out because it is not
-	// a file the layout writes, such as a link placed in a shared folder.
-	PassedOver []string `json:"passed_over,omitempty"`
+	// a file the layout writes, such as a link placed in a shared folder: at
+	// most FileRemote's PassedOverShown names, as the folder spells them.
+	// PassedOverTotal counts them all.
+	PassedOver      []string `json:"passed_over,omitempty"`
+	PassedOverTotal int      `json:"passed_over_total,omitempty"`
 }
 
 // passedOverReporter is a remote that leaves entries out of a listing and
 // can say which (FileRemote).
 type passedOverReporter interface {
-	TakePassedOver() []string
+	TakePassedOver() ([]string, int)
 }
 
 // PushReport says what a push wrote.
@@ -606,7 +609,7 @@ func (s *Sync) Pull(ctx context.Context) (PullReport, error) {
 	}
 	names, ferr := s.fetch(ctx, db)
 	if p, ok := s.remote.(passedOverReporter); ok {
-		report.PassedOver = p.TakePassedOver()
+		report.PassedOver, report.PassedOverTotal = p.TakePassedOver()
 	}
 	s.noteContact(ctx, db, ferr)
 	if ferr != nil {

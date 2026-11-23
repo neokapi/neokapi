@@ -2898,11 +2898,20 @@ export class ContextPull {
         if (/** @type {any} */(false)) {
             /**
              * PassedOver names what the remote's listing left out because it is not
-             * a file the layout writes, such as a link placed in a shared folder.
+             * a file the layout writes, such as a link placed in a shared folder: at
+             * most FileRemote's PassedOverShown names, as the folder spells them.
+             * PassedOverTotal counts them all.
              * @member
              * @type {string[] | undefined}
              */
             this["passed_over"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["passed_over_total"] = undefined;
         }
         if (!("seconds" in $$source)) {
             /**

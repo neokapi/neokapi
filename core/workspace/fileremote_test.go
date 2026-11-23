@@ -3,6 +3,7 @@
 package workspace_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -105,6 +106,29 @@ func TestFileRemote_WhatAListingPassesOverIsReported(t *testing.T) {
 	names, err := r.List(t.Context(), workspace.RemoteLogDir)
 	require.NoError(t, err)
 	assert.Empty(t, names)
-	assert.Equal(t, []string{segment}, r.TakePassedOver())
-	assert.Empty(t, r.TakePassedOver(), "taken once")
+	names, total := r.TakePassedOver()
+	assert.Equal(t, []string{segment}, names)
+	assert.Equal(t, 1, total)
+	names, total = r.TakePassedOver()
+	assert.Empty(t, names, "taken once")
+	assert.Zero(t, total)
+}
+
+// A folder can hold any number of entries kapi passes over; the remote keeps
+// the first few names and counts the rest.
+func TestFileRemote_ThePassedOverNamesAreCapped(t *testing.T) {
+	share := t.TempDir()
+	dir := filepath.Join(share, "log", "w1")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	target := filepath.Join(t.TempDir(), "elsewhere")
+	for i := range 200 {
+		require.NoError(t, os.Symlink(target, filepath.Join(dir, fmt.Sprintf("link-%03d", i))))
+	}
+
+	r := workspace.NewFileRemote(share)
+	_, err := r.List(t.Context(), workspace.RemoteLogDir)
+	require.NoError(t, err)
+	names, total := r.TakePassedOver()
+	assert.Len(t, names, workspace.PassedOverShown)
+	assert.Equal(t, 200, total)
 }

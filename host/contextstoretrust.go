@@ -185,7 +185,7 @@ func createContextFolder(layout project.Layout, location string, folder contextF
 		return contextFolder{}, err
 	}
 	if created.Digest != folder.Digest || !created.exists() {
-		return contextFolder{}, fmt.Errorf("the context folder was created under %s but now resolves to %s, not the folder that was allowed (%s); run the sync again to be asked about it",
+		return contextFolder{}, fmt.Errorf("the context folder was created under %q but now resolves to %q, not the folder that was allowed (%q); run the sync again to be asked about it",
 			folder.Existing, created.Resolved, folder.Resolved)
 	}
 	return created, nil
@@ -276,9 +276,11 @@ const contextStoreTrustNotice = "kapi writes the project's decisions, terms and 
 // printContextStorePrompt states what the answer allows, and where a folder
 // that is not there yet will be created.
 func printContextStorePrompt(w interface{ Write([]byte) (int, error) }, recipePath string, folder contextFolder) {
-	fmt.Fprintf(w, "\n%s keeps the project's context in a folder:\n\n  %s\n\n", recipePath, folder.Resolved)
+	// The resolved path follows links someone else may have written, so it is
+	// quoted: a control character in it cannot reach the terminal.
+	fmt.Fprintf(w, "\n%s keeps the project's context in a folder:\n\n  %q\n\n", recipePath, folder.Resolved)
 	if !folder.exists() && folder.Existing != "" {
-		fmt.Fprintf(w, "The folder does not exist yet. The first sync will create it under %s.\n\n", folder.Existing)
+		fmt.Fprintf(w, "The folder does not exist yet. The first sync will create it under %q.\n\n", folder.Existing)
 	}
 	fmt.Fprintf(w, "%s\n", contextStoreTrustNotice)
 }

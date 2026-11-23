@@ -377,7 +377,7 @@ describe("Sync now", () => {
     await userEvent.click(screen.getByRole("button", { name: "Sync now" }));
     await waitFor(() =>
       expect(slot("share-sync-passed-over")?.textContent).toBe(
-        "Passed over, not read: log/w1/a.jsonl",
+        'Passed over, not read: "log/w1/a.jsonl"',
       ),
     );
   });

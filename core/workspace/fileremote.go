@@ -36,10 +36,17 @@ type FileRemote struct {
 
 	mu   sync.Mutex
 	root *os.Root
-	// passedOver names what the last listing left out because it is not a
-	// regular file or a directory: a link, a device, a pipe.
-	passedOver []string
+	// passedOver names what the listings left out because it is not a
+	// regular file or a directory (a link, a device, a pipe), up to
+	// PassedOverShown of them; passedOverTotal counts them all. Whoever can
+	// write the folder chooses these names and how many there are.
+	passedOver      []string
+	passedOverTotal int
 }
+
+// PassedOverShown is how many passed-over names a listing keeps. The rest are
+// counted.
+const PassedOverShown = 10
 
 // ErrRemoteReplaced is the error a remote returns when the directory it
 // opened is not the directory Expect named: a component of the path was
@@ -92,20 +99,23 @@ func (r *FileRemote) open(create bool) (*os.Root, error) {
 	return root, nil
 }
 
-// TakePassedOver returns what the listings since the last call left out, and
-// forgets it.
-func (r *FileRemote) TakePassedOver() []string {
+// TakePassedOver returns what the listings since the last call left out, the
+// first PassedOverShown names and the count of all of them, and forgets it.
+func (r *FileRemote) TakePassedOver() ([]string, int) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	out := r.passedOver
-	r.passedOver = nil
-	return out
+	names, total := r.passedOver, r.passedOverTotal
+	r.passedOver, r.passedOverTotal = nil, 0
+	return names, total
 }
 
 func (r *FileRemote) notePassedOver(name string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.passedOver = append(r.passedOver, name)
+	r.passedOverTotal++
+	if len(r.passedOver) < PassedOverShown {
+		r.passedOver = append(r.passedOver, name)
+	}
 }
 
 // makeRoot creates dir beneath its nearest existing ancestor, opened as a

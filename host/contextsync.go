@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -406,9 +407,9 @@ func (r ContextPull) FormatText(w io.Writer) error {
 	if r.Error != "" {
 		fmt.Fprintf(w, "  note: %s\n", r.Error)
 	}
-	if n := len(r.PassedOver); n > 0 {
+	if r.PassedOverTotal > 0 {
 		fmt.Fprintf(w, "  note: passed over %s in the folder that kapi does not read, such as a link: %s\n",
-			pluralUnit(n, "entry", "entries"), strings.Join(r.PassedOver, ", "))
+			pluralUnit(r.PassedOverTotal, "entry", "entries"), quotedList(r.PassedOver, r.PassedOverTotal))
 	}
 	fmt.Fprintln(w, SyncLine(&r.SyncStatus))
 	return nil
@@ -739,4 +740,19 @@ func (r ContextSyncResult) formatRulesFiles(w io.Writer) (err error) {
 		return nil
 	}
 	return (&RulesFilesResult{Files: changed}).FormatText(w)
+}
+
+// quotedList prints names a shared folder supplies, each quoted so a control
+// character in one reaches the terminal as an escape rather than as itself,
+// and says how many of total it leaves out.
+func quotedList(names []string, total int) string {
+	quoted := make([]string, len(names))
+	for i, name := range names {
+		quoted[i] = strconv.Quote(name)
+	}
+	out := strings.Join(quoted, ", ")
+	if more := total - len(names); more > 0 {
+		out += fmt.Sprintf(", and %d more", more)
+	}
+	return out
 }
