@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-23T06:27:49Z",
+  "generatedAt": "2026-11-23T06:49:22Z",
   "kind": "tool",
   "entries": [
     {
@@ -1398,7 +1398,7 @@
           },
           "command": {
             "description": "The executable to run.",
-            "help": "Path or name of the command-line program to execute for each block. Its\nstandard output replaces the block text. A name is looked up on `PATH`.\nIn a recipe, the command runs in the project root, the directory that\nholds `kapi.yaml`, wherever kapi was started, and a relative path is read\nfrom there. The directory kapi was started in reaches the command as\n`KAPI_INVOKE_DIR`. `kapi exec external-command` runs the command you\ntype in the current directory. A project's approval checks the content\nof a script named here or as an argument, not one a shell string\n(`sh -c '...'`), `npm run` or `make` runs: name the script itself to\nhave it checked.\n",
+            "help": "Path or name of the command-line program to execute for each block. Its\nstandard output replaces the block text. A name is looked up on `PATH`.\nIn a recipe, the command runs in the project root, the directory that\nholds `kapi.yaml`, wherever kapi was started, and a relative path is read\nfrom there. The directory kapi was started in reaches the command as\n`KAPI_INVOKE_DIR`. `kapi exec external-command` runs the command you\ntype in the current directory. A project's approval checks the content\nof a script named here or as an argument, not one that code given\ninline (`sh -c '...'`, `node -e '...'`), `npm run` or `make` runs: name\nthe script itself to have it checked.\n",
             "values": "string (required)"
           },
           "send_as_stdin": {
