@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // A migration ledger records each migration under its version, its name
@@ -27,15 +29,12 @@ import (
 // revision is invisible to the digest, which is why ValidateMigrations
 // requires a Go step to declare one.
 func MigrationIdentity(m Migration) string {
-	h := sha256.New()
-	h.Write([]byte(m.Description))
-	h.Write([]byte{0})
-	h.Write([]byte(NormalizeSQL(m.SQL)))
+	parts := []string{m.Description, NormalizeSQL(m.SQL)}
 	if m.Apply != nil {
-		h.Write([]byte{0})
-		h.Write([]byte(m.Revision))
+		parts = append(parts, m.Revision)
 	}
-	return hex.EncodeToString(h.Sum(nil))[:32]
+	sum := sha256.Sum256([]byte(partjoin.NUL(parts...)))
+	return hex.EncodeToString(sum[:])[:32]
 }
 
 // AppliedMigration is one row of a migration ledger.
