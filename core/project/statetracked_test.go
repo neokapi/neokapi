@@ -75,8 +75,10 @@ func TestCheckStateTrackedRefusesEachTrackedEntry(t *testing.T) {
 }
 
 // A directory in no repository and a machine with no git pass; a git that
-// fails or does not answer in time refuses and never reads as "not
-// tracked"; a cancelled caller context returns the cancellation.
+// fails, refuses to read the repository or does not answer in time, or no
+// git at all, refuses with the cause and its remedy and never reads as "not
+// tracked"; KAPI_TRUST_STATE=1 in the process environment vouches for the
+// state; a cancelled caller context returns the cancellation.
 func TestCheckStateTrackedOutcomes(t *testing.T) {
 	t.Run("a directory in no repository passes", func(t *testing.T) {
 		root := t.TempDir()
@@ -85,11 +87,40 @@ func TestCheckStateTrackedOutcomes(t *testing.T) {
 		require.NoError(t, CheckStateTracked(t.Context(), l))
 	})
 
-	t.Run("no git binary passes", func(t *testing.T) {
+	t.Run("no git binary refuses, and the person can vouch", func(t *testing.T) {
 		l := stateRepo(t)
 		gitIn(t, l.Root, "add", "-f", trackedPath(WorkDirName))
 		t.Setenv("PATH", t.TempDir())
+		err := CheckStateTracked(t.Context(), l)
+		require.ErrorIs(t, err, errGitUnanswered)
+		assert.Contains(t, err.Error(), "git is not installed. Install git")
+		assert.Contains(t, err.Error(), TrustStateEnv+"=1")
+		t.Setenv(TrustStateEnv, "1")
 		require.NoError(t, CheckStateTracked(t.Context(), l))
+	})
+
+	t.Run("a repository with no index yet is asked, and passes", func(t *testing.T) {
+		if _, err := exec.LookPath("git"); err != nil {
+			t.Skip("git is not installed")
+		}
+		root := t.TempDir()
+		l := LayoutAt(root)
+		require.NoError(t, os.MkdirAll(l.WorkDir(), 0o755))
+		gitIn(t, root, "init", "-q")
+		require.NoFileExists(t, filepath.Join(root, ".git", "index"))
+		require.NoError(t, CheckStateTracked(t.Context(), l))
+	})
+
+	t.Run("a git that refuses a repository another user owns names the remedy", func(t *testing.T) {
+		l := stateRepo(t)
+		bin := t.TempDir()
+		script := "#!/bin/sh\necho \"fatal: detected dubious ownership in repository at ''\" >&2\nexit 128\n"
+		require.NoError(t, os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755))
+		t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+		err := CheckStateTracked(t.Context(), l)
+		require.ErrorIs(t, err, errGitUnanswered)
+		assert.Contains(t, err.Error(), "git config --global --add safe.directory "+l.Root)
+		assert.NotContains(t, err.Error(), "Run again")
 	})
 
 	t.Run("a git that fails refuses", func(t *testing.T) {

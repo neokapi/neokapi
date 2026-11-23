@@ -165,6 +165,21 @@ Under `--json` (or `--jq` / `--output-format=json`), a failing command prints a 
 
 The toolbox utilities (`kgrep`) additionally use grep-parity semantics: exit 1 with no message when nothing matched.
 
+## State kapi keeps for a checkout
+
+`.kapi/work/`, `.kapi/sync/`, `.kapi/vault/` and `.kapi/filters.local.json` belong to one checkout and never come from a repository. kapi exits 1 before it reads any of them in these cases:
+
+- **git tracks one of them**, in any spelling your file system treats as the same name. Run the `git rm -r --cached` command the message names, add the entry to `.kapi/.gitignore`, and commit. If the files came with someone else's repository, delete them as well.
+- **`.kapi/` or one of these entries is a submodule or a git repository of its own.** Remove it, or move it out of `.kapi/`.
+- **kapi cannot ask git.** The message names the cause:
+  - git is not installed: install git;
+  - git refuses a repository another user owns: run the `git config --global --add safe.directory` command the message names;
+  - git gives no answer within five seconds, or fails: the message gives git's own error.
+
+  In each case you can set `KAPI_TRUST_STATE=1` in kapi's environment instead. The variable says you vouch for the state in this checkout, and kapi then asks git nothing. kapi reads it only from its own process environment; no recipe, MCP argument or plugin request sets it.
+
+A directory that is in no git repository is not checked. kapi asks git about these entries, so it sees only what git tracks. State that arrived untracked, in an archive or a checkout copied or synchronised from elsewhere, is not seen by this check. kapi still refuses a link or an irregular file anywhere under `.kapi/`, but a regular store or claim token that was copied in is used as kapi's own.
+
 ## Streaming progress: `--progress jsonl`
 
 `run`, `extract`, and `merge` accept `--progress jsonl`, which streams progress events to **stderr** as NDJSON (one JSON object per line) while stdout stays reserved for the final result. The events use the flow-run event vocabulary (the same shapes the Kapi Desktop run sink receives), with `flow` naming the verb or flow:

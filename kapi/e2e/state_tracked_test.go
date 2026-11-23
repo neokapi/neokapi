@@ -78,6 +78,26 @@ func TestTheMCPServerRefusesTrackedState(t *testing.T) {
 			require.True(t, res.IsError, "the MCP call succeeded: %s", resultText(res))
 			assert.Contains(t, resultText(res), "git tracks .kapi/"+st.entry)
 			assert.NotContains(t, resultText(res), "planted")
+
+			// A caller cannot vouch for the state: KAPI_TRUST_STATE is read
+			// from the server's own environment, and no argument reaches it.
+			res = rawCallTool(t, ctx, session, "context_search", map[string]any{"query": "gadget", "project": root, "KAPI_TRUST_STATE": "1"})
+			require.True(t, res.IsError, "the MCP call succeeded: %s", resultText(res))
+			assert.NotContains(t, resultText(res), "planted")
 		})
 	}
+}
+
+// With no git to ask, a checkout in a repository is refused with the cause
+// and its remedy, and KAPI_TRUST_STATE=1 in kapi's own environment vouches
+// for it.
+func TestTrackedStateWithNoGitRefusesUnlessThePersonVouches(t *testing.T) {
+	_, recipe := trackedStateProject(t, "work/store.db", "planted store")
+	noGit := []string{"PATH=" + t.TempDir()}
+	out, err := kapiEnv(t, noGit, "status", "-p", recipe)
+	require.Error(t, err, out)
+	assert.Contains(t, out, "git is not installed")
+	assert.Contains(t, out, "KAPI_TRUST_STATE=1")
+	out, err = kapiEnv(t, append(noGit, "KAPI_TRUST_STATE=1"), "status", "-p", recipe)
+	assert.NotContains(t, out, "git is not installed", "the person vouched: %v", err)
 }
