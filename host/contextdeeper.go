@@ -357,7 +357,7 @@ func (a *App) deeperLookConfig(proj *project.KapiProject, toolName, language str
 // policies holds each chunk's (nil for none), so a chunk is redacted under the
 // rules of the files it was cut from. A text is read once per policy.
 func deeperLookChunks(c suggestCorpus, policyOf func(file string) project.ResolvedRedaction) (chunks []*model.Block, policies []*project.RedactionSpec, asked int) {
-	seen := map[string]bool{}
+	seen := map[[2]string]bool{}
 	var cur strings.Builder
 	var curPolicy project.ResolvedRedaction
 	runes := 0
@@ -384,7 +384,7 @@ func deeperLookChunks(c suggestCorpus, policyOf func(file string) project.Resolv
 		// A block longer than a chunk is cut to one, so no chunk runs past
 		// the bound.
 		text = cutRunes(text, deeperLookChunkRunes)
-		key := policy.At + "\x00" + text
+		key := [2]string{policy.At, text}
 		if seen[key] {
 			asked++
 			continue

@@ -39,6 +39,8 @@ export function statusKey(e: LoggedDecision, online: boolean): string {
           return "reviewed.status.secondReview";
         case "stale":
           return "reviewed.status.stale";
+        case "partial":
+          return "reviewed.status.partial";
         case "refused":
           return "reviewed.status.refused";
         default:
@@ -112,6 +114,8 @@ export default function ReviewedScreen() {
               item.vars.kind === "fix" && item.vars.runs ? item.vars.runs : item.vars.card.target
             }
             source={item.vars.card.source}
+            reasons={item.vars.reasons}
+            note={item.vars.note}
             canUndo={planUndo(qc, item) !== null}
             onUndo={() => undo(item.vars.id)}
           />

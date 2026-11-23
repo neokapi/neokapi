@@ -1,8 +1,6 @@
 package host
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -37,12 +35,12 @@ type formatterTrust struct {
 	warn io.Writer
 	// decided holds this run's outcomes by record key and digest, and hashed
 	// the SHA-256 of each file read for a digest, by path.
-	decided map[string]error
+	decided map[[2]string]error
 	hashed  map[string]string
 }
 
 func newFormatterTrust(env bool) *formatterTrust {
-	return &formatterTrust{env: env, decided: map[string]error{}, hashed: map[string]string{}}
+	return &formatterTrust{env: env, decided: map[[2]string]error{}, hashed: map[string]string{}}
 }
 
 // applyFormatterTrust is the trust kapi apply holds formatters to: the
@@ -88,7 +86,7 @@ func (t *formatterTrust) allow(configFile, name string, command, configs []strin
 		return err
 	}
 	key, digest := execTrustKey(configFile), project.ExecSurfaceDigest([]project.ExecSite{site})
-	memo := key + "\x00" + digest
+	memo := [2]string{key, digest}
 	if outcome, done := t.decided[memo]; done {
 		return outcome
 	}
@@ -195,11 +193,10 @@ func (t *formatterTrust) hash(path string) (string, error) {
 		return "", err
 	}
 	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
+	sum, err := sha256Of(f)
+	if err != nil {
 		return "", err
 	}
-	sum := hex.EncodeToString(h.Sum(nil))
 	t.hashed[path] = sum
 	return sum, nil
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/place"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -460,7 +461,11 @@ func (b *atlasBuilder) terms(ctx context.Context) error {
 		return nil
 	}
 	if s.checkedOut() {
-		if info, err := os.Stat(project.LayoutAt(s.root).StorePath()); err != nil || info.IsDir() {
+		layout := project.LayoutAt(s.root)
+		if err := layout.CheckState(); err != nil {
+			return err
+		}
+		if info, err := os.Stat(layout.StorePath()); err != nil || info.IsDir() {
 			b.note("This project has no store yet, so it holds no terms.")
 			return nil
 		}
@@ -962,16 +967,21 @@ func (b *atlasBuilder) shapeGeometry(id, shape string) *AtlasGeometry {
 		return nil
 	}
 	path := filepath.Join(b.session.root, filepath.FromSlash(shape))
-	info, err := os.Stat(path)
-	switch {
-	case err != nil:
+	f, err := rootpath.OpenRegular(b.session.root, path)
+	if err != nil {
 		b.note(fmt.Sprintf("%s: %s could not be read, so the place has no outline.", key, shape))
 		return nil
-	case info.Size() > atlasMaxShape:
+	}
+	defer f.Close()
+	if info, serr := f.Stat(); serr == nil && info.Size() > atlasMaxShape {
 		b.note(fmt.Sprintf("%s: %s is larger than 1 MiB, so the place has no outline.", key, shape))
 		return nil
 	}
-	data, err := os.ReadFile(path)
+	data, err := io.ReadAll(io.LimitReader(f, atlasMaxShape+1))
+	if err == nil && int64(len(data)) > atlasMaxShape {
+		b.note(fmt.Sprintf("%s: %s is larger than 1 MiB, so the place has no outline.", key, shape))
+		return nil
+	}
 	if err != nil {
 		b.note(fmt.Sprintf("%s: %s could not be read, so the place has no outline.", key, shape))
 		return nil

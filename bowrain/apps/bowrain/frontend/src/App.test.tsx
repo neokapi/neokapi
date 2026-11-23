@@ -21,6 +21,10 @@ const backend = vi.hoisted(() => ({
   CancelLogin: vi.fn().mockResolvedValue(undefined),
   SelectWorkspace: vi.fn().mockResolvedValue(undefined),
   GetServerWorkspaces: vi.fn().mockResolvedValue([]),
+  SetPendingSaves: vi.fn().mockResolvedValue(undefined),
+  AcknowledgeClose: vi.fn().mockResolvedValue(undefined),
+  ConfirmClose: vi.fn().mockResolvedValue(undefined),
+  CancelClose: vi.fn().mockResolvedValue(undefined),
 }));
 
 // A stand-in for the composite adapter's typed connectivity error — App checks
@@ -38,8 +42,17 @@ vi.mock("./api/desktopAdapter", () => ({
   ProxyConnectivityError: FakeProxyConnectivityError,
 }));
 vi.mock("./api/desktopPlatform", () => ({ createDesktopPlatform: () => ({ kind: "desktop" }) }));
+const saves = vi.hoisted(() => ({
+  edits: [] as { key: string; label: string; scope: string; state: string; error: unknown }[],
+}));
 vi.mock("@neokapi/bowrain-app", () => ({
   BowrainApp: () => <div data-testid="bowrain-app">app</div>,
+  flushPendingSaves: vi.fn().mockResolvedValue({ ok: true }),
+  hasPendingSaves: () => saves.edits.length > 0,
+  pendingEdits: () => saves.edits,
+  waitingEditCount: () => saves.edits.length,
+  setPendingSavesServer: vi.fn(),
+  subscribePendingSaves: () => () => {},
 }));
 
 // Import the module (and its heavy transitive graph: the shared app, react-query,
@@ -62,6 +75,7 @@ beforeEach(() => {
   // microtask and timer explicitly, so the observed outcome no longer depends on
   // how fast the machine is.
   vi.useFakeTimers();
+  saves.edits = [];
   // Default: a valid session. Individual tests override (null = signed out).
   getCurrentUser.mockResolvedValue({ id: "u1", name: "Alex", email: "a@x.io" });
 });
@@ -125,6 +139,21 @@ describe("desktop launch gate (#1284)", () => {
     await flushUntil(() => screen.queryByTestId("bowrain-app") !== null);
 
     expect(screen.getByTestId("bowrain-app")).toBeInTheDocument();
+  });
+
+  it("opens the working copy, not sign-in, when the window loads during a reconnect attempt", async () => {
+    backend.GetConnectionState.mockResolvedValue({
+      state: "reconnecting",
+      server_url: "https://acme.test",
+      workspace: "w",
+    });
+    getConfig.mockResolvedValue({ mode: "server" });
+
+    await renderApp();
+    await flushUntil(() => screen.queryByTestId("bowrain-app") !== null);
+
+    expect(screen.getByTestId("bowrain-app")).toBeInTheDocument();
+    expect(screen.queryByText(/welcome to bowrain/i)).toBeNull();
   });
 
   it("shows the offline-launch state (not sign-in, not the app) when the server is unreachable", async () => {
@@ -216,6 +245,22 @@ describe("desktop launch gate (#1284)", () => {
     expect(screen.getByText(/welcome to bowrain/i)).toBeInTheDocument();
   });
 
+  it("keeps holding the window, and says so, when the session ends with an edit unsaved", async () => {
+    saves.edits = [
+      { key: "k", label: "Translate and review", scope: "s", state: "failed", error: null },
+    ];
+    backend.GetConnectionState.mockResolvedValue({ state: "disconnected" });
+
+    await renderApp();
+    await flushUntil(() => screen.queryByText(/welcome to bowrain/i) !== null);
+
+    expect(backend.SetPendingSaves).toHaveBeenLastCalledWith(true);
+    const notice = screen.getByTestId("unsaved-edits-notice");
+    // A count, never a name: whoever is at the machine may be someone else.
+    expect(notice).toHaveTextContent("1 change has not reached the server.");
+    expect(notice).not.toHaveTextContent("Translate and review");
+  });
+
   it("stays in the app while the backend reports a reconnect attempt", async () => {
     backend.GetConnectionState.mockResolvedValue({
       state: "connected",
@@ -228,13 +273,13 @@ describe("desktop launch gate (#1284)", () => {
 
     // The backend reports an attempt in flight; only a disconnect leaves the app.
     backend.GetConnectionState.mockResolvedValue({
-      state: "connecting",
+      state: "reconnecting",
       server_url: "https://acme.test",
     });
     await act(async () => {
       for (const [event, handler] of vi.mocked(Events.On).mock.calls) {
         if (event === "connection-state-changed")
-          (handler as (e: unknown) => void)({ data: { state: "connecting" } });
+          (handler as (e: unknown) => void)({ data: { state: "reconnecting" } });
       }
     });
     await flushUntil(() => backend.GetConnectionState.mock.calls.length >= 2);

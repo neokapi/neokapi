@@ -26,7 +26,7 @@ func TestContextRuleExamples(t *testing.T) {
 		{Regex: `\b(powerful|blazing)\b`, Description: "Hype words."},
 		{Regex: `\b\w+ly\b`, Description: "Adverbs."},
 	}
-	require.NoError(t, s.VoiceStore.UpdateProfile(ctx, profile))
+	require.NoError(t, updateVoiceProfileAt(ctx, t, s, profile))
 	proj.Properties[coreprofile.PropertyProfileID] = profile.ID
 	require.NoError(t, s.ContentStore.UpdateProject(ctx, proj))
 

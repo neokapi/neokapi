@@ -54,6 +54,7 @@ import { useJobFeed } from "../context/JobFeedContext";
 import { ActiveModelBadge } from "./ActiveModelBadge";
 import { AIModelPromptDialog } from "./AIModelPromptDialog";
 import { AICredentialMissingDialog } from "./AICredentialMissingDialog";
+import { useExecTrustGate } from "./ExecTrustDialog";
 
 /** The backend's typed marker for a tab whose recipe vanished from disk. */
 const MISSING_FILES_MARKER = "missing or moved";
@@ -115,6 +116,8 @@ export function ConvergenceHero({
   const [launchError, setLaunchError] = useState<unknown>(null);
   const [modelPromptOpen, setModelPromptOpen] = useState(false);
   const [missingKey, setMissingKey] = useState<AISetupNeed | null>(null);
+  // The project's commands are asked about before each run (ExecTrustDialog).
+  const execTrust = useExecTrustGate(tabID);
 
   // Both derivations are cheap read-only calls; react-query owns caching and the
   // "project:extracted" event invalidates them. A single query fn keeps the
@@ -338,6 +341,7 @@ export function ConvergenceHero({
     setLaunchError(null);
     if (!onBringUpToDate) return;
     void (async () => {
+      if (!(await execTrust.gate().catch(() => true))) return;
       try {
         const need = await api.checkAISetup(tabID, "");
         if (need?.kind === "choose_model") {
@@ -607,6 +611,7 @@ export function ConvergenceHero({
         }}
         onCancel={() => setModelPromptOpen(false)}
       />
+      {execTrust.dialog}
       <AICredentialMissingDialog
         need={missingKey}
         onAddKey={

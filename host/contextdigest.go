@@ -196,7 +196,7 @@ func (a *App) digestProject(ctx context.Context, ws *workspace.Workspace, req Co
 	}
 	for _, dir := range reg.Checkouts {
 		recipe := filepath.Join(dir, project.RecipeFileName)
-		if _, serr := os.Stat(recipe); serr != nil {
+		if _, serr := statIn(dir, recipe); serr != nil {
 			continue
 		}
 		if proj, lerr := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true}); lerr == nil {

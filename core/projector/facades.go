@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neokapi/neokapi/core/partjoin"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/workspace"
@@ -256,6 +257,84 @@ func (m *Memory) BulkAddWithStream(ctx context.Context, entries []memory.Entry, 
 	return m.to.put(ctx, KindMemory, entryStep(fresh, stream, true))
 }
 
+// BulkAddReplacing is BulkAddWithStream that also deletes the entries named in
+// replaced, in the same write.
+func (m *Memory) BulkAddReplacing(ctx context.Context, entries []memory.Entry, stream string, replaced []string) error {
+	fresh := make([]memory.Entry, 0, len(entries))
+	for _, e := range entries {
+		if err := checkEntry(e); err != nil {
+			return fmt.Errorf("bulk add entry %s: %w", e.ID, err)
+		}
+		if !m.holds(ctx, e) {
+			fresh = append(fresh, e)
+		}
+	}
+	var gone []string
+	for _, id := range replaced {
+		if _, ok, err := m.GetEntry(ctx, id); err != nil {
+			return err
+		} else if ok {
+			gone = append(gone, id)
+		}
+	}
+	if len(fresh) == 0 && len(gone) == 0 {
+		return nil
+	}
+	s := entryStep(fresh, stream, true)
+	s.DeleteEntries = gone
+	return m.to.put(ctx, KindMemory, s)
+}
+
+// OriginAdd names an origin to record on an entry the store holds, and the
+// properties that come with it.
+type OriginAdd struct {
+	EntryID    string
+	Origin     memory.Origin
+	Properties map[string]string
+}
+
+// AddOrigins records each origin on its entry in one write. The store adds
+// it to the entry as it holds it when the write is applied, replacing an
+// origin with the same source and key and leaving everything else on the
+// entry as it is. An origin the entry already carries, with the properties
+// already set, writes nothing.
+func (m *Memory) AddOrigins(ctx context.Context, adds []OriginAdd) error {
+	var s step
+	for _, add := range adds {
+		held, ok, err := m.GetEntry(ctx, add.EntryID)
+		if err != nil {
+			return err
+		}
+		if !ok || carriesOrigin(held, add) {
+			continue
+		}
+		o := kmb.FromModel([]memory.Entry{{ID: add.EntryID, Origins: []memory.Origin{add.Origin}}}, nil).Entries[0].Origins[0]
+		s.AddOrigins = append(s.AddOrigins, originAdd{EntryID: add.EntryID, Origin: o, Properties: add.Properties})
+	}
+	if len(s.AddOrigins) == 0 {
+		return nil
+	}
+	return m.to.put(ctx, KindMemory, s)
+}
+
+// carriesOrigin reports whether e already carries add's origin, apart from
+// the instant it was added, and every one of add's properties.
+func carriesOrigin(e memory.Entry, add OriginAdd) bool {
+	for k, v := range add.Properties {
+		if e.Properties[k] != v {
+			return false
+		}
+	}
+	for _, o := range e.Origins {
+		if o.Source != add.Origin.Source || o.Key != add.Origin.Key {
+			continue
+		}
+		o.AddedAt = add.Origin.AddedAt
+		return o == add.Origin
+	}
+	return false
+}
+
 // Delete removes an entry. Removing one the store does not hold writes
 // nothing.
 func (m *Memory) Delete(ctx context.Context, id string) error {
@@ -471,12 +550,6 @@ func (j decisionJournal) RecordAdoptions(ctx context.Context, adoptions []state.
 
 // digestOf is the hex SHA-256 over strings joined by NUL.
 func digestOf(parts ...string) string {
-	h := sha256.New()
-	for i, s := range parts {
-		if i > 0 {
-			h.Write([]byte{0})
-		}
-		h.Write([]byte(s))
-	}
-	return hex.EncodeToString(h.Sum(nil))
+	sum := sha256.Sum256([]byte(partjoin.NUL(parts...)))
+	return hex.EncodeToString(sum[:])
 }

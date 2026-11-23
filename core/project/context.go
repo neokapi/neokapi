@@ -562,7 +562,7 @@ func (ctx *ProjectContext) ValidateFlows(allTools []registry.ToolInfo) []FlowVal
 	if flows == nil {
 		flows = map[string]*flow.StepsSpec{}
 	}
-	for _, def := range ListDirFlows(ctx.Project.FlowsDirIn(ctx.ProjectDir)) {
+	for _, def := range ListDirFlowsIn(ctx.ProjectDir, ctx.Project.FlowsDirIn(ctx.ProjectDir)) {
 		if _, inline := flows[def.Name]; !inline && def.Err == nil {
 			flows[def.Name] = def.Spec
 		}

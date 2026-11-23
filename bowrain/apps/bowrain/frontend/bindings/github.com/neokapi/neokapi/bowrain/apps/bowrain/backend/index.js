@@ -41,6 +41,7 @@ export {
     FlowDefinitionInfo,
     FlowEdgeInfo,
     FlowNodeInfo,
+    FlowSaveResult,
     FormatInfo,
     IOPort,
     InviteInfo,

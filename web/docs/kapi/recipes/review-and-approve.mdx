@@ -86,7 +86,7 @@ The **Review** surface is a queue you work through, keyboard-first:
 />
 
 2. **Inspect.** Each block shows source and target side by side, with its check findings, provenance, and memory match below.
-3. **Decide.** `a` approves, `r` rejects (with a note; the block drops back to draft for the next `up` pass to redo), `space` skips, `j`/`k` move, and `e` puts the cursor in the translation. Edit the target text first when it needs a touch-up: links, bold and placeholders stay in place as chips you type around, and a plural shows one field per form. Save, then approve; the record binds to the edited text. When someone changed the file after you opened the block, the save or the approval stops and shows the text as it is now, and you choose whether to apply yours over it. The **Changes** card lists who changed the block, where and when.
+3. **Decide.** `a` approves, `r` rejects (with a note; the block drops back to draft for the next `up` pass to redo; see [what a rejected block's next draft is told](#what-a-rejected-blocks-next-draft-is-told)), `space` skips, `j`/`k` move, and `e` puts the cursor in the translation. Edit the target text first when it needs a touch-up: links, bold and placeholders stay in place as chips you type around, and a plural shows one field per form. Save, then approve; the record binds to the edited text. When someone changed the file after you opened the block, the save or the approval stops and shows the text as it is now, and you choose whether to apply yours over it. The **Changes** card lists who changed the block, where and when.
 4. **Batch the clean ones.** **Approve clean** approves every block in the current filter that has no findings, so you read only the exceptions. Each block is checked again as it is approved; one whose translation changed since the queue was listed, or that has gained a finding, stops the batch so you read it first.
 5. **Let the AI read first.** **AI pre-review…** scores the pending blocks with your model before you look; each block then carries an AI review score, so you spend your attention where it disagrees. **Fix with AI** drafts a correction through the same save path as a manual edit.
 
@@ -160,3 +160,35 @@ This recipe's worklist lives in your checkout and its decisions in the project's
 - [Ship gates & CI](/kapi/recipes/ship-gates-and-ci): the `established` thresholds this state satisfies.
 - [The kapi loop](/kapi/convergence): produce / promote / release, kept separate.
 - [The project store](/kapi/project-store): the context store that holds the decision record, and the working data kapi rebuilds.
+
+## What a rejected block's next draft is told
+
+A rejection asks for another draft, and the next `kapi up` makes one. The
+content memory does not answer the block with the wording you rejected, and the
+drafting step is told what was rejected and why:
+
+- The rejected draft, while the translation file still holds it.
+- Your reasons, written out as words, and your note.
+- The latest three rejections of the block, oldest dropped.
+
+The note goes to the AI provider the flow drafts with. It is redacted under the
+project's redaction policy like the rest of the request, and `--explain`
+records the prompt as it was sent. The prompt quotes each note, cuts a long
+one short, and states it after the project's terms and rules, which a note does
+not change. The term check after drafting judges the new draft as it judges any
+other.
+
+A draft that comes back in wording you already rejected is not kept. The block
+stays waiting for a new draft, `kapi up` says how many such drafts the run
+made, and each one counts towards the stop below. A machine translation engine takes no
+instructions: the block is drafted again without the reasons and note, and the
+run says so once. A run whose flow cannot draft leaves the block waiting, and
+`kapi status` says so.
+
+Changing a note makes that block's draft out of date, and the next `kapi up`
+drafts that block again and no other. After three rejections of drafts of the
+same source, the loop drafts the block no more. `kapi status` and `kapi up` report
+it as waiting for a person to write the translation.
+
+The reasons and notes come from your review decisions only. A recipe that sets
+`review_feedback` on a step does not load.

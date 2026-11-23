@@ -1,13 +1,14 @@
 package project
 
 import (
+	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 
 	"github.com/neokapi/neokapi/core/axis"
 	"github.com/neokapi/neokapi/core/place"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // Gazetteer is the project's places: the built-in gazetteer plus the places
@@ -159,19 +160,25 @@ func validateCoordinate(space axis.Space, name, value string) error {
 }
 
 // checkPlaceShapes reports a declared place whose `shape:` names a file that
-// is missing under dir, the directory holding the recipe.
+// is missing under dir, the directory holding the recipe. Validation has
+// refused a shape that is absolute or climbs out; one that resolves outside
+// the project through a link is refused here.
 func (p *KapiProject) checkPlaceShapes(dir string) error {
 	for _, id := range sortedKeys(p.Places) {
 		shape := p.Places[id].Shape
 		if shape == "" {
 			continue
 		}
-		info, err := os.Stat(filepath.Join(dir, filepath.FromSlash(shape)))
+		field := "places." + id + ".shape"
+		_, err := rootpath.CheckRegular(dir, filepath.Join(dir, filepath.FromSlash(shape)))
+		if _, ok := errors.AsType[*rootpath.EscapeError](err); ok {
+			return fmt.Errorf("%s: %w", field, err)
+		}
 		switch {
+		case errors.Is(err, rootpath.ErrNotRegular):
+			return fmt.Errorf("%s: %s is not a regular file, so not a GeoJSON file", field, shape)
 		case err != nil:
-			return fmt.Errorf("places.%s.shape: %s: no such file beside the recipe", id, shape)
-		case info.IsDir():
-			return fmt.Errorf("places.%s.shape: %s is a directory, not a GeoJSON file", id, shape)
+			return fmt.Errorf("%s: %s: no such file beside the recipe", field, shape)
 		}
 	}
 	return nil

@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/venue"
@@ -20,8 +21,8 @@ import (
 
 // Measured steerability (model recommendation sweeps): the platform
 // periodically measures how much each candidate model actually obeys THIS
-// project's standing context — voice profile, term rules, and
-// do-not-translate terms — and recommends the model with the highest measured
+// project's standing context, voice profile, term rules, and
+// do-not-translate terms, and recommends the model with the highest measured
 // context lift. No customer authoring, no customer spend: the fixture set is
 // derived from the project's own content, both arms run on the PLATFORM
 // provider, and credits are never deducted (see processModelSweepJob).
@@ -36,11 +37,11 @@ const ModelSweepItemName = "__model_sweep__"
 // recommendation sweep. Field reuse on TranslationJob (mirroring the sync-push
 // and forge-ingest precedents):
 //
-//   - ItemName     — the ModelSweepItemName sentinel (routes the worker)
-//   - TargetLocale — the target locale this sweep measures
-//   - ProjectID    — the project whose brand context is measured
-//   - WorkspaceID  — the durable workspace id (scopes brand/terms reads)
-//   - WorkspaceSlug— the workspace slug (terms resolution + ai_usage)
+//   - ItemName, the ModelSweepItemName sentinel (routes the worker)
+//   - TargetLocale, the target locale this sweep measures
+//   - ProjectID, the project whose brand context is measured
+//   - WorkspaceID, the durable workspace id (scopes brand/terms reads)
+//   - WorkspaceSlug, the workspace slug (terms resolution + ai_usage)
 //
 // The candidate model list and the brand context are re-read at execution
 // time, so a config or profile change between enqueue and execution is
@@ -90,7 +91,7 @@ type SweepFixture struct {
 }
 
 // Fixture-set sizing. The sweep's cost bound is ~maxSweepFixtures segments × 2
-// arms × candidate models per (project, locale) — bounded by construction. The
+// arms × candidate models per (project, locale), bounded by construction. The
 // per-trap quotas keep the set balanced; spare capacity is refilled in trap
 // order so a project rich in one trap kind still fills the budget.
 const (
@@ -172,7 +173,7 @@ func DeriveSweepFixtures(blocks []*venue.StoredBlock, sc *SweepContext) []SweepF
 		return ""
 	}
 
-	// Pass 1 — balanced quotas per trap kind.
+	// Pass 1, balanced quotas per trap kind.
 	quota := map[string]int{"terms": sweepTermsQuota, "voice": sweepVoiceQuota, "dnt": sweepDNTQuota}
 	counts := map[string]int{}
 	selected := map[string]bool{}
@@ -194,7 +195,7 @@ func DeriveSweepFixtures(blocks []*venue.StoredBlock, sc *SweepContext) []SweepF
 		}
 	}
 
-	// Pass 2 — refill spare capacity from the leftover traps (still in block-ID
+	// Pass 2, refill spare capacity from the leftover traps (still in block-ID
 	// order), so a project rich in one trap kind fills the whole budget.
 	for _, sb := range sorted {
 		if len(fixtures) >= maxSweepFixtures {
@@ -218,7 +219,7 @@ func DeriveSweepFixtures(blocks []*venue.StoredBlock, sc *SweepContext) []SweepF
 }
 
 // containsAnyTerm reports whether text contains any of the terms as a whole
-// word (check.FindTerm — the same Unicode-aware matcher every checker uses).
+// word (check.FindTerm, the same Unicode-aware matcher every checker uses).
 func containsAnyTerm(text string, terms []string) bool {
 	for _, term := range terms {
 		if term == "" {
@@ -251,12 +252,7 @@ func isVoiceTrap(text string, runs []model.Run, profile *coreprofile.VoiceProfil
 // measurement of the current state.
 func SweepFixtureDigest(projectID, locale string, fixtures []SweepFixture, sc *SweepContext) string {
 	h := sha256.New()
-	write := func(parts ...string) {
-		for _, p := range parts {
-			h.Write([]byte(p))
-			h.Write([]byte{0})
-		}
-	}
+	write := func(parts ...string) { partjoin.WriteNUL(h, parts...) }
 	write(sweepFixtureDigestVer, projectID, locale)
 	if sc != nil && sc.Profile != nil {
 		write("profile", sc.Profile.ID, strconv.Itoa(sc.Profile.Version))
@@ -371,8 +367,8 @@ func countDNTFindings(b *model.Block) int {
 	return n
 }
 
-// sweepVoiceAdherent applies the voice bar: the target's deterministic score —
-// vocabulary and prohibited style patterns — must clear the profile's compliant
+// sweepVoiceAdherent applies the voice bar: the target's deterministic score,
+// vocabulary and prohibited style patterns, must clear the profile's compliant
 // bar. A nil profile always passes (there is no voice to violate).
 func sweepVoiceAdherent(target string, profile *coreprofile.VoiceProfile) bool {
 	if profile == nil {

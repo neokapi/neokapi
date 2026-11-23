@@ -1,5 +1,5 @@
 import type { ApiAdapter } from "@neokapi/ui";
-import { RestApiAdapter, type ApiTransport } from "@neokapi/ui";
+import { NetworkError, RestApiAdapter, type ApiTransport } from "@neokapi/ui";
 import { WailsApiAdapter } from "./WailsApiAdapter";
 import { Backend } from "./backend";
 
@@ -159,14 +159,10 @@ type ProxyResult = { status: number; body: string };
  * `getProject` uses this to distinguish "offline → fall back to the local
  * working copy" from "server said 404 → propagate".
  */
-export class ProxyConnectivityError extends Error {
+export class ProxyConnectivityError extends NetworkError {
   constructor(cause: unknown) {
-    super(cause instanceof Error ? cause.message : String(cause));
+    super(cause, cause instanceof Error ? cause.message : String(cause));
     this.name = "ProxyConnectivityError";
-    // Preserve the original rejection for error reporting (parseAppError reads
-    // `.cause`). Assigned directly rather than via the Error options bag, which
-    // this lib target's constructor typing doesn't accept.
-    (this as { cause?: unknown }).cause = cause;
   }
 }
 

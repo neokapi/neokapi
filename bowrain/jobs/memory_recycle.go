@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
@@ -18,7 +19,7 @@ import (
 
 // MemoryResolver returns the project's server content memory for a workspace.
 // It mirrors the server's workspaceStores.getMemory: a per-workspace, PostgreSQL-
-// backed Store keyed by the workspace slug. It is optional on WorkerDeps —
+// backed Store keyed by the workspace slug. It is optional on WorkerDeps,
 // when nil (self-hosted without a content memory, or a bare worker) the convergence job
 // degrades to the previous AI-only behavior. Errors are treated as "no content memory
 // available" by the caller, never fatal to a translation job.
@@ -44,12 +45,12 @@ type recycleResult struct {
 	filled []*model.Block
 	// remainder holds the blocks with no usable content-memory match; only these go to AI.
 	remainder []*model.Block
-	// memoryCount is len(filled) — blocks attributed to content memory in ViaMemory reporting.
+	// memoryCount is len(filled), blocks attributed to content memory in ViaMemory reporting.
 	memoryCount int
 }
 
 // defaultMemoryMinScore is the recycle lookup threshold used when a project does
-// not set one — the framework's canonical fuzzy floor (0.7 → the recycle tool's
+// not set one, the framework's canonical fuzzy floor (0.7 → the recycle tool's
 // default FuzzyThreshold of 70), so the platform and the CLI recycle at the same
 // threshold. The lookup floor is not the fill bar: the tool fills only at or
 // above its fill threshold (near-exact), so a fuzzy match below that surfaces as
@@ -78,16 +79,15 @@ func recycleTermRules(ctx context.Context, tb terms.Terminology, proj *store.Pro
 }
 
 // recycleBlocks runs the one framework recycle tool over the stored blocks and
-// partitions them into content memory-filled vs. remainder. It mirrors the
-// built-in `translate` flow's recycle→translate ordering: exact (and, at the
-// configured fuzzy threshold, near-exact) matches are pre-filled from the
-// project content memory so only genuinely-new segments are sent to the paid AI step.
+// partitions them into content memory-filled vs. remainder, in the built-in
+// `translate` flow's recycle→translate order. Exact matches, and near-exact ones
+// at the configured threshold, are filled from the project content memory, so
+// only new segments go to the paid AI step.
 //
-// The tool fills a target only for near-exact and better matches, guarded so a
-// fill never drops an inline code the source carries; a block is counted as
-// content memory-filled when the pass put a target on it. minScore comes from
-// the project's recipe content memory threshold when present (default fuzzy at
-// defaultMemoryMinScore, matching the CLI recycle flow).
+// The tool fills a target only for near-exact and better matches, and never
+// drops an inline code the source carries. A block counts as filled when the
+// pass put a target on it. minScore is the recipe's content memory threshold,
+// or defaultMemoryMinScore as in the CLI recycle flow.
 //
 // ledger is the stream's recorded bases, which decide which blocks are
 // candidates at all: see decisionLedger.needsDraft. termRules are the rules the
@@ -193,17 +193,10 @@ func isLanguageEdition(key model.EditionKey) bool {
 // memoryEntryID derives a deterministic, content-addressed entry ID from the
 // language pair and the flattened source/target text. Two ingests of the same
 // translation therefore hit the same row (Add upserts by ID) and never
-// duplicate — the "add idempotently, content-hash keyed" contract.
+// duplicate, the "add idempotently, content-hash keyed" contract.
 func memoryEntryID(sourceLocale, targetLocale model.LocaleID, sourceRuns, targetRuns []model.Run) string {
-	h := sha256.New()
-	h.Write([]byte(sourceLocale))
-	h.Write([]byte{0})
-	h.Write([]byte(targetLocale))
-	h.Write([]byte{0})
-	h.Write([]byte(model.RunsText(sourceRuns)))
-	h.Write([]byte{0})
-	h.Write([]byte(model.RunsText(targetRuns)))
-	return "tmseed-" + hex.EncodeToString(h.Sum(nil))[:32]
+	sum := sha256.Sum256([]byte(partjoin.NUL(string(sourceLocale), string(targetLocale), model.RunsText(sourceRuns), model.RunsText(targetRuns))))
+	return "tmseed-" + hex.EncodeToString(sum[:])[:32]
 }
 
 // resolveJobMemory returns the project content memory for a job's workspace via the deps'
@@ -225,8 +218,8 @@ func resolveJobMemory(deps *WorkerDeps, job *TranslationJob) memory.Store {
 }
 
 // projectMemoryMinScore reads the recycle lookup threshold from the project's
-// recipe config. Default is fuzzy at defaultMemoryMinScore (0.7) — the same
-// threshold the CLI recycle flow uses — so exact and non-ambiguous near-exact
+// recipe config. Default is fuzzy at defaultMemoryMinScore (0.7), the same
+// threshold the CLI recycle flow uses, so exact and non-ambiguous near-exact
 // matches (0.99 tag-mismatch demotions) pre-fill and lower fuzzy matches surface
 // as alt-translation candidates. An ambiguous exact is never filled, and no fill
 // is committed that would drop an inline code the source carries, so the default

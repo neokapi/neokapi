@@ -22,22 +22,18 @@ import (
 // The review model: what a reviewer is owed about one unit besides its two
 // strings.
 //
-// The bar: a reviewer sees at least what the model was told. A translate
-// prompt carries four things about a block beyond the block itself
-// (core/ai/prompt.Context): the block's key, the blocks before and after it,
-// and what the block said last time. Every one of them reaches the reviewer
-// here, and TestReviewContextAnswersPromptContext holds it that way.
+// A reviewer sees at least what the model was told. A translate prompt
+// carries the block's key, the blocks before and after it, and what the block
+// said last time (core/ai/prompt.Context). Each reaches the reviewer here, as
+// TestReviewContextAnswersPromptContext checks.
+
+// Every layer comes from an existing answer: the by-location resolution
+// `kapi context` serves, the file's ordered blocks, the content memory's
+// version chain, the registered checkers and the project state store. The only
+// cache is ReviewPointResolver, which holds a file's point for one queue.
 //
-// Every layer is assembled from an answer that already exists: the
-// by-location resolution `kapi context` serves, the ordered blocks the file was
-// read as, the content memory's version chain, the registered checkers, and the
-// project state store. No store is added; the only cache is
-// ReviewPointResolver, which holds a file's point for the length of one
-// queue.
-//
-// There is no decision chain. core/state keeps one record per (Scope, Unit,
-// Variant) and Put overwrites it, so Provenance carries the decision in force
-// and says nothing about the ones before it.
+// core/state keeps one record per (Scope, Unit, Variant) and Put overwrites it,
+// so Provenance carries only the decision in force.
 
 // DefaultReviewWindow is how many blocks either side of the unit the
 // neighbourhood carries: the translate tool's own default, so a reviewer
@@ -129,7 +125,7 @@ type ReviewPointResolver struct {
 	root string
 
 	mu    sync.Mutex
-	cache map[string]reviewPointEntry
+	cache map[[3]string]reviewPointEntry
 }
 
 // reviewPointEntry is a resolved point plus the two materials a check needs
@@ -143,7 +139,7 @@ type reviewPointEntry struct {
 
 // NewReviewPointResolver returns a resolver bound to one project.
 func (a *App) NewReviewPointResolver(cmd Command, root string) *ReviewPointResolver {
-	return &ReviewPointResolver{app: a, cmd: cmd, root: root, cache: map[string]reviewPointEntry{}}
+	return &ReviewPointResolver{app: a, cmd: cmd, root: root, cache: map[[3]string]reviewPointEntry{}}
 }
 
 // At answers what governs a source file for one target locale. Repeat calls for
@@ -158,7 +154,7 @@ func (r *ReviewPointResolver) entryAt(ctx context.Context, collection, sourcePat
 		return reviewPointEntry{}
 	}
 	rel := reviewPointPath(r.root, sourcePath)
-	key := collection + "\x00" + rel + "\x00" + locale
+	key := [3]string{collection, rel, locale}
 	r.mu.Lock()
 	if e, ok := r.cache[key]; ok {
 		r.mu.Unlock()
@@ -279,10 +275,10 @@ func reviewPointPath(root, sourcePath string) string {
 
 // AssembleReviewContext builds one unit's review model from what the caller has
 // already read. It is the single assembler behind every local review client, so
-// the desktop, an MCP agent and the CLI cannot be shown different context for
-// the same decision; the layers a venue can read without a project (the
-// neighbourhood, the history, the provenance) are composed from core/review,
-// which the platform's assembler composes too.
+// the desktop, an MCP agent and the CLI see the same context for the same
+// decision. The layers a venue can read without a project (the neighbourhood,
+// the history, the provenance) come from core/review, which the platform's
+// assembler uses too.
 func (a *App) AssembleReviewContext(ctx context.Context, req ReviewContextRequest) *ReviewContext {
 	idx := indexOfBlockKey(req.Blocks, req.Key)
 	if idx < 0 {
@@ -335,6 +331,7 @@ func (a *App) reviewHistory(ctx context.Context, req ReviewContextRequest, b *mo
 	var h ReviewHistory
 	if req.Root != "" {
 		_, h.Unread = a.ContextFilesUnread(ctx, req.Root)
+		h.Rejections = a.reviewRejections(ctx, req, b)
 	}
 	if req.Memory == nil {
 		return h

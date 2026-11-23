@@ -27,9 +27,14 @@ type Store interface {
 	GetMarket(ctx context.Context, workspaceID, marketID string) (*Market, error)
 	// UpdateMarket updates a market's mutable fields (name, description,
 	// locales) and bumps its updated timestamp.
-	UpdateMarket(ctx context.Context, m *Market) error
+	// UpdateMarket writes m when the stored market is still at revision
+	// base, and gives it a new revision. A market that has changed since is
+	// storage.ErrStale; one that is gone is ErrMarketNotFound.
+	UpdateMarket(ctx context.Context, m *Market, base string) error
+	// DeleteMarketAt removes the market when it is still at revision base:
+	// storage.ErrStale when it changed since, ErrMarketNotFound when gone.
+	DeleteMarketAt(ctx context.Context, workspaceID, marketID, base string) error
 	// DeleteMarket removes a market by ID.
-	DeleteMarket(ctx context.Context, workspaceID, marketID string) error
 	// ListMarkets returns all markets in the workspace, ordered by name.
 	ListMarkets(ctx context.Context, workspaceID string) ([]*Market, error)
 

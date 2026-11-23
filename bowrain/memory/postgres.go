@@ -17,7 +17,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/core/model"
 	fw "github.com/neokapi/neokapi/memory"
-	"github.com/neokapi/neokapi/memory/schema"
 )
 
 // PostgresStore is a persistent, multilingual content memory backed by
@@ -48,33 +47,29 @@ func NewPostgresStoreFromDBContext(ctx context.Context, db *storage.PgDB, worksp
 	return &PostgresStore{db: db, workspaceID: workspaceID}, nil
 }
 
-// Migrations is the content memory Postgres schema as a single consolidated
-// baseline, rendered from the shared schema descriptors (memory/schema) — the
-// same source the framework SQLite backend renders from, so the two cannot
-// drift (statement-set tested in memory/schema).
+// Migrations is the content memory Postgres schema: a consolidated baseline
+// and the versions after it, each frozen as it shipped (migrations_sql.go)
+// and tested against the shared schema descriptors (memory/schema).
 //
-// LEDGER — every version this subsystem has ever issued, now folded in:
+// LEDGER, every version this subsystem has ever issued, now folded in:
 //
 //	1  bilingual content memory schema      (retired before consolidation)
 //	2  bilingual schema, incremental        (retired before consolidation)
 //	3  bilingual schema, incremental        (retired before consolidation)
-//	4  multilingual content memory schema — variants, entities per locale, import sessions
+//	4  multilingual content memory schema, variants, entities per locale, import sessions
 //	5  add concept_id to entity mappings for terms cross-reference
 //
-// Versions 1-3 were already gone before this change: v4 dropped their tables
-// outright, so a fresh database never applied them. Their numbers are recorded
-// here because a retired number stays spent — reusing 1 would make a database
-// that still remembers it skip the new work entirely.
-//
-// The DROP TABLE statements that opened v4 are NOT carried into the baseline.
-// They cleared the legacy bilingual tables during that single upgrade; a
-// baseline is designed to be re-applied, so keeping them would mean every
-// migrate pass quietly destroyed the content memory it exists to preserve.
+// Versions 1-3 were gone before the fold: v4 dropped their tables. A retired
+// number stays spent. The DROP TABLE statements that opened v4 are not in
+// the baseline, which is re-applied and must not destroy what it preserves.
 //
 // Baseline is version 6, above every number issued. Retired numbers are never
-// reused; the next migration is version 8.
+// reused; the next migration is version 13.
 //
-//	7  the version chain: unit, point, and the governing context per origin
+//	7      the version chain: unit, point, and the governing context per origin
+//	8..12  tm_entries.revision, the token a person's edit names to say which
+//	       version of the entry it was based on (the steps of
+//	       storage.RevisionColumn, frozen; they never rewrite the table)
 //
 // Version 7 is an ALTER rather than an edit to the baseline. A live database
 // has already recorded 6, so the runner skips it forever; folding a column into
@@ -84,12 +79,37 @@ var Migrations = []storage.Migration{
 	{
 		Version:     6,
 		Description: "content memory baseline (folds 4-5; 1-3 retired earlier)",
-		SQL:         schema.RenderMemoryPostgresBaseline("workspace_id"),
+		SQL:         memoryPostgresBaseline,
 	},
 	{
 		Version:     7,
 		Description: "version chain: unit, point, and the origin's governing context",
-		SQL:         schema.RenderMemoryPostgresVersionChain("workspace_id"),
+		SQL:         memoryPostgresVersionChain,
+	},
+	{
+		Version:     8,
+		Description: "a revision column on tm_entries",
+		SQL:         memoryPostgresRevision1,
+	},
+	{
+		Version:     9,
+		Description: "a revision for each existing row of tm_entries",
+		SQL:         memoryPostgresRevision2,
+	},
+	{
+		Version:     10,
+		Description: "a not-null check on tm_entries revisions, not yet validated",
+		SQL:         memoryPostgresRevision3,
+	},
+	{
+		Version:     11,
+		Description: "validate the tm_entries revision check",
+		SQL:         memoryPostgresRevision4,
+	},
+	{
+		Version:     12,
+		Description: "tm_entries revisions are not null",
+		SQL:         memoryPostgresRevision5,
 	},
 }
 
@@ -141,10 +161,11 @@ func (tm *PostgresStore) AddWithStream(ctx context.Context, entry fw.Entry, stre
 		}
 	}
 
-	if _, err := tm.db.ExecContext(ctx, `
+	return tm.db.Transition(ctx, func(r storage.Runner) error {
+		if _, err := r.ExecContext(ctx, `
 		INSERT INTO tm_entries
-			(workspace_id, id, project_id, stream, hint_src_lang, properties, note, point, unit, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11)
+			(workspace_id, id, project_id, stream, hint_src_lang, properties, note, point, unit, created_at, updated_at, revision)
+		VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12)
 		ON CONFLICT (workspace_id, id) DO UPDATE SET
 			project_id    = EXCLUDED.project_id,
 			stream        = EXCLUDED.stream,
@@ -153,20 +174,36 @@ func (tm *PostgresStore) AddWithStream(ctx context.Context, entry fw.Entry, stre
 			note          = EXCLUDED.note,
 			point         = EXCLUDED.point,
 			unit          = EXCLUDED.unit,
-			updated_at    = EXCLUDED.updated_at
+			updated_at    = EXCLUDED.updated_at,
+			revision      = EXCLUDED.revision
 	`, tm.workspaceID, entry.ID, entry.ProjectID, stream,
-		string(entry.HintSrcLang), string(propsJSON), entry.Note,
-		entry.Point, entry.Unit,
-		entry.CreatedAt, entry.UpdatedAt); err != nil {
-		return fmt.Errorf("upsert entry: %w", err)
-	}
+			string(entry.HintSrcLang), string(propsJSON), entry.Note,
+			entry.Point, entry.Unit,
+			entry.CreatedAt, entry.UpdatedAt, storage.NewRevision()); err != nil {
+			return fmt.Errorf("upsert entry: %w", err)
+		}
+		return tm.writeChildren(ctx, r, entry, now, true)
+	})
+}
 
+// writeChildren writes what an entry holds besides its row: the variants it
+// carries (locale by locale), its entities and, when replaceOrigins is set,
+// its origins.
+func (tm *PostgresStore) writeChildren(ctx context.Context, r storage.Runner, entry fw.Entry, now time.Time, replaceOrigins bool) error {
+	if err := tm.writeVariants(ctx, r, entry); err != nil {
+		return err
+	}
+	return tm.writeEntitiesAndOrigins(ctx, r, entry, now, replaceOrigins)
+}
+
+// writeVariants replaces the variants entry carries and no other.
+func (tm *PostgresStore) writeVariants(ctx context.Context, r storage.Runner, entry fw.Entry) error {
 	// Replace the variants this write carries, locale by locale: one source text
 	// is taught one target locale at a time, and every locale keys the same entry
 	// off the source content hash, so clearing the whole set would leave the entry
 	// holding only the locale written last. Same rule as the SQLite store.
 	for loc := range entry.Variants {
-		if _, err := tm.db.ExecContext(ctx,
+		if _, err := r.ExecContext(ctx,
 			"DELETE FROM tm_variants WHERE workspace_id = $1 AND entry_id = $2 AND locale = $3",
 			tm.workspaceID, entry.ID, string(loc)); err != nil {
 			return fmt.Errorf("delete variants %s: %w", loc, err)
@@ -183,7 +220,7 @@ func (tm *PostgresStore) AddWithStream(ctx context.Context, entry fw.Entry, stre
 		plain := fw.NormalizeText(model.FlattenRuns(runs))
 		sk := fw.NormalizeText(model.RunsStructuralText(runs))
 		gk := fw.NormalizeText(model.RunsGeneralizedText(runs))
-		if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_variants
+		if _, err := r.ExecContext(ctx, `INSERT INTO tm_variants
 			(workspace_id, entry_id, locale, coded, plain, struct_key, general_key)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 			tm.workspaceID, entry.ID, string(loc), string(coded), plain, sk, gk); err != nil {
@@ -191,8 +228,14 @@ func (tm *PostgresStore) AddWithStream(ctx context.Context, entry fw.Entry, stre
 		}
 	}
 
+	return nil
+}
+
+// writeEntitiesAndOrigins replaces entry's entities and, when replaceOrigins
+// is set, its origins.
+func (tm *PostgresStore) writeEntitiesAndOrigins(ctx context.Context, r storage.Runner, entry fw.Entry, now time.Time, replaceOrigins bool) error {
 	// Replace entities + values. CASCADE on tm_entry_entities removes values.
-	if _, err := tm.db.ExecContext(ctx,
+	if _, err := r.ExecContext(ctx,
 		"DELETE FROM tm_entry_entities WHERE workspace_id = $1 AND entry_id = $2",
 		tm.workspaceID, entry.ID); err != nil {
 		return fmt.Errorf("delete entities: %w", err)
@@ -201,13 +244,13 @@ func (tm *PostgresStore) AddWithStream(ctx context.Context, entry fw.Entry, stre
 		if em.PlaceholderID == "" {
 			continue
 		}
-		if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_entry_entities
+		if _, err := r.ExecContext(ctx, `INSERT INTO tm_entry_entities
 			(workspace_id, entry_id, placeholder_id, entity_type, concept_id) VALUES ($1, $2, $3, $4, $5)`,
 			tm.workspaceID, entry.ID, em.PlaceholderID, string(em.Type), em.ConceptID); err != nil {
 			return fmt.Errorf("insert entity: %w", err)
 		}
 		for loc, val := range em.Values {
-			if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_entry_entity_values
+			if _, err := r.ExecContext(ctx, `INSERT INTO tm_entry_entity_values
 				(workspace_id, entry_id, placeholder_id, locale, text_value, start_pos, end_pos)
 				VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 				tm.workspaceID, entry.ID, em.PlaceholderID, string(loc),
@@ -217,8 +260,11 @@ func (tm *PostgresStore) AddWithStream(ctx context.Context, entry fw.Entry, stre
 		}
 	}
 
+	if !replaceOrigins {
+		return nil
+	}
 	// Replace origins.
-	if _, err := tm.db.ExecContext(ctx,
+	if _, err := r.ExecContext(ctx,
 		"DELETE FROM tm_entry_origins WHERE workspace_id = $1 AND entry_id = $2",
 		tm.workspaceID, entry.ID); err != nil {
 		return fmt.Errorf("delete origins: %w", err)
@@ -228,7 +274,7 @@ func (tm *PostgresStore) AddWithStream(ctx context.Context, entry fw.Entry, stre
 		if addedAt.IsZero() {
 			addedAt = now
 		}
-		if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_entry_origins
+		if _, err := r.ExecContext(ctx, `INSERT INTO tm_entry_origins
 			(workspace_id, entry_id, ordinal, source, key, reference, added_at, added_by, session_id, context_fp)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 			tm.workspaceID, entry.ID, i, o.Source, o.Key, o.Reference,
@@ -527,7 +573,7 @@ func (tm *PostgresStore) loadEntriesByIDs(ctx context.Context, ids []string) ([]
 		 WHERE workspace_id = $1 AND entry_id IN (`+inClause+`) ORDER BY entry_id, locale`,
 		args...)
 	// A transient failure reading variants must surface as an error, not as an
-	// entry with no translation — the caller reads an empty variant map as "not
+	// entry with no translation, the caller reads an empty variant map as "not
 	// in memory" and re-translates, discarding an approved target.
 	if err != nil {
 		return nil, fmt.Errorf("load variants: %w", err)
@@ -1202,7 +1248,7 @@ func scanPgSession(sc pgScanner) (fw.ImportSession, bool) {
 		return fw.ImportSession{}, false
 	}
 	if propsJSON != "" && propsJSON != "{}" {
-		// Best-effort: this scanner reports presence, not failure — its only
+		// Best-effort: this scanner reports presence, not failure, its only
 		// error channel is the bool, and returning false for a session that
 		// exists would hide the session rather than the bad column. Session
 		// properties are import provenance, so a malformed blob degrades to

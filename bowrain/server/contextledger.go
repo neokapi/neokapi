@@ -15,6 +15,7 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/partjoin"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -462,15 +463,12 @@ func listDigest(key workspace.ProjectKey, digests map[string]string) string {
 		names = append(names, name)
 	}
 	slices.Sort(names)
-	h := sha256.New()
-	h.Write([]byte(key))
+	parts := []string{string(key)}
 	for _, name := range names {
-		h.Write([]byte{0})
-		h.Write([]byte(name))
-		h.Write([]byte{0})
-		h.Write([]byte(digests[name]))
+		parts = append(parts, name, digests[name])
 	}
-	return hex.EncodeToString(h.Sum(nil))
+	sum := sha256.Sum256([]byte(partjoin.NUL(parts...)))
+	return hex.EncodeToString(sum[:])
 }
 
 // segmentKeys returns the project keys a segment's operations name, in the

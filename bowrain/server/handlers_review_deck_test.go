@@ -210,7 +210,7 @@ func TestReviewDeck_MarksTheCallersOwnWork(t *testing.T) {
 func fixHarness(t *testing.T) (*Server, string) {
 	t.Helper()
 	s, wsID, _ := newRecheckHarness(t)
-	s.wsStores.memoryFactory = func() memory.Store { return &testMemoryStore{memory.NewInMemoryStore()} }
+	s.wsStores.memoryFactory = func(string) memory.Store { return &testMemoryStore{memory.NewInMemoryStore()} }
 	s.PlatformConfig = platformconfig.NewInMemoryService(platformconfig.Defaults{AIProvider: "demo"}, nil)
 	return s, wsID
 }

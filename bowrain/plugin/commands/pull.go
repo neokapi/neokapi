@@ -49,7 +49,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create connector and apply --stream override.
-	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(cmd.Context(), app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}

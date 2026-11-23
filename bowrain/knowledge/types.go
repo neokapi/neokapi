@@ -11,6 +11,7 @@ package knowledge
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -155,6 +156,9 @@ func (o OpType) IsValid() bool {
 // Market is a workspace-defined scope — a name plus the locales it covers (for
 // example "dach" covering de-DE, de-AT, de-CH). Markets give the free validity
 // tags on terms and relations a stable vocabulary.
+// ErrMarketNotFound is a market id with no market in the workspace.
+var ErrMarketNotFound = errors.New("market not found")
+
 type Market struct {
 	ID          string           `json:"id"`
 	WorkspaceID string           `json:"workspace_id"`
@@ -163,6 +167,9 @@ type Market struct {
 	Locales     []model.LocaleID `json:"locales"`
 	CreatedAt   time.Time        `json:"created_at"`
 	UpdatedAt   time.Time        `json:"updated_at"`
+	// Revision is replaced on every write. An update names the revision it
+	// was based on, and the store refuses it when the market has changed.
+	Revision string `json:"revision"`
 }
 
 // Observation attaches external evidence to a concept: a competitor's phrasing,

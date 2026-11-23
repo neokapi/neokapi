@@ -2,8 +2,9 @@ package host
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
+	"io/fs"
 	"path/filepath"
 	"sort"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/projector"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/memory/kmb"
@@ -83,7 +85,7 @@ func (a *App) readContextSourceInto(ctx context.Context, db *projectdb.DB, batch
 			return 0, fmt.Errorf("read terms: %w", projectdb.ErrNoStore)
 		}
 		tb := scopedTerms(batch.Terms(), src.profile)
-		f, err := os.Open(src.path)
+		f, err := rootpath.OpenRegular(root, src.path)
 		if err != nil {
 			return 0, fmt.Errorf("open terms source: %w", err)
 		}
@@ -108,7 +110,7 @@ func (a *App) readContextSourceInto(ctx context.Context, db *projectdb.DB, batch
 		if t := batch.Terms(); t != nil {
 			tb = scopedTerms(t, src.profile)
 		}
-		words, err := a.compileVoiceSource(ctx, db, store, tb, src)
+		words, err := a.compileVoiceSource(ctx, db, store, tb, root, src)
 		if err != nil {
 			return 0, fmt.Errorf("read voice profile %s: %w", src.rel, err)
 		}
@@ -141,6 +143,9 @@ func storeHolds(db *projectdb.DB, kind contextSourceKind) bool {
 // `memory/`, and a profile's own terms and voice under `profiles/<name>/`. A
 // recipe names none of these files: it binds a voice and terms by name, and the
 // layout is found by where it sits.
+//
+// The layout's files are repository content, so each is found through the
+// layout's root: a file or directory that is a link out of it is refused.
 func committedContextSources(layout project.Layout) ([]contextSource, error) {
 	export := layout.Export()
 	var out []contextSource
@@ -151,12 +156,12 @@ func committedContextSources(layout project.Layout) ([]contextSource, error) {
 		if seen[abs] {
 			return nil
 		}
-		info, err := os.Stat(abs)
+		info, err := statIn(layout.Root, abs)
 		if err != nil {
-			if os.IsNotExist(err) {
+			if errors.Is(err, fs.ErrNotExist) {
 				return nil
 			}
-			return fmt.Errorf("stat context source %s: %w", path, err)
+			return fmt.Errorf("stat context source %s: %w", relSlash(layout.Root, abs), err)
 		}
 		if info.IsDir() {
 			return nil
@@ -169,13 +174,13 @@ func committedContextSources(layout project.Layout) ([]contextSource, error) {
 	if err := add(filepath.Join(layout.StateDir, ktb.ConventionalName), sourceKindTerms, ""); err != nil {
 		return nil, err
 	}
-	for _, name := range profileDirNames(export) {
+	for _, name := range profileDirNames(layout.Root, export) {
 		if err := add(filepath.Join(export.ProfileDir(name), ktb.ConventionalName), sourceKindTerms, name); err != nil {
 			return nil, err
 		}
 	}
 
-	memoryPaths, err := bundlePathsIn(export.MemoryDir())
+	memoryPaths, err := bundlePathsIn(layout.Root, export.MemoryDir())
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +193,7 @@ func committedContextSources(layout project.Layout) ([]contextSource, error) {
 	if err := add(filepath.Join(layout.StateDir, VoiceConventionalName), sourceKindVoice, ""); err != nil {
 		return nil, err
 	}
-	for _, name := range profileDirNames(export) {
+	for _, name := range profileDirNames(layout.Root, export) {
 		if err := add(filepath.Join(export.ProfileDir(name), VoiceConventionalName), sourceKindVoice, name); err != nil {
 			return nil, err
 		}
@@ -196,12 +201,12 @@ func committedContextSources(layout project.Layout) ([]contextSource, error) {
 	return out, nil
 }
 
-// bundlePathsIn lists the content-memory bundles in dir, sorted. A missing
-// directory holds no bundles, which is not an error.
-func bundlePathsIn(dir string) ([]string, error) {
-	entries, err := os.ReadDir(dir)
+// bundlePathsIn lists the content-memory bundles in dir, through root, sorted.
+// A missing directory holds no bundles, which is not an error.
+func bundlePathsIn(root, dir string) ([]string, error) {
+	entries, err := readDirIn(root, dir)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("read content-memory bundles: %w", err)
@@ -217,10 +222,11 @@ func bundlePathsIn(dir string) ([]string, error) {
 	return out, nil
 }
 
-// profileDirNames lists the per-profile directories a layout holds,
-// in name order. A layout with none yields none.
-func profileDirNames(export project.ExportLayout) []string {
-	entries, err := os.ReadDir(export.ProfilesDir())
+// profileDirNames lists the per-profile directories a layout holds, through
+// root, in name order. A layout with none yields none, and a link is no
+// profile directory.
+func profileDirNames(root string, export project.ExportLayout) []string {
+	entries, err := readDirIn(root, export.ProfilesDir())
 	if err != nil {
 		return nil
 	}
@@ -235,9 +241,10 @@ func profileDirNames(export project.ExportLayout) []string {
 }
 
 // recordShardsIn lists the decision-record shards in dir, sorted. A missing
-// directory holds none, which is not an error.
+// directory holds none, which is not an error. dir is a layout's
+// UnitStateDir, <root>/.kapi/state, and is listed through that root.
 func recordShardsIn(dir string) []string {
-	entries, err := os.ReadDir(dir)
+	entries, err := readDirIn(filepath.Dir(filepath.Dir(dir)), dir)
 	if err != nil {
 		return nil
 	}

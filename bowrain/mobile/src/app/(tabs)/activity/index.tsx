@@ -18,6 +18,7 @@ import { FeedCardItem } from "../../../components/feed/FeedCard";
 import { QueryState } from "../../../components/List";
 import { dayLabel, deckLocaleOf, entriesOf, feedKey, useFeed } from "../../../lib/feed";
 import { useFeedEvents } from "../../../lib/feedEvents";
+import { usePullRefresh } from "../../../lib/pullRefresh";
 import { useRecentProject, type RecentProject } from "../../../lib/recentProject";
 
 function openPicker() {
@@ -54,6 +55,7 @@ function ProjectFeed({ recent }: { recent: RecentProject }) {
   const qc = useQueryClient();
   const feed = useFeed(ws, project);
   useFeedEvents(ws, project);
+  const pull = usePullRefresh(() => qc.invalidateQueries({ queryKey: feedKey(ws, project) }));
 
   const sections = useMemo(
     () =>
@@ -98,8 +100,8 @@ function ProjectFeed({ recent }: { recent: RecentProject }) {
       keyExtractor={(card) => card.key}
       stickySectionHeadersEnabled={false}
       contentContainerClassName="pb-8"
-      refreshing={feed.isRefetching && !feed.isFetchingNextPage}
-      onRefresh={() => void qc.invalidateQueries({ queryKey: feedKey(ws, project) })}
+      refreshing={pull.refreshing}
+      onRefresh={pull.onRefresh}
       onEndReachedThreshold={0.5}
       onEndReached={() => {
         if (feed.hasNextPage && !feed.isFetchingNextPage) void feed.fetchNextPage();

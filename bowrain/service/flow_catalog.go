@@ -44,7 +44,47 @@ func (c *FlowCatalog) List(ctx context.Context, projectID string) ([]flow.FlowDe
 	if err != nil {
 		return nil, err
 	}
-	return append(defs, stored...), nil
+	for _, s := range stored {
+		defs = append(defs, s.FlowDefinition)
+	}
+	return defs, nil
+}
+
+// Records is List with each stored flow's revision, as the REST flow routes
+// return them so an editor saves against the revision it read. Built-in flows
+// carry none.
+func (c *FlowCatalog) Records(ctx context.Context, projectID string) ([]bstore.StoredFlow, error) {
+	out := make([]bstore.StoredFlow, 0, 16)
+	for _, def := range flowdef.BuiltInFlows() {
+		out = append(out, bstore.StoredFlow{FlowDefinition: def})
+	}
+	if c == nil || c.defs == nil {
+		return out, nil
+	}
+	stored, err := c.defs.List(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	return append(out, stored...), nil
+}
+
+// Record is Get with the stored flow's revision; a built-in flow carries none.
+func (c *FlowCatalog) Record(ctx context.Context, projectID, flowID string) (*bstore.StoredFlow, error) {
+	if IsBuiltInFlow(flowID) || c == nil || c.defs == nil {
+		def, err := c.Get(ctx, projectID, flowID)
+		if err != nil {
+			return nil, err
+		}
+		return &bstore.StoredFlow{FlowDefinition: *def}, nil
+	}
+	if flowID == "" {
+		return nil, fmt.Errorf("%w: empty flow id", ErrFlowNotFound)
+	}
+	rec, err := c.defs.Get(ctx, projectID, flowID)
+	if errors.Is(err, bstore.ErrFlowDefNotFound) {
+		return nil, fmt.Errorf("%w: %q", ErrFlowNotFound, flowID)
+	}
+	return rec, err
 }
 
 // Get resolves one flow by id for a project. A built-in id wins; a stored
@@ -63,14 +103,14 @@ func (c *FlowCatalog) Get(ctx context.Context, projectID, flowID string) (*flow.
 	if c == nil || c.defs == nil {
 		return nil, fmt.Errorf("%w: %q", ErrFlowNotFound, flowID)
 	}
-	def, err := c.defs.Get(ctx, projectID, flowID)
+	rec, err := c.defs.Get(ctx, projectID, flowID)
 	if errors.Is(err, bstore.ErrFlowDefNotFound) {
 		return nil, fmt.Errorf("%w: %q", ErrFlowNotFound, flowID)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return def, nil
+	return &rec.FlowDefinition, nil
 }
 
 // IsBuiltInFlow reports whether id names a flow from the built-in catalog.

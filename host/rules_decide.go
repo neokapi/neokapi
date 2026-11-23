@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -212,7 +211,7 @@ func (a *App) ruleBlocks(ctx context.Context, st *rulesState, reuse *RulesDecide
 	if err != nil {
 		return nil, ""
 	}
-	stamp := sourceStamp(st.recipe, resolved)
+	stamp := sourceStamp(st.root, st.recipe, resolved)
 	if reuse != nil && reuse.st != nil && reuse.st.key == st.key && reuse.stamp == stamp {
 		return reuse.blocks, stamp
 	}
@@ -233,7 +232,7 @@ func (a *App) ruleBlocks(ctx context.Context, st *rulesState, reuse *RulesDecide
 			continue
 		}
 		name, cfg := formats.forFile(a, rf.Path)
-		blocks, berr := a.readBlocksAs(ctx, rf.Path, name, cfg, a.SourceLocale())
+		blocks, berr := a.readBlocksAs(ctx, st.root, rf.Path, name, cfg, a.SourceLocale())
 		if berr != nil {
 			continue
 		}
@@ -245,13 +244,13 @@ func (a *App) ruleBlocks(ctx context.Context, st *rulesState, reuse *RulesDecide
 }
 
 // sourceStamp names the source a count reads: the recipe and each resolved
-// file, by path, size and modification time. Two stamps are equal while no
-// file has been added, removed or written.
-func sourceStamp(recipe string, resolved []project.ResolvedFile) string {
+// file beneath root, by path, size and modification time. Two stamps are
+// equal while no file has been added, removed or written.
+func sourceStamp(root, recipe string, resolved []project.ResolvedFile) string {
 	var b strings.Builder
 	line := func(path string) {
 		b.WriteString(path)
-		if info, err := os.Stat(path); err == nil {
+		if info, err := statInProject(root, path); err == nil {
 			fmt.Fprintf(&b, "\t%d\t%d", info.Size(), info.ModTime().UnixNano())
 		}
 		b.WriteByte('\n')
@@ -684,7 +683,7 @@ func (a *App) narrowPoint(_ context.Context, st *rulesState, to string) (project
 			return project.GovernancePoint{Collection: to, At: st.at}, nil
 		}
 	}
-	info, err := os.Stat(filepath.Join(st.root, filepath.FromSlash(to)))
+	info, err := statInProject(st.root, filepath.Join(st.root, filepath.FromSlash(to)))
 	if err != nil || !info.IsDir() {
 		var names []string
 		for _, c := range st.places.Collections {

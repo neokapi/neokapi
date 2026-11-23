@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 
@@ -37,8 +36,8 @@ var (
 func (r *Reader) StreamingReader() {}
 
 // scanMetadata is the bounded pass-1 pre-scan: it walks the JSON with a decoder
-// collecting only the (O(messages)) metadata — locale, message key order, and
-// the @<id> descriptions / placeholder hints — without retaining any message
+// collecting only the (O(messages)) metadata (locale, message key order, and
+// the @<id> descriptions / placeholder hints) without retaining any message
 // value. It mirrors parseCatalog minus the value bodies.
 func scanMetadata(rd io.Reader) (locale string, keyOrder []string, descriptions map[string]string, hints map[string][]placeholderHint, err error) {
 	dec := json.NewDecoder(rd)
@@ -100,12 +99,11 @@ func scanMetadata(rd io.Reader) (locale string, keyOrder []string, descriptions 
 // doc.Reader) for a non-file input so the caller falls back to the buffered
 // walk; true once it has handled the document.
 func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult) bool {
-	f, ferr := os.Open(r.Doc.URI)
-	if ferr != nil {
+	f, ok := format.ReopenSource(r.Doc)
+	if !ok {
 		return false
 	}
 	locale, _, descriptions, hints, err := scanMetadata(safeio.DefaultBudget().Reader(f))
-	_ = f.Close()
 	if err != nil {
 		ch <- model.PartResult{Error: err}
 		return true
@@ -198,7 +196,7 @@ func (r *Reader) streamWalkTop(ctx context.Context, ch chan<- model.PartResult, 
 				r.skelText(val.Prefix)
 				r.skelRef(block.ID)
 			} else if key != "@@locale" || !r.skelLocale(val) {
-				// "@<id>" / "@@<global>" / unexpected — copy the value verbatim.
+				// "@<id>" / "@@<global>" / unexpected: copy the value verbatim.
 				r.copyValueStream(ss, val)
 			}
 		default:
@@ -332,7 +330,7 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// Streaming path: a same-format skeleton round-trip with validation off over
 	// a re-openable file. It reads via the streaming scanner, so it never holds
-	// the whole document or the message values — only the (O(messages)) metadata
+	// the whole document or the message values: only the (O(messages)) metadata
 	// the pre-scan collects.
 	if r.skeletonStore != nil && r.ValidationMode() == format.ValidationOff {
 		if r.readStreaming(ctx, ch) {
@@ -342,7 +340,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Bound the whole-input read with the shared safeio byte budget so an
 	// unbounded/oversized stream fails with a typed error (identical limit
-	// across CLI/server/WASM — see core/safeio).
+	// across CLI/server/WASM; see core/safeio).
 	content, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("arb: reading: %w", err)}
@@ -386,7 +384,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	//
 	// When a skeleton store is wired (the kapi merge path) the writer rebuilds
 	// the document from the skeleton instead, so we skip the original-bytes
-	// property — mirroring the native JSON reader.
+	// property, mirroring the native JSON reader.
 	if r.skeletonStore == nil {
 		layer.Properties["arb.original"] = safeio.NoCopyString(content)
 	}
@@ -479,7 +477,7 @@ func rawValues(tokens []jsonscan.Token, resources map[string]*resource) {
 // skeletonTop walks the flat top-level object, emitting skeleton entries.
 func (r *Reader) skeletonTop(tokens []jsonscan.Token, pos *int, blockIDByKey map[string]string) {
 	if *pos >= len(tokens) || tokens[*pos].Type != jsonscan.ObjectStart {
-		// Not the expected shape — copy whatever remains verbatim so the
+		// Not the expected shape: copy whatever remains verbatim so the
 		// skeleton still reproduces the bytes (the writer would then emit no
 		// refs, equivalent to the original).
 		for *pos < len(tokens) && tokens[*pos].Type != jsonscan.EOF {
@@ -511,16 +509,16 @@ func (r *Reader) skeletonTop(tokens []jsonscan.Token, pos *int, blockIDByKey map
 				*pos++
 			}
 			if id, ok := blockIDByKey[key]; ok && !strings.HasPrefix(key, "@") {
-				// Translatable message value — stand a Ref in for it.
+				// Translatable message value: stand a Ref in for it.
 				r.skeletonRefValue(tokens, pos, id)
 			} else if key == "@@locale" && *pos < len(tokens) && r.skelLocale(tokens[*pos]) {
 				*pos++
 			} else {
-				// "@<id>" / "@@<global>" / unknown key — copy its value verbatim.
+				// "@<id>" / "@@<global>" / unknown key: copy its value verbatim.
 				r.skeletonCopyValue(tokens, pos)
 			}
 		default:
-			// Unexpected token at object level — copy verbatim.
+			// Unexpected token at object level: copy verbatim.
 			r.skelToken(tok)
 			*pos++
 		}
@@ -603,7 +601,7 @@ func (r *Reader) blockFor(res *resource, locale model.LocaleID, counter int) *mo
 		}
 		// Per-placeholder example/description hints become additional developer
 		// notes (in document order). The placeholders' structural fields (type,
-		// format, …) are not surfaced — they stay in the byte-faithful skeleton.
+		// format, …) are not surfaced. They stay in the byte-faithful skeleton.
 		for _, ph := range res.placeholders {
 			if text := placeholderNoteText(ph); text != "" {
 				block.AddNote(&model.NoteAnnotation{

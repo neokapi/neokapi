@@ -4,85 +4,48 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
-	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/neokapi/neokapi/core/rootpath"
+	"github.com/neokapi/neokapi/host"
 )
 
 // A tool call names its destination in an argument, which an agent writes.
 // The call may therefore write only inside directories a person chose: the
 // project in scope, or, outside one, the directory the server was started in
-// and the workspace roots the client declares. writeRoots carries the latter
-// on the call's context.
-type writeRootsKey struct{}
+// and the workspace roots the client declares (host/mcp_roots.go).
 
-// withWriteRoots returns ctx carrying the directories a call outside a
-// project may write under. An empty list means there are none.
+// withWriteRoots returns ctx carrying the directories a call may reach.
 func withWriteRoots(ctx context.Context, roots []string) context.Context {
-	if roots == nil {
-		roots = []string{}
-	}
-	return context.WithValue(ctx, writeRootsKey{}, roots)
+	return host.WithMCPRoots(ctx, roots)
 }
 
-// writeRootsFrom returns the directories ctx carries. A context that carries
-// none, a handler called directly rather than through the server, falls back
-// to the working directory.
-func writeRootsFrom(ctx context.Context) []string {
-	if roots, ok := ctx.Value(writeRootsKey{}).([]string); ok {
-		return roots
-	}
-	if wd, err := os.Getwd(); err == nil {
-		return []string{wd}
-	}
-	return []string{}
-}
+// writeRootsFrom returns the directories ctx carries, or the working
+// directory for a handler called directly.
+func writeRootsFrom(ctx context.Context) []string { return host.MCPRootsFrom(ctx) }
 
-// sessionWriteRoots is startDir, when known, followed by every file root the
-// client of req declares.
+// sessionWriteRoots is what the server's roots middleware puts on a call's
+// context. A server built without that middleware (a test, an embedder) gets
+// the same answer here: startDir and the roots the client of req declares.
 func sessionWriteRoots(ctx context.Context, req *mcp.CallToolRequest, startDir string) []string {
-	roots := []string{}
-	if startDir != "" {
-		roots = append(roots, startDir)
-	}
-	if req == nil || req.Session == nil {
+	if roots, ok := host.MCPRootsSet(ctx); ok {
 		return roots
 	}
-	// The roots feature is deprecated (SEP-2577) and remains in the protocol
-	// for its window. A client that does not support it, or a session on a
-	// protocol version that forbids the request while a call is served
-	// (2026-07-28 and later), yields an error, and the call writes under
-	// startDir alone.
-	res, err := req.Session.ListRoots(ctx, &mcp.ListRootsParams{}) //nolint:staticcheck // see above
-	if err != nil || res == nil {
-		return roots
+	var ss *mcp.ServerSession
+	if req != nil {
+		ss = req.Session
 	}
-	for _, r := range res.Roots {
-		if p, ok := fileRootPath(r.URI); ok {
-			roots = append(roots, p)
-		}
-	}
-	return roots
+	return host.MCPSessionRoots(ctx, ss, startDir)
 }
 
-// fileRootPath is the directory a file:// root URI names.
-func fileRootPath(uri string) (string, bool) {
-	u, err := url.Parse(uri)
-	if err != nil || u.Scheme != "file" || u.Path == "" {
-		return "", false
-	}
-	p := u.Path
-	if runtime.GOOS == "windows" {
-		p = strings.TrimPrefix(p, "/")
-	}
-	return filepath.FromSlash(p), true
-}
+// fileRootPath is the local directory a file:// root URI names.
+func fileRootPath(uri string) (string, bool) { return host.FileRootPath(uri) }
+
+// underRoots returns the first of roots that p lies under once links are
+// resolved, or the error of a link that leads out of one.
+func underRoots(roots []string, p string) (string, error) { return host.MCPUnderRoots(roots, p) }
 
 // writeRootFor returns the root among roots that outputPath lies under once
 // links are resolved. named says the path came from output_path; otherwise
@@ -95,20 +58,9 @@ func writeRootFor(roots []string, outputPath, inputPath string, named bool) (str
 	if err != nil {
 		return "", err
 	}
-	var escape error
-	for _, root := range roots {
-		absRoot, err := filepath.Abs(root)
-		if err != nil {
-			continue
-		}
-		if rel, rerr := filepath.Rel(absRoot, abs); rerr != nil || !filepath.IsLocal(rel) {
-			continue
-		}
-		if _, cerr := rootpath.Contain(absRoot, abs); cerr != nil {
-			escape = cerr
-			continue
-		}
-		return absRoot, nil
+	root, escape := underRoots(roots, abs)
+	if root != "" {
+		return root, nil
 	}
 	if escape != nil {
 		return "", fmt.Errorf("output_path: %w", escape)

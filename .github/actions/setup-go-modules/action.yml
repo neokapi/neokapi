@@ -151,6 +151,24 @@ runs:
         restore-keys: |
           go-build-${{ runner.os }}-go${{ inputs.go-version }}-${{ steps.flavor.outputs.value }}-trimpath-
 
+    # A job that saves the build cache restored the last saved copy, so each
+    # save would carry forward every object an earlier run compiled: the race
+    # cache doubled in a day. Go stamps an entry when it uses one whose stamp
+    # is over an hour old, so a stamp more than a day old means no saved run
+    # used the entry in a day. Those are dropped before this job starts;
+    # whatever this job uses it compiles or restamps, and the save keeps.
+    - name: Drop build cache entries unused for a day
+      if: inputs.save-cache == 'true' || (inputs.save-cache == 'auto' && github.event_name != 'pull_request')
+      shell: bash
+      env:
+        GOCACHE_DIR: ${{ steps.gocache.outputs.build }}
+      run: |
+        set -euo pipefail
+        [ -d "$GOCACHE_DIR" ] || exit 0
+        before=$(du -sm "$GOCACHE_DIR" | cut -f1)
+        find "$GOCACHE_DIR" -type f -mmin +1440 -delete
+        echo "Go build cache: ${before} MiB restored, $(du -sm "$GOCACHE_DIR" | cut -f1) MiB after dropping entries unused for a day"
+
     - name: Install ICU development libraries
       if: runner.os == 'Linux'
       uses: ./.github/actions/apt-install

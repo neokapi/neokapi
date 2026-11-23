@@ -69,7 +69,7 @@ func TestPostgresVoiceStore_ProfileVersioning(t *testing.T) {
 	// archived; the live profile becomes version 2.
 	p.Name = "Acme Renamed"
 	p.VersionNote = "first edit"
-	require.NoError(t, store.UpdateProfile(ctx, p))
+	require.NoError(t, store.UpdateProfileAt(ctx, p, revisionOf(t, store, p.ID)))
 	assert.Equal(t, 2, p.Version, "UpdateProfile bumps the in-memory version to 2")
 
 	got, err = store.GetProfile(ctx, p.ID)
@@ -97,7 +97,7 @@ func TestPostgresVoiceStore_ProfileVersioning(t *testing.T) {
 	// Second edit: version 2's state is archived, live becomes version 3.
 	p.Name = "Acme Rebrand"
 	p.VersionNote = "second edit"
-	require.NoError(t, store.UpdateProfile(ctx, p))
+	require.NoError(t, store.UpdateProfileAt(ctx, p, revisionOf(t, store, p.ID)))
 	assert.Equal(t, 3, p.Version)
 
 	versions, err = store.ListProfileVersions(ctx, p.ID)
@@ -114,8 +114,8 @@ func TestPostgresVoiceStore_ProfileVersioning(t *testing.T) {
 
 	orphan := newTestProfile("ws-ver", "Ghost")
 	orphan.ID = "does-not-exist"
-	err = store.UpdateProfile(ctx, orphan)
-	require.Error(t, err, "UpdateProfile of an unknown profile fails at the versioning read")
+	err = store.UpdateProfileAt(ctx, orphan, "any")
+	require.ErrorIs(t, err, ErrProfileNotFound, "an update never creates a profile")
 }
 
 // TestPostgresVoiceStore_VersionsCarryNoAuthor pins that a version row records
@@ -160,7 +160,7 @@ func TestPostgresVoiceStore_VersionsCarryNoAuthor(t *testing.T) {
 			p := newTestProfile("ws-noauthor", "Acme")
 			require.NoError(t, store.CreateProfile(ctx, p))
 			p.Name = "Acme Edited"
-			require.NoError(t, store.UpdateProfile(ctx, p))
+			require.NoError(t, store.UpdateProfileAt(ctx, p, revisionOf(t, store, p.ID)))
 			versions, err := store.ListProfileVersions(ctx, p.ID)
 			require.NoError(t, err)
 			require.Len(t, versions, 1)
@@ -197,13 +197,13 @@ func TestPostgresVoiceStore_MinScoreRoundTrips(t *testing.T) {
 	// An update moves the bar, and clearing it returns the profile to the
 	// default rung rather than freezing the last non-zero value.
 	p.MinScore = 60
-	require.NoError(t, store.UpdateProfile(ctx, p))
+	require.NoError(t, store.UpdateProfileAt(ctx, p, revisionOf(t, store, p.ID)))
 	got, err = store.GetProfile(ctx, p.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 60, got.MinScore)
 
 	p.MinScore = 0
-	require.NoError(t, store.UpdateProfile(ctx, p))
+	require.NoError(t, store.UpdateProfileAt(ctx, p, revisionOf(t, store, p.ID)))
 	got, err = store.GetProfile(ctx, p.ID)
 	require.NoError(t, err)
 	assert.Zero(t, got.MinScore)
@@ -365,7 +365,7 @@ func TestPostgresVoiceStore_Tags(t *testing.T) {
 	// Edit once so version 1 gets archived (tags can only resolve archived versions).
 	p.Name = "Acme v2"
 	p.VersionNote = "edit"
-	require.NoError(t, store.UpdateProfile(ctx, p)) // live is now version 2, version 1 archived
+	require.NoError(t, store.UpdateProfileAt(ctx, p, revisionOf(t, store, p.ID))) // live is now version 2, version 1 archived
 
 	require.NoError(t, store.CreateProfileTag(ctx, &coreprofile.ProfileTag{
 		ProfileID: p.ID, Name: "launch", Version: 1, CreatedBy: "tester",
@@ -535,7 +535,7 @@ func TestPostgresVoiceStore_ConstraintsPersist(t *testing.T) {
 	assert.Equal(t, p.Constraints, got.Constraints)
 	got.Constraints = nil
 	got.Name = "Older client edit"
-	require.NoError(t, store.UpdateProfile(t.Context(), got))
+	require.NoError(t, store.UpdateProfileAt(t.Context(), got, revisionOf(t, store, got.ID)))
 	got, err = store.GetProfile(t.Context(), p.ID)
 	require.NoError(t, err)
 	assert.Equal(t, p.Constraints, got.Constraints)
@@ -544,8 +544,17 @@ func TestPostgresVoiceStore_ConstraintsPersist(t *testing.T) {
 	require.Len(t, versions, 1)
 	assert.Equal(t, p.Constraints, versions[0].Snapshot.Constraints)
 	got.Constraints = []coreprofile.Constraint{}
-	require.NoError(t, store.UpdateProfile(t.Context(), got))
+	require.NoError(t, store.UpdateProfileAt(t.Context(), got, revisionOf(t, store, got.ID)))
 	got, err = store.GetProfile(t.Context(), p.ID)
 	require.NoError(t, err)
 	assert.Empty(t, got.Constraints)
+}
+
+// revisionOf is a profile's current revision, the base an update names.
+func revisionOf(t *testing.T, store *PostgresVoiceStore, id string) string {
+	t.Helper()
+	revs, err := store.Revisions(t.Context(), []string{id})
+	require.NoError(t, err)
+	require.NotEmpty(t, revs[id])
+	return revs[id]
 }

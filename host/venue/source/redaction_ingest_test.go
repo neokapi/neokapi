@@ -63,7 +63,7 @@ func TestScanLocalBlocks_RedactsAtIngest(t *testing.T) {
 	require.NoError(t, os.WriteFile(abs,
 		[]byte(`{"greeting":"Welcome to `+secret+`","farewell":"Goodbye"}`), 0o644))
 
-	conn := NewLocalConnector(&host.App{}, proj, reg)
+	conn := mustLocalConnector(t, &host.App{}, proj, reg)
 	defer conn.Close()
 
 	_, blockMap, err := conn.scanLocalBlocks(context.Background(), nil)
@@ -132,7 +132,7 @@ func TestScanLocalBlocks_VaultKeepsEachFilesOriginal(t *testing.T) {
 		require.NoError(t, os.WriteFile(abs, []byte(`{"greeting":"Hello `+name+`"}`), 0o644))
 	}
 
-	conn := NewLocalConnector(&host.App{}, proj, reg)
+	conn := mustLocalConnector(t, &host.App{}, proj, reg)
 	defer conn.Close()
 	_, blockMap, err := conn.scanLocalBlocks(context.Background(), nil)
 	require.NoError(t, err)
@@ -202,7 +202,7 @@ func TestScanLocalBlocks_RedactsEachFileUnderItsCollectionsPolicy(t *testing.T) 
 		require.NoError(t, os.WriteFile(abs, body, 0o644))
 	}
 
-	conn := NewLocalConnector(&host.App{}, proj, reg)
+	conn := mustLocalConnector(t, &host.App{}, proj, reg)
 	defer conn.Close()
 	_, blockMap, err := conn.scanLocalBlocks(context.Background(), nil)
 	require.NoError(t, err)

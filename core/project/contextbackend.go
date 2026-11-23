@@ -160,7 +160,7 @@ func RecipeVenue(recipePath string) (v ContextVenue, ok bool, err error) {
 	}
 	var head map[string]yaml.Node
 	if err := yaml.Unmarshal(data, &head); err != nil {
-		return ContextVenue{}, false, fmt.Errorf("%s: %w", recipePath, err)
+		return ContextVenue{}, false, fmt.Errorf("%s: %w", recipePath, RecipeYAMLError(err))
 	}
 	node, found := head[ContextBackendBowrain]
 	if !found {
@@ -185,7 +185,7 @@ func ReadContextVenue(recipePath string) (ContextVenue, error) {
 	}
 	var head map[string]yaml.Node
 	if err := yaml.Unmarshal(data, &head); err != nil {
-		return ContextVenue{}, fmt.Errorf("%s: %w", recipePath, err)
+		return ContextVenue{}, fmt.Errorf("%s: %w", recipePath, RecipeYAMLError(err))
 	}
 	node, ok := head[ContextBackendBowrain]
 	if !ok {

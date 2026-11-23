@@ -17,6 +17,8 @@ import (
 // userID with full permissions, returning the recorder and decoded response.
 func upsertVoiceProfile(t *testing.T, srv *Server, wsID, userID, payload string) (*httptest.ResponseRecorder, VoiceProfileUpsertResponse) {
 	t.Helper()
+	// A client that read the profile it changes names the revision it read.
+	payload = voiceRequestBase(srv, http.MethodPost, payload, wsID)
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -85,7 +87,7 @@ func TestVoiceUpsert_NewVersionPreservesServerEdits(t *testing.T) {
 	live, err := srv.VoiceStore.GetProfile(ctx, profileID)
 	require.NoError(t, err)
 	live.Description = "Refined on the server."
-	require.NoError(t, srv.VoiceStore.UpdateProfile(ctx, live))
+	require.NoError(t, updateVoiceProfileAt(ctx, t, srv, live))
 
 	// The push carries a local change (new tone guideline) from a voice file
 	// that predates the server-side edit.

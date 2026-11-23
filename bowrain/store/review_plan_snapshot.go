@@ -107,14 +107,14 @@ func (s *PostgresStore) ClaimDueReviewPlanSnapshots(ctx context.Context, quiet, 
 }
 
 // CompleteReviewPlanSnapshot implements platstore.ReviewPlanSnapshotStore.
-func (s *PostgresStore) CompleteReviewPlanSnapshot(ctx context.Context, claim platstore.ReviewPlanSnapshotClaim, data []byte) error {
+func (s *PostgresStore) CompleteReviewPlanSnapshot(ctx context.Context, claim platstore.ReviewPlanSnapshotClaim, data []byte, computedAt time.Time) error {
 	if _, err := s.db.ExecContext(ctx, `
 		UPDATE review_plan_snapshots
-		   SET data = $4::jsonb, computed_at = NOW(), computed_seq = $5,
+		   SET data = $4::jsonb, computed_at = $6, computed_seq = $5,
 		       lease_until = NULL, lease_token = '',
 		       first_dirty_at = CASE WHEN dirty_seq > $5 THEN claimed_at END
 		 WHERE project_id = $1 AND stream = $2 AND lease_token = $3`,
-		claim.ProjectID, claim.Stream, claim.Token, string(data), claim.Seq); err != nil {
+		claim.ProjectID, claim.Stream, claim.Token, string(data), claim.Seq, computedAt.UTC()); err != nil {
 		return fmt.Errorf("store the review plan snapshot of %s: %w", claim.ProjectID, err)
 	}
 	return nil

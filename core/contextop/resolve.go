@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/axis"
+	"github.com/neokapi/neokapi/core/partjoin"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/workspace"
 )
@@ -113,7 +114,7 @@ func WidenedRules(ctx context.Context, store RuleReader) ([]WidenedRule, error) 
 // widenedID addresses a widened rule in the workspace. Two projects that
 // widened their own operation 7 are two rules, so the project goes in the key.
 func widenedID(project workspace.ProjectKey, id string) string {
-	return string(project) + "\x00" + id
+	return partjoin.NUL(string(project), id)
 }
 
 // ResolveRequest names the point a resolution answers for.

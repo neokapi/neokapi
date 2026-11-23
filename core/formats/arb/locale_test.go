@@ -63,7 +63,7 @@ func writeVia(t *testing.T, path, input string, locale model.LocaleID) string {
 		store := format.NewStreamingSkeletonStore()
 		reader.SetSkeletonStore(store)
 		writer.SetSkeletonStore(store)
-		require.NoError(t, reader.Open(ctx, &model.RawDocument{URI: file, SourceLocale: model.LocaleEnglish, Reader: f}))
+		require.NoError(t, reader.Open(ctx, &model.RawDocument{URI: file, SourceLocale: model.LocaleEnglish, Reader: f, ReaderAt: f}))
 		ch := make(chan *model.Part, 64)
 		go func() {
 			defer close(ch)

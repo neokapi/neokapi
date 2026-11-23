@@ -50,6 +50,7 @@ func xmlStreamingRoundtripCfg(t *testing.T, input string, cfg *xmlfmt.Config) st
 		URI:          path,
 		SourceLocale: model.LocaleEnglish,
 		Reader:       f,
+		ReaderAt:     f,
 	}))
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	reader.Close()
@@ -176,7 +177,7 @@ func TestStreaming_MalformedSurfacedByPass1(t *testing.T) {
 	require.NoError(t, err)
 	defer store.Close()
 	reader.SetSkeletonStore(store)
-	require.NoError(t, reader.Open(ctx, &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: f}))
+	require.NoError(t, reader.Open(ctx, &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: f, ReaderAt: f}))
 
 	var gotErr bool
 	for res := range reader.Read(ctx) {
@@ -244,6 +245,7 @@ func TestStreaming_BoundedMemory(t *testing.T) {
 			URI:          path,
 			SourceLocale: model.LocaleEnglish,
 			Reader:       io.NopCloser(gate),
+			ReaderAt:     f,
 		}))
 
 		// The gate stops the reader at 256 points through the document. Each

@@ -1666,6 +1666,7 @@ var Migrations = []storage.Migration{
 			ALTER TABLE edition_writers DROP COLUMN IF EXISTS block;
 		`,
 	},
+	{Version: 43, Retired: true, Description: "spent by a migration since removed; never applied again"},
 	{
 		Version:     44,
 		Description: "a project's context objects",
@@ -1980,6 +1981,113 @@ var Migrations = []storage.Migration{
 				ON review_plan_snapshots (first_dirty_at) WHERE dirty_seq > computed_seq;
 			CREATE INDEX IF NOT EXISTS review_plan_snapshots_workspace
 				ON review_plan_snapshots (workspace_id);
+		`,
+	},
+	{
+		Version:     58,
+		Description: "a revision column on project flow definitions",
+		SQL: `
+			-- A token the store replaces on every write of a flow. A save
+			-- names the revision it was based on and the store refuses it
+			-- when the flow has moved on, so a later save never silently
+			-- replaces an earlier one. Tokens never repeat, so a flow deleted
+			-- and created again under the same id never matches an old save.
+			--
+			-- Added in the steps that never rewrite the table. This one adds
+			-- the column nullable and gives new rows a token by default. Both
+			-- statements take ACCESS EXCLUSIVE on flow_definitions for a
+			-- catalog change only: no row is read or written. A default on a
+			-- column that already exists applies only to rows inserted later.
+			ALTER TABLE flow_definitions ADD COLUMN IF NOT EXISTS revision TEXT;
+			ALTER TABLE flow_definitions ALTER COLUMN revision SET DEFAULT gen_random_uuid()::text;
+		`,
+	},
+	{
+		Version:     59,
+		Description: "a revision for each existing project flow definition",
+		SQL: `
+			-- Gives each row that predates the column a token of its own.
+			-- ROW EXCLUSIVE on the table and a row lock on each row it
+			-- updates: reads go on, and only a write to the same flow waits.
+			UPDATE flow_definitions SET revision = gen_random_uuid()::text WHERE revision IS NULL;
+		`,
+	},
+	{
+		Version:     60,
+		Description: "a not-null check on flow definition revisions, not yet validated",
+		SQL: `
+			-- NOT VALID checks new and updated rows only, so adding it reads
+			-- no rows: ACCESS EXCLUSIVE for a catalog change.
+			ALTER TABLE flow_definitions
+				ADD CONSTRAINT flow_definitions_revision_not_null CHECK (revision IS NOT NULL) NOT VALID;
+		`,
+	},
+	{
+		Version:     61,
+		Description: "validate the flow definition revision check",
+		SQL: `
+			-- Reads every row under SHARE UPDATE EXCLUSIVE, which lets reads
+			-- and writes of the table go on while it scans.
+			ALTER TABLE flow_definitions VALIDATE CONSTRAINT flow_definitions_revision_not_null;
+		`,
+	},
+	{
+		Version:     62,
+		Description: "flow definition revisions are not null",
+		SQL: `
+			-- With the validated check in place, SET NOT NULL proves the
+			-- column from it and scans nothing: ACCESS EXCLUSIVE for a
+			-- catalog change. The check is then redundant and is dropped,
+			-- also a catalog change.
+			ALTER TABLE flow_definitions ALTER COLUMN revision SET NOT NULL;
+			ALTER TABLE flow_definitions DROP CONSTRAINT flow_definitions_revision_not_null;
+		`,
+	},
+	{
+		Version:     63,
+		Description: "the reasons of a review decision",
+		SQL: `
+			-- The reasons a person chose for a rejection or a correction,
+			-- kept beside the note. A column with a constant default is a
+			-- catalog change on PostgreSQL 11 and later: ACCESS EXCLUSIVE
+			-- for that change only, and no row is rewritten.
+			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS reasons JSONB NOT NULL DEFAULT '[]';
+		`,
+	},
+	{
+		Version:     64,
+		Description: "context session holds keyed by the item's parts",
+		SQL: `
+			-- A hold named its card by one string joined from the item's
+			-- kind, profile and id with NUL bytes. PostgreSQL refuses NUL in
+			-- text, so no hold was ever written. Each part gets a column of
+			-- its own and the key spans them, so no two items share a key.
+			-- A session row a failed hold left behind names its cards the
+			-- old way, so those go too: a session is a short pass over a
+			-- deck, and the next one starts from the deck as it is.
+			DROP TABLE IF EXISTS context_session_holds;
+			DELETE FROM context_sessions;
+			CREATE TABLE context_session_holds (
+				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				item_kind    TEXT NOT NULL,
+				item_profile TEXT NOT NULL DEFAULT '',
+				item_id      TEXT NOT NULL,
+				session_id   TEXT NOT NULL REFERENCES context_sessions(id) ON DELETE CASCADE,
+				PRIMARY KEY (project_id, item_kind, item_profile, item_id)
+			);
+			CREATE INDEX context_session_holds_session ON context_session_holds (session_id);
+		`,
+	},
+	{
+		Version:     65,
+		Description: "the agent host a review decision was recorded from",
+		SQL: `
+			-- The agent host whose shell a person declared themselves in to
+			-- decide (KAPI_ACTOR=person), kept beside the note rather than
+			-- inside it. Rows a released client wrote keep the host inside
+			-- the note; they are read that way and not rewritten. A constant
+			-- default is a catalog change, and no row is rewritten.
+			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS agent_host TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }

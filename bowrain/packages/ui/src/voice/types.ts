@@ -98,6 +98,8 @@ export interface VoiceProfile {
    */
   min_score?: number;
   version: number;
+  /** Replaced on every write; an update names the revision it was based on. */
+  revision?: string;
   created_at: string;
   updated_at: string;
   created_by?: string;
@@ -233,6 +235,8 @@ export interface CreateVoiceProfileRequest {
 
 export interface UpdateVoiceProfileRequest extends CreateVoiceProfileRequest {
   id: string;
+  /** The revision of the profile the edit was made on; the server refuses an update without one. */
+  base_revision?: string;
 }
 
 // ── Correction-learning loop (AD-019) ──────────────────────────────────────

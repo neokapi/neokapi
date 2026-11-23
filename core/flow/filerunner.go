@@ -20,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/observe"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/structure"
 	"github.com/neokapi/neokapi/core/tool"
@@ -54,8 +55,13 @@ func (b *budgetedSource) Close() error {
 // memory; a whole-document format still io.ReadAll-s it, but only once (no
 // separate up-front os.ReadFile buffer). A container format takes neither copy:
 // it reads entries through the random-access view carried alongside.
-func openBudgetedFile(path string) (io.ReadCloser, error) {
-	f, err := os.Open(path)
+//
+// A file beneath root (the project, when the run has one) is opened through
+// rootpath.OpenRegular, so a symbolic link that leads out of the project, or
+// anything that is not a regular file, is refused at the moment of reading.
+// A file outside root is one a person named, and is opened as named.
+func openBudgetedFile(root, path string) (io.ReadCloser, error) {
+	f, err := openInRoot(root, path)
 	if err != nil {
 		return nil, err
 	}
@@ -472,7 +478,7 @@ func (r *FileRunner) recordDocument(ctx context.Context, reader format.DataForma
 			emitter.SetSkeletonStore(store)
 		}
 	}
-	source, err := openBudgetedFile(inputPath)
+	source, err := r.openInput(inputPath)
 	if err != nil {
 		reader.Close()
 		rec.Abort()
@@ -784,7 +790,7 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 		return err
 	}
 
-	source, err := openBudgetedFile(inputPath)
+	source, err := r.openInput(inputPath)
 	if err != nil {
 		reader.Close()
 		return fmt.Errorf("open %q: %w", filepath.Base(inputPath), err)
@@ -803,6 +809,7 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 func (r *FileRunner) runProcessOnly(ctx context.Context, flowName string, tools []tool.Tool, targetLang string, feed func(context.Context, chan<- *model.Part) error) error {
 	fb := NewFlow(flowName)
 	for _, t := range tools {
+		bindProjectRoot(t, r.cfg.ProjectRoot)
 		fb.AddTool(t)
 	}
 	// Append the implicit commit-targets step so channel-based translate tools
@@ -909,7 +916,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 		if _, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
 			srcPath = inputPath
 		} else if _, ok := writer.(format.OriginalContentSetter); ok {
-			content, rerr := os.ReadFile(inputPath)
+			content, rerr := r.readInput(inputPath)
 			if rerr != nil {
 				reader.Close()
 				return fmt.Errorf("read %q: %w", filepath.Base(inputPath), rerr)
@@ -952,7 +959,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	// StreamingReaders), so that buffered-only concern is excluded by
 	// construction.
 	if streaming {
-		source, oerr := openBudgetedFile(inputPath)
+		source, oerr := r.openInput(inputPath)
 		if oerr != nil {
 			reader.Close()
 			if skeletonStore != nil {
@@ -976,7 +983,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	if preReadContent != nil {
 		source = budgetedBytes(preReadContent)
 	} else {
-		s, oerr := openBudgetedFile(inputPath)
+		s, oerr := r.openInput(inputPath)
 		if oerr != nil {
 			reader.Close()
 			if skeletonStore != nil {
@@ -1175,8 +1182,10 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 
 	fb := NewFlow(flowName)
 	for _, t := range tools {
+		bindProjectRoot(t, r.cfg.ProjectRoot)
 		fb.AddTool(t)
 	}
+	bindProjectRoot(writer, r.cfg.ProjectRoot)
 	// Against a store that outlives the run, the file is only half the deliverable:
 	// the `targets/<locale>` overlays are what a later merge replays. The
 	// channel-based producers (recycle, which is the first step of the built-in
@@ -1424,7 +1433,7 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 		// save that lands during the read can make the reader fail on bytes
 		// that are half old and half new, and the save is then the cause.
 		if !IsMoved(werr) {
-			if now, derr := filehome.Digest(outputPath); derr == nil && now != doc.before {
+			if now, derr := r.home().Digest(outputPath); derr == nil && now != doc.before {
 				return errors.Join(&filehome.MovedError{Path: outputPath, Before: doc.before, Now: now}, werr)
 			}
 		}
@@ -1525,4 +1534,42 @@ func (r *FileRunner) RunStream(ctx context.Context, flowName string, tools []too
 		return err
 	}
 	return writer.Close()
+}
+
+// openInput opens one input of the run (openBudgetedFile).
+func (r *FileRunner) openInput(path string) (io.ReadCloser, error) {
+	return openBudgetedFile(r.cfg.ProjectRoot, path)
+}
+
+// ProjectRootSetter is implemented by a tool or writer that reads a file the
+// content names (a Media URI, a source path): it then reads it only through
+// the project directory. The runner sets it before the run, with "" when the
+// run has no project.
+type ProjectRootSetter interface {
+	SetProjectRoot(root string)
+}
+
+// bindProjectRoot hands root to v when v reads files the content names.
+func bindProjectRoot(v any, root string) {
+	if s, ok := v.(ProjectRootSetter); ok {
+		s.SetProjectRoot(root)
+	}
+}
+
+// openInRoot opens path through the root when it lies beneath root, decided
+// by directory identity rather than spelling (rootpath.Open), and as named
+// otherwise: a path beneath no root is one a person named.
+func openInRoot(root, path string) (*os.File, error) {
+	return rootpath.Open(root, path)
+}
+
+// readInput reads one input of the run whole, through rootpath when it lies
+// beneath the project (openInRoot).
+func (r *FileRunner) readInput(path string) ([]byte, error) {
+	f, err := openInRoot(r.cfg.ProjectRoot, path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(safeio.DefaultBudget().Reader(f))
 }

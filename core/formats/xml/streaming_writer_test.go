@@ -35,7 +35,7 @@ func streamingPairRoundtripXML(t *testing.T, input string, cfg *xmlfmt.Config) s
 	writer.SetSkeletonStore(store)
 	require.True(t, store.IsStreaming())
 
-	require.NoError(t, reader.Open(ctx, &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: f}))
+	require.NoError(t, reader.Open(ctx, &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: f, ReaderAt: f}))
 	var buf bytes.Buffer
 	require.NoError(t, writer.SetOutputWriter(&buf))
 	partsCh := make(chan *model.Part, 64)
@@ -101,7 +101,7 @@ func TestStreamingPair_BoundedWriterXML(t *testing.T) {
 		store := format.NewStreamingSkeletonStore()
 		reader.SetSkeletonStore(store)
 		writer.SetSkeletonStore(store)
-		require.NoError(t, reader.Open(context.Background(), &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: io.NopCloser(gate)}))
+		require.NoError(t, reader.Open(context.Background(), &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: io.NopCloser(gate), ReaderAt: f}))
 		require.NoError(t, writer.SetOutputWriter(io.Discard))
 		partsCh := make(chan *model.Part, 64)
 		go func() {

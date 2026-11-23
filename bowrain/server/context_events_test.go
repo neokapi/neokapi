@@ -226,7 +226,7 @@ func TestContextEvents_VoiceDecisionsAreRecorded_Postgres(t *testing.T) {
 	require.Equal(t, http.StatusOK, status, string(body))
 	status, body = rawRequest(t, http.MethodPost, route+"/demote-rule", token, []byte(`{"term":"leverage"}`))
 	require.Equal(t, http.StatusOK, status, string(body))
-	status, body = rawRequest(t, http.MethodPut, route, token, []byte(`{"name":"Docs voice"}`))
+	status, body = rawRequest(t, http.MethodPut, route, token, []byte(withBaseRevision(t, `{"name":"Docs voice"}`, voiceRevisionOf(t, srv, profile.ID))))
 	require.Equal(t, http.StatusOK, status, string(body))
 
 	cases := []struct {

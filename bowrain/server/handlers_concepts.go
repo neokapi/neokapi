@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -14,6 +15,7 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/storage"
 	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/graph"
@@ -42,6 +44,7 @@ func (s *Server) registerConceptRoutes(g *echo.Group) {
 
 	// Import/export.
 	g.POST("/concepts/import/csv", s.HandleImportConceptsCSV)
+	g.GET("/concepts/imports", s.HandleListConceptImports)
 	g.POST("/concepts/import/json", s.HandleImportConceptsJSON)
 	g.GET("/concepts/export/json", s.HandleExportConceptsJSON)
 
@@ -121,11 +124,13 @@ type ResolveCommentRequest struct {
 	Resolved *bool `json:"resolved,omitempty"`
 }
 
-// MarketRequest creates or updates a market.
+// MarketRequest creates or updates a market. An update names the revision it
+// was based on in BaseRevision.
 type MarketRequest struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Locales     []string `json:"locales,omitempty"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description,omitempty"`
+	Locales      []string `json:"locales,omitempty"`
+	BaseRevision string   `json:"base_revision,omitempty"`
 }
 
 // ConceptStoryEntry is one event on a concept's merged timeline. Kind discriminates
@@ -255,6 +260,15 @@ func (s *Server) HandleListConcepts(c *echo.Context) error {
 	infos := make([]ConceptInfoResponse, len(concepts))
 	for i, cp := range concepts {
 		infos[i] = editorConceptToInfo(cp)
+	}
+	// The project view filters what is read; the revisions are the
+	// workspace store's, which every concept write goes through.
+	wsTerms, err := s.wsStores.getTerms(c.Request().Context(), ws)
+	if err != nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
+	}
+	if err := withConceptRevisions(c.Request().Context(), wsTerms, infos); err != nil {
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, TermSearchResponse{Concepts: infos, TotalCount: total})
 }
@@ -421,11 +435,10 @@ func (s *Server) HandleCreateConcept(c *echo.Context) error {
 	// the property every reader honours.
 	termscope.Limit(&concept, req.ProjectID)
 	stream := streamParam(c)
-	if stream != "" && stream != "main" {
-		err = tb.AddConceptWithStream(c.Request().Context(), concept, stream)
-	} else {
-		err = tb.AddConcept(c.Request().Context(), concept)
+	if stream == "main" {
+		stream = ""
 	}
+	rev, err := tb.CreateConcept(c.Request().Context(), concept, stream)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -433,7 +446,7 @@ func (s *Server) HandleCreateConcept(c *echo.Context) error {
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
 		conceptEvent(knowledge.EventConceptCreated, wsID, concept.ID, actor),
 	})
-	return c.JSON(http.StatusCreated, editorConceptToInfo(concept))
+	return c.JSON(http.StatusCreated, conceptInfoAt(concept, rev))
 }
 
 // HandleGetConcept returns a single concept by ID.
@@ -448,14 +461,14 @@ func (s *Server) HandleGetConcept(c *echo.Context) error {
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	concept, ok, err := tb.GetConcept(c.Request().Context(), c.Param("cid"))
+	concept, rev, ok, err := tb.GetConceptAt(c.Request().Context(), c.Param("cid"))
 	if err != nil {
 		return serverErr(c, err)
 	}
 	if !ok {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("concept %q not found", c.Param("cid"))})
 	}
-	return c.JSON(http.StatusOK, editorConceptToInfo(concept))
+	return c.JSON(http.StatusOK, conceptInfoAt(concept, rev))
 }
 
 // HandleUpdateConcept applies ordinary concept edits (definition, notes,
@@ -492,6 +505,9 @@ func (s *Server) HandleUpdateConcept(c *echo.Context) error {
 	if !ok {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("concept %q not found", cid)})
 	}
+	if req.BaseRevision == "" {
+		return refuseUnversioned(c, "this concept")
+	}
 
 	newTerms := venue.EditedTerms(existing.Terms, req.Terms)
 	if terms.GovernedUpdate(existing.Terms, newTerms) {
@@ -506,8 +522,12 @@ func (s *Server) HandleUpdateConcept(c *echo.Context) error {
 	existing.Terms = newTerms
 	existing.UpdatedAt = time.Now()
 
-	if err := tb.AddConcept(c.Request().Context(), existing); err != nil {
-		return serverErr(c, err)
+	// The edit was made on what the person read: the store writes it only
+	// when the concept is still at that revision, in the statement that
+	// writes. The governed-transition checks above read the stored concept,
+	// and a concept that moved since is refused before it could matter.
+	if _, err := tb.UpdateConcept(c.Request().Context(), existing, "", req.BaseRevision); err != nil {
+		return refuseConceptWrite(c, err)
 	}
 
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
@@ -1011,14 +1031,20 @@ func (s *Server) HandleUpdateMarket(c *echo.Context) error {
 	mid := c.Param("mid")
 	ctx := c.Request().Context()
 
-	existing, err := s.KnowledgeStore.GetMarket(ctx, wsID, mid)
-	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
-	}
-
 	var req MarketRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if req.BaseRevision == "" {
+		return refuseUnversioned(c, "markets")
+	}
+
+	existing, err := s.KnowledgeStore.GetMarket(ctx, wsID, mid)
+	if errors.Is(err, knowledge.ErrMarketNotFound) {
+		return refuseGone(c, "market")
+	}
+	if err != nil {
+		return serverErr(c, err)
 	}
 	if strings.TrimSpace(req.Name) != "" {
 		existing.Name = req.Name
@@ -1027,7 +1053,19 @@ func (s *Server) HandleUpdateMarket(c *echo.Context) error {
 	if req.Locales != nil {
 		existing.Locales = localeIDs(req.Locales)
 	}
-	if err := s.KnowledgeStore.UpdateMarket(ctx, existing); err != nil {
+	switch err := s.KnowledgeStore.UpdateMarket(ctx, existing, req.BaseRevision); {
+	case errors.Is(err, knowledge.ErrMarketNotFound):
+		return refuseGone(c, "market")
+	case errors.Is(err, storage.ErrStale):
+		current, gerr := s.KnowledgeStore.GetMarket(ctx, wsID, mid)
+		if errors.Is(gerr, knowledge.ErrMarketNotFound) {
+			return refuseGone(c, "market")
+		}
+		if gerr != nil {
+			return serverErr(c, gerr)
+		}
+		return refuseChanged(c, "market_changed", "market", current)
+	case err != nil:
 		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, existing)
@@ -1042,8 +1080,23 @@ func (s *Server) HandleDeleteMarket(c *echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errKnowledgeUnavailable.Error()})
 	}
 	wsID, _ := c.Get("workspace_id").(string)
-	if err := s.KnowledgeStore.DeleteMarket(c.Request().Context(), wsID, c.Param("mid")); err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	ctx := c.Request().Context()
+	mid := c.Param("mid")
+	base := c.QueryParam("base_revision")
+	if base == "" {
+		return refuseUnversioned(c, "markets")
+	}
+	switch err := s.KnowledgeStore.DeleteMarketAt(ctx, wsID, mid, base); {
+	case errors.Is(err, knowledge.ErrMarketNotFound):
+		return refuseGone(c, "market")
+	case errors.Is(err, storage.ErrStale):
+		current, gerr := s.KnowledgeStore.GetMarket(ctx, wsID, mid)
+		if gerr != nil {
+			return refuseGone(c, "market")
+		}
+		return refuseChanged(c, "market_changed", "market", current)
+	case err != nil:
+		return serverErr(c, err)
 	}
 	return c.NoContent(http.StatusNoContent)
 }
@@ -1069,16 +1122,89 @@ func (s *Server) HandleImportConceptsCSV(c *echo.Context) error {
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	count, err := terms.ImportCSV(c.Request().Context(), tb, strings.NewReader(req.CSVContent), terms.CSVImportOptions{
+	rows, err := terms.ParseCSV(strings.NewReader(req.CSVContent), terms.CSVImportOptions{
 		HasHeader:    req.HasHeader,
 		SourceLocale: model.LocaleID(req.SourceLocale),
 		TargetLocale: model.LocaleID(req.TargetLocale),
 		Domain:       req.Domain,
 	})
 	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	return s.importConcepts(c, tb, rows, req.Source, req.UpdateOf)
+}
+
+// importConceptsResponse is what an import did: Imported counts the concepts
+// it wrote, and each conflict is a row it left unapplied, with the reason
+// and the remedy.
+type importConceptsResponse struct {
+	Imported int `json:"imported"`
+	sqlterms.ImportReport
+	// Import is the id of the import the rows were written as, which a later
+	// import names to update them.
+	Import string `json:"import"`
+}
+
+// importConcepts writes the rows of a terms file (sqlterms.ImportRows) and
+// answers with what it did. Conflicts do not fail the import: the rows
+// around them are applied.
+//
+// Each import gets an id the server mints, recorded on every concept it
+// writes. An import changes concepts an earlier one wrote only when the
+// person names that import in updateOf (HandleListConceptImports lists
+// them); the file name is shown beside the import and decides nothing.
+func (s *Server) importConcepts(c *echo.Context, tb sqlterms.Store, rows []terms.ImportRow, fileName, updateOf string) error {
+	ctx := c.Request().Context()
+	if fileName == "" && len(rows) > 0 {
+		fileName = rows[0].Document
+	}
+	by, now := authorIdentity(c), sessionNow().UTC()
+	src := sqlterms.ImportSource{ID: updateOf}
+	if updateOf != "" {
+		// The record keeps who created the import; this run is its update.
+		if _, err := tb.TouchImport(ctx, updateOf, fileName, by, now); errors.Is(err, sqlterms.ErrImportNotFound) {
+			return c.JSON(http.StatusNotFound, ErrorResponse{Error: "update_of names no import of this workspace"})
+		} else if err != nil {
+			return serverErr(c, err)
+		}
+	} else {
+		// Recorded before any row is written, so an import that writes
+		// nothing is still listed.
+		src.ID = "import-" + id.New()
+		if err := tb.CreateImport(ctx, sqlterms.ImportRecord{ID: src.ID, Name: fileName, CreatedBy: by, CreatedAt: now}); err != nil {
+			return serverErr(c, err)
+		}
+	}
+	report, err := sqlterms.ImportRows(ctx, tb, rows, src)
+	if err != nil {
 		return serverErr(c, err)
 	}
-	return c.JSON(http.StatusOK, map[string]int{"imported": count})
+	return c.JSON(http.StatusOK, importConceptsResponse{Imported: report.Imported(), ImportReport: report, Import: src.ID})
+}
+
+// conceptImportsListed is how many imports HandleListConceptImports lists,
+// the latest updated first.
+const conceptImportsListed = 100
+
+// HandleListConceptImports lists the workspace's latest imports from their
+// records, with the file name, who created each and who last updated it,
+// and when, so a person can name one as the import a new file updates.
+func (s *Server) HandleListConceptImports(c *echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
+		return err
+	}
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+	tb, err := s.wsStores.getTerms(c.Request().Context(), c.Param("ws"))
+	if err != nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
+	}
+	imports, err := tb.Imports(c.Request().Context(), conceptImportsListed)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusOK, imports)
 }
 
 // HandleImportConceptsJSON imports concepts from JSON.
@@ -1098,11 +1224,11 @@ func (s *Server) HandleImportConceptsJSON(c *echo.Context) error {
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	count, err := terms.ImportJSON(c.Request().Context(), tb, strings.NewReader(req.JSONContent))
+	rows, err := terms.ParseJSON(strings.NewReader(req.JSONContent))
 	if err != nil {
-		return serverErr(c, err)
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	return c.JSON(http.StatusOK, map[string]int{"imported": count})
+	return s.importConcepts(c, tb, rows, req.Source, req.UpdateOf)
 }
 
 // HandleExportConceptsJSON exports the workspace concepts as JSON.
@@ -1117,11 +1243,35 @@ func (s *Server) HandleExportConceptsJSON(c *echo.Context) error {
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	var buf strings.Builder
-	if err := terms.ExportJSON(c.Request().Context(), tb, &buf, c.QueryParam("name")); err != nil {
+	// The file carries the revision each concept had, so importing it back
+	// applies each concept as an edit at that revision (sqlterms.ImportRows)
+	// and reports one that changed since. The revisions are read before the
+	// content: a write landing between the two leaves a revision older than
+	// the content exported, which the import then refuses, so no revision
+	// ever vouches for content the file does not hold.
+	ctx := c.Request().Context()
+	all, err := tb.Concepts(ctx)
+	if err != nil {
 		return serverErr(c, err)
 	}
-	return c.JSONBlob(http.StatusOK, []byte(buf.String()))
+	ids := make([]string, len(all))
+	for i, cp := range all {
+		ids[i] = cp.ID
+	}
+	revs, err := tb.ConceptRevisions(ctx, ids)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	var buf strings.Builder
+	if err := terms.ExportJSON(ctx, tb, &buf, c.QueryParam("name")); err != nil {
+		return serverErr(c, err)
+	}
+	var doc terms.JSONStore
+	if err := json.Unmarshal([]byte(buf.String()), &doc); err != nil {
+		return serverErr(c, err)
+	}
+	doc.Revisions = revs
+	return c.JSON(http.StatusOK, doc)
 }
 
 // ---------------------------------------------------------------------------

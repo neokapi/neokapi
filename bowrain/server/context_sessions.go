@@ -106,6 +106,9 @@ type contextSessionResponse struct {
 	// not deal, and HeldByOthers the cards other people's sessions hold.
 	Waiting      int `json:"waiting"`
 	HeldByOthers int `json:"held_by_others"`
+	// LeftOut counts the cards left out because their item holds a value no
+	// store can keep (a NUL byte); they cannot be held or decided.
+	LeftOut int `json:"left_out,omitempty"`
 }
 
 // contextSessionSummary is what a session's decisions did. A figure the
@@ -141,10 +144,10 @@ func (s *Server) contextSessionStore() (platstore.ContextSessionStore, bool) {
 	return platstore.ContextSessions(s.ContentStore)
 }
 
-// heldByOthers is the item keys live sessions of people other than userID
-// hold, and the sessions of userID's own that hold a card.
-func heldByOthers(holds []platstore.ContextSessionHold, userID string) (others map[string]bool, own []string) {
-	others = map[string]bool{}
+// heldByOthers is the items live sessions of people other than userID hold,
+// and the sessions of userID's own that hold a card.
+func heldByOthers(holds []platstore.ContextSessionHold, userID string) (others map[contextop.ItemRef]bool, own []string) {
+	others = map[contextop.ItemRef]bool{}
 	for _, h := range holds {
 		if h.UserID == userID {
 			if !slices.Contains(own, h.SessionID) {
@@ -171,7 +174,7 @@ func (s *Server) withoutHeld(ctx context.Context, projectID, userID string, card
 	if len(others) == 0 {
 		return cards, nil
 	}
-	return slices.DeleteFunc(cards, func(c contextDeckCard) bool { return others[c.Item.Key()] }), nil
+	return slices.DeleteFunc(cards, func(c contextDeckCard) bool { return others[c.Item] }), nil
 }
 
 // actionable reports whether the reviewer can decide the card: keep or
@@ -221,13 +224,21 @@ func (s *Server) HandleStartContextSession(c *echo.Context) error {
 	}
 	reach := map[string]int{}
 	var open []contextDeckCard
+	leftOut := 0
 	for _, card := range all {
 		if card.Kind == deckKindConcept && card.Reach != nil {
 			reach[card.Item.ID] = card.Reach.Blocks
 		}
-		if !card.Reviewed && actionable(card) && !others[card.Item.Key()] {
-			open = append(open, card)
+		if card.Reviewed || !actionable(card) || others[card.Item] {
+			continue
 		}
+		if !platstore.StorableItem(card.Item) {
+			// A card whose item a store cannot name cannot be held or
+			// decided. It is left out and counted, never a failed start.
+			leftOut++
+			continue
+		}
+		open = append(open, card)
 	}
 	if src.key == "" {
 		open = nil
@@ -239,15 +250,26 @@ func (s *Server) HandleStartContextSession(c *echo.Context) error {
 		ID: id.New(), ProjectID: projectID, UserID: rv.userID,
 		Reach: reach, StartedAt: now, ExpiresAt: now.Add(contextSessionIdle),
 	}
-	keys := make([]string, len(open))
-	for i, card := range open {
-		keys[i] = card.Item.Key()
+	items := make([]contextop.ItemRef, 0, len(open))
+	for _, card := range open {
+		items = append(items, card.Item)
 	}
-	held, err := css.StartContextSession(ctx, sess, keys, contextSessionSize)
-	if err != nil {
+	// The cards are recorded in the transaction that takes the holds, so a
+	// start that fails holds nothing.
+	var dealt []contextDeckCard
+	sess.DealCards = func(held []contextop.ItemRef) ([]platstore.ContextSessionCard, error) {
+		dealt = cardsHeld(open, held)
+		stored := make([]platstore.ContextSessionCard, 0, len(dealt))
+		for _, card := range dealt {
+			stored = append(stored, platstore.ContextSessionCard{
+				Item: card.Item, Kind: card.Kind, Term: cardLabel(card), Concept: cardConcept(card), Blocks: card.reachBlocks(),
+			})
+		}
+		return stored, nil
+	}
+	if _, err := css.StartContextSession(ctx, sess, items, contextSessionSize); err != nil {
 		return serverErr(c, err)
 	}
-	dealt := cardsByKeys(open, held)
 
 	channels := s.collectionChannels(ctx, projectID)
 	proposals := proposalsByConcept(all, rv)
@@ -257,20 +279,14 @@ func (s *Server) HandleStartContextSession(c *echo.Context) error {
 		Cards:        make([]contextSessionCard, 0, len(dealt)),
 		Waiting:      len(open) - len(dealt),
 		HeldByOthers: len(others),
+		LeftOut:      leftOut,
 	}
-	stored := make([]platstore.ContextSessionCard, 0, len(dealt))
 	for _, card := range dealt {
 		sc := contextSessionCard{contextDeckCard: card, Channels: cardChannels(card, channels)}
 		if card.Kind == deckKindConcept {
 			sc.Proposals = proposals[card.Item.ID]
 		}
 		out.Cards = append(out.Cards, sc)
-		stored = append(stored, platstore.ContextSessionCard{
-			Item: card.Item.Key(), Kind: card.Kind, Term: cardLabel(card), Concept: cardConcept(card), Blocks: card.reachBlocks(),
-		})
-	}
-	if err := css.SetContextSessionCards(ctx, sess.ID, stored); err != nil {
-		return serverErr(c, err)
 	}
 
 	since, err := s.sessionSince(ctx, css, sess, rv.userID, all)
@@ -358,15 +374,15 @@ func rankByReach(cards []contextDeckCard) []contextDeckCard {
 	return out
 }
 
-// cardsByKeys are the cards keys names, in the cards' order.
-func cardsByKeys(cards []contextDeckCard, keys []string) []contextDeckCard {
-	want := map[string]bool{}
-	for _, k := range keys {
-		want[k] = true
+// cardsHeld are the cards whose items are in held, in the cards' order.
+func cardsHeld(cards []contextDeckCard, held []contextop.ItemRef) []contextDeckCard {
+	want := map[contextop.ItemRef]bool{}
+	for _, item := range held {
+		want[item] = true
 	}
 	var out []contextDeckCard
 	for _, card := range cards {
-		if want[card.Item.Key()] {
+		if want[card.Item] {
 			out = append(out, card)
 		}
 	}
@@ -513,7 +529,7 @@ func (s *Server) sessionSince(ctx context.Context, css platstore.ContextSessionS
 
 // sessionHolding is the caller's live session that holds item, or "" when
 // none does; held reports that another person's live session holds it.
-func (s *Server) sessionHolding(ctx context.Context, css platstore.ContextSessionStore, projectID, userID, item string) (own string, held bool, err error) {
+func (s *Server) sessionHolding(ctx context.Context, css platstore.ContextSessionStore, projectID, userID string, item contextop.ItemRef) (own string, held bool, err error) {
 	holds, err := css.ContextSessionHolds(ctx, projectID, sessionNow())
 	if err != nil {
 		return "", false, err
@@ -600,12 +616,12 @@ func (s *Server) HandleEndContextSession(c *echo.Context) error {
 // terms kept or changed in it, each concept once.
 func summarizeSession(sess platstore.ContextSession) contextSessionSummary {
 	var out contextSessionSummary
-	cards := map[string]platstore.ContextSessionCard{}
+	cards := map[contextop.ItemRef]platstore.ContextSessionCard{}
 	for _, card := range sess.Cards {
 		cards[card.Item] = card
 	}
 	blocks, counted := 0, false
-	seen := map[string]bool{}
+	seen := map[contextop.ItemRef]bool{}
 	for _, d := range sess.Decisions {
 		out.Decided++
 		switch d.Outcome {
@@ -623,7 +639,11 @@ func summarizeSession(sess platstore.ContextSession) contextSessionSummary {
 		if !ok || card.Blocks == 0 {
 			continue
 		}
-		key := cmp.Or(card.Concept, card.Item)
+		// A concept is counted once, whichever of its cards were decided.
+		key := card.Item
+		if card.Concept != "" {
+			key = contextop.ItemRef{Kind: contextop.ItemConcept, ID: card.Concept}
+		}
 		if seen[key] {
 			continue
 		}
@@ -642,7 +662,7 @@ func summarizeSession(sess platstore.ContextSession) contextSessionSummary {
 // with its rule. The figure is left out when the project has no check tally.
 func (s *Server) countFindingsCleared(ctx context.Context, sess platstore.ContextSession, out *contextSessionSummary) {
 	rejected := map[string]bool{}
-	cards := map[string]platstore.ContextSessionCard{}
+	cards := map[contextop.ItemRef]platstore.ContextSessionCard{}
 	for _, card := range sess.Cards {
 		cards[card.Item] = card
 	}

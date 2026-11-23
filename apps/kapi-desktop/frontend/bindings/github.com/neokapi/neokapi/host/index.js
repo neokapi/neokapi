@@ -59,6 +59,7 @@ export {
     DigestGroup,
     DigestNumbers,
     DigestTheme,
+    ExecTrustRequest,
     FindingsReport,
     ParkedScope,
     PreReviewResult,

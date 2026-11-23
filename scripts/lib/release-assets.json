@@ -1,0 +1,113 @@
+{
+  "comment": "What each release promises, per platform. scripts/release-assets.py reads this file: a release run fails when an asset or Windows build artifact it lists is missing, and a registry update fails when it would publish a plugin version without a platform the previous version had. 'ci' assets are on the release when the run ends; 'signed_out_of_band' are the Windows assets make release-windows / release-bowrain-windows sign and upload from the run's 'run_artifacts'. To stop offering a platform, list it under 'removed' with the reason; that is the only way a registry entry may lose one. {v} is the version without the tag prefix.",
+  "tracks": {
+    "kapi": {
+      "tag_prefix": "v",
+      "ci": [
+        "checksums.txt",
+        "kapi-cli_{v}_darwin_arm64.tar.gz",
+        "kapi-cli_{v}_darwin_arm64.tar.gz.sigstore.json",
+        "kapi-cli_{v}_linux_amd64.tar.gz",
+        "kapi-cli_{v}_linux_amd64.tar.gz.sigstore.json",
+        "kapi-cli_{v}_linux_arm64.tar.gz",
+        "kapi-cli_{v}_linux_arm64.tar.gz.sigstore.json",
+        "kapi-cli_{v}_amd64.deb",
+        "kapi-cli_{v}_arm64.deb",
+        "kapi-cli_{v}_amd64.rpm",
+        "kapi-cli_{v}_arm64.rpm",
+        "kapi-{v}-macOS-arm64.dmg",
+        "Kapi-{v}-macOS-arm64.app.zip",
+        "kapi-{v}-linux-amd64.tar.gz",
+        "kapi-{v}-linux-arm64.tar.gz"
+      ],
+      "signed_out_of_band": [
+        "kapi-cli_{v}_windows_amd64.zip",
+        "kapi-cli_{v}_windows_arm64.zip",
+        "kapi-{v}-windows-amd64.zip",
+        "kapi-{v}-windows-arm64.zip",
+        "kapi-{v}-windows-amd64-setup.exe",
+        "kapi-{v}-windows-arm64-setup.exe"
+      ],
+      "run_artifacts": [
+        "kapi-cli-windows-amd64",
+        "kapi-cli-windows-arm64",
+        "kapi-desktop-windows-amd64",
+        "kapi-desktop-windows-arm64"
+      ]
+    },
+    "bowrain": {
+      "tag_prefix": "bowrain-v",
+      "ci": [
+        "checksums.txt",
+        "kapi-bowrain_{v}_darwin_arm64.tar.gz",
+        "kapi-bowrain_{v}_darwin_arm64.tar.gz.sigstore.json",
+        "kapi-bowrain_{v}_linux_amd64.tar.gz",
+        "kapi-bowrain_{v}_linux_amd64.tar.gz.sigstore.json",
+        "kapi-bowrain_{v}_linux_arm64.tar.gz",
+        "kapi-bowrain_{v}_linux_arm64.tar.gz.sigstore.json",
+        "kapi-bowrain_{v}_windows_amd64.zip",
+        "kapi-bowrain_{v}_windows_amd64.zip.sigstore.json",
+        "kapi-bowrain_{v}_windows_arm64.zip",
+        "kapi-bowrain_{v}_windows_arm64.zip.sigstore.json",
+        "bowrain-{v}-macOS-arm64.dmg",
+        "Bowrain-{v}-macOS-arm64.app.zip",
+        "bowrain-{v}-linux-amd64.tar.gz",
+        "bowrain-{v}-linux-arm64.tar.gz"
+      ],
+      "signed_out_of_band": [
+        "bowrain-{v}-windows-amd64.zip",
+        "bowrain-{v}-windows-arm64.zip",
+        "bowrain-{v}-windows-amd64-setup.exe",
+        "bowrain-{v}-windows-arm64-setup.exe"
+      ],
+      "run_artifacts": [
+        "bowrain-windows-amd64",
+        "bowrain-windows-arm64"
+      ]
+    }
+  },
+  "registry": {
+    "kapi": {
+      "archive": "kapi-cli",
+      "platforms": {"darwin/arm64": "tar.gz", "linux/amd64": "tar.gz", "linux/arm64": "tar.gz"},
+      "note": "Windows kapi installs and updates through winget, so cli.json carries no Windows entry."
+    },
+    "bowrain": {
+      "archive": "kapi-bowrain",
+      "platforms": {"darwin/arm64": "tar.gz", "linux/amd64": "tar.gz", "linux/arm64": "tar.gz", "windows/amd64": "zip", "windows/arm64": "zip"}
+    },
+    "asr": {
+      "archive": "kapi-asr",
+      "platforms": {"darwin/arm64": "tar.gz", "linux/amd64": "tar.gz", "linux/arm64": "tar.gz", "windows/amd64": "tar.gz", "windows/arm64": "tar.gz"}
+    },
+    "av": {
+      "archive": "kapi-av",
+      "platforms": {"darwin/arm64": "tar.gz", "linux/amd64": "tar.gz", "linux/arm64": "tar.gz", "windows/amd64": "tar.gz", "windows/arm64": "tar.gz"}
+    },
+    "sat": {
+      "archive": "kapi-sat",
+      "platforms": {"darwin/arm64": "tar.gz", "linux/amd64": "tar.gz", "linux/arm64": "tar.gz", "windows/amd64": "tar.gz", "windows/arm64": "tar.gz"}
+    },
+    "pdfium": {
+      "archive": "kapi-pdfium",
+      "platforms": {"darwin/arm64": "tar.gz", "linux/amd64": "tar.gz", "linux/arm64": "tar.gz", "windows/amd64": "tar.gz"},
+      "note": "No windows/arm64 build: the release matrix has no windows-11-arm leg for this plugin."
+    },
+    "vision": {
+      "archive": "kapi-vision",
+      "platforms": {"darwin/arm64": "tar.gz", "linux/amd64": "tar.gz", "linux/arm64": "tar.gz", "windows/amd64": "tar.gz"},
+      "note": "No windows/arm64 build: the release matrix has no windows-11-arm leg for this plugin."
+    },
+    "check": {
+      "archive": "kapi-check",
+      "platforms": {"darwin/arm64": "tar.gz", "linux/amd64": "tar.gz", "linux/arm64": "tar.gz", "windows/amd64": "tar.gz"},
+      "note": "No windows/arm64 build: the release matrix has no windows-11-arm leg for this plugin."
+    },
+    "sourcecode": {
+      "archive": "kapi-sourcecode",
+      "platforms": {"darwin/arm64": "tar.gz", "linux/amd64": "tar.gz", "linux/arm64": "tar.gz", "windows/amd64": "tar.gz"},
+      "note": "No windows/arm64 build: the release matrix has no windows-11-arm leg for this plugin."
+    }
+  },
+  "removed": {}
+}

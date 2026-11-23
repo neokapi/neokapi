@@ -161,33 +161,41 @@ var ErrEntryNotFound = errors.New("container: entry not found")
 // sides). It returns [ErrEntryNotFound] if the entry is absent. Reads are bounded
 // by the shared safeio budget, and the unsafeEntryName guard rejects traversal.
 func OpenEntry(path, name string) ([]byte, Kind, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, KindUnknown, fmt.Errorf("container: %w", err)
+	}
+	defer f.Close()
+	return OpenEntryFile(f, name)
+}
+
+// OpenEntryFile is OpenEntry over an archive the caller opened, so a caller
+// that decided which file to read reads exactly that file.
+func OpenEntryFile(f *os.File, name string) ([]byte, Kind, error) {
 	if unsafeEntryName(name) {
 		return nil, KindUnknown, fmt.Errorf("container: unsafe entry name %q (path traversal)", name)
 	}
 	want := normalizeEntry(name)
-	kind, err := DetectFile(path)
+	info, err := f.Stat()
 	if err != nil {
 		return nil, KindUnknown, fmt.Errorf("container: %w", err)
 	}
+	head := make([]byte, 512)
+	n, err := f.ReadAt(head, 0)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return nil, KindUnknown, fmt.Errorf("container: %w", err)
+	}
+	kind := Detect(head[:n])
+	section := func() io.Reader { return io.NewSectionReader(f, 0, info.Size()) }
 	switch kind {
 	case KindZip:
-		b, err := openZipEntry(path, want)
+		b, err := openZipEntry(f, info.Size(), want)
 		return b, kind, err
 	case KindTar:
-		f, err := os.Open(path)
-		if err != nil {
-			return nil, kind, err
-		}
-		defer f.Close()
-		b, err := scanTarEntry(f, want)
+		b, err := scanTarEntry(section(), want)
 		return b, kind, err
 	case KindTarGz:
-		f, err := os.Open(path)
-		if err != nil {
-			return nil, kind, err
-		}
-		defer f.Close()
-		gz, err := gzip.NewReader(f)
+		gz, err := gzip.NewReader(section())
 		if err != nil {
 			return nil, kind, fmt.Errorf("container: opening gzip: %w", err)
 		}
@@ -205,17 +213,16 @@ func normalizeEntry(name string) string {
 	return strings.TrimPrefix(filepath.ToSlash(name), "./")
 }
 
-func openZipEntry(path, want string) ([]byte, error) {
-	zrc, err := zip.OpenReader(path)
+func openZipEntry(src io.ReaderAt, size int64, want string) ([]byte, error) {
+	zr, err := zip.NewReader(src, size)
 	if err != nil {
 		return nil, fmt.Errorf("container: opening zip: %w", err)
 	}
-	defer zrc.Close()
-	if err := safeio.DefaultZipLimits.CheckReader(&zrc.Reader); err != nil {
+	if err := safeio.DefaultZipLimits.CheckReader(zr); err != nil {
 		return nil, fmt.Errorf("container: %w", err)
 	}
 	guard := safeio.DefaultZipLimits.NewGuard()
-	for _, f := range zrc.File {
+	for _, f := range zr.File {
 		if f.FileInfo().IsDir() || normalizeEntry(f.Name) != want {
 			continue
 		}
@@ -393,27 +400,34 @@ func walkTar(src io.Reader, fn func(Entry) error) error {
 // entries are piped straight through. Only an entry the processor actually reads
 // is materialised, one at a time.
 func Transform(path string, out io.Writer, proc EntryProcessor) error {
-	kind, err := DetectFile(path)
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return TransformFile(f, out, proc)
+}
+
+// TransformFile is Transform over an archive the caller opened, so a caller
+// that decided which file to read reads exactly that file.
+func TransformFile(f *os.File, out io.Writer, proc EntryProcessor) error {
+	info, err := f.Stat()
 	if err != nil {
 		return fmt.Errorf("container: %w", err)
 	}
-	switch kind {
+	head := make([]byte, 512)
+	n, err := f.ReadAt(head, 0)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return fmt.Errorf("container: %w", err)
+	}
+	section := func() io.Reader { return io.NewSectionReader(f, 0, info.Size()) }
+	switch Detect(head[:n]) {
 	case KindZip:
-		return transformZip(path, out, proc)
+		return transformZip(f, info.Size(), out, proc)
 	case KindTar:
-		f, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		return transformTar(f, out, proc)
+		return transformTar(section(), out, proc)
 	case KindTarGz:
-		f, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		gz, err := gzip.NewReader(f)
+		gz, err := gzip.NewReader(section())
 		if err != nil {
 			return fmt.Errorf("container: opening gzip: %w", err)
 		}
@@ -429,20 +443,19 @@ func Transform(path string, out io.Writer, proc EntryProcessor) error {
 	}
 }
 
-func transformZip(path string, out io.Writer, proc EntryProcessor) error {
-	// zip.OpenReader uses the central directory + seeks; it does not read the
+func transformZip(src io.ReaderAt, size int64, out io.Writer, proc EntryProcessor) error {
+	// zip.NewReader uses the central directory + seeks; it does not read the
 	// whole archive into memory.
-	zrc, err := zip.OpenReader(path)
+	zr, err := zip.NewReader(src, size)
 	if err != nil {
 		return fmt.Errorf("container: opening zip: %w", err)
 	}
-	defer zrc.Close()
-	if err := safeio.DefaultZipLimits.CheckReader(&zrc.Reader); err != nil {
+	if err := safeio.DefaultZipLimits.CheckReader(zr); err != nil {
 		return fmt.Errorf("container: %w", err)
 	}
 	zw := zip.NewWriter(out)
 	guard := safeio.DefaultZipLimits.NewGuard()
-	for _, f := range zrc.File {
+	for _, f := range zr.File {
 		if f.FileInfo().IsDir() {
 			if err := zw.Copy(f); err != nil {
 				return fmt.Errorf("container: copying %s: %w", f.Name, err)

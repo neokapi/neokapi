@@ -155,6 +155,263 @@ describe("the offline decision queue", () => {
     expect(notices.map((n) => [n.kind, n.card.key])).toEqual([["stale", "b3:nb"]]);
   });
 
+  /**
+   * A server that applies the first change set and loses its answer on the
+   * way back, as Expo's fetch reports a dropped connection, then answers
+   * every later one with `then`.
+   */
+  function losesFirstAnswer(then: () => { status: number; body: unknown }) {
+    const sent: unknown[] = [];
+    const fetch = (async (_url: string, init: RequestInit) => {
+      sent.push(JSON.parse(String(init.body)));
+      if (sent.length === 1) throw new Error("fetch failed: The network connection was lost.");
+      const { status, body } = then();
+      return new Response(JSON.stringify(body), { status });
+    }) as typeof globalThis.fetch;
+    return {
+      sent,
+      client: createBowrainClient({ baseUrl: "http://server", getAccessToken: () => "t", fetch }),
+    };
+  }
+
+  async function settled(qc: QueryClient, id: string) {
+    for (let i = 0; i < 40; i++) {
+      if (readLog(qc).find((x) => x.vars.id === id)?.phase === "done") return;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    throw new Error(`decision ${id} did not settle`);
+  }
+
+  it("sends a decision again when its answer is lost, and shows it done once", async () => {
+    // The repeat of a decision that landed answers "unchanged" within an applied set.
+    const s = losesFirstAnswer(() => ({
+      status: 200,
+      body: {
+        schema: "kapi.change-result/v1",
+        status: "applied",
+        record: null,
+        docs: [],
+        ops: [{ i: 0, op: "decide", status: "unchanged", after: "r:0000000000000004" }],
+      },
+    }));
+    setDecisionClient(s.client);
+    const qc = createQueryClient();
+    holdDecision(qc, made(4));
+    queue(qc, made(4));
+    await settled(qc, "d4");
+    expect(s.sent).toHaveLength(2);
+    expect(readLog(qc).find((x) => x.vars.id === "d4")?.result?.outcome).toBe("applied");
+    expect(qc.getQueryData<DecisionNotice[]>(NOTICES_KEY) ?? []).toEqual([]);
+  });
+
+  // A correction refused as stale: the edition moved. The app reads each block
+  // the correction covers again and approves, with the person's reasons and
+  // note, only the blocks whose translation is the correction run for run.
+  const ph = (id: string, type = "x-var") =>
+    ({ ph: { id, type, data: "{{n}}", equiv: "{{n}}" } }) as unknown as DeckCard["target"][number];
+  const pc = (type: string) =>
+    [
+      { pcOpen: { id: "1", type, data: "<b>" } },
+      { text: "Lagre" },
+      { pcClose: { id: "1", type, data: "</b>" } },
+    ] as unknown as DeckCard["target"];
+  const plural = (one: string) =>
+    [
+      { plural: { pivot: "n", forms: { one: [{ text: one }], other: [{ text: "filer" }] } } },
+    ] as unknown as DeckCard["target"];
+  const staleAnswer = {
+    status: 409,
+    body: {
+      schema: "kapi.change-result/v1",
+      status: "refused",
+      record: null,
+      docs: [],
+      ops: [
+        { i: 0, op: "set_content", status: "not_applied", blocked_by: 1 },
+        {
+          i: 1,
+          op: "decide",
+          status: "refused",
+          error: { code: "stale", field: "if_match", message: "the edition moved" },
+          current: { rev: "r:3333333333333333", text: "Rettet tekst" },
+        },
+      ],
+    },
+  };
+  type Sent = {
+    ops: {
+      op: string;
+      at: { block: string };
+      if_match: string;
+      outcome?: string;
+      reasons?: string[];
+    }[];
+    note?: string;
+  };
+
+  /**
+   * A server double that answers a block's container with the translation it
+   * holds now, and change sets in turn: stale first, then the given status
+   * for each confirming decision. lose drops the first answer.
+   */
+  function staleServer(
+    held: Record<string, DeckCard["target"]>,
+    opts: { lose?: boolean; confirm?: "applied" | "unchanged" } = {},
+  ) {
+    const sent: Sent[] = [];
+    let posts = 0;
+    const fetch = (async (url: string, init: RequestInit) => {
+      const container = /\/blocks\/[^/]+\/([^/]+)\/container/.exec(url);
+      if (container) {
+        const blockId = container[1];
+        return new Response(
+          JSON.stringify({
+            kind: "window",
+            title: "i18n/en.json",
+            item_name: "i18n/en.json",
+            locale: "nb",
+            focus: blockId,
+            units: [
+              {
+                block_id: blockId,
+                item_name: "i18n/en.json",
+                key: blockId,
+                role: "text",
+                source_runs: [{ text: "Source" }],
+                target_runs: held[blockId] ?? [{ text: "Annen tekst" }],
+                source_revision: "r:aaaaaaaaaaaaaaaa",
+                target_revision: `r:held-${blockId}`,
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      const set = JSON.parse(String(init.body)) as Sent;
+      sent.push(set);
+      posts++;
+      if (opts.lose && posts === 1)
+        throw new Error("fetch failed: The network connection was lost.");
+      if (posts <= (opts.lose ? 2 : 1)) {
+        return new Response(JSON.stringify(staleAnswer.body), { status: staleAnswer.status });
+      }
+      const ops = set.ops.map((op, i) => ({
+        i,
+        op: "decide",
+        status: opts.confirm ?? "applied",
+        at: { doc: "i18n/en.json", block: op.at.block, edition: "nb" },
+        before: op.if_match,
+        after: op.if_match,
+      }));
+      return new Response(
+        JSON.stringify({
+          schema: "kapi.change-result/v1",
+          status: "applied",
+          record: null,
+          docs: [],
+          ops,
+        }),
+        { status: 200 },
+      );
+    }) as typeof globalThis.fetch;
+    return {
+      sent,
+      client: createBowrainClient({ baseUrl: "http://server", getAccessToken: () => "t", fetch }),
+    };
+  }
+
+  const withCopy = (n: number): DeckCard => ({
+    ...card(n),
+    copies: [
+      {
+        item: "i18n/other.json",
+        collectionId: "",
+        blockId: `c${n}`,
+        targetRevision: `r:c00000000000000${n}`,
+        sourceRevision: "r:aaaaaaaaaaaaaaaa",
+      },
+    ],
+  });
+
+  async function correct(
+    n: number,
+    runs: DeckCard["target"],
+    s: ReturnType<typeof staleServer>,
+    c: DeckCard = card(n),
+  ) {
+    setDecisionClient(s.client);
+    const qc = createQueryClient();
+    const fixed: DecisionVars = {
+      ...made(n, "fix"),
+      card: c,
+      runs,
+      reasons: ["wrong_term"],
+      note: "The product says lagre.",
+    };
+    holdDecision(qc, fixed);
+    queue(qc, fixed);
+    await settled(qc, `d${n}`);
+    return readLog(qc).find((x) => x.vars.id === `d${n}`)?.result;
+  }
+
+  it("confirms once, with the person's reasons and note, when the content is the correction's", async () => {
+    const runs = [{ text: "Rettet " }, ph("1")];
+    const s = staleServer({ b5: runs }, { lose: true, confirm: "unchanged" });
+    const result = await correct(5, runs, s);
+    expect(result).toMatchObject({ outcome: "applied", revision: "r:held-b5" });
+    const confirms = s.sent.filter((set) => set.ops.every((op) => op.op === "decide"));
+    expect(confirms).toHaveLength(1);
+    expect(confirms[0].ops).toEqual([
+      expect.objectContaining({
+        outcome: "establish",
+        if_match: "r:held-b5",
+        reasons: ["wrong_term"],
+      }),
+    ]);
+    expect(confirms[0].note).toBe("The product says lagre.");
+  });
+
+  it("does not confirm the same words with a placeholder that differs", async () => {
+    const s = staleServer({ b6: [{ text: "Rettet " }, ph("1", "x-date")] });
+    const result = await correct(6, [{ text: "Rettet " }, ph("1")], s);
+    expect(result?.outcome).toBe("stale");
+    expect(s.sent).toHaveLength(1);
+  });
+
+  it("does not confirm the same words with a paired code that differs", async () => {
+    const s = staleServer({ b7: pc("link") });
+    const result = await correct(7, pc("fmt"), s);
+    expect(result?.outcome).toBe("stale");
+    expect(s.sent).toHaveLength(1);
+  });
+
+  it("compares a plural form by form", async () => {
+    const differs = staleServer({ b8: plural("fil") });
+    expect((await correct(8, plural("fila"), differs))?.outcome).toBe("stale");
+    const same = staleServer({ b9: plural("fil") });
+    expect((await correct(9, plural("fil"), same))?.outcome).toBe("applied");
+  });
+
+  it("confirms each copy against its own revision, and says partial when one differs", async () => {
+    const runs = [{ text: "Rettet tekst" }];
+    const both = staleServer({ b10: runs, c10: runs });
+    const all = await correct(10, runs, both, withCopy(10));
+    expect(all).toMatchObject({
+      outcome: "applied",
+      revision: "r:held-b10",
+      copyRevisions: { c10: "r:held-c10" },
+    });
+    expect(both.sent[1].ops.map((op) => [op.at.block, op.if_match])).toEqual([
+      ["b10", "r:held-b10"],
+      ["c10", "r:held-c10"],
+    ]);
+
+    const one = staleServer({ b11: runs, c11: [{ text: "Noe annet" }] });
+    const some = await correct(11, runs, one, withCopy(11));
+    expect(some?.outcome).toBe("partial");
+    expect(one.sent[1].ops.map((op) => op.at.block)).toEqual(["b11"]);
+  });
+
   const entry = (qc: QueryClient, id: string): LoggedDecision => {
     const e = readLog(qc).find((x) => x.vars.id === id);
     if (!e) throw new Error(`no decision ${id}`);

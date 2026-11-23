@@ -49,7 +49,7 @@ func runDiff(cmd *cobra.Command, args []string) error {
 	// so the command stays useful offline.
 	var conn *bconn.BowrainSourceConnector
 	if proj.Recipe.HasServer() {
-		conn, err = bconn.NewSourceConnector(app, proj, app.FormatReg)
+		conn, err = bconn.NewSourceConnector(cmd.Context(), app, proj, app.FormatReg)
 		if err != nil {
 			return err
 		}
@@ -58,7 +58,9 @@ func runDiff(cmd *cobra.Command, args []string) error {
 		out.Project.ProjectID = proj.Recipe.Server.ProjectID()
 		out.Stream = conn.Stream()
 	} else {
-		conn = bconn.NewLocalConnector(app, proj, app.FormatReg)
+		if conn, err = bconn.NewLocalConnector(cmd.Context(), app, proj, app.FormatReg); err != nil {
+			return err
+		}
 	}
 	defer conn.Close()
 

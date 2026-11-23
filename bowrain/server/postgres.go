@@ -13,6 +13,7 @@ import (
 	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/migrations"
 	"github.com/neokapi/neokapi/bowrain/platformconfig"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -41,9 +42,8 @@ type pgStores struct {
 
 func openPostgresStores(databaseURL string) (*pgStores, error) {
 	// The brand knowledge graph runs on the plain-SQL backend over standard
-	// PostgreSQL (Epic 014), so no AfterConnect hook is needed — a stock
-	// Postgres/RDS instance works out of the box. (A pgx AfterConnect-based
-	// Apache AGE backend existed historically; see bowrain/graph/NOTES.md.)
+	// PostgreSQL (Epic 014), so no AfterConnect hook is needed and a stock
+	// Postgres/RDS instance works as it is (bowrain/graph/NOTES.md).
 	db, err := storage.OpenPostgresWithPool(databaseURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("open PostgreSQL: %w", err)
@@ -52,6 +52,10 @@ func openPostgresStores(databaseURL string) (*pgStores, error) {
 }
 
 func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
+	if err := checkLaterLedgers(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	cs, err := bstore.NewPostgresStoreFromDB(db)
 	if err != nil {
 		db.Close()
@@ -144,4 +148,22 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 	}
 
 	return stores, nil
+}
+
+// checkLaterLedgers compares, at start, each ledger the server migrates only
+// on first workspace access (terms, memory) with the code, so a ledger the
+// code disagrees with fails the start, and with it the health check, rather
+// than every request for one workspace later.
+func checkLaterLedgers(db *storage.PgDB) error {
+	ctx, cancel := context.WithTimeout(context.Background(), storage.DefaultMigrationTimeout)
+	defer cancel()
+	for _, s := range migrations.All() {
+		if !s.PerWorkspace {
+			continue
+		}
+		if err := storage.CheckPostgresLedgerNS(ctx, db, s.Table, s.Migrations); err != nil {
+			return fmt.Errorf("check the %s ledger: %w", s.Name, err)
+		}
+	}
+	return nil
 }

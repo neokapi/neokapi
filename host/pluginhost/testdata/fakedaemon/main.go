@@ -65,6 +65,14 @@ func main() {
 			_ = f.Close()
 		}
 	}
+	// FAKE_DAEMON_ROOTS_LOG: append the roots the host declared, one line per
+	// start, so a test reads what the spawned process received.
+	if path := os.Getenv("FAKE_DAEMON_ROOTS_LOG"); path != "" {
+		if f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+			fmt.Fprintf(f, "%s\n", os.Getenv("KAPI_PLUGIN_ROOTS"))
+			_ = f.Close()
+		}
+	}
 
 	// Optional startup delay — widens the race window for tests that
 	// validate concurrent-spawn coordination.

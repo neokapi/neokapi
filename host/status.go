@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/ref"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/output"
 )
@@ -54,6 +55,10 @@ type StatusOutput struct {
 	// other is wording a person or an agent wrote into a draft whose file has
 	// appeared since without it, which kapi merge writes into the file.
 	Conflicts []StatusConflict `json:"conflicts,omitempty"`
+	// Warnings name the source files the coverage left out because their name
+	// cannot fill their collection's target template safely
+	// (check.WarningUnsafeTargetName): each has no target to count.
+	Warnings []check.Warning `json:"warnings,omitempty"`
 }
 
 // StatusConflict is an edit to a kept draft that did not land, wording a
@@ -231,6 +236,9 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "Conflict: the %s draft of %s holds another edit to %s; edit %s did not land, and a new edit to %s settles it.\n",
 			c.Locale, c.Doc, units, workspace.ShortOpID(c.Edit), units)
 	}
+	for _, warn := range o.Warnings {
+		fmt.Fprintf(w, "Warning: %s\n", warn.Message)
+	}
 	return nil
 }
 
@@ -284,7 +292,7 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 	// A locale is named as ungoverned only when terms govern none of its scopes.
 	var locales []string
 	scopes, ungovernedScopes := map[string]int{}, map[string]int{}
-	awaitingDraft, awaitingReview, rejected := 0, 0, 0
+	awaitingDraft, awaitingReview, rejected, leftForPerson := 0, 0, 0, 0
 	for _, lc := range o.Locales {
 		stale += lc.Stale
 		unknown += lc.BasisUnknown
@@ -292,6 +300,7 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 		awaitingDraft += lc.StaleAwaitingDraft
 		awaitingReview += lc.StaleAwaitingReview
 		rejected += lc.RejectedAwaitingDraft
+		leftForPerson += lc.RejectedLeftForPerson
 		termsNotChecked += lc.TermsNotChecked
 		if scopes[lc.Locale] == 0 {
 			locales = append(locales, lc.Locale)
@@ -326,7 +335,11 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 	// it and the gate is a reviewer's refusal.
 	if rejected > 0 {
 		fmt.Fprintf(w, "\n%d block(s) were turned down in review and hold the wording that was refused. "+
-			"They do not ship. `kapi up` drafts them again.\n", rejected)
+			"They do not ship. `kapi up` drafts them again and tells an AI draft the reasons and note.\n", rejected)
+	}
+	if leftForPerson > 0 {
+		fmt.Fprintf(w, "\n%d block(s) had %d drafts turned down, so the loop drafts them no more. "+
+			"They wait for a person to write the translation, and do not ship until then.\n", leftForPerson, tool.MaxRejections)
 	}
 	// Named as units, because `kapi check` counts findings over the same tree and
 	// one unit can carry several. The percentages above are unaffected: these
@@ -642,7 +655,7 @@ func shipCell(lc LocaleCoverage, s *output.Styles) string {
 	// A rejection is read there too. The wording is present and at the `draft`
 	// rung, so a coverage bar can be satisfied over it, and a person has said it
 	// will not do.
-	if lc.RejectedAwaitingDraft > 0 {
+	if lc.RejectedAwaitingDraft > 0 || lc.RejectedLeftForPerson > 0 {
 		return s.Warn.Render("blocked: rejected")
 	}
 	// A failing guardrail is read the same way, and for the same reason: the
@@ -801,6 +814,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		}
 		out.HistoryNotPulled = a.historyNotPulled(CmdContext(cmd), root, units)
 		out.Conflicts = a.statusConflicts(CmdContext(cmd), projectPath)
+		out.Warnings = a.unsafeTargetWarnings(proj, root, localeFilter)
 		a.WarnInertRecipeFields(cmd, proj)
 		a.WarnStoreLocaleDrift(cmd, projectPath)
 		return output.Print(cmd, out)

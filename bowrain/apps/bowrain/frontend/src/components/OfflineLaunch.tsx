@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@neokapi/ui";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import { Loader2, RotateCw, WifiOff } from "lucide-react";
 
 interface OfflineLaunchProps {

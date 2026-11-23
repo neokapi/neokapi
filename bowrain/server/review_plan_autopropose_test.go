@@ -227,7 +227,7 @@ func TestContextDeck_KeepTranslationStartsTheForms(t *testing.T) {
 	card := deckCardWhere(t, readContextDeck(t, e, pid, ""), translationCard("c-memory", "fr"))
 	var out contextDeckDecideResponse
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "keep"}, &out))
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: "keep"}, &out))
 	req := nextTermProposalJob(t, srv, q)
 	assert.Equal(t, pid, req.Project)
 	require.NotNil(t, req.TermForms)
@@ -248,7 +248,7 @@ func TestContextDeck_KeepTranslationWithoutAIStartsNoForms(t *testing.T) {
 	card := deckCardWhere(t, readContextDeck(t, e, pid, ""), translationCard("c-memory", "fr"))
 	var out contextDeckDecideResponse
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "keep"}, &out))
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: "keep"}, &out))
 	assert.Equal(t, deckOutcomeKept, out.Outcome)
 	_, queued := queuedJob(t, srv, q)
 	assert.False(t, queued)

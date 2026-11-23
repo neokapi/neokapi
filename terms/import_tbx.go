@@ -21,8 +21,6 @@ type TBXImportOptions struct {
 	// Source sets the TermSource for imported concepts ("terminology" or
 	// "brand_vocabulary"). Empty leaves it unset.
 	Source TermSource
-	// IDPrefix is used to generate concept IDs when an entry has no id attribute.
-	IDPrefix string
 }
 
 // --- Permissive XML structures covering both TBX dialects ---------------------
@@ -108,14 +106,25 @@ type tbxTermNote struct {
 // <martif> for legacy TBX 2008/MARTIF) and maps each conceptEntry/termEntry
 // to a terms store Concept. Returns the number of concepts imported.
 func ImportTBX(ctx context.Context, tb Terminology, reader io.Reader, opts TBXImportOptions) (int, error) {
+	rows, err := ParseTBX(reader, opts)
+	if err != nil {
+		return 0, err
+	}
+	return writeRows(ctx, tb, rows)
+}
+
+// ParseTBX reads a TBX document into concepts, without writing any. An
+// entry's id is its conceptEntry or termEntry id, or ImportID of its first
+// term when it has none.
+func ParseTBX(reader io.Reader, opts TBXImportOptions) ([]ImportRow, error) {
 	data, err := io.ReadAll(reader)
 	if err != nil {
-		return 0, fmt.Errorf("read TBX: %w", err)
+		return nil, fmt.Errorf("read TBX: %w", err)
 	}
 
 	entries, err := decodeTBX(data)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	defaultStatus := opts.DefaultStatus
@@ -123,20 +132,12 @@ func ImportTBX(ctx context.Context, tb Terminology, reader io.Reader, opts TBXIm
 		defaultStatus = model.TermApproved
 	}
 
-	prefix := opts.IDPrefix
-	if prefix == "" {
-		prefix = "tbx"
-	}
-
-	var concepts []Concept
-	for _, entry := range entries {
+	var rows []ImportRow
+	for position, entry := range entries {
 		concept := Concept{
-			ID:     entry.ID,
+			ID:     strings.TrimSpace(entry.ID),
 			Domain: opts.Domain,
 			Source: opts.Source,
-		}
-		if concept.ID == "" {
-			concept.ID = fmt.Sprintf("%s-%d", prefix, len(concepts)+1)
 		}
 
 		// Concept-level descriptions (definition, subjectField).
@@ -174,17 +175,9 @@ func ImportTBX(ctx context.Context, tb Terminology, reader io.Reader, opts TBXIm
 			// Skip entries that yielded no usable terms.
 			continue
 		}
-		concepts = append(concepts, concept)
+		rows = append(rows, rowOf(position+1, concept))
 	}
-
-	imported := 0
-	for _, concept := range concepts {
-		if err := tb.AddConcept(ctx, concept); err != nil {
-			return imported, fmt.Errorf("add concept %s: %w", concept.ID, err)
-		}
-		imported++
-	}
-	return imported, nil
+	return rows, nil
 }
 
 // decodeTBX parses the document under either supported root element.

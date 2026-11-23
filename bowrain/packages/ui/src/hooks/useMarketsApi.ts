@@ -49,7 +49,8 @@ export function useDeleteMarket() {
   const { api, ws } = useWs();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (marketId: string) => api.deleteMarket(ws, marketId),
+    mutationFn: (market: { id: string; revision: string }) =>
+      api.deleteMarket(ws, market.id, market.revision),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["markets", ws] });
     },

@@ -95,7 +95,7 @@ func TestPathLanguage(t *testing.T) {
 		"a/sh.json":            "",
 		"b/ts.json":            "",
 	} {
-		assert.Equal(t, want, pathLanguage(in, filepath.Join(dir, filepath.FromSlash(in))), in)
+		assert.Equal(t, want, pathLanguage(dir, in, filepath.Join(dir, filepath.FromSlash(in))), in)
 	}
 }
 

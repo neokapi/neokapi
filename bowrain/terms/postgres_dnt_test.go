@@ -84,14 +84,16 @@ func TestPostgresTerms_MigratesASchemaWithoutDoNotTranslate(t *testing.T) {
 	tb, err := pgterms.NewPostgresStoreFromDB(db, "ws")
 	require.NoError(t, err)
 
-	c, ok, err := tb.GetConcept(ctx, "kapi")
+	c, rev, ok, err := tb.GetConceptAt(ctx, "kapi")
 	require.NoError(t, err)
 	require.True(t, ok, "the existing concept survives the migration")
+	require.NotEmpty(t, rev, "and has a revision to be changed at")
 	require.Len(t, c.Terms, 1)
 	assert.False(t, c.DoNotTranslate, "an existing concept reads back without the flag")
 
 	c.DoNotTranslate = true
-	require.NoError(t, tb.AddConcept(ctx, c))
+	_, err = tb.UpdateConcept(ctx, c, "", rev)
+	require.NoError(t, err)
 	got, _, err := tb.GetConcept(ctx, "kapi")
 	require.NoError(t, err)
 	assert.True(t, got.DoNotTranslate, "the flag persists once the column exists")

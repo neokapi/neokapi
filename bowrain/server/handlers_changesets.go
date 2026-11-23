@@ -364,6 +364,9 @@ func (s *Server) HandleAddChangeSetOp(c *echo.Context) error {
 	if err := knowledge.ValidateOp(op); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
+	if err := s.pinDeleteRevision(c.Request().Context(), c.Param("ws"), &op); err != nil {
+		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
+	}
 	if err := s.KnowledgeStore.AppendOp(c.Request().Context(), &op); err != nil {
 		return serverErr(c, err)
 	}

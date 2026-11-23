@@ -31,7 +31,7 @@ func TestConnectorDiff_ARecordedFieldIsWorkWithoutAFileEdit(t *testing.T) {
 		return model.ComputeIdentity(b).ContentHash
 	})
 
-	conn := NewLocalConnector(&host.App{}, proj, reg)
+	conn := mustLocalConnector(t, &host.App{}, proj, reg)
 	defer conn.Close()
 
 	diff, err := conn.Diff(context.Background(), nil)
@@ -53,7 +53,7 @@ func TestConnectorDiff_NothingToDoOnceTheFieldHasBeenPushed(t *testing.T) {
 		return venue.RecordHash(b, source)
 	})
 
-	conn := NewLocalConnector(&host.App{}, proj, reg)
+	conn := mustLocalConnector(t, &host.App{}, proj, reg)
 	defer conn.Close()
 
 	diff, err := conn.Diff(context.Background(), nil)
@@ -67,7 +67,7 @@ func TestConnectorDiff_NothingToDoOnceTheFieldHasBeenPushed(t *testing.T) {
 func seedCacheWithHashes(t *testing.T, proj *bproject.Project, reg *registry.FormatRegistry, hash func(*model.Block) string) {
 	t.Helper()
 
-	conn := NewLocalConnector(&host.App{}, proj, reg)
+	conn := mustLocalConnector(t, &host.App{}, proj, reg)
 	_, blockMap, err := conn.scanLocalBlocks(context.Background(), nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, blockMap)

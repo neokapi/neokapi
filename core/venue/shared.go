@@ -8,8 +8,8 @@ import (
 
 // The types in this file are the only part of the store's vocabulary that the
 // venue client and the sync converter reach for. Everything else the package
-// declares — the dashboards, the translation statistics, the ContentStore
-// interface and its role sub-interfaces — is the server's persistence contract
+// declares (the dashboards, the translation statistics, the ContentStore
+// interface and its role sub-interfaces) is the server's persistence contract
 // and is read by the server alone.
 //
 // The distinction is worth a file: these four are the shape of content and
@@ -66,10 +66,10 @@ type AssetVariant struct {
 }
 
 // UnitDecision is the server's record of one workflow decision for one unit in
-// one locale variant — the wire form of core/state.UnitState plus the item that
+// one locale variant: the wire form of core/state.UnitState plus the item that
 // scopes the unit's durable identity (the same structural name recurs across
 // items, so an unscoped unit key cannot be joined safely). It records the
-// decision as a FACT — who, when, which rung, and the pairing it blesses by
+// decision as a FACT: who, when, which rung, and the pairing it blesses by
 // revision: the translation, and the source that translation was approved
 // for. Freshness is derived by whoever reads it, never stored: a record is
 // current while the unit's source still has the basis revision and its
@@ -80,7 +80,7 @@ type UnitDecision struct {
 	// ItemName is the item whose durable identity namespace Unit lives in.
 	// Empty when the decision arrived for content this store has never held.
 	ItemName string `json:"item"`
-	// Unit is the durable unit identity (convergence.BlockKey — the source_id
+	// Unit is the durable unit identity (convergence.BlockKey: the source_id
 	// a stored row carries).
 	Unit string `json:"unit"`
 	// Variant is the locale (and optional tone/channel) in EditionKey text form.
@@ -102,9 +102,22 @@ type UnitDecision struct {
 	ReviewState string `json:"reviewState,omitempty"` // approved | rejected
 	DecidedBy   string `json:"by,omitempty"`          // "" human · "ai/<model>" · "agent/<client>" · server identity
 	DecidedAt   string `json:"at,omitempty"`          // RFC 3339
-	Note        string `json:"note,omitempty"`
-	Parked      bool   `json:"parked,omitempty"`
-	Assignee    string `json:"assignee,omitempty"`
+	// Note is what the person wrote with the decision.
+	Note string `json:"note,omitempty"`
+	// Reasons are the reason codes the person chose for a rejection or a
+	// correction (DecisionReasons), sorted. A nil list means the sender did
+	// not say: a client older than the field sends none, and a store keeps
+	// the reasons it holds for the same decision (CarryReasons). An empty,
+	// non-nil list ("reasons": []) means the decision has no reasons.
+	Reasons  []string `json:"reasons,omitzero"`
+	Parked   bool     `json:"parked,omitempty"`
+	Assignee string   `json:"assignee,omitempty"`
+	// AgentHost is the agent host whose shell a person declared themselves in to
+	// record the decision (KAPI_ACTOR=person), such as "claude-code". Absent
+	// when the sender did not say: a client older than the field folds the
+	// host into Note instead, and a store reads it out (SplitNote) and keeps
+	// the host it holds for the same decision (CarryHost).
+	AgentHost string `json:"agent_host,omitempty"`
 	// GoverningFingerprint is the governing context the record's answer stands
 	// under (state.UnitState.GoverningFingerprint): the voice guidance and term
 	// rules in force when the decision was made, or the producer's stamp on a

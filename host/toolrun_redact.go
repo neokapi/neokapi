@@ -214,10 +214,10 @@ func (a *App) checkRedactEntities(flowName string, t tool.Tool, entitiesProduced
 // placeholderBlocks counts the blocks a report holds a failing placeholder
 // finding on.
 func placeholderBlocks(r FindingsReport) int {
-	blocks := map[string]bool{}
+	blocks := map[[2]string]bool{}
 	for _, d := range r.Findings {
 		if d.Fails && d.Rule == placeholderRule {
-			blocks[d.Location.File+"\x00"+d.Location.Block] = true
+			blocks[[2]string{d.Location.File, d.Location.Block}] = true
 		}
 	}
 	return len(blocks)

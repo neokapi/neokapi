@@ -80,7 +80,7 @@ func executeLocalAction(cmd *cobra.Command, action project.ActionConfig, proj *p
 		}
 
 		// Build a client from the project to check push status.
-		conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
+		conn, err := bconn.NewSourceConnector(cmd.Context(), app, proj, app.FormatReg)
 		if err != nil {
 			return fmt.Errorf("connect to server: %w", err)
 		}
@@ -111,7 +111,7 @@ func executeLocalAction(cmd *cobra.Command, action project.ActionConfig, proj *p
 
 	case "pull":
 		fmt.Fprintln(automationOutput(cmd), "  Pulling translations...")
-		conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
+		conn, err := bconn.NewSourceConnector(cmd.Context(), app, proj, app.FormatReg)
 		if err != nil {
 			return err
 		}

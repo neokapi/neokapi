@@ -10,8 +10,17 @@ import { t } from "@neokapi/i18n-react/runtime";
 import type { FailedChange, FailedEdit } from "../types/api";
 import { Loader2, RefreshCw, WifiOff, X } from "./icons";
 
-/** The four states the desktop backend reports for its server connection. */
-export type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
+/**
+ * The states the desktop backend reports for its server connection.
+ * "connecting" is the first connection, made from the sign-in screen;
+ * "reconnecting" is an attempt under way while the app is offline.
+ */
+export type ConnectionState =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "offline"
+  | "reconnecting";
 
 export interface ConnectionIndicatorProps {
   /** Undefined on the web, where there is no working copy to be offline from. */
@@ -49,23 +58,15 @@ export function ConnectionIndicator({
   onDismissFailedChanges,
   onRetryConnection,
 }: ConnectionIndicatorProps) {
-  const isOffline = connectionState === "offline";
-  const isConnecting = connectionState === "connecting";
+  // While an attempt is under way the app is still offline: the pending count
+  // stays, and the attempt takes the place of Retry.
+  const isReconnecting = connectionState === "reconnecting";
+  const isOffline = connectionState === "offline" || isReconnecting;
   const hasPending = pendingChanges != null && pendingChanges > 0;
   const failed = failedChanges ?? [];
 
   return (
     <>
-      {isConnecting && (
-        <span
-          className="flex items-center gap-1 text-xs text-muted-foreground"
-          data-testid="connection-reconnecting"
-        >
-          <Loader2 className="size-3 animate-spin" />
-          <span>Reconnecting</span>
-        </span>
-      )}
-
       {isOffline && (
         <span
           className="flex items-center gap-1 text-xs text-warning-ink"
@@ -77,7 +78,16 @@ export function ConnectionIndicator({
           ) : (
             <span>Offline</span>
           )}
-          {onRetryConnection && (
+          {isReconnecting && (
+            <span
+              className="flex items-center gap-1 text-muted-foreground"
+              data-testid="connection-reconnecting"
+            >
+              <Loader2 className="size-3 animate-spin" />
+              <span>Reconnecting</span>
+            </span>
+          )}
+          {!isReconnecting && onRetryConnection && (
             <Button
               variant="ghost"
               size="sm"
@@ -216,6 +226,10 @@ function editLabel(e: FailedEdit): string {
       return e.type === "entity" ? t("Entity mark") : t("Note");
     case "unannotate":
       return e.type === "entity" ? t("Entity mark removed") : t("Note removed");
+    case "update_memory_entry":
+      return t("Content memory entry changed");
+    case "add_memory_entry":
+      return t("Content memory entry added");
     default:
       return t("Content change");
   }

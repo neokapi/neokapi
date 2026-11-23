@@ -239,10 +239,26 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 	s := a.ensureProjectStores()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// Every hand-out of a store asks whether git tracks the project's state,
+	// a cached handle included: one stat of the index while it is unchanged,
+	// so a long-lived host sees a pull that brought state in at the next read.
+	if _, draft := s.drafts[abs]; !draft {
+		if err := project.CheckStateTracked(ctx, s.layoutFor(abs)); err != nil {
+			return nil, err
+		}
+	}
 	if db, ok := s.dbs[abs]; ok {
 		return db, nil
 	}
 	layout := s.layoutFor(abs)
+	// The store is opened by path inside the state directory, so a state
+	// directory that leads out of the project is refused before it opens. A
+	// draft keeps its state under the data directory, outside the folder.
+	if _, draft := s.drafts[abs]; !draft {
+		if err := layout.CheckState(); err != nil {
+			return nil, err
+		}
+	}
 	if existingStoresOnly(ctx) {
 		if _, err := os.Stat(layout.StorePath()); err != nil {
 			return nil, errNoProjectStore

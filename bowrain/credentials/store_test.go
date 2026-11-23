@@ -3,6 +3,7 @@ package credentials
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -135,14 +136,19 @@ func TestMissingFileCreatesEmptyStore(t *testing.T) {
 }
 
 func TestDefaultPath(t *testing.T) {
+	// A test that leaves HOME alone gets a path under the system temporary
+	// directory, never the developer's own providers.json.
 	p := DefaultPath()
-	assert.Contains(t, p, "providers.json")
-	assert.Contains(t, p, "bowrain")
+	assert.Equal(t, filepath.Join("bowrain", "providers.json"), filepath.Join(filepath.Base(filepath.Dir(p)), filepath.Base(p)))
+	assert.True(t, strings.HasPrefix(p, os.TempDir()), "DefaultPath() = %s", p)
 
-	// On Linux the path includes .config; on macOS it uses ~/Library/Application Support.
-	configDir, _ := os.UserConfigDir()
-	assert.NotEmpty(t, p)
-	assert.Contains(t, p, configDir)
+	// A test that chose its own HOME resolves through the platform under it,
+	// as a user would: .config on Linux, Library/Application Support on macOS.
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", "")
+	configDir, err := os.UserConfigDir()
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(configDir, "bowrain", "providers.json"), DefaultPath())
 }
 
 // mustUpsert persists cfg and fails the test on error.

@@ -17,21 +17,18 @@ import (
 
 // RedisEventBus implements EventBus on a single Redis stream. It is the AWS
 // production backend (Redis = ElastiCache) and reuses the Redis dependency the
-// server already runs for sessions, the sync-hash cache, and agent pub/sub — so
+// server already runs for sessions, the sync-hash cache, and agent pub/sub, so
 // no separate broker is needed.
 //
 // Two delivery modes map onto the two subscription shapes:
 //
-//   - SubscribeGroup → a Redis Streams consumer group (XREADGROUP): competing
-//     consumers, so exactly one instance in the group handles each event, and
-//     the group's position survives restarts. This is what the durable
-//     domain-event consumers (audit, notifications, automations,
-//     convergence-onpush, forge-delivery, …) need. A companion XAUTOCLAIM
-//     sweep per group consumer reclaims entries stranded in a crashed
-//     consumer's PEL (delivered but never acknowledged), so no event is lost
-//     to a process dying mid-handler.
+//   - SubscribeGroup → a Redis Streams consumer group (XREADGROUP): one
+//     instance in the group handles each event, and the group's position
+//     survives restarts, as the durable domain-event consumers need. An
+//     XAUTOCLAIM sweep reclaims entries a crashed consumer left unacknowledged,
+//     so no event is lost to a process dying mid-handler.
 //   - Subscribe / SubscribeAll → an independent tail read (XREAD from the current
-//     stream head): every such subscriber sees every event — correct fan-out for
+//     stream head): every such subscriber sees every event, correct fan-out for
 //     the SSE/gRPC relays, even across instances.
 //
 // Publish is a single XADD (capped with MAXLEN so the stream stays bounded);
@@ -55,7 +52,7 @@ type RedisEventBus struct {
 	// claimed out from under it and dispatched a second time, in-process,
 	// concurrently with the first.
 	inflightMu sync.Mutex
-	inflight   map[string]struct{}
+	inflight   map[[2]string]struct{}
 }
 
 type redisEventSub struct {
@@ -77,7 +74,7 @@ const (
 	defaultReclaimMinIdle  = time.Minute
 
 	// reclaimBatch bounds one XAUTOCLAIM call; reclaimSweepMax bounds one
-	// sweep (the next tick resumes — the PEL is capped by the stream MAXLEN
+	// sweep (the next tick resumes, the PEL is capped by the stream MAXLEN
 	// anyway, so a sweep can never be unbounded for long).
 	reclaimBatch    = 64
 	reclaimSweepMax = 1024
@@ -106,14 +103,14 @@ func NewRedisEventBus(redisURL, password string) (*RedisEventBus, error) {
 		reclaimInterval: defaultReclaimInterval,
 		reclaimMinIdle:  defaultReclaimMinIdle,
 		subs:            make(map[string]*redisEventSub),
-		inflight:        make(map[string]struct{}),
+		inflight:        make(map[[2]string]struct{}),
 	}, nil
 }
 
 // claimInflight marks one entry as being handled here, reporting false when it
 // already is. The release func clears it.
 func (b *RedisEventBus) claimInflight(group, msgID string) (release func(), ok bool) {
-	key := group + "\x00" + msgID
+	key := [2]string{group, msgID}
 	b.inflightMu.Lock()
 	defer b.inflightMu.Unlock()
 	if _, busy := b.inflight[key]; busy {
@@ -236,7 +233,7 @@ func (b *RedisEventBus) SubscribeGroup(group string, handler platev.GroupHandler
 	sub := &platev.Subscription{ID: id.New(), Group: group}
 
 	// Create the group at the current head (idempotent). BUSYGROUP means it
-	// already exists — keep its persisted position rather than resetting it.
+	// already exists, keep its persisted position rather than resetting it.
 	createCtx, cancelCreate := context.WithTimeout(context.Background(), 5*time.Second)
 	err := b.client.XGroupCreateMkStream(createCtx, b.stream, group, "$").Err()
 	cancelCreate()
@@ -297,11 +294,11 @@ func (b *RedisEventBus) runGroup(ctx context.Context, rs *redisEventSub, group s
 }
 
 // handleGroupMessage decodes, dispatches, and acknowledges one group-delivered
-// entry — the shared path for fresh XREADGROUP reads and XAUTOCLAIM reclaims.
+// entry, the shared path for fresh XREADGROUP reads and XAUTOCLAIM reclaims.
 //
 // The ack is the handler's verdict. An entry whose handler failed stays in this
 // consumer's pending list, where the reclaim sweep finds it once the consumer
-// has been idle past the threshold — so a database blip during an audit append
+// has been idle past the threshold, so a database blip during an audit append
 // costs a delay rather than the record. A malformed entry is the exception: it
 // will never decode, so acking it is the only way it stops arriving.
 //
@@ -380,17 +377,16 @@ func (b *RedisEventBus) runGroupReclaim(ctx context.Context, group string, handl
 // beyond the min-idle threshold to this consumer and dispatching them through
 // the normal handler + ack path.
 //
-// It claims to the same consumer as the read loop, so it can and does claim
-// entries this process is still working on — a handler slower than the min-idle
-// threshold is indistinguishable, from the PEL, from a dead one. The in-flight
-// set is what keeps that from becoming a second concurrent dispatch.
-//
-// Idempotency: a reclaimed entry is redelivered to a handler that may already
-// have run it to completion — its original consumer could have died between the
-// side effect and the XACK. Every group handler is therefore keyed on something
-// the event carries (the audit log and the notification inbox on the event id,
-// convergence and automation triggers on the run they would start), so a second
-// pass is a no-op rather than a duplicate.
+// It claims to the same consumer as the read loop, so it claims entries this
+// process is still working on: in the PEL a slow handler looks like a dead
+// one. The in-flight set keeps that from becoming a second concurrent
+// dispatch.
+
+// A reclaimed entry can reach a handler that already ran it, since its first
+// consumer could have died between the side effect and the XACK. Every group
+// handler is keyed on something the event carries (the event id, or the run it
+// would start), so a second pass does nothing.
+
 // poisonDeliveryCap is how many deliveries a pending entry gets before the
 // reclaim sweep gives up and acks it away. Failing entries redelivered without
 // bound once ground the server through 70k+ retries per half hour.
@@ -416,7 +412,7 @@ func (b *RedisEventBus) reclaimStranded(ctx context.Context, group string, handl
 		}
 		// A handler that fails the same entry forever must not hold the
 		// group's sweep hostage: past the delivery cap the entry is acked
-		// away loudly. The cap is generous — real transients (a database
+		// away loudly. The cap is generous, real transients (a database
 		// blip, a deploy) resolve in a couple of deliveries.
 		retries := map[string]int64{}
 		if len(msgs) > 0 {
@@ -450,7 +446,7 @@ func (b *RedisEventBus) reclaimStranded(ctx context.Context, group string, handl
 		start = next
 	}
 	if claimed > 0 {
-		// Stranded entries mean a consumer died between delivery and ack —
+		// Stranded entries mean a consumer died between delivery and ack,
 		// worth a WARN, not routine operation.
 		slog.Warn("redis-event-bus: reclaimed stranded pending entries from a dead consumer",
 			"group", group, "count", claimed)
@@ -460,7 +456,7 @@ func (b *RedisEventBus) reclaimStranded(ctx context.Context, group string, handl
 // pruneDeadConsumers deletes group consumers that have nothing pending and
 // have been idle past the reclaim threshold: leftover per-process consumer IDs
 // from dead instances that would otherwise accumulate forever. Deleting a
-// zero-pending consumer is loss-free — even in the pathological case of a live
+// zero-pending consumer is loss-free, even in the pathological case of a live
 // but long-stalled consumer, XREADGROUP transparently recreates it on its next
 // read.
 func (b *RedisEventBus) pruneDeadConsumers(ctx context.Context, group string) {

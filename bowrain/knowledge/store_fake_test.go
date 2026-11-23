@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sort"
 	"time"
+
+	"github.com/neokapi/neokapi/bowrain/storage"
 )
 
 // memStore is an in-memory knowledge Store for the write-side tests. It mirrors
@@ -58,12 +60,27 @@ func (s *memStore) GetMarket(_ context.Context, ws, id string) (*Market, error) 
 	return m, nil
 }
 
-func (s *memStore) UpdateMarket(_ context.Context, m *Market) error {
+func (s *memStore) UpdateMarket(_ context.Context, m *Market, base string) error {
+	stored, ok := s.markets[csKey(m.WorkspaceID, m.ID)]
+	if !ok {
+		return ErrMarketNotFound
+	}
+	if stored.Revision != base {
+		return storage.ErrStale
+	}
+	m.Revision = storage.NewRevision()
 	s.markets[csKey(m.WorkspaceID, m.ID)] = m
 	return nil
 }
 
-func (s *memStore) DeleteMarket(_ context.Context, ws, id string) error {
+func (s *memStore) DeleteMarketAt(_ context.Context, ws, id, base string) error {
+	stored, ok := s.markets[csKey(ws, id)]
+	if !ok {
+		return ErrMarketNotFound
+	}
+	if stored.Revision != base {
+		return storage.ErrStale
+	}
 	delete(s.markets, csKey(ws, id))
 	return nil
 }

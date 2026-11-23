@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/migrations"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	"github.com/neokapi/neokapi/core/dataroot"
 	"go.uber.org/goleak"
 )
 
@@ -40,6 +41,9 @@ func TestMain(m *testing.M) {
 	goleak.VerifyTestMain(m,
 		goleak.Cleanup(func(exitCode int) {
 			_ = os.RemoveAll(blobs)
+			// The per-user locations a server resolves sit under this test
+			// binary's own data root, which is removed with the rest.
+			dataroot.RemoveTestDir()
 			os.Exit(exitCode)
 		}),
 		// The shared pgtest pool lives for the whole test binary; its

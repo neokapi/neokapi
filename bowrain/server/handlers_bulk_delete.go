@@ -1,10 +1,13 @@
 package server
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	bmemory "github.com/neokapi/neokapi/bowrain/memory"
+	"github.com/neokapi/neokapi/bowrain/storage"
 )
 
 // Bulk deletes for the resource browser's multi-select. Selecting rows and
@@ -16,13 +19,19 @@ const maxBulkDeleteIDs = 500
 // BulkDeleteRequest is the body of a bulk-delete call.
 type BulkDeleteRequest struct {
 	IDs []string `json:"ids"`
+	// Revisions names, by id, the revision of each record the caller read. A
+	// record that has one is deleted only at that revision.
+	Revisions map[string]string `json:"revisions,omitempty"`
 }
 
 // BulkDeleteResult is one id's outcome.
 type BulkDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
-	Error   string `json:"error,omitempty"`
+	// AlreadyDeleted marks an id someone else had deleted before this call:
+	// what the caller asked for is done, and it counts as deleted.
+	AlreadyDeleted bool   `json:"already_deleted,omitempty"`
+	Error          string `json:"error,omitempty"`
 }
 
 // BulkDeleteResponse reports every id's outcome plus the totals. The call
@@ -31,23 +40,33 @@ type BulkDeleteResult struct {
 type BulkDeleteResponse struct {
 	Results []BulkDeleteResult `json:"results"`
 	Deleted int                `json:"deleted"`
-	Failed  int                `json:"failed"`
+	// AlreadyDeleted counts the deleted ids that someone else had deleted
+	// first. They are included in Deleted.
+	AlreadyDeleted int `json:"already_deleted,omitempty"`
+	Failed         int `json:"failed"`
 }
 
 // bulkDeleteIDs binds and validates the id list, rejecting an empty or
 // oversized batch.
 func bulkDeleteIDs(c *echo.Context) ([]string, error) {
+	req, err := bulkDeleteRequest(c)
+	return req.IDs, err
+}
+
+// bulkDeleteRequest binds and validates the request, rejecting an empty or
+// oversized batch.
+func bulkDeleteRequest(c *echo.Context) (BulkDeleteRequest, error) {
 	var req BulkDeleteRequest
 	if err := c.Bind(&req); err != nil {
-		return nil, c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+		return req, c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
 	}
 	if len(req.IDs) == 0 {
-		return nil, c.JSON(http.StatusBadRequest, ErrorResponse{Error: "ids is required"})
+		return req, c.JSON(http.StatusBadRequest, ErrorResponse{Error: "ids is required"})
 	}
 	if len(req.IDs) > maxBulkDeleteIDs {
-		return nil, c.JSON(http.StatusBadRequest, ErrorResponse{Error: "too many ids in one batch"})
+		return req, c.JSON(http.StatusBadRequest, ErrorResponse{Error: "too many ids in one batch"})
 	}
-	return req.IDs, nil
+	return req, nil
 }
 
 // HandleBulkDeleteMemoryEntries deletes several content-memory entries in one
@@ -64,14 +83,19 @@ func (s *Server) HandleBulkDeleteMemoryEntries(c *echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	ids, errResp := bulkDeleteIDs(c)
+	req, errResp := bulkDeleteRequest(c)
 	if errResp != nil {
 		return errResp
 	}
+	ids := req.IDs
 
 	tm, err := s.wsStores.getMemory(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return serverErr(c, err)
+	}
+	editable, ok := tm.(editableMemory)
+	if !ok {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "this content memory cannot take a delete"})
 	}
 
 	ctx := c.Request().Context()
@@ -84,7 +108,20 @@ func (s *Server) HandleBulkDeleteMemoryEntries(c *echo.Context) error {
 		seen[entryID] = struct{}{}
 
 		result := BulkDeleteResult{ID: entryID}
-		if delErr := tm.Delete(ctx, entryID); delErr != nil {
+		// Each entry is deleted at the revision the caller read, so a
+		// selection never removes text someone wrote after it was made.
+		var delErr error
+		if base := req.Revisions[entryID]; base == "" {
+			delErr = errors.New("this version of the app cannot delete content-memory entries; update it, then delete again")
+		} else if delErr = editable.DeleteAt(ctx, entryID, base); errors.Is(delErr, storage.ErrStale) {
+			delErr = errors.New("someone else saved this content-memory entry after you opened it; it was not deleted")
+		} else if errors.Is(delErr, bmemory.ErrEntryNotFound) {
+			// Someone else deleted it first: the entry is gone, as asked.
+			delErr = nil
+			result.AlreadyDeleted = true
+			resp.AlreadyDeleted++
+		}
+		if delErr != nil {
 			result.Error = delErr.Error()
 			resp.Failed++
 		} else {

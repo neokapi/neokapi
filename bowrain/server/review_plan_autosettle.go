@@ -106,7 +106,7 @@ func lastSettleOf(p *platstore.Project) *planSettleResultDTO {
 // settleReviewPlan runs one settle pass over the project as the person c
 // carries: every waiting translation that clears every bar is established,
 // as approve-passing does, and each decision is recorded in the ledger as
-// that person's with the reason "review policy". It records the pass on the
+// that person's with the reason venue.ReasonReviewPolicy. It records the pass on the
 // project, and the first pass when it is one. The settle step and the pass
 // after a run both call it.
 //

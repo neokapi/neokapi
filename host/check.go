@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,7 +27,7 @@ import (
 // checkReport wraps the canonical, platform-agnostic core/check.Report so the
 // CLI can render it as a human table while --json emits the Report verbatim (the
 // embedded struct's fields are promoted, so the JSON IS the Report). It is the
-// unit an AI assistant or CI reads, fixes, and re-runs against — like a test
+// unit an AI assistant or CI reads, fixes, and re-runs against, like a test
 // runner's report.
 type checkReport struct {
 	check.Report
@@ -187,7 +188,7 @@ func writeDidNotRun(w io.Writer, cause string) {
 
 // renderFindingsTable writes the outcome/rule/location/message table shared by
 // `kapi check` and the findings a `kapi exec <check>` run reports, so the two
-// read identically — an assistant that learned one has learned the other.
+// read identically. An assistant that learned one has learned the other.
 func renderFindingsTable(w io.Writer, diags []check.Diagnostic) {
 	t := output.NewTable(w).Accent(1).Headers("outcome", "rule", "location", "message")
 	s := t.Styles()
@@ -245,7 +246,7 @@ func (a *App) RunCheck(cmd Command, args []string) error {
 // same set of files whichever bar you hold it to.
 //
 // Outside a project there is nothing to expand to, so the file requirement
-// stands — and says how to satisfy it.
+// stands, and its error says how to satisfy it.
 func (a *App) checkProjectSources(cmd Command) ([]string, error) {
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil {
@@ -279,7 +280,7 @@ func (a *App) checkProjectSources(cmd Command) ([]string, error) {
 
 // applyProjectSourceLang adopts the project's declared source language when the
 // caller did not name one. Best-effort: no project, or one that will not load,
-// leaves the resolved language as it stands — that is the file-only shape, which
+// leaves the resolved language as it stands. That is the file-only shape, which
 // has no project language to adopt.
 func (a *App) applyProjectSourceLang(cmd Command) {
 	if cmd == nil {
@@ -297,9 +298,8 @@ func (a *App) applyProjectSourceLang(cmd Command) {
 	a.ResolveEncoding(proj.Defaults.Encoding)
 }
 
-// runShipCheck is `kapi check --ship`: the project gate mode that absorbed the
-// retired `kapi verify` (#1078 C1) — kapi retires spellings outright rather than
-// carrying aliases, so this is now the only way in. It routes through the shared
+// runShipCheck is `kapi check --ship`, the project gate mode and the only way
+// to run the project gates. It routes through the shared
 // verify engine (RunVerify/computeVerify), which the Stop hook also drives, so a
 // release gate and the hook evaluate a project identically. Flag defaults that
 // differ between the file checkset and the project gates are mapped here: an
@@ -365,7 +365,7 @@ func (a *App) computeCheck(cmd Command, args []string, req checkRequest) (check.
 	} else if len(args) == 0 {
 		// Bare `kapi check` inside a project checks the project: a project-aware
 		// command given nothing to narrow it to works on the whole project (as
-		// `up`, `status`, and `check --ship` do). Named files still win — they
+		// `up`, `status`, and `check --ship` do). Named files still win: they
 		// narrow the check to exactly what you named.
 		//
 		// --target is bilingual mode: it pairs ONE source with ONE translated
@@ -668,7 +668,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 	extractionStart := time.Now()
 
 	if validateMode != format.ValidationOff {
-		bl, fdiags, rerr := a.readBlocksValidated(ctx, file, fmtName, fmtCfg, opts.source(a), validateMode)
+		bl, fdiags, rerr := a.readBlocksValidated(ctx, a.projectRoot(), file, fmtName, fmtCfg, opts.source(a), validateMode)
 		if rerr != nil {
 			return nil, nil, asReadFailure(rerr)
 		}
@@ -677,7 +677,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 			diags = append(diags, check.DiagnosticFromReader(fd, DisplayName(file), validateMode == format.ValidationStrict))
 		}
 	} else {
-		bl, rerr := a.readBlocksAs(ctx, file, fmtName, fmtCfg, opts.source(a))
+		bl, rerr := a.readBlocksAs(ctx, a.projectRoot(), file, fmtName, fmtCfg, opts.source(a))
 		if rerr != nil {
 			// A read failure is operational in off mode: the lenient readers
 			// extract from imperfect inputs, so a hard error means the file
@@ -861,7 +861,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	// checker instance, so one that finds nothing in anything is recorded as
 	// invalid instead of as a clean pass.
 	start := time.Now()
-	// Hygiene — always on, no configuration needed.
+	// Hygiene: always on, no configuration needed.
 	hygiene := hygieneTool()
 	if err := a.runFamily(ctx, blocks, hygiene); err != nil {
 		return nil, fmt.Errorf("hygiene check %s: %w", DisplayName(file), err)
@@ -873,7 +873,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		return nil, fmt.Errorf("hygiene check %s: %w", DisplayName(file), err)
 	}
 
-	// Length — only when a limit is set.
+	// Length: only when a limit is set.
 	if opts.maxChars > 0 || opts.maxWords > 0 {
 		start = time.Now()
 		before := len(diags)
@@ -894,7 +894,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		opts.execution.skipped(check.FamilyLength, file, "No length limit was configured.")
 	}
 
-	// Pattern — forbidden (must-not-match) and required (must-match).
+	// Pattern: forbidden (must-not-match) and required (must-match).
 	if rules := patternRules(opts.forbid, opts.require); len(rules) > 0 {
 		start = time.Now()
 		before := len(diags)
@@ -1136,9 +1136,9 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 
 	// The project's term rules for the target language, the rules the ship
 	// terminology gate holds the same translation to. term-check records its
-	// violations as block properties rather than findings, so they are mapped
-	// here (termCheckFindings): a violation of a rule fails the check as it
-	// fails the gate, and a violation of an advisory rule reports.
+	// violations as block properties rather than findings, so termCheckFindings
+	// maps them here. A violation of a rule fails the check as it fails the
+	// gate, and a violation of an advisory rule reports.
 	if len(termRules) > 0 {
 		start = time.Now()
 		before := len(diags)
@@ -1232,27 +1232,14 @@ func patternRules(forbid, require []string) []check.PatternRule {
 	return rules
 }
 
-// checkVoice answers "which voice governs this file" for one `kapi check` run.
-//
-// An explicit --profile / --profile-file / --pack names one voice for every
-// file, and outranks the recipe. With none, the project's recipe governs, and it
-// governs PER FILE: the point a file sits at — its content item's own
-// `channel:`, else its collection's — selects the profile, and an expired
-// profile selects none. Two files of one project are therefore checked against
-// two vocabularies when the recipe says so, which is the whole reason a recipe
-// can bind governance to a point.
-//
-// Resolved profiles are cached by point, so a check over a thousand files loads
-// each voice once.
 // checkFormats answers, for one source file, the format the project declared it
-// as and the reader config it declared for it — the same binding the flow runner
-// and extract/merge apply.
+// as and the reader config it declared for it. It is the same binding the flow
+// runner and extract/merge apply.
 //
-// Without it the gate read every file by extension under reader defaults, so it
-// judged content the project does not declare as content: a demo script's
-// `command:` lines, which the recipe's key_path_patterns exclude, and `.md` docs
-// read by the markdown reader when the recipe binds mdx. Both are text no
-// convergence run ever touches, held to a bar meant for prose.
+// With it, the gate reads only what the project declares as content. Read by
+// extension under reader defaults, a demo script's `command:` lines, which the
+// recipe's key_path_patterns exclude, and `.md` docs the recipe binds to mdx
+// would be held to a bar meant for prose.
 type checkFormats struct {
 	// byPath is keyed by absolute path, spelled the way root spells it; a file
 	// the project does not declare is absent, and reads as "detect by
@@ -1278,9 +1265,9 @@ type resolvedFormat struct {
 	directives []string
 }
 
-// newCheckFormats builds the binding for one run. Outside a project — or with an
-// explicit --format override, which names one format for everything the caller
-// passed — there is nothing to bind and every file falls back to detection.
+// newCheckFormats builds the binding for one run. Outside a project, or with an
+// explicit --format override that names one format for everything the caller
+// passed, there is nothing to bind and every file falls back to detection.
 func (a *App) newCheckFormats(cmd Command) (*checkFormats, error) {
 	f := &checkFormats{byPath: map[string]resolvedFormat{}}
 	if a.FormatFlag != "" {
@@ -1304,12 +1291,11 @@ func (a *App) newCheckFormats(cmd Command) (*checkFormats, error) {
 	f.root = pctx.ProjectDir
 	resolved, rerr := pctx.ResolveContent(a.FormatReg)
 	if rerr != nil {
-		// A recipe pattern that will not expand is a fault worth failing on — and
+		// A recipe pattern that will not expand is a fault worth failing on, and
 		// the bare `kapi check` path fails on it, in checkProjectSources, before
 		// this runs. Naming a file is the other shape: the caller said which file
 		// to check, and an unrelated broken pattern elsewhere in the recipe must
-		// not stop them checking it. Fall back to detection, which is what naming
-		// a file did before there was a binding to fall back from.
+		// not stop them checking it. So the file falls back to detection.
 		return f, nil
 	}
 	f.bind(proj, resolved)
@@ -1430,6 +1416,17 @@ func commentDirectives(proj *project.KapiProject, item *project.ContentItem) []s
 	return item.CommentDirectives(proj.Defaults)
 }
 
+// checkVoice answers "which voice governs this file" for one `kapi check` run.
+//
+// An explicit --profile / --profile-file / --pack names one voice for every
+// file, and outranks the recipe. With none, the project's recipe governs per
+// file. The point a file sits at (its content item's own `channel:`, else its
+// collection's) selects the profile, and an expired profile selects none. Two
+// files of one project are checked against two vocabularies when the recipe
+// binds them to two points.
+//
+// Resolved profiles are cached by point, so a check over a thousand files loads
+// each voice once.
 type checkVoice struct {
 	app          *App
 	cmd          Command
@@ -1439,7 +1436,7 @@ type checkVoice struct {
 	root         string
 	store        profile.Store
 	release      func()
-	cache        map[string]checkedVoice
+	cache        map[[2]string]checkedVoice
 	// warnings receives the configuration warnings of each profile the
 	// resolver loads. nil collects none.
 	warnings *voiceWarnings
@@ -1458,7 +1455,7 @@ func (v *checkVoice) close() {
 // a file outside any project checks the content-only families. warnings
 // receives the configuration warnings of each profile the run loads.
 func (a *App) newCheckVoice(cmd Command, warnings *voiceWarnings) (*checkVoice, error) {
-	v := &checkVoice{app: a, cmd: cmd, cache: map[string]checkedVoice{}, warnings: warnings}
+	v := &checkVoice{app: a, cmd: cmd, cache: map[[2]string]checkedVoice{}, warnings: warnings}
 
 	name, _ := cmd.Flags().GetString("profile")
 	file, _ := cmd.Flags().GetString("profile-file")
@@ -1489,7 +1486,7 @@ func (a *App) newCheckVoice(cmd Command, warnings *voiceWarnings) (*checkVoice, 
 func (a *App) projectCheckVoice(cmd Command, warnings *voiceWarnings, open func(root string) (profile.Store, func(), error)) (*checkVoice, error) {
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil || projectPath == "" {
-		return &checkVoice{app: a, cmd: cmd, cache: map[string]checkedVoice{}, warnings: warnings}, err
+		return &checkVoice{app: a, cmd: cmd, cache: map[[2]string]checkedVoice{}, warnings: warnings}, err
 	}
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
@@ -1502,7 +1499,7 @@ func (a *App) projectCheckVoice(cmd Command, warnings *voiceWarnings, open func(
 // projectPath, with the voice store open returns for the project's root. An
 // empty projectPath is no project, and the resolver answers none.
 func (a *App) checkVoiceAt(cmd Command, warnings *voiceWarnings, projectPath string, proj *project.KapiProject, open func(root string) (profile.Store, func(), error)) (*checkVoice, error) {
-	v := &checkVoice{app: a, cmd: cmd, cache: map[string]checkedVoice{}, warnings: warnings}
+	v := &checkVoice{app: a, cmd: cmd, cache: map[[2]string]checkedVoice{}, warnings: warnings}
 	if projectPath == "" {
 		return v, nil
 	}
@@ -1516,11 +1513,10 @@ func (a *App) checkVoiceAt(cmd Command, warnings *voiceWarnings, projectPath str
 
 // checkTerms resolves the vocabulary in force at a file, the way checkVoice
 // resolves the voice profile there. The two halves of the gate are governed at
-// the same granularity: a project whose profile binds its own `termstore:` (or
-// holds concepts scoped to that profile in its store) has said which
-// words that region of the context space is held to, and a run that read one
-// project-wide vocabulary honoured the recipe's tone binding while ignoring its
-// vocabulary binding.
+// the same granularity. A profile that binds its own `termstore:`, or holds
+// concepts scoped to it in the store, says which words that region of the
+// context space is held to, so one project-wide vocabulary would ignore that
+// binding.
 //
 // Resolution is per governance point, not per file: the store is built once for
 // each distinct (profile, channel) a run touches, so a thousand files sitting at
@@ -1530,10 +1526,10 @@ type checkTerms struct {
 	cmd   Command
 	proj  *project.KapiProject
 	root  string
-	cache map[string]terms.Terminology
+	cache map[termsAt]terms.Terminology
 	// keep caches keepAt by point, and places the project's places, resolved
 	// on first use.
-	keep   map[string][]profile.TermRuleSet
+	keep   map[termsAt][]profile.TermRuleSet
 	places []placePoint
 	// rules is what the project's context operations add at a point: the rules
 	// a person widened to the whole workspace, and the candidates nobody has
@@ -1563,7 +1559,7 @@ func (a *App) newCheckTerms(cmd Command) (*checkTerms, error) {
 	}
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil || projectPath == "" {
-		return &checkTerms{app: a, cmd: cmd, cache: map[string]terms.Terminology{}, named: named}, err
+		return &checkTerms{app: a, cmd: cmd, cache: map[termsAt]terms.Terminology{}, named: named}, err
 	}
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
@@ -1604,7 +1600,7 @@ func (t *checkTerms) governs() bool {
 // checkTermsAt builds the resolver for proj, the project whose recipe is
 // projectPath. An empty projectPath is no project.
 func (a *App) checkTermsAt(cmd Command, projectPath string, proj *project.KapiProject) *checkTerms {
-	t := &checkTerms{app: a, cmd: cmd, cache: map[string]terms.Terminology{}}
+	t := &checkTerms{app: a, cmd: cmd, cache: map[termsAt]terms.Terminology{}}
 	if projectPath == "" {
 		return t
 	}
@@ -1654,7 +1650,7 @@ func (t *checkTerms) keepAt(point project.GovernancePoint) ([]profile.TermRuleSe
 		sets = keepRuleSets(rulesElsewhere(t.proj, t.places, sel.Path, all, here, "", point.At))
 	}
 	if t.keep == nil {
-		t.keep = map[string][]profile.TermRuleSet{}
+		t.keep = map[termsAt][]profile.TermRuleSet{}
 	}
 	t.keep[key] = sets
 	return sets, nil
@@ -1740,17 +1736,25 @@ func (t *checkTerms) resolve(point project.GovernancePoint) (*project.ResolvedGo
 // profile and channel governing there, and every coordinate the point sits
 // at, since a concept scoped to a declared axis holds at one collection and
 // not at its neighbour under the same profile.
-func termsCacheKey(proj *project.KapiProject, rc *project.ResolvedGovernance, point project.GovernancePoint) string {
+func termsCacheKey(proj *project.KapiProject, rc *project.ResolvedGovernance, point project.GovernancePoint) termsAt {
 	if proj == nil {
-		return rc.Profile + "\x00" + rc.Channel
+		return termsAt{profile: rc.Profile, channel: rc.Channel}
 	}
 	coordinates := proj.CoordinatesAt(point, rc)
 	parts := make([]string, 0, len(coordinates))
 	for name, value := range coordinates {
-		parts = append(parts, name+"="+value)
+		parts = append(parts, strconv.Quote(name)+"="+strconv.Quote(value))
 	}
 	slices.Sort(parts)
-	return rc.Profile + "\x00" + rc.Channel + "\x00" + strings.Join(parts, ",")
+	return termsAt{profile: rc.Profile, channel: rc.Channel, inProject: true, coordinates: strings.Join(parts, ",")}
+}
+
+// termsAt is the key termsCacheKey returns. coordinates lists the point's
+// coordinates as quoted name=value pairs, sorted.
+type termsAt struct {
+	profile, channel string
+	inProject        bool
+	coordinates      string
 }
 
 // forPoint returns the vocabulary governing a point. file names what is being
@@ -1831,7 +1835,7 @@ func (v *checkVoice) forPoint(ctx context.Context, point project.GovernancePoint
 	if err != nil {
 		return nil, check.VoiceContext{}, err
 	}
-	key := rc.Profile + "\x00" + rc.Channel
+	key := [2]string{rc.Profile, rc.Channel}
 	if cached, ok := v.cache[key]; ok {
 		return cached.profile, cached.context, nil
 	}

@@ -1,7 +1,6 @@
 package profile
 
 import (
-	"fmt"
 	"slices"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -44,19 +43,19 @@ func (b EvalBlock) hits(sets []TermRuleSet) []VocabHit {
 // rule is promoted, so a team sees what a change will do before it lands. For
 // each block it matches both rule sets and diffs the results:
 //
-//   - NewViolations    — matches the candidate raises that the baseline did not
+//   - NewViolations, matches the candidate raises that the baseline did not
 //     (the content a newly-promoted rule would start flagging).
-//   - ResolvedViolations — matches the baseline raised that the candidate does not.
-//   - AffectedBlocks   — blocks whose match set changed at all.
-//   - Improved/Degraded — blocks whose compliance score rose / fell.
-//   - FailingCount     — new violations that fail a check (the riskiest).
+//   - ResolvedViolations, matches the baseline raised that the candidate does not.
+//   - AffectedBlocks, blocks whose match set changed at all.
+//   - Improved/Degraded, blocks whose compliance score rose / fell.
+//   - FailingCount, new violations that fail a check (the riskiest).
 //
 // Results are broken down per collection. Only the word rules, the part a
 // promoted correction changes, are scored here; subjective and model-backed
 // checks are out of scope for a deterministic blast-radius preview.
 func EvaluateBlastRadius(blocks []EvalBlock, baseline, candidate []TermRuleSet) BlastRadius {
 	// Collections starts as a non-nil empty slice so it marshals to JSON `[]`,
-	// never `null` — clients (the web blast-radius preview) index `.length`/`.map`
+	// never `null`, clients (the web blast-radius preview) index `.length`/`.map`
 	// on it directly and a null crashes the render.
 	br := BlastRadius{TotalBlocks: len(blocks), Collections: []CollectionBlastRadius{}}
 
@@ -156,6 +155,12 @@ func CandidateWithRule(baseline []TermRuleSet, r SuggestedRule) []TermRuleSet {
 	return append(out, TermRuleSet{Rules: rules, Kind: VocabForbidden})
 }
 
+// hitKey is a hit by its category and byte range.
+type hitKey struct {
+	category   Dimension
+	start, end int
+}
+
 // keyedHit carries the properties a diff of two hit sets reads: whether the
 // violation fails, whether the rule that raised it says what to write instead,
 // and whether a character reference spells an edge of it.
@@ -168,10 +173,10 @@ type keyedHit struct {
 // hitKeySet keys each hit by category and byte range so the same violation in the
 // same text is comparable between the baseline and candidate runs (both score the
 // identical text, so positions align).
-func hitKeySet(hits []VocabHit) map[string]keyedHit {
-	m := make(map[string]keyedHit, len(hits))
+func hitKeySet(hits []VocabHit) map[hitKey]keyedHit {
+	m := make(map[hitKey]keyedHit, len(hits))
 	for _, h := range hits {
-		m[fmt.Sprintf("%s|%d|%d", h.Category, h.Start, h.End)] = keyedHit{
+		m[hitKey{h.Category, h.Start, h.End}] = keyedHit{
 			fails:       h.Fails,
 			replacement: h.Replacement,
 			spelled:     h.Spelled != "",

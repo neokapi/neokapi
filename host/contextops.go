@@ -8,11 +8,8 @@
 // append-only log; this file is what the CLI, the agent tools and the desktop
 // call.
 //
-// Three things are worth knowing before reading on.
-//
-// Checks report a suggestion from the moment it is recorded, and it binds only once a
-// person keeps it. Until then it is projected into checks as a suggested
-// finding, which reports, weighs nothing in the score and never fails.
+// Checks report a suggestion from the moment it is recorded, and it binds only
+// once a person keeps it. Until then it reports and never fails.
 //
 // Keeping writes the rule where the existing subsystems already read it:
 // through the same appliers `kapi apply` uses, into the project's terms store
@@ -39,6 +36,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -52,6 +50,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/rulesview"
 	"github.com/neokapi/neokapi/core/workspace"
 )
@@ -297,7 +296,7 @@ func (s *contextOpsSession) actorFor(ctx context.Context, stated contextop.Actor
 		return contextop.Actor{}, "", err
 	}
 	s.noteAgentSession(ctx, resolved.Actor)
-	return resolved.Actor, resolved.NoteWith(note), nil
+	return resolved.Actor, note, nil
 }
 
 // noteAgentSession records that an agent is at work in this project.
@@ -500,14 +499,12 @@ func (s *contextOpsSession) observedInFiles(ctx context.Context, subject context
 		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			continue
 		}
-		info, err := os.Stat(path)
-		if err != nil || info.IsDir() {
+		holds, err := fileHoldsAnyForm(s.root, path, forms)
+		if err != nil {
 			continue
 		}
-		if info.Size() <= maxObservedFile {
-			if data, err := os.ReadFile(path); err == nil && holdsAnyForm(string(data), forms) {
-				continue
-			}
+		if holds {
+			continue
 		}
 		seen, read := s.blocksHoldForm(ctx, filepath.ToSlash(rel), forms)
 		if !read || seen {
@@ -517,6 +514,27 @@ func (s *contextOpsSession) observedInFiles(ctx context.Context, subject context
 			"name the file you saw it in, or record what you know in text", e.Path, subject.Term.Replacement)
 	}
 	return nil
+}
+
+// fileHoldsAnyForm reports whether the file at path, read through root, holds
+// one of forms. A file that is not a regular file beneath root, such as a
+// link that leads out of the project, is an error. A file larger than
+// maxObservedFile is not read and holds none.
+func fileHoldsAnyForm(root, path string, forms []string) (bool, error) {
+	f, err := rootpath.OpenRegular(root, path)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || info.Size() > maxObservedFile {
+		return false, err
+	}
+	data, err := io.ReadAll(io.LimitReader(f, maxObservedFile))
+	if err != nil {
+		return false, nil
+	}
+	return holdsAnyForm(string(data), forms), nil
 }
 
 // blocksHoldForm reports whether the text of a block of the project's file at
@@ -1223,9 +1241,8 @@ func (s *contextOpsSession) refreshRulesFiles(ctx context.Context) {
 // registered under. An empty path resolves the project the way every other
 // command does. A key opens the checkout the registry lists when a readable
 // one is on this machine, and the project's stores in the workspace alone
-// otherwise, which is enough to read its log and to decide on it: a kept rule
-// lands in the terms store or content memory the workspace holds for the
-// project, and the next checkout anywhere reads it from there.
+// otherwise. That is enough to read its log and decide on it: a kept rule
+// lands in the stores the workspace holds for the project.
 //
 // A value that names a file or a directory is a path. One that names nothing
 // on disk and is registered is a key; one that names nothing and is not

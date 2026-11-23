@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"os"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/i18n"
@@ -33,6 +35,9 @@ func init() {
 // a.ProjectContext so the MCP factories can scope themselves to it. Unavailable
 // requested context fails startup instead of silently selecting ad-hoc mode.
 func (a *App) ResolveMCPProject(cmd Command) error {
+	if wd, err := os.Getwd(); err == nil {
+		a.mcpStartDir = wd
+	}
 	// Before anything the server will serve: InitRegistries writes the registry
 	// fields and is not safe to run from two calls at once, and a server
 	// answering several calls concurrently would otherwise reach it lazily from
@@ -128,7 +133,7 @@ func registerFrameworkMCPTools(server *mcp.Server, a *App) {
 		}
 
 		policy := targetPolicyFor(entry.Info)
-		inputSchema, err := frameworkToolInputSchema(entry.Schema, policy)
+		inputSchema, err := frameworkToolInputSchema(name, entry.Schema, policy)
 		if err != nil {
 			continue // a tool whose schema can't be projected is simply not exposed
 		}
@@ -213,12 +218,36 @@ func targetPolicyFor(info registry.ToolInfo) targetPolicy {
 	return targetAccepted
 }
 
+// mcpCallerArgs are the configuration fields a tool keeps out of its schema,
+// because kapi sets them from the project in a flow, that a call over MCP still
+// supplies itself: the rules term-check checks are the subject of the call,
+// with no recipe behind it to inject them. Each is published in the tool's
+// MCP input schema, so a call decodes only what tools/list declares.
+var mcpCallerArgs = map[string]map[string]any{
+	"term-check": {
+		"term_rules": map[string]any{
+			"type":        "array",
+			"description": "The terms to check. Where the source contains a term, the translation should contain its replacement.",
+			"items": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"term":        map[string]any{"type": "string"},
+					"replacement": map[string]any{"type": "string"},
+					"forms":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+					"advisory":    map[string]any{"type": "boolean"},
+					"note":        map[string]any{"type": "string"},
+				},
+			},
+		},
+	},
+}
+
 // frameworkToolInputSchema projects a tool's ComponentSchema into the MCP input
 // schema: the tool's own parameters, plus a required `text` field (the content
 // to process), an optional `target_lang`, and, for a bilingual tool that reads
 // one, a `target` field carrying the translation to run over.
 // MCP requires a top-level object schema, which ComponentSchema already is.
-func frameworkToolInputSchema(s *schema.ComponentSchema, policy targetPolicy) (json.RawMessage, error) {
+func frameworkToolInputSchema(name string, s *schema.ComponentSchema, policy targetPolicy) (json.RawMessage, error) {
 	base := map[string]any{"type": "object", "properties": map[string]any{}}
 	if s != nil {
 		raw, err := json.Marshal(s)
@@ -234,6 +263,7 @@ func frameworkToolInputSchema(s *schema.ComponentSchema, policy targetPolicy) (j
 		props = map[string]any{}
 		base["properties"] = props
 	}
+	maps.Copy(props, mcpCallerArgs[name])
 	props["text"] = map[string]any{
 		"type":        "string",
 		"description": "The content (text) to run the tool over.",
@@ -276,18 +306,18 @@ func frameworkToolInputSchema(s *schema.ComponentSchema, policy targetPolicy) (j
 // server lists is fixed when it starts (a client reads tools/list once), so the
 // exposed set stays the start project's while each call's language follows the
 // project it acts on.
-func (a *App) mcpDefaultTargetLang(named, serverDefault string) (string, error) {
+func (a *App) mcpDefaultTargetLang(ctx context.Context, named, serverDefault string) (string, error) {
 	if named == "" {
 		return serverDefault, nil
 	}
-	ctx, err := a.mcpProjectContext(named)
+	pctx, err := a.mcpProjectContext(ctx, named)
 	if err != nil {
 		return "", err
 	}
-	if ctx == nil || len(ctx.TargetLocales) == 0 {
+	if pctx == nil || len(pctx.TargetLocales) == 0 {
 		return serverDefault, nil
 	}
-	return string(ctx.TargetLocales[0]), nil
+	return string(pctx.TargetLocales[0]), nil
 }
 
 // frameworkMCPHandler builds the untyped MCP handler for one framework tool: it
@@ -314,7 +344,7 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 		named, _ := args["project"].(string)
 		targetLang, _ := args["target_lang"].(string)
 		if targetLang == "" {
-			resolved, err := a.mcpDefaultTargetLang(named, defaultTargetLang)
+			resolved, err := a.mcpDefaultTargetLang(ctx, named, defaultTargetLang)
 			if err != nil {
 				return nil, err
 			}
@@ -336,10 +366,24 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 			targetLang = string(id)
 		}
 
+		// Only the parameters the tool's schema publishes reach its config. A
+		// field the schema hides (schema:"-") is set by kapi, never by a call.
+		published := map[string]bool{}
+		if s := a.ToolReg.Schema(name); s != nil {
+			for k := range s.Properties {
+				published[k] = true
+			}
+		}
+		for k := range mcpCallerArgs[string(name)] {
+			published[k] = true
+		}
 		config := make(map[string]any, len(args))
 		for k, v := range args {
 			if k == "text" || k == "target" || k == "target_lang" || k == "project" {
 				continue
+			}
+			if !published[k] {
+				return nil, fmt.Errorf("%q takes no argument %s", name, k)
 			}
 			config[k] = v
 		}
@@ -350,7 +394,7 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 		// still stands (ApplySourceLocale).
 		source := a.SourceLocale()
 		if named != "" {
-			recipe, rerr := a.ResolveMCPCallProject(named)
+			recipe, rerr := a.ResolveMCPCallProject(ctx, named)
 			if rerr != nil {
 				return nil, rerr
 			}
@@ -361,7 +405,7 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 		// The call's project settles the redaction policy, as it does for
 		// `kapi exec`: a tool that calls a provider runs between redact and
 		// unredact.
-		runPolicy, err := a.mcpToolRunPolicy(named, string(name), config)
+		runPolicy, err := a.mcpToolRunPolicy(ctx, named, string(name), config)
 		if err != nil {
 			return nil, err
 		}
@@ -431,8 +475,8 @@ func runToolOverText(ctx context.Context, chain []tool.Tool, text string, target
 // mcpToolRunPolicy reads the redaction policy of the project one framework
 // tool call acts on: the one it names, else the one the server started in.
 // The call's text sits in no file, so `defaults.redaction` governs it.
-func (a *App) mcpToolRunPolicy(named, toolName string, config map[string]any) (toolRunPolicy, error) {
-	recipe, err := a.ResolveMCPCallProject(named)
+func (a *App) mcpToolRunPolicy(ctx context.Context, named, toolName string, config map[string]any) (toolRunPolicy, error) {
+	recipe, err := a.ResolveMCPCallProject(ctx, named)
 	if err != nil || recipe == "" {
 		return toolRunPolicy{}, err
 	}

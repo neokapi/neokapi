@@ -3,12 +3,12 @@ package project
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // ReadSourceBlocks opens path with the given format reader, applies per-item
@@ -22,7 +22,7 @@ import (
 func ReadSourceBlocks(
 	ctx context.Context,
 	reg *registry.FormatRegistry,
-	formatName, path string,
+	root, formatName, path string,
 	src, tgt model.LocaleID,
 	cfg map[string]any,
 ) ([]*model.Block, *model.Layer, error) {
@@ -39,7 +39,9 @@ func ReadSourceBlocks(
 	if store := WireReadSkeleton(reg, formatName, reader); store != nil {
 		defer func() { _ = store.Close() }()
 	}
-	f, err := os.Open(path)
+	// A file beneath root is project content and is read through it
+	// (rootpath.Open); root is empty for a file a person named.
+	f, err := rootpath.Open(root, path)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -50,6 +52,7 @@ func ReadSourceBlocks(
 		TargetLocale: tgt,
 		FormatID:     formatName,
 		Reader:       f,
+		ReaderAt:     f,
 	}
 	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		return nil, nil, err
@@ -95,7 +98,7 @@ func WireReadSkeleton(reg *registry.FormatRegistry, formatName string, reader fo
 }
 
 // BlockStoreHash returns a stable, globally-unique key for a block in a
-// project-wide block store — the source file's block id namespaced by its
+// project-wide block store: the source file's block id namespaced by its
 // project-relative path so blocks (and their target overlays) from different
 // files can't collide. It delegates to blockstore.StoreKey, the single
 // definition shared by the extract, run, and merge paths.

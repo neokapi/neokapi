@@ -88,6 +88,9 @@ Two flags add what no set holds, for debugging:
 			// the first request as well: a server that starts and reads
 			// nothing is still a session somebody may want to review.
 			server.AddReceivingMiddleware(a.MCPSessionMiddleware())
+			// Every call reaches only the start directory and the roots the
+			// client declares (host/mcp_roots.go).
+			server.AddReceivingMiddleware(a.MCPRootsMiddleware())
 			a.NoteMCPSession(host.CmdContext(cmd), a.MCPRecipePath(), "")
 			// host.CmdContext, not cmd.Context: a caller that builds this
 			// command and invokes RunE directly (the kapi-bowrain plugin's

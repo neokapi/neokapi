@@ -24,9 +24,9 @@ import (
 // wording it blessed.
 
 // SourceUnitRef addresses one source unit: the source file as the queue lists it
-// and the block key within it. There is no locale — a source unit is the same
-// content for every target, which is the whole reason the gate holds the fan-out
-// rather than one language of it.
+// and the block key within it. It has no locale: a source unit is the same
+// content for every target, so the gate holds the fan-out rather than one
+// language of it.
 type SourceUnitRef struct {
 	File string
 	Key  string
@@ -37,8 +37,8 @@ type SourceUnitRef struct {
 //
 // A target decision is keyed by the locale it judges, and a source decision is
 // about the source locale, so the two cannot collide in the store unless a
-// recipe lists its own source language among its targets — which is a recipe
-// error, not a case to design for.
+// recipe lists its own source language among its targets. That is a recipe
+// error.
 func sourceVariant(sourceLang string) model.EditionKey {
 	return model.Variant(model.LocaleID(sourceLang))
 }
@@ -65,7 +65,7 @@ type sourceApprovals struct {
 	// source is the project's source language, the key a project read files
 	// the source under (state.ReadSource).
 	source model.LocaleID
-	byUnit map[string]state.UnitState
+	byUnit map[[2]string]state.UnitState
 }
 
 // approves reports whether the unit's source approval still names the source
@@ -76,11 +76,11 @@ func (s sourceApprovals) approves(scope, unit string, b *model.Block) bool {
 	return ok && u.BasisKnown() && !u.SourceStale(state.ReadSource(b, s.source))
 }
 
-func sourceUnitKey(scope, unit string) string { return scope + "\x00" + unit }
+func sourceUnitKey(scope, unit string) [2]string { return [2]string{scope, unit} }
 
 // loadSourceApprovals reads the committed source approvals for a project.
 func (a *App) loadSourceApprovals(ctx context.Context, root, sourceLang string) (sourceApprovals, error) {
-	out := sourceApprovals{source: model.LocaleID(sourceLang), byUnit: map[string]state.UnitState{}}
+	out := sourceApprovals{source: model.LocaleID(sourceLang), byUnit: map[[2]string]state.UnitState{}}
 	if root == "" {
 		return out, nil
 	}
@@ -332,7 +332,7 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 				info.Stale = us.SourceStale(state.ReadSource(b, model.LocaleID(sourceLang)))
 				if !info.Stale {
 					info.ReviewState = us.Decision.ReviewState
-					info.Note = us.Decision.Note
+					info.Note, _ = us.Decision.Said()
 					info.By = us.Decision.By
 				}
 			}
@@ -371,9 +371,9 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 // hash, so an edit to the source drops the approval rather than letting it
 // outlive the sentence it blessed. It is how the change service applies a
 // decide establish on a document's own edition (changeAssets.applyDecision).
-// wording, when set, is the source wording the approval is about as its
-// caller holds it, its text and its revision, such as the content a change set
-// landed under the commit lock; the approval binds to it rather than to what
+// wording, when set, is the source wording the approval is about, as its
+// caller holds it: its text and its revision, such as the content a change set
+// landed under the commit lock. The approval binds to it rather than to what
 // the file says when it is read here. Nil reads it from the file.
 //
 // It returns whether anything changed: an approval already recorded for this

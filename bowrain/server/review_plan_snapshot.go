@@ -69,6 +69,9 @@ type planSnapshotConfig struct {
 	// maxAge has a read mark a snapshot changed when no change has reached
 	// it for this long, which bounds what a change the events missed costs.
 	maxAge time.Duration
+	// clock stamps each snapshot and ages the stored ones; nil reads
+	// time.Now. A test pins it.
+	clock func() time.Time
 }
 
 var defaultPlanSnapshotConfig = planSnapshotConfig{
@@ -96,7 +99,9 @@ type planSnapshot struct {
 	ContextOpen int `json:"context_open"`
 	// Languages counts each target language's deck.
 	Languages map[string]planSnapshotLanguage `json:"languages"`
-	// asOf is when the counts were taken.
+	// asOf is when the counts were taken, to the microsecond PostgreSQL
+	// keeps, so the counts a compute answers and the row it stores carry the
+	// same time.
 	asOf time.Time
 }
 
@@ -131,8 +136,8 @@ func planFingerprint(policy string, proj *platstore.Project, scope deckScope, pi
 }
 
 // computePlanSnapshot counts a project's plan over every target language.
-// The reads are independent, so they run at once.
-func (s *Server) computePlanSnapshot(ctx context.Context, ws *platauth.Workspace, proj *platstore.Project, stream string, scope deckScope, pi projectInvolvement, fingerprint string) (planSnapshot, error) {
+// The reads are independent, so they run at once. now stamps the counts.
+func (s *Server) computePlanSnapshot(ctx context.Context, now func() time.Time, ws *platauth.Workspace, proj *platstore.Project, stream string, scope deckScope, pi projectInvolvement, fingerprint string) (planSnapshot, error) {
 	out := planSnapshot{Fingerprint: fingerprint, Untranslated: map[string]int{}, Languages: map[string]planSnapshotLanguage{}}
 	locales := make([]string, 0, len(proj.TargetLanguages))
 	for _, l := range proj.TargetLanguages {
@@ -159,7 +164,7 @@ func (s *Server) computePlanSnapshot(ctx context.Context, ws *platauth.Workspace
 	if err := g.Wait(); err != nil {
 		return planSnapshot{}, err
 	}
-	out.asOf = time.Now().UTC()
+	out.asOf = now().UTC().Truncate(time.Microsecond)
 	return out, nil
 }
 
@@ -244,12 +249,12 @@ func (s *Server) planSnapshotFor(ctx context.Context, ws *platauth.Workspace, pr
 	fp := planFingerprint(deckPolicyKey(s.deckPolicy()), proj, scope, pi)
 	r := s.planSnapshots
 	if r == nil || stream != reviewInboxStream {
-		return s.computePlanSnapshot(ctx, ws, proj, stream, scope, pi, fp)
+		return s.computePlanSnapshot(ctx, time.Now, ws, proj, stream, scope, pi, fp)
 	}
 	if snap, ok := r.read(ctx, proj.ID, stream, fp); ok {
 		return snap, nil
 	}
-	v, err, _ := r.flight.Do(proj.ID+"\x00"+stream+"\x00"+fp, func() (any, error) {
+	v, err, _ := r.flight.Do(fmt.Sprintf("%q %q %q", proj.ID, stream, fp), func() (any, error) {
 		return r.computeNow(ctx, ws, proj, stream, scope, pi, fp)
 	})
 	if err != nil {
@@ -464,6 +469,14 @@ func (r *planSnapshotRefresher) refresh(ctx context.Context, c platstore.ReviewP
 	}
 }
 
+// now is the refresh's clock.
+func (r *planSnapshotRefresher) now() time.Time {
+	if r.cfg.clock != nil {
+		return r.cfg.clock()
+	}
+	return time.Now()
+}
+
 // computeClaimed reads the project a claim names and counts its plan.
 func (r *planSnapshotRefresher) computeClaimed(ctx context.Context, c platstore.ReviewPlanSnapshotClaim) (planSnapshot, error) {
 	proj, err := r.s.ContentStore.GetProject(ctx, c.ProjectID)
@@ -480,17 +493,17 @@ func (r *planSnapshotRefresher) computeClaimed(ctx context.Context, c platstore.
 	}
 	scope, pi := deckScopeFrom(colls), involvementFor(proj, colls)
 	fp := planFingerprint(deckPolicyKey(r.s.deckPolicy()), proj, scope, pi)
-	return r.s.computePlanSnapshot(ctx, ws, proj, c.Stream, scope, pi, fp)
+	return r.s.computePlanSnapshot(ctx, r.now, ws, proj, c.Stream, scope, pi, fp)
 }
 
-// complete stores a claim's counts.
+// complete stores a claim's counts with the time they were taken.
 func (r *planSnapshotRefresher) complete(ctx context.Context, c platstore.ReviewPlanSnapshotClaim, snap planSnapshot) error {
 	data, err := json.Marshal(snap)
 	if err != nil {
 		return err
 	}
 	r.computes.Add(1)
-	return r.store.CompleteReviewPlanSnapshot(context.WithoutCancel(ctx), c, data)
+	return r.store.CompleteReviewPlanSnapshot(context.WithoutCancel(ctx), c, data, snap.asOf)
 }
 
 // computeNow counts a snapshot on a request and stores it when it can claim
@@ -501,7 +514,7 @@ func (r *planSnapshotRefresher) computeNow(ctx context.Context, ws *platauth.Wor
 	if err != nil {
 		slog.WarnContext(ctx, "review plan snapshot: could not claim on a read", "project", proj.ID, "error", err)
 	}
-	snap, err := r.s.computePlanSnapshot(ctx, ws, proj, stream, scope, pi, fp)
+	snap, err := r.s.computePlanSnapshot(ctx, r.now, ws, proj, stream, scope, pi, fp)
 	if err != nil {
 		if claimed {
 			_ = r.store.ReleaseReviewPlanSnapshot(context.WithoutCancel(ctx), claim, 0)
@@ -539,7 +552,7 @@ func (r *planSnapshotRefresher) read(ctx context.Context, projectID, stream, fin
 		snap.Languages = map[string]planSnapshotLanguage{}
 	}
 	snap.asOf = row.ComputedAt.UTC()
-	if !row.Changed && time.Since(row.ComputedAt) > r.cfg.maxAge {
+	if !row.Changed && r.now().Sub(row.ComputedAt) > r.cfg.maxAge {
 		r.touch([]string{projectID}, nil)
 	}
 	return snap, true

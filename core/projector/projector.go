@@ -1,56 +1,43 @@
 // Package projector is the one writer of a project's context stores.
 //
 // Every change to a project's context is an operation in the workspace's log
-// (core/workspace), and the log carries what the change wrote. The terms
-// store, the content memory, the voice profiles, the rules widened to the
-// whole workspace, the decision ledger, the document adoptions and the block
-// history are projections of that log: what retrieval, checks and review
-// read, written by the projector alone, and rebuildable from the log at any
-// time.
+// (core/workspace), carrying what the change wrote. The terms store, the
+// content memory, the voice profiles, the workspace-wide rules, the decision
+// ledger, the document adoptions and the block history are projections of
+// that log: written by the projector alone, and rebuildable from the log.
 //
 // A write goes through here in two steps under one lock. The projector records
-// an operation carrying the rows the write puts or removes, and then applies
-// every operation the store has not yet seen, in the order the log received
-// them. A write made by another process, or merged in from another machine's
-// log, is therefore applied by the next write here, and a store never holds a
-// row the log does not explain.
+// an operation carrying the rows the write puts or removes, then applies every
+// operation the store has not yet seen, in log order. A write made by another
+// process, or merged in from another machine's log, is applied by the next
+// write here, so a store never holds a row the log does not explain.
 //
 // # What an operation carries
 //
-// One operation per subsystem a write touches, of kind [KindTerms],
-// [KindMemory], [KindVoice] or [KindRules]. Its payload is the list of steps
-// the write made, in order: concepts put and deleted, content-memory entries
-// put and deleted, profiles created and updated, rules widened and narrowed.
-// A decision is one [KindDecision] operation and a document adoption one
-// [KindAdopt], each carrying its entry as a step and addressed by its content.
-// An applied edit is one [KindEdit] operation per document, whose payload is
-// the [Edit] itself rather than steps.
-// A payload larger than [BlobThreshold] goes into a content-addressed blob the
-// operation names, which is where an imported bundle or a convergence run's
-// batch of approved wording ends up.
+// One operation per subsystem a write touches ([KindTerms], [KindMemory],
+// [KindVoice], [KindRules]), whose payload is the write's steps in order. A
+// decision is one [KindDecision] operation and a document adoption one
+// [KindAdopt]. An applied edit is one [KindEdit] operation per document,
+// carrying the [Edit] itself. A payload larger than [BlobThreshold] goes into
+// a content-addressed blob the operation names.
 //
-// Each step carries the rows as they are written, with every timestamp the
-// store would otherwise take from the clock filled in from the operation's
-// own. Replaying the log therefore writes the same rows the first
-// application wrote, which is what [Projector.Rebuild] relies on.
+// Each step carries the rows as they are written, with every timestamp filled
+// in from the operation's own, so replaying the log writes the same rows the
+// first application wrote ([Projector.Rebuild]).
 //
 // # Writers
 //
 // Callers do not build operations. [Projector.Terms], [Projector.Memory] and
-// [Projector.Voice] hand out the store a caller already knows, with reads
-// answered by the projection and writes recorded and applied here,
-// [Projector.Rules] is the rule store core/contextop widens into,
-// [Projector.Decisions] is the journal the decision ledger records through,
-// and [Projector.RecordEdit] records an applied edit. A
-// [Projector.Batch] collects the writes of one pass (an import, a convergence
-// run's absorbed record) into one operation per subsystem.
+// [Projector.Voice] hand out a store whose reads the projection answers and
+// whose writes are recorded and applied here. [Projector.Rules],
+// [Projector.Decisions] and [Projector.RecordEdit] do the same for rules,
+// decisions and edits, and a [Projector.Batch] collects one pass's writes into
+// one operation per subsystem.
 //
 // # Without a log
 //
-// A store opened in the embedded layout, with no workspace behind it, or under
-// a workspace opened read-only, has no log to record into. The projector then
-// applies each write directly, which keeps a test working and gives it nothing
-// to rebuild from.
+// A store opened in the embedded layout, or under a read-only workspace, has
+// no log to record into, and the projector applies each write directly.
 package projector
 
 import (
@@ -369,6 +356,11 @@ func split(w pending) []pending {
 			head := step{Stream: s.Stream, Bulk: s.Bulk, PutEntries: s.PutEntries[:maxEntriesPerStep]}
 			steps = append(steps, head)
 			s.PutEntries = s.PutEntries[maxEntriesPerStep:]
+		}
+		for len(s.AddOrigins) > maxEntriesPerStep {
+			head := step{Stream: s.Stream, AddOrigins: s.AddOrigins[:maxEntriesPerStep]}
+			steps = append(steps, head)
+			s.AddOrigins = s.AddOrigins[maxEntriesPerStep:]
 		}
 		for len(s.PutConcepts) > maxEntriesPerStep {
 			head := step{Stream: s.Stream, PutConcepts: s.PutConcepts[:maxEntriesPerStep]}

@@ -568,6 +568,22 @@ The project the Activity tab shows is kept on the device and dropped on
 sign-out. Appearance (System, Light, Dark) is kept on the device too and
 applied through Uniwind, which also sets the native interface style.
 
+### Loading and refreshing
+
+Every list and scroll screen pulls to refresh. The spinner shows only while
+a refresh the person started by pulling is in flight. The query client also
+refetches on its own: when a screen comes back into view, when the phone
+reconnects or returns to the foreground, and after a decision. Those
+refetches show nothing and move nothing, as in the system's own apps: the
+new data replaces the old in place. On iOS the refresh control pushes the
+content down by its own height while it shows, so a spinner bound to a
+background refetch would move the whole screen. Screens bind the control through
+`usePullRefresh` (`src/lib/pullRefresh.ts`), and a unit test fails on a
+screen that binds it to anything else.
+
+A first load shows placeholders in the shape of what replaces them, and a
+"loading more" row sits at the end of a list.
+
 ## Licence
 
 `bowrain/` is AGPL-3.0. GPL-family licences conflict with App Store terms

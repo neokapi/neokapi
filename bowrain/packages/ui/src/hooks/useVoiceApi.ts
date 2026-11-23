@@ -72,7 +72,8 @@ export function useDeleteVoiceProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (profileId: string) => api.deleteVoiceProfile(ws, profileId),
+    mutationFn: (profile: { id: string; revision?: string }) =>
+      api.deleteVoiceProfile(ws, profile.id, profile.revision ?? ""),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["voice-profiles", ws] });
     },

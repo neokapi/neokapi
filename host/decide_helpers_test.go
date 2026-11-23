@@ -27,17 +27,38 @@ func decideUnit(ctx context.Context, a *App, recipe string, ref ReviewUnitRef, d
 
 // decideUnitAs is decideUnit as actor.
 func decideUnitAs(ctx context.Context, a *App, recipe string, ref ReviewUnitRef, decision, note string, actor change.Actor) (bool, error) {
+	svc, at, rev, err := readReviewUnit(ctx, a, recipe, ref)
+	if err != nil {
+		return false, err
+	}
+	return sendDecision(ctx, svc, at, rev, decision, note, actor)
+}
+
+// rejectUnitWithReasons records a person's rejection of the review-queue unit
+// ref names, with note and the reason codes a review surface sends beside it.
+func rejectUnitWithReasons(ctx context.Context, a *App, recipe string, ref ReviewUnitRef, note string, reasons ...string) (bool, error) {
+	svc, at, rev, err := readReviewUnit(ctx, a, recipe, ref)
+	if err != nil {
+		return false, err
+	}
+	return sendDecide(ctx, svc, at, rev, note, &change.Decide{Outcome: change.OutcomeReject, Reasons: reasons}, reviewPerson)
+}
+
+// readReviewUnit reads the unit ref names on its target edition, the way a
+// review surface reads what it judges, and returns where to send a decision
+// and the revision the read shows.
+func readReviewUnit(ctx context.Context, a *App, recipe string, ref ReviewUnitRef) (*change.Service, change.Ref, string, error) {
 	edition := model.EditionKey{Locale: model.LocaleID(ref.Locale)}
 	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: "test", TargetLocale: edition.Locale})
 	if err != nil {
-		return false, err
+		return nil, change.Ref{}, "", err
 	}
 	page, err := svc.Read(ctx, change.ReadRequest{Doc: ref.File, Blocks: []string{ref.Key}, Editions: []model.EditionKey{edition}})
 	if err != nil {
-		return false, err
+		return nil, change.Ref{}, "", err
 	}
 	if len(page.Blocks) == 0 {
-		return false, fmt.Errorf("block %q (%s) under review not found in %s", ref.Key, ref.Locale, ref.File)
+		return nil, change.Ref{}, "", fmt.Errorf("block %q (%s) under review not found in %s", ref.Key, ref.Locale, ref.File)
 	}
 	b := page.Blocks[0]
 	at, rev := b.Ref, b.Rev
@@ -48,7 +69,7 @@ func decideUnitAs(ctx context.Context, a *App, recipe string, ref ReviewUnitRef,
 			rev = ed.Rev
 		}
 	}
-	return sendDecision(ctx, svc, at, rev, decision, note, actor)
+	return svc, at, rev, nil
 }
 
 // approveSource records a person's approval of the source wording of the
@@ -78,8 +99,13 @@ func sendDecision(ctx context.Context, svc *change.Service, at change.Ref, rev, 
 	case ReviewDecisionRejected:
 		outcome = change.OutcomeReject
 	}
+	return sendDecide(ctx, svc, at, rev, note, &change.Decide{Outcome: outcome}, actor)
+}
+
+// sendDecide sends body as one decide operation on at, read at rev.
+func sendDecide(ctx context.Context, svc *change.Service, at change.Ref, rev, note string, body *change.Decide, actor change.Actor) (bool, error) {
 	res, err := svc.Apply(ctx, change.Set{Note: note, Ops: []change.Op{
-		{Kind: change.KindDecide, At: at, IfMatch: rev, Body: &change.Decide{Outcome: outcome}},
+		{Kind: change.KindDecide, At: at, IfMatch: rev, Body: body},
 	}}, actor)
 	if err != nil {
 		return false, err
