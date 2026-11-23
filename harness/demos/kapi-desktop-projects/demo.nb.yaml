@@ -1,0 +1,55 @@
+id: kapi-desktop-projects
+title: Sett opp et prosjekt
+subtitle: "Åpne en mappe, legg til et språk, velg hvor oversettelsene skal lagres, og se hva som må oversettes."
+kind: use-case
+publishAs: kapi-desktop-projects
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read: uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - A folder becomes a project
+  - Languages
+  - Where translations go
+  - The plan
+outro:
+  line: Klikk på Oppdater for å oversette den nye teksten.
+
+# The folder holds a few help pages, made off camera. The app proposes a
+# collection for them when the folder opens, and the walk gives it a target
+# path, so the plan has work to show on the same project.
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Du skal åpne en mappe med hjelpesider som et prosjekt og legge til fransk som språk.
+  - id: new-project
+    kind: desktop
+    beat: new-project
+    caption: Slipp en mappe for å åpne den som et prosjekt.
+    text: >-
+      Slipp mappen på Åpne-skjermbildet. Appen finner de tre hjelpesidene og viser de neste trinnene.
+  - id: add-language
+    kind: desktop
+    beat: add-language
+    caption: Legg til fransk.
+    text: >-
+      Åpne Prosjektinnstillinger. Under Oversett til velger du fransk og klikker på Lagre endringer.
+  - id: add-collection
+    kind: desktop
+    beat: add-collection
+    caption: Velg hvor oversettelsene skal lagres.
+    text: >-
+      På fanen Innhold redigerer du samlingen appen fant, angir en mappe for oversettelsene og klikker på Lagre endringer.
+  - id: plan
+    kind: desktop
+    beat: plan
+    caption: Se hva som skal gjøres før du setter i gang.
+    hold: 10
+    text: >-
+      Gå tilbake til Oversikt og klikk på Planlegg for å se hvor mye tekst som ennå ikke er oversatt til fransk. Klikk på Oppdater når du vil oversette teksten.
+  - id: outro
+    kind: outro
+    text: >-
+      Klikk på Oppdater for å oversette den nye teksten.

@@ -1,225 +1,319 @@
 # Native reference doc for the built-in `qa` tool.
-# Schema source: core/ai/tools/unified.go (CheckSchema, over core/tools RuleCheckConfig
-# plus the LLM provider fields). With no --provider, qa runs the deterministic
-# rule-based checks below; with --provider it runs LLM-judged checks.
-description: "Kontroller oversettelseskvalitet med regelbaserte kontroller, eller en LLM når en leverandør er angitt."
+# Schema source: core/ai/tools/unified.go (checkGroup: the `mode` selector over
+# core/tools RuleCheckConfig and AICheckConfig). `mode` selects the backend;
+# `provider`, `api_key`, `model` and `checks` apply only in `ai` mode.
+description: Kontroller hver oversettelse mot kildeteksten med deterministiske regler eller en KI-gjennomgang.
 overview: |
-  **Kvalitetskontroll**-verktøyet kjører en serie regelbaserte kontroller over hver
-  oversettelse og lagrer funnene i blokken som en JSON-matrise
-  med funn, sammen med et bestått/ikke bestått-flagg. Kontrollene dekker flere kategorier:
-  generell tekst (tom måltekst, uoverensstemmelse i blanktegn, doble mellomrom,
-  double ord, måltekst identisk med kildetekst, ødelagte tegn), konsistens i innebygd kode,
-  brudd på spenningsbegrensninger, bevaring av regex-mønstre og lengdeforhold.
-  En målspråkkode er påkrevd; når en blokk ikke har noen oversettelse, gjelder bare
-  kontroll for tom måltekst.
+  Verktøyet **Quality Check** sammenligner kildeteksten i hver blokk med oversettelsen
+  til språket som er angitt med `--target-lang`, og rapporterer funnene. `--mode`
+  velger hvordan kontrollen utføres:
 
-  Uten `--provider` er kontrollene deterministiske og krever ingen legitimasjon.
-  Å sette `--provider` kjører i stedet KI-vurderte kontroller: den valgte modellen gjennomgår hver
-  oversettelse for terminologi, flyt og nøyaktighet. De regelbaserte bryterne
-  nedenfor gjelder deterministisk modus; `model` og `checks` gjelder LLM-modus.
-  Hver regelkontroll kan slås av og på uavhengig, og lengdekontrollene
-  deler modellen for lang/kort-forhold som brukes av det dedikerte lengdekontrollverktøyet.
+  - `rules` er standardvalget og kjører deterministiske kontroller lokalt. De
+    dekker tomme og identiske oversettelser, blanktegn, doble ord, innebygde
+    koder, begrensninger for tekstspenn, tegn og lengde. Når det er aktivert,
+    kontrolleres også konsistens på tvers av kjøringen.
+  - `ai` sender kildeteksten og oversettelsen for hver oversatte blokk til
+    leverandøren som er angitt med `--provider`. Leverandøren vurderer aspektene
+    i `--checks`. En ekstern leverandør krever autentiseringsinformasjon.
+    `--provider` og `--model` gjelder bare i denne modusen.
+
+  Verktøyet leser en fil som inneholder begge språkene, for eksempel XLIFF, eller
+  en kildefil med oversettelsen angitt som `--target <file>`. Funnene skrives til
+  standardutdata som en tabell, eller som en JSON-rapport med `--json`. Kjøringen
+  skriver ingen fil med mindre en fil er angitt med `-o` eller `--output-dir`.
+  Hvert funn merkes som feil eller rapportert, og kjøringen avsluttes med kode 0
+  uansett hvilke funn som er gjort. Den avsluttes med kode 4 når ingen oversettelse
+  ble sammenlignet og ingenting ble rapportert.
 parameters:
+  mode:
+    description: Hvordan oversettelsene skal kontrolleres.
+    help: |
+      `rules` kjører de deterministiske kontrollene nedenfor lokalt og gjør ingen modellkall.
+      `ai` ber en KI-leverandør gjennomgå hver oversettelse ved hjelp av `provider`,
+      `api_key`, `model` og `checks`. Innstillingene for regelkontrollene gjelder bare for `rules`.
+    values: "`rules` / `ai` (standard `rules`)"
   provider:
-    description: LLM-leverandør for KI-vurderte kontroller (utelat for regelbaserte kontroller).
+    description: KI-leverandør for gjennomgangen (`ai`-modus).
     help: |
-      Når dette er satt, kjører verktøyet som en LLM-dommer og bruker denne leverandøren i stedet for
-      de deterministiske regelkontrollene. Alternativene hentes fra leverandørregisteret. La feltet stå tomt for å kjøre de regelbaserte kontrollene uten legitimasjon.
-    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (standard: ikke angitt → regelbasert)"
-  apiKey:
-    description: API-nøkkel for LLM-leverandøren (LLM-modus).
+      Leverandøren som gjennomgår hver oversettelse når `mode` er `ai`. Alternativene
+      kommer fra leverandørregisteret. `demo` returnerer illustrerende resultater uten
+      påloggingsopplysninger. I `rules`-modus ignoreres verdien.
+    values: "en leverandør-ID (standard `anthropic`)"
+    dependsOn:
+      - property: mode
+        condition: gjelder bare når `mode` er `ai`
+  api_key:
+    description: API-nøkkel for KI-leverandøren (`ai`-modus).
     help: |
-      Legitimasjon for den valgte hostede leverandøren når `--provider` velger en.
+      Autentiseringsopplysning for en driftet tjenesteleverandør. En lagret autentiseringsopplysning (`--credential`)
+      brukes når dette feltet er tomt.
     values: "streng"
   model:
-    description: Modellnavnet som skal forespørres (LLM-modus).
+    description: Modellnavnet som skal brukes i forespørselen (`ai`-modus).
     help: |
-      Den leverandørspesifikke modellidentifikatoren for KI-vurderte kontroller. Når denne utelates,
-      brukes leverandørens standardmodell.
+      Den leverandørspesifikke modellidentifikatoren. Hvis den utelates, brukes
+      leverandørens standardmodell.
     values: "streng"
   checks:
-    description: Kvalitetsdimensjoner for LLM-dommeren (LLM-modus).
+    description: Kvalitetsdimensjoner for KI-gjennomgangen (`ai`-modus).
     help: |
-      Listen over kvalitetsdimensjoner som LLM-en evaluerer, f.eks. terminologi,
-      flyt, nøyaktighet, konsistens. Standard er terminologi, flyt, nøyaktighet.
-    values: "liste over strenger"
-  checkLeadingWhitespace:
-    description: Kontroller for avvik i ledende blanktegn mellom kilde og mål.
+      Dimensjonene leverandøren vurderer, for eksempel terminologi, flyt,
+      nøyaktighet og konsistens. Gjennomgangen markerer et funn som feil når
+      leverandøren vurderer det som en feil.
+    values: "liste over strenger (standardverdier `terminology`, `fluency`, `accuracy`)"
+  check_leading_whitespace:
+    description: Kontroller om innledende blanktegn er ulike i kilde- og målteksten.
     help: |
-      Flagger en advarsel når det ledende blanktegnet i målteksten avviker fra det
-      i kildeteksten.
+      Rapporterer et funn når blanktegnene i begynnelsen av målteksten er forskjellige fra
+      dem i kildeteksten.
+    values: "`true` / `false` (standard: `true`)"
+  check_trailing_whitespace:
+    description: Kontroller om innledende og avsluttende blanktegn er ulike i kilde- og målteksten.
+    help: |
+      Rapporterer et funn når blanktegnene på slutten av målteksten avviker fra
+      blanktegnene på slutten av kildeteksten.
+    values: "`true` / `false` (standardverdi `true`)"
+  check_empty_target:
+    description: "Marker som feil når oversettelsen er tom, men kildeteksten har innhold."
+    help: |
+      Underkjenner en blokk som har kildeinnhold og mangler måltekst eller har en tom måltekst. En
+      blokk uten oversettelse på målspråket får denne kontrollen og ingen
+      andre.
+    values: "`true` / `false` (standardverdi `true`)"
+  check_empty_source:
+    description: Rapporter en måltekst som ikke er tom når kildeteksten er tom.
+    help: |
+      Rapporterer et funn når målteksten har innhold, men kildeteksten er tom.
     values: "`true` / `false` (standard `true`)"
-  checkTrailingWhitespace:
-    description: Kontroller for avvik i etterfølgende blanktegn mellom kilde og mål.
+  check_target_same_as_source:
+    description: Rapporter en måltekst som er identisk med kildeteksten.
     help: |
-      Flaggер en advarsel når etterfølgende blanktegn i målteksten avviker fra det
-      i kildeteksten.
+      Rapporterer et funn når målteksten er lik kildeteksten og inneholder minst
+      én bokstav eller ett siffer. Blokker som bare inneholder tall, styres av
+      `target_same_as_source_with_numbers`.
+    values: "`true` / `false` (standard: `true`)"
+  target_same_as_source_with_codes:
+    description: Ta med innebygde koder når kildeteksten og målteksten sammenlignes for å se om de er identiske.
+    help: |
+      Styrer om innebygde koder tas med i sammenligningen av
+      målteksten med kildeteksten.
+    values: "`true` / `false` (standard: `true`)"
+  target_same_as_source_with_numbers:
+    description: "Ta med blokker som bare inneholder tall, i kontrollen for identisk kilde- og måltekst."
+    help: |
+      Når dette er aktivert, tas blokker som bare inneholder tall og tegnsetting, med
+      i kontrollen for identisk kilde- og måltekst. Deaktiver det for å ignorere dem, siden de
+      often med rette er identiske.
     values: "`true` / `false` (standard `true`)"
-  checkEmptyTarget:
-    description: "Advar når målet er tomt, men kilden har innhold."
+  check_double_spaces:
+    description: Se etter doble mellomrom i målteksten.
     help: |
-      Flagger en feil når en blokk har kildeinnhold men ingen (eller tom) måltekst.
-      Dette er den ene kontrollen som fortsatt gjelder når en blokk ikke har
-      noen oversettelse i det hele tatt.
+      Rapporterer et funn når målteksten inneholder to påfølgende mellomrom.
     values: "`true` / `false` (standard `true`)"
-  checkEmptySource:
-    description: "Advar når målet er ikke-tomt, men kilden er tom."
+  check_doubled_word:
+    description: Se etter ord som gjentas rett etter hverandre i målteksten.
     help: |
-      Flaggер en advarsel når målet har innhold, men kilden er tom.
+      Rapporterer et funn når samme ord forekommer to ganger på rad i målteksten,
+      med mindre ordet er oppført i `doubled_word_exceptions`.
     values: "`true` / `false` (standard `true`)"
-  checkTargetSameAsSource:
-    description: Advar når målteksten er identisk med kildeteksten.
+  doubled_word_exceptions:
+    description: Ord som kan gjentas rett etter hverandre.
     help: |
-      Flagger en advarsel når målteksten er lik kildeteksten og inneholder minst
-      én bokstav eller ett siffer. Segmenter med kun tall styres av
-      `targetSameAsSourceWithNumbers`.
-    values: "`true` / `false` (standard `true`)"
-  targetSameAsSourceWithCodes:
-    description: Inkluder inline-koder ved sammenligning av kildetekst og måltekst for identitet.
-    help: |
-      Kontrollerer om inline-koder tas med i betraktningen i sammenligningen av samme-som-kilde.
-    values: "`true` / `false` (standard `true`)"
-  targetSameAsSourceWithNumbers:
-    description: Inkluder segmenter med kun tall i sammenligningen der måltekst er lik kildetekst.
-    help: |
-      Når aktivert, inkluderes segmenter som kun inneholder tall (og tegnsetting) i kontrollen for mål-lik-kilde. Deaktiver den for å ignorere segmenter med bare tall, som ofte er identiske av legitime årsaker.
-    values: "`true` / `false` (standard `true`)"
-  checkDoubleSpaces:
-    description: Kontroller for doble mellomrom i målteksten.
-    help: |
-      Flaggер en advarsel når målet inneholder to påfølgende mellomrom.
-    values: "`true` / `false` (standard `true`)"
-  checkDoubledWord:
-    description: Kontroller for påfølgende gjentatte ord i målteksten.
-    help: |
-      Flagger en advarsel når det samme ordet forekommer to ganger på rad i målteksten,
-      med mindre ordet er oppført i `doubledWordExceptions`.
-    values: "`true` / `false` (standard `true`)"
-  doubledWordExceptions:
-    description: Ord som har lov til å gjenta seg på rad.
-    help: |
-      En semikolonseparert liste over ord som kan forekomme to ganger på rad uten å være feil
-      (for eksempel visse pronomen), slik at de ikke flagges av
-      dobbeltord-kontrollen.
+      En semikolonseparert liste over ord som kan forekomme to ganger på
+      rad (for eksempel enkelte pronomen), slik at kontrollen av doble ord godtar dem.
     values: "streng (standard `sie;vous;nous`)"
     dependsOn:
-      - property: checkDoubledWord
-        condition: konsulteres kun når kontrollen for doble ord er aktivert
-  checkTerminology:
-    description: Aktiver termkontroller.
+      - property: check_doubled_word
+        condition: brukes bare når kontrollen for doble ord er aktivert
+  check_span_constraints:
+    description: Kontroller brudd på begrensningene for tekstspenn som ikke kan slettes eller klones.
     help: |
-      Aktiverer terminologiverifisering i kontrollen. Deaktivert som standard.
-    values: "`true` / `false` (standard `false`)"
-  checkSpanConstraints:
-    description: Kontroller brudd på span-begrensninger for ikke-slettbare og ikke-klonbare elementer.
+      Markerer en blokk som feil hvis en inline-kode som ikke kan slettes, mangler i målteksten,
+      eller hvis en inline-kode som ikke kan klones, er duplisert i målteksten. Kontrollen
+      bygger på begrensningene for hver kode i kildens tekstløp.
+    values: "`true` / `false` (standardverdi `true`)"
+  check_code_difference:
+    description: Kontroller at målteksten har de samme innebygde kodene som kildeteksten.
     help: |
-      Flagger en feil når en ikke-slettbar inline-kode mangler fra målteksten, eller en ikke-klonerbar inline-kode er duplisert i målteksten, i henhold til de per-kode-begrensningene som er knyttet til kildekjøringene.
+      Rapporterer funn når inline-koder mangler i eller er ekstra i målteksten
+      sammenlignet med kildeteksten, telt etter kodetype.
     values: "`true` / `false` (standard `true`)"
-  checkCodeDifference:
-    description: Kontroller at målteksten har de samme inline-kodene som kildeteksten.
+  strict_code_order:
+    description: Rapporter koder som forekommer i en annen rekkefølge.
     help: |
-      Flaggер advarsler når inline-kode mangler i eller er ekstra i målet
-      sammenlignet med kilden, telt etter kodetype.
-    values: "`true` / `false` (standard `true`)"
-  strictCodeOrder:
-    description: Flagg forskjeller når koder vises i en annen rekkefølge.
-    help: |
-      Når aktivert, og ingen telleforskjeller ble funnet, flagges målteksten hvis inline-kodene vises i en annen rekkefølge enn i kilden.
-    values: "`true` / `false` (standard `false`)"
+      Når dette er aktivert og ingen forskjeller i antall er funnet, rapporteres målteksten
+      hvis kodene i teksten kommer i en annen rekkefølge enn i kildeteksten.
+    values: "`true` / `false` (standardverdi `false`)"
     dependsOn:
-      - property: checkCodeDifference
-        condition: rekkefølgekontroll kjøres parallelt med kontroll av kodeforskjeller
-  checkPatterns:
-    description: Bekreft at kildemønstre har forventet tilsvarende innhold i målet.
+      - property: check_code_difference
+        condition: rekkefølgen kontrolleres samtidig med kodeforskjeller
+  check_patterns:
+    description: Kontroller at mønstre i kildeteksten har forventet tilsvarende innhold i målteksten.
     help: |
-      Når aktivert, kontrolleres konfigurerte kilde/mål-regex-mønsterpar slik at
-      mønstre som finnes i kilden bevares i målet. Mønsterparene
-      leveres programmatisk.
+      Når dette er aktivert, kontrolleres konfigurerte par av regulære uttrykk for kilde- og måltekst.
+      Mønstre som finnes i kildeteksten, må være bevart i målteksten,
+      og forbudte mønstre fører til at blokken ikke består kontrollen. Selve mønsterparene
+      angis programmatisk.
     values: "`true` / `false` (standard `true`)"
-  checkCorruptedCharacters:
-    description: Kontroller for mønstre som indikerer kodingskorrupsjon.
+  check_corrupted_characters:
+    description: Marker måltekst med tegnkodingsfeil som feil.
     help: |
-      Flaggер en advarsel når målet inneholder tegn som tyder på kodingskorrupsjon (for eksempel UTF-8 feillest som ISO-8859-1, signalisert av Unicode-erstatningstegnet).
+      Markerer en blokk som feil hvis målteksten inneholder tegn på kodingsfeil: UTF-8
+      feiltolket som ISO-8859-1, Unicode-erstatningstegnet eller uvedkommende
+      kontrolltegn.
+    values: "`true` / `false` (standard: `true`)"
+  forbidden_chars:
+    description: Tegn som ikke må forekomme i målteksten.
+    help: |
+      Hvert tegn som er oppført her, fører til at en blokk underkjennes hvis målteksten inneholder tegnet.
+    values: "streng (tom som standard)"
+    examples:
+      - "`{}[]` markerer måltekst som inneholder en krøllparentes eller hakeparentes, som feil"
+  required_chars:
+    description: Tegn som må beholdes i målteksten når de finnes i kildeteksten.
+    help: |
+      Rapporterer et funn for hvert oppført tegn som finnes i kildeteksten og
+      mangler i målteksten.
+    values: "streng (tom som standard)"
+  check_charset:
+    description: Rapporter tegn i målteksten som ikke finnes i en tegnkoding.
+    help: |
+      Rapporterer et funn når målteksten inneholder et tegn som tegnkodingen
+      angitt av `charset` ikke kan representere.
+    values: "`true` / `false` (standard: `false`)"
+  charset:
+    description: Tegnkodingen som målteksten kontrolleres mot.
+    help: |
+      Et IANA-tegnsettnavn, for eksempel `ISO-8859-1` eller `US-ASCII`.
+    values: "streng (standardverdi `ISO-8859-1`)"
+    dependsOn:
+      - property: check_charset
+        condition: brukes bare når tegnsettkontrollen er aktivert
+  check_target_inconsistency:
+    description: Marker en kildetekst som feil hvis den oversettes ulikt i løpet av kjøringen.
+    help: |
+      Lar kontrollen feile for en blokk hvis kildeteksten forekommer tidligere i kjøringen
+      med en annen oversettelse, og oppgir de andre oversettelsene.
+    values: "`true` / `false` (standard `false`)"
+  check_source_inconsistency:
+    description: Underkjenn en oversettelse som deles av ulike kildetekster.
+    help: |
+      Underkjenner en blokk hvis oversettelsen forekommer tidligere i kjøringen for en annen
+      kildetekst, og oppgir de andre kildetekstene.
+    values: "`true` / `false` (standardverdi `false`)"
+  consistency_case_sensitive:
+    description: Om konsistenskontrollene skiller mellom store og små bokstaver.
+    help: |
+      Når dette er deaktivert, regnes to blokker som bare skiller seg i bruk av store
+      og små bokstaver, som like i de to konsistenskontrollene.
     values: "`true` / `false` (standard `true`)"
-  checkMaxCharLength:
-    description: Flagg måltekster som er lengre enn en prosentandel av kildenes tegntelling.
+  check_max_char_length:
+    description: Rapporter måltekster som er lengre enn en angitt prosentandel av kildetekstens tegnlengde.
     help: |
-      Aktiverer kontrollen for maksimal lengderatio, ved bruk av en lang/kort-modell: tillatt
-      prosentandel avhenger av om kilden er over eller under
-      maksimalt bruddpunkt.
-    values: "`true` / `false` (standard `true`)"
-  maxCharLengthBreak:
-    description: Antall tegn over hvilket tekst anses som lang (maks-kontroll).
+      Aktiverer kontrollen av maksimalt lengdeforhold med en modell for lang og kort tekst:
+      den tillatte prosentandelen avhenger av om kildeteksten er over eller under
+      grenseverdien for maksimum.
+    values: "`true` / `false` (standardverdi `true`)"
+  max_char_length_break:
+    description: Antall tegn som en kildetekst må overstige for å regnes som lang (maksimumskontroll).
     help: |
-      Kildetekst som er lengre enn dette behandles som lang for maksimumsratiokontrollen;
-      kortere tekst behandles som kort.
-    values: "heltall (standard `20`)"
-  maxCharLengthAbove:
-    description: Maksimalt tillatt prosentandel av kildetekstlengden for lang tekst.
+      En kildetekst som er lengre enn denne grensen, regnes som lang i kontrollen
+      for maksimalt lengdeforhold. En kortere kildetekst regnes som kort.
+    values: "heltall (standardverdi `20`)"
+  max_char_length_above:
+    description: Maksimal tillatt lengde i prosent av kildetekstens lengde for en lang kildetekst.
     help: |
-      Det største mål/kilde-forholdet som brukes når kilden er lang.
+      Det maksimale forholdet mellom måltekstens og kildetekstens lengde når kildeteksten er lang.
     values: "heltall (standard `200`)"
-  maxCharLengthBelow:
-    description: Maksimalt tillatt prosentandel av kildelengden for kort tekst.
+  max_char_length_below:
+    description: Maksimal tillatt prosentandel av kildetekstens lengde for en kort kildetekst.
     help: |
-      Det største mål/kilde-forholdet som brukes når kilden er kort.
+      Det maksimale forholdet mellom lengden på målteksten og kildeteksten når kildeteksten er kort.
     values: "heltall (standard `350`)"
-  checkMinCharLength:
-    description: Flagg mål som er kortere enn en prosentandel av kildenes tegnlengde.
+  check_min_char_length:
+    description: Rapporter måltekster som er kortere enn en angitt prosentandel av kildetekstens tegnlengde.
     help: |
-      Aktiverer kontrollen for minste lengdeforhold, ved hjelp av en lang/kort-modell: den påkrevde prosentandelen avhenger av om kilden er over eller under det minste bruddpunktet.
+      Aktiverer kontrollen av minste lengdeforhold med en modell for lang og kort
+      kildetekst. Den påkrevde prosentandelen avhenger av om kildeteksten er over
+      eller under den nedre grenseverdien.
     values: "`true` / `false` (standard `true`)"
-  minCharLengthBreak:
-    description: Antall tegn som anses som langt (min-kontroll).
+  min_char_length_break:
+    description: Tegnantallet som en kildetekst regnes som lang over (minimumskontroll).
     help: |
-      Kildetekst lengre enn dette behandles som lang for minimumforholdskontrollen; kortere tekst behandles som kort.
+      En kildetekst som er lengre enn dette, regnes som lang i kontrollen av minste lengdeforhold;
+      en kortere kildetekst regnes som kort.
     values: "heltall (standard `20`)"
-  minCharLengthAbove:
-    description: Minimum påkrevd prosentandel av kildetekstlengden for lang tekst.
+  min_char_length_above:
+    description: Minste tillatte lengde i prosent av kildetekstens lengde for en lang kildetekst.
     help: |
-      Det minste mål/kilde-forholdet som brukes når kilden er lang.
+      Det minste forholdet mellom måltekst og kildetekst som brukes når kildeteksten er lang.
     values: "heltall (standard `45`)"
-  minCharLengthBelow:
-    description: Minimum påkrevd prosentandel av kildelengden for kort tekst.
+  min_char_length_below:
+    description: Minste tillatte lengde i prosent av kildetekstens lengde for en kort kildetekst.
     help: |
-      Det minste mål/kilde-forholdet som brukes når kilden er kort.
+      Det minste forholdet mellom måltekst og kildetekst når kildeteksten er kort.
     values: "heltall (standard `30`)"
-  checkAbsoluteMaxCharLength:
-    description: Flagg målsegmenter som overskrider en absolutt tegnantallsgrense.
+  check_absolute_max_char_length:
+    description: Rapporter en oversettelse som overskrider en absolutt tegngrense.
     help: |
-      Når dette er aktivert, flagges målteksten hvis den overskrider det absolutte antallet tegn
-      angitt av `absoluteMaxCharLength`, uavhengig av kildetekstens lengde.
+      Når dette er aktivert, rapporteres måltekst som er lengre enn
+      `absolute_max_char_length` tegn, uavhengig av lengden på kildeteksten.
     values: "`true` / `false` (standard `false`)"
     dependsOn:
-      - property: absoluteMaxCharLength
-        condition: setter grensen som gjelder når denne kontrollen er aktivert
-  absoluteMaxCharLength:
-    description: Maksimalt antall tegn tillatt i et hvilket som helst målsegment.
+      - property: absolute_max_char_length
+        condition: angir grensen som brukes når denne kontrollen er aktivert
+  absolute_max_char_length:
+    description: Maksimalt tillatt antall tegn i en måltekst.
     help: |
-      Den absolutte tegngrensen som brukes av kontrollen for absolutt maksimallengde.
+      Den absolutte tegngrensen som brukes av kontrollen for absolutt maksimumslengde.
     values: "heltall (standard `255`)"
     dependsOn:
-      - property: checkAbsoluteMaxCharLength
-        condition: må være aktivert for at denne grensen skal tre i kraft
+      - property: check_absolute_max_char_length
+        condition: må være aktivert for at denne grensen skal gjelde
+  check_max_words:
+    description: Rapporter en måltekst som overskrider et fastsatt antall ord.
+    help: |
+      Når dette er aktivert, rapporteres en måltekst med flere ord enn `max_words`.
+    values: "`true` / `false` (standard `false`)"
+    dependsOn:
+      - property: max_words
+        condition: setter grensen; `0` gjør at kontrollen ikke har noen effekt
+  max_words:
+    description: Maksimalt antall ord som er tillatt i en måltekst.
+    help: |
+      Ordgrensen som brukes av kontrollen for maksimalt antall ord.
+    values: "heltall (standardverdi `0`)"
+    dependsOn:
+      - property: check_max_words
+        condition: må være aktivert for at denne grensen skal gjelde
 limitations:
-  - Lengde- og forholdskontroller sammenligner bare tegnlengder når både kilde og mål er ikke-tomme.
-  - "Regex-mønsterparene som brukes av `checkPatterns`, angis programmatisk, ikke som skjemaparametere."
-  - Krever en konfigurert målspråkkode.
+  - Lengde- og forholdskontrollene sammenligner bare antall tegn når både kildeteksten og målteksten ikke er tomme.
+  - "Parene med regulære uttrykk som `check_patterns` bruker, angis programmatisk, ikke som skjemaparametere."
+  - Krever et målspråk. Verktøyet sammenligner oversettelser på dette ene språket per kjøring.
+  - "Hvis du kjører `rules`-modus på en oversettelsesfil alene, leses hver blokk som uoversatt og rapporteres med tom måltekst. Oppgi kildefilen og angi oversettelsen med `--target`."
+  - En kjøring med `--target` kobler én kildefil med én oversettelse og avviser `-o` og `--output-dir`.
 processingNotes:
-  - Opererer på oversettbare blokker; ikke-oversettbar struktur passerer gjennom uendret.
-  - "Når en blokk ikke har noen oversettelse, gjelder bare tom-mål-kontrollen."
-  - Funn lagres på blokken som en JSON-matrise med et bestått/ikke bestått-flagg.
+  - "Behandler oversettbare blokker. Struktur som ikke er oversettbar, forblir uendret."
+  - "Når en blokk ikke har noen oversettelse til målspråket, gjelder bare kontrollen for tom måltekst."
+  - "Funn registreres på blokken som en funnannotasjon, som `kapi exec qa` skriver ut som rapport."
+  - Konsistenskontrollene sammenligner hver blokk med de foregående blokkene i samme kjøring.
 examples:
-  - title: Kun inline-kode- og blanktegnkontroller
-    description: "Fokus på bevaring av inline-kode og blanktegn, med deaktivering av lengdeforholdskontrroller."
+  - title: Bare kontroll av innebygde koder og blanktegn
+    description: "Kontroller kodebevaring og blanktegn, og slå av kontrollene av lengdeforhold."
     config: |
-      checkCodeDifference: true
-      checkLeadingWhitespace: true
-      checkTrailingWhitespace: true
-      checkMaxCharLength: false
-      checkMinCharLength: false
+      check_code_difference: true
+      check_leading_whitespace: true
+      check_trailing_whitespace: true
+      check_max_char_length: false
+      check_min_char_length: false
   - title: Håndhev en absolutt tegngrense
-    description: Flagg ethvert målsegment som er lengre enn 200 tegn.
+    description: Rapporter alle måltekster som er lengre enn 200 tegn.
     config: |
-      checkAbsoluteMaxCharLength: true
-      absoluteMaxCharLength: 200
+      check_absolute_max_char_length: true
+      absolute_max_char_length: 200
+  - title: Gjennomgå med en KI-leverandør
+    description: Be leverandøren vurdere språkflyt og nøyaktighet.
+    config: |
+      mode: ai
+      provider: anthropic
+      checks: [fluency, accuracy]

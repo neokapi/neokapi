@@ -1,31 +1,30 @@
 # Native reference doc for the built-in `srt` format.
 # Source: core/formats/srt/{reader.go,writer.go,config.go,schema.go}.
 # Mirrors Okapi's SubRip filter (okf_subrip). No configurable parameters.
-description: "Les og skriv SubRip (.srt) undertekstfiler, og trekk ut teksten fra hver cue for oversettelse."
+description: "Les og skriv undertekstfiler i SubRip-format (.srt), og trekk ut teksten i hver undertekstoppføring for oversettelse."
 overview: |
-  SubRip (`.srt`) er det linjeorienterte undertekstformatet som brukes av de fleste
-  videospillere. En fil er en sekvens av cuer, der hver består av et sekvensnummer,
-  en tidskodeperiode (`00:00:01,000 --> 00:00:04,000`) og én
-  eller flere linjer med undertekst, atskilt med en blank linje.
+  SubRip (`.srt`) er et linjebasert undertekstformat som brukes av de fleste
+  videoavspillere. En fil består av en rekke undertekstoppføringer. Hver oppføring
+  har et sekvensnummer, et tidskodeintervall (`00:00:01,000 --> 00:00:04,000`)
+  og én eller flere linjer med undertekst. Oppføringene skilles av en tom linje.
 
-  Leserens trekker ut undertekstteksten fra hver cue som en oversettbar blokk
-  og beholder sekvensnummeret og tidskoden som blokkegenskaper slik at
-  skriveren kan rekonstruere cuen. Sekvensnumre, tidskoder og
-  de blanke skillelinjene er ikke-oversettbar struktur: de
-  lagres i skjelettet og bevares uendret gjennom rundturen. Flerlinjede cuer
-  bevarer sine interne linjeskift i blokkteksten, slik at en ombrutt
-  undertekst forblir ombrutt.
+  Leseren trekker ut teksten i hver undertekstoppføring som en oversettbar blokk
+  og beholder sekvensnummeret og tidskoden som blokkegenskaper, slik at
+  skriveren kan rekonstruere oppføringen. Sekvensnumre, tidskoder og tomme
+  linjer som skiller oppføringene, er struktur som ikke skal oversettes. De lagres
+  i skjelettet og bevares uendret ved tilbakeføring. Linjeskift i undertekstoppføringer
+  med flere linjer bevares i blokkens tekst, slik at linjedelingen opprettholdes.
 limitations:
-  - "Tidskoder bevares nøyaktig slik de er, ikke justert; retiming for en lengre eller kortere oversettelse er utenfor omfanget."
-  - "SubRip-stilkoder inne i cue-tekst (for eksempel `<i>…</i>` eller `{\\an8}`) bæres som en del av blokkteksten i stedet for å bli tolket som inline-koder."
+  - Tidskoder bevares uendret og justeres ikke. Justering av tidskodene for en lengre eller kortere oversettelse støttes ikke.
+  - "SubRip-formateringstagger i undertekstoppføringer (for eksempel `<i>…</i>` eller `{\\an8}`) beholdes som en del av blokkteksten og parses ikke til innebygde koder."
 processingNotes:
-  - "Én oversettbar blokk per cue; sekvensnummeret og tidskoden følger med som blokkegenskaper (`sequence`, `timecode`)."
-  - "Når et skjeletlager er aktivt, lagres sekvensnumre, tidskoder og skilletegn som skjelettekst for byte-eksakte rundturer, inkludert de originale LF / CRLF-linjeavslutningene."
+  - "Én oversettbar blokk per undertekstoppføring. Sekvensnummeret og tidskoden følger med som blokkegenskaper (`sequence`, `timecode`)."
+  - "Når et skjelettlager er aktivt, lagres sekvensnumre, tidskoder og skilletegn som skjeletttekst. Det gir byte-identisk tilbakeføring, inkludert de opprinnelige linjeavslutningene LF / CRLF."
 examples:
   - title: Oversett undertekster
     description: |
-      SubRip krever ingen konfigurasjon. Deklarer formatet på en samling
-      for å trekke ut teksten fra hver cue; cue-nummereringen og tidskodene
+      SubRip krever ingen konfigurasjon. Angi formatet for en samling
+      for å trekke ut teksten i hver undertekstoppføring. Nummereringen og tidskodene
       bevares automatisk.
     config: |
       format:

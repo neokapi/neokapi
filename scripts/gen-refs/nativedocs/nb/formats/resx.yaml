@@ -2,31 +2,42 @@
 # Schema source: core/formats/resx/config.go (Config) + schema.go.
 # Supersedes the generic xml ResXConfig() preset (which cannot attach
 # <comment> notes); this is a first-class, byte-faithful reader/writer.
-description: Trekk ut og oppdater oversettbare strenger i Microsoft .NET RESX 2.0- og .resw-ressursfiler.
+description: Trekk ut og oppdater oversettbare strenger i ressursfiler for Microsoft .NET RESX 2.0 og .resw.
 overview: |
-  **.NET RESX**-formatet leser Microsoft ResX 2.0-ressursfiler og deres strengbaserte `.resw`-variant, standardbeholderen for tekstressurser i .NET-applikasjoner (språkkode via satellittfilnavn, f.eks. `Strings.fr.resx`).
+  Formatet **.NET RESX** leser Microsoft ResX 2.0-ressursfiler og `.resw`-varianten,
+  som bare inneholder strenger. Dette er standardformatet for oversettbare
+  ressurser i .NET-programmer. Språk og region angis i satellittfilens navn, for
+  eksempel `Strings.fr.resx`.
 
-  Streng-`<data>`-oppføringer blir til blokker: `name`-attributtet er blokknavnet, `<value>` er kilden, et søsken-`<comment>`-element blir en oversetternotat, og `xml:space="preserve"` respekteres. .NET-sammensatte-format-plassholdere som `{0}` og `{1:t}` beskyttes som inline-koder. Typede og binære `<data>`-elementer (de som har `type`/`mimetype`), `<metadata>`, `<assembly>`, navnereferanseoppføringer og `<resheader>`-standardteksten passerer gjennom urørt. Rundturer er byte-trofaste, og bare endret `<value>`-innhold skrives tilbake inn i originaldokumentet.
+  Strengoppføringer av typen `<data>` blir til oversettbare blokker: Attributtet
+  `name` er blokknavnet, `<value>` er kildeteksten, og et `<comment>`-søskenelement
+  blir en oversetternotat. `xml:space="preserve"` respekteres.
+  Plassholdere i .NETs sammensatte format, som `{0}` og `{1:t}`, beskyttes som
+  innebygde koder. Typede og binære `<data>`-oppføringer (med `type`/`mimetype`),
+  `<metadata>`, `<assembly>`, navnereferanseoppføringer og standardinnholdet i
+  `<resheader>` beholdes uendret. Ved rundtur bevares byteverdiene, og bare endret
+  `<value>`-innhold settes inn igjen i originaldokumentet.
 parameters:
-  extractComments:
-    description: Legg ved hvert oppslags <comment> som et oversetternotat.
+  extract_comments:
+    description: Legg ved hver oppførings <comment> som en oversetternotat.
     help: |
-      Når aktivert (standard), legges et strengoppslags søsken-`<comment>`-element
-      ved blokken som en oversetternotat. Deaktiver for å ignorere
+      Når dette er aktivert (standard), legges et `<comment>`-søskenelement til en
+      strengoppføring ved blokken som en oversetternotat. Deaktiver for å ignorere
       kommentarer.
     values: "`true` / `false` (standard `true`)"
-  skipNameDataReferences:
-    description: Hopp over navnereferanse-oppslag (>>navn) i data.
+  skip_name_data_references:
+    description: Hopp over dataoppføringer med navnereferanser (>>name).
     help: |
-      Når aktivert (standard), trekkes ikke ut `<data>`-oppslag hvis navn begynner med `>`
-      (fil-/ressursreferanser heller enn inline-strengverdier).
+      Når dette er aktivert (standard), trekkes ikke `<data>`-oppføringer med navn
+      som begynner med `>` ut. Disse inneholder fil- eller ressursreferanser i stedet
+      for innebygde strengverdier.
     values: "`true` / `false` (standard `true`)"
 processingNotes:
-  - "Bare streng-`<data>`-oppslag er oversettbare; typede/binære data, metadata, assembly- og resheader-oppslag passerer gjennom urørt."
-  - "`xml:space=\"preserve\"` på et oppslag angir blokken sitt bevar-blanktegn-flagg."
-  - ".NET-sammensatt-format-plassholdere (`{0}`, `{1:t}`) beskyttes som inline-koder."
+  - "Bare `<data>`-oppføringer med strenger er oversettbare. Typede og binære data samt metadata-, assembly- og resheader-oppføringer beholdes uendret."
+  - "`xml:space=\"preserve\"` på en oppføring setter blokkens flagg for bevaring av blanktegn."
+  - "Plassholdere i .NETs sammensatte format (`{0}`, `{1:t}`) beskyttes som innebygde koder."
 examples:
   - title: Ignorer kommentarer
-    description: Ikke gjør om <comment>-elementer til oversetternotater.
+    description: Ikke gjør <comment>-elementer om til oversetternotater.
     config: |
-      extractComments: false
+      extract_comments: false

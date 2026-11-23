@@ -1,25 +1,15 @@
 # Native reference doc for the built-in `unredact` tool.
 # Schema source: core/tools/unredact.go (UnredactConfig, vault path set programmatically).
-description: Gjenopprett opprinnelige verdier i sladdet innhold etter behandling.
+description: Sett originalverdiene inn igjen i sladdet innhold etter behandling.
 overview: |
-  **Unredact**-verktøyet reverserer `redact`: det gjenoppretter de opprinnelige verdiene i
-  sladdingsplassholderne på tvers av en blokks kilde- og målkjøringer, og
-  fjerner deretter hemmelighetsannoteringen i prosessen slik at ingenting sensitivt når
-  skriveren. Det er den avsluttende halvdelen av sladde → behandle → gjenopprette-syklusen, kjørt
-  etter at det beskyttede innholdet er behandlet (for eksempel oversatt).
+  Verktøyet **Unredact** reverserer `redact`: Det setter originalverdiene inn igjen i plassholderne for sladdet innhold i blokkens kilde- og måltekstsekvenser. Deretter fjerner det hemmelighetsannotasjonen i prosessen, slik at sensitivt innhold ikke når skrivekomponenten. Dette er siste del av syklusen redact → process → unredact, og kjøres etter at det beskyttede innholdet er behandlet, for eksempel oversatt.
 
-  Gjenoppretting bruker gjenopprettingsposten som ble etterlatt av `redact`. Som standard leser den
-  hemmelighetsannoteringen i prosessen på blokken; i ekstern modus leser den originaler
-  fra en sidecar-vault (brukt av `uttrekk` → `flett`-arbeidsflyten). Både en
-  ID-basert gjenoppretting (for strukturbevarende formater og inline-kode) og en
-  tekstbasert gjenoppretting (for formater som flattet en plassholder til den synlige
-  strengen ved skriving) anvendes, slik at plassholdere gjenopprettes i begge tilfeller.
-  Vault-banen leveres programmatisk av kalleren fremfor som et
-  skjemafelt, så dette verktøyet eksponerer ingen skjemaparametere.
+  Gjenopprettingen bruker registreringen som `redact` etterlot. Som standard leser verktøyet hemmelighetsannotasjonen på blokken i prosessen. I ekstern modus leser det originalverdiene fra et sidecar-hvelv, som brukes i arbeidsflyten `extract` → `merge`. Det bruker både ID-basert gjenoppretting for formater som bevarer strukturen og for innebygde koder, og tekstbasert gjenoppretting for formater som ved skriving har gjort en plassholder om til den synlige tekststrengen. Slik gjenopprettes plassholdere i begge tilfeller.
+  Kalleren oppgir banen til hvelvet programmatisk, ikke som et skjemafelt. Verktøyet har derfor ingen skjemaparametere.
 limitations:
-  - Eksponerer ingen skjemaparametere; den valgfrie sidecar-vault-banen leveres programmatisk av kallere (f.eks. uttrekk → flett).
-  - Gjenoppretter bare plassholdere registrert av en foregående `redact`-kjøring; det er ingenting å gjenopprette uten den gjenopprettingsposten.
+  - "Har ingen skjemaparametere. Kallere oppgir den valgfrie banen til sidecar-hvelvet programmatisk, for eksempel ved extract → merge."
+  - Gjenoppretter bare plassholdere som er registrert av en tidligere kjøring av `redact`. Uten denne gjenopprettingsregistreringen er det ingenting å gjenopprette.
 processingNotes:
-  - "Et transformer som gjenoppretter originaler kjøres for både kilde og mål. Det returnerer en redigeringsplan, og rammeverkets applier skriver om blokken og rebaserer overlevende kildeoverlegg på tvers av gjenopprettingen."
-  - "Leser hemmelighetsannoteringen i prosessen som standard, eller en sidecar-vault i ekstern modus."
-  - "Fjerner hemmelighetsannoteringen etter gjenoppretting, slik at sensitive originaler aldri når skriveren."
+  - En transformator som setter inn originalverdiene i både kilde- og måltekstsekvenser. Den returnerer en redigeringsplan. Deretter skriver rammeverkets applikator blokken på nytt og tilpasser gjenværende kildeoverlegg til den gjenopprettede teksten.
+  - "Leser som standard hemmelighetsannotasjonen i prosessen, eller et sidecar-hvelv i ekstern modus."
+  - "Fjerner hemmelighetsannotasjonen etter gjenoppretting, slik at sensitive originalverdier aldri når skrivekomponenten."

@@ -1,112 +1,113 @@
 # Native reference doc for the built-in `properties` format.
 # Schema source: core/formats/properties/config.go (Config) + schema.go.
 # Mirrors the Okapi okf_properties filter.
-description: "Trekk ut og sett inn igjen oversettbare verdier fra Java .properties-filer, med nøkkelfiltrering og escape-håndtering."
+description: "Hent ut og sett inn igjen oversettbare verdier fra Java .properties-filer, med nøkkelfiltrering og escape-håndtering."
 overview: |
   **Java Properties**-formatet leser `.properties`-ressurspakker,
-  trekker ut verdien av hver oppføring som en oversettbar blokk, og skriver
+  henter ut verdien av hver oppføring som en oversettbar blokk, og skriver
   oversettelsene tilbake mens nøkler, kommentarer og layout bevares. Det er
   standardformatet for oversettbare ressurser i Java-applikasjoner og
-  biblioteker.
+  -biblioteker.
 
-  Hver linje er en `key=value`- (eller `key:value`-)oppføring; kommentarlinjer begynner med
-  `#` eller `!`. Som standard trekkes alle verdier ut. Du kan begrense uttrekk
-  til oppføringer hvis nøkler samsvarer med et mønster, behandle kommentarer som oversetternotater,
-  beholde eller løse opp Java-escape-sekvenser, og styre ikke-ASCII-escapetegn i
+  Hver linje er en `key=value`- (eller `key:value`-) oppføring; kommentarlinjer begynner med
+  `#` eller `!`. Som standard hentes alle verdier ut. Du kan begrense uttrekkingen
+  til oppføringer hvis nøkler matcher et mønster, behandle kommentarer som oversetternotater,
+  beholde eller løse opp Java-escape-sekvenser, og styre ikke-ASCII-escapingen i
   utdataene.
 parameters:
   separator:
     description: Skilletegn mellom nøkkel og verdi.
     help: |
       Tegnet som skiller en nøkkel fra verdien, vanligvis `=` eller `:`.
-      Blanktegn er tillatt rundt separatoren i henhold til properties-formatet.
-    values: Enkelttegn (standard `=`)
-  useKeyCondition:
-    description: Aktiver nøkkelbasert uttrekksfiltrering.
+      Whitespace er tillatt rundt separatoren i henhold til properties-formatet.
+    values: Enkelt tegn (standard `=`)
+  use_key_condition:
+    description: Aktiver nøkkelbasert filtrering av uttrekk.
     help: |
-      Når dette er aktivert, filtreres oppføringer for uttrekk basert på det
-      regulære uttrykket `keyCondition` og retningen `extractOnlyMatchingKey`.
-      Når det er deaktivert (standard), trekkes alle oppføringer ut.
+      Når dette er aktivert, filtreres oppføringer for uttrekking basert på
+      det regulære uttrykket `key_condition` og retningen `extract_only_matching_key`.
+      Når det er deaktivert (standard), hentes alle oppføringer ut.
     values: "`true` / `false` (standard `false`)"
-  keyCondition:
-    description: Regex testet mot egenskapsnøkler.
+  key_condition:
+    description: Regex testet mot property-nøkler.
     help: |
-      Et regulært uttrykk som matches mot oppføringsnøkler. Kombinert med
-      `extractOnlyMatchingKey` for å avgjøre hvilke oppføringer som trekkes ut. Konsulteres bare
-      når `useKeyCondition` er aktivert.
+      Et regulært uttrykk som matches mot oppføringsnøkler. Kombineres med
+      `extract_only_matching_key` for å avgjøre hvilke oppføringer som hentes ut. Brukes
+      bare når `use_key_condition` er aktivert.
     values: "Regulært uttrykk (standard `.*text.*`)"
     dependsOn:
-      - property: useKeyCondition
-        condition: konsulteres bare når nøkkelfiltrering er aktivert
+      - property: use_key_condition
+        condition: brukes bare når nøkkelfiltrering er aktivert
     examples:
-      - "`.*text.*` samsvarer med nøkler som inneholder delstrengen `text`"
-  extractOnlyMatchingKey:
-    description: Retningen til nøkkelfilteret.
+      - "`.*text.*` matcher nøkler som inneholder delstrengen `text`"
+  extract_only_matching_key:
+    description: Retning for nøkkelfilteret.
     help: |
-      Når aktivert (standard), trekkes bare oppføringer hvis nøkler matcher `keyCondition`
-      ut. Når deaktivert, ekskluderes samsvarende nøkler og alle andre
-      trekkes ut.
+      Når dette er aktivert (standard), hentes bare oppføringer hvis nøkler matcher `key_condition`
+      ut. Når det er deaktivert, utelates matchende nøkler og alle andre
+      hentes ut.
     values: "`true` / `false` (standard `true`)"
     dependsOn:
-      - property: useKeyCondition
-        condition: konsulteres bare når nøkkelfiltrering er aktivert
-  extraComments:
+      - property: use_key_condition
+        condition: brukes bare når nøkkelfiltrering er aktivert
+  extra_comments:
     description: Gjenkjenn ekstra kommentarmarkører.
     help: |
-      Når dette er aktivert, gjenkjennes kommentstilene semikolon (`;`) og dobbel skråstrek (`//`)
+      Når aktivert, gjenkjennes kommentstilene semikolon (`;`) og dobbel skråstrek (`//`)
       i tillegg til standardmarkørene `#` og `!`.
     values: "`true` / `false` (standard `false`)"
-  commentsAreNotes:
+  comments_are_notes:
     description: Behandle kommentarer som oversetternotater.
     help: |
-      Når dette er aktivert (standard), knyttes en kommentar som et oversetternotat
+      Når dette er aktivert (standard), legges en kommentar ved som et oversetternotat
       til oppføringen som følger etter den. Deaktiver det for å beholde kommentarer utelukkende som
-      non-oversettbart skjelett.
+      ikke-oversettbart skjelett.
     values: "`true` / `false` (standard `true`)"
-  useJavaEscapes:
-    description: Behold Java-escape-sekvenser i trukket ut tekst.
+  use_java_escapes:
+    description: Behold Java-escape-sekvenser i ekstrahert tekst.
     help: |
-      Når dette er aktivert, beholdes Java-property escape-sekvenser (`\:`, `\=`, `\#`, `\!`)
-      verbatim i den uttrukne teksten i stedet for å bli oversatt til
-      sine bokstavelige tegn. Som standard blir de oversatt.
+      Når dette er aktivert, beholdes Java-property-escape-sekvenser (`\:`, `\=`, `\#`, `\!`)
+      verbatim i den uttrukne teksten i stedet for å bli løst opp til
+      sine literale tegn. Som standard løses de opp.
     values: "`true` / `false` (standard `false`)"
-  escapeExtendedChars:
+  escape_extended_chars:
     description: Escape ikke-ASCII-tegn i utdata.
     help: |
-      Når dette er aktivert (standard), skrives ikke-ASCII-tegn ved hjelp av
-      `\uXXXX`-notasjon, i tråd med den historisk ASCII-begrensede `.properties`-
-      kodingen. Deaktiver det for å sende ut tegn bokstavelig (for UTF-8-pakker).
+      Når dette er aktivert (standard), skrives ikke-ASCII-tegn med
+      `\uXXXX`-notasjon, slik at filen leses korrekt som ISO-8859-1, som
+      er kodingen Java's `Properties.load` forutsetter. Deaktiver det for å sende tegn
+      direkte (for UTF-8-pakker).
     values: "`true` / `false` (standard `true`)"
-  useCodeFinder:
-    description: Aktiver regex-basert inline-kode-gjenkjenning.
+  use_code_finder:
+    description: Aktiver regex-basert deteksjon av innebygd kode.
     help: |
-      Aktiverer regex-basert gjenkjenning av inline-koder innenfor egenskapsverdier.
-      Mønstrene oppgis via `codeFinderRules`.
+      Aktiverer regex-basert gjenkjenning av innebygde koder i property-verdier.
+      Mønstrene angis via `code_finder_rules`.
     values: "`true` / `false` (standard `false`)"
-  codeFinderRules:
-    description: Regex-mønstre som matcher inline-koder innenfor verdier.
+  code_finder_rules:
+    description: Regex-mønstre som matcher innebygd kode i verdier.
     help: |
-      En matrise av regulære uttrykk; tekst som samsvarer med noen av dem, behandles
-      som inline-kode (for eksempel et `{0}`-stil meldingsformat-argument)
-      fremfor oversettbare ord. Brukes kun når `useCodeFinder` er
+      En rekke regulære uttrykk; tekst som matcher ett av dem, behandles
+      som innebygd kode (for eksempel et `{0}`-stilig meldingsformatargument)
+      og ikke som oversettbare ord. Brukes bare når `use_code_finder` er
       aktiviert.
-    values: Matrise av regulære uttrykk (standard tom)
+    values: Array med regulære uttrykk (standard tom)
     dependsOn:
-      - property: useCodeFinder
+      - property: use_code_finder
         condition: må være aktivert for at disse mønstrene skal gjelde
 limitations:
-  - Nøkkelfilteret er et enkelt regex som brukes på hver nøkkel; det finnes ingen per-mønster-ruting av verdier til forskjellige behandlere.
+  - Nøkkelfilteret er ett enkelt regulært uttrykk som brukes på hver nøkkel; det finnes ingen per-mønster-ruting av verdier til ulike behandlere.
 processingNotes:
   - "Verdien til hver oppføring blir en oversettbar blokk; nøkler, skilletegn og kommentarer utgjør det ikke-oversettbare skjelettet."
-  - "Flerlinjeverdier som fortsetter med en avsluttende omvendt skråstrek, slås sammen i henhold til properties-formatet."
+  - "Flerlinjeverdier som fortsettes med omvendt skråstrek på slutten, slås sammen i henhold til properties-formatet."
 examples:
   - title: Oversett bare etikettnøkler
-    description: Trekk kun ut oppføringer hvis nøkler inneholder «label».
+    description: Trekk ut bare oppføringer der nøklene inneholder «label».
     config: |
-      useKeyCondition: true
-      keyCondition: ".*label.*"
-      extractOnlyMatchingKey: true
+      use_key_condition: true
+      key_condition: ".*label.*"
+      extract_only_matching_key: true
   - title: UTF-8-utdata
-    description: Send ut tegn bokstavelig i stedet for \uXXXX-escape-sekvenser.
+    description: Send tegn direkte i stedet for \uXXXX-escape-sekvenser.
     config: |
-      escapeExtendedChars: false
+      escape_extended_chars: false

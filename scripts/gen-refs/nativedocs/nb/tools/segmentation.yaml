@@ -1,74 +1,124 @@
 # Native reference doc for the built-in `segmentation` tool.
-# Schema source: core/tools/segmentation.go (SegmentationConfig).
-description: Del blokkens tekst opp i segmenter på setningsnivå ved hjelp av SRX-stilregler.
+# Schema source: core/tools/segmentation.go (segmentationGroup: SegmentationConfig
+# plus each engine's own parameters, core/segment/srx Params and
+# core/ai/tools/segment_llm.go LLMParams).
+description: Marker setningsgrenser eller grenser mellom tekstdeler i hver blokk som et segmenteringsoverlegg.
 overview: |
-  **Segmentering**-verktøyet deler en blokks tekst opp i segmenter på setningsnivå.
-  Segmentering bestemmer oversettelsesenheten og grunnlaget for oversettelsesminne-treff,
-  så konsekvent segmentering er viktig for gjenbruk og gjennomgang.
-  Som standard segmenterer verktøyet kildetekst ved hjelp av innebygde SRX-stilregler som
-  håndterer vanlige setningsgrenser og forkortelser; regler kan også lastes inn
-  fra en SRX-fil.
+  Verktøyet **Segmentering** markerer setnings- eller tekstbolkgrenser i hver
+  blokk. Det registrerer grensene i et separat overlegg og lar blokkens tekstsekvenser
+  være uendret. Når du fjerner overlegget, gjenopprettes den usegmenterte blokken. `--engine`
+  velger segmenteringsmotoren:
 
-  Antall segmenter som produseres, registreres på hver blokk. Allerede segmentert
-  tekst berøres ikke med mindre resegmentering er forespurt. Måltekst kan
-  segmenteres uavhengig, med sin egen regelfil.
+  - `srx` er standardvalget. Motoren finner setningsgrenser med innebygde regler og krever
+    ingen konfigurasjon. `rules_path` laster inn en SRX 2.0-regelfil i stedet.
+  - `uax29` bruker Unicodes standardregler for setningsgrenser, uten
+    språkspesifikke unntak.
+  - `llm` ber en KI-leverandør om å dele teksten i meningsbaserte bolker i stedet for setninger.
+
+  Programtillegg kan registrere flere motorer, som vises som alternativer. Tospråklige
+  formater skriver setningslaget som segmenter. En blokk som allerede har et
+  lag, beholder det med mindre `overwrite_segmentation` er satt.
 parameters:
-  segmentSource:
+  engine:
+    description: Segmenteringsmotoren som skal kjøres.
+    help: |
+      `srx` og `uax29` skriver setningslaget. `llm` skriver laget `llm-chunk`.
+      Alternativene hentes fra registeret over segmenteringsmotorer.
+    values: "`srx` / `uax29` / `llm` (standard: `srx`)"
+  layer:
+    description: Navnet på overlegglaget som skal skrives.
+    help: |
+      Når feltet er tomt, brukes motorens eget lag: setningslaget for `srx`
+      og `uax29`, `llm-chunk` for `llm`. Et navngitt lag ligger ved siden av de andre.
+    values: "streng (tom som standard)"
+  segment_source:
     description: Segmenter kildeteksten.
     help: |
-      Når aktivert, deles kildeteksten inn i segmenter ved hjelp av kildereglene.
-      Hvis verken kilde- eller målsegmentering er aktivert, brukes
-      kildesegmentering som standard.
+      Når dette er aktivert, segmenteres kildeteksten i hver blokk. Hvis verken kilde- eller
+      målsegmentering er aktivert, segmenteres kildeteksten.
     values: "`true` / `false` (standard `true`)"
-  segmentTarget:
-    description: Segmenter eksisterende måltekst.
+  segment_target:
+    description: Segmenter den eksisterende målteksten.
     help: |
-      Når aktivert, deles eksisterende måltekst for den konfigurerte språkkoden
-      inn i segmenter ved hjelp av målreglene.
+      Når dette er aktivert, segmenteres oversettelsen på språket som er angitt med `--target-lang`,
+      med samme motor. SRX-regler er knyttet til språk, så hver
+      side får reglene for sitt språk.
+    values: "`true` / `false` (standard: `false`)"
+  overwrite_segmentation:
+    description: "Segmenter blokker som allerede har laget, på nytt."
+    help: |
+      Som standard beholder en blokk laget hvis det allerede finnes. Aktiver dette for å
+      erstatte laget.
+    values: "`true` / `false` (standard: `false`)"
+  treat_isolated_codes_as_whitespace:
+    description: Behandle isolerte innebygde koder som blanktegn under segmentering.
+    help: |
+      Når dette er aktivert, behandles en isolert innebygd kode som blanktegn ved
+      identifisering av segmentgrenser.
     values: "`true` / `false` (standard `false`)"
-  sourceSrxPath:
-    description: Bane til en SRX-regelfil for kilden.
+  trim_leading_whitespace:
+    description: Utelat innledende blanktegn fra hvert segment.
     help: |
-      Sti til en SRX-segmenteringsregelfil som brukes for kildeteksten. Når
-      feltet er tomt, brukes de innebygde standardreglene.
+      Når dette er aktivert, faller blanktegn i starten av et segment utenfor segmentets område.
+    values: "`true` / `false` (standard: `true`)"
+  trim_trailing_whitespace:
+    description: Utelat etterfølgende blanktegn fra hvert segment.
+    help: |
+      Når dette er aktivert, faller blanktegn på slutten av et segment utenfor segmentets omfang.
+    values: "`true` / `false` (standard: `true`)"
+  renumber_codes:
+    description: Nummerer ID-er for innebygde koder på nytt innenfor hvert segment i tospråklig utdata.
+    help: |
+      Gjelder når et tospråklig format skriver ut segmentene: ID-ene til innebygde koder
+      nummereres på nytt fra 1 i hvert segment. Selve overlegget lar
+      tekstsekvensene være uendret.
+    values: "`true` / `false` (standard `false`)"
+  rules_path:
+    description: Sti til en SRX 2.0-regelfil (motoren `srx`).
+    help: |
+      Erstatter de innebygde reglene. Én fil brukes for både kilde og mål, siden SRX-regler
+      er knyttet til språk.
     values: "filbane"
-  targetSrxPath:
-    description: Bane til en SRX-regelfil for målet.
+  provider:
+    description: KI-leverandør for oppdeling i tekstbiter (`llm`-motoren).
     help: |
-      Sti til en SRX-segmenteringsregelfil som brukes for målteksten. Når
-      feltet er tomt, brukes de innebygde standardreglene.
-    values: "filbane"
-  overwriteSegmentation:
-    description: Resegmenter allerede segmentert tekst.
+      Leverandøren som returnerer tekstdelene. Hvis feltet er tomt, brukes `anthropic`.
+    values: "en leverandør-ID"
+  model:
+    description: Modellnavn som skal brukes i forespørselen (`llm`-motoren).
     help: |
-      Som standard forblir tekst som allerede har mer enn ett segment uendret.
-      Aktiver dette for å forkaste den eksisterende segmenteringen og segmentere på nytt.
-    values: "`true` / `false` (standard `false`)"
-  treatIsolatedCodesAsWhitespace:
-    description: Behandle isolerte inline-koder som blanktegn under segmentering.
+      Den leverandørspesifikke modellidentifikatoren. Hvis den utelates, brukes
+      leverandørens standardmodell.
+    values: "streng"
+  credential:
+    description: Navn på lagret legitimasjon (`llm`-motoren).
     help: |
-      Når dette er aktivert, behandles en isolert inline-kode som blanktegn ved
-      fastsettelse av segmentgrenser.
-    values: "`true` / `false` (standard `false`)"
-  renumberCodes:
-    description: Omnummerer inline-kode-ID-er innenfor hvert segment.
+      Navnet på en legitimasjon som er lagret med `kapi credentials add`.
+    values: "tekststreng"
+  instruction:
+    description: Veiledning for inndeling i bolker (`llm`-motoren).
     help: |
-      Når dette er aktivert, renummereres inline-kode-ID-er slik at de starter på 1 i hvert
-      resulterende segment.
-    values: "`true` / `false` (standard `false`)"
+      Veiledning i fritekst som legges til forespørselen om oppdeling.
+    values: "streng"
+  max_chunk_runes:
+    description: Myk øvre grense for bolkstørrelse i tegn (`llm`-motoren).
+    help: |
+      `0` overlater størrelsen til modellen.
+    values: "heltall (standardverdi `0`)"
 limitations:
-  - Det innebygde regelsettet er rettet mot vanlige setningsgrenser i latinskriftspråk; ikke-latinske skriftsystemer kan trenge en egendefinert SRX-fil.
+  - Det innebygde regelsettet er laget for vanlige setningsgrenser i latinsk skrift. Andre skriftsystemer kan kreve en egendefinert SRX-fil.
+  - Motoren `llm` kaller en driftet leverandør med mindre du velger en lokal leverandør. En driftet leverandør krever tilgangsopplysninger.
 processingNotes:
-  - Opererer kun på oversettbare blokker; ikke-oversettbare blokker passerer uendret gjennom.
-  - Det resulterende segmentantallet skrives til en blokk-egenskap.
+  - Behandler bare oversettbare blokker. Ikke-oversettbare blokker forblir uendret.
+  - "Når kildeteksten skrives til setningslaget, registreres antall segmenter i blokkegenskapen `segment-count`."
 examples:
-  - title: Segmenter kildetekst med standardregler
-    description: Del kilde opp i setninger ved hjelp av de innebygde reglene.
+  - title: Segmenter kildeteksten med standardreglene
+    description: Marker setningsgrenser ved hjelp av de innebygde reglene.
     config: |
-      segmentSource: true
-  - title: Resegmenter med en egendefinert SRX-fil
+      segment_source: true
+  - title: Segmenter på nytt med en egendefinert SRX-fil
     description: Erstatt eksisterende segmentering med prosjektspesifikke regler.
     config: |
-      segmentSource: true
-      overwriteSegmentation: true
-      sourceSrxPath: ./rules/segmentation.srx
+      engine: srx
+      overwrite_segmentation: true
+      rules_path: ./rules/segmentation.srx

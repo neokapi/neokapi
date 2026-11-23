@@ -1,75 +1,104 @@
 # Native reference doc for the built-in `external-command` tool.
 # Schema source: core/tools/externalcommand.go (ExternalCommandConfig).
-description: Kjør et eksternt kommandolinjeprogramm på blokkens tekst og bruk programmets stdout som resultatet.
+description: "Kjør et eksternt kommandolinjeprogram på blokkens tekst, og bruk programmets standard utdata som resultat."
 overview: |
-  **Verktøyet External Command** sender teksten i hver blokk gjennom et eksternt kommandolinjeverktøy og bruker programmets standardutdata som ny tekst. Det lar en pipeline gjenbruke et eksisterende CLI-filter – en tilpasset normaliserer, en stavelsesretter, en translitterator – uten å skrive et eget verktøy.
+  Verktøyet **External Command** sender teksten i hver blokk gjennom et eksternt
+  kommandolinjeprogram og bruker programmets standardutdata som ny tekst. Du kan
+  gjenbruke et eksisterende kommandolinjefilter i en pipeline, for eksempel et
+  egendefinert normaliseringsfilter, en stavefeilretter eller et
+  translittereringsverktøy, uten å skrive et eget verktøy.
 
-  Tekst kan sendes til kommandoen via standardinndata eller settes inn i argumentlisten via plassholderne `${source}` og `${target}`. En kommando er påkrevd, og en målspråkkode er påkrevd når verktøyet brukes på målteksten. Hver kjøring har en tidsgrense; avslutningskoden registreres på blokken, og en verdi ulik null lar teksten være uendret og registrerer feilen.
+  Teksten kan sendes til kommandoens standardinngang eller settes inn i
+  argumentlisten via plassholderne `${source}` og `${target}`. En kommando er
+  påkrevd. En målspråkvariant er også påkrevd når verktøyet brukes på målteksten.
+  Hvert kall har en tidsfrist. Avslutningskoden registreres på blokken. Hvis koden
+  ikke er null, forblir teksten uendret, og feilen registreres.
 
-  **Dette verktøyet kjører kode som oppskriften velger, og er derfor sperret.** Det tilhører exec-klassen: et prosjekt som navngir det i en flyt, kjører kommandoer med dine rettigheter og ditt miljø, og en oppskrift er bundet av å gå inn i en katalog. kapi spør derfor én gang per prosjekt, før noe annet skjer med det, og husker svaret; en uovervåket kjøring uten noen å spørre avslår i stedet for å anta. `KAPI_TRUST_EXEC=1` gir tillatelse der pipeline-forfatteren bestemmer det, ikke i repositoriet som behandles. Den samme klassifiseringen holder dette verktøyet borte fra agentflaten, fra motor-API-et og fra enhver oppskrift som ankommer i en `.kpz`-fil. Se [E-06](/contribute/architecture/engine/e-06-execution-trust).
+  **Dette verktøyet kjører kode som oppskriften velger, og er derfor tilgangsbegrenset.**
+  Det er i exec-klassen. Et prosjekt som angir verktøyet i en flyt, kjører
+  kommandoer med dine rettigheter og ditt miljø. En oppskrift bindes når du går
+  inn i en katalog. kapi spør derfor én gang per prosjekt, før noe annet skjer
+  med prosjektet, og husker svaret. En ubetjent kjøring avslås hvis ingen kan
+  svare, i stedet for å anta et svar. `KAPI_TRUST_EXEC=1` gir tillatelse der
+  pipeline-forfatteren bestemmer, i stedet for at tillatelsen styres av
+  repositoryet som behandles. Den samme klassifiseringen gjør at verktøyet ikke
+  er tilgjengelig via agentgrensesnittet, motor-API-et eller oppskrifter som
+  kommer i en `.kpz`. Se
+  [E-06](/contribute/architecture/engine/e-06-execution-trust).
+
+  **En sladdingspolicy gjelder.** Programmet kan sende det leser, hvor som helst.
+  I et prosjekt som angir en [sladdingspolicy](/framework/redaction), leser
+  programmet derfor hver tilbakeholdt verdi som en plassholder, for eksempel
+  `[REDACTED:Person]`. kapi setter originalverdien tilbake i programmets utdata.
+  En flyt som kjører dette verktøyet, trenger et `redact`-steg før verktøyet.
+  Hvis utdataene utelater, endrer, gjentar eller legger til en plassholder,
+  forblir blokken uendret. Det registreres et `external-command.redaction-placeholder`-funn
+  som angir blokken og plassholderen og markerer kontrollen som mislykket.
+  `kapi exec` og `kapi up` skriver ut funnene og avslutter med kode 3, koden som
+  brukes ved en mislykket kontroll.
 parameters:
   command:
     description: Den kjørbare filen som skal kjøres.
     help: |
-      Sti eller navn på kommandolinjeprogrammet som skal kjøres for hver blokk. Dets
-      standardutdata erstatter blokkteksten.
+      Sti til eller navn på kommandolinjeprogrammet som skal kjøres for hver blokk.
+      Programmets standard utdata erstatter blokkens tekst.
     values: "streng (påkrevd)"
   args:
     description: Argumenter som sendes til kommandoen.
     help: |
       Argumentlisten for kommandoen. Bruk `${source}` og `${target}` som
-      plassholdere; begge erstattes med teksten som behandles.
+      plassholdere. Begge erstattes med teksten som behandles.
     values: "liste med strenger"
-  applySource:
+  apply_source:
     description: Behandle kildetekst.
     help: "Når dette er aktivert, sendes kildeteksten gjennom kommandoen."
-    values: "`true` / `false` (standard `false`)"
-  applyTarget:
+    values: "`true` / `false` (standard: `false`)"
+  apply_target:
     description: Behandle måltekst.
     help: |
-      Når dette er aktivert, sendes målteksten gjennom kommandoen for den
-      konfigurerte språkkoden. Bare eksisterende mål berøres.
-    values: "`true` / `false` (standard `true`)"
+      Når dette er aktivert, sendes målteksten for den konfigurerte
+      språkvarianten gjennom kommandoen. Bare eksisterende måltekster behandles.
+    values: "`true` / `false` (standard: `true`)"
     dependsOn:
-      - property: targetLocale
-        condition: påkrevd når applyTarget er aktivert
-  targetLocale:
-    description: Målspråkkode for behandling.
-    help: Språkkoden hvis måltekst behandles. Påkrevd når `applyTarget` er aktivert.
-    values: "BCP-47 språkkode"
+      - property: target_locale
+        condition: påkrevd når apply_target er aktivert
+  target_locale:
+    description: Målspråkvariant for behandlingen.
+    help: Språkvarianten som målteksten behandles for. Påkrevd når `apply_target` er aktivert.
+    values: "Språkvariant i BCP-47-format"
     dependsOn:
-      - property: applyTarget
+      - property: apply_target
         condition: må være aktivert for at dette skal tre i kraft
-  sendAsStdin:
-    description: Send teksten på standardinndata i stedet for som et argument.
+  send_as_stdin:
+    description: Send teksten til standardinngangen i stedet for som argument.
     help: |
-      Når aktivert, skrives teksten til kommandoens standardinndata. Når
-      deaktivert, når teksten kommandoen bare gjennom `${source}` /
-      `${target}` argument-plassholderene.
-    values: "`true` / `false` (standard `true`)"
+      Når dette er aktivert, skrives teksten til kommandoens standard inndata. Når
+      det er deaktivert, sendes teksten bare til kommandoen via argumentplassholderne
+      `${source}` / `${target}`.
+    values: "`true` / `false` (standard: `true`)"
   timeout:
-    description: Tidsavbrudd per kjøring i sekunder.
+    description: Tidsavbrudd i sekunder per kjøring.
     help: |
-      Maksimal ventetid for at kommandoen skal fullføres for én enkelt blokk. Kommandoen
+      Maksimal ventetid på at kommandoen skal fullføres for én blokk. Kommandoen
       avbrytes når tidsfristen utløper.
-    values: "heltall ≥ 1 (standard `30`)"
+    values: "heltall ≥ 1 (standard: `30`)"
 limitations:
-  - En ikke-null avslutnignskode lar teksten være uendret og registrerer avslutnignskoden og feilmeldingen som blokkegenskaper.
-  - "Kommandoen kjøres én gang per blokk per omfang (kilde og/eller mål), noe som kan være tregt for store dokumenter."
+  - "En avslutningskode som ikke er null, lar teksten stå uendret og lagrer avslutningskoden og feilmeldingen som egenskaper på blokken."
+  - Kommandoen kjøres én gang per blokk for hvert valgt tekstområde (kilde og/eller mål). Dette kan ta lang tid for store dokumenter.
 processingNotes:
-  - Opererer kun på oversettbare blokker; ikke-oversettbare blokker passerer gjennom uendret.
-  - Etterfølgende linjeskift fjernes fra det innhentede resultatet.
+  - "Behandler bare oversettbare blokker. Blokker som ikke kan oversettes, passerer uendret."
+  - Avsluttende linjeskift fjernes fra de innsamlede utdataene.
 examples:
-  - title: Send måltekst gjennom en formateringsmotor
-    description: Kjør et eksternt program på målet og send tekst på stdin.
+  - title: Send målteksten gjennom et formateringsprogram
+    description: "Kjør et eksternt program på målteksten, og send teksten via stdin."
     config: |
       command: my-formatter
-      applyTarget: true
-      targetLocale: fr
-  - title: Send tekst som et argument
-    description: Sett inn teksten i argumentlisten i stedet for stdin.
+      apply_target: true
+      target_locale: fr
+  - title: Send tekst som argument
+    description: Sett inn teksten i argumentlisten i stedet for å sende den via standard inndata.
     config: |
       command: transform
       args: ["--text", "${source}"]
-      applySource: true
-      sendAsStdin: false
+      apply_source: true
+      send_as_stdin: false

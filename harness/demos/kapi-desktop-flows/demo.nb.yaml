@@ -1,0 +1,52 @@
+id: kapi-desktop-flows
+title: Rediger en flyt
+subtitle: "Legg til et steg, endre rekkefølgen, og sett flyten som prosjektets standard."
+kind: use-case
+publishAs: kapi-desktop-flows
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read: uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - Steps
+  - Step order
+  - The default flow
+outro:
+  line: "Klikk på Bring up to date, så kjører appen flyten din."
+
+# Cue word the walk waits for: reorder (drag).
+narration:
+  - id: title
+    kind: title
+    text: >-
+      En flyt er listen over steg som kjører når du klikker på Bring up to date. Du skal legge til et steg som gjenbruker tidligere oversettelser.
+  - id: open-flow
+    kind: desktop
+    beat: open-flow
+    caption: "Oversett, deretter sjekk."
+    text: >-
+      Åpne fanen Flows i Project Settings, og klikk på translate-and-qa. Den har to steg: Translate, deretter Quality Check.
+  - id: add-step
+    kind: desktop
+    beat: add-step
+    caption: Legg til Recycle-steget.
+    text: >-
+      Klikk på Add step og søk etter recycle. Recycle gjenbruker oversettelser du allerede har, slik at bare ny tekst sendes til leverandøren.
+  - id: reorder
+    kind: desktop
+    beat: reorder
+    caption: Recycle kjører først.
+    text: >-
+      Recycle må kjøre før Translate. Dra det til toppen.
+  - id: default
+    kind: desktop
+    beat: default
+    highlight: { selector: '[data-testid="flow-default-badge"]' }
+    caption: Bruk denne flyten som standard.
+    text: >-
+      Slå på Default flow. Bring up to date bruker nå denne flyten.
+  - id: outro
+    kind: outro
+    text: >-
+      Legg til stegene du trenger. Bring up to date kjører dem i rekkefølge.

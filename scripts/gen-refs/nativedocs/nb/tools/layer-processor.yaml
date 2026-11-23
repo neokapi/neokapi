@@ -1,13 +1,13 @@
 # Native reference doc for the built-in `layer-processor` tool.
 # Schema source: core/tools/layerprocessor.go (LayerProcessorConfig, programmatic only).
-description: Bruk formatspesifikke verktøykjeder på innebygde underordnede lag i et dokument.
+description: Kjør formatspesifikke verktøykjeder på innebygde underordnede lag i et dokument.
 overview: |
-  **Layer Processor** fanger opp innebygde underlag (innhold i ett format nestet inne i et annet, for eksempel HTML inne i en JSON-verdi) og kjører en formatspesifikk verktøykjede over delene av hvert underlag før de sendes videre. Den tilordner et underlags formatnavn til kjeden av verktøy som skal behandle innholdet i det underlaget.
+  **Layer Processor** fanger opp innebygde underordnede lag (innhold i ett format nestet inne i et annet, for eksempel HTML inne i en JSON-verdi) og kjører en formatspesifikk verktøykjede over delene av hvert underordnet lag før de sendes videre. Den tilordner et underordnet lags formatnavn til kjeden av verktøy som skal behandle innholdet i det laget.
 
-  Hvis et underlags format ikke har noen konfigurert kjede, sendes delene uendret videre; deler som ikke tilhører et underlag sendes alltid uendret videre. Dette verktøyet konfigureres programmatisk: tilordningen mellom pipeline og format angis i Go-kode, og det eksponerer derfor ingen deklarative parametere i flyt- eller CLI-konfigurasjon.
+  Når et underordnet lags format ikke har en konfigurert kjede, passerer delene gjennom uendret; deler som ikke tilhører underordnede lag passerer alltid gjennom. Dette verktøyet konfigureres programmatisk: tilordningen mellom pipeline og format angis i Go-kode, og det eksponerer derfor ingen deklarative parametere i flyt- eller CLI-konfigurasjon.
 limitations:
-  - Konfigureres kun programmatisk; format-til-pipeline-tilordningen kan ikke uttrykkes via flyt- eller CLI-konfigurasjon.
-  - Bare innebygde underordnede lag fanges opp; lag på øverste nivå og deres deler passerer gjennom.
+  - Konfigureres kun programmatisk; tilordningen mellom format og pipeline kan ikke uttrykkes via flyt- eller CLI-konfigurasjon.
+  - Bare innebygde underordnede lag fanges opp; lag på øverste nivå og tilhørende deler passerer gjennom.
 processingNotes:
-  - "Deler av et underordnet lag bufres til laget avsluttes, deretter behandles de gjennom den samsvarende verktøykjeden og sendes ut på nytt i rekkefølge."
-  - "Underordnede lag hvis format ikke har noen konfigurert pipeline, passerer gjennom uendret."
+  - "Deler av et underordnet lag bufres til laget avsluttes, behandles deretter gjennom den tilsvarende verktøykjeden og sendes videre i riktig rekkefølge."
+  - Underordnede lag hvis format ikke har en konfigurert pipeline passerer gjennom uendret.

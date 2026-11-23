@@ -1,25 +1,38 @@
 # Native reference doc for the built-in `ts` format.
 # Source: core/formats/ts/{reader.go,writer.go,config.go,spec.yaml}.
 # Mirrors Okapi's TS filter (okf_ts). No configurable parameters today.
-description: "Les og skriv Qt Linguist TS (.ts)-filer, det tospråklige XML-formatet som brukes av Qts lupdate og lrelease."
+description: "Les og skriv Qt Linguist TS-filer (.ts), det tospråklige XML-formatet som brukes av Qt-verktøyene lupdate og lrelease."
 overview: |
-  Qt Linguist TS er det tospråklige XML-formatet som brukes av Qts `lupdate`- og `lrelease`-verktøy til å lagre UI-oversettelser. Et `<TS>`-dokument grupperer ett eller flere `<context>`-elementer; hvert kontekstnivå grupperer `<message>`-oppføringer med en `<source>` og en `<translation>`. Oversettelsesstatus er kodet i `type`-attributtet på `<translation>`-elementet: ingen type betyr godkjent, `unfinished` betyr til gjennomgang, og `obsolete` betyr at oppføringen ikke er i bruk. Flertallsmeldinger (`numerus="yes"`) inneholder én `<numerusform>` per flertallsform for språkkoden. Innebygde ikke-XML-byte vises som `<byte value="…"/>`-elementer.
+  Qt Linguist TS er det tospråklige XML-formatet Qt-verktøyene `lupdate` og
+  `lrelease` bruker til oversettelser av brukergrensesnitt. Et `<TS>`-dokument grupperer
+  ett eller flere `<context>`-elementer. Hver kontekst grupperer `<message>`-oppføringer
+  med en `<source>` og en `<translation>`. Oversettelsesstatusen er
+  kodet i `type`-attributtet på `<translation>`-elementet: Ingen type
+  betyr godkjent, `unfinished` betyr at oppføringen venter på gjennomgang, og `obsolete`
+  betyr at oppføringen ikke er i bruk. Flertallsmeldinger (`numerus="yes"`) inneholder én
+  `<numerusform>` per flertallsform for språkvarianten. Innebygde byte som ikke er XML, vises som
+  `<byte value="…"/>`-elementer.
 
-  Leseren trekker ut kildeteksten fra hver melding som en blokk, matcher den med eksisterende oversettelse, og bevarer kontekst- og meldingsstrukturen for skriveren. Formatet oppdages ved å lete etter et `<TS>` … `</TS>`-dokument, ikke ved filendelsen `.ts`, som kolliderer med TypeScript.
+  Leseren trekker ut kildeteksten i hver melding som en oversettbar blokk,
+  kobler den til den eksisterende oversettelsen og bevarer kontekst- og
+  meldingsstrukturen for skriveren. Formatet gjenkjennes ved å undersøke
+  om dokumentet er et `<TS>` … `</TS>`-dokument, ikke ved filendelsen `.ts`,
+  som også brukes av TypeScript.
 limitations:
-  - Formatet oppdages ikke automatisk via `.ts`-filutvidelsen (den er i konflikt med TypeScript); oppdaging baserer seg på å undersøke `<TS>`-rotelementet eller en eksplisitt formatdeklarasjon.
-  - Ikke-XML-byte (`<byte value="…"/>`-elementer) presenteres som inline-plassholderkjøringer og bevares gjennom utveksling; de dekodes ikke til sine rå tegnmotstykker ved lesing.
-  - Det finnes ingen konfigurerbare parametere; atferden følger standardkontrakten.
+  - "Formatet gjenkjennes ikke automatisk ut fra filendelsen `.ts`, siden den også brukes av TypeScript. Gjenkjenningen baseres på undersøkelse av rotelementet `<TS>` eller en eksplisitt formaterklæring."
+  - "Byte som ikke er XML (`<byte value=\"…\"/>`-elementer), vises som innebygde plassholdere og bevares ved utveksling. De dekodes ikke til de tilsvarende rå tegnene ved lesing."
+  - Det finnes ingen konfigurerbare parametere. Behandlingen følger standardkontrakten.
+  - "Hver `<numerusform>` i en flertallsmelding skrives fra sin egen del av oversettelsen. En oversettelse som ikke lenger kan deles opp i formene, avvises, og dokumentet skrives ikke. Dette gjelder for eksempel hvis en redigering slår sammen to former, eller hvis én oversettelse er skrevet for hele meldingen og formene inneholder tekst."
+  - "Flertallsformene som var tomme da en melding ble lest, skrives ut tomme. En oversettelse som skrives for en slik melding, kommer derfor ikke med i filen."
 processingNotes:
-  - Én oversettbar blokk per `<message>`; kontekst- og meldingsstruktur rundtur som skjelett.
-  - Flertallsmeldinger har én `<numerusform>` per flertallsform for språkkoden.
-  - Oversettelsestilstand (godkjent / uferdig / foreldet) leses fra `<translation>`-`type`-attributtet.
+  - Én oversettbar blokk per `<message>`. Kontekst- og meldingsstrukturen bevares som skjelett ved lesing og skriving.
+  - Flertallsmeldinger inneholder én `<numerusform>` per flertallsform for språkvarianten.
+  - Oversettelsesstatusen (godkjent / uferdig / foreldet) leses fra `type`-attributtet på `<translation>`-elementet.
 examples:
-  - title: Oversett en Qt UI-katalog
+  - title: Oversett en Qt-katalog for brukergrensesnitt
     description: |
-      Ingen konfigurasjon er nødvendig. Deklarer formatet for å trekke ut hver
-      `<message>`-kilde og flett oversettelser tilbake inn i `.ts`-
-      dokumentet.
+      Ingen konfigurasjon er nødvendig. Angi formatet for å trekke ut kildeteksten
+      fra hver `<message>` og flette oversettelsene tilbake i `.ts`-dokumentet.
     config: |
       format:
         name: ts

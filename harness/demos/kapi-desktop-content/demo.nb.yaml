@@ -1,0 +1,52 @@
+id: kapi-desktop-content
+title: Filene dine og fremdriften
+subtitle: "Se fremdriften for hvert språk, og åpne en fil for å lese den."
+kind: use-case
+publishAs: kapi-desktop-content
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read: uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - Progress by language
+  - Your files
+  - Reading a file
+outro:
+  line: "Rediger en fil, så oppdateres fremdriften."
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Du skal sjekke fremdriften for hvert språk og lese én fil.
+  - id: open-project
+    kind: desktop
+    beat: open-project
+    caption: Oversikt over prosjektet.
+    text: >-
+      Åpne KapiMart-eksempelet. Åpne fanen Content under Project Settings. Øverst ser du tekstmengden og språkene.
+  - id: extract
+    kind: desktop
+    beat: extract
+    hold: 8
+    caption: Fremdrift for hver filgruppe.
+    text: >-
+      Nedenfor har hver filgruppe en rad som viser fremdriften for hvert språk.
+  - id: patterns
+    kind: desktop
+    beat: patterns
+    caption: Filene i en gruppe.
+    text: >-
+      Klikk på en gruppe for å vise filene i den.
+  - id: keys
+    kind: desktop
+    beat: keys
+    hold: 6
+    caption: Teksten i en fil.
+    text: >-
+      Klikk på en fil for å lese den. Hver tekstlinje vises ved siden av nøkkelen sin.
+  - id: outro
+    kind: outro
+    text: >-
+      Rediger en fil, så oppdateres fremdriften som vises her.
