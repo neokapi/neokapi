@@ -4,7 +4,7 @@ description: >-
 stages:
   - name: imported
     steps:
-      - kapi: [store, import]
+      - kapi: [store, import, --yes]
     files:
       - path: docs/guide.md
         check:

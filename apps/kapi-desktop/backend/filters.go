@@ -192,6 +192,12 @@ func lockFilters(path string) (func(), error) {
 
 func readFilterSettings(layout project.Layout, db *projectdb.DB) (filterSettings, error) {
 	var s filterSettings
+	// The personal filters are kapi's own state for one checkout: read only
+	// while git does not track them. A Wails call carries no context, so this
+	// entry point passes the root one.
+	if err := project.CheckStateTracked(context.Background(), layout); err != nil {
+		return s, err
+	}
 	data, err := os.ReadFile(layout.LocalFiltersPath())
 	switch {
 	case err == nil:
@@ -216,9 +222,6 @@ func (s filterSettings) persist(layout project.Layout, db *projectdb.DB, previou
 			return writeSharedFilters(db, s.shared)
 		}
 		return nil
-	}
-	if err := ensureLocalFiltersGitignored(layout); err != nil {
-		return err
 	}
 	path := layout.LocalFiltersPath()
 	if !sharedChanged {
@@ -316,27 +319,4 @@ func withoutFilter(filters []ProjectFilter, filterID string) []ProjectFilter {
 		return filters
 	}
 	return slices.DeleteFunc(slices.Clone(filters), matches)
-}
-
-// ensureLocalFiltersGitignored makes sure .kapi/.gitignore keeps the personal
-// filters file out of version control. project.EnsureLayout writes a rule that
-// ignores the whole directory; this is the repair path for a `.kapi/` that
-// carries a rule of its own, or none because it holds committed files. Either
-// way it only ever adds the one line naming the personal file.
-func ensureLocalFiltersGitignored(layout project.Layout) error {
-	path := filepath.Join(layout.StateDir, project.StateGitignoreFilename)
-	existing, err := os.ReadFile(path)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	content := string(existing)
-	if project.GitignoreCovers(content, project.LocalFiltersFilename) {
-		return nil
-	}
-	if content != "" && !strings.HasSuffix(content, "\n") {
-		content += "\n"
-	}
-	content += project.LocalFiltersFilename + "\n"
-	_, err = atomicfile.ReplaceBytes(path, []byte(content))
-	return err
 }

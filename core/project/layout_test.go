@@ -96,7 +96,9 @@ func TestLayoutFor_directoryResolvesRecipe(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestEnsureLayout_createsStateDir(t *testing.T) {
+// EnsureLayout creates the checkout's state directory under the data root and
+// writes nothing into the checkout.
+func TestEnsureLayout_createsTheCheckoutsStateDir(t *testing.T) {
 	root := t.TempDir()
 	recipe := filepath.Join(root, "kapi.yaml")
 	require.NoError(t, os.WriteFile(recipe, []byte("name: my-app\n"), 0o644))
@@ -105,9 +107,10 @@ func TestEnsureLayout_createsStateDir(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, project.EnsureLayout(layout))
 
-	info, err := os.Stat(layout.StateDir)
+	info, err := os.Stat(layout.LocalStateDir())
 	require.NoError(t, err)
 	assert.True(t, info.IsDir())
+	assert.NoDirExists(t, layout.StateDir)
 }
 
 func testLayout(t *testing.T) project.Layout {
@@ -124,7 +127,7 @@ func testLayout(t *testing.T) project.Layout {
 // carries staged decisions, so `rm -rf .kapi/work/cache` must not take it.
 func TestLayout_StorePathIsNotUnderCache(t *testing.T) {
 	layout := testLayout(t)
-	work := filepath.Join(layout.StateDir, "work")
+	work := filepath.Join(layout.LocalStateDir(), "work")
 
 	assert.Equal(t, filepath.Join(work, "store.db"), layout.StorePath())
 	assert.Equal(t, work, filepath.Dir(layout.StorePath()))
@@ -156,76 +159,38 @@ func TestLayout_WorkHoldsEveryDerivedPath(t *testing.T) {
 		"sync state":        layout.SyncDir(),
 	} {
 		assert.False(t, strings.HasPrefix(path, work), "%s must live outside work/: %s", name, path)
-		assert.True(t, strings.HasPrefix(path, layout.StateDir+string(filepath.Separator)), "%s lives in .kapi/: %s", name, path)
+		assert.True(t, strings.HasPrefix(path, layout.LocalStateDir()+string(filepath.Separator)), "%s lives in the checkout's state directory: %s", name, path)
 	}
 
 	assert.Equal(t, filepath.Join(layout.StateDir, "state"), layout.Export().UnitStateDir())
 	assert.Equal(t, filepath.Join(layout.StateDir, "memory"), layout.Export().MemoryDir())
 	assert.Equal(t, filepath.Join(layout.StateDir, "profiles"), layout.Export().ProfilesDir())
 	assert.Equal(t, filepath.Join(layout.Export().ProfilesDir(), "bowrain"), layout.Export().ProfileDir("bowrain"))
-	assert.Equal(t, filepath.Join(layout.StateDir, "filters.local.json"), layout.LocalFiltersPath())
+	assert.Equal(t, filepath.Join(layout.LocalStateDir(), "filters.local.json"), layout.LocalFiltersPath())
 }
 
-// A new `.kapi/` is a cache for one checkout, so the rule EnsureLayout writes
-// keeps all of it out of version control, the rule file included.
-func TestEnsureLayout_IgnoresTheWholeDirectory(t *testing.T) {
-	layout := testLayout(t)
-	require.NoError(t, project.EnsureLayout(layout))
-
-	rule, err := os.ReadFile(filepath.Join(layout.StateDir, project.StateGitignoreFilename))
-	require.NoError(t, err)
-	assert.Equal(t, "*\n", string(rule))
-	assert.True(t, project.GitignoreCovers(string(rule), project.LocalFiltersFilename))
-}
-
-// A `.kapi/` that already carries files a project commits (this repository's
-// own dogfood export is one) keeps its own arrangement: an ignore-everything
-// rule dropped beside those files would keep the next one out of the commit.
-func TestEnsureLayout_LeavesADirectoryWithCommittedFilesAlone(t *testing.T) {
+// EnsureLayout leaves a `.kapi/` that holds files a project commits as it is:
+// no rule added, no file written.
+func TestEnsureLayout_LeavesTheCommittedDirectoryAlone(t *testing.T) {
 	layout := testLayout(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(layout.StateDir, "state"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(layout.StateDir, "terms.json"), []byte("{}"), 0o644))
 
 	require.NoError(t, project.EnsureLayout(layout))
 
-	assert.NoFileExists(t, filepath.Join(layout.StateDir, project.StateGitignoreFilename))
+	entries, err := os.ReadDir(layout.StateDir)
+	require.NoError(t, err)
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	assert.Equal(t, []string{"state", "terms.json"}, names)
 	assert.DirExists(t, layout.CacheDir())
 }
 
-// A rule someone wrote is theirs, and a re-run keeps it byte for byte.
-func TestEnsureLayout_KeepsAnExistingRule(t *testing.T) {
-	layout := testLayout(t)
-	require.NoError(t, os.MkdirAll(layout.StateDir, 0o755))
-	own := "work/\nfilters.local.json\n"
-	ignorePath := filepath.Join(layout.StateDir, project.StateGitignoreFilename)
-	require.NoError(t, os.WriteFile(ignorePath, []byte(own), 0o644))
-
-	require.NoError(t, project.EnsureLayout(layout))
-
-	got, err := os.ReadFile(ignorePath)
-	require.NoError(t, err)
-	assert.Equal(t, own, string(got))
-}
-
-func TestGitignoreCovers(t *testing.T) {
-	for _, tc := range []struct {
-		content string
-		want    bool
-	}{
-		{"*\n", true},
-		{"/*\n", true},
-		{"work/\nfilters.local.json\n", true},
-		{"work/\n/filters.local.json\n", true},
-		{"work/\n", false},
-		{"", false},
-	} {
-		assert.Equal(t, tc.want, project.GitignoreCovers(tc.content, "filters.local.json"), "%q", tc.content)
-	}
-}
-
-// EnsureLayout scaffolds both halves, so a fresh project has somewhere to put
-// authored context and somewhere to put derived state before either is written.
-func TestEnsureLayout_createsTheStateAndWorkDirs(t *testing.T) {
+// EnsureLayout scaffolds the derived state, so a fresh project has somewhere to
+// put it before it is written.
+func TestEnsureLayout_createsTheWorkDirs(t *testing.T) {
 	root := t.TempDir()
 	recipe := filepath.Join(root, "kapi.yaml")
 	require.NoError(t, os.WriteFile(recipe, []byte("name: my-app\n"), 0o644))
@@ -234,7 +199,6 @@ func TestEnsureLayout_createsTheStateAndWorkDirs(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, project.EnsureLayout(layout))
 
-	assert.DirExists(t, layout.StateDir)
 	assert.DirExists(t, layout.CacheDir())
 	assert.DirExists(t, layout.WorkDir())
 	// A scaffold creates no place for a context file: the context lives in the
@@ -243,26 +207,14 @@ func TestEnsureLayout_createsTheStateAndWorkDirs(t *testing.T) {
 	assert.NoDirExists(t, layout.Export().UnitStateDir())
 }
 
-// EnsureLocalDir creates a directory owner-only and keeps it out of version
-// control in a `.kapi/` whose ignore file names other things.
+// EnsureLocalDir creates a directory of the checkout's state owner-only.
 func TestEnsureLocalDir_ProtectsTheDirectory(t *testing.T) {
 	layout := testLayout(t)
-	require.NoError(t, os.MkdirAll(layout.StateDir, 0o755))
-	ignore := filepath.Join(layout.StateDir, project.StateGitignoreFilename)
-	require.NoError(t, os.WriteFile(ignore, []byte("work/\n"), 0o644))
-
 	dir, err := project.EnsureLocalDir(layout, project.VaultDirName)
 	require.NoError(t, err)
 	info, err := os.Stat(dir)
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o700), info.Mode().Perm())
-	rule, err := os.ReadFile(ignore)
-	require.NoError(t, err)
-	assert.Equal(t, "work/\nvault/\n", string(rule), "the existing rule is kept and the vault added")
-
-	_, err = project.EnsureLocalDir(layout, project.VaultDirName)
-	require.NoError(t, err)
-	rule, err = os.ReadFile(ignore)
-	require.NoError(t, err)
-	assert.Equal(t, "work/\nvault/\n", string(rule), "a second call adds nothing")
+	assert.Equal(t, layout.VaultDir(), dir)
+	assert.NoDirExists(t, layout.StateDir)
 }

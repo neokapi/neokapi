@@ -129,8 +129,8 @@ type App struct {
 	// Content-memory and terms handles the frontend addresses by ID. Two kinds
 	// live here: standalone stores the user opened or created by path (owned:
 	// closing the handle closes the file), and a project's own content memory and
-	// terms, which are two schemas inside its `.kapi/work/store.db` and are therefore
-	// borrowed (see handleStore.Adopt). Closing a borrowed handle drops the ID
+	// terms, which are two schemas inside the `work/store.db` in its checkout's
+	// state directory and are therefore borrowed (see handleStore.Adopt). Closing a borrowed handle drops the ID
 	// only; the store belongs to the engine.
 	memoryHandles *handleStore[*projector.Memory]
 	tbHandles     *handleStore[*projector.Terms]
@@ -634,6 +634,11 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 		return a.openFolder(path)
 	}
 
+	// Opening a project is where the desktop asks whether git tracks kapi's
+	// state in it; the reads that follow ask again when the index changes.
+	if err := project.CheckStateTracked(context.Background(), project.LayoutAt(filepath.Dir(path))); err != nil {
+		return nil, err
+	}
 	proj, err := project.Load(path)
 	if err != nil {
 		// A sample an older version of the app scaffolded is refreshed to the
@@ -799,8 +804,9 @@ func (a *App) releaseProjectResources(op *openProject) {
 // to the named stores from.
 //
 // It never CREATES the store: opening a tab is browsing, and browsing must not
-// write. A project with no `.kapi/work/store.db` is left alone until something that
-// genuinely has state to keep (an extract, a run, a seeded sample) makes one.
+// write. A project with no `work/store.db` in its checkout's state directory
+// is left alone until something that genuinely has state to keep (an
+// extract, a run, a seeded sample) makes one.
 func (a *App) autoOpenProjectResources(op *openProject) {
 	root, ok := projectRoot(op)
 	if !ok {
@@ -1050,7 +1056,7 @@ func (a *App) ListFlows(tabID string) []FlowInfo {
 	for _, name := range inline {
 		infos = append(infos, info(name, host.FlowSourceInline, "", "", op.Project.Flow(name)))
 	}
-	for _, def := range project.ListDirFlows(op.Project.FlowsDirIn(filepath.Dir(op.Path))) {
+	for _, def := range project.ListDirFlowsIn(filepath.Dir(op.Path), op.Project.FlowsDirIn(filepath.Dir(op.Path))) {
 		if op.Project.Flow(def.Name) != nil {
 			continue
 		}
@@ -1850,6 +1856,7 @@ func (a *App) RunFormatReader(formatName string, filePath string, config map[str
 		URI:      filePath,
 		FormatID: formatName,
 		Reader:   f,
+		ReaderAt: f,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

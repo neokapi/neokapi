@@ -93,6 +93,9 @@ type PushResult struct {
 	// for a part the push did not carry, and for an ingest not yet confirmed.
 	Terms  *venue.PushTermsOutcome
 	Ledger *venue.PushLedgerOutcome
+	// VoiceLeft names the voice profiles the venue already held and left as
+	// they were (venue.PushParts.VoiceLeft).
+	VoiceLeft []string
 }
 
 // Ingest states reported by PushResult.Ingest.

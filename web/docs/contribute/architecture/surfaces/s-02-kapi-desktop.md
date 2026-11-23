@@ -240,7 +240,7 @@ has run kapi in, whichever surface ran it. A project registers the first time
 kapi opens it, so the desktop lists a repository set up from a terminal without
 being told about it. The app registers too, from `OpenProject` and `NewProject`,
 through `workspace.Register` rather than through the project store, because
-opening a project to look at it is no reason to create `.kapi/work/store.db`
+opening a project to look at it is no reason to create the checkout's `work/store.db`
 inside somebody's checkout.
 
 A registration carries the project's identity, its display name, the checkout
@@ -663,7 +663,7 @@ differently ([C-02](../context/c-02-coordinates-and-governance.md)).
 
 ### The block cache follows the files
 
-The block cache in `.kapi/work/` is how the app reads a project, and building
+The block cache in the checkout's `work/` is how the app reads a project, and building
 it is local work that calls no provider. The app therefore keeps it current
 without a person's step. `SyncProjectStore` compares the resolved source files
 with their extract-time stamps (`DetectStoreDrift`) and runs the shared

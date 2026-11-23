@@ -145,8 +145,8 @@ func TestWorkspace_TheContextStoreIsOutsideTheCheckout(t *testing.T) {
 		"the context store is in the workspace, at %s", db.ContextPath())
 	assert.False(t, strings.HasPrefix(db.ContextPath(), checkout),
 		"and nothing of it is left in the checkout")
-	assert.True(t, strings.HasPrefix(db.Path(), checkout),
-		"the projection stays with the tree it describes")
+	assert.True(t, strings.HasPrefix(db.Path(), project.LayoutAt(checkout).LocalStateDir()),
+		"the projection is the checkout's own, in its state directory")
 }
 
 func TestDataDirNeverResolvesToTheRealUserRootInATest(t *testing.T) {
@@ -159,9 +159,9 @@ func TestDataDirNeverResolvesToTheRealUserRootInATest(t *testing.T) {
 	assert.True(t, strings.HasPrefix(dir, os.TempDir()),
 		"a test binary's data root is under the system temporary directory, got %s", dir)
 
-	real := dataDir(func(string) string { return "" }, "darwin")
-	assert.NotEqual(t, real, dir)
-	assert.NotEqual(t, dataDir(func(string) string { return "" }, "linux"), dir)
+	home, _ := os.UserHomeDir()
+	assert.NotEqual(t, filepath.Join(home, "Library", "Application Support", "kapi"), dir)
+	assert.NotEqual(t, filepath.Join(home, ".local", "share", "kapi"), dir)
 
 	assert.True(t, strings.HasPrefix(DefaultWorkspaceDir(), dir),
 		"and the default workspace is inside it")

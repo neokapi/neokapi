@@ -44,14 +44,8 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, info.IsDir())
 
-	// `.kapi/` is this checkout's cache: no manifest, and a rule that keeps
-	// all of it out of version control.
-	stateDir := filepath.Join(dir, ".kapi")
-	assert.DirExists(t, stateDir)
-	assert.NoFileExists(t, filepath.Join(stateDir, "manifest.yaml"))
-	rule, err := os.ReadFile(filepath.Join(stateDir, ".gitignore"))
-	require.NoError(t, err)
-	assert.Equal(t, project.StateGitignore, string(rule))
+	// The checkout's state lives outside it: init writes no `.kapi/`.
+	assert.NoDirExists(t, filepath.Join(dir, ".kapi"))
 	assert.NotContains(t, out.String(), "state:", "the project's state does not live in .kapi/")
 
 	// The recipe reads the content found in the tree, needs no flow to be

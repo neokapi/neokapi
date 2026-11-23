@@ -15,8 +15,8 @@
 // home reads it again under the lock, applies the editor once more, and
 // renames that result; an operation whose precondition the new content breaks
 // is refused stale. Two processes editing different blocks of one file both
-// land. The lock file sits under .kapi/work/locks inside a project and under
-// the temporary directory outside one.
+// land. The lock file sits under work/locks in the checkout's state
+// directory for a project, and under the temporary directory outside one.
 package filehome
 
 import (
@@ -84,9 +84,9 @@ type Options struct {
 	// nothing. A flow run that prints the change set it would apply
 	// (--print-ops) commits through such a home.
 	WriteNothing bool
-	// WriteUnder, with WriteNothing, names a directory whose files the home
-	// still writes as any home writes them: the private tree a printing
-	// convergence pass drafts into, which its delivery gate reads.
+	// WriteUnder names the private tree a convergence pass drafts into, which
+	// its delivery gate reads. The home writes beneath it as it writes beneath
+	// Root, through a root on it, and with WriteNothing it writes there alone.
 	WriteUnder string
 	// Materialize writes every edition file a change writes from the
 	// document's skeleton, the way kapi merge and kapi pull write a
@@ -222,37 +222,73 @@ func (h *Home) commit(path string, tmp *atomicfile.Staged) error {
 // another case on a case-insensitive volume. A path beneath the root is then
 // written through the root, which refuses it when it resolves outside.
 func (h *Home) under(path string) (string, bool) {
+	if h == nil {
+		return "", false
+	}
+	if root, ok := beneath(h.root, path); ok {
+		return root, true
+	}
+	// The draft tree a convergence pass writes into is kapi's own, kept in
+	// the checkout's state directory outside the checkout, and is written
+	// through a root on it as the project is. A home with no root of its own
+	// writes that tree as named.
 	if h.root == "" {
 		return "", false
 	}
-	absRoot, err := filepath.Abs(h.root)
+	return beneath(h.writeUnder, path)
+}
+
+// openRead opens the file at path for reading. A file beneath the home's
+// root is opened through rootpath.OpenRegular: a link that leads out of the
+// root, or anything that is not a regular file, is refused at the open, and a
+// FIFO is refused without blocking.
+func (h *Home) openRead(path string) (*os.File, error) {
+	if h == nil {
+		return rootpath.Open("", path)
+	}
+	return openBeneath(h.root, path)
+}
+
+// Digest is the digest of the file at path in the form Produce takes as
+// before, or "" when there is none, read as openRead reads it.
+func (h *Home) Digest(path string) (string, error) { return h.hashFile(path) }
+
+// hashFile is the digest of the file at path, or "" when there is none.
+func (h *Home) hashFile(path string) (string, error) {
+	f, err := h.openRead(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	sum := sha256.New()
+	if _, err := io.Copy(sum, f); err != nil {
+		return "", err
+	}
+	return "sha256:" + hex.EncodeToString(sum.Sum(nil)), nil
+}
+
+// openBeneath opens path through rootpath.OpenRegular when it lies beneath
+// root, and as named otherwise (rootpath.Open). A path beneath the root is
+// never opened by path.
+func openBeneath(root, path string) (*os.File, error) {
+	return rootpath.Open(root, path)
+}
+
+// beneath reports whether path lies beneath root, decided from the file
+// system rather than from the spelling (rootpath.IsBeneath), and returns root
+// as an absolute path.
+func beneath(root, path string) (string, bool) {
+	if root == "" {
+		return "", false
+	}
+	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		return "", false
 	}
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return "", false
-	}
-	if rel, rerr := filepath.Rel(absRoot, abs); rerr == nil && filepath.IsLocal(rel) {
-		return absRoot, true
-	}
-	if !rootpath.Supported {
-		// The browser's file system gives no file an identity of its own, so
-		// os.SameFile would match every directory. Its paths are what they say.
-		return absRoot, false
-	}
-	rootInfo, err := os.Stat(absRoot)
-	if err != nil {
-		return absRoot, false
-	}
-	for dir := filepath.Dir(abs); ; dir = filepath.Dir(dir) {
-		if info, serr := os.Stat(dir); serr == nil && os.SameFile(info, rootInfo) {
-			return absRoot, true
-		}
-		if parent := filepath.Dir(dir); parent == dir {
-			return absRoot, false
-		}
-	}
+	return absRoot, rootpath.IsBeneath(absRoot, path)
 }
 
 // writes reports whether the home writes a document it produces at path.
@@ -379,6 +415,7 @@ func (s *session) ownSource() source {
 // fileSource is src as the stage reads it: from the overlay when a
 // structural edit rewrote it.
 func (s *session) fileSource(src source) source {
+	src.root = s.h.root
 	if data, ok := s.overlay[overlayKey(src)]; ok {
 		return src.with(data)
 	}
@@ -411,6 +448,9 @@ func (s *session) Structural() []change.Kind {
 
 // readPass is a read of src in format f, as this document is read.
 func (s *session) readPass(src source, f Binding, fn func(*model.Block) error) pass {
+	if src.root == "" {
+		src.root = s.h.root
+	}
 	return pass{src: src, format: f, locale: s.doc.SourceLocale, encoding: s.doc.Encoding, fn: fn}
 }
 
@@ -427,7 +467,7 @@ func (s *session) ownPass(fn func(*model.Block) error) pass {
 }
 
 func (s *session) Read(ctx context.Context, want change.Want, fn func(*model.Block) error) (string, error) {
-	head, err := hashFile(s.doc.Path)
+	head, err := s.h.hashFile(s.doc.Path)
 	if err != nil {
 		return "", err
 	}
@@ -567,21 +607,4 @@ func ensureLockDir(dir string) error {
 		return fmt.Errorf("the lock directory %s can be written by other users; remove it, or name a lock directory of your own", dir)
 	}
 	return nil
-}
-
-// hashFile is the digest of the file at path, or "" when there is none.
-func hashFile(path string) (string, error) {
-	f, err := os.Open(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return "", nil
-	}
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }

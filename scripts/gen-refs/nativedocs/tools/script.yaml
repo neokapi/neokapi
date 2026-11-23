@@ -42,7 +42,9 @@ parameters:
     description: Path to a JavaScript file.
     help: |
       Path to a `.js` file to load and run, used when `source` is `file`.
-      Required in that mode.
+      Required in that mode. In a recipe, a relative path is read from the
+      project root, the directory that holds `kapi.yaml`, wherever kapi was
+      started; with `kapi exec script` it is read from the current directory.
     values: "file path"
     dependsOn:
       - property: source

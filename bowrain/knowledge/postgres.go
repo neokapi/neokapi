@@ -88,6 +88,7 @@ func (s *PostgresKnowledgeStore) CreateMarket(ctx context.Context, m *Market) er
 		m.CreatedAt = now
 	}
 	m.UpdatedAt = now
+	m.Revision = storage.NewRevision()
 
 	locales, err := json.Marshal(m.Locales)
 	if err != nil {
@@ -95,9 +96,9 @@ func (s *PostgresKnowledgeStore) CreateMarket(ctx context.Context, m *Market) er
 	}
 
 	_, err = s.run().ExecContext(ctx,
-		`INSERT INTO kg_markets (workspace_id, id, name, description, locales, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		m.WorkspaceID, m.ID, m.Name, m.Description, string(locales), m.CreatedAt, m.UpdatedAt)
+		`INSERT INTO kg_markets (workspace_id, id, name, description, locales, created_at, updated_at, revision)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		m.WorkspaceID, m.ID, m.Name, m.Description, string(locales), m.CreatedAt, m.UpdatedAt, m.Revision)
 	if err != nil {
 		return fmt.Errorf("insert market: %w", err)
 	}
@@ -106,49 +107,65 @@ func (s *PostgresKnowledgeStore) CreateMarket(ctx context.Context, m *Market) er
 
 func (s *PostgresKnowledgeStore) GetMarket(ctx context.Context, workspaceID, marketID string) (*Market, error) {
 	row := s.run().QueryRowContext(ctx,
-		`SELECT workspace_id, id, name, description, locales, created_at, updated_at
+		`SELECT workspace_id, id, name, description, locales, created_at, updated_at, revision
 		 FROM kg_markets WHERE workspace_id = $1 AND id = $2`, workspaceID, marketID)
 	return scanMarket(row)
 }
 
-func (s *PostgresKnowledgeStore) UpdateMarket(ctx context.Context, m *Market) error {
-	m.UpdatedAt = time.Now().UTC()
-
+func (s *PostgresKnowledgeStore) UpdateMarket(ctx context.Context, m *Market, base string) error {
 	locales, err := json.Marshal(m.Locales)
 	if err != nil {
 		return fmt.Errorf("marshal locales: %w", err)
 	}
+	now := time.Now().UTC()
+	next := storage.NewRevision()
 
+	// The check and the write are one statement, so two writers based on the
+	// same revision cannot both succeed.
 	res, err := s.run().ExecContext(ctx,
-		`UPDATE kg_markets SET name = $1, description = $2, locales = $3, updated_at = $4
-		 WHERE workspace_id = $5 AND id = $6`,
-		m.Name, m.Description, string(locales), m.UpdatedAt, m.WorkspaceID, m.ID)
+		`UPDATE kg_markets SET name = $1, description = $2, locales = $3, updated_at = $4, revision = $5
+		 WHERE workspace_id = $6 AND id = $7 AND revision = $8`,
+		m.Name, m.Description, string(locales), now, next, m.WorkspaceID, m.ID, base)
 	if err != nil {
 		return fmt.Errorf("update market: %w", err)
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("market %s not found", m.ID)
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update market: %w", err)
 	}
+	if n == 0 {
+		if _, err := s.GetMarket(ctx, m.WorkspaceID, m.ID); err != nil {
+			return err
+		}
+		return storage.ErrStale
+	}
+	m.UpdatedAt = now
+	m.Revision = next
 	return nil
 }
 
-func (s *PostgresKnowledgeStore) DeleteMarket(ctx context.Context, workspaceID, marketID string) error {
+func (s *PostgresKnowledgeStore) DeleteMarketAt(ctx context.Context, workspaceID, marketID, base string) error {
 	res, err := s.run().ExecContext(ctx,
-		`DELETE FROM kg_markets WHERE workspace_id = $1 AND id = $2`, workspaceID, marketID)
+		`DELETE FROM kg_markets WHERE workspace_id = $1 AND id = $2 AND revision = $3`, workspaceID, marketID, base)
 	if err != nil {
 		return fmt.Errorf("delete market: %w", err)
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("market %s not found", marketID)
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("delete market: %w", err)
 	}
-	return nil
+	if n > 0 {
+		return nil
+	}
+	if _, err := s.GetMarket(ctx, workspaceID, marketID); err != nil {
+		return err
+	}
+	return storage.ErrStale
 }
 
 func (s *PostgresKnowledgeStore) ListMarkets(ctx context.Context, workspaceID string) ([]*Market, error) {
 	rows, err := s.run().QueryContext(ctx,
-		`SELECT workspace_id, id, name, description, locales, created_at, updated_at
+		`SELECT workspace_id, id, name, description, locales, created_at, updated_at, revision
 		 FROM kg_markets WHERE workspace_id = $1 ORDER BY name`, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list markets: %w", err)
@@ -169,10 +186,10 @@ func (s *PostgresKnowledgeStore) ListMarkets(ctx context.Context, workspaceID st
 func scanMarket(row scanner) (*Market, error) {
 	var m Market
 	var localesJSON []byte
-	err := row.Scan(&m.WorkspaceID, &m.ID, &m.Name, &m.Description, &localesJSON, &m.CreatedAt, &m.UpdatedAt)
+	err := row.Scan(&m.WorkspaceID, &m.ID, &m.Name, &m.Description, &localesJSON, &m.CreatedAt, &m.UpdatedAt, &m.Revision)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("market not found")
+			return nil, ErrMarketNotFound
 		}
 		return nil, fmt.Errorf("scan market: %w", err)
 	}

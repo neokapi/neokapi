@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -14,6 +13,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/yamledit"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -41,11 +41,11 @@ import (
 // `vocabulary:` list written before word rules moved to terms, converted) land
 // in the project's terms through tb, the same batch's terms writer. It returns
 // how many it read that way.
-func (a *App) compileVoiceSource(ctx context.Context, db *projectdb.DB, store coreprofile.Store, tb terms.Terminology, src contextSource) (int, error) {
+func (a *App) compileVoiceSource(ctx context.Context, db *projectdb.DB, store coreprofile.Store, tb terms.Terminology, root string, src contextSource) (int, error) {
 	if store == nil {
 		return 0, projectdb.ErrNoStore
 	}
-	data, err := os.ReadFile(src.path)
+	data, err := rootpath.ReadFile(root, src.path)
 	if err != nil {
 		return 0, fmt.Errorf("open voice profile: %w", err)
 	}

@@ -4,13 +4,17 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"gopkg.in/yaml.v3"
 )
 
@@ -128,13 +132,29 @@ func ExtractionDir(layout Layout, batchID string) string {
 	return filepath.Join(ExtractionsRoot(layout), batchID)
 }
 
-// EnsureExtractionDir creates the batch directory idempotently.
+// EnsureExtractionDir creates the batch directory idempotently, in a state
+// directory Layout.CheckState accepts.
 func EnsureExtractionDir(layout Layout, batchID string) (string, error) {
+	if err := checkBatchID(batchID); err != nil {
+		return "", err
+	}
+	if err := layout.CheckState(); err != nil {
+		return "", err
+	}
 	dir := ExtractionDir(layout, batchID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("project: create extraction dir: %w", err)
 	}
 	return dir, nil
+}
+
+// checkBatchID refuses a batch id that is not one name, so the batch
+// directory stays in the extractions directory.
+func checkBatchID(batchID string) error {
+	if batchID == "" || batchID == "." || strings.ContainsAny(batchID, `/\`) || !filepath.IsLocal(batchID) {
+		return fmt.Errorf("project: extraction batch id %q is not a directory name", batchID)
+	}
+	return nil
 }
 
 // SkeletonFilename returns the per-source skeleton filename inside an
@@ -180,10 +200,14 @@ func SaveExtractionManifest(layout Layout, m *ExtractionManifest) error {
 	return nil
 }
 
-// LoadExtractionManifest reads a manifest from the given batch directory.
+// LoadExtractionManifest reads a manifest from the given batch directory,
+// through the project root.
 func LoadExtractionManifest(layout Layout, batchID string) (*ExtractionManifest, error) {
+	if err := checkBatchID(batchID); err != nil {
+		return nil, err
+	}
 	path := filepath.Join(ExtractionDir(layout, batchID), ExtractionManifestFilename)
-	data, err := os.ReadFile(path)
+	data, err := rootpath.ReadFile(layout.Root, path)
 	if err != nil {
 		return nil, fmt.Errorf("project: read extraction manifest: %w", err)
 	}
@@ -199,12 +223,12 @@ func LoadExtractionManifest(layout Layout, batchID string) (*ExtractionManifest,
 
 // ListExtractionManifests returns every extraction batch known to the
 // project, loaded and ready to consult. Errors on any one batch abort
-// the listing — merge must never silently skip a candidate manifest.
+// the listing, so merge never silently skips a candidate manifest. The
+// batches are listed through the project root.
 func ListExtractionManifests(layout Layout) ([]*ExtractionManifest, error) {
-	root := ExtractionsRoot(layout)
-	entries, err := os.ReadDir(root)
+	entries, err := rootpath.ReadDir(layout.LocalStateDir(), ExtractionsRoot(layout))
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("project: read extractions dir: %w", err)
@@ -223,15 +247,28 @@ func ListExtractionManifests(layout Layout) ([]*ExtractionManifest, error) {
 	return out, nil
 }
 
-// HashFile returns the sha256:hex digest of the file at path — used both
-// as the skeleton filename key and as the staleness fingerprint stamped
-// on emitted bilingual files.
+// HashFile returns the sha256:hex digest of the file at path. It is the
+// skeleton filename key and the staleness fingerprint stamped on emitted
+// bilingual files.
+//
+// It opens path as named. HashFileIn hashes a file of a project.
 func HashFile(path string) (string, error) {
-	f, err := os.Open(path)
+	return HashFileIn("", path)
+}
+
+// HashFileIn is HashFile for a file beneath root, read through it
+// (rootpath.Open): a link that leads out of root is refused.
+func HashFileIn(root, path string) (string, error) {
+	f, err := rootpath.Open(root, path)
 	if err != nil {
 		return "", err
 	}
 	defer f.Close()
+	return hashOpen(f)
+}
+
+// hashOpen is the digest of what f holds from its current offset.
+func hashOpen(f io.Reader) (string, error) {
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
 		return "", err

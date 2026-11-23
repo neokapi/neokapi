@@ -2,12 +2,15 @@ package project
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
 
 	coreproj "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // SyncCacheFilename is the file written under <state-dir>/sync/ that tracks
@@ -122,12 +125,15 @@ func legacySyncCachePath(layout coreproj.Layout) string {
 }
 
 // LoadSyncCache loads the sync cache for the given project layout. Returns
-// an empty (but non-nil) cache when the file is missing or corrupt — push
-// and pull are responsible for repopulating it.
+// an empty (but non-nil) cache when the file is missing or corrupt; push
+// and pull repopulate it.
+//
+// The file is read through the project root: a link that leads out of the
+// project, or a file that is not a regular file, reads as no cache.
 func LoadSyncCache(layout coreproj.Layout) *SyncCache {
-	data, err := os.ReadFile(SyncCachePathFor(layout))
-	if err != nil && os.IsNotExist(err) {
-		data, err = os.ReadFile(legacySyncCachePath(layout))
+	data, err := rootpath.ReadFile(layout.Root, SyncCachePathFor(layout))
+	if errors.Is(err, fs.ErrNotExist) {
+		data, err = rootpath.ReadFile(layout.Root, legacySyncCachePath(layout))
 	}
 	if err != nil {
 		return newEmptySyncCache()

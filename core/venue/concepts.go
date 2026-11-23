@@ -83,11 +83,14 @@ type ConceptInfo struct {
 	Properties     map[string]string `json:"properties,omitempty"`
 	CreatedAt      string            `json:"created_at"`
 	UpdatedAt      string            `json:"updated_at"`
+	// Revision is the stored concept's revision when this was read. An
+	// update names it as its base revision.
+	Revision string `json:"revision,omitempty"`
 }
 
 // EditedTerms applies editable fields and keeps each matching term's validity and competitor flag.
 func EditedTerms(stored []terms.Term, edits []TermEdit) []terms.Term {
-	previous := make(map[string]terms.Term, len(stored))
+	previous := make(map[terms.TermKey]terms.Term, len(stored))
 	for _, t := range stored {
 		previous[terms.TermIdentity(t)] = t
 	}

@@ -19,13 +19,13 @@ import (
 // says the source text itself is wrong: acting on it edits source, which
 // invalidates every translation of that block and routes the decision to the
 // people entitled to edit source.
-//
-// A change-set never edits source text — its ops are graph ops — so the class is
+
+// A change-set never edits source text (its ops are graph ops) so the class is
 // read off the guidance the draft would leave on each affected block rather than
 // off the op. A block the after-state tells you to REWRITE (a forbidden term
 // that resolves to a replacement, a vocabulary rule that carries one) is
 // transform-bound; a block it merely flags is annotate-bound.
-//
+
 // The split is computed during the same walk that produces the blast radius, so
 // it costs no second scan, and it is what a reviewer needs before approving:
 // "1,400 blocks affected" buys wildly different amounts of work depending on how
@@ -73,7 +73,7 @@ type ReachSummary struct {
 	AnnotateApproved int `json:"annotate_approved"`
 	TransformBlocks  int `json:"transform_blocks"`
 	// TransformTargets counts the translations a source rewrite would
-	// invalidate — the number that makes a transform expensive.
+	// invalidate, the number that makes a transform expensive.
 	TransformTargets  int `json:"transform_targets"`
 	TransformApproved int `json:"transform_approved"`
 	TransformProjects int `json:"transform_projects"`
@@ -93,7 +93,7 @@ func (r Reach) Summarize() ReachSummary {
 }
 
 // Report renders a stored reach summary back as a Reach. The per-locale lists
-// and the project names stay empty — the summary never carried them, and a
+// and the project names stay empty, the summary never carried them, and a
 // reader that needs them asks for a fresh scan, exactly as it does for the
 // per-project breakdown.
 func (s ReachSummary) Report() Reach {
@@ -122,11 +122,11 @@ func (s ReachSummary) Report() Reach {
 // reachAcc classifies affected blocks as the walk meets them. It accumulates per
 // BLOCK, not per evaluation unit: a block evaluated in three locales is one
 // block to rewrite, not three, and its translations must not be counted three
-// times. A block whose class differs between its rows is transform-bound — one
+// times. A block whose class differs between its rows is transform-bound, one
 // prescribed rewrite is enough to make the source the thing that has to change.
 type reachAcc struct {
-	order []string
-	seen  map[string]*reachBlock
+	order [][3]string
+	seen  map[[3]string]*reachBlock
 }
 
 type reachBlock struct {
@@ -139,12 +139,12 @@ type reachBlock struct {
 }
 
 func newReachAcc() *reachAcc {
-	return &reachAcc{seen: map[string]*reachBlock{}}
+	return &reachAcc{seen: map[[3]string]*reachBlock{}}
 }
 
 // observe folds one affected evaluation unit into the split. key must identify
 // the block within the walk (project, stream and block id).
-func (a *reachAcc) observe(key string, transform bool, p *store.Project, colKey string, words int, targets, approved []string) {
+func (a *reachAcc) observe(key [3]string, transform bool, p *store.Project, colKey string, words int, targets, approved []string) {
 	if rb, ok := a.seen[key]; ok {
 		rb.transform = rb.transform || transform
 		return
@@ -197,12 +197,13 @@ func (a *reachAcc) reach() Reach {
 
 type classAcc struct {
 	blocks, words, targets, approved int
-	cols, projs, locales             map[string]bool
+	cols                             map[[2]string]bool
+	projs, locales                   map[string]bool
 }
 
 func newClassAcc() *classAcc {
 	return &classAcc{
-		cols:    map[string]bool{},
+		cols:    map[[2]string]bool{},
 		projs:   map[string]bool{},
 		locales: map[string]bool{},
 	}
@@ -216,7 +217,7 @@ func (c *classAcc) add(rb *reachBlock) {
 	if rb.proj.ProjectID != "" {
 		c.projs[rb.proj.ProjectID] = true
 	}
-	c.cols[rb.proj.ProjectID+"\x00"+rb.colKey] = true
+	c.cols[[2]string{rb.proj.ProjectID, rb.colKey}] = true
 	for _, l := range rb.targets {
 		c.locales[l] = true
 	}
@@ -248,8 +249,8 @@ func (c *classAcc) class() ReachClass {
 // tone or channel variant is still that locale's translation, and a reader
 // counting "how many languages does this land on" wants the language once.
 //
-// A translation with no committed runs is not a translation — the store keeps a
-// row for a target the moment one is queued — so an empty one is skipped rather
+// A translation with no committed runs is not a translation, the store keeps a
+// row for a target the moment one is queued, so an empty one is skipped rather
 // than counted as work a change would invalidate.
 func blockTargetLocales(b *venue.StoredBlock) (locales, approved []string) {
 	if b == nil || b.Block == nil {

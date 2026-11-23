@@ -20,40 +20,28 @@ import (
 // The comparison evaluation.
 //
 // It asks whether a project's context, held in kapi, makes coding agents write
-// better than the same rules held the way a project without kapi holds them.
-// The same writing tasks run in three arms, on each agent host, with the same
-// prompt and model:
+// better than the same rules held without kapi. The same tasks run on each
+// agent host, with one prompt and model, in four arms:
 //
-//   - kapi: the project as `kapi init --agents all` leaves it (the MCP entry
-//     and the skill for each host), with the rules read into kapi's store by
-//     a person. The context files are removed after the import, because a
-//     kapi project keeps its context in the store, so the agent learns the
-//     rules from kapi or from the files around it.
-//   - kapifiles: the same kapi project, with the rules files kapi writes
-//     (a delimited section of AGENTS.md and CLAUDE.md at the root and in each
-//     folder whose rules differ) as `kapi init` and `kapi context sync
-//     --files-only` leave them. The kapi arm opts out of them with
-//     `--no-rules-files`, so the two differ only in those files.
-//   - rulesfile: the same rules written as a style guide in CLAUDE.md and
-//     AGENTS.md, the instruction files each host loads on its own. This is
-//     the realistic alternative, and the strongest one available without
-//     kapi: the host puts the file in every session's context.
-//   - bare: the content files and nothing else, which measures what an agent
-//     infers from the neighbouring files alone.
-//
+//   - kapi: the project as `kapi init --agents all` leaves it, the rules read
+//     into the store by a person and the context files then removed.
+//   - kapifiles: the same, plus the rules files kapi writes into AGENTS.md and
+//     CLAUDE.md. The kapi arm passes `--no-rules-files`.
+//   - rulesfile: the rules as a style guide in CLAUDE.md and AGENTS.md.
+//   - bare: the content files alone.
+
 // Each project holds four kinds of rule: a rename in force in one part of the
 // project and not another, the house voice, a competitor's name and banned
 // claims, plus a few house words. The tasks are ordinary writing work (a help
 // section, a release note, a support reply, interface strings, a rename
-// update) whose prompts name no rule and no kapi surface, and several of
-// which use the old or forbidden word themselves, as a person asking would.
-//
+// update). Their prompts name no rule and no kapi surface, and several use the
+// old or forbidden word themselves, as a person asking would.
+
 // Scoring is separate from running. Deterministic graders count rule
-// violations in the text each attempt added (compare_grade.go); `kapi check`
-// over the same text is reported beside them. Two judges from different model
-// families score voice fit against a yes/no rubric, and the judged score is
-// reported as validated only when the judges agree at kappa >= 0.6
-// (compare_judge.go). The report gives every rate with a 95% interval
+// violations in the text each attempt added (compare_grade.go), with `kapi
+// check` reported beside them. Two judges from different model families score
+// voice fit against a yes/no rubric, validated only when they agree at kappa
+// >= 0.6 (compare_judge.go). Every rate carries a 95% interval
 // (compare_report.go).
 
 const compareSchema = 1
@@ -88,7 +76,7 @@ const (
 // keeping the note as a rule. They are named here and nowhere else, so a
 // change to the CLI is one edit; the transcript reader is separate.
 var (
-	compareVerbImport = []string{"store", "import"}
+	compareVerbImport = []string{"store", "import", "--yes"}
 	compareVerbRecord = []string{"context", "note"}
 	compareVerbKeep   = []string{"context", "review", "--keep"}
 )

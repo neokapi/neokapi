@@ -341,6 +341,7 @@ export function createRestConceptSource(
       domain: base.domain,
       definition: base.definition,
       terms,
+      base_revision: base.revision,
     };
     try {
       await adapter.updateConcept(workspaceSlug, request);

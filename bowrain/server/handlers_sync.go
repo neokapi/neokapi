@@ -974,6 +974,7 @@ func (s *Server) HandleSyncPushStatus(c *echo.Context) error {
 	completed := 0
 	failed := 0
 	inProgress := 0
+	reason := ""
 
 	for _, j := range jobList {
 		switch j.Status {
@@ -981,6 +982,9 @@ func (s *Server) HandleSyncPushStatus(c *echo.Context) error {
 			completed++
 		case jobs.StatusFailed:
 			failed++
+			if reason == "" {
+				reason = j.Error
+			}
 		case jobs.StatusProcessing, jobs.StatusQueued:
 			inProgress++
 		}
@@ -993,6 +997,11 @@ func (s *Server) HandleSyncPushStatus(c *echo.Context) error {
 		"completed":   completed,
 		"failed":      failed,
 		"in_progress": inProgress,
+	}
+	// Why the push failed, so the person who ran `kapi push` reads the cause
+	// and the remedy rather than only that it failed.
+	if reason != "" {
+		resp["reason"] = reason
 	}
 	// What the push's review gate did not accept. The producer polls this
 	// endpoint until the ingest lands, so it is where a refusal decided in
@@ -1008,6 +1017,9 @@ func (s *Server) HandleSyncPushStatus(c *echo.Context) error {
 		}
 		if parts.Ledger != nil {
 			resp["ledger"] = parts.Ledger
+		}
+		if len(parts.VoiceLeft) > 0 {
+			resp["voice_left"] = parts.VoiceLeft
 		}
 	}
 	return c.JSON(http.StatusOK, resp)

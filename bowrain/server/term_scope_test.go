@@ -113,7 +113,7 @@ func (f scopeFixture) keepInProject(t *testing.T, pid, term string) string {
 	card := deckCardWhere(t, readContextDeck(t, f.e, pid, ""), candidateCard(cid))
 	var out contextDeckDecideResponse
 	require.Equal(t, http.StatusOK, decideRoute(t, f.e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "keep"}, &out))
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: "keep"}, &out))
 	return cid
 }
 
@@ -194,7 +194,7 @@ func TestTermScope_KeptTermAppliesInItsProject(t *testing.T) {
 			assert.Equal(t, []string{f.a}, termscope.Projects(cp), "keeping limits the term to its project")
 			// A rendering, so the translate prompt has a rule to carry.
 			cp.Terms = append(cp.Terms, terms.Term{Text: "graphe de flux", Locale: "fr", Status: model.TermPreferred})
-			require.NoError(t, f.tb.AddConcept(ctx, cp))
+			rewriteConcept(t, f.tb, cp)
 
 			assert.Equal(t, everywhere, f.governs(t, f.a, cid, "Flowgraph"), "the term governs the project it was kept in")
 			assert.Equal(t, nowhere, f.governs(t, f.b, cid, "Flowgraph"), "and no other")
@@ -231,7 +231,7 @@ func TestTermScope_KeepLimitsUnscopedCandidate(t *testing.T) {
 	card := deckCardWhere(t, readContextDeck(t, f.e, f.b, ""), candidateCard("c-open"))
 	var out contextDeckDecideResponse
 	require.Equal(t, http.StatusOK, decideRoute(t, f.e, http.MethodPost, f.b, "/context/deck/decide",
-		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "keep"}, &out))
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: "keep"}, &out))
 	cp, ok, err := f.tb.GetConcept(ctx, "c-open")
 	require.NoError(t, err)
 	require.True(t, ok)

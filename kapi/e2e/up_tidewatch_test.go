@@ -33,7 +33,7 @@ func tidewatchRun(t *testing.T, args ...string) string {
 		require.NoError(t, err, "kapi %s:\n%s", strings.Join(args, " "), out)
 		return string(out)
 	}
-	run("store", "import", "./context", "-p", "kapi.yaml")
+	run("store", "import", "--yes", "./context", "-p", "kapi.yaml")
 	return run(append([]string{"up", "-p", "kapi.yaml"}, args...)...)
 }
 

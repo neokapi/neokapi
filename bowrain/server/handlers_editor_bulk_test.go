@@ -33,7 +33,7 @@ func newEditorBulkServer(t *testing.T) (*Server, *bstore.PostgresStore) {
 	cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
 	require.NoError(t, err)
 	srv := &Server{ContentStore: cs, wsStores: newWorkspaceStores()}
-	srv.wsStores.memoryFactory = func() memory.Store { return memory.NewInMemoryStore() }
+	srv.wsStores.memoryFactory = func(string) memory.Store { return memory.NewInMemoryStore() }
 	srv.wsStores.termsFactory = func() terms.Store { return &testTermStore{terms.NewInMemoryStore()} }
 	return srv, cs
 }

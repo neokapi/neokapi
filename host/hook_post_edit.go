@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // postEditHookInput is the subset of the Claude Code PostToolUse-hook stdin
@@ -159,7 +160,9 @@ func (a *App) postEditCheck(cmd Command, projectPath, abs string) (run postEditR
 	if !inside {
 		return run, true, nil
 	}
-	if info, serr := os.Stat(target); serr != nil || info.IsDir() {
+	// A file reached through a link that leads out of the project, or one
+	// that is not a regular file, is left alone like one outside it.
+	if _, serr := rootpath.CheckRegular(root, target); serr != nil {
 		return run, true, nil
 	}
 	// The command the reason names is typed from the session's directory.

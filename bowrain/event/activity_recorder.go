@@ -15,6 +15,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // ActivityRecorder subscribes to all events and creates curated activities
@@ -103,7 +104,7 @@ func reviewRollupID(a *bstore.Activity) string {
 		locale = a.Locales[0]
 	}
 	hour := a.CreatedAt.UTC().Truncate(time.Hour).Format(time.RFC3339)
-	sum := sha256.Sum256([]byte(strings.Join([]string{a.WorkspaceID, a.ProjectID, a.ActorID, locale, hour}, "\x00")))
+	sum := sha256.Sum256([]byte(partjoin.NUL(a.WorkspaceID, a.ProjectID, a.ActorID, locale, hour)))
 	return "rvw_" + hex.EncodeToString(sum[:12])
 }
 

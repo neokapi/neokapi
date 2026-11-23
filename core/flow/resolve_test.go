@@ -9,14 +9,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// writeStore creates the named store file under the config dir, as the person
+// would before a recipe names it.
+func writeStore(t *testing.T, configDir string, rel ...string) {
+	t.Helper()
+	p := filepath.Join(append([]string{configDir}, rel...)...)
+	require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+	require.NoError(t, os.WriteFile(p, nil, 0o644))
+}
+
+// realTempDir is t.TempDir with its links resolved (/var is /private/var on
+// macOS), the spelling a resolved path carries.
+func realTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	return dir
+}
+
 func TestResolveToolConfig_URIPrefixes(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := realTempDir(t)
 	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
 
-	// Create expected directories.
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "memory"), 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "terms"), 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "srx"), 0755))
+	writeStore(t, tmpDir, "memory", "project-memory.db")
+	writeStore(t, tmpDir, "terms", "product.db")
+	writeStore(t, tmpDir, "srx", "custom-rules.srx")
 
 	config := map[string]any{
 		"tmx_path":  "memory:project-memory",
@@ -76,20 +93,36 @@ func TestResolveToolConfig_RelativePaths(t *testing.T) {
 	}
 }
 
-func TestResolveToolConfig_AbsolutePaths(t *testing.T) {
-	config := map[string]any{
-		"outputPath": "/absolute/path/report.html",
-	}
-
-	ctx := ResourceContext{ProjectDir: "/project"}
-	resolved, err := ResolveToolConfig(config, nil, ctx)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	got := resolved["outputPath"].(string)
-	if got != "/absolute/path/report.html" {
-		t.Errorf("absolute path should be unchanged, got %q", got)
+// A project flow's step config is recipe content: a path property that is
+// absolute outside the project, or climbs out of it, is refused with the key
+// named. One inside the project or the output directory resolves, and without
+// a project an absolute path is kept as given.
+func TestResolveToolConfig_PathsStayInTheProject(t *testing.T) {
+	project := filepath.FromSlash("/project")
+	out := filepath.FromSlash("/out/fr")
+	for _, tc := range []struct {
+		name, value, want string
+		ctx               ResourceContext
+	}{
+		{"absolute outside", "/absolute/path/report.html", "", ResourceContext{ProjectDir: project}},
+		{"climbs out", "../../etc/passwd", "", ResourceContext{ProjectDir: project}},
+		{"rootDir climbs out", "${rootDir}/../x.html", "", ResourceContext{ProjectDir: project}},
+		{"absolute inside", "/project/reports/r.html", filepath.FromSlash("/project/reports/r.html"), ResourceContext{ProjectDir: project}},
+		{"relative inside", "reports/r.html", filepath.Join(project, "reports", "r.html"), ResourceContext{ProjectDir: project}},
+		{"output dir", "${outputDir}/r.html", filepath.Join(out, "r.html"), ResourceContext{ProjectDir: project, OutputDir: out}},
+		{"no project", "/absolute/path/report.html", "/absolute/path/report.html", ResourceContext{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resolved, err := ResolveToolConfig(map[string]any{"outputPath": tc.value}, nil, tc.ctx)
+			if tc.want == "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "outputPath")
+				require.Contains(t, err.Error(), "lies outside the project")
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, resolved["outputPath"])
+		})
 	}
 }
 
@@ -141,9 +174,9 @@ func TestResolveToolConfig_LanguageVariables(t *testing.T) {
 }
 
 func TestResolveToolConfig_SchemaAnnotation(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := realTempDir(t)
 	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "terms"), 0755))
+	writeStore(t, tmpDir, "terms", "product.db")
 
 	cs := &schema.ComponentSchema{
 		Properties: map[string]schema.PropertySchema{

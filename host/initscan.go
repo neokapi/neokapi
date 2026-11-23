@@ -1,6 +1,7 @@
 package host
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -8,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -24,23 +26,21 @@ import (
 // each kind of content it can read there, so a new project works before anyone
 // edits YAML. The proposal is deterministic and asks nothing: the same tree
 // gives the same collections, from a terminal, from CI or from an agent.
-//
+
 // Two sources decide what counts as content:
 //
 //   - The format registry. A file whose built-in format carries documents
 //     (marked-up text, office documents, timed text) is content wherever it
 //     sits. Documents are grouped by top-level directory and extension, so a
-//     docs tree becomes `docs/**/*.md` rather than one entry per page, and a
-//     file at the root keeps an entry of its own.
+//     docs tree becomes `docs/**/*.md`.
 //   - The framework presets, for i18n catalogs. A catalog is a key/value file
-//     in a format also used for configuration, so a catalog is proposed only
-//     where a preset's layout matches it, or where its path names the source
-//     language (`locales/en/*.json`, `messages/en.json`, `app_en.arb`). A file
-//     named for any other language is a translation and is left out.
-//
+//     in a format also used for configuration, so it is proposed only where
+//     a preset's layout matches it or its path names the source language
+//     (`locales/en/*.json`, `messages/en.json`, `app_en.arb`). A file named
+//     for any other language is a translation and is left out.
+
 // Nothing else is proposed. Interchange files (XLIFF, PO exchanges), data
-// files and plain text are read by kapi but are rarely a project's source
-// content, and a recipe that names them is one edit away.
+// files and plain text are rarely a project's source content.
 
 // ProposedCollection is one collection kapi init proposes.
 type ProposedCollection struct {
@@ -164,7 +164,7 @@ func ProposeCollections(root string, opts ProposeOptions) ([]ProposedCollection,
 		files            []string
 		nested           bool
 	}
-	groups := map[string]*docGroup{}
+	groups := map[[3]string]*docGroup{}
 	var rootDocs []ProposedCollection
 	var catalogs []ProposedCollection
 	catalogIndex := map[string]int{}
@@ -190,7 +190,7 @@ func ProposeCollections(root string, opts ProposeOptions) ([]ProposedCollection,
 				})
 				continue
 			}
-			key := top + "\x00" + ext + "\x00" + id
+			key := [3]string{top, ext, id}
 			g := groups[key]
 			if g == nil {
 				g = &docGroup{dir: top, ext: ext, format: id}
@@ -215,11 +215,13 @@ func ProposeCollections(root string, opts ProposeOptions) ([]ProposedCollection,
 	}
 
 	out = append(out, rootDocs...)
-	keys := make([]string, 0, len(groups))
+	keys := make([][3]string, 0, len(groups))
 	for k := range groups {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.SortFunc(keys, func(a, b [3]string) int {
+		return cmp.Or(strings.Compare(a[0], b[0]), strings.Compare(a[1], b[1]), strings.Compare(a[2], b[2]))
+	})
 	for _, k := range keys {
 		g := groups[k]
 		glob := g.dir + "/*" + g.ext
@@ -414,14 +416,20 @@ func displayName(reg *registry.FormatRegistry, id string) string {
 // scanContentTree lists the files under root a proposal may read, as sorted
 // project-relative slash paths. It honours every `.gitignore` and the
 // project's `.kapiignore` on the way down, and skips hidden entries and the
-// directories in initScanSkipDirs.
+// directories in initScanSkipDirs. The walk goes through an os.Root, so a
+// link that leads out of root is neither followed nor read.
 func scanContentTree(root string) ([]string, error) {
 	type scope struct {
 		dir     string // slash path relative to root, "" for root
 		matcher *ignore.Matcher
 	}
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, fmt.Errorf("scan %s: %w", root, err)
+	}
+	defer r.Close()
 	rootMatcher := ignore.ForProjectDir(root)
-	if err := rootMatcher.LoadFile(filepath.Join(root, ".gitignore")); err != nil {
+	if err := loadIgnoreIn(r, rootMatcher, ".gitignore"); err != nil {
 		return nil, fmt.Errorf("read .gitignore: %w", err)
 	}
 	scopes := []scope{{dir: "", matcher: rootMatcher}}
@@ -443,30 +451,25 @@ func scanContentTree(root string) ([]string, error) {
 	}
 
 	var files []string
-	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+	err = fs.WalkDir(r.FS(), ".", func(rel string, d fs.DirEntry, err error) error {
 		if err != nil {
-			if p == root {
+			if rel == "." {
 				return err
 			}
 			return nil // an unreadable entry is not content
 		}
-		if p == root {
+		if rel == "." {
 			return nil
 		}
-		rel, rerr := filepath.Rel(root, p)
-		if rerr != nil {
-			return nil
-		}
-		rel = filepath.ToSlash(rel)
 		name := d.Name()
 		if d.IsDir() {
 			if strings.HasPrefix(name, ".") || initScanSkipDirs[name] || ignored(rel, true) {
 				return filepath.SkipDir
 			}
 			// A nested .gitignore governs the tree below it.
-			if _, serr := os.Stat(filepath.Join(p, ".gitignore")); serr == nil {
+			if _, serr := r.Stat(path.Join(rel, ".gitignore")); serr == nil {
 				m := ignore.New()
-				if lerr := m.LoadFile(filepath.Join(p, ".gitignore")); lerr == nil {
+				if lerr := loadIgnoreIn(r, m, path.Join(rel, ".gitignore")); lerr == nil {
 					// Scopes are kept outermost first; WalkDir visits a
 					// directory before anything under it, so a scope whose
 					// directory the walk has left no longer matches a path.
@@ -489,4 +492,20 @@ func scanContentTree(root string) ([]string, error) {
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+// loadIgnoreIn adds the rules of the ignore file name, relative to r, to m.
+// A file that does not exist adds none.
+func loadIgnoreIn(r *os.Root, m *ignore.Matcher, name string) error {
+	data, err := r.ReadFile(name)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for line := range strings.Lines(string(data)) {
+		m.AddPattern(strings.TrimRight(line, "\r\n"))
+	}
+	return nil
 }

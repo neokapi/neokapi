@@ -51,6 +51,7 @@ function memoryEntryToDTO(e: MemoryEntryInfo): MemoryEntryDTO {
   return {
     id: e.id,
     project_id: e.project_id ?? "",
+    revision: e.revision,
     variants: {
       [e.source_language]: {
         locale: e.source_language,
@@ -130,22 +131,23 @@ function createMemoryAdapter(
       await api.updateMemoryEntry(ws, {
         project_id: req.project_id ?? "",
         entry_id: req.entry_id,
+        base_revision: req.base_revision,
         source,
         target,
         source_locale: sourceLocale,
         target_locale: targetLocale,
       });
     },
-    async deleteEntry(id: string): Promise<void> {
-      await api.deleteMemoryEntry(ws, id);
+    async deleteEntry(id: string, revision?: string): Promise<void> {
+      await api.deleteMemoryEntry(ws, id, revision ?? "");
     },
     // One request per batch instead of one per row. There is no transaction
     // behind it: each id carries its own outcome, so a selection that partly
     // fails has really partly deleted, and saying so is the honest report.
-    async deleteEntries(ids: string[]): Promise<void> {
+    async deleteEntries(ids: string[], revisions?: Record<string, string>): Promise<void> {
       const failures: BulkDeleteEntryResult[] = [];
       for (const batch of chunk(ids, MAX_BULK_DELETE_IDS)) {
-        const result = await api.bulkDeleteMemoryEntries(ws, batch);
+        const result = await api.bulkDeleteMemoryEntries(ws, batch, revisions ?? {});
         failures.push(...result.results.filter((r) => !r.deleted));
       }
       if (failures.length > 0) {
@@ -174,6 +176,7 @@ function conceptToDTO(c: ConceptInfo): ConceptDTO {
     properties: c.properties,
     created_at: c.created_at,
     updated_at: c.updated_at,
+    revision: c.revision,
   };
 }
 
@@ -217,6 +220,7 @@ function createTermsAdapter(api: ApiAdapter, ws: string): TermsAdapter {
         domain: req.domain,
         definition: req.definition,
         terms: termsToInfo(req.terms),
+        base_revision: req.base_revision,
       });
     },
     async deleteConcept(id: string): Promise<void> {

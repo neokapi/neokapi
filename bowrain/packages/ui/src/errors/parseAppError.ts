@@ -11,9 +11,15 @@
  * - `Error` instances, including the historical RestApiAdapter pattern
  *   `Error("<httpStatus>: <raw body>")` where the body may itself be JSON
  * - Plain strings (one JSON parse attempt for nested envelopes)
+ * - A desktop call the server refused: an `Error` whose `cause` is
+ *   `{status, body}`, the server's status and response as the web receives
+ *   them, so a refusal reads the same on both
+ * - A request that never reached the server: `NetworkError` on the web, an
+ *   `Error` whose `cause` is `{network: true}` on the desktop
  */
 
 import { ApiError } from "./ApiError";
+import { NetworkError } from "./NetworkError";
 
 export interface AppError {
   /** Short human-readable one-liner. */
@@ -37,6 +43,12 @@ export interface AppError {
 }
 
 const GENERIC_TITLE = "Something went wrong";
+
+/** A request that never reached the server. */
+const UNREACHABLE: Phrase = {
+  title: "The server could not be reached",
+  hint: "Check your connection, then try again.",
+};
 const MAX_TITLE_LENGTH = 160;
 
 interface Phrase {
@@ -468,6 +480,24 @@ export function parseAppError(input: unknown, fallbackTitle: string = GENERIC_TI
       base.reference = input.referenceId;
     }
     return base;
+  }
+
+  if (input instanceof NetworkError) return { ...UNREACHABLE };
+
+  const cause = input instanceof Error ? (input as { cause?: unknown }).cause : undefined;
+  if (isRecord(cause)) {
+    const wire = cause;
+    if (wire.network === true) return { ...UNREACHABLE };
+    // A desktop call carries the server's status and response as its cause:
+    // read them as the web's ApiError is read.
+    if (typeof wire.status === "number") {
+      const status = wire.status;
+      const base = isRecord(wire.body)
+        ? fromObject(wire.body, status, 0)
+        : fromString(`${status}: ${typeof wire.body === "string" ? wire.body : ""}`, fallbackTitle);
+      if (base.status === undefined) base.status = status;
+      return base;
+    }
   }
 
   if (input instanceof Error) {

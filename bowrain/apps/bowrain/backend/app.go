@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
 	"github.com/neokapi/neokapi/bowrain/connector"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -31,7 +33,13 @@ import (
 // App is the Bowrain UI backend. It exposes methods that can be
 // bound to a Wails frontend or called from tests.
 type App struct {
-	app          *application.App
+	app *application.App
+	// lifetime is cancelled by ServiceShutdown; every request to the server
+	// runs under it (requestContext).
+	lifetime     context.Context
+	stopLifetime context.CancelFunc
+	// remote sends requests to the connected server (client).
+	remote       *remoteClient
 	formatReg    *registry.FormatRegistry
 	toolReg      *registry.ToolRegistry
 	store        store.ContentStore  // persistent SQLite
@@ -45,7 +53,7 @@ type App struct {
 
 	// Server connection (online mode).
 	mu              sync.RWMutex
-	remoteHTTP      *editorclient.EditorClient // REST/SSE editor client — the single server client; nil when disconnected
+	remoteHTTP      *editorclient.EditorClient // REST/SSE editor client: the single server client; nil when disconnected
 	connState       ConnectionState            // current connection state
 	serverURL       string                     // e.g. "http://localhost:8080"
 	activeWS        string                     // selected workspace slug
@@ -59,7 +67,11 @@ type App struct {
 	offlineQueue    *OfflineQueue              // pending mutations when offline
 	reconnectCancel context.CancelFunc         // stops the reconnection goroutine
 	reconnectNudge  chan struct{}              // asks a running reconnect loop to attempt now; nil when no loop runs
-	autoConnectDone bool                       // true after BOWRAIN_TOKEN auto-connect attempted
+	reconnecting    bool                       // an attempt to leave the offline state is under way
+	// reconnectAttempt replaces tryReconnect when set, so a test can hold an
+	// attempt open and decide how it ends. Set before the app goes offline.
+	reconnectAttempt func(ctx context.Context) error
+	autoConnectDone  bool // true after BOWRAIN_TOKEN auto-connect attempted
 
 	// memoryPath overrides the default content-memory database path (for testing).
 	memoryPath string
@@ -68,6 +80,10 @@ type App struct {
 	// Wails runtime. The recording wbridge (cmd/wbridge) uses it to stream
 	// events to a browser over SSE, since there is no Wails runtime there.
 	eventSink func(name string, data any)
+
+	// closing holds a window close or a quit while the page has saves waiting
+	// (closeguard.go).
+	closing closeState
 }
 
 // NewApp creates a new Bowrain backend with all formats and plugins registered.
@@ -114,7 +130,11 @@ func newAppWithStore(cs store.ContentStore) *App {
 	connReg := platconn.NewRegistry()
 	connector.RegisterRemote(connReg)
 
+	lifetime, stopLifetime := context.WithCancel(context.Background())
 	a := &App{
+		lifetime:     lifetime,
+		stopLifetime: stopLifetime,
+		remote:       newRemoteClient(remoteRequestTimeout),
 		formatReg:    reg,
 		toolReg:      toolReg,
 		store:        cs,
@@ -145,7 +165,7 @@ type manifestedPlugin struct {
 
 // LoadPlugins discovers manifest-driven plugins from the configured
 // plugin directory and caches the result. Safe to call from a goroutine.
-// Errors are logged and otherwise ignored — a missing or empty plugin
+// Errors are logged and otherwise ignored: a missing or empty plugin
 // dir is a normal state for a fresh install.
 func (a *App) LoadPlugins() {
 	dir := os.Getenv("KAPI_PLUGIN_DIR")
@@ -163,7 +183,7 @@ func (a *App) LoadPlugins() {
 
 // discoverManifestPlugins walks dir/<plugin>/<version>/manifest.json
 // entries (the layout `kapi plugin install` writes) and returns a flat
-// list of valid manifests. Invalid manifests are skipped silently —
+// list of valid manifests. Invalid manifests are skipped silently;
 // other tooling surfaces those errors.
 func discoverManifestPlugins(dir string) []manifestedPlugin {
 	if dir == "" {
@@ -205,7 +225,7 @@ func discoverManifestPlugins(dir string) []manifestedPlugin {
 
 // defaultPluginDir returns the default plugin directory.
 func defaultPluginDir() string {
-	if dir, err := os.UserConfigDir(); err == nil {
+	if dir := dataroot.UserConfigDir(); dir != "" {
 		return filepath.Join(dir, "kapi", "plugins")
 	}
 	return "./plugins"
@@ -291,7 +311,7 @@ type ToolInfo struct {
 	// to the flow editor so it can type ports and validate connections.
 	Consumes []IOPort `json:"consumes,omitempty"`
 	Produces []IOPort `json:"produces,omitempty"`
-	// IsSourceTransform reports whether this tool is a transformer — it may
+	// IsSourceTransform reports whether this tool is a transformer: it may
 	// rewrite source (AD-006); the placement pass validates its position.
 	IsSourceTransform bool `json:"is_source_transform,omitempty"`
 	// Recoverable marks a transformer that vaults originals for later restore
@@ -363,9 +383,9 @@ func sideEffectStrings(fs []schema.SideEffect) []string {
 func (a *App) ListTools() []ToolInfo {
 	var result []ToolInfo
 
-	// Add tools from the registry. All metadata — canonical category, IO
+	// Add tools from the registry. All metadata (canonical category, IO
 	// contract, cardinality, requirements, side-effects, source-transform
-	// capability — comes from the framework registry (AD-006), so the desktop
+	// capability) comes from the framework registry (AD-006), so the desktop
 	// flow editor renders the same badges as kapi-desktop and the web app.
 	if a.toolReg != nil {
 		for _, name := range a.toolReg.Names() {
@@ -447,6 +467,10 @@ func (a *App) PluginDir() string {
 
 // ServiceShutdown is called by Wails v3 when the application exits.
 func (a *App) ServiceShutdown() error {
+	// Cancel every request still in flight to the server.
+	if a.stopLifetime != nil {
+		a.stopLifetime()
+	}
 	// Stop reconnection goroutine.
 	a.stopReconnect()
 	// Stop project watcher and close server connection.
@@ -484,10 +508,7 @@ func desktopConfigDir() string {
 	if dir := os.Getenv("BOWRAIN_DESKTOP_CONFIG_DIR"); dir != "" {
 		return dir
 	}
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
-	}
+	configDir := dataroot.UserConfigDir()
 	return filepath.Join(configDir, "bowrain-desktop")
 }
 

@@ -1,6 +1,6 @@
 id: bowrain-web-collaboration
-title: En teammates avatar dukker opp på under ett sekund
-subtitle: "To personer i én fil, over én server, uten ett flette-steg."
+title: En kollegas avatar vises på under ett sekund
+subtitle: "To personer i én fil, via én server, uten fletting."
 tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-web-collaboration
@@ -29,17 +29,17 @@ narration:
   - id: title
     kind: title
     text: >-
-      Når en teammate åpner filen du allerede er i, vises avataren deres i editoren din innen ett sekund.
+      Når en kollega åpner filen du arbeider i, vises kollegaens avatar i redigeringsverktøyet ditt innen ett sekund.
   - id: teammate-joins
     kind: desktop
     beat: teammate-joins
-    caption: "En annen person, i samme fil."
+    caption: En annen person i samme fil.
     hold: 20
     crop: { selector: '[data-testid="presence-avatars"]' }
     zoom: 2.5
     highlight: { selector: '[data-testid="presence-avatars"]' }
     text: >-
-      Det er en annen person, i en annen nettleser, pålogget som seg selv. Serveren videresender tilstedeværelsen deres i sanntid, så en fil du jobber i endres aldri stille av noen du ikke kan se. Ingenting ble eksportert, og ingenting trenger å flettes inn etterpå.
+      Dette er en annen person, i en annen nettleser, logget inn med sin egen konto. Serveren formidler tilstedeværelsen fortløpende. Dermed kan ingen endre en fil du arbeider i uten at du ser at de er der. Ingenting ble eksportert, og ingenting må flettes inn igjen etterpå.
   - id: co-editing
     kind: desktop
     beat: co-editing
@@ -47,16 +47,16 @@ narration:
     hold: 18
     crop: { x: 0.12, y: 0.15, w: 0.76, h: 0.42 }
     text: >-
-      De går til sin egen blokk, og tilstedeværelsen følger med. To oversettere jobber i samme fil samtidig, med samme delte memory og de samme termene, så ingen av dem trenger å gjette hva den andre allerede har bestemt.
+      Kollegaen går til en annen blokk, og tilstedeværelsen følger med. To oversettere arbeider samtidig i samme fil, med samme delte innholdsminne og de samme termene. Ingen av dem trenger å gjette hva den andre allerede har bestemt.
   - id: members
     kind: desktop
     beat: members
-    caption: "Invitert via e-post, tildelt en rolle."
+    caption: Invitert via e-post og tildelt en rolle.
     hold: 14
     crop: { selector: '[role="dialog"]' }
     text: >-
-      Hvem som får tilgang er en beslutning, ikke en bivirkning. Inviter en kollega via e-post under Medlemmer og roller, og gi dem rollen språket trenger: eier, admin, medlem eller leser.
+      Du bestemmer hvem som får tilgang. Inviter en kollega via e-post under Medlemmer og roller. Gi kollegaen rollen som trengs for språkarbeidet: eier, administrator, medlem eller leser.
   - id: outro
     kind: outro
     text: >-
-      Ett arbeidsområde, delt i sanntid og styrt av rollen hver person har.
+      Ett arbeidsområde, delt i sanntid, med tilgang styrt av rollen hver person har.

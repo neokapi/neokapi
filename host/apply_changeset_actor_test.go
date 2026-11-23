@@ -13,23 +13,26 @@ import (
 
 // kapi apply stamps the actor the environment names, and a change set has no
 // field that could name another one. A person's term is recorded as the
-// person's, with a note saying kapi apply applied it; an agent's shell gets the
-// refusal apply_edits gives, and nothing is written; a person typing in an
-// agent host's shell says so, and the note keeps that.
+// person's, with a note saying kapi apply applied it. An agent's shell gets the
+// refusal apply_edits gives, and nothing is written. A person typing in an
+// agent host's shell says so, and the actor records the agent host beside the
+// note, which stays as written.
 func TestApply_StampsTheEnvironmentsActor(t *testing.T) {
 	tests := []struct {
-		name     string
-		env      map[string]string
-		applied  bool
-		wantNote string
+		name      string
+		env       map[string]string
+		applied   bool
+		wantNote  string
+		agentHost string
 	}{
 		{name: "a person", applied: true, wantNote: "applied with `kapi apply`"},
 		{name: "an agent's shell", env: map[string]string{EnvActor: "agent", EnvAgentName: "claude", EnvAgentSession: "s9"}},
 		{
-			name:     "a person in an agent host's shell",
-			env:      map[string]string{EnvActor: "person", "CLAUDECODE": "1"},
-			applied:  true,
-			wantNote: "applied with `kapi apply` (recorded as a person in a claude-code shell)",
+			name:      "a person in an agent host's shell",
+			env:       map[string]string{EnvActor: "person", "CLAUDECODE": "1"},
+			applied:   true,
+			wantNote:  "applied with `kapi apply`",
+			agentHost: "claude-code",
 		},
 	}
 	for _, tt := range tests {
@@ -61,6 +64,7 @@ func TestApply_StampsTheEnvironmentsActor(t *testing.T) {
 			require.Len(t, log.Operations, 1)
 			assert.Equal(t, contextop.ActorPerson, log.Operations[0].Actor.Kind)
 			assert.Equal(t, tt.wantNote, log.Operations[0].Note)
+			assert.Equal(t, tt.agentHost, log.Operations[0].Actor.AgentHost)
 		})
 	}
 }

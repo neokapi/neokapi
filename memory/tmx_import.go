@@ -3,6 +3,7 @@ package memory
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -19,6 +20,7 @@ import (
 	"golang.org/x/net/html/charset"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // --- Parsed TMX tree ---
@@ -287,7 +289,15 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 	filterAll := len(localeAllowed) == 0
 
 	// 7. Walk TUs, build one multilingual entry per TU.
+	named := make(map[string]bool, len(doc.TUs))
+	for _, tu := range doc.TUs {
+		if tu.TUID != "" {
+			named[tu.TUID] = true
+		}
+	}
 	entries := make([]Entry, 0, len(doc.TUs))
+	legacy := map[string]string{}
+	tuids := map[string]string{}
 	for i, tu := range doc.TUs {
 		variants := make(map[model.LocaleID][]model.Run)
 		var hintLang model.LocaleID
@@ -334,7 +344,11 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 		props := make(map[string]string)
 		maps.Copy(props, tu.Properties)
 
-		entryID := scopedTUID(opts.OriginKey, tu.TUID, i, session.ID)
+		entryID := scopedTUID(opts.OriginKey, tu.TUID, i, session.ID, named)
+		if old := legacyTUID(opts.OriginKey, tu.TUID, i, session.ID); old != entryID {
+			legacy[entryID] = old
+			tuids[entryID] = cmp.Or(tu.TUID, fmt.Sprintf("tu-%d", i+1))
+		}
 
 		origin := Origin{
 			Source:    "import",
@@ -377,12 +391,29 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 		return "", 0, err
 	}
 
+	entries, replaced, kept, err := planMoves(ctx, store, entries, legacy, tuids, opts.OriginKey)
+	if err != nil {
+		return "", 0, err
+	}
+	if len(kept) > 0 && opts.WarnFunc != nil {
+		opts.WarnFunc(fmt.Sprintf(
+			"%d unit(s) left under the id an earlier import gave them, because the entry there was edited or has another origin: tuid %s",
+			len(kept), strings.Join(kept, ", ")))
+	}
+
 	// 8. Persist. Use BulkAddWithStream when available: it collapses
 	//    thousands of per-entry commits into a single transaction, so TMX
 	//    imports of large corpora finish in a reasonable amount of time.
 	imported := 0
 	if bulk, ok := store.(BulkAdder); ok {
-		if err := bulk.BulkAddWithStream(ctx, entries, ""); err != nil {
+		// A store that can delete in the same write moves an entry to its new
+		// id there, so an interrupted import leaves no unit missing.
+		if rep, ok := store.(BulkReplacer); ok {
+			err = rep.BulkAddReplacing(ctx, entries, "", replaced)
+		} else {
+			err = bulk.BulkAddWithStream(ctx, entries, "")
+		}
+		if err != nil {
 			return session.ID, 0, err
 		}
 		imported = len(entries)
@@ -487,7 +518,49 @@ func sessionStamp(t time.Time) int64 {
 	}
 }
 
-func scopedTUID(originKey, tuid string, index int, sessionID string) string {
+// scopedTUID is the id of the entry a translation unit becomes: the origin
+// key and the unit's tuid, joined so that no two (origin, tuid) pairs share an
+// id, and the file's session. The origin is escaped for ":" and "%", and the
+// tuid for "%" alone, so a tuid holding ":" or "@" keeps the id it has always
+// had. With no origin key, the tuid is escaped for ":" as well. A unit with no tuid is named tu-N after its position; when the file
+// also holds a unit whose tuid is that name, the unnamed one gets a name no
+// tuid can produce. named holds the file's tuids.
+func scopedTUID(originKey, tuid string, index int, sessionID string, named map[string]bool) string {
+	fallback := fmt.Sprintf("tu-%d", index+1)
+	name, collides := tuid, false
+	if name == "" {
+		name, collides = fallback, named[fallback]
+	}
+	var base string
+	switch {
+	case collides:
+		// A tuid never yields "%0", which Join writes for the leading ":".
+		base = partjoin.Join(':', '%', withOrigin(originKey, ":"+fallback)...)
+	case originKey == "":
+		// Without an origin the tuid is escaped for ":" too, so the id holds
+		// no bare ":" and differs from every id that has an origin.
+		base = partjoin.Join(':', '%', name)
+	default:
+		base = partjoin.JoinTail(':', '%', originKey, name)
+	}
+	if sessionID != "" {
+		base = base + "@" + sessionID[:min(12, len(sessionID))]
+	}
+	return base
+}
+
+// withOrigin returns the parts of an id: the origin key when there is one,
+// then name.
+func withOrigin(originKey, name string) []string {
+	if originKey == "" {
+		return []string{name}
+	}
+	return []string{originKey, name}
+}
+
+// legacyTUID is the id scopedTUID gave before it escaped its parts. An import
+// moves an entry stored under it to the entry's id now.
+func legacyTUID(originKey, tuid string, index int, sessionID string) string {
 	base := tuid
 	if base == "" {
 		base = fmt.Sprintf("tu-%d", index+1)
@@ -499,6 +572,70 @@ func scopedTUID(originKey, tuid string, index int, sessionID string) string {
 		base = base + "@" + sessionID[:min(12, len(sessionID))]
 	}
 	return base
+}
+
+// planMoves decides, for each entry whose id differs from the one an earlier
+// release gave the same unit, what happens to an entry stored under that
+// earlier id. An entry that only this origin's imports wrote, holding the
+// text this import writes, is replaced: its id is returned in replaced, for
+// the write to delete in the same transaction. Any other entry (one a person
+// edited, or one another origin also wrote) is left under its earlier id, the
+// new entry is dropped so the unit is not held twice, and the unit is named in
+// kept by its tuid. An earlier id this import also writes names another unit
+// and is left alone. legacy maps an entry's id to its earlier id, and tuids
+// maps it to the unit's tuid.
+func planMoves(ctx context.Context, store Store, entries []Entry, legacy, tuids map[string]string, originKey string) (write []Entry, replaced, kept []string, err error) {
+	if len(legacy) == 0 {
+		return entries, nil, nil, nil
+	}
+	_, canReplace := store.(BulkReplacer)
+	writes := make(map[string]bool, len(entries))
+	for _, e := range entries {
+		writes[e.ID] = true
+	}
+	write = make([]Entry, 0, len(entries))
+	for _, e := range entries {
+		old, moved := legacy[e.ID]
+		if !moved || writes[old] {
+			write = append(write, e)
+			continue
+		}
+		prev, found, gerr := store.GetEntry(ctx, old)
+		if gerr != nil {
+			return nil, nil, nil, fmt.Errorf("read entry %s: %w", old, gerr)
+		}
+		switch {
+		case !found:
+			write = append(write, e)
+		case canReplace && onlyImportedAs(prev, originKey, e):
+			replaced = append(replaced, old)
+			write = append(write, e)
+		default:
+			kept = append(kept, tuids[e.ID])
+		}
+	}
+	return write, replaced, kept, nil
+}
+
+// onlyImportedAs reports whether every origin of prev is an import from
+// origin and prev holds the text e holds in every language, so replacing it
+// with e loses nothing.
+func onlyImportedAs(prev Entry, origin string, e Entry) bool {
+	for _, o := range prev.Origins {
+		if o.Source != "import" || o.Key != origin {
+			return false
+		}
+	}
+	if len(prev.Variants) != len(e.Variants) {
+		return false
+	}
+	for loc, runs := range e.Variants {
+		held, ok := prev.Variants[loc]
+		if !ok || model.RunsText(held) != model.RunsText(runs) {
+			return false
+		}
+	}
+	return true
 }
 
 // --- TMX parser ---

@@ -1,24 +1,25 @@
 # Native reference doc for the built-in `encoding-detect` tool.
 # Schema source: core/tools/encodingdetect.go (EncodingDetectConfig, no parameters).
-description: "Klassifiser kildeteksten til hver blokk som ASCII, UTF-8 eller ukjent."
+description: "Klassifiser kildeteksten i hver blokk som ASCII, UTF-8 eller ukjent."
 overview: |
-  Verktøyet **Encoding Detect** undersøker kildeteksten til hver oversettelsesblokkk
-  og registrerer dens kodingsegenskaper i blokkkens egenskaper: en
-  registrert etikett (`ascii`, `utf-8` eller `unknown`) pluss boolske flagg for om
-  teksten er gyldig UTF-8 og om den kun inneholder ASCII-tegn. Tekst som kun inneholder ASCII-tegn
-  får etiketten `ascii`; ellers får gyldig UTF-8 etiketten `utf-8`; alt annet får
-  etiketten `unknown`.
+  Verktøyet **Encoding Detect** undersøker kildeteksten i hver oversettbar
+  blokk og registrerer kodingsegenskapene i blokkens egenskaper. Det lagrer en
+  registrert etikett (`ascii`, `utf-8` eller `unknown`) og boolske flagg som
+  angir om teksten er gyldig UTF-8, og om den bare inneholder ASCII-tegn. Tekst
+  som bare inneholder ASCII-tegn, får etiketten `ascii`. Annen gyldig UTF-8 får
+  etiketten `utf-8`. Alt annet får etiketten `unknown`.
 
-  Verktøyet tar ingen konfigurasjon. Det er nyttig for å oppdage ikke-ASCII-innhold
-  som kan kreve særskilt behandling i nedstrømsformater eller skrifter, og for å
-  bekrefte at teksten er velformet UTF-8.
+  Verktøyet krever ingen konfigurasjon. Du kan bruke det til å finne innhold med
+  andre tegn enn ASCII-tegn som kan kreve særskilt håndtering i formater eller
+  skrifter senere i prosessen. Du kan også bruke det til å kontrollere at teksten
+  er gyldig UTF-8.
 limitations:
-  - Undersøker kun kildetekst; måloversettelster klassifiseres ikke.
-  - "Deteksjon er begrenset til ASCII / UTF-8-gyldighet, ikke en fullstendig tegnsett-deteksjonsheuristikk."
+  - Undersøker bare kildeteksten. Oversettelser i målteksten klassifiseres ikke.
+  - Registreringen er begrenset til å kontrollere om teksten er gyldig ASCII eller UTF-8. Den bruker ikke en fullstendig heuristikk for å registrere tegnsett.
 processingNotes:
-  - Opererer på oversettelsesblokkker; ikke-oversettbar struktur passerer gjennom uendret.
+  - "Behandler oversettbare blokker. Struktur som ikke skal oversettes, overføres uendret."
 examples:
   - title: Registrer kildekoding
-    description: Verktøyet tar ingen parametere; legg det til i en flyt med en tom konfigurasjon.
+    description: Verktøyet tar ingen parametere. Legg det til i en flyt med en tom konfigurasjon.
     config: |
       {}

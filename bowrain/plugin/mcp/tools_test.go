@@ -46,7 +46,7 @@ func TestHandleProjectConfig(t *testing.T) {
 	origDir := chdir(t, tmpDir)
 	defer chdir(t, origDir)
 
-	_, out, err := handleProjectConfig(bowrainTestApp(), MCPProjectInput{})
+	_, out, err := handleProjectConfig(t.Context(), bowrainTestApp(), MCPProjectInput{})
 	require.NoError(t, err)
 	assert.Equal(t, MCPLocaleInfo{Code: "en", DisplayName: "English"}, out.SourceLanguage)
 	assert.Equal(t, []MCPLocaleInfo{
@@ -75,7 +75,7 @@ func TestHandleProjectConfigWithServer(t *testing.T) {
 	origDir := chdir(t, tmpDir)
 	defer chdir(t, origDir)
 
-	_, out, err := handleProjectConfig(bowrainTestApp(), MCPProjectInput{})
+	_, out, err := handleProjectConfig(t.Context(), bowrainTestApp(), MCPProjectInput{})
 	require.NoError(t, err)
 	assert.Equal(t, "https://bowrain.example.com", out.ServerURL)
 	assert.Equal(t, "proj-123", out.ProjectID)

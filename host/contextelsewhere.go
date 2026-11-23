@@ -19,11 +19,10 @@ import (
 // Rules held elsewhere in a project, and the places they are held at.
 //
 // A rename scoped to the help pages leaves the API reference with the old
-// name, and the old name is correct there. An answer that only leaves the rule
-// out of the API reference's list says nothing an agent can act on: told by a
-// person to "rename Workspace to Space", it renames the API reference too. So
+// name, which is correct there. An agent told to "rename Workspace to Space"
+// would rename the API reference too if its answer only left the rule out. So
 // an answer for a file names every rule held at another place of the project
-// that does not hold at this one, as the wording that stays as it is here.
+// and not at this one, as the wording that stays as it is here.
 
 // ContextElsewhere is one rule held at other places of the project and not at
 // the point an answer is for: the wording that is correct here, and the
@@ -79,13 +78,13 @@ func (a *App) rulePlaces(proj *project.KapiProject, root string) []rulePlace {
 		return nil
 	}
 	var out []rulePlace
-	seen := map[string]bool{}
+	seen := map[[2]string]bool{}
 	for i := range proj.Collections {
 		coll := &proj.Collections[i]
 		for _, item := range coll.EffectiveItems() {
 			for _, pattern := range expandBraces(item.Path) {
 				sample, ok := globSample(pattern)
-				if !ok || !project.MatchGlob(item.Path, sample) || seen[item.Path+"\x00"+sample] {
+				if !ok || !project.MatchGlob(item.Path, sample) || seen[[2]string{item.Path, sample}] {
 					continue
 				}
 				if ProjectIgnores(root, sample) {
@@ -96,7 +95,7 @@ func (a *App) rulePlaces(proj *project.KapiProject, root string) []rulePlace {
 				if !claims || ci != i || claimed.Path != item.Path {
 					continue
 				}
-				seen[item.Path+"\x00"+sample] = true
+				seen[[2]string{item.Path, sample}] = true
 				out = append(out, rulePlace{Dir: globDir(pattern), Collection: coll.Name, Pattern: pattern, Sample: sample})
 			}
 		}
@@ -236,10 +235,10 @@ func placePoints(proj *project.KapiProject, places []rulePlace, at time.Time) []
 }
 
 // rulesElsewhere lists the rules the store holds at other places of the
-// project and not at this point. all is every concept in the store governing
-// the point, here the concepts that hold at it, and store names that store
-// (empty for the project's own), so a place governed by another store is not
-// compared with this one.
+// project and not at this point. The all list is every concept in the store
+// governing the point, and the here list is the concepts that hold at it. The
+// store argument names that store (empty for the project's own). A place
+// governed by another store is not compared with this one.
 func rulesElsewhere(proj *project.KapiProject, places []placePoint, store string, all, here []terms.Concept, locale model.LocaleID, at time.Time) []ContextElsewhere {
 	if len(all) == 0 || len(places) == 0 {
 		return nil

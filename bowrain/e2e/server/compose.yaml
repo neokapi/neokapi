@@ -71,6 +71,10 @@ services:
       # set this on a real deployment: it approves a pending device for the
       # identity the request names, with no identity-provider check.
       BOWRAIN_ALLOW_INSECURE_DEV: "1"
+      # A disposable test stack: the suites delete every project in the
+      # workspace they use, and run only against a server that reports this
+      # on /api/v1/health.
+      BOWRAIN_DISPOSABLE_STACK: "1"
     # As in production: a read-only root filesystem, a tmpfs for TMPDIR, and
     # the blob volume as the only other writable path. The image runs as
     # uid 10001.

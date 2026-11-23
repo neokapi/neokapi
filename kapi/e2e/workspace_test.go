@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/kpz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,16 +44,15 @@ func newProject(t *testing.T) (string, string) {
 }
 
 // TestPackUnpackRoundTrip verifies a project's working state packs to a .kpz
-// and rehydrates into a fresh project's .kapi/ state dir.
+// and rehydrates into a fresh project's state directory.
 func TestPackUnpackRoundTrip(t *testing.T) {
 	recipe, src := newProject(t)
 	dir := filepath.Dir(recipe)
 
-	// Run the flow so the project store caches overlays. Every subsystem
-	// shares the one `.kapi/work/store.db` now (AD-039), so this is the file to
-	// look for — and it sits at the top of work/, not under work/cache/.
+	// Run the flow so the project store caches overlays, in the checkout's
+	// work/store.db.
 	kapi(t, "run", "pseudo", "-p", recipe, "-i", src, "-o", filepath.Join(dir, "out.json"), "--target-lang", "fr-FR")
-	assert.FileExists(t, project.LayoutAt(dir).StorePath())
+	assert.FileExists(t, filepath.Join(statePath(t, recipe), "work", "store.db"))
 
 	snap := filepath.Join(dir, "snap.kpz")
 	kapi(t, "pack", "-p", recipe, "-o", snap)
@@ -64,10 +62,9 @@ func TestPackUnpackRoundTrip(t *testing.T) {
 
 	// Unpack into a fresh project root.
 	recipe2, _ := newProject(t)
-	dir2 := filepath.Dir(recipe2)
 	out := kapi(t, "unpack", snap, "-p", recipe2)
 	assert.Contains(t, out, "Unpacked")
-	assert.FileExists(t, project.LayoutAt(dir2).StorePath())
+	assert.FileExists(t, filepath.Join(statePath(t, recipe2), "work", "store.db"))
 }
 
 // TestCachedResumeSkipsWork verifies the invisible resume story: a second

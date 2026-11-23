@@ -8,6 +8,7 @@ import type {
   ProviderConfig,
   ToolInfo,
 } from "@neokapi/ui";
+import { FlowChangedError } from "@neokapi/ui";
 
 export const sampleTools: ToolInfo[] = [
   {
@@ -186,6 +187,7 @@ export const projectReview: FlowDefinitionInfo = {
   ],
   created_at: "2026-09-01T09:00:00Z",
   modified_at: "2026-09-02T14:30:00Z",
+  revision: "r-review",
 };
 
 export const sampleFlows: FlowDefinitionInfo[] = [builtInTranslate, builtInPseudo, projectReview];
@@ -210,6 +212,7 @@ export function createFlowsApi(options: FlowsApiOptions = {}) {
   const schemas = options.schemas ?? sampleSchemas;
   const providers = options.providers ?? sampleProviders;
   let counter = 0;
+  let revisions = 0;
   const wait = () =>
     options.delay ? new Promise<void>((r) => setTimeout(r, options.delay)) : Promise.resolve();
   const guard = () => {
@@ -251,6 +254,7 @@ export function createFlowsApi(options: FlowsApiOptions = {}) {
         source: "project",
         created_at: "2026-09-03T10:00:00Z",
         modified_at: "2026-09-03T10:00:00Z",
+        revision: `r${++revisions}`,
       };
       flows.push(created);
       return structuredClone(created);
@@ -265,12 +269,20 @@ export function createFlowsApi(options: FlowsApiOptions = {}) {
       guard();
       const i = flows.findIndex((f) => f.id === id);
       if (i < 0) throw new Error(`flow ${id} not found`);
+      // As the server does: a save based on an older revision is refused
+      // with the flow as it stands.
+      // A save without a base revision is refused, as the server refuses it.
+      if (!def.revision) throw new Error("a save needs the revision it was based on");
+      if (def.revision !== flows[i].revision) {
+        throw new FlowChangedError(structuredClone(flows[i]));
+      }
       flows[i] = {
         ...structuredClone(def),
         id,
         source: "project",
         created_at: flows[i].created_at,
         modified_at: "2026-09-03T10:05:00Z",
+        revision: `r${++revisions}`,
       };
       return structuredClone(flows[i]);
     },

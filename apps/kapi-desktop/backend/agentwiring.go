@@ -14,22 +14,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/skills"
 )
 
 // What an assistant reads about a project.
 //
-// kapi wires a project for the coding assistants that work in it: an MCP
-// server entry in each host's project configuration and the short kapi skill
-// in the directory the host scans (host/agentwiring.go), plus the rules files
-// an assistant loads as it starts (host/rulesfiles.go). The Assistant section
-// reads both and writes them the way `kapi init` does, so a person with no
-// terminal can connect an assistant and see what it is told.
+// kapi wires a project for its coding assistants: an MCP server entry and the
+// kapi skill per host (host/agentwiring.go), and the rules files an assistant
+// loads at start (host/rulesfiles.go). The Assistant section reads and writes
+// both as `kapi init` does, so a person with no terminal can connect one.
 //
-// Claude Desktop is the one host configured outside the project, in a file of
-// the person's own. The host layer never writes there; this file does, on the
-// person's request, keeping every other key in it.
+// Claude Desktop is configured outside the project, in the person's own file.
+// This file writes there on the person's request and keeps every other key.
 
 // agentWiringTimeout caps one read or write of a project's wiring and rules
 // files.
@@ -235,7 +234,7 @@ func (a *App) WriteRulesFiles(tabID string) (*host.RulesFilesResult, error) {
 var claudeDesktopConfigDir = func() (string, bool) {
 	switch runtime.GOOS {
 	case "darwin":
-		home, err := os.UserHomeDir()
+		home, err := dataroot.UserHomeDir()
 		if err != nil {
 			return "", false
 		}

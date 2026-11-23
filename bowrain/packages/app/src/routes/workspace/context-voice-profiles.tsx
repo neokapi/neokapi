@@ -69,9 +69,11 @@ export function ContextVoiceProfilesRoute() {
 
   const handleDelete = useCallback(
     async (profileId: string) => {
-      await deleteMutation.mutateAsync(profileId);
+      // The delete names the version of the profile the list showed.
+      const revision = profiles?.find((p) => p.id === profileId)?.revision;
+      await deleteMutation.mutateAsync({ id: profileId, revision });
     },
-    [deleteMutation],
+    [deleteMutation, profiles],
   );
 
   if (isLoading) {

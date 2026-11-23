@@ -153,7 +153,7 @@ func (fc *flowChanges) Open(ctx context.Context, d flow.Document) (flow.Document
 		// the drafts are the run's, and the destination keeps what it held.
 		// Delivery commits the draft only while the destination still holds
 		// it, whether or not the run follows the document.
-		dd, err := fc.app.convergeDeliveries.first(dest)
+		dd, err := fc.app.convergeDeliveries.first(fc.home, dest)
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", dest, err)
 		}
@@ -302,11 +302,11 @@ type flowDoc struct {
 	entered map[string]*model.Block
 	// producers are the stamps the run's tools left on each derived edition
 	// it wrote, by block key and edition text, for the record.
-	producers map[string]model.Origin
+	producers map[[2]string]model.Origin
 }
 
 // producerKey names one edition of one block among a document's producers.
-func producerKey(block, edition string) string { return block + "\x00" + edition }
+func producerKey(block, edition string) [2]string { return [2]string{block, edition} }
 
 // revisions maps a block key to its editions as the change service read
 // them.
@@ -515,7 +515,7 @@ func (doc *flowDoc) Leave(b *model.Block) {
 		if ed, ok := b.Edition(k); ok && !k.IsZero() && ed.Origin != (model.Origin{}) {
 			doc.mu.Lock()
 			if doc.producers == nil {
-				doc.producers = map[string]model.Origin{}
+				doc.producers = map[[2]string]model.Origin{}
 			}
 			doc.producers[producerKey(key, text)] = ed.Origin
 			doc.mu.Unlock()

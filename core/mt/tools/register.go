@@ -23,7 +23,7 @@ type Provider struct {
 // `kapi translate --provider <id>`. The unified translate tool (core/ai/tools)
 // reads this to populate its provider enum and to dispatch by id.
 //
-// The framework ships no classic MT engines — the translation core is
+// The framework ships no classic MT engines. The translation core is
 // LLM-first, and the built-in offline demo provider routes through the LLM
 // path (providers/ai's demo). Plugins that host MT engines append here (and
 // register a config factory via mtprovider.RegisterConfigFactory) to surface
@@ -45,11 +45,17 @@ func NewMTTranslateFromConfig(id mtprovider.ProviderID) registry.ToolConfigFacto
 			delete(config, "profile")
 		}
 
+		feedback, err := tool.TakeReviewFeedback(config)
+		if err != nil {
+			return nil, fmt.Errorf("%s translate config: %w", id, err)
+		}
+
 		var cfg MTTranslateConfig
 		if err := schema.ApplyConfig(config, &cfg); err != nil {
 			return nil, fmt.Errorf("%s translate config: %w", id, err)
 		}
 		cfg.Profile = profile
+		cfg.ReviewFeedback = feedback
 		cfg.ToolName = "translate"
 		if targetLang != "" {
 			cfg.TargetLocale = model.LocaleID(targetLang)

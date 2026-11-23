@@ -7537,8 +7537,7 @@ export class PluginUpdate {
 /**
  * PointDTO is a context point as its rungs, coarsest first.
  * 
- * The stored form joins them with a unit separator and is opaque by design —
- * the corpus holds no recipe, so it cannot say how a point should read. Split
+ * The stored form joins them with a unit separator and is opaque by design, // the corpus holds no recipe, so it cannot say how a point should read. Split
  * here rather than passed through, because a raw point rendered into a UI is a
  * string with control characters in it.
  */
@@ -9185,10 +9184,9 @@ export class ReviewAIActionResult {
 
 /**
  * ReviewUnitDetail is the full picture of one review-queue unit for the Review
- * page: the rendered source and target text, the unit's check findings (the
- * registered checkers run on demand for just this block), the recorded review
- * state and provenance from the project state store, and the best content-memory match when
- * the project content memory is open. It is read-derived — nothing here is cached.
+ * page: the rendered source and target text, the unit's check findings, the
+ * recorded review state and provenance, and the best content-memory match
+ * when the content memory is open. Nothing here is cached.
  */
 export class ReviewUnitDetail {
     /**
@@ -9261,7 +9259,7 @@ export class ReviewUnitDetail {
             /**
              * SourceLocale is the project's source language. The reviewer renders the
              * source and target panes in their own writing direction, so both locales
-             * have to reach the UI — a right-to-left source (or target) otherwise
+             * have to reach the UI, a right-to-left source (or target) otherwise
              * inherits the app's direction and reads scrambled.
              * @member
              * @type {string | undefined}

@@ -299,17 +299,29 @@ func TestMarketsLocalesRoundtrip(t *testing.T) {
 
 	m.Name = "dach-region"
 	m.Locales = []model.LocaleID{"de-DE"}
-	require.NoError(t, store.UpdateMarket(ctx, m))
+	base := m.Revision
+	require.NoError(t, store.UpdateMarket(ctx, m, base))
 	got, err = store.GetMarket(ctx, testWS, m.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "dach-region", got.Name)
 	require.Len(t, got.Locales, 1)
+	assert.NotEqual(t, base, got.Revision)
+
+	// An update based on the revision before that one is refused.
+	m.Name = "stale"
+	require.ErrorIs(t, store.UpdateMarket(ctx, m, base), storage.ErrStale)
+	got, err = store.GetMarket(ctx, testWS, m.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "dach-region", got.Name)
 
 	list, err := store.ListMarkets(ctx, testWS)
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 
-	require.NoError(t, store.DeleteMarket(ctx, testWS, m.ID))
+	require.ErrorIs(t, store.DeleteMarketAt(ctx, testWS, m.ID, base), storage.ErrStale, "a delete on an older revision is refused")
+	got, err = store.GetMarket(ctx, testWS, m.ID)
+	require.NoError(t, err)
+	require.NoError(t, store.DeleteMarketAt(ctx, testWS, m.ID, got.Revision))
 	_, err = store.GetMarket(ctx, testWS, m.ID)
 	assert.Error(t, err)
 }

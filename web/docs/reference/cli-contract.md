@@ -79,7 +79,7 @@ One document per batch: identity (`batch_id`, `manifest`), the extraction inputs
   "format": "xliff2",
   "targets": ["fr", "de"],
   "sources": 2,
-  "manifest": ".kapi/work/cache/extractions/0b6be731/manifest.yaml",
+  "manifest": "<state>/work/cache/extractions/0b6be731/manifest.yaml",
   "pairs": [
     {
       "target_locale": "fr",
@@ -165,6 +165,27 @@ Under `--json` (or `--jq` / `--output-format=json`), a failing command prints a 
 
 The toolbox utilities (`kgrep`) additionally use grep-parity semantics: exit 1 with no message when nothing matched.
 
+## State kapi keeps for a checkout
+
+kapi keeps each checkout's own state outside the checkout, in a directory of its own under the data root: the project store and caches under `work/`, the sync state under `sync/`, the redaction vault under `vault/` and the saved filters in `filters.local.json`. `kapi state path` prints the directory, and `kapi state path --json` also gives `parse_cache`, the directory the parse cache resolved to. kapi reads no state from inside a checkout.
+
+`KAPI_PARSE_CACHE_DIR` moves the parse cache out of the state directory, to a directory a CI cache can name. It must be an absolute path outside the checkout (outside the git work tree that holds the project, or the project when none does) and not a link, and on Linux and macOS a directory you own that no other user can reach; kapi creates it that way when it is missing, refuses a directory that breaks one of these rules with a message naming the rule and the path, and never changes the mode of a directory it did not create. On Windows only the directory and the link are checked, because access there is an access control list, which kapi does not read. Several checkouts and projects can share one directory.
+
+The directory is found by the checkout's location and the identity of its folder, never by anything the checkout contains. What you see:
+
+- **A checkout you moved or renamed** on the same volume: nothing; its state follows it. On a file system that records no creation time, the state stays at the old location and `kapi state relink --from <old location>` brings it across.
+- **The same folder typed in another spelling** on a volume that ignores case (`~/src/App` and `~/src/app`): the same state.
+- **A copied checkout, a restored backup or a checkout moved to another volume:** no state. kapi rebuilds `work/`. Bring the vault, the sync state and the filters across with `kapi state relink --from <old location>`.
+- **A volume mounted again with new device numbers:** fresh state, and kapi says once that the earlier state at that location was kept; the vault and the sync state wait for `kapi state relink --from <location>`.
+- **Another folder at a location where a checkout was** (one deleted and another cloned in its place): no state, and kapi says once that the earlier state was kept, with the `kapi state relink` command for it.
+- **State an earlier kapi left in the checkout's `.kapi/`:** kapi says once that `.kapi/work` is no longer used, and that the vault, sync state or filters there need `kapi state import -p <project>`.
+
+`kapi state import` and `kapi state relink` list every file with its size and the server any sync state was issued by, ask you to confirm (or take `--yes`), take exactly what they listed, and refuse a link or an irregular file. `import` leaves the copies in `.kapi/` unless you pass `--remove`. An agent cannot run either.
+
+A claim token in the sync state is sent only to the server and project the sync state records it for. A sync state that records none sends no token, and kapi says why.
+
+kapi also exits 1 when git tracks `.kapi/work/`, `.kapi/sync/`, `.kapi/vault/` or `.kapi/filters.local.json`, in any spelling your file system treats as the same name, or when one of them is a submodule. Run the `git rm -r --cached` command the message names and commit. When kapi cannot ask git, the message names the cause (git not installed, a repository another user owns, no answer within five seconds); `KAPI_TRUST_STATE=1` in kapi's own environment skips the question. A directory in no git repository is not checked.
+
 ## Streaming progress: `--progress jsonl`
 
 `run`, `extract`, and `merge` accept `--progress jsonl`, which streams progress events to **stderr** as NDJSON (one JSON object per line) while stdout stays reserved for the final result. The events use the flow-run event vocabulary (the same shapes the Kapi Desktop run sink receives), with `flow` naming the verb or flow:
@@ -247,6 +268,8 @@ The [MCP server](/reference/mcp) (`kapi mcp`) is part of the same contract: its 
 The `kapi.change/v1` freeze is one such decision. `apply_edits` reads `find` as placeholder text, takes an optional `path` on a `replace_text` operation, and names a piece of evidence's block `evidence[].block`; `context_note` names it `block` too. `kapi/cmd/kapi/testdata/mcp_tools.frozen.json` holds the frozen surface: a test refuses a tool that is gone and an input schema that no longer extends its frozen one, and the golden, which the snapshot test regenerates, shows every change in review. `apply_edits` declares its result with the generated `kapi.change-result/v1` schema.
 
 The snake_case rule for config keys is another. The input fields of a registry tool on the MCP surface are its config keys, so `translate` takes `api_key`, `batch_concurrency`, `context_window` and `skip_matched`, `redact` takes `entity_types` and `rules_path`, and `term-check` takes `case_sensitive`. The frozen file records the rename.
+
+A tool takes only the fields its input schema lists, and refuses a call that passes any other. A field that names a file carries `x-path` in its schema, and the server checks it against the directories a call may reach before the tool runs. `term-check` takes the rules it checks as `term_rules`, a list of `term` and `replacement` pairs.
 
 `check_text` accepts an optional `context_path`, a project-relative destination
 whose voice and terms apply to the supplied draft. It requires a bound project
@@ -385,7 +408,10 @@ What a **recipe** does with them is gated. A project whose recipe names either
 tool prompts once, showing the command it would run, and the answer is
 remembered under the kapi config directory against a fingerprint of what was
 approved, so an unrelated recipe edit keeps the approval and a changed command
-asks again. With no terminal attached, kapi refuses and assumes no consent;
+asks again. The fingerprint also covers the flow files in `flows_dir:` and
+the content of the regular files the commands name in the project, and it
+is checked at every run. With no terminal attached, kapi refuses with exit
+code 1 (`error`) and assumes no consent;
 `KAPI_TRUST_EXEC=1` is the opt-in for automation, and the general `--yes` flag
 does not grant it. The MCP tool surface refuses
 these tools outright. See

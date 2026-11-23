@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // streamDecisions is the server's change.Assets: decide, applied to the
@@ -59,10 +60,10 @@ type streamDecisions struct {
 	// correction that the separation-of-duties policy refuses, keyed by
 	// block id and locale. The correction lands, and Apply refuses the
 	// decision.
-	heldForSecondReviewer map[string]error
+	heldForSecondReviewer map[[2]string]error
 }
 
-func heldKey(blockID, locale string) string { return blockID + "\x00" + locale }
+func heldKey(blockID, locale string) [2]string { return [2]string{blockID, locale} }
 
 var _ change.Assets = (*streamDecisions)(nil)
 
@@ -125,7 +126,7 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 		if err := sod.vet(row.Block.ID, locale); err != nil {
 			if fault, ok := errors.AsType[reviewFault](err); ok && edited && fault.msg == sodRefusal {
 				if d.heldForSecondReviewer == nil {
-					d.heldForSecondReviewer = map[string]error{}
+					d.heldForSecondReviewer = map[[2]string]error{}
 				}
 				d.heldForSecondReviewer[heldKey(row.Block.ID, locale)] = err
 				return nil
@@ -157,7 +158,14 @@ func (d *streamDecisions) Apply(ctx context.Context, actor change.Actor, set *ch
 		e.Message = sodRefusal + "; your correction is saved and waits for another reviewer to approve it"
 		return "", e
 	}
-	req := ReviewBlockRequest{TargetLocale: locale, ItemName: target.Doc.Doc, BaseRevision: target.Rev}
+	req := ReviewBlockRequest{TargetLocale: locale, ItemName: target.Doc.Doc, BaseRevision: target.Rev,
+		Reasons: venue.NormalizeReasons(body.Reasons)}
+	if set != nil {
+		req.Note = set.Note
+	}
+	if err := venue.CheckDecisionInput(req.Note, body.Reasons); err != nil {
+		return "", &change.Error{Code: change.CodeInvalid, Field: err.Field, Message: err.Message}
+	}
 	demoteTo := model.TargetStatusTranslated
 	switch body.Outcome {
 	case change.OutcomeEstablish:
@@ -179,15 +187,13 @@ func (d *streamDecisions) Apply(ctx context.Context, actor change.Actor, set *ch
 	if err != nil {
 		return "", decisionRefusal(err)
 	}
-	if !out.Changed {
+	if !out.Changed && !out.Recorded {
+		// The same person's same decision, with the same note and reasons,
+		// already stands.
 		return change.OpUnchanged, nil
 	}
-	note := ""
-	if set != nil {
-		note = set.Note
-	}
 	if !d.quiet {
-		d.s.emitReviewDecisionAudit(d.c, d.proj.ID, d.stream, row.Block.ID, locale, out.From, out.Status, req.Reviewed, note)
+		d.s.emitReviewDecisionAudit(d.c, d.proj.ID, d.stream, row.Block.ID, locale, out.From, out.Status, req.Reviewed, req.Note, req.Reasons)
 	}
 	d.applied++
 	if out.Approval {

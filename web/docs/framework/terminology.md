@@ -385,8 +385,17 @@ count, err = terms.ImportCSV(tb, reader, opts)
 err = terms.ExportCSV(tb, writer, "en", "fr", true)
 ```
 
-CSV columns are `source,target,domain` (domain optional). JSON carries the full
-concept structure:
+CSV columns are `source,target,domain` (domain optional). With a header, a
+`concept_id` column gives each row's concept its id; `ExportCSV` writes one. A
+concept whose file names no id takes the id of its source term
+(`terms.ImportID`), so importing the same file twice writes the same concepts.
+Two rows with the same source term name the same concept; give them different
+`concept_id` values when they mean different things. `terms.ParseCSV`,
+`ParseJSON` and `ParseTBX` return the rows without writing them, for a store
+that decides each row itself. JSON carries the full concept structure, and a
+file exported from a store that keeps revisions may also carry `revisions`,
+the version of each concept at the export. Importing the file back applies
+each concept as an edit at that version:
 
 ```json
 {

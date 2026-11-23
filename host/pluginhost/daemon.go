@@ -84,6 +84,11 @@ type Handshake struct {
 type DaemonClient struct {
 	Plugin *Plugin
 
+	// Roots are the directories this daemon may be sent paths in, fixed for
+	// its life (KAPI_PLUGIN_ROOTS). key is the pool's key: plugin and roots.
+	Roots []string
+	key   poolKey
+
 	// Conn is the gRPC client connection to the daemon's Unix socket.
 	// Always non-nil when Acquire returns successfully.
 	Conn *grpc.ClientConn
@@ -269,8 +274,8 @@ type DaemonPool struct {
 	opts DaemonPoolOptions
 
 	mu         sync.Mutex
-	clients    map[string]*DaemonClient // key: plugin name
-	spawnLocks map[string]*sync.Mutex   // per-plugin spawn coordination; prevents concurrent first-callers from each spawning a JVM only to kill all but one
+	clients    map[poolKey]*DaemonClient
+	spawnLocks map[poolKey]*sync.Mutex // per-plugin spawn coordination; prevents concurrent first-callers from each spawning a JVM only to kill all but one
 	closed     bool
 }
 
@@ -288,8 +293,8 @@ func NewDaemonPool(opts DaemonPoolOptions) *DaemonPool {
 	}
 	return &DaemonPool{
 		opts:       opts,
-		clients:    map[string]*DaemonClient{},
-		spawnLocks: map[string]*sync.Mutex{},
+		clients:    map[poolKey]*DaemonClient{},
+		spawnLocks: map[poolKey]*sync.Mutex{},
 	}
 }
 
@@ -328,23 +333,40 @@ func (p *DaemonPool) Acquire(ctx context.Context, plugin *Plugin) (*DaemonClient
 		return nil, fmt.Errorf("daemon pool: plugin %q is not Mode-C (no formats/tools/source_connectors)", plugin.Name())
 	}
 
+	// A daemon's roots are fixed for its life, so the pool keeps one daemon
+	// per plugin and set of roots: a call whose paths lie under other roots
+	// gets a daemon started with those.
+	roots := PathRootsFrom(ctx)
+	key := daemonKey(plugin.Name(), roots)
+
 	// Fast path: cached, healthy client.
 	p.mu.Lock()
 	if p.closed {
 		p.mu.Unlock()
 		return nil, errors.New("daemon pool: closed")
 	}
-	if existing, ok := p.clients[plugin.Name()]; ok && !existing.IsClosed() && existing.Conn != nil {
+	if existing, ok := p.clients[key]; ok && !existing.IsClosed() && existing.Conn != nil {
 		existing.touch()
 		p.mu.Unlock()
 		return existing, nil
+	}
+	if len(roots) == 0 {
+		// A call that sends no path, only content, may use any daemon of
+		// the plugin, whatever roots it was started with.
+		for _, c := range p.clients {
+			if c.Plugin.Name() == plugin.Name() && !c.IsClosed() && c.Conn != nil {
+				c.touch()
+				p.mu.Unlock()
+				return c, nil
+			}
+		}
 	}
 	p.mu.Unlock()
 
 	// Slow path: serialize spawn-per-plugin so only one goroutine runs
 	// the JVM start. Other concurrent callers block here, then hit the
 	// re-check below and reuse the freshly spawned client.
-	spawnLock := p.spawnLockFor(plugin.Name())
+	spawnLock := p.spawnLockFor(key)
 	spawnLock.Lock()
 	defer spawnLock.Unlock()
 
@@ -355,14 +377,14 @@ func (p *DaemonPool) Acquire(ctx context.Context, plugin *Plugin) (*DaemonClient
 	}
 	// Re-check cache after acquiring spawn lock: we may have been the
 	// loser in a race and the winner already populated p.clients.
-	if existing, ok := p.clients[plugin.Name()]; ok && !existing.IsClosed() && existing.Conn != nil {
+	if existing, ok := p.clients[key]; ok && !existing.IsClosed() && existing.Conn != nil {
 		existing.touch()
 		p.mu.Unlock()
 		return existing, nil
 	}
 	// Drop a stale entry if present (process crashed, conn closed).
-	if stale, ok := p.clients[plugin.Name()]; ok {
-		delete(p.clients, plugin.Name())
+	if stale, ok := p.clients[key]; ok {
+		delete(p.clients, key)
 		go stale.close(p.opts.ShutdownGrace)
 	}
 	// Evict LRU if we'd exceed the cap.
@@ -372,17 +394,18 @@ func (p *DaemonPool) Acquire(ctx context.Context, plugin *Plugin) (*DaemonClient
 			break
 		}
 		p.opts.Logger("daemon pool: evicting LRU daemon %q", victim.Plugin.Name())
-		delete(p.clients, victim.Plugin.Name())
+		delete(p.clients, victim.key)
 		go victim.close(p.opts.ShutdownGrace)
 	}
 	p.mu.Unlock()
 
 	// Spawn outside both locks. spawnLock still held, so no concurrent
 	// spawn for this plugin.
-	client, err := p.spawn(ctx, plugin)
+	client, err := p.spawn(ctx, plugin, roots)
 	if err != nil {
 		return nil, err
 	}
+	client.Roots, client.key = roots, key
 
 	p.mu.Lock()
 	if p.closed {
@@ -390,7 +413,7 @@ func (p *DaemonPool) Acquire(ctx context.Context, plugin *Plugin) (*DaemonClient
 		client.close(p.opts.ShutdownGrace)
 		return nil, errors.New("daemon pool: closed")
 	}
-	p.clients[plugin.Name()] = client
+	p.clients[key] = client
 	client.touch()
 	p.mu.Unlock()
 
@@ -406,7 +429,7 @@ func (p *DaemonPool) Acquire(ctx context.Context, plugin *Plugin) (*DaemonClient
 // spawnLockFor returns the spawn-coordination mutex for a plugin,
 // creating one on first use. Per-plugin (not per-pool) so spawns for
 // different plugins remain parallel.
-func (p *DaemonPool) spawnLockFor(name string) *sync.Mutex {
+func (p *DaemonPool) spawnLockFor(name poolKey) *sync.Mutex {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if l, ok := p.spawnLocks[name]; ok {
@@ -473,7 +496,7 @@ func (p *DaemonPool) watchIdle(client *DaemonClient, idle time.Duration) {
 			// across the final LastUsed read serialises us against that
 			// touch, so a recently-used daemon is never closed.
 			p.mu.Lock()
-			existing, ok := p.clients[client.Plugin.Name()]
+			existing, ok := p.clients[client.key]
 			if !ok || existing != client {
 				// Already evicted or replaced, so there is nothing to do.
 				p.mu.Unlock()
@@ -484,7 +507,7 @@ func (p *DaemonPool) watchIdle(client *DaemonClient, idle time.Duration) {
 				p.mu.Unlock()
 				continue
 			}
-			delete(p.clients, client.Plugin.Name())
+			delete(p.clients, client.key)
 			p.opts.Logger("daemon pool: %q idle for %s, terminating", client.Plugin.Name(), time.Since(client.LastUsed()))
 			p.mu.Unlock()
 			client.close(p.opts.ShutdownGrace)
@@ -506,7 +529,7 @@ func (p *DaemonPool) Shutdown() {
 	for _, c := range p.clients {
 		clients = append(clients, c)
 	}
-	p.clients = map[string]*DaemonClient{}
+	p.clients = map[poolKey]*DaemonClient{}
 	p.mu.Unlock()
 
 	var wg sync.WaitGroup
@@ -526,15 +549,15 @@ func (p *DaemonPool) Active() []string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	out := make([]string, 0, len(p.clients))
-	for name := range p.clients {
-		out = append(out, name)
+	for _, c := range p.clients {
+		out = append(out, c.Plugin.Name())
 	}
 	return out
 }
 
 // spawn launches one daemon subprocess, parses its stdout handshake,
 // and dials its Unix socket over gRPC.
-func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin) (*DaemonClient, error) {
+func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin, roots []string) (*DaemonClient, error) {
 	if runtime.GOOS == "windows" {
 		// Mode C uses Unix sockets. On Windows we'd swap in named pipes
 		// or 127.0.0.1 + dynamic port; not yet implemented.
@@ -585,6 +608,10 @@ func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin) (*DaemonClient, 
 		"KAPI_PLUGIN_DIR="+plugin.Dir,
 		"KAPI_PLUGIN_NAME="+plugin.Name(),
 		"KAPI_PLUGIN_VERSION="+plugin.Version(),
+		// The directories the host may send this daemon paths in. A plugin
+		// that confines what it opens refuses a path outside them; one that
+		// does not ignores the variable.
+		EnvPluginRoots+"="+strings.Join(roots, string(os.PathListSeparator)),
 	)
 	// Host-owned model assets: stage the plugin's declared default model (the
 	// host downloads + verifies it, with a progress bar) before the daemon

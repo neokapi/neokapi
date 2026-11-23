@@ -47,9 +47,7 @@ func TestInitProject(t *testing.T) {
 	proj, err := project.Load(res.RecipePath)
 	require.NoError(t, err)
 	assert.Equal(t, "MyApp", proj.Name)
-	stateDir := filepath.Join(dir, project.StateDirName)
-	assert.DirExists(t, stateDir)
-	assert.NoFileExists(t, filepath.Join(stateDir, "manifest.yaml"))
+	assert.NoDirExists(t, filepath.Join(dir, project.StateDirName), "init writes nothing of kapi's own into the checkout")
 
 	// Idempotent: a second run adopts the existing recipe and leaves it be,
 	// and reads its languages back from it.

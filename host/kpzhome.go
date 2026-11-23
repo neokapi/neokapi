@@ -278,7 +278,9 @@ func (h *kpzHomes) kpzRef(doc string) (ref, path string, ok bool) {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(h.root, filepath.FromSlash(ref))
 	}
-	info, err := os.Stat(path)
+	// A KPZ beneath root is stated through it, so one reached through a link
+	// that leads out of root names no KPZ.
+	info, err := statIn(h.root, path)
 	if err != nil || info.IsDir() {
 		return "", "", false
 	}

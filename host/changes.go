@@ -25,7 +25,9 @@ import (
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // This file builds the change service (core/change) for a surface of the kapi
@@ -415,7 +417,7 @@ func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, e
 	}
 	name := l.format
 	if name == "" {
-		if name, err = l.app.detectChangeFormat(path, entry, l.plainText); err != nil {
+		if name, err = l.app.detectChangeFormat(l.root, path, entry, l.plainText); err != nil {
 			return filehome.Doc{}, err
 		}
 	}
@@ -429,7 +431,7 @@ func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, e
 		TargetLocale: l.app.targetOf(name, l.target),
 	}
 	if d.Editions == change.EditionsPerFile && entry == "" {
-		if lang := pathLanguage(ref, path); lang != "" && !l.sourceNamed {
+		if lang := pathLanguage(l.root, ref, path); lang != "" && !l.sourceNamed {
 			d.SourceLocale, d.LanguageNamed = lang, true
 		}
 		d.NoEditionFile = fmt.Sprintf("outside a project %s holds one edition, its own (%s); "+
@@ -468,7 +470,8 @@ var languageDirs = []string{"i18n", "intl", "l10n", "lang", "langs", "language",
 // pathLanguage is the language a document's path names: its file name
 // without the extension (locales/nb.json), else the directory holding it
 // (docs/de/guide.md). ref is the document's reference and path its file on
-// disk.
+// disk. The directories around path are read as statIn reads them, through
+// root when path lies beneath it.
 //
 // Most two-letter names are language codes, and so are many names of code
 // directories (io, my, to, is, id). So a bare two-letter name counts only
@@ -477,7 +480,7 @@ var languageDirs = []string{"i18n", "intl", "l10n", "lang", "langs", "language",
 // another name of the same kind that is a language (locales/en.json and
 // locales/nb.json, docs/en/guide.md and docs/de/guide.md). A name with a region or script (nb-NO, pt_BR,
 // zh-Hans) counts as it stands. Empty when the path names no language.
-func pathLanguage(ref, path string) model.LocaleID {
+func pathLanguage(root, ref, path string) model.LocaleID {
 	slashed := filepath.ToSlash(ref)
 	base := pathpkg.Base(slashed)
 	ext := pathpkg.Ext(base)
@@ -485,7 +488,7 @@ func pathLanguage(ref, path string) model.LocaleID {
 	dir := filepath.Dir(path)
 	if id, ok := languageName(stem); ok && (strings.ContainsAny(stem, "-_") ||
 		slices.Contains(languageDirs, strings.ToLower(filepath.Base(dir))) ||
-		hasSibling(dir, stem, func(e os.DirEntry) bool {
+		hasSibling(root, dir, stem, func(e os.DirEntry) bool {
 			return !e.IsDir() && pathpkg.Ext(e.Name()) == ext && isLanguageName(strings.TrimSuffix(e.Name(), ext))
 		})) {
 		return id
@@ -500,11 +503,11 @@ func pathLanguage(ref, path string) model.LocaleID {
 	}
 	parent := filepath.Dir(dir)
 	if strings.ContainsAny(name, "-_") || slices.Contains(languageDirs, strings.ToLower(filepath.Base(parent))) ||
-		hasSibling(parent, name, func(e os.DirEntry) bool {
+		hasSibling(root, parent, name, func(e os.DirEntry) bool {
 			if !e.IsDir() || !isLanguageName(e.Name()) {
 				return false
 			}
-			_, err := os.Stat(filepath.Join(parent, e.Name(), base))
+			_, err := statIn(root, filepath.Join(parent, e.Name(), base))
 			return err == nil
 		}) {
 		return id
@@ -527,9 +530,9 @@ func isLanguageName(name string) bool {
 }
 
 // hasSibling reports whether dir holds an entry other than the one named
-// name that sibling accepts.
-func hasSibling(dir, name string, sibling func(os.DirEntry) bool) bool {
-	entries, err := os.ReadDir(dir)
+// name that sibling accepts. dir is listed as readDirIn lists it.
+func hasSibling(root, dir, name string, sibling func(os.DirEntry) bool) bool {
+	entries, err := readDirIn(root, dir)
 	if err != nil {
 		return false
 	}
@@ -543,11 +546,12 @@ func hasSibling(dir, name string, sibling func(os.DirEntry) bool) bool {
 // that claims no extension (a Qt Linguist catalog) is found by what the file
 // holds. With plainText, a file no format claims is read as plain text unless
 // its bytes are binary, as the toolbox reads one; without it, it is refused.
-func (a *App) detectChangeFormat(path, entry string, plainText bool) (string, error) {
+// A file beneath root is read through it (rootpath.Open).
+func (a *App) detectChangeFormat(root, path, entry string, plainText bool) (string, error) {
 	if entry != "" {
 		return filehome.DetectFormat(a.FormatReg, path, entry)
 	}
-	f, err := os.Open(path)
+	f, err := rootpath.Open(root, path)
 	if err != nil {
 		return "", err
 	}
@@ -665,10 +669,11 @@ func (l *projectChangeLayout) sourceFile(ref string) (project.ResolvedFile, bool
 // claimedSource resolves rel, a project-relative path, as the recipe claims
 // it: the file, and true when an item claims its values. The format is the
 // item's, or the one detection finds from the file's content, as
-// ResolveContent finds it.
+// ResolveContent finds it. Detection reads the file through the project
+// root, so a file reached through a link out of the project is not read.
 func claimedSource(reg *registry.FormatRegistry, pctx *project.ProjectContext, rel string) (project.ResolvedFile, bool) {
 	files := pctx.ResolvePaths(reg, []string{rel}, func(rel string) (io.ReadSeeker, error) {
-		return os.Open(filepath.Join(pctx.ProjectDir, filepath.FromSlash(rel)))
+		return rootpath.OpenRegular(pctx.ProjectDir, filepath.Join(pctx.ProjectDir, filepath.FromSlash(rel)))
 	})
 	if len(files) != 1 || files[0].CommentsOnly() {
 		return project.ResolvedFile{}, false
@@ -719,7 +724,7 @@ func (l *projectChangeLayout) Locate(ctx context.Context, doc string) (filehome.
 		// member's format.
 		name := l.format
 		if name == "" {
-			if name, err = l.app.detectChangeFormat(path, entry, l.plainText); err != nil {
+			if name, err = l.app.detectChangeFormat(l.root, path, entry, l.plainText); err != nil {
 				return filehome.Doc{}, err
 			}
 		}
@@ -741,7 +746,7 @@ func (l *projectChangeLayout) Locate(ctx context.Context, doc string) (filehome.
 	name := l.format
 	if name == "" {
 		if name = l.pctx.DetectFormat(l.app.FormatReg, path); name == "" {
-			if name, err = l.app.detectChangeFormat(path, "", l.plainText); err != nil {
+			if name, err = l.app.detectChangeFormat(l.root, path, "", l.plainText); err != nil {
 				return filehome.Doc{}, err
 			}
 		}
@@ -796,12 +801,13 @@ const maxHeaderScan = 64 << 10
 // format name at path declares, for a format whose reader is told the
 // language rather than reading it: a PO catalog's Language header. Empty when
 // the file declares none or declares the source language, and for any other
-// format, whose reader reads what the file declares (an XLIFF trgLang).
-func declaredLanguage(name, path string, source model.LocaleID) model.LocaleID {
+// format, whose reader reads what the file declares (an XLIFF trgLang). A file
+// beneath root is read through it (rootpath.Open).
+func declaredLanguage(root, name, path string, source model.LocaleID) model.LocaleID {
 	if path == "" || preset.ParseFormatRef(name).RegistryName() != "po" {
 		return ""
 	}
-	f, err := os.Open(path)
+	f, err := rootpath.Open(root, path)
 	if err != nil {
 		return ""
 	}
@@ -931,7 +937,7 @@ func (l *projectChangeLayout) sourceDoc(ctx context.Context, ref string, rf proj
 		// A bilingual file that keeps its translation in it holds the
 		// language it declares or one of the project's target languages,
 		// which a read lists without being told it.
-		d.TargetLocale = heldLocale(rf.Relative, declaredLanguage(name, rf.Path, l.source),
+		d.TargetLocale = heldLocale(rf.Relative, declaredLanguage(l.root, name, rf.Path, l.source),
 			rf.Item.ResolvedTargetLanguages(nil, l.proj.Defaults))
 	}
 	d.EditionFile = func(k model.EditionKey) (filehome.EditionFile, bool) {
@@ -953,7 +959,7 @@ func (l *projectChangeLayout) sourceDoc(ctx context.Context, ref string, rf proj
 	}
 	for loc, u := range targets {
 		path := filepath.Join(l.root, u.DisplayPath)
-		_, err := os.Stat(path)
+		_, err := statIn(l.root, path)
 		if err == nil || (l.kept != nil && l.kept.keeper.holds(ctx, ref, model.EditionKey{Locale: loc})) {
 			d.Derived = append(d.Derived, model.EditionKey{Locale: loc})
 		}
@@ -1059,7 +1065,7 @@ func whoOf(actor change.Actor, set *change.Set) changeActor {
 	if set != nil && set.Note != "" {
 		note = set.Note
 	}
-	return changeActor{Actor: contextop.Actor{Kind: contextop.ActorKind(actor.Kind), Name: actor.Name, Session: actor.Session}, Note: note}
+	return changeActor{Actor: contextActorOf(actor), Note: note}
 }
 
 func (c *changeAssets) Prepare(ctx context.Context, actor change.Actor, op change.Op, target *change.DecisionTarget) *change.Error {
@@ -1167,6 +1173,17 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 	}
 	locale := string(target.Ref.Edition.Locale)
 	ref := ReviewUnitRef{File: filepath.FromSlash(file), Key: target.Ref.Block, Locale: locale}
+	if body.Outcome != change.OutcomePrereview {
+		// The same refusal, in the same words, as the platform's change
+		// route: a decision the platform would refuse never reaches a push.
+		note := ""
+		if set != nil {
+			note = set.Note
+		}
+		if err := venue.CheckDecisionInput(note, body.Reasons); err != nil {
+			return "", &change.Error{Code: change.CodeInvalid, Field: err.Field, Message: err.Message}
+		}
+	}
 	switch body.Outcome {
 	case change.OutcomePrereview:
 		review := state.AIReview{Model: reviewerName(actor), At: nowRFC3339(), TargetHash: targetHash(decided.target), Revision: decided.targetRev}
@@ -1189,10 +1206,10 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 		if set != nil {
 			note = set.Note
 		}
-		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionRejected, note, decided)
+		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionRejected, note, venue.NormalizeReasons(body.Reasons), actor.AgentHost, decided)
 		return decisionOutcome(changed, err)
 	default:
-		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionApproved, "", decided)
+		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionApproved, "", venue.NormalizeReasons(body.Reasons), actor.AgentHost, decided)
 		return decisionOutcome(changed, err)
 	}
 }

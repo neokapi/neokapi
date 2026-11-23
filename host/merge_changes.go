@@ -222,7 +222,7 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 	}
 	unchangedFile := false
 	if rf.sourceHash != "" {
-		if h, herr := project.HashFile(sourceAbs); herr == nil && h == rf.sourceHash {
+		if h, herr := project.HashFileIn(task.layout.Root, sourceAbs); herr == nil && h == rf.sourceHash {
 			unchangedFile = true
 		}
 	}
@@ -514,7 +514,7 @@ func (a *App) translatorWins(task mergeTask, rf *returnedFile) bool {
 	case project.ConflictPolicyExistingWins:
 		return false
 	case project.ConflictPolicyNewestWins:
-		in, err := os.Stat(rf.input)
+		in, err := statThrough(task.layout.Root, rf.input)
 		if err != nil {
 			return false
 		}
@@ -522,7 +522,7 @@ func (a *App) translatorWins(task mergeTask, rf *returnedFile) bool {
 		if err != nil {
 			return false
 		}
-		held, err := os.Stat(target)
+		held, err := statInProject(task.layout.Root, target)
 		if errors.Is(err, os.ErrNotExist) {
 			return true
 		}

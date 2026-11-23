@@ -67,7 +67,7 @@ func TestAttest_RevisionAndReviews(t *testing.T) {
 	all, err := ledger.Records(ctx, contextop.Filter{})
 	require.NoError(t, err)
 	reviews := contextop.Reviews(all)
-	key := contextop.ItemRef{Kind: contextop.ItemOp, ID: observed.ID}.Key()
+	key := contextop.ItemRef{Kind: contextop.ItemOp, ID: observed.ID}
 	require.Contains(t, reviews, key)
 	assert.Equal(t, first.ID, reviews[key].ID)
 	assert.Equal(t, contextop.BasisAgentAuthored, reviews[key].Basis)
@@ -108,9 +108,9 @@ func TestAttest_ItemInAnotherStore(t *testing.T) {
 	all, err := ledger.Records(ctx, contextop.Filter{})
 	require.NoError(t, err)
 	reviews := contextop.Reviews(all)
-	require.Contains(t, reviews, ref.Key())
-	assert.True(t, reviews[ref.Key()].Current("3"))
-	assert.False(t, reviews[ref.Key()].Current("4"))
+	require.Contains(t, reviews, ref)
+	assert.True(t, reviews[ref].Current("3"))
+	assert.False(t, reviews[ref].Current("4"))
 }
 
 func TestReviews_CountsOnlyAPersonsAttestation(t *testing.T) {
@@ -131,7 +131,7 @@ func TestReviews_CountsOnlyAPersonsAttestation(t *testing.T) {
 				ID: "a1", Kind: contextop.KindAttest, Actor: tt.actor,
 				Attest: &contextop.Attestation{Item: item, Revision: "op1", Verdict: contextop.VerdictKeep, Basis: contextop.BasisPeer},
 			}})
-			_, ok := reviews[item.Key()]
+			_, ok := reviews[item]
 			assert.Equal(t, tt.counts, ok)
 		})
 	}

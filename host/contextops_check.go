@@ -48,7 +48,7 @@ type contextRules struct {
 	// workspace-wide rule about one of them stays out of the way.
 	held []string
 	// cache is one resolution per point.
-	cache map[string]contextop.Resolution
+	cache map[resolvedAt]contextop.Resolution
 }
 
 // newContextRules reads a project's context operations for one run. It answers
@@ -87,7 +87,7 @@ func (a *App) newContextRules(cmd Command, recipePath string) (*contextRules, er
 		key:     key,
 		records: records,
 		widened: widened,
-		cache:   map[string]contextop.Resolution{},
+		cache:   map[resolvedAt]contextop.Resolution{},
 	}
 	r.held, err = a.projectDeclaredTerms(cmd)
 	if err != nil {
@@ -101,14 +101,14 @@ func (r *contextRules) at(point project.GovernancePoint) (contextop.Resolution, 
 	if r == nil {
 		return contextop.Resolution{}, nil
 	}
-	key, coordinates, err := r.pointAt(point)
+	at, coordinates, err := r.pointAt(point)
 	if err != nil {
 		return contextop.Resolution{}, err
 	}
 	// A rule's window is read at the point's instant, the run's governance
 	// instant for a check, so the instant is part of what a resolution is
 	// cached under.
-	key += "\x00" + point.At.UTC().Format(time.RFC3339Nano)
+	key := resolvedAt{point: at, instant: point.At.UTC().Format(time.RFC3339Nano)}
 	if held, ok := r.cache[key]; ok {
 		return held, nil
 	}
@@ -135,12 +135,23 @@ func (r *contextRules) coordinatesAt(point project.GovernancePoint) (map[string]
 
 // pointAt resolves a point to the key its resolution is cached under and its
 // coordinates.
-func (r *contextRules) pointAt(point project.GovernancePoint) (string, map[string]string, error) {
+func (r *contextRules) pointAt(point project.GovernancePoint) (pointKey, map[string]string, error) {
 	rc, collection, coordinates, err := governedPoint(r.proj, point)
 	if err != nil {
-		return "", nil, err
+		return pointKey{}, nil, err
 	}
-	return rc.Profile + "\x00" + rc.Channel + "\x00" + collection, coordinates, nil
+	return pointKey{rc.Profile, rc.Channel, collection}, coordinates, nil
+}
+
+// pointKey is what a point's resolution depends on: the profile and channel
+// governing there and the collection holding it.
+type pointKey struct{ profile, channel, collection string }
+
+// resolvedAt is what a resolution is cached under: the point and the instant
+// its rule windows are read at.
+type resolvedAt struct {
+	point   pointKey
+	instant string
 }
 
 // governedPoint resolves what governs at a point, the collection holding it,

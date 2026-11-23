@@ -2,7 +2,114 @@
 // the server's order, minus the ones decided on this device and with the
 // ones put off moved to the end. Which cards exist, in what order, and which
 // actions each offers is the server's; the app applies what the person did.
-import type { ContextCard, ContextSessionSince } from "@neokapi/bowrain-client";
+import {
+  ApiError,
+  isNetworkError,
+  type BowrainClient,
+  type ContextCard,
+  type ContextDecision,
+  type ContextDecisionResult,
+  type ContextSessionSince,
+  type FeedEntry,
+} from "@neokapi/bowrain-client";
+
+/**
+ * What became of a context decision. `landed`: an earlier attempt whose
+ * answer was lost made it, as the feed shows. `decided_by`: someone else
+ * decided the item first, with what they did. `gone`: the item no longer
+ * waits, and the feed does not say who decided it.
+ */
+export type ContextSendResult =
+  | ContextDecisionResult
+  | { outcome: "landed" }
+  | { outcome: "decided_by"; name: string; action: "keep" | "reject" }
+  | { outcome: "gone" };
+
+/** How long to wait before sending a context decision again, per attempt. */
+const RESEND_MS = [1000, 2000];
+
+/** The feed operations a keep and a reject record. */
+const KEEP_OPS = ["keep", "attest"];
+const REJECT_OPS = ["drop", "reject", "forget"];
+
+/**
+ * What the newest feed entry about an item says was decided, and whether the
+ * reader decided it. Undefined when no entry on the first page names the item.
+ */
+export function feedDecision(
+  entries: readonly FeedEntry[],
+  itemId: string,
+): { mine: boolean; name: string; action: "keep" | "reject" } | undefined {
+  for (const e of entries) {
+    // Every field is read as possibly absent or null: this runs in the
+    // resend path, where a throw would read as "not reached".
+    if (e?.kind !== "context_change" || !e.link?.items?.includes(itemId)) continue;
+    const ops = Object.keys(e.counts ?? {});
+    const action = ops.some((o) => REJECT_OPS.includes(o))
+      ? "reject"
+      : ops.some((o) => KEEP_OPS.includes(o))
+        ? "keep"
+        : undefined;
+    if (!action) continue;
+    const mine = e.actor?.viewer === true || e.on_behalf_of?.viewer === true;
+    return { mine, name: e.on_behalf_of?.name ?? e.actor?.name ?? "", action };
+  }
+  return undefined;
+}
+
+/**
+ * The decision about a card: its item, the revision it showed, and the base
+ * revision a decision that writes a concept acts at, so the server refuses
+ * it when the concept moved since the deal. text is the reviewer's wording
+ * for a term-translation card, sent only when it differs from the proposal.
+ */
+export function contextDecision(
+  card: Pick<ContextCard, "item" | "revision" | "base_revision" | "translation">,
+  action: ContextDecision["action"],
+  text?: string,
+): ContextDecision {
+  const wording = text && text !== card.translation?.proposed ? text : undefined;
+  return {
+    item: card.item,
+    revision: card.revision,
+    base_revision: card.base_revision,
+    action,
+    text: wording,
+  };
+}
+
+/**
+ * Send a context decision. When no answer comes back, it is sent again, up to
+ * twice. A repeat refused as no longer pending may be the first attempt's
+ * landing or a teammate's decision, so the app reads the project's feed: the
+ * decision landed only when the newest entry about the item is the reader's
+ * and records the same action.
+ */
+export async function sendContextDecision(
+  client: Pick<BowrainClient, "decideContext" | "feed">,
+  ws: string,
+  project: string,
+  decision: ContextDecision,
+  wait: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<ContextSendResult> {
+  let lost = false;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await client.decideContext(ws, project, decision);
+    } catch (err) {
+      if (lost && err instanceof ApiError && refusalCode(err) === "not_pending") {
+        const page = await client.feed(ws, project, { limit: 50 });
+        const found = feedDecision(page.entries, decision.item.id);
+        if (!found) return { outcome: "gone" };
+        if (found.mine && found.action === decision.action) return { outcome: "landed" };
+        return { outcome: "decided_by", name: found.name, action: found.action };
+      }
+      if (!isNetworkError(err) || attempt >= RESEND_MS.length) throw err;
+      lost = true;
+      await wait(RESEND_MS[attempt]);
+    }
+  }
+}
 
 /** A card's identity at one revision: a new revision is a new card. */
 export function contextCardId(card: Pick<ContextCard, "item" | "revision">): string {

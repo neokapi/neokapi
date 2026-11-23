@@ -14,7 +14,7 @@ import "github.com/neokapi/neokapi/core/project"
 // holds the list to the resolvers, so a variable added to one of them cannot
 // be left out here.
 var RootEnvVars = []string{
-	// The data root (host/datadir.go), which holds the workspace.
+	// The data root (core/dataroot), which holds the workspace.
 	EnvDataDir,
 	"XDG_DATA_HOME",
 	// The config root (host/resource.go, host/config, host/credentials), and
@@ -26,12 +26,13 @@ var RootEnvVars = []string{
 	"KAPI_PLUGINS_DIR_ONLY",
 	// The caches: the XDG cache root and each cache's own override
 	// (host/pluginhost, host/pluginhost/registry, host/kpzcache.go,
-	// host/modelassets.go).
+	// host/modelassets.go, host/parsecachedir.go).
 	"XDG_CACHE_HOME",
 	"KAPI_PLUGIN_CACHE",
 	"KAPI_REGISTRY_CACHE",
 	"KAPI_KPZ_CACHE",
 	"KAPI_MODELS_CACHE",
+	EnvParseCacheDir,
 	// The project binding (core/project/recipepath.go).
 	project.ProjectEnvVar,
 	project.NoProjectEnvVar,

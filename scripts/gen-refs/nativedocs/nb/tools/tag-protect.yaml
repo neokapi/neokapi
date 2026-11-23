@@ -1,42 +1,42 @@
 # Native reference doc for the built-in `tag-protect` tool.
 # Schema source: core/tools/tagprotect.go (TagProtectConfig).
-description: Identifiser tagger og plassholdere i kildetekst og merk dem for beskyttelse nedstrøms.
+description: Identifiser tagger og plassholdere i kildetekst og merk dem for beskyttelse i nedstrøms trinn.
 overview: |
-  Verktøyet **Tag Protect** finner tagger og plassholdere i kildetekst ved hjelp av
-  regulære uttrykksmønstre og registrerer dem som en annotering på blokken,
-  samt en tellingsegenskap. Nedstrømsverktøy (for eksempel et MT- eller AI-
+  **Tag Protect**-verktøyet finner tagger og plassholdere i kildetekst ved hjelp av
+  regulære uttrykk og registrerer dem som en annotering på blokken,
+  samt en tellingsegenskap. Nedstrøms verktøy (for eksempel et MT- eller AI-
   oversettingstrinn) kan deretter lese annoteringen for å bevare disse tokenene
-  i stedet for å oversette eller omformatere dem.
+  fremfor å oversette eller formatere dem på nytt.
 
   Når ingen mønstre er konfigurert, brukes et innebygd standardsett som dekker
-  HTML/XML-tagger, plassholdere med krøllparenteser (ICU, Java, .NET), printf-stilte
-  plassholdere og `${...}`-maluttrykk. Verktøyet registrerer hva det
+  HTML/XML-tagger, krøllparentes-plassholdere (ICU, Java, .NET), printf-stil-
+  plassholdere og `${...}`-maluttrykk. Verktøyet registrerer det det
   fant; å bevare treffene er den konsumerende verktøyets ansvar.
 parameters:
   patterns:
-    description: Mønstre med regulære uttrykk for tagger og plassholdere som skal beskyttes.
+    description: Mønstre for regulære uttrykk for tagger og plassholdere som skal beskyttes.
     help: |
-      En liste over regulære uttrykk; enhver delstreng i kilden som matcher et
-      mønster, registreres som en beskyttet tagg. Når listen er tom, brukes et
-      innebygd standardsett (HTML/XML-tagger, plassholdere med krøllparenteser,
-      printf-stil plassholdere og `${...}`-maluttrykk).
-    values: "matrise av regulære uttrykk (standard: innebygd sett)"
+      En liste med regulære uttrykk; enhver delstreng i kilden som matcher et
+      mønster registreres som en beskyttet tagg. Når listen er tom, brukes et
+      innebygd standardsett (HTML/XML-tagger, krøllparentes-plassholdere,
+      printf-stil-plassholdere og `${...}`-maluttrykk).
+    values: "liste med regulære uttrykk (standard: innebygd sett)"
     examples:
       - "`<[^>]+>` matcher HTML/XML-tagger"
-      - "`\\{[^}]+\\}` matcher plassholderere med krøllparenteser"
+      - "`\\{[^}]+\\}` matcher krøllparentes-plassholdere"
 limitations:
   - "Mønstre bruker Gos RE2-syntaks, som ikke støtter tilbakereferanser eller lookaround."
-  - Verktøyet registrerer beskyttede treff som en annotering; det forhindrer ikke i seg selv at de blir endret.
+  - Verktøyet registrerer beskyttede treff som en annotering; det forhindrer ikke endringer av dem.
 processingNotes:
-  - Opererer kun på oversettbare blokker; ikke-oversettbare blokker passerer gjennom uendret.
-  - Treff registreres som en blokkannotering og antall treff som en blokkegeneskap; treff dedupliseres og sorteres etter offset.
+  - Opererer kun på oversettbare blokker; ikke-oversettbare blokker passerer uendret gjennom.
+  - Treff registreres som en blokkannotering og antall treff som en blokkegenskap; treff dedupliseres og sorteres etter offset.
 examples:
-  - title: Beskytt standard tokensett
+  - title: Beskytt standardsettet med tokens
     description: Bruk innebygde mønstre for tagger og vanlige plassholdere.
     config: |
       patterns: []
   - title: Beskytt kun HTML-tagger
-    description: Begrens beskyttelse til markeringstagger.
+    description: Begrens beskyttelsen til markup-tagger.
     config: |
       patterns:
         - "<[^>]+>"

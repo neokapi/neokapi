@@ -1,8 +1,8 @@
 // Package audio reads audio files as localizable content: when an ASR engine is
 // available (the kapi-asr plugin), it transcribes the speech into timing-anchored
 // Blocks (AD-030). The audio is emitted as a Media asset either way. Like the
-// image reader with vision, transcription is path-based: the engine opens the
-// file itself, so the audio bytes never travel through the part stream.
+// image reader with vision, transcription is path-based: the engine opens a
+// private copy itself, so the audio bytes never travel through the part stream.
 package audio
 
 import (
@@ -65,13 +65,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	if locale.IsEmpty() {
 		locale = model.LocaleEnglish
 	}
-	path, cleanup, err := r.materialize()
-	if err != nil {
-		ch <- model.PartResult{Error: err}
-		return
-	}
-	defer cleanup()
-
 	layer := &model.Layer{
 		ID:       "doc1",
 		Name:     r.Doc.URI,
@@ -88,7 +81,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// installed is written back as one read where it is not.
 	uri := r.Doc.URI
 	if uri == "" {
-		uri = path
+		uri, _ = format.SourceFile(r.Doc)
 	}
 	media := &model.Media{
 		ID:       "m1",
@@ -100,7 +93,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 	if asr.Available("") {
-		if !r.transcribe(ctx, ch, path, locale) {
+		path, cleanup, err := r.materialize()
+		if err != nil {
+			ch <- model.PartResult{Error: err}
+			return
+		}
+		ok := r.transcribe(ctx, ch, path, locale)
+		cleanup()
+		if !ok {
 			return
 		}
 	}
@@ -135,15 +135,17 @@ func (r *Reader) transcribe(ctx context.Context, ch chan<- model.PartResult, pat
 	return true
 }
 
-// materialize returns a local filesystem path to the audio. If the source URI is
-// already a local file it is used directly; otherwise the reader streams
-// doc.Reader to a temp file (never holding the whole track in memory).
+// materialize returns the path of a private copy of the audio for the ASR
+// engine, which reads a path. The engine gets a temp file this process
+// created and wrote from the descriptor the caller opened (doc.ReaderAt, else
+// doc.Reader), never the source's own name. That name lies in the project, and
+// a link put in its place after the caller opened it would lead the engine to
+// any file. The copy streams, never holding the whole track in memory.
 func (r *Reader) materialize() (path string, cleanup func(), err error) {
 	noop := func() {}
-	if r.Doc.URI != "" {
-		if info, statErr := os.Stat(r.Doc.URI); statErr == nil && !info.IsDir() {
-			return r.Doc.URI, noop, nil
-		}
+	src := io.Reader(r.Doc.Reader)
+	if sec, ok := format.ReopenSource(r.Doc); ok {
+		src = sec
 	}
 	ext := ".audio"
 	if r.Doc.URI != "" {
@@ -155,7 +157,7 @@ func (r *Reader) materialize() (path string, cleanup func(), err error) {
 	if err != nil {
 		return "", noop, fmt.Errorf("audio: temp file: %w", err)
 	}
-	if _, err := io.Copy(tmp, r.Doc.Reader); err != nil {
+	if _, err := io.Copy(tmp, src); err != nil {
 		_ = tmp.Close()
 		_ = os.Remove(tmp.Name())
 		return "", noop, fmt.Errorf("audio: spool: %w", err)

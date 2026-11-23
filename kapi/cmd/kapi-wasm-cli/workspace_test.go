@@ -47,6 +47,13 @@ func TestWorkspace_ExportThenImportRestoresFilesAndContext(t *testing.T) {
 	exported, err := exportWorkspace(ctx, root)
 	engineMu.Unlock()
 	require.NoError(t, err)
+	// The recipe and the document: kapi writes nothing of its own into the
+	// checkout, so nothing of its state travels with the files.
+	var paths []string
+	for _, f := range exported.pkg.Files {
+		paths = append(paths, f.Path)
+	}
+	assert.ElementsMatch(t, []string{"files/site/kapi.yaml", "files/site/docs/app.json"}, paths)
 	assert.Equal(t, 2, exported.Files)
 	require.Len(t, exported.Projects, 1)
 	assert.Positive(t, exported.Projects[0].Operations)

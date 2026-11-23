@@ -5,7 +5,7 @@ title: Project Model
 
 # Bowrain Project Model
 
-A connected project keeps its configuration in the repository and its context on Bowrain, where every checkout and every teammate reads the same terms, voice profiles and decisions. On disk it is a kapi project with a `bowrain:` block in its recipe: a single `kapi.yaml` recipe file at the project root and a sibling `.kapi/` directory, the same project model the `kapi` CLI uses.
+A connected project keeps its configuration in the repository and its context on Bowrain, where every checkout and every teammate reads the same terms, voice profiles and decisions. On disk it is a kapi project with a `bowrain:` block in its recipe: a single `kapi.yaml` recipe file at the project root, the same project model the `kapi` CLI uses. kapi keeps the checkout's own state outside it, in a directory under kapi's data root that `kapi state path` prints.
 
 ## Directory Structure
 
@@ -13,16 +13,6 @@ A connected project keeps its configuration in the repository and its context on
 my-app/
 ├── kapi.yaml                   # the recipe (committed); fixed, conventional filename
 ├── .mcp.json                   # agent wiring written by kapi init (committed)
-├── .kapi/                      # this checkout's cache, ignored as a whole
-│   ├── .gitignore              # `*`, written by kapi init
-│   ├── filters.local.json      # personal saved reader filters
-│   ├── vault/                  # withheld redaction originals (local-only)
-│   ├── sync/                   # the tree last declared to the server, and the refs
-│   └── work/                   # free to delete: rebuilt on the next run
-│       ├── store.db            # this checkout's projection of its working tree
-│       └── cache/
-│           ├── extractions/
-│           └── collections/
 ├── flows/                      # file-per-flow definitions, named by flows_dir (optional)
 └── src/
     └── locales/
@@ -467,7 +457,7 @@ All commands work from any subdirectory within the project. A directory holds at
 
 `.kapi/`: `kapi init` writes `.kapi/.gitignore` with one line, `*`, so none of the cache reaches git.
 
-Deleting `.kapi/work/` costs a re-extraction and nothing else. Deleting `.kapi/` also loses the sync state in `.kapi/sync/` and, if the project uses redaction, the withheld originals in `.kapi/vault/`. Those originals are local-only and cannot be rebuilt. Your context is in the workspace and survives. Deleting the workspace loses every project's terms, voice profiles, content memory and decisions, so before you remove it, push each project's context to its backend or take a copy with `kapi store export -o <file>.kpz`.
+Deleting the checkout's `work/` costs a re-extraction and nothing else. Deleting `.kapi/` also loses the sync state in the checkout's `sync/` and, if the project uses redaction, the withheld originals in the checkout's `vault/`. Those originals are local-only and cannot be rebuilt. Your context is in the workspace and survives. Deleting the workspace loses every project's terms, voice profiles, content memory and decisions, so before you remove it, push each project's context to its backend or take a copy with `kapi store export -o <file>.kpz`.
 
 ## Initialization
 

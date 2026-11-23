@@ -245,6 +245,7 @@ export {
   VoiceScoreChip,
   originLabel,
   decisionLabel,
+  reasonLabel,
   checkFindingViews,
 } from "./components/review";
 export type {

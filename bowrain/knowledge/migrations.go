@@ -13,20 +13,22 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	2  knowledge graph baseline (folded 1)
 //	3  solo self-approval marker
 //	4  change-set origin and supersession
+//	5  stored change-set blast-radius summary
 //
-// Baseline is version 5 — above every number issued, so an existing database
+// Baseline is version 6, above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 6.
+// repaired. Retired numbers are never reused; the next migration is version 7.
 //
-// The subsystem carries exactly one baseline (migrations/schema_test.go
+// The subsystem carries exactly one baseline (TestKgMigrations_Baseline
 // enforces it), so a schema change is made by editing the baseline in place and
-// bumping its version. Version 5 added kg_changesets.impact_summary — the
-// blast radius computed at submit, so reading it is a row rather than a walk
-// over every stored block.
+// bumping its version. Version 5 added kg_changesets.impact_summary, the blast
+// radius computed at submit, so reading it is a row rather than a walk over
+// every stored block. Version 6 added kg_markets.revision, the token an update
+// names to say which version of the market it was based on.
 var Migrations = []storage.Migration{
 	{
-		Version:     5,
-		Description: "knowledge graph baseline (folds 1-4) + stored change-set blast-radius summary",
+		Version:     6,
+		Description: "knowledge graph baseline (folds 1-5) + market revisions",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS kg_markets (
 				workspace_id TEXT NOT NULL,
@@ -36,8 +38,13 @@ var Migrations = []storage.Migration{
 				locales      JSONB NOT NULL DEFAULT '[]',
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				revision     TEXT NOT NULL DEFAULT gen_random_uuid()::text,
 				PRIMARY KEY (workspace_id, id)
 			);
+			-- A token the store replaces on every write. Markets are a few
+			-- rows per workspace, so the rewrite a volatile default causes on
+			-- an existing table is immaterial, and each row gets its own.
+			ALTER TABLE kg_markets ADD COLUMN IF NOT EXISTS revision TEXT NOT NULL DEFAULT gen_random_uuid()::text;
 
 			CREATE TABLE IF NOT EXISTS kg_observations (
 				workspace_id TEXT NOT NULL,

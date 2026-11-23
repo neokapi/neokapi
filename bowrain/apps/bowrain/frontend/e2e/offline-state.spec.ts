@@ -162,12 +162,15 @@ test("reports an attempt in flight while reconnecting", async ({ page }) => {
   await expect(page.getByTestId("connection-offline")).toBeVisible({ timeout: 5000 });
 
   const reads = await page.evaluate(() => (window as any).__connectionStateReads ?? 0);
-  await setConnectionState(page, "connecting", 1);
+  await setConnectionState(page, "reconnecting", 1);
   // The app reads the state again on the event; once it has, the indicator
   // shows what that read decided, and the app stays mounted.
   await expect
     .poll(async () => page.evaluate(() => (window as any).__connectionStateReads ?? 0))
     .toBeGreaterThan(reads);
   await expect(page.getByTestId("connection-reconnecting")).toBeVisible();
-  await expect(page.getByTestId("connection-offline")).toBeHidden();
+  // The app is still offline during the attempt: what is pending stays shown,
+  // and the attempt takes the place of Retry.
+  await expect(page.getByTestId("offline-pending")).toBeVisible();
+  await expect(page.getByTestId("connection-retry")).toBeHidden();
 });

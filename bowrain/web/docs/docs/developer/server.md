@@ -341,6 +341,26 @@ Runs are started and observed through the convergence routes under a project;
 the Runs view and `kapi up` are their clients. See
 [Server-side flows](/server/flows) and [Automation](/server/automation).
 
+### Saving a record against its revision
+
+Some records people edit carry a `revision`, a token the server replaces on
+every write: project flows, markets (`PUT /api/v1/:ws/markets/:mid`) and
+content-memory entries (`PUT /api/v1/:ws/translation-memory/:eid`). Every read
+returns it. An update sends the revision it was made on as `base_revision`, and
+the server checks it in the same statement that writes, so of two people who
+opened the same version only the first save lands.
+
+| Status | Meaning |
+| --- | --- |
+| `200` | Saved. The body is the record with its new `revision`. |
+| `409` | Someone saved the record after you read it. The body's `code` is `<kind>_changed` (`flow_changed`, `market_changed`, `memory_entry_changed`) and `current` is the record as it stands. Nothing was written. |
+| `428` | The update named no `base_revision`. A client built before the record had one cannot save it; update the client. |
+| `404` | The record was deleted after you read it. An update never creates one. |
+
+A content-memory entry's revision changes only when its text does. An approval
+that records itself on an entry, or a merge that adds its origin, leaves the
+revision where it was, so it never refuses an edit someone is making.
+
 ### Review and delivery
 
 ```

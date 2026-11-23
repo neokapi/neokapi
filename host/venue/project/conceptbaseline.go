@@ -3,24 +3,20 @@ package project
 import (
 	"sort"
 	"strings"
+
+	"github.com/neokapi/neokapi/terms"
 )
 
 // ConceptBaseline is the snapshot a concept pull records into the sync cache:
 // the governed concepts and typed relations fetched from the workspace
-// knowledge graph and written into the project's bound terms. A later
-// concept push diffs the local terms against this baseline to decide what
-// changed and how to route it — ordinary edits (definitions, notes, new
-// proposed terms, non-governed relations) go up directly through the concept
-// REST endpoints, while governed edits (a term banned/promoted, a forbidden
-// status removed, a REPLACED_BY relation, a concept delete) are bundled into a
-// single reviewed change-set. The baseline carries only the fields a diff
-// needs, deliberately omitting volatile metadata (timestamps) that would
-// produce spurious diffs.
-// The snapshot carries no timestamp. Freshness is the ref's terms component —
-// an identity of the workspace terminology, compared for equality — and a
-// timestamp beside it would be a second answer to the same question that cannot
-// actually answer it: knowing when a snapshot was taken says nothing about
-// whether what it snapshotted has moved.
+// knowledge graph and written into the project's bound terms. A later concept
+// push diffs the local terms against it to decide what changed and how to
+// route it. Ordinary edits go up directly; governed edits go as one reviewed
+// change-set. The baseline carries only the fields a diff needs.
+//
+// It carries no timestamp. Freshness is the ref's terms component, an identity
+// of the workspace terminology compared for equality. A timestamp says
+// nothing about whether what was snapshotted has moved.
 type ConceptBaseline struct {
 	// Concepts holds the pulled concepts keyed by concept ID.
 	Concepts map[string]BaselineConcept `json:"concepts,omitempty"`
@@ -62,8 +58,8 @@ type BaselineRelation struct {
 // TermIdentity keys a term within its concept by locale + lowered text, the
 // same identity the server's governed-transition check uses. It is exported so
 // the concept-sync diff and its tests share one definition of term identity.
-func (t BaselineTerm) TermIdentity() string {
-	return t.Locale + "|" + strings.ToLower(t.Text)
+func (t BaselineTerm) TermIdentity() terms.TermKey {
+	return terms.TermKey{Locale: t.Locale, Text: strings.ToLower(t.Text)}
 }
 
 // SortedConceptIDs returns the baseline's concept IDs in a deterministic order

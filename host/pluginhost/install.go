@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/neokapi/neokapi/host/pluginhost/registry"
 )
@@ -64,7 +66,7 @@ func DefaultDiscoverOptions() DiscoverOptions {
 func dataInstallTarget() (string, error) {
 	xdg := os.Getenv("XDG_DATA_HOME")
 	if xdg == "" {
-		home, err := os.UserHomeDir()
+		home, err := dataroot.UserHomeDir()
 		if err != nil || home == "" {
 			return "", errNoUserDataDir
 		}
@@ -100,7 +102,7 @@ type InstallOptions struct {
 	// verification. Without Unsafe, SHA-256 is mandatory and signature
 	// verification is mandatory whenever the registry entry provides
 	// signature fields. If signature fields are absent and Unsafe is
-	// false, install fails: no silent unsigned installs.
+	// false, install fails, no silent unsigned installs.
 	Unsafe bool
 
 	// LogF receives progress messages. Optional.
@@ -252,7 +254,7 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 	}
 
 	// Absorb macOS's one-time first-exec assessment of the new plugin binary
-	// here (it stalls the binary's first exec: proportional to size, up to
+	// here (it stalls the binary's first exec, proportional to size, up to
 	// ~1s for the larger plugins) rather than on the plugin's first real
 	// dispatch mid-workflow.
 	prewarmFirstExec(ctx, filepath.Join(pluginDir, filepath.FromSlash(m.Binary)))
@@ -287,7 +289,7 @@ func writeInstalledMetadata(pluginDir string, meta InstalledMetadata) error {
 }
 
 // ReadInstalledMetadata returns the installed.json bookkeeping for
-// pluginDir. Returns os.ErrNotExist when the file is missing: that's
+// pluginDir. Returns os.ErrNotExist when the file is missing, that's
 // the expected case for plugins installed before installed.json
 // became part of the install layout (tests, dev plugins, etc.).
 func ReadInstalledMetadata(pluginDir string) (*InstalledMetadata, error) {
@@ -329,12 +331,13 @@ func extractPluginArchive(body []byte, sourceURL, target, pluginName string) err
 //
 // ok is false for a wrapper-dir root entry itself, which needs no file written.
 // An entry that would escape pluginRoot via "../" or an absolute path is an
-// error; a flat "otherplugin/x" is a subdir of this plugin's dir.
+// error. A flat entry like "otherplugin/x" lands in a subdir of THIS plugin's
+// dir, within pluginRoot.
 //
-// isDir says whether the archive entry is a directory, and only a directory
-// can be a wrapper. The plugin binary is itself named "kapi-<plugin>", so a
-// test on the name alone would discard the binary of a plugin whose archive
-// wraps its files in a "<plugin>/" directory or ships them flat.
+// isDir must say whether the archive entry is a directory. Only a directory can
+// be a wrapper, because the plugin binary is itself named "kapi-<plugin>"; a
+// name test alone would discard that binary from a "<plugin>/"-wrapped or flat
+// archive.
 func pluginEntryDest(pluginRoot, pluginName, name string, isDir bool) (dest string, ok bool, err error) {
 	rel := strings.TrimPrefix(filepath.ToSlash(name), "./")
 	for _, wrap := range []string{pluginName, "kapi-" + pluginName} {
@@ -348,7 +351,7 @@ func pluginEntryDest(pluginRoot, pluginName, name string, isDir bool) (dest stri
 		return "", false, err
 	}
 	if dest == filepath.Clean(pluginRoot) {
-		return "", false, nil // "" or ".": the plugin dir root
+		return "", false, nil // "" / ".", the plugin dir root
 	}
 	return dest, true, nil
 }
@@ -360,9 +363,21 @@ func extractTarGz(body []byte, target, pluginName string) error {
 	}
 	defer gz.Close()
 	// pluginRoot is the per-plugin extraction boundary (target/<plugin>).
-	// Symlink targets must resolve inside it, not merely inside the
-	// shared install root, which would allow cross-plugin escapes.
+	// Symlink targets must resolve inside it, not merely inside the shared
+	// install root, which would allow cross-plugin escapes.
 	pluginRoot := filepath.Join(target, pluginName)
+	// Every entry is written through an os.Root opened on the plugin's own
+	// directory, so a chain of links an earlier entry planted (a -> ., then
+	// a/x -> ..) cannot lead a later write out of it: the root refuses any
+	// name that resolves outside, whatever the links on the way.
+	if err := os.MkdirAll(pluginRoot, 0o755); err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(pluginRoot)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
 	tr := tar.NewReader(gz)
 	for {
 		hdr, err := tr.Next()
@@ -379,22 +394,28 @@ func extractTarGz(body []byte, target, pluginName string) error {
 			return err
 		}
 		if !ok {
-			continue // the plugin-dir root entry: nothing to write
+			continue // the plugin-dir root entry, with nothing to write
+		}
+		rel, rerr := filepath.Rel(pluginRoot, clean)
+		if rerr != nil || !filepath.IsLocal(rel) {
+			return fmt.Errorf("tarball entry %q lies outside plugin dir %q", hdr.Name, pluginRoot)
 		}
 		switch hdr.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(clean, 0o755); err != nil {
-				return err
+			if err := root.MkdirAll(rel, 0o755); err != nil {
+				return fmt.Errorf("tarball entry %q: %w", hdr.Name, err)
 			}
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
-				return err
+			if dir := filepath.Dir(rel); dir != "." {
+				if err := root.MkdirAll(dir, 0o755); err != nil {
+					return fmt.Errorf("tarball entry %q: %w", hdr.Name, err)
+				}
 			}
 			// O_NOFOLLOW: refuse to write through a symlink that a prior
 			// (malicious) entry may have planted at this path. The flag is
-			// platform-specific (oNoFollow); on js/wasm it is 0: the wasm
-			// build has no filesystem symlink surface to harden against.
-			f, err := os.OpenFile(clean, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|oNoFollow, os.FileMode(hdr.Mode)&installFileMask)
+			// platform-specific (oNoFollow); on js/wasm it is 0, as the
+			// wasm build has no filesystem symlink surface to harden against.
+			f, err := root.OpenFile(rel, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|oNoFollow, os.FileMode(hdr.Mode)&installFileMask)
 			if err != nil {
 				return fmt.Errorf("tarball entry %q: %w", hdr.Name, err)
 			}
@@ -415,9 +436,9 @@ func extractTarGz(body []byte, target, pluginName string) error {
 			if !withinDir(pluginRoot, resolved) {
 				return fmt.Errorf("tarball symlink %q points outside plugin dir %q", hdr.Name, pluginRoot)
 			}
-			_ = os.Remove(clean)
-			if err := os.Symlink(hdr.Linkname, clean); err != nil {
-				return err
+			_ = root.Remove(rel)
+			if err := root.Symlink(hdr.Linkname, rel); err != nil {
+				return fmt.Errorf("tarball entry %q: %w", hdr.Name, err)
 			}
 		}
 	}
@@ -430,41 +451,63 @@ func extractZip(body []byte, target, pluginName string) error {
 		return fmt.Errorf("zip reader: %w", err)
 	}
 	pluginRoot := filepath.Join(target, pluginName)
+	// As for a tarball, every entry is written through an os.Root on the
+	// plugin's own directory, so no name can resolve outside it.
+	if err := os.MkdirAll(pluginRoot, 0o755); err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(pluginRoot)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
 	for _, f := range r.File {
 		clean, ok, err := pluginEntryDest(pluginRoot, pluginName, f.Name, f.FileInfo().IsDir())
 		if err != nil {
 			return err
 		}
 		if !ok {
-			continue // the plugin-dir root entry: nothing to write
+			continue // the plugin-dir root entry, nothing to write
+		}
+		rel, rerr := filepath.Rel(pluginRoot, clean)
+		if rerr != nil || !filepath.IsLocal(rel) {
+			return fmt.Errorf("zip entry %q lies outside plugin dir %q", f.Name, pluginRoot)
 		}
 		if f.FileInfo().IsDir() {
-			if err := os.MkdirAll(clean, 0o755); err != nil {
+			if err := root.MkdirAll(rel, 0o755); err != nil {
 				return err
 			}
 			continue
 		}
-		if err := os.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
-			return err
+		if dir := filepath.Dir(rel); dir != "." {
+			if err := root.MkdirAll(dir, 0o755); err != nil {
+				return err
+			}
 		}
-		src, err := f.Open()
-		if err != nil {
-			return err
+		if err := writeZipEntry(root, rel, f); err != nil {
+			return fmt.Errorf("zip entry %q: %w", f.Name, err)
 		}
-		dst, err := os.OpenFile(clean, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, f.Mode()&installFileMask)
-		if err != nil {
-			src.Close()
-			return err
-		}
-		if _, err := io.Copy(dst, src); err != nil {
-			src.Close()
-			dst.Close()
-			return err
-		}
-		src.Close()
-		dst.Close()
 	}
 	return nil
+}
+
+// writeZipEntry copies one zip entry to rel under root, with the install mode
+// cap applied (no setuid, setgid or sticky bit, nothing writable by others).
+func writeZipEntry(root *os.Root, rel string, f *zip.File) error {
+	src, err := f.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	dst, err := root.OpenFile(rel, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|oNoFollow, f.Mode()&installFileMask)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		dst.Close()
+		return err
+	}
+	return dst.Close()
 }
 
 // safeJoin joins target and elem and refuses to escape target.
@@ -499,13 +542,13 @@ func relWithin(rel string) bool {
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
 
-// prewarmFirstExec execs a freshly installed plugin binary once, so macOS's
-// one-time Gatekeeper assessment of the new inode (an XProtect scan and an
-// online notarization lookup) happens at install time. Otherwise it stalls the
-// plugin's first dispatch. `<binary> version` is the probe every plugin
-// answers (as in `kapi plugins doctor`), and the assessment completes at exec
-// time, so even a plugin that mishandles the verb is warmed. Best-effort and
-// darwin-only: no other platform stalls first exec.
+// prewarmFirstExec execs a freshly installed plugin binary once. On macOS, the
+// one-time Gatekeeper assessment of the new inode (XProtect scan and online
+// notarization lookup) then happens at install time instead of at the
+// plugin's first dispatch. `<binary> version` is the standard probe every
+// plugin answers (the same one `kapi plugins doctor` uses). The assessment
+// completes at exec time, so even a plugin that mishandles the verb is warmed.
+// Best-effort and darwin-only; no other platform stalls on first exec.
 func prewarmFirstExec(ctx context.Context, binPath string) {
 	if runtime.GOOS != "darwin" {
 		return

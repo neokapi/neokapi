@@ -1,6 +1,6 @@
 id: 07-global-launch-many-languages
 title: Se regningen før du bruker den
-subtitle: "Fire språk, ett pass, og en plan som kjører uten leverandørkall."
+subtitle: "Fire språk, én kjøring, og en plan som kjører uten kall til en leverandør."
 kind: zero-to-hero
 aspects:
   - multi-locale
@@ -32,13 +32,11 @@ artifacts:
   - id: plan
     caption: "kapi up --plan: the pending work, before anything runs"
     source: command
-    # The pristine tree: on the post-run snapshot the plan is empty, because the
-    # run it previews has already happened. `from: fixture` puts the command's
-    # cwd in the COMMITTED fixtures directory, so the plan is read in a copy
-    # made under the system temp directory: a dry run still opens a project
-    # store, and nothing a recording does may land in a tracked tree. Artifact
-    # commands run under the harness's kapi isolation, which turns recipe
-    # discovery off, so the recipe is named rather than walked to.
+    # The plan runs on the committed fixtures, because on the post-run snapshot
+    # it is empty. `from: fixture` runs it in a copy under the system temp
+    # directory. A dry run still opens a project store, and a recording must
+    # write nothing into a tracked tree. Artifact commands run with project
+    # discovery off, so the command names the recipe.
     command: d=$(mktemp -d) && cp -R . "$d" && cd "$d" && kapi up --plan --json -p kapi.yaml
     from: fixture
     report: json
@@ -69,31 +67,31 @@ narration:
   - id: title
     kind: title
     text: >-
-      Fire målspråk fra én engelsk fil er ett prosjekt å oppdatere, og planen viser hva det vil koste før noe brukes.
+      Fire målspråk fra én engelsk fil er ett prosjekt å holde oppdatert, og planen viser hva det vil koste før noe er brukt.
   - id: plan
     kind: artifact
     artifact: plan
-    caption: "Hva som venter, per språkkode, før en leverandør kalles."
+    caption: "Hva som er utestående, per lokasjon, før en leverandør kalles."
     text: >-
-      Dette er forhåndsvisningen. Per språkkode: enhetene uten måltekst ennå, hvor mange av dem prosjektets eget memory kan svare på, og et estimat for resten. Den beregnes på denne maskinen, så å lese den koster ingenting.
+      Dette er forhåndsvisningen. Per lokasjon: enheter uten mål ennå, hvor mange av dem prosjektets eget innholdsminne kan svare på, og et estimat for resten. Den beregnes på denne maskinen, så det koster ingenting å lese den.
   - id: work
     kind: terminal
-    caption: "Ett pass, fire språkkoder, nøkler og plassholderene bevart."
+    caption: "Én kjøring, fire lokasjoner, nøkler og plassholdere bevart."
     text: >-
-      Så konvergerer ett pass alle fire samtidig. kapi tolker filen som en katalog, så hver nøkkel og hver interpolasjonsplassholder er struktur den bærer – ikke tekst en modell kan skrive om.
+      Én kjøring samler alle fire. kapi leser filen som en katalog, så hver nøkkel og hver interpolasjonsplassholder er struktur den bærer – ikke tekst en modell kan skrive om.
   - id: ja
     kind: artifact
     artifact: ja
-    caption: "Japansk, med plassholderene der koden forventer dem."
+    caption: "Japansk, med plassholderne der koden forventer dem."
     text: >-
-      Her er japansk. Grensesnittteksten er i et ikke-latinsk skriftsystem, navn- og prisplassholderene sitter nøyaktig der koden leser dem, og filen er fortsatt gyldig JSON.
+      Her er japansk. Grensesnitteksten er på et ikke-latinsk skrift, navn- og prisplassholderne sitter nøyaktig der koden leser dem, og filen er fortsatt gyldig JSON.
   - id: status
     kind: artifact
     artifact: status
-    caption: "Fire språkkoder, én linje hver."
+    caption: "Fire lokasjoner, én linje hver."
     text: >-
-      Og dette er hvor prosjektet står etterpå. Én linje per språkkode, og å legge til et femte marked senere er én ny oppføring i oppskriften – ikke en femte jobb å planlegge.
+      Og dette er hvor prosjektet står etterpå. Én linje per lokasjon, og å legge til et femte marked senere er én linje til i oppskriften – ikke et femte jobb å planlegge.
   - id: outro
     kind: outro
     text: >-
-      Kjør planen på ditt eget prosjekt først. Den leser det ventende arbeidet uten å kalle en leverandør, så tallet kommer frem før regningen gjør det.
+      Kjør planen mot ditt eget prosjekt først. Den leser det utestående arbeidet uten å kalle en leverandør, så antallet er klart før regningen kommer.

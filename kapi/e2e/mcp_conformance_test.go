@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"maps"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -126,7 +127,7 @@ vocabulary:
 	// Retrieval and the gates read the project's own store rather than the
 	// committed files, so the fixture runs the import that puts the terms
 	// bundle and the voice profile there.
-	kapi(t, "store", "import", "-p", p.Recipe)
+	kapi(t, "store", "import", "--yes", "-p", p.Recipe)
 	return p
 }
 
@@ -205,7 +206,7 @@ collections:
 		Deprecated: deprecated,
 		Foreign:    foreign,
 	}
-	kapi(t, "store", "import", "-p", p.Recipe)
+	kapi(t, "store", "import", "--yes", "-p", p.Recipe)
 	return p
 }
 
@@ -248,19 +249,72 @@ func mcpServer(t *testing.T, args ...string) (*mcp.ClientSession, context.Contex
 	return startMCPServer(t, args...)
 }
 
-// startMCPServer starts `kapi mcp` with exactly the given arguments.
+// mcpServerWithRoots is mcpServer for a test whose calls reach directories
+// beside its own project, which its client declares as roots.
+func mcpServerWithRoots(t *testing.T, roots []string, args ...string) (*mcp.ClientSession, context.Context) {
+	t.Helper()
+	if !slices.ContainsFunc(args, func(a string) bool { return a == "--tools" || a == "--all" }) {
+		args = append(args, "--tools", "all")
+	}
+	return startMCPServerWithRoots(t, roots, args...)
+}
+
+// startMCPServer starts `kapi mcp` with exactly the given arguments, in the
+// test's own project: the directory of the recipe `-p` names, or a fresh
+// temporary directory when none is named. A call reaches only that directory,
+// the project the server was started for and the roots the client declares
+// (host/mcp_roots.go), so a test that reaches a second project declares it
+// with startMCPServerWithRoots, and an escape into another test's directory
+// is refused rather than passing unnoticed.
 func startMCPServer(t *testing.T, args ...string) (*mcp.ClientSession, context.Context) {
+	t.Helper()
+	return startMCPServerWithRoots(t, nil, args...)
+}
+
+// startMCPServerWithRoots is startMCPServer for a client that declares roots,
+// the directories beside its own project a test's calls reach.
+func startMCPServerWithRoots(t *testing.T, roots []string, args ...string) (*mcp.ClientSession, context.Context) {
+	t.Helper()
+	dir := t.TempDir()
+	for i, a := range args {
+		if a == "-p" && i+1 < len(args) {
+			dir = filepath.Dir(args[i+1])
+			if info, err := os.Stat(args[i+1]); err == nil && info.IsDir() {
+				dir = args[i+1]
+			}
+		}
+	}
+	return startMCPServerInWithRoots(t, dir, roots, args...)
+}
+
+// startMCPServerIn starts `kapi mcp` in dir with exactly the given arguments.
+func startMCPServerIn(t *testing.T, dir string, args ...string) (*mcp.ClientSession, context.Context) {
+	t.Helper()
+	return startMCPServerInWithRoots(t, dir, nil, args...)
+}
+
+// startMCPServerInWithRoots starts `kapi mcp` in dir for a client that
+// declares roots. The session speaks a protocol version on which a server
+// may list a client's roots while it serves a call.
+func startMCPServerInWithRoots(t *testing.T, dir string, roots []string, args ...string) (*mcp.ClientSession, context.Context) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
 
 	cmd := exec.CommandContext(ctx, kapiBin, append([]string{"mcp"}, args...)...)
-	cmd.Dir = t.TempDir()
+	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), isoEnv...)
 	cmd.Stderr = os.Stderr
 
-	client := mcp.NewClient(&mcp.Implementation{Name: "kapi-mcp-conformance", Version: "test"}, nil)
-	session, err := client.Connect(ctx, &mcp.CommandTransport{Command: cmd, TerminateDuration: 5 * time.Second}, nil)
+	var opts *mcp.ClientOptions
+	if len(roots) == 0 {
+		opts = &mcp.ClientOptions{Capabilities: &mcp.ClientCapabilities{}}
+	}
+	client := mcp.NewClient(&mcp.Implementation{Name: "kapi-mcp-conformance", Version: "test"}, opts)
+	for _, r := range roots {
+		client.AddRoots(&mcp.Root{URI: (&url.URL{Scheme: "file", Path: filepath.ToSlash(r)}).String()}) //nolint:staticcheck // roots are what the server confines calls to
+	}
+	session, err := client.Connect(ctx, &mcp.CommandTransport{Command: cmd, TerminateDuration: 5 * time.Second}, &mcp.ClientSessionOptions{ProtocolVersion: "2025-11-25"})
 	require.NoError(t, err, "connect to `kapi mcp`")
 	t.Cleanup(func() { _ = session.Close() })
 	return session, ctx
@@ -468,8 +522,9 @@ func schemaProperties(t *testing.T, tool *mcp.Tool) map[string]any {
 func TestMCPConformanceTwoProjectsOneServer(t *testing.T) {
 	alpha := writeConformanceProject(t, "alpha", "translation memory", "content memory", "nb", "innholdsminne")
 	beta := writeConformanceProject(t, "beta", "termbase", "terms store", "fr", "magasin de termes")
-	// Bound to alpha, exactly as a client configured for one project starts it.
-	session, ctx := mcpServer(t, "-p", alpha.Recipe)
+	// Bound to alpha, exactly as a client configured for one project starts
+	// it, with beta declared as a root beside it.
+	session, ctx := mcpServerWithRoots(t, []string{beta.Root}, "-p", alpha.Recipe)
 
 	t.Run("the server's project is the default", func(t *testing.T) {
 		report := callTool(t, ctx, session, "check_file", map[string]any{"file": alpha.Violating})
@@ -615,7 +670,7 @@ func TestMCPConformanceSourceLanguagePerCall(t *testing.T) {
 	norwegian := writeSourceLangProject(t, "norwegian", "nb", nb, en, "en")
 	// Bound to the English project, so the Norwegian calls are the ones a
 	// start-time resolution gets wrong.
-	session, ctx := mcpServer(t, "-p", english.Recipe)
+	session, ctx := mcpServerWithRoots(t, []string{norwegian.Root}, "-p", english.Recipe)
 
 	for name, proj := range map[string]sourceLangProject{
 		"the server's own project": english,
@@ -774,8 +829,8 @@ type bilingualCase struct {
 func TestMCPConformanceBilingualChecksParity(t *testing.T) {
 	// Only term-check is on the curated surface; the rest of the bilingual
 	// checks are reachable with --all-tools, which is what this drives.
-	session, ctx := mcpServer(t, "--all-tools")
 	dir := t.TempDir()
+	session, ctx := mcpServerWithRoots(t, []string{dir}, "--all-tools")
 	const targetLang = "nb"
 
 	// The same rules on both surfaces: inline over MCP, as a file of the same
@@ -861,8 +916,8 @@ func TestMCPConformanceBilingualChecksParity(t *testing.T) {
 // same pair, which is where the two surfaces read the same terms store.
 func TestMCPConformanceCheckFileBilingualParity(t *testing.T) {
 	proj := writeConformanceProject(t, "bilingual", "translation memory", "content memory", "nb", "innholdsminne")
-	session, ctx := mcpServer(t, "-p", proj.Recipe)
 	dir := t.TempDir()
+	session, ctx := mcpServerWithRoots(t, []string{dir}, "-p", proj.Recipe)
 
 	source := filepath.Join(dir, "en.json")
 	require.NoError(t, os.WriteFile(source,
@@ -956,7 +1011,9 @@ func TestMCPConformanceServerIntroducesItself(t *testing.T) {
 func TestMCPConformanceEmptyContextTeaches(t *testing.T) {
 	bare, bareRecipe := writeBareProject(t, "bare")
 	seeded := writeConformanceProject(t, "seeded", "translation memory", "content memory", "nb", "innholdsminne")
-	session, ctx := mcpServer(t)
+	// The project the suggestion subtest notes in, declared as a root up front.
+	proposed, proposedRecipe := writeBareProject(t, "proposed")
+	session, ctx := mcpServerWithRoots(t, []string{bare, seeded.Root, proposed})
 
 	const teaches = "who the text addresses"
 
@@ -1009,7 +1066,6 @@ func TestMCPConformanceEmptyContextTeaches(t *testing.T) {
 		// A suggestion nobody has established holds no content to anything, so it
 		// never makes an answer covered. It does say that someone looked here,
 		// which is what keeps `empty` meaning nothing at all.
-		proposed, proposedRecipe := writeBareProject(t, "proposed")
 		kapi(t, "context", "note", "--term", "use", "--instead-of", "utilise",
 			"--seen-in", "docs/guide.md", "-p", proposedRecipe)
 
@@ -1043,7 +1099,7 @@ func TestMCPConformanceEmptyContextTeaches(t *testing.T) {
 // location queries and content searches.
 func TestMCPConformanceEveryReadSaysWhatItRead(t *testing.T) {
 	bare, bareRecipe := writeBareProject(t, "provenance")
-	session, ctx := mcpServer(t)
+	session, ctx := mcpServerWithRoots(t, []string{bare})
 
 	t.Run("by location", func(t *testing.T) {
 		body, _ := readResource(t, ctx, session, "context://docs/guide.md?format=json&project="+bare)
@@ -1431,7 +1487,7 @@ func TestMCPConformanceCandidateCrossesProcesses(t *testing.T) {
 func TestMCPConformanceGrowthParity(t *testing.T) {
 	overMCP := writeConformanceProject(t, "parity-mcp", "translation memory", "content memory", "nb", "innholdsminne")
 	overCLI := writeConformanceProject(t, "parity-cli", "translation memory", "content memory", "nb", "innholdsminne")
-	session, ctx := mcpServer(t)
+	session, ctx := mcpServerWithRoots(t, []string{overMCP.Root, overCLI.Root})
 
 	callTool(t, ctx, session, "context_note", map[string]any{
 		"project": overMCP.Root,
@@ -1518,4 +1574,25 @@ func TestMCPConformanceEditLoop(t *testing.T) {
 	described := callTool(t, ctx, session, "describe_format", map[string]any{"doc": "docs/clean.md"})
 	assert.Equal(t, "markdown", described["format"])
 	assert.Equal(t, "one-per-file", described["editions"])
+}
+
+// A project or file a call names outside the directory the server was
+// started in, and outside the project it was started for, is refused naming
+// the argument; the server's own project still answers.
+func TestMCPConformanceRefusesAProjectOutsideItsDirectories(t *testing.T) {
+	alpha := writeConformanceProject(t, "alpha", "translation memory", "content memory", "nb", "innholdsminne")
+	beta := writeConformanceProject(t, "beta", "termbase", "terms store", "fr", "magasin de termes")
+	session, ctx := startMCPServerIn(t, alpha.Root, "-p", alpha.Recipe, "--tools", "all")
+
+	report := callTool(t, ctx, session, "check_file", map[string]any{"file": alpha.Violating})
+	assert.NotEmpty(t, findings(report), "the server's own project answers")
+
+	res := rawCallTool(t, ctx, session, "check_text", map[string]any{"text": "the " + beta.Forbidden, "project": beta.Recipe})
+	require.True(t, res.IsError)
+	assert.Contains(t, resultText(res), "project")
+	assert.Contains(t, resultText(res), "lies outside the directories this server may reach")
+
+	res = rawCallTool(t, ctx, session, "check_file", map[string]any{"file": beta.Violating})
+	require.True(t, res.IsError)
+	assert.Contains(t, resultText(res), "file:")
 }

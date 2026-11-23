@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 )
 
@@ -14,10 +16,10 @@ import (
 // scanner fix makes previously-written contents wrong. On version mismatch,
 // kapi discards the cache and rescans.
 //
-// 2: a version 1 cache can omit the package-manager-installed plugins
-// (Homebrew links its kegs into the shared root, and version 1 discovery did
-// not follow the links). Freshness is judged by root mtimes alone, which do
-// not change when kapi is upgraded, so the bump is what makes kapi rescan.
+// 2: a cache written by a kapi whose discovery skipped symlinked plugin
+// directories omits the package-manager-installed plugins (Homebrew links its
+// kegs into the shared root). Freshness is judged by root mtimes alone, which
+// an upgrade leaves unchanged, so this bump makes such a cache rescan.
 const cacheVersion = "2"
 
 // Cache is the on-disk dispatch cache. It is built as a side effect of
@@ -58,7 +60,7 @@ func xdgCacheDir() string {
 	if dir := os.Getenv("XDG_CACHE_HOME"); dir != "" {
 		return dir
 	}
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
+	if home, err := dataroot.UserHomeDir(); err == nil && home != "" {
 		return filepath.Join(home, ".cache")
 	}
 	return ""

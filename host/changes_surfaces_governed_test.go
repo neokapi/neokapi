@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projector"
 )
 
@@ -107,7 +108,7 @@ func TestSed_RunsTheCommitCheckAndRecordsTheEdit(t *testing.T) {
 	assert.Equal(t, change.ActorPerson, e.Actor.Kind)
 	assert.Equal(t, "ksed", e.Origin.By)
 	assert.NotEmpty(t, e.Fingerprint)
-	_, statErr := os.Stat(filepath.Join(f.root, ".kapi", "work", "locks"))
+	_, statErr := os.Stat(filepath.Join(project.LayoutAt(f.root).WorkDir(), "locks"))
 	assert.NoError(t, statErr, "ksed -i locks the file where kapi apply does")
 }
 

@@ -140,7 +140,6 @@ jobs:
           if-no-files-found: error
 
       - name: Write checksum artifact
-        if: startsWith(github.ref, 'refs/tags/pdfium-v')
         shell: bash
         env:
           TARBALL: ${{ steps.package.outputs.tarball }}
@@ -150,17 +149,38 @@ jobs:
           echo "${SHA}  $(basename "$TARBALL")" > "checksums/$(basename "$TARBALL").sha256"
 
       - name: Upload checksum artifact
-        if: startsWith(github.ref, 'refs/tags/pdfium-v')
         uses: actions/upload-artifact@v7
         with:
           name: pdfium-checksum-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
           path: checksums/*.sha256
           if-no-files-found: error
 
+  # Every platform scripts/lib/release-assets.json registers for pdfium was
+  # built, or nothing is published. Runs on dry-run dispatches too, so a
+  # matrix change that drops a leg fails before any tag is cut.
+  verify-pdfium-platforms:
+    name: Verify every registered platform was built
+    needs: build-pdfium-plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/lib/release-assets.json
+            scripts/release-assets.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: pdfium-checksum-*
+          path: pdfium-checksums
+          merge-multiple: true
+      - name: Compare the built archives with scripts/lib/release-assets.json
+        run: python3 scripts/release-assets.py check-checksums pdfium pdfium-checksums
+
   publish-pdfium-plugin:
     name: Publish kapi-pdfium release
     if: startsWith(github.ref, 'refs/tags/pdfium-v')
-    needs: build-pdfium-plugin
+    needs: [build-pdfium-plugin, verify-pdfium-platforms]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -194,7 +214,10 @@ jobs:
       - name: Check out the registry push helper
         uses: actions/checkout@v7
         with:
-          sparse-checkout: scripts/lib/registry-push.sh
+          sparse-checkout: |
+            scripts/lib/registry-push.sh
+            scripts/lib/release-assets.json
+            scripts/release-assets.py
           sparse-checkout-cone-mode: false
 
       - name: Set up Go
@@ -223,31 +246,23 @@ jobs:
           fi
           GOBIN=/tmp go install github.com/neokapi/registry/tools/registry-update@main
 
-          declare -A SHAS
-          for f in pdfium-checksums/*.sha256; do
-            [ -f "$f" ] || continue
-            SHAS[$(awk '{print $2}' "$f")]=$(awk '{print $1}' "$f")
-          done
-
           REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
           CERT_ID="https://github.com/${REPO}/.github/workflows/release-pdfium.yml@refs/tags/${REF_NAME}"
-          declare -a ARGS
-          for plat in darwin/arm64 linux/amd64 linux/arm64 windows/amd64; do
-            os=${plat%/*}; arch=${plat#*/}
-            file="kapi-pdfium_${VERSION}_${os}_${arch}.tar.gz"
-            if [ -n "${SHAS[$file]:-}" ]; then
-              ARGS+=("--platform" "$plat" "--url" "${REPO_URL}/${file}" "--sha256" "${SHAS[$file]}" "--signature" "${REPO_URL}/${file}.sigstore.json")
-            else
-              echo "::warning::no checksum for ${file}; skipping ${plat}"
-            fi
-          done
-          [ ${#ARGS[@]} -gt 0 ] || { echo "::error::no platform artifacts for pdfium ${VERSION}"; exit 1; }
+          # The platforms scripts/lib/release-assets.json declares for this
+          # plugin, each with its checksum, or the step fails: a release never
+          # registers part of what it builds.
+          args="$(python3 "${GITHUB_WORKSPACE}/scripts/release-assets.py" registry-args pdfium "$VERSION" pdfium-checksums "$REPO_URL")"
+          mapfile -t ARGS <<< "$args"
+          mapfile -t PLATFORMS < <(printf '%s\n' "${ARGS[@]}" | awk 'prev == "--platform" { print } { prev = $0 }')
 
           git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
           git -C /tmp/registry config user.email "release-bot@neokapi.dev"
           git -C /tmp/registry config user.name "release-bot"
           register() {
             # Requires the pdfium plugin stub to already exist in manifest-plugins.json.
+            # No version may drop a platform the previous one had, unless
+            # release-assets.json lists it under 'removed'.
+            python3 "${GITHUB_WORKSPACE}/scripts/release-assets.py" check-registry /tmp/registry/manifest-plugins.json pdfium "$VERSION" "${PLATFORMS[@]}"
             /tmp/registry-update \
               --registry /tmp/registry/manifest-plugins.json \
               --plugin pdfium --version "$VERSION" --channel stable \

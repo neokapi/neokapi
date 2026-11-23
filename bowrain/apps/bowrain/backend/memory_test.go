@@ -148,7 +148,7 @@ func TestDeleteMemoryEntry(t *testing.T) {
 	entry, err := app.AddMemoryEntry(info.ID, "Hello", "Bonjour", "en", "fr")
 	require.NoError(t, err)
 
-	err = app.DeleteMemoryEntry(info.ID, entry.ID)
+	err = app.DeleteMemoryEntry(info.ID, entry.ID, entry.Revision)
 	require.NoError(t, err)
 
 	count, err := app.GetMemoryCount(info.ID)
@@ -161,7 +161,7 @@ func TestDeleteMemoryEntry_NotFound(t *testing.T) {
 	info, err := app.CreateProject("content memory Test", "en", []string{"fr"})
 	require.NoError(t, err)
 
-	err = app.DeleteMemoryEntry(info.ID, "nonexistent")
+	err = app.DeleteMemoryEntry(info.ID, "nonexistent", "r1")
 	assert.Error(t, err)
 }
 

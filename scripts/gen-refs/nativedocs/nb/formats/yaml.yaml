@@ -1,59 +1,71 @@
 # Native reference doc for the built-in `yaml` format.
 # Schema source: core/formats/yaml/config.go (Config) + schema.go.
 # Mirrors the Okapi okf_yaml filter.
-description: "Trekk ut og sett inn igjen oversettbare skalarverdier fra YAML-filer, med nøkkelsti-filtrering og underfiltre."
+description: "Ekstraher og sett inn igjen oversettbare skalarverdier fra YAML-filer, med filtrering av nøkkelstier og underfiltre."
 overview: |
-  **YAML**-formatet leser YAML-dokumenter, trekker ut skalare strengverdier som oversettbare blokker, og skriver oversettelsene tilbake mens den bevarer den omkringliggende strukturen, kommentarer og rekkefølge. Det egner seg for Rails-lokale filer, applikasjonskonfigurasjon og andre nøkkel/verdi-kataloger uttrykt i YAML.
+  Med **YAML**-formatet kan du lese YAML-dokumenter, trekke ut skalare
+  strengverdier som oversettbare blokker og skrive oversettelsene tilbake
+  med struktur, kommentarer og rekkefølge bevart. Formatet passer for Rails-språkfiler,
+  applikasjonskonfigurasjon og andre nøkkel/verdi-kataloger i YAML.
 
-  Som standard trekkes bare strengskalarer ut. Du kan også trekke ut ikke-streng-skalarer, begrense uttrekket til bestemte nøkkelstier med glob-mønstre, oppdage inline-kode, og rute verdier som inneholder innebygd markup (som HTML) til et underfilter.
+  Som standard trekkes bare strengskalarer ut. Du kan også trekke ut
+  skalarer som ikke er strenger, begrense uttrekket til bestemte nøkkelstier med
+  glob-mønstre, finne inline-koder og sende verdier som inneholder
+  innebygd markering (som HTML), til et underfilter.
 parameters:
-  extractNonStrings:
-    description: Trekk ut ikke-streng skalaverdier.
+  extract_non_strings:
+    description: Ekstraher skalarverdier som ikke er strenger.
     help: |
-      Når aktivert, trekkes også ikke-streng skalarer (boolske verdier, tall og null-verdier) ut som blokker. Som standard trekkes bare streng-skalarer ut.
-    values: "`true` / `false` (standard `false`)"
-  keyPathPatterns:
-    description: Glob-mønstre som velger hvilke nøkkelstier som trekkes ut.
+      Når dette er aktivert, ekstraheres også skalarverdier som ikke er strenger
+      (boolske verdier, tall og nullverdier), som oversettbare blokker. Som standard
+      ekstraheres bare strengverdier.
+    values: "`true` / `false` (standard: `false`)"
+  key_path_patterns:
+    description: Glob-mønstre som velger hvilke nøkkelstier som ekstraheres.
     help: |
-      En matrise med glob-stil nøkkelsti-mønstre. Når den ikke er tom, trekkes bare nøkler
-      som samsvarer med ett av mønstrene ut. `*` samsvarer med ett enkelt nøkkelsegment;
-      `**` samsvarer med et hvilket som helst antall segmenter på hvilken som helst dybde.
-    values: "Tabell med glob-mønstre (standard tom, alle nøkler trekkes ut)"
+      En liste med glob-mønstre for nøkkelstier. Når listen ikke er tom,
+      ekstraheres bare nøkler som samsvarer med ett av mønstrene. `*` samsvarer
+      med ett nøkkelsegment, mens `**` samsvarer med et vilkårlig antall segmenter på ethvert nivå.
+    values: "Liste med glob-mønstre (tom som standard, alle nøkler ekstraheres)"
     examples:
-      - "`en.**` trekker ut bare nøkler nestet under toppnivånøkkelen `en`"
-      - "`*.title` trekker ut `title`-nøkkelen direkte under enhver toppnivånøkkel"
+      - "`en.**` ekstraherer bare nøkler som ligger under toppnivånøkkelen `en`"
+      - "`*.title` trekker ut nøkkelen `title` rett under enhver nøkkel på øverste nivå"
   subfilter:
-    description: Underfilter-format anvendt på skalarverdier.
+    description: Underfilterformat som brukes på skalarverdier.
     help: |
-      Navnet på et format som brukes som underfilter (for eksempel `html`) for å analysere innebygd markup inne i uttrukne skalarverdier, slik at markup-en eksponeres som inline-kode i stedet for å oversettes som litteral tekst.
-    values: Formatnavn (standard tom)
+      Navnet på et format som brukes som underfilter (for eksempel `html`) til å tolke
+      innebygd oppmerking i ekstraherte skalarverdier. Oppmerkingen gjøres da
+      tilgjengelig som innebygde koder i stedet for å bli oversatt som ren tekst.
+    values: Formatnavn (tomt som standard)
     examples:
-      - "`html` parser HTML inne i YAML-skalarfelt"
-  useCodeFinder:
-    description: Aktiver regex-basert inline-kode-deteksjon.
+      - "`html` tolker HTML i skalarverdier i YAML"
+  use_code_finder:
+    description: Aktiver deteksjon av innebygde koder med regulære uttrykk.
     help: |
-      Aktiverer regex-basert deteksjon av inline-kode i strengverdier. Mønstrene
-      oppgis via `codeFinderRules`.
-    values: "`true` / `false` (standard `false`)"
-  codeFinderRules:
-    description: Regex-mønstre som matcher inline-kode i verdier.
+      Aktiverer deteksjon av innebygde koder i strengverdier med regulære uttrykk.
+      Mønstrene angis via `code_finder_rules`.
+    values: "`true` / `false` (standardverdi `false`)"
+  code_finder_rules:
+    description: Regulære uttrykk som samsvarer med inline-koder i verdier.
     help: |
-      En matrise av regulære uttrykk; tekst som matcher noen av dem behandles som inline-kode i stedet for oversettbare ord. Brukes kun når `useCodeFinder` er aktivert.
-    values: Matrise av regulære uttrykk (standard tom)
+      En liste med regulære uttrykk. Tekst som samsvarer med ett av dem,
+      behandles som en innebygd kode i stedet for oversettbare ord. Brukes bare når
+      `use_code_finder` er aktivert.
+    values: Array med regulære uttrykk (tom som standard)
     dependsOn:
-      - property: useCodeFinder
+      - property: use_code_finder
         condition: må være aktivert for at disse mønstrene skal gjelde
 limitations:
-  - Bare skalaverdier er oversettbare; tilordningsnøkler og sekvensstruktur utgjør det ikke-oversettbare skjelettet.
+  - Bare skalarverdier kan oversettes. Nøkler og sekvensstruktur utgjør den ikke-oversettbare strukturen.
 processingNotes:
-  - "Dokumentstruktur, nøkkelrekkefølge og kommentarer bevares gjennom lese/skrive-rundturen."
+  - "Dokumentstruktur, nøkkelrekkefølge og kommentarer bevares gjennom lesing og skriving."
 examples:
-  - title: Trekk ut et enkelt undertre for språkkode
-    description: Oversett kun nøklene under en-grenen i en Rails-stil lokalfil.
+  - title: Ekstraher ett enkelt språkinnstillingstre
+    description: Oversett bare nøklene under en-grenen i en språkfil i Rails-format.
     config: |
-      keyPathPatterns:
+      key_path_patterns:
         - "en.**"
-  - title: HTML inne i verdier
-    description: Analyser HTML-markup i YAML-skalaverdier.
+  - title: HTML i verdier
+    description: Tolk HTML-oppmerking i skalarverdier i YAML.
     config: |
       subfilter: html

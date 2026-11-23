@@ -204,3 +204,58 @@ func TestMarketAndObservationIntegration(t *testing.T) {
 	require.Len(t, obs, 1)
 	assert.Equal(t, knowledge.ObservationCompetitor, obs[0].Kind)
 }
+
+// TestMarketUpdateIsBasedOnARevision: an update names the revision it was based
+// on, and the real store refuses one based on a market that changed since,
+// one that names none, and one to a market deleted since.
+func TestMarketUpdateIsBasedOnARevision(t *testing.T) {
+	srv := kgIntegrationServer(t)
+	const author = "alice"
+
+	c, rec := kgIntegrationCtx(srv, http.MethodPost, "/", `{"name":"dach","locales":["de-DE"]}`, author)
+	require.NoError(t, srv.HandleCreateMarket(c))
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+	var created knowledge.Market
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
+	require.NotEmpty(t, created.Revision)
+
+	update := func(body string) *httptest.ResponseRecorder {
+		c, rec := kgIntegrationCtx(srv, http.MethodPut, "/", body, author, "mid", created.ID)
+		require.NoError(t, srv.HandleUpdateMarket(c))
+		return rec
+	}
+
+	rec = update(`{"name":"DACH","base_revision":"` + created.Revision + `"}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var saved knowledge.Market
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &saved))
+	assert.NotEqual(t, created.Revision, saved.Revision, "a write gives the market a new revision")
+
+	// A second writer that read the market before that save is refused, and
+	// told what the market is now.
+	rec = update(`{"name":"Germany","base_revision":"` + created.Revision + `"}`)
+	require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+	var changed struct {
+		Code    string           `json:"code"`
+		Current knowledge.Market `json:"current"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &changed))
+	assert.Equal(t, "market_changed", changed.Code)
+	assert.Equal(t, "DACH", changed.Current.Name)
+	assert.Equal(t, saved.Revision, changed.Current.Revision)
+
+	rec = update(`{"name":"Germany"}`)
+	assert.Equal(t, http.StatusPreconditionRequired, rec.Code, "an update that names no revision is refused")
+
+	del := func(base string) *httptest.ResponseRecorder {
+		c, rec := kgIntegrationCtx(srv, http.MethodDelete, "/?base_revision="+base, "", author, "mid", created.ID)
+		require.NoError(t, srv.HandleDeleteMarket(c))
+		return rec
+	}
+	assert.Equal(t, http.StatusPreconditionRequired, del("").Code, "a delete that names no revision is refused")
+	rec = del(created.Revision)
+	require.Equal(t, http.StatusConflict, rec.Code, "a delete on an older revision is refused: %s", rec.Body.String())
+	require.Equal(t, http.StatusNoContent, del(saved.Revision).Code)
+	rec = update(`{"name":"Germany","base_revision":"` + saved.Revision + `"}`)
+	assert.Equal(t, http.StatusNotFound, rec.Code, "an update never brings a deleted market back")
+}

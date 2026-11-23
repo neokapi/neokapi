@@ -1,27 +1,46 @@
 # Native reference doc for the built-in `exec` format.
 # Source: core/formats/exec/{format.go,reader.go}.
 # Declarative subprocess extractor; configured in a .kapi project, not used as a per-file reader.
-description: Kjør en ekstern underprosess som en egendefinert uttrekker som strømmer blokker som NDJSON.
+description: Kjør en ekstern delprosess som en tilpasset uttrekker som strømmer blokker som NDJSON.
 overview: |
-  `exec`-formatet er en deklarativ innpakning rundt en ekstern ekstraktor. I stedet for å tolke et filformat selv, starter det en delprosess du angir, sender de matchede filstiene til standard inn (NUL-separert) og leser tilbake blokker som newline-avgrenset JSON (NDJSON) på standard ut. Hver utdatalinje er en post på formen `{"type":"block","document":"<sti>","block":{ … }}`; linjer som ikke er JSON-objekter behandles som støy (fremdrifts- eller loggutdata) og ignoreres. En ikke-null avslutstatus vises som en feil med delprosessens fangede stderr vedlagt.
+  Exec-formatet er et deklarativt grensesnitt til en ekstern
+  uttrekker. Det starter en delprosess du angir, i stedet for å tolke
+  et filformat selv. Det sender filstier som samsvarer med utvalget,
+  til standard inn (NUL-separert) og leser blokker som kan oversettes,
+  som linjeskiftseparert JSON (NDJSON) fra standard ut. Hver utdatalinje
+  er en post på formen `{"type":"block","document":"<path>",
+  "block":{ … }}`. Linjer som ikke er JSON-objekter, regnes som støy
+  (fremdriftsinformasjon eller loggutdata) og ignoreres. En avslutningsstatus
+  ulik null rapporteres som en feil, med delprosessens innsamlede stderr vedlagt.
 
-  Bruk `exec` når et format ikke har noen innebygd leser, men du kan trekke ut tekstene med et skript eller verktøy i et hvilket som helst språk – for eksempel en prosjektspesifikk kildekode-ekstraktor. Protokollen er enkel å inspisere (vanlig JSON) og inneholder ingen kapi-spesifikk skjema utover blokkformen delprosessen sender ut.
+  Bruk exec når et format ikke har en innebygd innleser, men du kan trekke ut
+  tekststrengene med et skript eller verktøy i et valgfritt språk, for eksempel
+  en prosjektspesifikk uttrekker for kildekode. Protokollen er enkel å
+  inspisere (ren JSON) og har ikke noe kapi-spesifikt skjema utover
+  blokkstrukturen som delprosessen skriver ut.
 
-  `exec`-formatet aktiveres per prosjekt: det har ingen filutvidelser eller MIME-typer og oppdages aldri automatisk basert på filtype. Det deklareres i en samlings `format:`-blokk i en `.kapi`-prosjektfil og kjøres via `kapi extract -p project.kapi`, som starter den deklarerte kommandoen én gang per samling med alle matchede stier på stdin. Det kan ikke brukes som en per-fil-leser; å åpne en fil direkte med dette formatet returnerer en feil som peker mot den prosjektstyrte bruken.
+  Exec-formatet må aktiveres per prosjekt. Det har ingen filendelser eller
+  MIME-typer og oppdages aldri automatisk ut fra filtypen. Det angis i
+  `format:`-blokken for en samling i et `.kapi`-prosjekt og kjøres via
+  `kapi extract -p project.kapi`. Dette starter den angitte kommandoen én
+  gang per samling og sender alle stier som samsvarer med utvalget, til stdin.
+  Formatet kan ikke brukes som innleser for enkeltfiler. Hvis du åpner en fil
+  direkte med dette formatet, får du en feil som viser til det prosjektstyrte
+  uttrekksløpet.
 limitations:
-  - Kan ikke brukes som en frittstående filleser per fil; den kjøres kun via prosjektets uttrekksbane (`kapi extract -p`).
-  - Underprosessen må implementere protokollen med NUL-separerte stier inn og NDJSON-blokker ut; ingen annen transport støttes.
-  - Det finnes ingen innebygd skriver; exec dekker kun uttrekk.
+  - Kan ikke brukes som en frittstående innleser for enkeltfiler. Den kjøres bare via prosjektets uttrekksløp (`kapi extract -p`).
+  - Delprosessen må implementere protokollen med NUL-separerte stier inn og NDJSON-blokker ut. Ingen andre transportmetoder støttes.
+  - Det finnes ingen innebygd skriver. Exec dekker bare uttrekk.
 processingNotes:
-  - Underprosessen mottar samsvarende filstier på stdin som en NUL-separert liste og sender én `blokk`-post per oversettbar enhet på stdout.
-  - "Oppstartskommandoen, arbeidskatalogen og en valgfri tidsavbrudd hentes fra samlingens format-konfigurasjon i `.kapi`-prosjektet."
-  - "Utdatalinjer som ikke er JSON-objekter hoppes over, slik at underprosessen kan flette inn fremdriftstekst på stdout."
+  - "Delprosessen mottar filstier som samsvarer med utvalget, på stdin som en NUL-separert liste og skriver én `block`-post per del av innholdet som kan oversettes, til stdout."
+  - "Startkommandoen, arbeidskatalogen og en valgfri tidsavbruddsgrense hentes fra formatkonfigurasjonen for samlingen i `.kapi`-prosjektet."
+  - "Utdatalinjer som ikke er JSON-objekter, hoppes over, så delprosessen kan skrive fremdriftstekst innimellom på stdout."
 examples:
-  - title: Pakk inn en egendefinert uttrekker
+  - title: Bruk en tilpasset uttrekker
     description: |
-      Deklarer en ekstern kommando på en samling. `kapi extract` kjører
-      den én gang per samling, sender samsvarende stier på stdin og leser
-      NDJSON-blokk-poster fra stdout.
+      Angi en ekstern kommando for en samling. `kapi extract` kjører
+      kommandoen én gang per samling, sender filstier som samsvarer med utvalget,
+      til stdin og leser NDJSON-blokkposter fra stdout.
     config: |
       format:
         name: exec

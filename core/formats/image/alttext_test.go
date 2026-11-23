@@ -16,7 +16,14 @@ import (
 func readParts(t *testing.T, in string, src []byte) []*model.Part {
 	t.Helper()
 	r := NewReader()
-	doc := &model.RawDocument{URI: in, Reader: io.NopCloser(bytes.NewReader(src))}
+	// Opened as a run opens a file: the descriptor is the random-access view,
+	// which the reader names to its engines and reads the sidecar beside.
+	f, err := os.Open(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = f.Close() })
+	doc := &model.RawDocument{URI: in, Reader: io.NopCloser(bytes.NewReader(src)), ReaderAt: f, Size: int64(len(src))}
 	if err := r.Open(context.Background(), doc); err != nil {
 		t.Fatalf("Open: %v", err)
 	}

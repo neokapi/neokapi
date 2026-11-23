@@ -1,37 +1,29 @@
 # Native reference doc for the built-in `properties-set` tool.
 # Schema source: core/tools/propertiesset.go (PropertiesSetConfig).
-description: Angi eller endre nøkkel-verdi-egenskaper på blokker.
+description: Sett eller endre nøkkel-verdi-egenskaper på blokker.
 overview: |
-  **Properties Set**-verktøyet skriver et fast sett med nøkkel-verdi-egenskaper til
-  blokker. Egenskaper er metadata som følger med en blokk og kan påvirke
-  nedstrømsverktøy og skrivere. Bruk det til å merke innhold – for eksempel ved å markere et
-  sett med blokker med en arbeidsflytsstatus eller et rutingshint.
+  Verktøyet **Properties Set** skriver et fast sett med nøkkel-verdi-egenskaper til blokker. Egenskaper er metadata som følger en blokk og kan påvirke etterfølgende verktøy og skrivekomponenter. Bruk det til å merke innhold, for eksempel ved å gi et sett med blokker en arbeidsflytstatus eller et rutingshint.
 
-  Minst én egenskap må konfigureres. Som standard overskriver verktøyet
-  eksisterende egenskaper med samme nøkkel og gjelder bare blokker med tekst.
+  Minst én egenskap må konfigureres. Som standard overskriver verktøyet eksisterende egenskaper med samme nøkkel og brukes bare på blokker som kan oversettes.
 parameters:
   properties:
-    description: Nøkkel-verdi-parene som skal angis på hver blokk.
+    description: Nøkkel-verdi-parene som skal settes på hver blokk.
     help: |
-      Et kart over egenskapsnavn til verdier. Hver oppført egenskap skrives på
-      hver behandlede blokk. Minst én oppføring er påkrevd.
-    values: "objekt med strengnøkler til strengverdier (påkrevd)"
+      En tilordning av egenskapsnavn til verdier. Alle oppførte egenskaper skrives til hver blokk som behandles. Minst én oppføring er påkrevd.
+    values: "objekt med strengnøkler og strengverdier (påkrevd)"
   overwrite:
     description: Overskriv eksisterende egenskaper med samme nøkkel.
     help: |
-      Når dette er aktivert, erstattes en egenskap hvis nøkkel allerede finnes på blokken.
-      Når dette er deaktivert, beholdes eksisterende egenskaper og bare manglende
-      nøkler legges til.
-    values: "`true` / `false` (standard `true`)"
-  onlyTranslatable:
-    description: Angi bare egenskaper på oversettbare blokker.
+      Når dette er aktivert, erstattes en egenskap hvis nøkkelen allerede finnes på blokken. Når det er deaktivert, beholdes eksisterende egenskaper, og bare manglende nøkler legges til.
+    values: "`true` / `false` (standard: `true`)"
+  only_translatable:
+    description: Sett bare egenskaper på blokker som kan oversettes.
     help: |
-      Når dette er aktivert, hoppes ikke-oversettbare blokker over. Deaktiver det for å angi
-      egenskaper på alle blokker uavhengig av oversettbarhet.
-    values: "`true` / `false` (standard `true`)"
+      Når dette er aktivert, hoppes blokker som ikke kan oversettes, over. Deaktiver det for å sette egenskaper på alle blokker, uavhengig av om de kan oversettes.
+    values: "`true` / `false` (standard: `true`)"
 examples:
-  - title: Tagg blokker med en status
-    description: Angi en arbeidsflyt-egenskap på alle oversettbare blokker.
+  - title: Merk blokker med en status
+    description: Sett en arbeidsflytegenskap på hver blokk som kan oversettes.
     config: |
       properties:
         status: review

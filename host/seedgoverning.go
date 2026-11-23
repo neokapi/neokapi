@@ -3,11 +3,11 @@ package host
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
@@ -31,7 +31,7 @@ func (a *App) compileMemoryBundle(ctx context.Context, db *projectdb.DB, tm memo
 	if tm == nil {
 		return 0, fmt.Errorf("compile content memory: %w", projectdb.ErrNoStore)
 	}
-	f, err := os.Open(path)
+	f, err := rootpath.OpenRegular(root, path)
 	if err != nil {
 		return 0, fmt.Errorf("open %s: %w", path, err)
 	}

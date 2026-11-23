@@ -7,11 +7,12 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/keychain"
+
 	venueauth "github.com/neokapi/neokapi/host/venue/auth"
 	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 )
 
 // codeServer stands in for the server's desktop token endpoint. It accepts one
@@ -90,7 +91,7 @@ func TestStartLoginHoldsVerifierAndState(t *testing.T) {
 }
 
 func TestLoginRedeemsTheCode(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	t.Setenv("BOWRAIN_CONFIG_DIR", t.TempDir())
 
 	app := newTestApp(t)

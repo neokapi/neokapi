@@ -3,40 +3,56 @@
 # No Okapi equivalent: the Okapi filter set ships no AsciiDoc filter (harvest
 # cohort). Ground truth is the Eclipse AsciiDoc Language spec effort and the
 # Asciidoctor reference documentation it formalizes.
-description: "Trekk ut og oppdater oversettbart innhold i AsciiDoc (.adoc)-dokumenter, mens struktur og inline-markering beholdes trofast gjennom rundturen."
+description: Trekk ut og oppdater oversettbart innhold i AsciiDoc-dokumenter (.adoc) samtidig som struktur og innebygd markup bevares byte-tro.
 overview: |
-  **AsciiDoc**-formatet leser `.adoc`- og `.asciidoc`-dokumenter – det lette prosamarkeringsspråket som er mye brukt i teknisk dokumentasjon. Leseren trekker ut det logiske tekstinnholdet og bevarer alt annet byte for byte.
+  **AsciiDoc**-formatet leser `.adoc`- / `.asciidoc`-dokumenter, det
+  lette proseoppmerklingsmerkspråket som brukes mye til teknisk dokumentasjon.
+  Leseren trekker ut det logiske, oversettbare innholdet og bevarer
+  alt annet byte-for-byte.
 
-  Overskrifter (dokumenttittelen `=` og seksjonsoverskrifter `==`…`======`), avsnitt, listeelementer (ordnede og uordnede, med nesting), blokktitler (`.Title`), admonition-tekst (`NOTE:`, `TIP:`, `WARNING:`, …) og tabellceller blir hver sin blokk med en normalisert strukturell rolle (heading, paragraph, list-item, caption, table-cell). Tabeller rekonstrueres som table/table-row-grupper slik at cellegeometrien bevares. Innebygd markup lineariseres til kanoniske inline-kode-sekvenser: `*bold*`, `_italic_`, `` `mono` ``, `^super^`/`~sub~`, URL- og `link:`-makroer, attributtreferanser `{name}` og krysskoblinger `<<id,text>>`. Den synlige teksten forblir oversettbar; markup lekker aldri inn i den.
+  Overskrifter (dokumenttittelen `=` og avsnittoverskrifter `==`…`======`),
+  avsnitt, listeelementer (ordnede og uordnede, med nesting), blokkititlene
+  (`.Title`), admonition-tekst (`NOTE:`, `TIP:`, `WARNING:`, …) og tabellceller
+  blir hver til blokker med en normalisert strukturell rolle (heading, paragraph,
+  list-item, caption, table-cell). Tabeller rekonstrueres som tabell-/tabellradgrupper
+  slik at cellegeometrien forblir intakt. Innebygd markup lineariseres til
+  kanoniske innebygde kodefragmenter: `*bold*`, `_italic_`, `` `mono` ``, `^super^` /
+  `~sub~`, URL- og `link:`-makroer, innebygde `image:`-makroer, attributtreferanser
+  `{name}` og kryssreferanser `<<id,text>>`. Den synlige teksten, inkludert et bildes alt-tekst,
+  forblir oversettbar; markup lekker aldri inn i den. En blokkmakro som `image::` eller `include::` forblir i skjelettet, og alt-teksten til et blokkbilde blir en egen blokk. En alt-tekst som er endret ved redigering eller oversettelse, skrives inn i makroens attributtliste: i doble anførselstegn når den inneholder et komma eller et `=`, med et anførselstegn inne i anførselstegnene skrevet `\"` og, i en innebygd `image:`-makro, en `]` skrevet `\]`. En alt-tekst som inneholder et linjeskift, avvises, siden det ville avslutte makroen.
 
-  Verbatim-blokker (listing/literal/source/passthrough), kommentarer, attributtoppføringer og dokumenthodet er ikke-oversettbare og går i rundtur som skjelett: et uendret dokument reproduseres byte for byte, og bare endrede verdier sys inn igjen.
+  Verbatim-blokker (listing/literal/source/passthrough), kommentarer, attributtoppføringer
+  og dokumenthodet er ikke-oversettbare og passerer som skjelett: et uendret dokument
+  reproduseres byte-for-byte, og bare endrede verdier sys tilbake inn.
 parameters:
-  extractBlockTitles:
-    description: Trekk ut AsciiDoc-blokktitler (`.Title`) som oversettbare blokker.
+  extract_block_titles:
+    description: Trekk ut AsciiDoc-blokkititlene (`.Title`) som oversettbare blokker.
     help: |
-      Når dette er aktivert (standard), sendes en blokktitellinje (`.My Caption`) knyttet til
-      en etterfølgende blokk ut som en oversettbar undertekst-blokk. Deaktiver for å
-      beholde blokktitler som ikke-oversettbart skjelett.
+      Når aktivert (standard), sendes en blokkitittellinje (`.My Caption`) knyttet til
+      følgende blokk ut som en oversettbar bildetekstblokk. Deaktiver for å
+      beholde blokkititlene som ikke-oversettbart skjelett.
     values: "`true` / `false` (standard `true`)"
-  extractTableCells:
+  extract_table_cells:
     description: Trekk ut `|===`-tabellceller som oversettbare blokker.
     help: |
-      Når dette er aktivert (standard), sendes cellene i en PSV-tabell ut som blokker
-      gruppiert i tabell-/tabellrad-grupper (den første raden behandles som en overskrift
-      når en tom linje følger den). Deaktiver for å beholde hele tabellen som én
+      Når aktivert (standard), sendes cellene i en PSV-tabell ut som blokker
+      gruppiert i tabell-/tabellradgrupper (den første raden behandles som en overskrift
+      når en blank linje følger etter den). Deaktiver for å beholde hele tabellen som én enkelt
       ikke-oversettbar blokk.
     values: "`true` / `false` (standard `true`)"
 processingNotes:
-  - "Overskrifter bærer nivået sitt i Properties[\"level\"] (antallet `=`), slik at strukturen overlever oversettelse og eksport på tvers av formater."
-  - "Tabeller rekonstrueres som tabell-/tabellrad-grupper; overskriftsceller har rollen table-header, innholdsceller har rollen table-cell."
-  - "Inline-markering (fet/kursiv/mono/super/sub, lenker, attributtreferanser, kryssreferanser) beskyttes som inline-kode-sekvenser og må ikke oversettes."
-  - "Utdata er bytettro: et uendret dokument går gjennom en rundtur nøyaktig; kun endrede blokkverdier skrives om. Verbatim-blokker, kommentarer, attributtoppføringer og dokumenthodet bevares som skjelett."
+  - "Overskrifter har nivå på Properties[\"level\"] (antall `=`), slik at strukturen overlever oversettelse og eksport til andre formater."
+  - "Tabeller rekonstrueres som tabell-/tabellradgrupper; overskriftsceller har rollen table-header, innholdsceller har rollen table-cell."
+  - "Innebygd markup (fet/kursiv/mono/hevet/senket skrift, lenker, innebygde bilder, attributtreferanser, kryssreferanser) er beskyttet som innebygde kodefragmenter og skal ikke oversettes."
+  - "Blokkmakroer (`image::`, `include::`, …) er skjelett; alt-teksten til et blokkbilde trekkes ut som en egen blokk."
+  - "En endret bildes alt-tekst siteres og escapes for makroens attributtliste, slik at et komma i en oversettelse aldri deler den opp i attributter."
+  - "Utdata er byte-tro: et uendret dokument passerer nøyaktig; bare endrede blokkverdi skrives om. Verbatim-blokker, kommentarer, attributtoppføringer og dokumenthodet bevares som skjelett."
 examples:
-  - title: Behold blokktitler uoversatt
-    description: Behandle `.Title`-linjer som skjelett i stedet for oversettbare undertekster.
+  - title: La blokkititlene være uoversatte
+    description: Behandle `.Title`-linjer som skjelett i stedet for oversettbare bildetekster.
     config: |
-      extractBlockTitles: false
+      extract_block_titles: false
   - title: Bevar tabeller verbatim
-    description: Ikke trekk ut tabellceller; la hele tabellen gå gjennom rundturen uendret.
+    description: Ikke trekk ut tabellceller; la hele tabellen passere uendret.
     config: |
-      extractTableCells: false
+      extract_table_cells: false

@@ -35,7 +35,7 @@ func arbEditWithSkeleton(t *testing.T, input string, streaming bool, edit func(*
 		require.NoError(t, os.WriteFile(path, []byte(input), 0o600))
 		f, err := os.Open(path)
 		require.NoError(t, err)
-		doc = &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: f}
+		doc = &model.RawDocument{URI: path, SourceLocale: model.LocaleEnglish, Reader: f, ReaderAt: f}
 	}
 	require.NoError(t, reader.Open(ctx, doc))
 	parts := testutil.CollectParts(t, reader.Read(ctx))

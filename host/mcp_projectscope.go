@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // Per-call project scope for the MCP surface.
@@ -66,20 +66,42 @@ func (a *App) MCPRecipePath() string { return a.mcpRecipePath }
 //
 // An empty path and a nil error mean no project is in scope, which the
 // ad-hoc tools (check over a snippet, a profile named by file) run in.
-func (a *App) ResolveMCPCallProject(explicit string) (string, error) {
+func (a *App) ResolveMCPCallProject(ctx context.Context, explicit string) (string, error) {
+	recipe, err := a.resolveMCPCallProject(ctx, explicit)
+	if err != nil || recipe == "" {
+		return recipe, err
+	}
+	// Every call that acts on a project resolves it here, so each asks whether
+	// git tracks kapi's state in it (cheap while the index is unchanged).
+	if err := project.CheckStateTracked(ctx, project.LayoutAt(filepath.Dir(recipe))); err != nil {
+		return "", err
+	}
+	return recipe, nil
+}
+
+func (a *App) resolveMCPCallProject(ctx context.Context, explicit string) (string, error) {
 	if explicit != "" {
-		return resolveNamedMCPProject(explicit)
+		recipe, err := resolveNamedMCPProject(ctx, explicit)
+		if err != nil {
+			return "", err
+		}
+		// A project named in a call is an agent's argument, so it must lie
+		// under a directory a person chose (mcp_roots.go).
+		if rerr := MCPReachable(ctx, "project", filepath.Dir(recipe)); rerr != nil {
+			return "", &MCPProjectError{Path: explicit, Reason: "lies outside the directories this server may reach; name a project under the directory the server was started in or a root the client declares", Err: rerr}
+		}
+		return recipe, nil
 	}
 	if a.mcpRecipePath != "" {
 		return a.mcpRecipePath, nil
 	}
-	return ResolveProjectPath(nil)
+	return ResolveProjectPath(NewEnvCommand(ctx, "mcp"))
 }
 
 // RequireMCPCallProject is ResolveMCPCallProject for a tool that has no
 // ad-hoc mode, so "no project" is refused rather than returned.
-func (a *App) RequireMCPCallProject(explicit string) (string, error) {
-	path, err := a.ResolveMCPCallProject(explicit)
+func (a *App) RequireMCPCallProject(ctx context.Context, explicit string) (string, error) {
+	path, err := a.ResolveMCPCallProject(ctx, explicit)
 	if err != nil {
 		return "", err
 	}
@@ -93,13 +115,21 @@ func (a *App) RequireMCPCallProject(explicit string) (string, error) {
 // recipe file resolves directly; anything else inside a project resolves by the
 // same upward walk `kapi` runs from its working directory, so an assistant can
 // pass the file it is editing.
-func resolveNamedMCPProject(named string) (string, error) {
-	info, err := os.Stat(named)
+func resolveNamedMCPProject(ctx context.Context, named string) (string, error) {
+	// The argument is an agent's: it is looked at only beneath a directory the
+	// call may reach.
+	if rerr := MCPReachable(ctx, "project", named); rerr != nil {
+		return "", &MCPProjectError{Path: named, Reason: "lies outside the directories this server may reach; name a project under the directory the server was started in or a root the client declares", Err: rerr}
+	}
+	info, err := statMCPPath(ctx, "project", named)
+	if e := (*rootpath.EscapeError)(nil); errors.As(err, &e) {
+		return "", &MCPProjectError{Path: named, Reason: "lies outside the directories this server may reach; name a project under the directory the server was started in or a root the client declares", Err: err}
+	}
 	if err != nil {
 		return "", &MCPProjectError{Path: named, Reason: "names no file or directory", Err: err}
 	}
 	if info.IsDir() {
-		if recipe := filepath.Join(named, project.RecipeFileName); fileExists(recipe) {
+		if recipe := filepath.Join(named, project.RecipeFileName); mcpFileExists(ctx, recipe) {
 			return absOrAsGiven(recipe), nil
 		}
 		return walkToMCPProject(named)
@@ -150,7 +180,7 @@ func absOrAsGiven(path string) string {
 // without one, the empty flag that makes ResolveProjectPath fall through to
 // discovery.
 func (a *App) mcpCallCommand(ctx context.Context, name, explicit string) (*EnvCommand, string, error) {
-	recipe, err := a.ResolveMCPCallProject(explicit)
+	recipe, err := a.ResolveMCPCallProject(ctx, explicit)
 	if err != nil {
 		return nil, "", err
 	}
@@ -162,8 +192,8 @@ func (a *App) mcpCallCommand(ctx context.Context, name, explicit string) (*EnvCo
 // mcpProjectContext loads the project context for one call's recipe, so a tool
 // can read what that project declares without any of it reaching the App.
 // A call with no project in scope gets (nil, nil).
-func (a *App) mcpProjectContext(explicit string) (*project.ProjectContext, error) {
-	recipe, err := a.ResolveMCPCallProject(explicit)
+func (a *App) mcpProjectContext(ctx context.Context, explicit string) (*project.ProjectContext, error) {
+	recipe, err := a.ResolveMCPCallProject(ctx, explicit)
 	if err != nil || recipe == "" {
 		return nil, err
 	}
@@ -197,4 +227,11 @@ func (a *App) mcpCallSourceLocale(recipe string) string {
 		return a.SourceLocale()
 	}
 	return ResolveSourceLocale(a.mcpNamedSourceLang, proj.Defaults.SourceLanguage)
+}
+
+// mcpFileExists reports whether the regular file p exists beneath the
+// directory an MCP call may reach.
+func mcpFileExists(ctx context.Context, p string) bool {
+	info, err := statMCPPath(ctx, "project", p)
+	return err == nil && info.Mode().IsRegular()
 }

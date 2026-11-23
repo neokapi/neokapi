@@ -25,19 +25,16 @@ import (
 //
 // The predicate combines the two complementary directions the review loop already
 // checks (review_recheck.go), lifted here so both surfaces import them:
-//
-//   - PRESENCE: the target CONTAINS a forbidden or competitor term — drawn from
-//     the terms store (LookupAll, the same matcher the concept blast radius and RV-E
-//     use) AND from the voice profile's own rules (core/profile.Findings: the
-//     word rules its file carries and its patterns).
-//   - ABSENCE: the source uses a concept that MANDATES a preferred or approved
-//     rendering for the target locale and the target OMITS it, or the concept is
-//     marked do-not-translate and the target does not keep the term verbatim.
-//     Both are decided by coretools.TermCheckRunViolations, the function the
-//     term-check tool itself uses, so a translation the CLI gate passes
-//     is compliant here and one it fails is a violation.
-//
-// The checks are deterministic and offline — no DB or LLM call is made per block.
+
+//   - PRESENCE: the target contains a forbidden or competitor term, from the
+//     terms store (LookupAll, the matcher the blast radius uses) and from the
+//     voice profile's own rules (core/profile.Findings).
+//   - ABSENCE: the source uses a concept that mandates a rendering for the
+//     target locale and the target omits it, or a do-not-translate term is not
+//     kept verbatim. coretools.TermCheckRunViolations decides both, as the
+//     term-check tool does, so the CLI gate and this predicate agree.
+
+// The checks are deterministic and offline, no DB or LLM call is made per block.
 // The terms store is snapshotted in-memory once per (workspace) and the voice profile
 // resolved once per (workspace, locale) by the caller (see termGate), then reused
 // across every block of the ship/compliant pass.
@@ -46,14 +43,12 @@ import (
 // for tgtLoc. The target is a violation when it USES a forbidden or competitor
 // term (presence) or OMITS every rendering its source concept accepts
 // (absence, determined as term-check determines it), and compliant when it was
-// checked and does neither. It is the single per-block predicate the dashboard ship-state pass,
-// the compliant-rate derivation, the review queue, the bulk approve-passing
-// endpoint, and the RV-E concept re-check oracle all call.
+// checked and does neither. The ship-state pass, the compliant rate, the review
+// queue, bulk approve-passing and the concept re-check all call it.
 //
-// tb is the terms governing tgtLoc, an in-memory snapshot resolved once by the
-// caller (nil when no concept answers for the locale, and the terms half is
-// skipped). profile is the voice profile resolved for tgtLoc once by the caller
-// (nil when none is bound, and the vocabulary half is skipped). With neither,
+// tb is the terms governing tgtLoc, a snapshot the caller resolves once; nil
+// skips the terms half. profile is the voice profile for tgtLoc; nil skips the
+// vocabulary half. With neither,
 // terminology does not govern the locale and the verdict claims nothing. A
 // target in a governed locale with no text has nothing to check, so it is
 // unchecked. A caller treats both as states of their own, neither compliant
@@ -288,8 +283,8 @@ func (g *termGate) fingerprint(ctx context.Context, locales []string) string {
 }
 
 // profileFor resolves (and caches) the voice profile for one target locale.
-// The resolver runs at most once per locale across the whole pass — never per
-// block — so the ship/compliant pass adds no per-block store reads.
+// The resolver runs at most once per locale across the whole pass, never per
+// block, so the ship/compliant pass adds no per-block store reads.
 func (g *termGate) profileFor(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile {
 	if g == nil || g.resolve == nil {
 		return nil
@@ -456,8 +451,8 @@ func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, strea
 // shared predicate does not follow USE_INSTEAD / REPLACED_BY redirection, matching
 // the review loop's primitive check.
 //
-// The second return is a digest of exactly what was indexed — the concepts as
-// the snapshot holds them, not as the store spells them — so a gate fingerprint
+// The second return is a digest of exactly what was indexed, the concepts as
+// the snapshot holds them, not as the store spells them, so a gate fingerprint
 // changes if and only if the governance the predicate actually applies changed.
 // A concept dropped by AddConcept is therefore absent from both the snapshot and
 // the digest, which is the honest pairing: verdicts are counted as computed.
@@ -520,12 +515,11 @@ type revisionedTerms interface {
 // the next call reads past. Every replica of the server checks the revision
 // on every call, so a write through another one is seen at the next call.
 //
-// It keeps at most termSnapshotWorkspaces snapshots, dropping the one used
-// least recently to make room, and drops a workspace's snapshot when its
-// revision reads empty (a workspace removed or reset) or cannot be read.
+// It keeps at most termSnapshotWorkspaces snapshots, dropping the least
+// recently used, and drops a snapshot whose revision reads empty or fails.
 type termSnapshotCache struct {
 	mu   sync.Mutex
-	byWS map[string]termSnapshot
+	byWS map[snapshotKey]termSnapshot
 	// clock orders the snapshots by their last use.
 	clock uint64
 }
@@ -545,67 +539,71 @@ type termSnapshot struct {
 // snapshot returns the snapshot of tb, the terms of workspace wsID, and its
 // digest: the one kept for the revision tb holds now, else a fresh read,
 // kept when it read cleanly.
-func (c *termSnapshotCache) snapshot(ctx context.Context, wsID string, tb terms.Store) (terms.Terminology, string) {
+func (c *termSnapshotCache) snapshot(ctx context.Context, key snapshotKey, tb terms.Store) (terms.Terminology, string) {
 	rt, ok := tb.(revisionedTerms)
 	if !ok {
 		return snapshotTerms(ctx, tb)
 	}
 	rev, err := rt.Revision(ctx)
 	if err != nil || rev == "" {
-		c.drop(wsID)
+		c.drop(key)
 		return snapshotTerms(ctx, tb)
 	}
 	c.mu.Lock()
-	kept, ok := c.byWS[wsID]
+	kept, ok := c.byWS[key]
 	if ok && kept.revision == rev {
 		c.clock++
 		kept.used = c.clock
-		c.byWS[wsID] = kept
+		c.byWS[key] = kept
 		c.mu.Unlock()
 		return kept.snap, kept.fp
 	}
 	c.mu.Unlock()
 	snap, fp, err := readTermSnapshot(ctx, tb)
 	if err != nil {
-		c.drop(wsID)
+		c.drop(key)
 		return nil, ""
 	}
-	c.keep(wsID, termSnapshot{revision: rev, snap: snap, fp: fp})
+	c.keep(key, termSnapshot{revision: rev, snap: snap, fp: fp})
 	return snap, fp
 }
 
 // termSnapshotKey is the key a project's terms snapshot is kept under. The
 // projects of a workspace read one store at one revision, but each sees the
 // concepts that apply in it, so each keeps a snapshot of its own.
-func termSnapshotKey(wsID, projectID string) string {
-	return wsID + "\x00" + projectID
+func termSnapshotKey(wsID, projectID string) snapshotKey {
+	return snapshotKey{wsID, projectID}
 }
+
+// snapshotKey is a terms snapshot's key: the workspace and the project.
+type snapshotKey struct{ workspace, project string }
 
 // keep keeps s as workspace wsID's snapshot, dropping the snapshot used least
 // recently when the cache is full.
-func (c *termSnapshotCache) keep(wsID string, s termSnapshot) {
+func (c *termSnapshotCache) keep(key snapshotKey, s termSnapshot) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.byWS == nil {
-		c.byWS = map[string]termSnapshot{}
+		c.byWS = map[snapshotKey]termSnapshot{}
 	}
-	if _, held := c.byWS[wsID]; !held && len(c.byWS) >= termSnapshotWorkspaces {
-		oldest := ""
+	if _, held := c.byWS[key]; !held && len(c.byWS) >= termSnapshotWorkspaces {
+		var oldest snapshotKey
+		found := false
 		for ws, kept := range c.byWS {
-			if oldest == "" || kept.used < c.byWS[oldest].used {
-				oldest = ws
+			if !found || kept.used < c.byWS[oldest].used {
+				oldest, found = ws, true
 			}
 		}
 		delete(c.byWS, oldest)
 	}
 	c.clock++
 	s.used = c.clock
-	c.byWS[wsID] = s
+	c.byWS[key] = s
 }
 
-// drop forgets workspace wsID's snapshot.
-func (c *termSnapshotCache) drop(wsID string) {
+// drop forgets workspace key's snapshot.
+func (c *termSnapshotCache) drop(key snapshotKey) {
 	c.mu.Lock()
-	delete(c.byWS, wsID)
+	delete(c.byWS, key)
 	c.mu.Unlock()
 }

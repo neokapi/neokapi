@@ -565,7 +565,8 @@ export interface ProjectFilter {
   languages?: string[];
   /**
    * Shared with the project's team, kept in the project's context store so every
-   * checkout lists it, vs personal to this checkout (.kapi/filters.local.json).
+   * checkout lists it, vs personal to this checkout (filters.local.json in the
+   * checkout's state directory).
    */
   shared?: boolean;
 }
@@ -942,6 +943,23 @@ export interface ContextBackend {
   endpoint?: string;
 }
 
+/** What a project's commands run and what an answer about them checks. */
+export interface ExecTrustRequest {
+  recipe: string;
+  sites: { where: string; kind: string; name: string; detail?: string }[];
+  /** Files checked by content, project-relative. */
+  checked: string[];
+  /** Directories the commands name, whose content is not checked. */
+  not_checked?: string[];
+  /** Steps that hand a program code as a string (a shell's -c, an interpreter's -e), with the form. */
+  inline?: string[];
+  added?: string[];
+  changed?: string[];
+  limit: string;
+  declined?: boolean;
+  digest: string;
+}
+
 /** What a pull merged. */
 export interface ContextPull extends SyncStatus {
   segments: number;
@@ -949,6 +967,10 @@ export interface ContextPull extends SyncStatus {
   rebuilt?: boolean;
   checkpoint?: string;
   empty?: boolean;
+  /** Entries in a shared folder the pull left out (links, devices): the first few names. */
+  passed_over?: string[];
+  /** How many entries the pull left out in all. */
+  passed_over_total?: number;
   seconds: number;
 }
 

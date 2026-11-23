@@ -19,17 +19,16 @@ import (
 //	(block) ──in_collection──▶ (collection)
 //
 // Identity is contextgraph's: blocks and collections are qualified by the scope
-// they sit in, the concept is the workspace's. The occurrence coordinate —
-// which locale's text matched, at which position — is edge data, not node
-// identity, because the same content used in two places is one block.
+// they sit in, the concept is the workspace's. The occurrence coordinate (which
+// locale's text matched, at which position) is edge data, not node identity,
+// because the same content used in two places is one block.
 
 // Standing is how a term stands: the status it carries and the window it
 // carries it in.
 //
-// It is deliberately not a field on Occurrence. A use is a fact about the text
-// — the word is there, at these offsets — while the standing is the terms
-// store's ruling about the word, which can change without a character of
-// content moving. The graph carries both because "which projects use this" and
+// It is not a field on Occurrence. A use is a fact about the text: the word is
+// there, at these offsets. The standing is the terms store's ruling about the
+// word, which can change without a character of content moving. The graph carries both because "which projects use this" and
 // "and should they" are one question at workspace reach, and BuildGraph joins
 // them at the one place it has both to hand.
 type Standing struct {
@@ -40,7 +39,7 @@ type Standing struct {
 // Edge is the graph relationship this occurrence contributes to: the block uses
 // the concept, in this term, in the occurrence's locale, within the given scope.
 // Its id drops the match position, so every use of one term in one block folds
-// onto one relationship — BuildGraph counts them into the edge's `count`
+// onto one relationship. BuildGraph counts them into the edge's `count`
 // property rather than emitting an edge per position.
 func (o Occurrence) Edge(scope contextgraph.Scope, standing Standing) graph.Edge {
 	return contextgraph.UsesTermEdge(scope, contextgraph.UsesTerm{
@@ -67,8 +66,8 @@ type GraphDelta struct {
 
 // BuildGraph computes the uses_term / in_collection subgraph for every concept
 // in the terms store over the project's blocks, at the given scope. It reuses
-// Find's matching semantics exactly — one Find per concept — so the graph can
-// never disagree with the live occurrence query about what counts as a use.
+// Find's matching semantics exactly, with one Find per concept, so the graph
+// agrees with the live occurrence query about what counts as a use.
 //
 // The delta is deterministic: nodes and edges come back in id order, and repeat
 // uses of one term in one block fold onto one counted edge.
@@ -91,8 +90,8 @@ func BuildGraph(ctx context.Context, src Sources, scope contextgraph.Scope) (*Gr
 		if err != nil {
 			return nil, err
 		}
-		// A readable concept-node label — the first term's text — so a graph
-		// dump is legible without a second lookup. A hint, not identity.
+		// The concept node's label is the first term's text, so a graph dump
+		// is legible without a second lookup. A hint, not identity.
 		termHint := ""
 		if len(c.Terms) > 0 {
 			termHint = c.Terms[0].Text
@@ -100,7 +99,7 @@ func BuildGraph(ctx context.Context, src Sources, scope contextgraph.Scope) (*Gr
 		agg.concept(c.ID, termHint)
 		standings := standingsOf(c)
 		for _, occ := range res.Occurrences {
-			agg.occurrence(occ, standings[termKey(occ.Term, occ.TermLocale)])
+			agg.occurrence(occ, standings[termKey{occ.Term, occ.TermLocale}])
 		}
 	}
 	return agg.delta(), nil
@@ -133,10 +132,10 @@ func (g *graphAggregator) concept(id, termHint string) {
 // standingsOf indexes a concept's terms by the (text, locale) pair an
 // occurrence names them with, so the edge for a use carries the ruling on the
 // exact spelling that was used rather than the concept's first one.
-func standingsOf(c terms.Concept) map[string]Standing {
-	out := make(map[string]Standing, len(c.Terms))
+func standingsOf(c terms.Concept) map[termKey]Standing {
+	out := make(map[termKey]Standing, len(c.Terms))
 	for _, t := range c.Terms {
-		out[termKey(t.Text, string(t.Locale))] = Standing{
+		out[termKey{t.Text, string(t.Locale)}] = Standing{
 			Status:   string(t.Status),
 			Validity: t.Validity,
 		}
@@ -144,7 +143,8 @@ func standingsOf(c terms.Concept) map[string]Standing {
 	return out
 }
 
-func termKey(text, locale string) string { return text + "\x00" + locale }
+// termKey is a term by its text and locale.
+type termKey struct{ text, locale string }
 
 func (g *graphAggregator) occurrence(o Occurrence, standing Standing) {
 	blockID := contextgraph.BlockNodeID(g.scope, o.BlockHash)

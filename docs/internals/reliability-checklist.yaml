@@ -961,8 +961,9 @@ items:
     check: >-
       Plant a positive and see the gate report it, preferably as a --self-test
       over fixtures (check-loop-output.sh and scripts/commentcoverage do this).
-      Fail the smallest unit that is wrong, not the whole run. Wire the gate
-      into make lint or scripts/pre-push-check.sh, and into CI where it belongs.
+      Fail the smallest unit that is wrong, not the whole run. Register the
+      gate as one file in scripts/guards/ whose GUARD_LANES names where it
+      runs (lint, pre-push, ci); scripts/lib/guards.mk shows the shape.
     incident: >-
       2026-08-27: eval gates that could not fail (an empty voice profile scored
       100/100; a gate whose second half never ran). PR #2418 and the allowlist

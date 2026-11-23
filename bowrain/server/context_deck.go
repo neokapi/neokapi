@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -22,6 +21,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/voicewrite"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/terms"
@@ -55,6 +55,9 @@ type contextDeckCard struct {
 	Item     contextop.ItemRef `json:"item"`
 	Kind     string            `json:"kind"`
 	Revision string            `json:"revision"`
+	// BaseRevision is a concept card's terms-store revision, which a
+	// decision that writes the concept sends back and acts at.
+	BaseRevision string `json:"base_revision,omitempty"`
 	// Status is the ledger status of a term rule or a note: suggested,
 	// established or contested.
 	Status string `json:"status,omitempty"`
@@ -203,8 +206,9 @@ type contextDeckAuthor struct {
 	Kind    string `json:"kind"`
 	Name    string `json:"name,omitempty"`
 	Session string `json:"session,omitempty"`
-	// Host is the agent host a person recorded the item from, read from the
-	// operation's note ("recorded as a person in a claude-code shell").
+	// Host is the agent host a person recorded the item from: the actor's
+	// AgentHost, or for an operation a released client wrote, read from its
+	// note (contextop.Record.Said).
 	Host string `json:"host,omitempty"`
 	// OnBehalfOf names the member an agent or a tool ran for, when the store
 	// records it: the member who issued the token a tool pushed with.
@@ -268,12 +272,6 @@ type deckSource struct {
 	records []contextop.Record
 }
 
-// overrideNote is the note a person's operation carries when it was recorded
-// in an agent host's shell (host.ResolvedActor.NoteWith).
-// NoteWith appends it in brackets after a note of the person's own, or
-// writes it alone.
-var overrideNote = regexp.MustCompile(`\s*\(?recorded as a person in an? (\S+) shell\)?`)
-
 // opAuthor reads who wrote a ledger operation.
 func opAuthor(r contextop.Record) contextDeckAuthor {
 	kind := r.Actor.Kind
@@ -281,9 +279,7 @@ func opAuthor(r contextop.Record) contextDeckAuthor {
 		kind = contextop.ActorPerson
 	}
 	a := contextDeckAuthor{Kind: string(kind), Name: r.Actor.Name, Session: r.Actor.Session, OnBehalfOf: r.Actor.OnBehalfOf}
-	if m := overrideNote.FindStringSubmatch(r.Note); m != nil {
-		a.Host = m[1]
-	}
+	_, a.Host = r.Said()
 	a.AgentAuthored = kind != contextop.ActorPerson || a.Host != ""
 	return a
 }
@@ -466,7 +462,7 @@ func (s *Server) contextItems(ctx context.Context, src deckSource, rv deckReview
 
 	reviews := contextop.Reviews(src.records)
 	for i := range cards {
-		review := reviews[cards[i].Item.Key()]
+		review := reviews[cards[i].Item]
 		if review.Current(cards[i].Revision) {
 			cards[i].Reviewed = true
 			continue
@@ -504,7 +500,7 @@ func (s *Server) deckOrigins(ctx context.Context, bulk []contextop.Record, names
 		o := &contextDeckOrigin{
 			ID: r.ID, Short: contextop.ShortID(r.ID), At: r.At,
 			Author: s.recordAuthor(ctx, r, names),
-			Note:   originNote(r.Note),
+			Note:   originNote(r),
 		}
 		if src, ok := r.ImportOf(); ok {
 			o.Kind, o.Source, o.Path, o.Count = originKindImport, src.Source, src.Path, src.Count
@@ -521,9 +517,10 @@ func (s *Server) deckOrigins(ctx context.Context, bulk []contextop.Record, names
 }
 
 // originNote is what the person said about an operation, without the agent
-// host marker the author already carries.
-func originNote(note string) string {
-	return strings.Trim(overrideNote.ReplaceAllString(note, ""), " ;")
+// host the author already carries.
+func originNote(r contextop.Record) string {
+	note, _ := r.Said()
+	return note
 }
 
 // voiceWriteProfile is the voice profile a whole-profile write names: its
@@ -610,8 +607,13 @@ func termRuleFlags(rule coreprofile.TermRule) []string {
 // conceptCards are the cards of the concepts the workspace's terms store
 // holds for the project: those of the whole workspace and the project's own.
 // A concept's revision is its latest revision in the knowledge store, or the
-// time it was last written when it has none. The second list is the cards
-// of the target terms proposed for those concepts (translationCards).
+// time it was last written when it has none: what a review attests. Its
+// base revision is the concept's revision in the terms store, which a
+// decision that writes the concept acts at, so any write since the deal
+// refuses it as stale. The base revisions are read before the content, so a
+// write landing between the two leaves a card whose base is older than what
+// it shows, which the decision then refuses. The second list is the cards of
+// the target terms proposed for those concepts (translationCards).
 func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[string]string) ([]contextDeckCard, []contextDeckCard, error) {
 	if s.wsStores == nil || src.wsSlug == "" {
 		return nil, nil, nil
@@ -619,6 +621,18 @@ func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[str
 	tb, err := s.wsStores.getTerms(ctx, src.wsSlug)
 	if err != nil || tb == nil {
 		return nil, nil, nil //nolint:nilerr // a workspace with no terms store has no concept cards
+	}
+	listed, err := tb.Concepts(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read the terms store: %w", err)
+	}
+	ids := make([]string, len(listed))
+	for i, cp := range listed {
+		ids[i] = cp.ID
+	}
+	revs, err := tb.ConceptRevisions(ctx, ids)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read the terms store: %w", err)
 	}
 	concepts, err := tb.Concepts(ctx)
 	if err != nil {
@@ -634,16 +648,20 @@ func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[str
 	out := make([]contextDeckCard, 0, len(concepts))
 	var translations []contextDeckCard
 	for _, cp := range concepts {
-		if !termscope.AppliesIn(cp, src.project.ID) {
+		rev, held := revs[cp.ID]
+		if !termscope.AppliesIn(cp, src.project.ID) || !held {
+			// A concept created after the revisions were read waits for
+			// the next deal.
 			continue
 		}
 		card := contextDeckCard{
-			Item:     contextop.ItemRef{Kind: contextop.ItemConcept, ID: cp.ID},
-			Kind:     deckKindConcept,
-			Text:     cp.Definition,
-			Language: string(source),
-			Where:    contextDeckWhere{Level: string(contextop.LevelWorkspace), Coordinates: cp.Coordinates()},
-			At:       cp.CreatedAt,
+			Item:         contextop.ItemRef{Kind: contextop.ItemConcept, ID: cp.ID},
+			BaseRevision: rev,
+			Kind:         deckKindConcept,
+			Text:         cp.Definition,
+			Language:     string(source),
+			Where:        contextDeckWhere{Level: string(contextop.LevelWorkspace), Coordinates: cp.Coordinates()},
+			At:           cp.CreatedAt,
 		}
 		if !termscope.Workspace(cp) {
 			card.Where.Level = string(contextop.LevelProject)
@@ -667,10 +685,10 @@ func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[str
 		if slices.ContainsFunc(cp.Terms, func(t terms.Term) bool { return t.CompetitorTerm }) {
 			card.Flags = append(card.Flags, "competitor")
 		}
-		if rev := latest[cp.ID]; rev != nil {
-			card.Revision = "r" + strconv.FormatInt(rev.Rev, 10)
-			card.Author = s.memberAuthor(ctx, rev.Actor, names)
-			card.At = rev.CreatedAt
+		if merged := latest[cp.ID]; merged != nil {
+			card.Revision = "r" + strconv.FormatInt(merged.Rev, 10)
+			card.Author = s.memberAuthor(ctx, merged.Actor, names)
+			card.At = merged.CreatedAt
 		} else {
 			card.Revision = "u" + strconv.FormatInt(cp.UpdatedAt.UnixNano(), 10)
 			card.Author = contextDeckAuthor{Kind: string(contextop.ActorPerson)}
@@ -749,8 +767,8 @@ func (s *Server) voiceRuleCards(ctx context.Context, src deckSource, bulk []cont
 // revision.
 type voiceEditStep struct {
 	rec    contextop.Record
-	before map[string]bool
-	after  map[string]bool
+	before map[[2]string]bool
+	after  map[[2]string]bool
 }
 
 // voiceEditHistory is a profile's ledger writes, oldest first.
@@ -765,7 +783,7 @@ func voiceEditSteps(bulk []contextop.Record, profile *coreprofile.VoiceProfile) 
 		if r.Voice == nil || !sameProfile(r.Voice.Profile, profile.ID, profile.Name) {
 			continue
 		}
-		step := voiceEditStep{rec: r, before: map[string]bool{}}
+		step := voiceEditStep{rec: r, before: map[[2]string]bool{}}
 		if r.Voice.Previous != "" {
 			prev, err := coreprofile.LoadProfileYAML(strings.NewReader(r.Voice.Previous))
 			if err != nil {
@@ -789,7 +807,7 @@ func voiceEditSteps(bulk []contextop.Record, profile *coreprofile.VoiceProfile) 
 // introduced is the latest write that added the rule at revision rev, or nil
 // when no write the ledger records did.
 func (h voiceEditHistory) introduced(list, rev string) *voiceEditStep {
-	key := list + "\x00" + rev
+	key := [2]string{list, rev}
 	for i := len(h) - 1; i >= 0; i-- {
 		if h[i].after[key] && !h[i].before[key] {
 			return &h[i]
@@ -799,15 +817,15 @@ func (h voiceEditHistory) introduced(list, rev string) *voiceEditStep {
 }
 
 // patternKeys are a profile's pattern rules keyed by list and revision.
-func patternKeys(p *coreprofile.VoiceProfile) map[string]bool {
-	out := map[string]bool{}
+func patternKeys(p *coreprofile.VoiceProfile) map[[2]string]bool {
+	out := map[[2]string]bool{}
 	for list, patterns := range map[string][]coreprofile.Pattern{
 		"prohibited": p.Style.ProhibitedPatterns,
 		"required":   p.Style.RequiredPatterns,
 	} {
 		for _, pat := range patterns {
 			_, rev := patternIdentity(list, pat)
-			out[list+"\x00"+rev] = true
+			out[[2]string{list, rev}] = true
 		}
 	}
 	return out
@@ -905,16 +923,16 @@ func profileRuleCards(src deckSource, profile *coreprofile.VoiceProfile) []conte
 
 // patternIdentity is a pattern rule's id and revision.
 func patternIdentity(list string, p coreprofile.Pattern) (id, rev string) {
-	idSum := sha256.Sum256([]byte(list + "\x00" + p.Regex))
+	idSum := sha256.Sum256([]byte(partjoin.NUL(list, p.Regex)))
 	body, _ := json.Marshal(p)
-	revSum := sha256.Sum256(append([]byte(list+"\x00"), body...))
+	revSum := sha256.Sum256([]byte(partjoin.NUL(list, string(body))))
 	return hex.EncodeToString(idSum[:8]), hex.EncodeToString(revSum[:8])
 }
 
 // findCard is the card naming item, and whether the deck holds one.
 func findCard(cards []contextDeckCard, item contextop.ItemRef) (contextDeckCard, bool) {
 	for _, c := range cards {
-		if c.Item.Key() == item.Key() {
+		if c.Item == item {
 			return c, true
 		}
 	}

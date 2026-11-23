@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/tool"
 )
 
 // CheckModeField is the `qa` tool's mode selector. A qa config chooses its
@@ -48,17 +49,22 @@ var retiredCheckKeys = []string{"checkTerminology", "check_terminology"}
 //
 // Every tool's config keys are snake_case, so a camelCase key is refused with
 // its snake_case spelling: `flows.translate.steps[1].config:
-// fillTargetThreshold is now fill_target_threshold`. Beyond that, only the qa
-// tool has such keys. A qa config refuses checkTerminology, which nothing
-// reads, and a provider without a mode, because mode alone selects the AI
-// review.
-func StepConfigError(tool ToolID, config map[string]any, at, keys string) error {
+// fillTargetThreshold is now fill_target_threshold`. No tool's config may
+// carry review_feedback (tool.ReviewFeedbackKey): kapi derives it from the
+// project's review decisions. Beyond that, only the qa tool has such keys.
+// A qa config refuses checkTerminology, which nothing reads, and a provider
+// without a mode, because mode alone selects the AI review.
+func StepConfigError(toolID ToolID, config map[string]any, at, keys string) error {
 	names := make([]string, 0, len(config))
 	for k := range config {
 		names = append(names, k)
 	}
 	slices.Sort(names)
-	if tool != "qa" {
+	if _, set := config[tool.ReviewFeedbackKey]; set {
+		return fmt.Errorf("%s sets %s, which kapi sets itself from the project's review decisions. Remove %s from the recipe",
+			at, tool.ReviewFeedbackKey, tool.ReviewFeedbackKey)
+	}
+	if toolID != "qa" {
 		return camelCaseKeyError(names, keys)
 	}
 	for _, k := range names {

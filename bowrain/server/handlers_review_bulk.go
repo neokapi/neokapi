@@ -98,7 +98,7 @@ func (s *Server) HandleApprovePassing(c *echo.Context) error {
 // approvePassing runs one approve-passing pass over the stream, in the
 // project's target languages narrowed to wantedLocales (all when empty) and to
 // the caller's language scope. Each decision carries reasons in the ledger:
-// the review plan's settle step passes "review policy". The items of
+// the review plan's settle step passes venue.ReasonReviewPolicy. The items of
 // skipCollections are left alone ("" names the items in no collection).
 func (s *Server) approvePassing(c *echo.Context, proj *platstore.Project, stream string, wantedLocales, reasons, skipCollections []string) (ApprovePassingResponse, error) {
 	ctx := c.Request().Context()

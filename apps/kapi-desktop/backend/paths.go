@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
 	"github.com/neokapi/neokapi/host"
 	appconfig "github.com/neokapi/neokapi/host/config"
 )
@@ -17,23 +19,23 @@ import (
 // Every default path is overridable from the environment so the app can run
 // fully isolated from the user's real data (tests, demo recordings, CI):
 //
-//	KAPI_CONFIG_DIR          kapi config root — terms stores, tm, flows,
+//	KAPI_CONFIG_DIR          kapi config root, terms stores, tm, flows,
 //	                         format-presets, plugins (shared with the CLI's
 //	                         KAPI_HOME convention). Default: <UserConfigDir>/kapi
-//	KAPI_DESKTOP_CONFIG_DIR  desktop-only config root — settings.json,
+//	KAPI_DESKTOP_CONFIG_DIR  desktop-only config root, settings.json,
 //	                         recent.json. Default: <UserConfigDir>/kapi-desktop
-//	KAPI_HOME_DIR            user home — default project location (~/KapiProjects),
-//	                         file-dialog defaults. Default: os.UserHomeDir()
+//	KAPI_HOME_DIR            user home, default project location (~/KapiProjects),
+//	                         file-dialog defaults. Default: dataroot.UserHomeDir()
 //	KAPI_PLUGINS_DIR         plugin discovery root (takes precedence over
 //	                         KAPI_CONFIG_DIR/plugins), same variable the CLI
-//	                         reads — set KAPI_PLUGINS_DIR_ONLY=1 alongside it to
+//	                         reads, set KAPI_PLUGINS_DIR_ONLY=1 alongside it to
 //	                         skip the user/system roots entirely (dev/CI/sandbox)
 //
 // On macOS os.UserConfigDir() is ~/Library/Application Support and
-// os.UserHomeDir() is $HOME; on Linux they follow XDG.
+// dataroot.UserHomeDir() is $HOME; on Linux they follow XDG.
 
 // kapiConfigDir returns the kapi config root (terms stores, tm, flows, presets,
-// plugins) — the shared host.ConfigDir chain.
+// plugins), the shared host.ConfigDir chain.
 func kapiConfigDir() string {
 	return host.ConfigDir()
 }
@@ -51,5 +53,5 @@ func userHomeDir() (string, error) {
 	if d := os.Getenv("KAPI_HOME_DIR"); d != "" {
 		return d, nil
 	}
-	return os.UserHomeDir()
+	return dataroot.UserHomeDir()
 }

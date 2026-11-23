@@ -53,7 +53,7 @@ func newServerProject(t *testing.T, server *bproject.ServerSpec, content []corep
 func TestNewSourceConnector_RequiresServerBlock(t *testing.T) {
 	proj, reg := newDiffTestProject(t, `{"greeting":"Hello"}`)
 
-	_, err := NewSourceConnector(&host.App{}, proj, reg)
+	_, err := NewSourceConnector(t.Context(), &host.App{}, proj, reg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "server")
 }
@@ -61,7 +61,7 @@ func TestNewSourceConnector_RequiresServerBlock(t *testing.T) {
 func TestNewSourceConnector_RequiresProjectID(t *testing.T) {
 	proj, reg := newServerProject(t, &bproject.ServerSpec{URL: "https://bowrain.example"}, nil)
 
-	_, err := NewSourceConnector(&host.App{}, proj, reg)
+	_, err := NewSourceConnector(t.Context(), &host.App{}, proj, reg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "project ID")
 }
@@ -76,9 +76,10 @@ func TestNewSourceConnector_ClaimTokenFromCache(t *testing.T) {
 	// no keychain or auth.json involved.
 	cache := bproject.LoadSyncCache(proj.Layout)
 	cache.ClaimToken = "clm_test"
+	cache.ServerURL, cache.ProjectID = "https://bowrain.example", "proj123"
 	require.NoError(t, cache.Save(proj.Layout))
 
-	conn, err := NewSourceConnector(&host.App{}, proj, reg)
+	conn, err := NewSourceConnector(t.Context(), &host.App{}, proj, reg)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -118,7 +119,7 @@ func TestSyncCache_Persistence(t *testing.T) {
 func TestListFiles_ContentIteration(t *testing.T) {
 	proj, reg := newDiffTestProject(t, `{"greeting":"Hello"}`)
 
-	conn := NewLocalConnector(&host.App{}, proj, reg)
+	conn := mustLocalConnector(t, &host.App{}, proj, reg)
 	defer conn.Close()
 
 	files, err := conn.ListFiles(context.Background(), nil)
@@ -193,7 +194,7 @@ func TestResolveTargetPath(t *testing.T) {
 			proj, err := bproject.InitProject(root, recipe)
 			require.NoError(t, err)
 
-			conn := NewLocalConnector(&host.App{}, proj, reg)
+			conn := mustLocalConnector(t, &host.App{}, proj, reg)
 			defer conn.Close()
 
 			assert.Equal(t, tt.want, conn.resolveTargetPath(tt.item, tt.locale))
@@ -288,7 +289,7 @@ func TestDetectFormat_CompoundExtension(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Dir(abs), 0o755))
 	require.NoError(t, os.WriteFile(abs, []byte(`{"kind":"kapi-block-format","blocks":[]}`), 0o644))
 
-	conn := NewLocalConnector(&host.App{}, proj, reg)
+	conn := mustLocalConnector(t, &host.App{}, proj, reg)
 	defer conn.Close()
 
 	assert.Equal(t, "kbf", conn.detectFormat(abs),

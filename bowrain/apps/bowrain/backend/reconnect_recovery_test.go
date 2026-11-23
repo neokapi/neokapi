@@ -11,11 +11,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/core/keychain"
+
 	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 )
 
 // --- Backoff arithmetic ---
@@ -185,7 +186,7 @@ func TestCredentialsForKeepsAnExpiredTokenThatCanRefresh(t *testing.T) {
 func TestCredentialsForRejectsAnExpiredTokenWithNothingToRefreshIt(t *testing.T) {
 	// A fresh keychain: SaveAuth leaves an existing refresh entry for a server
 	// alone, and the mock keychain is shared by the whole package.
-	keyring.MockInit()
+	keychain.Reset()
 	tmpDir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 	require.NoError(t, config.SaveAuth(config.StoredAuth{
@@ -236,6 +237,53 @@ func TestRetryConnectionAttemptsWithoutWaitingOutTheBackoff(t *testing.T) {
 		return app.GetConnectionState().State == StateConnected
 	}, 10*time.Second, 20*time.Millisecond)
 	assert.Positive(t, probes.Load())
+}
+
+// TestAReconnectAttemptIsReportedWhileItRuns: the person sees the app trying
+// while an attempt is under way, and the app stays offline throughout, so an
+// edit made meanwhile still goes to the queue.
+func TestAReconnectAttemptIsReportedWhileItRuns(t *testing.T) {
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-release
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(srv.Close)
+
+	app := newTestApp(t)
+	var mu sync.Mutex
+	var states []ConnectionState
+	InjectEventSink(app, func(name string, data any) {
+		if ci, ok := data.(ConnectionInfo); ok && name == "connection-state-changed" {
+			mu.Lock()
+			states = append(states, ci.State)
+			mu.Unlock()
+		}
+	})
+	app.mu.Lock()
+	app.connState = StateConnected
+	app.serverURL = srv.URL
+	app.authInfo = &config.StoredAuth{ServerURL: srv.URL, AccessToken: "tok"}
+	app.mu.Unlock()
+	t.Cleanup(app.stopReconnect)
+
+	app.goOffline()
+	app.RetryConnection()
+
+	require.Eventually(t, func() bool {
+		return app.GetConnectionState().State == StateReconnecting
+	}, 10*time.Second, 10*time.Millisecond, "an attempt under way is reported")
+	assert.True(t, app.isOffline(), "the app stays offline while it tries")
+
+	close(release)
+	require.Eventually(t, func() bool {
+		return app.GetConnectionState().State == StateOffline
+	}, 15*time.Second, 10*time.Millisecond, "a failed attempt reports the app offline again")
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.GreaterOrEqual(t, len(states), 3)
+	assert.Equal(t, []ConnectionState{StateOffline, StateReconnecting, StateOffline}, states[:3])
 }
 
 func TestRetryConnectionStartsALoopThatIsNotRunning(t *testing.T) {
@@ -444,7 +492,7 @@ func TestReconnectAfterTheRelayDropsAndReturns(t *testing.T) {
 	for _, text := range []string{"Bonjour", "Bonsoir"} {
 		app.enqueue(queuedSave(t, text))
 	}
-	require.Equal(t, 2, q.PendingCount())
+	require.Equal(t, 2, q.PendingCount(t.Context()))
 
 	// Attempts keep failing while the relay is down.
 	require.Never(t, func() bool {
@@ -454,7 +502,7 @@ func TestReconnectAfterTheRelayDropsAndReturns(t *testing.T) {
 	relay.restore(t)
 
 	require.Eventually(t, func() bool {
-		return app.GetConnectionState().State == StateConnected && q.PendingCount() == 0
+		return app.GetConnectionState().State == StateConnected && q.PendingCount(t.Context()) == 0
 	}, 30*time.Second, 100*time.Millisecond,
 		"the connection came back on its own and the queue drained behind it")
 	assert.Equal(t, int64(2), replays.Load(), "both queued edits reached the server")

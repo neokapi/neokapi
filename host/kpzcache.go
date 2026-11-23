@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
 	"github.com/neokapi/neokapi/core/blockstore/exporter"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/project"
@@ -17,8 +19,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// A .kpz workspace is worked on through a persistent shadow cache — its
-// runtime — keeping the .kpz itself a stable transport artifact written only
+// A .kpz workspace is worked on through a persistent shadow cache, its
+// runtime, keeping the .kpz itself a stable transport artifact written only
 // by `pack` (AD-025 §5, the git-bundle model). The cache lives under
 // $XDG_CACHE_HOME/kapi/kpz/<key>, keyed by the .kpz's absolute path, so the
 // working directory stays a single file. Transforms hit the cache's
@@ -32,7 +34,7 @@ func kpzCacheRoot() string {
 	}
 	xdg := os.Getenv("XDG_CACHE_HOME")
 	if xdg == "" {
-		if home, err := os.UserHomeDir(); err == nil {
+		if home, err := dataroot.UserHomeDir(); err == nil {
 			xdg = filepath.Join(home, ".cache")
 		} else {
 			xdg = filepath.Join(os.TempDir(), "kapi-cache")
@@ -63,7 +65,7 @@ type kpzCacheMeta struct {
 	// Recipe is the full project recipe (AD-025 §6). It is held in-memory as
 	// a *project.KapiProject but persisted to the cache meta.json via
 	// RecipeYAML, because KapiProject's Extras (which holds the kpz output
-	// layout) are yaml-inline and JSON-excluded — JSON-encoding the struct
+	// layout) are yaml-inline and JSON-excluded, JSON-encoding the struct
 	// directly would silently drop them. RecipeYAML is the YAML encoding,
 	// kept in sync by save()/load.
 	Recipe     *project.KapiProject `json:"-"`
@@ -139,7 +141,7 @@ func (c *kpzCache) hasSource(src kpzCacheSource) bool {
 
 func (c *kpzCache) save() error {
 	// Persist the recipe as YAML so its Extras (the kpz output layout) survive
-	// the JSON cache file — KapiProject Extras are yaml-inline/json-excluded.
+	// the JSON cache file, KapiProject Extras are yaml-inline/json-excluded.
 	if c.meta.Recipe != nil {
 		yml, err := yaml.Marshal(c.meta.Recipe)
 		if err != nil {
@@ -224,7 +226,7 @@ func buildKpzCacheFromPackage(ctx context.Context, kpzPath string, pkg *kpz.Pack
 	// canonical inventory); fall back to raw Source docs for older packages
 	// that predate the identity list.
 	type srcEntry struct {
-		archivePath  string // "source/<name>" — overlay scoping key
+		archivePath  string // "source/<name>", overlay scoping key
 		sourcePath   string // logical source path
 		formatID     string
 		contentHash  string
@@ -324,7 +326,7 @@ func openKpzCache(kpzPath string) (*kpzCache, bool, error) {
 
 // ensureKpzCache returns the workspace cache for a .kpz, building it from the
 // file when no cache exists, or when the .kpz changed on disk while the cache
-// is clean (the file was replaced — re-sync to it). A dirty cache is kept
+// is clean (the file was replaced, re-sync to it). A dirty cache is kept
 // even if the .kpz changed, with a warning, so unpacked work is never lost.
 func (a *App) ensureKpzCache(ctx context.Context, kpzPath string) (*kpzCache, error) {
 	c, ok, err := openKpzCache(kpzPath)

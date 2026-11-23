@@ -1,6 +1,6 @@
 id: bowrain-web-correction-loop
-title: Gjennomgå gjentatte korreksjoner før du oppretter en regel
-subtitle: Gjentatte korreksjoner blir kandidater for eksplisitt gjennomgang.
+title: Se gjennom gjentakende rettelser før du lager en regel
+subtitle: Gjentatte rettelser blir kandidater for eksplisitt gjennomgang.
 tagline: the correction-learning loop on bowrain
 kind: use-case
 publishAs: bowrain-web-correction-loop
@@ -11,41 +11,40 @@ needsAi: false
 # One continuous narration read: uniform voice across scenes.
 oneshot: true
 outro:
-  line: Korreksjoner gjort via MCP teller også.
+  line: Rettelser gjort via MCP teller også.
   pointer: bowrain.cloud/docs/server/context-voice
 aspects:
   - Corrections that recur become candidates
   - The blast radius, before it lands
-  - Promoted into a versioned check
+  - Promoted into the workspace's terms
 
 narration:
   - id: title
     kind: title
     text: >-
-      Bowrain samler gjentatte korreksjoner som kandidater. En gjennomgåer undersøker effekten og fremmer eksplisitt en kandidat før den blir en versjonert kontroll.
+      Bowrain samler gjentakende rettelser som kandidater. En anmelder undersøker effekten og fremhever eksplisitt en kandidat før den blir en kontroll.
   - id: candidates
     kind: desktop
     beat: candidates
-    caption: En formulering teamet holdt på å korrigere.
+    caption: En formulering teamet fortsatte å rette.
     hold: 18
     text: >-
-      Dette er kandidatene. Hver er en formulering teamet holdt på å endre: ordet som ikke traff stemmeprofilen, hva de erstattet det med, og hvor mange separate korreksjoner som ligger bak det. Én korreksjon beviser ingenting, så under terskelen foreslås ingenting i det hele tatt.
+      Dette er kandidatene. Hver er en formulering teamet fortsatte å endre: ordet som ikke traff stemmen, hva de byttet det ut med, og hvor mange separate rettelser som ligger bak det. Én rettelse beviser ingenting, så under terskelen foreslås ingenting.
   - id: evaluate
     kind: desktop
     beat: evaluate
-    caption: Hvor mye innhold dette ville flagget på nytt.
+    caption: Hvor mye innhold dette ville flagge på nytt.
     hold: 17
-    crop: { selector: '[role="dialog"]' }
     text: >-
-      Forhåndsvis konsekvensene før du fremmer noe. Dialogen teller opp hvor mye av innholdet som allerede finnes i prosjektet denne regelen ville flagget, slik at ingen fremmer en regel og oppdager kostnaden fra feilene den forårsaker neste morgen.
+      Før du fremhever noe, forhåndsvis rekkevidden. Dialogen teller hvor mye av innholdet som allerede er i prosjektet denne regelen ville flagge på nytt, slik at ingen fremhever en regel og oppdager kostnaden fra feilene den forårsaker neste morgen.
   - id: promote
     kind: desktop
     beat: promote
-    caption: Fremmet og versjonert på profilen.
+    caption: Fremhevet i termene og registrert som din.
     hold: 18
     text: >-
-      Fremmer du den, blir korreksjonen en deterministisk kontroll, versjonert på stemme­profilen og brukt av senere kontroller styrt av den profilen – for både dem som skriver og AI-verktøyene. Kandidaten forlater køen, og etterlevelse overvåkes fra da av for avvik.
+      Fremhev den, og rettelsen blir en regel i arbeidsområdets termer, som senere kontroller håndhever for både skribenter og AI-verktøy. Kandidaten flyttes fra Foreslått til Etablert, med registrering av hvem som fremhevet den og når.
   - id: outro
     kind: outro
     text: >-
-      Gjennomgå den gjentatte korreksjonen, undersøk omfanget, og fremme deretter kandidaten. Senere kontroller kan anvende den versjonerte regelen der den hører hjemme.
+      Se gjennom den gjentakende rettelsen, undersøk omfanget, og fremhev kandidaten. Senere kontroller kan bruke regelen der den hører hjemme.

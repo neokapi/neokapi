@@ -6,7 +6,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
+
+	"github.com/neokapi/neokapi/core/dataroot"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // Layout describes the on-disk shape of a kapi project: a `kapi.yaml` recipe
@@ -17,61 +19,55 @@ type Layout struct {
 	Root string
 	// RecipePath is the absolute path to `kapi.yaml`.
 	RecipePath string
-	// StateDir is the absolute path to `.kapi/`. The directory is
-	// guaranteed to exist when returned by ResolveLayout; callers
-	// that are scaffolding a fresh project should call EnsureLayout
-	// instead.
+	// StateDir is the absolute path to `.kapi/`, which holds only source a
+	// project commits: voice profiles, a terms bundle, content memory
+	// bundles, recorded decisions. It need not exist.
 	StateDir string
+	// LocalDir is the absolute path of the directory that holds this
+	// checkout's own state: the work directory, the sync state, the vault and
+	// the saved filters. Every path to that state goes through it
+	// (LocalStateDir). Empty means the checkout's directory under the data
+	// root (dataroot.CheckoutDir).
+	LocalDir string
 }
 
-// StateDirName is the one kapi-owned directory in a checkout, and it is a
-// disposable cache for that checkout only.
+// LocalStateDir returns the directory that holds this checkout's own state:
+// LocalDir when it is set; the checkout's directory under the data root, keyed
+// by the checkout's location and the identity of its root directory
+// (dataroot.CheckoutDir); and StateDir for a layout whose StateDir lies outside
+// its root, which no checkout supplies. It never names a directory inside a
+// checkout, so state a checkout carries is never read.
+func (l Layout) LocalStateDir() string {
+	if l.LocalDir != "" {
+		return l.LocalDir
+	}
+	if l.Root == "" || !rootpath.IsBeneath(l.Root, l.StateDir) {
+		return l.StateDir
+	}
+	return dataroot.CheckoutDir(l.Root)
+}
+
+// StateDirName is the directory in a checkout that holds context files a
+// project commits, such as a terms bundle or a voice profile a person authors:
+// `kapi store import` reads them, through ExportLayout. kapi writes nothing of
+// its own there.
 //
-// The recipe is the project's committed configuration. The project's context
-// (its terms, voice profiles, content memory and recorded decisions) lives in
-// the user's workspace, one store per project, shared by every checkout. What
-// kapi writes under `.kapi/` is derived from the working tree beside it or
-// belongs to this checkout. The derived half is `work/` (WorkDirName), a cache
-// that deleting costs a re-extraction. The rest sits beside it and is never
-// rebuilt: the redaction vault (VaultDirName), the sync state a venue keeps
-// (SyncDirName) and the personal saved filters (LocalFiltersFilename).
-//
-// A person may still keep context files here, such as a terms bundle or a voice
-// profile they author: `kapi store import` reads them, through ExportLayout.
-// A project that commits such files keeps its own `.kapi/.gitignore`, which
-// EnsureLayout never overwrites.
+// A checkout's own state lives under the data root (LocalStateDir). The derived
+// half is `work/` (WorkDirName), a cache that deleting costs a re-extraction.
+// The rest sits beside it and is never rebuilt: the redaction vault
+// (VaultDirName), the sync state a venue keeps (SyncDirName) and the personal
+// saved filters (LocalFiltersFilename).
 const StateDirName = ".kapi"
 
-// WorkDirName is the derived subdirectory of StateDir: the local store and the
-// caches. Everything in it is rebuilt from the working tree and the workspace,
-// so deleting it loses nothing; what cannot be rebuilt sits beside it.
+// WorkDirName is the derived subdirectory of the checkout's state directory:
+// the local store and the caches. Everything in it is rebuilt from the working
+// tree and the workspace, so deleting it loses nothing; what cannot be rebuilt
+// sits beside it.
 const WorkDirName = "work"
-
-// StateGitignore is the ignore rule EnsureLayout writes into a new `.kapi/`. It
-// ignores the whole directory, the rule file included, because nothing kapi
-// writes there belongs in version control.
-const StateGitignore = "*\n"
-
-// StateGitignoreFilename is where StateGitignore is written, inside `.kapi/`.
-const StateGitignoreFilename = ".gitignore"
-
-// GitignoreCovers reports whether an ignore file's content keeps name out of
-// version control, either by naming it on a line of its own or by ignoring
-// everything. It reads the plain forms kapi writes and makes no attempt to
-// evaluate arbitrary patterns.
-func GitignoreCovers(content, name string) bool {
-	for line := range strings.SplitSeq(content, "\n") {
-		switch strings.TrimSpace(line) {
-		case "*", "/*", name, "/" + name:
-			return true
-		}
-	}
-	return false
-}
 
 // WorkDir returns the absolute path of the derived directory.
 func (l Layout) WorkDir() string {
-	return filepath.Join(l.StateDir, WorkDirName)
+	return filepath.Join(l.LocalStateDir(), WorkDirName)
 }
 
 // RelStatePath returns the project-relative path of a context file inside
@@ -103,7 +99,7 @@ const ProfilesDirName = "profiles"
 // reason: a project has one vocabulary. The path sits on ExportLayout.
 const MemoryDirName = "memory"
 
-// UnitStateDirName holds an exported decision record — one JSON Lines shard
+// UnitStateDirName holds an exported decision record, one JSON Lines shard
 // per document. The path sits on ExportLayout.
 const UnitStateDirName = "state"
 
@@ -113,8 +109,8 @@ const UnitStateDirName = "state"
 //
 // Everything in it is derived from the working tree beside it, so it belongs
 // beside that tree and a second checkout of the same project keeps one of its
-// own. What the project authored — the terms, the voice profiles, the content
-// memory and the unit working set with its staged decisions — is in the user's
+// own. What the project authored, the terms, the voice profiles, the content
+// memory and the unit working set with its staged decisions, is in the user's
 // workspace, one database per project, shared by every checkout (core/workspace).
 //
 // It sits at the TOP of the work directory rather than under work/cache/
@@ -153,7 +149,7 @@ func (l Layout) CacheDir() string {
 
 // LocalFiltersPath returns the path to the personal saved-filters file.
 func (l Layout) LocalFiltersPath() string {
-	return filepath.Join(l.StateDir, LocalFiltersFilename)
+	return filepath.Join(l.LocalStateDir(), LocalFiltersFilename)
 }
 
 // ExtractionsDir returns the absolute path of the extractions cache root.
@@ -189,7 +185,7 @@ const VaultBatchesDirName = "batches"
 
 // VaultDir returns the absolute path of the withheld-originals root.
 func (l Layout) VaultDir() string {
-	return filepath.Join(l.StateDir, VaultDirName)
+	return filepath.Join(l.LocalStateDir(), VaultDirName)
 }
 
 // PrepareVault creates the vault directory owner-only and keeps it out of
@@ -208,39 +204,22 @@ const SyncDirName = "sync"
 
 // SyncDir returns the absolute path of the venue sync state.
 func (l Layout) SyncDir() string {
-	return filepath.Join(l.StateDir, SyncDirName)
+	return filepath.Join(l.LocalStateDir(), SyncDirName)
 }
 
-// EnsureLocalDir creates the StateDir subdirectory name, owner-only, and
-// makes sure version control ignores it. A fresh `.kapi/` is ignored as a
-// whole by the rule EnsureLayout writes; a `.kapi/` that carries an ignore
-// file of its own, or none because it holds committed files, gains one line
-// naming the directory, so no `git add -A` stages withheld originals or a
-// claim token.
+// EnsureLocalDir creates the subdirectory name of the checkout's state
+// directory (LocalStateDir), owner-only.
 func EnsureLocalDir(layout Layout, name string) (string, error) {
-	dir := filepath.Join(layout.StateDir, name)
+	if err := EnsureLayout(layout); err != nil {
+		return "", err
+	}
+	dir := filepath.Join(layout.LocalStateDir(), name)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("project: create %s: %w", name, err)
 	}
 	// A directory an earlier layout created keeps its own mode; tighten it.
 	if err := os.Chmod(dir, 0o700); err != nil {
 		return "", fmt.Errorf("project: protect %s: %w", name, err)
-	}
-	ignorePath := filepath.Join(layout.StateDir, StateGitignoreFilename)
-	existing, err := os.ReadFile(ignorePath)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return "", fmt.Errorf("project: read %s: %w", StateGitignoreFilename, err)
-	}
-	content := string(existing)
-	if GitignoreCovers(content, name) || GitignoreCovers(content, name+"/") {
-		return dir, nil
-	}
-	if content != "" && !strings.HasSuffix(content, "\n") {
-		content += "\n"
-	}
-	content += name + "/\n"
-	if err := os.WriteFile(ignorePath, []byte(content), 0o644); err != nil {
-		return "", fmt.Errorf("project: write %s: %w", StateGitignoreFilename, err)
 	}
 	return dir, nil
 }
@@ -296,12 +275,11 @@ func ResolveLayout(start string) (Layout, error) {
 	}
 }
 
-// LayoutAt returns the Layout for a project root without touching the disk —
-// the pure path computation behind the two resolvers below.
+// LayoutAt returns the Layout for a project root without touching the disk, // the pure path computation behind the two resolvers below.
 //
 // It exists so that "the store of the project at root" is spelled one way, and
 // not hand-rolled as `filepath.Join(root, StateDirName, StoreFileName)` in
-// every module — a spelling the layout cannot move without breaking at run
+// every module, a spelling the layout cannot move without breaking at run
 // time in a package that still compiles. Callers that have a recipe path or a
 // working directory want LayoutFor or ResolveLayout; this is for the ones that
 // already know the root.
@@ -340,67 +318,48 @@ func LayoutFor(recipePath string) (Layout, error) {
 		abs = recipe
 	}
 	root := filepath.Dir(abs)
-	return Layout{
+	l := Layout{
 		Root:       root,
 		RecipePath: abs,
 		StateDir:   filepath.Join(root, StateDirName),
-	}, nil
+	}
+	return l, l.CheckState()
 }
 
-// EnsureLayout creates the `.kapi/` directory and the `work/cache/` under it.
-// Idempotent; safe to call on an existing project.
+// EnsureLayout creates the checkout's state directory under the data root and
+// the `work/cache/` in it. It writes nothing in the checkout. Idempotent; safe
+// to call on an existing project.
 //
 // It writes no context file and creates no directory for one. A project's
 // terms, voice profiles, content memory and decisions live in the workspace.
 func EnsureLayout(layout Layout) error {
-	fresh := cacheOnly(layout.StateDir)
-	for _, dir := range []string{
-		layout.StateDir,
-		layout.CacheDir(),
-	} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return fmt.Errorf("project: create %s: %w", filepath.Base(dir), err)
-		}
+	if err := layout.CheckState(); err != nil {
+		return err
 	}
-
-	// The ignore rule belongs to the layout rather than to one command: every
-	// surface that creates the directory arrives here, and without the rule a
-	// first `git add -A` stages the store, the caches and the redaction vault.
-	//
-	// It is written only into a directory that holds nothing but what kapi
-	// itself keeps there. A `.kapi/` that already carries other files, such as
-	// context files a project commits, has an ignore arrangement of its own,
-	// and a rule that ignored everything would silently keep the next of those
-	// files out of the commit. A rule already present is never rewritten.
-	ignorePath := filepath.Join(layout.StateDir, StateGitignoreFilename)
-	if _, err := os.Stat(ignorePath); errors.Is(err, os.ErrNotExist) && fresh {
-		if err := os.WriteFile(ignorePath, []byte(StateGitignore), 0o644); err != nil {
-			return fmt.Errorf("project: write %s: %w", StateGitignoreFilename, err)
+	local := layout.LocalStateDir()
+	if layout.LocalDir == "" && layout.Root != "" && rootpath.IsBeneath(layout.Root, layout.StateDir) {
+		// The checkout's state lives under the data root (core/dataroot),
+		// created with its record in one step. Nothing is written in the tree.
+		if err := os.MkdirAll(layout.Root, 0o755); err != nil {
+			return fmt.Errorf("project: create %s: %w", layout.Root, err)
 		}
+		dir, earlier, err := dataroot.EnsureCheckoutDir(layout.Root)
+		if err != nil {
+			return fmt.Errorf("project: create the state of %s: %w", layout.Root, err)
+		}
+		local = dir
+		noticeEarlierAtPath(layout, earlier)
+		noticeStateInTree(layout, dir)
+	}
+	if err := os.MkdirAll(filepath.Join(local, WorkDirName, CacheDirName), 0o755); err != nil {
+		return fmt.Errorf("project: create %s: %w", WorkDirName, err)
 	}
 	return nil
 }
 
-// cacheOnly reports whether dir is absent or holds only what kapi writes into
-// a checkout's cache directory.
-func cacheOnly(dir string) bool {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return errors.Is(err, fs.ErrNotExist)
-	}
-	for _, e := range entries {
-		switch e.Name() {
-		case WorkDirName, LocalFiltersFilename, StateGitignoreFilename, VaultDirName, SyncDirName:
-		default:
-			return false
-		}
-	}
-	return true
-}
-
 // Retired state files are not swept here. Every predecessor of the merged store
-// — the vocabulary-renamed `tm.db`/`termbase.db` as well as the four-file
-// `memory.db`/`terms.db`/`cache/blocks.db`/`work/state.db` — is removed by
+// (the vocabulary-renamed `tm.db`/`termbase.db` as well as the four-file
+// `memory.db`/`terms.db`/`cache/blocks.db`/`work/state.db`) is removed by
 // core/projectdb when the project store opens, so one place decides what a
 // state directory may contain.
 
@@ -448,9 +407,38 @@ func layoutAtDir(dir string) (Layout, error) {
 	}
 
 	// Recipe present. State dir is optional (may be scaffolded later).
-	return Layout{
+	l := Layout{
 		Root:       dir,
 		RecipePath: filepath.Join(dir, RecipeFileName),
 		StateDir:   filepath.Join(dir, StateDirName),
-	}, nil
+	}
+	if err := checkFoundRecipe(dir, l.RecipePath); err != nil {
+		return Layout{}, err
+	}
+	return l, l.CheckState()
+}
+
+// checkFoundRecipe refuses a recipe discovery found that is not a regular file
+// inside the directory that holds it. A checkout can commit a kapi.yaml that
+// is a symbolic link, and reading it would read a file outside the checkout
+// as the project's recipe. A link that stays inside the directory is followed.
+// A recipe a person names with -p or KAPI_PROJECT is theirs to point anywhere
+// (RecipeIn), so only discovery checks.
+func checkFoundRecipe(dir, recipe string) error {
+	_, err := rootpath.CheckRegular(dir, recipe)
+	if err == nil {
+		return nil
+	}
+	var esc *rootpath.EscapeError
+	switch {
+	case errors.As(err, &esc) && errors.Is(err, fs.ErrNotExist):
+		return fmt.Errorf("project: %s is a symbolic link to a file that does not exist. Replace it with the recipe file, or name the recipe with -p", recipe)
+	case errors.As(err, &esc):
+		return fmt.Errorf("project: %s is a symbolic link that leads outside %s, so kapi does not read it as the project's recipe. "+
+			"Name the recipe with -p or %s to use it", recipe, dir, ProjectEnvVar)
+	case errors.Is(err, rootpath.ErrNotRegular):
+		return fmt.Errorf("project: %s is not a regular file", recipe)
+	default:
+		return fmt.Errorf("project: check recipe %s: %w", recipe, err)
+	}
 }

@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/neokapi/neokapi/core/dataroot"
 )
 
 // CacheTTL is the maximum age of a cached registry index before
@@ -29,7 +31,7 @@ func xdgCacheDir() string {
 	if dir := os.Getenv("XDG_CACHE_HOME"); dir != "" {
 		return dir
 	}
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
+	if home, err := dataroot.UserHomeDir(); err == nil && home != "" {
 		return filepath.Join(home, ".cache")
 	}
 	return ""

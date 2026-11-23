@@ -87,8 +87,8 @@ Because the push declares the whole tree, the server also handles:
   derived from that declaration. The server refuses content at a point whose
   axis no recipe declares.
 
-`.kapi/sync/sync-cache.json` records the last tree the client declared and the
-ref it was committed as. It is gitignored and survives deleting `.kapi/work/`.
+`sync/sync-cache.json` in the checkout's state directory records the last tree the client declared and the
+ref it was committed as. It is gitignored and survives deleting the checkout's `work/`.
 Deleting it loses an anonymous project's claim token. Otherwise the next push
 declares the tree again, and the server answers with what it lacks.
 

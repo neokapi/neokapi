@@ -2,11 +2,14 @@ package knowledge
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
+	"github.com/neokapi/neokapi/bowrain/terms/termstest"
 	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
@@ -101,6 +104,53 @@ func TestStartStopPilot_ConceptsAndRelations(t *testing.T) {
 
 	// StopPilot is idempotent.
 	require.NoError(t, e.StopPilot(ctx, ws, store, *loaded, "proj1", pilotStream))
+}
+
+// Stopping a pilot deletes its shadow concepts at the revisions it read. A
+// shadow someone edited in between is reported and nothing is deleted; once
+// the edit is seen, the stop goes through.
+func TestStopPilot_KeepsAShadowEditedMeanwhile(t *testing.T) {
+	ctx := context.Background()
+	const ws, stream = "ws", "pilot/rebrand"
+	tb := sqlterms.WithRevisions(newSQLiteTB(t))
+	_, err := tb.CreateConcept(ctx, concept("old", term("kaputt", "en-US", model.TermDeprecated)), "")
+	require.NoError(t, err)
+	_, err = tb.CreateConcept(ctx, concept("new", term("fixed", "en-US", model.TermPreferred)), "")
+	require.NoError(t, err)
+
+	store := newMemStore()
+	cs := &ChangeSet{ID: "cs1", WorkspaceID: ws, Name: "Guide to new", CreatedBy: "alice"}
+	require.NoError(t, store.CreateChangeSet(ctx, cs))
+	appendOp(t, store, ws, cs.ID, 0, OpRelationAdd, RelationAddPayload{
+		Relation: terms.ConceptRelation{ID: "r1", SourceID: "old", TargetID: "new", RelationType: graph.LabelUseInstead},
+	})
+	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
+	require.NoError(t, err)
+	pilot, err := NewEngine(nil, tb, store).StartPilot(ctx, ws, store, *loaded, "proj1", stream)
+	require.NoError(t, err)
+	shadowID := pilot.shadowID("c", "old")
+
+	// A person editing the shadow on the pilot's stream.
+	raced := termstest.Interleaved(tb, func(ctx context.Context, st sqlterms.Store, id string) {
+		c, rev, ok, err := st.GetConceptAt(ctx, id)
+		require.NoError(t, err)
+		require.True(t, ok)
+		c.Definition = "a person's edit"
+		_, err = st.UpdateConcept(ctx, c, stream, rev)
+		require.NoError(t, err)
+	})
+	err = NewEngine(nil, raced, store).StopPilot(ctx, ws, store, *loaded, "proj1", stream)
+	_, stale := errors.AsType[*sqlterms.StaleConceptError](err)
+	require.True(t, stale, "the stop reports the edited shadow: %v", err)
+	shadow, ok, err := tb.GetConcept(ctx, shadowID)
+	require.NoError(t, err)
+	require.True(t, ok, "and deletes nothing")
+	assert.Equal(t, "a person's edit", shadow.Definition)
+
+	require.NoError(t, NewEngine(nil, tb, store).StopPilot(ctx, ws, store, *loaded, "proj1", stream))
+	_, ok, err = tb.GetConcept(ctx, shadowID)
+	require.NoError(t, err)
+	assert.False(t, ok)
 }
 
 func TestStopAllPilots_StopsEveryBoundStream(t *testing.T) {
@@ -256,11 +306,6 @@ func testPilotProjectsSharingAStream(t *testing.T, tb terms.Store, store Store) 
 	b := start("project:B")
 	aIDs := []string{a.shadowID("c", "old:term"), a.shadowID("c", "new"), a.shadowID("c", "local")}
 	bIDs := []string{b.shadowID("c", "old:term"), b.shadowID("c", "new")}
-	if bulk, ok := tb.(interface {
-		DeleteShadowConcepts(context.Context, string) error
-	}); ok {
-		require.Error(t, bulk.DeleteShadowConcepts(ctx, ""))
-	}
 	check(a.ProjectID, a, aIDs, 2)
 	check(b.ProjectID, b, bIDs, 1)
 	check("unbound", a, nil, 0)

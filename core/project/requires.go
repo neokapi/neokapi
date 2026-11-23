@@ -20,8 +20,10 @@ func (r *RequiresMap) UnmarshalYAML(node *yaml.Node) error {
 		return nil
 	}
 	if node.Kind == yaml.SequenceNode {
+		// The map form is spelled out from the list only when the list sits on
+		// one line, so the error quotes no more of the recipe than that line.
 		var list []string
-		if err := node.Decode(&list); err == nil {
+		if err := node.Decode(&list); err == nil && onOneLine(node) {
 			items := make([]string, len(list))
 			for i, name := range list {
 				items[i] = name + `: "*"`
@@ -74,4 +76,14 @@ func kindName(k yaml.Kind) string {
 	default:
 		return "unknown"
 	}
+}
+
+// onOneLine reports whether node and everything in it sit on node's line.
+func onOneLine(node *yaml.Node) bool {
+	for _, c := range node.Content {
+		if c.Line != node.Line || !onOneLine(c) {
+			return false
+		}
+	}
+	return true
 }

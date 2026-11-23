@@ -74,7 +74,7 @@ Content files travel in git.
 
 Redaction withholds sensitive values before content reaches a model or a
 service, and keeps the originals in a vault on the machine that read them
-(`.kapi/vault/`). The vault is never shared and never exported, and no flag
+(the checkout's `vault/`). The vault is never shared and never exported, and no flag
 changes that. When a project moves to another machine, the placeholders come
 with it and the originals stay behind. The drafts of a language waiting for review travel
 with their withheld values replaced, and read whole only on the machine that
@@ -83,7 +83,7 @@ withheld them.
 Rules you widened to every project travel with the project that decided them.
 A machine that pulls the project, or reads its export, holds them in its own
 workspace and applies them to every project there. The derived stores and
-caches under `.kapi/work/` are rebuilt from your content files.
+caches under the checkout's `work/` are rebuilt from your content files.
 
 ## Sharing context through a backend {#sharing-context-through-a-backend}
 
@@ -102,6 +102,36 @@ context:
 | `git` | a ref of the project's own repository | `ref` (default `refs/kapi/context`), `remote` (default `origin`) | the repository's own: whoever can push a branch can push the ref |
 | `file` | a directory, such as a mounted team share | `path` | the filesystem's |
 | `s3` | an S3-compatible bucket | `bucket`, `prefix`, `region`, `endpoint` | the standard AWS environment, shared configuration and profile |
+
+With a `file` backend, kapi writes the project's decisions, terms and voice
+there, and merges in what other machines put there. Anyone who can write to
+that folder can add to this project's context. An entry in the folder can
+name any person as its author, and kapi does not check who wrote it.
+
+kapi uses a `file` backend only after you allow it. The first sync through a
+folder shows the folder, with every link on the way resolved, and asks. When
+the folder does not exist yet, the question names the folder it will be
+created under, and the first sync after your answer creates it. Your answer
+is kept for you, for this project and that folder. A sync that finds a link
+or another entry it does not read in the folder lists it under the pull. kapi resolves the
+folder again on every sync, so a recipe that names another folder, or a path
+that now leads elsewhere, asks again. A folder inside the project that is a
+link, or is reached through one, is refused. So is a `path:` that starts with
+`~` or names an environment variable, since kapi expands neither; write the
+full path. Naming the folder yourself with `kapi share --via folder <path>`,
+or in the desktop's setup dialog, counts as the answer. Without a terminal,
+as in CI, the sync stops before it reads or writes the folder and names the
+command that allows it:
+
+```bash
+kapi trust allow --context-store -p kapi.yaml --yes
+```
+
+A recipe cannot give the answer, and neither can a tool call through kapi's
+MCP server. An assistant that identifies itself to kapi as one is refused.
+An assistant that runs commands in your shell acts with your permissions: it
+can run that command or edit kapi's record of your answers, and this
+question does not stop it.
 
 Credentials never go in the recipe. Then sync before you work and when you are
 done:
@@ -174,9 +204,18 @@ kapi store import
 ```
 
 ```
+kapi would read these into the project store from .kapi:
+  .kapi/terms.json  1 term concept
+What you read is in force for every checkout of this project on this machine. Read only context you trust.
+Read these into the project store? [y/N] y
 Read .kapi into the project store:
   1 concept
 ```
+
+kapi lists each file and what it carries (term concepts, content-memory
+entries, voice profiles and their word rules, approvals) before it reads
+anything. With no terminal attached, as in CI, it reads nothing unless you pass
+`--yes`.
 
 What it reads is in force for every checkout of this project on this machine,
 and for everyone else after the next `kapi context sync`. Only a person reads

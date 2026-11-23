@@ -1400,6 +1400,15 @@ export class VoiceProfile {
              */
             this["created_by"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * UpdatedBy is who made the last write: a member's id, or the tool
+             * that wrote it. A refused push names them.
+             * @member
+             * @type {string | undefined}
+             */
+            this["updated_by"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

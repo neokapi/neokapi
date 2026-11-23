@@ -1,12 +1,14 @@
 package project
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/locale"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // Inside kapi a locale is canonical BCP-47. In a path it takes the style the
@@ -204,6 +206,37 @@ type UnsafeSegmentError struct {
 
 func (e *UnsafeSegmentError) Error() string {
 	return fmt.Sprintf("%s would be filled with %q, which is not a safe path segment", e.Token, e.Value)
+}
+
+// TargetOutsideError says a target a template names leads outside the
+// project once its links are resolved: the target file, or a directory on the
+// way to it, is a symbolic link out of the project, or a link to nothing. kapi
+// neither reads nor writes such a target. Err is the *rootpath.EscapeError,
+// which names the link.
+type TargetOutsideError struct {
+	Target string
+	Err    error
+}
+
+func (e *TargetOutsideError) Error() string { return e.Err.Error() }
+
+// Unwrap returns Err.
+func (e *TargetOutsideError) Unwrap() error { return e.Err }
+
+// CheckTargetInside returns a *TargetOutsideError when target, a path beneath
+// root as written, leads outside root once links are resolved. It returns nil
+// for a target inside root, one not beneath root as written, and when root is
+// empty.
+func CheckTargetInside(root, target string) error {
+	if root == "" || !rootpath.IsBeneath(root, target) {
+		return nil
+	}
+	if _, err := rootpath.Contain(root, target); err != nil {
+		if esc := (*rootpath.EscapeError)(nil); errors.As(err, &esc) {
+			return &TargetOutsideError{Target: target, Err: err}
+		}
+	}
+	return nil
 }
 
 // CheckSegment refuses a value that is not one path segment: empty, "." or

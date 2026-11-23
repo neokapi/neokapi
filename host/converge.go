@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host/output"
 )
 
@@ -80,6 +81,10 @@ type ConvergeLocaleResult struct {
 	// so Stale does not count them, and they hold the locale out of Shippable
 	// for the same reason: a person has said the wording will not do.
 	Rejected int `json:"rejected,omitempty"`
+	// LeftForPerson counts units whose drafts a reviewer rejected as many
+	// times as the loop allows (tool.MaxRejections). The loop drafts them no
+	// more; a person writes their translation.
+	LeftForPerson int `json:"left_for_person,omitempty"`
 	// Redrafted counts the stale units this run produced over: recycled against
 	// the rewritten source, or drafted for the remainder. Each now holds a
 	// translation of the current source. The decision they carried is NOT
@@ -143,6 +148,10 @@ type ConvergeOutput struct {
 	// source is fully settled. It is source-scoped (deduped across locales, as
 	// a source block is shared by every target), mirroring the server's run row.
 	BlockedOnSource int `json:"blocked_on_source,omitempty"`
+	// RepeatedRejected counts the drafts this run made that came back equal to
+	// one a reviewer had rejected. None was kept, so those units stay owed,
+	// and each counts towards the unit's stop (tool.MaxRejections).
+	RepeatedRejected int `json:"repeated_rejected,omitempty"`
 	// TranslateAfter is the resolved defaults.translate_after level applied
 	// (none|written|established), for observability. Empty when no level
 	// was evaluated (no content).
@@ -223,6 +232,16 @@ func (o ConvergeOutput) RejectedUnits() int {
 	n := 0
 	for _, lc := range o.Locales {
 		n += lc.Rejected
+	}
+	return n
+}
+
+// LeftForPersonUnits totals the units the loop drafts no more because a reviewer
+// rejected tool.MaxRejections of their drafts, across every locale.
+func (o ConvergeOutput) LeftForPersonUnits() int {
+	n := 0
+	for _, lc := range o.Locales {
+		n += lc.LeftForPerson
 	}
 	return n
 }
@@ -313,7 +332,17 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	// unit and produced the same words, or the flow has no step that would.
 	if rejected := o.RejectedUnits(); rejected > 0 {
 		fmt.Fprintf(w, "%d block(s) still hold wording a reviewer turned down. "+
-			"They do not ship until a pass drafts something else for them.\n", rejected)
+			"They do not ship until a pass drafts something else for them: a run whose flow drafts "+
+			"(an AI or machine translation step with its provider set up) drafts them again, "+
+			"and an AI draft is told the reviewer's reasons and note.\n", rejected)
+	}
+	if o.RepeatedRejected > 0 {
+		fmt.Fprintf(w, "%d draft(s) came back in wording a reviewer had rejected, so the loop kept none of them. "+
+			"Those blocks stay owed, and each such draft counts towards the stop after %d rejections.\n", o.RepeatedRejected, tool.MaxRejections)
+	}
+	if held := o.LeftForPersonUnits(); held > 0 {
+		fmt.Fprintf(w, "%d block(s) had %d drafts rejected, so the loop drafts them no more. "+
+			"They wait for a person to write the translation, and do not ship until then.\n", held, tool.MaxRejections)
 	}
 	writeUnreadMedia(w, o.UnreadMedia)
 	if o.Findings != nil {
@@ -602,6 +631,11 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		// reports them and fails (placeholderGateError).
 		facts.placeholders = &flowFindings{}
 	}
+	// One count of repeated drafts for the whole run, handed to each locale's
+	// worker; the summary says it once.
+	endRepeats := a.beginReviewRepeats(cmd.Context())
+	defer endRepeats(io.Discard)
+	facts.repeats = a.reviewRepeats
 	announceSetAside(emitter, unread)
 	if onEvent == nil {
 		// No event consumer: the set-aside lines go to stderr instead.
@@ -677,10 +711,17 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 				}
 				worker.ProjectBindings = b
 				worker.flowRedaction = &group.Redaction
+				fb, ferr := worker.reviewFeedbackFor(ctx, pctx.Project, projectDir, locale, group.Inputs)
+				if ferr != nil {
+					err = ferr
+					break
+				}
+				worker.flowReviewFeedback = fb
 				// A quiet worker arms no findings collector of its own
 				// (beginFlowFindings), so the run's placeholder collector
 				// stays armed and taps the worker's chain per file.
 				worker.flowFindings = facts.placeholders
+				worker.reviewRepeats = facts.repeats
 				if err = worker.runProjectStepsOver(ctx, cmd, flowName, spec, &rCtx, group.Inputs); err != nil {
 					break
 				}
@@ -893,6 +934,9 @@ type convergeFacts struct {
 	// whose output changed a redaction placeholder. Nil when the flow holds no
 	// such step behind a redact step.
 	placeholders *flowFindings
+	// repeats counts the drafts that came back equal to one a reviewer had
+	// rejected, over every pass.
+	repeats *reviewRepeats
 }
 
 // placeholderReport is the findings report of the placeholder findings the
@@ -1280,6 +1324,9 @@ func checkUnitCounts(cov []LocaleCoverage, produced map[editionAt]int, waiting m
 func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, translateAfter model.TranslateAfterLevel, blockedOnSource, totalSource int, facts *convergeFacts, opts ConvergeOptions, emit func(convergence.Event)) error {
 	out := buildConvergeOutput(flowName, passes, cov, locales, facts.redraftable)
 	out.Warnings = facts.unread.warnings()
+	// A source whose name cannot fill its target template got no file; the
+	// run passed over it and names it here.
+	out.Warnings = append(out.Warnings, a.unsafeTargetWarnings(proj, filepath.Dir(projectPath), "")...)
 	out.Monolingual = facts.monolingual
 	out.NoTargets = facts.noTargets
 	out.ExtractedFiles = facts.extractedFiles
@@ -1287,6 +1334,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	out.WaitingForReview = facts.waitingForReview
 	out.BlockedOnSource = blockedOnSource
 	out.Findings = facts.placeholderReport()
+	out.RepeatedRejected = facts.repeats.count()
 	if translateAfter != "" {
 		out.TranslateAfter = string(translateAfter)
 	}
@@ -1495,6 +1543,7 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 			}
 			res.Stale += c.Stale
 			res.Rejected += c.RejectedAwaitingDraft
+			res.LeftForPerson += c.RejectedLeftForPerson
 			res.FailingChecks += c.FailingChecks
 			// The verdict is the rollup's, unconditionally: a scope that does not
 			// ship does not ship, gate or no gate, and reading it only for gated
