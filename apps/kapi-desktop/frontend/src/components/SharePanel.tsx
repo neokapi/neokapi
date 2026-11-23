@@ -640,6 +640,18 @@ function SyncResultLine({ result }: { result: ContextSyncResult }) {
           ? t("Pulled {pulled}, pushed {pushed}, rules files written", { pulled, pushed })
           : t("Pulled {pulled}, pushed {pushed}", { pulled, pushed })}
       </p>
+      {(result.pull?.passed_over?.length ?? 0) > 0 && (
+        <p data-slot="share-sync-passed-over" className="mt-1 text-[11px] text-muted-foreground">
+          {t("Passed over, not read:")}{" "}
+          <span className="font-mono" translate="no">
+            {result.pull?.passed_over?.map((name) => JSON.stringify(name)).join(", ")}
+          </span>
+          {(result.pull?.passed_over_total ?? 0) > (result.pull?.passed_over?.length ?? 0) &&
+            t(", and {more} more", {
+              more: (result.pull?.passed_over_total ?? 0) - (result.pull?.passed_over?.length ?? 0),
+            })}
+        </p>
+      )}
       {result.rules_files_error && (
         <p className="mt-1 text-[11px] text-muted-foreground">
           The rules files could not be written:{" "}
