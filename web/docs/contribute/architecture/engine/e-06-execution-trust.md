@@ -260,7 +260,14 @@ folder and records the allow only for the folder it showed.
 `workspace.FileRemote` opens the approved folder once as an `os.Root` and does
 every read, listing and write beneath it, so a link another writer plants
 inside the folder leads nothing out of it, and replacing the path after the
-open does not move the remote.
+open does not move the remote. The gate takes the folder's identity as it
+resolves it, and the remote refuses a directory that is not the same file
+(`os.SameFile`), so a component replaced between the two is refused too. A
+listing reports what it passes over (links, devices), and the pull carries it
+as `passed_over`. A folder that does not exist yet is announced with the
+ancestor it will be created under; the first sync creates it through a root
+opened at that ancestor and resolves it again, and refuses when it resolves
+anywhere other than the folder that was allowed.
 
 What the gate holds against: a recipe cannot answer, a tool call through the
 MCP server cannot answer, and an assistant that announces itself (an agent

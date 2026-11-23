@@ -3,6 +3,7 @@
 package workspace_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,4 +69,66 @@ func TestFileRemote_AFolderSwappedAfterTheOpenIsNotFollowed(t *testing.T) {
 
 	assert.NoDirExists(t, filepath.Join(outside, "log"), "the write went to the folder that was opened")
 	assert.FileExists(t, filepath.Join(parent, "moved", filepath.FromSlash(segment)))
+}
+
+// A folder replaced between resolving its path and opening it is refused:
+// the remote opens only the directory it was told to expect.
+func TestFileRemote_AFolderReplacedBeforeTheOpenIsRefused(t *testing.T) {
+	parent := t.TempDir()
+	share := filepath.Join(parent, "share")
+	require.NoError(t, os.Mkdir(share, 0o755))
+	approved, err := os.Stat(share)
+	require.NoError(t, err)
+
+	require.NoError(t, os.Rename(share, filepath.Join(parent, "approved")))
+	require.NoError(t, os.Mkdir(share, 0o755))
+
+	r := workspace.NewFileRemote(share).Expect(approved)
+	_, err = r.List(t.Context(), workspace.RemoteLogDir)
+	require.ErrorIs(t, err, workspace.ErrRemoteReplaced)
+	err = r.Put(t.Context(), workspace.Object{Name: segment, Data: []byte("{}\n")})
+	require.ErrorIs(t, err, workspace.ErrRemoteReplaced)
+	assert.NoDirExists(t, filepath.Join(share, "log"), "nothing is written to the directory swapped in")
+
+	same := workspace.NewFileRemote(filepath.Join(parent, "approved")).Expect(approved)
+	_, err = same.List(t.Context(), workspace.RemoteLogDir)
+	require.NoError(t, err, "the directory that was approved opens")
+}
+
+// What a listing passes over is reported, so a sync can say why it pulled
+// nothing from a folder holding a link.
+func TestFileRemote_WhatAListingPassesOverIsReported(t *testing.T) {
+	share := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(share, "log", "w1"), 0o755))
+	require.NoError(t, os.Symlink(filepath.Join(t.TempDir(), "elsewhere"), filepath.Join(share, filepath.FromSlash(segment))))
+
+	r := workspace.NewFileRemote(share)
+	names, err := r.List(t.Context(), workspace.RemoteLogDir)
+	require.NoError(t, err)
+	assert.Empty(t, names)
+	names, total := r.TakePassedOver()
+	assert.Equal(t, []string{segment}, names)
+	assert.Equal(t, 1, total)
+	names, total = r.TakePassedOver()
+	assert.Empty(t, names, "taken once")
+	assert.Zero(t, total)
+}
+
+// A folder can hold any number of entries kapi passes over; the remote keeps
+// the first few names and counts the rest.
+func TestFileRemote_ThePassedOverNamesAreCapped(t *testing.T) {
+	share := t.TempDir()
+	dir := filepath.Join(share, "log", "w1")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	target := filepath.Join(t.TempDir(), "elsewhere")
+	for i := range 200 {
+		require.NoError(t, os.Symlink(target, filepath.Join(dir, fmt.Sprintf("link-%03d", i))))
+	}
+
+	r := workspace.NewFileRemote(share)
+	_, err := r.List(t.Context(), workspace.RemoteLogDir)
+	require.NoError(t, err)
+	names, total := r.TakePassedOver()
+	assert.Len(t, names, workspace.PassedOverShown)
+	assert.Equal(t, 200, total)
 }

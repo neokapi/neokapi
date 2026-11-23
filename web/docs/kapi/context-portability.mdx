@@ -109,8 +109,11 @@ that folder can add to this project's context. An entry in the folder can
 name any person as its author, and kapi does not check who wrote it.
 
 kapi uses a `file` backend only after you allow it. The first sync through a
-folder shows the folder, with every link on the way resolved, and asks. Your
-answer is kept for you, for this project and that folder. kapi resolves the
+folder shows the folder, with every link on the way resolved, and asks. When
+the folder does not exist yet, the question names the folder it will be
+created under, and the first sync after your answer creates it. Your answer
+is kept for you, for this project and that folder. A sync that finds a link
+or another entry it does not read in the folder lists it under the pull. kapi resolves the
 folder again on every sync, so a recipe that names another folder, or a path
 that now leads elsewhere, asks again. A folder inside the project that is a
 link, or is reached through one, is refused. So is a `path:` that starts with
