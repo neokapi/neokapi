@@ -54,7 +54,7 @@ type AITranslateTool struct {
 	// recovered when a new draft came back equal to it (repeatsRejected), so
 	// the retry can show the model what was rejected.
 	learnedMu sync.Mutex
-	learned   map[string]string
+	learned   map[[2]string]string
 	// profileID and profileVersion identify the context profile whose guidance
 	// went into voiceGuide, stamped onto every target this tool produces. The
 	// guidance itself is rendered once and the profile discarded, so these are
@@ -1171,9 +1171,9 @@ func (t *AITranslateTool) repeatsRejected(ctx context.Context, key, text string)
 		if r.TargetHash != "" && r.TargetHash == h {
 			t.learnedMu.Lock()
 			if t.learned == nil {
-				t.learned = map[string]string{}
+				t.learned = map[[2]string]string{}
 			}
-			t.learned[tool.FeedbackUnitKey(blockstore.SourceRel(ctx), key)+"\x00"+h] = text
+			t.learned[[2]string{tool.FeedbackUnitKey(blockstore.SourceRel(ctx), key), h}] = text
 			t.learnedMu.Unlock()
 			return true
 		}
@@ -1185,7 +1185,7 @@ func (t *AITranslateTool) repeatsRejected(ctx context.Context, key, text string)
 func (t *AITranslateTool) learnedText(ctx context.Context, key, hash string) string {
 	t.learnedMu.Lock()
 	defer t.learnedMu.Unlock()
-	return t.learned[tool.FeedbackUnitKey(blockstore.SourceRel(ctx), key)+"\x00"+hash]
+	return t.learned[[2]string{tool.FeedbackUnitKey(blockstore.SourceRel(ctx), key), hash}]
 }
 
 // rejectionsFor is what the prompt says about a unit's rejected drafts: each

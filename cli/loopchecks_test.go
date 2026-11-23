@@ -18,7 +18,7 @@ import (
 
 // TestUp_ChecksInLoop_FailingPlaceholderParks: a produced unit that drops a
 // printf placeholder fails the loop's checks and holds the locale out of
-// shipping — parked, with the failing count surfaced. The unit still counts as
+// shipping: parked, with the failing count surfaced. The unit still counts as
 // translated: the finding withholds the verdict, not the percentage. Fixing the
 // source lets the next up converge.
 func TestUp_ChecksInLoop_FailingPlaceholderParks(t *testing.T) {
@@ -36,8 +36,8 @@ func TestUp_ChecksInLoop_FailingPlaceholderParks(t *testing.T) {
 	assert.Contains(t, out, "1 block(s) failing checks", out)
 	assert.Contains(t, out, "Not yet up to date", out)
 
-	// The pass DID produce the target file — the unit is produced and failing
-	// guardrails, which are two facts, not one.
+	// The pass produced the target file. The unit is produced and it fails
+	// guardrails, which are two separate facts.
 	_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
 	require.NoError(t, statErr)
 
@@ -122,12 +122,12 @@ func registerPlaceholderDropper(a *App) {
 }
 
 // TestComputeShipCoverage_FindingsWithholdTheVerdictNotThePercentages: a unit
-// in the check-findings set keeps the rung it holds — it IS translated — and
-// the finding is what takes the scope out of shippable and verified.
+// in the check-findings set keeps the rung it holds, since it is translated, and
+// the finding takes the scope out of shippable and verified.
 //
-// The two halves are one property. Demoting the percentage instead put the
-// number under a caller's control: a surface that ran the checks published 95%
-// while one that did not published 100%, for one locale, over one tree (#2024).
+// The two halves are one property. A demoted percentage would depend on the
+// caller: a surface that ran the checks would publish 95% while one that did
+// not published 100%, for one locale, over one tree (#2024).
 func TestComputeShipCoverage_FindingsWithholdTheVerdictNotThePercentages(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
@@ -151,7 +151,7 @@ func TestComputeShipCoverage_FindingsWithholdTheVerdictNotThePercentages(t *test
 	assert.True(t, cov[0].Shippable, "baseline: the gate is met")
 
 	// Fail the `greeting` unit of a.json.
-	excl := &CheckExclusions{Failing: map[string]bool{}, ByLocale: map[string]int{}}
+	excl := &CheckExclusions{Failing: map[[3]string]bool{}, ByLocale: map[string]int{}}
 	for _, u := range units {
 		if filepath.Base(u.SourcePath) == "a.json" {
 			excl.Failing[ExclusionKey(u.SourcePath, "greeting", u.Locale)] = true

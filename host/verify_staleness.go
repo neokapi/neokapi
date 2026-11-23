@@ -19,19 +19,18 @@ import (
 //
 // Producers record model.Origin.ContextFingerprint from the voice guidance and
 // term rules supplied to them. The gate compares it with the context resolved
-// for each file now. Staleness can fail a release gate, never an ordinary build.
+// for each file. Staleness can fail a release gate, never an ordinary build.
 //
 // The comparison uses state.UnitState.GoverningBasis: an approval's fingerprint
-// when present, otherwise the producer's stamp. Approval under the current context
-// clears staleness; rejection leaves the producer's stamp in force.
+// when present, otherwise the producer's stamp. Approval under the current
+// context clears staleness; rejection leaves the producer's stamp in force.
 //
 // An empty fingerprint matches an ungoverned context. Under a governing
-// context, a target without one (older or hand-written) is reported, never
-// failed.
+// context, a target without one (older or hand-written content) is reported
+// and never failed.
 
-// gateStaleness is the gate's id. There is no flag to tune it: a coverage bar
-// is a judgement about how much is enough, and this is not one, a stamp either
-// matches the context in force or it does not.
+// gateStaleness is the gate's id. There is no flag to tune it, because a stamp
+// either matches the context in force or it does not.
 const gateStaleness = "staleness"
 
 // stalenessScope is one (file, locale) pair's standing against the context
@@ -52,11 +51,10 @@ type stalenessScope struct {
 // its source file, and returns the gate result plus whether there was anything
 // to judge at all.
 //
-// A project that holds no produced target contributes no gate row. A produced
-// target is a stamp or a decision in the state store, or a flow's stamped
-// write in the block history.
-// "0 findings" about content that does not exist reads as a gate that ran and
-// passed, which is a claim about provenance nobody made.
+// A project that holds no produced target contributes no gate row. Such a
+// project has no stamp or decision in its state store and no stamped flow write
+// in its block history. A row with no findings would read as a gate that ran
+// and passed.
 func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, unread *UnreadSet) (verifyGateResult, bool, error) {
 	ctx := CmdContext(cmd)
 	gate := verifyGateResult{Gate: gateStaleness, Pass: true, Findings: []verifyFinding{}}
@@ -220,8 +218,8 @@ type producedProvenance struct {
 // target it wrote is not provenance either: it says which source the target
 // translates, which is the drift question, and answering the governance question
 // with it would report the whole project as produced under no context at all.
-func producedTargets(recorded []state.UnitState) map[string]producedProvenance {
-	out := make(map[string]producedProvenance, len(recorded))
+func producedTargets(recorded []state.UnitState) map[reviewUnit]producedProvenance {
+	out := make(map[reviewUnit]producedProvenance, len(recorded))
 	for _, u := range recorded {
 		if u.Origin == (model.Origin{}) && u.Decision.ReviewState == "" {
 			continue
@@ -246,12 +244,11 @@ type governingContext struct {
 // movedComponent attributes a divergence to a ref component, from the stamps a
 // producer left.
 //
-// The fingerprint alone cannot say what moved, it folds the voice guidance and
-// the terminology into one hash on purpose, so that targets written under one
-// context fall stale together whichever half changed. What separates them is
-// the profile stamp beside it: a changed profile id or revision is the CONTEXT
-// component, and an unchanged one with a moved fingerprint leaves the
-// terminology as what moved.
+// The fingerprint alone cannot say what moved. It folds the voice guidance and
+// the terminology into one hash, so that targets written under one context
+// fall stale together whichever half changed. The profile stamp beside it
+// separates them: a changed profile id or revision is the context component,
+// and an unchanged one with a moved fingerprint means the terminology moved.
 func movedComponent(stamped model.Origin, want governingContext) (ref.Component, string) {
 	switch {
 	case stamped.Profile != want.profileID:
@@ -287,7 +284,7 @@ type contextFingerprints struct {
 	root    string
 	store   coreprofile.Store
 	release func()
-	cache   map[string]governingContext
+	cache   map[[3]string]governingContext
 	// source is the language the project's content is written in, which the
 	// term rules are derived from. Empty is the App's (SourceLocale).
 	source string
@@ -300,7 +297,7 @@ func newContextFingerprints(a *App, cmd Command, proj *project.KapiProject, root
 	}
 	return &contextFingerprints{
 		app: a, cmd: cmd, proj: proj, root: root, store: store, release: release,
-		cache: map[string]governingContext{},
+		cache: map[[3]string]governingContext{},
 	}, nil
 }
 
@@ -313,7 +310,7 @@ func (c *contextFingerprints) close() {
 }
 
 func (c *contextFingerprints) at(point project.GovernancePoint, locale string) (governingContext, error) {
-	key := point.Collection + "\x00" + point.Path + "\x00" + locale
+	key := [3]string{point.Collection, point.Path, locale}
 	if g, ok := c.cache[key]; ok {
 		return g, nil
 	}

@@ -23,13 +23,10 @@ import (
 // rewrites it with set_content. Its revision is "r:" and the first sixteen hex
 // digits of the comment's fingerprint (the comment_sha256 kapi check
 // reports), so an edit to a comment whose bytes changed since it was read is
-// refused stale.
+// refused stale. The file is read again before it is written, every byte
+// outside the comment stays, the result must parse, the language's formatter
+// must agree, and what was written is checked again.
 
-// The comment write path keeps its guarantees: the file is read
-// again before it is written, every byte outside the comment stays, the result
-// must parse, the language's formatter must agree, and what was written is
-// checked again.
-//
 // A change set edits code comments or documents. The comment path writes
 // through core/comment rather than a format's writer, so one change set holds
 // operations of one kind, and a set that mixes them is refused before
@@ -252,7 +249,7 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 		return nil, nil, err
 	}
 	var ops []commentOp
-	seen := map[string]int{}
+	seen := map[[2]string]int{}
 	located := map[string]commentFile{}
 	for i, op := range set.Ops {
 		body, ok := op.Body.(*change.SetContent)
@@ -283,7 +280,7 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 				continue
 			}
 		}
-		key := path + "\x00" + op.At.Block
+		key := [2]string{path, op.At.Block}
 		if j, dup := seen[key]; dup {
 			refuse(i, &change.Error{Code: change.CodeInvalid, Field: "at/block",
 				Message: fmt.Sprintf("operation %d rewrites %s too; send one operation per comment", j, op.At.Block)})

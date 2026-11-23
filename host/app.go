@@ -441,7 +441,7 @@ func (a *App) Init() error {
 	var warned sync.Map
 	project.OnKeyWarnings = func(recipePath string, warnings []string) {
 		for _, w := range warnings {
-			if _, seen := warned.LoadOrStore(recipePath+"\x00"+w, true); seen {
+			if _, seen := warned.LoadOrStore([3]string{recipePath, "key", w}, true); seen {
 				continue
 			}
 			fmt.Fprintf(os.Stderr, "warning: %s: %s\n", DisplayName(recipePath), w)
@@ -456,7 +456,7 @@ func (a *App) Init() error {
 			return
 		}
 		for _, u := range unreadable {
-			if _, seen := warned.LoadOrStore(projectDir+"\x00unreadable\x00"+u.Relative, true); seen {
+			if _, seen := warned.LoadOrStore([3]string{projectDir, "unreadable", u.Relative}, true); seen {
 				continue
 			}
 			fmt.Fprintf(os.Stderr, "warning: %s matches the recipe's content but cannot be read, so it is left out: %v\n", u.Relative, u.Err)

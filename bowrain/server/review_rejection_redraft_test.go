@@ -18,9 +18,8 @@ import (
 // What the platform owes a unit a reviewer turned down.
 //
 // Rejecting a translation of the source the block still carries moves neither
-// hash, so a reader that graded the basis alone reported the unit as settled
-// while it sat at `draft` with a refusal on it, waiting for somebody to edit
-// the source before the loop would look at it again (#2564). The verdict is
+// hash. A reader that graded the basis alone would report the unit as settled
+// while it sits at `draft` with a refusal on it (#2564). The verdict is
 // read beside the basis, the count is kept apart from the stale one, and the
 // draft mark buys exactly one draft per verdict.
 
@@ -208,7 +207,7 @@ func TestOrchestrator_RejectionRedraftsOnce(t *testing.T) {
 	}
 	require.NotNil(t, sb)
 	ledger := &reviewLedger{srv: s, ds: cs, projectID: p.ID, stream: "main",
-		decider: "reviewer@example.com", governing: map[string]string{}}
+		decider: "reviewer@example.com", governing: map[[2]string]string{}}
 	prev := s.unitDecisionFor(ctx, p.ID, "main", sb, fr)
 	ledger.write(ctx, []venue.UnitDecision{unitDecisionFor(
 		sb, fr, model.TargetStatusDraft, false, ledger.decider, "fp-now", prev)})

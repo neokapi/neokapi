@@ -13,12 +13,11 @@ import (
 
 // The freshness ref's component definitions.
 //
-// A component hash means something only because both sides compute it the
-// same way. Each definition lives here once, beside the block and context
-// hashes, and the push client, the plugin and the server all fold with it. A
-// second definition with another byte layout would fail silently: two correct
-// sides would disagree forever and report a governance conflict on every
-// write.
+// A component hash means something only when both sides compute it the same
+// way. Each definition lives here once, and the push client, the plugin and
+// the server all fold with it. A second definition with another byte layout
+// would make two correct sides disagree and report a governance conflict on
+// every write.
 //
 // The context component has no function here: it is ContextHashOf
 // (context.go), which the push negotiates on.
@@ -73,6 +72,7 @@ func DecisionRecordsHash(decisions []UnitDecision) string {
 
 // decisionKey is the ledger's own primary key, rendered for the fold.
 func decisionKey(d UnitDecision) string {
+	//keyguard:persisted hashed by ref.Fold into the decisions component, which core/ref/refcache, the sync cache (decisions_synced) and the server compare; pinned by TestDecisionsComponentIsStable
 	return d.ItemName + "\x00" + d.Unit + "\x00" + d.Variant
 }
 
@@ -80,17 +80,17 @@ func decisionKey(d UnitDecision) string {
 // itself.
 //
 // It covers exactly the fields SameDecision compares, which is exactly what a
-// store treats as a change, so a record a store would skip as unchanged cannot
+// store treats as a change. So a record a store would skip as unchanged cannot
 // move the decisions component, and a component that moved means a decision
-// really did. Updated is excluded for that reason: it orders conflicting
+// did. Updated is excluded for that reason: it orders conflicting
 // records for last-writer-wins, and a replay that only bumped it writes
 // nothing, so counting it would report a change no reader could find.
 func DecisionIdentity(d UnitDecision) string {
 	return ref.Identity(decisionFields(d)...)
 }
 
-// SameDecision reports whether two records say the same thing about a unit:
-// the idempotency test a store applies before writing, and the equality the
+// SameDecision reports whether two records say the same thing about a unit. It
+// is the idempotency test a store applies before writing, and the equality the
 // decisions component is folded from.
 func SameDecision(a, b UnitDecision) bool {
 	return slices.Equal(decisionFields(a), decisionFields(b))
@@ -303,6 +303,7 @@ func conceptIdentity(c terms.Concept) string {
 	// same, so the term list is folded rather than concatenated in place.
 	byTerm := make(map[string]string, len(c.Terms))
 	for _, t := range c.Terms {
+		//keyguard:persisted hashed by ref.Fold into the concept identity inside the terms component, which core/ref/refcache and the server compare; pinned by TestTermsComponentIsStable
 		key := string(t.Locale) + "\x00" + t.Text
 		byTerm[key] = ref.Identity(string(t.Status), t.PartOfSpeech, t.Gender, t.Note)
 	}

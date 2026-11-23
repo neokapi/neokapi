@@ -16,28 +16,29 @@ import (
 // CheckExclusions is the check-findings set (#1078 C2/G4): the units that are
 // produced but failing guardrails. A unit in the set keeps the rung it holds
 // when ComputeShipCoverage tallies it, and is recorded as a failing check on
-// its scope — which withholds that scope's ship and verified verdicts until the
-// finding is fixed, so a locale cannot clear its gate on the back of
-// translations that fail the project's bound checks.
+// its scope. That withholds the scope's ship and verified verdicts until the
+// finding is fixed. A locale cannot clear its gate with translations that fail
+// the project's bound checks.
 type CheckExclusions struct {
 	// failing keys are ExclusionKey(sourcePath, blockKey, locale).
-	Failing map[string]bool
+	Failing map[[3]string]bool
 	// ByLocale counts the failing units per locale.
 	ByLocale map[string]int
 	// TermsGoverned records, per unit, whether terms govern it: whether any
 	// concept bound at the unit's point answers for its locale
 	// (terms.RulesFromConcepts). Keys are TermsKey(sourcePath, locale). A unit
 	// absent from the map was not resolved.
-	TermsGoverned map[string]bool
+	TermsGoverned map[[2]string]bool
 }
 
 // TermsKey keys a unit in CheckExclusions.TermsGoverned.
-func TermsKey(sourcePath, locale string) string {
-	return sourcePath + "\x00" + locale
+func TermsKey(sourcePath, locale string) [2]string {
+	return [2]string{sourcePath, locale}
 }
 
-func ExclusionKey(sourcePath, blockKey, locale string) string {
-	return sourcePath + "\x00" + blockKey + "\x00" + locale
+// ExclusionKey keys a unit in CheckExclusions.Failing.
+func ExclusionKey(sourcePath, blockKey, locale string) [3]string {
+	return [3]string{sourcePath, blockKey, locale}
 }
 
 // excluded reports whether the block's unit fails the loop checks for the locale.
@@ -67,15 +68,15 @@ func (e *CheckExclusions) totalFailing() int {
 }
 
 // computeLoopCheckExclusions runs the project's bound target-side checks over
-// the produced units — the same engines `kapi check --ship` gates on: the
+// the produced units, with the engines `kapi check --ship` gates on. The
 // rule-based checkset (placeholder/tag integrity, plus the default placeholder
-// patterns) always, and the terminology check over each unit terms govern at
-// its point. A unit whose findings fail the ship predicate (any failing
+// patterns) always runs, and the terminology check runs over each unit terms
+// govern at its point. A unit whose findings fail the ship predicate (any failing
 // finding, or an integrity category like pattern-mismatch) enters the set.
 //
-// Cost: checks only run over units whose target exists and is readable — an
-// untranslated unit has nothing to check — and they are annotate-only over
-// blocks the coverage pass reads anyway (the parse cache absorbs the re-read).
+// Cost: checks only run over units whose target exists and is readable, since
+// an untranslated unit has nothing to check. They only annotate blocks the
+// coverage pass reads anyway (the parse cache absorbs the re-read).
 // That bound is what lets every verdict-publishing surface afford to run them,
 // which is what keeps their answers the same (#2024).
 func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj *project.KapiProject, root string, units []VerifyUnit) (*CheckExclusions, error) {
@@ -86,7 +87,7 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj 
 // project's declared content: a unit whose source no installed reader opens is
 // skipped and recorded in unread. With unread nil such a unit fails the run.
 func (a *App) loopCheckExclusions(ctx context.Context, cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, unread *UnreadSet) (*CheckExclusions, error) {
-	excl := &CheckExclusions{Failing: map[string]bool{}, ByLocale: map[string]int{}, TermsGoverned: map[string]bool{}}
+	excl := &CheckExclusions{Failing: map[[3]string]bool{}, ByLocale: map[string]int{}, TermsGoverned: map[[2]string]bool{}}
 
 	// The same rule `kapi check`'s checks gate applies to a target identical to its
 	// source. This set feeds the ship gate, so a question the two surfaces answer
@@ -113,7 +114,7 @@ func (a *App) loopCheckExclusions(ctx context.Context, cmd Command, proj *projec
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
 			if errors.Is(berr, errTargetUnreadable) {
-				continue // unmeasurable target (e.g. a compiled .mo) — can't check
+				continue // a target that cannot be measured (e.g. a compiled .mo) is not checked
 			}
 			if unread.skipUnit(nil, berr, root, u) {
 				continue
@@ -121,7 +122,7 @@ func (a *App) loopCheckExclusions(ctx context.Context, cmd Command, proj *projec
 			return nil, berr
 		}
 		if missing {
-			continue // untranslated — there is no translation to check
+			continue // untranslated: there is no translation to check
 		}
 
 		// term-check holds the do-not-translate rules as well, so one decision
@@ -145,16 +146,14 @@ func (a *App) loopCheckExclusions(ctx context.Context, cmd Command, proj *projec
 			}
 			// Only produced units are checkable: an empty target is pending
 			// work, not a guardrail failure. Presence is the shared run-aware
-			// predicate — under TargetText() a target whose only run is an inline
-			// code read as empty, so the guardrails silently never saw it and it
-			// reached the ship gate unchecked.
+			// predicate, so a target whose only run is an inline code counts as
+			// produced and is checked.
 			if !model.RunsHaveContent(b.TargetRuns(model.LocaleID(u.Locale))) {
 				continue
 			}
 			// A checker that could not run must not read as a checker that
-			// passed: this exclusion set feeds the ship gate, so swallowing the
-			// error would readmit a failing unit as shippable — "the operation
-			// failed and the system reports success" applied to the gate itself.
+			// passed. This exclusion set feeds the ship gate, so swallowing the
+			// error would readmit a failing unit as shippable.
 			if err := RunCheckTool(ctx, checker, b); err != nil {
 				return nil, fmt.Errorf("check %s (%s): %w", u.DisplayPath, u.Locale, err)
 			}

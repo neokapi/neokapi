@@ -12,22 +12,19 @@ import (
 // This file draws a block's stand-off annotations into the inline IR on the way
 // out, the mirror of what reader.go restores on the way in.
 //
-// Marks are spliced into the IR at emit time rather than derived from the runs,
-// because the writer prefers the native IR and its freshness test is the runs'
-// flat text — which a marker does not change. A mark derived from runs would be
-// invisible to that test and dropped whenever the IR was reused, which is every
-// round-trip.
-//
+// Marks are spliced into the IR at emit time rather than derived from the runs.
+// The writer prefers the native IR, and its freshness test is the runs' flat
+// text, which a marker does not change. A mark derived from runs would be
+// dropped whenever the IR was reused, which is every round-trip.
+
 // A marker the file wrote as <mrk> is written as <mrk> while its two ends
 // still sit in one inline list, so no code boundary falls between them;
 // otherwise, and for a mark nothing in the file carried, it is written as an
-// <sm>/<em> pair. Only the pair can express a span that does not nest, and a
-// term crossing a <pc> boundary is exactly the case model.Anchor exists to
-// carry: a phrase running through a bold segment is one range rather than
-// three. Because the two markers are independent nodes rather than a wrapper,
+// <sm>/<em> pair. Only the pair can express a span that does not nest, such as
+// a term crossing a <pc> boundary. The two markers are independent nodes, so
 // each is inserted wherever its own boundary lands, including inside a <pc>
-// whose partner sits outside it, so there is no span shape this has to refuse.
-//
+// whose partner sits outside it. No span shape has to be refused.
+
 // A segment the overlays describe as the file wrote it is written from its own
 // IR, so every untouched segment keeps the markup it was read with on every
 // write path.
@@ -44,17 +41,15 @@ func (w *Writer) InlineAnnotations() []string {
 // the attributes attrs gives it. runs is the sequence the spans anchor to,
 // which segs divide in order.
 //
-// Segments and spans are matched by position (textPos), never by run index: an
-// edit that joins the text on either side of a segment boundary into one run
-// leaves the segments' runs and the block's numbered differently, and a span
-// the edit carried can start partway into a run.
+// Segments and spans are matched by position (textPos), never by run index.
+// An edit can join the text on either side of a segment boundary into one run,
+// and a span it carried can start partway into a run.
 //
 // A span straddling a segment boundary is drawn as the pair the file wrote it
 // as, an <sm> in one segment and its <em> in a later one, when those segments'
 // IR holds the two halves. Any other span straddling a boundary is returned
-// unplaced: a segment is the unit a translator is handed, and a marker that
-// only closes in the following one is a trap for every tool downstream, so the
-// writer reports it rather than open a pair the file never had.
+// unplaced. A segment is the unit a translator is handed, so the writer
+// reports such a span rather than open a pair the file never had.
 func marksForSegments(segs []seg, runs []model.Run, spans []model.Span, attrs func(model.Span) MrkAttrs) (placed [][]markSpan, unplaced []model.Span) {
 	placed = make([][]markSpan, len(segs))
 	bounds := make([][2]textPos, len(segs))
@@ -105,10 +100,10 @@ func marksForSegments(segs []seg, runs []model.Run, spans []model.Span, attrs fu
 }
 
 // placeHalves places a span from start to end that crosses a segment boundary
-// as the <sm> and <em> the file wrote it with: the <sm> in a segment holding
-// start whose IR has an <sm> with the span's id and no <em> for it, and the
-// <em> in a later segment holding end whose IR has an <em> for that id and no
-// <sm>. It reports whether it found both.
+// as the <sm> and <em> the file wrote it with. The <sm> goes in a segment
+// holding start whose IR has an <sm> with the span's id and no <em> for it.
+// The <em> goes in a later segment holding end whose IR has an <em> for that
+// id and no <sm>. It reports whether it found both.
 func placeHalves(segs []seg, bounds [][2]textPos, placed [][]markSpan, start, end textPos, attrs MrkAttrs, local func(int, textPos) (model.RunPos, bool)) bool {
 	holds := func(b [2]textPos, p textPos) bool { return !p.before(b[0]) && !b[1].before(p) }
 	for i := range segs {
@@ -359,9 +354,9 @@ func runPosAt(runs []model.Run, tp textPos) (model.RunPos, bool) {
 const termMarkType = "term"
 
 // stripRecordedMarkers returns inls without the markers the reader recorded as
-// overlay spans, which the writer draws from the overlays: each <mrk> around
-// content gives way to its content, each <sm>/<em> pair around content is left
-// out, and so is each half of a pair split across segments whose id is in
+// overlay spans, which the writer draws from the overlays. Each <mrk> around
+// content gives way to its content, and each <sm>/<em> pair around content is
+// left out. So is each half of a pair split across segments whose id is in
 // halves. Every other node is kept, and text the removal leaves side by side is
 // joined.
 func stripRecordedMarkers(inls []Inline, halves map[string]bool) []Inline {
@@ -473,9 +468,9 @@ func appendInlines(out, add []Inline) []Inline {
 // any mark whose boundaries the sequence does not pass through. A mark is
 // located in runs, the segment's run sequence, and drawn where the inlines
 // reach the same textPos; a boundary inside a text node splits the node. ir is
-// the IR the document gave the segment, which may be stale, or nil: a mark it
+// the IR the document gave the segment, which may be stale, or nil. A mark it
 // holds as an <mrk> is written as an <mrk> while its ends are siblings in one
-// inline list, and markers at one boundary keep the order the IR gave them.
+// inline list. Markers at one boundary keep the order the IR gave them.
 func drawMarks(inls []Inline, runs []model.Run, marks []markSpan, ir []Inline) (out []Inline, unplaced []markSpan) {
 	if len(marks) == 0 {
 		return inls, nil
@@ -586,14 +581,15 @@ type drawer struct {
 func newDrawer(marks []markSpan, ir []Inline) *drawer {
 	d := &drawer{marks: marks, wrap: make([]bool, len(marks)), rank: make([]int, len(marks))}
 	// A marker is known by its id, or by its type when the file gave it none.
-	name := func(a MrkAttrs) string {
+	type markName struct{ id, typ string }
+	name := func(a MrkAttrs) markName {
 		if a.ID != "" {
-			return a.ID
+			return markName{id: a.ID}
 		}
-		return "\x00type:" + a.Type
+		return markName{typ: a.Type}
 	}
-	order := map[string]int{}
-	asMrk := map[string]bool{}
+	order := map[markName]int{}
+	asMrk := map[markName]bool{}
 	Walk(ir, func(in *Inline) bool {
 		switch {
 		case in.Mrk != nil:

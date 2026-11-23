@@ -2,10 +2,9 @@ package pluginhost
 
 import (
 	"context"
-	"os"
+	"fmt"
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/rootpath"
@@ -62,7 +61,12 @@ func PathRootsFor(paths ...string) []string {
 	return slices.Compact(roots)
 }
 
-// daemonKey is the pool's key for a plugin's daemon started with roots.
-func daemonKey(plugin string, roots []string) string {
-	return plugin + "\x00" + strings.Join(roots, string(os.PathListSeparator))
+// daemonKey is the pool's key for a plugin's daemon started with roots. The
+// roots are quoted, so a root holding the path list separator stays one root.
+func daemonKey(plugin string, roots []string) poolKey {
+	return poolKey{plugin: plugin, roots: fmt.Sprintf("%q", roots)}
 }
+
+// poolKey is what the daemon pool files a daemon under: the plugin and the
+// roots it was started with.
+type poolKey struct{ plugin, roots string }

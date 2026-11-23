@@ -117,13 +117,13 @@ func TestGoverningFingerprintOf_TheTargetsOwnStampWins(t *testing.T) {
 	bare.SetSourceText("Hello")
 	bare.SetTargetText("nb", "Hei")
 
-	recorded := reviewedIndex{byUnit: map[string]reviewedEntry{
+	recorded := reviewedIndex{byUnit: map[reviewUnit]reviewedEntry{
 		reviewUnitKey(scope, "greeting", "nb"): {
 			status: model.TargetStatusEstablished, decided: true,
 			targetHash: state.TargetHash("Hei"), governing: "fp-record",
 		},
 	}}
-	other := reviewedIndex{byUnit: map[string]reviewedEntry{
+	other := reviewedIndex{byUnit: map[reviewUnit]reviewedEntry{
 		reviewUnitKey(scope, "greeting", "nb"): {
 			status: model.TargetStatusEstablished, decided: true,
 			targetHash: state.TargetHash("Hallo"), governing: "fp-record",

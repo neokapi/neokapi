@@ -159,13 +159,20 @@ func (pkgs Packages) Importer(fset *token.FileSet) types.Importer {
 
 // ParseFiles parses the files the compiler selected for this package.
 func (p Package) ParseFiles(fset *token.FileSet) ([]*ast.File, error) {
+	return p.ParseFilesMode(fset, parser.SkipObjectResolution)
+}
+
+// ParseFilesMode parses the files the compiler selected for this package with
+// the given parser mode, such as parser.ParseComments for a guard that reads
+// comment directives.
+func (p Package) ParseFilesMode(fset *token.FileSet, mode parser.Mode) ([]*ast.File, error) {
 	files := make([]*ast.File, 0, len(p.CompiledGoFiles))
 	for _, name := range p.CompiledGoFiles {
 		path := name
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(p.Dir, name)
 		}
-		file, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
+		file, err := parser.ParseFile(fset, path, nil, mode)
 		if err != nil {
 			return nil, err
 		}

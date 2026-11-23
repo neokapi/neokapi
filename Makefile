@@ -427,7 +427,7 @@ _fw-test-integration: i18n-catalogs
 # nested go.mod. The plugin modules and bench/pseudobench sit outside go.work;
 # scripts/tagmatrix runs them with GOWORK=off.
 GO_LINT_FRAMEWORK := . host cli kapi
-GO_LINT_SCRIPTS   := scripts/gen-refs scripts/gen-contract-types scripts/proseprobe scripts/batcheval scripts/commentcoverage scripts/contexteval scripts/contract-audit scripts/editguard scripts/emdashcheck scripts/fieldguard scripts/mkappcast scripts/projectionguard bench/pseudobench
+GO_LINT_SCRIPTS   := scripts/gen-refs scripts/gen-contract-types scripts/proseprobe scripts/batcheval scripts/commentcoverage scripts/contexteval scripts/contract-audit scripts/editguard scripts/emdashcheck scripts/fieldguard scripts/keyguard scripts/mkappcast scripts/projectionguard bench/pseudobench
 GO_LINT_PLATFORM  := bowrain/core bowrain/plugin bowrain
 GO_LINT_DESKTOP   := apps/kapi-desktop
 GO_LINT_PLUGINS   := plugins/asr plugins/av plugins/check plugins/pdfium plugins/sat plugins/sourcecode plugins/vision
@@ -638,13 +638,14 @@ ci-lint-kapi-desktop: kapi-desktop-lint-deps ## Mirror the lint step of the CI `
 
 # One leg of the CI `lint-tags` matrix: the packages that hold a file the host
 # configuration leaves out, linted under configuration LINT_CONFIG, and the
-# edit and projection guards under the same configuration.
+# edit, projection and delimiter-key guards under the same configuration.
 ci-lint-tags: i18n-catalogs go-embed-placeholders ## Mirror one CI `lint-tags` leg (LINT_CONFIG=model|js-wasm|windows|linux-nocgo|darwin-nocgo)
 	$(REQUIRE_GOLANGCI_LINT)
 	$(if $(LINT_CONFIG),,$(error LINT_CONFIG names the configuration))
 	@$(LINT_PDFIUM) $(TAGMATRIX_LINT) -config $(LINT_CONFIG) $(GO_LINT_ALL)
 	$(GO) run ./scripts/editguard -config $(LINT_CONFIG)
 	$(GO) run ./scripts/projectionguard -config $(LINT_CONFIG)
+	$(GO) run ./scripts/keyguard -config $(LINT_CONFIG)
 
 # Prints true when a change since LINT_BASE reaches a package a `lint-tags` leg
 # compiles, and false otherwise. A leg that prints false skips its lint.
@@ -831,8 +832,9 @@ audit-modules: check-module-boundaries ## Build each application module in isola
 	  GOWORK=off $(GO) -C "$$dir" mod tidy -diff; \
 	done
 
-# The edit and projection guards (scripts/guards/check-edit-writes.mk and
-# check-projection-writes.mk) run under every build configuration by default.
+# The edit, projection and delimiter-key guards (scripts/guards/
+# check-edit-writes.mk, check-projection-writes.mk and check-delimiter-keys.mk)
+# run under every build configuration by default.
 # The module-boundaries CI job runs the host one; each lint-tags leg runs its
 # own.
 GUARD_CONFIGS ?= host model js-wasm windows linux-nocgo darwin-nocgo

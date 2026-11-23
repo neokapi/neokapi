@@ -66,7 +66,7 @@ func processTestPool(t *testing.T, process func(pb.BridgeService_ProcessServer) 
 		},
 	}}
 	pool := NewDaemonPool(DaemonPoolOptions{})
-	pool.clients[plugin.Name()] = &DaemonClient{Plugin: plugin, Conn: conn}
+	pool.clients[daemonKey(plugin.Name(), nil)] = &DaemonClient{Plugin: plugin, Conn: conn}
 	t.Cleanup(pool.Shutdown)
 	return pool, plugin
 }

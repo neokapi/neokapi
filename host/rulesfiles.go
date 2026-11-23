@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -26,14 +27,13 @@ import (
 //
 // kapi writes the rules that hold in a folder into the AGENTS.md and CLAUDE.md
 // there: the project root for the rules that hold everywhere, and one folder
-// per collection whose rules differ from the root's.
-
-// Each file states only what
+// per collection whose rules differ from the root's. Each file states what
 // holds in its folder: the voice in force, what to write and what not, the
-// wording a rule held elsewhere leaves as it is here, the notes a person kept
-// that hold there, and one line pointing to `kapi check`. The context stays
-// the source; the files are a projection of it, refreshed when it changes,
-// and `kapi check` stays the gate.
+// wording a rule held elsewhere leaves as it is here, the notes a person kept,
+// and a line pointing to `kapi check`.
+
+// The files are a projection of the context, refreshed when it changes, and
+// `kapi check` stays the gate.
 
 // kapi owns one delimited section of each file (core/agentrules) and leaves
 // the rest to the person who wrote it. A file kapi created and no longer needs
@@ -331,7 +331,7 @@ func (a *App) planRulesFiles(cmd Command, root string, proj *project.KapiProject
 
 	// One answer per point: places that resolve to the same point say the
 	// same thing, and a project with many collections has few points.
-	answers := map[string]rulesPointAnswer{}
+	answers := map[rulesPoint]rulesPointAnswer{}
 	sources := projectSourceLanguages(proj)
 	answerFor := func(sample string) (rulesPointAnswer, error) {
 		key := rulesPointKey(proj, sample, at)
@@ -360,7 +360,7 @@ func (a *App) planRulesFiles(cmd Command, root string, proj *project.KapiProject
 		ans   rulesPointAnswer
 	}
 	byDir := map[string][]placeAnswer{}
-	seen := map[string]map[string]bool{}
+	seen := map[string]map[rulesPoint]bool{}
 	for _, place := range a.rulePlaces(proj, root) {
 		if place.Dir != "" {
 			if info, serr := rootpath.Stat(root, filepath.Join(root, filepath.FromSlash(place.Dir))); serr != nil || !info.IsDir() {
@@ -372,7 +372,7 @@ func (a *App) planRulesFiles(cmd Command, root string, proj *project.KapiProject
 			continue
 		}
 		if seen[place.Dir] == nil {
-			seen[place.Dir] = map[string]bool{}
+			seen[place.Dir] = map[rulesPoint]bool{}
 		}
 		seen[place.Dir][key] = true
 		ans, aerr := answerFor(place.Sample)
@@ -388,7 +388,7 @@ func (a *App) planRulesFiles(cmd Command, root string, proj *project.KapiProject
 	}
 	sort.Strings(dirs)
 	for _, dir := range dirs {
-		folder := map[string]bool{}
+		folder := map[[2]string]bool{}
 		for _, pa := range byDir[dir] {
 			for _, r := range pa.ans.rules {
 				folder[wordingKey(r.Say, r.Locale)] = true
@@ -441,19 +441,26 @@ func sameSections(a, b []rulesSection) bool {
 
 // rulesPointKey names the point a path resolves to, so places at one point
 // share one answer.
-func rulesPointKey(proj *project.KapiProject, sample string, at time.Time) string {
+func rulesPointKey(proj *project.KapiProject, sample string, at time.Time) rulesPoint {
 	point := project.GovernancePoint{Path: sample, At: at}
 	rc, err := proj.ResolveGovernanceFor(point)
 	if err != nil || rc == nil {
-		return "path:" + sample
+		return rulesPoint{path: sample}
 	}
 	coordinates := proj.CoordinatesAt(point, rc)
 	axes := make([]string, 0, len(coordinates))
 	for axis, value := range coordinates {
-		axes = append(axes, axis+"="+value)
+		axes = append(axes, strconv.Quote(axis)+"="+strconv.Quote(value))
 	}
 	sort.Strings(axes)
-	return rc.Ref().String() + "|" + rc.VoiceField + "|" + rc.TermStore + "|" + strings.Join(axes, ",")
+	return rulesPoint{ref: rc.Ref().String(), voice: rc.VoiceField, termStore: rc.TermStore, axes: strings.Join(axes, ",")}
+}
+
+// rulesPoint is the key rulesPointKey returns: the path alone when the path
+// resolves to no governance, otherwise what governs there, with the point's
+// coordinates as quoted axis=value pairs, sorted.
+type rulesPoint struct {
+	path, ref, voice, termStore, axes string
 }
 
 // rulesAnswerAt reads the rules in force for the file at abs.
@@ -692,13 +699,13 @@ func orderRules(rules []ContextRule) []ContextRule {
 // place's folder. A rule the folder holds for some of its files is written
 // in the folder's file, so the folder never also keeps the wording that rule
 // renames: an agent reading one file for the folder cannot be told both.
-func deltaSection(base, here rulesPointAnswer, folder map[string]bool) rulesSection {
+func deltaSection(base, here rulesPointAnswer, folder map[[2]string]bool) rulesSection {
 	var s rulesSection
-	baseKeys := map[string]bool{}
+	baseKeys := map[[3]string]bool{}
 	for _, r := range base.rules {
 		baseKeys[ruleKey(r)] = true
 	}
-	hereKeys := map[string]bool{}
+	hereKeys := map[[3]string]bool{}
 	mentioned := map[string]bool{}
 	for _, r := range here.rules {
 		hereKeys[ruleKey(r)] = true
@@ -759,9 +766,14 @@ func deltaSection(base, here rulesPointAnswer, folder map[string]bool) rulesSect
 // naming every place.
 func mergeKeep(in []ContextElsewhere) []ContextElsewhere {
 	var out []ContextElsewhere
-	index := map[string]int{}
+	type keepLine struct{ keep, instead, locale string }
+	index := map[keepLine]int{}
 	for _, e := range in {
-		key := strings.ToLower(strings.Join(e.Keep, "\x00")) + "|" + fold(e.Instead) + "|" + e.Locale
+		keep := make([]string, len(e.Keep))
+		for i, k := range e.Keep {
+			keep[i] = strconv.Quote(strings.ToLower(k))
+		}
+		key := keepLine{strings.Join(keep, ","), fold(e.Instead), e.Locale}
 		if i, ok := index[key]; ok {
 			out[i].HeldIn = dedupeStrings(append(out[i].HeldIn, e.HeldIn...))
 			continue
@@ -775,18 +787,19 @@ func mergeKeep(in []ContextElsewhere) []ContextElsewhere {
 
 // wordingKey identifies a rule by the wording it asks for and the language it
 // is stated in, which is what a wording to keep names as Instead.
-func wordingKey(say, locale string) string {
-	return fold(say) + "|" + locale
+func wordingKey(say, locale string) [2]string {
+	return [2]string{fold(say), locale}
 }
 
-// ruleKey identifies a rule by its wordings.
-func ruleKey(r ContextRule) string {
+// ruleKey identifies a rule by its wordings. The wordings it avoids are
+// quoted, so a wording holding a comma stays one wording.
+func ruleKey(r ContextRule) [3]string {
 	not := make([]string, len(r.Not))
 	for i, n := range r.Not {
-		not[i] = fold(n)
+		not[i] = strconv.Quote(fold(n))
 	}
 	sort.Strings(not)
-	return fold(r.Say) + "|" + strings.Join(not, ",") + "|" + r.Locale
+	return [3]string{fold(r.Say), strings.Join(not, ","), r.Locale}
 }
 
 // sameSection reports whether two sections state the same rules, so a folder

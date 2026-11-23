@@ -123,7 +123,7 @@ func FoldWording(s string) string { return strings.ToLower(strings.TrimSpace(s))
 // two rules with one wording to use and different outcomes stay two.
 type ruleList struct {
 	rules   []WordRule
-	bySay   map[string]int
+	bySay   map[sayKey]int
 	avoided map[string]bool
 }
 
@@ -161,7 +161,7 @@ func (l *ruleList) add(r WordRule, from string) {
 			}
 			return
 		}
-		l.bySay[sayKey(r)] = len(l.rules)
+		l.bySay[sayKeyOf(r)] = len(l.rules)
 	}
 	for _, n := range r.Not {
 		l.avoided[FoldWording(n)] = true
@@ -176,21 +176,21 @@ func (l *ruleList) add(r WordRule, from string) {
 // avoids nothing yet takes the first rule with its Say that does, with that
 // rule's marking.
 func (l *ruleList) lineFor(r WordRule) (int, bool) {
-	if i, held := l.bySay[sayKey(r)]; held {
+	if i, held := l.bySay[sayKeyOf(r)]; held {
 		return i, true
 	}
 	other := r
 	other.Advisory = !r.Advisory
-	i, held := l.bySay[sayKey(other)]
+	i, held := l.bySay[sayKeyOf(other)]
 	switch {
 	case !held:
 		return 0, false
 	case len(r.Not) == 0:
 		return i, true
 	case len(l.rules[i].Not) == 0:
-		delete(l.bySay, sayKey(other))
+		delete(l.bySay, sayKeyOf(other))
 		l.rules[i].Advisory = r.Advisory
-		l.bySay[sayKey(r)] = i
+		l.bySay[sayKeyOf(r)] = i
 		return i, true
 	}
 	return 0, false
@@ -198,11 +198,13 @@ func (l *ruleList) lineFor(r WordRule) (int, bool) {
 
 // sayKey is the key a rule merges under: its folded Say wording, and whether
 // it is advisory.
-func sayKey(r WordRule) string {
-	if r.Advisory {
-		return FoldWording(r.Say) + "\x00advisory"
-	}
-	return FoldWording(r.Say)
+type sayKey struct {
+	say      string
+	advisory bool
+}
+
+func sayKeyOf(r WordRule) sayKey {
+	return sayKey{FoldWording(r.Say), r.Advisory}
 }
 
 // SayThisNotThat builds the one list for a point from the terms in force
@@ -210,7 +212,7 @@ func sayKey(r WordRule) string {
 // voice's file carries, in that order, and caps it at limit. It returns the
 // total as well, so a capped list says what it is a part of.
 func SayThisNotThat(hits []TermHit, binding []coreprofile.TermRule, voice *coreprofile.VoiceProfile, limit int) ([]WordRule, int) {
-	l := &ruleList{bySay: map[string]int{}, avoided: map[string]bool{}}
+	l := &ruleList{bySay: map[sayKey]int{}, avoided: map[string]bool{}}
 
 	// One line per concept and language: its preferred wording, the other
 	// admitted ones, and the discouraged ones.

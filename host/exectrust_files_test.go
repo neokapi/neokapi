@@ -350,7 +350,7 @@ func TestFormatterTrust_CoversTheFilesItRuns(t *testing.T) {
 		interp := filepath.Join(filepath.Dir(exe), "sh")
 		require.NoError(t, os.WriteFile(interp, []byte("#!/bin/sh\nexec /bin/sh \"$@\"\n"), 0o755))
 		require.NoError(t, os.WriteFile(exe, []byte("#!"+interp+"\necho one\n"), 0o755))
-		require.NoError(t, (&formatterTrust{decided: map[string]error{}, hashed: map[string]string{},
+		require.NoError(t, (&formatterTrust{decided: map[[2]string]error{}, hashed: map[string]string{},
 			ask: func(project.ExecSite) (bool, error) { return true, nil }}).allow(config, "oxfmt", []string{exe}, nil))
 		require.NoError(t, unattended(config, exe))
 		require.NoError(t, os.WriteFile(interp, []byte("#!/bin/sh\nexec /bin/bash \"$@\"\n"), 0o755))

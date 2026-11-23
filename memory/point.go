@@ -17,15 +17,16 @@ const (
 
 	// PointRungs is the depth of the containment ladder a point names: the
 	// product profile, the channel it ships on, and the collection it belongs
-	// to — coarsest first, so a shared prefix is a shared containment.
+	// to, coarsest first, so a shared prefix is a shared containment.
 	PointRungs = 3
 )
 
 // NewPoint renders a point from the ladder's rungs. A rung nothing declares is
-// empty, which is a real position — the project's default point — rather than a
+// empty, which is a real position (the project's default point) rather than a
 // missing one, and a point that declares nothing at all renders as the empty
 // string.
 func NewPoint(profile, channel, collection string) string {
+	//keyguard:persisted the point each content memory entry stores (Entry.Point); pinned by TestNewPoint
 	p := strings.Join([]string{profile, channel, collection}, PointSeparator)
 	if strings.Trim(p, PointSeparator) == "" {
 		return ""
@@ -56,8 +57,8 @@ func PointRung(point string, i int) string {
 // construction, so a match at a fine rung that disagreed at a coarse one would
 // not describe anything. An answer carrying no point sits at the project's
 // default point and is therefore PointRungs away from every answer that names a
-// product — the right reading for an entry a seed or an import taught the
-// corpus, bound to no location at all.
+// product. That fits an entry a seed or an import taught the corpus, which is
+// bound to no location.
 func PointDistance(a, b string) int {
 	if a == b {
 		return 0
