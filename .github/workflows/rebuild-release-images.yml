@@ -20,8 +20,6 @@ on:
         description: "Build and scan only; publish nothing (a dispatch always builds only)."
         type: boolean
         default: true
-  push:
-    branches: [weekly-image-rebuild]
 
 permissions:
   contents: read
