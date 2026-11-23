@@ -74,3 +74,6 @@ Two other routes were considered and not taken:
 
 The App is not a bypass actor on any ruleset. Its pull requests need `CI
 passed` like every other.
+
+Follow-up once the App exists: a workflow that finishes Dependabot's `expo`
+pull request with `expo install --fix` and pushes it with the App token.
