@@ -169,6 +169,16 @@ the build people have installed. Merge it when that build is ready to ship.
 Updates published after the change reach people once they install the new
 build from TestFlight or the App Store.
 
+The ignore list also holds back Dependabot's security updates for those
+packages, so a fix to `react-native` or an `expo-*` package arrives only with
+an `expo` update. When an advisory names one of them, check whether the SDK
+the app is on has a patch release of `expo` whose `bundledNativeModules.json`
+names the fixed version. If it has, take that `expo` release (Dependabot's
+pull request, or `vp exec expo install expo@<version>`), run
+`vp exec expo install --fix` from `bowrain/mobile/` on the same branch, and
+treat the pull request as the native change it is. If it has not, the fix
+waits for the SDK that carries it.
+
 ## Before external testing or release
 
 External TestFlight groups and the App Store go through review. Two things
