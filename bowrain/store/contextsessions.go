@@ -6,36 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 )
 
 const contextSessionColumns = `id, project_id, user_id, cards, reach, decisions, started_at, expires_at, ended_at`
-
-// A context item's key joins its kind, profile and id with NUL bytes
-// (contextop.ItemRef.Key), which PostgreSQL refuses in text and in jsonb.
-// The store writes each key with the unit separator in their place and reads
-// it back as it was given.
-const (
-	itemKeySep   = "\x00"
-	storedKeySep = "\x1f"
-)
-
-func storedKey(key string) string { return strings.ReplaceAll(key, itemKeySep, storedKeySep) }
-
-func givenKey(key string) string { return strings.ReplaceAll(key, storedKeySep, itemKeySep) }
-
-// storedCards is cards with each item key as the store writes it.
-func storedCards(cards []platstore.ContextSessionCard) []platstore.ContextSessionCard {
-	out := make([]platstore.ContextSessionCard, len(cards))
-	for i, c := range cards {
-		c.Item = storedKey(c.Item)
-		out[i] = c
-	}
-	return out
-}
 
 // StartContextSession implements platstore.ContextSessionStore. Each step is
 // its own statement, so two sessions started at once never wait on each
@@ -61,7 +37,7 @@ func (s *PostgresStore) StartContextSession(ctx context.Context, sess platstore.
 		INSERT INTO context_sessions (id, project_id, user_id, cards, reach, decisions, started_at, expires_at)
 		VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, '[]'::jsonb, $6, $7)`,
 		sess.ID, sess.ProjectID, sess.UserID,
-		platstore.EncodeSessionJSON(storedCards(sess.Cards), "[]"), platstore.EncodeSessionJSON(sess.Reach, "{}"),
+		platstore.EncodeSessionJSON(sess.Cards, "[]"), platstore.EncodeSessionJSON(sess.Reach, "{}"),
 		now, sess.ExpiresAt.UTC()); err != nil {
 		return nil, fmt.Errorf("start a context session: %w", err)
 	}
@@ -72,7 +48,7 @@ func (s *PostgresStore) StartContextSession(ctx context.Context, sess platstore.
 		}
 		res, err := s.db.ExecContext(ctx, `
 			INSERT INTO context_session_holds (project_id, item_key, session_id) VALUES ($1, $2, $3)
-			ON CONFLICT (project_id, item_key) DO NOTHING`, sess.ProjectID, storedKey(item), sess.ID)
+			ON CONFLICT (project_id, item_key) DO NOTHING`, sess.ProjectID, item, sess.ID)
 		if err != nil {
 			return nil, fmt.Errorf("hold a context card: %w", err)
 		}
@@ -86,7 +62,7 @@ func (s *PostgresStore) StartContextSession(ctx context.Context, sess platstore.
 // SetContextSessionCards implements platstore.ContextSessionStore.
 func (s *PostgresStore) SetContextSessionCards(ctx context.Context, id string, cards []platstore.ContextSessionCard) error {
 	if _, err := s.db.ExecContext(ctx, `UPDATE context_sessions SET cards = $2::jsonb WHERE id = $1`,
-		id, platstore.EncodeSessionJSON(storedCards(cards), "[]")); err != nil {
+		id, platstore.EncodeSessionJSON(cards, "[]")); err != nil {
 		return fmt.Errorf("record the cards of context session %s: %w", id, err)
 	}
 	return nil
@@ -122,7 +98,6 @@ func (s *PostgresStore) ContextSessionHolds(ctx context.Context, projectID strin
 		if err := rows.Scan(&h.Item, &h.SessionID, &h.UserID); err != nil {
 			return nil, fmt.Errorf("list the held context cards of project %s: %w", projectID, err)
 		}
-		h.Item = givenKey(h.Item)
 		out = append(out, h)
 	}
 	return out, rows.Err()
@@ -130,9 +105,7 @@ func (s *PostgresStore) ContextSessionHolds(ctx context.Context, projectID strin
 
 // RecordContextSessionDecision implements platstore.ContextSessionStore.
 func (s *PostgresStore) RecordContextSessionDecision(ctx context.Context, id string, d platstore.ContextSessionDecision, expires time.Time) error {
-	stored := d
-	stored.Item = storedKey(d.Item)
-	body, err := json.Marshal(stored)
+	body, err := json.Marshal(d)
 	if err != nil {
 		return err
 	}
@@ -143,7 +116,7 @@ func (s *PostgresStore) RecordContextSessionDecision(ctx context.Context, id str
 		return fmt.Errorf("record a decision of context session %s: %w", id, err)
 	}
 	if _, err := s.db.ExecContext(ctx,
-		`DELETE FROM context_session_holds WHERE session_id = $1 AND item_key = $2`, id, stored.Item); err != nil {
+		`DELETE FROM context_session_holds WHERE session_id = $1 AND item_key = $2`, id, d.Item); err != nil {
 		return fmt.Errorf("release a card of context session %s: %w", id, err)
 	}
 	return nil
@@ -233,11 +206,7 @@ func decodeSessionFields(sess *platstore.ContextSession, cards, reach, decisions
 	if err := json.Unmarshal(decisions, &sess.Decisions); err != nil {
 		return fmt.Errorf("decode session decisions: %w", err)
 	}
-	for i := range sess.Cards {
-		sess.Cards[i].Item = givenKey(sess.Cards[i].Item)
-	}
 	for i := range sess.Decisions {
-		sess.Decisions[i].Item = givenKey(sess.Decisions[i].Item)
 		sess.Decisions[i].At = sess.Decisions[i].At.UTC()
 	}
 	return nil
