@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The next draft of a unit a reviewer rejected: what the run tells the model,
@@ -80,7 +81,7 @@ func frenchTargets(t *testing.T, root string) map[string]string {
 
 func rejectGreeting(t *testing.T, a *App, recipe, note string) {
 	t.Helper()
-	changed, err := decideUnit(t.Context(), a, recipe, ReviewUnitRef{File: filepath.Join("src", "fr.json"), Key: "greeting", Locale: "fr"}, ReviewDecisionRejected, note)
+	changed, err := rejectUnitWithReasons(t.Context(), a, recipe, ReviewUnitRef{File: filepath.Join("src", "fr.json"), Key: "greeting", Locale: "fr"}, note, "tone")
 	require.NoError(t, err)
 	require.True(t, changed)
 }
@@ -102,6 +103,7 @@ func TestReviewFeedback_TheNextDraftIsToldWhy(t *testing.T) {
 	require.NotEmpty(t, calls, "the rejected unit is drafted again")
 	all := strings.Join(calls, "\n")
 	assert.Contains(t, all, "Too formal for a greeting.", "the note reaches the prompt record")
+	assert.Contains(t, all, tool.RejectionReasonPhrase("tone"), "the reason reaches the prompt record as words")
 	assert.Contains(t, all, first["greeting"], "the rejected draft reaches the prompt record")
 	assert.NotContains(t, all, "Goodbye now", "the unit nobody rejected is not drafted again")
 
@@ -256,7 +258,7 @@ func TestReviewFeedback_StopsAfterThreeRejections(t *testing.T) {
 
 // Every reason code a reviewer chooses reaches a prompt as words.
 func TestReviewFeedback_EveryReasonHasAPhrase(t *testing.T) {
-	for _, code := range tool.RejectionReasonCodes {
+	for _, code := range venue.DecisionReasons {
 		assert.NotEqual(t, "another reason", tool.RejectionReasonPhrase(code), code)
 		assert.NotContains(t, tool.RejectionReasonPhrase(code), "_", code)
 	}

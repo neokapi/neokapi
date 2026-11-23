@@ -152,6 +152,7 @@ func unitFeedback(entries []state.Entry, holdsBasis func(string) bool, sourceHas
 	for _, e := range slices.Backward(picked) {
 		r := tool.ReviewRejection{
 			TargetHash: e.State.TargetHash,
+			Reasons:    e.State.Decision.Reasons,
 			Note:       e.State.Decision.Note,
 		}
 		if currentHash != "" && e.State.TargetHash == currentHash {

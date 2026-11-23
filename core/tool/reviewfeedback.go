@@ -74,7 +74,8 @@ func (f ReviewFeedback) ForBlock(ctx context.Context, unit string) UnitReviewFee
 
 // rejectionPhrases renders each reason code as the words a person reads. A
 // code missing here reaches a prompt as "another reason", never as a bare
-// identifier; a test holds every code a reviewer can choose to a phrase.
+// identifier. TestReviewFeedback_EveryReasonHasAPhrase holds every code in
+// venue.DecisionReasons to a phrase.
 var rejectionPhrases = map[string]string{
 	"wrong_term":  "a term is wrong",
 	"meaning":     "the meaning is wrong",
@@ -82,9 +83,6 @@ var rejectionPhrases = map[string]string{
 	"placeholder": "a placeholder is wrong or missing",
 	"grammar":     "the grammar is wrong",
 }
-
-// RejectionReasonCodes are the reason codes a reviewer chooses from.
-var RejectionReasonCodes = []string{"wrong_term", "meaning", "tone", "placeholder", "grammar"}
 
 // RejectionReasonPhrase renders a reason code as the words a person reads.
 func RejectionReasonPhrase(code string) string {

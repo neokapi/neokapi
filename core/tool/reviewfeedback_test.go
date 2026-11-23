@@ -29,9 +29,6 @@ func TestReviewFeedbackForBlockIsKeyedByFile(t *testing.T) {
 	assert.False(t, f.ForBlock(other, "title").Held, "the same key in another file is another unit")
 }
 
-func TestEveryRejectionReasonHasAPhrase(t *testing.T) {
-	for _, code := range RejectionReasonCodes {
-		assert.NotEqual(t, "another reason", RejectionReasonPhrase(code), code)
-	}
+func TestAnUnknownReasonHasAPhrase(t *testing.T) {
 	assert.Equal(t, "another reason", RejectionReasonPhrase("new_code"), "an unknown code never reaches a prompt bare")
 }
