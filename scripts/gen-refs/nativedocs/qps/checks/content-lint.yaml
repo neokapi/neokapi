@@ -31,7 +31,7 @@ rules:
     reports: A stray control character, named by its code point. Tab, carriage return and line feed are ordinary whitespace and are never reported.
     fix: Remove the control character, or replace it with the character the text needs.
 overview: |
-  Ţĥé **Çöñţéñţ Ļîñţ** çĥéçķ îš ţĥé àļŵàýš-öñ ĥàļƒ öƒ `kapi çĥéçķ`. Îţ ŕéàđš éàçĥ
+  Ţĥé **Çöñţéñţ Ļîñţ** çĥéçķ îš ţĥé àļŵàýš-öñ ĥàļƒ öƒ `ķàþî çĥéçķ`. Îţ ŕéàđš éàçĥ
   ţŕàñšļàţàƃļé ƃļöçķ'š šöüŕçé ţéẋţ öñ îţš öŵñ, ŵîţĥ ñö ţàŕĝéţ àñđ ñö ļöçàļé
   çöḿþàŕîšöñ, àñđ ŕéþöŕţš ŵĥàţ îš ŵŕöñĝ ŵîţĥ ţĥé šĥàþé öƒ ţĥé çöñţéñţ:
 
