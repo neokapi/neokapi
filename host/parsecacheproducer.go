@@ -30,13 +30,13 @@ func (a *App) formatProducer(fmtName string) (identity string, cacheable bool) {
 			continue
 		}
 		p := route.Plugin
-		fp := p.Fingerprint()
-		switch {
-		case p.Version() == "":
-			a.noteUncachedPlugin(p.Name(), "declares no version")
+		if p.Version() == "" {
+			a.noteUncachedPlugin(p.Name(), "it declares no version")
 			return "", false
-		case fp == "":
-			a.noteUncachedPlugin(p.Name(), "has no install record and no executable kapi could read")
+		}
+		fp, err := p.Fingerprint()
+		if err != nil {
+			a.noteUncachedPlugin(p.Name(), err.Error())
 			return "", false
 		}
 		return p.Name() + "@" + p.Version() + "#" + fp, true
@@ -71,5 +71,5 @@ func (a *App) noteUncachedPlugin(name, why string) {
 	if _, told := uncachedPluginsTold.LoadOrStore(name, true); told {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "kapi: the %s plugin %s, so the files it reads are parsed every time rather than served from the parse cache\n", name, why)
+	fmt.Fprintf(os.Stderr, "kapi: the files the %s plugin reads are parsed every time rather than served from the parse cache: %s\n", name, why)
 }

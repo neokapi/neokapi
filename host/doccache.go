@@ -78,6 +78,12 @@ type docCache struct {
 	// size and modification time only for the checkout that recorded it;
 	// another checkout's file is compared by its content.
 	checkout string
+
+	// producer names what reads a format, for the formats an entry records
+	// it handed embedded content to (App.formatProducer). An entry is served
+	// only while every one of them still names the same producer. Nil names
+	// none.
+	producer func(format string) (identity string, cacheable bool)
 }
 
 var docCacheMigrations = []storage.Migration{
@@ -137,6 +143,13 @@ var docCacheMigrations = []storage.Migration{
 			format          TEXT NOT NULL,
 			PRIMARY KEY (path, build, parts_format, config_key)
 		);`,
+	},
+	{
+		Version:     4,
+		Description: "record the formats a parse handed embedded content to, with what read each",
+		// A cache rebuilds what it drops, so the old entries are discarded.
+		SQL: `DELETE FROM documents;
+		ALTER TABLE documents ADD COLUMN subformats TEXT NOT NULL DEFAULT '';`,
 	},
 }
 
@@ -236,6 +249,7 @@ func (c *docCache) Close() {
 
 // docRow is the index entry for one (path, config).
 type docRow struct {
+	subformats     string
 	key            docKey
 	path           string
 	contentHash    string
@@ -310,11 +324,11 @@ func (c *docCache) lookup(path, configKey string, f *os.File, st os.FileInfo) (d
 	var checkout string
 	var mtime, size int64
 	q := c.DB.QueryRow(
-		`SELECT content_hash, checkout, mtime, size, parts_ref, parts_digest, skeleton_ref, skeleton_digest, format
+		`SELECT content_hash, checkout, mtime, size, parts_ref, parts_digest, skeleton_ref, skeleton_digest, format, subformats
 		   FROM documents WHERE path = ? AND build = ? AND parts_format = ? AND config_key = ?`,
 		row.path, key.build, key.partsFormat, key.config)
 	if err := q.Scan(&row.contentHash, &checkout, &mtime, &size, &row.partsRef, &row.partsDigest,
-		&row.skeletonRef, &row.skeletonDigest, &row.format); err != nil {
+		&row.skeletonRef, &row.skeletonDigest, &row.format, &row.subformats); err != nil {
 		return docRow{}, false
 	}
 	// The size and modification time stand for the content only in the
@@ -353,6 +367,45 @@ func openCacheEntry(dir, p string) (*os.File, error) {
 	return rootpath.OpenRegularNoLink(dir, p)
 }
 
+// subformatProducers names, for each format a parse handed embedded content
+// to, what reads it now: "format=identity" entries joined by newlines. ok is
+// false when one of them cannot be named, and such a parse is not recorded.
+func (c *docCache) subformatProducers(formats []string) (string, bool) {
+	if len(formats) == 0 || c.producer == nil {
+		return "", true
+	}
+	parts := make([]string, 0, len(formats))
+	for _, f := range formats {
+		id, ok := c.producer(f)
+		if !ok {
+			return "", false
+		}
+		parts = append(parts, f+"="+id)
+	}
+	return strings.Join(parts, "\n"), true
+}
+
+// subformatsHold reports whether every format an entry recorded still names
+// the producer it named when the entry was recorded.
+func (c *docCache) subformatsHold(recorded string) bool {
+	if recorded == "" {
+		return true
+	}
+	if c.producer == nil {
+		return false
+	}
+	for line := range strings.SplitSeq(recorded, "\n") {
+		f, want, ok := strings.Cut(line, "=")
+		if !ok {
+			return false
+		}
+		if id, cacheable := c.producer(f); !cacheable || id != want {
+			return false
+		}
+	}
+	return true
+}
+
 // validLog reports whether the regular file p inside dir is a part log whose
 // every line decodes as one part and whose bytes digest to want. It reads the
 // log once, line by line, as Feed does.
@@ -373,7 +426,7 @@ func validLog(dir, p, want string) bool {
 		if err := json.Unmarshal(line, &cp); err != nil {
 			return false
 		}
-		if len(fromCachedParts([]cachedPart{cp})) != 1 {
+		if len(fromCachedParts([]cachedPart{cp})) > 1 {
 			return false
 		}
 	}
@@ -423,6 +476,10 @@ func (c *docCache) OpenDocument(path, configKey string) flow.CachedDocument {
 // A cache restored from elsewhere is checked the same way, so an entry whose
 // files were truncated, replaced or renamed is parsed again, never an error.
 func (c *docCache) recorded(row docRow) flow.CachedDocument {
+	if !c.subformatsHold(row.subformats) {
+		c.discard(row)
+		return nil
+	}
 	base := recordingBase(row.key, row.contentHash)
 	if row.partsRef != "parts-"+base+".log" || (row.skeletonRef != "" && row.skeletonRef != "skel-"+base+".bin") {
 		c.discard(row)
@@ -587,6 +644,9 @@ type docRecorder struct {
 	// release frees the cache's in-flight slot for this document; called
 	// exactly once, from Commit or Abort.
 	release func()
+	// formats lists the formats the parse handed embedded content to, read at
+	// Commit (flow.FormatsRecorder). Nil when the runner records none.
+	formats func() []string
 }
 
 // done releases the in-flight slot (idempotent).
@@ -665,21 +725,44 @@ func (r *docRecorder) Commit() error {
 		_ = os.Remove(r.skelTmp)
 		skelRef = ""
 	}
+	subformats := ""
+	if r.formats != nil {
+		var ok bool
+		if subformats, ok = r.c.subformatProducers(r.formats()); !ok {
+			// A reader behind part of the parse cannot be named, so the parse
+			// is not kept; the next read parses again.
+			r.discardFiles(skelRef)
+			return nil
+		}
+	}
 	skelDigest := ""
 	if skelRef != "" {
 		skelDigest = fileDigestIn(r.c.dir, filepath.Join(r.c.dir, skelRef))
 	}
 	_, err := r.c.DB.Exec(
 		`INSERT INTO documents (path, build, parts_format, config_key, content_hash, checkout, mtime, size,
-		                        parts_ref, parts_digest, skeleton_ref, skeleton_digest, format)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		                        parts_ref, parts_digest, skeleton_ref, skeleton_digest, format, subformats)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(path, build, parts_format, config_key) DO UPDATE SET
 		   content_hash = excluded.content_hash, checkout = excluded.checkout, mtime = excluded.mtime,
 		   size = excluded.size, parts_ref = excluded.parts_ref, parts_digest = excluded.parts_digest,
-		   skeleton_ref = excluded.skeleton_ref, skeleton_digest = excluded.skeleton_digest, format = excluded.format`,
+		   skeleton_ref = excluded.skeleton_ref, skeleton_digest = excluded.skeleton_digest, format = excluded.format,
+		   subformats = excluded.subformats`,
 		r.c.keyPath(r.path), r.key.build, r.key.partsFormat, r.key.config, r.contentHash, r.c.checkout,
-		r.st.ModTime().UnixNano(), r.st.Size(), r.partsRef, hex.EncodeToString(r.ph.Sum(nil)), skelRef, skelDigest, r.format)
+		r.st.ModTime().UnixNano(), r.st.Size(), r.partsRef, hex.EncodeToString(r.ph.Sum(nil)), skelRef, skelDigest, r.format, subformats)
 	return err
+}
+
+// RecordFormatsFrom implements flow.FormatsRecorder.
+func (r *docRecorder) RecordFormatsFrom(formats func() []string) { r.formats = formats }
+
+// discardFiles removes the files a committed recording renamed into place,
+// for a recording that is then not kept.
+func (r *docRecorder) discardFiles(skelRef string) {
+	_ = rootpath.Remove(r.c.dir, filepath.Join(r.c.dir, r.partsRef))
+	if skelRef != "" {
+		_ = rootpath.Remove(r.c.dir, filepath.Join(r.c.dir, skelRef))
+	}
 }
 
 // Abort discards the in-progress files without recording an index entry.

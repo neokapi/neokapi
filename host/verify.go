@@ -2115,6 +2115,9 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, root, path, fmtName st
 	// wiring, so a check reports the blocks, run positions and revisions an edit
 	// of them names.
 	project.WireReadSkeleton(a.FormatReg, fmtName, reader)
+	// Every format the reader hands embedded content to is recorded with the
+	// entry, so a later read misses when a reader behind any part changed.
+	trace := format.TraceSubfilters(reader, a.FormatReg)
 
 	// A file beneath the project is read through its root (rootpath.ReadFile).
 	content, err := rootpath.ReadFile(root, path)
@@ -2132,6 +2135,9 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, root, path, fmtName st
 	}
 
 	rec := a.docCache.RecordDocument(path, configKey, fmtName)
+	if fr, ok := rec.(flow.FormatsRecorder); ok {
+		fr.RecordFormatsFrom(trace.Formats)
+	}
 	return streamIntoRecorder(ctx, reader, rec, path)
 }
 

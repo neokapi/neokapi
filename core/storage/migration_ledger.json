@@ -83,6 +83,13 @@
       "names": [
         "key entries by the path the project names, and record the checkout and the digests of the recorded files"
       ]
+    },
+    "4": {
+      "description": "record the formats a parse handed embedded content to, with what read each",
+      "identity": "20935dddaa5246684db5a76a2a658a98",
+      "names": [
+        "record the formats a parse handed embedded content to, with what read each"
+      ]
     }
   },
   "graph": {

@@ -248,6 +248,12 @@ type DocumentRecorder interface {
 	Abort()
 }
 
+// FormatsRecorder is a DocumentRecorder that records, with its entry, the
+// formats a parse handed embedded content to. formats is called at Commit.
+type FormatsRecorder interface {
+	RecordFormatsFrom(formats func() []string)
+}
+
 // FileRunner runs a full read → process → write pipeline for a single file.
 // It handles format detection, reader/writer creation, skeleton store wiring,
 // tool execution, and output writing. Shared by CLI, desktop, and MCP.
@@ -493,6 +499,12 @@ func (r *FileRunner) recordDocument(ctx context.Context, reader format.DataForma
 			}
 			emitter.SetSkeletonStore(store)
 		}
+	}
+	// Every format the reader hands embedded content to is recorded with the
+	// entry, so the cache can tell when a reader behind any part of the parse
+	// changed.
+	if fr, ok := rec.(FormatsRecorder); ok && r.cfg.FormatReg != nil {
+		fr.RecordFormatsFrom(format.TraceSubfilters(reader, r.cfg.FormatReg).Formats)
 	}
 	source, err := r.openInput(inputPath)
 	if err != nil {

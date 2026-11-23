@@ -20,7 +20,7 @@ import (
 // directories omits the package-manager-installed plugins (Homebrew links its
 // kegs into the shared root). Freshness is judged by root mtimes alone, which
 // an upgrade leaves unchanged, so this bump makes such a cache rescan.
-const cacheVersion = "3"
+const cacheVersion = "2"
 
 // Cache is the on-disk dispatch cache. It is built as a side effect of
 // install/update/remove and consumed at startup when no discovery root
@@ -50,11 +50,6 @@ type CachedPlugin struct {
 	Source     Source             `json:"source"`
 	Manifest   *manifest.Manifest `json:"manifest"`
 	BinaryPath string             `json:"binary_path"`
-	// Archive, BinarySize and BinaryModTime carry Plugin's fields of the same
-	// names, which Discover reads.
-	Archive       string `json:"archive_sha256,omitempty"`
-	BinarySize    int64  `json:"binary_size,omitempty"`
-	BinaryModTime int64  `json:"binary_mod_time,omitempty"`
 }
 
 // xdgCacheDir returns the effective XDG cache base directory, falling back to
@@ -133,13 +128,10 @@ func BuildCache(opts DiscoverOptions, plugins []*Plugin) *Cache {
 	cachedPlugins := make([]CachedPlugin, 0, len(plugins))
 	for _, p := range plugins {
 		cachedPlugins = append(cachedPlugins, CachedPlugin{
-			Dir:           p.Dir,
-			Source:        p.Source,
-			Manifest:      p.Manifest,
-			BinaryPath:    p.BinaryPath,
-			Archive:       p.Archive,
-			BinarySize:    p.BinarySize,
-			BinaryModTime: p.BinaryModTime,
+			Dir:        p.Dir,
+			Source:     p.Source,
+			Manifest:   p.Manifest,
+			BinaryPath: p.BinaryPath,
 		})
 	}
 	return &Cache{
@@ -198,13 +190,10 @@ func PluginsFromCache(cache *Cache) []*Plugin {
 	out := make([]*Plugin, 0, len(cache.Plugins))
 	for _, c := range cache.Plugins {
 		out = append(out, &Plugin{
-			Dir:           c.Dir,
-			Source:        c.Source,
-			Manifest:      c.Manifest,
-			BinaryPath:    c.BinaryPath,
-			Archive:       c.Archive,
-			BinarySize:    c.BinarySize,
-			BinaryModTime: c.BinaryModTime,
+			Dir:        c.Dir,
+			Source:     c.Source,
+			Manifest:   c.Manifest,
+			BinaryPath: c.BinaryPath,
 		})
 	}
 	return out
