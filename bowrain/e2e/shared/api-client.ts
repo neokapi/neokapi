@@ -949,29 +949,46 @@ export class BowrainAPI {
   }
 
   /**
-   * An update or a delete names the revision it was based on, and the server
-   * refuses one without it (428). Without an explicit baseRevision these read
-   * the profile first, as a person editing it would.
+   * An update or a delete names the revision of the profile it was based on,
+   * and the server refuses one with none (428) or with a revision the profile
+   * no longer has (409). baseRevision says which to send:
+   *
+   * - left out: read the profile first and send its current revision, as a
+   *   person editing it would;
+   * - a string: send that revision, current or stale;
+   * - null: send none, to exercise the 428.
    */
   async updateVoiceProfile(
     wsSlug: string,
     profileId: string,
     profile: Partial<BrandProfile>,
-    baseRevision?: string,
+    baseRevision?: string | null,
   ): Promise<BrandProfile> {
-    const base = baseRevision ?? (await this.getVoiceProfile(wsSlug, profileId)).revision;
-    return this.put(`/${wsSlug}/voice-profiles/${profileId}`, { ...profile, base_revision: base });
+    const base = await this.voiceBase(wsSlug, profileId, baseRevision);
+    return this.put(
+      `/${wsSlug}/voice-profiles/${profileId}`,
+      base === null ? profile : { ...profile, base_revision: base },
+    );
   }
 
+  /** Deletes a voice profile; baseRevision as for updateVoiceProfile. */
   async deleteVoiceProfile(
     wsSlug: string,
     profileId: string,
-    baseRevision?: string,
+    baseRevision?: string | null,
   ): Promise<void> {
-    const base = baseRevision ?? (await this.getVoiceProfile(wsSlug, profileId)).revision;
-    return this.del(
-      `/${wsSlug}/voice-profiles/${profileId}?base_revision=${encodeURIComponent(String(base ?? ""))}`,
-    );
+    const base = await this.voiceBase(wsSlug, profileId, baseRevision);
+    const query = base === null ? "" : `?base_revision=${encodeURIComponent(base)}`;
+    return this.del(`/${wsSlug}/voice-profiles/${profileId}${query}`);
+  }
+
+  private async voiceBase(
+    wsSlug: string,
+    profileId: string,
+    baseRevision: string | null | undefined,
+  ): Promise<string | null> {
+    if (baseRevision !== undefined) return baseRevision;
+    return (await this.getVoiceProfile(wsSlug, profileId)).revision ?? null;
   }
 
   async checkBrandProfile(wsSlug: string, profileId: string): Promise<unknown> {

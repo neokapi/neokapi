@@ -52,6 +52,12 @@ Start the stack as [server.md](server.md) says, with
 `COMPOSE_PROJECT_NAME=bowrain-verify` exported and `make -C bowrain stack-up-e2e`.
 Then pick one of two ways to serve the UI.
 
+The Playwright suites (`bowrain/apps/web/e2e`, `bowrain/e2e/cloud`) delete every
+project in the workspace they use and refuse this stack. Run them against a
+stack of your own, `COMPOSE_PROJECT_NAME=<yours> make -C bowrain
+stack-up-disposable`, when no other stack holds its ports, or leave them to
+the dispatched `e2e.yml`.
+
 **Dev server with hot reload** (for iterating). Run it in the background; an
 edit shows in the open page within a second or two.
 
