@@ -54,8 +54,8 @@ type ExecSite struct {
 	Kind string
 	// Name is the tool ID or format name.
 	Name string
-	// Detail summarises what would run — the command line, or the head of the
-	// script — so a person can answer the prompt on the facts rather than on
+	// Detail summarises what would run (the command line, or the head of the
+	// script), so a person can answer the prompt on the facts rather than on
 	// the tool's name. It is derived from untrusted recipe text and is
 	// sanitised for terminal display; see sanitizeForDisplay.
 	Detail string
@@ -144,7 +144,7 @@ func ExecSurface(p *KapiProject) []ExecSite {
 	}
 	var sites []ExecSite
 
-	// Flows, in name order — Go map iteration is randomised.
+	// Flows, in name order, since Go map iteration is randomised.
 	flowNames := make([]string, 0, len(p.Flows))
 	for name := range p.Flows {
 		flowNames = append(flowNames, name)
@@ -244,8 +244,8 @@ func execSitesInToolConfig(in map[string]map[string]any, where string) []ExecSit
 var execDetailKeys = []string{"command", "args", "script_file", "script"}
 
 // summariseExecConfig renders the part of a config that says what would run.
-// Values come from an untrusted recipe, so the result is sanitised and clipped
-// — it is evidence for a decision, not a faithful echo of the file.
+// Values come from an untrusted recipe, so the result is sanitised and clipped:
+// it is evidence for a decision, not a faithful echo of the file.
 func summariseExecConfig(config map[string]any) string {
 	if len(config) == 0 {
 		return ""
@@ -298,7 +298,7 @@ func sanitizeForDisplay(s string) string {
 // decision is about the argv a person approved, so adding a target language or
 // a content glob must not invalidate it, while adding an argument to an
 // approved command must. Each site contributes its location, kind, name and
-// canonical configuration — encoding/json sorts map keys, so a reordered YAML
+// canonical configuration. encoding/json sorts map keys, so a reordered YAML
 // mapping digests identically while a changed value does not.
 //
 // An empty surface digests to the empty string; there is nothing to decide.

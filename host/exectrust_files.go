@@ -32,13 +32,14 @@ type execSurface struct {
 
 // execSurfaceOf reads the recipe's exec surface together with what it names.
 // A command that names a file in the project (a script_file, an executable
-// given by a path, an interpreter's script) runs that file, so the decision
-// covers the file's content as well as the command line, and the project's id:
-// an edit to the script, or another repository cloned to the same path, asks
-// again. A path is resolved as the command resolves it, against the working
-// directory, and read through the project root; one that is or passes through
+// given by a path, an interpreter's script) runs that file. The decision
+// covers the file's content, the command line and the project's id, so an
+// edited script or another repository at the same path asks again.
+//
+// A path is resolved as the command resolves it, against the working
+// directory, and read through the project root. One that is or passes through
 // a link out of the project is refused. What a command reads at run time
-// without naming it in the recipe is not covered.
+// without the recipe naming it is not covered.
 func execSurfaceOf(recipePath string, proj *project.KapiProject) (execSurface, error) {
 	sites := project.ExecSurface(proj)
 	if len(sites) == 0 {

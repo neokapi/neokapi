@@ -13,20 +13,14 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// Execution trust: a recipe that names an exec-class step runs code chosen by
-// whoever wrote the recipe, with the privileges and the environment of whoever
-// runs kapi. Because a recipe is discovered by an upward walk from the working
-// directory (core/project.ResolveLayout), entering a directory is enough to
-// bind one — so the decision to let a particular project run commands is taken
-// once, by a person, and remembered.
+// Execution trust: a recipe that names an exec-class step runs code its author
+// chose, with the privileges of whoever runs kapi. Entering a directory binds
+// its recipe (core/project.ResolveLayout), so a person decides once per
+// project whether it may run commands, and the answer is remembered.
 //
-// This is the recipe arm of a classification the codebase already applies
-// elsewhere: MCP withholds the same tools from the agent surface even under
-// --all-tools (AD-037), and a recipe arriving inside a .kpz has them stripped
-// on ingest (kpz.SanitizeRecipe). Those two surfaces can refuse outright
-// because no person is present to ask. A recipe in the working directory is
-// the one case where the answer legitimately depends on the user, so it is the
-// one case that asks.
+// MCP withholds the same tools even under --all-tools (AD-037), and a recipe
+// inside a .kpz has them stripped (kpz.SanitizeRecipe): nobody is there to
+// ask. A recipe in the working directory is the case that asks.
 
 // Trust decisions.
 const (
@@ -36,26 +30,21 @@ const (
 
 // execTrustEnvVar grants execution trust for the current process without
 // consulting or writing the record. It exists for CI, where no terminal is
-// attached and the pipeline author — not the repository being processed — is
-// the one deciding.
+// attached and the pipeline's author decides, not the repository it checks out.
 //
-// It is deliberately NOT the global --yes flag. --yes means "do not stop for
-// prompts I would obviously accept", and it is already passed by scripts that
-// want unattended plugin installation; reusing it would mean every existing
-// automation silently acquired the right to execute whatever a checked-out
-// recipe names, on the day this gate shipped. Same reasoning AD-037 applied to
-// `kapi mcp --all-tools`: "show me everything" and "run arbitrary commands" are
-// different classes of decision, and bundling them grants the second by
-// accident.
+// It is not the global --yes flag. Scripts pass --yes for unattended plugin
+// installs, and reading it as a grant would let each of them run whatever a
+// checked-out recipe names. As with `kapi mcp --all-tools` (AD-037), "do not
+// stop for prompts" and "run arbitrary commands" are different decisions.
 const execTrustEnvVar = "KAPI_TRUST_EXEC"
 
 // execTrustFileName is the record's name under ConfigDir().
 //
 // It lives in the kapi config root, not in the project's own `.kapi/` state
 // directory: `.kapi/` is documented as safe to delete and regenerate from the
-// block store (core/project.StateManifest), so a trust record kept there would
-// evaporate on a routine clean and re-arm the prompt — or, worse, ship inside
-// the project for the next person to inherit. ConfigDir() honours
+// block store (core/project.StateManifest). A trust record kept there would be
+// lost on a routine clean, or ship inside the project for the next person to
+// inherit. ConfigDir() honours
 // KAPI_CONFIG_DIR, so a run isolated per the in-repo contract reads and writes
 // a throwaway record rather than the developer's real decisions.
 const execTrustFileName = "trust.json"
@@ -298,7 +287,7 @@ func formatExecSites(sites []project.ExecSite) string {
 
 // checkExecToolAllowed is the backstop under tool construction. The prompt runs
 // at project load, which every project-aware command reaches through
-// LoadProjectInteractive — but a handful of internal paths load a recipe
+// LoadProjectInteractive, but a handful of internal paths load a recipe
 // directly, and a tool that runs commands should not depend on which of them
 // got there first. This refuses to build an exec-class tool from recipe-driven
 // configuration unless trust is established.
@@ -307,7 +296,7 @@ func formatExecSites(sites []project.ExecSite) string {
 // sensible place to stop and ask. It re-reads the record instead, so a project
 // already approved keeps working on the paths that skip the prompt.
 //
-// `kapi exec <tool>` is unaffected — it constructs tools straight from the
+// `kapi exec <tool>` is unaffected: it constructs tools straight from the
 // registry with an argv the user typed, which is the user's own intent rather
 // than a file's.
 func (a *App) checkExecToolAllowed(toolName string) error {

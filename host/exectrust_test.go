@@ -106,8 +106,8 @@ func TestCheckExecToolAllowed_ReadsTheRecordForPathsThatSkipThePrompt(t *testing
 
 // TestExecTrustEnvGranted_NeedsAnAffirmativeValue: KAPI_NO_PROJECT and
 // KAPI_PLUGINS_DIR_ONLY treat any non-empty value as set. That convention is
-// wrong for a switch that grants code execution — reading "0" as yes is the
-// wrong way to be wrong — so this one requires a real yes.
+// wrong for a switch that grants code execution, where reading "0" as yes is
+// the wrong way to be wrong, so this one requires a real yes.
 func TestExecTrustEnvGranted_NeedsAnAffirmativeValue(t *testing.T) {
 	cases := []struct {
 		value string
@@ -139,7 +139,7 @@ func TestExecTrustRecordIsOwnerOnly(t *testing.T) {
 }
 
 // TestExecTrustRecordSurvivesACorruptFile: the record is not authoritative
-// state — losing it costs one prompt. Refusing to start because it is
+// state, and losing it costs one prompt. Refusing to start because it is
 // unparseable would be worse than re-asking.
 func TestExecTrustRecordSurvivesACorruptFile(t *testing.T) {
 	isolateTrust(t)
