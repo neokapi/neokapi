@@ -144,10 +144,10 @@ func CheckStateTracked(ctx context.Context, l Layout) error {
 	if l.Root == "" || !rootpath.IsBeneath(l.Root, l.StateDir) {
 		return nil
 	}
-	entries, err := rootpath.ReadDir(l.Root, l.StateDir)
-	if err != nil {
-		return nil // no state directory: nothing kapi keeps is there yet
-	}
+	// A state directory that is not on disk is still asked about: git may
+	// track state the working tree has lost, which kapi would create afresh at
+	// the tracked paths.
+	entries, _ := rootpath.ReadDir(l.Root, l.StateDir)
 	if os.Getenv(TrustStateEnv) == "1" {
 		return nil
 	}
@@ -216,34 +216,43 @@ func stateRel(l Layout) string {
 }
 
 // trackedState returns, for each path git lists, the state path it is
-// beneath, spelled as git lists it, sorted with no repeats. A listed path is
-// compared with the state directory and its entries by the file each names on
-// this file system (os.SameFile), not by its spelling, so a case-insensitive
-// or normalising volume that resolves `.KAPI/WORK` to `.kapi/work` is judged
-// as it resolves. A listed path that is the state directory itself (a
-// submodule there) counts as tracking all of it.
+// beneath, spelled as git lists it, sorted with no repeats. A listed path that
+// exists on disk is compared with the state directory and its entries by the
+// file it names (os.SameFile), so a case-insensitive or normalising volume is
+// judged as it resolves names. A listed path that is not on disk (tracked, and
+// deleted from the working tree) is compared by name with the spelling kapi
+// would create, folded when this volume folds case (caseFolds). A listed path
+// that is the state directory itself (a submodule there) counts as tracking
+// all of it.
 func trackedState(l Layout, listing []string) []string {
-	stateInfo, err := rootpath.Stat(l.Root, l.StateDir)
-	if err != nil {
-		return nil
-	}
-	var entryInfos []fs.FileInfo
+	stateInfo, _ := rootpath.Stat(l.Root, l.StateDir)
+	entryInfos := map[string]fs.FileInfo{}
 	for _, name := range StateEntries {
 		if info, err := rootpath.Stat(l.Root, filepath.Join(l.StateDir, name)); err == nil {
-			entryInfos = append(entryInfos, info)
+			entryInfos[name] = info
 		}
 	}
-	depth := len(strings.Split(stateRel(l), "/"))
+	rel := stateRel(l)
+	depth := len(strings.Split(rel, "/"))
+	fold := caseFolds(l.Root)
 	stats := map[string]fs.FileInfo{}
-	same := func(prefix string, want fs.FileInfo) bool {
-		info, seen := stats[prefix]
+	// names reports whether the listed prefix names the state path spelled
+	// want, whose file is info (nil when it is not on disk).
+	names := func(prefix, want string, info fs.FileInfo) bool {
+		got, seen := stats[prefix]
 		if !seen {
 			// Through the root: a listed name that leads out of the project
 			// names no state of this one.
-			info, _ = rootpath.Stat(l.Root, filepath.Join(l.Root, filepath.FromSlash(prefix)))
-			stats[prefix] = info
+			got, _ = rootpath.Stat(l.Root, filepath.Join(l.Root, filepath.FromSlash(prefix)))
+			stats[prefix] = got
 		}
-		return info != nil && os.SameFile(info, want)
+		if got != nil {
+			return info != nil && os.SameFile(got, info)
+		}
+		if fold {
+			return strings.EqualFold(prefix, want)
+		}
+		return prefix == want
 	}
 	var tracked []string
 	add := func(p string) {
@@ -257,7 +266,7 @@ func trackedState(l Layout, listing []string) []string {
 			continue
 		}
 		dirPrefix := strings.Join(parts[:depth], "/")
-		if !same(dirPrefix, stateInfo) {
+		if !names(dirPrefix, rel, stateInfo) {
 			continue
 		}
 		if len(parts) == depth {
@@ -265,14 +274,28 @@ func trackedState(l Layout, listing []string) []string {
 			continue
 		}
 		entryPrefix := strings.Join(parts[:depth+1], "/")
-		for _, want := range entryInfos {
-			if same(entryPrefix, want) {
+		for _, name := range StateEntries {
+			if names(entryPrefix, dirPrefix+"/"+name, entryInfos[name]) {
 				add(entryPrefix)
 			}
 		}
 	}
 	slices.Sort(tracked)
 	return tracked
+}
+
+// caseFolds reports whether the volume holding root treats names that differ
+// only in case as one, by asking it about the recipe under another case. It
+// creates nothing. When it cannot tell, it reports true, so a deleted state
+// path is matched the safer way.
+func caseFolds(root string) bool {
+	recipe := filepath.Join(root, RecipeFileName)
+	info, err := rootpath.Stat(root, recipe)
+	if err != nil {
+		return true
+	}
+	other, err := rootpath.Stat(root, filepath.Join(root, strings.ToUpper(RecipeFileName)))
+	return err == nil && os.SameFile(info, other)
 }
 
 // findGitDir finds the git repository holding root, walking up from it, and
