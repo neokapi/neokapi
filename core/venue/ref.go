@@ -2,6 +2,7 @@ package venue
 
 import (
 	"slices"
+	"strconv"
 
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/terms"
@@ -119,6 +120,13 @@ func decisionFields(d UnitDecision) []string {
 	}
 	if d.GoverningFingerprint != "" {
 		fields = append(fields, d.GoverningFingerprint)
+	}
+	// Reasons are appended only when the record carries any, for the same
+	// reason as the fingerprint. Their count comes first, so no reason can be
+	// read as another field.
+	if len(d.Reasons) > 0 {
+		fields = append(fields, "reasons", strconv.Itoa(len(d.Reasons)))
+		fields = append(fields, d.Reasons...)
 	}
 	return fields
 }

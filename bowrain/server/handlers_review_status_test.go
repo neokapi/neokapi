@@ -254,6 +254,12 @@ func TestDecide_EstablishedTakesTheReviewPermission(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
 	assert.Equal(t, change.CodeNotPermitted, res.Ops[0].Error.Code)
 
+	// The translation arrived established, with no decision on record: the
+	// reviewer's approval is the first, and is recorded. The same approval
+	// again changes nothing.
+	rec, res = decideAs(t, srv, cs, pid, bid, "fr", change.OutcomeEstablish, reviewer)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Equal(t, change.OpApplied, res.Ops[0].Status, "the first approval on record is recorded")
 	rec, res = decideAs(t, srv, cs, pid, bid, "fr", change.OutcomeEstablish, reviewer)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Equal(t, change.OpUnchanged, res.Ops[0].Status, "re-establishing changes nothing")

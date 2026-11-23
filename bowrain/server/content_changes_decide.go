@@ -157,7 +157,11 @@ func (d *streamDecisions) Apply(ctx context.Context, actor change.Actor, set *ch
 		e.Message = sodRefusal + "; your correction is saved and waits for another reviewer to approve it"
 		return "", e
 	}
-	req := ReviewBlockRequest{TargetLocale: locale, ItemName: target.Doc.Doc, BaseRevision: target.Rev}
+	req := ReviewBlockRequest{TargetLocale: locale, ItemName: target.Doc.Doc, BaseRevision: target.Rev,
+		Reasons: body.Reasons}
+	if set != nil {
+		req.Note = set.Note
+	}
 	demoteTo := model.TargetStatusTranslated
 	switch body.Outcome {
 	case change.OutcomeEstablish:
@@ -179,15 +183,13 @@ func (d *streamDecisions) Apply(ctx context.Context, actor change.Actor, set *ch
 	if err != nil {
 		return "", decisionRefusal(err)
 	}
-	if !out.Changed {
+	if !out.Changed && !out.Recorded {
+		// The same person's same decision, with the same note and reasons,
+		// already stands.
 		return change.OpUnchanged, nil
 	}
-	note := ""
-	if set != nil {
-		note = set.Note
-	}
 	if !d.quiet {
-		d.s.emitReviewDecisionAudit(d.c, d.proj.ID, d.stream, row.Block.ID, locale, out.From, out.Status, req.Reviewed, note)
+		d.s.emitReviewDecisionAudit(d.c, d.proj.ID, d.stream, row.Block.ID, locale, out.From, out.Status, req.Reviewed, req.Note, req.Reasons)
 	}
 	d.applied++
 	if out.Approval {

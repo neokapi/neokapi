@@ -102,9 +102,13 @@ type UnitDecision struct {
 	ReviewState string `json:"reviewState,omitempty"` // approved | rejected
 	DecidedBy   string `json:"by,omitempty"`          // "" human · "ai/<model>" · "agent/<client>" · server identity
 	DecidedAt   string `json:"at,omitempty"`          // RFC 3339
-	Note        string `json:"note,omitempty"`
-	Parked      bool   `json:"parked,omitempty"`
-	Assignee    string `json:"assignee,omitempty"`
+	// Note is what the person wrote with the decision.
+	Note string `json:"note,omitempty"`
+	// Reasons are the reasons the person chose for a rejection or a
+	// correction, such as "meaning" or "wrong_term".
+	Reasons  []string `json:"reasons,omitempty"`
+	Parked   bool     `json:"parked,omitempty"`
+	Assignee string   `json:"assignee,omitempty"`
 	// GoverningFingerprint is the governing context the record's answer stands
 	// under (state.UnitState.GoverningFingerprint): the voice guidance and term
 	// rules in force when the decision was made, or the producer's stamp on a
