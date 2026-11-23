@@ -58,7 +58,7 @@ catalog:
 
 # Cross-workspace version pins (was the root package.json npm "overrides").
 overrides:
-  "@tanstack/react-query": "5.108.0"
+  "@tanstack/react-query": "5.108.2"
   "webpackbar": "^7.0.0"
   vite@*: 'catalog:'
 
