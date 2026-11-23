@@ -179,6 +179,13 @@ type FileRunnerConfig struct {
 	// per-file detected format. Empty when PartCache is nil.
 	PartCacheKey string
 
+	// FormatProducer names what produces a parse of a file read in the given
+	// format, for the cache key: "" for a built-in format, and a plugin's
+	// identity (name, version, fingerprint) for one a plugin reads. An upgraded
+	// plugin's files are then parsed again. cacheable false means the file
+	// is parsed every time. Nil treats every format as built in.
+	FormatProducer func(format string) (identity string, cacheable bool)
+
 	// Home is the file home every document the run writes is committed
 	// through (see documents.go). The kapi host passes the home its change
 	// service commits through, so both take the same lock for one file. Nil
@@ -435,6 +442,15 @@ func (r *FileRunner) cachedSource(ctx context.Context, reader format.DataFormatR
 		return nil, errCacheUnavailable
 	}
 	key := r.partCacheKey(reader.Name(), reconstructs)
+	if r.cfg.FormatProducer != nil {
+		id, ok := r.cfg.FormatProducer(reader.Name())
+		if !ok {
+			return nil, errCacheUnavailable
+		}
+		if id != "" {
+			key += "|" + id
+		}
+	}
 	if doc := r.cfg.PartCache.OpenDocument(inputPath, key); doc != nil {
 		reader.Close()
 		return doc, nil

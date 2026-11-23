@@ -1998,11 +1998,15 @@ func (a *App) readBlocksAs(ctx context.Context, root, path, fmtName string, cfg 
 	// streaming the parts one at a time and projecting out the translatable
 	// blocks. The read/coverage path never reconstructs output, so it never opens
 	// the skeleton. The key is namespaced ("rbw|") and disjoint from the runner's.
-	// A convergence run's draft tree is rebuilt on every run and removed at its
-	// end, so its files are never cached: an entry for one would be refreshed
-	// on every run that changes nothing, and outlive the file.
-	if a.docCache != nil && !a.inConvergeDraftTree(path) {
-		configKey := readBlocksConfigKey(fmtName, cfg, sourceLang)
+	// A convergence run's draft tree is rebuilt on every run, so its files are
+	// never cached.
+
+	// A file a plugin reads is keyed by the plugin's identity too, so an
+	// upgraded plugin's files are parsed again; one whose plugin declares no
+	// version is never served from the cache.
+	producer, cacheable := a.formatProducer(a.readFormatOf(path, fmtName))
+	if a.docCache != nil && cacheable && !a.inConvergeDraftTree(path) {
+		configKey := readBlocksConfigKey(fmtName, cfg, sourceLang) + "|" + producer
 		if doc := a.docCache.OpenDocument(path, configKey); doc != nil {
 			blocks, err := streamTranslatableBlocks(ctx, doc)
 			_ = doc.Close()
@@ -2064,6 +2068,20 @@ func streamTranslatableBlocks(ctx context.Context, doc flow.CachedDocument) ([]*
 		}
 	}
 	return blocks, <-errc
+}
+
+// readFormatOf is the format a read of path uses: fmtName when given, else
+// the one detection by extension names, as recordAndCollectBlocks detects it.
+// "" when detection finds none.
+func (a *App) readFormatOf(path, fmtName string) string {
+	if fmtName != "" {
+		return fmtName
+	}
+	detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
+	if err != nil {
+		return ""
+	}
+	return string(detected)
 }
 
 // recordAndCollectBlocks is the read-path cache miss: it parses the file once,

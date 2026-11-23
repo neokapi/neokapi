@@ -72,6 +72,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		convergeDeliveries:  a.convergeDeliveries,
 		printOps:            a.printOps,
 		docCache:            a.docCache,
+		parseCacheOff:       a.parseCacheOff,
 		translator:          a.translator,
 		AISetupIOOverride:   a.AISetupIOOverride,
 		AISetupPrompter:     a.AISetupPrompter,
@@ -175,6 +176,7 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	// A run that prints its change set prints one, gathered from every worker.
 	"printOps":              fieldShared,
 	"docCache":              fieldShared,
+	"parseCacheOff":         fieldShared,
 	"translator":            fieldShared,
 	"pluginRuntime":         fieldShared, // pre-seeded, never rebuilt per worker
 	"projectStores":         fieldShared, // pre-seeded: one store per project, not per locale

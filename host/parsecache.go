@@ -246,6 +246,7 @@ func (a *App) openParseCache(root string) (func(), error) {
 	}
 	c, err := openProjectDocCache(layout)
 	if err != nil {
+		a.noteParseCacheOff(err)
 		return func() {}, nil
 	}
 	a.docCache = c
