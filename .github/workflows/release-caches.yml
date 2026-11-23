@@ -10,7 +10,19 @@ name: Release caches
 #     compile (the kapi CLI, the kapi-bowrain plugin and both desktop apps),
 #     under go-release-<os>-<arch>-<sha>.
 #
-# Windows jobs build ICU through MSYS2 and are not warmed here.
+# The Windows release legs stay cold on purpose. They compile with cgo through
+# MSYS2 toolchains of their own (gcc in MINGW64 on windows-2025, clang in
+# CLANGARM64 on windows-11-arm) against MSYS2's ICU, so warming them means a
+# second copy of that setup here, per architecture, that only a run on main can
+# exercise, plus two more Go caches inside the 9 GiB budget. Whether that pays
+# is decided after the Linux and macOS legs show what a warm cache saves; until
+# then every Windows leg compiles from scratch, as it did before this workflow.
+#
+# A Go build cache entry is used as written: a release job trusts what it
+# restores. That is safe because only runs on main write these keys (the job
+# below runs on main only, and scripts/check-ci-caches.py refuses any save
+# that could run elsewhere), so what a signed release artifact is built from
+# never comes from a pull request or a branch.
 
 on:
   push:
