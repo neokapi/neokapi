@@ -1,21 +1,15 @@
 # A failing scheduled run tells someone.
 #
-# Nothing here watches a schedule itself: it listens for the scheduled
-# workflows finishing and files an issue when one fails. That indirection is
-# the point — a `workflow_run` listener covers every workflow named below
-# without editing any of them, so a new scheduled job is one line here rather
-# than a failure path in eight files that each have to remember it.
+# This workflow listens for the scheduled workflows below finishing; a new
+# scheduled job is one line here.
 #
-# The gap this closes: a nightly failure previously reached a log and stopped.
-# e2e.yml already records two suites promoted to pre-merge because they went
-# red and stayed red unnoticed ("because the job was nightly-only, nothing said
-# so"). Two more followed. The E2E image build broke when the vite-plus
-# installer moved its tree, and Dogfood Sync broke when the push protocol
-# retired /push/diff without re-cutting the plugin that calls it — six days,
-# with the evidence sitting in CloudWatch the whole time.
+# One issue per workflow, labelled `scheduled-failure` and titled
+# "Scheduled run failing: <workflow>". A failure opens it, or reopens it and
+# comments, naming the jobs that failed. Only a fresh scheduled run (attempt 1)
+# that passes closes it; a re-run that passes leaves a comment.
 #
-# One open issue per workflow, reopened and commented rather than duplicated,
-# so a job failing every night is one thread and not thirty.
+# A dispatch with a run id replays a listed workflow's scheduled run to test
+# the reporter. A replay can open or update an issue and never closes one.
 name: Scheduled failure
 
 on:
@@ -34,66 +28,166 @@ on:
       - Bot PR Watch
       - Gardening
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Id of a finished scheduled run of a listed workflow, to replay (opens or updates only)"
+        required: true
+      workflow:
+        description: "Name of that run's workflow, as listed above; the replay checks it against the run"
+        required: true
 
 permissions:
   contents: read
   issues: write
+  # Read the reported run and its jobs.
+  actions: read
+
+# Reports for one workflow never interleave, a replay's included: a replay
+# names its workflow, and the step checks the name against the run.
+concurrency:
+  group: scheduled-failure-${{ github.event.workflow_run.name || inputs.workflow }}
+  cancel-in-progress: false
 
 jobs:
   report:
-    name: File the failure
+    name: Report the scheduled run
     runs-on: ubuntu-latest
-    # Only a SCHEDULED failure. A push or dispatch failure already has someone
-    # watching it — the person who pushed — and filing for those turns the
-    # tracker into a second, worse copy of the Actions tab.
+    # Only a SCHEDULED run. A push or dispatch failure already has someone
+    # watching it: the person who pushed. The step checks the event again for
+    # a replayed run.
     if: >-
-      github.event.workflow_run.conclusion == 'failure' &&
+      github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.event == 'schedule'
     steps:
-      - name: Open or update the tracking issue
+      # A replay checks the run's workflow against the list above, read from
+      # this file rather than kept in a second copy.
+      - name: Check out this workflow (replay only)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/workflows/scheduled-failure-issue.yml
+          sparse-checkout-cone-mode: false
+
+      - name: Open, update or close the tracking issue
         env:
           GH_TOKEN: ${{ github.token }}
-          WORKFLOW: ${{ github.event.workflow_run.name }}
-          RUN_URL: ${{ github.event.workflow_run.html_url }}
-          RUN_AT: ${{ github.event.workflow_run.updated_at }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
+          GH_REPO: ${{ github.repository }}
+          RUN_JSON: ${{ toJSON(github.event.workflow_run) }}
+          REPLAY_RUN_ID: ${{ inputs.run_id }}
+          REPLAY_WORKFLOW: ${{ inputs.workflow }}
         run: |
           set -euo pipefail
 
-          title="Scheduled run failing: ${WORKFLOW}"
-          body="$(printf '%s\n' \
-            "\`${WORKFLOW}\` failed on its schedule." \
-            "" \
-            "- Run: ${RUN_URL}" \
-            "- Commit: \`${SHA}\`" \
-            "- At: ${RUN_AT}" \
-            "" \
-            "This issue is reused for every subsequent failure of this workflow," \
-            "so the thread is the failure's history. Close it when the run is" \
-            "green again; the next failure reopens it.")"
+          run="$RUN_JSON"
+          replay=false
+          if [ -n "${REPLAY_RUN_ID:-}" ]; then
+            replay=true
+            case "$REPLAY_RUN_ID" in *[!0-9]*) echo "::error::run_id must be a number"; exit 1 ;; esac
+            run="$(gh api "repos/$GH_REPO/actions/runs/$REPLAY_RUN_ID")"
+          fi
+          field() { printf '%s' "$run" | jq -r "$1"; }
+          workflow="$(field .name)"
+          event="$(field .event)"
+          conclusion="$(field .conclusion)"
+          run_id="$(field .id)"
+          attempt="$(field .run_attempt)"
+          run_url="$(field .html_url)"
+          run_at="$(field .updated_at)"
+          sha="$(field .head_sha)"
+          echo "$workflow run $run_id (attempt $attempt): event $event, conclusion $conclusion, replay $replay"
 
-          # One thread per workflow, found by exact title among open AND closed,
-          # so a recurrence reopens the history instead of starting a new one.
-          # The title goes to jq as DATA (--arg), never spliced into the program:
-          # a workflow name carrying a quote would otherwise rewrite the filter.
-          existing="$(gh issue list \
-            --state all \
-            --label scheduled-failure \
-            --limit 100 \
-            --json number,title,state \
-            | jq -c --arg t "$title" 'map(select(.title == $t)) | first // empty')"
-
-          if [ -z "$existing" ]; then
-            gh issue create \
-              --title "$title" \
-              --body "$body" \
-              --label scheduled-failure
+          if [ "$replay" = true ]; then
+            if [ "$workflow" != "$REPLAY_WORKFLOW" ]; then
+              echo "::error::run ${run_id} belongs to ${workflow}, not ${REPLAY_WORKFLOW}; refusing to replay it"
+              exit 1
+            fi
+            if ! WORKFLOW="$workflow" python3 - <<'EOF'
+          import os, sys, yaml
+          doc = yaml.safe_load(open(".github/workflows/scheduled-failure-issue.yml"))
+          listed = (doc.get("on") or doc.get(True))["workflow_run"]["workflows"]
+          sys.exit(0 if os.environ["WORKFLOW"] in listed else 1)
+          EOF
+            then
+              echo "::error::${workflow} is not a workflow this reporter listens to; refusing to replay it"
+              exit 1
+            fi
+            if [ "$event" != schedule ]; then
+              echo "::error::run ${run_id} was a ${event} run, not a scheduled one; refusing to replay it"
+              exit 1
+            fi
+          elif [ "$event" != schedule ]; then
+            echo "Not a scheduled run; nothing to report."
             exit 0
           fi
 
-          number="$(printf '%s' "$existing" | jq -r .number)"
-          state="$(printf '%s' "$existing" | jq -r .state)"
-          if [ "$state" = "CLOSED" ]; then
+          title="Scheduled run failing: ${workflow}"
+          # The tracking issue for this workflow, open first, then the most
+          # recent closed one. The title goes to jq as data (--arg), never into
+          # the program, so a quote in a workflow name cannot rewrite the filter.
+          existing="$(gh issue list --state all --label scheduled-failure --limit 200 \
+            --json number,title,state \
+            | jq -c --arg t "$title" \
+              'map(select(.title == $t)) | (map(select(.state == "OPEN")) + map(select(.state != "OPEN"))) | first // empty')"
+          number="$(printf '%s' "$existing" | jq -r '.number // empty')"
+          state="$(printf '%s' "$existing" | jq -r '.state // empty')"
+
+          case "$conclusion" in
+            success)
+              if [ "$replay" = true ]; then
+                echo "A replay never closes an issue; only a scheduled run observed as it completes does."
+              elif [ "$state" != OPEN ]; then
+                echo "No open issue for ${workflow}; nothing to close."
+              elif [ "$attempt" = 1 ]; then
+                gh issue comment "$number" --body "\`${workflow}\` passed on its schedule: ${run_url} (\`${sha}\`, ${run_at}). Closing."
+                gh issue close "$number"
+              else
+                gh issue comment "$number" --body "\`${workflow}\` passed on a re-run (attempt ${attempt}): ${run_url}. The issue stays open until a fresh scheduled run passes."
+              fi
+              exit 0 ;;
+            failure|timed_out|startup_failure) ;;
+            *)
+              echo "Conclusion ${conclusion} neither opens nor closes an issue."
+              exit 0 ;;
+          esac
+
+          # The failing jobs are a detail: when they cannot be read, the issue
+          # is still filed, saying so.
+          if failed="$(gh api --paginate "repos/$GH_REPO/actions/runs/$run_id/attempts/$attempt/jobs" \
+            --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | "- [\(.name)](\(.html_url))"')"; then
+            if [ -z "$failed" ]; then
+              failed="- No job reports a failure; the run failed before its jobs, or at the workflow level."
+            fi
+          else
+            echo "::warning::could not read the jobs of run ${run_id}"
+            failed="- Job names unavailable: the run's jobs could not be read. See ${run_url}."
+          fi
+          origin="\`${workflow}\` failed on its schedule."
+          if [ "$replay" = true ]; then
+            origin="\`${workflow}\` failed on its schedule. Reported by a replay (a dispatch of this reporter), not as the run completed."
+          fi
+          body="$(printf '%s\n' \
+            "$origin" \
+            "" \
+            "- Run: ${run_url} (attempt ${attempt})" \
+            "- Commit: \`${sha}\`" \
+            "- At: ${run_at}" \
+            "" \
+            "Failing jobs:" \
+            "$failed" \
+            "" \
+            "This issue collects every failure of this workflow. A fresh scheduled" \
+            "run that passes closes it.")"
+
+          # Idempotent: --force updates the label when it already exists.
+          gh label create scheduled-failure --force --color B60205 \
+            --description "A scheduled workflow is failing; closed when it next passes"
+
+          if [ -z "$number" ]; then
+            gh issue create --title "$title" --body "$body" --label scheduled-failure
+            exit 0
+          fi
+          if [ "$state" != OPEN ]; then
             gh issue reopen "$number"
           fi
           gh issue comment "$number" --body "$body"
