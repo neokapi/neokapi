@@ -608,6 +608,7 @@
   },
   "notice": {
     "stale": "This text changed after you read it. The new version is back in the deck.",
+    "partial": "Your correction is recorded where the text matches it. Someone else changed the other copies first: check them in the deck.",
     "held": "Your correction is saved and waits for another reviewer.",
     "refused": "The server did not accept a decision."
   },
@@ -965,6 +966,7 @@
       "fixLanded": "Sent. Edit the text again to change it",
       "secondReview": "Waits for a second reviewer",
       "stale": "The text changed first",
+      "partial": "Recorded where the text matches",
       "refused": "Not accepted",
       "undoing": "Undoing",
       "undone": "Undone"

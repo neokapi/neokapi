@@ -88,7 +88,7 @@ const CHANGE_RUNS: ModelRunSpec<ChangeRun> = {
 };
 
 /** What a decision addresses: the card's translation, or one of its copies. */
-type Decided = Pick<DeckCard, "item" | "blockId" | "locale" | "targetRevision" | "sourceRevision">;
+export type Decided = Pick<DeckCard, "item" | "blockId" | "locale" | "targetRevision" | "sourceRevision">;
 
 /** The card's translation and each copy it stands for, in that order. */
 export function decidedOf(card: DeckCard): Decided[] {
@@ -144,20 +144,21 @@ function changeSet(ops: ChangeOp[], card: DeckCard, note?: string): ChangeSet {
 }
 
 /**
- * Approve the translation the server holds at revision, with the reasons and
- * note of a correction whose text already stands there. The server records
- * the decision under this person with their reasons and note. It answers
- * unchanged when their own decision with the same reasons and note already
- * stands (the first attempt landed), and applied otherwise.
+ * Approve each block whose translation already is a correction's content,
+ * each at the revision the server holds for it, with the correction's reasons
+ * and note. The server records the decision under this person with their
+ * reasons and note. It answers unchanged when their own decision with the
+ * same reasons and note already stands (the first attempt landed), and
+ * applied otherwise.
  */
 export function confirmSet(
   card: DeckCard,
-  revision: string,
+  blocks: readonly Decided[],
   reasons: readonly FixReason[],
   note?: string,
 ): ChangeSet {
   return changeSet(
-    [decideOp({ ...card, targetRevision: revision }, "establish", reasons)],
+    blocks.map((d) => decideOp(d, "establish", reasons)),
     card,
     note,
   );
@@ -288,16 +289,28 @@ export function placeholderForm(runs: readonly Run[]): string {
 }
 
 /**
- * Whether a stale refusal shows that the text of a correction already stands:
- * the edition the server holds is the text the correction writes. That is the
- * correction's own first attempt when its answer was lost, or someone else
- * who typed the same text. Either way the text needs no second write, and the
- * person's decision is sent on its own (confirmSet).
+ * Whether two run sequences are the same content: every run of every kind
+ * equal, codes by id, type and attributes, plural forms and select cases
+ * included. Both sides go through the declared change-run projection
+ * (toChangeRuns), so no kind is compared by its text alone.
  */
-export function correctionLanded(outcome: ChangeOutcome, runs: readonly Run[]): boolean {
-  if (outcome.status !== "stale" || outcome.current?.text === undefined) return false;
-  const written = placeholderForm(runs);
-  return !written.includes(NO_MATCH) && outcome.current.text === written;
+export function sameContent(a: readonly Run[], b: readonly Run[]): boolean {
+  return canonicalJSON(toChangeRuns(a)) === canonicalJSON(toChangeRuns(b));
+}
+
+/** JSON with object keys sorted and absent fields left out. */
+function canonicalJSON(v: unknown): string {
+  return JSON.stringify(v, (_key, value: unknown) => {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const sorted: Record<string, unknown> = {};
+      for (const k of Object.keys(value as object).sort()) {
+        const field = (value as Record<string, unknown>)[k];
+        if (field !== undefined) sorted[k] = field;
+      }
+      return sorted;
+    }
+    return value;
+  });
 }
 
 /** Read a change set's result into the outcome a review surface acts on. */

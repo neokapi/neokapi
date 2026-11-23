@@ -5,7 +5,6 @@ import type { Run } from "@neokapi/kapi-format";
 
 import {
   approveSet,
-  correctionLanded,
   createBowrainClient,
   diffRuns,
   placeholderForm,
@@ -13,6 +12,7 @@ import {
   isNetworkError,
   NetworkError,
   readOutcome,
+  sameContent,
   rejectSet,
   revisionsOf,
   withdrawSet,
@@ -872,38 +872,33 @@ describe("a request that gets no answer", () => {
   });
 });
 
-describe("a correction that already landed", () => {
-  const stale = (text: string | undefined): ChangeResult =>
-    ({
-      schema: "kapi.change-result/v1",
-      status: "refused",
-      record: null,
-      docs: [],
-      ops: [
-        {
-          i: 1,
-          op: "decide",
-          status: "refused",
-          error: { code: "stale", field: "if_match", message: "moved" },
-          current: { rev: "r:3333333333333333", text },
-        },
-      ],
-    }) as unknown as ChangeResult;
+describe("the same content", () => {
+  const code = (id: string, type = "x-var"): Run => ({ ph: { id, type, data: "{{n}}", equiv: "{{n}}" } }) as Run;
+  const open = (id: string, type: string): Run => ({ pcOpen: { id, type, data: "<b>" } }) as Run;
+  const close = (id: string): Run => ({ pcClose: { id, type: "fmt", data: "</b>" } }) as Run;
+  const plural = (one: string): Run =>
+    ({ plural: { pivot: "n", forms: { one: [{ text: one }], other: [{ text: "files" }] } } }) as Run;
 
-  it("is told by the server holding the correction's own text", () => {
-    expect(correctionLanded(readOutcome(stale('Hei <x id="1/"/>')), [{ text: "Hei " }, ph])).toBe(
-      true,
-    );
+  it("is equal run for run", () => {
+    expect(sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }, code("1")])).toBe(true);
+    expect(sameContent([plural("file")], [plural("file")])).toBe(true);
   });
 
-  it("is not someone else's change", () => {
-    expect(correctionLanded(readOutcome(stale("Hallo")), [{ text: "Hei" }])).toBe(false);
-    expect(correctionLanded(readOutcome(stale(undefined)), [{ text: "Hei" }])).toBe(false);
+  it("is not the same words with a placeholder that differs", () => {
+    expect(sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }, code("2")])).toBe(false);
+    expect(sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }, code("1", "x-date")])).toBe(false);
+    expect(sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }])).toBe(false);
   });
 
-  it("is never a correction that holds a plural", () => {
-    const plural: Run = { plural: { pivot: "n", forms: { other: [{ text: "x" }] } } } as Run;
-    expect(correctionLanded(readOutcome(stale("x")), [plural])).toBe(false);
+  it("is not the same words with a paired code that differs", () => {
+    const a = [open("1", "fmt"), { text: "Lagre" }, close("1")];
+    const b = [open("1", "link"), { text: "Lagre" }, close("1")];
+    expect(sameContent(a, b)).toBe(false);
+    expect(sameContent(a, [{ text: "Lagre" }])).toBe(false);
+  });
+
+  it("is not a plural whose forms differ", () => {
+    expect(sameContent([plural("file")], [plural("fil")])).toBe(false);
   });
 
   it("writes inline codes as a read shows them", () => {
