@@ -129,6 +129,7 @@ ON CONFLICT (workspace_id) DO NOTHING;`,
 	{
 		Version:     12,
 		Description: "normalized text for terms written before the column",
+		Revision:    "1",
 		Apply: func(ctx context.Context, tx *sql.Tx) error {
 			return fw.BackfillNormalizedText(ctx, tx, true)
 		},

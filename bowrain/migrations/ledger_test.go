@@ -7,11 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/bowrain/migrations"
+	corestorage "github.com/neokapi/neokapi/core/storage"
 )
 
 // The ledger rules need no database, so they carry no build tag: every PR runs
 // them. Their siblings in schema_test.go build a real schema and sit behind
-// `integration`, which runs only on main — a lane that reports a broken ledger
+// `integration`, which runs only on main, a lane that reports a broken ledger
 // after the merge that broke it, to a database that has already been migrated.
 
 // TestBaselineVersionsSitAboveRetiredOnes checks the rule that outlives any one
@@ -28,17 +29,10 @@ func TestBaselineVersionsSitAboveRetiredOnes(t *testing.T) {
 	// strictly greater.
 	//
 	// Store and jobs sit above the rest because they were consolidated more
-	// than once: migrations appended after a fold (store 16-19, jobs 8-9) were
-	// themselves folded, and every number they spent stays spent. A baseline
-	// edited in place spends its old number too: auth 8 and knowledge 2, 3 and
-	// 4 were baselines before the machine author identity, the solo
-	// self-approval marker, change-set supersession and the stored
-	// blast-radius summary were folded into them, store 21 before
-	// the channel-alias proposals, jobs 9 before created_by, billing 7 before the
-	// deduction idempotency index, and extraction 2 before its attempt and
-	// lease bookkeeping. Auth spent 9 too, on the baseline that carried the
-	// machine author identity before the workspace voice-profile column rename
-	// was folded in.
+	// than once, and every number a fold spent stays spent. A baseline edited
+	// in place spends its old number too: auth 8 and 9, knowledge 2 to 4,
+	// store 21, jobs 9, billing 7 and extraction 2 were each a baseline before
+	// later changes were folded into it.
 	highestEverIssued := map[string]int{
 		"store": 21, "auth": 9, "jobs": 9, "quota": 3, "runner": 1,
 		"extraction": 2, "context_scan": 2, "model_sweep": 1, "voice": 2,
@@ -54,12 +48,12 @@ func TestBaselineVersionsSitAboveRetiredOnes(t *testing.T) {
 
 			// The invariant is about the version NUMBERS, not the count. Every
 			// migration a subsystem carries must sit above every version it
-			// retired, and later migrations must keep climbing — so a running
+			// retired, and later migrations must keep climbing, so a running
 			// max seeded with the highest retired version, which each migration
 			// must strictly exceed, catches both a reused number and a
 			// non-increasing one. Asserting a single baseline instead would fail
-			// the first time a real migration is appended after the fold — the
-			// ordinary, sanctioned way the schema evolves — and so mask the reuse
+			// the first time a real migration is appended after the fold, the
+			// ordinary, sanctioned way the schema evolves, and so mask the reuse
 			// it exists to catch.
 			last := prior
 			for _, m := range s.Migrations {
@@ -74,7 +68,7 @@ func TestBaselineVersionsSitAboveRetiredOnes(t *testing.T) {
 
 // TestVersionsAreUniqueWithinASubsystem is the cheapest guard on the sharpest
 // edge. The bookkeeping table's PRIMARY KEY is the version, and the runner
-// reads the applied maximum ONCE before its loop — so two migrations sharing a
+// reads the applied maximum ONCE before its loop, so two migrations sharing a
 // number produce one of two outcomes, both silent until they are not:
 //
 //   - An empty database applies both and then fails to record the second,
@@ -92,6 +86,19 @@ func TestVersionsAreUniqueWithinASubsystem(t *testing.T) {
 					"version %d is issued twice in %q: %q and %q", m.Version, s.Name, prior, m.Description)
 				seen[m.Version] = m.Description
 			}
+		})
+	}
+}
+
+// TestEveryLedgerIsValid holds each subsystem's migrations to the rules the
+// runner refuses to start without (storage.ValidateMigrations): one migration
+// per version, versions climbing without a gap nobody declared Retired, and a
+// declared revision on every step written in Go.
+func TestEveryLedgerIsValid(t *testing.T) {
+	for _, s := range migrations.All() {
+		t.Run(s.Name, func(t *testing.T) {
+			_, err := corestorage.ValidateMigrations(s.Table, s.Migrations)
+			require.NoError(t, err)
 		})
 	}
 }

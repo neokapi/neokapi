@@ -51,10 +51,9 @@ func MigratePostgresNS(db *PgDB, tableName string, migrations []Migration) error
 // same database serialize instead of racing.
 //
 // The pass is bounded by the context's deadline (DefaultMigrationTimeout when
-// it has none), and the same bound is set as lock_timeout and
-// statement_timeout on the pinned connection, so a statement that cannot take
-// its lock fails on the server naming itself rather than waiting for the
-// process to be killed from outside. When the pass times out, the error ends
+// it has none). The same bound is set as lock_timeout and statement_timeout
+// on the pinned connection, so a statement that cannot take its lock fails on
+// the server naming itself. When the pass times out, the error ends
 // with a summary of the sessions holding or waiting on locks in the database,
 // including whichever one holds the migration lock.
 func MigratePostgresNSContext(ctx context.Context, db *PgDB, tableName string, migrations []Migration) error {
@@ -107,10 +106,8 @@ func migrateUnderLock(ctx context.Context, db *PgDB, tableName string, migration
 	// unlock and the summary. A context deadline reached first makes pgx close
 	// the connection instead. lock_timeout sits below statement_timeout
 	// because PostgreSQL fires the statement timeout first when the two are
-	// equal, and "lock timeout" is the more telling of the two messages. SET
-	// takes no bind parameters; the values are integers this code computed.
-	// Both settings are session-scoped and the session goes back to the pool,
-	// so they are RESET on the way out.
+	// equal, and "lock timeout" is the more telling of the two messages. Both
+	// settings are session-scoped, so they are RESET on the way out.
 	ms := budget.Milliseconds()
 	for _, setting := range []struct {
 		name string
@@ -150,15 +147,18 @@ func migrateUnderLock(ctx context.Context, db *PgDB, tableName string, migration
 		}
 	}()
 
-	return runMigrations(ctx, conn, tableName, fmt.Sprintf(`
+	return runMigrations(ctx, conn, tableName, ledgerSQL{
+		create: fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			version     INTEGER PRIMARY KEY,
 			description TEXT NOT NULL,
-			applied_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		)
-	`, tableName),
-		fmt.Sprintf("INSERT INTO %s (version, description) VALUES ($1, $2)", tableName),
-		migrations)
+			applied_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			identity    TEXT NOT NULL DEFAULT ''
+		)`, tableName),
+		addIdentity: fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS identity TEXT NOT NULL DEFAULT ''", tableName),
+		insert:      fmt.Sprintf("INSERT INTO %s (version, description, identity) VALUES ($1, $2, $3)", tableName),
+		adopt:       fmt.Sprintf("UPDATE %s SET description = $1, identity = $2 WHERE version = $3 AND identity = ''", tableName),
+	}, migrations)
 }
 
 // sessionGone reports whether err says the pinned connection, and with it

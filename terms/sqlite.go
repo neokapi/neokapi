@@ -123,6 +123,7 @@ var tbMigrations = []storage.Migration{
 	{
 		Version:     8,
 		Description: "normalized text for terms written before the column",
+		Revision:    "1",
 		Apply: func(ctx context.Context, tx *sql.Tx) error {
 			return BackfillNormalizedText(ctx, tx, false)
 		},

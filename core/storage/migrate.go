@@ -1,13 +1,11 @@
 package storage
 
 import (
-	"cmp"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 )
@@ -22,6 +20,12 @@ type Migration struct {
 	Description string
 	SQL         string
 	Apply       func(ctx context.Context, tx *sql.Tx) error
+	// Revision is the declared revision of a step written in Go (Apply),
+	// part of its identity (MigrationIdentity). Change it with the step.
+	Revision string
+	// Retired marks a version that is spent and no longer applied: a
+	// migration removed or folded into a baseline. It carries no work.
+	Retired bool
 }
 
 // validTableName ensures the namespace only contains safe characters for a table name.
@@ -52,35 +56,35 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 		defer l.Unlock()
 	}
 
+	ordered, err := ValidateMigrations(tableName, migrations)
+	if err != nil {
+		return err
+	}
 	if _, err := db.Exec(fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			version     INTEGER PRIMARY KEY,
 			description TEXT NOT NULL,
-			applied_at  TEXT NOT NULL DEFAULT (datetime('now'))
+			applied_at  TEXT NOT NULL DEFAULT (datetime('now')),
+			identity    TEXT NOT NULL DEFAULT ''
 		)
 	`, tableName)); err != nil {
 		return fmt.Errorf("create migrations table: %w", err)
 	}
+	if err := ensureIdentityColumn(db, tableName); err != nil {
+		return err
+	}
+	if err := checkAndAdopt(db, tableName, ordered); err != nil {
+		return err
+	}
 
 	var currentVersion int
-	err := db.QueryRowContext(context.Background(), "SELECT COALESCE(MAX(version), 0) FROM "+tableName).Scan(&currentVersion)
+	err = db.QueryRowContext(context.Background(), "SELECT COALESCE(MAX(version), 0) FROM "+tableName).Scan(&currentVersion)
 	if err != nil {
 		return fmt.Errorf("get current version: %w", err)
 	}
 
-	// Apply in ascending version order regardless of how the caller ordered the
-	// slice, and reject duplicate versions, so correctness doesn't depend on
-	// every call site hand-sorting its migrations.
-	ordered := slices.Clone(migrations)
-	slices.SortFunc(ordered, func(a, b Migration) int { return cmp.Compare(a.Version, b.Version) })
-	for i := 1; i < len(ordered); i++ {
-		if ordered[i].Version == ordered[i-1].Version {
-			return fmt.Errorf("duplicate migration version %d in %q", ordered[i].Version, tableName)
-		}
-	}
-
 	for _, m := range ordered {
-		if m.Version <= currentVersion {
+		if m.Retired || m.Version <= currentVersion {
 			continue
 		}
 		if err := applyMigration(db, tableName, m); err != nil {
@@ -94,8 +98,8 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 // errLostRace marks the one non-lock condition applyMigration retries: another
 // applier committed this migration's version row between our in-transaction
 // re-check and our own insert. Only the version-row INSERT raises it. A UNIQUE
-// violation from a migration's *own* statements is a real fault — retrying it
-// for the whole window would bury the actual error under a timeout — so the
+// violation from a migration's *own* statements is a real fault, retrying it
+// for the whole window would bury the actual error under a timeout, so the
 // retry predicate tests this sentinel rather than the error text.
 var errLostRace = errors.New("migration version already recorded by a concurrent applier")
 
@@ -164,8 +168,8 @@ func tryApplyMigration(db *DB, tableName string, m Migration) (bool, error) {
 	}
 
 	if _, err := tx.ExecContext(context.Background(),
-		fmt.Sprintf("INSERT INTO %s (version, description) VALUES (?, ?)", tableName),
-		m.Version, m.Description,
+		fmt.Sprintf("INSERT INTO %s (version, description, identity) VALUES (?, ?, ?)", tableName),
+		m.Version, m.Description, MigrationIdentity(m),
 	); err != nil {
 		_ = tx.Rollback()
 		if isBusyErr(err) {
@@ -192,4 +196,54 @@ func tryApplyMigration(db *DB, tableName string, m Migration) (bool, error) {
 // standard SQLite message text).
 func isUniqueErr(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
+}
+
+// ensureIdentityColumn adds the identity column to a ledger created before
+// identities existed.
+func ensureIdentityColumn(db *DB, tableName string) error {
+	var n int
+	if err := db.QueryRowContext(context.Background(),
+		`SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = 'identity'`, tableName).Scan(&n); err != nil {
+		return fmt.Errorf("read the columns of %s: %w", tableName, err)
+	}
+	if n > 0 {
+		return nil
+	}
+	if _, err := db.Exec("ALTER TABLE " + tableName + " ADD COLUMN identity TEXT NOT NULL DEFAULT ''"); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+		return fmt.Errorf("add the identity column to %s: %w", tableName, err)
+	}
+	return nil
+}
+
+// checkAndAdopt compares the ledger with the code (CheckLedger) and writes
+// the code's name and identity over each row recorded before identities
+// existed.
+func checkAndAdopt(db *DB, tableName string, ordered []Migration) error {
+	rows, err := db.QueryContext(context.Background(), "SELECT version, description, identity FROM "+tableName)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", tableName, err)
+	}
+	var applied []AppliedMigration
+	for rows.Next() {
+		var a AppliedMigration
+		if err := rows.Scan(&a.Version, &a.Description, &a.Identity); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("read %s: %w", tableName, err)
+		}
+		applied = append(applied, a)
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("read %s: %w", tableName, err)
+	}
+	adopt, err := CheckLedger(tableName, ordered, applied)
+	if err != nil {
+		return err
+	}
+	for _, m := range adopt {
+		if _, err := db.Exec("UPDATE "+tableName+" SET description = ?, identity = ? WHERE version = ? AND identity = ''",
+			m.Description, MigrationIdentity(m), m.Version); err != nil {
+			return fmt.Errorf("adopt version %d of %s: %w", m.Version, tableName, err)
+		}
+	}
+	return nil
 }
