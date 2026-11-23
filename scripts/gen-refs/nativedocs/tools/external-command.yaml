@@ -44,9 +44,9 @@ parameters:
       from there. The directory kapi was started in reaches the command as
       `KAPI_INVOKE_DIR`. `kapi exec external-command` runs the command you
       type in the current directory. A project's approval checks the content
-      of a script named here or as an argument, not one a shell string
-      (`sh -c '...'`), `npm run` or `make` runs: name the script itself to
-      have it checked.
+      of a script named here or as an argument, not one that code given
+      inline (`sh -c '...'`, `node -e '...'`), `npm run` or `make` runs: name
+      the script itself to have it checked.
     values: "string (required)"
   args:
     description: Arguments passed to the command.

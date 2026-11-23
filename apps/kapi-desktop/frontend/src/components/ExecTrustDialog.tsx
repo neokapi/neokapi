@@ -62,9 +62,9 @@ export function ExecTrustDialog({ request, onAllow, onCancel }: ExecTrustDialogP
               items={request.not_checked}
             />
             <Group
-              slot="exec-trust-shells"
-              label={t("Runs through a shell, so kapi cannot see which files it uses")}
-              items={request.shells}
+              slot="exec-trust-inline"
+              label={t("Runs code given inline, so kapi cannot see which files it uses")}
+              items={request.inline}
             />
             <Group
               slot="exec-trust-added"

@@ -69,3 +69,50 @@ func TestExecSurfaceIn_ReadsTheFlowFiles(t *testing.T) {
 	assert.Equal(t, "flows/sneaky.yaml steps[0]", sites[0].Where)
 	assert.Equal(t, "external-command", sites[0].Name)
 }
+
+// A step that hands a program code as a string is reported with its form,
+// by the shape of the invocation: a program, then a flag that takes code. An
+// unknown program with such a flag is reported too; a script named as a
+// file is not.
+func TestExecSite_InlineCode(t *testing.T) {
+	site := func(command string, args ...string) ExecSite {
+		cfg := map[string]any{"command": command}
+		if len(args) > 0 {
+			list := make([]any, len(args))
+			for i, a := range args {
+				list[i] = a
+			}
+			cfg["args"] = list
+		}
+		return ExecSite{Name: "external-command", config: cfg}
+	}
+	for _, tt := range []struct {
+		site ExecSite
+		want string
+	}{
+		{site("sh", "-c", "cd scripts && ./hidden.sh"), "sh -c"},
+		{site("/bin/bash", "-c", "echo"), "bash -c"},
+		{site("cmd.exe", "/C", "dir"), "cmd /C"},
+		{site("pwsh", "-Command", "Get-Item"), "pwsh -Command"},
+		{site("node", "-e", "require('./lib/x.js')"), "node -e"},
+		{site("node", "--eval=require('./lib/x.js')"), "node --eval"},
+		{site("node", "-p", "1+1"), "node -p"},
+		{site("bun", "--print", "1"), "bun --print"},
+		{site("deno", "eval", "console.log(1)"), "deno eval"},
+		{site("python3", "-c", "import x"), "python3 -c"},
+		{site("perl", "-E", "say 1"), "perl -E"},
+		{site("ruby", "-e", "puts 1"), "ruby -e"},
+		{site("ruby", "-r", "./lib/x", "tools/y.rb"), "ruby -r"},
+		{site("php", "-r", "echo 1;"), "php -r"},
+		{site("/usr/bin/env", "node", "-e", "1"), "node -e"},
+		{site("my-tool", "-c", "config.yml"), "my-tool -c"},
+		{site("some-runner", "-e", "x"), "some-runner -e"},
+		{site("node", "tools/x.js"), ""},
+		{site("python", "tools/y.py", "--verbose"), ""},
+		{site("./tools/run.sh"), ""},
+		{site("my-formatter", "-p", "8080"), ""},
+	} {
+		assert.Equal(t, tt.want, tt.site.InlineCode(), "%v", tt.site.config)
+	}
+	assert.Empty(t, ExecSite{Name: "script", config: map[string]any{"code": "x"}}.InlineCode())
+}

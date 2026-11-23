@@ -45,9 +45,9 @@ type execSurface struct {
 	// NotChecked names the directories the sites name in the project: named,
 	// and their content not checked.
 	NotChecked []string
-	// Shells names the sites that hand a command string to a shell, whose
-	// files kapi cannot see.
-	Shells []string
+	// Inline names the sites that hand a program code as a string (a shell's
+	// -c, an interpreter's -e), with the form, whose files kapi cannot see.
+	Inline []string
 }
 
 // execSurfaceOf reads everything the project at recipePath can make kapi
@@ -92,8 +92,8 @@ func execSurfaceOf(recipePath string, proj *project.KapiProject) (execSurface, e
 				surface.Files[rel] = state
 			}
 		}
-		if site.RunsShellString() {
-			surface.Shells = append(surface.Shells, site.Where+" "+site.Name)
+		if form := site.InlineCode(); form != "" {
+			surface.Inline = append(surface.Inline, site.Where+" "+site.Name+" ("+form+")")
 		}
 		facts := map[string]any{"project": proj.ID}
 		if len(named) > 0 {
@@ -269,8 +269,8 @@ func formatExecCoverage(surface execSurface, key string) string {
 	if len(surface.NotChecked) > 0 {
 		fmt.Fprintf(&b, "Named and not checked (directories): %s\n", strings.Join(surface.NotChecked, ", "))
 	}
-	for _, s := range surface.Shells {
-		fmt.Fprintf(&b, "Runs through a shell, so kapi cannot see which files it uses: %s\n", s)
+	for _, s := range surface.Inline {
+		fmt.Fprintf(&b, "Runs code given inline, so kapi cannot see which files it uses: %s\n", s)
 	}
 	if added := addedExecSites(key, surface.Sites); len(added) > 0 {
 		fmt.Fprintf(&b, "Added since it was answered: %s\n", strings.Join(added, ", "))
@@ -288,8 +288,8 @@ func coverageSummary(surface execSurface) string {
 	if len(surface.NotChecked) > 0 {
 		parts = append(parts, "not checked: "+strings.Join(surface.NotChecked, ", "))
 	}
-	if len(surface.Shells) > 0 {
-		parts = append(parts, "through a shell: "+strings.Join(surface.Shells, ", "))
+	if len(surface.Inline) > 0 {
+		parts = append(parts, "code given inline: "+strings.Join(surface.Inline, ", "))
 	}
 	return strings.Join(parts, "; ") + "; not what they run or read"
 }
@@ -341,7 +341,7 @@ type ExecTrustRequest struct {
 	Sites      []output.TrustSite `json:"sites"`
 	Checked    []string           `json:"checked"`
 	NotChecked []string           `json:"not_checked,omitempty"`
-	Shells     []string           `json:"shells,omitempty"`
+	Inline     []string           `json:"inline,omitempty"`
 	Added      []string           `json:"added,omitempty"`
 	Changed    []string           `json:"changed,omitempty"`
 	Limit      string             `json:"limit"`
@@ -376,7 +376,7 @@ func PendingExecTrust(recipePath string) (*ExecTrustRequest, error) {
 		Sites:      trustSites(surface.Sites),
 		Checked:    sortedKeys(surface.Files),
 		NotChecked: surface.NotChecked,
-		Shells:     surface.Shells,
+		Inline:     surface.Inline,
 		Added:      addedExecSites(key, surface.Sites),
 		Changed:    changedExecFiles(key, surface.Files),
 		Limit:      execCheckLimit,

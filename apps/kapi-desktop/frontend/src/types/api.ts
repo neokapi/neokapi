@@ -950,8 +950,8 @@ export interface ExecTrustRequest {
   checked: string[];
   /** Directories the commands name, whose content is not checked. */
   not_checked?: string[];
-  /** Steps that hand a command string to a shell. */
-  shells?: string[];
+  /** Steps that hand a program code as a string (a shell's -c, an interpreter's -e), with the form. */
+  inline?: string[];
   added?: string[];
   changed?: string[];
   limit: string;

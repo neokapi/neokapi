@@ -256,34 +256,67 @@ var ExecSurfaceNonSources = map[string]string{
 // the tool presets that would arm a step.
 var ExecSurfaceDefaultsSources = []string{"Tools", "Locales"}
 
-// shellNames are programs that run a command string they are handed.
-var shellNames = map[string]bool{
-	"sh": true, "bash": true, "zsh": true, "dash": true, "ksh": true, "fish": true,
-	"cmd": true, "powershell": true, "pwsh": true,
+// inlineCodeFlags are the arguments that hand a program code as a string
+// rather than a file: a shell's `-c`, an interpreter's `-e` or `-c` (node,
+// python, perl, ruby), `--eval`, PowerShell's `-Command`, cmd's `/c`. They
+// count for any program, a program kapi does not know included: an unknown
+// program with one of them is reported as running inline code, because a
+// step wrongly reported as unchecked costs a clearer question, and one
+// wrongly passed over in silence reads as checked.
+var inlineCodeFlags = map[string]bool{
+	"-c": true, "-e": true, "-E": true, "--eval": true, "--exec": true,
+	"-command": true, "/c": true,
 }
 
-// RunsShellString reports whether the site hands a command string to a shell
-// (`sh -c '...'`, `cmd /c ...`), whose files kapi cannot see.
-func (s ExecSite) RunsShellString() bool {
+// inlineCodeForms are a known program's own ways of taking code inline, read
+// beside inlineCodeFlags: node's `-p`, deno's `eval`, php's `-r`, ruby's
+// `-r` (which loads a library the recipe does not name).
+var inlineCodeForms = map[string]map[string]bool{
+	"node":   {"-p": true, "--print": true},
+	"nodejs": {"-p": true, "--print": true},
+	"bun":    {"-p": true, "--print": true},
+	"deno":   {"eval": true},
+	"php":    {"-r": true},
+	"ruby":   {"-r": true},
+}
+
+// InlineCode reports how the site hands a program code as a string, such as
+// "sh -c" or "node -e", or "" when it does not. Code given inline can load
+// any file, and kapi cannot see which, so a question about the step says so.
+// It reads the shape of the invocation: a program, then a flag that takes
+// code.
+func (s ExecSite) InlineCode() string {
 	if s.Name != "external-command" {
-		return false
+		return ""
 	}
-	words := append([]string{}, s.NamedPaths()...)
-	if c, ok := s.config["command"].(string); ok {
-		words = append([]string{c}, words...)
+	command, _ := s.config["command"].(string)
+	words := []string{command}
+	switch args := s.config["args"].(type) {
+	case []any:
+		for _, a := range args {
+			if v, ok := a.(string); ok {
+				words = append(words, v)
+			}
+		}
+	case []string:
+		words = append(words, args...)
 	}
-	shell := false
-	for _, w := range words {
-		base := strings.TrimSuffix(strings.ToLower(filepath.Base(w)), ".exe")
-		if shellNames[base] {
-			shell = true
+	// The program is the command, or, behind env, the first word after it
+	// that is not a flag.
+	program := ""
+	for i, w := range words {
+		if i == 0 || program == "env" && !strings.HasPrefix(w, "-") {
+			program = strings.TrimSuffix(strings.ToLower(filepath.Base(w)), ".exe")
 			continue
 		}
-		if shell && (w == "-c" || strings.EqualFold(w, "/c") || strings.EqualFold(w, "-command")) {
-			return true
+		flag, _, _ := strings.Cut(w, "=")
+		lower := strings.ToLower(flag)
+		caseFree := lower == "/c" || lower == "-command"
+		if inlineCodeFlags[flag] || caseFree || inlineCodeForms[program][flag] {
+			return program + " " + flag
 		}
 	}
-	return false
+	return ""
 }
 
 // kapiOwnedKeys are configuration keys kapi sets on a recipe's step itself.

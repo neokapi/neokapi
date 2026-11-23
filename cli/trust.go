@@ -28,10 +28,10 @@ of those files, or another project at the same path asks again, and the
 question says which file changed. A named file that is a link out of the
 project is refused. The question and kapi trust list show the files checked
 by content, what the commands name and kapi does not check (a directory),
-and the commands that go through a shell (sh -c), whose files kapi cannot
-see. kapi checks the files listed, not what they run or read: to have a
-script checked, name it in the recipe (command: ./tools/run.sh) rather than
-inside a shell string or behind npm run or make. Flow files in flows_dir are
+and the commands that run code given inline (sh -c, node -e, python -c),
+whose files kapi cannot see. kapi checks the files listed, not what they run
+or read: to have a script checked, name it in the recipe (command:
+./tools/run.sh) rather than inside inline code or behind npm run or make. Flow files in flows_dir are
 covered as the recipe is, and the check runs at every command run. A recipe's commands run in the project root, wherever kapi is
 started, and relative paths are read from there; the directory kapi was
 started in reaches the command as KAPI_INVOKE_DIR. A comment edit's project
