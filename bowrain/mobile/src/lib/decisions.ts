@@ -12,6 +12,7 @@
 // or queued decision is dropped, a sent one is withdrawn with a new decision.
 import {
   approveSet,
+  confirmSet,
   correctionLanded,
   fixSet,
   isNetworkError,
@@ -133,8 +134,34 @@ export async function sendDecision(c: BowrainClient, v: DecisionVars): Promise<D
     case "stale":
       // A correction sent again after its first answer was lost is refused
       // by its own first attempt: the edition already holds its text.
-      if (v.kind === "fix" && correctionLanded(outcome, v.runs ?? v.card.target)) {
-        return { id: v.id, outcome: "applied", revision: outcome.current?.rev };
+      if (
+        v.kind === "fix" &&
+        outcome.current?.rev &&
+        correctionLanded(outcome, v.runs ?? v.card.target)
+      ) {
+        // The text already stands, as this correction's own first attempt or
+        // as someone else's identical edit. The decision is this person's,
+        // with their reasons and note, so it is sent on its own.
+        const confirmed = readOutcome(
+          await c.applyChanges(
+            v.scope,
+            confirmSet(v.card, outcome.current.rev, v.reasons ?? [], v.note),
+          ),
+        );
+        switch (confirmed.status) {
+          case "applied":
+            return {
+              id: v.id,
+              outcome: "applied",
+              revision: confirmed.revision ?? outcome.current.rev,
+            };
+          case "held":
+            return { id: v.id, outcome: "held", message: confirmed.error?.message };
+          case "stale":
+            return { id: v.id, outcome: "stale", message: confirmed.op.error?.message };
+          case "refused":
+            return { id: v.id, outcome: "refused", message: confirmed.error.message };
+        }
       }
       return { id: v.id, outcome: "stale", message: outcome.op.error?.message };
     case "refused":

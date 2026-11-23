@@ -41,16 +41,18 @@ export function feedDecision(
   itemId: string,
 ): { mine: boolean; name: string; action: "keep" | "reject" } | undefined {
   for (const e of entries) {
-    if (e.kind !== "context_change" || !e.link.items?.includes(itemId)) continue;
-    const ops = Object.keys(e.counts);
+    // Every field is read as possibly absent or null: this runs in the
+    // resend path, where a throw would read as "not reached".
+    if (e?.kind !== "context_change" || !e.link?.items?.includes(itemId)) continue;
+    const ops = Object.keys(e.counts ?? {});
     const action = ops.some((o) => REJECT_OPS.includes(o))
       ? "reject"
       : ops.some((o) => KEEP_OPS.includes(o))
         ? "keep"
         : undefined;
     if (!action) continue;
-    const mine = e.actor.viewer === true || e.on_behalf_of?.viewer === true;
-    return { mine, name: e.on_behalf_of?.name ?? e.actor.name ?? "", action };
+    const mine = e.actor?.viewer === true || e.on_behalf_of?.viewer === true;
+    return { mine, name: e.on_behalf_of?.name ?? e.actor?.name ?? "", action };
   }
   return undefined;
 }

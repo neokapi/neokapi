@@ -204,27 +204,63 @@ describe("the offline decision queue", () => {
     expect(qc.getQueryData<DecisionNotice[]>(NOTICES_KEY) ?? []).toEqual([]);
   });
 
-  it("takes a correction refused as stale by its own lost first attempt as done", async () => {
-    const fixed = { ...made(5, "fix"), runs: [{ text: "Rettet tekst" }] };
-    const s = losesFirstAnswer(() => ({
-      status: 409,
-      body: {
-        schema: "kapi.change-result/v1",
-        status: "refused",
-        record: null,
-        docs: [],
-        ops: [
-          { i: 0, op: "set_content", status: "not_applied", blocked_by: 1 },
-          {
-            i: 1,
-            op: "decide",
-            status: "refused",
-            error: { code: "stale", field: "if_match", message: "the edition moved" },
-            current: { rev: "r:3333333333333333", text: "Rettet tekst" },
-          },
-        ],
-      },
-    }));
+  // The edition already holds the correction's text: the stale answer a
+  // correction gets when its own first attempt landed, or when someone else
+  // typed the same text.
+  const textStands = {
+    status: 409,
+    body: {
+      schema: "kapi.change-result/v1",
+      status: "refused",
+      record: null,
+      docs: [],
+      ops: [
+        { i: 0, op: "set_content", status: "not_applied", blocked_by: 1 },
+        {
+          i: 1,
+          op: "decide",
+          status: "refused",
+          error: { code: "stale", field: "if_match", message: "the edition moved" },
+          current: { rev: "r:3333333333333333", text: "Rettet tekst" },
+        },
+      ],
+    },
+  };
+  const decided = (status: "applied" | "unchanged") => ({
+    status: 200,
+    body: {
+      schema: "kapi.change-result/v1",
+      status: "applied",
+      record: null,
+      docs: [],
+      ops: [
+        {
+          i: 0,
+          op: "decide",
+          status,
+          before: "r:3333333333333333",
+          after: "r:3333333333333333",
+        },
+      ],
+    },
+  });
+  type Sent = {
+    ops: { op: string; if_match: string; outcome?: string; reasons?: string[] }[];
+    note?: string;
+  };
+
+  it("records the person's decision on a correction whose text already stands", async () => {
+    // The first answer is lost; the repeat finds its own text; the decision
+    // sent on its own is the one already on record, and the route answers
+    // unchanged.
+    const fixed: DecisionVars = {
+      ...made(5, "fix"),
+      runs: [{ text: "Rettet tekst" }],
+      reasons: ["wrong_term"],
+      note: "The product says lagre.",
+    };
+    let n = 0;
+    const s = losesFirstAnswer(() => (++n === 1 ? textStands : decided("unchanged")));
     setDecisionClient(s.client);
     const qc = createQueryClient();
     holdDecision(qc, fixed);
@@ -232,7 +268,39 @@ describe("the offline decision queue", () => {
     await settled(qc, "d5");
     const result = readLog(qc).find((x) => x.vars.id === "d5")?.result;
     expect(result).toMatchObject({ outcome: "applied", revision: "r:3333333333333333" });
+    const confirm = s.sent[2] as Sent;
+    expect(confirm.ops).toHaveLength(1);
+    expect(confirm.ops[0]).toMatchObject({
+      op: "decide",
+      outcome: "establish",
+      if_match: "r:3333333333333333",
+      reasons: ["wrong_term"],
+    });
+    expect(confirm.note).toBe("The product says lagre.");
     expect(qc.getQueryData<DecisionNotice[]>(NOTICES_KEY) ?? []).toEqual([]);
+  });
+
+  it("records the person's decision when someone else typed the same text", async () => {
+    const fixed: DecisionVars = {
+      ...made(6, "fix"),
+      runs: [{ text: "Rettet tekst" }],
+      reasons: ["meaning"],
+      note: "Says the opposite.",
+    };
+    let n = 0;
+    const s = server(() => (++n === 1 ? textStands : decided("applied")));
+    setDecisionClient(s.client);
+    const qc = createQueryClient();
+    holdDecision(qc, fixed);
+    queue(qc, fixed);
+    await settled(qc, "d6");
+    expect(readLog(qc).find((x) => x.vars.id === "d6")?.result).toMatchObject({
+      outcome: "applied",
+    });
+    expect(s.sent).toHaveLength(2);
+    const confirm = s.sent[1] as unknown as Sent;
+    expect(confirm.ops[0]).toMatchObject({ op: "decide", reasons: ["meaning"] });
+    expect(confirm.note).toBe("Says the opposite.");
   });
 
   const entry = (qc: QueryClient, id: string): LoggedDecision => {

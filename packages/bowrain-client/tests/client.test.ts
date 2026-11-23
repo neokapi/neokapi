@@ -834,6 +834,42 @@ describe("a request that gets no answer", () => {
     const err = await client.refresh("r").catch((e: unknown) => e);
     expect(isNetworkError(err)).toBe(true);
   });
+
+  // An answer whose connection drops while its body arrives: the status came,
+  // the body did not.
+  const cutMidBody = (async () =>
+    new Response(
+      new ReadableStream({
+        start(c) {
+          c.enqueue(new TextEncoder().encode('{"schema":"kapi.change-result/v1","sta'));
+          c.error(new Error("terminated: other side closed"));
+        },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    )) as typeof fetch;
+
+  it("is a network error when the connection drops while a write's answer arrives", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: cutMidBody,
+    });
+    const err = await client
+      .applyChanges({ workspace: "acme", project: "p1" }, approveSet(card))
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(NetworkError);
+    expect((err as Error).message).toContain("other side closed");
+  });
+
+  it("is a network error when the connection drops while a read's or a token's answer arrives", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: cutMidBody,
+    });
+    expect(await client.workspaces().catch((e: unknown) => e)).toBeInstanceOf(NetworkError);
+    expect(await client.refresh("r").catch((e: unknown) => e)).toBeInstanceOf(NetworkError);
+  });
 });
 
 describe("a correction that already landed", () => {

@@ -143,6 +143,26 @@ function changeSet(ops: ChangeOp[], card: DeckCard, note?: string): ChangeSet {
   return set;
 }
 
+/**
+ * Approve the translation the server holds at revision, with the reasons and
+ * note of a correction whose text already stands there. The server records
+ * the decision under this person with their reasons and note. It answers
+ * unchanged when their own decision with the same reasons and note already
+ * stands (the first attempt landed), and applied otherwise.
+ */
+export function confirmSet(
+  card: DeckCard,
+  revision: string,
+  reasons: readonly FixReason[],
+  note?: string,
+): ChangeSet {
+  return changeSet(
+    [decideOp({ ...card, targetRevision: revision }, "establish", reasons)],
+    card,
+    note,
+  );
+}
+
 /** Approve the translation as the card shows it, and each copy. */
 export function approveSet(card: DeckCard): ChangeSet {
   return changeSet(
@@ -268,10 +288,11 @@ export function placeholderForm(runs: readonly Run[]): string {
 }
 
 /**
- * Whether a stale refusal shows that a correction already landed: the
- * edition the server holds is the text the correction writes. A correction
- * sent again after its first answer was lost is refused as stale by its own
- * first attempt, and this tells that apart from someone else's change.
+ * Whether a stale refusal shows that the text of a correction already stands:
+ * the edition the server holds is the text the correction writes. That is the
+ * correction's own first attempt when its answer was lost, or someone else
+ * who typed the same text. Either way the text needs no second write, and the
+ * person's decision is sent on its own (confirmSet).
  */
 export function correctionLanded(outcome: ChangeOutcome, runs: readonly Run[]): boolean {
   if (outcome.status !== "stale" || outcome.current?.text === undefined) return false;

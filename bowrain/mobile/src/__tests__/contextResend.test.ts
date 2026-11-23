@@ -124,4 +124,26 @@ describe("feedDecision", () => {
     });
     expect(feedDecision([forReader], "op1")).toEqual({ mine: true, name: "Ada", action: "keep" });
   });
+
+  it("reads an entry with null counts, link or actor without throwing", () => {
+    const nulls = [
+      entry({ counts: null as never }),
+      entry({ link: null as never }),
+      entry({ actor: null as never, counts: { keep: 1 } }),
+    ];
+    expect(() => feedDecision(nulls, "op1")).not.toThrow();
+    expect(feedDecision([entry({ counts: null as never })], "op1")).toBeUndefined();
+    expect(feedDecision([entry({ actor: null as never, counts: { keep: 1 } })], "op1")).toEqual({
+      mine: false,
+      name: "",
+      action: "keep",
+    });
+  });
+
+  it("resends past a feed entry with null counts", async () => {
+    const c = client([lost, notPending], [entry({ counts: null as never }), entry({})]);
+    await expect(sendContextDecision(c, "acme", "p1", keep, noWait)).resolves.toEqual({
+      outcome: "landed",
+    });
+  });
 });

@@ -397,6 +397,21 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     }
   }
 
+  /**
+   * The body of an answer, read as text. A connection lost while the body
+   * arrives is the same failure as one lost before the answer: the server may
+   * have acted, and the caller learns nothing. So it raises a NetworkError,
+   * as doFetch does; an abort the caller asked for stays as it is.
+   */
+  async function readText(res: Response, init: RequestInit): Promise<string> {
+    try {
+      return await res.text();
+    } catch (err) {
+      if (init.signal?.aborted) throw err;
+      throw new NetworkError(err instanceof Error ? err.message : String(err), { cause: err });
+    }
+  }
+
   async function send(
     path: string,
     init: RequestInit = {},
@@ -413,7 +428,7 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       const fresh = await opts.onUnauthorized();
       if (fresh) res = await attempt(fresh);
     }
-    const text = await res.text();
+    const text = await readText(res, init);
     let body: unknown = undefined;
     if (text) {
       try {
@@ -432,12 +447,19 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
   }
 
   async function postTokens(path: string, payload: object, failure: string): Promise<AuthTokens> {
-    const res = await doFetch(`${api}${path}`, {
+    const init: RequestInit = {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(payload),
-    });
-    const body = (await res.json().catch(() => undefined)) as AuthTokens | undefined;
+    };
+    const res = await doFetch(`${api}${path}`, init);
+    const text = await readText(res, init);
+    let body: AuthTokens | undefined;
+    try {
+      body = text ? (JSON.parse(text) as AuthTokens) : undefined;
+    } catch {
+      body = undefined;
+    }
     if (!res.ok || !body?.access_token) throw new ApiError(res.status, failure, body);
     return body;
   }
