@@ -157,18 +157,19 @@ type filterComparison struct {
 	// spec.yaml; "top_level" or "subfilter" for filters that have one.
 	// The dashboard groups subfilters (layer formats) into their own
 	// section rather than counting them against top-level coverage.
-	SpecKind        string                 `json:"specKind,omitempty"`
-	Okapi           *filterResult          `json:"okapi"`
-	Bridge          *filterResult          `json:"bridge"`
-	Native          *filterResult          `json:"native"`
-	TestCases       []testCaseMatch        `json:"testCases"`
-	Coverage        *coverage              `json:"coverage"`
-	Spec            *specSummary           `json:"spec,omitempty"`
-	SpecDrift       []specDriftEntry       `json:"specDrift,omitempty"`
-	// SpecRefsUnchecked counts the spec's okapi_refs this audit could not
-	// check: none of the filter's Okapi unit tests ran.
-	SpecRefsUnchecked int `json:"specRefsUnchecked,omitempty"`
-	SpecConfigDrift []specConfigDriftEntry `json:"specConfigDrift,omitempty"`
+	SpecKind  string           `json:"specKind,omitempty"`
+	Okapi     *filterResult    `json:"okapi"`
+	Bridge    *filterResult    `json:"bridge"`
+	Native    *filterResult    `json:"native"`
+	TestCases []testCaseMatch  `json:"testCases"`
+	Coverage  *coverage        `json:"coverage"`
+	Spec      *specSummary     `json:"spec,omitempty"`
+	SpecDrift []specDriftEntry `json:"specDrift,omitempty"`
+	// SpecRefsChecked and SpecRefsUnchecked count the spec's okapi_refs this
+	// audit checked and could not check (see refCheckable).
+	SpecRefsChecked   int                    `json:"specRefsChecked,omitempty"`
+	SpecRefsUnchecked int                    `json:"specRefsUnchecked,omitempty"`
+	SpecConfigDrift   []specConfigDriftEntry `json:"specConfigDrift,omitempty"`
 }
 
 // specDriftEntry records one okapi_refs entry in spec.yaml that no
@@ -318,9 +319,8 @@ func main() {
 	if len(okapiByFilter) == 0 {
 		die("no surefire XMLs found under %s", *surefireDir)
 	}
-	// The filters whose Okapi unit tests ran in this audit. A filter known
-	// only from the Failsafe integration tests below has none of its unit
-	// tests in the set, so its spec references cannot be checked against it.
+	// The filters whose Okapi unit tests ran in this audit, before the
+	// Failsafe integration tests below join. See refCheckable.
 	unitFilters := map[string]bool{}
 	for name := range okapiByFilter {
 		unitFilters[name] = true
@@ -418,8 +418,16 @@ func main() {
 	// present. Otherwise the comparison is meaningless (no annotations
 	// means no drift; no surefire means everything looks like drift).
 	driftFound := false
-	if len(nativeAnnotations) > 0 && len(okapiByFilter) > 0 {
-		drift := detectAnnotationDrift(nativeAnnotations, okapiByFilter)
+	// An annotation in a format whose Okapi unit tests did not run cannot be
+	// checked: it is counted and reported, never read as drift.
+	allClasses := make([]*filterResult, 0, len(okapiByFilter))
+	for _, fr := range okapiByFilter {
+		allClasses = append(allClasses, fr)
+	}
+	checkable, uncheckedAnns := splitCheckableAnnotations(nativeAnnotations, unitFilters, classesIn(allClasses...))
+	fmt.Fprintf(os.Stderr, "contract-audit: checked %d annotation(s) against Okapi %s\n", len(checkable), *okapiVersion)
+	if len(checkable) > 0 && len(okapiByFilter) > 0 {
+		drift := detectAnnotationDrift(checkable, okapiByFilter)
 		if len(drift) > 0 {
 			driftFound = true
 			fmt.Fprintf(os.Stderr, "contract-audit: %d annotation(s) reference Okapi tests not present in %s:\n", len(drift), *okapiVersion)
@@ -462,6 +470,7 @@ func main() {
 		}
 	}
 	reportUncheckedSpecRefs(os.Stderr, doc.Filters, *okapiVersion)
+	reportUncheckedAnnotations(os.Stderr, uncheckedAnns)
 	if driftFound && *failOnDrift {
 		os.Exit(1)
 	}
@@ -1244,14 +1253,9 @@ func buildDoc(okapiByFilter map[string]*filterResult, unitFilters map[string]boo
 			if fc.SpecKind == "" {
 				fc.SpecKind = string(spec.KindTopLevel)
 			}
-			// Only a filter whose Okapi unit tests ran can have its refs
-			// checked; for any other the refs are counted as unchecked and
-			// reported, never read as drift and never passed silently.
-			if unitFilters[name] {
-				fc.SpecDrift = detectSpecRefDrift(s, fc.Okapi)
-			} else {
-				fc.SpecRefsUnchecked = countSpecRefs(s)
-			}
+			// A ref this audit cannot check is counted and reported, never
+			// read as drift and never passed silently.
+			fc.SpecDrift, fc.SpecRefsChecked, fc.SpecRefsUnchecked = detectSpecRefDrift(s, fc.Okapi, unitFilters[name])
 			// Spec config drift: each spec.config[].key must match a
 			// property in the bridge composite schema for the pinned
 			// Okapi version. Filters without a loaded schema are
@@ -1713,45 +1717,72 @@ func loadSpecsForFilters(formatsDir string) (map[string]*spec.Spec, error) {
 	return out, nil
 }
 
-// detectSpecRefDrift returns one entry per spec.okapi_refs ref that no
-// longer matches any test in the pinned Okapi surefire result for this
-// filter. Ref matching mirrors the annotation join: both FQN+method and
-// shortClass+method are accepted. Returns nil when there is no Okapi
-// data (drift would be meaningless against an empty set).
-func detectSpecRefDrift(s *spec.Spec, okapi *filterResult) []specDriftEntry {
-	if s == nil || okapi == nil {
-		return nil
-	}
-	valid := map[string]struct{}{}
-	for _, suite := range okapi.Suites {
-		for _, tc := range suite.Tests {
-			valid[tc.ClassName+"#"+tc.Name] = struct{}{}
-			valid[shortClass(tc.ClassName)+"#"+tc.Name] = struct{}{}
+// classesIn returns the test classes, by full and short name, with at least
+// one test in the results.
+func classesIn(results ...*filterResult) map[string]bool {
+	out := map[string]bool{}
+	for _, fr := range results {
+		if fr == nil {
+			continue
+		}
+		for _, suite := range fr.Suites {
+			for _, tc := range suite.Tests {
+				out[tc.ClassName] = true
+				out[shortClass(tc.ClassName)] = true
+			}
 		}
 	}
-	var out []specDriftEntry
+	return out
+}
+
+// refCheckable reports whether a reference "Class#method" can be checked
+// against this audit's Okapi tests. It can when the Okapi unit tests of the
+// format it belongs to ran, so a missing class is drift, or when its class
+// ran here at all (an integration test, or another module's), so a missing
+// method is drift. Otherwise the module that holds the class did not run, and
+// the reference is neither confirmed nor drift.
+func refCheckable(ref string, unitTestsRan bool, classes map[string]bool) bool {
+	class, _, _ := strings.Cut(ref, "#")
+	return unitTestsRan || classes[class]
+}
+
+// detectSpecRefDrift returns one entry per spec.okapi_refs ref that no
+// longer matches any test in the pinned Okapi result for this filter, with
+// the counts of refs checked and not checked (see refCheckable). Ref
+// matching mirrors the annotation join: both FQN+method and
+// shortClass+method are accepted.
+func detectSpecRefDrift(s *spec.Spec, okapi *filterResult, unitTestsRan bool) (drift []specDriftEntry, checked, unchecked int) {
+	if s == nil {
+		return nil, 0, 0
+	}
+	valid := map[string]struct{}{}
+	if okapi != nil {
+		for _, suite := range okapi.Suites {
+			for _, tc := range suite.Tests {
+				valid[tc.ClassName+"#"+tc.Name] = struct{}{}
+				valid[shortClass(tc.ClassName)+"#"+tc.Name] = struct{}{}
+			}
+		}
+	}
+	classes := classesIn(okapi)
 	for _, f := range s.Features {
 		for _, ref := range f.OkapiRefs {
+			if !refCheckable(ref, unitTestsRan && okapi != nil, classes) {
+				unchecked++
+				continue
+			}
+			checked++
 			if _, ok := valid[ref]; ok {
 				continue
 			}
-			out = append(out, specDriftEntry{
+			drift = append(drift, specDriftEntry{
 				FeatureID: f.ID,
 				OkapiRef:  ref,
 				Reason:    "missing-from-okapi",
 			})
 		}
 	}
-	return out
-}
-
-// countSpecRefs counts a spec's okapi_refs entries.
-func countSpecRefs(s *spec.Spec) int {
-	n := 0
-	for _, f := range s.Features {
-		n += len(f.OkapiRefs)
-	}
-	return n
+	return drift, checked, unchecked
 }
 
 // reportUncheckedSpecRefs says which filters' spec references this audit
@@ -1759,23 +1790,77 @@ func countSpecRefs(s *spec.Spec) int {
 // filter of many does not read as a clean audit of all of them.
 func reportUncheckedSpecRefs(w io.Writer, filters []filterComparison, okapiVersion string) {
 	var checked, unchecked []string
-	refs := 0
+	refs, checkedRefs := 0, 0
 	for _, fc := range filters {
+		checkedRefs += fc.SpecRefsChecked
 		switch {
 		case fc.SpecRefsUnchecked > 0:
 			unchecked = append(unchecked, fmt.Sprintf("%s (%d)", fc.FilterName, fc.SpecRefsUnchecked))
 			refs += fc.SpecRefsUnchecked
-		case fc.Spec != nil && fc.Okapi != nil:
+		}
+		if fc.SpecRefsChecked > 0 {
 			checked = append(checked, fc.FilterName)
 		}
 	}
+	fmt.Fprintf(w, "contract-audit: checked %d spec okapi_ref(s) against Okapi %s in %d filter(s): %s\n",
+		checkedRefs, okapiVersion, len(checked), strings.Join(checked, ", "))
 	if len(unchecked) == 0 {
 		return
 	}
-	fmt.Fprintf(w, "contract-audit: spec okapi_refs checked against Okapi %s for %d filter(s): %s\n",
-		okapiVersion, len(checked), strings.Join(checked, ", "))
-	fmt.Fprintf(w, "contract-audit: NOT CHECKED: %d okapi_ref(s) in %d filter(s), whose Okapi unit tests did not run in this audit: %s\n",
+	fmt.Fprintf(w, "contract-audit: NOT CHECKED: %d okapi_ref(s) in %d filter(s), whose Okapi tests did not run in this audit: %s\n",
 		refs, len(unchecked), strings.Join(unchecked, ", "))
+}
+
+// annotationFormat is the native format directory an annotation sits in
+// (core/formats/<format>/...), or "" for an annotation outside core/formats.
+func annotationFormat(a annotation) string {
+	rest, ok := strings.CutPrefix(filepath.ToSlash(a.File), "core/formats/")
+	if !ok {
+		return ""
+	}
+	format, _, found := strings.Cut(rest, "/")
+	if !found {
+		return ""
+	}
+	return format
+}
+
+// splitCheckableAnnotations separates the annotations that can be checked
+// against this audit's Okapi tests (see refCheckable) from the rest, which
+// are counted by format. An annotation outside core/formats is always
+// checked.
+func splitCheckableAnnotations(anns []annotation, unitFilters, classes map[string]bool) (checkable []annotation, unchecked map[string]int) {
+	unchecked = map[string]int{}
+	for _, a := range anns {
+		f := annotationFormat(a)
+		if f != "" && !refCheckable(a.JavaClass+"#"+a.JavaMethod, unitFilters[f], classes) {
+			unchecked[f]++
+			continue
+		}
+		checkable = append(checkable, a)
+	}
+	return checkable, unchecked
+}
+
+// reportUncheckedAnnotations names the formats whose annotations this audit
+// could not check, with their counts.
+func reportUncheckedAnnotations(w io.Writer, unchecked map[string]int) {
+	if len(unchecked) == 0 {
+		return
+	}
+	total := 0
+	var parts []string
+	formats := make([]string, 0, len(unchecked))
+	for f := range unchecked {
+		formats = append(formats, f)
+	}
+	sort.Strings(formats)
+	for _, f := range formats {
+		total += unchecked[f]
+		parts = append(parts, fmt.Sprintf("%s (%d)", f, unchecked[f]))
+	}
+	fmt.Fprintf(w, "contract-audit: NOT CHECKED: %d annotation(s) in %d format(s), whose Okapi tests did not run in this audit: %s\n",
+		total, len(unchecked), strings.Join(parts, ", "))
 }
 
 // detectSpecConfigDrift returns one entry per spec.config[].key that
@@ -2290,7 +2375,12 @@ func scanFile(path string) ([]annotation, error) {
 // the neokapi repo and just strip everything before "core/" / "cli/" /
 // "kapi/" / "bowrain/" (the four module roots).
 func relPath(p string) string {
+	p = filepath.ToSlash(p)
 	for _, prefix := range []string{"/core/", "/cli/", "/kapi/", "/bowrain/", "/apps/"} {
+		// A path relative to the repository root starts with the prefix.
+		if strings.HasPrefix(p, prefix[1:]) {
+			return p
+		}
 		if idx := strings.Index(p, prefix); idx >= 0 {
 			return p[idx+1:]
 		}

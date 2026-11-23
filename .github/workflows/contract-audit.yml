@@ -85,13 +85,12 @@ jobs:
           packages: libicu-dev pkg-config
 
       - name: Run mvn test for selected filter modules
-        # Filter scoping keeps this lightweight — `mvn test` against
-        # the full Okapi tree pulls in the entire dependency graph.
-        # We deliberately scope per-filter and accept that this
-        # discovers fewer issues than a full upstream run.
+        # The modules in FILTERS, in one reactor so their shared dependencies
+        # build once. Every module a spec references takes about two minutes.
+        # A test failure is recorded in the reports and does not stop the run;
+        # a module that does not build leaves no reports, and the audit names
+        # its references as not checked.
         working-directory: okapi-java
-        # One reactor for every module, so their shared dependencies build
-        # once.
         run: |
           modules="$(echo "$FILTERS" | tr ',' '\n' | sed 's|^|okapi/filters/|' | paste -sd, -)"
           echo "::group::mvn test -pl $modules"
@@ -99,32 +98,27 @@ jobs:
           echo "::endgroup::"
 
       # Okapi's RoundTrip*IT / *XliffCompareIT contracts run under Maven
-      # Failsafe, not Surefire, so the drift check needs their reports too —
-      # without them every // okapi: *IT annotation reads as "not present".
+      # Failsafe, not Surefire, so the drift check needs their reports too.
+      # Without them an // okapi: *IT annotation cannot be checked.
       - name: Generate Okapi Failsafe IT reports
         working-directory: neokapi
         env:
           OKAPI_REPO: ${{ github.workspace }}/okapi-java
         run: make okapi-failsafe-reports OKAPI_REPO="$OKAPI_REPO"
 
-      - name: Run native go test + contract-audit generator per filter
+      - name: Run native go test + contract-audit generator
         working-directory: neokapi
         env:
           OKAPI_REPO: ${{ github.workspace }}/okapi-java
-          # Drift checking: a `// okapi: ClassName#methodName` annotation
-          # whose Java target no longer exists in the pinned upstream
-          # version is a contract bug — the dashboard would silently
-          # drop the row otherwise. The cron run is the correct place
-          # to enforce this because it pins to a specific Okapi tag and
-          # therefore knows what "exists" actually means.
+          # A `// okapi: ClassName#methodName` annotation or spec ref whose
+          # Java test no longer exists in the pinned Okapi version fails the
+          # run; the dashboard would drop its row otherwise. The run pins an
+          # Okapi tag, so it knows which tests exist.
           CONTRACT_FAIL_ON_DRIFT: "1"
-        run: |
-          mkdir -p .contract-audit
-          for filter in $(echo "$FILTERS" | tr ',' ' '); do
-            echo "::group::contract-audit $filter"
-            make contract-audit CONTRACT_FILTER="$filter" OKAPI_REPO="$OKAPI_REPO" CONTRACT_FAIL_ON_DRIFT="$CONTRACT_FAIL_ON_DRIFT"
-            echo "::endgroup::"
-          done
+        # One audit over every module the step above tested, so the JSON covers
+        # them all and each format's references are checked against its own
+        # module's tests.
+        run: make contract-audit CONTRACT_FILTER=all OKAPI_REPO="$OKAPI_REPO" CONTRACT_FAIL_ON_DRIFT="$CONTRACT_FAIL_ON_DRIFT"
 
       - name: Upload contract-audit JSON
         if: always()

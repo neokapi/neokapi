@@ -891,18 +891,24 @@ CONTRACT_FAILSAFE        ?= $(OKAPI_REPO)/integration-tests/okapi/target/failsaf
 # Okapi Surefire output. CI sets this; locally it is opt-in.
 CONTRACT_FAIL_ON_DRIFT   ?=
 
-contract-audit: ## Generate the contract-audit dashboard JSON for $(CONTRACT_FILTER)
+# CONTRACT_FILTER=all reads the Surefire reports of every Okapi filter module
+# that has run its tests. Every native format's tests and annotations are read
+# either way; the audit checks a format's references only when its Okapi unit
+# tests ran, and names the rest as not checked.
+CONTRACT_SUREFIRE = $(if $(filter all,$(CONTRACT_FILTER)),$(OKAPI_REPO)/okapi/filters,$(OKAPI_REPO)/okapi/filters/$(CONTRACT_FILTER)/target/surefire-reports)
+
+contract-audit: ## Generate the contract-audit dashboard JSON for $(CONTRACT_FILTER) (an Okapi filter module, or all)
 	@mkdir -p $(CONTRACT_DIR)
-	@if [ ! -d $(OKAPI_REPO)/okapi/filters/$(CONTRACT_FILTER)/target/surefire-reports ]; then \
+	@if [ "$(CONTRACT_FILTER)" != all ] && [ ! -d $(CONTRACT_SUREFIRE) ]; then \
 	    echo "[contract-audit] no Surefire output for $(CONTRACT_FILTER); running mvn test..."; \
 	    cd $(OKAPI_REPO)/okapi/filters/$(CONTRACT_FILTER) && mvn -B test; \
 	fi
-	@echo "[contract-audit] running native go test for $(CONTRACT_FILTER)..."
-	@cd $(ROOT_DIR) && go test -json ./core/formats/$(CONTRACT_FILTER)/... > $(CONTRACT_DIR)/native-$(CONTRACT_FILTER).json 2>/dev/null || true
+	@echo "[contract-audit] running native go test for every format..."
+	@cd $(ROOT_DIR) && go test -json ./core/formats/... > $(CONTRACT_DIR)/native.json 2>/dev/null || true
 	@cd $(ROOT_DIR) && go run ./scripts/contract-audit \
-	    -okapi-surefire $(OKAPI_REPO)/okapi/filters/$(CONTRACT_FILTER)/target/surefire-reports \
-	    -native-gotest $(CONTRACT_DIR)/native-$(CONTRACT_FILTER).json \
-	    -native-src core/formats/$(CONTRACT_FILTER) \
+	    -okapi-surefire $(CONTRACT_SUREFIRE) \
+	    -native-gotest $(CONTRACT_DIR)/native.json \
+	    -native-src core/formats \
 	    $(if $(wildcard $(BRIDGE_SCHEMAS)),-bridge-schemas $(BRIDGE_SCHEMAS),) \
 	    $(if $(wildcard $(CONTRACT_FAILSAFE)),-okapi-failsafe $(CONTRACT_FAILSAFE),) \
 	    $(if $(CONTRACT_FAIL_ON_DRIFT),-fail-on-drift,) \

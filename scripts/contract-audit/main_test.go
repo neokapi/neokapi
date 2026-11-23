@@ -60,7 +60,7 @@ func TestResolveNativeFormat(t *testing.T) {
 // tests, zero Okapi tests, AND duplicates another row's Okapi data. The
 // table package's four classes must land in exactly two native rows (csv,
 // fixedwidth), each carrying its own Okapi tests, with the Okapi filter id
-// recorded as a sublabel — and no leftover `table` row.
+// recorded as a sublabel, and no leftover `table` row.
 func TestBuildDoc_NoPhantomRows(t *testing.T) {
 	// Simulate parsed Okapi surefire results: one suite per Okapi @Test
 	// class, all from the net.sf.okapi.filters.table package, routed by
@@ -321,7 +321,7 @@ func TestDocumentingSkip(t *testing.T) {}
 }
 
 // TestLookupParityMergesSiblingKeys guards the case where one native
-// format is exercised under more than one parity key — native `xml` covers
+// format is exercised under more than one parity key: native `xml` covers
 // okf_xml fixtures AND the okf_xmlstream spec. lookupParity must merge
 // them, not return the first match, or the spec rows are dropped.
 func TestLookupParityMergesSiblingKeys(t *testing.T) {
@@ -345,9 +345,10 @@ func TestLookupParityMergesSiblingKeys(t *testing.T) {
 }
 
 // A filter known only from the Failsafe integration tests has none of its
-// Okapi unit tests in the audit, so its spec references are counted as
-// unchecked and reported, never read as drift. A filter whose unit tests ran
-// is checked: a reference to a test that does not exist is drift.
+// Okapi unit tests in the audit: a spec ref to a unit-test class is counted as
+// unchecked and reported, never read as drift, while a ref to the integration
+// test class that ran is checked. A filter whose unit tests ran is checked: a
+// reference to a test that does not exist is drift.
 func TestSpecRefs_CheckedOnlyWhereUnitTestsRan(t *testing.T) {
 	okapiByFilter := map[string]*filterResult{
 		"html": {Suites: []testSuite{{Name: "net.sf.okapi.filters.html.HtmlFilterTest", Tests: []testCase{
@@ -360,7 +361,7 @@ func TestSpecRefs_CheckedOnlyWhereUnitTestsRan(t *testing.T) {
 	}
 	specs := map[string]*spec.Spec{
 		"html": {Features: []spec.Feature{{ID: "a", OkapiRefs: []string{"HtmlFilterTest#testA", "HtmlFilterTest#gone"}}}},
-		"csv":  {Features: []spec.Feature{{ID: "b", OkapiRefs: []string{"CommaSeparatedValuesFilterTest#testFileEvents", "CommaSeparatedValuesFilterTest#testQuotes"}}}},
+		"csv":  {Features: []spec.Feature{{ID: "b", OkapiRefs: []string{"CommaSeparatedValuesFilterTest#testFileEvents", "CommaSeparatedValuesFilterTest#testQuotes", "RoundTripCsvIT#roundTrip", "RoundTripCsvIT#gone"}}}},
 	}
 	doc := buildDoc(okapiByFilter, map[string]bool{"html": true}, nil, nil, specs, nil, nil, nil, nil, "v1.48.0", "v1.48.0", "test")
 	byName := map[string]filterComparison{}
@@ -373,8 +374,11 @@ func TestSpecRefs_CheckedOnlyWhereUnitTestsRan(t *testing.T) {
 	if byName["html"].SpecRefsUnchecked != 0 {
 		t.Errorf("html refs were checked; unchecked = %d", byName["html"].SpecRefsUnchecked)
 	}
-	if got := byName["csv"].SpecDrift; len(got) != 0 {
-		t.Errorf("csv has no unit tests in the audit, so no drift can be claimed; got %+v", got)
+	if got := byName["csv"].SpecDrift; len(got) != 1 || got[0].OkapiRef != "RoundTripCsvIT#gone" {
+		t.Errorf("csv drift = %+v, want only RoundTripCsvIT#gone (its class ran)", got)
+	}
+	if byName["csv"].SpecRefsChecked != 2 {
+		t.Errorf("csv checked = %d, want the 2 integration-test refs", byName["csv"].SpecRefsChecked)
 	}
 	if byName["csv"].SpecRefsUnchecked != 2 {
 		t.Errorf("csv unchecked = %d, want 2", byName["csv"].SpecRefsUnchecked)
@@ -383,5 +387,44 @@ func TestSpecRefs_CheckedOnlyWhereUnitTestsRan(t *testing.T) {
 	reportUncheckedSpecRefs(&b, doc.Filters, "v1.48.0")
 	if !strings.Contains(b.String(), "NOT CHECKED: 2 okapi_ref(s) in 1 filter(s)") || !strings.Contains(b.String(), "csv (2)") {
 		t.Errorf("report does not name the unchecked filter: %q", b.String())
+	}
+}
+
+// An annotation in a format whose Okapi unit tests did not run is counted and
+// reported by format, never checked for drift. One outside core/formats, or in
+// a format whose tests ran, is checked.
+func TestSplitCheckableAnnotations(t *testing.T) {
+	anns := []annotation{
+		{JavaClass: "HtmlFilterTest", JavaMethod: "a", File: "core/formats/html/html_test.go"},
+		{JavaClass: "JSONFilterTest", JavaMethod: "b", File: "core/formats/json/json_test.go"},
+		{JavaClass: "JSONFilterTest", JavaMethod: "c", File: "core/formats/json/more_test.go"},
+		{JavaClass: "X", JavaMethod: "d", File: "cli/x_test.go"},
+	}
+	anns = append(anns, annotation{JavaClass: "RoundTripSrtIT", JavaMethod: "e", File: "core/formats/srt/srt_test.go"})
+	checkable, unchecked := splitCheckableAnnotations(anns, map[string]bool{"html": true}, map[string]bool{"RoundTripSrtIT": true})
+	if len(checkable) != 3 || checkable[0].JavaMethod != "a" || checkable[1].JavaMethod != "d" || checkable[2].JavaMethod != "e" {
+		t.Errorf("checkable = %+v, want the html, cli and srt (its class ran) annotations", checkable)
+	}
+	if len(unchecked) != 1 || unchecked["json"] != 2 {
+		t.Errorf("unchecked = %v, want json: 2", unchecked)
+	}
+	var b strings.Builder
+	reportUncheckedAnnotations(&b, unchecked)
+	if !strings.Contains(b.String(), "NOT CHECKED: 2 annotation(s) in 1 format(s)") || !strings.Contains(b.String(), "json (2)") {
+		t.Errorf("report = %q", b.String())
+	}
+}
+
+// A path relative to the repository root keeps its directories, so the
+// annotation's format can be read from it.
+func TestRelPath_RepoRelative(t *testing.T) {
+	for in, want := range map[string]string{
+		"core/formats/json/json_test.go":           "core/formats/json/json_test.go",
+		"/home/x/neokapi/core/formats/a/a_test.go": "core/formats/a/a_test.go",
+		"elsewhere/a_test.go":                      "a_test.go",
+	} {
+		if got := relPath(in); got != want {
+			t.Errorf("relPath(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
