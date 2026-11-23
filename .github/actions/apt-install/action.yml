@@ -42,8 +42,8 @@ runs:
         #                         the retry uses archive.ubuntu.com, which was
         #                         answering throughout.
         #
-        # Worst case is about five minutes and an explicit error, against a
-        # six-hour hang.
+        # Worst case is about an hour and a half of retries and an explicit
+        # error, against a six-hour hang; a healthy mirror costs nothing extra.
         # A package the runner image already holds needs no apt at all: the
         # image ships libicu-dev and pkg-config, and an `apt-get update` to
         # learn that took 4 to 6 seconds of every Go job. Only a list with a
@@ -60,10 +60,21 @@ runs:
         fi
         echo "apt-install: installing:$missing"
         APT_PACKAGES="${missing# }"
-        opts="-o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15"
-        for attempt in 1 2 3; do
-          if timeout 90 sudo apt-get $opts update &&
-             timeout 180 sudo apt-get $opts install -y $APT_PACKAGES; then
+        #
+        # The download and the install are bounded apart. On 2026-11-23 a slow
+        # mirror spent most of a single 180-second ceiling downloading the
+        # GTK and WebKit packages, and the ceiling then killed dpkg halfway
+        # through unpacking. Every retry after that stopped at "dpkg was
+        # interrupted", so the job failed on a fault that had passed. Now the
+        # network part (update, download) carries the ceiling and the retries,
+        # the unpack runs from the downloaded files with a ceiling of its own,
+        # and each attempt first finishes any dpkg run a previous one left.
+        opts="-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o DPkg::Lock::Timeout=120"
+        for attempt in 1 2 3 4; do
+          timeout 300 sudo dpkg --configure -a || true
+          if timeout 120 sudo apt-get $opts update &&
+             timeout 420 sudo apt-get $opts install -y --download-only $APT_PACKAGES &&
+             timeout 600 sudo apt-get $opts install -y --no-download $APT_PACKAGES; then
             exit 0
           fi
           echo "::warning::apt attempt $attempt failed"
@@ -74,7 +85,8 @@ runs:
             echo "::warning::dropping the Azure mirror; retrying against the rest"
             sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt
           fi
-          sleep $((attempt * 5))
+          # A network fault on a runner usually clears within a minute.
+          sleep $((attempt * 15))
         done
-        echo "::error::apt could not install '$APT_PACKAGES' after 3 attempts"
+        echo "::error::apt could not install '$APT_PACKAGES' after 4 attempts"
         exit 1
