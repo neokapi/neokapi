@@ -13,7 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/version"
 )
 
-// cachedPart is one Part with its concrete Resource hoisted into a typed field —
+// cachedPart is one Part with its concrete Resource hoisted into a typed field.
 // Part.Resource is an interface, so it is serialized as a tagged union keyed by
 // the PartType. Exactly one payload field is set per part. It is the per-part
 // record the streaming document cache (docCache) appends to its log.
@@ -23,7 +23,7 @@ import (
 // rehydrate an interface, so a reader that annotates at parse time (e.g. the
 // YAML reader's comment notes) would fail on replay. The wrappers shadow the
 // Annotations field with a typed envelope that carries each payload's
-// registered type name (map keys are usually — but not always — the type
+// registered type name (map keys are usually, but not always, the type
 // name, so the name travels explicitly).
 type cachedPart struct {
 	Type   model.PartType    `json:"t"`
@@ -43,10 +43,10 @@ type cachedAnno struct {
 }
 
 // cachedBlock shadows Block.Annotations with the typed envelope (the embedded
-// field is suppressed by the outer one under encoding/json's depth rule), and
-// carries the translation a reader filed under no language and the overlays on
-// it, which the block holds apart from its editions and its other overlays and
-// no exported field reaches.
+// field is suppressed by the outer one under encoding/json's depth rule). It
+// also carries the translation a reader filed under no language and the
+// overlays on it, which the block holds apart from its editions and its other
+// overlays and no exported field reaches.
 type cachedBlock struct {
 	*model.Block
 	Annotations        map[string]cachedAnno `json:"Annotations,omitempty"`
@@ -83,7 +83,7 @@ func toCachedAnnotations(m map[string]model.Payload) map[string]cachedAnno {
 
 // fromCachedAnnotations rehydrates the envelope through the payload registry.
 // Entries with an unregistered type name are dropped rather than failing the
-// replay — same posture as toCachedAnnotations.
+// replay, same posture as toCachedAnnotations.
 func fromCachedAnnotations(cm map[string]cachedAnno) map[string]model.Payload {
 	if len(cm) == 0 {
 		return nil
@@ -108,7 +108,7 @@ func fromCachedAnnotations(cm map[string]cachedAnno) map[string]model.Payload {
 }
 
 // cacheableMedia returns the Media as the cache must record it. A deferred
-// slice — a package reader's zip-backed media — is materialized into a copy,
+// slice, a package reader's zip-backed media, is materialized into a copy,
 // because the accessor is bound to the document being parsed and would be dead
 // by the time the record is replayed. The copy keeps the live part deferred, so
 // only the caching run pays for the bytes.
@@ -149,7 +149,7 @@ func toCachedParts(parts []*model.Part) []cachedPart {
 		case *model.GroupEnd:
 			cp.GEnd = r
 		default:
-			// A Part type the cache doesn't model (RawDocument/Custom) — skip it.
+			// A Part type the cache doesn't model (RawDocument/Custom), skip it.
 			// Readers never emit these into the processing stream, so a parsed
 			// document never relies on round-tripping them.
 			continue
@@ -205,43 +205,61 @@ func fromCachedParts(cps []cachedPart) []*model.Part {
 
 // withParseCache opens the project's streaming document cache for the duration of
 // fn, so the read paths (readBlocks) and the flow runner serve unchanged files
-// from it. A failure to open is non-fatal — fn still runs, just without caching.
+// from it. A failure to open is non-fatal, fn still runs, just without caching.
 // No-op when root is empty (ad-hoc, no project).
 func (a *App) withParseCache(root string, fn func() error) error {
-	closeCache := a.openParseCacheDefer(root)
+	closeCache, err := a.openParseCache(root)
+	if err != nil {
+		return err
+	}
 	defer closeCache()
 	return fn()
 }
 
 // openParseCacheDefer opens the project's document cache and returns a closer to
-// defer — the non-closure form of withParseCache, for call sites (the flow
+// defer, the non-closure form of withParseCache, for call sites (the flow
 // runner) whose body isn't naturally a single fn. Returns a no-op closer when
 // there's no project layout or the cache can't open (parse directly), or when a
 // cache is already open. The returned closer is always safe to call.
 func (a *App) openParseCacheDefer(root string) func() {
+	closeCache, _ := a.openParseCache(root)
+	return closeCache
+}
+
+// openParseCache is openParseCacheDefer that also returns why a directory
+// $KAPI_PARSE_CACHE_DIR names was refused: a person who set the variable
+// hears that it was not used, rather than finding every run parsing again.
+// Any other failure to open still leaves the run to parse directly. The
+// returned closer is always safe to call.
+func (a *App) openParseCache(root string) (func(), error) {
 	if root == "" || a.docCache != nil {
-		return func() {}
+		return func() {}, nil
 	}
 	layout, err := project.ResolveLayout(root)
 	if err != nil {
-		return func() {}
+		return func() {}, nil
+	}
+	if os.Getenv(EnvParseCacheDir) != "" {
+		if _, err := ParseCacheDir(layout); err != nil {
+			return func() {}, err
+		}
 	}
 	c, err := openProjectDocCache(layout)
 	if err != nil {
-		return func() {}
+		return func() {}, nil
 	}
 	a.docCache = c
 	return func() {
 		c.Close()
 		a.docCache = nil
-	}
+	}, nil
 }
 
 // runnerPartCache returns the runner document-cache seam and its config-key
 // fingerprint for the current project, or (nil, "") when not in a project or the
 // cache isn't open. The fingerprint folds in the source locale, any preset/format
-// config the caller merged, and the project recipe hash — every non-byte input
-// that shapes the parse — so a recipe or config change re-parses.
+// config the caller merged, and the project recipe hash, every non-byte input
+// that shapes the parse, so a recipe or config change re-parses.
 func (a *App) runnerPartCache(root string, mergedConfig map[string]any) (flow.PartCache, string) {
 	if a.ProjectContext == nil || a.docCache == nil {
 		return nil, ""
@@ -250,7 +268,7 @@ func (a *App) runnerPartCache(root string, mergedConfig map[string]any) (flow.Pa
 	// The build stamp, first: a cached parse is only replayable by a reader
 	// that would produce the same parse. Nothing else in this key moves when a
 	// reader's behaviour does, so without it an upgraded kapi replays the old
-	// binary's classification — the same content, silently no longer offered
+	// binary's classification, the same content, silently no longer offered
 	// to the translator, with nothing failing to say so. A table whose cells
 	// became translatable kept coming back untranslated exactly this way.
 	fmt.Fprintf(h, "%s\x00%s\x00", version.Version, version.Commit)

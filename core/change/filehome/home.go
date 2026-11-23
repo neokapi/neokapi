@@ -15,8 +15,8 @@
 // home reads it again under the lock, applies the editor once more, and
 // renames that result; an operation whose precondition the new content breaks
 // is refused stale. Two processes editing different blocks of one file both
-// land. The lock file sits under .kapi/work/locks inside a project and under
-// the temporary directory outside one.
+// land. The lock file sits under work/locks in the checkout's state
+// directory for a project, and under the temporary directory outside one.
 package filehome
 
 import (

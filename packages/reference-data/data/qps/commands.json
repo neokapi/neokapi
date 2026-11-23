@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-23T17:18:57Z",
+  "generatedAt": "2026-11-23T18:19:31Z",
   "commands": [
     {
       "id": "add",
@@ -8386,7 +8386,8 @@
         }
       ],
       "examples": [
-        "kapi state path -p ."
+        "kapi state path -p .",
+        "kapi state path -p . --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

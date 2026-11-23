@@ -70,6 +70,9 @@ func TestMain(m *testing.M) {
 		// redirects the user plugin root; without this flag the absolute
 		// system plugin roots (Homebrew, /usr/share) still leak in.
 		"KAPI_PLUGINS_DIR_ONLY=1",
+		// Empty: each project keeps its parse cache in its own state directory,
+		// whatever a developer exports.
+		"KAPI_PARSE_CACHE_DIR=",
 	}
 	// A context operation records the agent host it was driven from, read off
 	// the marker variable that host exports (host/contextactor.go). A suite run

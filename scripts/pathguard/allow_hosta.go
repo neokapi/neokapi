@@ -27,7 +27,6 @@ var allowHostA = map[string]string{
 	"host/convergedrafts.go:endConvergeDrafts":       "removes the run's own draft tree, which beginConvergeDrafts created; os.RemoveAll follows no link",
 	"host/doccache.go:Abort":                         "removes the recorder's own temp files, which CreateTemp made in the cache directory",
 	"host/doccache.go:Commit":                        "renames the recorder's own temp files to content-addressed names in the cache directory, the checkout's work/cache under the data root (or a directory outside any project), which no checkout supplies",
-	"host/doccache.go:OpenSkeleton":                  "stats a recorded skeleton in the cache directory, the checkout's work/cache under the data root (or a directory outside any project), which no checkout supplies",
 	"host/doccache.go:openDocCacheAt":                "creates and opens the cache index under the cache directory it was given: the checkout's work/cache under the data root (Layout.LocalStateDir), or a directory outside any project; no checkout supplies either",
 	"host/exectrust.go:loadExecTrust":                "the exec-trust record in the user config dir",
 	"host/exectrust.go:saveExecTrust":                "the exec-trust record in the user config dir",
