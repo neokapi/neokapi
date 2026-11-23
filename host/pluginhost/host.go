@@ -49,6 +49,14 @@ type Plugin struct {
 	// (Dir + "/" + Manifest.Binary).
 	BinaryPath string
 
+	// Archive is the sha256 of the archive `kapi plugins install` installed
+	// the plugin from (installed.json), "" for a plugin installed another
+	// way. BinarySize and BinaryModTime describe its executable as Discover
+	// found it. Fingerprint reads them.
+	Archive       string
+	BinarySize    int64
+	BinaryModTime int64
+
 	// Retired is set when this discovered plugin matches a compiled-in
 	// Tombstone. A retired plugin stays listed (so it can be surfaced and
 	// pruned) but contributes nothing to dispatch: kapi never loads or runs

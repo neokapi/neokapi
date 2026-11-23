@@ -16,22 +16,28 @@ import (
 )
 
 // pluginReadApp is an App whose okf_json format is routed to an okapi-bridge
-// plugin at version, with the parse cache of the project at root open.
+// plugin at version, installed from an archive named for the version, with the parse
+// cache of the project at root open.
 func pluginReadApp(t *testing.T, root, pluginDir, version string) (*App, *pluginJSON) {
+	t.Helper()
+	return pluginReadAppAs(t, root, &pluginhost.Plugin{Dir: pluginDir, Archive: "archive-" + version}, version)
+}
+
+// pluginReadAppAs is pluginReadApp for a plugin described by p, whose manifest
+// it fills in.
+func pluginReadAppAs(t *testing.T, root string, p *pluginhost.Plugin, version string) (*App, *pluginJSON) {
 	t.Helper()
 	a := &App{SourceLang: "en", Quiet: true, Config: config.NewAppConfig()}
 	a.InitRegistries()
-	p := registerPluginJSON(t, a.FormatReg)
-	a.PluginHost = pluginhost.NewHost([]*pluginhost.Plugin{{
-		Dir: pluginDir,
-		Manifest: &manifest.Manifest{Plugin: "okapi-bridge", Version: version,
-			Capabilities: manifest.Capabilities{Formats: []manifest.Format{{Name: "okf_json"}}}},
-	}}, nil)
+	reads := registerPluginJSON(t, a.FormatReg)
+	p.Manifest = &manifest.Manifest{Plugin: "okapi-bridge", Version: version,
+		Capabilities: manifest.Capabilities{Formats: []manifest.Format{{Name: "okf_json"}}}}
+	a.PluginHost = pluginhost.NewHost([]*pluginhost.Plugin{p}, nil)
 	closeCache, err := a.openParseCache(root)
 	require.NoError(t, err)
 	t.Cleanup(closeCache)
 	t.Cleanup(a.Shutdown)
-	return a, p
+	return a, reads
 }
 
 // A file a plugin reads is served from the parse cache while the plugin is
@@ -63,6 +69,34 @@ func TestParseCache_KeysAPluginsFilesByThePlugin(t *testing.T) {
 	read(c)
 	read(c)
 	assert.Equal(t, 2, r.reads(), "a plugin with no version is parsed every time")
+}
+
+// The cache follows the plugin's bytes, not the moment it was installed: the
+// same archive installed again on a fresh runner hits, and a development
+// build rebuilt at the same version misses.
+func TestParseCache_FollowsThePluginsBytes(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, project.RecipeFileName), []byte("version: v1\nname: pk\n"), 0o644))
+	src := filepath.Join(root, "messages.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"greeting":"Hello, world."}`), 0o644))
+	read := func(a *App) {
+		_, err := a.readBlocksAs(t.Context(), root, src, "okf_json", nil, "en")
+		require.NoError(t, err)
+	}
+
+	a, p := pluginReadAppAs(t, root, &pluginhost.Plugin{Dir: t.TempDir(), Archive: "same", BinaryModTime: 1}, "1.47.0")
+	read(a)
+	require.Equal(t, 1, p.reads())
+	b, q := pluginReadAppAs(t, root, &pluginhost.Plugin{Dir: t.TempDir(), Archive: "same", BinaryModTime: 2}, "1.47.0")
+	read(b)
+	assert.Equal(t, 0, q.reads(), "the same archive installed again, elsewhere and later, hits")
+
+	c, r := pluginReadAppAs(t, root, &pluginhost.Plugin{Dir: t.TempDir(), BinarySize: 10, BinaryModTime: 100}, "1.47.0")
+	read(c)
+	require.Equal(t, 1, r.reads())
+	d, s := pluginReadAppAs(t, root, &pluginhost.Plugin{Dir: t.TempDir(), BinarySize: 10, BinaryModTime: 200}, "1.47.0")
+	read(d)
+	assert.Equal(t, 1, s.reads(), "a development build rebuilt at the same version misses")
 }
 
 // A built-in format has no producer, and a plugin's identity carries its

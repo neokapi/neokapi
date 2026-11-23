@@ -105,12 +105,22 @@ func Discover(opts DiscoverOptions) []*Plugin {
 				continue
 			}
 			binPath := filepath.Join(pluginDir, m.Binary)
-			out = append(out, &Plugin{
+			p := &Plugin{
 				Dir:        pluginDir,
 				Source:     r,
 				Manifest:   m,
 				BinaryPath: binPath,
-			})
+			}
+			// What the parse cache keys the plugin's parses by
+			// (Plugin.Fingerprint): the archive an install recorded, else
+			// the executable's size and time.
+			if meta, err := ReadInstalledMetadata(pluginDir); err == nil {
+				p.Archive = meta.Archive
+			}
+			if st, err := os.Stat(binPath); err == nil {
+				p.BinarySize, p.BinaryModTime = st.Size(), st.ModTime().UnixNano()
+			}
+			out = append(out, p)
 		}
 	}
 	return out
