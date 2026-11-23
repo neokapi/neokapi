@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"sync"
 
 	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/model"
@@ -80,15 +79,20 @@ type DocumentRun interface {
 
 // home is the file home the run commits through: the configured one, else a
 // home over the default lock directory.
+//
+// The default home is built on each call. Its lock directory lies under the
+// temporary directory (filehome.DefaultLockDir), so it is resolved from
+// TMPDIR as it is when the run commits. A home kept for the life of the
+// process would keep the directory TMPDIR named at the first commit and
+// create it again on every later commit, wherever TMPDIR points by then. The
+// locks themselves are files, so two homes over one directory exclude each
+// other.
 func (r *FileRunner) home() *filehome.Home {
 	if r.cfg.Home != nil {
 		return r.cfg.Home
 	}
-	return defaultHome()
+	return filehome.New(nil, filehome.Options{})
 }
-
-// defaultHome is the home a runner with none configured commits through.
-var defaultHome = sync.OnceValue(func() *filehome.Home { return filehome.New(nil, filehome.Options{}) })
 
 // openDocument digests the destination and opens the caller's follower for
 // one document. It is called before the run reads the input, so the digest is
