@@ -948,14 +948,6 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		}
 	}
 	c.noteWritesSent(blockMap, current, writes, ingest == bowrainconn.IngestApplied)
-	// The revision each carried voice profile has once this push wrote it:
-	// what this project now holds is what the server holds, so the next push
-	// names it, and a second change is not refused as a change over our own.
-	if ingest == bowrainconn.IngestApplied {
-		for name, rev := range parts.VoiceRevisions {
-			c.seeVoice(name, rev)
-		}
-	}
 
 	// Update cache with per-file hashes.
 	for itemName, fileHashes := range hashMap {
@@ -1029,6 +1021,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		SettingsRefused:       settingsRefused,
 		Terms:                 parts.Terms,
 		Ledger:                parts.Ledger,
+		VoiceLeft:             parts.VoiceLeft,
 	}, nil
 }
 
@@ -1118,7 +1111,7 @@ func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID strin
 					"the local sync record was left untouched so the next push sends this content again",
 				pushID, st.Failed)
 		case st.Completed > 0:
-			return bowrainconn.IngestApplied, st.Governance, venue.PushParts{Terms: st.Terms, Ledger: st.Ledger, VoiceRevisions: st.VoiceRevisions}, nil
+			return bowrainconn.IngestApplied, st.Governance, venue.PushParts{Terms: st.Terms, Ledger: st.Ledger, VoiceLeft: st.VoiceLeft}, nil
 		case st.Total == 0:
 			// No job exists for this push id. Either the deployment runs no
 			// worker or the job has not been recorded yet; keep waiting, and
@@ -1377,10 +1370,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 
 	// Record what the server holds and report what diverges. Nothing here
 	// changes the governance a local run resolves. See connector/context.go.
-	contextResult, err := c.applyPulledContext(ctx, contexts, opts)
-	if err != nil {
-		return nil, err
-	}
+	contextResult := c.applyPulledContext(ctx, contexts)
 
 	// Group pulled blocks by item name.
 	filesWritten := 0
@@ -1579,7 +1569,6 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 		CollectionsObserved:  contextResult.Observed,
 		GovernanceDiverged:   contextResult.Diverged,
 		GovernanceDivergence: contextResult.DivergedDetail,
-		Differences:          contextResult.Differences,
 	}, nil
 }
 

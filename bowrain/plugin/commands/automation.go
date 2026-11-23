@@ -116,7 +116,7 @@ func executeLocalAction(cmd *cobra.Command, action project.ActionConfig, proj *p
 			return err
 		}
 		defer conn.Close()
-		_, err = transfer.Pull(cmd.Context(), conn, transfer.PullOptions{})
+		_, err = transfer.Pull(cmd.Context(), conn, nil, false, false)
 		return err
 
 	case "push":

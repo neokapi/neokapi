@@ -48,13 +48,12 @@ type PushLedgerOutcome struct {
 type PushParts struct {
 	Terms  *PushTermsOutcome  `json:"terms,omitempty"`
 	Ledger *PushLedgerOutcome `json:"ledger,omitempty"`
-	// VoiceRevisions is the revision of each voice profile the push carried,
-	// by lowercased name, as the push's transaction left it. The client
-	// keeps them, so its next push names the version its own push wrote.
-	VoiceRevisions map[string]string `json:"voice_revisions,omitempty"`
+	// VoiceLeft names the voice profiles the push carried, with content that
+	// differs from the venue's, that the venue already holds and so left as
+	// they were: a project's voice lives on the venue once it is there, and
+	// people edit it there. A profile the venue does not hold is created.
+	VoiceLeft []string `json:"voice_left,omitempty"`
 }
 
 // Empty reports whether the push carried none of its parts.
-func (p PushParts) Empty() bool {
-	return p.Terms == nil && p.Ledger == nil && len(p.VoiceRevisions) == 0
-}
+func (p PushParts) Empty() bool { return p.Terms == nil && p.Ledger == nil && len(p.VoiceLeft) == 0 }

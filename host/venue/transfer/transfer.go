@@ -17,6 +17,8 @@ package transfer
 import (
 	"context"
 	"errors"
+	"slices"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
@@ -119,22 +121,6 @@ type PullResult struct {
 	CollectionsObserved  int
 	GovernanceDiverged   []string
 	GovernanceDivergence []string
-
-	// Differences are the records whose server version differs from the
-	// local one, with what the pull did about each.
-	Differences []connector.RecordDifference
-}
-
-// PullOptions are what a pull is asked to do.
-type PullOptions struct {
-	// Locales limits the pull to these target languages; empty is all.
-	Locales []string
-	Force   bool
-	DryRun  bool
-	// TakeServer and KeepLocal settle records whose server version differs
-	// from the local one (connector.PullOptions).
-	TakeServer bool
-	KeepLocal  bool
 }
 
 // Push uploads proj's changed content to its venue and returns both the result
@@ -192,6 +178,12 @@ func PushProject(ctx context.Context, app *host.App, proj *project.Project, conn
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// A profile the venue already holds lives there: people edit it on the
+	// venue, and the push left it as it is.
+	if brand != nil && slices.ContainsFunc(result.VoiceLeft, func(name string) bool { return strings.EqualFold(name, brand.Name) }) {
+		brand.Action = VoiceActionLeft
 	}
 
 	pr := &PushResult{
@@ -268,25 +260,20 @@ func settleParts(ctx context.Context, pr *PushResult, result *connector.PushResu
 // Pull downloads translations and governed terminology into the checkout
 // through conn, the connector the caller opened for its project and closes, so
 // a push that has just finished is pulled through without reconnecting.
-func Pull(ctx context.Context, conn *source.BowrainSourceConnector, opts PullOptions) (*PullResult, error) {
+func Pull(ctx context.Context, conn *source.BowrainSourceConnector, locales []string, force, dryRun bool) (*PullResult, error) {
 	if conn == nil {
 		return nil, errors.New("pull: no connector")
 	}
-	if opts.TakeServer && opts.KeepLocal {
-		return nil, errors.New("pull: take the server's version or keep your own, not both")
-	}
 
-	modelLocales := make([]model.LocaleID, len(opts.Locales))
-	for i, l := range opts.Locales {
+	modelLocales := make([]model.LocaleID, len(locales))
+	for i, l := range locales {
 		modelLocales[i] = model.LocaleID(l)
 	}
 
 	result, err := conn.Pull(ctx, connector.PullOptions{
-		Locales:    modelLocales,
-		Force:      opts.Force,
-		DryRun:     opts.DryRun,
-		TakeServer: opts.TakeServer,
-		KeepLocal:  opts.KeepLocal,
+		Locales: modelLocales,
+		Force:   force,
+		DryRun:  dryRun,
 	})
 	if err != nil {
 		return nil, err
@@ -301,9 +288,8 @@ func Pull(ctx context.Context, conn *source.BowrainSourceConnector, opts PullOpt
 		CollectionsObserved:  result.CollectionsObserved,
 		GovernanceDiverged:   result.GovernanceDiverged,
 		GovernanceDivergence: result.GovernanceDivergence,
-		Differences:          result.Differences,
 	}
-	if opts.DryRun {
+	if dryRun {
 		pr.DryRun = true
 	} else if result.BlocksPulled == 0 && result.DecisionsStaged == 0 {
 		pr.UpToDate = true

@@ -61,56 +61,11 @@ type contextReconcileResult struct {
 	// recipe.changed event.
 	Changes []platev.CollectionChange
 
-	// voiceUpdates are the updates of existing voice profiles the push
-	// carries, held back until writeVoice so the push takes each profile's
-	// row lock at the end of its transaction rather than at the start.
-	voiceUpdates []func(context.Context) error
-	// voiceCarried is the id of each profile the push carried content for,
-	// by lowercased name, and voice the store they were written to.
-	voiceCarried map[string]string
-	voice        coreprofile.Store
-	// VoiceRevisions is each carried profile's revision once writeVoice has
-	// run, by lowercased name.
-	VoiceRevisions map[string]string
-}
-
-// writeVoice writes the voice profile updates the reconcile held back. The
-// push calls it last, after its content, ledger and terms, so a person
-// saving the same profile waits only for the end of the push.
-func (r *contextReconcileResult) writeVoice(ctx context.Context) error {
-	if r == nil {
-		return nil
-	}
-	for _, update := range r.voiceUpdates {
-		if err := update(ctx); err != nil {
-			return err
-		}
-	}
-	r.voiceUpdates = nil
-	if len(r.voiceCarried) == 0 || r.voice == nil {
-		return nil
-	}
-	revisions, ok := r.voice.(interface {
-		Revisions(ctx context.Context, ids []string) (map[string]string, error)
-	})
-	if !ok {
-		return nil
-	}
-	ids := make([]string, 0, len(r.voiceCarried))
-	for _, id := range r.voiceCarried {
-		ids = append(ids, id)
-	}
-	byID, err := revisions.Revisions(ctx, ids)
-	if err != nil {
-		return fmt.Errorf("read voice profile revisions: %w", err)
-	}
-	r.VoiceRevisions = make(map[string]string, len(r.voiceCarried))
-	for name, id := range r.voiceCarried {
-		if rev := byID[id]; rev != "" {
-			r.VoiceRevisions[name] = rev
-		}
-	}
-	return nil
+	// VoiceLeft names the voice profiles the push carried, with content that
+	// differs from the workspace's, that the workspace already holds: they
+	// live there, people edit them there, and the push left them as they
+	// were (venue.PushParts.VoiceLeft).
+	VoiceLeft []string
 }
 
 // total reports how many collections the reconcile touched or confirmed.
@@ -273,9 +228,7 @@ func reconcileContext(
 	slices.Sort(result.Claimed)
 	slices.Sort(result.Unchanged)
 	slices.Sort(result.Undeclared)
-	result.voiceUpdates = profileIDs.updates
-	result.voiceCarried = profileIDs.carried
-	result.voice = voice
+	result.VoiceLeft = profileIDs.left
 
 	if len(result.Undeclared) > 0 {
 		slog.Info("sync push declares fewer collections than the server holds; keeping the rest",
@@ -326,11 +279,9 @@ type profileBinder struct {
 	actorID     string
 	pusher      store.Pusher
 	byName      map[string]string
-	// updates are the held-back updates of existing profiles (writeVoice).
-	updates []func(context.Context) error
-	// carried is the id of each profile the push carried content for, by
-	// lowercased name.
-	carried map[string]string
+	// left names the profiles the workspace already held whose pushed
+	// content differed (contextReconcileResult.VoiceLeft).
+	left []string
 }
 
 func newProfileBinder(voice coreprofile.Store, ledger voicewrite.Ledger, workspaceID, actorID string) *profileBinder {
@@ -376,33 +327,26 @@ func (b *profileBinder) bind(ctx context.Context, e *pb.SyncContextEntry) (strin
 		return "", fmt.Errorf("decode voice profile %q: %w", e.VoiceProfile, err)
 	}
 
-	profileID, err := b.upsert(ctx, e.VoiceProfile, existing, pushed, e.GetVoiceOp(), e.GetVoiceProfileRevision())
+	profileID, err := b.upsert(ctx, e.VoiceProfile, existing, pushed, e.GetVoiceOp())
 	if err != nil {
 		return "", err
-	}
-	if pushed != nil && profileID != "" {
-		if b.carried == nil {
-			b.carried = map[string]string{}
-		}
-		b.carried[strings.ToLower(e.VoiceProfile)] = profileID
 	}
 	b.byName[e.VoiceProfile] = profileID
 	return profileID, nil
 }
 
-// upsert applies the pushed profile content to the hub and returns the id to
-// bind. With no pushed content it binds whatever the hub already holds under
-// that name.
+// upsert returns the id of the profile to bind. A profile the workspace does
+// not hold is created from the pushed content. One it holds lives there:
+// people edit it there, so the push never writes it, and a pushed version
+// that differs is named in left so the push can say where it is edited. With
+// no pushed content it binds whatever the workspace holds under that name.
 //
 // The write goes through voicewrite.Apply, which records it on the project's
 // ledger. recorded is the operation the pushing client recorded for the
 // write: when the push's ledger objects or the project's ledger hold it, it
 // is the record, with its actor, note and agent host, and no second
 // operation is appended. Otherwise the write is recorded as the pusher's.
-//
-// An update names base, the revision of the profile the push last pulled, and
-// the store refuses it when the profile has changed since.
-func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushed *coreprofile.VoiceProfile, recorded, base string) (string, error) {
+func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushed *coreprofile.VoiceProfile, recorded string) (string, error) {
 	if pushed == nil {
 		if existing == nil {
 			return "", nil
@@ -410,8 +354,8 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 		return existing.ID, nil
 	}
 
-	now := time.Now().UTC()
 	if existing == nil {
+		now := time.Now().UTC()
 		created := *pushed
 		created.ID = id.New()
 		created.Name = name
@@ -420,49 +364,21 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 		created.CreatedAt = now
 		created.UpdatedAt = now
 		created.CreatedBy = b.actorID
-		if _, err := voicewrite.Apply(ctx, b.voice, b.ledger, b.write(nil, &created, recorded, "")); err != nil {
+		if _, err := voicewrite.Apply(ctx, b.voice, b.ledger, b.write(nil, &created, recorded)); err != nil {
 			return "", err
 		}
 		return created.ID, nil
 	}
 
-	// Unchanged authored content is a no-op, so a re-push of an unedited voice
-	// does not manufacture a version. When it did change, UpdateProfile archives
-	// the current state before bumping — a server-side edit is superseded by a
-	// revertible version, never clobbered.
-	if sameAuthoredVoice(existing, pushedOver(existing, pushed)) {
-		return existing.ID, nil
+	if !sameAuthoredVoice(existing, pushedOver(existing, pushed)) {
+		b.left = append(b.left, existing.Name)
 	}
-	updated := *existing
-	updated.Description = pushed.Description
-	updated.Tone = pushed.Tone
-	updated.Style = pushed.Style
-	updated.Examples = pushed.Examples
-	updated.Locales = pushed.Locales
-	updated.Channels = pushed.Channels
-	updated.Personas = pushed.Personas
-	updated.MinScore = pushed.MinScore
-	if pushed.Constraints != nil {
-		updated.Constraints = pushed.Constraints
-	}
-	updated.VersionNote = "superseded by kapi push"
-	updated.UpdatedAt = now
-	updated.UpdatedBy = b.actorID
-	// The collections need only the id, which an update keeps, so the write
-	// itself waits for the end of the push (contextReconcileResult.writeVoice).
-	write := b.write(existing, &updated, recorded, base)
-	b.updates = append(b.updates, func(ctx context.Context) error {
-		if _, err := voicewrite.Apply(ctx, b.voice, b.ledger, write); err != nil {
-			return asVoiceRefusal(err, existing.Name)
-		}
-		return nil
-	})
-	return updated.ID, nil
+	return existing.ID, nil
 }
 
 // write is the voicewrite.Write of one pushed profile, by the pusher: the
 // member, or the tool whose token made the push.
-func (b *profileBinder) write(before, after *coreprofile.VoiceProfile, recorded, base string) voicewrite.Write {
+func (b *profileBinder) write(before, after *coreprofile.VoiceProfile, recorded string) voicewrite.Write {
 	actor := contextop.Actor{Kind: contextop.ActorPerson}
 	if b.pusher.Tool != "" {
 		actor = contextop.Actor{Kind: contextop.ActorTool, Name: b.pusher.Tool}
@@ -470,7 +386,6 @@ func (b *profileBinder) write(before, after *coreprofile.VoiceProfile, recorded,
 	return voicewrite.Write{
 		Before:   before,
 		After:    after,
-		Base:     base,
 		Actor:    actor,
 		PushedBy: b.pusher,
 		Note:     "pushed with `kapi push`",

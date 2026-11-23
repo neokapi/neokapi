@@ -116,18 +116,17 @@ func TestConfirmIngest(t *testing.T) {
 	}
 }
 
-// An applied push answers with the revision each voice profile it carried has
-// now, so the next push names the version this one wrote rather than being
-// refused as a change over its own.
-func TestConfirmIngest_CarriesTheVoiceRevisionsThePushWrote(t *testing.T) {
+// An applied push names the voice profiles the venue held and left as they
+// were, so the push can say where the project's voice is edited.
+func TestConfirmIngest_NamesTheVoiceProfilesTheVenueLeft(t *testing.T) {
 	srv := statusTestServer(t, map[string]any{
 		"status": "completed", "total": 1, "completed": 1,
-		"voice_revisions": map[string]string{"acme voice": "rev-after-push"},
+		"voice_left": []string{"Acme Voice"},
 	}, http.StatusOK)
 	c := newPullTestConnector(t, srv, []string{"fr"}, 0)
 
 	state, _, parts, err := c.confirmIngest(t.Context(), "push-voice")
 	require.NoError(t, err)
 	assert.Equal(t, bowrainconn.IngestApplied, state)
-	assert.Equal(t, map[string]string{"acme voice": "rev-after-push"}, parts.VoiceRevisions)
+	assert.Equal(t, []string{"Acme Voice"}, parts.VoiceLeft)
 }

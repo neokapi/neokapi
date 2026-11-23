@@ -320,21 +320,6 @@ func (s *Server) HandleSyncPushCommit(c *echo.Context) error {
 		return serverErr(c, err)
 	}
 
-	// A push that would change a workspace voice profile names the revision
-	// it last pulled; refuse it here, with the remedy, before anything is
-	// queued. The worker checks again in the statement that writes.
-	sendsRevisions := venue.HasCapability(c.Request().Header.Get(venue.ClientCapabilitiesHeader), venue.CapabilityRevisions)
-	if err := s.checkPushedVoiceBases(c.Request().Context(), manifest.ProjectID, manifest.Contexts, sendsRevisions); err != nil {
-		if refusal, ok := errors.AsType[*jobs.VoiceRefusal](err); ok {
-			status := http.StatusConflict
-			if refusal.Unversioned {
-				status = http.StatusPreconditionRequired
-			}
-			return apiErr(c, status, refusal.Code(), refusal.Details(s.displayName(c.Request().Context(), refusal.ChangedBy)))
-		}
-		return serverErr(c, err)
-	}
-
 	// Enforce upload budget. Cheap and manifest-local, so it runs before the
 	// per-chunk storage probes below: an oversized manifest is rejected without
 	// paying for a stat per chunk.
@@ -1052,23 +1037,9 @@ func (s *Server) HandleSyncPushStatus(c *echo.Context) error {
 		if parts.Ledger != nil {
 			resp["ledger"] = parts.Ledger
 		}
-		if len(parts.VoiceRevisions) > 0 {
-			resp["voice_revisions"] = parts.VoiceRevisions
+		if len(parts.VoiceLeft) > 0 {
+			resp["voice_left"] = parts.VoiceLeft
 		}
 	}
 	return c.JSON(http.StatusOK, resp)
-}
-
-// checkPushedVoiceBases refuses a push whose context entries would change a
-// voice profile of the project's workspace without naming its current
-// revision (jobs.CheckVoiceBases).
-func (s *Server) checkPushedVoiceBases(ctx context.Context, projectID string, contexts json.RawMessage, sendsRevisions bool) error {
-	if s.VoiceStore == nil || s.ContentStore == nil || !carriesRecords(contexts) {
-		return nil
-	}
-	proj, err := s.ContentStore.GetProject(ctx, projectID)
-	if err != nil || proj == nil || proj.WorkspaceID == "" {
-		return nil
-	}
-	return jobs.CheckVoiceBases(ctx, s.VoiceStore, proj.WorkspaceID, contexts, sendsRevisions)
 }

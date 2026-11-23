@@ -3,7 +3,6 @@ package jobs
 import (
 	"context"
 	"encoding/json"
-	"strings"
 	"testing"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -74,7 +73,7 @@ func TestReconcileContext_CreatesCollectionWithGovernance(t *testing.T) {
 	entries := []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "kapi", "channel": "docs"}, "docs", "Acme Voice", voice),
 	}
-	res, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries)
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"docs"}, res.Created)
 
@@ -114,7 +113,7 @@ func TestReconcileContext_DoublePushIsIdempotent(t *testing.T) {
 		}
 	}
 
-	first, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries())
+	first, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries())
 	require.NoError(t, err)
 	require.Equal(t, []string{"docs"}, first.Created)
 	assert.Equal(t, []platev.CollectionChange{{
@@ -124,7 +123,7 @@ func TestReconcileContext_DoublePushIsIdempotent(t *testing.T) {
 	before, err := deps.ContentStore.GetCollectionByName(ctx, "p1", "docs", "main")
 	require.NoError(t, err)
 
-	second, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries())
+	second, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, entries())
 	require.NoError(t, err)
 	assert.Empty(t, second.Created, "the second push must not create a second row")
 	assert.Empty(t, second.Updated, "an unchanged recipe must not rewrite the row")
@@ -156,12 +155,12 @@ func TestReconcileContext_ChangedRecipeUpdates(t *testing.T) {
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
-	_, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	_, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "kapi"}, "", "", nil),
 	})
 	require.NoError(t, err)
 
-	res, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "bowrain"}, "email", "", nil),
 	})
 	require.NoError(t, err)
@@ -187,14 +186,14 @@ func TestReconcileContext_UndeclaredIsReportedNotDeleted(t *testing.T) {
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
-	_, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	_, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "", nil),
 		contextEntry("marketing", nil, "", "", nil),
 	})
 	require.NoError(t, err)
 
 	// The recipe drops "marketing".
-	res, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "", nil),
 	})
 	require.NoError(t, err)
@@ -219,7 +218,7 @@ func TestReconcileContext_WorkspaceOwnedIsNotReported(t *testing.T) {
 		ProjectID: "p1", Name: "uploads", Stream: "main", Owner: venue.ContextOwnerWorkspace,
 	}))
 
-	res, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "", nil),
 	})
 	require.NoError(t, err)
@@ -239,7 +238,7 @@ func TestReconcileContext_DeclaringClaimsAWorkspaceCollection(t *testing.T) {
 		ProjectID: "p1", Name: "docs", Stream: "main", Owner: venue.ContextOwnerWorkspace,
 	}))
 
-	res, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "kapi"}, "", "", nil),
 	})
 	require.NoError(t, err)
@@ -251,41 +250,37 @@ func TestReconcileContext_DeclaringClaimsAWorkspaceCollection(t *testing.T) {
 	assert.Equal(t, venue.ContextOwnerRecipe, col.Owner)
 }
 
-// TestReconcileContext_ChangedVoiceLandsAsANewVersion pins the brand fold-in:
-// the voice now travels inside the push, and an edited one goes through the
-// store's versioning rather than clobbering what the server holds.
-func TestReconcileContext_ChangedVoiceLandsAsANewVersion(t *testing.T) {
+// A push creates a voice profile the workspace does not hold, and leaves one
+// it holds as it is: the profile lives in the workspace and people edit it
+// there. A pushed version that differs is named, so the push can say where
+// the profile is edited; an unchanged one is not.
+func TestReconcileContext_LeavesAProfileTheWorkspaceHolds(t *testing.T) {
 	deps := newContextTestDeps(t)
-	ctx := t.Context()
-	newContextProject(t, ctx, deps, "p1", "ws1")
+	newContextProject(t, t.Context(), deps, "p1", "ws1")
+	neutral := &coreprofile.VoiceProfile{Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "neutral"}}
 
-	first, err := json.Marshal(&coreprofile.VoiceProfile{
-		Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "neutral"},
-	})
+	res, err := pushVoice(t, deps, "Acme Voice", neutral)
 	require.NoError(t, err)
-	_, err = reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
-		contextEntry("docs", nil, "", "Acme Voice", first),
-	})
+	assert.Empty(t, res.VoiceLeft, "a created profile is not left")
+	profiles, err := deps.VoiceStore.ListProfiles(t.Context(), "ws1")
 	require.NoError(t, err)
+	require.Len(t, profiles, 1, "the push created it")
 
-	second, err := json.Marshal(&coreprofile.VoiceProfile{
-		Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "formal"},
-	})
+	formal := *neutral
+	formal.Tone.Formality = "formal"
+	formal.MinScore = 85
+	res, err = pushVoice(t, deps, "acme voice", &formal)
 	require.NoError(t, err)
-	changed := contextEntry("docs", nil, "", "Acme Voice", second)
-	changed.VoiceProfileRevision = pulledRevision(t, deps, "ws1", "Acme Voice")
-	_, err = reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{changed})
+	assert.Equal(t, []string{"Acme Voice"}, res.VoiceLeft)
+	profiles, err = deps.VoiceStore.ListProfiles(t.Context(), "ws1")
 	require.NoError(t, err)
+	require.Len(t, profiles, 1, "matched by name, not duplicated")
+	assert.Equal(t, "neutral", profiles[0].Tone.Formality, "the workspace's profile stays as it is")
+	assert.Equal(t, 1, profiles[0].Version, "and no version is made")
 
-	profiles, err := deps.VoiceStore.ListProfiles(ctx, "ws1")
+	res, err = pushVoice(t, deps, "Acme Voice", neutral)
 	require.NoError(t, err)
-	require.Len(t, profiles, 1, "the voice is matched by name, not duplicated")
-	assert.Equal(t, "formal", profiles[0].Tone.Formality)
-	assert.Equal(t, 2, profiles[0].Version, "an edited voice lands as a new version")
-
-	versions, err := deps.VoiceStore.ListProfileVersions(ctx, profiles[0].ID)
-	require.NoError(t, err)
-	assert.NotEmpty(t, versions, "the superseded state is archived, not lost")
+	assert.Empty(t, res.VoiceLeft, "a push that carries the workspace's version names nothing")
 }
 
 // TestReconcileContext_NoVoiceCarriesStructureOnly pins what --no-brand means
@@ -296,7 +291,7 @@ func TestReconcileContext_NoVoiceCarriesStructureOnly(t *testing.T) {
 	ctx := t.Context()
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
-	res, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", map[string]string{"product": "kapi"}, "", "", nil),
 	})
 	require.NoError(t, err)
@@ -321,7 +316,7 @@ func TestReconcileContext_UnclaimedProjectReconcilesStructure(t *testing.T) {
 
 	voice, err := json.Marshal(&coreprofile.VoiceProfile{Name: "Acme Voice"})
 	require.NoError(t, err)
-	res, err := reconcileAndWriteVoice(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "", "user-1", nil, []*pb.SyncContextEntry{
+	res, err := reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "", "user-1", nil, []*pb.SyncContextEntry{
 		contextEntry("docs", nil, "", "Acme Voice", voice),
 	})
 	require.NoError(t, err)
@@ -342,98 +337,11 @@ func TestGovernanceConfig_SourceOnly(t *testing.T) {
 	assert.False(t, ok)
 }
 
-// pulledRevision is the revision of the workspace profile named name, as a
-// pull reports it.
-func pulledRevision(t *testing.T, deps *WorkerDeps, wsID, name string) string {
-	t.Helper()
-	profiles, err := deps.VoiceStore.ListProfiles(t.Context(), wsID)
-	require.NoError(t, err)
-	store, ok := deps.VoiceStore.(interface {
-		Revisions(ctx context.Context, ids []string) (map[string]string, error)
-	})
-	require.True(t, ok)
-	for _, p := range profiles {
-		if strings.EqualFold(p.Name, name) {
-			revs, err := store.Revisions(t.Context(), []string{p.ID})
-			require.NoError(t, err)
-			return revs[p.ID]
-		}
-	}
-	return ""
-}
-
-// pushVoice reconciles one entry carrying profile under name, naming base.
-func pushVoice(t *testing.T, deps *WorkerDeps, name, base string, profile *coreprofile.VoiceProfile) error {
+// pushVoice reconciles one entry carrying profile under name.
+func pushVoice(t *testing.T, deps *WorkerDeps, name string, profile *coreprofile.VoiceProfile) (*contextReconcileResult, error) {
 	t.Helper()
 	raw, err := json.Marshal(profile)
 	require.NoError(t, err)
 	entry := contextEntry("docs", nil, "", name, raw)
-	entry.VoiceProfileRevision = base
-	_, err = reconcileAndWriteVoice(t.Context(), deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{entry})
-	return err
-}
-
-// A push that would change a profile names the revision it pulled: without
-// one it is refused with the update remedy, on an older one with the pull
-// remedy, and the profile stays as it was.
-func TestReconcileContext_AVoiceChangeNamesTheRevisionItPulled(t *testing.T) {
-	deps := newContextTestDeps(t)
-	newContextProject(t, t.Context(), deps, "p1", "ws1")
-	require.NoError(t, pushVoice(t, deps, "Acme Voice", "", &coreprofile.VoiceProfile{
-		Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "neutral"},
-	}))
-	pulled := pulledRevision(t, deps, "ws1", "Acme Voice")
-	formal := &coreprofile.VoiceProfile{Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "formal"}}
-
-	var refusal *VoiceRefusal
-	err := pushVoice(t, deps, "Acme Voice", "", formal)
-	require.ErrorAs(t, err, &refusal)
-	assert.True(t, refusal.Unversioned)
-	assert.Contains(t, err.Error(), "kapi plugin update bowrain")
-
-	require.NoError(t, pushVoice(t, deps, "Acme Voice", pulled, formal))
-	casual := &coreprofile.VoiceProfile{Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "casual"}}
-	err = pushVoice(t, deps, "Acme Voice", pulled, casual)
-	require.ErrorAs(t, err, &refusal)
-	assert.False(t, refusal.Unversioned)
-	assert.Contains(t, err.Error(), "Run `kapi pull` to see what changed")
-
-	profiles, err := deps.VoiceStore.ListProfiles(t.Context(), "ws1")
-	require.NoError(t, err)
-	require.Len(t, profiles, 1)
-	assert.Equal(t, "formal", profiles[0].Tone.Formality, "a refused push writes nothing")
-}
-
-// A pushed profile's compliance bar and constraints land: the push applied
-// every authored field it compares, so a profile that differed only there
-// made a new version on every push and never took the change.
-func TestReconcileContext_MinScoreAndConstraintsLand(t *testing.T) {
-	deps := newContextTestDeps(t)
-	newContextProject(t, t.Context(), deps, "p1", "ws1")
-	base := &coreprofile.VoiceProfile{Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "neutral"}}
-	require.NoError(t, pushVoice(t, deps, "Acme Voice", "", base))
-
-	raised := *base
-	raised.MinScore = 85
-	raised.Constraints = []coreprofile.Constraint{{ID: "c1", Version: 1, Source: "style guide", Statement: "Name the product in full.", Kind: "guidance"}}
-	require.NoError(t, pushVoice(t, deps, "Acme Voice", pulledRevision(t, deps, "ws1", "Acme Voice"), &raised))
-
-	profiles, err := deps.VoiceStore.ListProfiles(t.Context(), "ws1")
-	require.NoError(t, err)
-	require.Len(t, profiles, 1)
-	assert.Equal(t, 85, profiles[0].MinScore, "the pushed compliance bar lands")
-	require.Len(t, profiles[0].Constraints, 1, "the pushed constraints land")
-	assert.Equal(t, "Name the product in full.", profiles[0].Constraints[0].Statement)
-	version := profiles[0].Version
-
-	// The same push again changes nothing and makes no version, even when the
-	// recipe spells the name in another case and carries no constraints (a
-	// push without constraints keeps the stored ones).
-	again := raised
-	again.Name = "acme voice"
-	again.Constraints = nil
-	require.NoError(t, pushVoice(t, deps, "acme voice", pulledRevision(t, deps, "ws1", "Acme Voice"), &again))
-	profiles, err = deps.VoiceStore.ListProfiles(t.Context(), "ws1")
-	require.NoError(t, err)
-	assert.Equal(t, version, profiles[0].Version, "an unchanged push makes no version")
+	return reconcileContext(t.Context(), deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{entry})
 }
