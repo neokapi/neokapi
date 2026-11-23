@@ -113,9 +113,21 @@ jobs:
             scripts/image-scan-compare.py
           sparse-checkout-cone-mode: false
 
+      # Not the release's own setup-node-ui action: a local action runs from
+      # the release checkout, so it would carry that release's cache rules.
+      # This sets up the same Vite+ and Node with no cache, read or saved.
       - name: Set up Node (Keycloak theme)
         if: matrix.image == 'bowrain-keycloak'
-        uses: ./.github/actions/setup-node-ui
+        uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          version: "1.7.0"
+          node-version: "26"
+          cache: false
+          run-install: false
+
+      - name: Install the release's workspace dependencies (Keycloak theme)
+        if: matrix.image == 'bowrain-keycloak'
+        run: vp install --frozen-lockfile
 
       - name: Build @neokapi/i18n-react (Keycloak theme)
         if: matrix.image == 'bowrain-keycloak'
