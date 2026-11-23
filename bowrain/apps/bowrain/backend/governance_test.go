@@ -3,7 +3,6 @@ package backend
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/editorclient"
@@ -28,7 +27,7 @@ type recordedRequest struct {
 func newGovTestApp(t *testing.T, handler http.HandlerFunc) (*App, *recordedRequest) {
 	t.Helper()
 	rec := &recordedRequest{}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rec.method = r.Method
 		rec.path = r.URL.Path
 		rec.query = r.URL.RawQuery

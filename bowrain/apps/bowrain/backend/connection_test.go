@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/keychain"
-
 	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

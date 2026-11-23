@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -26,7 +25,7 @@ import (
 func itemOpServer(t *testing.T, routes map[string]func(w http.ResponseWriter, r *http.Request)) (*App, *[]string) {
 	t.Helper()
 	var hits []string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		key := r.Method + " " + r.URL.Path
 		hits = append(hits, key)
 		// Longest-suffix match so callers key on the trailing route segment.
@@ -320,7 +319,7 @@ func TestRefusedChangeSetSurfacesToCaller(t *testing.T) {
 // fails, connected once one succeeds and the queue has drained.
 func TestTransportFailureStillGoesOffline(t *testing.T) {
 	var up atomic.Bool
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !up.Load() {
 			// The connection drops before any answer: a transport failure.
 			conn, _, err := w.(http.Hijacker).Hijack()

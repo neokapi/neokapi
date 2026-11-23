@@ -73,7 +73,7 @@ func TestStreamBackoffAfter(t *testing.T) {
 func authOnlyServer(t *testing.T, status int) (*httptest.Server, *atomic.Int64) {
 	t.Helper()
 	var probes atomic.Int64
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/auth/me" {
 			probes.Add(1)
 			w.WriteHeader(status)
@@ -244,7 +244,7 @@ func TestRetryConnectionAttemptsWithoutWaitingOutTheBackoff(t *testing.T) {
 // edit made meanwhile still goes to the queue.
 func TestAReconnectAttemptIsReportedWhileItRuns(t *testing.T) {
 	release := make(chan struct{})
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		<-release
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
@@ -429,7 +429,8 @@ func (r *tcpRelay) cut() {
 	}
 }
 
-// restore listens again on the same address. Nothing tells the client.
+// restore listens again on the same address. Nothing tells the client. The
+// new listener is cut when the test ends, before the app's leak check.
 func (r *tcpRelay) restore(t *testing.T) {
 	t.Helper()
 	ln, err := net.Listen("tcp", r.addr)
@@ -439,6 +440,7 @@ func (r *tcpRelay) restore(t *testing.T) {
 	r.ln = ln
 	r.mu.Unlock()
 	go r.serve(ln)
+	t.Cleanup(r.cut)
 }
 
 // TestReconnectAfterTheRelayDropsAndReturns is #2596 end to end: a connection
@@ -447,7 +449,7 @@ func (r *tcpRelay) restore(t *testing.T) {
 // its own, replay what it queued, and put the project subscription back.
 func TestReconnectAfterTheRelayDropsAndReturns(t *testing.T) {
 	var replays atomic.Int64
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/auth/me":
 			w.WriteHeader(http.StatusOK)
@@ -524,7 +526,7 @@ func TestReconnectAfterTheRelayDropsAndReturns(t *testing.T) {
 func TestReconnectRestoresTheStreamAndPresence(t *testing.T) {
 	var presenceReports atomic.Int64
 	streams := make(chan struct{}, 4)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/v1/auth/me":
 			w.WriteHeader(http.StatusOK)
