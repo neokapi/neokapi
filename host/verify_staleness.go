@@ -4,33 +4,33 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/tool"
 )
 
 // The staleness gate detects content produced or approved under superseded
 // governing context.
 //
 // Producers record model.Origin.ContextFingerprint from the voice guidance and
-// term rules supplied to them. The gate compares that fingerprint with the
-// current context resolved for each file, including collection-specific bindings.
-// Staleness can fail a release gate, but target-language drift must not block an
-// ordinary build.
+// term rules supplied to them. The gate compares it with the context resolved
+// for each file now. Staleness can fail a release gate, never an ordinary build.
 //
 // The comparison uses state.UnitState.GoverningBasis: an approval's fingerprint
 // when present, otherwise the producer's stamp. Approval under the current context
 // clears staleness; rejection leaves the producer's stamp in force.
 //
-// An empty fingerprint matches an ungoverned context. Under a governing context,
-// a target without one (older or hand-written content) is reported and never
-// failed, because its context cannot be compared.
+// An empty fingerprint matches an ungoverned context. Under a governing
+// context, a target without one (older or hand-written) is reported, never
+// failed.
 
 // gateStaleness is the gate's id. There is no flag to tune it: a coverage bar
-// is a judgement about how much is enough, and this is not one — a stamp either
+// is a judgement about how much is enough, and this is not one, a stamp either
 // matches the context in force or it does not.
 const gateStaleness = "staleness"
 
@@ -52,9 +52,9 @@ type stalenessScope struct {
 // its source file, and returns the gate result plus whether there was anything
 // to judge at all.
 //
-// A project that holds no produced target, neither a stamp or a decision in its
-// state store nor a flow's stamped write in its block history, contributes no
-// gate row.
+// A project that holds no produced target contributes no gate row. A produced
+// target is a stamp or a decision in the state store, or a flow's stamped
+// write in the block history.
 // "0 findings" about content that does not exist reads as a gate that ran and
 // passed, which is a claim about provenance nobody made.
 func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, unread *UnreadSet) (verifyGateResult, bool, error) {
@@ -105,12 +105,23 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 
 		scope := stalenessScope{unit: u}
 		document := docs.Scope(root, u.SourcePath)
+		// A unit a reviewer rejected was drafted again under its feedback, and
+		// the draft carries it in its stamp (tool.FeedbackFingerprint), so the
+		// comparison folds in the feedback the unit has now: a changed note
+		// makes that unit stale and no other.
+		feedback, ferr := a.reviewFeedbackFor(ctx, proj, root, u.Locale, []string{u.SourcePath})
+		if ferr != nil {
+			return gate, false, ferr
+		}
+		rel := blockstore.SourceNamespace(root, u.SourcePath)
 		for _, b := range bl {
 			if !b.Translatable {
 				continue
 			}
 			p, ok := produced[reviewUnitKey(document, blockKey(b), u.Locale)]
-			if !ok {
+			// A rejection is about the draft it turned down. The draft on disk
+			// is the one a pass wrote after it, and its own stamp answers.
+			if !ok || p.rejected {
 				p, ok = loopProvenance(loop, document, b, model.LocaleID(u.Locale))
 			}
 			if !ok {
@@ -119,10 +130,16 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 				// is how two gates come to disagree.
 				continue
 			}
+			unitFeedback := feedback[tool.FeedbackUnitKey(rel, blockKey(b))]
+			if unitFeedback.Held {
+				// Rejected tool.MaxRejections times: a person writes it, and the
+				// loop has nothing to redraft.
+				continue
+			}
 			judged = true
 			scope.produced++
 			switch {
-			case p.fingerprint == want.fingerprint:
+			case p.fingerprint == tool.FeedbackFingerprint(want.fingerprint, unitFeedback):
 				// Produced under the context in force, an ungoverned one
 				// included: both stamps are empty there.
 			case p.fingerprint == "":
@@ -188,6 +205,9 @@ func loopProvenance(loop *loopWrites, document string, b *model.Block, locale mo
 type producedProvenance struct {
 	origin      model.Origin
 	fingerprint string
+	// rejected marks a reviewer's rejection: it describes the draft it turned
+	// down, not the one a later pass wrote over it.
+	rejected bool
 }
 
 // producedTargets indexes the state store by document, unit and locale, keeping
@@ -208,6 +228,7 @@ func producedTargets(recorded []state.UnitState) map[string]producedProvenance {
 		}
 		out[reviewUnitKey(u.Scope, u.Unit, string(u.Variant.Locale))] = producedProvenance{
 			origin: u.Origin, fingerprint: u.GoverningBasis(),
+			rejected: u.Decision.ReviewState == ReviewDecisionRejected,
 		}
 	}
 	return out
@@ -225,7 +246,7 @@ type governingContext struct {
 // movedComponent attributes a divergence to a ref component, from the stamps a
 // producer left.
 //
-// The fingerprint alone cannot say what moved — it folds the voice guidance and
+// The fingerprint alone cannot say what moved, it folds the voice guidance and
 // the terminology into one hash on purpose, so that targets written under one
 // context fall stale together whichever half changed. What separates them is
 // the profile stamp beside it: a changed profile id or revision is the CONTEXT

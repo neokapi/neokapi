@@ -89,6 +89,11 @@ type RecordAbsorbResult struct {
 	// wording is still recoverable, and otherwise not at all, never against the
 	// source now sitting beside it.
 	Superseded int `json:"superseded,omitempty"`
+	// Rejected counts translations a reviewer rejected for their unit, which
+	// are not learned as that unit's answer: the content memory would only
+	// hand the rejected wording back as the unit's next draft. A pair the
+	// memory holds from other origins stays usable for other units.
+	Rejected int `json:"rejected,omitempty"`
 	// Skipped counts target artifacts already absorbed at their current digest.
 	Skipped int `json:"skipped,omitempty"`
 	// Unreadable counts target artifacts whose format could not be read back
@@ -450,6 +455,10 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 		res.Documents++
 		for _, b := range blocks {
 			e, basis, applies := reviewed.grade(u.scope, b, string(u.locale))
+			if applies && e.status == model.TargetStatusDraft && e.blessesTarget(b, u.locale) {
+				res.Rejected++
+				continue
+			}
 			srcRuns, tgtRuns, keep := recordRuns(b, u.locale, approvesTarget(e, applies))
 			if !keep {
 				continue

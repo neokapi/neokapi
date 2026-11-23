@@ -4165,6 +4165,16 @@ export class ConvergeLocaleResult {
         }
         if (/** @type {any} */(false)) {
             /**
+             * LeftForPerson counts units whose drafts a reviewer rejected as many
+             * times as the loop allows (tool.MaxRejections). The loop drafts them no
+             * more; a person writes their translation.
+             * @member
+             * @type {number | undefined}
+             */
+            this["left_for_person"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Redrafted counts the stale units this run produced over: recycled against
              * the rewritten source, or drafted for the remainder. Each now holds a
              * translation of the current source. The decision they carried is NOT
@@ -4220,13 +4230,13 @@ export class ConvergeLocaleResult {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType19;
-        const $$createField12_0 = $$createType94;
+        const $$createField13_0 = $$createType94;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
         }
         if ("unstamped_drafts" in $$parsedSource) {
-            $$parsedSource["unstamped_drafts"] = $$createField12_0($$parsedSource["unstamped_drafts"]);
+            $$parsedSource["unstamped_drafts"] = $$createField13_0($$parsedSource["unstamped_drafts"]);
         }
         return new ConvergeLocaleResult(/** @type {Partial<ConvergeLocaleResult>} */($$parsedSource));
     }
@@ -4325,6 +4335,16 @@ export class ConvergeOutput {
              * @type {number | undefined}
              */
             this["blocked_on_source"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * RepeatedRejected counts the drafts this run made that came back equal to
+             * one a reviewer had rejected. None was kept, so those units stay owed,
+             * and each counts towards the unit's stop (tool.MaxRejections).
+             * @member
+             * @type {number | undefined}
+             */
+            this["repeated_rejected"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -4458,9 +4478,9 @@ export class ConvergeOutput {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType96;
         const $$createField6_0 = $$createType98;
-        const $$createField18_0 = $$createType100;
-        const $$createField19_0 = $$createType102;
-        const $$createField20_0 = $$createType104;
+        const $$createField19_0 = $$createType100;
+        const $$createField20_0 = $$createType102;
+        const $$createField21_0 = $$createType104;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -4469,13 +4489,13 @@ export class ConvergeOutput {
             $$parsedSource["parked_scopes"] = $$createField6_0($$parsedSource["parked_scopes"]);
         }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField18_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField19_0($$parsedSource["warnings"]);
         }
         if ("findings" in $$parsedSource) {
-            $$parsedSource["findings"] = $$createField19_0($$parsedSource["findings"]);
+            $$parsedSource["findings"] = $$createField20_0($$parsedSource["findings"]);
         }
         if ("pre_review" in $$parsedSource) {
-            $$parsedSource["pre_review"] = $$createField20_0($$parsedSource["pre_review"]);
+            $$parsedSource["pre_review"] = $$createField21_0($$parsedSource["pre_review"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }

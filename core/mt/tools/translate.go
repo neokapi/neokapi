@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/tool"
 	mtprovider "github.com/neokapi/neokapi/providers/mt"
 )
@@ -34,6 +35,13 @@ type MTTranslateTool struct {
 	profileID      string
 	profileVersion string
 	contextFP      string
+	// feedback is the review feedback per unit key. A machine translation
+	// engine takes no instructions, so none of it is sent: a unit's draft is
+	// stamped with it (tool.FeedbackFingerprint), so a changed note makes that
+	// unit stale on this route as on any other, and a held unit is not drafted.
+	feedback tool.ReviewFeedback
+	// grant reports a draft that repeated a rejected one, which is not kept.
+	grant tool.ReviewFeedbackGrant
 	// reused counts the blocks this run served from the block store instead of
 	// sending to the MT API. See AITranslateTool.ReusedTargets.
 	reused atomic.Int64
@@ -47,11 +55,15 @@ func (t *MTTranslateTool) ReusedTargets() int { return int(t.reused.Load()) }
 // answers this block when it was made from the same source wording by this
 // engine for this language pair, under the governing context in force. Every
 // store lookup this tool makes goes through here, and so does the plan's.
-func (t *MTTranslateTool) ReusesStoredTarget(_ context.Context, b *model.Block, stored blockstore.TargetOverlay) bool {
+func (t *MTTranslateTool) ReusesStoredTarget(ctx context.Context, b *model.Block, stored blockstore.TargetOverlay) bool {
 	if b == nil {
 		return false
 	}
-	return stored.ReusableFor(blockstore.AsReadSourceText(b), blockstore.ReuseConfig(t.configFP, b), t.contextFP)
+	fb := t.feedback.ForBlock(ctx, b.UnitKey())
+	if fb.Held {
+		return stored.ReusableFor(blockstore.AsReadSourceText(b), stored.Config, stored.ContextFingerprint())
+	}
+	return stored.ReusableFor(blockstore.AsReadSourceText(b), blockstore.ReuseConfig(t.configFP, b), tool.FeedbackFingerprint(t.contextFP, fb))
 }
 
 // MTTranslateConfig holds configuration for the MT translate tool.
@@ -73,7 +85,7 @@ type MTTranslateConfig struct {
 	//
 	// It is HOST-OWNED, not recipe-settable. `schema:"-"` keeps it off the CLI
 	// and the form, but `schema` tags have no bearing on what a step's config:
-	// map can reach — core/schema.ApplyConfig is a json round-trip, so the json
+	// map can reach, core/schema.ApplyConfig is a json round-trip, so the json
 	// tag alone decides. What actually keeps a recipe out of it is
 	// host/credentials.ResolveCredentials, which clears this key on the way in
 	// and re-sets it only from a resolved credential's own base_url. The json
@@ -93,13 +105,16 @@ type MTTranslateConfig struct {
 
 	// Profile and TermRules carry the governing context the flow's bindings
 	// inject into the unified translate tool. A classic MT engine takes neither
-	// voice guidance nor terminology, so they are never sent to the provider —
+	// voice guidance nor terminology, so they are never sent to the provider,
 	// but they are the context governing the collection, so they are recorded on
 	// the target's Origin (Profile/ProfileVersion/ContextFingerprint). That keeps
 	// an MT target's governance stamp comparable to an AI or recycled one: all
 	// fall stale together when the profile or terms move.
 	Profile   *coreprofile.VoiceProfile `json:"-" schema:"-"`
 	TermRules []coreprofile.TermRule    `json:"term_rules,omitempty" schema:"-"`
+	// ReviewFeedback is each unit's earlier rejected drafts. Only a host
+	// grants it (tool.TakeReviewFeedback), and it is never sent to the engine.
+	ReviewFeedback tool.ReviewFeedbackGrant `json:"-" schema:"-"`
 }
 
 // NewMTTranslateTool creates a new MT translation tool.
@@ -109,6 +124,8 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 		sourceLocale: cfg.SourceLocale,
 		targetLocale: cfg.TargetLocale,
 		vocab:        model.DefaultVocabulary(),
+		feedback:     cfg.ReviewFeedback.Units,
+		grant:        cfg.ReviewFeedback,
 	}
 	name := cfg.ToolName
 	if name == "" {
@@ -125,7 +142,7 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 
 // translate writes the MT target for one block. Source is read-only (the
 // VariantView exposes no source setter). When the source carries inline codes
-// it round-trips through RunsSemanticHTML — MT APIs preserve HTML tags
+// it round-trips through RunsSemanticHTML, MT APIs preserve HTML tags
 // natively, so semantic tags are the most robust transport for the codes. A
 // source holding plurals or selects is translated a sequence at a time
 // (tool.TranslateStructures), so every branch is translated and none is lost.
@@ -138,6 +155,10 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 	if sourceText == "" {
 		return nil
 	}
+	// A unit a reviewer rejected tool.MaxRejections times is not drafted again.
+	if t.feedback.ForBlock(v.Context(), v.UnitKey()).Held {
+		return nil
+	}
 
 	sourceRuns := v.SourceRuns()
 	if model.HasStructuredRuns(sourceRuns) || model.RunsHaveInlineCodes(sourceRuns) {
@@ -147,8 +168,11 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 		if err != nil {
 			return err
 		}
+		if t.repeatsRejected(v, model.RunsText(runs)) {
+			return nil
+		}
 		v.SetTargetRuns(t.targetLocale, runs)
-		v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
+		v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin(v.Context(), v.UnitKey()))
 		return nil
 	}
 
@@ -161,9 +185,32 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 		return fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
 	}
 
+	if t.repeatsRejected(v, resp.Translation) {
+		return nil
+	}
 	v.SetTargetText(t.targetLocale, resp.Translation)
-	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
+	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin(v.Context(), v.UnitKey()))
 	return nil
+}
+
+// repeatsRejected reports whether text is a draft a reviewer already rejected
+// for the unit, by the hash the rejection recorded. Such a draft is not kept:
+// the unit stays owed, and the host is told, which counts it towards the
+// unit's stop. An engine takes no instructions, so asking again would return
+// the same words.
+func (t *MTTranslateTool) repeatsRejected(v tool.VariantView, text string) bool {
+	fb := t.feedback.ForBlock(v.Context(), v.UnitKey())
+	if len(fb.Rejections) == 0 || text == "" {
+		return false
+	}
+	h := state.TargetHash(text)
+	for _, r := range fb.Rejections {
+		if r.TargetHash != "" && r.TargetHash == h {
+			t.grant.ReportRepeated(fb)
+			return true
+		}
+	}
+	return false
 }
 
 // translateSequence translates one run sequence that holds no plural or
@@ -198,21 +245,21 @@ func (t *MTTranslateTool) translateSequence(ctx context.Context, seq []model.Run
 
 // mtOrigin describes a target produced by this MT tool: how it was made (the
 // provider) and which context governed it. The engine does not consume the
-// context, but a later reader cannot recover it after the fact — the profile is
-// edited in place and the terminology carries no version — so it is stamped at
+// context, but a later reader cannot recover it after the fact, the profile is
+// edited in place and the terminology carries no version, so it is stamped at
 // production time, the same governance half the AI and recycle producers record.
-func (t *MTTranslateTool) mtOrigin() model.Origin {
+func (t *MTTranslateTool) mtOrigin(ctx context.Context, key string) model.Origin {
 	return model.Origin{
 		Kind:               model.OriginMT,
 		Engine:             string(t.provider.Name()),
 		Profile:            t.profileID,
 		ProfileVersion:     t.profileVersion,
-		ContextFingerprint: t.contextFP,
+		ContextFingerprint: tool.FeedbackFingerprint(t.contextFP, t.feedback.ForBlock(ctx, key)),
 	}
 }
 
 // SessionProcess consults `targets/<locale>` overlays before hitting
-// the MT API — same incremental-work story as translate. MT is
+// the MT API, same incremental-work story as translate. MT is
 // often cheaper than LLMs but still rate-limited and billed per
 // request; skipping cached targets avoids both.
 func (t *MTTranslateTool) SessionProcess(
@@ -272,7 +319,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 					} else {
 						v.SetTargetText(t.targetLocale, cached.TargetText())
 					}
-					v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
+					v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin(ctx, block.UnitKey()))
 					return nil
 				})
 				if err != nil {
@@ -296,7 +343,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 			Provider: string(t.provider.Name()),
 			Config:   blockstore.ReuseConfig(t.configFP, block),
 			Source:   blockstore.BlockSourceStamp(block),
-			Origin:   blockstore.OverlayOrigin(t.mtOrigin()),
+			Origin:   blockstore.OverlayOrigin(t.mtOrigin(ctx, block.UnitKey())),
 		})
 		if err != nil {
 			return fmt.Errorf("translate: encode overlay: %w", err)
