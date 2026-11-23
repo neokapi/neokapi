@@ -58,6 +58,8 @@
     "loading": "Loading",
     "waiting": "waiting",
     "nothingWaiting": "Nothing waiting for you",
+    "countsUnavailable": "Not loaded",
+    "countsFailed": "Could not load what waits for you.",
     "translations_one": "1 translation",
     "translations_other": "{{count, number}} translations",
     "contextItems_one": "1 context item",

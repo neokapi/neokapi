@@ -3,11 +3,41 @@
 // loads.
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { type ComponentProps, useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Text, View } from "react-native";
+import { AccessibilityInfo, Animated, Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
 import { formatCount } from "../../lib/format";
+
+/** In place of the count when it could not be loaded: never a zero or a check. */
+export function UnknownPill({ testID }: { testID?: string }) {
+  const muted = useCSSVariable("--color-muted-foreground");
+  return (
+    <View
+      testID={testID}
+      importantForAccessibility="no-hide-descendants"
+      className="h-7 w-9 items-center justify-center"
+    >
+      <Ionicons name="cloud-offline-outline" size={20} color={String(muted)} />
+    </View>
+  );
+}
+
+/**
+ * Below a list whose counts could not be loaded: says so, with a retry. It
+ * sits after the cards, so it moves nothing when it goes.
+ */
+export function CountsNotice({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <View testID="counts-failed" className="items-center gap-2 px-8 pt-4 pb-2">
+      <Text className="text-muted-foreground text-center text-sm">{t("home.countsFailed")}</Text>
+      <Pressable testID="counts-retry" accessibilityRole="button" onPress={onRetry} hitSlop={8}>
+        <Text className="text-primary text-base">{t("common.retry")}</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 /** A count of what waits, or a check when nothing does. */
 export function CountPill({ count, testID }: { count: number; testID?: string }) {

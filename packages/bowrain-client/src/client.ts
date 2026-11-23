@@ -86,6 +86,31 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * A read that had no answer within its bound. It is a network error: the
+ * server was not reached in time, and the read may be tried again.
+ */
+export class RequestTimeoutError extends TypeError {
+  readonly timeoutMs: number;
+  constructor(path: string, timeoutMs: number) {
+    super(`no answer to ${path} within ${timeoutMs} ms`);
+    this.name = "RequestTimeoutError";
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+/**
+ * How long a read waits for the server to start answering. The bounds come
+ * from production's slowest healthy reads over seven days (Sentry, November
+ * 2026): the review inbox, the project and workspace lists, the permissions
+ * and the review plan answered within 3.1 s at the slowest; a review deck
+ * within 9.2 s. Each bound is more than twice the slowest healthy answer.
+ * Writes have no bound of their own: a decision that seems lost may have
+ * landed, so a write waits for the system's own request timeout.
+ */
+export const READ_TIMEOUT_MS = 20_000;
+export const QUICK_READ_TIMEOUT_MS = 8_000;
+
 /** Whether an error means the server or the network could not be reached. */
 export function isNetworkError(err: unknown): boolean {
   return err instanceof TypeError || (err instanceof ApiError && err.status >= 500);
@@ -102,6 +127,10 @@ export interface BowrainClientOptions {
    */
   onUnauthorized?: () => Promise<string | null>;
   fetch?: typeof fetch;
+  /** The bound on a read, in milliseconds; `READ_TIMEOUT_MS` when omitted. */
+  readTimeoutMs?: number;
+  /** The bound on a quick read (lists, the inbox); `QUICK_READ_TIMEOUT_MS` when omitted. */
+  quickReadTimeoutMs?: number;
 }
 
 /** Where a project's review content lives: a workspace, a project and a stream. */
@@ -371,16 +400,32 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
   const api = `${baseUrl}/api/v1`;
   const doFetch = opts.fetch ?? fetch;
 
+  const readTimeout = opts.readTimeoutMs ?? READ_TIMEOUT_MS;
+  const quickReadTimeout = opts.quickReadTimeoutMs ?? QUICK_READ_TIMEOUT_MS;
+
   async function send(
     path: string,
     init: RequestInit = {},
     accept: (status: number) => boolean = (s) => s >= 200 && s < 300,
+    timeoutMs?: number,
   ): Promise<{ status: number; body: unknown }> {
     const attempt = async (token: string | null) => {
       const headers: Record<string, string> = { Accept: "application/json" };
       if (init.body) headers["Content-Type"] = "application/json";
       if (token) headers.Authorization = `Bearer ${token}`;
-      return doFetch(`${api}${path}`, { ...init, headers });
+      if (timeoutMs === undefined) return doFetch(`${api}${path}`, { ...init, headers });
+      // The bound covers the wait for the answer to start. A long body that
+      // is already arriving is read to its end.
+      const abort = new AbortController();
+      const timer = setTimeout(() => abort.abort(), timeoutMs);
+      try {
+        return await doFetch(`${api}${path}`, { ...init, headers, signal: abort.signal });
+      } catch (err) {
+        if (abort.signal.aborted) throw new RequestTimeoutError(path, timeoutMs);
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
     };
     let res = await attempt(await opts.getAccessToken());
     if (res.status === 401 && opts.onUnauthorized) {
@@ -416,8 +461,9 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     return body;
   }
 
-  async function get<T>(path: string): Promise<T> {
-    return (await send(path)).body as T;
+  /** A read, bounded by the read timeout, or the quick one for lists and the inbox. */
+  async function get<T>(path: string, quick = false): Promise<T> {
+    return (await send(path, {}, undefined, quick ? quickReadTimeout : readTimeout)).body as T;
   }
 
   const client: BowrainClient = {
@@ -464,9 +510,9 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       const { body } = await send("/auth/me", { method: "PATCH", body: JSON.stringify(change) });
       return body as User;
     },
-    workspaces: () => get<Workspace[]>("/workspaces"),
-    projects: (ws) => get<Project[]>(`/${enc(ws)}/projects`),
-    permissions: (ws, pid) => get<CallerPermissions>(`/${enc(ws)}/${enc(pid)}/permissions`),
+    workspaces: () => get<Workspace[]>("/workspaces", true),
+    projects: (ws) => get<Project[]>(`/${enc(ws)}/projects`, true),
+    permissions: (ws, pid) => get<CallerPermissions>(`/${enc(ws)}/${enc(pid)}/permissions`, true),
 
     async reviewInbox() {
       const home = await client.reviewHome();
@@ -477,7 +523,7 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       try {
         const body = await get<
           Partial<Omit<ReviewHome, "projects">> & { projects?: ServerReviewInboxProject[] | null }
-        >("/auth/me/review");
+        >("/auth/me/review", true);
         return {
           context: body.context ?? [],
           languages: body.languages ?? [],
@@ -646,6 +692,7 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       return planFromServer(
         await get<ServerReviewPlan>(
           `/${enc(scope.workspace)}/${enc(scope.project)}/review/plan${query({ stream: scope.stream })}`,
+          true,
         ),
       );
     },

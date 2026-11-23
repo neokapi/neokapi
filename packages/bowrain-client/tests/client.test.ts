@@ -8,7 +8,9 @@ import {
   createBowrainClient,
   diffRuns,
   fixSet,
+  isNetworkError,
   readOutcome,
+  RequestTimeoutError,
   rejectSet,
   revisionsOf,
   withdrawSet,
@@ -798,5 +800,68 @@ describe("feedDecisions", () => {
       canUndo: true,
       card: { blockId: "b1", targetRevision: "r:t", target: [{ text: "Hei" }] },
     });
+  });
+});
+
+describe("read bounds", () => {
+  type Seen = { url: string; signal?: AbortSignal | null };
+
+  /** A fetch that never answers until its signal aborts. */
+  function hanging(seen: Seen[]) {
+    return ((url: string, init?: RequestInit) => {
+      seen.push({ url, signal: init?.signal });
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () =>
+          reject(new DOMException("aborted", "AbortError")),
+        );
+      });
+    }) as typeof fetch;
+  }
+
+  it("ends a quick read that has no answer within its bound as a network error", async () => {
+    const seen: Seen[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: hanging(seen),
+      quickReadTimeoutMs: 20,
+      readTimeoutMs: 5_000,
+    });
+    const err = await client.reviewHome().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RequestTimeoutError);
+    expect(isNetworkError(err)).toBe(true);
+    expect((err as RequestTimeoutError).timeoutMs).toBe(20);
+  });
+
+  it("gives the deck the longer read bound", async () => {
+    const seen: Seen[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: hanging(seen),
+      quickReadTimeoutMs: 5_000,
+      readTimeoutMs: 20,
+    });
+    const err = await client
+      .deck({ workspace: "acme", project: "p1" }, "nb")
+      .catch((e: unknown) => e);
+    expect((err as RequestTimeoutError).timeoutMs).toBe(20);
+  });
+
+  it("sends a write without a bound", async () => {
+    const seen: Seen[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async (url: string, init?: RequestInit) => {
+        seen.push({ url, signal: init?.signal });
+        return new Response("{}", { status: 200 });
+      }) as typeof fetch,
+    });
+    await client
+      .applyChanges({ workspace: "acme", project: "p1" }, approveSet(card))
+      .catch(() => undefined);
+    expect(seen).toHaveLength(1);
+    expect(seen[0].signal).toBeUndefined();
   });
 });

@@ -12,14 +12,15 @@ import { useCSSVariable } from "uniwind";
 import { languageLabel } from "../../lib/feed";
 import type { ProjectWaiting, Waiting } from "../../lib/home";
 import { Monogram } from "./Monogram";
-import { CountPill, LocaleBadge } from "./parts";
+import { CountPill, LocaleBadge, UnknownPill } from "./parts";
 import { ReviewMix } from "./ReviewMix";
 
 const CARD =
   "bg-card border-border mx-4 mb-3 flex-row items-center gap-3 rounded-3xl border p-4 active:opacity-80";
 
 /** What waits, in a line: "12 translations · 3 context items". */
-export function waitingSummary(w: Waiting | undefined, t: TFunction): string {
+export function waitingSummary(w: Waiting | undefined, t: TFunction, unknown = false): string {
+  if (unknown) return t("home.countsUnavailable");
   const parts: string[] = [];
   if (w?.translations) parts.push(t("home.translations", { count: w.translations }));
   if (w?.context) parts.push(t("home.contextItems", { count: w.context }));
@@ -34,14 +35,17 @@ function Chevron() {
 export const WorkspaceCard = memo(function WorkspaceCard({
   workspace,
   waiting,
+  unknown = false,
   onPress,
 }: {
   workspace: Workspace;
   waiting?: Waiting;
+  /** What waits could not be loaded: the card says so rather than showing none. */
+  unknown?: boolean;
   onPress: (w: Workspace) => void;
 }) {
   const { t } = useTranslation();
-  const summary = waitingSummary(waiting, t);
+  const summary = waitingSummary(waiting, t, unknown);
   const count = (waiting?.translations ?? 0) + (waiting?.context ?? 0);
   return (
     <Pressable
@@ -60,7 +64,7 @@ export const WorkspaceCard = memo(function WorkspaceCard({
           {summary}
         </Text>
       </View>
-      <CountPill count={count} />
+      {unknown ? <UnknownPill /> : <CountPill count={count} />}
       <Chevron />
     </Pressable>
   );
@@ -72,10 +76,13 @@ const MAX_BADGES = 6;
 export const ProjectCard = memo(function ProjectCard({
   project,
   waiting,
+  unknown = false,
   onPress,
 }: {
   project: Project;
   waiting?: ProjectWaiting;
+  /** What waits could not be loaded: the card says so rather than showing none. */
+  unknown?: boolean;
   onPress: (p: Project) => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -96,7 +103,7 @@ export const ProjectCard = memo(function ProjectCard({
   ]
     .filter(Boolean)
     .join(" · ");
-  const summary = waitingSummary(waiting, t);
+  const summary = waitingSummary(waiting, t, unknown);
   return (
     <Pressable
       testID={`project-${project.id}`}
@@ -149,7 +156,9 @@ export const ProjectCard = memo(function ProjectCard({
           </View>
         ) : null}
         {!waiting?.translations && !waiting?.context ? (
-          <Text className="text-muted-foreground text-sm">{t("home.nothingWaiting")}</Text>
+          <Text className="text-muted-foreground text-sm">
+            {unknown ? t("home.countsUnavailable") : t("home.nothingWaiting")}
+          </Text>
         ) : null}
       </View>
       <View className="h-12 justify-center">
@@ -206,6 +215,7 @@ export const LanguageCard = memo(function LanguageCard({
   locale,
   waiting,
   loading,
+  unknown = false,
   where,
   testID,
   onPress,
@@ -215,6 +225,8 @@ export const LanguageCard = memo(function LanguageCard({
   waiting?: ReviewInboxLanguage;
   /** The inbox is still loading. */
   loading?: boolean;
+  /** The inbox could not be loaded: the card says so rather than showing none. */
+  unknown?: boolean;
   /** The project (and workspace) the language belongs to, where the list spans several. */
   where?: string;
   testID?: string;
@@ -225,9 +237,11 @@ export const LanguageCard = memo(function LanguageCard({
   const count = waiting?.waiting ?? 0;
   const status = loading
     ? t("home.loading")
-    : count > 0
-      ? t("home.translations", { count })
-      : t("home.nothingWaiting");
+    : unknown
+      ? t("home.countsUnavailable")
+      : count > 0
+        ? t("home.translations", { count })
+        : t("home.nothingWaiting");
   return (
     <Pressable
       testID={testID ?? `language-${locale}`}
@@ -257,7 +271,13 @@ export const LanguageCard = memo(function LanguageCard({
           </View>
         )}
       </View>
-      {loading ? <View className="bg-muted h-7 w-9 rounded-full" /> : <CountPill count={count} />}
+      {loading ? (
+        <View className="bg-muted h-7 w-9 rounded-full" />
+      ) : unknown ? (
+        <UnknownPill />
+      ) : (
+        <CountPill count={count} />
+      )}
       <Chevron />
     </Pressable>
   );

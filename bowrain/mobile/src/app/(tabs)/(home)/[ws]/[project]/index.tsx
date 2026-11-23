@@ -16,10 +16,21 @@ import { QueryState } from "../../../../../components/List";
 import { ActivityStrip } from "../../../../../components/home/ActivityStrip";
 import { ContextEntryCard, LanguageCard } from "../../../../../components/home/HomeCards";
 import { Monogram } from "../../../../../components/home/Monogram";
-import { EmptyState, SectionHeader, SkeletonCards } from "../../../../../components/home/parts";
+import {
+  CountsNotice,
+  EmptyState,
+  SectionHeader,
+  SkeletonCards,
+} from "../../../../../components/home/parts";
 import { useAuth } from "../../../../../lib/auth";
 import { entriesOf, languageLabel, useFeed } from "../../../../../lib/feed";
-import { projectKey, summarize, useReviewHome } from "../../../../../lib/home";
+import {
+  inboxCounts,
+  inboxFailed,
+  projectKey,
+  summarize,
+  useReviewHome,
+} from "../../../../../lib/home";
 import { setRecentProject } from "../../../../../lib/recentProject";
 import { reviewPlanKey } from "../../../../../lib/plan";
 import { usePullRefresh } from "../../../../../lib/pullRefresh";
@@ -105,6 +116,7 @@ function Languages({ ws, project }: { ws: string; project: string }) {
   // The context waiting for review, from the inbox the Review tab reads.
   const inbox = useReviewHome();
   const waiting = summarize(inbox.data).byProject.get(projectKey(ws, project));
+  const counts = inboxCounts(inbox);
   const contextWaiting = waiting?.contextEntry?.waiting ?? 0;
   const byKind = waiting?.contextEntry?.by_kind ?? {};
   const contextDetail = t("context.kinds", {
@@ -138,11 +150,12 @@ function Languages({ ws, project }: { ws: string; project: string }) {
       <LanguageCard
         locale={item}
         waiting={waiting?.byLocale.get(item)}
-        loading={inbox.isPending}
+        loading={counts === "loading"}
+        unknown={counts === "unknown"}
         onPress={openLanguage}
       />
     ),
-    [waiting, inbox.isPending, openLanguage],
+    [waiting, counts, openLanguage],
   );
 
   const pull = usePullRefresh(() => Promise.all([feed.refetch(), inbox.refetch(), plan.refetch()]));
@@ -210,6 +223,9 @@ function Languages({ ws, project }: { ws: string; project: string }) {
         ListFooterComponent={
           extrasReady ? (
             <View className="pt-3">
+              {inboxFailed(inbox) && !inbox.data ? (
+                <CountsNotice onRetry={() => void inbox.refetch()} />
+              ) : null}
               {contextWaiting > 0 ? (
                 <ContextEntryCard
                   count={contextWaiting}

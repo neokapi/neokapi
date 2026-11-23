@@ -12,9 +12,22 @@ import { useTranslation } from "react-i18next";
 import { QueryState } from "../../../components/List";
 import { WorkspaceCard } from "../../../components/home/HomeCards";
 import { CaughtUpCard, NextUpCard } from "../../../components/home/NextUpCard";
-import { EmptyState, SectionHeader, SkeletonCards } from "../../../components/home/parts";
+import {
+  CountsNotice,
+  EmptyState,
+  SectionHeader,
+  SkeletonCards,
+} from "../../../components/home/parts";
 import { useAuth } from "../../../lib/auth";
-import { hasAnswered, homeStep, summarize, useReviewHome, type HomeStep } from "../../../lib/home";
+import {
+  hasAnswered,
+  homeStep,
+  inboxCounts,
+  inboxFailed,
+  summarize,
+  useReviewHome,
+  type HomeStep,
+} from "../../../lib/home";
 import { usePullRefresh } from "../../../lib/pullRefresh";
 import { useRecentProject } from "../../../lib/recentProject";
 import { openContext, openDeck, openSetup, openStep } from "../../../lib/reviewNav";
@@ -66,15 +79,17 @@ export default function Workspaces() {
   const next = useMemo(() => homeStep(inbox.data, recent), [inbox.data, recent]);
   const showWorkspace = (workspaces.data?.length ?? 0) > 1;
 
+  const unknown = inboxCounts(inbox) === "unknown";
   const renderItem = useCallback(
     ({ item }: { item: Workspace }) => (
       <WorkspaceCard
         workspace={item}
         waiting={summary.byWorkspace.get(item.slug)}
+        unknown={unknown}
         onPress={openWorkspace}
       />
     ),
-    [summary],
+    [summary, unknown],
   );
 
   // A server without the inbox route (data null) shows the workspaces alone.
@@ -129,6 +144,11 @@ export default function Workspaces() {
           ) : (
             <QueryState query={workspaces} />
           )
+        }
+        ListFooterComponent={
+          !settling && hasWorkspaces && inboxFailed(inbox) && !inbox.data ? (
+            <CountsNotice onRetry={() => void refetchInbox()} />
+          ) : undefined
         }
       />
     </View>

@@ -11,9 +11,16 @@ import { useTranslation } from "react-i18next";
 
 import { QueryState } from "../../../../components/List";
 import { ProjectCard } from "../../../../components/home/HomeCards";
-import { EmptyState, SkeletonCards } from "../../../../components/home/parts";
+import { CountsNotice, EmptyState, SkeletonCards } from "../../../../components/home/parts";
 import { useAuth } from "../../../../lib/auth";
-import { hasAnswered, projectKey, summarize, useReviewHome } from "../../../../lib/home";
+import {
+  hasAnswered,
+  inboxCounts,
+  inboxFailed,
+  projectKey,
+  summarize,
+  useReviewHome,
+} from "../../../../lib/home";
 import { usePullRefresh } from "../../../../lib/pullRefresh";
 import { routeValue } from "../../../../lib/routeParams";
 
@@ -63,15 +70,17 @@ function ProjectList({ ws }: { ws: string }) {
     (p: Project) => router.push({ pathname: "/[ws]/[project]", params: { ws, project: p.id } }),
     [ws],
   );
+  const unknown = inboxCounts(inbox) === "unknown";
   const renderItem = useCallback(
     ({ item }: { item: Project }) => (
       <ProjectCard
         project={item}
         waiting={summary.byProject.get(projectKey(ws, item.id))}
+        unknown={unknown}
         onPress={open}
       />
     ),
-    [summary, ws, open],
+    [summary, ws, open, unknown],
   );
 
   return (
@@ -94,6 +103,11 @@ function ProjectList({ ws }: { ws: string }) {
           ) : (
             <QueryState query={projects} />
           )
+        }
+        ListFooterComponent={
+          !settling && sorted.length > 0 && inboxFailed(inbox) && !inbox.data ? (
+            <CountsNotice onRetry={() => void refetchInbox()} />
+          ) : undefined
         }
       />
     </View>

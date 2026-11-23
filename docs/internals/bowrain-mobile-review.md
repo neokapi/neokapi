@@ -593,6 +593,22 @@ step above the workspaces, the order of the projects and the height of each
 card. A failed attempt counts as an answer, so a failing inbox costs one
 attempt.
 
+A count the app could not load is never shown as zero. When the inbox
+failed, or the server has no inbox route, the workspace, project and
+language cards say "Not loaded" in place of their counts, and a line below
+the list offers a retry. The Review tab shows its load failure with a retry.
+A failed plan says so in the plan card.
+
+Every read has a bound on the wait for the server to start answering
+(`READ_TIMEOUT_MS`, 20 s, and `QUICK_READ_TIMEOUT_MS`, 8 s, for the lists,
+the inbox, the permissions and the plan, in `@neokapi/bowrain-client`).
+Each is more than twice the slowest healthy answer production gave over
+seven days, so a request that hangs becomes a failure the screen can show.
+Writes have no bound of their own, because a decision that seems lost may
+have landed. A decision ends only when the system's own request timeout
+fires. The queue then sends it again, up to five times and in order, with
+the same change set, which names the revision the card showed.
+
 ## Licence
 
 `bowrain/` is AGPL-3.0. GPL-family licences conflict with App Store terms

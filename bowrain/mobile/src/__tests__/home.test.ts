@@ -5,7 +5,7 @@ import type {
   ReviewInboxProject,
 } from "@neokapi/bowrain-client";
 
-import { hasAnswered, homeStep, projectKey, summarize } from "../lib/home";
+import { hasAnswered, homeStep, inboxCounts, projectKey, summarize } from "../lib/home";
 
 function lang(
   workspace: string,
@@ -187,6 +187,17 @@ describe("homeStep", () => {
     expect(homeStep(withProjects(proj("acme", "p1")))).toBeNull();
     expect(homeStep({ context: [], languages: [], projects: [] })).toBeNull();
     expect(homeStep(null)).toBeNull();
+  });
+});
+
+describe("inboxCounts", () => {
+  it("knows the counts only from data, and calls them unknown after a failure", () => {
+    const failed = { data: undefined, isPending: true, failureCount: 1 };
+    expect(inboxCounts({ data: undefined, isPending: true, failureCount: 0 })).toBe("loading");
+    expect(inboxCounts(failed)).toBe("unknown");
+    // A server without the inbox route answers null: the counts are unknown.
+    expect(inboxCounts({ data: null, isPending: false, failureCount: 0 })).toBe("unknown");
+    expect(inboxCounts({ data: home, isPending: false, failureCount: 0 })).toBe("known");
   });
 });
 

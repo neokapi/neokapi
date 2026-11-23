@@ -35,6 +35,27 @@ export function hasAnswered(query: { isPending: boolean; failureCount: number })
   return !query.isPending || query.failureCount > 0;
 }
 
+/**
+ * What a screen may say about the counts the inbox gives: they are loading,
+ * they are known, or they could not be loaded (a failed request, or a server
+ * without the inbox route). Unknown counts are never shown as zero.
+ */
+export type InboxCounts = "loading" | "known" | "unknown";
+
+export function inboxCounts(query: {
+  data: ReviewHome | null | undefined;
+  isPending: boolean;
+  failureCount: number;
+}): InboxCounts {
+  if (query.data) return "known";
+  return hasAnswered(query) ? "unknown" : "loading";
+}
+
+/** Whether the inbox request failed, so a screen offers a retry. */
+export function inboxFailed(query: { isError: boolean; failureCount: number }): boolean {
+  return query.isError || query.failureCount > 0;
+}
+
 /** What waits in one project, one workspace, or everywhere. */
 export interface Waiting {
   /** Translations waiting, over every language. */
