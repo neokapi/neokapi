@@ -819,7 +819,9 @@ jobs:
           path: |
             apps/kapi-desktop/frontend/public/translations/qps.json
           if-no-files-found: error
-          retention-days: 1
+          # Long enough to re-run one failed build leg days later without the
+          # dictionary job.
+          retention-days: 7
 
   build-kapi-desktop:
     name: Build Kapi Desktop (${{ matrix.build.platform }})
