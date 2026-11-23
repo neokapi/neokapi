@@ -185,6 +185,8 @@ export interface BrandProfile {
   id: string;
   name: string;
   pack?: string;
+  /** The server's revision token; an update or a delete names it. */
+  revision?: string;
   [key: string]: unknown;
 }
 
@@ -939,16 +941,34 @@ export class BowrainAPI {
     return this.post(`/${wsSlug}/voice-profiles`, profile);
   }
 
+  async getVoiceProfile(wsSlug: string, profileId: string): Promise<BrandProfile> {
+    return this.get(`/${wsSlug}/voice-profiles/${profileId}`);
+  }
+
+  /**
+   * An update or a delete names the revision it was based on, and the server
+   * refuses one without it (428). Without an explicit baseRevision these read
+   * the profile first, as a person editing it would.
+   */
   async updateVoiceProfile(
     wsSlug: string,
     profileId: string,
     profile: Partial<BrandProfile>,
+    baseRevision?: string,
   ): Promise<BrandProfile> {
-    return this.put(`/${wsSlug}/voice-profiles/${profileId}`, profile);
+    const base = baseRevision ?? (await this.getVoiceProfile(wsSlug, profileId)).revision;
+    return this.put(`/${wsSlug}/voice-profiles/${profileId}`, { ...profile, base_revision: base });
   }
 
-  async deleteVoiceProfile(wsSlug: string, profileId: string): Promise<void> {
-    return this.del(`/${wsSlug}/voice-profiles/${profileId}`);
+  async deleteVoiceProfile(
+    wsSlug: string,
+    profileId: string,
+    baseRevision?: string,
+  ): Promise<void> {
+    const base = baseRevision ?? (await this.getVoiceProfile(wsSlug, profileId)).revision;
+    return this.del(
+      `/${wsSlug}/voice-profiles/${profileId}?base_revision=${encodeURIComponent(String(base ?? ""))}`,
+    );
   }
 
   async checkBrandProfile(wsSlug: string, profileId: string): Promise<unknown> {
