@@ -982,10 +982,17 @@ func (s *Server) HandleAddMemoryEntry(c *echo.Context) error {
 		return serverErr(c, err)
 	}
 
+	if req.ID != "" && !validClientEntryID(req.ID) {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "an entry id is 1 to 64 letters, digits, '-' or '_'"})
+	}
 	srcLoc := model.LocaleID(req.SourceLocale)
 	tgtLoc := model.LocaleID(req.TargetLocale)
+	entryID := req.ID
+	if entryID == "" {
+		entryID = id.New()
+	}
 	entry := memory.Entry{
-		ID: id.New(),
+		ID: entryID,
 		Variants: map[model.LocaleID][]model.Run{
 			srcLoc: {{Text: &model.TextRun{Text: req.Source}}},
 			tgtLoc: {{Text: &model.TextRun{Text: req.Target}}},
@@ -996,9 +1003,13 @@ func (s *Server) HandleAddMemoryEntry(c *echo.Context) error {
 		UpdatedAt:   time.Now(),
 	}
 	stream := streamParam(c)
-	if stream != "" && stream != "main" {
+	switch {
+	case req.ID != "":
+		// An entry the client named: stored once, never replacing one.
+		return s.addNamedMemoryEntry(c, tm, entry, req)
+	case stream != "" && stream != "main":
 		err = tm.AddWithStream(c.Request().Context(), entry, stream)
-	} else {
+	default:
 		err = tm.Add(c.Request().Context(), entry)
 	}
 	if err != nil {
@@ -1390,4 +1401,58 @@ func (s *Server) HandleGetTranslationDashboard(c *echo.Context) error {
 	})
 
 	return c.JSON(http.StatusOK, pageDashboardStats(stats, window))
+}
+
+// validClientEntryID reports whether a client-chosen entry id has the shape
+// the server's own ids have.
+func validClientEntryID(id string) bool {
+	if id == "" || len(id) > 64 {
+		return false
+	}
+	for _, r := range id {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_') {
+			return false
+		}
+	}
+	return true
+}
+
+// addNamedMemoryEntry stores an entry under the id the client chose. An entry
+// the store already holds under that id is answered as it stands when it
+// holds the same pair (the same add sent again), and refused when it holds
+// other text.
+func (s *Server) addNamedMemoryEntry(c *echo.Context, tm memory.Store, entry memory.Entry, req MemoryAddRequest) error {
+	ctx := c.Request().Context()
+	adder, ok := tm.(interface {
+		AddIfAbsent(ctx context.Context, entry memory.Entry) (bool, error)
+	})
+	if !ok {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "this content memory cannot take an entry with a chosen id"})
+	}
+	created, err := adder.AddIfAbsent(ctx, entry)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	stored, ok, err := tm.GetEntry(ctx, entry.ID)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	if !ok {
+		return refuseGone(c, "content-memory entry")
+	}
+	info := []MemoryEntryInfoResponse{editorEntryToInfo(stored, req.SourceLocale, req.TargetLocale)}
+	if err := withMemoryRevisions(ctx, tm, info); err != nil {
+		return serverErr(c, err)
+	}
+	if created {
+		return c.JSON(http.StatusCreated, info[0])
+	}
+	if info[0].Source == req.Source && info[0].Target == req.Target {
+		return c.JSON(http.StatusOK, info[0])
+	}
+	return c.JSON(http.StatusConflict, ChangedResponse{
+		Code:    "memory_entry_exists",
+		Error:   "a content-memory entry with this id holds other text; the stored entry is attached",
+		Current: info[0],
+	})
 }

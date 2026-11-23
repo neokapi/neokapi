@@ -57,9 +57,19 @@ func failedChangeOf(c PendingChange) FailedChange {
 		out.Edits = changeSetEdits(c.Payload)
 	case opUpdateBlockTarget, opUpdateBlockTargetRuns, opReviewBlock:
 		out.Edits = retiredEdits(opKind(c.Operation), c.Payload)
+	case opUpdateMemoryEntry:
+		// The wording the person wrote stays readable beside why it was
+		// refused, so a conflict loses nothing.
+		var op updateMemoryEntryOp
+		if json.Unmarshal([]byte(c.Payload), &op) == nil {
+			out.Edits = []FailedEdit{{Op: failedMemoryEdit, Locale: op.TargetLocale, Text: op.Target}}
+		}
 	}
 	return out
 }
+
+// failedMemoryEdit is the FailedEdit op of a content-memory edit.
+const failedMemoryEdit = "update_memory_entry"
 
 // changeSetEdits lists the operations of a queued change set.
 func changeSetEdits(payload string) []FailedEdit {

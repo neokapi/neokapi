@@ -61,10 +61,12 @@ func (tm *PostgresStore) Revisions(ctx context.Context, ids []string) (map[strin
 
 // Update writes a person's edit of entry when the stored entry is still at
 // revision base, and returns the entry's new revision. It replaces the
-// variants the edit carries and the entry's entities, keeps every origin, and
-// records editor as the person who made the edit. The check and the write are
-// one statement, and the whole edit is one transaction. An entry that has
-// changed since is storage.ErrStale; one that is gone is ErrEntryNotFound.
+// variants the edit carries and nothing else: the entry's properties, note,
+// entities and origins stay as the store holds them, so an origin added while
+// the person was editing is kept. It records editor as the person who made
+// the edit. The check and the write are one statement, and the whole edit is
+// one transaction. An entry that has changed since is storage.ErrStale; one
+// that is gone is ErrEntryNotFound.
 func (tm *PostgresStore) Update(ctx context.Context, entry fw.Entry, base string, editor fw.Origin) (string, error) {
 	if entry.ID == "" {
 		return "", errors.New("entry ID is required")
@@ -73,14 +75,6 @@ func (tm *PostgresStore) Update(ctx context.Context, entry fw.Entry, base string
 		return "", errors.New("entry must have at least one variant")
 	}
 	fw.NormalizeEntryLocales(&entry)
-	propsJSON := []byte("{}")
-	if len(entry.Properties) > 0 {
-		b, err := json.Marshal(entry.Properties)
-		if err != nil {
-			return "", fmt.Errorf("marshal properties: %w", err)
-		}
-		propsJSON = b
-	}
 	now := time.Now()
 	next := storage.NewRevision()
 	editor.Source = OriginPerson
@@ -88,9 +82,10 @@ func (tm *PostgresStore) Update(ctx context.Context, entry fw.Entry, base string
 	err := tm.db.Transition(ctx, func(r storage.Runner) error {
 		res, err := r.ExecContext(ctx, `
 			UPDATE tm_entries
-			SET hint_src_lang = $3, properties = $4::jsonb, note = $5, updated_at = $6, revision = $7
-			WHERE workspace_id = $1 AND id = $2 AND revision = $8`,
-			tm.workspaceID, entry.ID, string(entry.HintSrcLang), string(propsJSON), entry.Note, now, next, base)
+			SET hint_src_lang = CASE WHEN hint_src_lang = '' THEN $3 ELSE hint_src_lang END,
+			    updated_at = $4, revision = $5
+			WHERE workspace_id = $1 AND id = $2 AND revision = $6`,
+			tm.workspaceID, entry.ID, string(entry.HintSrcLang), now, next, base)
 		if err != nil {
 			return fmt.Errorf("update entry: %w", err)
 		}
@@ -111,7 +106,7 @@ func (tm *PostgresStore) Update(ctx context.Context, entry fw.Entry, base string
 			}
 			return storage.ErrStale
 		}
-		if err := tm.writeChildren(ctx, r, entry, now, false); err != nil {
+		if err := tm.writeVariants(ctx, r, entry); err != nil {
 			return err
 		}
 		return tm.putOrigin(ctx, r, entry.ID, editor, now)

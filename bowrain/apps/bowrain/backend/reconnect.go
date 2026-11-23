@@ -294,7 +294,7 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 					// this build cannot replay the entry at all. Retrying can never
 					// succeed, so retire it and keep draining the queue.
 					slog.Warn("bowrain: dropping permanently failed change", "change_id", change.ID, "operation", change.Operation, "error", err)
-					_ = a.offlineQueue.MarkFailedPermanent(record, change.ID, err.Error())
+					_ = a.offlineQueue.MarkFailedPermanent(record, change.ID, refusalReason(err))
 					progressed = true
 					continue
 				}
@@ -342,6 +342,14 @@ func (a *App) replayChange(ctx context.Context, change PendingChange) error {
 	if err != nil {
 		return err
 	}
+	if revised, ok := op.(revisedOp); ok {
+		id, rev, err := revised.replayRevised(ctx, client, ws)
+		if err != nil {
+			return err
+		}
+		a.recordLocalMemoryRevision(id, rev)
+		return nil
+	}
 	return op.replay(ctx, client, ws)
 }
 
@@ -349,4 +357,18 @@ func (a *App) replayChange(ctx context.Context, change PendingChange) error {
 // runtime and/or the recording event sink).
 func (a *App) emitConnectionState() {
 	a.emit("connection-state-changed", a.GetConnectionState())
+}
+
+// refusalReason is what a person reads for a change the server refused: the
+// server's own sentence, without the request path and status around it.
+func refusalReason(err error) string {
+	if statusErr, ok := errors.AsType[*apiclient.StatusError](err); ok {
+		if statusErr.Message != "" {
+			return statusErr.Message
+		}
+		if statusErr.Code != "" {
+			return statusErr.Code
+		}
+	}
+	return err.Error()
 }

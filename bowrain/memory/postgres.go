@@ -173,6 +173,14 @@ func (tm *PostgresStore) AddWithStream(ctx context.Context, entry fw.Entry, stre
 // carries (locale by locale), its entities and, when replaceOrigins is set,
 // its origins.
 func (tm *PostgresStore) writeChildren(ctx context.Context, r storage.Runner, entry fw.Entry, now time.Time, replaceOrigins bool) error {
+	if err := tm.writeVariants(ctx, r, entry); err != nil {
+		return err
+	}
+	return tm.writeEntitiesAndOrigins(ctx, r, entry, now, replaceOrigins)
+}
+
+// writeVariants replaces the variants entry carries and no other.
+func (tm *PostgresStore) writeVariants(ctx context.Context, r storage.Runner, entry fw.Entry) error {
 	// Replace the variants this write carries, locale by locale: one source text
 	// is taught one target locale at a time, and every locale keys the same entry
 	// off the source content hash, so clearing the whole set would leave the entry
@@ -203,6 +211,12 @@ func (tm *PostgresStore) writeChildren(ctx context.Context, r storage.Runner, en
 		}
 	}
 
+	return nil
+}
+
+// writeEntitiesAndOrigins replaces entry's entities and, when replaceOrigins
+// is set, its origins.
+func (tm *PostgresStore) writeEntitiesAndOrigins(ctx context.Context, r storage.Runner, entry fw.Entry, now time.Time, replaceOrigins bool) error {
 	// Replace entities + values. CASCADE on tm_entry_entities removes values.
 	if _, err := r.ExecContext(ctx,
 		"DELETE FROM tm_entry_entities WHERE workspace_id = $1 AND entry_id = $2",

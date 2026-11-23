@@ -140,3 +140,39 @@ func TestMemoryEditIsBasedOnARevision(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.Code, "an edit never brings a deleted entry back")
 	assert.Empty(t, listMemory(t, s, token))
 }
+
+// An entry the client named (one it made offline) is stored once under that
+// id: the same add sent again is answered with the entry as stored, and an add
+// of other text under the id is refused.
+func TestAnAddThatNamesItsIDIsStoredOnce(t *testing.T) {
+	s, token := newTestServer(t)
+	add := func(target string) *httptest.ResponseRecorder {
+		body, err := json.Marshal(MemoryAddRequest{ID: "offline-1", Source: "Hello", Target: target, SourceLocale: "en", TargetLocale: "nb"})
+		require.NoError(t, err)
+		return memoryReq(t, s, http.MethodPost, "/api/v1/test/translation-memory", token, string(body))
+	}
+
+	rec := add("Hei")
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+	var first MemoryEntryInfoResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &first))
+	assert.Equal(t, "offline-1", first.ID)
+	assert.NotEmpty(t, first.Revision)
+
+	rec = add("Hei")
+	require.Equal(t, http.StatusOK, rec.Code, "the same add sent again stores nothing new: %s", rec.Body.String())
+	var again MemoryEntryInfoResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &again))
+	assert.Equal(t, first.Revision, again.Revision)
+
+	rec = add("Hallo")
+	assert.Equal(t, http.StatusConflict, rec.Code, "other text never replaces the stored entry")
+	entries := listMemory(t, s, token)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "Hei", entries[0].Target)
+
+	body, err := json.Marshal(MemoryAddRequest{ID: "not an id", Source: "a", Target: "b", SourceLocale: "en", TargetLocale: "nb"})
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest,
+		memoryReq(t, s, http.MethodPost, "/api/v1/test/translation-memory", token, string(body)).Code)
+}

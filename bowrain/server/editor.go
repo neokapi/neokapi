@@ -380,6 +380,10 @@ type MemorySearchResponse struct {
 
 // MemoryAddRequest holds parameters for adding a content-memory entry.
 type MemoryAddRequest struct {
+	// ID is the id the client gave the entry when it made it offline, so the
+	// entry it holds and the one the server stores are one entry, and sending
+	// the same add twice stores it once. Empty for the server to choose.
+	ID           string `json:"id,omitempty"`
 	Source       string `json:"source"`
 	Target       string `json:"target"`
 	SourceLocale string `json:"source_locale"`

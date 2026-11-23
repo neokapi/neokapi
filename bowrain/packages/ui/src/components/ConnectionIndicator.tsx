@@ -226,6 +226,8 @@ function editLabel(e: FailedEdit): string {
       return e.type === "entity" ? t("Entity mark") : t("Note");
     case "unannotate":
       return e.type === "entity" ? t("Entity mark removed") : t("Note removed");
+    case "update_memory_entry":
+      return t("Content memory entry changed");
     default:
       return t("Content change");
   }

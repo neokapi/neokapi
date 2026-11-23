@@ -278,3 +278,46 @@ func TestPromotionKeepsAPersonsEdit(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "Salut", kept.VariantText("fr"), "a promotion never writes over a person's edit")
 }
+
+// An approval of a pair is recorded only on an entry that still holds the
+// pair: an entry under the pair's id whose text a person changed is theirs,
+// and it neither takes the approval's text nor carries the approval as if it
+// had approved that text.
+func TestPromotionDoesNotClaimAnEntryWhoseTextChanged(t *testing.T) {
+	deps := newTestWorkerDeps(t)
+	ctx := t.Context()
+	tm := promotionMemory(t)
+
+	projectID := "promote-claim"
+	require.NoError(t, deps.ContentStore.CreateProject(ctx, &store.Project{ID: projectID, Name: "Promote"}))
+	b := model.NewBlock("greeting", "Hello")
+	b.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}})
+	require.NoError(t, deps.ContentStore.StoreBlocksForItem(ctx, projectID, "main", "en.json", []*model.Block{b}))
+
+	hello := []model.Run{{Text: &model.TextRun{Text: "Hello"}}}
+	bonjour := []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}
+	entryID := memoryEntryID("en", "fr", hello, bonjour)
+	require.NoError(t, tm.Add(ctx, memory.Entry{
+		ID:          entryID,
+		Variants:    map[model.LocaleID][]model.Run{"en": hello, "fr": {{Text: &model.TextRun{Text: "Salut"}}}},
+		HintSrcLang: "en",
+		Origins:     []memory.Origin{{Source: bmemory.OriginPerson, Key: "alice"}},
+	}))
+
+	approval := venue.UnitDecision{
+		ItemName: "en.json", Unit: "greeting", Variant: "fr",
+		ReviewState: "approved", Status: "established",
+		Revision:  frRevision("Bonjour"),
+		DecidedBy: "reviewer@example.com",
+	}
+	promoted, _ := PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []venue.UnitDecision{approval})
+	assert.Zero(t, promoted)
+
+	got, ok, err := tm.GetEntry(ctx, entryID)
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.Equal(t, "Salut", got.VariantText("fr"))
+	for _, o := range got.Origins {
+		assert.NotEqual(t, promotionOrigin, o.Source, "the approval is not recorded on text it did not approve")
+	}
+}

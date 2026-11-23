@@ -169,3 +169,33 @@ func TestRemoveOriginRemovesTheEntryOnlyWhenNoOriginIsLeft(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, removed)
 }
+
+// An origin and its properties added while a person was editing the entry
+// stay: the edit writes only the variants it changes.
+func TestUpdateKeepsWhatLandedWhileThePersonEdited(t *testing.T) {
+	ctx := t.Context()
+	tm, err := NewPostgresStoreFromDB(pgtest.NewTestDB(t), "ws-concurrent-origin")
+	require.NoError(t, err)
+	require.NoError(t, tm.Add(ctx, pair("e1", "Hello", "Hei", fw.Origin{Source: "record", Key: "f.json"})))
+	read, _, err := tm.GetEntry(ctx, "e1")
+	require.NoError(t, err)
+	base := revisionOf(t, tm, "e1")
+
+	ok, err := tm.AddOrigin(ctx, "e1", fw.Origin{Source: "merge", Key: "batch-1"}, map[string]string{"kapi-merge:file": "a.json"})
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	read.Variants["nb"] = []model.Run{{Text: &model.TextRun{Text: "Hallo"}}}
+	_, err = tm.Update(ctx, read, base, fw.Origin{Key: "alice"})
+	require.NoError(t, err)
+
+	got, _, err := tm.GetEntry(ctx, "e1")
+	require.NoError(t, err)
+	assert.Equal(t, "Hallo", got.VariantText("nb"))
+	assert.Equal(t, "a.json", got.Properties["kapi-merge:file"], "a property that landed during the edit is kept")
+	sources := map[string]bool{}
+	for _, o := range got.Origins {
+		sources[o.Source] = true
+	}
+	assert.True(t, sources["merge"], "an origin that landed during the edit is kept")
+}

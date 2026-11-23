@@ -469,7 +469,12 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	// decision set is passed rather than only the changed records. Promotion is
 	// idempotent, and a replay must be able to heal a memory that was reset
 	// independently of the ledger.
-	if pm, ok := seedMemory.(PromotionMemory); len(decisions) > 0 && ok {
+	pm, promotable := seedMemory.(PromotionMemory)
+	if len(decisions) > 0 && seedMemory != nil && !promotable {
+		slog.WarnContext(ctx, "memory promotion skipped: the workspace memory cannot record an approval as one writer among others",
+			"project", projectID)
+	}
+	if len(decisions) > 0 && promotable {
 		if promotedN, evictedN := PromoteDecisionsToMemory(ctx, deps.ContentStore, pm,
 			projectID, stream, sourceLocale, decisions); promotedN+evictedN > 0 {
 			emitLog(deps, job.StepID, "info",
