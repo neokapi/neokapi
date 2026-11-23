@@ -209,13 +209,16 @@ describe("the offline decision queue", () => {
   // note, only the blocks whose translation is the correction run for run.
   const ph = (id: string, type = "x-var") =>
     ({ ph: { id, type, data: "{{n}}", equiv: "{{n}}" } }) as unknown as DeckCard["target"][number];
-  const pc = (type: string) => [
-    { pcOpen: { id: "1", type, data: "<b>" } },
-    { text: "Lagre" },
-    { pcClose: { id: "1", type, data: "</b>" } },
-  ] as unknown as DeckCard["target"];
+  const pc = (type: string) =>
+    [
+      { pcOpen: { id: "1", type, data: "<b>" } },
+      { text: "Lagre" },
+      { pcClose: { id: "1", type, data: "</b>" } },
+    ] as unknown as DeckCard["target"];
   const plural = (one: string) =>
-    [{ plural: { pivot: "n", forms: { one: [{ text: one }], other: [{ text: "filer" }] } } }] as unknown as DeckCard["target"];
+    [
+      { plural: { pivot: "n", forms: { one: [{ text: one }], other: [{ text: "filer" }] } } },
+    ] as unknown as DeckCard["target"];
   const staleAnswer = {
     status: 409,
     body: {
@@ -236,7 +239,13 @@ describe("the offline decision queue", () => {
     },
   };
   type Sent = {
-    ops: { op: string; at: { block: string }; if_match: string; outcome?: string; reasons?: string[] }[];
+    ops: {
+      op: string;
+      at: { block: string };
+      if_match: string;
+      outcome?: string;
+      reasons?: string[];
+    }[];
     note?: string;
   };
 
@@ -281,7 +290,8 @@ describe("the offline decision queue", () => {
       const set = JSON.parse(String(init.body)) as Sent;
       sent.push(set);
       posts++;
-      if (opts.lose && posts === 1) throw new Error("fetch failed: The network connection was lost.");
+      if (opts.lose && posts === 1)
+        throw new Error("fetch failed: The network connection was lost.");
       if (posts <= (opts.lose ? 2 : 1)) {
         return new Response(JSON.stringify(staleAnswer.body), { status: staleAnswer.status });
       }
@@ -294,7 +304,13 @@ describe("the offline decision queue", () => {
         after: op.if_match,
       }));
       return new Response(
-        JSON.stringify({ schema: "kapi.change-result/v1", status: "applied", record: null, docs: [], ops }),
+        JSON.stringify({
+          schema: "kapi.change-result/v1",
+          status: "applied",
+          record: null,
+          docs: [],
+          ops,
+        }),
         { status: 200 },
       );
     }) as typeof globalThis.fetch;
@@ -346,7 +362,11 @@ describe("the offline decision queue", () => {
     const confirms = s.sent.filter((set) => set.ops.every((op) => op.op === "decide"));
     expect(confirms).toHaveLength(1);
     expect(confirms[0].ops).toEqual([
-      expect.objectContaining({ outcome: "establish", if_match: "r:held-b5", reasons: ["wrong_term"] }),
+      expect.objectContaining({
+        outcome: "establish",
+        if_match: "r:held-b5",
+        reasons: ["wrong_term"],
+      }),
     ]);
     expect(confirms[0].note).toBe("The product says lagre.");
   });
@@ -376,7 +396,11 @@ describe("the offline decision queue", () => {
     const runs = [{ text: "Rettet tekst" }];
     const both = staleServer({ b10: runs, c10: runs });
     const all = await correct(10, runs, both, withCopy(10));
-    expect(all).toMatchObject({ outcome: "applied", revision: "r:held-b10", copyRevisions: { c10: "r:held-c10" } });
+    expect(all).toMatchObject({
+      outcome: "applied",
+      revision: "r:held-b10",
+      copyRevisions: { c10: "r:held-c10" },
+    });
     expect(both.sent[1].ops.map((op) => [op.at.block, op.if_match])).toEqual([
       ["b10", "r:held-b10"],
       ["c10", "r:held-c10"],

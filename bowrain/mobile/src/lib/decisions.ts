@@ -156,7 +156,10 @@ export async function sendDecision(c: BowrainClient, v: DecisionVars): Promise<D
  * words) is left for the person to look at. Undefined when no block matches:
  * the text changed, and the card comes back to the deck.
  */
-async function confirmStanding(c: BowrainClient, v: DecisionVars): Promise<DecisionResult | undefined> {
+async function confirmStanding(
+  c: BowrainClient,
+  v: DecisionVars,
+): Promise<DecisionResult | undefined> {
   const runs = v.runs ?? v.card.target;
   const matched: Decided[] = [];
   let unmatched = 0;
@@ -164,7 +167,11 @@ async function confirmStanding(c: BowrainClient, v: DecisionVars): Promise<Decis
     const container = await c.reviewContainer(v.scope, d.blockId, v.card.locale);
     const unit = container.units.find((u) => u.blockId === d.blockId);
     if (unit && sameContent(runs, unit.target)) {
-      matched.push({ ...d, targetRevision: unit.targetRevision, sourceRevision: unit.sourceRevision });
+      matched.push({
+        ...d,
+        targetRevision: unit.targetRevision,
+        sourceRevision: unit.sourceRevision,
+      });
     } else {
       unmatched++;
     }

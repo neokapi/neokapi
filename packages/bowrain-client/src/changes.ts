@@ -88,7 +88,10 @@ const CHANGE_RUNS: ModelRunSpec<ChangeRun> = {
 };
 
 /** What a decision addresses: the card's translation, or one of its copies. */
-export type Decided = Pick<DeckCard, "item" | "blockId" | "locale" | "targetRevision" | "sourceRevision">;
+export type Decided = Pick<
+  DeckCard,
+  "item" | "blockId" | "locale" | "targetRevision" | "sourceRevision"
+>;
 
 /** The card's translation and each copy it stands for, in that order. */
 export function decidedOf(card: DeckCard): Decided[] {

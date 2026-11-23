@@ -873,11 +873,14 @@ describe("a request that gets no answer", () => {
 });
 
 describe("the same content", () => {
-  const code = (id: string, type = "x-var"): Run => ({ ph: { id, type, data: "{{n}}", equiv: "{{n}}" } }) as Run;
+  const code = (id: string, type = "x-var"): Run =>
+    ({ ph: { id, type, data: "{{n}}", equiv: "{{n}}" } }) as Run;
   const open = (id: string, type: string): Run => ({ pcOpen: { id, type, data: "<b>" } }) as Run;
   const close = (id: string): Run => ({ pcClose: { id, type: "fmt", data: "</b>" } }) as Run;
   const plural = (one: string): Run =>
-    ({ plural: { pivot: "n", forms: { one: [{ text: one }], other: [{ text: "files" }] } } }) as Run;
+    ({
+      plural: { pivot: "n", forms: { one: [{ text: one }], other: [{ text: "files" }] } },
+    }) as Run;
 
   it("is equal run for run", () => {
     expect(sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }, code("1")])).toBe(true);
@@ -886,7 +889,9 @@ describe("the same content", () => {
 
   it("is not the same words with a placeholder that differs", () => {
     expect(sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }, code("2")])).toBe(false);
-    expect(sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }, code("1", "x-date")])).toBe(false);
+    expect(
+      sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }, code("1", "x-date")]),
+    ).toBe(false);
     expect(sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }])).toBe(false);
   });
 
