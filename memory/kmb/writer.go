@@ -2,10 +2,13 @@ package kmb
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -61,12 +64,21 @@ func canonicalize(f *File) {
 	for i := range f.Entries {
 		e := &f.Entries[i]
 		sort.Slice(e.Entities, func(a, b int) bool { return e.Entities[a].PlaceholderID < e.Entities[b].PlaceholderID })
-		sort.SliceStable(e.Origins, func(a, b int) bool { return originKey(e.Origins[a]) < originKey(e.Origins[b]) })
+		slices.SortStableFunc(e.Origins, compareOrigins)
 	}
 }
 
-func originKey(o Origin) string {
-	return o.SessionID + "\x00" + o.Source + "\x00" + o.Key + "\x00" + o.Reference + "\x00" + o.AddedAt + "\x00" + o.AddedBy
+// compareOrigins orders origins by session, source, key, reference, time added
+// and who added them, field by field.
+func compareOrigins(a, b Origin) int {
+	return cmp.Or(
+		strings.Compare(a.SessionID, b.SessionID),
+		strings.Compare(a.Source, b.Source),
+		strings.Compare(a.Key, b.Key),
+		strings.Compare(a.Reference, b.Reference),
+		strings.Compare(a.AddedAt, b.AddedAt),
+		strings.Compare(a.AddedBy, b.AddedBy),
+	)
 }
 
 func entryFromModel(e *memory.Entry) Entry {

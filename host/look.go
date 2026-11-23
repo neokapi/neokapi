@@ -317,7 +317,7 @@ func (a *App) lookRuleCount(cmd Command, proj *project.KapiProject, root string,
 	cmd.SetContext(withConceptMemo(CmdContext(cmd)))
 	defer cmd.SetContext(prevCtx)
 	at := a.GovernanceInstant()
-	points := map[string]bool{}
+	points := map[rulesPoint]bool{}
 	var tally rulesview.RuleTally
 	samples := append([]string{filepath.Join(root, rulesRootSample)}, files...)
 	for _, file := range samples {

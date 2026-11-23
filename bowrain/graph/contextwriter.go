@@ -22,7 +22,7 @@ import (
 // stores hold one vocabulary rather than two that resemble each other.
 // Connecting a project widens the scope of what can be asked; it does not
 // change the question.
-//
+
 // What differs is only what the dimensions carry. Locally the scope is one
 // project and the graph is its whole content; here the scope names a real
 // workspace, project and stream inside a graph that spans every tenant, so the
@@ -31,7 +31,7 @@ import (
 // ProjectSubgraph names one project's stream and the stores its subgraph
 // projects from.
 type ProjectSubgraph struct {
-	// Content is the server's content store — the blocks, items, collections
+	// Content is the server's content store, the blocks, items, collections
 	// and decisions this project holds.
 	Content platstore.ContentStore
 	// Terms is the workspace's terminology. The concepts it lists become the
@@ -76,7 +76,7 @@ func (p ProjectSubgraph) validate() error {
 // WITHIN ITS SCOPE and rewrites them, so a block, collection or decision that no
 // longer projects leaves nothing behind, and another project's rows are never
 // touched. Concept and coordinate nodes are workspace vocabulary and are
-// refreshed rather than purged — a project stream is in no position to decide
+// refreshed rather than purged, a project stream is in no position to decide
 // that the workspace has stopped holding a concept.
 func MaterializeProjectContextGraph(ctx context.Context, g *SQLGraphStore, in ProjectSubgraph) (int, error) {
 	if g == nil {
@@ -172,8 +172,8 @@ func dedupeNodes(in []coreg.Node, projectName string) []*coreg.Node {
 // governanceSubgraph builds the coordinate nodes this project's collections sit
 // at, and the governed_by edges binding them.
 //
-// The point comes off the collection's own recorded context — the coordinates
-// the recipe pushed — because that is what the project declared. A collection
+// The point comes off the collection's own recorded context, the coordinates
+// the recipe pushed, because that is what the project declared. A collection
 // that declared none is governed at the project's default point, which is a real
 // place its content sits.
 func governanceSubgraph(ctx context.Context, scope contextgraph.Scope, in ProjectSubgraph) (*occurrence.GraphDelta, error) {
@@ -202,7 +202,7 @@ func governanceSubgraph(ctx context.Context, scope contextgraph.Scope, in Projec
 
 // blessedBlock is what the (item, unit) join needs of a block: its identity in
 // the graph and the content key a decision blesses. Deliberately not a
-// *venue.StoredBlock — one entry per decision, three strings each, rather than
+// *venue.StoredBlock, one entry per decision, three strings each, rather than
 // a retained copy of every block the project holds.
 type blessedBlock struct {
 	sourceID    string
@@ -216,7 +216,7 @@ type blessedBlock struct {
 // The join is (item, unit): a decision records the item whose identity namespace
 // its unit lives in, which is the server's spelling of the same pair a local
 // record names its block with. A decision whose block this store has never held
-// keeps its node and gets no edge — the decision is a fact, the relationship is
+// keeps its node and gets no edge, the decision is a fact, the relationship is
 // not.
 func blessingSubgraph(ctx context.Context, scope contextgraph.Scope, in ProjectSubgraph) (*occurrence.GraphDelta, error) {
 	d := &occurrence.GraphDelta{}
@@ -233,16 +233,16 @@ func blessingSubgraph(ctx context.Context, scope contextgraph.Scope, in ProjectS
 	}
 
 	// Only the blocks a decision names are of interest, and only three of
-	// their fields. Reading the corpus to find them — and holding every block
-	// that came back — is what OOM-killed the server on a project of no
+	// their fields. Reading the corpus to find them, and holding every block
+	// that came back, is what OOM-killed the server on a project of no
 	// remarkable size, so the walk is batched and keeps the join key and the
 	// content hash rather than the block they came from.
-	wanted := make(map[string]struct{}, len(records))
+	wanted := make(map[[2]string]struct{}, len(records))
 	for _, r := range records {
-		wanted[r.ItemName+"\x00"+r.Unit] = struct{}{}
+		wanted[[2]string{r.ItemName, r.Unit}] = struct{}{}
 	}
 
-	index := make(map[string]blessedBlock, len(wanted))
+	index := make(map[[2]string]blessedBlock, len(wanted))
 	err = platstore.EachBlockBatch(ctx, in.Content,
 		platstore.BlockQuery{ProjectID: in.ProjectID, Stream: in.Stream},
 		platstore.DefaultBlockBatch,
@@ -251,7 +251,7 @@ func blessingSubgraph(ctx context.Context, scope contextgraph.Scope, in ProjectS
 				if sb == nil || sb.SourceID == "" {
 					continue
 				}
-				key := sb.ItemName + "\x00" + sb.SourceID
+				key := [2]string{sb.ItemName, sb.SourceID}
 				if _, ok := wanted[key]; !ok {
 					continue
 				}
@@ -283,7 +283,7 @@ func blessingSubgraph(ctx context.Context, scope contextgraph.Scope, in ProjectS
 		}
 		d.Nodes = append(d.Nodes, contextgraph.UnitStateNode(scope, u))
 
-		sb, found := index[r.ItemName+"\x00"+r.Unit]
+		sb, found := index[[2]string{r.ItemName, r.Unit}]
 		if !found || sb.contentHash == "" {
 			continue
 		}

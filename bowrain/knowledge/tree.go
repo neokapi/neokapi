@@ -52,7 +52,7 @@ type colNode struct {
 	counts
 	id, name string
 	leaves   []*leafNode
-	leafIdx  map[string]*leafNode
+	leafIdx  map[[2]string]*leafNode
 }
 
 type leafNode struct {
@@ -103,14 +103,14 @@ func (n *projNode) col(id, name string) *colNode {
 	if c, ok := n.colIdx[key]; ok {
 		return c
 	}
-	c := &colNode{id: id, name: name, leafIdx: map[string]*leafNode{}}
+	c := &colNode{id: id, name: name, leafIdx: map[[2]string]*leafNode{}}
 	n.colIdx[key] = c
 	n.cols = append(n.cols, c)
 	return c
 }
 
 func (c *colNode) leaf(stream string, locale model.LocaleID) *leafNode {
-	key := stream + "\x00" + string(locale)
+	key := [2]string{stream, string(locale)}
 	if l, ok := c.leafIdx[key]; ok {
 		return l
 	}

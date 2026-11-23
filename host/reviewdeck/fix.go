@@ -308,14 +308,14 @@ func TermFix(runs []model.Run, sets []profile.TermRuleSet) ([]model.Run, []FixCh
 	work := &model.Block{ID: "term-fix", Translatable: true}
 	work.SetSourceRuns(model.CloneRuns(runs))
 	var changes []FixChange
-	skip := map[string]bool{}
+	skip := map[[2]string]bool{}
 	for range termFixPasses {
 		cur := work.SourceRuns()
 		text := model.RunsText(cur)
 		findings := profile.HitsToFindings(profile.MatchTermRulesInRuns(sets, text, cur), text, cur)
 		applied := false
 		for _, f := range findings {
-			if f.Suggested || skip[f.OriginalText+"\x00"+f.Metadata["replacement"]] {
+			if f.Suggested || skip[[2]string{f.OriginalText, f.Metadata["replacement"]}] {
 				continue
 			}
 			rev := model.EditionRevision(work, model.EditionKey{})
@@ -325,7 +325,7 @@ func TermFix(runs []model.Run, sets []profile.TermRuleSet) ([]model.Run, []FixCh
 			}
 			res := change.ApplyBlock(work, []change.Op{*op}, change.BlockEnv{Actor: change.Actor{Kind: change.ActorPerson}})
 			if len(res) != 1 || res[0].Status != change.OpApplied {
-				skip[f.OriginalText+"\x00"+f.Metadata["replacement"]] = true
+				skip[[2]string{f.OriginalText, f.Metadata["replacement"]}] = true
 				continue
 			}
 			changes = addFixChange(changes, f.OriginalText, f.Metadata["replacement"])

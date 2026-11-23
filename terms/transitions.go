@@ -23,13 +23,13 @@ func KnownTermStatus(s model.TermStatus) bool {
 }
 
 // ValidateTransition validates a term status transition under the framework's
-// transition policy (AD-021). The policy disallows no transition outright —
-// history is the guard, not a trap — so the only rejections are unknown
+// transition policy (AD-021). The policy disallows no transition outright,
+// history is the guard, not a trap, so the only rejections are unknown
 // statuses on either side. A no-op transition (same → same) is valid.
 //
 // ValidateTransition applies to *transitions*: a term whose status changes
 // from one lifecycle state to another. Imports (TBX, CSV, JSON, ktb) and
-// AddConcept set state directly without passing through this policy — an
+// AddConcept set state directly without passing through this policy, an
 // import reproduces an externally authored terms as-is rather than
 // re-deriving its history, so AddConcept only checks that each status is a
 // known value (see validateConceptTermStatuses).
@@ -47,7 +47,7 @@ func ValidateTransition(from, to model.TermStatus) error {
 	return nil
 }
 
-// IsGovernedTransition reports whether a term status transition is governed —
+// IsGovernedTransition reports whether a term status transition is governed,
 // that is, whether a platform must route it through a reviewed change-set
 // rather than applying it directly (AD-021). Governed transitions are any
 // transition *to* forbidden or preferred (banning a term, changing the
@@ -66,7 +66,7 @@ func IsGovernedTransition(from, to model.TermStatus) bool {
 }
 
 // IsGovernedStatus reports whether a term status is one a platform can only
-// reach through a reviewed change-set — forbidden (the term is banned) and
+// reach through a reviewed change-set, forbidden (the term is banned) and
 // preferred (the term is the one to use). Every transition into either is
 // governed (IsGovernedTransition), so a term resting at one of them carries the
 // evidence that a decision was reviewed, which is what a return leg back into
@@ -91,11 +91,11 @@ func GovernedCreate(terms []Term) bool {
 // forbidden or preferred, or a forbidden term removed. Terms are matched by
 // locale and lowercased text, the identity a change-set op names a term by.
 func GovernedUpdate(oldTerms, newTerms []Term) bool {
-	oldByKey := make(map[string]Term, len(oldTerms))
+	oldByKey := make(map[TermKey]Term, len(oldTerms))
 	for _, t := range oldTerms {
 		oldByKey[TermIdentity(t)] = t
 	}
-	newByKey := make(map[string]Term, len(newTerms))
+	newByKey := make(map[TermKey]Term, len(newTerms))
 	for _, t := range newTerms {
 		newByKey[TermIdentity(t)] = t
 		from := model.TermStatus("")
@@ -115,6 +115,11 @@ func GovernedUpdate(oldTerms, newTerms []Term) bool {
 }
 
 // TermIdentity keys a term by locale and lowercased text.
-func TermIdentity(t Term) string {
-	return string(t.Locale) + "|" + strings.ToLower(t.Text)
+func TermIdentity(t Term) TermKey {
+	return TermKey{Locale: string(t.Locale), Text: strings.ToLower(t.Text)}
+}
+
+// TermKey is the key TermIdentity returns.
+type TermKey struct {
+	Locale, Text string
 }

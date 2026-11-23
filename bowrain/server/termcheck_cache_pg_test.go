@@ -119,15 +119,15 @@ func TestTermSnapshotCache_ReadsPostgresTermsOncePerRevision(t *testing.T) {
 	whole := timed(func() { _, _ = snapshotTerms(ctx, tb) })
 	tb.reads = 0
 
-	snap, fp := c.snapshot(ctx, "ws-cache", tb)
+	snap, fp := c.snapshot(ctx, termSnapshotKey("ws-cache", "p"), tb)
 	require.NotNil(t, snap)
-	cached := timed(func() { _, _ = c.snapshot(ctx, "ws-cache", tb) })
+	cached := timed(func() { _, _ = c.snapshot(ctx, termSnapshotKey("ws-cache", "p"), tb) })
 	assert.Equal(t, 1, tb.reads, "the terms are read once while nothing writes them")
 	t.Logf("a call reading 1,000 concepts whole: %s; through the cache at an unchanged revision: %s", whole, cached)
 	assert.Less(t, cached, whole, "a call at an unchanged revision reads only the revision")
 
 	require.NoError(t, pg.AddConcept(ctx, termConcept("c-new", "fresh")))
-	snap2, fp2 := c.snapshot(ctx, "ws-cache", tb)
+	snap2, fp2 := c.snapshot(ctx, termSnapshotKey("ws-cache", "p"), tb)
 	assert.Equal(t, 2, tb.reads, "a write moves the revision, so the next call reads again")
 	assert.NotEqual(t, fp, fp2)
 	got, err := snap2.Concepts(ctx)
@@ -169,9 +169,9 @@ func TestTermSnapshotCache_TermsWrittenBeforeTheRevisionAreKept(t *testing.T) {
 
 	tb := &countingPostgresTerms{PostgresStore: pg}
 	var c termSnapshotCache
-	snap, _ := c.snapshot(ctx, "ws-before", tb)
+	snap, _ := c.snapshot(ctx, termSnapshotKey("ws-before", "p"), tb)
 	require.NotNil(t, snap)
-	c.snapshot(ctx, "ws-before", tb)
+	c.snapshot(ctx, termSnapshotKey("ws-before", "p"), tb)
 	assert.Equal(t, 1, tb.reads, "the snapshot is kept from the first call")
 
 	require.NoError(t, pg.AddConcept(ctx, termConcept("c-new", "fresh")))

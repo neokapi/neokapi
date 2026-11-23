@@ -1645,26 +1645,26 @@ type unitTermRules struct {
 	// cache holds the rules per profile and locale: the terms bound at a point
 	// depend only on the profile it resolves to, and the recipe's rules only on
 	// the locale.
-	cache map[string][]coreprofile.TermRule
+	cache map[[2]string][]coreprofile.TermRule
 	// declared is the recipe's own term rules, read once per resolver.
 	declared *coreprofile.RecipeTermRules
 }
 
 func (a *App) newUnitTermRules(cmd Command, proj *project.KapiProject, root string) *unitTermRules {
-	return &unitTermRules{app: a, cmd: cmd, proj: proj, root: root, cache: map[string][]coreprofile.TermRule{}}
+	return &unitTermRules{app: a, cmd: cmd, proj: proj, root: root, cache: map[[2]string][]coreprofile.TermRule{}}
 }
 
 // forUnit returns the rules governing u, empty when neither the terms bound at
 // its point nor the recipe's term rules answer for its locale.
 func (r *unitTermRules) forUnit(u VerifyUnit) ([]coreprofile.TermRule, error) {
 	point := r.app.unitGovernancePoint(r.root, u)
-	key := u.Locale
+	key := [2]string{"", u.Locale}
 	if r.proj != nil {
 		rc, err := r.proj.ResolveGovernanceFor(point)
 		if err != nil {
 			return nil, err
 		}
-		key = rc.Profile + "\x00" + u.Locale
+		key[0] = rc.Profile
 	}
 	if rules, ok := r.cache[key]; ok {
 		return rules, nil

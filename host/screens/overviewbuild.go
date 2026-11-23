@@ -104,7 +104,7 @@ func DigestSuggestedItems(themes []rulesview.Theme) []DigestItem {
 // web page counts as neither.
 func EvidenceCounts(ev []contextop.Evidence) (blocks, files int) {
 	seenFile := map[string]bool{}
-	seenBlock := map[string]bool{}
+	seenBlock := map[[2]string]bool{}
 	for _, e := range ev {
 		if e.Path == "" {
 			continue
@@ -117,7 +117,7 @@ func EvidenceCounts(ev []contextop.Evidence) (blocks, files int) {
 		if at == "" {
 			at = "quote:" + e.Quote
 		}
-		if key := e.Path + "\x00" + at; !seenBlock[key] && (e.Unit != "" || e.Quote != "") {
+		if key := [2]string{e.Path, at}; !seenBlock[key] && (e.Unit != "" || e.Quote != "") {
 			seenBlock[key] = true
 			blocks++
 		}
