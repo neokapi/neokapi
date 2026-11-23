@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/core/keychain"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
@@ -30,7 +31,7 @@ func countLookups(app *App) *int {
 
 func lookModelApp(t *testing.T) (app *App, tabID string, lookups *int) {
 	t.Helper()
-	keyring.MockInit()
+	keychain.Reset()
 	app = deeperLookTestApp(t)
 	tabID, _ = harborProject(t, app)
 	return app, tabID, countLookups(app)

@@ -26,6 +26,8 @@ var rootResolverFiles = []string{
 	"pluginhost/install.go",
 	"pluginhost/cache.go",
 	"pluginhost/registry/cache.go",
+	"parsecachedir.go",
+	"../core/dataroot/cachedir.go",
 	"../core/project/recipepath.go",
 }
 

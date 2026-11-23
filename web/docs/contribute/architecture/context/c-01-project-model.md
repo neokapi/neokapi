@@ -182,8 +182,20 @@ takes the state recorded for another location. Both list every file with its
 size and the server any sync state was issued by, ask at a terminal or take
 `--yes`, take exactly what they listed, and refuse a link or an irregular file.
 `import` leaves the copies in the checkout unless asked to remove them. An agent
-or an MCP call cannot run either. `kapi state path` prints the directory, for a
-CI cache.
+or an MCP call cannot run either. `kapi state path` prints the directory.
+
+The parse cache is the one part of the state a CI job carries between runs.
+`host.ParseCacheDir` names its directory for every reader and writer:
+`work/cache/docs` in the state directory, or the absolute directory
+`KAPI_PARSE_CACHE_DIR` names, which must lie outside the git work tree that
+holds the project, be no link and, on unix, be private to the user
+(`dataroot.PrepareCacheDir`). Several checkouts may share it. An entry is filed under the
+source's path relative to the project root, the content hash and a key over the
+parse configuration, the recipe and the build, so a clone in another folder
+finds it and another project's file does not. The size and modification time
+stand for the content only in the checkout that recorded them, and an entry
+whose recorded files no longer match their digests is discarded and parsed
+again.
 
 A claim token in the sync state is sent only to the server and project the sync
 state records it was issued for. A sync state that records none sends no token.

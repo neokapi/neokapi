@@ -12,8 +12,8 @@ import (
 //
 // A handle is either owned or borrowed. Owned is the ordinary case: the store
 // opened the resource and Close closes it. Borrowed exists because a project's
-// content memory and terms are two schemas inside its one `.kapi/work/store.db`,
-// handed out by a handle that does not own the pool — closing either would take
+// content memory and terms are two schemas inside its one `work/store.db` in the checkout's state directory,
+// handed out by a handle that does not own the pool, closing either would take
 // the block cache and the working set with it. Both kinds are addressed
 // identically by the frontend; only teardown differs.
 type handleStore[T io.Closer] struct {
@@ -33,7 +33,7 @@ func (s *handleStore[T]) Open(val T) string {
 }
 
 // Adopt registers a resource this store does not own and returns its handle ID.
-// Closing the handle forgets it without closing it — the owner (the project
+// Closing the handle forgets it without closing it, the owner (the project
 // store) decides when the underlying pool goes away.
 func (s *handleStore[T]) Adopt(val T) string {
 	return s.add(val, true)

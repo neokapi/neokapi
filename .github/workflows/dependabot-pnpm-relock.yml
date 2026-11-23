@@ -1,14 +1,13 @@
 name: Dependabot pnpm Relock
 
-# Dependabot resolves pnpm-lock.yaml with its own bundled pnpm, not the version
-# pinned in package.json#packageManager, and scripts/check-lockfile-idempotent.sh
-# rejects that lockfile in CI. This workflow re-resolves it with the pinned pnpm
-# on the PR branch and pushes the result, which is what that guard expects. It
-# is the npm counterpart of dependabot-go-tidy.yml.
-#
-# The invariant is lockfile stability, not content: the pinned pnpm keeps
-# whatever `tarball:` form it is given, so no workflow can restore a field
-# Dependabot strips.
+# Dependabot resolves pnpm-lock.yaml from scratch with its own bundled pnpm,
+# not the version pinned in package.json#packageManager. Its lockfile drops the
+# `tarball:` fields the base lockfile carries and can move packages the update
+# never named. scripts/dependabot-relock.py starts from the base branch's
+# lockfile, has the pinned pnpm apply the package.json changes and update by
+# name the packages Dependabot raised, and checks the result against both
+# lockfiles before anything is pushed; its docstring has the rules. The result is also what scripts/check-lockfile-idempotent.sh
+# expects. It is the npm counterpart of dependabot-go-tidy.yml.
 
 on: pull_request
 
@@ -53,16 +52,20 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
           run-install: false
 
-      - name: Re-resolve with the pinned pnpm
-        run: vp install --lockfile-only
+      - name: Re-resolve with the pinned pnpm, keeping only the update
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          python3 scripts/dependabot-relock.py --base-ref "${BASE_REF}"
 
       - name: Push if the lockfile changed
         run: |
-          if git diff --quiet -- pnpm-lock.yaml; then
-            echo "Lockfile already matches the pinned pnpm's resolution"
+          if git diff --quiet HEAD -- pnpm-lock.yaml; then
+            echo "Lockfile already matches the pinned pnpm's resolution of the update"
             exit 0
           fi
-          echo "Lockfile was written by a different resolver — relocking."
+          echo "Replacing Dependabot's lockfile with the pinned pnpm's resolution of the update."
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add pnpm-lock.yaml

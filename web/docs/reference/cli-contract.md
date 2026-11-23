@@ -167,7 +167,9 @@ The toolbox utilities (`kgrep`) additionally use grep-parity semantics: exit 1 w
 
 ## State kapi keeps for a checkout
 
-kapi keeps each checkout's own state outside the checkout, in a directory of its own under the data root: the project store and caches under `work/`, the sync state under `sync/`, the redaction vault under `vault/` and the saved filters in `filters.local.json`. `kapi state path` prints the directory. kapi reads no state from inside a checkout.
+kapi keeps each checkout's own state outside the checkout, in a directory of its own under the data root: the project store and caches under `work/`, the sync state under `sync/`, the redaction vault under `vault/` and the saved filters in `filters.local.json`. `kapi state path` prints the directory, and `kapi state path --json` also gives `parse_cache`, the directory the parse cache resolved to. kapi reads no state from inside a checkout.
+
+`KAPI_PARSE_CACHE_DIR` moves the parse cache out of the state directory, to a directory a CI cache can name. It must be an absolute path outside the checkout (outside the git work tree that holds the project, or the project when none does) and not a link, and on Linux and macOS a directory you own that no other user can reach; kapi creates it that way when it is missing, refuses a directory that breaks one of these rules with a message naming the rule and the path, and never changes the mode of a directory it did not create. On Windows only the directory and the link are checked, because access there is an access control list, which kapi does not read. Several checkouts and projects can share one directory.
 
 The directory is found by the checkout's location and the identity of its folder, never by anything the checkout contains. What you see:
 

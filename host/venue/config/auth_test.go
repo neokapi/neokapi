@@ -3,13 +3,14 @@ package config
 import (
 	"testing"
 
+	"github.com/neokapi/neokapi/core/keychain"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 )
 
 func TestLoadAuthFromEnvVar(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "test-token-123")
 	t.Setenv("BOWRAIN_SERVER_URL", "https://bowrain.example.com")
 
@@ -22,7 +23,7 @@ func TestLoadAuthFromEnvVar(t *testing.T) {
 }
 
 func TestLoadAuthFromEnvVarWithoutServerURL(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "test-token-123")
 
 	auth, err := LoadAuth()
@@ -32,7 +33,7 @@ func TestLoadAuthFromEnvVarWithoutServerURL(t *testing.T) {
 }
 
 func TestLoadAuthEnvVarTakesPrecedence(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	dir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", dir)
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "env-token")
@@ -50,7 +51,7 @@ func TestLoadAuthEnvVarTakesPrecedence(t *testing.T) {
 }
 
 func TestLoadAuthFromKeychain(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	dir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", dir)
 
@@ -68,7 +69,7 @@ func TestLoadAuthFromKeychain(t *testing.T) {
 }
 
 func TestLoadAuthNoMetadataFile(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	dir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", dir)
 
@@ -77,7 +78,7 @@ func TestLoadAuthNoMetadataFile(t *testing.T) {
 }
 
 func TestStoredSignInReadsNoKeychain(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	dir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", dir)
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "")
@@ -91,7 +92,7 @@ func TestStoredSignInReadsNoKeychain(t *testing.T) {
 		User:        StoredUser{Name: "Mira Holt", Email: "mira@example.com"},
 	}))
 	// A keychain that answers nothing leaves the metadata readable.
-	require.NoError(t, keyring.Delete(keyringService, keyringAccessKey("https://bowrain.example.com/")))
+	require.NoError(t, keychain.Delete(keyringService, keyringAccessKey("https://bowrain.example.com/")))
 	server, user, ok := StoredSignIn()
 	require.True(t, ok)
 	assert.Equal(t, "https://bowrain.example.com", server)
@@ -106,7 +107,7 @@ func TestStoredSignInReadsNoKeychain(t *testing.T) {
 }
 
 func TestDeleteAuthClearsKeychainAndFile(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	dir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", dir)
 
@@ -121,6 +122,6 @@ func TestDeleteAuthClearsKeychainAndFile(t *testing.T) {
 	_, err := LoadAuth()
 	require.Error(t, err, "auth metadata should be gone")
 
-	_, err = keyring.Get(keyringService, keyringAccessKey("https://bowrain.example.com"))
-	assert.ErrorIs(t, err, keyring.ErrNotFound)
+	_, err = keychain.Get(keyringService, keyringAccessKey("https://bowrain.example.com"))
+	assert.ErrorIs(t, err, keychain.ErrNotFound)
 }

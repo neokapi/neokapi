@@ -138,9 +138,11 @@ export OKAPI_REPO
 # where the workspace holding every project's terms, voice profiles, content
 # memory and recorded decisions lives, so an in-repo kapi that left it alone
 # would act on the developer's own context whenever they have it exported.
+# KAPI_PARSE_CACHE_DIR is set empty, so the parse cache stays in each checkout's
+# own state rather than in a directory a developer exported.
 # Prefix in-repo kapi calls with $(KAPI_ISO_ENV). See CLAUDE.md "Dogfooding".
 KAPI_ISO_DIR := $(CURDIR)/.kapi-iso
-KAPI_ISO_ENV := KAPI_NO_PROJECT=1 KAPI_TELEMETRY=0 KAPI_PLUGINS_DIR_ONLY=1 KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config KAPI_DATA_DIR=$(KAPI_ISO_DIR)/data/kapi XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache KAPI_PLUGINS_DIR=$(KAPI_ISO_DIR)/plugins
+KAPI_ISO_ENV := KAPI_NO_PROJECT=1 KAPI_TELEMETRY=0 KAPI_PLUGINS_DIR_ONLY=1 KAPI_PARSE_CACHE_DIR= KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config KAPI_DATA_DIR=$(KAPI_ISO_DIR)/data/kapi XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache KAPI_PLUGINS_DIR=$(KAPI_ISO_DIR)/plugins
 
 GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint"; })
 PROTOC        := $(shell which protoc 2>/dev/null)
@@ -2083,7 +2085,6 @@ gate-conformance: i18n-catalogs ## Run the gate conformance suite against the bu
 
 test-e2e-bowrain: ; $(MAKE) -C bowrain $@
 test-e2e-cloud: ; $(MAKE) -C bowrain $@ ## Run cloud e2e tests against a live server
-test-e2e-dev: ; $(MAKE) -C bowrain $@ ## Run cloud e2e tests against dev environment
 
 # ── Face parity ─────────────────────────────────────────────────────────────
 #
@@ -3286,7 +3287,7 @@ help: ## Show this help
         app-qps kapi-desktop-qps bowrain-app-qps bowrain-ctrl-qps bowrain-pulse-qps \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
-        cover test-e2e test-e2e-kapi gate-conformance test-e2e-bowrain test-e2e-cloud test-e2e-dev \
+        cover test-e2e test-e2e-kapi gate-conformance test-e2e-bowrain test-e2e-cloud \
         face-parity face-parity-update \
         bench bench-build bench-run bench-run-full bench-stress fetch-okapi-testdata \
         logo harness-deps harness-check harness-videos \

@@ -129,8 +129,8 @@ type App struct {
 	// Content-memory and terms handles the frontend addresses by ID. Two kinds
 	// live here: standalone stores the user opened or created by path (owned:
 	// closing the handle closes the file), and a project's own content memory and
-	// terms, which are two schemas inside its `.kapi/work/store.db` and are therefore
-	// borrowed (see handleStore.Adopt). Closing a borrowed handle drops the ID
+	// terms, which are two schemas inside the `work/store.db` in its checkout's
+	// state directory and are therefore borrowed (see handleStore.Adopt). Closing a borrowed handle drops the ID
 	// only; the store belongs to the engine.
 	memoryHandles *handleStore[*projector.Memory]
 	tbHandles     *handleStore[*projector.Terms]
@@ -799,8 +799,9 @@ func (a *App) releaseProjectResources(op *openProject) {
 // to the named stores from.
 //
 // It never CREATES the store: opening a tab is browsing, and browsing must not
-// write. A project with no `.kapi/work/store.db` is left alone until something that
-// genuinely has state to keep (an extract, a run, a seeded sample) makes one.
+// write. A project with no `work/store.db` in its checkout's state directory
+// is left alone until something that genuinely has state to keep (an
+// extract, a run, a seeded sample) makes one.
 func (a *App) autoOpenProjectResources(op *openProject) {
 	root, ok := projectRoot(op)
 	if !ok {
