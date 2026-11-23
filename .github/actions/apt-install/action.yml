@@ -42,8 +42,8 @@ runs:
         #                         the retry uses archive.ubuntu.com, which was
         #                         answering throughout.
         #
-        # Worst case is 15 minutes and an explicit error, against a six-hour
-        # hang; a healthy mirror costs nothing extra.
+        # Worst case is about 15 minutes and an explicit error, against a
+        # six-hour hang; a healthy mirror costs nothing extra.
         # A package the runner image already holds needs no apt at all: the
         # image ships libicu-dev and pkg-config, and an `apt-get update` to
         # learn that took 4 to 6 seconds of every Go job. Only a list with a
@@ -59,43 +59,12 @@ runs:
           exit 0
         fi
         echo "apt-install: installing:$missing"
-        APT_PACKAGES="${missing# }"
-        #
-        # The download and the install are bounded apart. On 2026-11-23 a slow
-        # mirror spent most of a single 180-second ceiling downloading the
-        # GTK and WebKit packages, and the ceiling then killed dpkg halfway
-        # through unpacking. Every retry after that stopped at "dpkg was
-        # interrupted", so the job failed on a fault that had passed. Now the
-        # network part (update, download) carries the ceiling and the retries,
-        # the unpack runs from the downloaded files with a ceiling of its own,
-        # and each attempt first finishes any dpkg run a previous one left.
-        # The whole step stays inside 15 minutes, well within any job's
-        # timeout, so a mirror that is down for good fails here with apt's
-        # own error instead of as a cancelled job. Each attempt gets what is
-        # left of the budget, split between its parts.
-        opts="-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o DPkg::Lock::Timeout=60"
-        deadline=$(( $(date +%s) + 900 ))
-        left() { echo $(( deadline - $(date +%s) )); }
-        for attempt in 1 2 3 4; do
-          [ "$(left)" -gt 60 ] || break
-          timeout 120 sudo dpkg --configure -a || true
-          budget=$(left)
-          if timeout $((budget / 6)) sudo apt-get $opts update &&
-             timeout $((budget / 3)) sudo apt-get $opts install -y --download-only $APT_PACKAGES &&
-             timeout $((budget / 2)) sudo apt-get $opts install -y --no-download $APT_PACKAGES; then
-            exit 0
-          fi
-          echo "::warning::apt attempt $attempt failed"
-          # Drop the Azure mirror only if the list holds something else; an
-          # empty mirrorlist turns a slow install into no install at all.
-          if [ "$attempt" -eq 2 ] && [ -f /etc/apt/apt-mirrors.txt ] &&
-             grep -qv 'azure\.archive\.ubuntu\.com' /etc/apt/apt-mirrors.txt; then
-            echo "::warning::dropping the Azure mirror; retrying against the rest"
-            sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt
-          fi
-          # A network fault on a runner usually clears within a minute; no
-          # pause after the last attempt.
-          [ "$attempt" -lt 4 ] && sleep $((attempt * 15))
-        done
-        echo "::error::apt could not install '$APT_PACKAGES' within 15 minutes"
-        exit 1
+        # The download and the unpack are bounded apart, each attempt first
+        # finishes any interrupted dpkg run, and the whole install stays
+        # inside 15 minutes, so a mirror that stays down fails here with apt's
+        # own error instead of as a cancelled job. On 2026-11-23 a single
+        # 180-second ceiling over both killed dpkg mid-unpack after a slow
+        # download, and every retry stopped at "dpkg was interrupted".
+        # apt-retry.sh holds the bounds and proves them in its self-test.
+        # shellcheck disable=SC2086 # the package list is a word list
+        bash "$GITHUB_ACTION_PATH/apt-retry.sh" $missing
