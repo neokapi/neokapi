@@ -38,6 +38,7 @@ import {
   contextCopyPrefix,
   contextDeckView,
   refusalCode,
+  sendContextDecision,
   sessionThrough,
   sinceHasNews,
   widestReach,
@@ -162,8 +163,7 @@ export default function ContextSessionScreen() {
 
   const send = useCallback(
     (d: ContextDecision) => {
-      const p = client
-        .decideContext(ws, project, d)
+      const p = sendContextDecision(client, ws, project, d)
         .then((result) => {
           if (result.outcome === "proposed") setNotice(t("context.outcome.proposed"));
           void qc.invalidateQueries({ queryKey: ["review-inbox"] });

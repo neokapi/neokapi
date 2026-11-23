@@ -12,6 +12,7 @@
 // or queued decision is dropped, a sent one is withdrawn with a new decision.
 import {
   approveSet,
+  correctionLanded,
   fixSet,
   isNetworkError,
   readOutcome,
@@ -130,6 +131,11 @@ export async function sendDecision(c: BowrainClient, v: DecisionVars): Promise<D
     case "held":
       return { id: v.id, outcome: "held", message: outcome.error?.message };
     case "stale":
+      // A correction sent again after its first answer was lost is refused
+      // by its own first attempt: the edition already holds its text.
+      if (v.kind === "fix" && correctionLanded(outcome, v.runs ?? v.card.target)) {
+        return { id: v.id, outcome: "applied", revision: outcome.current?.rev };
+      }
       return { id: v.id, outcome: "stale", message: outcome.op.error?.message };
     case "refused":
       return { id: v.id, outcome: "refused", message: outcome.error.message };

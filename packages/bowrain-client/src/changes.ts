@@ -19,7 +19,7 @@ import {
   type OpResult,
   type SetContentOp,
 } from "@neokapi/contract-types";
-import { projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
+import { projectRuns, projectRunsText, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
 
 import type { DeckCard, DeckCopy, FixReason } from "./types.ts";
 
@@ -241,6 +241,43 @@ export type ChangeOutcome =
       field?: string;
     }
   | { status: "refused"; result: ChangeResult; error: ChangeError };
+
+// A plural or select is a structure, not a run of text, so no edition text
+// equals it: a correction that holds one is never taken as already landed.
+const NO_MATCH = "\u0000";
+
+/**
+ * Runs in the placeholder form a read shows: an inline code is an
+ * `<x id="…"/>` token, as core/change writes it in a stale refusal's
+ * `current.text`.
+ */
+const PLACEHOLDER_FORM: ModelRunSpec<string> = {
+  text: (r) => r.text,
+  ph: ({ ph }) => `<x id="${ph.id}/"/>`,
+  pcOpen: ({ pcOpen }) => `<x id="${pcOpen.id}"/>`,
+  pcClose: ({ pcClose }) => `<x id="/${pcClose.id}"/>`,
+  sub: ({ sub }) => `<x id="sub:${sub.id}"/>`,
+  plural: () => NO_MATCH,
+  select: () => NO_MATCH,
+  fallback: () => NO_MATCH,
+};
+
+/** Runs in the placeholder form a read shows. */
+export function placeholderForm(runs: readonly Run[]): string {
+  return projectRunsText(runs, PLACEHOLDER_FORM);
+}
+
+/**
+ * Whether a stale refusal shows that a correction already landed: the
+ * edition the server holds is the text the correction writes. A correction
+ * sent again after its first answer was lost is refused as stale by its own
+ * first attempt, and this tells that apart from someone else's change.
+ */
+export function correctionLanded(outcome: ChangeOutcome, runs: readonly Run[]): boolean {
+  if (outcome.status !== "stale" || outcome.current?.text === undefined) return false;
+  const written = placeholderForm(runs);
+  return !written.includes(NO_MATCH) && outcome.current.text === written;
+}
 
 /** Read a change set's result into the outcome a review surface acts on. */
 export function readOutcome(result: ChangeResult): ChangeOutcome {

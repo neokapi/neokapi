@@ -2,7 +2,48 @@
 // the server's order, minus the ones decided on this device and with the
 // ones put off moved to the end. Which cards exist, in what order, and which
 // actions each offers is the server's; the app applies what the person did.
-import type { ContextCard, ContextSessionSince } from "@neokapi/bowrain-client";
+import {
+  ApiError,
+  isNetworkError,
+  type BowrainClient,
+  type ContextCard,
+  type ContextDecision,
+  type ContextDecisionResult,
+  type ContextSessionSince,
+} from "@neokapi/bowrain-client";
+
+/** A context decision's answer, or that an earlier attempt whose answer was lost landed it. */
+export type ContextSendResult = ContextDecisionResult | { outcome: "landed" };
+
+/** How long to wait before sending a context decision again, per attempt. */
+const RESEND_MS = [1000, 2000];
+
+/**
+ * Send a context decision. When no answer comes back, it is sent again, up to
+ * twice. A decision whose first answer was lost may have landed, so a repeat
+ * refused as no longer pending is that landing, not a failure.
+ */
+export async function sendContextDecision(
+  client: Pick<BowrainClient, "decideContext">,
+  ws: string,
+  project: string,
+  decision: ContextDecision,
+  wait: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<ContextSendResult> {
+  let lost = false;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await client.decideContext(ws, project, decision);
+    } catch (err) {
+      if (lost && err instanceof ApiError && refusalCode(err) === "not_pending") {
+        return { outcome: "landed" };
+      }
+      if (!isNetworkError(err) || attempt >= RESEND_MS.length) throw err;
+      lost = true;
+      await wait(RESEND_MS[attempt]);
+    }
+  }
+}
 
 /** A card's identity at one revision: a new revision is a new card. */
 export function contextCardId(card: Pick<ContextCard, "item" | "revision">): string {

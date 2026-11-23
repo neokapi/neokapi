@@ -155,6 +155,86 @@ describe("the offline decision queue", () => {
     expect(notices.map((n) => [n.kind, n.card.key])).toEqual([["stale", "b3:nb"]]);
   });
 
+  /**
+   * A server that applies the first change set and loses its answer on the
+   * way back, as Expo's fetch reports a dropped connection, then answers
+   * every later one with `then`.
+   */
+  function losesFirstAnswer(then: () => { status: number; body: unknown }) {
+    const sent: unknown[] = [];
+    const fetch = (async (_url: string, init: RequestInit) => {
+      sent.push(JSON.parse(String(init.body)));
+      if (sent.length === 1) throw new Error("fetch failed: The network connection was lost.");
+      const { status, body } = then();
+      return new Response(JSON.stringify(body), { status });
+    }) as typeof globalThis.fetch;
+    return {
+      sent,
+      client: createBowrainClient({ baseUrl: "http://server", getAccessToken: () => "t", fetch }),
+    };
+  }
+
+  async function settled(qc: QueryClient, id: string) {
+    for (let i = 0; i < 40; i++) {
+      if (readLog(qc).find((x) => x.vars.id === id)?.phase === "done") return;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    throw new Error(`decision ${id} did not settle`);
+  }
+
+  it("sends a decision again when its answer is lost, and shows it done once", async () => {
+    // The repeat of a decision that landed answers "unchanged" within an applied set.
+    const s = losesFirstAnswer(() => ({
+      status: 200,
+      body: {
+        schema: "kapi.change-result/v1",
+        status: "applied",
+        record: null,
+        docs: [],
+        ops: [{ i: 0, op: "decide", status: "unchanged", after: "r:0000000000000004" }],
+      },
+    }));
+    setDecisionClient(s.client);
+    const qc = createQueryClient();
+    holdDecision(qc, made(4));
+    queue(qc, made(4));
+    await settled(qc, "d4");
+    expect(s.sent).toHaveLength(2);
+    expect(readLog(qc).find((x) => x.vars.id === "d4")?.result?.outcome).toBe("applied");
+    expect(qc.getQueryData<DecisionNotice[]>(NOTICES_KEY) ?? []).toEqual([]);
+  });
+
+  it("takes a correction refused as stale by its own lost first attempt as done", async () => {
+    const fixed = { ...made(5, "fix"), runs: [{ text: "Rettet tekst" }] };
+    const s = losesFirstAnswer(() => ({
+      status: 409,
+      body: {
+        schema: "kapi.change-result/v1",
+        status: "refused",
+        record: null,
+        docs: [],
+        ops: [
+          { i: 0, op: "set_content", status: "not_applied", blocked_by: 1 },
+          {
+            i: 1,
+            op: "decide",
+            status: "refused",
+            error: { code: "stale", field: "if_match", message: "the edition moved" },
+            current: { rev: "r:3333333333333333", text: "Rettet tekst" },
+          },
+        ],
+      },
+    }));
+    setDecisionClient(s.client);
+    const qc = createQueryClient();
+    holdDecision(qc, fixed);
+    queue(qc, fixed);
+    await settled(qc, "d5");
+    const result = readLog(qc).find((x) => x.vars.id === "d5")?.result;
+    expect(result).toMatchObject({ outcome: "applied", revision: "r:3333333333333333" });
+    expect(qc.getQueryData<DecisionNotice[]>(NOTICES_KEY) ?? []).toEqual([]);
+  });
+
   const entry = (qc: QueryClient, id: string): LoggedDecision => {
     const e = readLog(qc).find((x) => x.vars.id === id);
     if (!e) throw new Error(`no decision ${id}`);

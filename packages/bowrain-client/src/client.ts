@@ -86,6 +86,19 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The request did not get an answer: the connection failed or was lost on
+ * the way. fetch rejects only for this, and implementations reject with
+ * different classes (Expo's raises a plain `Error` named "fetch failed: …"),
+ * so the client raises this one for every rejected fetch.
+ */
+export class NetworkError extends TypeError {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "NetworkError";
+  }
+}
+
 /** Whether an error means the server or the network could not be reached. */
 export function isNetworkError(err: unknown): boolean {
   return err instanceof TypeError || (err instanceof ApiError && err.status >= 500);
@@ -369,7 +382,17 @@ function query(params: Record<string, string | number | undefined>): string {
 export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
   const baseUrl = opts.baseUrl.replace(/\/+$/, "");
   const api = `${baseUrl}/api/v1`;
-  const doFetch = opts.fetch ?? fetch;
+  const rawFetch = opts.fetch ?? fetch;
+
+  /** fetch, with a rejection raised as a NetworkError; an abort the caller asked for stays as it is. */
+  async function doFetch(url: string, init: RequestInit): Promise<Response> {
+    try {
+      return await rawFetch(url, init);
+    } catch (err) {
+      if (init.signal?.aborted) throw err;
+      throw new NetworkError(err instanceof Error ? err.message : String(err), { cause: err });
+    }
+  }
 
   async function send(
     path: string,

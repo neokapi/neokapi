@@ -5,9 +5,13 @@ import type { Run } from "@neokapi/kapi-format";
 
 import {
   approveSet,
+  correctionLanded,
   createBowrainClient,
   diffRuns,
+  placeholderForm,
   fixSet,
+  isNetworkError,
+  NetworkError,
   readOutcome,
   rejectSet,
   revisionsOf,
@@ -798,5 +802,75 @@ describe("feedDecisions", () => {
       canUndo: true,
       card: { blockId: "b1", targetRevision: "r:t", target: [{ text: "Hei" }] },
     });
+  });
+});
+
+describe("a request that gets no answer", () => {
+  it("is a network error whatever class the fetch rejects with", async () => {
+    // Expo's fetch rejects a lost connection with a plain Error.
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async () => {
+        throw new Error("fetch failed: The network connection was lost.");
+      }) as typeof fetch,
+    });
+    const err = await client
+      .applyChanges({ workspace: "acme", project: "p1" }, approveSet(card))
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(NetworkError);
+    expect(isNetworkError(err)).toBe(true);
+    expect((err as Error).message).toContain("network connection was lost");
+  });
+
+  it("is a network error for a token refresh too", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async () => {
+        throw new Error("fetch failed: The Internet connection appears to be offline.");
+      }) as typeof fetch,
+    });
+    const err = await client.refresh("r").catch((e: unknown) => e);
+    expect(isNetworkError(err)).toBe(true);
+  });
+});
+
+describe("a correction that already landed", () => {
+  const stale = (text: string | undefined): ChangeResult =>
+    ({
+      schema: "kapi.change-result/v1",
+      status: "refused",
+      record: null,
+      docs: [],
+      ops: [
+        {
+          i: 1,
+          op: "decide",
+          status: "refused",
+          error: { code: "stale", field: "if_match", message: "moved" },
+          current: { rev: "r:3333333333333333", text },
+        },
+      ],
+    }) as unknown as ChangeResult;
+
+  it("is told by the server holding the correction's own text", () => {
+    expect(correctionLanded(readOutcome(stale('Hei <x id="1/"/>')), [{ text: "Hei " }, ph])).toBe(
+      true,
+    );
+  });
+
+  it("is not someone else's change", () => {
+    expect(correctionLanded(readOutcome(stale("Hallo")), [{ text: "Hei" }])).toBe(false);
+    expect(correctionLanded(readOutcome(stale(undefined)), [{ text: "Hei" }])).toBe(false);
+  });
+
+  it("is never a correction that holds a plural", () => {
+    const plural: Run = { plural: { pivot: "n", forms: { other: [{ text: "x" }] } } } as Run;
+    expect(correctionLanded(readOutcome(stale("x")), [plural])).toBe(false);
+  });
+
+  it("writes inline codes as a read shows them", () => {
+    expect(placeholderForm([{ text: "a" }, ph, { text: "b" }])).toBe('a<x id="1/"/>b');
   });
 });
