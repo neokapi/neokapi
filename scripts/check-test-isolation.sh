@@ -32,8 +32,9 @@ run() {
 		-u CLAUDE_CONFIG_DIR -u KAPI_HOME_DIR -u VP_HOME \
 		HOME="$sentinel/home" GOCACHE="$gocache" GOMODCACHE="$gomodcache" GOPATH="$gopath" \
 		go test -trimpath -tags fts5 -count=1 "$@" >"$log" 2>&1) || {
-		echo "check-test-isolation: tests failed in $dir (full log: $log):" >&2
-		grep -E '^(--- FAIL|    --- FAIL|FAIL|ok )' "$log" | head -30 >&2
+		echo "check-test-isolation: tests failed in $dir:" >&2
+		grep -E -A12 -- '--- FAIL' "$log" | head -200 >&2
+		grep -E '^(FAIL|ok )' "$log" >&2
 		exit 1
 	}
 }

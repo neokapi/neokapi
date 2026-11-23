@@ -1401,7 +1401,8 @@ jobs:
   # On a runner the home holds nothing of a developer's, so a failure here is
   # always a test that would write into a real one. It takes minutes, so it
   # runs in a job of its own. The desktop backends need the GTK and WebKit
-  # headers to compile.
+  # headers to compile, and host's formatter tests need Node.js and the
+  # workspace's oxfmt, as in the Test (cli) job.
   test-isolation:
     name: Test isolation guard
     runs-on: ubuntu-latest
@@ -1413,6 +1414,7 @@ jobs:
         with:
           cache-flavor: pr
           save-cache: "false"
+      - uses: ./.github/actions/setup-node-ui
       - name: Install the GTK and WebKit headers the desktop backends compile against
         uses: ./.github/actions/apt-install
         with:
