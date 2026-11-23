@@ -70,7 +70,7 @@ func TestFetchLatestWindowsWithoutAnEntry(t *testing.T) {
 		wantText string
 	}{
 		{"windows", "windows", "windows/amd64", ErrWindowsViaWinget, ""},
-		{"darwin", "darwin", "darwin/arm64", nil, "no version of plugin"},
+		{"darwin", "darwin", "darwin/arm64", nil, "has no build for"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
