@@ -17,7 +17,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/core/model"
 	fw "github.com/neokapi/neokapi/memory"
-	"github.com/neokapi/neokapi/memory/schema"
 )
 
 // PostgresStore is a persistent, multilingual content memory backed by
@@ -48,53 +47,71 @@ func NewPostgresStoreFromDBContext(ctx context.Context, db *storage.PgDB, worksp
 	return &PostgresStore{db: db, workspaceID: workspaceID}, nil
 }
 
-// Migrations is the content memory Postgres schema as a single consolidated
-// baseline, rendered from the shared schema descriptors (memory/schema) — the
-// same source the framework SQLite backend renders from, so the two cannot
-// drift (statement-set tested in memory/schema).
+// Migrations is the content memory Postgres schema: a consolidated baseline
+// and the versions after it, each frozen as it shipped (migrations_sql.go)
+// and tested against the shared schema descriptors (memory/schema).
 //
-// LEDGER — every version this subsystem has ever issued, now folded in:
+// LEDGER, every version this subsystem has ever issued, now folded in:
 //
 //	1  bilingual content memory schema      (retired before consolidation)
 //	2  bilingual schema, incremental        (retired before consolidation)
 //	3  bilingual schema, incremental        (retired before consolidation)
-//	4  multilingual content memory schema — variants, entities per locale, import sessions
+//	4  multilingual content memory schema, variants, entities per locale, import sessions
 //	5  add concept_id to entity mappings for terms cross-reference
 //
-// Versions 1-3 were already gone before this change: v4 dropped their tables
-// outright, so a fresh database never applied them. Their numbers are recorded
-// here because a retired number stays spent — reusing 1 would make a database
-// that still remembers it skip the new work entirely.
-//
-// The DROP TABLE statements that opened v4 are NOT carried into the baseline.
-// They cleared the legacy bilingual tables during that single upgrade; a
-// baseline is designed to be re-applied, so keeping them would mean every
-// migrate pass quietly destroyed the content memory it exists to preserve.
+// Versions 1-3 were gone before the fold: v4 dropped their tables. A retired
+// number stays spent. The DROP TABLE statements that opened v4 are not in
+// the baseline, which is re-applied and must not destroy what it preserves.
 //
 // Baseline is version 6, above every number issued. Retired numbers are never
 // reused; the next migration is version 13.
 //
 //	7      the version chain: unit, point, and the governing context per origin
 //	8..12  tm_entries.revision, the token a person's edit names to say which
-//	       version of the entry it was based on (storage.RevisionColumn: steps
-//	       that never rewrite the table)
+//	       version of the entry it was based on (the steps of
+//	       storage.RevisionColumn, frozen; they never rewrite the table)
 //
 // Version 7 is an ALTER rather than an edit to the baseline. A live database
 // has already recorded 6, so the runner skips it forever; folding a column into
 // the baseline would reach a fresh database and no other, and the server would
 // keep answering an empty chain wherever it already runs.
-var Migrations = append([]storage.Migration{
+var Migrations = []storage.Migration{
 	{
 		Version:     6,
 		Description: "content memory baseline (folds 4-5; 1-3 retired earlier)",
-		SQL:         schema.RenderMemoryPostgresBaseline("workspace_id"),
+		SQL:         memoryPostgresBaseline,
 	},
 	{
 		Version:     7,
 		Description: "version chain: unit, point, and the origin's governing context",
-		SQL:         schema.RenderMemoryPostgresVersionChain("workspace_id"),
+		SQL:         memoryPostgresVersionChain,
 	},
-}, storage.RevisionColumn("tm_entries", 8)...)
+	{
+		Version:     8,
+		Description: "a revision column on tm_entries",
+		SQL:         memoryPostgresRevision1,
+	},
+	{
+		Version:     9,
+		Description: "a revision for each existing row of tm_entries",
+		SQL:         memoryPostgresRevision2,
+	},
+	{
+		Version:     10,
+		Description: "a not-null check on tm_entries revisions, not yet validated",
+		SQL:         memoryPostgresRevision3,
+	},
+	{
+		Version:     11,
+		Description: "validate the tm_entries revision check",
+		SQL:         memoryPostgresRevision4,
+	},
+	{
+		Version:     12,
+		Description: "tm_entries revisions are not null",
+		SQL:         memoryPostgresRevision5,
+	},
+}
 
 // --- basic ---
 
@@ -556,7 +573,7 @@ func (tm *PostgresStore) loadEntriesByIDs(ctx context.Context, ids []string) ([]
 		 WHERE workspace_id = $1 AND entry_id IN (`+inClause+`) ORDER BY entry_id, locale`,
 		args...)
 	// A transient failure reading variants must surface as an error, not as an
-	// entry with no translation — the caller reads an empty variant map as "not
+	// entry with no translation, the caller reads an empty variant map as "not
 	// in memory" and re-translates, discarding an approved target.
 	if err != nil {
 		return nil, fmt.Errorf("load variants: %w", err)
@@ -1231,7 +1248,7 @@ func scanPgSession(sc pgScanner) (fw.ImportSession, bool) {
 		return fw.ImportSession{}, false
 	}
 	if propsJSON != "" && propsJSON != "{}" {
-		// Best-effort: this scanner reports presence, not failure — its only
+		// Best-effort: this scanner reports presence, not failure, its only
 		// error channel is the bool, and returning false for a session that
 		// exists would hide the session rather than the bad column. Session
 		// properties are import provenance, so a malformed blob degrades to

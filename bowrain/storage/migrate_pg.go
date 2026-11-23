@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	corestorage "github.com/neokapi/neokapi/core/storage"
 )
 
 // validTableName ensures the namespace only contains safe characters for a table name.
@@ -157,7 +158,7 @@ func migrateUnderLock(ctx context.Context, db *PgDB, tableName string, migration
 		)`, tableName),
 		addIdentity: fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS identity TEXT NOT NULL DEFAULT ''", tableName),
 		insert:      fmt.Sprintf("INSERT INTO %s (version, description, identity) VALUES ($1, $2, $3)", tableName),
-		adopt:       fmt.Sprintf("UPDATE %s SET description = $1, identity = $2 WHERE version = $3 AND identity = ''", tableName),
+		adopt:       fmt.Sprintf("UPDATE %s SET identity = $1 WHERE version = $2 AND identity = ''", tableName),
 	}, migrations)
 }
 
@@ -254,4 +255,53 @@ func lockSummary(ctx context.Context, db *PgDB) string {
 		b.WriteString(" none")
 	}
 	return b.String()
+}
+
+// CheckPostgresLedgerNS compares a ledger with the code without migrating it
+// (corestorage.CheckLedger), for a ledger the server migrates later than its
+// start, such as a per-workspace schema created on first access. A server
+// runs it at start so a refusal is a failed start rather than a failed
+// request. A ledger table that does not exist yet passes: there is nothing
+// recorded to disagree with.
+func CheckPostgresLedgerNS(ctx context.Context, db *PgDB, tableName string, migrations []Migration) error {
+	if !validTableName.MatchString(tableName) {
+		return fmt.Errorf("invalid migration table name: %q", tableName)
+	}
+	ordered, err := corestorage.ValidateMigrations(tableName, migrations)
+	if err != nil {
+		return err
+	}
+	var exists bool
+	if err := db.QueryRowContext(ctx, `SELECT to_regclass($1) IS NOT NULL`, tableName).Scan(&exists); err != nil {
+		return fmt.Errorf("look for %s: %w", tableName, err)
+	}
+	if !exists {
+		return nil
+	}
+	var hasIdentity bool
+	if err := db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = $1 AND column_name = 'identity')`, tableName).Scan(&hasIdentity); err != nil {
+		return fmt.Errorf("read the columns of %s: %w", tableName, err)
+	}
+	query := "SELECT version, description, '' FROM " + tableName
+	if hasIdentity {
+		query = "SELECT version, description, identity FROM " + tableName
+	}
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", tableName, err)
+	}
+	var applied []corestorage.AppliedMigration
+	for rows.Next() {
+		var a corestorage.AppliedMigration
+		if err := rows.Scan(&a.Version, &a.Description, &a.Identity); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("read %s: %w", tableName, err)
+		}
+		applied = append(applied, a)
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("read %s: %w", tableName, err)
+	}
+	_, err = corestorage.CheckLedger(tableName, ordered, applied, shippedLedgers[tableName])
+	return err
 }

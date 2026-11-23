@@ -62,8 +62,9 @@ func TestMigrationIdentity(t *testing.T) {
 	assert.NotEqual(t, storage.MigrationIdentity(step), storage.MigrationIdentity(revised))
 }
 
-// The ledger check adopts a row recorded before identities, refuses a version
-// recorded under another name or identity naming both sides, and leaves a
+// The ledger check adopts a row recorded before identities only under a name
+// that version has carried, refuses any other name naming both, refuses a
+// shipped version whose code no longer has its shipped identity, and leaves a
 // version the code no longer carries alone.
 func TestCheckLedger(t *testing.T) {
 	code := []storage.Migration{
@@ -71,20 +72,30 @@ func TestCheckLedger(t *testing.T) {
 		{Version: 2, Retired: true, Description: "spent"},
 		{Version: 3, Description: "c", SQL: "SELECT 3"},
 	}
+	shipped := map[int]storage.ShippedMigration{
+		1: {Description: "a", Identity: storage.MigrationIdentity(code[0]), Names: []string{"an older wording of a", "a"}},
+		3: {Description: "c", Identity: storage.MigrationIdentity(code[2]), Names: []string{"c"}},
+	}
 	adopt, err := storage.CheckLedger("t", code, []storage.AppliedMigration{
 		{Version: 1, Description: "an older wording of a"},
 		{Version: 2, Description: "whatever 2 was", Identity: "x"},
-		{Version: 3, Description: "c", Identity: storage.MigrationIdentity(code[2])},
-	})
+		{Version: 3, Description: "c"},
+	}, shipped)
 	require.NoError(t, err)
-	require.Len(t, adopt, 1)
-	assert.Equal(t, 1, adopt[0].Version, "a row without an identity is adopted as it is")
+	require.Len(t, adopt, 2, "a row under a name its version has carried is adopted")
 
-	_, err = storage.CheckLedger("t", code, []storage.AppliedMigration{{Version: 3, Description: "something else", Identity: "y"}})
+	// The reviewer's reproduction: the code's version 3 now stands for another
+	// change, and the database recorded the old one without an identity.
+	collided := []storage.Migration{code[0], code[1], {Version: 3, Description: "the agent host", SQL: "ALTER TABLE x ADD y"}}
+	_, err = storage.CheckLedger("t", collided, []storage.AppliedMigration{{Version: 3, Description: "c"}}, nil)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `version 3 is recorded as "something else" and the code's version 3 is "c"`)
+	assert.Contains(t, err.Error(), `version 3 is recorded as "c" and the code's version 3 is "the agent host"`)
 
-	_, err = storage.CheckLedger("t", code, []storage.AppliedMigration{{Version: 3, Description: "c", Identity: "y"}})
+	_, err = storage.CheckLedger("t", collided, nil, shipped)
+	require.Error(t, err, "a shipped version whose code changed is refused before any row is read")
+	assert.Contains(t, err.Error(), `version 3 ("c") shipped with identity`)
+
+	_, err = storage.CheckLedger("t", code, []storage.AppliedMigration{{Version: 3, Description: "c", Identity: "y"}}, shipped)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "a shipped migration was edited")
 }
@@ -104,7 +115,7 @@ func TestMigrate_RefusesALedgerTheCodeDisagreesWith(t *testing.T) {
 	require.NoError(t, err)
 	_, err = db.ExecContext(ctx, `CREATE TABLE a (x INTEGER)`)
 	require.NoError(t, err)
-	_, err = db.ExecContext(ctx, `INSERT INTO t_migrations (version, description) VALUES (1, 'an older wording')`)
+	_, err = db.ExecContext(ctx, `INSERT INTO t_migrations (version, description) VALUES (1, 'create a')`)
 	require.NoError(t, err)
 
 	code := []storage.Migration{
@@ -114,7 +125,7 @@ func TestMigrate_RefusesALedgerTheCodeDisagreesWith(t *testing.T) {
 	require.NoError(t, storage.Migrate(db, "t_migrations", code))
 	var desc, identity string
 	require.NoError(t, db.QueryRowContext(ctx, `SELECT description, identity FROM t_migrations WHERE version = 1`).Scan(&desc, &identity))
-	assert.Equal(t, "create a", desc, "adopted under the code's name")
+	assert.Equal(t, "create a", desc, "the recorded name is kept")
 	assert.Equal(t, storage.MigrationIdentity(code[0]), identity)
 	require.NoError(t, storage.Migrate(db, "t_migrations", code), "a second run agrees")
 
@@ -128,8 +139,35 @@ func TestMigrate_RefusesALedgerTheCodeDisagreesWith(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "a shipped migration was edited")
 
+	// A row recorded before identities under a name its version never
+	// carried is refused on the first run, and keeps its name.
+	_, err = db.ExecContext(ctx, `INSERT INTO t_migrations (version, description) VALUES (3, 'create d')`)
+	require.NoError(t, err)
+	reused := []storage.Migration{code[0], code[1], {Version: 3, Description: "create e", SQL: "CREATE TABLE e (z INTEGER)"}}
+	err = storage.Migrate(db, "t_migrations", reused)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `version 3 is recorded as "create d" and the code's version 3 is "create e"`)
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT description, identity FROM t_migrations WHERE version = 3`).Scan(&desc, &identity))
+	assert.Equal(t, "create d", desc)
+	assert.Empty(t, identity, "nothing is adopted")
+
 	twice := []storage.Migration{code[0], code[1], {Version: 2, Description: "create c"}}
 	err = storage.Migrate(db, "t_migrations", twice)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `version 2 is issued twice: "create b" and "create c"`)
+}
+
+// In a test binary, a migration of a ledger the committed file holds must be
+// listed there before it merges; a ledger the file does not hold (one a test
+// writes for itself) is not asked.
+func TestShippedCoverage(t *testing.T) {
+	ms := []storage.Migration{{Version: 1, Description: "a"}, {Version: 2, Retired: true}, {Version: 3, Description: "new"}}
+	shipped := map[int]storage.ShippedMigration{1: {Description: "a"}}
+	err := storage.ShippedCoverage("t", ms, shipped)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `3 ("new")`)
+	assert.Contains(t, err.Error(), "make migration-ledger")
+	require.NoError(t, storage.ShippedCoverage("t", ms, nil))
+	t.Setenv(storage.RecordLedgerEnv, t.TempDir())
+	require.NoError(t, storage.ShippedCoverage("t", ms, shipped), "recording lists it")
 }

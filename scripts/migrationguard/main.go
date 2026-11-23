@@ -1,6 +1,11 @@
-// Command migrationguard fails a change whose migration versions collide with
+// Command migrationguard fails a change whose migrations disagree with
 // origin/main's: a list in the working tree and the same list on origin/main
-// carrying one version under two names. Two branches that each append "the
+// carrying one version under two names, or a version the committed migration
+// ledger files (core/storage, bowrain/storage) list on origin/main whose name
+// or identity differs here. The ledger files are written by the runners
+// themselves (make migration-ledger), so they cover every list however it is
+// built, a spliced range included, and pin each shipped migration's identity:
+// an edit to a shipped migration fails here before it merges. Two branches that each append "the
 // next version" pass every test on their own and collide once both merge; the
 // database records whichever ran first and skips the other for good.
 //
@@ -18,6 +23,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"context"
 	"flag"
 	"fmt"
@@ -43,6 +49,12 @@ func main() {
 		}
 		fmt.Println("migrationguard self-test: ok")
 		return
+	}
+	if top, err := git("rev-parse", "--show-toplevel"); err == nil {
+		if err := os.Chdir(strings.TrimSpace(top)); err != nil {
+			fmt.Fprintln(os.Stderr, "migrationguard:", err)
+			os.Exit(1)
+		}
 	}
 	problems, err := check()
 	if err != nil {
@@ -88,6 +100,67 @@ func check() ([]string, error) {
 			return nil, err
 		}
 		problems = append(problems, compare(f, hereLists, thereLists)...)
+	}
+	for _, f := range ledgerFiles {
+		here, err := os.ReadFile(f)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", f, err)
+		}
+		there, err := git("show", mainRef+":"+f)
+		if err != nil {
+			continue // not on main yet
+		}
+		p, err := compareLedgers(f, here, []byte(there))
+		if err != nil {
+			return nil, err
+		}
+		problems = append(problems, p...)
+	}
+	return problems, nil
+}
+
+// ledgerFiles are the committed migration ledger files.
+var ledgerFiles = []string{"core/storage/migration_ledger.json", "bowrain/storage/migration_ledger.json"}
+
+type shipped struct {
+	Description string `json:"description"`
+	Identity    string `json:"identity"`
+}
+
+// compareLedgers reports each version origin/main's ledger file lists that
+// this change drops, renames or gives another identity.
+func compareLedgers(file string, here, there []byte) ([]string, error) {
+	var h, m map[string]map[string]shipped
+	if err := json.Unmarshal(here, &h); err != nil {
+		return nil, fmt.Errorf("read %s: %w", file, err)
+	}
+	if err := json.Unmarshal(there, &m); err != nil {
+		return nil, fmt.Errorf("read %s on %s: %w", file, mainRef, err)
+	}
+	var problems []string
+	ledgers := make([]string, 0, len(m))
+	for l := range m {
+		ledgers = append(ledgers, l)
+	}
+	sort.Strings(ledgers)
+	for _, l := range ledgers {
+		versions := make([]string, 0, len(m[l]))
+		for v := range m[l] {
+			versions = append(versions, v)
+		}
+		sort.Slice(versions, func(i, j int) bool { a, _ := strconv.Atoi(versions[i]); b, _ := strconv.Atoi(versions[j]); return a < b })
+		for _, v := range versions {
+			want := m[l][v]
+			got, ok := h[l][v]
+			switch {
+			case !ok:
+				problems = append(problems, fmt.Sprintf("%s: %s version %s (%q) is on %s and not here", file, l, v, want.Description, mainRef))
+			case got.Description != want.Description:
+				problems = append(problems, fmt.Sprintf("%s: %s version %s is %q here and %q on %s", file, l, v, got.Description, want.Description, mainRef))
+			case got.Identity != want.Identity:
+				problems = append(problems, fmt.Sprintf("%s: %s version %s (%q) has identity %s here and shipped with %s on %s: a shipped migration was edited", file, l, v, want.Description, got.Identity, want.Identity, mainRef))
+			}
+		}
 	}
 	return problems, nil
 }
@@ -325,6 +398,28 @@ var Migrations = []storage.Migration{
 	}
 	if appended["var Migrations#0"][3].description != "the agent host a review decision was recorded from" {
 		return fmt.Errorf("a concatenated description was misread: %q", appended["var Migrations#0"][3].description)
+	}
+
+	mainLedger := []byte(`{"store_schema_migrations": {"63": {"description": "the reasons", "identity": "aaa"}, "64": {"description": "holds", "identity": "bbb"}}}`)
+	for name, tc := range map[string]struct {
+		here string
+		want string
+	}{
+		"an edited migration": {`{"store_schema_migrations": {"63": {"description": "the reasons", "identity": "zzz"}, "64": {"description": "holds", "identity": "bbb"}}}`, "version 63 (\"the reasons\") has identity zzz here and shipped with aaa"},
+		"a reused version":    {`{"store_schema_migrations": {"63": {"description": "the reasons", "identity": "aaa"}, "64": {"description": "the agent host", "identity": "ccc"}}}`, "version 64 is \"the agent host\" here and \"holds\""},
+		"a dropped version":   {`{"store_schema_migrations": {"63": {"description": "the reasons", "identity": "aaa"}}}`, "version 64 (\"holds\") is on origin/main and not here"},
+	} {
+		got, err := compareLedgers("l.json", []byte(tc.here), mainLedger)
+		if err != nil {
+			return err
+		}
+		if len(got) != 1 || !strings.Contains(got[0], tc.want) {
+			return fmt.Errorf("%s was not reported: %q", name, got)
+		}
+	}
+	appendedLedger := `{"store_schema_migrations": {"63": {"description": "the reasons", "identity": "aaa"}, "64": {"description": "holds", "identity": "bbb"}, "65": {"description": "new", "identity": "ddd"}}}`
+	if got, err := compareLedgers("l.json", []byte(appendedLedger), mainLedger); err != nil || len(got) != 0 {
+		return fmt.Errorf("an appended version was reported: %q: %w", got, err)
 	}
 	return nil
 }

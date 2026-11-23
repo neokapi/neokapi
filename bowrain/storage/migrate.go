@@ -47,7 +47,7 @@ type migrationDB interface {
 // ledgerSQL is the dialect a ledger is kept in: the statements that create
 // the bookkeeping table, add the identity column to one created before it,
 // record a migration (version, description, identity) and adopt a row
-// recorded before identities (description, identity, version).
+// recorded before identities (identity, version; the recorded name is kept).
 type ledgerSQL struct {
 	create, addIdentity, insert, adopt string
 }
@@ -60,6 +60,12 @@ type ledgerSQL struct {
 func runMigrations(ctx context.Context, db migrationDB, tableName string, dialect ledgerSQL, migrations []Migration) error {
 	ordered, err := corestorage.ValidateMigrations(tableName, migrations)
 	if err != nil {
+		return err
+	}
+	if err := corestorage.RecordLedger("bowrain", tableName, ordered); err != nil {
+		return err
+	}
+	if err := corestorage.ShippedCoverage(tableName, ordered, shippedLedgers[tableName]); err != nil {
 		return err
 	}
 	if _, err := db.ExecContext(ctx, dialect.create); err != nil {
@@ -89,7 +95,7 @@ func runMigrations(ctx context.Context, db migrationDB, tableName string, dialec
 		}
 
 		if m.SQL != "" {
-			if _, err := tx.ExecContext(ctx, m.SQL); err != nil {
+			if _, err := tx.ExecContext(ctx, corestorage.ExecutableSQL(m)); err != nil {
 				_ = tx.Rollback()
 				return fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Description, err)
 			}
@@ -127,9 +133,19 @@ func Migrate(db *DB, migrations []Migration) error {
 // MigrateContext is Migrate under the caller's context; its deadline bounds
 // the pass.
 func MigrateContext(ctx context.Context, db *DB, migrations []Migration) error {
-	return runMigrations(ctx, db, "schema_migrations", ledgerSQL{
+	return MigrateContextNS(ctx, db, "schema_migrations", migrations)
+}
+
+// MigrateContextNS is MigrateContext keeping its ledger in tableName. The
+// content store keeps schema_migrations, which the committed ledger file pins;
+// a list of its own (a test's) names another table.
+func MigrateContextNS(ctx context.Context, db *DB, tableName string, migrations []Migration) error {
+	if !validTableName.MatchString(tableName) {
+		return fmt.Errorf("invalid migration table name: %q", tableName)
+	}
+	return runMigrations(ctx, db, tableName, ledgerSQL{
 		create: `
-		CREATE TABLE IF NOT EXISTS schema_migrations (
+		CREATE TABLE IF NOT EXISTS ` + tableName + ` (
 			version     INTEGER PRIMARY KEY,
 			description TEXT NOT NULL,
 			applied_at  TEXT NOT NULL DEFAULT (datetime('now')),
@@ -137,15 +153,16 @@ func MigrateContext(ctx context.Context, db *DB, migrations []Migration) error {
 		)`,
 		// SQLite has no ADD COLUMN IF NOT EXISTS; the runner reads a
 		// "duplicate column" refusal as the column already there.
-		addIdentity: "ALTER TABLE schema_migrations ADD COLUMN identity TEXT NOT NULL DEFAULT ''",
-		insert:      "INSERT INTO schema_migrations (version, description, identity) VALUES (?, ?, ?)",
-		adopt:       "UPDATE schema_migrations SET description = ?, identity = ? WHERE version = ? AND identity = ''",
+		addIdentity: "ALTER TABLE " + tableName + " ADD COLUMN identity TEXT NOT NULL DEFAULT ''",
+		insert:      "INSERT INTO " + tableName + " (version, description, identity) VALUES (?, ?, ?)",
+		adopt:       "UPDATE " + tableName + " SET identity = ? WHERE version = ? AND identity = ''",
 	}, migrations)
 }
 
 // checkAndAdopt compares the ledger with the code (corestorage.CheckLedger),
-// refusing on a disagreement, and writes the code's name and identity over
-// each row recorded before identities existed.
+// refusing on a disagreement, and records the code's identity on each row
+// recorded before identities existed whose name it accepted. The recorded
+// name is never overwritten.
 func checkAndAdopt(ctx context.Context, db migrationDB, tableName string, dialect ledgerSQL, ordered []Migration) error {
 	rows, err := db.QueryContext(ctx, "SELECT version, description, identity FROM "+tableName)
 	if err != nil {
@@ -163,12 +180,12 @@ func checkAndAdopt(ctx context.Context, db migrationDB, tableName string, dialec
 	if err := rows.Close(); err != nil {
 		return fmt.Errorf("read %s: %w", tableName, err)
 	}
-	adopt, err := corestorage.CheckLedger(tableName, ordered, applied)
+	adopt, err := corestorage.CheckLedger(tableName, ordered, applied, shippedLedgers[tableName])
 	if err != nil {
 		return err
 	}
 	for _, m := range adopt {
-		if _, err := db.ExecContext(ctx, dialect.adopt, m.Description, corestorage.MigrationIdentity(m), m.Version); err != nil {
+		if _, err := db.ExecContext(ctx, dialect.adopt, corestorage.MigrationIdentity(m), m.Version); err != nil {
 			return fmt.Errorf("adopt version %d of %s: %w", m.Version, tableName, err)
 		}
 	}

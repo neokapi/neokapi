@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/bowrain/migrations"
+	"github.com/neokapi/neokapi/bowrain/storage"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 )
 
@@ -99,6 +100,30 @@ func TestEveryLedgerIsValid(t *testing.T) {
 		t.Run(s.Name, func(t *testing.T) {
 			_, err := corestorage.ValidateMigrations(s.Table, s.Migrations)
 			require.NoError(t, err)
+		})
+	}
+}
+
+// TestEveryShippedIdentityIsPinned holds every subsystem's migrations to the
+// committed ledger file (bowrain/storage/migration_ledger.json): each version
+// is listed under its current name with the identity it executes now. An edit
+// to a shipped migration fails here and in the migration guard, before it
+// merges; a new migration is listed with make migration-ledger.
+func TestEveryShippedIdentityIsPinned(t *testing.T) {
+	shipped := storage.ShippedLedgers()
+	for _, s := range migrations.All() {
+		t.Run(s.Name, func(t *testing.T) {
+			pinned, ok := shipped[s.Table]
+			require.True(t, ok, "%s is not in the committed ledger file; run make migration-ledger", s.Table)
+			for _, m := range s.Migrations {
+				if m.Retired {
+					continue
+				}
+				p, ok := pinned[m.Version]
+				require.True(t, ok, "%s version %d (%q) is not pinned; run make migration-ledger", s.Table, m.Version, m.Description)
+				assert.Equal(t, p.Description, m.Description, "%s version %d", s.Table, m.Version)
+				assert.Equal(t, p.Identity, corestorage.MigrationIdentity(m), "%s version %d (%q) no longer has the identity it shipped with: a shipped migration was edited", s.Table, m.Version, m.Description)
+			}
 		})
 	}
 }

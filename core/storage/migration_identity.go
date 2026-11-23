@@ -20,15 +20,17 @@ import (
 // comparing, because some names were reworded after their rows were recorded.
 
 // MigrationIdentity is the identity a ledger records for m: a digest of its
-// name, its SQL and, for a step written in Go, its declared revision. Editing
-// a shipped migration changes it. A change inside a Go step that keeps its
+// name, its SQL as the database executes it (NormalizeSQL, over the tokenizer
+// placeholder rather than the build's tokenizer) and, for a step written in
+// Go, its declared revision. Editing what a shipped migration executes
+// changes it; rewording a comment inside it does not. A change inside a Go step that keeps its
 // revision is invisible to the digest, which is why ValidateMigrations
 // requires a Go step to declare one.
 func MigrationIdentity(m Migration) string {
 	h := sha256.New()
 	h.Write([]byte(m.Description))
 	h.Write([]byte{0})
-	h.Write([]byte(m.SQL))
+	h.Write([]byte(NormalizeSQL(m.SQL)))
 	if m.Apply != nil {
 		h.Write([]byte{0})
 		h.Write([]byte(m.Revision))
@@ -75,33 +77,59 @@ func ValidateMigrations(ledger string, migrations []Migration) ([]Migration, err
 	return ordered, nil
 }
 
+// ShippedMigration is what a committed ledger file (migration_ledger.json)
+// knows about one shipped version: the identity it shipped with, and every
+// name it has carried, the current one included, read from the history of
+// the migration files.
+type ShippedMigration struct {
+	Description string   `json:"description"`
+	Identity    string   `json:"identity"`
+	Names       []string `json:"names"`
+}
+
+// ShippedLedgers maps a ledger's table to its shipped versions.
+type ShippedLedgers map[string]map[int]ShippedMigration
+
 // CheckLedger compares what a database recorded with the code's migrations
-// (validated and sorted). It returns the migrations whose rows carry no
-// identity yet, for the runner to adopt, and refuses with an error naming
-// both sides when a recorded version carries another name or identity than
-// the code. A recorded version the code no longer carries (a folded
+// (validated and sorted) and with what shipped (shipped, the ledger's entry in
+// the committed file; nil for a ledger it does not hold). It returns the
+// migrations whose rows carry no identity yet, for the runner to adopt, and
+// refuses, naming both sides, when:
+//
+//   - a shipped version's code no longer has the identity it shipped with;
+//   - a recorded row's name is neither the code's nor a name that version has
+//     carried (shipped.Names);
+//   - a recorded row's identity differs from the code's.
+//
+// A row without an identity is adopted only when its name passes that test,
+// so the first run that turns the check on refuses a collision instead of
+// accepting it. A recorded version the code no longer carries (a folded
 // baseline, a retired number) is left alone.
-func CheckLedger(ledger string, migrations []Migration, applied []AppliedMigration) ([]Migration, error) {
+func CheckLedger(ledger string, migrations []Migration, applied []AppliedMigration, shipped map[int]ShippedMigration) ([]Migration, error) {
 	byVersion := make(map[int]Migration, len(migrations))
+	var problems []string
 	for _, m := range migrations {
-		if !m.Retired {
-			byVersion[m.Version] = m
+		if m.Retired {
+			continue
+		}
+		byVersion[m.Version] = m
+		if s, ok := shipped[m.Version]; ok && s.Identity != MigrationIdentity(m) {
+			problems = append(problems, fmt.Sprintf("version %d (%q) shipped with identity %s and the code's version %d now has identity %s: a shipped migration was edited", m.Version, s.Description, s.Identity, m.Version, MigrationIdentity(m)))
 		}
 	}
 	var adopt []Migration
-	var problems []string
 	for _, a := range applied {
 		m, ok := byVersion[a.Version]
 		if !ok {
 			continue
 		}
-		if a.Identity == "" {
-			adopt = append(adopt, m)
+		if !knownName(a.Description, m, shipped[a.Version]) {
+			problems = append(problems, fmt.Sprintf("version %d is recorded as %q and the code's version %d is %q, a name that version has never carried", a.Version, a.Description, m.Version, m.Description))
 			continue
 		}
 		switch {
-		case a.Description != m.Description:
-			problems = append(problems, fmt.Sprintf("version %d is recorded as %q and the code's version %d is %q", a.Version, a.Description, m.Version, m.Description))
+		case a.Identity == "":
+			adopt = append(adopt, m)
 		case a.Identity != MigrationIdentity(m):
 			problems = append(problems, fmt.Sprintf("version %d (%q) was applied with identity %s and the code's version %d now has identity %s: a shipped migration was edited", a.Version, a.Description, a.Identity, m.Version, MigrationIdentity(m)))
 		}
@@ -110,4 +138,11 @@ func CheckLedger(ledger string, migrations []Migration, applied []AppliedMigrati
 		return nil, fmt.Errorf("refusing to migrate %q: %s", ledger, strings.Join(problems, "; "))
 	}
 	return adopt, nil
+}
+
+// knownName reports whether recorded is a name the version has carried: the
+// code's current name, or one of the names the committed ledger file read
+// from the version's history.
+func knownName(recorded string, m Migration, s ShippedMigration) bool {
+	return recorded == m.Description || slices.Contains(s.Names, recorded)
 }

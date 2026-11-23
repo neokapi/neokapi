@@ -15,7 +15,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage"
-	"github.com/neokapi/neokapi/memory/schema"
 )
 
 // migrationsTable names the bookkeeping table that records which schema
@@ -111,17 +110,17 @@ var memoryMigrations = []storage.Migration{
 	{
 		Version:     1,
 		Description: "multilingual content memory schema with per-variant match keys and import sessions",
-		SQL:         schema.RenderMemorySQLiteV1(storage.FTSWordTokenizer),
+		SQL:         memorySQLiteV1,
 	},
 	{
 		Version:     2,
 		Description: "add concept_id to entity mappings for terms cross-reference",
-		SQL:         schema.RenderMemorySQLiteV2(),
+		SQL:         memorySQLiteV2,
 	},
 	{
 		Version:     3,
 		Description: "precomputed has_codes flag on tm_entries for fast facet queries",
-		SQL:         schema.RenderMemorySQLiteV3(),
+		SQL:         memorySQLiteV3,
 	},
 	{
 		Version: 4,
@@ -137,7 +136,7 @@ var memoryMigrations = []storage.Migration{
 		// the ones read back out of committed translations, are re-learned with
 		// it the next time the record is absorbed.
 		Description: "the context point an entry's answer was approved at",
-		SQL:         schema.RenderMemorySQLiteV4(),
+		SQL:         memorySQLiteV4,
 	},
 	{
 		Version: 5,
@@ -157,12 +156,12 @@ var memoryMigrations = []storage.Migration{
 		// here rather than reaching backwards, which is the honest reading of an
 		// empty unit, not "no block", but "approved before the chain existed".
 		Description: "the durable block identity an entry's answer was approved for",
-		SQL:         schema.RenderMemorySQLiteV5(),
+		SQL:         memorySQLiteV5,
 	},
 	{
 		Version:     6,
 		Description: "a stable variant key shared as the rowid of its FTS5 index rows",
-		SQL:         schema.RenderMemorySQLiteV6(storage.FTSWordTokenizer),
+		SQL:         memorySQLiteV6,
 	},
 }
 

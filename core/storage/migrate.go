@@ -60,6 +60,12 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 	if err != nil {
 		return err
 	}
+	if err := RecordLedger("core", tableName, ordered); err != nil {
+		return err
+	}
+	if err := ShippedCoverage(tableName, ordered, shippedLedgers[tableName]); err != nil {
+		return err
+	}
 	if _, err := db.Exec(fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			version     INTEGER PRIMARY KEY,
@@ -149,7 +155,7 @@ func tryApplyMigration(db *DB, tableName string, m Migration) (bool, error) {
 	}
 
 	if m.SQL != "" {
-		if _, err := tx.ExecContext(context.Background(), m.SQL); err != nil {
+		if _, err := tx.ExecContext(context.Background(), ExecutableSQL(m)); err != nil {
 			_ = tx.Rollback()
 			if isBusyErr(err) {
 				return false, err // retryable
@@ -215,9 +221,9 @@ func ensureIdentityColumn(db *DB, tableName string) error {
 	return nil
 }
 
-// checkAndAdopt compares the ledger with the code (CheckLedger) and writes
-// the code's name and identity over each row recorded before identities
-// existed.
+// checkAndAdopt compares the ledger with the code (CheckLedger) and records
+// the code's identity on each row recorded before identities existed whose
+// name CheckLedger accepted. The recorded name is never overwritten.
 func checkAndAdopt(db *DB, tableName string, ordered []Migration) error {
 	rows, err := db.QueryContext(context.Background(), "SELECT version, description, identity FROM "+tableName)
 	if err != nil {
@@ -235,13 +241,13 @@ func checkAndAdopt(db *DB, tableName string, ordered []Migration) error {
 	if err := rows.Close(); err != nil {
 		return fmt.Errorf("read %s: %w", tableName, err)
 	}
-	adopt, err := CheckLedger(tableName, ordered, applied)
+	adopt, err := CheckLedger(tableName, ordered, applied, shippedLedgers[tableName])
 	if err != nil {
 		return err
 	}
 	for _, m := range adopt {
-		if _, err := db.Exec("UPDATE "+tableName+" SET description = ?, identity = ? WHERE version = ? AND identity = ''",
-			m.Description, MigrationIdentity(m), m.Version); err != nil {
+		if _, err := db.Exec("UPDATE "+tableName+" SET identity = ? WHERE version = ? AND identity = ''",
+			MigrationIdentity(m), m.Version); err != nil {
 			return fmt.Errorf("adopt version %d of %s: %w", m.Version, tableName, err)
 		}
 	}

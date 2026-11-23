@@ -39,17 +39,30 @@ func main() {
 		os.Getenv("BOWRAIN_LOG_LEVEL"),
 	)
 
-	// Error tracking (no-op without SENTRY_DSN). Flushed at the end of run(),
-	// which returns before main's os.Exit so buffered events are not lost.
+	// Error tracking (no-op without SENTRY_DSN). Flushed in exitCode, after a
+	// failed start is captured and before os.Exit.
 	observe.InitSentryFromEnv("server", version.Version+"+"+version.Commit)
 	// Route the framework's own spans here too. Without this the framework
 	// measures its work and hands it to a tracer that does not exist.
 	observe.InstallFrameworkTracer()
 
-	if err := run(); err != nil {
+	os.Exit(exitCode(run(), func(err error) { observe.CaptureError(err, "", map[string]string{"phase": "start"}) }, observe.FlushSentry))
+}
+
+// exitCode ends the process's work: a failed run is logged and captured,
+// and only then are buffered Sentry events flushed. A refused start (a
+// migration ledger the code disagrees with) is the event most worth seeing,
+// and a flush before the capture would drop it.
+func exitCode(err error, capture func(error), flush func(time.Duration)) int {
+	if err != nil {
 		slog.Error("server failed", "error", err)
-		os.Exit(1)
+		capture(err)
 	}
+	flush(2 * time.Second)
+	if err != nil {
+		return 1
+	}
+	return 0
 }
 
 // guardSecretsKey enforces that a multi-tenant Postgres deployment configures a
@@ -135,9 +148,6 @@ func runMigrateOnly(databaseURL string) error {
 }
 
 func run() error {
-	// Flush buffered Sentry events before the process exits (main calls os.Exit
-	// after run returns, which would skip a main-level defer).
-	defer observe.FlushSentry(2 * time.Second)
 
 	cfg := server.DefaultConfig()
 

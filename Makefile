@@ -2879,6 +2879,18 @@ generate-format-docs: generate-reference-docs
 generate-contract-types: ## Generate the shared TS contract, content-model, review and change-contract types and the content JSON Schema from Go
 	$(GO) run $(GOTAGS) ./scripts/gen-contract-types
 
+# The packages whose tests open every store that keeps a migration ledger.
+MIGRATION_LEDGER_PKGS := ./core/storage/ ./memory/... ./terms/... ./voice/... ./core/workspace/... ./core/state/... ./core/blockstore/... ./core/history/... ./core/projectdb/... ./core/projector/... ./core/workhome/...
+MIGRATION_LEDGER_HOST_PKGS := . ./storage/graph/
+MIGRATION_LEDGER_BOWRAIN_PKGS := ./storage/... ./store/... ./terms/ ./memory/ ./jobs/ ./auth/ ./knowledge/ ./voice/ ./agent/ ./billing/ ./platformconfig/
+
+migration-ledger: ## Regenerate the committed migration ledgers (core/storage, bowrain/storage) after adding a migration
+	@rm -rf $(CURDIR)/bin/migration-ledger && mkdir -p $(CURDIR)/bin/migration-ledger
+	NEOKAPI_MIGRATION_LEDGER_RECORD=$(CURDIR)/bin/migration-ledger $(GO) test $(GOTAGS) -count=1 $(MIGRATION_LEDGER_PKGS) > /dev/null
+	cd host && NEOKAPI_MIGRATION_LEDGER_RECORD=$(CURDIR)/bin/migration-ledger $(GO) test $(GOTAGS) -count=1 $(MIGRATION_LEDGER_HOST_PKGS) > /dev/null
+	cd bowrain && NEOKAPI_MIGRATION_LEDGER_RECORD=$(CURDIR)/bin/migration-ledger $(GO) test $(GOTAGS) -count=1 $(MIGRATION_LEDGER_BOWRAIN_PKGS) > /dev/null
+	$(GO) run ./scripts/migrationledger -record $(CURDIR)/bin/migration-ledger
+
 check-contract-types: ## Drift gate: fail if the committed TS contract types (contract, content, review, change) or content JSON Schema are stale vs. Go
 	$(GO) run $(GOTAGS) ./scripts/gen-contract-types -check
 
