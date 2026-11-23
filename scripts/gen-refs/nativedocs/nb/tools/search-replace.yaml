@@ -1,73 +1,79 @@
 # Native reference doc for the built-in `search-replace` tool.
 # Schema source: core/tools/searchreplace.go (SearchReplaceConfig).
-description: "Finn og erstatt tekst i blokker, med valgfri matching med regulære uttrykk og flagg."
+description: Finn og erstatt tekst i blokker. Du kan bruke regulære uttrykk og flagg i søket.
 overview: |
-  **Søk og erstatt**-verktøyet utfører søk og erstatning på blokkens tekst. Søk/erstatt-parene leveres programmatisk eller av den konfigurerte kommandoen. Alternativene som er synlige i skjemaet styrer samsvaringsatferden: literalmodus mot regulæruttrykkmodus, skiller mellom store og små bokstaver, og om erstatningen søker i kildetekst, måltekst eller begge.
+  Verktøyet **Søk og erstatt** søker og erstatter i blokktekst.
+  Søke- og erstatningsparene oppgis programmatisk eller av den konfigurerte
+  kommandoen. Alternativene som vises i skjemaet, styrer søket: bokstavelig
+  søk eller regulære uttrykk, skille mellom store og små bokstaver, og om
+  erstatningen skal gjøres i kildetekst, måltekst eller begge deler.
 
-  Når regulæruttrykkmodus er aktivert, brukes flaggene for store/små bokstaver, dot-all og multiline på hvert mønster. Som standard erstatter verktøyet alle treff kun i måltekst.
+  Når modus for regulære uttrykk er aktivert, brukes flaggene for store og små
+  bokstaver, punktum og flerlinsjemodus på hvert mønster. Som standard erstatter
+  verktøyet alle treff bare i målteksten.
 parameters:
-  regEx:
+  regex:
     description: Behandle søkemønstre som regulære uttrykk.
     help: |
-      Når aktivert, kompileres hvert søkemønster som et regulært uttrykk
-      og flaggene for store/små bokstaver, dot-all og flerlinjer nedenfor gjelder.
+      Når dette er aktivert, kompileres hvert søkemønster som et regulært uttrykk.
+      Flaggene nedenfor for store og små bokstaver, punktum og flerlinsjemodus gjelder da.
     values: "`true` / `false` (standard `false`)"
-  ignoreCase:
-    description: Treff uten versalfølsomhet.
+  ignore_case:
+    description: Søk uten å skille mellom store og små bokstaver.
     help: |
-      Når aktivert, ignorerer treffet store og små bokstaver. I regex-modus legger dette til
-      versaluavhengig flagg for hvert mønster.
-    values: "`true` / `false` (standard `false`)"
-  dotAll:
-    description: La dot-metategnet matche linjeskift.
+      Når dette er aktivert, skiller søket ikke mellom store og små bokstaver.
+      I regex-modus legges flagget for dette til i hvert mønster.
+    values: "`true` / `false` (standard: `false`)"
+  dot_all:
+    description: La metategnet punktum samsvare med linjeskift.
     help: |
-      Når aktivert (regex-modus), matcher `.`-metategnet også linjeskifttegn,
-      slik at et mønster kan strekke seg over linjer.
-    values: "`true` / `false` (standard `false`)"
+      Når dette er aktivert i regex-modus, samsvarer metategnet `.` også med
+      linjeskifttegn, slik at et mønster kan strekke seg over flere linjer.
+    values: "`true` / `false` (standard: `false`)"
     dependsOn:
-      - property: regEx
-        condition: gjelder i regulært uttrykk-modus
-  multiLine:
-    description: Gjør at ankere matcher ved hver linjegrense.
+      - property: regex
+        condition: gjelder i modus for regulære uttrykk
+  multi_line:
+    description: La ankre samsvare med starten og slutten av hver linje.
     help: |
-      Når aktivert (regex-modus), matcher `^` og `$` ved starten og slutten av hver
-      linje i stedet for kun hele teksten.
-    values: "`true` / `false` (standard `false`)"
+      Når dette er aktivert i regex-modus, samsvarer `^` og `$` med starten og slutten
+      av hver linje, ikke bare med starten og slutten av hele teksten.
+    values: "`true` / `false` (standard: `false`)"
     dependsOn:
-      - property: regEx
-        condition: gjelder i regulært uttrykk-modus
+      - property: regex
+        condition: gjelder i modus for regulære uttrykk
   source:
-    description: Bruk erstatninger på kildeinnhold.
-    help: "Når aktivert, kjøres søk og erstatt over blokkens kildetekst."
-    values: "`true` / `false` (standard `false`)"
+    description: Gjør erstatninger i kildeinnholdet.
+    help: "Når dette er aktivert, kjøres søk og erstatt på blokkens kildetekst."
+    values: "`true` / `false` (standard: `false`)"
   target:
-    description: Bruk erstatninger på målinnhold.
+    description: Utfør erstatninger i målteksten.
     help: |
-      Når aktivert, kjøres søk og erstatt over målteksten for den
-      konfigurerte språkkoden.
+      Når dette er aktivert, kjøres søk og erstatt på målteksten for den
+      konfigurerte språkinnstillingen.
     values: "`true` / `false` (standard `true`)"
-  replaceAll:
-    description: Erstatt hvert treff i stedet for kun det første.
+  replace_all:
+    description: "Erstatt alle treff, ikke bare det første."
     help: |
-      Når aktivert, erstattes alle forekomster av et mønster. Når deaktivert,
-      erstattes kun det første treffet i hver tekst.
-    values: "`true` / `false` (standard `true`)"
+      Når dette er aktivert, erstattes alle treff for et mønster. Når det er deaktivert,
+      erstattes bare det første treffet i hver tekst.
+    values: "`true` / `false` (standard: `true`)"
 limitations:
-  - "Regulære uttrykk bruker Go's RE2-syntaks, som ikke støtter tilbakereferanser eller lookaround."
-  - Søke-/erstatt-parene leveres programmatisk; kun treffinnstillingene vises i skjemaet.
+  - "Regulære uttrykk bruker Gos RE2-syntaks, som ikke støtter bakoverreferanser eller lookaround."
+  - Søke- og erstatningsparene angis programmatisk. Bare innstillingene for søket vises i skjemaet.
 processingNotes:
-  - Opererer kun på oversettbare blokker; ikke-oversettbare blokker passerer gjennom uendret.
-  - "Når verken kilde eller mål er angitt, gjelder verktøyet for begge av hensyn til bakoverkompatibilitet."
+  - "Behandler bare oversettbare blokker. Blokker som ikke er oversettbare, passerer uendret."
+  - "Når verken kilde eller mål er angitt, bruker verktøyet begge for å opprettholde bakoverkompatibilitet."
 examples:
-  - title: Erstatt en bokstavelig streng i mål
-    description: Bruk bokstavelig matching kun på måltekst.
+  - title: Erstatt en bokstavelig streng i måltekster
+    description: Bruk bokstavelig søk bare i målteksten.
     config: |
       target: true
-      ignoreCase: false
-  - title: Versaluavhengig regex over begge omfang
-    description: Aktiver regex-modus med store/små bokstaver-sammenslåing på tvers av kilde og mål.
+      ignore_case: false
+  - title: Regex uten skille mellom store og små bokstaver i både kilde- og måltekst
+    description: Aktiver modus for regulære uttrykk og søk uten å skille mellom store og små bokstaver i kilde- og måltekst.
     config: |
-      regEx: true
-      ignoreCase: true
+      regex: true
+      ignore_case: true
       source: true
       target: true

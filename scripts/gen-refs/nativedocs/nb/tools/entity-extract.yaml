@@ -1,71 +1,85 @@
 # Native reference doc for the built-in `entity-extract` tool.
 # Schema source: core/ai/tools/entity_extract.go (AIEntityExtractConfig).
-description: Oppdag navngitte entiteter og terminologikandidater i kildeinnhold ved hjelp av en LLM.
+description: Finn navngitte entiteter og termkandidater i kildeinnholdet ved hjelp av en LLM.
 overview: |
-  **Entity Extract**-verktøyet analyserer kildeteksten i en blokk med en stor språkmodell og registrerer to typer frittstående annotasjoner: navngitte entiteter (personer, organisasjoner, produkter, steder, samt datoer, klokkeslett, valutaer og målenheter) og termkandidater (domenespesifikke termer som vil ha nytte av en termoppføring). Hver entitet har et foreslått ikke-oversett-flagg; hver termkandidat har en kategori og en oversettelsesgradklassifikasjon (ikke oversett, konsistent eller fri). Verktøyet er skrivebeskyttet: det skriver kun annotasjoner og endrer aldri kildeteksten eller målteksten.
+  Verktøyet **Entity Extract** analyserer kildeteksten i en blokk med en stor
+  språkmodell og lagrer to typer separate annotasjoner: navngitte entiteter
+  (personer, organisasjoner, produkter og steder, samt datoer, klokkeslett,
+  valutaer og måleenheter) og termkandidater (fagspesifikke termer som kan ha
+  nytte av en termoppføring). Hver entitet får et foreslått flagg for ikke
+  oversett. Hver termkandidat får en kategori og en klassifisering av
+  oversettbarhet (ikke oversett, konsekvent eller fri). Verktøyet skriver bare
+  annotasjoner og endrer aldri kilde- eller målteksten.
 
-  Uttrekk kan eventuelt kombinere språkmodellen med en NER-leverandør for rask entitetsdeteksjon; språkmodellens klassifikasjon foretrekkes der de to overlapper. Blokker kan analyseres én om gangen eller grupperes i grupper som sendes i ett enkelt strukturert kall, og gruppene kan kjøres samtidig. Kjente termer som allerede finnes i termene kan oppgis slik at de ikke foreslås på nytt. En leverandør og, for administrerte leverandører, legitimasjon er påkrevd.
+  Uttrekket kan kombinere språkmodellen med en NER-leverandør for rask
+  gjenkjenning av entiteter. Der resultatene overlapper, foretrekkes
+  språkmodellens klassifisering. Blokker kan analyseres én om gangen eller
+  samles i grupper som sendes i ett strukturert kall. Gruppene kan kjøres
+  samtidig. Du kan oppgi kjente termer som allerede finnes i termlageret, slik
+  at de ikke foreslås på nytt. En leverandør er påkrevd, og hostede leverandører
+  krever påloggingsinformasjon.
 parameters:
   provider:
     description: LLM-leverandøren som skal brukes.
     help: |
-      Velger backend. Hostede leverandører krever en API-nøkkel og en modell;
-      Ollama kjører lokalt. De tilgjengelige alternativene hentes fra leverandørregisteret.
-    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (lokal, ingen nøkkel) (standard `anthropic`)"
-  apiKey:
+      Velger backend. Hostede leverandører krever en API-nøkkel og en modell.
+      Ollama kjører lokalt. De tilgjengelige alternativene hentes fra
+      leverandørregisteret.
+    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (lokal, uten nøkkel) (standardverdi `anthropic`)"
+  api_key:
     description: API-nøkkel for leverandøren.
     help: |
-      Legitimasjon for den valgte hostede leverandøren. Påkrevd for hostede leverandører;
-      ikke nødvendig for en lokal Ollama-backend.
+      Tilgangsnøkkel for den valgte vertsbaserte leverandøren. Kreves for vertsbaserte leverandører;
+      trengs ikke for en lokal Ollama-backend.
     values: "streng"
   model:
     description: Modellnavnet som skal forespørres.
     help: |
-      Den leverandørspesifikke modellidentifikatoren. Når den utelates, brukes leverandørens
-      standardmodell.
+      Den leverandørspesifikke modellidentifikatoren. Hvis den utelates, brukes
+      leverandørens standardmodell.
     values: "streng"
   locale:
-    description: Språkkode for kildeinnholdet.
+    description: Lokalinnstillingen for kildeinnholdet.
     help: |
-      Språkkoden for teksten som analyseres, sendt til LLM-en og eventuell NER-
-      leverandør slik at deteksjonen er språkbevisst.
-    values: "BCP-47 språkkode"
-  knownTerms:
-    description: Termer som skal utelates fra uttrekk (allerede i termlageret).
+      Lokalinnstillingen for teksten som analyseres. Den sendes til språkmodellen og
+      en eventuell NER-leverandør, slik at gjenkjenningen tar hensyn til språket.
+    values: "Språk- og regionskode i BCP-47-format"
+  known_terms:
+    description: Termer som skal utelates fra uttrekket (finnes allerede i termlageret).
     help: |
-      Termer som LLM-en blir bedt om ikke å foreslå på nytt, slik at kandidatlisten fokuserer på
-      genuint ny terminologi. Samsvar er ikke versalfølsomt.
-    values: "liste over strenger"
-  batchSize:
+      Termer som språkmodellen får beskjed om ikke å foreslå på nytt, slik at
+      kandidatlisten konsentreres om nye termer. Samsvar er uavhengig av store og små bokstaver.
+    values: "liste med strenger"
+  batch_size:
     description: Antall blokker per LLM-kall.
     help: |
-      Blokker grupperes i satser av denne størrelsen og analyseres i ett enkelt
-      strukturert kall per sats. En verdi på 0 eller 1 analyserer én blokk per kall.
+      Blokker samles i grupper av denne størrelsen og analyseres i ett
+      strukturert kall per gruppe. Verdien 0 eller 1 analyserer én blokk per kall.
     values: "heltall ≥ 1 (standard `1`)"
-  batchConcurrency:
-    description: Antall batch-kall som skal kjøres parallelt.
+  batch_concurrency:
+    description: Antall batchkall som skal kjøres parallelt.
     help: |
-      Hvor mange satser som analyseres samtidig. En verdi på 0 eller 1 kjører satser
+      Hvor mange grupper som analyseres samtidig. Verdien 0 eller 1 kjører gruppene
       sekvensielt.
-    values: "heltall ≥ 1 (standard `1`)"
+    values: "heltall ≥ 1 (standardverdi `1`)"
 limitations:
-  - "Krever en leverandør og, for hostede leverandører, gyldig legitimasjon; hostede leverandører utfører fakturerte, ratebegrensede nettverkskall."
-  - NER-leverandøren er valgfri og leveres programmatisk; uten NER-leverandør er uttrekk kun LLM-basert.
-  - Entitets- og termforslag (inkludert ikke-oversett-flagget og oversettbarhet) er modellforslag og bør gjennomgås før de tas i bruk.
+  - "Krever en leverandør og, for hostede leverandører, gyldig påloggingsinformasjon. Nettverkskall til hostede leverandører faktureres og er frekvensbegrenset."
+  - NER-leverandøren er valgfri og angis programmatisk. Uten en NER-leverandør brukes bare LLM-en til uttrekket.
+  - "Forslag til entiteter og termer, inkludert flagget for ikke oversett og oversettbarhet, er forslag fra modellen. De bør gjennomgås før de brukes."
 processingNotes:
-  - Opererer på oversettbare blokker med ikke-tom kilde; andre deler passerer gjennom uendret.
-  - Skrivebeskyttet – skriver entitets- og termkandidatannotasjoner og endrer aldri kilde eller mål.
-  - "Når både en LLM og en NER-leverandør produserer en entitet på samme spenn, beholdes LLM-klassifiseringen."
-  - "Datoer, klokkeslett, valutaer og målinger er ikke satt til ikke-oversett som standard, siden de trenger språkkodespesifikk formatering."
+  - Behandler oversettbare blokker med kildetekst som ikke er tom. Andre deler videreføres uendret.
+  - Skrivebeskyttet for kilde- og måltekst. Skriver annotasjoner for entiteter og termkandidater uten å endre kilde- eller målteksten.
+  - "Når både en LLM og en NER-leverandør finner en entitet i samme tekstspenn, beholdes klassifiseringen fra LLM-en."
+  - "Datoer, klokkeslett, valutaer og måleenheter får ikke flagget for ikke oversett som standard, siden de krever formatering etter lokalinnstillingen."
 examples:
   - title: Trekk ut entiteter og termer med Anthropic
-    description: Analyser kildebrokker én om gangen med en Anthropic-modell.
+    description: Analyser kildeblokker én om gangen med en Anthropic-modell.
     config: |
       provider: anthropic
       locale: en
-  - title: Satsevis uttrekk
-    description: "Analyser blokker i satser på 20, fire satser om gangen."
+  - title: Uttrekk i batcher
+    description: "Analyser blokker i grupper på 20, fire grupper om gangen."
     config: |
       provider: openai
-      batchSize: 20
-      batchConcurrency: 4
+      batch_size: 20
+      batch_concurrency: 4

@@ -1,6 +1,6 @@
 id: s1-compass-converge
-title: "Gjenbruk først, skriv utkast for resten"
-subtitle: "Tre språk fra én kilde, og en leverandør ble bare spurt om det som gjenstår."
+title: "Gjenbruk først, lag utkast for resten"
+subtitle: "Tre språk fra én kilde, og en leverandør som bare fikk det som gjenstod."
 kind: use-case
 publishAs: multilingual-converge
 # A scripted plain-shell demo: every command is deterministic and offline. The AI
@@ -17,14 +17,14 @@ project: true
 # The sample ships its context as files, and a fresh sandbox has a store that
 # has never held them, so the take starts where a reader does.
 setup:
-  - kapi context import ./context
+  - kapi store import ./context
 captureTimeoutSec: 240
 aspects:
   - one point, one more axis
   - recycle before AI
   - ship states, not file presence
 outro:
-  line: La løkken gjenbruke før den skriver utkast.
+  line: La løkken gjenbruke før den lager utkast.
   pointer: kapi up
 
 script:
@@ -37,14 +37,14 @@ script:
   - command: cat site/ship.json
   - comment: One verb. Approved wording is recycled; only what is left reaches a provider.
   - command: kapi up
-  - comment: Norwegian and German clear the ship gate on drafted work. Dutch parks, because one of its units fails the project's bound checks.
+  - comment: Norwegian and German clear the ship gate on translated work. Dutch waits for review, because one of its units fails the project's bound checks.
   - command: kapi status
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
 
 artifacts:
   - id: ship
-    caption: "site/ship.json: locale to shippable and verified"
+    caption: "site/ship.json: locale to shippable and ship state"
     source: report
     report: json
     path: site/ship.json
@@ -57,34 +57,34 @@ narration:
   - id: title
     kind: title
     text: >-
-      Et andre språk er én akse til på innhold som allerede er styrt. Løkken gjenbruker ordlyden et prosjekt har godkjent tidligere, og ber bare en leverandør om resten.
+      Et nytt språk er én akse til på innhold som allerede er styrt. Løkken gjenbruker ordlyden et prosjekt har godkjent tidligere, og ber en leverandør bare om resten.
   - id: standing
     kind: terminal
     through: 7
     highlight: { text: ["false"] }
-    caption: "Fire strenger etter, og ingenting er tilbudt ennå."
+    caption: "Fire strenger på etterskudd, og ingenting tilbudt ennå."
     text: >-
-      Begge akser på én skjerm. Kilden fikk et Tide-vindu-panel forrige uke, fire strenger, og ingen språkkode har det. Det er ordinært arbeid snarere enn en feil, og det er nok til å holde alle språkkoder bak ship gate.
+      Begge aksene på én skjerm. Kilden fikk et Tide-vindu-panel forrige uke, fire strenger, og ingen språkvariant har det. Det er vanlig arbeid snarere enn en feil, og det er nok til å holde alle språkvarianter bak leveringsporten.
   - id: converge
     kind: terminal
     through: 9
-    caption: "Gjenbrukt først, og bare resten skrives som utkast."
+    caption: "Gjenbrukt først, og bare resten lages som utkast."
     text: >-
-      Ett verb konvergerer. Trettisju av norskens trettiåtte enheter kommer tilbake ut av prosjektets eget content memory, og bare resten når en leverandør – her er det offline-stubben som merker alt den skriver.
+      Ett verb konvergerer. Trettisyv av norskens trettiaåtte enheter hentes ut av prosjektets eget innholdsminne, og bare resten når frem til en leverandør – her er det frakoblet-stubben som merker alt den skriver.
   - id: gated
     kind: terminal
     through: 13
     highlight: { text: [blocked, checks] }
-    caption: To språkkoder tilbudt. Nederlandsk stopper på en feilende kontroll.
+    caption: To språk tilbudt. Nederlandsk venter på gjennomgang på grunn av en feilende sjekk.
     text: >-
-      Norsk og tysk passerer ship gate på utkastarbeid. Nederlandsk stopper: én av enhetene feiler kontrollene prosjektet binder, og en språkkode som holder en feilende enhet holdes tilbake til noen ser på det. Utkastene er trygge i lageret; det gate-en holder tilbake er levering.
+      Norsk og tysk passerer leveringsporten på oversatt innhold. Nederlandsk venter på gjennomgang: én av enhetene feiler sjekkene prosjektet binder, og en språkvariant som har en feilende enhet holdes tilbake til noen ser på det. Utkastene er trygge i lageret; det porten holder tilbake er leveringen.
   - id: ship
     kind: artifact
     artifact: ship
-    caption: "To svar per språkkode, og ingenting annet mellom dem."
+    caption: "To svar per språk, og et notat der ingen termer gjelder."
     text: >-
-      Denne filen er hele kontrakten mellom løkken og det publiserte nettstedet. Per språkkode to uavhengige svar: er det trygt å tilby i det hele tatt, og har en person godkjent hver streng i den.
+      Denne filen er hele kontrakten mellom løkken og det distribuerte nettstedet. Per språk, to svar: er det trygt å tilby i det hele tatt, og er alle strenger i den godkjente eller bare oversatt. Nederlandsk merker også at ingen termer gjelder for det.
   - id: outro
     kind: outro
     text: >-
-      Kjør løkken på et prosjekt som allerede har godkjent ordlyd, og se hvor lite av den som i det hele tatt når en leverandør.
+      Kjør løkken på et prosjekt som allerede har godkjent ordlyd, og se hvor lite av den som i det hele tatt når frem til en leverandør.
