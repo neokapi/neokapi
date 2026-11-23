@@ -79,7 +79,7 @@ One document per batch: identity (`batch_id`, `manifest`), the extraction inputs
   "format": "xliff2",
   "targets": ["fr", "de"],
   "sources": 2,
-  "manifest": ".kapi/work/cache/extractions/0b6be731/manifest.yaml",
+  "manifest": "<state>/work/cache/extractions/0b6be731/manifest.yaml",
   "pairs": [
     {
       "target_locale": "fr",
@@ -167,20 +167,20 @@ The toolbox utilities (`kgrep`) additionally use grep-parity semantics: exit 1 w
 
 ## State kapi keeps for a checkout
 
-`.kapi/work/`, `.kapi/sync/`, `.kapi/vault/` and `.kapi/filters.local.json` belong to one checkout and never come from a repository. kapi exits 1 before it reads any of them in these cases:
+kapi keeps each checkout's own state outside the checkout, in a directory of its own under the data root: the project store and caches under `work/`, the sync state under `sync/`, the redaction vault under `vault/` and the saved filters in `filters.local.json`. `kapi state path` prints the directory. kapi reads no state from inside a checkout.
 
-- **git tracks one of them**, in any spelling your file system treats as the same name. Run the `git rm -r --cached` command the message names, add the entry to `.kapi/.gitignore`, and commit. If the files came with someone else's repository, delete them as well.
-- **`.kapi/` or one of these entries is a submodule or a git repository of its own.** Remove it, or move it out of `.kapi/`.
-- **kapi cannot ask git.** The message names the cause:
-  - git is not installed: install git;
-  - git refuses a repository another user owns: run the `git config --global --add safe.directory` command the message names;
-  - git gives no answer within five seconds, or fails: the message gives git's own error.
+The directory is found by the checkout's location and the identity of its folder, never by anything the checkout contains. What you see:
 
-  In each case you can set `KAPI_TRUST_STATE=1` in kapi's environment instead. The variable says you vouch for the state in this checkout, and kapi then asks git nothing. kapi reads it only from its own process environment; no recipe, MCP argument or plugin request sets it. In CI, a step that runs the repository's own code can set it for later steps through the runner's environment file, so set it only in workflows whose earlier steps you trust.
+- **A checkout you moved or renamed** on the same volume: nothing; its state follows it.
+- **A copied checkout, a restored backup, a checkout moved to another volume, or a volume whose device number changes when it is mounted again:** no state. kapi rebuilds `work/`. Bring the vault, the sync state and the filters across with `kapi state relink --from <old location>`.
+- **Another folder at a location where a checkout was** (one deleted and another cloned in its place): no state, and kapi says once that the earlier state was kept, with the `kapi state relink` command for it.
+- **State an earlier kapi left in the checkout's `.kapi/`:** kapi says once that `.kapi/work` is no longer used, and that the vault, sync state or filters there need `kapi state import -p <project>`.
 
-  A very large index that makes git miss the five seconds is refused the same way, with the remedy; it never passes.
+`kapi state import` and `kapi state relink` list every file with its size and the server any sync state was issued by, ask you to confirm (or take `--yes`), take exactly what they listed, and refuse a link or an irregular file. `import` leaves the copies in `.kapi/` unless you pass `--remove`. An agent cannot run either.
 
-A directory that is in no git repository is not checked. kapi asks git about these entries, so it sees only what git tracks. State that arrived untracked, in an archive or a checkout copied or synchronised from elsewhere, is not seen by this check. kapi still refuses a link or an irregular file anywhere under `.kapi/`, but a regular store or claim token that was copied in is used as kapi's own.
+A claim token in the sync state is sent only to the server and project the sync state records it for. A sync state that records none sends no token, and kapi says why.
+
+kapi also exits 1 when git tracks `.kapi/work/`, `.kapi/sync/`, `.kapi/vault/` or `.kapi/filters.local.json`, in any spelling your file system treats as the same name, or when one of them is a submodule. Run the `git rm -r --cached` command the message names and commit. When kapi cannot ask git, the message names the cause (git not installed, a repository another user owns, no answer within five seconds); `KAPI_TRUST_STATE=1` in kapi's own environment skips the question. A directory in no git repository is not checked.
 
 ## Streaming progress: `--progress jsonl`
 

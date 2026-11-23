@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-23T06:49:22Z",
+  "generatedAt": "2026-11-23T14:13:23Z",
   "commands": [
     {
       "id": "add",
@@ -5658,7 +5658,7 @@
       ],
       "use": "extract",
       "short": "Emit a bilingual file for a translator: native .kpz or XLIFF/PO",
-      "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target language\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").\nEvery block carries the revision of its translation and of its source, which\nkapi merge checks the returned file against.",
+      "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target language\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under work/cache/extractions/\u003cbatch-id\u003e/\nin the checkout's state directory (kapi state path prints it), plus one bilingual file per source → target pair in --out-dir (default \"out/\").\nEvery block carries the revision of its translation and of its source, which\nkapi merge checks the returned file against.",
       "groupID": "advanced",
       "flags": [
         {
@@ -6321,7 +6321,7 @@
       ],
       "use": "memory",
       "short": "Manage content memory",
-      "long": "Manage content memory.\n\nA content memory stores previously produced content as a SQLite database: source\nsegments with the targets settled for them. Use these commands to import/export\nTMX, look up matches, and manage entries.\n\nInside a project, no flag means the project's own content memory, a subsystem of\n.kapi/work/store.db, which is why it is addressed by project rather than by path.\nUse -p to name the project explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in the kapi config dir (memory/\u003cn\u003e.db)\n  --local         Content memory in current directory (./memory.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./memory.db).",
+      "long": "Manage content memory.\n\nA content memory stores previously produced content as a SQLite database: source\nsegments with the targets settled for them. Use these commands to import/export\nTMX, look up matches, and manage entries.\n\nInside a project, no flag means the project's own content memory, kept in the\nproject's context store in the workspace, which is why it is addressed by project\nrather than by path.\nUse -p to name the project explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in the kapi config dir (memory/\u003cn\u003e.db)\n  --local         Content memory in current directory (./memory.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./memory.db).",
       "groupID": "languages",
       "examples": [
         "kapi memory stats",
@@ -8563,7 +8563,7 @@
       ],
       "use": "terms",
       "short": "Manage terminology",
-      "long": "Manage project terminology.\n\nA terms store holds approved terminology (concepts and their renderings per\nlocale) as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nInside a project, no flag means the project's own terms, a subsystem of\n.kapi/work/store.db, which is why it is not addressed by path. Use -p to name the\nproject explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in the kapi config dir (terms/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./terms.db).",
+      "long": "Manage project terminology.\n\nA terms store holds approved terminology (concepts and their renderings per\nlocale) as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nInside a project, no flag means the project's own terms, kept in the project's\ncontext store in the workspace, which is why it is not addressed by path. Use -p to name the\nproject explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in the kapi config dir (terms/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./terms.db).",
       "groupID": "assets",
       "examples": [
         "kapi terms stats",

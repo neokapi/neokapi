@@ -1,7 +1,6 @@
 package projectdb_test
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,229 +10,52 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/state"
-	"github.com/neokapi/neokapi/core/storage"
 )
 
-// The two predecessor layouts, spelled here as the test's own fixtures. The
-// names are constants nowhere — core/projectdb keeps private copies so nothing
-// live can reach for one — and a test that borrowed those would assert against
-// the implementation rather than against the disk.
-func flatCacheDir(layout project.Layout) string {
-	return filepath.Join(layout.StateDir, "cache")
-}
-
-func flatStorePath(layout project.Layout) string {
-	return filepath.Join(layout.StateDir, "store.db")
-}
-
+// The flat layout's decision record, spelled here as the test's own fixture
+// rather than borrowed from core/projectdb, so the test asserts against the
+// disk.
 func flatDecisionsDir(layout project.Layout) string {
 	return filepath.Join(layout.StateDir, "units")
 }
 
-// workVaultDir is where the vault sat while it lived under work/.
-func workVaultDir(layout project.Layout) string {
-	return filepath.Join(layout.StateDir, "work", "vault")
+// inTreeState lists what earlier layouts kept inside a checkout as state,
+// relative to its `.kapi/`.
+var inTreeState = []string{
+	"store.db",
+	"cache/blocks.db",
+	"cache/redaction/b-1.json",
+	"memory.db",
+	"work/state.db",
+	"work/store.db",
+	"work/vault/redaction.json",
+	"work/cache/sync-cache.json",
+	"vault/redaction.json",
+	"sync/sync-cache.json",
+	"filters.local.json",
 }
 
-func oldBlockStorePath(layout project.Layout) string {
-	return filepath.Join(flatCacheDir(layout), "blocks.db")
-}
-
-// oldWorkStorePath is the four-file layout's working store. Its directory is
-// the one the current layout keeps ALL machine state in, so the file goes and
-// the directory stays — the one asymmetry these tests exist to pin.
-func oldWorkStorePath(layout project.Layout) string {
-	return filepath.Join(layout.WorkDir(), "state.db")
-}
-
-// predecessorFiles lists everything the four-file layout left in a state
-// directory, plus the two spellings the vocabulary sweep retired before it.
-func predecessorFiles(layout project.Layout) []string {
-	blocks := oldBlockStorePath(layout)
-	files := []string{
-		blocks,
-		blocks + "-wal",
-		blocks + ".kapiversion",
-		blocks + ".sources.json",
-		oldWorkStorePath(layout),
-		oldWorkStorePath(layout) + "-wal",
-	}
-	for _, name := range []string{"memory.db", "terms.db", "tm.db", "termbase.db"} {
-		files = append(files,
-			filepath.Join(layout.StateDir, name),
-			filepath.Join(layout.StateDir, name+"-wal"))
-	}
-	return files
-}
-
-// writePredecessorLayout materialises the four-file layout. The contents do not
-// matter: nothing in them is migrated, so the sweep never opens them except for
-// the working store — which a caller that cares about staged decisions has
-// already written for real, and is left alone here.
-func writePredecessorLayout(t *testing.T, layout project.Layout) {
-	t.Helper()
-	require.NoError(t, os.MkdirAll(flatCacheDir(layout), 0o755))
-	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
-	for _, path := range predecessorFiles(layout) {
-		if _, err := os.Stat(path); err == nil {
-			continue
-		}
-		require.NoError(t, os.WriteFile(path, []byte("predecessor"), 0o644))
-	}
-}
-
-func assertPredecessorsGone(t *testing.T, layout project.Layout) {
-	t.Helper()
-	for _, path := range predecessorFiles(layout) {
-		assert.NoFileExists(t, path)
-	}
-	assert.NoDirExists(t, flatCacheDir(layout), "the flat cache root goes whole")
-	assert.DirExists(t, layout.WorkDir(), "the work directory is the live machine-state root, not a leftover")
-}
-
-// A staged decision is the one thing a predecessor working store holds that no
-// committed source can reproduce, so it is the one thing the sweep carries.
-func TestSweep_CarriesStagedDecisionsForward(t *testing.T) {
+// A store open reads, moves and deletes none of the state an earlier kapi left
+// inside the checkout: the checkout's state lives under the data root, and a
+// person imports what cannot be rebuilt with `kapi state import`.
+func TestOpenLeavesStateInsideTheCheckoutAlone(t *testing.T) {
 	layout := newLayout(t)
-	require.NoError(t, os.MkdirAll(layout.StateDir, 0o755))
-
-	// A committed record the new working store will re-seed from, so the test
-	// can tell a carried decision from a re-derived one.
-	require.NoError(t, state.WriteCommitted(layout.Export().UnitStateDir(), []state.UnitState{
-		unit("u-committed", "d-intro", "Already committed"),
-	}))
-
-	old, err := state.OpenWork(t.Context(), oldWorkStorePath(layout), layout.Export().UnitStateDir())
-	require.NoError(t, err)
-	require.NoError(t, old.Put(t.Context(), unit("u-staged", "d-intro", "Staged, never committed")))
-	unwritten, err := old.RecordDiff(t.Context())
-	require.NoError(t, err)
-	require.Equal(t, 1, unwritten.Changed(), "the imported unit is already in the record; the new decision is not")
-	require.NoError(t, old.Close())
-
-	writePredecessorLayout(t, layout)
-
+	for _, rel := range inTreeState {
+		p := filepath.Join(layout.StateDir, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		require.NoError(t, os.WriteFile(p, []byte("left by an earlier kapi"), 0o600))
+	}
 	db := openStore(t, layout)
 
-	staged, err := db.Work().Staged(t.Context())
-	require.NoError(t, err)
-	require.Len(t, staged, 1, "exactly the staged decision came across")
-	assert.Equal(t, "u-staged", staged[0].Unit)
-	assert.Equal(t, "approved", staged[0].Decision.ReviewState)
-
-	// The committed unit is present too, but as a re-seed from the committed
-	// shards rather than a carried decision.
-	all, err := db.Work().All(t.Context())
-	require.NoError(t, err)
-	require.Len(t, all, 2)
-	_, ok := db.Work().Get(t.Context(), state.Key{Scope: "d-intro", Unit: "u-committed", Variant: model.Variant("nb")})
-	assert.True(t, ok)
-
-	assertPredecessorsGone(t, layout)
+	for _, rel := range inTreeState {
+		assert.FileExists(t, filepath.Join(layout.StateDir, filepath.FromSlash(rel)), "%s is left as it was", rel)
+	}
+	assert.NoFileExists(t, layout.RedactionVaultPath(), "no vault is taken from the checkout")
+	assert.NoFileExists(t, filepath.Join(layout.SyncDir(), "sync-cache.json"), "no sync state is taken from it")
+	assert.NoFileExists(t, layout.LocalFiltersPath())
+	assert.NotEqual(t, filepath.Join(layout.StateDir, "work", "store.db"), db.Path(), "the store is the one under the data root")
 }
-
-// A predecessor written before the ledger held decisions only may hold a
-// basis an earlier build recorded beside a translation. The ledger refuses
-// it, and the decisions it holds after that entry still come across before
-// the predecessor is deleted.
-func TestSweep_CarriesTheDecisionsPastAnEntryThatDecidesNothing(t *testing.T) {
-	layout := newLayout(t)
-	require.NoError(t, os.MkdirAll(layout.StateDir, 0o755))
-
-	old, err := state.OpenWork(t.Context(), oldWorkStorePath(layout), layout.Export().UnitStateDir())
-	require.NoError(t, err)
-	require.NoError(t, old.Put(t.Context(), unit("u-staged", "d-intro", "Staged, never committed")))
-	require.NoError(t, old.Close())
-
-	// The earlier build's basis, ahead of the decision in the ledger's order.
-	basis := state.UnitState{Unit: "u-a-basis", Variant: model.Variant("nb"), Scope: "d-intro",
-		ContentHash: model.ComputeContentHash("A translation the loop wrote")}
-	require.False(t, basis.Decides())
-	payload, err := json.Marshal(basis)
-	require.NoError(t, err)
-	db, err := storage.OpenWith(oldWorkStorePath(layout), storage.ProjectOptions())
-	require.NoError(t, err)
-	_, err = db.ExecContext(t.Context(), `INSERT INTO unit_decision
-    (id, scope, unit, variant, content_hash, target_hash, actor, origin, recorded_at, revoked, payload)
-VALUES ('e-basis', 'd-intro', 'u-a-basis', 'nb', ?, '', '', 'local', '2026-09-01T00:00:00.000000000Z', 0, ?)`,
-		basis.ContentHash, string(payload))
-	require.NoError(t, err)
-	require.NoError(t, db.Close())
-
-	writePredecessorLayout(t, layout)
-	store := openStore(t, layout)
-
-	staged, err := store.Work().Staged(t.Context())
-	require.NoError(t, err)
-	require.Len(t, staged, 1, "the decision came across, and the basis did not")
-	assert.Equal(t, "u-staged", staged[0].Unit)
-	assertPredecessorsGone(t, layout)
-}
-
-// No predecessor is the ordinary case, and the common one after the first
-// open: the sweep must be a no-op that costs a few stats.
-func TestSweep_NoPredecessorIsNoOp(t *testing.T) {
-	layout := newLayout(t)
-	db := openStore(t, layout)
-
-	diff, err := db.Work().RecordDiff(t.Context())
-	require.NoError(t, err)
-	assert.Zero(t, diff.Changed())
-	assert.NoFileExists(t, oldWorkStorePath(layout))
-
-	// Re-opening finds nothing to sweep and changes nothing.
-	require.NoError(t, db.Close())
-	again := openStore(t, layout)
-	diff, err = again.Work().RecordDiff(t.Context())
-	require.NoError(t, err)
-	assert.Zero(t, diff.Changed())
-}
-
-// The sweep runs on every open, so a predecessor that reappears (a stale file
-// restored from a backup, a branch switch) is swept the next time too.
-func TestSweep_RunsOnEveryOpen(t *testing.T) {
-	layout := newLayout(t)
-	db := openStore(t, layout)
-	require.NoError(t, db.Close())
-
-	writePredecessorLayout(t, layout)
-	openStore(t, layout)
-	assertPredecessorsGone(t, layout)
-}
-
-// A work directory holding something the sweep does not own stays, along with
-// what is in it: deleting an unrecognised file is not the sweep's business.
-func TestSweep_LeavesUnrecognisedWorkDirContents(t *testing.T) {
-	layout := newLayout(t)
-	writePredecessorLayout(t, layout)
-	stray := filepath.Join(layout.WorkDir(), "notes.txt")
-	require.NoError(t, os.WriteFile(stray, []byte("mine"), 0o644))
-
-	openStore(t, layout)
-
-	assert.FileExists(t, stray)
-	assert.NoFileExists(t, oldWorkStorePath(layout), "the store this package owns still goes")
-}
-
-// A predecessor working store that will not open must not fail the project
-// open: the alternative is a project that cannot be used because of a file
-// about to be deleted.
-func TestSweep_UnreadablePredecessorDoesNotFailOpen(t *testing.T) {
-	layout := newLayout(t)
-	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
-	require.NoError(t, os.WriteFile(oldWorkStorePath(layout), []byte("this is not a database"), 0o644))
-
-	db, err := projectdb.Open(t.Context(), layout)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = db.Close() })
-
-	require.NotNil(t, db.Work())
-	assert.NoFileExists(t, oldWorkStorePath(layout))
-}
-
-// ─── the flat layout: units, vault and the store hung straight off `.kapi/` ──
 
 // The committed decision record is authored data. It MOVES, byte for byte:
 // a shard that arrived rewritten, or arrived not at all, is review history
@@ -262,165 +84,6 @@ func TestFold_MovesCommittedRecordIntoUnitState(t *testing.T) {
 	require.NoError(t, db.Work().Import(t.Context()))
 	_, ok := db.Work().Get(t.Context(), state.Key{Scope: "d-intro", Unit: "u-flat", Variant: model.Variant("nb")})
 	assert.True(t, ok, "an import reads the moved record")
-}
-
-// The vault holds the only copy of a withheld original. It moves out of
-// work/, which is a cache, for the same reason the decision record moves: no
-// source reproduces it.
-func TestFold_MovesVaultOutOfWork(t *testing.T) {
-	layout := newLayout(t)
-	require.NoError(t, os.MkdirAll(filepath.Join(workVaultDir(layout), "batches"), 0o755))
-	require.NoError(t, os.WriteFile(
-		filepath.Join(workVaultDir(layout), "redaction.json"),
-		[]byte(`{"secret":"the original"}`), 0o600))
-	require.NoError(t, os.WriteFile(
-		filepath.Join(workVaultDir(layout), "batches", "b-1.json"),
-		[]byte(`{"secret":"nested"}`), 0o600))
-
-	openStore(t, layout)
-
-	moved, err := os.ReadFile(layout.RedactionVaultPath())
-	require.NoError(t, err, "the project vault landed in .kapi/vault/")
-	assert.JSONEq(t, `{"secret":"the original"}`, string(moved))
-
-	nested, err := os.ReadFile(filepath.Join(layout.VaultDir(), "batches", "b-1.json"))
-	require.NoError(t, err, "a subdirectory of the vault moves whole")
-	assert.JSONEq(t, `{"secret":"nested"}`, string(nested))
-
-	assert.NoDirExists(t, workVaultDir(layout))
-
-	info, err := os.Stat(layout.VaultDir())
-	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0o700), info.Mode().Perm(), "the moved vault is owner-only")
-}
-
-// The venue sync state is the checkout's position in a server's feed and an
-// anonymous project's claim token. It moves out of work/cache/ with the vault.
-func TestFold_MovesSyncStateOutOfWork(t *testing.T) {
-	layout := newLayout(t)
-	cache := filepath.Join(layout.StateDir, "work", "cache")
-	require.NoError(t, os.MkdirAll(cache, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(cache, "refs.json"), []byte(`{"project_id":"p"}`), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(cache, "sync-cache.json"), []byte(`{"claim_token":"t"}`), 0o644))
-
-	openStore(t, layout)
-
-	for _, name := range []string{"refs.json", "sync-cache.json"} {
-		assert.FileExists(t, filepath.Join(layout.SyncDir(), name))
-		assert.NoFileExists(t, filepath.Join(cache, name))
-	}
-}
-
-// The per-batch redaction sidecars are the one thing under the cache root that
-// no rerun reproduces: they hold the originals withheld from an extract → merge
-// batch, so a batch still in flight cannot be restored without them. They move
-// out before the cache root is deleted.
-func TestFold_MovesRedactionSidecarsOutOfTheCache(t *testing.T) {
-	layout := newLayout(t)
-	flatRedaction := filepath.Join(flatCacheDir(layout), "redaction")
-	require.NoError(t, os.MkdirAll(flatRedaction, 0o755))
-
-	sidecar := []byte(`{"placeholder":"[[EMAIL_1]]","original":"ada@example.com"}`)
-	require.NoError(t, os.WriteFile(filepath.Join(flatRedaction, "b-inflight.json"), sidecar, 0o600))
-	// Something regenerable in the same cache root, to show the move is
-	// targeted rather than a reprieve for the whole directory.
-	require.NoError(t, os.MkdirAll(filepath.Join(flatCacheDir(layout), "docs"), 0o755))
-	require.NoError(t, os.WriteFile(
-		filepath.Join(flatCacheDir(layout), "docs", "parsed.json"), []byte("cached"), 0o644))
-
-	openStore(t, layout)
-
-	moved, err := os.ReadFile(layout.RedactionSidecarPath("b-inflight"))
-	require.NoError(t, err, "the batch sidecar landed under .kapi/work/cache/redaction/")
-	assert.Equal(t, sidecar, moved, "the withheld originals move byte-identical")
-
-	assert.NoDirExists(t, flatCacheDir(layout), "the rest of the flat cache still goes")
-}
-
-// A sidecar already at the destination is not overwritten, and the source is
-// not deleted unread — losing an original is the failure this fold exists to
-// avoid, so a collision is left for a person to resolve.
-func TestFold_RedactionSidecarCollisionKeepsBothCopies(t *testing.T) {
-	layout := newLayout(t)
-	flatRedaction := filepath.Join(flatCacheDir(layout), "redaction")
-	require.NoError(t, os.MkdirAll(flatRedaction, 0o755))
-	require.NoError(t, os.WriteFile(
-		filepath.Join(flatRedaction, "b-1.json"), []byte(`{"original":"the flat copy"}`), 0o600))
-
-	require.NoError(t, os.MkdirAll(filepath.Dir(layout.RedactionSidecarPath("b-1")), 0o755))
-	current := []byte(`{"original":"the current copy"}`)
-	require.NoError(t, os.WriteFile(layout.RedactionSidecarPath("b-1"), current, 0o600))
-
-	openStore(t, layout)
-
-	kept, err := os.ReadFile(layout.RedactionSidecarPath("b-1"))
-	require.NoError(t, err)
-	assert.Equal(t, current, kept, "the destination sidecar is never overwritten")
-	assert.FileExists(t, filepath.Join(flatRedaction, "b-1.json"),
-		"and the source stays, visibly, rather than being deleted unread")
-}
-
-// The flat store and cache are projections under a path nothing reads any
-// more. They go; nothing is carried out of them.
-func TestFold_RetiresFlatStoreAndCache(t *testing.T) {
-	layout := newLayout(t)
-	require.NoError(t, os.MkdirAll(filepath.Join(flatCacheDir(layout), "extractions"), 0o755))
-	for _, path := range []string{
-		flatStorePath(layout),
-		flatStorePath(layout) + "-wal",
-		flatStorePath(layout) + "-shm",
-		filepath.Join(flatCacheDir(layout), "extractions", "b-1.json"),
-	} {
-		require.NoError(t, os.WriteFile(path, []byte("flat"), 0o644))
-	}
-
-	openStore(t, layout)
-
-	for _, path := range []string{
-		flatStorePath(layout),
-		flatStorePath(layout) + "-wal",
-		flatStorePath(layout) + "-shm",
-	} {
-		assert.NoFileExists(t, path)
-	}
-	assert.NoDirExists(t, flatCacheDir(layout))
-	held, err := storage.Exists(layout.StorePath())
-	require.NoError(t, err)
-	assert.True(t, held, "the live store is the one under work/")
-}
-
-// The second open must find nothing to do. A fold that ran twice on a project
-// that had already been folded would be a fold that could move live data.
-func TestFold_SecondOpenIsANoOp(t *testing.T) {
-	layout := newLayout(t)
-	require.NoError(t, state.WriteCommitted(flatDecisionsDir(layout), []state.UnitState{
-		unit("u-flat", "d-intro", "Committed under the flat layout"),
-	}))
-	require.NoError(t, os.MkdirAll(workVaultDir(layout), 0o755))
-	require.NoError(t, os.WriteFile(
-		filepath.Join(workVaultDir(layout), "redaction.json"), []byte(`{"a":1}`), 0o600))
-
-	db := openStore(t, layout)
-	require.NoError(t, db.Close())
-
-	shards, err := os.ReadDir(layout.Export().UnitStateDir())
-	require.NoError(t, err)
-	require.Len(t, shards, 1)
-	firstShard, err := os.ReadFile(filepath.Join(layout.Export().UnitStateDir(), shards[0].Name()))
-	require.NoError(t, err)
-	firstVault, err := os.ReadFile(layout.RedactionVaultPath())
-	require.NoError(t, err)
-
-	openStore(t, layout)
-
-	secondShard, err := os.ReadFile(filepath.Join(layout.Export().UnitStateDir(), shards[0].Name()))
-	require.NoError(t, err)
-	secondVault, err := os.ReadFile(layout.RedactionVaultPath())
-	require.NoError(t, err)
-	assert.Equal(t, firstShard, secondShard)
-	assert.Equal(t, firstVault, secondVault)
-	assert.NoDirExists(t, flatDecisionsDir(layout))
-	assert.NoDirExists(t, workVaultDir(layout))
 }
 
 // A collision is the case where losing something is possible, so it is the case

@@ -81,10 +81,8 @@ func TestProjectFilters_SharedAndLocalRoundTrip(t *testing.T) {
 	require.True(t, ok)
 	assert.Contains(t, raw, shared.ID)
 	assert.NotContains(t, raw, local.ID)
-	assert.NoFileExists(t, filepath.Join(dir, ".kapi", "filters.json"))
-	assert.FileExists(t, filepath.Join(dir, ".kapi", "filters.local.json"))
-	gi, _ := os.ReadFile(filepath.Join(dir, ".kapi", ".gitignore"))
-	assert.True(t, project.GitignoreCovers(string(gi), project.LocalFiltersFilename), "rule: %q", gi)
+	assert.NoDirExists(t, filepath.Join(dir, ".kapi"), "nothing is written in the checkout")
+	assert.FileExists(t, project.LayoutAt(dir).LocalFiltersPath())
 
 	// Deleting the active (local) filter clears the active selection.
 	require.NoError(t, app.DeleteProjectFilter("t", local.ID))
@@ -171,9 +169,11 @@ func TestFilterEditPreservesBothStoresOnFailure(t *testing.T) {
 	_, err = db.Raw().ExecContext(t.Context(), "DROP TRIGGER refuse_filter_edits")
 	require.NoError(t, err)
 
-	ignore := filepath.Join(root, ".kapi", ".gitignore")
-	require.NoError(t, os.Remove(ignore))
-	require.NoError(t, os.Mkdir(ignore, 0o700))
+	// A state directory kapi cannot write to makes the personal filters write
+	// fail, while every read still succeeds.
+	stateDir := project.LayoutAt(root).LocalStateDir()
+	require.NoError(t, os.Chmod(stateDir, 0o500))
+	t.Cleanup(func() { _ = os.Chmod(stateDir, 0o700) })
 	shared.Shared = false
 	_, err = app.SaveProjectFilter("t", *shared)
 	require.Error(t, err)
@@ -186,7 +186,7 @@ func TestFilterEditsPreserveUnreadablePreferences(t *testing.T) {
 	app, root := filtersTestApp(t)
 	f, err := app.SaveProjectFilter("t", ProjectFilter{Name: "Existing"})
 	require.NoError(t, err)
-	path := filepath.Join(root, ".kapi", "filters.local.json")
+	path := project.LayoutAt(root).LocalFiltersPath()
 	broken := []byte("{broken")
 	require.NoError(t, os.WriteFile(path, broken, 0o600))
 

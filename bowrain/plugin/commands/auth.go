@@ -140,8 +140,9 @@ var authClaimCmd = &cobra.Command{
 	Short: "Claim a project into your workspace",
 	Long: `Take ownership of a project by providing a claim token.
 
-If no token is given, it is read from the project's sync cache
-(<project>/.kapi/sync/sync-cache.json).
+If no token is given, it is read from the project's sync state, and sent
+only to the server it was issued by: the server you are logged in to must be
+the one the sync state records.
 Requires authentication (run 'kapi auth login' first).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := config.LoadAuth()
@@ -161,6 +162,14 @@ Requires authentication (run 'kapi auth login' first).`,
 			cache := project.LoadSyncCache(proj.Layout)
 			if cache.ClaimToken == "" {
 				return errors.New("no claim token in the project sync cache. Provide token as argument")
+			}
+			// The token goes only to the server it was issued by.
+			issued := config.NormalizeServerURL(cache.ServerURL)
+			if issued == "" {
+				return errors.New("the claim token in the project's sync state records no server it was issued by, so kapi does not send it; provide the token as an argument if you know where it belongs")
+			}
+			if issued != config.NormalizeServerURL(stored.ServerURL) {
+				return fmt.Errorf("the claim token in the project's sync state was issued by %s, and you are logged in to %s; log in to %s to claim the project", cache.ServerURL, stored.ServerURL, cache.ServerURL)
 			}
 			claimToken = cache.ClaimToken
 		}

@@ -27,8 +27,8 @@ A terms store holds approved terminology (concepts and their renderings per
 locale) as a SQLite database. Use these commands to import, export, look up,
 and manage terms.
 
-Inside a project, no flag means the project's own terms, a subsystem of
-.kapi/work/store.db, which is why it is not addressed by path. Use -p to name the
+Inside a project, no flag means the project's own terms, kept in the project's
+context store in the workspace, which is why it is not addressed by path. Use -p to name the
 project explicitly.
 
 Standalone store instead (mutually exclusive):

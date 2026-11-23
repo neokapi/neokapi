@@ -23,7 +23,6 @@ var allowProject = map[string]string{
 	// The project state directory.
 	"core/project/layout.go:EnsureLocalDir":             "creates a named subdirectory of .kapi/ and edits .kapi/.gitignore, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks",
 	"core/project/layout.go:EnsureLayout":               "creates .kapi/ and .kapi/work/cache and writes .kapi/.gitignore, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks",
-	"core/project/layout.go:cacheOnly":                  "lists .kapi/ for EnsureLayout, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks",
 	"core/project/extraction.go:EnsureExtractionDir":    "creates a batch directory named by a checked batch ID (checkBatchID) under .kapi/work/cache/extractions, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks",
 	"core/project/extraction.go:SaveExtractionManifest": "writes the manifest into the batch directory EnsureExtractionDir created after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks",
 

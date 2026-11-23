@@ -76,6 +76,7 @@ func TestNewSourceConnector_ClaimTokenFromCache(t *testing.T) {
 	// no keychain or auth.json involved.
 	cache := bproject.LoadSyncCache(proj.Layout)
 	cache.ClaimToken = "clm_test"
+	cache.ServerURL, cache.ProjectID = "https://bowrain.example", "proj123"
 	require.NoError(t, cache.Save(proj.Layout))
 
 	conn, err := NewSourceConnector(t.Context(), &host.App{}, proj, reg)

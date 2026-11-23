@@ -74,7 +74,7 @@ Content files travel in git.
 
 Redaction withholds sensitive values before content reaches a model or a
 service, and keeps the originals in a vault on the machine that read them
-(`.kapi/vault/`). The vault is never shared and never exported, and no flag
+(the checkout's `vault/`). The vault is never shared and never exported, and no flag
 changes that. When a project moves to another machine, the placeholders come
 with it and the originals stay behind. The drafts of a language waiting for review travel
 with their withheld values replaced, and read whole only on the machine that
@@ -83,7 +83,7 @@ withheld them.
 Rules you widened to every project travel with the project that decided them.
 A machine that pulls the project, or reads its export, holds them in its own
 workspace and applies them to every project there. The derived stores and
-caches under `.kapi/work/` are rebuilt from your content files.
+caches under the checkout's `work/` are rebuilt from your content files.
 
 ## Sharing context through a backend {#sharing-context-through-a-backend}
 

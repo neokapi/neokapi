@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -21,37 +22,26 @@ import (
 	"github.com/neokapi/neokapi/core/version"
 )
 
-// hashKey returns a short stable hex digest used to name content-addressed cache
-// files for a (config, source-hash) pair.
+// hashKey returns a short stable hex digest that names the content-addressed
+// cache files for a (config, source-hash) pair.
 func hashKey(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(h[:])[:24]
 }
 
 // docCache is the project's streaming document cache: a parse-once source/sink
-// in front of the file collections. It holds NO whole document in memory.
+// in front of the file collections. It holds no whole document in memory. The
+// parsed part stream is recorded to a per-document append log and replayed one
+// part at a time. The reconstruction skeleton is a content-addressed file,
+// opened only by a writer that reconstructs output. A small SQLite index
+// records per-file staleness (content hash, mtime, size) and the document's
+// log and skeleton refs.
 //
-//   - The parsed Part stream is recorded to a per-document append log (one
-//     length-delimited JSON record per part) and replayed one part at a time.
-//   - The reconstruction skeleton is a content-addressed FILE, written as the
-//     document parses and opened lazily — ONLY by a writer that reconstructs
-//     output. A process-only flow (translate → overlays) never opens it, and the
-//     skeleton never flows through the pipeline as Parts.
-//   - A tiny SQLite index records per-file staleness (content hash, mtime, size)
-//     and the document's log + skeleton refs.
-//
-// Invariant: a pure optimization over the files. The index key includes the
-// content hash + config, so a stale entry is never served; delete `.kapi/work/cache`
-// and a re-read reconstructs identical results.
-//
-// The key also carries the BUILD that recorded the entry. What a reader emits
-// for a given file and config is decided by the reader's code, not by the file
-// alone: a release that names blocks differently, emits an annotation it did not
-// emit before, or classifies one more span as content produces a different part
-// stream from the same bytes. Without the build in the key an upgraded kapi
-// replays the previous release's parse until the file itself changes, which is
-// the shape of bug the cache exists to be incapable of — a measurement taken
-// over content the current reader would not produce.
+// It is a pure optimization over the files: the index key includes the content
+// hash, the config and the build that recorded the entry, so a stale entry is
+// never served, and deleting the cache changes no result. The build is in the
+// key because what a reader emits for a file is decided by the reader's code,
+// so an upgraded kapi must not replay the previous release's parse.
 type docCache struct {
 	DB  *storage.DB
 	dir string // directory holding the per-document logs + skeleton files
@@ -90,9 +80,10 @@ var docCacheMigrations = []storage.Migration{
 }
 
 // OpenDocCache opens (creating + migrating) the streaming document cache under
-// cacheDir/docs. A cacheDir that is a project's cache directory
-// (<root>/.kapi/work/cache) binds the cache to that project: the state
-// directory is checked first, and sources are read through the root.
+// cacheDir/docs. A cacheDir that is a checkout's cache directory (work/cache in
+// the checkout's state directory under the data root) binds the cache to that
+// checkout: its layout is checked first, and sources are read through the
+// root.
 func OpenDocCache(cacheDir string) (*docCache, error) {
 	root := projectOfCacheDir(cacheDir)
 	if root != "" {
@@ -103,15 +94,25 @@ func OpenDocCache(cacheDir string) (*docCache, error) {
 	return openDocCacheAt(root, cacheDir)
 }
 
+// openProjectDocCache opens the document cache of the project at layout, in
+// its checkout's state directory, bound to the project's root: sources are
+// read through the root, so a link out of the project or a FIFO is refused.
+func openProjectDocCache(layout project.Layout) (*docCache, error) {
+	if err := project.EnsureLayout(layout); err != nil {
+		return nil, err
+	}
+	return openDocCacheAt(layout.Root, layout.CacheDir())
+}
+
 // projectOfCacheDir returns the project root whose cache directory cacheDir
 // is, or "" when cacheDir is not one.
 func projectOfCacheDir(cacheDir string) string {
 	work := filepath.Dir(cacheDir)
-	state := filepath.Dir(work)
-	if filepath.Base(cacheDir) != "cache" || filepath.Base(work) != project.WorkDirName || filepath.Base(state) != project.StateDirName {
+	if filepath.Base(cacheDir) != project.CacheDirName || filepath.Base(work) != project.WorkDirName {
 		return ""
 	}
-	return filepath.Dir(state)
+	root, _ := dataroot.CheckoutRootOf(filepath.Dir(work))
+	return root
 }
 
 // openDocCacheAt opens the cache files beneath cacheDir: a project's cache
@@ -150,7 +151,7 @@ type docRow struct {
 // form of a block, whose content is its peer editions (Block.Editions and
 // Block.Native), with the translation filed under no language and its overlays
 // beside it. Every development build shares the version "dev", so the format
-// is part of the key too: an entry a build with another record shape wrote
+// is part of the key too. An entry a build with another record shape wrote
 // reads as a miss under any version, rather than decoding into a block that
 // holds none of its content or files an overlay on the wrong edition.
 const partsFormat = "editions/2"
@@ -211,7 +212,7 @@ func (c *docCache) lookup(path, configKey string, f *os.File, st os.FileInfo) (d
 	if mtime == st.ModTime().UnixNano() && size == st.Size() {
 		return row, true
 	}
-	// Stat changed — re-hash to Confirm the bytes actually changed.
+	// Stat changed, re-hash to Confirm the bytes actually changed.
 	h, err := hashOpen(f)
 	if err != nil || h != row.contentHash {
 		return docRow{}, false
@@ -354,11 +355,11 @@ func (d *cachedDocument) Feed(ctx context.Context, inCh chan<- *model.Part) erro
 
 // OpenSkeleton opens the reconstruction skeleton for a writer, streamed from its
 // file. (nil, nil) means the document has no skeleton (e.g. a generative format)
-// — the writer then reconstructs from the content model alone. Caller closes it.
+// (the writer then reconstructs from the content model alone). Caller closes it.
 //
 // A recorded-but-unreadable skeleton is an ERROR, not "no skeleton": the two used
 // to be conflated, so a missing or unopenable cache file made the run
-// re-serialize the document — losing the source's exact formatting — and report
+// re-serialize the document, losing the source's exact formatting, and report
 // success. Faithful write-back is the contract; the cache is rebuildable, so a
 // fault here is worth failing over.
 func (d *cachedDocument) OpenSkeleton() (*format.SkeletonStore, error) {
@@ -402,7 +403,7 @@ func (r *docRecorder) done() {
 }
 
 // SkeletonStore returns the recorder's skeleton store, creating its file lazily on
-// first use — so a lean recording (a process-only/read run that never calls this)
+// first use, so a lean recording (a process-only/read run that never calls this)
 // writes no skeleton file. nil if the file can't be created.
 func (r *docRecorder) SkeletonStore() *format.SkeletonStore {
 	if r.skel == nil {
@@ -420,7 +421,7 @@ func (r *docRecorder) SkeletonStore() *format.SkeletonStore {
 func (r *docRecorder) Add(p *model.Part) error {
 	cps := toCachedParts([]*model.Part{p})
 	if len(cps) == 0 {
-		return nil // a part type the cache doesn't model — skip (never replayed)
+		return nil // a part type the cache does not model is skipped, never replayed
 	}
 	b, err := json.Marshal(cps[0])
 	if err != nil {

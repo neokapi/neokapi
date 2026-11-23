@@ -73,7 +73,7 @@ func TestConverge_ParkedLocaleReachesNoDisk(t *testing.T) {
 
 	// And the draft tree the pass used is gone with the run: derived state, not
 	// a second delivery surface.
-	entries, _ := os.ReadDir(filepath.Join(dir, ".kapi", "work", "drafts"))
+	entries, _ := os.ReadDir(filepath.Join(project.LayoutAt(dir).WorkDir(), "drafts"))
 	assert.Empty(t, entries, "the run's draft tree must not outlive the run")
 }
 

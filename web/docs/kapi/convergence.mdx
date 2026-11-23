@@ -335,7 +335,7 @@ Kapi Desktop's review pane all read and edit them there. An edit to a language
 that has no file yet is kept there too, so no edit delivers a file the gate
 withholds. The drafts reach the language's files when the language is delivered:
 by the run in which it clears its gate, or by `kapi merge`. Deleting
-`.kapi/work/` loses none of them, and a project that
+the checkout's `work/` loses none of them, and a project that
 [shares its context](/kapi/context-portability) shares them too.
 
 A language's file can also appear another way: you write it, `kapi pull` or a
@@ -384,7 +384,7 @@ a block under **stored drafts** and quotes no tokens for it. A language held bac
 by its gate reads this way on every run after the one that drafted it, so you pay
 for its drafts once. The workspace keeps each draft waiting for review together
 with the details the drafting step matches on, so a run in a checkout whose
-`.kapi/work/` was deleted reuses them at no cost. A changed model, prompt, voice
+the checkout's `work/` was deleted reuses them at no cost. A changed model, prompt, voice
 profile or term rule, or an edited sentence, puts the block back under **drafted
 by flow**.
 

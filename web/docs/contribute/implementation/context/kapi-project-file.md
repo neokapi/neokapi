@@ -436,7 +436,7 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
 
 ## The project store
 
-A project keeps two databases. `.kapi/work/store.db` is the checkout's
+A project keeps two databases. the checkout's `work/store.db` is the checkout's
 projection of its working tree: the block cache, the overlays a flow wrote, the
 extraction stamps, all derived from the content files. The project's context
 store, in the user's workspace and shared by every checkout, holds the terms,
