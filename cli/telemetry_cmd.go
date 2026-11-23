@@ -47,7 +47,7 @@ See ` + telemetryDocsURL + ` for the full event list.`,
 		},
 	}
 	cmd.AddCommand(newTelemetryStatusCmd(a), newTelemetryOnCmd(a), newTelemetryOffCmd(a))
-	return cmd
+	return NoProject(cmd)
 }
 
 func newTelemetryStatusCmd(a *App) *cobra.Command {

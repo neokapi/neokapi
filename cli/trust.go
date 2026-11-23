@@ -59,7 +59,7 @@ the record; it is for automation and is not shown here as a decision.`,
   kapi trust revoke ./app`,
 	}
 
-	listCmd := &cobra.Command{
+	listCmd := NoProject(&cobra.Command{
 		Use:   "list",
 		Short: "List every recorded decision and whether it still applies",
 		Long: `List every recorded decision: the path it is keyed by, allow or deny, when it
@@ -74,7 +74,7 @@ was recorded, and how it stands against what is at the path now.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return output.Print(cmd, a.ExecTrustList())
 		},
-	}
+	})
 
 	showCmd := &cobra.Command{
 		Use:   "show",

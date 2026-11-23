@@ -175,6 +175,26 @@ records the location and the identity.
   directory `kapi state path` printed) is the checkout's by its key alone, and
   kapi writes the record on first use.
 
+kapi creates a checkout's state directory and its record when it first has
+state to keep for the checkout: the store, the parse cache, or the fact that a
+person was given a one-time notice (`project.EnsureLayout`). A command that
+only looks at a project, such as `kapi ls` or `kapi state path`, leaves the
+data root as it found it. `kapi check`, `kapi status` and `kapi context <path>`
+open the store, because the project's terms, voice profiles and content memory
+are reached through it and its projection lives in the state directory, so
+they create it on a checkout that has none.
+
+The one-time notices (state recorded for another folder at the location, state
+an earlier kapi left in the checkout) are recorded in `checkout.json` as given
+only when a person saw them: the command concerns a project, its standard
+error is a terminal, and its output is text rather than `--json` or YAML
+(`project.StateNotice`). Each command declares whether it concerns a project
+(`cli.ProjectDeclaration`). Taking `-p` declares it; a command that takes no
+`-p` declares it with `cli.UsesProject` or `cli.NoProject`, and a command a
+plugin serves resolves its project in the plugin's own process. kapi resolves
+no project before a command that concerns none, such as `kapi version`,
+`kapi help` or `kapi plugin list`.
+
 `kapi state import` takes the state an earlier kapi left inside a checkout's
 `.kapi/` (the vault, the sync state, the saved filters, and the places earlier
 layouts kept them) into the checkout's state directory. `kapi state relink`
