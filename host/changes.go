@@ -27,6 +27,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // This file builds the change service (core/change) for a surface of the kapi
@@ -1194,10 +1195,10 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 		if set != nil {
 			note = set.Note
 		}
-		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionRejected, note, decided)
+		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionRejected, note, venue.NormalizeReasons(body.Reasons), decided)
 		return decisionOutcome(changed, err)
 	default:
-		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionApproved, "", decided)
+		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionApproved, "", venue.NormalizeReasons(body.Reasons), decided)
 		return decisionOutcome(changed, err)
 	}
 }

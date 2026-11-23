@@ -102,9 +102,16 @@ type UnitDecision struct {
 	ReviewState string `json:"reviewState,omitempty"` // approved | rejected
 	DecidedBy   string `json:"by,omitempty"`          // "" human · "ai/<model>" · "agent/<client>" · server identity
 	DecidedAt   string `json:"at,omitempty"`          // RFC 3339
-	Note        string `json:"note,omitempty"`
-	Parked      bool   `json:"parked,omitempty"`
-	Assignee    string `json:"assignee,omitempty"`
+	// Note is what the person wrote with the decision.
+	Note string `json:"note,omitempty"`
+	// Reasons are the reason codes the person chose for a rejection or a
+	// correction (DecisionReasons), sorted. A nil list means the sender did
+	// not say: a client older than the field sends none, and a store keeps
+	// the reasons it holds for the same decision (CarryReasons). An empty,
+	// non-nil list ("reasons": []) means the decision has no reasons.
+	Reasons  []string `json:"reasons,omitzero"`
+	Parked   bool     `json:"parked,omitempty"`
+	Assignee string   `json:"assignee,omitempty"`
 	// GoverningFingerprint is the governing context the record's answer stands
 	// under (state.UnitState.GoverningFingerprint): the voice guidance and term
 	// rules in force when the decision was made, or the producer's stamp on a

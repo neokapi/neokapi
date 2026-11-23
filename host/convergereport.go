@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -144,7 +145,7 @@ func decisionStatus(decision string) (model.TargetStatus, error) {
 //
 // It returns changed=false (no error) when the unit is already at this
 // decision for this exact translation, so a repeated decision changes nothing.
-func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note string, decided *decidedContent) (bool, error) {
+func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note string, reasons []string, decided *decidedContent) (bool, error) {
 	a.InitRegistries()
 	ctx = ctxOrBackground(ctx)
 	status, err := decisionStatus(decision)
@@ -209,7 +210,7 @@ func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang s
 			// tells one page's `p` from another's. The review queue's display
 			// path is the target file, which no other party names anything by.
 			return a.recordDecisionState(ctx, proj, root, a.documentIndexOrEmpty(ctx, root).Scope(root, u.SourcePath), blockKey(b), loc,
-				content, governing, status, decision, note)
+				content, governing, status, decision, note, reasons)
 		}
 	}
 	return false, fmt.Errorf("block %q (%s) under review not found in %s", ref.Key, ref.Locale, ref.File)
@@ -293,7 +294,7 @@ func (c decidedContent) reading() state.Reading {
 // verdict, the translation it turned down and who turned it down, and leaves
 // the basis where the last approval or the producing run put it, which is what
 // keeps a rejected re-draft stale rather than clearing it.
-func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, content decidedContent, governing string, status model.TargetStatus, decision, note string) (bool, error) {
+func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, content decidedContent, governing string, status model.TargetStatus, decision, note string, reasons []string) (bool, error) {
 	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
 		return false, err
@@ -321,7 +322,8 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 	}
 	if hadPrev && prev.Status == status && prev.TargetHash == th && prev.Revision == rev &&
 		prev.ContentHash == ch && prev.Basis == basis &&
-		prev.Decision.Note == note && prev.Decision.By == "" && prev.GoverningFingerprint == gov {
+		prev.Decision.Note == note && slices.Equal(prev.Decision.Reasons, reasons) &&
+		prev.Decision.By == "" && prev.GoverningFingerprint == gov {
 		return false, nil // already at this decision for this exact pairing, under this context
 	}
 	now := nowRFC3339()
@@ -334,7 +336,7 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 		ContentHash:          ch,
 		Basis:                basis,
 		GoverningFingerprint: gov,
-		Decision:             state.Decision{ReviewState: decision, At: now, Note: note},
+		Decision:             state.Decision{ReviewState: decision, At: now, Note: note, Reasons: reasons},
 		Updated:              now,
 		// The document the unit was decided in — half of the record's identity,
 		// and what lets a decision travel the sync protocol scoped to the item

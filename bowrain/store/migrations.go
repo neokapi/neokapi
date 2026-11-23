@@ -2042,4 +2042,15 @@ var Migrations = []storage.Migration{
 			ALTER TABLE flow_definitions DROP CONSTRAINT flow_definitions_revision_not_null;
 		`,
 	},
+	{
+		Version:     63,
+		Description: "the reasons of a review decision",
+		SQL: `
+			-- The reasons a person chose for a rejection or a correction,
+			-- kept beside the note. A column with a constant default is a
+			-- catalog change on PostgreSQL 11 and later: ACCESS EXCLUSIVE
+			-- for that change only, and no row is rewritten.
+			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS reasons JSONB NOT NULL DEFAULT '[]';
+		`,
+	},
 }

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -385,14 +386,20 @@ func reviewGateFor(approving bool) platauth.Permission {
 // decided, on which block and locale, and the rungs the target moved between.
 // The decision ledger carries the same verdict for the content pipeline; this
 // is the security trail, and it is written for every rung change a person makes.
-func (s *Server) emitReviewDecisionAudit(c *echo.Context, projectID, stream, blockID, locale string, from, to model.TargetStatus, approved bool, reason string) {
+func (s *Server) emitReviewDecisionAudit(c *echo.Context, projectID, stream, blockID, locale string, from, to model.TargetStatus, approved bool, note string, reasons []string) {
 	data := map[string]string{
 		"locale":   locale,
 		"stream":   stream,
 		"decision": review.DecisionName(approved, to),
 	}
-	if reason != "" {
-		data["reason"] = reason
+	if note != "" {
+		data["reason"] = note
+	}
+	if len(reasons) > 0 {
+		// A JSON array, so each reason stays whole.
+		if b, err := json.Marshal(reasons); err == nil {
+			data["reasons"] = string(b)
+		}
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventReviewDecided,
