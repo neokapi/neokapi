@@ -86,7 +86,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		// fresh Once sees the seed and never builds a second runtime.
 		pluginRuntime: a.ensurePluginRuntime(),
 		// Same arrangement for the project stores, and the same reason: the
-		// locales of one pass read and write one `.kapi/work/store.db`, so they must
+		// locales of one pass read and write one `work/store.db` in the checkout's state directory, so they must
 		// share the pool rather than open one each.
 		projectStores: a.ensureProjectStores(),
 		// And for governance: one instant for the whole pass, one report of a

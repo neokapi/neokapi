@@ -17,14 +17,14 @@ import (
 
 // `kapi info` reports what `kapi pack` would capture, and what a `.kpz` holds.
 //
-// One verb answers for both subjects — a project and a `.kpz` — so "what would
+// One verb answers for both subjects, a project and a `.kpz`, so "what would
 // packing this project actually include?" is answerable before doing it. The
 // answer is organised the same way in each case: the archive's parts, one line
 // each, with a size.
-//
+
 // That symmetry is the point of the trio. `pack` writes exactly the parts `info`
 // lists; `unpack` restores exactly those parts. When `info` on a project and
-// `info` on its snapshot agree, the round trip is complete — which is a property
+// `info` on its snapshot agree, the round trip is complete, which is a property
 // a user can check, not just a claim in a doc.
 
 // ProjectArchivePart is one component of a project archive: what it is, whether
@@ -120,7 +120,7 @@ var archivePartNotes = map[string]string{
 }
 
 // archivePartAbsentNotes say what to do about a part that is not there, since
-// "—" on its own tells a user nothing about whether it matters.
+// ", " on its own tells a user nothing about whether it matters.
 var archivePartAbsentNotes = map[string]string{
 	"recipe":   "no recipe in this archive",
 	"sources":  "no extraction manifest: `kapi extract` records source identity + skeletons",
@@ -139,7 +139,7 @@ var projectArchiveExcluded = []string{
 }
 
 // RunProjectInfo reports what `kapi pack` would capture from the project in
-// scope — the project-subject half of `kapi info`.
+// scope, the project-subject half of `kapi info`.
 func (a *App) RunProjectInfo(cmd Command) error {
 	a.InitRegistries()
 	projectPath, err := RequireProjectPath(cmd)
@@ -184,9 +184,9 @@ func (a *App) RunProjectInfo(cmd Command) error {
 		part("sources", "", countPackableSources(layout), 0),
 	)
 
-	// Three of the parts now live in one file, so each names `.kapi/work/store.db`
+	// Three of the parts now live in one file, so each names `work/store.db` in the checkout's state directory
 	// and only the whole-store size is reportable. Per-part BYTES would be a
-	// fiction — there is no per-schema size in a SQLite file — so the size is
+	// fiction, there is no per-schema size in a SQLite file, so the size is
 	// carried once, on the first part, and the counts do the distinguishing.
 	// Presence is a count, which is what it always meant to a reader of this
 	// report: a store with no concepts has no terms to pack.
@@ -221,7 +221,7 @@ func part(name, path string, count int, bytes int64) ProjectArchivePart {
 	return p
 }
 
-// countPackableSources counts the distinct sources `pack` would carry — the
+// countPackableSources counts the distinct sources `pack` would carry, the
 // extraction manifests, deduped by source path, exactly as collectProjectSources
 // walks them.
 func countPackableSources(layout project.Layout) int {
@@ -281,7 +281,7 @@ func (a *App) countProjectStore(ctx context.Context, layout project.Layout) (blo
 //
 // It carries the same Parts as ProjectInfoOutput on purpose. `pack` writes the
 // parts `info` lists and `unpack` restores them, so a user can check the round
-// trip by comparing the two reports — which is only possible if they are the
+// trip by comparing the two reports, which is only possible if they are the
 // same report.
 type ArchiveInfoOutput struct {
 	Archive string `json:"archive"`
@@ -319,7 +319,7 @@ func (o ArchiveInfoOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// RunArchiveInfo reports what a project-snapshot `.kpz` holds — the archive
+// RunArchiveInfo reports what a project-snapshot `.kpz` holds, the archive
 // half of `kapi info`. pkg may be nil, in which case the archive is loaded.
 func (a *App) RunArchiveInfo(cmd Command, path string, pkg *kpz.Package) error {
 	if pkg == nil {

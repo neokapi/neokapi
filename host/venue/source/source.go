@@ -129,10 +129,10 @@ type itemBlock struct {
 // NewSourceConnector creates a SourceConnector for the given project.
 //
 // app is the host the caller already runs under: a command's App, or the
-// daemon's one App per process. It is how the connector reaches the project's store for
-// decision staging, and taking it as a parameter rather than opening one is the
-// whole point: the App memoizes one handle per project root, and a connector
-// that opened its own would be a second connection pool on `.kapi/work/store.db`.
+// daemon's one App per process. The connector reaches the project's store for
+// decision staging through it. The App memoizes one handle per project root,
+// and a connector that opened its own would be a second connection pool on
+// `work/store.db` in the checkout's state directory.
 func NewSourceConnector(ctx context.Context, app *host.App, project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
 	recipe := project.Recipe
 	if !recipe.HasServer() {
