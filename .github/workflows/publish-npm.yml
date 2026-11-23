@@ -38,13 +38,11 @@ jobs:
       # Install vp + vpx, mirroring the setup-node-ui composite the rest of CI
       # uses. The kapi-format / neokapi-i18n build.mjs shell out to `vpx` (e.g.
       # `vpx tsc`), so it must be on PATH for the build step below.
-      - uses: voidzero-dev/setup-vp@v1.22.0
+      # A tag run restores the dependency cache main saved and saves none.
+      - uses: ./.github/actions/setup-node-ui
         with:
-          version: "1.7.0"
-          node-version: "26"
-          cache: true
-          # A tag run restores the dependency cache main saved and saves none.
-          cache-save: false
+          cache: restore
+          install: "false"
 
       # setup-node with registry-url is applied last so npm's registry/OIDC
       # config is the final node setup in effect for the publish step.

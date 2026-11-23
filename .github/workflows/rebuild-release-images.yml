@@ -1,19 +1,15 @@
 name: Rebuild release images
 
-# Each week, rebuild the images of the last Bowrain release from that
-# release's own source, so base-image fixes reach `latest` between releases.
-# `latest` keeps meaning the last release; it is never built from main.
+# Each week, rebuild the last Bowrain release's images from that release's
+# source, so base-image fixes reach `latest` between releases. `latest` is
+# never built from main.
 #
 # The last release is the highest `bowrain-v*` version tag, release
-# candidates included: release-bowrain.yml moves `latest` on every one of
-# them. A rebuild publishes under its own tag, `<version>-r<YYYYMMDD>`,
-# and moves `latest` to it; the release's version tag is never overwritten.
-# A rebuild that scans worse than the image `latest` points at now, a finding
-# the current image does not have, publishes nothing; so does a scan that
-# cannot prove it read the image (scripts/image-scan-compare.py).
-#
-# A dispatch builds and scans only, on any branch. Only the schedule, on
-# main, publishes (scripts/check-release-build-only.py holds the shape).
+# candidates included, as release-bowrain.yml moves `latest` on each. A
+# rebuild publishes `<version>-r<YYYYMMDD>` and moves `latest` to it. An image
+# that scans worse than the one under `latest`, or whose scan proves nothing,
+# is not published (scripts/image-scan-compare.py). Only the schedule, on
+# main, publishes; a dispatch builds and scans.
 on:
   schedule:
     # Sunday 05:00 UTC, so Monday's container scan reads the rebuilt images.
@@ -96,43 +92,24 @@ jobs:
           - { image: bowrain-web, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
           - { image: bowrain-keycloak, arch: amd64, runner: ubuntu-latest, platform: linux/amd64, ignorefile: .github/trivy/bowrain-keycloak.trivyignore.yaml }
     steps:
+      # This workflow's commit at the root, for its scripts, ignore file and
+      # shared actions; the release under release/, for what is built. A local
+      # action is always this commit's, so the release's own cache rules never
+      # run here.
+      - uses: actions/checkout@v7
+
       - name: Check out the release
         uses: actions/checkout@v7
         with:
           ref: ${{ needs.setup.outputs.tag }}
+          path: release
 
-      # The scripts and ignore file come from this workflow's commit, not the
-      # release's, so a rebuild applies today's scan rules.
-      - name: Check out this workflow's scripts
-        uses: actions/checkout@v7
+      - name: Set up Node and the release's dependencies (Keycloak theme)
+        if: matrix.image == 'bowrain-keycloak'
+        uses: ./.github/actions/setup-node-ui
         with:
-          path: tools
-          sparse-checkout: |
-            .github/trivy
-            scripts/check-trivy-db.py
-            scripts/image-scan-compare.py
-          sparse-checkout-cone-mode: false
-
-      # Not the release's own setup-node-ui action: a local action runs from
-      # the release checkout, so it would carry that release's cache rules.
-      # This sets up the same Vite+ and Node with no cache, read or saved.
-      - name: Set up Node (Keycloak theme)
-        if: matrix.image == 'bowrain-keycloak'
-        uses: voidzero-dev/setup-vp@v1.22.0
-        with:
-          version: "1.7.0"
-          node-version: "26"
-          cache: false
-          run-install: false
-
-      - name: Install the release's workspace dependencies (Keycloak theme)
-        if: matrix.image == 'bowrain-keycloak'
-        run: vp install --frozen-lockfile
-
-      - name: Build @neokapi/i18n-react (Keycloak theme)
-        if: matrix.image == 'bowrain-keycloak'
-        working-directory: packages/i18n-react
-        run: vp run build
+          cache: "false"
+          working-directory: release
 
       - name: Set up JDK 17 (Keycloak theme)
         if: matrix.image == 'bowrain-keycloak'
@@ -143,7 +120,7 @@ jobs:
 
       - name: Build the Keycloak theme
         if: matrix.image == 'bowrain-keycloak'
-        run: make -C bowrain keycloak-theme
+        run: make -C release/bowrain keycloak-theme
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -153,7 +130,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/out"
           {
-            echo "commit=$(git rev-parse --short HEAD)"
+            echo "commit=$(git -C release rev-parse --short HEAD)"
             echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } >> "$GITHUB_OUTPUT"
 
@@ -162,8 +139,8 @@ jobs:
       - name: Build ${{ matrix.image }} into an OCI layout
         uses: docker/build-push-action@v7
         with:
-          context: .
-          file: bowrain/docker/${{ matrix.image == 'bowrain-keycloak' && 'keycloak' || matrix.image }}/Dockerfile
+          context: release
+          file: release/bowrain/docker/${{ matrix.image == 'bowrain-keycloak' && 'keycloak' || matrix.image }}/Dockerfile
           platforms: ${{ matrix.platform }}
           push: "false"
           pull: true
@@ -189,7 +166,7 @@ jobs:
           list-all-pkgs: true
           output: ${{ runner.temp }}/out/candidate.json
           exit-code: "0"
-          trivyignores: ${{ matrix.ignorefile && format('tools/{0}', matrix.ignorefile) || '' }}
+          trivyignores: ${{ matrix.ignorefile && matrix.ignorefile || '' }}
           cache: false
 
       - name: Write the rebuilt image's SBOM
@@ -205,7 +182,7 @@ jobs:
           cache: false
 
       - name: Check the scanner's databases are fresh
-        run: python3 tools/scripts/check-trivy-db.py "$GITHUB_WORKSPACE/.cache/trivy"
+        run: python3 scripts/check-trivy-db.py "$GITHUB_WORKSPACE/.cache/trivy"
 
       # The scan must prove it read this image: its image id is the config
       # digest of the layout about to be published, and it lists packages.
@@ -216,10 +193,10 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
         run: |
           set -uo pipefail
-          id="$(python3 tools/scripts/image-scan-compare.py image-id "$RUNNER_TEMP/image" "$PLATFORM")" || exit 1
+          id="$(python3 scripts/image-scan-compare.py image-id "$RUNNER_TEMP/image" "$PLATFORM")" || exit 1
           echo "$id" > "$OUT/image-id.txt"
           status=0
-          python3 tools/scripts/image-scan-compare.py compare "$OUT/candidate.json" --image-id "$id" --no-current || status=$?
+          python3 scripts/image-scan-compare.py compare "$OUT/candidate.json" --image-id "$id" --no-current || status=$?
           if [ "$status" -ne 0 ] && [ "$status" -ne 1 ]; then
             exit "$status"
           fi

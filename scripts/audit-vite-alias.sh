@@ -17,9 +17,12 @@
 # `vite` dependency to the alias, so the lockfile records the alias, right or
 # wrong. The manifest pnpm installs is the published one, and needs no network.
 #
-# The CI workflows install the `vp` CLI at an explicit version too (setup-vp's
-# `version:` input), and setup-vp fetches the install script from that
-# version's release tag, so the CLI must be the catalog's vite-plus version.
+# CI installs the `vp` CLI at an explicit version too (setup-vp's `version:`
+# input), and setup-vp fetches the install script from that version's release
+# tag, so the CLI must be the catalog's vite-plus version. Only the shared
+# .github/actions/setup-node-ui action may call setup-vp: it also pins the
+# installer script by commit (VP_LEGACY_INSTALLER_URL), which a direct call
+# would fetch live.
 #
 # Dependabot bumps the catalog entry but cannot follow the npm-alias
 # indirection to bump the core pin, and nothing bumps a workflow's `version:`
@@ -64,11 +67,13 @@ done
 
 # ── self-test ────────────────────────────────────────────────────────────────
 
-# fixture DIR CATALOG ALIAS_CORE SETUP_VP INSTALLED_VERSION INSTALLED_CORE
+# fixture DIR CATALOG ALIAS_CORE SETUP_VP INSTALLED_VERSION INSTALLED_CORE [direct]
 # writes a minimal repository; an empty INSTALLED_VERSION means no install.
+# The setup-vp step sits in the shared action; `direct` adds a workflow that
+# calls setup-vp itself.
 fixture() {
-  local dir="$1" catalog="$2" alias_core="$3" setup_vp="$4" inst_version="$5" inst_core="$6"
-  mkdir -p "$dir/.github/workflows"
+  local dir="$1" catalog="$2" alias_core="$3" setup_vp="$4" inst_version="$5" inst_core="$6" direct="${7:-}"
+  mkdir -p "$dir/.github/workflows" "$dir/.github/actions/setup-node-ui"
   cat >"$dir/pnpm-workspace.yaml" <<EOF
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@$alias_core
@@ -81,12 +86,28 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           version: "1.26.0"
+      - uses: ./.github/actions/setup-node-ui
+      - run: vp install
+EOF
+  cat >"$dir/.github/actions/setup-node-ui/action.yml" <<EOF
+runs:
+  using: composite
+  steps:
+    - uses: voidzero-dev/setup-vp@v1.22.0
+      with:
+        version: "$setup_vp"
+        node-version: "26"
+EOF
+  if [ "$direct" = direct ]; then
+    cat >"$dir/.github/workflows/direct.yml" <<EOF
+jobs:
+  build:
+    steps:
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           version: "$setup_vp"
-          node-version: "26"
-      - run: vp install
 EOF
+  fi
   if [ -n "$inst_version" ]; then
     mkdir -p "$dir/node_modules/vite-plus"
     cat >"$dir/node_modules/vite-plus/package.json" <<EOF
@@ -170,6 +191,8 @@ EOF
     1.8.0 8.3.8000 1.8.0 1.8.0 8.4.1000
   check_case 1 "a setup-vp version: that lags the catalog" "" \
     1.7.0 8.3.8000 1.6.0 "" ""
+  check_case 1 "a workflow that calls setup-vp directly" "" \
+    1.7.0 8.3.8000 1.7.0 "" "" direct
   check_case 1 "--installed with nothing installed" "--installed" \
     1.7.0 8.3.8000 1.7.0 "" ""
   check_case 1 "--installed with node_modules from another release" "--installed" \
@@ -218,6 +241,12 @@ fi
 # actions take a `version:` too (setup-go, for one), so only the lines between
 # a setup-vp `uses:` and the next step count.
 ci_files=$(grep -rlE 'uses: voidzero-dev/setup-vp@' .github 2>/dev/null || true)
+for f in $ci_files; do
+  if [ "$f" != .github/actions/setup-node-ui/action.yml ]; then
+    echo "audit-vite-alias: $f calls voidzero-dev/setup-vp directly; use ./.github/actions/setup-node-ui, which pins the installer script (VP_LEGACY_INSTALLER_URL)" >&2
+    exit 1
+  fi
+done
 for f in $ci_files; do
   while IFS= read -r pinned; do
     if [ "$pinned" != "$catalog" ]; then

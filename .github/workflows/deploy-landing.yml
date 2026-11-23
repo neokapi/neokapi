@@ -1,30 +1,19 @@
 name: Deploy Landing + Docs
 
 # Publishes the bowrain public site to the apex (https://bowrain.cloud): the
-# Vite landing at "/" and the Docusaurus docs under "/docs/", into one S3 origin
-# behind CloudFront (module.apex-site in bowrain-infra). PR previews are a
-# separate path (Web Landing / Docs — bowrain → pages-deploy → S3); this
+# Vite landing at "/" and the docs under "/docs/", into one S3 origin behind
+# CloudFront. PR previews take another path (Web Landing, Docs bowrain); this
 # workflow is production only.
 #
 # The docs ship on two channels:
 #
-#   /docs/       STABLE — built from the `docs/stable` branch, which a GA
-#                release moves to its tag (release-docs.yml) and a person
-#                cherry-picks docs fixes onto.
-#   /docs/next/  NEXT — built from every push to main, with a banner naming the
-#                release in progress.
+#   /docs/       stable, built from the `docs/stable` branch
+#   /docs/next/  next, built from every push to main
 #
-# The LANDING keeps deploying from main on either channel's schedule: it is the
-# product's front page, not release documentation. A stable run publishes the
-# docs alone.
-#
-# The channel follows the ref being built, so `workflow_dispatch` takes a `ref`
-# input: run this workflow from main with `ref: docs/stable` and it checks out
-# that branch and publishes production. The steps therefore live on main alone,
-# and a `docs/stable` branch cut from an older tag still deploys with them.
-#
-# Each channel's S3 sync is scoped to its own prefix, so neither deletes the
-# other. See docs/internals/docs-release-channels.md.
+# The landing deploys from main only. A dispatch takes a `ref`: run it from
+# main with `ref: docs/stable` to publish the stable docs with main's steps.
+# Each channel syncs only its own prefix; see
+# docs/internals/docs-release-channels.md.
 
 on:
   workflow_dispatch:
@@ -125,26 +114,14 @@ jobs:
         with:
           ref: ${{ needs.resolve.outputs.ref }}
 
-      - uses: voidzero-dev/setup-vp@v1.22.0
-        with:
-          node-version: "26"
-          cache: true
-          # Only a run on main saves the dependency cache; any other ref restores it.
-          cache-save: ${{ github.ref == 'refs/heads/main' }}
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install workspace dependencies
-        run: vp install --frozen-lockfile
-
-      # landing/vite.config.ts imports @neokapi/i18n-react's vite plugin (a built
-      # ./dist subpath export) — build it first so the config loads (mirrors
-      # web-landing.yml / ci-frontend).
-      - name: Build neokapi-i18n (landing vite plugin dependency)
-        run: cd packages/i18n-react && vp run build
+      # Vite+, Node, the workspace dependencies and the built
+      # @neokapi/i18n-react whose vite plugin landing/vite.config.ts imports;
+      # only main saves the cache.
+      - uses: ./.github/actions/setup-node-ui
 
       # English only for the apex production build. The nb variant (dist/nb/) is
       # a separate per-locale SPA root that the apex CloudFront router does not
-      # yet resolve, and nb is target-language drift (English is authoritative) —
+      # yet resolve, and nb is target-language drift (English is authoritative).
       # PR previews still build it via web-landing.yml. VITE_POSTHOG_KEY is the
       # PUBLIC client-side key (same as _build-web.yml); prod always has analytics.
       #
@@ -174,24 +151,19 @@ jobs:
           LOCALE: qps
         run: vp run build
 
-      # bowrain/web/docs is a standalone Docusaurus app (not in the pnpm
-      # workspace, by design — see PR #425); install it on its own.
+      # bowrain/web/docs is a standalone Docusaurus app, outside the pnpm
+      # workspace by design (PR #425); install it on its own.
       - name: Install bowrain docs site dependencies
         working-directory: bowrain/web/docs
         run: corepack pnpm install --ignore-workspace --config.strict-dep-builds=false
 
       # Every locale in docusaurus.config.ts's i18n.locales, in one build: en at
-      # the channel root and qps one level under it. A single-locale build cannot
-      # do this — `--locale qps` leaves baseUrl alone and emits a switcher whose
-      # sibling links all point at the locale being built, so English became
-      # unreachable from the pseudo page.
-      #
-      # nb is deliberately absent from i18n.locales: with no Norwegian content
-      # Docusaurus would emit the ENGLISH pages at /docs/nb/ while the switcher
-      # advertised them as Norwegian. It returns there when it has content.
-      # The qps pseudo-locale is generated here, not committed — see
-      # .github/actions/pseudo-locale for why. It must run BEFORE the build that
-      # reads i18n/qps/.
+      # the channel root and qps one level under it. A single-locale build
+      # (`--locale qps`) keeps baseUrl and points every switcher link at itself.
+      # nb stays out of i18n.locales until it has content, or Docusaurus would
+      # serve English pages under /docs/nb/. The qps pseudo-locale is generated
+      # here, not committed (.github/actions/pseudo-locale), and must run before
+      # the build that reads i18n/qps/.
       - name: Generate the qps pseudo-locale
         uses: ./.github/actions/pseudo-locale
         with:
