@@ -456,11 +456,18 @@ type ImportCSVRequest struct {
 	TargetLocale string `json:"target_locale"`
 	Domain       string `json:"domain"`
 	HasHeader    bool   `json:"has_header"`
+	// Source is the file's name, which identifies the document an import of
+	// it updates again (sqlterms.ImportSourceKey). Without it the content
+	// identifies the document.
+	Source string `json:"source,omitempty"`
 }
 
 // ImportJSONRequest holds parameters for JSON term import.
 type ImportJSONRequest struct {
 	JSONContent string `json:"json_content"`
+	// Source is the file's name (ImportCSVRequest.Source). A JSON file that
+	// declares a name of its own is known by that name.
+	Source string `json:"source,omitempty"`
 }
 
 // ExportJSONRequest holds parameters for JSON term export.

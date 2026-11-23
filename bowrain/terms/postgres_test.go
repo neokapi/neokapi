@@ -67,13 +67,15 @@ func TestPostgresTerms_IntegrationDelete(t *testing.T) {
 
 	populatePgTB(t, tb)
 
-	err := tb.DeleteConcept(t.Context(), "c2")
+	_, rev, ok, err := tb.GetConceptAt(t.Context(), "c2")
 	require.NoError(t, err)
+	require.True(t, ok)
+	require.NoError(t, tb.DeleteConceptAt(t.Context(), "c2", rev))
 	count, err := tb.Count(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 
-	_, ok, err := tb.GetConcept(t.Context(), "c2")
+	_, ok, err = tb.GetConcept(t.Context(), "c2")
 	require.NoError(t, err)
 	assert.False(t, ok)
 }

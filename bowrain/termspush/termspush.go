@@ -278,6 +278,10 @@ func propose(ctx context.Context, stores Stores, p Params, in *apiclient.TermsPr
 			BaseRev:     o.BaseRev,
 			CreatedBy:   p.Actor,
 		}
+		// A deletion is of the concept as the push found it.
+		if err := knowledge.PinDeleteRevision(ctx, stores.Terms, op); err != nil {
+			return err
+		}
 		if err := ks.AppendOp(ctx, op); err != nil {
 			return fmt.Errorf("append change-set operation %q: %w", o.Op, err)
 		}

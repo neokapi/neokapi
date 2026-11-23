@@ -335,6 +335,8 @@ type testTermStore struct {
 	*terms.InMemoryStore
 }
 
+var _ sqlterms.Store = (*testTermStore)(nil)
+
 // testTermRevisions holds the revision wrapper of each in-memory store, so
 // every testTermStore over one store shares its revisions.
 var testTermRevisions sync.Map // *terms.InMemoryStore -> sqlterms.Store
@@ -357,6 +359,14 @@ func (t *testTermStore) AddConceptWithStream(ctx context.Context, concept terms.
 
 func (t *testTermStore) DeleteConcept(ctx context.Context, id string) error {
 	return t.revisioned().DeleteConcept(ctx, id)
+}
+
+func (t *testTermStore) DeleteConceptAt(ctx context.Context, id, base string) error {
+	return t.revisioned().DeleteConceptAt(ctx, id, base)
+}
+
+func (t *testTermStore) DeleteConceptsAt(ctx context.Context, revs map[string]string) error {
+	return t.revisioned().DeleteConceptsAt(ctx, revs)
 }
 
 func (t *testTermStore) GetConceptAt(ctx context.Context, id string) (terms.Concept, string, bool, error) {

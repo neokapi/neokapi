@@ -26,6 +26,14 @@ type ConceptWriter interface {
 	// ConceptRevisions returns the revision of each listed concept that
 	// exists, for a view that lists concepts a person may change.
 	ConceptRevisions(ctx context.Context, ids []string) (map[string]string, error)
+	// DeleteConceptAt removes the concept when it is still at base. A
+	// concept that moved is a *StaleConceptError; one that is gone is
+	// ErrConceptNotFound.
+	DeleteConceptAt(ctx context.Context, id, base string) error
+	// DeleteConceptsAt removes each listed concept at its revision (id to
+	// revision), skipping one that is gone. When one has moved, nothing is
+	// deleted and the answer is a *StaleConceptError.
+	DeleteConceptsAt(ctx context.Context, revs map[string]string) error
 }
 
 // Store is the workspace terms store the server writes through: the

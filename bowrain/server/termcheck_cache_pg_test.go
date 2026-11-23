@@ -66,12 +66,12 @@ func TestPostgresTerms_EveryWriteMovesTheRevision(t *testing.T) {
 	_, err = tb.LookupAll(ctx, "kapi", terms.LookupOptions{SourceLocale: model.LocaleEnglish})
 	require.NoError(t, err)
 	held(t, "reading the terms")
-	require.Error(t, tb.DeleteConcept(ctx, "c-missing"))
+	require.Error(t, tb.DeleteConceptAt(ctx, "c-missing", "any"))
 	held(t, "a delete that fails")
 	require.NoError(t, other.AddConcept(ctx, termConcept("c-other", "other")))
 	held(t, "another workspace's write")
 
-	require.NoError(t, tb.DeleteConcept(ctx, "c-shop"))
+	require.NoError(t, tb.DeleteConceptAt(ctx, "c-shop", conceptRevision(t, tb, "c-shop")))
 	moved(t, "deleting a concept")
 }
 

@@ -215,3 +215,21 @@ func AddRejected(props map[string]string, term string) bool {
 	props[ProjectPropRejected] = strings.Join(lines, "\n")
 	return true
 }
+
+// RemoveRejected takes term off the rejected list in a project's
+// properties, and reports whether the list changed.
+func RemoveRejected(props map[string]string, term string) bool {
+	key := strings.ToLower(strings.TrimSpace(term))
+	set := Rejected(props)
+	if !set[key] {
+		return false
+	}
+	delete(set, key)
+	lines := slices.Sorted(maps.Keys(set))
+	if len(lines) == 0 {
+		delete(props, ProjectPropRejected)
+	} else {
+		props[ProjectPropRejected] = strings.Join(lines, "\n")
+	}
+	return true
+}

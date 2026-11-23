@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -227,12 +228,14 @@ func (e *Engine) replacePilotShadow(ctx context.Context, pilot *Pilot, ops []Cha
 	return nil
 }
 
+// clearShadow removes the pilot's shadow concepts. A store that keeps
+// revisions deletes them at the revisions read here, in one statement: a
+// shadow someone edited since is a *sqlterms.StaleConceptError and nothing is
+// deleted, so the edit is reported rather than lost.
 func (p Pilot) clearShadow(ctx context.Context, store terms.Store) error {
-	namespace := p.shadowNamespace("c")
-	if bulk, ok := store.(interface {
-		DeleteShadowConcepts(context.Context, string) error
-	}); ok {
-		return bulk.DeleteShadowConcepts(ctx, namespace)
+	prefix, err := terms.ShadowNamespacePrefix(p.shadowNamespace("c"))
+	if err != nil {
+		return err
 	}
 	var ids []string
 	for offset := 0; ; {
@@ -241,7 +244,7 @@ func (p Pilot) clearShadow(ctx context.Context, store terms.Store) error {
 			return err
 		}
 		for _, cp := range page {
-			if strings.HasPrefix(cp.ID, terms.ShadowIDPrefix+namespace) {
+			if strings.HasPrefix(cp.ID, prefix) {
 				ids = append(ids, cp.ID)
 			}
 		}
@@ -249,6 +252,16 @@ func (p Pilot) clearShadow(ctx context.Context, store terms.Store) error {
 		if len(page) == 0 || offset >= total {
 			break
 		}
+	}
+	if w, ok := store.(sqlterms.ConceptWriter); ok {
+		revs, err := w.ConceptRevisions(ctx, ids)
+		if err != nil {
+			return err
+		}
+		if err := w.DeleteConceptsAt(ctx, revs); err != nil {
+			return fmt.Errorf("clear pilot shadow: %w", err)
+		}
+		return nil
 	}
 	for _, id := range ids {
 		if err := store.DeleteConcept(ctx, id); err != nil && !isNotFound(err) {

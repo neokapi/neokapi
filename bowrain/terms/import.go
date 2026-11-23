@@ -42,21 +42,61 @@ type ImportReport struct {
 // Imported counts the concepts the import wrote.
 func (r ImportReport) Imported() int { return r.Created + r.Updated }
 
+// ImportSourceProperty is the property an import records on each concept it
+// writes: the key of the document the concept came from (ImportSource.Key).
+// Only an import of the same document changes the concept again.
+const ImportSourceProperty = "import.source"
+
+// ImportSource is the document an import reads, as ImportRows needs it.
+type ImportSource struct {
+	// Key identifies the document (ImportSourceKey). A row changes only a
+	// concept an import with the same key wrote.
+	Key string
+	// Origin is this workspace's export origin (ExportOrigin). A file that
+	// carries it was exported from this workspace: its ids are the
+	// workspace's own, and each row updates its concept at the revision the
+	// file was exported at.
+	Origin string
+}
+
+// ImportSourceKey identifies the document an import reads: the name it
+// declares for itself, else the file name the person gave it, else a digest
+// of its content. Two documents that declare the same name, or that a person
+// names the same, are by that choice the same source; ids within them also
+// carry their source term (ImportRows), so they meet only on a concept with
+// the same term and the same id.
+func ImportSourceKey(declared, fileName string, content []byte) string {
+	switch {
+	case strings.TrimSpace(declared) != "":
+		return "document:" + strings.TrimSpace(declared)
+	case strings.TrimSpace(fileName) != "":
+		return "file:" + strings.TrimSpace(fileName)
+	}
+	sum := sha256.Sum256(content)
+	return "content:" + hex.EncodeToString(sum[:12])
+}
+
+// ExportOrigin is the origin a workspace writes into the files it exports
+// (terms.JSONStore.Origin), by which an import recognises its own export.
+func ExportOrigin(workspaceID string) string { return "bowrain:workspace:" + workspaceID }
+
 // ImportRows writes the concepts of a terms file to st.
 //
-// A row's concept id is the one its file names, or one derived from its
-// source term (fw.ImportID), so the same file imported twice changes
-// nothing, and two files name the same concept only when they name the
-// same term. A row whose derived id would join a different concept than the
-// stored concept holding its term (a homonym), and a row that appears twice
-// in the file with different content, is reported as a conflict and the
-// stored concept is left alone: the remedy is a concept_id column.
+// A row without an id of its own is known by its source term (fw.ImportID),
+// so the same file imported twice changes nothing. An id a file gives names a
+// concept within that file, not in the workspace: the concept is stored under
+// the id of its source term with the file's id beside it, so two files that
+// both say c1 keep two concepts, and an id that happens to name a workspace
+// concept is reported, never followed. The exception is a file this
+// workspace exported (src.Origin): its ids are the workspace's, and each row
+// updates its concept at the revision the file was exported at.
 //
-// A row that changes a stored concept is written at the concept's revision,
-// and only when the concept is as the last import left it: one a person
-// edited since is reported, never overwritten. A concept no import wrote is
-// changed only by a row that names it by id.
-func ImportRows(ctx context.Context, st Store, rows []fw.ImportRow) (ImportReport, error) {
+// A row changes a stored concept only when an import of the same document
+// wrote it and nobody edited it since; otherwise it is reported by row and
+// nothing is written for it. A row whose term belongs to another concept (a
+// homonym), and a term given twice in one file with different content, are
+// reported the same way.
+func ImportRows(ctx context.Context, st Store, rows []fw.ImportRow, src ImportSource) (ImportReport, error) {
 	var report ImportReport
 	all, err := st.Concepts(ctx)
 	if err != nil {
@@ -70,6 +110,11 @@ func ImportRows(ctx context.Context, st Store, rows []fw.ImportRow) (ImportRepor
 	}
 	inFile := map[string]string{} // concept id -> fingerprint of its first row
 	for _, row := range rows {
+		exported := src.Origin != "" && row.IDGiven && row.Origin == src.Origin
+		given := row.Concept.ID
+		if !exported {
+			row.Concept.ID = storedImportID(row)
+		}
 		id := row.Concept.ID
 		fp := importFingerprint(row.Concept)
 		if first, dup := inFile[id]; dup {
@@ -82,7 +127,15 @@ func ImportRows(ctx context.Context, st Store, rows []fw.ImportRow) (ImportRepor
 			continue
 		}
 		inFile[id] = fp
-		outcome, reason, err := importRow(ctx, st, row, fp, holders)
+		var (
+			outcome importOutcome
+			reason  string
+		)
+		if exported {
+			outcome, reason, err = importExportedRow(ctx, st, row, fp)
+		} else {
+			outcome, reason, err = importRow(ctx, st, row, given, fp, src, holders)
+		}
 		if err != nil {
 			return report, fmt.Errorf("row %d: %w", row.Row, err)
 		}
@@ -103,6 +156,42 @@ func ImportRows(ctx context.Context, st Store, rows []fw.ImportRow) (ImportRepor
 	return report, nil
 }
 
+// storedImportID is the id a row's concept is stored under: the id of its
+// source term (fw.ImportID), with the file's own id beside it when the file
+// gives one, so ids from different files never meet unless their terms do.
+// An id that already is the source term's id is kept as it is.
+func storedImportID(row fw.ImportRow) string {
+	derived := fw.ImportID(row.SourceTerm, row.SourceLocale)
+	if !row.IDGiven || row.Concept.ID == derived {
+		return derived
+	}
+	return derived + ":" + idPart(row.Concept.ID)
+}
+
+// idPart is a file's concept id as it can stand in a stored id: letters and
+// digits kept, anything else a dash, so it never holds the ':' that
+// separates the parts, with a digest added whenever that changed the id, so
+// two ids never collapse into one.
+func idPart(id string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(strings.TrimSpace(id)) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('-')
+		}
+	}
+	part := strings.Trim(b.String(), "-")
+	if part == id {
+		return part
+	}
+	sum := sha256.Sum256([]byte(id))
+	if part == "" {
+		return "h-" + hex.EncodeToString(sum[:6])
+	}
+	return part + "-" + hex.EncodeToString(sum[:3])
+}
+
 type importOutcome int
 
 const (
@@ -114,9 +203,19 @@ const (
 
 // importRow decides one row against the stored concept and writes it. When
 // another write lands first it decides again on what is stored then.
-func importRow(ctx context.Context, st Store, row fw.ImportRow, fp string, holders map[string]string) (importOutcome, string, error) {
+func importRow(ctx context.Context, st Store, row fw.ImportRow, given, fp string, src ImportSource, holders map[string]string) (importOutcome, string, error) {
 	id := row.Concept.ID
 	key := termKey(row.SourceTerm, row.SourceLocale)
+	if row.IDGiven && given != id {
+		// The file's id names a concept within that file. When it also names
+		// a workspace concept, the file may mean that one, or one of its own:
+		// say so, and write nothing for the row.
+		if _, _, held, err := st.GetConceptAt(ctx, given); err != nil {
+			return 0, "", err
+		} else if held {
+			return importRefused, fmt.Sprintf("this row's id %s also names concept %s in the workspace, which this import does not change; to change that concept, export the workspace's terms and edit the exported file, or give this row another id", given, given), nil
+		}
+	}
 	for range rederiveAttempts {
 		stored, rev, ok, err := st.GetConceptAt(ctx, id)
 		if err != nil {
@@ -124,9 +223,9 @@ func importRow(ctx context.Context, st Store, row fw.ImportRow, fp string, holde
 		}
 		if !ok {
 			if holder := holders[key]; !row.IDGiven && holder != "" && holder != id {
-				return importRefused, fmt.Sprintf("%q is already a term of concept %s; to update that concept, give this row its id in a concept_id column, or give it a new id for a different meaning", row.SourceTerm, holder), nil
+				return importRefused, fmt.Sprintf("%q is already a term of concept %s; to change that concept, export the workspace's terms and edit the exported file, or give this row an id of its own in a concept_id column for a different meaning", row.SourceTerm, holder), nil
 			}
-			next := withFingerprint(row.Concept, nil, fp)
+			next := withImportRecord(row.Concept, nil, fp, src.Key)
 			if _, err := st.CreateConcept(ctx, next, ""); err != nil {
 				if errors.Is(err, ErrConceptExists) {
 					continue
@@ -136,21 +235,22 @@ func importRow(ctx context.Context, st Store, row fw.ImportRow, fp string, holde
 			return importCreated, "", nil
 		}
 
-		if !row.IDGiven && !holdsTerm(stored, key) {
-			return importRefused, fmt.Sprintf("the id %s that %q gives is held by a concept with other terms; give this row its id in a concept_id column", id, row.SourceTerm), nil
+		if !holdsTerm(stored, key) {
+			return importRefused, fmt.Sprintf("the id %s that %q gives is held by a concept with other terms; give this row an id of its own in a concept_id column", id, row.SourceTerm), nil
 		}
 		current := importFingerprint(stored)
 		if current == fp {
 			return importUnchanged, "", nil
 		}
-		recorded := stored.Properties[ImportFingerprintProperty]
-		switch {
-		case recorded == "" && !row.IDGiven:
-			return importRefused, fmt.Sprintf("concept %s was not written by an import, so it is left as it is; to update it from this file, give this row its id in a concept_id column", id), nil
-		case recorded != "" && recorded != current:
+		switch recorded := stored.Properties[ImportSourceProperty]; {
+		case recorded == "":
+			return importRefused, fmt.Sprintf("concept %s was not written by an import of this file, so it is left as it is; to change it, export the workspace's terms and edit the exported file", id), nil
+		case recorded != src.Key:
+			return importRefused, fmt.Sprintf("concept %s was imported from another file, so this row was not applied; import that file again, or give this row an id of its own in a concept_id column", id), nil
+		case stored.Properties[ImportFingerprintProperty] != current:
 			return importRefused, fmt.Sprintf("concept %s was edited after it was last imported, so this row was not applied; review the edit, then import again", id), nil
 		}
-		next := withFingerprint(row.Concept, stored.Properties, fp)
+		next := withImportRecord(row.Concept, stored.Properties, fp, src.Key)
 		next.CreatedAt = stored.CreatedAt
 		if _, err := st.UpdateConcept(ctx, next, "", rev); err != nil {
 			if errors.Is(err, storage.ErrStale) || errors.Is(err, ErrConceptNotFound) {
@@ -163,15 +263,52 @@ func importRow(ctx context.Context, st Store, row fw.ImportRow, fp string, holde
 	return 0, "", fmt.Errorf("concept %s: %w", id, ErrKeptChanging)
 }
 
-// withFingerprint is c carrying the properties it is stored with, the file's
-// own over them, and the import's fingerprint.
-func withFingerprint(c fw.Concept, stored map[string]string, fp string) fw.Concept {
+// importExportedRow applies a row of a file this workspace exported to the
+// concept it names, at the revision the file was exported at: the edit is
+// the person's, made on the export, and a concept that changed in Bowrain
+// since is reported rather than overwritten.
+func importExportedRow(ctx context.Context, st Store, row fw.ImportRow, fp string) (importOutcome, string, error) {
+	id := row.Concept.ID
+	stored, _, ok, err := st.GetConceptAt(ctx, id)
+	if err != nil {
+		return 0, "", err
+	}
+	if !ok {
+		return importRefused, fmt.Sprintf("concept %s was deleted after this file was exported, so this row was not applied", id), nil
+	}
+	if importFingerprint(stored) == fp {
+		return importUnchanged, "", nil
+	}
+	if row.BaseRevision == "" {
+		return importRefused, fmt.Sprintf("this file does not say which version of concept %s it was exported at; export the workspace's terms again and redo the edit", id), nil
+	}
+	next := row.Concept
+	next.Properties = maps.Clone(stored.Properties)
+	maps.Copy(next.Properties, row.Concept.Properties)
+	next.CreatedAt = stored.CreatedAt
+	if _, err := st.UpdateConcept(ctx, next, "", row.BaseRevision); err != nil {
+		if errors.Is(err, storage.ErrStale) {
+			return importRefused, fmt.Sprintf("concept %s changed in Bowrain after this file was exported, so this row was not applied; export again and redo the edit", id), nil
+		}
+		if errors.Is(err, ErrConceptNotFound) {
+			return importRefused, fmt.Sprintf("concept %s was deleted after this file was exported, so this row was not applied", id), nil
+		}
+		return 0, "", err
+	}
+	return importUpdated, "", nil
+}
+
+// withImportRecord is c carrying the properties it is stored with, the
+// file's own over them, and the import's record: its fingerprint and the
+// document it came from.
+func withImportRecord(c fw.Concept, stored map[string]string, fp, source string) fw.Concept {
 	props := maps.Clone(stored)
 	if props == nil {
 		props = map[string]string{}
 	}
 	maps.Copy(props, c.Properties)
 	props[ImportFingerprintProperty] = fp
+	props[ImportSourceProperty] = source
 	c.Properties = props
 	return c
 }

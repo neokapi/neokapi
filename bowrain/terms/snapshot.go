@@ -72,6 +72,21 @@ func (s *atRevisions) AddConceptWithStream(ctx context.Context, c fw.Concept, st
 	return nil
 }
 
+// DeleteConcept deletes a concept the routine read, at the revision it read.
+// One that changed since refuses the delete, and Rewrite runs the routine
+// again over what the concept holds then.
+func (s *atRevisions) DeleteConcept(ctx context.Context, id string) error {
+	base, ok := s.revs[id]
+	if !ok {
+		return fmt.Errorf("delete concept %s: the routine did not read it", id)
+	}
+	if err := s.DeleteConceptAt(ctx, id, base); err != nil {
+		return err
+	}
+	delete(s.revs, id)
+	return nil
+}
+
 // Rewrite runs routine, a framework routine that reads concepts and writes
 // back the ones it changes, over st so each write names the revision the
 // routine read. When another write lands first the routine runs again over

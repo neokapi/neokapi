@@ -2,6 +2,8 @@ package terms
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"sync"
 
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -114,12 +116,54 @@ func (r *revisioned) AddConceptWithStream(ctx context.Context, concept fw.Concep
 	return err
 }
 
-func (r *revisioned) DeleteConcept(ctx context.Context, id string) error {
+// DeleteConcept refuses, as the PostgreSQL store's does.
+func (r *revisioned) DeleteConcept(context.Context, string) error {
+	return ErrDeleteNeedsRevision
+}
+
+func (r *revisioned) DeleteConceptAt(ctx context.Context, id, base string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	current, ok, err := r.Store.GetConcept(ctx, id)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrConceptNotFound
+	}
+	if rev := r.revLocked(id); rev != base {
+		return &StaleConceptError{Current: current, Revision: rev}
+	}
 	if err := r.Store.DeleteConcept(ctx, id); err != nil {
 		return err
 	}
 	delete(r.revs, id)
+	return nil
+}
+
+func (r *revisioned) DeleteConceptsAt(ctx context.Context, revs map[string]string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	ids := slices.Sorted(maps.Keys(revs))
+	var held []string
+	for _, id := range ids {
+		current, ok, err := r.Store.GetConcept(ctx, id)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			continue
+		}
+		if rev := r.revLocked(id); rev != revs[id] {
+			return &StaleConceptError{Current: current, Revision: rev}
+		}
+		held = append(held, id)
+	}
+	for _, id := range held {
+		if err := r.Store.DeleteConcept(ctx, id); err != nil {
+			return err
+		}
+		delete(r.revs, id)
+	}
 	return nil
 }

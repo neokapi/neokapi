@@ -28,6 +28,13 @@ type ImportRow struct {
 	// the file, which a derived id is made from.
 	SourceTerm   string
 	SourceLocale model.LocaleID
+	// Document is the name the file declares for itself (a JSON file's
+	// name), and Origin and BaseRevision what a file exported from a store
+	// says about where it came from (JSONStore.Origin, Revisions). Empty for
+	// a file that says nothing.
+	Document     string
+	Origin       string
+	BaseRevision string
 }
 
 // ImportID is the id an imported concept takes when its file names none:
@@ -123,7 +130,12 @@ func ParseJSON(reader io.Reader) ([]ImportRow, error) {
 			// Nothing to know the concept by, and nothing to import.
 			continue
 		}
-		rows = append(rows, rowOf(i+1, concept))
+		row := rowOf(i+1, concept)
+		row.Document, row.Origin = doc.Name, doc.Origin
+		if row.IDGiven {
+			row.BaseRevision = doc.Revisions[concept.ID]
+		}
+		rows = append(rows, row)
 	}
 	return rows, nil
 }

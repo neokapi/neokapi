@@ -41,6 +41,24 @@ func (s *interleaved) GetConceptAt(ctx context.Context, id string) (fw.Concept, 
 	return c, rev, ok, err
 }
 
+// GetConcept lands the edit once, right after the first read of the
+// concept, as GetConceptAt does: a writer that reads without the revision
+// meets the same race.
+func (s *interleaved) GetConcept(ctx context.Context, id string) (fw.Concept, bool, error) {
+	c, ok, err := s.Store.GetConcept(ctx, id)
+	if err != nil || !ok {
+		return c, ok, err
+	}
+	s.mu.Lock()
+	first := !s.done[id]
+	s.done[id] = true
+	s.mu.Unlock()
+	if first {
+		s.edit(ctx, s.Store, id)
+	}
+	return c, ok, err
+}
+
 // ConceptRevisions lands the edit on each listed concept once, right after
 // its revision is read: a writer that reads revisions and then content
 // (sqlterms.Rewrite) then holds a revision the edit has moved on from.

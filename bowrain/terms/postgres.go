@@ -503,10 +503,27 @@ func (tb *PostgresStore) GetConcept(ctx context.Context, id string) (fw.Concept,
 	return concept, true, nil
 }
 
-// DeleteConcept removes a concept by ID.
-func (tb *PostgresStore) DeleteConcept(ctx context.Context, id string) error {
+// ErrDeleteNeedsRevision is DeleteConcept's answer: a stored concept is
+// deleted only at the revision its caller read (DeleteConceptAt).
+var ErrDeleteNeedsRevision = errors.New("a concept is deleted at the revision its caller read; use DeleteConceptAt")
+
+// DeleteConcept refuses: a delete that names no revision could remove an
+// edit its caller never saw. DeleteConceptAt is the delete.
+func (tb *PostgresStore) DeleteConcept(context.Context, string) error {
+	return ErrDeleteNeedsRevision
+}
+
+// DeleteConceptAt removes the concept when it is still at base, the revision
+// its caller read, deciding in the statement that deletes. A concept that
+// moved since is a *StaleConceptError carrying what it holds now; one that
+// is gone is ErrConceptNotFound. Either way nothing is deleted.
+func (tb *PostgresStore) DeleteConceptAt(ctx context.Context, id, base string) error {
+	if base == "" {
+		return errors.New("delete concept: a base revision is required")
+	}
 	return tb.write(ctx, func(tx storage.Runner) error {
-		result, err := tx.ExecContext(ctx, "DELETE FROM tb_concepts WHERE workspace_id = $1 AND id = $2", tb.workspaceID, id)
+		result, err := tx.ExecContext(ctx,
+			"DELETE FROM tb_concepts WHERE workspace_id = $1 AND id = $2 AND revision = $3", tb.workspaceID, id, base)
 		if err != nil {
 			return fmt.Errorf("delete concept: %w", err)
 		}
@@ -514,8 +531,70 @@ func (tb *PostgresStore) DeleteConcept(ctx context.Context, id string) error {
 		if err != nil {
 			return fmt.Errorf("rows affected: %w", err)
 		}
-		if rows == 0 {
-			return fmt.Errorf("concept not found: %s", id)
+		if rows > 0 {
+			return nil
+		}
+		current, rev, err := tb.Bind(tx).scanConceptAt(ctx, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrConceptNotFound
+		}
+		if err != nil {
+			return err
+		}
+		return &StaleConceptError{Current: current, Revision: rev}
+	})
+}
+
+// DeleteConceptsAt removes each listed concept at the revision its caller
+// read (id to revision), deciding in the statement that deletes. A listed
+// concept that is gone already is skipped. When one has moved, nothing is
+// deleted and the answer is a *StaleConceptError carrying what it holds now.
+func (tb *PostgresStore) DeleteConceptsAt(ctx context.Context, revs map[string]string) error {
+	if len(revs) == 0 {
+		return nil
+	}
+	ids := slices.Sorted(maps.Keys(revs))
+	bases := make([]string, len(ids))
+	for i, id := range ids {
+		bases[i] = revs[id]
+	}
+	return tb.write(ctx, func(tx storage.Runner) error {
+		rows, err := tx.QueryContext(ctx, `
+			DELETE FROM tb_concepts
+			WHERE workspace_id = $1 AND (id, revision) IN (SELECT * FROM unnest($2::text[], $3::text[]))
+			RETURNING id`, tb.workspaceID, ids, bases)
+		if err != nil {
+			return fmt.Errorf("delete concepts: %w", err)
+		}
+		deleted := map[string]bool{}
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				_ = rows.Close()
+				return fmt.Errorf("scan deleted concept: %w", err)
+			}
+			deleted[id] = true
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		for _, id := range ids {
+			if deleted[id] {
+				continue
+			}
+			current, rev, err := tb.Bind(tx).scanConceptAt(ctx, id)
+			if errors.Is(err, sql.ErrNoRows) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			// Returning the error rolls the transaction back, and with it
+			// every row this statement deleted.
+			return &StaleConceptError{Current: current, Revision: rev}
 		}
 		return nil
 	})

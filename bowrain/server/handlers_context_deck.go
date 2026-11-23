@@ -473,6 +473,10 @@ func (s *Server) keepCandidate(c *echo.Context, src deckSource, rv deckReviewer,
 // it again. The rejection is recorded first: a deletion that fails after it
 // leaves a candidate the next decision deletes, never one the next scan
 // brings back.
+//
+// The candidate is deleted at the revision read here. One that someone
+// edited in between is not the candidate the person dropped: the drop is
+// refused with the card as it stands, and the rejection is taken back.
 func (s *Server) forgetCandidate(c *echo.Context, src deckSource, rv deckReviewer, card contextDeckCard) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errKnowledgeUnavailable.Error()})
@@ -482,7 +486,7 @@ func (s *Server) forgetCandidate(c *echo.Context, src deckSource, rv deckReviewe
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	concept, ok, err := tb.GetConcept(ctx, card.Item.ID)
+	concept, rev, ok, err := tb.GetConceptAt(ctx, card.Item.ID)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -493,14 +497,20 @@ func (s *Server) forgetCandidate(c *echo.Context, src deckSource, rv deckReviewe
 	if term == "" && len(card.Terms) > 0 {
 		term = card.Terms[0].Text
 	}
+	added := false
 	_, _, err = s.ContentStore.EditProject(ctx, src.project.ID, func(p *platstore.Project) (bool, error) {
-		return termcandidate.AddRejected(p.Properties, term), nil
+		added = termcandidate.AddRejected(p.Properties, term)
+		return added, nil
 	})
 	if err != nil {
 		return serverErr(c, err)
 	}
 	if ok {
-		if err := tb.DeleteConcept(ctx, concept.ID); err != nil {
+		err := tb.DeleteConceptAt(ctx, concept.ID, rev)
+		if _, stale := errors.AsType[*sqlterms.StaleConceptError](err); stale {
+			return s.refuseStaleDrop(c, src, rv, card, term, added)
+		}
+		if err != nil && !errors.Is(err, sqlterms.ErrConceptNotFound) {
 			return serverErr(c, err)
 		}
 		s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
@@ -508,6 +518,30 @@ func (s *Server) forgetCandidate(c *echo.Context, src deckSource, rv deckReviewe
 		})
 	}
 	return c.JSON(http.StatusOK, contextDeckDecideResponse{Outcome: deckOutcomeDropped})
+}
+
+// refuseStaleDrop answers a drop whose candidate changed between its read
+// and its delete: the rejection this drop recorded is taken back, and the
+// response carries the card as it stands, as a decision on a stale card does.
+func (s *Server) refuseStaleDrop(c *echo.Context, src deckSource, rv deckReviewer, card contextDeckCard, term string, added bool) error {
+	ctx := c.Request().Context()
+	if added {
+		if _, _, err := s.ContentStore.EditProject(ctx, src.project.ID, func(p *platstore.Project) (bool, error) {
+			return termcandidate.RemoveRejected(p.Properties, term), nil
+		}); err != nil {
+			return serverErr(c, err)
+		}
+	}
+	cards, err := s.pendingContext(ctx, src, rv)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	if fresh, ok := findCard(cards, card.Item); ok {
+		card = fresh
+	}
+	return c.JSON(http.StatusConflict, map[string]any{
+		"error": "the item changed since the card was dealt", "code": deckCodeStale, "card": card,
+	})
 }
 
 // deckPlan is the ledger records a keep or a reject of card writes, or the
@@ -574,7 +608,7 @@ func (s *Server) proposeConceptRetire(c *echo.Context, src deckSource, rv deckRe
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	concept, ok, err := tb.GetConcept(ctx, card.Item.ID)
+	concept, rev, ok, err := tb.GetConceptAt(ctx, card.Item.ID)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -606,7 +640,7 @@ func (s *Server) proposeConceptRetire(c *echo.Context, src deckSource, rv deckRe
 		}})
 	}
 	if len(payloads) == 0 {
-		payloads = append(payloads, retireOp{knowledge.OpConceptDelete, knowledge.ConceptDeletePayload{ConceptID: concept.ID}})
+		payloads = append(payloads, retireOp{knowledge.OpConceptDelete, knowledge.ConceptDeletePayload{ConceptID: concept.ID, Revision: rev}})
 	}
 	if err := s.KnowledgeStore.CreateChangeSet(ctx, cs); err != nil {
 		return serverErr(c, err)

@@ -34,6 +34,22 @@ const (
 	writerCopy = "copy"
 )
 
+// The kinds of concept deleter. Every delete names the revision its caller
+// read and is decided in the statement that deletes (DeleteConceptAt,
+// DeleteConceptsAt); they differ in where that revision comes from.
+const (
+	// deletePerson deletes what a person decided on, at the revision read
+	// for the decision, and is refused (409) when the concept moved.
+	deletePerson = "person"
+	// deleteProposed deletes at the revision recorded when the deletion was
+	// proposed (knowledge.PinDeleteRevision); a concept changed since is a
+	// merge conflict carrying the concept as it stands.
+	deleteProposed = "proposed"
+	// deleteShadow deletes a pilot's shadow copies at the revisions read,
+	// all or none.
+	deleteShadow = "shadow"
+)
+
 // conceptWriter is one function that writes a concept on the server side:
 // its kind, and the test that puts it in the race its kind must win or lose.
 type conceptWriter struct {
@@ -77,6 +93,21 @@ var conceptWriters = map[string]conceptWriter{
 	"server.(*Server).recheckConceptViolations":   {writerCopy, "TestEveryConceptWriterIsListed"},
 }
 
+// conceptDeleters lists every function under the same trees that deletes a
+// concept, with its kind and the test that puts it in the race. A framework
+// routine run through sqlterms.Rewrite (fw.DemoteRule removing a concept's
+// last term) deletes through the adapter Rewrite hands it, at the revision
+// the routine read; TestRewrite_ADeleteNamesTheRevisionItRead covers it, and
+// its callers are listed in conceptWriters as deriving.
+var conceptDeleters = map[string]conceptWriter{
+	"server.(*Server).forgetCandidate": {deletePerson, "TestConceptWriters_DroppingACandidateKeepsAnEditMadeMeanwhile"},
+	"knowledge.applyTermsOp":           {deleteProposed, "TestMergeChangeSet_DeletesOnlyTheConceptItWasProposedFor"},
+	"knowledge.(Pilot).clearShadow":    {deleteShadow, "TestStopPilot_KeepsAShadowEditedMeanwhile"},
+}
+
+// deleteCalls are the calls that delete a concept.
+var deleteCalls = map[string]bool{"DeleteConcept": true, "DeleteConceptAt": true, "DeleteConceptsAt": true}
+
 // writeCalls are the calls that write a concept.
 var writeCalls = map[string]bool{
 	"AddConcept": true, "AddConceptWithStream": true, "UpdateConcept": true, "CreateConcept": true,
@@ -92,6 +123,7 @@ func TestEveryConceptWriterIsListed(t *testing.T) {
 	root, err := filepath.Abs("..")
 	require.NoError(t, err)
 	found := map[string]bool{}
+	deletes := map[string]bool{}
 	tests := map[string]bool{}
 	testFunc := regexp.MustCompile(`(?m)^func (Test\w+)\(`)
 	fset := token.NewFileSet()
@@ -134,8 +166,9 @@ func TestEveryConceptWriterIsListed(t *testing.T) {
 				if !ok {
 					return true
 				}
-				if sel, ok := call.Fun.(*ast.SelectorExpr); ok && writeCalls[sel.Sel.Name] {
-					found[name] = true
+				if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+					found[name] = found[name] || writeCalls[sel.Sel.Name]
+					deletes[name] = deletes[name] || deleteCalls[sel.Sel.Name]
 				}
 				return true
 			})
@@ -156,26 +189,30 @@ func TestEveryConceptWriterIsListed(t *testing.T) {
 		})
 	}
 
-	var missing, stale, untested []string
-	for name := range found {
-		if _, ok := conceptWriters[name]; !ok {
-			missing = append(missing, name)
+	check := func(listName string, calls map[string]bool, list map[string]conceptWriter) {
+		var missing, stale, untested []string
+		for name, writes := range calls {
+			if _, ok := list[name]; writes && !ok {
+				missing = append(missing, name)
+			}
 		}
+		for name, w := range list {
+			if !calls[name] {
+				stale = append(stale, name)
+			}
+			if !tests[w.test] {
+				untested = append(untested, name+" names "+w.test)
+			}
+		}
+		slices.Sort(missing)
+		slices.Sort(stale)
+		slices.Sort(untested)
+		assert.Empty(t, missing, "these functions are not in %s: say what each does when another write lands first, and name its test", listName)
+		assert.Empty(t, stale, "these are listed in %s and no longer make such a call", listName)
+		assert.Empty(t, untested, "these name a test that does not exist")
 	}
-	for name, w := range conceptWriters {
-		if !found[name] {
-			stale = append(stale, name)
-		}
-		if !tests[w.test] {
-			untested = append(untested, name+" names "+w.test)
-		}
-	}
-	slices.Sort(missing)
-	slices.Sort(stale)
-	slices.Sort(untested)
-	assert.Empty(t, missing, "these functions write a concept and are not in conceptWriters: say what each does when another write lands first, and name its test")
-	assert.Empty(t, stale, "these are listed in conceptWriters and write no concept any more")
-	assert.Empty(t, untested, "these name a test that does not exist")
+	check("conceptWriters", found, conceptWriters)
+	check("conceptDeleters", deletes, conceptDeleters)
 }
 
 // funcName is fn's name as conceptWriters spells it: Name, or (*Recv).Name.

@@ -136,18 +136,26 @@ Concepts arrive from your projects and from review:
 To load terms from a spreadsheet or a TBX file, import them into a project with
 `kapi terms import`, then push the project.
 
-An import into the workspace names each concept by its source term, or by the
-`concept_id` column when the file has one. Importing the same file again
-changes nothing, and a changed row updates its concept. The import leaves a
-concept alone, and lists the row with the reason, when:
+An import into the workspace names each concept by its source term. An id in
+the file, such as a `concept_id` column or a TBX entry id, names a concept
+within that file only, so two files that both use `c1` keep two concepts.
+The import records which file each concept came from: the name a JSON file
+declares, else the file name you give, else the file's content.
 
+Importing the same file again changes nothing, and a changed row updates the
+concept that file imported. The import leaves a concept alone, and lists the
+row with the reason, when:
+
+- the concept came from another file, or nobody imported it;
+- the row's id also names a concept in the workspace;
 - the row's term already belongs to a different concept, which is a homonym;
 - a person edited the concept after it was last imported;
 - the same term appears in two rows of the file.
 
-To apply such a row, add a `concept_id` column naming the concept it updates,
-or a new id for a different meaning. An export writes that column, so a
-spreadsheet exported from the workspace updates the concepts it came from.
+To change a concept the workspace already holds, export the workspace's terms
+as JSON, edit the file, and import it back. The export records the workspace
+and each concept's version, so the import updates those concepts. A concept
+someone changed after the export is listed, and keeps the change.
 
 ## Where a concept applies
 

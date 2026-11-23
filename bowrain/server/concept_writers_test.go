@@ -108,6 +108,22 @@ func TestConceptWriters_KeepingKeepsAnEditMadeMeanwhile(t *testing.T) {
 	assert.False(t, termcandidate.IsCandidate(got, "en"), "and the candidate is kept")
 }
 
+// Dropping a candidate is a person's decision about the candidate they saw.
+// One that another reviewer edited between the drop's read and its delete is
+// refused with the card as it stands, and the edit stays.
+func TestConceptWriters_DroppingACandidateKeepsAnEditMadeMeanwhile(t *testing.T) {
+	f := newScopeFixture(t, memoryScopeBackend)
+	cid := fileCandidate(t, f.tb, f.a, "Flowgraph", termcandidate.Reach{Blocks: 3}, nil)
+	card := deckCardWhere(t, readContextDeck(t, f.e, f.a, ""), candidateCard(cid))
+	base := interleaveTerms(t, f.srv, "ws")
+
+	status := decideRoute(t, f.e, http.MethodPost, f.a, "/context/deck/decide",
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "reject"}, nil)
+	assert.Equal(t, http.StatusConflict, status, "the drop is refused")
+	got := storedConcept(t, base, cid)
+	assert.Equal(t, personsEdit, got.Definition, "and the edit stays with its concept")
+}
+
 // A translation decision applies to the proposal the person saw, on the
 // concept as it stands when written.
 func TestConceptWriters_ATranslationDecisionKeepsAnEditMadeMeanwhile(t *testing.T) {

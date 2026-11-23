@@ -132,3 +132,108 @@ func TestPostgresTerms_AddConceptNeverReplaces(t *testing.T) {
 	assert.Equal(t, "first", stored.Definition)
 	assert.Equal(t, base, rev)
 }
+
+// A delete names the revision its caller read. One at an older revision is
+// refused with the concept as it stands and deletes nothing; a delete that
+// names no revision is refused outright.
+func TestPostgresTerms_DeleteNamesTheRevisionItRead(t *testing.T) {
+	tb := openTestPostgresTerms(t)
+	ctx := context.Background()
+	read, err := tb.CreateConcept(ctx, revisionConcept("original"), "")
+	require.NoError(t, err)
+	_, err = tb.UpdateConcept(ctx, revisionConcept("a person's edit"), "", read)
+	require.NoError(t, err)
+
+	require.ErrorIs(t, tb.DeleteConcept(ctx, "save"), pgterms.ErrDeleteNeedsRevision)
+	err = tb.DeleteConceptAt(ctx, "save", read)
+	var stale *pgterms.StaleConceptError
+	require.ErrorAs(t, err, &stale)
+	assert.Equal(t, "a person's edit", stale.Current.Definition)
+	_, current, ok, err := tb.GetConceptAt(ctx, "save")
+	require.NoError(t, err)
+	require.True(t, ok, "nothing was deleted")
+
+	require.NoError(t, tb.DeleteConceptAt(ctx, "save", current))
+	require.ErrorIs(t, tb.DeleteConceptAt(ctx, "save", current), pgterms.ErrConceptNotFound)
+}
+
+// N deleters that read the same revision while a writer changes the concept:
+// either the write lands and every delete is refused, or one delete lands and
+// the write finds the concept gone. The concept is never deleted with the
+// write's change unseen.
+func TestPostgresTerms_ConcurrentDeleteAndUpdate(t *testing.T) {
+	tb := openTestPostgresTerms(t)
+	ctx := context.Background()
+	base, err := tb.CreateConcept(ctx, revisionConcept("original"), "")
+	require.NoError(t, err)
+
+	const deleters = 8
+	errs := make([]error, deleters)
+	var updateErr error
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for i := range deleters {
+		wg.Go(func() {
+			<-start
+			errs[i] = tb.DeleteConceptAt(ctx, "save", base)
+		})
+	}
+	wg.Go(func() {
+		<-start
+		_, updateErr = tb.UpdateConcept(ctx, revisionConcept("a person's edit"), "", base)
+	})
+	close(start)
+	wg.Wait()
+
+	deleted := 0
+	for _, err := range errs {
+		if err == nil {
+			deleted++
+		}
+	}
+	stored, _, held, err := tb.GetConceptAt(ctx, "save")
+	require.NoError(t, err)
+	if updateErr == nil {
+		assert.Zero(t, deleted, "the edit landed, so no delete did")
+		require.True(t, held)
+		assert.Equal(t, "a person's edit", stored.Definition)
+	} else {
+		assert.Equal(t, 1, deleted, "one delete landed")
+		assert.False(t, held)
+	}
+}
+
+// Deleting several concepts at their revisions is all or none: one that moved
+// keeps every listed concept, and one that is gone already is skipped.
+func TestPostgresTerms_DeleteConceptsAtIsAllOrNone(t *testing.T) {
+	tb := openTestPostgresTerms(t)
+	ctx := context.Background()
+	revs := map[string]string{}
+	for _, id := range []string{"a", "b", "c"} {
+		c := revisionConcept(id)
+		c.ID = id
+		c.Terms[0].Text, c.Terms[1].Text = "Save "+id, "Lagre "+id
+		rev, err := tb.CreateConcept(ctx, c, "")
+		require.NoError(t, err)
+		revs[id] = rev
+	}
+	moved := revisionConcept("a person's edit")
+	moved.ID = "b"
+	moved.Terms[0].Text, moved.Terms[1].Text = "Save b", "Lagre b"
+	_, err := tb.UpdateConcept(ctx, moved, "", revs["b"])
+	require.NoError(t, err)
+	revs["gone"] = "any"
+
+	var stale *pgterms.StaleConceptError
+	require.ErrorAs(t, tb.DeleteConceptsAt(ctx, revs), &stale)
+	assert.Equal(t, "b", stale.Current.ID)
+	held, err := tb.ConceptRevisions(ctx, []string{"a", "b", "c"})
+	require.NoError(t, err)
+	assert.Len(t, held, 3, "nothing was deleted")
+
+	revs["b"] = held["b"]
+	require.NoError(t, tb.DeleteConceptsAt(ctx, revs))
+	held, err = tb.ConceptRevisions(ctx, []string{"a", "b", "c"})
+	require.NoError(t, err)
+	assert.Empty(t, held)
+}

@@ -2,6 +2,7 @@ package knowledge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -164,10 +165,28 @@ func applyTermsOp(ctx context.Context, tb terms.Terminology, op ChangeSetOp) err
 		if err := decodePayload(op, &p); err != nil {
 			return err
 		}
-		if err := tb.DeleteConcept(ctx, p.ConceptID); err != nil && !isNotFound(err) {
+		w, ok := tb.(sqlterms.ConceptWriter)
+		if !ok {
+			// A private in-memory copy: the preview's "after" graph.
+			if err := tb.DeleteConcept(ctx, p.ConceptID); err != nil && !isNotFound(err) {
+				return fmt.Errorf("%s: %w", op.Op, err)
+			}
+			return nil
+		}
+		if p.Revision == "" {
+			return &staleDeleteError{OpConflict{Seq: op.Seq, ConceptID: p.ConceptID, Reason: deleteNamesNoRevision}}
+		}
+		err := w.DeleteConceptAt(ctx, p.ConceptID, p.Revision)
+		var stale *sqlterms.StaleConceptError
+		switch {
+		case err == nil, errors.Is(err, sqlterms.ErrConceptNotFound):
+			return nil
+		case errors.As(err, &stale):
+			current := stale.Current
+			return &staleDeleteError{OpConflict{Seq: op.Seq, ConceptID: p.ConceptID, Reason: deleteChanged, Current: &current}}
+		default:
 			return fmt.Errorf("%s: %w", op.Op, err)
 		}
-		return nil
 
 	case OpTermAdd:
 		var p TermAddPayload

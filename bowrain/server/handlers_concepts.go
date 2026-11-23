@@ -1130,7 +1130,7 @@ func (s *Server) HandleImportConceptsCSV(c *echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	return s.importConcepts(c, tb, rows)
+	return s.importConcepts(c, tb, rows, sqlterms.ImportSourceKey("", req.Source, []byte(req.CSVContent)))
 }
 
 // importConceptsResponse is what an import did: Imported counts the concepts
@@ -1144,8 +1144,13 @@ type importConceptsResponse struct {
 // importConcepts writes the rows of a terms file (sqlterms.ImportRows) and
 // answers with what it did. Conflicts do not fail the import: the rows
 // around them are applied.
-func (s *Server) importConcepts(c *echo.Context, tb sqlterms.Store, rows []terms.ImportRow) error {
-	report, err := sqlterms.ImportRows(c.Request().Context(), tb, rows)
+func (s *Server) importConcepts(c *echo.Context, tb sqlterms.Store, rows []terms.ImportRow, sourceKey string) error {
+	wsID, _ := c.Get("workspace_id").(string)
+	src := sqlterms.ImportSource{Key: sourceKey}
+	if wsID != "" {
+		src.Origin = sqlterms.ExportOrigin(wsID)
+	}
+	report, err := sqlterms.ImportRows(c.Request().Context(), tb, rows, src)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -1173,7 +1178,11 @@ func (s *Server) HandleImportConceptsJSON(c *echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	return s.importConcepts(c, tb, rows)
+	declared := ""
+	if len(rows) > 0 {
+		declared = rows[0].Document
+	}
+	return s.importConcepts(c, tb, rows, sqlterms.ImportSourceKey(declared, req.Source, []byte(req.JSONContent)))
 }
 
 // HandleExportConceptsJSON exports the workspace concepts as JSON.
@@ -1192,7 +1201,26 @@ func (s *Server) HandleExportConceptsJSON(c *echo.Context) error {
 	if err := terms.ExportJSON(c.Request().Context(), tb, &buf, c.QueryParam("name")); err != nil {
 		return serverErr(c, err)
 	}
-	return c.JSONBlob(http.StatusOK, []byte(buf.String()))
+	// The file says where it came from and the revision each concept had,
+	// so importing it back here updates each concept at that revision
+	// (sqlterms.ImportRows) and reports one that changed since.
+	var doc terms.JSONStore
+	if err := json.Unmarshal([]byte(buf.String()), &doc); err != nil {
+		return serverErr(c, err)
+	}
+	ids := make([]string, len(doc.Concepts))
+	for i, cp := range doc.Concepts {
+		ids[i] = cp.ID
+	}
+	revs, err := tb.ConceptRevisions(c.Request().Context(), ids)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	if wsID, _ := c.Get("workspace_id").(string); wsID != "" {
+		doc.Origin = sqlterms.ExportOrigin(wsID)
+	}
+	doc.Revisions = revs
+	return c.JSON(http.StatusOK, doc)
 }
 
 // ---------------------------------------------------------------------------
