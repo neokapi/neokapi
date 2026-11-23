@@ -782,8 +782,6 @@ func (s *Server) pullContextEntries(ctx context.Context, projectID, stream strin
 	}
 
 	profileNames := map[string]string{}
-	profileRevisions := map[string]string{}
-	profileContent := map[string][]byte{}
 	entries := make([]*pb.SyncContextEntry, 0, len(collections))
 	for _, col := range collections {
 		if col == nil {
@@ -805,28 +803,11 @@ func (s *Server) pullContextEntries(ctx context.Context, projectID, stream strin
 				if s.VoiceStore != nil {
 					if p, perr := s.VoiceStore.GetProfile(ctx, pid); perr == nil && p != nil {
 						name = p.Name
-						// The profile as the server holds it, so a pull can
-						// show a person what differs from theirs before a
-						// push replaces it, and who changed it.
-						p.UpdatedBy = s.displayName(ctx, p.UpdatedBy)
-						if raw, merr := json.Marshal(p); merr == nil {
-							profileContent[pid] = raw
-						}
-					}
-					// The revision a push that changes the profile names, so
-					// the server can tell a change based on what it holds
-					// from one made over a later edit.
-					if store, ok := s.VoiceStore.(voiceRevisions); ok {
-						if revs, rerr := store.Revisions(ctx, []string{pid}); rerr == nil {
-							profileRevisions[pid] = revs[pid]
-						}
 					}
 				}
 				profileNames[pid] = name
 			}
 			e.VoiceProfile = name
-			e.VoiceProfileRevision = profileRevisions[pid]
-			e.VoiceProfileJson = profileContent[pid]
 		}
 		entries = append(entries, e)
 	}

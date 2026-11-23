@@ -34,14 +34,14 @@ func voicePushHarness(t *testing.T) (*refHarness, *coreprofile.VoiceProfile) {
 	return h, profile
 }
 
-// pushedVoice is the contexts part of a push carrying profile, naming base.
-func pushedVoice(t *testing.T, name, base string, profile *coreprofile.VoiceProfile) string {
+// pushedVoice is the contexts part of a push carrying profile.
+func pushedVoice(t *testing.T, name string, profile *coreprofile.VoiceProfile) string {
 	t.Helper()
 	raw, err := json.Marshal(profile)
 	require.NoError(t, err)
 	out, err := json.Marshal([]*pb.SyncContextEntry{{
 		Name: "docs", Owner: "recipe", ContentHash: "hash-docs",
-		VoiceProfile: name, VoiceProfileJson: raw, VoiceProfileRevision: base,
+		VoiceProfile: name, VoiceProfileJson: raw,
 	}})
 	require.NoError(t, err)
 	return string(out)
@@ -66,10 +66,9 @@ func TestSyncPushCommit_AcceptsAnyPushedVoice(t *testing.T) {
 	formal := *profile
 	formal.Tone.Formality = "formal"
 	for name, contexts := range map[string]string{
-		"a changed profile, no revision":     pushedVoice(t, "Acme Voice", "", &formal),
-		"a changed profile, an old revision": pushedVoice(t, "Acme Voice", "an-older-revision", &formal),
-		"an unchanged profile":               pushedVoice(t, "acme voice", "", profile),
-		"a new profile":                      pushedVoice(t, "Other Voice", "", &coreprofile.VoiceProfile{Name: "Other Voice"}),
+		"a changed profile":    pushedVoice(t, "Acme Voice", &formal),
+		"an unchanged profile": pushedVoice(t, "acme voice", profile),
+		"a new profile":        pushedVoice(t, "Other Voice", &coreprofile.VoiceProfile{Name: "Other Voice"}),
 	} {
 		rec := h.commit(t, contexts, "", h.currentRef(t))
 		code, _ := refusalCode(t, rec.Body.Bytes())
@@ -78,8 +77,9 @@ func TestSyncPushCommit_AcceptsAnyPushedVoice(t *testing.T) {
 	}
 }
 
-// A pull reports each bound profile's revision and content.
-func TestSyncPull_CarriesTheVoiceProfileRevision(t *testing.T) {
+// A pull names each collection's voice profile, and carries nothing a client
+// does not read: no profile content travels with it.
+func TestSyncPull_NamesTheVoiceProfile(t *testing.T) {
 	h, profile := voicePushHarness(t)
 	ctx := t.Context()
 	require.NoError(t, h.store.CreateCollection(ctx, &platstore.Collection{
@@ -89,12 +89,5 @@ func TestSyncPull_CarriesTheVoiceProfileRevision(t *testing.T) {
 	entries := h.srv.pullContextEntries(ctx, h.project.ID, refTestStream)
 	require.Len(t, entries, 1)
 	assert.Equal(t, "Acme Voice", entries[0].VoiceProfile)
-	assert.Equal(t, voiceRevisionOf(t, h.srv, profile.ID), entries[0].VoiceProfileRevision)
-
-	// The profile's content travels too, so the client can show what differs
-	// from its own, and who last changed it.
-	var server coreprofile.VoiceProfile
-	require.NoError(t, json.Unmarshal(entries[0].VoiceProfileJson, &server))
-	assert.Equal(t, "neutral", server.Tone.Formality)
-	assert.Equal(t, "user-ana", server.UpdatedBy)
+	assert.Empty(t, entries[0].VoiceProfileJson)
 }
