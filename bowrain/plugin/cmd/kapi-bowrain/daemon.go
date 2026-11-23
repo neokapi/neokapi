@@ -3,9 +3,9 @@
 // kapi spawns this binary as `kapi-bowrain daemon` and communicates with
 // it over a Unix socket using gRPC. The daemon implements:
 //
-//   - SourceConnectorService — push/pull/status/list operations on a
+//   - SourceConnectorService, push/pull/status/list operations on a
 //     bowrain-tracked .kapi project.
-//   - DaemonControlService — Health and Shutdown lifecycle RPCs.
+//   - DaemonControlService, Health and Shutdown lifecycle RPCs.
 //
 // Daemon lifecycle:
 //
@@ -13,15 +13,15 @@
 //  2. Print one JSON line on stdout: {"socket":"…","version":"…","pid":N}.
 //  3. Serve gRPC on the socket; remain alive across multiple RPCs.
 //  4. Exit on Shutdown RPC, SIGTERM/SIGINT, or idle timeout.
-//
+
 // The daemon caches *Project instances by absolute root path so repeated
 // RPCs against the same project reuse the loaded recipe and sync cache.
 //
-// One App serves the whole process. Its ProjectDB accessor already memoizes one
-// store handle per project root, so a daemon serving five projects holds five
-// handles and never two on one file — which is what the store's in-process write
-// gate needs to be able to order a push's decision staging against anything else
-// this process is writing. app.Shutdown (deferred in runDaemon) closes them.
+// One App serves the whole process. Its ProjectDB accessor memoizes one store
+// handle per project root, so a daemon serving five projects holds five
+// handles and never two on one file. The store's in-process write gate needs
+// that to order a push's decision staging against other writes in this
+// process. app.Shutdown (deferred in runDaemon) closes them.
 
 package main
 
@@ -45,7 +45,6 @@ import (
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v1"
-	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	cliconfig "github.com/neokapi/neokapi/host/config"
@@ -74,7 +73,7 @@ func buildDaemonCmd() *cobra.Command {
 func runDaemon(cmd *cobra.Command, args []string) error {
 	// Initialize the App exactly as the `command` subtree's PersistentPreRunE
 	// does. The daemon hangs off rootCmd, not off that subtree, so it never ran
-	// this — leaving commands.app nil for the whole daemon lifetime. Anything
+	// this, leaving commands.app nil for the whole daemon lifetime. Anything
 	// reached over RPC that needs the host's resolution ladder (voice
 	// profiles, starter packs) silently degraded to "nothing to resolve".
 	app.Config = newBowrainAppConfig()
@@ -199,11 +198,10 @@ func newDaemonService(_ *grpc.Server) *daemonService {
 		shutdownCh: make(chan struct{}),
 		projects:   map[string]*projectEntry{},
 		lastUsed:   time.Now(),
-		// The process App's registry, not one built beside it. runDaemon has
-		// already run Init, so this is the same set of readers and writers the
-		// host kapi process sees — and taking it from the App rather than from a
-		// throwaway one keeps a single object answering "what can this daemon
-		// read", the same way the App answers "which store is this project's".
+		// The process App's registry. runDaemon has already run Init, so this
+		// is the set of readers and writers the host kapi process sees. Taking
+		// it from the App keeps one object answering "what can this daemon
+		// read", as the App answers "which store is this project's".
 		formatReg: app.FormatReg,
 	}
 }
@@ -248,10 +246,7 @@ func (d *daemonService) gracefulStop(server *grpc.Server) {
 // recipe under another name, exactly as kapi resolved it (it never walks up),
 // caching the result.
 // Returns the cached entry on subsequent calls. The entry holds a live
-// SourceConnector with sync-cache state. Every call asks first whether git
-// tracks the project's state (coreproj.CheckStateTracked), which costs a stat
-// while the repository's index is unchanged, so a daemon serving a project
-// for a long time catches state tracked after it opened it.
+// SourceConnector with sync-cache state.
 func (d *daemonService) projectFor(ctx context.Context, root string) (*projectEntry, error) {
 	if root == "" {
 		return nil, errors.New("project root is empty")
@@ -259,9 +254,6 @@ func (d *daemonService) projectFor(ctx context.Context, root string) (*projectEn
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		return nil, fmt.Errorf("absolute path: %w", err)
-	}
-	if err := coreproj.CheckStateTracked(ctx, coreproj.LayoutAt(abs)); err != nil {
-		return nil, err
 	}
 
 	d.mu.Lock()
@@ -458,13 +450,10 @@ func (d *daemonService) Pull(ctx context.Context, req *pb.PullRequest) (*pb.Pull
 		GovernanceDiverged:  res.GovernanceDiverged,
 	}
 
-	// Terminology travels with the pull, as it does on the cobra route — the
-	// mirror of the push fold, and missing here for the same reason it was
-	// missing there: `kapi-bowrain pull` ran it, `kapi pull` (this RPC) did not.
-	// The consequence was quieter than the push's and lasted longer: no concept
-	// baseline was ever recorded, so `kapi check --ship` gated terminology
-	// against an empty local vocabulary and `kapi status` reported "terms never
-	// synced" no matter how often the user pulled.
+	// Terminology travels with the pull, as it does on the cobra route and as
+	// the push folds it. Without it no concept baseline is recorded, so `kapi
+	// check --ship` gates terminology against an empty local vocabulary and
+	// `kapi status` reports "terms never synced" however often the user pulls.
 	//
 	// The baseline is handed to the connector rather than written here, so the
 	// connector's single Close() persists it with the block-sync state instead

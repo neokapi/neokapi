@@ -28,7 +28,7 @@ import (
 // per project root, however many times and from however many goroutines the
 // commands running under that App ask for one.
 //
-// The holder is a pointer so a converge worker can share the parent's — the
+// The holder is a pointer so a converge worker can share the parent's, the
 // worker clone is a field-by-field copy, and two copies each opening
 // `.kapi/work/store.db` would be two connection pools on one SQLite file, which is
 // the writer contention the merged store exists to remove.
@@ -202,32 +202,22 @@ func existingStoresOnly(ctx context.Context) bool {
 	return v
 }
 
-// ProjectDB returns the open store for the project rooted at root — its block
-// cache and overlays in the checkout, and its content memory, terms, voice
-// profiles and unit working set in the workspace (core/projectdb).
+// ProjectDB returns the open store for the project rooted at root: its block
+// cache and overlays in the checkout's state directory, and its content memory,
+// terms, voice profiles and unit working set in the workspace (core/projectdb).
 //
-// Lifetime: the App owns the handle. It is opened once per (App, project root),
-// memoized, and safe to call concurrently; every caller under one App — including
-// the per-locale workers a convergence pass fans out on — gets the same handle.
-// Do NOT Close it, and do not Close the subsystem handles it hands out: they
-// share its connection pools. Shutdown closes them all.
+// The App owns the handle. It is opened once per (App, project root), memoized
+// and safe to call concurrently, so every caller under one App gets the same
+// handle. Do not Close it or the subsystem handles it hands out; Shutdown
+// closes them.
 //
-// Opening runs every subsystem's migrations and the predecessor sweep, registers
-// the project in the workspace, and on the first open with a workspace carries a
-// project out of the embedded layout. The memoization is what keeps all of that
-// to once per project per process rather than once per command that touches a
-// store.
+// Opening runs the migrations and registers the project in the workspace, once
+// per project per process. One handle per file is also what the write gate in
+// core/projectdb needs: two pools on one SQLite file cannot serialize their
+// writers in process.
 //
-// One handle is also the precondition for write discipline. Two pools on one
-// SQLite file cannot serialize their writers in process, and deferred write
-// transactions from several pools starve each other — the working store loses
-// to whichever writer got there first and retries until it gives up. The gate
-// that fixes it (IMMEDIATE write transactions behind a per-handle write mutex)
-// belongs inside core/projectdb; what this accessor owes it is the invariant
-// that there is exactly one handle per file per process to gate.
-//
-// root is the directory holding the recipe and the `.kapi/` state folder; an
-// empty root is an error, because "no project" is a decision the caller makes.
+// root is the directory holding the recipe; an empty root is an error, because
+// "no project" is a decision the caller makes.
 func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error) {
 	if root == "" {
 		return nil, errors.New("project store: no project root")
@@ -239,14 +229,6 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 	s := a.ensureProjectStores()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// Every hand-out of a store asks whether git tracks the project's state,
-	// a cached handle included: one stat of the index while it is unchanged,
-	// so a long-lived host sees a pull that brought state in at the next read.
-	if _, draft := s.drafts[abs]; !draft {
-		if err := project.CheckStateTracked(ctx, s.layoutFor(abs)); err != nil {
-			return nil, err
-		}
-	}
 	if db, ok := s.dbs[abs]; ok {
 		return db, nil
 	}
@@ -268,8 +250,8 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 	// caller's cancellation: the open runs every subsystem's migrations and
 	// seeds the working set from the committed record, and the FIRST caller
 	// happens to carry whichever context that command was cancelled with. A
-	// cancelled run would otherwise fail to open the store — reporting
-	// "count units: context canceled" as a run error — and, worse, could leave
+	// cancelled run would otherwise fail to open the store, reporting
+	// "count units: context canceled" as a run error, and, worse, could leave
 	// a half-migrated store behind for the next one. Values still propagate;
 	// only the deadline and cancellation are dropped.
 	openCtx := context.WithoutCancel(ctxOrBackground(ctx))
@@ -509,7 +491,7 @@ func recipeSourceLanguage(recipePath string) model.LocaleID {
 // materialization clears only what it owns, keyed by its own scope tuple.
 //
 // Lifetime matches ProjectDB: memoized, safe to call concurrently. Do NOT Close
-// it — it never owned the pool, and Shutdown releases the workspace.
+// it, it never owned the pool, and Shutdown releases the workspace.
 //
 // The graph relates what the other subsystems hold; it does not duplicate them.
 // Edges key on durable identity (a block's content key, a unit key), never on a
@@ -541,30 +523,26 @@ func (a *App) ProjectGraph(ctx context.Context, root string) (*graph.SQLiteGraph
 }
 
 // projectLayoutAt is the layout of the project rooted at an absolute root. Only
-// the state directory matters to the store — the recipe may be named anything
-// when it arrived via `-p` — so the recipe path is deliberately left unset
+// the state directory matters to the store, the recipe may be named anything
+// when it arrived via `-p`, so the recipe path is deliberately left unset
 // rather than guessed.
 func projectLayoutAt(root string) project.Layout {
 	return project.LayoutAt(root)
 }
 
 // ShareProjectStores binds other to the stores this App holds, so the two Apps
-// reach one *projectdb.DB — and therefore one connection pool — per project.
+// reach one *projectdb.DB, and one connection pool, per project.
 //
-// It is the exported form of what a converge worker gets by construction
-// (convergeWorker pre-seeds the parent's holder), and it exists for the same
-// reason. An embedding host that cannot live with a single App — the desktop
-// builds a fresh one per run so per-run state such as TargetLang stays owned —
-// would otherwise open `.kapi/work/store.db` once per App. The FIFO write gate is
-// per pool: two pools on one file cannot order their writers against each
-// other, and the tab-side working-set writes a review loop makes would go back
-// to losing to a run's content-memory writes on SQLite's busy backoff.
+// A converge worker gets this by construction. An embedding host that builds a
+// fresh App per run (the desktop does, so per-run state such as TargetLang
+// stays owned) would otherwise open the project store once per App. The FIFO
+// write gate is per pool, and two pools on one file cannot order their writers
+// against each other.
 //
-// Ownership does not move. Shutdown on the RECEIVER closes the stores; the
-// borrower must not be Shut down, exactly as a converge worker must not be,
-// since it would close handles the owner is still handing out. Call this before
-// the borrower opens anything — a borrower that has already built its own
-// holder keeps it.
+// Ownership does not move. Shutdown on the receiver closes the stores; the
+// borrower must not be shut down, since it would close handles the owner still
+// hands out. Call this before the borrower opens anything: a borrower that has
+// built its own holder keeps it.
 func (a *App) ShareProjectStores(other *App) {
 	if other == nil || other == a {
 		return
@@ -577,7 +555,7 @@ func (a *App) ShareProjectStores(other *App) {
 //
 // Shutdown is the ordinary way to release stores; this is for a host whose
 // projects come and go inside one process. The desktop closes a tab, or resets
-// a sample project by renaming its directory out from under itself — and an
+// a sample project by renaming its directory out from under itself, and an
 // open handle would keep a file descriptor on the moved file and then hand that
 // stale handle to the reopened tab.
 //
@@ -654,19 +632,14 @@ func (s *projectStores) forgetKeyed(key workspace.ProjectKey) {
 
 // ForgetProjectsUnder forgets every project checked out at or below dir in its
 // workspace (workspace.Forget), so kapi run there again registers the project
-// afresh with an empty context. It is for a host whose projects come and go
-// inside one process and that is about to clear their directory: the browser
-// playground's reset, where the files go with the page's file system and the
-// databases with the driver.
+// afresh with an empty context. It is for a host about to clear such a
+// directory inside one process: the browser playground's reset.
 //
-// Two kinds of project are found there. A store this App holds open for a root
-// under dir is closed and its project forgotten. A project the workspace
-// registers with a checkout under dir is forgotten as well, whether or not
-// anything is open on it: the workspace outlives the page, so a project a
-// previous page left there would otherwise keep its context while its files
-// are gone. A project is one context wherever it is checked out, and it is
-// forgotten whole: a project also checked out outside dir loses the context
-// those checkouts shared and starts over on its next open there too.
+// A store this App holds open for a root under dir is closed and its project
+// forgotten. A project the workspace registers with a checkout under dir is
+// forgotten too, open or not, because the workspace outlives the page. A
+// project is forgotten whole: one also checked out outside dir loses the
+// context those checkouts shared.
 //
 // As with CloseProjectDB, nothing may be using the stores.
 func (a *App) ForgetProjectsUnder(ctx context.Context, dir string) error {
@@ -792,7 +765,7 @@ func (a *App) closeProjectStores() {
 //
 // The two are genuinely different things, which is why one type distinguishes
 // them rather than a path with a magic value. A standalone store is a file the
-// user named — `--memory ./corp.db`, `--termstore acme`, a profile's `terms:` —
+// user named (`--memory ./corp.db`, `--termstore acme`, a profile's `terms:`),
 // opened on its own pool and closed when the command ends. The project store is
 // the App's shared handle, which the command must not close.
 //
@@ -842,7 +815,7 @@ func (s StoreSelection) Bound() bool { return s.Path != "" || s.Root != "" }
 
 // ProjectStoreFor opens the project store for the project whose recipe path the
 // command resolves to, and reports the project root alongside it. It returns
-// (nil, "", nil) when no project is in scope — the shape every project-aware
+// (nil, "", nil) when no project is in scope, the shape every project-aware
 // store resolution needs, since "no project" is not a failure.
 func (a *App) ProjectStoreFor(cmd Command) (*projectdb.DB, string, error) {
 	projectPath, err := ResolveProjectPath(cmd)

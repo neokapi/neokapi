@@ -182,7 +182,7 @@ The directory is found by the checkout's location and the identity of its folder
 
 A claim token in the sync state is sent only to the server and project the sync state records it for. A sync state that records none sends no token, and kapi says why.
 
-kapi also exits 1 when git tracks `.kapi/work/`, `.kapi/sync/`, `.kapi/vault/` or `.kapi/filters.local.json`, in any spelling your file system treats as the same name, or when one of them is a submodule. Run the `git rm -r --cached` command the message names and commit. When kapi cannot ask git, the message names the cause (git not installed, a repository another user owns, no answer within five seconds); `KAPI_TRUST_STATE=1` in kapi's own environment skips the question. A directory in no git repository is not checked.
+kapi asks git nothing about a checkout's state. A `.kapi/work/`, `.kapi/sync/`, `.kapi/vault/` or `.kapi/filters.local.json` that a repository commits is never read as kapi's state, so you can remove it from the repository at your own pace.
 
 ## Streaming progress: `--progress jsonl`
 
