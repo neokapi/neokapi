@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -430,9 +431,10 @@ func sameDirectory(a, b string) bool {
 // migrateLegacyPlugins moves, once, the plugins an earlier desktop release
 // installed in legacyPluginDir into the shared plugin root the CLI and the
 // desktop both read, under the checks an install makes
-// (pluginhost.AdoptPluginDir). A plugin the shared root already holds keeps
-// that copy and the old one is removed. A plugin that fails the checks stays
-// where it is, and the log says why. The old cache file goes, and the
+// (pluginhost.AdoptPluginDir). A plugin the shared root already holds in a
+// usable form keeps that copy and the old one is removed; an empty directory
+// there never wins. A plugin that fails the checks stays where it is, and the
+// log says why. The old copy is removed only once the shared one is complete. The old cache file goes, and the
 // directory with it once empty. It returns the plugins it moved, which the
 // frontend is told about once.
 func (a *App) migrateLegacyPlugins() []string {
@@ -453,11 +455,12 @@ func (a *App) migrateLegacyPlugins() []string {
 			}
 			continue
 		}
-		if _, err := os.Stat(filepath.Join(a.pluginDir, e.Name())); err == nil {
+		err := pluginhost.AdoptPluginDir(old, a.pluginDir)
+		if errors.Is(err, pluginhost.ErrAlreadyInstalled) {
 			a.removeLegacyPlugin(e.Name())
 			continue
 		}
-		if err := pluginhost.AdoptPluginDir(old, a.pluginDir); err != nil {
+		if err != nil {
 			a.logger.Printf("move the earlier install of %s: %v", e.Name(), err)
 			continue
 		}

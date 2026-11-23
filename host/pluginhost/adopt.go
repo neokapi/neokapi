@@ -7,19 +7,55 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/neokapi/neokapi/core/plugin/manifest"
 )
 
+// ErrAlreadyInstalled reports a plugin the install root already holds in a
+// usable form (its manifest parses): that copy wins.
+var ErrAlreadyInstalled = errors.New("already installed")
+
+// adoptTempPrefix begins the name of the hidden directory a copy is made in
+// beside its destination. Discovery skips hidden entries.
+const adoptTempPrefix = ".kapi-adopt-"
+
+// openRoot is os.OpenRoot, replaceable in a test that makes it fail.
+var openRoot = os.OpenRoot
+
+// moveDir is the rename of src to its destination, replaceable in a test that
+// makes it fail as a rename across file systems does.
+var moveDir = os.Rename
+
 // AdoptPluginDir moves the plugin directory src into the install root target
-// (as target/<base of src>) under the checks an install makes. Every entry is
-// a regular file or a directory (no links), and nobody but the person or root
-// owns or may write it. Every file ends with the install mode cap
-// (installFileMask). It refuses a plugin target already holds; the copy there
-// wins and src is left for the caller to remove.
+// (as target/<base of src>) under the checks an install makes: no links,
+// nobody but the person or root owns or may write it, and every file ends
+// with the install mode cap.
+//
+// The destination only ever appears complete. Across file systems src is
+// copied into a hidden directory beside it and renamed into place, and src is
+// removed only after that rename. Every failure removes the hidden directory,
+// and a leftover from a killed run is removed first.
+//
+// A usable plugin already in place wins (ErrAlreadyInstalled). An empty
+// directory there is removed, so it never wins over a working plugin; any
+// other unusable entry there is refused and src stays where it is.
 func AdoptPluginDir(src, target string) error {
 	name := filepath.Base(src)
 	dest := filepath.Join(target, name)
+	if leftovers, err := filepath.Glob(filepath.Join(target, adoptTempPrefix+name+"-*")); err == nil {
+		for _, l := range leftovers {
+			_ = os.RemoveAll(l)
+		}
+	}
 	if _, err := os.Lstat(dest); err == nil {
-		return fmt.Errorf("adopt %s: %s is already installed in %s", src, name, target)
+		if data, rerr := os.ReadFile(filepath.Join(dest, "manifest.json")); rerr == nil {
+			if _, perr := manifest.Parse(data); perr == nil {
+				return fmt.Errorf("adopt %s: %s is in %s: %w", src, name, target, ErrAlreadyInstalled)
+			}
+		}
+		if rerr := os.Remove(dest); rerr != nil {
+			return fmt.Errorf("adopt %s: %s holds no plugin kapi can load and is not empty, so the earlier install stays: %w", src, dest, rerr)
+		}
 	}
 	if err := checkPath(src); err != nil {
 		return fmt.Errorf("adopt %s: %w", src, err)
@@ -44,37 +80,61 @@ func AdoptPluginDir(src, target string) error {
 	if err := checkPath(target); err != nil {
 		return fmt.Errorf("adopt %s: %w", src, err)
 	}
-	if err := os.Rename(src, dest); err != nil {
-		if _, ok := errors.AsType[*os.LinkError](err); !ok {
-			return fmt.Errorf("adopt %s: %w", src, err)
-		}
-		// Another file system: copy through an os.Root on each side, so no
-		// name in the tree can lead outside either directory, then remove
-		// the original.
-		if err := os.Mkdir(dest, pluginDirMode); err != nil {
-			return fmt.Errorf("adopt %s: %w", src, err)
-		}
-		from, err := os.OpenRoot(src)
-		if err != nil {
-			return fmt.Errorf("adopt %s: %w", src, err)
-		}
-		to, err := os.OpenRoot(dest)
-		if err != nil {
-			from.Close()
-			return fmt.Errorf("adopt %s: %w", src, err)
-		}
-		err = copyPluginTree(from, to)
-		from.Close()
-		to.Close()
-		if err != nil {
-			_ = os.RemoveAll(dest)
-			return fmt.Errorf("adopt %s: %w", src, err)
-		}
-		if err := os.RemoveAll(src); err != nil {
-			return fmt.Errorf("adopt %s: remove the original: %w", src, err)
-		}
+	if err := moveDir(src, dest); err == nil {
+		return capInPlace(src, dest)
+	} else if _, ok := errors.AsType[*os.LinkError](err); !ok || !crossDevice(err) {
+		return fmt.Errorf("adopt %s: %w", src, err)
 	}
-	root, err := os.OpenRoot(dest)
+	// Another file system: copy into a hidden directory beside the
+	// destination through an os.Root on each side, so no name in the tree can
+	// lead outside either directory, then rename it into place.
+	tmp, err := os.MkdirTemp(target, adoptTempPrefix+name+"-")
+	if err != nil {
+		return fmt.Errorf("adopt %s: %w", src, err)
+	}
+	if err := copyIntoTemp(src, tmp); err != nil {
+		_ = os.RemoveAll(tmp)
+		return fmt.Errorf("adopt %s: %w", src, err)
+	}
+	if err := os.Rename(tmp, dest); err != nil {
+		_ = os.RemoveAll(tmp)
+		return fmt.Errorf("adopt %s: %w", src, err)
+	}
+	if err := os.RemoveAll(src); err != nil {
+		return fmt.Errorf("adopt %s: remove the original: %w", src, err)
+	}
+	return nil
+}
+
+// crossDevice reports a rename refused because source and destination are on
+// different file systems. Any other refusal is returned to the caller.
+var crossDevice = isCrossDevice
+
+// copyIntoTemp copies src into the hidden directory tmp and caps its modes,
+// each opened as an os.Root.
+func copyIntoTemp(src, tmp string) error {
+	from, err := openRoot(src)
+	if err != nil {
+		return err
+	}
+	defer from.Close()
+	to, err := openRoot(tmp)
+	if err != nil {
+		return err
+	}
+	defer to.Close()
+	if err := to.Chmod(".", pluginDirMode); err != nil {
+		return err
+	}
+	if err := copyPluginTree(from, to); err != nil {
+		return err
+	}
+	return capModes(to)
+}
+
+// capInPlace caps the modes of a plugin directory renamed into dest from src.
+func capInPlace(src, dest string) error {
+	root, err := openRoot(dest)
 	if err != nil {
 		return fmt.Errorf("adopt %s: %w", src, err)
 	}

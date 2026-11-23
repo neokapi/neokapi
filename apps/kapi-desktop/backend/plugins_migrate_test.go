@@ -113,3 +113,21 @@ func TestRemovePlugin_RefreshesTheMediaEngines(t *testing.T) {
 	app.pluginsChanged(false) // the watcher's path
 	assert.Equal(t, 2, refreshes)
 }
+
+// An empty directory in the shared root, left by any cause, never wins over
+// a working plugin in the old directory: the working plugin moves in.
+func TestMigrateLegacyPlugins_AnEmptySharedDirectoryDoesNotWin(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", privateDir(t))
+	legacy := legacyPluginDir()
+	stageDesktopPlugin(t, legacy, "okapi", "legacy")
+
+	app := NewApp()
+	app.pluginDir = filepath.Join(privateDir(t), "plugins")
+	require.NoError(t, os.MkdirAll(filepath.Join(app.pluginDir, "okapi"), 0o700))
+
+	assert.Equal(t, []string{"okapi"}, app.migrateLegacyPlugins())
+	got, err := os.ReadFile(filepath.Join(app.pluginDir, "okapi", "copy"))
+	require.NoError(t, err)
+	assert.Equal(t, "legacy", string(got), "the working plugin replaced the empty directory")
+	assert.NoDirExists(t, legacy)
+}

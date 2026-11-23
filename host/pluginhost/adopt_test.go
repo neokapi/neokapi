@@ -3,8 +3,11 @@
 package pluginhost
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,4 +60,96 @@ func TestAdoptPluginDir_RefusesWhatAnInstallWould(t *testing.T) {
 			assert.NoError(t, serr, "the original stays")
 		})
 	}
+}
+
+// acrossFileSystems makes the move of src fail as a rename across file
+// systems does, so AdoptPluginDir takes its copy path.
+func acrossFileSystems(t *testing.T) {
+	t.Helper()
+	real := moveDir
+	moveDir = func(oldpath, newpath string) error {
+		return &os.LinkError{Op: "rename", Old: oldpath, New: newpath, Err: syscall.EXDEV}
+	}
+	t.Cleanup(func() { moveDir = real })
+}
+
+// hiddenEntries lists the hidden entries of dir.
+func hiddenEntries(t *testing.T, dir string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	var out []string
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".") {
+			out = append(out, e.Name())
+		}
+	}
+	return out
+}
+
+// Across file systems the copy lands complete or not at all: it is made in a
+// hidden directory and renamed into place, and the original goes only after.
+func TestAdoptPluginDir_CopiesAcrossFileSystems(t *testing.T) {
+	acrossFileSystems(t)
+	src := stagePlugin(t, privateRoot(t), "demo")
+	target := privateRoot(t)
+
+	require.NoError(t, AdoptPluginDir(src, target))
+	assert.FileExists(t, filepath.Join(target, "demo", "kapi-demo"))
+	assert.NoDirExists(t, src, "the original goes once the copy is in place")
+	assert.Empty(t, hiddenEntries(t, target), "no hidden directory is left")
+	assert.Len(t, Discover(DiscoverOptions{EnvPluginsDir: target, OnlyEnvDir: true}), 1)
+}
+
+// OpenRoot failing after the hidden directory exists leaves neither it nor a
+// destination behind, and the original where it was.
+func TestAdoptPluginDir_OpenRootFailingLeavesNothing(t *testing.T) {
+	acrossFileSystems(t)
+	src := stagePlugin(t, privateRoot(t), "demo")
+	target := privateRoot(t)
+	real := openRoot
+	calls := 0
+	openRoot = func(name string) (*os.Root, error) {
+		calls++
+		if calls == 2 {
+			return nil, errors.New("simulated failure")
+		}
+		return real(name)
+	}
+	t.Cleanup(func() { openRoot = real })
+
+	require.Error(t, AdoptPluginDir(src, target))
+	assert.NoDirExists(t, filepath.Join(target, "demo"), "no destination appears")
+	assert.Empty(t, hiddenEntries(t, target), "the hidden directory is removed")
+	assert.FileExists(t, filepath.Join(src, "kapi-demo"), "the original stays")
+}
+
+// A run killed between the copy and the rename leaves a hidden directory.
+// Discovery does not take it for a plugin, and the next adoption removes it
+// before anything else and completes.
+func TestAdoptPluginDir_ALeftoverFromAKilledRunIsRemoved(t *testing.T) {
+	src := stagePlugin(t, privateRoot(t), "demo")
+	target := privateRoot(t)
+	leftover := filepath.Join(target, adoptTempPrefix+"demo-123")
+	require.NoError(t, os.Mkdir(leftover, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(leftover, "manifest.json"), []byte(`{"plugin":"demo"`), 0o644))
+	assert.Empty(t, Discover(DiscoverOptions{EnvPluginsDir: target, OnlyEnvDir: true}), "a hidden directory is no plugin")
+
+	require.NoError(t, AdoptPluginDir(src, target))
+	assert.NoDirExists(t, leftover)
+	assert.FileExists(t, filepath.Join(target, "demo", "kapi-demo"))
+}
+
+// A usable plugin already in place wins; an empty directory in its place does
+// not, and is replaced by the working plugin.
+func TestAdoptPluginDir_OnlyAUsablePluginWins(t *testing.T) {
+	target := privateRoot(t)
+	stagePlugin(t, target, "demo")
+	err := AdoptPluginDir(stagePlugin(t, privateRoot(t), "demo"), target)
+	require.ErrorIs(t, err, ErrAlreadyInstalled)
+
+	empty := privateRoot(t)
+	require.NoError(t, os.Mkdir(filepath.Join(empty, "demo"), 0o700))
+	require.NoError(t, AdoptPluginDir(stagePlugin(t, privateRoot(t), "demo"), empty))
+	assert.FileExists(t, filepath.Join(empty, "demo", "kapi-demo"), "the empty directory gave way")
 }

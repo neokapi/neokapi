@@ -86,6 +86,11 @@ func Discover(opts DiscoverOptions) []*Plugin {
 			continue
 		}
 		for _, e := range entries {
+			// A hidden entry is no plugin: an adoption in progress copies
+			// into one (AdoptPluginDir).
+			if strings.HasPrefix(e.Name(), ".") {
+				continue
+			}
 			pluginDir := filepath.Join(r.Path, e.Name())
 			if !isDirFollowingLinks(pluginDir, e) {
 				continue
