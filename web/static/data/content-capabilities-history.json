@@ -514,5 +514,179 @@
         "project-text": "verified"
       }
     }
+  },
+  {
+    "date": "2026-11-23",
+    "formats": {
+      "androidxml": "L1",
+      "applestrings": "L1",
+      "arb": "L3",
+      "archive": "L0",
+      "asciidoc": "L3",
+      "audio": "L0",
+      "csv": "L2",
+      "designtokens": "L1",
+      "doclang": "L1",
+      "docling": "L1",
+      "eml": "L3",
+      "epub": "L2",
+      "html": "L1",
+      "i18next": "L1",
+      "image": "L1",
+      "json": "L2",
+      "markdown": "L2",
+      "mdx": "L1",
+      "messageformat": "L2",
+      "mo": "L0",
+      "odf": "L2",
+      "openxml": "L2",
+      "pdf": "L0",
+      "plaintext": "L2",
+      "po": "L2",
+      "properties": "L2",
+      "resx": "L3",
+      "sourcecode": "L0",
+      "srt": "L2",
+      "tmx": "L2",
+      "ts": "L2",
+      "video": "L0",
+      "vtt": "L2",
+      "xcstrings": "L3",
+      "xliff": "L2",
+      "xliff2": "L2",
+      "xml": "L2",
+      "yaml": "L2"
+    },
+    "outputs": {
+      "androidxml": {
+        "project-text": "failed"
+      },
+      "applestrings": {
+        "project-text": "failed"
+      },
+      "arb": {
+        "project-text": "failed"
+      },
+      "archive": {
+        "project-text": "unsupported"
+      },
+      "asciidoc": {
+        "project-text": "verified"
+      },
+      "audio": {
+        "project-text": "unsupported"
+      },
+      "csv": {
+        "project-cells": "verified"
+      },
+      "designtokens": {
+        "project-text": "failed"
+      },
+      "doclang": {
+        "email": "verified",
+        "project-text": "verified",
+        "structure": "verified"
+      },
+      "docling": {
+        "project-text": "unsupported"
+      },
+      "eml": {
+        "project-text": "unsupported"
+      },
+      "epub": {
+        "project-text": "unsupported"
+      },
+      "exec": {
+        "project-text": "unsupported"
+      },
+      "html": {
+        "email": "verified",
+        "project-text": "verified",
+        "structure": "verified"
+      },
+      "i18next": {
+        "project-text": "verified"
+      },
+      "image": {
+        "project-text": "unsupported"
+      },
+      "json": {
+        "project-text": "verified"
+      },
+      "json-catalog": {
+        "project-text": "verified"
+      },
+      "kbf": {
+        "project-text": "unsupported"
+      },
+      "markdown": {
+        "email": "verified",
+        "project-text": "verified",
+        "structure": "verified"
+      },
+      "mdx": {
+        "project-text": "unsupported"
+      },
+      "messageformat": {
+        "project-text": "verified"
+      },
+      "mo": {
+        "project-text": "unsupported"
+      },
+      "odf": {
+        "project-text": "unsupported"
+      },
+      "openxml": {
+        "project-text": "unsupported"
+      },
+      "plaintext": {
+        "project-text": "verified"
+      },
+      "po": {
+        "project-text": "unsupported"
+      },
+      "properties": {
+        "project-text": "verified"
+      },
+      "resx": {
+        "project-text": "verified"
+      },
+      "srt": {
+        "project-cues": "verified"
+      },
+      "tmx": {
+        "project-text": "unsupported"
+      },
+      "ts": {
+        "project-text": "verified"
+      },
+      "tsv": {
+        "project-cells": "verified"
+      },
+      "video": {
+        "project-text": "unsupported"
+      },
+      "vtt": {
+        "project-cues": "verified"
+      },
+      "xcstrings": {
+        "project-text": "failed"
+      },
+      "xliff": {
+        "project-text": "unsupported"
+      },
+      "xliff2": {
+        "project-text": "unsupported"
+      },
+      "xml": {
+        "project-text": "failed"
+      },
+      "yaml": {
+        "project-text": "verified"
+      },
+      "yaml-catalog": {
+        "project-text": "verified"
+      }
+    }
   }
 ]
