@@ -44,9 +44,17 @@ jobs:
         # the scanner moves unannounced; scripts/check-tool-versions.py reports
         # a newer Trivy.
         uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec
+        env:
+          # List each exempted finding in the log, so a reader sees what the
+          # ignore file hid on this run.
+          TRIVY_SHOW_SUPPRESSED: "true"
         with:
           version: v0.76.2
           image-ref: ${{ matrix.image }}
           severity: CRITICAL,HIGH
           exit-code: 1
           trivyignores: ${{ matrix.ignorefile || '' }}
+          # The action keeps its vulnerability database in actions/cache. Only
+          # main saves caches (scripts/check-ci-caches.py); a dispatch on a
+          # branch downloads the database instead.
+          cache: ${{ github.ref == 'refs/heads/main' }}
