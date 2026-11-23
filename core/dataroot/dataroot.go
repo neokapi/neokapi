@@ -48,7 +48,9 @@ const dataDirName = "kapi"
 // binary resolves the platform default, which is why the isolation contract
 // sets $KAPI_DATA_DIR on a kapi it launches.
 //
-// The directory is named, not created. A caller that writes there creates it.
+// Outside a test binary the directory is named, not created; a caller that
+// writes there creates it. A test binary's root is created, private to its
+// user, when it is first resolved.
 func Dir() string {
 	if dir := os.Getenv(EnvDir); dir != "" {
 		return dir
@@ -76,23 +78,37 @@ func UnderTest() bool {
 // system temporary directory. The process id follows it.
 const testDataDirPrefix = "kapi-test-data-"
 
-// sweepTestDataDirsOnce runs the sweep the first time a test binary resolves
-// its data root, before anything has been written there.
-var sweepTestDataDirsOnce sync.Once
+// testRootOnce sweeps and creates the test binary's data root the first time
+// it is resolved, before anything has been written there; testRootErr holds
+// why the root could not be made safe.
+var (
+	testRootOnce sync.Once
+	testRootErr  error
+)
 
 // testDataDir is the data root a test binary gets: one directory per process,
 // under the system temporary directory, so two packages running in parallel do
 // not share a workspace and neither reaches the developer's.
 //
-// The first call sweeps the roots dead test binaries left behind, so a run
-// does not add to them without bound. A root holds every workspace its binary's
-// tests opened, often hundreds of megabytes, and a binary that is killed, or
-// whose package has no TestMain calling RemoveTestDir, leaves its root behind.
+// The first call sweeps the roots dead test binaries left behind (a killed
+// binary, or one with no TestMain calling RemoveTestDir, leaves its root,
+// often hundreds of megabytes).
+//
+// The root is created with mode 0700 and checked once per process
+// (ensurePrivateDir). Its name carries the process id the sweep reads, so on a
+// shared temporary directory another user could create it first. A root that
+// is a link, belongs to another user, or is open to others stops the test
+// binary with a panic.
 func testDataDir() string {
-	sweepTestDataDirsOnce.Do(func() {
+	root := testDataRoot(os.TempDir(), os.Getpid())
+	testRootOnce.Do(func() {
 		sweepTestDataDirs(os.TempDir(), os.Getpid(), processAlive, processStart)
+		testRootErr = ensurePrivateDir(root)
 	})
-	return testDataRoot(os.TempDir(), os.Getpid())
+	if testRootErr != nil {
+		panic("dataroot: the test data root is unsafe to use: " + testRootErr.Error())
+	}
+	return root
 }
 
 // TestUserDir answers, in a test binary, a directory of this process's own
@@ -114,8 +130,23 @@ func TestUserDir(kind string) (string, bool) {
 	if os.Getenv("HOME") != startHome || (kind == "config" && os.Getenv("XDG_CONFIG_HOME") != startXDGConfig) {
 		return "", false
 	}
-	return filepath.Join(testDataDir(), "user", kind), true
+	user := filepath.Join(testDataDir(), "user")
+	dir := filepath.Join(user, kind)
+	errAny, _ := testUserDirs.LoadOrStore(kind, sync.OnceValue(func() error {
+		if err := ensurePrivateDir(user); err != nil {
+			return err
+		}
+		return ensurePrivateDir(dir)
+	}))
+	if err := errAny.(func() error)(); err != nil {
+		panic("dataroot: the test user directory is unsafe to use: " + err.Error())
+	}
+	return dir, true
 }
+
+// testUserDirs holds, per kind, the once-per-process check that creates the
+// kind's directory under the test root and makes sure it is private.
+var testUserDirs sync.Map
 
 // The home and configuration variables as the process started, before any
 // test changed them.
@@ -163,7 +194,11 @@ func RemoveTestDir() {
 	if !UnderTest() {
 		return
 	}
-	_ = os.RemoveAll(testDataRoot(os.TempDir(), os.Getpid()))
+	root := testDataRoot(os.TempDir(), os.Getpid())
+	if info, err := os.Lstat(root); err != nil || checkOwnedDir(root, info) != nil {
+		return
+	}
+	_ = os.RemoveAll(root)
 }
 
 // processStartSlack is how much earlier than its process's start a data root
@@ -192,7 +227,14 @@ func sweepTestDataDirs(tmp string, self int, alive func(int) bool, started func(
 	var removed []string
 	for _, e := range entries {
 		rest, ok := strings.CutPrefix(e.Name(), testDataDirPrefix)
-		if !ok || !e.IsDir() {
+		if !ok {
+			continue
+		}
+		// Only a real directory this user owns: never a link, never another
+		// user's directory, so the sweep cannot be steered into deleting
+		// anything else.
+		path := filepath.Join(tmp, e.Name())
+		if info, err := os.Lstat(path); err != nil || checkOwnedDir(path, info) != nil {
 			continue
 		}
 		pid, err := strconv.Atoi(rest)
@@ -202,7 +244,7 @@ func sweepTestDataDirs(tmp string, self int, alive func(int) bool, started func(
 		if pid != self && alive(pid) && !reusedID(e, pid, started) {
 			continue
 		}
-		if os.RemoveAll(filepath.Join(tmp, e.Name())) == nil {
+		if os.RemoveAll(path) == nil {
 			removed = append(removed, e.Name())
 		}
 	}

@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
+	"sync"
 )
 
 const (
@@ -99,8 +99,13 @@ func ModelsRoot() (string, error) {
 		return filepath.Join(v, "kapi", "models", "check"), nil
 	}
 	if flag.Lookup("test.v") != nil {
-		// A test binary keeps off the developer's cache (core/dataroot).
-		return filepath.Join(os.TempDir(), "kapi-test-models-"+strconv.Itoa(os.Getpid()), "check"), nil
+		// A test binary keeps off the developer's cache (core/dataroot), in a
+		// private directory of its own that no other user can name in advance.
+		dir, err := testModelsDir()
+		if err != nil {
+			return "", fmt.Errorf("model: test cache root: %w", err)
+		}
+		return filepath.Join(dir, "check"), nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -145,4 +150,35 @@ func Present(name string) bool {
 	}
 	_, err = ResolveInDir(name, root)
 	return err == nil
+}
+
+// testModels is the test binary's model cache root, made on first use by
+// os.MkdirTemp (mode 0700, a name no other user can predict) and removed by
+// removeTestModelsDir from the package's TestMain.
+var testModels struct {
+	sync.Mutex
+	dir string
+}
+
+func testModelsDir() (string, error) {
+	testModels.Lock()
+	defer testModels.Unlock()
+	if testModels.dir == "" {
+		dir, err := os.MkdirTemp("", "kapi-test-models-")
+		if err != nil {
+			return "", err
+		}
+		testModels.dir = dir
+	}
+	return testModels.dir, nil
+}
+
+// removeTestModelsDir removes the test model cache root, if a test made one.
+func removeTestModelsDir() {
+	testModels.Lock()
+	defer testModels.Unlock()
+	if testModels.dir != "" {
+		_ = os.RemoveAll(testModels.dir)
+		testModels.dir = ""
+	}
 }
