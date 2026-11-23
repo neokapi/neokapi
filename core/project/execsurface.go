@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"path/filepath"
 	"sort"
 	"strings"
 	"unicode"
@@ -138,6 +139,9 @@ func (s ExecSite) NamedPaths() []string {
 // is part of what a person is being asked to approve.
 //
 // Sites come back in a deterministic order so the digest is stable across runs.
+//
+// ExecSurface reads the recipe alone. ExecSurfaceIn adds what the project's
+// files declare beside it, which is what a decision must cover.
 func ExecSurface(p *KapiProject) []ExecSite {
 	if p == nil {
 		return nil
@@ -194,6 +198,107 @@ func ExecSurface(p *KapiProject) []ExecSite {
 	}
 
 	return sites
+}
+
+// ExecSurfaceIn enumerates everything the project at root can make kapi
+// execute: the recipe's own sites (ExecSurface) and the steps of every flow
+// file in its `flows_dir:`, each located by the file's path relative to root.
+// ExecSurfaceSources lists the places this walk reads, and a test holds the
+// recipe's fields to it, so a new place a step can be declared joins the walk.
+// A flow file that does not load is skipped: it runs nothing.
+func ExecSurfaceIn(p *KapiProject, root string) []ExecSite {
+	sites := ExecSurface(p)
+	if p == nil {
+		return sites
+	}
+	for _, def := range ListDirFlows(p.FlowsDirIn(root)) {
+		if def.Err != nil || def.Spec == nil {
+			continue
+		}
+		where := def.Path
+		if rel, err := filepath.Rel(root, def.Path); err == nil {
+			where = filepath.ToSlash(rel)
+		}
+		sites = append(sites, execSitesInSteps(def.Spec.Steps, where+" steps")...)
+		sites = append(sites, execSitesInSteps(def.Spec.SourceTransforms, where+" source_transforms")...)
+	}
+	return sites
+}
+
+// ExecSurfaceSources names the recipe fields ExecSurfaceIn reads steps,
+// presets and formats from. Every other field of KapiProject is listed in
+// ExecSurfaceNonSources with why it declares nothing kapi executes.
+var ExecSurfaceSources = []string{"Flows", "FlowsDir", "Defaults", "Collections"}
+
+// ExecSurfaceNonSources names the recipe fields that declare no step, preset
+// or format, so the walk passes them over.
+var ExecSurfaceNonSources = map[string]string{
+	"Version":          "the recipe format version",
+	"ID":               "the project's identity",
+	"Name":             "a label",
+	"Plugins":          "which installed plugins the project needs; a plugin is installed code, decided at install",
+	"Preset":           "a built-in preset name, which brings kapi's own configuration",
+	"Profiles":         "voice, terms and concept bindings, which run nothing",
+	"Places":           "where content is published, read by venue plugins",
+	"Axes":             "context coordinates",
+	"ShipGate":         "a check gate over findings",
+	"ShipGates":        "check gates over findings",
+	"Gates":            "check gates over findings",
+	"EstablishedGate":  "a check gate over findings",
+	"EstablishedGates": "check gates over findings",
+	"SourceGate":       "a check gate over findings",
+	"Requires":         "the kapi and plugin versions the recipe needs",
+	"Context":          "where the context is kept, decided by the context-store approval",
+	"Extras":           "keys a registered recipe extension decodes, such as a venue's settings; an extension is installed code",
+}
+
+// ExecSurfaceDefaultsSources names the `defaults:` fields ExecSurface reads:
+// the tool presets that would arm a step.
+var ExecSurfaceDefaultsSources = []string{"Tools", "Locales"}
+
+// shellNames are programs that run a command string they are handed.
+var shellNames = map[string]bool{
+	"sh": true, "bash": true, "zsh": true, "dash": true, "ksh": true, "fish": true,
+	"cmd": true, "powershell": true, "pwsh": true,
+}
+
+// RunsShellString reports whether the site hands a command string to a shell
+// (`sh -c '...'`, `cmd /c ...`), whose files kapi cannot see.
+func (s ExecSite) RunsShellString() bool {
+	if s.Name != "external-command" {
+		return false
+	}
+	words := append([]string{}, s.NamedPaths()...)
+	if c, ok := s.config["command"].(string); ok {
+		words = append([]string{c}, words...)
+	}
+	shell := false
+	for _, w := range words {
+		base := strings.TrimSuffix(strings.ToLower(filepath.Base(w)), ".exe")
+		if shellNames[base] {
+			shell = true
+			continue
+		}
+		if shell && (w == "-c" || strings.EqualFold(w, "/c") || strings.EqualFold(w, "-command")) {
+			return true
+		}
+	}
+	return false
+}
+
+// kapiOwnedKeys are configuration keys kapi sets on a recipe's step itself.
+var kapiOwnedKeys = []string{"working_dir", "invoke_dir"}
+
+// KapiOwnedKeys lists the keys in the site's configuration that kapi sets on
+// a recipe's step itself, and a recipe may not.
+func (s ExecSite) KapiOwnedKeys() []string {
+	var out []string
+	for _, k := range kapiOwnedKeys {
+		if _, ok := s.config[k]; ok {
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 // execSitesInSteps collects exec-class steps, recursing into `parallel`

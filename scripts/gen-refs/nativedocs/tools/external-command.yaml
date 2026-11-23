@@ -43,7 +43,10 @@ parameters:
       holds `kapi.yaml`, wherever kapi was started, and a relative path is read
       from there. The directory kapi was started in reaches the command as
       `KAPI_INVOKE_DIR`. `kapi exec external-command` runs the command you
-      type in the current directory.
+      type in the current directory. A project's approval checks the content
+      of a script named here or as an argument, not one a shell string
+      (`sh -c '...'`), `npm run` or `make` runs: name the script itself to
+      have it checked.
     values: "string (required)"
   args:
     description: Arguments passed to the command.

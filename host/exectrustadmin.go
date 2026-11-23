@@ -94,12 +94,15 @@ func execTrustStanding(key, kind, digest string) (status, detail string) {
 		return output.TrustStatusChanged, "the recipe no longer runs commands"
 	}
 	if surface.Digest == digest {
-		return output.TrustStatusCurrent, ""
+		return output.TrustStatusCurrent, coverageSummary(surface)
+	}
+	if added := addedExecSites(key, surface.Sites); len(added) > 0 {
+		return output.TrustStatusChanged, "a command was added (" + strings.Join(added, ", ") + "); the next run asks again; " + coverageSummary(surface)
 	}
 	if changed := changedExecFiles(key, surface.Files); len(changed) > 0 {
-		return output.TrustStatusChanged, "a file the commands run changed (" + strings.Join(changed, ", ") + "); the next run asks again"
+		return output.TrustStatusChanged, "a file the commands run changed (" + strings.Join(changed, ", ") + "); the next run asks again; " + coverageSummary(surface)
 	}
-	return output.TrustStatusChanged, "the recipe, its project or a file it runs changed; the next run asks again"
+	return output.TrustStatusChanged, "the project, its commands or a file they name changed; the next run asks again; " + coverageSummary(surface)
 }
 
 // ExecTrustShow reports what the recipe at recipePath would run and the
@@ -192,7 +195,7 @@ func (a *App) ExecTrustAllow(cmd Command, recipePath string) (output.TrustAllowO
 	out.Digest = surface.Digest
 
 	errW := cmd.ErrOrStderr()
-	printExecTrustPrompt(errW, key, surface, changedExecFiles(key, surface.Files))
+	printExecTrustPrompt(errW, key, surface)
 	if !a.AssumeYes {
 		isTTY := a.isTTY
 		if isTTY == nil {
@@ -210,7 +213,7 @@ func (a *App) ExecTrustAllow(cmd Command, recipePath string) (output.TrustAllowO
 			return out, nil
 		}
 	}
-	if err := recordExecTrustFiles(key, out.Digest, execTrustAllow, surface.Files); err != nil {
+	if err := recordExecTrustSurface(key, execTrustAllow, surface); err != nil {
 		return out, err
 	}
 	out.Recorded = true

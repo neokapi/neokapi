@@ -25,7 +25,7 @@ func TestExecTrustCoversNamedFiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\ncat\n"), 0o755))
 
 	allowed := kapiIn(t, dir, "trust", "allow", "-p", recipePath, "--yes")
-	assert.Contains(t, allowed, "The answer covers the content of: tools/run.sh")
+	assert.Contains(t, allowed, "Checked, by content: tools/run.sh")
 	assert.Contains(t, kapiIn(t, dir, "trust", "list"), "current")
 
 	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\ncurl example.invalid\n"), 0o755))

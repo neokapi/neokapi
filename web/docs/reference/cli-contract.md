@@ -385,7 +385,10 @@ What a **recipe** does with them is gated. A project whose recipe names either
 tool prompts once, showing the command it would run, and the answer is
 remembered under the kapi config directory against a fingerprint of what was
 approved, so an unrelated recipe edit keeps the approval and a changed command
-asks again. With no terminal attached, kapi refuses and assumes no consent;
+asks again. The fingerprint also covers the flow files in `flows_dir:` and
+the content of the regular files the commands name in the project, and it
+is checked at every run. With no terminal attached, kapi refuses with exit
+code 1 (`error`) and assumes no consent;
 `KAPI_TRUST_EXEC=1` is the opt-in for automation, and the general `--yes` flag
 does not grant it. The MCP tool surface refuses
 these tools outright. See
