@@ -24,19 +24,20 @@ Over MCP the same calls are `context_note`: with `term` and `instead_of`, or
 `text`, for what you noticed, and with `from`, `to` and `suggest` for a change
 the person made.
 
-- **Note** consistent wording in the project's files, whether or not your own
-  text needs it. Look for three kinds in every project:
+- **Note** consistent wording in the project's files, whether or not you use
+  it in your own text. Look for three kinds in every project:
   - each product, feature and plan name, as written in the files;
   - the spelling variety (British or American), as a fact in prose with two or
     three words that show it;
-  - a word the files always use where writers often use another.
+  - a word that appears in the files every time where writers often use
+    another.
 
   A name or word is a rule: pass `--term` with the form found in the files and
-  `--instead-of` with the form they avoid, which is the split form of a
-  one-word name, the other spelling, or the other word. kapi adds the spacing,
-  hyphen and capitalisation variants (`Quickcast` avoids `Quick cast`,
-  `Quick-cast` and `QuickCast`). A fact in prose, such as who the text addresses
-  or the register it keeps, states no rule.
+  `--instead-of` with the form that does not appear there, which is the split
+  form of a one-word name, the other spelling, or the other word. kapi adds the
+  spacing, hyphen and capitalisation variants (for `Quickcast`: `Quick cast`,
+  `Quick-cast` and `QuickCast`). A fact in prose, such as the form of address
+  or the register, is not a rule.
 
   Before you record a word, search the files for its other forms (spaced,
   hyphenated, closed, the other spelling). A word spelled more than one way
@@ -44,10 +45,10 @@ the person made.
   nothing about it, not even a note describing the forms. Leave alone
   interface labels, wording taken from your task, anything seen once, and a
   name you introduced yourself; `--seen-in` names a file that was there before
-  you started. `kapi context suggest` files each word the files write more
-  than one way as a suggestion noticed by kapi, with its counts, without an AI
+  you started. `kapi context suggest` files each word written more than one
+  way in the files as a suggestion noticed by kapi, with its counts, without an AI
   model; with `--ai` it then asks the user's connected model for the terms
-  and voice measures the files show, which costs the user tokens, so run it
+  and voice measures it finds in the files, which costs the user tokens, so run it
   only when they ask.
 
   Everything recorded is a **suggestion**: every check reports it, and no check
@@ -310,10 +311,11 @@ each language as not gated rather than shippable. Say which of these the
 project's CI should run and which files it should check.
 
 Commit the configuration: `kapi.yaml`, the agent wiring `kapi init` wrote, and
-the rules files. `.kapi/` is this checkout's cache and stays out of the
-commit. The context itself stays in the project's store, where every checkout
-reads it; `kapi context log` is where the user reads what was decided, and
-`kapi store export -o backup.kpz` is the backup. If the user works on more than
+the rules files. kapi keeps this checkout's own state outside the checkout,
+so there is nothing of kapi's to leave out of the commit. The context itself
+stays in the project's store, where every checkout reads it; `kapi context
+log` is where the user reads what was decided, and `kapi store export -o
+backup.kpz` is the backup. If the user works on more than
 one machine, or with other people, tell them about sharing the context
 (`context: {backend: git}` in kapi.yaml, then `kapi context sync`) and let them
 decide.
@@ -417,7 +419,7 @@ since been superseded fails the staleness gate, naming what moved. Re-running
 # Refresh an existing context
 
 When the material changes, compare it with the existing context and propose
-updates for review. Show the proposed changes before editing `.kapi/` or
+updates for review. Show the proposed changes before editing a context file or
 `kapi.yaml`.
 
 ## When to refresh

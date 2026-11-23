@@ -51,6 +51,9 @@ func (o StateTransferOutput) FormatText(w io.Writer) error {
 type StatePathOutput struct {
 	Project string `json:"project"`
 	Path    string `json:"path"`
+	// ParseCache is the directory the parse cache lives in: work/cache/docs
+	// under Path, or the directory $KAPI_PARSE_CACHE_DIR names.
+	ParseCache string `json:"parse_cache"`
 }
 
 func (o StatePathOutput) FormatText(w io.Writer) error {

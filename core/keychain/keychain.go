@@ -23,8 +23,25 @@ var ErrNotFound = keyring.ErrNotFound
 // keychain first.
 func init() {
 	if dataroot.UnderTest() {
-		keyring.MockInit()
+		installTestKeyring()
 	}
+}
+
+// installTestKeyring puts an empty in-memory keyring in front of the library:
+// at package load in a test binary, and on every Reset. It is the one way the
+// test keyring is made.
+func installTestKeyring() {
+	keyring.MockInit()
+}
+
+// Reset empties the in-memory keyring a test binary uses, so a test starts
+// with no secrets. It is the only way a test prepares the keyring; outside a
+// test binary it panics, since the real keychain is never emptied.
+func Reset() {
+	if !dataroot.UnderTest() {
+		panic("keychain: Reset is for test binaries only")
+	}
+	installTestKeyring()
 }
 
 // Set stores a secret for service and user.

@@ -12,6 +12,8 @@
  * registered nowhere and 404s.
  */
 
+import { requireDisposableStack } from "./disposable-stack";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -185,6 +187,8 @@ export interface BrandProfile {
   id: string;
   name: string;
   pack?: string;
+  /** The server's revision token; an update or a delete names it. */
+  revision?: string;
   [key: string]: unknown;
 }
 
@@ -355,6 +359,7 @@ export class BowrainAPI {
   }
 
   private async del(path: string): Promise<void> {
+    await requireDisposableStack(this.baseUrl);
     const resp = await fetch(`${this.apiUrl}${path}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${this.token}` },
@@ -939,16 +944,51 @@ export class BowrainAPI {
     return this.post(`/${wsSlug}/voice-profiles`, profile);
   }
 
+  async getVoiceProfile(wsSlug: string, profileId: string): Promise<BrandProfile> {
+    return this.get(`/${wsSlug}/voice-profiles/${profileId}`);
+  }
+
+  /**
+   * An update or a delete names the revision of the profile it was based on,
+   * and the server refuses one with none (428) or with a revision the profile
+   * no longer has (409). baseRevision says which to send:
+   *
+   * - left out: read the profile first and send its current revision, as a
+   *   person editing it would;
+   * - a string: send that revision, current or stale;
+   * - null: send none, to exercise the 428.
+   */
   async updateVoiceProfile(
     wsSlug: string,
     profileId: string,
     profile: Partial<BrandProfile>,
+    baseRevision?: string | null,
   ): Promise<BrandProfile> {
-    return this.put(`/${wsSlug}/voice-profiles/${profileId}`, profile);
+    const base = await this.voiceBase(wsSlug, profileId, baseRevision);
+    return this.put(
+      `/${wsSlug}/voice-profiles/${profileId}`,
+      base === null ? profile : { ...profile, base_revision: base },
+    );
   }
 
-  async deleteVoiceProfile(wsSlug: string, profileId: string): Promise<void> {
-    return this.del(`/${wsSlug}/voice-profiles/${profileId}`);
+  /** Deletes a voice profile; baseRevision as for updateVoiceProfile. */
+  async deleteVoiceProfile(
+    wsSlug: string,
+    profileId: string,
+    baseRevision?: string | null,
+  ): Promise<void> {
+    const base = await this.voiceBase(wsSlug, profileId, baseRevision);
+    const query = base === null ? "" : `?base_revision=${encodeURIComponent(base)}`;
+    return this.del(`/${wsSlug}/voice-profiles/${profileId}${query}`);
+  }
+
+  private async voiceBase(
+    wsSlug: string,
+    profileId: string,
+    baseRevision: string | null | undefined,
+  ): Promise<string | null> {
+    if (baseRevision !== undefined) return baseRevision;
+    return (await this.getVoiceProfile(wsSlug, profileId)).revision ?? null;
   }
 
   async checkBrandProfile(wsSlug: string, profileId: string): Promise<unknown> {
@@ -1148,6 +1188,8 @@ export async function deviceAuth(
   email = "admin@example.com",
   name = "Demo User",
 ): Promise<string> {
+  // Before any request, a token included: these suites delete data.
+  await requireDisposableStack(baseUrl);
   // Fast path: pre-supplied token.
   const preSupplied = process.env.BOWRAIN_TOKEN;
   if (preSupplied) return preSupplied;

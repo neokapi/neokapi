@@ -11,11 +11,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/core/keychain"
+
 	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 )
 
 // --- Backoff arithmetic ---
@@ -185,7 +186,7 @@ func TestCredentialsForKeepsAnExpiredTokenThatCanRefresh(t *testing.T) {
 func TestCredentialsForRejectsAnExpiredTokenWithNothingToRefreshIt(t *testing.T) {
 	// A fresh keychain: SaveAuth leaves an existing refresh entry for a server
 	// alone, and the mock keychain is shared by the whole package.
-	keyring.MockInit()
+	keychain.Reset()
 	tmpDir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 	require.NoError(t, config.SaveAuth(config.StoredAuth{

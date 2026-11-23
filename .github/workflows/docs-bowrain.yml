@@ -54,7 +54,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install workspace dependencies
-        run: vp install
+        run: vp install --frozen-lockfile
 
       # Bowrain docs videos and screenshots come from the harness on a desktop
       # against a running stack, which CI cannot reproduce. For push and

@@ -56,7 +56,7 @@ Outside a project and with no flag: same as --local (uses ./terms.db).`,
 	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, occurrencesCmd, statsCmd, expandCmd, validateCmd} {
 		AddResourceFlags(cmd)
 	}
-	// The project's terms are a subsystem of `.kapi/work/store.db`, not a file a
+	// The project's terms are a subsystem of `work/store.db` in the checkout's state directory, not a file a
 	// caller can name, so with no resource flag these resolve the project,
 	// and -p is how you say WHICH, exactly as for every other project-aware
 	// verb. It also matters under KAPI_NO_PROJECT, where the upward walk is
@@ -396,7 +396,7 @@ func newTermsSearchCmd(a *App) *cobra.Command {
 
 // newTermsOccurrencesCmd answers where a term is actually used, by joining the
 // project's terms against the text of its extracted blocks: one query inside
-// `.kapi/work/store.db`, with no server and no account.
+// `work/store.db` in the checkout's state directory, with no server and no account.
 func newTermsOccurrencesCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "occurrences [term-or-concept]",

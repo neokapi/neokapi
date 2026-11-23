@@ -1,0 +1,11 @@
+# Marks the local stack as a disposable test stack, the one kind of stack the
+# e2e suites run against: they delete every project in the workspace they use
+# and refuse a server that does not report itself disposable on
+# /api/v1/health (bowrain/e2e/shared/disposable-stack.ts). Only
+# `make -C bowrain stack-up-disposable` reads this file. The shared stack that
+# `stack-up` and `stack-up-e2e` start never does, and no shell variable or
+# .env file can mark it.
+services:
+  bowrain-server:
+    environment:
+      BOWRAIN_DISPOSABLE_STACK: "1"

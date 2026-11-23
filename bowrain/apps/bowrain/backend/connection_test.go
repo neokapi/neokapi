@@ -11,7 +11,6 @@ import (
 	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 )
 
 // --- GetDefaultServerURL tests ---
@@ -38,12 +37,12 @@ func TestGetDefaultServerURLTrimsTrailingSlash(t *testing.T) {
 //
 // Desktop credentials now persist through the shared host/venue/config store
 // (keychain service "kapi", URL-namespaced keys, metadata at
-// $BOWRAIN_CONFIG_DIR/auth.json) — the same scheme the kapi CLI uses, which is
+// $BOWRAIN_CONFIG_DIR/auth.json), the same scheme the kapi CLI uses, which is
 // what makes a desktop login and a CLI login mutually visible. These tests
 // exercise that shared store via the desktop's loadDesktopAuth wrapper.
 
 func TestSaveAndLoadDesktopAuth(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	tmpDir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
@@ -85,7 +84,7 @@ func TestLoadDesktopAuthMissing(t *testing.T) {
 }
 
 func TestSaveDesktopAuthPermissions(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	tmpDir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
@@ -115,7 +114,7 @@ func TestSaveDesktopAuthPermissions(t *testing.T) {
 }
 
 func TestDesktopAuthJSONFormat(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	tmpDir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
@@ -150,7 +149,7 @@ func TestDesktopAuthJSONFormat(t *testing.T) {
 // desktop-only keychain scheme ("bowrain" service + bowrain-desktop/auth.json)
 // into the shared host/venue/config store.
 func TestMigrateLegacyDesktopAuth(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	legacyDir := t.TempDir()
 	sharedDir := t.TempDir()
 	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", legacyDir)
@@ -253,7 +252,7 @@ func TestDisconnectEmitsStateChange(t *testing.T) {
 }
 
 func TestLogoutRemovesAuthFile(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	tmpDir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
@@ -293,7 +292,7 @@ func TestConnectToServerNoStoredAuth(t *testing.T) {
 }
 
 func TestConnectToServerExpiredToken(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	tmpDir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
@@ -348,7 +347,7 @@ func TestHandleDeepLinkMissingID(t *testing.T) {
 }
 
 func TestTryAutoConnectExpiredAuth(t *testing.T) {
-	keyring.MockInit()
+	keychain.Reset()
 	tmpDir := t.TempDir()
 	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 

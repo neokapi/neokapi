@@ -192,6 +192,9 @@ the kapi process environment:
   without this, an in-repo kapi still picks up Homebrew-installed plugins.
   `kapi plugin install` and `update` then write to the first `$KAPI_PLUGINS_DIR`
   entry, and refuse to run when it is empty.
+- `KAPI_PARSE_CACHE_DIR=` (empty), so the parse cache stays in each checkout's
+  own state directory rather than a directory the developer exported. A test
+  binary honours the variable only beneath `os.TempDir()`.
 
 Already wired: the Makefile's shared `$(KAPI_ISO_ENV)` prefix, `kapi/e2e`'s
 `isoEnv` in `TestMain`, and `harness/` (sandboxes in `os.tmpdir()` via
