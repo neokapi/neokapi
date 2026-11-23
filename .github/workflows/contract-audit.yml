@@ -25,9 +25,9 @@ on:
         required: false
         default: "v1.48.0"
       filters:
-        description: "Comma-separated Okapi filter modules to audit. Defaults to every module a format spec references."
+        description: "Comma-separated Okapi filter modules to audit (e.g. html,json), or all."
         required: false
-        default: "html,table,json,markdown,messageformat,openoffice,openxml,plaintext,po,properties,tmx,ts,subtitles,xliff,xliff2,xmlstream,yaml"
+        default: "all"
 
 permissions:
   contents: read
@@ -47,11 +47,11 @@ jobs:
       # blocked even though only contributors with write access can
       # trigger this workflow.
       OKAPI_REF: ${{ inputs.okapi_ref || 'v1.48.0' }}
-      # Every Okapi filter module a format spec under core/formats references
-      # (csv is Okapi's table module, odf its openoffice, vtt its subtitles,
-      # xml its xmlstream). A spec whose module is not here has its okapi_refs
-      # reported as NOT CHECKED rather than read as drift.
-      FILTERS: ${{ inputs.filters || 'html,table,json,markdown,messageformat,openoffice,openxml,plaintext,po,properties,tmx,ts,subtitles,xliff,xliff2,xmlstream,yaml' }}
+      # Every Okapi filter module by default. A format's references can name
+      # tests in several modules (the XML formats name the its module's
+      # XMLFilterTest), so a partial run leaves some unchecked; the audit names
+      # them as NOT CHECKED rather than reading them as drift.
+      FILTERS: ${{ inputs.filters || 'all' }}
     steps:
       - name: Checkout neokapi
         uses: actions/checkout@v7
@@ -86,13 +86,17 @@ jobs:
 
       - name: Run mvn test for selected filter modules
         # The modules in FILTERS, in one reactor so their shared dependencies
-        # build once. Every module a spec references takes about two minutes.
+        # build once.
         # A test failure is recorded in the reports and does not stop the run;
         # a module that does not build leaves no reports, and the audit names
         # its references as not checked.
         working-directory: okapi-java
         run: |
-          modules="$(echo "$FILTERS" | tr ',' '\n' | sed 's|^|okapi/filters/|' | paste -sd, -)"
+          if [ "$FILTERS" = all ]; then
+            modules="$(find okapi/filters -mindepth 2 -maxdepth 2 -name pom.xml -printf '%h\n' | sort | paste -sd, -)"
+          else
+            modules="$(echo "$FILTERS" | tr ',' '\n' | sed 's|^|okapi/filters/|' | paste -sd, -)"
+          fi
           echo "::group::mvn test -pl $modules"
           mvn -B -DfailIfNoTests=false test -pl "$modules" -am || true
           echo "::endgroup::"
