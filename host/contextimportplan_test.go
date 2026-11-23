@@ -47,7 +47,7 @@ func TestPlanProjectContextImport_ListsWhatItWouldReadAndWritesNothing(t *testin
 
 	again, err := a.PlanProjectContextImport(ctx, recipe, ContextImportRequest{})
 	require.NoError(t, err)
-	assert.Equal(t, len(plan.Sources), len(again.Sources), "planning read nothing in")
+	assert.Len(t, again.Sources, len(plan.Sources), "planning read nothing in")
 
 	res, err := a.ImportProjectContext(ctx, recipe, ContextImportRequest{Shown: &plan})
 	require.NoError(t, err)
