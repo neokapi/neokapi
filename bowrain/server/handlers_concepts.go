@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -44,6 +45,7 @@ func (s *Server) registerConceptRoutes(g *echo.Group) {
 
 	// Import/export.
 	g.POST("/concepts/import/csv", s.HandleImportConceptsCSV)
+	g.GET("/concepts/imports", s.HandleListConceptImports)
 	g.POST("/concepts/import/json", s.HandleImportConceptsJSON)
 	g.GET("/concepts/export/json", s.HandleExportConceptsJSON)
 
@@ -1130,7 +1132,7 @@ func (s *Server) HandleImportConceptsCSV(c *echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	return s.importConcepts(c, tb, rows, sqlterms.ImportSourceKey("", req.Source, []byte(req.CSVContent)))
+	return s.importConcepts(c, tb, rows, req.Source, req.UpdateOf)
 }
 
 // importConceptsResponse is what an import did: Imported counts the concepts
@@ -1139,22 +1141,66 @@ func (s *Server) HandleImportConceptsCSV(c *echo.Context) error {
 type importConceptsResponse struct {
 	Imported int `json:"imported"`
 	sqlterms.ImportReport
+	// Import is the id of the import the rows were written as, which a later
+	// import names to update them.
+	Import string `json:"import"`
 }
 
 // importConcepts writes the rows of a terms file (sqlterms.ImportRows) and
 // answers with what it did. Conflicts do not fail the import: the rows
 // around them are applied.
-func (s *Server) importConcepts(c *echo.Context, tb sqlterms.Store, rows []terms.ImportRow, sourceKey string) error {
-	wsID, _ := c.Get("workspace_id").(string)
-	src := sqlterms.ImportSource{Key: sourceKey}
-	if wsID != "" {
-		src.Origin = sqlterms.ExportOrigin(wsID)
+//
+// Each import gets an id the server mints, recorded on every concept it
+// writes. An import changes concepts an earlier one wrote only when the
+// person names that import in updateOf (HandleListConceptImports lists
+// them); the file name is shown beside the import and decides nothing.
+func (s *Server) importConcepts(c *echo.Context, tb sqlterms.Store, rows []terms.ImportRow, fileName, updateOf string) error {
+	ctx := c.Request().Context()
+	if fileName == "" && len(rows) > 0 {
+		fileName = rows[0].Document
 	}
-	report, err := sqlterms.ImportRows(c.Request().Context(), tb, rows, src)
+	src := sqlterms.ImportSource{
+		ID:   "import-" + id.New(),
+		Name: fileName,
+		By:   authorIdentity(c),
+		At:   sessionNow().UTC().Format(time.RFC3339Nano),
+	}
+	if updateOf != "" {
+		earlier, err := sqlterms.Imports(ctx, tb)
+		if err != nil {
+			return serverErr(c, err)
+		}
+		if !slices.ContainsFunc(earlier, func(r sqlterms.ImportRecord) bool { return r.ID == updateOf }) {
+			return c.JSON(http.StatusNotFound, ErrorResponse{Error: "update_of names no import whose concepts the workspace holds"})
+		}
+		src.ID = updateOf
+	}
+	report, err := sqlterms.ImportRows(ctx, tb, rows, src)
 	if err != nil {
 		return serverErr(c, err)
 	}
-	return c.JSON(http.StatusOK, importConceptsResponse{Imported: report.Imported(), ImportReport: report})
+	return c.JSON(http.StatusOK, importConceptsResponse{Imported: report.Imported(), ImportReport: report, Import: src.ID})
+}
+
+// HandleListConceptImports lists the earlier imports whose concepts the
+// workspace holds, with the file name, who ran each and when, so a person
+// can name one as the import a new file updates.
+func (s *Server) HandleListConceptImports(c *echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
+		return err
+	}
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+	tb, err := s.wsStores.getTerms(c.Request().Context(), c.Param("ws"))
+	if err != nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
+	}
+	imports, err := sqlterms.Imports(c.Request().Context(), tb)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusOK, imports)
 }
 
 // HandleImportConceptsJSON imports concepts from JSON.
@@ -1178,11 +1224,7 @@ func (s *Server) HandleImportConceptsJSON(c *echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	declared := ""
-	if len(rows) > 0 {
-		declared = rows[0].Document
-	}
-	return s.importConcepts(c, tb, rows, sqlterms.ImportSourceKey(declared, req.Source, []byte(req.JSONContent)))
+	return s.importConcepts(c, tb, rows, req.Source, req.UpdateOf)
 }
 
 // HandleExportConceptsJSON exports the workspace concepts as JSON.
@@ -1197,27 +1239,32 @@ func (s *Server) HandleExportConceptsJSON(c *echo.Context) error {
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	var buf strings.Builder
-	if err := terms.ExportJSON(c.Request().Context(), tb, &buf, c.QueryParam("name")); err != nil {
-		return serverErr(c, err)
-	}
-	// The file says where it came from and the revision each concept had,
-	// so importing it back here updates each concept at that revision
-	// (sqlterms.ImportRows) and reports one that changed since.
-	var doc terms.JSONStore
-	if err := json.Unmarshal([]byte(buf.String()), &doc); err != nil {
-		return serverErr(c, err)
-	}
-	ids := make([]string, len(doc.Concepts))
-	for i, cp := range doc.Concepts {
-		ids[i] = cp.ID
-	}
-	revs, err := tb.ConceptRevisions(c.Request().Context(), ids)
+	// The file carries the revision each concept had, so importing it back
+	// applies each concept as an edit at that revision (sqlterms.ImportRows)
+	// and reports one that changed since. The revisions are read before the
+	// content: a write landing between the two leaves a revision older than
+	// the content exported, which the import then refuses, so no revision
+	// ever vouches for content the file does not hold.
+	ctx := c.Request().Context()
+	all, err := tb.Concepts(ctx)
 	if err != nil {
 		return serverErr(c, err)
 	}
-	if wsID, _ := c.Get("workspace_id").(string); wsID != "" {
-		doc.Origin = sqlterms.ExportOrigin(wsID)
+	ids := make([]string, len(all))
+	for i, cp := range all {
+		ids[i] = cp.ID
+	}
+	revs, err := tb.ConceptRevisions(ctx, ids)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	var buf strings.Builder
+	if err := terms.ExportJSON(ctx, tb, &buf, c.QueryParam("name")); err != nil {
+		return serverErr(c, err)
+	}
+	var doc terms.JSONStore
+	if err := json.Unmarshal([]byte(buf.String()), &doc); err != nil {
+		return serverErr(c, err)
 	}
 	doc.Revisions = revs
 	return c.JSON(http.StatusOK, doc)

@@ -29,11 +29,10 @@ type ImportRow struct {
 	SourceTerm   string
 	SourceLocale model.LocaleID
 	// Document is the name the file declares for itself (a JSON file's
-	// name), and Origin and BaseRevision what a file exported from a store
-	// says about where it came from (JSONStore.Origin, Revisions). Empty for
-	// a file that says nothing.
+	// name), for display. BaseRevision is the revision the concept had when
+	// the file was exported (JSONStore.Revisions), empty when the file says
+	// none.
 	Document     string
-	Origin       string
 	BaseRevision string
 }
 
@@ -131,7 +130,7 @@ func ParseJSON(reader io.Reader) ([]ImportRow, error) {
 			continue
 		}
 		row := rowOf(i+1, concept)
-		row.Document, row.Origin = doc.Name, doc.Origin
+		row.Document = doc.Name
 		if row.IDGiven {
 			row.BaseRevision = doc.Revisions[concept.ID]
 		}

@@ -138,15 +138,19 @@ To load terms from a spreadsheet or a TBX file, import them into a project with
 
 An import into the workspace names each concept by its source term. An id in
 the file, such as a `concept_id` column or a TBX entry id, names a concept
-within that file only, so two files that both use `c1` keep two concepts.
-The import records which file each concept came from: the name a JSON file
-declares, else the file name you give, else the file's content.
+within that file only, so two files that both use `c1` for different terms
+keep two concepts.
 
-Importing the same file again changes nothing, and a changed row updates the
-concept that file imported. The import leaves a concept alone, and lists the
-row with the reason, when:
+Each import is recorded with the file name, who ran it and when. A new import
+changes no concept an earlier import wrote, even when the file has the same
+name. To change those concepts, import the new file as an update of the
+earlier import: pass that import's id as `update_of`. The workspace's
+`concepts/imports` route lists earlier imports with their ids. Importing the
+same content again changes nothing.
 
-- the concept came from another file, or nobody imported it;
+The import leaves a concept alone, and lists the row with the reason, when:
+
+- the concept belongs to another import, or nobody imported it;
 - the row's id also names a concept in the workspace;
 - the row's term already belongs to a different concept, which is a homonym;
 - a person edited the concept after it was last imported;
