@@ -17,7 +17,9 @@ needed, except by --sync-issues, which calls gh.
 titled "Gardening due: <id>", opened with what the item is for, the command
 and how overdue it is, or a short comment with the new count when one is
 open. An item that is done has its open issue closed, with a comment saying
-what was read. --no-close opens and comments only. GARDENER names a login to
+what was read; an open issue for an item no longer listed is closed too.
+Issues are matched by a hidden marker in the body, and a run comments at
+most once an ISO week per issue. --no-close opens and comments only. GARDENER names a login to
 assign new issues to; empty assigns nobody.
 
 This is a report: it never fails on what is due.
@@ -186,13 +188,35 @@ def print_report(results: list[dict], today: dt.date) -> None:
 
 
 # ── issues ───────────────────────────────────────────────────────────────
+#
+# An issue is matched by the hidden marker in its body, which carries the
+# item's id, within the `gardening` label; the title is for people and may be
+# edited. A reminder comment carries the ISO week it was written in, so a run
+# comments at most once a week per issue. An open issue whose marker names an
+# item no longer in the list is closed by the scheduled run.
+
+ITEM_MARK = re.compile(r"<!-- gardening-item: ([A-Za-z0-9_.-]+) -->")
+WEEK_MARK = re.compile(r"<!-- gardening-week: (\d{4}-W\d{2}) -->")
+
+
+def iso_week(day: dt.date) -> str:
+    year, week, _ = day.isocalendar()
+    return f"{year}-W{week:02d}"
+
+
+def item_mark(item_id: str) -> str:
+    return f"<!-- gardening-item: {item_id} -->"
+
+
+def week_mark(week: str) -> str:
+    return f"<!-- gardening-week: {week} -->"
 
 
 def gh(*args: str, check: bool = True) -> subprocess.CompletedProcess:
     return subprocess.run(["gh", *args], capture_output=True, text=True, check=check)
 
 
-def issue_body(r: dict) -> str:
+def issue_body(r: dict, week: str, origin: str) -> str:
     lines = [r["purpose"], "", f"**Run:** {r['run']}", "", f"**Status:** {overdue_text(r)}. {r['reason']}."]
     for d in r.get("details") or []:
         lines.append(f"- {d}")
@@ -200,40 +224,94 @@ def issue_body(r: dict) -> str:
         lines += ["", f"**Needs:** {r['needs']}."]
     lines += ["", "The work is local; this issue is a reminder. The weekly Gardening workflow comments here while "
               "the item is due and closes the issue when it reads the item as done "
-              "(docs/internals/gardening.yaml)."]
+              "(docs/internals/gardening.yaml)." + origin, "", item_mark(r["id"]), week_mark(week)]
     return "\n".join(lines)
 
 
-def sync_issues(results: list[dict], close: bool, gardener: str, origin: str) -> int:
+def plan(results: list[dict], issues: list[dict], week: str, close: bool, origin: str = "") -> list[tuple]:
+    """The actions that bring the open `gardening` issues in line with results.
+
+    issues: the open issues with the label, each {number, title, body,
+    comments: [body, ...]}. Returns tuples: ("mark", number, new_body),
+    ("open", id, title, body), ("comment", number, body), ("close", number,
+    comment), ("note", text).
+    """
+    actions: list[tuple] = []
+    listed = {r["id"] for r in results}
+    by_id: dict[str, dict] = {}
+    for issue in issues:
+        m = ITEM_MARK.search(issue.get("body") or "")
+        if m:
+            by_id.setdefault(m.group(1), issue)
+            continue
+        # Migration, once: an issue opened before markers existed is matched
+        # by its exact original title and given the marker.
+        for item_id in listed:
+            if issue.get("title") == TITLE.format(item_id) and item_id not in by_id:
+                body = (issue.get("body") or "") + "\n\n" + item_mark(item_id)
+                actions.append(("mark", issue["number"], body))
+                by_id[item_id] = {**issue, "body": body}
+                break
+    for r in results:
+        issue = by_id.get(r["id"])
+        if r["due"]:
+            if issue is None:
+                actions.append(("open", r["id"], TITLE.format(r["id"]), issue_body(r, week, origin)))
+                continue
+            texts = [issue.get("body") or ""] + list(issue.get("comments") or [])
+            if any(week in WEEK_MARK.findall(t) for t in texts):
+                actions.append(("note", f"#{issue['number']} ({r['id']}): already reminded in {week}"))
+                continue
+            actions.append(("comment", issue["number"],
+                            f"Still due: {overdue_text(r)}. {r['reason']}.{origin}\n\n{week_mark(week)}"))
+        elif issue is not None:
+            if close:
+                actions.append(("close", issue["number"], f"Done: read {r['read']} ({r['reason']}). Closing."))
+            else:
+                actions.append(("note", f"#{issue['number']} ({r['id']}) reads as done; a dispatch does not close it"))
+    for item_id, issue in by_id.items():
+        if item_id in listed:
+            continue
+        if close:
+            actions.append(("close", issue["number"],
+                            f"`{item_id}` was removed from docs/internals/gardening.yaml, so nothing reminds about it any more. Closing."))
+        else:
+            actions.append(("note", f"#{issue['number']} names `{item_id}`, which is no longer listed; a dispatch does not close it"))
+    return actions
+
+
+def sync_issues(results: list[dict], close: bool, gardener: str, origin: str, today: dt.date) -> int:
     gh("label", "create", LABEL, "--force", "--color", "0E8A16",
        "--description", "Local upkeep that is due; closed when it is done")
-    listed = json.loads(gh("issue", "list", "--label", LABEL, "--state", "open", "--limit", "200",
-                           "--json", "number,title").stdout)
-    open_by_title = {i["title"]: i["number"] for i in listed}
-    for r in results:
-        title = TITLE.format(r["id"])
-        number = open_by_title.get(title)
-        if r["due"]:
-            if number is None:
-                args = ["issue", "create", "--title", title, "--label", LABEL, "--body", issue_body(r) + origin]
-                made = gh(*args, *(["--assignee", gardener] if gardener else []), check=False)
-                if made.returncode != 0 and gardener:
-                    print(f"::warning::could not assign {title} to {gardener}: {made.stderr.strip()}; opening it unassigned")
-                    made = gh(*args, check=False)
-                if made.returncode != 0:
-                    print(f"::error::could not open {title}: {made.stderr.strip()}")
-                    return 1
-                print(f"opened {made.stdout.strip()} ({r['id']}: {overdue_text(r)})")
-            else:
-                gh("issue", "comment", str(number), "--body", f"Still due: {overdue_text(r)}. {r['reason']}.{origin}")
-                print(f"commented on #{number} ({r['id']}: {overdue_text(r)})")
-        elif number is not None:
-            if close:
-                gh("issue", "comment", str(number), "--body", f"Done: read {r['read']} ({r['reason']}). Closing.")
-                gh("issue", "close", str(number))
-                print(f"closed #{number} ({r['id']}: {r['reason']})")
-            else:
-                print(f"#{number} ({r['id']}) reads as done; a dispatch does not close it")
+    raw = json.loads(gh("issue", "list", "--label", LABEL, "--state", "open", "--limit", "200",
+                        "--json", "number,title,body,comments").stdout)
+    issues = [{"number": i["number"], "title": i["title"], "body": i.get("body") or "",
+               "comments": [c.get("body") or "" for c in i.get("comments") or []]} for i in raw]
+    for action in plan(results, issues, iso_week(today), close, origin):
+        kind = action[0]
+        if kind == "mark":
+            gh("issue", "edit", str(action[1]), "--body", action[2])
+            print(f"marked #{action[1]}")
+        elif kind == "open":
+            _, item_id, title, body = action
+            args = ["issue", "create", "--title", title, "--label", LABEL, "--body", body]
+            made = gh(*args, *(["--assignee", gardener] if gardener else []), check=False)
+            if made.returncode != 0 and gardener:
+                print(f"::warning::could not assign {title} to {gardener}: {made.stderr.strip()}; opening it unassigned")
+                made = gh(*args, check=False)
+            if made.returncode != 0:
+                print(f"::error::could not open {title}: {made.stderr.strip()}")
+                return 1
+            print(f"opened {made.stdout.strip()} ({item_id})")
+        elif kind == "comment":
+            gh("issue", "comment", str(action[1]), "--body", action[2])
+            print(f"commented on #{action[1]}")
+        elif kind == "close":
+            gh("issue", "comment", str(action[1]), "--body", action[2])
+            gh("issue", "close", str(action[1]))
+            print(f"closed #{action[1]}")
+        else:
+            print(action[1])
     return 0
 
 
@@ -297,6 +375,7 @@ def self_test() -> int:
         gone = check_format_ops(root, "docs/internals/missing-ledger.json", today)
         if not gone["due"] or "missing" not in gone["read"]:
             failures.append(f"format-ops missing ledger must be due: {gone}")
+    failures += plan_self_test()
     if failures:
         print("gardening-due self-test: FAIL")
         for f in failures:
@@ -304,6 +383,62 @@ def self_test() -> int:
         return 1
     print("gardening-due self-test: OK")
     return 0
+
+
+def plan_self_test() -> list[str]:
+    failures = []
+    week = "2026-W48"
+    due = {"id": "prices", "due": True, "purpose": "p", "run": "r", "needs": "", "reason": "x",
+           "overdue_days": 5, "read": "f"}
+    done = {**due, "id": "catalog", "due": False}
+    marked = {"number": 1, "title": "Edited by someone", "body": "text\n" + item_mark("prices"), "comments": []}
+
+    def kinds(actions):
+        return [(a[0], a[1]) for a in actions]
+
+    # A renamed issue is still found by its marker: a comment, no duplicate.
+    got = kinds(plan([due], [marked], week, close=True))
+    if got != [("comment", 1)]:
+        failures.append(f"renamed issue: {got}")
+    # At most once a week: a reminder already written this week is not repeated.
+    seen = {**marked, "comments": ["Still due\n\n" + week_mark(week)]}
+    got = kinds(plan([due], [seen], week, close=True))
+    if got[0][0] != "note" or len(got) != 1:
+        failures.append(f"second run in a week: {got}")
+    opened_now = {**marked, "body": marked["body"] + "\n" + week_mark(week)}
+    if kinds(plan([due], [opened_now], week, close=True))[0][0] != "note":
+        failures.append("an issue opened this week is not reminded again the same week")
+    last_week = {**marked, "comments": [week_mark("2026-W47")]}
+    if kinds(plan([due], [last_week], week, close=True)) != [("comment", 1)]:
+        failures.append("a reminder from last week does not stop this week's")
+    # A removed item's issue is closed by the schedule, not by a dispatch.
+    gone = {"number": 2, "title": "t", "body": item_mark("retired"), "comments": []}
+    got = plan([due], [marked, gone], week, close=True)
+    if ("close", 2) not in kinds(got) or "removed" not in [a for a in got if a[:2] == ("close", 2)][0][2]:
+        failures.append(f"removed item: {got}")
+    if ("close", 2) in kinds(plan([due], [marked, gone], week, close=False)):
+        failures.append("a dispatch closed a removed item's issue")
+    # Done closes on the schedule only; a due item with no issue opens one,
+    # carrying both markers.
+    got = plan([done], [{"number": 3, "title": "x", "body": item_mark("catalog"), "comments": []}], week, close=True)
+    if kinds(got) != [("close", 3)]:
+        failures.append(f"done item: {got}")
+    got = plan([due], [], week, close=True)
+    if kinds(got) != [("open", "prices")] or item_mark("prices") not in got[0][3] or week_mark(week) not in got[0][3]:
+        failures.append(f"open: {got}")
+    # Migration: an unmarked issue with the exact original title gets the
+    # marker once; one with another title is left alone.
+    legacy = {"number": 4, "title": TITLE.format("prices"), "body": "old", "comments": []}
+    got = plan([due], [legacy], week, close=True)
+    if kinds(got) != [("mark", 4), ("comment", 4)] or item_mark("prices") not in got[0][2]:
+        failures.append(f"migration: {got}")
+    stranger = {"number": 5, "title": "Gardening due: prices (renamed)", "body": "old", "comments": []}
+    got = kinds(plan([due], [stranger], week, close=True))
+    if got != [("open", "prices")]:
+        failures.append(f"an unmarked issue with another title must not match: {got}")
+    if iso_week(dt.date(2026, 11, 23)) != "2026-W48" or iso_week(dt.date(2027, 1, 1)) != "2026-W53":
+        failures.append("iso_week")
+    return failures
 
 
 def main() -> int:
@@ -327,7 +462,8 @@ def main() -> int:
         origin = ""
         if args.no_close:
             origin = "\n\n(From a dispatch of the Gardening workflow.)"
-        return sync_issues(results, close=not args.no_close, gardener=os.environ.get("GARDENER", "").strip(), origin=origin)
+        return sync_issues(results, close=not args.no_close, gardener=os.environ.get("GARDENER", "").strip(),
+                           origin=origin, today=today)
     return 0
 
 
