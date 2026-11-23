@@ -34,7 +34,8 @@ recipe's hooks: block, which is a different (and unimplemented) mechanism.`,
 	cmd.AddCommand(newHookStopCmd(a))
 	cmd.AddCommand(newHookPreEditCmd(a))
 	cmd.AddCommand(newHookPostEditCmd(a))
-	return cmd
+	// Hidden from the root help, and listed in the command reference.
+	return ListInReference(cmd)
 }
 
 // newHookStopCmd implements the Claude Code `Stop` hook: it runs the current

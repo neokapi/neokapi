@@ -548,7 +548,7 @@ the gate evaluates the drafts, and delivery prints what it would commit for
 each locale that clears its gate; a held-back locale is named and prints nothing.
 A printing run records no change, absorbs nothing into the content memory and
 stamps nothing. As any pass does, it extracts the source into the derived store
-and caches under `.kapi/work`, and records the identity of a document it reads
+and caches under the checkout's `work/`, and records the identity of a document it reads
 for the first time (`document.adopt`). In a
 project a `kapi translate`, `pseudo-translate` or `run` without `-o` writes no
 file, and prints nothing with a note.

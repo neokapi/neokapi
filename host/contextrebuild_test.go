@@ -129,6 +129,7 @@ func TestRebuildFromAMixedLogEqualsTheIncrementalState(t *testing.T) {
 	})
 	data, err := ktb.Marshal(bundle)
 	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".kapi", ktb.ConventionalName), data, 0o600))
 	imported, err := app.ImportProjectContext(ctx, recipeOf(root), ContextImportRequest{})
 	require.NoError(t, err)

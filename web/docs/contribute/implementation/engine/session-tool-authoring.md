@@ -206,7 +206,7 @@ constructs the one it wants and hands it to the executor:
   not Persistent.
 - `sqlitestore.New(path)` / `sqlitestore.NewFromDB(db, …)`
   (`core/blockstore/sqlitestore`): the SQLite-backed store, in a kapi project the
-  block-cache tables of `.kapi/work/store.db`. The default for kapi projects.
+  block-cache tables of the checkout's `work/store.db`. The default for kapi projects.
   Full ACID, persistent across runs. The browser build runs the same store on
   SQLite's WebAssembly build.
 - `NewFormatReaderStore(factory)`: wraps a `format.DataFormatReader` factory as

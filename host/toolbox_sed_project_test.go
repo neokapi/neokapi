@@ -14,6 +14,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 )
 
 // sedProjectRecipe declares Markdown documents, text notes bound to the
@@ -175,17 +176,17 @@ func TestSedLocksAProjectFileWhereKapiApplyDoes(t *testing.T) {
 	prog, err := ParseSedProgram([]string{"s/shop/store/g"})
 	require.NoError(t, err)
 	require.NoError(t, app.RunSed(context.Background(), sedCommand(), []string{"docs/sub/guide.md"}, prog, SedOptions{InPlace: true}))
-	locks, err := os.ReadDir(filepath.Join(root, ".kapi", "work", "locks"))
+	locks, err := os.ReadDir(filepath.Join(project.LayoutAt(root).WorkDir(), "locks"))
 	require.NoError(t, err)
 	require.Len(t, locks, 1)
-	assert.FileExists(t, filepath.Join(root, ".kapi", ".gitignore"), "the lock directory is kept out of a commit")
+	assert.NoDirExists(t, filepath.Join(root, ".kapi"), "the lock directory is outside the checkout")
 	assert.NoDirExists(t, filepath.Join(DataDir(), "locks"), "no lock outside the project")
 
 	rec := recordOf(t, inspectJSONL(t, app, "docs/sub/guide.md"), "guide/p")
 	_, _, err = runApply(t, app, NewEnvCommand(t.Context(), "apply"),
 		changeSetOf(t, map[string]any{"op": "set_content", "at": rec.Ref, "if_match": rec.Rev, "text": "Visit the store now."}), ApplyOptions{})
 	require.NoError(t, err)
-	again, err := os.ReadDir(filepath.Join(root, ".kapi", "work", "locks"))
+	again, err := os.ReadDir(filepath.Join(project.LayoutAt(root).WorkDir(), "locks"))
 	require.NoError(t, err)
 	require.Len(t, again, 1)
 	assert.Equal(t, locks[0].Name(), again[0].Name(), "kapi apply takes the lock ksed took")

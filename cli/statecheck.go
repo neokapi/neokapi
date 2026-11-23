@@ -18,5 +18,12 @@ func CheckCommandState(cmd *cobra.Command) error {
 	if err != nil || path == "" {
 		return nil
 	}
-	return project.CheckStateTracked(cmd.Context(), project.LayoutAt(filepath.Dir(path)))
+	layout := project.LayoutAt(filepath.Dir(path))
+	if err := project.CheckStateTracked(cmd.Context(), layout); err != nil {
+		return err
+	}
+	// The one-time lines about this checkout's state: state kept for another
+	// folder at this location, and state an earlier kapi left inside it.
+	project.NoticeState(layout)
+	return nil
 }

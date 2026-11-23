@@ -84,9 +84,9 @@ type Options struct {
 	// nothing. A flow run that prints the change set it would apply
 	// (--print-ops) commits through such a home.
 	WriteNothing bool
-	// WriteUnder, with WriteNothing, names a directory whose files the home
-	// still writes as any home writes them: the private tree a printing
-	// convergence pass drafts into, which its delivery gate reads.
+	// WriteUnder names the private tree a convergence pass drafts into, which
+	// its delivery gate reads. The home writes beneath it as it writes beneath
+	// Root, through a root on it, and with WriteNothing it writes there alone.
 	WriteUnder string
 	// Materialize writes every edition file a change writes from the
 	// document's skeleton, the way kapi merge and kapi pull write a
@@ -225,7 +225,17 @@ func (h *Home) under(path string) (string, bool) {
 	if h == nil {
 		return "", false
 	}
-	return beneath(h.root, path)
+	if root, ok := beneath(h.root, path); ok {
+		return root, true
+	}
+	// The draft tree a convergence pass writes into is kapi's own, kept in
+	// the checkout's state directory outside the checkout, and is written
+	// through a root on it as the project is. A home with no root of its own
+	// writes that tree as named.
+	if h.root == "" {
+		return "", false
+	}
+	return beneath(h.writeUnder, path)
 }
 
 // openRead opens the file at path for reading. A file beneath the home's

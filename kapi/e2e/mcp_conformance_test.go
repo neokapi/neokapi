@@ -127,7 +127,7 @@ vocabulary:
 	// Retrieval and the gates read the project's own store rather than the
 	// committed files, so the fixture runs the import that puts the terms
 	// bundle and the voice profile there.
-	kapi(t, "store", "import", "-p", p.Recipe)
+	kapi(t, "store", "import", "--yes", "-p", p.Recipe)
 	return p
 }
 
@@ -206,7 +206,7 @@ collections:
 		Deprecated: deprecated,
 		Foreign:    foreign,
 	}
-	kapi(t, "store", "import", "-p", p.Recipe)
+	kapi(t, "store", "import", "--yes", "-p", p.Recipe)
 	return p
 }
 

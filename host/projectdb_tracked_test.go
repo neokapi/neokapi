@@ -34,6 +34,10 @@ func TestProjectDBAsksAgainAfterStateIsTracked(t *testing.T) {
 	t.Cleanup(a.Shutdown)
 	_, err := a.ProjectDB(t.Context(), root)
 	require.NoError(t, err)
+	// A repository that commits a store under .kapi/work.
+	in := filepath.Join(root, project.StateDirName, project.WorkDirName, project.StoreFileName)
+	require.NoError(t, os.MkdirAll(filepath.Dir(in), 0o755))
+	require.NoError(t, os.WriteFile(in, []byte("committed"), 0o644))
 	git("add", "-f", ".kapi/work/store.db")
 	_, err = a.ProjectDB(t.Context(), root)
 	require.ErrorContains(t, err, "git tracks .kapi/work")

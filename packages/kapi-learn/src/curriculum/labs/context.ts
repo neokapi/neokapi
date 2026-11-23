@@ -54,7 +54,7 @@ export const contextEngine: Lab = {
       title: "Read the context in",
       narration:
         "The context arrives as files in the repository: a voice profile, the terms, two content-memory bundles and a record of decisions a reviewer made earlier. Reading them in fills the right-hand side of the graph in one step, and the editions already show the share a person established.",
-      command: "kapi store import ./context",
+      command: "kapi store import ./context --yes",
       expect: ["54 recorded decisions", "content-memory entries"],
       notice: ["voice profile", "recorded decisions"],
       focus: "context",

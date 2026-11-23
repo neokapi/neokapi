@@ -17,7 +17,7 @@ var allowHostB = map[string]string{
 	"host/workhome.go:keptRedactionAt":              "the size and time of change of the recipe kapi resolved, before project.Load reads it by path",
 	"host/venue/project/recipe.go:LoadRecipe":       "the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), which venue/project.Load reads by path",
 	"host/workspace_project.go:fileExists":          "whether a folder named as the project (-p, the unpack destination, or an MCP call's project argument) holds kapi.yaml, which then loads as -p would",
-	"host/workspaceinfo.go:fileSize":                "stats the recipe of a layout LayoutFor checked, the project store under Layout.CheckState, which refuses any link or irregular file beneath .kapi/, or the .kpz named on the command line",
+	"host/workspaceinfo.go:fileSize":                "stats the recipe of a layout LayoutFor checked, the project store in the checkout's state directory under the data root, or the .kpz named on the command line",
 	"host/workspace_project.go:reconstituteProject": "the folder beside the .kpz named on the command line that unpack makes for the recipe it carries",
 
 	// A path a person named on the command line.
@@ -52,12 +52,12 @@ var allowHostB = map[string]string{
 	"host/workspace_project.go:statThrough":     "a path named on the command line that lies beneath no project root; one beneath it is asked through the root",
 
 	// kapi's own files in the project state directory.
-	"host/merge.go:restoreRedactedBlocks":  "the batch vault in .kapi/vault of a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/; the batch ID is checked as one path segment",
-	"host/projectstore.go:ProjectDB":       "stats the project store after ProjectDB runs Layout.CheckState, which refuses any link or irregular file beneath .kapi/, or a draft's state under the data directory",
-	"host/redactpolicy.go:ensureVaultDir":  "creates the vault's directory: .kapi/vault, which every caller prepared with PrepareVault (EnsureLocalDir runs Layout.CheckState, which refuses any link or irregular file beneath .kapi/), beside the .kpz a person named with --out, or a temp dir the caller made",
-	"host/workhome_redact.go:valuesFor":    "the project vault of a layout keptRedactionAt checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/ before newRecordRedaction prepared it",
-	"host/workspace.go:copyContentToFile":  "writes a package member into the .kpz shadow cache in the user cache directory under its base name, or a skeleton into the unpack batch directory, which EnsureExtractionDir created after Layout.CheckState, which refuses any link or irregular file beneath .kapi/, named by a hash checked as one path segment",
-	"host/venue/project/synccache.go:Save": "writes the sync cache into .kapi/sync after EnsureLocalDir ran Layout.CheckState, which refuses any link or irregular file beneath .kapi/, and removes the copy at its old path as the name it is",
+	"host/merge.go:restoreRedactedBlocks":  "the batch vault in the checkout's vault under the data root (Layout.LocalStateDir), which no checkout supplies; the batch ID is checked as one path segment",
+	"host/projectstore.go:ProjectDB":       "stats the project store in the checkout's state directory under the data root (Layout.LocalStateDir), which no checkout supplies, or a draft's state under the data directory",
+	"host/redactpolicy.go:ensureVaultDir":  "creates the vault's directory in the checkout's state directory under the data root, which every caller prepared with PrepareVault and no checkout supplies",
+	"host/workhome_redact.go:valuesFor":    "the project vault in the checkout's state directory under the data root (Layout.LocalStateDir), which no checkout supplies, prepared by newRecordRedaction",
+	"host/workspace.go:copyContentToFile":  "writes a package member into the .kpz shadow cache in the user cache directory under its base name, or a skeleton into the unpack batch directory, which EnsureExtractionDir created in the checkout's state directory under the data root, which no checkout supplies",
+	"host/venue/project/synccache.go:Save": "writes the sync cache into the checkout's sync directory under the data root (Layout.LocalStateDir), which no checkout supplies, and removes the copy at its old path in the same state directory",
 
 	// System locations.
 	"host/modelassets.go:EnsureModel":                        "the model asset cache under the user cache directory",

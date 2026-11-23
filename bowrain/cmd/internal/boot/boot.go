@@ -26,6 +26,20 @@ func AllowInsecureDevFromEnv() bool {
 	return false
 }
 
+// DisposableStackEnv marks a server as a disposable test stack: one whose data
+// the e2e suites may delete wholesale. The server reports it on /api/v1/health,
+// and the suites refuse any server that does not.
+const DisposableStackEnv = "BOWRAIN_DISPOSABLE_STACK"
+
+// DisposableStackFromEnv reports whether BOWRAIN_DISPOSABLE_STACK is set.
+func DisposableStackFromEnv() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(DisposableStackEnv))) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
+}
+
 // ValidatePostgresURL checks that url is a non-empty postgres:// or
 // postgresql:// connection string. name identifies the setting in the error
 // message (e.g. "BOWRAIN_DATABASE_URL").
@@ -45,8 +59,8 @@ func ValidatePostgresURL(name, url string) error {
 // are fatal misconfigurations in production, so callers must abort unless
 // the insecure-dev escape hatch is explicitly set.
 //
-// A non-empty but malformed database URL is not reported here — that is
-// always fatal (see ValidatePostgresURL) and never excusable as dev mode.
+// ValidatePostgresURL reports a non-empty but malformed database URL, which
+// is always fatal and never excusable as dev mode.
 func MissingServerConfig(jwtSecret, databaseURL string) []error {
 	var missing []error
 	if jwtSecret == "" {

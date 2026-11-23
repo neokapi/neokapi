@@ -18,29 +18,23 @@ import (
 
 // The arm that has to fetch its own context.
 //
-// Two arms answer one question: does this guide change the writing? They cannot
-// answer the one the product makes — that an assistant plugged into kapi ends up
-// with the right context — because the harness put the guide in the prompt
-// itself. Nothing in the session shows the agent asking, because it never asked.
+// Two arms test whether the guide changes the writing. They cannot test whether
+// an assistant plugged into kapi finds the right context, because the harness
+// puts the guide in the prompt. A third arm gets the repository, the task, the
+// kapi skill and a project with a bound voice, and no guide. Whether it fetches
+// the voice is recorded (AgentRun.KapiCommands) beside what it wrote.
 //
-// So a third arm gets the repository, the same task, the kapi skill, and a
-// project with a voice bound to it. No guide in its prompt. It has to notice
-// that the project governs its wording and go and get it. Whether it does is
-// recorded (AgentRun.KapiCommands) beside what it wrote.
-//
-// With three arms the two failures are separable: prose no better than bare with
-// the guide fetched is context that did not help, and prose no better than bare
-// with nothing fetched is a loop that did not close. One arm cannot tell those
-// apart, and they have opposite fixes.
+// Prose no better than bare with the guide fetched means the context did not
+// help; with nothing fetched, the loop did not close. The fixes are opposite.
 
 // pullProject is the recipe the pulled arm's workspace carries.
 //
 // A voice bound at the project's default point, which is what `kapi voice show`
 // with no flags resolves and what the skill tells an assistant to run. The
-// profile beside it is this point's profile ALREADY RESOLVED (see
-// writePulledProject): a real project would resolve the persona from where the
-// file sits, and one lab run is one point, so the resolution is done when the
-// workspace is built rather than left for the agent to name a flag for.
+// profile beside it is this point's profile, already resolved (see
+// writePulledProject). A real project resolves the persona from where the file
+// sits. One lab run is one point, so the workspace is built with the resolution
+// done, and the agent names no flag for it.
 //
 // The voice is bound by name, the id the profile carries (pullProfileID); the
 // store answers for it once `kapi store import` has read `.kapi/voice.yaml`,
@@ -159,7 +153,7 @@ func writePulledProject(tree string, profile *coreprofile.VoiceProfile) error {
 func importPulledContext(ctx context.Context, kapiBin, home, tree string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, kapiBin, "store", "import", "-p", filepath.Join(tree, "kapi.yaml"))
+	cmd := exec.CommandContext(ctx, kapiBin, "store", "import", "--yes", "-p", filepath.Join(tree, "kapi.yaml"))
 	cmd.Dir = tree
 	cmd.Env = append(append(agentEnv(), pullEnv(home, tree)...), "KAPI_ACTOR=person")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -240,7 +234,7 @@ func checkPull(ctx context.Context, root, kapiBin string, profile *coreprofile.V
 //
 // KAPI_NO_PROJECT would defeat the arm: it opts out of discovery, and discovery
 // is the thing being measured. The contract is met the other way, by naming the
-// project explicitly — KAPI_PROJECT is consulted before the upward walk, so no
+// project explicitly. KAPI_PROJECT is consulted before the upward walk, so no
 // walk happens and this cannot bind to the repository's own dogfood recipe. The
 // throwaway config, plugin and cache roots are unchanged. See CLAUDE.md.
 func pullEnv(home, tree string) []string {
@@ -257,7 +251,7 @@ func pullEnv(home, tree string) []string {
 // kapiOnlyBin returns a directory holding one command.
 //
 // The obvious thing is to put bin/ on PATH, and bin/ is every binary this
-// repository builds — the server, the plugins, the desktop backend. The arm's
+// repository builds: the server, the plugins, the desktop backend. The arm's
 // claim is that an assistant with the kapi CLI can fetch its own context, so the
 // kapi CLI is what it gets.
 func kapiOnlyBin(home, kapiBin string) (string, error) {

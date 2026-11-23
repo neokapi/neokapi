@@ -51,6 +51,9 @@ func writeManifest(name, targetDir string) error {
 	if err != nil {
 		return err
 	}
+	if err := os.MkdirAll(filepath.Dir(manifestPath(targetDir)), 0o755); err != nil {
+		return err
+	}
 	return os.WriteFile(manifestPath(targetDir), data, 0o644)
 }
 

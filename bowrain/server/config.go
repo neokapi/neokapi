@@ -42,8 +42,8 @@ type Config struct {
 	// It is NOT this application's origin, and it is not defaulted to
 	// OIDCIssuerURL. The documentation claimed that default for a long time and
 	// no assignment ever existed; the claim is now removed rather than
-	// implemented, because implementing it would change confirmEmailURL — which
-	// falls back to the request host — into one that emits the IdP's origin in
+	// implemented, because implementing it would change confirmEmailURL (which
+	// falls back to the request host) into one that emits the IdP's origin in
 	// verification-email links. AppPublicURL names this application's own origin.
 	OIDCPublicURL string
 
@@ -55,7 +55,7 @@ type Config struct {
 	// stand-in. That was the wrong value twice over: it names the identity
 	// provider rather than the app, so the production allowlist credentialed
 	// the IdP's origin; and because it is optional, its emptiness was also
-	// serving as the production/development discriminator — so a deployment
+	// serving as the production/development discriminator, so a deployment
 	// that set only BOWRAIN_OIDC_ISSUER_URL silently ran the development
 	// policy. DevMode is that discriminator now. Set via BOWRAIN_APP_PUBLIC_URL.
 	AppPublicURL string
@@ -70,14 +70,14 @@ type Config struct {
 	// statement, never on an inference from how some unrelated field happens to
 	// be configured.
 	//
-	// False — the zero value — means production, so the strict policy is what
+	// False, the zero value, means production, so the strict policy is what
 	// you get by omission and by mistake. Development is opted into.
 	DevMode bool
 
 	// PublicSiteURL is the origin of the marketing landing site (e.g.
 	// "https://bowrain.cloud"). It is same-site with the app (shared registrable
 	// domain) but a DIFFERENT origin, so the landing's credentialed fetch of
-	// GET /api/v1/auth/whoami — used to render the signed-in CTA — needs this
+	// GET /api/v1/auth/whoami (used to render the signed-in CTA) needs this
 	// origin on the CORS allowlist with AllowCredentials. Empty (default) leaves
 	// the credentialed cross-origin surface off; only this exact origin (plus the
 	// app's own origin) is ever allowed with credentials. Set via
@@ -87,7 +87,7 @@ type Config struct {
 	// AuthProvider selects the upstream identity provider the server is wired
 	// to: "keycloak" (default; self-host/dev) or "cognito" (hosted prod). The
 	// OIDC verification path is provider-agnostic (issuer-URL driven either
-	// way); this only steers provider-specific behavior — the IdentityAdmin
+	// way); this only steers provider-specific behavior: the IdentityAdmin
 	// write-through (Keycloak Admin API vs Cognito AdminUpdateUserAttributes)
 	// and the logout URL (RP-initiated end_session vs Cognito's /logout). Empty
 	// is treated as "keycloak".
@@ -115,7 +115,7 @@ type Config struct {
 	// scheme only via X-Forwarded-Proto), so a proxy-header change can never
 	// silently emit non-Secure session cookies.
 	//
-	// Defaulted true whenever DevMode is false — see ApplyDefaults. Otherwise a
+	// Defaulted true whenever DevMode is false (see ApplyDefaults). Otherwise a
 	// deployment that simply never heard of this setting depends on a header it
 	// does not control for whether its session cookie is Secure, and echo's
 	// Scheme() will believe four different forwarded-proto headers from anyone
@@ -123,21 +123,21 @@ type Config struct {
 	// over plain http, which is what every local stack serves.
 	ForceSecureCookies bool
 
-	// Keycloak Admin API — used to write through email changes initiated
+	// Keycloak Admin API, used to write through email changes initiated
 	// from the Bowrain UI. Empty values disable Bowrain-managed email change
 	// (the UI surfaces an error if the user attempts the flow).
 	//
 	// KeycloakAdminURL should point at an in-cluster URL (e.g.
 	// "http://keycloak.identity.svc.cluster.local:8080") so admin traffic
 	// stays inside the cluster and never traverses the public ingress.
-	// The token endpoint and admin endpoints both resolve from this URL —
-	// they are not the browser-facing OIDCPublicURL.
+	// The token endpoint and admin endpoints both resolve from this URL,
+	// not from the browser-facing OIDCPublicURL.
 	KeycloakAdminURL          string
 	KeycloakRealm             string // Realm name (default: "bowrain")
 	KeycloakAdminClientID     string // Service-account client ID with realm-management:manage-users
 	KeycloakAdminClientSecret string
 
-	// Email — SMTP sender.
+	// Email: SMTP sender.
 	// Set SMTPHost + SMTPFrom for unauthenticated relay (local dev / Mailpit).
 	// Set SMTPUsername + SMTPPassword for authenticated SMTP (production).
 	// Set SMTPUseTLS=true for implicit TLS (port 465 / SMTPS).
@@ -147,7 +147,7 @@ type Config struct {
 	SMTPPassword string // SMTP auth password
 	SMTPUseTLS   bool   // Use implicit TLS (SMTPS); false = try STARTTLS
 
-	// Email — Resend API sender (alternative to SMTP for SaaS deployments).
+	// Email: Resend API sender (alternative to SMTP for SaaS deployments).
 	// When ResendAPIKey is set, Resend is used instead of SMTP.
 	// SMTPFrom is reused as the "from" address.
 	ResendAPIKey string // Resend API key (sk_live_…)
@@ -157,7 +157,7 @@ type Config struct {
 	WebUIDir string
 
 	// GitHub App credentials (forge delivery in app mode). When all three are
-	// set, the server authenticates to installed repositories as the app —
+	// set, the server authenticates to installed repositories as the app:
 	// forge connectors with `auth: app` carry no tokens, and the app-level
 	// webhook endpoint (/api/webhooks/github-app) accepts push events for
 	// every installation. Register the app once (see the connectors guide);
@@ -174,7 +174,7 @@ type Config struct {
 
 	// PulseEnabled mounts the public Pulse activity dashboard surface (the
 	// /api/v1/pulse routes with their access middleware and response cache,
-	// plus PulseUIDir SPA serving). Off by default — the platform's public
+	// plus PulseUIDir SPA serving). Off by default. The platform's public
 	// surface is on-brand authoring, not l10n gamification. Set
 	// BOWRAIN_PULSE_ENABLED=true to re-mount it.
 	PulseEnabled bool
@@ -195,7 +195,7 @@ type Config struct {
 	RedisURL      string // Redis connection string for caching and session state
 	RedisPassword string // Redis password (overrides any password in RedisURL)
 
-	// Platform AI provider — the server-chosen backend used for synchronous
+	// Platform AI provider: the server-chosen backend used for synchronous
 	// editor translations on the platform (credit-metered) path, when the caller
 	// brings no key of their own. It mirrors the worker's BOWRAIN_PLATFORM_*
 	// selection so async jobs and interactive translation resolve the same
@@ -206,7 +206,7 @@ type Config struct {
 	PlatformModel    string // model / inference-profile id for the platform provider
 	PlatformBaseURL  string // optional endpoint override for the platform provider
 
-	// Agent (@bravo) — container runtime for ZeroClaw.
+	// Agent (@bravo): container runtime for ZeroClaw.
 	// AgentRuntime selects the container backend: "docker".
 	// When empty, the agent falls back to local mock responses.
 	AgentRuntime string
@@ -221,7 +221,7 @@ type Config struct {
 	AgentDockerHost    string // default: "unix:///var/run/docker.sock"
 	AgentDockerNetwork string // Docker network for agent containers (optional)
 
-	// Agent model configuration — injected into ZeroClaw containers.
+	// Agent model configuration, injected into ZeroClaw containers.
 	AgentModelProvider string // e.g. "azure-openai", "anthropic"
 	AgentModelName     string // e.g. "gpt-4o", "claude-sonnet-4-20250514"
 	AgentModelAPIBase  string // provider API base URL
@@ -245,7 +245,7 @@ type Config struct {
 	// plain user-JWT fallback when no admin OIDC verifier is configured.
 	//
 	// SECURITY: with this enabled and no AdminVerifier, ANY valid user JWT or
-	// session is accepted by admin routes — there is no admin-role check. This
+	// session is accepted by admin routes, with no admin-role check. This
 	// is intended only for local development. It is deliberately NOT the
 	// default: in production the admin API must be gated by AdminGuard (an
 	// admin-realm OIDC verifier), and absent that the routes are not mounted at
@@ -260,16 +260,20 @@ type Config struct {
 	//
 	// SECURITY: with this enabled, an unauthenticated request authorizes a
 	// pending device for whatever identity it names, and the subsequent poll
-	// mints a platform token for the EXISTING account with that email. There is
-	// no proof of identity anywhere in the path. It exists so local development
-	// and the e2e/harness stacks can complete the device flow without driving a
-	// browser login. It is deliberately NOT the default, and there is no silent
-	// fallback: with it off, verification always goes through OIDC, and a
-	// server with no OIDC provider configured refuses to verify rather than
-	// approving the device itself — that absent-provider state is also the
-	// state a misconfigured production deploy lands in, so failing open there
-	// would hand out sessions for the asking.
+	// mints a platform token for the EXISTING account with that email, with no
+	// proof of identity. It exists so local development and the e2e and
+	// harness stacks can complete the device flow without a browser login.
+	// It is off by default, with no silent fallback. With it off, verification
+	// always goes through OIDC. A server with no OIDC provider refuses to
+	// verify: a misconfigured production deploy lands in that state, and
+	// failing open there would hand out sessions for the asking.
 	AllowInsecureDeviceAuth bool
+
+	// DisposableStack marks the server as a disposable test stack, reported
+	// on /api/v1/health. The e2e suites delete every project in the
+	// workspace they use and run only against a server that reports it. It
+	// is accepted only on a development server (AllowInsecureDeviceAuth).
+	DisposableStack bool
 
 	// Audit (Phase 2). AuditRetentionDays prunes audit_log rows older than the
 	// given number of days (0 = keep forever). AuditSIEMWebhookURL forwards

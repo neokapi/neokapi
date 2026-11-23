@@ -226,7 +226,7 @@ func (a *App) openParseCacheDefer(root string) func() {
 	if err != nil {
 		return func() {}
 	}
-	c, err := OpenDocCache(layout.CacheDir())
+	c, err := openProjectDocCache(layout)
 	if err != nil {
 		return func() {}
 	}

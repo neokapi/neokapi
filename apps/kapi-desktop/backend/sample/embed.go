@@ -8,12 +8,13 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"github.com/neokapi/neokapi/core/contextop"
 	"io/fs"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/neokapi/neokapi/core/contextop"
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/storage"
@@ -51,9 +52,9 @@ func Scaffold(name, targetDir string) error {
 		return fmt.Errorf("unknown sample project %q", name)
 	}
 
-	// Copy source files: natural per-area layout (source under <area>/en/,
-	// localized files beside it under sibling locale dirs — no separate
-	// output/ tree).
+	// Copy source files in a per-area layout: the source under <area>/en/ and
+	// each translation beside it under a sibling locale directory, with no
+	// separate output/ tree.
 	for _, area := range []string{"web", "src", "legal", "marketing", "campaigns"} {
 		if err := copyEmbeddedDir("kapimart/"+area, filepath.Join(targetDir, area)); err != nil {
 			return fmt.Errorf("copy %s files: %w", area, err)
@@ -66,11 +67,6 @@ func Scaffold(name, targetDir string) error {
 	// project's store the way `kapi store import` does for a person.
 	if err := copyEmbeddedDir("kapimart/"+ContextDirName, filepath.Join(targetDir, ContextDirName)); err != nil {
 		return fmt.Errorf("copy context files: %w", err)
-	}
-	// The ignore rule, so a first `git add` in the scaffolded project keeps the
-	// store and the caches out.
-	if err := copyEmbeddedDir("kapimart/"+project.StateDirName, filepath.Join(targetDir, project.StateDirName)); err != nil {
-		return fmt.Errorf("copy the state directory: %w", err)
 	}
 
 	// Copy the project recipe (kapi.yaml).
