@@ -150,3 +150,46 @@ func TestTheCISequenceCarriesTheParseCacheThroughAFixedPath(t *testing.T) {
 	assert.NotEqual(t, first, second, "a new folder at the same path gets another state directory")
 	assert.Subset(t, secondCache, firstCache, "what the first run cached is carried to the second")
 }
+
+// Two clones of one project in different folders, on runners with empty data
+// roots, share KAPI_PARSE_CACHE_DIR: the first run fills it, the second reads
+// what the first recorded and adds nothing, and neither keeps a parse cache in
+// its state directory.
+func TestTwoClonesShareTheParseCacheDirectory(t *testing.T) {
+	shared := filepath.Join(t.TempDir(), "kapi-parse")
+	logs := func() int {
+		m, err := filepath.Glob(filepath.Join(shared, "parts-*.log"))
+		require.NoError(t, err)
+		return len(m)
+	}
+	run := func(name string) (out, state string) {
+		root, _ := writeBareProject(t, "shared")
+		moved := filepath.Join(t.TempDir(), name)
+		require.NoError(t, os.Rename(root, moved))
+		recipe := filepath.Join(moved, "kapi.yaml")
+		env := []string{"KAPI_PARSE_CACHE_DIR=" + shared, "KAPI_DATA_DIR=" + filepath.Join(t.TempDir(), "data")}
+		status, err := kapiEnv(t, env, "status", "-p", recipe)
+		require.NoError(t, err, status)
+		path, err := kapiEnv(t, env, "state", "path", "-p", recipe)
+		require.NoError(t, err, path)
+		return strings.ReplaceAll(status, moved, "ROOT"), strings.TrimSpace(path)
+	}
+
+	first, firstState := run("clone-a")
+	filled := logs()
+	require.Positive(t, filled, "the first run fills the shared directory")
+	second, secondState := run("clone-b")
+	assert.Equal(t, filled, logs(), "the second clone reads what the first recorded")
+	assert.Equal(t, first, second, "and reports the same")
+	assert.NoDirExists(t, filepath.Join(firstState, "work", "cache", "docs"))
+	assert.NoDirExists(t, filepath.Join(secondState, "work", "cache", "docs"))
+}
+
+// A relative KAPI_PARSE_CACHE_DIR is refused with a message, and nothing is
+// created against the working directory.
+func TestARelativeParseCacheDirectoryIsRefused(t *testing.T) {
+	_, recipe := writeBareProject(t, "relative")
+	out, err := kapiEnv(t, []string{"KAPI_PARSE_CACHE_DIR=kapi-parse"}, "status", "-p", recipe)
+	require.Error(t, err, out)
+	assert.Contains(t, out, "KAPI_PARSE_CACHE_DIR must be an absolute path")
+}

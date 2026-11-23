@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-23T17:54:27Z",
+  "generatedAt": "2026-11-23T18:19:31Z",
   "commands": [
     {
       "id": "add",
@@ -8326,7 +8326,7 @@
       ],
       "use": "state",
       "short": "Show where a checkout's state lives, and bring state into it",
-      "long": "Show where a checkout's own state lives, and bring state into it.\n\nkapi keeps each checkout's state outside the checkout, in a directory of its\nown under the data root: the project store and caches, which kapi rebuilds,\nand the redaction vault, the sync state and the saved filters, which it\ncannot. The directory is found by the checkout's location and the identity of\nits folder, never by anything the checkout contains, so a repository cannot\nreach another project's state, and kapi reads nothing a checkout carries as\nstate.\n\nA checkout moved or renamed on its volume keeps its state. Any other move,\na restored backup, or a fresh clone starts without it; kapi rebuilds what it\ncan, and a person brings the rest across:\n\n  kapi state import   takes the state an earlier kapi left inside the\n                      checkout's .kapi/ folder\n  kapi state relink   takes the state kapi recorded for another location\n  kapi state path     prints the checkout's state directory, for a CI cache\n\nBoth import and relink show every file they would take, with its size and\nthe server any sync state was issued by, ask at the terminal (or take --yes),\nand take exactly what they showed. An agent or an MCP call cannot run them.",
+      "long": "Show where a checkout's own state lives, and bring state into it.\n\nkapi keeps each checkout's state outside the checkout, in a directory of its\nown under the data root: the project store and caches, which kapi rebuilds,\nand the redaction vault, the sync state and the saved filters, which it\ncannot. The directory is found by the checkout's location and the identity of\nits folder, never by anything the checkout contains, so a repository cannot\nreach another project's state, and kapi reads nothing a checkout carries as\nstate.\n\nA checkout moved or renamed on its volume keeps its state. Any other move,\na restored backup, or a fresh clone starts without it; kapi rebuilds what it\ncan, and a person brings the rest across:\n\n  kapi state import   takes the state an earlier kapi left inside the\n                      checkout's .kapi/ folder\n  kapi state relink   takes the state kapi recorded for another location\n  kapi state path     prints the checkout's state directory and its parse cache\n\nBoth import and relink show every file they would take, with its size and\nthe server any sync state was issued by, ask at the terminal (or take --yes),\nand take exactly what they showed. An agent or an MCP call cannot run them.",
       "groupID": "advanced",
       "examples": [
         "kapi state path -p ./app",
@@ -8376,7 +8376,7 @@
       ],
       "use": "path",
       "short": "Print the directory that holds the checkout's state",
-      "long": "Print the directory that holds the checkout's own state. A CI workflow that\ncaches kapi's work between runs caches this directory, keyed by the CI\nsystem's own cache key.",
+      "long": "Print the directory that holds the checkout's own state. With --json the\nanswer also names the parse cache directory, parse_cache: work/cache/docs in\nthe state directory, or the directory KAPI_PARSE_CACHE_DIR names.\n\nA CI workflow caches the parse cache only. It sets KAPI_PARSE_CACHE_DIR to a\nfixed directory and caches that, because the state directory changes with\nevery fresh checkout and also holds the sync state and the redaction vault.",
       "flags": [
         {
           "name": "project",
@@ -8386,7 +8386,8 @@
         }
       ],
       "examples": [
-        "kapi state path -p ."
+        "kapi state path -p .",
+        "kapi state path -p . --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

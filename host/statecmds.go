@@ -43,13 +43,18 @@ func (a *App) StateRelink(cmd Command, recipePath, from string) (output.StateTra
 }
 
 // StatePath is `kapi state path`: the directory that holds the checkout's own
-// state, for a CI cache to save and restore.
+// state, and the parse cache directory ParseCacheDir resolves, which
+// $KAPI_PARSE_CACHE_DIR can place outside it.
 func (a *App) StatePath(recipePath string) (output.StatePathOutput, error) {
 	layout, err := project.LayoutFor(recipePath)
 	if err != nil {
 		return output.StatePathOutput{}, err
 	}
-	return output.StatePathOutput{Project: layout.Root, Path: layout.LocalStateDir()}, nil
+	parseCache, err := ParseCacheDir(layout)
+	if err != nil {
+		return output.StatePathOutput{}, err
+	}
+	return output.StatePathOutput{Project: layout.Root, Path: layout.LocalStateDir(), ParseCache: parseCache}, nil
 }
 
 // stateTransfer shows a transfer, confirms it with the person, and applies it.

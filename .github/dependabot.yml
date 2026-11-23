@@ -73,6 +73,10 @@ updates:
   # updates can pass dependency installation.
   - package-ecosystem: npm
     directory: /
+    # The mobile app has an entry of its own below: Expo, not Dependabot,
+    # decides most of its versions.
+    exclude-paths:
+      - bowrain/mobile
     schedule:
       interval: weekly
       day: monday
@@ -126,6 +130,57 @@ updates:
       # Dependabot cannot follow: every pull request it raised for it failed
       # (#3532). scripts/check-tool-versions.py reports when it falls behind.
       - dependency-name: vite-plus
+
+  # ── The mobile app (bowrain/mobile) ───────────────────────────────────────
+  # The packages an Expo SDK pins (its bundledNativeModules.json) move with an
+  # SDK upgrade, never one at a time: a version the SDK does not expect breaks
+  # the build, and each native change ends over-the-air updates for the
+  # installed build. Dependabot raises `expo` itself; that pull request is
+  # finished by running `vp exec expo install --fix` on its branch, which
+  # moves the whole set (docs/internals/bowrain-mobile-testflight.md). The
+  # list is the SDK's set as the app uses it, and
+  # bowrain/mobile/src/__tests__/expoGoverned.test.ts fails when the two
+  # differ.
+  - package-ecosystem: npm
+    directory: /bowrain/mobile
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 3
+      semver-major-days: 7
+    labels: [dependencies, npm]
+    ignore:
+      # expo-governed: begin
+      - dependency-name: "@expo/vector-icons"
+      - dependency-name: "expo-application"
+      - dependency-name: "expo-auth-session"
+      - dependency-name: "expo-constants"
+      - dependency-name: "expo-crypto"
+      - dependency-name: "expo-dev-client"
+      - dependency-name: "expo-font"
+      - dependency-name: "expo-haptics"
+      - dependency-name: "expo-linking"
+      - dependency-name: "expo-localization"
+      - dependency-name: "expo-network"
+      - dependency-name: "expo-router"
+      - dependency-name: "expo-secure-store"
+      - dependency-name: "expo-splash-screen"
+      - dependency-name: "expo-sqlite"
+      - dependency-name: "expo-status-bar"
+      - dependency-name: "expo-system-ui"
+      - dependency-name: "expo-updates"
+      - dependency-name: "expo-web-browser"
+      - dependency-name: "jest-expo"
+      - dependency-name: "react"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-gesture-handler"
+      - dependency-name: "react-native-reanimated"
+      - dependency-name: "react-native-safe-area-context"
+      - dependency-name: "react-native-screens"
+      - dependency-name: "react-native-webview"
+      - dependency-name: "react-native-worklets"
+      # expo-governed: end
 
   # ── npm trees outside the root workspace ───────────────────────────────────
   # Each has a lockfile of its own, which the root entry above never reads.

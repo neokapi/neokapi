@@ -166,6 +166,24 @@ only a query that reaches FTS5 (content memory, terms) fails at runtime with
 `no such function: fts5`. Spell every tag in one comma-separated flag
 (`-tags "fts5,integration"`): `go` keeps only the last `-tags` occurrence.
 
+### What a test binary can reach
+
+A test binary keeps off your own files without any setup. Unless a test sets
+`KAPI_CONFIG_DIR`, `KAPI_DATA_DIR` or its own `HOME`, the configuration
+directory, the data root, the caches and the plugin roots resolve to a private
+directory of the process's own under the system temporary directory. A test
+that leaves one behind fails CI's temporary-file check, so a package whose
+tests resolve them calls `dataroot.RemoveTestDir` from its `TestMain`
+(`devenvtest.Main(m, dataroot.RemoveTestDir)`).
+
+The keychain behaves the same way. Every secret goes through `core/keychain`,
+which opens an in-memory keyring in a test binary, and `check-keychain-door`
+refuses any other route to the system keychain. A test that needs a real
+credential, such as a live provider key, therefore exercises nothing unless the
+credential is supplied explicitly, for example through an environment variable
+the test names. Without it, such a test calls `t.Skip` and says which variable
+it needs.
+
 ## Test Tags
 
 | Tag           | Purpose                                  | Command                                    |

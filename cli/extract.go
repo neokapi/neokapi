@@ -9,7 +9,8 @@ import (
 
 // NewExtractCmd returns the `kapi extract` command (AD-017, issue #415).
 // Emits one XLIFF 2.x (or PO) file per source → target-locale pair with
-// content memory pre-fill, under .kapi/work/cache/extractions/<batch-id>/ bookkeeping.
+// content memory pre-fill. Its bookkeeping goes under
+// work/cache/extractions/<batch-id>/ in the checkout's state directory.
 func NewExtractCmd(a *App, _ ExtractCmdOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "extract",

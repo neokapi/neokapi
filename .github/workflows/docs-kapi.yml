@@ -244,7 +244,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install workspace dependencies
-        run: vp install
+        run: vp install --frozen-lockfile
 
       # @neokapi/{ui,flow-editor} (consumed by kapi-lab and the docs site)
       # import `@neokapi/i18n-react/runtime`, a built ./dist subpath export.

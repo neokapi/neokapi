@@ -206,7 +206,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install workspace dependencies
-        run: vp install
+        run: vp install --frozen-lockfile
 
       - name: Static reference pages are fresh
         run: |
