@@ -105,11 +105,17 @@ export function FixSheetBody({
 
   return (
     <SafeAreaView className="bg-background flex-1" edges={["bottom", "left", "right"]}>
-      <View className="border-border flex-row items-center justify-between border-b px-4 py-3">
-        <Text className="text-foreground text-lg font-semibold">
+      <View className="border-border flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-3">
+        <Text className="text-foreground shrink text-lg font-semibold">
           {rejecting ? t("fix.rejectTitle") : t("fix.title")}
         </Text>
-        <Pressable testID="fix-close" accessibilityRole="button" onPress={onClose} hitSlop={12}>
+        <Pressable
+          testID="fix-close"
+          accessibilityRole="button"
+          onPress={onClose}
+          hitSlop={12}
+          className="ml-auto"
+        >
           <Text className="text-primary text-base">{t("common.cancel")}</Text>
         </Pressable>
       </View>

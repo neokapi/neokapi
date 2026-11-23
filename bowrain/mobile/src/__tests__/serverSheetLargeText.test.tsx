@@ -2,7 +2,6 @@
 // so its content scrolls: every option, the address field and its confirm
 // button sit inside the sheet's scroll view and stay reachable.
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { ScrollView } from "react-native";
 
 import "../lib/i18n";
 import Server from "../app/server";
@@ -20,9 +19,7 @@ jest.mock("../lib/auth", () => ({ useAuth: () => ({ session: null }) }));
 function inSheetScroll(testID: string): boolean {
   const sheet = screen.getByTestId("server-sheet");
   for (let node = screen.getByTestId(testID).parent; node; node = node.parent) {
-    if (node === sheet || (node.type === ScrollView && node.props.testID === "server-sheet")) {
-      return true;
-    }
+    if (node === sheet) return true;
   }
   return false;
 }
@@ -34,6 +31,7 @@ describe("the server sheet at the largest text size", () => {
 
   it("puts every option inside the sheet's scroll view", async () => {
     await render(<Server />);
+    expect(screen.getByTestId("server-sheet").type).toBe("RCTScrollView");
     for (const id of ["server-option-cloud", "server-option-local", "server-option-custom"]) {
       expect(inSheetScroll(id)).toBe(true);
     }

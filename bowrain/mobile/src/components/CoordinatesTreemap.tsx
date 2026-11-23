@@ -7,7 +7,7 @@
 import type { CoordinateCell } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMemo } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
@@ -294,6 +294,9 @@ export function CoordinateCellSheet({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  // At the largest text sizes a language's name takes a line of its own above
+  // its bar, rather than being cut to a few letters beside it.
+  const large = useWindowDimensions().fontScale >= 1.6;
   return (
     <Modal
       visible={!!cell}
@@ -303,8 +306,8 @@ export function CoordinateCellSheet({
     >
       {cell ? (
         <SafeAreaView edges={["bottom"]} className="bg-background flex-1">
-          <View className="flex-row items-center justify-between px-5 pt-5 pb-3">
-            <Text className="text-foreground flex-1 text-lg font-semibold">
+          <View className="flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 pt-5 pb-3">
+            <Text className="text-foreground shrink text-lg font-semibold">
               {t("plan.coordinates.cellTitle", {
                 product: cell.product || t("plan.coordinates.noProduct"),
                 channel: cell.channel || t("plan.coordinates.noChannel"),
@@ -315,6 +318,7 @@ export function CoordinateCellSheet({
               accessibilityRole="button"
               onPress={onClose}
               hitSlop={8}
+              className="ml-auto"
             >
               <Text className="text-primary text-base font-semibold">{t("common.done")}</Text>
             </Pressable>
@@ -337,14 +341,26 @@ export function CoordinateCellSheet({
                   : languages.map((l) => {
                       const pct = Math.round((col.coverage[l] ?? 0) * 100);
                       return (
-                        <View key={l} className="flex-row items-center gap-2">
-                          <Text className="text-muted-foreground w-28 text-xs" numberOfLines={1}>
+                        <View key={l} className={large ? "gap-1" : "flex-row items-center gap-2"}>
+                          <Text
+                            className={`text-muted-foreground text-xs ${large ? "" : "w-28"}`}
+                            numberOfLines={large ? undefined : 1}
+                          >
                             {languageLabel(l)}
                           </Text>
-                          <View className="bg-muted h-1 flex-1 overflow-hidden rounded-full">
-                            <View className="bg-primary h-1" style={{ width: `${pct}%` }} />
+                          <View className={large ? "flex-row items-center gap-2" : "flex-1"}>
+                            <View className="bg-muted h-1 flex-1 overflow-hidden rounded-full">
+                              <View className="bg-primary h-1" style={{ width: `${pct}%` }} />
+                            </View>
+                            {large ? (
+                              <Text className="text-foreground text-xs" numberOfLines={1}>
+                                {pct}%
+                              </Text>
+                            ) : null}
                           </View>
-                          <Text className="text-foreground w-10 text-right text-xs">{pct}%</Text>
+                          {large ? null : (
+                            <Text className="text-foreground w-10 text-right text-xs">{pct}%</Text>
+                          )}
                         </View>
                       );
                     })}

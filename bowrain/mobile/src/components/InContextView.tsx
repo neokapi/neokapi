@@ -17,7 +17,15 @@ import {
 } from "@neokapi/bowrain-client";
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState, type ComponentRef, type ReactNode } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { fileName } from "../lib/where";
@@ -31,6 +39,9 @@ export function reviewContainerKey(scope: ProjectScope, blockId: string, locale:
 }
 
 export type LoadContainer = (card: DeckCard) => Promise<ReviewContainer>;
+
+/** The text scale from which the header scrolls with the units. */
+const LARGE_TEXT = 1.6;
 
 /** Which side of each unit the page reads in. */
 export type Reading = "translation" | "source" | "both";
@@ -75,6 +86,22 @@ export function InContextView({
   const [termAt, setTermAt] = useState<number | null>(null);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const placed = useRef(false);
+  // Where the units start in the scroll content (below the header when it
+  // scrolls too) and where the focused unit sits among them. The two layouts
+  // arrive in either order, so the view opens at the focus once both have.
+  const unitsTop = useRef<number | null>(null);
+  const focusY = useRef<number | null>(null);
+  const placeFocus = () => {
+    if (placed.current || unitsTop.current === null || focusY.current === null) return;
+    placed.current = true;
+    scroll.current?.scrollTo({
+      y: Math.max(0, unitsTop.current + focusY.current - 80),
+      animated: false,
+    });
+  };
+  // At the largest text sizes the container's header is taller than the
+  // sheet, so it scrolls with the units rather than standing above them.
+  const large = useWindowDimensions().fontScale >= LARGE_TEXT;
 
   const ctx = useQuery({
     queryKey: reviewContainerKey(scope, card.blockId, card.locale),
@@ -129,6 +156,51 @@ export function InContextView({
           })),
     );
 
+  const header = (
+    <View className="border-border gap-2 border-b px-4 pt-2 pb-3">
+      <Text
+        testID="context-kind"
+        className="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
+      >
+        {t(`inContext.kind.${c.kind}`)}
+      </Text>
+      <Text
+        testID="context-title"
+        className="text-foreground text-lg font-semibold"
+        numberOfLines={2}
+      >
+        {c.kind === "window" ? fileName(c.title) : c.title}
+      </Text>
+      <Text className="text-muted-foreground font-mono text-xs" numberOfLines={1}>
+        {fileName(c.item)}
+      </Text>
+      <View className="flex-row flex-wrap items-center gap-2">
+        <ReadingSwitch value={reading} onChange={setReading} />
+      </View>
+      {canRun ? (
+        <Pressable
+          testID="context-live"
+          accessibilityRole="button"
+          accessibilityLabel={t("live.open")}
+          accessibilityHint={t("live.openDetail")}
+          onPress={() => setLive(true)}
+          className="border-primary/40 bg-primary/10 mt-1 flex-row items-center gap-3 rounded-xl border px-3 py-2.5"
+        >
+          <View className="bg-primary h-8 w-8 items-center justify-center rounded-full">
+            <Text className="text-primary-foreground text-sm">▶</Text>
+          </View>
+          <View className="flex-1">
+            <Text className="text-foreground text-base font-semibold">{t("live.open")}</Text>
+            <Text className="text-muted-foreground text-xs" numberOfLines={1}>
+              {t("live.openDetail")}
+            </Text>
+          </View>
+          <Text className="text-muted-foreground text-xl">›</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+
   return (
     <View className="flex-1">
       <TermSheet
@@ -140,48 +212,7 @@ export function InContextView({
         onMove={setTermAt}
         onClose={() => setTermAt(null)}
       />
-      <View className="border-border gap-2 border-b px-4 pt-2 pb-3">
-        <Text
-          testID="context-kind"
-          className="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
-        >
-          {t(`inContext.kind.${c.kind}`)}
-        </Text>
-        <Text
-          testID="context-title"
-          className="text-foreground text-lg font-semibold"
-          numberOfLines={2}
-        >
-          {c.kind === "window" ? fileName(c.title) : c.title}
-        </Text>
-        <Text className="text-muted-foreground font-mono text-xs" numberOfLines={1}>
-          {fileName(c.item)}
-        </Text>
-        <View className="flex-row flex-wrap items-center gap-2">
-          <ReadingSwitch value={reading} onChange={setReading} />
-        </View>
-        {canRun ? (
-          <Pressable
-            testID="context-live"
-            accessibilityRole="button"
-            accessibilityLabel={t("live.open")}
-            accessibilityHint={t("live.openDetail")}
-            onPress={() => setLive(true)}
-            className="border-primary/40 bg-primary/10 mt-1 flex-row items-center gap-3 rounded-xl border px-3 py-2.5"
-          >
-            <View className="bg-primary h-8 w-8 items-center justify-center rounded-full">
-              <Text className="text-primary-foreground text-sm">▶</Text>
-            </View>
-            <View className="flex-1">
-              <Text className="text-foreground text-base font-semibold">{t("live.open")}</Text>
-              <Text className="text-muted-foreground text-xs" numberOfLines={1}>
-                {t("live.openDetail")}
-              </Text>
-            </View>
-            <Text className="text-muted-foreground text-xl">›</Text>
-          </Pressable>
-        ) : null}
-      </View>
+      {large ? null : header}
 
       {canRun && loadIndex ? (
         <Modal
@@ -206,49 +237,54 @@ export function InContextView({
         </Modal>
       ) : null}
 
-      <ScrollView ref={scroll} contentContainerClassName="gap-3 px-4 py-4 pb-24">
-        {c.moreBefore ? <More /> : null}
-        {c.units.map((u) => (
-          <View
-            key={u.blockId}
-            onLayout={(e) => {
-              // Open at the block the card stood for.
-              if (u.blockId === c.focus && !placed.current) {
-                placed.current = true;
-                scroll.current?.scrollTo({
-                  y: Math.max(0, e.nativeEvent.layout.y - 80),
-                  animated: false,
-                });
-              }
-            }}
-          >
-            <Unit
-              unit={u}
-              reading={reading}
-              marks={marksOf}
-              focus={u.blockId === c.focus}
-              selected={u.blockId === selected}
-              done={isDone(u)}
-              onSelect={() => setSelected(u.blockId)}
-              onApprove={() => approve(u)}
-              onFix={() => onFix(cardOfUnit(u, card.locale, card.collectionId))}
-            />
-          </View>
-        ))}
-        {c.moreAfter ? <More /> : null}
-        {waiting.length > 1 ? (
-          <Pressable
-            testID="context-approve-all"
-            accessibilityRole="button"
-            onPress={() => waiting.forEach(approve)}
-            className="bg-approve/15 mt-2 items-center rounded-xl py-3"
-          >
-            <Text className="text-foreground text-base font-semibold">
-              {t("inContext.approveAll", { count: waiting.length })}
-            </Text>
-          </Pressable>
-        ) : null}
-        {footer}
+      <ScrollView ref={scroll} contentContainerClassName="pb-24">
+        {large ? header : null}
+        <View
+          className="gap-3 px-4 pt-4"
+          onLayout={(e) => {
+            unitsTop.current = e.nativeEvent.layout.y;
+            placeFocus();
+          }}
+        >
+          {c.moreBefore ? <More /> : null}
+          {c.units.map((u) => (
+            <View
+              key={u.blockId}
+              onLayout={(e) => {
+                if (u.blockId === c.focus) {
+                  focusY.current = e.nativeEvent.layout.y;
+                  placeFocus();
+                }
+              }}
+            >
+              <Unit
+                unit={u}
+                reading={reading}
+                marks={marksOf}
+                focus={u.blockId === c.focus}
+                selected={u.blockId === selected}
+                done={isDone(u)}
+                onSelect={() => setSelected(u.blockId)}
+                onApprove={() => approve(u)}
+                onFix={() => onFix(cardOfUnit(u, card.locale, card.collectionId))}
+              />
+            </View>
+          ))}
+          {c.moreAfter ? <More /> : null}
+          {waiting.length > 1 ? (
+            <Pressable
+              testID="context-approve-all"
+              accessibilityRole="button"
+              onPress={() => waiting.forEach(approve)}
+              className="bg-approve/15 mt-2 items-center rounded-xl py-3"
+            >
+              <Text className="text-foreground text-base font-semibold">
+                {t("inContext.approveAll", { count: waiting.length })}
+              </Text>
+            </Pressable>
+          ) : null}
+          {footer}
+        </View>
       </ScrollView>
     </View>
   );
@@ -263,7 +299,10 @@ function ReadingSwitch({ value, onChange }: { value: Reading; onChange: (r: Read
   const { t } = useTranslation();
   const options: Reading[] = ["translation", "source", "both"];
   return (
-    <View accessibilityRole="tablist" className="bg-muted flex-row self-start rounded-lg p-0.5">
+    <View
+      accessibilityRole="tablist"
+      className="bg-muted max-w-full flex-row flex-wrap self-start rounded-lg p-0.5"
+    >
       {options.map((o) => (
         <Pressable
           key={o}
