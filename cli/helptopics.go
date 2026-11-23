@@ -97,7 +97,9 @@ help languages lists the commands and topics for content in other languages.`,
 		},
 	}
 	help.Flags().Bool("all", false, "with no topic or command, list every command, global flag and topic")
-	root.SetHelpCommand(help)
+	// The help command resolves no project before it runs. The root page it
+	// prints reads the recipe's target languages, and nothing else.
+	root.SetHelpCommand(NoProject(help))
 }
 
 // languagesLead opens `kapi help languages`: how a project gets the Languages

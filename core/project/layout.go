@@ -330,6 +330,10 @@ func LayoutFor(recipePath string) (Layout, error) {
 // the `work/cache/` in it. It writes nothing in the checkout. Idempotent; safe
 // to call on an existing project.
 //
+// It is the point where a checkout gets its record: a caller calls it when it
+// has state to keep for the checkout, such as the project store or the parse
+// cache, never to look at a project.
+//
 // It writes no context file and creates no directory for one. A project's
 // terms, voice profiles, content memory and decisions live in the workspace.
 func EnsureLayout(layout Layout) error {
@@ -349,7 +353,7 @@ func EnsureLayout(layout Layout) error {
 		}
 		local = dir
 		noticeEarlierAtPath(layout, earlier)
-		noticeStateInTree(layout, dir)
+		noticeStateInTree(layout)
 	}
 	if err := os.MkdirAll(filepath.Join(local, WorkDirName, CacheDirName), 0o755); err != nil {
 		return fmt.Errorf("project: create %s: %w", WorkDirName, err)

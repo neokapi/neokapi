@@ -249,11 +249,12 @@ type docRow struct {
 // partsFormat names the shape of the part records the cache writes: the JSON
 // form of a block, whose content is its peer editions (Block.Editions and
 // Block.Native), with the translation filed under no language and its overlays
-// beside it. Every development build shares the version "dev", so the format
-// is part of the key too. An entry written with another record shape reads as
-// a miss under any version. It never decodes into a block that holds none of
+// beside it, and an inline skeleton in its discriminated form. Every
+// development build shares the version "dev", so the format is part of the key
+// too. An entry written with another record shape reads as a miss under any
+// version. It never decodes into a block that holds none of
 // its content or files an overlay on the wrong edition.
-const partsFormat = "editions/2"
+const partsFormat = "editions/3"
 
 // docKey is what the cache files an entry under, beside its path: the build
 // that recorded it, the shape of its records and the caller's config key.
@@ -614,7 +615,10 @@ func (r *docRecorder) SkeletonStore() *format.SkeletonStore {
 
 // Add appends one parsed part to the log (streamed; not buffered into a slice).
 func (r *docRecorder) Add(p *model.Part) error {
-	cps := toCachedParts([]*model.Part{p})
+	cps, err := toCachedParts([]*model.Part{p})
+	if err != nil {
+		return err
+	}
 	if len(cps) == 0 {
 		return nil // a part type the cache doesn't model is skipped and never replayed
 	}
