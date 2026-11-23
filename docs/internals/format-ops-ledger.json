@@ -3,11 +3,11 @@
   "rituals": {
     "triage-score": {
       "cadence_days": 14,
-      "last_run": "2026-11-20",
+      "last_run": "2026-11-23",
       "watermarks": {
-        "core_formats_sha": "e30e7a2a86ae87cc3fb1dae2489658d9fc060565",
+        "core_formats_sha": "6b1d834af79f2ca601b7b39836116041850b4d27",
         "scorer_version": 5,
-        "audit_sha": "3b13549a305d2c9cd90f4942eeec2c88aa2addb419e068368721802dccb4d114",
+        "audit_sha": "93f10558ea38ee4ffbecb20ab699fa585f47edb994f419aa3b77bb6eb004fcb9",
         "model_id": "",
         "prompt_sha": "",
         "axes_published": [
@@ -20,7 +20,7 @@
           "structure",
           "prose"
         ],
-        "format_tree_sha256": "6c1ba1eb9c81b9a1ec1df239c71d0328154f35b21501aecbadbac6746fbb6c0c"
+        "format_tree_sha256": "6261ed71d40548d7ad94aba41d8acce36c141391814c0727278f6ccfcf75ef74"
       }
     },
     "remediate": {
@@ -373,6 +373,558 @@
           "check": "audit-format.py --all --json --repository-only --ledger docs/internals/format-ops-ledger.json",
           "exit": 0,
           "output_sha": "3b13549a305d2c9cd90f4942eeec2c88aa2addb419e068368721802dccb4d114"
+        },
+        {
+          "check": "make prose-probe",
+          "exit": 0,
+          "output_sha": "1b20770357a49d11a6e0c957d33029bca20d471fed0357fed9550fe1d8e131a8"
+        }
+      ],
+      "followups": []
+    },
+    {
+      "date": "2026-11-23",
+      "ritual": "triage-score",
+      "commit": "0939b9df571d8b1bc56e512c938a62a4dc35c4db",
+      "model_id": "github-actions",
+      "workflow": ".github/workflows/format-acceptance.yml",
+      "run_id": 45113759716,
+      "run_attempt": 1,
+      "outcome": "Measured external consumer acceptance on the hosted macOS runner.",
+      "evidence": [
+        {
+          "check": "format-acceptance",
+          "format": "androidxml",
+          "workflow": ".github/workflows/format-acceptance.yml",
+          "environment": "github-actions",
+          "head_sha": "0939b9df571d8b1bc56e512c938a62a4dc35c4db",
+          "run_id": 45113759716,
+          "run_attempt": 1,
+          "conclusion": "success",
+          "test_outcome": "partial",
+          "checks": [
+            {
+              "test": "TestAcceptanceAapt2",
+              "outcome": "skip"
+            },
+            {
+              "test": "TestAcceptanceXmllintWellFormed/aosp-calendar-strings.xml",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceXmllintWellFormed/k9mail-message-list-strings.xml",
+              "outcome": "pass"
+            }
+          ],
+          "exit": 0,
+          "output_sha": "cd29d9e84a5d11462ee7a4c291b954178dd7d7469ed16cc81a831c539a4ce2b1"
+        },
+        {
+          "check": "format-acceptance",
+          "format": "applestrings",
+          "workflow": ".github/workflows/format-acceptance.yml",
+          "environment": "github-actions",
+          "head_sha": "0939b9df571d8b1bc56e512c938a62a4dc35c4db",
+          "run_id": 45113759716,
+          "run_attempt": 1,
+          "conclusion": "success",
+          "test_outcome": "pass",
+          "checks": [
+            {
+              "test": "TestAcceptancePlutilLint/Localizable.strings",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptancePlutilLint/Localizable.stringsdict",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptancePlutilLint/playem_fr.stringsdict",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptancePlutilLint/utm_it.strings",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptancePlutilLint/utm_it.stringsdict",
+              "outcome": "pass"
+            }
+          ],
+          "exit": 0,
+          "output_sha": "33b33031f700531101930deba575f419ee21e88a9548fc7b810513284ca02f42"
+        },
+        {
+          "check": "format-acceptance",
+          "format": "arb",
+          "workflow": ".github/workflows/format-acceptance.yml",
+          "environment": "github-actions",
+          "head_sha": "0939b9df571d8b1bc56e512c938a62a4dc35c4db",
+          "run_id": 45113759716,
+          "run_attempt": 1,
+          "conclusion": "success",
+          "test_outcome": "pass",
+          "checks": [
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/flutter_gallery_intl_en.arb/ajv",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/flutter_gallery_intl_en.arb/jq",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/flutter_gallery_intl_es.arb/ajv",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/flutter_gallery_intl_es.arb/jq",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/icu_en.arb/ajv",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/icu_en.arb/jq",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/simple_en.arb/ajv",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/simple_en.arb/jq",
+              "outcome": "pass"
+            }
+          ],
+          "exit": 0,
+          "output_sha": "767ef4133734f017f18a4d654424baf6f648dcb2031f72a578335ef1b4e02ab3"
+        },
+        {
+          "check": "format-acceptance",
+          "format": "designtokens",
+          "workflow": ".github/workflows/format-acceptance.yml",
+          "environment": "github-actions",
+          "head_sha": "0939b9df571d8b1bc56e512c938a62a4dc35c4db",
+          "run_id": 45113759716,
+          "run_attempt": 1,
+          "conclusion": "success",
+          "test_outcome": "pass",
+          "checks": [
+            {
+              "test": "TestAcceptanceJQWellFormed/corpus/style-dictionary-demo.tokens.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceJQWellFormed/translated",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceSchemaEquivalence/corpus_equivalence/style-dictionary-demo.tokens.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceSchemaEquivalence/translated_fixture_validates",
+              "outcome": "pass"
+            }
+          ],
+          "exit": 0,
+          "output_sha": "65ff13deb7611e1563039914cc10c47804aa855a429dfdfed9436fa31d5f5562"
+        },
+        {
+          "check": "format-acceptance",
+          "format": "eml",
+          "workflow": ".github/workflows/format-acceptance.yml",
+          "environment": "github-actions",
+          "head_sha": "0939b9df571d8b1bc56e512c938a62a4dc35c4db",
+          "run_id": 45113759716,
+          "run_attempt": 1,
+          "conclusion": "success",
+          "test_outcome": "pass",
+          "checks": [
+            {
+              "test": "TestAcceptancePythonEmail",
+              "outcome": "pass"
+            }
+          ],
+          "exit": 0,
+          "output_sha": "0001807a10ceec7dd37161078671bb9f1aadf79f9d0b31a9029c10bcf72937b9"
+        },
+        {
+          "check": "format-acceptance",
+          "format": "i18next",
+          "workflow": ".github/workflows/format-acceptance.yml",
+          "environment": "github-actions",
+          "head_sha": "0939b9df571d8b1bc56e512c938a62a4dc35c4db",
+          "run_id": 45113759716,
+          "run_attempt": 1,
+          "conclusion": "success",
+          "test_outcome": "pass",
+          "checks": [
+            {
+              "test": "TestAcceptanceJQWellFormed/context_en.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceJQWellFormed/corpus/i18next-compat-v1-en.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceJQWellFormed/corpus/i18next-typescript-ns1.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceJQWellFormed/corpus/i18next-typescript-ns2.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceJQWellFormed/corpus/react-i18next-icu.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceJQWellFormed/corpus/react-i18next-react.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceJQWellFormed/corpus/react-i18next-storybook.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceJQWellFormed/namespaces_en.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceJQWellFormed/plurals_v4_en.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceSchemaValid/context_translated",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceSchemaValid/corpus/i18next-compat-v1-en.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceSchemaValid/corpus/i18next-typescript-ns1.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceSchemaValid/corpus/i18next-typescript-ns2.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceSchemaValid/corpus/react-i18next-icu.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceSchemaValid/corpus/react-i18next-react.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceSchemaValid/corpus/react-i18next-storybook.json",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceSchemaValid/plurals_translated",
+              "outcome": "pass"
+            }
+          ],
+          "exit": 0,
+          "output_sha": "f84dabbd86885427a949308b13dca57db3ecba82392941d28959ec0fd36d5797"
+        },
+        {
+          "check": "format-acceptance",
+          "format": "mdx",
+          "workflow": ".github/workflows/format-acceptance.yml",
+          "environment": "github-actions",
+          "head_sha": "0939b9df571d8b1bc56e512c938a62a4dc35c4db",
+          "run_id": 45113759716,
+          "run_attempt": 1,
+          "conclusion": "success",
+          "test_outcome": "pass",
+          "checks": [
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/bowrain-auth.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/bowrain-automation.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/bowrain-create-project.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/bowrain-getting-started.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/bowrain-init.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/bowrain-overview.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/bowrain-serve.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/bowrain-web-term-explorer.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/bowrain-web-translation-editor.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/bowrain-workspaces.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/kapi-bilingual-workflow.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/kapi-cli-bilingual-workflow.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/kapi-pseudo-translate.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/kapi-terminology-pretranslation.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/kapi-terminology-qa.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/server-web-overview.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedMDXCompiles/website-translation.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/bowrain-auth.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/bowrain-automation.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/bowrain-create-project.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/bowrain-getting-started.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/bowrain-init.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/bowrain-overview.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/bowrain-serve.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/bowrain-web-term-explorer.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/bowrain-web-translation-editor.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/bowrain-workspaces.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/kapi-bilingual-workflow.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/kapi-cli-bilingual-workflow.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/kapi-pseudo-translate.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/kapi-terminology-pretranslation.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/kapi-terminology-qa.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/server-web-overview.mdx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceUntranslatedRoundTripCompiles/website-translation.mdx",
+              "outcome": "pass"
+            }
+          ],
+          "exit": 0,
+          "output_sha": "c4c704c6bd0651b30bc39bff75654d88c10e8ad58bfb9cdeb1e3233425fffce2"
+        },
+        {
+          "check": "format-acceptance",
+          "format": "resx",
+          "workflow": ".github/workflows/format-acceptance.yml",
+          "environment": "github-actions",
+          "head_sha": "0939b9df571d8b1bc56e512c938a62a4dc35c4db",
+          "run_id": 45113759716,
+          "run_attempt": 1,
+          "conclusion": "success",
+          "test_outcome": "pass",
+          "checks": [
+            {
+              "test": "TestAcceptanceResgenCompiles/roslyn-ErrorString.resx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceResgenCompiles/roslyn-RebuildResources.resx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceResgenCompiles/roslyn-XmlLiterals.resx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceResgenCompiles/stylecop-DocumentationResources.de-DE.resx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceXmllintWellFormed/roslyn-ErrorString.resx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceXmllintWellFormed/roslyn-RebuildResources.resx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceXmllintWellFormed/roslyn-XmlLiterals.resx",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceXmllintWellFormed/stylecop-DocumentationResources.de-DE.resx",
+              "outcome": "pass"
+            }
+          ],
+          "exit": 0,
+          "output_sha": "ed80678b64960192027f6cc04f02357430c2f3a7750fed49d115174907c1f1fd"
+        },
+        {
+          "check": "format-acceptance",
+          "format": "xcstrings",
+          "workflow": ".github/workflows/format-acceptance.yml",
+          "environment": "github-actions",
+          "head_sha": "0939b9df571d8b1bc56e512c938a62a4dc35c4db",
+          "run_id": 45113759716,
+          "run_attempt": 1,
+          "conclusion": "success",
+          "test_outcome": "pass",
+          "checks": [
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/device.xcstrings/ajv",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/device.xcstrings/jq",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/plural.xcstrings/ajv",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/plural.xcstrings/jq",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/simple.xcstrings/ajv",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/simple.xcstrings/jq",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/substitutions.xcstrings/ajv",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/substitutions.xcstrings/jq",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/untranslated.xcstrings/ajv",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/untranslated.xcstrings/jq",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/xckit_plural_variations.xcstrings/ajv",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/xckit_plural_variations.xcstrings/jq",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/xcstringseditor_variations.xcstrings/ajv",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/xcstringseditor_variations.xcstrings/jq",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/zeitgeist.xcstrings/ajv",
+              "outcome": "pass"
+            },
+            {
+              "test": "TestAcceptanceTranslatedOutputValidatesAgainstSchema/zeitgeist.xcstrings/jq",
+              "outcome": "pass"
+            }
+          ],
+          "exit": 0,
+          "output_sha": "1cd0a1608b62636ef0bdfe9dec2833f68437549b2c4cf65b9e92bf8dbc776ed3"
+        }
+      ],
+      "followups": []
+    },
+    {
+      "date": "2026-11-23",
+      "ritual": "triage-score",
+      "commit": "pending",
+      "model_id": "deterministic",
+      "outcome": "Published the repository audit and Prose probe. The format dashboard records the measured grades.",
+      "evidence": [
+        {
+          "check": "audit-format.py --all --json --repository-only --ledger docs/internals/format-ops-ledger.json",
+          "exit": 0,
+          "output_sha": "93f10558ea38ee4ffbecb20ab699fa585f47edb994f419aa3b77bb6eb004fcb9"
         },
         {
           "check": "make prose-probe",
