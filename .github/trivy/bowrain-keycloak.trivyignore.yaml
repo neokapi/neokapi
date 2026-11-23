@@ -34,6 +34,6 @@ vulnerabilities:
     # Goes when a Keycloak release ships guava 33.7.2:
     # scripts/check-tool-versions.py reports a newer Keycloak, and its note
     # says to check this entry.
-    purls: ["pkg:maven/com.google.guava/guava@33.6.0"]
+    purls: ["pkg:maven/com.google.guava/guava@33.6.0-jre"]
     statement: "guava 33.6.0 inside Keycloak 26.8.2 (the latest release, 26.8.2-3); fixed in guava 33.7.2, which no Keycloak release ships yet"
     expired_at: 2027-01-22
