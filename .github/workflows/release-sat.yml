@@ -150,7 +150,7 @@ jobs:
       # here from the pinned source for the deployment target set above.
       - name: Install Rust (macOS)
         if: runner.os == 'macOS'
-        uses: dtolnay/rust-toolchain@1.99.1
+        uses: dtolnay/rust-toolchain@1.120.0
 
       - name: Build libtokenizers from source (macOS)
         if: runner.os == 'macOS'
@@ -178,7 +178,7 @@ jobs:
 
       - name: Install Rust (Windows)
         if: runner.os == 'Windows'
-        uses: dtolnay/rust-toolchain@1.99.1
+        uses: dtolnay/rust-toolchain@1.120.0
         with:
           targets: ${{ matrix.build.goarch == 'arm64' && 'aarch64-pc-windows-gnullvm' || 'x86_64-pc-windows-gnu' }}
 
