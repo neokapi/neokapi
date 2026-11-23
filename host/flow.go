@@ -413,7 +413,10 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 		if s := a.openProjectBlockStore(ctx); s != nil {
 			projStore = s
 		}
-		closeCache := a.openParseCacheDefer(a.ProjectContext.ProjectDir)
+		closeCache, err := a.openParseCache(a.ProjectContext.ProjectDir)
+		if err != nil {
+			return err
+		}
 		defer closeCache()
 		runnerCache, runnerCacheKey = a.runnerPartCache(a.ProjectContext.ProjectDir, mergedConfig)
 	}
