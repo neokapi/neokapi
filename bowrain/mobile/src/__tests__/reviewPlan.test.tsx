@@ -18,6 +18,10 @@ const mockPermissions = jest.fn();
 jest.mock("../lib/auth", () => ({
   useAuth: () => ({
     client: {
+      // The client a query narrows with its signal is this same double.
+      with() {
+        return this;
+      },
       reviewPlan: (...a: unknown[]) => mockPlan(...a),
       confirmCoordinates: (...a: unknown[]) => mockConfirm(...a),
       permissions: (...a: unknown[]) => mockPermissions(...a),

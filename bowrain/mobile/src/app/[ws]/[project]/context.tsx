@@ -178,9 +178,8 @@ export default function ContextSessionScreen() {
           const id = contextCardId(d);
           setDecided((ids) => ids.filter((x) => x !== id));
           setLater((ids) => [...ids.filter((x) => x !== id), id]);
-          setNotice(
-            t(`context.refused.${refusalCode(err)}`, { defaultValue: t("context.refused.failed") }),
-          );
+          const failed = t("context.refused.failed");
+          setNotice(t(`context.refused.${refusalCode(err)}`, { defaultValue: failed }));
         })
         .finally(() => inFlight.current.delete(p));
       inFlight.current.add(p);
@@ -349,7 +348,9 @@ export default function ContextSessionScreen() {
 
       <OriginSheet
         card={originOf}
-        load={(op, cursor) => client.contextOrigin(ws, project, op, { cursor, limit: 50 })}
+        load={(op, cursor, signal) =>
+          client.with({ signal }).contextOrigin(ws, project, op, { cursor, limit: 50 })
+        }
         onClose={() => setOriginOf(null)}
       />
 

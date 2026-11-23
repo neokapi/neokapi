@@ -582,7 +582,47 @@ background refetch would move the whole screen. Screens bind the control through
 screen that binds it to anything else.
 
 A first load shows placeholders in the shape of what replaces them, and a
-"loading more" row sits at the end of a list.
+"loading more" row sits at the end of a list. On a project's screen each
+section fills in place as its own request answers. The header and the plan
+card keep their height while they load, and a failed plan says so in the
+card. The context row sits above the languages, because a translation is
+checked against the context. It is always there, titled Context, with the
+count of what waits in a pill and one line of detail: what kinds wait, that
+the context is up to date, that it is loading, or that its count could not
+be loaded. The permissions decide which languages are listed, so the
+language rows appear when they answer and never vanish under a finger; each
+card's counts then fill in place, in a fixed shape. The activity strip shows
+only when there is activity, so it sits below the languages and appears
+once the sections above it have their final height.
+
+The workspaces and projects lists wait for the inbox's first answer, because
+the inbox decides the next step above the workspaces, the order of the
+projects and what each card says. A failed attempt counts as an answer, so a
+failing inbox costs one attempt. Once a list shows, it holds still while the
+screen is on view: an inbox that answers later fills the cards in place,
+but the projects keep their order and no next step arrives above the
+workspaces until the next visit or pull (`useHeldLayout`). A card's height
+does not depend on its counts: a workspace card's summary is one line and a
+project card always has two status lines.
+
+A count the app could not load is never shown as zero. When the inbox
+failed, or the server has no inbox route, the workspace, project and
+language cards and the context row say "Not loaded" in place of their
+counts, a project card's language badges are outlined rather than dimmed,
+and a line below the list offers a retry. When the counts on the device
+could not be refreshed, they stay, and the line says they may be out of
+date. The Review tab shows its load failure with a retry.
+
+Every read has one bound over the whole request, the answer's body
+included (`READ_TIMEOUT_MS`, 30 s, in `@neokapi/bowrain-client`). It exists
+to end a request that will never answer, so it sits well above anything a
+person waits for on a phone: production's slowest healthy read over seven
+days was a review deck at 9.2 s. A read that reaches the bound fails as a
+`RequestTimeoutError`, which is not a network error and is not tried
+again. Every query passes its signal to the client (`client.with({ signal
+})`), so leaving a screen cancels its reads. Writes have no bound of their
+own, because a decision that seems lost may have landed; the decision
+queue's handling of a lost answer is described under offline decisions.
 
 ## Licence
 

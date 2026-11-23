@@ -8,7 +8,13 @@ import { regexTokens } from "../lib/regexTokens";
 
 const mockExamples = jest.fn<Promise<ContextRuleExamples>, unknown[]>();
 jest.mock("../lib/auth", () => ({
-  useAuth: () => ({ client: { contextRuleExamples: (...a: unknown[]) => mockExamples(...a) } }),
+  useAuth: () => {
+    const client = {
+      contextRuleExamples: (...a: unknown[]) => mockExamples(...a),
+      with: () => client,
+    };
+    return { client };
+  },
 }));
 
 const hype: Card = {

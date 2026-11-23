@@ -30,8 +30,10 @@ export function useFeed(ws: string, project: string) {
   const { client } = useAuth();
   return useInfiniteQuery({
     queryKey: feedKey(ws, project),
-    queryFn: ({ pageParam }) =>
-      client.feed(ws, project, { limit: PAGE_SIZE, cursor: pageParam || undefined }),
+    queryFn: ({ pageParam, signal }) =>
+      client
+        .with({ signal })
+        .feed(ws, project, { limit: PAGE_SIZE, cursor: pageParam || undefined }),
     initialPageParam: "",
     getNextPageParam: (last: FeedPage) => last.next_cursor || undefined,
   });
@@ -296,7 +298,8 @@ function actionIn(e: FeedEntry, t: TFunction, uiLanguage: string): string {
     }
     case "change_set": {
       const key = CHANGE_SET_KEYS[e.state ?? ""] ?? "changeSetSubmitted";
-      return t(`feed.action.${key}`, { name: e.name || t("feed.action.aChangeSet") });
+      const unnamed = t("feed.action.aChangeSet");
+      return t(`feed.action.${key}`, { name: e.name || unnamed });
     }
     case "coverage_milestone": {
       const language = e.locales?.[0] ? languageLabel(e.locales[0], uiLanguage) : "";
