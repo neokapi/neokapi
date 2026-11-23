@@ -53,7 +53,7 @@ func newVoicedProject(t *testing.T) *BowrainSourceConnector {
 
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
-	return NewLocalConnector(app, proj, reg)
+	return mustLocalConnector(t, app, proj, reg)
 }
 
 // serverVoiceEntry is the "docs" collection as a pull carries it, bound to
