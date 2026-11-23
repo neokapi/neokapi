@@ -27,11 +27,19 @@ export function UnknownPill({ testID }: { testID?: string }) {
  * Below a list whose counts could not be loaded: says so, with a retry. It
  * sits after the cards, so it moves nothing when it goes.
  */
-export function CountsNotice({ onRetry }: { onRetry: () => void }) {
+export function CountsNotice({
+  kind = "failed",
+  onRetry,
+}: {
+  /** `failed`: the counts were never loaded; `stale`: they could not be refreshed. */
+  kind?: "failed" | "stale";
+  onRetry: () => void;
+}) {
   const { t } = useTranslation();
+  const text = kind === "stale" ? t("home.countsStale") : t("home.countsFailed");
   return (
-    <View testID="counts-failed" className="items-center gap-2 px-8 pt-4 pb-2">
-      <Text className="text-muted-foreground text-center text-sm">{t("home.countsFailed")}</Text>
+    <View testID={`counts-${kind}`} className="items-center gap-2 px-8 pt-4 pb-2">
+      <Text className="text-muted-foreground text-center text-sm">{text}</Text>
       <Pressable testID="counts-retry" accessibilityRole="button" onPress={onRetry} hitSlop={8}>
         <Text className="text-primary text-base">{t("common.retry")}</Text>
       </Pressable>
@@ -66,26 +74,39 @@ export function CountPill({ count, testID }: { count: number; testID?: string })
 export function LocaleBadge({
   locale,
   active = true,
+  unknown = false,
   size = "md",
 }: {
   locale: string;
   /** False dims the badge: nothing waits in this language. */
   active?: boolean;
+  /**
+   * What waits is not known: an outlined badge, neither lit nor dimmed, so it
+   * does not read as "nothing waits".
+   */
+  unknown?: boolean;
   size?: "sm" | "md";
 }) {
   const box = size === "sm" ? "min-w-8 px-1.5 py-0.5 rounded-md" : "min-w-11 px-2 py-2 rounded-xl";
   const text = size === "sm" ? "text-[11px]" : "text-sm";
+  const look = unknown
+    ? "border-border border border-dashed bg-transparent"
+    : active
+      ? "bg-chip"
+      : "bg-muted";
+  const ink = unknown
+    ? "text-foreground"
+    : active
+      ? "text-chip-foreground"
+      : "text-muted-foreground";
   return (
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      className={`${box} items-center ${active ? "bg-chip" : "bg-muted"}`}
+      testID={unknown ? `badge-${locale}-unknown` : undefined}
+      className={`${box} items-center ${look}`}
     >
-      <Text
-        className={`${text} font-bold tracking-wide ${
-          active ? "text-chip-foreground" : "text-muted-foreground"
-        }`}
-      >
+      <Text className={`${text} font-bold tracking-wide ${ink}`}>
         {locale.replace(/_/g, "-").toUpperCase()}
       </Text>
     </View>

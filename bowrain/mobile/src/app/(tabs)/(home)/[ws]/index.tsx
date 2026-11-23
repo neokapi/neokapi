@@ -14,6 +14,7 @@ import { ProjectCard } from "../../../../components/home/HomeCards";
 import { CountsNotice, EmptyState, SkeletonCards } from "../../../../components/home/parts";
 import { useAuth } from "../../../../lib/auth";
 import {
+  countsNotice,
   hasAnswered,
   inboxCounts,
   inboxFailed,
@@ -22,6 +23,7 @@ import {
   useReviewHome,
 } from "../../../../lib/home";
 import { usePullRefresh } from "../../../../lib/pullRefresh";
+import { useHeldLayout } from "../../../../lib/heldLayout";
 import { routeValue } from "../../../../lib/routeParams";
 
 // The screen waits for a workspace: a parameter that is a route group's name
@@ -36,7 +38,10 @@ function ProjectList({ ws }: { ws: string }) {
   const { t } = useTranslation();
   const { client } = useAuth();
   const qc = useQueryClient();
-  const projects = useQuery({ queryKey: ["projects", ws], queryFn: () => client.projects(ws) });
+  const projects = useQuery({
+    queryKey: ["projects", ws],
+    queryFn: ({ signal }) => client.with({ signal }).projects(ws),
+  });
   const inbox = useReviewHome();
   const { refetch: refetchInbox } = inbox;
   const wsName = qc.getQueryData<Workspace[]>(["workspaces"])?.find((w) => w.slug === ws)?.name;
@@ -46,8 +51,6 @@ function ProjectList({ ws }: { ws: string }) {
       void refetchInbox();
     }, [refetchInbox]),
   );
-
-  const pull = usePullRefresh(() => Promise.all([projects.refetch(), refetchInbox()]));
 
   const summary = useMemo(() => summarize(inbox.data), [inbox.data]);
   const sorted = useMemo(() => {
@@ -66,11 +69,27 @@ function ProjectList({ ws }: { ws: string }) {
   // attempt counts as an answer.
   const settling = projects.isPending || !hasAnswered(inbox);
 
+  // The order shown first holds while the screen is on view: an inbox that
+  // answers after a failed attempt fills the cards in place and re-sorts them
+  // on the next visit or pull.
+  const layout = useHeldLayout(
+    !settling,
+    sorted.map((p) => p.id),
+    false,
+  );
+  const byId = useMemo(() => new Map(sorted.map((p) => [p.id, p])), [sorted]);
+  const shown = layout.order.flatMap((id) => byId.get(id) ?? []);
+  const pull = usePullRefresh(() =>
+    Promise.all([projects.refetch(), refetchInbox()]).finally(layout.release),
+  );
+
   const open = useCallback(
     (p: Project) => router.push({ pathname: "/[ws]/[project]", params: { ws, project: p.id } }),
     [ws],
   );
-  const unknown = inboxCounts(inbox) === "unknown";
+  const counts = inboxCounts(inbox);
+  const unknown = counts === "unknown";
+  const notice = countsNotice(counts, inboxFailed(inbox));
   const renderItem = useCallback(
     ({ item }: { item: Project }) => (
       <ProjectCard
@@ -90,7 +109,7 @@ function ProjectList({ ws }: { ws: string }) {
         testID="project-list"
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="pt-2 pb-8"
-        data={settling ? [] : sorted}
+        data={settling ? [] : shown}
         keyExtractor={(p) => p.id}
         renderItem={renderItem}
         refreshing={pull.refreshing}
@@ -105,8 +124,8 @@ function ProjectList({ ws }: { ws: string }) {
           )
         }
         ListFooterComponent={
-          !settling && sorted.length > 0 && inboxFailed(inbox) && !inbox.data ? (
-            <CountsNotice onRetry={() => void refetchInbox()} />
+          !settling && shown.length > 0 && notice ? (
+            <CountsNotice kind={notice} onRetry={() => void refetchInbox()} />
           ) : undefined
         }
       />

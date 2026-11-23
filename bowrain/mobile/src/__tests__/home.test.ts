@@ -5,6 +5,7 @@ import type {
   ReviewInboxProject,
 } from "@neokapi/bowrain-client";
 
+import { heldOrder } from "../lib/heldOrder";
 import { hasAnswered, homeStep, inboxCounts, projectKey, summarize } from "../lib/home";
 
 function lang(
@@ -198,6 +199,20 @@ describe("inboxCounts", () => {
     // A server without the inbox route answers null: the counts are unknown.
     expect(inboxCounts({ data: null, isPending: false, failureCount: 0 })).toBe("unknown");
     expect(inboxCounts({ data: home, isPending: false, failureCount: 0 })).toBe("known");
+  });
+
+  it("calls counts whose refresh failed stale", () => {
+    expect(inboxCounts({ data: home, isPending: false, isError: true, failureCount: 1 })).toBe(
+      "stale",
+    );
+    expect(inboxCounts({ data: home, isPending: false, failureCount: 1 })).toBe("stale");
+  });
+});
+
+describe("heldOrder", () => {
+  it("keeps the order first shown, adds newcomers after it and drops what left", () => {
+    expect(heldOrder(null, ["b", "a"])).toEqual(["b", "a"]);
+    expect(heldOrder(["a", "b", "c"], ["c", "d", "a"])).toEqual(["a", "c", "d"]);
   });
 });
 

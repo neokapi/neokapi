@@ -1,8 +1,8 @@
 // A project's screen fills each section in place as its request answers. The
-// header, the plan card and the language cards hold their place while they
-// load; the context row and the activity strip, which show only when there is
-// something to show, come below the languages once the sections above them
-// have answered.
+// header, the plan card, the context row and the language cards hold their
+// place while they load; the activity strip, which shows only when there is
+// activity, comes below the languages once the sections above it have
+// answered.
 import { act, render, screen, waitFor } from "@testing-library/react-native";
 
 import { withTestProviders } from "./testProviders";
@@ -25,10 +25,13 @@ jest.mock("../lib/auth", () => {
   const client = new Proxy(
     {},
     {
-      get: (_target, method: string) => () =>
-        new Promise((resolve, reject) => {
-          mockPending.set(method, { resolve, reject });
-        }),
+      get: (_target, method: string, receiver: unknown) =>
+        method === "with"
+          ? () => receiver
+          : () =>
+              new Promise((resolve, reject) => {
+                mockPending.set(method, { resolve, reject });
+              }),
     },
   );
   return { useAuth: () => ({ client }) };
@@ -77,7 +80,7 @@ const feedEntry = {
 beforeEach(() => mockPending.clear());
 
 describe("a project's first load", () => {
-  it("holds the header, the plan card and the language cards while they load", async () => {
+  it("holds the header, the plan card and the context row while they load", async () => {
     await render(withTestProviders(<ProjectHome />));
     expect(
       screen.getByTestId("project-header-loading", { includeHiddenElements: true }),
@@ -86,10 +89,12 @@ describe("a project's first load", () => {
 
     await answer("projects", [project]);
     expect(await screen.findByTestId("project-header")).toBeTruthy();
-    // The permissions have not answered: the project's languages hold the place.
-    expect(screen.getByTestId("language-nb")).toBeTruthy();
-    expect(screen.getByTestId("language-de")).toBeTruthy();
-    expect(screen.queryByTestId("project-context")).toBeNull();
+    // The permissions decide which languages are listed: until they answer,
+    // no language row shows, so none vanishes when they narrow the list.
+    expect(screen.queryByTestId("language-nb")).toBeNull();
+    expect(screen.getByTestId("languages-loading", { includeHiddenElements: true })).toBeTruthy();
+    // The context row is there from the start, loading in one line.
+    expect(screen.getByTestId("project-context")).toHaveTextContent(/Loading/);
 
     await answer("reviewPlan", { next: null });
     await waitFor(() =>
@@ -105,16 +110,25 @@ describe("a project's first load", () => {
     );
   });
 
-  it("adds the context row below the languages once the sections above have answered", async () => {
+  it("fills the context row in place with what waits", async () => {
     await render(withTestProviders(<ProjectHome />));
     await answer("projects", [project]);
     await answer("reviewHome", inbox);
+    // The title stays "Context"; the count is the pill's, the kinds the detail's.
+    await waitFor(() => expect(screen.getByTestId("project-context")).toHaveTextContent(/3 notes/));
+    expect(screen.getByTestId("project-context")).toHaveTextContent(/Context0 voice/);
+    expect(screen.queryByText(/to review/)).toBeNull();
     await answer("feed", { entries: [feedEntry] });
-    // The languages are not final until the permissions answer.
-    expect(screen.queryByTestId("project-context")).toBeNull();
-
     await answer("permissions", { permissions: ["review"], languages: ["nb"] });
-    expect(await screen.findByTestId("project-context")).toBeTruthy();
+    expect(await screen.findByTestId("language-nb")).toBeTruthy();
     expect(screen.queryByTestId("language-de")).toBeNull();
+  });
+
+  it("says the context is up to date when nothing waits there", async () => {
+    await render(withTestProviders(<ProjectHome />));
+    await answer("reviewHome", { projects: [], languages: [], context: [] });
+    await waitFor(() =>
+      expect(screen.getByTestId("project-context")).toHaveTextContent(/Up to date/),
+    );
   });
 });

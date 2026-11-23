@@ -20,6 +20,7 @@ import {
 } from "../../../components/home/parts";
 import { useAuth } from "../../../lib/auth";
 import {
+  countsNotice,
   hasAnswered,
   homeStep,
   inboxCounts,
@@ -29,6 +30,7 @@ import {
   type HomeStep,
 } from "../../../lib/home";
 import { usePullRefresh } from "../../../lib/pullRefresh";
+import { useHeldLayout } from "../../../lib/heldLayout";
 import { useRecentProject } from "../../../lib/recentProject";
 import { openContext, openDeck, openSetup, openStep } from "../../../lib/reviewNav";
 
@@ -61,7 +63,10 @@ function openWorkspace(w: Workspace) {
 export default function Workspaces() {
   const { t } = useTranslation();
   const { client } = useAuth();
-  const workspaces = useQuery({ queryKey: ["workspaces"], queryFn: () => client.workspaces() });
+  const workspaces = useQuery({
+    queryKey: ["workspaces"],
+    queryFn: ({ signal }) => client.with({ signal }).workspaces(),
+  });
   const inbox = useReviewHome();
   const recent = useRecentProject();
   const { refetch: refetchInbox } = inbox;
@@ -73,13 +78,12 @@ export default function Workspaces() {
     }, [refetchInbox]),
   );
 
-  const pull = usePullRefresh(() => Promise.all([workspaces.refetch(), refetchInbox()]));
-
   const summary = useMemo(() => summarize(inbox.data), [inbox.data]);
   const next = useMemo(() => homeStep(inbox.data, recent), [inbox.data, recent]);
   const showWorkspace = (workspaces.data?.length ?? 0) > 1;
 
-  const unknown = inboxCounts(inbox) === "unknown";
+  const counts = inboxCounts(inbox);
+  const unknown = counts === "unknown";
   const renderItem = useCallback(
     ({ item }: { item: Workspace }) => (
       <WorkspaceCard
@@ -119,6 +123,15 @@ export default function Workspaces() {
   const settling = workspaces.isPending || !hasAnswered(inbox);
   const hasWorkspaces = !settling && (workspaces.data?.length ?? 0) > 0;
 
+  // When the first paint had no next step (the inbox failed), one that a
+  // later attempt brings waits for the next visit or pull rather than
+  // arriving above the workspaces.
+  const layout = useHeldLayout(!settling, [], hero !== null);
+  const pull = usePullRefresh(() =>
+    Promise.all([workspaces.refetch(), refetchInbox()]).finally(layout.release),
+  );
+  const notice = countsNotice(counts, inboxFailed(inbox));
+
   return (
     <View collapsable={false} className="bg-background flex-1">
       <FlatList
@@ -132,7 +145,7 @@ export default function Workspaces() {
         onRefresh={pull.onRefresh}
         ListHeaderComponent={
           <View className="pt-2">
-            {settling ? null : hero}
+            {settling || !layout.above ? null : hero}
             {hasWorkspaces ? <SectionHeader title={t("home.workspacesHeader")} /> : null}
           </View>
         }
@@ -146,8 +159,8 @@ export default function Workspaces() {
           )
         }
         ListFooterComponent={
-          !settling && hasWorkspaces && inboxFailed(inbox) && !inbox.data ? (
-            <CountsNotice onRetry={() => void refetchInbox()} />
+          !settling && hasWorkspaces && notice ? (
+            <CountsNotice kind={notice} onRetry={() => void refetchInbox()} />
           ) : undefined
         }
       />

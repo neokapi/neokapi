@@ -33,6 +33,10 @@ const mockOverrides = jest.fn();
 jest.mock("../lib/auth", () => ({
   useAuth: () => ({
     client: {
+      // The client a query narrows with its signal is this same double.
+      with() {
+        return this;
+      },
       reviewHome: (...a: unknown[]) => mockHome(...a),
       reviewLanguages: (...a: unknown[]) => mockLanguages(...a),
       setFollowedLanguages: (...a: unknown[]) => mockSetFollowed(...a),

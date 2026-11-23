@@ -1,7 +1,8 @@
 // A project's home, under its name as a large title: the project's mark and
-// languages, its review plan, the languages the person may review, each with
-// the translations waiting and how the deck groups them, and then its context
-// waiting for review and who worked on it lately. A language opens its deck in one tap. The server says
+// languages, its review plan, its context, and the languages the person may
+// review, each with the translations waiting and how the deck groups them,
+// and then who worked on it lately. The context comes before the languages
+// because a translation is checked against it. A language opens its deck in one tap. The server says
 // which languages the review permission covers; the app lists those and no
 // others. What waits comes from the review inbox the Review tab reads, so a
 // project shows the numbers the Review tab shows.
@@ -17,14 +18,17 @@ import { ActivityStrip } from "../../../../../components/home/ActivityStrip";
 import { ContextEntryCard, LanguageCard } from "../../../../../components/home/HomeCards";
 import { Monogram } from "../../../../../components/home/Monogram";
 import {
+  CountPill,
   CountsNotice,
   EmptyState,
   SectionHeader,
   SkeletonCards,
+  UnknownPill,
 } from "../../../../../components/home/parts";
 import { useAuth } from "../../../../../lib/auth";
 import { entriesOf, languageLabel, useFeed } from "../../../../../lib/feed";
 import {
+  countsNotice,
   inboxCounts,
   inboxFailed,
   projectKey,
@@ -95,7 +99,7 @@ function Languages({ ws, project }: { ws: string; project: string }) {
 
   const projects = useQuery({
     queryKey: ["projects", ws],
-    queryFn: () => client.projects(ws),
+    queryFn: ({ signal }) => client.with({ signal }).projects(ws),
     initialData: () => qc.getQueryData<Project[]>(["projects", ws]),
   });
   const info = projects.data?.find((p) => p.id === project);
@@ -104,7 +108,7 @@ function Languages({ ws, project }: { ws: string; project: string }) {
   useEffect(() => setRecentProject({ ws, project, name: projectName }), [ws, project, projectName]);
   const perms = useQuery({
     queryKey: ["permissions", ws, project],
-    queryFn: () => client.permissions(ws, project),
+    queryFn: ({ signal }) => client.with({ signal }).permissions(ws, project),
   });
 
   const mayReview = perms.data?.permissions.includes("review") ?? false;
@@ -129,11 +133,14 @@ function Languages({ ws, project }: { ws: string; project: string }) {
   // The review plan leads: what to decide next, from the coordinates down.
   const plan = useQuery({
     queryKey: reviewPlanKey(ws, project),
-    queryFn: () => client.reviewPlan({ workspace: ws, project }),
+    queryFn: ({ signal }) => client.with({ signal }).reviewPlan({ workspace: ws, project }),
   });
+  // Each t() call stands alone: the i18n transform reads a call's own key, so
+  // a call nested in another's arguments is never extracted.
+  const nextStep = plan.data?.next ? t(planStepTitle[plan.data.next]) : undefined;
   const planDetail = plan.data
-    ? plan.data.next
-      ? t("plan.homeNext", { step: t(planStepTitle[plan.data.next]) })
+    ? nextStep !== undefined
+      ? t("plan.homeNext", { step: nextStep })
       : t("plan.homeDone")
     : undefined;
 
@@ -161,16 +168,34 @@ function Languages({ ws, project }: { ws: string; project: string }) {
   const pull = usePullRefresh(() => Promise.all([feed.refetch(), inbox.refetch(), plan.refetch()]));
 
   // Each section fills in place as its query answers. The header, the plan
-  // card and the language cards hold their size while loading. The context
-  // row and the activity strip show only when something is there, so they sit
-  // below the languages and appear once everything above them has its final
-  // size: a late one is added below the content, never above it.
+  // card and the context row hold their size while loading: the context row
+  // is always there, titled Context, with its count in a pill and its detail
+  // in one line. The permissions decide which languages are listed, so the
+  // language rows wait for them and never vanish under a finger once shown;
+  // their counts then fill in place. The activity strip shows only when there
+  // is activity, so it sits below the languages and appears once everything
+  // above it has its final size.
   const languagesFinal = !perms.isPending && (info !== undefined || !projects.isPending);
   const extrasReady = languagesFinal && !inbox.isPending && !feed.isPending;
-  // Before the permissions answer, the project's own languages hold the place
-  // of the list the permissions narrow, as cards still loading.
-  const listed = perms.isPending ? (info?.target_languages ?? []) : languages;
+  const listed = languagesFinal ? languages : [];
   const planText = planDetail ?? (plan.isError ? t("common.loadFailed") : t("home.loading"));
+  const contextText =
+    counts === "loading"
+      ? t("home.loading")
+      : counts === "unknown"
+        ? t("home.countsUnavailable")
+        : contextWaiting > 0
+          ? contextDetail
+          : t("context.upToDate");
+  const contextPill =
+    counts === "loading" ? (
+      <View className="bg-muted h-7 w-9 rounded-full" />
+    ) : counts === "unknown" ? (
+      <UnknownPill />
+    ) : (
+      <CountPill count={contextWaiting} />
+    );
+  const notice = countsNotice(counts, inboxFailed(inbox));
 
   return (
     <View collapsable={false} className="bg-background flex-1">
@@ -203,6 +228,16 @@ function Languages({ ws, project }: { ws: string; project: string }) {
                 {planText}
               </Text>
             </Pressable>
+            <ContextEntryCard
+              count={contextWaiting}
+              title={t("context.title")}
+              detail={contextText}
+              detailLines={1}
+              trailing={contextPill}
+              onPress={() =>
+                router.push({ pathname: "/[ws]/[project]/context", params: { ws, project } })
+              }
+            />
             {listed.length > 0 || !languagesFinal ? (
               <SectionHeader title={t("home.languagesHeader")} />
             ) : null}
@@ -223,18 +258,7 @@ function Languages({ ws, project }: { ws: string; project: string }) {
         ListFooterComponent={
           extrasReady ? (
             <View className="pt-3">
-              {inboxFailed(inbox) && !inbox.data ? (
-                <CountsNotice onRetry={() => void inbox.refetch()} />
-              ) : null}
-              {contextWaiting > 0 ? (
-                <ContextEntryCard
-                  count={contextWaiting}
-                  detail={contextDetail}
-                  onPress={() =>
-                    router.push({ pathname: "/[ws]/[project]/context", params: { ws, project } })
-                  }
-                />
-              ) : null}
+              {notice ? <CountsNotice kind={notice} onRetry={() => void inbox.refetch()} /> : null}
               <ActivityStrip entries={entries} onPress={() => router.navigate("/activity")} />
             </View>
           ) : undefined
