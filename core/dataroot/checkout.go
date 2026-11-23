@@ -12,6 +12,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // A checkout's own state (its project store, caches, drafts, locks, sync
@@ -62,13 +64,16 @@ func CheckoutsDir() string { return filepath.Join(Dir(), CheckoutsDirName) }
 // checkoutKey keys a checkout by its resolved location and its root's
 // identity.
 func checkoutKey(path, id string) string {
-	sum := sha256.Sum256([]byte(path + "\x00" + id))
+	sum := sha256.Sum256([]byte(partjoin.NUL("kapi-checkout/v1", path, id)))
 	return hex.EncodeToString(sum[:16])
 }
 
 // followed caches, per resolved location and identity, the directory a
 // checkout's state was found in, so the rename search runs once per process.
-var followed sync.Map // path + "\x00" + identity -> dir
+var followed sync.Map // followKey -> dir
+
+// followKey keys followed: a checkout's resolved location and identity.
+type followKey struct{ path, id string }
 
 // CheckoutDir returns the directory that holds the state of the checkout at
 // root, whether or not it exists yet. When it does not exist and a record
@@ -82,7 +87,7 @@ func CheckoutDir(root string) string {
 	if err != nil {
 		return filepath.Join(CheckoutsDir(), checkoutKey(path, ""))
 	}
-	cacheKey := path + "\x00" + id
+	cacheKey := followKey{path: path, id: id}
 	if dir, ok := followed.Load(cacheKey); ok {
 		return dir.(string)
 	}
