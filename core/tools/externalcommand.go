@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -32,7 +33,20 @@ type ExternalCommandConfig struct {
 	TargetLocale model.LocaleID `schema:"title=Target Locale,description=Target locale for processing,showIfSet=ApplyTarget"`            // Target locale (required when ApplyTarget)
 	SendAsStdin  bool           `schema:"title=Send as Stdin,description=Send text via stdin instead of command arguments,default=true"` // Send text via stdin instead of args (default: true)
 	Timeout      int            `schema:"title=Timeout,description=Timeout in seconds,default=30,min=1"`                                 // Timeout in seconds (default: 30)
+	// WorkingDir is the directory the command runs in, and the one a relative
+	// command path is read against. kapi sets it to the project root for a
+	// recipe's step, whatever the recipe says (host.recipeCommandConfig).
+	// Empty runs the command in kapi's own working directory, as
+	// `kapi exec external-command` does with the command a person typed.
+	WorkingDir string `json:"working_dir,omitempty" schema:"-"`
+	// InvokeDir is the directory kapi was started in, handed to the command as
+	// KAPI_INVOKE_DIR when set, for a command that needs it.
+	InvokeDir string `json:"invoke_dir,omitempty" schema:"-"`
 }
+
+// EnvInvokeDir names the directory kapi was started in, for a recipe's
+// command, which runs from the project root.
+const EnvInvokeDir = "KAPI_INVOKE_DIR"
 
 // ToolName returns the tool name this config applies to.
 func (c *ExternalCommandConfig) ToolName() string { return "external-command" }
@@ -46,6 +60,8 @@ func (c *ExternalCommandConfig) Reset() {
 	c.TargetLocale = ""
 	c.SendAsStdin = true
 	c.Timeout = 30
+	c.WorkingDir = ""
+	c.InvokeDir = ""
 }
 
 // Validate checks configuration validity.
@@ -72,12 +88,9 @@ func NewExternalCommandConfig(targetLocale model.LocaleID) *ExternalCommandConfi
 // map.
 //
 // Command and Args are the tool's entire behaviour and can only come from the
-// step. Without this factory the tool was built with an empty Command, so every
-// block's run failed with "exec: no command" and the failure was recorded as a
-// block property nothing reads — the config that named the program to run was
-// discarded before it got there (#1476). Validate() is enforced here so a step
-// with no command fails at construction, naming the tool, instead of failing
-// once per block.
+// step's configuration, so the factory applies it (#1476). Validate() runs
+// here, so a step with no command fails at construction, naming the tool,
+// rather than once per block.
 func NewExternalCommandFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	cfg := NewExternalCommandConfig(model.LocaleID(targetLang))
 	if err := applyStepConfig("external-command", config, cfg, targetLang, setExternalCommandLocale); err != nil {
@@ -258,6 +271,10 @@ func runCommand(ctx context.Context, cfg *ExternalCommandConfig, text string, ti
 	}
 
 	cmd := exec.CommandContext(ctx, cfg.Command, args...)
+	cmd.Dir = cfg.WorkingDir
+	if cfg.InvokeDir != "" {
+		cmd.Env = append(os.Environ(), EnvInvokeDir+"="+cfg.InvokeDir)
+	}
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

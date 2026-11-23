@@ -1713,6 +1713,10 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 	if err := a.checkExecToolAllowed(toolName); err != nil {
 		return nil, nil, err
 	}
+	config, err := a.recipeCommandConfig(toolName, config)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	info := a.ToolReg.ToolInfo(registry.ToolID(toolName))
 
@@ -2556,6 +2560,11 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd Command, rCtx *flow.ResourceC
 	if a.ToolReg.Has(toolID) {
 		config, cleanup, err := a.stepToolConfig(step, cmd, rCtx)
 		if err != nil {
+			return nil, noop, err
+		}
+		config, err = a.recipeCommandConfig(step.Tool, config)
+		if err != nil {
+			cleanup()
 			return nil, noop, err
 		}
 

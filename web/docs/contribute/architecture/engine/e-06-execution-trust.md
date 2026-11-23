@@ -98,6 +98,44 @@ The stored record answers *what was approved*, not *which project was trusted*:
   command does not. This is what makes a sticky decision safe: it attaches to the
   argv a person read, so a recipe cannot be approved once and rewritten
   afterwards.
+- **It covers everything the project can make kapi execute**
+  (`project.ExecSurfaceIn`): the recipe's flows, presets and formats, and
+  every flow file in its `flows_dir:`. `ExecSurfaceSources` names the recipe
+  fields the walk reads, and a test holds every field of the recipe to that
+  list or to `ExecSurfaceNonSources`, so a new place a step can be declared
+  joins the walk. kapi's built-in flows run no exec-class tool, which a test
+  also holds. The record keeps where each command is declared, so a flow file
+  a pull adds asks again and the question names it.
+- **It covers the regular files the commands name inside the project, and
+  the project's id** (`host.execSurfaceOf`). A `script_file`, an executable
+  given by a path, and each argument that resolves to a regular file in the
+  project (an interpreter's script, as in `node tools/x.js`) are hashed into
+  the digest through `ExecSite.WithFacts`, the same mechanism the formatter
+  arm uses for its executable and configuration. A relative path is read
+  against the project root and through it (`core/rootpath`); a named file
+  that is or passes through a link out of the project is refused rather than
+  hashed. The question, the refusal and `kapi trust list` show three groups:
+  the files checked by content; what the commands name and kapi does not
+  check (a directory, as in `node lib`); and the commands that hand a string
+  to a shell (`sh -c`), whose files kapi cannot see. Each also says that kapi
+  checks the files listed, not what they run or read. kapi does not guess
+  what `npm run`, `make`, `python -m` or a `PATH` lookup will execute: a
+  person who wants a script checked names it in the recipe
+  (`command: ./tools/run.sh`). The record keeps each file's hash, so the next
+  question names the file that changed. The id is plain text in the recipe:
+  it tells two projects at one path apart and proves nothing about which one
+  a recipe is.
+- **It is checked at every build, not once per process.**
+  `checkExecToolAllowed` reads the project's commands and named files again
+  each time a flow builds an exec-class step, rehashing a file only when its
+  size or modification time moved. The desktop and a daemon refuse a script
+  changed after the answer. The desktop asks before each run through a dialog
+  that shows the three groups and records the answer only while the project
+  still digests to what it showed; a daemon refuses with the approving
+  command. A refusal with nobody to ask exits 1 (`error`).
+- **A recipe cannot set what kapi sets.** `working_dir` and `invoke_dir` on a
+  command are kapi's own: a recipe that sets either is refused with a message,
+  and a recipe's value never reaches the command as `KAPI_INVOKE_DIR`.
 - **It lives under `ConfigDir()`**, not in the project's `.kapi/`. The state
   directory is documented as safe to delete and regenerate, so a record there
   would evaporate on a routine clean, and could also ship inside the project
@@ -107,6 +145,23 @@ The stored record answers *what was approved*, not *which project was trusted*:
 
 Declines are remembered too, and a declined recipe says how to answer again,
 so a person is never asked repeatedly for an answer they have already given.
+
+### A recipe's commands run from the project root
+
+A recipe is found by walking up from wherever the person stands, so a
+command that ran in the invoking directory would mean a different
+`./tool.sh` from each directory under the project, and its approval would
+have to ask again in each. `host.recipeCommandConfig` fixes the meaning
+instead: every flow builds its tools through `toolFromStep` or
+`buildToolByName`, both pass an exec-class step's configuration through it,
+and it sets `external-command`'s working directory to the project root and
+reads a relative `script_file` from the root. The directory kapi was started in reaches the command as
+`KAPI_INVOKE_DIR`, for a command that needs it. The CLI, the desktop, a
+plugin daemon and a convergence run all build their steps there. `kapi exec`
+builds no recipe step: the command a person types runs in their own
+directory. A project's formatter already follows the same rule: it runs in
+the directory of the configuration file that selects it, with its executable
+resolved to an absolute path.
 
 ### `kapi trust` is the record's front door
 

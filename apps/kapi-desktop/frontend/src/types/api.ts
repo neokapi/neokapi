@@ -942,6 +942,23 @@ export interface ContextBackend {
   endpoint?: string;
 }
 
+/** What a project's commands run and what an answer about them checks. */
+export interface ExecTrustRequest {
+  recipe: string;
+  sites: { where: string; kind: string; name: string; detail?: string }[];
+  /** Files checked by content, project-relative. */
+  checked: string[];
+  /** Directories the commands name, whose content is not checked. */
+  not_checked?: string[];
+  /** Steps that hand a command string to a shell. */
+  shells?: string[];
+  added?: string[];
+  changed?: string[];
+  limit: string;
+  declined?: boolean;
+  digest: string;
+}
+
 /** What a pull merged. */
 export interface ContextPull extends SyncStatus {
   segments: number;

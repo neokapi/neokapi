@@ -20,8 +20,21 @@ context in a folder.
 A recipe that names an exec-class step (external-command, script, or the exec
 format) runs code the recipe chooses, with your privileges and your
 environment. kapi asks once per project before running it and remembers the
-answer, allow or deny, against a fingerprint of the commands shown. A recipe
-edit that changes what would run asks again. A comment edit's project
+answer, allow or deny, against a fingerprint of the commands shown, the
+project's id, and the content of every file in the project the commands name:
+a script_file, a program given by a path, a script handed to an interpreter
+(node tools/x.js). A recipe edit that changes what would run, an edit to one
+of those files, or another project at the same path asks again, and the
+question says which file changed. A named file that is a link out of the
+project is refused. The question and kapi trust list show the files checked
+by content, what the commands name and kapi does not check (a directory),
+and the commands that go through a shell (sh -c), whose files kapi cannot
+see. kapi checks the files listed, not what they run or read: to have a
+script checked, name it in the recipe (command: ./tools/run.sh) rather than
+inside a shell string or behind npm run or make. Flow files in flows_dir are
+covered as the recipe is, and the check runs at every command run. A recipe's commands run in the project root, wherever kapi is
+started, and relative paths are read from there; the directory kapi was
+started in reaches the command as KAPI_INVOKE_DIR. A comment edit's project
 formatter is decided the same way and kept in the same record, keyed by the
 configuration file that selects it.
 
