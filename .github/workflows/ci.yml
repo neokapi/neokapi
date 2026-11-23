@@ -967,7 +967,7 @@ jobs:
           restore-keys: |
             go-plugins-${{ runner.os }}-go1.27.4-
       - name: Restore and save the plugin build and module cache
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache@v6
         with:
           path: |

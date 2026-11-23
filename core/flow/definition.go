@@ -44,21 +44,32 @@ type FlowDefinition struct {
 	Binding *FlowBinding `json:"binding,omitempty"`
 }
 
-// MarshalJSON writes nodes and edges as arrays, empty when there are none. A
-// one-step flow has no edges, and a nil slice would otherwise encode as null,
-// which a client reading `edges` as a list cannot iterate: the Bowrain Flows
-// tab failed on every project because the built-in one-step flows carried
-// "edges": null. A type that embeds FlowDefinition gets this method too and
-// must write its own fields itself (bowrain/store.StoredFlow does).
-func (d FlowDefinition) MarshalJSON() ([]byte, error) {
-	type plain FlowDefinition
+// FlowDefinitionFields is a FlowDefinition's JSON form: the same fields, and
+// no MarshalJSON. A type that adds fields of its own to a definition embeds
+// this (from Fields) and marshals all of them; one that embeds FlowDefinition
+// itself has FlowDefinition's MarshalJSON promoted to it, and that writes the
+// definition's fields alone.
+type FlowDefinitionFields FlowDefinition
+
+// Fields returns the definition's JSON form, with nodes and edges as empty
+// lists when there are none.
+func (d FlowDefinition) Fields() FlowDefinitionFields {
 	if d.Nodes == nil {
 		d.Nodes = []FlowNode{}
 	}
 	if d.Edges == nil {
 		d.Edges = []FlowEdge{}
 	}
-	return json.Marshal(plain(d))
+	return FlowDefinitionFields(d)
+}
+
+// MarshalJSON writes nodes and edges as arrays, empty when there are none. A
+// one-step flow has no edges, and a nil slice would otherwise encode as null,
+// which a client reading `edges` as a list cannot iterate: the Bowrain Flows
+// tab failed on every project because the built-in one-step flows carried
+// "edges": null.
+func (d FlowDefinition) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.Fields())
 }
 
 // FlowBinding is a flow's declared source/sink binding intent (AD-026). Values

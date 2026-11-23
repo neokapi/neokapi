@@ -93,7 +93,7 @@ describe("LiveView", () => {
     await render(live({ loadIndex }));
     const frame = await screen.findByTestId("live-frame", {}, { timeout: 5000 });
     expect(frame.props.accessibilityLabel).toBe(frameURL("offline--default"));
-    expect(loadIndex).toHaveBeenCalledWith("c1");
+    expect(loadIndex).toHaveBeenCalledWith("c1", expect.any(AbortSignal));
     expect(screen.getByText("OfflineLaunch · Default")).toBeTruthy();
   });
 

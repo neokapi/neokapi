@@ -144,7 +144,7 @@ type App struct {
 	convergeWriteFiles bool
 
 	// convergeDraftDir is where a convergence pass writes those files: a
-	// run-local tree under `.kapi/work/`, never the collection's own `target:`
+	// run-local tree under `work/` in the checkout's state directory, never the collection's own `target:`
 	// path.
 	//
 	// A pass's output is a draft. Coverage is derived from files, so the pass

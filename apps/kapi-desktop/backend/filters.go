@@ -19,14 +19,15 @@ import (
 	"github.com/neokapi/neokapi/core/storage/filelock"
 )
 
-// ProjectFilter is a saved "Active Filter" — a named narrowing of the project to
+// ProjectFilter is a saved "Active Filter", a named narrowing of the project to
 // a subset of collections (optionally further by a glob over file paths) and a
 // subset of target languages. It scopes every project view and flow run.
 //
 // A shared filter is a team setting about the project, so it is kept in the
 // project's context store (projectdb.SettingSavedFilters), which every checkout
 // of the project reads. A personal filter, and the choice of active filter,
-// belong to this checkout and sit in .kapi/filters.local.json.
+// belong to this checkout and sit in filters.local.json in the checkout's
+// state directory.
 type ProjectFilter struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
@@ -192,12 +193,6 @@ func lockFilters(path string) (func(), error) {
 
 func readFilterSettings(layout project.Layout, db *projectdb.DB) (filterSettings, error) {
 	var s filterSettings
-	// The personal filters are kapi's own state for one checkout: read only
-	// while git does not track them. A Wails call carries no context, so this
-	// entry point passes the root one.
-	if err := project.CheckStateTracked(context.Background(), layout); err != nil {
-		return s, err
-	}
 	data, err := os.ReadFile(layout.LocalFiltersPath())
 	switch {
 	case err == nil:

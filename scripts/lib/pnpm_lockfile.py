@@ -91,6 +91,13 @@ class Lock:
                 raise LockError(f"{label}: {name}@{ver} is listed twice")
             self.entries[(name, ver)] = (body or {}).get("resolution")
         self.edges = self._edges()
+        self.specifiers = {
+            (path, name): str(spec.get("specifier"))
+            for path, imp in self.importers.items()
+            for section in DEP_SECTIONS
+            for name, spec in ((imp or {}).get(section) or {}).items()
+            if isinstance(spec, dict)
+        }
 
     def _edges(self):
         """{(dependent, package name): version} for every registry dependency."""

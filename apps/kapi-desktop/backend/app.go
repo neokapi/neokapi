@@ -636,11 +636,6 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 		return a.openFolder(path)
 	}
 
-	// Opening a project is where the desktop asks whether git tracks kapi's
-	// state in it; the reads that follow ask again when the index changes.
-	if err := project.CheckStateTracked(context.Background(), project.LayoutAt(filepath.Dir(path))); err != nil {
-		return nil, err
-	}
 	proj, err := project.Load(path)
 	if err != nil {
 		// A sample an older version of the app scaffolded is refreshed to the

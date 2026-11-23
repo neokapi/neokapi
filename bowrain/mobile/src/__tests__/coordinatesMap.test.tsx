@@ -16,13 +16,15 @@ const mockMap = jest.fn<Promise<ReviewCoordinates>, unknown[]>();
 const mockConfirm = jest.fn<Promise<void>, unknown[]>();
 const mockPermissions = jest.fn();
 jest.mock("../lib/auth", () => ({
-  useAuth: () => ({
-    client: {
+  useAuth: () => {
+    const client = {
       reviewCoordinates: (...a: unknown[]) => mockMap(...a),
       confirmCoordinates: (...a: unknown[]) => mockConfirm(...a),
       permissions: (...a: unknown[]) => mockPermissions(...a),
-    },
-  }),
+      with: () => client,
+    };
+    return { client };
+  },
 }));
 
 const map = (changed: boolean) =>

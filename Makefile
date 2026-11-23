@@ -2085,7 +2085,6 @@ gate-conformance: i18n-catalogs ## Run the gate conformance suite against the bu
 
 test-e2e-bowrain: ; $(MAKE) -C bowrain $@
 test-e2e-cloud: ; $(MAKE) -C bowrain $@ ## Run cloud e2e tests against a live server
-test-e2e-dev: ; $(MAKE) -C bowrain $@ ## Run cloud e2e tests against dev environment
 
 # ── Face parity ─────────────────────────────────────────────────────────────
 #
@@ -3288,7 +3287,7 @@ help: ## Show this help
         app-qps kapi-desktop-qps bowrain-app-qps bowrain-ctrl-qps bowrain-pulse-qps \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
-        cover test-e2e test-e2e-kapi gate-conformance test-e2e-bowrain test-e2e-cloud test-e2e-dev \
+        cover test-e2e test-e2e-kapi gate-conformance test-e2e-bowrain test-e2e-cloud \
         face-parity face-parity-update \
         bench bench-build bench-run bench-run-full bench-stress fetch-okapi-testdata \
         logo harness-deps harness-check harness-videos \

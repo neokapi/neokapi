@@ -803,9 +803,9 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	a.noteHistoryNotPulled(cmd, root, admissionUnits)
 
 	// A producer serves a draft the workspace home keeps from its overlay in
-	// the block store, a cache a deleted `.kapi/work/` loses: write back the
-	// overlays the store lacks before a pass asks for them, so a kept draft
-	// costs no provider call to serve again.
+	// the block store, a cache that deleting `work/` from the checkout's state
+	// directory loses. Write back the overlays the store lacks before a pass
+	// asks for them, so a kept draft costs no provider call to serve again.
 	if _, rerr := a.restoreKeptOverlays(cmd.Context(), root); rerr != nil {
 		return fmt.Errorf("restore the drafts the workspace home keeps: %w", rerr)
 	}

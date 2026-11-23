@@ -30,8 +30,9 @@ jobs:
     name: Prune and check the Actions caches
     runs-on: ubuntu-latest
     # A workflow_run fires for a pull request whose head branch is named main
-    # as well, so require a push.
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.event == 'push'
+    # as well, so require a push. A dispatch runs only from main: on another
+    # branch it would run that branch's code with a token that deletes caches.
+    if: github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' || github.event.workflow_run.event == 'push')
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7

@@ -15,7 +15,8 @@ export function RuleExamples({ card, ws, project }: { card: Card; ws: string; pr
   const required = card.pattern?.list === "required";
   const q = useQuery({
     queryKey: ["ruleExamples", ws, project, profile, card.item.id],
-    queryFn: () => client.contextRuleExamples(ws, project, { profile, id: card.item.id }),
+    queryFn: ({ signal }) =>
+      client.with({ signal }).contextRuleExamples(ws, project, { profile, id: card.item.id }),
     enabled: profile !== "",
     staleTime: 5 * 60 * 1000,
   });

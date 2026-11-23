@@ -317,3 +317,24 @@ func TestHandleCreateFlowDefinition_ExistingIDRefused(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &stored))
 	assert.Equal(t, created.Name, stored.Name)
 }
+
+// UpdateFlowDefinitionRequest embeds flow.FlowDefinition, whose MarshalJSON Go
+// promotes to it; a client that marshals the request must still send
+// base_revision, or the server refuses the save with 428.
+func TestUpdateFlowDefinitionRequest_JSON(t *testing.T) {
+	req := UpdateFlowDefinitionRequest{
+		ID: "f1", Name: "One", Source: "project",
+		Nodes:        []flow.FlowNode{{ID: "a", Type: flow.NodeTool, Name: "qa"}},
+		BaseRevision: "r1",
+	}
+	data, err := json.Marshal(req)
+	require.NoError(t, err)
+	assert.Equal(t, `{"id":"f1","name":"One","nodes":[{"id":"a","type":"tool","name":"qa","position":{"x":0,"y":0}}],`+
+		`"edges":[],"source":"project","base_revision":"r1"}`, string(data))
+
+	var back UpdateFlowDefinitionRequest
+	require.NoError(t, json.Unmarshal(data, &back))
+	assert.Equal(t, "r1", back.BaseRevision)
+	assert.Equal(t, "f1", back.ID)
+	assert.Equal(t, []flow.FlowEdge{}, back.Edges)
+}
