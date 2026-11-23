@@ -140,13 +140,13 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		var old venue.UnitDecision
 		var haveOld bool
 		row := tx.QueryRowContext(ctx,
-			`SELECT status, revision, basis, review_state, decided_by, decided_at, note, reasons, parked, assignee,
+			`SELECT status, revision, basis, review_state, decided_by, decided_at, note, reasons, agent_host, parked, assignee,
 				governing_fingerprint, updated
 			 FROM unit_decisions
 			 WHERE project_id=$1 AND stream=$2 AND item_id=$3 AND unit=$4 AND variant=$5`,
 			projectID, stream, itemID, d.Unit, d.Variant)
 		switch err := row.Scan(&old.Status, &old.Revision, &old.Basis, &old.ReviewState, &old.DecidedBy,
-			&old.DecidedAt, &old.Note, reasonsInto(&old.Reasons), &old.Parked, &old.Assignee, &old.GoverningFingerprint, &old.Updated); {
+			&old.DecidedAt, &old.Note, reasonsInto(&old.Reasons), &old.AgentHost, &old.Parked, &old.Assignee, &old.GoverningFingerprint, &old.Updated); {
 		case err == nil:
 			haveOld = true
 		case err == sql.ErrNoRows:
@@ -154,10 +154,17 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 			return changed, fmt.Errorf("read decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 		d.Reasons = venue.NormalizeReasons(d.Reasons)
+		// A client older than agent_host folds the agent host into the
+		// note; the store keeps the note as the person typed it and the host
+		// as its own column. A stored row written that way is left as it
+		// is: it is the same record (venue.SameDecision) and is read the
+		// same way.
+		d = venue.SplitNote(d)
 		var stored *venue.UnitDecision
 		if haveOld {
 			stored = &old
 			d = venue.CarryReasons(old, d)
+			d = venue.CarryHost(venue.SplitNote(old), d)
 			if DecisionUnchanged(old, d) {
 				continue
 			}
@@ -179,17 +186,17 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO unit_decisions
 				(project_id, stream, item_id, item_name, unit, variant, status, revision, basis,
-				 review_state, decided_by, decided_at, note, reasons, parked, assignee, governing_fingerprint, updated, updated_at)
-			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16,$17,$18,$19)
+				 review_state, decided_by, decided_at, note, reasons, agent_host, parked, assignee, governing_fingerprint, updated, updated_at)
+			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16,$17,$18,$19,$20)
 			 ON CONFLICT (project_id, stream, item_id, unit, variant) DO UPDATE SET
 				item_name=EXCLUDED.item_name,
 				status=EXCLUDED.status, revision=EXCLUDED.revision, basis=EXCLUDED.basis,
 				review_state=EXCLUDED.review_state, decided_by=EXCLUDED.decided_by,
-				decided_at=EXCLUDED.decided_at, note=EXCLUDED.note, reasons=EXCLUDED.reasons, parked=EXCLUDED.parked,
+				decided_at=EXCLUDED.decided_at, note=EXCLUDED.note, reasons=EXCLUDED.reasons, agent_host=EXCLUDED.agent_host, parked=EXCLUDED.parked,
 				assignee=EXCLUDED.assignee, governing_fingerprint=EXCLUDED.governing_fingerprint,
 				updated=EXCLUDED.updated, updated_at=EXCLUDED.updated_at`,
 			projectID, stream, itemID, d.ItemName, d.Unit, d.Variant, d.Status, d.Revision, d.Basis,
-			d.ReviewState, d.DecidedBy, d.DecidedAt, d.Note, encodeReasons(d.Reasons), d.Parked, d.Assignee, d.GoverningFingerprint, d.Updated, now); err != nil {
+			d.ReviewState, d.DecidedBy, d.DecidedAt, d.Note, encodeReasons(d.Reasons), d.AgentHost, d.Parked, d.Assignee, d.GoverningFingerprint, d.Updated, now); err != nil {
 			return changed, fmt.Errorf("upsert decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 		changed++
@@ -274,7 +281,7 @@ func listUnitDecisionsTx(ctx context.Context, tx Querier, projectID, stream stri
 	stream = storeutil.DefaultStream(stream)
 	rows, err := tx.QueryContext(ctx,
 		`SELECT item_name, unit, variant, status, revision, basis, review_state,
-			decided_by, decided_at, note, reasons, parked, assignee, governing_fingerprint, updated
+			decided_by, decided_at, note, reasons, agent_host, parked, assignee, governing_fingerprint, updated
 		 FROM unit_decisions WHERE project_id=$1 AND stream=$2
 		 ORDER BY item_name, unit, variant`,
 		projectID, stream)
@@ -287,7 +294,7 @@ func listUnitDecisionsTx(ctx context.Context, tx Querier, projectID, stream stri
 	for rows.Next() {
 		d := venue.UnitDecision{ProjectID: projectID, Stream: stream}
 		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.Revision, &d.Basis,
-			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, reasonsInto(&d.Reasons), &d.Parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated); err != nil {
+			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, reasonsInto(&d.Reasons), &d.AgentHost, &d.Parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated); err != nil {
 			return nil, fmt.Errorf("scan decision: %w", err)
 		}
 		out = append(out, d)
@@ -301,12 +308,12 @@ func (s *PostgresStore) GetUnitDecision(ctx context.Context, projectID, stream, 
 	d := venue.UnitDecision{ProjectID: projectID, Stream: stream}
 	err := s.db.QueryRowContext(ctx,
 		`SELECT item_name, unit, variant, status, revision, basis, review_state,
-			decided_by, decided_at, note, reasons, parked, assignee, governing_fingerprint, updated
+			decided_by, decided_at, note, reasons, agent_host, parked, assignee, governing_fingerprint, updated
 		 FROM unit_decisions
 		 WHERE project_id=$1 AND stream=$2 AND item_name=$3 AND unit=$4 AND variant=$5`,
 		projectID, stream, itemName, unit, variant).
 		Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.Revision, &d.Basis,
-			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, reasonsInto(&d.Reasons), &d.Parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated)
+			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, reasonsInto(&d.Reasons), &d.AgentHost, &d.Parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}

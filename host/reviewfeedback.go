@@ -177,7 +177,7 @@ func unitFeedback(entries []state.Entry, holdsBasis func(string) bool, sourceHas
 		r := tool.ReviewRejection{
 			TargetHash: e.State.TargetHash,
 			Reasons:    e.State.Decision.Reasons,
-			Note:       e.State.Decision.Note,
+			Note:       decisionNote(e.State.Decision),
 		}
 		if currentHash != "" && e.State.TargetHash == currentHash {
 			r.Text = current
@@ -376,4 +376,11 @@ func (a *App) reviewRejections(ctx context.Context, req ReviewContextRequest, b 
 		return nil
 	}
 	return out
+}
+
+// decisionNote is a decision's note as the person typed it, without the agent
+// host a released client folded into it (state.Decision.Said).
+func decisionNote(d state.Decision) string {
+	note, _ := d.Said()
+	return note
 }

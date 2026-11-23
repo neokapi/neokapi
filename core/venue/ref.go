@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -114,7 +115,7 @@ func decisionFields(d UnitDecision) []string {
 		d.ReviewState,
 		d.DecidedBy,
 		d.DecidedAt,
-		d.Note,
+		identityNote(d),
 		parked,
 		d.Assignee,
 	}
@@ -128,6 +129,46 @@ func decisionFields(d UnitDecision) []string {
 	// DecidedAt, so a decision with other reasons has another identity
 	// anyway. A store compares reasons on its own (SameReasons).
 	return fields
+}
+
+// identityNote is the note as the decision identity reads it: the form a
+// released client wrote, with the agent host folded in
+// (change.LegacyNote). A client older than AgentHost computes the identity over
+// that note, so a record held as note and host keeps the identity it had
+// and no push resends it. Nothing stores this form.
+func identityNote(d UnitDecision) string {
+	text, host := change.SplitNote(d.Note)
+	if d.AgentHost != "" {
+		host = d.AgentHost
+	}
+	return change.LegacyNote(text, host)
+}
+
+// SplitNote is d with its note as the person typed it and the agent host in
+// AgentHost, for a record whose note a released client wrote with the host
+// folded in. A store applies it on the way in; a record without the phrase
+// comes back as it is.
+func SplitNote(d UnitDecision) UnitDecision {
+	text, host := change.SplitNote(d.Note)
+	if host == "" {
+		return d
+	}
+	d.Note = text
+	if d.AgentHost == "" {
+		d.AgentHost = host
+	}
+	return d
+}
+
+// CarryHost is next with the agent host stored keeps, when next does not say
+// and is the same act of deciding (CarryReasons). A client older than the
+// field echoes a decision it pulled without its host.
+func CarryHost(stored, next UnitDecision) UnitDecision {
+	if next.AgentHost == "" && stored.ReviewState == next.ReviewState && stored.DecidedBy == next.DecidedBy &&
+		stored.DecidedAt == next.DecidedAt && stored.Revision == next.Revision {
+		next.AgentHost = stored.AgentHost
+	}
+	return next
 }
 
 // DecisionReasons are the reason codes a person may give a rejection or a

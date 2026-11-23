@@ -29,6 +29,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 )
@@ -240,6 +241,21 @@ type Decision struct {
 	Reasons  []string `json:"reasons,omitempty"`
 	Parked   bool     `json:"parked,omitempty"`
 	Assignee string   `json:"assignee,omitempty"`
+	// AgentHost is the agent host whose shell a person declared themselves in to
+	// record the decision (KAPI_ACTOR=person), such as "claude-code". Empty
+	// for anyone else. Note never carries it.
+	AgentHost string `json:"agent_host,omitempty"`
+}
+
+// Said is the decision's note as the person typed it, and the agent host they
+// recorded it from. A record a released client wrote carries the host inside
+// its note, and is read the same way (change.SplitNote); the record itself is
+// never rewritten.
+func (d Decision) Said() (note, host string) {
+	if d.AgentHost != "" {
+		return d.Note, d.AgentHost
+	}
+	return change.SplitNote(d.Note)
 }
 
 // AIIdentityPrefix marks an identity that is an AI model ("ai/<model>").

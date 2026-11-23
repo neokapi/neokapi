@@ -374,8 +374,15 @@ func TestContextDeckCardJudge(t *testing.T) {
 }
 
 func TestOriginNoteDropsTheHostMarker(t *testing.T) {
-	assert.Equal(t, "edited with `kapi voice edit`", originNote("edited with `kapi voice edit` (recorded as a person in a claude-code shell)"))
-	assert.Equal(t, "fixed the casing", originNote("fixed the casing; recorded as a person in a codex shell"))
+	legacy := func(note string) contextop.Record { return contextop.Record{Note: note} }
+	assert.Equal(t, "edited with `kapi voice edit`", originNote(legacy("edited with `kapi voice edit` (recorded as a person in a claude-code shell)")))
+	assert.Equal(t, "fixed the casing", originNote(legacy("fixed the casing; recorded as a person in a codex shell")))
+
+	held := contextop.Record{Note: "fixed the casing", Actor: contextop.Actor{Kind: contextop.ActorPerson, AgentHost: "codex"}}
+	assert.Equal(t, "fixed the casing", originNote(held))
+	assert.Equal(t, "codex", opAuthor(held).Host, "the author carries the host either way")
+	assert.Equal(t, "codex", opAuthor(legacy("recorded as a person in a codex shell")).Host)
+	assert.True(t, opAuthor(held).AgentAuthored)
 }
 
 func TestVoiceEditHistoryFindsTheWriteThatAddedARule(t *testing.T) {

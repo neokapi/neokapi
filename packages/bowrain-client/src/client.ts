@@ -796,6 +796,7 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
           at: d.at,
           note: d.note || undefined,
           reasons: d.reasons ?? [],
+          agentHost: d.agent_host || undefined,
           current: d.current,
           canUndo: d.can_undo,
         })),
@@ -904,6 +905,7 @@ interface ServerFeedDecisions {
     at: string;
     note?: string;
     reasons?: string[];
+    agent_host?: string;
     current: boolean;
     can_undo: boolean;
   }[];

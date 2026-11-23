@@ -1277,6 +1277,16 @@ var storeMigrations = []storage.Migration{
 			})
 		},
 	},
+	{
+		Version:     48,
+		Description: "the agent host a review decision was recorded from",
+		SQL:         `-- Mirrors bowrain/store/migrations.go version 64; Apply adds the column.`,
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return addMissingColumns(ctx, tx, "unit_decisions", []string{
+				"agent_host TEXT NOT NULL DEFAULT ''",
+			})
+		},
+	},
 }
 
 // addMissingColumns adds each column definition to table unless the table

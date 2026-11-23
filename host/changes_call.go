@@ -9,7 +9,6 @@ import (
 	"io"
 
 	"github.com/neokapi/neokapi/core/change"
-	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -17,17 +16,11 @@ import (
 // with the change service of the project the call names: the MCP edit tools
 // (read_blocks, apply_edits, describe_format) and the browser engine's
 // kapiRead, kapiApply and kapiDescribe. Both build the service here, so a
-// reference or a revision one of them reports is one the other, and kapi
-// apply, takes.
+// reference one of them reports is one the other takes.
 //
-// The browser engine carries the contract as JSON in and JSON out
-// (ReadChangesJSON, ApplyChangesJSON, DescribeChangesJSON). Every answer the
-// contract defines is JSON: a read page, a kapi.change-result/v1 result, or a
-// format's description. A request the service refuses as a whole, and one
-// that does not decode, is answered as a kapi.change-result/v1 whose error
-// says why (change.ErrorResult), as kapi apply --json and apply_edits answer
-// one. An error the contract has no code for, such as a project that names no
-// file, is returned as an error.
+// The browser engine carries the contract as JSON (ReadChangesJSON,
+// ApplyChangesJSON, DescribeChangesJSON). A refused or undecodable request is
+// answered as a kapi.change-result/v1 whose error says why.
 
 // ChangeCallOptions is what one call says beside its request.
 type ChangeCallOptions struct {
@@ -91,7 +84,7 @@ func (a *App) applyCall(ctx context.Context, svc *change.Service, recipe string,
 		return nil, err
 	}
 	if res.Status == change.SetApplied || res.Status == change.SetPartial {
-		a.noteAgentEdits(ctx, recipe, contextop.Actor{Kind: contextop.ActorKind(actor.Kind), Name: actor.Name, Session: actor.Session},
+		a.noteAgentEdits(ctx, recipe, contextActorOf(actor),
 			appliedWording(set, res, before))
 	}
 	return res, nil
@@ -258,7 +251,6 @@ func (a *App) ApplyChangesJSON(ctx context.Context, origin string, set, options 
 			return nil, err
 		}
 		actor = changeActorOf(resolved.Actor)
-		cs.Note = resolved.NoteWith(cs.Note)
 	}
 	svc, recipe, err := a.callChangeService(ctx, opts.Project, origin, OpEditions(cs))
 	if err != nil {

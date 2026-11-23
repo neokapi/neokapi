@@ -446,6 +446,21 @@ describe("ProvenanceCard", () => {
     expect(screen.getByTestId("provenance-note").textContent).toContain("Reads as machine output.");
   });
 
+  it("shows the agent host a person decided from as its own element, never in the note", () => {
+    render(
+      <ProvenanceCard
+        provenance={{
+          review_state: "rejected",
+          by: "maria@bowrain.test",
+          note: "Too formal.",
+          agent_host: "claude-code",
+        }}
+      />,
+    );
+    expect(screen.getByTestId("provenance-note").textContent).toBe("NoteToo formal.");
+    expect(screen.getByTestId("provenance-agent-host").textContent).toContain("claude-code");
+  });
+
   it("shows a kind it has no phrase for as recorded, and states its own empty case", () => {
     const { unmount } = render(<ProvenanceCard provenance={{ origin: { kind: "import" } }} />);
     expect(screen.getByTestId("provenance-origin").textContent).toContain("import");

@@ -2053,4 +2053,16 @@ var Migrations = []storage.Migration{
 			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS reasons JSONB NOT NULL DEFAULT '[]';
 		`,
 	},
+	{
+		Version:     64,
+		Description: "the agent host a review decision was recorded from",
+		SQL: `
+			-- The agent host whose shell a person declared themselves in to
+			-- decide (KAPI_ACTOR=person), kept beside the note rather than
+			-- inside it. Rows a released client wrote keep the host inside
+			-- the note; they are read that way and not rewritten. A constant
+			-- default is a catalog change, and no row is rewritten.
+			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS agent_host TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

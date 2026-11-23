@@ -56,12 +56,18 @@ func (s *Server) recordReviewDecision(ctx context.Context, c *echo.Context, ledg
 
 // decisionStands reports whether the ledger already holds next: the same
 // verdict on the same pairing of translation and source, by the same person,
-// with the same note and reasons. Only then is a decision nothing new; a rejection with other
-// reasons, or the same verdict by someone else, is a decision of its own.
+// with the same note and reasons, recorded from the same agent host. Only
+// then is a decision nothing new; a rejection with other reasons, or the same
+// verdict by someone else, is a decision of its own. A stored note a released
+// client wrote is read the way the store reads it (venue.SplitNote).
 func decisionStands(prev *venue.UnitDecision, next venue.UnitDecision) bool {
-	return prev != nil && prev.ReviewState == next.ReviewState && prev.Status == next.Status &&
+	if prev == nil {
+		return false
+	}
+	was, now := venue.SplitNote(*prev), venue.SplitNote(next)
+	return prev.ReviewState == next.ReviewState && prev.Status == next.Status &&
 		prev.Revision == next.Revision && prev.Basis == next.Basis && prev.DecidedBy == next.DecidedBy &&
-		prev.Note == next.Note && venue.SameReasons(*prev, next)
+		was.Note == now.Note && was.AgentHost == now.AgentHost && venue.SameReasons(*prev, next)
 }
 
 // ReviewBlockRequest is one review decision on one block's translation for one
