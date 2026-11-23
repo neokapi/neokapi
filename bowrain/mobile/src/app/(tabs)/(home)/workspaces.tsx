@@ -12,10 +12,25 @@ import { useTranslation } from "react-i18next";
 import { QueryState } from "../../../components/List";
 import { WorkspaceCard } from "../../../components/home/HomeCards";
 import { CaughtUpCard, NextUpCard } from "../../../components/home/NextUpCard";
-import { EmptyState, SectionHeader, SkeletonCards } from "../../../components/home/parts";
+import {
+  CountsNotice,
+  EmptyState,
+  SectionHeader,
+  SkeletonCards,
+} from "../../../components/home/parts";
 import { useAuth } from "../../../lib/auth";
-import { homeStep, summarize, useReviewHome, type HomeStep } from "../../../lib/home";
+import {
+  countsNotice,
+  hasAnswered,
+  homeStep,
+  inboxCounts,
+  inboxFailed,
+  summarize,
+  useReviewHome,
+  type HomeStep,
+} from "../../../lib/home";
 import { usePullRefresh } from "../../../lib/pullRefresh";
+import { useHeldLayout } from "../../../lib/heldLayout";
 import { useRecentProject } from "../../../lib/recentProject";
 import { openContext, openDeck, openSetup, openStep } from "../../../lib/reviewNav";
 
@@ -48,7 +63,10 @@ function openWorkspace(w: Workspace) {
 export default function Workspaces() {
   const { t } = useTranslation();
   const { client } = useAuth();
-  const workspaces = useQuery({ queryKey: ["workspaces"], queryFn: () => client.workspaces() });
+  const workspaces = useQuery({
+    queryKey: ["workspaces"],
+    queryFn: ({ signal }) => client.with({ signal }).workspaces(),
+  });
   const inbox = useReviewHome();
   const recent = useRecentProject();
   const { refetch: refetchInbox } = inbox;
@@ -60,21 +78,22 @@ export default function Workspaces() {
     }, [refetchInbox]),
   );
 
-  const pull = usePullRefresh(() => Promise.all([workspaces.refetch(), refetchInbox()]));
-
   const summary = useMemo(() => summarize(inbox.data), [inbox.data]);
   const next = useMemo(() => homeStep(inbox.data, recent), [inbox.data, recent]);
   const showWorkspace = (workspaces.data?.length ?? 0) > 1;
 
+  const counts = inboxCounts(inbox);
+  const unknown = counts === "unknown";
   const renderItem = useCallback(
     ({ item }: { item: Workspace }) => (
       <WorkspaceCard
         workspace={item}
         waiting={summary.byWorkspace.get(item.slug)}
+        unknown={unknown}
         onPress={openWorkspace}
       />
     ),
-    [summary],
+    [summary, unknown],
   );
 
   // A server without the inbox route (data null) shows the workspaces alone.
@@ -97,11 +116,21 @@ export default function Workspaces() {
     hero = <CaughtUpCard />;
   }
 
-  // The screen draws its cards once, when both queries have answered their
-  // first request, so the next step never arrives above the workspaces and
-  // pushes them down.
-  const settling = workspaces.isPending || inbox.isPending;
+  // The next step sits above the workspaces, and its height depends on what
+  // the inbox says, as do the counts on every workspace card. The cards wait
+  // for the inbox's first answer, so the next step never arrives above them
+  // and pushes them down. A failed attempt counts as an answer.
+  const settling = workspaces.isPending || !hasAnswered(inbox);
   const hasWorkspaces = !settling && (workspaces.data?.length ?? 0) > 0;
+
+  // When the first paint had no next step (the inbox failed), one that a
+  // later attempt brings waits for the next visit or pull rather than
+  // arriving above the workspaces.
+  const layout = useHeldLayout(!settling, [], hero !== null);
+  const pull = usePullRefresh(() =>
+    Promise.all([workspaces.refetch(), refetchInbox()]).finally(layout.release),
+  );
+  const notice = countsNotice(counts, inboxFailed(inbox));
 
   return (
     <View collapsable={false} className="bg-background flex-1">
@@ -116,7 +145,7 @@ export default function Workspaces() {
         onRefresh={pull.onRefresh}
         ListHeaderComponent={
           <View className="pt-2">
-            {settling ? null : hero}
+            {settling || !layout.above ? null : hero}
             {hasWorkspaces ? <SectionHeader title={t("home.workspacesHeader")} /> : null}
           </View>
         }
@@ -128,6 +157,11 @@ export default function Workspaces() {
           ) : (
             <QueryState query={workspaces} />
           )
+        }
+        ListFooterComponent={
+          !settling && hasWorkspaces && notice ? (
+            <CountsNotice kind={notice} onRetry={() => void refetchInbox()} />
+          ) : undefined
         }
       />
     </View>

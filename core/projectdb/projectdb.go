@@ -162,9 +162,6 @@ func Open(ctx context.Context, layout project.Layout, opts ...Option) (*DB, erro
 	if err := project.EnsureLayout(layout); err != nil {
 		return nil, fmt.Errorf("projectdb: %w", err)
 	}
-	if err := project.CheckStateTracked(ctx, layout); err != nil {
-		return nil, fmt.Errorf("projectdb: %w", err)
-	}
 	if err := os.MkdirAll(layout.WorkDir(), 0o755); err != nil {
 		return nil, fmt.Errorf("projectdb: create work dir: %w", err)
 	}

@@ -122,11 +122,11 @@ export default function CoordinatesScreen() {
   const window = useWindowDimensions();
   const map = useQuery({
     queryKey: reviewCoordinatesKey(ws, project),
-    queryFn: () => client.reviewCoordinates(scope),
+    queryFn: ({ signal }) => client.with({ signal }).reviewCoordinates(scope),
   });
   const perms = useQuery({
     queryKey: ["permissions", ws, project],
-    queryFn: () => client.permissions(ws, project),
+    queryFn: ({ signal }) => client.with({ signal }).permissions(ws, project),
   });
   const mayManage = perms.data?.permissions.includes("manage_project") ?? false;
   const refresh = () =>

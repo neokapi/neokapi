@@ -5,6 +5,8 @@
 import { Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
+import { FixedLinesText } from "./parts";
+
 export interface Mix {
   fast?: number;
   closer?: number;
@@ -31,10 +33,13 @@ export function mixLegend(mix: Mix, t: (key: string, o: { count: number }) => st
 export function ReviewMix({
   mix,
   legend = true,
+  legendLines,
   testID,
 }: {
   mix: Mix;
   legend?: boolean;
+  /** When set, the legend takes exactly this many lines, so a card keeps its height. */
+  legendLines?: number;
   testID?: string;
 }) {
   const { t } = useTranslation();
@@ -56,11 +61,19 @@ export function ReviewMix({
           ) : null;
         })}
       </View>
-      {legend ? (
+      {!legend ? null : legendLines ? (
+        <FixedLinesText
+          lines={legendLines}
+          size="xs"
+          className="text-muted-foreground text-xs tabular-nums"
+        >
+          {text}
+        </FixedLinesText>
+      ) : (
         <Text className="text-muted-foreground text-xs tabular-nums" numberOfLines={2}>
           {text}
         </Text>
-      ) : null}
+      )}
     </View>
   );
 }

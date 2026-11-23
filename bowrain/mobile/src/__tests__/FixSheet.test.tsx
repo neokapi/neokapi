@@ -53,7 +53,12 @@ describe("FixSheet", () => {
     await fireEvent.press(screen.getByTestId("reason-wrong_term"));
     await fireEvent.press(await screen.findByTestId("use-term-0"));
     expect(h.onFix).toHaveBeenCalledWith(card, fixes.candidates[0].runs, ["wrong_term"]);
-    expect(h.loadFixes).toHaveBeenLastCalledWith(card, "wrong_term", false);
+    expect(h.loadFixes).toHaveBeenLastCalledWith(
+      card,
+      "wrong_term",
+      false,
+      expect.any(AbortSignal),
+    );
   });
 
   it("edits the text with the placeholder locked and keeps it in the correction", async () => {

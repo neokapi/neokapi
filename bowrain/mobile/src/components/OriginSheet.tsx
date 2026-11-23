@@ -22,7 +22,11 @@ export interface OriginSheetProps {
   /** The card the sheet was opened from; null closes the sheet. */
   card: ContextCard | null;
   /** Read one page of the items the operation brought in. */
-  load: (op: string, cursor: string | undefined) => Promise<ContextOriginPage>;
+  load: (
+    op: string,
+    cursor: string | undefined,
+    signal?: AbortSignal,
+  ) => Promise<ContextOriginPage>;
   onClose: () => void;
 }
 
@@ -74,7 +78,7 @@ export function OriginSheetBody({
 
   const items = useInfiniteQuery({
     queryKey: ["context-origin", origin.id],
-    queryFn: ({ pageParam }) => load(origin.id, pageParam),
+    queryFn: ({ pageParam, signal }) => load(origin.id, pageParam, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor,
   });

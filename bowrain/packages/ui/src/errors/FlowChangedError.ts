@@ -1,3 +1,4 @@
+import { flowDefinitionFromWire } from "../api/flowDefinition";
 import type { FlowDefinitionInfo } from "../types/api";
 import { ApiError } from "./ApiError";
 
@@ -12,7 +13,7 @@ export class FlowChangedError extends Error {
   constructor(current: FlowDefinitionInfo) {
     super("This flow was saved by someone else after you opened it.");
     this.name = "FlowChangedError";
-    this.current = current;
+    this.current = flowDefinitionFromWire(current);
   }
 }
 

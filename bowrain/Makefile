@@ -131,9 +131,9 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
         docker-server docker-web docker-keycloak docker-all \
         docker-push-server docker-push-web docker-push-keycloak docker-push \
         dev-deps dev-deps-down dev-server dev-worker dev-web dev-ctrl bowrain-dev certs \
-        stack-up stack-up-web stack-up-e2e stack-up-shared stack-shared-down stack-down stack-logs stack-ps stack-build \
+        stack-up stack-up-web stack-up-e2e stack-up-disposable stack-up-shared stack-shared-down stack-down stack-logs stack-ps stack-build \
         test test-fast test-unit test-race test-verbose test-integration \
-        test-platform test-bowrain-plugin test-bowrain test-e2e-bowrain test-e2e-cloud test-e2e-dev \
+        test-platform test-bowrain-plugin test-bowrain test-e2e-bowrain test-e2e-cloud \
         test-images pull-test-images \
         cover fmt vet lint check proto deps deps-update clean
 
@@ -427,6 +427,16 @@ stack-up-e2e: ## stack-up-web, then password sign-in and a test user on the bowr
 	@echo "Test user:       $(E2E_USERNAME) / $(E2E_PASSWORD)  (password sign-in on the bowrain realm)"
 	@echo "Restore passkey-only sign-in with: make -C bowrain stack-down stack-up"
 
+# The e2e stack marked disposable, the only local stack the e2e suites run
+# against (compose.disposable.yaml). Use a project name of its own, so it never
+# replaces a stack someone else is using.
+COMPOSE_DISPOSABLE := $(COMPOSE_E2E) -f compose.disposable.yaml
+
+stack-up-disposable: ## stack-up-e2e, marked as a disposable test stack the e2e suites may empty
+	$(COMPOSE_DISPOSABLE) --profile web up -d --build --wait
+	E2E_USERNAME='$(E2E_USERNAME)' E2E_PASSWORD='$(E2E_PASSWORD)' $(COMPOSE_DISPOSABLE) run --rm --build keycloak-e2e
+	@echo "Disposable stack: the e2e suites delete every project in the workspace they use."
+
 COMPOSE_SHARED := docker compose -f compose.yaml -f compose.override.yaml -f compose.app.yaml
 
 stack-up-shared: ## Full Docker app sharing the local-dev deps + Traefik (https://bowrain.mymac)
@@ -456,9 +466,6 @@ test-e2e-bowrain: ## Run Bowrain server end-to-end tests (requires Docker)
 
 test-e2e-cloud: ## Run cloud e2e tests against a live server (set BOWRAIN_URL)
 	bash e2e/cloud/run.sh
-
-test-e2e-dev: ## Run cloud e2e tests against the dev environment
-	bash e2e/cloud/run-dev.sh
 
 # ── Connector maturity ───────────────────────────────────────────────────────
 # The connector half of the content maturity report. The probes run the

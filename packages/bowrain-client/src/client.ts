@@ -102,6 +102,43 @@ export class NetworkError extends TypeError {
   }
 }
 
+/**
+ * A read that had no answer within its bound. It is not a network error: it
+ * is not tried again with the same bound, because a request that has not
+ * answered in that time is taken as one that will not answer.
+ */
+export class RequestTimeoutError extends Error {
+  readonly timeoutMs: number;
+  constructor(path: string, timeoutMs: number) {
+    super(`no answer to ${path} within ${timeoutMs} ms`);
+    this.name = "RequestTimeoutError";
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+/**
+ * The bound on a whole read, from the request to the last byte of its answer.
+ * It exists to end a request that will never answer, not to fail a slow one,
+ * so it sits well above anything a person waits for: production's slowest
+ * healthy read over seven days (Sentry, November 2026) was a review deck at
+ * 9.2 s, and on a phone a person rarely waits half a minute for a screen. An
+ * answer later than this is taken as none. Writes have no bound of their
+ * own: a decision that seems lost may have landed, so a write waits for the
+ * system's own request timeout.
+ */
+export const READ_TIMEOUT_MS = 30_000;
+
+/**
+ * The bound on a read that waits for a model call: an AI fix suggestion
+ * (`fixCandidates` with `ai`). The server sets no write timeout, so the
+ * limit in front of it is the load balancer's idle timeout, 60 s (the AWS
+ * default; bowrain-infra's `modules/alb` does not change it), which ends a
+ * request that has sent no byte for that long. This bound sits 5 s above it,
+ * so a model call that outlasts the balancer ends with the balancer's answer
+ * and a slower one is never cut short by the client first.
+ */
+export const MODEL_READ_TIMEOUT_MS = 65_000;
+
 /** Whether an error means the server or the network could not be reached. */
 export function isNetworkError(err: unknown): boolean {
   return err instanceof TypeError || (err instanceof ApiError && err.status >= 500);
@@ -118,6 +155,10 @@ export interface BowrainClientOptions {
    */
   onUnauthorized?: () => Promise<string | null>;
   fetch?: typeof fetch;
+  /** The bound on a whole read, in milliseconds; `READ_TIMEOUT_MS` when omitted. */
+  readTimeoutMs?: number;
+  /** Cancels every request this client makes, such as when the screen that asked is gone. */
+  signal?: AbortSignal;
 }
 
 /** Where a project's review content lives: a workspace, a project and a stream. */
@@ -130,6 +171,11 @@ export interface ProjectScope {
 
 export interface BowrainClient {
   readonly baseUrl: string;
+  /**
+   * This client with a signal that cancels its requests, such as the one a
+   * query passes when the screen that asked is gone.
+   */
+  with(options: { signal?: AbortSignal }): BowrainClient;
   /**
    * The URL that starts sign-in in a browser. The server brokers the OIDC flow
    * with the workspace's identity provider and redirects back with a one-time
@@ -397,6 +443,7 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     }
   }
 
+  const readTimeout = opts.readTimeoutMs ?? READ_TIMEOUT_MS;
   /**
    * The body of an answer, read as text. A connection lost while the body
    * arrives is the same failure as one lost before the answer: the server may
@@ -416,34 +463,59 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     path: string,
     init: RequestInit = {},
     accept: (status: number) => boolean = (s) => s >= 200 && s < 300,
+    timeoutMs?: number,
   ): Promise<{ status: number; body: unknown }> {
-    const attempt = async (token: string | null) => {
-      const headers: Record<string, string> = { Accept: "application/json" };
-      if (init.body) headers["Content-Type"] = "application/json";
-      if (token) headers.Authorization = `Bearer ${token}`;
-      return doFetch(`${api}${path}`, { ...init, headers });
-    };
-    let res = await attempt(await opts.getAccessToken());
-    if (res.status === 401 && opts.onUnauthorized) {
-      const fresh = await opts.onUnauthorized();
-      if (fresh) res = await attempt(fresh);
-    }
-    const text = await readText(res, init);
-    let body: unknown = undefined;
-    if (text) {
-      try {
-        body = JSON.parse(text);
-      } catch {
-        body = text;
+    // One controller ends the request when the caller's signal aborts or the
+    // bound passes. The bound covers the whole request, the body included, so
+    // an answer that stalls halfway ends too.
+    const abort = new AbortController();
+    const caller = opts.signal;
+    const onCallerAbort = () => abort.abort(caller?.reason);
+    if (caller?.aborted) onCallerAbort();
+    else caller?.addEventListener("abort", onCallerAbort);
+    let timedOut = false;
+    const timer =
+      timeoutMs === undefined
+        ? undefined
+        : setTimeout(() => {
+            timedOut = true;
+            abort.abort();
+          }, timeoutMs);
+    try {
+      const attempt = async (token: string | null) => {
+        const headers: Record<string, string> = { Accept: "application/json" };
+        if (init.body) headers["Content-Type"] = "application/json";
+        if (token) headers.Authorization = `Bearer ${token}`;
+        return doFetch(`${api}${path}`, { ...init, headers, signal: abort.signal });
+      };
+      let res = await attempt(await opts.getAccessToken());
+      if (res.status === 401 && opts.onUnauthorized) {
+        const fresh = await opts.onUnauthorized();
+        if (fresh) res = await attempt(fresh);
       }
+      const text = await readText(res, { signal: abort.signal });
+      let body: unknown = undefined;
+      if (text) {
+        try {
+          body = JSON.parse(text);
+        } catch {
+          body = text;
+        }
+      }
+      if (!accept(res.status)) {
+        const message =
+          (body as { error?: string } | undefined)?.error ??
+          `request failed with status ${res.status}`;
+        throw new ApiError(res.status, message, body);
+      }
+      return { status: res.status, body };
+    } catch (err) {
+      if (timedOut && timeoutMs !== undefined) throw new RequestTimeoutError(path, timeoutMs);
+      throw err;
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+      caller?.removeEventListener("abort", onCallerAbort);
     }
-    if (!accept(res.status)) {
-      const message =
-        (body as { error?: string } | undefined)?.error ??
-        `request failed with status ${res.status}`;
-      throw new ApiError(res.status, message, body);
-    }
-    return { status: res.status, body };
   }
 
   async function postTokens(path: string, payload: object, failure: string): Promise<AuthTokens> {
@@ -464,12 +536,18 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     return body;
   }
 
-  async function get<T>(path: string): Promise<T> {
-    return (await send(path)).body as T;
+  /**
+   * A read, bounded by `timeoutMs`: the read timeout unless the request
+   * declares a bound of its own, as a read that waits for a model does.
+   */
+  async function get<T>(path: string, timeoutMs: number = readTimeout): Promise<T> {
+    return (await send(path, {}, undefined, timeoutMs)).body as T;
   }
 
   const client: BowrainClient = {
     baseUrl,
+
+    with: (o) => createBowrainClient({ ...opts, ...o }),
 
     loginUrl(redirectUri, codeChallenge, state) {
       return `${api}/auth/desktop/login${query({
@@ -801,6 +879,7 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
             reason: o.reason,
             ai: o.ai ? "true" : undefined,
           })}`,
+          o.ai ? MODEL_READ_TIMEOUT_MS : readTimeout,
         );
         return fixesFromServer(body);
       } catch (err) {

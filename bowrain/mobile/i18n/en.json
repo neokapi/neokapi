@@ -58,6 +58,9 @@
     "loading": "Loading",
     "waiting": "waiting",
     "nothingWaiting": "Nothing waiting for you",
+    "countsUnavailable": "Not loaded",
+    "countsFailed": "Could not load what waits for you.",
+    "countsStale": "Could not refresh what waits for you. These counts may be out of date.",
     "translations_one": "1 translation",
     "translations_other": "{{count, number}} translations",
     "contextItems_one": "1 context item",
@@ -211,6 +214,7 @@
   },
   "context": {
     "title": "Context",
+    "upToDate": "Up to date",
     "entry_one": "Context: 1 to review",
     "entry_other": "Context: {{count, number}} to review",
     "entryLabel_one": "Context in {{where}}, 1 item to review",

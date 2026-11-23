@@ -662,9 +662,42 @@ jobs:
           cache-from: type=gha,scope=bowrain-keycloak
           cache-to: type=gha,mode=max,scope=bowrain-keycloak
 
+  qps-bowrain-app:
+    name: Bowrain app qps dictionary
+    needs: [setup]
+    # The qps dictionary is the same file on every platform: the pinned
+    # released kapi pseudo-translates the app's catalog. It is made once
+    # here, on Linux, and every build leg ships this copy. A released kapi
+    # carries no Windows CLI assets on GitHub (they are signed by hand after
+    # the run), so a Windows leg cannot install one.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-node-ui
+
+      - name: Build @neokapi/i18n-react
+        working-directory: packages/i18n-react
+        run: vp run build
+
+      - name: Generate the qps dictionary
+        uses: ./.github/actions/app-pseudo-locale
+        with:
+          targets: bowrain-app-qps
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: qps-bowrain-app
+          path: |
+            bowrain/apps/bowrain/frontend/public/translations/qps.json
+          if-no-files-found: error
+          # Long enough to re-run one failed build leg days later without the
+          # dictionary job.
+          retention-days: 7
+
   build-bowrain:
     name: Build Bowrain (${{ matrix.build.platform }})
-    needs: [setup]
+    needs: [setup, qps-bowrain-app]
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
     strategy:
@@ -810,11 +843,12 @@ jobs:
         run: vp run build
 
       # public/translations/qps.json is build output that the vite config
-      # skips under CI, so it is generated here before the build ships it.
-      - name: Generate the qps dictionary
-        uses: ./.github/actions/app-pseudo-locale
+      # skips under CI; the qps-bowrain-app job made it.
+      - name: Fetch the qps dictionary
+        uses: actions/download-artifact@v8
         with:
-          targets: bowrain-app-qps
+          name: qps-bowrain-app
+          path: bowrain/apps/bowrain/frontend/public/translations
 
       - name: Build Bowrain frontend
         working-directory: bowrain/apps/bowrain/frontend

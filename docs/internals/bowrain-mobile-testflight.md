@@ -149,8 +149,35 @@ store release:
 eas build --platform ios --profile production --auto-submit
 ```
 
+### Expo SDK updates
+
+The packages the Expo SDK pins (`react`, `react-native`, Reanimated, the
+`expo-*` packages and the rest of its `bundledNativeModules.json` set) move
+together with an SDK update. Dependabot opens a pull request for `expo` alone
+and never for the others (`.github/dependabot.yml`). To finish that pull
+request, run, from `bowrain/mobile/` on its branch:
+
+```bash
+vp exec expo install --fix
+```
+
+It moves every pinned package to the version the new SDK expects; then run
+`vp install` at the repository root and commit. The update changes the runtime
+version, so it needs a new native build, and it ends over-the-air updates for
+the build people have installed. Merge it when that build is ready to ship.
+
 Updates published after the change reach people once they install the new
 build from TestFlight or the App Store.
+
+The ignore list also holds back Dependabot's security updates for those
+packages, so a fix to `react-native` or an `expo-*` package arrives only with
+an `expo` update. When an advisory names one of them, check whether the SDK
+the app is on has a patch release of `expo` whose `bundledNativeModules.json`
+names the fixed version. If it has, take that `expo` release (Dependabot's
+pull request, or `vp exec expo install expo@<version>`), run
+`vp exec expo install --fix` from `bowrain/mobile/` on the same branch, and
+treat the pull request as the native change it is. If it has not, the fix
+waits for the SDK that carries it.
 
 ## Before external testing or release
 

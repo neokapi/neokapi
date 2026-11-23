@@ -23,7 +23,52 @@ export const inboxKey = ["review-inbox"] as const;
 /** The review inbox, in the cache the Review tab reads too. */
 export function useReviewHome() {
   const { client } = useAuth();
-  return useQuery({ queryKey: inboxKey, queryFn: () => client.reviewHome() });
+  return useQuery({
+    queryKey: inboxKey,
+    queryFn: ({ signal }) => client.with({ signal }).reviewHome(),
+  });
+}
+
+/**
+ * Whether a query has given its first answer: data, or a failed attempt. A
+ * screen that lays its cards out from the inbox waits for this, so a failing
+ * inbox holds the screen for one attempt rather than the whole retry sequence.
+ */
+export function hasAnswered(query: { isPending: boolean; failureCount: number }): boolean {
+  return !query.isPending || query.failureCount > 0;
+}
+
+/**
+ * What a screen may say about the counts the inbox gives: they are loading,
+ * they are known, or they could not be loaded (a failed request, or a server
+ * without the inbox route). Unknown counts are never shown as zero.
+ */
+export type InboxCounts = "loading" | "known" | "stale" | "unknown";
+
+/**
+ * The state of the inbox's counts. `stale`: the device holds counts, and the
+ * last attempt to refresh them failed, so they may be out of date.
+ */
+export function inboxCounts(query: {
+  data: ReviewHome | null | undefined;
+  isPending: boolean;
+  isError?: boolean;
+  failureCount: number;
+}): InboxCounts {
+  if (query.data) return query.isError || query.failureCount > 0 ? "stale" : "known";
+  return hasAnswered(query) ? "unknown" : "loading";
+}
+
+/** Whether the inbox request failed, so a screen offers a retry. */
+export function inboxFailed(query: { isError: boolean; failureCount: number }): boolean {
+  return query.isError || query.failureCount > 0;
+}
+
+/** The notice under a list whose counts are not current: none, unloaded, or possibly out of date. */
+export function countsNotice(counts: InboxCounts, failed: boolean): "failed" | "stale" | null {
+  if (counts === "stale") return "stale";
+  if (counts === "unknown" && failed) return "failed";
+  return null;
 }
 
 /** What waits in one project, one workspace, or everywhere. */
