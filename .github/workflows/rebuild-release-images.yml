@@ -206,8 +206,8 @@ jobs:
           set -uo pipefail
           id="$(python3 tools/scripts/image-scan-compare.py image-id "$RUNNER_TEMP/image" "$PLATFORM")" || exit 1
           echo "$id" > "$OUT/image-id.txt"
-          python3 tools/scripts/image-scan-compare.py compare "$OUT/candidate.json" --image-id "$id" --no-current
-          status=$?
+          status=0
+          python3 tools/scripts/image-scan-compare.py compare "$OUT/candidate.json" --image-id "$id" --no-current || status=$?
           if [ "$status" -ne 0 ] && [ "$status" -ne 1 ]; then
             exit "$status"
           fi
@@ -330,29 +330,46 @@ jobs:
         with:
           path: ${{ runner.temp }}/a
 
+      # Judged per image: one that scans worse on any platform is not
+      # published, the others are, and the job then fails so the scheduled
+      # failure reporter files it. A report that is not evidence stops every
+      # publish.
       - name: Compare each rebuilt image with the current one
+        id: judge
         env:
           A: ${{ runner.temp }}/a
         run: |
-          set -euo pipefail
-          worse=0
-          for leg in server-amd64 server-arm64 worker-amd64 worker-arm64 web-amd64 web-arm64 keycloak-amd64; do
-            echo "::group::bowrain-$leg"
-            rec="$A/record-bowrain-$leg"
-            cur="$A/current-bowrain-$leg"
-            if [ -f "$cur/absent" ]; then
-              baseline=(--no-current)
-            else
-              baseline=(--current "$cur/current.json")
-            fi
-            python3 scripts/image-scan-compare.py compare "$rec/candidate.json" \
-              --image-id "$(cat "$rec/image-id.txt")" "${baseline[@]}" || worse=1
-            echo "::endgroup::"
+          set -uo pipefail
+          publish=()
+          held=()
+          for image in bowrain-server bowrain-worker bowrain-web bowrain-keycloak; do
+            arches="amd64 arm64"
+            [ "$image" = bowrain-keycloak ] && arches="amd64"
+            ok=true
+            for arch in $arches; do
+              echo "::group::$image ($arch)"
+              rec="$A/record-$image-$arch"
+              cur="$A/current-$image-$arch"
+              if [ -f "$cur/absent" ]; then
+                baseline=(--no-current)
+              else
+                baseline=(--current "$cur/current.json")
+              fi
+              status=0
+              python3 scripts/image-scan-compare.py compare "$rec/candidate.json" \
+                --image-id "$(cat "$rec/image-id.txt")" "${baseline[@]}" || status=$?
+              echo "::endgroup::"
+              case "$status" in
+                0) ;;
+                1) ok=false ;;
+                *) echo "::error::$image ($arch): the scans are not evidence (exit $status); nothing is published"; exit 1 ;;
+              esac
+            done
+            if [ "$ok" = true ]; then publish+=("$image"); else held+=("$image"); fi
           done
-          if [ "$worse" -ne 0 ]; then
-            echo "::error::a rebuilt image scans worse than the one it would replace; nothing is published"
-            exit 1
-          fi
+          echo "publish=${publish[*]}" >> "$GITHUB_OUTPUT"
+          echo "held=${held[*]}" >> "$GITHUB_OUTPUT"
+          echo "publishing: ${publish[*]:-(none)}; held, scanning worse: ${held[*]:-(none)}"
 
       - name: Log in to GHCR
         uses: docker/login-action@v4
@@ -365,35 +382,43 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Push the rebuilt images, then move latest
+        if: steps.judge.outputs.publish != ''
         env:
           A: ${{ runner.temp }}/a
+          PUBLISH: ${{ steps.judge.outputs.publish }}
         run: |
           set -euo pipefail
-          for image in bowrain-server bowrain-worker bowrain-web bowrain-keycloak; do
+          read -r -a images <<< "$PUBLISH"
+          for image in "${images[@]}"; do
             if docker buildx imagetools inspect "ghcr.io/neokapi/$image:$TAG" >/dev/null 2>&1; then
               echo "::error::ghcr.io/neokapi/$image:$TAG exists; a published tag is never replaced"
               exit 1
             fi
           done
-          for image in bowrain-server bowrain-worker bowrain-web; do
-            for arch in amd64 arm64; do
-              skopeo copy --all "oci:$A/image-$image-$arch" "docker://ghcr.io/neokapi/$image:$TAG-$arch"
-            done
-            docker buildx imagetools create -t "ghcr.io/neokapi/$image:$TAG" \
-              "ghcr.io/neokapi/$image:$TAG-amd64" "ghcr.io/neokapi/$image:$TAG-arm64"
+          for image in "${images[@]}"; do
+            if [ "$image" = bowrain-keycloak ]; then
+              skopeo copy --all "oci:$A/image-$image-amd64" "docker://ghcr.io/neokapi/$image:$TAG"
+            else
+              for arch in amd64 arm64; do
+                skopeo copy --all "oci:$A/image-$image-$arch" "docker://ghcr.io/neokapi/$image:$TAG-$arch"
+              done
+              docker buildx imagetools create -t "ghcr.io/neokapi/$image:$TAG" \
+                "ghcr.io/neokapi/$image:$TAG-amd64" "ghcr.io/neokapi/$image:$TAG-arm64"
+            fi
           done
-          skopeo copy --all "oci:$A/image-bowrain-keycloak-amd64" "docker://ghcr.io/neokapi/bowrain-keycloak:$TAG"
-          for image in bowrain-server bowrain-worker bowrain-web bowrain-keycloak; do
+          for image in "${images[@]}"; do
             docker buildx imagetools create -t "ghcr.io/neokapi/$image:latest" "ghcr.io/neokapi/$image:$TAG"
           done
 
       - name: Record what was published
         env:
           A: ${{ runner.temp }}/a
+          PUBLISH: ${{ steps.judge.outputs.publish }}
         run: |
           set -euo pipefail
           mkdir -p records
-          for image in bowrain-server bowrain-worker bowrain-web bowrain-keycloak; do
+          read -r -a images <<< "$PUBLISH"
+          for image in "${images[@]}"; do
             digest="$(docker buildx imagetools inspect "ghcr.io/neokapi/$image:$TAG" --format '{{json .Manifest}}' | jq -r .digest)"
             echo "ghcr.io/neokapi/$image:$TAG $digest" | tee -a records/digests.txt
           done
@@ -405,3 +430,11 @@ jobs:
           path: records/
           if-no-files-found: error
           retention-days: 90
+
+      - name: Fail when an image was held back
+        if: steps.judge.outputs.held != ''
+        env:
+          HELD: ${{ steps.judge.outputs.held }}
+        run: |
+          echo "::error::not published, scanning worse than the image under latest: $HELD"
+          exit 1
