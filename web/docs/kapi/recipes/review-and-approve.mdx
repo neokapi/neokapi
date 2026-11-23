@@ -180,5 +180,5 @@ run says so once. A run whose flow cannot draft leaves the block waiting, and
 
 Changing a note makes that block's draft out of date, and the next `kapi up`
 drafts that block again and no other. After three rejections of drafts of the
-same source, kapi drafts the block no more. `kapi status` and `kapi up` report
+same source, the loop drafts the block no more. `kapi status` and `kapi up` report
 it as waiting for a person to write the translation.

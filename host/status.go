@@ -338,7 +338,7 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 			"They do not ship. `kapi up` drafts them again and tells an AI draft the reasons and note.\n", rejected)
 	}
 	if leftForPerson > 0 {
-		fmt.Fprintf(w, "\n%d block(s) had %d drafts turned down, so kapi drafts them no more. "+
+		fmt.Fprintf(w, "\n%d block(s) had %d drafts turned down, so the loop drafts them no more. "+
 			"They wait for a person to write the translation, and do not ship until then.\n", leftForPerson, tool.MaxRejections)
 	}
 	// Named as units, because `kapi check` counts findings over the same tree and

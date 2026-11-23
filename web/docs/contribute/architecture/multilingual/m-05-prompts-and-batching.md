@@ -225,7 +225,7 @@ policy like every other string of the request, and the exchange record shows it
 as sent. A machine translation engine takes no instructions, so it is sent no
 feedback; the unit is still drafted again, stamped the same way, and the run
 says so once. After `tool.MaxRejections` (3) rejections of drafts of one source,
-kapi drafts the unit no more and reports it as left for a person.
+the loop drafts the unit no more and reports it as left for a person.
 
 ## Prompt injection is contained structurally
 

@@ -99,7 +99,7 @@ func (t *CoverageTally) AddStale(s Scope, redrafted bool) {
 func (t *CoverageTally) NoteRejectedAwaitingDraft(s Scope) { t.tally(s).rejectedOwed++ }
 
 // NoteRejectedLeftForPerson records a unit whose drafts a reviewer rejected
-// as many times as kapi drafts a unit (tool.MaxRejections): the loop drafts it
+// as many times as the loop allows (tool.MaxRejections): the loop drafts it
 // no more, and a person writes its translation. It is not the loop's work, so
 // it is kept apart from RejectedAwaitingDraft, and like it it holds the scope
 // out of Shippable.

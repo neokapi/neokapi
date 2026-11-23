@@ -113,7 +113,7 @@ type LocaleCoverage struct {
 	// refused is not shippable at any coverage.
 	RejectedAwaitingDraft int `json:"rejected_awaiting_draft,omitempty"`
 	// RejectedLeftForPerson counts units whose drafts a reviewer rejected as
-	// many times as kapi drafts a unit: the loop drafts them no more, and a
+	// many times as the loop allows (tool.MaxRejections): the loop drafts them no more, and a
 	// person writes their translation. They are not convergence work, and
 	// like a rejected unit they hold the scope out of Shippable.
 	RejectedLeftForPerson int `json:"rejected_left_for_person,omitempty"`

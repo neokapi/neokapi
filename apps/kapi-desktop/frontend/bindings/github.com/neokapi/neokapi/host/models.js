@@ -4166,7 +4166,7 @@ export class ConvergeLocaleResult {
         if (/** @type {any} */(false)) {
             /**
              * LeftForPerson counts units whose drafts a reviewer rejected as many
-             * times as kapi drafts a unit (tool.MaxRejections). kapi drafts them no
+             * times as the loop allows (tool.MaxRejections). The loop drafts them no
              * more; a person writes their translation.
              * @member
              * @type {number | undefined}

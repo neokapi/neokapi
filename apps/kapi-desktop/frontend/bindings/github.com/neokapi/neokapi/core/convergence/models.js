@@ -478,7 +478,7 @@ export class LocaleCoverage {
         if (/** @type {any} */(false)) {
             /**
              * RejectedLeftForPerson counts units whose drafts a reviewer rejected as
-             * many times as kapi drafts a unit: the loop drafts them no more, and a
+             * many times as the loop allows (tool.MaxRejections): the loop drafts them no more, and a
              * person writes their translation. They are not convergence work, and
              * like a rejected unit they hold the scope out of Shippable.
              * @member

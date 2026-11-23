@@ -123,13 +123,25 @@ export interface ReviewNeighbour {
 }
 
 /**
- * What has already been approved for this unit.
- * Mirrors core/review.History.
+ * What has already been approved for this unit, and the earlier drafts a
+ * reviewer rejected. Mirrors core/review.History.
  */
 export interface ReviewHistory {
   prior?: ReviewPriorVersion;
   match?: ReviewMemoryMatch;
   unread?: boolean;
+  rejections?: ReviewRejection[];
+}
+
+/**
+ * One rejected draft of the unit's current source: its wording while the
+ * target still holds it, the reasons as words, and the reviewer's note.
+ * Mirrors core/review.Rejection.
+ */
+export interface ReviewRejection {
+  text?: string;
+  reasons?: string[];
+  note?: string;
 }
 
 /**

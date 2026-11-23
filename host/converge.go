@@ -82,7 +82,7 @@ type ConvergeLocaleResult struct {
 	// for the same reason: a person has said the wording will not do.
 	Rejected int `json:"rejected,omitempty"`
 	// LeftForPerson counts units whose drafts a reviewer rejected as many
-	// times as kapi drafts a unit (tool.MaxRejections). kapi drafts them no
+	// times as the loop allows (tool.MaxRejections). The loop drafts them no
 	// more; a person writes their translation.
 	LeftForPerson int `json:"left_for_person,omitempty"`
 	// Redrafted counts the stale units this run produced over: recycled against
@@ -228,7 +228,7 @@ func (o ConvergeOutput) RejectedUnits() int {
 	return n
 }
 
-// LeftForPersonUnits totals the units kapi drafts no more because a reviewer
+// LeftForPersonUnits totals the units the loop drafts no more because a reviewer
 // rejected tool.MaxRejections of their drafts, across every locale.
 func (o ConvergeOutput) LeftForPersonUnits() int {
 	n := 0
@@ -329,7 +329,7 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 			"and an AI draft is told the reviewer's reasons and note.\n", rejected)
 	}
 	if held := o.LeftForPersonUnits(); held > 0 {
-		fmt.Fprintf(w, "%d block(s) had %d drafts rejected, so kapi drafts them no more. "+
+		fmt.Fprintf(w, "%d block(s) had %d drafts rejected, so the loop drafts them no more. "+
 			"They wait for a person to write the translation, and do not ship until then.\n", held, tool.MaxRejections)
 	}
 	if o.Findings != nil {

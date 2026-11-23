@@ -44,7 +44,7 @@ type UnitReviewFeedback struct {
 	// Rejections are the latest rejections, oldest first, at most
 	// MaxRejectionsSent.
 	Rejections []ReviewRejection `json:"rejections,omitempty"`
-	// Held marks a unit rejected MaxRejections times: kapi drafts it no
+	// Held marks a unit rejected MaxRejections times: the loop drafts it no
 	// more, and a person writes its translation.
 	Held bool `json:"held,omitempty"`
 }
