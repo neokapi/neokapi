@@ -50,8 +50,6 @@ kapi pull --concepts
 | `--force`    | Re-download everything, ignoring what the tree already holds                | `false` |
 | `--dry-run`  | Show what would be pulled without changing files                            | `false` |
 | `--concepts` | Sync only the workspace terms (concepts + relations) into the local terms store; no content transport, no automations | `false` |
-| `--take-server` | Where the server's version of a voice profile differs from yours, write the server's version into this project | `false` |
-| `--keep-local` | Where the server's version of a voice profile differs from yours, keep yours: the next push replaces the server's version | `false` |
 
 ## What pull writes
 
@@ -91,35 +89,6 @@ Pull also reports what it did not apply:
   how it governs them. For a collection this recipe declares, `kapi.yaml`
   decides. Pull reports a point, channel or voice that differs on the server,
   and you resolve it in git.
-
-## When someone else changed a voice profile
-
-A push that changes a voice profile names the version of it you last saw. If a
-teammate saved the profile on the server since, the push is refused with who
-changed it and when, so your version never replaces theirs unseen.
-
-Run `kapi pull` to see the difference. It lists each field that differs, with
-the server's value and yours:
-
-```bash
-kapi pull
-# The voice profile "Northsea" on the server differs from this project's (changed by Ana Lima at 2026-11-23 10:04 UTC):
-#   description
-#     server: Northsea voice, as the team revised it
-#     yours:  Northsea voice, revised for the release
-# The next `kapi push` that changes the voice profile is refused until you choose: ...
-```
-
-Then choose one:
-
-- `kapi pull --take-server` writes the server's version into this project. The
-  change is recorded on the project's context record, as an edit is.
-- `kapi pull --keep-local` keeps yours. The next `kapi push` replaces the
-  server's version.
-
-A pull without either flag only reports the difference, whether you run it at
-a terminal or in a script, so a scheduled job cannot replace a teammate's edit
-by accident.
 
 ## Exit codes
 

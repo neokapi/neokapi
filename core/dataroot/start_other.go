@@ -1,6 +1,6 @@
 //go:build !darwin
 
-package host
+package dataroot
 
 import "time"
 

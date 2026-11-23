@@ -19,7 +19,7 @@ import {
   type OpResult,
   type SetContentOp,
 } from "@neokapi/contract-types";
-import { projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
+import { projectRuns, projectRunsText, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
 
 import type { DeckCard, DeckCopy, FixReason } from "./types.ts";
 
@@ -88,7 +88,10 @@ const CHANGE_RUNS: ModelRunSpec<ChangeRun> = {
 };
 
 /** What a decision addresses: the card's translation, or one of its copies. */
-type Decided = Pick<DeckCard, "item" | "blockId" | "locale" | "targetRevision" | "sourceRevision">;
+export type Decided = Pick<
+  DeckCard,
+  "item" | "blockId" | "locale" | "targetRevision" | "sourceRevision"
+>;
 
 /** The card's translation and each copy it stands for, in that order. */
 export function decidedOf(card: DeckCard): Decided[] {
@@ -141,6 +144,27 @@ function changeSet(ops: ChangeOp[], card: DeckCard, note?: string): ChangeSet {
   if (card.sourceRevision) set.require_basis = true;
   if (note) set.note = note;
   return set;
+}
+
+/**
+ * Approve each block whose translation already is a correction's content,
+ * each at the revision the server holds for it, with the correction's reasons
+ * and note. The server records the decision under this person with their
+ * reasons and note. It answers unchanged when their own decision with the
+ * same reasons and note already stands (the first attempt landed), and
+ * applied otherwise.
+ */
+export function confirmSet(
+  card: DeckCard,
+  blocks: readonly Decided[],
+  reasons: readonly FixReason[],
+  note?: string,
+): ChangeSet {
+  return changeSet(
+    blocks.map((d) => decideOp(d, "establish", reasons)),
+    card,
+    note,
+  );
 }
 
 /** Approve the translation as the card shows it, and each copy. */
@@ -241,6 +265,56 @@ export type ChangeOutcome =
       field?: string;
     }
   | { status: "refused"; result: ChangeResult; error: ChangeError };
+
+// A plural or select is a structure, not a run of text, so no edition text
+// equals it: a correction that holds one is never taken as already landed.
+const NO_MATCH = "\u0000";
+
+/**
+ * Runs in the placeholder form a read shows: an inline code is an
+ * `<x id="…"/>` token, as core/change writes it in a stale refusal's
+ * `current.text`.
+ */
+const PLACEHOLDER_FORM: ModelRunSpec<string> = {
+  text: (r) => r.text,
+  ph: ({ ph }) => `<x id="${ph.id}/"/>`,
+  pcOpen: ({ pcOpen }) => `<x id="${pcOpen.id}"/>`,
+  pcClose: ({ pcClose }) => `<x id="/${pcClose.id}"/>`,
+  sub: ({ sub }) => `<x id="sub:${sub.id}"/>`,
+  plural: () => NO_MATCH,
+  select: () => NO_MATCH,
+  fallback: () => NO_MATCH,
+};
+
+/** Runs in the placeholder form a read shows. */
+export function placeholderForm(runs: readonly Run[]): string {
+  return projectRunsText(runs, PLACEHOLDER_FORM);
+}
+
+/**
+ * Whether two run sequences are the same content: every run of every kind
+ * equal, codes by id, type and attributes, plural forms and select cases
+ * included. Both sides go through the declared change-run projection
+ * (toChangeRuns), so no kind is compared by its text alone.
+ */
+export function sameContent(a: readonly Run[], b: readonly Run[]): boolean {
+  return canonicalJSON(toChangeRuns(a)) === canonicalJSON(toChangeRuns(b));
+}
+
+/** JSON with object keys sorted and absent fields left out. */
+function canonicalJSON(v: unknown): string {
+  return JSON.stringify(v, (_key, value: unknown) => {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const sorted: Record<string, unknown> = {};
+      for (const k of Object.keys(value as object).sort()) {
+        const field = (value as Record<string, unknown>)[k];
+        if (field !== undefined) sorted[k] = field;
+      }
+      return sorted;
+    }
+    return value;
+  });
+}
 
 /** Read a change set's result into the outcome a review surface acts on. */
 export function readOutcome(result: ChangeResult): ChangeOutcome {

@@ -440,15 +440,10 @@ func (d *daemonService) Pull(ctx context.Context, req *pb.PullRequest) (*pb.Pull
 	for _, l := range req.GetLocales() {
 		locales = append(locales, model.LocaleID(l))
 	}
-	if req.GetTakeServer() && req.GetKeepLocal() {
-		return nil, errors.New("take the server's version or keep your own, not both")
-	}
 	res, err := entry.connector.Pull(ctx, bowrainconn.PullOptions{
-		Locales:    locales,
-		Force:      req.GetForce(),
-		DryRun:     req.GetDryRun(),
-		TakeServer: req.GetTakeServer(),
-		KeepLocal:  req.GetKeepLocal(),
+		Locales: locales,
+		Force:   req.GetForce(),
+		DryRun:  req.GetDryRun(),
 	})
 	if err != nil {
 		return nil, err
@@ -461,7 +456,6 @@ func (d *daemonService) Pull(ctx context.Context, req *pb.PullRequest) (*pb.Pull
 		DecisionsSkipped:    int32(res.DecisionsSkipped),
 		CollectionsObserved: int32(res.CollectionsObserved),
 		GovernanceDiverged:  res.GovernanceDiverged,
-		Differences:         differencesToProto(res.Differences),
 	}
 
 	// Terminology travels with the pull, as it does on the cobra route — the
@@ -507,25 +501,4 @@ func (d *daemonService) Shutdown(ctx context.Context, req *pb.ShutdownRequest) (
 		close(d.shutdownCh)
 	})
 	return &pb.ShutdownResponse{}, nil
-}
-
-// differencesToProto carries the pull's record differences on the wire.
-func differencesToProto(ds []bowrainconn.RecordDifference) []*pb.RecordDifference {
-	out := make([]*pb.RecordDifference, 0, len(ds))
-	for _, d := range ds {
-		pd := &pb.RecordDifference{
-			Kind:      d.Kind,
-			Name:      d.Name,
-			ChangedBy: d.ChangedBy,
-			Outcome:   d.Outcome,
-		}
-		if !d.ChangedAt.IsZero() {
-			pd.ChangedAt = d.ChangedAt.UTC().Format(time.RFC3339)
-		}
-		for _, f := range d.Fields {
-			pd.Fields = append(pd.Fields, &pb.FieldDifference{Field: f.Field, Server: f.Server, Local: f.Local})
-		}
-		out = append(out, pd)
-	}
-	return out
 }

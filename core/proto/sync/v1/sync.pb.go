@@ -1680,16 +1680,9 @@ type SyncContextEntry struct {
 	// Priority is the collection's review priority as the recipe resolves it:
 	// "high" or "low", empty for normal. A venue deals high collections first
 	// and low ones last. It is part of content_hash.
-	Priority string `protobuf:"bytes,11,opt,name=priority,proto3" json:"priority,omitempty"`
-	// VoiceProfileRevision is the server's revision of the voice profile named
-	// in voice_profile. A pull reports the profile's current revision; a push
-	// that carries voice_profile_json sends back the revision it last pulled,
-	// and the server refuses to change a profile that has moved since, or
-	// whose push names no revision. It is not part of content_hash: it says
-	// what the sender read, not what it declares.
-	VoiceProfileRevision string `protobuf:"bytes,12,opt,name=voice_profile_revision,json=voiceProfileRevision,proto3" json:"voice_profile_revision,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	Priority      string `protobuf:"bytes,11,opt,name=priority,proto3" json:"priority,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SyncContextEntry) Reset() {
@@ -1795,13 +1788,6 @@ func (x *SyncContextEntry) GetSourceOnly() bool {
 func (x *SyncContextEntry) GetPriority() string {
 	if x != nil {
 		return x.Priority
-	}
-	return ""
-}
-
-func (x *SyncContextEntry) GetVoiceProfileRevision() string {
-	if x != nil {
-		return x.VoiceProfileRevision
 	}
 	return ""
 }
@@ -2351,7 +2337,7 @@ const file_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\fcontent_hash\x18\x0f \x01(\tR\vcontentHash\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xae\x04\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf8\x03\n" +
 	"\x10SyncContextEntry\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12T\n" +
 	"\vcoordinates\x18\x02 \x03(\v22.neokapi.sync.v1.SyncContextEntry.CoordinatesEntryR\vcoordinates\x12\x18\n" +
@@ -2365,8 +2351,7 @@ const file_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\vsource_only\x18\n" +
 	" \x01(\bR\n" +
 	"sourceOnly\x12\x1a\n" +
-	"\bpriority\x18\v \x01(\tR\bpriority\x124\n" +
-	"\x16voice_profile_revision\x18\f \x01(\tR\x14voiceProfileRevision\x1a>\n" +
+	"\bpriority\x18\v \x01(\tR\bpriority\x1a>\n" +
 	"\x10CoordinatesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"9\n" +

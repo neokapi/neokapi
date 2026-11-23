@@ -9,6 +9,11 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 )
 
+// envOf is a getenv over a fixed set of variables.
+func envOf(vars map[string]string) func(string) string {
+	return func(key string) string { return vars[key] }
+}
+
 // TestAgentHostTableIsTheVerifiedOne pins the table. A row says that a variable
 // in somebody's shell means an agent is driving the command, and a row added
 // from documentation rather than from the host itself attributes a person's
@@ -162,15 +167,17 @@ func TestUnreadableActorKindIsRefused(t *testing.T) {
 	}
 }
 
-// TestAPersonOverrideRidesOnTheNote: the record says the operation claimed a
-// person's rights under a host the environment named.
-func TestAPersonOverrideRidesOnTheNote(t *testing.T) {
-	under := ResolvedActor{Host: "claude-code", PersonOverride: true}
-	assert.Equal(t, "recorded as a person in a claude-code shell", under.NoteWith(""))
-	assert.Equal(t, "we say it both ways (recorded as a person in a claude-code shell)",
-		under.NoteWith("we say it both ways"))
+// TestAPersonOverrideIsRecordedOnTheActor: the record says the operation
+// claimed a person's rights under a host the environment named, on the actor
+// and never inside the note.
+func TestAPersonOverrideIsRecordedOnTheActor(t *testing.T) {
+	under, err := ResolveCommandActor(envOf(map[string]string{EnvActor: "person", "CLAUDECODE": "1"}))
+	require.NoError(t, err)
+	assert.Equal(t, contextop.ActorPerson, under.Actor.Kind)
+	assert.Equal(t, "claude-code", under.Actor.AgentHost)
+	assert.Equal(t, "claude-code", changeActorOf(under.Actor).AgentHost, "the change service records it too")
 
-	plain := ResolvedActor{}
-	assert.Empty(t, plain.NoteWith(""))
-	assert.Equal(t, "we say it both ways", plain.NoteWith("we say it both ways"))
+	plain, err := ResolveCommandActor(envOf(map[string]string{EnvActor: "person"}))
+	require.NoError(t, err)
+	assert.Empty(t, plain.Actor.AgentHost)
 }

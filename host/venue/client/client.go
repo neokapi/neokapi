@@ -261,9 +261,9 @@ type PushStatusResponse struct {
 	Terms  *venue.PushTermsOutcome  `json:"terms,omitempty"`
 	Ledger *venue.PushLedgerOutcome `json:"ledger,omitempty"`
 
-	// VoiceRevisions is the revision of each voice profile the push carried,
-	// by lowercased name, once its transaction committed.
-	VoiceRevisions map[string]string `json:"voice_revisions,omitempty"`
+	// VoiceLeft names the voice profiles the push carried that the venue
+	// already holds, and left as it holds them (venue.PushParts.VoiceLeft).
+	VoiceLeft []string `json:"voice_left,omitempty"`
 }
 
 // BlockContent represents a block with its translations from the server.

@@ -674,19 +674,11 @@ func (x *PushResponse) GetAutomationError() string {
 }
 
 type PullRequest struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Project *ProjectRef            `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
-	Locales []string               `protobuf:"bytes,2,rep,name=locales,proto3" json:"locales,omitempty"`
-	Force   bool                   `protobuf:"varint,3,opt,name=force,proto3" json:"force,omitempty"`
-	DryRun  bool                   `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	// For each record the venue keeps a revision of whose server version
-	// differs from the local one: take_server writes the server's version
-	// locally; keep_local records that the person has seen the server's
-	// version and means the next push to replace it. Without either, the pull
-	// reports the difference and the next push that changes the record is
-	// refused.
-	TakeServer    bool `protobuf:"varint,5,opt,name=take_server,json=takeServer,proto3" json:"take_server,omitempty"`
-	KeepLocal     bool `protobuf:"varint,6,opt,name=keep_local,json=keepLocal,proto3" json:"keep_local,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       *ProjectRef            `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	Locales       []string               `protobuf:"bytes,2,rep,name=locales,proto3" json:"locales,omitempty"`
+	Force         bool                   `protobuf:"varint,3,opt,name=force,proto3" json:"force,omitempty"`
+	DryRun        bool                   `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -749,174 +741,6 @@ func (x *PullRequest) GetDryRun() bool {
 	return false
 }
 
-func (x *PullRequest) GetTakeServer() bool {
-	if x != nil {
-		return x.TakeServer
-	}
-	return false
-}
-
-func (x *PullRequest) GetKeepLocal() bool {
-	if x != nil {
-		return x.KeepLocal
-	}
-	return false
-}
-
-// FieldDifference is one field of a record whose server and local values
-// differ, each rendered for a reader.
-type FieldDifference struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
-	Server        string                 `protobuf:"bytes,2,opt,name=server,proto3" json:"server,omitempty"`
-	Local         string                 `protobuf:"bytes,3,opt,name=local,proto3" json:"local,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *FieldDifference) Reset() {
-	*x = FieldDifference{}
-	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FieldDifference) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FieldDifference) ProtoMessage() {}
-
-func (x *FieldDifference) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FieldDifference.ProtoReflect.Descriptor instead.
-func (*FieldDifference) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v1_connector_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *FieldDifference) GetField() string {
-	if x != nil {
-		return x.Field
-	}
-	return ""
-}
-
-func (x *FieldDifference) GetServer() string {
-	if x != nil {
-		return x.Server
-	}
-	return ""
-}
-
-func (x *FieldDifference) GetLocal() string {
-	if x != nil {
-		return x.Local
-	}
-	return ""
-}
-
-// RecordDifference is a record the venue keeps a revision of, such as a voice
-// profile, whose server version differs from the local one.
-type RecordDifference struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// kind names the record's kind, "voice profile".
-	Kind string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
-	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// changed_by and changed_at are who last wrote the server's version and
-	// when (RFC 3339), empty when the venue does not say.
-	ChangedBy string             `protobuf:"bytes,3,opt,name=changed_by,json=changedBy,proto3" json:"changed_by,omitempty"`
-	ChangedAt string             `protobuf:"bytes,4,opt,name=changed_at,json=changedAt,proto3" json:"changed_at,omitempty"`
-	Fields    []*FieldDifference `protobuf:"bytes,5,rep,name=fields,proto3" json:"fields,omitempty"`
-	// outcome is what the pull did: "taken" (the server's version was
-	// written locally), "kept" (the next push replaces the server's version)
-	// or "unresolved" (the next push that changes it is refused).
-	Outcome       string `protobuf:"bytes,6,opt,name=outcome,proto3" json:"outcome,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RecordDifference) Reset() {
-	*x = RecordDifference{}
-	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RecordDifference) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RecordDifference) ProtoMessage() {}
-
-func (x *RecordDifference) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RecordDifference.ProtoReflect.Descriptor instead.
-func (*RecordDifference) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v1_connector_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *RecordDifference) GetKind() string {
-	if x != nil {
-		return x.Kind
-	}
-	return ""
-}
-
-func (x *RecordDifference) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *RecordDifference) GetChangedBy() string {
-	if x != nil {
-		return x.ChangedBy
-	}
-	return ""
-}
-
-func (x *RecordDifference) GetChangedAt() string {
-	if x != nil {
-		return x.ChangedAt
-	}
-	return ""
-}
-
-func (x *RecordDifference) GetFields() []*FieldDifference {
-	if x != nil {
-		return x.Fields
-	}
-	return nil
-}
-
-func (x *RecordDifference) GetOutcome() string {
-	if x != nil {
-		return x.Outcome
-	}
-	return ""
-}
-
 type PullResponse struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	BlocksPulled int32                  `protobuf:"varint,1,opt,name=blocks_pulled,json=blocksPulled,proto3" json:"blocks_pulled,omitempty"`
@@ -951,16 +775,13 @@ type PullResponse struct {
 	// when the merge produced the bytes already in git, which is the ordinary
 	// outcome — a pull that changed nothing must say nothing.
 	TermsProjection string `protobuf:"bytes,11,opt,name=terms_projection,json=termsProjection,proto3" json:"terms_projection,omitempty"`
-	// The records whose server version differs from the local one, with what
-	// the pull did about each (PullRequest.take_server, keep_local).
-	Differences   []*RecordDifference `protobuf:"bytes,12,rep,name=differences,proto3" json:"differences,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PullResponse) Reset() {
 	*x = PullResponse{}
-	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[11]
+	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -972,7 +793,7 @@ func (x *PullResponse) String() string {
 func (*PullResponse) ProtoMessage() {}
 
 func (x *PullResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[11]
+	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -985,7 +806,7 @@ func (x *PullResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullResponse.ProtoReflect.Descriptor instead.
 func (*PullResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v1_connector_proto_rawDescGZIP(), []int{11}
+	return file_core_plugin_proto_v1_connector_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *PullResponse) GetBlocksPulled() int32 {
@@ -1065,13 +886,6 @@ func (x *PullResponse) GetTermsProjection() string {
 	return ""
 }
 
-func (x *PullResponse) GetDifferences() []*RecordDifference {
-	if x != nil {
-		return x.Differences
-	}
-	return nil
-}
-
 type HealthRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -1080,7 +894,7 @@ type HealthRequest struct {
 
 func (x *HealthRequest) Reset() {
 	*x = HealthRequest{}
-	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[12]
+	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1092,7 +906,7 @@ func (x *HealthRequest) String() string {
 func (*HealthRequest) ProtoMessage() {}
 
 func (x *HealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[12]
+	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1105,7 +919,7 @@ func (x *HealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthRequest.ProtoReflect.Descriptor instead.
 func (*HealthRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v1_connector_proto_rawDescGZIP(), []int{12}
+	return file_core_plugin_proto_v1_connector_proto_rawDescGZIP(), []int{10}
 }
 
 type HealthResponse struct {
@@ -1119,7 +933,7 @@ type HealthResponse struct {
 
 func (x *HealthResponse) Reset() {
 	*x = HealthResponse{}
-	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[13]
+	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1131,7 +945,7 @@ func (x *HealthResponse) String() string {
 func (*HealthResponse) ProtoMessage() {}
 
 func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[13]
+	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1144,7 +958,7 @@ func (x *HealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
 func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v1_connector_proto_rawDescGZIP(), []int{13}
+	return file_core_plugin_proto_v1_connector_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *HealthResponse) GetVersion() string {
@@ -1171,7 +985,7 @@ type ShutdownRequest struct {
 
 func (x *ShutdownRequest) Reset() {
 	*x = ShutdownRequest{}
-	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[14]
+	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1183,7 +997,7 @@ func (x *ShutdownRequest) String() string {
 func (*ShutdownRequest) ProtoMessage() {}
 
 func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[14]
+	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1196,7 +1010,7 @@ func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownRequest.ProtoReflect.Descriptor instead.
 func (*ShutdownRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v1_connector_proto_rawDescGZIP(), []int{14}
+	return file_core_plugin_proto_v1_connector_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ShutdownRequest) GetGraceSeconds() int32 {
@@ -1214,7 +1028,7 @@ type ShutdownResponse struct {
 
 func (x *ShutdownResponse) Reset() {
 	*x = ShutdownResponse{}
-	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[15]
+	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1226,7 +1040,7 @@ func (x *ShutdownResponse) String() string {
 func (*ShutdownResponse) ProtoMessage() {}
 
 func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[15]
+	mi := &file_core_plugin_proto_v1_connector_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1239,7 +1053,7 @@ func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownResponse.ProtoReflect.Descriptor instead.
 func (*ShutdownResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v1_connector_proto_rawDescGZIP(), []int{15}
+	return file_core_plugin_proto_v1_connector_proto_rawDescGZIP(), []int{13}
 }
 
 var File_core_plugin_proto_v1_connector_proto protoreflect.FileDescriptor
@@ -1304,29 +1118,12 @@ const file_core_plugin_proto_v1_connector_proto_rawDesc = "" +
 	"\fchangeset_id\x18\x0f \x01(\tR\vchangesetId\x12+\n" +
 	"\x11terminology_error\x18\x10 \x01(\tR\x10terminologyError\x12\x16\n" +
 	"\x06report\x18\x11 \x01(\tR\x06report\x12)\n" +
-	"\x10automation_error\x18\x12 \x01(\tR\x0fautomationError\"\xcf\x01\n" +
+	"\x10automation_error\x18\x12 \x01(\tR\x0fautomationError\"\x8f\x01\n" +
 	"\vPullRequest\x127\n" +
 	"\aproject\x18\x01 \x01(\v2\x1d.neokapi.plugin.v1.ProjectRefR\aproject\x12\x18\n" +
 	"\alocales\x18\x02 \x03(\tR\alocales\x12\x14\n" +
 	"\x05force\x18\x03 \x01(\bR\x05force\x12\x17\n" +
-	"\adry_run\x18\x04 \x01(\bR\x06dryRun\x12\x1f\n" +
-	"\vtake_server\x18\x05 \x01(\bR\n" +
-	"takeServer\x12\x1d\n" +
-	"\n" +
-	"keep_local\x18\x06 \x01(\bR\tkeepLocal\"U\n" +
-	"\x0fFieldDifference\x12\x14\n" +
-	"\x05field\x18\x01 \x01(\tR\x05field\x12\x16\n" +
-	"\x06server\x18\x02 \x01(\tR\x06server\x12\x14\n" +
-	"\x05local\x18\x03 \x01(\tR\x05local\"\xce\x01\n" +
-	"\x10RecordDifference\x12\x12\n" +
-	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
-	"\n" +
-	"changed_by\x18\x03 \x01(\tR\tchangedBy\x12\x1d\n" +
-	"\n" +
-	"changed_at\x18\x04 \x01(\tR\tchangedAt\x12:\n" +
-	"\x06fields\x18\x05 \x03(\v2\".neokapi.plugin.v1.FieldDifferenceR\x06fields\x12\x18\n" +
-	"\aoutcome\x18\x06 \x01(\tR\aoutcome\"\xbb\x04\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xf4\x03\n" +
 	"\fPullResponse\x12#\n" +
 	"\rblocks_pulled\x18\x01 \x01(\x05R\fblocksPulled\x12#\n" +
 	"\rfiles_written\x18\x02 \x01(\x05R\ffilesWritten\x12#\n" +
@@ -1339,8 +1136,7 @@ const file_core_plugin_proto_v1_connector_proto_rawDesc = "" +
 	"\x13governance_diverged\x18\t \x03(\tR\x12governanceDiverged\x12+\n" +
 	"\x11terminology_error\x18\n" +
 	" \x01(\tR\x10terminologyError\x12)\n" +
-	"\x10terms_projection\x18\v \x01(\tR\x0ftermsProjection\x12E\n" +
-	"\vdifferences\x18\f \x03(\v2#.neokapi.plugin.v1.RecordDifferenceR\vdifferences\"\x0f\n" +
+	"\x10terms_projection\x18\v \x01(\tR\x0ftermsProjection\"\x0f\n" +
 	"\rHealthRequest\"Q\n" +
 	"\x0eHealthResponse\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12%\n" +
@@ -1369,7 +1165,7 @@ func file_core_plugin_proto_v1_connector_proto_rawDescGZIP() []byte {
 	return file_core_plugin_proto_v1_connector_proto_rawDescData
 }
 
-var file_core_plugin_proto_v1_connector_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_core_plugin_proto_v1_connector_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_core_plugin_proto_v1_connector_proto_goTypes = []any{
 	(*ProjectRef)(nil),        // 0: neokapi.plugin.v1.ProjectRef
 	(*StatusRequest)(nil),     // 1: neokapi.plugin.v1.StatusRequest
@@ -1380,13 +1176,11 @@ var file_core_plugin_proto_v1_connector_proto_goTypes = []any{
 	(*PushRequest)(nil),       // 6: neokapi.plugin.v1.PushRequest
 	(*PushResponse)(nil),      // 7: neokapi.plugin.v1.PushResponse
 	(*PullRequest)(nil),       // 8: neokapi.plugin.v1.PullRequest
-	(*FieldDifference)(nil),   // 9: neokapi.plugin.v1.FieldDifference
-	(*RecordDifference)(nil),  // 10: neokapi.plugin.v1.RecordDifference
-	(*PullResponse)(nil),      // 11: neokapi.plugin.v1.PullResponse
-	(*HealthRequest)(nil),     // 12: neokapi.plugin.v1.HealthRequest
-	(*HealthResponse)(nil),    // 13: neokapi.plugin.v1.HealthResponse
-	(*ShutdownRequest)(nil),   // 14: neokapi.plugin.v1.ShutdownRequest
-	(*ShutdownResponse)(nil),  // 15: neokapi.plugin.v1.ShutdownResponse
+	(*PullResponse)(nil),      // 9: neokapi.plugin.v1.PullResponse
+	(*HealthRequest)(nil),     // 10: neokapi.plugin.v1.HealthRequest
+	(*HealthResponse)(nil),    // 11: neokapi.plugin.v1.HealthResponse
+	(*ShutdownRequest)(nil),   // 12: neokapi.plugin.v1.ShutdownRequest
+	(*ShutdownResponse)(nil),  // 13: neokapi.plugin.v1.ShutdownResponse
 }
 var file_core_plugin_proto_v1_connector_proto_depIdxs = []int32{
 	0,  // 0: neokapi.plugin.v1.StatusRequest.project:type_name -> neokapi.plugin.v1.ProjectRef
@@ -1394,25 +1188,23 @@ var file_core_plugin_proto_v1_connector_proto_depIdxs = []int32{
 	4,  // 2: neokapi.plugin.v1.ListFilesResponse.files:type_name -> neokapi.plugin.v1.FileEntry
 	0,  // 3: neokapi.plugin.v1.PushRequest.project:type_name -> neokapi.plugin.v1.ProjectRef
 	0,  // 4: neokapi.plugin.v1.PullRequest.project:type_name -> neokapi.plugin.v1.ProjectRef
-	9,  // 5: neokapi.plugin.v1.RecordDifference.fields:type_name -> neokapi.plugin.v1.FieldDifference
-	10, // 6: neokapi.plugin.v1.PullResponse.differences:type_name -> neokapi.plugin.v1.RecordDifference
-	1,  // 7: neokapi.plugin.v1.SourceConnectorService.Status:input_type -> neokapi.plugin.v1.StatusRequest
-	3,  // 8: neokapi.plugin.v1.SourceConnectorService.ListFiles:input_type -> neokapi.plugin.v1.ListFilesRequest
-	6,  // 9: neokapi.plugin.v1.SourceConnectorService.Push:input_type -> neokapi.plugin.v1.PushRequest
-	8,  // 10: neokapi.plugin.v1.SourceConnectorService.Pull:input_type -> neokapi.plugin.v1.PullRequest
-	12, // 11: neokapi.plugin.v1.DaemonControlService.Health:input_type -> neokapi.plugin.v1.HealthRequest
-	14, // 12: neokapi.plugin.v1.DaemonControlService.Shutdown:input_type -> neokapi.plugin.v1.ShutdownRequest
-	2,  // 13: neokapi.plugin.v1.SourceConnectorService.Status:output_type -> neokapi.plugin.v1.StatusResponse
-	5,  // 14: neokapi.plugin.v1.SourceConnectorService.ListFiles:output_type -> neokapi.plugin.v1.ListFilesResponse
-	7,  // 15: neokapi.plugin.v1.SourceConnectorService.Push:output_type -> neokapi.plugin.v1.PushResponse
-	11, // 16: neokapi.plugin.v1.SourceConnectorService.Pull:output_type -> neokapi.plugin.v1.PullResponse
-	13, // 17: neokapi.plugin.v1.DaemonControlService.Health:output_type -> neokapi.plugin.v1.HealthResponse
-	15, // 18: neokapi.plugin.v1.DaemonControlService.Shutdown:output_type -> neokapi.plugin.v1.ShutdownResponse
-	13, // [13:19] is the sub-list for method output_type
-	7,  // [7:13] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	1,  // 5: neokapi.plugin.v1.SourceConnectorService.Status:input_type -> neokapi.plugin.v1.StatusRequest
+	3,  // 6: neokapi.plugin.v1.SourceConnectorService.ListFiles:input_type -> neokapi.plugin.v1.ListFilesRequest
+	6,  // 7: neokapi.plugin.v1.SourceConnectorService.Push:input_type -> neokapi.plugin.v1.PushRequest
+	8,  // 8: neokapi.plugin.v1.SourceConnectorService.Pull:input_type -> neokapi.plugin.v1.PullRequest
+	10, // 9: neokapi.plugin.v1.DaemonControlService.Health:input_type -> neokapi.plugin.v1.HealthRequest
+	12, // 10: neokapi.plugin.v1.DaemonControlService.Shutdown:input_type -> neokapi.plugin.v1.ShutdownRequest
+	2,  // 11: neokapi.plugin.v1.SourceConnectorService.Status:output_type -> neokapi.plugin.v1.StatusResponse
+	5,  // 12: neokapi.plugin.v1.SourceConnectorService.ListFiles:output_type -> neokapi.plugin.v1.ListFilesResponse
+	7,  // 13: neokapi.plugin.v1.SourceConnectorService.Push:output_type -> neokapi.plugin.v1.PushResponse
+	9,  // 14: neokapi.plugin.v1.SourceConnectorService.Pull:output_type -> neokapi.plugin.v1.PullResponse
+	11, // 15: neokapi.plugin.v1.DaemonControlService.Health:output_type -> neokapi.plugin.v1.HealthResponse
+	13, // 16: neokapi.plugin.v1.DaemonControlService.Shutdown:output_type -> neokapi.plugin.v1.ShutdownResponse
+	11, // [11:17] is the sub-list for method output_type
+	5,  // [5:11] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_core_plugin_proto_v1_connector_proto_init() }
@@ -1426,7 +1218,7 @@ func file_core_plugin_proto_v1_connector_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_core_plugin_proto_v1_connector_proto_rawDesc), len(file_core_plugin_proto_v1_connector_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

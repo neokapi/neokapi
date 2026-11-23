@@ -14,7 +14,6 @@ import (
 
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v1"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/spf13/pflag"
 )
 
@@ -40,10 +39,6 @@ type SourceConnectorCall struct {
 	Force   bool
 	DryRun  bool
 	Locales []string
-	// TakeServer and KeepLocal settle, on a pull, records whose server
-	// version differs from the local one.
-	TakeServer bool
-	KeepLocal  bool
 }
 
 // genericSourceConnectorDispatcher routes "push", "pull", "status" and "ls" to
@@ -133,8 +128,6 @@ func sourceConnectorFlags(call *SourceConnectorCall) (flags *pflag.FlagSet, take
 		flags.BoolVar(&call.Force, "force", false, "re-download everything, even unchanged content")
 		flags.BoolVar(&call.DryRun, "dry-run", false, "show what would change without writing files")
 		flags.StringSliceVar(&call.Locales, "locale", nil, "languages to download (e.g. fr,de)")
-		flags.BoolVar(&call.TakeServer, "take-server", false, "where the server's version of a voice profile differs from yours, write the server's version into this project")
-		flags.BoolVar(&call.KeepLocal, "keep-local", false, "where the server's version of a voice profile differs from yours, keep yours: the next push replaces the server's version")
 	default:
 		return nil, false, fmt.Errorf("unknown source-connector op %q", call.Op)
 	}
@@ -240,16 +233,11 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 	case "pull":
 		callCtx, cancel := rpcCtx()
 		defer cancel()
-		if call.TakeServer && call.KeepLocal {
-			return errors.New("pull: take the server's version or keep your own, not both")
-		}
 		resp, err := sc.Pull(callCtx, &pb.PullRequest{ //nolint:contextcheck // callCtx derives from the caller ctx via the rpcCtx closure
-			Project:    ref,
-			Locales:    call.Locales,
-			Force:      call.Force,
-			DryRun:     call.DryRun,
-			TakeServer: call.TakeServer,
-			KeepLocal:  call.KeepLocal,
+			Project: ref,
+			Locales: call.Locales,
+			Force:   call.Force,
+			DryRun:  call.DryRun,
 		})
 		if err != nil {
 			return fmt.Errorf("daemon Pull: %w", err)
@@ -322,26 +310,4 @@ func printPullExtras(resp *pb.PullResponse) {
 		fmt.Printf("the server governs these collections differently from this recipe: %s\n", strings.Join(d, ", "))
 		fmt.Println("the recipe still decides locally. Reconcile them in kapi.yaml rather than by pulling")
 	}
-	connector.FormatDifferences(os.Stdout, differencesFromProto(resp.GetDifferences()))
-}
-
-// differencesFromProto reads the pull's record differences off the wire.
-func differencesFromProto(ds []*pb.RecordDifference) []connector.RecordDifference {
-	out := make([]connector.RecordDifference, 0, len(ds))
-	for _, d := range ds {
-		rd := connector.RecordDifference{
-			Kind:      d.GetKind(),
-			Name:      d.GetName(),
-			ChangedBy: d.GetChangedBy(),
-			Outcome:   d.GetOutcome(),
-		}
-		if at, err := time.Parse(time.RFC3339, d.GetChangedAt()); err == nil {
-			rd.ChangedAt = at
-		}
-		for _, f := range d.GetFields() {
-			rd.Fields = append(rd.Fields, connector.FieldDifference{Field: f.GetField(), Server: f.GetServer(), Local: f.GetLocal()})
-		}
-		out = append(out, rd)
-	}
-	return out
 }

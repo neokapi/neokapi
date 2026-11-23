@@ -10,7 +10,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/venue"
-	"github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/host/venue/schema"
 )
 
@@ -216,11 +215,6 @@ type PullOutput struct {
 	CollectionsObserved  int      `json:"collections_observed,omitempty"`
 	GovernanceDiverged   []string `json:"governance_diverged,omitempty"`
 	GovernanceDivergence []string `json:"governance_divergence,omitempty"`
-
-	// Differences are the records, such as a voice profile, whose server
-	// version differs from this project's, field by field, with what the
-	// pull did about each.
-	Differences []connector.RecordDifference `json:"differences,omitempty"`
 }
 
 func (o PullOutput) FormatText(w io.Writer) error {
@@ -263,7 +257,6 @@ func (o PullOutput) FormatText(w io.Writer) error {
 			strings.Join(listed, "; "))
 		fmt.Fprintln(w, "The recipe still decides locally. Reconcile them in kapi.yaml rather than by pulling.")
 	}
-	connector.FormatDifferences(w, o.Differences)
 	return nil
 }
 
@@ -439,22 +432,20 @@ func (o PushOutput) formatIngest(w io.Writer) {
 }
 
 // FormatVoice appends the voice profile line: what the push did with the
-// recipe-bound voice profile in the workspace brand hub. Silent when no
-// profile travelled. Exported so `kapi up`'s push phase renders the exact
-// same footer line.
-//
-// The created/updated/unchanged wording the pre-context push used is gone
-// because the distinction is: the voice now travels inside the push and the
-// worker decides which of those it was, after the client has reported.
+// recipe-bound voice profile in the workspace. Silent when no profile
+// travelled. Exported so `kapi up`'s push phase renders the exact same footer
+// line.
 func (o PushOutput) FormatVoice(w io.Writer) {
 	if o.VoiceProfile == "" {
 		return
 	}
 	switch o.VoiceAction {
 	case "would-push":
-		fmt.Fprintf(w, "Would push voice profile %q to the workspace brand hub\n", o.VoiceProfile)
+		fmt.Fprintf(w, "Would send voice profile %q to the workspace\n", o.VoiceProfile)
 	case "carried":
-		fmt.Fprintf(w, "Voice profile: %q carried to the workspace brand hub\n", o.VoiceProfile)
+		fmt.Fprintf(w, "Voice profile: %q is in the workspace as this project has it\n", o.VoiceProfile)
+	case "left":
+		fmt.Fprintf(w, "Voice profile: %q lives in Bowrain, and this push left it as it is there. Edit it in Bowrain\n", o.VoiceProfile)
 	case "skipped":
 		fmt.Fprintf(w, "Voice profile: %q not pushed (%s)\n", o.VoiceProfile, o.VoiceReason)
 	}

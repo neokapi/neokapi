@@ -382,13 +382,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		if termsResult != nil {
 			parts.Terms = termsResult.Outcome
 		}
-		// The voice profile updates last: each takes its profile's row lock,
-		// held until this transaction commits, so taking it here keeps a
-		// person's save of that profile waiting no longer than it must.
-		if aerr = contextResult.writeVoice(ctx); aerr != nil {
-			return aerr
-		}
-		parts.VoiceRevisions = contextResult.VoiceRevisions
+		parts.VoiceLeft = contextResult.VoiceLeft
 		record, merr := json.Marshal(newPushApplyRecord(parts, outcome, contextResult, termsResult))
 		if merr != nil {
 			return fmt.Errorf("record the push apply: %w", merr)

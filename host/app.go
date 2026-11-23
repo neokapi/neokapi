@@ -5,11 +5,12 @@ package host
 import (
 	"context"
 	"fmt"
-	"github.com/neokapi/neokapi/core/contextop"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/neokapi/neokapi/core/contextop"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	neokapiconfig "github.com/neokapi/neokapi/core/config"
@@ -218,6 +219,17 @@ type App struct {
 	// own redacts under it (stepToolConfig). nil when no group was resolved,
 	// which stepToolConfig reads as the policy `defaults.redaction` declares.
 	flowRedaction *project.ResolvedRedaction
+
+	// flowReviewFeedback is the review feedback for the units of the files
+	// the chain being built will process (host/reviewfeedback.go), handed to
+	// its drafting and recycle steps; nil when no unit carries any.
+	flowReviewFeedback tool.ReviewFeedback
+	// reviewFeedbackMTNoted is set once a run has said that machine
+	// translation is sent no review feedback.
+	reviewFeedbackMTNoted bool
+	// reviewRepeats counts the run's drafts that came back equal to one a
+	// reviewer had rejected (beginReviewRepeats). Nil outside a run.
+	reviewRepeats *reviewRepeats
 
 	// translator localizes tool/format/plugin metadata at API egress.
 	// Built during Init from --lang / KAPI_LANG / config / POSIX env.

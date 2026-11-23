@@ -53,10 +53,11 @@ type ReviewPlanSnapshotStore interface {
 	// changed, held by no claim, and either quiet (no change for quiet) or
 	// changed first at least maxWait ago. The oldest change comes first.
 	ClaimDueReviewPlanSnapshots(ctx context.Context, quiet, maxWait, lease time.Duration, limit int) ([]ReviewPlanSnapshotClaim, error)
-	// CompleteReviewPlanSnapshot stores the counts a claim computed and
-	// releases it. A change after the claim was taken leaves the snapshot
-	// changed, due again as if first changed when the claim was taken.
-	CompleteReviewPlanSnapshot(ctx context.Context, claim ReviewPlanSnapshotClaim, data []byte) error
+	// CompleteReviewPlanSnapshot stores the counts a claim computed, taken
+	// at computedAt, and releases it. A change after the claim was taken
+	// leaves the snapshot changed, due again as if first changed when the
+	// claim was taken.
+	CompleteReviewPlanSnapshot(ctx context.Context, claim ReviewPlanSnapshotClaim, data []byte, computedAt time.Time) error
 	// ReleaseReviewPlanSnapshot gives up a claim that computed nothing. The
 	// snapshot stays changed, and no claim takes it again before retry.
 	ReleaseReviewPlanSnapshot(ctx context.Context, claim ReviewPlanSnapshotClaim, retry time.Duration) error

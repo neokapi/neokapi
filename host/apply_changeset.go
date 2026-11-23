@@ -58,11 +58,11 @@ func RunApplySchema(w io.Writer, op string) error {
 // RunApply applies a kapi.change/v1 change set read from path, or from
 // standard input when path is "" or "-", through the change service. The
 // command line stamps the actor: a person, or the agent session the
-// environment names. It exits 0 when the change set applied or previewed, 2
-// when it does not decode or contradicts itself, 3 when an operation was
-// refused (nothing is written), the change landed in part, or, under the
-// enforcing gate, the check of a code comment it wrote found a failing
-// finding, and 5 when a backend did not answer.
+// environment names. It exits 0 when the change set applied or previewed, and
+// 2 when it does not decode or contradicts itself. It exits 3 when an
+// operation was refused, the change landed in part, or a code comment it
+// wrote fails its check under the enforcing gate. It exits 5 when a backend
+// did not answer.
 func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 	ctx := cmd.Context()
 	data, err := readContent(ctx, path)
@@ -92,12 +92,11 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 	}
 	actor := changeActorOf(resolved.Actor)
 	// The note each record carries says what applied the change when the
-	// change set gives none, and keeps that a person was at the keyboard of
-	// an agent host's shell.
+	// change set gives none. A person at the keyboard of an agent host's
+	// shell is recorded on the actor (AgentHost), not in the note.
 	if set.Note == "" {
 		set.Note = "applied with `kapi apply`"
 	}
-	set.Note = resolved.NoteWith(set.Note)
 	recipe, err := ResolveProjectPath(cmd)
 	if err != nil {
 		return err
@@ -323,7 +322,13 @@ func (a *App) changeSourceLocale(recipe string) model.LocaleID {
 
 // changeActorOf is the change service's actor for a context actor.
 func changeActorOf(a contextop.Actor) change.Actor {
-	return change.Actor{Kind: change.ActorKind(a.Kind), Name: a.Name, Session: a.Session}
+	return change.Actor{Kind: change.ActorKind(a.Kind), Name: a.Name, Session: a.Session, AgentHost: a.AgentHost}
+}
+
+// contextActorOf is changeActorOf the other way: who a change was sent by, as
+// a context operation records it.
+func contextActorOf(a change.Actor) contextop.Actor {
+	return contextop.Actor{Kind: contextop.ActorKind(a.Kind), Name: a.Name, Session: a.Session, AgentHost: a.AgentHost}
 }
 
 // changeRoot is the directory a change set's document references resolve

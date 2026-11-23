@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"maps"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/venue"
@@ -28,18 +26,22 @@ import (
 // reconciles the collections and upserts their voices in the same job that
 // stores the blocks.
 //
-// The upsert semantics are unchanged, because the worker applies them: matched
-// by name within the workspace, a no-op when the content is identical, and
-// otherwise a new version through the store's profile versioning, so a
-// server-side edit is superseded by something revertible rather than clobbered.
+// The worker matches a profile by name within the workspace. One the
+// workspace does not hold is created from the push. One it holds lives there:
+// people edit it on the venue, and the push leaves it as it is and says so
+// (VoiceActionLeft).
 
 // PushVoiceResult holds what the governance half of a push amounted to.
 type PushVoiceResult struct {
 	Name    string // profile name
-	Action  string // carried | skipped | would-push (dry run)
+	Action  string // carried | left (VoiceActionLeft) | skipped | would-push (dry run)
 	Version int    // stored profile version after the action (0 when unknown)
 	Reason  string // set when Action == "skipped"
 }
+
+// VoiceActionLeft is the action of a profile the venue already held and left
+// as it was.
+const VoiceActionLeft = "left"
 
 // BuildPushContext resolves the recipe's declared context into the entries a
 // push carries, and reports what happened to the governance.
@@ -74,10 +76,6 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 	// governed by one voice cost one copy of it on the wire, and the entries
 	// after the first identify it by name alone.
 	carried := map[string]bool{}
-	// The revision of each profile as the last pull saw it on the server,
-	// which a carried profile names so the server can refuse a change to a
-	// profile that has moved since.
-	pulled := pulledVoiceRevisions(proj)
 	var entries []*pb.SyncContextEntry
 	var voiceResult *PushVoiceResult
 
@@ -143,7 +141,6 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 					return nil, nil, fmt.Errorf("encode voice profile %q: %w", profile.Name, merr)
 				}
 				entry.VoiceProfileJson = authored
-				entry.VoiceProfileRevision = pulled[strings.ToLower(profile.Name)]
 				carried[profile.Name] = true
 				// The operation that recorded the write, so the server keeps
 				// its author rather than recording the pusher. A ledger that
@@ -183,16 +180,4 @@ func voiceAction(dryRun bool) string {
 		return "would-push"
 	}
 	return "carried"
-}
-
-// pulledVoiceRevisions is the revision of each voice profile, by lowercased
-// name, of the server's version this project has seen (SyncCache.VoiceSeen).
-func pulledVoiceRevisions(proj *bproject.Project) map[string]string {
-	out := map[string]string{}
-	cache := bproject.LoadSyncCache(proj.Layout)
-	if cache == nil {
-		return out
-	}
-	maps.Copy(out, cache.VoiceSeen)
-	return out
 }

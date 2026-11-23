@@ -320,21 +320,6 @@ func (s *Server) HandleSyncPushCommit(c *echo.Context) error {
 		return serverErr(c, err)
 	}
 
-	// A push that would change a workspace voice profile names the revision
-	// it last pulled; refuse it here, with the remedy, before anything is
-	// queued. The worker checks again in the statement that writes.
-	sendsRevisions := venue.HasCapability(c.Request().Header.Get(venue.ClientCapabilitiesHeader), venue.CapabilityRevisions)
-	if err := s.checkPushedVoiceBases(c.Request().Context(), manifest.ProjectID, manifest.Contexts, sendsRevisions); err != nil {
-		if refusal, ok := errors.AsType[*jobs.VoiceRefusal](err); ok {
-			status := http.StatusConflict
-			if refusal.Unversioned {
-				status = http.StatusPreconditionRequired
-			}
-			return apiErr(c, status, refusal.Code(), refusal.Details(s.displayName(c.Request().Context(), refusal.ChangedBy)))
-		}
-		return serverErr(c, err)
-	}
-
 	// Enforce upload budget. Cheap and manifest-local, so it runs before the
 	// per-chunk storage probes below: an oversized manifest is rejected without
 	// paying for a stat per chunk.
@@ -797,8 +782,6 @@ func (s *Server) pullContextEntries(ctx context.Context, projectID, stream strin
 	}
 
 	profileNames := map[string]string{}
-	profileRevisions := map[string]string{}
-	profileContent := map[string][]byte{}
 	entries := make([]*pb.SyncContextEntry, 0, len(collections))
 	for _, col := range collections {
 		if col == nil {
@@ -820,28 +803,11 @@ func (s *Server) pullContextEntries(ctx context.Context, projectID, stream strin
 				if s.VoiceStore != nil {
 					if p, perr := s.VoiceStore.GetProfile(ctx, pid); perr == nil && p != nil {
 						name = p.Name
-						// The profile as the server holds it, so a pull can
-						// show a person what differs from theirs before a
-						// push replaces it, and who changed it.
-						p.UpdatedBy = s.displayName(ctx, p.UpdatedBy)
-						if raw, merr := json.Marshal(p); merr == nil {
-							profileContent[pid] = raw
-						}
-					}
-					// The revision a push that changes the profile names, so
-					// the server can tell a change based on what it holds
-					// from one made over a later edit.
-					if store, ok := s.VoiceStore.(voiceRevisions); ok {
-						if revs, rerr := store.Revisions(ctx, []string{pid}); rerr == nil {
-							profileRevisions[pid] = revs[pid]
-						}
 					}
 				}
 				profileNames[pid] = name
 			}
 			e.VoiceProfile = name
-			e.VoiceProfileRevision = profileRevisions[pid]
-			e.VoiceProfileJson = profileContent[pid]
 		}
 		entries = append(entries, e)
 	}
@@ -1052,23 +1018,9 @@ func (s *Server) HandleSyncPushStatus(c *echo.Context) error {
 		if parts.Ledger != nil {
 			resp["ledger"] = parts.Ledger
 		}
-		if len(parts.VoiceRevisions) > 0 {
-			resp["voice_revisions"] = parts.VoiceRevisions
+		if len(parts.VoiceLeft) > 0 {
+			resp["voice_left"] = parts.VoiceLeft
 		}
 	}
 	return c.JSON(http.StatusOK, resp)
-}
-
-// checkPushedVoiceBases refuses a push whose context entries would change a
-// voice profile of the project's workspace without naming its current
-// revision (jobs.CheckVoiceBases).
-func (s *Server) checkPushedVoiceBases(ctx context.Context, projectID string, contexts json.RawMessage, sendsRevisions bool) error {
-	if s.VoiceStore == nil || s.ContentStore == nil || !carriesRecords(contexts) {
-		return nil
-	}
-	proj, err := s.ContentStore.GetProject(ctx, projectID)
-	if err != nil || proj == nil || proj.WorkspaceID == "" {
-		return nil
-	}
-	return jobs.CheckVoiceBases(ctx, s.VoiceStore, proj.WorkspaceID, contexts, sendsRevisions)
 }

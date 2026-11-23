@@ -177,7 +177,7 @@ const ISO_DESKTOP = path.join(ISO_BASE, "desktop");
 // The data root holds the workspace: every project's terms, voice profiles,
 // content memory and recorded decisions. KAPI_DATA_DIR names it outright, so
 // a sample created on camera registers here and never in the developer's own
-// workspace (host/datadir.go). It sits where a Mac keeps it, under the
+// workspace (core/dataroot). It sits where a Mac keeps it, under the
 // isolated home, so the app names it ~/Library/Application Support/kapi.
 // resetHome keeps it between the two passes.
 const ISO_DATA_PARENT = "Library";
