@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/jsx"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -288,7 +289,49 @@ func TestDocCache_KeepsEveryEdition(t *testing.T) {
 // the records, so a development build, whose version never moves, reads an
 // entry of another shape as a miss.
 func TestDocCache_KeyNamesTheRecordShape(t *testing.T) {
-	assert.Contains(t, buildKey("k"), "\x00"+partsFormat+"\x00")
+	assert.Equal(t, partsFormat, buildKey("k").partsFormat)
+}
+
+// TestDocCache_KeysKeepPartsApart pins that two keys whose parts would join to
+// the same string with a delimiter between them are two entries and name two
+// recordings.
+func TestDocCache_KeysKeepPartsApart(t *testing.T) {
+	a := docKey{build: "v1", partsFormat: "f", config: "a\x00b"}
+	b := docKey{build: "v1", partsFormat: "f\x00a", config: "b"}
+	assert.NotEqual(t, a, b)
+	assert.NotEqual(t, recordingBase(a, "h"), recordingBase(b, "h"))
+}
+
+// TestDocCache_OpensACacheOfTheFirstSchema pins that a cache written with the
+// joined config key opens under the split key: its entries are dropped and a
+// new recording is filed and found again.
+func TestDocCache_OpensACacheOfTheFirstSchema(t *testing.T) {
+	cacheDir := t.TempDir()
+	dir := filepath.Join(cacheDir, "docs")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	db, err := storage.Open(filepath.Join(dir, "index.db"))
+	require.NoError(t, err)
+	require.NoError(t, storage.Migrate(db, "doc_cache_migrations", docCacheMigrations[:1]))
+	_, err = db.Exec(`INSERT INTO documents VALUES ('a.json', 'dev', 'h', 1, 1, 'p', 's', 'json')`)
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
+
+	c, err := OpenDocCache(cacheDir)
+	require.NoError(t, err)
+	defer c.Close()
+	var n int
+	require.NoError(t, c.DB.QueryRow(`SELECT COUNT(*) FROM documents`).Scan(&n))
+	assert.Zero(t, n, "the entries of the first schema are dropped")
+
+	src := filepath.Join(t.TempDir(), "a.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"k":"v"}`), 0o644))
+	rec := c.newRecorder(src, "cfg", "json")
+	require.NotNil(t, rec)
+	require.NoError(t, rec.Commit())
+	st, err := os.Stat(src)
+	require.NoError(t, err)
+	_, found := c.lookup(src, "cfg", st)
+	assert.True(t, found, "a recording under the split key is found again")
 }
 
 func mkBlock(id, text string) *model.Block {

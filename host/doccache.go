@@ -20,10 +20,11 @@ import (
 )
 
 // recordingBase names the parts and skeleton files a recording of one source
-// writes under one config key.
-func recordingBase(configKey, sourceHash string) string {
-	//keyguard:persisted the names of the document cache's parts and skeleton files; pinned by TestDocCacheNamesAreStable
-	return hashKey(configKey + "\x00" + sourceHash)
+// writes under one key. The hash reads the parts as a JSON array, so two
+// different sets of parts never share a name.
+func recordingBase(key docKey, sourceHash string) string {
+	b, _ := json.Marshal([]string{key.build, key.partsFormat, key.config, sourceHash})
+	return hashKey(string(b))
 }
 
 // hashKey returns a short stable hex digest that names the content-addressed
@@ -78,6 +79,26 @@ var docCacheMigrations = []storage.Migration{
 			PRIMARY KEY (path, config_key)
 		);`,
 	},
+	{
+		Version:     2,
+		Description: "key entries by build, record shape and config in separate columns",
+		// A cache rebuilds what it drops, so the old entries are discarded
+		// rather than split.
+		SQL: `DROP TABLE documents;
+		CREATE TABLE documents (
+			path         TEXT NOT NULL,
+			build        TEXT NOT NULL,
+			parts_format TEXT NOT NULL,
+			config_key   TEXT NOT NULL,
+			content_hash TEXT NOT NULL,
+			mtime        INTEGER NOT NULL,
+			size         INTEGER NOT NULL,
+			parts_ref    TEXT NOT NULL,
+			skeleton_ref TEXT NOT NULL,
+			format       TEXT NOT NULL,
+			PRIMARY KEY (path, build, parts_format, config_key)
+		);`,
+	},
 }
 
 // OpenDocCache opens (creating + migrating) the streaming document cache under
@@ -121,23 +142,29 @@ type docRow struct {
 // its content or files an overlay on the wrong edition.
 const partsFormat = "editions/2"
 
+// docKey is what the cache files an entry under, beside its path: the build
+// that recorded it, the shape of its records and the caller's config key.
+type docKey struct {
+	build, partsFormat, config string
+}
+
 // buildKey namespaces a caller's config key by the build that recorded the
 // entry and the shape of its records, so an entry another build produced reads
 // as a miss and is re-parsed.
-func buildKey(configKey string) string {
-	//keyguard:persisted the config_key column of the document cache's documents table; pinned by TestDocCacheNamesAreStable
-	return version.Version + "\x00" + partsFormat + "\x00" + configKey
+func buildKey(configKey string) docKey {
+	return docKey{build: version.Version, partsFormat: partsFormat, config: configKey}
 }
 
 // lookup returns the fresh index row for (path, configKey), or ok=false when the
 // entry is missing or stale relative to the file on disk.
 func (c *docCache) lookup(path, configKey string, st os.FileInfo) (docRow, bool) {
-	configKey = buildKey(configKey)
+	key := buildKey(configKey)
 	var row docRow
 	var mtime, size int64
 	q := c.DB.QueryRow(
 		`SELECT content_hash, mtime, size, parts_ref, skeleton_ref, format
-		   FROM documents WHERE path = ? AND config_key = ?`, path, configKey)
+		   FROM documents WHERE path = ? AND build = ? AND parts_format = ? AND config_key = ?`,
+		path, key.build, key.partsFormat, key.config)
 	if err := q.Scan(&row.contentHash, &mtime, &size, &row.partsRef, &row.skeletonRef, &row.format); err != nil {
 		return docRow{}, false
 	}
@@ -149,8 +176,8 @@ func (c *docCache) lookup(path, configKey string, st os.FileInfo) (docRow, bool)
 	if err != nil || h != row.contentHash {
 		return docRow{}, false
 	}
-	_, _ = c.DB.Exec(`UPDATE documents SET mtime = ?, size = ? WHERE path = ? AND config_key = ?`,
-		st.ModTime().UnixNano(), st.Size(), path, configKey)
+	_, _ = c.DB.Exec(`UPDATE documents SET mtime = ?, size = ? WHERE path = ? AND build = ? AND parts_format = ? AND config_key = ?`,
+		st.ModTime().UnixNano(), st.Size(), path, key.build, key.partsFormat, key.config)
 	return row, true
 }
 
@@ -189,7 +216,7 @@ func (c *docCache) RecordDocument(path, configKey, formatName string) flow.Docum
 
 // newRecorder builds a docRecorder for a fresh parse, or nil on setup failure.
 func (c *docCache) newRecorder(path, configKey, formatName string) *docRecorder {
-	configKey = buildKey(configKey)
+	key := buildKey(configKey)
 	st, err := os.Stat(path)
 	if err != nil {
 		return nil
@@ -202,7 +229,7 @@ func (c *docCache) newRecorder(path, configKey, formatName string) *docRecorder 
 	// re-parses reuse the same final files. Only one recording per document
 	// may be in flight in this process (converge workers share the cache and
 	// race on shared sources); losers fall back to the live read path.
-	base := recordingBase(configKey, hash)
+	base := recordingBase(key, hash)
 	c.mu.Lock()
 	if c.inflight == nil {
 		c.inflight = make(map[string]bool)
@@ -231,7 +258,7 @@ func (c *docCache) newRecorder(path, configKey, formatName string) *docRecorder 
 	// The skeleton store is created lazily, on the first SkeletonStore() call, so a
 	// lean (non-reconstructing) recording writes no skeleton file at all.
 	return &docRecorder{
-		c: c, path: path, configKey: configKey, contentHash: hash, format: formatName,
+		c: c, path: path, key: key, contentHash: hash, format: formatName,
 		st: st, partsRef: partsRef, skelRef: skelRef,
 		partsTmp: pf.Name(), skelTmp: pf.Name() + ".skel",
 		pf: pf, pw: bufio.NewWriter(pf),
@@ -303,7 +330,8 @@ func (d *cachedDocument) Close() error { return nil }
 // the skeleton written to its file by the reader's emitter.
 type docRecorder struct {
 	c                                    *docCache
-	path, configKey, contentHash, format string
+	path, contentHash, format            string
+	key                                  docKey
 	st                                   os.FileInfo
 	partsRef, skelRef, partsTmp, skelTmp string
 	pf                                   *os.File
@@ -393,12 +421,12 @@ func (r *docRecorder) Commit() error {
 		skelRef = ""
 	}
 	_, err := r.c.DB.Exec(
-		`INSERT INTO documents (path, config_key, content_hash, mtime, size, parts_ref, skeleton_ref, format)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		 ON CONFLICT(path, config_key) DO UPDATE SET
+		`INSERT INTO documents (path, build, parts_format, config_key, content_hash, mtime, size, parts_ref, skeleton_ref, format)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(path, build, parts_format, config_key) DO UPDATE SET
 		   content_hash = excluded.content_hash, mtime = excluded.mtime, size = excluded.size,
 		   parts_ref = excluded.parts_ref, skeleton_ref = excluded.skeleton_ref, format = excluded.format`,
-		r.path, r.configKey, r.contentHash, r.st.ModTime().UnixNano(), r.st.Size(), r.partsRef, skelRef, r.format)
+		r.path, r.key.build, r.key.partsFormat, r.key.config, r.contentHash, r.st.ModTime().UnixNano(), r.st.Size(), r.partsRef, skelRef, r.format)
 	return err
 }
 

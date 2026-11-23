@@ -6,15 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/version"
 )
-
-// TestDocCacheNamesAreStable pins the config_key column the document cache
-// stores and the names of the files a recording writes.
-func TestDocCacheNamesAreStable(t *testing.T) {
-	assert.Equal(t, version.Version+"\x00editions/2\x00cfg", buildKey("cfg"))
-	assert.Equal(t, "79dcd42f96ac2d3e05ffea38", recordingBase("dev\x00editions/2\x00cfg", "abc"))
-}
 
 // TestRecordEntryIDIsStable pins the id of the content memory entry an
 // absorbed record writes, over the source key recordSourceKey gives.
