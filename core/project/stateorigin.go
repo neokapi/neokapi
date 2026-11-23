@@ -161,10 +161,9 @@ func CheckStateOwned(ctx context.Context, l Layout) error {
 
 // checkStateMark verifies the mark of the state directory and of each entry in
 // it. An entry that does not verify is set aside when kapi rebuilds it and
-// refused when it cannot. A state directory whose own MAC does not verify gets
-// a fresh mark with no entry in it: the directory's MAC alone vouches for no
-// state, so each entry already there stays unverified, and only what kapi
-// writes from then on is recorded. With KAPI_TRUST_STATE=1 the person running
+// refused when it cannot. Under a state directory whose own MAC does not verify
+// every entry is unverified; the check writes nothing, and the first record
+// kapi makes there writes a fresh mark with no entry in it (markForWrite). With KAPI_TRUST_STATE=1 the person running
 // this process vouches for this run only: nothing is refused and nothing
 // written. A state directory kapi keeps outside the project (the desktop's
 // drafts, in its data directory) is not marked: no project can name it.
@@ -187,25 +186,14 @@ func checkStateMark(l Layout) error {
 		return err
 	}
 	mark, merr := readMark(l)
+	valid := merr == nil && dirValid(key, l, mark)
 	origin := markOrigin(mark)
-	if merr != nil || !dirValid(key, l, mark) {
-		fresh, err := newMark(l)
-		if err != nil {
-			unlock()
-			return err
-		}
-		fresh.From = origin
-		if err := writeMark(key, l, fresh); err != nil {
-			unlock()
-			return err
-		}
-		mark = fresh
-	} else {
+	if valid {
 		origin = mark.From
 	}
 	var refused, rebuild []string
 	for _, name := range presentState(l) {
-		if entryValid(key, l, mark, name) {
+		if valid && entryValid(key, l, mark, name) {
 			continue
 		}
 		if regenerable(l, name) {
@@ -285,9 +273,10 @@ func SetAsideWork(l Layout) error {
 }
 
 // StateMarkID is the id of the state directory's mark when its MAC verifies,
-// and "" when it does not or there is none.
+// and "" when it does not, when there is none, or while KAPI_TRUST_STATE=1 is
+// set.
 func StateMarkID(l Layout) string {
-	if l.Root == "" || !rootpath.IsBeneath(l.Root, l.StateDir) {
+	if trustOverride() || l.Root == "" || !rootpath.IsBeneath(l.Root, l.StateDir) {
 		return ""
 	}
 	key, err := keyFor(l)
@@ -301,15 +290,113 @@ func StateMarkID(l Layout) string {
 	return mark.ID
 }
 
-// RecordStateEntry records the state entry name as kapi left it, so it
-// verifies as this machine's own. kapi calls it after it creates an entry, or
-// creates or replaces the project store; a write of a bound file goes through
-// WriteStateFile instead. Without a verified mark on the state directory
-// (KAPI_TRUST_STATE=1 over state from elsewhere) nothing is recorded.
-func RecordStateEntry(l Layout, name string) error {
-	if l.Root == "" || !rootpath.IsBeneath(l.Root, l.StateDir) || !slices.Contains(StateEntries, name) {
+// An entry's MAC is written in three situations and no other. kapi has just
+// created the entry (RecordCreatedEntry, called by the code that created it).
+// kapi updates an entry that verified before its own write (BeginStateWrite,
+// then Commit, and WriteStateFile for a bound file). A person vouches for
+// state as it was shown (AdoptState). A present entry that does not verify is
+// never recorded. While KAPI_TRUST_STATE=1 is set nothing is recorded: the
+// process runs on the person's word and leaves no trace of it.
+
+// trustOverride reports whether the person running this process vouches for
+// its state (TrustStateEnv).
+func trustOverride() bool { return os.Getenv(TrustStateEnv) == "1" }
+
+// RecordCreatedEntry records the state entry name, which the caller has just
+// created in this call (a work directory or a sync directory it made), so it
+// verifies as this machine's own.
+func RecordCreatedEntry(l Layout, name string) error {
+	if trustOverride() || l.Root == "" || !rootpath.IsBeneath(l.Root, l.StateDir) || !slices.Contains(StateEntries, name) {
 		return nil
 	}
+	return recordEntries(l, []string{name})
+}
+
+// StateWrite is an update of state entries that verified when it began, to be
+// recorded once kapi's own write is done (Commit).
+type StateWrite struct {
+	l      Layout
+	names  []string
+	active bool
+}
+
+// BeginStateWrite verifies the entries kapi is about to change (absent ones
+// verify trivially) and returns the write that records them afterwards. An
+// entry that is present and does not verify is refused, and nothing will be
+// recorded for it. Without a verified mark, or while KAPI_TRUST_STATE=1 is
+// set, the write records nothing.
+func BeginStateWrite(l Layout, names ...string) (*StateWrite, error) {
+	w := &StateWrite{l: l, names: names}
+	if trustOverride() || l.Root == "" || !rootpath.IsBeneath(l.Root, l.StateDir) {
+		return w, nil
+	}
+	key, err := keyFor(l)
+	if err != nil {
+		return nil, err
+	}
+	unlock, err := lockMark(l)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	mark, err := readMark(l)
+	valid := err == nil && dirValid(key, l, mark)
+	var refused []string
+	for _, name := range names {
+		if _, err := rootpath.Stat(l.Root, filepath.Join(l.StateDir, name)); err != nil {
+			continue
+		}
+		if !valid || !entryValid(key, l, mark, name) {
+			refused = append(refused, stateRel(l)+"/"+name)
+		}
+	}
+	if len(refused) > 0 {
+		return nil, &UnverifiedStateError{Root: l.Root, Entries: refused, Origin: originOf(key, l, mark), NewKey: keyIsNew()}
+	}
+	w.active = true
+	return w, nil
+}
+
+// Commit records the entries as kapi's write left them.
+func (w *StateWrite) Commit() error {
+	if w == nil || !w.active || trustOverride() {
+		return nil
+	}
+	return recordEntries(w.l, w.names)
+}
+
+// markForWrite is the mark a record goes into: the state directory's own when
+// its MAC verifies, and otherwise a fresh one with no entry in it, carrying the
+// origin the old one showed. fresh reports the second case.
+func markForWrite(key []byte, l Layout) (m *stateMark, fresh bool, err error) {
+	old, err := readMark(l)
+	if err == nil && dirValid(key, l, old) {
+		if old.Entries == nil {
+			old.Entries = map[string]entryRecord{}
+		}
+		return old, false, nil
+	}
+	m, err = newMark(l)
+	if err != nil {
+		return nil, false, err
+	}
+	m.From = markOrigin(old)
+	m.Entries = map[string]entryRecord{}
+	return m, true, nil
+}
+
+// originOf is where the state under mark appears to come from: what a verified
+// mark recorded from the one it replaced, or what an unverified one says.
+func originOf(key []byte, l Layout, m *stateMark) string {
+	if m != nil && dirValid(key, l, m) {
+		return m.From
+	}
+	return markOrigin(m)
+}
+
+// recordEntries writes the MAC of each named entry as it is now, under a mark
+// whose directory MAC verifies; an absent entry loses its record.
+func recordEntries(l Layout, names []string) error {
 	key, err := keyFor(l)
 	if err != nil {
 		return err
@@ -319,29 +406,33 @@ func RecordStateEntry(l Layout, name string) error {
 		return err
 	}
 	defer unlock()
-	mark, err := readMark(l)
-	if err != nil || !dirValid(key, l, mark) {
-		return nil
-	}
-	if mark.Entries == nil {
-		mark.Entries = map[string]entryRecord{}
-	}
-	if _, err := rootpath.Stat(l.Root, filepath.Join(l.StateDir, name)); err != nil {
-		if _, ok := mark.Entries[name]; !ok {
-			return nil
-		}
-		delete(mark.Entries, name)
-		return writeMark(key, l, mark)
-	}
-	binding, err := entryBinding(l, name, nil)
+	mark, fresh, err := markForWrite(key, l)
 	if err != nil {
 		return err
 	}
-	mac := entryMAC(key, l, mark, name, binding)
-	if rec := mark.Entries[name]; len(rec.MACs) == 1 && rec.MACs[0] == mac {
+	changed := fresh
+	for _, name := range names {
+		if _, err := rootpath.Stat(l.Root, filepath.Join(l.StateDir, name)); err != nil {
+			if _, ok := mark.Entries[name]; ok {
+				delete(mark.Entries, name)
+				changed = true
+			}
+			continue
+		}
+		binding, err := entryBinding(l, name, nil)
+		if err != nil {
+			return err
+		}
+		mac := entryMAC(key, l, mark, name, binding)
+		if rec := mark.Entries[name]; len(rec.MACs) == 1 && rec.MACs[0] == mac {
+			continue
+		}
+		mark.Entries[name] = entryRecord{MACs: []string{mac}}
+		changed = true
+	}
+	if !changed {
 		return nil
 	}
-	mark.Entries[name] = entryRecord{MACs: []string{mac}}
 	return writeMark(key, l, mark)
 }
 
@@ -354,6 +445,9 @@ func RecordStateEntry(l Layout, name string) error {
 // rather than recorded. Any other path is written whole, by rename.
 func WriteStateFile(path string, data []byte, perm fs.FileMode) error {
 	l, name, rel, ok := stateEntryOf(path)
+	if ok && trustOverride() {
+		return writeWhole(l.StateDir, filepath.Join(name, rel), data, perm)
+	}
 	if !ok {
 		return writeWhole(filepath.Dir(path), filepath.Base(path), data, perm)
 	}
@@ -366,11 +460,9 @@ func WriteStateFile(path string, data []byte, perm fs.FileMode) error {
 		return err
 	}
 	defer unlock()
-	mark, merr := readMark(l)
-	if merr != nil || !dirValid(key, l, mark) {
-		// Only KAPI_TRUST_STATE=1 reaches a write here: the person vouches for
-		// this run, and nothing is recorded.
-		return writeWhole(l.StateDir, filepath.Join(name, rel), data, perm)
+	mark, _, err := markForWrite(key, l)
+	if err != nil {
+		return err
 	}
 	var before []string
 	if _, err := rootpath.Stat(l.Root, filepath.Join(l.StateDir, name)); err == nil {
@@ -825,6 +917,16 @@ func displaySafe(s string) string {
 // its mark. A state directory that appeared meanwhile (another process) is
 // left as it is, and the staged one removed.
 func createStateDir(l Layout) error {
+	if trustOverride() {
+		// The person vouches for this run: nothing is recorded, a mark
+		// included.
+		parent, err := os.OpenRoot(filepath.Dir(l.StateDir))
+		if err != nil {
+			return err
+		}
+		defer parent.Close()
+		return parent.Mkdir(filepath.Base(l.StateDir), 0o755)
+	}
 	key, err := keyFor(l)
 	if err != nil {
 		return err

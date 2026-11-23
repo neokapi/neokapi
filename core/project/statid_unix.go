@@ -8,9 +8,9 @@ import (
 	"syscall"
 )
 
-// dirIdentity is the device and inode of the directory at path: the same for
-// every spelling of one directory and for a directory renamed on its volume,
-// different for a copy.
+// dirIdentity is the device, inode and birth time of the file or directory at
+// path: the same for every spelling of it and for it renamed on its volume,
+// different for a copy and for one removed and created again.
 func dirIdentity(path string) (string, error) {
 	info, err := os.Stat(path) //pathguard: the project root or its state directory, which CheckState has walked; only the identity is read
 	if err != nil {
@@ -20,7 +20,7 @@ func dirIdentity(path string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("project: no file identity for %s", path)
 	}
-	return fmt.Sprintf("%d:%d", st.Dev, st.Ino), nil
+	return fmt.Sprintf("%d:%d:%s", st.Dev, st.Ino, birthTime(path, st)), nil
 }
 
 // keyPrivate refuses a key that another user could read or replace: the key

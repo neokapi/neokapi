@@ -229,15 +229,13 @@ func EnsureLocalDir(layout Layout, name string) (string, error) {
 		return "", err
 	}
 	dir := filepath.Join(layout.StateDir, name)
-	_, existed := os.Lstat(dir)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return "", fmt.Errorf("project: create %s: %w", name, err)
-	}
-	// An entry created here is recorded as this machine's own.
-	if errors.Is(existed, fs.ErrNotExist) {
-		if err := RecordStateEntry(layout, name); err != nil {
+	// An entry this call creates is recorded as this machine's own.
+	if err := os.Mkdir(dir, 0o700); err == nil {
+		if err := RecordCreatedEntry(layout, name); err != nil {
 			return "", err
 		}
+	} else if !errors.Is(err, fs.ErrExist) {
+		return "", fmt.Errorf("project: create %s: %w", name, err)
 	}
 	// A directory an earlier layout created keeps its own mode; tighten it.
 	if err := os.Chmod(dir, 0o700); err != nil {
@@ -389,18 +387,21 @@ func EnsureLayout(layout Layout) error {
 		return err
 	}
 	fresh := cacheOnly(layout.StateDir)
-	_, workErr := os.Lstat(layout.WorkDir())
-	for _, dir := range []string{
-		layout.StateDir,
-		layout.CacheDir(),
-	} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return fmt.Errorf("project: create %s: %w", filepath.Base(dir), err)
-		}
+	if err := os.MkdirAll(layout.StateDir, 0o755); err != nil {
+		return fmt.Errorf("project: create %s: %w", filepath.Base(layout.StateDir), err)
 	}
-	// A work directory created here is recorded as this machine's own.
-	if errors.Is(workErr, fs.ErrNotExist) {
-		if err := RecordStateEntry(layout, WorkDirName); err != nil {
+	// A work directory this call creates is recorded as this machine's own.
+	workCreated := false
+	if err := os.Mkdir(layout.WorkDir(), 0o755); err == nil {
+		workCreated = true
+	} else if !errors.Is(err, fs.ErrExist) {
+		return fmt.Errorf("project: create %s: %w", WorkDirName, err)
+	}
+	if err := os.MkdirAll(layout.CacheDir(), 0o755); err != nil {
+		return fmt.Errorf("project: create %s: %w", CacheDirName, err)
+	}
+	if workCreated {
+		if err := RecordCreatedEntry(layout, WorkDirName); err != nil {
 			return err
 		}
 	}

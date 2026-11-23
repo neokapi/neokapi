@@ -72,7 +72,6 @@ var replacing = map[string]map[string]bool{
 // allowed lists the functions that point a writer at a file, keyed by the file
 // and the function, with what each writes.
 var allowed = map[string]string{
-	"apps/kapi-desktop/backend/filters.go:writeFiltersFile":             "records the checkout's personal filters and selected filter",
 	"apps/kapi-desktop/backend/filters.go:ensureLocalFiltersGitignored": "adds the personal filter filename to the checkout's ignore rules",
 	"host/toolbox_conv.go:convertDocument":                              "exports a document converted to another format",
 	"host/apply_comment.go:write":                                       "writes the code comments kapi apply edits, which the file home does not write yet",

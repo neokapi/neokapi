@@ -139,8 +139,12 @@ export OKAPI_REPO
 # memory and recorded decisions lives, so an in-repo kapi that left it alone
 # would act on the developer's own context whenever they have it exported.
 # Prefix in-repo kapi calls with $(KAPI_ISO_ENV). See CLAUDE.md "Dogfooding".
+# The configuration directory sits beside the checkout rather than in it: it
+# holds the key that marks the state kapi writes, and kapi refuses a key inside
+# the project it opens (the dogfood recipe is this repository).
 KAPI_ISO_DIR := $(CURDIR)/.kapi-iso
-KAPI_ISO_ENV := KAPI_NO_PROJECT=1 KAPI_TELEMETRY=0 KAPI_PLUGINS_DIR_ONLY=1 KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config KAPI_DATA_DIR=$(KAPI_ISO_DIR)/data/kapi XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache KAPI_PLUGINS_DIR=$(KAPI_ISO_DIR)/plugins
+KAPI_ISO_CONFIG_DIR := $(abspath $(CURDIR)/..)/.kapi-iso-config-$(notdir $(CURDIR))
+KAPI_ISO_ENV := KAPI_NO_PROJECT=1 KAPI_TELEMETRY=0 KAPI_PLUGINS_DIR_ONLY=1 KAPI_CONFIG_DIR=$(KAPI_ISO_CONFIG_DIR) KAPI_DATA_DIR=$(KAPI_ISO_DIR)/data/kapi XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache KAPI_PLUGINS_DIR=$(KAPI_ISO_DIR)/plugins
 
 GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint"; })
 PROTOC        := $(shell which protoc 2>/dev/null)

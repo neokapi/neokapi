@@ -192,6 +192,12 @@ func open(ctx context.Context, layout project.Layout, opts ...Option) (*DB, bool
 	// working store seeds from, so it has to land first.
 	foldLayoutForward(layout)
 
+	// The work directory verified above; the store this open may create in it
+	// is recorded once the store is known to be this checkout's (recordState).
+	work, err := project.BeginStateWrite(layout, project.WorkDirName)
+	if err != nil {
+		return nil, false, fmt.Errorf("projectdb: %w", err)
+	}
 	projection, err := storage.OpenWith(layout.StorePath(), storage.ProjectOptions())
 	if err != nil {
 		return nil, false, fmt.Errorf("projectdb: open %s: %w", layout.StorePath(), err)
@@ -210,7 +216,7 @@ func open(ctx context.Context, layout project.Layout, opts ...Option) (*DB, bool
 		return nil, false, err
 	}
 	sweepPredecessors(ctx, layout, db)
-	foreign, err := db.recordState(ctx)
+	foreign, err := db.recordState(ctx, work)
 	if err != nil {
 		_ = db.Close()
 		return nil, false, err
@@ -218,13 +224,12 @@ func open(ctx context.Context, layout project.Layout, opts ...Option) (*DB, bool
 	return db, foreign, nil
 }
 
-// recordState records the work directory, with the store kapi may have just
-// created in it, and the vault and the sync state a fold may have moved files
-// into, as this machine's own (project.RecordStateEntry). It reports a store
-// that records the mark of another state directory instead, and records
-// nothing then. Without a verified mark (KAPI_TRUST_STATE=1 over state from
-// elsewhere) it records nothing.
-func (d *DB) recordState(ctx context.Context) (bool, error) {
+// recordState records the work directory with the store this open may have
+// created in it (work, begun before the store opened). It reports a store that
+// records the mark of another state directory instead, and records nothing
+// then. Without a verified mark, or while KAPI_TRUST_STATE=1 is set, it checks
+// and records nothing.
+func (d *DB) recordState(ctx context.Context, work *project.StateWrite) (bool, error) {
 	id := project.StateMarkID(d.layout)
 	if id == "" {
 		return false, nil
@@ -241,10 +246,8 @@ func (d *DB) recordState(ctx context.Context) (bool, error) {
 			return false, err
 		}
 	}
-	for _, name := range []string{project.WorkDirName, project.VaultDirName, project.SyncDirName} {
-		if err := project.RecordStateEntry(d.layout, name); err != nil {
-			return false, fmt.Errorf("projectdb: %w", err)
-		}
+	if err := work.Commit(); err != nil {
+		return false, fmt.Errorf("projectdb: %w", err)
 	}
 	return false, nil
 }

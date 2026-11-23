@@ -179,9 +179,11 @@ recorded when kapi creates the entry or writes it:
   it records the value after the write beside the value before, replaces the
   file, then drops the value before, so an interrupted write still verifies.
 
-An identity is the device and inode on Unix and the volume serial number and
-file index on Windows. NTFS keeps the file index stable for the life of a file;
-the browser build uses the path. The path is left out of every value, so moving
+An identity is the device, inode and birth time on Unix (the birth time where
+the file system records one, so a file removed and created again under a
+reused inode differs) and the volume serial number and file index on Windows,
+whose file index NTFS keeps for the life of a file and changes on reuse. The
+browser build uses the path. The path is left out of every value, so moving
 or renaming a checkout on its volume keeps its state, while a device number that
 changes (an external or network volume remounted, a container) makes the
 checkout ask again.
@@ -214,9 +216,10 @@ An entry that does not verify is not used:
 | `sync/` (sync state, an anonymous project's claim token) | no | refused until vouched for |
 | `filters.local.json` (personal saved filters) | no | refused until vouched for |
 
-A state directory whose own value does not verify gets a fresh mark that records
-no entry, so every entry already in it stays unverified and only what kapi
-writes from then on is recorded. A refused entry therefore leaves the rest
+Under a state directory whose own value does not verify, every entry is
+unverified. A check writes nothing; the first entry kapi records there writes a
+fresh mark that records no other, so every entry already in it stays
+unverified. A refused entry therefore leaves the rest
 alone: a rebuilt `work/` is recorded once and kept. A state directory kapi
 creates is made with its mark in one step, staged beside it and renamed into
 place.

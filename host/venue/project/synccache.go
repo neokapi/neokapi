@@ -164,11 +164,18 @@ func (c *SyncCache) Save(layout coreproj.Layout) error {
 		return err
 	}
 	// The copy an earlier layout left in the work directory goes, and the
-	// work directory is recorded as kapi leaves it.
-	if os.Remove(legacySyncCachePath(layout)) == nil {
-		return coreproj.RecordStateEntry(layout, coreproj.WorkDirName)
+	// work directory, verified first, is recorded as kapi leaves it.
+	if _, err := os.Stat(legacySyncCachePath(layout)); err != nil {
+		return nil
 	}
-	return nil
+	w, err := coreproj.BeginStateWrite(layout, coreproj.WorkDirName)
+	if err != nil {
+		return fmt.Errorf("project: %w", err)
+	}
+	if os.Remove(legacySyncCachePath(layout)) != nil {
+		return nil
+	}
+	return w.Commit()
 }
 
 // NewEmptySyncCache returns a cache describing nothing yet synced. Callers use

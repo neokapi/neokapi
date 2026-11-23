@@ -36,8 +36,10 @@ func overwriteFile(t *testing.T, path string, data []byte) {
 func TestStateSwappedUnderAMarkedCheckoutIsNotUsed(t *testing.T) {
 	t.Run("a project store unpacked over the work directory", func(t *testing.T) {
 		l := ownedProject(t)
+		w, err := BeginStateWrite(l, WorkDirName)
+		require.NoError(t, err)
 		require.NoError(t, os.WriteFile(l.StorePath(), []byte("this checkout's store"), 0o600))
-		require.NoError(t, RecordStateEntry(l, WorkDirName))
+		require.NoError(t, w.Commit())
 		require.NoError(t, CheckStateOwned(t.Context(), l))
 
 		replaceFile(t, l.StorePath(), []byte("another project's store"))
@@ -219,4 +221,71 @@ func TestVouchingRecordsWhatWasShown(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, AdoptState(l, shown))
 	require.NoError(t, CheckStateOwned(t.Context(), l))
+}
+
+// An entry's MAC is written only for an entry kapi created, or one that
+// verified before kapi's own write; never for state that does not verify, and
+// never while the trust override is set.
+func TestOnlyStateThatVerifiesIsRecorded(t *testing.T) {
+	t.Run("a vault from elsewhere present when kapi records", func(t *testing.T) {
+		l := ownedProject(t)
+		require.NoError(t, os.RemoveAll(l.VaultDir()))
+		require.NoError(t, os.MkdirAll(l.VaultDir(), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(l.VaultDir(), "redaction.json"), []byte(`{"from":"elsewhere"}`), 0o600))
+		_, err := BeginStateWrite(l, WorkDirName, VaultDirName, SyncDirName)
+		var unverified *UnverifiedStateError
+		require.ErrorAs(t, err, &unverified)
+		assert.Equal(t, []string{".kapi/vault"}, unverified.Entries)
+		require.ErrorAs(t, CheckStateOwned(t.Context(), l), &unverified, "nothing was recorded")
+	})
+
+	t.Run("an entry swapped after it was verified, before a record", func(t *testing.T) {
+		l := ownedProject(t)
+		require.NoError(t, CheckStateOwned(t.Context(), l))
+		require.NoError(t, os.WriteFile(l.StorePath(), []byte("another project's store"), 0o600))
+		_, err := BeginStateWrite(l, WorkDirName)
+		var unverified *UnverifiedStateError
+		require.ErrorAs(t, err, &unverified)
+		notices := captureNotices(t)
+		require.NoError(t, CheckStateOwned(t.Context(), l))
+		assert.Len(t, *notices, 1, "the store that arrived is set aside, not recorded")
+	})
+
+	t.Run("nothing while the trust override is set", func(t *testing.T) {
+		l := ownedProject(t)
+		before, err := os.ReadFile(filepath.Join(l.StateDir, MarkFilename))
+		require.NoError(t, err)
+		t.Setenv(TrustStateEnv, "1")
+		require.NoError(t, os.WriteFile(l.StorePath(), []byte("a store"), 0o600))
+		w, err := BeginStateWrite(l, WorkDirName)
+		require.NoError(t, err)
+		require.NoError(t, w.Commit())
+		require.NoError(t, RecordCreatedEntry(l, WorkDirName))
+		require.NoError(t, WriteStateFile(filepath.Join(l.SyncDir(), "kept"), []byte("under the override"), 0o600))
+		after, err := os.ReadFile(filepath.Join(l.StateDir, MarkFilename))
+		require.NoError(t, err)
+		assert.Equal(t, string(before), string(after), "the mark is as it was")
+		t.Setenv(TrustStateEnv, "")
+		var unverified *UnverifiedStateError
+		captureNotices(t)
+		require.ErrorAs(t, CheckStateOwned(t.Context(), l), &unverified)
+		assert.Equal(t, []string{".kapi/sync"}, unverified.Entries)
+	})
+
+	t.Run("kapi's own rewrite of the sync cache", func(t *testing.T) {
+		l := ownedProject(t)
+		require.NoError(t, WriteStateFile(filepath.Join(l.SyncDir(), "sync-cache.json"), []byte(`{"claim_token":"mine"}`), 0o600))
+		require.NoError(t, WriteStateFile(filepath.Join(l.SyncDir(), "sync-cache.json"), []byte(`{"claim_token":"mine, again"}`), 0o600))
+		require.NoError(t, CheckStateOwned(t.Context(), l))
+	})
+
+	t.Run("a store kapi creates in a work directory that verified", func(t *testing.T) {
+		l := ownedProject(t)
+		w, err := BeginStateWrite(l, WorkDirName)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(l.StorePath(), []byte("kapi's store"), 0o600))
+		require.NoError(t, w.Commit())
+		require.NoError(t, CheckStateOwned(t.Context(), l))
+		assert.FileExists(t, l.StorePath())
+	})
 }

@@ -188,13 +188,16 @@ func TestStateThisMachineWroteKeepsWorking(t *testing.T) {
 		require.ErrorAs(t, CheckStateOwned(t.Context(), LayoutAt(dst)), &unverified, "the variable adopts nothing: a later run without it is refused")
 	})
 
-	t.Run("a state directory with nothing kapi keeps in it is marked, not refused", func(t *testing.T) {
+	t.Run("a state directory with nothing kapi keeps in it is not refused", func(t *testing.T) {
 		root := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(root, RecipeFileName), []byte("version: v1\nname: p\n"), 0o644))
 		l := LayoutAt(root)
 		require.NoError(t, os.MkdirAll(filepath.Join(l.StateDir, "profiles"), 0o755))
 		require.NoError(t, CheckStateOwned(t.Context(), l))
-		assert.FileExists(t, filepath.Join(l.StateDir, MarkFilename))
+		assert.NoFileExists(t, filepath.Join(l.StateDir, MarkFilename), "a check writes nothing")
+		require.NoError(t, EnsureLayout(l))
+		assert.FileExists(t, filepath.Join(l.StateDir, MarkFilename), "the work directory kapi creates is recorded")
+		require.NoError(t, CheckStateOwned(t.Context(), l))
 	})
 }
 

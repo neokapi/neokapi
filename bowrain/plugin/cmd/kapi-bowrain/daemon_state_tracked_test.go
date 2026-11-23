@@ -45,13 +45,15 @@ func TestDaemonRefusesTrackedStateAtEveryCall(t *testing.T) {
 			root := daemonProjectRoot(t)
 			p := filepath.Join(root, coreproj.StateDirName, filepath.FromSlash(st.file))
 			// Written as kapi writes it, so the state is this machine's own.
+			w, err := coreproj.BeginStateWrite(coreproj.LayoutAt(root), coreproj.WorkDirName)
+			require.NoError(t, err)
 			if _, err := os.Stat(p); os.IsNotExist(err) {
 				require.NoError(t, coreproj.WriteStateFile(p, []byte(`{"claim_token":"planted"}`), 0o600))
 			}
-			require.NoError(t, coreproj.RecordStateEntry(coreproj.LayoutAt(root), coreproj.WorkDirName))
+			require.NoError(t, w.Commit())
 			git(root, "init", "-q")
 			d := newDaemonService(nil)
-			_, err := d.projectFor(t.Context(), root)
+			_, err = d.projectFor(t.Context(), root)
 			require.NoError(t, err, "nothing tracked yet")
 
 			git(root, "add", "-f", coreproj.StateDirName+"/"+st.file)

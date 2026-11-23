@@ -285,11 +285,18 @@ func (c *Cache) Save(layout coreproj.Layout) error {
 		return err
 	}
 	// The copy an earlier layout left in the work directory goes, and the
-	// work directory is recorded as kapi leaves it.
-	if os.Remove(legacyPath(layout)) == nil {
-		return coreproj.RecordStateEntry(layout, coreproj.WorkDirName)
+	// work directory, verified first, is recorded as kapi leaves it.
+	if _, err := os.Stat(legacyPath(layout)); err != nil {
+		return nil
 	}
-	return nil
+	w, err := coreproj.BeginStateWrite(layout, coreproj.WorkDirName)
+	if err != nil {
+		return fmt.Errorf("refcache: %w", err)
+	}
+	if os.Remove(legacyPath(layout)) != nil {
+		return nil
+	}
+	return w.Commit()
 }
 
 func (c *Cache) update(stream string, apply func(ref.Ref) ref.Ref) {

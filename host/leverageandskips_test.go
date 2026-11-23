@@ -74,10 +74,12 @@ func TestComputeProjectPlan_UnopenableStoreFailsThePlan(t *testing.T) {
 	// A real seam: a file standing where the project store must be, whose bytes
 	// are not a database. No production hook, no test-only branch.
 	storePath := layout.StorePath()
+	// kapi's own store, damaged: written as kapi writes the store, so it is
+	// read rather than set aside.
+	w, err := project.BeginStateWrite(layout, project.WorkDirName)
+	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(storePath, []byte("this is not a sqlite database at all"), 0o644))
-	// kapi's own store, damaged: recorded as this machine's, so it is read
-	// rather than set aside.
-	require.NoError(t, project.RecordStateEntry(layout, project.WorkDirName))
+	require.NoError(t, w.Commit())
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -151,8 +153,10 @@ func TestRunExtractKpz_UnopenableMemoryAndTermsAreReported(t *testing.T) {
 	// open can only mean present-but-unreadable, which is exactly why the absent
 	// case cannot be used as the control here, and why the assertion below is
 	// about the message rather than about the extract failing.
+	w, err := project.BeginStateWrite(layout, project.WorkDirName)
+	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(layout.StorePath(), []byte("not a sqlite database"), 0o644))
-	require.NoError(t, project.RecordStateEntry(layout, project.WorkDirName))
+	require.NoError(t, w.Commit())
 
 	var stderr bytes.Buffer
 	cmd := NewEnvCommand(t.Context(), "extract")

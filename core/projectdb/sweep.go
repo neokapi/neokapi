@@ -44,6 +44,13 @@ import (
 // working store seeds itself from, folded afterwards, the first open of an
 // upgraded project would come up with an empty working set.
 func foldLayoutForward(layout project.Layout) {
+	// The open verified the state before the fold, the files an earlier layout
+	// kept included; what the fold moves is recorded as it then lies. A state
+	// entry that does not verify stops the fold, and the open refuses it.
+	w, err := project.BeginStateWrite(layout, foldedEntries...)
+	if err != nil {
+		return
+	}
 	moveDirContents(flatDecisionsDir(layout), layout.Export().UnitStateDir())
 	// What work/ held and no source reproduces moves out of it: the vault,
 	// the per-batch sidecars and the venue sync state.
@@ -54,10 +61,8 @@ func foldLayoutForward(layout project.Layout) {
 	}
 	// Before the cache root is deleted, and that ordering is the whole point.
 	moveDirContents(flatRedactionDir(layout), currentRedactionDir(layout))
-	// The open verified the state before the fold, the files an earlier
-	// layout kept included, so what the fold moved is recorded as it now lies,
-	// before anything checks it again.
-	recordFolded(layout)
+	// Recorded before anything checks the moved entries again.
+	_ = w.Commit()
 	// A moved vault or sync directory keeps its protection: owner-only, and
 	// out of version control.
 	for _, name := range []string{project.VaultDirName, project.SyncDirName} {
@@ -65,18 +70,16 @@ func foldLayoutForward(layout project.Layout) {
 			_, _ = project.EnsureLocalDir(layout, name)
 		}
 	}
-	retireFlatProjections(layout)
-	recordFolded(layout)
+	if w, err := project.BeginStateWrite(layout, foldedEntries...); err == nil {
+		retireFlatProjections(layout)
+		_ = w.Commit()
+	}
 	foldContextUmbrella(layout)
 	foldGovernanceFiles(layout, layout.StateDir)
 }
 
-// recordFolded records the entries a fold changes (project.RecordStateEntry).
-func recordFolded(layout project.Layout) {
-	for _, name := range []string{project.WorkDirName, project.VaultDirName, project.SyncDirName} {
-		_ = project.RecordStateEntry(layout, name)
-	}
-}
+// foldedEntries are the state entries a fold changes.
+var foldedEntries = []string{project.WorkDirName, project.VaultDirName, project.SyncDirName}
 
 // umbrellaContextDir is the retired directory that grouped the committed
 // sources one level below `.kapi/`.
