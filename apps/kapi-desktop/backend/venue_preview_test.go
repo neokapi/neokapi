@@ -14,13 +14,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/core/keychain"
+
 	"github.com/neokapi/neokapi/core/project"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/neokapi/neokapi/host/venue/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 	"gopkg.in/yaml.v3"
 )
 
@@ -85,7 +86,7 @@ func previewApp(t *testing.T, url string) *App {
 // directory and a keychain held in memory.
 func signIn(t *testing.T, server, token string) {
 	t.Helper()
-	keyring.MockInit()
+	keychain.Reset()
 	t.Setenv("BOWRAIN_CONFIG_DIR", t.TempDir())
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "")
 	require.NoError(t, config.SaveAuth(config.StoredAuth{
@@ -147,7 +148,7 @@ func TestBowrainPreviewRefusals(t *testing.T) {
 		assert.Equal(t, &PreviewRefusal{Status: 404, Message: "project not found", Action: PreviewActionOpen}, got.Refusal)
 	})
 	t.Run("no sign-in on this Mac", func(t *testing.T) {
-		keyring.MockInit()
+		keychain.Reset()
 		t.Setenv("BOWRAIN_CONFIG_DIR", t.TempDir())
 		t.Setenv("BOWRAIN_AUTH_TOKEN", "")
 		got, err := previewApp(t, srv.URL+"/acme/p1").BowrainPreview("t", PreviewOverview, "")
@@ -273,7 +274,7 @@ func (rs *rotatingServer) serveRefresh(w http.ResponseWriter, r *http.Request) {
 // signInWithRefresh stores an expired access token beside a refresh token.
 func signInWithRefresh(t *testing.T, server, refresh string) {
 	t.Helper()
-	keyring.MockInit()
+	keychain.Reset()
 	t.Setenv("BOWRAIN_CONFIG_DIR", t.TempDir())
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "")
 	require.NoError(t, config.SaveAuth(config.StoredAuth{
@@ -333,7 +334,7 @@ func TestBowrainPreviewRefreshRefusedAsksForSignIn(t *testing.T) {
 // The token goes only to the server the sign-in it is read with names.
 func TestBowrainPreviewChecksTheServerOfTheTokenItSends(t *testing.T) {
 	srv := previewServer(t)
-	keyring.MockInit()
+	keychain.Reset()
 	t.Setenv("BOWRAIN_CONFIG_DIR", t.TempDir())
 	// BOWRAIN_AUTH_TOKEN with no server names none, which matches no recipe.
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "tok")
@@ -363,7 +364,7 @@ func TestPreviewRefusalOfAnUnreachedRefresh(t *testing.T) {
 // pair the keychain holds then, so no consumed refresh token is presented.
 func TestBowrainPreviewRefreshesFromTheKeychainAfterAnotherProcessRefreshed(t *testing.T) {
 	rs := newRotatingServer(t, 1)
-	keyring.MockInit()
+	keychain.Reset()
 	t.Setenv("BOWRAIN_CONFIG_DIR", t.TempDir())
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "")
 	require.NoError(t, config.SaveAuth(config.StoredAuth{ServerURL: rs.URL, AccessToken: "access-1", RefreshToken: "refresh-1"}))

@@ -28,6 +28,17 @@ func open() {
 	})
 }
 
+// Reset empties the in-memory keyring a test binary uses, so a test starts
+// with no secrets. It is the only way a test prepares the keyring; outside a
+// test binary it panics, since the real keychain is never emptied.
+func Reset() {
+	if !dataroot.UnderTest() {
+		panic("keychain: Reset is for test binaries only")
+	}
+	open()
+	keyring.MockInit()
+}
+
 // Set stores a secret for service and user.
 func Set(service, user, secret string) error {
 	open()

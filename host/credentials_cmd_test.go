@@ -4,23 +4,23 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/keychain"
+
 	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 )
 
 func newTestCredStore(t *testing.T) *credentials.Store {
 	t.Helper()
 	// Swap go-keyring's global provider for the in-memory one so key writes
 	// never reach the OS keychain (and pass on a headless CI runner).
-	keyring.MockInit()
+	keychain.Reset()
 	return credentials.NewStore(filepath.Join(t.TempDir(), "providers.json"))
 }
 
-// TestSaveCredential_RejectsUnknownProvider is finding 5: the desktop used to
-// persist a typo'd provider type because only the CLI validated. The shared
-// host path rejects it, so neither surface can.
+// TestSaveCredential_RejectsUnknownProvider: the shared host path rejects a
+// typo'd provider type, so neither the desktop nor the CLI can persist one.
 func TestSaveCredential_RejectsUnknownProvider(t *testing.T) {
 	store := newTestCredStore(t)
 
