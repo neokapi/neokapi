@@ -845,7 +845,7 @@ export interface ApiAdapter {
   ): Promise<void>;
   /**
    * The plan's last step: establishes every waiting translation that clears
-   * every bar, recorded with the reason "review policy".
+   * every bar, recorded with the reason "review_policy".
    */
   settleReviewPlan?(
     workspaceSlug: string,

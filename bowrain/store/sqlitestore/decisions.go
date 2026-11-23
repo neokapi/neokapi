@@ -95,7 +95,9 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		default:
 			return changed, fmt.Errorf("read decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
+		d.Reasons, d.Note = venue.NormalizeReasons(d.Reasons), venue.BoundNote(d.Note)
 		if haveOld {
+			d = venue.CarryReasons(old, d)
 			if bstore.DecisionUnchanged(old, d) {
 				continue
 			}

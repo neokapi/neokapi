@@ -93,7 +93,7 @@ func deciderRole(by string) string {
 // record the store skips as unchanged still move the component, and every
 // subsequent push would then be refused for a change nobody made.
 func DecisionUnchanged(old, next venue.UnitDecision) bool {
-	return venue.SameDecision(old, next)
+	return venue.SameDecision(old, next) && venue.SameReasons(old, next)
 }
 
 // UpsertUnitDecisions implements platstore.DecisionStore: idempotent
@@ -155,7 +155,9 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		default:
 			return changed, fmt.Errorf("read decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
+		d.Reasons, d.Note = venue.NormalizeReasons(d.Reasons), venue.BoundNote(d.Note)
 		if haveOld {
+			d = venue.CarryReasons(old, d)
 			if DecisionUnchanged(old, d) {
 				continue
 			}

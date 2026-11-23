@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/labstack/echo/v5"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // streamDecisions is the server's change.Assets: decide, applied to the
@@ -157,9 +159,17 @@ func (d *streamDecisions) Apply(ctx context.Context, actor change.Actor, set *ch
 		e.Message = sodRefusal + "; your correction is saved and waits for another reviewer to approve it"
 		return "", e
 	}
+	if bad, ok := venue.ValidReasons(body.Reasons); !ok {
+		return "", &change.Error{Code: change.CodeInvalid, Field: "reasons",
+			Message: fmt.Sprintf("%q is not a reason: want one of %s", bad, strings.Join(venue.DecisionReasons, ", "))}
+	}
 	req := ReviewBlockRequest{TargetLocale: locale, ItemName: target.Doc.Doc, BaseRevision: target.Rev,
-		Reasons: body.Reasons}
+		Reasons: venue.NormalizeReasons(body.Reasons)}
 	if set != nil {
+		if utf8.RuneCountInString(set.Note) > venue.MaxDecisionNote {
+			return "", &change.Error{Code: change.CodeInvalid, Field: "note",
+				Message: fmt.Sprintf("the note is longer than %d characters", venue.MaxDecisionNote)}
+		}
 		req.Note = set.Note
 	}
 	demoteTo := model.TargetStatusTranslated

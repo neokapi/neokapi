@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"slices"
 	"strings"
 	"time"
 
@@ -62,7 +61,7 @@ func (s *Server) recordReviewDecision(ctx context.Context, c *echo.Context, ledg
 func decisionStands(prev *venue.UnitDecision, next venue.UnitDecision) bool {
 	return prev != nil && prev.ReviewState == next.ReviewState && prev.Status == next.Status &&
 		prev.Revision == next.Revision && prev.Basis == next.Basis && prev.DecidedBy == next.DecidedBy &&
-		prev.Note == next.Note && slices.Equal(prev.Reasons, next.Reasons)
+		prev.Note == next.Note && venue.SameReasons(*prev, next)
 }
 
 // ReviewBlockRequest is one review decision on one block's translation for one
