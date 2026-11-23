@@ -86,14 +86,23 @@ func execTrustStanding(key, kind, digest string) (status, detail string) {
 	if err != nil {
 		return output.TrustStatusUnreadable, err.Error()
 	}
-	sites := project.ExecSurface(proj)
-	if len(sites) == 0 {
+	surface, err := execSurfaceOf(key, proj)
+	if err != nil {
+		return output.TrustStatusUnreadable, err.Error()
+	}
+	if len(surface.Sites) == 0 {
 		return output.TrustStatusChanged, "the recipe no longer runs commands"
 	}
-	if project.ExecSurfaceDigest(sites) == digest {
-		return output.TrustStatusCurrent, ""
+	if surface.Digest == digest {
+		return output.TrustStatusCurrent, coverageSummary(surface)
 	}
-	return output.TrustStatusChanged, "the recipe changed what it runs; the next run asks again"
+	if added := addedExecSites(key, surface.Sites); len(added) > 0 {
+		return output.TrustStatusChanged, "a command was added (" + strings.Join(added, ", ") + "); the next run asks again; " + coverageSummary(surface)
+	}
+	if changed := changedExecFiles(key, surface.Files); len(changed) > 0 {
+		return output.TrustStatusChanged, "a file the commands run changed (" + strings.Join(changed, ", ") + "); the next run asks again; " + coverageSummary(surface)
+	}
+	return output.TrustStatusChanged, "the project, its commands or a file they name changed; the next run asks again; " + coverageSummary(surface)
 }
 
 // ExecTrustShow reports what the recipe at recipePath would run and the
@@ -104,11 +113,15 @@ func (a *App) ExecTrustShow(recipePath string) (output.TrustShowOutput, error) {
 	if err != nil {
 		return output.TrustShowOutput{}, err
 	}
-	sites := project.ExecSurface(proj)
+	surface, err := execSurfaceOf(key, proj)
+	if err != nil {
+		return output.TrustShowOutput{}, err
+	}
+	sites := surface.Sites
 	out := output.TrustShowOutput{
 		Path:       key,
 		Sites:      trustSites(sites),
-		Digest:     project.ExecSurfaceDigest(sites),
+		Digest:     surface.Digest,
 		EnvGranted: execTrustEnvGranted(),
 		Record:     ExecTrustPath(),
 	}
@@ -169,16 +182,20 @@ func (a *App) ExecTrustAllow(cmd Command, recipePath string) (output.TrustAllowO
 	if err != nil {
 		return output.TrustAllowOutput{}, err
 	}
-	sites := project.ExecSurface(proj)
+	surface, err := execSurfaceOf(key, proj)
+	if err != nil {
+		return output.TrustAllowOutput{}, err
+	}
+	sites := surface.Sites
 	out := output.TrustAllowOutput{Path: key, Sites: trustSites(sites), Record: ExecTrustPath()}
 	if len(sites) == 0 {
 		out.Reason = "the recipe runs no commands, so there is nothing to approve"
 		return out, nil
 	}
-	out.Digest = project.ExecSurfaceDigest(sites)
+	out.Digest = surface.Digest
 
 	errW := cmd.ErrOrStderr()
-	printExecTrustPrompt(errW, key, sites)
+	printExecTrustPrompt(errW, key, surface)
 	if !a.AssumeYes {
 		isTTY := a.isTTY
 		if isTTY == nil {
@@ -196,7 +213,7 @@ func (a *App) ExecTrustAllow(cmd Command, recipePath string) (output.TrustAllowO
 			return out, nil
 		}
 	}
-	if err := recordExecTrust(key, out.Digest, execTrustAllow); err != nil {
+	if err := recordExecTrustSurface(key, execTrustAllow, surface); err != nil {
 		return out, err
 	}
 	out.Recorded = true

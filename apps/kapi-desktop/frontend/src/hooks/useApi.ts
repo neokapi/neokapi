@@ -19,6 +19,7 @@ import type {
   DefaultModelInfo,
   AIModelResolution,
   AISetupNeed,
+  ExecTrustRequest,
   AIModelOption,
   AIDetectionResult,
   ProjectFilter,
@@ -517,6 +518,11 @@ export const api = {
   /** The folder the tab's recipe keeps its context in, when nobody has allowed it yet; "" otherwise. */
   pendingContextStore: (tabID: string) => call<string>("PendingContextStore", tabID),
   /** Record that the person allows the folder the dialog showed; refused when the recipe now leads elsewhere. */
+  /** The question the tab's project's commands need answered before a run; null when none. */
+  pendingExecTrust: (tabID: string) => call<ExecTrustRequest | null>("PendingExecTrust", tabID),
+  /** Record that the person allows the project's commands as the request with this digest showed them. */
+  approveExecTrust: (tabID: string, digest: string) =>
+    call<void>("ApproveExecTrust", tabID, digest),
   approveContextStore: (tabID: string, shown: string) =>
     call<string>("ApproveContextStore", tabID, shown),
 

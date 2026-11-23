@@ -63,7 +63,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		mcpRecipePath:       a.mcpRecipePath,
 		mcpStartDir:         a.mcpStartDir,
 		mcpNamedSourceLang:  a.mcpNamedSourceLang,
-		execTrustGranted:    a.execTrustGranted,
+		execTrust:           a.execTrust,
 		ProjectBindings:     a.ProjectBindings,
 		convergeWriteFiles:  a.convergeWriteFiles,
 		convergeDraftDir:    a.convergeDraftDir,
@@ -151,7 +151,7 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	// user was asked once about one project's recipe, and every worker fanning
 	// out over that project inherits the answer. Owning it instead would leave
 	// each worker unable to build the step the user approved (AD-038).
-	"execTrustGranted": fieldShared,
+	"execTrust": fieldShared,
 	// The MCP tool surface is set from `kapi mcp` flags and read only while that
 	// server is running. A converge worker never serves MCP, so sharing the
 	// parent's value is correct and inert, it is carried rather than reset so

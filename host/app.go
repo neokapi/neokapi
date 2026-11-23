@@ -128,11 +128,12 @@ type App struct {
 	freshness     *governanceWatch
 	freshnessOnce sync.Once
 
-	// execTrustGranted records that this process has established the right to
-	// run the active project's exec-class steps, the user answered the
-	// prompt, a stored decision matched, or the environment granted it. Set by
-	// ensureExecTrust and read by checkExecToolAllowed; see host/exectrust.go.
-	execTrustGranted bool
+	// execTrust is the project whose commands a person allowed in this
+	// process, or a stored decision covered, with the digest they had. A build
+	// goes ahead only while the project still digests to it, or a stored
+	// decision covers what it digests to now. A script changed mid-process is
+	// refused (checkExecToolAllowed).
+	execTrust execTrustAnswer
 
 	// convergeWriteFiles forces the file-writing path even for a single input in
 	// a project, overriding the process-only default (AD-026). Convergence
