@@ -41,8 +41,8 @@ runs:
         version: "1.7.0"
         node-version: ${{ inputs.node-version }}
         cache: true
-        # A pull request restores the dependency cache and saves none.
-        cache-save: ${{ github.event_name != 'pull_request' }}
+        # Only a run on main saves the dependency cache; every other run restores.
+        cache-save: ${{ github.ref == 'refs/heads/main' }}
         cache-dependency-path: pnpm-lock.yaml
         run-install: false
 
@@ -62,8 +62,8 @@ runs:
         version: "1.7.0"
         node-version: ${{ inputs.node-version }}
         cache: true
-        # A pull request restores the dependency cache and saves none.
-        cache-save: ${{ github.event_name != 'pull_request' }}
+        # Only a run on main saves the dependency cache; every other run restores.
+        cache-save: ${{ github.ref == 'refs/heads/main' }}
         cache-dependency-path: pnpm-lock.yaml
         run-install: false
 

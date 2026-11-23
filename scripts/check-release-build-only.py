@@ -1,28 +1,40 @@
 #!/usr/bin/env python3
-"""Guard: a build-only run of a release workflow publishes, signs and saves nothing.
+"""Guard: a build-only run of a release workflow holds no write and publishes nothing.
 
     scripts/check-release-build-only.py              check the release workflows
     scripts/check-release-build-only.py --self-test  prove the rules on fixtures
 
 release.yml and release-bowrain.yml take a `workflow_dispatch` that builds
 only, so a change to the release builds can be measured on a branch. Its
-setup job sets `needs.setup.outputs.build_only` to 'true' on a dispatch. This
-guard evaluates every job and step with that output 'true' (every other
-context unknown) and fails on any job or step that can still run and:
+setup job sets `needs.setup.outputs.build_only` to 'true' on a dispatch. The
+setup job's script belongs to the dispatched branch, so the guard asserts the
+structure that makes a dispatch safe whatever that script does:
 
-  * uses an action that publishes, signs or saves: softprops/action-gh-release,
-    docker/login-action, sigstore/cosign-installer, actions/cache (not
-    actions/cache/restore), actions/cache/save, docker/build-push-action that
-    pushes, or setup-go or setup-msys2 with their cache on;
-  * reads a secret other than GITHUB_TOKEN, in its env, with or run.
+  * The workflow-level permissions are read-only.
+  * No job that a build-only run reaches holds a write permission. A job that
+    publishes asks for its own grants and is skipped at the job level
+    (`if:` with `build_only != 'true'`); a job that needs a skipped job is
+    skipped too, unless its condition calls always(), failure() or cancelled().
 
-A publishing job is skipped at the job level (`if:` with `build_only !=
-'true'`), so its steps are never reached; a build job skips its signing and
-publishing steps the same way. A job that needs a skipped job is skipped too,
-unless its condition calls always(), failure() or cancelled().
+It then evaluates every reachable job and step as a dispatch on a branch
+other than main (build_only 'true', every other context unknown), following
+local composite actions with their inputs, and fails on any that:
 
-Exit status: 0 nothing a build-only run reaches publishes, 1 something does,
-2 a workflow or condition cannot be read.
+  * uses an action that publishes or signs: softprops/action-gh-release,
+    docker/login-action, sigstore/cosign-installer, or docker/build-push-action
+    that pushes;
+  * saves a cache, by the rules of scripts/check-ci-caches.py (actions/cache
+    and its post step, setup-go, setup-vp, setup-msys2, golangci-lint,
+    BuildKit cache-to);
+  * runs a command that pushes, uploads or publishes, whatever credential it
+    names: git push, gh release, gh pr create, gh api with a write method,
+    docker push, npm publish, cosign sign, aws s3 cp, a registry push or one
+    of the repository's publish scripts;
+  * reads a secret, GITHUB_TOKEN and github.token included, in its env, with
+    or run, or in the job's or the workflow's env.
+
+Exit status: 0 a build-only run holds no write and publishes nothing, 1 it
+does, 2 a workflow, action or condition cannot be read.
 """
 
 from __future__ import annotations
@@ -32,21 +44,33 @@ import importlib.util
 import os
 import re
 import sys
-import tempfile
 
 import yaml
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
 WORKFLOWS = ("release.yml", "release-bowrain.yml")
 
-_spec = importlib.util.spec_from_file_location(
-    "check_test_scripts", os.path.join(os.path.dirname(os.path.abspath(__file__)), "check-test-scripts.py"))
-cts = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(cts)
+_spec = importlib.util.spec_from_file_location("check_ci_caches", os.path.join(HERE, "check-ci-caches.py"))
+cc = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(cc)
+cts = cc.cts  # the condition evaluator check-ci-caches uses; patched below
 
-PUBLISHING_ACTIONS = ("softprops/action-gh-release", "docker/login-action", "sigstore/cosign-installer",
-                      "actions/cache/save")
-SECRET_RE = re.compile(r"\$\{\{(.*?)\}\}", re.S)
+PUBLISHING_ACTIONS = ("softprops/action-gh-release", "docker/login-action", "sigstore/cosign-installer")
+PUBLISHING_RUN = re.compile(
+    r"\bgit\s+push\b"
+    r"|\bgh\s+release\s+(?:upload|create|edit|delete)\b"
+    r"|\bgh\s+pr\s+(?:create|merge|edit)\b"
+    r"|\bgh\s+api\b[^\n]*(?:-X|--method)\s*['\"]?(?:POST|PUT|PATCH|DELETE)"
+    r"|\bdocker\s+(?:push|manifest\s+push)\b"
+    r"|\bnpm\s+publish\b|\bpnpm\s+publish\b"
+    r"|\bcosign\s+sign"
+    r"|\baws\s+s3\s+(?:cp|sync|mv|rm)\b"
+    r"|registry_commit_and_push"
+    r"|scripts/publish-[a-z-]+\.sh"
+)
+EXPR = re.compile(r"\$\{\{(.*?)\}\}", re.S)
+SECRET = object()  # a secret's value: true, and flagged wherever a run reaches it
 
 
 class Unreadable(Exception):
@@ -55,8 +79,9 @@ class Unreadable(Exception):
 
 @contextlib.contextmanager
 def build_only():
-    """Evaluate conditions as a build-only dispatch: build_only is 'true'."""
-    saved = cts.context
+    """Evaluate conditions as a build-only dispatch on a branch other than main."""
+    saved = cts.context, cts.compare, cts.truth
+    branch = object()
 
     def context(name: str) -> object:
         lower = name.lower()
@@ -64,83 +89,135 @@ def build_only():
             return "true"
         if lower == "github.event_name":
             return "workflow_dispatch"
-        if lower.startswith("secrets.") and lower != "secrets.github_token":
+        if lower == "github.ref":
+            return branch
+        if lower.startswith("secrets.") or lower == "github.token":
             return SECRET
         return cts.UNKNOWN
 
-    cts.context = context
+    def compare(op: str, a: object, b: object) -> object:
+        if branch in (a, b):
+            other = b if a is branch else a
+            if op in ("==", "!=") and isinstance(other, str) and other.lower() == "refs/heads/main":
+                return op == "!="
+            return cts.UNKNOWN
+        if SECRET in (a, b):
+            return cts.UNKNOWN
+        return saved[1](op, a, b)
+
+    def truth(value: object) -> object:
+        if value is SECRET:
+            return cts.UNKNOWN
+        if value is branch:
+            return True
+        return saved[2](value)
+
+    cts.context, cts.compare, cts.truth = context, compare, truth
     try:
         yield
     finally:
-        cts.context = saved
+        cts.context, cts.compare, cts.truth = saved
 
 
-SECRET = object()  # the value of a secret: present, so true, and flagged when reached
-
-
-def evaluate(text: str, where: str) -> object:
+def evaluate(cond: object, where: str) -> object:
+    text = str(cond)
+    if "${{" not in text:
+        text = "${{ " + text + " }}"
     try:
         return cts.evaluate_on_pull_request(text)
     except ValueError as err:
-        raise Unreadable(f"{where}: {text!r}: {err}") from err
+        raise Unreadable(f"{where}: {cond!r}: {err}") from err
 
 
-def reads_secret(value: object, where: str) -> bool:
-    """Report whether a step value can carry a secret on a build-only run."""
-    for expr in SECRET_RE.findall(str(value)):
-        if "secrets." not in expr.lower():
+def carries_secret(value: object, where: str) -> bool:
+    """Whether a value can hold a secret's text on a build-only run."""
+    for expr in EXPR.findall(str(value)):
+        if "secrets." not in expr.lower() and "github.token" not in expr.lower():
             continue
-        names = re.findall(r"secrets\.([A-Za-z0-9_]+)", expr)
-        if all(n.upper() == "GITHUB_TOKEN" for n in names):
-            continue
-        orig_truth = cts.truth
-
-        def truth(v: object) -> object:
-            return cts.UNKNOWN if v is SECRET else orig_truth(v)
-
-        cts.truth = truth
-        try:
-            if evaluate("${{ " + expr + " }}", where) is not False:
-                return True
-        finally:
-            cts.truth = orig_truth
+        if evaluate("${{ " + expr + " }}", where) is not False:
+            return True
     return False
 
 
-def publishes(step: dict, where: str) -> str | None:
-    uses = str(step.get("uses", "")).split("@", 1)[0]
-    with_ = step.get("with") or {}
-    if uses in PUBLISHING_ACTIONS:
-        return f"uses {uses}"
-    if uses == "actions/cache":
-        return "saves a cache (actions/cache)"
-    if uses == "docker/build-push-action" and str(with_.get("push", "false")).lower() not in ("false", ""):
-        return "pushes an image"
-    if uses in ("actions/setup-go", "msys2/setup-msys2"):
-        default = True
-        value = with_.get("cache", default)
-        if value is True or (isinstance(value, str) and evaluate(value if "${{" in value else ("true" if value.lower() != "false" else "false"), where) is not False):
-            return f"{uses} saves its cache"
-    for part in ("env", "with"):
-        for key, value in (step.get(part) or {}).items():
-            if reads_secret(value, f"{where} {part}.{key}"):
-                return f"reads a secret ({part}.{key})"
-    if reads_secret(step.get("run", ""), f"{where} run"):
-        return "reads a secret in its run"
-    return None
+def writes(perms: object) -> list[str]:
+    if perms in ("write-all",):
+        return ["write-all"]
+    if isinstance(perms, dict):
+        return [f"{k}: {v}" for k, v in perms.items() if str(v) == "write"]
+    return []
 
 
-def check_workflow(rel: str, doc: dict) -> list[str]:
+def check_steps(root: str, steps: list, inputs: dict | None, where: str, problems: list[str], seen: set) -> None:
+    for n, step in enumerate(steps or [], 1):
+        if not isinstance(step, dict):
+            continue
+        label = f"{where} step {step.get('name') or step.get('uses') or n}"
+        cond = cc.substitute(step.get("if"), inputs or {})
+        if cond is not None and evaluate(cond, label) is False:
+            continue
+        uses = str(step.get("uses", ""))
+        name = uses.split("@", 1)[0]
+        with_ = step.get("with") or {}
+        if uses.startswith("./"):
+            path = os.path.join(root, uses[2:], "action.yml")
+            if not os.path.isfile(path):
+                path = os.path.join(root, uses[2:], "action.yaml")
+            try:
+                with open(path) as fh:
+                    action = yaml.safe_load(fh) or {}
+            except (OSError, yaml.YAMLError) as err:
+                raise Unreadable(f"{label}: {uses}: {err}") from err
+            runs = action.get("runs") or {}
+            if runs.get("using") == "composite":
+                resolved = {}
+                for key, spec in (action.get("inputs") or {}).items():
+                    default = spec.get("default") if isinstance(spec, dict) else None
+                    value = with_.get(key, default)
+                    resolved[key] = cc.substitute(value, inputs or {}) if value is not None else None
+                marker = (path, tuple(sorted((k, str(v)) for k, v in resolved.items())))
+                if marker not in seen:
+                    seen.add(marker)
+                    check_steps(root, runs.get("steps"), resolved, f"{label} > {uses}", problems, seen)
+            continue
+        if name in PUBLISHING_ACTIONS:
+            problems.append(f"{label}: uses {name}")
+        elif name == "docker/build-push-action" and evaluate(cc.substitute(with_.get("push", False), inputs or {}), label) is not False:
+            problems.append(f"{label}: pushes an image")
+        if uses:
+            try:
+                verdict = cc.saves(uses, {k: cc.substitute(v, inputs or {}) for k, v in with_.items()}, inputs or {}, label)
+            except cc.Unreadable as err:
+                raise Unreadable(str(err)) from err
+            if verdict is True or verdict is cts.UNKNOWN:
+                problems.append(f"{label}: {name} may save a cache")
+        run = str(step.get("run") or "")
+        hit = PUBLISHING_RUN.search(run)
+        if hit:
+            problems.append(f"{label}: runs {hit.group(0)!r}, which publishes")
+        for part in ("env", "with"):
+            for key, value in (step.get(part) or {}).items():
+                if carries_secret(cc.substitute(value, inputs or {}), f"{label} {part}.{key}"):
+                    problems.append(f"{label}: reads a secret ({part}.{key})")
+        if carries_secret(run, f"{label} run"):
+            problems.append(f"{label}: reads a secret in its run")
+
+
+def check_workflow(root: str, rel: str, doc: dict) -> list[str]:
     on = doc.get("on", doc.get(True)) or {}
     dispatch = on.get("workflow_dispatch") if isinstance(on, dict) else None
-    inputs = (dispatch or {}).get("inputs") or {}
-    problems = []
-    if "build_only" not in inputs:
+    if "build_only" not in ((dispatch or {}).get("inputs") or {}):
         return [f"{rel}: has no build-only workflow_dispatch (input build_only)"]
+    problems = []
+    wf_perms = doc.get("permissions", "write-all")
+    if writes(wf_perms) or wf_perms in ("write-all", None):
+        problems.append(f"{rel}: workflow-level permissions grant write ({wf_perms}); make them read-only and grant per publishing job")
     jobs = {k: v for k, v in (doc.get("jobs") or {}).items() if isinstance(v, dict)}
     if "build_only" not in ((jobs.get("setup") or {}).get("outputs") or {}):
         problems.append(f"{rel}: the setup job does not output build_only")
     with build_only():
+        for key, value in (doc.get("env") or {}).items():
+            if carries_secret(value, f"{rel} env.{key}"):
+                problems.append(f"{rel}: the workflow env.{key} reads a secret, which every job sees")
         try:
             skipped = cts.skipped_jobs(rel, jobs)
         except cts.Unreadable as err:
@@ -148,16 +225,14 @@ def check_workflow(rel: str, doc: dict) -> list[str]:
         for job_id, job in jobs.items():
             if job_id in skipped:
                 continue
-            for n, step in enumerate(job.get("steps") or [], 1):
-                if not isinstance(step, dict):
-                    continue
-                label = f"{rel} job {job_id} step {step.get('name') or step.get('uses') or n}"
-                cond = step.get("if")
-                if cond is not None and evaluate(cond if "${{" in str(cond) else "${{ " + str(cond) + " }}", label) is False:
-                    continue
-                why = publishes(step, label)
-                if why:
-                    problems.append(f"{label}: {why} on a build-only run")
+            label = f"{rel} job {job_id}"
+            granted = writes(job.get("permissions", wf_perms))
+            if granted:
+                problems.append(f"{label}: reachable on a build-only run and holds {', '.join(granted)}")
+            for key, value in (job.get("env") or {}).items():
+                if carries_secret(value, f"{label} env.{key}"):
+                    problems.append(f"{label}: its env.{key} reads a secret")
+            check_steps(root, job.get("steps"), None, label, problems, set())
     return problems
 
 
@@ -170,7 +245,7 @@ def check(root: str) -> list[str]:
                 doc = yaml.safe_load(fh)
         except (OSError, yaml.YAMLError) as err:
             raise Unreadable(f"{path}: {err}") from err
-        problems += check_workflow(f".github/workflows/{name}", doc or {})
+        problems += check_workflow(root, f".github/workflows/{name}", doc or {})
     return problems
 
 
@@ -181,11 +256,12 @@ def main() -> int:
         print(f"check-release-build-only: cannot read {err}", file=sys.stderr)
         return 2
     if problems:
-        print("check-release-build-only: a build-only release run reaches a step that publishes, signs or saves\n")
+        print("check-release-build-only: a build-only release run holds write or publishes\n")
         for p in problems:
             print("  " + p)
-        print("\nSkip the job (`if: needs.setup.outputs.build_only != 'true'`) or the step, or\n"
-              "gate the value on the same output.")
+        print("\nGrant write only to a publishing job, skip it on a build-only run\n"
+              "(`if: needs.setup.outputs.build_only != 'true'`), and keep secrets and\n"
+              "publishing commands out of every job a build-only run reaches.")
         return 1
     print("check-release-build-only: OK")
     return 0
@@ -201,6 +277,8 @@ on:
       build_only:
         type: boolean
         default: true
+permissions:
+  contents: read
 jobs:
   setup:
     runs-on: ubuntu-latest
@@ -235,14 +313,34 @@ jobs:
         env:
           KEY: ${{ needs.setup.outputs.build_only != 'true' && secrets.POSTHOG || '' }}
         run: build
-      - name: checkout token
+      - name: gh release with the built-in token
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh api
+        run: gh release upload v1 out/kapi.tar.gz
+      - name: git push with github.token
+        run: git push https://x:${{ github.token }}@github.com/neokapi/neokapi HEAD:refs/heads/x
+      - name: node via the local action
+        uses: ./.github/actions/node
+  secret-job-env:
+    needs: [setup]
+    runs-on: ubuntu-latest
+    env:
+      TAP: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - run: make build
+  writer:
+    needs: [setup]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - run: make build
   publish:
     needs: [setup, build]
     if: needs.setup.outputs.build_only != 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: softprops/action-gh-release@v3
   after-publish:
@@ -259,24 +357,54 @@ jobs:
         uses: softprops/action-gh-release@v3
 """
 
+FIXTURE_ACTION = """\
+name: node
+runs:
+  using: composite
+  steps:
+    - name: vp saves off main
+      uses: voidzero-dev/setup-vp@v1
+      with:
+        cache: true
+        cache-save: ${{ github.event_name != 'pull_request' }}
+    - name: vp saves on main only
+      uses: voidzero-dev/setup-vp@v1
+      with:
+        cache: true
+        cache-save: ${{ github.ref == 'refs/heads/main' }}
+"""
+
 
 def self_test() -> int:
+    import tempfile
     failures = []
-    doc = yaml.safe_load(FIXTURE)
-    problems = check_workflow("release.yml", doc)
-    want = {"go cache on", "icu save", "step signs:", "verify publishes"}
-    for w in want:
-        if not any(w in p for p in problems):
-            failures.append(f"expected a problem naming {w!r}; got {problems}")
-    for quiet in ("icu restore", "signs on a release only", "key gated on build-only", "checkout token",
-                  "job publish ", "job after-publish "):
-        if any(quiet in p for p in problems):
-            failures.append(f"{quiet!r} is not reached or publishes nothing; got {problems}")
-    if len(problems) != len(want):
-        failures.append(f"expected {len(want)} problems, got {problems}")
-    no_input = yaml.safe_load(FIXTURE.replace("      build_only:\n        type: boolean\n        default: true\n", "      other:\n        type: string\n"))
-    if not any("no build-only workflow_dispatch" in p for p in check_workflow("release.yml", no_input)):
-        failures.append("a release workflow without the build-only input must fail")
+    with tempfile.TemporaryDirectory() as root:
+        os.makedirs(os.path.join(root, ".github", "actions", "node"))
+        with open(os.path.join(root, ".github", "actions", "node", "action.yml"), "w") as fh:
+            fh.write(FIXTURE_ACTION)
+        problems = check_workflow(root, "release.yml", yaml.safe_load(FIXTURE))
+        want = ["go cache on", "icu save", "step signs:", "verify publishes",
+                "gh release with the built-in token", "git push with github.token",
+                "vp saves off main", "secret-job-env: its env.TAP", "job writer: reachable"]
+        for w in want:
+            if not any(w in p for p in problems):
+                failures.append(f"expected a problem naming {w!r}; got {problems}")
+        for quiet in ("icu restore", "signs on a release only", "key gated on build-only", "vp saves on main only",
+                      "job publish", "job after-publish"):
+            if any(quiet in p for p in problems):
+                failures.append(f"{quiet!r} is not reached or publishes nothing; got {problems}")
+        loose = yaml.safe_load(FIXTURE.replace("permissions:\n  contents: read\njobs:", "permissions:\n  contents: write\njobs:"))
+        if not any("workflow-level permissions grant write" in p for p in check_workflow(root, "release.yml", loose)):
+            failures.append("workflow-level write must fail")
+        unread = yaml.safe_load(FIXTURE.replace("if: runner.os == 'macOS'\n        env:\n          P12", "if: ${{ fromJSON( }}\n        env:\n          P12"))
+        try:
+            check_workflow(root, "release.yml", unread)
+            failures.append("an unreadable condition must fail closed")
+        except Unreadable:
+            pass
+        no_input = yaml.safe_load(FIXTURE.replace("      build_only:\n        type: boolean\n        default: true\n", "      other:\n        type: string\n"))
+        if not any("no build-only workflow_dispatch" in p for p in check_workflow(root, "release.yml", no_input)):
+            failures.append("a release workflow without the build-only input must fail")
     if failures:
         print("check-release-build-only self-test: FAIL")
         for f in failures:
