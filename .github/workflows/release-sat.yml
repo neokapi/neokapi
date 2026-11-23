@@ -150,10 +150,10 @@ jobs:
       # here from the pinned source for the deployment target set above.
       - name: Install Rust (macOS)
         if: runner.os == 'macOS'
-        # Pinned by commit to the action's default branch: its version-named
-        # branches are pre-created for future toolchains, so a versioned ref
-        # invited Dependabot to propose one that does not exist. The toolchain
-        # is the input; scripts/check-tool-versions.py reports a newer one.
+        # master as of 2026-11-15 (#190). Pinned by commit: the action's
+        # version-named branches are pre-created for future toolchains, and a
+        # versioned ref let Dependabot propose one that does not exist. The
+        # toolchain is the input; scripts/check-tool-versions.py reports a newer one.
         uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc
         with:
           toolchain: "1.100.0"
@@ -184,10 +184,10 @@ jobs:
 
       - name: Install Rust (Windows)
         if: runner.os == 'Windows'
-        # Pinned by commit to the action's default branch: its version-named
-        # branches are pre-created for future toolchains, so a versioned ref
-        # invited Dependabot to propose one that does not exist. The toolchain
-        # is the input; scripts/check-tool-versions.py reports a newer one.
+        # master as of 2026-11-15 (#190). Pinned by commit: the action's
+        # version-named branches are pre-created for future toolchains, and a
+        # versioned ref let Dependabot propose one that does not exist. The
+        # toolchain is the input; scripts/check-tool-versions.py reports a newer one.
         uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc
         with:
           toolchain: "1.100.0"

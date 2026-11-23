@@ -30,8 +30,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@v0.36.0
+        # master as of 2026-11-05 (#595, "Update trivy to v0.76.2"). Pinned by
+        # commit, with the scanner version set below, so neither the action nor
+        # the scanner moves unannounced; scripts/check-tool-versions.py reports
+        # a newer Trivy.
+        uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec
         with:
+          version: v0.76.2
           image-ref: ${{ matrix.image }}
           severity: CRITICAL,HIGH
           exit-code: 1

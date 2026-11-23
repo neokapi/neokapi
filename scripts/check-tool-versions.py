@@ -160,6 +160,12 @@ PINS = [
         "note": "Coupled: upstream publishes prebuilt binaries under a build tag (b<number>), not under the version tag. Raise WHISPER_CPP_BUILD to the build tag cut from the same commit, WHISPER_CPP_COMMIT to that commit, and every sha256 in the matrix; the workflow's pin check fails when the two tags name different commits. Dry-run release-asr.yml.",
     },
     {
+        "name": "Trivy (container scan)",
+        "where": [(".github/workflows/container-scan.yml", r"uses: aquasecurity/trivy-action@[0-9a-f]{40}\n\s+with:\n\s+version: v(\d+\.\d+\.\d+)")],
+        "latest": ("github-release", "aquasecurity/trivy"),
+        "note": "The scanner version is set beside the action's pinned commit. Take a newer one together with the trivy-action commit that defaults to it, and compare a dispatch's findings before and after.",
+    },
+    {
         "name": "actionlint",
         "where": [(".github/workflows/ci.yml", r"actionlint/cmd/actionlint@v(\d+\.\d+\.\d+)")],
         "latest": ("go-module", "github.com/rhysd/actionlint"),
