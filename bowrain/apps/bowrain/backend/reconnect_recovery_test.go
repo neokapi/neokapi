@@ -428,7 +428,8 @@ func (r *tcpRelay) cut() {
 	}
 }
 
-// restore listens again on the same address. Nothing tells the client.
+// restore listens again on the same address. Nothing tells the client. The
+// new listener is cut when the test ends, before the app's leak check.
 func (r *tcpRelay) restore(t *testing.T) {
 	t.Helper()
 	ln, err := net.Listen("tcp", r.addr)
@@ -438,6 +439,7 @@ func (r *tcpRelay) restore(t *testing.T) {
 	r.ln = ln
 	r.mu.Unlock()
 	go r.serve(ln)
+	t.Cleanup(r.cut)
 }
 
 // TestReconnectAfterTheRelayDropsAndReturns is #2596 end to end: a connection

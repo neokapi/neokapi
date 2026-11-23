@@ -8,8 +8,6 @@
 package keychain
 
 import (
-	"sync"
-
 	"github.com/zalando/go-keyring"
 
 	"github.com/neokapi/neokapi/core/dataroot"
@@ -18,30 +16,28 @@ import (
 // ErrNotFound is the keyring's answer for a secret it does not hold.
 var ErrNotFound = keyring.ErrNotFound
 
-var mockOnce sync.Once
-
-func open() {
-	mockOnce.Do(func() {
-		if dataroot.UnderTest() {
-			keyring.MockInit()
-		}
-	})
+// A test binary gets the in-memory keyring before any test runs. Installed on
+// first use instead, it would replace a keyring a test had already filled,
+// whenever that first use came after the test's own setup, which made the
+// outcome depend on which test, or which background goroutine, reached the
+// keychain first.
+func init() {
+	if dataroot.UnderTest() {
+		keyring.MockInit()
+	}
 }
 
 // Set stores a secret for service and user.
 func Set(service, user, secret string) error {
-	open()
 	return keyring.Set(service, user, secret)
 }
 
 // Get reads the secret stored for service and user.
 func Get(service, user string) (string, error) {
-	open()
 	return keyring.Get(service, user)
 }
 
 // Delete removes the secret stored for service and user.
 func Delete(service, user string) error {
-	open()
 	return keyring.Delete(service, user)
 }

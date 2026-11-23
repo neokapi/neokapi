@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/core/keychain"
 	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -158,8 +159,8 @@ func TestMigrateLegacyDesktopAuth(t *testing.T) {
 	// Seed the legacy scheme: metadata file + keychain tokens.
 	legacyMeta := `{"server_url":"http://localhost:8080","expiry":"2099-01-01T00:00:00Z","user":{"id":"u1","email":"a@b.com","name":"Alice"}}`
 	require.NoError(t, os.WriteFile(legacyDesktopAuthFilePath(), []byte(legacyMeta), 0o600))
-	require.NoError(t, keyring.Set(legacyKeyringService(), legacyAccessTokenKey, "legacy-access"))
-	require.NoError(t, keyring.Set(legacyKeyringService(), legacyRefreshTokenKey, "legacy-refresh"))
+	require.NoError(t, keychain.Set(legacyKeyringService(), legacyAccessTokenKey, "legacy-access"))
+	require.NoError(t, keychain.Set(legacyKeyringService(), legacyRefreshTokenKey, "legacy-refresh"))
 
 	// loadDesktopAuth triggers the migration, then reads from the shared store.
 	loaded, err := loadDesktopAuth()
@@ -176,7 +177,7 @@ func TestMigrateLegacyDesktopAuth(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "legacy auth.json should be removed")
 
 	// Legacy keychain entries are cleared.
-	_, err = keyring.Get(legacyKeyringService(), legacyAccessTokenKey)
+	_, err = keychain.Get(legacyKeyringService(), legacyAccessTokenKey)
 	assert.Error(t, err)
 }
 

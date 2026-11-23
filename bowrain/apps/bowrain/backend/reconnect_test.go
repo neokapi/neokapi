@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,27 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 )
+
+// ServiceShutdown returns once the reconnect loop has: an attempt under way
+// when the app shuts down has ended by then, so it cannot act on sign-in
+// state or the offline queue after the app is gone.
+func TestServiceShutdownWaitsForTheReconnectLoop(t *testing.T) {
+	app := newTestApp(t)
+	started := make(chan struct{})
+	var returned atomic.Bool
+	app.reconnectAttempt = func(ctx context.Context) error {
+		close(started)
+		<-ctx.Done()
+		returned.Store(true)
+		return ctx.Err()
+	}
+	app.goOffline()
+	app.RetryConnection()
+	<-started
+
+	require.NoError(t, app.ServiceShutdown())
+	assert.True(t, returned.Load(), "the attempt returned before shutdown did")
+}
 
 func TestGoOfflineSetsState(t *testing.T) {
 	app := newTestApp(t)

@@ -70,14 +70,15 @@ func (a *App) goOffline() {
 func (a *App) startReconnect() {
 	a.stopReconnect()
 
-	ctx, cancel := context.WithCancel(context.Background())
 	nudge := make(chan struct{}, 1)
 	a.mu.Lock()
+	defer a.mu.Unlock()
+	cancel := a.startBackground(func(ctx context.Context) { a.reconnectLoop(ctx, nudge) })
+	if cancel == nil {
+		return // shutting down
+	}
 	a.reconnectCancel = cancel
 	a.reconnectNudge = nudge
-	a.mu.Unlock()
-
-	go a.reconnectLoop(ctx, nudge)
 }
 
 // nudgeReconnect asks a running reconnect loop to attempt now instead of waiting

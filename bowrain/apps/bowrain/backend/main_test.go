@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/zalando/go-keyring"
+	"go.uber.org/goleak"
 
 	"github.com/neokapi/neokapi/bowrain/migrations"
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -121,6 +122,8 @@ func newTestApp(t *testing.T) *App {
 	// Use a temp directory for the store, the content memory and TB so tests
 	// don't share state.
 	tmpDir := t.TempDir()
+	// What runs before the app exists is not the app's to stop.
+	running := goleak.IgnoreCurrent()
 
 	storePath := filepath.Join(tmpDir, "store.db")
 	copyFile(t, templateStorePath, storePath)
@@ -141,6 +144,12 @@ func newTestApp(t *testing.T) *App {
 		if err := app.ServiceShutdown(); err != nil {
 			t.Errorf("shutdown app: %v", err)
 		}
+		// Every goroutine the app started has returned by the end of its
+		// test, so none of them acts on the next test's sign-in state or
+		// directories.
+		// A test server's own connection goroutines belong to the test, which
+		// closes the server after this.
+		goleak.VerifyNone(t, running, goleak.IgnoreAnyFunction("net/http.(*conn).serve"))
 	})
 	return app
 }

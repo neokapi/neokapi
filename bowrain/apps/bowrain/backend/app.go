@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -66,8 +67,13 @@ type App struct {
 	presence        presenceFocus              // this user's last reported editing focus, re-reported after a reconnect
 	offlineQueue    *OfflineQueue              // pending mutations when offline
 	reconnectCancel context.CancelFunc         // stops the reconnection goroutine
-	reconnectNudge  chan struct{}              // asks a running reconnect loop to attempt now; nil when no loop runs
-	reconnecting    bool                       // an attempt to leave the offline state is under way
+	// background counts the goroutines the app starts and owns (the
+	// reconnect loop, the project watcher), so ServiceShutdown returns only
+	// once they have stopped. They act on sign-in state and the offline
+	// queue, which another App in the same process must not see them touch.
+	background     sync.WaitGroup
+	reconnectNudge chan struct{} // asks a running reconnect loop to attempt now; nil when no loop runs
+	reconnecting   bool          // an attempt to leave the offline state is under way
 	// reconnectAttempt replaces tryReconnect when set, so a test can hold an
 	// attempt open and decide how it ends. Set before the app goes offline.
 	reconnectAttempt func(ctx context.Context) error
@@ -475,6 +481,14 @@ func (a *App) ServiceShutdown() error {
 	a.stopReconnect()
 	// Stop project watcher and close server connection.
 	a.StopWatching()
+	// Wait for both to return: a reconnect attempt or a replay under way
+	// stops at the cancelled lifetime, and nothing starts again after it.
+	a.background.Wait()
+	// The app's server clients share the default transport; its idle
+	// keep-alive connections each hold two goroutines until closed.
+	if t, ok := http.DefaultTransport.(*http.Transport); ok {
+		t.CloseIdleConnections()
+	}
 	if a.offlineQueue != nil {
 		a.offlineQueue.Close()
 	}

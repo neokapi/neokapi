@@ -26,6 +26,22 @@ func (c *remoteClient) do(ctx context.Context, req *http.Request) (*http.Respons
 	return c.http.Do(req.WithContext(ctx))
 }
 
+// startBackground runs fn on a goroutine ServiceShutdown waits for, under a
+// context that the app's lifetime and cancel both end. It returns nil and
+// starts nothing once the app is shutting down. The caller holds a.mu.
+func (a *App) startBackground(fn func(ctx context.Context)) context.CancelFunc {
+	parent := a.requestContext()
+	if parent.Err() != nil {
+		return nil
+	}
+	ctx, cancel := context.WithCancel(parent)
+	a.background.Go(func() {
+		defer cancel()
+		fn(ctx)
+	})
+	return cancel
+}
+
 // requestContext is the context a request to the server runs under: the
 // app's lifetime, which ServiceShutdown cancels.
 func (a *App) requestContext() context.Context {
