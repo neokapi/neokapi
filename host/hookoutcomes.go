@@ -13,6 +13,7 @@ package host
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -131,13 +132,13 @@ func (a *App) LatestContextSession(ctx context.Context, project string) (latest 
 // order the log accepted them, as CheckSequences and CaughtMarks pair them.
 func SessionOutcomesOf(records []contextop.Record) map[string]SessionOutcomes {
 	out := map[string]SessionOutcomes{}
-	files := map[string]map[string]bool{}
+	files := map[string]map[[2]string]bool{}
 	for _, seq := range CheckSequences(records) {
 		session := seq[0].Actor.Session
 		o := out[session]
 		o.Session = session
 		if files[session] == nil {
-			files[session] = map[string]bool{}
+			files[session] = map[[2]string]bool{}
 		}
 		marks := CaughtMarks(seq)
 		for i, r := range seq {
@@ -147,7 +148,7 @@ func SessionOutcomesOf(records []contextop.Record) map[string]SessionOutcomes {
 			// which is the project, not what the session touched.
 			if run.Edited {
 				for _, f := range run.Files {
-					files[session][string(r.Project)+"\x00"+f] = true
+					files[session][[2]string{string(r.Project), f}] = true
 				}
 			}
 			o.Caught += countCaught(marks[i])
@@ -169,19 +170,22 @@ func SessionOutcomesOf(records []contextop.Record) map[string]SessionOutcomes {
 // each with the sequence's next run that reached one. CaughtMarks applies
 // that pairing.
 func CheckSequences(records []contextop.Record) [][]contextop.Record {
-	groups := map[string][]contextop.Record{}
-	var order []string
+	type projectSession struct{ project, session string }
+	groups := map[projectSession][]contextop.Record{}
+	var order []projectSession
 	for _, r := range records {
 		if r.Kind != contextop.KindCheck || r.Check == nil || r.Actor.Session == "" {
 			continue
 		}
-		key := string(r.Project) + "\x00" + r.Actor.Session
+		key := projectSession{string(r.Project), r.Actor.Session}
 		if _, ok := groups[key]; !ok {
 			order = append(order, key)
 		}
 		groups[key] = append(groups[key], r)
 	}
-	sort.Strings(order)
+	slices.SortFunc(order, func(a, b projectSession) int {
+		return cmp.Or(strings.Compare(a.project, b.project), strings.Compare(a.session, b.session))
+	})
 	out := make([][]contextop.Record, 0, len(order))
 	for _, key := range order {
 		seq := groups[key]
@@ -232,7 +236,7 @@ func caughtBy(seq []contextop.Record) [][]int {
 	// remaining holds, per later run, the findings it lists that no earlier
 	// finding has been matched to yet, so findings with one key match one
 	// to one.
-	remaining := map[int]map[string]int{}
+	remaining := map[int]map[contextop.FindingKey]int{}
 	for i, r := range seq {
 		if !r.Check.Reached() || i >= last {
 			continue
@@ -246,7 +250,7 @@ func caughtBy(seq []contextop.Record) [][]int {
 			}
 			rem, ok := remaining[j]
 			if !ok {
-				rem = map[string]int{}
+				rem = map[contextop.FindingKey]int{}
 				for _, g := range seq[j].Check.Findings {
 					rem[g.Key()]++
 				}
@@ -333,7 +337,7 @@ func CaughtFindings(prev, next contextop.CheckRun) []bool {
 	if !next.Complete() {
 		return out
 	}
-	remaining := map[string]int{}
+	remaining := map[contextop.FindingKey]int{}
 	for _, f := range next.Findings {
 		remaining[f.Key()]++
 	}
@@ -387,11 +391,15 @@ func hookRunRecord(in stopHookInput, root string, out verifyOutput) contextop.Re
 		Verdict: string(out.Verdict),
 		Covered: len(out.covered),
 	}
-	most := map[string]int{}
-	first := map[string]contextop.CheckFinding{}
-	var order []string
+	type findingAt struct {
+		key   contextop.FindingKey
+		block string
+	}
+	most := map[findingAt]int{}
+	first := map[findingAt]contextop.CheckFinding{}
+	var order []findingAt
 	for _, g := range out.Gates {
-		counts := map[string]int{}
+		counts := map[findingAt]int{}
 		for _, f := range g.Findings {
 			if !f.Fails {
 				continue
@@ -403,7 +411,7 @@ func hookRunRecord(in stopHookInput, root string, out verifyOutput) contextop.Re
 			if finding.Quote == "" {
 				finding.Message = f.Message
 			}
-			key := finding.Key() + "\x00" + finding.Block
+			key := findingAt{finding.Key(), finding.Block}
 			if _, ok := first[key]; !ok {
 				first[key] = finding
 				order = append(order, key)

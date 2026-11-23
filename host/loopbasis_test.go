@@ -18,8 +18,8 @@ import (
 
 // The basis grading, over the two classes of record that share the index: a
 // person's decision, and the loop's record of a target it wrote. They are graded
-// against the source by the same comparison, which is the point — drift is drift
-// whoever produced the translation — and they differ in what a rewritten
+// against the source by the same comparison, because drift is drift whoever
+// produced the translation. They differ in what a rewritten
 // TRANSLATION does to them.
 
 // gradeBlock builds the block a grading is asked about.
@@ -141,7 +141,7 @@ func TestReviewedIndex_GradeBasis(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			idx := reviewedIndex{byUnit: map[string]reviewedEntry{}, aiReviews: map[string]aiReviewEntry{}}
+			idx := reviewedIndex{byUnit: map[reviewUnit]reviewedEntry{}, aiReviews: map[reviewUnit]aiReviewEntry{}}
 			if tc.rec.TargetHash != "" || tc.rec.ContentHash != "" {
 				rec := tc.rec
 				rec.Unit, rec.Scope, rec.Variant = "u1", scope, model.Variant("nb")
@@ -183,7 +183,7 @@ func loadStateInto(idx reviewedIndex, u state.UnitState) {
 // would report every translation the loop produced at whatever rung the record
 // happened to name.
 func TestReviewedIndex_ApplyIgnoresARecordedBasis(t *testing.T) {
-	idx := reviewedIndex{byUnit: map[string]reviewedEntry{}, aiReviews: map[string]aiReviewEntry{}}
+	idx := reviewedIndex{byUnit: map[reviewUnit]reviewedEntry{}, aiReviews: map[reviewUnit]aiReviewEntry{}}
 	loadStateInto(idx, state.UnitState{
 		Unit: "u1", Scope: "d-doc", Variant: model.Variant("nb"),
 		Status:     model.TargetStatusTranslated,

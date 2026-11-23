@@ -86,6 +86,22 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The request did not get an answer: the connection failed or was lost on
+ * the way. fetch rejects only for this, and implementations reject with
+ * different classes (Expo's raises a plain `Error` named "fetch failed: …"),
+ * so the client raises this one for every rejected fetch.
+ */
+export class NetworkError extends TypeError {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message);
+    this.name = "NetworkError";
+    // Set here rather than through the constructor's options, which not every
+    // consumer's target library declares.
+    if (options && "cause" in options) (this as { cause?: unknown }).cause = options.cause;
+  }
+}
+
 /** Whether an error means the server or the network could not be reached. */
 export function isNetworkError(err: unknown): boolean {
   return err instanceof TypeError || (err instanceof ApiError && err.status >= 500);
@@ -369,7 +385,32 @@ function query(params: Record<string, string | number | undefined>): string {
 export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
   const baseUrl = opts.baseUrl.replace(/\/+$/, "");
   const api = `${baseUrl}/api/v1`;
-  const doFetch = opts.fetch ?? fetch;
+  const rawFetch = opts.fetch ?? fetch;
+
+  /** fetch, with a rejection raised as a NetworkError; an abort the caller asked for stays as it is. */
+  async function doFetch(url: string, init: RequestInit): Promise<Response> {
+    try {
+      return await rawFetch(url, init);
+    } catch (err) {
+      if (init.signal?.aborted) throw err;
+      throw new NetworkError(err instanceof Error ? err.message : String(err), { cause: err });
+    }
+  }
+
+  /**
+   * The body of an answer, read as text. A connection lost while the body
+   * arrives is the same failure as one lost before the answer: the server may
+   * have acted, and the caller learns nothing. So it raises a NetworkError,
+   * as doFetch does; an abort the caller asked for stays as it is.
+   */
+  async function readText(res: Response, init: RequestInit): Promise<string> {
+    try {
+      return await res.text();
+    } catch (err) {
+      if (init.signal?.aborted) throw err;
+      throw new NetworkError(err instanceof Error ? err.message : String(err), { cause: err });
+    }
+  }
 
   async function send(
     path: string,
@@ -387,7 +428,7 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       const fresh = await opts.onUnauthorized();
       if (fresh) res = await attempt(fresh);
     }
-    const text = await res.text();
+    const text = await readText(res, init);
     let body: unknown = undefined;
     if (text) {
       try {
@@ -406,12 +447,19 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
   }
 
   async function postTokens(path: string, payload: object, failure: string): Promise<AuthTokens> {
-    const res = await doFetch(`${api}${path}`, {
+    const init: RequestInit = {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(payload),
-    });
-    const body = (await res.json().catch(() => undefined)) as AuthTokens | undefined;
+    };
+    const res = await doFetch(`${api}${path}`, init);
+    const text = await readText(res, init);
+    let body: AuthTokens | undefined;
+    try {
+      body = text ? (JSON.parse(text) as AuthTokens) : undefined;
+    } catch {
+      body = undefined;
+    }
     if (!res.ok || !body?.access_token) throw new ApiError(res.status, failure, body);
     return body;
   }
@@ -796,6 +844,7 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
           at: d.at,
           note: d.note || undefined,
           reasons: d.reasons ?? [],
+          agentHost: d.agent_host || undefined,
           current: d.current,
           canUndo: d.can_undo,
         })),
@@ -904,6 +953,7 @@ interface ServerFeedDecisions {
     at: string;
     note?: string;
     reasons?: string[];
+    agent_host?: string;
     current: boolean;
     can_undo: boolean;
   }[];

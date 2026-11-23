@@ -17,7 +17,7 @@ import (
 // governs), and the unit the pricing envelope counts. Deriving it twice would
 // let the three disagree, so it hangs off the same points the profile list
 // already computes rather than off a query of its own.
-//
+
 // It reports and never blocks. An ungoverned point is an org-chart gap, not a
 // content defect, and the standing rule is that a build must not hard-fail
 // because the people side has not caught up. There is deliberately no gate here
@@ -28,7 +28,7 @@ type ContextProfileCustodian struct {
 	UserID string `json:"user_id"`
 	Name   string `json:"name,omitempty"`
 	Email  string `json:"email,omitempty"`
-	// Scope renders the region their membership names — empty for someone whose
+	// Scope renders the region their membership names, empty for someone whose
 	// authority is not bounded to a region.
 	Scope string `json:"scope,omitempty"`
 	// ProjectID names the membership that grants the custody, since a person can
@@ -58,7 +58,7 @@ type custodyIndex struct {
 	bounded []boundCustodian
 	// unbounded holds people with custodial authority over the whole space.
 	unbounded []ContextProfileCustodian
-	roles     map[string]platauth.Permission // workspace|roleID -> permissions
+	roles     map[[2]string]platauth.Permission // workspace and role -> permissions
 	users     map[string]*platauth.User
 }
 
@@ -73,18 +73,18 @@ type boundCustodian struct {
 // Store failures are skipped rather than fatal, matching the rest of this
 // surface: a project whose members cannot be read leaves the rest of the board
 // standing. The consequence is that a read failure makes a point look *less*
-// covered than it is, which is the safe direction for a report — it overstates
+// covered than it is, which is the safe direction for a report, it overstates
 // the gap rather than hiding it.
 func (s *Server) buildCustodyIndex(ctx context.Context, wsID string, projects []*store.Project) *custodyIndex {
 	idx := &custodyIndex{
-		roles: map[string]platauth.Permission{},
+		roles: map[[2]string]platauth.Permission{},
 		users: map[string]*platauth.User{},
 	}
 	if s.AuthStore == nil {
 		return idx
 	}
 
-	seen := map[string]bool{} // userID|projectID|scope
+	seen := map[[3]string]bool{} // user, project and scope
 	for _, p := range projects {
 		if p == nil || p.WorkspaceID != wsID || p.Archived {
 			continue
@@ -109,7 +109,7 @@ func (s *Server) buildCustodyIndex(ctx context.Context, wsID string, projects []
 				Scope:     m.Coordinates.String(),
 				ProjectID: p.ID,
 			}
-			key := m.UserID + "|" + p.ID + "|" + who.Scope
+			key := [3]string{m.UserID, p.ID, who.Scope}
 			if seen[key] {
 				continue
 			}
@@ -129,7 +129,7 @@ func (s *Server) buildCustodyIndex(ctx context.Context, wsID string, projects []
 // permissionsFor resolves a role template's permissions, memoized per workspace
 // and role so a workspace with many members reads each template once.
 func (i *custodyIndex) permissionsFor(ctx context.Context, s *Server, wsID, roleID string) (platauth.Permission, bool) {
-	key := wsID + "|" + roleID
+	key := [2]string{wsID, roleID}
 	if perms, ok := i.roles[key]; ok {
 		return perms, true
 	}
@@ -179,8 +179,8 @@ func sortCustodians(list []ContextProfileCustodian) {
 	})
 }
 
-// attachCustody fills in each profile's custody. An unbound voice — a voice the
-// hub holds that no collection binds — has no point, so it gets no custody
+// attachCustody fills in each profile's custody. An unbound voice, a voice the
+// hub holds that no collection binds, has no point, so it gets no custody
 // rather than an empty one that would read as an uncovered place.
 func (s *Server) attachCustody(ctx context.Context, wsID string, projects []*store.Project, profiles []ContextProfile) {
 	if s.AuthStore == nil {

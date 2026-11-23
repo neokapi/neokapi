@@ -120,7 +120,7 @@ func TestTermsSurfacesAgreeOnDoNotTranslate(t *testing.T) {
 	var looped []string
 	for key, failing := range excl.Failing {
 		if failing {
-			looped = append(looped, collectionName(strings.SplitN(key, "\x00", 2)[0]))
+			looped = append(looped, collectionName(key[0]))
 		}
 	}
 

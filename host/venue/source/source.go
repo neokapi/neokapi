@@ -1031,6 +1031,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		SettingsRefused:       settingsRefused,
 		Terms:                 parts.Terms,
 		Ledger:                parts.Ledger,
+		VoiceLeft:             parts.VoiceLeft,
 	}, nil
 }
 
@@ -1110,12 +1111,17 @@ func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID strin
 		// means the ingest landed.
 		switch {
 		case st.Failed > 0 && st.Completed == 0:
+			if st.Reason != "" {
+				return "", nil, none, fmt.Errorf(
+					"push %s was not applied: %s (the local sync record was left untouched so the next push sends this content again)",
+					pushID, st.Reason)
+			}
 			return "", nil, none, fmt.Errorf(
 				"push %s was accepted but the server failed to apply it (%d job(s) failed); "+
 					"the local sync record was left untouched so the next push sends this content again",
 				pushID, st.Failed)
 		case st.Completed > 0:
-			return bowrainconn.IngestApplied, st.Governance, venue.PushParts{Terms: st.Terms, Ledger: st.Ledger}, nil
+			return bowrainconn.IngestApplied, st.Governance, venue.PushParts{Terms: st.Terms, Ledger: st.Ledger, VoiceLeft: st.VoiceLeft}, nil
 		case st.Total == 0:
 			// No job exists for this push id. Either the deployment runs no
 			// worker or the job has not been recorded yet; keep waiting, and

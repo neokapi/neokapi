@@ -215,6 +215,7 @@ export interface ReviewProvenance {
   by?: string;
   at?: string;
   note?: string;
+  agent_host?: string;
   reasons?: string[];
   stale?: boolean;
 }

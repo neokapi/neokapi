@@ -18,6 +18,7 @@ use (
 	./scripts/fieldguard
 	./scripts/gen-contract-types
 	./scripts/gen-refs
+	./scripts/keyguard
 	./scripts/mkappcast
 	./scripts/projectionguard
 	./scripts/proseprobe

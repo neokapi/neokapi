@@ -988,16 +988,20 @@ export class WailsApiAdapter implements ApiAdapter {
   async updateMemoryEntry(_ws: string, req: MemoryUpdateRequest): Promise<void> {
     return Backend.UpdateMemoryEntry(req);
   }
-  async deleteMemoryEntry(_ws: string, entryId: string): Promise<void> {
-    return Backend.DeleteMemoryEntry("", entryId);
+  async deleteMemoryEntry(_ws: string, entryId: string, baseRevision: string): Promise<void> {
+    return Backend.DeleteMemoryEntry("", entryId, baseRevision);
   }
   // The desktop deletes memory entries one at a time, so the batch reports each
   // id's own outcome rather than failing the whole selection.
-  async bulkDeleteMemoryEntries(ws: string, entryIds: string[]): Promise<BulkDeleteResult> {
+  async bulkDeleteMemoryEntries(
+    ws: string,
+    entryIds: string[],
+    revisions: Record<string, string>,
+  ): Promise<BulkDeleteResult> {
     const results: BulkDeleteResult["results"] = [];
     for (const id of entryIds) {
       try {
-        await this.deleteMemoryEntry(ws, id);
+        await this.deleteMemoryEntry(ws, id, revisions[id] ?? "");
         results.push({ id, deleted: true });
       } catch (err) {
         results.push({ id, deleted: false, error: (err as Error).message });
@@ -1424,7 +1428,7 @@ export class WailsApiAdapter implements ApiAdapter {
   async updateVoiceProfile(_ws: string, _data: UpdateVoiceProfileRequest): Promise<VoiceProfile> {
     throw new Error("Editing brand profiles is not available in the desktop app");
   }
-  async deleteVoiceProfile(_ws: string, _profileId: string): Promise<void> {
+  async deleteVoiceProfile(_ws: string, _profileId: string, _baseRevision: string): Promise<void> {
     throw new Error("Deleting brand profiles is not available in the desktop app");
   }
   async getVoiceScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]> {
@@ -1932,8 +1936,8 @@ export class WailsApiAdapter implements ApiAdapter {
   async updateMarket(workspaceSlug: string, marketId: string, req: MarketRequest): Promise<Market> {
     return Backend.UpdateMarket(workspaceSlug, marketId, req) as Promise<Market>;
   }
-  async deleteMarket(workspaceSlug: string, marketId: string): Promise<void> {
-    return Backend.DeleteMarket(workspaceSlug, marketId);
+  async deleteMarket(workspaceSlug: string, marketId: string, baseRevision: string): Promise<void> {
+    return Backend.DeleteMarket(workspaceSlug, marketId, baseRevision);
   }
   async listChangesets(workspaceSlug: string, status?: ChangeSetStatus): Promise<ChangeSet[]> {
     return Backend.ListChangesets(workspaceSlug, status ?? "") as Promise<ChangeSet[]>;

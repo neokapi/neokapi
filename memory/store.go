@@ -72,7 +72,7 @@ type Store interface {
 
 	// DeleteImportSession removes a session row. Origins referencing it
 	// have their session_id cleared to empty via the FK's ON DELETE
-	// SET NULL behavior — the entries themselves are not affected.
+	// SET NULL behavior, the entries themselves are not affected.
 	DeleteImportSession(ctx context.Context, id string) error
 }
 
@@ -82,6 +82,12 @@ type Store interface {
 // unreasonable import times on large corpora (EUR-Lex, bitextor).
 type BulkAdder interface {
 	BulkAddWithStream(ctx context.Context, entries []Entry, stream string) error
+}
+
+// BulkReplacer is a BulkAdder that can also delete entries in the same write,
+// so an entry moved to a new id is never missing and never held twice.
+type BulkReplacer interface {
+	BulkAddReplacing(ctx context.Context, entries []Entry, stream string, replaced []string) error
 }
 
 // SearchIndexRebuilder is an optional capability implemented by backends whose

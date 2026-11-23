@@ -40,8 +40,8 @@ type EvalOptions struct {
 	Streams []string
 
 	// Locales restricts which locales each block is evaluated in. When empty,
-	// each block is evaluated in its own source locale — the canonical, compliant
-	// source text — which is what brand vocabulary and terminology enforcement
+	// each block is evaluated in its own source locale, the canonical, compliant
+	// source text, which is what brand vocabulary and terminology enforcement
 	// match against. When set, each block is evaluated in every listed locale
 	// for which it has text (Block.Text): the source locale uses the source
 	// runs, a target locale uses that target's runs.
@@ -69,9 +69,9 @@ func (o EvalOptions) maxSamples() int {
 
 // ChangeSetImpact is the blast radius of a change-set over stored content: how
 // many blocks across the workspace would be newly flagged or resolved if the
-// draft merged, broken down per project → collection → (stream, locale), with a
-// word count as a proxy for re-translation effort and a capped sample of
-// affected blocks for inspection (AD-021).
+// draft merged, per project → collection → (stream, locale). A word count
+// stands in for re-translation effort, and a capped sample of affected blocks
+// is kept for inspection (AD-021).
 //
 // An evaluation unit is a (block, locale) pair: a block flagged in three target
 // locales counts three affected blocks and contributes its source word count
@@ -86,7 +86,7 @@ type ChangeSetImpact struct {
 	Projects       []ProjectImpact `json:"projects"`
 	Samples        []BlockSample   `json:"samples"`
 
-	// Reach splits the affected content by what acting on it costs — see
+	// Reach splits the affected content by what acting on it costs, see
 	// reach.go. Nil only on a report built before the split existed.
 	Reach *Reach `json:"reach,omitempty"`
 
@@ -211,7 +211,7 @@ type LocaleImpact struct {
 
 // ConceptUsage is the where-used footprint of a single concept: every stored
 // block whose text contains one of the concept's terms, grouped per project →
-// collection → (stream, locale). It powers GET /concepts/:cid/blast-radius — the
+// collection → (stream, locale). It powers GET /concepts/:cid/blast-radius, the
 // "consequences" a steward sees before proposing a change.
 type ConceptUsage struct {
 	ConceptID   string         `json:"concept_id"`
@@ -277,15 +277,15 @@ type BlockSample struct {
 }
 
 // ---------------------------------------------------------------------------
-// EvaluateChangeSet — change-set blast radius
+// EvaluateChangeSet, change-set blast radius
 // ---------------------------------------------------------------------------
 
 // EvaluateChangeSet computes the blast radius of a change-set's ops over the
 // stored content of a workspace, without persisting anything. It walks every
-// project's "main" stream (plus any pilot streams named in opts), and for each
-// block in each evaluated locale compares the terms the block contains under
-// the live graph (the "before") and under the candidate the ops would produce
-// (the "after"): a block is affected when a term it contains gains or loses
+// project's "main" stream, plus any pilot streams named in opts. For each block
+// in each evaluated locale it compares the terms the block contains under the
+// live graph (the "before") and under the candidate the ops would produce (the
+// "after"). A block is affected when a term it contains gains or loses
 // forbidden status, or when its USE_INSTEAD replacement guidance changes.
 // Newly-forbidden terms count as new violations; no-longer-forbidden terms as
 // resolved.
@@ -322,7 +322,7 @@ func (e *Engine) EvaluateChangeSet(ctx context.Context, workspaceID string, cs C
 
 		words := b.WordCount()
 		targets, approved := blockTargetLocales(b)
-		reach.observe(p.ID+"\x00"+stream+"\x00"+b.ID, prescribed,
+		reach.observe([3]string{p.ID, stream, b.ID}, prescribed,
 			p, collKey(colID, colName), words, targets, approved)
 		t.hit(p, colID, colName, stream, locale, newV, resolved, words, 0, BlockSample{
 			ProjectID:      p.ID,
@@ -348,15 +348,15 @@ func (e *Engine) EvaluateChangeSet(ctx context.Context, workspaceID string, cs C
 	if errors.Is(walkErr, errBudgetExhausted) {
 		impact.Partial = true
 		// The reason names the cause only. Each consumer states the consequence
-		// in its own voice — the web panel qualifies its breakdown, the MCP tool
-		// qualifies its totals — so a reason that also spelled out the
+		// in its own voice, the web panel qualifies its breakdown, the MCP tool
+		// qualifies its totals, so a reason that also spelled out the
 		// consequence would read twice in one sentence wherever it is embedded.
-		//
+
 		// This string is embedded, never shown bare. The MCP experiment-status
-		// tool composes it into "lower bounds — any project the scan did not
+		// tool composes it into "lower bounds, any project the scan did not
 		// reach contributes nothing to these totals (<this>)", and its test
 		// asserts the composed line still contains "time budget". Reword freely,
-		// but keep the cause nameable in those words or update that assertion —
+		// but keep the cause nameable in those words or update that assertion,
 		// it is the only place this wording is pinned outside this package.
 		impact.PartialReason = "the scan reached this preview's time budget before it had covered the workspace"
 	}
@@ -415,11 +415,14 @@ func termImpact(ctx context.Context, before, after *terms.InMemoryStore, locale 
 	return newV, resolved, !sigMapsEqual(beforeSig, afterSig), prescribed, nil
 }
 
+// conceptTerm is a term by its concept and its lowered text.
+type conceptTerm struct{ concept, term string }
+
 // termSignatures returns the resolution signature of every term of the lookup
 // locale that occurs in text, keyed by concept ID + lowered term text so the
 // same designation is comparable across the before and after snapshots.
-func termSignatures(ctx context.Context, tb *terms.InMemoryStore, locale model.LocaleID, text string) (map[string]termSig, error) {
-	out := map[string]termSig{}
+func termSignatures(ctx context.Context, tb *terms.InMemoryStore, locale model.LocaleID, text string) (map[conceptTerm]termSig, error) {
+	out := map[conceptTerm]termSig{}
 	if tb == nil {
 		return out, nil
 	}
@@ -428,7 +431,7 @@ func termSignatures(ctx context.Context, tb *terms.InMemoryStore, locale model.L
 		return nil, err
 	}
 	for _, m := range matches {
-		key := m.Concept.ID + "|" + strings.ToLower(m.Term.Text)
+		key := conceptTerm{m.Concept.ID, strings.ToLower(m.Term.Text)}
 		out[key] = termSig{
 			status:      m.Term.Status,
 			replacement: resolveReplacement(ctx, tb, m.Concept, locale),
@@ -438,8 +441,8 @@ func termSignatures(ctx context.Context, tb *terms.InMemoryStore, locale model.L
 }
 
 // resolveReplacement returns the preferred term (in locale) of the concept that
-// c's USE_INSTEAD relation points to — the recommended substitute a steward
-// would see — or "" when c has no such guidance.
+// c's USE_INSTEAD relation points to, the recommended substitute a steward
+// would see, or "" when c has no such guidance.
 func resolveReplacement(ctx context.Context, tb *terms.InMemoryStore, c terms.Concept, locale model.LocaleID) string {
 	rels, err := tb.RelationsOf(ctx, c.ID, nil)
 	if err != nil {
@@ -462,7 +465,7 @@ func resolveReplacement(ctx context.Context, tb *terms.InMemoryStore, c terms.Co
 
 // sigMapsEqual reports whether two signature maps describe the same set of
 // contained terms with the same status and replacement guidance.
-func sigMapsEqual(a, b map[string]termSig) bool {
+func sigMapsEqual(a, b map[conceptTerm]termSig) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -476,13 +479,13 @@ func sigMapsEqual(a, b map[string]termSig) bool {
 }
 
 // ---------------------------------------------------------------------------
-// ConceptUsage — concept where-used
+// ConceptUsage, concept where-used
 // ---------------------------------------------------------------------------
 
 // ConceptUsage walks the workspace's stored content and reports every block
 // whose text contains one of the concept's terms, grouped per project →
 // collection → (stream, locale). It is the same walk as EvaluateChangeSet
-// filtered to one concept's terms, without a candidate side — the "where used"
+// filtered to one concept's terms, without a candidate side, the "where used"
 // behind GET /concepts/:cid/blast-radius.
 func (e *Engine) ConceptUsage(ctx context.Context, workspaceID, conceptID string, opts EvalOptions) (*ConceptUsage, error) {
 	// A single-concept terms so LookupAll matches only this concept's terms.
@@ -574,7 +577,7 @@ func (e *Engine) walkBlocks(
 	}
 	// Collections resolve per item, and a project has orders of magnitude more
 	// blocks than items. Resolving per block costs two database round-trips per
-	// block — 35k sequential queries on a 17.5k-block workspace, which is a
+	// block, 35k sequential queries on a 17.5k-block workspace, which is a
 	// minute of walk. One cache per walk makes it two round-trips per item.
 	cols := newCollectionCache(e)
 
@@ -618,20 +621,20 @@ func (e *Engine) walkBlocks(
 
 // collectionCache memoizes collection resolution for the length of one walk.
 // Keyed by (project, stream, item), which is what resolveCollection actually
-// varies on — the block only contributes its item name.
+// varies on, the block only contributes its item name.
 type collectionCache struct {
 	engine *Engine
-	seen   map[string]collectionRef
+	seen   map[[3]string]collectionRef
 }
 
 type collectionRef struct{ id, name string }
 
 func newCollectionCache(e *Engine) *collectionCache {
-	return &collectionCache{engine: e, seen: map[string]collectionRef{}}
+	return &collectionCache{engine: e, seen: map[[3]string]collectionRef{}}
 }
 
 func (c *collectionCache) resolve(ctx context.Context, projectID, stream string, b *venue.StoredBlock) (id, name string) {
-	key := projectID + "\x00" + stream + "\x00" + b.ItemName
+	key := [3]string{projectID, stream, b.ItemName}
 	if ref, ok := c.seen[key]; ok {
 		return ref.id, ref.name
 	}
@@ -654,7 +657,7 @@ func (e *Engine) resolveStreams(ctx context.Context, projectID string, opts Eval
 }
 
 // existingStreams keeps the names the project actually has, appended to base in
-// first-seen order without repeats. "main" always exists — it is the implicit
+// first-seen order without repeats. "main" always exists, it is the implicit
 // stream every project has whether or not a row records it.
 func (e *Engine) existingStreams(ctx context.Context, projectID string, names, base []string) []string {
 	existing := map[string]bool{"main": true}

@@ -188,15 +188,22 @@ type revisedOp interface {
 	replayRevised(ctx context.Context, client *editorclient.EditorClient, ws string) (id, revision string, err error)
 }
 
-// deleteMemoryEntryOp queues a content-memory entry deletion.
+// deleteMemoryEntryOp queues a content-memory entry deletion, at the revision
+// of the entry the person saw.
 type deleteMemoryEntryOp struct {
-	EntryID string `json:"entry_id"`
+	EntryID      string `json:"entry_id"`
+	BaseRevision string `json:"base_revision,omitempty"`
 }
 
 func (deleteMemoryEntryOp) opKind() opKind { return opDeleteMemoryEntry }
 
+// replay sends the delete. One queued before this version, without the
+// revision it was made on, is retired: the server can only refuse it.
 func (o deleteMemoryEntryOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
-	return client.DeleteMemoryEntry(ctx, ws, o.EntryID)
+	if o.BaseRevision == "" {
+		return errRetired
+	}
+	return client.DeleteMemoryEntry(ctx, ws, o.EntryID, o.BaseRevision)
 }
 
 // --- Terms (concept) ops ---

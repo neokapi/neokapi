@@ -17,6 +17,8 @@ package transfer
 import (
 	"context"
 	"errors"
+	"slices"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
@@ -176,6 +178,12 @@ func PushProject(ctx context.Context, app *host.App, proj *project.Project, conn
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// A profile the venue already holds lives there: people edit it on the
+	// venue, and the push left it as it is.
+	if brand != nil && slices.ContainsFunc(result.VoiceLeft, func(name string) bool { return strings.EqualFold(name, brand.Name) }) {
+		brand.Action = VoiceActionLeft
 	}
 
 	pr := &PushResult{

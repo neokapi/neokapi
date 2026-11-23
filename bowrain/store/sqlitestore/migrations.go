@@ -1301,6 +1301,16 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX context_session_holds_session ON context_session_holds (session_id);
 		`,
 	},
+	{
+		Version:     49,
+		Description: "the agent host a review decision was recorded from",
+		SQL:         `-- Mirrors bowrain/store/migrations.go version 65; Apply adds the column.`,
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return addMissingColumns(ctx, tx, "unit_decisions", []string{
+				"agent_host TEXT NOT NULL DEFAULT ''",
+			})
+		},
+	},
 }
 
 // addMissingColumns adds each column definition to table unless the table

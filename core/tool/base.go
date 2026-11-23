@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 	"github.com/neokapi/neokapi/core/schema"
 )
 
@@ -15,27 +16,22 @@ import (
 type PartHandler func(part *model.Part) (*model.Part, error)
 
 // EnforceImmutability is the process-wide default for the immutability hash
-// backstop in the typed block-handler dispatch. Capability is enforced
-// primarily by the handler's parameter type (an Annotate handler has no
-// source/target setters); the backstop additionally catches in-place edits
-// made through the live run slices the read-only view hands back — including
-// a source rewrite while a stand-off overlay is attached (overlays anchor to
-// runs and would be invalidated).
+// backstop in the typed block-handler dispatch. The handler's parameter type
+// enforces capability (an Annotate handler has no source or target setters).
+// The backstop also catches in-place edits through the run slices the
+// read-only view hands back, including a source rewrite while a stand-off
+// overlay is attached.
 //
-// Off by default: the backstop hashes every block's source and targets around
-// each handler call, which is dev/test tooling, not production work. Tests
-// enable it (see the tool/tools/flow TestMains); executors opt in per run via
-// flow.WithImmutabilityCheck, and any dispatch path can opt in via
+// It is off by default, since the backstop hashes every block's source and
+// targets around each handler call. Tests enable it (see the tool/tools/flow
+// TestMains); a run opts in with flow.WithImmutabilityCheck or
 // [WithImmutabilityCheck] on its context.
 //
 // Deprecated: use flow.WithImmutabilityCheck (per executor) or
 // [WithImmutabilityCheck] (per dispatch context) instead of this global. It
-// remains as a compatibility knob and as the fallback when the context carries
-// no setting. Concurrency contract unchanged: set it once during
-// initialization, before any tool starts processing — it is read (never
-// written) from the concurrent per-block dispatch path, including
-// ParallelBlockTool's workers, so toggling it while a flow is running is a
-// data race and unsupported.
+// is the fallback when the context carries no setting. Set it once during
+// initialization: the concurrent per-block dispatch path reads it, so
+// toggling it while a flow runs is a data race.
 var EnforceImmutability = false
 
 // immutabilityCtxKey keys the per-dispatch immutability-check setting in a
@@ -74,16 +70,16 @@ type BaseTool struct {
 	SchemaFn func() *schema.ComponentSchema
 
 	// Process-named block handlers (immutability model, AD-006). A tool sets
-	// exactly ONE, picking the verb that matches what it does — that choice
+	// exactly ONE, picking the verb that matches what it does, that choice
 	// IS its capability declaration, enforced by the parameter type:
 	//
-	//   Annotate(BlockView)  — analysis/annotation: reads source+target,
+	//   Annotate(BlockView), analysis/annotation: reads source+target,
 	//                          writes only overlays, annotations, properties.
 	//                          The default surface; no content writes exist.
-	//   Produce(VariantView) — target production: reads source, writes target.
-	//   Transform(BlockView) — a read-only EDIT PRODUCER: inspects the block
+	//   Produce(VariantView), target production: reads source, writes target.
+	//   Transform(BlockView), a read-only EDIT PRODUCER: inspects the block
 	//                          and returns an EditPlan; the framework applier
-	//                          (the sole mutator) applies it — rewrites source,
+	//                          (the sole mutator) applies it, rewrites source,
 	//                          rebases surviving overlays, vaults secrets, and
 	//                          bounds-checks, atomically. Tool code holds no
 	//                          source setter.
@@ -147,7 +143,7 @@ func (b *BaseTool) SetConfig(cfg ToolConfig) error {
 
 // ValidateHandlers checks the "exactly one capability handler" contract: a
 // BaseTool sets at most one of the typed block handlers (Annotate, Produce,
-// Transform) — that choice IS its capability declaration. Setting more than
+// Transform), that choice IS its capability declaration. Setting more than
 // one would silently lose all but the highest-precedence handler in dispatch,
 // so it is rejected loudly instead: Process, Apply, and ApplyContext return
 // this error, and the tool registry panics at registration (init-time
@@ -200,7 +196,7 @@ func (b *BaseTool) Process(ctx context.Context, in <-chan *model.Part, out chan<
 	}
 }
 
-// Capability classifies what a tool's block handler may write — for flow-stage
+// Capability classifies what a tool's block handler may write, for flow-stage
 // validation (e.g. only source-transforms belong in a Flow's source-transform
 // stage). Tools that override Process without setting a typed handler report
 // CapNone.
@@ -233,7 +229,7 @@ func (b *BaseTool) Capability() Capability {
 	}
 }
 
-// IsSourceTransform reports whether t may rewrite source (CapTransform) — a
+// IsSourceTransform reports whether t may rewrite source (CapTransform), a
 // transformer in AD-006 terms. The placement pass uses this (via the registry
 // probe) to validate a transformer's position among the ordered steps. Tools
 // that don't implement Capable are treated as not source-transforms.
@@ -242,8 +238,8 @@ func IsSourceTransform(t Tool) bool {
 	return ok && c.Capability() == CapTransform
 }
 
-// Apply runs a single Part through the tool's per-part dispatch — the same
-// routing (and immutability backstop) Process uses — returning the result Part,
+// Apply runs a single Part through the tool's per-part dispatch, the same
+// routing (and immutability backstop) Process uses, returning the result Part,
 // or nil if the handler dropped it. For callers that apply a BaseTool across an
 // in-memory slice of parts rather than driving the streaming pipeline.
 func (b *BaseTool) Apply(part *model.Part) (*model.Part, error) {
@@ -314,7 +310,7 @@ func (b *BaseTool) dispatch(ctx context.Context, part *model.Part) (*model.Part,
 // tool set. The handler's parameter type bounds what it may write; a dev/test
 // backstop (gated per dispatch via WithImmutabilityCheck, falling back to the
 // deprecated EnforceImmutability global) additionally catches in-place edits
-// the read-only view type can't prevent — a tool that mutates the live run
+// the read-only view type can't prevent, a tool that mutates the live run
 // slices it was handed.
 func (b *BaseTool) handleBlock(ctx context.Context, part *model.Part) (*model.Part, error) {
 	switch {
@@ -392,7 +388,7 @@ func (b *BaseTool) runProduce(ctx context.Context, part *model.Part) (*model.Par
 }
 
 // runTransform drives a transform as a read-only edit producer, then hands its
-// plan to the framework applier — the only code that mutates the block's
+// plan to the framework applier, the only code that mutates the block's
 // representation (AD-006). Backstop: the producer itself may change nothing
 // (it holds no setter, and the aliased-slice guard catches in-place edits);
 // the applier rebases overlays, vaults secrets, and bounds-checks atomically.
@@ -449,7 +445,7 @@ func blockSourceSig(b *model.Block) uint64 {
 // blockTargetsSig is a content signature of every edition other than the
 // authoritative one (content + status), used to detect target mutation.
 // EditionKeys lists the keys in the order of their text form, so the signature
-// does not depend on map order. An edition Edition does not reach (a target
+// does not depend on map order. An edition that Block.Edition does not reach (a target
 // stored under a non-canonical key) hashes as its key alone: a tool that adds
 // or removes one is caught, and a change to its content goes unseen.
 func blockTargetsSig(b *model.Block) uint64 {
@@ -463,12 +459,7 @@ func blockTargetsSig(b *model.Block) uint64 {
 		derived = true
 		e, _ := b.Edition(k)
 		mt, _ := k.MarshalText()
-		_, _ = h.Write(mt)
-		_, _ = h.Write([]byte{0})
-		_, _ = h.Write([]byte(model.RenderRunsWithData(e.Runs)))
-		_, _ = h.Write([]byte{0})
-		_, _ = h.Write([]byte(e.Status))
-		_, _ = h.Write([]byte{1})
+		partjoin.WriteNUL(h, string(mt), model.RenderRunsWithData(e.Runs), string(e.Status))
 	}
 	if !derived {
 		return 0

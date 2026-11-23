@@ -29,7 +29,9 @@ func newTransitionDeps(t *testing.T) (*WorkerDeps, *storage.PgDB) {
 	require.NoError(t, err)
 
 	deps := &WorkerDeps{ContentStore: cs, VoiceStore: voice}
-	deps.PushTransition = NewPostgresPushTransition(db, cs, voice, ks)
+	transition, err := NewPostgresPushTransition(t.Context(), db, cs, voice, ks)
+	require.NoError(t, err)
+	deps.PushTransition = transition
 	return deps, db
 }
 

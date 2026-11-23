@@ -5,51 +5,43 @@ import (
 	"encoding/hex"
 	"maps"
 	"slices"
+
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // OverlayConfigFingerprint returns a short, stable hash of the config inputs
 // that shape a tool's per-block output. The session overlay cache stores it
 // alongside each cached result, and a tool reuses a cached result only when this
-// fingerprint matches its current config. So changing a model, prompt, brand
-// voice, or terminology re-runs the tool (the old output would be stale), while an
-// unchanged config still skips the work — the "never run unneeded processing,
+// fingerprint matches its current config. So changing a model, prompt, voice
+// profile, or terminology re-runs the tool (the old output would be stale), while an
+// unchanged config still skips the work, the "never run unneeded processing,
 // never serve stale processing" contract of the project's overlay cache.
 //
 // Pass every output-affecting setting as a part; order matters, so callers must
 // build the parts deterministically (e.g. sort map entries).
 func OverlayConfigFingerprint(parts ...string) string {
 	h := sha256.New()
-	for _, p := range parts {
-		h.Write([]byte(p))
-		h.Write([]byte{0})
-	}
+	partjoin.WriteNUL(h, parts...)
 	return hex.EncodeToString(h.Sum(nil))[:16]
 }
 
 // ContextFingerprint hashes the governing context as it reached a producer: the
 // rendered voice guidance, the terminology it was given, and the terms it was
-// told to keep verbatim. It backs model.Origin.ContextFingerprint — a change
-// detector that answers "have the governing inputs moved since this target was
-// produced?" and nothing more.
+// told to keep verbatim. It backs model.Origin.ContextFingerprint, which says
+// whether the governing inputs moved since a target was produced.
 //
-// It is deliberately narrower than an engine's OverlayConfigFingerprint, which
-// also covers provider, model and prompt wording: folding those in would make a
-// model swap read as a governance change and destroy the field's meaning. Every
-// translation producer computes it the same way, so targets written under one
-// context share a fingerprint regardless of which engine produced them and fall
-// stale together when the context moves.
+// It is narrower than an engine's OverlayConfigFingerprint, which also covers
+// provider, model and prompt wording, so a model swap does not read as a
+// governance change. Every translation producer computes it the same way, so
+// targets written under one context share a fingerprint and fall stale
+// together.
 //
-// The terms come as a map, so its keys are sorted before hashing: an unsorted walk
-// would hash identical terminology differently on each run and report drift that
-// never happened. keepVerbatim is sorted by its caller for the same reason.
-// Returns "" when there is no governing context at all, so an ungoverned run
-// reads as ungoverned rather than as the constant hash of two empty strings.
+// The terms map's keys are sorted before hashing, so identical terminology
+// hashes alike on every run; the caller sorts keepVerbatim. It returns "" when
+// there is no governing context, so an ungoverned run reads as ungoverned.
 //
 // An empty keepVerbatim contributes nothing to the hash, so a project that
 // marks no concept do-not-translate keeps the fingerprints it already has.
-// Widening the hash retires the stored targets of the projects a change governs
-// and no others: a fingerprint that moves for everyone re-drafts a corpus whose
-// governance never changed.
 func ContextFingerprint(voiceGuide string, terms map[string]string, keepVerbatim []string) string {
 	if voiceGuide == "" && len(terms) == 0 && len(keepVerbatim) == 0 {
 		return ""

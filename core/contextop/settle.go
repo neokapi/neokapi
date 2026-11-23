@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // Settling
@@ -15,22 +17,24 @@ import (
 // A suggestion becomes an established rule by evidence, and what counts as
 // evidence is read from the log alone, so every machine holding the same log
 // reaches the same answer whatever order the log arrived in.
-//
+
 // A suggestion is established when at least one signal comes from a person and
 // nothing open contradicts it. The person signals are a keep (which
 // establishes at once, and is handled by the fold like any person's decision),
 // a correction toward the rule, and the rule reaching the default branch (a
 // merge signal). Signals that only add to a suggestion's standing are another
 // session recording the same rule and the project's content writing the
-// preferred form (a usage signal). Against a suggestion are a correction away
-// from it, its withdrawal, and the content moving to a rejected form after it
-// was recorded; any of them while a person signal exists leaves the
-// suggestion contested for a person to decide. Time alone settles nothing.
-//
+// preferred form (a usage signal).
+
+// Against a suggestion are a correction away from it, its withdrawal, and the
+// content moving to a rejected form after it was recorded. Any of them while a
+// person signal exists leaves the suggestion contested for a person to decide.
+// Time alone settles nothing.
+
 // Suggestions that state the same rule (the same form to use, sharing a form
 // to avoid, at points that meet) settle together: they share one standing, and
 // each is established by an operation of its own.
-//
+
 // Evidence establishes a suggestion only where it was seen. A person's signal
 // counts for a suggestion when it was seen at a point the suggestion's own
 // scope covers, so a correction in the help pages establishes the help pages'
@@ -334,10 +338,10 @@ func settleGroup(records []Record, f *settleFacts, group, dropped []int, rivals 
 	// holds, and counted the signals the standing reports, once each.
 	person := make(map[int][]string, len(members))
 	counted := map[string]bool{}
-	sessions := map[string]bool{}
+	sessions := map[[3]string]bool{}
 	for _, i := range members {
 		a := records[i].Actor
-		sessions[string(a.Kind)+"\x00"+a.Name+"\x00"+a.Session] = true
+		sessions[[3]string{string(a.Kind), a.Name, a.Session}] = true
 		if f.withdrawnBy[i] != "" && !refiled(records, members, i) {
 			against = append(against, f.withdrawnBy[i])
 		}
@@ -548,7 +552,7 @@ func address(r Record) string {
 // addressOf renders the content address of an operation of kind whose
 // meaning is parts.
 func addressOf(kind Kind, parts []string) string {
-	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
+	sum := sha256.Sum256([]byte(partjoin.NUL(parts...)))
 	return OpKindPrefix + string(kind) + ":" + hex.EncodeToString(sum[:16])
 }
 

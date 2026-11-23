@@ -12,18 +12,19 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // An edition with no file yet, such as the drafts of a locale its recipe
 // withholds until it clears its ship gate, is kept by a Keeper: the workspace
 // home (core/workhome). Its EditionFile names the file a delivery will write
-// it to, and Kept names the keeper that holds its text until then. The file
-// home joins the kept edition to the document by block key, as it joins an
-// edition file, stages a change to it beside the document's own files, and
-// commits it through the keeper, whose commit appends the change's record
-// only while the edition's head is still the one the stage read. The
-// commit lock is the lock of the file the edition will be delivered to, so a
-// delivery and a write to the kept edition take turns.
+// it to, and Kept names the keeper that holds its text until then.
+
+// The file home joins the kept edition to the document by block key and stages a change
+// to it beside the document's own files. It commits through the keeper, which
+// appends the change's record only while the edition's head is the one the
+// stage read. The commit lock is the lock of the file the edition will be
+// delivered to, so a delivery and a write to it take turns.
 
 // Keeper keeps the editions of documents that have no file yet.
 type Keeper interface {
@@ -114,7 +115,7 @@ func KeptEntry(k model.EditionKey, ed model.Edition) string {
 // origin.
 func KeptEntryOf(rev string, status model.Status, origin model.Origin) string {
 	o, _ := json.Marshal(origin)
-	return rev + "\x00" + string(status) + "\x00" + string(o)
+	return partjoin.NUL(rev, string(status), string(o))
 }
 
 // KeptDigest is the digest of a kept edition: over each block's KeptEntry,
@@ -134,10 +135,8 @@ func KeptDigestOf(entries map[string]string) string {
 	}
 	h := sha256.New()
 	for _, key := range slices.Sorted(maps.Keys(entries)) {
-		h.Write([]byte(key))
-		h.Write([]byte{0})
-		h.Write([]byte(entries[key]))
-		h.Write([]byte{0})
+		partjoin.WriteNUL(h, key)
+		partjoin.WriteNULJoined(h, entries[key])
 	}
 	return "ws:" + hex.EncodeToString(h.Sum(nil))
 }

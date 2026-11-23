@@ -64,23 +64,30 @@ func settled(t *testing.T, s *Server, projID string) {
 
 // A project with no snapshot is counted on its first read and stored; the
 // reads after it count nothing. The inbox reads the same snapshot.
+//
+// The refresh's clock is pinned just before a second turns over, so the
+// first read's time and the stored row's time match only when the row
+// stores the time the counts were stamped with.
 func TestPlanSnapshot_MissingIsCountedOnceAndStored(t *testing.T) {
 	s, wsID, owner := newRecheckHarness(t)
 	projID, _ := containerProject(t, s, wsID)
-	r := startTestPlanSnapshots(t, s)
+	at := time.Date(2026, 11, 20, 10, 0, 0, 999_999_999, time.UTC)
+	cfg := testPlanSnapshotConfig
+	cfg.clock = func() time.Time { return at }
+	r := startTestPlanSnapshotsWith(t, s, cfg)
 	require.Nil(t, planSnapshotRow(t, s, projID), "no snapshot before the first read")
 
 	plan := readPlan(t, s, wsID, projID)
 	require.Len(t, plan.Languages, 1)
 	assert.Positive(t, plan.Languages[0].Waiting+plan.Languages[0].Held)
-	asOf, err := time.Parse(time.RFC3339, plan.AsOf)
-	require.NoError(t, err, "the plan says when its counts were taken")
-	assert.WithinDuration(t, time.Now(), asOf, time.Minute)
+	assert.Equal(t, "2026-11-20T10:00:00Z", plan.AsOf, "the plan says when its counts were taken")
 	assert.EqualValues(t, 1, r.computes.Load())
 	row := planSnapshotRow(t, s, projID)
 	require.NotNil(t, row)
 	assert.NotEmpty(t, row.Data)
 	assert.False(t, row.Changed)
+	assert.True(t, at.Truncate(time.Microsecond).Equal(row.ComputedAt),
+		"the row stores the time the counts were taken: %s", row.ComputedAt)
 
 	again := readPlan(t, s, wsID, projID)
 	assert.Equal(t, plan.Languages, again.Languages)

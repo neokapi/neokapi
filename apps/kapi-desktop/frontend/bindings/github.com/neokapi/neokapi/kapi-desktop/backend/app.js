@@ -1546,11 +1546,8 @@ export function GetRelations(handle, conceptID) {
 }
 
 /**
- * GetReviewUnit returns the full review picture for one queue unit, addressed by
- * (locale, file, key) exactly as the review queue lists it: rendered source and
- * target text, the unit's current check findings (checkers run on demand for
- * this block), the recorded decision + provenance from the project state store,
- * and the best content-memory match percent when the project content memory is open.
+ * GetReviewUnit returns the full review picture for one queue unit, addressed
+ * by (locale, file, key) as the review queue lists it (ReviewUnitDetail).
  * @param {string} tabID
  * @param {string} locale
  * @param {string} file

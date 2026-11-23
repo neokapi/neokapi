@@ -69,9 +69,10 @@ type loggedOperation struct {
 	ID    string `json:"id"`
 	Kind  string `json:"kind"`
 	Actor struct {
-		Kind    string `json:"kind"`
-		Name    string `json:"name"`
-		Session string `json:"session"`
+		Kind      string `json:"kind"`
+		Name      string `json:"name"`
+		Session   string `json:"session"`
+		AgentHost string `json:"agent_host"`
 	} `json:"actor"`
 	Subject struct {
 		Kind string `json:"kind"`
@@ -180,7 +181,7 @@ func TestCommandLineAgentIsDetectedFromItsHost(t *testing.T) {
 }
 
 // TestAPersonInAnAgentShellSaysSo: the override is the person's, and the
-// record says the operation used it.
+// record says the operation used it, on the actor and never in the note.
 func TestAPersonInAnAgentShellSaysSo(t *testing.T) {
 	root := contextActorProject(t, "ctx-actor-override")
 	recipe := filepath.Join(root, "kapi.yaml")
@@ -191,7 +192,8 @@ func TestAPersonInAnAgentShellSaysSo(t *testing.T) {
 	recorded := readLog(t, nil, "context", "log", "--json", "-p", recipe)
 	require.Len(t, recorded, 1)
 	assert.Equal(t, "person", recorded[0].Actor.Kind)
-	assert.Equal(t, "recorded as a person in a claude-code shell", recorded[0].Note)
+	assert.Equal(t, "claude-code", recorded[0].Actor.AgentHost)
+	assert.Empty(t, recorded[0].Note, "the note stays what the person typed")
 }
 
 // TestKapiInitWiresCodex is issue #2911: Codex reads a repository's own

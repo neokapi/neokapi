@@ -108,7 +108,7 @@ func TestMemoryOperationsOffline(t *testing.T) {
 	assert.Len(t, result.Entries, 1)
 
 	// Delete.
-	err = app.DeleteMemoryEntry(proj.ID, entry.ID)
+	err = app.DeleteMemoryEntry(proj.ID, entry.ID, entry.Revision)
 	require.NoError(t, err)
 
 	count, err = app.GetMemoryCount(proj.ID)

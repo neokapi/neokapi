@@ -318,7 +318,10 @@ func TestMarketsLocalesRoundtrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 
-	require.NoError(t, store.DeleteMarket(ctx, testWS, m.ID))
+	require.ErrorIs(t, store.DeleteMarketAt(ctx, testWS, m.ID, base), storage.ErrStale, "a delete on an older revision is refused")
+	got, err = store.GetMarket(ctx, testWS, m.ID)
+	require.NoError(t, err)
+	require.NoError(t, store.DeleteMarketAt(ctx, testWS, m.ID, got.Revision))
 	_, err = store.GetMarket(ctx, testWS, m.ID)
 	assert.Error(t, err)
 }

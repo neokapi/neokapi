@@ -1110,6 +1110,7 @@ func (s *Server) HandleUpdateMemoryEntry(c *echo.Context) error {
 type editableMemory interface {
 	Revisions(ctx context.Context, ids []string) (map[string]string, error)
 	Update(ctx context.Context, entry memory.Entry, base string, editor memory.Origin) (string, error)
+	DeleteAt(ctx context.Context, id, base string) error
 }
 
 // withMemoryRevisions sets each entry's revision, so the client can name it
@@ -1150,10 +1151,34 @@ func (s *Server) HandleDeleteMemoryEntry(c *echo.Context) error {
 		return serverErr(c, err)
 	}
 
-	if err := tm.Delete(c.Request().Context(), eid); err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	ctx := c.Request().Context()
+	base := c.QueryParam("base_revision")
+	if base == "" {
+		return refuseUnversioned(c, "content-memory entries")
 	}
-
+	editable, ok := tm.(editableMemory)
+	if !ok {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "this content memory cannot take a delete"})
+	}
+	switch err := editable.DeleteAt(ctx, eid, base); {
+	case errors.Is(err, bmemory.ErrEntryNotFound):
+		return refuseGone(c, "content-memory entry")
+	case errors.Is(err, storage.ErrStale):
+		current, ok, gerr := tm.GetEntry(ctx, eid)
+		if gerr != nil {
+			return serverErr(c, gerr)
+		}
+		if !ok {
+			return refuseGone(c, "content-memory entry")
+		}
+		info := []MemoryEntryInfoResponse{editorEntryToInfo(current, "", "")}
+		if err := withMemoryRevisions(ctx, tm, info); err != nil {
+			return serverErr(c, err)
+		}
+		return refuseChanged(c, "memory_entry_changed", "content-memory entry", info[0])
+	case err != nil:
+		return serverErr(c, err)
+	}
 	return c.NoContent(http.StatusNoContent)
 }
 

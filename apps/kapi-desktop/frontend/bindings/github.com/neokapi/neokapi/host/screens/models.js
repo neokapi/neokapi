@@ -56,6 +56,15 @@ export class ContextActorDTO {
              */
             this["host"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * AgentHost is the agent host whose shell a person declared themselves
+             * in, such as "claude-code" (contextop.Record.Said).
+             * @member
+             * @type {string | undefined}
+             */
+            this["agent_host"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

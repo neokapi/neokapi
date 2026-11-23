@@ -43,6 +43,7 @@ const entries: MemoryEntryInfo[] = [
     target_language: "de-DE",
     project_id: "p-web",
     updated_at: "2026-06-13T10:00:00Z",
+    revision: "r-1",
   },
   {
     id: "e-2",
@@ -51,6 +52,7 @@ const entries: MemoryEntryInfo[] = [
     source_language: "en-US",
     target_language: "de-DE",
     updated_at: "2026-06-12T10:00:00Z",
+    revision: "r-2",
   },
 ];
 
@@ -153,6 +155,7 @@ describe("MemorySection", () => {
     expect(adapter.updateMemoryEntry).toHaveBeenCalledWith("demo", {
       project_id: "p-web",
       entry_id: "e-1",
+      base_revision: "r-1",
       source: "Proceed to checkout",
       target: "Zur Kasse",
       source_locale: "en-US",
@@ -169,7 +172,9 @@ describe("MemorySection", () => {
     await user.click(screen.getByRole("button", { name: /Delete/ }));
     expect(adapter.deleteMemoryEntry).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Confirm" }));
-    await waitFor(() => expect(adapter.deleteMemoryEntry).toHaveBeenCalledWith("demo", "e-2"));
+    await waitFor(() =>
+      expect(adapter.deleteMemoryEntry).toHaveBeenCalledWith("demo", "e-2", "r-2"),
+    );
   });
 
   it("deletes every marked entry in one request, and says how many failed", async () => {
@@ -194,7 +199,10 @@ describe("MemorySection", () => {
     await user.click(within(bulk).getByRole("button", { name: /Delete/ }));
     await user.click(within(bulk).getByRole("button", { name: "Confirm" }));
     await waitFor(() =>
-      expect(adapter.bulkDeleteMemoryEntries).toHaveBeenCalledWith("demo", ["e-1", "e-2"]),
+      expect(adapter.bulkDeleteMemoryEntries).toHaveBeenCalledWith("demo", ["e-1", "e-2"], {
+        "e-1": "r-1",
+        "e-2": "r-2",
+      }),
     );
     expect(
       await screen.findByText(/1 of 2 entries could not be deleted: not found/),

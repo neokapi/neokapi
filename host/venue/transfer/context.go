@@ -26,18 +26,22 @@ import (
 // reconciles the collections and upserts their voices in the same job that
 // stores the blocks.
 //
-// The upsert semantics are unchanged, because the worker applies them: matched
-// by name within the workspace, a no-op when the content is identical, and
-// otherwise a new version through the store's profile versioning, so a
-// server-side edit is superseded by something revertible rather than clobbered.
+// The worker matches a profile by name within the workspace. One the
+// workspace does not hold is created from the push. One it holds lives there:
+// people edit it on the venue, and the push leaves it as it is and says so
+// (VoiceActionLeft).
 
 // PushVoiceResult holds what the governance half of a push amounted to.
 type PushVoiceResult struct {
 	Name    string // profile name
-	Action  string // carried | skipped | would-push (dry run)
+	Action  string // carried | left (VoiceActionLeft) | skipped | would-push (dry run)
 	Version int    // stored profile version after the action (0 when unknown)
 	Reason  string // set when Action == "skipped"
 }
+
+// VoiceActionLeft is the action of a profile the venue already held and left
+// as it was.
+const VoiceActionLeft = "left"
 
 // BuildPushContext resolves the recipe's declared context into the entries a
 // push carries, and reports what happened to the governance.

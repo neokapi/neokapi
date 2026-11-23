@@ -79,8 +79,8 @@ const (
 	ExtractFormatXLIFF2 = project.ExtractionFormatXLIFF2
 	extractFormatPO     = project.ExtractionFormatPO
 	// ExtractFormatKPZ selects the bilingual interchange .kpz output
-	// (kind=kapi-interchange). It is neokapi's lossless interchange format
-	// for a translator or reviewer (AD-025 §7).
+	// (kind=kapi-interchange), neokapi's lossless interchange format for a
+	// translator or reviewer (AD-025 §7).
 	ExtractFormatKPZ = "kpz"
 )
 
@@ -300,8 +300,7 @@ func (a *App) RunExtract(cmd Command) error {
 
 			// Reuse a prior batch's output when the source bytes are unchanged
 			// (inputs already matched). Copies the content-addressed skeleton into
-			// this batch dir as a byte copy with no re-parse, so merge resolves it
-			// here.
+			// this batch dir as a byte copy, with no re-parse, so merge resolves it here.
 			if pe, ok := prior.reuse(string(tgt), src.Relative, sourceHash); ok {
 				if err := pe.copySkeleton(layout, batchDir, outPath); err == nil {
 					if pair.Output == "" {
@@ -447,7 +446,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		return project.ExtractionFile{}, fmt.Errorf("apply format config for %s: %w", task.source.Relative, err)
 	}
 
-	// Persist the source skeleton for merge, but only when the source reader
+	// Persist the source skeleton for merge, only when the source reader
 	// supports skeleton emission (most text formats do, including the keyed
 	// catalog formats: JSON/YAML/.properties, Android XML, .resx, Apple
 	// .strings/.stringsdict/.xcstrings, .arb, i18next, design tokens).
@@ -675,7 +674,7 @@ const (
 // applyMemoryPrefill queries the content memory and fills the block's target for the locale
 // with the best match when it exceeds the threshold. Returns whether the
 // block was covered by an exact or fuzzy match. The source segment spans are
-// the unit of lookup (one lookup per span), and the pre-filled target is
+// the unit of lookup, one lookup per span, and the pre-filled target is
 // written as a run sequence plus a target segmentation overlay index-aligned
 // to the source spans (so a segmented block round-trips per-segment targets).
 func applyMemoryPrefill(ctx context.Context, tm memory.ContentMemory, block *model.Block, source, target model.LocaleID, threshold float64) prefillOutcome {
@@ -723,7 +722,7 @@ func applyMemoryPrefill(ctx context.Context, tm memory.ContentMemory, block *mod
 	}
 	// Stash the match type on the block so downstream writers can surface
 	// it in format-appropriate ways (PO's `#, fuzzy` flag; XLIFF 2's
-	// segment state, which is not emitted yet).
+	// segment state, which it does not emit yet).
 	if block.Properties == nil {
 		block.Properties = make(map[string]string, 1)
 	}
@@ -912,18 +911,18 @@ type priorEntry struct {
 }
 
 // priorBatch indexes every reusable per-file result across all prior batches
-// whose inputs (recipe, options) match the current run. It is keyed by
-// content: the (target, source, sourceHash) triple. Indexing by source hash (not just path)
+// whose inputs (recipe, options) match the current run, keyed by content: the
+// (target, source, sourceHash) triple. Indexing by source hash (not just path)
 // means a file is reused exactly when its bytes match a prior extraction,
 // regardless of which batch produced it, so same-second batch timestamps can't
 // pick the wrong one.
 type priorBatch struct {
-	byKey map[string]priorEntry
+	byKey map[reuseKey]priorEntry
 }
 
-func reuseKey(tgt, srcRel, sourceHash string) string {
-	return tgt + "\x00" + srcRel + "\x00" + sourceHash
-}
+// reuseKey is what a prior result is reused by: the target locale, the source
+// path and the source's hash.
+type reuseKey struct{ tgt, srcRel, sourceHash string }
 
 // loadReusablePrior indexes the reusable results of every prior batch whose
 // InputsHash matches. Returns nil (everything re-extracts) when forced, when
@@ -939,7 +938,7 @@ func loadReusablePrior(layout project.Layout, inputsHash string, force bool) *pr
 	if err != nil {
 		return nil
 	}
-	pb := &priorBatch{byKey: map[string]priorEntry{}}
+	pb := &priorBatch{byKey: map[reuseKey]priorEntry{}}
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
@@ -953,7 +952,7 @@ func loadReusablePrior(layout project.Layout, inputsHash string, force bool) *pr
 				if ef.Skeleton == "" {
 					continue
 				}
-				pb.byKey[reuseKey(string(pair.TargetLocale), ef.Source, ef.SourceHash)] = priorEntry{ef: ef, batchID: m.BatchID}
+				pb.byKey[reuseKey{string(pair.TargetLocale), ef.Source, ef.SourceHash}] = priorEntry{ef: ef, batchID: m.BatchID}
 			}
 		}
 	}
@@ -964,13 +963,13 @@ func loadReusablePrior(layout project.Layout, inputsHash string, force bool) *pr
 }
 
 // reuse reports whether a prior batch holds a result for (tgt, srcRel) at exactly
-// this sourceHash (the source bytes are unchanged). It returns that result plus
-// the batch dir its skeleton lives in.
+// this sourceHash (the source bytes are unchanged), and returns it plus the
+// batch dir its skeleton lives in.
 func (p *priorBatch) reuse(tgt, srcRel, sourceHash string) (priorEntry, bool) {
 	if p == nil {
 		return priorEntry{}, false
 	}
-	e, ok := p.byKey[reuseKey(tgt, srcRel, sourceHash)]
+	e, ok := p.byKey[reuseKey{tgt, srcRel, sourceHash}]
 	return e, ok
 }
 
@@ -1019,12 +1018,12 @@ func effectiveXLIFFVersion(flag string) string {
 // ─── bilingual interchange .kpz (kind=kapi-interchange) ─────────
 //
 // `kapi extract --format kpz` emits one task-scoped .kpz per source→target
-// pair (AD-025 §7). Each package holds four things. The first is the source
-// blocks' targets, pre-filled from content memory as `targets/<locale>`
-// overlays that `kapi merge` hydrates exactly like the workspace flow. The
-// others are the per-source round-trip skeleton, a minimal recipe carrying
-// the locale pair, and the relevant content memory/terms context subset. It
-// is neokapi's lossless interchange format for a translator or reviewer.
+// pair (AD-025 §7). It holds the source blocks' targets pre-filled from content
+// memory, as `targets/<locale>` overlays that `kapi merge` hydrates like the
+// workspace flow. It also holds the per-source round-trip skeleton, a minimal
+// recipe carrying the locale pair, and the relevant content memory and terms
+// context. It is neokapi's lossless interchange format for a translator or
+// reviewer.
 
 // RunExtractKpz drives the bilingual-interchange extract over a project's
 // content × target locales, writing one <slug>.<src>-to-<tgt>.kpz per pair.
@@ -1093,17 +1092,14 @@ func (a *App) RunExtractKpz(cmd Command) error {
 		return err
 	}
 
-	// Content-memory / terms leverage context, both read from the project store.
-	// A store that will not open is REPORTED, never dropped. The store is
-	// CREATED when it is absent, so a failure here can only mean "a store that
-	// exists and cannot be read" (locked, corrupt, an FTS5 tokenizer mismatch
-	// between builds, bad permissions).
-
-	// Swallowing the error would ship .kpz packages whose recycling context is
-	// silently empty. The translator would see no matches and no vocabulary on
-	// a project that has both, with nothing to explain why. The error is reported and the run continues, matching the two siblings on
-	// the same call in this file (RunExtract, MergeOneKpz). The packages are
-	// still usable, without leverage.
+	// Content-memory and terms leverage context, both read from the project
+	// store. A store that will not open is REPORTED: the store is CREATED when
+	// it is absent, so a failure here means a store that exists and cannot be
+	// read (locked, corrupt, an FTS5 tokenizer mismatch between builds, bad
+	// permissions). Without the report a translator would get a package with
+	// no matches and no vocabulary and no reason why. The run continues, as
+	// RunExtract and MergeOneKpz do on the same call: the packages are still
+	// usable without leverage.
 	var mem memory.ContentMemory
 	var tb terms.Terminology
 	db, derr := a.ProjectDB(cmd.Context(), layout.Root)
@@ -1263,8 +1259,8 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 
 	// Capture the round-trip skeleton. A capture FAILURE is not the same thing
 	// as "this format has no skeleton": captureSkeletonBytes already reports
-	// genuine absence (no emitter, or an emitter that wrote nothing) as
-	// (nil, nil), so any error here means the skeleton exists and could not be
+	// genuine absence as (nil, nil), for no emitter or an emitter that wrote
+	// nothing, so any error here means the skeleton exists and could not be
 	// taken. Shipping the .kpz anyway leaves merge with nothing to write back
 	// through, so it re-serializes from the content model and silently loses the
 	// source's exact formatting, while the extract reports success. Fail instead;
