@@ -134,7 +134,7 @@ PINS = [
     },
     {
         "name": "Rust toolchain (Windows tokenizers build)",
-        "where": [(".github/workflows/*.yml", r"dtolnay/rust-toolchain@(\d+\.\d+\.\d+)")],
+        "where": [(".github/workflows/*.yml", r'uses: dtolnay/rust-toolchain@[0-9a-f]{40}\n\s+with:\n\s+toolchain: "(\d+\.\d+\.\d+)"')],
         "latest": ("github-release", "rust-lang/rust"),
         "note": "Builds the tokenizers static library on the Windows legs of release-sat.yml and release-check.yml. Dry-run the sat release.",
     },

@@ -120,7 +120,13 @@ jobs:
       # here from the pinned source for the deployment target set above.
       - name: Install Rust (macOS)
         if: runner.os == 'macOS'
-        uses: dtolnay/rust-toolchain@1.99.1
+        # Pinned by commit to the action's default branch: its version-named
+        # branches are pre-created for future toolchains, so a versioned ref
+        # invited Dependabot to propose one that does not exist. The toolchain
+        # is the input; scripts/check-tool-versions.py reports a newer one.
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc
+        with:
+          toolchain: "1.100.0"
 
       - name: Build libtokenizers from source (macOS)
         if: runner.os == 'macOS'
@@ -143,8 +149,13 @@ jobs:
 
       - name: Install Rust (Windows, GNU target)
         if: runner.os == 'Windows'
-        uses: dtolnay/rust-toolchain@1.99.1
+        # Pinned by commit to the action's default branch: its version-named
+        # branches are pre-created for future toolchains, so a versioned ref
+        # invited Dependabot to propose one that does not exist. The toolchain
+        # is the input; scripts/check-tool-versions.py reports a newer one.
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc
         with:
+          toolchain: "1.100.0"
           targets: x86_64-pc-windows-gnu
 
       - name: Build libtokenizers from source (Windows)
