@@ -1,0 +1,50 @@
+# Gardening: the upkeep a person runs locally, on a cadence.
+#
+# `make gardening-due` prints what is overdue. The Gardening workflow runs the
+# same script each week and keeps one issue per overdue item, labelled
+# `gardening`, until the item is done. The work stays local, and upkeep CI
+# does by itself is not listed.
+#
+# Each item names where "last done" is read from:
+#   json-field   a date field in a committed JSON file
+#   oldest-date  the oldest date a pattern matches in a committed file
+#   format-ops   the rituals in docs/internals/format-ops-ledger.json, with
+#                their own cadence_days and last_run; this file holds no
+#                cadence for them
+items:
+  - id: format-ops
+    purpose: Keep the format estate's maturity scores, parity report, corpus and upstream watch current.
+    run: Ask the assistant to run the format-ops runbook (.skills/format-ops/SKILL.md); `node .skills/format-ops/scripts/due.mjs` lists the due rituals.
+    source:
+      kind: format-ops
+      file: docs/internals/format-ops-ledger.json
+
+  - id: model-catalog
+    purpose: Keep the model catalog in step with the models each provider serves.
+    run: make update-model-catalog
+    cadence_days: 30
+    needs: the network and a Claude login; this check reads only the date
+    source:
+      kind: json-field
+      file: providers/ai/models.json
+      field: as_of
+
+  - id: model-prices
+    purpose: Keep the per-model prices that the eval dashboards turn into costs current.
+    run: make update-model-prices
+    cadence_days: 30
+    needs: the network and a Claude login; this check reads only the date
+    source:
+      kind: json-field
+      file: scripts/batcheval/prices.json
+      field: as_of
+
+  - id: i18n-frameworks
+    purpose: Re-verify each framework in the kapi skill's i18n registry against its ecosystem (new majors, deprecations, stewardship).
+    run: Run the i18n-triage workflow (.claude/workflows/i18n-triage.js); refresh one framework with the refresh-i18n-framework skill.
+    cadence_days: 90
+    needs: the network; this check reads only the dates
+    source:
+      kind: oldest-date
+      file: host/skills/data/kapi/references/i18n/frameworks.yaml
+      pattern: '\bverified: (\d{4}-\d{2}-\d{2})'

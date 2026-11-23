@@ -26,6 +26,7 @@ on:
       - Fuzz
       - Cache Budget
       - Bot PR Watch
+      - Gardening
     types: [completed]
   workflow_dispatch:
     inputs:

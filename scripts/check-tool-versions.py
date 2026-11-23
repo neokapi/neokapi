@@ -99,6 +99,17 @@ PINS = [
         "note": "Regenerate every *.pb.go with the new version (make proto) in the same change, so the headers and `make tools` agree.",
     },
     {
+        "name": "protoc",
+        "where": [
+            ("Makefile", r"^PROTOC_VERSION := (\d+\.\d+)$"),
+            ("bowrain/Makefile", r"^PROTOC_VERSION := (\d+\.\d+)$"),
+            ("core/**/*.pb.go", r"^//\s+(?:- )?protoc +v\d+\.(\d+\.\d+)$"),
+            ("bowrain/proto/**/*.pb.go", r"^//\s+(?:- )?protoc +v\d+\.(\d+\.\d+)$"),
+        ],
+        "latest": ("github-release", "protocolbuffers/protobuf"),
+        "note": "Install the new protoc release, raise PROTOC_VERSION in both Makefiles, and regenerate every *.pb.go (make proto) in the same change. The headers write it as v<runtime major>.<release>.",
+    },
+    {
         "name": "protoc-gen-go-grpc",
         "where": [
             ("Makefile", r"protoc-gen-go-grpc@v(\d+\.\d+\.\d+)"),
