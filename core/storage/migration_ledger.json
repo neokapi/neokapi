@@ -90,13 +90,6 @@
       "names": [
         "record the formats a parse handed embedded content to, with what read each"
       ]
-    },
-    "5": {
-      "description": "key entries by the media engines installed when they were read",
-      "identity": "48a08e37d2dbf3373c8ce41037e4c4c5",
-      "names": [
-        "key entries by the media engines installed when they were read"
-      ]
     }
   },
   "graph": {

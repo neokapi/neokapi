@@ -260,7 +260,12 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 	// here (it stalls the binary's first exec, proportional to size, up to
 	// ~1s for the larger plugins) rather than on the plugin's first real
 	// dispatch mid-workflow.
-	prewarmFirstExec(ctx, filepath.Join(pluginDir, filepath.FromSlash(m.Binary)))
+	prewarmFirstExec(ctx, &Plugin{
+		Dir:        pluginDir,
+		Source:     Source{Path: target},
+		Manifest:   m,
+		BinaryPath: filepath.Join(pluginDir, filepath.FromSlash(m.Binary)),
+	}, logf)
 
 	logf(fmt.Sprintf("✓ Installed %s %s to %s", opts.PluginName, version, pluginDir))
 
@@ -562,11 +567,18 @@ func relWithin(rel string) bool {
 // plugin answers (the same one `kapi plugins doctor` uses). The assessment
 // completes at exec time, so even a plugin that mishandles the verb is warmed.
 // Best-effort and darwin-only; no other platform stalls on first exec.
-func prewarmFirstExec(ctx context.Context, binPath string) {
+//
+// It runs the binary only after CheckLaunch passes, as every launch does.
+func prewarmFirstExec(ctx context.Context, p *Plugin, logf func(string)) {
 	if runtime.GOOS != "darwin" {
 		return
 	}
+	binPath := p.BinaryPath
 	if _, err := os.Stat(binPath); err != nil {
+		return
+	}
+	if err := CheckLaunch(p); err != nil {
+		logf("Warning: " + err.Error())
 		return
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)

@@ -28,7 +28,7 @@ import (
 // writes under one key. The hash reads the parts as a JSON array, so two
 // different sets of parts never share a name.
 func recordingBase(key docKey, sourceHash string) string {
-	b, _ := json.Marshal([]string{key.build, key.partsFormat, key.engines, key.config, sourceHash})
+	b, _ := json.Marshal([]string{key.build, key.partsFormat, key.config, sourceHash})
 	return hashKey(string(b))
 }
 
@@ -49,9 +49,12 @@ func hashKey(s string) string {
 //   - A small SQLite index records per-file staleness (content hash, mtime,
 //     size) and the document's log and skeleton refs.
 //
-// The cache is a pure optimization: its key holds the content hash, config,
-// build and the media engines installed, so a stale entry is never served and
-// an upgrade or a new engine parses the file again.
+// The cache is a pure optimization. The index key includes the content hash and
+// config, so a stale entry is never served.
+//
+// The key also carries the build that recorded the entry, because a reader's
+// code decides what it emits for a file. An upgraded kapi therefore parses a
+// file again rather than replaying the previous release's parts.
 type docCache struct {
 	DB  *storage.DB
 	dir string // directory holding the per-document logs + skeleton files
@@ -147,30 +150,6 @@ var docCacheMigrations = []storage.Migration{
 		// A cache rebuilds what it drops, so the old entries are discarded.
 		SQL: `DELETE FROM documents;
 		ALTER TABLE documents ADD COLUMN subformats TEXT NOT NULL DEFAULT '';`,
-	},
-	{
-		Version:     5,
-		Description: "key entries by the media engines installed when they were read",
-		// A cache rebuilds what it drops, so the old entries are discarded.
-		SQL: `DROP TABLE documents;
-		CREATE TABLE documents (
-			path            TEXT NOT NULL,
-			build           TEXT NOT NULL,
-			parts_format    TEXT NOT NULL,
-			engines         TEXT NOT NULL,
-			config_key      TEXT NOT NULL,
-			content_hash    TEXT NOT NULL,
-			checkout        TEXT NOT NULL,
-			mtime           INTEGER NOT NULL,
-			size            INTEGER NOT NULL,
-			parts_ref       TEXT NOT NULL,
-			parts_digest    TEXT NOT NULL,
-			skeleton_ref    TEXT NOT NULL,
-			skeleton_digest TEXT NOT NULL,
-			format          TEXT NOT NULL,
-			subformats      TEXT NOT NULL DEFAULT '',
-			PRIMARY KEY (path, build, parts_format, engines, config_key)
-		);`,
 	},
 }
 
@@ -292,18 +271,16 @@ type docRow struct {
 const partsFormat = "editions/3"
 
 // docKey is what the cache files an entry under, beside its path: the build
-// that recorded it, the shape of its records, the media engines installed
-// when it was read and the caller's config key.
+// that recorded it, the shape of its records and the caller's config key.
 type docKey struct {
-	build, partsFormat, engines, config string
+	build, partsFormat, config string
 }
 
 // buildKey namespaces a caller's config key by the build that recorded the
-// entry, the shape of its records and the media engines installed, so an
-// entry another build produced, or one read with another set of engines,
-// reads as a miss and is re-parsed.
+// entry and the shape of its records, so an entry another build produced reads
+// as a miss and is re-parsed.
 func buildKey(configKey string) docKey {
-	return docKey{build: version.Version, partsFormat: partsFormat, engines: mediaEngineStamp(), config: configKey}
+	return docKey{build: version.Version, partsFormat: partsFormat, config: configKey}
 }
 
 // openSource opens the source file path. In a project the file must be a
@@ -349,8 +326,8 @@ func (c *docCache) lookup(path, configKey string, f *os.File, st os.FileInfo) (d
 	var mtime, size int64
 	q := c.DB.QueryRow(
 		`SELECT content_hash, checkout, mtime, size, parts_ref, parts_digest, skeleton_ref, skeleton_digest, format, subformats
-		   FROM documents WHERE path = ? AND build = ? AND parts_format = ? AND engines = ? AND config_key = ?`,
-		row.path, key.build, key.partsFormat, key.engines, key.config)
+		   FROM documents WHERE path = ? AND build = ? AND parts_format = ? AND config_key = ?`,
+		row.path, key.build, key.partsFormat, key.config)
 	if err := q.Scan(&row.contentHash, &checkout, &mtime, &size, &row.partsRef, &row.partsDigest,
 		&row.skeletonRef, &row.skeletonDigest, &row.format, &row.subformats); err != nil {
 		return docRow{}, false
@@ -364,15 +341,15 @@ func (c *docCache) lookup(path, configKey string, f *os.File, st os.FileInfo) (d
 	if err != nil || h != row.contentHash {
 		return docRow{}, false
 	}
-	_, _ = c.DB.Exec(`UPDATE documents SET checkout = ?, mtime = ?, size = ? WHERE path = ? AND build = ? AND parts_format = ? AND engines = ? AND config_key = ?`,
-		c.checkout, st.ModTime().UnixNano(), st.Size(), row.path, key.build, key.partsFormat, key.engines, key.config)
+	_, _ = c.DB.Exec(`UPDATE documents SET checkout = ?, mtime = ?, size = ? WHERE path = ? AND build = ? AND parts_format = ? AND config_key = ?`,
+		c.checkout, st.ModTime().UnixNano(), st.Size(), row.path, key.build, key.partsFormat, key.config)
 	return row, true
 }
 
 // discard removes the index entry for row, so the document is parsed again.
 func (c *docCache) discard(row docRow) {
-	_, _ = c.DB.Exec(`DELETE FROM documents WHERE path = ? AND build = ? AND parts_format = ? AND engines = ? AND config_key = ?`,
-		row.path, row.key.build, row.key.partsFormat, row.key.engines, row.key.config)
+	_, _ = c.DB.Exec(`DELETE FROM documents WHERE path = ? AND build = ? AND parts_format = ? AND config_key = ?`,
+		row.path, row.key.build, row.key.partsFormat, row.key.config)
 }
 
 // checkCacheEntry reports why p is not a regular file inside dir reached
@@ -784,15 +761,15 @@ func (r *docRecorder) Commit() error {
 		skelDigest = fileDigestIn(r.c.dir, filepath.Join(r.c.dir, skelRef))
 	}
 	_, err := r.c.DB.Exec(
-		`INSERT INTO documents (path, build, parts_format, engines, config_key, content_hash, checkout, mtime, size,
+		`INSERT INTO documents (path, build, parts_format, config_key, content_hash, checkout, mtime, size,
 		                        parts_ref, parts_digest, skeleton_ref, skeleton_digest, format, subformats)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		 ON CONFLICT(path, build, parts_format, engines, config_key) DO UPDATE SET
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(path, build, parts_format, config_key) DO UPDATE SET
 		   content_hash = excluded.content_hash, checkout = excluded.checkout, mtime = excluded.mtime,
 		   size = excluded.size, parts_ref = excluded.parts_ref, parts_digest = excluded.parts_digest,
 		   skeleton_ref = excluded.skeleton_ref, skeleton_digest = excluded.skeleton_digest, format = excluded.format,
 		   subformats = excluded.subformats`,
-		r.c.keyPath(r.path), r.key.build, r.key.partsFormat, r.key.engines, r.key.config, r.contentHash, r.c.checkout,
+		r.c.keyPath(r.path), r.key.build, r.key.partsFormat, r.key.config, r.contentHash, r.c.checkout,
 		r.st.ModTime().UnixNano(), r.st.Size(), r.partsRef, hex.EncodeToString(r.ph.Sum(nil)), skelRef, skelDigest, r.format, subformats)
 	return err
 }

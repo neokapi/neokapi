@@ -6,7 +6,6 @@ import (
 	"io"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/neokapi/neokapi/core/asr"
 	"github.com/neokapi/neokapi/core/project"
@@ -57,35 +56,11 @@ func imageOCRRequested(rf project.ResolvedFile) bool {
 	return !ok || ocr
 }
 
-// mediaEngineStamp is the availability of every media engine, for keys that
-// must change when one is installed or removed (the parse cache). It is
-// worked out once per process, from the plugins found then, without the
-// notes a read prints; RefreshMediaEngines works it out again after a plugin
-// is installed or removed in a long-lived process (Kapi Desktop).
-func mediaEngineStamp() string {
-	engineStampMu.Lock()
-	defer engineStampMu.Unlock()
-	if engineStamp == "" {
-		_, _, asrErr := findASRPlugin()
-		_, visionErr := findVisionPlugin()
-		engineStamp = fmt.Sprintf("asr=%t,vision=%t", asrErr == nil, visionErr == nil)
-	}
-	return engineStamp
-}
-
-var (
-	engineStampMu sync.Mutex
-	engineStamp   string
-)
-
-// RefreshMediaEngines forgets the run's media-plugin discovery and the engine
-// stamp, so the next read and the next parse-cache key reflect the plugins
-// installed now. Kapi Desktop calls it wherever its plugin set can change.
+// RefreshMediaEngines forgets the run's media-plugin discovery, so the next
+// read and the next parse-cache key reflect the engine plugins installed now.
+// Kapi Desktop calls it wherever its plugin set can change.
 func RefreshMediaEngines() {
 	forgetMediaPlugins()
-	engineStampMu.Lock()
-	engineStamp = ""
-	engineStampMu.Unlock()
 }
 
 // UnreadMedia is a source file read without an engine its content needs.
@@ -193,4 +168,42 @@ func unreadMediaRows(files []UnreadMedia, locales []LocaleCoverage) [][2]string 
 		}
 	}
 	return rows
+}
+
+// setAsideMediaWithoutEngine returns paths without the media files whose
+// engine is not loaded now, naming each one it leaves out on w: no target is
+// written for it, since its speech or image text would not be read. When it
+// leaves out every path, nothing would run, and it returns an error that says
+// why.
+func (a *App) setAsideMediaWithoutEngine(w io.Writer, paths []string) ([]string, error) {
+	kept := paths[:0:0]
+	var reasons []string
+	for _, p := range paths {
+		missing := missingMediaEngines(project.ResolvedFile{Path: p, Format: a.readFormatOf(p, a.FormatFlag)})
+		if len(missing) == 0 {
+			kept = append(kept, p)
+			continue
+		}
+		reason := fmt.Sprintf("%s is not run, and no target is written for it: %s", p, mediaEngineReason(missing))
+		fmt.Fprintln(w, "kapi: "+reason)
+		reasons = append(reasons, reason)
+	}
+	if len(kept) == 0 && len(reasons) > 0 {
+		return nil, fmt.Errorf("nothing was run: %s", strings.Join(reasons, "; "))
+	}
+	return kept, nil
+}
+
+// mediaEngineReason says why the engines in missing cannot read a file now:
+// each is either installed and refused (with the reason) or not installed.
+func mediaEngineReason(missing []string) string {
+	parts := make([]string, 0, len(missing))
+	for _, e := range missing {
+		if reason, refused := mediaPluginRefusal(e); refused {
+			parts = append(parts, fmt.Sprintf("the %q plugin is installed but not loaded: %s", e, reason))
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("the %q plugin is not installed (kapi plugins install %s)", e, e))
+	}
+	return strings.Join(parts, "; ")
 }

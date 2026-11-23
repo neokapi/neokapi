@@ -10,8 +10,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -308,4 +310,34 @@ func TestExtractTarGz_RefusesALinkChain(t *testing.T) {
 	require.Error(t, extractTarGz(body, target, "demo"))
 	_, err := os.Stat(filepath.Join(target, "escaped"))
 	assert.True(t, os.IsNotExist(err), "nothing is written outside the plugin's directory")
+}
+
+// The macOS prewarm runs the freshly installed binary only after the launch
+// check passes, like every other launch. Elsewhere it runs nothing.
+func TestPrewarmFirstExec_ChecksTheLaunch(t *testing.T) {
+	stage := func(t *testing.T) (*Plugin, string) {
+		t.Helper()
+		root := privateRoot(t)
+		dir := stagePlugin(t, root, "demo")
+		marker := filepath.Join(t.TempDir(), "ran")
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "kapi-demo"), []byte("#!/bin/sh\ntouch "+marker+"\n"), 0o755))
+		m := &manifest.Manifest{ManifestVersion: "1", Plugin: "demo", Version: "1.0.0", Binary: "kapi-demo"}
+		return &Plugin{Dir: dir, Source: Source{Path: root}, Manifest: m, BinaryPath: filepath.Join(dir, "kapi-demo")}, marker
+	}
+
+	var warnings []string
+	refused, marker := stage(t)
+	require.NoError(t, os.Chmod(refused.Dir, 0o777))
+	prewarmFirstExec(t.Context(), refused, func(s string) { warnings = append(warnings, s) })
+	assert.NoFileExists(t, marker, "a binary others can replace is not run")
+
+	allowed, marker := stage(t)
+	prewarmFirstExec(t.Context(), allowed, func(string) {})
+	if runtime.GOOS == "darwin" {
+		require.Len(t, warnings, 1)
+		assert.Contains(t, warnings[0], "plugin demo is not run")
+		assert.FileExists(t, marker, "a binary that passes the check is warmed")
+	} else {
+		assert.NoFileExists(t, marker, "only macOS warms a new binary")
+	}
 }

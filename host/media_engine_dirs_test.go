@@ -1,6 +1,7 @@
 package host
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -137,9 +138,65 @@ func TestMissingMediaEnginesFollowThePlugins(t *testing.T) {
 	assert.Empty(t, missingMediaEngines(noOCR), "OCR is off, so no engine is needed")
 	assert.Empty(t, missingMediaEngines(project.ResolvedFile{Format: "json"}))
 
-	before := mediaEngineStamp()
 	fakeMediaPlugin(t, scratch, "asr")
 	RefreshMediaEngines()
 	assert.Empty(t, missingMediaEngines(audio))
-	assert.NotEqual(t, before, mediaEngineStamp(), "the parse cache keys on the installed engines")
+}
+
+// setMediaPluginVersion rewrites the installed stand-in plugin's manifest
+// version, as an upgrade would.
+func setMediaPluginVersion(t *testing.T, dir, name, version string) {
+	t.Helper()
+	path := filepath.Join(dir, name, "manifest.json")
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(data, &m))
+	m["version"] = version
+	out, err := json.Marshal(m)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, out, 0o644))
+}
+
+// The parse cache keys a media file by its engines' identities and nothing
+// else by them: an engine installed after a read without it, or upgraded,
+// changes the key of the formats that read through it, and of no other
+// format. A text file's key never names an engine.
+func TestFormatProducer_KeysMediaByTheirEnginesAlone(t *testing.T) {
+	scratch := t.TempDir()
+	t.Setenv("KAPI_ASR_PLUGIN", "")
+	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
+	t.Setenv("KAPI_PLUGINS_DIR", scratch)
+	RefreshMediaEngines()
+	t.Cleanup(RefreshMediaEngines)
+	a := newToolboxApp(t)
+
+	key := func(format string) string {
+		t.Helper()
+		RefreshMediaEngines()
+		id, ok := a.formatProducer(format)
+		require.True(t, ok, format)
+		return id
+	}
+
+	text0, audio0, image0, video0 := key("json"), key("audio"), key("image"), key("video")
+	assert.Equal(t, "asr=absent", audio0)
+	assert.Equal(t, "vision=absent", image0)
+
+	// Installed after a read without it: the formats it reads miss.
+	fakeMediaPlugin(t, scratch, "asr")
+	fakeMediaPlugin(t, scratch, "vision")
+	audio1, image1, video1 := key("audio"), key("image"), key("video")
+	assert.NotEqual(t, audio0, audio1)
+	assert.NotEqual(t, image0, image1)
+	assert.NotEqual(t, video0, video1)
+	assert.Equal(t, text0, key("json"), "a text file's key names no engine")
+
+	// One engine upgraded: only its formats miss.
+	setMediaPluginVersion(t, scratch, "vision", "9.9.9")
+	assert.NotEqual(t, image1, key("image"), "vision upgraded: an image misses")
+	assert.NotEqual(t, video1, key("video"), "and a video, which reads through vision too")
+	assert.Equal(t, audio1, key("audio"), "audio reads through asr alone and still hits")
+	assert.Equal(t, text0, key("json"), "a text file still hits")
+	assert.Contains(t, key("image"), "vision=vision@9.9.9#")
 }
