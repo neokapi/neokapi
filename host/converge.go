@@ -499,6 +499,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		unread = a.newUnreadSetFor("converged")
 	}
 	var sources []string
+	targeted := false
 	kept := resolved[:0]
 	for _, rf := range resolved {
 		if rf.CommentsOnly() || a.setAside(unread, filepath.Dir(projectPath), rf) {
@@ -511,6 +512,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		if rf.Item == nil || rf.Item.Target == "" {
 			continue
 		}
+		targeted = true
 		// A media file whose engine is missing now extracts and is stamped
 		// with the engine it waits for, and no locale pass runs over it: a
 		// target written from what was read would be a copy of the source
@@ -630,7 +632,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 
 	onEvent := opts.onEvent
 	emitter := convergence.NewEmitter(onEvent)
-	facts := &convergeFacts{monolingual: monolingual, noTargets: !monolingual && len(sources) == 0, unread: unread}
+	facts := &convergeFacts{monolingual: monolingual, noTargets: !monolingual && !targeted, unread: unread}
 	if a.specChecksRedactionTokens(spec) {
 		// A program step under a redaction policy records a failing finding on
 		// each block whose program output changes a placeholder, and the block
