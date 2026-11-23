@@ -7927,7 +7927,7 @@ export class ProjectFileInfo {
 }
 
 /**
- * ProjectFilter is a saved "Active Filter" — a named narrowing of the project to
+ * ProjectFilter is a saved "Active Filter", a named narrowing of the project to
  * a subset of collections (optionally further by a glob over file paths) and a
  * subset of target languages. It scopes every project view and flow run.
  * 

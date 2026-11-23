@@ -22,7 +22,7 @@ import (
 //
 // The project resolved when the server started remains the default, which is
 // what a client configured with one working directory keeps getting.
-//
+
 // Handlers thread the resolved recipe through the Command they build, the way
 // every embedded surface does. Nothing about a call is written back onto the
 // App, so two calls for two projects can run at once: the store handles they
@@ -67,16 +67,7 @@ func (a *App) MCPRecipePath() string { return a.mcpRecipePath }
 // An empty path and a nil error mean no project is in scope, which the
 // ad-hoc tools (check over a snippet, a profile named by file) run in.
 func (a *App) ResolveMCPCallProject(ctx context.Context, explicit string) (string, error) {
-	recipe, err := a.resolveMCPCallProject(ctx, explicit)
-	if err != nil || recipe == "" {
-		return recipe, err
-	}
-	// Every call that acts on a project resolves it here, so each asks whether
-	// git tracks kapi's state in it (cheap while the index is unchanged).
-	if err := project.CheckStateTracked(ctx, project.LayoutAt(filepath.Dir(recipe))); err != nil {
-		return "", err
-	}
-	return recipe, nil
+	return a.resolveMCPCallProject(ctx, explicit)
 }
 
 func (a *App) resolveMCPCallProject(ctx context.Context, explicit string) (string, error) {
