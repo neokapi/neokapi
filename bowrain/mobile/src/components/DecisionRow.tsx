@@ -1,5 +1,6 @@
 // One review decision in a list: what was decided, where it stands, the
-// translation and its source, and Undo when it can still be taken back. The
+// translation and its source, the reasons and note it was given, and Undo
+// when it can still be taken back. The
 // Reviewed screen lists the device's decisions with it, and a review entry of
 // the feed lists the server's.
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -9,6 +10,7 @@ import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
+import { reasonLabel } from "../lib/reasons";
 import { RunText } from "./RunText";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
@@ -30,6 +32,8 @@ export function DecisionRow({
   target,
   source,
   dimmed,
+  reasons,
+  note,
   canUndo,
   undoing,
   onUndo,
@@ -42,6 +46,10 @@ export function DecisionRow({
   source: readonly Run[];
   /** A decision that no longer holds. */
   dimmed?: boolean;
+  /** The reason codes the decision was given, shown as phrases. */
+  reasons?: readonly string[];
+  /** What the person wrote with the decision. */
+  note?: string;
   canUndo: boolean;
   /** Undo was tapped and the withdrawal is on its way. */
   undoing?: boolean;
@@ -91,6 +99,20 @@ export function DecisionRow({
       </View>
       <RunText runs={target} />
       <RunText runs={source} muted />
+      {reasons && reasons.length > 0 ? (
+        <View testID={`${testID}-reasons`} className="flex-row flex-wrap gap-1.5">
+          {reasons.map((r) => (
+            <View key={r} className="border-border rounded-full border px-2.5 py-0.5">
+              <Text className="text-foreground text-xs">{reasonLabel(t, r)}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {note ? (
+        <Text testID={`${testID}-note`} className="text-muted-foreground text-sm">
+          {note}
+        </Text>
+      ) : null}
     </View>
   );
 }

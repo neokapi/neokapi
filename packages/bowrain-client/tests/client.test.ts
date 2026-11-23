@@ -7,8 +7,12 @@ import {
   approveSet,
   createBowrainClient,
   diffRuns,
+  placeholderForm,
   fixSet,
+  isNetworkError,
+  NetworkError,
   readOutcome,
+  sameContent,
   rejectSet,
   revisionsOf,
   withdrawSet,
@@ -798,5 +802,111 @@ describe("feedDecisions", () => {
       canUndo: true,
       card: { blockId: "b1", targetRevision: "r:t", target: [{ text: "Hei" }] },
     });
+  });
+});
+
+describe("a request that gets no answer", () => {
+  it("is a network error whatever class the fetch rejects with", async () => {
+    // Expo's fetch rejects a lost connection with a plain Error.
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async () => {
+        throw new Error("fetch failed: The network connection was lost.");
+      }) as typeof fetch,
+    });
+    const err = await client
+      .applyChanges({ workspace: "acme", project: "p1" }, approveSet(card))
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(NetworkError);
+    expect(isNetworkError(err)).toBe(true);
+    expect((err as Error).message).toContain("network connection was lost");
+  });
+
+  it("is a network error for a token refresh too", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async () => {
+        throw new Error("fetch failed: The Internet connection appears to be offline.");
+      }) as typeof fetch,
+    });
+    const err = await client.refresh("r").catch((e: unknown) => e);
+    expect(isNetworkError(err)).toBe(true);
+  });
+
+  // An answer whose connection drops while its body arrives: the status came,
+  // the body did not.
+  const cutMidBody = (async () =>
+    new Response(
+      new ReadableStream({
+        start(c) {
+          c.enqueue(new TextEncoder().encode('{"schema":"kapi.change-result/v1","sta'));
+          c.error(new Error("terminated: other side closed"));
+        },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    )) as typeof fetch;
+
+  it("is a network error when the connection drops while a write's answer arrives", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: cutMidBody,
+    });
+    const err = await client
+      .applyChanges({ workspace: "acme", project: "p1" }, approveSet(card))
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(NetworkError);
+    expect((err as Error).message).toContain("other side closed");
+  });
+
+  it("is a network error when the connection drops while a read's or a token's answer arrives", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: cutMidBody,
+    });
+    expect(await client.workspaces().catch((e: unknown) => e)).toBeInstanceOf(NetworkError);
+    expect(await client.refresh("r").catch((e: unknown) => e)).toBeInstanceOf(NetworkError);
+  });
+});
+
+describe("the same content", () => {
+  const code = (id: string, type = "x-var"): Run =>
+    ({ ph: { id, type, data: "{{n}}", equiv: "{{n}}" } }) as Run;
+  const open = (id: string, type: string): Run => ({ pcOpen: { id, type, data: "<b>" } }) as Run;
+  const close = (id: string): Run => ({ pcClose: { id, type: "fmt", data: "</b>" } }) as Run;
+  const plural = (one: string): Run =>
+    ({
+      plural: { pivot: "n", forms: { one: [{ text: one }], other: [{ text: "files" }] } },
+    }) as Run;
+
+  it("is equal run for run", () => {
+    expect(sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }, code("1")])).toBe(true);
+    expect(sameContent([plural("file")], [plural("file")])).toBe(true);
+  });
+
+  it("is not the same words with a placeholder that differs", () => {
+    expect(sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }, code("2")])).toBe(false);
+    expect(
+      sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }, code("1", "x-date")]),
+    ).toBe(false);
+    expect(sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }])).toBe(false);
+  });
+
+  it("is not the same words with a paired code that differs", () => {
+    const a = [open("1", "fmt"), { text: "Lagre" }, close("1")];
+    const b = [open("1", "link"), { text: "Lagre" }, close("1")];
+    expect(sameContent(a, b)).toBe(false);
+    expect(sameContent(a, [{ text: "Lagre" }])).toBe(false);
+  });
+
+  it("is not a plural whose forms differ", () => {
+    expect(sameContent([plural("file")], [plural("fil")])).toBe(false);
+  });
+
+  it("writes inline codes as a read shows them", () => {
+    expect(placeholderForm([{ text: "a" }, ph, { text: "b" }])).toBe('a<x id="1/"/>b');
   });
 });

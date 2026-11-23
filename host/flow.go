@@ -1717,6 +1717,9 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := refuseConfiguredReviewFeedback(toolName, config); err != nil {
+		return nil, nil, err
+	}
 
 	info := a.ToolReg.ToolInfo(registry.ToolID(toolName))
 
@@ -2611,6 +2614,10 @@ func (a *App) stepToolConfig(step flow.FlowStep, cmd Command, rCtx *flow.Resourc
 	}
 	config = a.ApplyProjectBindings(step.Tool, toolSchema, config)
 	config, err := a.applyFlowRedaction(step.Tool, config, rCtx)
+	if err != nil {
+		return nil, noop, err
+	}
+	config, err = a.applyReviewFeedback(step.Tool, config, cmd)
 	if err != nil {
 		return nil, noop, err
 	}

@@ -298,9 +298,11 @@ shows it (default, open to change). A rule with neither shows no language.
 How the command line decides the kind (`host/contextactor.go`):
 `KAPI_ACTOR` names it outright. Otherwise a host marker (`CLAUDECODE` with
 `CLAUDE_CODE_SESSION_ID`, `CODEX_SESSION_ID`) means agent. `KAPI_ACTOR=person`
-inside a marked shell is recorded as a person, and the override survives only
-as text in the operation's note (`ResolvedActor.NoteWith`). That is how 19 of
-the dogfood's 24 operations read as a person's.
+inside a marked shell is recorded as a person, with the agent host on the
+actor (`contextop.Actor.AgentHost`, and `AgentHost` on a decision). Released
+clients wrote it into the note instead; `change.SplitNote` reads such a note
+back into the note and the host. That is how 19 of the dogfood's 24
+operations read as a person's.
 
 What is missing:
 

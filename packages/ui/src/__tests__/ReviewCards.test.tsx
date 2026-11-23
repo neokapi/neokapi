@@ -2,7 +2,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
-import type { ReviewPoint } from "@neokapi/contract-types";
+import { DECISION_REASONS, type ReviewPoint } from "@neokapi/contract-types";
 import {
   HistoryCard,
   JudgementCard,
@@ -13,6 +13,7 @@ import {
   checkFindingViews,
   decisionLabel,
   originLabel,
+  reasonLabel,
 } from "../components/review";
 
 beforeAll(() => {
@@ -445,6 +446,21 @@ describe("ProvenanceCard", () => {
     expect(screen.getByTestId("provenance-note").textContent).toContain("Reads as machine output.");
   });
 
+  it("shows the agent host a person decided from as its own element, never in the note", () => {
+    render(
+      <ProvenanceCard
+        provenance={{
+          review_state: "rejected",
+          by: "maria@bowrain.test",
+          note: "Too formal.",
+          agent_host: "claude-code",
+        }}
+      />,
+    );
+    expect(screen.getByTestId("provenance-note").textContent).toBe("NoteToo formal.");
+    expect(screen.getByTestId("provenance-agent-host").textContent).toContain("claude-code");
+  });
+
   it("shows a kind it has no phrase for as recorded, and states its own empty case", () => {
     const { unmount } = render(<ProvenanceCard provenance={{ origin: { kind: "import" } }} />);
     expect(screen.getByTestId("provenance-origin").textContent).toContain("import");
@@ -474,6 +490,31 @@ describe("ProvenanceCard", () => {
       />,
     );
     expect(screen.getByTestId("provenance-note").textContent).toContain("Approved as written.");
+  });
+
+  it("shows a decision's reasons as phrases beside its note", () => {
+    render(
+      <ProvenanceCard
+        provenance={{
+          review_state: "rejected",
+          note: "Reads as machine output.",
+          reasons: ["meaning", "tone"],
+        }}
+      />,
+    );
+    const reasons = screen.getByTestId("provenance-reasons").textContent ?? "";
+    expect(reasons).toContain("Meaning");
+    expect(reasons).toContain("Tone");
+    expect(reasons).not.toContain("meaning");
+    expect(screen.getByTestId("provenance-note").textContent).toContain("Reads as machine output.");
+  });
+
+  it("has a phrase for every reason code a decision may carry", () => {
+    for (const code of DECISION_REASONS) {
+      const label = reasonLabel(code);
+      expect(label, code).not.toBe(code);
+      expect(label.length, code).toBeGreaterThan(0);
+    }
   });
 
   it("reads the same words for the same kinds and states everywhere", () => {

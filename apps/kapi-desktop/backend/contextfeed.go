@@ -2,21 +2,12 @@ package backend
 
 // The feed of context operations, and the decisions a person makes on them.
 //
-// An agent works in a project through the CLI or its MCP server, in another
-// process. Everything it records goes into this machine account's workspace
-// operation log, which is the same log the workspace watcher polls, so what it
-// records appears here within a second of being written. A decision made here
-// is appended to that log and written into the project's stores, so the
-// agent's next read carries it. The two processes share a store and nothing
-// else: no IPC, no service between them.
-//
-// Reading and deciding both go through host.App, which folds the log, reports
-// the status each subject-bearing operation ended up at, and owns the policy
-// about who may keep, drop, widen and reset. Every call names the project by
-// its workspace key, which the host resolves to a checkout on this machine
-// when there is one and to the project's stores in the workspace otherwise,
-// so a project registered from another machine is decided on here too. This
-// file records no operation of its own.
+// An agent records into this machine's workspace operation log from another
+// process, and the workspace watcher polls it, so its work appears here
+// within a second. A decision made here is appended to the same log. Reading
+// and deciding both go through host.App, which owns the policy about who may
+// keep, drop, widen and reset. Every call names the project by its workspace
+// key.
 
 import (
 	"cmp"
@@ -833,7 +824,7 @@ func groupContextFeed(records, checks []contextop.Record, registry *contextProje
 			group = &ContextFeedGroup{
 				ID:          id,
 				Session:     r.Actor.Session,
-				Actor:       actorDTO(r.Actor),
+				Actor:       recordActorDTO(r),
 				Day:         day,
 				ProjectKey:  string(r.Project),
 				ProjectName: registry.name(r.Project),
@@ -1106,13 +1097,13 @@ func contextFeedEntry(r contextop.Record, projectName, recipe string) ContextFee
 		Kind:        string(r.Kind),
 		Status:      string(r.Status),
 		ContestedBy: contextop.ShortIDs(r.ContestedBy),
-		Actor:       actorDTO(r.Actor),
+		Actor:       recordActorDTO(r),
 		Subject:     subjectDTO(r.Subject),
 		Evidence:    []screens.ContextEvidenceDTO{},
 		Scope:       scopeDTO(r.Scope),
 		Target:      contextop.ShortID(r.Target),
 		Before:      contextop.ShortID(r.Before),
-		Note:        r.Note,
+		Note:        saidNote(r),
 		At:          r.At.UTC().Format(time.RFC3339),
 		Standing:    r.Standing.Describe(),
 		Decidable:   decidable(r),
@@ -1165,6 +1156,20 @@ func voiceWrite(r contextop.Record) bool {
 // sees which machine an agent ran on.
 func actorDTO(a contextop.Actor) screens.ContextActorDTO {
 	return screens.ActorFrom(a)
+}
+
+// recordActorDTO is who performed an operation, with the agent host a person
+// recorded it from, read beside the note (contextop.Record.Said).
+func recordActorDTO(r contextop.Record) screens.ContextActorDTO {
+	out := screens.ActorFrom(r.Actor)
+	_, out.AgentHost = r.Said()
+	return out
+}
+
+// saidNote is an operation's note as the person typed it.
+func saidNote(r contextop.Record) string {
+	note, _ := r.Said()
+	return note
 }
 
 // subjectDTO flattens a subject for the feed.

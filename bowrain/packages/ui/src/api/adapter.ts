@@ -230,22 +230,22 @@ export interface ApiAdapter {
   /**
    * Attempt a session refresh through the normal auth-refresh path, without
    * carrying a request. Resolves true when the session is (again) valid.
-   * Consumers that cannot see HTTP status codes — the SSE EventSource, which
-   * silently reconnect-loops on 401 after session expiry — call this before
+   * Consumers that cannot see HTTP status codes (the SSE EventSource, which
+   * silently reconnect-loops on 401 after session expiry) call this before
    * reconnecting. Optional: only cookie/token adapters (web REST) implement
    * it; the desktop's keychain-Bearer transport has no cookie session to
    * refresh, and callers must treat an absent member as "nothing to refresh".
    */
   refreshSession?(): Promise<boolean>;
 
-  // Account management — onboarding (handle pick), email change, slug check.
+  // Account management: onboarding (handle pick), email change, slug check.
   getOnboardingStatus(): Promise<OnboardingStatus>;
   completeOnboarding(slug: string, displayName?: string): Promise<Workspace>;
   checkSlug(slug: string): Promise<SlugCheckResponse>;
   requestEmailChange(newEmail: string): Promise<EmailChangeRequestResponse>;
   confirmEmailChange(token: string): Promise<EmailChangeConfirmResponse>;
 
-  // Account security — self-service passkey (WebAuthn) management. The server
+  // Account security: self-service passkey (WebAuthn) management. The server
   // relays the ceremony (Cognito) or steers to an account console (Keycloak);
   // no identity-provider token ever reaches the browser.
   getAccountSecurity(): Promise<AccountSecurity>;
@@ -505,7 +505,7 @@ export interface ApiAdapter {
   // Integration connectors (Bowrain AD-011). Workspace-scoped CMS/design/
   // marketing integrations (WordPress, Figma, HubSpot); a connector is added
   // once per workspace, and fetch/publish bind it to a specific project.
-  // Config secrets are write-only — the list never echoes them back.
+  // Config secrets are write-only: the list never echoes them back.
   listConnectors(workspaceSlug: string): Promise<ConnectorInfo[]>;
   addConnector(
     workspaceSlug: string,
@@ -514,7 +514,7 @@ export interface ApiAdapter {
   ): Promise<ConnectorInfo>;
   removeConnector(workspaceSlug: string, connectorId: string): Promise<void>;
   // GitHub App post-install setup: the repositories an installation covers
-  // (annotated with existing bindings), and binding one to a project — which
+  // (annotated with existing bindings), and binding one to a project, which
   // creates an app-auth forge connector server-side.
   /**
    * Mint the signed state that ties an installation back to this workspace.
@@ -554,7 +554,7 @@ export interface ApiAdapter {
   ): Promise<BindInstallationRepoResult>;
   /**
    * Read a connector's sync state. The default is the cheap stored read
-   * (last sync + last recorded ingest error) — safe to poll. Pass
+   * (last sync + last recorded ingest error): safe to poll. Pass
    * `{ probe: true }` for the deep live probe (item counts, pending
    * pull/push, remote reachability); for git/forge connectors that re-runs a
    * clone, so reserve it for explicit "Test"/manual surfaces, never polls.
@@ -566,7 +566,7 @@ export interface ApiAdapter {
   ): Promise<ConnectorSyncStatus>;
   /**
    * Read a whole panel's connector states in one call. `probe` applies to the
-   * batch, with the same cost as the single read — reserve it for explicit
+   * batch, with the same cost as the single read: reserve it for explicit
    * "Test" surfaces. At most 100 ids; a connector the server cannot answer for
    * lands in `unknown` rather than failing the call.
    */
@@ -845,7 +845,7 @@ export interface ApiAdapter {
   ): Promise<void>;
   /**
    * The plan's last step: establishes every waiting translation that clears
-   * every bar, recorded with the reason "review policy".
+   * every bar, recorded with the reason "review_policy".
    */
   settleReviewPlan?(
     workspaceSlug: string,
@@ -856,8 +856,8 @@ export interface ApiAdapter {
   startReviewPlanScan?(workspaceSlug: string, projectId: string): Promise<void>;
 
   // Back-to-source review (RV-F): a reviewer proposes a source-text fix; a source
-  // owner (PermEditSource) approves it — applying it and re-drafting every locale
-  // — or rejects it.
+  // owner (PermEditSource) approves it (applying it and re-drafting every locale)
+  // or rejects it.
   createSourceProposal(
     workspaceSlug: string,
     projectId: string,
@@ -1063,7 +1063,7 @@ export interface ApiAdapter {
   ): Promise<AutomationLogEntry[]>;
   cancelAutomationRun(workspaceSlug: string, projectId: string, runId: string): Promise<void>;
 
-  // Flow definitions (Bowrain AD-013) — server-side, project-scoped pipeline
+  // Flow definitions (Bowrain AD-013): server-side, project-scoped pipeline
   // graphs that automation run_flow actions reference. Built-in flows are
   // merged into the listing; project flows are persisted server-side.
   listFlowDefinitions(workspaceSlug: string, projectId: string): Promise<FlowDefinitionInfo[]>;
@@ -1203,7 +1203,7 @@ export interface ApiAdapter {
     name?: string,
   ): Promise<VoiceProfile>;
 
-  // Context scan (AI brand onboarding — epic 016). A scan drafts a voice
+  // Context scan (AI brand onboarding, epic 016). A scan drafts a voice
   // profile + candidate terms from pasted text, fetched pages, uploaded files,
   // and repo docs; the draft is reviewed and approved by a human via the
   // ordinary createVoiceProfile/createConcept surface.
@@ -1248,8 +1248,8 @@ export interface ApiAdapter {
   // Activities (Bowrain AD-014)
   /**
    * One page of the workspace activity feed. `type` and `types` are prefix
-   * matches — `types` ORs one per element, which is how a feed spans families
-   * ("review." plus "task.") that no single prefix expresses — and `types`
+   * matches. `types` ORs one per element, which is how a feed spans families
+   * ("review." plus "task.") that no single prefix expresses, and `types`
    * wins when both are given.
    */
   listActivities(
@@ -1270,7 +1270,7 @@ export interface ApiAdapter {
   /** One page of a project's feed, newest first (GET /:ws/:id/feed). */
   listProjectFeed(workspaceSlug: string, projectId: string, query?: FeedQuery): Promise<FeedPage>;
 
-  // Convergence runs (server-side `kapi up`) — Bowrain AD-022
+  // Convergence runs (server-side `kapi up`): Bowrain AD-022
   listConvergenceRuns(
     workspaceSlug: string,
     projectId: string,
@@ -1301,7 +1301,7 @@ export interface ApiAdapter {
 
   /**
    * The workspace home's loop rollup: the most recent convergence run across
-   * the workspace's projects plus a cached-basis ship-state rollup — one
+   * the workspace's projects plus a cached-basis ship-state rollup: one
    * request in place of a per-project fan-out. Absent fields mean "no data";
    * the corresponding card hides.
    */
@@ -1310,13 +1310,13 @@ export interface ApiAdapter {
   // Tasks (Bowrain AD-014)
   /**
    * One page of the workspace's tasks. `statuses` and `types` are sets matched
-   * exactly and win over their singular counterparts — a surface spanning
+   * exactly and win over their singular counterparts: a surface spanning
    * review, review_terms and source_review has no single `type`.
    */
   listTasks(workspaceSlug: string, query?: TaskQuery): Promise<TaskPage>;
   /**
-   * The same filter's totals, counted over the whole set rather than the page
-   * — a kanban header that counts the rows it loaded understates a column with
+   * The same filter's totals, counted over the whole set rather than the page.
+   * A kanban header that counts the rows it loaded understates a column with
    * more work than one page.
    */
   getTaskCounts(workspaceSlug: string, query?: TaskQuery): Promise<TaskCounts>;
@@ -1410,7 +1410,7 @@ export interface ApiAdapter {
   /** The plans this deployment can actually sell, and whether the credit pack is buyable. */
   billingGetPlans(workspaceSlug: string): Promise<BillingPlansResponse>;
   /**
-   * Start a subscription checkout. The client names a PLAN, never a price — the
+   * Start a subscription checkout. The client names a PLAN, never a price: the
    * server resolves the price, so a client can neither invent one nor pick a
    * cheaper one. `seats` applies to per-seat plans and defaults to the
    * workspace's current member count.
@@ -1442,7 +1442,7 @@ export interface ApiAdapter {
    */
   billingGetLedgerPage(workspaceSlug: string, query?: CreditLedgerQuery): Promise<CreditLedgerPage>;
 
-  // Brand knowledge graph — Concepts (AD-021)
+  // Brand knowledge graph: Concepts (AD-021)
   // The concept routes share /api/v1/{ws}/concepts with the Terminology block
   // above; these add the graph/governance surface that hangs off a concept.
   // listConcepts/getConcept/createConcept return the same ConceptInfo /
@@ -1506,14 +1506,14 @@ export interface ApiAdapter {
   ): Promise<void>;
   deleteConceptComment(workspaceSlug: string, conceptId: string, commentId: string): Promise<void>;
 
-  // Brand knowledge graph — Markets (AD-021)
+  // Brand knowledge graph: Markets (AD-021)
   listMarkets(workspaceSlug: string): Promise<Market[]>;
   createMarket(workspaceSlug: string, req: MarketRequest): Promise<Market>;
   updateMarket(workspaceSlug: string, marketId: string, req: MarketRequest): Promise<Market>;
   /** Deletes a market at the revision the caller read; the server refuses a stale one. */
   deleteMarket(workspaceSlug: string, marketId: string, baseRevision: string): Promise<void>;
 
-  // Brand knowledge graph — Change-sets / experiments (AD-021)
+  // Brand knowledge graph: Change-sets / experiments (AD-021)
   /** Change-set headers, each carrying `ops_count`. */
   listChangesets(workspaceSlug: string, status?: ChangeSetStatus): Promise<ChangeSet[]>;
   /** The workspace's change-sets bucketed by lifecycle status. */
@@ -1546,7 +1546,7 @@ export interface ApiAdapter {
   abandonChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSet>;
   /**
    * A change-set's blast radius. A submitted change-set answers from its
-   * stored summary — `stored: true`, `computed_at` set, and null `projects`
+   * stored summary: `stored: true`, `computed_at` set, and null `projects`
    * and `samples`, since the summary never carried the breakdown. Ask
    * {@link ApiAdapter.refreshChangesetBlastRadius} for the breakdown.
    */
@@ -1567,7 +1567,7 @@ export interface ApiAdapter {
   /**
    * The findings diff for one stream: what the check matchers raise under the
    * live graph and under the graph the draft would produce. No pilot need
-   * exist — a reviewer may ask what a draft would do to a stream before binding
+   * exist: a reviewer may ask what a draft would do to a stream before binding
    * it to one.
    */
   trialFindings(

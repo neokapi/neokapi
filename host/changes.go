@@ -27,6 +27,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // This file builds the change service (core/change) for a surface of the kapi
@@ -1064,7 +1065,7 @@ func whoOf(actor change.Actor, set *change.Set) changeActor {
 	if set != nil && set.Note != "" {
 		note = set.Note
 	}
-	return changeActor{Actor: contextop.Actor{Kind: contextop.ActorKind(actor.Kind), Name: actor.Name, Session: actor.Session}, Note: note}
+	return changeActor{Actor: contextActorOf(actor), Note: note}
 }
 
 func (c *changeAssets) Prepare(ctx context.Context, actor change.Actor, op change.Op, target *change.DecisionTarget) *change.Error {
@@ -1172,6 +1173,17 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 	}
 	locale := string(target.Ref.Edition.Locale)
 	ref := ReviewUnitRef{File: filepath.FromSlash(file), Key: target.Ref.Block, Locale: locale}
+	if body.Outcome != change.OutcomePrereview {
+		// The same refusal, in the same words, as the platform's change
+		// route: a decision the platform would refuse never reaches a push.
+		note := ""
+		if set != nil {
+			note = set.Note
+		}
+		if err := venue.CheckDecisionInput(note, body.Reasons); err != nil {
+			return "", &change.Error{Code: change.CodeInvalid, Field: err.Field, Message: err.Message}
+		}
+	}
 	switch body.Outcome {
 	case change.OutcomePrereview:
 		review := state.AIReview{Model: reviewerName(actor), At: nowRFC3339(), TargetHash: targetHash(decided.target), Revision: decided.targetRev}
@@ -1194,10 +1206,10 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 		if set != nil {
 			note = set.Note
 		}
-		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionRejected, note, decided)
+		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionRejected, note, venue.NormalizeReasons(body.Reasons), actor.AgentHost, decided)
 		return decisionOutcome(changed, err)
 	default:
-		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionApproved, "", decided)
+		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionApproved, "", venue.NormalizeReasons(body.Reasons), actor.AgentHost, decided)
 		return decisionOutcome(changed, err)
 	}
 }

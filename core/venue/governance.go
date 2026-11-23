@@ -4,15 +4,11 @@ import "github.com/neokapi/neokapi/core/model"
 
 // The shape of what a venue's review governance did with a push, in transit.
 //
-// A push moves content. Whether a rung above translated may be written,
-// whether a verdict may be recorded, and whether an established unit the venue
-// holds may be withdrawn, is the venue's to answer: it holds the permissions, the
-// workspace policy and the authorship that answer needs. So a push can carry an
-// approval the venue declines to accept, or a demotion it declines to apply,
-// and the report of what it declined travels back to the producer that sent
-// it, both for the person reading the push and so the project's own record can
-// follow the venue rather than sending the same refused claim again on every
-// push.
+// A push moves content. The venue answers whether a rung above translated, a
+// verdict or the withdrawal of an established unit may be written, because it
+// holds the permissions and the policy. What it declines travels back to the
+// producer, for the person reading the push and so the project's record can
+// follow the venue instead of sending the same refused claim again.
 
 // Review states a decision record can carry.
 const (
@@ -39,6 +35,13 @@ const (
 	// changes nothing about the one the venue holds now; the venue keeps its
 	// own record and sends it back when it holds one.
 	RefusedStaleRejection = "the rejection names a translation the platform no longer holds"
+	// RefusedNoteTooLong: the decision states a note longer than
+	// MaxDecisionNote characters. The rest of the push lands; this decision
+	// does not, and the venue keeps the record it held.
+	RefusedNoteTooLong = "the note is longer than 2000 characters: shorten it and record the decision again"
+	// RefusedUnknownReason: the decision states a reason that is not a
+	// reason code. The rest of the push lands; this decision does not.
+	RefusedUnknownReason = "a reason is not one of wrong_term, meaning, tone, placeholder, grammar: choose from those and record the decision again"
 )
 
 // ReasonLabel is the wording a person reads for a refusal reason. The reasons

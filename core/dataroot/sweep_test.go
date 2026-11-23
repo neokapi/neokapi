@@ -1,4 +1,4 @@
-package host
+package dataroot
 
 import (
 	"os"
@@ -169,7 +169,7 @@ func TestDataRootChild(t *testing.T) {
 	if os.Getenv(envDataRootChild) == "" {
 		t.Skip("run by TestATestBinaryLeavesNoDataRootBehind")
 	}
-	dir := DataDir()
+	dir := Dir()
 	require.Equal(t, testDataRoot(os.TempDir(), os.Getpid()), dir)
 	require.NoError(t, os.MkdirAll(dir, 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "marker"), []byte("x"), 0o600))

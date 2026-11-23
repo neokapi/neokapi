@@ -3,7 +3,10 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
+
+	"github.com/neokapi/neokapi/core/contextop"
 )
 
 // A ContextSession is one person's short pass over a project's context deck.
@@ -26,13 +29,19 @@ type ContextSession struct {
 	ExpiresAt time.Time
 	// EndedAt is zero while the session runs.
 	EndedAt time.Time
+	// DealCards, when set, gives the cards the session deals from the items
+	// it holds. StartContextSession calls it inside the transaction that
+	// records the session and its holds, and records what it returns, so a
+	// session starts with its holds and its cards or not at all. An error
+	// from it fails the start and leaves nothing held.
+	DealCards func(held []contextop.ItemRef) ([]ContextSessionCard, error) `json:"-"`
 }
 
-// ContextSessionCard is one card a session dealt: the item's key
-// (contextop.ItemRef.Key), and what the session summary reads about it.
+// ContextSessionCard is one card a session dealt: the item it names, and what
+// the session summary reads about it.
 type ContextSessionCard struct {
-	Item string `json:"item"`
-	Kind string `json:"kind"`
+	Item contextop.ItemRef `json:"item"`
+	Kind string            `json:"kind"`
 	// Term is the card's term, when it names one.
 	Term string `json:"term,omitempty"`
 	// Concept is the concept a concept card or a term-translation card
@@ -51,7 +60,7 @@ const (
 
 // ContextSessionDecision is one decision made in a session.
 type ContextSessionDecision struct {
-	Item string `json:"item"`
+	Item contextop.ItemRef `json:"item"`
 	// Outcome is kept, changed (kept in the reviewer's own wording) or
 	// rejected.
 	Outcome string    `json:"outcome"`
@@ -65,7 +74,7 @@ func (s ContextSession) Live(now time.Time) bool {
 
 // ContextSessionHold is a card a live session holds.
 type ContextSessionHold struct {
-	Item      string
+	Item      contextop.ItemRef
 	SessionID string
 	UserID    string
 }
@@ -78,7 +87,7 @@ type ContextSessionStore interface {
 	// them. It first ends the project's sessions that expired, and releases
 	// their holds. Two sessions started at once hold disjoint cards. It
 	// returns the items it holds, in the order given.
-	StartContextSession(ctx context.Context, sess ContextSession, items []string, limit int) ([]string, error)
+	StartContextSession(ctx context.Context, sess ContextSession, items []contextop.ItemRef, limit int) ([]contextop.ItemRef, error)
 	// SetContextSessionCards records the cards a session dealt.
 	SetContextSessionCards(ctx context.Context, id string, cards []ContextSessionCard) error
 	// GetContextSession reads one session; false when none has that id.
@@ -114,6 +123,55 @@ func ContextSessions(cs ContentStore) (ContextSessionStore, bool) {
 		cs = inner.Unwrap()
 	}
 	return nil, false
+}
+
+// StorableText reports whether a store can hold s, as text and inside JSON:
+// PostgreSQL refuses a NUL byte in both. Every value a session row, its
+// holds, its cards and its reach carry passes through this one test.
+func StorableText(s string) bool { return !strings.ContainsRune(s, 0) }
+
+// StorableItem reports whether every part of an item reference can be
+// stored.
+func StorableItem(r contextop.ItemRef) bool {
+	return StorableText(string(r.Kind)) && StorableText(r.Profile) && StorableText(r.ID)
+}
+
+// StorableCards returns cards as a store can hold them. A card whose item
+// cannot be stored is left out, since a session cannot name it; a display
+// field (Term, Concept, Kind) that cannot be stored is left empty, since the
+// summary reads it and nothing decides by it. left is how many cards were
+// left out.
+func StorableCards(cards []ContextSessionCard) (out []ContextSessionCard, left int) {
+	out = make([]ContextSessionCard, 0, len(cards))
+	for _, c := range cards {
+		if !StorableItem(c.Item) {
+			left++
+			continue
+		}
+		if !StorableText(c.Kind) {
+			c.Kind = ""
+		}
+		if !StorableText(c.Term) {
+			c.Term = ""
+		}
+		if !StorableText(c.Concept) {
+			c.Concept = ""
+		}
+		out = append(out, c)
+	}
+	return out, left
+}
+
+// StorableReach returns reach without the concepts whose id cannot be
+// stored.
+func StorableReach(reach map[string]int) map[string]int {
+	out := make(map[string]int, len(reach))
+	for k, v := range reach {
+		if StorableText(k) {
+			out[k] = v
+		}
+	}
+	return out
 }
 
 // EncodeSessionJSON encodes a session field for a store, as "[]" or "{}" when

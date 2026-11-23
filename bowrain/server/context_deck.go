@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -203,8 +202,9 @@ type contextDeckAuthor struct {
 	Kind    string `json:"kind"`
 	Name    string `json:"name,omitempty"`
 	Session string `json:"session,omitempty"`
-	// Host is the agent host a person recorded the item from, read from the
-	// operation's note ("recorded as a person in a claude-code shell").
+	// Host is the agent host a person recorded the item from: the actor's
+	// AgentHost, or for an operation a released client wrote, read from its
+	// note (contextop.Record.Said).
 	Host string `json:"host,omitempty"`
 	// OnBehalfOf names the member an agent or a tool ran for, when the store
 	// records it: the member who issued the token a tool pushed with.
@@ -268,12 +268,6 @@ type deckSource struct {
 	records []contextop.Record
 }
 
-// overrideNote is the note a person's operation carries when it was recorded
-// in an agent host's shell (host.ResolvedActor.NoteWith).
-// NoteWith appends it in brackets after a note of the person's own, or
-// writes it alone.
-var overrideNote = regexp.MustCompile(`\s*\(?recorded as a person in an? (\S+) shell\)?`)
-
 // opAuthor reads who wrote a ledger operation.
 func opAuthor(r contextop.Record) contextDeckAuthor {
 	kind := r.Actor.Kind
@@ -281,9 +275,7 @@ func opAuthor(r contextop.Record) contextDeckAuthor {
 		kind = contextop.ActorPerson
 	}
 	a := contextDeckAuthor{Kind: string(kind), Name: r.Actor.Name, Session: r.Actor.Session, OnBehalfOf: r.Actor.OnBehalfOf}
-	if m := overrideNote.FindStringSubmatch(r.Note); m != nil {
-		a.Host = m[1]
-	}
+	_, a.Host = r.Said()
 	a.AgentAuthored = kind != contextop.ActorPerson || a.Host != ""
 	return a
 }
@@ -466,7 +458,7 @@ func (s *Server) contextItems(ctx context.Context, src deckSource, rv deckReview
 
 	reviews := contextop.Reviews(src.records)
 	for i := range cards {
-		review := reviews[cards[i].Item.Key()]
+		review := reviews[cards[i].Item]
 		if review.Current(cards[i].Revision) {
 			cards[i].Reviewed = true
 			continue
@@ -504,7 +496,7 @@ func (s *Server) deckOrigins(ctx context.Context, bulk []contextop.Record, names
 		o := &contextDeckOrigin{
 			ID: r.ID, Short: contextop.ShortID(r.ID), At: r.At,
 			Author: s.recordAuthor(ctx, r, names),
-			Note:   originNote(r.Note),
+			Note:   originNote(r),
 		}
 		if src, ok := r.ImportOf(); ok {
 			o.Kind, o.Source, o.Path, o.Count = originKindImport, src.Source, src.Path, src.Count
@@ -521,9 +513,10 @@ func (s *Server) deckOrigins(ctx context.Context, bulk []contextop.Record, names
 }
 
 // originNote is what the person said about an operation, without the agent
-// host marker the author already carries.
-func originNote(note string) string {
-	return strings.Trim(overrideNote.ReplaceAllString(note, ""), " ;")
+// host the author already carries.
+func originNote(r contextop.Record) string {
+	note, _ := r.Said()
+	return note
 }
 
 // voiceWriteProfile is the voice profile a whole-profile write names: its
@@ -914,7 +907,7 @@ func patternIdentity(list string, p coreprofile.Pattern) (id, rev string) {
 // findCard is the card naming item, and whether the deck holds one.
 func findCard(cards []contextDeckCard, item contextop.ItemRef) (contextDeckCard, bool) {
 	for _, c := range cards {
-		if c.Item.Key() == item.Key() {
+		if c.Item == item {
 			return c, true
 		}
 	}

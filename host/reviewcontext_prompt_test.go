@@ -22,6 +22,8 @@ var promptContextAnswers = map[string]string{
 	"Before": "Neighbourhood.Before",
 	"After":  "Neighbourhood.After",
 	"Prior":  "History.Prior",
+	// The rejected drafts a unit's next draft is told about.
+	"Rejections": "History.Rejections",
 }
 
 func TestReviewContextAnswersPromptContext(t *testing.T) {

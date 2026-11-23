@@ -14,7 +14,7 @@ import "github.com/neokapi/neokapi/core/project"
 // holds the list to the resolvers, so a variable added to one of them cannot
 // be left out here.
 var RootEnvVars = []string{
-	// The data root (host/datadir.go), which holds the workspace.
+	// The data root (core/dataroot), which holds the workspace.
 	EnvDataDir,
 	"XDG_DATA_HOME",
 	// The config root (host/resource.go, host/config, host/credentials), and

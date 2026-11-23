@@ -123,13 +123,25 @@ export interface ReviewNeighbour {
 }
 
 /**
- * What has already been approved for this unit.
- * Mirrors core/review.History.
+ * What has already been approved for this unit, and the earlier drafts a
+ * reviewer rejected. Mirrors core/review.History.
  */
 export interface ReviewHistory {
   prior?: ReviewPriorVersion;
   match?: ReviewMemoryMatch;
   unread?: boolean;
+  rejections?: ReviewRejection[];
+}
+
+/**
+ * One rejected draft of the unit's current source: its wording while the
+ * target still holds it, the reasons as words, and the reviewer's note.
+ * Mirrors core/review.Rejection.
+ */
+export interface ReviewRejection {
+  text?: string;
+  reasons?: string[];
+  note?: string;
 }
 
 /**
@@ -203,6 +215,8 @@ export interface ReviewProvenance {
   by?: string;
   at?: string;
   note?: string;
+  agent_host?: string;
+  reasons?: string[];
   stale?: boolean;
 }
 
@@ -221,3 +235,27 @@ export interface Origin {
   profile_version?: string;
   context_fingerprint?: string;
 }
+
+/**
+ * A reason code a person may give a rejection or a correction, in the order a
+ * reason sheet offers them. Mirrors core/venue.DecisionReasons.
+ */
+export type PersonReason = "wrong_term" | "meaning" | "tone" | "placeholder" | "grammar";
+export const PERSON_REASONS: readonly PersonReason[] = ["wrong_term", "meaning", "tone", "placeholder", "grammar"];
+
+/**
+ * A reason code a decision may carry: a person's reason, or review_policy on an
+ * approval a review plan's settle pass made (core/venue.ReasonReviewPolicy).
+ * Every client shows each code as a phrase.
+ */
+export type DecisionReason =
+  | "wrong_term"
+  | "meaning"
+  | "tone"
+  | "placeholder"
+  | "grammar"
+  | "review_policy";
+export const DECISION_REASONS: readonly DecisionReason[] = ["wrong_term", "meaning", "tone", "placeholder", "grammar", "review_policy"];
+
+/** The longest note, in characters, a decision keeps (core/venue.MaxDecisionNote). */
+export const MAX_DECISION_NOTE = 2000;

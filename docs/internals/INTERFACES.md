@@ -915,7 +915,7 @@ everywhere; `KAPI_CONFIG_DIR` overrides the home. The sketch below shows the
 shape of the lookup, not the code:
 
 Beside it sits the per-user **data** root, `host.DataDir()` in
-`host/datadir.go`, for what kapi records across projects rather than what a
+`core/dataroot`, for what kapi records across projects rather than what a
 person configures. It resolves `$KAPI_DATA_DIR` first, then
 `$XDG_DATA_HOME/kapi` when that variable is set on any platform, then the
 platform default: `~/Library/Application Support/kapi` on macOS,

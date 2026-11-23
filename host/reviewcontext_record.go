@@ -20,15 +20,14 @@ import (
 //   - the recorded change that left the edition with the content in force
 //     names its writer as the origin: a person's edit reads as human, an
 //     agent's as agent with the agent named, and a tool's write as the stamp
-//     the tool left, which the block history keeps for a file that holds
-//     strings alone. A tool's write that kept no stamp, and an edit made
-//     outside kapi, leave the origin as it was.
+//     it left. A tool's write that kept no stamp, and an edit made outside
+//     kapi, leave the origin as it was.
 //   - a decision recorded against a translation that is no longer there is not
 //     the decision in force, and its origin describes text that is gone.
 func (a *App) recordedProvenance(ctx context.Context, req ReviewContextRequest, block *model.Block, loc model.LocaleID, p review.Provenance) review.Provenance {
 	source := isReviewSource(req, loc)
 	if !source && req.Unit != nil && req.Unit.Stale(state.ReadTarget(block, loc, model.LocaleID(a.SourceLocale()))) {
-		p.ReviewState, p.By, p.At, p.Note, p.Status = "", "", "", "", ""
+		p.ReviewState, p.By, p.At, p.Note, p.AgentHost, p.Status = "", "", "", "", "", ""
 		if t, ok := block.TargetEdition(loc); !ok || t.Origin.Kind == "" {
 			p.Origin = nil
 		}

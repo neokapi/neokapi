@@ -14,16 +14,13 @@ import (
 
 // What an import leaves on the record, and what it skips on the next run.
 //
-// Reading a checkout's context files puts them in force: from then on the
-// store answers with what they held, on every surface. So an import writes a
-// line per file into the project's context history, with the file's name and
-// the digest of the bytes that were read, and `kapi context log` shows it
-// beside every other operation.
+// Reading a checkout's context files puts them in force on every surface. So
+// an import writes a line per file into the project's context history, with
+// the file's name and the digest of the bytes read.
 //
-// The digests are also what a second run skips on. They live in the workspace
-// beside the rows they gate, keyed by the checkout that read them, so two
-// clones of one project each read their own files and neither decides the
-// other's have been read.
+// The digests are also what a second run skips on. They are keyed by the
+// checkout that read them, so two clones of one project each read their own
+// files.
 
 // importScribe writes an import's operations into the project's context log.
 //
@@ -51,7 +48,7 @@ func (a *App) importScribe(ctx context.Context, recipePath string) (*importScrib
 		return nil, fmt.Errorf("%s may not import context: reading a checkout's context files puts them in force for everyone working in this project, which a person decides: ask the person working here to run `kapi store import`: %w",
 			resolved.Actor.String(), contextop.ErrRefused)
 	}
-	scribe := &importScribe{actor: resolved.Actor, note: resolved.NoteWith("")}
+	scribe := &importScribe{actor: resolved.Actor}
 	if identity, _ := recipeIdentity(recipePath); identity == "" {
 		return scribe, nil
 	}

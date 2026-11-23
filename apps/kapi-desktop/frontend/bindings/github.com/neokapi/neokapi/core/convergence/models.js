@@ -477,6 +477,17 @@ export class LocaleCoverage {
         }
         if (/** @type {any} */(false)) {
             /**
+             * RejectedLeftForPerson counts units whose drafts a reviewer rejected as
+             * many times as the loop allows (tool.MaxRejections): the loop drafts them no more, and a
+             * person writes their translation. They are not convergence work, and
+             * like a rejected unit they hold the scope out of Shippable.
+             * @member
+             * @type {number | undefined}
+             */
+            this["rejected_left_for_person"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * FailingChecks counts produced units that fail the project's bound
              * target-side checks (placeholder and tag integrity, terminology). They
              * count at their true rung in Pct (the unit is translated, and a percentage
@@ -538,7 +549,7 @@ export class LocaleCoverage {
         const $$createField3_0 = $$createType1;
         const $$createField4_0 = $$createType1;
         const $$createField7_0 = $$createType3;
-        const $$createField17_0 = $$createType0;
+        const $$createField18_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
@@ -550,7 +561,7 @@ export class LocaleCoverage {
             $$parsedSource["pending"] = $$createField7_0($$parsedSource["pending"]);
         }
         if ("not_governed" in $$parsedSource) {
-            $$parsedSource["not_governed"] = $$createField17_0($$parsedSource["not_governed"]);
+            $$parsedSource["not_governed"] = $$createField18_0($$parsedSource["not_governed"]);
         }
         return new LocaleCoverage(/** @type {Partial<LocaleCoverage>} */($$parsedSource));
     }

@@ -19,6 +19,9 @@ type ContextActorDTO struct {
 	// Host is the machine or client the agent ran under, when the actor's name
 	// carries one as "<client>@<host>".
 	Host string `json:"host,omitempty"`
+	// AgentHost is the agent host whose shell a person declared themselves
+	// in, such as "claude-code" (contextop.Record.Said).
+	AgentHost string `json:"agent_host,omitempty"`
 }
 
 // ActorFrom shapes an actor for a screen. An actor with no kind is a person,
@@ -28,7 +31,7 @@ func ActorFrom(a contextop.Actor) ContextActorDTO {
 	if kind == "" {
 		kind = string(contextop.ActorPerson)
 	}
-	out := ContextActorDTO{Kind: kind, Name: a.Name, Session: a.Session}
+	out := ContextActorDTO{Kind: kind, Name: a.Name, Session: a.Session, AgentHost: a.AgentHost}
 	if name, host, found := strings.Cut(a.Name, "@"); found && name != "" && host != "" {
 		out.Name, out.Host = name, host
 	}

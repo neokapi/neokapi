@@ -24,6 +24,10 @@ import (
 // deterministic rule checks from core/tools, which need no credentials, and
 // `ai` runs the LLM judge with the configured provider.
 
+// IsMTProvider reports whether id names a machine translation engine rather
+// than an LLM provider.
+func IsMTProvider(id string) bool { return isMTProvider(id) }
+
 // isMTProvider reports whether a provider id names a machine-translation engine
 // (as opposed to an LLM provider). MT ids route `translate` to the MT tool.
 func isMTProvider(id string) bool {

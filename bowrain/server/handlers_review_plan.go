@@ -17,6 +17,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host/reviewdeck"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -78,7 +79,7 @@ func isReviewPlanProperty(key string) bool {
 
 // reasonReviewPolicy is the reason a settle pass records on each decision
 // in the ledger.
-const reasonReviewPolicy = "review policy"
+const reasonReviewPolicy = venue.ReasonReviewPolicy
 
 // interfaceSampleEvery is the share of each collection's pages a reviewer
 // reads under context: one page in this many, plus every page with a
