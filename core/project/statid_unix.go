@@ -28,7 +28,7 @@ func dirIdentity(path string) (string, error) {
 // file there. statid_birth_linux.go and statid_birth_darwin.go set it.
 var birthTimeOf = func(string, *syscall.Stat_t) string { return "" }
 
-// keyPrivate refuses a key that another user could read or replace: the key
+// keyPrivate refuses a key that another user could read or replace. The key
 // must be a regular file of mode 0600 owned by this user, in a directory owned
 // by this user that no one else can write. dinfo and info are the Lstat of the
 // directory and of the key.
