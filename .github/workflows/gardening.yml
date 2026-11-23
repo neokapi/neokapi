@@ -1,0 +1,47 @@
+# Reminds a person of the local upkeep that is overdue.
+#
+# scripts/gardening-due.py reads docs/internals/gardening.yaml. Each week this
+# keeps one issue per overdue item, labelled `gardening`: it opens one when an
+# item becomes due, comments with the new count while it stays due, and closes
+# it when the item reads as done. The work itself stays local; this job never
+# fails on what is due.
+#
+# The repository variable GARDENER names the login new issues are assigned to;
+# unset, they open unassigned. A dispatch opens and comments only, never closes.
+name: Gardening
+
+on:
+  schedule:
+    # Monday 07:00 UTC.
+    - cron: "0 7 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: gardening
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    name: Remind about overdue gardening
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Open, update or close the gardening issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          GARDENER: ${{ vars.GARDENER }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = workflow_dispatch ]; then
+            python3 scripts/gardening-due.py --sync-issues --no-close
+          else
+            python3 scripts/gardening-due.py --sync-issues
+          fi
