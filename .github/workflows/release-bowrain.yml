@@ -691,7 +691,9 @@ jobs:
           path: |
             bowrain/apps/bowrain/frontend/public/translations/qps.json
           if-no-files-found: error
-          retention-days: 1
+          # Long enough to re-run one failed build leg days later without the
+          # dictionary job.
+          retention-days: 7
 
   build-bowrain:
     name: Build Bowrain (${{ matrix.build.platform }})
