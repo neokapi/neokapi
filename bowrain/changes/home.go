@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/venue"
 )
@@ -26,18 +27,15 @@ import (
 // of its block, so every edition lives in the document.
 //
 // A stage reads the blocks a change set addresses and applies its operations
-// in memory. The commit lock is the rows: Lock holds the rows the stage read
-// on the change set's transaction, Settle applies the operations again to the
-// held rows when they moved since the stage, so every if_match is checked
-// against the rows the write stores, and Commit stores them, with their
-// history and change-log rows, and commits the transaction.
+// in memory. The commit lock is the rows. Lock holds the rows the stage read on
+// the change set's transaction. Settle applies the operations again to rows
+// that moved since the stage, so every if_match is checked against what the
+// write stores. Commit stores the rows with their history and change-log rows.
 //
 // Every item of one change set is held and stored on one transaction, which
-// the first item's Lock begins and the first Commit commits, storing every
-// item: a change set takes one database connection whatever the number of
-// items it names, and lands whole or not at all. A Home therefore commits one
-// change set at a time; the change sets applied through it run one after
-// another.
+// the first item's Lock begins and the first Commit commits. A change set takes
+// one database connection and lands whole or not at all, so a Home commits one
+// change set at a time.
 type Home struct {
 	// Store keeps the stream. It must be a store.BlockWriteStore.
 	Store store.ContentStore
@@ -569,8 +567,7 @@ func digest(rows []*venue.StoredBlock) string {
 		if err != nil {
 			raw = []byte(b.ID + ":" + err.Error())
 		}
-		h.Write(raw)
-		h.Write([]byte{0})
+		partjoin.WriteNUL(h, string(raw))
 	}
 	return "sha256:" + hex.EncodeToString(h.Sum(nil))
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // The project-wide block store keys blocks and overlays by a single string.
@@ -18,11 +19,9 @@ import (
 // (file, block) distinct while staying stable across re-reads so overlays
 // written by a run are found again at merge time.
 func StoreKey(sourceRel, blockID, sourceText string) string {
-	//keyguard:persisted hashed into the key the SQLite block store files blocks and overlays under; pinned by TestStoreKeyIsStable
-	seed := sourceRel + "\x00" + blockID
+	seed := partjoin.NUL(sourceRel, blockID)
 	if blockID == "" {
-		//keyguard:persisted hashed into the key the SQLite block store files blocks and overlays under; pinned by TestStoreKeyIsStable
-		seed = sourceRel + "\x00" + sourceText
+		seed = partjoin.NUL(sourceRel, sourceText)
 	}
 	return model.ComputeContentHash(seed)
 }

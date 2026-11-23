@@ -15,6 +15,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/mailer"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // The other summons: how a failed job reaches the person waiting on it.
@@ -22,10 +23,10 @@ import (
 // A job that fails is the one outcome nobody discovers on their own. A failed
 // review is visible in a queue; a failed job looks exactly like a job that is
 // still running, and the difference only shows up as content that never arrived.
-// So the rule is full summons by default — in-app, activity, and mail — with
+// So the rule is full summons by default (in-app, activity, and mail) with
 // the per-category preference the way out for anyone who wants the badge and
 // nothing else.
-//
+
 // This runs off flow.failed, which the workers publish (see
 // bowrain/jobs/job_failed_event.go). It deliberately does not run through the
 // notification dispatcher's generic event map: that map resolves recipients from
@@ -33,24 +34,20 @@ import (
 // is exactly wrong. A failure goes to the person who asked for the work, and
 // only falls back to the people responsible for the workspace when the platform
 // started the work itself.
-//
-// Failures are told by cause, not by job. A run that fans out thousands of jobs
-// into a workspace that has reached its AI usage limit fails every one of them
-// for the same reason, and a summons per job is thousands of notifications and
-// emails about one condition. So failures in one workspace, for the same
-// audience, of the same kind and with the same normalised reason, form a group
-// for jobFailureWindow. Each recipient holds one notification for the group,
-// rewritten with the running count as more jobs join it, and gets at most one
-// email about it. A single job that fails on its own is a group of one, and
-// reads and mails exactly as a per-job summons.
-//
+
+// Failures are told by cause. A run that fans out thousands of jobs into a
+// workspace at its AI usage limit fails every one for one reason. So failures
+// in one workspace, for one audience, of one kind and with one normalised
+// reason, form a group for jobFailureWindow. Each recipient holds one
+// notification for the group, rewritten with the running count, and gets at
+// most one email about it. A job that fails on its own is a group of one.
+
 // The notification store is the shared state, which is what makes this hold on
 // more than one server instance:
 //
 //   - The group's notification carries the group key as its source_event_id,
-//     and the store's unique (user_id, source_event_id) index makes creating it
-//     an atomic claim. The instance whose insert lands opens the group for that
-//     recipient and owns its email; every other instance folds into it.
+//     and the unique (user_id, source_event_id) index makes creating it an
+//     atomic claim. The instance whose insert lands owns the group's email.
 //   - notification_group_members records each job once per group, so the count
 //     is exact and a redelivered event neither grows it nor mails again.
 //   - The email ceiling counts the recipient's job-failure groups in the
@@ -115,12 +112,12 @@ var (
 )
 
 // jobFailureCause reduces a failure to the key that says whether two failures
-// happened for the same reason: the job kind, and the error with everything
-// particular to one job taken out. That is the job's own identifiers, item and
-// locale; quoted values; and long tokens with digits in them, which are
-// request ids, timestamps and byte counts. "workspace AI quota exceeded" is
-// the same cause on every job it stops; "openai: API error 401" and
-// "openai: API error 429" stay two causes.
+// happened for the same reason. The key is the job kind and the error with
+// everything particular to one job taken out. That is the job's identifiers,
+// item and locale, quoted values, and long tokens with digits (request ids,
+// timestamps, byte counts). "workspace AI quota exceeded" is the same cause on
+// every job it stops; "openai: API error 401" and "openai: API error 429" stay
+// two causes.
 func jobFailureCause(ev platev.Event) string {
 	reason := strings.ToLower(ev.Data["error"])
 	for _, v := range []string{
@@ -145,9 +142,7 @@ func jobFailureCause(ev platev.Event) string {
 	reason = strings.Join(strings.Fields(reason), " ")
 
 	h := fnv.New64a()
-	_, _ = h.Write([]byte(ev.Data["job_kind"]))
-	_, _ = h.Write([]byte{0})
-	_, _ = h.Write([]byte(reason))
+	_, _ = h.Write([]byte(partjoin.NUL(ev.Data["job_kind"], reason)))
 	return strconv.FormatUint(h.Sum64(), 16)
 }
 
@@ -157,9 +152,9 @@ func jobFailureCause(ev platev.Event) string {
 // instance should act on each failure. The group name is its own, separate from
 // the dispatcher's, so both consumers see every event.
 //
-// The handler always acknowledges. The summons is best-effort by design — the
+// The handler always acknowledges. The summons is best-effort by design, the
 // job has already failed, and a store that refuses an insert must not become a
-// second failure — and every miss is logged against the job.
+// second failure, and every miss is logged against the job.
 func (s *Server) subscribeJobFailures() {
 	if s.EventBus == nil {
 		return
@@ -498,7 +493,7 @@ func (s *Server) jobFailureWorkspaceID(ctx context.Context, ev platev.Event) str
 
 // jobFailureRecipients answers who hears about this failure.
 //
-// The initiator, when the job records one — the person whose push or translate
+// The initiator, when the job records one, the person whose push or translate
 // is waiting on it, and the only person who can tell whether it mattered. When
 // the platform started the work itself (automation fan-out, forge ingest, model
 // sweep, or any job enqueued before created_by existed) there is no such person,
@@ -538,7 +533,7 @@ func (s *Server) jobFailureRecipients(ctx context.Context, ev platev.Event, wsID
 //
 // Failures ship with it on. DefaultPreferences has the automation category's
 // email channel off, which was written when the category's only members were
-// completions — nothing there is worth a mail. A failure is, so the default is
+// completions, nothing there is worth a mail. A failure is, so the default is
 // overridden here rather than in DefaultPreferences: flipping it there would
 // also mail every extraction that finished. A stored preference always wins, so
 // turning it off in notification preferences still means notify-only.
@@ -566,8 +561,8 @@ func (s *Server) absoluteAppURL(path string) string {
 }
 
 // jobFailureLink points at the surface where the failure can be read and the
-// work re-run: the project's run history. A job with no project — nothing
-// enqueues one today, but the event shape permits it — lands on the workspace.
+// work re-run: the project's run history. A job with no project, nothing
+// enqueues one today, but the event shape permits it, lands on the workspace.
 func jobFailureLink(wsSlug string, ev platev.Event) string {
 	if wsSlug == "" {
 		return "/"
@@ -631,7 +626,7 @@ func jobFailureText(ev platev.Event, count int) (title, body string) {
 	return title, body
 }
 
-// jobFailureTitle is the one line that has to carry the failure — in the
+// jobFailureTitle is the one line that has to carry the failure, in the
 // notification list, and in the activity feed behind it.
 func jobFailureTitle(ev platev.Event) string {
 	return fmt.Sprintf("A %s job did not finish", jobKindProse(ev.Data["job_kind"]))

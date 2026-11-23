@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // execClassTools are the built-in tool IDs whose whole job is to run code the
@@ -446,16 +447,16 @@ func ExecSurfaceDigest(sites []ExecSite) string {
 	}
 	h := sha256.New()
 	for _, s := range sites {
-		fmt.Fprintf(h, "%s\x00%s\x00%s\x00", s.Where, s.Kind, s.Name)
+		config := ""
+		if enc, err := json.Marshal(s.config); err == nil {
+			config = string(enc)
+		} else {
+			config = fmt.Sprintf("unencodable:%v", err)
+		}
 		// A config that cannot be encoded (it came from YAML, so this should
 		// not happen) contributes a marker rather than nothing, so two sites
 		// differing only in an unencodable config never collide.
-		if enc, err := json.Marshal(s.config); err == nil {
-			h.Write(enc)
-		} else {
-			fmt.Fprintf(h, "unencodable:%v", err)
-		}
-		h.Write([]byte{0})
+		partjoin.WriteNUL(h, s.Where, s.Kind, s.Name, config)
 	}
 	return hex.EncodeToString(h.Sum(nil))
 }

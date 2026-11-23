@@ -63,11 +63,11 @@ func entry(id, source, target string) memory.Entry {
 	}
 }
 
-// writeMixedLog makes the writes every surface makes, through the projector:
-// concepts put, edited and deleted, a relation, content memory added one entry
-// at a time and in bulk, an entry deleted, an import session, a voice profile
-// created and edited, a rule widened and another narrowed, and a batch that
-// reads a bundle.
+// writeMixedLog makes the writes every surface makes, through the projector.
+// Concepts are put, edited and deleted, and a relation is added. Content
+// memory is added one entry at a time and in bulk, an entry is deleted, and an
+// import session is recorded. A voice profile is created and edited, a rule is
+// widened and another narrowed, and a batch reads a bundle.
 func writeMixedLog(t *testing.T, p *projector.Projector, n int) {
 	t.Helper()
 	ctx := t.Context()
@@ -258,6 +258,35 @@ func TestLargeWritesSplitAcrossOperations(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, ops, 1, "one write is one operation")
 	assert.Contains(t, string(ops[0].Payload), `"blob"`, "and its entries sit in a blob")
+}
+
+// TestBulkAddReplacingIsOneOperation pins that an entry a write moves to a new
+// id is deleted in the operation that adds it, and that a rebuild from the log
+// meets the same state.
+func TestBulkAddReplacingIsOneOperation(t *testing.T) {
+	p, ws, db := open(t)
+	ctx := t.Context()
+	require.NoError(t, p.Memory().BulkAddWithStream(ctx, []memory.Entry{entry("old", "Bee", "Abeille")}, ""))
+	before, err := ws.Select(ctx, workspace.OpQuery{KindPrefix: projector.KindMemory})
+	require.NoError(t, err)
+
+	require.NoError(t, p.Memory().BulkAddReplacing(ctx, []memory.Entry{entry("new", "Bee", "Abeille")}, "", []string{"old"}))
+	after, err := ws.Select(ctx, workspace.OpQuery{KindPrefix: projector.KindMemory})
+	require.NoError(t, err)
+	assert.Len(t, after, len(before)+1, "the move is one operation")
+
+	check := func() {
+		_, held, err := db.Memory().GetEntry(ctx, "old")
+		require.NoError(t, err)
+		assert.False(t, held)
+		_, held, err = db.Memory().GetEntry(ctx, "new")
+		require.NoError(t, err)
+		assert.True(t, held)
+	}
+	check()
+	_, err = p.Rebuild(ctx)
+	require.NoError(t, err)
+	check()
 }
 
 func TestEmbeddedLayoutAppliesWithoutALog(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/partjoin"
 	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/storage"
 )
@@ -48,8 +49,7 @@ type Adoption struct {
 // same state make the same adoption, and a document that returns to a path or
 // a content it held before makes a new one.
 func AdoptionID(a Adoption) string {
-	//keyguard:persisted hashed into the adoption id the document_adoption table stores; pinned by TestAdoptionIDIsStable
-	sum := sha256.Sum256([]byte(a.Key + "\x00" + a.Path + "\x00" + a.Digest + "\x00" + a.Prev))
+	sum := sha256.Sum256([]byte(partjoin.NUL(a.Key, a.Path, a.Digest, a.Prev)))
 	return hex.EncodeToString(sum[:])
 }
 

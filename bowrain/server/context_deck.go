@@ -21,6 +21,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/voicewrite"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/terms"
@@ -898,9 +899,9 @@ func profileRuleCards(src deckSource, profile *coreprofile.VoiceProfile) []conte
 
 // patternIdentity is a pattern rule's id and revision.
 func patternIdentity(list string, p coreprofile.Pattern) (id, rev string) {
-	idSum := sha256.Sum256([]byte(list + "\x00" + p.Regex))
+	idSum := sha256.Sum256([]byte(partjoin.NUL(list, p.Regex)))
 	body, _ := json.Marshal(p)
-	revSum := sha256.Sum256(append([]byte(list+"\x00"), body...))
+	revSum := sha256.Sum256([]byte(partjoin.NUL(list, string(body))))
 	return hex.EncodeToString(idSum[:8]), hex.EncodeToString(revSum[:8])
 }
 

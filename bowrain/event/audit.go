@@ -13,10 +13,11 @@ import (
 	"time"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // AuditLogger subscribes to all events and persists them to the append-only,
-// hash-chained audit_log table. PostgreSQL-only — the server always uses
+// hash-chained audit_log table. PostgreSQL-only, the server always uses
 // PostgreSQL for the content store.
 type AuditLogger struct {
 	db  *sql.DB
@@ -117,7 +118,7 @@ func marshalOrEmpty(m map[string]string) string {
 //
 // The error return is what keeps the trail complete. An append that fails is
 // not written anywhere else, and because each row links to the previous
-// SURVIVING row, a silently dropped record leaves a chain that still verifies —
+// SURVIVING row, a silently dropped record leaves a chain that still verifies,
 // a gap no verification can find. Returning the error leaves the event pending
 // so a later delivery writes it.
 func (a *AuditLogger) handleEvent(ev platev.Event) error {
@@ -145,9 +146,15 @@ func (a *AuditLogger) handleEvent(ev platev.Event) error {
 // so the chain stays consistent under concurrency.
 //
 // The insert is keyed on the event id, so a redelivered event does not append a
-// second row for the same fact — which would break the chain's meaning as much
+// second row for the same fact, which would break the chain's meaning as much
 // as a missing one. A conflicted insert commits as a no-op: the row is already
 // there, linked to whatever preceded it then.
+// auditChainInput is what an audit row's hash is taken over: the previous
+// row's hash and the row's canonical payload, joined with U+001E.
+func auditChainInput(prevHash, payload string) string {
+	return partjoin.Join(0x1e, partjoin.NULEscape, prevHash, payload)
+}
+
 func (a *AuditLogger) insertChained(ctx context.Context, ev platev.Event, chainKey, dataJSON, beforeJSON, afterJSON string) error {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -167,7 +174,7 @@ func (a *AuditLogger) insertChained(ctx context.Context, ev platev.Event, chainK
 		return fmt.Errorf("read prev hash: %w", err)
 	}
 
-	sum := sha256.Sum256([]byte(prevHash + "\x1e" + canonicalPayload(ev, dataJSON, beforeJSON, afterJSON)))
+	sum := sha256.Sum256([]byte(auditChainInput(prevHash, canonicalPayload(ev, dataJSON, beforeJSON, afterJSON))))
 	hash := hex.EncodeToString(sum[:])
 
 	_, err = tx.ExecContext(ctx,

@@ -1,5 +1,5 @@
-// Command keyguard reports map keys built by joining free parts into one
-// string.
+// Command keyguard reports map keys and hash inputs built by joining free
+// parts into one string.
 //
 // The key a + "\x00" + b is the same for ("a\x00b", "c") and ("a", "b\x00c").
 // A struct or array key (struct{a, b string}, [2]string) keeps them apart. The
@@ -14,19 +14,22 @@
 //   - the join reaches the key directly, through a variable or a struct field,
 //     or through a function that returns it, also across packages.
 //
-// A join hashed into an identity is not reported. The hash reads the same
-// bytes however the parts split, so its input is as ambiguous as the key
-// would be, and moving it changes stored identities. A persisted identity is
+// A hash reads the same bytes however its parts split, so a joined hash input
+// is as ambiguous as a joined key. The command reports a join that is hashed
+// (a sum function, Write on a hash, or a function that hashes a parameter), a
+// delimiter written to a hash between parts, and a builder holding delimiters
+// that is hashed. Such parts are joined with core/partjoin, which escapes
+// inside each part and keeps the bytes of a part that holds no separator. A
+// persisted identity that is neither hashed nor joined with partjoin is
 // exempt when its line, or the line above, holds the directive
 //
 //	//keyguard:persisted <where it is stored; the test that pins it>
 //
 // A directive without a reason, or on no join, is reported.
 //
-// Each run also checks every package again with a joined key planted in it.
-// It fails unless that key is reported, so a package the command cannot read
-// does not pass as clean. With -compared it lists each == or != on a struct
-// field assigned a join, which does not fail the run.
+// Each run also checks every package again with a joined key planted in it,
+// and fails unless that key is reported. With -compared it lists each == or
+// != on a struct field assigned a join, which does not fail the run.
 //
 // Run from the repository root:
 //
@@ -212,9 +215,9 @@ type state struct {
 	// fields maps a struct field, named by fieldName, to the joins assigned
 	// to it.
 	fields map[string]*joins
-	// keyParams maps a function's full name to the parameters it uses as a
-	// key, by position.
-	keyParams map[string]map[int]bool
+	// params maps each use (a key or a hash input) and a function's full
+	// name to the parameters the function puts to that use, by position.
+	params [2]map[string]map[int]bool
 	// compared lists the comparisons of a field assigned a join.
 	compared []string
 	// exempt holds the lines a directive covers, per file.
@@ -225,13 +228,13 @@ type state struct {
 
 func newState(fset *token.FileSet, relFile func(token.Pos) string) *state {
 	return &state{
-		fset:      fset,
-		relFile:   relFile,
-		funcs:     map[string]map[int]*joins{},
-		fields:    map[string]*joins{},
-		keyParams: map[string]map[int]bool{},
-		exempt:    map[string]map[int]bool{},
-		reported:  map[token.Pos]bool{},
+		fset:     fset,
+		relFile:  relFile,
+		funcs:    map[string]map[int]*joins{},
+		fields:   map[string]*joins{},
+		params:   [2]map[string]map[int]bool{{}, {}},
+		exempt:   map[string]map[int]bool{},
+		reported: map[token.Pos]bool{},
 	}
 }
 
@@ -248,6 +251,9 @@ type pkgCheck struct {
 	// builders holds the strings.Builder and bytes.Buffer variables a
 	// delimiter is written to.
 	builders map[types.Object]bool
+	// loopBuilders holds the builders a delimiter is written to inside a
+	// loop. Such a builder counts only as a hash input.
+	loopBuilders map[types.Object]bool
 	// loops holds the extent of every for and range statement, so a write
 	// inside one, such as a decoder writing an escaped control character,
 	// does not mark a builder.
@@ -272,7 +278,7 @@ func (st *state) checkPackage(imp types.Importer, path string, files []*ast.File
 	if err != nil && len(typeErrs) > 0 {
 		return nil, typeErrs[0]
 	}
-	c := &pkgCheck{state: st, info: info, vars: map[types.Object]*joins{}, lits: map[types.Object]map[int]*joins{}, builders: map[types.Object]bool{}}
+	c := &pkgCheck{state: st, info: info, vars: map[types.Object]*joins{}, lits: map[types.Object]map[int]*joins{}, builders: map[types.Object]bool{}, loopBuilders: map[types.Object]bool{}}
 	for _, f := range files {
 		ast.Inspect(f, func(n ast.Node) bool {
 			switch n.(type) {
@@ -329,10 +335,22 @@ func (st *state) checkPackage(imp types.Importer, path string, files []*ast.File
 				}
 			}
 			if call, ok := n.(*ast.CallExpr); ok {
-				for _, a := range c.keyArgs(call) {
+				for _, a := range c.argsTo(useKey, call) {
 					for _, j := range c.carried(a) {
 						st.report(j, a)
 					}
+				}
+				hashed := append(c.hashInputs(call), c.argsTo(useHash, call)...)
+				for _, a := range hashed {
+					for _, j := range c.carried(a) {
+						st.reportHash(j, a)
+					}
+					if c.isHashedBuild(a) {
+						st.reportHash(a, a)
+					}
+				}
+				if c.hashDelimiter(call) {
+					st.reportHash(call, call)
 				}
 			}
 			return true
@@ -386,6 +404,24 @@ func (c *pkgCheck) noteCompared(b *ast.BinaryExpr) {
 		c.compared = append(c.compared, fmt.Sprintf("%s:%d: compares %s, assigned a join at %s:%d", c.relFile(b.Pos()), p.Line, name, c.relFile(j.Pos()), c.fset.Position(j.Pos()).Line))
 		return
 	}
+}
+
+// reportHash records a join that is hashed, once, unless a directive exempts
+// it.
+func (st *state) reportHash(join, use ast.Expr) {
+	if st.reported[join.Pos()] {
+		return
+	}
+	jp := st.fset.Position(join.Pos())
+	if st.exempt[jp.Filename][jp.Line] {
+		return
+	}
+	st.reported[join.Pos()] = true
+	msg := fmt.Sprintf("%s:%d: a hash input joined with a delimiter", st.relFile(join.Pos()), jp.Line)
+	if up := st.fset.Position(use.Pos()); up.Filename != jp.Filename || up.Line != jp.Line {
+		msg += fmt.Sprintf(" (hashed at %s:%d)", st.relFile(use.Pos()), up.Line)
+	}
+	st.found = append(st.found, msg+"; join the parts with core/partjoin")
 }
 
 // report records a join used as a key, once, unless a directive exempts it.
@@ -724,8 +760,10 @@ func (c *pkgCheck) collect(f *ast.File) bool {
 					c.funcs[name] = map[int]*joins{}
 				}
 				addFunc(c.funcs[name], x.Body)
-				if c.markKeyParams(name, x) {
-					changed = true
+				for _, u := range []use{useKey, useHash} {
+					if c.markParams(u, name, x) {
+						changed = true
+					}
 				}
 			}
 		case *ast.CallExpr:
@@ -915,10 +953,26 @@ func (c *pkgCheck) isMap(e ast.Expr) bool {
 	return ok
 }
 
-// markKeyParams records which parameters of a function it uses as a key,
-// directly or by passing them on to a function that does, and reports
-// whether it learned anything new.
-func (c *pkgCheck) markKeyParams(name string, fd *ast.FuncDecl) bool {
+// use is what a function does with a parameter the guard follows.
+type use int
+
+const (
+	useKey  use = iota // a key of a map or a cache
+	useHash            // an input to a hash
+)
+
+// sinks returns the expressions n puts to u.
+func (c *pkgCheck) sinks(u use, n ast.Node) []ast.Expr {
+	if u == useHash {
+		return c.hashInputs(n)
+	}
+	return c.mapKeys(n)
+}
+
+// markParams records which parameters of a function it puts to u, directly or
+// by passing them on to a function that does, and reports whether it learned
+// anything new.
+func (c *pkgCheck) markParams(u use, name string, fd *ast.FuncDecl) bool {
 	params := map[types.Object]int{}
 	i := 0
 	for _, field := range fd.Type.Params.List {
@@ -946,20 +1000,20 @@ func (c *pkgCheck) markKeyParams(name string, fd *ast.FuncDecl) bool {
 		if !ok {
 			return
 		}
-		if c.keyParams[name] == nil {
-			c.keyParams[name] = map[int]bool{}
+		if c.params[u][name] == nil {
+			c.params[u][name] = map[int]bool{}
 		}
-		if !c.keyParams[name][idx] {
-			c.keyParams[name][idx] = true
+		if !c.params[u][name][idx] {
+			c.params[u][name][idx] = true
 			changed = true
 		}
 	}
 	ast.Inspect(fd.Body, func(n ast.Node) bool {
-		for _, k := range c.mapKeys(n) {
+		for _, k := range c.sinks(u, n) {
 			mark(k)
 		}
 		if call, ok := n.(*ast.CallExpr); ok {
-			for _, a := range c.keyArgs(call) {
+			for _, a := range c.argsTo(u, call) {
 				mark(a)
 			}
 		}
@@ -968,14 +1022,13 @@ func (c *pkgCheck) markKeyParams(name string, fd *ast.FuncDecl) bool {
 	return changed
 }
 
-// keyArgs returns the arguments of a call that the called function uses as a
-// key.
-func (c *pkgCheck) keyArgs(call *ast.CallExpr) []ast.Expr {
+// argsTo returns the arguments of a call that the called function puts to u.
+func (c *pkgCheck) argsTo(u use, call *ast.CallExpr) []ast.Expr {
 	fn := c.calledFunc(call)
 	if fn == nil {
 		return nil
 	}
-	idx := c.keyParams[fn.Origin().FullName()]
+	idx := c.params[u][fn.Origin().FullName()]
 	var out []ast.Expr
 	for i, a := range call.Args {
 		if idx[i] {
@@ -983,6 +1036,142 @@ func (c *pkgCheck) keyArgs(call *ast.CallExpr) []ast.Expr {
 		}
 	}
 	return out
+}
+
+// sumFuncs are the functions that hash their first argument.
+var sumFuncs = map[string]bool{
+	"crypto/sha256.Sum256": true, "crypto/sha256.Sum224": true,
+	"crypto/sha512.Sum512": true, "crypto/sha512.Sum384": true,
+	"crypto/sha1.Sum": true, "crypto/md5.Sum": true,
+	"hash/crc32.ChecksumIEEE": true,
+}
+
+// isHash reports whether t has the methods of hash.Hash.
+func isHash(t types.Type) bool {
+	if t == nil {
+		return false
+	}
+	ms := types.NewMethodSet(t)
+	if _, ok := t.Underlying().(*types.Interface); !ok {
+		ms = types.NewMethodSet(types.NewPointer(t))
+	}
+	for _, m := range []string{"Write", "Sum", "Reset", "Size", "BlockSize"} {
+		if ms.Lookup(nil, m) == nil {
+			return false
+		}
+	}
+	return true
+}
+
+// hashInputs returns the expressions n hashes: the argument of a sum function,
+// of Write or WriteString on a hash, or of io.WriteString to one. A
+// conversion to []byte and the first argument of an append are looked
+// through.
+func (c *pkgCheck) hashInputs(n ast.Node) []ast.Expr {
+	call, ok := n.(*ast.CallExpr)
+	if !ok || len(call.Args) == 0 {
+		return nil
+	}
+	fn := c.calledFunc(call)
+	if fn == nil {
+		return nil
+	}
+	var in ast.Expr
+	switch {
+	case fn.Pkg() != nil && sumFuncs[fn.Pkg().Path()+"."+fn.Name()]:
+		in = call.Args[0]
+	case fn.FullName() == "io.WriteString" && len(call.Args) == 2 && isHash(c.info.TypeOf(call.Args[0])):
+		in = call.Args[1]
+	case fn.Name() == "Write" || fn.Name() == "WriteString":
+		sel, ok := ast.Unparen(call.Fun).(*ast.SelectorExpr)
+		if !ok || !isHash(c.info.TypeOf(sel.X)) {
+			return nil
+		}
+		in = call.Args[0]
+	default:
+		return nil
+	}
+	return []ast.Expr{c.unwrapBytes(in)}
+}
+
+// unwrapBytes looks through a conversion to []byte and the first argument of
+// an append.
+func (c *pkgCheck) unwrapBytes(e ast.Expr) ast.Expr {
+	for {
+		call, ok := ast.Unparen(e).(*ast.CallExpr)
+		if !ok || len(call.Args) == 0 {
+			return e
+		}
+		if tv, ok := c.info.Types[call.Fun]; ok && tv.IsType() && len(call.Args) == 1 {
+			e = call.Args[0]
+			continue
+		}
+		if id, ok := ast.Unparen(call.Fun).(*ast.Ident); ok {
+			if b, ok := c.info.Uses[id].(*types.Builtin); ok && b.Name() == "append" {
+				e = call.Args[0]
+				continue
+			}
+		}
+		return e
+	}
+}
+
+// delimiterValue reports whether e is a constant, a []byte literal of
+// constants, or a conversion of one, that holds a delimiter character.
+func (c *pkgCheck) delimiterValue(e ast.Expr) bool {
+	e = ast.Unparen(e)
+	if tv, ok := c.info.Types[e]; ok && tv.Value != nil {
+		switch tv.Value.Kind() {
+		case constant.String:
+			return strings.IndexFunc(constant.StringVal(tv.Value), isDelimiterRune) >= 0
+		case constant.Int:
+			v, exact := constant.Int64Val(tv.Value)
+			return exact && isDelimiterRune(rune(v))
+		}
+	}
+	switch x := e.(type) {
+	case *ast.CompositeLit:
+		return slices.ContainsFunc(x.Elts, c.delimiterValue)
+	case *ast.CallExpr:
+		if tv, ok := c.info.Types[x.Fun]; ok && tv.IsType() && len(x.Args) == 1 {
+			return c.delimiterValue(x.Args[0])
+		}
+	}
+	return false
+}
+
+// hashDelimiter reports whether a call writes a delimiter to a hash, which
+// joins the parts written around it.
+func (c *pkgCheck) hashDelimiter(call *ast.CallExpr) bool {
+	sel, ok := ast.Unparen(call.Fun).(*ast.SelectorExpr)
+	if !ok || len(call.Args) != 1 {
+		return false
+	}
+	switch sel.Sel.Name {
+	case "Write", "WriteString", "WriteByte", "WriteRune":
+	default:
+		return false
+	}
+	return isHash(c.info.TypeOf(sel.X)) && c.delimiterValue(call.Args[0])
+}
+
+// isHashedBuild reports whether a hash input is a join, or the String of a
+// builder a delimiter was written to anywhere, a loop included.
+func (c *pkgCheck) isHashedBuild(e ast.Expr) bool {
+	call, ok := ast.Unparen(e).(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	fn := c.calledFunc(call)
+	if fn == nil || fn.Name() != "String" || len(call.Args) != 0 {
+		return false
+	}
+	sel, ok := ast.Unparen(call.Fun).(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	o := c.builderVar(sel)
+	return o != nil && (c.builders[o] || c.loopBuilders[o])
 }
 
 // builderTypes are the types whose String method returns what was written to
@@ -1022,7 +1211,11 @@ func (c *pkgCheck) markBuilder(call *ast.CallExpr) bool {
 		return false
 	}
 	o := c.builderVar(sel)
-	if o == nil || c.builders[o] || c.inLoop(call.Pos()) {
+	if o == nil || c.builders[o] {
+		return false
+	}
+	loop := c.inLoop(call.Pos())
+	if loop && c.loopBuilders[o] {
 		return false
 	}
 	tv, ok := c.info.Types[call.Args[0]]
@@ -1038,7 +1231,10 @@ func (c *pkgCheck) markBuilder(call *ast.CallExpr) bool {
 			delimited = isDelimiterRune(rune(v))
 		}
 	}
-	if delimited {
+	switch {
+	case delimited && loop:
+		c.loopBuilders[o] = true
+	case delimited:
 		c.builders[o] = true
 	}
 	return delimited

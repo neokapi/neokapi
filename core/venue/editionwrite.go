@@ -1,6 +1,9 @@
 package venue
 
-import "github.com/neokapi/neokapi/core/ref"
+import (
+	"github.com/neokapi/neokapi/core/partjoin"
+	"github.com/neokapi/neokapi/core/ref"
+)
 
 // EditionWrite is what a push says about how a translation came to be: the
 // last write of the edition the project's block history records. It rides
@@ -100,8 +103,7 @@ func (w EditionWrite) KnowsNoBasis() bool {
 // Edition names the translation the write is about within its item: the unit
 // and the variant.
 func (w EditionWrite) Edition() string {
-	//keyguard:persisted the key of the sync cache's writes_sent map (host/venue/project/synccache.go), written to disk; pinned by TestEditionWriteEditionIsStable
-	return w.Unit + "\x00" + w.Variant
+	return partjoin.NUL(w.Unit, w.Variant)
 }
 
 // Identity is what the write says, so a producer can tell whether the write it

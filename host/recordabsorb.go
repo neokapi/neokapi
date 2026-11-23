@@ -15,6 +15,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/projector"
@@ -1228,20 +1229,15 @@ func recordDigest(u recordUnit) (string, bool, error) {
 	if err != nil {
 		return "", false, fmt.Errorf("read source %s: %w", u.sourceRel, err)
 	}
-	h := sha256.New()
-	h.Write(sourceBytes)
-	h.Write([]byte{0})
-	h.Write(targetBytes)
-	return hex.EncodeToString(h.Sum(nil)), true, nil
+	sum := sha256.Sum256([]byte(partjoin.NUL(string(sourceBytes), string(targetBytes))))
+	return hex.EncodeToString(sum[:]), true, nil
 }
 
 // recordSourceKey identifies a source by the keys the memory matches on, so two
 // occurrences of the same string in the same shape are one pair with two votes
 // rather than two competing entries.
 func recordSourceKey(runs []model.Run) string {
-	//keyguard:persisted hashed into the id of the content memory entry an absorbed record writes (recordEntryID); pinned by TestRecordEntryIDIsStable
-	return memory.NormalizeText(model.RunsStructuralText(runs)) + "\x00" +
-		memory.NormalizeText(model.FlattenRuns(runs))
+	return partjoin.NUL(memory.NormalizeText(model.RunsStructuralText(runs)), memory.NormalizeText(model.FlattenRuns(runs)))
 }
 
 // recordKey scopes a source to one locale: the votes are per locale, because the
@@ -1268,7 +1264,7 @@ const recordEntryPrefix = "record:"
 func recordEntryID(sourceKey, point string) string {
 	key := sourceKey
 	if point != "" {
-		key += "\x00" + point
+		key = partjoin.AppendNUL(sourceKey, point)
 	}
 	sum := sha256.Sum256([]byte(key))
 	return recordEntryPrefix + hex.EncodeToString(sum[:])[:24]

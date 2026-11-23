@@ -118,7 +118,7 @@ func f(m map[string]int, a, b string) int { return m[dep.Of(a, b).ID] }`},
 	{"a log line", 0, `package f
 import "log"
 func f(a, b string) { log.Printf("%s", a+"\x00"+b) }`},
-	{"a hash input written to a hasher", 0, `package f
+	{"a joined hash input", 2, `package f
 import (
 	"crypto/sha256"
 	"hash"
@@ -128,13 +128,53 @@ func f(h hash.Hash, a, b string) [32]byte {
 	seed := a + "\x00" + b
 	return sha256.Sum256([]byte(seed))
 }`},
-	{"a hashed key", 0, `package f
+	{"a join hashed through a function", 1, `package f
 import (
 	"crypto/sha256"
 	"encoding/hex"
 )
 func hashKey(s string) string { sum := sha256.Sum256([]byte(s)); return hex.EncodeToString(sum[:]) }
 func f(m map[string]bool, a, b string) { m[hashKey(a+"\x00"+b)] = true }`},
+	{"a delimiter written to a hash between parts", 2, `package f
+import (
+	"crypto/sha256"
+	"hash/fnv"
+)
+func f(a, b string) uint64 {
+	h := sha256.New()
+	h.Write([]byte(a))
+	h.Write([]byte{0})
+	h.Write([]byte(b))
+	g := fnv.New64a()
+	g.Write([]byte("\x00"))
+	return g.Sum64()
+}`},
+	{"a builder written in a loop and hashed", 1, `package f
+import (
+	"crypto/sha256"
+	"strings"
+)
+func f(parts []string) [32]byte {
+	var b strings.Builder
+	for _, p := range parts {
+		b.WriteString(p)
+		b.WriteByte(0)
+	}
+	return sha256.Sum256([]byte(b.String()))
+}`},
+	{"parts joined with partjoin and hashed", 0, `package f
+import (
+	"crypto/sha256"
+	"hash"
+	"github.com/neokapi/neokapi/core/partjoin"
+)
+func f(h hash.Hash, a, b string) [32]byte {
+	h.Write([]byte(partjoin.NUL(a, b)))
+	return sha256.Sum256([]byte(partjoin.NUL(a, b)))
+}`},
+	{"a hash of one value with a constant prefix", 0, `package f
+import "crypto/sha256"
+func f(a string) [32]byte { return sha256.Sum256([]byte("kind\x00" + a)) }`},
 	{"a path, a qualified name and a newline join", 0, `package f
 import "strings"
 func f(m map[string]bool, a, b string, lines []string) {
@@ -233,7 +273,7 @@ func (r Ref) Key() string { return r.A + "\x00" + r.B }`,
 // runSelfTest checks every fixture and fails when one reports other than it
 // expects.
 func runSelfTest() error {
-	pkgs, err := guardpackages.List("strings", "strconv", "fmt", "log", "hash", "crypto/sha256", "encoding/hex", "sync", "golang.org/x/sync/singleflight")
+	pkgs, err := guardpackages.List("strings", "strconv", "fmt", "log", "hash", "crypto/sha256", "encoding/hex", "sync", "golang.org/x/sync/singleflight", "crypto/sha256", "hash/fnv", "github.com/neokapi/neokapi/core/partjoin")
 	if err != nil {
 		return err
 	}
