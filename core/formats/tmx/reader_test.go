@@ -484,7 +484,7 @@ func TestRelaxLanguageRegionMismatch(t *testing.T) {
 	// en-US does NOT relax-match en-GB (region mismatch), so no <tuv> is the
 	// source by language. The reader falls back to the first <tuv> (en-GB) for
 	// the source content. Because en-GB never matched the source language, it
-	// is ALSO retained as an en-GB target — i.e. the region mismatch is real,
+	// is ALSO retained as an en-GB target, so the region mismatch is real,
 	// not silently coalesced into the source.
 	assert.Equal(t, "British English", blocks[0].SourceText())
 	assert.True(t, blocks[0].HasTarget("en-GB"), "en-GB must remain a distinct target, not match en-US source")
@@ -1129,7 +1129,7 @@ func TestSourceLangNotSpecified(t *testing.T) {
     </tu>
   </body>
 </tmx>`
-	// Missing srclang — should fall back to document locale
+	// Missing srclang: falls back to the document locale.
 	blocks := readTMXBlocks(t, input)
 	require.NotEmpty(t, blocks)
 	assert.Equal(t, "No srclang", blocks[0].SourceText())
@@ -1177,7 +1177,7 @@ func TestSourceLangNull(t *testing.T) {
     </tu>
   </body>
 </tmx>`
-	// Empty srclang — falls back to document locale (en)
+	// Empty srclang: falls back to the document locale (en).
 	blocks := readTMXBlocks(t, input)
 	require.NotEmpty(t, blocks)
 	assert.Equal(t, "Empty srclang", blocks[0].SourceText())
@@ -1201,7 +1201,7 @@ func TestTuXmlLangMissing(t *testing.T) {
       <tuv><seg>No lang</seg></tuv>
       <tuv xml:lang="fr"><seg>Pas de lang</seg></tuv>
     </tu>`)
-	// Should not crash — TUV without lang is handled gracefully.
+	// A TUV without a lang is handled without a crash.
 	blocks := readTMXBlocks(t, input)
 	require.NotEmpty(t, blocks)
 }
@@ -1295,7 +1295,7 @@ func TestInvalidElementInPlaceholder(t *testing.T) {
 
 // --- Output tests ---
 
-// neokapi-only: TmxFilterTest#testOutputBasic_Comment — upstream @Test is commented out (disabled)
+// neokapi-only: TmxFilterTest#testOutputBasic_Comment (upstream @Test is commented out, so disabled)
 //
 //	in v1.48.0, so there is no live Okapi case to map against. This native test still exercises
 //	genuine behavior: a document-level XML comment must survive a read/write round-trip.
@@ -1357,12 +1357,12 @@ func TestDoubleExtractionCompKit(t *testing.T) {
 
 // --- Parameters tests ---
 
-// okapi-skip: ParametersTest#testToString — Java StringParameters serializes config to a
+// okapi-skip: net.sf.okapi.filters.tmx.ParametersTest#testToString — Java StringParameters serializes config to a
 //
 //	"#v1\nkey.b=value" line format; neokapi config is YAML/map driven (Config.ApplyMap) and
 //	has no string-serialization round-trip, so toString has no native counterpart.
 //
-// okapi: ParametersTest#testParameters
+// okapi: net.sf.okapi.filters.tmx.ParametersTest#testParameters
 // Java asserts the documented defaults (escapeGT=false, processAllTargets=true,
 // exitOnInvalid=false). The native Config exposes the same three knobs; the
 // Java-only segType/consolidateDpSkeleton defaults have no native field.
@@ -1376,7 +1376,7 @@ func TestParameters(t *testing.T) {
 	assert.False(t, cfg.ExitOnInvalid, "exit_on_invalid should default to false")
 }
 
-// okapi: ParametersTest#testReset
+// okapi: net.sf.okapi.filters.tmx.ParametersTest#testReset
 // Java mutates every parameter then asserts reset() restores defaults. Native
 // Reset() must likewise restore the documented defaults from a mutated state.
 func TestParametersReset(t *testing.T) {
@@ -1394,7 +1394,7 @@ func TestParametersReset(t *testing.T) {
 	assert.False(t, cfg.UseCodeFinder, "use_code_finder should reset to false")
 }
 
-// okapi: ParametersTest#testFromString
+// okapi: net.sf.okapi.filters.tmx.ParametersTest#testFromString
 // Java's fromString() deserializes a "#v1\nkey.b=value" parameter string into
 // the filter's getters. The native equivalent is Config.ApplyMap, which loads
 // config values from the recipe map. This asserts the three knobs with native
@@ -2020,7 +2020,7 @@ func TestContextCancellation(t *testing.T) {
 func TestWriterNilOutput(t *testing.T) {
 	ctx := t.Context()
 	writer := tmx.NewWriter()
-	// Don't set output — should not panic
+	// No output set: Close must not panic.
 	ch := make(chan *model.Part)
 	close(ch)
 	err := writer.Write(ctx, ch)

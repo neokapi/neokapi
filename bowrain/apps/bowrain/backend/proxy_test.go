@@ -3,7 +3,6 @@ package backend
 import (
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/editorclient"
@@ -26,7 +25,7 @@ func connectedApp(serverURL string) *App {
 
 func TestProxyRequestForwardsWithBearer(t *testing.T) {
 	var gotAuth, gotMethod, gotPath, gotBody, gotCT string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		gotCT = r.Header.Get("Content-Type")
 		gotMethod = r.Method
@@ -50,7 +49,7 @@ func TestProxyRequestForwardsWithBearer(t *testing.T) {
 }
 
 func TestProxyRequestNon2xxIsNotAnError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte("not found"))
 	}))
@@ -71,7 +70,7 @@ func TestProxyRequestRequiresConnection(t *testing.T) {
 
 func TestProxyMultipartRebuildsForm(t *testing.T) {
 	var gotAuth, gotField, gotFileName, gotFileBody, gotCT string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		gotCT = r.Header.Get("Content-Type")
 		// t.Error, not require: the handler runs off the test goroutine, where

@@ -3,7 +3,6 @@ package backend
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
@@ -132,7 +131,7 @@ func (m *memoryServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func offlineMemoryApp(t *testing.T) (*App, *memoryServer, func()) {
 	t.Helper()
 	ms := &memoryServer{entries: map[string]*memoryServerEntry{}}
-	srv := httptest.NewServer(ms)
+	srv := newTestServer(t, ms)
 	t.Cleanup(srv.Close)
 	app := newTestApp(t)
 	q := newTestQueue(t)

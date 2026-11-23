@@ -1,16 +1,102 @@
 package backend
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
+	"runtime"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
 )
+
+// ServiceShutdown returns once the reconnect loop has: an attempt under way
+// when the app shuts down has ended by then, so it cannot act on sign-in
+// state or the offline queue after the app is gone. The attempt here keeps
+// running past the cancel until the test releases it, and shutdown must not
+// return before that. Shutdown is waiting once its goroutine is parked in
+// waitForBackground, which the goroutine stacks show; no timing is involved.
+func TestServiceShutdownWaitsForTheReconnectLoop(t *testing.T) {
+	app := newTestApp(t)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	app.reconnectAttempt = func(ctx context.Context) error {
+		close(started)
+		<-ctx.Done()
+		<-release
+		return ctx.Err()
+	}
+	app.goOffline()
+	app.RetryConnection()
+	<-started
+
+	done := make(chan error, 1)
+	go func() { done <- app.ServiceShutdown() }()
+	for !shutdownIsWaiting() {
+		select {
+		case err := <-done:
+			close(release)
+			t.Fatalf("ServiceShutdown returned (%v) while a reconnect attempt was still running", err)
+		default:
+			runtime.Gosched()
+		}
+	}
+	close(release)
+	require.NoError(t, <-done)
+}
+
+// shutdownIsWaiting reports whether a goroutine is inside ServiceShutdown and
+// parked in waitForBackground.
+func shutdownIsWaiting() bool {
+	buf := make([]byte, 1<<20)
+	n := runtime.Stack(buf, true)
+	for g := range strings.SplitSeq(string(buf[:n]), "\n\n") {
+		if strings.Contains(g, "[select") && strings.Contains(g, "(*App).waitForBackground") &&
+			strings.Contains(g, "(*App).ServiceShutdown") {
+			return true
+		}
+	}
+	return false
+}
+
+// A background goroutine that ignores its context cannot keep the app from
+// quitting: shutdown waits for it for the bound, then quits and logs which
+// one had not returned.
+func TestServiceShutdownQuitsWhenALoopIgnoresCancellation(t *testing.T) {
+	app := newTestApp(t)
+	app.shutdownWait = 50 * time.Millisecond
+	var logs bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	app.mu.Lock()
+	cancel := app.startBackground("stuck loop", func(context.Context) {
+		close(started)
+		<-release
+	})
+	app.mu.Unlock()
+	require.NotNil(t, cancel)
+	<-started
+
+	require.NoError(t, app.ServiceShutdown(), "shutdown returns though the loop has not")
+	assert.Contains(t, logs.String(), "background work has not returned")
+	assert.Contains(t, logs.String(), "stuck loop", "the log names the loop")
+
+	app.mu.Lock()
+	assert.Nil(t, app.startBackground("late", func(context.Context) {}), "nothing starts after shutdown began")
+	app.mu.Unlock()
+	close(release)
+}
 
 func TestGoOfflineSetsState(t *testing.T) {
 	app := newTestApp(t)

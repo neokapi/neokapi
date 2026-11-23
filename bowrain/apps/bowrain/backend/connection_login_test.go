@@ -59,7 +59,7 @@ func newCodeServer(t *testing.T, code, verifier string) *codeServer {
 		}
 		_ = json.NewEncoder(w).Encode(map[string]string{"id": "user-1", "email": "alice@test.com", "name": "Alice"})
 	})
-	cs.Server = httptest.NewServer(mux)
+	cs.Server = newTestServer(t, mux)
 	t.Cleanup(cs.Close)
 	return cs
 }

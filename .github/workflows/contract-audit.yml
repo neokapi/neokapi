@@ -25,9 +25,9 @@ on:
         required: false
         default: "v1.48.0"
       filters:
-        description: "Comma-separated filter ids to audit (e.g. html,json,po). Defaults to html only."
+        description: "Comma-separated Okapi filter modules to audit (e.g. html,json), or all."
         required: false
-        default: "html"
+        default: "all"
 
 permissions:
   contents: read
@@ -47,7 +47,11 @@ jobs:
       # blocked even though only contributors with write access can
       # trigger this workflow.
       OKAPI_REF: ${{ inputs.okapi_ref || 'v1.48.0' }}
-      FILTERS: ${{ inputs.filters || 'html' }}
+      # Every Okapi filter module by default. A format's references can name
+      # tests in several modules (the XML formats name the its module's
+      # XMLFilterTest), so a partial run leaves some unchecked; the audit names
+      # them as NOT CHECKED rather than reading them as drift.
+      FILTERS: ${{ inputs.filters || 'all' }}
     steps:
       - name: Checkout neokapi
         uses: actions/checkout@v7
@@ -81,51 +85,60 @@ jobs:
           packages: libicu-dev pkg-config
 
       - name: Run mvn test for selected filter modules
-        # Filter scoping keeps this lightweight — `mvn test` against
-        # the full Okapi tree pulls in the entire dependency graph.
-        # We deliberately scope per-filter and accept that this
-        # discovers fewer issues than a full upstream run.
+        # The modules in FILTERS, in one reactor so their shared dependencies
+        # build once. -fae and maven.test.failure.ignore keep Maven going past
+        # a module whose tests fail, so every module writes its reports; the
+        # failures stay in the log as upstream information. A module that does
+        # not build writes no reports, and the audit fails on it.
         working-directory: okapi-java
         run: |
-          for filter in $(echo "$FILTERS" | tr ',' ' '); do
-            echo "::group::mvn test -pl okapi/filters/$filter"
-            mvn -B -DfailIfNoTests=false test -pl "okapi/filters/$filter" -am || true
-            echo "::endgroup::"
-          done
+          if [ "$FILTERS" = all ]; then
+            modules="$(find okapi/filters -mindepth 2 -maxdepth 2 -name pom.xml -printf '%h\n' | sort | paste -sd, -)"
+          else
+            modules="$(echo "$FILTERS" | tr ',' '\n' | sed 's|^|okapi/filters/|' | paste -sd, -)"
+          fi
+          echo "::group::mvn test -pl $modules"
+          status=0
+          mvn -B -fae -DfailIfNoTests=false -Dmaven.test.failure.ignore=true test -pl "$modules" -am || status=$?
+          echo "::endgroup::"
+          failed="$(grep -lE '<(failure|error)[ >]' okapi/filters/*/target/surefire-reports/TEST-*.xml 2>/dev/null | wc -l)"
+          if [ "$failed" -gt 0 ]; then
+            echo "::warning::$failed Okapi test class(es) report failures at $OKAPI_REF; see the log above"
+          fi
+          if [ "$status" -ne 0 ]; then
+            echo "::warning::Maven exited $status: a module did not build, so it wrote no reports; the audit names it"
+          fi
 
       # Okapi's RoundTrip*IT / *XliffCompareIT contracts run under Maven
-      # Failsafe, not Surefire, so the drift check needs their reports too —
-      # without them every // okapi: *IT annotation reads as "not present".
+      # Failsafe, not Surefire, so the drift check needs their reports too.
+      # Without them an // okapi: *IT annotation cannot be checked.
       - name: Generate Okapi Failsafe IT reports
         working-directory: neokapi
         env:
           OKAPI_REPO: ${{ github.workspace }}/okapi-java
         run: make okapi-failsafe-reports OKAPI_REPO="$OKAPI_REPO"
 
-      - name: Run native go test + contract-audit generator per filter
+      - name: Run native go test + contract-audit generator
         working-directory: neokapi
         env:
           OKAPI_REPO: ${{ github.workspace }}/okapi-java
-          # Drift checking: a `// okapi: ClassName#methodName` annotation
-          # whose Java target no longer exists in the pinned upstream
-          # version is a contract bug — the dashboard would silently
-          # drop the row otherwise. The cron run is the correct place
-          # to enforce this because it pins to a specific Okapi tag and
-          # therefore knows what "exists" actually means.
+          # A `// okapi: ClassName#methodName` annotation or spec ref whose
+          # Java test no longer exists in the pinned Okapi version fails the
+          # run; the dashboard would drop its row otherwise. The run pins an
+          # Okapi tag, so it knows which tests exist.
           CONTRACT_FAIL_ON_DRIFT: "1"
-        run: |
-          mkdir -p .contract-audit
-          for filter in $(echo "$FILTERS" | tr ',' ' '); do
-            echo "::group::contract-audit $filter"
-            make contract-audit CONTRACT_FILTER="$filter" OKAPI_REPO="$OKAPI_REPO" CONTRACT_FAIL_ON_DRIFT="$CONTRACT_FAIL_ON_DRIFT"
-            echo "::endgroup::"
-          done
+        # One audit over every module the step above tested, so the JSON covers
+        # them all and each format's references are checked against its own
+        # module's tests.
+        run: make contract-audit CONTRACT_FILTER=all OKAPI_REPO="$OKAPI_REPO" CONTRACT_FAIL_ON_DRIFT="$CONTRACT_FAIL_ON_DRIFT"
 
       - name: Upload contract-audit JSON
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: contract-audit
-          path: neokapi/web/static/data/contract-audit.json
+          path: |
+            neokapi/web/static/data/contract-audit.json
+            neokapi/.contract-audit/baseline.json
           if-no-files-found: error
           retention-days: 90

@@ -1,19 +1,23 @@
 package backend
 
 import (
+	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
-// hangingServer answers no request until the test ends.
+// hangingServer answers no request until the test ends. It reads the request
+// body first: the server notices a closed client connection, and cancels the
+// request's context, only once the body is read, and closing the server
+// waits for this handler.
 func hangingServer(t *testing.T) string {
 	t.Helper()
 	release := make(chan struct{})
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
 		select {
 		case <-release:
 		case <-r.Context().Done():

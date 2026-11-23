@@ -104,14 +104,15 @@ func (a *App) StartWatching(projectID string) {
 		return
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	watcher := &ProjectWatcher{app: a, cancel: cancel}
-
+	watcher := &ProjectWatcher{app: a}
 	a.mu.Lock()
+	defer a.mu.Unlock()
+	cancel := a.startBackground("project watcher", func(ctx context.Context) { watcher.run(ctx, client, ws, projectID) })
+	if cancel == nil {
+		return // shutting down
+	}
+	watcher.cancel = cancel
 	a.watcher = watcher
-	a.mu.Unlock()
-
-	go watcher.run(ctx, client, ws, projectID)
 }
 
 // StopWatching closes the active project watcher and forgets the project, so a

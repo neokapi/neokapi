@@ -2,7 +2,6 @@ package backend
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/registry"
@@ -13,7 +12,7 @@ import (
 
 func TestGetToolSchemaProxiesTheServerRoute(t *testing.T) {
 	var gotAuth, gotPath string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		gotPath = r.URL.Path
 		switch r.URL.Path {
