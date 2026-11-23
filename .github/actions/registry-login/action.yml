@@ -3,7 +3,8 @@ description: >-
   docker login to a registry, retried. docker/login-action makes one attempt,
   so a runner whose DNS stalls for a moment (on 2026-11-23: "lookup ghcr.io
   on 127.0.0.53:53: i/o timeout") failed the job. This logs in up to four
-  times with a growing pause and fails with the last error.
+  times with a growing pause and fails with the last error; a refused
+  credential fails at once.
 
 inputs:
   registry:
@@ -26,12 +27,19 @@ runs:
         REGISTRY_PASSWORD: ${{ inputs.password }}
       run: |
         set -uo pipefail
+        out="$(mktemp)"
         for attempt in 1 2 3 4; do
-          if printf '%s' "$REGISTRY_PASSWORD" | timeout 60 docker login "$REGISTRY" --username "$REGISTRY_USER" --password-stdin; then
+          if printf '%s' "$REGISTRY_PASSWORD" | timeout 60 docker login "$REGISTRY" --username "$REGISTRY_USER" --password-stdin 2>"$out"; then
             exit 0
           fi
+          cat "$out" >&2
+          # A refused credential fails the same way every time: stop at once.
+          if grep -qiE 'unauthorized|denied|forbidden|incorrect username or password' "$out"; then
+            echo "::error::docker login to $REGISTRY was refused; retrying would not help"
+            exit 1
+          fi
           echo "::warning::docker login to $REGISTRY failed (attempt $attempt)"
-          sleep $((attempt * 15))
+          [ "$attempt" -lt 4 ] && sleep $((attempt * 15))
         done
         echo "::error::docker login to $REGISTRY failed after 4 attempts"
         exit 1
