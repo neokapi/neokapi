@@ -54,7 +54,36 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: 1
           trivyignores: ${{ matrix.ignorefile || '' }}
-          # The action keeps its vulnerability database in actions/cache. Only
-          # main saves caches (scripts/check-ci-caches.py); a dispatch on a
-          # branch downloads the database instead.
-          cache: ${{ github.ref == 'refs/heads/main' }}
+          # Every scan downloads the current database. A restored cache could
+          # let a scan pass against a stale one, on the weekly run where it
+          # matters; the next step fails the job if the database is not fresh.
+          cache: false
+
+      # The scan is only as good as its database: fail when the vulnerability
+      # database (and the Java database, for images with jars) was built more
+      # than three days ago, so a broken or stale download cannot pass.
+      - name: Check the scanner's databases are fresh
+        if: always()
+        env:
+          CACHE_DIR: ${{ github.workspace }}/.cache/trivy
+        run: |
+          python3 - <<'EOF'
+          import datetime, json, os, sys
+          root = os.environ["CACHE_DIR"]
+          now = datetime.datetime.now(datetime.timezone.utc)
+          checked = 0
+          for name in ("db", "java-db"):
+              path = os.path.join(root, name, "metadata.json")
+              if not os.path.exists(path):
+                  if name == "db":
+                      sys.exit(f"::error::no vulnerability database at {path}: the scan did not download one")
+                  continue
+              updated = json.load(open(path))["UpdatedAt"]
+              at = datetime.datetime.fromisoformat(updated.replace("Z", "+00:00"))
+              age = now - at
+              print(f"{name}: updated {updated} ({age.days} days ago)")
+              if age > datetime.timedelta(days=3):
+                  sys.exit(f"::error::the {name} database is {age.days} days old (updated {updated})")
+              checked += 1
+          print(f"{checked} database(s) fresh")
+          EOF
