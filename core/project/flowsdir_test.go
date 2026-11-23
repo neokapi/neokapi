@@ -161,7 +161,9 @@ func TestValidateFlowsDir(t *testing.T) {
 	}{
 		{dir: "flows"},
 		{dir: "config/flows"},
-		{dir: "../shared/flows"},
+		{dir: "../shared/flows", want: "lies outside the project"},
+		{dir: "../..", want: "lies outside the project"},
+		{dir: "flows/../../x", want: "lies outside the project"},
 		{dir: ".kapi/flows", want: "disposable cache"},
 		{dir: "./.kapi", want: "disposable cache"},
 		{dir: filepath.Join(string(filepath.Separator), "abs", "flows"), want: "absolute path"},
@@ -177,6 +179,45 @@ func TestValidateFlowsDir(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.want)
 		})
 	}
+}
+
+// A flow file is read through the flows directory, and the flows directory
+// through the project: a flow file that is a link out of the directory does
+// not load, and a flows directory that is a link out of the project lists
+// nothing and loads nothing.
+func TestDirFlows_StayInsideTheProject(t *testing.T) {
+	const body = "steps:\n  - tool: pseudo-translate\n"
+	base := t.TempDir()
+	root := filepath.Join(base, "project")
+	outside := filepath.Join(base, "outside")
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "flows"), 0o755))
+	require.NoError(t, os.MkdirAll(outside, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(outside, "secret.yaml"), []byte(body), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "flows", "ok.yaml"), []byte(body), 0o644))
+	if err := os.Symlink(filepath.Join(outside, "secret.yaml"), filepath.Join(root, "flows", "leak.yaml")); err != nil {
+		t.Skipf("symbolic links unavailable: %v", err)
+	}
+	require.NoError(t, os.Symlink(outside, filepath.Join(root, "linked")))
+
+	flows := filepath.Join(root, "flows")
+	_, err := LoadDirFlowIn(root, flows, "ok")
+	require.NoError(t, err)
+	_, err = LoadDirFlowIn(root, flows, "leak")
+	require.ErrorContains(t, err, "leads outside the root")
+	listed := ListDirFlowsIn(root, flows)
+	require.Len(t, listed, 2)
+	for _, d := range listed {
+		if d.Name == "leak" {
+			require.Error(t, d.Err)
+		} else {
+			require.NoError(t, d.Err)
+		}
+	}
+
+	linked := filepath.Join(root, "linked")
+	_, err = LoadDirFlowIn(root, linked, "secret")
+	require.ErrorContains(t, err, "leads outside the root")
+	assert.Empty(t, ListDirFlowsIn(root, linked))
 }
 
 // A recipe load says once that flow files left under .kapi/flows/ are not

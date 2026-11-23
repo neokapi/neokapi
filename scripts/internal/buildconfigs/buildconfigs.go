@@ -4,10 +4,10 @@
 // One compilation sees the files of one GOOS, one CGO_ENABLED and one tag set.
 // A file behind `//go:build e2e`, `onnx`, `js && wasm` or `windows` is seen
 // only by a compilation that selects it. scripts/tagmatrix (golangci-lint and
-// go vet), scripts/fieldguard, scripts/editguard and scripts/projectionguard
-// each run under every configuration in All. The first covers each module
-// whole; each later one covers only the packages that hold a file no earlier
-// configuration compiled.
+// go vet), scripts/fieldguard, scripts/editguard, scripts/projectionguard and
+// scripts/keyguard each run under every configuration in All. The first covers
+// each module whole; each later one covers only the packages that hold a file
+// no earlier configuration compiled.
 package buildconfigs
 
 import (

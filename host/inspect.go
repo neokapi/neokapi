@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/rootpath"
 	yamlv3 "gopkg.in/yaml.v3"
 )
 
@@ -69,6 +70,9 @@ func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFor
 	}
 	changes := a.newCommandChanges(cmd, recipe, ChangeServiceOptions{Origin: "inspect", Format: a.FormatFlag, Encoding: a.Encoding, TargetLocale: model.LocaleID(a.TargetLang), SourceLocale: model.LocaleID(a.SourceLang)})
 	src := inspectSources{changes: changes, editions: a.projectEditions(recipe), comments: a.newCommentDocs(recipe)}
+	if recipe != "" {
+		src.root = filepath.Dir(recipe)
+	}
 
 	streaming := outFormat == "jsonl"
 	enc := json.NewEncoder(cmd.OutOrStdout())
@@ -130,6 +134,9 @@ type inspectSources struct {
 	changes  *commandChanges
 	editions func(doc string) []model.EditionKey
 	comments *commentDocs
+	// root is the project's root, empty outside a project. A file beneath
+	// it is read through it.
+	root string
 }
 
 // inspectDocument reads one document, or one archive member, and emits a
@@ -153,7 +160,7 @@ func (a *App) inspectDocument(ctx context.Context, cmd Command, src inspectSourc
 		}
 		doc, label = filepath.Base(path), StdinName
 	case src.comments.is(file):
-		return a.inspectComments(cmd, src.changes, file, emit)
+		return a.inspectComments(cmd, src.changes, src.root, file, emit)
 	default:
 		cs, ref, project, err := src.changes.forFile(ctx, file)
 		if err != nil {
@@ -201,13 +208,14 @@ func (a *App) inspectDocument(ctx context.Context, cmd Command, src inspectSourc
 // inspectComments emits a record for each comment of a source file whose
 // comments are what kapi edits in it. A comment's revision is the one a
 // set_content that rewrites it sends as if_match, and its text is its prose
-// without comment markers.
-func (a *App) inspectComments(cmd Command, changes *commandChanges, file string, emit func(inspectRecord) error) error {
+// without comment markers. A file beneath root is read through it, so a link
+// that leads out of the project is refused.
+func (a *App) inspectComments(cmd Command, changes *commandChanges, root, file string, emit func(inspectRecord) error) error {
 	formats, err := a.newCheckFormats(cmd)
 	if err != nil {
 		return err
 	}
-	src, err := os.ReadFile(file)
+	src, err := rootpath.ReadFile(root, file)
 	if err != nil {
 		return err
 	}

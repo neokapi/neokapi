@@ -95,8 +95,14 @@ func (l ContextOperationList) FormatText(w io.Writer) error {
 				return err
 			}
 		}
-		if op.Note != "" {
-			if _, err := fmt.Fprintln(w, "  "+op.Note); err != nil {
+		note, agentHost := op.Said()
+		if note != "" {
+			if _, err := fmt.Fprintln(w, "  "+note); err != nil {
+				return err
+			}
+		}
+		if agentHost != "" {
+			if _, err := fmt.Fprintln(w, "  recorded by a person in a "+agentHost+" shell"); err != nil {
 				return err
 			}
 		}

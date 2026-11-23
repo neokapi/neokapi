@@ -90,6 +90,8 @@ export function ReviewDecisions({
           target={d.card.target}
           source={d.card.source}
           dimmed={!d.current}
+          reasons={d.reasons}
+          note={d.note}
           canUndo={d.canUndo}
           undoing={undoing.includes(d.card.blockId)}
           onUndo={() => undo(d)}

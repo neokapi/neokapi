@@ -101,10 +101,16 @@ type CheckFinding struct {
 // Key is what a finding is the same finding by from one run to the next: its
 // file, its rule and the wording it quotes. The block is left out, so a
 // finding that moved to another block of the file is still the same finding.
-func (f CheckFinding) Key() string {
+func (f CheckFinding) Key() FindingKey {
 	what := f.Quote
 	if what == "" {
 		what = f.Message
 	}
-	return f.File + "\x00" + f.Rule + "\x00" + what
+	return FindingKey{File: f.File, Rule: f.Rule, What: what}
+}
+
+// FindingKey is the identity CheckFinding.Key returns: the finding's file, its
+// rule, and the wording it quotes (or its message when it quotes none).
+type FindingKey struct {
+	File, Rule, What string
 }

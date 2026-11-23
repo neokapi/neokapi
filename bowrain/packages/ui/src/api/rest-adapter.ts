@@ -11,6 +11,8 @@ import type {
   ScreenMember,
 } from "@neokapi/project-screens";
 import { ApiError, apiErrorFromResponse } from "../errors/ApiError";
+import { asFlowChanged } from "../errors/FlowChangedError";
+import { asNetworkError } from "../errors/NetworkError";
 import type { ApiAdapter } from "./adapter";
 import type { ChangeResult, ContentChangeSet } from "./contentChanges";
 import type {
@@ -355,7 +357,13 @@ export class RestApiAdapter implements ApiAdapter {
     this.baseUrl = baseUrl;
     this.token = token;
     this.refreshToken = null;
-    this.fetchImpl = transport ?? ((input, init) => fetch(input, init));
+    const send: ApiTransport = transport ?? ((input, init) => fetch(input, init));
+    // A request that never reached the server rejects as a NetworkError, which
+    // the error notice renders as such rather than as the browser's message.
+    this.fetchImpl = (input, init) =>
+      send(input, init).catch((e: unknown) => {
+        throw asNetworkError(e);
+      });
   }
 
   setToken(token: string) {
@@ -2284,19 +2292,25 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  async deleteMemoryEntry(workspaceSlug: string, entryId: string): Promise<void> {
-    await this.fetchJSON(`${this.memoryEp(workspaceSlug)}/${entryId}`, {
-      method: "DELETE",
-    });
+  async deleteMemoryEntry(
+    workspaceSlug: string,
+    entryId: string,
+    baseRevision: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.memoryEp(workspaceSlug)}/${encodeURIComponent(entryId)}?base_revision=${encodeURIComponent(baseRevision)}`,
+      { method: "DELETE" },
+    );
   }
 
   async bulkDeleteMemoryEntries(
     workspaceSlug: string,
     entryIds: string[],
+    revisions: Record<string, string>,
   ): Promise<BulkDeleteResult> {
     return this.fetchJSON(`${this.memoryEp(workspaceSlug)}/bulk-delete`, {
       method: "POST",
-      body: JSON.stringify({ ids: entryIds }),
+      body: JSON.stringify({ ids: entryIds, revisions }),
     });
   }
 
@@ -2601,13 +2615,18 @@ export class RestApiAdapter implements ApiAdapter {
     flowId: string,
     def: FlowDefinitionInfo,
   ): Promise<FlowDefinitionInfo> {
-    return this.fetchJSON(
-      `${this.flowsEp(workspaceSlug, projectId)}/${encodeURIComponent(flowId)}`,
-      {
-        method: "PUT",
-        body: JSON.stringify(def),
-      },
-    );
+    try {
+      return await this.fetchJSON(
+        `${this.flowsEp(workspaceSlug, projectId)}/${encodeURIComponent(flowId)}`,
+        {
+          method: "PUT",
+          // The revision the edit was based on, so a stale save is refused.
+          body: JSON.stringify({ ...def, base_revision: def.revision }),
+        },
+      );
+    } catch (e) {
+      throw asFlowChanged(e) ?? e;
+    }
   }
 
   async deleteFlowDefinition(
@@ -2741,10 +2760,15 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  async deleteVoiceProfile(workspaceSlug: string, profileId: string): Promise<void> {
-    await this.fetchJSON(`${this.voiceEp(workspaceSlug)}/${encodeURIComponent(profileId)}`, {
-      method: "DELETE",
-    });
+  async deleteVoiceProfile(
+    workspaceSlug: string,
+    profileId: string,
+    baseRevision: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.voiceEp(workspaceSlug)}/${encodeURIComponent(profileId)}?base_revision=${encodeURIComponent(baseRevision)}`,
+      { method: "DELETE" },
+    );
   }
 
   async getVoiceScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]> {
@@ -3817,10 +3841,11 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  async deleteMarket(workspaceSlug: string, marketId: string): Promise<void> {
-    await this.fetchJSON(`${this.marketsEp(workspaceSlug)}/${encodeURIComponent(marketId)}`, {
-      method: "DELETE",
-    });
+  async deleteMarket(workspaceSlug: string, marketId: string, baseRevision: string): Promise<void> {
+    await this.fetchJSON(
+      `${this.marketsEp(workspaceSlug)}/${encodeURIComponent(marketId)}?base_revision=${encodeURIComponent(baseRevision)}`,
+      { method: "DELETE" },
+    );
   }
 
   // ── Brand knowledge graph — Change-sets / experiments (AD-021) ────────────

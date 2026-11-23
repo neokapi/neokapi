@@ -141,6 +141,7 @@ func editorMemoryEntryToInfo(e editorclient.EditorMemoryEntry) MemoryEntryInfo {
 		SourceLocale: e.SourceLanguage,
 		TargetLocale: e.TargetLanguage,
 		UpdatedAt:    e.UpdatedAt,
+		Revision:     e.Revision,
 	}
 }
 
@@ -202,6 +203,7 @@ func editorConceptToInfo(c editorclient.EditorConcept) ConceptInfo {
 		Properties: c.Properties,
 		CreatedAt:  c.CreatedAt,
 		UpdatedAt:  c.UpdatedAt,
+		Revision:   c.Revision,
 	}
 }
 

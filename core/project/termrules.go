@@ -45,7 +45,7 @@ func (p *KapiProject) DeclaredTermRules(root string) (profile.RecipeTermRules, e
 		}
 	}
 	if root != "" {
-		for _, df := range ListDirFlows(p.FlowsDirIn(root)) {
+		for _, df := range ListDirFlowsIn(root, p.FlowsDirIn(root)) {
 			if df.Err != nil || p.Flow(df.Name) != nil {
 				continue
 			}

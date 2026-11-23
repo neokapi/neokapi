@@ -66,7 +66,7 @@ func TestReadSourceBlocks_ReadsAsTheCheck(t *testing.T) {
 			require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
 			format := filepath.Ext(name)[1:]
 
-			read, _, err := project.ReadSourceBlocks(t.Context(), app.FormatReg, format, path, "en", "", nil)
+			read, _, err := project.ReadSourceBlocks(t.Context(), app.FormatReg, "", format, path, "en", "", nil)
 			require.NoError(t, err)
 			cached := map[string]string{}
 			for _, b := range read {

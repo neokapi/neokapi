@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -22,6 +21,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/core/tool"
 	appconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/neokapi/neokapi/host/output"
@@ -439,6 +439,9 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	plan.Drift = drift
 	plan.upToDate = basis.passing != nil && len(basis.passing) == 0
 	plan.Warnings = basis.unread.warnings()
+	// A source with no target a run can write (an unsafe name, or a target
+	// that is a link out of the project) is passed over and named.
+	plan.Warnings = append(plan.Warnings, a.unsafeTargetWarnings(proj, root, "")...)
 	_, plan.readNothing = basis.unread.unitsSkipped(root, units)
 	plan.Monolingual = !proj.DeclaresTargetLanguages()
 	plan.NoTargets = !plan.Monolingual && !proj.WritesTargets()
@@ -827,8 +830,16 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 		// on disk, which decides whether the corpus's silence about its units is
 		// final (see App.recordSettlement).
 		settled := basis.settled[u.TargetPath]
-		delivered := !missing && targetDelivered(u.TargetPath)
+		delivered := !missing && targetDelivered(basis.root, u.TargetPath)
 		scope := basis.docs.Scope(basis.root, u.SourcePath)
+		// A unit a reviewer rejected is owed a new draft: recycling leaves it
+		// for the drafter, so the corpus answering it changes nothing. One
+		// rejected tool.MaxRejections times is left for a person.
+		feedback, ferr := a.reviewFeedbackFor(ctx, proj, basis.root, u.Locale, []string{u.SourcePath})
+		if ferr != nil {
+			return UpPlanOutput{}, ferr
+		}
+		feedbackRel := blockstore.SourceNamespace(basis.root, u.SourcePath)
 		for _, b := range blocks {
 			if !b.Translatable {
 				continue
@@ -859,6 +870,13 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 			// counts. It is a fact about the corpus alone, what the configured
 			// flow does with the answer is decided below.
 			answered := planMemoryExactHit(ctx, basis.memory, b, source, target)
+			unitFeedback := feedback[tool.FeedbackUnitKey(feedbackRel, blockKey(b))]
+			if unitFeedback.Held {
+				continue
+			}
+			if len(unitFeedback.Rejections) > 0 {
+				answered = false
+			}
 			switch {
 			case !produced:
 				s.MissingTarget++
@@ -950,12 +968,13 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 	return out, nil
 }
 
-// targetDelivered reports whether a unit's target file is on disk. A produced
+// targetDelivered reports whether a unit's target file is on disk beneath
+// root; a target that leads out of the project is not delivered. A produced
 // unit without one was read out of the workspace home, which is what a parked
 // locale's drafts look like between the run that drafted them and the review
 // that delivers them.
-func targetDelivered(targetPath string) bool {
-	_, err := os.Stat(targetPath)
+func targetDelivered(root, targetPath string) bool {
+	_, err := statThrough(root, targetPath)
 	return err == nil
 }
 

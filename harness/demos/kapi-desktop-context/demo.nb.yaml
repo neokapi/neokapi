@@ -1,0 +1,69 @@
+id: kapi-desktop-context
+title: Bestem hva assistentene dine foreslår
+subtitle: Kodingsassistenter foreslår regler mens de arbeider. Du beholder de riktige.
+kind: use-case
+publishAs: kapi-desktop-context
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read: uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - Suggestions on the Overview
+  - Decide
+  - What an assistant reads
+
+# The sample comes with two assistant sessions (claude-code, then codex). The
+# walk creates it on camera and decides on its suggestions.
+#
+# Cue words the walk waits for, by beat: overview (row, decide), decide (codex,
+# claude-code), keep (places, k), word (check, k), choose (codex,
+# claude-code's, keep), assistant (for, basket).
+outro:
+  line: "Åpne Decide, og trykk K på det første forslaget som er riktig."
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Kodingsassistenter som Claude Code registrerer foreslåtte skriveregler mens de arbeider i prosjektet ditt. Du velger hvilke som blir regler.
+  - id: overview
+    kind: desktop
+    beat: overview
+    caption: Forslag venter på Overview.
+    text: >-
+      Klikk Try with KapiMart for å åpne eksemplet. På Overview viser Suggestions-listen én rad per forslag. Decide-knappen viser antallet.
+  - id: decide
+    kind: desktop
+    beat: decide
+    caption: Ett spørsmål per forslag.
+    text: >-
+      Klikk Decide. Hvert forslag vises som ett spørsmål. Det første er en konflikt: codex foreslo log in, og claude-code foreslo sign in.
+  - id: keep
+    kind: desktop
+    beat: keep
+    caption: Behold den mest brukte stavemåten.
+    text: >-
+      Velg KapiMart. Det første alternativet er stavemåten som brukes mest i prosjektet. Linjen over knappene viser hvor mange steder en sjekk ville rapportert. Trykk K for å beholde den.
+  - id: word
+    kind: desktop
+    beat: word
+    caption: Behold et ord som en regel.
+    text: >-
+      Velg deretter basket. Cart brukes gjennomgående i butikkens tekst, så claude-code foreslo en regel mot basket. Linjen viser hva en sjekk ville rapportert. Trykk K for å beholde den.
+  - id: choose
+    kind: desktop
+    beat: choose
+    caption: "Velg én side, og behold den."
+    text: >-
+      Nå konflikten. codex foreslo log in. claude-codes forslag, sign in, kommer fra en redigering en person gjorde. Velg sign in, og trykk K for å beholde det.
+  - id: assistant
+    kind: desktop
+    beat: assistant
+    caption: Det en assistent leser for en fil.
+    text: >-
+      Åpne Assistants og velg en fil, for eksempel butikkens grensesnittfil. Dette er det en assistent leser før den redigerer filen, og basket er nå oppført som et ord å unngå.
+  - id: outro
+    kind: outro
+    text: >-
+      Åpne Decide og trykk K på hvert forslag du vil gjøre til en regel.

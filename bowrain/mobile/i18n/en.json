@@ -300,8 +300,13 @@
     "outcome": {
       "proposed": "Sent for review as a change set."
     },
+    "decidedBy": {
+      "keep": "{{name}} kept this item before your decision arrived.",
+      "reject": "{{name}} rejected this item before your decision arrived."
+    },
     "refused": {
       "stale": "This item changed. It is back at the end of the deck.",
+      "update_app": "Update the app, then open the deck again to decide on this item.",
       "not_pending": "Someone reviewed this item already.",
       "action_not_offered": "You cannot do that with this item.",
       "retire_needs_approval": "Retiring this needs a second person's approval.",
@@ -602,10 +607,12 @@
     "meaning": "Meaning",
     "tone": "Tone",
     "placeholder": "Placeholder",
-    "grammar": "Grammar"
+    "grammar": "Grammar",
+    "review_policy": "Cleared the review policy"
   },
   "notice": {
     "stale": "This text changed after you read it. The new version is back in the deck.",
+    "partial": "Your correction is recorded where the text matches it. Someone else changed the other copies first: check them in the deck.",
     "held": "Your correction is saved and waits for another reviewer.",
     "refused": "The server did not accept a decision."
   },
@@ -963,6 +970,7 @@
       "fixLanded": "Sent. Edit the text again to change it",
       "secondReview": "Waits for a second reviewer",
       "stale": "The text changed first",
+      "partial": "Recorded where the text matches",
       "refused": "Not accepted",
       "undoing": "Undoing",
       "undone": "Undone"

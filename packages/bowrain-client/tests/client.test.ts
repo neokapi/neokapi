@@ -5,12 +5,16 @@ import type { Run } from "@neokapi/kapi-format";
 
 import {
   approveSet,
+  correctionLanded,
   createBowrainClient,
   diffRuns,
+  placeholderForm,
   fixSet,
   isNetworkError,
+  NetworkError,
   readOutcome,
   RequestTimeoutError,
+  sameContent,
   rejectSet,
   revisionsOf,
   withdrawSet,
@@ -803,6 +807,112 @@ describe("feedDecisions", () => {
   });
 });
 
+describe("a request that gets no answer", () => {
+  it("is a network error whatever class the fetch rejects with", async () => {
+    // Expo's fetch rejects a lost connection with a plain Error.
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async () => {
+        throw new Error("fetch failed: The network connection was lost.");
+      }) as typeof fetch,
+    });
+    const err = await client
+      .applyChanges({ workspace: "acme", project: "p1" }, approveSet(card))
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(NetworkError);
+    expect(isNetworkError(err)).toBe(true);
+    expect((err as Error).message).toContain("network connection was lost");
+  });
+
+  it("is a network error for a token refresh too", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async () => {
+        throw new Error("fetch failed: The Internet connection appears to be offline.");
+      }) as typeof fetch,
+    });
+    const err = await client.refresh("r").catch((e: unknown) => e);
+    expect(isNetworkError(err)).toBe(true);
+  });
+
+  // An answer whose connection drops while its body arrives: the status came,
+  // the body did not.
+  const cutMidBody = (async () =>
+    new Response(
+      new ReadableStream({
+        start(c) {
+          c.enqueue(new TextEncoder().encode('{"schema":"kapi.change-result/v1","sta'));
+          c.error(new Error("terminated: other side closed"));
+        },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    )) as typeof fetch;
+
+  it("is a network error when the connection drops while a write's answer arrives", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: cutMidBody,
+    });
+    const err = await client
+      .applyChanges({ workspace: "acme", project: "p1" }, approveSet(card))
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(NetworkError);
+    expect((err as Error).message).toContain("other side closed");
+  });
+
+  it("is a network error when the connection drops while a read's or a token's answer arrives", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: cutMidBody,
+    });
+    expect(await client.workspaces().catch((e: unknown) => e)).toBeInstanceOf(NetworkError);
+    expect(await client.refresh("r").catch((e: unknown) => e)).toBeInstanceOf(NetworkError);
+  });
+});
+
+describe("the same content", () => {
+  const code = (id: string, type = "x-var"): Run =>
+    ({ ph: { id, type, data: "{{n}}", equiv: "{{n}}" } }) as Run;
+  const open = (id: string, type: string): Run => ({ pcOpen: { id, type, data: "<b>" } }) as Run;
+  const close = (id: string): Run => ({ pcClose: { id, type: "fmt", data: "</b>" } }) as Run;
+  const plural = (one: string): Run =>
+    ({
+      plural: { pivot: "n", forms: { one: [{ text: one }], other: [{ text: "files" }] } },
+    }) as Run;
+
+  it("is equal run for run", () => {
+    expect(sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }, code("1")])).toBe(true);
+    expect(sameContent([plural("file")], [plural("file")])).toBe(true);
+  });
+
+  it("is not the same words with a placeholder that differs", () => {
+    expect(sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }, code("2")])).toBe(false);
+    expect(
+      sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }, code("1", "x-date")]),
+    ).toBe(false);
+    expect(sameContent([{ text: "Hei " }, code("1")], [{ text: "Hei " }])).toBe(false);
+  });
+
+  it("is not the same words with a paired code that differs", () => {
+    const a = [open("1", "fmt"), { text: "Lagre" }, close("1")];
+    const b = [open("1", "link"), { text: "Lagre" }, close("1")];
+    expect(sameContent(a, b)).toBe(false);
+    expect(sameContent(a, [{ text: "Lagre" }])).toBe(false);
+  });
+
+  it("is not a plural whose forms differ", () => {
+    expect(sameContent([plural("file")], [plural("fil")])).toBe(false);
+  });
+
+  it("writes inline codes as a read shows them", () => {
+    expect(placeholderForm([{ text: "a" }, ph, { text: "b" }])).toBe('a<x id="1/"/>b');
+  });
+});
+
 describe("read bounds", () => {
   type Seen = { url: string; signal?: AbortSignal | null };
 
@@ -818,34 +928,72 @@ describe("read bounds", () => {
     }) as typeof fetch;
   }
 
-  it("ends a quick read that has no answer within its bound as a network error", async () => {
-    const seen: Seen[] = [];
+  it("ends a read that has no answer within its bound, as a timeout and not a network error", async () => {
     const client = createBowrainClient({
       baseUrl: "http://server",
       getAccessToken: () => "t",
-      fetch: hanging(seen),
-      quickReadTimeoutMs: 20,
-      readTimeoutMs: 5_000,
+      fetch: hanging([]),
+      readTimeoutMs: 20,
     });
     const err = await client.reviewHome().catch((e: unknown) => e);
     expect(err).toBeInstanceOf(RequestTimeoutError);
-    expect(isNetworkError(err)).toBe(true);
+    expect(isNetworkError(err)).toBe(false);
     expect((err as RequestTimeoutError).timeoutMs).toBe(20);
   });
 
-  it("gives the deck the longer read bound", async () => {
+  it("lets a slow answer arrive within the bound", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async () => {
+        await new Promise((r) => setTimeout(r, 30));
+        return new Response(JSON.stringify([]), { status: 200 });
+      }) as typeof fetch,
+      readTimeoutMs: 200,
+    });
+    await expect(client.workspaces()).resolves.toEqual([]);
+  });
+
+  it("ends a read whose body stalls halfway", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async (_url: string, init?: RequestInit) => {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode("[1,"));
+            init?.signal?.addEventListener("abort", () =>
+              controller.error(new DOMException("aborted", "AbortError")),
+            );
+          },
+        });
+        return new Response(body, { status: 200 });
+      }) as typeof fetch,
+      readTimeoutMs: 30,
+    });
+    const err = await client.workspaces().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RequestTimeoutError);
+  });
+
+  it("cancels a read when the caller's signal aborts, without calling it a timeout", async () => {
     const seen: Seen[] = [];
     const client = createBowrainClient({
       baseUrl: "http://server",
       getAccessToken: () => "t",
       fetch: hanging(seen),
-      quickReadTimeoutMs: 5_000,
-      readTimeoutMs: 20,
+      readTimeoutMs: 5_000,
     });
-    const err = await client
-      .deck({ workspace: "acme", project: "p1" }, "nb")
+    const abort = new AbortController();
+    const pending = client
+      .with({ signal: abort.signal })
+      .workspaces()
       .catch((e: unknown) => e);
-    expect((err as RequestTimeoutError).timeoutMs).toBe(20);
+    await new Promise((r) => setTimeout(r, 5));
+    abort.abort();
+    const err = await pending;
+    expect(err).not.toBeInstanceOf(RequestTimeoutError);
+    expect(err).not.toBeInstanceOf(NetworkError);
+    expect(seen[0].signal?.aborted).toBe(true);
   });
 
   it("sends a write without a bound", async () => {
@@ -853,15 +1001,17 @@ describe("read bounds", () => {
     const client = createBowrainClient({
       baseUrl: "http://server",
       getAccessToken: () => "t",
+      readTimeoutMs: 1,
       fetch: (async (url: string, init?: RequestInit) => {
         seen.push({ url, signal: init?.signal });
+        await new Promise((r) => setTimeout(r, 20));
         return new Response("{}", { status: 200 });
       }) as typeof fetch,
     });
-    await client
+    const err = await client
       .applyChanges({ workspace: "acme", project: "p1" }, approveSet(card))
-      .catch(() => undefined);
+      .catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(RequestTimeoutError);
     expect(seen).toHaveLength(1);
-    expect(seen[0].signal).toBeUndefined();
   });
 });

@@ -44,7 +44,7 @@ type MemoryLeverageConfig struct {
 	FillIfTargetIsEmpty           bool   `json:"fill_if_target_is_empty,omitempty" schema:"title=Only If Target Is Empty,description=Fill the target only when it has no existing content"`
 	NoQueryThreshold              int    `json:"no_query_threshold,omitempty" schema:"title=No-Query Threshold,description=Skip content-memory query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
 	MakeTMX                       bool   `json:"make_tmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
-	TMXPath                       string `json:"tmx_path,omitempty"         schema:"title=TMX Output Path,description=File path for the generated TMX document"`
+	TMXPath                       string `json:"tmx_path,omitempty"         schema:"title=TMX Output Path,description=File path for the generated TMX document,path=file"`
 	DowngradeIdenticalBestMatches bool   `json:"downgrade_identical_best_matches,omitempty" schema:"title=Downgrade Identical Exact Matches,description=Reduce score by 1%% when multiple identical exact matches are returned"`
 
 	// Point is where this run's content sits in the project's context space,
@@ -63,6 +63,12 @@ type MemoryLeverageConfig struct {
 	Profile   *coreprofile.VoiceProfile `json:"-" schema:"-"`
 	TermRules []coreprofile.TermRule    `json:"term_rules,omitempty" schema:"-"`
 
+	// ReviewFeedback names the units a reviewer rejected a draft of. Only a
+	// host grants it (tool.TakeReviewFeedback). Recycling fills none of them:
+	// a rejected unit is owed a new draft, and the content memory could only
+	// answer it with wording the reviewer has already seen.
+	ReviewFeedback tool.ReviewFeedback `json:"-" schema:"-"`
+
 	// Governing context resolved once at construction from Profile + TermRules
 	// and stamped onto every filled target's Origin.
 	profileID      string
@@ -71,16 +77,16 @@ type MemoryLeverageConfig struct {
 }
 
 // recycleOrigin describes a target filled from content memory: how it was made
-// (this tool) and — resolved at fill time from the context governing the
-// collection now, not inherited from the matched entry — what governed it.
+// (this tool) and, resolved at fill time from the context governing the
+// collection now, not inherited from the matched entry, what governed it.
 //
 // The fingerprint is the CURRENT context's, deliberately. A recycled fill
 // asserts the matched entry as a valid target under the governance in force now,
 // so it must fall stale when that governance moves; carrying the entry's
 // original approving fingerprint would make the recycled target immune to drift
 // against the profile that actually governs it. That fingerprint is also not
-// available here — a memory lookup returns a source/target/score, not the Origin
-// of the decision that first approved the entry — so resolving at fill time is
+// available here, a memory lookup returns a source/target/score, not the Origin
+// of the decision that first approved the entry, so resolving at fill time is
 // both the correct semantics and the only reachable one.
 func (c *MemoryLeverageConfig) recycleOrigin() model.Origin {
 	return model.Origin{
@@ -100,21 +106,17 @@ func (c *MemoryLeverageConfig) Reset() {
 	c.TargetLocale = ""
 	c.SourceLocale = ""
 	c.Memory = nil
-	// 70/95, not 100/100 — for now.
+	// 70/95, not 100/100.
 	//
-	// Fuzzy fill is retiring and its replacement is better, but the replacement
-	// is not connected yet: nothing fills prompt.Context.Prior in a live run,
-	// because the translate tool has no point plumbed through its flow
-	// bindings. Flipping these first would drop a real behaviour for nothing.
+	// Nothing fills prompt.Context.Prior in a live run, because the translate
+	// tool has no point in its flow bindings, so fuzzy fill is the only path
+	// that reuses a near match.
 	//
-	// Measured rather than assumed. At realistic sentence length the cosmetic
-	// edits an author actually makes — a trailing period, an added comma, a
-	// capitalised word, a hyphen becoming a dash — score 96.7 to 98.3, inside
-	// the band 95 catches and 100 does not. The 70-94 band below is the inert
-	// one: recorded as candidates and read by nothing. The edit ladder in
-	// scripts/coordinatereport measures this on every run.
-	//
-	// Flip both to 100 in the change that wires the reference, not before.
+	// At realistic sentence length, the cosmetic edits an author makes (a
+	// trailing period, an added comma, a capitalised word, a hyphen becoming a
+	// dash) score 96.7 to 98.3, inside the band 95 catches and 100 misses. The
+	// 70-94 band below is recorded as candidates and read by nothing. The edit
+	// ladder in scripts/coordinatereport measures this on every run.
 	c.FuzzyThreshold = 70
 	c.FillTarget = true
 	c.FillTargetThreshold = 95
@@ -171,6 +173,11 @@ func NewMemoryLeverageFromConfig(config map[string]any, targetLang string) (tool
 		profile = pf
 		delete(config, "profile")
 	}
+	feedback, err := tool.TakeReviewFeedback(config)
+	if err != nil {
+		return nil, fmt.Errorf("recycle config: %w", err)
+	}
+	cfg.ReviewFeedback = feedback.Units
 	if err := schema.ApplyConfig(config, cfg); err != nil {
 		return nil, fmt.Errorf("recycle config: %w", err)
 	}
@@ -226,6 +233,9 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 		if conf.Memory == nil {
 			return nil
 		}
+		if fb := conf.ReviewFeedback.ForBlock(v.Context(), v.UnitKey()); len(fb.Rejections) > 0 || fb.Held {
+			return nil
+		}
 
 		sourceText := v.SourceText()
 		if sourceText == "" {
@@ -252,17 +262,17 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 			return nil
 		}
 
-		// Structure-aware path first: a block form carries the source's inline
-		// codes, so a block whose source has icon or markup runs only scores
-		// 100 against an entry with the same code structure, the fill preserves
-		// the entry's runs (tokens stay model objects, never literal text), and
-		// the answer can be classified against the source it was approved for.
+		// Structure-aware path first. A block form carries the source's inline
+		// codes, so a block with icon or markup runs scores 100 only against an
+		// entry with the same code structure. The fill keeps the entry's runs as
+		// model objects, and the answer is classified against the source it was
+		// approved for.
 		if leverageBlock(conf, v) {
 			return nil
 		}
 
 		// Flattened fallback, for entries stored without inline codes. It keys
-		// differently, so it can reach what the block form cannot — and it
+		// differently, so it can reach what the block form cannot, and it
 		// cannot classify, so it fills on the score alone.
 		leverageText(conf, v, sourceText)
 		return nil
@@ -271,17 +281,16 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 }
 
 // recordWholeBlockMatch records a whole-block content-memory hit the same auditable way as
-// the segment path: the match is attached as an AltTranslation annotation
-// (source/target runs, score, match type, provenance) regardless of fill, and
-// when the block target is filled it is committed as a real Target carrying
-// `tm` provenance, the score, and draft status — not an opaque string. The
-// summary properties remain for quick gating and backward compatibility.
+// the segment path. The match is attached as an AltTranslation annotation
+// (source/target runs, score, match type, provenance) whether or not it fills.
+// A filled target is committed as a Target carrying `tm` provenance, the score
+// and draft status. The summary properties serve quick gating.
 //
 // The text path keys on the *flattened* source (inline codes contribute no
 // characters), so a code-bearing block can match a legacy entry that was stored
 // without codes. Its translation is a bare text run, so filling it would drop
 // every placeholder the source carries. Such a match is recorded as a candidate
-// for review but never filled — see fillWouldDropCodes.
+// for review but never filled, see fillWouldDropCodes.
 func recordWholeBlockMatch(v tool.VariantView, conf *MemoryLeverageConfig, translation string, score int, mt model.MatchType, propType string) {
 	targetRuns := []model.Run{{Text: &model.TextRun{Text: translation}}}
 	v.AddAltTranslation(&model.AltTranslation{
@@ -293,8 +302,8 @@ func recordWholeBlockMatch(v tool.VariantView, conf *MemoryLeverageConfig, trans
 		MatchType: mt,
 		ToolID:    "recycle",
 	})
-	// The plain-text path has no matched source in hand — LookupExact and
-	// LookupFuzzy return a translation and nothing to compare against — so it
+	// The plain-text path has no matched source in hand, LookupExact and
+	// LookupFuzzy return a translation and nothing to compare against, so it
 	// cannot classify and falls back to the score. It is the legacy path for
 	// entries stored without inline codes; the structure-aware path above is
 	// the one that classifies.
@@ -310,14 +319,13 @@ func recordWholeBlockMatch(v tool.VariantView, conf *MemoryLeverageConfig, trans
 }
 
 // fillWouldDropCodes reports whether committing candidate as v's target would
-// lose inline codes the source carries — a dropped `{count}`, `{name}` or icon
+// lose inline codes the source carries, a dropped `{count}`, `{name}` or icon
 // placeholder.
 //
-// A recycled target whose placeholder set does not match its source's is not a
-// translation, it is content loss: the string renders with a hole where a
-// number or a filename belongs, and nothing downstream signals it. Leaving the
-// block untranslated (so the locale falls back to source) is the honest
-// outcome, so every leverage fill is gated on this.
+// A recycled target whose placeholder set differs from its source's loses
+// content: the string renders with a hole where a number or a filename
+// belongs, and nothing downstream signals it. Every leverage fill is gated on
+// this, leaving such a block untranslated so the locale falls back to source.
 func fillWouldDropCodes(v tool.VariantView, candidate []model.Run) bool {
 	return model.DiffRunCodes(v.SourceRuns(), candidate).Lossy()
 }
@@ -341,29 +349,21 @@ func fillBreaksTermRules(conf *MemoryLeverageConfig, v tool.VariantView, candida
 }
 
 // leverageBlockRuns performs the structure-aware whole-block leverage. It
-// returns true when it has handled the block — the match was filled, or
-// it was Ambiguous (recorded but deliberately not filled) — so the caller
-// must not run the text-based path on top of it. It returns false when
-// the provider has no block-level match, when the matched target's inline
-// codes do not line up with the block's source codes, when the match
-// scored below the fill policy, or when it breaks a term rule governing the
-// block: the flattened text path keys differently
-// (inline codes and placeholders drop out of its query), so it can still
-// recover legacy entries whose source text was authored without them. A
-// sub-threshold block match is recorded as an alt-translation candidate
-// before falling through.
+// returns true when it has handled the block (filled, or Ambiguous and
+// recorded), so the caller skips the text path. It returns false when there
+// is no block-level match, when the target's inline codes do not line up with
+// the source's, when the score is below the fill policy, or when the match
+// breaks a term rule; the text path can still recover a legacy entry stored
+// without codes.
 //
 // Fill semantics differ from the text path in two ways:
 //   - the target is written as the matched entry's Run sequence, so paired
 //     codes and placeholders survive as model objects;
-//   - an Ambiguous match (several full-score exacts with differing
-//     targets) is recorded as an alt-translation candidate but never
-//     filled, regardless of fill_target_threshold — unattended leverage must
-//     not turn an arbitrary pick into published content. The text path is
-//     skipped too: it would resolve the same tie by arbitrary pick.
+//   - an Ambiguous match (several full-score exacts with differing targets)
+//     is recorded as a candidate and never filled, and the text path is
+//     skipped too, because it would settle the tie by arbitrary pick.
 //
-// Every candidate is recorded as an alt-translation before the fill decision,
-// so a rejected match is visible to a reviewer instead of vanishing.
+// Every candidate is recorded as an alt-translation before the fill decision.
 func leverageBlock(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 	block := &model.Block{
 		ID:           v.ID(),
@@ -408,7 +408,7 @@ func leverageBlock(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 		// stored without codes matches a code-bearing source at near-exact
 		// score). The candidate stays recorded above so a reviewer can repair
 		// it; the block itself falls through to the text path, which keys
-		// differently and may recover a legacy entry — under the same guard.
+		// differently and may recover a legacy entry, under the same guard.
 		v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
 		return false
 	}
@@ -423,16 +423,12 @@ func leverageBlock(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 		// text path try its differently-keyed lookup (it may overwrite the
 		// tm-match annotation with a better match).
 		v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
-		// A substantive edit is a refusal, and a refusal is final. The text
-		// path asks the same corpus, keyed differently, and gets back a
-		// translation with no source to compare against — so it fills on the
-		// score alone, which is the number that just said yes to a meaning
-		// inversion. Returning false here would refuse at the front door and
-		// let the same answer in through the back one, at the same score.
+		// A substantive edit is a final refusal. The text path would ask the
+		// same corpus, get the same translation with no source to compare,
+		// and fill on the score alone.
 		//
-		// Nothing better is lost: a block path that returned a substantive
-		// match returned the corpus's BEST match, so there is no exact for the
-		// text path to find.
+		// The block path returned the corpus's best match, so the text path
+		// has no better one to find.
 		return m.Edit == edit.Substantive
 	}
 	if fillBreaksTermRules(conf, v, targetRuns) {
@@ -455,8 +451,8 @@ func leverageBlock(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 // leverageSegments attempts sentence-level content-memory leverage over a multi-segment
 // block. It returns true when it has fully handled the block (every segment
 // matched at/above the fuzzy threshold and, if permitted, the assembled target
-// was written), so the caller should stop. It returns false — leaving the block
-// for whole-block leverage and any later translation stage — when the block has
+// was written), so the caller should stop. It returns false, leaving the block
+// for whole-block leverage and any later translation stage, when the block has
 // no usable multi-segment overlay or when at least one segment did not match.
 //
 // Assembly preserves inter-segment text by requiring the segment spans to be
@@ -605,10 +601,10 @@ func annotateSegmentMatch(v tool.VariantView, conf *MemoryLeverageConfig, idx in
 // shouldFillTarget decides whether to copy the translation into the target.
 //
 // The edit kind is the gate that matters, and it OVERRIDES the score in both
-// directions. A substantive change is refused however high it scores — a
+// directions. A substantive change is refused however high it scores, a
 // negation on a long sentence scores 95, and filling it writes the translation
 // of the opposite meaning under a badge that stops anyone looking. A cosmetic
-// change is accepted however low it scores — a full stop on a button label
+// change is accepted however low it scores, a full stop on a button label
 // scores 91, and the words have not moved.
 //
 // The score still governs when the provider classified nothing, which is the
@@ -640,7 +636,7 @@ func shouldFillTarget(conf *MemoryLeverageConfig, v tool.VariantView, score int,
 // by block.
 //
 // It exists for entries stored without inline codes, which a block form cannot
-// reach because it matches over runs. It is the weaker path by construction —
+// reach because it matches over runs. It is the weaker path by construction:
 // asked by text, the corpus answers with a target and no source, so nothing can
 // classify the edit and the fill falls back to the score alone.
 //

@@ -11,6 +11,7 @@ vi.mock("../hooks/useApi", () => ({
     listProjectTools: (...args: unknown[]) => listProjectTools(...args),
     matchContent: async () => [{ path: "/a.md" }, { path: "/b.md" }],
     checkAISetup: async () => ({ kind: "" }),
+    pendingExecTrust: async () => null,
     runFlow: (...args: unknown[]) => runFlow(...args),
     getRunState: () => Promise.resolve("idle"),
   },

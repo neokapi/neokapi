@@ -131,6 +131,10 @@ func (o changeSetOp) replay(ctx context.Context, client *editorclient.EditorClie
 
 // addMemoryEntryOp queues a new content-memory entry.
 type addMemoryEntryOp struct {
+	// ID is the id the entry has in the local memory, which the server
+	// stores it under, so the two are one entry and a later edit made
+	// offline reaches it.
+	ID           string `json:"id,omitempty"`
 	Source       string `json:"source"`
 	Target       string `json:"target"`
 	SourceLocale string `json:"source_locale"`
@@ -140,8 +144,18 @@ type addMemoryEntryOp struct {
 func (addMemoryEntryOp) opKind() opKind { return opAddMemoryEntry }
 
 func (o addMemoryEntryOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
-	_, err := client.AddMemoryEntry(ctx, ws, o.Source, o.Target, o.SourceLocale, o.TargetLocale)
+	_, _, err := o.replayRevised(ctx, client, ws)
 	return err
+}
+
+// replayRevised sends the add and reports the entry's id and revision on the
+// server, which the local memory records for a later offline edit.
+func (o addMemoryEntryOp) replayRevised(ctx context.Context, client *editorclient.EditorClient, ws string) (string, string, error) {
+	info, err := client.AddMemoryEntry(ctx, ws, o.ID, o.Source, o.Target, o.SourceLocale, o.TargetLocale)
+	if err != nil {
+		return "", "", err
+	}
+	return info.ID, info.Revision, nil
 }
 
 // updateMemoryEntryOp queues an edit to an existing content-memory entry.
@@ -150,18 +164,46 @@ type updateMemoryEntryOp struct{ MemoryUpdateRequest }
 func (updateMemoryEntryOp) opKind() opKind { return opUpdateMemoryEntry }
 
 func (o updateMemoryEntryOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
-	return client.UpdateMemoryEntry(ctx, ws, o.EntryID, o.Source, o.Target, o.SourceLocale, o.TargetLocale)
+	_, _, err := o.replayRevised(ctx, client, ws)
+	return err
 }
 
-// deleteMemoryEntryOp queues a content-memory entry deletion.
+// replayRevised sends the edit and reports the entry's new revision. An edit
+// queued without the revision it was made on (before this version) is
+// retired: the server can only refuse it.
+func (o updateMemoryEntryOp) replayRevised(ctx context.Context, client *editorclient.EditorClient, ws string) (string, string, error) {
+	if o.BaseRevision == "" {
+		return "", "", errRetired
+	}
+	info, err := client.UpdateMemoryEntry(ctx, ws, o.EntryID, o.Source, o.Target, o.SourceLocale, o.TargetLocale, o.BaseRevision)
+	if err != nil {
+		return "", "", err
+	}
+	return info.ID, info.Revision, nil
+}
+
+// revisedOp is a queued operation whose replay reports the revision the
+// server gave the entry it wrote.
+type revisedOp interface {
+	replayRevised(ctx context.Context, client *editorclient.EditorClient, ws string) (id, revision string, err error)
+}
+
+// deleteMemoryEntryOp queues a content-memory entry deletion, at the revision
+// of the entry the person saw.
 type deleteMemoryEntryOp struct {
-	EntryID string `json:"entry_id"`
+	EntryID      string `json:"entry_id"`
+	BaseRevision string `json:"base_revision,omitempty"`
 }
 
 func (deleteMemoryEntryOp) opKind() opKind { return opDeleteMemoryEntry }
 
+// replay sends the delete. One queued before this version, without the
+// revision it was made on, is retired: the server can only refuse it.
 func (o deleteMemoryEntryOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
-	return client.DeleteMemoryEntry(ctx, ws, o.EntryID)
+	if o.BaseRevision == "" {
+		return errRetired
+	}
+	return client.DeleteMemoryEntry(ctx, ws, o.EntryID, o.BaseRevision)
 }
 
 // --- Terms (concept) ops ---
@@ -182,7 +224,10 @@ type updateConceptOp struct{ UpdateConceptRequest }
 func (updateConceptOp) opKind() opKind { return opUpdateConcept }
 
 func (o updateConceptOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
-	return client.EditorUpdateConcept(ctx, ws, o.ConceptID, o.Domain, o.Definition, termInfosToEditor(o.Terms))
+	if o.BaseRevision == "" {
+		return errConceptRevisionNotSent
+	}
+	return client.EditorUpdateConcept(ctx, ws, o.ConceptID, o.BaseRevision, o.Domain, o.Definition, termInfosToEditor(o.Terms))
 }
 
 // deleteConceptOp queues a concept deletion.

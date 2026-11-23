@@ -1,6 +1,6 @@
 id: s2-tidewatch-ci
-title: Bygget publiseres uten språket
-subtitle: "Dekning rapporteres på pull requesten, og bare kilden settes som port."
+title: Nettstedet publiseres uten språket
+subtitle: "Dekningsgraden rapporteres i pull requesten, og bare kildeteksten må bestå kontrollen."
 kind: use-case
 publishAs: docs-coverage-in-ci
 # A scripted plain-shell demo: every command is deterministic and offline. The AI
@@ -17,14 +17,14 @@ project: true
 # The sample ships its context as files, and a fresh sandbox has a store that
 # has never held them, so the take starts where a reader does.
 setup:
-  - kapi context import ./context
+  - kapi store import ./context
 captureTimeoutSec: 300
 aspects:
   - coverage, not a verdict
-  - the source gate
+  - the check on the source
   - the build never waits for a language
 outro:
-  line: "Rapporter dekning, og sett bare kilden som port."
+  line: "Rapporter dekningsgraden, og krev bare at kildeteksten består kontrollen."
   pointer: kapi status --json
 
 script:
@@ -33,10 +33,10 @@ script:
   - command: kapi status
   - comment: This is what the pull-request job posts. Coverage per language, in machine shape.
   - command: >-
-      kapi status --json --jq '.locales[]|"\(.locale)  translated \(.pct.translated)%  reviewed \(.pct.reviewed)%  \(if .shippable then "ready" else "pending" end)"'
-  - comment: While a language was behind, nothing failed. The source gate is what a pull request is held to, and it is about the source.
-  - command: kapi check --strict
-  - comment: One advisory finding, and it is the API reference keeping a name the vocabulary retired. Reported, never blocking.
+      kapi status --json --jq '.locales[]|"\(.locale)  translated \(.pct.translated)%  established \(.pct.established)%  \(if .shippable then "ready" else "pending" end)"'
+  - comment: While a language was behind, nothing failed. The check on the source is what a pull request is held to.
+  - command: kapi check
+  - comment: One finding reports. The integration page names the retired word where it explains the field that keeps it, and a reported finding never blocks.
 
 artifacts:
   - id: coverage
@@ -64,34 +64,34 @@ narration:
   - id: title
     kind: title
     text: >-
-      Et nettstedsbygg må aldri feile fordi en oversettelse henger etter. Det er kilden en pull request holdes til, og hvor langt hvert språk har kommet rapporteres ved siden av.
+      Byggingen av nettstedet må aldri feile fordi en oversettelse ligger etter. Pull requesten vurderes ut fra kildeteksten. Fremdriften for hvert språk rapporteres ved siden av.
   - id: coverage-run
     kind: terminal
     through: 5
     highlight: { text: [nb, nl] }
-    caption: "Én linje per språk, uten noen dom i den."
+    caption: "Én linje per språk, uten noen konklusjon."
     text: >-
-      Én linje per språk: hvor mye som er oversatt, hvor mye en person har lest, og om det passerer terskelen for å bli tilbudt. Nederlandsk henger etter, og det er det ordinære løpende arbeidet snarere enn en feil noe sted.
+      Én linje per språk viser hvor mye som er oversatt, hvor mye et menneske har lest, og om språket oppfyller kravene for å tilbys. Nederlandsk ligger etter. Det er en del av det løpende arbeidet, ikke en feil.
   - id: coverage
     kind: artifact
     artifact: coverage
-    caption: En rapport som jobben poster. Den kan ikke feile bygget.
+    caption: En rapport som jobben legger ut. Den kan ikke få bygget til å feile.
     text: >-
-      Dette er hva kontinuerlig-integrasjonsjobben poster på en pull request. Det er en rapport, og jobben som poster den har ingen mulighet til å feile bygget – noe som er poenget med å skille de to fra hverandre.
+      Dette legger CI-jobben ut i en pull request. Det er en rapport. Jobben som legger den ut, kan ikke få bygget til å feile.
   - id: gate
     kind: terminal
     through: 8
-    highlight: { text: [MINOR] }
-    caption: "Kildens port passerer, med ett rådgivende funn."
+    highlight: { text: [REPORTS] }
+    caption: "Kontrollen av kildeteksten består, med ett funn som bare rapporteres."
     text: >-
-      Gjennom alt dette er det engelsk pull requesten holdes til, og kildens port passerer med ett rådgivende funn: en API-referanse som beholder et feltnavn vokabularet har lagt til side.
+      Gjennom hele prosessen er det den engelske kildeteksten pull requesten vurderes mot. Kontrollen av kildeteksten består, med ett funn som bare rapporteres. Integrasjonssiden nevner det utgåtte ordet mooring når den forklarer feltnavnet som fortsatt inneholder ordet.
   - id: workflow
     kind: artifact
     artifact: workflow
-    caption: Konvergeringsjobben committer; byggejobben kjører uansett.
+    caption: Konvergeringsjobben deler det som ble registrert. Byggejobben kjøres uansett.
     text: >-
-      Arbeidsflyten sier det rett ut. En pull request får en tørrkjøring og en dekningskommentar, standardgrenen konvergerer og committer det som endret seg, og jobben som bygger nettstedet er avhengig av ingen av dem.
+      Arbeidsflyten viser det tydelig. En pull request får en prøvekjøring og en kommentar om dekningsgraden. Standardgrenen kjører konvergering og pusher konteksten som ble registrert. Jobben som bygger nettstedet, er ikke avhengig av noen av dem.
   - id: outro
     kind: outro
     text: >-
-      Post dekning på pull requesten og sett bare kilden som port. Et språk som henger etter er pågående arbeid, og nettstedet publiseres uten det.
+      Rapporter dekningsgraden i pull requesten, og krev bare at kildeteksten består kontrollen. Et språk som ligger etter, er arbeid som pågår. Nettstedet publiseres uten det.

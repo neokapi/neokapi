@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // BlockIdentity provides content-addressable identification for blocks,
@@ -27,25 +29,19 @@ type BlockIdentity struct {
 // Derived locators use AdvisoryPropertyPrefix and are excluded from ContextHash.
 // Moving a line number therefore does not re-upload every subsequent block.
 //
-// It takes the parts rather than a block so a store that holds all three as
-// columns folds them without rehashing. The revision depends on the key the
-// source is taken under, and both sides of a transfer take it under the same
-// one (core/venue.RecordHash).
+// It takes the parts, so a store that holds all three as columns folds them
+// without rehashing. Both sides of a transfer take the revision under the
+// same key (core/venue.RecordHash).
 func ComputeRecordHash(contentHash, contextHash, sourceRevision string) string {
-	h := sha256.New()
-	h.Write([]byte(contentHash))
-	h.Write([]byte{0})
-	h.Write([]byte(contextHash))
-	h.Write([]byte{0})
-	h.Write([]byte(sourceRevision))
-	return hex.EncodeToString(h.Sum(nil))
+	sum := sha256.Sum256([]byte(partjoin.NUL(contentHash, contextHash, sourceRevision)))
+	return hex.EncodeToString(sum[:])
 }
 
 // ComputeContentHash computes a SHA-256 hash of the normalized source text.
 //
 // Normalization is leading/trailing whitespace trimming ONLY (strings.TrimSpace).
 // It deliberately does NOT change case, collapse interior whitespace, or apply
-// any other transform — case and interior spacing are content-significant.
+// any other transform, case and interior spacing are content-significant.
 //
 // WARNING: this normalization is part of the on-the-wire content-hash contract
 // used by the sync diff engine. Changing it (e.g. adding lowercasing or
@@ -61,14 +57,14 @@ func ComputeContentHash(sourceText string) string {
 
 // AdvisoryPropertyPrefix marks a property as carried but not identifying.
 //
-// Most properties are structural — a heading's level, a cell's column — and
+// Most properties are structural (a heading's level, a cell's column) and
 // belong in the context hash: change one and the block genuinely sits somewhere
 // else. But some are DERIVED LOCATORS: the line a block starts on, a byte
 // offset, anything that says "where to find this" rather than "what this is".
 //
 // Those must not identify a block. A locator moves whenever anything above it
 // moves, so folding it into the context hash makes an untouched block report as
-// moved every time a blank line is added somewhere earlier in the file — noise
+// moved every time a blank line is added somewhere earlier in the file, noise
 // that says a block changed when nothing about it did.
 //
 // So a property whose key starts with this prefix is carried on the block and
@@ -85,13 +81,10 @@ func IsAdvisoryProperty(key string) bool {
 // ComputeContextHash computes a SHA-256 hash of contextual information
 // (block name, type, and identifying properties) to detect structural changes.
 //
-// Advisory properties are excluded — see AdvisoryPropertyPrefix.
+// Advisory properties are excluded, see AdvisoryPropertyPrefix.
 func ComputeContextHash(name, typ string, properties map[string]string) string {
 	h := sha256.New()
-	h.Write([]byte(name))
-	h.Write([]byte{0})
-	h.Write([]byte(typ))
-	h.Write([]byte{0})
+	partjoin.WriteNUL(h, name, typ)
 
 	// Sort keys for deterministic hashing.
 	keys := make([]string, 0, len(properties))
@@ -103,10 +96,7 @@ func ComputeContextHash(name, typ string, properties map[string]string) string {
 	}
 	sortStrings(keys)
 	for _, k := range keys {
-		h.Write([]byte(k))
-		h.Write([]byte{0})
-		h.Write([]byte(properties[k]))
-		h.Write([]byte{0})
+		partjoin.WriteNUL(h, k, properties[k])
 	}
 
 	return hex.EncodeToString(h.Sum(nil))

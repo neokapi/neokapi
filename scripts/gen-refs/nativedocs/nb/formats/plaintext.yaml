@@ -2,24 +2,37 @@
 # Schema source: core/formats/plaintext/config.go (Config).
 # Behaviour grounded in core/formats/plaintext/reader.go and spec.yaml,
 # mirroring Okapi's BasePlainTextFilter (okf_plaintext).
-description: "Trekk ut tekst fra vanlige `.txt`-filer, én blokk per linje eller per avsnitt."
+description: "Trekk ut tekst fra rene `.txt`-filer, med én blokk per linje eller avsnitt."
 overview: |
-  Klartekstformatet leser generiske `.txt`-dokumenter og sender ut tekstinnholdet som blokker. Det er reservevalget for filer uten markup eller struktur: versjonsnotater, instruksjoner, ordlister eller annen fritekst som trenger oversettelse.
+  Ren tekst-formatet leser generiske `.txt`-dokumenter og trekker ut
+  tekstinnholdet som oversettbare blokker. Det brukes som reserve for filer
+  uten egen oppmerking eller struktur: versjonsmerknader, prompt-er,
+  ordlister eller annen fritekst som skal oversettes.
 
-  Som standard deler leseren inn etter linje: hver ikke-tom linje blir én blokk, og tomme linjer samt originale linjeavslutninger (LF, CRLF eller CR) bevares som skjelett slik at dokumentet går i rundtur etter fletting. Avsnittsmodus grupperer i stedet linjer adskilt av tomme linjer til én enkelt blokk, noe som passer for prosa der setninger strekker seg over flere ombrutte linjer. Dette speiler Okapis klartekstfilter.
+  Som standard trekker leseren ut én blokk per linje med innhold. Tomme
+  linjer og de opprinnelige linjeskiftene (LF, CRLF eller CR alene) bevares
+  som skjelett, slik at dokumentet kan gjenskapes etter fletting. I
+  avsnittsmodus grupperes sammenhengende linjer mellom tomme linjer i én
+  blokk. Det passer for løpende tekst der setninger går over flere linjer
+  med tekstbryting. Dette tilsvarer Okapis filter for ren tekst.
 parameters:
-  segmentByLine:
-    description: "Behandle hver linje som en blokk, i stedet for hvert avsnitt."
+  segment_by_line:
+    description: Behandle hver linje som en blokk i stedet for hvert avsnitt.
     help: |
-      Når dette er aktivert (standard), blir hver ikke-tom linje i inndata sin egen blokk. Tomme linjer og linjeavslutninger beholdes som skjelett og trekkes ikke ut.
+      Når dette er aktivert (standard), blir hver linje med innhold i inndataene
+      sin egen blokk. Tomme linjer og linjeskift bevares som skjelett og
+      trekkes ikke ut.
 
-      Når dette er deaktivert, grupperer leseren påfølgende linjer til avsnitt, og en blokk avsluttes ved en tom linje. Bruk avsnittsmodus for prosa som brytes over flere fysiske linjer, der en setning bør holdes i én blokk i stedet for å deles per linje.
-    values: "`true` / `false` (standard `true`)"
+      Når dette er deaktivert, grupperer leseren sammenhengende linjer i avsnitt,
+      og en blokk avsluttes ved en tom linje. Bruk avsnittsmodus for løpende
+      tekst som er brutt over flere fysiske linjer, når en setning skal forbli
+      i én blokk i stedet for å bli delt opp linje for linje.
+    values: "`true` / `false` (standard: `true`)"
 processingNotes:
-  - "LF, CRLF og bare CR gjenkjennes alle som linjeavslutninger og bevares."
-  - Tomme linjer sender ut en ikke-oversettbar datadel; de trekkes aldri ut som blokker.
+  - "LF, CRLF og CR alene gjenkjennes som linjeskift og bevares."
+  - Tomme linjer gir en ikke-oversettbar datadel. De trekkes aldri ut som blokker.
 examples:
   - title: Avsnittsmodus
-    description: Grupper innbrytte linjer til avsnittblokker i stedet for én blokk per linje.
+    description: Grupper linjer med tekstbryting i avsnittsblokker i stedet for én blokk per linje.
     config: |
-      segmentByLine: false
+      segment_by_line: false

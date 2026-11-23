@@ -246,6 +246,27 @@ describe("TermsBrowser", () => {
   });
 
   describe("delete with confirmation", () => {
+    it("saves an edit with the revision the concept was read at", async () => {
+      const concept = makeConcept({ id: "c1", domain: "Legal", revision: "rev-c1" });
+      adapter = createMockAdapter([concept]);
+
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("contract")).toBeInTheDocument();
+      });
+
+      const conceptCard = screen.getByTestId("concept-c1");
+      await userEvent.click(within(conceptCard).getByText("Edit"));
+      await userEvent.click(within(screen.getByTestId("concept-c1")).getByText("Save"));
+
+      await waitFor(() => {
+        expect(adapter.updateConcept).toHaveBeenCalledWith(
+          expect.objectContaining({ concept_id: "c1", base_revision: "rev-c1" }),
+        );
+      });
+    });
+
     it("requires confirmation before deleting a concept", async () => {
       const concept = makeConcept({ id: "c1", domain: "Legal" });
       adapter = createMockAdapter([concept]);

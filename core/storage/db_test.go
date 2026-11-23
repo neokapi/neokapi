@@ -114,8 +114,8 @@ func TestMigrate_NamespacedIsolation(t *testing.T) {
 	}
 
 	// Two subsystems can independently track version 1.
-	require.NoError(t, storage.Migrate(db, "sievepen_migrations", m1))
-	require.NoError(t, storage.Migrate(db, "termbase_migrations", m2))
+	require.NoError(t, storage.Migrate(db, "first_test_migrations", m1))
+	require.NoError(t, storage.Migrate(db, "second_test_migrations", m2))
 
 	// Both tables should exist.
 	_, err = db.Exec("INSERT INTO tm (id) VALUES ('a')")

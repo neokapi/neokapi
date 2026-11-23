@@ -15,10 +15,14 @@ import (
 
 // ListContextObjects implements platstore.ContextObjectStore.
 func (s *PostgresStore) ListContextObjects(ctx context.Context, projectID, dir string) ([]string, error) {
+	return listContextObjects(ctx, s.db, projectID, dir)
+}
+
+func listContextObjects(ctx context.Context, q Runner, projectID, dir string) ([]string, error) {
 	if err := storeutil.CheckContextDir(dir); err != nil {
 		return nil, err
 	}
-	rows, err := s.db.QueryContext(ctx,
+	rows, err := q.QueryContext(ctx,
 		`SELECT name FROM context_objects WHERE project_id = $1 AND starts_with(name, $2)`,
 		projectID, dir)
 	if err != nil {
@@ -43,11 +47,15 @@ func (s *PostgresStore) ListContextObjects(ctx context.Context, projectID, dir s
 
 // GetContextObject implements platstore.ContextObjectStore.
 func (s *PostgresStore) GetContextObject(ctx context.Context, projectID, name string) (*platstore.ContextObject, error) {
+	return getContextObject(ctx, s.db, projectID, name)
+}
+
+func getContextObject(ctx context.Context, q Runner, projectID, name string) (*platstore.ContextObject, error) {
 	if err := storeutil.CheckContextObjectName(name); err != nil {
 		return nil, err
 	}
 	obj := platstore.ContextObject{Name: name}
-	err := s.db.QueryRowContext(ctx,
+	err := q.QueryRowContext(ctx,
 		`SELECT data, sha256, pushed_by, pushed_tool, pushed_token, pushed_at FROM context_objects WHERE project_id = $1 AND name = $2`,
 		projectID, name).Scan(&obj.Data, &obj.SHA256, &obj.PushedBy.UserID, &obj.PushedBy.Tool, &obj.PushedBy.TokenID, &obj.PushedAt)
 	if errors.Is(err, sql.ErrNoRows) {

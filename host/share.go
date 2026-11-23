@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/pluginhost"
 )
@@ -512,7 +513,7 @@ func (a *App) shareVia(ctx context.Context, req ShareRequest, res *ShareResult) 
 	if err := RefuseSplitContext(req.Project, spec); err != nil {
 		return WithExitCode(ExitUsage, err)
 	}
-	file, err := a.ensureRecipe(req.Project)
+	file, err := a.ensureRecipe(ctx, req.Project)
 	if err != nil {
 		return err
 	}
@@ -528,6 +529,14 @@ func (a *App) shareVia(ctx context.Context, req ShareRequest, res *ShareResult) 
 		}
 		if file.Action == ShareFileKept {
 			file.Action = ShareFileUpdated
+		}
+	}
+	// A person who names the folder with --via folder has chosen it, which
+	// is the approval a sync through it needs (requireContextStore). An
+	// agent's choice is not one.
+	if req.Via == ShareViaFolder && !a.agentRunning() {
+		if _, err := a.ApproveContextStore(req.Project); err != nil {
+			return err
 		}
 	}
 	res.Files = append(res.Files, file)
@@ -635,7 +644,7 @@ func parseS3URL(url string) (bucket, prefix string) {
 
 // ensureRecipe writes the draft `kapi init` writes when the folder has no
 // recipe, and reports kapi.yaml as created or kept.
-func (a *App) ensureRecipe(recipe string) (ShareFile, error) {
+func (a *App) ensureRecipe(ctx context.Context, recipe string) (ShareFile, error) {
 	file := ShareFile{Path: project.RecipeFileName, Action: ShareFileKept}
 	if _, err := os.Stat(recipe); err == nil {
 		return file, nil
@@ -643,7 +652,7 @@ func (a *App) ensureRecipe(recipe string) (ShareFile, error) {
 		return file, err
 	}
 	a.InitRegistries()
-	if _, err := InitProject(filepath.Dir(recipe), InitOptions{Formats: a.FormatReg}); err != nil {
+	if _, err := InitProjectContext(ctx, filepath.Dir(recipe), InitOptions{Formats: a.FormatReg}); err != nil {
 		return file, err
 	}
 	file.Action = ShareFileCreated
@@ -734,7 +743,7 @@ func (a *App) readContextToMove(ctx context.Context, recipe string) (*ContextMov
 	if err != nil {
 		return nil, err
 	}
-	s, err := a.contextSync(ctx, layout, prev, w)
+	s, err := a.contextSync(ctx, layout, prev, w, true)
 	if err != nil {
 		return nil, fmt.Errorf("read the context from %s %s before moving it to Bowrain: %w; nothing was changed", prev.Kind, prev.Location, err)
 	}
@@ -775,16 +784,38 @@ func setBowrainBackend(recipe string, res *ShareResult) error {
 	return nil
 }
 
+// holdsStateDir reports whether the project at root holds its state
+// directory, asked through an os.Root on root so a .kapi that leads out of
+// the project is not followed.
+func holdsStateDir(root string) bool {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return false
+	}
+	defer r.Close()
+	_, err = r.Lstat(project.StateDirName)
+	return err == nil
+}
+
+// removeStateDir removes the project's state directory through an os.Root on
+// root, which removes a link as the name it is and never what it points at.
+func removeStateDir(root string) {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	_ = r.RemoveAll(project.StateDirName)
+}
+
 // connectBowrain runs the plugin's connect handler on the project.
 func (a *App) connectBowrain(ctx context.Context, plugin *pluginhost.Plugin, req ShareRequest, res *ShareResult) error {
 	// The plugin's handler connects the project its recipe describes, so the
 	// recipe is written first. A recipe this share wrote is taken away again
 	// when the connect fails, and the folder is left as it was.
 	root := filepath.Dir(req.Project)
-	stateDir := filepath.Join(root, project.StateDirName)
-	_, statErr := os.Stat(stateDir)
-	hadStateDir := statErr == nil
-	file, err := a.ensureRecipe(req.Project)
+	hadStateDir := holdsStateDir(root)
+	file, err := a.ensureRecipe(ctx, req.Project)
 	if err != nil {
 		return err
 	}
@@ -795,9 +826,9 @@ func (a *App) connectBowrain(ctx context.Context, plugin *pluginhost.Plugin, req
 	args := []string{"command", bowrainConnect, "--server", req.Location}
 	if err := pluginhost.RunContributionSubprocess(ctx, plugin, args, root); err != nil {
 		if file.Action == ShareFileCreated {
-			_ = os.Remove(req.Project)
+			_ = rootpath.Remove(root, req.Project)
 			if !hadStateDir {
-				_ = os.RemoveAll(stateDir)
+				removeStateDir(root)
 			}
 		}
 		return err

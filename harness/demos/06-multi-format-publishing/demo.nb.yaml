@@ -1,6 +1,6 @@
 id: 06-multi-format-publishing
-title: "To formater, én forespørsel, ingen konverteringssteg"
-subtitle: "Markdown og en properties-fil, hver skrevet tilbake som det den var."
+title: "To formater, én forespørsel, ingen konvertering"
+subtitle: "Markdown og en properties-fil, begge skrevet tilbake i sitt opprinnelige format."
 kind: use-case
 aspects:
   - format-aware
@@ -10,7 +10,7 @@ needsAi: true
 model: sonnet
 captureTimeoutSec: 320
 outro:
-  line: Prøv det på det uvanlige formatet i repositoryet ditt.
+  line: Prøv det på et uvanlig format i repoet ditt.
   pointer: kapi formats
 
 prompt: >
@@ -49,31 +49,31 @@ narration:
   - id: title
     kind: title
     text: >-
-      Én forespørsel, to filer, to formater. kapi leser Markdown og Java properties som det de er, oversetter bare teksten en leser ser, og skriver hver tilbake i sitt eget format.
+      Én forespørsel, to filer, to formater. kapi leser Markdown og Java properties i sine egne formater, oversetter bare teksten som er synlig for leseren, og skriver hver fil tilbake i sitt eget format.
   - id: md-before
     kind: artifact
     artifact: md-before
-    caption: "Overskrifter, en liste, et blokkssitat. Alt sammen syntaks."
+    caption: "Overskrifter, en liste og et blokksitat. Alt er syntaks."
     text: >-
-      Her er den engelske guiden. Rundt setningene er overskrifter, en liste og et blokkssitat, og en oversetter som jobber med råfilen må trå over dem alle.
+      Her er den engelske veiledningen. Setningene er omgitt av overskrifter, en liste og et blokksitat. En oversetter som arbeider direkte i filen, må ta hensyn til all denne syntaksen.
   - id: markdown
     kind: terminal
-    caption: "Prosa inn, fransk tilbake, syntaksen urørt."
+    caption: "Tekst ut, fransk tilbake, syntaksen uendret."
     text: >-
-      kapi tolker filen som Markdown. Prosaen sendes til leverandøren som prosa, uthevingen og lenkemålene følger med som struktur, og det som kommer tilbake skrives som Markdown igjen.
+      kapi parser filen som Markdown. Teksten sendes til leverandøren som tekst, mens utheving og lenkemål følger med som struktur. Resultatet skrives tilbake som Markdown.
   - id: md-after
     kind: artifact
     artifact: md-after
     caption: "Det samme dokumentet, på fransk."
     text: >-
-      Den franske guiden gjengis slik den engelske ble. Samme overskriftsnivåer, samme liste, samme blokkssitat, og kodeeksempelet midt i det er fortsatt kodeeksempelet.
+      Den franske veiledningen vises på samme måte som den engelske. Den har de samme overskriftsnivåene, den samme listen og det samme blokksitatet. Kodeeksempelet i midten er fortsatt et kodeeksempel.
   - id: props
     kind: artifact
     artifact: props
-    caption: Nøkler til venstre. Bare høyresiden ble flyttet.
+    caption: Nøkler til venstre. Bare høyresiden ble oversatt.
     text: >-
-      Properties-filen gikk gjennom samme kjøring og kom tilbake som en properties-fil. Hver nøkkel til venstre for likhetstegnet er nøkkelen koden slår opp, og bare meldingen til høyre ble oversatt.
+      Properties-filen gikk gjennom samme kjøring og ble skrevet tilbake som en properties-fil. Hver nøkkel til venstre for likhetstegnet er en nøkkel som koden slår opp. Bare meldingen til høyre ble oversatt.
   - id: outro
     kind: outro
     text: >-
-      Spør kapi hva det leser, og kjør deretter samme forespørsel mot formatet i repositoryet ditt som ingenting annet vil åpne.
+      Spør kapi hvilke formater det kan lese. Kjør deretter den samme forespørselen mot formatet i repoet ditt som ingenting annet kan åpne.

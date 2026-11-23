@@ -149,7 +149,7 @@ func TestOrdinaryConceptEditKeepsGovernanceOnRead(t *testing.T) {
 	old.Terms[0].Validity = &graph.Validity{Tags: map[string]string{"market": "UK"}}
 	require.NoError(t, h.tb(t).AddConcept(t.Context(), old))
 
-	c, rec := h.req(http.MethodPut, "/concepts/scoped", `{"domain":"product","terms":[{"text":"scoped-approved","locale":"en","note":"Edited","competitor_term":false,"validity":{}}]}`, platauth.PermManageTerms, "cid", old.ID)
+	c, rec := h.req(http.MethodPut, "/concepts/scoped", withBase(`{"domain":"product","terms":[{"text":"scoped-approved","locale":"en","note":"Edited","competitor_term":false,"validity":{}}]}`, conceptRevision(t, h.tb(t), old.ID)), platauth.PermManageTerms, "cid", old.ID)
 	require.NoError(t, h.srv.HandleUpdateConcept(c))
 	require.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
 

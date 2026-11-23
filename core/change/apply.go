@@ -32,6 +32,10 @@ type Actor struct {
 	Kind    ActorKind `json:"kind"`
 	Name    string    `json:"name,omitempty"`
 	Session string    `json:"session,omitempty"`
+	// AgentHost is the agent host whose shell a person declared themselves in
+	// (KAPI_ACTOR=person), such as "claude-code". Empty for anyone else. It
+	// is recorded beside the note and never inside it (SplitNote).
+	AgentHost string `json:"agent_host,omitempty"`
 }
 
 // Disposition says what a guard violation does to the operation that would
@@ -88,30 +92,21 @@ type BlockEnv struct {
 }
 
 // ApplyBlock applies content operations to one block in memory and returns
-// one result per operation, in order. It is the one function that changes a
-// block's content.
+// one result per operation, in order.
 //
-// The operations apply in order, and each sees the result of the operations
-// before it. Every precondition (IfMatch, and Basis under RequireBasis) is
-// checked first, against the block as it stood when ApplyBlock was called, and
-// a position an operation names (an edit's start and end, a run range, a
-// path's run index) names the edition as it stood then too: it is moved
-// through the text the operations before it changed, and refused as an
-// overlap when it lies inside that text (compose.go). The operations are
-// all-or-nothing: when one is refused, the block is left as it
-// was, the refused operations say why, and every other operation is
-// not_applied with BlockedBy naming the first refusal.
+// The operations apply in order, each seeing the result of those before it.
+// Every precondition and every position an operation names refer to the block
+// as it stood when ApplyBlock was called (compose.go). The operations are
+// all-or-nothing: when one is refused, the block is left as it was, and every
+// other operation is not_applied with BlockedBy naming the first refusal.
 //
 // ApplyBlock applies set_content, replace_text, remove_edition, annotate,
 // unannotate and the in-process provenance operation. set_attribute, mark and
-// a new code in a runs payload apply where env.Format declares the attribute
-// or the vocabulary type, and are refused as unsupported elsewhere.
-// insert_block, delete_block and native need a capability of the document
-// rather than the block, and are refused as unsupported here. decide and the
-// asset operations are applied by the change service, not to a block, and are
-// refused as invalid.
-// The document and block an operation's At names are the caller's to route;
-// ApplyBlock reads only the edition.
+// a new code apply where env.Format declares them. insert_block, delete_block
+// and native need the document and are refused as unsupported; decide and the
+// asset operations belong to the change service and are refused as invalid.
+// The caller routes an operation's document and block; ApplyBlock reads only
+// the edition.
 func ApplyBlock(b *model.Block, ops []Op, env BlockEnv) []OpResult {
 	results := make([]OpResult, len(ops))
 	w := newWorkset(b, env)
@@ -321,11 +316,10 @@ func rebuildsText(kind Kind) bool {
 // edition that are not UTF-8. A reader hands such bytes on as they are when a
 // file is in another encoding, and kapi reads every file as UTF-8, so a read
 // shows U+FFFD in their place. replace_text and mark rebuild the text around
-// their edit, which writes U+FFFD over every such byte, and a set_content
-// carrying U+FFFD sends the read's character back where the bytes stood. A
-// set_content that states every character replaces the bytes, and an
-// operation that leaves the text alone, or an edit of another edition or
-// block, keeps them.
+// their edit, which writes U+FFFD over every such byte. A set_content
+// carrying U+FFFD sends the read's character back. A set_content that states
+// every character replaces the bytes. An operation that leaves the text
+// alone, or edits another edition or block, keeps them.
 func (w *workset) utf8Text(op Op) *Error {
 	var why string
 	switch {
@@ -882,10 +876,9 @@ func editsOverlap(edits []pathEdit) *Error {
 // applyPathEdits applies the edits of one sequence, sorted by start, and sets
 // each edit's newLen. An edit of text alone replaces text and keeps every code
 // as model.ApplyTextEdits places it. An edit whose find named codes replaces
-// the runs it matched with its replacement read as placeholder text against
-// the edition's codes; those edits are made first, right to left, so the runs
-// left of each are as the find saw them, and the edits of text alone then
-// apply together at their offsets moved past them.
+// the runs it matched with its replacement read as placeholder text. Those
+// edits are made first, right to left, so the runs left of each are as the
+// find saw them. The edits of text alone then apply at their moved offsets.
 func applyPathEdits(seq []model.Run, edits []pathEdit, edition []model.Run, report bool) ([]model.Run, []Finding, *Error) {
 	var findings []Finding
 	shift := make([]int, len(edits))

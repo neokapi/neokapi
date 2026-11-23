@@ -23,7 +23,6 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host"
 )
@@ -34,6 +33,11 @@ func init() {
 
 // registerKapiTools registers all kapi MCP tools on the given server.
 func registerKapiTools(server *mcp.Server, a *cli.App) {
+	// The arguments that name a location, which the roots middleware checks
+	// (host/mcp_args.go).
+	host.DeclareMCPPathArgs("detect_format", host.MCPArgPath, "path")
+	host.DeclareMCPPathArgs("run_flow", host.MCPArgPath, "path", "output_path")
+	host.DeclareMCPPathArgs("pseudo_translate", host.MCPArgPath, "path", "output_path")
 	// Outside a project a call writes under the directory the server was
 	// started in and the roots its client declares (writescope.go).
 	startDir, _ := os.Getwd()
@@ -67,7 +71,7 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 			Name:        "list_flows",
 			Description: "List the processing flows run_flow can run: the project's own (inline in its recipe, then its flows_dir files), then kapi's built-in flows, each name once",
 		}, func(ctx context.Context, req *mcp.CallToolRequest, input ListFlowsInput) (*mcp.CallToolResult, ListFlowsOutput, error) {
-			return handleListFlows(a, input)
+			return handleListFlows(ctx, a, input)
 		})
 	}
 
@@ -215,7 +219,7 @@ func handleDetectFormat(a *cli.App, input DetectFormatInput) (*mcp.CallToolResul
 func handleRunFlow(ctx context.Context, a *cli.App, input RunFlowInput) (*mcp.CallToolResult, RunFlowOutput, error) {
 	// With a project in scope, ProjectContext supplies the defaults and the
 	// content resolution.
-	projectPath, err := a.ResolveMCPCallProject(input.Project)
+	projectPath, err := a.ResolveMCPCallProject(ctx, input.Project)
 	if err != nil {
 		return nil, RunFlowOutput{}, err
 	}
@@ -355,8 +359,8 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, projectPath strin
 // handleListFlows lists what `kapi flows` lists for the project the call
 // names (host.FlowList), each name once for the flow run_flow and `kapi run`
 // resolve it to.
-func handleListFlows(a *cli.App, input ListFlowsInput) (*mcp.CallToolResult, ListFlowsOutput, error) {
-	recipePath, err := a.ResolveMCPCallProject(input.Project)
+func handleListFlows(ctx context.Context, a *cli.App, input ListFlowsInput) (*mcp.CallToolResult, ListFlowsOutput, error) {
+	recipePath, err := a.ResolveMCPCallProject(ctx, input.Project)
 	if err != nil {
 		return nil, ListFlowsOutput{}, err
 	}
@@ -501,19 +505,13 @@ func outputInside(root, outputPath string) error {
 	if root == "" {
 		return nil
 	}
-	absRoot, err := filepath.Abs(root)
-	if err != nil {
-		return err
-	}
-	abs, err := filepath.Abs(outputPath)
-	if err != nil {
-		return err
-	}
-	if rel, rerr := filepath.Rel(absRoot, abs); rerr != nil || !filepath.IsLocal(rel) {
+	under, escape := underRoots([]string{root}, outputPath)
+	switch {
+	case under != "":
+		return nil
+	case escape != nil:
+		return fmt.Errorf("output_path: %w", escape)
+	default:
 		return fmt.Errorf("output_path: %q lies outside the project. Name an output_path inside the project", outputPath)
 	}
-	if _, err := rootpath.Contain(absRoot, abs); err != nil {
-		return fmt.Errorf("output_path: %w", err)
-	}
-	return nil
 }

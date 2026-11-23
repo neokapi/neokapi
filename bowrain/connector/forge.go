@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/partjoin"
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
@@ -32,11 +33,11 @@ var forgeCheckoutRoot = filepath.Join(os.TempDir(), "neokapi-forge")
 //
 // Both inputs reach here from tenant-supplied config, so neither is joined
 // into a path as-is: an id of "../.." would otherwise walk out of the root.
-// The digest carries the identity — it is what makes two connectors distinct
-// and one connector stable across restarts — while the slug is there only so
+// The digest carries the identity, it is what makes two connectors distinct
+// and one connector stable across restarts, while the slug is there only so
 // an operator looking at the directory can tell which connector it belongs to.
 func forgeCheckoutPath(id, repoPath string) string {
-	sum := sha256.Sum256([]byte(id + "\x00" + repoPath))
+	sum := sha256.Sum256([]byte(partjoin.NUL(id, repoPath)))
 	name := hex.EncodeToString(sum[:8])
 	if slug := checkoutSlug(id); slug != "" {
 		name = slug + "-" + name
@@ -45,8 +46,8 @@ func forgeCheckoutPath(id, repoPath string) string {
 }
 
 // checkoutSlug reduces s to a short, unmistakably safe directory-name fragment:
-// ASCII alphanumerics, dash and underscore only. Anything else — separators,
-// dots, spaces, non-ASCII — is dropped rather than substituted, so no input can
+// ASCII alphanumerics, dash and underscore only. Anything else, separators,
+// dots, spaces, non-ASCII, is dropped rather than substituted, so no input can
 // produce "..", a leading dash, or a nested path.
 func checkoutSlug(s string) string {
 	var b strings.Builder
@@ -64,7 +65,7 @@ func checkoutSlug(s string) string {
 
 // DefaultDeliveryBranch is the stable head branch the forge connector pushes
 // deliveries to. One branch means one open pull/merge request per project that
-// every delivery updates in place — the bot pattern reviewers already know —
+// every delivery updates in place (the bot pattern reviewers already know)
 // instead of a new request per run.
 const DefaultDeliveryBranch = "bowrain/translations"
 
@@ -72,12 +73,12 @@ const DefaultDeliveryBranch = "bowrain/translations"
 // git connector's clone/fetch for source ingestion, plus branch-and-PR
 // delivery for produced translations. Publish writes the project's content
 // into a delivery branch and keeps one open pull/merge request against the
-// base branch, so translations always arrive as a reviewable unit — never a
+// base branch, so translations always arrive as a reviewable unit, never a
 // direct push to the tracked branch.
 //
 // Config, beyond the git connector's keys (repo, branch, patterns, …):
 //
-//	token           forge API token (secret) — pulls/pushes over https and
+//	token           forge API token (secret), pulls/pushes over https and
 //	                opens the PR/MR. GitHub: fine-grained PAT with contents +
 //	                pull-requests write. GitLab: project access token, api scope.
 //	webhook_secret  secret the forge signs inbound push webhooks with (secret)
@@ -106,14 +107,14 @@ type ForgeConnector struct {
 }
 
 // NewForgeConnector builds a forge connector from config. The repo URL must be
-// https — token auth and the forge API don't exist over ssh remotes.
+// https, token auth and the forge API don't exist over ssh remotes.
 func NewForgeConnector(formatReg *registry.FormatRegistry, config map[string]string) (*ForgeConnector, error) {
 	return NewForgeConnectorWithApp(formatReg, config, nil)
 }
 
 // NewForgeConnectorWithApp builds a forge connector that may authenticate as
 // a GitHub App: with `auth: app` in the config, the connector carries no
-// token of its own — a per-installation access token is minted for every
+// token of its own, a per-installation access token is minted for every
 // delivery. Static-token configs behave exactly as NewForgeConnector.
 func NewForgeConnectorWithApp(formatReg *registry.FormatRegistry, config map[string]string, app *forge.GitHubApp) (*ForgeConnector, error) {
 	repo, err := forge.ParseRepo(config["repo"])
@@ -241,7 +242,7 @@ func (c *ForgeConnector) Kind() forge.Kind { return c.kind }
 // coordinate inbound push webhooks carry.
 func (c *ForgeConnector) RepoPath() string { return c.repo.Path }
 
-// BaseBranch returns the tracked branch — the one whose pushes trigger
+// BaseBranch returns the tracked branch, the one whose pushes trigger
 // convergence and the one deliveries merge into.
 func (c *ForgeConnector) BaseBranch() string { return c.git.branch }
 
@@ -250,7 +251,7 @@ func (c *ForgeConnector) Name() string                 { return c.git.Name() }
 func (c *ForgeConnector) Category() venueconn.Category { return venueconn.CategoryCode }
 func (c *ForgeConnector) Status(ctx context.Context) (*venueconn.SyncStatus, error) {
 	// Status probes the remote (clone/pull + list), so it needs the same
-	// per-call credential as Fetch/List — without it, app-mode status of a
+	// per-call credential as Fetch/List, without it, app-mode status of a
 	// private repository fails on every poll.
 	if err := c.authGit(ctx); err != nil {
 		return nil, err
@@ -262,7 +263,7 @@ func (c *ForgeConnector) Close() error                             { return c.gi
 
 // authGit resolves the delivery credential and injects it into the git
 // connector's remote commands. Without this, app-mode fetches of private
-// repositories fail — the App has no static token, so the clone must carry a
+// repositories fail, the App has no static token, so the clone must carry a
 // freshly minted installation token.
 func (c *ForgeConnector) authGit(ctx context.Context) error {
 	token, err := c.tokenFor(ctx)
@@ -293,7 +294,7 @@ func (c *ForgeConnector) List(ctx context.Context) ([]*platconn.ContentItem, err
 }
 
 // tokenAuthEnv returns GIT_CONFIG_* environment variables that inject the
-// forge token as an https Authorization header — environment, not argv, so the
+// forge token as an https Authorization header, environment, not argv, so the
 // credential never shows up in a process listing. The basic-auth username is
 // the forge's token convention; both forges only check the password half.
 func (c *ForgeConnector) tokenAuthEnv(token string) []string {
@@ -316,12 +317,12 @@ func (c *ForgeConnector) deliveryGit(ctx context.Context, token string, args ...
 	return cmd
 }
 
-// Publish delivers content as a pull/merge request: write the items into the
-// delivery branch (recreated from the tracked branch every time, so a
-// delivery never depends on the previous one), push it, and create or update
-// the one open PR/MR for that branch. opts.Metadata may carry pr_title and
-// pr_body; opts.Message is the commit message. With nothing to deliver — the
-// produced files match the tracked branch — no branch is pushed and no PR is
+// Publish delivers content as a pull/merge request. It writes the items into
+// the delivery branch, recreated from the tracked branch every time so a
+// delivery never depends on the previous one, pushes it, and creates or
+// updates the one open PR/MR for that branch. opts.Metadata may carry pr_title and
+// pr_body; opts.Message is the commit message. With nothing to deliver, the
+// produced files match the tracked branch, no branch is pushed and no PR is
 // touched.
 func (c *ForgeConnector) Publish(ctx context.Context, items []*platconn.ContentItem, opts platconn.PublishOptions) error {
 	if err := c.git.validate(); err != nil {

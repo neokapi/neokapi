@@ -38,8 +38,13 @@ export interface MemoryAdapter {
   getEntry(id: string): Promise<MemoryEntryDTO | null>;
   addEntry(req: AddMemoryEntryRequest): Promise<void>;
   updateEntry(req: UpdateMemoryEntryRequest): Promise<void>;
-  deleteEntry(id: string): Promise<void>;
-  deleteEntries(ids: string[]): Promise<void>;
+  /**
+   * Deletes an entry. revision is the entry's revision as it was read, when its
+   * store keeps one; such a store refuses a delete of an entry changed since.
+   */
+  deleteEntry(id: string, revision?: string): Promise<void>;
+  /** Deletes entries; revisions names each entry's revision as read, by id. */
+  deleteEntries(ids: string[], revisions?: Record<string, string>): Promise<void>;
   annotateEntities?(req: AnnotateEntitiesRequest): Promise<AnnotateResult>;
   lookup?(req: LookupMemoryRequest): Promise<MemoryMatchDTO[]>;
   /** Launches a file dialog and imports a TMX file. Returns null on cancel. */

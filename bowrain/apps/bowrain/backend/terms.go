@@ -3,6 +3,7 @@ package backend
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -37,6 +38,9 @@ type ConceptInfo struct {
 	Properties map[string]string `json:"properties,omitempty"`
 	CreatedAt  string            `json:"created_at"`
 	UpdatedAt  string            `json:"updated_at"`
+	// Revision is the concept's revision on the server as read; an edit
+	// sends it back. A concept from the local store has none.
+	Revision string `json:"revision,omitempty"`
 }
 
 // TermSearchResult holds a page of term search results.
@@ -80,7 +84,14 @@ type UpdateConceptRequest struct {
 	Domain     string     `json:"domain"`
 	Definition string     `json:"definition"`
 	Terms      []TermInfo `json:"terms"`
+	// BaseRevision is the revision of the concept the edit was made on, as
+	// the UI read it. The backend never fills it in.
+	BaseRevision string `json:"base_revision,omitempty"`
 }
+
+// errConceptRevisionNotSent is an edit sent to the server that does not say
+// which version of the concept it was made on.
+var errConceptRevisionNotSent = errors.New("this change does not say which version of the concept it was made on; reopen the concept and make the change again")
 
 // getOrCreateTB lazily initializes the app-level persistent SQLite terms store.
 func (a *App) getOrCreateTB() (*terms.SQLiteStore, error) {
@@ -222,8 +233,11 @@ func (a *App) addConceptLocal(req AddConceptRequest) (*ConceptInfo, error) {
 func (a *App) UpdateConcept(req UpdateConceptRequest) error {
 	return a.writeThroughVoid(updateConceptOp{req},
 		func() error {
+			if req.BaseRevision == "" {
+				return errConceptRevisionNotSent
+			}
 			client, ws := a.editorRemote()
-			return client.EditorUpdateConcept(context.Background(), ws, req.ConceptID, req.Domain, req.Definition, termInfosToEditor(req.Terms))
+			return client.EditorUpdateConcept(context.Background(), ws, req.ConceptID, req.BaseRevision, req.Domain, req.Definition, termInfosToEditor(req.Terms))
 		},
 		func() error { return nil }, // server-authoritative: skip the local mirror on success
 		func() error {

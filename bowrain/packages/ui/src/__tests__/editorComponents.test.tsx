@@ -4,6 +4,21 @@ import userEvent from "@testing-library/user-event";
 import type { Run } from "@neokapi/kapi-format";
 import type { SpanInfo } from "@neokapi/ui-primitives";
 import type { BlockTermMatch, EntityInfo, FileCheckResult } from "../types/api";
+import { MarkedSource } from "../components/editor/MarkedSource";
+import { FormattedSourceDisplay } from "../components/editor/FormattedSourceDisplay";
+import { SourceCellDisplay } from "../components/editor/SourceCellDisplay";
+import {
+  InlineCodeLegend,
+  InlinePreview,
+  TagChipComponent,
+  TagPalette,
+} from "@neokapi/ui-primitives";
+import { ProblemsPanel } from "../components/editor/ProblemsPanel";
+import { FormatVocabularyBadge } from "../components/editor/FormatVocabularyBadge";
+import { EntityPopover } from "../components/editor/EntityPopover";
+import { EntityMarkPopover } from "../components/editor/EntityMarkPopover";
+import { TermSidebar } from "../components/editor/TermSidebar";
+import { VocabularyExplorer } from "../components/editor/VocabularyExplorer";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -52,10 +67,7 @@ function entity(overrides: Partial<EntityInfo> = {}): EntityInfo {
 // ---------------------------------------------------------------------------
 
 describe("MarkedSource", () => {
-  async function renderComponent(
-    props: Parameters<typeof import("../components/editor/MarkedSource").MarkedSource>[0],
-  ) {
-    const { MarkedSource } = await import("../components/editor/MarkedSource");
+  async function renderComponent(props: Parameters<typeof MarkedSource>[0]) {
     return render(<MarkedSource {...props} />);
   }
 
@@ -140,12 +152,7 @@ describe("MarkedSource", () => {
 // ---------------------------------------------------------------------------
 
 describe("FormattedSourceDisplay", () => {
-  async function renderComponent(
-    props: Parameters<
-      typeof import("../components/editor/FormattedSourceDisplay").FormattedSourceDisplay
-    >[0],
-  ) {
-    const { FormattedSourceDisplay } = await import("../components/editor/FormattedSourceDisplay");
+  async function renderComponent(props: Parameters<typeof FormattedSourceDisplay>[0]) {
     return render(<FormattedSourceDisplay {...props} />);
   }
 
@@ -170,10 +177,7 @@ describe("FormattedSourceDisplay", () => {
 // ---------------------------------------------------------------------------
 
 describe("SourceCellDisplay", () => {
-  async function renderComponent(
-    props: Parameters<typeof import("../components/editor/SourceCellDisplay").SourceCellDisplay>[0],
-  ) {
-    const { SourceCellDisplay } = await import("../components/editor/SourceCellDisplay");
+  async function renderComponent(props: Parameters<typeof SourceCellDisplay>[0]) {
     return render(<SourceCellDisplay {...props} />);
   }
 
@@ -212,10 +216,7 @@ describe("SourceCellDisplay", () => {
 // ---------------------------------------------------------------------------
 
 describe("TagChipComponent", () => {
-  async function renderComponent(
-    props: Parameters<typeof import("@neokapi/ui-primitives").TagChipComponent>[0],
-  ) {
-    const { TagChipComponent } = await import("@neokapi/ui-primitives");
+  async function renderComponent(props: Parameters<typeof TagChipComponent>[0]) {
     return render(<TagChipComponent {...props} />);
   }
 
@@ -304,10 +305,7 @@ describe("TagChipComponent", () => {
 // ---------------------------------------------------------------------------
 
 describe("TagPalette", () => {
-  async function renderComponent(
-    props: Parameters<typeof import("@neokapi/ui-primitives").TagPalette>[0],
-  ) {
-    const { TagPalette } = await import("@neokapi/ui-primitives");
+  async function renderComponent(props: Parameters<typeof TagPalette>[0]) {
     return render(<TagPalette {...props} />);
   }
 
@@ -363,10 +361,7 @@ describe("TagPalette", () => {
 // ---------------------------------------------------------------------------
 
 describe("ProblemsPanel", () => {
-  async function renderComponent(
-    props: Parameters<typeof import("../components/editor/ProblemsPanel").ProblemsPanel>[0],
-  ) {
-    const { ProblemsPanel } = await import("../components/editor/ProblemsPanel");
+  async function renderComponent(props: Parameters<typeof ProblemsPanel>[0]) {
     return render(<ProblemsPanel {...props} />);
   }
 
@@ -615,12 +610,7 @@ describe("ProblemsPanel", () => {
 // ---------------------------------------------------------------------------
 
 describe("FormatVocabularyBadge", () => {
-  async function renderComponent(
-    props: Parameters<
-      typeof import("../components/editor/FormatVocabularyBadge").FormatVocabularyBadge
-    >[0],
-  ) {
-    const { FormatVocabularyBadge } = await import("../components/editor/FormatVocabularyBadge");
+  async function renderComponent(props: Parameters<typeof FormatVocabularyBadge>[0]) {
     return render(<FormatVocabularyBadge {...props} />);
   }
 
@@ -657,10 +647,7 @@ describe("FormatVocabularyBadge", () => {
 // ---------------------------------------------------------------------------
 
 describe("InlinePreview", () => {
-  async function renderComponent(
-    props: Parameters<typeof import("@neokapi/ui-primitives").InlinePreview>[0],
-  ) {
-    const { InlinePreview } = await import("@neokapi/ui-primitives");
+  async function renderComponent(props: Parameters<typeof InlinePreview>[0]) {
     return render(<InlinePreview {...props} />);
   }
 
@@ -694,10 +681,7 @@ describe("InlinePreview", () => {
 // ---------------------------------------------------------------------------
 
 describe("EntityPopover", () => {
-  async function renderComponent(
-    props: Parameters<typeof import("../components/editor/EntityPopover").EntityPopover>[0],
-  ) {
-    const { EntityPopover } = await import("../components/editor/EntityPopover");
+  async function renderComponent(props: Parameters<typeof EntityPopover>[0]) {
     return render(<EntityPopover {...props} />);
   }
 
@@ -756,10 +740,7 @@ describe("EntityPopover", () => {
 // ---------------------------------------------------------------------------
 
 describe("EntityMarkPopover", () => {
-  async function renderComponent(
-    props: Parameters<typeof import("../components/editor/EntityMarkPopover").EntityMarkPopover>[0],
-  ) {
-    const { EntityMarkPopover } = await import("../components/editor/EntityMarkPopover");
+  async function renderComponent(props: Parameters<typeof EntityMarkPopover>[0]) {
     return render(<EntityMarkPopover {...props} />);
   }
 
@@ -812,10 +793,7 @@ describe("EntityMarkPopover", () => {
 // ---------------------------------------------------------------------------
 
 describe("TermSidebar", () => {
-  async function renderComponent(
-    props: Parameters<typeof import("../components/editor/TermSidebar").TermSidebar>[0],
-  ) {
-    const { TermSidebar } = await import("../components/editor/TermSidebar");
+  async function renderComponent(props: Parameters<typeof TermSidebar>[0]) {
     return render(<TermSidebar {...props} />);
   }
 
@@ -888,12 +866,7 @@ describe("TermSidebar", () => {
 // ---------------------------------------------------------------------------
 
 describe("VocabularyExplorer", () => {
-  async function renderComponent(
-    props: Parameters<
-      typeof import("../components/editor/VocabularyExplorer").VocabularyExplorer
-    >[0] = {},
-  ) {
-    const { VocabularyExplorer } = await import("../components/editor/VocabularyExplorer");
+  async function renderComponent(props: Parameters<typeof VocabularyExplorer>[0] = {}) {
     return render(<VocabularyExplorer {...props} />);
   }
 
@@ -918,10 +891,7 @@ describe("VocabularyExplorer", () => {
 // ---------------------------------------------------------------------------
 
 describe("InlineCodeLegend", () => {
-  async function renderComponent(
-    props: Parameters<typeof import("@neokapi/ui-primitives").InlineCodeLegend>[0],
-  ) {
-    const { InlineCodeLegend } = await import("@neokapi/ui-primitives");
+  async function renderComponent(props: Parameters<typeof InlineCodeLegend>[0]) {
     return render(<InlineCodeLegend {...props} />);
   }
 

@@ -223,3 +223,21 @@ func TestFlowDefinitionJSON(t *testing.T) {
 	assert.Len(t, parsed.Edges, 2)
 	assert.Equal(t, 250.0, parsed.Nodes[1].Position.X)
 }
+
+// A flow with one step has no edges, and its JSON must still carry them as a
+// list: the Bowrain Flows tab iterates `edges` and failed on null.
+func TestFlowDefinition_MarshalsEmptyNodesAndEdgesAsArrays(t *testing.T) {
+	data, err := json.Marshal(FlowDefinition{ID: "qa", Name: "QA", Nodes: []FlowNode{{ID: "qa", Type: NodeTool, Name: "qa"}}})
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"edges":[]`)
+	assert.NotContains(t, string(data), "null")
+
+	data, err = json.Marshal(&FlowDefinition{ID: "empty", Name: "Empty"})
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"nodes":[]`)
+	assert.Contains(t, string(data), `"edges":[]`)
+
+	var back FlowDefinition
+	require.NoError(t, json.Unmarshal(data, &back))
+	assert.Equal(t, "empty", back.ID)
+}

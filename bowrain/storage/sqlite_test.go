@@ -171,7 +171,7 @@ func TestMigrate(t *testing.T) {
 	}
 
 	// Apply all migrations.
-	err = storage.Migrate(db, migrations)
+	err = storage.MigrateContextNS(t.Context(), db, "test_migrations", migrations)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -181,12 +181,12 @@ func TestMigrate(t *testing.T) {
 	require.NoError(t, err)
 
 	// Re-running migrations should be idempotent.
-	err = storage.Migrate(db, migrations)
+	err = storage.MigrateContextNS(t.Context(), db, "test_migrations", migrations)
 	require.NoError(t, err)
 
 	// Verify migration was recorded.
 	var count int
-	err = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&count)
+	err = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM test_migrations").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 }
@@ -200,7 +200,7 @@ func TestMigrate_Incremental(t *testing.T) {
 	migrations1 := []storage.Migration{
 		{Version: 1, Description: "v1", SQL: "CREATE TABLE t1 (id TEXT PRIMARY KEY)"},
 	}
-	err = storage.Migrate(db, migrations1)
+	err = storage.MigrateContextNS(t.Context(), db, "test_migrations", migrations1)
 	require.NoError(t, err)
 
 	// Add a second migration.
@@ -208,7 +208,7 @@ func TestMigrate_Incremental(t *testing.T) {
 		{Version: 1, Description: "v1", SQL: "CREATE TABLE t1 (id TEXT PRIMARY KEY)"},
 		{Version: 2, Description: "v2", SQL: "CREATE TABLE t2 (id TEXT PRIMARY KEY)"},
 	}
-	err = storage.Migrate(db, migrations2)
+	err = storage.MigrateContextNS(t.Context(), db, "test_migrations", migrations2)
 	require.NoError(t, err)
 
 	// Both tables should exist.

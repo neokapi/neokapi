@@ -49,7 +49,13 @@ export function createDesktopPlatform(): PlatformAdapter {
   // call. Keep a live cached value: prime it once, then follow the
   // connection-state-changed event for the app's lifetime.
   let lastState: ConnectionState = "offline";
-  const states = new Set<ConnectionState>(["connected", "connecting", "offline", "disconnected"]);
+  const states = new Set<ConnectionState>([
+    "connected",
+    "connecting",
+    "offline",
+    "reconnecting",
+    "disconnected",
+  ]);
   const mapState = (s: string | undefined): ConnectionState =>
     s != null && states.has(s as ConnectionState) ? (s as ConnectionState) : "offline";
 

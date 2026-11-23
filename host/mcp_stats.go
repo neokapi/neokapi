@@ -43,6 +43,11 @@ func (a *App) statsMCP(ctx context.Context, in statsInput) (*mcp.CallToolResult,
 	if len(in.Files) == 0 {
 		return nil, StatsOutput{}, errors.New("files is required")
 	}
+	for _, f := range in.Files {
+		if err := MCPReachable(ctx, "files", f); err != nil {
+			return nil, StatsOutput{}, err
+		}
+	}
 	if in.Format != "" {
 		prev := a.FormatFlag
 		a.FormatFlag = in.Format

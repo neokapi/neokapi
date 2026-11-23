@@ -65,7 +65,7 @@ describe("content-memory bulk delete", () => {
     await result.current!.deleteEntries(["e1", "e2"]);
 
     expect(bulkDeleteMemoryEntries).toHaveBeenCalledTimes(1);
-    expect(bulkDeleteMemoryEntries).toHaveBeenCalledWith("demo", ["e1", "e2"]);
+    expect(bulkDeleteMemoryEntries).toHaveBeenCalledWith("demo", ["e1", "e2"], {});
     expect(deleteMemoryEntry).not.toHaveBeenCalled();
   });
 

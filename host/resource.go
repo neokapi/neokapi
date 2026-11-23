@@ -8,6 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/storage"
 )
 
@@ -34,10 +37,10 @@ func AddResourceFlags(cmd Command) {
 // `memory:` or `terms:` reference against, so the two paths agree.
 //
 // Resolution order:
-//   - --name <n>    → ~/.config/kapi/<kind>/<n>.db
-//   - --local       → ./<defaultFilename>
-//   - --file <path> → <path>
-//   - (no flag)     → ./<defaultFilename>  (same as --local)
+//   - --name <n>: <ConfigDir>/<kind>/<n>.db
+//   - --local: ./<defaultFilename>
+//   - --file <path>: <path>
+//   - (no flag): ./<defaultFilename>, the same as --local
 //
 // Parent directories are created on demand.
 func resolveResourcePath(cmd Command, kind, defaultFilename string) (string, error) {
@@ -75,14 +78,13 @@ func resolveResourcePath(cmd Command, kind, defaultFilename string) (string, err
 	}
 }
 
-// resolveNamedResource returns the path to a named resource in KAPI_HOME.
-// Creates the parent directory on demand.
+// resolveNamedResource returns the path to a named resource in KAPI_HOME, for
+// a name a person gave on the command line (--name, --termstore, --memory).
+// The command may create the store, so the parent directory is created on
+// demand. A name a recipe gives goes through recipeNamedStore instead.
 func resolveNamedResource(kind, name string) (string, error) {
-	if name == "" {
-		return "", errors.New("resource name is required")
-	}
-	if strings.ContainsAny(name, "/\\") {
-		return "", fmt.Errorf("resource name must not contain path separators: %q", name)
+	if err := flow.CheckStoreName(name); err != nil {
+		return "", err
 	}
 
 	dir := filepath.Join(ConfigDir(), kind)
@@ -93,10 +95,20 @@ func resolveNamedResource(kind, name string) (string, error) {
 	return filepath.Join(dir, name+".db"), nil
 }
 
+// recipeNamedStore returns the file of a named store a recipe gives, such as
+// a profile's `termstore:`. The store is one of the person's own, named by
+// name only: it must already exist as a regular file that resolves inside
+// <ConfigDir>/<kind>, and the path returned is the resolved one. A recipe
+// creates neither the store nor its directory (flow.NamedStorePath, the rule
+// a step config's memory: and terms: references follow).
+func recipeNamedStore(kind, name string) (string, error) {
+	return flow.NamedStorePath(filepath.Join(ConfigDir(), kind), kind, name, ".db")
+}
+
 // ListNamedResources lists all .db files in <ConfigDir>/<kind>/. ConfigDir is
 // platform-dependent (os.UserConfigDir), so this is ~/.config/kapi/<kind>/ on
 // Linux but ~/Library/Application Support/kapi/<kind>/ on macOS. Unlike the
-// app-config file there is no legacy fallback location here — a named store is
+// app-config file there is no legacy fallback location here, a named store is
 // only ever resolved under ConfigDir.
 //
 // The storage driver lists the databases, because in the browser they live in
@@ -129,17 +141,16 @@ func ListNamedResources(kind string) ([]ResourceInfo, error) {
 // ConfigDir returns the kapi config root. Named resources (terms stores,
 // content memories, voice profiles), flows, format presets, and the plugin dir
 // all hang off it. It honors the KAPI_CONFIG_DIR env override (the isolation
-// contract), else resolves to <os.UserConfigDir()>/kapi (~/.config/kapi on Linux,
-// ~/Library/Application Support/kapi on macOS). Shared by every surface that
+// contract), else resolves to <dataroot.UserConfigDir()>/kapi (~/.config/kapi on
+// Linux, ~/Library/Application Support/kapi on macOS). In a test binary that
+// sets no KAPI_CONFIG_DIR it is a directory of the process's own, so no test
+// reaches the developer's configuration by forgetting to isolate itself. Shared by every surface that
 // derives kapi paths (the CLI, the Kapi Desktop backend), so the chain is
 // defined once.
 func ConfigDir() string {
 	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
 		return dir
 	}
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
-	}
+	configDir := dataroot.UserConfigDir()
 	return filepath.Join(configDir, "kapi")
 }

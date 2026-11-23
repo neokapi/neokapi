@@ -141,7 +141,7 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 		for _, file := range files {
 			summary := LookFileSummary{Path: projectRel(root, file)}
 			name, cfg := formats.forFile(a, file)
-			blocks, rerr := a.readBlocksAs(ctx, file, name, cfg, a.SourceLang)
+			blocks, rerr := a.readBlocksAs(ctx, root, file, name, cfg, a.SourceLang)
 			if rerr != nil {
 				summary.Unread = lookUnreadReason(a, file, name, rerr)
 				if a.NoReaderFor(file) && name == "" {
@@ -317,7 +317,7 @@ func (a *App) lookRuleCount(cmd Command, proj *project.KapiProject, root string,
 	cmd.SetContext(withConceptMemo(CmdContext(cmd)))
 	defer cmd.SetContext(prevCtx)
 	at := a.GovernanceInstant()
-	points := map[string]bool{}
+	points := map[rulesPoint]bool{}
 	var tally rulesview.RuleTally
 	samples := append([]string{filepath.Join(root, rulesRootSample)}, files...)
 	for _, file := range samples {
@@ -669,7 +669,7 @@ func (a *App) LookFile(cmd Command, path string) (*LookReader, error) {
 		}
 		_, out.Declared = formats.lookup(abs)
 		name, cfg := formats.forFile(a, abs)
-		blocks, rerr := a.readBlocksAs(ctx, abs, name, cfg, a.SourceLang)
+		blocks, rerr := a.readBlocksAs(ctx, a.projectRoot(), abs, name, cfg, a.SourceLang)
 		if rerr != nil {
 			return NoReaderError(rerr, DisplayName(path), name, a.discoveredPlugins()...)
 		}

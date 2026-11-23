@@ -87,10 +87,27 @@ export class ApiError extends Error {
 }
 
 /**
- * A read that had no answer within its bound. It is a network error: the
- * server was not reached in time, and the read may be tried again.
+ * The request did not get an answer: the connection failed or was lost on
+ * the way. fetch rejects only for this, and implementations reject with
+ * different classes (Expo's raises a plain `Error` named "fetch failed: …"),
+ * so the client raises this one for every rejected fetch.
  */
-export class RequestTimeoutError extends TypeError {
+export class NetworkError extends TypeError {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message);
+    this.name = "NetworkError";
+    // Set here rather than through the constructor's options, which not every
+    // consumer's target library declares.
+    if (options && "cause" in options) (this as { cause?: unknown }).cause = options.cause;
+  }
+}
+
+/**
+ * A read that had no answer within its bound. It is not a network error: it
+ * is not tried again with the same bound, because a request that has not
+ * answered in that time is taken as one that will not answer.
+ */
+export class RequestTimeoutError extends Error {
   readonly timeoutMs: number;
   constructor(path: string, timeoutMs: number) {
     super(`no answer to ${path} within ${timeoutMs} ms`);
@@ -100,16 +117,16 @@ export class RequestTimeoutError extends TypeError {
 }
 
 /**
- * How long a read waits for the server to start answering. The bounds come
- * from production's slowest healthy reads over seven days (Sentry, November
- * 2026): the review inbox, the project and workspace lists, the permissions
- * and the review plan answered within 3.1 s at the slowest; a review deck
- * within 9.2 s. Each bound is more than twice the slowest healthy answer.
- * Writes have no bound of their own: a decision that seems lost may have
- * landed, so a write waits for the system's own request timeout.
+ * The bound on a whole read, from the request to the last byte of its answer.
+ * It exists to end a request that will never answer, not to fail a slow one,
+ * so it sits well above anything a person waits for: production's slowest
+ * healthy read over seven days (Sentry, November 2026) was a review deck at
+ * 9.2 s, and on a phone a person rarely waits half a minute for a screen. An
+ * answer later than this is taken as none. Writes have no bound of their
+ * own: a decision that seems lost may have landed, so a write waits for the
+ * system's own request timeout.
  */
-export const READ_TIMEOUT_MS = 20_000;
-export const QUICK_READ_TIMEOUT_MS = 8_000;
+export const READ_TIMEOUT_MS = 30_000;
 
 /** Whether an error means the server or the network could not be reached. */
 export function isNetworkError(err: unknown): boolean {
@@ -127,10 +144,10 @@ export interface BowrainClientOptions {
    */
   onUnauthorized?: () => Promise<string | null>;
   fetch?: typeof fetch;
-  /** The bound on a read, in milliseconds; `READ_TIMEOUT_MS` when omitted. */
+  /** The bound on a whole read, in milliseconds; `READ_TIMEOUT_MS` when omitted. */
   readTimeoutMs?: number;
-  /** The bound on a quick read (lists, the inbox); `QUICK_READ_TIMEOUT_MS` when omitted. */
-  quickReadTimeoutMs?: number;
+  /** Cancels every request this client makes, such as when the screen that asked is gone. */
+  signal?: AbortSignal;
 }
 
 /** Where a project's review content lives: a workspace, a project and a stream. */
@@ -143,6 +160,11 @@ export interface ProjectScope {
 
 export interface BowrainClient {
   readonly baseUrl: string;
+  /**
+   * This client with a signal that cancels its requests, such as the one a
+   * query passes when the screen that asked is gone.
+   */
+  with(options: { signal?: AbortSignal }): BowrainClient;
   /**
    * The URL that starts sign-in in a browser. The server brokers the OIDC flow
    * with the workspace's identity provider and redirects back with a one-time
@@ -294,7 +316,7 @@ export interface BowrainClient {
   ): Promise<ReviewInvolvementSettings>;
   /**
    * The plan's last step: establishes every waiting translation that clears
-   * every bar, recorded with the reason "review policy". The server refuses
+   * every bar, recorded with the reason "review_policy". The server refuses
    * (409) once the first pass is taken and the context is still open.
    */
   settlePlan(
@@ -398,10 +420,33 @@ function query(params: Record<string, string | number | undefined>): string {
 export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
   const baseUrl = opts.baseUrl.replace(/\/+$/, "");
   const api = `${baseUrl}/api/v1`;
-  const doFetch = opts.fetch ?? fetch;
+  const rawFetch = opts.fetch ?? fetch;
+
+  /** fetch, with a rejection raised as a NetworkError; an abort the caller asked for stays as it is. */
+  async function doFetch(url: string, init: RequestInit): Promise<Response> {
+    try {
+      return await rawFetch(url, init);
+    } catch (err) {
+      if (init.signal?.aborted) throw err;
+      throw new NetworkError(err instanceof Error ? err.message : String(err), { cause: err });
+    }
+  }
 
   const readTimeout = opts.readTimeoutMs ?? READ_TIMEOUT_MS;
-  const quickReadTimeout = opts.quickReadTimeoutMs ?? QUICK_READ_TIMEOUT_MS;
+  /**
+   * The body of an answer, read as text. A connection lost while the body
+   * arrives is the same failure as one lost before the answer: the server may
+   * have acted, and the caller learns nothing. So it raises a NetworkError,
+   * as doFetch does; an abort the caller asked for stays as it is.
+   */
+  async function readText(res: Response, init: RequestInit): Promise<string> {
+    try {
+      return await res.text();
+    } catch (err) {
+      if (init.signal?.aborted) throw err;
+      throw new NetworkError(err instanceof Error ? err.message : String(err), { cause: err });
+    }
+  }
 
   async function send(
     path: string,
@@ -409,65 +454,86 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     accept: (status: number) => boolean = (s) => s >= 200 && s < 300,
     timeoutMs?: number,
   ): Promise<{ status: number; body: unknown }> {
-    const attempt = async (token: string | null) => {
-      const headers: Record<string, string> = { Accept: "application/json" };
-      if (init.body) headers["Content-Type"] = "application/json";
-      if (token) headers.Authorization = `Bearer ${token}`;
-      if (timeoutMs === undefined) return doFetch(`${api}${path}`, { ...init, headers });
-      // The bound covers the wait for the answer to start. A long body that
-      // is already arriving is read to its end.
-      const abort = new AbortController();
-      const timer = setTimeout(() => abort.abort(), timeoutMs);
-      try {
-        return await doFetch(`${api}${path}`, { ...init, headers, signal: abort.signal });
-      } catch (err) {
-        if (abort.signal.aborted) throw new RequestTimeoutError(path, timeoutMs);
-        throw err;
-      } finally {
-        clearTimeout(timer);
+    // One controller ends the request when the caller's signal aborts or the
+    // bound passes. The bound covers the whole request, the body included, so
+    // an answer that stalls halfway ends too.
+    const abort = new AbortController();
+    const caller = opts.signal;
+    const onCallerAbort = () => abort.abort(caller?.reason);
+    if (caller?.aborted) onCallerAbort();
+    else caller?.addEventListener("abort", onCallerAbort);
+    let timedOut = false;
+    const timer =
+      timeoutMs === undefined
+        ? undefined
+        : setTimeout(() => {
+            timedOut = true;
+            abort.abort();
+          }, timeoutMs);
+    try {
+      const attempt = async (token: string | null) => {
+        const headers: Record<string, string> = { Accept: "application/json" };
+        if (init.body) headers["Content-Type"] = "application/json";
+        if (token) headers.Authorization = `Bearer ${token}`;
+        return doFetch(`${api}${path}`, { ...init, headers, signal: abort.signal });
+      };
+      let res = await attempt(await opts.getAccessToken());
+      if (res.status === 401 && opts.onUnauthorized) {
+        const fresh = await opts.onUnauthorized();
+        if (fresh) res = await attempt(fresh);
       }
-    };
-    let res = await attempt(await opts.getAccessToken());
-    if (res.status === 401 && opts.onUnauthorized) {
-      const fresh = await opts.onUnauthorized();
-      if (fresh) res = await attempt(fresh);
-    }
-    const text = await res.text();
-    let body: unknown = undefined;
-    if (text) {
-      try {
-        body = JSON.parse(text);
-      } catch {
-        body = text;
+      const text = await readText(res, { signal: abort.signal });
+      let body: unknown = undefined;
+      if (text) {
+        try {
+          body = JSON.parse(text);
+        } catch {
+          body = text;
+        }
       }
+      if (!accept(res.status)) {
+        const message =
+          (body as { error?: string } | undefined)?.error ??
+          `request failed with status ${res.status}`;
+        throw new ApiError(res.status, message, body);
+      }
+      return { status: res.status, body };
+    } catch (err) {
+      if (timedOut && timeoutMs !== undefined) throw new RequestTimeoutError(path, timeoutMs);
+      throw err;
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+      caller?.removeEventListener("abort", onCallerAbort);
     }
-    if (!accept(res.status)) {
-      const message =
-        (body as { error?: string } | undefined)?.error ??
-        `request failed with status ${res.status}`;
-      throw new ApiError(res.status, message, body);
-    }
-    return { status: res.status, body };
   }
 
   async function postTokens(path: string, payload: object, failure: string): Promise<AuthTokens> {
-    const res = await doFetch(`${api}${path}`, {
+    const init: RequestInit = {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(payload),
-    });
-    const body = (await res.json().catch(() => undefined)) as AuthTokens | undefined;
+    };
+    const res = await doFetch(`${api}${path}`, init);
+    const text = await readText(res, init);
+    let body: AuthTokens | undefined;
+    try {
+      body = text ? (JSON.parse(text) as AuthTokens) : undefined;
+    } catch {
+      body = undefined;
+    }
     if (!res.ok || !body?.access_token) throw new ApiError(res.status, failure, body);
     return body;
   }
 
-  /** A read, bounded by the read timeout, or the quick one for lists and the inbox. */
-  async function get<T>(path: string, quick = false): Promise<T> {
-    return (await send(path, {}, undefined, quick ? quickReadTimeout : readTimeout)).body as T;
+  /** A read, bounded by the read timeout. */
+  async function get<T>(path: string): Promise<T> {
+    return (await send(path, {}, undefined, readTimeout)).body as T;
   }
 
   const client: BowrainClient = {
     baseUrl,
+
+    with: (o) => createBowrainClient({ ...opts, ...o }),
 
     loginUrl(redirectUri, codeChallenge, state) {
       return `${api}/auth/desktop/login${query({
@@ -510,9 +576,9 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       const { body } = await send("/auth/me", { method: "PATCH", body: JSON.stringify(change) });
       return body as User;
     },
-    workspaces: () => get<Workspace[]>("/workspaces", true),
-    projects: (ws) => get<Project[]>(`/${enc(ws)}/projects`, true),
-    permissions: (ws, pid) => get<CallerPermissions>(`/${enc(ws)}/${enc(pid)}/permissions`, true),
+    workspaces: () => get<Workspace[]>("/workspaces"),
+    projects: (ws) => get<Project[]>(`/${enc(ws)}/projects`),
+    permissions: (ws, pid) => get<CallerPermissions>(`/${enc(ws)}/${enc(pid)}/permissions`),
 
     async reviewInbox() {
       const home = await client.reviewHome();
@@ -523,7 +589,7 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       try {
         const body = await get<
           Partial<Omit<ReviewHome, "projects">> & { projects?: ServerReviewInboxProject[] | null }
-        >("/auth/me/review", true);
+        >("/auth/me/review");
         return {
           context: body.context ?? [],
           languages: body.languages ?? [],
@@ -692,7 +758,6 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
       return planFromServer(
         await get<ServerReviewPlan>(
           `/${enc(scope.workspace)}/${enc(scope.project)}/review/plan${query({ stream: scope.stream })}`,
-          true,
         ),
       );
     },
@@ -841,6 +906,9 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
           card: cardFromServer(d.card),
           decision: d.decision,
           at: d.at,
+          note: d.note || undefined,
+          reasons: d.reasons ?? [],
+          agentHost: d.agent_host || undefined,
           current: d.current,
           canUndo: d.can_undo,
         })),
@@ -947,6 +1015,9 @@ interface ServerFeedDecisions {
     card: ServerDeckCard;
     decision: string;
     at: string;
+    note?: string;
+    reasons?: string[];
+    agent_host?: string;
     current: boolean;
     can_undo: boolean;
   }[];

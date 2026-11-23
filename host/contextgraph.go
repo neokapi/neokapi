@@ -40,10 +40,10 @@ func ProjectScope(proj *project.KapiProject) contextgraph.Scope {
 	return contextgraph.Scope{Project: proj.Identity()}
 }
 
-// MaterializeContextGraph rebuilds the project's context graph — term
-// occurrences, collection membership, the coordinates governing them, and the
-// unit-state records blessing their translations — and reports the number of
-// edges written.
+// MaterializeContextGraph rebuilds the project's context graph and reports the
+// number of edges written. The graph holds term occurrences, collection
+// membership, the coordinates governing them, and the unit-state records
+// blessing their translations.
 //
 // This is the App entry point, using the memoized project graph handle. The
 // shared body is materializeContextGraph; MaterializeContextGraphInDB is the
@@ -81,7 +81,7 @@ func MaterializeContextGraphInDB(ctx context.Context, db *projectdb.DB, proj *pr
 
 // ExtractToProjectStore is the one extract-into-the-cache path. It rebuilds the
 // block set from the resolved content (project.ExtractToBlockStore) and then the
-// context graph projected from it, in that order and on the same store, so no
+// context graph projected from it, in that order and on the same store. No
 // surface can refresh the blocks and leave the graph, and every usage count read
 // from it, describing the previous extraction. `kapi up` takes it on source
 // drift and the desktop's Re-extract takes it on demand.
@@ -122,30 +122,21 @@ func (a *App) ExtractToProjectStore(
 	return stats, nil
 }
 
-// materializeContextGraph is the shared rebuild. The subgraph is a pure
-// projection of the current recipe × terms × blocks × unit state, exactly as the
-// block cache is a pure projection of the source tree: the labels this writer
-// owns are cleared and rebuilt each pass.
+// materializeContextGraph is the shared rebuild. The subgraph is a projection of
+// the current recipe, terms, blocks and unit state, as the block cache is a
+// projection of the source tree. Each pass clears and rebuilds the labels this
+// writer owns.
 //
-// The clear is also what makes a re-key free. Node ids carry the scope tuple, so
-// a change to the project's identity changes every id this writer produces;
-// because the pass deletes what it owns before writing, the rows under the old
-// key go with it and nothing is left orphaned. A project carrying a stable `id:`
-// re-keys on nothing a user does, so the whole question falls away for it; a
-// recipe identified by its name alone re-keys on a rename and rebuilds. The same
-// holds for a re-parse that renumbers a document, which does not even re-key:
-// block nodes are their content, not a positional id.
+// Node ids carry the scope tuple. The pass deletes what it owns before writing,
+// so a change to the project's identity leaves no rows under the old key.
 //
-// Concept nodes are refreshed rather than purged: they mirror the authored
-// terms store, and they are workspace vocabulary a future terms-hierarchy writer
-// shares. Coordinate nodes ARE purged, because here the recipe is the whole of
-// the vocabulary — a profile deleted from it is a point the project no longer
-// occupies, and nothing else in this store has an opinion. The server, whose
-// coordinate vocabulary belongs to a workspace rather than to any one project,
-// leaves them alone for exactly the same reason.
+// Concept nodes are refreshed rather than purged: they mirror the terms store.
+// Coordinate nodes are purged, because the recipe is the whole of their
+// vocabulary here, and a profile deleted from it is a point the project no
+// longer occupies.
 //
-// It must run AFTER extraction has committed its block-write transaction, never
-// inside it: the write gate is per handle and not reentrant, and searching the
+// It runs after extraction has committed its block-write transaction, never
+// inside it. The write gate is per handle and not reentrant, and searching the
 // blocks here keeps the occurrence FTS index off the block write path.
 func materializeContextGraph(
 	ctx context.Context,
@@ -204,9 +195,9 @@ func materializeContextGraph(
 	return len(delta.Edges), nil
 }
 
-// dedupeNodes collapses nodes contributed by more than one builder — a block
-// reached both by a term occurrence and by a unit-state record is one node —
-// keeping the richest description of each and a deterministic order.
+// dedupeNodes collapses nodes contributed by more than one builder, such as a
+// block reached both by a term occurrence and by a unit-state record. It keeps
+// the richest description of each and a deterministic order.
 func dedupeNodes(in []coreg.Node) []*coreg.Node {
 	byID := make(map[string]coreg.Node, len(in))
 	for _, n := range in {
@@ -255,7 +246,7 @@ func governanceDelta(scope contextgraph.Scope, proj *project.KapiProject) *occur
 		rc, err := proj.ResolveGovernance(c.Name)
 		if err != nil {
 			// A channel that does not resolve is a recipe error the loader
-			// already reports; the projection simply has nothing to place.
+			// already reports; the projection has nothing to place.
 			continue
 		}
 		ref := rc.Ref()
@@ -277,10 +268,9 @@ func governanceDelta(scope contextgraph.Scope, proj *project.KapiProject) *occur
 // The join is (document, unit): a decision records the document it was made in
 // and the block's structural key within it, which is the same pair the review
 // path and the sync protocol address a unit by. A record whose document or unit
-// no longer resolves to a block still gets its node — the decision exists — but
-// no edge, because there is nothing to point at. That is the honest reading: an
-// edge asserts a relationship, and inventing one for a unit whose block is gone
-// would make a deleted block look governed.
+// no longer resolves to a block still gets its node, since the decision exists,
+// but no edge, because there is nothing to point at. An edge for a unit whose
+// block is gone would make a deleted block look governed.
 func blessingDelta(ctx context.Context, scope contextgraph.Scope, blocks blockstore.Store, work *state.WorkStore) (*occurrence.GraphDelta, error) {
 	d := &occurrence.GraphDelta{}
 	if work == nil || blocks == nil {
@@ -301,8 +291,8 @@ func blessingDelta(ctx context.Context, scope contextgraph.Scope, blocks blockst
 	// A decision names its document by identity; a stored block names its
 	// document by path, because the block store places a block by where it was
 	// read from. The two meet here, so the key is turned back into the address
-	// before the join — the alternative being a graph that silently loses every
-	// blesses-edge the moment a document has a key at all.
+	// before the join. Otherwise a document with a key would lose every
+	// blesses edge.
 	docPaths, err := work.DocumentPaths(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read document paths: %w", err)
@@ -351,14 +341,14 @@ func blessingDelta(ctx context.Context, scope contextgraph.Scope, blocks blockst
 // blocksByDocumentAndID indexes the block cache by the pair a unit-state record
 // names its block with. Where two blocks in one document share a structural key
 // the first in store order wins, so a rebuild resolves the same way twice.
-func blocksByDocumentAndID(ctx context.Context, blocks blockstore.Store) (map[string]*blockstore.Block, error) {
+func blocksByDocumentAndID(ctx context.Context, blocks blockstore.Store) (map[[2]string]*blockstore.Block, error) {
 	sess, err := blocks.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("open block store session: %w", err)
 	}
 	defer func() { _ = sess.Rollback() }()
 
-	index := map[string]*blockstore.Block{}
+	index := map[[2]string]*blockstore.Block{}
 	for b, err := range sess.Blocks(blockstore.BlockFilter{}) {
 		if err != nil {
 			return nil, fmt.Errorf("stream blocks: %w", err)
@@ -378,9 +368,9 @@ func blocksByDocumentAndID(ctx context.Context, blocks blockstore.Store) (map[st
 // documentUnitKey normalizes the (document, unit) pair both sides spell. The
 // document is a path, and a path written with the platform's separator and one
 // written with slashes name the same file.
-func documentUnitKey(document, unit string) string {
+func documentUnitKey(document, unit string) [2]string {
 	if document == "" {
-		return "\x00" + unit
+		return [2]string{"", unit}
 	}
-	return path.Clean(filepath.ToSlash(document)) + "\x00" + unit
+	return [2]string{path.Clean(filepath.ToSlash(document)), unit}
 }

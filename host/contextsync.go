@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,6 +17,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projector"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -68,6 +72,9 @@ type ContextBackendInfo struct {
 	Status *workspace.SyncStatus `json:"status,omitempty"`
 
 	spec project.ContextBackend
+	// folderInfo identifies an approved folder as it was resolved; the
+	// remote refuses to open another directory at its path.
+	folderInfo fs.FileInfo
 }
 
 // FormatText renders the backend for a reader.
@@ -115,9 +122,9 @@ func SyncLine(st *workspace.SyncStatus) string {
 }
 
 // pushedSplit says how many of the operations a push counts `kapi context log`
-// lists, when not all of them: the rest are the writes to the project's stores
-// that keeping a rule or importing a voice or terms made, which travel with
-// the context and are not context operations of their own.
+// lists, when not all of them. The rest are store writes made by keeping a rule
+// or importing a voice or terms. They travel with the context and are not
+// context operations of their own.
 func pushedSplit(total, logged int) string {
 	if total == 0 || logged == total {
 		return ""
@@ -127,8 +134,10 @@ func pushedSplit(total, logged int) string {
 }
 
 // recipeContextBackend reads the recipe's `context:` block and nothing else.
+// The recipe is read through the folder that holds it, so a recipe that is a
+// link out of its project is refused.
 func recipeContextBackend(recipePath string) (*project.ContextBackend, error) {
-	data, err := os.ReadFile(recipePath)
+	data, err := rootpath.ReadFile(filepath.Dir(recipePath), recipePath)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +168,7 @@ func (a *App) ContextBackend(ctx context.Context, projectPath string) (ContextBa
 	if err != nil {
 		return info, err
 	}
-	if s, err := a.contextSync(ctx, layout, info, w); err == nil && s != nil {
+	if s, err := a.contextSync(ctx, layout, info, w, false); err == nil && s != nil {
 		st, err := s.Status(ctx)
 		if err == nil {
 			info.Status = &st
@@ -226,6 +235,11 @@ func declaredBackend(layout project.Layout) (ContextBackendInfo, error) {
 // describeBackend fills in where a backend spec keeps the context.
 func describeBackend(layout project.Layout, spec project.ContextBackend, from string) (ContextBackendInfo, error) {
 	info := ContextBackendInfo{From: from, Kind: spec.Kind(), spec: spec}
+	if spec.Kind() == project.ContextBackendFile {
+		if err := checkContextPath(spec.Path); err != nil {
+			return ContextBackendInfo{}, err
+		}
+	}
 	if spec.Kind() == project.ContextBackendFile && !filepath.IsAbs(spec.Path) {
 		info.spec.Path = filepath.Join(layout.Root, spec.Path)
 	}
@@ -297,7 +311,11 @@ func openRemote(ctx context.Context, layout project.Layout, info ContextBackendI
 	case project.ContextBackendLocal:
 		return nil, nil
 	case project.ContextBackendFile:
-		return workspace.NewFileRemote(spec.Path), nil
+		remote := workspace.NewFileRemote(spec.Path)
+		if info.folderInfo != nil {
+			remote.Expect(info.folderInfo)
+		}
+		return remote, nil
 	case project.ContextBackendGit:
 		repo, ok := workspace.GitRepoRoot(ctx, layout.Root)
 		if !ok {
@@ -314,10 +332,20 @@ func openRemote(ctx context.Context, layout project.Layout, info ContextBackendI
 	return open(ctx, spec)
 }
 
-// contextSync links the project to its backend; nil for a local one.
-func (a *App) contextSync(ctx context.Context, layout project.Layout, info ContextBackendInfo, w *projector.Projector) (*workspace.Sync, error) {
+// contextSync links the project to its backend; nil for a local one. A
+// folder backend is linked only once the person allowed it
+// (requireContextStore): with ask set, a person at a terminal is asked, and
+// otherwise the sync is refused with the command that approves.
+func (a *App) contextSync(ctx context.Context, layout project.Layout, info ContextBackendInfo, w *projector.Projector, ask bool) (*workspace.Sync, error) {
 	if !w.Logged() || info.Kind == project.ContextBackendLocal {
 		return nil, nil
+	}
+	folder, err := a.requireContextStore(layout, info, ask)
+	if err != nil {
+		return nil, err
+	}
+	if folder.Resolved != "" {
+		info.spec.Path, info.folderInfo = folder.Resolved, folder.Info
 	}
 	remote, err := openRemote(ctx, layout, info)
 	if err != nil || remote == nil {
@@ -348,7 +376,7 @@ func (a *App) projectSync(ctx context.Context, projectPath string) (*workspace.S
 	if info.Kind == project.ContextBackendLocal {
 		return nil, errors.New("there is nowhere to sync with: the recipe declares no context backend. Declare one in kapi.yaml, for example `context: {backend: git}`")
 	}
-	s, err := a.contextSync(ctx, layout, info, w)
+	s, err := a.contextSync(ctx, layout, info, w, true)
 	if err != nil {
 		return nil, err
 	}
@@ -381,6 +409,10 @@ func (r ContextPull) FormatText(w io.Writer) error {
 	}
 	if r.Error != "" {
 		fmt.Fprintf(w, "  note: %s\n", r.Error)
+	}
+	if r.PassedOverTotal > 0 {
+		fmt.Fprintf(w, "  note: passed over %s in the folder that kapi does not read, such as a link: %s\n",
+			pluralUnit(r.PassedOverTotal, "entry", "entries"), quotedList(r.PassedOver, r.PassedOverTotal))
 	}
 	fmt.Fprintln(w, SyncLine(&r.SyncStatus))
 	return nil
@@ -468,7 +500,7 @@ func (a *App) StageVenueContextPush(ctx context.Context, projectPath string) (*w
 	if err != nil {
 		return nil, err
 	}
-	s, err := a.contextSync(ctx, layout, info, w)
+	s, err := a.contextSync(ctx, layout, info, w, false)
 	if err != nil || s == nil {
 		return nil, err
 	}
@@ -556,7 +588,7 @@ func (a *App) ContextSyncStatus(ctx context.Context, root string) *workspace.Syn
 	if err != nil || info.Kind == project.ContextBackendLocal {
 		return nil
 	}
-	s, err := a.contextSync(ctx, layout, info, w)
+	s, err := a.contextSync(ctx, layout, info, w, false)
 	if err != nil || s == nil {
 		return nil
 	}
@@ -711,4 +743,19 @@ func (r ContextSyncResult) formatRulesFiles(w io.Writer) (err error) {
 		return nil
 	}
 	return (&RulesFilesResult{Files: changed}).FormatText(w)
+}
+
+// quotedList prints names a shared folder supplies, each quoted so a control
+// character in one reaches the terminal as an escape rather than as itself,
+// and says how many of total it leaves out.
+func quotedList(names []string, total int) string {
+	quoted := make([]string, len(names))
+	for i, name := range names {
+		quoted[i] = strconv.Quote(name)
+	}
+	out := strings.Join(quoted, ", ")
+	if more := total - len(names); more > 0 {
+		out += fmt.Sprintf(", and %d more", more)
+	}
+	return out
 }

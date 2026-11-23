@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -13,12 +14,11 @@ import (
 	"github.com/neokapi/neokapi/core/state"
 )
 
-// ProjectConvergence computes the convergence report for a project recipe,
-// deriving everything from the working tree (content × target files) and the
-// committed .memory.json corrections — the same file-based derivation the CLI status
-// and verify commands use, so an in-process caller (the desktop) agrees with
-// `kapi status` to the unit. sourceLang overrides the project's source language
-// when non-empty.
+// ProjectConvergence computes the convergence report for a project recipe from
+// the working tree (content × target files) and the committed .memory.json
+// corrections. The CLI status and verify commands derive it the same way, so
+// an in-process caller (the desktop) agrees with `kapi status` to the unit.
+// sourceLang overrides the project's source language when non-empty.
 //
 // It is read-only and self-contained: it initialises the registries, loads the
 // recipe, resolves content units, and rolls up coverage, source readiness, and
@@ -121,30 +121,23 @@ func decisionStatus(decision string) (model.TargetStatus, error) {
 }
 
 // applyReviewDecision records a person's review decision for one review-queue
-// unit in the project STATE store (core/state), the authoritative carrier of
-// workflow state, keyed by unit identity and locale and bound to the content
-// hash of the translation it judges, so a later edit invalidates a stale
-// decision. It is how the change service applies a decide operation
-// (changeAssets.applyDecision); the service has already refused one an agent
-// sent. `kapi commit` writes the record on into the committed record under
-// `.kapi/state/`, distinct from the `.memory.json`, which stays the recycle
-// corpus.
+// unit in the project state store (core/state), keyed by unit identity and
+// locale and bound to the translation it judges, so a later edit makes it
+// stale. The change service applies a decide operation through it
+// (changeAssets.applyDecision). `kapi commit` writes the record into
+// `.kapi/state/`.
 //
 // decision is ReviewDecisionApproved (established) or ReviewDecisionRejected
-// (draft: the unit drops out of the review queue and re-enters the work queue,
-// carrying note as the reviewer's reason). An edit to the translation after
-// any decision makes it stale, so the unit re-derives from its content (a
-// rejected unit re-enters review once it is retranslated).
+// (draft: the unit leaves the review queue and re-enters the work queue). note
+// and reasons are what the reviewer wrote and chose.
 //
 // decided, when set, is the pairing the decision is about as its caller holds
-// it, such as the content a change set landed under the commit lock; the
-// decision binds to it rather than to what the files say when they are read
-// here. Nil reads it from the files, as for a parked draft the project store
-// holds and no file carries yet.
+// it, such as the content a change set landed under the commit lock. Nil reads
+// it from the files, as for a parked draft no file carries yet.
 //
 // It returns changed=false (no error) when the unit is already at this
-// decision for this exact translation, so a repeated decision changes nothing.
-func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note string, decided *decidedContent) (bool, error) {
+// decision for this exact translation.
+func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note string, reasons []string, host string, decided *decidedContent) (bool, error) {
 	a.InitRegistries()
 	ctx = ctxOrBackground(ctx)
 	status, err := decisionStatus(decision)
@@ -170,7 +163,7 @@ func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang s
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
 			if errors.Is(berr, errTargetUnreadable) {
-				continue // unreadable target (e.g. a compiled .mo) — not decidable per unit
+				continue // unreadable target (e.g. a compiled .mo): not decidable per unit
 			}
 			return false, NoReaderError(berr, relativeToRoot(root, u.SourcePath), u.SourceFormat, a.discoveredPlugins()...)
 		}
@@ -209,7 +202,7 @@ func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang s
 			// tells one page's `p` from another's. The review queue's display
 			// path is the target file, which no other party names anything by.
 			return a.recordDecisionState(ctx, proj, root, a.documentIndexOrEmpty(ctx, root).Scope(root, u.SourcePath), blockKey(b), loc,
-				content, governing, status, decision, note)
+				content, governing, status, decision, note, reasons, host)
 		}
 	}
 	return false, fmt.Errorf("block %q (%s) under review not found in %s", ref.Key, ref.Locale, ref.File)
@@ -268,32 +261,21 @@ func (c decidedContent) reading() state.Reading {
 	}
 }
 
-// recordDecisionState records a unit's review decision in the project state store
-// — the authoritative carrier of workflow state — keyed by (document, unit,
-// locale), and bound to BOTH halves of what it blessed: the revision of the
-// translation it judges and the basis, the revision of the source it judged it
-// against, each beside its content hash (targetHash, contentHash) for a reader
-// that holds no revision. A later edit to either drops the decision (stale),
-// derived on read. The decision is transient until Export persists it to the committed state
-// artifact (the export sink). The content memory (.memory.json) is no longer
-// touched here: it is the recycle corpus, not the state carrier. Advisory fields
-// already on the unit's record (origin, source status, a fresh AI pre-review
-// annotation) survive the decision write.
+// recordDecisionState records a unit's review decision in the project state
+// store, keyed by (document, unit, locale). It binds the decision to both
+// halves of what it blessed: the revision of the translation and the basis,
+// the revision of the source. A later edit to either makes the decision stale
+// on read. Advisory fields already on the record survive the write.
 //
-// governing is the fingerprint of the context the decision is made under, and
-// is part of what the record says: the same verdict on the same pairing under a
-// moved context is a new decision, recorded again.
+// governing is the fingerprint of the context the decision is made under. The
+// same verdict on the same pairing under a moved context is a new decision.
 //
-// Only an approval re-stamps the record's BASIS, the source it
-// vouches for and the context it vouches for it under. An approval made on the
-// source in front of the reviewer, under the governance in force where they are
-// deciding, is the project saying this answer stands there, so the readers that
-// grade a unit against the source and the context it holds now compare against
-// it and the unit reads current. A rejection endorses nothing: it records the
-// verdict, the translation it turned down and who turned it down, and leaves
-// the basis where the last approval or the producing run put it, which is what
-// keeps a rejected re-draft stale rather than clearing it.
-func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, content decidedContent, governing string, status model.TargetStatus, decision, note string) (bool, error) {
+// Only an approval re-stamps the record's basis and its context: the project
+// saying this answer stands for the source and the governance in front of the
+// reviewer. A rejection endorses nothing. It records the verdict, the
+// translation and who turned it down, and leaves the basis where the last
+// approval or the producing run put it, so a rejected re-draft stays stale.
+func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, content decidedContent, governing string, status model.TargetStatus, decision, note string, reasons []string, host string) (bool, error) {
 	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
 		return false, err
@@ -321,7 +303,8 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 	}
 	if hadPrev && prev.Status == status && prev.TargetHash == th && prev.Revision == rev &&
 		prev.ContentHash == ch && prev.Basis == basis &&
-		prev.Decision.Note == note && prev.Decision.By == "" && prev.GoverningFingerprint == gov {
+		sameSaid(prev.Decision, note, host) && slices.Equal(prev.Decision.Reasons, reasons) &&
+		prev.Decision.By == "" && prev.GoverningFingerprint == gov {
 		return false, nil // already at this decision for this exact pairing, under this context
 	}
 	now := nowRFC3339()
@@ -334,9 +317,9 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 		ContentHash:          ch,
 		Basis:                basis,
 		GoverningFingerprint: gov,
-		Decision:             state.Decision{ReviewState: decision, At: now, Note: note},
+		Decision:             state.Decision{ReviewState: decision, At: now, Note: note, Reasons: reasons, AgentHost: host},
 		Updated:              now,
-		// The document the unit was decided in — half of the record's identity,
+		// The document the unit was decided in: half of the record's identity,
 		// and what lets a decision travel the sync protocol scoped to the item
 		// whose identity namespace the unit key lives in. Until the reconcile
 		// resolver is wired into the review path, the source path IS the
@@ -373,11 +356,10 @@ func describesTranslation(u state.UnitState, r state.Reading) bool {
 }
 
 // RecordAIReviews stores advisory AI pre-review annotations for units of one
-// (file, locale) review scope in the project state store: for each unit key in
-// reviews, the annotation is bound to the revision and the content hash of the
-// unit's CURRENT translation (re-read from the target file), or to the
-// translation the review already names, so a later edit invalidates it.
-// Annotations never move a unit on the ladder — any existing decision, origin,
+// (file, locale) review scope in the project state store. Each annotation is
+// bound to the revision and content hash of the unit's current translation,
+// or to the translation the review names, so a later edit invalidates it.
+// Annotations never move a unit on the ladder: any existing decision, origin,
 // and status ride along untouched. It returns the number of units annotated;
 // unit keys that no longer resolve are skipped (content moved on), not errors.
 func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, locale, file string, reviews map[string]state.AIReview) (int, error) {
@@ -458,7 +440,7 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 	return recorded, nil
 }
 
-// ReviewUnitInfo is the CLI-layer picture of one review-queue unit — the
+// ReviewUnitInfo is the CLI-layer picture of one review-queue unit: the
 // agent-facing counterpart of the desktop's richer detail view: full source and
 // target text, the effective ladder state, the recorded decision (with its
 // identity), and any fresh AI pre-review annotation. Derived on demand from the
@@ -483,7 +465,7 @@ type ReviewUnitInfo struct {
 	// (written|established).
 	Status string `json:"status"`
 	// ReviewState/Note/By carry the last recorded decision when it still judges
-	// the current pairing — the translation it blessed, of the source it blessed
+	// the current pairing: the translation it blessed, of the source it blessed
 	// it for.
 	ReviewState string `json:"review_state,omitempty"`
 	Note        string `json:"note,omitempty"`
@@ -499,7 +481,7 @@ type ReviewUnitInfo struct {
 	// Context is everything that makes the decision judgeable: the point the
 	// content sits at, the blocks around it, what it said before, what the
 	// checks found, and who decided last. Present only when the caller asked
-	// for it (ReviewUnitOptions.WithContext) — assembling it opens the voice
+	// for it (ReviewUnitOptions.WithContext): assembling it opens the voice
 	// store, the terms store and the content memory, which a queue listing
 	// thousands of units must not pay per row.
 	Context *ReviewContext `json:"context,omitempty"`
@@ -514,8 +496,8 @@ type ReviewUnitOptions struct {
 	Window int
 }
 
-// ReviewUnit resolves one review-queue unit by (file, key, locale) — exactly as
-// `kapi status --review` lists it — and returns its full text and recorded
+// ReviewUnit resolves one review-queue unit by (file, key, locale), exactly as
+// `kapi status --review` lists it, and returns its full text and recorded
 // state. It is the read a decide operation on the unit follows.
 func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef) (*ReviewUnitInfo, error) {
 	return a.ReviewUnitWithOptions(ctx, projectPath, sourceLang, ref, ReviewUnitOptions{})
@@ -596,7 +578,7 @@ func (a *App) ReviewUnitWithOptions(ctx context.Context, projectPath, sourceLang
 						info.Status = string(us.Status)
 					}
 					info.ReviewState = us.Decision.ReviewState
-					info.Note = us.Decision.Note
+					info.Note, _ = us.Decision.Said()
 					info.By = us.Decision.By
 				}
 				if us.AIReview.Fresh(read) {
@@ -641,19 +623,19 @@ func (a *App) ReviewUnitWithOptions(ctx context.Context, projectPath, sourceLang
 
 // DecisionScope is a document's ADDRESS: its SOURCE file, relative to the
 // project root, in slash form. It is what a decision is scoped by where the
-// project holds no durable key for the document — a fresh checkout, a build
-// with no store — and it is the fallback DocumentIndex.Scope falls back to.
+// project holds no durable key for the document (a fresh checkout, a build
+// with no store), and it is the fallback DocumentIndex.Scope falls back to.
 //
 // Reach for DocumentIndex.Scope rather than this. The address is not the
 // identity: renaming a file changes it, and a decision keyed on it is detached
 // by a rename, silently. This stays exported because the fallback has to be one
-// definition — every party that records a decision and every party that reads
+// definition: every party that records a decision and every party that reads
 // one back has to name an unresolved document the same way.
 func DecisionScope(root, sourcePath string) string {
 	return filepath.ToSlash(relToRoot(root, sourcePath))
 }
 
-// relToRoot renders a unit path relative to the project root when possible —
+// relToRoot renders a unit path relative to the project root when possible:
 // the shape the connector names items by. An outside-the-root or already-
 // relative path is kept verbatim.
 func relToRoot(root, p string) string {
@@ -664,4 +646,12 @@ func relToRoot(root, p string) string {
 		return rel
 	}
 	return p
+}
+
+// sameSaid reports whether a recorded decision carries note and host, reading
+// a record a released client wrote the way every reader does
+// (state.Decision.Said).
+func sameSaid(d state.Decision, note, host string) bool {
+	n, h := d.Said()
+	return n == note && h == host
 }

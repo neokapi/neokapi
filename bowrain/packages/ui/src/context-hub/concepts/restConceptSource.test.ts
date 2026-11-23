@@ -67,6 +67,7 @@ function fakeAdapter(over: Partial<ApiAdapter> = {}): ApiAdapter {
         locales: ["de-DE", "de-AT"],
         created_at: "x",
         updated_at: "y",
+        revision: "r1",
       },
     ]),
     listObservations: vi.fn(async (): Promise<GraphObservation[]> => [

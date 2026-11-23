@@ -1,0 +1,55 @@
+id: e2-communication-is-context
+title: Kommunikasjon er kontekst
+subtitle: Én beslutning blir en annen regel på hvert sted den når.
+kind: explainer
+# An explainer: no capture, no terminal. Every scene is a drawn diagram beat
+# (src/remotion/explainer/e2/), animated under its narration and held until the
+# words end. The storyboard the founder approved fixes the composition, the
+# words and the palette of every beat; the narration lines are final.
+terminal: explainer
+brand: kapi
+needsAi: false
+aspects:
+  - content sits at a point
+  - a rule belongs to a place
+artifacts: []
+narration:
+  - id: title
+    kind: diagram
+    diagram: title
+    text: ""
+    hold: 3.5
+  - id: rename
+    kind: diagram
+    diagram: rename
+    hold: 10.6
+    text: >-
+      Teamet ditt gir en funksjon nytt navn. Workspaces heter nå Spaces. Enkelt, inntil du ser på alle stedene der ordet brukes.
+  - id: surfaces
+    kind: diagram
+    diagram: surfaces
+    hold: 13.8
+    text: >-
+      Hjelpesartikler skal si Spaces. API-et beholder det gamle navnet. Endringsloggen beholder det som ble levert. Migreringsguiden trenger begge. Support gjenkjenner det gamle navnet og bruker det aldri.
+  - id: one-rule
+    kind: diagram
+    diagram: one-rule
+    hold: 6.2
+    text: "Skriv det ned som én regel, og den er feil på de fleste av disse stedene."
+  - id: map
+    kind: diagram
+    diagram: map
+    hold: 11.0
+    text: >-
+      kapi registrerer hvor hvert innholdsutsnitt befinner seg: hvem det er for, hvor det vises og når. Hver regel tilhører et sted, ikke hele prosjektet.
+  - id: assistant
+    kind: diagram
+    diagram: assistant
+    hold: 9.2
+    text: >-
+      Når du eller din assistent skriver, leverer kapi reglene som gjelder akkurat der, og sjekker resultatet mot dem.
+  - id: end
+    kind: diagram
+    diagram: end
+    hold: 9.5
+    text: "Én beslutning, mange regler. Kontekst avgjør hvor hver hører hjemme. Les om hvordan kontekst fungerer."

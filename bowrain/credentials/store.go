@@ -8,8 +8,9 @@
 package credentials
 
 import (
-	"os"
 	"path/filepath"
+
+	"github.com/neokapi/neokapi/core/dataroot"
 
 	corecreds "github.com/neokapi/neokapi/core/credentials"
 )
@@ -35,9 +36,6 @@ func NewStore(filePath string) *Store {
 // DefaultPath returns the default config file path (e.g. ~/.config/bowrain/providers.json on Linux).
 // Used by bowrain-server, bowrain-worker, and bowrain desktop app.
 func DefaultPath() string {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
-	}
+	configDir := dataroot.UserConfigDir()
 	return filepath.Join(configDir, "bowrain", "providers.json")
 }

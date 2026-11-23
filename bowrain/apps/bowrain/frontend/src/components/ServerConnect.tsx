@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Input } from "@neokapi/ui-primitives/components/ui/input";
+import { Label } from "@neokapi/ui-primitives/components/ui/label";
 import {
-  Button,
-  Input,
-  Label,
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
-} from "@neokapi/ui";
+} from "@neokapi/ui-primitives/components/ui/collapsible";
 import { Loader2, ChevronRight, ChevronDown } from "lucide-react";
 import type { ConnectionInfo } from "../hooks/useApi";
 

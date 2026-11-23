@@ -98,6 +98,49 @@ The stored record answers *what was approved*, not *which project was trusted*:
   command does not. This is what makes a sticky decision safe: it attaches to the
   argv a person read, so a recipe cannot be approved once and rewritten
   afterwards.
+- **It covers everything the project can make kapi execute**
+  (`project.ExecSurfaceIn`): the recipe's flows, presets and formats, and
+  every flow file in its `flows_dir:`. `ExecSurfaceSources` names the recipe
+  fields the walk reads, and a test holds every field of the recipe to that
+  list or to `ExecSurfaceNonSources`, so a new place a step can be declared
+  joins the walk. kapi's built-in flows run no exec-class tool, which a test
+  also holds. The record keeps where each command is declared, so a flow file
+  a pull adds asks again and the question names it.
+- **It covers the regular files the commands name inside the project, and
+  the project's id** (`host.execSurfaceOf`). A `script_file`, an executable
+  given by a path, and each argument that resolves to a regular file in the
+  project (an interpreter's script, as in `node tools/x.js`) are hashed into
+  the digest through `ExecSite.WithFacts`, the same mechanism the formatter
+  arm uses for its executable and configuration. A relative path is read
+  against the project root and through it (`core/rootpath`); a named file
+  that is or passes through a link out of the project is refused rather than
+  hashed. The question, the refusal and `kapi trust list` show three groups:
+  the files checked by content; what the commands name and kapi does not
+  check (a directory, as in `node lib`); and the commands that hand a program
+  code as a string, whose files kapi cannot see. `ExecSite.InlineCode` reads
+  that from the shape of the invocation: a program, then a flag that takes
+  code (`sh -c`, `node -e`, `python -c`, `perl -e`, `--eval`, `deno eval`,
+  `cmd /c`). An unknown program with `-c` or `-e` is reported the same way,
+  since a step wrongly reported as unchecked costs a clearer question and one
+  passed over in silence reads as checked. Each also says that kapi
+  checks the files listed, not what they run or read. kapi does not guess
+  what `npm run`, `make`, `python -m` or a `PATH` lookup will execute: a
+  person who wants a script checked names it in the recipe
+  (`command: ./tools/run.sh`). The record keeps each file's hash, so the next
+  question names the file that changed. The id is plain text in the recipe:
+  it tells two projects at one path apart and proves nothing about which one
+  a recipe is.
+- **It is checked at every build, not once per process.**
+  `checkExecToolAllowed` reads the project's commands and named files again
+  each time a flow builds an exec-class step, rehashing a file only when its
+  size or modification time moved. The desktop and a daemon refuse a script
+  changed after the answer. The desktop asks before each run through a dialog
+  that shows the three groups and records the answer only while the project
+  still digests to what it showed; a daemon refuses with the approving
+  command. A refusal with nobody to ask exits 1 (`error`).
+- **A recipe cannot set what kapi sets.** `working_dir` and `invoke_dir` on a
+  command are kapi's own: a recipe that sets either is refused with a message,
+  and a recipe's value never reaches the command as `KAPI_INVOKE_DIR`.
 - **It lives under `ConfigDir()`**, not in the project's `.kapi/`. The state
   directory is documented as safe to delete and regenerate, so a record there
   would evaporate on a routine clean, and could also ship inside the project
@@ -107,6 +150,23 @@ The stored record answers *what was approved*, not *which project was trusted*:
 
 Declines are remembered too, and a declined recipe says how to answer again,
 so a person is never asked repeatedly for an answer they have already given.
+
+### A recipe's commands run from the project root
+
+A recipe is found by walking up from wherever the person stands, so a
+command that ran in the invoking directory would mean a different
+`./tool.sh` from each directory under the project, and its approval would
+have to ask again in each. `host.recipeCommandConfig` fixes the meaning
+instead: every flow builds its tools through `toolFromStep` or
+`buildToolByName`, both pass an exec-class step's configuration through it,
+and it sets `external-command`'s working directory to the project root and
+reads a relative `script_file` from the root. The directory kapi was started in reaches the command as
+`KAPI_INVOKE_DIR`, for a command that needs it. The CLI, the desktop, a
+plugin daemon and a convergence run all build their steps there. `kapi exec`
+builds no recipe step: the command a person types runs in their own
+directory. A project's formatter already follows the same rule: it runs in
+the directory of the configuration file that selects it, with its executable
+resolved to an absolute path.
 
 ### `kapi trust` is the record's front door
 
@@ -201,6 +261,54 @@ the change-set did not arrive on standard input. The MCP surface writes no code
 comment, so its row in the table above holds for formatters too: an agent that
 may write files can write the configuration a formatter loads, and nobody is
 present to ask. A decision is recorded only by answering that prompt.
+
+### A folder context store is decided in the same record
+
+A recipe's `context:` block with `backend: file` names a directory that a sync
+writes the project's operation log to and merges into the person's context.
+A cloned recipe can name any directory, so whoever can write there could add
+decisions and terms to that person's context. `host/contextstoretrust.go`
+decides the folder with the same record. The key is the recipe's key with a
+`#context-store` suffix. The digest is the SHA-256 of the project's id and the
+folder with every link resolved, so another repository cloned to the same
+path, a recipe that names another folder, and a path that now leads
+elsewhere all ask again. A folder inside the project that is or passes
+through a link is refused outright, because a pull can replace a directory
+with one. A `path:` starting with `~` or naming an environment variable is
+refused, since neither is expanded.
+
+The gate sits in `contextSync`, before the remote is opened. With no allow
+recorded for the project it does not touch the folder; with one, it resolves
+the folder again and compares. `kapi context sync` and `kapi share` ask at a
+terminal. A status read and a venue push never ask, and refuse with the
+command that records an allow, `kapi trust allow --context-store`. A person
+naming the folder (`kapi share --via folder`, the desktop's setup dialog)
+records the allow. The desktop asks through a dialog that shows the resolved
+folder and records the allow only for the folder it showed.
+
+`workspace.FileRemote` opens the approved folder once as an `os.Root` and does
+every read, listing and write beneath it, so a link another writer plants
+inside the folder leads nothing out of it, and replacing the path after the
+open does not move the remote. The gate takes the folder's identity as it
+resolves it, and the remote refuses a directory that is not the same file
+(`os.SameFile`), so a component replaced between the two is refused too. A
+listing reports what it passes over (links, devices), and the pull carries it
+as `passed_over`. A folder that does not exist yet is announced with the
+ancestor it will be created under; the first sync creates it through a root
+opened at that ancestor and resolves it again, and refuses when it resolves
+anywhere other than the folder that was allowed.
+
+What the gate holds against: a recipe cannot answer, a tool call through the
+MCP server cannot answer, and an assistant that announces itself (an agent
+actor, or an agent host's marker beside `KAPI_ACTOR=person`) is refused. An
+assistant with a shell on the machine acts with the person's permissions; it
+can run `kapi trust allow` or edit `trust.json`, and the gate does not
+contain it.
+
+An allow covers where the context is kept, never what the folder holds. A
+pull checks object names against the layout and nothing about who wrote an
+entry, so anyone who can write to the folder can add entries naming any
+actor.
 
 ## Consequences
 

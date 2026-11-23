@@ -37,7 +37,9 @@ import {
   contextCardId,
   contextCopyPrefix,
   contextDeckView,
+  contextDecision,
   refusalCode,
+  sendContextDecision,
   sessionThrough,
   sinceHasNews,
   widestReach,
@@ -162,10 +164,13 @@ export default function ContextSessionScreen() {
 
   const send = useCallback(
     (d: ContextDecision) => {
-      const p = client
-        .decideContext(ws, project, d)
+      const p = sendContextDecision(client, ws, project, d)
         .then((result) => {
           if (result.outcome === "proposed") setNotice(t("context.outcome.proposed"));
+          // The item no longer waits either way, so it stays out of the deck.
+          else if (result.outcome === "decided_by")
+            setNotice(t(`context.decidedBy.${result.action}`, { name: result.name }));
+          else if (result.outcome === "gone") setNotice(t("context.refused.not_pending"));
           void qc.invalidateQueries({ queryKey: ["review-inbox"] });
         })
         .catch((err: unknown) => {
@@ -186,8 +191,7 @@ export default function ContextSessionScreen() {
   const record = useCallback(
     (card: Card, action: "keep" | "reject", text?: string) => {
       setDecided((ids) => [...ids, contextCardId(card)]);
-      const wording = text && text !== card.translation?.proposed ? text : undefined;
-      send({ item: card.item, revision: card.revision, action, text: wording });
+      send(contextDecision(card, action, text));
       if (action === "keep")
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       else void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

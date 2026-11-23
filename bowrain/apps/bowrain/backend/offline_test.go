@@ -21,29 +21,29 @@ func newTestQueue(t *testing.T) *OfflineQueue {
 func TestOfflineQueueEnqueueAndCount(t *testing.T) {
 	q := newTestQueue(t)
 
-	assert.Equal(t, 0, q.PendingCount())
+	assert.Equal(t, 0, q.PendingCount(t.Context()))
 
-	err := q.Enqueue(string(opChangeSet), map[string]string{
+	err := q.Enqueue(t.Context(), string(opChangeSet), map[string]string{
 		"project_id": "p1", "stream": "main",
 	})
 	require.NoError(t, err)
-	assert.Equal(t, 1, q.PendingCount())
+	assert.Equal(t, 1, q.PendingCount(t.Context()))
 
-	err = q.Enqueue(string(opDeleteMemoryEntry), map[string]string{
+	err = q.Enqueue(t.Context(), string(opDeleteMemoryEntry), map[string]string{
 		"entry_id": "e1",
 	})
 	require.NoError(t, err)
-	assert.Equal(t, 2, q.PendingCount())
+	assert.Equal(t, 2, q.PendingCount(t.Context()))
 }
 
 func TestOfflineQueuePeekPendingFIFO(t *testing.T) {
 	q := newTestQueue(t)
 
-	_ = q.Enqueue("op1", map[string]string{"key": "first"})
-	_ = q.Enqueue("op2", map[string]string{"key": "second"})
-	_ = q.Enqueue("op3", map[string]string{"key": "third"})
+	_ = q.Enqueue(t.Context(), "op1", map[string]string{"key": "first"})
+	_ = q.Enqueue(t.Context(), "op2", map[string]string{"key": "second"})
+	_ = q.Enqueue(t.Context(), "op3", map[string]string{"key": "third"})
 
-	changes, err := q.PeekPending(2)
+	changes, err := q.PeekPending(t.Context(), 2)
 	require.NoError(t, err)
 	require.Len(t, changes, 2)
 
@@ -58,10 +58,10 @@ func TestOfflineQueuePeekPendingPayload(t *testing.T) {
 
 	set := `{"ops":[{"op":"set_content","at":{"doc":"hello.txt","block":"b1","edition":"fr"},"if_match":"r:00000000000000aa","text":"Bonjour le monde"}]}`
 	payload := changeSetOp{ProjectID: "p1", Stream: "main", Set: json.RawMessage(set)}
-	err := q.Enqueue(string(payload.opKind()), payload)
+	err := q.Enqueue(t.Context(), string(payload.opKind()), payload)
 	require.NoError(t, err)
 
-	changes, err := q.PeekPending(10)
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 1)
 
@@ -78,22 +78,22 @@ func TestOfflineQueuePeekPendingPayload(t *testing.T) {
 func TestOfflineQueueMarkCompleted(t *testing.T) {
 	q := newTestQueue(t)
 
-	_ = q.Enqueue("op1", nil)
-	_ = q.Enqueue("op2", nil)
+	_ = q.Enqueue(t.Context(), "op1", nil)
+	_ = q.Enqueue(t.Context(), "op2", nil)
 
-	changes, err := q.PeekPending(10)
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 2)
 
 	// Mark first as completed.
-	err = q.MarkCompleted(changes[0].ID)
+	err = q.MarkCompleted(t.Context(), changes[0].ID)
 	require.NoError(t, err)
 
 	// Only one pending now.
-	assert.Equal(t, 1, q.PendingCount())
+	assert.Equal(t, 1, q.PendingCount(t.Context()))
 
 	// PeekPending should only return the second.
-	remaining, err := q.PeekPending(10)
+	remaining, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, remaining, 1)
 	assert.Equal(t, "op2", remaining[0].Operation)
@@ -102,29 +102,29 @@ func TestOfflineQueueMarkCompleted(t *testing.T) {
 func TestOfflineQueueMarkFailed(t *testing.T) {
 	q := newTestQueue(t)
 
-	_ = q.Enqueue("op1", nil)
-	changes, err := q.PeekPending(10)
+	_ = q.Enqueue(t.Context(), "op1", nil)
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 1)
 
 	// Mark as failed — it should still be pending (retriable).
-	err = q.MarkFailed(changes[0].ID, "network timeout")
+	err = q.MarkFailed(t.Context(), changes[0].ID, "network timeout")
 	require.NoError(t, err)
 
-	assert.Equal(t, 1, q.PendingCount())
+	assert.Equal(t, 1, q.PendingCount(t.Context()))
 
 	// Peek again to verify attempts and error.
-	changes, err = q.PeekPending(10)
+	changes, err = q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 1)
 	assert.Equal(t, 1, changes[0].Attempts)
 	assert.Equal(t, "network timeout", changes[0].LastError)
 
 	// Mark failed again.
-	err = q.MarkFailed(changes[0].ID, "connection refused")
+	err = q.MarkFailed(t.Context(), changes[0].ID, "connection refused")
 	require.NoError(t, err)
 
-	changes, err = q.PeekPending(10)
+	changes, err = q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	assert.Equal(t, 2, changes[0].Attempts)
 	assert.Equal(t, "connection refused", changes[0].LastError)
@@ -133,24 +133,24 @@ func TestOfflineQueueMarkFailed(t *testing.T) {
 func TestOfflineQueueMarkFailedCapsAttempts(t *testing.T) {
 	q := newTestQueue(t)
 
-	_ = q.Enqueue("op1", nil)
-	changes, err := q.PeekPending(10)
+	_ = q.Enqueue(t.Context(), "op1", nil)
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 1)
 	id := changes[0].ID
 
 	// Transient failures up to the cap keep the change pending…
 	for range maxReplayAttempts - 1 {
-		require.NoError(t, q.MarkFailed(id, "network timeout"))
+		require.NoError(t, q.MarkFailed(t.Context(), id, "network timeout"))
 	}
-	assert.Equal(t, 1, q.PendingCount())
+	assert.Equal(t, 1, q.PendingCount(t.Context()))
 
 	// …and the attempt that reaches the cap retires it terminally.
-	require.NoError(t, q.MarkFailed(id, "network timeout"))
-	assert.Equal(t, 0, q.PendingCount())
-	assert.Equal(t, 1, q.FailedCount())
+	require.NoError(t, q.MarkFailed(t.Context(), id, "network timeout"))
+	assert.Equal(t, 0, q.PendingCount(t.Context()))
+	assert.Equal(t, 1, q.FailedCount(t.Context()))
 
-	remaining, err := q.PeekPending(10)
+	remaining, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	assert.Empty(t, remaining)
 }
@@ -158,19 +158,19 @@ func TestOfflineQueueMarkFailedCapsAttempts(t *testing.T) {
 func TestOfflineQueueMarkFailedPermanent(t *testing.T) {
 	q := newTestQueue(t)
 
-	_ = q.Enqueue("op1", nil)
-	_ = q.Enqueue("op2", nil)
-	changes, err := q.PeekPending(10)
+	_ = q.Enqueue(t.Context(), "op1", nil)
+	_ = q.Enqueue(t.Context(), "op2", nil)
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 2)
 
 	// A permanent failure leaves the pending set on the first strike.
-	require.NoError(t, q.MarkFailedPermanent(changes[0].ID, "review failed (HTTP 422): no translation"))
+	require.NoError(t, q.MarkFailedPermanent(t.Context(), changes[0].ID, "review failed (HTTP 422): no translation"))
 
-	assert.Equal(t, 1, q.PendingCount())
-	assert.Equal(t, 1, q.FailedCount())
+	assert.Equal(t, 1, q.PendingCount(t.Context()))
+	assert.Equal(t, 1, q.FailedCount(t.Context()))
 
-	remaining, err := q.PeekPending(10)
+	remaining, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, remaining, 1)
 	assert.Equal(t, "op2", remaining[0].Operation)
@@ -179,24 +179,24 @@ func TestOfflineQueueMarkFailedPermanent(t *testing.T) {
 func TestOfflineQueuePurgeCompleted(t *testing.T) {
 	q := newTestQueue(t)
 
-	_ = q.Enqueue("op1", nil)
-	_ = q.Enqueue("op2", nil)
-	_ = q.Enqueue("op3", nil)
+	_ = q.Enqueue(t.Context(), "op1", nil)
+	_ = q.Enqueue(t.Context(), "op2", nil)
+	_ = q.Enqueue(t.Context(), "op3", nil)
 
-	changes, err := q.PeekPending(10)
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 
 	// Complete the first two.
-	_ = q.MarkCompleted(changes[0].ID)
-	_ = q.MarkCompleted(changes[1].ID)
+	_ = q.MarkCompleted(t.Context(), changes[0].ID)
+	_ = q.MarkCompleted(t.Context(), changes[1].ID)
 
-	err = q.PurgeCompleted()
+	err = q.PurgeCompleted(t.Context())
 	require.NoError(t, err)
 
 	// Only one pending remains.
-	assert.Equal(t, 1, q.PendingCount())
+	assert.Equal(t, 1, q.PendingCount(t.Context()))
 
-	remaining, err := q.PeekPending(10)
+	remaining, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, remaining, 1)
 	assert.Equal(t, "op3", remaining[0].Operation)
@@ -205,20 +205,20 @@ func TestOfflineQueuePurgeCompleted(t *testing.T) {
 func TestOfflineQueueClear(t *testing.T) {
 	q := newTestQueue(t)
 
-	_ = q.Enqueue("op1", nil)
-	_ = q.Enqueue("op2", nil)
-	_ = q.Enqueue("op3", nil)
-	assert.Equal(t, 3, q.PendingCount())
+	_ = q.Enqueue(t.Context(), "op1", nil)
+	_ = q.Enqueue(t.Context(), "op2", nil)
+	_ = q.Enqueue(t.Context(), "op3", nil)
+	assert.Equal(t, 3, q.PendingCount(t.Context()))
 
-	err := q.Clear()
+	err := q.Clear(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, 0, q.PendingCount())
+	assert.Equal(t, 0, q.PendingCount(t.Context()))
 }
 
 func TestOfflineQueueEmptyPeek(t *testing.T) {
 	q := newTestQueue(t)
 
-	changes, err := q.PeekPending(10)
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	assert.Empty(t, changes)
 }
@@ -230,8 +230,8 @@ func TestOfflineQueuePersistence(t *testing.T) {
 	q1, err := NewOfflineQueue(dbPath)
 	require.NoError(t, err)
 
-	_ = q1.Enqueue("op1", map[string]string{"key": "value"})
-	_ = q1.Enqueue("op2", nil)
+	_ = q1.Enqueue(t.Context(), "op1", map[string]string{"key": "value"})
+	_ = q1.Enqueue(t.Context(), "op2", nil)
 	q1.Close()
 
 	// Reopen and verify data persists.
@@ -239,9 +239,9 @@ func TestOfflineQueuePersistence(t *testing.T) {
 	require.NoError(t, err)
 	defer q2.Close()
 
-	assert.Equal(t, 2, q2.PendingCount())
+	assert.Equal(t, 2, q2.PendingCount(t.Context()))
 
-	changes, err := q2.PeekPending(10)
+	changes, err := q2.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 2)
 	assert.Equal(t, "op1", changes[0].Operation)
@@ -271,8 +271,8 @@ func TestGetPendingChangesCountWithQueue(t *testing.T) {
 
 	assert.Equal(t, 0, app.GetPendingChangesCount())
 
-	_ = q.Enqueue("op1", nil)
-	_ = q.Enqueue("op2", nil)
+	_ = q.Enqueue(t.Context(), "op1", nil)
+	_ = q.Enqueue(t.Context(), "op2", nil)
 	assert.Equal(t, 2, app.GetPendingChangesCount())
 }
 
@@ -296,7 +296,7 @@ func TestEnqueueAddsToQueue(t *testing.T) {
 	app.offlineQueue = q
 
 	app.enqueue(deleteMemoryEntryOp{EntryID: "e1"})
-	assert.Equal(t, 1, q.PendingCount())
+	assert.Equal(t, 1, q.PendingCount(t.Context()))
 }
 
 // The ids of the entries that did not reach the server list the failed and
@@ -305,25 +305,25 @@ func TestEnqueueAddsToQueue(t *testing.T) {
 func TestOfflineQueueFailedIDs(t *testing.T) {
 	q := newTestQueue(t)
 
-	ids, err := q.FailedIDs()
+	ids, err := q.FailedIDs(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, ids)
 
 	for _, op := range []string{"op1", "op2", "op3"} {
-		require.NoError(t, q.Enqueue(op, nil))
+		require.NoError(t, q.Enqueue(t.Context(), op, nil))
 	}
-	changes, err := q.PeekPending(10)
+	changes, err := q.PeekPending(t.Context(), 10)
 	require.NoError(t, err)
 	require.Len(t, changes, 3)
-	require.NoError(t, q.MarkDropped(changes[2].ID, "queued by an earlier version"))
-	require.NoError(t, q.MarkFailedPermanent(changes[0].ID, "HTTP 409"))
+	require.NoError(t, q.MarkDropped(t.Context(), changes[2].ID, "queued by an earlier version"))
+	require.NoError(t, q.MarkFailedPermanent(t.Context(), changes[0].ID, "HTTP 409"))
 
-	ids, err = q.FailedIDs()
+	ids, err = q.FailedIDs(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, []int64{changes[0].ID, changes[2].ID}, ids)
 
-	require.NoError(t, q.Dismiss(changes[0].ID))
-	ids, err = q.FailedIDs()
+	require.NoError(t, q.Dismiss(t.Context(), changes[0].ID))
+	ids, err = q.FailedIDs(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, []int64{changes[2].ID}, ids)
 }

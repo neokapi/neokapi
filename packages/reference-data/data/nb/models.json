@@ -16,7 +16,7 @@
       "contextWindow": 1000000,
       "status": "active",
       "introduced": "2026-11-15",
-      "note": "1M context is standard, with no long-context surcharge."
+      "note": "En kontekst på 1 million er standard, uten pristillegg for lang kontekst."
     },
     {
       "id": "claude-sonnet-5-5",
@@ -60,7 +60,7 @@
       "status": "superseded",
       "introduced": "2026-08-27",
       "supersededBy": "claude-opus-5-5",
-      "note": "1M kontekst er standard, uten tillegg for lang kontekst."
+      "note": "Et kontekstvindu på 1 million token er standard, uten pristillegg for lang kontekst."
     },
     {
       "id": "claude-opus-4-8",
@@ -73,7 +73,7 @@
       "status": "superseded",
       "introduced": "2026-07-14",
       "supersededBy": "claude-opus-5-5",
-      "note": "1M kontekst er standard, uten tillegg for lang kontekst."
+      "note": "Et kontekstvindu på 1 million er standard, uten pristillegg for lang kontekst."
     },
     {
       "id": "claude-sonnet-5",
@@ -124,7 +124,7 @@
       "status": "superseded",
       "introduced": "2026-04-03",
       "supersededBy": "claude-sonnet-5-5",
-      "note": "Nås i produksjon via Bedrock-inferansprofilen eu.anthropic.claude-sonnet-4-6."
+      "note": "Tilgjengelig i produksjon via Bedrock-inferensprofilen eu.anthropic.claude-sonnet-4-6."
     },
     {
       "id": "claude-opus-4",
@@ -151,7 +151,7 @@
       "contextWindow": 1050000,
       "status": "active",
       "introduced": "2026-11-15",
-      "note": "Prompts over 272k input tokens are billed at a higher tier."
+      "note": "Prompter med over 272 000 inndatatokener faktureres etter et høyere pristrinn."
     },
     {
       "id": "gpt-6.1-sol",
@@ -163,7 +163,7 @@
       "contextWindow": 1050000,
       "status": "active",
       "introduced": "2026-11-15",
-      "note": "Prompts over 272k input tokens are billed at a higher tier."
+      "note": "Ledetekster med over 272 000 inndata-tokens faktureres etter en høyere sats."
     },
     {
       "id": "gpt-6-astra",
@@ -198,7 +198,7 @@
       "status": "superseded",
       "introduced": "2026-07-14",
       "supersededBy": "gpt-6.1-sol",
-      "note": "Standard-ID-en er gpt-5.6-sol, som løses til denne familien."
+      "note": "Samsvarer med gpt-5.6-sol og gpt-5.6-luna; gpt-5.6-terra har en egen oppføring."
     },
     {
       "id": "gpt-5.6-terra",
@@ -253,7 +253,7 @@
       "introduced": "2026-04-03",
       "supersededBy": "gpt-6-luna",
       "retirementDate": "2027-01-14",
-      "note": "Erstattet i OpenAI API, men fortsatt standard for Azure OpenAI, fordi Azure-distribusjoner henger etter det offentlige API-et og standarden er bevisst konservativ."
+      "note": "Er erstattet i OpenAI API-et, men er fortsatt standardvalget for Azure OpenAI. Azure-distribusjoner ligger etter det offentlige API-et, og standardvalget er bevisst konservativt. Utfasedatoen er OpenAIs; Azure fastsetter sin egen."
     },
     {
       "id": "o3",
@@ -267,7 +267,7 @@
       "introduced": "2026-06-22",
       "supersededBy": "gpt-6.1-sol",
       "retirementDate": "2026-12-11",
-      "note": "Resonneringsmodell; beholdt for kallere som navngir den eksplisitt."
+      "note": "Resonneringsmodell, beholdt for kallere som angir den eksplisitt."
     },
     {
       "id": "gemini-3.8-flash",
@@ -293,7 +293,7 @@
       "contextWindow": 1048576,
       "status": "active",
       "introduced": "2026-07-14",
-      "note": "Google serves this id by routing it to gemini-3.6-flash."
+      "note": "Google håndterer denne ID-en ved å rute den til gemini-3.6-flash."
     },
     {
       "id": "gemini-3.1-pro",
@@ -305,7 +305,7 @@
       "contextWindow": 1048576,
       "status": "active",
       "introduced": "2026-07-14",
-      "note": "Spørringer over 200 000 input-token faktureres på et høyere nivå."
+      "note": "Ledetekster med over 200 000 inndatatokener faktureres etter en høyere sats."
     },
     {
       "id": "gemini-3.1-flash-lite",
@@ -340,7 +340,7 @@
       "contextWindow": 1048576,
       "status": "active",
       "introduced": "2026-04-03",
-      "note": "Reservetak for alle Gemini 3.x-id-er uten en mer spesifikk oppføring."
+      "note": "Reservegrenser for Gemini 3.x-ID-er uten en mer spesifikk oppføring."
     },
     {
       "id": "gemini-2",
@@ -365,7 +365,7 @@
       "recommended": true,
       "status": "active",
       "introduced": "2026-06-22",
-      "note": "Kjører lokalt via Ollama; grensene avhenger av den nedlastede kvantiseringen, så ingen er fastsatt her."
+      "note": "Kjører lokalt via Ollama. Maksgrensene avhenger av den nedlastede kvantiseringen, så ingen grenser er fastsatt her."
     }
   ]
 }

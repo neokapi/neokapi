@@ -156,7 +156,7 @@ func TestOfflineEditToATranslationChangedOnTheServerIsRefusedOnReplay(t *testing
 		out := applyChanges(t, app, proj.ID, edit)
 		require.Equal(t, change.SetApplied, out.Status)
 	}
-	require.Equal(t, 2, q.PendingCount())
+	require.Equal(t, 2, q.PendingCount(t.Context()))
 
 	// Meanwhile Bob rewrites the first translation on the server.
 	res = live.apply(t, "Bob", proj.ID, setTarget("hello.txt", hello.ID, "fr", helloRead, "Bonjour à tous"))
@@ -168,11 +168,13 @@ func TestOfflineEditToATranslationChangedOnTheServerIsRefusedOnReplay(t *testing
 	app.mu.Unlock()
 	app.replayPendingChanges(ctx)
 
-	assert.Equal(t, 0, q.PendingCount(), "the outbox drained")
-	assert.Equal(t, 1, q.FailedCount(), "the stale edit is refused and kept as failed")
+	assert.Equal(t, 0, q.PendingCount(t.Context()), "the outbox drained")
+	assert.Equal(t, 1, q.FailedCount(t.Context()), "the stale edit is refused and kept as failed")
 	var lastError string
 	require.NoError(t, q.db.QueryRow(`SELECT last_error FROM pending_changes WHERE status = 'failed'`).Scan(&lastError))
-	assert.Contains(t, lastError, "HTTP 409", "the server refused it stale")
+	// The reason is the server's own sentence, without the request around it.
+	assert.Contains(t, lastError, "changed after you read it", "the server refused it stale")
+	assert.NotContains(t, lastError, "HTTP 409")
 
 	// The failed-changes list says what the refused edit was, so Alice can
 	// make it again on the wording that stands.

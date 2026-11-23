@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -24,7 +25,13 @@ type source struct {
 	path  string
 	entry string
 	data  []byte
+	// root is the home's root. A file beneath it is opened through
+	// rootpath, so no read follows a link out of the root.
+	root string
 }
+
+// open opens the file the source names for reading (openBeneath).
+func (s source) open() (*os.File, error) { return openBeneath(s.root, s.path) }
 
 func (s source) String() string {
 	if s.entry != "" {
@@ -33,13 +40,18 @@ func (s source) String() string {
 	return filepath.Base(s.path)
 }
 
-// exists reports whether the source's file is there.
+// exists reports whether something is at the source's name, as open finds
+// it. A name open refuses (a link out of the root, a directory) exists, so
+// the read that follows reports the refusal.
 func (s source) exists() bool {
 	if s.data != nil {
 		return true
 	}
-	_, err := os.Stat(s.path)
-	return err == nil
+	f, err := s.open()
+	if err == nil {
+		_ = f.Close()
+	}
+	return !errors.Is(err, fs.ErrNotExist)
 }
 
 // entryBytes reads an archive member.
@@ -47,7 +59,12 @@ func (s source) entryBytes() ([]byte, error) {
 	if s.data != nil {
 		return s.data, nil
 	}
-	data, _, err := container.OpenEntry(s.path, s.entry)
+	f, err := s.open()
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	data, _, err := container.OpenEntryFile(f, s.entry)
 	return data, err
 }
 
@@ -108,6 +125,11 @@ func (p pass) run(ctx context.Context) (err error) {
 	// cannot.
 	var original []byte
 	if p.out != nil {
+		// A writer that reads files the content names (the source path below,
+		// a Media URI) reads them through the home's root.
+		if rs, ok := writer.(interface{ SetProjectRoot(string) }); ok {
+			rs.SetProjectRoot(ws.root)
+		}
 		if sps, ok := writer.(format.SourcePathSetter); ok && ws.entry == "" && ws.data == nil {
 			abs, aerr := filepath.Abs(ws.path)
 			if aerr != nil {
@@ -139,7 +161,7 @@ func (p pass) run(ctx context.Context) (err error) {
 	case original != nil && ws.data == nil && ws.path == p.src.path && ws.entry == p.src.entry:
 		setBytes(doc, original)
 	default:
-		f, oerr := os.Open(p.src.path)
+		f, oerr := p.src.open()
 		if oerr != nil {
 			reader.Close()
 			return oerr
@@ -182,7 +204,7 @@ func readAll(s source) ([]byte, error) {
 	if s.entry != "" {
 		return s.entryBytes()
 	}
-	f, err := os.Open(s.path)
+	f, err := s.open()
 	if err != nil {
 		return nil, err
 	}

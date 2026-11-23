@@ -220,7 +220,7 @@ func TestAutomation_RunFlow_ProjectScope(t *testing.T) {
 	projA := seedRunFlowProject(t, srv, "Project A")
 	projB := seedRunFlowProject(t, srv, "Project B")
 
-	require.NoError(t, srv.FlowDefStore.Upsert(ctx, projA, &flow.FlowDefinition{
+	require.NoError(t, srv.FlowDefStore.Create(ctx, projA, &flow.FlowDefinition{
 		ID:   "a-only",
 		Name: "A only",
 		Nodes: []flow.FlowNode{
@@ -287,7 +287,7 @@ func TestCreateAutomationRule_ValidatesRunFlow(t *testing.T) {
 	srv := newRunFlowTestServer(t)
 	projID := seedRunFlowProject(t, srv, "Validate")
 	ctx := context.Background()
-	require.NoError(t, srv.FlowDefStore.Upsert(ctx, projID, &flow.FlowDefinition{
+	require.NoError(t, srv.FlowDefStore.Create(ctx, projID, &flow.FlowDefinition{
 		ID:    "mine",
 		Name:  "Mine",
 		Nodes: []flow.FlowNode{{ID: "qa", Type: flow.NodeTool, Name: "qa"}},

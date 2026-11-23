@@ -92,7 +92,10 @@ func TestTermProposals_FilesATermPerTargetLanguage(t *testing.T) {
 	// A proposal turned down is not filed again.
 	proposal := termcandidate.TranslationFor(kept, "nb")
 	termcandidate.RejectTranslation(&kept, "nb")
-	require.NoError(t, tb.AddConcept(ctx, kept))
+	_, rev, _, err := tb.GetConceptAt(ctx, "kept")
+	require.NoError(t, err)
+	_, err = tb.UpdateConcept(ctx, kept, "", rev)
+	require.NoError(t, err)
 	again := f.seedJob(t, wsID, ContextScanRequest{Project: projectID, TermProposals: &TermProposalRequest{Concepts: []string{"kept"}}})
 	require.NoError(t, processContextScanJob(ctx, f.deps, again.ID))
 	kept, _, err = tb.GetConcept(ctx, "kept")

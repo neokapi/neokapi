@@ -31,6 +31,7 @@ import (
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/ref/refcache"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/venue"
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/host"
@@ -132,7 +133,12 @@ type itemBlock struct {
 // decision staging, and taking it as a parameter rather than opening one is the
 // whole point: the App memoizes one handle per project root, and a connector
 // that opened its own would be a second connection pool on `.kapi/work/store.db`.
-func NewSourceConnector(app *host.App, project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
+func NewSourceConnector(ctx context.Context, app *host.App, project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
+	// The sync state holds the claim token a push authenticates with, so it is
+	// read only once git is known not to track it (coreproj.CheckStateTracked).
+	if err := coreproj.CheckStateTracked(ctx, project.Layout); err != nil {
+		return nil, err
+	}
 	recipe := project.Recipe
 	if !recipe.HasServer() {
 		return nil, fmt.Errorf("no server configuration in the kapi recipe (add a `%s:` block)", schema.VenueKey)
@@ -230,7 +236,10 @@ func NewSourceConnector(app *host.App, project *Project, formatReg *registry.For
 // (listing files, scanning blocks) without requiring a server connection. It
 // takes the same App for the same reason: local-only is about the server, not
 // about the project's store.
-func NewLocalConnector(app *host.App, project *Project, formatReg *registry.FormatRegistry) *BowrainSourceConnector {
+func NewLocalConnector(ctx context.Context, app *host.App, project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
+	if err := coreproj.CheckStateTracked(ctx, project.Layout); err != nil {
+		return nil, err
+	}
 	cache := LoadSyncCache(project.Layout)
 	return &BowrainSourceConnector{
 		app:       app,
@@ -238,7 +247,7 @@ func NewLocalConnector(app *host.App, project *Project, formatReg *registry.Form
 		formatReg: formatReg,
 		cache:     cache,
 		refs:      &refcache.Cache{},
-	}
+	}, nil
 }
 
 // FileInfo describes a single tracked file with optional stats.
@@ -1012,6 +1021,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		SettingsRefused:       settingsRefused,
 		Terms:                 parts.Terms,
 		Ledger:                parts.Ledger,
+		VoiceLeft:             parts.VoiceLeft,
 	}, nil
 }
 
@@ -1091,12 +1101,17 @@ func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID strin
 		// means the ingest landed.
 		switch {
 		case st.Failed > 0 && st.Completed == 0:
+			if st.Reason != "" {
+				return "", nil, none, fmt.Errorf(
+					"push %s was not applied: %s (the local sync record was left untouched so the next push sends this content again)",
+					pushID, st.Reason)
+			}
 			return "", nil, none, fmt.Errorf(
 				"push %s was accepted but the server failed to apply it (%d job(s) failed); "+
 					"the local sync record was left untouched so the next push sends this content again",
 				pushID, st.Failed)
 		case st.Completed > 0:
-			return bowrainconn.IngestApplied, st.Governance, venue.PushParts{Terms: st.Terms, Ledger: st.Ledger}, nil
+			return bowrainconn.IngestApplied, st.Governance, venue.PushParts{Terms: st.Terms, Ledger: st.Ledger, VoiceLeft: st.VoiceLeft}, nil
 		case st.Total == 0:
 			// No job exists for this push id. Either the deployment runs no
 			// worker or the job has not been recorded yet; keep waiting, and
@@ -1440,7 +1455,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 
 				// Read source, inject targets, write output.
 				absSource := c.project.ResolvePath(itemName)
-				if _, statErr := os.Stat(absSource); errors.Is(statErr, fs.ErrNotExist) {
+				if _, statErr := rootpath.CheckRegular(c.project.Root, absSource); errors.Is(statErr, fs.ErrNotExist) && !escapes(statErr) {
 					// The source was deleted or renamed after it was pushed;
 					// additive-only push means the server never forgets it.
 					// There is nothing to reconstruct a target from, on this
@@ -1659,9 +1674,13 @@ func (c *BowrainSourceConnector) scanLocal(ctx context.Context, paths []string) 
 	for _, p := range paths {
 		absPath := c.project.ResolvePath(p)
 
-		// Skip if file doesn't exist.
-		info, err := os.Stat(absPath)
-		if err != nil || info.IsDir() {
+		// Skip a file that does not exist or is not a regular file. A file
+		// that resolves outside the project is never read, and the push stops
+		// rather than leave it out of the tree it declares.
+		if _, err := rootpath.CheckRegular(c.project.Root, absPath); err != nil {
+			if escapes(err) {
+				return nil, err
+			}
 			continue
 		}
 
@@ -1879,7 +1898,7 @@ func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []it
 		}
 		coreproj.WireReadSkeleton(c.formatReg, formatName, reader)
 
-		f, err := os.Open(absPath)
+		f, err := rootpath.OpenRegular(c.project.Root, absPath)
 		if err != nil {
 			reader.Close()
 			continue
@@ -1889,6 +1908,7 @@ func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []it
 			URI:      absPath,
 			FormatID: formatName,
 			Reader:   f,
+			ReaderAt: f,
 		}
 
 		result, err := editor.ParseItem(ctx, reader, doc, sourceLocale, formatName, itemName)
@@ -1977,7 +1997,7 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 	// the same way gives the venue the block ids they name.
 	coreproj.WireReadSkeleton(c.formatReg, formatName, reader)
 
-	f, err := os.Open(filePath)
+	f, err := rootpath.OpenRegular(c.project.Root, filePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open file %s: %w", filePath, err)
 	}
@@ -1987,6 +2007,7 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 		URI:      filePath,
 		FormatID: formatName,
 		Reader:   f,
+		ReaderAt: f,
 	}
 	// A package format reads its entries straight out of the file handle
 	// instead of buffering the container.
@@ -2198,7 +2219,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 		defer skelStore.Close()
 	}
 
-	f, err := os.Open(sourcePath)
+	f, err := rootpath.OpenRegular(c.project.Root, sourcePath)
 	if err != nil {
 		return fmt.Errorf("open source file %s: %w", sourcePath, err)
 	}
@@ -2207,6 +2228,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 		URI:      sourcePath,
 		FormatID: formatName,
 		Reader:   f,
+		ReaderAt: f,
 	}
 	if err := format.OpenDocument(ctx, reader, doc); err != nil {
 		f.Close()
@@ -2236,7 +2258,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 	if sps, ok := writer.(format.SourcePathSetter); ok {
 		sps.SetSourcePath(sourcePath)
 	} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
-		srcBytes, err := os.ReadFile(sourcePath)
+		srcBytes, err := readInRoot(c.project.Root, sourcePath)
 		if err != nil {
 			return fmt.Errorf("read source for writer: %w", err)
 		}
@@ -2255,13 +2277,13 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 	// The translated file commits through the file home a flow commits
 	// through: staged beside the destination, renamed under its lock, and only
 	// while the destination still holds what it held when the write began.
-	before, err := filehome.Digest(outputPath)
-	if err != nil {
-		return fmt.Errorf("read %s: %w", outputPath, err)
-	}
 	home := filehome.New(nil, filehome.Options{Root: c.project.Root})
 	if c.app != nil {
 		home = c.app.FlowHome(c.project.Root)
+	}
+	before, err := home.Digest(outputPath)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", outputPath, err)
 	}
 	produced, err := home.Produce(ctx, outputPath, before, func(w io.Writer) error {
 		if err := writer.SetOutputWriter(w); err != nil {
@@ -2378,7 +2400,13 @@ func (c *BowrainSourceConnector) fetchMediaReplacements(
 					return nil, noop, append(errs, fmt.Errorf("create a temp dir for media: %w", err))
 				}
 			}
-			variantPath := filepath.Join(tmpDir, fmt.Sprintf("%s-%s", asset.ID, v.Locale))
+			name := fmt.Sprintf("%s-%s", asset.ID, v.Locale)
+			if strings.ContainsAny(name, `/\`) || !filepath.IsLocal(name) {
+				errs = append(errs, fmt.Errorf(
+					"variant %s of %s: the venue named the asset %q, which is not a file name", v.Locale, asset.Filename, asset.ID))
+				continue
+			}
+			variantPath := filepath.Join(tmpDir, name)
 			if err := os.WriteFile(variantPath, data, 0o644); err != nil {
 				errs = append(errs, fmt.Errorf(
 					"materialize variant %s of %s: %w", v.Locale, asset.Filename, err))
@@ -2607,4 +2635,21 @@ func allScannedBlocks(blockMap map[string][]*model.Block) []*model.Block {
 		all = append(all, blocks...)
 	}
 	return all
+}
+
+// escapes reports whether err says a path leads outside the project.
+func escapes(err error) bool {
+	_, ok := errors.AsType[*rootpath.EscapeError](err)
+	return ok
+}
+
+// readInRoot reads the file at path when it is a regular file that resolves
+// inside root (rootpath.OpenRegular).
+func readInRoot(root, path string) ([]byte, error) {
+	f, err := rootpath.OpenRegular(root, path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(f)
 }

@@ -1,55 +1,55 @@
 # Native reference doc for the built-in `image` format.
 # Source: core/formats/image/{reader.go,writer.go,config.go,metadata.go}.
 # No Okapi equivalent: image OCR and image translation are neokapi capabilities.
-description: "Oversett rasterbilder ved å emittere bildet som et Media-objekt, gjenkjenne innebygd tekst med OCR og oversette alt-tekst- og undertekstsidecars."
+description: "Oversett rasterbilder ved å sende bildet ut som et oversettbart Media-objekt, gjenkjenne innebygd tekst med OCR, og oversette alt-tekst/bildetekst-sidefiler."
 overview: |
   **Image**-formatet leser rasterbilder som dokumenter. PNG og JPEG dekodes
-  nativt; GIF, BMP, TIFF og WebP dekodes internt (ren Go); og ISOBMFF-
+  nativt; GIF, BMP, TIFF og WebP dekodes in-core (ren Go); og ISOBMFF-
   stillbildene HEIC/HEIF og AVIF transkodes med ffmpeg (kapi-av-
-  bunten) når den er tilgjengelig, og faller tilbake til et Media-kun-objekt når den ikke er det.
-  Selve bildet emitteres alltid som en **Media**-del ved referanse, og
-  pikselbyten lastes aldri inn i kapi-prosessen, så et bilde er et gyldig,
-  inspiserbart dokument selv uten noen OCR-motor installert. Dette er
-  *erstatning av hele bildet*-modusen: bildet er et objekt som skal erstattes, ikke
+  pakken) når det er tilgjengelig, og faller tilbake til et Media-kun-objekt når det ikke er det.
+  Selve bildet sendes alltid ut som en **Media**-del via referanse, og
+  pikseldata lastes aldri inn i kapi-prosessen, så et bilde er et gyldig,
+  inspekterbart dokument selv uten noen OCR-motor installert. Dette er
+  *erstatning for hele bildet*-modus: bildet er et objekt som skal erstattes, ikke
   leses.
 
-  Når tillegget **kapi-vision** er installert og `ocr` er aktivert, gjenkjenner leseren
-  tekst i bildet og emitterer posisjonerte tekst**blokker**, og gjenoppretter
-  nivå-2-struktur (overskrifter, avsnitt, tabeller) fra OCR-linjegeometrien på
+  Når **kapi-vision**-plugin er installert og `ocr` er aktivert, gjenkjenner leseren
+  tekst i bildet og sender ut posisjonerte tekst**blokker**, og gjenoppretter
+  tier-2-struktur (overskrifter, avsnitt, tabeller) fra OCR-linjegeometrien på
   samme måte som PDF-geometribanen gjør. Med `layout` aktivert brukes ML-layoutdeteksjon
-  (regioner + leserekkefølge) når motoren støtter det, og faller tilbake til
-  geometrisk inferens ellers.
+  (regioner + leserekkefølge) når motoren støtter det, og faller ellers tilbake
+  til geometrisk inferens.
 
-  En `<image>.alt.txt`-sidecar ved siden av kildeteksten leverer alt-tekst- og undertekstkopi:
-  den knyttes til Media-objektet og emitteres som en undertekstblokk som
-  oversettes gjennom den normale blokkbanen; skriveren legger den oversatte teksten
-  tilbake i en per-språk-sidecar. Innebygd metadata (PNG-tekstbiter, XMP) leses
-  uten å dekode piksler og mappes til dokumentlaget.
+  En `<image>.alt.txt`-sidefil ved siden av kilden leverer alt-tekst/bildetekst:
+  den knyttes til Media og sendes ut som en bildetekstblokk som
+  oversettes gjennom den vanlige blokkbanen; skriveren legger den oversatte teksten
+  tilbake i en per-locale-sidefil. Innebygd metadata (PNG-tekstbiter, XMP) leses
+  uten at piksler dekodes og mappes til dokumentlaget.
 parameters:
   ocr:
-    description: Gjenkjenn tekst i bilder via kapi-vision-tillegget.
+    description: Gjenkjenner tekst i bilder via kapi-vision-plugin.
     help: |
-      Når dette er aktivert (standard), og tillegget kapi-vision er installert, gjenkjennes
-      bildeteksten og emitteres som posisjonerte, strukturerte blokker.
-      Når det er deaktivert, eller når tillegget mangler, emitteres bildet kun som et
-      Media-objekt (erstatning av hele bildet).
+      Når aktivert (standard), og kapi-vision-plugin er installert, gjenkjennes
+      bildeteksten og sendes ut som posisjonerte, strukturerte blokker.
+      Når deaktivert, eller når plugin mangler, sendes bildet ut som et
+      Media-objekt alene (erstatning for hele bildet).
     values: "`true` / `false` (standard `true`)"
   layout:
     description: Bruk ML-layoutdeteksjon for regioner og leserekkefølge.
     help: |
       Når aktivert (standard) og OCR kjører, hentes layoutregioner og leserekkefølge
-      fra visjonsmotorens ML-layoutmodell (når den støtter en slik). Når
+      fra vision-motorens ML-layoutmodell (når den støtter det). Når
       deaktivert, faller strukturen tilbake til geometrisk inferens over OCR-linje-
-      geometrien (nivå 2).
+      geometrien (tier 2).
     values: "`true` / `false` (standard `true`)"
     dependsOn:
       - property: ocr
-        condition: gjelder kun når OCR er aktivert
+        condition: gjelder bare når OCR er aktivert
 limitations:
-  - PNG/JPEG/GIF/BMP/TIFF oppdages via magic-byte-prefiks; WebP og ISOBMFF-stillbildene HEIC/HEIF og AVIF via innholdssniffing (deres markører befinner seg forbi offset 0 og deler RIFF/ftyp-beholderen med lyd/video).
-  - "OCR av HEIC/HEIF og AVIF krever ffmpeg (kapi-av-bunten eller PATH) for å transkode rammen; uten det avgis disse bildene fortsatt som et Media-asset, men OCR-behandles ikke."
-  - OCR og layout krever kapi-vision-tillegget; uten det er bildet kun et Media-asset.
+  - PNG/JPEG/GIF/BMP/TIFF detekteres via magic-byte-prefiks; WebP og ISOBMFF-stillbildene HEIC/HEIF og AVIF via innholdssniff (markørene deres ligger etter offset 0 og deler RIFF/ftyp-beholderen med lyd/video).
+  - "OCR av HEIC/HEIF og AVIF krever ffmpeg (kapi-av-pakken eller PATH) for å transkode rammen; uten det sendes disse bildene fortsatt ut som et Media-objekt, men OCR-behandles ikke."
+  - OCR og layout krever kapi-vision-plugin; uten den er bildet kun et Media-objekt.
 processingNotes:
-  - Bildet avgis alltid som en Media-del ved referanse; OCR-Blokker er additiv berikelse og OCR-feil er ikke fatale.
-  - "Formater som bildemotoren ikke kan lese nativt, normaliseres til PNG før OCR (GIF/BMP/TIFF/WebP internt, HEIC/AVIF via ffmpeg), mens det emitterte Media-objektet beholder de originale bytene."
-  - "Alt-tekst- og undertekstkopi følger standard blokkbane uten spesiell verktøystøtte, og skrives tilbake til en per-språk-sidecar `<image>.alt.txt`."
+  - "Bildet sendes alltid ut som en Media-del via referanse; OCR-blokker er additiv berikelse, og OCR-feil er ikke fatale."
+  - "Formater som vision-motoren ikke kan lese nativt, normaliseres til PNG før OCR (GIF/BMP/TIFF/WebP in-core, HEIC/AVIF via ffmpeg), mens det utsendte Media-objektet beholder de originale bytene."
+  - "Alt-tekst/bildetekst går gjennom den standard blokkbanen uten spesiell verktøystøtte, og skrives tilbake til en per-locale `<image>.alt.txt`-sidefil."

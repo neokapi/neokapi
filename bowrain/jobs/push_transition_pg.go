@@ -2,7 +2,6 @@ package jobs
 
 import (
 	"context"
-	"sync"
 
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -20,31 +19,20 @@ import (
 // voice and ks may be nil when their stores could not be opened; a push that
 // needs one then fails rather than writing outside the transaction.
 //
-// A workspace's terms store is opened on first use and kept; opening it
-// migrates its schema on the pool, once per workspace.
-func NewPostgresPushTransition(db *storage.PgDB, content *bstore.PostgresStore, voice *voicepg.PostgresVoiceStore, ks *knowledge.PostgresKnowledgeStore) PushTransitionFunc {
-	var opened sync.Map // workspace slug -> *sqlterms.PostgresStore
-	openTerms := func(ctx context.Context, slug string) (*sqlterms.PostgresStore, error) {
-		if v, ok := opened.Load(slug); ok {
-			return v.(*sqlterms.PostgresStore), nil
-		}
-		tb, err := sqlterms.NewPostgresStoreFromDBContext(ctx, db, slug)
-		if err != nil {
-			return nil, err
-		}
-		actual, _ := opened.LoadOrStore(slug, tb)
-		return actual.(*sqlterms.PostgresStore), nil
+// The terms schema, which every workspace shares, is migrated here, before
+// any push opens a transaction. A push then opens a workspace's terms store
+// without a statement of its own, so nothing it does inside its transaction
+// reaches the pool.
+func NewPostgresPushTransition(ctx context.Context, db *storage.PgDB, content *bstore.PostgresStore, voice *voicepg.PostgresVoiceStore, ks *knowledge.PostgresKnowledgeStore) (PushTransitionFunc, error) {
+	if err := sqlterms.MigratePostgres(ctx, db); err != nil {
+		return nil, err
 	}
 	return func(ctx context.Context, fn func(PushStores) error) error {
 		return db.Transition(ctx, func(tx storage.Runner) error {
 			st := PushStores{
 				Content: content.Bind(tx),
-				Terms: func(ctx context.Context, slug string) (terms.Store, error) {
-					tb, err := openTerms(ctx, slug)
-					if err != nil {
-						return nil, err
-					}
-					return tb.Bind(tx), nil
+				Terms: func(_ context.Context, slug string) (terms.Store, error) {
+					return sqlterms.ForWorkspace(db, slug).Bind(tx), nil
 				},
 			}
 			if voice != nil {
@@ -55,5 +43,5 @@ func NewPostgresPushTransition(db *storage.PgDB, content *bstore.PostgresStore, 
 			}
 			return fn(st)
 		})
-	}
+	}, nil
 }

@@ -191,7 +191,8 @@ func TestAPersonRefusedAWithdrawalIsToldWhatTheyCanDo(t *testing.T) {
 }
 
 // TestAPersonInAnAgentShellIsOnTheRecord: the override exists for a person
-// typing in an agent host's shell, and an operation that used it says so.
+// typing in an agent host's shell, and an operation that used it says so on
+// its actor. The note stays what the person typed.
 func TestAPersonInAnAgentShellIsOnTheRecord(t *testing.T) {
 	app, _ := contextOpsApp(t)
 	root := contextOpsProject(t, "ctxops-cli-override")
@@ -204,7 +205,8 @@ func TestAPersonInAnAgentShellIsOnTheRecord(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, contextop.ActorPerson, observed.Actor.Kind)
-	assert.Equal(t, "recorded as a person in a claude-code shell", observed.Note)
+	assert.Empty(t, observed.Note)
+	assert.Equal(t, "claude-code", observed.Actor.AgentHost)
 
 	confirmed, err := app.KeepContextOperation(t.Context(), ContextKeepRequest{
 		Project: recipeOf(root),
@@ -212,7 +214,8 @@ func TestAPersonInAnAgentShellIsOnTheRecord(t *testing.T) {
 		Note:    "we say use everywhere",
 	})
 	require.NoError(t, err, "the override carries a person's rights, which is what it is for")
-	assert.Equal(t, "we say use everywhere (recorded as a person in a claude-code shell)", confirmed.Note)
+	assert.Equal(t, "we say use everywhere", confirmed.Note)
+	assert.Equal(t, "claude-code", confirmed.Actor.AgentHost)
 }
 
 // TestAStatedActorIsTakenAtItsWord: the MCP tools and the desktop name the

@@ -1,22 +1,33 @@
 package backend
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// newCredentialsApp builds an App whose provider store lives in a config
+// directory of the test's own. NewApp opens providers.json at its default
+// path, and a save or delete rewrites the whole file, so a test that left the
+// path to the default once replaced the developer's providers.json with "[]".
+func newCredentialsApp(t *testing.T) (*App, string) {
+	t.Helper()
+	dir := t.TempDir()
+	t.Setenv("KAPI_CONFIG_DIR", dir)
+	return NewApp(), filepath.Join(dir, "providers.json")
+}
+
 func TestListProvidersNotNil(t *testing.T) {
-	app := NewApp()
-	providers := app.ListProviders()
-	// May not be empty if there are providers from other runs; just verify it doesn't panic.
+	app, _ := newCredentialsApp(t)
 	assert.NotNil(t, app.credentials)
-	_ = providers
+	assert.Empty(t, app.ListProviders())
 }
 
 func TestSaveAndListProvider(t *testing.T) {
-	app := NewApp()
+	app, path := newCredentialsApp(t)
 
 	countBefore := len(app.ListProviders())
 
@@ -34,12 +45,13 @@ func TestSaveAndListProvider(t *testing.T) {
 	providers := app.ListProviders()
 	assert.Len(t, providers, countBefore+1)
 
-	// Clean up.
-	_ = app.DeleteProvider(result.ID)
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "My Anthropic", "the save lands in the test's own providers.json")
 }
 
 func TestDeleteProvider(t *testing.T) {
-	app := NewApp()
+	app, path := newCredentialsApp(t)
 
 	countBefore := len(app.ListProviders())
 
@@ -52,9 +64,13 @@ func TestDeleteProvider(t *testing.T) {
 
 	require.NoError(t, app.DeleteProvider(result.ID))
 	assert.Len(t, app.ListProviders(), countBefore)
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.JSONEq(t, "[]", string(data), "the delete rewrites the test's own providers.json")
 }
 
 func TestDeleteProviderNotFound(t *testing.T) {
-	app := NewApp()
+	app, _ := newCredentialsApp(t)
 	assert.Error(t, app.DeleteProvider("nonexistent"))
 }

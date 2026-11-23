@@ -15,7 +15,9 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -47,6 +49,23 @@ func deckServer(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlitestore.SQ
 	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "content.db"))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = cs.Close() })
+	e, ks, tb, srv := deckServerOn(t, caller, cs)
+	return e, cs, ks, tb, srv
+}
+
+// deckPostgresServer is deckServer over a PostgreSQL content store, the only
+// database production runs.
+func deckPostgresServer(t *testing.T, caller *decideCaller) (*echo.Echo, *bstore.PostgresStore, *testTermStore, *Server) {
+	t.Helper()
+	cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
+	require.NoError(t, err)
+	e, _, tb, srv := deckServerOn(t, caller, cs)
+	return e, cs, tb, srv
+}
+
+// deckServerOn wires the deck routes over the content store given.
+func deckServerOn(t *testing.T, caller *decideCaller, cs platstore.ContentStore) (*echo.Echo, *fakeKnowledgeStore, *testTermStore, *Server) {
+	t.Helper()
 	ks := newFakeKnowledgeStore()
 	// Another member wrote the concept, so the caller may keep it as a peer.
 	ks.latest = map[string]*knowledge.ConceptRevision{"c-memory": {ConceptID: "c-memory", Rev: 1, Actor: "member-b"}}
@@ -61,6 +80,11 @@ func deckServer(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlitestore.SQ
 			{Text: "translation memory", Locale: "en", Status: model.TermForbidden},
 		},
 	}))
+	return deckEcho(srv, caller), ks, tb, srv
+}
+
+// deckEcho is an echo serving srv's deck routes, signed in as caller.
+func deckEcho(srv *Server, caller *decideCaller) *echo.Echo {
 	e := echo.New()
 	g := e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
@@ -78,7 +102,7 @@ func deckServer(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlitestore.SQ
 	srv.registerRulesDecideRoutes(g)
 	srv.registerContextDeckRoutes(g)
 	g.POST("/:id/context/term-proposals", srv.HandleProposeTermTranslations)
-	return e, cs, ks, tb, srv
+	return e
 }
 
 func readContextDeck(t *testing.T, e *echo.Echo, pid, query string) contextDeckResponse {
@@ -252,7 +276,7 @@ func TestContextDeck_RejectConceptProposesChangeSet_SQLite(t *testing.T) {
 
 	var out contextDeckDecideResponse
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: concept.Item, Revision: concept.Revision, Action: "reject"}, &out))
+		contextDeckDecideRequest{Item: concept.Item, Revision: concept.Revision, BaseRevision: concept.BaseRevision, Action: "reject"}, &out))
 	assert.Equal(t, deckOutcomeProposed, out.Outcome)
 	require.NotEmpty(t, out.ChangesetID)
 
@@ -284,7 +308,7 @@ func TestContextDeck_PermissionsAndBinding_SQLite(t *testing.T) {
 	signIn := deckCardWhere(t, deck, termCard("Sign In", "Sign in"))
 	var refused ErrorResponse
 	assert.Equal(t, http.StatusForbidden, decideRoute(t, e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: signIn.Item, Revision: signIn.Revision, Action: "keep"}, &refused))
+		contextDeckDecideRequest{Item: signIn.Item, Revision: signIn.Revision, BaseRevision: signIn.BaseRevision, Action: "keep"}, &refused))
 
 	// A project no push has bound deals its concepts and offers no keep.
 	p := &platstore.Project{Name: "unbound", DefaultSourceLanguage: "en", WorkspaceID: "ws", Properties: map[string]string{}}
@@ -295,7 +319,7 @@ func TestContextDeck_PermissionsAndBinding_SQLite(t *testing.T) {
 	require.Len(t, unbound.Cards, 1)
 	assert.Equal(t, []string{"later"}, unbound.Cards[0].Actions)
 	assert.Equal(t, http.StatusConflict, decideRoute(t, e, http.MethodPost, p.ID, "/context/deck/decide",
-		contextDeckDecideRequest{Item: unbound.Cards[0].Item, Revision: unbound.Cards[0].Revision, Action: "keep"}, &refused))
+		contextDeckDecideRequest{Item: unbound.Cards[0].Item, Revision: unbound.Cards[0].Revision, BaseRevision: unbound.Cards[0].BaseRevision, Action: "keep"}, &refused))
 }
 
 func TestOpAuthor(t *testing.T) {
@@ -312,9 +336,17 @@ func TestOpAuthor(t *testing.T) {
 			Actor: contextop.Actor{Kind: contextop.ActorPerson, Name: "asgeir"},
 			Note:  "recorded as a person in a claude-code shell",
 		}, true, "claude-code"},
-		{"a person with a note of their own after it", contextop.Record{
+		{"a person with a note of their own before it", contextop.Record{
 			Actor: contextop.Actor{Kind: contextop.ActorPerson},
-			Note:  "fixed the casing; recorded as a person in a codex shell",
+			Note:  "fixed the casing (recorded as a person in a codex shell)",
+		}, true, "codex"},
+		{"a person whose own note says the words", contextop.Record{
+			Actor: contextop.Actor{Kind: contextop.ActorPerson},
+			Note:  "I was recorded as a person in a bash shell",
+		}, false, ""},
+		{"a person in an agent host's shell, held on the actor", contextop.Record{
+			Actor: contextop.Actor{Kind: contextop.ActorPerson, AgentHost: "codex"},
+			Note:  "fixed the casing",
 		}, true, "codex"},
 	}
 	for _, tt := range tests {
@@ -374,8 +406,16 @@ func TestContextDeckCardJudge(t *testing.T) {
 }
 
 func TestOriginNoteDropsTheHostMarker(t *testing.T) {
-	assert.Equal(t, "edited with `kapi voice edit`", originNote("edited with `kapi voice edit` (recorded as a person in a claude-code shell)"))
-	assert.Equal(t, "fixed the casing", originNote("fixed the casing; recorded as a person in a codex shell"))
+	legacy := func(note string) contextop.Record { return contextop.Record{Note: note} }
+	assert.Equal(t, "edited with `kapi voice edit`", originNote(legacy("edited with `kapi voice edit` (recorded as a person in a claude-code shell)")))
+	assert.Equal(t, "fixed the casing;", originNote(legacy("fixed the casing; (recorded as a person in a codex shell)")), "the person's text is kept as typed")
+	assert.Equal(t, "I was recorded as a person in a bash shell", originNote(legacy("I was recorded as a person in a bash shell")))
+
+	held := contextop.Record{Note: "fixed the casing", Actor: contextop.Actor{Kind: contextop.ActorPerson, AgentHost: "codex"}}
+	assert.Equal(t, "fixed the casing", originNote(held))
+	assert.Equal(t, "codex", opAuthor(held).Host, "the author carries the host either way")
+	assert.Equal(t, "codex", opAuthor(legacy("recorded as a person in a codex shell")).Host)
+	assert.True(t, opAuthor(held).AgentAuthored)
 }
 
 func TestVoiceEditHistoryFindsTheWriteThatAddedARule(t *testing.T) {

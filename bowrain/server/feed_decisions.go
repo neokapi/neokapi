@@ -11,8 +11,10 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // feedDecisionLimit bounds the decisions one roll-up lists: an hour of one
@@ -27,6 +29,13 @@ type feedDecision struct {
 	Card     deckCard  `json:"card"`
 	Decision string    `json:"decision"`
 	At       time.Time `json:"at"`
+	// Note and Reasons are what the person wrote and the reason codes they
+	// chose with the decision, as the audit event recorded them.
+	Note    string   `json:"note,omitempty"`
+	Reasons []string `json:"reasons,omitempty"`
+	// AgentHost is the agent host whose shell the person declared themselves
+	// in to decide, such as "claude-code". Note never carries it.
+	AgentHost string `json:"agent_host,omitempty"`
 	// Current is true while this is the newest decision on the translation
 	// and the translation still stands where the decision left it.
 	Current bool `json:"current"`
@@ -130,10 +139,13 @@ func (s *Server) HandleFeedDecisions(c *echo.Context) error {
 				TargetStatus:   string(target.Status),
 				Notes:          []deckNote{},
 			},
-			Decision: d.decision,
-			At:       d.at,
-			Current:  current,
-			CanUndo:  current && viewer != "" && d.actor == viewer && (d.decision == "approved" || d.decision == "rejected"),
+			Decision:  d.decision,
+			At:        d.at,
+			Note:      d.note,
+			Reasons:   d.reasons,
+			AgentHost: d.agentHost,
+			Current:   current,
+			CanUndo:   current && viewer != "" && d.actor == viewer && (d.decision == "approved" || d.decision == "rejected"),
 		})
 	}
 	return c.JSON(http.StatusOK, resp)
@@ -149,6 +161,11 @@ type auditDecision struct {
 	// to is the status the decision moved the translation to.
 	to string
 	at time.Time
+	// note and reasons are what the person wrote and chose, and agentHost
+	// the agent host whose shell they decided in.
+	note      string
+	reasons   []string
+	agentHost string
 }
 
 func parseAuditDecision(r event.AuditEntry) auditDecision {
@@ -157,13 +174,38 @@ func parseAuditDecision(r event.AuditEntry) auditDecision {
 	if r.After != "" {
 		_ = json.Unmarshal([]byte(r.After), &after)
 	}
-	return auditDecision{
-		id:       r.ID,
-		blockID:  r.ResourceID,
-		actor:    r.Actor,
-		locale:   data["locale"],
-		decision: data["decision"],
-		to:       after["status"],
-		at:       r.CreatedAt,
+	// An event a server older than agent_host wrote carries the host inside
+	// the note (change.SplitNote).
+	note, agentHost := change.SplitNote(data["reason"])
+	if data["agent_host"] != "" {
+		agentHost = data["agent_host"]
 	}
+	return auditDecision{
+		agentHost: agentHost,
+		id:        r.ID,
+		blockID:   r.ResourceID,
+		actor:     r.Actor,
+		locale:    data["locale"],
+		decision:  data["decision"],
+		to:        after["status"],
+		at:        r.CreatedAt,
+		note:      note,
+		reasons:   auditReasons(data["reasons"]),
+	}
+}
+
+// auditReasons reads the reasons a review.decided event carries, a JSON
+// array. A client shows a code it has no phrase for as recorded.
+func auditReasons(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	var reasons []string
+	if json.Unmarshal([]byte(raw), &reasons) != nil {
+		return nil
+	}
+	if out := venue.NormalizeReasons(reasons); len(out) > 0 {
+		return out
+	}
+	return nil
 }

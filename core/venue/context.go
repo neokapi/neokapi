@@ -6,12 +6,13 @@ import (
 	"maps"
 	"slices"
 
+	"github.com/neokapi/neokapi/core/partjoin"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 )
 
-// The context content type: a project's declared structure and governance —
+// The context content type: a project's declared structure and governance,
 // which collections exist, where each sits in the project's context space, and
-// which voice governs it — carried inside the push transaction.
+// which voice governs it, carried inside the push transaction.
 //
 // This file holds the parts both sides need: the ownership vocabulary and the
 // hashes. It lives in the framework-only bowrain/core module, beside the block
@@ -30,7 +31,7 @@ const (
 // NormalizeContextOwner defaults anything unrecognized to workspace ownership.
 //
 // The default is deliberately the conservative one. A collection created before
-// this content type existed — by the web hub, the editor, a connector — carries
+// this content type existed (by the web hub, the editor, a connector) carries
 // no owner, and reading it as recipe-owned would hand authority over it to a
 // kapi.yaml that never mentioned it. The server owns what the recipe has not
 // claimed.
@@ -64,39 +65,27 @@ func ComputeContextEntryHash(e *pb.SyncContextEntry) string {
 	h := sha256.New()
 	h.Write([]byte(e.Name))
 	for _, axis := range slices.Sorted(maps.Keys(e.Coordinates)) {
-		h.Write([]byte(axis))
-		h.Write([]byte{0})
-		h.Write([]byte(e.Coordinates[axis]))
-		h.Write([]byte{0})
+		partjoin.WriteNUL(h, axis, e.Coordinates[axis])
 	}
-	h.Write([]byte(e.Channel))
-	h.Write([]byte{0})
-	h.Write([]byte(e.VoiceProfile))
-	h.Write([]byte{0})
-	h.Write(e.VoiceProfileJson)
-	h.Write([]byte{0})
-	h.Write([]byte(NormalizeContextOwner(e.Owner)))
 	// The preview host is part of the entry, so re-pointing a collection at a
 	// different Storybook reconciles rather than sitting unnoticed behind an
-	// unchanged hash — the same reason the coordinates and the voice are here.
-	h.Write([]byte{0})
-	h.Write([]byte(e.GetPreview().GetKind()))
-	h.Write([]byte{0})
-	h.Write([]byte(e.GetPreview().GetUrl()))
-	// Written only when set, so an entry that declares nothing new keeps the
-	// hash it had before the field existed.
+	// unchanged hash, the same reason the coordinates and the voice are here.
+	partjoin.WriteNUL(h, e.Channel, e.VoiceProfile, string(e.VoiceProfileJson), NormalizeContextOwner(e.Owner), e.GetPreview().GetKind())
+	// The source-only mark and the priority are written only when set, so an
+	// entry that declares neither keeps the hash it had before the fields
+	// existed.
+	tail := []string{e.GetPreview().GetUrl()}
 	if e.GetSourceOnly() {
-		h.Write([]byte{0})
-		h.Write([]byte("source_only"))
+		tail = append(tail, "source_only")
 	}
 	if p := e.GetPriority(); p != "" {
-		h.Write([]byte{0})
-		h.Write([]byte("priority:" + p))
+		tail = append(tail, "priority:"+p)
 	}
+	h.Write([]byte(partjoin.NUL(tail...)))
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// ComputeContextHash folds every entry hash into the project's context hash —
+// ComputeContextHash folds every entry hash into the project's context hash,
 // the fast path the push init negotiates on. It is the same name→hash fold as
 // ComputeRootHash, over context entries instead of items, so the two sides
 // compare like for like: the client hashes what the recipe declares, the server

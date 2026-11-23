@@ -139,7 +139,7 @@ collections:
 	serverCmd.Flags().String("project", recipe, "")
 	require.NoError(t, app.ResolveMCPProject(serverCmd))
 	assert.Equal(t, "nb", app.SourceLocale())
-	resolved, err := app.mcpProjectPath("")
+	resolved, err := app.mcpProjectPath(t.Context(), "")
 	require.NoError(t, err)
 	assert.Equal(t, recipe, resolved)
 	_, report, err := app.checkFileMCP(t.Context(), checkFileInput{File: source})

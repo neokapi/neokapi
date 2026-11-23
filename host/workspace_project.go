@@ -1,8 +1,11 @@
 package host
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/projector"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/memory/kmb"
@@ -175,7 +179,7 @@ func (a *App) collectProjectSources(pkg *kpz.Package, layout project.Layout, pro
 				// from its file into the parcel on demand.
 				if ef.Skeleton != "" {
 					skelPath := filepath.Join(project.ExtractionDir(layout, m.BatchID), ef.Skeleton)
-					if _, serr := os.Stat(skelPath); serr == nil {
+					if info, serr := statInProject(layout.Root, skelPath); serr == nil && info.Mode().IsRegular() {
 						member := kpz.SkeletonDir + ef.Source
 						pkg.Skeletons = append(pkg.Skeletons, kpz.SkeletonDoc{
 							Path: member, SourcePath: ef.Source, FormatID: ef.Format,
@@ -188,7 +192,7 @@ func (a *App) collectProjectSources(pkg *kpz.Package, layout project.Layout, pro
 				// Raw source bytes (opt-in), streamed from the source file.
 				if withSource {
 					srcAbs := filepath.Join(layout.Root, ef.Source)
-					if _, serr := os.Stat(srcAbs); serr == nil {
+					if info, serr := statInProject(layout.Root, srcAbs); serr == nil && info.Mode().IsRegular() {
 						pkg.Source = append(pkg.Source, kpz.SourceDoc{Path: kpz.SourceDir + ef.Source, Content: kpz.FileContent(srcAbs)})
 						si.HasRawSource = true
 					}
@@ -312,15 +316,8 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 		if derr != nil {
 			return fmt.Errorf("unpack: create extraction dir: %w", derr)
 		}
-		for _, skel := range pkg.Skeletons {
-			hash := strings.TrimPrefix(skel.ContentHash, "sha256:")
-			if hash == "" {
-				hash = skel.SourcePath
-			}
-			dst := filepath.Join(batchDir, project.SkeletonFilename(hash))
-			if werr := copyContentToFile(skel.Content, dst); werr != nil {
-				return fmt.Errorf("unpack: write skeleton: %w", werr)
-			}
+		if err := unpackSkeletons(batchDir, pkg.Skeletons); err != nil {
+			return err
 		}
 	}
 
@@ -429,17 +426,71 @@ func restoreSources(pkg *kpz.Package, root string) error {
 		if err != nil {
 			return err
 		}
-		if fileExists(dst) {
+		info, serr := statInProject(absRoot, dst)
+		if serr == nil && !info.IsDir() {
 			continue // the working tree already has this source
 		}
-		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-			return fmt.Errorf("unpack: create source dir: %w", err)
+		if serr != nil && !errors.Is(serr, fs.ErrNotExist) {
+			return fmt.Errorf("unpack: source %s: %w", rel, serr)
 		}
-		if err := copyContentToFile(doc.Content, dst); err != nil {
+		if err := stageContentWithin(absRoot, dst, doc.Content); err != nil {
 			return fmt.Errorf("unpack: write source %s: %w", rel, err)
 		}
 	}
 	return nil
+}
+
+// stageContentWithin writes a parcel member's Content as the file dst beneath
+// root, committed through the file home on root (commitWithin), so a link that
+// leads out of root is refused.
+func stageContentWithin(root, dst string, c kpz.Content) error {
+	return commitWithin(context.Background(), root, dst, func(w io.Writer) error {
+		rc, err := c.Open()
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+		_, err = io.Copy(w, rc)
+		return err
+	})
+}
+
+// statThrough describes the file p names as rootpath.Open opens it: through
+// root (statInProject) when p lies beneath root, and as named otherwise, for
+// a path a person named outside any project.
+func statThrough(root, p string) (fs.FileInfo, error) {
+	if rootpath.IsBeneath(root, p) {
+		return statInProject(root, p)
+	}
+	return os.Stat(p)
+}
+
+// statInProject describes the file p names beneath root, asked through an
+// os.Root opened on the directory root resolves to. A link that leads out of
+// root is refused with a *rootpath.EscapeError, and a missing file answers
+// fs.ErrNotExist.
+func statInProject(root, p string) (fs.FileInfo, error) {
+	real, err := rootpath.Contain(root, p)
+	if err != nil {
+		return nil, err
+	}
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, err
+	}
+	if realRoot, err = filepath.Abs(realRoot); err != nil {
+		return nil, err
+	}
+	rel, ok := rootpath.Beneath(realRoot, real)
+	if !ok {
+		return nil, &rootpath.EscapeError{Path: filepath.Base(p)}
+	}
+	r, err := os.OpenRoot(realRoot)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	return r.Stat(rel)
 }
 
 // reconstitutedProjectPath derives the kapi.yaml path to materialize when
@@ -519,4 +570,28 @@ type simpleMessage struct {
 func (m simpleMessage) FormatText(w io.Writer) error {
 	_, err := fmt.Fprintln(w, m.Message)
 	return err
+}
+
+// unpackSkeletons writes each skeleton a package carries into batchDir, named
+// by its content hash. The hash is the package's word, so it must name one
+// file in batchDir: a hash spelled as a path is refused before anything is
+// written.
+func unpackSkeletons(batchDir string, skels []kpz.SkeletonDoc) error {
+	names := make([]string, len(skels))
+	for i, skel := range skels {
+		hash := strings.TrimPrefix(skel.ContentHash, "sha256:")
+		if hash == "" {
+			hash = skel.SourcePath
+		}
+		if err := checkPathSegment(hash, "unpack: the skeleton's content hash"); err != nil {
+			return err
+		}
+		names[i] = project.SkeletonFilename(hash)
+	}
+	for i, skel := range skels {
+		if err := copyContentToFile(skel.Content, filepath.Join(batchDir, names[i])); err != nil {
+			return fmt.Errorf("unpack: write skeleton: %w", err)
+		}
+	}
+	return nil
 }

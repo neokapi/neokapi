@@ -30,6 +30,8 @@ import { RunDiff, ServerDiff } from "./DiffView";
 import { editable, fromSegments, RunEditor, toSegments, type Segment } from "./RunEditor";
 import { markBusy } from "../lib/busy";
 import { RunText } from "./RunText";
+import { reasonLabel } from "../lib/reasons";
+import { MAX_DECISION_NOTE } from "@neokapi/contract-types";
 
 export interface FixSheetProps {
   card: DeckCard | null;
@@ -135,7 +137,7 @@ export function FixSheetBody({
                   className={`rounded-full border px-4 py-2 ${on ? "bg-corrective border-corrective" : "border-border bg-card"}`}
                 >
                   <Text className={on ? "text-corrective-foreground" : "text-foreground"}>
-                    {t(`reasons.${r}`)}
+                    {reasonLabel(t, r)}
                   </Text>
                 </Pressable>
               );
@@ -225,6 +227,7 @@ export function FixSheetBody({
             placeholder={t("fix.notePlaceholder")}
             value={note}
             onChangeText={setNote}
+            maxLength={MAX_DECISION_NOTE}
             multiline
           />
           <Pressable

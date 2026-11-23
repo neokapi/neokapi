@@ -19,6 +19,21 @@ you changed:
 python3 scripts/govulncheck.py --self-test
 ```
 
+## Add a repo guard
+
+A repo guard is one file, `scripts/guards/<target>.mk`, and no other edit.
+The file holds the target, its recipe (self-test first), `GUARD_LANES` and,
+for a guard pre-push should gate, `GUARD_PATHS`. `scripts/lib/guards.mk`
+shows the shape. `make lint`, `make pre-push`, `make help` and the Repo guards
+job read the directory, and `make check-guard-registry` fails on a guard wired
+anywhere else.
+
+```bash
+make check-<target>                      # one guard
+./scripts/run-guards.sh ci               # every guard the Repo guards job runs
+./scripts/run-guards.sh --list pre-push  # what pre-push considers, with its paths
+```
+
 ## Prove a check can fail
 
 A check that cannot fail verifies nothing. After changing a guard, break the

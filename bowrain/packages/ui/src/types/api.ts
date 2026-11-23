@@ -1135,6 +1135,8 @@ export interface MemoryEntryInfo {
   project_id?: string;
   stream?: string;
   updated_at: string;
+  /** Replaced on every write of the entry's text; an edit names it. */
+  revision?: string;
 }
 
 /** content-memory search result */
@@ -1151,6 +1153,8 @@ export interface MemoryUpdateRequest {
   target: string;
   source_locale: string;
   target_locale: string;
+  /** The revision the edit was made on; the server refuses an edit without one. */
+  base_revision?: string;
 }
 
 /** One id's outcome in a bulk delete: `error` is empty exactly when `deleted`. */
@@ -1226,6 +1230,8 @@ export interface ConceptInfo {
   properties?: Record<string, string>;
   created_at: string;
   updated_at: string;
+  /** The concept's revision as read; an update sends it back as base_revision. */
+  revision?: string;
 }
 
 /** Term search result */
@@ -1255,6 +1261,8 @@ export interface UpdateConceptRequest {
   definition: string;
   do_not_translate?: boolean;
   terms: TermInfo[];
+  /** The revision of the concept the edit was made on. */
+  base_revision?: string;
 }
 
 /** Term match for a block */
@@ -2150,6 +2158,12 @@ export interface FlowDefinitionInfo {
   source: string;
   created_at?: string;
   modified_at?: string;
+  /**
+   * The stored flow's revision, a token the server replaces on every save.
+   * A save sends the revision it was based on, and the server refuses one
+   * made against an older read (FlowChangedError). Built-in flows have none.
+   */
+  revision?: string;
 }
 
 // ---------------------------------------------------------------------------

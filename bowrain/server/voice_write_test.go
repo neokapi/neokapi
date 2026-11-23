@@ -52,7 +52,22 @@ func voiceWriteHarness(t *testing.T) (s *Server, wsID, owner string, proj *plats
 // voiceRequest is an echo context for a voice route in wsID, signed in as
 // userID with every permission.
 func voiceRequest(s *Server, method, body, wsID, userID string, params ...string) (*echo.Context, *httptest.ResponseRecorder) {
-	req := httptest.NewRequest(method, "/", strings.NewReader(body))
+	body = voiceRequestBase(s, method, body, wsID, params...)
+	target := "/"
+	if method == http.MethodDelete {
+		// A delete names the revision the client read, as a query parameter.
+		for i := 0; i+1 < len(params); i += 2 {
+			if params[i] != "id" {
+				continue
+			}
+			if store, ok := s.VoiceStore.(voiceRevisions); ok {
+				if revs, err := store.Revisions(context.Background(), []string{params[i+1]}); err == nil {
+					target = "/?base_revision=" + revs[params[i+1]]
+				}
+			}
+		}
+	}
+	req := httptest.NewRequest(method, target, strings.NewReader(body))
 	req.Header.Set("Content-Type", echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	c := s.GetEcho().NewContext(req, rec)
@@ -299,7 +314,7 @@ func TestContextDeck_VoiceRuleAuthorIsTheLedgers(t *testing.T) {
 
 	profile := ownerProfile(t, s, wsID, owner)
 	profile.Style.ProhibitedPatterns = []coreprofile.Pattern{{Regex: `\butilize\b`, Description: "Say use."}}
-	require.NoError(t, s.VoiceStore.UpdateProfile(ctx, profile))
+	require.NoError(t, updateVoiceProfileAt(ctx, t, s, profile))
 	proj.Properties[coreprofile.PropertyProfileID] = profile.ID
 	require.NoError(t, s.ContentStore.UpdateProject(ctx, proj))
 
@@ -321,12 +336,12 @@ func TestContextDeck_VoiceRuleAuthorIsTheLedgers(t *testing.T) {
 		coreprofile.Pattern{Regex: `\bsynergy\b`, Description: "Say what it does."})
 	clientOp := putClientVoiceEdit(t, s, proj.ID, before, &after)
 	objects, _ := s.contextObjects()
-	ledger := &workspaceVoiceLedger{s: s, wsID: wsID, objects: objects,
+	ledger := &workspaceVoiceLedger{wsID: wsID, reads: pooledLedgerReads{ContentStore: s.ContentStore, ContextObjectStore: objects},
 		put: func(ctx context.Context, projectID string, pushedBy platstore.Pusher, obj platstore.ContextObject) error {
 			return objects.PutContextObjects(ctx, projectID, pushedBy, []platstore.ContextObject{obj})
 		}}
 	res, err := voicewrite.Apply(ctx, s.VoiceStore, ledger, voicewrite.Write{
-		Before: before, After: &after, Actor: contextop.Actor{Kind: contextop.ActorPerson},
+		Before: before, After: &after, Base: voiceRevisionOf(t, s, profile.ID), Actor: contextop.Actor{Kind: contextop.ActorPerson},
 		PushedBy: platstore.Member("member-b"), Note: "pushed with `kapi push`", Recorded: clientOp,
 	})
 	require.NoError(t, err)
@@ -394,4 +409,51 @@ func (l *capturedLog) Record(_ context.Context, ops ...workspace.Op) ([]workspac
 
 func (l *capturedLog) Select(context.Context, workspace.OpQuery) ([]workspace.Op, error) {
 	return nil, nil
+}
+
+// voiceRequestBase adds the revision a client that read the profile names: on
+// a PUT of a profile by id, and on an upsert of a profile that exists.
+func voiceRequestBase(s *Server, method, body, wsID string, params ...string) string {
+	if strings.Contains(body, `"base_revision"`) {
+		return body
+	}
+	var id string
+	for i := 0; i+1 < len(params); i += 2 {
+		if params[i] == "id" {
+			id = params[i+1]
+		}
+	}
+	store, ok := s.VoiceStore.(voiceRevisions)
+	if !ok {
+		return body
+	}
+	var fields map[string]any
+	if json.Unmarshal([]byte(body), &fields) != nil {
+		return body
+	}
+	if id == "" && method == http.MethodPost {
+		name, _ := fields["name"].(string)
+		profiles, err := s.VoiceStore.ListProfiles(context.Background(), wsID)
+		if err != nil {
+			return body
+		}
+		for _, p := range profiles {
+			if strings.EqualFold(p.Name, name) {
+				id = p.ID
+			}
+		}
+	}
+	if id == "" {
+		return body
+	}
+	revs, err := store.Revisions(context.Background(), []string{id})
+	if err != nil || revs[id] == "" {
+		return body
+	}
+	fields["base_revision"] = revs[id]
+	out, err := json.Marshal(fields)
+	if err != nil {
+		return body
+	}
+	return string(out)
 }

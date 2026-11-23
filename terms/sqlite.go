@@ -14,7 +14,6 @@ import (
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage"
-	termsschema "github.com/neokapi/neokapi/terms/schema"
 )
 
 // ErrConceptIDRequired is returned when a concept is added without an ID.
@@ -52,7 +51,9 @@ type SQLiteStore struct {
 // NewSQLiteStore opens (or creates) a SQLite-backed terms store.
 // Use ":memory:" for an in-memory database (useful for testing).
 func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
-	db, err := storage.Open(dbPath)
+	// dbPath is a store a person named, or one ResolveToolConfig resolved to
+	// its real file, so a link on it is followed (storage.Options.FollowLink).
+	db, err := storage.OpenWith(dbPath, storage.Options{FollowLink: true})
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
@@ -86,41 +87,42 @@ var tbMigrations = []storage.Migration{
 	{
 		Version:     1,
 		Description: "terms schema with project/stream support and FTS5 indexes",
-		SQL:         termsschema.RenderTermsSQLiteV1(),
+		SQL:         termsSQLiteV1,
 	},
 	{
 		Version:     2,
 		Description: "add source column to concepts and competitor_term column to terms",
-		SQL:         termsschema.RenderTermsSQLiteV2(),
+		SQL:         termsSQLiteV2,
 	},
 	{
 		Version:     3,
 		Description: "persisted concept relations and term validity columns",
-		SQL:         termsschema.RenderTermsSQLiteV3(),
+		SQL:         termsSQLiteV3,
 	},
 	{
 		Version:     4,
 		Description: "declared surface forms on terms",
-		SQL:         termsschema.RenderTermsSQLiteV4(),
+		SQL:         termsSQLiteV4,
 	},
 	{
 		Version:     5,
 		Description: "do-not-translate flag on concepts",
-		SQL:         termsschema.RenderTermsSQLiteV5(),
+		SQL:         termsSQLiteV5,
 	},
 	{
 		Version:     6,
 		Description: "advisory flag on concepts",
-		SQL:         termsschema.RenderTermsSQLiteV6(),
+		SQL:         termsSQLiteV6,
 	},
 	{
 		Version:     7,
 		Description: "indexed normalized term text",
-		SQL:         termsschema.RenderTermsSQLiteV7(),
+		SQL:         termsSQLiteV7,
 	},
 	{
 		Version:     8,
 		Description: "normalized text for terms written before the column",
+		Revision:    "1",
 		Apply: func(ctx context.Context, tx *sql.Tx) error {
 			return BackfillNormalizedText(ctx, tx, false)
 		},

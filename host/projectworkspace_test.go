@@ -159,9 +159,9 @@ func TestDataDirNeverResolvesToTheRealUserRootInATest(t *testing.T) {
 	assert.True(t, strings.HasPrefix(dir, os.TempDir()),
 		"a test binary's data root is under the system temporary directory, got %s", dir)
 
-	real := dataDir(func(string) string { return "" }, "darwin")
-	assert.NotEqual(t, real, dir)
-	assert.NotEqual(t, dataDir(func(string) string { return "" }, "linux"), dir)
+	home, _ := os.UserHomeDir()
+	assert.NotEqual(t, filepath.Join(home, "Library", "Application Support", "kapi"), dir)
+	assert.NotEqual(t, filepath.Join(home, ".local", "share", "kapi"), dir)
 
 	assert.True(t, strings.HasPrefix(DefaultWorkspaceDir(), dir),
 		"and the default workspace is inside it")

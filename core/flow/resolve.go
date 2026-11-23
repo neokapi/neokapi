@@ -1,18 +1,29 @@
 // Resource resolution for pipeline step configuration.
 //
-// Steps reference external resources (Memories, terms stores, SRX files, output paths) via
-// URI prefixes (tm:name, terms:name, srx:name) or relative/absolute file paths.
-// The resolver translates these references into absolute filesystem paths before
-// the config is passed to the tool or bridge.
+// Steps reference external resources (content memories, terms stores, SRX
+// files, output paths) via URI prefixes (memory:name, terms:name, srx:name) or
+// relative/absolute file paths. The resolver translates these references into
+// absolute filesystem paths before the config is passed to the tool or bridge.
+//
+// A project flow's step config is recipe content, which a repository supplies.
+// So a file path must resolve inside the project, or the run's output
+// directory, once symbolic links are resolved, and the resolved path is what
+// the tool gets. A named resource is one of the person's own stores, named by
+// name only, and must already exist (NamedStorePath).
 package flow
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/schema"
 )
 
@@ -119,14 +130,48 @@ func resolvePathValue(value, key string, cs *schema.ComponentSchema, ctx Resourc
 	}
 
 	// 3. Substitute Okapi variables.
+	given := value
 	value = substituteVariables(value, ctx)
 
-	// 4. Resolve relative paths against ProjectDir.
-	if !filepath.IsAbs(value) && ctx.ProjectDir != "" {
+	// 4. Resolve relative paths against ProjectDir. A project flow's step
+	// config is recipe content, so the path must stay inside the project (or
+	// the run's output directory) once links are resolved.
+	if ctx.ProjectDir == "" {
+		return value, nil
+	}
+	if !filepath.IsAbs(value) {
 		value = filepath.Join(ctx.ProjectDir, value)
 	}
+	for _, dir := range []string{ctx.ProjectDir, ctx.OutputDir} {
+		if dir == "" || !rootpath.IsBeneath(dir, value) {
+			continue
+		}
+		real, err := containIn(dir, value)
+		if err != nil {
+			return "", fmt.Errorf("%s: %q leads outside the project: %w. Name a path inside the project, or a named resource (%s, %s, %s)",
+				key, given, err, PrefixMemory, PrefixTerms, PrefixSRX)
+		}
+		return real, nil
+	}
+	return "", fmt.Errorf("%s: %q lies outside the project. Name a path inside the project, or a named resource (%s, %s, %s)",
+		key, given, PrefixMemory, PrefixTerms, PrefixSRX)
+}
 
-	return value, nil
+// containIn returns the path p, which lies beneath dir as written, resolves to,
+// with every link on it resolved, and an error when that leads outside dir.
+// The tool that opens the path, a SQLite opener among them, follows links, so
+// it gets the resolved path. A dir that does not exist yet holds nothing that
+// could lead elsewhere, so p is kept as written.
+func containIn(dir, p string) (string, error) {
+	real, err := rootpath.Contain(dir, p)
+	if err == nil {
+		return real, nil
+	}
+	var esc *rootpath.EscapeError
+	if !errors.As(err, &esc) && errors.Is(err, fs.ErrNotExist) {
+		return filepath.Clean(p), nil
+	}
+	return "", err
 }
 
 // resolveURIPrefix checks for tm:, terms:, or srx: prefixes and resolves them.
@@ -153,28 +198,75 @@ func resolveURIPrefix(value string) (string, bool, error) {
 	return "", false, nil
 }
 
-// resolveNamedResource returns the absolute path for a named resource in KAPI_HOME.
+// resolveNamedResource returns the file of a named resource a step config
+// names with a memory:, terms: or srx: prefix: <KAPI_CONFIG_DIR>/<kind>/<name><ext>.
+//
+// A named resource is one of the person's own stores, and a recipe names it by
+// name only. The name is a plain name, the store already exists as a regular
+// file that resolves inside that kind's directory, and the returned path is
+// the resolved one (NamedStorePath). A recipe never creates a store, nor the
+// directory that holds one: the person creates it, for example with
+// `kapi terms import --name <name>`.
 func resolveNamedResource(kind, name string) (string, error) {
-	if strings.ContainsAny(name, "/\\") {
-		return "", fmt.Errorf("resource name must not contain path separators: %q", name)
-	}
-
 	rk, ok := resourceKinds[kind]
 	if !ok {
 		return "", fmt.Errorf("unknown resource kind: %q", kind)
 	}
-
 	kapiHome, err := kapiHomeDir()
 	if err != nil {
 		return "", err
 	}
+	return NamedStorePath(filepath.Join(kapiHome, rk.Dir), kind, name, rk.Ext)
+}
 
-	dir := filepath.Join(kapiHome, rk.Dir)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", fmt.Errorf("create directory %s: %w", dir, err)
+// NoStoreError is a named store that does not exist. It matches
+// fs.ErrNotExist.
+type NoStoreError struct {
+	Kind, Name, Dir string
+}
+
+func (e *NoStoreError) Error() string {
+	return fmt.Sprintf("%s %q does not exist under %s, and a recipe never creates one", e.Kind, e.Name, e.Dir)
+}
+
+// Is reports fs.ErrNotExist.
+func (e *NoStoreError) Is(target error) bool { return target == fs.ErrNotExist }
+
+// CheckStoreName refuses a store name that is not a plain name: empty, "."
+// or "..", or holding a path separator or a volume name.
+func CheckStoreName(name string) error {
+	if name == "" {
+		return errors.New("resource name is required")
 	}
+	if name == "." || strings.ContainsAny(name, "/\\") || !filepath.IsLocal(name) || filepath.Base(name) != name {
+		return fmt.Errorf("resource name must be a plain name, with no path separators: %q", name)
+	}
+	return nil
+}
 
-	return filepath.Join(dir, name+rk.Ext), nil
+// NamedStorePath returns the file of the store named name in dir, a kind's
+// directory under the user config dir, for a name that recipe content gives:
+// name must be a plain name (CheckStoreName), and dir/<name><ext> must already
+// exist as a regular file that resolves inside dir. The returned path is the
+// resolved one, with no link left on it. kind names the store in an error.
+func NamedStorePath(dir, kind, name, ext string) (string, error) {
+	if err := CheckStoreName(name); err != nil {
+		return "", err
+	}
+	p := filepath.Join(dir, name+ext)
+	real, err := rootpath.CheckRegular(dir, p)
+	if err == nil {
+		return real, nil
+	}
+	var esc *rootpath.EscapeError
+	switch {
+	case errors.As(err, &esc):
+		return "", fmt.Errorf("%s %q: %w", kind, name, err)
+	case errors.Is(err, fs.ErrNotExist):
+		return "", &NoStoreError{Kind: kind, Name: name, Dir: dir}
+	default:
+		return "", fmt.Errorf("%s %q: %w", kind, name, err)
+	}
 }
 
 // kapiHomeDir returns the KAPI_HOME directory (~/.config/kapi/).
@@ -182,10 +274,7 @@ func kapiHomeDir() (string, error) {
 	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
 		return dir, nil
 	}
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
-	}
+	configDir := dataroot.UserConfigDir()
 	return filepath.Join(configDir, "kapi"), nil
 }
 

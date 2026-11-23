@@ -263,7 +263,7 @@ func (ix codeIndex) add(inls []Inline) {
 	}
 }
 
-func setOnce[V any](m map[string]V, key string, v V) {
+func setOnce[K comparable, V any](m map[K]V, key K, v V) {
 	if _, ok := m[key]; !ok {
 		m[key] = v
 	}

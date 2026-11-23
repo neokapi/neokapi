@@ -87,7 +87,7 @@ export function definitionToSpec(def: FlowDefinitionInfo): LinearFlowSpec {
  */
 export function specToDefinition(
   spec: LinearFlowSpec,
-  flow: Pick<FlowDefinitionInfo, "id" | "name" | "description">,
+  flow: Pick<FlowDefinitionInfo, "id" | "name" | "description" | "revision">,
 ): FlowDefinitionInfo {
   const def = specToDef(spec, {
     id: flow.id,
@@ -102,6 +102,7 @@ export function specToDefinition(
     source: def.source,
     nodes: def.nodes,
     edges: def.edges,
+    revision: flow.revision,
   };
 }
 

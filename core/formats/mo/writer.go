@@ -5,13 +5,13 @@
 //
 // The writer consumes Block Parts and emits a MO file for a single target
 // locale. msgctxt is resolved from (in order): Block.Properties["context"],
-// Block.Name, Block.ID — whichever is first non-empty. This lets blocks
+// Block.Name, Block.ID, whichever is first non-empty. This lets blocks
 // produced by the PO filter (which uses Properties["context"]) and blocks
 // produced by the JSON filter with use_full_key_path (which sets Block.Name to
 // the key path) both round-trip through MO without re-configuration.
 //
-// Untranslated entries (no target for the configured locale) are dropped —
-// MO catalogs are expected to contain only translations. The required
+// Untranslated entries (no target for the configured locale) are dropped,
+// since an MO catalog holds only translations. The required
 // empty-msgid metadata header entry is always emitted.
 package mo
 
@@ -100,8 +100,8 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 				continue
 			}
 			key := msgidWithContext(blockContext(block), src)
-			// First write wins for duplicate keys — stable output in the face of
-			// stream ordering quirks.
+			// First write wins for duplicate keys, so the output stays stable
+			// whatever order the stream delivers.
 			if _, exists := entries[key]; !exists {
 				entries[key] = tgt
 			}
@@ -124,12 +124,13 @@ func blockContext(b *model.Block) string {
 }
 
 // msgidWithContext encodes the (msgctxt, msgid) pair the way gettext does
-// internally — ctxt + EOT (0x04) + msgid — so binary search against the
+// internally, as ctxt + EOT (0x04) + msgid, so binary search against the
 // sorted table works with a single string.
 func msgidWithContext(ctx, msgid string) string {
 	if ctx == "" {
 		return msgid
 	}
+	//keyguard:persisted the msgid string a gettext MO file stores for an entry with a context; pinned by TestMsgidWithContextIsGettexts
 	return ctx + eot + msgid
 }
 

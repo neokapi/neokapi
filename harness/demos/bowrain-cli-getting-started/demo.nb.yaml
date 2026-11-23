@@ -1,6 +1,6 @@
 id: bowrain-cli-getting-started
-title: Innholdet ditt ligger i repositoryet ditt
-subtitle: "init kobler det til, push flytter det, up kjører løkken."
+title: Innholdet blir værende i repositoriet ditt
+subtitle: "init kobler til, push overfører, up kjører prosessen."
 tagline: your files stay yours, and the server adds the team, the memory and the governance.
 kind: use-case
 publishAs: bowrain-cli-getting-started
@@ -13,10 +13,10 @@ cwd: ~/bowmart/help-center
 needsAi: false
 captureTimeoutSec: 180
 outro:
-  line: "I CI, de samme to kommandoene."
+  line: I CI brukes de samme to kommandoene.
   pointer: kapi push && kapi up
 aspects:
-  - init connects the project
+  - init finds the content and connects the project
   - push is pure transport
   - up runs the loop on the server
   - results land in the same files
@@ -24,10 +24,11 @@ aspects:
 script:
   - comment: BowMart's help-center copy, in English, sitting in your repo.
   - command: cat src/locales/en.json
-  - comment: Connect this project to your Bowrain server.
+  # kapi init proposes a collection for the catalog it finds (src/locales/en.json,
+  # with a src/locales/{lang}.json target), so no `kapi add` follows it: a
+  # second glob over src/locales/*.json would read the pulled targets as source.
+  - comment: Connect this project to your Bowrain server. init finds the catalog and declares it.
   - command: kapi init --name help-center --source-locale en --target-locale fr --target-locale de --server $BOWRAIN_SERVER_URL -y
-  - comment: Track the files you want translated.
-  - command: kapi add "src/locales/*.json"
   - comment: Push the source up. Pure transport, like git push.
   - command: kapi push
   - comment: Check standing, the coverage and what's pending, like git status.
@@ -41,37 +42,37 @@ narration:
   - id: title
     kind: title
     text: >-
-      Innholdet ditt ligger i repositoryet ditt. kapi init kobler det til et Bowrain-arbeidsområde, og serveren legger til teamet, delt memory og porter.
+      Innholdet blir værende i repositoriet ditt. kapi init kobler det til et Bowrain-arbeidsområde. Serveren gir tilgang til teamet, det delte innholdsminnet og kontrollpunktene.
   - id: push
     kind: terminal
-    through: 8
-    caption: Push flytter kilden og oversetter ingenting.
+    through: 6
+    caption: "Push overfører kildeteksten, men oversetter ingenting."
     hold: 16
     text: >-
-      Spor filene du vil ha oversatt, og push deretter. Push er ren transport: det flytter kilden opp slik git push gjør, og oversetter ingenting. Ingenting har forlatt repositoryet ditt bortsett fra en kopi av engelsk.
+      kapi init fant og registrerte den engelske katalogen, med en plass for hvert språk ved siden av den. Deretter kjøres push. Push overfører kildeteksten til serveren på samme måte som git push. Den oversetter ingenting. Bare en kopi av den engelske teksten er overført fra repositoriet ditt.
   - id: status
     kind: terminal
-    through: 10
+    through: 8
     highlight: { text: [content, governance] }
     caption: "To akser: innhold og styring."
     hold: 19
     text: >-
-      kapi status leser statusen på to akser. Innholdslinjen teller hva som venter på å flyttes i hver retning. Styringslinjen viser om termene og beslutningene dette prosjektet observerte fortsatt er de samme som serveren holder, noe som er den halvdelen som går stille galt.
+      kapi status viser status langs to akser. Innholdslinjen teller det som venter på å bli overført i hver retning. Styringslinjen viser om termene og beslutningene dette prosjektet har registrert, fortsatt samsvarer med dem på serveren. Avvik på denne aksen kan være vanskelige å oppdage.
   - id: up
     kind: terminal
-    through: 12
+    through: 10
     highlight: venue
-    caption: "Stedet først, deretter arbeidet."
+    caption: "Først kjørestedet, så arbeidet."
     hold: 20
     text: >-
-      kapi up kjører løkken og skriver først ut stedet: server, fordi oppskriften deklarerer én. Arbeidet skjer på Bowrain-serveren med teamets nøkler, delt memory og porter, i rekkefølgen memory, deretter AI, deretter kontroller, og fremdriften strømmer tilbake til terminalen din.
+      kapi up kjører prosessen og viser først kjørestedet: server, fordi oppskriften angir en server. Arbeidet utføres på Bowrain-serveren med teamets nøkler, delte innholdsminne og kontrollpunkter. Rekkefølgen er innholdsminne, deretter KI og så kontroller. Fremdriften vises fortløpende i terminalen.
   - id: pulled
     kind: terminal
-    through: 14
+    through: 12
     caption: Tilbake i samme fil og format.
     hold: 14
     text: >-
-      Resultatene kommer tilbake til filene og formatet du startet med. Her er den franske katalogen ved siden av den engelske den kom fra, og det som trenger en person, er parkert til gjennomgang.
+      Resultatene kommer tilbake i filene og formatet du startet med. Her er den franske katalogen ved siden av den engelske den ble laget fra. Det som krever menneskelig behandling, venter på gjennomgang.
   - id: outro
     kind: outro
     text: >-

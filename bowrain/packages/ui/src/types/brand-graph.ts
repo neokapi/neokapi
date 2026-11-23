@@ -223,6 +223,8 @@ export interface Market {
   locales: string[];
   created_at: string;
   updated_at: string;
+  /** Replaced on every write; an update names the revision it was based on. */
+  revision: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -760,6 +762,8 @@ export interface MarketRequest {
   name: string;
   description?: string;
   locales?: string[];
+  /** The revision an update was based on; the server refuses an update without one. */
+  base_revision?: string;
 }
 
 /** Body of POST /changesets (server CreateChangeSetRequest). */

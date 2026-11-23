@@ -280,6 +280,8 @@ type MarketArgs struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description,omitempty"`
 	Locales     []string `json:"locales,omitempty"`
+	// BaseRevision is the revision an update was based on.
+	BaseRevision string `json:"base_revision,omitempty"`
 }
 
 // ListMarkets returns the workspace-defined market scopes.
@@ -299,8 +301,11 @@ func (a *App) UpdateMarket(workspaceSlug, marketID string, req MarketArgs) (json
 }
 
 // DeleteMarket removes a market scope.
-func (a *App) DeleteMarket(workspaceSlug, marketID string) error {
-	path := marketsPath(workspaceSlug) + "/" + url.PathEscape(marketID)
+//
+// baseRevision is the revision of the market the person saw; the server
+// refuses the delete when the market has changed since.
+func (a *App) DeleteMarket(workspaceSlug, marketID, baseRevision string) error {
+	path := marketsPath(workspaceSlug) + "/" + url.PathEscape(marketID) + "?base_revision=" + url.QueryEscape(baseRevision)
 	return a.govRequest(http.MethodDelete, path, nil, nil)
 }
 
