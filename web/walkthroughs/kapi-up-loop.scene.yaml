@@ -6,7 +6,7 @@
 # unit from the content memory. The ship gate requires review, so `up` holds
 # French back. The scene reads the worklist (`status --review`) and shows the
 # gate fail (`check --ship`, exit 3). It records the decisions (`apply`), shows
-# the same gate pass (exit 0), and runs `up` again, which writes the French file.
+# the same gate pass (exit 0), and runs `up` again to write messages.fr.json.
 
 # mode: video, because the wasm build (kapi/cmd/kapi-wasm-cli) has no `kapi up`
 # or `kapi check`, and the exit codes are the point of the recording. The embed
@@ -78,8 +78,8 @@ tape:
 
 # Recording fixtures: the kit catalog, the committed content-memory bundle that
 # supplies the French, the recipe with a translated and approved ship gate, and
-# the reviewer's change set. The recording starts with no French file, and
-# `kapi up` writes it.
+# the reviewer's change set. The recording starts without messages.fr.json,
+# and the closing `kapi up` creates messages.fr.json.
 seed:
   - messages.json
 files:
@@ -177,7 +177,7 @@ steps:
     narration: --plan reports pending units, exact content-memory matches, remaining AI work and estimated tokens for each locale. It makes no provider calls or writes.
     offline: false
   - command: kapi up
-    narration: up recycles all three French units from content memory. The gate holds them for review, so up writes no target file yet. The command exits zero.
+    narration: kapi up takes all three French translations from content memory. The ship gate needs a person's approval first, so kapi up holds them for review and does not write messages.fr.json yet. The command still exits with code 0.
     offline: false
   - command: kapi status --review
     narration: List translated units awaiting approval, each with the source document, block and language a decision names.
@@ -202,5 +202,5 @@ steps:
     offline: true
     smoke: false
   - command: kapi up
-    narration: The decisions released French, so up writes messages.fr.json and reports produced 3.
+    narration: With the approvals recorded, kapi up writes the three French translations to messages.fr.json.
     offline: false

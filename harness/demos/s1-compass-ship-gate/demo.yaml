@@ -85,13 +85,13 @@ narration:
   - id: review
     kind: terminal
     through: 10
-    caption: Twenty decisions on the record. The held Dutch is written, and nothing new is drafted.
+    caption: Twenty approvals recorded, and the held Dutch drafts written to site/locales/nl.json.
     text: >-
-      The queue names what each decision addresses, and this filter takes the
-      Dutch a person wrote and leaves what the stub drafted. Twenty
-      approvals land in the record as they are made. Running the loop again
-      writes the nineteen Dutch drafts it held back, and asks the provider for
-      nothing.
+      The review queue lists each unit with its file, key and language. This
+      filter picks the Dutch a person wrote and leaves the stub's drafts alone,
+      and the twenty approvals are recorded as they are made. Run kapi up again
+      and it writes the nineteen held Dutch drafts to site/locales/nl.json,
+      without asking the provider for anything.
 
   - id: offered
     kind: terminal
