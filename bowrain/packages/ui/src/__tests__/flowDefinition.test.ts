@@ -14,7 +14,7 @@ import { asFlowChanged, FlowChangedError } from "../errors/FlowChangedError";
 // A one-step built-in as an older server lists it.
 const nullEdges = {
   id: "qa",
-  name: "QA",
+  name: "Quality Check",
   source: "built-in",
   nodes: [{ id: "n1", type: "tool", name: "qa-check", position: { x: 0, y: 0 } }],
   edges: null,
