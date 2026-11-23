@@ -26,7 +26,7 @@ func TestFrameworkToolInputSchema(t *testing.T) {
 			"prefix": {Type: "string"},
 		},
 	}
-	raw, err := frameworkToolInputSchema(s, targetWithheld)
+	raw, err := frameworkToolInputSchema("", s, targetWithheld)
 	require.NoError(t, err)
 
 	var got map[string]any
@@ -42,7 +42,7 @@ func TestFrameworkToolInputSchema(t *testing.T) {
 
 // TestFrameworkToolInputSchema_NilSchema handles tools with no schema struct.
 func TestFrameworkToolInputSchema_NilSchema(t *testing.T) {
-	raw, err := frameworkToolInputSchema(nil, targetWithheld)
+	raw, err := frameworkToolInputSchema("", nil, targetWithheld)
 	require.NoError(t, err)
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(raw, &got))

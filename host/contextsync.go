@@ -17,6 +17,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projector"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -133,8 +134,10 @@ func pushedSplit(total, logged int) string {
 }
 
 // recipeContextBackend reads the recipe's `context:` block and nothing else.
+// The recipe is read through the folder that holds it, so a recipe that is a
+// link out of its project is refused.
 func recipeContextBackend(recipePath string) (*project.ContextBackend, error) {
-	data, err := os.ReadFile(recipePath)
+	data, err := rootpath.ReadFile(filepath.Dir(recipePath), recipePath)
 	if err != nil {
 		return nil, err
 	}

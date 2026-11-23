@@ -138,11 +138,31 @@ Ownership, zone by zone:
 the whole directory, the rule included, stays out of version control. The rule
 is the constant `core/project.StateGitignore`.
 
-It is written only into a `.kapi/` that is new or holds nothing but what kapi
-keeps there. A directory that already carries other files, such as committed
-context files, has an ignore arrangement of its own, and a rule that ignored
-everything would silently keep the next of those files out of the commit. A
-rule already present is never rewritten.
+The `*` rule is written only into a `.kapi/` that is new or holds nothing but
+what kapi keeps there. A directory that already carries other files, such as
+committed context files, gets a line for `work/` instead, so those files stay
+in the commit and the work directory stays out. A rule already present is never
+rewritten, only added to.
+
+### State that git tracks
+
+`work/`, `sync/`, `vault/` and `filters.local.json` are kapi's own state for one
+checkout. `core/project.CheckStateTracked` asks git, under the caller's
+context, for every path its index holds beneath the project, and refuses the
+checkout when one of them is beneath a state entry in any spelling the file
+system resolves to it, or when the state directory or an entry is a submodule or
+a repository of its own. It runs before every command, for every MCP call that
+resolves a project, on every hand-out of a project store, when the desktop opens
+a project or reads its filters, in the source connectors, and on every plugin
+daemon call. A directory in no repository passes without running git. Inside a
+repository, a git that cannot answer refuses with the cause and its remedy;
+`KAPI_TRUST_STATE=1` in kapi's own environment vouches for the state instead.
+
+Asking git sees only what git tracks. State that arrived untracked, in an
+archive or a checkout copied or synchronised from elsewhere, is not seen by this
+check. The walk that refuses a link or an irregular file anywhere under `.kapi/`
+still applies to it, and a regular store or claim token copied in is used as
+kapi's own.
 
 What deleting costs, stated exactly:
 

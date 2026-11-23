@@ -40,8 +40,8 @@ func TestExpandGlob_DoesNotFollowSymlinkedDirectories(t *testing.T) {
 		"the file behind src/node_modules/pkg is reached only through a linked directory")
 }
 
-// A link to a file that matches the pattern directly is content, wherever the
-// file it names sits.
+// A link to a file that matches the pattern directly is content, wherever in
+// the root the file it names sits.
 func TestExpandGlob_ResolvesADirectlyMatchingSymlinkedFile(t *testing.T) {
 	dir := symlinkTree(t)
 

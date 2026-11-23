@@ -41,9 +41,9 @@ func TestDaemon_OneStoreHandlePerProject(t *testing.T) {
 
 	// Two RPCs against one project reach one entry, and the second load does not
 	// mint a second store.
-	first, err := d.projectFor(rootA)
+	first, err := d.projectFor(t.Context(), rootA)
 	require.NoError(t, err)
-	again, err := d.projectFor(rootA)
+	again, err := d.projectFor(t.Context(), rootA)
 	require.NoError(t, err)
 	assert.Same(t, first, again, "the daemon caches one project entry per root")
 
@@ -54,7 +54,7 @@ func TestDaemon_OneStoreHandlePerProject(t *testing.T) {
 	assert.Same(t, dbA, sameA, "one store handle per project root")
 
 	// A second project is a second handle, not a shared one.
-	_, err = d.projectFor(rootB)
+	_, err = d.projectFor(t.Context(), rootB)
 	require.NoError(t, err)
 	dbB, err := app.ProjectDB(t.Context(), rootB)
 	require.NoError(t, err)
@@ -82,7 +82,7 @@ func TestDaemon_UsesTheProcessAppsFormatRegistry(t *testing.T) {
 	assert.Same(t, app.FormatReg, d.formatReg)
 
 	root := daemonProjectRoot(t)
-	entry, err := d.projectFor(root)
+	entry, err := d.projectFor(t.Context(), root)
 	require.NoError(t, err)
 	assert.Same(t, app.FormatReg, entry.formatReg)
 	assert.FileExists(t, filepath.Join(root, coreproj.RecipeFileName))

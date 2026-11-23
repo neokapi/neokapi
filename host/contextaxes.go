@@ -2,7 +2,7 @@ package host
 
 import (
 	"context"
-	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -83,8 +83,10 @@ type recipeAxesEntry struct {
 }
 
 // recipeAxes reads the axis space a recipe declares, and whether it loaded.
+// The recipe is stated through the folder that holds it, so a recipe that is
+// a link out of its project is not read.
 func recipeAxes(path string) (axis.Space, bool) {
-	info, err := os.Stat(path)
+	info, err := statIn(filepath.Dir(path), path)
 	if err != nil || info.IsDir() {
 		return axis.Space{}, false
 	}

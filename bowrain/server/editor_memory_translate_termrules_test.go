@@ -59,7 +59,7 @@ func TestEditorMemoryTranslate_TermRules(t *testing.T) {
 		}
 
 		wsStores := newWorkspaceStores()
-		wsStores.memoryFactory = func() memory.Store { return tm }
+		wsStores.memoryFactory = func(string) memory.Store { return tm }
 		tb := terms.NewInMemoryStore()
 		if governed {
 			require.NoError(t, tb.AddConcept(ctx, terms.Concept{

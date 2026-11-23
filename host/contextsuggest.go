@@ -391,7 +391,7 @@ func (s *contextOpsSession) suggestCorpus(ctx context.Context) (suggestCorpus, e
 		if err := ctx.Err(); err != nil {
 			return c, err
 		}
-		blocks, err := a.readBlocksAs(ctx, rf.Path, rf.Format, mergedFormatConfig(s.proj, rf.Format, rf.Item), c.language)
+		blocks, err := a.readBlocksAs(ctx, s.root, rf.Path, rf.Format, mergedFormatConfig(s.proj, rf.Format, rf.Item), c.language)
 		if err != nil {
 			continue
 		}

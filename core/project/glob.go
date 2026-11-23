@@ -9,6 +9,7 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/neokapi/neokapi/core/ignore"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // MatchGlob reports whether path matches the doublestar glob pattern (same
@@ -28,7 +29,9 @@ func MatchGlob(pattern, path string) bool {
 // does, so the linked packages a package manager keeps under node_modules stay
 // out of a match and a link loop is read once. A link that matches the pattern
 // itself is returned, and a linked directory the pattern names before its first
-// wildcard is read through.
+// wildcard is read through, while each stays inside root. A link that leads
+// out of root, or names a file that does not exist, is never returned
+// (GlobOptions.LinksAnywhere lifts that for a pattern a person typed).
 func ExpandGlob(root, pattern string, excludes ...string) ([]string, error) {
 	res, err := ExpandGlobs(root, []string{pattern}, GlobOptions{Excludes: excludes})
 	if err != nil {
@@ -56,6 +59,12 @@ type GlobOptions struct {
 	OnUnreadable func(rel string, err error)
 	// OnDir, when set, is called with the running count of directories read.
 	OnDir func(dirs int)
+	// LinksAnywhere lists a symbolic link wherever it leads. It is for a
+	// pattern a person typed on the command line, whose root is the pattern's
+	// own directory rather than a project. Without it, a link that leads out
+	// of root, or names a file that does not exist, is never listed and is
+	// handed to OnUnreadable.
+	LinksAnywhere bool
 }
 
 // ExpandGlobs resolves several patterns against one walk of root and returns
@@ -64,9 +73,9 @@ type GlobOptions struct {
 // with the same semantics as ExpandGlob, including the symbolic-link rules.
 //
 // The walk reads a directory only when some pattern can still match beneath
-// it, and never descends into an excluded or ignored directory, so a recipe
-// that names a few folders reads those folders rather than the whole tree, and
-// a large dependency directory under an exclude costs one directory entry.
+// it, and never descends into an excluded or ignored directory. A recipe that
+// names a few folders reads those folders rather than the whole tree, and a
+// large dependency directory under an exclude costs one directory entry.
 // A brace set is resolved in the same walk rather than once per alternative.
 //
 // A malformed pattern fails the whole call with doublestar.ErrBadPattern
@@ -221,7 +230,7 @@ func (w *globWalker) advance(states []globState, name string) []globState {
 }
 
 func (w *globWalker) walk(rel, abs string, states []globState) {
-	entries, err := os.ReadDir(abs)
+	entries, err := w.readDir(abs)
 	if err != nil {
 		return
 	}
@@ -244,8 +253,18 @@ func (w *globWalker) walk(rel, abs string, states []globState) {
 		isDir := e.IsDir()
 		isLink := e.Type()&os.ModeSymlink != 0
 		var linkErr error
-		if isLink && (w.opts.FilesOnly || w.followsLink(states, name)) {
-			info, serr := os.Stat(childAbs)
+		// A link that leads out of the root is never listed and never read
+		// through, whatever the pattern: its content is not the project's.
+		escaped := false
+		// Every link is decided by Contain alone: a link to a missing file is
+		// refused there too, and reported as unreadable.
+		if isLink && !w.opts.LinksAnywhere {
+			if _, cerr := rootpath.Contain(w.root, childAbs); cerr != nil {
+				escaped, linkErr = true, cerr
+			}
+		}
+		if isLink && !escaped && (w.opts.FilesOnly || w.followsLink(states, name)) {
+			info, serr := w.stat(childAbs)
 			switch {
 			case serr != nil:
 				linkErr = serr
@@ -266,7 +285,7 @@ func (w *globWalker) walk(rel, abs string, states []globState) {
 		}
 
 		// emit is decided once per entry: whether a completed match is kept.
-		emit := !w.opts.FilesOnly || (!isDir && linkErr == nil)
+		emit := !escaped && (!w.opts.FilesOnly || (!isDir && linkErr == nil))
 		checked, unreadable := false, false
 		descend := false
 		w.stamp++
@@ -284,7 +303,7 @@ func (w *globWalker) walk(rel, abs string, states []globState) {
 				checked = true
 				if w.excluded(childRel) {
 					emit = false
-				} else if w.opts.FilesOnly && linkErr != nil && !errors.Is(linkErr, errLinkedDir) {
+				} else if escaped || (w.opts.FilesOnly && linkErr != nil && !errors.Is(linkErr, errLinkedDir)) {
 					unreadable = true
 				}
 			}
@@ -300,6 +319,31 @@ func (w *globWalker) walk(rel, abs string, states []globState) {
 		}
 	}
 }
+
+// readDir lists the directory abs. A walk of project content lists it
+// through the root, so a directory that leads out of it, even one swapped in
+// after its link was checked, is refused. A pattern a person typed
+// (LinksAnywhere) lists it as named.
+func (w *globWalker) readDir(abs string) ([]os.DirEntry, error) {
+	if w.opts.LinksAnywhere {
+		return readDirAsNamed(abs)
+	}
+	return rootpath.ReadDir(w.root, abs)
+}
+
+// stat is readDir's counterpart for one entry, links followed.
+func (w *globWalker) stat(abs string) (os.FileInfo, error) {
+	if w.opts.LinksAnywhere {
+		return statAsNamed(abs)
+	}
+	return rootpath.Stat(w.root, abs)
+}
+
+// readDirAsNamed lists a directory a pattern a person typed reaches.
+func readDirAsNamed(abs string) ([]os.DirEntry, error) { return os.ReadDir(abs) }
+
+// statAsNamed states an entry a pattern a person typed reaches.
+func statAsNamed(abs string) (os.FileInfo, error) { return os.Stat(abs) }
 
 // followsLink reports whether a symbolic link named name is read through: some
 // pattern names it before its first wildcard.

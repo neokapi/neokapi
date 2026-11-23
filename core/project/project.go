@@ -813,6 +813,20 @@ func validateTargetInside(field, target string) error {
 	return nil
 }
 
+// validateInside refuses a path a recipe names that is absolute or climbs out
+// of the project, in the wording validateTargetInside uses for a target. what
+// names the thing for the remedy ("the directory", "the file").
+func validateInside(field, p, what string) error {
+	if p == "" {
+		return nil
+	}
+	t := filepath.FromSlash(p)
+	if filepath.IsAbs(t) || filepath.VolumeName(t) != "" || strings.HasPrefix(p, "/") || !filepath.IsLocal(filepath.Clean(t)) {
+		return fmt.Errorf("%s: %q lies outside the project. Move the recipe or %s so %s lies inside the project", field, p, what, what)
+	}
+	return nil
+}
+
 // validateSourceOnly rejects a collection that declares source_only and then
 // contradicts it.
 //
@@ -1099,7 +1113,7 @@ func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
 
 	var proj KapiProject
 	if err := yaml.Unmarshal(data, &proj); err != nil {
-		return nil, fmt.Errorf("parse project file %s: %w", path, err)
+		return nil, fmt.Errorf("parse project file %s: %w", path, RecipeYAMLError(err))
 	}
 
 	if err := proj.validate(opts); err != nil {

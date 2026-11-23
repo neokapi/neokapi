@@ -141,6 +141,7 @@ func editorMemoryEntryToInfo(e editorclient.EditorMemoryEntry) MemoryEntryInfo {
 		SourceLocale: e.SourceLanguage,
 		TargetLocale: e.TargetLanguage,
 		UpdatedAt:    e.UpdatedAt,
+		Revision:     e.Revision,
 	}
 }
 

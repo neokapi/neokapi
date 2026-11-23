@@ -6,9 +6,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -206,9 +206,10 @@ func (a *App) saveImportStamps(ctx context.Context, stamps importStamps) error {
 	return ws.NoteContextImports(ctx, rows...)
 }
 
-// fileDigest is the SHA-256 of a file's bytes, as lower-case hex.
-func fileDigest(path string) (string, error) {
-	f, err := os.Open(path)
+// fileDigest is the SHA-256 of a file's bytes, as lower-case hex. The file is
+// opened through root and must be a regular file beneath it.
+func fileDigest(root, path string) (string, error) {
+	f, err := rootpath.OpenRegular(root, path)
 	if err != nil {
 		return "", fmt.Errorf("read context source: %w", err)
 	}

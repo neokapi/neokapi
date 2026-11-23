@@ -47,7 +47,7 @@ func BindVoice(path, profile, id string) error {
 	// The result must still be a recipe, and must bind what was asked.
 	var check KapiProject
 	if err := yaml.Unmarshal(out, &check); err != nil {
-		return fmt.Errorf("recipe: binding the voice would leave an unreadable recipe: %w", err)
+		return fmt.Errorf("recipe: binding the voice would leave an unreadable recipe: %w", RecipeYAMLError(err))
 	}
 	if got := voiceAt(&check, profile); got == nil || got.Profile != id {
 		return bindVoiceBySave(path, profile, id)
@@ -87,7 +87,7 @@ func DeclaredDefaultVoice(path string) (*VoiceBinding, error) {
 		} `yaml:"defaults"`
 	}
 	if err := yaml.Unmarshal(data, &head); err != nil {
-		return nil, fmt.Errorf("parse project file %s: %w", path, err)
+		return nil, fmt.Errorf("parse project file %s: %w", path, RecipeYAMLError(err))
 	}
 	return head.Defaults.Voice, nil
 }
@@ -126,7 +126,7 @@ func bindVoiceBySave(path, profile, id string) error {
 func insertVoiceBinding(data []byte, profile, id string) ([]byte, bool, error) {
 	var doc yaml.Node
 	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return nil, false, fmt.Errorf("parse project file: %w", err)
+		return nil, false, fmt.Errorf("parse project file: %w", RecipeYAMLError(err))
 	}
 	if doc.Kind != yaml.DocumentNode || len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
 		return nil, false, errors.New("recipe: the project file is not a mapping")

@@ -104,7 +104,7 @@ func annotationsJSON(out *frameworkToolOutput) string {
 
 func projectSchema(t *testing.T, s *schema.ComponentSchema, policy targetPolicy) (map[string]any, []any) {
 	t.Helper()
-	raw, err := frameworkToolInputSchema(s, policy)
+	raw, err := frameworkToolInputSchema("", s, policy)
 	require.NoError(t, err)
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(raw, &got))

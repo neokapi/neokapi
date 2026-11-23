@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -64,7 +65,15 @@ collections:
     target: "locales/{lang}/*.json"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
-	return root, namedTermStorePath(t, "press-terms")
+	// The store the profile binds is one the person keeps: a recipe names it
+	// and never creates it (flow.NamedStorePath).
+	bound := namedTermStorePath(t, "press-terms")
+	store, err := terms.NewSQLiteStore(bound)
+	require.NoError(t, err)
+	require.NoError(t, store.Close())
+	real, err := filepath.EvalSymlinks(bound)
+	require.NoError(t, err)
+	return root, real
 }
 
 // TestResolveTermsCmdStore_ProjectAware asserts that with no flag inside a

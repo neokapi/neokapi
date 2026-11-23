@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
@@ -18,6 +18,8 @@ import (
 type Writer struct {
 	format.BaseFormatWriter
 	sourcePath string
+	// root is the project directory, when the run has one (SetProjectRoot).
+	root string
 	// streamed records that the generative path already opened the document to
 	// stream a table, so the events after it render into that document rather
 	// than starting a second one. semState is that document's open-container
@@ -53,6 +55,12 @@ func (w *Writer) SetConfig(cfg *Config) {
 // SetSourcePath sets the path to the original document for re-parse mode.
 func (w *Writer) SetSourcePath(path string) {
 	w.sourcePath = path
+}
+
+// SetProjectRoot sets the project directory. A source path beneath it is read
+// through it, so a link that leads out of the project is refused.
+func (w *Writer) SetProjectRoot(root string) {
+	w.root = root
 }
 
 // SetOriginalContent sets the original document bytes for re-parse mode.
@@ -181,7 +189,7 @@ func (w *Writer) loadOriginalContent() ([]byte, error) {
 		return w.originalContent, nil
 	}
 	if w.sourcePath != "" {
-		data, err := os.ReadFile(w.sourcePath)
+		data, err := rootpath.ReadFile(w.root, w.sourcePath)
 		if err != nil {
 			return nil, fmt.Errorf("html writer: read source: %w", err)
 		}

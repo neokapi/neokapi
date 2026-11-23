@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -24,6 +25,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/tool"
 	"golang.org/x/sync/errgroup"
@@ -399,11 +401,8 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		if err != nil {
 			return fmt.Errorf("marshal batch trace: %w", err)
 		}
-		if err := os.MkdirAll(filepath.Dir(cfg.TracePath), 0o755); err != nil {
-			return fmt.Errorf("create trace dir: %w", err)
-		}
-		if err := os.WriteFile(cfg.TracePath, traceJSON, 0o644); err != nil {
-			return fmt.Errorf("write batch trace: %w", err)
+		if err := writeTraceFile(cfg.TracePath, traceJSON); err != nil {
+			return err
 		}
 	}
 
@@ -599,7 +598,13 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		defer out.abort()
 	}
 
-	content, err := os.ReadFile(filePath)
+	// A file of the project is read through its root; a file a person named
+	// outside it is read as named (rootpath.ReadFile).
+	var projectRoot string
+	if cfg.Project != "" {
+		projectRoot = filepath.Dir(cfg.Project)
+	}
+	content, err := rootpath.ReadFile(projectRoot, filePath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", filePath, err)
 	}
@@ -800,11 +805,8 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		if err != nil {
 			return fmt.Errorf("marshal trace: %w", err)
 		}
-		if err := os.MkdirAll(filepath.Dir(resolvedTracePath), 0o755); err != nil {
-			return fmt.Errorf("create trace dir: %w", err)
-		}
-		if err := os.WriteFile(resolvedTracePath, traceJSON, 0o644); err != nil {
-			return fmt.Errorf("write trace: %w", err)
+		if err := writeTraceFile(resolvedTracePath, traceJSON); err != nil {
+			return err
 		}
 	}
 
@@ -907,6 +909,10 @@ func resolveFiles(patterns []string) ([]string, error) {
 // hidden directories, junk files, and the files and directories that a
 // .gitignore or .kapiignore ignores (walkIgnores). Order is lexicographic for
 // determinism.
+//
+// The walk lists the tree through an os.Root opened on root, and a symbolic
+// link whose file lies outside root is left out (rootpath.Contain), so a
+// file the walk returns is one beneath the directory it was asked to walk.
 func walkDirFiles(root string) ([]string, error) {
 	var files []string
 	rules := newWalkIgnores(root)
@@ -914,19 +920,27 @@ func walkDirFiles(root string) ([]string, error) {
 	if aerr != nil {
 		return nil, fmt.Errorf("walk %q: %w", root, aerr)
 	}
-	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+	r, oerr := os.OpenRoot(root)
+	if oerr != nil {
+		return nil, fmt.Errorf("walk %q: %w", root, oerr)
+	}
+	defer r.Close()
+	err := fs.WalkDir(r.FS(), ".", func(slashRel string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if path == root {
+		if slashRel == "." {
 			return nil
 		}
 		name := d.Name()
-		rel, rerr := filepath.Rel(root, path)
-		if rerr != nil {
-			return rerr
-		}
+		rel := filepath.FromSlash(slashRel)
+		path := filepath.Join(root, rel)
 		abs := filepath.Join(absRoot, rel)
+		if d.Type()&fs.ModeSymlink != 0 {
+			if _, cerr := rootpath.Contain(absRoot, abs); cerr != nil {
+				return nil
+			}
+		}
 		if d.IsDir() {
 			// Skip hidden directories (e.g. .git) but never the root itself.
 			if strings.HasPrefix(name, ".") || rules.ignored(abs, true) {
@@ -945,6 +959,18 @@ func walkDirFiles(root string) ([]string, error) {
 		return nil, fmt.Errorf("walk %q: %w", root, err)
 	}
 	return files, nil
+}
+
+// writeTraceFile writes a flow trace to the file the --trace flag names,
+// creating its directory.
+func writeTraceFile(path string, data []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create trace dir: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return fmt.Errorf("write trace: %w", err)
+	}
+	return nil
 }
 
 func isJunkFile(name string) bool {

@@ -74,7 +74,7 @@ func (c *ContentComments) UnmarshalYAML(node *yaml.Node) error {
 	case yaml.ScalarNode:
 		var declared bool
 		if node.ShortTag() != "!!bool" || node.Decode(&declared) != nil {
-			return fmt.Errorf("line %d: comments: want true, false or a mapping, not %q", node.Line, node.Value)
+			return fmt.Errorf("line %d: comments: want true, false or a mapping, not %q", node.Line, snippet(node.Value))
 		}
 		*c = ContentComments{Declared: declared}
 		return nil

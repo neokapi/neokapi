@@ -634,6 +634,11 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 		return a.openFolder(path)
 	}
 
+	// Opening a project is where the desktop asks whether git tracks kapi's
+	// state in it; the reads that follow ask again when the index changes.
+	if err := project.CheckStateTracked(context.Background(), project.LayoutAt(filepath.Dir(path))); err != nil {
+		return nil, err
+	}
 	proj, err := project.Load(path)
 	if err != nil {
 		// A sample an older version of the app scaffolded is refreshed to the
@@ -1050,7 +1055,7 @@ func (a *App) ListFlows(tabID string) []FlowInfo {
 	for _, name := range inline {
 		infos = append(infos, info(name, host.FlowSourceInline, "", "", op.Project.Flow(name)))
 	}
-	for _, def := range project.ListDirFlows(op.Project.FlowsDirIn(filepath.Dir(op.Path))) {
+	for _, def := range project.ListDirFlowsIn(filepath.Dir(op.Path), op.Project.FlowsDirIn(filepath.Dir(op.Path))) {
 		if op.Project.Flow(def.Name) != nil {
 			continue
 		}
@@ -1850,6 +1855,7 @@ func (a *App) RunFormatReader(formatName string, filePath string, config map[str
 		URI:      filePath,
 		FormatID: formatName,
 		Reader:   f,
+		ReaderAt: f,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

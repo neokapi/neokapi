@@ -338,11 +338,12 @@ func TestFlowRun_ARedactStepRedactsEachFileUnderItsOwnPolicy(t *testing.T) {
 func TestFlowRun_ARedactStepWithItsOwnRulesKeepsThem(t *testing.T) {
 	isolateKapiEnv(t)
 	onlyDemoProvider(t)
-	rules := filepath.Join(t.TempDir(), "rules.yaml")
-	require.NoError(t, os.WriteFile(rules, []byte("version: v1\nrules:\n  - term: today\n    category: date\n"), 0o600))
+	// The step names its rules inside the project, as recipe content must.
 	recipe := redactProject(t, redactionYAML+"flows:\n  secure:\n    steps:\n"+
-		"      - tool: redact\n        config:\n          rules_path: "+rules+"\n"+
+		"      - tool: redact\n        config:\n          rules_path: step-rules.yaml\n"+
 		"      - tool: translate\n        config:\n          provider: demo\n      - tool: unredact\n")
+	rules := filepath.Join(filepath.Dir(recipe), "step-rules.yaml")
+	require.NoError(t, os.WriteFile(rules, []byte("version: v1\nrules:\n  - term: today\n    category: date\n"), 0o600))
 	saw := providerSaw(t)
 	_, _, err := runRecipeFlow(t, recipe, "secure", "target-lang", "fr")
 	require.NoError(t, err)

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"os"
 )
 
 // rasterKind classifies a raster image by its header bytes.
@@ -109,16 +108,11 @@ func Sniff(data []byte) bool {
 	}
 }
 
-// classifyFile reads the header of the file at path and classifies it.
-func classifyFile(path string) (rasterKind, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return kindUnknown, err
-	}
-	defer func() { _ = f.Close() }()
+// classifyReader reads the header of the image r holds and classifies it.
+func classifyReader(r io.Reader) (rasterKind, error) {
 	var hdr [headerLen]byte
-	n, err := io.ReadFull(f, hdr[:])
-	// A file shorter than headerLen is fine — classify works on what we read.
+	n, err := io.ReadFull(r, hdr[:])
+	// A file shorter than headerLen is fine: classify works on what was read.
 	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
 		return kindUnknown, err
 	}

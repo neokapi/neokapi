@@ -25,6 +25,7 @@ func init() {
 
 // registerReviewTools registers the review-workflow MCP tools.
 func registerReviewTools(server *mcp.Server, a *cli.App) {
+	host.DeclareMCPPathArgs("review_block", host.MCPArgProjectRelative, "doc")
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "review_queue",
 		Description: "List the review queue: every block awaiting a person, each with ref, the reference review_block reads it by ({doc, block, edition}: the source document, the block key and the translation's language; no edition for a source block). One queue holds every language, the project's source language among them: a translated block not yet approved is one row, and a source block held below the project's translate_after level is another, marked `is_source`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; blocks annotated by an AI pre-review carry their score. Lean by design: call review_block for a block's context (the point governing it, its neighbourhood, its prior version, its findings).",
@@ -45,8 +46,8 @@ func registerReviewTools(server *mcp.Server, a *cli.App) {
 // per-call seam: the explicit `project` input (a recipe, a project root, or any
 // path inside one), else the project the MCP server started in, else the
 // ambient project (KAPI_PROJECT / upward walk, honoring KAPI_NO_PROJECT).
-func resolveReviewProject(a *cli.App, explicit string) (string, error) {
-	return a.RequireMCPCallProject(explicit)
+func resolveReviewProject(ctx context.Context, a *cli.App, explicit string) (string, error) {
+	return a.RequireMCPCallProject(ctx, explicit)
 }
 
 // --- Input/Output types ---
@@ -111,7 +112,7 @@ var reviewBlockOutputSchema = json.RawMessage(`{"type":"object","properties":{` 
 // --- Handlers ---
 
 func handleReviewQueue(ctx context.Context, a *cli.App, input ReviewQueueInput) (*mcp.CallToolResult, ReviewQueueOutput, error) {
-	projectPath, err := resolveReviewProject(a, input.Project)
+	projectPath, err := resolveReviewProject(ctx, a, input.Project)
 	if err != nil {
 		return nil, ReviewQueueOutput{}, err
 	}
@@ -137,7 +138,7 @@ func handleReviewQueue(ctx context.Context, a *cli.App, input ReviewQueueInput) 
 }
 
 func handleReviewBlock(ctx context.Context, a *cli.App, input ReviewBlockInput) (*mcp.CallToolResult, ReviewBlockOutput, error) {
-	projectPath, err := resolveReviewProject(a, input.Project)
+	projectPath, err := resolveReviewProject(ctx, a, input.Project)
 	if err != nil {
 		return nil, ReviewBlockOutput{}, err
 	}

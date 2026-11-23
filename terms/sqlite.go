@@ -52,7 +52,9 @@ type SQLiteStore struct {
 // NewSQLiteStore opens (or creates) a SQLite-backed terms store.
 // Use ":memory:" for an in-memory database (useful for testing).
 func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
-	db, err := storage.Open(dbPath)
+	// dbPath is a store a person named, or one ResolveToolConfig resolved to
+	// its real file, so a link on it is followed (storage.Options.FollowLink).
+	db, err := storage.OpenWith(dbPath, storage.Options{FollowLink: true})
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}

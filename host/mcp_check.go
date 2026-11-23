@@ -125,7 +125,7 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 	// A call naming none reads it in the server's, which is what opts answers
 	// with when it carries no language of its own.
 	if in.Project != "" {
-		recipe, rerr := a.ResolveMCPCallProject(in.Project)
+		recipe, rerr := a.ResolveMCPCallProject(ctx, in.Project)
 		if rerr != nil {
 			return nil, check.Report{}, rerr
 		}
@@ -214,6 +214,11 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	scoped := in.Diff != "" || in.DiffAgainst != "" || in.Staged || in.DiffRange != ""
 	if in.File == "" && !scoped {
 		return nil, check.Report{}, errors.New("file is required unless diff, diff_against, staged or diff_range is given")
+	}
+	for _, named := range []struct{ arg, path string }{{"file", in.File}, {"target", in.Target}} {
+		if err := MCPReachable(ctx, named.arg, named.path); err != nil {
+			return nil, check.Report{}, err
+		}
 	}
 	var named []string
 	for _, source := range []struct {
@@ -350,7 +355,7 @@ func (a *App) mcpCheckOptions(ctx context.Context, execution *checkExecution, ma
 	opts := checkRunOptions{maxChars: maxChars, maxWords: maxWords, forbid: forbid, require: require,
 		voiceContext: check.VoiceContext{Selection: "none"}, execution: execution}
 	if pack != "" || file != "" {
-		p, err := loadProfileForMCP(pack, file)
+		p, err := loadProfileForMCP(ctx, pack, file)
 		if err != nil {
 			return opts, err
 		}

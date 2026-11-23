@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
+	"io/fs"
 	"slices"
 	"sort"
 	"strings"
@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/state"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/memory"
@@ -185,6 +186,8 @@ func formatContestedSources(sources []ContestedSource) string {
 // recordUnit is one (source document, committed target document, locale) the
 // record absorber pairs.
 type recordUnit struct {
+	// root is the project root the unit's files are read through.
+	root                  string
 	sourcePath, sourceRel string
 	// scope is the document the source file IS: its durable key, or its path
 	// where the project holds none. sourceRel is its ADDRESS, which the block
@@ -1108,11 +1111,11 @@ func recordRuns(b *model.Block, locale model.LocaleID, approved bool) (src, tgt 
 // another language, and a reader configured differently would pair different
 // blocks.
 func (a *App) pairedRecordBlocks(ctx context.Context, u recordUnit, sourceLocale model.LocaleID) ([]*model.Block, error) {
-	sourceBlocks, _, err := project.ReadSourceBlocks(ctx, a.FormatReg, u.format, u.sourcePath, sourceLocale, u.locale, u.config)
+	sourceBlocks, _, err := project.ReadSourceBlocks(ctx, a.FormatReg, u.root, u.format, u.sourcePath, sourceLocale, u.locale, u.config)
 	if err != nil {
 		return nil, fmt.Errorf("read source %s: %w", u.sourceRel, err)
 	}
-	targetBlocks, _, err := project.ReadSourceBlocks(ctx, a.FormatReg, u.format, u.targetPath, sourceLocale, u.locale, u.config)
+	targetBlocks, _, err := project.ReadSourceBlocks(ctx, a.FormatReg, u.root, u.format, u.targetPath, sourceLocale, u.locale, u.config)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s: %w", errTargetUnreadable, u.targetRel, err)
 	}
@@ -1150,6 +1153,7 @@ func recordUnits(ctx context.Context, a *App, proj *project.KapiProject, pctx *p
 				continue // an obstructed destination holds no translation
 			}
 			units = append(units, recordUnit{
+				root:       root,
 				sourcePath: rf.Path,
 				sourceRel:  relSlash(root, rf.Path),
 				scope:      docs.Scope(root, rf.Path),
@@ -1200,16 +1204,18 @@ func (a *App) approvalPoint(proj *project.KapiProject, cache map[string]string, 
 // recordDigest is the content identity one (source, target) pair is keyed by.
 // Both sides matter: a source edit changes which blocks pair with which, and a
 // target edit changes the answers. ok=false means there is no committed target
-// yet, which is ordinary pending work rather than an error.
+// yet, which is ordinary pending work rather than an error. Both files are
+// read through the project root, so a file that is a link out of the project
+// is an error, never read.
 func recordDigest(u recordUnit) (string, bool, error) {
-	targetBytes, err := os.ReadFile(u.targetPath)
+	targetBytes, err := rootpath.ReadFile(u.root, u.targetPath)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if _, escaped := errors.AsType[*rootpath.EscapeError](err); !escaped && errors.Is(err, fs.ErrNotExist) {
 			return "", false, nil
 		}
 		return "", false, fmt.Errorf("read committed target %s: %w", u.targetRel, err)
 	}
-	sourceBytes, err := os.ReadFile(u.sourcePath)
+	sourceBytes, err := rootpath.ReadFile(u.root, u.sourcePath)
 	if err != nil {
 		return "", false, fmt.Errorf("read source %s: %w", u.sourceRel, err)
 	}

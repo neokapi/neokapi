@@ -19,6 +19,8 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	bmemory "github.com/neokapi/neokapi/bowrain/memory"
+	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
@@ -932,6 +934,9 @@ func (s *Server) HandleGetMemoryEntries(c *echo.Context) error {
 	for i, e := range entries {
 		infos[i] = editorEntryToInfo(e, sourceLocale, targetLocale)
 	}
+	if err := withMemoryRevisions(ctx, tm, infos); err != nil {
+		return serverErr(c, err)
+	}
 
 	return c.JSON(http.StatusOK, MemorySearchResponse{Entries: infos, TotalCount: total})
 }
@@ -977,10 +982,17 @@ func (s *Server) HandleAddMemoryEntry(c *echo.Context) error {
 		return serverErr(c, err)
 	}
 
+	if req.ID != "" && !validClientEntryID(req.ID) {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "an entry id is 1 to 64 letters, digits, '-' or '_'"})
+	}
 	srcLoc := model.LocaleID(req.SourceLocale)
 	tgtLoc := model.LocaleID(req.TargetLocale)
+	entryID := req.ID
+	if entryID == "" {
+		entryID = id.New()
+	}
 	entry := memory.Entry{
-		ID: id.New(),
+		ID: entryID,
 		Variants: map[model.LocaleID][]model.Run{
 			srcLoc: {{Text: &model.TextRun{Text: req.Source}}},
 			tgtLoc: {{Text: &model.TextRun{Text: req.Target}}},
@@ -991,16 +1003,24 @@ func (s *Server) HandleAddMemoryEntry(c *echo.Context) error {
 		UpdatedAt:   time.Now(),
 	}
 	stream := streamParam(c)
-	if stream != "" && stream != "main" {
+	switch {
+	case req.ID != "":
+		// An entry the client named: stored once, never replacing one.
+		return s.addNamedMemoryEntry(c, tm, entry, req)
+	case stream != "" && stream != "main":
 		err = tm.AddWithStream(c.Request().Context(), entry, stream)
-	} else {
+	default:
 		err = tm.Add(c.Request().Context(), entry)
 	}
 	if err != nil {
 		return serverErr(c, err)
 	}
 
-	return c.JSON(http.StatusCreated, editorEntryToInfo(entry, req.SourceLocale, req.TargetLocale))
+	info := []MemoryEntryInfoResponse{editorEntryToInfo(entry, req.SourceLocale, req.TargetLocale)}
+	if err := withMemoryRevisions(c.Request().Context(), tm, info); err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusCreated, info[0])
 }
 
 // HandleUpdateMemoryEntry updates an existing content-memory entry.
@@ -1020,22 +1040,26 @@ func (s *Server) HandleUpdateMemoryEntry(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	tm, err := s.wsStores.getMemory(c.Request().Context(), ws)
+	if req.BaseRevision == "" {
+		return refuseUnversioned(c, "content-memory entries")
+	}
+
+	ctx := c.Request().Context()
+	tm, err := s.wsStores.getMemory(ctx, ws)
 	if err != nil {
 		return serverErr(c, err)
 	}
+	editable, ok := tm.(editableMemory)
+	if !ok {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "this content memory cannot take an edit"})
+	}
 
-	existing, ok, err := tm.GetEntry(c.Request().Context(), eid)
+	existing, ok, err := tm.GetEntry(ctx, eid)
 	if err != nil {
 		return serverErr(c, err)
 	}
 	if !ok {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("content-memory entry %q not found", eid)})
-	}
-
-	// Delete old and add updated.
-	if err := tm.Delete(c.Request().Context(), eid); err != nil {
-		return serverErr(c, err)
+		return refuseGone(c, "content-memory entry")
 	}
 
 	srcLoc := model.LocaleID(req.SourceLocale)
@@ -1050,11 +1074,63 @@ func (s *Server) HandleUpdateMemoryEntry(c *echo.Context) error {
 	}
 	existing.UpdatedAt = time.Now()
 
-	if err := tm.Add(c.Request().Context(), existing); err != nil {
+	actor := requestActorOf(c)
+	editor := memory.Origin{Key: actor.UserID, AddedBy: actor.UserID, AddedAt: existing.UpdatedAt}
+	if actor.isTool() {
+		editor.Key, editor.AddedBy = actor.Tool, actor.Tool
+	}
+	rev, err := editable.Update(ctx, existing, req.BaseRevision, editor)
+	switch {
+	case errors.Is(err, bmemory.ErrEntryNotFound):
+		return refuseGone(c, "content-memory entry")
+	case errors.Is(err, storage.ErrStale):
+		current, ok, gerr := tm.GetEntry(ctx, eid)
+		if gerr != nil {
+			return serverErr(c, gerr)
+		}
+		if !ok {
+			return refuseGone(c, "content-memory entry")
+		}
+		info := []MemoryEntryInfoResponse{editorEntryToInfo(current, req.SourceLocale, req.TargetLocale)}
+		if err := withMemoryRevisions(ctx, tm, info); err != nil {
+			return serverErr(c, err)
+		}
+		return refuseChanged(c, "memory_entry_changed", "content-memory entry", info[0])
+	case err != nil:
 		return serverErr(c, err)
 	}
 
-	return c.NoContent(http.StatusNoContent)
+	info := editorEntryToInfo(existing, req.SourceLocale, req.TargetLocale)
+	info.Revision = rev
+	return c.JSON(http.StatusOK, info)
+}
+
+// editableMemory is a content memory a person's edit is checked against: it
+// holds a revision per entry and refuses an edit based on an older one.
+type editableMemory interface {
+	Revisions(ctx context.Context, ids []string) (map[string]string, error)
+	Update(ctx context.Context, entry memory.Entry, base string, editor memory.Origin) (string, error)
+}
+
+// withMemoryRevisions sets each entry's revision, so the client can name it
+// when it edits the entry.
+func withMemoryRevisions(ctx context.Context, tm memory.Store, infos []MemoryEntryInfoResponse) error {
+	editable, ok := tm.(editableMemory)
+	if !ok || len(infos) == 0 {
+		return nil
+	}
+	ids := make([]string, len(infos))
+	for i, info := range infos {
+		ids[i] = info.ID
+	}
+	revs, err := editable.Revisions(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for i := range infos {
+		infos[i].Revision = revs[infos[i].ID]
+	}
+	return nil
 }
 
 // HandleDeleteMemoryEntry deletes a content-memory entry.
@@ -1325,4 +1401,58 @@ func (s *Server) HandleGetTranslationDashboard(c *echo.Context) error {
 	})
 
 	return c.JSON(http.StatusOK, pageDashboardStats(stats, window))
+}
+
+// validClientEntryID reports whether a client-chosen entry id has the shape
+// the server's own ids have.
+func validClientEntryID(id string) bool {
+	if id == "" || len(id) > 64 {
+		return false
+	}
+	for _, r := range id {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_') {
+			return false
+		}
+	}
+	return true
+}
+
+// addNamedMemoryEntry stores an entry under the id the client chose. An entry
+// the store already holds under that id is answered as it stands when it
+// holds the same pair (the same add sent again), and refused when it holds
+// other text.
+func (s *Server) addNamedMemoryEntry(c *echo.Context, tm memory.Store, entry memory.Entry, req MemoryAddRequest) error {
+	ctx := c.Request().Context()
+	adder, ok := tm.(interface {
+		AddIfAbsent(ctx context.Context, entry memory.Entry) (bool, error)
+	})
+	if !ok {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "this content memory cannot take an entry with a chosen id"})
+	}
+	created, err := adder.AddIfAbsent(ctx, entry)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	stored, ok, err := tm.GetEntry(ctx, entry.ID)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	if !ok {
+		return refuseGone(c, "content-memory entry")
+	}
+	info := []MemoryEntryInfoResponse{editorEntryToInfo(stored, req.SourceLocale, req.TargetLocale)}
+	if err := withMemoryRevisions(ctx, tm, info); err != nil {
+		return serverErr(c, err)
+	}
+	if created {
+		return c.JSON(http.StatusCreated, info[0])
+	}
+	if info[0].Source == req.Source && info[0].Target == req.Target {
+		return c.JSON(http.StatusOK, info[0])
+	}
+	return c.JSON(http.StatusConflict, ChangedResponse{
+		Code:    "memory_entry_exists",
+		Error:   "a content-memory entry with this id holds other text; the stored entry is attached",
+		Current: info[0],
+	})
 }

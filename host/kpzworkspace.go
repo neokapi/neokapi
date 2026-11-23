@@ -12,6 +12,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -410,6 +411,9 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 	// holds a placeholder once the vault restored it stops the pass.
 	// It also returns a line for each source and locale whose drafts an
 	// earlier kapi wrote.
+	// mergeHome commits the merged files. It is nil for the trial pass into
+	// the cache.
+	var mergeHome *filehome.Home
 	pass := func(outFor func(src kpzCacheSource, locale string) (string, error), check bool) (written, stale int, unstamped []string, err error) {
 		for _, src := range c.meta.Sources {
 			for _, locale := range locales {
@@ -435,7 +439,7 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 						chain = append(chain, newPlaceholderCheckTool(src.Name, model.LocaleID(locale), vault))
 					}
 				}
-				if err := a.runCacheSource(ctx, c, src, "merge", chain, docOut, locale); err != nil {
+				if err := a.runCacheSourceIn(ctx, mergeHome, c, src, "merge", chain, docOut, locale); err != nil {
 					return 0, 0, nil, err
 				}
 				written++
@@ -464,8 +468,21 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 			return err
 		}
 	}
+	// The merged files commit through the merge directory as the root, so a
+	// link in the package's layout cannot lead a write out of it, and their
+	// directories are made at commit, through the root. A destination the
+	// person named with -o is theirs, as it is for a flow run.
+	mergeDir, werr := os.Getwd()
+	if werr != nil {
+		return fmt.Errorf("merge: %w", werr)
+	}
+	mergeHome = filehome.New(nil, filehome.Options{Root: mergeDir})
 	written, stale, unstamped, err := pass(func(src kpzCacheSource, locale string) (string, error) {
-		return mergeOutputPath(layout, src.Path, locale, len(locales) > 1)
+		out, oerr := mergeOutputPath(layout, src.Path, locale, len(locales) > 1)
+		if oerr == nil && outOverride != "" {
+			mergeHome.PermitOutside(out)
+		}
+		return out, oerr
 	}, false)
 	if err != nil {
 		return err
@@ -599,6 +616,12 @@ func (a *App) unpackKpz(ctx context.Context, kpzPath string) error {
 // persistent, so SessionTools read prior overlays (skip recompute) and write
 // new ones directly, no per-invocation load/export.
 func (a *App) runCacheSource(ctx context.Context, c *kpzCache, src kpzCacheSource, flowName string, tools []tool.Tool, docOut, targetLang string) error {
+	return a.runCacheSourceIn(ctx, nil, c, src, flowName, tools, docOut, targetLang)
+}
+
+// runCacheSourceIn is runCacheSource committing through home (nil: the
+// runner's default).
+func (a *App) runCacheSourceIn(ctx context.Context, home *filehome.Home, c *kpzCache, src kpzCacheSource, flowName string, tools []tool.Tool, docOut, targetLang string) error {
 	store, err := sqlitestore.New(c.storePath(src.Key))
 	if err != nil {
 		return fmt.Errorf("kpz: open store: %w", err)
@@ -611,6 +634,7 @@ func (a *App) runCacheSource(ctx context.Context, c *kpzCache, src kpzCacheSourc
 		Store:           store,
 		DetectFormat:    a.kpzDetectFormat(src.Path),
 		ConfigureReader: a.kpzConfigureReader(),
+		Home:            home,
 	})
 
 	// When the cache holds the raw source bytes (the runtime default, or a
@@ -677,11 +701,8 @@ func mergeOutputPath(layout, sourcePath, locale string, multiLocale bool) (strin
 				return "", err
 			}
 		}
-		out := expandOutputTemplate(layout, name, locale, extNoDot, ".")
-		if d := filepath.Dir(out); d != "." {
-			_ = os.MkdirAll(d, 0o755)
-		}
-		return out, nil
+		// The file home creates the directory when the file commits.
+		return expandOutputTemplate(layout, name, locale, extNoDot, "."), nil
 	}
 	if layout != "" {
 		if multiLocale {

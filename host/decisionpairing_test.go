@@ -193,7 +193,7 @@ func TestDecisionPairing_ASourceApprovalIsReadByItsRevision(t *testing.T) {
 	require.NoError(t, err)
 	scope := a.DocumentScope(ctx, root, filepath.Join(root, "docs", "guide.md"))
 	src := func() *model.Block {
-		blocks, err := a.readBlocksAs(ctx, filepath.Join(root, "docs", "guide.md"), "", nil, "en")
+		blocks, err := a.readBlocksAs(ctx, root, filepath.Join(root, "docs", "guide.md"), "", nil, "en")
 		require.NoError(t, err)
 		for _, b := range blocks {
 			if blockKey(b) == key {

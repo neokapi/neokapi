@@ -162,6 +162,7 @@ const sampleMarkets: Market[] = [
     locales: ["de-DE", "de-AT", "de-CH"],
     created_at: earlier,
     updated_at: earlier,
+    revision: "r1",
   },
   {
     id: "m-us",
@@ -170,6 +171,7 @@ const sampleMarkets: Market[] = [
     locales: ["en-US"],
     created_at: earlier,
     updated_at: earlier,
+    revision: "r1",
   },
 ];
 

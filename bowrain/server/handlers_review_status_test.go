@@ -39,7 +39,7 @@ func newReviewTestServer(t *testing.T) (*Server, *bstore.PostgresStore) {
 	cs, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
 	srv := &Server{ContentStore: cs, wsStores: newWorkspaceStores()}
-	srv.wsStores.memoryFactory = func() memory.Store { return &testMemoryStore{memory.NewInMemoryStore()} }
+	srv.wsStores.memoryFactory = func(string) memory.Store { return &testMemoryStore{memory.NewInMemoryStore()} }
 	srv.wsStores.termsFactory = func() terms.Store { return &testTermStore{terms.NewInMemoryStore()} }
 	return srv, cs
 }

@@ -396,7 +396,7 @@ func TestConvergeOverlayKey_IsTheStoreBlockHash(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, files, 1)
 	blocks, _, err := project.ReadSourceBlocks(context.Background(), a.FormatReg,
-		files[0].Format, files[0].Path, "en", "", nil)
+		"", files[0].Format, files[0].Path, "en", "", nil)
 	require.NoError(t, err)
 
 	seen := 0

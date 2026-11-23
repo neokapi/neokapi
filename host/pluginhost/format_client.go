@@ -26,7 +26,7 @@ import (
 // One reader instance corresponds to one Open/Read/Close cycle. The
 // reader acquires a DaemonClient from the pool on Read and lets the
 // daemon stream parts back over the bidirectional Process stream. The
-// reader signals "no output" by omitting OutputRef in the header — the
+// reader signals "no output" by omitting OutputRef in the header. The
 // daemon then enters read-only mode.
 type daemonReader struct {
 	format.BaseFormatReader
@@ -61,7 +61,7 @@ func (c *mapConfig) ApplyMap(values map[string]any) error {
 	for k, v := range values {
 		// A LIST is marshalled as JSON; everything else keeps fmt.Sprint.
 		//
-		// fmt.Sprint on a slice yields Go's debug rendering — `[desc caveats]` —
+		// fmt.Sprint on a slice yields Go's debug rendering (`[desc caveats]`),
 		// which no plugin can parse back, and which silently produced an
 		// extraction that matched nothing when the sourcecode format's
 		// node_path_patterns first crossed this boundary. Scalars keep their
@@ -109,17 +109,16 @@ func (r *daemonReader) Signature() format.FormatSignature {
 func (r *daemonReader) DecodesInput() {}
 
 // Open captures the document for the upcoming Read call. It does not
-// open a daemon connection — that happens lazily in Read.
+// open a daemon connection. That happens lazily in Read.
 func (r *daemonReader) Open(_ context.Context, doc *model.RawDocument) error {
 	r.Doc = doc
 
 	// Prefer a real on-disk path so the daemon can resolve companion files
-	// (linked rules, standoff XML, etc.).
-	if filepath.IsAbs(doc.URI) {
-		if _, err := os.Stat(doc.URI); err == nil {
-			r.sourcePath = doc.URI
-		}
-	}
+	// (linked rules, standoff XML, etc.). The path is the file the host
+	// opened the document from, with every link resolved, and only while it
+	// is still that file: the daemon opens what it is given without a check
+	// of its own, so it is never handed the URI or a link to follow.
+	r.sourcePath = daemonSourcePath(doc)
 	if r.sourcePath == "" && doc.Reader != nil {
 		var err error
 		r.content, err = io.ReadAll(doc.Reader)
@@ -149,7 +148,9 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 			}
 		}
 
-		client, err := r.pool.Acquire(ctx, r.plugin)
+		// The daemon may open the source in the directory it lies under, and
+		// nothing else (KAPI_PLUGIN_ROOTS).
+		client, err := r.pool.Acquire(WithPathRoots(ctx, PathRootsFor(r.sourcePath)), r.plugin)
 		if err != nil {
 			emit(model.PartResult{Error: fmt.Errorf("acquire daemon for plugin %q: %w", r.plugin.Name(), err)})
 			return
@@ -230,7 +231,7 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 	return ch
 }
 
-// Close is a no-op — the daemon stays in the pool, and the Process
+// Close is a no-op. The daemon stays in the pool, and the Process
 // stream tears itself down after Read finishes.
 func (r *daemonReader) Close() error { return nil }
 
@@ -251,7 +252,7 @@ type daemonWriter struct {
 	outPath   string
 	outWriter io.Writer
 
-	// Original document content / path — set by SourcePathSetter or
+	// Original document content / path. Set by SourcePathSetter or
 	// OriginalContentSetter so the daemon can read the source while
 	// applying targets.
 	sourcePath  string
@@ -312,10 +313,13 @@ func (w *daemonWriter) SetOriginalContent(content []byte) {
 // Write drains parts and routes them to the daemon. A read-write
 // Process call needs the daemon to read the source first; we feed it
 // either the source path (preferred) or the inline source bytes captured
-// via SetOriginalContent. If neither is set, the daemon will fail —
+// via SetOriginalContent. If neither is set, the daemon will fail, so
 // callers should always wire one of them before calling Write.
 func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) error {
-	client, err := w.pool.Acquire(ctx, w.plugin)
+	// The daemon may open the source it rebuilds from, and write the output it
+	// is sent a path for, in the directories they lie under, and nothing else
+	// (KAPI_PLUGIN_ROOTS).
+	client, err := w.pool.Acquire(WithPathRoots(ctx, PathRootsFor(w.sourcePath, w.outPath)), w.plugin)
 	if err != nil {
 		return fmt.Errorf("acquire daemon for plugin %q: %w", w.plugin.Name(), err)
 	}
@@ -357,7 +361,7 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 	}
 
 	// Concurrent send/recv: the daemon may produce ReadDone after
-	// streaming the source's read-phase parts; we simply discard those
+	// streaming the source's read-phase parts; we discard those
 	// because the Write contract is "consume processed parts and emit
 	// the document". The processed parts we send are the targets.
 	sendErr := make(chan error, 1)
@@ -415,7 +419,7 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 			outputPath = c.Complete.OutputPath
 			break
 		}
-		// Read-phase parts and ReadDone are ignored — we only want the
+		// Read-phase parts and ReadDone are ignored. We only want the
 		// final ProcessComplete in writer mode.
 	}
 
@@ -476,3 +480,34 @@ var (
 	_ format.SourcePathSetter      = (*daemonWriter)(nil)
 	_ format.OriginalContentSetter = (*daemonWriter)(nil)
 )
+
+// daemonSourcePath is the resolved path of the regular file doc was opened
+// from, or "" when it was not opened from one or the path no longer names the
+// file the host holds open.
+func daemonSourcePath(doc *model.RawDocument) string {
+	name, ok := format.SourceFile(doc)
+	if !ok {
+		return ""
+	}
+	held, ok := doc.ReaderAt.(*os.File)
+	if !ok {
+		return ""
+	}
+	heldInfo, err := held.Stat()
+	if err != nil || !heldInfo.Mode().IsRegular() {
+		return ""
+	}
+	real, err := filepath.EvalSymlinks(name)
+	if err != nil {
+		return ""
+	}
+	real, err = filepath.Abs(real)
+	if err != nil {
+		return ""
+	}
+	now, err := os.Stat(real)
+	if err != nil || !os.SameFile(heldInfo, now) {
+		return ""
+	}
+	return real
+}

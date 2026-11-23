@@ -104,7 +104,7 @@ func buildCommandSubtree() *cobra.Command {
 				return err
 			}
 			cli.ApplyAppInitializers(app)
-			return nil
+			return cli.CheckCommandState(cmd)
 		},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
 			app.Shutdown()

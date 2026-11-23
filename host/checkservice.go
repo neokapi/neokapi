@@ -28,7 +28,7 @@ import (
 // project does not declare as content.
 func (a *App) ReadBlocksForCheck(ctx context.Context, path, formatName string, formatConfig map[string]any, sourceLang string) ([]*model.Block, error) {
 	ctx = ctxOrBackground(ctx)
-	return a.readBlocksAs(ctx, path, formatName, formatConfig, sourceLang)
+	return a.readBlocksAs(ctx, a.projectRoot(), path, formatName, formatConfig, sourceLang)
 }
 
 // WithDocumentCache opens the project document cache for the project rooted

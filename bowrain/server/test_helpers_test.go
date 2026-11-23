@@ -15,6 +15,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	sqlmemory "github.com/neokapi/neokapi/bowrain/memory"
 	"github.com/neokapi/neokapi/bowrain/service"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
@@ -71,9 +72,12 @@ func initTestStoresOnDB(t *testing.T, srv *Server, db *storage.PgDB) {
 		srv.JobQueue = jobs.NewChannelQueue(64)
 	}
 
-	// Install factory functions for in-memory content memory/TB stores.
-	srv.wsStores.memoryFactory = func() memory.Store {
-		return &testMemoryStore{memory.NewInMemoryStore()}
+	// The content memory is the store production opens, one per workspace on
+	// the test database; the terms store is in memory.
+	srv.wsStores.memoryFactory = func(slug string) memory.Store {
+		tm, err := sqlmemory.NewPostgresStoreFromDB(db, slug)
+		require.NoError(t, err)
+		return tm
 	}
 	srv.wsStores.termsFactory = func() terms.Store {
 		return &testTermStore{terms.NewInMemoryStore()}

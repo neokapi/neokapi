@@ -686,7 +686,7 @@ func (a *App) declaredEditions(run diffCheckRun) (map[string]VerifyUnit, map[str
 			editions[scopeKey(u.TargetPath)] = u
 		}
 		if rf.Item != nil && rf.Item.Target == "" && a.editionsOf(rf.Format) == change.EditionsInFile {
-			declared := declaredLanguage(rf.Format, rf.Path, model.LocaleID(ResolveSourceLocale("", proj.Defaults.SourceLanguage)))
+			declared := declaredLanguage(root, rf.Format, rf.Path, model.LocaleID(ResolveSourceLocale("", proj.Defaults.SourceLanguage)))
 			if loc := heldLocale(rf.Relative, declared, rf.Item.ResolvedTargetLanguages(nil, proj.Defaults)); loc != "" {
 				held[scopeKey(rf.Path)] = loc
 			}

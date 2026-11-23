@@ -83,7 +83,7 @@ func runStreamList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(cmd.Context(), app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func runStreamCreate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(cmd.Context(), app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func runStreamDiff(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(cmd.Context(), app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}
@@ -186,7 +186,7 @@ func runStreamMerge(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(cmd.Context(), app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func runStreamArchive(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(cmd.Context(), app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}
@@ -233,7 +233,7 @@ func runStreamStatus(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(cmd.Context(), app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}

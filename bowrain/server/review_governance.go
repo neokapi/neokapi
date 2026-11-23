@@ -233,7 +233,13 @@ func (l *reviewLedger) write(ctx context.Context, decisions []venue.UnitDecision
 	if len(corpus) == 0 || !l.resolveCorpus(ctx) {
 		return
 	}
-	jobs.PromoteDecisionsToMemory(ctx, l.srv.ContentStore, l.memory, l.projectID, l.stream, l.sourceLang, corpus)
+	pm, ok := l.memory.(jobs.PromotionMemory)
+	if !ok {
+		slog.WarnContext(ctx, "memory promotion skipped: the workspace memory cannot record an approval as one writer among others",
+			"project", l.projectID)
+		return
+	}
+	jobs.PromoteDecisionsToMemory(ctx, l.srv.ContentStore, pm, l.projectID, l.stream, l.sourceLang, corpus)
 }
 
 // clearDraftBasis removes the platform's mark that it has already drafted this

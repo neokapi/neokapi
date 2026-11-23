@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/rootpath"
 )
 
 // --print-ops: a flow run that prints the change set it would apply.
@@ -237,7 +238,9 @@ func (doc *flowDoc) printDocument(ctx context.Context, path, want string) error 
 
 // appliesAsRun applies ops to a private copy of the file at path, as kapi
 // apply in the run's project would apply them, and returns why the copy then
-// differs from the bytes whose digest is want, "" when it holds them.
+// differs from the bytes whose digest is want, "" when it holds them. The file
+// is read through the run's project root; the copy lives in a directory of
+// its own under the temp dir.
 func (doc *flowDoc) appliesAsRun(ctx context.Context, path string, ops []change.Op, want string) (string, error) {
 	dir, err := os.MkdirTemp("", "kapi-print-ops-")
 	if err != nil {
@@ -246,7 +249,7 @@ func (doc *flowDoc) appliesAsRun(ctx context.Context, path string, ops []change.
 	defer func() { _ = os.RemoveAll(dir) }()
 	file, _ := splitLocator(path)
 	copied := filepath.Join(dir, filepath.Base(file))
-	switch data, rerr := os.ReadFile(file); {
+	switch data, rerr := rootpath.ReadFile(doc.fc.root, file); {
 	case rerr == nil:
 		if err := os.WriteFile(copied, data, 0o600); err != nil {
 			return "", err
