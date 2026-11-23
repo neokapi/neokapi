@@ -78,6 +78,31 @@ def check(root, lockfiles):
     return problems
 
 
+def regenerate_command(lockfile):
+    """The command that rewrites one lockfile with the user's own npm
+    configuration left out. pnpm resolves the package manager's own document
+    (the first one in the file) with the user's registry, not the project's
+    .npmrc, so a developer whose ~/.npmrc names a mirror gets tarball fields
+    there after every bump of packageManager. It runs twice: from a lockfile
+    pnpm wrote with the user's configuration, the first run drops the
+    @pnpm/exe entries and the second records them again, as every lockfile
+    here holds them; a third run changes nothing."""
+    d = os.path.dirname(lockfile)
+    run = "NPM_CONFIG_USERCONFIG=/dev/null vp install --lockfile-only"
+    if d:
+        run += " -- --ignore-workspace --config.strict-dep-builds=false"
+    loop = f"for i in 1 2; do {run}; done"
+    return f"(cd {d} && {loop})" if d else loop
+
+
+def regenerate_hint(lockfiles):
+    lines = ["Each lockfile is written with the registry the repository's .npmrc names, "
+             "and without the user's own npm configuration. Rewrite each one that failed with:"]
+    lines += [f"  {regenerate_command(f)}" for f in lockfiles or ["pnpm-lock.yaml"]]
+    lines.append("then run this check again and commit the lockfiles.")
+    return "\n".join(lines)
+
+
 def tracked_lockfiles(root):
     out = subprocess.check_output(["git", "-C", root, "ls-files", "pnpm-lock.yaml", "**/pnpm-lock.yaml"]).decode()
     return sorted(out.split())
@@ -168,6 +193,12 @@ def self_test():
         os.remove(os.path.join(root, ".npmrc"))
         if not any("names no registry" in p for p in check(root, [])):
             failures.append("a repository .npmrc without a registry: not reported")
+    hint = regenerate_hint(["pnpm-lock.yaml", "harness/pnpm-lock.yaml"])
+    if "  for i in 1 2; do NPM_CONFIG_USERCONFIG=/dev/null vp install --lockfile-only; done\n" not in hint:
+        failures.append("the hint for the root lockfile names the wrong command")
+    if ("(cd harness && for i in 1 2; do NPM_CONFIG_USERCONFIG=/dev/null vp install --lockfile-only"
+            " -- --ignore-workspace --config.strict-dep-builds=false; done)") not in hint:
+        failures.append("the hint for a project lockfile names the wrong command")
     for f in failures:
         print(f"check-lockfiles self-test: FAILED: {f}")
     if not failures:
@@ -184,8 +215,7 @@ def main():
     for p in problems:
         print(f"::error::{p}")
     if problems:
-        print("Each lockfile is written with the registry the repository's .npmrc names. "
-              "Re-resolve it with the pinned pnpm (vp install) from a checkout of this branch.")
+        print(regenerate_hint(sorted({p.split(":", 1)[0] for p in problems if p.split(":", 1)[0].endswith("pnpm-lock.yaml")})))
         return 1
     print(f"check-lockfiles: {len(lockfiles)} lockfiles, every resolution an integrity hash from the configured registry")
     return 0
