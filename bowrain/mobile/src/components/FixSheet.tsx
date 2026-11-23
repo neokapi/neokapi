@@ -29,6 +29,7 @@ import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "./SafeArea";
 
 import { RunDiff, ServerDiff } from "./DiffView";
+import { RetryButton } from "./RetryButton";
 import { editable, fromSegments, RunEditor, toSegments, type Segment } from "./RunEditor";
 import { markBusy } from "../lib/busy";
 import { RunText } from "./RunText";
@@ -165,11 +166,16 @@ export function FixSheetBody({
 
         {rejecting ? null : (
           <Section title={t("fix.readyMade")}>
-            {fixes.isPending ? <ActivityIndicator /> : null}
-            {fixes.isError ? (
-              <Text className="text-muted-foreground">
-                {tookTooLong(fixes.error) ? t("fix.fixesSlow") : t("fix.fixesUnavailable")}
-              </Text>
+            {fixes.isPending || (fixes.isError && fixes.isFetching) ? <ActivityIndicator /> : null}
+            {/* A failed or slow load offers Try again, hidden while it asks; the
+                query never retries by itself (retry: false). */}
+            {fixes.isError && !fixes.isFetching ? (
+              <View className="items-start gap-2">
+                <Text className="text-muted-foreground">
+                  {tookTooLong(fixes.error) ? t("fix.fixesSlow") : t("fix.fixesUnavailable")}
+                </Text>
+                <RetryButton testID="fix-retry" size="base" onPress={() => void fixes.refetch()} />
+              </View>
             ) : null}
             {fixes.data === null ? (
               <Text className="text-muted-foreground">{t("fix.noFixRoute")}</Text>

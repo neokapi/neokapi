@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
 import { formatCount } from "../../lib/format";
+import { RetryButton } from "../RetryButton";
 
 /** The line height, before scaling, of each text size a fixed-lines text takes. */
 const LINE_HEIGHT = { sm: 20, xs: 16 } as const;
@@ -83,9 +84,7 @@ export function CountsNotice({
   return (
     <View testID={`counts-${kind}`} className="items-center gap-2 px-8 pt-4 pb-2">
       <Text className="text-muted-foreground text-center text-sm">{text}</Text>
-      <Pressable testID="counts-retry" accessibilityRole="button" onPress={onRetry} hitSlop={8}>
-        <Text className="text-primary text-base">{t("common.retry")}</Text>
-      </Pressable>
+      <RetryButton testID="counts-retry" size="base" onPress={onRetry} />
     </View>
   );
 }

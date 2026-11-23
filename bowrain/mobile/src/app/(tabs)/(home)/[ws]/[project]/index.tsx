@@ -17,6 +17,7 @@ import { QueryState } from "../../../../../components/List";
 import { ActivityStrip } from "../../../../../components/home/ActivityStrip";
 import { ContextEntryCard, LanguageCard } from "../../../../../components/home/HomeCards";
 import { Monogram } from "../../../../../components/home/Monogram";
+import { RetryButton } from "../../../../../components/RetryButton";
 import {
   CountPill,
   CountsNotice,
@@ -263,14 +264,7 @@ function Languages({ ws, project }: { ws: string; project: string }) {
                   {planText}
                 </Text>
                 {plan.isError && !plan.isFetching ? (
-                  <Pressable
-                    testID="plan-retry"
-                    accessibilityRole="button"
-                    onPress={() => void plan.refetch()}
-                    hitSlop={8}
-                  >
-                    <Text className="text-primary text-sm">{t("common.retry")}</Text>
-                  </Pressable>
+                  <RetryButton testID="plan-retry" onPress={() => void plan.refetch()} />
                 ) : null}
               </View>
             </Pressable>
