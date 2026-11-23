@@ -135,13 +135,64 @@ import (
 )
 func hashKey(s string) string { sum := sha256.Sum256([]byte(s)); return hex.EncodeToString(sum[:]) }
 func f(m map[string]bool, a, b string) { m[hashKey(a+"\x00"+b)] = true }`},
-	{"a printable delimiter and a newline join", 0, `package f
+	{"a path, a qualified name and a newline join", 0, `package f
 import "strings"
 func f(m map[string]bool, a, b string, lines []string) {
-	m[a+"|"+b] = true
 	m[a+"/"+b] = true
+	m[a+":"+b] = true
 	m[strings.Join(lines, "\n")] = true
 }`},
+	{"a pipe between two parts", 3, `package f
+import (
+	"fmt"
+	"strings"
+)
+func f(m map[string]bool, a, b string, parts []string, n int) {
+	m[a+"|"+b] = true
+	m[strings.Join(parts, "|")] = true
+	m[fmt.Sprintf("%s|%d", a, n)] = true
+}`},
+	{"a pipe on one value", 0, `package f
+func f(m map[string]bool, a string) { m["rule|"+a] = true }`},
+	{"fmt.Sprint with a delimiter", 1, `package f
+import "fmt"
+func f(m map[string]bool, a, b string) { m[fmt.Sprint(a, "\x00", b)] = true }`},
+	{"a builder a delimiter is written to", 1, `package f
+import "strings"
+func key(a, b string) string {
+	var sb strings.Builder
+	sb.WriteString(a)
+	sb.WriteByte(0)
+	sb.WriteString(b)
+	return sb.String()
+}
+func f(m map[string]bool, a, b string) { m[key(a, b)] = true }`},
+	{"a decoder writing a control character in a loop", 0, `package f
+import "strings"
+func decode(in string) string {
+	var sb strings.Builder
+	for _, r := range in {
+		if r == 'b' {
+			sb.WriteByte('\b')
+			continue
+		}
+		sb.WriteRune(r)
+	}
+	return sb.String()
+}
+func f(m map[string]bool, a string) { m[decode(a)] = true }`},
+	{"a parameter used as a key", 1, `package f
+type cache struct{ m map[string]int }
+func (c *cache) get(key string) int { return c.m[key] }
+func f(c *cache, a, b string) int { return c.get(a + "\x00" + b) }`},
+	{"a singleflight key", 1, `package f
+import "golang.org/x/sync/singleflight"
+func f(g *singleflight.Group, a, b string) {
+	_, _, _ = g.Do(a+"\x00"+b, func() (any, error) { return nil, nil })
+}`},
+	{"a joined field of a struct key", 1, `package f
+type key struct{ ref, locale string }
+func f(m map[key]int, a, b, l string) int { return m[key{ref: a + "\x00" + b, locale: l}] }`},
 	{"a struct or array key", 0, `package f
 func f(m map[struct{ a, b string }]int, n map[[2]string]int, a, b string) int {
 	return m[struct{ a, b string }{a, b}] + n[[2]string{a, b}]
@@ -182,7 +233,7 @@ func (r Ref) Key() string { return r.A + "\x00" + r.B }`,
 // runSelfTest checks every fixture and fails when one reports other than it
 // expects.
 func runSelfTest() error {
-	pkgs, err := guardpackages.List("strings", "strconv", "fmt", "log", "hash", "crypto/sha256", "encoding/hex", "sync")
+	pkgs, err := guardpackages.List("strings", "strconv", "fmt", "log", "hash", "crypto/sha256", "encoding/hex", "sync", "golang.org/x/sync/singleflight")
 	if err != nil {
 		return err
 	}

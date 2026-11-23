@@ -155,7 +155,8 @@ func gateKey(blockID, item, unit string) string {
 	if blockID != "" {
 		return blockID
 	}
-	return "unit:" + item + "\x00" + unit
+	// The item and unit are quoted, so no two pairs share a key.
+	return "unit:" + strconv.Quote(item) + strconv.Quote(unit)
 }
 
 // recordPushGovernance stores what the review gate refused on the push's job
@@ -231,7 +232,16 @@ type acceptedRung struct {
 // acceptedKey is one target, however the push named it: a push states a
 // promotion twice (on the block and in the decision record) and the audit trail
 // records the change rather than the statements of it.
-type acceptedKey struct{ ref, locale string }
+type acceptedKey struct{ blockID, item, unit, locale string }
+
+// ref is the order a key sorts in: the block id, or the item and unit of a
+// unit that arrived for the first time.
+func (k acceptedKey) ref() string {
+	if k.blockID != "" {
+		return k.blockID
+	}
+	return k.item + "\x00" + k.unit
+}
 
 // newPushGovernor resolves everything the gate needs before the transition
 // opens: which rows the payload's blocks and units name, the rung and the
@@ -615,14 +625,14 @@ func (g *pushGovernor) noteAccepted(blockID, item, unit, locale string, from, to
 	if from == to {
 		return
 	}
-	ref := blockID
-	if ref == "" {
+	key := acceptedKey{blockID: blockID, locale: locale}
+	if blockID == "" {
 		if unit == "" {
 			return // nothing to name the target by
 		}
-		ref = item + "\x00" + unit
+		key.item, key.unit = item, unit
 	}
-	g.accepted[acceptedKey{ref: ref, locale: locale}] = acceptedRung{
+	g.accepted[key] = acceptedRung{
 		blockID: blockID, item: item, unit: unit, locale: locale, from: from, to: to,
 	}
 }
@@ -1122,8 +1132,8 @@ func (g *pushGovernor) emitAudit(ctx context.Context, deps *WorkerDeps, projectI
 		keys = append(keys, key)
 	}
 	sort.Slice(keys, func(i, j int) bool {
-		if keys[i].ref != keys[j].ref {
-			return keys[i].ref < keys[j].ref
+		if keys[i].ref() != keys[j].ref() {
+			return keys[i].ref() < keys[j].ref()
 		}
 		return keys[i].locale < keys[j].locale
 	})

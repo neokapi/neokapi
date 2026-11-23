@@ -749,8 +749,8 @@ func (s *Server) voiceRuleCards(ctx context.Context, src deckSource, bulk []cont
 // revision.
 type voiceEditStep struct {
 	rec    contextop.Record
-	before map[string]bool
-	after  map[string]bool
+	before map[[2]string]bool
+	after  map[[2]string]bool
 }
 
 // voiceEditHistory is a profile's ledger writes, oldest first.
@@ -765,7 +765,7 @@ func voiceEditSteps(bulk []contextop.Record, profile *coreprofile.VoiceProfile) 
 		if r.Voice == nil || !sameProfile(r.Voice.Profile, profile.ID, profile.Name) {
 			continue
 		}
-		step := voiceEditStep{rec: r, before: map[string]bool{}}
+		step := voiceEditStep{rec: r, before: map[[2]string]bool{}}
 		if r.Voice.Previous != "" {
 			prev, err := coreprofile.LoadProfileYAML(strings.NewReader(r.Voice.Previous))
 			if err != nil {
@@ -789,7 +789,7 @@ func voiceEditSteps(bulk []contextop.Record, profile *coreprofile.VoiceProfile) 
 // introduced is the latest write that added the rule at revision rev, or nil
 // when no write the ledger records did.
 func (h voiceEditHistory) introduced(list, rev string) *voiceEditStep {
-	key := list + "\x00" + rev
+	key := [2]string{list, rev}
 	for i := len(h) - 1; i >= 0; i-- {
 		if h[i].after[key] && !h[i].before[key] {
 			return &h[i]
@@ -799,15 +799,15 @@ func (h voiceEditHistory) introduced(list, rev string) *voiceEditStep {
 }
 
 // patternKeys are a profile's pattern rules keyed by list and revision.
-func patternKeys(p *coreprofile.VoiceProfile) map[string]bool {
-	out := map[string]bool{}
+func patternKeys(p *coreprofile.VoiceProfile) map[[2]string]bool {
+	out := map[[2]string]bool{}
 	for list, patterns := range map[string][]coreprofile.Pattern{
 		"prohibited": p.Style.ProhibitedPatterns,
 		"required":   p.Style.RequiredPatterns,
 	} {
 		for _, pat := range patterns {
 			_, rev := patternIdentity(list, pat)
-			out[list+"\x00"+rev] = true
+			out[[2]string{list, rev}] = true
 		}
 	}
 	return out

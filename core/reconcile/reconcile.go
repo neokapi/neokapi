@@ -44,7 +44,7 @@ import (
 type Prior struct {
 	Key string
 	// Scope is the document the block belongs to. It qualifies context matching
-	// and nothing else — see Identify for why it is carried beside the hashes
+	// and nothing else, see Identify for why it is carried beside the hashes
 	// rather than folded into them.
 	Scope       string
 	ContentHash string
@@ -60,7 +60,7 @@ const (
 	New Kind = iota
 	// Unchanged matched on both signals.
 	Unchanged
-	// Moved kept its words while its surroundings changed — an earlier block was
+	// Moved kept its words while its surroundings changed, an earlier block was
 	// added or removed, or the same text is reused elsewhere. Any recorded
 	// translation still applies.
 	Moved
@@ -94,22 +94,17 @@ type Result struct {
 //
 // scope names the document the block was read from. It exists because a block's
 // name is only unique inside its own file: every markdown document has a
-// "para1" and every plaintext document a "line1". Without it, a paragraph in one
-// file could claim the history of an unrelated paragraph in another, which in a
-// project of a few hundred documents is not an edge case but the common case.
+// "para1". Without it, a paragraph in one file could claim the history of an
+// unrelated paragraph in another.
 //
 // Scope qualifies the CONTEXT match only. The content match stays document-free
 // on purpose, so text moved from one file to another is still recognised as the
 // same words and keeps its translation.
 //
-// It is carried BESIDE the hashes rather than folded into them, so that the two
-// hashes here are the same two a block carries everywhere else
-// (model.ComputeIdentity — what the sync wire sends and a venue stores). Folded
-// in, they were not: the same block had one context hash for reconciliation and
-// a different one for transfer, which made a venue's stored hashes unusable as
-// a prior set and left the difference waiting to be discovered. The scope now
-// appears in the pool's lookup keys, which is the only place it ever meant
-// anything.
+// The scope is carried beside the hashes, not folded into them, so the two
+// hashes are the ones a block carries everywhere else (model.ComputeIdentity,
+// the sync wire, a venue's store). The scope appears only in the pool's lookup
+// keys.
 func Identify(scope string, b *model.Block) Prior {
 	id := model.ComputeIdentity(b)
 	return Prior{
@@ -161,7 +156,7 @@ func Blocks(scope string, current []*model.Block, prior []Prior) []Result {
 	// content hash identifies the exact words; a context hash for a prose format
 	// is mostly a positional name like "para2", which collides freely across
 	// blocks that have nothing to do with each other.
-	//
+
 	// The ordering decides a genuinely ambiguous case. A paragraph is deleted, so
 	// the one below it slides up into the vacated slot: its words match the old
 	// lower block, its position matches the old deleted one. Taking content first
@@ -169,7 +164,7 @@ func Blocks(scope string, current []*model.Block, prior []Prior) []Result {
 	// first would read it as the deleted block being rewritten into the words of
 	// its neighbour, and would then hand the neighbour's own history to whatever
 	// arrived next.
-	//
+
 	// An edit in place is not weakened by this: its words have changed, so it has
 	// no content match to lose, and the context pass below still claims it.
 	resolve(out, ids, func(id Prior) (string, bool) {
@@ -220,12 +215,12 @@ func mint(out []Result, ids []Prior) {
 
 // pool hands out each prior at most once, across all three passes.
 type pool struct {
-	byKey map[string][]string // lookup key -> unclaimed prior keys, in order
+	byKey map[lookupKey][]string // lookup key -> unclaimed prior keys, in order
 	taken map[string]bool
 }
 
 func newPool(prior []Prior) *pool {
-	p := &pool{byKey: map[string][]string{}, taken: map[string]bool{}}
+	p := &pool{byKey: map[lookupKey][]string{}, taken: map[string]bool{}}
 	for _, u := range prior {
 		both := bothKey(u.Scope, u.ContentHash, u.ContextHash)
 		ctx := ctxKey(u.Scope, u.ContextHash)
@@ -242,7 +237,7 @@ func newPool(prior []Prior) *pool {
 // take returns the first prior under lookup that no earlier pass has claimed.
 // A prior appears under four lookups, so entries already taken are skipped
 // rather than removed when claimed elsewhere.
-func (p *pool) take(lookup string) (string, bool) {
+func (p *pool) take(lookup lookupKey) (string, bool) {
 	queue := p.byKey[lookup]
 	for i, key := range queue {
 		if p.taken[key] {
@@ -260,11 +255,19 @@ func (p *pool) take(lookup string) (string, bool) {
 // block's name is only unique inside its own document; the content lookup is
 // deliberately scope-free, which is what lets text moved between files keep its
 // identity.
-func bothKey(scope, content, context string) string {
-	return "b:" + scope + "|" + content + "|" + context
+func bothKey(scope, content, context string) lookupKey {
+	return lookupKey{kind: 'b', scope: scope, content: content, context: context}
 }
-func ctxKey(scope, context string) string { return "x:" + scope + "|" + context }
-func scopedContentKey(scope, content string) string {
-	return "s:" + scope + "|" + content
+func ctxKey(scope, context string) lookupKey {
+	return lookupKey{kind: 'x', scope: scope, context: context}
 }
-func contentKey(content string) string { return "c:" + content }
+func scopedContentKey(scope, content string) lookupKey {
+	return lookupKey{kind: 's', scope: scope, content: content}
+}
+func contentKey(content string) lookupKey { return lookupKey{kind: 'c', content: content} }
+
+// lookupKey is one of the four lookups: its kind and the parts it reads.
+type lookupKey struct {
+	kind                    byte
+	scope, content, context string
+}

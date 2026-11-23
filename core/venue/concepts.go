@@ -87,7 +87,7 @@ type ConceptInfo struct {
 
 // EditedTerms applies editable fields and keeps each matching term's validity and competitor flag.
 func EditedTerms(stored []terms.Term, edits []TermEdit) []terms.Term {
-	previous := make(map[string]terms.Term, len(stored))
+	previous := make(map[terms.TermKey]terms.Term, len(stored))
 	for _, t := range stored {
 		previous[terms.TermIdentity(t)] = t
 	}

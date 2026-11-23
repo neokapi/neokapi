@@ -152,7 +152,7 @@ type reviewLedger struct {
 	// The governing context per (item, locale), resolved on first need. A bulk
 	// approve walks thousands of blocks across a handful of items, and the
 	// context is a property of where the unit sits, not of the block.
-	governing map[string]string
+	governing map[[2]string]string
 }
 
 // newReviewLedger opens a ledger over the request's content store, or reports
@@ -172,7 +172,7 @@ func (s *Server) newReviewLedger(ctx context.Context, c *echo.Context, projectID
 	}
 	return &reviewLedger{
 		srv: s, ds: ds, projectID: projectID, stream: stream, decider: decider,
-		governing: map[string]string{},
+		governing: map[[2]string]string{},
 	}
 }
 
@@ -193,7 +193,7 @@ func (l *reviewLedger) governingFingerprint(ctx context.Context, itemName, local
 	if l == nil || itemName == "" || locale == "" || !l.resolveScope(ctx) {
 		return ""
 	}
-	key := itemName + "\x00" + locale
+	key := [2]string{itemName, locale}
 	if fingerprint, ok := l.governing[key]; ok {
 		return fingerprint
 	}

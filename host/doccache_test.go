@@ -79,7 +79,7 @@ func TestDocCache_StreamingRoundTrip(t *testing.T) {
 
 // #1449 (same family). A recorded-but-missing skeleton is an ERROR, not "this
 // document has no skeleton". Conflating the two made a run reconstruct the file
-// from the content model alone — losing the source's exact formatting — and
+// from the content model alone (losing the source's exact formatting) and
 // report success.
 func TestDocCache_RecordedSkeletonMissing_IsAnError(t *testing.T) {
 	dir := t.TempDir()
@@ -114,7 +114,7 @@ func TestDocCache_RecordedSkeletonMissing_IsAnError(t *testing.T) {
 }
 
 // The other half: a document that recorded NO skeleton (a generative format)
-// still reports (nil, nil) — the guard refuses faults, not skeleton-less formats.
+// still reports (nil, nil), the guard refuses faults, not skeleton-less formats.
 func TestDocCache_NoSkeletonRecorded_IsNotAnError(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "m.json")
@@ -126,7 +126,7 @@ func TestDocCache_NoSkeletonRecorded_IsNotAnError(t *testing.T) {
 
 	rec := c.RecordDocument(src, "k", "json")
 	require.NotNil(t, rec)
-	// No SkeletonStore() calls at all — a lean, skeleton-less recording.
+	// No SkeletonStore() calls at all, a lean, skeleton-less recording.
 	require.NoError(t, rec.Add(&model.Part{Type: model.PartBlock, Resource: mkBlock("a", "Apple")}))
 	require.NoError(t, rec.Commit())
 
@@ -144,10 +144,10 @@ func TestDocCache_NoSkeletonRecorded_IsNotAnError(t *testing.T) {
 // drops any whose payload type is not registered (see fromCachedAnnotations). A
 // block served from cache must come back with its annotations intact. The
 // jsx/.kbf.json reader stashes the block's content hash (plus placeholders and
-// preview) in a KBFAnnotation; if that type isn't registered, cache replay
-// silently strips it and reconstructed .kbf.json targets lose their hashes — which
-// broke `kapi up` non-deterministically, since its concurrent per-locale
-// converge workers share the cache and race on the same cached source document.
+// preview) in a KBFAnnotation. If that type is not registered, cache replay
+// strips it and reconstructed .kbf.json targets lose their hashes. `kapi up`
+// then fails at random, since its per-locale converge workers share the cache
+// and race on the same cached source document.
 func TestDocCache_PreservesBlockAnnotations(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "App.kbf.json")
@@ -190,10 +190,10 @@ func TestDocCache_PreservesBlockAnnotations(t *testing.T) {
 
 // TestDocCache_EntryFromAnotherBuildIsAMiss pins that an entry another build
 // recorded is re-parsed rather than replayed. What a reader emits from a file is
-// decided by the reader's code as much as by the bytes: a release that names
-// blocks differently, or emits an annotation it did not emit before, produces a
-// different part stream from the same content hash, and replaying the previous
-// release's parse measures content the current reader would not produce.
+// decided by the reader's code as much as by the bytes. A release that names
+// blocks differently, or emits a new annotation, produces a different part
+// stream from the same content hash. Replaying the previous release's parse
+// measures content the current reader would not produce.
 func TestDocCache_EntryFromAnotherBuildIsAMiss(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "m.json")

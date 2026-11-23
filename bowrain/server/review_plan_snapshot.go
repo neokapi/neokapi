@@ -249,7 +249,7 @@ func (s *Server) planSnapshotFor(ctx context.Context, ws *platauth.Workspace, pr
 	if snap, ok := r.read(ctx, proj.ID, stream, fp); ok {
 		return snap, nil
 	}
-	v, err, _ := r.flight.Do(proj.ID+"\x00"+stream+"\x00"+fp, func() (any, error) {
+	v, err, _ := r.flight.Do(fmt.Sprintf("%q %q %q", proj.ID, stream, fp), func() (any, error) {
 		return r.computeNow(ctx, ws, proj, stream, scope, pi, fp)
 	})
 	if err != nil {

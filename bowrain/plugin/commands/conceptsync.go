@@ -26,18 +26,15 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// conceptsync.go folds the workspace knowledge graph into the ordinary project
-// sync. A pull (kapi pull, kapi sync's pull phase) fetches the workspace's
-// governed concepts + relations and writes them into the project's bound
-// terms, recording a baseline in the sync cache so a later push can diff
-// against it. A push (kapi push, kapi sync's push phase) reconciles local
-// terms edits against that baseline: ordinary edits (definitions, notes, new
-// proposed terms, non-governed relations) apply directly, while governed edits
-// (a term banned/promoted, a forbidden status removed, a REPLACED_BY relation,
-// a concept delete) are bundled into a single change-set so they travel the
-// same reviewed path the web hub enforces. Both travel in the push itself
-// (apiclient.TermsEdits) and the server applies them in the transaction that
-// stores the content.
+// conceptsync.go folds the workspace knowledge graph into the project sync. A
+// pull fetches the workspace's governed concepts and relations into the
+// project's bound terms and records a baseline in the sync cache. A push
+// reconciles local terms edits against that baseline. Ordinary edits apply
+// directly: definitions, notes, new proposed terms and non-governed relations.
+// Governed edits travel as one change-set on the reviewed path: a term banned
+// or promoted, a forbidden status removed, a REPLACED_BY relation, a concept
+// deleted. Both ride the push (apiclient.TermsEdits), and the server applies
+// them in the transaction that stores the content.
 
 const (
 	// conceptPullPageSize is the page size used when paginating the workspace
@@ -185,7 +182,7 @@ func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tb terms
 		// rather than folded from what was just fetched. The two ought to
 		// agree, and asking removes the "ought": a client-side fold that
 		// disagreed by one relation would refuse every later governed push
-		// with a conflict nobody could find. Best-effort — a server too old to
+		// with a conflict nobody could find. Best-effort, a server too old to
 		// publish a ref leaves the component unobserved, and an unobserved
 		// component asserts nothing.
 		if current, rerr := client.Ref(ctx); rerr == nil {
@@ -203,7 +200,7 @@ func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tb terms
 // keeps is not part of the answer.
 //
 // Split out of PullConcepts so a PUSH can ask the same question. Terminology is
-// recipe-owned — the local store is the authority — so the only thing a push
+// recipe-owned (the local store is the authority) so the only thing a push
 // needs from the server is what it already holds, to avoid proposing something
 // twice. That is a re-askable fact, not state the client must have persisted.
 func fetchServerConcepts(ctx context.Context, client *apiclient.BowrainClient) ([]terms.Concept, []terms.ConceptRelation, error) {
@@ -552,18 +549,17 @@ func buildPushPlan(local []terms.Concept, localRels []terms.ConceptRelation, bas
 }
 
 // diffConceptTerms classifies the term-level changes of an existing concept. It
-// returns the governed ops and the terms list a (possibly emitted) ordinary
-// update PUT should carry — a list constructed so the PUT never entails a
-// governed transition: a term with a pending governed transition keeps its
-// baseline status (ordinary metadata edits still applied), a governed term add
-// is excluded (it rides a term.add op), and a governed term removal keeps the
-// term (the change-set's term.remove op removes it).
+// returns the governed ops and the terms list an ordinary update PUT carries.
+// The list never entails a governed transition. A term with a pending governed
+// transition keeps its baseline status, with ordinary metadata edits applied.
+// A governed term add is left out, since it rides a term.add op. A governed
+// term removal keeps the term, which the change-set's term.remove op removes.
 func diffConceptTerms(conceptID string, local terms.Concept, base bproject.BaselineConcept) ([]apiclient.ChangeSetOpInput, []terms.Term) {
-	baseByID := make(map[string]bproject.BaselineTerm, len(base.Terms))
+	baseByID := make(map[terms.TermKey]bproject.BaselineTerm, len(base.Terms))
 	for _, bt := range base.Terms {
 		baseByID[bt.TermIdentity()] = bt
 	}
-	localByID := make(map[string]terms.Term, len(local.Terms))
+	localByID := make(map[terms.TermKey]terms.Term, len(local.Terms))
 	for _, lt := range local.Terms {
 		localByID[termIdentity(lt)] = lt
 	}
@@ -681,13 +677,12 @@ func diffRelations(local []terms.ConceptRelation, baseline *bproject.ConceptBase
 // Project wrappers (skip-aware)
 // ---------------------------------------------------------------------------
 
-// conceptPull runs the project-level concept pull: it builds the workspace
-// knowledge client (skipping silently — returning nil — when the project is not
-// claimed into a workspace or has no auth), pulls into the bound terms, and
-// returns the baseline the caller must hand to the sync connector via
-// SetConceptBaseline so the connector's single final Close() persists it
-// alongside the block-sync state. A genuine fetch error is surfaced; a skip is
-// not. The returned baseline is nil on a dry run (nothing was written, so a
+// conceptPull runs the project-level concept pull. It builds the workspace
+// knowledge client, returning nil when the project is not claimed into a
+// workspace or has no auth, and pulls into the bound terms. The caller hands
+// the returned baseline to the sync connector via SetConceptBaseline, so the
+// connector's single Close() persists it with the block-sync state. A fetch
+// error is returned; a skip is not. The returned baseline is nil on a dry run (nothing was written, so a
 // later push must not diff against it) and nil on a skip.
 //
 // conceptPull deliberately does NOT write the sync cache itself: the sync
@@ -881,12 +876,10 @@ func conceptResult(proj *bproject.Project, outcome *venue.PushTermsOutcome, dryR
 
 // PullProjectConcepts snapshots the workspace's terminology into the project.
 //
-// Exported for the same reason as its push counterpart, and it was missing for
-// longer: a pull arrives by two routes, and only `kapi-bowrain pull` folded the
-// terminology in. `kapi pull` — the verb everyone runs — took no snapshot, so
-// no baseline was ever recorded from it, and every downstream reader of that
-// baseline (the offline terminology gate, `kapi status`'s terms line, the
-// push's diff) behaved as though the workspace had never been pulled from.
+// It is exported for the same reason as its push counterpart: a pull arrives
+// by two routes, `kapi pull` and `kapi-bowrain pull`, and both record the
+// baseline. The offline terminology gate, `kapi status`'s terms line and the
+// push's diff all read that baseline.
 //
 // The caller must hand the returned baseline to the connector via
 // SetConceptBaseline so the connector's single Close() persists it.
@@ -908,11 +901,10 @@ func PullProjectConcepts(ctx context.Context, proj *bproject.Project, dryRun boo
 //   - The project is not claimed into a workspace (ErrNotWorkspaceClaimed). There is no
 //     workspace graph; the recipe is the whole of its terminology.
 //   - The project syncs by claim token. The graph is workspace-scoped and a
-//     claim token addresses one project, so a CI job pushing with a claim token
-//     structurally cannot read it — this is documented in NewKnowledgeClient,
-//     not a misconfiguration to shout about on every push.
+//     claim token addresses one project, so a push with a claim token cannot
+//     read it (see NewKnowledgeClient).
 //
-// Everything else — an absent credential, a token minted for another server —
+// Everything else (an absent credential, a token minted for another server)
 // is a failure and must be returned as one. Swallowed with `return nil, nil`,
 // it lets a push carry every block and none of the terminology while reporting
 // success.
@@ -934,7 +926,7 @@ func knowledgeClient(proj *bproject.Project) (*apiclient.BowrainClient, error) {
 // project's own, out of its one store.
 //
 // There is no path to resolve. Terminology lives in the project's store and
-// every term-aware command reads it with no flag and no recipe entry — a
+// every term-aware command reads it with no flag and no recipe entry, a
 // profile's `terms:` is the one place a recipe names a file, and that binds a
 // standalone vocabulary to a region of the context space, not the project's
 // own.
@@ -1031,12 +1023,12 @@ func newOp(op string, payload any) apiclient.ChangeSetOpInput {
 
 // termIdentity keys a term by locale + lowered text, matching the server's
 // governed-transition identity for terms.
-func termIdentity(t terms.Term) string {
-	return string(t.Locale) + "|" + strings.ToLower(t.Text)
+func termIdentity(t terms.Term) terms.TermKey {
+	return terms.TermIdentity(t)
 }
 
 // isGovernedStatus reports whether a term status is one a governed transition
-// targets (forbidden or preferred) — the statuses whose creation/addition the
+// targets (forbidden or preferred), the statuses whose creation/addition the
 // server refuses on the direct path.
 func isGovernedStatus(s model.TermStatus) bool {
 	return s == model.TermForbidden || s == model.TermPreferred

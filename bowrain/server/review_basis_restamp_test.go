@@ -66,7 +66,7 @@ func newRestampFixture(t *testing.T) *restampFixture {
 		srv: s, cs: cs, proj: p, block: sb, variant: variant, rewritten: rewritten,
 		ledger: &reviewLedger{
 			srv: s, ds: cs, projectID: p.ID, stream: "main",
-			decider: "reviewer@example.com", governing: map[string]string{},
+			decider: "reviewer@example.com", governing: map[[2]string]string{},
 		},
 	}
 }

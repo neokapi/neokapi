@@ -1,35 +1,32 @@
-// Command keyguard reports map keys built by joining parts with a control
-// character delimiter.
+// Command keyguard reports map keys built by joining free parts into one
+// string.
 //
 // The key a + "\x00" + b is the same for ("a\x00b", "c") and ("a", "b\x00c").
 // A struct or array key (struct{a, b string}, [2]string) keeps them apart. The
 // command type-checks the packages in targets and reports a join used as a
 // key:
 //
-//   - a join is a + chain of two or more parts with a delimiter,
-//     strings.Join(parts, delimiter), or fmt.Sprintf of two or more values
-//     with a delimiter in its format. A constant prefix on one value names
-//     one value and is not a join;
-//   - a key is the index of a string-keyed map, a map literal key, the key
-//     of delete, or the key argument of a sync.Map method;
-//   - the join reaches the key directly, through a variable or a struct field
-//     assigned it, or through a function or function literal that returns it.
-//     Functions and fields carry their joins into the packages checked later.
+//   - a join is described at isJoin;
+//   - a key is the index of a map (a field of a struct or array key counts),
+//     a map literal key, the key of delete, or the key of a sync.Map method
+//     or a singleflight.Group. An argument a function uses as a key counts
+//     too;
+//   - the join reaches the key directly, through a variable or a struct field,
+//     or through a function that returns it, also across packages.
 //
-// A delimiter is a constant holding a control character other than tab,
-// newline, carriage return and escape, such as "\x00" or "\x1f". A join
-// passed through strings.ToLower, ToUpper or TrimSpace is still a join.
-//
-// With -compared it also lists each == or != on a struct field assigned a
-// join. Such a comparison is not a key, so the list does not fail the run.
-//
-// A join used for anything else, such as a log line or a hash input, is not
-// reported. A persisted identity is exempt when its line, or the line above,
-// holds the directive
+// A join hashed into an identity is not reported. The hash reads the same
+// bytes however the parts split, so its input is as ambiguous as the key
+// would be, and moving it changes stored identities. A persisted identity is
+// exempt when its line, or the line above, holds the directive
 //
 //	//keyguard:persisted <where it is stored; the test that pins it>
 //
 // A directive without a reason, or on no join, is reported.
+//
+// Each run also checks every package again with a joined key planted in it.
+// It fails unless that key is reported, so a package the command cannot read
+// does not pass as clean. With -compared it lists each == or != on a struct
+// field assigned a join, which does not fail the run.
 //
 // Run from the repository root:
 //
@@ -48,6 +45,7 @@ import (
 	"go/types"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -55,11 +53,11 @@ import (
 	"github.com/neokapi/neokapi/scripts/internal/guardpackages"
 )
 
-// targets are the packages checked: the Apache modules.
+// targets are the packages checked: the Apache modules and Bowrain.
 var targets = []string{
 	"./core/...", "./memory/...", "./terms/...", "./providers/...",
 	"./host/...", "./cli/...", "./kapi/...", "./apps/kapi-desktop/backend/...",
-	"./bowrain/plugin/...",
+	"./bowrain/...", "./bowrain/core/...", "./bowrain/plugin/...",
 }
 
 const directive = "//keyguard:persisted"
@@ -134,12 +132,15 @@ func check(cfg buildconfigs.Config, patterns []string, compared bool) ([]string,
 		if _, err := st.checkPackage(imp, p.ImportPath, files); err != nil {
 			return nil, fmt.Errorf("%s: %w", p.ImportPath, err)
 		}
+		if err := plant(fset, imp, p.ImportPath, files); err != nil {
+			return nil, fmt.Errorf("%s: %w", p.ImportPath, err)
+		}
 		checked++
 	}
 	if checked == 0 && first {
 		return nil, errors.New("no package to check: run from the repository root")
 	}
-	fmt.Printf("keyguard: checked %d packages (%s)\n", checked, cfg.Name)
+	fmt.Printf("keyguard: checked %d packages, and found a key planted in each (%s)\n", checked, cfg.Name)
 	if compared {
 		sort.Strings(st.compared)
 		for _, c := range st.compared {
@@ -148,6 +149,35 @@ func check(cfg buildconfigs.Config, patterns []string, compared bool) ([]string,
 	}
 	sort.Strings(st.found)
 	return st.found, nil
+}
+
+// plantedFile is the violation plant adds to a package.
+const plantedFile = "keyguard_planted.go"
+
+// plant checks a package again with one more file that uses a joined key, and
+// fails unless that key is the one finding, so a package the guard does not
+// read cannot pass for a clean one.
+func plant(fset *token.FileSet, imp types.Importer, path string, files []*ast.File) error {
+	src := "package " + files[0].Name.Name + "\n\n" +
+		"func keyguardPlanted(m map[string]int, a, b string) int { return m[a+\"\\x00\"+b] }\n"
+	f, err := parser.ParseFile(fset, plantedFile, src, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+	st := newState(fset, func(pos token.Pos) string { return filepath.Base(fset.Position(pos).Filename) })
+	if _, err := st.checkPackage(imp, path, append(slices.Clone(files), f)); err != nil {
+		return fmt.Errorf("with a planted key: %w", err)
+	}
+	var planted []string
+	for _, found := range st.found {
+		if strings.HasPrefix(found, plantedFile+":") {
+			planted = append(planted, found)
+		}
+	}
+	if len(planted) != 1 {
+		return fmt.Errorf("a key planted in the package was reported %d times, want once", len(planted))
+	}
+	return nil
 }
 
 // joins is a set of join expressions, in the order they were added.
@@ -182,6 +212,9 @@ type state struct {
 	// fields maps a struct field, named by fieldName, to the joins assigned
 	// to it.
 	fields map[string]*joins
+	// keyParams maps a function's full name to the parameters it uses as a
+	// key, by position.
+	keyParams map[string]map[int]bool
 	// compared lists the comparisons of a field assigned a join.
 	compared []string
 	// exempt holds the lines a directive covers, per file.
@@ -192,12 +225,13 @@ type state struct {
 
 func newState(fset *token.FileSet, relFile func(token.Pos) string) *state {
 	return &state{
-		fset:     fset,
-		relFile:  relFile,
-		funcs:    map[string]map[int]*joins{},
-		fields:   map[string]*joins{},
-		exempt:   map[string]map[int]bool{},
-		reported: map[token.Pos]bool{},
+		fset:      fset,
+		relFile:   relFile,
+		funcs:     map[string]map[int]*joins{},
+		fields:    map[string]*joins{},
+		keyParams: map[string]map[int]bool{},
+		exempt:    map[string]map[int]bool{},
+		reported:  map[token.Pos]bool{},
 	}
 }
 
@@ -211,6 +245,13 @@ type pkgCheck struct {
 	// lits maps a variable holding a function literal to the joins each of
 	// the literal's results carries.
 	lits map[types.Object]map[int]*joins
+	// builders holds the strings.Builder and bytes.Buffer variables a
+	// delimiter is written to.
+	builders map[types.Object]bool
+	// loops holds the extent of every for and range statement, so a write
+	// inside one, such as a decoder writing an escaped control character,
+	// does not mark a builder.
+	loops [][2]token.Pos
 }
 
 // checkPackage type-checks one package, records the joins its functions
@@ -231,7 +272,16 @@ func (st *state) checkPackage(imp types.Importer, path string, files []*ast.File
 	if err != nil && len(typeErrs) > 0 {
 		return nil, typeErrs[0]
 	}
-	c := &pkgCheck{state: st, info: info, vars: map[types.Object]*joins{}, lits: map[types.Object]map[int]*joins{}}
+	c := &pkgCheck{state: st, info: info, vars: map[types.Object]*joins{}, lits: map[types.Object]map[int]*joins{}, builders: map[types.Object]bool{}}
+	for _, f := range files {
+		ast.Inspect(f, func(n ast.Node) bool {
+			switch n.(type) {
+			case *ast.ForStmt, *ast.RangeStmt:
+				c.loops = append(c.loops, [2]token.Pos{n.Pos(), n.End()})
+			}
+			return true
+		})
+	}
 	// A variable can take a function's result and a function can return a
 	// variable, so the pass repeats until it learns nothing new.
 	for range 10 {
@@ -250,7 +300,7 @@ func (st *state) checkPackage(imp types.Importer, path string, files []*ast.File
 	joinLines := map[string]map[int]bool{}
 	for _, f := range files {
 		ast.Inspect(f, func(n ast.Node) bool {
-			if e, ok := n.(ast.Expr); ok && c.isJoin(e) {
+			if e, ok := n.(ast.Expr); ok && (c.isJoin(e)) {
 				p := fset.Position(e.Pos())
 				if joinLines[p.Filename] == nil {
 					joinLines[p.Filename] = map[int]bool{}
@@ -276,6 +326,13 @@ func (st *state) checkPackage(imp types.Importer, path string, files []*ast.File
 			for _, k := range c.mapKeys(n) {
 				for _, j := range c.carried(k) {
 					st.report(j, k)
+				}
+			}
+			if call, ok := n.(*ast.CallExpr); ok {
+				for _, a := range c.keyArgs(call) {
+					for _, j := range c.carried(a) {
+						st.report(j, a)
+					}
 				}
 			}
 			return true
@@ -364,50 +421,116 @@ func isDelimiterRune(r rune) bool {
 	return r < 0x20 && r != '\t' && r != '\n' && r != '\r' && r != 0x1b
 }
 
-// isJoin reports whether e builds a string by joining two or more parts with
-// a delimiter. A constant prefix or suffix on one part, such as
-// "\x00" + strconv.Itoa(k), names one value, so two values cannot share it.
+// isJoin reports whether e joins two or more non-constant parts with a
+// delimiter or a "|" between them. The forms are a + chain, strings.Join,
+// fmt.Sprintf of two or more values, and fmt.Sprint of two or more values
+// with a delimiter among them. The String of a strings.Builder or
+// bytes.Buffer counts when a delimiter is written to it outside a loop.
+//
+// A delimiter is a constant holding a control character other than tab,
+// newline, carriage return and escape, such as "\x00" or "\x1f". A constant
+// prefix on one part, such as "\x00" + strconv.Itoa(k), names one value, so
+// two values cannot share it.
 func (c *pkgCheck) isJoin(e ast.Expr) bool {
+	return c.isJoinForm(e)
+}
+
+// Not covered, with the count of keys of each form when the rule was set:
+//   - joins with "/", ":", "." or "-": paths, qualified names and generated
+//     ids (58). A ":" with a part on each side found only qualified names and
+//     property names;
+//   - fmt.Sprintf counters such as "%s-%d" (22);
+//   - strings.Join with another printable separator (15);
+//   - concatenation with no separator (8);
+//   - keys read from a whole []byte (33) or a Builder holding one value (14).
+//
+// Such a string is mostly the identity itself rather than a tuple. A Builder
+// written in a loop is a decoder, not a join.
+
+func (c *pkgCheck) isJoinForm(e ast.Expr) bool {
 	e = ast.Unparen(e)
 	switch x := e.(type) {
 	case *ast.BinaryExpr:
 		if x.Op != token.ADD || !c.isString(x) {
 			return false
 		}
-		delimited, parts := c.chainParts(x)
-		return delimited && parts >= 2
+		ch := c.chainParts(x)
+		return (ch.delimited || ch.piped) && ch.parts >= 2
 	case *ast.CallExpr:
 		fn := c.calledFunc(x)
 		if fn == nil || fn.Pkg() == nil {
 			return false
 		}
+		if c.isBuiltJoin(x, fn) {
+			return true
+		}
 		switch fn.Pkg().Path() + "." + fn.Name() {
 		case "strings.Join":
-			return len(x.Args) == 2 && c.isDelimiter(x.Args[1])
+			return len(x.Args) == 2 && (c.isDelimiter(x.Args[1]) || c.holdsPipe(x.Args[1]))
 		case "fmt.Sprintf":
-			return len(x.Args) > 2 && c.isDelimiter(x.Args[0])
+			return len(x.Args) > 2 && (c.isDelimiter(x.Args[0]) || c.holdsPipe(x.Args[0]))
+		case "fmt.Sprint", "fmt.Sprintln":
+			values, delimited := 0, false
+			for _, a := range x.Args {
+				if c.isDelimiter(a) {
+					delimited = true
+				} else if tv, ok := c.info.Types[a]; !ok || tv.Value == nil {
+					values++
+				}
+			}
+			return delimited && values >= 2
 		}
 	}
 	return false
 }
 
-// chainParts reports whether a + chain holds a delimiter, and how many of its
-// operands are not constants. A folded join counts as two parts.
-func (c *pkgCheck) chainParts(x *ast.BinaryExpr) (delimited bool, parts int) {
+// chain is what chainParts learns about a + chain.
+type chain struct {
+	// delimited: an operand holds a delimiter. piped: one holds "|".
+	delimited, piped bool
+	// parts counts the operands that are not constants; a folded join counts
+	// as two.
+	parts int
+}
+
+// chainParts reports what separates the operands of a + chain and how many
+// of them are not constants.
+func (c *pkgCheck) chainParts(x *ast.BinaryExpr) chain {
+	var ch chain
+	constant := func(op ast.Expr) bool {
+		tv, ok := c.info.Types[op]
+		return ok && tv.Value != nil
+	}
 	for _, op := range flatten(x) {
 		switch {
 		case c.isDelimiter(op):
-			delimited = true
+			ch.delimited = true
 		case c.isFoldedJoin(op):
-			delimited = true
-			parts += 2
-		default:
-			if tv, ok := c.info.Types[op]; !ok || tv.Value == nil {
-				parts++
+			ch.delimited = true
+			ch.parts += 2
+		case constant(op):
+			if c.holdsPipe(op) {
+				ch.piped = true
 			}
+		default:
+			ch.parts++
 		}
 	}
-	return delimited, parts
+	return ch
+}
+
+// constString returns the value of a constant string expression, or "".
+func (c *pkgCheck) constString(e ast.Expr) string {
+	tv, ok := c.info.Types[e]
+	if !ok || tv.Value == nil || tv.Value.Kind() != constant.String {
+		return ""
+	}
+	return constant.StringVal(tv.Value)
+}
+
+// holdsPipe reports whether e is a constant string that holds a "|".
+func (c *pkgCheck) holdsPipe(e ast.Expr) bool {
+	return strings.Contains(c.constString(e), "|")
 }
 
 // isAppendedJoin reports whether rhs, in s += rhs, appends a delimiter and at
@@ -421,8 +544,8 @@ func (c *pkgCheck) isAppendedJoin(rhs ast.Expr) bool {
 	if !ok || x.Op != token.ADD || !c.isString(x) {
 		return false
 	}
-	delimited, parts := c.chainParts(x)
-	return delimited && parts >= 1
+	ch := c.chainParts(x)
+	return (ch.delimited || ch.piped) && ch.parts >= 1
 }
 
 // isFoldedJoin reports whether e is a join passed through a function that
@@ -601,6 +724,13 @@ func (c *pkgCheck) collect(f *ast.File) bool {
 					c.funcs[name] = map[int]*joins{}
 				}
 				addFunc(c.funcs[name], x.Body)
+				if c.markKeyParams(name, x) {
+					changed = true
+				}
+			}
+		case *ast.CallExpr:
+			if c.markBuilder(x) {
+				changed = true
 			}
 		case *ast.AssignStmt:
 			if x.Tok == token.ADD_ASSIGN && len(x.Lhs) == 1 && len(x.Rhs) == 1 && c.isAppendedJoin(x.Rhs[0]) {
@@ -719,6 +849,9 @@ func (c *pkgCheck) mapKeys(n ast.Node) []ast.Expr {
 		if c.stringKeyedMap(x.X) {
 			return []ast.Expr{x.Index}
 		}
+		if c.isMap(x.X) {
+			return compositeParts(x.Index)
+		}
 	case *ast.CompositeLit:
 		t := c.info.TypeOf(x)
 		if t == nil {
@@ -739,11 +872,199 @@ func (c *pkgCheck) mapKeys(n ast.Node) []ast.Expr {
 				return []ast.Expr{x.Args[1]}
 			}
 		}
-		if fn := c.calledFunc(x); fn != nil && len(x.Args) > 0 && syncMapKeyed[fn.Name()] && strings.HasPrefix(fn.FullName(), "(*sync.Map).") {
-			return []ast.Expr{x.Args[0]}
+		if fn := c.calledFunc(x); fn != nil && len(x.Args) > 0 {
+			if syncMapKeyed[fn.Name()] && strings.HasPrefix(fn.FullName(), "(*sync.Map).") {
+				return []ast.Expr{x.Args[0]}
+			}
+			if strings.HasPrefix(fn.FullName(), "(*golang.org/x/sync/singleflight.Group).") {
+				return []ast.Expr{x.Args[0]}
+			}
 		}
 	}
 	return nil
+}
+
+// compositeParts returns the element values of a struct or array literal
+// used as a key, so a join stored in one of its fields is found; any other
+// key gives nothing, since only a string key is checked.
+func compositeParts(k ast.Expr) []ast.Expr {
+	lit, ok := ast.Unparen(k).(*ast.CompositeLit)
+	if !ok {
+		return nil
+	}
+	var out []ast.Expr
+	for _, el := range lit.Elts {
+		if kv, ok := el.(*ast.KeyValueExpr); ok {
+			el = kv.Value
+		}
+		if _, nested := ast.Unparen(el).(*ast.CompositeLit); nested {
+			out = append(out, compositeParts(el)...)
+			continue
+		}
+		out = append(out, el)
+	}
+	return out
+}
+
+func (c *pkgCheck) isMap(e ast.Expr) bool {
+	t := c.info.TypeOf(e)
+	if t == nil {
+		return false
+	}
+	_, ok := t.Underlying().(*types.Map)
+	return ok
+}
+
+// markKeyParams records which parameters of a function it uses as a key,
+// directly or by passing them on to a function that does, and reports
+// whether it learned anything new.
+func (c *pkgCheck) markKeyParams(name string, fd *ast.FuncDecl) bool {
+	params := map[types.Object]int{}
+	i := 0
+	for _, field := range fd.Type.Params.List {
+		if len(field.Names) == 0 {
+			i++
+			continue
+		}
+		for _, n := range field.Names {
+			if o := c.info.Defs[n]; o != nil {
+				params[o] = i
+			}
+			i++
+		}
+	}
+	if len(params) == 0 {
+		return false
+	}
+	changed := false
+	mark := func(e ast.Expr) {
+		id, ok := ast.Unparen(e).(*ast.Ident)
+		if !ok {
+			return
+		}
+		idx, ok := params[c.info.Uses[id]]
+		if !ok {
+			return
+		}
+		if c.keyParams[name] == nil {
+			c.keyParams[name] = map[int]bool{}
+		}
+		if !c.keyParams[name][idx] {
+			c.keyParams[name][idx] = true
+			changed = true
+		}
+	}
+	ast.Inspect(fd.Body, func(n ast.Node) bool {
+		for _, k := range c.mapKeys(n) {
+			mark(k)
+		}
+		if call, ok := n.(*ast.CallExpr); ok {
+			for _, a := range c.keyArgs(call) {
+				mark(a)
+			}
+		}
+		return true
+	})
+	return changed
+}
+
+// keyArgs returns the arguments of a call that the called function uses as a
+// key.
+func (c *pkgCheck) keyArgs(call *ast.CallExpr) []ast.Expr {
+	fn := c.calledFunc(call)
+	if fn == nil {
+		return nil
+	}
+	idx := c.keyParams[fn.Origin().FullName()]
+	var out []ast.Expr
+	for i, a := range call.Args {
+		if idx[i] {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// builderTypes are the types whose String method returns what was written to
+// them.
+var builderTypes = map[string]bool{"strings.Builder": true, "bytes.Buffer": true}
+
+// builderVar returns the variable a strings.Builder or bytes.Buffer method is
+// called on, or nil.
+func (c *pkgCheck) builderVar(sel *ast.SelectorExpr) types.Object {
+	t := c.info.TypeOf(sel.X)
+	if t == nil {
+		return nil
+	}
+	if p, ok := t.(*types.Pointer); ok {
+		t = p.Elem()
+	}
+	if !builderTypes[types.TypeString(t, nil)] {
+		return nil
+	}
+	id, ok := ast.Unparen(sel.X).(*ast.Ident)
+	if !ok {
+		return nil
+	}
+	return c.object(id)
+}
+
+// markBuilder records a builder that a delimiter is written to, and reports
+// whether it is new.
+func (c *pkgCheck) markBuilder(call *ast.CallExpr) bool {
+	sel, ok := ast.Unparen(call.Fun).(*ast.SelectorExpr)
+	if !ok || len(call.Args) != 1 {
+		return false
+	}
+	switch sel.Sel.Name {
+	case "WriteByte", "WriteRune", "WriteString":
+	default:
+		return false
+	}
+	o := c.builderVar(sel)
+	if o == nil || c.builders[o] || c.inLoop(call.Pos()) {
+		return false
+	}
+	tv, ok := c.info.Types[call.Args[0]]
+	if !ok || tv.Value == nil {
+		return false
+	}
+	delimited := false
+	switch tv.Value.Kind() {
+	case constant.String:
+		delimited = strings.IndexFunc(constant.StringVal(tv.Value), isDelimiterRune) >= 0
+	case constant.Int:
+		if v, exact := constant.Int64Val(tv.Value); exact {
+			delimited = isDelimiterRune(rune(v))
+		}
+	}
+	if delimited {
+		c.builders[o] = true
+	}
+	return delimited
+}
+
+func (c *pkgCheck) inLoop(pos token.Pos) bool {
+	for _, l := range c.loops {
+		if pos >= l[0] && pos < l[1] {
+			return true
+		}
+	}
+	return false
+}
+
+// isBuiltJoin reports whether a call reads back a builder a delimiter was
+// written to.
+func (c *pkgCheck) isBuiltJoin(call *ast.CallExpr, fn *types.Func) bool {
+	if fn.Name() != "String" || len(call.Args) != 0 {
+		return false
+	}
+	sel, ok := ast.Unparen(call.Fun).(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	o := c.builderVar(sel)
+	return o != nil && c.builders[o]
 }
 
 func (c *pkgCheck) stringKeyedMap(e ast.Expr) bool {

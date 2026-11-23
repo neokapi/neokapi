@@ -110,7 +110,7 @@ func (a *App) groupInputsByGovernance(cmd Command, proj *project.KapiProject, pr
 	defaults := bindingKey(defaultRC)
 
 	var groups []bindingGroup
-	index := make(map[string]int, 2)
+	index := make(map[[5]string]int, 2)
 	for _, in := range inputPaths {
 		point := a.GovernancePointFor("", "")
 		if rel, ok := projectRelPath(projectDir, in); ok && !ProjectIgnores(projectDir, rel) {
@@ -166,20 +166,12 @@ func hasCollectionContext(proj *project.KapiProject) bool {
 // its name: two profiles binding nothing in the recipe still resolve different
 // stored voices and different profile-scoped concepts. Two collections on one
 // profile's channel share a profile name, so nothing splits for nothing.
-func bindingKey(rc *project.ResolvedGovernance) string {
-	var b strings.Builder
-	b.WriteString(rc.Profile)
-	b.WriteByte(0)
-	b.WriteString(rc.Channel)
-	b.WriteByte(0)
+func bindingKey(rc *project.ResolvedGovernance) [5]string {
+	k := [5]string{rc.Profile, rc.Channel, "", "", rc.TermStore}
 	if rc.Voice != nil {
-		b.WriteString(rc.Voice.Profile)
-		b.WriteByte(0)
-		b.WriteString(rc.Voice.Pack)
+		k[2], k[3] = rc.Voice.Profile, rc.Voice.Pack
 	}
-	b.WriteByte(0)
-	b.WriteString(rc.TermStore)
-	return b.String()
+	return k
 }
 
 // localeBindings resolves the governance in force at a point for one target
