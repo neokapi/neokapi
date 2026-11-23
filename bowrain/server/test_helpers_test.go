@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,6 +22,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/graph"
@@ -324,13 +327,52 @@ type testMemoryStore struct {
 	*memory.InMemoryStore
 }
 
-// testTermStore wraps InMemoryStore to satisfy the Store interface for tests.
+// testTermStore is an in-memory terms store with the write rules of the
+// PostgreSQL one (sqlterms.WithRevisions): AddConcept creates and never
+// replaces, and a stored concept changes only at the revision the writer
+// read. A test that rewrites a concept does so through rewriteConcept.
 type testTermStore struct {
 	*terms.InMemoryStore
 }
 
-func (t *testTermStore) AddConceptWithStream(ctx context.Context, concept terms.Concept, _ string) error {
-	return t.AddConcept(ctx, concept)
+// testTermRevisions holds the revision wrapper of each in-memory store, so
+// every testTermStore over one store shares its revisions.
+var testTermRevisions sync.Map // *terms.InMemoryStore -> sqlterms.Store
+
+func (t *testTermStore) revisioned() sqlterms.Store {
+	if v, ok := testTermRevisions.Load(t.InMemoryStore); ok {
+		return v.(sqlterms.Store)
+	}
+	v, _ := testTermRevisions.LoadOrStore(t.InMemoryStore, sqlterms.WithRevisions(memoryStreams{t.InMemoryStore}))
+	return v.(sqlterms.Store)
+}
+
+func (t *testTermStore) AddConcept(ctx context.Context, concept terms.Concept) error {
+	return t.revisioned().AddConcept(ctx, concept)
+}
+
+func (t *testTermStore) AddConceptWithStream(ctx context.Context, concept terms.Concept, stream string) error {
+	return t.revisioned().AddConceptWithStream(ctx, concept, stream)
+}
+
+func (t *testTermStore) DeleteConcept(ctx context.Context, id string) error {
+	return t.revisioned().DeleteConcept(ctx, id)
+}
+
+func (t *testTermStore) GetConceptAt(ctx context.Context, id string) (terms.Concept, string, bool, error) {
+	return t.revisioned().GetConceptAt(ctx, id)
+}
+
+func (t *testTermStore) CreateConcept(ctx context.Context, concept terms.Concept, stream string) (string, error) {
+	return t.revisioned().CreateConcept(ctx, concept, stream)
+}
+
+func (t *testTermStore) UpdateConcept(ctx context.Context, concept terms.Concept, stream, base string) (string, error) {
+	return t.revisioned().UpdateConcept(ctx, concept, stream, base)
+}
+
+func (t *testTermStore) ConceptRevisions(ctx context.Context, ids []string) (map[string]string, error) {
+	return t.revisioned().ConceptRevisions(ctx, ids)
 }
 
 func (t *testTermStore) SearchForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, _ string, _ []string, offset, limit int) ([]terms.Concept, int, error) {
@@ -343,4 +385,58 @@ func (t *testTermStore) AddRelationWithStream(ctx context.Context, rel terms.Con
 
 func (t *testTermStore) RelationsForStream(ctx context.Context, conceptID, _ string, _ []string, scope *graph.Scope) ([]terms.ConceptRelation, error) {
 	return t.RelationsOf(ctx, conceptID, scope)
+}
+
+// memoryStreams gives an in-memory store the stream methods of terms.Store,
+// for the revision wrapper testTermStore writes through.
+type memoryStreams struct{ *terms.InMemoryStore }
+
+func (m memoryStreams) AddConceptWithStream(ctx context.Context, concept terms.Concept, _ string) error {
+	return m.AddConcept(ctx, concept)
+}
+
+func (m memoryStreams) SearchForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, _ string, _ []string, offset, limit int) ([]terms.Concept, int, error) {
+	return m.Search(ctx, query, sourceLocale, targetLocale, offset, limit)
+}
+
+func (m memoryStreams) AddRelationWithStream(ctx context.Context, rel terms.ConceptRelation, _ string) error {
+	return m.AddRelation(ctx, rel)
+}
+
+func (m memoryStreams) RelationsForStream(ctx context.Context, conceptID, _ string, _ []string, scope *graph.Scope) ([]terms.ConceptRelation, error) {
+	return m.RelationsOf(ctx, conceptID, scope)
+}
+
+// conceptRevision is the stored concept's current revision, as an editor
+// that just read it holds it.
+func conceptRevision(t *testing.T, store terms.Terminology, id string) string {
+	t.Helper()
+	tb, ok := store.(sqlterms.ConceptWriter)
+	require.True(t, ok, "the terms store keeps revisions")
+	_, rev, found, err := tb.GetConceptAt(t.Context(), id)
+	require.NoError(t, err)
+	require.True(t, found, "concept %s is stored", id)
+	return rev
+}
+
+// withBase puts base_revision into a JSON object body.
+func withBase(body, rev string) string {
+	return strings.Replace(body, "{", `{"base_revision":"`+rev+`",`, 1)
+}
+
+// rewriteConcept replaces a stored concept at its current revision, as a
+// person who has just read it saves it. A framework store, which keeps no
+// revisions, is written over.
+func rewriteConcept(t *testing.T, store terms.Terminology, concept terms.Concept) {
+	t.Helper()
+	tb, ok := store.(sqlterms.ConceptWriter)
+	if !ok {
+		require.NoError(t, store.AddConcept(t.Context(), concept))
+		return
+	}
+	_, rev, ok, err := tb.GetConceptAt(t.Context(), concept.ID)
+	require.NoError(t, err)
+	require.True(t, ok, "concept %s to rewrite is stored", concept.ID)
+	_, err = tb.UpdateConcept(t.Context(), concept, "", rev)
+	require.NoError(t, err)
 }

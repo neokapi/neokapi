@@ -14,26 +14,14 @@ type JSONStore struct {
 	Concepts []Concept `json:"concepts"`
 }
 
-// ImportJSON reads a JSON terms file and imports all concepts.
+// ImportJSON reads a JSON terms file and imports all concepts. A concept
+// that names no id takes ImportID of its first term.
 func ImportJSON(ctx context.Context, tb Terminology, reader io.Reader) (int, error) {
-	var doc JSONStore
-	decoder := json.NewDecoder(reader)
-	if err := decoder.Decode(&doc); err != nil {
-		return 0, fmt.Errorf("parse JSON terms: %w", err)
+	rows, err := ParseJSON(reader)
+	if err != nil {
+		return 0, err
 	}
-
-	imported := 0
-	for _, concept := range doc.Concepts {
-		if concept.ID == "" {
-			concept.ID = fmt.Sprintf("json-%d", imported+1)
-		}
-		if err := tb.AddConcept(ctx, concept); err != nil {
-			return imported, fmt.Errorf("add concept %s: %w", concept.ID, err)
-		}
-		imported++
-	}
-
-	return imported, nil
+	return writeRows(ctx, tb, rows)
 }
 
 // ExportJSON writes all concepts as a JSON terms.

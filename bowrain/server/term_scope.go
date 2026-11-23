@@ -10,6 +10,7 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -70,18 +71,25 @@ func (s *Server) HandleWidenConcept(c *echo.Context) error {
 		}
 		return serverErr(c, err)
 	}
-	concept, ok, err := tb.GetConcept(ctx, cid)
+	// Widening asks for an outcome, not for a value the person read: it is
+	// derived again from whatever the concept holds when it is written, so
+	// an edit saved in between stays.
+	found := true
+	_, widened, err := sqlterms.Rederive(ctx, tb, cid, "", func(concept terms.Concept, exists bool) (terms.Concept, bool, error) {
+		found = exists
+		if !exists || !termscope.Widen(&concept) {
+			return concept, false, nil
+		}
+		concept.UpdatedAt = time.Now().UTC()
+		return concept, true, nil
+	})
 	if err != nil {
-		return serverErr(c, err)
+		return refuseConceptWrite(c, err)
 	}
-	if !ok {
+	if !found {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("concept %q not found", cid)})
 	}
-	if termscope.Widen(&concept) {
-		concept.UpdatedAt = time.Now().UTC()
-		if err := tb.AddConcept(ctx, concept); err != nil {
-			return serverErr(c, err)
-		}
+	if widened {
 		// The event re-checks the targets of every project the concept now
 		// governs (review_recheck.go).
 		s.publishKnowledgeEvents(c, []knowledge.MergeEvent{

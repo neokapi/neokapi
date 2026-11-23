@@ -260,6 +260,15 @@ func (s *Server) HandleListConcepts(c *echo.Context) error {
 	for i, cp := range concepts {
 		infos[i] = editorConceptToInfo(cp)
 	}
+	// The project view filters what is read; the revisions are the
+	// workspace store's, which every concept write goes through.
+	wsTerms, err := s.wsStores.getTerms(c.Request().Context(), ws)
+	if err != nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
+	}
+	if err := withConceptRevisions(c.Request().Context(), wsTerms, infos); err != nil {
+		return serverErr(c, err)
+	}
 	return c.JSON(http.StatusOK, TermSearchResponse{Concepts: infos, TotalCount: total})
 }
 
@@ -425,11 +434,10 @@ func (s *Server) HandleCreateConcept(c *echo.Context) error {
 	// the property every reader honours.
 	termscope.Limit(&concept, req.ProjectID)
 	stream := streamParam(c)
-	if stream != "" && stream != "main" {
-		err = tb.AddConceptWithStream(c.Request().Context(), concept, stream)
-	} else {
-		err = tb.AddConcept(c.Request().Context(), concept)
+	if stream == "main" {
+		stream = ""
 	}
+	rev, err := tb.CreateConcept(c.Request().Context(), concept, stream)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -437,7 +445,7 @@ func (s *Server) HandleCreateConcept(c *echo.Context) error {
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
 		conceptEvent(knowledge.EventConceptCreated, wsID, concept.ID, actor),
 	})
-	return c.JSON(http.StatusCreated, editorConceptToInfo(concept))
+	return c.JSON(http.StatusCreated, conceptInfoAt(concept, rev))
 }
 
 // HandleGetConcept returns a single concept by ID.
@@ -452,14 +460,14 @@ func (s *Server) HandleGetConcept(c *echo.Context) error {
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	concept, ok, err := tb.GetConcept(c.Request().Context(), c.Param("cid"))
+	concept, rev, ok, err := tb.GetConceptAt(c.Request().Context(), c.Param("cid"))
 	if err != nil {
 		return serverErr(c, err)
 	}
 	if !ok {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("concept %q not found", c.Param("cid"))})
 	}
-	return c.JSON(http.StatusOK, editorConceptToInfo(concept))
+	return c.JSON(http.StatusOK, conceptInfoAt(concept, rev))
 }
 
 // HandleUpdateConcept applies ordinary concept edits (definition, notes,
@@ -496,6 +504,9 @@ func (s *Server) HandleUpdateConcept(c *echo.Context) error {
 	if !ok {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("concept %q not found", cid)})
 	}
+	if req.BaseRevision == "" {
+		return refuseUnversioned(c, "this concept")
+	}
 
 	newTerms := venue.EditedTerms(existing.Terms, req.Terms)
 	if terms.GovernedUpdate(existing.Terms, newTerms) {
@@ -510,8 +521,12 @@ func (s *Server) HandleUpdateConcept(c *echo.Context) error {
 	existing.Terms = newTerms
 	existing.UpdatedAt = time.Now()
 
-	if err := tb.AddConcept(c.Request().Context(), existing); err != nil {
-		return serverErr(c, err)
+	// The edit was made on what the person read: the store writes it only
+	// when the concept is still at that revision, in the statement that
+	// writes. The governed-transition checks above read the stored concept,
+	// and a concept that moved since is refused before it could matter.
+	if _, err := tb.UpdateConcept(c.Request().Context(), existing, "", req.BaseRevision); err != nil {
+		return refuseConceptWrite(c, err)
 	}
 
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
@@ -1106,16 +1121,35 @@ func (s *Server) HandleImportConceptsCSV(c *echo.Context) error {
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	count, err := terms.ImportCSV(c.Request().Context(), tb, strings.NewReader(req.CSVContent), terms.CSVImportOptions{
+	rows, err := terms.ParseCSV(strings.NewReader(req.CSVContent), terms.CSVImportOptions{
 		HasHeader:    req.HasHeader,
 		SourceLocale: model.LocaleID(req.SourceLocale),
 		TargetLocale: model.LocaleID(req.TargetLocale),
 		Domain:       req.Domain,
 	})
 	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	return s.importConcepts(c, tb, rows)
+}
+
+// importConceptsResponse is what an import did: Imported counts the concepts
+// it wrote, and each conflict is a row it left unapplied, with the reason
+// and the remedy.
+type importConceptsResponse struct {
+	Imported int `json:"imported"`
+	sqlterms.ImportReport
+}
+
+// importConcepts writes the rows of a terms file (sqlterms.ImportRows) and
+// answers with what it did. Conflicts do not fail the import: the rows
+// around them are applied.
+func (s *Server) importConcepts(c *echo.Context, tb sqlterms.Store, rows []terms.ImportRow) error {
+	report, err := sqlterms.ImportRows(c.Request().Context(), tb, rows)
+	if err != nil {
 		return serverErr(c, err)
 	}
-	return c.JSON(http.StatusOK, map[string]int{"imported": count})
+	return c.JSON(http.StatusOK, importConceptsResponse{Imported: report.Imported(), ImportReport: report})
 }
 
 // HandleImportConceptsJSON imports concepts from JSON.
@@ -1135,11 +1169,11 @@ func (s *Server) HandleImportConceptsJSON(c *echo.Context) error {
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	count, err := terms.ImportJSON(c.Request().Context(), tb, strings.NewReader(req.JSONContent))
+	rows, err := terms.ParseJSON(strings.NewReader(req.JSONContent))
 	if err != nil {
-		return serverErr(c, err)
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	return c.JSON(http.StatusOK, map[string]int{"imported": count})
+	return s.importConcepts(c, tb, rows)
 }
 
 // HandleExportConceptsJSON exports the workspace concepts as JSON.

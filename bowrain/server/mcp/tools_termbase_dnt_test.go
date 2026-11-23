@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -26,12 +27,14 @@ func (p *recordingProposer) ProposeConcept(_ context.Context, workspace, _ strin
 }
 
 // newTestTermsStore returns an empty in-memory SQLite terms store.
+// newTestTermsStore is a terms store with the write rules of the server's
+// (sqlterms.WithRevisions).
 func newTestTermsStore(t *testing.T) terms.Store {
 	t.Helper()
 	tb, err := terms.NewSQLiteStore(":memory:")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = tb.Close() })
-	return tb
+	return sqlterms.WithRevisions(tb)
 }
 
 func newTermAddServer(t *testing.T, opts ...Option) (*MCPServer, terms.Store) {

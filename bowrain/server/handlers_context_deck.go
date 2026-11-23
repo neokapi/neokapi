@@ -17,10 +17,12 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/workspace"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // contextDeckPageSize is the cards a page holds when the request names no
@@ -422,14 +424,14 @@ func (s *Server) keepCandidate(c *echo.Context, src deckSource, rv deckReviewer,
 	if err != nil {
 		return card, err
 	}
-	concept, ok, err := tb.GetConcept(ctx, card.Item.ID)
-	if err != nil {
-		return card, err
-	}
-	if !ok {
-		return card, errCandidateGone
-	}
-	if termcandidate.Promote(&concept, src.project.DefaultSourceLanguage) {
+	// Keeping promotes whatever the candidate holds when the keep is written,
+	// so an edit saved since the deck was read stays (sqlterms.Rederive).
+	found := true
+	_, kept, err := sqlterms.Rederive(ctx, tb, card.Item.ID, "", func(concept terms.Concept, exists bool) (terms.Concept, bool, error) {
+		found = exists
+		if !exists || !termcandidate.Promote(&concept, src.project.DefaultSourceLanguage) {
+			return concept, false, nil
+		}
 		// A term kept in a project applies in that project. A candidate the
 		// scan filed is limited to it already; one with no limit is limited
 		// here. Widening it to the whole workspace is a separate decision
@@ -438,11 +440,17 @@ func (s *Server) keepCandidate(c *echo.Context, src deckSource, rv deckReviewer,
 			termscope.Limit(&concept, src.project.ID)
 		}
 		concept.UpdatedAt = time.Now().UTC()
-		if err := tb.AddConcept(ctx, concept); err != nil {
-			return card, err
-		}
+		return concept, true, nil
+	})
+	if err != nil {
+		return card, err
+	}
+	if !found {
+		return card, errCandidateGone
+	}
+	if kept {
 		s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
-			conceptEvent(knowledge.EventConceptUpdated, src.wsID, concept.ID, rv.userID),
+			conceptEvent(knowledge.EventConceptUpdated, src.wsID, card.Item.ID, rv.userID),
 		})
 	}
 	cards, err := s.contextItems(ctx, src, rv)

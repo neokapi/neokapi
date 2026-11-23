@@ -976,6 +976,7 @@ tb_concepts.do_not_translate boolean NOT NULL DEFAULT false
 tb_concepts.domain text NOT NULL DEFAULT ''::text
 tb_concepts.id text NOT NULL
 tb_concepts.properties text NULL
+tb_concepts.revision text NOT NULL DEFAULT (gen_random_uuid())::text
 tb_concepts.source text NOT NULL DEFAULT 'terminology'::text
 tb_concepts.stream text NOT NULL DEFAULT ''::text
 tb_concepts.updated_at timestamp with time zone NOT NULL DEFAULT now()

@@ -194,7 +194,7 @@ func TestTermScope_KeptTermAppliesInItsProject(t *testing.T) {
 			assert.Equal(t, []string{f.a}, termscope.Projects(cp), "keeping limits the term to its project")
 			// A rendering, so the translate prompt has a rule to carry.
 			cp.Terms = append(cp.Terms, terms.Term{Text: "graphe de flux", Locale: "fr", Status: model.TermPreferred})
-			require.NoError(t, f.tb.AddConcept(ctx, cp))
+			rewriteConcept(t, f.tb, cp)
 
 			assert.Equal(t, everywhere, f.governs(t, f.a, cid, "Flowgraph"), "the term governs the project it was kept in")
 			assert.Equal(t, nowhere, f.governs(t, f.b, cid, "Flowgraph"), "and no other")

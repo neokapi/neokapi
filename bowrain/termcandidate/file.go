@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
@@ -77,23 +78,35 @@ func File(ctx context.Context, tb terms.Terminology, projectID string, source mo
 			res.Rejected = append(res.Rejected, text)
 			continue
 		}
-		if cp, ok := byTerm[key]; ok {
-			if !IsCandidate(cp, source) || cp.Properties[PropProposedBy] != by {
-				res.Existing = append(res.Existing, text)
-				continue
+		if found, ok := byTerm[key]; ok {
+			w, isWriter := tb.(sqlterms.ConceptWriter)
+			if !isWriter {
+				return res, fmt.Errorf("refresh candidate %q: the terms store cannot write a concept at a revision", text)
 			}
-			before := maps.Clone(cp.Properties)
-			cp.Properties = maps.Clone(cp.Properties)
-			scope(&cp, cand)
-			if maps.Equal(before, cp.Properties) {
-				res.Existing = append(res.Existing, text)
-				continue
-			}
-			cp.UpdatedAt = now
-			if err := tb.AddConcept(ctx, cp); err != nil {
+			// The refresh is derived from the candidate as it stands when
+			// written: one a person kept or edited since the read is no longer
+			// this scan's to change (sqlterms.Rederive).
+			_, refreshed, err := sqlterms.Rederive(ctx, w, found.ID, "", func(cp terms.Concept, exists bool) (terms.Concept, bool, error) {
+				if !exists || !IsCandidate(cp, source) || cp.Properties[PropProposedBy] != by {
+					return cp, false, nil
+				}
+				before := maps.Clone(cp.Properties)
+				cp.Properties = maps.Clone(cp.Properties)
+				scope(&cp, cand)
+				if maps.Equal(before, cp.Properties) {
+					return cp, false, nil
+				}
+				cp.UpdatedAt = now
+				return cp, true, nil
+			})
+			if err != nil {
 				return res, fmt.Errorf("refresh candidate %q: %w", text, err)
 			}
-			res.Refreshed = append(res.Refreshed, cp.ID)
+			if refreshed {
+				res.Refreshed = append(res.Refreshed, found.ID)
+			} else {
+				res.Existing = append(res.Existing, text)
+			}
 			continue
 		}
 		cp := terms.Concept{

@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/storage"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/id"
@@ -177,8 +179,12 @@ func Apply(ctx context.Context, st Stores, p Params, edits *apiclient.TermsEdits
 		event(knowledge.EventConceptCreated, concept.ID)
 	}
 
+	writer, isWriter := st.Terms.(sqlterms.ConceptWriter)
+	if len(edits.Updates) > 0 && !isWriter {
+		return nil, errors.New("terms: the workspace's terms store cannot write a concept at a revision")
+	}
 	for _, u := range edits.Updates {
-		existing, ok, err := st.Terms.GetConcept(ctx, u.ConceptID)
+		existing, base, ok, err := writer.GetConceptAt(ctx, u.ConceptID)
 		if err != nil {
 			return nil, fmt.Errorf("read concept %s: %w", u.ConceptID, err)
 		}
@@ -196,7 +202,13 @@ func Apply(ctx context.Context, st Stores, p Params, edits *apiclient.TermsEdits
 		existing.Definition = u.Concept.Definition
 		existing.Terms = next
 		existing.UpdatedAt = now
-		if err := st.Terms.AddConcept(ctx, existing); err != nil {
+		// The edit is the person's, made against what they pulled. It lands
+		// only on the concept as read here; a write that landed in between
+		// refuses the push, and the person pulls and decides again.
+		if _, err := writer.UpdateConcept(ctx, existing, "", base); err != nil {
+			if errors.Is(err, storage.ErrStale) {
+				return nil, fmt.Errorf("edit concept %s: it changed on the server while this push was applied; pull, then push again", u.ConceptID)
+			}
 			return nil, fmt.Errorf("edit concept %s: %w", u.ConceptID, err)
 		}
 		res.Outcome.ConceptsApplied++

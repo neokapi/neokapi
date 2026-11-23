@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
@@ -140,28 +141,23 @@ func applyTermsOp(ctx context.Context, tb terms.Terminology, op ChangeSetOp) err
 		if err := decodePayload(op, &p); err != nil {
 			return err
 		}
-		c, ok, err := tb.GetConcept(ctx, p.ConceptID)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			return fmt.Errorf("%s: concept %q not found", op.Op, p.ConceptID)
-		}
-		if p.Domain != nil {
-			c.Domain = *p.Domain
-		}
-		if p.Definition != nil {
-			c.Definition = *p.Definition
-		}
-		if p.Properties != nil {
-			props := make(map[string]string, len(p.Properties))
-			maps.Copy(props, p.Properties)
-			c.Properties = props
-		}
-		if p.DoNotTranslate != nil {
-			c.DoNotTranslate = *p.DoNotTranslate
-		}
-		return tb.AddConcept(ctx, c)
+		return editConcept(ctx, tb, op.Op, p.ConceptID, func(c *terms.Concept) error {
+			if p.Domain != nil {
+				c.Domain = *p.Domain
+			}
+			if p.Definition != nil {
+				c.Definition = *p.Definition
+			}
+			if p.Properties != nil {
+				props := make(map[string]string, len(p.Properties))
+				maps.Copy(props, p.Properties)
+				c.Properties = props
+			}
+			if p.DoNotTranslate != nil {
+				c.DoNotTranslate = *p.DoNotTranslate
+			}
+			return nil
+		})
 
 	case OpConceptDelete:
 		var p ConceptDeletePayload
@@ -178,68 +174,60 @@ func applyTermsOp(ctx context.Context, tb terms.Terminology, op ChangeSetOp) err
 		if err := decodePayload(op, &p); err != nil {
 			return err
 		}
-		c, err := getConceptForEdit(ctx, tb, op.Op, p.ConceptID)
-		if err != nil {
-			return err
-		}
-		c.Terms = append(copyTerms(c.Terms), p.Term)
-		return tb.AddConcept(ctx, c)
+		return editConcept(ctx, tb, op.Op, p.ConceptID, func(c *terms.Concept) error {
+			c.Terms = append(copyTerms(c.Terms), p.Term)
+			return nil
+		})
 
 	case OpTermUpdate:
 		var p TermUpdatePayload
 		if err := decodePayload(op, &p); err != nil {
 			return err
 		}
-		c, err := getConceptForEdit(ctx, tb, op.Op, p.ConceptID)
-		if err != nil {
-			return err
-		}
-		terms := copyTerms(c.Terms)
-		idx := findTerm(terms, p.Locale, p.Text)
-		if idx < 0 {
-			return fmt.Errorf("%s: term %q (%s) not found on concept %q", op.Op, p.Text, p.Locale, p.ConceptID)
-		}
-		terms[idx] = p.Term
-		c.Terms = terms
-		return tb.AddConcept(ctx, c)
+		return editConcept(ctx, tb, op.Op, p.ConceptID, func(c *terms.Concept) error {
+			list := copyTerms(c.Terms)
+			idx := findTerm(list, p.Locale, p.Text)
+			if idx < 0 {
+				return fmt.Errorf("%s: term %q (%s) not found on concept %q", op.Op, p.Text, p.Locale, p.ConceptID)
+			}
+			list[idx] = p.Term
+			c.Terms = list
+			return nil
+		})
 
 	case OpTermRemove:
 		var p TermRemovePayload
 		if err := decodePayload(op, &p); err != nil {
 			return err
 		}
-		c, err := getConceptForEdit(ctx, tb, op.Op, p.ConceptID)
-		if err != nil {
-			return err
-		}
-		terms := copyTerms(c.Terms)
-		idx := findTerm(terms, p.Locale, p.Text)
-		if idx < 0 {
-			return fmt.Errorf("%s: term %q (%s) not found on concept %q", op.Op, p.Text, p.Locale, p.ConceptID)
-		}
-		c.Terms = slices.Delete(terms, idx, idx+1)
-		return tb.AddConcept(ctx, c)
+		return editConcept(ctx, tb, op.Op, p.ConceptID, func(c *terms.Concept) error {
+			list := copyTerms(c.Terms)
+			idx := findTerm(list, p.Locale, p.Text)
+			if idx < 0 {
+				return fmt.Errorf("%s: term %q (%s) not found on concept %q", op.Op, p.Text, p.Locale, p.ConceptID)
+			}
+			c.Terms = slices.Delete(list, idx, idx+1)
+			return nil
+		})
 
 	case OpTermStatus:
 		var p TermStatusPayload
 		if err := decodePayload(op, &p); err != nil {
 			return err
 		}
-		c, err := getConceptForEdit(ctx, tb, op.Op, p.ConceptID)
-		if err != nil {
-			return err
-		}
-		terms := copyTerms(c.Terms)
-		idx := findTerm(terms, p.Locale, p.Text)
-		if idx < 0 {
-			return fmt.Errorf("%s: term %q (%s) not found on concept %q", op.Op, p.Text, p.Locale, p.ConceptID)
-		}
-		terms[idx].Status = p.To
-		if p.Validity != nil {
-			terms[idx].Validity = p.Validity
-		}
-		c.Terms = terms
-		return tb.AddConcept(ctx, c)
+		return editConcept(ctx, tb, op.Op, p.ConceptID, func(c *terms.Concept) error {
+			list := copyTerms(c.Terms)
+			idx := findTerm(list, p.Locale, p.Text)
+			if idx < 0 {
+				return fmt.Errorf("%s: term %q (%s) not found on concept %q", op.Op, p.Text, p.Locale, p.ConceptID)
+			}
+			list[idx].Status = p.To
+			if p.Validity != nil {
+				list[idx].Validity = p.Validity
+			}
+			c.Terms = list
+			return nil
+		})
 
 	case OpRelationAdd:
 		var p RelationAddPayload
@@ -268,6 +256,35 @@ func applyTermsOp(ctx context.Context, tb terms.Terminology, op ChangeSetOp) err
 
 // getConceptForEdit loads a concept that an op edits, returning a descriptive
 // error when it is absent.
+// editConcept applies edit to the concept stored under conceptID. Each op is
+// a change to make, not a value to write, so on a store whose writes name a
+// revision (sqlterms.ConceptWriter) the edit is derived again from what the
+// concept holds whenever another write lands first, and an edit saved in
+// between stays. On an in-memory candidate snapshot it is read and written
+// once.
+func editConcept(ctx context.Context, tb terms.Terminology, op OpType, conceptID string, edit func(*terms.Concept) error) error {
+	if w, ok := tb.(sqlterms.ConceptWriter); ok {
+		_, _, err := sqlterms.Rederive(ctx, w, conceptID, "", func(c terms.Concept, exists bool) (terms.Concept, bool, error) {
+			if !exists {
+				return c, false, fmt.Errorf("%s: concept %q not found", op, conceptID)
+			}
+			if err := edit(&c); err != nil {
+				return c, false, err
+			}
+			return c, true, nil
+		})
+		return err
+	}
+	c, err := getConceptForEdit(ctx, tb, op, conceptID)
+	if err != nil {
+		return err
+	}
+	if err := edit(&c); err != nil {
+		return err
+	}
+	return tb.AddConcept(ctx, c)
+}
+
 func getConceptForEdit(ctx context.Context, tb terms.Terminology, op OpType, conceptID string) (terms.Concept, error) {
 	c, ok, err := tb.GetConcept(ctx, conceptID)
 	if err != nil {

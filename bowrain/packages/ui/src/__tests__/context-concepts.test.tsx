@@ -36,6 +36,7 @@ const cart: ConceptInfo = {
 
 const paiement: ConceptInfo = {
   id: "c-pay",
+  revision: "rev-pay",
   domain: "commerce",
   definition: "Paying for an order.",
   terms: [
@@ -200,6 +201,7 @@ describe("ConceptsSection", () => {
     await waitFor(() => expect(adapter.updateConcept).toHaveBeenCalledTimes(1));
     const [, request] = (adapter.updateConcept as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(request.concept_id).toBe("c-pay");
+    expect(request.base_revision).toBe("rev-pay");
     expect(request.terms).toContainEqual(
       expect.objectContaining({ text: "payment", locale: "en-US", status: "approved" }),
     );

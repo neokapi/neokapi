@@ -385,7 +385,12 @@ count, err = terms.ImportCSV(tb, reader, opts)
 err = terms.ExportCSV(tb, writer, "en", "fr", true)
 ```
 
-CSV columns are `source,target,domain` (domain optional). JSON carries the full
+CSV columns are `source,target,domain` (domain optional). With a header, a
+`concept_id` column gives each row's concept its id; `ExportCSV` writes one. A
+concept whose file names no id takes the id of its source term
+(`terms.ImportID`), so importing the same file twice writes the same concepts.
+Two rows with the same source term name the same concept; give them different
+`concept_id` values when they mean different things. JSON carries the full
 concept structure:
 
 ```json

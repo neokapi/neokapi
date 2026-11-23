@@ -83,14 +83,20 @@ func TestPostgresTerms_IntegrationUpdate(t *testing.T) {
 
 	populatePgTB(t, tb)
 
-	err := tb.AddConcept(t.Context(), terms.Concept{
+	updated := terms.Concept{
 		ID:         "c1",
 		Domain:     "software-ui",
 		Definition: "Updated",
 		Terms: []terms.Term{
 			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
 		},
-	})
+	}
+	// Adding a concept under a stored id never replaces it; an update at the
+	// revision read is the way to change one.
+	require.ErrorIs(t, tb.AddConcept(t.Context(), updated), pgterms.ErrConceptExists)
+	_, rev, _, err := tb.GetConceptAt(t.Context(), "c1")
+	require.NoError(t, err)
+	_, err = tb.UpdateConcept(t.Context(), updated, "", rev)
 	require.NoError(t, err)
 	count, err := tb.Count(t.Context())
 	require.NoError(t, err)

@@ -55,7 +55,7 @@ func proposeTranslation(t *testing.T, tb terms.Terminology, cid string, locale m
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.True(t, termcandidate.SetTranslation(&cp, "en", locale, text))
-	require.NoError(t, tb.AddConcept(t.Context(), cp))
+	rewriteConcept(t, tb, cp)
 }
 
 // TestContextDeck_KeepTermThenItsTranslation: keeping a candidate starts a

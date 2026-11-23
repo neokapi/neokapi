@@ -54,7 +54,7 @@ func TestPostgresTerms_EveryWriteMovesTheRevision(t *testing.T) {
 	moved(t, "adding a concept")
 	require.NoError(t, tb.AddConcept(ctx, termConcept("c-shop", "shop")))
 	moved(t, "adding another")
-	require.NoError(t, tb.AddConcept(ctx, termConcept("c-kapi", "Kapi")))
+	rewriteConcept(t, tb, termConcept("c-kapi", "Kapi"))
 	moved(t, "rewriting a concept's terms")
 	require.NoError(t, tb.AddRelation(ctx, terms.ConceptRelation{ID: "r-1", SourceID: "c-kapi", TargetID: "c-shop", RelationType: graph.LabelRelated}))
 	moved(t, "adding a relation")

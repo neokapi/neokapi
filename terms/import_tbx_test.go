@@ -208,16 +208,31 @@ func TestImportTBXGeneratedIDs(t *testing.T) {
   </conceptEntry>
 </body></text></tbx>`
 
+	// An entry with no id takes the id its first term gives it, so the same
+	// file imported again writes the same concepts rather than new ones.
 	tb := NewInMemoryStore()
-	n, err := ImportTBX(context.Background(), tb, strings.NewReader(doc), TBXImportOptions{IDPrefix: "gen"})
+	for range 2 {
+		n, err := ImportTBX(context.Background(), tb, strings.NewReader(doc), TBXImportOptions{})
+		require.NoError(t, err)
+		require.Equal(t, 2, n)
+	}
+	count, err := tb.Count(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, 2, n)
-	_, ok, err := tb.GetConcept(context.Background(), "gen-1")
-	require.NoError(t, err)
-	assert.True(t, ok)
-	_, ok, err = tb.GetConcept(context.Background(), "gen-2")
-	require.NoError(t, err)
-	assert.True(t, ok)
+	assert.Equal(t, 2, count, "a second import adds nothing")
+	for _, id := range []string{"term:en:alpha", "term:en:beta"} {
+		_, ok, err := tb.GetConcept(context.Background(), id)
+		require.NoError(t, err)
+		assert.True(t, ok, id)
+	}
+}
+
+// A term whose letters the id cannot keep takes a digest, so two such terms
+// get two ids.
+func TestImportIDKeepsTermsOutsideLatinApart(t *testing.T) {
+	a, b := ImportID("保存", "ja"), ImportID("削除", "ja")
+	assert.NotEqual(t, a, b)
+	assert.Equal(t, a, ImportID("保存", "ja"), "the same term gives the same id")
+	assert.Equal(t, "term:en:save", ImportID("Save", "en"))
 }
 
 func TestImportTBXMalformed(t *testing.T) {

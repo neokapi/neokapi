@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
 	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/ai/tools"
@@ -245,19 +246,26 @@ func executeTermProposals(ctx context.Context, deps *ContextScanWorkerDeps, job 
 // returns how many it filed. The concept's UpdatedAt is left as it was, so
 // the write does not move the revision the context deck attests.
 func fileTermProposals(ctx context.Context, tb terms.Terminology, source, target model.LocaleID, answers []tools.TermTranslation) (int, error) {
+	w, ok := tb.(sqlterms.ConceptWriter)
+	if !ok {
+		return 0, errors.New("the terms store cannot write a concept at a revision; no proposals were filed")
+	}
 	filed := 0
 	for _, a := range answers {
-		cp, ok, err := tb.GetConcept(ctx, a.ID)
+		// Filed on the concept as it stands when written, so a person's edit
+		// saved while the job ran stays (sqlterms.Rederive).
+		_, wrote, err := sqlterms.Rederive(ctx, w, a.ID, "", func(cp terms.Concept, exists bool) (terms.Concept, bool, error) {
+			if !exists {
+				return cp, false, nil
+			}
+			return cp, termcandidate.SetTranslation(&cp, source, target, a.Term), nil
+		})
 		if err != nil {
-			return filed, fmt.Errorf("read concept %s: %w", a.ID, err)
-		}
-		if !ok || !termcandidate.SetTranslation(&cp, source, target, a.Term) {
-			continue
-		}
-		if err := tb.AddConcept(ctx, cp); err != nil {
 			return filed, fmt.Errorf("file the proposal for %s: %w", a.ID, err)
 		}
-		filed++
+		if wrote {
+			filed++
+		}
 	}
 	return filed, nil
 }

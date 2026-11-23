@@ -176,6 +176,7 @@ function conceptToDTO(c: ConceptInfo): ConceptDTO {
     properties: c.properties,
     created_at: c.created_at,
     updated_at: c.updated_at,
+    revision: c.revision,
   };
 }
 
@@ -219,6 +220,7 @@ function createTermsAdapter(api: ApiAdapter, ws: string): TermsAdapter {
         domain: req.domain,
         definition: req.definition,
         terms: termsToInfo(req.terms),
+        base_revision: req.base_revision,
       });
     },
     async deleteConcept(id: string): Promise<void> {
