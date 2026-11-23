@@ -248,8 +248,8 @@ func MessageFor(code string, details map[string]any) string {
 			changed = fmt.Sprintf("was changed on the server by %v at %v,", by, detailOr(details, "at", ""))
 		}
 		return fmt.Sprintf("The voice profile %q %s after this project last saw it. "+
-			"Run `kapi pull` to see what changed, then push again to replace it with yours, "+
-			"or run `kapi pull --take-server` to take theirs.", detailOr(details, "profile", ""), changed)
+			"Run `kapi pull` to see what changed. Then run `kapi pull --keep-local` to replace it with yours on the next push, "+
+			"or `kapi pull --take-server` to take theirs.", detailOr(details, "profile", ""), changed)
 	case CodeGovernanceMoved:
 		if component, ok := details["component"]; ok {
 			return fmt.Sprintf("The project's %v moved on the server since this client last looked. Pull first, then send this again.", component)

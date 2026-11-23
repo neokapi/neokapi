@@ -104,7 +104,7 @@ func TestSyncPushCommit_AVoiceChangeNamesTheRevisionItPulled(t *testing.T) {
 	code, message = refusalCode(t, rec.Body.Bytes())
 	assert.Equal(t, apierror.CodeVoiceProfileMoved, code)
 	assert.Contains(t, message, "was changed on the server by user-ana at ", "the refusal says who and when")
-	assert.Contains(t, message, "Run `kapi pull` to see what changed")
+	assert.Contains(t, message, "Run `kapi pull` to see what changed. Then run `kapi pull --keep-local`", "the remedy names the choice a pull asks for")
 	assert.NotContains(t, message, "plugin update", "a current plugin is told only to pull")
 
 	// The current revision, an unchanged profile without one, and a new
