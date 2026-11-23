@@ -1666,6 +1666,7 @@ var Migrations = []storage.Migration{
 			ALTER TABLE edition_writers DROP COLUMN IF EXISTS block;
 		`,
 	},
+	{Version: 43, Retired: true, Description: "spent by a migration since removed; never applied again"},
 	{
 		Version:     44,
 		Description: "a project's context objects",

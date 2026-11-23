@@ -48,6 +48,7 @@ agent_messages.output_tokens integer NOT NULL DEFAULT 0
 agent_messages.role text NOT NULL
 agent_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 agent_schema_migrations.description text NOT NULL
+agent_schema_migrations.identity text NOT NULL DEFAULT ''::text
 agent_schema_migrations.version integer NOT NULL
 agent_tool_calls.duration bigint NOT NULL DEFAULT 0
 agent_tool_calls.error text NOT NULL DEFAULT ''::text
@@ -195,6 +196,7 @@ audit_log.user_agent text NOT NULL DEFAULT ''::text
 audit_log.workspace_id text NOT NULL DEFAULT ''::text
 auth_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 auth_schema_migrations.description text NOT NULL
+auth_schema_migrations.identity text NOT NULL DEFAULT ''::text
 auth_schema_migrations.version integer NOT NULL
 automation_history.ended_at timestamp with time zone NOT NULL DEFAULT now()
 automation_history.error text NOT NULL DEFAULT ''::text
@@ -253,6 +255,7 @@ billing_events.id bigint NOT NULL DEFAULT nextval('billing_events_id_seq'::regcl
 billing_events.workspace_id text NOT NULL
 billing_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 billing_schema_migrations.description text NOT NULL
+billing_schema_migrations.identity text NOT NULL DEFAULT ''::text
 billing_schema_migrations.version integer NOT NULL
 block_asset_refs.asset_id text NOT NULL
 block_asset_refs.block_id text NOT NULL
@@ -381,6 +384,7 @@ context_scan_jobs.workspace_id text NOT NULL DEFAULT ''::text
 context_scan_jobs.workspace_slug text NOT NULL DEFAULT ''::text
 context_scan_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 context_scan_schema_migrations.description text NOT NULL
+context_scan_schema_migrations.identity text NOT NULL DEFAULT ''::text
 context_scan_schema_migrations.version integer NOT NULL
 context_session_holds.item_id text NOT NULL
 context_session_holds.item_kind text NOT NULL
@@ -491,6 +495,7 @@ extraction_jobs.workspace_id text NOT NULL DEFAULT ''::text
 extraction_jobs.workspace_slug text NOT NULL
 extraction_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 extraction_schema_migrations.description text NOT NULL
+extraction_schema_migrations.identity text NOT NULL DEFAULT ''::text
 extraction_schema_migrations.version integer NOT NULL
 feature_overrides.created_at timestamp with time zone NOT NULL DEFAULT now()
 feature_overrides.created_by text NOT NULL
@@ -553,6 +558,7 @@ items.stream text NOT NULL DEFAULT 'main'::text
 items.updated_at timestamp with time zone NOT NULL DEFAULT now()
 jobs_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 jobs_schema_migrations.description text NOT NULL
+jobs_schema_migrations.identity text NOT NULL DEFAULT ''::text
 jobs_schema_migrations.version integer NOT NULL
 kg_changeset_ops.base_rev bigint NOT NULL DEFAULT 0
 kg_changeset_ops.changeset_id text NOT NULL
@@ -628,6 +634,7 @@ kg_pilots.stream text NOT NULL
 kg_pilots.workspace_id text NOT NULL
 knowledge_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 knowledge_schema_migrations.description text NOT NULL
+knowledge_schema_migrations.identity text NOT NULL DEFAULT ''::text
 knowledge_schema_migrations.version integer NOT NULL
 leader_leases.expires_at timestamp with time zone NOT NULL
 leader_leases.holder_id text NOT NULL
@@ -644,6 +651,7 @@ model_sweep_results.project_id text NOT NULL
 model_sweep_results.tokens_used integer NOT NULL DEFAULT 0
 model_sweep_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 model_sweep_schema_migrations.description text NOT NULL
+model_sweep_schema_migrations.identity text NOT NULL DEFAULT ''::text
 model_sweep_schema_migrations.version integer NOT NULL
 notification_group_members.created_at timestamp with time zone NOT NULL
 notification_group_members.group_key text NOT NULL
@@ -747,6 +755,7 @@ platform_config.updated_by text NOT NULL DEFAULT ''::text
 platform_config.value jsonb NOT NULL
 platform_config_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 platform_config_schema_migrations.description text NOT NULL
+platform_config_schema_migrations.identity text NOT NULL DEFAULT ''::text
 platform_config_schema_migrations.version integer NOT NULL
 pre_reviews.block_id text NOT NULL
 pre_reviews.created_at timestamp with time zone NOT NULL DEFAULT now()
@@ -817,6 +826,7 @@ push_applies.job_id text NOT NULL
 push_applies.record jsonb NOT NULL DEFAULT '{}'::jsonb
 quota_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 quota_schema_migrations.description text NOT NULL
+quota_schema_migrations.identity text NOT NULL DEFAULT ''::text
 quota_schema_migrations.version integer NOT NULL
 refresh_tokens.consumed_at timestamp with time zone NULL
 refresh_tokens.created_at timestamp with time zone NOT NULL
@@ -884,6 +894,7 @@ role_templates.updated_at timestamp with time zone NOT NULL DEFAULT now()
 role_templates.workspace_id text NOT NULL
 runner_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 runner_schema_migrations.description text NOT NULL
+runner_schema_migrations.identity text NOT NULL DEFAULT ''::text
 runner_schema_migrations.version integer NOT NULL
 runner_usage.created_at timestamp with time zone NOT NULL DEFAULT now()
 runner_usage.duration_sec real NOT NULL DEFAULT 0
@@ -914,6 +925,7 @@ sod_settings.updated_at timestamp with time zone NOT NULL DEFAULT now()
 sod_settings.workspace_id text NOT NULL
 store_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 store_schema_migrations.description text NOT NULL
+store_schema_migrations.identity text NOT NULL DEFAULT ''::text
 store_schema_migrations.version integer NOT NULL
 stream_members.added_at timestamp with time zone NOT NULL DEFAULT now()
 stream_members.project_id text NOT NULL
@@ -998,6 +1010,7 @@ tb_revision.revision text NOT NULL
 tb_revision.workspace_id text NOT NULL
 tb_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 tb_schema_migrations.description text NOT NULL
+tb_schema_migrations.identity text NOT NULL DEFAULT ''::text
 tb_schema_migrations.version integer NOT NULL
 tb_terms.competitor_term boolean NOT NULL DEFAULT false
 tb_terms.concept_id text NOT NULL
@@ -1069,6 +1082,7 @@ tm_import_sessions.tool_version text NOT NULL DEFAULT ''::text
 tm_import_sessions.workspace_id text NOT NULL
 tm_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 tm_schema_migrations.description text NOT NULL
+tm_schema_migrations.identity text NOT NULL DEFAULT ''::text
 tm_schema_migrations.version integer NOT NULL
 tm_variants.coded text NOT NULL
 tm_variants.entry_id text NOT NULL
@@ -1282,6 +1296,7 @@ voice_rule_decisions.status text NOT NULL
 voice_rule_decisions.term text NOT NULL
 voice_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 voice_schema_migrations.description text NOT NULL
+voice_schema_migrations.identity text NOT NULL DEFAULT ''::text
 voice_schema_migrations.version integer NOT NULL
 voice_scores.block_id text NOT NULL
 voice_scores.checked_at timestamp with time zone NOT NULL DEFAULT now()

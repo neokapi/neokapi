@@ -291,12 +291,17 @@ func (p *Projector) applyMemory(ctx context.Context, s step) error {
 	if tm == nil {
 		return errNoSubsystem
 	}
+	deletes := s.DeleteEntries
 	if entries := s.entries(); len(entries) > 0 {
-		if s.Bulk {
-			if err := tm.BulkAddWithStream(ctx, entries, s.Stream); err != nil {
+		switch {
+		case s.Bulk:
+			// A bulk step's deletes are an import moving entries to new ids,
+			// written with the entries in one transaction.
+			if err := tm.BulkAddReplacing(ctx, entries, s.Stream, deletes); err != nil {
 				return err
 			}
-		} else {
+			deletes = nil
+		default:
 			for _, e := range entries {
 				if err := tm.AddWithStream(ctx, e, s.Stream); err != nil {
 					return err
@@ -304,7 +309,7 @@ func (p *Projector) applyMemory(ctx context.Context, s step) error {
 			}
 		}
 	}
-	for _, id := range s.DeleteEntries {
+	for _, id := range deletes {
 		if err := tm.Delete(ctx, id); err != nil && !notFound(err) {
 			return err
 		}

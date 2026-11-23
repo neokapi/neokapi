@@ -15,7 +15,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage"
-	"github.com/neokapi/neokapi/memory/schema"
 )
 
 // migrationsTable names the bookkeeping table that records which schema
@@ -111,17 +110,17 @@ var memoryMigrations = []storage.Migration{
 	{
 		Version:     1,
 		Description: "multilingual content memory schema with per-variant match keys and import sessions",
-		SQL:         schema.RenderMemorySQLiteV1(storage.FTSWordTokenizer),
+		SQL:         memorySQLiteV1,
 	},
 	{
 		Version:     2,
 		Description: "add concept_id to entity mappings for terms cross-reference",
-		SQL:         schema.RenderMemorySQLiteV2(),
+		SQL:         memorySQLiteV2,
 	},
 	{
 		Version:     3,
 		Description: "precomputed has_codes flag on tm_entries for fast facet queries",
-		SQL:         schema.RenderMemorySQLiteV3(),
+		SQL:         memorySQLiteV3,
 	},
 	{
 		Version: 4,
@@ -137,7 +136,7 @@ var memoryMigrations = []storage.Migration{
 		// the ones read back out of committed translations, are re-learned with
 		// it the next time the record is absorbed.
 		Description: "the context point an entry's answer was approved at",
-		SQL:         schema.RenderMemorySQLiteV4(),
+		SQL:         memorySQLiteV4,
 	},
 	{
 		Version: 5,
@@ -157,12 +156,12 @@ var memoryMigrations = []storage.Migration{
 		// here rather than reaching backwards, which is the honest reading of an
 		// empty unit, not "no block", but "approved before the chain existed".
 		Description: "the durable block identity an entry's answer was approved for",
-		SQL:         schema.RenderMemorySQLiteV5(),
+		SQL:         memorySQLiteV5,
 	},
 	{
 		Version:     6,
 		Description: "a stable variant key shared as the rowid of its FTS5 index rows",
-		SQL:         schema.RenderMemorySQLiteV6(storage.FTSWordTokenizer),
+		SQL:         memorySQLiteV6,
 	},
 }
 
@@ -310,7 +309,14 @@ func (tm *SQLiteStore) AddOrigin(ctx context.Context, id string, origin Origin, 
 // it in a single set-based SELECT INTO, which is orders of magnitude
 // faster than row-by-row inserts.
 func (tm *SQLiteStore) BulkAddWithStream(ctx context.Context, entries []Entry, stream string) error {
-	if len(entries) == 0 {
+	return tm.BulkAddReplacing(ctx, entries, stream, nil)
+}
+
+// BulkAddReplacing is BulkAddWithStream that also deletes the entries named
+// in replaced, in the same transaction, so an entry moved to a new id is
+// never missing and never held twice.
+func (tm *SQLiteStore) BulkAddReplacing(ctx context.Context, entries []Entry, stream string, replaced []string) error {
+	if len(entries) == 0 && len(replaced) == 0 {
 		return nil
 	}
 	tx, err := tm.db.BeginTx(ctx, nil)
@@ -328,6 +334,14 @@ func (tm *SQLiteStore) BulkAddWithStream(ctx context.Context, entries []Entry, s
 	}
 	defer stmts.Close()
 
+	// An entry already gone has nothing to replace, so a step applied again
+	// writes what it wrote the first time.
+	for _, id := range replaced {
+		if err := deleteEntryTx(ctx, tx.Tx, id); err != nil && !errors.Is(err, errEntryNotFound) {
+			_ = tx.Rollback()
+			return storage.CancelledBy(ctx, fmt.Errorf("bulk delete entry %s: %w", id, err))
+		}
+	}
 	for i := range entries {
 		if err := stmts.addEntry(ctx, entries[i], stream); err != nil {
 			_ = tx.Rollback()
@@ -851,7 +865,18 @@ func (tm *SQLiteStore) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
+	if err := deleteEntryTx(ctx, tx.Tx, id); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
+}
 
+// deleteEntryTx removes an entry and its child rows inside tx.
+func deleteEntryTx(ctx context.Context, tx *sql.Tx, id string) error {
 	// Delete children first so the row is gone regardless of FK enforcement.
 	// tm_entry_entity_values is removed before tm_entry_entities so the delete
 	// is correct even when its composite-FK cascade is disabled.
@@ -865,31 +890,25 @@ func (tm *SQLiteStore) Delete(ctx context.Context, id string) error {
 	}
 	for _, ct := range childTables {
 		if _, err := tx.ExecContext(ctx, ct.sql, id); err != nil {
-			_ = tx.Rollback()
 			return fmt.Errorf("delete %s: %w", ct.name, err)
 		}
 	}
-
 	result, err := tx.ExecContext(ctx, "DELETE FROM tm_entries WHERE id = ?", id)
 	if err != nil {
-		_ = tx.Rollback()
 		return fmt.Errorf("delete entry: %w", err)
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
-		_ = tx.Rollback()
 		return fmt.Errorf("rows affected: %w", err)
 	}
 	if rows == 0 {
-		_ = tx.Rollback()
-		return fmt.Errorf("entry not found: %s", id)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit: %w", err)
+		return fmt.Errorf("%w: %s", errEntryNotFound, id)
 	}
 	return nil
 }
+
+// errEntryNotFound reports a delete of an entry the store does not hold.
+var errEntryNotFound = errors.New("entry not found")
 
 // --- Lookup ---
 

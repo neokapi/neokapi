@@ -25,6 +25,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -72,7 +73,7 @@ func parseTermProposalItem(item contextop.ItemRef) (string, model.LocaleID, bool
 func (s *Server) translationCards(ctx context.Context, cp terms.Concept, concept contextDeckCard, source model.LocaleID, names map[string]string) []contextDeckCard {
 	var out []contextDeckCard
 	for _, tr := range termcandidate.Translations(cp) {
-		sum := sha256.Sum256([]byte(string(tr.Locale) + "\x00" + tr.Text))
+		sum := sha256.Sum256([]byte(partjoin.NUL(string(tr.Locale), tr.Text)))
 		out = append(out, contextDeckCard{
 			Item:     termProposalItem(cp.ID, tr.Locale),
 			Kind:     deckKindTermTranslation,

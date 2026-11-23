@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/partjoin"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -72,8 +73,7 @@ func DecisionRecordsHash(decisions []UnitDecision) string {
 
 // decisionKey is the ledger's own primary key, rendered for the fold.
 func decisionKey(d UnitDecision) string {
-	//keyguard:persisted hashed by ref.Fold into the decisions component, which core/ref/refcache, the sync cache (decisions_synced) and the server compare; pinned by TestDecisionsComponentIsStable
-	return d.ItemName + "\x00" + d.Unit + "\x00" + d.Variant
+	return partjoin.NUL(d.ItemName, d.Unit, d.Variant)
 }
 
 // DecisionIdentity hashes one decision over the fields that carry the decision
@@ -303,8 +303,7 @@ func conceptIdentity(c terms.Concept) string {
 	// same, so the term list is folded rather than concatenated in place.
 	byTerm := make(map[string]string, len(c.Terms))
 	for _, t := range c.Terms {
-		//keyguard:persisted hashed by ref.Fold into the concept identity inside the terms component, which core/ref/refcache and the server compare; pinned by TestTermsComponentIsStable
-		key := string(t.Locale) + "\x00" + t.Text
+		key := partjoin.NUL(string(t.Locale), t.Text)
 		byTerm[key] = ref.Identity(string(t.Status), t.PartOfSpeech, t.Gender, t.Note)
 	}
 	return ref.Identity(c.Domain, c.Definition, ref.Fold(byTerm))

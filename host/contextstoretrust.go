@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/partjoin"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/output"
 )
@@ -42,7 +43,7 @@ func contextStoreKey(recipePath string) string {
 // approval. The id is plain text in the recipe, so it tells projects apart
 // rather than proving which one this is.
 func contextStoreDigest(projectID, resolved string) string {
-	sum := sha256.Sum256([]byte(projectID + "\x00" + filepath.Clean(resolved)))
+	sum := sha256.Sum256([]byte(partjoin.NUL(projectID, filepath.Clean(resolved))))
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 

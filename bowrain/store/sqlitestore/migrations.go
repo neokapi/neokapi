@@ -572,6 +572,8 @@ var storeMigrations = []storage.Migration{
 				ON overlays_ext(project_id, stream, block_id);
 		`,
 	},
+	{Version: 2, Retired: true, Description: "spent by a migration since removed; never applied again"},
+	{Version: 3, Retired: true, Description: "spent by a migration since removed; never applied again"},
 	{
 		Version:     4,
 		Description: "workspace-scoped connector configs (durable connectors)",
@@ -1048,6 +1050,13 @@ var storeMigrations = []storage.Migration{
 			);
 		`,
 	},
+	{Version: 28, Retired: true, Description: "spent by a migration since removed; never applied again"},
+	{Version: 29, Retired: true, Description: "spent by a migration since removed; never applied again"},
+	{Version: 30, Retired: true, Description: "spent by a migration since removed; never applied again"},
+	{Version: 31, Retired: true, Description: "spent by a migration since removed; never applied again"},
+	{Version: 32, Retired: true, Description: "spent by a migration since removed; never applied again"},
+	{Version: 33, Retired: true, Description: "spent by a migration since removed; never applied again"},
+	{Version: 34, Retired: true, Description: "spent by a migration since removed; never applied again"},
 	{
 		Version:     35,
 		Description: "a decision records the revisions of the pairing it blesses",
@@ -1109,6 +1118,7 @@ var storeMigrations = []storage.Migration{
 			 WHERE properties LIKE '%"__source_settled_hash"%';
 		`,
 	},
+	{Version: 37, Retired: true, Description: "spent by a migration since removed; never applied again"},
 	{
 		Version:     38,
 		Description: "a project's context objects",
@@ -1143,6 +1153,7 @@ var storeMigrations = []storage.Migration{
 			 WHERE review_state = '' AND status = '' AND decided_by = ''
 			   AND note = '' AND assignee = '' AND parked = 0;
 		`,
+		Revision: "1",
 		Apply: func(ctx context.Context, tx *sql.Tx) error {
 			return addMissingColumns(ctx, tx, "block_history", []string{
 				"basis      TEXT NOT NULL DEFAULT ''",
@@ -1160,6 +1171,7 @@ var storeMigrations = []storage.Migration{
 			DELETE FROM review_items WHERE type = 'term_candidate';
 			DROP TABLE IF EXISTS rejected_terms;
 		`,
+		Revision: "1",
 		Apply: func(ctx context.Context, tx *sql.Tx) error {
 			return addMissingColumns(ctx, tx, "projects", []string{"context_key TEXT NOT NULL DEFAULT ''"})
 		},
@@ -1205,6 +1217,7 @@ var storeMigrations = []storage.Migration{
 		Version:     43,
 		Description: "the tool and token a context object was pushed with",
 		SQL:         `-- Mirrors bowrain/store/migrations.go version 52; Apply adds the columns.`,
+		Revision:    "1",
 		Apply: func(ctx context.Context, tx *sql.Tx) error {
 			return addMissingColumns(ctx, tx, "context_objects", []string{
 				"pushed_tool  TEXT NOT NULL DEFAULT ''",
@@ -1216,6 +1229,7 @@ var storeMigrations = []storage.Migration{
 		Version:     44,
 		Description: "the findings of each rule in a check tally",
 		SQL:         `-- Mirrors bowrain/store/migrations.go version 53 for item_check_tallies; Apply adds the column.`,
+		Revision:    "1",
 		Apply: func(ctx context.Context, tx *sql.Tx) error {
 			return addMissingColumns(ctx, tx, "item_check_tallies", []string{
 				"rules TEXT NOT NULL DEFAULT '[]'",
@@ -1271,6 +1285,7 @@ var storeMigrations = []storage.Migration{
 		Version:     47,
 		Description: "the reasons of a review decision",
 		SQL:         `-- Mirrors bowrain/store/migrations.go version 63; Apply adds the column.`,
+		Revision:    "1",
 		Apply: func(ctx context.Context, tx *sql.Tx) error {
 			return addMissingColumns(ctx, tx, "unit_decisions", []string{
 				"reasons TEXT NOT NULL DEFAULT '[]'",
@@ -1305,6 +1320,7 @@ var storeMigrations = []storage.Migration{
 		Version:     49,
 		Description: "the agent host a review decision was recorded from",
 		SQL:         `-- Mirrors bowrain/store/migrations.go version 65; Apply adds the column.`,
+		Revision:    "1",
 		Apply: func(ctx context.Context, tx *sql.Tx) error {
 			return addMissingColumns(ctx, tx, "unit_decisions", []string{
 				"agent_host TEXT NOT NULL DEFAULT ''",

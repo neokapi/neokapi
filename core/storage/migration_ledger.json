@@ -1,0 +1,385 @@
+{
+  "brand": {
+    "1": {
+      "description": "voice profile store schema (baseline)",
+      "identity": "2cb22f7c9e97cbf4c7bf634b29532c17",
+      "names": [
+        "brand voice store schema (baseline)",
+        "voice profile store schema (baseline)"
+      ]
+    },
+    "2": {
+      "description": "author personas on voice profiles",
+      "identity": "556244e1c8c0dd7b52444367dcd4ad98",
+      "names": [
+        "author personas on brand profiles",
+        "author personas on voice profiles"
+      ]
+    },
+    "3": {
+      "description": "the profile's own compliance bar",
+      "identity": "4599bb591c8f65edcc37f3d4ab391a18",
+      "names": [
+        "the profile's own on-brand bar",
+        "the profile's own compliance bar"
+      ]
+    },
+    "4": {
+      "description": "shared voice constraints",
+      "identity": "13000daf08a22d38f52f30d253a4840a",
+      "names": [
+        "shared voice constraints"
+      ]
+    },
+    "5": {
+      "description": "word rules are terms: a voice profile holds none",
+      "identity": "95096a076194c4cc591c2abbaf655d05",
+      "names": [
+        "word rules are terms: a voice profile holds none"
+      ]
+    }
+  },
+  "cache_migrations": {
+    "1": {
+      "description": "blocks + overlays",
+      "identity": "b6b5a3157ebb76e1bf0de78ef3ec7922",
+      "names": [
+        "blocks + overlays"
+      ]
+    },
+    "2": {
+      "description": "block text index (FTS5 trigram over source and target text)",
+      "identity": "795adde789b941d7e79199c73513294c",
+      "names": [
+        "block text index (FTS5 trigram over source and target text)"
+      ]
+    },
+    "3": {
+      "description": "blocks indexed by collection then hash",
+      "identity": "94df07d10db5e47c4ea214313b891dbf",
+      "names": [
+        "blocks indexed by collection then hash"
+      ]
+    }
+  },
+  "doc_cache_migrations": {
+    "1": {
+      "description": "streaming document index (parts log + skeleton file refs)",
+      "identity": "f35b2a24a6987e3ef2e265398741a18e",
+      "names": [
+        "streaming document index (parts log + skeleton file refs)"
+      ]
+    },
+    "2": {
+      "description": "key entries by build, record shape and config in separate columns",
+      "identity": "3bf4ccc81c51e868d09dc012f2c36054",
+      "names": [
+        "key entries by build, record shape and config in separate columns"
+      ]
+    }
+  },
+  "graph": {
+    "1": {
+      "description": "graph store schema with adjacency tables",
+      "identity": "3edd6b0b2bf722c5c0770b75aabb9a6c",
+      "names": [
+        "graph store schema with adjacency tables"
+      ]
+    }
+  },
+  "history": {
+    "1": {
+      "description": "block history",
+      "identity": "7e309449a5f8474972206dbb436e8f2c",
+      "names": [
+        "block history"
+      ]
+    },
+    "2": {
+      "description": "the producer of a derived edition",
+      "identity": "a869141a81d18579cc217ba1f5831809",
+      "names": [
+        "the producer of a derived edition"
+      ]
+    },
+    "3": {
+      "description": "the operation kinds and the tool behind a change",
+      "identity": "02f24d7181a3967689ba681d5f72f2a1",
+      "names": [
+        "the operation kinds and the tool behind a change"
+      ]
+    }
+  },
+  "projectdb_migrations": {
+    "1": {
+      "description": "store metadata",
+      "identity": "2955da4deaed3034ae546ac3732e3123",
+      "names": [
+        "store metadata"
+      ]
+    }
+  },
+  "projector_migrations": {
+    "1": {
+      "description": "the position of the last operation applied",
+      "identity": "5a01feca7fd3cadbaa8ee6552b1dd6da",
+      "names": [
+        "the position of the last operation applied"
+      ]
+    }
+  },
+  "sievepen_migrations": {
+    "1": {
+      "description": "multilingual content memory schema with per-variant match keys and import sessions",
+      "identity": "17aed2aefb89f644fd5fce29216c66b3",
+      "names": [
+        "multilingual TM schema with per-variant match keys and import sessions",
+        "multilingual content memory schema with per-variant match keys and import sessions"
+      ]
+    },
+    "2": {
+      "description": "add concept_id to entity mappings for terms cross-reference",
+      "identity": "32e7c43d165c2a7ac47e4f5c87620fea",
+      "names": [
+        "add concept_id to entity mappings for termbase cross-reference",
+        "add concept_id to entity mappings for terms cross-reference"
+      ]
+    },
+    "3": {
+      "description": "precomputed has_codes flag on tm_entries for fast facet queries",
+      "identity": "e7f9b4725e8b555be0749c44c63a8064",
+      "names": [
+        "precomputed has_codes flag on tm_entries for fast facet queries"
+      ]
+    },
+    "4": {
+      "description": "the context point an entry's answer was approved at",
+      "identity": "d06dcea83e5a6565ee2efba7bbda85da",
+      "names": [
+        "the context point an entry's answer was approved at"
+      ]
+    },
+    "5": {
+      "description": "the durable block identity an entry's answer was approved for",
+      "identity": "88494b9e793ffde3abec79c433415c72",
+      "names": [
+        "the durable block identity an entry's answer was approved for"
+      ]
+    },
+    "6": {
+      "description": "a stable variant key shared as the rowid of its FTS5 index rows",
+      "identity": "3bc7ff430711965af77ba5077c95b2a6",
+      "names": [
+        "a stable variant key shared as the rowid of its FTS5 index rows"
+      ]
+    }
+  },
+  "state": {
+    "1": {
+      "description": "unit working set",
+      "identity": "6cbabce7c2f338391b06eb5f3ae1f5d6",
+      "names": [
+        "unit working set"
+      ]
+    },
+    "2": {
+      "description": "document identity",
+      "identity": "606a470388c23de9ef137d088ce32166",
+      "names": [
+        "document identity"
+      ]
+    },
+    "3": {
+      "description": "unit identity carries its document",
+      "identity": "e6e28b3805f2e6477ca237c2c7829a24",
+      "names": [
+        "unit identity carries its document"
+      ]
+    },
+    "4": {
+      "description": "a document records what it held",
+      "identity": "c63c847ebd3f6ef478e61385e29cc2b5",
+      "names": [
+        "a document records what it held"
+      ]
+    },
+    "5": {
+      "description": "the working set records which record it was built from",
+      "identity": "8a05a475f5f3027376052df781629199",
+      "names": [
+        "the working set records which record it was built from"
+      ]
+    },
+    "6": {
+      "description": "decision ledger and per-checkout view",
+      "identity": "cfe8c47299e058af650576dd46b39510",
+      "names": [
+        "decision ledger and per-checkout view"
+      ]
+    },
+    "7": {
+      "description": "document adoptions",
+      "identity": "df051d016777acfc0c401d1ba6c2370d",
+      "names": [
+        "document adoptions"
+      ]
+    },
+    "8": {
+      "description": "the ledger pairs revisions",
+      "identity": "43f719e80b9120db4ebbf5362d38183e",
+      "names": [
+        "the ledger pairs revisions"
+      ]
+    }
+  },
+  "termbase_migrations": {
+    "1": {
+      "description": "terms schema with project/stream support and FTS5 indexes",
+      "identity": "64b2089fd9565c89b0bd88847d68873b",
+      "names": [
+        "termbase schema with project/stream support and FTS5 indexes",
+        "terms schema with project/stream support and FTS5 indexes"
+      ]
+    },
+    "2": {
+      "description": "add source column to concepts and competitor_term column to terms",
+      "identity": "72d50c688cd365ac563c66c380f6e72a",
+      "names": [
+        "add source column to concepts and competitor_term column to terms"
+      ]
+    },
+    "3": {
+      "description": "persisted concept relations and term validity columns",
+      "identity": "6a3f7edce9125acc8c228245f2ca8479",
+      "names": [
+        "persisted concept relations and term validity columns"
+      ]
+    },
+    "4": {
+      "description": "declared surface forms on terms",
+      "identity": "56f0765c2fa312be70edd7eef26995d5",
+      "names": [
+        "declared surface forms on terms"
+      ]
+    },
+    "5": {
+      "description": "do-not-translate flag on concepts",
+      "identity": "348615a5b62aa2376691dc503f8d8c3f",
+      "names": [
+        "do-not-translate flag on concepts"
+      ]
+    },
+    "6": {
+      "description": "advisory flag on concepts",
+      "identity": "c851bd453093edcb80a1a5000bbd6eb5",
+      "names": [
+        "advisory flag on concepts"
+      ]
+    },
+    "7": {
+      "description": "indexed normalized term text",
+      "identity": "e65a896ce5681f6fdfa6f1b30cc59b76",
+      "names": [
+        "indexed normalized term text"
+      ]
+    },
+    "8": {
+      "description": "normalized text for terms written before the column",
+      "identity": "80bcee189d97cedc307f42497685a6fc",
+      "names": [
+        "normalized text for terms written before the column"
+      ]
+    }
+  },
+  "workhome": {
+    "1": {
+      "description": "the workspace home",
+      "identity": "f9488bb5daf6ceca8c7bb9fc7dd11772",
+      "names": [
+        "the workspace home"
+      ]
+    },
+    "2": {
+      "description": "documents the workspace home keeps whole",
+      "identity": "84a70a9faeaee943476c6977e96414aa",
+      "names": [
+        "documents the workspace home keeps whole"
+      ]
+    }
+  },
+  "workspace_imports_migrations": {
+    "1": {
+      "description": "context files a checkout has read into the workspace",
+      "identity": "e11839352f96a4c1f26e40c1c4b5b255",
+      "names": [
+        "context files a checkout has read into the workspace"
+      ]
+    }
+  },
+  "workspace_ops_migrations": {
+    "1": {
+      "description": "workspace operation log",
+      "identity": "5269533e3cfdf3a3de55f6738c06a329",
+      "names": [
+        "workspace operation log"
+      ]
+    },
+    "2": {
+      "description": "operation ids and content addresses",
+      "identity": "e3558a440dfb608fcea00d04699ba44a",
+      "names": [
+        "operation ids and content addresses"
+      ]
+    },
+    "3": {
+      "description": "content-addressed blobs",
+      "identity": "370f10c0230a563c13b4f49614f3277e",
+      "names": [
+        "content-addressed blobs"
+      ]
+    },
+    "4": {
+      "description": "operation subjects",
+      "identity": "fd2cd1c7aa6e8c924aff4ef245c899fc",
+      "names": [
+        "operation subjects"
+      ]
+    }
+  },
+  "workspace_registry_migrations": {
+    "1": {
+      "description": "project registry",
+      "identity": "4f1aac19f440c8ad295738c62defef79",
+      "names": [
+        "project registry"
+      ]
+    }
+  },
+  "workspace_rules_migrations": {
+    "1": {
+      "description": "rules widened to the whole workspace",
+      "identity": "0f9fbdb800215c0dd9117043d07da2c3",
+      "names": [
+        "rules widened to the whole workspace"
+      ]
+    }
+  },
+  "workspace_sessions_migrations": {
+    "1": {
+      "description": "agent sessions working in the workspace",
+      "identity": "991db99da697796b4a3d8d68a0dc0c42",
+      "names": [
+        "agent sessions working in the workspace"
+      ]
+    }
+  },
+  "workspace_sync_migrations": {
+    "1": {
+      "description": "context sync state",
+      "identity": "a2d5c851fac6f85045504d373a873764",
+      "names": [
+        "context sync state"
+      ]
+    }
+  }
+}

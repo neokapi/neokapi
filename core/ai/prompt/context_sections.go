@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // Context supplies reference material that helps interpret a block without
@@ -90,33 +92,26 @@ func (c Context) Digest() string {
 	// does: a draft made with one reviewer's note must not be served after the
 	// note changed.
 	for _, r := range c.Rejections {
-		b.WriteString("rejected\x00")
-		b.WriteString(r.Text)
-		b.WriteByte('\x00')
-		b.WriteString(strings.Join(r.Reasons, ","))
-		b.WriteByte('\x00')
-		b.WriteString(r.Note)
-		b.WriteByte('\x00')
+		partjoin.WriteNUL(&b, "rejected", r.Text, strings.Join(r.Reasons, ","), r.Note)
 	}
 	// The prior version belongs in the digest for the same reason the
 	// neighbours do: it is not a function of the block's own text, so a
 	// translation cached with one prior version must not be served after the
 	// chain has moved. Unlike a location, it changes what the model saw.
 	if !c.Prior.empty() {
-		b.WriteString(c.Prior.Source)
-		b.WriteByte('\x00')
-		b.WriteString(c.Prior.Target)
-		b.WriteByte('\x00')
+		partjoin.WriteNUL(&b, c.Prior.Source, c.Prior.Target)
 	}
+	// A "|" ends the neighbours before the block. A neighbour before it that
+	// starts with "|" is written with U+0001 ahead, so it is not read as that
+	// end.
 	for _, s := range c.Before {
-		b.WriteString(s)
-		b.WriteByte('\x00')
+		if strings.HasPrefix(s, "|") {
+			s = "\x01" + s
+		}
+		partjoin.WriteNUL(&b, s)
 	}
 	b.WriteByte('|')
-	for _, s := range c.After {
-		b.WriteString(s)
-		b.WriteByte('\x00')
-	}
+	partjoin.WriteNUL(&b, c.After...)
 	return hashString(b.String())
 }
 

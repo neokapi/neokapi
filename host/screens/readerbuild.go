@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 	"github.com/neokapi/neokapi/core/rulesview"
 )
 
@@ -192,9 +193,9 @@ func PlaceFindings(blocks []*model.Block, findings []CheckedFinding) ReaderPlace
 // block it sits, so the same finding keeps its id while a fix elsewhere in
 // the block moves its words.
 func FindingKey(cf CheckedFinding) string {
-	sum := sha256.Sum256([]byte(strings.Join([]string{
+	sum := sha256.Sum256([]byte(partjoin.NUL(
 		cf.BlockID, cf.Field, cf.Locale, cf.Check, cf.Category, cf.Rule, cf.OriginalText, cf.Message,
-	}, "\x00")))
+	)))
 	return hex.EncodeToString(sum[:6])
 }
 

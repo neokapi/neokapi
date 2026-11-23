@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // Recipe-owned project settings: values the recipe declares once for the whole
@@ -47,10 +49,7 @@ func (s ProjectSettings) Hash() string {
 	}
 	h := sha256.New()
 	for _, k := range slices.Sorted(maps.Keys(s)) {
-		h.Write([]byte(k))
-		h.Write([]byte{0})
-		h.Write([]byte(s[k]))
-		h.Write([]byte{0})
+		partjoin.WriteNUL(h, k, s[k])
 	}
 	return hex.EncodeToString(h.Sum(nil))
 }
