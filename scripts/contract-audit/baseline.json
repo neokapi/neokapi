@@ -1,0 +1,43 @@
+{
+  "specRefs": {
+    "csv": 22,
+    "epub": 6,
+    "html": 75,
+    "json": 7,
+    "markdown": 27,
+    "messageformat": 79,
+    "odf": 10,
+    "openxml": 8,
+    "plaintext": 10,
+    "po": 32,
+    "properties": 18,
+    "tmx": 21,
+    "ts": 22,
+    "vtt": 21,
+    "xliff": 24,
+    "xliff2": 17,
+    "xml": 27,
+    "yaml": 27
+  },
+  "annotations": {
+    "csv": 95,
+    "epub": 4,
+    "html": 180,
+    "json": 61,
+    "markdown": 212,
+    "messageformat": 101,
+    "odf": 15,
+    "openxml": 426,
+    "plaintext": 54,
+    "po": 54,
+    "properties": 34,
+    "srt": 3,
+    "tmx": 65,
+    "ts": 44,
+    "vtt": 31,
+    "xliff": 255,
+    "xliff2": 36,
+    "xml": 253,
+    "yaml": 42
+  }
+}

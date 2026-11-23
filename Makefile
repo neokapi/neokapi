@@ -913,7 +913,7 @@ contract-audit: ## Generate the contract-audit dashboard JSON for $(CONTRACT_FIL
 	@cd $(ROOT_DIR) && go run ./scripts/contract-audit \
 	    -okapi-surefire $(CONTRACT_SUREFIRE) \
 	    -expect-modules $(CONTRACT_FILTER) -okapi-filters-dir $(OKAPI_REPO)/okapi/filters \
-	    $(if $(filter all,$(CONTRACT_FILTER)),$(if $(wildcard $(CONTRACT_BASELINE)),-baseline $(CONTRACT_BASELINE),) -write-baseline $(CONTRACT_DIR)/baseline.json,) \
+	    $(if $(filter all,$(CONTRACT_FILTER)),-baseline $(CONTRACT_BASELINE) -write-baseline $(CONTRACT_DIR)/baseline.json,) \
 	    -native-gotest $(CONTRACT_DIR)/native.json \
 	    -native-src core/formats \
 	    $(if $(wildcard $(BRIDGE_SCHEMAS)),-bridge-schemas $(BRIDGE_SCHEMAS),) \
