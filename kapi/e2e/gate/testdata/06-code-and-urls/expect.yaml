@@ -25,7 +25,7 @@ stages:
           reporting: 0
   - name: imported
     steps:
-      - kapi: [store, import]
+      - kapi: [store, import, --yes]
     files:
       - path: docs/code.md
         check:

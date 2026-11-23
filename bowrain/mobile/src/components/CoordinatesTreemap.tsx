@@ -7,10 +7,11 @@
 import type { CoordinateCell } from "@neokapi/bowrain-client";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMemo } from "react";
-import { Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
+import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
+import { useLargeText } from "../lib/textScale";
 import { inset, mixHex, shadeStep, squarify, type Rect } from "../lib/treemap";
 import { SafeAreaView } from "./SafeArea";
 
@@ -217,13 +218,14 @@ export function CoordinatesTreemap({
           ? { fill: colors.muted, ink: colors.ink }
           : shadeOf(colors, share);
         const outline = outlineOf(cell, colors);
+        const coverage = cell.sourceOnly
+          ? t("plan.coordinates.sourceOnly")
+          : t("plan.coordinates.established", { percent: Math.round(share * 100) });
         const label = [
           t("plan.coordinates.tileLabel", {
             name: zoomed === null && cell.product ? `${cell.product} ${name}` : name,
             blocks: blocks(cell.blocks),
-            coverage: cell.sourceOnly
-              ? t("plan.coordinates.sourceOnly")
-              : t("plan.coordinates.established", { percent: Math.round(share * 100) }),
+            coverage,
           }),
           outline === colors.added
             ? t("plan.coordinates.outlineNew")
@@ -294,9 +296,11 @@ export function CoordinateCellSheet({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const noProduct = t("plan.coordinates.noProduct");
+  const noChannel = t("plan.coordinates.noChannel");
   // At the largest text sizes a language's name takes a line of its own above
   // its bar, rather than being cut to a few letters beside it.
-  const large = useWindowDimensions().fontScale >= 1.6;
+  const { large } = useLargeText();
   return (
     <Modal
       visible={!!cell}
@@ -309,8 +313,8 @@ export function CoordinateCellSheet({
           <View className="flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 pt-5 pb-3">
             <Text className="text-foreground shrink text-lg font-semibold">
               {t("plan.coordinates.cellTitle", {
-                product: cell.product || t("plan.coordinates.noProduct"),
-                channel: cell.channel || t("plan.coordinates.noChannel"),
+                product: cell.product || noProduct,
+                channel: cell.channel || noChannel,
               })}
             </Text>
             <Pressable

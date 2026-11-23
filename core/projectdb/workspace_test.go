@@ -53,7 +53,7 @@ func TestEmbeddedLayoutKeepsBothPoolsInTheCheckout(t *testing.T) {
 		"with no workspace the context tables sit beside the projection")
 	assert.Same(t, db.Projection(), db.Raw(), "and the two pools are one handle")
 	assert.Same(t, db.Projection(), db.Graph(), "with the graph in it")
-	assert.Equal(t, filepath.Join(root, project.StateDirName, project.WorkDirName, project.StoreFileName), db.Path())
+	assert.Equal(t, project.LayoutAt(root).StorePath(), db.Path())
 }
 
 func TestTwoCheckoutsShareTheContextStoreAndKeepTheirOwnProjection(t *testing.T) {

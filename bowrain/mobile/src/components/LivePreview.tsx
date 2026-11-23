@@ -54,14 +54,14 @@ export function hasLivePreview(c: ReviewContainer): boolean {
 export function useLiveStories(
   container: ReviewContainer | undefined,
   scope: ProjectScope,
-  loadIndex?: (collectionId: string) => Promise<StoryIndex>,
+  loadIndex?: (collectionId: string, signal?: AbortSignal) => Promise<StoryIndex>,
 ) {
   const preview = container?.preview;
   const collectionId = container?.collectionId ?? "";
   const title = container?.title ?? "";
   const index = useQuery({
     queryKey: ["story-index", scope.workspace, scope.project, collectionId],
-    queryFn: () => loadIndex!(collectionId),
+    queryFn: ({ signal }) => loadIndex!(collectionId, signal),
     enabled: !!loadIndex && !!container && hasLivePreview(container),
     staleTime: 10 * 60_000,
   });
@@ -227,7 +227,7 @@ function originOf(url: string): string {
 export interface LiveViewProps {
   container: ReviewContainer;
   scope: ProjectScope;
-  loadIndex: (collectionId: string) => Promise<StoryIndex>;
+  loadIndex: (collectionId: string, signal?: AbortSignal) => Promise<StoryIndex>;
   /** The string the view opens at. */
   start: string;
   isDone: (u: ContainerUnit) => boolean;

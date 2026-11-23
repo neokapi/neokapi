@@ -104,6 +104,7 @@ export default function Server() {
       className="bg-background flex-1"
       contentContainerClassName="gap-4 px-4 pt-6 pb-10"
       keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
     >
       <Text accessibilityRole="header" className="text-foreground px-2 text-xl font-semibold">
         {t("server.title")}

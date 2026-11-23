@@ -27,12 +27,13 @@ jest.mock("../lib/auth", () => {
   const client = new Proxy(
     {},
     {
-      get:
-        (_target, method: string) =>
-        (...args: unknown[]) => {
-          mockCalls.push({ method, args });
-          return new Promise(() => undefined);
-        },
+      get: (_target, method: string, receiver: unknown) =>
+        method === "with"
+          ? () => receiver
+          : (...args: unknown[]) => {
+              mockCalls.push({ method, args });
+              return new Promise(() => undefined);
+            },
     },
   );
   return { useAuth: () => ({ client }) };

@@ -229,6 +229,7 @@ import type {
   ChannelProposalStatus,
 } from "../types/channel-proposals";
 import type { ConceptProjects, ConceptProjectsQuery } from "../types/context-graph";
+import { flowDefinitionFromWire, flowDefinitionsFromWire } from "./flowDefinition";
 
 /**
  * Encode a value for use as a single URL path segment, preserving the colon.
@@ -2585,7 +2586,7 @@ export class RestApiAdapter implements ApiAdapter {
     workspaceSlug: string,
     projectId: string,
   ): Promise<FlowDefinitionInfo[]> {
-    return this.fetchJSON(this.flowsEp(workspaceSlug, projectId));
+    return flowDefinitionsFromWire(await this.fetchJSON(this.flowsEp(workspaceSlug, projectId)));
   }
 
   async getFlowDefinition(
@@ -2593,8 +2594,10 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     flowId: string,
   ): Promise<FlowDefinitionInfo> {
-    return this.fetchJSON(
-      `${this.flowsEp(workspaceSlug, projectId)}/${encodeURIComponent(flowId)}`,
+    return flowDefinitionFromWire(
+      await this.fetchJSON(
+        `${this.flowsEp(workspaceSlug, projectId)}/${encodeURIComponent(flowId)}`,
+      ),
     );
   }
 
@@ -2603,10 +2606,12 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     def: FlowDefinitionInfo,
   ): Promise<FlowDefinitionInfo> {
-    return this.fetchJSON(this.flowsEp(workspaceSlug, projectId), {
-      method: "POST",
-      body: JSON.stringify(def),
-    });
+    return flowDefinitionFromWire(
+      await this.fetchJSON(this.flowsEp(workspaceSlug, projectId), {
+        method: "POST",
+        body: JSON.stringify(def),
+      }),
+    );
   }
 
   async updateFlowDefinition(
@@ -2616,13 +2621,15 @@ export class RestApiAdapter implements ApiAdapter {
     def: FlowDefinitionInfo,
   ): Promise<FlowDefinitionInfo> {
     try {
-      return await this.fetchJSON(
-        `${this.flowsEp(workspaceSlug, projectId)}/${encodeURIComponent(flowId)}`,
-        {
-          method: "PUT",
-          // The revision the edit was based on, so a stale save is refused.
-          body: JSON.stringify({ ...def, base_revision: def.revision }),
-        },
+      return flowDefinitionFromWire(
+        await this.fetchJSON(
+          `${this.flowsEp(workspaceSlug, projectId)}/${encodeURIComponent(flowId)}`,
+          {
+            method: "PUT",
+            // The revision the edit was based on, so a stale save is refused.
+            body: JSON.stringify({ ...def, base_revision: def.revision }),
+          },
+        ),
       );
     } catch (e) {
       throw asFlowChanged(e) ?? e;

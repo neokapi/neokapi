@@ -55,13 +55,14 @@ export default function PageScreen() {
     [current, locale, collection],
   );
   const load = useCallback(
-    (c: DeckCard) => client.reviewContainer(scope, c.blockId, c.locale),
+    (c: DeckCard, signal?: AbortSignal) =>
+      client.with({ signal }).reviewContainer(scope, c.blockId, c.locale),
     [client, scope],
   );
   // The same query InContextView reads, for where the document goes next.
   const container = useQuery<ReviewContainer>({
     queryKey: reviewContainerKey(scope, current, locale),
-    queryFn: () => load(card),
+    queryFn: ({ signal }) => load(card, signal),
     staleTime: 60_000,
   });
 
@@ -145,8 +146,12 @@ export default function PageScreen() {
         onApprove={(c) => record(c, "approve")}
         onFix={(c) => setFixing(c)}
         footer={footer}
-        loadIndex={(collectionId) => client.storyIndex(scope, collectionId)}
-        loadConcept={(conceptId) => client.concept(scope.workspace, conceptId)}
+        loadIndex={(collectionId, signal) =>
+          client.with({ signal }).storyIndex(scope, collectionId)
+        }
+        loadConcept={(conceptId, signal) =>
+          client.with({ signal }).concept(scope.workspace, conceptId)
+        }
       />
       {last?.phase === "held" ? (
         <UndoSnackbar entry={last} online={online} onUndo={onUndo} />
@@ -154,7 +159,9 @@ export default function PageScreen() {
       <FixSheet
         card={fixing}
         mode="fix"
-        loadFixes={(c, reason, ai) => client.fixCandidates(scope, c, { reason, ai })}
+        loadFixes={(c, reason, ai, signal) =>
+          client.with({ signal }).fixCandidates(scope, c, { reason, ai })
+        }
         onClose={() => setFixing(null)}
         onFix={(c, runs, reasons) => {
           record(c, "fix", { runs, reasons });

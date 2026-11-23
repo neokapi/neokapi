@@ -69,7 +69,7 @@ jobs:
         with:
           version: "1.2.0"
       # Reads the repository's context files into the runner's empty store.
-      - run: kapi store import
+      - run: kapi store import --yes
       # Exits 3 (failing the job) when a voice, terminology, check,
       # staleness or coverage gate is unmet, and 4 when a gate did not run.
       - run: kapi check --ship

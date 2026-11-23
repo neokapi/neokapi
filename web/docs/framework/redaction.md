@@ -210,7 +210,7 @@ containing only placeholders and writes the originals to a local vault sidecar;
 `kapi merge` restores them after the translator returns the file.
 
 ```bash
-# Emit redacted XLIFF: originals stay in .kapi/vault/batches/<batch>.json
+# Emit redacted XLIFF: originals stay in vault/batches/<batch>.json, in the checkout's state directory
 kapi extract --redact
 
 # ... translator fills in targets, preserving the placeholders ...
@@ -285,13 +285,13 @@ needs it when a policy covers that file.
 | Workflow | Vault |
 | --- | --- |
 | In-process (`secure-translate`, custom flows, `kapi exec`) | In memory on the block; removed after restore, and never written to output |
-| External (`extract --redact` → `merge`) | `.kapi/vault/batches/<batch-id>.json`, in a directory kept out of version control and written private (`0700`, files `0600`) |
+| External (`extract --redact` → `merge`) | `vault/batches/<batch-id>.json` in the checkout's state directory, in a directory kept out of version control and written private (`0700`, files `0600`) |
 | Package from source files (`extract <files> -o work.kpz --redact-rules <file>` → `merge work.kpz`) | `work.kpz.vault` beside the package, written private (`0600`) |
 
-The vault sits in `.kapi/vault/`, beside `.kapi/work/` and outside it.
+The vault sits in the checkout's `vault/`, beside the checkout's `work/` and outside it.
 Everything under `work/` rebuilds, so you can delete it; a withheld original
 cannot be rebuilt. The vault is never committed and never synced
-to a server, so the only copy is the one on your machine. `rm -rf .kapi/work`
+to a server, so the only copy is the one on your machine. `rm -rf "$(kapi state path)/work"`
 stays safe at any time; deleting `.kapi/` wholesale strands any batch you have
 out with a translator, because the merge that would restore the originals has
 nothing left to read.
@@ -310,10 +310,10 @@ file its own.
 A vault written by an earlier kapi records no file, and kapi refuses it. The
 message names the vault file and what to run:
 
-- For a batch vault under `.kapi/vault/batches/`, run `kapi extract` again. The
+- For a batch vault under `vault/batches/` in the checkout's state directory, run `kapi extract` again. The
   new extraction writes a new vault with new files to translate, and a file
   returned from the old extraction no longer merges.
-- For the project vault, `.kapi/vault/redaction.json`, move the file aside and
+- For the project vault, `vault/redaction.json` in the checkout's state directory, move the file aside and
   run the command again. kapi writes a new vault from the content it reads. A
   recorded edit whose originals are in the old file keeps its placeholders, and
   the moved file is the only copy of those originals.
@@ -338,7 +338,7 @@ vault that restores it.
 The vault never travels inside the package:
 
 - `kapi extract --format kpz` keeps it in the project, at
-  `.kapi/vault/batches/<vault-id>.json`, one vault for every package of the run.
+  `vault/batches/<vault-id>.json` in the checkout's state directory, one vault for every package of the run.
 - `kapi extract <files> -o work.kpz --redact-rules <file>` writes it beside the
   package, as `work.kpz.vault`. Extract never replaces a vault already at that
   path: merge the package it restores first and remove the vault, or extract to

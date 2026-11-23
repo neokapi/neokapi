@@ -3,11 +3,92 @@
 // loads.
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { type ComponentProps, useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Text, View } from "react-native";
+import {
+  AccessibilityInfo,
+  Animated,
+  Pressable,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
 import { formatCount } from "../../lib/format";
+
+/** The line height, before scaling, of each text size a fixed-lines text takes. */
+const LINE_HEIGHT = { sm: 20, xs: 16 } as const;
+
+/**
+ * Text that takes exactly `lines` lines whatever it says, so a row keeps its
+ * height when "Loading" gives way to what loaded: cut to that many lines, and
+ * never shorter. The system scales the line height with the text, so the
+ * minimum height is scaled the same way.
+ */
+export function FixedLinesText({
+  lines,
+  size,
+  className,
+  testID,
+  children,
+}: {
+  lines: number;
+  size: keyof typeof LINE_HEIGHT;
+  className: string;
+  testID?: string;
+  children?: string;
+}) {
+  const { fontScale } = useWindowDimensions();
+  const lineHeight = LINE_HEIGHT[size];
+  return (
+    <Text
+      testID={testID}
+      className={className}
+      style={{ lineHeight, minHeight: lines * lineHeight * fontScale }}
+      numberOfLines={lines}
+    >
+      {children}
+    </Text>
+  );
+}
+
+/** In place of the count when it could not be loaded: never a zero or a check. */
+export function UnknownPill({ testID }: { testID?: string }) {
+  const muted = useCSSVariable("--color-muted-foreground");
+  return (
+    <View
+      testID={testID}
+      importantForAccessibility="no-hide-descendants"
+      className="h-7 w-9 items-center justify-center"
+    >
+      <Ionicons name="cloud-offline-outline" size={20} color={String(muted)} />
+    </View>
+  );
+}
+
+/**
+ * Below a list whose counts could not be loaded: says so, with a retry. It
+ * sits after the cards, so it moves nothing when it goes.
+ */
+export function CountsNotice({
+  kind = "failed",
+  onRetry,
+}: {
+  /** `failed`: the counts were never loaded; `stale`: they could not be refreshed. */
+  kind?: "failed" | "stale";
+  onRetry: () => void;
+}) {
+  const { t } = useTranslation();
+  const text = kind === "stale" ? t("home.countsStale") : t("home.countsFailed");
+  return (
+    <View testID={`counts-${kind}`} className="items-center gap-2 px-8 pt-4 pb-2">
+      <Text className="text-muted-foreground text-center text-sm">{text}</Text>
+      <Pressable testID="counts-retry" accessibilityRole="button" onPress={onRetry} hitSlop={8}>
+        <Text className="text-primary text-base">{t("common.retry")}</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 /** A count of what waits, or a check when nothing does. */
 export function CountPill({ count, testID }: { count: number; testID?: string }) {
@@ -36,26 +117,39 @@ export function CountPill({ count, testID }: { count: number; testID?: string })
 export function LocaleBadge({
   locale,
   active = true,
+  unknown = false,
   size = "md",
 }: {
   locale: string;
   /** False dims the badge: nothing waits in this language. */
   active?: boolean;
+  /**
+   * What waits is not known: an outlined badge, neither lit nor dimmed, so it
+   * does not read as "nothing waits".
+   */
+  unknown?: boolean;
   size?: "sm" | "md";
 }) {
   const box = size === "sm" ? "min-w-8 px-1.5 py-0.5 rounded-md" : "min-w-11 px-2 py-2 rounded-xl";
   const text = size === "sm" ? "text-[11px]" : "text-sm";
+  const look = unknown
+    ? "border-border border border-dashed bg-transparent"
+    : active
+      ? "bg-chip"
+      : "bg-muted";
+  const ink = unknown
+    ? "text-foreground"
+    : active
+      ? "text-chip-foreground"
+      : "text-muted-foreground";
   return (
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      className={`${box} items-center ${active ? "bg-chip" : "bg-muted"}`}
+      testID={unknown ? `badge-${locale}-unknown` : undefined}
+      className={`${box} items-center ${look}`}
     >
-      <Text
-        className={`${text} font-bold tracking-wide ${
-          active ? "text-chip-foreground" : "text-muted-foreground"
-        }`}
-      >
+      <Text className={`${text} font-bold tracking-wide ${ink}`}>
         {locale.replace(/_/g, "-").toUpperCase()}
       </Text>
     </View>

@@ -421,6 +421,15 @@ func run() error {
 	// from how OIDC happens to be configured.
 	cfg.AllowInsecureDeviceAuth = insecureDev
 
+	// A disposable test stack is one the e2e suites may empty. Only a
+	// development server can claim it, so no real deployment can invite a
+	// suite to delete its data.
+	cfg.DisposableStack = boot.DisposableStackFromEnv()
+	if cfg.DisposableStack && !insecureDev {
+		return fmt.Errorf("refusing to start: %s marks a disposable test stack, which needs %s as well",
+			boot.DisposableStackEnv, boot.InsecureDevEnv)
+	}
+
 	// The CORS and WebSocket origin policies ride on the same signal, for the
 	// same reason, and not on whether OIDCPublicURL happens to be set: a
 	// production deployment configuring only the issuer URL (the documented,

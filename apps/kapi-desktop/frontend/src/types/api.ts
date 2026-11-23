@@ -565,7 +565,8 @@ export interface ProjectFilter {
   languages?: string[];
   /**
    * Shared with the project's team, kept in the project's context store so every
-   * checkout lists it, vs personal to this checkout (.kapi/filters.local.json).
+   * checkout lists it, vs personal to this checkout (filters.local.json in the
+   * checkout's state directory).
    */
   shared?: boolean;
 }

@@ -145,8 +145,8 @@ func TestWorkspace_TheContextStoreIsOutsideTheCheckout(t *testing.T) {
 		"the context store is in the workspace, at %s", db.ContextPath())
 	assert.False(t, strings.HasPrefix(db.ContextPath(), checkout),
 		"and nothing of it is left in the checkout")
-	assert.True(t, strings.HasPrefix(db.Path(), checkout),
-		"the projection stays with the tree it describes")
+	assert.True(t, strings.HasPrefix(db.Path(), project.LayoutAt(checkout).LocalStateDir()),
+		"the projection is the checkout's own, in its state directory")
 }
 
 func TestDataDirNeverResolvesToTheRealUserRootInATest(t *testing.T) {

@@ -52,7 +52,7 @@ func TestStatus_WarnsWhenTheStoreHoldsNonCanonicalLocales(t *testing.T) {
 
 	stderr := runStatusStderr(t, p)
 	assert.Contains(t, stderr, `block cache: 1 row(s) under "targets/nb_NO" (lookups ask for "targets/nb-NO")`)
-	assert.Contains(t, stderr, "delete .kapi/work/store.db, then run `kapi up`")
+	assert.Contains(t, stderr, "delete "+project.LayoutAt(p.Root).StorePath()+", then run `kapi up`")
 	assert.NotContains(t, stderr, "kapi store locales",
 		"a projection row is rebuilt, and the verb that moves authored rows is not offered for it")
 	assert.Equal(t, 1, countOf(stderr, "locale spelling"), "said once")
@@ -82,7 +82,7 @@ VALUES ('c1', 'kai', 'kai', 'NB-no', 'preferred', '', '', '', 0, NULL, NULL, '[]
 	stderr := runStatusStderr(t, p)
 	assert.Contains(t, stderr, `terms: 1 row(s) under "NB-no" (lookups ask for "nb-NO")`)
 	assert.Contains(t, stderr, "kapi store rebuild")
-	assert.NotContains(t, stderr, "delete .kapi/work/store.db",
+	assert.NotContains(t, stderr, "delete "+project.LayoutAt(p.Root).StorePath(),
 		"the context store is rebuilt from the log, never deleted")
 }
 
@@ -115,7 +115,7 @@ VALUES ('c1', 'kai', 'kai', 'NB-no', 'preferred', '', '', '', 0, NULL, NULL, '[]
 	require.NoError(t, err)
 	assert.False(t, found.Clean())
 	require.Len(t, found.Drift, 2)
-	assert.Equal(t, ".kapi/work/store.db", found.Projection)
+	assert.Equal(t, project.LayoutAt(p.Root).StorePath(), found.Projection)
 }
 
 // A project with no store yet is not audited, and the audit opens none: a dry

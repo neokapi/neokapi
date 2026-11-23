@@ -23,7 +23,6 @@ func TestScaffoldShipsCommittedContext(t *testing.T) {
 		ContextVoiceRel,
 		ContextTermsRel,
 		ContextMemoryRel,
-		filepath.Join(project.StateDirName, project.StateGitignoreFilename),
 	} {
 		info, err := os.Stat(filepath.Join(dir, rel))
 		require.NoError(t, err, "scaffold must write %s", rel)

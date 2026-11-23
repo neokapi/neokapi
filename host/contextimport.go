@@ -17,21 +17,14 @@ import (
 
 // Reading a `.kapi/` layout into a project's store.
 //
-// `kapi store import` is the only reader of a context file in a checkout:
-// the terms bundle, the content-memory bundles, the voice profiles and the
-// decision record. A person runs it, and what it reads is in force from then
-// on because the store is what every other surface answers from.
+// `kapi store import` is the only reader of a context file in a checkout: the
+// terms bundle, the content-memory bundles, the voice profiles and the
+// decision record. A person runs it after kapi lists what it would read.
 //
-// The layout it reads is the project's own, or one a caller names: a donor
-// checkout, a directory a colleague sent, or a directory of context files that
-// ships beside a sample. Either way the files are found where the layout keeps
-// them; the recipe names none of them.
-//
-// A recipe binds a voice by name. An import that brings voice profiles into a
-// project whose recipe binds none at the default point binds the project's one
-// voice in kapi.yaml, so what was just read is also what governs. A profile's
-// own voice, read from `.kapi/profiles/<name>/voice.yaml`, is bound under
-// `profiles.<name>.voice` when the profile's name alone would not select it.
+// The layout is the project's own or one the caller names; the recipe names
+// none of the files. Voice profiles read into a recipe with no default voice
+// bind the one read, in kapi.yaml. A profile's own voice is bound under
+// `profiles.<name>.voice` when the name alone would not select it.
 
 // ContextImportRequest names the layout to read.
 type ContextImportRequest struct {
@@ -41,6 +34,10 @@ type ContextImportRequest struct {
 	// Force compiles every source, including one whose bytes have not moved
 	// since the last compile.
 	Force bool
+	// Shown is the plan a person confirmed. When set, the import reads only
+	// the sources it listed, at the bytes they had then, and refuses one
+	// that changed in between.
+	Shown *ContextImportPlan
 }
 
 // ContextImport reports what an import read.
@@ -224,7 +221,7 @@ func pluralUnit(n int, one, many string) string {
 //
 // Running it twice changes nothing: every importer upserts by the identity the
 // file carries, so the second pass finds the store already holding what the
-// file says. Identities are preserved throughout — a concept keeps its id, an
+// file says. Identities are preserved throughout: a concept keeps its id, an
 // entry keeps its id and its origins, a voice profile keeps the id it is stored
 // under, and a decision keeps the unit it is about. A source whose bytes have
 // not moved since this checkout last read it is skipped outright, and `--force`
@@ -303,6 +300,9 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 			res.Unchanged++
 			continue
 		}
+		if err := req.Shown.expectShown(src.rel, digest); err != nil {
+			return res, err
+		}
 		n, rerr := a.readContextSource(ctx, db, writer, from.Root, src)
 		if rerr != nil {
 			return res, rerr
@@ -354,6 +354,9 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 		if !req.Force && stamps[key] == digest {
 			res.Unchanged++
 		} else {
+			if err := req.Shown.expectShown(recordRel, digest); err != nil {
+				return res, err
+			}
 			n, rerr := importDecisionRecord(ctx, db.Work(), recordDir)
 			if rerr != nil {
 				return res, rerr

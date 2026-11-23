@@ -42,7 +42,7 @@ func TestLayoutCheckState(t *testing.T) {
 		outside := t.TempDir()
 		l := LayoutAt(root)
 		require.NoError(t, os.MkdirAll(l.StateDir, 0o755))
-		require.NoError(t, os.Symlink(outside, l.WorkDir()))
+		require.NoError(t, os.Symlink(outside, filepath.Join(l.StateDir, WorkDirName)))
 		require.ErrorContains(t, l.CheckState(), ".kapi/work is a symbolic link")
 	})
 

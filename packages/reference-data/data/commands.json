@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-23T06:49:22Z",
+  "generatedAt": "2026-11-23T18:19:31Z",
   "commands": [
     {
       "id": "add",
@@ -5658,7 +5658,7 @@
       ],
       "use": "extract",
       "short": "Emit a bilingual file for a translator: native .kpz or XLIFF/PO",
-      "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target language\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").\nEvery block carries the revision of its translation and of its source, which\nkapi merge checks the returned file against.",
+      "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target language\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under work/cache/extractions/\u003cbatch-id\u003e/\nin the checkout's state directory (kapi state path prints it), plus one bilingual file per source → target pair in --out-dir (default \"out/\").\nEvery block carries the revision of its translation and of its source, which\nkapi merge checks the returned file against.",
       "groupID": "advanced",
       "flags": [
         {
@@ -5987,6 +5987,58 @@
         "kapi formats schema json",
         "kapi formats schema okf_html"
       ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "hook",
+      "path": [
+        "hook"
+      ],
+      "use": "hook",
+      "short": "Integration hooks for AI coding assistants (Claude Code)",
+      "long": "Glue commands for AI coding assistants. Each subcommand reads the\nassistant's hook payload on stdin and writes the assistant's expected response\non stdout. These are wired up by the assistant's plugin, not run by hand.\n\nThe decision protocol every kapi hook follows:\n\n  - a decision is JSON on stdout, and the exit code stays 0, because the assistant\n    reads a non-zero exit as a broken hook rather than as a denial;\n  - a denial names the hook and carries a reason the assistant can act on;\n  - when the guard could not run at all (an unreadable or malformed payload, a\n    session directory that cannot be entered, a project that will not load) the\n    hook allows the operation and emits {\"systemMessage\":\"…\"} on stdout plus the\n    same warning on stderr, naming the hook. kapi hooks fail open, but an\n    unheard hook is never silent: a guard that never ran must not look like a\n    guard that passed.\n\nNote: these are the assistant-integration hooks. They are unrelated to the\nrecipe's hooks: block, which is a different (and unimplemented) mechanism.",
+      "groupID": "advanced",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "hook.post-edit",
+      "path": [
+        "hook",
+        "post-edit"
+      ],
+      "use": "post-edit",
+      "short": "Claude Code PostToolUse hook: run kapi check on each file an edit wrote",
+      "long": "Claude Code PostToolUse hook for Edit/Write/MultiEdit. Reads the\nPostToolUse-event JSON on stdin (cwd, session_id, tool_use_id and\ntool_input.file_path), resolves the .kapi project in the session's working\ndirectory, runs the check \"kapi check \u003cfile\u003e\" runs on that one file, and:\n\n  - emits {\"decision\":\"block\",\"reason\":\"…findings…\"} (exit 0) when a finding\n    fails: names, spellings and word rules fail, and tone reports unless a\n    rule marks it. The edit has already happened; Claude Code shows the\n    reason to Claude beside the edit's result, so Claude fixes the file before\n    it reports done;\n  - emits nothing (exit 0) when the file passes, outside a project, on a file\n    the project's collections do not read, and on a generated target. A file\n    whose format no installed reader opens on this machine also emits\n    nothing, and its run is on record as one that did not run; or\n  - emits {\"systemMessage\":\"…\"} (exit 0), and the same warning on stderr, when\n    the check could not run: an unreadable, empty, or malformed payload, a\n    session directory it cannot enter, a project that will not load, or a\n    check that did not run. The edit stands. When the check reports that it\n    did not run, the run is on record as unchecked rather than passing.\n\nEach run that reaches the check is recorded in the project's log, under the\nsession's assistant, as the Stop hook's runs are: the file, the failing\nfindings and whether the run was clean. A finding one run reports and the\nsession's next run on the same file no longer finds counts as caught. --json\nprints the decision with the id of that record.\n\nThe Stop hook (\"kapi hook stop\") runs the ship gates over the whole project as\nthe turn ends; this hook runs the writing check on one file after each edit.\nWire it up via the kapi Claude Code plugin (hooks/hooks.json) with a matcher of\nEdit|Write|MultiEdit. A block here stops nothing: the assistant reads the\nfindings and carries on, so an unfixable finding cannot trap it.",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "hook.pre-edit",
+      "path": [
+        "hook",
+        "pre-edit"
+      ],
+      "use": "pre-edit",
+      "short": "Claude Code PreToolUse hook: block direct edits to kapi-generated translation targets",
+      "long": "Claude Code PreToolUse hook for Edit/Write/MultiEdit. Reads the\nPreToolUse-event JSON on stdin, resolves the .kapi project in the session's\nworking directory, and:\n\n  - emits {\"hookSpecificOutput\":{\"permissionDecision\":\"deny\",…}} (exit 0) when\n    the file being written is a project content target (a path that\n    \"kapi merge\" generates), so Claude routes the change through\n    extract → translate → merge instead;\n  - emits nothing (exit 0) outside a project, on source files, and on files the\n    project does not generate, leaving the normal permission flow untouched; or\n  - emits {\"systemMessage\":\"…\"} (exit 0), and the same warning on stderr, when\n    the guard could not run at all: an unreadable, empty, or malformed payload,\n    a session directory it cannot enter, or a project that will not load (for\n    example because it requires a plugin that is not installed). The edit\n    proceeds with no decision carried, so the normal permission flow is\n    untouched, and the bypass is on record instead of invisible.\n\nWire it up via the kapi Claude Code plugin (hooks/hooks.json) with a matcher of\nEdit|Write|MultiEdit. It fails open: anything other than a confirmed target\nmatch lets the edit proceed, so the guard never traps the assistant on an\nunrelated file.",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "hook.stop",
+      "path": [
+        "hook",
+        "stop"
+      ],
+      "use": "stop",
+      "short": "Claude Code Stop hook: keep working until the project's kapi check --ship gates pass",
+      "long": "Claude Code Stop hook. Reads the Stop-event JSON on stdin, runs the\nverify gates for the project in the session's working directory, and:\n\n  - emits {\"decision\":\"block\",\"reason\":\"…findings…\"} (exit 0) when a gate\n    fails, so Claude keeps working and fixes the findings before stopping;\n  - emits nothing (exit 0) when the project passes, or when there is no .kapi\n    project to gate, so Claude is free to finish; or\n  - emits {\"systemMessage\":\"…\"} (exit 0), and the same warning on stderr, when\n    the gates could not be evaluated at all: an unreadable, empty, or malformed\n    payload, a session directory it cannot enter, or a project whose gates\n    error. Claude is still free to finish, and the run is on record as\n    un-gated rather than passing.\n\nEach run that reaches the gates is recorded in the project's log, under the\nsession's assistant: the files the turn edited, the failing findings and\nwhether the run was clean. \"kapi context log\" lists the runs. A finding one run\nreports and the session's next run no longer finds on the same file counts as\ncaught. --json prints the decision with the id of that record.\n\nWire it up via the kapi Claude Code plugin (hooks/hooks.json). It fails open:\nanything other than a clean gate failure lets Claude stop, so a missing project\nor a verify error never traps the assistant. Claude Code caps consecutive\nblocks, so an unfixable finding cannot loop forever.",
       "offlineCapable": true,
       "runnableInBrowser": true,
       "demoMode": false
@@ -6321,7 +6373,7 @@
       ],
       "use": "memory",
       "short": "Manage content memory",
-      "long": "Manage content memory.\n\nA content memory stores previously produced content as a SQLite database: source\nsegments with the targets settled for them. Use these commands to import/export\nTMX, look up matches, and manage entries.\n\nInside a project, no flag means the project's own content memory, a subsystem of\n.kapi/work/store.db, which is why it is addressed by project rather than by path.\nUse -p to name the project explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in the kapi config dir (memory/\u003cn\u003e.db)\n  --local         Content memory in current directory (./memory.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./memory.db).",
+      "long": "Manage content memory.\n\nA content memory stores previously produced content as a SQLite database: source\nsegments with the targets settled for them. Use these commands to import/export\nTMX, look up matches, and manage entries.\n\nInside a project, no flag means the project's own content memory, kept in the\nproject's context store in the workspace, which is why it is addressed by project\nrather than by path.\nUse -p to name the project explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in the kapi config dir (memory/\u003cn\u003e.db)\n  --local         Content memory in current directory (./memory.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./memory.db).",
       "groupID": "languages",
       "examples": [
         "kapi memory stats",
@@ -8268,6 +8320,109 @@
       "demoMode": false
     },
     {
+      "id": "state",
+      "path": [
+        "state"
+      ],
+      "use": "state",
+      "short": "Show where a checkout's state lives, and bring state into it",
+      "long": "Show where a checkout's own state lives, and bring state into it.\n\nkapi keeps each checkout's state outside the checkout, in a directory of its\nown under the data root: the project store and caches, which kapi rebuilds,\nand the redaction vault, the sync state and the saved filters, which it\ncannot. The directory is found by the checkout's location and the identity of\nits folder, never by anything the checkout contains, so a repository cannot\nreach another project's state, and kapi reads nothing a checkout carries as\nstate.\n\nA checkout moved or renamed on its volume keeps its state. Any other move,\na restored backup, or a fresh clone starts without it; kapi rebuilds what it\ncan, and a person brings the rest across:\n\n  kapi state import   takes the state an earlier kapi left inside the\n                      checkout's .kapi/ folder\n  kapi state relink   takes the state kapi recorded for another location\n  kapi state path     prints the checkout's state directory and its parse cache\n\nBoth import and relink show every file they would take, with its size and\nthe server any sync state was issued by, ask at the terminal (or take --yes),\nand take exactly what they showed. An agent or an MCP call cannot run them.",
+      "groupID": "advanced",
+      "examples": [
+        "kapi state path -p ./app",
+        "kapi state import -p ./app",
+        "kapi state relink --from ~/old/app -p ./app"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "state.import",
+      "path": [
+        "state",
+        "import"
+      ],
+      "use": "import",
+      "short": "Take the state an earlier kapi left inside the checkout",
+      "long": "Take the state an earlier kapi left inside the checkout's .kapi/ folder (the\nredaction vault, the sync state and the saved filters) into the checkout's\nstate directory. The files are shown first and confirmed at the terminal.\nWith no terminal attached nothing is taken unless --yes is given.\n\nThe copies inside the checkout stay where they are unless --remove is given;\nkapi no longer reads them either way.",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "remove",
+          "usage": "remove the copies inside the checkout once they are taken",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
+      "examples": [
+        "kapi state import -p ./app",
+        "kapi state import -p ./app --yes --remove"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "state.path",
+      "path": [
+        "state",
+        "path"
+      ],
+      "use": "path",
+      "short": "Print the directory that holds the checkout's state",
+      "long": "Print the directory that holds the checkout's own state. With --json the\nanswer also names the parse cache directory, parse_cache: work/cache/docs in\nthe state directory, or the directory KAPI_PARSE_CACHE_DIR names.\n\nA CI workflow caches the parse cache only. It sets KAPI_PARSE_CACHE_DIR to a\nfixed directory and caches that, because the state directory changes with\nevery fresh checkout and also holds the sync state and the redaction vault.",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi state path -p .",
+        "kapi state path -p . --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "state.relink",
+      "path": [
+        "state",
+        "relink"
+      ],
+      "use": "relink",
+      "short": "Take the state kapi recorded for the checkout's earlier location",
+      "long": "Take the state kapi recorded for a checkout at another location into this\ncheckout's state directory: for a checkout moved to another volume, restored\nfrom a backup, or cloned again. The files are shown first and confirmed at the\nterminal. With no terminal attached nothing is taken unless --yes is given.\nThe work directory is rebuilt here rather than taken, and the state directory\nthe files came from is removed once they are in place.",
+      "flags": [
+        {
+          "name": "from",
+          "usage": "the location the checkout's state was recorded for",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi state relink --from ~/old/app -p ./app"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "stats",
       "path": [
         "stats"
@@ -8422,7 +8577,7 @@
       ],
       "use": "import [path | file.kpz]",
       "short": "Read context files, or a file written by export, into this project",
-      "long": "Read a checkout's context files into this project's store: the terms,\nthe voice profiles, the wording already approved, and the record of who approved\nit.\n\nName a .kpz written by \"kapi store export\" to merge it instead, the way\n\"kapi context sync\" merges what others shared: everything it carries that this\nproject does not hold, with its history.\n\nThis is the one command that opens those files. Everything else answers from the\nstore, so what you read here is in force for every checkout of this project on\nthis machine, and for everyone else once they run it too. A person runs it: it\nis a decision about the project, and it appears in \"kapi context log\" with each\nfile and the bytes that were read.\n\nWith no path it reads the project's own \".kapi\" directory. Name a path to read\nanother checkout's directory instead, when you are bringing an existing\nproject's context across.\n\nRunning it twice changes nothing. Everything is matched by the identity the file\ncarries, so a second read finds the store already holding what the file says.\nA file whose bytes have not moved since this checkout read it is skipped;\n--force reads it anyway.",
+      "long": "Read a checkout's context files into this project's store: the terms,\nthe voice profiles, the wording already approved, and the record of who approved\nit.\n\nName a .kpz written by \"kapi store export\" to merge it instead, the way\n\"kapi context sync\" merges what others shared: everything it carries that this\nproject does not hold, with its history.\n\nThis is the one command that opens those files. Everything else answers from the\nstore, so what you read here is in force for every checkout of this project on\nthis machine, and for everyone else once they run it too. A person runs it: it\nis a decision about the project, and it appears in \"kapi context log\" with each\nfile and the bytes that were read.\n\nWith no path it reads the project's own \".kapi\" directory. Name a path to read\nanother checkout's directory instead, when you are bringing an existing\nproject's context across.\n\nIt lists the files it would read and what each carries (term concepts,\ncontent-memory entries, voice profiles and their word rules, approvals from\nthe decision record) and asks before reading. With no terminal attached it\nreads nothing unless --yes is given.\n\nRunning it twice changes nothing. Everything is matched by the identity the file\ncarries, so a second read finds the store already holding what the file says.\nA file whose bytes have not moved since this checkout read it is skipped;\n--force reads it anyway.",
       "flags": [
         {
           "name": "force",
@@ -8439,6 +8594,7 @@
       ],
       "examples": [
         "kapi store import",
+        "kapi store import ./context --yes",
         "kapi store import ../other-project/.kapi",
         "kapi store import --force",
         "kapi store import context.kpz"
@@ -8563,7 +8719,7 @@
       ],
       "use": "terms",
       "short": "Manage terminology",
-      "long": "Manage project terminology.\n\nA terms store holds approved terminology (concepts and their renderings per\nlocale) as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nInside a project, no flag means the project's own terms, a subsystem of\n.kapi/work/store.db, which is why it is not addressed by path. Use -p to name the\nproject explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in the kapi config dir (terms/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./terms.db).",
+      "long": "Manage project terminology.\n\nA terms store holds approved terminology (concepts and their renderings per\nlocale) as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nInside a project, no flag means the project's own terms, kept in the project's\ncontext store in the workspace, which is why it is not addressed by path. Use -p to name the\nproject explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in the kapi config dir (terms/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./terms.db).",
       "groupID": "assets",
       "examples": [
         "kapi terms stats",

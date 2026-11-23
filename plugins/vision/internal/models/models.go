@@ -12,13 +12,13 @@ package models
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
+	"testing"
 	"time"
 )
 
@@ -95,7 +95,7 @@ func Dir() string {
 	if d := os.Getenv("XDG_CACHE_HOME"); d != "" {
 		return filepath.Join(d, "kapi", "models", "vision")
 	}
-	if flag.Lookup("test.v") != nil {
+	if testing.Testing() {
 		// A test binary keeps off the developer's cache (core/dataroot), in a
 		// private directory of its own that no other user can name in advance.
 		if dir, err := testModelsDir(); err == nil {

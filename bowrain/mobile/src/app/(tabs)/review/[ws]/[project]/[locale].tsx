@@ -116,7 +116,8 @@ export default function LanguageCollections() {
   const { client } = useAuth();
   const list = useQuery({
     queryKey: collectionsKey(ws, project, locale),
-    queryFn: () => client.deckCollections({ workspace: ws, project }, locale),
+    queryFn: ({ signal }) =>
+      client.with({ signal }).deckCollections({ workspace: ws, project }, locale),
   });
   const { refetch } = list;
   const pull = usePullRefresh(refetch);

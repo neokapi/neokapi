@@ -5,7 +5,9 @@
 // for a rejection (the left swipe), the sheet shows the reasons and the note
 // first, with the fixes one tap away.
 import {
+  ApiError,
   FIX_REASONS,
+  RequestTimeoutError,
   type DeckCard,
   type FixCandidate,
   type FixCandidates,
@@ -33,6 +35,15 @@ import { RunText } from "./RunText";
 import { reasonLabel } from "../lib/reasons";
 import { MAX_DECISION_NOTE } from "@neokapi/contract-types";
 
+/**
+ * Whether ready-made fixes failed because they took too long: the client's
+ * bound passed, or the load balancer gave up first (504). An AI suggestion
+ * waits for a model, so this is a slow answer, not a lost connection.
+ */
+export function tookTooLong(err: unknown): boolean {
+  return err instanceof RequestTimeoutError || (err instanceof ApiError && err.status === 504);
+}
+
 export interface FixSheetProps {
   card: DeckCard | null;
   /** Read the fix candidates; null when the server offers none. */
@@ -40,6 +51,7 @@ export interface FixSheetProps {
     card: DeckCard,
     reason: FixReason | undefined,
     ai: boolean,
+    signal?: AbortSignal,
   ) => Promise<FixCandidates | null>;
   onFix: (card: DeckCard, runs: Run[], reasons: FixReason[]) => void;
   onReject: (card: DeckCard, reasons: FixReason[], note: string) => void;
@@ -95,7 +107,7 @@ export function FixSheetBody({
 
   const fixes = useQuery({
     queryKey: ["fixes", card.key, card.targetRevision, reason ?? "", ai],
-    queryFn: () => loadFixes(card, reason, ai),
+    queryFn: ({ signal }) => loadFixes(card, reason, ai, signal),
     enabled: !rejecting,
     // An offline reviewer still edits and rejects; fixes need the server.
     retry: false,
@@ -155,7 +167,9 @@ export function FixSheetBody({
           <Section title={t("fix.readyMade")}>
             {fixes.isPending ? <ActivityIndicator /> : null}
             {fixes.isError ? (
-              <Text className="text-muted-foreground">{t("fix.fixesUnavailable")}</Text>
+              <Text className="text-muted-foreground">
+                {tookTooLong(fixes.error) ? t("fix.fixesSlow") : t("fix.fixesUnavailable")}
+              </Text>
             ) : null}
             {fixes.data === null ? (
               <Text className="text-muted-foreground">{t("fix.noFixRoute")}</Text>

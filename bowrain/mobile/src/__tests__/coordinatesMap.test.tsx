@@ -16,13 +16,15 @@ const mockMap = jest.fn<Promise<ReviewCoordinates>, unknown[]>();
 const mockConfirm = jest.fn<Promise<void>, unknown[]>();
 const mockPermissions = jest.fn();
 jest.mock("../lib/auth", () => ({
-  useAuth: () => ({
-    client: {
+  useAuth: () => {
+    const client = {
       reviewCoordinates: (...a: unknown[]) => mockMap(...a),
       confirmCoordinates: (...a: unknown[]) => mockConfirm(...a),
       permissions: (...a: unknown[]) => mockPermissions(...a),
-    },
-  }),
+      with: () => client,
+    };
+    return { client };
+  },
 }));
 
 const map = (changed: boolean) =>
@@ -145,5 +147,16 @@ describe("coordinates map", () => {
     await render(withTestProviders(<CoordinatesScreen />));
     expect(await screen.findByText("Nothing changed since the last confirmation.")).toBeTruthy();
     expect(screen.queryByTestId("coordinates-confirm")).toBeNull();
+  });
+
+  it("lets the confirm label wrap in a button that grows, at a large text size", async () => {
+    // The test renderer's text scale is 2, a large size: a pill would clip
+    // the wrapped label's first and last letters, so the corners round less.
+    mockMap.mockResolvedValue(map(true));
+    await render(withTestProviders(<CoordinatesScreen />));
+    const button = await screen.findByTestId("coordinates-confirm");
+    expect(button.props.className).toContain("rounded-3xl");
+    expect(button.props.className).not.toContain("rounded-full");
+    expect(screen.getByText("Confirm these coordinates").props.className).toContain("text-center");
   });
 });

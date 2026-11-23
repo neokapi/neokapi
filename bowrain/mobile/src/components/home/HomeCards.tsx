@@ -11,15 +11,17 @@ import { useCSSVariable } from "uniwind";
 
 import { languageLabel } from "../../lib/feed";
 import type { ProjectWaiting, Waiting } from "../../lib/home";
+import { useLargeText } from "../../lib/textScale";
 import { Monogram } from "./Monogram";
-import { CountPill, LocaleBadge } from "./parts";
+import { CountPill, FixedLinesText, LocaleBadge, UnknownPill } from "./parts";
 import { ReviewMix } from "./ReviewMix";
 
 const CARD =
   "bg-card border-border mx-4 mb-3 flex-row items-center gap-3 rounded-3xl border p-4 active:opacity-80";
 
 /** What waits, in a line: "12 translations · 3 context items". */
-export function waitingSummary(w: Waiting | undefined, t: TFunction): string {
+export function waitingSummary(w: Waiting | undefined, t: TFunction, unknown = false): string {
+  if (unknown) return t("home.countsUnavailable");
   const parts: string[] = [];
   if (w?.translations) parts.push(t("home.translations", { count: w.translations }));
   if (w?.context) parts.push(t("home.contextItems", { count: w.context }));
@@ -34,14 +36,17 @@ function Chevron() {
 export const WorkspaceCard = memo(function WorkspaceCard({
   workspace,
   waiting,
+  unknown = false,
   onPress,
 }: {
   workspace: Workspace;
   waiting?: Waiting;
+  /** What waits could not be loaded: the card says so rather than showing none. */
+  unknown?: boolean;
   onPress: (w: Workspace) => void;
 }) {
   const { t } = useTranslation();
-  const summary = waitingSummary(waiting, t);
+  const summary = waitingSummary(waiting, t, unknown);
   const count = (waiting?.translations ?? 0) + (waiting?.context ?? 0);
   return (
     <Pressable
@@ -56,11 +61,11 @@ export const WorkspaceCard = memo(function WorkspaceCard({
         <Text className="text-foreground text-[17px] font-semibold" numberOfLines={2}>
           {workspace.name}
         </Text>
-        <Text className="text-muted-foreground text-sm" numberOfLines={2}>
+        <Text className="text-muted-foreground text-sm" numberOfLines={1}>
           {summary}
         </Text>
       </View>
-      <CountPill count={count} />
+      {unknown ? <UnknownPill /> : <CountPill count={count} />}
       <Chevron />
     </Pressable>
   );
@@ -72,10 +77,13 @@ const MAX_BADGES = 6;
 export const ProjectCard = memo(function ProjectCard({
   project,
   waiting,
+  unknown = false,
   onPress,
 }: {
   project: Project;
   waiting?: ProjectWaiting;
+  /** What waits could not be loaded: the card says so rather than showing none. */
+  unknown?: boolean;
   onPress: (p: Project) => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -96,7 +104,8 @@ export const ProjectCard = memo(function ProjectCard({
   ]
     .filter(Boolean)
     .join(" · ");
-  const summary = waitingSummary(waiting, t);
+  const summary = waitingSummary(waiting, t, unknown);
+  const translationsWaiting = t("home.translations", { count: waiting?.translations ?? 0 });
   return (
     <Pressable
       testID={`project-${project.id}`}
@@ -122,6 +131,7 @@ export const ProjectCard = memo(function ProjectCard({
                 key={l}
                 locale={l}
                 size="sm"
+                unknown={unknown}
                 active={waiting?.byLocale.has(l) ?? false}
               />
             ))}
@@ -132,25 +142,34 @@ export const ProjectCard = memo(function ProjectCard({
             ) : null}
           </View>
         ) : null}
-        {waiting?.translations ? (
-          <Text className="text-primary text-sm font-semibold">
-            {t("home.project.waitingIn", {
-              translations: t("home.translations", { count: waiting.translations }),
-              count: waiting.languages,
-            })}
-          </Text>
-        ) : null}
-        {waiting?.context ? (
-          <View className="flex-row items-center gap-1.5">
-            <Ionicons name="sparkles" size={14} color={String(prism)} />
-            <Text className="text-foreground text-sm font-medium">
-              {t("context.entry", { count: waiting.context })}
+        {/* Two lines, whatever waits, so the card keeps its height when the counts arrive. */}
+        <View className="gap-0.5">
+          {waiting?.translations ? (
+            <Text className="text-primary text-sm font-semibold" numberOfLines={1}>
+              {t("home.project.waitingIn", {
+                translations: translationsWaiting,
+                count: waiting.languages,
+              })}
             </Text>
-          </View>
-        ) : null}
-        {!waiting?.translations && !waiting?.context ? (
-          <Text className="text-muted-foreground text-sm">{t("home.nothingWaiting")}</Text>
-        ) : null}
+          ) : (
+            <Text className="text-muted-foreground text-sm" numberOfLines={1}>
+              {unknown ? t("home.countsUnavailable") : t("home.nothingWaiting")}
+            </Text>
+          )}
+          {waiting?.context ? (
+            <View className="flex-row items-center gap-1.5">
+              <Ionicons name="sparkles" size={14} color={String(prism)} />
+              <Text className="text-foreground text-sm font-medium" numberOfLines={1}>
+                {t("context.entry", { count: waiting.context })}
+              </Text>
+            </View>
+          ) : (
+            // An empty line in the same type, so it is as tall at every text size.
+            <Text accessibilityElementsHidden className="text-sm">
+              {"\u00a0"}
+            </Text>
+          )}
+        </View>
       </View>
       <View className="h-12 justify-center">
         <Chevron />
@@ -159,45 +178,97 @@ export const ProjectCard = memo(function ProjectCard({
   );
 });
 
+// CARD with its parts stacked: the row for the largest text sizes.
+const CARD_STACKED =
+  "bg-card border-border mx-4 mb-3 gap-3 rounded-3xl border p-4 active:opacity-80";
+
 /** A project's context waiting for review: voice rules, terms and notes. */
 export function ContextEntryCard({
   count,
+  title,
   detail,
+  detailLines = 2,
+  trailing,
   onPress,
   testID = "project-context",
 }: {
   count: number;
+  /** The title in place of the count, for a row that is always present. */
+  title?: string;
   detail?: string;
+  /** The lines the detail may take; one keeps the card's height fixed. */
+  detailLines?: number;
+  /** Shown before the chevron, such as the count of what waits. */
+  trailing?: React.ReactNode;
   onPress: () => void;
   testID?: string;
 }) {
   const { t } = useTranslation();
+  const heading = title ?? t("context.entry", { count });
+  // At the largest text sizes the row cannot hold the title beside the icon
+  // and the count, so the title and the detail take a line of their own
+  // under them, at full width and wrapping, rather than cutting a word. The
+  // detail then keeps a fixed number of lines, so the row's height is the
+  // same while it reads "Loading" and once it says what waits.
+  const { large, lines } = useLargeText();
+  const icon = (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      className="from-prism-4 to-prism-5 h-11 w-11 items-center justify-center rounded-xl bg-linear-to-br"
+    >
+      <Ionicons name="sparkles" size={22} color="#ffffff" />
+    </View>
+  );
+  const text = (
+    <View className={large ? "gap-0.5" : "flex-1 gap-0.5"}>
+      <Text
+        className="text-foreground text-[17px] font-semibold"
+        numberOfLines={large ? undefined : detailLines}
+      >
+        {heading}
+      </Text>
+      {detail === undefined ? null : large ? (
+        <FixedLinesText
+          lines={lines}
+          size="sm"
+          className="text-muted-foreground text-sm tabular-nums"
+        >
+          {detail}
+        </FixedLinesText>
+      ) : (
+        <Text className="text-muted-foreground text-sm tabular-nums" numberOfLines={detailLines}>
+          {detail}
+        </Text>
+      )}
+    </View>
+  );
   return (
     <Pressable
       testID={testID}
       accessibilityRole="button"
-      accessibilityLabel={[t("context.entry", { count }), detail].filter(Boolean).join(", ")}
+      accessibilityLabel={[heading, detail].filter(Boolean).join(", ")}
       onPress={onPress}
-      className={CARD}
+      className={large ? CARD_STACKED : CARD}
     >
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        className="from-prism-4 to-prism-5 h-11 w-11 items-center justify-center rounded-xl bg-linear-to-br"
-      >
-        <Ionicons name="sparkles" size={22} color="#ffffff" />
-      </View>
-      <View className="flex-1 gap-0.5">
-        <Text className="text-foreground text-[17px] font-semibold">
-          {t("context.entry", { count })}
-        </Text>
-        {detail ? (
-          <Text className="text-muted-foreground text-sm tabular-nums" numberOfLines={2}>
-            {detail}
-          </Text>
-        ) : null}
-      </View>
-      <Chevron />
+      {large ? (
+        <>
+          <View className="flex-row items-center gap-4">
+            {icon}
+            <View className="flex-1" />
+            {trailing}
+            <Chevron />
+          </View>
+          {text}
+        </>
+      ) : (
+        <>
+          {icon}
+          {text}
+          {trailing}
+          <Chevron />
+        </>
+      )}
     </Pressable>
   );
 }
@@ -206,6 +277,7 @@ export const LanguageCard = memo(function LanguageCard({
   locale,
   waiting,
   loading,
+  unknown = false,
   where,
   testID,
   onPress,
@@ -215,6 +287,8 @@ export const LanguageCard = memo(function LanguageCard({
   waiting?: ReviewInboxLanguage;
   /** The inbox is still loading. */
   loading?: boolean;
+  /** The inbox could not be loaded: the card says so rather than showing none. */
+  unknown?: boolean;
   /** The project (and workspace) the language belongs to, where the list spans several. */
   where?: string;
   testID?: string;
@@ -225,35 +299,85 @@ export const LanguageCard = memo(function LanguageCard({
   const count = waiting?.waiting ?? 0;
   const status = loading
     ? t("home.loading")
-    : count > 0
-      ? t("home.translations", { count })
-      : t("home.nothingWaiting");
+    : unknown
+      ? t("home.countsUnavailable")
+      : count > 0
+        ? t("home.translations", { count })
+        : t("home.nothingWaiting");
+  // At the largest text sizes the name, the bar and the status take the
+  // card's full width under the badge and the count, and wrap. The line under
+  // the bar keeps two lines there, the most the review mix's legend takes,
+  // so the card's height is the same before and after the counts arrive.
+  const { large } = useLargeText();
+  const badge = <LocaleBadge locale={locale} active={count > 0} />;
+  const pill = loading ? (
+    <View className="bg-muted h-7 w-9 rounded-full" />
+  ) : unknown ? (
+    <UnknownPill />
+  ) : (
+    <CountPill count={count} />
+  );
+  const text = (
+    <View className={large ? "gap-1.5" : "flex-1 gap-1.5"}>
+      <Text
+        className="text-foreground text-[17px] font-semibold"
+        numberOfLines={large ? undefined : 2}
+      >
+        {name}
+      </Text>
+      {where ? (
+        <Text className="text-muted-foreground text-sm" numberOfLines={large ? undefined : 1}>
+          {where}
+        </Text>
+      ) : null}
+      {waiting && count > 0 ? (
+        <ReviewMix
+          testID={`language-${locale}-mix`}
+          mix={waiting}
+          legendLines={large ? 2 : undefined}
+        />
+      ) : (
+        // The same shape as the review mix, an empty bar over one line, so
+        // the card keeps its height when the counts arrive.
+        <View className="gap-1.5">
+          <View className="bg-muted h-2 rounded-full" />
+          {large ? (
+            <FixedLinesText lines={2} size="xs" className="text-muted-foreground text-xs">
+              {status}
+            </FixedLinesText>
+          ) : (
+            <Text className="text-muted-foreground text-xs">{status}</Text>
+          )}
+        </View>
+      )}
+    </View>
+  );
   return (
     <Pressable
       testID={testID ?? `language-${locale}`}
       accessibilityRole="button"
       accessibilityLabel={[name, where, status].filter(Boolean).join(", ")}
       onPress={() => onPress(locale)}
-      className={CARD}
+      className={large ? CARD_STACKED : CARD}
     >
-      <LocaleBadge locale={locale} active={count > 0} />
-      <View className="flex-1 gap-1.5">
-        <Text className="text-foreground text-[17px] font-semibold" numberOfLines={2}>
-          {name}
-        </Text>
-        {where ? (
-          <Text className="text-muted-foreground text-sm" numberOfLines={1}>
-            {where}
-          </Text>
-        ) : null}
-        {waiting && count > 0 ? (
-          <ReviewMix testID={`language-${locale}-mix`} mix={waiting} />
-        ) : (
-          <Text className="text-muted-foreground text-sm">{status}</Text>
-        )}
-      </View>
-      {loading ? <View className="bg-muted h-7 w-9 rounded-full" /> : <CountPill count={count} />}
-      <Chevron />
+      {large ? (
+        <>
+          <View className="flex-row items-center gap-4">
+            {badge}
+            <View className="flex-1" />
+            {pill}
+            <Chevron />
+          </View>
+          {text}
+        </>
+      ) : (
+        <>
+          {badge}
+          {text}
+          {pill}
+          <Chevron />
+        </>
+      )}
     </Pressable>
   );
 });

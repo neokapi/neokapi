@@ -22,7 +22,7 @@ import (
 
 // New opens (or creates) a SQLite-backed block store at the given path.
 // Intended use: project-local persistence in the project store,
-// `.kapi/work/store.db`, where core/projectdb binds it alongside the other
+// `work/store.db` in the checkout's state directory, where core/projectdb binds it alongside the other
 // subsystems, full random access, append-friendly for concurrent overlay
 // writes.
 //
@@ -49,7 +49,7 @@ func NewAutocommit(path string) (blockstore.Store, error) {
 }
 
 // NewFromDB adopts an already-open database, the project's merged
-// `.kapi/work/store.db`, where the block cache is one schema among the content
+// `work/store.db` in the checkout's state directory, where the block cache is one schema among the content
 // memory, the terms store and the unit working set. The migrations and the
 // `cache_migrations` ledger are the same ones a standalone file gets, which is
 // the whole point of namespaced ledgers: a store opened either way is the same

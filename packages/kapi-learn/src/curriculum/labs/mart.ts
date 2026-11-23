@@ -286,7 +286,7 @@ export const martProject: Lab = {
       title: "Read the context in",
       narration:
         "The context arrives as files under context/, in two kinds. The terms carry the product and payment names kept as written in every language, the shop words with their renderings, and the brand's forbidden words beside the word to use instead. The content memory carries approved French pairs from earlier work, in the memory's own form. One import reads both into the project's store.",
-      command: "kapi store import ./context",
+      command: "kapi store import ./context --yes",
       expect: ["14 concepts", "5 content-memory entries"],
     },
     {

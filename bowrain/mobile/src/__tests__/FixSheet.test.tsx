@@ -1,4 +1,10 @@
-import type { DeckCard, FixCandidates } from "@neokapi/bowrain-client";
+import {
+  ApiError,
+  NetworkError,
+  RequestTimeoutError,
+  type DeckCard,
+  type FixCandidates,
+} from "@neokapi/bowrain-client";
 import type { Run } from "@neokapi/kapi-format";
 import { withTestProviders } from "./testProviders";
 import { fireEvent, render, screen } from "@testing-library/react-native";
@@ -47,13 +53,32 @@ function setup() {
 }
 
 describe("FixSheet", () => {
+  it.each([
+    [
+      "the client's bound passed",
+      new RequestTimeoutError("/fix-candidates", 65_000),
+      /took too long/,
+    ],
+    ["the load balancer gave up", new ApiError(504, "gateway timeout", undefined), /took too long/],
+    ["the connection failed", new NetworkError("Network request failed"), /need a connection/],
+  ])("says why the ready-made fixes did not load when %s", async (_why, err, text) => {
+    const h = { ...setup(), loadFixes: jest.fn(async () => Promise.reject(err)) };
+    await render(withTestProviders(<FixSheetBody card={card} onClose={() => {}} {...h} />));
+    expect(await screen.findByText(text)).toBeTruthy();
+  });
+
   it("applies a ready-made fix with the chosen reason", async () => {
     const h = setup();
     await render(withTestProviders(<FixSheetBody card={card} onClose={() => {}} {...h} />));
     await fireEvent.press(screen.getByTestId("reason-wrong_term"));
     await fireEvent.press(await screen.findByTestId("use-term-0"));
     expect(h.onFix).toHaveBeenCalledWith(card, fixes.candidates[0].runs, ["wrong_term"]);
-    expect(h.loadFixes).toHaveBeenLastCalledWith(card, "wrong_term", false);
+    expect(h.loadFixes).toHaveBeenLastCalledWith(
+      card,
+      "wrong_term",
+      false,
+      expect.any(AbortSignal),
+    );
   });
 
   it("edits the text with the placeholder locked and keeps it in the correction", async () => {

@@ -176,8 +176,10 @@ the kapi process environment:
   over `XDG_DATA_HOME`**, so setting only the latter leaves a developer's
   exported `KAPI_DATA_DIR` in force. The root holds the **workspace**
   (`<root>/workspaces/default/`): every project's terms, voice profiles,
-  content memory, recorded decisions and context graph. An in-repo kapi that
-  reached it would read and write the developer's own context.
+  content memory, recorded decisions and context graph, and every checkout's
+  own state (`<root>/checkouts/<key>/`: the project store, caches, sync state
+  and vault). An in-repo kapi that reached it would read and write the
+  developer's own context and the dogfood checkout's state.
 
   A Go test binary is covered without the variables: `host.DataDir()` and
   `host.ConfigDir()` answer with a per-process directory under `os.TempDir()`
@@ -190,6 +192,9 @@ the kapi process environment:
   without this, an in-repo kapi still picks up Homebrew-installed plugins.
   `kapi plugin install` and `update` then write to the first `$KAPI_PLUGINS_DIR`
   entry, and refuse to run when it is empty.
+- `KAPI_PARSE_CACHE_DIR=` (empty), so the parse cache stays in each checkout's
+  own state directory rather than a directory the developer exported. A test
+  binary honours the variable only beneath `os.TempDir()`.
 
 Already wired: the Makefile's shared `$(KAPI_ISO_ENV)` prefix, `kapi/e2e`'s
 `isoEnv` in `TestMain`, and `harness/` (sandboxes in `os.tmpdir()` via

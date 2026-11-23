@@ -308,36 +308,58 @@ stage.
   voice profiles, content memory and approvals live in a workspace on the
   machine that holds them. Sync the project's context before the job and again
   after it; see [below](#pull-context-before-push-after).
-  A job never commits `.kapi/work/store.db`.
-- **The parse cache is the part to carry between runs**: `.kapi/work/cache/docs`
-  is gitignored, rebuilt on a fresh runner, and keyed by each file's path and
-  content, the parse configuration, the recipe and the kapi build, so a restored
-  entry changes no result. `setup-kapi` carries it by default, and a job that
-  uses the action needs no cache step of its own:
+  A job never commits the checkout's state; kapi keeps it outside the
+  checkout, in the directory `kapi state path` prints.
+- **The parse cache is the part to carry between runs**: kapi rebuilds it on a
+  fresh runner, and keys each entry by the file's content, its path within the
+  project, the parse configuration, the recipe and the kapi build, so a restored
+  entry changes no result. Set `KAPI_PARSE_CACHE_DIR` to a fixed directory and
+  cache that directory:
 
   ```yaml
-  - uses: neokapi/setup-kapi@v1
-    with:
-      version: "1.2.0"
-      # cache-tm: false turns the parse cache off
+  env:
+    KAPI_PARSE_CACHE_DIR: ${{ runner.temp }}/kapi-parse
+  steps:
+    - uses: actions/checkout@v5
+    - uses: actions/cache@v6
+      with:
+        path: ${{ runner.temp }}/kapi-parse
+        key: kapi-parse-${{ runner.os }}-${{ hashFiles('kapi.yaml', 'src/locales/en/**') }}
+        restore-keys: kapi-parse-${{ runner.os }}-
   ```
 
-  Without the action, cache that one directory:
+  `setup-kapi`'s `parse-cache` input does the same, from the release that
+  supports it; the released `setup-kapi` caches a directory inside the
+  checkout, which this kapi neither reads nor writes. The directory must be an
+  absolute path outside the repository that holds the project, and on Linux and macOS a directory you
+  own that no other user can reach; kapi creates it that way when it is
+  missing, and a restored cache keeps that mode. Leave the directory for kapi
+  or the cache step to create: one made beforehand with a wider mode is
+  refused. On Windows kapi checks only that it is a directory and not a link,
+  because access there is set by access control lists, which kapi does not
+  read. `kapi state path --json` shows where the parse cache resolved, as
+  `parse_cache`.
 
-  ```yaml
-  - uses: actions/cache@v6
-    with:
-      path: .kapi/work/cache/docs
-      key: kapi-parse-${{ runner.os }}-${{ hashFiles('kapi.yaml', 'src/locales/en/**') }}
-      restore-keys: kapi-parse-${{ runner.os }}-
-  ```
+  kapi trusts a restored parse cache as much as it trusts the repository's own
+  CI cache: an entry in it is read as the parse of the file it names, so
+  whoever can write that cache decides what kapi reads. In GitHub Actions a run
+  restores only caches saved on its own branch, on the default branch, or, for
+  a pull request, on its base branch, so a pull request, including one from a
+  fork, cannot write a cache the default branch restores. kapi recomputes the
+  key of every entry from the file and the run, and discards an entry that
+  does not decode or does not match what it recorded. A project that does not
+  want to extend that trust leaves `KAPI_PARSE_CACHE_DIR` unset, and each run
+  parses from the files.
 
-  **Cache nothing else under `.kapi/work`.** `store.db` is derived from this
-  checkout's working tree, and a restored copy changes what a run reports: on a fixture project it turned a failing `check --ship` into a
-  passing one and a locale's coverage from 0% to 100%. The other entries under
-  `cache/`, such as the extraction batches, the redaction record and the sync
-  state, belong to the checkout that wrote them. Server-connected projects skip
-  the cache entirely; the project's context lives on the server.
+  **Cache the parse cache and nothing else from the state directory.** The
+  state directory also holds the sync state with its claim token and the
+  redaction vault, and a cache shared with other runs would carry both.
+  `work/store.db` is derived from this checkout's working tree, and a restored
+  copy changes what a run reports: on a fixture project it turned a failing
+  `check --ship` into a passing one and a locale's coverage from 0% to 100%.
+  The extraction batches, the vault and the sync state belong to the checkout
+  that wrote them. Server-connected projects skip the cache entirely; the
+  project's context lives on the server.
 
 :::note[Works with Bowrain]
 Everything on this page runs the loop inside your own CI. A project whose recipe declares a `bowrain:` block runs the same loop on a Bowrain server instead: `kapi up` pushes, the server catches every locale up against the workspace's shared memory and terminology, and the run streams back. Review happens in the Bowrain web app. See the [Bowrain documentation](https://bowrain.cloud/docs/).

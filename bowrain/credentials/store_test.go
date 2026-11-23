@@ -6,13 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/keychain"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zalando/go-keyring"
 )
 
 func TestMain(m *testing.M) {
-	keyring.MockInit()
+	keychain.Reset()
 	os.Exit(m.Run())
 }
 

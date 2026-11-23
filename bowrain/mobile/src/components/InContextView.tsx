@@ -28,6 +28,7 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 
+import { LARGE_TEXT } from "../lib/textScale";
 import { fileName } from "../lib/where";
 import { LiveView, useLiveStories } from "./LivePreview";
 import { RunText, type RunMark } from "./RunText";
@@ -38,10 +39,7 @@ export function reviewContainerKey(scope: ProjectScope, blockId: string, locale:
   return ["review-container", scope.workspace, scope.project, blockId, locale] as const;
 }
 
-export type LoadContainer = (card: DeckCard) => Promise<ReviewContainer>;
-
-/** The text scale from which the header scrolls with the units. */
-const LARGE_TEXT = 1.6;
+export type LoadContainer = (card: DeckCard, signal?: AbortSignal) => Promise<ReviewContainer>;
 
 /** Which side of each unit the page reads in. */
 export type Reading = "translation" | "source" | "both";
@@ -62,9 +60,9 @@ export interface InContextViewProps {
    * Reads a collection's story index. Given, a component whose collection
    * declares a Storybook can be opened running, full page.
    */
-  loadIndex?: (collectionId: string) => Promise<StoryIndex>;
+  loadIndex?: (collectionId: string, signal?: AbortSignal) => Promise<StoryIndex>;
   /** Reads a concept of the workspace terms store, for a term opened from a string. */
-  loadConcept?: (conceptId: string) => Promise<Concept>;
+  loadConcept?: (conceptId: string, signal?: AbortSignal) => Promise<Concept>;
 }
 
 export function InContextView({
@@ -105,7 +103,7 @@ export function InContextView({
 
   const ctx = useQuery({
     queryKey: reviewContainerKey(scope, card.blockId, card.locale),
-    queryFn: () => load(card),
+    queryFn: ({ signal }) => load(card, signal),
     staleTime: 60_000,
   });
   // "See it running" is offered only when the component has a story to run.

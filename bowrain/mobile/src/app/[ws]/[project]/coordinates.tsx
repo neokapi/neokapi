@@ -35,6 +35,7 @@ import { useAuth } from "../../../lib/auth";
 import { usePullRefresh } from "../../../lib/pullRefresh";
 import { languageLabel } from "../../../lib/feed";
 import { reviewCoordinatesKey, reviewPlanKey } from "../../../lib/plan";
+import { useLargeText } from "../../../lib/textScale";
 
 /** A point's place as a person reads it: product / channel. */
 function placeOf(coords: Record<string, string> | undefined): string {
@@ -120,13 +121,16 @@ export default function CoordinatesScreen() {
   const [zoom, setZoom] = useState<string | null>(null);
   const [picked, setPicked] = useState<CoordinateCell | null>(null);
   const window = useWindowDimensions();
+  // At the largest text sizes the confirm label wraps over lines a pill
+  // would clip, so the button takes rounded corners instead.
+  const { large } = useLargeText();
   const map = useQuery({
     queryKey: reviewCoordinatesKey(ws, project),
-    queryFn: () => client.reviewCoordinates(scope),
+    queryFn: ({ signal }) => client.with({ signal }).reviewCoordinates(scope),
   });
   const perms = useQuery({
     queryKey: ["permissions", ws, project],
-    queryFn: () => client.permissions(ws, project),
+    queryFn: ({ signal }) => client.with({ signal }).permissions(ws, project),
   });
   const mayManage = perms.data?.permissions.includes("manage_project") ?? false;
   const refresh = () =>
@@ -265,9 +269,9 @@ export default function CoordinatesScreen() {
                 ],
               )
             }
-            className="bg-primary mx-4 mt-5 items-center rounded-full px-4 py-3"
+            className={`bg-primary mx-4 mt-5 items-center px-4 py-3 ${large ? "rounded-3xl" : "rounded-full"}`}
           >
-            <Text className="text-primary-foreground text-base font-semibold">
+            <Text className="text-primary-foreground text-center text-base font-semibold">
               {t("plan.coordinates.confirmChanges")}
             </Text>
           </Pressable>

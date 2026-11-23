@@ -296,7 +296,7 @@ func TestAFolderStaysUntouchedUntilItsRecipeIsWritten(t *testing.T) {
 	loaded, err := project.Load(recipe)
 	require.NoError(t, err)
 	assert.Equal(t, string(key), loaded.ID)
-	assert.FileExists(t, filepath.Join(state, ".gitignore"))
+	assert.NoDirExists(t, state, "nothing is written into the folder for kapi's own state")
 	assert.FileExists(t, project.LayoutAt(dir).StorePath(), "the cache is rebuilt in the folder")
 
 	home, err := app.ListWorkspaceProjects()

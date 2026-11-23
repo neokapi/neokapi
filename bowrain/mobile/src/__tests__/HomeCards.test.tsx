@@ -303,6 +303,28 @@ describe("LanguageCard", () => {
     expect(screen.queryByTestId("language-nb-mix")).toBeNull();
     expect(screen.getByText("Nothing waiting for you")).toBeTruthy();
   });
+
+  it("says the counts were not loaded, never that nothing waits", async () => {
+    await render(<LanguageCard locale="nb" unknown onPress={() => {}} />);
+    expect(screen.getByText("Not loaded")).toBeTruthy();
+    expect(screen.queryByText("Nothing waiting for you")).toBeNull();
+  });
+});
+
+describe("a card whose counts could not be loaded", () => {
+  it("says so on a workspace card", async () => {
+    const ws = { id: "w1", name: "Acme", slug: "acme" };
+    await render(<WorkspaceCard workspace={ws} unknown onPress={() => {}} />);
+    expect(screen.getByText("Not loaded")).toBeTruthy();
+    expect(screen.queryByText("Nothing waiting for you")).toBeNull();
+    expect(screen.getByLabelText("Acme, Not loaded")).toBeTruthy();
+  });
+
+  it("says so on a project card", async () => {
+    await render(<ProjectCard project={project} unknown onPress={() => {}} />);
+    expect(screen.getByText("Not loaded")).toBeTruthy();
+    expect(screen.queryByText("Nothing waiting for you")).toBeNull();
+  });
 });
 
 function entry(id: string, actorId: string, name: string): FeedEntry {

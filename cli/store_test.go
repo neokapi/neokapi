@@ -70,6 +70,8 @@ func TestContextPortability_ExportAndImportRunOnAProject(t *testing.T) {
 	a.InitRegistries()
 	t.Cleanup(a.Shutdown)
 
+	// The person running the import confirms what it lists.
+	a.AssumeYes = true
 	out := runStore(t, a, "import", "-p", recipe, "--json")
 	var imported struct {
 		Concepts      int `json:"concepts"`
@@ -113,7 +115,10 @@ func TestContextPortability_TextFormIsTheResultsOwnRender(t *testing.T) {
 	recipe := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
-	got := runStore(t, a, "import", "-p", recipe)
+	a.AssumeYes = true
+	got, listed, err := runStoreIO(t, a, "import", "-p", recipe)
+	require.NoError(t, err)
+	assert.Contains(t, listed, "kapi would read these into the project store", "the files are listed before they are read")
 	assert.Contains(t, got, "1 concept")
 	assert.Contains(t, got, "1 voice profile")
 
@@ -149,6 +154,7 @@ func TestContextLocales_ReportsAndRebuilds(t *testing.T) {
 	a.InitRegistries()
 	t.Cleanup(a.Shutdown)
 
+	a.AssumeYes = true
 	runStore(t, a, "import", "-p", recipe, "--json")
 	assert.Contains(t, runStore(t, a, "locales", "-p", recipe),
 		"Every row is keyed by the locale its lookups ask for.")

@@ -29,7 +29,7 @@ export function reviewContextKey(scope: ProjectScope, blockId: string, locale: s
   return ["review-context", scope.workspace, scope.project, blockId, locale] as const;
 }
 
-type Load = (card: DeckCard) => Promise<ReviewContext>;
+type Load = (card: DeckCard, signal?: AbortSignal) => Promise<ReviewContext>;
 
 /** What the sheet can decide in place, through the deck's own queue and fix sheet. */
 export interface InContextActions {
@@ -38,9 +38,9 @@ export interface InContextActions {
   onFix: (card: DeckCard) => void;
   decided?: ReadonlySet<string>;
   /** Reads a collection's story index, for a component shown running. */
-  loadIndex?: (collectionId: string) => Promise<StoryIndex>;
+  loadIndex?: (collectionId: string, signal?: AbortSignal) => Promise<StoryIndex>;
   /** Reads a concept of the workspace terms store, for a term opened from a string. */
-  loadConcept?: (conceptId: string) => Promise<Concept>;
+  loadConcept?: (conceptId: string, signal?: AbortSignal) => Promise<Concept>;
 }
 
 export function ContextSheet({
@@ -223,7 +223,7 @@ function DetailsBody({
   const { t } = useTranslation();
   const ctx = useQuery({
     queryKey: reviewContextKey(scope, card.blockId, card.locale),
-    queryFn: () => load(card),
+    queryFn: ({ signal }) => load(card, signal),
     staleTime: 5 * 60_000,
   });
   const point = ctx.data?.point;
