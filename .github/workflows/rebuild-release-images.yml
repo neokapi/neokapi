@@ -139,6 +139,7 @@ jobs:
       - name: Read the release commit
         id: meta
         run: |
+          mkdir -p "$RUNNER_TEMP/out"
           {
             echo "commit=$(git rev-parse --short HEAD)"
             echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
