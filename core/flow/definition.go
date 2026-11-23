@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -30,7 +31,7 @@ const (
 type FlowDefinition struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
-	// Description is markdown — see markdown-in-ui.md.
+	// Description is markdown; see markdown-in-ui.md.
 	Description string     `json:"description,omitempty"`
 	Nodes       []FlowNode `json:"nodes"`
 	Edges       []FlowEdge `json:"edges"`
@@ -43,8 +44,25 @@ type FlowDefinition struct {
 	Binding *FlowBinding `json:"binding,omitempty"`
 }
 
+// MarshalJSON writes nodes and edges as arrays, empty when there are none. A
+// one-step flow has no edges, and a nil slice would otherwise encode as null,
+// which a client reading `edges` as a list cannot iterate: the Bowrain Flows
+// tab failed on every project because the built-in one-step flows carried
+// "edges": null. A type that embeds FlowDefinition gets this method too and
+// must write its own fields itself (bowrain/store.StoredFlow does).
+func (d FlowDefinition) MarshalJSON() ([]byte, error) {
+	type plain FlowDefinition
+	if d.Nodes == nil {
+		d.Nodes = []FlowNode{}
+	}
+	if d.Edges == nil {
+		d.Edges = []FlowEdge{}
+	}
+	return json.Marshal(plain(d))
+}
+
 // FlowBinding is a flow's declared source/sink binding intent (AD-026). Values
-// are binding locators — "file", "store", "none", "xliff", … — matching the
+// are binding locators (such as "file", "store", "none", "xliff") matching the
 // steps-format source:/sink: fields and the CLI locator vocabulary. An empty
 // field means the binding is supplied at invocation, not by the flow.
 type FlowBinding struct {
@@ -53,7 +71,7 @@ type FlowBinding struct {
 }
 
 // FlowNode represents a node in the flow graph. Tool nodes are one ordered
-// list — transformers are ordinary steps (AD-006); placement safety is
+// list: transformers are ordinary steps (AD-006), and placement safety is
 // validated by ValidatePlacement, not by a structural stage.
 type FlowNode struct {
 	ID       string         `json:"id"`
