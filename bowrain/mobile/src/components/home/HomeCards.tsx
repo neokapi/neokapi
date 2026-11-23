@@ -5,14 +5,14 @@ import type { Project, ReviewInboxLanguage, Workspace } from "@neokapi/bowrain-c
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { TFunction } from "i18next";
 import { memo } from "react";
-import { Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
 import { languageLabel } from "../../lib/feed";
 import type { ProjectWaiting, Waiting } from "../../lib/home";
 import { Monogram } from "./Monogram";
-import { CountPill, LocaleBadge, UnknownPill } from "./parts";
+import { CountPill, FixedLinesText, LocaleBadge, UnknownPill, useLargeText } from "./parts";
 import { ReviewMix } from "./ReviewMix";
 
 const CARD =
@@ -181,9 +181,6 @@ export const ProjectCard = memo(function ProjectCard({
 const CARD_STACKED =
   "bg-card border-border mx-4 mb-3 gap-3 rounded-3xl border p-4 active:opacity-80";
 
-/** The text scale from which a fixed-height row lets its lines wrap. */
-const LARGE_TEXT = 1.6;
-
 /** A project's context waiting for review: voice rules, terms and notes. */
 export function ContextEntryCard({
   count,
@@ -209,8 +206,10 @@ export function ContextEntryCard({
   const heading = title ?? t("context.entry", { count });
   // At the largest text sizes the row cannot hold the title beside the icon
   // and the count, so the title and the detail take a line of their own
-  // under them, at full width and wrapping, rather than cutting a word.
-  const large = useWindowDimensions().fontScale >= LARGE_TEXT;
+  // under them, at full width and wrapping, rather than cutting a word. The
+  // detail then keeps a fixed number of lines, so the row's height is the
+  // same while it reads "Loading" and once it says what waits.
+  const { large, lines } = useLargeText();
   const icon = (
     <View
       accessibilityElementsHidden
@@ -228,14 +227,19 @@ export function ContextEntryCard({
       >
         {heading}
       </Text>
-      {detail ? (
-        <Text
+      {detail === undefined ? null : large ? (
+        <FixedLinesText
+          lines={lines}
+          size="sm"
           className="text-muted-foreground text-sm tabular-nums"
-          numberOfLines={large ? undefined : detailLines}
         >
           {detail}
+        </FixedLinesText>
+      ) : (
+        <Text className="text-muted-foreground text-sm tabular-nums" numberOfLines={detailLines}>
+          {detail}
         </Text>
-      ) : null}
+      )}
     </View>
   );
   return (
@@ -300,8 +304,10 @@ export const LanguageCard = memo(function LanguageCard({
         ? t("home.translations", { count })
         : t("home.nothingWaiting");
   // At the largest text sizes the name, the bar and the status take the
-  // card's full width under the badge and the count, and wrap.
-  const large = useWindowDimensions().fontScale >= LARGE_TEXT;
+  // card's full width under the badge and the count, and wrap. The line under
+  // the bar keeps two lines there, the most the review mix's legend takes,
+  // so the card's height is the same before and after the counts arrive.
+  const { large } = useLargeText();
   const badge = <LocaleBadge locale={locale} active={count > 0} />;
   const pill = loading ? (
     <View className="bg-muted h-7 w-9 rounded-full" />
@@ -324,13 +330,23 @@ export const LanguageCard = memo(function LanguageCard({
         </Text>
       ) : null}
       {waiting && count > 0 ? (
-        <ReviewMix testID={`language-${locale}-mix`} mix={waiting} />
+        <ReviewMix
+          testID={`language-${locale}-mix`}
+          mix={waiting}
+          legendLines={large ? 2 : undefined}
+        />
       ) : (
         // The same shape as the review mix, an empty bar over one line, so
         // the card keeps its height when the counts arrive.
         <View className="gap-1.5">
           <View className="bg-muted h-2 rounded-full" />
-          <Text className="text-muted-foreground text-xs">{status}</Text>
+          {large ? (
+            <FixedLinesText lines={2} size="xs" className="text-muted-foreground text-xs">
+              {status}
+            </FixedLinesText>
+          ) : (
+            <Text className="text-muted-foreground text-xs">{status}</Text>
+          )}
         </View>
       )}
     </View>

@@ -3,7 +3,7 @@
 // place while they load; the activity strip, which shows only when there is
 // activity, comes below the languages once the sections above it have
 // answered.
-import { act, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
 import { withTestProviders } from "./testProviders";
 import ProjectHome from "../app/(tabs)/(home)/[ws]/[project]/index";
@@ -108,6 +108,39 @@ describe("a project's first load", () => {
     await waitFor(() =>
       expect(screen.getByTestId("project-plan")).toHaveTextContent(/Could not load this/),
     );
+  });
+
+  it("reserves the header facts' lines at a large text size before the project loads", async () => {
+    // The test renderer's text scale is 2, a large size: the facts go under the
+    // mark in a fixed number of lines that the placeholder holds too.
+    await render(withTestProviders(<ProjectHome />));
+    const before = screen.getByTestId("project-header-facts", {
+      includeHiddenElements: true,
+    }).props;
+    await answer("projects", [project]);
+    await screen.findByTestId("project-header");
+    const after = screen.getByTestId("project-header-facts").props;
+    expect(after.numberOfLines).toBe(before.numberOfLines);
+    expect(after.style).toEqual(before.style);
+    expect(after.style).toMatchObject({ minHeight: 3 * 20 * 2 });
+  });
+
+  it("retries a failed plan from the plan card", async () => {
+    await render(withTestProviders(<ProjectHome />));
+    await fail("reviewPlan");
+    mockPending.delete("reviewPlan");
+    await fireEvent.press(await screen.findByTestId("plan-retry"));
+    // The retry asks again, and the card reads Loading until it answers. The
+    // query client renders the fetching state in a later tick than the call,
+    // so the card is awaited; the request stays unanswered meanwhile.
+    await waitFor(() => expect(mockPending.has("reviewPlan")).toBe(true));
+    await waitFor(() => expect(screen.getByTestId("project-plan")).toHaveTextContent(/Loading/));
+    expect(screen.queryByTestId("plan-retry")).toBeNull();
+    await answer("reviewPlan", { next: null });
+    await waitFor(() =>
+      expect(screen.getByTestId("project-plan")).toHaveTextContent(/Nothing waits for you/),
+    );
+    expect(screen.queryByTestId("plan-retry")).toBeNull();
   });
 
   it("fills the context row in place with what waits", async () => {

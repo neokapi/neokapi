@@ -128,6 +128,17 @@ export class RequestTimeoutError extends Error {
  */
 export const READ_TIMEOUT_MS = 30_000;
 
+/**
+ * The bound on a read that waits for a model call: an AI fix suggestion
+ * (`fixCandidates` with `ai`). The server sets no write timeout, so the
+ * limit in front of it is the load balancer's idle timeout, 60 s (the AWS
+ * default; bowrain-infra's `modules/alb` does not change it), which ends a
+ * request that has sent no byte for that long. This bound sits 5 s above it,
+ * so a model call that outlasts the balancer ends with the balancer's answer
+ * and a slower one is never cut short by the client first.
+ */
+export const MODEL_READ_TIMEOUT_MS = 65_000;
+
 /** Whether an error means the server or the network could not be reached. */
 export function isNetworkError(err: unknown): boolean {
   return err instanceof TypeError || (err instanceof ApiError && err.status >= 500);
@@ -525,9 +536,12 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
     return body;
   }
 
-  /** A read, bounded by the read timeout. */
-  async function get<T>(path: string): Promise<T> {
-    return (await send(path, {}, undefined, readTimeout)).body as T;
+  /**
+   * A read, bounded by `timeoutMs`: the read timeout unless the request
+   * declares a bound of its own, as a read that waits for a model does.
+   */
+  async function get<T>(path: string, timeoutMs: number = readTimeout): Promise<T> {
+    return (await send(path, {}, undefined, timeoutMs)).body as T;
   }
 
   const client: BowrainClient = {
@@ -865,6 +879,7 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
             reason: o.reason,
             ai: o.ai ? "true" : undefined,
           })}`,
+          o.ai ? MODEL_READ_TIMEOUT_MS : readTimeout,
         );
         return fixesFromServer(body);
       } catch (err) {

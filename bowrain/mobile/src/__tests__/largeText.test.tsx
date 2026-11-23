@@ -59,13 +59,51 @@ describe("rows at the largest text sizes", () => {
       />,
     );
     expect(screen.getByText("Context").props.numberOfLines).toBeUndefined();
-    expect(screen.getByText("Up to date").props.numberOfLines).toBeUndefined();
+    expect(screen.getByText("Up to date").props.numberOfLines).toBe(4);
+  });
+
+  it("gives the context row's detail the same lines while loading and once loaded", async () => {
+    atScale(3.1);
+    const row = (detail: string) => (
+      <ContextEntryCard
+        count={3}
+        title="Context"
+        detail={detail}
+        detailLines={1}
+        onPress={() => {}}
+      />
+    );
+    const loaded = "1 voice · 12 terms · 4 rules · 3 notes";
+    const view = await render(row("Loading"));
+    const before = screen.getByText("Loading").props;
+    await view.rerender(row(loaded));
+    const after = screen.getByText(loaded).props;
+    expect(after.numberOfLines).toBe(before.numberOfLines);
+    expect(after.style).toEqual(before.style);
+    // Four lines of small text at the scale: the most the kinds line takes.
+    expect(after.style).toMatchObject({ minHeight: 4 * 20 * 3.1 });
   });
 
   it("lets a language card's name wrap at the largest size", async () => {
     atScale(3.1);
     await render(<LanguageCard locale="nb" waiting={nb} onPress={() => {}} />);
     expect(screen.getByText("Norwegian Bokmål").props.numberOfLines).toBeUndefined();
+  });
+
+  it("gives a language card's status line the legend's two lines while loading", async () => {
+    atScale(3.1);
+    await render(<LanguageCard locale="nb" loading onPress={() => {}} />);
+    const loading = screen.getByText("Loading").props;
+    expect(loading.numberOfLines).toBe(2);
+    expect(loading.style).toMatchObject({ minHeight: 2 * 16 * 3.1 });
+  });
+
+  it("gives the review mix's legend the same two lines once the counts arrive", async () => {
+    atScale(3.1);
+    await render(<LanguageCard locale="nb" waiting={nb} onPress={() => {}} />);
+    const legend = screen.getByText("6 to look closer").props;
+    expect(legend.numberOfLines).toBe(2);
+    expect(legend.style).toMatchObject({ minHeight: 2 * 16 * 3.1 });
   });
 
   it("keeps a language card's name to two lines at an ordinary size", async () => {

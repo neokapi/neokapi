@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { ChangeResult } from "@neokapi/contract-types";
 import type { Run } from "@neokapi/kapi-format";
@@ -11,7 +11,9 @@ import {
   placeholderForm,
   fixSet,
   isNetworkError,
+  MODEL_READ_TIMEOUT_MS,
   NetworkError,
+  READ_TIMEOUT_MS,
   readOutcome,
   RequestTimeoutError,
   sameContent,
@@ -1013,5 +1015,75 @@ describe("read bounds", () => {
       .catch((e: unknown) => e);
     expect(err).not.toBeInstanceOf(RequestTimeoutError);
     expect(seen).toHaveLength(1);
+  });
+});
+
+describe("a read that waits for a model", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const scope = { workspace: "ws", project: "p" };
+  const fixCard = { blockId: "b1", locale: "nb" };
+
+  /** A fetch that answers `body` after `ms`, or ends when its signal aborts. */
+  function answersAfter(ms: number, seen: string[]) {
+    return ((url: string, init?: RequestInit) => {
+      seen.push(url);
+      return new Promise<Response>((resolve, reject) => {
+        const timer = setTimeout(
+          () => resolve(new Response(JSON.stringify({ candidates: [] }), { status: 200 })),
+          ms,
+        );
+        init?.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+    }) as typeof fetch;
+  }
+
+  it("lets an AI fix suggestion answer after the read bound and before its own", async () => {
+    vi.useFakeTimers();
+    const seen: string[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: answersAfter(45_000, seen),
+    });
+    const pending = client.fixCandidates(scope, fixCard, { ai: true });
+    await vi.advanceTimersByTimeAsync(45_000);
+    await expect(pending).resolves.toMatchObject({ candidates: [] });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toContain("ai=true");
+    expect(READ_TIMEOUT_MS).toBeLessThan(45_000);
+  });
+
+  it("ends an AI fix suggestion at its own bound", async () => {
+    vi.useFakeTimers();
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: answersAfter(10 * 60_000, []),
+    });
+    const pending = client.fixCandidates(scope, fixCard, { ai: true }).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(MODEL_READ_TIMEOUT_MS);
+    const err = await pending;
+    expect(err).toBeInstanceOf(RequestTimeoutError);
+    expect((err as RequestTimeoutError).timeoutMs).toBe(MODEL_READ_TIMEOUT_MS);
+  });
+
+  it("keeps the read bound for fix suggestions that call no model", async () => {
+    vi.useFakeTimers();
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: answersAfter(45_000, []),
+    });
+    const pending = client.fixCandidates(scope, fixCard).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MS);
+    const err = await pending;
+    expect(err).toBeInstanceOf(RequestTimeoutError);
+    expect((err as RequestTimeoutError).timeoutMs).toBe(READ_TIMEOUT_MS);
   });
 });

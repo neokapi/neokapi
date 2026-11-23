@@ -21,9 +21,11 @@ import {
   CountPill,
   CountsNotice,
   EmptyState,
+  FixedLinesText,
   SectionHeader,
   SkeletonCards,
   UnknownPill,
+  useLargeText,
 } from "../../../../../components/home/parts";
 import { useAuth } from "../../../../../lib/auth";
 import { entriesOf, languageLabel, useFeed } from "../../../../../lib/feed";
@@ -60,24 +62,54 @@ function ProjectHeader({ project }: { project: Project }) {
     t("projects.languages", { count: project.target_languages.length }),
     project.block_count ? t("home.project.blocks", { count: project.block_count }) : undefined,
   ].filter(Boolean);
+  const { large, lines } = useLargeText();
+  // At the largest text sizes the facts go under the mark at full width, in
+  // a fixed number of lines that the placeholder reserves too.
   return (
-    <View testID="project-header" className="flex-row items-center gap-4 px-5 pt-2 pb-4">
+    <View testID="project-header" className={large ? HEADER_STACKED : HEADER}>
       <Monogram name={project.name} seed={project.id} size={56} />
-      <Text className="text-muted-foreground flex-1 text-sm">{facts.join(" · ")}</Text>
+      {large ? (
+        <FixedLinesText
+          testID="project-header-facts"
+          lines={lines}
+          size="sm"
+          className="text-muted-foreground text-sm"
+        >
+          {facts.join(" · ")}
+        </FixedLinesText>
+      ) : (
+        <Text className="text-muted-foreground flex-1 text-sm">{facts.join(" · ")}</Text>
+      )}
     </View>
   );
 }
 
-/** The header's place while the project's details load: the same row, with the mark's size. */
+const HEADER = "flex-row items-center gap-4 px-5 pt-2 pb-4";
+const HEADER_STACKED = "gap-3 px-5 pt-2 pb-4";
+
+/**
+ * The header's place while the project's details load: the same row, with
+ * the mark's size, and at the largest text sizes the lines the facts take.
+ */
 function ProjectHeaderPlaceholder() {
+  const { large, lines } = useLargeText();
   return (
     <View
       testID="project-header-loading"
-      className="flex-row items-center gap-4 px-5 pt-2 pb-4"
+      className={large ? HEADER_STACKED : HEADER}
       importantForAccessibility="no-hide-descendants"
     >
       <View className="bg-muted h-14 w-14 rounded-2xl" />
-      <View className="bg-muted h-3 flex-1 rounded-full" />
+      {large ? (
+        <FixedLinesText
+          testID="project-header-facts"
+          lines={lines}
+          size="sm"
+          className="text-muted-foreground text-sm"
+        />
+      ) : (
+        <View className="bg-muted h-3 flex-1 rounded-full" />
+      )}
     </View>
   );
 }
@@ -178,7 +210,8 @@ function Languages({ ws, project }: { ws: string; project: string }) {
   const languagesFinal = !perms.isPending && (info !== undefined || !projects.isPending);
   const extrasReady = languagesFinal && !inbox.isPending && !feed.isPending;
   const listed = languagesFinal ? languages : [];
-  const planText = planDetail ?? (plan.isError ? t("common.loadFailed") : t("home.loading"));
+  const planText =
+    planDetail ?? (plan.isError && !plan.isFetching ? t("common.loadFailed") : t("home.loading"));
   const contextText =
     counts === "loading"
       ? t("home.loading")
@@ -224,9 +257,22 @@ function Languages({ ws, project }: { ws: string; project: string }) {
               className="border-primary/40 bg-primary/10 mx-4 mb-3 rounded-3xl border p-4 active:opacity-80"
             >
               <Text className="text-foreground text-[17px] font-semibold">{t("plan.home")}</Text>
-              <Text className="text-muted-foreground text-sm" numberOfLines={1}>
-                {planText}
-              </Text>
+              {/* A failed plan offers a retry on the same line, so the card keeps its height. */}
+              <View className="flex-row items-center gap-3">
+                <Text className="text-muted-foreground flex-1 text-sm" numberOfLines={1}>
+                  {planText}
+                </Text>
+                {plan.isError && !plan.isFetching ? (
+                  <Pressable
+                    testID="plan-retry"
+                    accessibilityRole="button"
+                    onPress={() => void plan.refetch()}
+                    hitSlop={8}
+                  >
+                    <Text className="text-primary text-sm">{t("common.retry")}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             </Pressable>
             <ContextEntryCard
               count={contextWaiting}

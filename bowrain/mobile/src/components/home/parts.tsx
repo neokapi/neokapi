@@ -3,11 +3,67 @@
 // loads.
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { type ComponentProps, useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Pressable, Text, View } from "react-native";
+import {
+  AccessibilityInfo,
+  Animated,
+  Pressable,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
 import { formatCount } from "../../lib/format";
+
+/** The text scale from which a fixed-height row stacks its parts and lets its lines wrap. */
+export const LARGE_TEXT = 1.6;
+
+/**
+ * Whether the text is at a large accessibility size, and how many lines a
+ * wrapping line of small text is given there. The lines grow with the
+ * scale, so a line such as a project's facts fits at every large size.
+ */
+export function useLargeText(): { large: boolean; lines: number } {
+  const { fontScale } = useWindowDimensions();
+  return { large: fontScale >= LARGE_TEXT, lines: Math.min(4, Math.round(fontScale + 0.5)) };
+}
+
+/** The line height, before scaling, of each text size a fixed-lines text takes. */
+const LINE_HEIGHT = { sm: 20, xs: 16 } as const;
+
+/**
+ * Text that takes exactly `lines` lines whatever it says, so a row keeps its
+ * height when "Loading" gives way to what loaded: cut to that many lines, and
+ * never shorter. The system scales the line height with the text, so the
+ * minimum height is scaled the same way.
+ */
+export function FixedLinesText({
+  lines,
+  size,
+  className,
+  testID,
+  children,
+}: {
+  lines: number;
+  size: keyof typeof LINE_HEIGHT;
+  className: string;
+  testID?: string;
+  children?: string;
+}) {
+  const { fontScale } = useWindowDimensions();
+  const lineHeight = LINE_HEIGHT[size];
+  return (
+    <Text
+      testID={testID}
+      className={className}
+      style={{ lineHeight, minHeight: lines * lineHeight * fontScale }}
+      numberOfLines={lines}
+    >
+      {children}
+    </Text>
+  );
+}
 
 /** In place of the count when it could not be loaded: never a zero or a check. */
 export function UnknownPill({ testID }: { testID?: string }) {
