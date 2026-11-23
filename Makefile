@@ -2890,6 +2890,8 @@ migration-ledger: ## Regenerate the committed migration ledgers (core/storage, b
 	cd host && NEOKAPI_MIGRATION_LEDGER_RECORD=$(CURDIR)/bin/migration-ledger $(GO) test $(GOTAGS) -count=1 $(MIGRATION_LEDGER_HOST_PKGS) > /dev/null
 	cd bowrain && NEOKAPI_MIGRATION_LEDGER_RECORD=$(CURDIR)/bin/migration-ledger $(GO) test $(GOTAGS) -count=1 $(MIGRATION_LEDGER_BOWRAIN_PKGS) > /dev/null
 	$(GO) run ./scripts/migrationledger -record $(CURDIR)/bin/migration-ledger
+	# The frontend formatter owns the layout of the JSON it covers.
+	vp fmt bowrain/storage/migration_ledger.json core/storage/migration_ledger.json
 
 check-contract-types: ## Drift gate: fail if the committed TS contract types (contract, content, review, change) or content JSON Schema are stale vs. Go
 	$(GO) run $(GOTAGS) ./scripts/gen-contract-types -check
