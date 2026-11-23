@@ -167,8 +167,8 @@ func BuildCache(opts DiscoverOptions, plugins []*Plugin, refused []Refusal) *Cac
 	}
 	for _, r := range refused {
 		checked = append(checked, r.Dir)
-		if m := readManifest(r.Dir); m != nil {
-			checked = append(checked, filepath.Join(r.Dir, m.Binary))
+		if r.Binary != "" {
+			checked = append(checked, r.Binary)
 		}
 	}
 	cache := &Cache{
@@ -266,19 +266,6 @@ func rootHolding(roots []Source, dir string) (Source, bool) {
 		}
 	}
 	return Source{}, false
-}
-
-// readManifest parses dir's manifest, or returns nil.
-func readManifest(dir string) *manifest.Manifest {
-	data, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
-	if err != nil {
-		return nil
-	}
-	m, err := manifest.Parse(data)
-	if err != nil {
-		return nil
-	}
-	return m
 }
 
 // pathFingerprint is what the safety rule reads about path (its mode, owner

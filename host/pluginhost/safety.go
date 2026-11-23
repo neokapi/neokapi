@@ -138,6 +138,7 @@ func isAdminGroup(gid int) bool {
 type Refusal struct {
 	Name   string `json:"name"`
 	Dir    string `json:"dir"`
+	Binary string `json:"binary,omitempty"`
 	Reason string `json:"reason"`
 }
 
@@ -149,7 +150,7 @@ func safePlugins(plugins []*Plugin, warn func(string)) ([]*Plugin, []Refusal) {
 	for _, p := range plugins {
 		if err := unsafePlugin(p); err != nil {
 			warn(fmt.Sprintf("plugin %s is not loaded: %v", p.Name(), err))
-			refused = append(refused, Refusal{Name: p.Name(), Dir: p.Dir, Reason: err.Error()})
+			refused = append(refused, Refusal{Name: p.Name(), Dir: p.Dir, Binary: p.BinaryPath, Reason: err.Error()})
 			continue
 		}
 		out = append(out, p)
