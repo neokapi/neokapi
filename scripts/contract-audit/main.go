@@ -66,6 +66,7 @@ import (
 	"encoding/xml"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -164,6 +165,9 @@ type filterComparison struct {
 	Coverage        *coverage              `json:"coverage"`
 	Spec            *specSummary           `json:"spec,omitempty"`
 	SpecDrift       []specDriftEntry       `json:"specDrift,omitempty"`
+	// SpecRefsUnchecked counts the spec's okapi_refs this audit could not
+	// check: none of the filter's Okapi unit tests ran.
+	SpecRefsUnchecked int `json:"specRefsUnchecked,omitempty"`
 	SpecConfigDrift []specConfigDriftEntry `json:"specConfigDrift,omitempty"`
 }
 
@@ -314,6 +318,13 @@ func main() {
 	if len(okapiByFilter) == 0 {
 		die("no surefire XMLs found under %s", *surefireDir)
 	}
+	// The filters whose Okapi unit tests ran in this audit. A filter known
+	// only from the Failsafe integration tests below has none of its unit
+	// tests in the set, so its spec references cannot be checked against it.
+	unitFilters := map[string]bool{}
+	for name := range okapiByFilter {
+		unitFilters[name] = true
+	}
 
 	// Failsafe (*IT integration tests). Okapi's roundtrip and xliff-compare
 	// integration tests live in the integration-tests/okapi module and run
@@ -389,7 +400,7 @@ func main() {
 		}
 	}
 
-	doc := buildDoc(okapiByFilter, nativeByFilter, bridgeByFilter, specByFilter, bridgeSchemaProps, nativeAnnotations, nativeFuncIndex, okapiIDsByNative, *okapiVersion, *okapiTag, *goCommit)
+	doc := buildDoc(okapiByFilter, unitFilters, nativeByFilter, bridgeByFilter, specByFilter, bridgeSchemaProps, nativeAnnotations, nativeFuncIndex, okapiIDsByNative, *okapiVersion, *okapiTag, *goCommit)
 
 	body, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
@@ -450,6 +461,7 @@ func main() {
 			driftFound = true
 		}
 	}
+	reportUncheckedSpecRefs(os.Stderr, doc.Filters, *okapiVersion)
 	if driftFound && *failOnDrift {
 		os.Exit(1)
 	}
@@ -1107,7 +1119,7 @@ var bridgeFilterAliases = map[string]string{
 // buildDoc joins the per-filter Okapi and native maps with the
 // scanned annotations into a single dashboard document, deterministic
 // in iteration order.
-func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFilter map[string]*bridgeRows, specByFilter map[string]*spec.Spec, bridgeSchemaProps map[string]map[string]bool, annotations []annotation, nativeFuncIndex map[string]funcLoc, okapiIDsByNative map[string]map[string]bool, okapiVersion, okapiTag, goCommit string) testComparisonData {
+func buildDoc(okapiByFilter map[string]*filterResult, unitFilters map[string]bool, nativeByFilter map[string]*filterResult, bridgeByFilter map[string]*bridgeRows, specByFilter map[string]*spec.Spec, bridgeSchemaProps map[string]map[string]bool, annotations []annotation, nativeFuncIndex map[string]funcLoc, okapiIDsByNative map[string]map[string]bool, okapiVersion, okapiTag, goCommit string) testComparisonData {
 	// Index annotations by Java FQN#method for O(1) joins.
 	annByOkapi := map[string]annotation{}
 	for _, a := range annotations {
@@ -1232,7 +1244,14 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 			if fc.SpecKind == "" {
 				fc.SpecKind = string(spec.KindTopLevel)
 			}
-			fc.SpecDrift = detectSpecRefDrift(s, fc.Okapi)
+			// Only a filter whose Okapi unit tests ran can have its refs
+			// checked; for any other the refs are counted as unchecked and
+			// reported, never read as drift and never passed silently.
+			if unitFilters[name] {
+				fc.SpecDrift = detectSpecRefDrift(s, fc.Okapi)
+			} else {
+				fc.SpecRefsUnchecked = countSpecRefs(s)
+			}
 			// Spec config drift: each spec.config[].key must match a
 			// property in the bridge composite schema for the pinned
 			// Okapi version. Filters without a loaded schema are
@@ -1724,6 +1743,39 @@ func detectSpecRefDrift(s *spec.Spec, okapi *filterResult) []specDriftEntry {
 		}
 	}
 	return out
+}
+
+// countSpecRefs counts a spec's okapi_refs entries.
+func countSpecRefs(s *spec.Spec) int {
+	n := 0
+	for _, f := range s.Features {
+		n += len(f.OkapiRefs)
+	}
+	return n
+}
+
+// reportUncheckedSpecRefs says which filters' spec references this audit
+// checked and which it could not, with their counts, so a run that checks one
+// filter of many does not read as a clean audit of all of them.
+func reportUncheckedSpecRefs(w io.Writer, filters []filterComparison, okapiVersion string) {
+	var checked, unchecked []string
+	refs := 0
+	for _, fc := range filters {
+		switch {
+		case fc.SpecRefsUnchecked > 0:
+			unchecked = append(unchecked, fmt.Sprintf("%s (%d)", fc.FilterName, fc.SpecRefsUnchecked))
+			refs += fc.SpecRefsUnchecked
+		case fc.Spec != nil && fc.Okapi != nil:
+			checked = append(checked, fc.FilterName)
+		}
+	}
+	if len(unchecked) == 0 {
+		return
+	}
+	fmt.Fprintf(w, "contract-audit: spec okapi_refs checked against Okapi %s for %d filter(s): %s\n",
+		okapiVersion, len(checked), strings.Join(checked, ", "))
+	fmt.Fprintf(w, "contract-audit: NOT CHECKED: %d okapi_ref(s) in %d filter(s), whose Okapi unit tests did not run in this audit: %s\n",
+		refs, len(unchecked), strings.Join(unchecked, ", "))
 }
 
 // detectSpecConfigDrift returns one entry per spec.config[].key that

@@ -3,7 +3,10 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/neokapi/neokapi/core/format/spec"
 )
 
 // TestResolveNativeFormat covers the class-level routing for multi-filter
@@ -91,7 +94,11 @@ func TestBuildDoc_NoPhantomRows(t *testing.T) {
 		"fixedwidth": {Total: 5, Passed: 5, Suites: []testSuite{{Name: "fixedwidth", Total: 5}}},
 	}
 
-	doc := buildDoc(okapiByFilter, nativeByFilter, nil, nil, nil, nil, nil, okapiIDs, "v1.48.0", "v1.48.0", "test")
+	unit := map[string]bool{}
+	for name := range okapiByFilter {
+		unit[name] = true
+	}
+	doc := buildDoc(okapiByFilter, unit, nativeByFilter, nil, nil, nil, nil, nil, okapiIDs, "v1.48.0", "v1.48.0", "test")
 
 	byName := map[string]filterComparison{}
 	for _, fc := range doc.Filters {
@@ -334,5 +341,47 @@ func TestLookupParityMergesSiblingKeys(t *testing.T) {
 	}
 	if len(got.Spec) != 1 {
 		t.Errorf("merged result should carry the okf_xmlstream spec row, got %d", len(got.Spec))
+	}
+}
+
+// A filter known only from the Failsafe integration tests has none of its
+// Okapi unit tests in the audit, so its spec references are counted as
+// unchecked and reported, never read as drift. A filter whose unit tests ran
+// is checked: a reference to a test that does not exist is drift.
+func TestSpecRefs_CheckedOnlyWhereUnitTestsRan(t *testing.T) {
+	okapiByFilter := map[string]*filterResult{
+		"html": {Suites: []testSuite{{Name: "net.sf.okapi.filters.html.HtmlFilterTest", Tests: []testCase{
+			{Name: "testA", ClassName: "net.sf.okapi.filters.html.HtmlFilterTest", Status: "pass"},
+		}}}},
+		// Only an integration test, as the Failsafe merge leaves it.
+		"csv": {Suites: []testSuite{{Name: "RoundTripCsvIT", Tests: []testCase{
+			{Name: "roundTrip", ClassName: "net.sf.okapi.roundtrip.integration.RoundTripCsvIT", Status: "pass"},
+		}}}},
+	}
+	specs := map[string]*spec.Spec{
+		"html": {Features: []spec.Feature{{ID: "a", OkapiRefs: []string{"HtmlFilterTest#testA", "HtmlFilterTest#gone"}}}},
+		"csv":  {Features: []spec.Feature{{ID: "b", OkapiRefs: []string{"CommaSeparatedValuesFilterTest#testFileEvents", "CommaSeparatedValuesFilterTest#testQuotes"}}}},
+	}
+	doc := buildDoc(okapiByFilter, map[string]bool{"html": true}, nil, nil, specs, nil, nil, nil, nil, "v1.48.0", "v1.48.0", "test")
+	byName := map[string]filterComparison{}
+	for _, fc := range doc.Filters {
+		byName[fc.FilterName] = fc
+	}
+	if got := byName["html"].SpecDrift; len(got) != 1 || got[0].OkapiRef != "HtmlFilterTest#gone" {
+		t.Errorf("html drift = %+v, want only HtmlFilterTest#gone", got)
+	}
+	if byName["html"].SpecRefsUnchecked != 0 {
+		t.Errorf("html refs were checked; unchecked = %d", byName["html"].SpecRefsUnchecked)
+	}
+	if got := byName["csv"].SpecDrift; len(got) != 0 {
+		t.Errorf("csv has no unit tests in the audit, so no drift can be claimed; got %+v", got)
+	}
+	if byName["csv"].SpecRefsUnchecked != 2 {
+		t.Errorf("csv unchecked = %d, want 2", byName["csv"].SpecRefsUnchecked)
+	}
+	var b strings.Builder
+	reportUncheckedSpecRefs(&b, doc.Filters, "v1.48.0")
+	if !strings.Contains(b.String(), "NOT CHECKED: 2 okapi_ref(s) in 1 filter(s)") || !strings.Contains(b.String(), "csv (2)") {
+		t.Errorf("report does not name the unchecked filter: %q", b.String())
 	}
 }

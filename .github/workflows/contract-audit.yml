@@ -25,9 +25,9 @@ on:
         required: false
         default: "v1.48.0"
       filters:
-        description: "Comma-separated filter ids to audit (e.g. html,json,po). Defaults to html only."
+        description: "Comma-separated Okapi filter modules to audit. Defaults to every module a format spec references."
         required: false
-        default: "html"
+        default: "html,table,json,markdown,messageformat,openoffice,openxml,plaintext,po,properties,tmx,ts,subtitles,xliff,xliff2,xmlstream,yaml"
 
 permissions:
   contents: read
@@ -47,7 +47,11 @@ jobs:
       # blocked even though only contributors with write access can
       # trigger this workflow.
       OKAPI_REF: ${{ inputs.okapi_ref || 'v1.48.0' }}
-      FILTERS: ${{ inputs.filters || 'html' }}
+      # Every Okapi filter module a format spec under core/formats references
+      # (csv is Okapi's table module, odf its openoffice, vtt its subtitles,
+      # xml its xmlstream). A spec whose module is not here has its okapi_refs
+      # reported as NOT CHECKED rather than read as drift.
+      FILTERS: ${{ inputs.filters || 'html,table,json,markdown,messageformat,openoffice,openxml,plaintext,po,properties,tmx,ts,subtitles,xliff,xliff2,xmlstream,yaml' }}
     steps:
       - name: Checkout neokapi
         uses: actions/checkout@v7
@@ -86,12 +90,13 @@ jobs:
         # We deliberately scope per-filter and accept that this
         # discovers fewer issues than a full upstream run.
         working-directory: okapi-java
+        # One reactor for every module, so their shared dependencies build
+        # once.
         run: |
-          for filter in $(echo "$FILTERS" | tr ',' ' '); do
-            echo "::group::mvn test -pl okapi/filters/$filter"
-            mvn -B -DfailIfNoTests=false test -pl "okapi/filters/$filter" -am || true
-            echo "::endgroup::"
-          done
+          modules="$(echo "$FILTERS" | tr ',' '\n' | sed 's|^|okapi/filters/|' | paste -sd, -)"
+          echo "::group::mvn test -pl $modules"
+          mvn -B -DfailIfNoTests=false test -pl "$modules" -am || true
+          echo "::endgroup::"
 
       # Okapi's RoundTrip*IT / *XliffCompareIT contracts run under Maven
       # Failsafe, not Surefire, so the drift check needs their reports too —
