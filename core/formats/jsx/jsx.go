@@ -630,6 +630,7 @@ func (w *Writer) writeKBF(file *kbf.File) error {
 	if err != nil {
 		return err
 	}
+	//pathguard: the output path a caller gave SetOutput, which callers take from an output flag a person named
 	return os.WriteFile(w.outPath, data, 0o644)
 }
 

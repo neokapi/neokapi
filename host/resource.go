@@ -66,6 +66,7 @@ func resolveResourcePath(cmd Command, kind, defaultFilename string) (string, err
 		return resolveNamedResource(kind, name)
 	case file != "":
 		dir := filepath.Dir(file)
+		//pathguard: the directory of the --file flag naming a terms store, content memory or voice profile
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return "", fmt.Errorf("create directory %s: %w", dir, err)
 		}
@@ -86,6 +87,7 @@ func resolveNamedResource(kind, name string) (string, error) {
 	}
 
 	dir := filepath.Join(ConfigDir(), kind)
+	//pathguard: creates <ConfigDir>/<kind> for a store a person names on the command line (--name, --termstore, --memory); a store name a recipe gives goes through recipeNamedStore, which creates nothing
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("create directory %s: %w", dir, err)
 	}
@@ -128,6 +130,7 @@ func ListNamedResources(kind string) ([]ResourceInfo, error) {
 			continue
 		}
 		r := ResourceInfo{Name: strings.TrimSuffix(filepath.Base(p), ".db"), Path: p}
+		//pathguard: the user config directory
 		if info, err := os.Stat(p); err == nil {
 			r.Size, r.Modified = info.Size(), info.ModTime()
 		}

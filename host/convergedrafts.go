@@ -47,9 +47,11 @@ func (a *App) beginConvergeDrafts(projectPath, root string) (func(), error) {
 		return nil, err
 	}
 	dir := filepath.Join(layout.WorkDir(), convergeDraftsDirName)
+	//pathguard: clears and creates the run's draft tree in .kapi/work of a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/; os.RemoveAll follows no link
 	if err := os.RemoveAll(dir); err != nil {
 		return nil, fmt.Errorf("clear the convergence draft tree: %w", err)
 	}
+	//pathguard: clears and creates the run's draft tree in .kapi/work of a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/; os.RemoveAll follows no link
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("create the convergence draft tree: %w", err)
 	}
@@ -70,6 +72,7 @@ func (a *App) endConvergeDrafts() {
 	a.convergeDraftRoot = ""
 	a.convergeDeliveries = nil
 	if dir != "" {
+		//pathguard: removes the run's own draft tree, which beginConvergeDrafts created; os.RemoveAll follows no link
 		_ = os.RemoveAll(dir)
 	}
 }
@@ -115,6 +118,7 @@ func (a *App) draftedTargetPath(locale, targetPath string) string {
 	if !ok {
 		return targetPath
 	}
+	//pathguard: stats a draft in the run's own draft tree, which beginConvergeDrafts created under a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/
 	if _, err := os.Stat(drafted); err != nil {
 		return targetPath
 	}

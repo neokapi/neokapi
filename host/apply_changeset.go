@@ -65,6 +65,7 @@ func RunApplySchema(w io.Writer, op string) error {
 // finding, and 5 when a backend did not answer.
 func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 	ctx := cmd.Context()
+	//pathguard: the file argument of kapi apply
 	data, err := readContent(ctx, path)
 	if err != nil {
 		return err
@@ -314,6 +315,7 @@ func SoleTargetLocale(editions []model.EditionKey, source model.LocaleID) model.
 // are written in, or the command line's outside a project.
 func (a *App) changeSourceLocale(recipe string) model.LocaleID {
 	if recipe != "" {
+		//pathguard: the recipe path the caller passes as recipe, read by path as project.Load reads it
 		if proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true}); err == nil {
 			return model.LocaleID(ResolveSourceLocale(a.SourceLang, proj.Defaults.SourceLanguage))
 		}

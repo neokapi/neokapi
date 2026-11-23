@@ -56,11 +56,13 @@ func (a *App) streamEntryBlocks(ctx context.Context, loc entryLocator, fn func(i
 // copyFile streams src to dst, for a backup, without buffering the whole file
 // in memory.
 func copyFile(src, dst string) error {
+	//pathguard: the file argument of ksed and its --backup copy, or a copy in a directory ksed made with os.MkdirTemp
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
+	//pathguard: the file argument of ksed and its --backup copy, or a copy in a directory ksed made with os.MkdirTemp
 	out, err := os.Create(dst)
 	if err != nil {
 		return err

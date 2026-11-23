@@ -256,6 +256,7 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 	// Word rules a voice file carries land in terms in the project's source
 	// language, which the recipe declares.
 	defer a.scopeSourceLang()()
+	//pathguard: the recipe of the layout the caller resolved with LayoutFor, read by path as project.Load reads it
 	a.ResolveSourceLang(recipeSourceLanguage(layout.RecipePath))
 
 	db, err := a.ProjectDB(ctx, layout.Root)
@@ -279,6 +280,7 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 	}
 	res.Unrecorded = !scribe.records()
 	checkout := normalizedCheckout(layout.Root)
+	//pathguard: the recipe of the layout the caller resolved with LayoutFor, read by path as project.Load reads it
 	identity, _ := recipeIdentity(layout.RecipePath)
 	projectKey := workspace.ProjectKey(identity)
 	stamps, err := a.loadImportStamps(ctx, projectKey, checkout)
@@ -422,6 +424,7 @@ func (a *App) bindImportedVoice(ctx context.Context, db *projectdb.DB, layout, f
 		return nil, nil
 	}
 	recipeName := reportedPath(layout.Root, layout.RecipePath)
+	//pathguard: the recipe of the layout the caller resolved with LayoutFor, read by path as project.Load reads it
 	declared, err := project.DeclaredDefaultVoice(layout.RecipePath)
 	if err != nil {
 		return nil, err
@@ -470,6 +473,7 @@ func (a *App) bindImportedVoice(ctx context.Context, db *projectdb.DB, layout, f
 		}
 		return &ImportedVoiceBinding{Recipe: recipeName, Candidates: candidates}, nil
 	}
+	//pathguard: the recipe of the layout the caller resolved with LayoutFor, which project.BindVoice reads and writes by path
 	if err := project.BindVoice(layout.RecipePath, "", chosen.ID); err != nil {
 		return nil, fmt.Errorf("bind voice %s in %s: %w", chosen.ID, recipeName, err)
 	}
@@ -493,6 +497,7 @@ func (a *App) bindImportedProfileVoices(ctx context.Context, db *projectdb.DB, l
 	if store == nil {
 		return nil, nil
 	}
+	//pathguard: the recipe of the layout the caller resolved with LayoutFor, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(layout.RecipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, nil
@@ -515,6 +520,7 @@ func (a *App) bindImportedProfileVoices(ctx context.Context, db *projectdb.DB, l
 		if p, gerr := lookupProfileIn(ctx, store, src.profile); gerr == nil && p.ID == id {
 			continue
 		}
+		//pathguard: the recipe of the layout the caller resolved with LayoutFor, which project.BindVoice reads and writes by path
 		if err := project.BindVoice(layout.RecipePath, src.profile, id); err != nil {
 			return out, fmt.Errorf("bind voice %s for profile %s in %s: %w", id, src.profile, recipeName, err)
 		}
@@ -541,6 +547,7 @@ func resolveContextLayout(own project.Layout, dir string) (project.Layout, bool,
 	if err != nil {
 		return project.Layout{}, false, fmt.Errorf("resolve %s: %w", dir, err)
 	}
+	//pathguard: the directory the --dir argument of kapi store import names, or the folder the desktop app extracted its own sample into.
 	info, err := os.Stat(abs)
 	if err != nil {
 		return project.Layout{}, false, fmt.Errorf("read %s: %w", dir, err)
@@ -549,6 +556,7 @@ func resolveContextLayout(own project.Layout, dir string) (project.Layout, bool,
 		return project.Layout{}, false, fmt.Errorf("%s is not a directory: a context import reads a %s layout", dir, project.StateDirName)
 	}
 	if nested := filepath.Join(abs, project.StateDirName); filepath.Base(abs) != project.StateDirName {
+		//pathguard: the directory the --dir argument of kapi store import names, or the folder the desktop app extracted its own sample into.
 		if ni, nerr := os.Stat(nested); nerr == nil && ni.IsDir() {
 			abs = nested
 		}

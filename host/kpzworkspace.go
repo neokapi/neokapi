@@ -125,12 +125,14 @@ func (a *App) extractToKpz(ctx context.Context, sources []string, outKpz, target
 		spec = &project.RedactionSpec{Enabled: true, Detectors: []string{"rules"}, Rules: abs}
 		vaultPath = workspaceVaultPath(outKpz)
 		vaultID = redaction.NewVaultID()
+		//pathguard: the vault beside the --out .kpz a person named
 		if err := newPackageVault(vaultPath, vaultID); err != nil {
 			return fmt.Errorf("extract: %w", err)
 		}
 		// A vault whose package was never written restores nothing.
 		defer func() {
 			if err != nil {
+				//pathguard: the -i source files and the vault beside the --out .kpz, paths a person named
 				_ = os.Remove(vaultPath)
 			}
 		}()
@@ -146,6 +148,7 @@ func (a *App) extractToKpz(ctx context.Context, sources []string, outKpz, target
 		if IsKpzPath(f) {
 			return errors.New("extract: source must be a document, not a .kpz")
 		}
+		//pathguard: the -i source files and the vault beside the --out .kpz, paths a person named
 		data, rerr := os.ReadFile(f)
 		if rerr != nil {
 			return fmt.Errorf("read %q: %w", filepath.Base(f), rerr)
@@ -210,6 +213,7 @@ func (a *App) extractToKpz(ctx context.Context, sources []string, outKpz, target
 	if !withSource {
 		packed.Source = nil
 	}
+	//pathguard: the --out .kpz a person named
 	if err := saveWorkspace(&packed, outKpz); err != nil {
 		return err
 	}
@@ -326,9 +330,11 @@ func (a *App) transformKpzInPlace(ctx context.Context, kpzPath, flowName string,
 	// cache dir rather than the OS temp dir, the latter doesn't exist in the
 	// wasm sandbox.
 	discard := filepath.Join(c.dir, "discard")
+	//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 	if err := os.MkdirAll(discard, 0o755); err != nil {
 		return fmt.Errorf("transform: %w", err)
 	}
+	//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 	defer os.RemoveAll(discard)
 
 	for _, src := range c.meta.Sources {
@@ -401,6 +407,7 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 	var vault *redaction.FileVault
 	if r := c.meta.Redaction; r != nil {
 		vaultPath = workspaceVaultPath(kpzPath)
+		//pathguard: the vault beside the .kpz a person named (workspaceVaultPath), named by the vault ID kpz checks is a plain ID
 		if vault, err = packageVault(filepath.Base(kpzPath), vaultPath, r.VaultID, workspaceVaultAdvice); err != nil {
 			return err
 		}
@@ -458,9 +465,11 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 	// written.
 	if vault != nil {
 		trial := filepath.Join(c.dir, "merge-check")
+		//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 		if err := os.MkdirAll(trial, 0o755); err != nil {
 			return fmt.Errorf("merge: %w", err)
 		}
+		//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 		defer os.RemoveAll(trial)
 		if _, _, _, err := pass(func(src kpzCacheSource, locale string) (string, error) {
 			return filepath.Join(trial, locale+"-"+src.Name), nil
@@ -546,6 +555,7 @@ func (o workspaceInfo) FormatText(w io.Writer) error {
 // same words, as `kapi info` on the project it came from.
 func (a *App) InfoKpz(cmd Command, kpzPath string) error {
 	ctx := cmd.Context()
+	//pathguard: the .kpz argument named on the command line
 	pkg, err := LoadWorkspace(kpzPath)
 	if err != nil {
 		return err
@@ -650,6 +660,7 @@ func (a *App) runCacheSourceIn(ctx context.Context, home *filehome.Home, c *kpzC
 	if src.Skeleton == "" {
 		return fmt.Errorf("kpz: source %q has neither raw bytes nor a skeleton to reconstruct from", src.Name)
 	}
+	//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 	skelBytes, err := os.ReadFile(c.skeletonPath(src.Skeleton))
 	if err != nil {
 		return fmt.Errorf("kpz: read skeleton: %w", err)

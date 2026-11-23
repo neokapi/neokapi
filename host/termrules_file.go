@@ -24,6 +24,7 @@ const TermRulesFlagUsage = "YAML or JSON file of term rules to check against ins
 // with ad-hoc input, as an MCP call does, and the project's terms store is
 // left out of the run.
 func LoadTermRulesFile(path string) ([]coreprofile.TermRule, error) {
+	//pathguard: the --term-rules flag
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read term rules: %w", err)

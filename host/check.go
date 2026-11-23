@@ -254,6 +254,7 @@ func (a *App) checkProjectSources(cmd Command) ([]string, error) {
 	if projectPath == "" {
 		return nil, errors.New("at least one file is required, or run inside a kapi project to check its declared content")
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)
@@ -289,6 +290,7 @@ func (a *App) applyProjectSourceLang(cmd Command) {
 	if err != nil || path == "" {
 		return
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(path, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return
@@ -340,6 +342,14 @@ func (a *App) computeCheck(cmd Command, args []string, req checkRequest) (check.
 	prevCtx := cmd.Context()
 	cmd.SetContext(withConceptMemo(CmdContext(cmd)))
 	defer cmd.SetContext(prevCtx)
+	// A plugin daemon may be sent paths beneath the files named for this
+	// check and the project it acts on, and nowhere else.
+	namedTarget, _ := cmd.Flags().GetString("target")
+	checkRoots := namedInputRoots(append(slices.Clone(args), namedTarget))
+	if projectPath, perr := ResolveProjectPath(cmd); perr == nil {
+		checkRoots = append(checkRoots, projectRootDir(projectPath))
+	}
+	declarePathRoots(cmd, checkRoots...)
 	// Every read under this context records the plugin it reaches, for the
 	// evaluation record the report carries.
 	ctx := observePlugins(CmdContext(cmd))
@@ -1295,6 +1305,7 @@ func (a *App) newCheckFormats(cmd Command) (*checkFormats, error) {
 	if err != nil || projectPath == "" {
 		return f, nil
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
 		return nil, fmt.Errorf("load project for formats: %w", lerr)
@@ -1491,6 +1502,7 @@ func (a *App) projectCheckVoice(cmd Command, warnings *voiceWarnings, open func(
 	if err != nil || projectPath == "" {
 		return &checkVoice{app: a, cmd: cmd, cache: map[string]checkedVoice{}, warnings: warnings}, err
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
 		return nil, fmt.Errorf("load project for voice: %w", lerr)
@@ -1565,6 +1577,7 @@ func (a *App) newCheckTerms(cmd Command) (*checkTerms, error) {
 	if err != nil || projectPath == "" {
 		return &checkTerms{app: a, cmd: cmd, cache: map[string]terms.Terminology{}, named: named}, err
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
 		return nil, fmt.Errorf("load project for terms: %w", lerr)

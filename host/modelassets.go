@@ -111,6 +111,7 @@ func EnsureModel(ctx context.Context, asset manifest.ModelAsset, opts ModelEnsur
 	if err != nil {
 		return "", err
 	}
+	//pathguard: the model asset cache under the user cache directory
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("model assets: create cache dir: %w", err)
 	}
@@ -124,6 +125,7 @@ func EnsureModel(ctx context.Context, asset manifest.ModelAsset, opts ModelEnsur
 		if err := validateModelFilePath(f.Path); err != nil {
 			return "", err
 		}
+		//pathguard: the model asset cache under the user cache directory
 		if !modelFilePresent(filepath.Join(dir, f.Path), f.Size) {
 			todo = append(todo, f)
 		}
@@ -165,6 +167,7 @@ func validateModelFilePath(p string) error {
 // non-empty, and — when a size is pinned — matches it. A size mismatch forces a
 // re-download (the cached file is stale or truncated).
 func modelFilePresent(dst string, wantSize int64) bool {
+	//pathguard: the model asset cache under the user cache directory
 	fi, err := os.Stat(dst)
 	if err != nil || fi.Size() == 0 {
 		return false
@@ -179,14 +182,17 @@ func modelFilePresent(dst string, wantSize int64) bool {
 // corrupt the cache, re-checking presence once the lock is held.
 func ensureModelFile(ctx context.Context, dir string, f manifest.ModelFile, prog downloadProgress, opts ModelEnsureOptions) error {
 	dst := filepath.Join(dir, f.Path)
+	//pathguard: the model asset cache under the user cache directory
 	unlock, err := acquireModelLock(dst+".lock", opts.lockTimeout())
 	if err != nil {
 		return err
 	}
 	defer unlock()
+	//pathguard: the model asset cache under the user cache directory
 	if modelFilePresent(dst, f.Size) {
 		return nil // another process won the race
 	}
+	//pathguard: the model asset cache under the user cache directory
 	return downloadModelFile(ctx, dst, f, prog, opts)
 }
 
@@ -213,6 +219,7 @@ func downloadModelFile(ctx context.Context, dst string, f manifest.ModelFile, pr
 	}
 	bar := prog.file(f.Path, total)
 
+	//pathguard: the model asset cache under the user cache directory
 	tmp, err := os.CreateTemp(filepath.Dir(dst), ".download-*")
 	if err != nil {
 		bar.abort()
@@ -221,6 +228,7 @@ func downloadModelFile(ctx context.Context, dst string, f manifest.ModelFile, pr
 	tmpName := tmp.Name()
 	defer func() {
 		_ = tmp.Close()
+		//pathguard: the model asset cache under the user cache directory
 		_ = os.Remove(tmpName) // no-op after a successful rename
 	}()
 
@@ -246,6 +254,7 @@ func downloadModelFile(ctx context.Context, dst string, f manifest.ModelFile, pr
 	}
 	bar.done(n)
 
+	//pathguard: the model asset cache under the user cache directory
 	if err := os.Rename(tmpName, dst); err != nil {
 		return fmt.Errorf("rename temp into place: %w", err)
 	}
@@ -258,15 +267,19 @@ func downloadModelFile(ctx context.Context, dst string, f manifest.ModelFile, pr
 func acquireModelLock(lockPath string, timeout time.Duration) (func(), error) {
 	deadline := time.Now().Add(timeout)
 	for {
+		//pathguard: the model asset cache under the user cache directory
 		f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 		if err == nil {
 			_ = f.Close()
+			//pathguard: the model asset cache under the user cache directory
 			return func() { _ = os.Remove(lockPath) }, nil
 		}
 		if !errors.Is(err, os.ErrExist) {
 			return nil, fmt.Errorf("acquire lock: %w", err)
 		}
+		//pathguard: the model asset cache under the user cache directory
 		if fi, statErr := os.Stat(lockPath); statErr == nil && time.Since(fi.ModTime()) > timeout {
+			//pathguard: the model asset cache under the user cache directory
 			_ = os.Remove(lockPath)
 			continue
 		}

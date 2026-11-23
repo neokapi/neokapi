@@ -118,6 +118,7 @@ func projectOfCacheDir(cacheDir string) string {
 // directory that passed Layout.CheckState, or a directory outside any project.
 func openDocCacheAt(root, cacheDir string) (*docCache, error) {
 	dir := filepath.Join(cacheDir, "docs")
+	//pathguard: creates and opens the cache index under the cache directory OpenDocCache was given: a project's .kapi/work/cache after Layout.CheckState, which refuses any link or irregular file beneath .kapi/, or a directory outside any project
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
@@ -299,6 +300,7 @@ func (c *docCache) newRecorder(path, configKey, formatName string) *docRecorder 
 	// Unique temp names (CreateTemp), not derived ones: another PROCESS (the
 	// desktop app beside a CLI run) may be recording the same document at the
 	// same time, and a shared ".tmp" name would truncate its in-progress file.
+	//pathguard: the recorder's own temp file in the cache directory, which OpenDocCache opened after Layout.CheckState, which refuses any link or irregular file beneath .kapi/ (or outside any project)
 	pf, err := os.CreateTemp(c.dir, partsRef+".*.tmp")
 	if err != nil {
 		release()
@@ -365,6 +367,7 @@ func (d *cachedDocument) OpenSkeleton() (*format.SkeletonStore, error) {
 	if d.skeletonPath == "" {
 		return nil, nil
 	}
+	//pathguard: stats a recorded skeleton in the cache directory, which OpenDocCache opened after Layout.CheckState, which refuses any link or irregular file beneath .kapi/ (or outside any project)
 	if _, err := os.Stat(d.skeletonPath); err != nil {
 		return nil, fmt.Errorf("recorded skeleton %s is not readable: %w", d.skeletonPath, err)
 	}
@@ -457,16 +460,19 @@ func (r *docRecorder) Commit() error {
 			return err
 		}
 	}
+	//pathguard: renames the recorder's own temp files to content-addressed names in the cache directory, which OpenDocCache opened after Layout.CheckState, which refuses any link or irregular file beneath .kapi/ (or outside any project)
 	if err := os.Rename(r.partsTmp, filepath.Join(r.c.dir, r.partsRef)); err != nil {
 		r.Abort()
 		return err
 	}
 	if hadSkeleton {
+		//pathguard: renames the recorder's own temp files to content-addressed names in the cache directory, which OpenDocCache opened after Layout.CheckState, which refuses any link or irregular file beneath .kapi/ (or outside any project)
 		if err := os.Rename(r.skelTmp, filepath.Join(r.c.dir, r.skelRef)); err != nil {
 			r.Abort()
 			return err
 		}
 	} else {
+		//pathguard: removes the recorder's own temp file, which CreateTemp made in the cache directory, when its rename failed
 		_ = os.Remove(r.skelTmp)
 		skelRef = ""
 	}
@@ -488,7 +494,9 @@ func (r *docRecorder) Abort() {
 	if r.skel != nil {
 		_ = r.skel.Close()
 	}
+	//pathguard: removes the recorder's own temp files, which CreateTemp made in the cache directory
 	_ = os.Remove(r.partsTmp)
+	//pathguard: removes the recorder's own temp files, which CreateTemp made in the cache directory
 	_ = os.Remove(r.skelTmp)
 }
 

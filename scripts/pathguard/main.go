@@ -1,5 +1,5 @@
-// Command pathguard checks where the packages that handle project content
-// reach the file system by path.
+// Command pathguard checks where the repository's Go code reaches the file
+// system by path.
 //
 // A project's files are read and written beneath its root. A call that opens,
 // lists, stats or changes a file by a path string follows whatever symbolic
@@ -8,104 +8,151 @@
 // that leaves it, and the file home (core/change/filehome) writes content files
 // under their lock.
 //
-// So this type-checks the packages that handle project content. It reports
-// each call to a by-path function of package os, to filepath.Walk and
-// filepath.WalkDir, and to fs.WalkDir over os.DirFS. Calls are resolved to the
-// function they reach, so a local function that shares a name is not
-// reported. Calls to os.Stat and os.Lstat are reported too, because what they
-// return decides what a run does.
+// So this type-checks every package of every module in go.work, except the
+// few listed in excluded. It reports each reference to a function in sinks
+// and each conversion to net/http.Dir. A reference counts whether it is a call
+// or a function value, in a function, a function literal or a package-level
+// variable of a non-test file.
 //
-// A call is allowed at the places listed in allowed, keyed by file and
-// function. Each entry gives the reason the path is safe to use as given, such
-// as a path a person named on the command line, or a system location like the
-// temp dir or the user config dir.
+// A reference is allowed by a comment that gives the reason its path is safe
+// to use as given, on its line or alone on the line above it:
+//
+//	//pathguard: the global config file in the user config dir
+//	data, err := os.ReadFile(path)
+//
+// A comment with no reason is reported, and so is one on a line that reaches
+// no file by path.
+//
+// A function of a checked package whose allowed call takes one of its own
+// parameters as the path is a wrapper: each reference to it is reported in
+// turn unless a comment allows it. Callers of a wrapper's callers are not
+// followed.
 //
 // Run from the repository root:
 //
-//	go run ./scripts/pathguard            # check the repository
-//	go run ./scripts/pathguard -count     # print the number of findings
-//	go run ./scripts/pathguard -self-test # prove the check on fixtures
+//	go run ./scripts/pathguard                # check under the host configuration
+//	go run ./scripts/pathguard -config model  # check under another configuration
+//	go run ./scripts/pathguard -count         # print the number of findings
+//	go run ./scripts/pathguard -self-test     # prove the check
 package main
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"go/ast"
 	"go/token"
-	"go/types"
-	"maps"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/neokapi/neokapi/scripts/internal/buildconfigs"
 	"github.com/neokapi/neokapi/scripts/internal/guardpackages"
 )
 
-// targets are the go list patterns that cover the checked packages.
-var targets = []string{
-	"./host/...", "./core/project/...", "./core/flow/...", "./core/change/...",
-	"./core/formats/...", "./kapi/mcptools/...", "./bowrain/connector/...", "./bowrain/jobs/...",
+// modulePrefix is the import path every module of the repository starts with.
+const modulePrefix = "github.com/neokapi/neokapi"
+
+// excluded are the packages the check leaves out, each with its reason. A
+// package is covered unless it, or a package above it, is listed here. Test
+// files are never checked.
+var excluded = []struct{ path, reason string }{
+	{modulePrefix + "/core/rootpath", "the sanctioned primitive: it resolves a path inside a root and refuses one that leaves it"},
+	{modulePrefix + "/core/change/filehome", "the sanctioned primitive: it writes content files beneath its root under their lock"},
+	{modulePrefix + "/scripts", "repository tooling, which reads the checkout it runs in and never receives project content"},
+	{modulePrefix + "/core/proto", "generated protobuf code"},
+	{modulePrefix + "/core/plugin/proto", "generated protobuf code"},
+	{modulePrefix + "/bowrain/proto", "generated protobuf code"},
+	{modulePrefix + "/core/i18n/gen", "build-time catalog generator run by make, linked into no product binary"},
+	{modulePrefix + "/core/place/internal/gen", "build-time code generator (package main), linked into no product binary"},
+	{modulePrefix + "/core/internal/testutil", "test support, imported only by test files"},
+	{modulePrefix + "/core/format/spectest", "the format spec test runner, imported only by test files"},
+	{modulePrefix + "/core/plugin/conformance", "the plugin conformance suite, imported only by test files"},
 }
 
-// checkedPrefixes are the packages checked: each path and every package
-// beneath it.
-var checkedPrefixes = []string{
-	"github.com/neokapi/neokapi/host",
-	"github.com/neokapi/neokapi/core/project",
-	"github.com/neokapi/neokapi/core/flow",
-	"github.com/neokapi/neokapi/core/change",
-	"github.com/neokapi/neokapi/core/formats",
-	"github.com/neokapi/neokapi/kapi/mcptools",
-	"github.com/neokapi/neokapi/bowrain/connector",
-	"github.com/neokapi/neokapi/bowrain/jobs",
+// mustCover are packages the coverage rule has to reach. The self-test fails
+// when an exclusion swallows one of them.
+var mustCover = []string{
+	modulePrefix + "/core/storage",
+	modulePrefix + "/core/container",
+	modulePrefix + "/core/redaction",
+	modulePrefix + "/core/workspace",
+	modulePrefix + "/core/tools",
 }
 
-// byPath names, by package, the functions that reach a file by its path, each
-// with what the call does.
-var byPath = map[string]map[string]string{
+// sink is a function that reaches a file by path: what a call does, and which
+// arguments hold the path.
+type sink struct {
+	what     string
+	pathArgs []int
+}
+
+// sinks names, by package, the functions that reach a file by path.
+var sinks = map[string]map[string]sink{
 	"os": {
-		"Open":      "opens a file by path",
-		"OpenFile":  "opens a file by path",
-		"ReadFile":  "reads a file by path",
-		"ReadDir":   "lists a directory by path",
-		"Stat":      "stats a file by path",
-		"Lstat":     "stats a file by path",
-		"Create":    "creates a file by path",
-		"WriteFile": "writes a file by path",
-		"MkdirAll":  "creates directories by path",
-		"Mkdir":     "creates a directory by path",
-		"Remove":    "removes a file by path",
-		"RemoveAll": "removes a tree by path",
-		"Rename":    "renames a file by path",
-		"Symlink":   "creates a symbolic link by path",
-		"Link":      "creates a hard link by path",
+		"Open":       {"opens a file by path", []int{0}},
+		"OpenFile":   {"opens a file by path", []int{0}},
+		"ReadFile":   {"reads a file by path", []int{0}},
+		"ReadDir":    {"lists a directory by path", []int{0}},
+		"Stat":       {"stats a file by path", []int{0}},
+		"Lstat":      {"stats a file by path", []int{0}},
+		"Create":     {"creates a file by path", []int{0}},
+		"WriteFile":  {"writes a file by path", []int{0}},
+		"MkdirAll":   {"creates directories by path", []int{0}},
+		"Mkdir":      {"creates a directory by path", []int{0}},
+		"MkdirTemp":  {"creates a directory in a directory named by path", []int{0}},
+		"CreateTemp": {"creates a file in a directory named by path", []int{0}},
+		"Remove":     {"removes a file by path", []int{0}},
+		"RemoveAll":  {"removes a tree by path", []int{0}},
+		"Rename":     {"renames a file by path", []int{0, 1}},
+		"Symlink":    {"creates a symbolic link by path", []int{0, 1}},
+		"Link":       {"creates a hard link by path", []int{0, 1}},
+		"Readlink":   {"reads a symbolic link by path", []int{0}},
+		"Chmod":      {"changes a file's mode by path", []int{0}},
+		"Chown":      {"changes a file's owner by path", []int{0}},
+		"Lchown":     {"changes a file's owner by path", []int{0}},
+		"Chtimes":    {"changes a file's times by path", []int{0}},
+		"Truncate":   {"truncates a file by path", []int{0}},
+		"DirFS":      {"opens a file system rooted at a path", []int{0}},
 	},
 	"path/filepath": {
-		"Walk":    "walks a tree by path",
-		"WalkDir": "walks a tree by path",
+		"Walk":         {"walks a tree by path", []int{0}},
+		"WalkDir":      {"walks a tree by path", []int{0}},
+		"Glob":         {"lists files matching a path pattern", []int{0}},
+		"EvalSymlinks": {"follows the links on a path", []int{0}},
+	},
+	"io/ioutil": {
+		"ReadFile":  {"reads a file by path", []int{0}},
+		"WriteFile": {"writes a file by path", []int{0}},
+		"ReadDir":   {"lists a directory by path", []int{0}},
+		"TempFile":  {"creates a file in a directory named by path", []int{0}},
+		"TempDir":   {"creates a directory in a directory named by path", []int{0}},
+	},
+	"github.com/bmatcuk/doublestar/v4": {
+		"Glob":         {"lists files matching a path pattern", []int{1}},
+		"GlobWalk":     {"walks files matching a path pattern", []int{1}},
+		"FilepathGlob": {"lists files matching a path pattern", []int{0}},
+	},
+	"database/sql": {
+		"Open": {"opens a database by a name that may be a path", []int{1}},
+	},
+	"archive/zip": {
+		"OpenReader": {"opens an archive by path", []int{0}},
 	},
 }
 
-// allowed lists the functions that may reach a file by path, keyed by the
-// file and the function, with the reason the path is safe to use as given.
-// The entries live in the allow_*.go files, one per area of the tree.
-var allowed = mergeAllowed(allowCore, allowProject, allowHostA, allowHostB, allowBowrain, allowCoord)
-
-// mergeAllowed joins the per-area lists. A function listed twice is a
-// mistake, and the later reason is kept.
-func mergeAllowed(lists ...map[string]string) map[string]string {
-	all := map[string]string{}
-	for _, l := range lists {
-		maps.Copy(all, l)
-	}
-	return all
-}
+// httpDir is the conversion that serves files by path.
+var httpDir = sink{"converts a path to http.Dir, which serves the files beneath it", []int{0}}
 
 func main() {
-	selfTest := flag.Bool("self-test", false, "prove the check on fixtures")
+	selfTest := flag.Bool("self-test", false, "prove the check on fixtures and on every covered package")
 	count := flag.Bool("count", false, "print the number of findings in total and per package, and exit 0")
+	configName := flag.String("config", "host", "build configuration to check under (scripts/internal/buildconfigs)")
 	flag.Parse()
 	if *selfTest {
 		if err := runSelfTest(); err != nil {
@@ -114,7 +161,12 @@ func main() {
 		}
 		return
 	}
-	found, err := check(targets, allowed)
+	cfgs, err := buildconfigs.Named(*configName)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "pathguard:", err)
+		os.Exit(2)
+	}
+	found, _, err := check(cfgs[0], false)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "pathguard:", err)
 		os.Exit(2)
@@ -124,19 +176,13 @@ func main() {
 		return
 	}
 	if len(found) > 0 {
-		fmt.Fprintln(os.Stderr, "pathguard: these reach the file system by path in a package that handles project content:")
+		fmt.Fprintln(os.Stderr, "pathguard: these reach the file system by path with no //pathguard: reason, or carry a comment that is empty or no longer true:")
 		for _, f := range found {
 			fmt.Fprintln(os.Stderr, "  "+f.text)
 		}
-		fmt.Fprintln(os.Stderr, "Reach a project file through core/rootpath (Contain, OpenRegular, Remove) or the file home, or list the place in scripts/pathguard with the reason its path is safe.")
+		fmt.Fprintln(os.Stderr, "Reach a project file through core/rootpath (Contain, OpenRegular, Remove) or the file home, or put `//pathguard: <why the path is safe>` on the line of the call or alone on the line above it.")
 		os.Exit(1)
 	}
-}
-
-// finding is one reported call and the package it is in.
-type finding struct {
-	pkg  string
-	text string
 }
 
 // printCount prints the total and a tally per package, largest first.
@@ -161,164 +207,111 @@ func printCount(found []finding) {
 	}
 }
 
-// inScope reports whether a package is one of the checked packages.
-func inScope(path string, prefixes []string) bool {
-	for _, p := range prefixes {
-		if path == p || strings.HasPrefix(path, p+"/") {
-			return true
+// exclusion returns the reason a package is left out, or "" when it is covered.
+func exclusion(path string) string {
+	for _, e := range excluded {
+		if path == e.path || strings.HasPrefix(path, e.path+"/") {
+			return e.reason
 		}
 	}
-	return false
+	return ""
 }
 
-// check type-checks every checked package and reports each by-path call
-// outside the allowed places.
-func check(patterns []string, allow map[string]string) ([]finding, error) {
-	pkgs, err := guardpackages.List(patterns...)
+// covered reports whether a package is one the check walks.
+func covered(path string) bool {
+	return (path == modulePrefix || strings.HasPrefix(path, modulePrefix+"/")) && exclusion(path) == ""
+}
+
+// modulePatterns returns a go list pattern for each module in go.work whose
+// packages are not all excluded.
+func modulePatterns() ([]string, error) {
+	cmd := exec.CommandContext(context.Background(), "go", "list", "-m", "-json")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("go list -m: %w\n%s", err, stderr.String())
 	}
 	root, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
+	var patterns []string
+	dec := json.NewDecoder(bytes.NewReader(out))
+	for {
+		var m struct{ Path, Dir string }
+		if err := dec.Decode(&m); errors.Is(err, io.EOF) {
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("go list -m: %w", err)
+		}
+		if exclusion(m.Path) != "" {
+			continue
+		}
+		rel, err := filepath.Rel(root, m.Dir)
+		if err != nil || strings.HasPrefix(rel, "..") {
+			return nil, fmt.Errorf("module %s lies outside %s: run from the repository root", m.Path, root)
+		}
+		patterns = append(patterns, "./"+filepath.ToSlash(filepath.Join(rel, "...")))
+	}
+	if len(patterns) == 0 {
+		return nil, errors.New("no module to check: run from the repository root")
+	}
+	return patterns, nil
+}
+
+// check type-checks every covered package under one build configuration and
+// returns what it reports. In a configuration after the first, only the
+// packages holding a file no earlier configuration compiles are checked. With
+// plant, each covered package gets one more file that opens a file by path,
+// and the planted files are returned by package.
+func check(cfg buildconfigs.Config, plant bool) ([]finding, map[string]string, error) {
+	first := buildconfigs.Index(cfg.Name) == 0
+	patterns, err := modulePatterns()
+	if err != nil {
+		return nil, nil, err
+	}
+	pkgs, err := guardpackages.ListConfig(cfg, patterns...)
+	if err != nil {
+		return nil, nil, err
+	}
+	root, err := os.Getwd()
+	if err != nil {
+		return nil, nil, err
+	}
 	fset := token.NewFileSet()
 	imp := pkgs.Importer(fset)
-	var found []finding
-	checked := 0
-	seen := map[string]bool{}
-	// compiled holds the files this build configuration compiles. An entry for
-	// a file built only on another platform (host/agentrunsession_linux.go on
-	// macOS) is checked where that file builds, never reported stale here.
-	compiled := map[string]bool{}
+	a := newAnalysis(fset, first, func(name string) string {
+		rel, rerr := filepath.Rel(root, name)
+		if rerr != nil {
+			return name
+		}
+		return filepath.ToSlash(rel)
+	})
+	planted := map[string]string{}
 	for _, p := range pkgs {
-		if p.DepOnly || p.Standard || !inScope(p.ImportPath, checkedPrefixes) || len(p.CompiledGoFiles) == 0 {
+		if p.DepOnly || p.Standard || !covered(p.ImportPath) || len(p.CompiledGoFiles) == 0 {
 			continue
 		}
-		files, err := p.ParseFiles(fset)
+		files, err := a.parseFiles(p)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		for _, f := range files {
-			if rel, rerr := filepath.Rel(root, fset.Position(f.Pos()).Filename); rerr == nil {
-				compiled[filepath.ToSlash(rel)] = true
+		if plant {
+			f, name, err := a.plantFile(p.Dir, files[0].Name.Name)
+			if err != nil {
+				return nil, nil, err
 			}
+			files = append(files, f)
+			planted[p.ImportPath] = a.rel(name)
 		}
-		hits, cerr := checkPackage(fset, imp, p.ImportPath, files, func(pos token.Pos) string {
-			rel, rerr := filepath.Rel(root, fset.Position(pos).Filename)
-			if rerr != nil {
-				return fset.Position(pos).Filename
-			}
-			return filepath.ToSlash(rel)
-		}, allow, seen)
-		if cerr != nil {
-			return nil, fmt.Errorf("%s: %w", p.ImportPath, cerr)
-		}
-		for _, h := range hits {
-			found = append(found, finding{pkg: p.ImportPath, text: h})
-		}
-		checked++
-	}
-	if checked == 0 {
-		return nil, errors.New("no package to check: run from the repository root")
-	}
-	for where := range allow {
-		file, _, _ := strings.Cut(where, ":")
-		if !seen[where] && compiled[file] {
-			found = append(found, finding{pkg: "(allowlist)", text: where + ": listed in allowed but reaches no file by path here any more; remove the entry"})
+		if err := a.addPackage(imp, p.ImportPath, files); err != nil {
+			return nil, nil, fmt.Errorf("%s: %w", p.ImportPath, err)
 		}
 	}
-	fmt.Printf("pathguard: checked %d packages\n", checked)
-	sort.Slice(found, func(i, j int) bool { return found[i].text < found[j].text })
-	return found, nil
-}
-
-// checkPackage type-checks one package and reports every by-path call outside
-// the allowed places. relFile names a position's file as the allowlist spells
-// it; seen collects the allowed places that still make such a call.
-func checkPackage(fset *token.FileSet, imp types.Importer, path string, files []*ast.File, relFile func(token.Pos) string, allow map[string]string, seen map[string]bool) ([]string, error) {
-	info := &types.Info{
-		Types: map[ast.Expr]types.TypeAndValue{},
-		Uses:  map[*ast.Ident]types.Object{},
-		Defs:  map[*ast.Ident]types.Object{},
+	if len(a.checked) == 0 && first {
+		return nil, nil, errors.New("no package to check: run from the repository root")
 	}
-	var typeErrs []error
-	conf := types.Config{Importer: imp, Error: func(err error) { typeErrs = append(typeErrs, err) }}
-	if _, err := conf.Check(path, fset, files, info); err != nil && len(typeErrs) > 0 {
-		return nil, typeErrs[0]
-	}
-	var found []string
-	for _, f := range files {
-		if strings.HasSuffix(fset.Position(f.Pos()).Filename, "_test.go") {
-			continue
-		}
-		for _, decl := range f.Decls {
-			fn, ok := decl.(*ast.FuncDecl)
-			if !ok || fn.Body == nil {
-				continue
-			}
-			where := relFile(fn.Pos()) + ":" + fn.Name.Name
-			ast.Inspect(fn.Body, func(n ast.Node) bool {
-				call, ok := n.(*ast.CallExpr)
-				if !ok {
-					return true
-				}
-				name, what, ok := reachesPath(info, call)
-				if !ok {
-					return true
-				}
-				if _, ok := allow[where]; ok {
-					seen[where] = true
-					return true
-				}
-				p := fset.Position(call.Pos())
-				found = append(found, fmt.Sprintf("%s:%d: %s %s (in %s)", relFile(call.Pos()), p.Line, name, what, fn.Name.Name))
-				return true
-			})
-		}
-	}
-	return found, nil
-}
-
-// reachesPath reports whether a call reaches a file by path, and returns the
-// function as package.Name with what the call does.
-func reachesPath(info *types.Info, call *ast.CallExpr) (name, what string, ok bool) {
-	fn := callee(info, call)
-	if fn == nil {
-		return "", "", false
-	}
-	pkg := fn.Pkg().Path()
-	if what, ok := byPath[pkg][fn.Name()]; ok {
-		return fn.Pkg().Name() + "." + fn.Name(), what, true
-	}
-	if pkg == "io/fs" && fn.Name() == "WalkDir" && len(call.Args) > 0 {
-		if arg, ok := call.Args[0].(*ast.CallExpr); ok {
-			if d := callee(info, arg); d != nil && d.Pkg().Path() == "os" && d.Name() == "DirFS" {
-				return "fs.WalkDir", "walks a tree by path through os.DirFS", true
-			}
-		}
-	}
-	return "", "", false
-}
-
-// callee returns the package-level function a call reaches, or nil for a
-// method, a function value or a conversion.
-func callee(info *types.Info, call *ast.CallExpr) *types.Func {
-	var id *ast.Ident
-	switch fun := call.Fun.(type) {
-	case *ast.SelectorExpr:
-		id = fun.Sel
-	case *ast.Ident:
-		id = fun
-	default:
-		return nil
-	}
-	fn, ok := info.Uses[id].(*types.Func)
-	if !ok || fn.Pkg() == nil {
-		return nil
-	}
-	if sig, ok := fn.Type().(*types.Signature); !ok || sig.Recv() != nil {
-		return nil
-	}
-	return fn
+	fmt.Printf("pathguard: checked %d packages (%s)\n", len(a.checked), cfg.Name)
+	return a.findings(), planted, nil
 }

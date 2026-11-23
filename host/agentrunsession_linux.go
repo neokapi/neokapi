@@ -30,6 +30,7 @@ func parentProcess(pid int) (processInfo, error) {
 
 // readProcStat reports one process's parent pid, command name and start time.
 func readProcStat(pid int) (ppid int, name string, start int64, err error) {
+	//pathguard: reads the kernel's /proc stat file for a process id, never a project path
 	raw, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
 	if err != nil {
 		return 0, "", 0, err

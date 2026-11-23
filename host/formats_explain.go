@@ -77,6 +77,7 @@ func (a *App) ExplainFormats(cmd Command, paths []string) (output.FormatExplainO
 		return output.FormatExplainOutput{}, err
 	}
 	if recipePath != "" {
+		//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 		proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 		if err != nil {
 			return output.FormatExplainOutput{}, fmt.Errorf("load project: %w", err)

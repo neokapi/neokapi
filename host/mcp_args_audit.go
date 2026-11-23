@@ -4,23 +4,19 @@ package host
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"regexp"
 	"sort"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// locationWords matches an argument name or description that reads as a file
-// system location.
-var locationWords = regexp.MustCompile(`(?i)(path|file|dir|folder|uri\b|url\b|location)`)
-
-// UndeclaredMCPPathArgs lists, as "tool.argument", every string argument of
-// the tools a session's server lists whose name or description reads as a
-// location and that is not declared (an x-path annotation or
-// DeclareMCPPathArgs). A test of every surface that registers MCP tools calls
-// it, so an argument added without a declaration fails a test.
+// UndeclaredMCPPathArgs lists, as "tool.argument", every argument of the
+// tools a session's server lists that can carry a string and is declared
+// neither as a location nor as not a location (mcp_args.go), whatever its
+// name. It also lists, as "tool.argument (declared, not in the schema)",
+// every DeclareMCPPathArgs declaration naming an argument the tool's schema
+// does not have, which is what a renamed or moved field leaves behind. A test
+// of every surface that registers MCP tools calls it, so an argument added
+// without a declaration fails a test.
 func UndeclaredMCPPathArgs(ctx context.Context, cs *mcp.ClientSession) ([]string, error) {
 	var out []string
 	var cursor string
@@ -30,15 +26,22 @@ func UndeclaredMCPPathArgs(ctx context.Context, cs *mcp.ClientSession) ([]string
 			return nil, err
 		}
 		for _, t := range res.Tools {
-			props := schemaProperties(t.InputSchema)
-			args, err := locationArgs(t.Name, props)
+			kinds, args, err := mcpArgKinds(t.Name, readMCPInputSchema(t.InputSchema))
 			if err != nil {
 				return nil, err
 			}
-			declared := pathArgsOf(t.Name, props)
-			for _, name := range args {
-				if _, ok := declared[name]; !ok {
-					out = append(out, t.Name+"."+name)
+			present := make(map[string]bool, len(args))
+			for _, a := range args {
+				for p := a.Path; p != ""; p = parentMCPArgPath(p) {
+					present[p] = true
+				}
+				if _, ok := mcpArgKindAt(kinds, a.Path); !ok {
+					out = append(out, t.Name+"."+a.Path)
+				}
+			}
+			for p := range declaredMCPPathArgs(t.Name) {
+				if !present[p] {
+					out = append(out, t.Name+"."+p+" (declared, not in the schema)")
 				}
 			}
 		}
@@ -71,45 +74,4 @@ func AuditMCPPathArgs(ctx context.Context, a *App) ([]string, error) {
 	}
 	defer cs.Close()
 	return UndeclaredMCPPathArgs(ctx, cs)
-}
-
-// locationArgs returns the string arguments among props whose name or
-// description reads as a location.
-func locationArgs(tool string, props map[string]json.RawMessage) ([]string, error) {
-	var out []string
-	for name, raw := range props {
-		var p struct {
-			Type        any    `json:"type"`
-			Description string `json:"description"`
-			Items       *struct {
-				Type any `json:"type"`
-			} `json:"items"`
-		}
-		if err := json.Unmarshal(raw, &p); err != nil {
-			return nil, fmt.Errorf("%s.%s: %w", tool, name, err)
-		}
-		if !isStringish(p.Type) && (p.Items == nil || !isStringish(p.Items.Type)) {
-			continue
-		}
-		if locationWords.MatchString(name) || locationWords.MatchString(p.Description) {
-			out = append(out, name)
-		}
-	}
-	sort.Strings(out)
-	return out, nil
-}
-
-// isStringish reports whether a JSON schema type is, or includes, string.
-func isStringish(t any) bool {
-	switch v := t.(type) {
-	case string:
-		return v == "string"
-	case []any:
-		for _, e := range v {
-			if s, ok := e.(string); ok && s == "string" {
-				return true
-			}
-		}
-	}
-	return false
 }

@@ -363,6 +363,7 @@ func (a *App) Share(ctx context.Context, req ShareRequest) (*ShareResult, error)
 	} else if req.Location != "" {
 		return nil, WithExitCode(ExitUsage, fmt.Errorf("%q names a place: give it with --via, such as kapi share --via folder %s", req.Location, req.Location))
 	}
+	//pathguard: the recipe path the caller passes as req.Project, read by path as project.Load reads it
 	if err := a.readRung(ctx, req.Project, res); err != nil {
 		return nil, err
 	}
@@ -407,6 +408,7 @@ func (a *App) Share(ctx context.Context, req ShareRequest) (*ShareResult, error)
 // place without reaching it.
 func (a *App) readRung(ctx context.Context, recipe string, res *ShareResult) error {
 	res.Rung = ShareRungMachine
+	//pathguard: whether the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk) exists, before project.Load reads it by path
 	if _, err := os.Stat(recipe); err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -440,6 +442,7 @@ func (a *App) readRung(ctx context.Context, recipe string, res *ShareResult) err
 // as readRung reads it, without reaching the place: ShareRungMachine for a
 // recipe that is absent or keeps them on this machine.
 func RecipeRung(recipe string) (string, error) {
+	//pathguard: whether the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk) exists, before project.Load reads it by path
 	if _, err := os.Stat(recipe); err != nil {
 		if os.IsNotExist(err) {
 			return ShareRungMachine, nil
@@ -467,6 +470,7 @@ func RecipeRung(recipe string) (string, error) {
 // block belongs to the plugin, so a binary without it reads the plugin's
 // recipe key directly.
 func recipeServer(recipe string) string {
+	//pathguard: the recipe path the caller passes as recipe, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return ""
@@ -513,10 +517,12 @@ func (a *App) shareVia(ctx context.Context, req ShareRequest, res *ShareResult) 
 	if err := RefuseSplitContext(req.Project, spec); err != nil {
 		return WithExitCode(ExitUsage, err)
 	}
+	//pathguard: the recipe path the caller passes as req.Project, read by path as project.Load reads it
 	file, err := a.ensureRecipe(ctx, req.Project)
 	if err != nil {
 		return err
 	}
+	//pathguard: the recipe path the caller passes as req.Project, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(req.Project, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
@@ -646,6 +652,7 @@ func parseS3URL(url string) (bucket, prefix string) {
 // recipe, and reports kapi.yaml as created or kept.
 func (a *App) ensureRecipe(ctx context.Context, recipe string) (ShareFile, error) {
 	file := ShareFile{Path: project.RecipeFileName, Action: ShareFileKept}
+	//pathguard: whether the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk) exists; a new one is written through the root by InitProject
 	if _, err := os.Stat(recipe); err == nil {
 		return file, nil
 	} else if !os.IsNotExist(err) {
@@ -672,7 +679,9 @@ func (a *App) shareViaBowrain(ctx context.Context, req ShareRequest, res *ShareR
 	}
 	// A project already connected moves its context and needs no server.
 	connected := false
+	//pathguard: whether the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk) exists, before project.RecipeVenue reads it by path
 	if _, err := os.Stat(req.Project); err == nil {
+		//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), which project.RecipeVenue reads by path
 		if _, ok, err := project.RecipeVenue(req.Project); err != nil {
 			return err
 		} else if ok {
@@ -685,6 +694,7 @@ func (a *App) shareViaBowrain(ctx context.Context, req ShareRequest, res *ShareR
 	// The context moves with the project. Everything the place it was shared
 	// through holds is read first, so a place that cannot be reached stops the
 	// share before anything is written.
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), which project.LayoutFor reads by path
 	move, err := a.readContextToMove(ctx, req.Project)
 	if err != nil {
 		return err
@@ -718,6 +728,7 @@ type ContextMove struct {
 // this machine, so the sync to Bowrain carries it all. It answers nil when
 // the context is already on Bowrain or there is no recipe yet.
 func (a *App) readContextToMove(ctx context.Context, recipe string) (*ContextMove, error) {
+	//pathguard: whether the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk) exists, before project.LayoutFor reads it by path
 	if _, err := os.Stat(recipe); err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -760,6 +771,7 @@ func (a *App) readContextToMove(ctx context.Context, recipe string) (*ContextMov
 
 // setBowrainBackend writes `context: {backend: bowrain}` into the recipe.
 func setBowrainBackend(recipe string, res *ShareResult) error {
+	//pathguard: the recipe path the caller passes as recipe, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
@@ -815,10 +827,12 @@ func (a *App) connectBowrain(ctx context.Context, plugin *pluginhost.Plugin, req
 	// when the connect fails, and the folder is left as it was.
 	root := filepath.Dir(req.Project)
 	hadStateDir := holdsStateDir(root)
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read before and after the plugin connects it
 	file, err := a.ensureRecipe(ctx, req.Project)
 	if err != nil {
 		return err
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read before and after the plugin connects it
 	before, err := os.ReadFile(req.Project)
 	if err != nil {
 		return err
@@ -833,6 +847,7 @@ func (a *App) connectBowrain(ctx context.Context, plugin *pluginhost.Plugin, req
 		}
 		return err
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read before and after the plugin connects it
 	after, err := os.ReadFile(req.Project)
 	if err != nil {
 		return err

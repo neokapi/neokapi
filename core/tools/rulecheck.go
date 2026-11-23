@@ -43,7 +43,7 @@ type RuleCheckConfig struct {
 	TargetSameAsSourceWithNumbers bool   `json:"target_same_as_source_with_numbers,omitempty"   schema:"title=Include Number-Only Segments,description=Include number-only segments in same-as-source comparison,default=true,group=general"`
 	CheckDoubleSpaces             bool   `json:"check_double_spaces,omitempty"               schema:"title=Check Double Spaces,description=Check for double spaces in target text,default=true,group=general"`
 	CheckDoubledWord              bool   `json:"check_doubled_word,omitempty"                schema:"title=Warn on Doubled Words,description=Check for consecutive repeated words in target text,default=true,group=general"`
-	DoubledWordExceptions         string `json:"doubled_word_exceptions,omitempty"           schema:"title=Doubled Word Exceptions,description=Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous),group=general"`
+	DoubledWordExceptions         string `json:"doubled_word_exceptions,omitempty"           schema:"title=Doubled Word Exceptions,description=Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous),group=general,path=none"`
 	CheckSpanConstraints          bool   `json:"check_span_constraints,omitempty"            schema:"title=Check Span Constraints,description=Check non-deletable and non-cloneable span constraint violations,default=true,group=general"`
 
 	// --- Inline code checks ---
@@ -62,10 +62,10 @@ type RuleCheckConfig struct {
 
 	// --- Character checks ---
 	CheckCorruptedCharacters bool   `json:"check_corrupted_characters,omitempty" schema:"title=Check Corrupted Characters,description=Check for patterns indicating encoding corruption (mojibake, replacement chars, stray control chars),default=true,group=characters"`
-	ForbiddenChars           string `json:"forbidden_chars,omitempty"           schema:"title=Forbidden Characters,description=Characters that must not appear in target text (e.g. {}[]),group=characters"`
-	RequiredChars            string `json:"required_chars,omitempty"            schema:"title=Required Characters,description=Characters that must appear in target if present in source (e.g. punctuation),group=characters"`
+	ForbiddenChars           string `json:"forbidden_chars,omitempty"           schema:"title=Forbidden Characters,description=Characters that must not appear in target text (e.g. {}[]),group=characters,path=none"`
+	RequiredChars            string `json:"required_chars,omitempty"            schema:"title=Required Characters,description=Characters that must appear in target if present in source (e.g. punctuation),group=characters,path=none"`
 	CheckCharset             bool   `json:"check_charset,omitempty"             schema:"title=Check Against Charset Encoding,description=Warn if a target character is not included in the specified character set encoding,group=characters"`
-	Charset                  string `json:"charset,omitempty"                  schema:"title=Character Set Encoding,description=Name of the character set encoding to check against (e.g. ISO-8859-1),default=ISO-8859-1,group=characters"`
+	Charset                  string `json:"charset,omitempty"                  schema:"title=Character Set Encoding,description=Name of the character set encoding to check against (e.g. ISO-8859-1),default=ISO-8859-1,group=characters,path=none"`
 
 	// --- Consistency checks (cross-block, stateful within a run) ---
 	CheckTargetInconsistency bool `json:"check_target_inconsistency,omitempty" schema:"title=Check Target Inconsistency,description=Flag when the same source text is translated differently across the run,group=consistency"`

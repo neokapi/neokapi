@@ -30,6 +30,7 @@ const FlowDefinitionAPIVersion = "v1"
 // List returns all user flow definitions in the store.
 // Supports both JSON (.json) and YAML (.yaml/.yml) files, with or without envelope.
 func (s *FlowStore) List() ([]flow.FlowDefinition, error) {
+	//pathguard: the flow store directory its constructor names, a user store outside any project; nothing outside tests constructs one
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -42,6 +43,7 @@ func (s *FlowStore) List() ([]flow.FlowDefinition, error) {
 		if e.IsDir() || !isFlowFile(e.Name()) {
 			continue
 		}
+		//pathguard: the flow store directory its constructor names, a user store outside any project; nothing outside tests constructs one
 		data, err := os.ReadFile(filepath.Join(s.dir, e.Name()))
 		if err != nil {
 			continue
@@ -61,6 +63,7 @@ func (s *FlowStore) List() ([]flow.FlowDefinition, error) {
 func (s *FlowStore) Get(id string) (*flow.FlowDefinition, error) {
 	for _, ext := range []string{".yaml", ".yml", ".json"} {
 		path := filepath.Join(s.dir, id+ext)
+		//pathguard: the flow store directory its constructor names, a user store outside any project; nothing outside tests constructs one
 		data, err := os.ReadFile(path)
 		if err != nil {
 			continue
@@ -259,6 +262,7 @@ func (s *FlowStore) Save(def *flow.FlowDefinition) error {
 	if err := def.Validate(); err != nil {
 		return err
 	}
+	//pathguard: the flow store directory its constructor names, a user store outside any project; nothing outside tests constructs one
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {
 		return fmt.Errorf("create flow dir: %w", err)
 	}
@@ -274,12 +278,14 @@ func (s *FlowStore) Save(def *flow.FlowDefinition) error {
 		return fmt.Errorf("marshal flow: %w", err)
 	}
 	path := filepath.Join(s.dir, def.ID+".json")
+	//pathguard: the flow store directory its constructor names, a user store outside any project; nothing outside tests constructs one
 	return os.WriteFile(path, data, 0o644)
 }
 
 // Delete removes a flow definition from the store.
 func (s *FlowStore) Delete(id string) error {
 	path := filepath.Join(s.dir, id+".json")
+	//pathguard: the flow store directory its constructor names, a user store outside any project; nothing outside tests constructs one
 	if err := os.Remove(path); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("flow %q not found", id)

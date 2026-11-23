@@ -141,16 +141,19 @@ func (t *formatterTrust) decide(key, digest string, site project.ExecSite) error
 // read, and a change to them keeps a decision.
 func (t *formatterTrust) site(configFile, name string, command, configs []string) (project.ExecSite, error) {
 	facts := map[string]any{}
+	//pathguard: a formatter executable or configuration file that exec trust digests where the formatter will load it, links followed as the formatter follows them
 	executable, err := t.hash(command[0])
 	if err != nil {
 		return project.ExecSite{}, fmt.Errorf("read the %s executable before asking whether it may run: %w", name, err)
 	}
 	facts["executable_sha256"] = executable
+	//pathguard: the first line of a formatter executable that exec trust records by digest before it runs
 	rt, err := formatterRuntimeOf(command[0])
 	if err != nil {
 		return project.ExecSite{}, fmt.Errorf("read what the %s executable runs before asking whether it may run: %w", name, err)
 	}
 	if rt.interpreter != "" {
+		//pathguard: a formatter executable or configuration file that exec trust digests where the formatter will load it, links followed as the formatter follows them
 		sum, err := t.hash(rt.interpreter)
 		if err != nil {
 			return project.ExecSite{}, fmt.Errorf("read %s, which runs the %s executable, before asking whether it may run: %w", rt.interpreter, name, err)
@@ -158,12 +161,14 @@ func (t *formatterTrust) site(configFile, name string, command, configs []string
 		facts["interpreter"], facts["interpreter_sha256"] = rt.interpreter, sum
 	}
 	if rt.script != "" {
+		//pathguard: a formatter executable or configuration file that exec trust digests where the formatter will load it, links followed as the formatter follows them
 		sum, err := t.hash(rt.script)
 		if err != nil {
 			return project.ExecSite{}, fmt.Errorf("read %s, which the %s executable runs, before asking whether it may run: %w", rt.script, name, err)
 		}
 		facts["script"], facts["script_sha256"] = rt.script, sum
 	}
+	//pathguard: a formatter executable or configuration file that exec trust digests where the formatter will load it, links followed as the formatter follows them
 	config, err := t.hash(configFile)
 	if err != nil {
 		return project.ExecSite{}, fmt.Errorf("read %s before asking whether %s may run: %w", DisplayName(configFile), name, err)
@@ -171,6 +176,7 @@ func (t *formatterTrust) site(configFile, name string, command, configs []string
 	facts["config_sha256"] = config
 	loaded := make(map[string]string, len(configs))
 	for _, path := range configs {
+		//pathguard: a formatter executable or configuration file that exec trust digests where the formatter will load it, links followed as the formatter follows them
 		sum, err := t.hash(path)
 		if err != nil {
 			return project.ExecSite{}, fmt.Errorf("read %s before asking whether %s may run: %w", DisplayName(path), name, err)
@@ -186,10 +192,12 @@ func (t *formatterTrust) hash(path string) (string, error) {
 	if sum, ok := t.hashed[path]; ok {
 		return sum, nil
 	}
+	//pathguard: a formatter executable or configuration file that exec trust digests where the formatter will load it, links followed as the formatter follows them
 	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		return "", err
 	}
+	//pathguard: a formatter executable or configuration file that exec trust digests where the formatter will load it, links followed as the formatter follows them
 	f, err := os.Open(resolved)
 	if err != nil {
 		return "", err

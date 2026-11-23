@@ -152,6 +152,7 @@ func (r *Reader) openArchive() (*zip.Reader, func(), error) {
 		return zr, noop, nil
 	}
 
+	//pathguard: creates a new file in the OS temp dir
 	tmpFile, err := os.CreateTemp("", "neokapi-odf-*.zip")
 	if err != nil {
 		return nil, noop, fmt.Errorf("odf: creating temp file: %w", err)
@@ -928,6 +929,7 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 // Close releases resources.
 func (r *Reader) Close() error {
 	if r.tmpFile != "" {
+		//pathguard: removes the temp file the reader created with os.CreateTemp
 		os.Remove(r.tmpFile)
 		r.tmpFile = ""
 	}

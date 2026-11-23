@@ -147,15 +147,18 @@ func readLauncher(path string, data []byte) (formatterRuntime, error) {
 		// so the directory is taken with every link resolved.
 		from := path
 		if l.resolvesLinks {
+			//pathguard: a formatter launcher that exec trust records by digest, resolved as the shell resolves it to find the script it runs
 			if from, err = filepath.EvalSymlinks(path); err != nil {
 				return formatterRuntime{}, fmt.Errorf("resolve its location: %w", err)
 			}
 		}
+		//pathguard: a formatter launcher that exec trust records by digest, resolved as the shell resolves it to find the script it runs
 		dir, err := filepath.EvalSymlinks(filepath.Dir(from))
 		if err != nil {
 			return formatterRuntime{}, fmt.Errorf("resolve its directory: %w", err)
 		}
 		rt := formatterRuntime{script: filepath.Join(dir, filepath.FromSlash(target))}
+		//pathguard: an interpreter beside a formatter executable that exec trust records by digest before it runs
 		if node := filepath.Join(dir, "node"); isExecutableFile(node) {
 			rt.interpreter = node
 		} else if node, ok := lookPathAbsolute("node"); ok {

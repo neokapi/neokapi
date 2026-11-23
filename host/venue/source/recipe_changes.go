@@ -52,6 +52,7 @@ func (c *BowrainSourceConnector) applyPendingRecipeChanges(ctx context.Context) 
 	}
 
 	recipePath := c.project.Layout.RecipePath
+	//pathguard: the recipe of the layout the connector's project was loaded from
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		slog.WarnContext(ctx, "could not load the recipe to apply pending changes", "error", err)

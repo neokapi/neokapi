@@ -52,6 +52,7 @@ func (e DesktopEnv) withDefaults(goos string) DesktopEnv {
 		e.Getenv = os.Getenv
 	}
 	if e.Exists == nil {
+		//pathguard: the places an install puts Kapi Desktop
 		e.Exists = func(p string) bool { _, err := os.Stat(p); return err == nil }
 	}
 	if e.LookPath == nil {
@@ -126,6 +127,7 @@ func DesktopTarget(dir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	//pathguard: the folder or recipe argument of kapi open, or the project kapi resolved
 	info, err := os.Stat(abs)
 	if err != nil {
 		return "", err
@@ -137,6 +139,7 @@ func DesktopTarget(dir string) (string, error) {
 		abs = filepath.Dir(abs)
 	}
 	recipe := filepath.Join(abs, project.RecipeFileName)
+	//pathguard: the folder or recipe argument of kapi open, or the project kapi resolved
 	if _, err := os.Stat(recipe); err == nil {
 		return recipe, nil
 	}

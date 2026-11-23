@@ -19,6 +19,7 @@ import (
 
 // RecipeConfigGet returns the string value of one recipe key.
 func RecipeConfigGet(projectPath, key string) (string, error) {
+	//pathguard: the recipe path the caller passes as projectPath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return "", fmt.Errorf("load project: %w", err)
@@ -55,6 +56,7 @@ func RecipeConfigGet(projectPath, key string) (string, error) {
 // binds no venue yet); the registered extension decoder, when present,
 // validates the new value before anything is written.
 func RecipeConfigSet(projectPath, key, value string) error {
+	//pathguard: the recipe path the caller passes as projectPath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)

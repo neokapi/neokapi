@@ -112,6 +112,7 @@ func AddUpFlags(cmd Command) {
 // convergence venue, and the declared URL when parsable. Best-effort: a load
 // or decode error reports none, ExecuteUp surfaces real load failures.
 func (a *App) ServerRecipeURL(projectPath string) (hasServer bool, url string) {
+	//pathguard: the recipe path the caller passes as projectPath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return false, ""
@@ -130,6 +131,7 @@ func (a *App) WarnIfServerRecipeConvergingLocally(cmd Command, projectPath strin
 	if a.Quiet {
 		return
 	}
+	//pathguard: the recipe path the caller passes as projectPath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return
@@ -157,6 +159,9 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 		return fmt.Errorf("load project: %w", perr)
 	}
 	a.InitRegistries()
+	// A plugin daemon may be sent paths beneath the project's root, and
+	// nowhere else.
+	declarePathRoots(cmd, projectRootDir(projectPath))
 
 	// Rows keyed by a locale spelling the lookups no longer ask for would read
 	// as leverage the project lacks; say so before the plan prices the work.

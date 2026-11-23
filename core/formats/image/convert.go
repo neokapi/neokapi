@@ -83,12 +83,14 @@ func transcodeFFmpegToPNG(ctx context.Context, src *imageSource) (string, func()
 		return "", noop, err
 	}
 	defer inCleanup()
+	//pathguard: creates a new file in the OS temp dir
 	tmp, err := os.CreateTemp("", "kapi-image-ocr-*.png")
 	if err != nil {
 		return "", noop, err
 	}
 	name := tmp.Name()
 	_ = tmp.Close()
+	//pathguard: removes the temp file it created with os.CreateTemp
 	cleanup := func() { _ = os.Remove(name) }
 	if err := ffmpegConvert(ctx, in, name); err != nil {
 		cleanup()
@@ -100,11 +102,13 @@ func transcodeFFmpegToPNG(ctx context.Context, src *imageSource) (string, func()
 // encodePNGTemp writes img to a temp PNG and returns its path plus a cleanup.
 func encodePNGTemp(img image.Image) (string, func(), error) {
 	noop := func() {}
+	//pathguard: creates a new file in the OS temp dir
 	tmp, err := os.CreateTemp("", "kapi-image-ocr-*.png")
 	if err != nil {
 		return "", noop, err
 	}
 	name := tmp.Name()
+	//pathguard: removes the temp file it created with os.CreateTemp
 	cleanup := func() { _ = os.Remove(name) }
 	if err := png.Encode(tmp, img); err != nil {
 		_ = tmp.Close()

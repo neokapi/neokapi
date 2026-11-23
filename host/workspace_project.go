@@ -142,6 +142,7 @@ func (a *App) RunPack(cmd Command) error {
 		return fmt.Errorf("pack: %s has no extracted content, content memory, or terminology yet, so there is nothing to pack; run `kapi extract` (and translate) first, or share the kapi.yaml recipe directly", filepath.Base(projectPath))
 	}
 
+	//pathguard: the .kpz the -o flag of kapi pack names, or snapshot.kpz in the working directory
 	if err := saveWorkspace(pkg, outPath); err != nil {
 		return err
 	}
@@ -208,6 +209,7 @@ func (a *App) collectProjectSources(pkg *kpz.Package, layout project.Layout, pro
 // the local .kapi/ state dir, recreating the block store, content memory, and terms.
 // A workspace .kpz (one carrying a Recipe) instead rebuilds its shadow cache.
 func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
+	//pathguard: the .kpz argument of kapi unpack, named on the command line
 	pkg, err := LoadWorkspace(snapshotPath)
 	if err != nil {
 		return err
@@ -349,6 +351,7 @@ func (a *App) reconstituteProject(cmd Command, snapshotPath string, pkg *kpz.Pac
 	}
 
 	recipePath := reconstitutedProjectPath(snapshotPath, pkg)
+	//pathguard: the folder beside the .kpz named on the command line that unpack makes for the recipe it carries
 	if fileExists(recipePath) {
 		// A previous unpack already reconstituted this project. Its on-disk
 		// recipe is authoritative exactly as an in-scope project's is, so
@@ -366,6 +369,7 @@ func (a *App) reconstituteProject(cmd Command, snapshotPath string, pkg *kpz.Pac
 			base)
 	}
 
+	//pathguard: the folder beside the .kpz named on the command line that unpack makes for the recipe it carries
 	if err := os.MkdirAll(filepath.Dir(recipePath), 0o755); err != nil {
 		return project.Layout{}, fmt.Errorf("unpack: create project directory: %w", err)
 	}
@@ -462,6 +466,7 @@ func statThrough(root, p string) (fs.FileInfo, error) {
 	if rootpath.IsBeneath(root, p) {
 		return statInProject(root, p)
 	}
+	//pathguard: a path named on the command line that lies beneath no project root; one beneath it is asked through the root
 	return os.Stat(p)
 }
 
@@ -469,11 +474,14 @@ func statThrough(root, p string) (fs.FileInfo, error) {
 // os.Root opened on the directory root resolves to. A link that leads out of
 // root is refused with a *rootpath.EscapeError, and a missing file answers
 // fs.ErrNotExist.
+//
+//pathguard:contains it states p only through an os.Root opened on root, after rootpath.Contain refused a p that leaves root
 func statInProject(root, p string) (fs.FileInfo, error) {
 	real, err := rootpath.Contain(root, p)
 	if err != nil {
 		return nil, err
 	}
+	//pathguard: resolves the project root to open it as an os.Root; rootpath.Contain above has already refused a path that leaves it
 	realRoot, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		return nil, err
@@ -554,6 +562,7 @@ func kbfToBlocks(docs []kpz.BlockDoc) []exporter.BlockEntry {
 }
 
 func fileExists(path string) bool {
+	//pathguard: whether a folder named as the project (-p, the unpack destination, or an MCP call's project argument) holds kapi.yaml, which then loads as -p would
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir()
 }
@@ -589,6 +598,7 @@ func unpackSkeletons(batchDir string, skels []kpz.SkeletonDoc) error {
 		names[i] = project.SkeletonFilename(hash)
 	}
 	for i, skel := range skels {
+		//pathguard: writes a skeleton into the unpack batch directory, which EnsureExtractionDir created after Layout.CheckState, named by a hash checked as one path segment
 		if err := copyContentToFile(skel.Content, filepath.Join(batchDir, names[i])); err != nil {
 			return fmt.Errorf("unpack: write skeleton: %w", err)
 		}

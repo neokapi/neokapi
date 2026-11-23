@@ -621,6 +621,7 @@ type targetOfSource struct {
 }
 
 func (a *App) newProjectLayout(opts ChangeServiceOptions) (*projectChangeLayout, error) {
+	//pathguard: the recipe path the caller passes as opts.Project, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(opts.Project, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)

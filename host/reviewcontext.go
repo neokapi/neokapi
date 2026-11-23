@@ -255,6 +255,7 @@ func (r *ReviewPointResolver) recipe() *project.KapiProject {
 	if err != nil || path == "" {
 		return nil
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, lerr := project.LoadWithOptions(path, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
 		return nil

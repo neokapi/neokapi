@@ -142,6 +142,7 @@ func EnsureExtractionDir(layout Layout, batchID string) (string, error) {
 		return "", err
 	}
 	dir := ExtractionDir(layout, batchID)
+	//pathguard: creates a batch directory named by a checked batch ID (checkBatchID) under .kapi/work/cache/extractions, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("project: create extraction dir: %w", err)
 	}
@@ -191,9 +192,11 @@ func SaveExtractionManifest(layout Layout, m *ExtractionManifest) error {
 
 	path := filepath.Join(dir, ExtractionManifestFilename)
 	tmp := path + ".tmp"
+	//pathguard: writes the manifest into the batch directory EnsureExtractionDir created after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks
 	if err := os.WriteFile(tmp, buf.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("project: write extraction manifest: %w", err)
 	}
+	//pathguard: writes the manifest into the batch directory EnsureExtractionDir created after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks
 	if err := os.Rename(tmp, path); err != nil {
 		return fmt.Errorf("project: rename extraction manifest: %w", err)
 	}
@@ -296,6 +299,7 @@ func HashBytes(b []byte) string {
 // changed content memory.
 func ExtractionInputsHash(layout Layout, opts ExtractionOptions) string {
 	h := sha256.New()
+	//pathguard: reads the layout's RecipePath, the recipe file at the path the caller resolved: one a person named with -p or KAPI_PROJECT, one an MCP call named that ResolveMCPCallProject resolved within the server's roots, or one discovery found, which checkFoundRecipe refuses when it is a link out of its directory or not a regular file
 	if rb, err := os.ReadFile(layout.RecipePath); err == nil {
 		h.Write(rb)
 	}

@@ -85,6 +85,7 @@ func (a *App) FlushExplain() error {
 	a.explain = nil
 
 	if a.Explain != ExplainStderr {
+		//pathguard: the file a person named with --explain-prompts
 		f, err := os.Create(a.Explain)
 		if err != nil {
 			return fmt.Errorf("explain: %w", err)

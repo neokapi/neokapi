@@ -86,6 +86,7 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	}
 
 	// Write content to a temp file so zip.OpenReader can use it
+	//pathguard: creates a new file in the OS temp dir
 	f, err := os.CreateTemp("", "neokapi-epub-*.zip")
 	if err != nil {
 		return fmt.Errorf("epub: creating temp file: %w", err)
@@ -94,11 +95,13 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 
 	if _, err := io.Copy(f, doc.Reader); err != nil {
 		f.Close()
+		//pathguard: removes the temp file the reader created with os.CreateTemp
 		os.Remove(r.tmpFile)
 		r.tmpFile = ""
 		return fmt.Errorf("epub: writing temp file: %w", err)
 	}
 	if err := f.Close(); err != nil {
+		//pathguard: removes the temp file the reader created with os.CreateTemp
 		os.Remove(r.tmpFile)
 		r.tmpFile = ""
 		return fmt.Errorf("epub: closing temp file: %w", err)
@@ -207,6 +210,7 @@ func (r *Reader) openArchive() (*zip.Reader, func(), error) {
 			return nil, noop, fmt.Errorf("epub: opening zip: %w", err)
 		}
 	} else {
+		//pathguard: the reader's own temp copy, which Open made with os.CreateTemp
 		zrc, err := zip.OpenReader(r.tmpFile)
 		if err != nil {
 			return nil, noop, fmt.Errorf("epub: opening zip: %w", err)
@@ -1190,6 +1194,7 @@ func (r *Reader) emitError(ch chan<- model.PartResult, err error) {
 // Close releases resources.
 func (r *Reader) Close() error {
 	if r.tmpFile != "" {
+		//pathguard: removes the temp file the reader created with os.CreateTemp
 		os.Remove(r.tmpFile)
 		r.tmpFile = ""
 	}

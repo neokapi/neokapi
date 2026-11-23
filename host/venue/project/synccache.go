@@ -159,9 +159,11 @@ func (c *SyncCache) Save(layout coreproj.Layout) error {
 	if err != nil {
 		return fmt.Errorf("project: marshal sync cache: %w", err)
 	}
+	//pathguard: writes the sync cache into .kapi/sync after EnsureLocalDir ran Layout.CheckState, which refuses any link or irregular file beneath .kapi/, and removes the copy at its old path as the name it is
 	if err := os.WriteFile(SyncCachePathFor(layout), data, 0o600); err != nil {
 		return err
 	}
+	//pathguard: writes the sync cache into .kapi/sync after EnsureLocalDir ran Layout.CheckState, which refuses any link or irregular file beneath .kapi/, and removes the copy at its old path as the name it is
 	_ = os.Remove(legacySyncCachePath(layout))
 	return nil
 }

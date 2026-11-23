@@ -14,6 +14,27 @@ type simpleConfig struct {
 	Threshold  float64
 }
 
+type locationConfig struct {
+	Rules string `json:"rules" schema:"path=file"`
+	Out   string `json:"out" schema:"path=directory"`
+	Mode  string `json:"mode" schema:"path=none"`
+	Plain string `json:"plain"`
+}
+
+// The path= key declares a field as a location (file or directory) or as not
+// one (none), and a field without it is declared neither way.
+func TestFromStruct_PathDeclaresLocationOrNot(t *testing.T) {
+	s := FromStruct(&locationConfig{}, ToolMeta{ID: "loc"})
+	require.NotNil(t, s.Properties["rules"].PathInfo)
+	assert.Equal(t, "file", s.Properties["rules"].PathInfo.Type)
+	assert.Equal(t, "directory", s.Properties["out"].PathInfo.Type)
+	assert.False(t, s.Properties["rules"].NotLocation)
+	assert.Nil(t, s.Properties["mode"].PathInfo)
+	assert.True(t, s.Properties["mode"].NotLocation)
+	assert.Nil(t, s.Properties["plain"].PathInfo)
+	assert.False(t, s.Properties["plain"].NotLocation)
+}
+
 func TestFromStruct_SimpleTypes(t *testing.T) {
 	cfg := simpleConfig{
 		Enabled:    true,

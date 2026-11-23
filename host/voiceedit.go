@@ -111,6 +111,7 @@ func (a *App) EditVoiceProfile(ctx context.Context, cmd Command, req VoiceEditRe
 	keep := false
 	defer func() {
 		if !keep {
+			//pathguard: a file kapi voice edit made with os.CreateTemp
 			_ = os.Remove(path)
 		}
 	}()
@@ -119,6 +120,7 @@ func (a *App) EditVoiceProfile(ctx context.Context, cmd Command, req VoiceEditRe
 		return res, err
 	}
 
+	//pathguard: a file kapi voice edit made with os.CreateTemp
 	edited, err := os.ReadFile(path)
 	if err != nil {
 		return res, fmt.Errorf("read the edited profile: %w", err)
@@ -266,6 +268,7 @@ func (a *App) recordVoiceWrite(
 // outside the project, because a file under `.kapi/` that an editor is holding
 // open is a context file in the checkout for as long as the edit lasts.
 func writeEditScratch(id string, data []byte) (string, error) {
+	//pathguard: creates a new file in the OS temp dir
 	f, err := os.CreateTemp("", "kapi-voice-"+slugify(id)+"-*.yaml")
 	if err != nil {
 		return "", fmt.Errorf("open a file to edit: %w", err)
@@ -273,10 +276,12 @@ func writeEditScratch(id string, data []byte) (string, error) {
 	path := f.Name()
 	if _, err := f.Write(data); err != nil {
 		_ = f.Close()
+		//pathguard: a file kapi voice edit made with os.CreateTemp
 		_ = os.Remove(path)
 		return "", fmt.Errorf("write the profile to edit: %w", err)
 	}
 	if err := f.Close(); err != nil {
+		//pathguard: a file kapi voice edit made with os.CreateTemp
 		_ = os.Remove(path)
 		return "", fmt.Errorf("write the profile to edit: %w", err)
 	}

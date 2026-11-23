@@ -45,6 +45,7 @@ func CacheLocation() string {
 // LoadCache returns the cached entry for url, or (nil, nil) when none
 // is present.
 func LoadCache(url string) (*CachedIndex, error) {
+	//pathguard: the plugin registry cache in the user cache directory
 	data, err := os.ReadFile(CacheLocation())
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -65,6 +66,7 @@ func LoadCache(url string) (*CachedIndex, error) {
 // SaveCache atomically persists the cached index.
 func SaveCache(c *CachedIndex) error {
 	path := CacheLocation()
+	//pathguard: the plugin registry cache in the user cache directory
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("registry cache: mkdir: %w", err)
 	}
@@ -73,9 +75,11 @@ func SaveCache(c *CachedIndex) error {
 		return err
 	}
 	tmp := path + ".tmp"
+	//pathguard: a temporary sibling of the plugin registry cache in the user cache directory, renamed onto it
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
+	//pathguard: renames a temporary sibling onto the plugin registry cache in the user cache directory
 	return os.Rename(tmp, path)
 }
 

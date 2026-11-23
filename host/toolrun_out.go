@@ -63,6 +63,7 @@ func (cfg ToolRunConfig) toolRunRoot(paths ...string) string {
 func (a *App) toolSourceLocale(root string) model.LocaleID {
 	recipe := ""
 	if root != "" && a.SourceLang == "" {
+		//pathguard: kapi.yaml in the project root the caller passes
 		if proj, err := project.LoadWithOptions(project.LayoutAt(root).RecipePath, project.LoadOptions{SkipRequiresCheck: true}); err == nil {
 			recipe = string(proj.Defaults.SourceLanguage)
 		}
@@ -73,6 +74,7 @@ func (a *App) toolSourceLocale(root string) model.LocaleID {
 // openToolOutput digests the destination of a tool run over one file and
 // opens its follower. It is called before the run reads the file.
 func (a *App) openToolOutput(ctx context.Context, cfg ToolRunConfig, d flow.Document) (*toolOutput, error) {
+	//pathguard: only stats a destination and its parent to refuse or classify it; the write itself goes through the file home, which keeps it inside the root
 	if err := flow.CheckOutputPath(d.OutputPath); err != nil {
 		return nil, err
 	}

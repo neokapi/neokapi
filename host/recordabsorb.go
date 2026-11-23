@@ -103,6 +103,7 @@ func (r RecordAbsorbResult) Absorbed() bool { return r.Learned > 0 || r.Reconcil
 // projectPath into its content memory. projectPath is the recipe or the
 // project root; both resolve the way `-p` does.
 func (a *App) AbsorbProjectRecord(ctx context.Context, projectPath string) (RecordAbsorbResult, error) {
+	//pathguard: the recipe path the caller passes as projectPath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return RecordAbsorbResult{}, fmt.Errorf("load project: %w", err)

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T22:39:13Z",
+  "generatedAt": "2026-11-23T01:02:15Z",
   "kind": "tool",
   "entries": [
     {
@@ -110,7 +110,8 @@
           "api_key": {
             "type": "string",
             "title": "API Key",
-            "description": "API key for the AI provider"
+            "description": "API key for the AI provider",
+            "x-not-location": true
           },
           "batch_concurrency": {
             "type": "integer",
@@ -148,23 +149,27 @@
               "hybrid": "Run the local model and the LLM, merging results.",
               "llm": "Extract with an AI provider.",
               "ner": "On-device model: no credentials, nothing leaves the machine."
-            }
+            },
+            "x-not-location": true
           },
           "known_terms": {
             "type": "array",
             "description": "Terms to exclude from extraction (already in the terms store)",
             "items": {
               "type": "string"
-            }
+            },
+            "x-not-location": true
           },
           "locale": {
             "type": "string",
-            "description": "Nasjonal innstilling for kildeinnholdet"
+            "description": "Nasjonal innstilling for kildeinnholdet",
+            "x-not-location": true
           },
           "model": {
             "type": "string",
             "title": "Modell",
-            "description": "Navn på KI-modell"
+            "description": "Navn på KI-modell",
+            "x-not-location": true
           },
           "provider": {
             "type": "string",
@@ -200,7 +205,8 @@
                 "value": "demo",
                 "label": "Demo (illustrativ)"
               }
-            ]
+            ],
+            "x-not-location": true
           }
         }
       },
@@ -358,17 +364,20 @@
           "api_key": {
             "type": "string",
             "title": "API Key",
-            "description": "API key for the AI provider"
+            "description": "API key for the AI provider",
+            "x-not-location": true
           },
           "domain": {
             "type": "string",
             "title": "Domene",
-            "description": "Emnedomene for terminologiutvinning (f.eks. medisinsk juridisk teknologi)"
+            "description": "Emnedomene for terminologiutvinning (f.eks. medisinsk juridisk teknologi)",
+            "x-not-location": true
           },
           "model": {
             "type": "string",
             "title": "Modell",
-            "description": "AI-modellnavn"
+            "description": "AI-modellnavn",
+            "x-not-location": true
           },
           "provider": {
             "type": "string",
@@ -404,7 +413,8 @@
                 "value": "demo",
                 "label": "Demo (illustrerende)"
               }
-            ]
+            ],
+            "x-not-location": true
           }
         }
       },
@@ -522,17 +532,20 @@
           "api_key": {
             "type": "string",
             "title": "API Key",
-            "description": "API key for the AI provider"
+            "description": "API key for the AI provider",
+            "x-not-location": true
           },
           "model": {
             "type": "string",
             "title": "Modell",
-            "description": "AI-modellnavn"
+            "description": "AI-modellnavn",
+            "x-not-location": true
           },
           "profile_id": {
             "type": "string",
             "title": "Profile ID",
-            "description": "Voice profile to resolve from the store"
+            "description": "Voice profile to resolve from the store",
+            "x-not-location": true
           },
           "provider": {
             "type": "string",
@@ -568,7 +581,8 @@
                 "value": "demo",
                 "label": "Demo (illustrativ)"
               }
-            ]
+            ],
+            "x-not-location": true
           }
         }
       },
@@ -672,12 +686,14 @@
           "api_key": {
             "type": "string",
             "title": "API Key",
-            "description": "API key for the AI provider"
+            "description": "API key for the AI provider",
+            "x-not-location": true
           },
           "domain": {
             "type": "string",
             "title": "Domene",
-            "description": "Fagdomene-hint for analysen (f.eks. medisin jus teknologi)"
+            "description": "Fagdomene-hint for analysen (f.eks. medisin jus teknologi)",
+            "x-not-location": true
           },
           "max_examples": {
             "type": "integer",
@@ -689,12 +705,14 @@
           "model": {
             "type": "string",
             "title": "Modell",
-            "description": "AI-modellnavn"
+            "description": "AI-modellnavn",
+            "x-not-location": true
           },
           "profile_name": {
             "type": "string",
             "title": "Profile Name",
-            "description": "Name for the inferred draft profile"
+            "description": "Name for the inferred draft profile",
+            "x-not-location": true
           },
           "provider": {
             "type": "string",
@@ -730,7 +748,8 @@
                 "value": "demo",
                 "label": "Demo (illustrativ)"
               }
-            ]
+            ],
+            "x-not-location": true
           }
         }
       },
@@ -907,7 +926,8 @@
                 "value": "title",
                 "label": "tittel"
               }
-            ]
+            ],
+            "x-not-location": true
           }
         }
       },
@@ -1013,7 +1033,8 @@
           "target_locale": {
             "type": "string",
             "title": "Target Locale",
-            "description": "Target locale to create"
+            "description": "Target locale to create",
+            "x-not-location": true
           }
         }
       },
@@ -1218,7 +1239,8 @@
             "description": "Strenger som må overleve uendret i målet (produktnavn",
             "items": {
               "type": "string"
-            }
+            },
+            "x-not-location": true
           }
         }
       },
@@ -1506,7 +1528,8 @@
             "ui:visible": {
               "field": "ApplyTarget",
               "empty": false
-            }
+            },
+            "x-not-location": true
           }
         }
       },
@@ -1662,12 +1685,14 @@
           "api_key": {
             "type": "string",
             "title": "API Key",
-            "description": "API key for the AI provider"
+            "description": "API key for the AI provider",
+            "x-not-location": true
           },
           "model": {
             "type": "string",
             "title": "Modell",
-            "description": "Navn på multimodal modell"
+            "description": "Navn på multimodal modell",
+            "x-not-location": true
           },
           "provider": {
             "type": "string",
@@ -1703,7 +1728,8 @@
                 "value": "demo",
                 "label": "Demo (illustrativ)"
               }
-            ]
+            ],
+            "x-not-location": true
           },
           "threshold": {
             "type": "number",
@@ -1939,13 +1965,15 @@
             "type": "string",
             "title": "Prefiks",
             "description": "Tegn som legges til før hver oversatt blokk",
-            "default": "▒ "
+            "default": "▒ ",
+            "x-not-location": true
           },
           "suffix": {
             "type": "string",
             "title": "Suffiks",
             "description": "Tegn som legges til etter hver oversatt blokk",
-            "default": " ▒"
+            "default": " ▒",
+            "x-not-location": true
           }
         }
       },
@@ -2194,13 +2222,15 @@
           "api_key": {
             "type": "string",
             "title": "API Key",
-            "description": "API key for the AI provider"
+            "description": "API key for the AI provider",
+            "x-not-location": true
           },
           "charset": {
             "type": "string",
             "title": "Tegnsettskoding",
             "description": "Navn på tegnsettkodingen det skal kontrolleres mot (f.eks. ISO-8859-1)",
-            "default": "ISO-8859-1"
+            "default": "ISO-8859-1",
+            "x-not-location": true
           },
           "check_absolute_max_char_length": {
             "type": "boolean",
@@ -2316,7 +2346,8 @@
             "description": "Kvalitetskontroller som skal utføres (f.eks. terminologi flyt nøyaktighet konsistens)",
             "items": {
               "type": "string"
-            }
+            },
+            "x-not-location": true
           },
           "consistency_case_sensitive": {
             "type": "boolean",
@@ -2328,12 +2359,14 @@
             "type": "string",
             "title": "Doubled Word Exceptions",
             "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)",
-            "default": "sie;vous;nous"
+            "default": "sie;vous;nous",
+            "x-not-location": true
           },
           "forbidden_chars": {
             "type": "string",
             "title": "Forbidden Characters",
-            "description": "Characters that must not appear in target text (e.g. {}[])"
+            "description": "Characters that must not appear in target text (e.g. {}[])",
+            "x-not-location": true
           },
           "max_char_length_above": {
             "type": "integer",
@@ -2396,12 +2429,14 @@
             "ui:enum-descriptions": {
               "ai": "LLM-judged quality review via an AI provider.",
               "rules": "Local rule-based checks: no credentials, no network."
-            }
+            },
+            "x-not-location": true
           },
           "model": {
             "type": "string",
             "title": "Modell",
-            "description": "AI-modellnavn"
+            "description": "AI-modellnavn",
+            "x-not-location": true
           },
           "provider": {
             "type": "string",
@@ -2437,12 +2472,14 @@
                 "value": "demo",
                 "label": "Demo (illustrerende)"
               }
-            ]
+            ],
+            "x-not-location": true
           },
           "required_chars": {
             "type": "string",
             "title": "Required Characters",
-            "description": "Characters that must appear in target if present in source (e.g. punctuation)"
+            "description": "Characters that must appear in target if present in source (e.g. punctuation)",
+            "x-not-location": true
           },
           "strict_code_order": {
             "type": "boolean",
@@ -2955,7 +2992,8 @@
             "description": "Gjenkjenningsbakdeler som skal kjøres: regler og/eller enheter",
             "items": {
               "type": "string"
-            }
+            },
+            "x-not-location": true
           },
           "entity_types": {
             "type": "array",
@@ -2963,12 +3001,14 @@
             "description": "Entity categories to redact: person",
             "items": {
               "type": "string"
-            }
+            },
+            "x-not-location": true
           },
           "placeholder": {
             "type": "string",
             "title": "Plassholdermall",
-            "description": "Synlig plassholder-mal; støtter {category} og {n}"
+            "description": "Synlig plassholder-mal; støtter {category} og {n}",
+            "x-not-location": true
           },
           "rules_path": {
             "type": "string",
@@ -3087,12 +3127,14 @@
           "target_locale": {
             "type": "string",
             "title": "Target Locale",
-            "description": "Target locale to remove (if empty all targets are removed)"
+            "description": "Target locale to remove (if empty all targets are removed)",
+            "x-not-location": true
           },
           "text_unit_ids": {
             "type": "string",
             "title": "Block IDs for Removal",
-            "description": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets"
+            "description": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets",
+            "x-not-location": true
           }
         }
       },
@@ -3220,12 +3262,14 @@
           "api_key": {
             "type": "string",
             "title": "API Key",
-            "description": "API key for the AI provider"
+            "description": "API key for the AI provider",
+            "x-not-location": true
           },
           "model": {
             "type": "string",
             "title": "Modell",
-            "description": "AI-modellnavn"
+            "description": "AI-modellnavn",
+            "x-not-location": true
           },
           "provider": {
             "type": "string",
@@ -3261,7 +3305,8 @@
                 "value": "demo",
                 "label": "Demo (illustrerende)"
               }
-            ]
+            ],
+            "x-not-location": true
           }
         }
       },
@@ -3690,7 +3735,8 @@
             "title": "Legitimasjon",
             "description": "Navn på lagret legitimasjon",
             "ui:widget": "credential-picker",
-            "ui:order": 30
+            "ui:order": 30,
+            "x-not-location": true
           },
           "engine": {
             "type": "string",
@@ -3717,20 +3763,23 @@
               "srx": "Faithful sentence segmentation: ICU UAX-29 boundaries refined by Okapi SRX exceptions where ICU is available, pure-Go SRX rules otherwise. No configuration required.",
               "uax29": "Unicode default sentence boundaries (ICU UAX-29). A language-agnostic baseline with no exceptions."
             },
-            "ui:order": 0
+            "ui:order": 0,
+            "x-not-location": true
           },
           "instruction": {
             "type": "string",
             "title": "Instruksjon for oppdeling",
             "description": "Valgfri veiledning for hvordan du deler opp",
             "ui:widget": "textarea",
-            "ui:order": 40
+            "ui:order": 40,
+            "x-not-location": true
           },
           "layer": {
             "type": "string",
             "title": "Overleggslag",
             "description": "Navn på segmenteringsoverleggslag; tomt bruker motorens naturlige lag",
-            "ui:order": 10
+            "ui:order": 10,
+            "x-not-location": true
           },
           "max_chunk_runes": {
             "type": "integer",
@@ -3743,7 +3792,8 @@
             "type": "string",
             "title": "Modell",
             "description": "Modellnavn",
-            "ui:order": 20
+            "ui:order": 20,
+            "x-not-location": true
           },
           "overwrite_segmentation": {
             "type": "boolean",
@@ -3756,7 +3806,8 @@
             "type": "string",
             "title": "Leverandør",
             "description": "AI-leverandør-ID (anthropic",
-            "ui:order": 10
+            "ui:order": 10,
+            "x-not-location": true
           },
           "renumber_codes": {
             "type": "boolean",
@@ -4187,7 +4238,8 @@
           "api_key": {
             "type": "string",
             "title": "API Key",
-            "description": "API key for the AI provider"
+            "description": "API key for the AI provider",
+            "x-not-location": true
           },
           "batch_concurrency": {
             "type": "integer",
@@ -4210,7 +4262,8 @@
                 "value": "single",
                 "label": "enkelt"
               }
-            ]
+            ],
+            "x-not-location": true
           },
           "context": {
             "type": "string",
@@ -4230,7 +4283,8 @@
                 "value": "neighbours",
                 "label": "naboer"
               }
-            ]
+            ],
+            "x-not-location": true
           },
           "context_window": {
             "type": "integer",
@@ -4260,18 +4314,21 @@
               "llm": "Translate with a large language model.",
               "mt": "Translate with a plugin-provided machine-translation engine."
             },
-            "ui:order": 0
+            "ui:order": 0,
+            "x-not-location": true
           },
           "instruction": {
             "type": "string",
             "title": "Instruksjon",
             "description": "Ekstra veiledning for modellen under oversettelse (f.eks. «uformelt register; behold produktnavn på engelsk»)",
-            "ui:widget": "textarea"
+            "ui:widget": "textarea",
+            "x-not-location": true
           },
           "model": {
             "type": "string",
             "title": "Modell",
-            "description": "AI-modellnavn"
+            "description": "AI-modellnavn",
+            "x-not-location": true
           },
           "provider": {
             "type": "string",
@@ -4353,7 +4410,8 @@
                 "options": []
               }
             ],
-            "ui:widget": "select"
+            "ui:widget": "select",
+            "x-not-location": true
           },
           "reuse": {
             "type": "string",
@@ -4369,7 +4427,8 @@
                 "value": "none",
                 "label": "ingen"
               }
-            ]
+            ],
+            "x-not-location": true
           },
           "skip_matched": {
             "type": "boolean",
@@ -4502,7 +4561,8 @@
                 "value": "established",
                 "label": "established"
               }
-            ]
+            ],
+            "x-not-location": true
           }
         }
       }
@@ -4734,7 +4794,8 @@
           "target_locale": {
             "type": "string",
             "title": "Target Locale",
-            "description": "Target locale for processing"
+            "description": "Target locale for processing",
+            "x-not-location": true
           },
           "trim_leading": {
             "type": "boolean",
@@ -4888,7 +4949,8 @@
             "ui:visible": {
               "field": "CheckTarget",
               "empty": false
-            }
+            },
+            "x-not-location": true
           },
           "wrap_root": {
             "type": "boolean",

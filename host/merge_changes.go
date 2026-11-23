@@ -514,6 +514,7 @@ func (a *App) translatorWins(task mergeTask, rf *returnedFile) bool {
 	case project.ConflictPolicyExistingWins:
 		return false
 	case project.ConflictPolicyNewestWins:
+		//pathguard: statThrough asks a path beneath root through the root and states one beneath no root as named
 		in, err := statThrough(task.layout.Root, rf.input)
 		if err != nil {
 			return false

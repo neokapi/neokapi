@@ -91,8 +91,13 @@ var ErrNoInput = errors.New("no input")
 // list, applying the three input conventions documented above. The returned
 // slice is either a list of real paths (possibly with `container!entry`
 // locators) or the single element StdinName.
+//
+// The inputs also become the directories a plugin daemon may be sent paths
+// in for the rest of the command: those the arguments name, or the root of
+// the project whose content set stands in for them.
 func (a *App) ResolveInputs(cmd Command, args []string, opts InputOptions) ([]string, error) {
 	if len(args) > 0 {
+		declarePathRoots(cmd, namedInputRoots(args)...)
 		return expandArgs(args, opts)
 	}
 	return a.implicitInputs(cmd, opts)
@@ -111,6 +116,7 @@ func (a *App) implicitInputs(cmd Command, opts InputOptions) ([]string, error) {
 			return nil, err
 		}
 		if len(files) > 0 {
+			declarePathRoots(cmd, projectRootDir(projectPath))
 			if !a.Quiet {
 				fmt.Fprintf(cmd.ErrOrStderr(), "%s: no files given, using the %d file(s) tracked by %s\n",
 					name, len(files), relativeToCwd(projectPath))
@@ -148,6 +154,7 @@ func (a *App) projectContentFiles(cmd Command) ([]string, string, error) {
 		// project" and let the stdin fallback below report the real situation.
 		return nil, "", nil //nolint:nilerr // discovery trouble degrades to no-project
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, "", fmt.Errorf("load project: %w", err)
@@ -215,6 +222,7 @@ func expandArgs(args []string, opts InputOptions) ([]string, error) {
 			continue
 		}
 
+		//pathguard: a command-line file argument (positional or -i); no MCP argument reaches it
 		matches, err := expandOne(arg, opts)
 		if err != nil {
 			return nil, err
@@ -245,10 +253,12 @@ func expandArgs(args []string, opts InputOptions) ([]string, error) {
 // expandOne resolves a single argument to zero or more concrete files. A nil
 // (rather than empty) result means the argument was skipped and reported.
 func expandOne(arg string, opts InputOptions) ([]string, error) {
+	//pathguard: a command-line file argument (positional or -i), stated as the shell would; no MCP argument reaches it
 	if looksLikeGlobArg(arg) {
 		return expandGlobArg(arg, opts)
 	}
 
+	//pathguard: a command-line file argument (positional or -i), stated as the shell would; no MCP argument reaches it
 	info, err := os.Stat(arg)
 	if err != nil {
 		skip(opts, arg, err)
@@ -297,6 +307,7 @@ func expandGlobArg(pattern string, opts InputOptions) ([]string, error) {
 	// read whatever the rules say.
 	rules := newWalkIgnores(root)
 	rels = slices.DeleteFunc(rels, func(r string) bool {
+		//pathguard: a glob a person typed as a command-line argument, expanded beneath its own directory as the shell would; an MCP call names files one by one and reaches no expander (TestMCPStatsExpandsNoPatternAndFollowsNoLinkOut)
 		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(r)))
 		return rules.ignoredBelow(root, r, err == nil && info.IsDir())
 	})
@@ -309,6 +320,7 @@ func expandGlobArg(pattern string, opts InputOptions) ([]string, error) {
 	var out []string
 	for _, r := range rels {
 		p := filepath.Join(root, filepath.FromSlash(r))
+		//pathguard: a glob a person typed as a command-line argument, expanded beneath its own directory as the shell would; an MCP call names files one by one and reaches no expander (TestMCPStatsExpandsNoPatternAndFollowsNoLinkOut)
 		info, err := os.Stat(p)
 		if err != nil {
 			// Report the drop instead of dropping it. Whether the user is told
@@ -409,6 +421,7 @@ func looksLikeGlobArg(arg string) bool {
 	if !isGlobPattern(arg) {
 		return false
 	}
+	//pathguard: a command-line file argument, checked to see whether it names a file verbatim; no MCP argument reaches it
 	if _, err := os.Lstat(arg); err == nil {
 		return false
 	}
@@ -439,6 +452,7 @@ var stdinIsPipe = func() bool {
 // is stated as named.
 func statIn(root, p string) (fs.FileInfo, error) {
 	if !rootpath.IsBeneath(root, p) {
+		//pathguard: a path beneath no project root, which statIn hands on: by rootpath.Open's convention, a path a person named
 		return statNamed(p)
 	}
 	r, name, err := openRootFor(root, p)
@@ -452,6 +466,7 @@ func statIn(root, p string) (fs.FileInfo, error) {
 // readDirIn lists the directory dir as statIn stats it, sorted by name.
 func readDirIn(root, dir string) ([]os.DirEntry, error) {
 	if !rootpath.IsBeneath(root, dir) {
+		//pathguard: a path beneath no project root, which readDirIn hands on: by rootpath.Open's convention, a path a person named
 		return readDirNamed(dir)
 	}
 	r, name, err := openRootFor(root, dir)
@@ -472,11 +487,14 @@ func readDirIn(root, dir string) ([]os.DirEntry, error) {
 // openRootFor opens the directory root resolves to as an os.Root and returns
 // p's name in it. p must lie beneath root; one that resolves outside it is an
 // *rootpath.EscapeError. The root refuses a link swapped in afterwards.
+//
+//pathguard:contains it resolves root only to open it as an os.Root, after rootpath.Contain refused a p that leaves root
 func openRootFor(root, p string) (*os.Root, string, error) {
 	real, err := rootpath.Contain(root, p)
 	if err != nil {
 		return nil, "", err
 	}
+	//pathguard: resolves the project root to open it as an os.Root; rootpath.Contain above has already refused a path that leaves it
 	realRoot, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		return nil, "", err
@@ -493,7 +511,7 @@ func openRootFor(root, p string) (*os.Root, string, error) {
 }
 
 // statNamed stats a path a person named, links followed.
-func statNamed(p string) (fs.FileInfo, error) { return os.Stat(p) }
+func statNamed(p string) (fs.FileInfo, error) { return os.Stat(p) } //pathguard: a path beneath no project root, which statIn hands it: by rootpath.Open's convention, a path a person named
 
 // readDirNamed lists a directory a person named, links followed.
-func readDirNamed(dir string) ([]os.DirEntry, error) { return os.ReadDir(dir) }
+func readDirNamed(dir string) ([]os.DirEntry, error) { return os.ReadDir(dir) } //pathguard: a path beneath no project root, which readDirIn hands it: by rootpath.Open's convention, a path a person named

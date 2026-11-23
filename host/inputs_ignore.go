@@ -57,6 +57,7 @@ func newWalkIgnores(root string) *walkIgnores {
 
 // isRepoTop reports whether dir is the top of a git checkout or worktree.
 func isRepoTop(dir string) bool {
+	//pathguard: the expansion root of a command-line argument and the directories above it, checked for the top of a git checkout
 	_, err := os.Stat(filepath.Join(dir, ".git"))
 	return err == nil
 }
@@ -70,6 +71,7 @@ func (w *walkIgnores) load(dir string) {
 	w.loaded[dir] = true
 	var m *ignore.Matcher
 	for _, name := range ignoreFileNames {
+		//pathguard: the ignore files of a command-line argument's expansion, which honours them as git does
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			continue
 		}

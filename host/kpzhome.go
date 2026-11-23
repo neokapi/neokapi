@@ -152,6 +152,7 @@ func (a *App) kpzSeed(ctx context.Context, c *kpzCache, key string) (workhome.Se
 		return workhome.Seeded{}, false, &change.Error{Code: change.CodeUnsupported, Capability: "format", Message: "no format reads " + src.Name}
 	}
 	if c.hasSource(src) {
+		//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 		data, err := os.ReadFile(c.sourcePath(src.Name))
 		if err != nil {
 			return workhome.Seeded{}, false, err
@@ -170,6 +171,7 @@ func (a *App) kpzSeed(ctx context.Context, c *kpzCache, key string) (workhome.Se
 // a pack read the edit. The pack carries an edited document's bytes. A cache whose documents were never opened for
 // editing has no log, and nothing changes.
 func (a *App) syncKpzEdits(ctx context.Context, c *kpzCache) error {
+	//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 	if _, err := os.Stat(kpzLogDir(c.dir)); err != nil {
 		return nil
 	}
@@ -195,12 +197,15 @@ func (a *App) syncKpzEdits(ctx context.Context, c *kpzCache) error {
 		if err != nil {
 			return fmt.Errorf("kpz: read %s: %w", h.Key, err)
 		}
+		//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 		if held, rerr := os.ReadFile(c.sourcePath(src.Name)); rerr == nil && src.RawPresent && bytes.Equal(held, data) {
 			continue
 		}
+		//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 		if err := os.MkdirAll(filepath.Dir(c.sourcePath(src.Name)), 0o755); err != nil {
 			return err
 		}
+		//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 		if err := os.WriteFile(c.sourcePath(src.Name), data, 0o644); err != nil {
 			return fmt.Errorf("kpz: write %s: %w", src.Name, err)
 		}
@@ -215,6 +220,7 @@ func (a *App) syncKpzEdits(ctx context.Context, c *kpzCache) error {
 		}
 		if len(skel) > 0 {
 			name := src.Name + ".skel"
+			//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 			if err := os.WriteFile(c.skeletonPath(name), skel, 0o644); err != nil {
 				return err
 			}
@@ -294,6 +300,7 @@ func isKpzDocRef(arg string) bool {
 	if i < 0 || i+len(workspaceExt)+1 >= len(arg) {
 		return false
 	}
+	//pathguard: a kapi inspect command-line argument, checked for a .kpz it names
 	info, err := os.Stat(arg[:i+len(workspaceExt)])
 	return err == nil && !info.IsDir()
 }

@@ -197,6 +197,7 @@ func (a *App) mcpProjectContext(ctx context.Context, explicit string) (*project.
 	if err != nil || recipe == "" {
 		return nil, err
 	}
+	//pathguard: the recipe an MCP call named, resolved within the server's roots by ResolveMCPCallProject
 	proj, lerr := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
 		return nil, fmt.Errorf("load project %s: %w", DisplayName(recipe), lerr)
@@ -222,6 +223,7 @@ func (a *App) mcpCallSourceLocale(recipe string) string {
 	if recipe == "" {
 		return ResolveSourceLocale(a.mcpNamedSourceLang, "")
 	}
+	//pathguard: the recipe path the caller passes as recipe, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return a.SourceLocale()

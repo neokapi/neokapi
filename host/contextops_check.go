@@ -57,6 +57,7 @@ func (a *App) newContextRules(cmd Command, recipePath string) (*contextRules, er
 	if recipePath == "" {
 		return nil, nil
 	}
+	//pathguard: the recipe path the caller passes as recipePath, read by path as project.Load reads it
 	identity, _ := recipeIdentity(recipePath)
 	if identity == "" {
 		return nil, nil
@@ -78,6 +79,7 @@ func (a *App) newContextRules(cmd Command, recipePath string) (*contextRules, er
 	if len(records) == 0 && len(widened) == 0 {
 		return nil, nil
 	}
+	//pathguard: the recipe path the caller passes as recipePath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, err

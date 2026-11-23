@@ -167,6 +167,7 @@ func (a *App) RunExtract(cmd Command) error {
 	outRoot := layout.Root
 	if cmd.Flags().Changed("out-dir") {
 		outRoot = ""
+		//pathguard: creates the --out-dir the person named on the command line
 		if err := makeNamedOutDir(absOut); err != nil {
 			return fmt.Errorf("extract: create out dir: %w", err)
 		}
@@ -466,6 +467,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		// Only capture if we don't already have one from an earlier pair
 		// for the same source (batch may extract N target locales off
 		// the same source file); a later pair's store keeps nothing.
+		//pathguard: stats a skeleton in the extraction batch directory EnsureExtractionDir created, after Layout.CheckState, which refuses any link or irregular file beneath .kapi/
 		if !stateFileExists(skeletonPath) {
 			skelStore, err = format.NewSkeletonStoreAt(skeletonPath)
 			if err != nil {
@@ -986,18 +988,22 @@ func (e priorEntry) copySkeleton(layout project.Layout, batchDir, outPath string
 	if src == dst {
 		return nil
 	}
+	//pathguard: copies a skeleton between extraction batch directories of a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/
 	return copyFileContents(src, dst)
 }
 
 func copyFileContents(src, dst string) error {
+	//pathguard: copies a skeleton between extraction batch directories of a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/; the skeleton name comes from kapi's own manifest in an untracked .kapi/work
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
+	//pathguard: copies a skeleton between extraction batch directories of a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/; the skeleton name comes from kapi's own manifest in an untracked .kapi/work
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
+	//pathguard: copies a skeleton between extraction batch directories of a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/; the skeleton name comes from kapi's own manifest in an untracked .kapi/work
 	out, err := os.Create(dst)
 	if err != nil {
 		return err
@@ -1080,6 +1086,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 	kpzOutRoot := layout.Root
 	if cmd.Flags().Changed("out-dir") {
 		kpzOutRoot = ""
+		//pathguard: creates the --out-dir the person named on the command line
 		if err := makeNamedOutDir(absOut); err != nil {
 			return fmt.Errorf("extract: create out dir: %w", err)
 		}
@@ -1186,6 +1193,7 @@ func (a *App) redactKpzSources(cmd Command, pctx *project.ProjectContext, layout
 	// package's manifest alone.
 	id := redaction.NewVaultID()
 	final := layout.RedactionSidecarPath(id)
+	//pathguard: creates a batch vault named by a fresh vault ID in .kapi/vault after PrepareVault ran Layout.CheckState, which refuses any link or irregular file beneath .kapi/
 	if err := newPackageVault(final, id); err != nil {
 		return nil, "", fmt.Errorf("extract: %w", err)
 	}
@@ -1206,6 +1214,7 @@ func (a *App) redactKpzSources(cmd Command, pctx *project.ProjectContext, layout
 			locale:    pctx.SourceLocale,
 		})
 		if err != nil {
+			//pathguard: removes, as the name it is, the batch vault this run just created in .kapi/vault after PrepareVault ran Layout.CheckState
 			removeStateFile(final)
 			return nil, "", fmt.Errorf("extract: %w", err)
 		}
@@ -1411,6 +1420,7 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 
 // makeNamedOutDir creates the --out-dir the person named on the command line.
 func makeNamedOutDir(dir string) error {
+	//pathguard: creates the --out-dir the person named on the command line
 	return os.MkdirAll(dir, 0o755)
 }
 
@@ -1428,6 +1438,7 @@ var (
 // failed write leaves the file as it was.
 func writeExtractOutput(ctx context.Context, root, path string, write func(io.Writer) error) error {
 	if root == "" {
+		//pathguard: writes into the --out-dir the person named on the command line
 		return writeNamedExtractOutput(path, write)
 	}
 	if err := commitWithin(ctx, root, path, write); err != nil {
@@ -1439,9 +1450,11 @@ func writeExtractOutput(ctx context.Context, root, path string, write func(io.Wr
 // writeNamedExtractOutput writes the bilingual file into the --out-dir the
 // person named, creating the directories above it.
 func writeNamedExtractOutput(path string, write func(io.Writer) error) error {
+	//pathguard: writes into the --out-dir the person named on the command line; the default out/ is written through the project root
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("mkdir output: %w", err)
 	}
+	//pathguard: writes into the --out-dir the person named on the command line; the default out/ is written through the project root
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", path, err)
@@ -1456,10 +1469,11 @@ func writeNamedExtractOutput(path string, write func(io.Writer) error) error {
 // stateFileExists reports whether kapi's own file at path, in the project
 // state directory, exists.
 func stateFileExists(path string) bool {
+	//pathguard: stats a skeleton in the extraction batch directory EnsureExtractionDir created, after Layout.CheckState, which refuses any link or irregular file beneath .kapi/
 	_, err := os.Stat(path)
 	return err == nil
 }
 
 // removeStateFile removes kapi's own file at path in the project state
 // directory.
-func removeStateFile(path string) { _ = os.Remove(path) }
+func removeStateFile(path string) { _ = os.Remove(path) } //pathguard: removes, as the name it is (os.Remove follows no link), the batch vault extract just created after PrepareVault ran Layout.CheckState, which refuses any link or irregular file beneath .kapi/

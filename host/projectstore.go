@@ -260,6 +260,7 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 		}
 	}
 	if existingStoresOnly(ctx) {
+		//pathguard: stats the project store after ProjectDB runs Layout.CheckState, which refuses any link or irregular file beneath .kapi/, or a draft's state under the data directory
 		if _, err := os.Stat(layout.StorePath()); err != nil {
 			return nil, errNoProjectStore
 		}
@@ -328,6 +329,7 @@ func (s *projectStores) bindWorkspace(ctx context.Context, abs string) (projectd
 	if err != nil {
 		return projectdb.Stores{}, boundProject{}, err
 	}
+	//pathguard: kapi.yaml in the project folder the caller passes as abs
 	identity, name := recipeIdentity(filepath.Join(abs, project.RecipeFileName))
 	key := workspace.ProjectKey(identity)
 	draft, isDraft := s.drafts[abs]
@@ -460,6 +462,7 @@ func (a *App) contextStorePath(ctx context.Context, root string) string {
 // reasons that have no bearing on which project the file describes, and the
 // store has to open for a recipe that does not yet load.
 func recipeIdentity(recipePath string) (identity, name string) {
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	data, err := os.ReadFile(recipePath)
 	if err != nil {
 		return "", ""
@@ -484,6 +487,7 @@ func recipeIdentity(recipePath string) (identity, name string) {
 // nothing else, for a reader that does not load the recipe; "" when the recipe
 // is unreadable or names none.
 func recipeSourceLanguage(recipePath string) model.LocaleID {
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	data, err := os.ReadFile(recipePath)
 	if err != nil {
 		return ""

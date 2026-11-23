@@ -144,6 +144,7 @@ func isTMXPath(path string) bool {
 // import sessions recorded in the file are recreated when absent, so a
 // wipe-and-reseed produces a byte-identical content memory state.
 func ImportKMBFile(ctx context.Context, tm memory.Store, path string) (int, error) {
+	//pathguard: the file argument of kapi memory import
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, fmt.Errorf("open %s: %w", path, err)
@@ -256,6 +257,7 @@ type TMXImport struct {
 // and region tags are never folded: an en-US unit is stored as en-US, and the
 // note says so.
 func ImportTMXFile(ctx context.Context, tm memory.Store, imp TMXImport) (memory.ImportCounts, error) {
+	//pathguard: the TMX file argument of kapi memory import, or a file listed from the directory argument of kapi memory import-dir
 	f, err := os.Open(imp.Path)
 	if err != nil {
 		return memory.ImportCounts{}, fmt.Errorf("open %s: %w", imp.Path, err)
@@ -432,6 +434,7 @@ func ListTMXFiles(dir, pattern string, recursive bool) ([]string, error) {
 		files = append(files, path)
 		return nil
 	}
+	//pathguard: the directory argument of kapi memory import-dir
 	if err := filepath.WalkDir(dir, walk); err != nil {
 		return nil, err
 	}

@@ -431,6 +431,7 @@ func hookRunRecord(in stopHookInput, root string, out verifyOutput) contextop.Re
 	}
 	sort.Strings(run.Rules)
 
+	//pathguard: the session transcript Claude Code keeps outside the project and names in the hook's input
 	turn, edited := readTranscriptTurn(in.TranscriptPath, root)
 	if len(edited) > 0 {
 		run.Files, run.Edited = edited, true
@@ -505,6 +506,7 @@ func readTranscriptTurn(path, root string) (turn string, edited []string) {
 	if path == "" {
 		return "", nil
 	}
+	//pathguard: reads the session transcript Claude Code keeps outside the project and names in the hook's input
 	f, err := os.Open(path)
 	if err != nil {
 		return "", nil

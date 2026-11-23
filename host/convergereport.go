@@ -28,6 +28,7 @@ func (a *App) ProjectConvergence(ctx context.Context, projectPath, sourceLang st
 	a.InitRegistries()
 	ctx = ctxOrBackground(ctx)
 
+	//pathguard: the recipe path the caller passes as projectPath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)
@@ -151,6 +152,7 @@ func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang s
 	if err != nil {
 		return false, err
 	}
+	//pathguard: the recipe path the caller passes as projectPath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return false, fmt.Errorf("load project: %w", err)
@@ -386,6 +388,7 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 	if len(reviews) == 0 {
 		return 0, nil
 	}
+	//pathguard: the recipe path the caller passes as projectPath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return 0, fmt.Errorf("load project: %w", err)
@@ -532,6 +535,7 @@ func (a *App) ReviewUnitWithContext(ctx context.Context, projectPath, sourceLang
 func (a *App) ReviewUnitWithOptions(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, opts ReviewUnitOptions) (*ReviewUnitInfo, error) {
 	a.InitRegistries()
 	ctx = ctxOrBackground(ctx)
+	//pathguard: the recipe path the caller passes as projectPath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)

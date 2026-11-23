@@ -27,6 +27,12 @@
 //	FAKE_DAEMON_STARTUP_DELAY  Duration string (e.g. "200ms"); sleep
 //	                       before printing the handshake. Used to widen
 //	                       the race window for concurrent-spawn tests.
+//	FAKE_DAEMON_ROOTS_LOG  Path to a file. On startup the daemon appends
+//	                       the KAPI_PLUGIN_ROOTS it was started with.
+//	FAKE_DAEMON_PROCESS_LOG  Path to a file. The BridgeService stub
+//	                       appends one JSON line per Process call saying
+//	                       whether the input came as a path or inline, and
+//	                       the input and output paths it was sent.
 //	FAKE_DAEMON_CONNECTOR_LOG  Path to a file. The daemon registers a
 //	                       SourceConnectorService that appends one JSON
 //	                       line per call (the RPC, the project root and
@@ -236,6 +242,9 @@ func (f *fakeBridge) Process(stream pb.BridgeService_ProcessServer) error {
 	if !ok {
 		return errors.New("expected header as first request")
 	}
+	if err := recordProcess(header.Header); err != nil {
+		return err
+	}
 
 	// Emit a single BlockMessage so the Reader observes a non-empty
 	// stream. The content carries the filter_class so tests can assert
@@ -301,6 +310,44 @@ func (f *fakeBridge) Process(stream pb.BridgeService_ProcessServer) error {
 	return stream.Send(&pb.ProcessResponse{
 		Response: &pb.ProcessResponse_Complete{Complete: complete},
 	})
+}
+
+// processCall is one line of FAKE_DAEMON_PROCESS_LOG: how a Process call
+// carried its input and output.
+type processCall struct {
+	Input      string `json:"input"` // "path", "inline" or ""
+	InputPath  string `json:"input_path,omitempty"`
+	OutputPath string `json:"output_path,omitempty"`
+}
+
+// recordProcess appends what a Process header carries to
+// FAKE_DAEMON_PROCESS_LOG, when it names a file.
+func recordProcess(h *pb.ProcessHeader) error {
+	path := os.Getenv("FAKE_DAEMON_PROCESS_LOG")
+	if path == "" {
+		return nil
+	}
+	var c processCall
+	switch in := h.GetInput().GetLocation().(type) {
+	case *pb.ContentRef_Path:
+		c.Input, c.InputPath = "path", in.Path
+	case *pb.ContentRef_Inline:
+		c.Input = "inline"
+	}
+	if out, ok := h.GetOutput().GetDestination().(*pb.OutputRef_Path); ok {
+		c.OutputPath = out.Path
+	}
+	line, err := json.Marshal(c)
+	if err != nil {
+		return err
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.Write(append(line, '\n'))
+	return err
 }
 
 // Segment is a deterministic test segmenter: it returns an interior boundary

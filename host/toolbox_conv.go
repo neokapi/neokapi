@@ -48,6 +48,7 @@ func (a *App) RunConv(ctx context.Context, args []string, opts ConvOptions) erro
 	if err != nil {
 		return err
 	}
+	//pathguard: the directory the -o flag of kconv names
 	outDir, err := prepareOutputDir(opts.Output, len(files))
 	if err != nil {
 		return err
@@ -69,6 +70,7 @@ func (a *App) RunConv(ctx context.Context, args []string, opts ConvOptions) erro
 				derr = claimOutput(claimed, dest, file)
 			}
 			if derr == nil {
+				//pathguard: the directory the -o flag of kconv names
 				derr = os.MkdirAll(filepath.Dir(dest), 0o755)
 			}
 			if derr != nil {
@@ -120,6 +122,7 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 	if stdout {
 		outPath = ""
 	}
+	//pathguard: the file argument of kconv
 	src, err := openDocSource(ctx, path)
 	if err != nil {
 		return err
@@ -288,6 +291,7 @@ func prepareOutputDir(out string, inputs int) (string, error) {
 		return "", nil
 	}
 	isDir := strings.HasSuffix(out, "/") || strings.HasSuffix(out, string(os.PathSeparator))
+	//pathguard: the -o flag of kconv
 	if info, err := os.Stat(out); err == nil && info.IsDir() {
 		isDir = true
 	}
@@ -300,6 +304,7 @@ func prepareOutputDir(out string, inputs int) (string, error) {
 		return "", nil
 	}
 	dir := filepath.Clean(out)
+	//pathguard: the -o flag of kconv
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("create output directory %s: %w", dir, err)
 	}
@@ -463,6 +468,7 @@ func (a *App) ResolveTargetFormat(to, outPath string) (registry.FormatID, error)
 		}
 		// An output directory carries no extension to infer from, and saying
 		// "cannot infer a target format from out" reads like a broken filename.
+		//pathguard: the -o flag of kconv
 		if info, err := os.Stat(outPath); (err == nil && info.IsDir()) ||
 			strings.HasSuffix(outPath, "/") || strings.HasSuffix(outPath, string(os.PathSeparator)) {
 			return "", fmt.Errorf("an output directory sets no target format. Pass --to (e.g. `--to md -o %s`)", outPath)

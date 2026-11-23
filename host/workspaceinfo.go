@@ -146,6 +146,7 @@ func (a *App) RunProjectInfo(cmd Command) error {
 	if err != nil {
 		return err
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
@@ -180,6 +181,7 @@ func (a *App) RunProjectInfo(cmd Command) error {
 	ctx := cmd.Context()
 
 	out.Parts = append(out.Parts,
+		//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), stated for its size
 		part("recipe", relativeToCwd(projectPath), 1, fileSize(projectPath)),
 		part("sources", "", countPackableSources(layout), 0),
 	)
@@ -191,6 +193,7 @@ func (a *App) RunProjectInfo(cmd Command) error {
 	// Presence is a count, which is what it always meant to a reader of this
 	// report: a store with no concepts has no terms to pack.
 	storePath := relativeToCwd(layout.StorePath())
+	//pathguard: stats the project store of a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/
 	storeBytes := fileSize(layout.StorePath())
 	nBlocks, nOverlays, nMemory, nTerms := a.countProjectStore(ctx, layout)
 	out.Parts = append(out.Parts,
@@ -323,6 +326,7 @@ func (o ArchiveInfoOutput) FormatText(w io.Writer) error {
 // half of `kapi info`. pkg may be nil, in which case the archive is loaded.
 func (a *App) RunArchiveInfo(cmd Command, path string, pkg *kpz.Package) error {
 	if pkg == nil {
+		//pathguard: the .kpz named on the command line, as the caller passes it
 		loaded, err := LoadWorkspace(path)
 		if err != nil {
 			return err
@@ -330,6 +334,7 @@ func (a *App) RunArchiveInfo(cmd Command, path string, pkg *kpz.Package) error {
 		pkg = loaded
 	}
 
+	//pathguard: the .kpz named on the command line, stated for its size
 	out := ArchiveInfoOutput{Archive: path, Bytes: fileSize(path)}
 	if pkg.Recipe != nil {
 		out.Project = pkg.Recipe.Name
@@ -375,6 +380,7 @@ func (a *App) RunArchiveInfo(cmd Command, path string, pkg *kpz.Package) error {
 
 // fileSize returns a file's size, or 0 when it cannot be measured.
 func fileSize(path string) int64 {
+	//pathguard: stats the recipe of a layout LayoutFor checked, the project store under Layout.CheckState, which refuses any link or irregular file beneath .kapi/, or the .kpz named on the command line
 	info, err := os.Stat(path)
 	if err != nil {
 		return 0

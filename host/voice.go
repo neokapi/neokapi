@@ -94,6 +94,7 @@ func ReadProfileInput(src string) ([]byte, error) {
 		}
 		return data, nil
 	}
+	//pathguard: the profile argument of kapi voice validate
 	data, err := os.ReadFile(src)
 	if err != nil {
 		return nil, fmt.Errorf("read profile: %w", err)
@@ -308,6 +309,7 @@ func (a *App) ResolveVoiceProfileCmd(cmd Command, paths ...string) (*coreprofile
 	var src string
 	switch {
 	case file != "":
+		//pathguard: the --profile-file flag
 		f, err := os.Open(file)
 		if err != nil {
 			return nil, "", fmt.Errorf("open profile: %w", err)
@@ -361,6 +363,7 @@ func (a *App) resolveProjectVoiceProfile(cmd Command, locale, channel, persona s
 	// Load the recipe to read defaults.voice. Skip the
 	// requires-extension check so voice resolution does not demand plugins
 	// that voice check/rewrite/guide do not actually use.
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
 		return nil, "", false, fmt.Errorf("load project for voice profile: %w", lerr)
@@ -683,6 +686,7 @@ func ReadSubjectText(cmd Command, args []string) (string, error) {
 		return text, nil
 	}
 	if text == "" && len(args) == 1 && args[0] != "-" {
+		//pathguard: the file argument of kapi voice check and rewrite
 		data, err := os.ReadFile(args[0])
 		if err != nil {
 			return "", fmt.Errorf("read input: %w", err)

@@ -72,6 +72,7 @@ func Discover(opts DiscoverOptions) []*Plugin {
 
 	var out []*Plugin
 	for _, r := range roots {
+		//pathguard: the plugin install directories
 		entries, err := os.ReadDir(r.Path)
 		if err != nil {
 			if !os.IsNotExist(err) {
@@ -81,10 +82,12 @@ func Discover(opts DiscoverOptions) []*Plugin {
 		}
 		for _, e := range entries {
 			pluginDir := filepath.Join(r.Path, e.Name())
+			//pathguard: the plugin install directories
 			if !isDirFollowingLinks(pluginDir, e) {
 				continue
 			}
 			manifestPath := filepath.Join(pluginDir, "manifest.json")
+			//pathguard: the plugin install directories
 			data, err := os.ReadFile(manifestPath)
 			if err != nil {
 				if !os.IsNotExist(err) {
@@ -131,6 +134,7 @@ func isDirFollowingLinks(path string, e os.DirEntry) bool {
 	if e.Type()&os.ModeSymlink == 0 {
 		return false
 	}
+	//pathguard: the plugin install directories
 	fi, err := os.Stat(path)
 	return err == nil && fi.IsDir()
 }

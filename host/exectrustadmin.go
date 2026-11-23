@@ -36,6 +36,7 @@ func (a *App) ExecTrustList() output.TrustListOutput {
 			RecordedAt: r.RecordedAt,
 			Digest:     r.Digest,
 		}
+		//pathguard: a recipe path kapi recorded in the exec-trust record in the user config dir
 		e.Status, e.Detail = execTrustStanding(key, e.Kind, r.Digest)
 		out.Entries = append(out.Entries, e)
 	}
@@ -72,6 +73,7 @@ func execTrustStanding(key, kind, digest string) (status, detail string) {
 			return output.TrustStatusChanged, "the recipe, its project or the folder it leads to changed (" + location + "); the next sync asks again"
 		}
 	}
+	//pathguard: a recipe path kapi recorded in the exec-trust record in the user config dir
 	if _, err := os.Stat(key); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return output.TrustStatusMissing, ""
@@ -81,6 +83,7 @@ func execTrustStanding(key, kind, digest string) (status, detail string) {
 	if kind != "recipe" {
 		return output.TrustStatusUnverified, "a formatter decision; its digest covers the formatter's executable and configuration, which kapi apply checks at the edit"
 	}
+	//pathguard: a recipe path kapi recorded in the exec-trust record in the user config dir
 	proj, err := project.LoadWithOptions(key, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return output.TrustStatusUnreadable, err.Error()
@@ -99,6 +102,7 @@ func execTrustStanding(key, kind, digest string) (status, detail string) {
 // decision that applies to it.
 func (a *App) ExecTrustShow(recipePath string) (output.TrustShowOutput, error) {
 	key := execTrustKey(recipePath)
+	//pathguard: the recipe a person named to kapi trust show
 	proj, err := project.LoadWithOptions(key, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return output.TrustShowOutput{}, err
@@ -133,6 +137,7 @@ func (a *App) ExecTrustShow(recipePath string) (output.TrustShowOutput, error) {
 // recipe, its directory, or the configuration file a formatter decision is
 // keyed by. Withdrawing a decision nobody recorded is not an error.
 func (a *App) ExecTrustRevoke(path string) (output.TrustRevokeOutput, error) {
+	//pathguard: the recipe or directory a person named to kapi trust revoke
 	key := execTrustRevokeKey(path)
 	out := output.TrustRevokeOutput{Path: key, Record: ExecTrustPath()}
 	rec := loadExecTrust()
@@ -151,6 +156,7 @@ func (a *App) ExecTrustRevoke(path string) (output.TrustRevokeOutput, error) {
 // execTrustRevokeKey turns what a person named into the record's key: a
 // directory stands for the recipe in it.
 func execTrustRevokeKey(path string) string {
+	//pathguard: the recipe or directory a person named to kapi trust revoke
 	if info, err := os.Stat(path); err == nil && info.IsDir() {
 		path = filepath.Join(path, project.RecipeFileName)
 	}
@@ -164,6 +170,7 @@ func execTrustRevokeKey(path string) string {
 // why --yes confirms it here and never grants the gate itself.
 func (a *App) ExecTrustAllow(cmd Command, recipePath string) (output.TrustAllowOutput, error) {
 	key := execTrustKey(recipePath)
+	//pathguard: the recipe a person named to kapi trust allow
 	proj, err := project.LoadWithOptions(key, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return output.TrustAllowOutput{}, err

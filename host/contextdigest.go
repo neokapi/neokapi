@@ -199,6 +199,7 @@ func (a *App) digestProject(ctx context.Context, ws *workspace.Workspace, req Co
 		if _, serr := statIn(dir, recipe); serr != nil {
 			continue
 		}
+		//pathguard: kapi.yaml in a checkout the workspace registry records for the project on this machine, which statIn above found as a file beneath that checkout
 		if proj, lerr := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true}); lerr == nil {
 			return req.Key, proj, nil
 		}
@@ -765,6 +766,7 @@ func MarkContextDigestSeen(key workspace.ProjectKey, at time.Time) (time.Time, e
 	}
 	m.Projects[string(key)] = at.UTC()
 	path := ContextDigestMarkerPath()
+	//pathguard: creates the user config dir that holds the digest marker file (ContextDigestMarkerPath)
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return previous, fmt.Errorf("create config directory: %w", err)
 	}
@@ -772,6 +774,7 @@ func MarkContextDigestSeen(key workspace.ProjectKey, at time.Time) (time.Time, e
 	if err != nil {
 		return previous, err
 	}
+	//pathguard: a temporary sibling of the digest marker file in the user config dir (ContextDigestMarkerPath), renamed onto it
 	f, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
 	if err != nil {
 		return previous, fmt.Errorf("write the digest marker: %w", err)
@@ -779,18 +782,24 @@ func MarkContextDigestSeen(key workspace.ProjectKey, at time.Time) (time.Time, e
 	tmp := f.Name()
 	if _, err := f.Write(append(data, '\n')); err != nil {
 		_ = f.Close()
+		//pathguard: a temporary sibling of the digest marker file in the user config dir (ContextDigestMarkerPath), renamed onto it
 		_ = os.Remove(tmp)
 		return previous, fmt.Errorf("write the digest marker: %w", err)
 	}
 	if err := f.Close(); err != nil {
+		//pathguard: a temporary sibling of the digest marker file in the user config dir (ContextDigestMarkerPath), renamed onto it
 		_ = os.Remove(tmp)
 		return previous, fmt.Errorf("write the digest marker: %w", err)
 	}
+	//pathguard: a temporary sibling of the digest marker file in the user config dir (ContextDigestMarkerPath), renamed onto it
 	if err := os.Chmod(tmp, 0o600); err != nil {
+		//pathguard: a temporary sibling of the digest marker file in the user config dir (ContextDigestMarkerPath), renamed onto it
 		_ = os.Remove(tmp)
 		return previous, fmt.Errorf("write the digest marker: %w", err)
 	}
+	//pathguard: renames a temporary sibling onto the digest marker file in the user config dir (ContextDigestMarkerPath)
 	if err := os.Rename(tmp, path); err != nil {
+		//pathguard: a temporary sibling of the digest marker file in the user config dir (ContextDigestMarkerPath), renamed onto it
 		_ = os.Remove(tmp)
 		return previous, fmt.Errorf("replace the digest marker: %w", err)
 	}
@@ -805,6 +814,7 @@ var digestMarkerMu sync.Mutex
 // nobody has looked, which is the same starting state as an empty one.
 func loadDigestMarkers() contextDigestMarkers {
 	m := contextDigestMarkers{Projects: map[string]time.Time{}}
+	//pathguard: the digest marker file in the user config dir (ContextDigestMarkerPath).
 	data, err := os.ReadFile(ContextDigestMarkerPath())
 	if err != nil {
 		return m

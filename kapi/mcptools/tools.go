@@ -33,11 +33,13 @@ func init() {
 
 // registerKapiTools registers all kapi MCP tools on the given server.
 func registerKapiTools(server *mcp.Server, a *cli.App) {
-	// The arguments that name a location, which the roots middleware checks
-	// (host/mcp_args.go).
+	// How each string argument names a location, which the roots middleware
+	// checks, or that it names none (host/mcp_args.go).
 	host.DeclareMCPPathArgs("detect_format", host.MCPArgPath, "path")
 	host.DeclareMCPPathArgs("run_flow", host.MCPArgPath, "path", "output_path")
+	host.DeclareMCPPathArgs("run_flow", host.MCPArgNotLocation, "flow_name", "source_lang", "target_lang")
 	host.DeclareMCPPathArgs("pseudo_translate", host.MCPArgPath, "path", "output_path")
+	host.DeclareMCPPathArgs("pseudo_translate", host.MCPArgNotLocation, "target_lang")
 	// Outside a project a call writes under the directory the server was
 	// started in and the roots its client declares (writescope.go).
 	startDir, _ := os.Getwd()

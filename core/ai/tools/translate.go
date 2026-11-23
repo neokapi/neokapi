@@ -199,14 +199,14 @@ const (
 type AITranslateConfig struct {
 	SourceLocale model.LocaleID `json:"source_locale,omitempty" schema:"-"`
 	TargetLocale model.LocaleID `json:"target_locale,omitempty" schema:"-"`
-	Provider     string         `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
-	APIKey       string         `json:"api_key,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	Provider     string         `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider,path=none"`
+	APIKey       string         `json:"api_key,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider,path=none"`
 	// BaseURL is the endpoint the provider is called at, for a self-hosted or
 	// proxied deployment. The host resolves it from the credential the key
 	// came from and injects it here; a recipe cannot set it, which is why it
 	// is off the form (see host/credentials.stripRecipeEndpoint).
 	BaseURL string `json:"base_url,omitempty"      schema:"-"`
-	Model   string `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
+	Model   string `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider,path=none"`
 	// TermRules are the terminology constraints governing this translation: for
 	// each, when the source says Term the target should say Replacement. The
 	// same shape a voice profile's vocabulary uses, so one set of rules can be
@@ -220,7 +220,7 @@ type AITranslateConfig struct {
 	//
 	// It feeds aiConfigFingerprint, so changing it re-translates rather than
 	// serving a cached target produced under different guidance.
-	Instruction string `json:"instruction,omitempty" schema:"title=Instruction,description=Extra guidance for the model while translating (e.g. 'informal register; keep product names in English'),widget=textarea,group=prompt"`
+	Instruction string `json:"instruction,omitempty" schema:"title=Instruction,description=Extra guidance for the model while translating (e.g. 'informal register; keep product names in English'),widget=textarea,group=prompt,path=none"`
 	// Profile is an optional voice profile. When set, its guidance is
 	// injected into the translation prompt so output is on-brand at generation
 	// time. Not serializable via the schema/CLI; supplied programmatically or
@@ -252,7 +252,7 @@ type AITranslateConfig struct {
 	// governance, and it is available on paths where neighbours are not. A user
 	// setting `context: none` to make a run cheap should not have to discover
 	// that it still reads the corpus.
-	Reuse string `json:"reuse,omitempty" schema:"title=Reuse Prior Translation,description=Offer a block's previously approved translation to the model as reference,enum=prior|none,default=prior,group=prompt"`
+	Reuse string `json:"reuse,omitempty" schema:"title=Reuse Prior Translation,description=Offer a block's previously approved translation to the model as reference,enum=prior|none,default=prior,group=prompt,path=none"`
 
 	// DNT are do-not-translate terms (product names, trademarks, code
 	// identifiers) that must survive VERBATIM into the target, the enforced
@@ -282,7 +282,7 @@ type AITranslateConfig struct {
 	// So the meaningful choice is the one offered here: let kapi size the batch
 	// from what the model can emit, or translate one block per call when
 	// reliability matters more than cost.
-	Batching string `json:"batching,omitempty" schema:"title=Batching,description=How many blocks share one LLM call,enum=auto|single,default=auto,group=provider"`
+	Batching string `json:"batching,omitempty" schema:"title=Batching,description=How many blocks share one LLM call,enum=auto|single,default=auto,group=provider,path=none"`
 
 	// Context is what kapi tells the model about a block besides the block.
 	//
@@ -295,7 +295,7 @@ type AITranslateConfig struct {
 	// translation depend on text that is not the block, so an edit to one string
 	// re-translates its neighbours. That is correct, and it is not free, which is
 	// why it is opt-in.
-	Context string `json:"context,omitempty" schema:"title=Context,description=What the model is told about a block besides the block itself,enum=none|key|neighbours,default=key,group=prompt"`
+	Context string `json:"context,omitempty" schema:"title=Context,description=What the model is told about a block besides the block itself,enum=none|key|neighbours,default=key,group=prompt,path=none"`
 
 	// ContextWindow is how many blocks either side to send when Context is
 	// `neighbours`.

@@ -69,6 +69,7 @@ type LoadProjectInteractiveOptions struct {
 // uses to load a recipe. It honors auto-install UX, falls back to the
 // existing actionable error on non-TTY, and re-validates after install.
 func (a *App) LoadProjectInteractive(ctx context.Context, recipePath string, opts LoadProjectInteractiveOptions) (*project.KapiProject, error) {
+	//pathguard: the recipe path the caller passes as recipePath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, err
@@ -192,6 +193,7 @@ func (a *App) refreshPluginHost() {
 	plugins := pluginhost.Discover(opts)
 	// Best-effort cache rewrite so the next process startup sees the
 	// new plugin without rescanning.
+	//pathguard: the plugin discovery cache in the user cache directory
 	_ = pluginhost.SaveCache(pluginhost.CacheLocation(), pluginhost.BuildCache(opts, plugins))
 
 	a.PluginHost = pluginhost.NewHost(plugins, func(s string) {

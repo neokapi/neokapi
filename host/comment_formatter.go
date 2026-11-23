@@ -112,6 +112,7 @@ func resolveCommentFormatter(p comment.Provider, file string, decl *manifest.Com
 					f.notRun = reason
 					return f
 				}
+				//pathguard: a formatter executable in node_modules/.bin above the file or on PATH, which exec trust records by digest before it runs
 				bin, skipped, found := findFormatterBinary(dir, candidate.Command[0])
 				if !found {
 					f.notRun = fmt.Sprintf("%s formats the files under %s, as %s says, and %s is not installed in node_modules/.bin there or above it, or on PATH",
@@ -155,9 +156,11 @@ func resolvedPath(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	//pathguard: spells a file kapi formats the way the formatter's working directory resolves it, to match the formatter's configuration and ignore files; nothing is opened by the resolved name here
 	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
 		return resolved, nil
 	}
+	//pathguard: spells a file kapi formats the way the formatter's working directory resolves it, to match the formatter's configuration and ignore files; nothing is opened by the resolved name here
 	dir, err := filepath.EvalSymlinks(filepath.Dir(abs))
 	if err != nil {
 		return abs, nil
@@ -169,6 +172,7 @@ func resolvedPath(name string) (string, error) {
 func formatterMarkerIn(dir string, markers []manifest.CommentFormatterMarker) (string, bool) {
 	for _, m := range markers {
 		path := filepath.Join(dir, m.File)
+		//pathguard: a formatter's own configuration lookup, which walks above the file and the project as the formatter does; exec trust records the digest of every file it selects before the formatter runs
 		data, err := os.ReadFile(path)
 		if err != nil {
 			continue
@@ -196,11 +200,13 @@ func formatterConfigFiles(from, to string, markers []manifest.CommentFormatterMa
 	for dir := from; ; dir = filepath.Dir(dir) {
 		for _, m := range markers {
 			path := filepath.Join(dir, m.File)
+			//pathguard: a formatter's own configuration lookup, which walks above the file and the project as the formatter does; exec trust records the digest of every file it selects before the formatter runs
 			info, err := os.Stat(path)
 			if err != nil || info.IsDir() {
 				continue
 			}
 			if m.Key != "" {
+				//pathguard: a formatter's own configuration lookup, which walks above the file and the project as the formatter does; exec trust records the digest of every file it selects before the formatter runs
 				data, err := os.ReadFile(path)
 				if err != nil || !hasTopLevelKey(path, data, m.Key) {
 					continue
@@ -254,11 +260,13 @@ func hasTopLevelKey(path string, data []byte, key string) bool {
 // entries skipped are returned quoted.
 func findFormatterBinary(dir, name string) (string, []string, bool) {
 	if filepath.IsAbs(name) {
+		//pathguard: a formatter executable in node_modules/.bin above the file or on PATH, which exec trust records by digest before it runs
 		info, err := os.Stat(name)
 		return name, nil, err == nil && !info.IsDir()
 	}
 	for d := dir; ; d = filepath.Dir(d) {
 		candidate := filepath.Join(d, "node_modules", ".bin", name)
+		//pathguard: a formatter executable in node_modules/.bin above the file or on PATH, which exec trust records by digest before it runs
 		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
 			return candidate, nil, true
 		}
@@ -340,6 +348,7 @@ const formatterShebangBytes = 64 << 10
 // `#!` line runs nothing kapi can name. The error reports a launcher whose
 // target kapi cannot read with certainty; such an executable is not run.
 func formatterRuntimeOf(path string) (formatterRuntime, error) {
+	//pathguard: the first line of a formatter executable that exec trust records by digest before it runs
 	f, err := os.Open(path)
 	if err != nil {
 		return formatterRuntime{}, nil
@@ -358,6 +367,7 @@ func formatterRuntimeOf(path string) (formatterRuntime, error) {
 		}
 	}
 	if isLauncher(data) {
+		//pathguard: a formatter launcher that exec trust records by digest before it runs
 		rt, err := readLauncher(path, data)
 		if err != nil {
 			return formatterRuntime{}, fmt.Errorf("%s is a node_modules/.bin launcher whose target kapi cannot read: %w", path, err)
@@ -407,6 +417,7 @@ func isShellScript(data []byte) bool {
 
 // isExecutableFile reports whether path is a regular file some user may execute.
 func isExecutableFile(path string) bool {
+	//pathguard: an interpreter beside a formatter executable that exec trust records by digest before it runs
 	info, err := os.Stat(path)
 	return err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0
 }

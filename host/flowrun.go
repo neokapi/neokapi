@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/host/pluginhost"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -186,6 +187,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 		if opts.ProjectPath == "" {
 			return nil, errors.New("a project is required (set Project or ProjectPath)")
 		}
+		//pathguard: the recipe path the caller passes as opts.ProjectPath, read by path as project.Load reads it
 		p, err := project.LoadWithOptions(opts.ProjectPath, project.LoadOptions{SkipRequiresCheck: true})
 		if err != nil {
 			return nil, fmt.Errorf("load project: %w", err)
@@ -201,6 +203,12 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	}
 
 	pctx := project.NewProjectContext(proj, opts.ProjectPath)
+	// A plugin daemon may be sent paths beneath the project's root and the
+	// inputs the caller chose for this run, and nowhere else.
+	if opts.ProjectPath != "" {
+		ctx = pluginhost.AddPathRoots(ctx, pctx.ProjectDir)
+	}
+	ctx = pluginhost.AddPathRoots(ctx, namedInputRoots(opts.InputPaths)...)
 	source := string(pctx.SourceLocale)
 	targets := opts.TargetLocales
 	if len(targets) == 0 {

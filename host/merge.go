@@ -62,6 +62,7 @@ func restoreRedactedBlocks(layout project.Layout, batchID, doc string, blocks []
 		return err
 	}
 	sidecar := layout.RedactionSidecarPath(batchID)
+	//pathguard: the batch vault in .kapi/vault of a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/; the batch ID is checked as one path segment
 	if _, err := os.Stat(sidecar); err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -690,6 +691,7 @@ func (s *mergeStats) accumulate(o mergeStats) {
 // records for each unit serve as their if_match and basis.
 func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	ctx := cmd.Context()
+	//pathguard: the .kpz argument of kapi merge, named on the command line
 	pkg, err := LoadWorkspace(kpzInput)
 	if err != nil {
 		return err
@@ -744,6 +746,7 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	batch := ""
 	if r := pkg.Redaction; r != nil {
 		vault := layout.RedactionSidecarPath(r.VaultID)
+		//pathguard: the vault of a redacted package, named by the vault ID kpz checks is a plain ID (validVaultID), beside the .kpz a person named or in .kapi/vault
 		if _, err := packageVault(filepath.Base(kpzInput), vault, r.VaultID, projectVaultAdvice); err != nil {
 			return err
 		}
@@ -1286,6 +1289,7 @@ func expandMergeInputs(inputs []string, root string) ([]string, error) {
 		if !filepath.IsAbs(abs) {
 			abs = filepath.Join(root, in)
 		}
+		//pathguard: statThrough asks a path beneath root through the root and states one beneath no root as named
 		info, err := statThrough(root, abs)
 		if _, escaped := errors.AsType[*rootpath.EscapeError](err); escaped {
 			return nil, fmt.Errorf("merge: %w", err)

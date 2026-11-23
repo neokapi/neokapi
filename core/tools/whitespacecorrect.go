@@ -20,7 +20,7 @@ const (
 
 // WhitespaceCorrectConfig holds configuration for the whitespace correction tool.
 type WhitespaceCorrectConfig struct {
-	TargetLocale          model.LocaleID `json:"target_locale,omitempty"          schema:"title=Target Locale,description=Target locale for processing"`                                              // Required
+	TargetLocale          model.LocaleID `json:"target_locale,omitempty"          schema:"title=Target Locale,description=Target locale for processing,path=none"`                                              // Required
 	NormalizeSpaces       bool           `json:"normalize_spaces,omitempty"       schema:"title=Normalize Spaces,description=Collapse multiple spaces to a single space,default=true"`                // Collapse multiple spaces to single (default: true)
 	TrimLeading           bool           `json:"trim_leading,omitempty"           schema:"title=Trim Leading Whitespace,description=Remove leading whitespace from target text"`                      // Remove leading whitespace (default: false)
 	TrimTrailing          bool           `json:"trim_trailing,omitempty"          schema:"title=Trim Trailing Whitespace,description=Remove trailing whitespace from target text"`                    // Remove trailing whitespace (default: false)

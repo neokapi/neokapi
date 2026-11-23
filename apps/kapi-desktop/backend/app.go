@@ -1860,6 +1860,9 @@ func (a *App) RunFormatReader(formatName string, filePath string, config map[str
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	// The person chose this file: a plugin daemon may be sent paths beneath
+	// its project, or beneath its directory when it is in none.
+	ctx = pluginhost.WithPathRoots(ctx, pluginhost.PathRootsFor(filePath))
 
 	if err := reader.Open(ctx, doc); err != nil {
 		return nil, fmt.Errorf("open document: %w", err)

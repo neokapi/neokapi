@@ -212,6 +212,7 @@ func (c *DaemonClient) close(grace time.Duration) {
 	// ourselves. External attach mode (cmd == nil) leaves the socket
 	// alone; the harness that started the daemon owns it.
 	if c.Socket != "" && c.cmd != nil {
+		//pathguard: the socket of a plugin daemon kapi started; the plugin is code the user installed
 		_ = os.Remove(c.Socket)
 	}
 }

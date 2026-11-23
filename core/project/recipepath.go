@@ -36,6 +36,7 @@ const NoProjectEnvVar = "KAPI_NO_PROJECT"
 // gave (a *NotAProjectError), so no command goes on to act on a project that
 // is not there.
 func ResolveRecipePath(explicit string) (string, error) {
+	//pathguard: a project location a person named with -p or KAPI_PROJECT, or the recipe an MCP call named, already resolved within the server's roots by ResolveMCPCallProject
 	return resolveRecipe(explicit, namedRecipe)
 }
 
@@ -44,6 +45,7 @@ func ResolveRecipePath(explicit string) (string, error) {
 // the person named is returned as RecipeIn resolves it, whether or not a
 // recipe is there yet, and the command judges it.
 func ResolveNewRecipePath(explicit string) (string, error) {
+	//pathguard: a project location a person named with -p or KAPI_PROJECT, or the recipe an MCP call named, already resolved within the server's roots by ResolveMCPCallProject
 	return resolveRecipe(explicit, func(given, _ string) (string, error) { return RecipeIn(given), nil })
 }
 
@@ -102,13 +104,17 @@ func (e *NotAProjectError) Error() string {
 // namedRecipe is RecipeIn for a location a person named, which must hold a
 // recipe.
 func namedRecipe(given, source string) (string, error) {
+	//pathguard: a project location a person named with -p or KAPI_PROJECT, or the recipe an MCP call named, already resolved within the server's roots by ResolveMCPCallProject; discovery never comes here (RecipeIn's callers are namedRecipe and ResolveNewRecipePath)
 	recipe := RecipeIn(given)
+	//pathguard: a project location a person named with -p or KAPI_PROJECT, or the recipe an MCP call named, already resolved within the server's roots by ResolveMCPCallProject; discovery never comes here (RecipeIn's callers are namedRecipe and ResolveNewRecipePath)
 	if info, err := os.Stat(recipe); err == nil && !info.IsDir() {
+		//pathguard: a project location a person named with -p or KAPI_PROJECT, or the recipe an MCP call named, already resolved within the server's roots by ResolveMCPCallProject; discovery never comes here (RecipeIn's callers are namedRecipe and ResolveNewRecipePath)
 		if !isRecipe(recipe) {
 			return "", &NotAProjectError{Given: given, Source: source, NotRecipe: true}
 		}
 		return recipe, nil
 	}
+	//pathguard: a project location a person named with -p or KAPI_PROJECT, or the recipe an MCP call named, already resolved within the server's roots by ResolveMCPCallProject; discovery never comes here (RecipeIn's callers are namedRecipe and ResolveNewRecipePath)
 	info, err := os.Stat(given)
 	return "", &NotAProjectError{Given: given, Source: source, Dir: err == nil && info.IsDir()}
 }
@@ -131,6 +137,7 @@ func namedRecipe(given, source string) (string, error) {
 // A path that does not resolve is returned as given. ResolveRecipePath then
 // reports it, naming the path the person wrote.
 func RecipeIn(path string) string {
+	//pathguard: a project location a person named with -p or KAPI_PROJECT, or the recipe an MCP call named, already resolved within the server's roots by ResolveMCPCallProject; discovery never comes here (RecipeIn's callers are namedRecipe and ResolveNewRecipePath)
 	info, err := os.Stat(path)
 	if err != nil {
 		return path
@@ -142,6 +149,7 @@ func RecipeIn(path string) string {
 	if err != nil {
 		return path
 	}
+	//pathguard: a project location a person named with -p or KAPI_PROJECT, or the recipe an MCP call named, already resolved within the server's roots by ResolveMCPCallProject; discovery never comes here (RecipeIn's callers are namedRecipe and ResolveNewRecipePath)
 	return followRecipeLink(abs)
 }
 
@@ -150,10 +158,12 @@ func RecipeIn(path string) string {
 // directories above it keep the spelling the person used.
 func followRecipeLink(path string) string {
 	for range 40 {
+		//pathguard: follows a recipe link only for a project location a person named with -p or KAPI_PROJECT, or the recipe an MCP call named, already resolved within the server's roots by ResolveMCPCallProject; discovery never comes here (RecipeIn's callers are namedRecipe and ResolveNewRecipePath)
 		info, err := os.Lstat(path)
 		if err != nil || info.Mode()&os.ModeSymlink == 0 {
 			return path
 		}
+		//pathguard: follows a recipe link only for a project location a person named with -p or KAPI_PROJECT, or the recipe an MCP call named, already resolved within the server's roots by ResolveMCPCallProject; discovery never comes here (RecipeIn's callers are namedRecipe and ResolveNewRecipePath)
 		target, err := os.Readlink(path)
 		if err != nil {
 			return path
@@ -172,6 +182,7 @@ func followRecipeLink(path string) string {
 // fails to parse, is left for the load to report with the parser's line and
 // column, since a recipe with a YAML error is still the recipe.
 func isRecipe(path string) bool {
+	//pathguard: a project location a person named with -p or KAPI_PROJECT, or the recipe an MCP call named, already resolved within the server's roots by ResolveMCPCallProject; discovery never comes here (RecipeIn's callers are namedRecipe and ResolveNewRecipePath)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return true

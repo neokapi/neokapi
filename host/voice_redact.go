@@ -28,6 +28,7 @@ func (a *App) VoiceCheckTools(cmd Command, file string, t tool.Tool) ([]tool.Too
 	if err != nil || recipe == "" {
 		return []tool.Tool{t}, err
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project for redaction: %w", err)
@@ -80,6 +81,7 @@ func (a *App) TermsExpandRedaction(ctx context.Context, cmd Command) (context.Co
 	if err != nil || recipe == "" {
 		return ctx, err
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return ctx, fmt.Errorf("load project for redaction: %w", err)

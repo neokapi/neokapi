@@ -118,6 +118,7 @@ func execTrustKey(recipePath string) string {
 // state as an empty one.
 func loadExecTrust() execTrustFile {
 	f := execTrustFile{Version: 1, Projects: map[string]execTrustRecord{}}
+	//pathguard: the exec-trust record in the user config dir
 	data, err := os.ReadFile(ExecTrustPath())
 	if err != nil {
 		return f
@@ -137,6 +138,7 @@ func loadExecTrust() execTrustFile {
 // security decisions, so it is owner-only and never group- or world-readable.
 func saveExecTrust(f execTrustFile) error {
 	path := ExecTrustPath()
+	//pathguard: the exec-trust record in the user config dir
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("create config directory: %w", err)
 	}
@@ -146,10 +148,13 @@ func saveExecTrust(f execTrustFile) error {
 	}
 	data = append(data, '\n')
 	tmp := path + ".tmp"
+	//pathguard: a temporary sibling of the exec-trust record in the user config dir, renamed onto it
 	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return fmt.Errorf("write trust record: %w", err)
 	}
+	//pathguard: renames a temporary sibling onto the exec-trust record in the user config dir
 	if err := os.Rename(tmp, path); err != nil {
+		//pathguard: a temporary sibling of the exec-trust record in the user config dir, renamed onto it
 		_ = os.Remove(tmp)
 		return fmt.Errorf("replace trust record: %w", err)
 	}

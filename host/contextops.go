@@ -1252,6 +1252,7 @@ func (s *contextOpsSession) refreshRulesFiles(ctx context.Context) {
 // on disk and is registered is a key; one that names nothing and is not
 // registered is reported the way a mistyped path always was.
 func (a *App) contextOps(ctx context.Context, project string) (*contextOpsSession, error) {
+	//pathguard: the project selector itself (-p or a surface's project argument), stated only to tell a path from a workspace key
 	if key, ok, err := a.registeredContextProject(ctx, project); err != nil {
 		return nil, err
 	} else if ok {
@@ -1267,6 +1268,7 @@ func (a *App) registeredContextProject(ctx context.Context, project string) (wor
 	if project == "" {
 		return "", false, nil
 	}
+	//pathguard: the project selector itself (-p or a surface's project argument), stated only to tell a path from a workspace key; LayoutFor checks the layout it names.
 	if _, err := os.Stat(project); err == nil {
 		return "", false, nil
 	}
@@ -1316,6 +1318,7 @@ func (a *App) contextOpsFor(ctx context.Context, key workspace.ProjectKey) (*con
 func registeredCheckout(reg workspace.Registration) string {
 	for _, dir := range reg.Checkouts {
 		recipe := filepath.Join(dir, project.RecipeFileName)
+		//pathguard: kapi.yaml in a checkout the workspace registry records for the project on this machine
 		if identity, _ := recipeIdentity(recipe); identity == string(reg.Key) {
 			return recipe
 		}
@@ -1340,10 +1343,12 @@ func (a *App) contextOpsAt(ctx context.Context, recipePath string) (*contextOpsS
 	if err != nil {
 		return nil, err
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	identity, _ := recipeIdentity(resolved)
 	if identity == "" {
 		return nil, fmt.Errorf("the recipe at %s carries neither an id nor a name, so its context has nowhere to live", DisplayName(resolved))
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(resolved, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project for context operations: %w", err)

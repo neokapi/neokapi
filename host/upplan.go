@@ -636,6 +636,7 @@ func (a *App) localeProviders(cf convergeFlow, bindings *ProjectBindings, locale
 func (a *App) UpPlan(ctx context.Context, projectPath, sourceLang string) (*UpPlanOutput, error) {
 	a.InitRegistries()
 	ctx = ctxOrBackground(ctx)
+	//pathguard: the recipe path the caller passes as projectPath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)
@@ -958,6 +959,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 // locale's drafts look like between the run that drafted them and the review
 // that delivers them.
 func targetDelivered(root, targetPath string) bool {
+	//pathguard: statThrough asks a path beneath root through the root and states one beneath no root as named
 	_, err := statThrough(root, targetPath)
 	return err == nil
 }

@@ -1605,7 +1605,7 @@ jobs:
       - name: Assert a document reaches a file only where the edit guard lists it
         run: make check-edit-writes GUARD_CONFIGS=host
       - name: Assert project content reaches a file through core/rootpath or the file home
-        run: make check-path-reads
+        run: make check-path-reads GUARD_CONFIGS=host
 
   # ── Build (runs in parallel with test/lint) ───────────────────────────────
   build:

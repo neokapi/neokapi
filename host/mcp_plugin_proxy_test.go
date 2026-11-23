@@ -80,6 +80,22 @@ func serveFakePlugin(mode string) {
 		Description: "The plugin's idea of up",
 		InputSchema: objectSchema,
 	}, echo("plugin up"))
+	// A tool whose arguments are named neutrally: one declared as no
+	// location, the rest left undeclared.
+	server.AddTool(&mcp.Tool{
+		Name:        "project_sync",
+		Description: "Sync a fake project",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"subject": map[string]any{"type": "string"},
+				"label":   map[string]any{"type": "string", "x-not-location": true},
+				"opts": map[string]any{"type": "object", "properties": map[string]any{
+					"where": map[string]any{"type": "string"},
+				}},
+			},
+		},
+	}, echo("project_sync"))
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		fmt.Fprintln(os.Stderr, "fake plugin:", err)
@@ -231,6 +247,48 @@ func TestPluginMCPProxy_ForwardsCalls(t *testing.T) {
 	require.True(t, ok)
 	assert.Contains(t, text.Text, "project_status handled")
 	assert.Contains(t, text.Text, "docs/guide.md", "arguments reached the plugin")
+}
+
+// TestPluginMCPProxy_UndeclaredStringIsALocation: a proxied tool arrives at
+// run time, past the audit. Every string argument its schema declares neither
+// way is checked as a location, whatever its name and however deep it sits,
+// and one it declares as no location reaches the plugin unchecked.
+func TestPluginMCPProxy_UndeclaredStringIsALocation(t *testing.T) {
+	a := appWithPlugins(t, fakePlugin(t, "fake", "ok", "project_sync"))
+	a.mcpStartDir = t.TempDir()
+	inside := filepath.Join(a.mcpStartDir, "notes.md")
+	outside := filepath.Join(t.TempDir(), "secret.md")
+	server := coreServer(t)
+	registerPluginMCPTools(server, a)
+	server.AddReceivingMiddleware(a.MCPRootsMiddleware())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	st, ct := mcp.NewInMemoryTransports()
+	ss, err := server.Connect(ctx, st, nil)
+	require.NoError(t, err)
+	defer func() { _ = ss.Close() }()
+	cs, err := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "1"}, nil).Connect(ctx, ct, nil)
+	require.NoError(t, err)
+	defer func() { _ = cs.Close() }()
+
+	call := func(args map[string]any) *mcp.CallToolResult {
+		res, err := cs.CallTool(ctx, &mcp.CallToolParams{Name: "project_sync", Arguments: args})
+		require.NoError(t, err)
+		return res
+	}
+
+	res := call(map[string]any{"subject": outside})
+	require.True(t, res.IsError, "an undeclared top-level string is checked")
+	assert.Contains(t, resultText(res), "subject")
+
+	res = call(map[string]any{"opts": map[string]any{"where": outside}})
+	require.True(t, res.IsError, "an undeclared nested string is checked")
+	assert.Contains(t, resultText(res), "opts.where")
+
+	res = call(map[string]any{"subject": inside, "label": outside, "opts": map[string]any{"where": inside}})
+	require.False(t, res.IsError, resultText(res))
+	assert.Contains(t, resultText(res), "project_sync handled", "a call inside the roots reaches the plugin")
 }
 
 // TestPluginMCPProxy_CoreToolWinsACollision: a plugin cannot take over a name

@@ -161,6 +161,7 @@ func (a *App) openProjectBlockStore(ctx context.Context) blockstore.Store {
 // removed is reported, because silently dropping a step the author meant would
 // look like kapi ignoring the recipe.
 func LoadWorkspace(path string) (*kpz.Package, error) {
+	//pathguard: the .kpz named on the command line, or its shadow copy in the user cache directory
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read snapshot %q: %w", filepath.Base(path), err)
@@ -187,6 +188,7 @@ func saveWorkspace(pkg *kpz.Package, path string) error {
 		return fmt.Errorf("encode snapshot: %w", err)
 	}
 	dir := filepath.Dir(path)
+	//pathguard: a temporary sibling of the .kpz the -o flag of kapi pack or kapi extract names, or of the .kpz named on the command line that a merge updates, renamed onto it
 	tmp, err := os.CreateTemp(dir, ".kapi-kpz-*")
 	if err != nil {
 		return fmt.Errorf("write snapshot: %w", err)
@@ -194,14 +196,18 @@ func saveWorkspace(pkg *kpz.Package, path string) error {
 	tmpPath := tmp.Name()
 	if _, err := tmp.Write(data); err != nil {
 		_ = tmp.Close()
+		//pathguard: a temporary sibling of the .kpz the -o flag of kapi pack or kapi extract names, or of the .kpz named on the command line that a merge updates, renamed onto it
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("write snapshot: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
+		//pathguard: a temporary sibling of the .kpz the -o flag of kapi pack or kapi extract names, or of the .kpz named on the command line that a merge updates, renamed onto it
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("write snapshot: %w", err)
 	}
+	//pathguard: the .kpz the -o flag of kapi pack or kapi extract names, or the .kpz named on the command line that a merge updates
 	if err := os.Rename(tmpPath, path); err != nil {
+		//pathguard: a temporary sibling of the .kpz the -o flag of kapi pack or kapi extract names, or of the .kpz named on the command line that a merge updates, renamed onto it
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("finalize snapshot: %w", err)
 	}
@@ -216,6 +222,7 @@ func copyContentToFile(c kpz.Content, dst string) error {
 		return err
 	}
 	defer rc.Close()
+	//pathguard: writes a package member into the .kpz shadow cache in the user cache directory under its base name, or a skeleton into the unpack batch directory, which EnsureExtractionDir created after Layout.CheckState, which refuses any link or irregular file beneath .kapi/, named by a hash checked as one path segment
 	f, err := os.Create(dst)
 	if err != nil {
 		return err

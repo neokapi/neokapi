@@ -268,6 +268,7 @@ func openImageSource(doc *model.RawDocument) (*imageSource, error) {
 	if doc.Reader == nil {
 		return nil, errors.New("image: no readable source")
 	}
+	//pathguard: creates a new file in the OS temp dir
 	tmp, err := os.CreateTemp("", "kapi-image-*")
 	if err != nil {
 		return nil, fmt.Errorf("image: temp: %w", err)
@@ -276,6 +277,7 @@ func openImageSource(doc *model.RawDocument) (*imageSource, error) {
 	n, err := io.Copy(tmp, doc.Reader)
 	if err != nil {
 		_ = tmp.Close()
+		//pathguard: removes the temp file it created with os.CreateTemp
 		_ = os.Remove(tmp.Name())
 		return nil, fmt.Errorf("image: spill: %w", err)
 	}
@@ -291,6 +293,7 @@ func (s *imageSource) section() *io.SectionReader {
 func (s *imageSource) close() {
 	if s.spill != nil {
 		_ = s.spill.Close()
+		//pathguard: removes the spill file openImageSource created with os.CreateTemp
 		_ = os.Remove(s.spill.Name())
 	}
 }
@@ -306,11 +309,13 @@ func (s *imageSource) privateCopy() (string, func(), error) {
 	if s.spill != nil {
 		return s.spill.Name(), noop, nil
 	}
+	//pathguard: creates a new file in the OS temp dir
 	tmp, err := os.CreateTemp("", "kapi-image-copy-*")
 	if err != nil {
 		return "", noop, fmt.Errorf("image: temp: %w", err)
 	}
 	name := tmp.Name()
+	//pathguard: removes the temp file it created with os.CreateTemp
 	cleanup := func() { _ = os.Remove(name) }
 	_, err = io.Copy(tmp, s.section())
 	if cerr := tmp.Close(); err == nil {

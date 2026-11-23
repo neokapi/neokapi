@@ -230,6 +230,7 @@ func (a *App) recordStopHookRun(cmd Command, in stopHookInput, projectPath strin
 // their logging never reaches the assistant as hook-error output.
 func silenceStderr() func() {
 	orig := os.Stderr
+	//pathguard: opens os.DevNull, a system location, to silence the hook's stderr
 	devnull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
 	if err != nil {
 		return func() {}
@@ -352,6 +353,7 @@ func (a *App) RunHookPreEdit(cmd Command) error {
 	// belongs in the decision JSON, not in stray logging. Restore it before any
 	// warning, so an un-evaluated guard is still heard.
 	restore := silenceStderr()
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	restore()
 	if lerr != nil {

@@ -81,6 +81,7 @@ func (w *Writer) hasSource() bool {
 // the returned closer is a no-op. Avoids a second full in-memory copy.
 func (w *Writer) openSource() (*zip.Reader, func() error, error) {
 	if w.sourcePath != "" {
+		//pathguard: the source document path the caller gave SetSourcePath, the input this run read, opened again to rebuild the archive without a second copy in memory
 		zrc, err := zip.OpenReader(w.sourcePath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("epub writer: open source %q: %w", w.sourcePath, err)

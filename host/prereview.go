@@ -80,6 +80,7 @@ func (r *PreReviewResult) formatLine(w io.Writer) {
 func (a *App) RunAIPreReview(ctx context.Context, projectPath, sourceLang string, opts PreReviewOptions) (*PreReviewResult, error) {
 	a.InitRegistries()
 	ctx = ctxOrBackground(ctx)
+	//pathguard: the recipe path the caller passes as projectPath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)

@@ -53,12 +53,12 @@ type SegmentationConfig struct {
 	// Engine selects the segmenter backend by registry name (srx is the default).
 	// The available engines and their own parameters come from the segment engine
 	// registry; an inline Rules list overrides Engine.
-	Engine string `json:"engine,omitempty" schema:"title=Segmentation Engine,description=Which segmenter to use; the default needs no configuration,group=segmentation,order=0"`
+	Engine string `json:"engine,omitempty" schema:"title=Segmentation Engine,description=Which segmenter to use; the default needs no configuration,group=segmentation,order=0,path=none"`
 	// Layer names the segmentation overlay layer. Empty is the primary
 	// sentence layer (the one bilingual formats project); named layers such as
 	// llm-chunk coexist alongside it. Empty defers to the engine's natural
 	// layer (sentence for srx/uax29/sat, llm-chunk for llm).
-	Layer string `json:"layer,omitempty" schema:"title=Overlay Layer,description=Segmentation overlay layer name; empty uses the engine's natural layer,group=segmentation,order=10"`
+	Layer string `json:"layer,omitempty" schema:"title=Overlay Layer,description=Segmentation overlay layer name; empty uses the engine's natural layer,group=segmentation,order=10,path=none"`
 
 	SegmentSource bool `json:"segment_source,omitempty" schema:"title=Segment Source Text,description=Segment the source text,default=true,group=segmentation,order=20"`
 	SegmentTarget bool `json:"segment_target,omitempty" schema:"title=Segment Target Text,description=Segment existing target text,group=segmentation,order=30"`

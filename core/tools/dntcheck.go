@@ -22,7 +22,7 @@ type DNTCheckConfig struct {
 	// anything: hidden from the schema it had no CLI flag, so `kapi exec
 	// dnt-check` could only ever run with an empty list — a check that cannot
 	// fail. `kapi check --dnt` is the same list on the porcelain verb.
-	Terms []string `json:"terms,omitempty" schema:"title=Do-Not-Translate Terms,description=Strings that must survive verbatim into the target (product names, trademarks, identifiers)"`
+	Terms []string `json:"terms,omitempty" schema:"title=Do-Not-Translate Terms,description=Strings that must survive verbatim into the target (product names, trademarks, identifiers),path=none"`
 	// CaseInsensitive accepts a case-folded match in the target. Off by default:
 	// do-not-translate is usually case-sensitive ("iPhone", not "Iphone").
 	CaseInsensitive bool `json:"case_insensitive,omitempty" schema:"title=Case-insensitive preservation,description=Accept a case-folded match in the target instead of requiring exact case"`

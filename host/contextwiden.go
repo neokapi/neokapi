@@ -266,6 +266,7 @@ func (p *widenPreview) examine(ctx context.Context, key workspace.ProjectKey, na
 		p.gap(key, name, ContextWidenNoCheckout)
 		return nil
 	}
+	//pathguard: the recipe of the current project, or kapi.yaml in a checkout the workspace registry records for the project on this machine (registeredCheckout)
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		p.gap(key, name, fmt.Sprintf("its recipe could not be read: %v", err))

@@ -33,10 +33,10 @@ var defaultEntityCategories = []string{
 
 // RedactConfig configures the redact tool.
 type RedactConfig struct {
-	Detectors   []string `json:"detectors,omitempty" schema:"title=Detectors,description=Detection backends to run: rules and/or entities"`
+	Detectors   []string `json:"detectors,omitempty" schema:"title=Detectors,description=Detection backends to run: rules and/or entities,path=none"`
 	RulesPath   string   `json:"rules_path,omitempty" schema:"title=Rules File,description=Path to a redaction rules YAML file,path=file"`
-	Placeholder string   `json:"placeholder,omitempty" schema:"title=Placeholder Template,description=Visible stand-in template; supports {category} and {n}"`
-	EntityTypes []string `json:"entity_types,omitempty" schema:"title=Entity Categories,description=Entity categories to redact: person, org, product, location, date, time, currency, measurement, role, other. Setting any enables 'entities' detection (which needs an upstream NER step such as entity-extract)."`
+	Placeholder string   `json:"placeholder,omitempty" schema:"title=Placeholder Template,description=Visible stand-in template; supports {category} and {n},path=none"`
+	EntityTypes []string `json:"entity_types,omitempty" schema:"title=Entity Categories,description=Entity categories to redact: person, org, product, location, date, time, currency, measurement, role, other. Setting any enables 'entities' detection (which needs an upstream NER step such as entity-extract).,path=none"`
 
 	// Rules supplies rules inline as an alternative (or addition) to RulesPath.
 	Rules []redaction.Rule `json:"rules,omitempty" schema:"-"`

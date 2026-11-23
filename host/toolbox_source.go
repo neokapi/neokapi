@@ -37,12 +37,14 @@ type docSource struct {
 // as a document source. The caller must Close it.
 func openDocSource(ctx context.Context, path string) (*docSource, error) {
 	if path == "" || path == StdinName {
+		//pathguard: the file argument of kcat, kgrep, kconv and kapi stats
 		data, err := readContent(ctx, path)
 		if err != nil {
 			return nil, err
 		}
 		return &docSource{buf: data, size: int64(len(data))}, nil
 	}
+	//pathguard: the file argument of kcat, kgrep, kconv and kapi stats
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err

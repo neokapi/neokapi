@@ -81,6 +81,7 @@ func (a *App) StoreSourceLocale(cmd Command, sel StoreSelection, named string) (
 			return "", err
 		}
 		if recipePath != "" {
+			//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 			recipe = recipeSourceLanguage(recipePath)
 		}
 	}

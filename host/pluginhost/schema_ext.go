@@ -110,6 +110,7 @@ func loadSchemaDecoder(reg SchemaExtensionRegistration, onWarn func(msg string))
 	}
 
 	schemaPath := filepath.Join(reg.Plugin.Dir, reg.Extension.JSONSchema)
+	//pathguard: a schema file in an installed plugin's directory
 	data, err := os.ReadFile(schemaPath)
 	if err != nil {
 		onWarn(fmt.Sprintf(

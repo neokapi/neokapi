@@ -372,6 +372,15 @@ type PropertySchema struct {
 
 	// Path annotation for resource/file path properties
 	PathInfo *PathAnnotation `json:"x-path,omitempty"`
+
+	// NotLocation declares that the property names no file system location,
+	// the counterpart of PathInfo. A field's schema tag sets it with
+	// `path=none`. A surface that passes a tool's config from an untrusted
+	// caller (the MCP roots middleware) checks every string field declared
+	// with PathInfo, skips every one declared with NotLocation, and its audit
+	// fails on a string field declared neither way. On an object or array it
+	// covers every field inside that declares nothing itself.
+	NotLocation bool `json:"x-not-location,omitempty"`
 }
 
 // OptionItem represents a labeled enum value for select/radio properties.

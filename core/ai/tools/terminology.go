@@ -24,15 +24,15 @@ type AITerminologyTool struct {
 // AITerminologyConfig holds configuration for the terminology tool.
 type AITerminologyConfig struct {
 	Locale   model.LocaleID `json:"locale,omitempty"   schema:"-"`
-	Domain   string         `json:"domain,omitempty"   schema:"title=Domain,description=Subject domain for terminology extraction (e.g. medical legal technology)"`
-	Provider string         `json:"provider,omitempty" schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
-	APIKey   string         `json:"api_key,omitempty"   schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	Domain   string         `json:"domain,omitempty"   schema:"title=Domain,description=Subject domain for terminology extraction (e.g. medical legal technology),path=none"`
+	Provider string         `json:"provider,omitempty" schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider,path=none"`
+	APIKey   string         `json:"api_key,omitempty"   schema:"title=API Key,description=API key for the AI provider,group=provider,path=none"`
 	// BaseURL is the endpoint the provider is called at, for a self-hosted or
 	// proxied deployment. The host resolves it from the credential the key
 	// came from and injects it here; a recipe cannot set it, which is why it
 	// is off the form (see host/credentials.stripRecipeEndpoint).
 	BaseURL string `json:"base_url,omitempty"  schema:"-"`
-	Model   string `json:"model,omitempty"    schema:"title=Model,description=AI model name,group=provider"`
+	Model   string `json:"model,omitempty"    schema:"title=Model,description=AI model name,group=provider,path=none"`
 }
 
 // AITerminologySchema returns the auto-generated schema for the tool.

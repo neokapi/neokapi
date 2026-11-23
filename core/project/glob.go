@@ -326,6 +326,7 @@ func (w *globWalker) walk(rel, abs string, states []globState) {
 // (LinksAnywhere) lists it as named.
 func (w *globWalker) readDir(abs string) ([]os.DirEntry, error) {
 	if w.opts.LinksAnywhere {
+		//pathguard: a directory a command-line pattern reaches (GlobOptions.LinksAnywhere, set only by host/inputs.go expandGlobArg)
 		return readDirAsNamed(abs)
 	}
 	return rootpath.ReadDir(w.root, abs)
@@ -334,16 +335,17 @@ func (w *globWalker) readDir(abs string) ([]os.DirEntry, error) {
 // stat is readDir's counterpart for one entry, links followed.
 func (w *globWalker) stat(abs string) (os.FileInfo, error) {
 	if w.opts.LinksAnywhere {
+		//pathguard: an entry a command-line pattern reaches (GlobOptions.LinksAnywhere, set only by host/inputs.go expandGlobArg)
 		return statAsNamed(abs)
 	}
 	return rootpath.Stat(w.root, abs)
 }
 
 // readDirAsNamed lists a directory a pattern a person typed reaches.
-func readDirAsNamed(abs string) ([]os.DirEntry, error) { return os.ReadDir(abs) }
+func readDirAsNamed(abs string) ([]os.DirEntry, error) { return os.ReadDir(abs) } //pathguard: a directory a command-line pattern reaches (GlobOptions.LinksAnywhere, set only by host/inputs.go expandGlobArg)
 
 // statAsNamed states an entry a pattern a person typed reaches.
-func statAsNamed(abs string) (os.FileInfo, error) { return os.Stat(abs) }
+func statAsNamed(abs string) (os.FileInfo, error) { return os.Stat(abs) } //pathguard: an entry a command-line pattern reaches (GlobOptions.LinksAnywhere, set only by host/inputs.go expandGlobArg)
 
 // followsLink reports whether a symbolic link named name is read through: some
 // pattern names it before its first wildcard.

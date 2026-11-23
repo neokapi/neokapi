@@ -48,6 +48,7 @@ func AddGlobalRegistry(name, url string, channels []string) error {
 	entries = append(entries, RegistryEntry{Name: name, URL: url, Channels: channels})
 	v.Set("registries", registryEntriesToSlice(entries))
 
+	//pathguard: the global config file in the user config dir (GlobalConfigFilePath).
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}

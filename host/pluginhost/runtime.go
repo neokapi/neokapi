@@ -139,11 +139,13 @@ func (r *Runtime) discover() []*Plugin {
 	if !r.useCache {
 		return Discover(r.opts)
 	}
+	//pathguard: the plugin discovery cache in the user cache directory
 	if cache, err := LoadCache(CacheLocation()); err == nil && IsFresh(cache, r.opts) {
 		return PluginsFromCache(cache)
 	}
 	plugins := Discover(r.opts)
 	// Best-effort cache write; an unwritable cache dir must not break startup.
+	//pathguard: the plugin discovery cache in the user cache directory
 	_ = SaveCache(CacheLocation(), BuildCache(r.opts, plugins))
 	return plugins
 }

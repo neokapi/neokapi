@@ -76,6 +76,7 @@ func (a *App) ExportProjectContext(ctx context.Context, projectPath, out string)
 	if err != nil {
 		return res, err
 	}
+	//pathguard: the file the -o flag of kapi store export names
 	res.Bytes, err = writePackage(pkg, abs)
 	return res, err
 }
@@ -122,13 +123,16 @@ func (a *App) ProjectContextPackage(ctx context.Context, projectPath string) (*k
 // writePackage writes a package to a file through a temporary sibling, so a
 // failed write never leaves half a file where a whole one was.
 func writePackage(pkg *kpz.Package, out string) (int64, error) {
+	//pathguard: the file the -o flag of kapi store export names, and a temporary sibling of it.
 	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
 		return 0, err
 	}
+	//pathguard: the file the -o flag of kapi store export names, and a temporary sibling of it.
 	tmp, err := os.CreateTemp(filepath.Dir(out), ".kapi-export-*")
 	if err != nil {
 		return 0, err
 	}
+	//pathguard: the file the -o flag of kapi store export names, and a temporary sibling of it.
 	defer func() { _ = os.Remove(tmp.Name()) }()
 	n, err := pkg.WriteTo(tmp)
 	if cerr := tmp.Close(); err == nil {
@@ -137,6 +141,7 @@ func writePackage(pkg *kpz.Package, out string) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("write %s: %w", out, err)
 	}
+	//pathguard: the file the -o flag of kapi store export names, and a temporary sibling of it.
 	return n, os.Rename(tmp.Name(), out)
 }
 

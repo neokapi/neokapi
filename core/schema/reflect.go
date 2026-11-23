@@ -10,7 +10,11 @@ import (
 // It inspects exported fields and maps Go types to JSON Schema types.
 // Fields with `schema` struct tags get additional metadata:
 //
-//	schema:"title=...,description=...,default=...,min=...,max=...,enum=a|b|c,widget=...,group=..."
+//	schema:"title=...,description=...,default=...,min=...,max=...,enum=a|b|c,widget=...,group=...,path=file|directory|none"
+//
+// `path=file` and `path=directory` declare a field that names a location
+// (PropertySchema.PathInfo); `path=none` declares one that names none
+// (PropertySchema.NotLocation).
 //
 // Interface and function fields are skipped.
 func FromStruct(cfg any, meta ToolMeta) *ComponentSchema {
@@ -245,7 +249,16 @@ func applyTag(prop *PropertySchema, tag string) {
 		case "path":
 			// path=file or path=directory: the field names a location, which
 			// the surfaces that pass it on check (the MCP roots middleware).
-			prop.PathInfo = &PathAnnotation{Type: val}
+			// path=none: the field names no location, and those surfaces
+			// pass it unchecked. Every string field of a tool reachable over
+			// MCP carries one or the other.
+			if val == "none" {
+				prop.NotLocation = true
+				prop.PathInfo = nil
+			} else {
+				prop.PathInfo = &PathAnnotation{Type: val}
+				prop.NotLocation = false
+			}
 		case "widget":
 			prop.Widget = val
 		case "placeholder":

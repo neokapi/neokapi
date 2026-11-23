@@ -432,7 +432,9 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	}
 	flowName, flowLabel, spec, translateAfter := cf.name, cf.label, cf.spec, cf.translateAfter
 
-	ctx := CmdContext(cmd)
+	// A plugin daemon may be sent paths beneath the project's root, and
+	// nowhere else.
+	ctx := declarePathRoots(cmd, projectRootDir(projectPath))
 
 	// Project context + content sources (the flow reads source, writes per-locale
 	// targets via the project's target template).

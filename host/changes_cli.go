@@ -193,18 +193,22 @@ func withMember(doc, member string) string {
 // that reads a document from a pipe reads it through the change service like
 // any file. It returns the copy's path and a function that removes it.
 func stdinDocument(ctx context.Context) (string, func(), error) {
+	//pathguard: reads standard input: readContent opens no file for StdinName
 	data, err := readContent(ctx, StdinName)
 	if err != nil {
 		return "", nil, err
 	}
+	//pathguard: creates a new directory in the OS temp dir
 	dir, err := os.MkdirTemp("", "kapi-stdin-")
 	if err != nil {
 		return "", nil, err
 	}
+	//pathguard: a private copy of standard input in a directory the process created with os.MkdirTemp
 	cleanup := func() { _ = os.RemoveAll(dir) }
 	// The copy has no extension, so its format is the one --format names or
 	// detection finds in its content, as it is for a pipe.
 	path := filepath.Join(dir, "stdin")
+	//pathguard: a private copy of standard input in a directory the process created with os.MkdirTemp
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		cleanup()
 		return "", nil, err

@@ -92,7 +92,6 @@ func (o StatsOutput) FormatText(w io.Writer) error {
 
 func (a *App) RunStats(cmd Command, args []string) error {
 	a.InitRegistries()
-	ctx := CmdContext(cmd)
 
 	hadError := false
 	files, err := a.ResolveInputs(cmd, args, InputOptions{
@@ -105,6 +104,9 @@ func (a *App) RunStats(cmd Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	// Read after the inputs resolve, which declare the directories a plugin
+	// daemon may be sent paths in.
+	ctx := CmdContext(cmd)
 
 	prog := a.NewProgress(cmd, "reading", len(files))
 	defer prog.Done()

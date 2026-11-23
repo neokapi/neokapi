@@ -81,6 +81,7 @@ func SaveAuth(a StoredAuth) error {
 	}
 
 	path := AuthFilePath()
+	//pathguard: the sign-in file in the user config directory
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("create auth dir: %w", err)
 	}
@@ -88,6 +89,7 @@ func SaveAuth(a StoredAuth) error {
 	if err != nil {
 		return fmt.Errorf("marshal auth metadata: %w", err)
 	}
+	//pathguard: the sign-in file in the user config directory
 	return os.WriteFile(path, data, 0o600)
 }
 
@@ -104,6 +106,7 @@ func LoadAuth() (*StoredAuth, error) {
 			AccessToken: token,
 		}, nil
 	}
+	//pathguard: the sign-in file in the user config directory
 	data, err := os.ReadFile(AuthFilePath())
 	if err != nil {
 		return nil, err
@@ -141,6 +144,7 @@ func DeleteAuth(serverURL string) error {
 			return fmt.Errorf("delete refresh token: %w", err)
 		}
 	}
+	//pathguard: the sign-in file in the user config directory
 	if err := os.Remove(AuthFilePath()); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("remove auth metadata: %w", err)
 	}
@@ -156,6 +160,7 @@ func StoredSignIn() (serverURL string, user StoredUser, ok bool) {
 	if os.Getenv("BOWRAIN_AUTH_TOKEN") != "" {
 		return NormalizeServerURL(os.Getenv("BOWRAIN_SERVER_URL")), StoredUser{}, true
 	}
+	//pathguard: the sign-in file in the user config directory
 	data, err := os.ReadFile(AuthFilePath())
 	if err != nil {
 		return "", StoredUser{}, false

@@ -377,6 +377,7 @@ func (h *Host) Remove(name string) error {
 	h.dropPluginLocked(target)
 	h.mu.Unlock()
 
+	//pathguard: a plugin install directory
 	if err := os.RemoveAll(dir); err != nil {
 		return fmt.Errorf("remove %s: %w", name, err)
 	}

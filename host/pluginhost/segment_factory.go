@@ -76,6 +76,7 @@ func loadSegmenterSchema(plugin *Plugin, s manifest.Segmenter) *schema.Component
 	if s.Schema == "" {
 		return nil
 	}
+	//pathguard: a schema file in an installed plugin's directory
 	data, err := os.ReadFile(filepath.Join(plugin.Dir, s.Schema))
 	if err != nil {
 		return nil

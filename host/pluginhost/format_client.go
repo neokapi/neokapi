@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 
@@ -116,8 +117,9 @@ func (r *daemonReader) Open(_ context.Context, doc *model.RawDocument) error {
 	// Prefer a real on-disk path so the daemon can resolve companion files
 	// (linked rules, standoff XML, etc.). The path is the file the host
 	// opened the document from, with every link resolved, and only while it
-	// is still that file: the daemon opens what it is given without a check
-	// of its own, so it is never handed the URI or a link to follow.
+	// is still that file: the daemon is never handed the URI or a link to
+	// follow. Read sends it only when it lies beneath the run's declared
+	// roots, and the content otherwise.
 	r.sourcePath = daemonSourcePath(doc)
 	if r.sourcePath == "" && doc.Reader != nil {
 		var err error
@@ -148,9 +150,25 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 			}
 		}
 
-		// The daemon may open the source in the directory it lies under, and
-		// nothing else (KAPI_PLUGIN_ROOTS).
-		client, err := r.pool.Acquire(WithPathRoots(ctx, PathRootsFor(r.sourcePath)), r.plugin)
+		// The source goes as a path only when it lies beneath the roots the
+		// run declared (KAPI_PLUGIN_ROOTS); otherwise its content goes inline.
+		sourcePath, content := r.sourcePath, r.content
+		if sourcePath != "" {
+			if real, ok := beneathPathRoots(PathRootsFrom(ctx), sourcePath); ok {
+				sourcePath = real
+			} else {
+				sourcePath = ""
+				// The path was taken from the held file (daemonSourcePath),
+				// which is read from its start whatever its offset.
+				var err error
+				if content, err = io.ReadAll(io.NewSectionReader(r.Doc.ReaderAt, 0, math.MaxInt64)); err != nil {
+					emit(model.PartResult{Error: fmt.Errorf("read document content: %w", err)})
+					return
+				}
+			}
+		}
+
+		client, err := r.pool.Acquire(ctx, r.plugin)
 		if err != nil {
 			emit(model.PartResult{Error: fmt.Errorf("acquire daemon for plugin %q: %w", r.plugin.Name(), err)})
 			return
@@ -177,10 +195,10 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 		if cfg, ok := r.Cfg.(*mapConfig); ok && len(cfg.params) > 0 {
 			header.FilterParams = cfg.params
 		}
-		if r.sourcePath != "" {
-			header.Input = &pb.ContentRef{Location: &pb.ContentRef_Path{Path: r.sourcePath}}
-		} else if len(r.content) > 0 {
-			header.Input = &pb.ContentRef{Location: &pb.ContentRef_Inline{Inline: r.content}}
+		if sourcePath != "" {
+			header.Input = &pb.ContentRef{Location: &pb.ContentRef_Path{Path: sourcePath}}
+		} else if len(content) > 0 {
+			header.Input = &pb.ContentRef{Location: &pb.ContentRef_Inline{Inline: content}}
 		}
 		if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_Header{Header: header}}); err != nil {
 			emit(model.PartResult{Error: fmt.Errorf("send header: %w", err)})
@@ -273,7 +291,9 @@ func newDaemonWriter(pool *DaemonPool, plugin *Plugin, formatName string) *daemo
 	return w
 }
 
-// SetOutput records the output path so Write can emit OutputRef.
+// SetOutput records the output path. Write sends it as OutputRef when it lies
+// beneath the run's declared roots, and writes the returned bytes there
+// itself otherwise.
 func (w *daemonWriter) SetOutput(path string) error {
 	w.outPath = absOrSelf(path)
 	w.outWriter = nil
@@ -316,10 +336,34 @@ func (w *daemonWriter) SetOriginalContent(content []byte) {
 // via SetOriginalContent. If neither is set, the daemon will fail, so
 // callers should always wire one of them before calling Write.
 func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) error {
-	// The daemon may open the source it rebuilds from, and write the output it
-	// is sent a path for, in the directories they lie under, and nothing else
-	// (KAPI_PLUGIN_ROOTS).
-	client, err := w.pool.Acquire(WithPathRoots(ctx, PathRootsFor(w.sourcePath, w.outPath)), w.plugin)
+	// The source and the output go as paths only when they lie beneath the
+	// roots the run declared (KAPI_PLUGIN_ROOTS). A source outside them goes
+	// inline, and an output outside them comes back inline for the host to
+	// write.
+	roots := PathRootsFrom(ctx)
+	sourcePath, sourceBytes := "", w.sourceBytes
+	if w.sourcePath != "" {
+		if real, ok := beneathPathRoots(roots, w.sourcePath); ok {
+			sourcePath = real
+		} else {
+			//pathguard: the source the host set on its own writer (SetSourcePath), read by the host so the path is not sent to the daemon
+			b, err := os.ReadFile(w.sourcePath)
+			if err != nil {
+				return fmt.Errorf("daemon writer: read source: %w", err)
+			}
+			sourceBytes = b
+		}
+	}
+	outPath, hostWrites := "", ""
+	if w.outPath != "" {
+		if real, ok := beneathPathRoots(roots, w.outPath); ok {
+			outPath = real
+		} else {
+			hostWrites = w.outPath
+		}
+	}
+
+	client, err := w.pool.Acquire(ctx, w.plugin)
 	if err != nil {
 		return fmt.Errorf("acquire daemon for plugin %q: %w", w.plugin.Name(), err)
 	}
@@ -340,15 +384,15 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 		TargetLocale: w.locale,
 		OutputLocale: w.locale,
 	}
-	if w.sourcePath != "" {
-		header.Input = &pb.ContentRef{Location: &pb.ContentRef_Path{Path: w.sourcePath}}
-	} else if len(w.sourceBytes) > 0 {
-		header.Input = &pb.ContentRef{Location: &pb.ContentRef_Inline{Inline: w.sourceBytes}}
+	if sourcePath != "" {
+		header.Input = &pb.ContentRef{Location: &pb.ContentRef_Path{Path: sourcePath}}
+	} else if len(sourceBytes) > 0 {
+		header.Input = &pb.ContentRef{Location: &pb.ContentRef_Inline{Inline: sourceBytes}}
 	} else {
 		return errors.New("daemon writer: no source path or original content set; call SetSourcePath or SetOriginalContent before Write")
 	}
-	if w.outPath != "" {
-		header.Output = &pb.OutputRef{Destination: &pb.OutputRef_Path{Path: w.outPath}}
+	if outPath != "" {
+		header.Output = &pb.OutputRef{Destination: &pb.OutputRef_Path{Path: outPath}}
 	}
 	// Inline mode (outPath == ""): omit Output from the header entirely.
 	// The Java daemon checks writeEnabled = header.hasOutput() || !outputLocale.isEmpty().
@@ -439,6 +483,14 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 		return ctx.Err()
 	}
 
+	if hostWrites != "" {
+		// Sent no output path, the daemon returns the document's bytes.
+		//pathguard: the destination the host set on its own writer (SetOutput), written by the host so the path is not sent to the daemon
+		if err := os.WriteFile(hostWrites, output, 0o644); err != nil {
+			return fmt.Errorf("write output: %w", err)
+		}
+		return nil
+	}
 	if outputPath == "" && w.outWriter != nil && len(output) > 0 {
 		if _, err := io.Copy(w.outWriter, bytes.NewReader(output)); err != nil {
 			return fmt.Errorf("copy output: %w", err)
@@ -497,6 +549,7 @@ func daemonSourcePath(doc *model.RawDocument) string {
 	if err != nil || !heldInfo.Mode().IsRegular() {
 		return ""
 	}
+	//pathguard: confirms with os.SameFile that the name still names the file the caller already opened, so the plugin is handed that file and no other
 	real, err := filepath.EvalSymlinks(name)
 	if err != nil {
 		return ""
@@ -505,6 +558,7 @@ func daemonSourcePath(doc *model.RawDocument) string {
 	if err != nil {
 		return ""
 	}
+	//pathguard: confirms with os.SameFile that the name still names the file the caller already opened, so the plugin is handed that file and no other
 	now, err := os.Stat(real)
 	if err != nil || !os.SameFile(heldInfo, now) {
 		return ""

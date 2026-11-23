@@ -118,6 +118,7 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 	if err != nil {
 		return nil, err
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)
@@ -192,6 +193,7 @@ func (a *App) LookProject(cmd Command) (*LookProject, error) {
 			Failing:   out.Failing,
 			Connected: a.AssistantConnected(ctx, recipe, root),
 		}
+		//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 		if rung, rerr := RecipeRung(recipe); rerr == nil {
 			state.Shared = rung != ShareRungMachine
 		}
@@ -251,6 +253,7 @@ func (a *App) lookFirstPass(ctx context.Context, recipe string) {
 	if err != nil || ws == nil || ws.Describe().ReadOnly {
 		return
 	}
+	//pathguard: the recipe path the caller passes as recipe, read by path as project.Load reads it
 	identity, _ := recipeIdentity(recipe)
 	if identity == "" {
 		return
@@ -292,6 +295,7 @@ func lookCommand(ctx context.Context, recipe string) *EnvCommand {
 // creates neither.
 func (a *App) ProjectRuleCount(ctx context.Context, recipe string) (int, error) {
 	a.InitRegistries()
+	//pathguard: the recipe path the caller passes as recipe, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return 0, fmt.Errorf("load project: %w", err)
@@ -632,6 +636,7 @@ func (a *App) LookFile(cmd Command, path string) (*LookReader, error) {
 	if err != nil {
 		return nil, err
 	}
+	//pathguard: the file argument of kapi look
 	if info, serr := os.Stat(abs); errors.Is(serr, fs.ErrNotExist) {
 		return nil, fmt.Errorf("%s: no such file", path)
 	} else if serr != nil {

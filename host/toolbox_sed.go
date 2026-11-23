@@ -333,6 +333,7 @@ func (r *sedRun) inPlace(ctx context.Context, file string) error {
 		}
 	}
 	if r.opts.BackupSuffix != "" {
+		//pathguard: the file argument of ksed and its --backup copy
 		if err := copyFile(file, file+r.opts.BackupSuffix); err != nil {
 			return fmt.Errorf("write backup: %w", err)
 		}
@@ -351,16 +352,19 @@ func (r *sedRun) inPlace(ctx context.Context, file string) error {
 // output: the member itself for container!entry, else the copy. The file
 // stays as it is, and nothing is written when an edit is refused.
 func (r *sedRun) toStdout(ctx context.Context, file string) error {
+	//pathguard: creates a new directory in the OS temp dir
 	dir, err := os.MkdirTemp("", "ksed-")
 	if err != nil {
 		return err
 	}
+	//pathguard: a directory ksed made with os.MkdirTemp, holding its copy of the file argument
 	defer os.RemoveAll(dir)
 	var (
 		copyPath, member string
 		edits            []sedEdit
 	)
 	if file == StdinName {
+		//pathguard: reads standard input: readContent opens no file for StdinName
 		data, rerr := readContent(ctx, StdinName)
 		if rerr != nil {
 			return rerr
@@ -368,6 +372,7 @@ func (r *sedRun) toStdout(ctx context.Context, file string) error {
 		// The copy has no extension, so its format is the one --format names
 		// or detection finds in its content, as it is for a pipe.
 		copyPath = filepath.Join(dir, "stdin")
+		//pathguard: a directory ksed made with os.MkdirTemp, holding its copy of the file argument
 		if err := os.WriteFile(copyPath, data, 0o600); err != nil {
 			return err
 		}
@@ -384,6 +389,7 @@ func (r *sedRun) toStdout(ctx context.Context, file string) error {
 		var real string
 		real, member = splitLocator(file)
 		copyPath = filepath.Join(dir, filepath.Base(real))
+		//pathguard: a directory ksed made with os.MkdirTemp, holding its copy of the file argument
 		if err := copyFile(real, copyPath); err != nil {
 			return err
 		}
@@ -423,6 +429,7 @@ func (r *sedRun) toStdout(ctx context.Context, file string) error {
 		}
 		in = bytes.NewReader(data)
 	} else {
+		//pathguard: a directory ksed made with os.MkdirTemp, holding its copy of the file argument
 		f, oerr := os.Open(copyPath)
 		if oerr != nil {
 			return oerr

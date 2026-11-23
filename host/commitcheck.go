@@ -151,6 +151,7 @@ func (a *App) resolveCommitProject(cmd Command) (commitProject, error) {
 	in := commitProject{recipe: recipe}
 	if recipe != "" {
 		in.root = filepath.Dir(recipe)
+		//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 		in.proj, err = project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 		if err != nil {
 			return commitProject{}, fmt.Errorf("load project %s: %w", DisplayName(recipe), err)

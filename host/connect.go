@@ -414,6 +414,7 @@ func connectableRecipe(recipe string) error {
 	if !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
+	//pathguard: the folder of the recipe kapi connect was named, stated to tell a missing folder from a missing recipe
 	if info, err := statNamed(dir); err != nil || !info.IsDir() {
 		return fmt.Errorf("no folder at %s: name an existing folder, or a recipe in one", dir)
 	}
@@ -443,6 +444,7 @@ func connectDir(dir string, dry bool) (string, error) {
 func (a *App) connectRecipe(ctx context.Context, root, recipe string, dry bool) (file ConnectFile, targets []string, haveRecipe bool, err error) {
 	file = ConnectFile{Path: relSlash(root, recipe), Kind: ConnectRecipe}
 	if _, serr := statIn(root, recipe); serr == nil {
+		//pathguard: the recipe kapi connect was named, which statIn above found as a file beneath its folder
 		proj, lerr := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 		if lerr != nil {
 			return file, nil, false, fmt.Errorf("load project: %w", lerr)

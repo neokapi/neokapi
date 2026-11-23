@@ -241,6 +241,7 @@ func (c *GitConnector) ensureRepo(ctx context.Context) error {
 		return err
 	}
 
+	//pathguard: the connector's checkout directory, from its local_path setting or under the OS temp dir
 	if _, err := os.Stat(filepath.Join(c.localPath, ".git")); err == nil {
 		// Repo exists, pull latest. The "--" separator ensures the remote and
 		// branch are treated as positional arguments, never options.

@@ -405,6 +405,7 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 		return src, noop
 	}
 	root := filepath.Dir(projectPath)
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
 		src.Path = req.Path
@@ -697,11 +698,15 @@ func underRoot(root, abs string) (string, bool) {
 // when one passed through a symbolic link (macOS reaches /var through
 // /private/var), so a path that is not under root as written is compared
 // again with the links resolved.
+//
+//pathguard:contains it resolves links only to compare abs with root, and opens nothing
 func rootSpelled(root, abs string) (string, bool) {
 	if rel, inside := underRoot(root, abs); inside {
 		return filepath.Join(root, filepath.FromSlash(rel)), true
 	}
+	//pathguard: resolves links only to compare paths; nothing is opened by the resolved name; the answer is spelled under root
 	realRoot, rerr := filepath.EvalSymlinks(root)
+	//pathguard: resolves links only to compare paths; nothing is opened by the resolved name; the answer is spelled under root
 	realPath, perr := filepath.EvalSymlinks(abs)
 	if rerr != nil || perr != nil {
 		return abs, false

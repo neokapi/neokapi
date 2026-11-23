@@ -474,6 +474,7 @@ func memoryEntryID(source string, srcLocale, tgtLocale model.LocaleID) string {
 // bound in the recipe under `defaults.voice.profile`. A starter pack is
 // read-only.
 func (a *App) boundVoiceProfileForWrite(ctx context.Context, store coreprofile.Store, recipePath, root string) (*coreprofile.VoiceProfile, error) {
+	//pathguard: the recipe path the caller passes as recipePath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)
@@ -539,6 +540,7 @@ func (a *App) applyRecipeEntry(cmd Command, e changeEntry) assetResult {
 	if err != nil {
 		return errResult(res, err.Error())
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return errResult(res, fmt.Sprintf("load project: %v", err))

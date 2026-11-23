@@ -242,15 +242,18 @@ func (doc *flowDoc) printDocument(ctx context.Context, path, want string) error 
 // is read through the run's project root; the copy lives in a directory of
 // its own under the temp dir.
 func (doc *flowDoc) appliesAsRun(ctx context.Context, path string, ops []change.Op, want string) (string, error) {
+	//pathguard: creates a new directory in the OS temp dir
 	dir, err := os.MkdirTemp("", "kapi-print-ops-")
 	if err != nil {
 		return "", err
 	}
+	//pathguard: a private copy in a directory the process created with os.MkdirTemp
 	defer func() { _ = os.RemoveAll(dir) }()
 	file, _ := splitLocator(path)
 	copied := filepath.Join(dir, filepath.Base(file))
 	switch data, rerr := rootpath.ReadFile(doc.fc.root, file); {
 	case rerr == nil:
+		//pathguard: a private copy in a directory the process created with os.MkdirTemp
 		if err := os.WriteFile(copied, data, 0o600); err != nil {
 			return "", err
 		}

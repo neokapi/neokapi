@@ -171,6 +171,7 @@ func newPackageVault(path, id string) error {
 	if err := ensureVaultDir(path); err != nil {
 		return err
 	}
+	//pathguard: creates a vault that must not exist yet: beside the .kpz a person named with --out (workspaceVaultPath), or in .kapi/vault after PrepareVault ran Layout.CheckState, which refuses any link or irregular file beneath .kapi/
 	if _, err := os.Stat(path); err == nil {
 		return fmt.Errorf("%s already holds the values an earlier extract withheld. Merge that package and remove the vault, or extract to another name", path)
 	}
@@ -192,10 +193,12 @@ func (a *App) redactSourceForKpz(ctx context.Context, in redactedSourceInput) (*
 	if in.formatID == "" {
 		return nil, fmt.Errorf("%s: kapi cannot tell the file's format, so it cannot withhold the values the redaction policy names", in.doc)
 	}
+	//pathguard: creates a new directory in the OS temp dir
 	tmp, err := os.MkdirTemp("", "kapi-redact-")
 	if err != nil {
 		return nil, err
 	}
+	//pathguard: a temporary directory the process created itself with os.MkdirTemp
 	defer os.RemoveAll(tmp)
 	out := filepath.Join(tmp, filepath.Base(in.path))
 
@@ -217,6 +220,7 @@ func (a *App) redactSourceForKpz(ctx context.Context, in redactedSourceInput) (*
 	if err := runner.RunFile(ctx, "redact", []tool.Tool{rt, newShowTokensTool()}, in.path, out, ""); err != nil {
 		return nil, fmt.Errorf("%s: withhold the values the redaction policy names: %w", in.doc, err)
 	}
+	//pathguard: a temporary directory the process created itself with os.MkdirTemp
 	data, err := os.ReadFile(out)
 	if err != nil {
 		return nil, err
@@ -359,6 +363,7 @@ func tokenEdits(runs, shown []model.Run) []model.RunEdit {
 // messages name it, path the vault file, and wantID the ID the manifest
 // records. regenerate says how to get a vault that matches.
 func packageVault(pkgName, path, wantID, regenerate string) (*redaction.FileVault, error) {
+	//pathguard: the vault of a redacted package, named by the vault ID kpz checks is a plain ID (validVaultID): beside the .kpz a person named, or in .kapi/vault of a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/
 	if _, err := os.Stat(path); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("merge: %s is redacted, and its vault is not at %s. kapi merge wrote no file. %s", pkgName, path, regenerate)
@@ -458,6 +463,7 @@ func packageVaultHere(recipe string, r *kpz.Redaction) bool {
 		candidates = append(candidates, layout.RedactionSidecarPath(r.VaultID))
 	}
 	for _, path := range candidates {
+		//pathguard: the batch vault named by the package's vault ID, which kpz checks is a plain ID (validVaultID), in .kapi/vault of a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/
 		if _, err := os.Stat(path); err != nil {
 			continue
 		}
@@ -471,6 +477,7 @@ func packageVaultHere(recipe string, r *kpz.Redaction) bool {
 // packageRedaction returns the redaction record of the package at path, or
 // nil when it records none or cannot be read.
 func packageRedaction(path string) *kpz.Redaction {
+	//pathguard: the .kpz named on the command line, as the caller passes it
 	pkg, err := LoadWorkspace(path)
 	if err != nil {
 		return nil

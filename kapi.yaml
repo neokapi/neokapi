@@ -138,14 +138,16 @@ defaults:
         front_matter_keys: [title, description, sidebar_label]
   # Code comments are prose, and the collections at source/comments below
   # declare them. A comment line that opens with one of these markers is read
-  # by the contract audit (.contract-audit), so a check sets it aside rather
-  # than reading it as a sentence.
+  # by the contract audit (.contract-audit) or by the path guard
+  # (scripts/pathguard), so a check sets it aside rather than reading it as a
+  # sentence.
   comments:
     directives:
       - "okapi:"
       - "okapi-skip:"
       - "okapi-unmapped:"
       - "okapi-deferred:"
+      - "pathguard:"
   exclude:
     - "**/node_modules/**"
     - "**/.git/**"

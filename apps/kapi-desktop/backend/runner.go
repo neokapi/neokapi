@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/credentials"
+	"github.com/neokapi/neokapi/host/pluginhost"
 )
 
 // RunState represents the current state of a flow execution.
@@ -258,11 +259,22 @@ func (a *App) RunFlowWith(tabID, flowName string, inputPaths []string, targetLan
 	return nil
 }
 
+// withProjectPathRoots returns ctx declaring the root of the tab's project as
+// a directory a plugin daemon may be sent paths in. The host adds the inputs
+// a run names (host.FlowRunOptions.InputPaths).
+func withProjectPathRoots(ctx context.Context, op *openProject) context.Context {
+	if root, ok := projectRoot(op); ok {
+		return pluginhost.AddPathRoots(ctx, root)
+	}
+	return ctx
+}
+
 func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName string, spec *flow.StepsSpec, inputPaths, targetLangs []string) {
 	defer a.runState.release()
 
 	// Attribute this flow's model calls to it in the session's AI activity log.
 	ctx = withAIScope(ctx, AIActivityScope{Surface: "flow", Action: flowName})
+	ctx = withProjectPathRoots(ctx, op)
 
 	capp := a.newProjectEngine(op)
 	completion := RunEvent{Type: "complete", FlowID: flowName}

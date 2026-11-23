@@ -500,6 +500,7 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 		src.RecipeErr = fmt.Errorf("this project's recipe could not be read: %w", perr)
 	}
 	if perr == nil && path != "" {
+		//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 		proj, lerr := project.LoadWithOptions(path, project.LoadOptions{SkipRequiresCheck: true})
 		if lerr != nil {
 			src.RecipeErr = fmt.Errorf("this project's recipe could not be read: %w", lerr)

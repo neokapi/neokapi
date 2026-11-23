@@ -2355,6 +2355,7 @@ func (c *BowrainSourceConnector) fetchMediaReplacements(
 	var tmpDir string
 	cleanup := func() {
 		if tmpDir != "" {
+			//pathguard: a directory the push made with os.MkdirTemp; the file names in it are checked as one path segment
 			_ = os.RemoveAll(tmpDir)
 		}
 	}
@@ -2388,6 +2389,7 @@ func (c *BowrainSourceConnector) fetchMediaReplacements(
 				continue
 			}
 			if tmpDir == "" {
+				//pathguard: creates a new directory in the OS temp dir
 				tmpDir, err = os.MkdirTemp("", "bowrain-media-*")
 				if err != nil {
 					cleanup()
@@ -2401,6 +2403,7 @@ func (c *BowrainSourceConnector) fetchMediaReplacements(
 				continue
 			}
 			variantPath := filepath.Join(tmpDir, name)
+			//pathguard: a directory the push made with os.MkdirTemp; the file names in it are checked as one path segment
 			if err := os.WriteFile(variantPath, data, 0o644); err != nil {
 				errs = append(errs, fmt.Errorf(
 					"materialize variant %s of %s: %w", v.Locale, asset.Filename, err))

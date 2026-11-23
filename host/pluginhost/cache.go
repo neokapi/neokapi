@@ -77,6 +77,7 @@ func CacheLocation() string {
 // cache does not exist; returns a non-nil error only on read/parse
 // failure.
 func LoadCache(path string) (*Cache, error) {
+	//pathguard: the plugin discovery cache in the user cache directory
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -93,6 +94,7 @@ func LoadCache(path string) (*Cache, error) {
 
 // SaveCache atomically writes the cache to path. Creates parent dirs.
 func SaveCache(path string, cache *Cache) error {
+	//pathguard: the plugin discovery cache in the user cache directory
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("plugin cache: mkdir: %w", err)
 	}
@@ -101,9 +103,11 @@ func SaveCache(path string, cache *Cache) error {
 		return fmt.Errorf("plugin cache: marshal: %w", err)
 	}
 	tmp := path + ".tmp"
+	//pathguard: a temporary sibling of the plugin discovery cache in the user cache directory, renamed onto it
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
 		return fmt.Errorf("plugin cache: write: %w", err)
 	}
+	//pathguard: renames a temporary sibling onto the plugin discovery cache in the user cache directory
 	if err := os.Rename(tmp, path); err != nil {
 		return fmt.Errorf("plugin cache: rename: %w", err)
 	}
@@ -117,6 +121,7 @@ func BuildCache(opts DiscoverOptions, plugins []*Plugin) *Cache {
 	roots := assembleRoots(opts)
 	cachedRoots := make([]CachedRoot, 0, len(roots))
 	for _, r := range roots {
+		//pathguard: a plugin install directory
 		mtime := dirMtime(r.Path)
 		cachedRoots = append(cachedRoots, CachedRoot{
 			Order:         r.Order,
@@ -175,6 +180,7 @@ func IsFresh(cache *Cache, opts DiscoverOptions) bool {
 		if !ok {
 			return false
 		}
+		//pathguard: a plugin install directory
 		if dirMtime(r.Path) > cr.MtimeUnixNano {
 			return false
 		}
@@ -202,6 +208,7 @@ func PluginsFromCache(cache *Cache) []*Plugin {
 // dirMtime returns the directory's mtime in UnixNano. Missing dirs
 // return 0 (treated as "always older than the cache").
 func dirMtime(path string) int64 {
+	//pathguard: a plugin install directory
 	st, err := os.Stat(path)
 	if err != nil {
 		return 0

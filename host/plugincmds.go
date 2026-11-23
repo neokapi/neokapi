@@ -30,6 +30,7 @@ type doctorResult struct {
 func DiagnosePlugin(ctx context.Context, p *pluginhost.Plugin) doctorResult {
 	res := doctorResult{Healthy: true}
 
+	//pathguard: an installed plugin's binary in a plugin install directory
 	if st, err := os.Stat(p.BinaryPath); err != nil || st.IsDir() {
 		res.Healthy = false
 		res.Summary = "binary missing: " + p.BinaryPath

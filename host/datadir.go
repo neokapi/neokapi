@@ -92,6 +92,7 @@ var sweepTestDataDirsOnce sync.Once
 // its root behind.
 func testDataDir() string {
 	sweepTestDataDirsOnce.Do(func() {
+		//pathguard: test binaries' data roots under the OS temp dir
 		sweepTestDataDirs(os.TempDir(), os.Getpid(), processAlive, processStart)
 	})
 	return testDataRoot(os.TempDir(), os.Getpid())
@@ -110,6 +111,7 @@ func RemoveTestDataDir() {
 	if !underTest() {
 		return
 	}
+	//pathguard: a test binary's data root under the OS temp dir
 	_ = os.RemoveAll(testDataRoot(os.TempDir(), os.Getpid()))
 }
 
@@ -133,6 +135,7 @@ const processStartSlack = 2 * time.Second
 // exited. Where the platform gives no start time, a root whose id another
 // process has taken is kept until that process ends.
 func sweepTestDataDirs(tmp string, self int, alive func(int) bool, started func(int) (time.Time, bool)) []string {
+	//pathguard: test binaries' data roots under the OS temp dir
 	entries, err := os.ReadDir(tmp)
 	if err != nil {
 		return nil
@@ -150,6 +153,7 @@ func sweepTestDataDirs(tmp string, self int, alive func(int) bool, started func(
 		if pid != self && alive(pid) && !reusedID(e, pid, started) {
 			continue
 		}
+		//pathguard: test binaries' data roots under the OS temp dir
 		if os.RemoveAll(filepath.Join(tmp, e.Name())) == nil {
 			removed = append(removed, e.Name())
 		}
@@ -245,6 +249,7 @@ func NormalizeCheckoutPath(p string) string {
 	if err != nil {
 		abs = filepath.Clean(p)
 	}
+	//pathguard: resolves links only to compare paths; nothing is opened by the resolved name (the workspace registry, the diff scope keys and the pre-edit guard)
 	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
 		return resolved
 	}
@@ -260,6 +265,7 @@ func NormalizeCheckoutPath(p string) string {
 		}
 		rest = filepath.Join(filepath.Base(dir), rest)
 		dir = parent
+		//pathguard: resolves links only to compare paths; nothing is opened by the resolved name (the workspace registry, the diff scope keys and the pre-edit guard)
 		resolved, err := filepath.EvalSymlinks(dir)
 		if err != nil {
 			continue

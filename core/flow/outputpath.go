@@ -104,6 +104,7 @@ func CheckOutputPath(path string) error {
 	if path == "" {
 		return nil
 	}
+	//pathguard: stats a destination and its parent only to refuse or classify it; nothing it returns names a file to open, and the write itself goes through the file home, which keeps it inside the root
 	st, err := os.Stat(path)
 	switch {
 	case err == nil && st.IsDir():
@@ -113,12 +114,14 @@ func CheckOutputPath(path string) error {
 	case err == nil:
 		return nil // a regular file the writer replaces
 	case !errors.Is(err, fs.ErrNotExist):
+		//pathguard: stats a destination and its parent only to refuse or classify it; nothing it returns names a file to open, and the write itself goes through the file home, which keeps it inside the root
 		return ClassifyOutputPathError(path, filepath.Dir(path), err)
 	}
 	// The destination does not exist: the nearest EXISTING ancestor must be a
 	// directory, else MkdirAll cannot create the output directory.
 	dir := filepath.Dir(path)
 	for {
+		//pathguard: stats a destination and its parent only to refuse or classify it; nothing it returns names a file to open, and the write itself goes through the file home, which keeps it inside the root
 		st, err := os.Stat(dir)
 		switch {
 		case err == nil && st.IsDir():
@@ -126,6 +129,7 @@ func CheckOutputPath(path string) error {
 		case err == nil:
 			return &OutputPathError{Kind: OutputPathParentNotDir, Path: path, Dir: dir}
 		case !errors.Is(err, fs.ErrNotExist):
+			//pathguard: stats a destination and its parent only to refuse or classify it; nothing it returns names a file to open, and the write itself goes through the file home, which keeps it inside the root
 			return ClassifyOutputPathError(path, dir, err)
 		}
 		parent := filepath.Dir(dir)
@@ -151,6 +155,7 @@ func ClassifyOutputPathError(path, dir string, err error) error {
 	// The obstruction itself is more informative than the errno: a rename onto
 	// an existing directory reports EEXIST/ENOTEMPTY/EISDIR depending on the
 	// platform, none of which name the directory.
+	//pathguard: stats a destination only to classify a failed write for the error message; it decides nothing the write does
 	if st, serr := os.Stat(path); serr == nil {
 		if st.IsDir() {
 			return &OutputPathError{Kind: OutputPathIsDir, Path: path, Err: err}

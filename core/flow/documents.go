@@ -96,6 +96,7 @@ var defaultHome = sync.OnceValue(func() *filehome.Home { return filehome.New(nil
 func (r *FileRunner) openDocument(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang, formatName, outputFormat string) (*writtenDocument, error) {
 	// A blocked destination is refused here, before anything is read, with
 	// the error that names what stands in the way.
+	//pathguard: only stats a destination and its parent to refuse or classify it; the write itself goes through the file home, which keeps it inside the root
 	if err := CheckOutputPath(outputPath); err != nil {
 		return nil, err
 	}

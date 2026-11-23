@@ -14,6 +14,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/neokapi/neokapi/core/rootpath"
+	"github.com/neokapi/neokapi/host/pluginhost"
 )
 
 // The directories an MCP call may reach.
@@ -73,7 +74,8 @@ func MCPRootsSet(ctx context.Context) ([]string, bool) {
 
 // MCPRootsMiddleware puts on every call's context the directory the server
 // was started in, the root of the project it was started for, and the roots
-// the client declares.
+// the client declares, both as the directories the call may reach and as the
+// roots a plugin daemon may be sent paths in (pluginhost.WithPathRoots).
 func (a *App) MCPRootsMiddleware() mcp.Middleware {
 	var (
 		mu      sync.Mutex
@@ -117,7 +119,11 @@ func (a *App) MCPRootsMiddleware() mcp.Middleware {
 				// on the client's roots.
 				return next(ctx, method, req)
 			}
-			ctx = WithMCPRoots(ctx, sessionRoots(ctx, ss))
+			roots := sessionRoots(ctx, ss)
+			ctx = WithMCPRoots(ctx, roots)
+			// The same directories are the ones a plugin daemon may be sent
+			// paths in while the call runs.
+			ctx = pluginhost.WithPathRoots(ctx, roots)
 			switch r := req.(type) {
 			case *mcp.CallToolRequest:
 				schemas.load(ctx, next, ss)

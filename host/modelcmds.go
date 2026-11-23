@@ -115,6 +115,7 @@ func modelStatus(plugin string, asset manifest.ModelAsset) (status string, total
 		return "unknown", totalBytes
 	}
 	for _, f := range asset.Files {
+		//pathguard: the model asset cache under the user cache directory
 		if !modelFilePresent(filepath.Join(dir, f.Path), f.Size) {
 			return "not cached", totalBytes
 		}

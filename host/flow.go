@@ -37,6 +37,7 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host/flowdef"
 	"github.com/neokapi/neokapi/host/output"
+	"github.com/neokapi/neokapi/host/pluginhost"
 	sqlmemory "github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/leverage"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -47,6 +48,17 @@ import (
 // RunFlow executes a flow by name with the given input files.
 func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string) error {
 	inputPaths, _ := cmd.Flags().GetStringSlice("input")
+	// A plugin daemon may be sent paths beneath the inputs named here, their
+	// -o destination and the project the run acts on, and nowhere else.
+	{
+		outputFlag, _ := cmd.Flags().GetString("output")
+		roots := append(namedInputRoots(inputPaths), outputRoot(outputFlag))
+		if a.ProjectContext != nil {
+			roots = append(roots, a.ProjectContext.ProjectDir)
+		}
+		declarePathRoots(cmd, roots...)
+		ctx = pluginhost.AddPathRoots(ctx, roots...)
+	}
 	// Directories and globs expand exactly as the tool runner expands them
 	// (recursive, hidden dirs and junk files skipped), so the flow-backed
 	// porcelain keeps the old tool commands' ergonomics: `kapi
@@ -528,6 +540,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 		}
 		// The trace covers the run, whether or not it writes a file.
 		if tracePath != "" && recorder != nil {
+			//pathguard: the trace file a person named with --trace
 			if err := a.writeTraceFile(tracePath, flowName, fmtName, inputPath, "", recorder, stepNames); err != nil {
 				return err
 			}
@@ -609,6 +622,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 			detected, _ := a.FormatReg.Detect(inputPath, registry.DetectOptions{ExtensionOnly: true})
 			detectedFmt = string(detected)
 		}
+		//pathguard: the trace file a person named with --trace
 		if err := a.writeTraceFile(tracePath, flowName, detectedFmt, inputPath, outputPath, recorder, stepNames); err != nil {
 			return err
 		}
@@ -642,9 +656,11 @@ func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath
 	if err != nil {
 		return fmt.Errorf("marshal trace: %w", err)
 	}
+	//pathguard: the trace file a person named with --trace
 	if err := os.MkdirAll(filepath.Dir(tracePath), 0o755); err != nil {
 		return fmt.Errorf("create trace dir %s: %w", filepath.Dir(tracePath), err)
 	}
+	//pathguard: the trace file a person named with --trace
 	if err := os.WriteFile(tracePath, traceJSON, 0o644); err != nil {
 		return fmt.Errorf("write trace %s: %w", tracePath, err)
 	}
@@ -658,9 +674,11 @@ func writeBatchTrace(tracePath string, batchTrace *flow.BatchFlowTrace) error {
 	if err != nil {
 		return fmt.Errorf("marshal batch trace: %w", err)
 	}
+	//pathguard: the trace file a person named with --trace
 	if err := os.MkdirAll(filepath.Dir(tracePath), 0o755); err != nil {
 		return fmt.Errorf("create trace dir: %w", err)
 	}
+	//pathguard: the trace file a person named with --trace
 	if err := os.WriteFile(tracePath, traceJSON, 0o644); err != nil {
 		return fmt.Errorf("write batch trace: %w", err)
 	}
@@ -924,6 +942,7 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 			batchTrace.FileTraces = append(batchTrace.FileTraces, ft)
 		}
 
+		//pathguard: the trace file a person named with --trace
 		if err := writeBatchTrace(tracePath, batchTrace); err != nil {
 			return err
 		}
@@ -2217,6 +2236,7 @@ func (a *App) ResolveTermsStore(cmd Command, point project.GovernancePoint) (Sto
 	}
 	root := filepath.Dir(projectPath)
 
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
 		return StoreSelection{}, fmt.Errorf("load project for terms: %w", lerr)

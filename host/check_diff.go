@@ -25,7 +25,7 @@ import (
 
 // readScopedSource reads a file a diff-scoped check covers. A test replaces it
 // to show that a file the diff does not name is never read.
-var readScopedSource = os.ReadFile
+var readScopedSource = os.ReadFile //pathguard: a working-tree file named by the diff a person scoped kapi check to; a test replaces the function to prove an unnamed file is never read
 
 // onDisk is where a diff of the working tree finds its files.
 const onDisk = "on disk"
@@ -115,6 +115,7 @@ func (a *App) diffSourceFromFlags(cmd Command) (*diffSource, error) {
 		if file == StdinName {
 			data, err = io.ReadAll(cmd.InOrStdin())
 		} else {
+			//pathguard: the diff file a person named with --diff-file
 			data, err = os.ReadFile(file)
 		}
 		if err != nil {
@@ -670,6 +671,7 @@ func (a *App) declaredEditions(run diffCheckRun) (map[string]VerifyUnit, map[str
 	if err != nil || projectPath == "" || run.src.objects != nil {
 		return nil, nil
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, nil
@@ -709,6 +711,7 @@ func (a *App) declaredContent(ctx context.Context, run diffCheckRun) (map[string
 	if err != nil || projectPath == "" {
 		return nil, "", err
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, "", fmt.Errorf("load project: %w", err)

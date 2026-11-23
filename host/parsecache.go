@@ -261,6 +261,7 @@ func (a *App) runnerPartCache(root string, mergedConfig map[string]any) (flow.Pa
 		}
 	}
 	if layout, err := project.ResolveLayout(root); err == nil {
+		//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 		if rb, rerr := os.ReadFile(layout.RecipePath); rerr == nil {
 			h.Write(rb)
 		}

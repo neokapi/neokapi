@@ -31,6 +31,7 @@ func parseEntryLocator(s string) (entryLocator, bool) {
 		if right == "" || !container.IsContainerPath(left) {
 			continue
 		}
+		//pathguard: tells an archive!entry locator from a file name holding '!', for a path named on the command line or by an MCP call; the archive itself is opened by the caller
 		if fi, err := os.Stat(left); err != nil || fi.IsDir() {
 			continue
 		}

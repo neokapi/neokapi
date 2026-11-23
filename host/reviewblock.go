@@ -41,6 +41,7 @@ func (a *App) ReviewBlockAt(ctx context.Context, recipe string, at change.Ref) (
 		return nil, &change.Error{Code: change.CodeInvalid, Field: "at", Message: "name the document and the block to review"}
 	}
 	a.InitRegistries()
+	//pathguard: the recipe path the caller passes as recipe, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)

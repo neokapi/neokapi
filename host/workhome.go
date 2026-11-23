@@ -123,6 +123,7 @@ type keptRedactionRead struct {
 // is read again only when it changed since the last read.
 func (a *App) keptRedactionAt(root string) (*keptRedaction, error) {
 	layout := project.LayoutAt(root)
+	//pathguard: the size and time of change of the recipe kapi resolved, before project.Load reads it by path
 	info, err := os.Stat(layout.RecipePath)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil

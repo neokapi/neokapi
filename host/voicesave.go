@@ -61,6 +61,7 @@ type VoiceProfileTarget struct {
 // point reads its voice from coarser up.
 func (a *App) VoiceProfileTargetAt(ctx context.Context, root string, point project.GovernancePoint) (VoiceProfileTarget, error) {
 	recipePath := filepath.Join(root, project.RecipeFileName)
+	//pathguard: kapi.yaml in the project root the caller passes
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return VoiceProfileTarget{}, fmt.Errorf("load project: %w", err)
@@ -245,6 +246,7 @@ func newVoiceProfileID(root, profile string) string {
 // else changes in the file (project.BindVoice). A point that binds another
 // voice has that binding replaced, through project.Save.
 func bindVoiceProfile(recipePath, profile, id string) error {
+	//pathguard: the recipe path the caller passes as recipePath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
@@ -261,6 +263,7 @@ func bindVoiceProfile(recipePath, profile, id string) error {
 		return nil
 	}
 	if current == nil {
+		//pathguard: the recipe path the caller passes as recipePath, which project.BindVoice reads and writes by path
 		if err := project.BindVoice(recipePath, profile, id); err != nil {
 			return fmt.Errorf("bind voice profile: %w", err)
 		}

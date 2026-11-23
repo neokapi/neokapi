@@ -271,6 +271,7 @@ func (a *App) recipeDeclares(cmd Command, key string, override map[string]any) b
 	if err != nil || path == "" {
 		return false
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(path, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return false

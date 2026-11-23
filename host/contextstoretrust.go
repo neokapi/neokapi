@@ -86,6 +86,7 @@ func resolveContextFolder(layout project.Layout, location string) (string, error
 		p := layout.Root
 		for part := range strings.SplitSeq(rel, string(filepath.Separator)) {
 			p = filepath.Join(p, part)
+			//pathguard: the check itself: it lstats each component of a recipe-named folder beneath the project, following no link, to refuse one that is or passes through a link
 			info, err := os.Lstat(p)
 			if errors.Is(err, fs.ErrNotExist) {
 				break
@@ -101,6 +102,7 @@ func resolveContextFolder(layout project.Layout, location string) (string, error
 	}
 	p, rest := location, ""
 	for {
+		//pathguard: a recipe-named context folder: one outside the project, which the person chose, or one inside it whose every component the loop above lstat'ed and found to be no link
 		resolved, err := filepath.EvalSymlinks(p)
 		if err == nil {
 			return filepath.Join(resolved, rest), nil
@@ -124,6 +126,7 @@ func contextStoreFingerprint(layout project.Layout, location string) (resolved, 
 	if err != nil {
 		return "", "", err
 	}
+	//pathguard: the recipe of the layout the caller resolved with LayoutFor, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(layout.RecipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return "", "", fmt.Errorf("load project: %w", err)
@@ -336,6 +339,7 @@ func (a *App) ContextStoreAllow(cmd Command, recipePath string) (output.TrustAll
 // ContextStoreRevoke is `kapi trust revoke --context-store`: it withdraws the
 // folder approval recorded for the recipe at path.
 func (a *App) ContextStoreRevoke(path string) (output.TrustRevokeOutput, error) {
+	//pathguard: the folder a person named to kapi trust revoke --context-store
 	key := execTrustRevokeKey(path) + contextStoreKeySuffix
 	out := output.TrustRevokeOutput{Path: strings.TrimSuffix(key, contextStoreKeySuffix), Record: ExecTrustPath()}
 	rec := loadExecTrust()

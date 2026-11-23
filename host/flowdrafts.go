@@ -169,11 +169,13 @@ func (a *App) deliverDrafts(ctx context.Context, locale model.LocaleID) ([]strin
 		return nil, fmt.Errorf("deliver drafts: %q is not a locale", loc)
 	}
 	base := filepath.Join(a.convergeDraftDir, string(locale))
+	//pathguard: stats one locale's subtree (the locale checked as one path segment) of the run's own draft tree, which beginConvergeDrafts created under a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/
 	if _, err := os.Stat(base); err != nil {
 		return nil, nil
 	}
 	home := a.flowHome(a.convergeDraftRoot)
 	var delivered []string
+	//pathguard: walks one locale's subtree (the locale checked as one path segment) of the run's own draft tree, which beginConvergeDrafts created under a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/; WalkDir follows no link, and each draft is opened through the draft tree (rootpath.OpenRegular)
 	err := filepath.WalkDir(base, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr

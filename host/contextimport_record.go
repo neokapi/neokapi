@@ -52,6 +52,7 @@ func (a *App) importScribe(ctx context.Context, recipePath string) (*importScrib
 			resolved.Actor.String(), contextop.ErrRefused)
 	}
 	scribe := &importScribe{actor: resolved.Actor, note: resolved.NoteWith("")}
+	//pathguard: the recipe path the caller passes as recipePath, read by path as project.Load reads it
 	if identity, _ := recipeIdentity(recipePath); identity == "" {
 		return scribe, nil
 	}

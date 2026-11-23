@@ -312,6 +312,7 @@ func (a *App) rulesProject(ctx context.Context, recipePath string) (*EnvCommand,
 	if err != nil {
 		return nil, "", nil, err
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(resolved, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("load project for the rules files: %w", err)

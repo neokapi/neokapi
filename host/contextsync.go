@@ -192,6 +192,7 @@ func resolveBackend(layout project.Layout) (ContextBackendInfo, error) {
 	if err != nil {
 		return ContextBackendInfo{}, err
 	}
+	//pathguard: the recipe of the layout the caller passes, read by path as project.Load reads it
 	venue, onBowrain, err := project.RecipeVenue(layout.RecipePath)
 	if err != nil {
 		return ContextBackendInfo{}, err
@@ -245,6 +246,7 @@ func describeBackend(layout project.Layout, spec project.ContextBackend, from st
 	case project.ContextBackendS3:
 		info.Location = "s3://" + spec.Bucket + "/" + spec.Prefix
 	case project.ContextBackendBowrain:
+		//pathguard: the recipe of the layout the caller passes, read by path as project.Load reads it
 		venue, err := project.ReadContextVenue(layout.RecipePath)
 		if err != nil {
 			return ContextBackendInfo{}, err
@@ -259,6 +261,7 @@ func describeBackend(layout project.Layout, spec project.ContextBackend, from st
 // context away from the Bowrain project the recipe connects to. A recipe with
 // no `bowrain:` block takes any backend.
 func RefuseSplitContext(recipe string, spec project.ContextBackend) error {
+	//pathguard: the recipe path the caller passes as recipe, read by path as project.Load reads it
 	venue, onBowrain, err := project.RecipeVenue(recipe)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil

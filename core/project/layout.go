@@ -224,14 +224,17 @@ func EnsureLocalDir(layout Layout, name string) (string, error) {
 		return "", err
 	}
 	dir := filepath.Join(layout.StateDir, name)
+	//pathguard: creates a named subdirectory of .kapi/ and edits .kapi/.gitignore, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("project: create %s: %w", name, err)
 	}
 	// A directory an earlier layout created keeps its own mode; tighten it.
+	//pathguard: creates a named subdirectory of .kapi/ and edits .kapi/.gitignore, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks
 	if err := os.Chmod(dir, 0o700); err != nil {
 		return "", fmt.Errorf("project: protect %s: %w", name, err)
 	}
 	ignorePath := filepath.Join(layout.StateDir, StateGitignoreFilename)
+	//pathguard: creates a named subdirectory of .kapi/ and edits .kapi/.gitignore, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks
 	existing, err := os.ReadFile(ignorePath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return "", fmt.Errorf("project: read %s: %w", StateGitignoreFilename, err)
@@ -244,6 +247,7 @@ func EnsureLocalDir(layout Layout, name string) (string, error) {
 		content += "\n"
 	}
 	content += name + "/\n"
+	//pathguard: creates a named subdirectory of .kapi/ and edits .kapi/.gitignore, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks
 	if err := os.WriteFile(ignorePath, []byte(content), 0o644); err != nil {
 		return "", fmt.Errorf("project: write %s: %w", StateGitignoreFilename, err)
 	}
@@ -280,12 +284,14 @@ func ResolveLayout(start string) (Layout, error) {
 	}
 
 	// If `start` is itself a file, walk from its parent directory.
+	//pathguard: stats the start directory a caller names (the working directory, a file a person named, an MCP path within the server's roots) to walk up from it; a found recipe goes through checkFoundRecipe
 	if info, err := os.Stat(abs); err == nil && !info.IsDir() {
 		abs = filepath.Dir(abs)
 	}
 
 	dir := abs
 	for {
+		//pathguard: stats the start directory a caller names (the working directory, a file a person named, an MCP path within the server's roots) to walk up from it; a found recipe goes through checkFoundRecipe
 		layout, err := layoutAtDir(dir)
 		if err == nil {
 			return layout, nil
@@ -332,6 +338,7 @@ func LayoutFor(recipePath string) (Layout, error) {
 	if err != nil {
 		return Layout{}, fmt.Errorf("project: abs recipe path: %w", err)
 	}
+	//pathguard: stats the recipe path the caller resolved (ResolveRecipePath or ResolveMCPCallProject); the layout it returns has passed Layout.CheckState
 	info, err := os.Stat(abs)
 	if err != nil {
 		return Layout{}, fmt.Errorf("project: stat recipe: %w", err)
@@ -339,6 +346,7 @@ func LayoutFor(recipePath string) (Layout, error) {
 	if info.IsDir() {
 		// Allow pointing -p at a project directory; resolve kapi.yaml inside.
 		recipe := filepath.Join(abs, RecipeFileName)
+		//pathguard: stats the recipe path the caller resolved (ResolveRecipePath or ResolveMCPCallProject); the layout it returns has passed Layout.CheckState
 		if _, err := os.Stat(recipe); err != nil {
 			return Layout{}, fmt.Errorf("project: no %s in %q: %w", RecipeFileName, abs, err)
 		}
@@ -362,11 +370,13 @@ func EnsureLayout(layout Layout) error {
 	if err := layout.CheckState(); err != nil {
 		return err
 	}
+	//pathguard: creates .kapi/ and .kapi/work/cache and writes .kapi/.gitignore, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks
 	fresh := cacheOnly(layout.StateDir)
 	for _, dir := range []string{
 		layout.StateDir,
 		layout.CacheDir(),
 	} {
+		//pathguard: creates .kapi/ and .kapi/work/cache and writes .kapi/.gitignore, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("project: create %s: %w", filepath.Base(dir), err)
 		}
@@ -381,7 +391,9 @@ func EnsureLayout(layout Layout) error {
 	// commits keeps them in the commit: an existing rule is never rewritten,
 	// only added to.
 	ignorePath := filepath.Join(layout.StateDir, StateGitignoreFilename)
+	//pathguard: stats .kapi/.gitignore before EnsureLayout writes it, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks
 	if _, err := os.Stat(ignorePath); errors.Is(err, os.ErrNotExist) && fresh {
+		//pathguard: creates .kapi/ and .kapi/work/cache and writes .kapi/.gitignore, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks
 		if err := os.WriteFile(ignorePath, []byte(StateGitignore), 0o644); err != nil {
 			return fmt.Errorf("project: write %s: %w", StateGitignoreFilename, err)
 		}
@@ -389,6 +401,7 @@ func EnsureLayout(layout Layout) error {
 	// A .kapi/ that holds files of its own still keeps the work directory
 	// out: a line for it is added to the rule, as EnsureLocalDir adds one for
 	// the vault and the sync state.
+	//pathguard: reads .kapi/.gitignore to add kapi's rules to it, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks
 	existing, err := os.ReadFile(ignorePath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("project: read %s: %w", StateGitignoreFilename, err)
@@ -401,6 +414,7 @@ func EnsureLayout(layout Layout) error {
 		content += "\n"
 	}
 	content += WorkDirName + "/\n"
+	//pathguard: creates .kapi/ and .kapi/work/cache and writes .kapi/.gitignore, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks
 	if err := os.WriteFile(ignorePath, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("project: write %s: %w", StateGitignoreFilename, err)
 	}
@@ -410,6 +424,7 @@ func EnsureLayout(layout Layout) error {
 // cacheOnly reports whether dir is absent or holds only what kapi writes into
 // a checkout's cache directory.
 func cacheOnly(dir string) bool {
+	//pathguard: lists .kapi/ for EnsureLayout, after Layout.CheckState accepted the layout, which refuses any link or irregular file beneath .kapi/, a state directory outside the root, and a .kapi/work git tracks
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return errors.Is(err, fs.ErrNotExist)
@@ -445,6 +460,7 @@ var (
 )
 
 func layoutAtDir(dir string) (Layout, error) {
+	//pathguard: lists the start directory of discovery and its ancestors, reading only entry names; a found recipe that is not a regular file inside its directory is refused (checkFoundRecipe)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {

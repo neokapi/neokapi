@@ -15,7 +15,7 @@ type TranslateAfterConfig struct {
 	// Level is the source level a block must reach before it is translated
 	// (none|written|established). Empty resolves to the default (written); any
 	// other value outside the three levels is refused when the tool is built.
-	Level string `json:"level,omitempty" schema:"title=Translate After,description=What a block's source must reach before its translations are produced: written (its checks pass) or established (a person reviewed it); none holds nothing,enum=none|written|established,default=written"`
+	Level string `json:"level,omitempty" schema:"title=Translate After,description=What a block's source must reach before its translations are produced: written (its checks pass) or established (a person reviewed it); none holds nothing,enum=none|written|established,default=written,path=none"`
 }
 
 // TranslateAfterTool is the leading source-transform stage of source-first

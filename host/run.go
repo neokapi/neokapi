@@ -104,6 +104,10 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 
 	inputPaths, _ := cmd.Flags().GetStringSlice("input")
 	namedFiles := len(inputPaths) > 0
+	// A plugin daemon may be sent paths beneath the project's root, the
+	// inputs named here and their -o destination, and nowhere else.
+	namedOutput, _ := cmd.Flags().GetString("output")
+	declarePathRoots(cmd, append(namedInputRoots(inputPaths), ctx.ProjectDir, outputRoot(namedOutput))...)
 	explain, _ := cmd.Flags().GetBool("explain")
 	if err := refusePackWithoutKpz(cmd, inputPaths); err != nil {
 		return err

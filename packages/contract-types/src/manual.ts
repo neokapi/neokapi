@@ -105,6 +105,9 @@ export interface PropertySchema {
   // Path annotation for resource/file path properties
   "x-path"?: PathAnnotation;
 
+  // Declares that the property names no file system location
+  "x-not-location"?: boolean;
+
   // JSON Schema structural
   properties?: Record<string, PropertySchema>;
   additionalProperties?: PropertySchema | boolean;

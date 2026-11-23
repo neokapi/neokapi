@@ -93,6 +93,7 @@ func (a *App) checkProvenance(ctx context.Context, cmd Command) *check.ContextPr
 	}
 	// A recipe that will not load leaves the identity out rather than guessing
 	// one. The workspace revision and the projection's state stand on their own.
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, _ := project.LoadWithOptions(path, project.LoadOptions{SkipRequiresCheck: true})
 	return a.contextProvenanceAt(ctx, cmd, proj)
 }

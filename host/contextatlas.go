@@ -465,6 +465,7 @@ func (b *atlasBuilder) terms(ctx context.Context) error {
 		if err := layout.CheckState(); err != nil {
 			return err
 		}
+		//pathguard: stats the project store of a layout terms checks with Layout.CheckState, which refuses any link or irregular file beneath .kapi/ just before
 		if info, err := os.Stat(layout.StorePath()); err != nil || info.IsDir() {
 			b.note("This project has no store yet, so it holds no terms.")
 			return nil

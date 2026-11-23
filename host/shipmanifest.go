@@ -127,6 +127,7 @@ func (a *App) emitShipManifest(cmd Command, m ShipManifest) error {
 	buf = append(buf, '}', '\n')
 
 	if path, _ := cmd.Flags().GetString("emit"); path != "" {
+		//pathguard: the --emit flag of kapi status
 		if err := os.WriteFile(path, buf, 0o644); err != nil {
 			return fmt.Errorf("write ship manifest: %w", err)
 		}

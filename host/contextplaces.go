@@ -57,6 +57,7 @@ type ContextPlace struct {
 func (a *App) ContextPlaces(_ context.Context, req ContextPlacesRequest) (ContextPlaces, error) {
 	g := place.Builtin()
 	if req.Project != "" {
+		//pathguard: the recipe path the caller passes as req.Project, read by path as project.Load reads it
 		proj, err := project.LoadWithOptions(req.Project, project.LoadOptions{SkipRequiresCheck: true})
 		if err != nil {
 			return ContextPlaces{}, err

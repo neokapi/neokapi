@@ -133,6 +133,7 @@ func (c *kpzCache) hasSource(src kpzCacheSource) bool {
 	if !src.RawPresent {
 		return false
 	}
+	//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 	_, err := os.Stat(c.sourcePath(src.Name))
 	return err == nil
 }
@@ -153,9 +154,11 @@ func (c *kpzCache) save() error {
 	if err != nil {
 		return err
 	}
+	//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 	if err := os.MkdirAll(c.dir, 0o755); err != nil {
 		return err
 	}
+	//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 	return os.WriteFile(c.metaPath(), append(data, '\n'), 0o644)
 }
 
@@ -168,6 +171,7 @@ func sourceStoreKey(archivePath string) string {
 // buildKpzCache (re)builds a workspace cache from a .kpz, overwriting any
 // existing cache at that location.
 func buildKpzCache(ctx context.Context, kpzPath string) (*kpzCache, error) {
+	//pathguard: the .kpz named on the command line, as the caller passes it
 	pkg, err := LoadWorkspace(kpzPath)
 	if err != nil {
 		return nil, err
@@ -193,15 +197,19 @@ func buildKpzCacheFromPackage(ctx context.Context, kpzPath string, pkg *kpz.Pack
 	if err := storage.RemoveAll(dir); err != nil {
 		return nil, fmt.Errorf("kpz cache: clear: %w", err)
 	}
+	//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 	if err := os.RemoveAll(dir); err != nil {
 		return nil, fmt.Errorf("kpz cache: clear: %w", err)
 	}
+	//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 	if err := os.MkdirAll(filepath.Join(dir, "sources"), 0o755); err != nil {
 		return nil, err
 	}
+	//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 	if err := os.MkdirAll(filepath.Join(dir, "overlays"), 0o755); err != nil {
 		return nil, err
 	}
+	//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 	if err := os.MkdirAll(filepath.Join(dir, "skeletons"), 0o755); err != nil {
 		return nil, err
 	}
@@ -258,6 +266,7 @@ func buildKpzCacheFromPackage(ctx context.Context, kpzPath string, pkg *kpz.Pack
 		// Raw source bytes: stream them into the cache when present (the runtime
 		// needs them). Pack retention is tracked separately by hasRawSource.
 		if raw, ok := rawByPath[e.archivePath]; ok {
+			//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 			if err := copyContentToFile(raw.Content, c.sourcePath(name)); err != nil {
 				return nil, fmt.Errorf("kpz cache: write source: %w", err)
 			}
@@ -268,6 +277,7 @@ func buildKpzCacheFromPackage(ctx context.Context, kpzPath string, pkg *kpz.Pack
 		// Skeleton (default source-retention): stream it into the cache.
 		if skel, ok := skelBySource[e.sourcePath]; ok {
 			skelName := name + ".skel"
+			//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 			if err := copyContentToFile(skel.Content, c.skeletonPath(skelName)); err != nil {
 				return nil, fmt.Errorf("kpz cache: write skeleton: %w", err)
 			}
@@ -301,6 +311,7 @@ func buildKpzCacheFromPackage(ctx context.Context, kpzPath string, pkg *kpz.Pack
 // exists yet.
 func openKpzCache(kpzPath string) (*kpzCache, bool, error) {
 	dir := kpzCacheDir(kpzPath)
+	//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 	data, err := os.ReadFile(filepath.Join(dir, "meta.json"))
 	if os.IsNotExist(err) {
 		return nil, false, nil
@@ -373,6 +384,7 @@ func (a *App) ensureKpzCache(ctx context.Context, kpzPath string) (*kpzCache, er
 
 // kpzFileRootHash reads a .kpz and returns its content rootHash.
 func kpzFileRootHash(kpzPath string) (string, error) {
+	//pathguard: the .kpz named on the command line, as the caller passes it
 	pkg, err := LoadWorkspace(kpzPath)
 	if err != nil {
 		return "", err
@@ -451,6 +463,7 @@ func (c *kpzCache) pack(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	//pathguard: the .kpz the cache was built from, named on the command line
 	if err := saveWorkspace(pkg, c.meta.KpzPath); err != nil {
 		return err
 	}

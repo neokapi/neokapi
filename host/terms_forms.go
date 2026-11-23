@@ -41,6 +41,7 @@ func (a *App) OpenTermsFormsTarget(cmd Command, bundle string) (*TermsFormsTarge
 		if !ktb.IsBundlePath(bundle) {
 			return nil, fmt.Errorf("%s is not a terms bundle: expected a %s file", bundle, ktb.Ext)
 		}
+		//pathguard: the terms bundle argument or --file flag of kapi terms expand and validate
 		return openBundleTarget(bundle)
 	}
 
@@ -52,9 +53,11 @@ func (a *App) OpenTermsFormsTarget(cmd Command, bundle string) (*TermsFormsTarge
 }
 
 func openBundleTarget(path string) (*TermsFormsTarget, error) {
+	//pathguard: the terms bundle argument or --file flag of kapi terms expand and validate
 	if _, err := os.Stat(path); err != nil {
 		return nil, fmt.Errorf("open terms bundle: %w", err)
 	}
+	//pathguard: the terms bundle argument or --file flag of kapi terms expand and validate
 	file, err := loadKTBFile(path)
 	if err != nil {
 		return nil, err
@@ -66,6 +69,7 @@ func openBundleTarget(path string) (*TermsFormsTarget, error) {
 // whole document is returned, concepts and relations, so a write of it
 // round-trips everything the file carried rather than only the part that moved.
 func loadKTBFile(path string) (*ktb.File, error) {
+	//pathguard: the terms bundle argument or --file flag of kapi terms expand and validate
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -90,12 +94,15 @@ func writeKTB(path string, file *ktb.File) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("marshal terms bundle: %w", err)
 	}
+	//pathguard: the terms bundle argument or --file flag of kapi terms expand and validate
 	if existing, rerr := os.ReadFile(path); rerr == nil && bytes.Equal(existing, data) {
 		return false, nil
 	}
+	//pathguard: the terms bundle argument or --file flag of kapi terms expand and validate
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return false, fmt.Errorf("create bundle dir: %w", err)
 	}
+	//pathguard: the terms bundle argument or --file flag of kapi terms expand and validate
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		return false, fmt.Errorf("write terms bundle: %w", err)
 	}
@@ -124,6 +131,7 @@ func (t *TermsFormsTarget) Save(ctx context.Context, concepts []terms.Concept, c
 	}
 	if t.file != nil {
 		t.file.Concepts = concepts
+		//pathguard: the terms bundle argument or --file flag of kapi terms expand and validate
 		return writeKTB(t.bundle, t.file)
 	}
 	for _, c := range concepts {

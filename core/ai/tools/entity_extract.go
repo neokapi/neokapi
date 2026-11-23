@@ -48,17 +48,17 @@ const (
 
 // AIEntityExtractConfig holds configuration for the entity extraction tool.
 type AIEntityExtractConfig struct {
-	Engine   string `json:"engine,omitempty" schema:"title=Extraction Engine,description=llm (AI provider; default) / ner (local on-device model: nothing leaves the machine) / hybrid (both),enum=llm|ner|hybrid,default=llm"`
-	Provider string `json:"provider,omitempty" schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
-	APIKey   string `json:"api_key,omitempty" schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	Engine   string `json:"engine,omitempty" schema:"title=Extraction Engine,description=llm (AI provider; default) / ner (local on-device model: nothing leaves the machine) / hybrid (both),enum=llm|ner|hybrid,default=llm,path=none"`
+	Provider string `json:"provider,omitempty" schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider,path=none"`
+	APIKey   string `json:"api_key,omitempty" schema:"title=API Key,description=API key for the AI provider,group=provider,path=none"`
 	// BaseURL is the endpoint the provider is called at, for a self-hosted or
 	// proxied deployment. The host resolves it from the credential the key
 	// came from and injects it here; a recipe cannot set it, which is why it
 	// is off the form (see host/credentials.stripRecipeEndpoint).
 	BaseURL     string         `json:"base_url,omitempty" schema:"-"`
-	Model       string         `json:"model,omitempty" schema:"title=Model,description=AI model name,group=provider"`
-	Locale      model.LocaleID `json:"locale,omitempty" schema:"description=Locale of the source content"`
-	KnownTerms  []string       `json:"known_terms,omitempty" schema:"description=Terms to exclude from extraction (already in the terms store)"`                // terms to exclude from extraction (already in terms)
+	Model       string         `json:"model,omitempty" schema:"title=Model,description=AI model name,group=provider,path=none"`
+	Locale      model.LocaleID `json:"locale,omitempty" schema:"description=Locale of the source content,path=none"`
+	KnownTerms  []string       `json:"known_terms,omitempty" schema:"description=Terms to exclude from extraction (already in the terms store),path=none"`                // terms to exclude from extraction (already in terms)
 	BatchSize   int            `json:"batch_size,omitempty" schema:"description=Number of blocks per LLM call (0 or 1 = one block per call),default=1,min=1"`   // Blocks per LLM call. 0 or 1 = one block per call.
 	Concurrency int            `json:"batch_concurrency,omitempty" schema:"description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"` // Concurrent batch calls. 0 or 1 = sequential.
 }

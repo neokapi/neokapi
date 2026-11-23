@@ -150,6 +150,7 @@ func (a *App) NoteMCPSession(ctx context.Context, recipe, agent string) {
 	}
 	var key workspace.ProjectKey
 	if recipe != "" {
+		//pathguard: the recipe path the caller passes as recipe, read by path as project.Load reads it
 		if identity, _ := recipeIdentity(recipe); identity != "" {
 			key = workspace.ProjectKey(identity)
 		}

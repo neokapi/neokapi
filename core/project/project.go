@@ -1096,6 +1096,7 @@ type LoadOptions struct {
 // backwards-compatible wrapper around LoadWithOptions that runs full
 // validation.
 func Load(path string) (*KapiProject, error) {
+	//pathguard: the recipe path the caller passes as path, read by path as project.Load reads it
 	return LoadWithOptions(path, LoadOptions{})
 }
 
@@ -1106,6 +1107,7 @@ func Load(path string) (*KapiProject, error) {
 // expected to call ValidateRequires once it's had a chance to install
 // missing plugins.
 func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
+	//pathguard: the recipe file at the path the caller resolved: one a person named with -p or KAPI_PROJECT, one an MCP call named that ResolveMCPCallProject resolved within the server's roots, or one discovery found, which checkFoundRecipe refuses when it is a link out of its directory or not a regular file
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read project file: %w", err)

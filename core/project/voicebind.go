@@ -33,6 +33,7 @@ func BindVoice(path, profile, id string) error {
 	if id == "" {
 		return errors.New("recipe: a voice binding needs a profile id")
 	}
+	//pathguard: the recipe file at the path the caller resolved: one a person named with -p or KAPI_PROJECT, one an MCP call named that ResolveMCPCallProject resolved within the server's roots, or one discovery found, which checkFoundRecipe refuses when it is a link out of its directory or not a regular file
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read project file: %w", err)
@@ -52,10 +53,12 @@ func BindVoice(path, profile, id string) error {
 	if got := voiceAt(&check, profile); got == nil || got.Profile != id {
 		return bindVoiceBySave(path, profile, id)
 	}
+	//pathguard: the recipe file at the path the caller resolved: one a person named with -p or KAPI_PROJECT, one an MCP call named that ResolveMCPCallProject resolved within the server's roots, or one discovery found, which checkFoundRecipe refuses when it is a link out of its directory or not a regular file
 	info, err := os.Stat(path)
 	if err != nil {
 		return fmt.Errorf("stat project file: %w", err)
 	}
+	//pathguard: the recipe file at the path the caller resolved: one a person named with -p or KAPI_PROJECT, one an MCP call named that ResolveMCPCallProject resolved within the server's roots, or one discovery found, which checkFoundRecipe refuses when it is a link out of its directory or not a regular file
 	if err := os.WriteFile(path, out, info.Mode().Perm()); err != nil {
 		return fmt.Errorf("write project file: %w", err)
 	}
@@ -77,6 +80,7 @@ func (b *VoiceBinding) NamedFile() string {
 // validated, so a binding in a form the loader rejects is still reported, with
 // NamedFile set.
 func DeclaredDefaultVoice(path string) (*VoiceBinding, error) {
+	//pathguard: the recipe file at the path the caller resolved: one a person named with -p or KAPI_PROJECT, one an MCP call named that ResolveMCPCallProject resolved within the server's roots, or one discovery found, which checkFoundRecipe refuses when it is a link out of its directory or not a regular file
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read project file: %w", err)
@@ -103,6 +107,7 @@ func voiceAt(p *KapiProject, profile string) *VoiceBinding {
 
 // bindVoiceBySave is the fallback for a parent the text insertion cannot reach.
 func bindVoiceBySave(path, profile, id string) error {
+	//pathguard: the recipe path the caller passes as path, read by path as project.Load reads it
 	proj, err := LoadWithOptions(path, LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)

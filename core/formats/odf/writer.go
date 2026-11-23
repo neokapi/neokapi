@@ -90,6 +90,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	}
 	var origZR *zip.Reader
 	if w.sourcePath != "" {
+		//pathguard: the source document path the caller gave SetSourcePath, the input this run read, opened again to rebuild the archive without a second copy in memory
 		zrc, err := zip.OpenReader(w.sourcePath)
 		if err != nil {
 			return fmt.Errorf("odf: open source %q: %w", w.sourcePath, err)

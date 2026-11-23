@@ -40,9 +40,11 @@ var kpzRewriter = change.Actor{Kind: change.ActorTool, Name: "kpz"}
 // edited takes the new bytes as its head. A version the log holds already is
 // not recorded again. It returns how many documents it recorded.
 func (a *App) recordKpzRewrites(ctx context.Context, c *kpzCache, kpzPath string) (int, error) {
+	//pathguard: kapi's own .kpz working cache under $XDG_CACHE_HOME/kapi/kpz (KAPI_KPZ_CACHE), a system location
 	if _, err := os.Stat(kpzLogDir(c.dir)); err != nil {
 		return 0, nil
 	}
+	//pathguard: the .kpz named on the command line whose working cache this is
 	pkg, err := LoadWorkspace(kpzPath)
 	if err != nil {
 		return 0, err
@@ -275,6 +277,7 @@ func kpzCachesUnder(root string) []string {
 			return nil
 		}
 	}
+	//pathguard: lists kapi's own .kpz working caches under $XDG_CACHE_HOME/kapi/kpz, a system location; the KPZ under root is stated through statIn
 	entries, err := os.ReadDir(kpzCacheRoot())
 	if err != nil {
 		return nil
@@ -285,9 +288,11 @@ func kpzCachesUnder(root string) []string {
 			continue
 		}
 		dir := filepath.Join(kpzCacheRoot(), e.Name())
+		//pathguard: lists kapi's own .kpz working caches under $XDG_CACHE_HOME/kapi/kpz, a system location; the KPZ under root is stated through statIn
 		if _, err := os.Stat(kpzLogDir(dir)); err != nil {
 			continue
 		}
+		//pathguard: lists kapi's own .kpz working caches under $XDG_CACHE_HOME/kapi/kpz, a system location; the KPZ under root is stated through statIn
 		data, err := os.ReadFile(filepath.Join(dir, "meta.json"))
 		if err != nil {
 			continue

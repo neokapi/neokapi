@@ -56,6 +56,7 @@ func Load(path string) (*Project, error) {
 	if err != nil {
 		return nil, err
 	}
+	//pathguard: the recipe of the layout the caller passes, read by path as project.Load reads it
 	r, err := LoadRecipe(layout.RecipePath)
 	if err != nil {
 		return nil, err
@@ -75,6 +76,7 @@ func InitProject(root string, recipe *Recipe) (*Project, error) {
 	if err != nil {
 		return nil, fmt.Errorf("absolute path: %w", err)
 	}
+	//pathguard: the folder kapi init --server was named (--dir or the working directory)
 	if err := os.MkdirAll(absRoot, 0o755); err != nil {
 		return nil, fmt.Errorf("create root: %w", err)
 	}
@@ -84,6 +86,7 @@ func InitProject(root string, recipe *Recipe) (*Project, error) {
 		return nil, errors.New("cannot derive project name from root path")
 	}
 	recipePath := filepath.Join(absRoot, coreproj.RecipeFileName)
+	//pathguard: the folder kapi init --server was named (--dir or the working directory)
 	if _, err := os.Stat(recipePath); err == nil {
 		return nil, fmt.Errorf("recipe already exists at %s", recipePath)
 	}

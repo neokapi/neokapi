@@ -615,6 +615,7 @@ func detectMediaMIME(filename string) string {
 // Close releases resources.
 func (r *Reader) Close() error {
 	if r.tmpFile != "" {
+		//pathguard: removes the temp file the reader created with os.CreateTemp
 		os.Remove(r.tmpFile)
 		r.tmpFile = ""
 	}

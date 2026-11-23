@@ -77,7 +77,9 @@ func Write(t *testing.T) Project {
 	write := func(rel, body string) {
 		t.Helper()
 		p := filepath.Join(root, filepath.FromSlash(rel))
+		//pathguard: a test fixture written under the test's own t.TempDir
 		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		//pathguard: a test fixture written under the test's own t.TempDir
 		require.NoError(t, os.WriteFile(p, []byte(body), 0o644))
 	}
 
@@ -173,7 +175,9 @@ func WritePosix(t *testing.T) Project {
 	write := func(rel, body string) {
 		t.Helper()
 		p := filepath.Join(root, filepath.FromSlash(rel))
+		//pathguard: a test fixture written under the test's own t.TempDir
 		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		//pathguard: a test fixture written under the test's own t.TempDir
 		require.NoError(t, os.WriteFile(p, []byte(body), 0o644))
 	}
 

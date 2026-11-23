@@ -272,18 +272,20 @@ func (t *MediaRefineTool) Capability() tool.Capability { return tool.CapTransfor
 // MediaRefineConfig configures the tool. Provider is selected explicitly — there
 // is no implicit fallback.
 type MediaRefineConfig struct {
-	Provider string `json:"provider,omitempty"  schema:"title=AI Provider,description=Multimodal AI provider,default=anthropic,group=provider"`
-	APIKey   string `json:"api_key,omitempty"    schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	Provider string `json:"provider,omitempty"  schema:"title=AI Provider,description=Multimodal AI provider,default=anthropic,group=provider,path=none"`
+	APIKey   string `json:"api_key,omitempty"    schema:"title=API Key,description=API key for the AI provider,group=provider,path=none"`
 	// BaseURL is the endpoint the provider is called at, for a self-hosted or
 	// proxied deployment. The host resolves it from the credential the key
 	// came from and injects it here; a recipe cannot set it, which is why it
 	// is off the form (see host/credentials.stripRecipeEndpoint).
 	BaseURL   string  `json:"base_url,omitempty"   schema:"-"`
-	Model     string  `json:"model,omitempty"     schema:"title=Model,description=Multimodal model name,group=provider"`
+	Model     string  `json:"model,omitempty"     schema:"title=Model,description=Multimodal model name,group=provider,path=none"`
 	Threshold float64 `json:"threshold,omitempty" schema:"title=Confidence Threshold,description=Re-read extracted lines whose confidence is below this,default=0.85"`
 	// Source is the path to the source raster (the image the blocks were OCR'd
 	// from). When empty, the tool uses a page-raster Media part from the stream.
-	Source string `json:"source,omitempty" schema:"-"`
+	// Only Go code sets it: a step config cannot, because the file it names is
+	// sent to the model provider and no project root contains it.
+	Source string `json:"-" schema:"-"`
 }
 
 const defaultRefineThreshold = 0.85

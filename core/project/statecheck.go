@@ -36,6 +36,7 @@ func (l Layout) CheckState() error {
 	if l.Root == "" {
 		return nil
 	}
+	//pathguard: the check itself: it lstats the state directory and walks it (WalkDir follows no link) to refuse a link or irregular file beneath it
 	if _, err := os.Lstat(l.StateDir); errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
@@ -60,6 +61,7 @@ func (l Layout) CheckState() error {
 		}
 		return filepath.Join(l.StateDir, rel)
 	}
+	//pathguard: the check itself: it lstats the state directory and walks it (WalkDir follows no link) to refuse a link or irregular file beneath it
 	err = filepath.WalkDir(real, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
@@ -303,11 +305,13 @@ func caseFolds(root string) bool {
 func findGitDir(root string) (string, bool) {
 	for dir := root; ; dir = filepath.Dir(dir) {
 		dotgit := filepath.Join(dir, ".git")
+		//pathguard: walks up from the project root to the repository holding it; of a .git pointer file it reads only the gitdir line, and it reads or writes nothing that line names
 		if info, err := os.Stat(dotgit); err == nil {
 			if info.IsDir() {
 				return dotgit, true
 			}
 			// A worktree or submodule: .git is a file naming the directory.
+			//pathguard: walks up from the project root to the repository holding it; of a .git pointer file it reads only the gitdir line, and it reads or writes nothing that line names
 			b, err := os.ReadFile(dotgit)
 			if err != nil {
 				return dotgit, true
@@ -331,6 +335,7 @@ func findGitDir(root string) (string, bool) {
 // index, to tell whether git must be asked again. It reports false when there
 // is no index yet, and then git is asked every time.
 func gitIndexStamp(gitDir string) (string, bool) {
+	//pathguard: stats the index of the repository findGitDir found, to tell whether git must be asked again; it reads nothing
 	idx, err := os.Stat(filepath.Join(gitDir, "index"))
 	if err != nil {
 		return "", false

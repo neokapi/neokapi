@@ -73,6 +73,7 @@ func NewOverlayAppConfig(appName string, configure func(cfg *AppConfig)) *AppCon
 	cfg := NewAppConfig()
 
 	overlayPath := GlobalConfigFilePath(appName)
+	//pathguard: the app's overlay file in the user config dir (GlobalConfigFilePath).
 	if _, err := os.Stat(overlayPath); err == nil {
 		overlay := viper.New()
 		overlay.SetConfigFile(overlayPath)
@@ -150,6 +151,7 @@ func (c *AppConfig) Load() error {
 // kapi writes.
 func (c *AppConfig) mergeLegacyLayers() {
 	for _, path := range legacyConfigPaths() {
+		//pathguard: the legacy config files in the user config dir and /etc (legacyConfigPaths).
 		if _, err := os.Stat(path); err != nil {
 			continue
 		}
@@ -414,6 +416,7 @@ func SetGlobalConfig(key, value string, appName ...string) error {
 
 	v.Set(key, value)
 
+	//pathguard: the global config file in the user config dir (GlobalConfigFilePath).
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
@@ -427,6 +430,7 @@ func SetGlobalConfig(key, value string, appName ...string) error {
 // hollow `ai: {}` behind. It reports whether the key was present.
 func UnsetGlobalConfig(key string, appName ...string) (bool, error) {
 	path := GlobalConfigFilePath(appName...)
+	//pathguard: the global config file in the user config dir (GlobalConfigFilePath).
 	if _, err := os.Stat(path); err != nil {
 		return false, nil // nothing stored: unsetting is a no-op, not an error
 	}
@@ -488,6 +492,7 @@ func pruneKey(m map[string]any, path []string) bool {
 // persisted and where, which is what `kapi config list` reports.
 func GlobalConfigValues(appName ...string) (map[string]string, error) {
 	path := GlobalConfigFilePath(appName...)
+	//pathguard: the global config file in the user config dir (GlobalConfigFilePath).
 	if _, err := os.Stat(path); err != nil {
 		return map[string]string{}, nil
 	}

@@ -87,6 +87,7 @@ func enrichTier3(ctx context.Context, in <-chan model.PartResult, out chan<- mod
 	// before its LayerEnd (which is where a completed page deletes its raster).
 	defer func() {
 		if raster != nil && raster.URI != "" {
+			//pathguard: a page raster the plugin rendered to a temporary file; the plugin is code the user installed
 			_ = os.Remove(raster.URI)
 		}
 	}()
@@ -119,6 +120,7 @@ func enrichTier3(ctx context.Context, in <-chan model.PartResult, out chan<- mod
 					}
 				}
 				if raster != nil && raster.URI != "" {
+					//pathguard: a page raster the plugin rendered to a temporary file; the plugin is code the user installed
 					_ = os.Remove(raster.URI)
 				}
 				blocks, raster = nil, nil

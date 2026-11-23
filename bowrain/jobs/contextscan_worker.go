@@ -674,6 +674,7 @@ func readContextScanUpload(ctx context.Context, reg *registry.FormatRegistry, bl
 // points at; the connector's fetch also refuses a path that resolves outside
 // the checkout.
 func contextScanRepoPaths(dir string, all []*platconn.ContentItem) []string {
+	//pathguard: the scan's own checkout directory, resolved once so each listed file can be checked against it; a file that passes through a link is skipped
 	realDir, err := filepath.EvalSymlinks(dir)
 	if err != nil {
 		return nil
@@ -721,10 +722,12 @@ func fetchContextScanRepo(ctx context.Context, formatReg *registry.FormatRegistr
 		return "", err
 	}
 
+	//pathguard: creates a new directory in the OS temp dir
 	dir, err := os.MkdirTemp("", "contextscan-git-")
 	if err != nil {
 		return "", fmt.Errorf("create scan checkout dir: %w", err)
 	}
+	//pathguard: removes the scan checkout directory it created with os.MkdirTemp
 	defer os.RemoveAll(dir)
 
 	conn, err := connector.NewGitConnector(formatReg, map[string]string{
@@ -749,6 +752,7 @@ func fetchContextScanRepo(ctx context.Context, formatReg *registry.FormatRegistr
 	if err != nil {
 		return "", err
 	}
+	//pathguard: the scan's own checkout directory, which this function created with os.MkdirTemp
 	paths := contextScanRepoPaths(dir, all)
 	if len(paths) == 0 {
 		return "", nil

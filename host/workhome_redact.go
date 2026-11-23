@@ -159,6 +159,7 @@ func (k *keptRedaction) Restore(_ context.Context, r workhome.Row, runs []model.
 func (k *keptRedaction) valuesFor(id string) ([]redaction.RedactedValue, error) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
+	//pathguard: the project vault of a layout keptRedactionAt checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/ before newRecordRedaction prepared it
 	info, err := os.Stat(k.policy.vault)
 	if os.IsNotExist(err) {
 		return nil, nil

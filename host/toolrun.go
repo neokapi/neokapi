@@ -28,6 +28,7 @@ import (
 	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/host/pluginhost"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -174,9 +175,15 @@ func (a *App) newToolChain(cfg ToolRunConfig) (toolChain, error) {
 // RunToolOnFiles processes each file through a single-tool flow and
 // aggregates results via the collector. Files are processed in parallel.
 func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
+	// A plugin daemon may be sent paths beneath the files named for this run,
+	// their -o destination and the project the command resolved, and nowhere
+	// else.
+	ctx = pluginhost.AddPathRoots(ctx, append(namedInputRoots(append(slices.Clone(cfg.Files), cfg.TargetFile)),
+		outputRoot(cfg.OutputTemplate), projectRootDir(cfg.Project))...)
 	var proj *project.KapiProject
 	if cfg.Project != "" {
 		var perr error
+		//pathguard: the recipe path the caller passes as cfg.Project, read by path as project.Load reads it
 		proj, perr = project.LoadWithOptions(cfg.Project, project.LoadOptions{SkipRequiresCheck: true})
 		if perr != nil {
 			return fmt.Errorf("load project %s: %w", cfg.Project, perr)
@@ -401,6 +408,7 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		if err != nil {
 			return fmt.Errorf("marshal batch trace: %w", err)
 		}
+		//pathguard: the --trace flag of kapi exec
 		if err := writeTraceFile(cfg.TracePath, traceJSON); err != nil {
 			return err
 		}
@@ -805,6 +813,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		if err != nil {
 			return fmt.Errorf("marshal trace: %w", err)
 		}
+		//pathguard: the --trace flag of kapi exec
 		if err := writeTraceFile(resolvedTracePath, traceJSON); err != nil {
 			return err
 		}
@@ -964,9 +973,11 @@ func walkDirFiles(root string) ([]string, error) {
 // writeTraceFile writes a flow trace to the file the --trace flag names,
 // creating its directory.
 func writeTraceFile(path string, data []byte) error {
+	//pathguard: the --trace flag of kapi exec
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create trace dir: %w", err)
 	}
+	//pathguard: the --trace flag of kapi exec
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		return fmt.Errorf("write trace: %w", err)
 	}

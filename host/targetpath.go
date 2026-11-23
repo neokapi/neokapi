@@ -37,6 +37,7 @@ import (
 // non-directory parent — or nil when the path is a usable destination (free, or
 // holding a regular file to replace).
 func blockedTargetPath(path string) error {
+	//pathguard: only stats a destination and its parent to refuse or classify it; the write itself goes through the file home, which keeps it inside the root
 	return flow.CheckOutputPath(path)
 }
 

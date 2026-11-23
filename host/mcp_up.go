@@ -87,6 +87,7 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 		if err != nil {
 			return nil, nil, err
 		}
+		//pathguard: the recipe an MCP call named, resolved within the server's roots by ResolveMCPCallProject
 		proj, err := project.LoadWithOptions(path, project.LoadOptions{SkipRequiresCheck: true})
 		if err != nil {
 			return nil, nil, err

@@ -340,6 +340,7 @@ func outdatedVenuePluginError(p *pluginhost.Plugin) error {
 // gets the directory that holds it and the advice to replace it, with no
 // command that would not apply.
 func pluginUpdateAdvice(p *pluginhost.Plugin) string {
+	//pathguard: an installed plugin's directory, resolved only to read the Homebrew formula off its Cellar path
 	if formula := brewFormulaOf(p.Dir); formula != "" {
 		return "Update the plugin: brew upgrade " + formula
 	}
@@ -373,6 +374,7 @@ func UndeclaredServerFlagError(set []string) error {
 // (.../Cellar/<formula>/<version>/...), or "" when dir is not in a Cellar.
 // A beta install (bowrain-cli-beta) is named as such.
 func brewFormulaOf(dir string) string {
+	//pathguard: an installed plugin's directory, resolved only to read the Homebrew formula off its Cellar path
 	real, err := filepath.EvalSymlinks(dir)
 	if err != nil {
 		return ""

@@ -90,11 +90,13 @@ func registerPluginMCPTools(server *mcp.Server, a *App) {
 			if desc == "" {
 				desc = decl.Description
 			}
-			// A plugin is another program and may not annotate its location
-			// arguments: every string argument that reads as one is checked by
-			// the roots middleware as a path (mcp_args.go).
-			if args, err := locationArgs(decl.Name, schemaProperties(pluginInputSchema(tool))); err == nil && len(args) > 0 {
-				DeclareMCPPathArgs(decl.Name, MCPArgPath, args...)
+			// A plugin is another program and arrives past the audit. Its
+			// schema may declare each argument with x-path or x-not-location;
+			// every string argument it leaves undeclared is checked by the
+			// roots middleware as a path (mcp_args.go).
+			if err := declarePluginMCPArgs(decl.Name, pluginInputSchema(tool)); err != nil {
+				warnPlugin(p, fmt.Sprintf("tool %q has an input schema kapi cannot read (%v) and was skipped", decl.Name, err))
+				continue
 			}
 			server.AddTool(&mcp.Tool{
 				Name:        decl.Name,
@@ -123,6 +125,23 @@ func pluginInputSchema(t *mcp.Tool) any {
 		return map[string]any{"type": "object"}
 	}
 	return t.InputSchema
+}
+
+// declarePluginMCPArgs declares as a path every argument of a proxied tool
+// that can carry a string and that its schema declares neither way.
+func declarePluginMCPArgs(tool string, schema any) error {
+	args, err := mcpStringArgs(readMCPInputSchema(schema))
+	if err != nil {
+		return err
+	}
+	var undeclared []string
+	for _, a := range args {
+		if a.Kind == 0 {
+			undeclared = append(undeclared, a.Path)
+		}
+	}
+	DeclareMCPPathArgs(tool, MCPArgPath, undeclared...)
+	return nil
 }
 
 // pluginMCPHandler forwards one tool call to the plugin's own MCP server and

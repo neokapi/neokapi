@@ -226,8 +226,9 @@ func targetPolicyFor(info registry.ToolInfo) targetPolicy {
 var mcpCallerArgs = map[string]map[string]any{
 	"term-check": {
 		"term_rules": map[string]any{
-			"type":        "array",
-			"description": "The terms to check. Where the source contains a term, the translation should contain its replacement.",
+			"type":            "array",
+			"description":     "The terms to check. Where the source contains a term, the translation should contain its replacement.",
+			mcpNotLocationKey: true,
 			"items": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -245,7 +246,9 @@ var mcpCallerArgs = map[string]map[string]any{
 // frameworkToolInputSchema projects a tool's ComponentSchema into the MCP input
 // schema: the tool's own parameters, plus a required `text` field (the content
 // to process), an optional `target_lang`, and, for a bilingual tool that reads
-// one, a `target` field carrying the translation to run over.
+// one, a `target` field carrying the translation to run over. Each of these
+// declares that it names no location (mcp_args.go); `project` names one and
+// is checked as one.
 // MCP requires a top-level object schema, which ComponentSchema already is.
 func frameworkToolInputSchema(name string, s *schema.ComponentSchema, policy targetPolicy) (json.RawMessage, error) {
 	base := map[string]any{"type": "object", "properties": map[string]any{}}
@@ -265,13 +268,15 @@ func frameworkToolInputSchema(name string, s *schema.ComponentSchema, policy tar
 	}
 	maps.Copy(props, mcpCallerArgs[name])
 	props["text"] = map[string]any{
-		"type":        "string",
-		"description": "The content (text) to run the tool over.",
+		"type":            "string",
+		"description":     "The content (text) to run the tool over.",
+		mcpNotLocationKey: true,
 	}
 	if _, exists := props["target_lang"]; !exists {
 		props["target_lang"] = map[string]any{
-			"type":        "string",
-			"description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+			"type":            "string",
+			"description":     "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+			mcpNotLocationKey: true,
 		}
 	}
 	if _, exists := props["project"]; !exists {
@@ -285,8 +290,9 @@ func frameworkToolInputSchema(name string, s *schema.ComponentSchema, policy tar
 	required := []any{"text"}
 	if policy != targetWithheld {
 		props["target"] = map[string]any{
-			"type":        "string",
-			"description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check.",
+			"type":            "string",
+			"description":     "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check.",
+			mcpNotLocationKey: true,
 		}
 		if policy == targetRequired {
 			required = append(required, "target")
@@ -480,6 +486,7 @@ func (a *App) mcpToolRunPolicy(ctx context.Context, named, toolName string, conf
 	if err != nil || recipe == "" {
 		return toolRunPolicy{}, err
 	}
+	//pathguard: the recipe an MCP call named, resolved within the server's roots by ResolveMCPCallProject
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return toolRunPolicy{}, fmt.Errorf("load project %s: %w", DisplayName(recipe), err)

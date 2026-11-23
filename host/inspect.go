@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/rootpath"
+	"github.com/neokapi/neokapi/host/pluginhost"
 	yamlv3 "gopkg.in/yaml.v3"
 )
 
@@ -68,6 +69,9 @@ func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFor
 	if err != nil {
 		return err
 	}
+	// A plugin daemon may be sent paths beneath the files named here and the
+	// project in scope, and nowhere else.
+	ctx = pluginhost.AddPathRoots(ctx, append(namedInputRoots(rest), projectRootDir(recipe))...)
 	changes := a.newCommandChanges(cmd, recipe, ChangeServiceOptions{Origin: "inspect", Format: a.FormatFlag, Encoding: a.Encoding, TargetLocale: model.LocaleID(a.TargetLang), SourceLocale: model.LocaleID(a.SourceLang)})
 	src := inspectSources{changes: changes, editions: a.projectEditions(recipe), comments: a.newCommentDocs(recipe)}
 	if recipe != "" {

@@ -21,7 +21,7 @@ const (
 type XMLValidationConfig struct {
 	CheckSource bool           `schema:"title=Check Source,description=Validate source text for XML well-formedness,default=true"`          // Validate source text (default: true)
 	CheckTarget bool           `schema:"title=Check Target,description=Validate target text for XML well-formedness"`                       // Validate target text
-	Locale      model.LocaleID `schema:"title=Target Locale,description=Target locale for validation,showIfSet=CheckTarget"`                // Target locale for validation
+	Locale      model.LocaleID `schema:"title=Target Locale,description=Target locale for validation,showIfSet=CheckTarget,path=none"`                // Target locale for validation
 	WrapRoot    bool           `schema:"title=Wrap in Root Element,description=Wrap text in a root element before validating,default=true"` // Wrap text in root element before validating
 }
 

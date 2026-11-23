@@ -437,10 +437,12 @@ func (s *contextOpsSession) redactForModel(ctx context.Context, chunks []*model.
 	layout := project.LayoutAt(s.root)
 	vault := layout.RedactionVaultPath()
 	if dry {
+		//pathguard: creates a new directory in the OS temp dir
 		dir, err := os.MkdirTemp("", "kapi-deeper-look-vault-")
 		if err != nil {
 			return err
 		}
+		//pathguard: removes the vault directory a dry run created itself with os.MkdirTemp in the OS temp dir.
 		defer func() { _ = os.RemoveAll(dir) }()
 		vault = filepath.Join(dir, "redaction.json")
 	} else if err := layout.PrepareVault(); err != nil {

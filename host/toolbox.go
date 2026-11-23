@@ -80,6 +80,7 @@ func DisplayName(path string) string {
 // goroutine is torn down at process exit.
 func readContent(ctx context.Context, path string) ([]byte, error) {
 	if path != "" && path != StdinName {
+		//pathguard: the file argument of kcat, kgrep, ksed and kapi apply
 		return os.ReadFile(path)
 	}
 	type result struct {
@@ -244,6 +245,7 @@ func (a *App) streamBlocks(ctx context.Context, path string, fn func(index int, 
 	if loc, ok := parseEntryLocator(path); ok {
 		return a.streamEntryBlocks(ctx, loc, fn)
 	}
+	//pathguard: the file argument of kcat, kgrep and kapi stats
 	src, err := openDocSource(ctx, path)
 	if err != nil {
 		return "", err

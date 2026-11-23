@@ -147,6 +147,7 @@ type postEditRun struct {
 // project, a generated target, a file the project's collections do not read,
 // or one that is gone. err names why the check could not run.
 func (a *App) postEditCheck(cmd Command, projectPath, abs string) (run postEditRun, skip bool, err error) {
+	//pathguard: the recipe path the caller passes as projectPath, read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return run, false, fmt.Errorf("the project at %s could not be loaded: %w", projectPath, err)

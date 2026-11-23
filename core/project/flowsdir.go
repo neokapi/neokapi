@@ -161,6 +161,7 @@ func LoadDirFlowIn(root, dir, name string) (*DirFlow, error) {
 	if name == "" || strings.ContainsAny(name, `/\`) || name == "." || name == ".." {
 		return nil, fmt.Errorf("project: flow name %q is not a file name: %w", name, os.ErrNotExist)
 	}
+	//pathguard: flowsDirWithin refuses a flows directory that resolves outside root, and resolves one outside any project as it stands
 	held, err := flowsDirWithin(root, dir)
 	if err != nil {
 		return nil, fmt.Errorf("project: flow %q: %w", name, err)
@@ -188,6 +189,7 @@ func ListDirFlowsIn(root, dir string) []*DirFlow {
 	if dir == "" {
 		return nil
 	}
+	//pathguard: flowsDirWithin refuses a flows directory that resolves outside root, and resolves one outside any project as it stands
 	held, err := flowsDirWithin(root, dir)
 	if err != nil {
 		return nil
@@ -225,6 +227,7 @@ func ListDirFlowsIn(root, dir string) []*DirFlow {
 // as it resolves, refused when root is set and dir resolves outside it.
 func flowsDirWithin(root, dir string) (string, error) {
 	if root == "" {
+		//pathguard: a flows directory outside any project (root is empty); with a root, the branch below refuses one that resolves outside it
 		return filepath.EvalSymlinks(dir)
 	}
 	return rootpath.Contain(root, dir)

@@ -36,9 +36,14 @@ func init() {
 // registerBowrainTools registers all Bowrain CLI MCP tools on the given server.
 func registerBowrainTools(server *mcp.Server, a *cli.App) {
 	// The arguments that name a location inside the project, which the kapi
-	// mcp roots middleware checks (host/mcp_args.go).
+	// mcp roots middleware checks, and those that name none
+	// (host/mcp_args.go).
 	host.DeclareMCPPathArgs("project_push", host.MCPArgProjectRelative, "paths")
 	host.DeclareMCPPathArgs("project_ls", host.MCPArgProjectRelative, "paths")
+	host.DeclareMCPPathArgs("project_pull", host.MCPArgNotLocation, "locales")
+	host.DeclareMCPPathArgs("concept_search", host.MCPArgNotLocation, "query", "status", "market", "domain")
+	host.DeclareMCPPathArgs("concept_story", host.MCPArgNotLocation, "concept_id")
+	host.DeclareMCPPathArgs("experiment_status", host.MCPArgNotLocation, "changeset_id", "status")
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "project_status",
 		Description: "Show project sync status including pending push/pull counts and server connection",

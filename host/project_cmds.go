@@ -134,6 +134,7 @@ func InitProjectContext(ctx context.Context, root string, opts InitOptions) (*In
 			}
 			res.ID, res.IDMinted = id, minted
 		}
+		//pathguard: the recipe InitProjectContext wrote beneath root with writeWithin
 		proj, lerr := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 		if lerr != nil {
 			return nil, fmt.Errorf("load project: %w", lerr)
@@ -206,6 +207,7 @@ func uncoveredProposals(proj *project.KapiProject, proposals []ProposedCollectio
 // value already in it. A recipe that already carries an id is read and left
 // alone: SetField refuses to re-key a project, and this path does not ask it to.
 func MintProjectID(recipePath string) (string, bool, error) {
+	//pathguard: the recipe InitProjectContext, the only caller, wrote beneath its root with writeWithin
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return "", false, fmt.Errorf("load project: %w", err)
@@ -261,6 +263,7 @@ func ResolveDir(flag string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve --dir: %w", err)
 	}
+	//pathguard: the --dir flag of kapi init
 	if err := os.MkdirAll(abs, 0o755); err != nil {
 		return "", fmt.Errorf("create %s: %w", abs, err)
 	}
@@ -280,6 +283,7 @@ func writeWithin(ctx context.Context, root, path string, data []byte) error {
 // RecipeExists reports whether dir already holds a kapi.yaml recipe. Used to
 // detect an already-initialized project so `kapi init` is idempotent.
 func RecipeExists(dir string) (bool, error) {
+	//pathguard: whether the folder kapi init or kapi share was named (--dir, -p or the working directory) holds kapi.yaml; the recipe is written through the root
 	_, err := os.Stat(filepath.Join(dir, project.RecipeFileName))
 	if err == nil {
 		return true, nil

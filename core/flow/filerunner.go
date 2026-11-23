@@ -1385,6 +1385,7 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 	// bare "file exists", after the tools had already run and, for an AI flow,
 	// already been paid for. Checking first makes the failure actionable and
 	// free.
+	//pathguard: only stats a destination and its parent to refuse or classify it; the write itself goes through the file home, which keeps it inside the root
 	if err := CheckOutputPath(outputPath); err != nil {
 		return err
 	}
@@ -1427,6 +1428,7 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 		// rather than leaking the raw errno. A failure of the run itself is
 		// the run's error, and travels as it is.
 		if perr, ok := errors.AsType[*atomicfile.Error](werr); ok {
+			//pathguard: only stats a destination to classify a failed write for the error message; it decides nothing the write does
 			return ClassifyOutputPathError(outputPath, outputDir, perr.Err)
 		}
 		// A run that edits its file in place reads the file it watches. A

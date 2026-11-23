@@ -154,6 +154,7 @@ type ContextVenue struct {
 // project the recipe connects to. ok is false for a recipe with no such block,
 // or a block with no url, since neither connects the project to anything.
 func RecipeVenue(recipePath string) (v ContextVenue, ok bool, err error) {
+	//pathguard: the recipe file at the path the caller resolved: one a person named with -p or KAPI_PROJECT, one an MCP call named that ResolveMCPCallProject resolved within the server's roots, or one discovery found, which checkFoundRecipe refuses when it is a link out of its directory or not a regular file
 	data, err := os.ReadFile(recipePath)
 	if err != nil {
 		return ContextVenue{}, false, err
@@ -179,6 +180,7 @@ func RecipeVenue(recipePath string) (v ContextVenue, ok bool, err error) {
 // with from the recipe's top-level `bowrain:` block. A recipe with no such
 // block, or a block with no url, is refused with the key to add.
 func ReadContextVenue(recipePath string) (ContextVenue, error) {
+	//pathguard: the recipe file at the path the caller resolved: one a person named with -p or KAPI_PROJECT, one an MCP call named that ResolveMCPCallProject resolved within the server's roots, or one discovery found, which checkFoundRecipe refuses when it is a link out of its directory or not a regular file
 	data, err := os.ReadFile(recipePath)
 	if err != nil {
 		return ContextVenue{}, err

@@ -153,12 +153,14 @@ func (r *Reader) materialize() (path string, cleanup func(), err error) {
 			ext = e
 		}
 	}
+	//pathguard: creates a new file in the OS temp dir
 	tmp, err := os.CreateTemp("", "kapi-audio-*"+ext)
 	if err != nil {
 		return "", noop, fmt.Errorf("audio: temp file: %w", err)
 	}
 	if _, err := io.Copy(tmp, src); err != nil {
 		_ = tmp.Close()
+		//pathguard: removes the temp file the reader created with os.CreateTemp
 		_ = os.Remove(tmp.Name())
 		return "", noop, fmt.Errorf("audio: spool: %w", err)
 	}
@@ -168,9 +170,11 @@ func (r *Reader) materialize() (path string, cleanup func(), err error) {
 	// hands ffmpeg a silently TRUNCATED file, and the fault resurfaces as a
 	// decode error that names the wrong cause, far from where it happened.
 	if err := tmp.Close(); err != nil {
+		//pathguard: removes the temp file the reader created with os.CreateTemp
 		_ = os.Remove(tmp.Name())
 		return "", noop, fmt.Errorf("audio: spool: close: %w", err)
 	}
+	//pathguard: removes the temp file the reader created with os.CreateTemp
 	return tmp.Name(), func() { _ = os.Remove(tmp.Name()) }, nil
 }
 

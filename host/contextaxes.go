@@ -59,6 +59,7 @@ func (a *App) projectAxes(ctx context.Context, ws *workspace.Workspace, known wo
 			// A directory that now holds another project is passed over, as
 			// registeredCheckout passes it over.
 			recipe := project.LayoutAt(dir).RecipePath
+			//pathguard: kapi.yaml in a checkout the workspace registry records for the project on this machine
 			if identity, _ := recipeIdentity(recipe); identity != string(key) {
 				continue
 			}

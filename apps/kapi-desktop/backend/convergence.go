@@ -166,6 +166,7 @@ func (a *App) executeConvergeRun(ctx context.Context, op *openProject, projectPa
 	// AI activity log. A run's calls carry no unit address: the loop translates
 	// in batches, so the exchange itself is where the content is.
 	ctx = withAIScope(ctx, AIActivityScope{Surface: "convergence", Action: flowName})
+	ctx = withProjectPathRoots(ctx, op)
 
 	capp := a.newProjectEngine(op)
 	out, err := capp.RunUpDispatch(ctx, projectPath, sourceLang, host.UpOptions{

@@ -35,10 +35,10 @@ type llmSegmenter struct {
 // they are decoded from the params map the host hands in, and kept off the
 // generated schema so nothing offers them for authoring.
 type LLMParams struct {
-	Provider      string `json:"provider,omitempty"      schema:"title=Provider,description=AI provider id (anthropic, openai, gemini, …),order=10"`
-	Model         string `json:"model,omitempty"         schema:"title=Model,description=Model name,order=20"`
-	Credential    string `json:"credential,omitempty"    schema:"title=Credential,description=Stored credential name,widget=credential-picker,order=30"`
-	Instruction   string `json:"instruction,omitempty"   schema:"title=Chunking Instruction,description=Optional guidance for how to chunk,widget=textarea,order=40"`
+	Provider      string `json:"provider,omitempty"      schema:"title=Provider,description=AI provider id (anthropic, openai, gemini, …),order=10,path=none"`
+	Model         string `json:"model,omitempty"         schema:"title=Model,description=Model name,order=20,path=none"`
+	Credential    string `json:"credential,omitempty"    schema:"title=Credential,description=Stored credential name,widget=credential-picker,order=30,path=none"`
+	Instruction   string `json:"instruction,omitempty"   schema:"title=Chunking Instruction,description=Optional guidance for how to chunk,widget=textarea,order=40,path=none"`
 	MaxChunkRunes int    `json:"max_chunk_runes,omitempty" schema:"title=Max Chunk Size,description=Soft upper bound on chunk size in characters (0 = model default),min=0,order=50"`
 
 	// Resolved at runtime by the host, not exposed as form fields. They carry

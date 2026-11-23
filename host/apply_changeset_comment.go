@@ -231,6 +231,7 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 	// a project the change set names files the person chose, and a link among
 	// them is followed, as an editor would.
 	contain := ""
+	//pathguard: kapi.yaml directly in root, the project root or the working directory, stated only to tell whether root is a project
 	if root != "" && fileExists(filepath.Join(root, project.RecipeFileName)) {
 		contain = root
 	}

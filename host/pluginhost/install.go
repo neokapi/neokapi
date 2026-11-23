@@ -195,11 +195,14 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 	}
 
 	pluginDir := filepath.Join(target, opts.PluginName)
+	//pathguard: the plugin install directory under the user data directory
 	if err := os.MkdirAll(target, 0o755); err != nil {
 		return nil, fmt.Errorf("install: mkdir %s: %w", target, err)
 	}
 	// Remove any prior install of the same plugin name.
+	//pathguard: the plugin install directory under the user data directory
 	if _, err := os.Stat(pluginDir); err == nil {
+		//pathguard: the plugin install directory under the user data directory
 		if err := os.RemoveAll(pluginDir); err != nil {
 			return nil, fmt.Errorf("install: remove existing %s: %w", pluginDir, err)
 		}
@@ -210,6 +213,7 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 	}
 
 	manifestPath := filepath.Join(pluginDir, "manifest.json")
+	//pathguard: the plugin install directory under the user data directory
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
 		return nil, fmt.Errorf("install: read manifest %s: %w", manifestPath, err)
@@ -239,6 +243,7 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 	// here (it stalls the binary's first exec — proportional to size, up to
 	// ~1s for the larger plugins) rather than on the plugin's first real
 	// dispatch mid-workflow.
+	//pathguard: the plugin install directory under the user data directory
 	prewarmFirstExec(ctx, filepath.Join(pluginDir, filepath.FromSlash(m.Binary)))
 
 	logf(fmt.Sprintf("✓ Installed %s %s to %s", opts.PluginName, version, pluginDir))
@@ -267,6 +272,7 @@ func writeInstalledMetadata(pluginDir string, meta InstalledMetadata) error {
 	if err != nil {
 		return err
 	}
+	//pathguard: the plugin install directory under the user data directory
 	return os.WriteFile(path, data, 0o644)
 }
 
@@ -276,6 +282,7 @@ func writeInstalledMetadata(pluginDir string, meta InstalledMetadata) error {
 // became part of the install layout (tests, dev plugins, etc.).
 func ReadInstalledMetadata(pluginDir string) (*InstalledMetadata, error) {
 	path := filepath.Join(pluginDir, "installed.json")
+	//pathguard: the plugin install directory under the user data directory
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -355,6 +362,7 @@ func extractTarGz(body []byte, target, pluginName string) error {
 	// directory, so a chain of links an earlier entry planted (a -> ., then
 	// a/x -> ..) cannot lead a later write out of it: the root refuses any
 	// name that resolves outside, whatever the links on the way.
+	//pathguard: the plugin install directory under the user data directory
 	if err := os.MkdirAll(pluginRoot, 0o755); err != nil {
 		return err
 	}
@@ -445,11 +453,13 @@ func extractZip(body []byte, target, pluginName string) error {
 			continue // the plugin-dir root entry — nothing to write
 		}
 		if f.FileInfo().IsDir() {
+			//pathguard: the plugin install directory under the user data directory
 			if err := os.MkdirAll(clean, 0o755); err != nil {
 				return err
 			}
 			continue
 		}
+		//pathguard: the plugin install directory under the user data directory
 		if err := os.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 			return err
 		}
@@ -457,6 +467,7 @@ func extractZip(body []byte, target, pluginName string) error {
 		if err != nil {
 			return err
 		}
+		//pathguard: the plugin install directory under the user data directory
 		dst, err := os.OpenFile(clean, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, f.Mode()&0o777)
 		if err != nil {
 			src.Close()
@@ -516,6 +527,7 @@ func prewarmFirstExec(ctx context.Context, binPath string) {
 	if runtime.GOOS != "darwin" {
 		return
 	}
+	//pathguard: an installed plugin's binary in a plugin install directory
 	if _, err := os.Stat(binPath); err != nil {
 		return
 	}

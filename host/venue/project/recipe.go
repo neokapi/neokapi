@@ -100,6 +100,7 @@ type Recipe struct {
 // LoadRecipe reads a *.kapi file and decodes both framework and bowrain
 // fields into a *Recipe.
 func LoadRecipe(path string) (*Recipe, error) {
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), which venue/project.Load reads by path
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read recipe: %w", err)

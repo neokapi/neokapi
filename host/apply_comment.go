@@ -322,6 +322,7 @@ func (w *commentFileWrite) write(src, out []byte) *writeError {
 		// file alone.
 		var berr error
 		if !inRoot {
+			//pathguard: the backup beside a file a person named outside any project; inside a project the backup is staged through the root
 			berr = writeNamedBackup(w.file+w.backupSuffix, src, mode)
 		} else {
 			var s *atomicfile.Staged
@@ -470,5 +471,6 @@ func (w *commentFileWrite) read(path string) ([]byte, os.FileMode, error) {
 // writeNamedBackup writes the backup of a file a person named outside any
 // project, beside it as named.
 func writeNamedBackup(path string, src []byte, mode os.FileMode) error {
+	//pathguard: the backup beside a file a person named outside any project; inside a project the backup is staged through the root
 	return os.WriteFile(path, src, mode)
 }

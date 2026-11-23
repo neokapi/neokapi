@@ -147,5 +147,6 @@ func hasDetector(detectors []string, want string) bool {
 }
 
 func ensureVaultDir(vaultPath string) error {
+	//pathguard: creates the vault's directory: .kapi/vault, which every caller prepared with PrepareVault (EnsureLocalDir runs Layout.CheckState, which refuses any link or irregular file beneath .kapi/), beside the .kpz a person named with --out, or a temp dir the caller made
 	return os.MkdirAll(filepath.Dir(vaultPath), 0o700)
 }

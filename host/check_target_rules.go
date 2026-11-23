@@ -91,6 +91,7 @@ func (a *App) targetIdentityRule(ctx context.Context, cmd Command) *identicalTar
 	if err != nil || recipe == "" {
 		return nil
 	}
+	//pathguard: the recipe kapi resolved (-p, KAPI_PROJECT or the upward walk), read by path as project.Load reads it
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil
