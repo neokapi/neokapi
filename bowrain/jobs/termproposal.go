@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"

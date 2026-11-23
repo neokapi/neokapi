@@ -22,8 +22,8 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/bowrain/storage"
-	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/ref"
