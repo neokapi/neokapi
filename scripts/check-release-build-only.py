@@ -4,7 +4,8 @@
     scripts/check-release-build-only.py              check the release workflows
     scripts/check-release-build-only.py --self-test  prove the rules on fixtures
 
-release.yml and release-bowrain.yml take a `workflow_dispatch` that builds
+release.yml, release-bowrain.yml and the plugin releases (release-check.yml,
+release-sat.yml) take a `workflow_dispatch` that builds
 only, so a change to the release builds can be measured on a branch. Its
 setup job sets `needs.setup.outputs.build_only` to 'true' on a dispatch. The
 setup job's script belongs to the dispatched branch, so the guard asserts the
@@ -49,7 +50,7 @@ import yaml
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-WORKFLOWS = ("release.yml", "release-bowrain.yml")
+WORKFLOWS = ("release.yml", "release-bowrain.yml", "release-check.yml", "release-sat.yml")
 
 _spec = importlib.util.spec_from_file_location("check_ci_caches", os.path.join(HERE, "check-ci-caches.py"))
 cc = importlib.util.module_from_spec(_spec)

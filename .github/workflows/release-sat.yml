@@ -10,22 +10,50 @@ on:
   push:
     tags:
       - "sat-v*"
-  # Build-only dry run for iterating on the platform matrix (e.g. bringing up
-  # windows/arm64) WITHOUT publishing a release or registering into the plugin
-  # registry. The publish + register jobs below are gated to tag pushes only.
-  workflow_dispatch: {}
+  # A build-only run on any branch, for iterating on the platform matrix:
+  # every build leg runs, and nothing is signed, published or registered.
+  workflow_dispatch:
+    inputs:
+      build_only:
+        description: "Build only; sign, publish and register nothing (must stay true)."
+        type: boolean
+        default: true
 
+# Read only. The publishing job asks for what it writes and is skipped on a
+# build-only run, so a dispatched run holds no write permission whatever its
+# branch does (scripts/check-release-build-only.py).
 permissions:
-  contents: write
-  # cosign keyless requires a fresh GitHub Actions OIDC token to mint a
-  # short-lived Fulcio cert for signing the kapi-sat plugin tarballs.
-  id-token: write
+  contents: read
 
 env:
   # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
   GOFLAGS: -trimpath
 
 jobs:
+  # A tag push releases; a dispatch builds only. A dispatch always builds
+  # only, whatever its input says.
+  setup:
+    name: Resolve release inputs
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.r.outputs.version }}
+      build_only: ${{ steps.r.outputs.build_only }}
+    steps:
+      - id: r
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = workflow_dispatch ]; then
+            # A filename-safe placeholder: a branch name can hold "/".
+            echo "version=0.0.0-dev" >> "$GITHUB_OUTPUT"
+            echo "build_only=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${REF_NAME#sat-v}" >> "$GITHUB_OUTPUT"
+            echo "build_only=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # ── kapi-sat ML segmenter plugin ────────────────────────────────────────────
   # Build + sign + publish the kapi-sat plugin tarball per platform. kapi-sat is
   # a cgo binary (-tags onnx): it links daulet/tokenizers (static .a) at build
@@ -35,6 +63,7 @@ jobs:
   # Models are NOT bundled. They download from HuggingFace at first use.
   build-sat-plugin:
     name: Build kapi-sat plugin (${{ matrix.build.platform }})
+    needs: [setup]
     strategy:
       fail-fast: false
       matrix:
@@ -92,37 +121,6 @@ jobs:
           # A tag run saves no cache: one saved there serves only that tag,
           # and setup-go has no restore-only mode.
           cache: false
-
-      # Tarball signing is only needed for publishing (tag pushes). Skip on the
-      # build-only workflow_dispatch.
-      #
-      # The installer action has no windows/arm64 build, so use it for every
-      # other leg and `go install` cosign on windows/arm64. (On the build-only
-      # dispatch neither runs, because signing is gated to tags.)
-      - name: Install cosign (tarball signing)
-        if: startsWith(github.ref, 'refs/tags/sat-v') && !(runner.os == 'Windows' && matrix.build.goarch == 'arm64')
-        uses: sigstore/cosign-installer@v3
-
-      - name: Install cosign via go (windows/arm64)
-        if: startsWith(github.ref, 'refs/tags/sat-v') && runner.os == 'Windows' && matrix.build.goarch == 'arm64'
-        shell: bash
-        run: |
-          set -euo pipefail
-          go install github.com/sigstore/cosign/v2/cmd/cosign@v2.6.5
-          # setup-go doesn't add GOPATH/bin to PATH; do it so the sign step finds cosign.
-          cygpath -w "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-
-      - name: Extract version
-        id: version
-        shell: bash
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/sat-v* ]]; then
-            echo "VERSION=${GITHUB_REF_NAME#sat-v}" >> "$GITHUB_OUTPUT"
-          else
-            # Build-only dispatch from a branch: use a filename-safe placeholder
-            # (the branch ref can contain "/", which breaks tarball paths).
-            echo "VERSION=0.0.0-dev" >> "$GITHUB_OUTPUT"
-          fi
 
       # ── onnxruntime shared library (runtime dep; bundled into the tarball) ────
       - name: Download onnxruntime
@@ -252,7 +250,7 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         env:
-          VERSION: ${{ steps.version.outputs.VERSION }}
+          VERSION: ${{ needs.setup.outputs.version }}
           GH_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
@@ -269,7 +267,7 @@ jobs:
       # action. reloc-id pins the dylib install id BEFORE signing so the package
       # script's guarded install_name_tool no-op preserves the signature.
       - name: Sign + notarize macOS Mach-O
-        if: runner.os == 'macOS'
+        if: ${{ (runner.os == 'macOS') && needs.setup.outputs.build_only != 'true' }}
         uses: ./.github/actions/macos-sign
         with:
           label: kapi-sat
@@ -291,7 +289,7 @@ jobs:
         id: package
         shell: bash
         env:
-          VERSION: ${{ steps.version.outputs.VERSION }}
+          VERSION: ${{ needs.setup.outputs.version }}
         run: |
           scripts/package-sat-plugin.sh \
             --version "${VERSION}" \
@@ -299,7 +297,6 @@ jobs:
             --tokenizers-lib "${TOKENIZERS_LIB}" \
             --out-dir "$RUNNER_TEMP/sat-out"
 
-      # ── cosign keyless sign + upload ──────────────────────────────────────────
       - name: Check the macOS minimum the tarball's binaries record
         if: runner.os == 'macOS'
         shell: bash
@@ -312,35 +309,12 @@ jobs:
           tar -xzf "$TARBALL" -C "$dir"
           scripts/check-macho-minimum.sh --minimum "$MACOS_MINIMUM" "$dir"
 
-      - name: Cosign sign tarball (keyless)
-        if: startsWith(github.ref, 'refs/tags/sat-v')
-        shell: bash
-        env:
-          TARBALL: ${{ steps.package.outputs.tarball }}
-        run: |
-          set -euo pipefail
-          # --new-bundle-format emits a real Sigstore protobuf bundle
-          # (media type application/vnd.dev.sigstore.bundle…), consistent with
-          # how other plugins (bowrain, okapi-bridge) are signed. WITHOUT this
-          # flag, `cosign sign-blob --bundle` writes the LEGACY cosign bundle
-          # ({"base64Signature","cert","rekorBundle"}), which sigstore-go's
-          # bundle parser rejects ("unknown field base64Signature") — the bug
-          # that broke `kapi plugins install sat`.
-          #
-          # NOTE: the installer's verifier still accepts legacy bundles
-          # (host/pluginhost/registry/cosign.go: convertLegacyCosignBundle)
-          # because already-published sat releases shipped the legacy format and
-          # cannot be re-signed. Keep that path until no legacy artifacts remain
-          # referenced by the registry.
-          cosign sign-blob --yes --new-bundle-format \
-            --bundle "${TARBALL}.sigstore.json" "${TARBALL}"
-
-      # Upload the tarball + signature as a workflow ARTIFACT (not directly to
-      # the GitHub release): the matrix legs run concurrently, and several
+      # Upload the tarball as a workflow ARTIFACT (not directly to the GitHub
+      # release): the matrix legs run concurrently, and several
       # softprops/action-gh-release calls racing to create/update the same
       # release can silently drop an asset. A single publish job (below)
-      # downloads all artifacts and uploads them to the release in one writer.
-      - name: Upload tarball + signature artifact
+      # downloads all artifacts, signs them and uploads them in one writer.
+      - name: Upload tarball artifact
         uses: actions/upload-artifact@v7
         with:
           name: sat-tarball-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
@@ -350,9 +324,7 @@ jobs:
           # cannot resolve it and uploads nothing, though the tarball is on disk.
           # if-no-files-found: error turns a future miss into a hard failure
           # instead of a 404'd release.
-          path: |
-            ${{ runner.temp }}/sat-out/*.tar.gz
-            ${{ runner.temp }}/sat-out/*.tar.gz.sigstore.json
+          path: ${{ runner.temp }}/sat-out/*.tar.gz
           if-no-files-found: error
           retention-days: 14
 
@@ -401,23 +373,50 @@ jobs:
       - name: Compare the built archives with scripts/lib/release-assets.json
         run: python3 scripts/release-assets.py check-checksums sat sat-checksums
 
-  # Single-writer publish: download every leg's tarball + signature artifact
-  # and upload them to the GitHub release in ONE softprops call, avoiding the
+  # Single-writer publish: download every leg's tarball, sign each, and upload
+  # them to the GitHub release in ONE softprops call, avoiding the
   # concurrent-release-write race that can drop an asset when matrix legs each
-  # upload directly.
+  # upload directly. Skipped on a build-only run, so the write and the signing
+  # token exist only here.
   publish-sat-release:
     name: Publish kapi-sat release
-    # Tag pushes only. workflow_dispatch is a build-only dry run.
-    if: startsWith(github.ref, 'refs/tags/sat-v')
-    needs: [build-sat-plugin, verify-sat-platforms]
+    if: needs.setup.outputs.build_only != 'true'
+    needs: [setup, build-sat-plugin, verify-sat-platforms]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Upload the release assets
+      id-token: write # Sign the tarballs (cosign keyless, Fulcio)
     steps:
-      - name: Download all tarball + signature artifacts
+      - name: Download all tarball artifacts
         uses: actions/download-artifact@v8
         with:
           pattern: sat-tarball-*
           path: sat-release
           merge-multiple: true
+
+      - name: Install cosign (tarball signing)
+        uses: sigstore/cosign-installer@v3
+
+      - name: Cosign sign tarballs (keyless)
+        run: |
+          set -euo pipefail
+          # --new-bundle-format emits a real Sigstore protobuf bundle
+          # (media type application/vnd.dev.sigstore.bundle…), consistent with
+          # how other plugins (bowrain, okapi-bridge) are signed. WITHOUT this
+          # flag, `cosign sign-blob --bundle` writes the LEGACY cosign bundle
+          # ({"base64Signature","cert","rekorBundle"}), which sigstore-go's
+          # bundle parser rejects ("unknown field base64Signature") — the bug
+          # that broke `kapi plugins install sat`.
+          #
+          # NOTE: the installer's verifier still accepts legacy bundles
+          # (host/pluginhost/registry/cosign.go: convertLegacyCosignBundle)
+          # because already-published sat releases shipped the legacy format and
+          # cannot be re-signed. Keep that path until no legacy artifacts remain
+          # referenced by the registry.
+          for tarball in sat-release/*.tar.gz; do
+            cosign sign-blob --yes --new-bundle-format \
+              --bundle "${tarball}.sigstore.json" "${tarball}"
+          done
 
       - name: Upload all assets to the release
         uses: softprops/action-gh-release@v3
@@ -441,9 +440,8 @@ jobs:
   # existing "bowrain"/"okapi-bridge" entries.
   register-sat-plugin:
     name: Register kapi-sat in plugin registry
-    # Tag pushes only. workflow_dispatch is a build-only dry run.
-    if: startsWith(github.ref, 'refs/tags/sat-v')
-    needs: publish-sat-release
+    if: needs.setup.outputs.build_only != 'true'
+    needs: [setup, publish-sat-release]
     runs-on: ubuntu-latest
     steps:
       # The one file this job reads from the repository.
