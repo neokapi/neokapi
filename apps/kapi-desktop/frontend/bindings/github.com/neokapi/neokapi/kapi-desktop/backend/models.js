@@ -7537,8 +7537,7 @@ export class PluginUpdate {
 /**
  * PointDTO is a context point as its rungs, coarsest first.
  * 
- * The stored form joins them with a unit separator and is opaque by design —
- * the corpus holds no recipe, so it cannot say how a point should read. Split
+ * The stored form joins them with a unit separator and is opaque by design, // the corpus holds no recipe, so it cannot say how a point should read. Split
  * here rather than passed through, because a raw point rendered into a UI is a
  * string with control characters in it.
  */

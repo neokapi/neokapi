@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neokapi/neokapi/host"
@@ -59,11 +61,17 @@ With no path it reads the project's own ".kapi" directory. Name a path to read
 another checkout's directory instead, when you are bringing an existing
 project's context across.
 
+It lists the files it would read and what each carries (term concepts,
+content-memory entries, voice profiles and their word rules, approvals from
+the decision record) and asks before reading. With no terminal attached it
+reads nothing unless --yes is given.
+
 Running it twice changes nothing. Everything is matched by the identity the file
 carries, so a second read finds the store already holding what the file says.
 A file whose bytes have not moved since this checkout read it is skipped;
 --force reads it anyway.`,
 		Example: "  kapi store import\n" +
+			"  kapi store import ./context --yes\n" +
 			"  kapi store import ../other-project/.kapi\n" +
 			"  kapi store import --force\n" +
 			"  kapi store import context.kpz",
@@ -85,10 +93,23 @@ A file whose bytes have not moved since this checkout read it is skipped;
 				return output.Print(cmd, res)
 			}
 			force, _ := cmd.Flags().GetBool("force")
-			res, err := a.ImportProjectContext(cmd.Context(), projectPath, host.ContextImportRequest{
-				Dir:   dir,
-				Force: force,
-			})
+			req := host.ContextImportRequest{Dir: dir, Force: force}
+			plan, err := a.PlanProjectContextImport(cmd.Context(), projectPath, req)
+			if err != nil {
+				return err
+			}
+			if plan.Reads() {
+				ok, err := a.ConfirmContextImport(cmd, plan)
+				if err != nil {
+					return err
+				}
+				if !ok {
+					fmt.Fprintln(cmd.ErrOrStderr(), "Nothing was read.")
+					return nil
+				}
+				req.Shown = &plan
+			}
+			res, err := a.ImportProjectContext(cmd.Context(), projectPath, req)
 			if err != nil {
 				return err
 			}

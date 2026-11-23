@@ -601,7 +601,7 @@ func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools
 			// quietly lose the source's exact formatting: the same silent
 			// degradation-reported-as-success as #1449. The cache is rebuildable,
 			// so say so rather than shipping a lesser file.
-			return fmt.Errorf("%s: cached parse is unusable: %w (delete the project's .kapi/work/cache to rebuild it)",
+			return fmt.Errorf("%s: cached parse is unusable: %w (delete work/cache in the checkout's state directory, which `kapi state path` prints, to rebuild it)",
 				filepath.Base(inputPath), serr)
 		}
 		if s != nil {

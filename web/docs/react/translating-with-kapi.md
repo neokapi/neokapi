@@ -204,7 +204,7 @@ context/
 ```
 
 The content memory's local store and the pseudo-locale output are state that
-kapi can rebuild, so they live under `.kapi/work/`, a cache in the checkout that
+kapi can rebuild, so they live under the checkout's `work/`, a cache in the checkout that
 git ignores. The terms and the voice profile are files you commit under `context/`;
 an edit to `context/voice.yaml` or `context/terms.json` takes effect when you
 run `kapi store import context` again. See [Context portability](/kapi/context-portability).

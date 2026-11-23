@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
@@ -86,8 +87,7 @@ type MemoryEntryDTO struct {
 
 // PointDTO is a context point as its rungs, coarsest first.
 //
-// The stored form joins them with a unit separator and is opaque by design —
-// the corpus holds no recipe, so it cannot say how a point should read. Split
+// The stored form joins them with a unit separator and is opaque by design, // the corpus holds no recipe, so it cannot say how a point should read. Split
 // here rather than passed through, because a raw point rendered into a UI is a
 // string with control characters in it.
 type PointDTO struct {
@@ -403,7 +403,7 @@ func memoryEntryToDTO(entry memory.Entry) MemoryEntryDTO {
 // locale.Parse: the app renders a pseudo-locale ("qps-Ploc") whose subtags CLDR
 // does not know, and the stricter function rejects it.
 //
-// An empty locale is a real answer — unscoped — rather than a bad one.
+// An empty locale is a real answer, unscoped, rather than a bad one.
 func canonicalLocale(s string) (model.LocaleID, error) {
 	if s == "" {
 		return "", nil
@@ -490,24 +490,26 @@ func namedResourceDir(kind string) string {
 // place, and returns where the old one went. The caller creates the replacement.
 //
 // Two kinds of file arrive here and they part company in what "aside" costs. A
-// STANDALONE store — one the user opened by path, or a named store under
-// `~/.config/kapi` — is one content memory or one terms store, and moving it
-// aside loses exactly that. A PROJECT store is `.kapi/work/store.db`, where the
-// content memory, terms, block cache and unit working set share one file: moving
-// it aside takes all four. That is the documented trade of merging them, and it
-// is affordable because every one of those is a projection rebuilt from
-// committed sources, and because the decisions themselves live in the
-// workspace: the project store holds the checkout's view of the ledger, not the
-// ledger.
+// STANDALONE store (one the user opened by path, or a named store under
+// `~/.config/kapi`) is one content memory or one terms store, and moving it
+// aside loses exactly that. A PROJECT store is a checkout's `work/store.db`,
+// where the content memory, terms, block cache and unit working set share one
+// file: moving it aside takes all four. Every one of those is a projection
+// rebuilt from committed sources, and the decisions themselves live in the
+// workspace.
 //
 // A project store also needs the handle released first: renaming a file under an
 // open pool leaves the pool on the moved inode, and the replacement would be
 // written by a second one.
 func (a *App) RecoverResource(path string) (string, error) {
 	if root, ok := projectStoreRoot(path); ok {
-		a.releaseTabsFor(root)
-		if err := a.hostEngine().CloseProjectDB(root); err != nil {
-			return "", fmt.Errorf("release project store %q: %w", path, err)
+		// The record names the checkout in its resolved spelling; the open
+		// tabs and the engine know it by the spelling it was opened with.
+		for _, r := range a.openRootsAt(root) {
+			a.releaseTabsFor(r)
+			if err := a.hostEngine().CloseProjectDB(r); err != nil {
+				return "", fmt.Errorf("release project store %q: %w", path, err)
+			}
 		}
 	}
 	bakPath := path + ".bak"
@@ -519,7 +521,8 @@ func (a *App) RecoverResource(path string) (string, error) {
 }
 
 // projectStoreRoot reports the project root when path names a project's own
-// store — `<root>/.kapi/work/store.db` — rather than a standalone one.
+// store, work/store.db in a checkout's state directory, rather than a
+// standalone one.
 func projectStoreRoot(path string) (string, bool) {
 	if filepath.Base(path) != project.StoreFileName {
 		return "", false
@@ -528,16 +531,26 @@ func projectStoreRoot(path string) (string, bool) {
 	if filepath.Base(workDir) != project.WorkDirName {
 		return "", false
 	}
-	stateDir := filepath.Dir(workDir)
-	if filepath.Base(stateDir) != project.StateDirName {
-		return "", false
-	}
-	return filepath.Dir(stateDir), true
+	return dataroot.CheckoutRootOf(filepath.Dir(workDir))
 }
 
 // releaseTabsFor drops the borrowed content-memory and terms handles of every
 // tab open on a project, so nothing keeps addressing a store that is about to be
 // moved aside.
+// openRootsAt lists the roots of the open projects at root, in whatever
+// spelling each was opened with, and root itself.
+func (a *App) openRootsAt(root string) []string {
+	out := []string{root}
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	for _, op := range a.projects {
+		if opRoot, ok := projectRoot(op); ok && opRoot != root && dataroot.NormalizePath(opRoot) == root && !slices.Contains(out, opRoot) {
+			out = append(out, opRoot)
+		}
+	}
+	return out
+}
+
 func (a *App) releaseTabsFor(root string) {
 	a.mu.RLock()
 	var affected []*openProject

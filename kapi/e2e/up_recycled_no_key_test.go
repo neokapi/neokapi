@@ -36,7 +36,7 @@ func TestUpRecycledOnlyRunNeedsNoKey(t *testing.T) {
 		out, err := cmd.CombinedOutput()
 		return string(out), err
 	}
-	out, err := run("store", "import", "./context")
+	out, err := run("store", "import", "--yes", "./context")
 	require.NoError(t, err, out)
 	out, err = run("up")
 	require.NoError(t, err, "the demo run:\n%s", out)

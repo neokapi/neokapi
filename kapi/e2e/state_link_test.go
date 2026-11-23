@@ -14,11 +14,12 @@ import (
 
 // stateFilesDigest hashes a project's work store and the files SQLite keeps
 // beside it, so a test sees any write that reached them.
-func stateFilesDigest(t *testing.T, root string) map[string][32]byte {
+func stateFilesDigest(t *testing.T, recipe string) map[string][32]byte {
 	t.Helper()
 	out := map[string][32]byte{}
+	work := filepath.Join(statePath(t, recipe), "work")
 	for _, name := range []string{"store.db", "store.db-wal", "store.db-shm"} {
-		b, err := os.ReadFile(filepath.Join(root, ".kapi", "work", name))
+		b, err := os.ReadFile(filepath.Join(work, name))
 		if err == nil {
 			out[name] = sha256.Sum256(b)
 		}
@@ -26,19 +27,19 @@ func stateFilesDigest(t *testing.T, root string) map[string][32]byte {
 	return out
 }
 
-// A repository that commits a link where kapi keeps a file of its state, here
-// the work store pointing at another project's store, is refused by every
+// A repository that commits a link under .kapi/, here where an earlier kapi
+// kept the work store, pointing at another project's store, is refused by every
 // command before it opens anything, and the other project's store is left
 // exactly as it was.
 func TestAStateFileThatIsALinkIsRefused(t *testing.T) {
-	other, otherRecipe := writeBareProject(t, "other")
+	_, otherRecipe := writeBareProject(t, "other")
 	kapi(t, "status", "-p", otherRecipe)
-	before := stateFilesDigest(t, other)
+	before := stateFilesDigest(t, otherRecipe)
 	require.Contains(t, before, "store.db", "the other project keeps a work store")
 
 	victim, victimRecipe := writeBareProject(t, "victim")
 	require.NoError(t, os.MkdirAll(filepath.Join(victim, ".kapi", "work"), 0o755))
-	require.NoError(t, os.Symlink(filepath.Join(other, ".kapi", "work", "store.db"),
+	require.NoError(t, os.Symlink(filepath.Join(statePath(t, otherRecipe), "work", "store.db"),
 		filepath.Join(victim, ".kapi", "work", "store.db")))
 
 	for _, args := range [][]string{
@@ -49,7 +50,7 @@ func TestAStateFileThatIsALinkIsRefused(t *testing.T) {
 		require.Error(t, err, "%v succeeded:\n%s", args, out)
 		assert.Contains(t, out, "is a symbolic link", args)
 	}
-	assert.Equal(t, before, stateFilesDigest(t, other), "nothing reached the other project's store")
+	assert.Equal(t, before, stateFilesDigest(t, otherRecipe), "nothing reached the other project's store")
 }
 
 // A target that is a link out of the project is passed over and named, as a

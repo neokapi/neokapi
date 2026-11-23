@@ -54,7 +54,7 @@ export const compassAxis: Lab = {
       title: "Read the context in",
       narration:
         "The context arrives as files again, with two more kinds beside the voice and the terms: approved wording per language, which the loop recycles, and the review record, who approved what and of which text.",
-      command: "kapi store import ./context",
+      command: "kapi store import ./context --yes",
       expect: ["54 recorded decisions", "content-memory entries"],
     },
     {
@@ -118,7 +118,7 @@ export const compassConverge: Lab = {
   summary:
     "kapi up runs the loop: it reuses the wording the project has established, drafts the remainder with the configured provider, checks what it produced, and holds back for review what a machine cannot decide. This lab runs it on Compass with the built-in demo provider and reads what shipped and what waits for review.",
   sample: "compass",
-  setup: ["kapi store import ./context"],
+  setup: ["kapi store import ./context --yes"],
   concepts: [
     "kapi up",
     "content memory",
@@ -206,7 +206,7 @@ export const compassReview: Lab = {
   summary:
     "Review is a change set: a decide operation per unit, bound to the wording a person read. This lab approves the Dutch a person wrote, watches the loop unpark the language, establishes the rest of Norwegian, and reads the manifest the picker follows at each step.",
   sample: "compass",
-  setup: ["kapi store import ./context", "kapi up"],
+  setup: ["kapi store import ./context --yes", "kapi up"],
   concepts: ["review queue", "decide", "established", "established gate", "context log"],
   docs: [DOCS.review, DOCS.gates, DOCS.ci],
   minutes: 6,
@@ -313,7 +313,7 @@ export const compassHandoff: Lab = {
   summary:
     "Not every translation happens inside the loop. kapi extract writes a bilingual file per source and language, pre-filled from the content memory, for a translator or the tool they work in, and kapi merge takes it back. A .kpz carries the whole working state between machines without a server. This lab does both.",
   sample: "compass",
-  setup: ["kapi store import ./context", "kapi up"],
+  setup: ["kapi store import ./context --yes", "kapi up"],
   concepts: ["extract", "bilingual exchange file", "merge", ".kpz parcel"],
   docs: [DOCS.bilingual, DOCS.sharing],
   minutes: 4,

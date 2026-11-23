@@ -2803,7 +2803,7 @@
               "usage": "XLIFF 2.x version to emit (2.0, 2.1, 2.2; default 2.2)"
             }
           },
-          "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target language\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").\nEvery block carries the revision of its translation and of its source, which\nkapi merge checks the returned file against.",
+          "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target language\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under work/cache/extractions/\u003cbatch-id\u003e/\nin the checkout's state directory (kapi state path prints it), plus one bilingual file per source → target pair in --out-dir (default \"out/\").\nEvery block carries the revision of its translation and of its source, which\nkapi merge checks the returned file against.",
           "short": "Emit a bilingual file for a translator: native .kpz or XLIFF/PO"
         },
         "fix": {
@@ -3234,7 +3234,7 @@
           "list": {
             "short": "List named Memories in KAPI_HOME"
           },
-          "long": "Manage content memory.\n\nA content memory stores previously produced content as a SQLite database: source\nsegments with the targets settled for them. Use these commands to import/export\nTMX, look up matches, and manage entries.\n\nInside a project, no flag means the project's own content memory, a subsystem of\n.kapi/work/store.db, which is why it is addressed by project rather than by path.\nUse -p to name the project explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in the kapi config dir (memory/\u003cn\u003e.db)\n  --local         Content memory in current directory (./memory.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./memory.db).",
+          "long": "Manage content memory.\n\nA content memory stores previously produced content as a SQLite database: source\nsegments with the targets settled for them. Use these commands to import/export\nTMX, look up matches, and manage entries.\n\nInside a project, no flag means the project's own content memory, kept in the\nproject's context store in the workspace, which is why it is addressed by project\nrather than by path.\nUse -p to name the project explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in the kapi config dir (memory/\u003cn\u003e.db)\n  --local         Content memory in current directory (./memory.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./memory.db).",
           "lookup": {
             "example": "  kapi memory lookup \"welcome back\" -s en -t fr\n  kapi memory lookup \"save\" -s en -t de --min-score 0.8",
             "flags": {
@@ -3949,6 +3949,47 @@
           "short": "Share the rules with your team"
         },
         "short": "A format-aware content engine that knows your project's context",
+        "state": {
+          "example": "  kapi state path -p ./app\n  kapi state import -p ./app\n  kapi state relink --from ~/old/app -p ./app",
+          "import": {
+            "example": "  kapi state import -p ./app\n  kapi state import -p ./app --yes --remove",
+            "flags": {
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
+              "remove": {
+                "usage": "remove the copies inside the checkout once they are taken"
+              }
+            },
+            "long": "Take the state an earlier kapi left inside the checkout's .kapi/ folder (the\nredaction vault, the sync state and the saved filters) into the checkout's\nstate directory. The files are shown first and confirmed at the terminal.\nWith no terminal attached nothing is taken unless --yes is given.\n\nThe copies inside the checkout stay where they are unless --remove is given;\nkapi no longer reads them either way.",
+            "short": "Take the state an earlier kapi left inside the checkout"
+          },
+          "long": "Show where a checkout's own state lives, and bring state into it.\n\nkapi keeps each checkout's state outside the checkout, in a directory of its\nown under the data root: the project store and caches, which kapi rebuilds,\nand the redaction vault, the sync state and the saved filters, which it\ncannot. The directory is found by the checkout's location and the identity of\nits folder, never by anything the checkout contains, so a repository cannot\nreach another project's state, and kapi reads nothing a checkout carries as\nstate.\n\nA checkout moved or renamed on its volume keeps its state. Any other move,\na restored backup, or a fresh clone starts without it; kapi rebuilds what it\ncan, and a person brings the rest across:\n\n  kapi state import   takes the state an earlier kapi left inside the\n                      checkout's .kapi/ folder\n  kapi state relink   takes the state kapi recorded for another location\n  kapi state path     prints the checkout's state directory, for a CI cache\n\nBoth import and relink show every file they would take, with its size and\nthe server any sync state was issued by, ask at the terminal (or take --yes),\nand take exactly what they showed. An agent or an MCP call cannot run them.",
+          "path": {
+            "example": "  kapi state path -p .",
+            "flags": {
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              }
+            },
+            "long": "Print the directory that holds the checkout's own state. A CI workflow that\ncaches kapi's work between runs caches this directory, keyed by the CI\nsystem's own cache key.",
+            "short": "Print the directory that holds the checkout's state"
+          },
+          "relink": {
+            "example": "  kapi state relink --from ~/old/app -p ./app",
+            "flags": {
+              "from": {
+                "usage": "the location the checkout's state was recorded for"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              }
+            },
+            "long": "Take the state kapi recorded for a checkout at another location into this\ncheckout's state directory: for a checkout moved to another volume, restored\nfrom a backup, or cloned again. The files are shown first and confirmed at the\nterminal. With no terminal attached nothing is taken unless --yes is given.\nThe work directory is rebuilt here rather than taken, and the state directory\nthe files came from is removed once they are in place.",
+            "short": "Take the state kapi recorded for the checkout's earlier location"
+          },
+          "short": "Show where a checkout's state lives, and bring state into it"
+        },
         "stats": {
           "example": "  kapi stats report.docx\n  kapi stats 'src/**'                       # every file under src, any depth\n  kapi stats --output-format json 'docs/**/*.md' | jq '.total.words'\n  kapi stats                                # inside a project: its tracked content\n  cat page.html | kapi stats -f html",
           "flags": {
@@ -4013,7 +4054,7 @@
             "short": "Write this project's context and its history to one file"
           },
           "import": {
-            "example": "  kapi store import\n  kapi store import ../other-project/.kapi\n  kapi store import --force\n  kapi store import context.kpz",
+            "example": "  kapi store import\n  kapi store import ./context --yes\n  kapi store import ../other-project/.kapi\n  kapi store import --force\n  kapi store import context.kpz",
             "flags": {
               "force": {
                 "usage": "read every file, including ones whose bytes have not moved"
@@ -4022,7 +4063,7 @@
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               }
             },
-            "long": "Read a checkout's context files into this project's store: the terms,\nthe voice profiles, the wording already approved, and the record of who approved\nit.\n\nName a .kpz written by \"kapi store export\" to merge it instead, the way\n\"kapi context sync\" merges what others shared: everything it carries that this\nproject does not hold, with its history.\n\nThis is the one command that opens those files. Everything else answers from the\nstore, so what you read here is in force for every checkout of this project on\nthis machine, and for everyone else once they run it too. A person runs it: it\nis a decision about the project, and it appears in \"kapi context log\" with each\nfile and the bytes that were read.\n\nWith no path it reads the project's own \".kapi\" directory. Name a path to read\nanother checkout's directory instead, when you are bringing an existing\nproject's context across.\n\nRunning it twice changes nothing. Everything is matched by the identity the file\ncarries, so a second read finds the store already holding what the file says.\nA file whose bytes have not moved since this checkout read it is skipped;\n--force reads it anyway.",
+            "long": "Read a checkout's context files into this project's store: the terms,\nthe voice profiles, the wording already approved, and the record of who approved\nit.\n\nName a .kpz written by \"kapi store export\" to merge it instead, the way\n\"kapi context sync\" merges what others shared: everything it carries that this\nproject does not hold, with its history.\n\nThis is the one command that opens those files. Everything else answers from the\nstore, so what you read here is in force for every checkout of this project on\nthis machine, and for everyone else once they run it too. A person runs it: it\nis a decision about the project, and it appears in \"kapi context log\" with each\nfile and the bytes that were read.\n\nWith no path it reads the project's own \".kapi\" directory. Name a path to read\nanother checkout's directory instead, when you are bringing an existing\nproject's context across.\n\nIt lists the files it would read and what each carries (term concepts,\ncontent-memory entries, voice profiles and their word rules, approvals from\nthe decision record) and asks before reading. With no terminal attached it\nreads nothing unless --yes is given.\n\nRunning it twice changes nothing. Everything is matched by the identity the file\ncarries, so a second read finds the store already holding what the file says.\nA file whose bytes have not moved since this checkout read it is skipped;\n--force reads it anyway.",
             "short": "Read context files, or a file written by export, into this project"
           },
           "locales": {
@@ -4202,7 +4243,7 @@
           "list": {
             "short": "List named terms stores in KAPI_HOME"
           },
-          "long": "Manage project terminology.\n\nA terms store holds approved terminology (concepts and their renderings per\nlocale) as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nInside a project, no flag means the project's own terms, a subsystem of\n.kapi/work/store.db, which is why it is not addressed by path. Use -p to name the\nproject explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in the kapi config dir (terms/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./terms.db).",
+          "long": "Manage project terminology.\n\nA terms store holds approved terminology (concepts and their renderings per\nlocale) as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nInside a project, no flag means the project's own terms, kept in the project's\ncontext store in the workspace, which is why it is not addressed by path. Use -p to name the\nproject explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in the kapi config dir (terms/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./terms.db).",
           "lookup": {
             "example": "  kapi terms lookup \"dashboard\" -s en -t fr\n  kapi terms lookup \"settings\" -s en -t de --fuzzy",
             "flags": {

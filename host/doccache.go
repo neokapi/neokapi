@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -110,9 +111,10 @@ var docCacheMigrations = []storage.Migration{
 }
 
 // OpenDocCache opens (creating + migrating) the streaming document cache under
-// cacheDir/docs. A cacheDir that is a project's cache directory
-// (<root>/.kapi/work/cache) binds the cache to that project: the state
-// directory is checked first, and sources are read through the root.
+// cacheDir/docs. A cacheDir that is a checkout's cache directory (work/cache in
+// the checkout's state directory under the data root) binds the cache to that
+// checkout: its layout is checked first, and sources are read through the
+// root.
 func OpenDocCache(cacheDir string) (*docCache, error) {
 	root := projectOfCacheDir(cacheDir)
 	if root != "" {
@@ -127,11 +129,21 @@ func OpenDocCache(cacheDir string) (*docCache, error) {
 // is, or "" when cacheDir is not one.
 func projectOfCacheDir(cacheDir string) string {
 	work := filepath.Dir(cacheDir)
-	state := filepath.Dir(work)
-	if filepath.Base(cacheDir) != "cache" || filepath.Base(work) != project.WorkDirName || filepath.Base(state) != project.StateDirName {
+	if filepath.Base(cacheDir) != project.CacheDirName || filepath.Base(work) != project.WorkDirName {
 		return ""
 	}
-	return filepath.Dir(state)
+	root, _ := dataroot.CheckoutRootOf(filepath.Dir(work))
+	return root
+}
+
+// openProjectDocCache opens the document cache of the project at layout, in
+// its checkout's state directory, bound to the project's root: sources are
+// read through the root, so a link out of the project or a FIFO is refused.
+func openProjectDocCache(layout project.Layout) (*docCache, error) {
+	if err := project.EnsureLayout(layout); err != nil {
+		return nil, err
+	}
+	return openDocCacheAt(layout.Root, layout.CacheDir())
 }
 
 // openDocCacheAt opens the cache files beneath cacheDir: a project's cache

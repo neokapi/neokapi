@@ -103,11 +103,13 @@ which files landed, since they commit them.
 and the recipe first when there is none (`kapi connect codex` names one;
 `--dry-run` lists the files and writes nothing).
 
-- **`.kapi/`**: this checkout's cache, ignored by version control. `work/store.db`
-  is the checkout's projection of the working tree: the block cache, the
-  overlays a run wrote, the extraction stamps. Beside it sit the caches, the
-  redaction vault and `filters.local.json`, the reader filters saved as
-  personal to this checkout.
+- **The checkout's state directory**, under the user's data directory and
+  outside the checkout (`kapi state path` prints it). `work/store.db` is the
+  checkout's projection of the working tree: the block cache, the overlays a run
+  wrote, the extraction stamps. Beside it sit the caches, the redaction vault
+  and `filters.local.json`, the reader filters saved as personal to this
+  checkout. kapi reads no state from inside a checkout; state an earlier kapi
+  left in `.kapi/` comes across only when the user runs `kapi state import`.
 - **The workspace**, under the user's data directory
   (`<data dir>/workspaces/default/`), holds one context store per project: the
   terms, the voice profiles, the content memory, the decision ledger and the
@@ -117,20 +119,19 @@ and the recipe first when there is none (`kapi connect codex` names one;
   or write either database directly and never commit one; go through kapi
   commands.
 
-The ignore rule `kapi init` writes is `.kapi/.gitignore` with one line, `*`. A
-project that commits a terms bundle or a voice profile in `.kapi/` for `kapi store import` to read
-keeps an ignore rule of its own, and kapi leaves it as it is.
+`.kapi/` holds only what a project commits there, such as a terms bundle or a
+voice profile for `kapi store import` to read; kapi writes nothing into it.
 
 Deleting:
 
-- `rm -rf .kapi/work/cache` is **always** safe; everything under it rebuilds on
+- `rm -rf "$(kapi state path)/work/cache"` is **always** safe; everything under it rebuilds on
   the next run.
-- `rm -rf .kapi/work` costs a re-extraction and nothing else. Decisions are in
+- `rm -rf "$(kapi state path)/work"` costs a re-extraction and nothing else. Decisions are in
   the workspace and survive it.
-- `rm -rf .kapi` also removes `.kapi/vault/`, which in a project that uses
+- `rm -rf "$(kapi state path)"` also removes the checkout's `vault/`, which in a project that uses
   redaction holds the withheld originals, local-only by design and rebuilt from
   nothing (merge any batch that is out with a translator first), and
-  `.kapi/sync/`, a venue's sync state.
+  the checkout's `sync/`, a venue's sync state.
 - Deleting the workspace costs every project's terms, voice profiles, content
   memory and decisions. Tell the user to push each project to its context
   backend (`kapi context sync`) or take a copy first with

@@ -157,6 +157,13 @@ func NewSourceConnector(ctx context.Context, app *host.App, project *Project, fo
 
 	cache := LoadSyncCache(project.Layout)
 
+	// A claim token is sent only to the server and project it was recorded
+	// with. One the cache records no server for is not sent anywhere.
+	if cache.ClaimToken != "" && (cache.ServerURL == "" || cache.ProjectID == "") {
+		fmt.Fprintln(os.Stderr, "kapi: the sync state holds a claim token but records no server and project it was issued for, so kapi does not send it")
+		cache.ClaimToken = ""
+	}
+
 	// The cache describes ONE server's view of this project: the block hashes
 	// the server confirmed. A user may point the project at a different server
 	// or project, by switching between production and a local stack or by
@@ -168,6 +175,9 @@ func NewSourceConnector(ctx context.Context, app *host.App, project *Project, fo
 	// compared it. Comparing it turns a silently empty push into a full one.
 	if cache.ServerURL != "" &&
 		(config.NormalizeServerURL(cache.ServerURL) != serverURL || cache.ProjectID != projectID) {
+		if cache.ClaimToken != "" {
+			fmt.Fprintf(os.Stderr, "kapi: the sync state's claim token was issued for %s, not for the server and project this recipe names, so kapi does not send it\n", cache.ServerURL)
+		}
 		cache = bproject.NewEmptySyncCache()
 		cache.ServerURL = serverURL
 		cache.ProjectID = projectID

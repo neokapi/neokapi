@@ -5,7 +5,7 @@ description: >-
 stages:
   - name: imported
     steps:
-      - kapi: [store, import]
+      - kapi: [store, import, --yes]
     files:
       - path: web/index.html
         check:

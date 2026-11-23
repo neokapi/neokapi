@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
@@ -37,10 +38,11 @@ func TestDocCache_RefusesSourceOutsideProject(t *testing.T) {
 	require.NoError(t, os.WriteFile(outside, []byte(`{"a":"Bonjour"}`), 0o644))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales"), 0o755))
 
+	require.NoError(t, project.EnsureLayout(project.LayoutAt(root)))
 	c, err := OpenDocCache(project.LayoutAt(root).CacheDir())
 	require.NoError(t, err)
 	defer c.Close()
-	assert.Equal(t, root, c.root, "a project's cache directory binds the cache to the project")
+	assert.Equal(t, dataroot.NormalizePath(root), c.root, "a checkout's cache directory binds the cache to the project")
 
 	linked := filepath.Join(root, "locales", "fr.json")
 	require.NoError(t, os.Symlink(outside, linked))
@@ -68,11 +70,12 @@ func TestDocCache_RefusesStateLinkOutside(t *testing.T) {
 	root := t.TempDir()
 	outside := t.TempDir()
 	layout := project.LayoutAt(root)
-	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
-	require.NoError(t, os.Symlink(outside, layout.CacheDir()))
+	inTree := filepath.Join(layout.StateDir, project.WorkDirName)
+	require.NoError(t, os.MkdirAll(inTree, 0o755))
+	require.NoError(t, os.Symlink(outside, filepath.Join(inTree, project.CacheDirName)))
 
-	_, err := OpenDocCache(layout.CacheDir())
-	require.Error(t, err)
+	_, err := openProjectDocCache(layout)
+	require.Error(t, err, "a link in the checkout's .kapi/ is refused")
 	_, statErr := os.Stat(filepath.Join(outside, "docs"))
 	assert.True(t, os.IsNotExist(statErr), "nothing is created outside the project")
 }

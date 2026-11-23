@@ -176,8 +176,10 @@ the kapi process environment:
   over `XDG_DATA_HOME`**, so setting only the latter leaves a developer's
   exported `KAPI_DATA_DIR` in force. The root holds the **workspace**
   (`<root>/workspaces/default/`): every project's terms, voice profiles,
-  content memory, recorded decisions and context graph. An in-repo kapi that
-  reached it would read and write the developer's own context.
+  content memory, recorded decisions and context graph, and every checkout's
+  own state (`<root>/checkouts/<key>/`: the project store, caches, sync state
+  and vault). An in-repo kapi that reached it would read and write the
+  developer's own context and the dogfood checkout's state.
 
   A Go test binary is covered without the variables: `host.DataDir()` and
   `host.ConfigDir()` answer with a per-process directory under `os.TempDir()`

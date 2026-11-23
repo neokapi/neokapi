@@ -226,7 +226,7 @@ func LoadExtractionManifest(layout Layout, batchID string) (*ExtractionManifest,
 // the listing, so merge never silently skips a candidate manifest. The
 // batches are listed through the project root.
 func ListExtractionManifests(layout Layout) ([]*ExtractionManifest, error) {
-	entries, err := rootpath.ReadDir(layout.Root, ExtractionsRoot(layout))
+	entries, err := rootpath.ReadDir(layout.LocalStateDir(), ExtractionsRoot(layout))
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
