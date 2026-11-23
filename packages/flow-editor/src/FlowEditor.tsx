@@ -69,6 +69,7 @@ import { TracePanel } from "./TracePanel";
 import { RunInspectorPanel } from "./RunInspectorPanel";
 import { EndpointInspectorPanel } from "./EndpointInspectorPanel";
 import { computeNodeStats } from "./traceTypes";
+import { useRootColorMode } from "./useRootColorMode";
 // (PartInspector and TraceTimeline remain exported from the package for hosts
 // that render trace data outside the editor; in-editor, the run data lives ON
 // the graph — node duration/part badges, edge traversal counts — plus the
@@ -297,6 +298,7 @@ export function FlowEditor({
 
   // React Flow instance — used to fit view after adding tools.
   const reactFlowRef = useRef<ReactFlowInstance | null>(null);
+  const colorMode = useRootColorMode();
 
   // Re-anchor the viewport whenever the flow's topology is REPLACED (scenario
   // switch, trace import, back-to-your-flow): the new layout starts at the
@@ -1099,6 +1101,7 @@ export function FlowEditor({
             onDragOver={handleDragOver}
           >
             <ReactFlow
+              forceColorMode={colorMode}
               nodes={nodes}
               edges={flowEdges}
               onNodesChange={handleNodesChange}
