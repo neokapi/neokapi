@@ -28,10 +28,10 @@ import (
 // per project root, however many times and from however many goroutines the
 // commands running under that App ask for one.
 //
-// The holder is a pointer so a converge worker can share the parent's, the
-// worker clone is a field-by-field copy, and two copies each opening
-// `.kapi/work/store.db` would be two connection pools on one SQLite file, which is
-// the writer contention the merged store exists to remove.
+// The holder is a pointer so a converge worker, a field-by-field copy, shares
+// the parent's. Two copies each opening `work/store.db` in the checkout's state
+// directory would be two connection pools on one SQLite file, the writer
+// contention the merged store exists to remove.
 type projectStores struct {
 	mu  sync.Mutex
 	dbs map[string]*projectdb.DB

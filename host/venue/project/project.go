@@ -124,7 +124,7 @@ func (p *Project) RecipePath() string { return p.Layout.RecipePath }
 // StateDir is the absolute path to the checkout's .kapi/ cache directory.
 func (p *Project) StateDir() string { return p.Layout.StateDir }
 
-// CacheDir is the absolute path to the .kapi/work/cache/ directory.
+// CacheDir is the absolute path to work/cache/ in the checkout's state directory.
 func (p *Project) CacheDir() string { return p.Layout.CacheDir() }
 
 // FlowsDirPath returns the absolute path of the directory the recipe names

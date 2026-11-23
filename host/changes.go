@@ -174,7 +174,7 @@ func (a *App) changeHome(opts ChangeServiceOptions) (changeHome, error) {
 			// to its file.
 			pl.kept = a.newKeptPolicy(l.Root, pl.proj)
 		}
-		// The lock files live in .kapi/work, which the layout's ignore rule
+		// The lock files live in work/ in the checkout's state directory, which the layout's ignore rule
 		// keeps out of a commit. The directory and the rule are written when a
 		// change first takes a lock, so a read leaves the project as it was.
 		return changeHome{

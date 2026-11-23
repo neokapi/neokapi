@@ -3,49 +3,40 @@
 // scheme that keeps one project's subgraph distinguishable inside a store that
 // holds many.
 //
-// The same vocabulary is written locally into `.kapi/work/store.db` and on the
-// server into Postgres. Locally the dimensions are pinned — the store IS one
-// project — while the server carries real workspace, project and stream
-// identities. Nothing else differs, which is what lets a query written against
-// one store run against the other ([C-03]).
+// The same vocabulary is written locally into `work/store.db` in the
+// checkout's state directory and on the server into Postgres. Locally the
+// dimensions are pinned to the one project; the server carries real
+// workspace, project and stream identities. One query runs against both
+// ([C-03]).
 //
 // # Two kinds of node
 //
-// The split decides what can be asked:
-//
-//   - VOCABULARY nodes — concepts, coordinates — are workspace-scoped. One
-//     concept is one node however many projects use it, which is what makes
-//     "which projects use this concept" a two-hop traversal instead of a join
-//     across project boundaries.
-//   - INSTANCE nodes — blocks, collections, unit states — carry (project,
-//     stream) in their identity. Two projects' `docs` collections are two
-//     nodes. Two projects' identical wording is two block nodes carrying the
-//     same content key, and "same wording" is a content-key equality query:
-//     sharing one node would conflate governance scopes, and an instance sits
-//     somewhere.
+//   - VOCABULARY nodes (concepts, coordinates) are workspace-scoped. One
+//     concept is one node however many projects use it, so "which projects
+//     use this concept" is a two-hop traversal.
+//   - INSTANCE nodes (blocks, collections, unit states) carry (project,
+//     stream) in their identity. Two projects' identical wording is two block
+//     nodes with the same content key, so "same wording" is a content-key
+//     equality query and no node conflates two governance scopes.
 //
 // # Dimensions are fields, not containment edges
 //
 // Every node carries its scope tuple as properties as well as in its id, so
-// slicing a view by project or stream is a filter rather than a traversal.
-// There is no project→project edge anywhere: projects relate by co-occurrence
+// slicing a view by project or stream is a filter. Projects relate only
 // through the vocabulary they share.
 //
 // # Identity, and what a rename costs
 //
-// An id carries the scope tuple, so a scope value that changes changes the id.
-// That is safe because every writer clears the scope it is about to write in
-// the same pass: a rename is a deterministic re-key, and no row survives under
-// the old one. Locally the project dimension is the recipe's project name — the
-// only identity a disconnected project has — so a rename re-keys the whole
-// projection, which is the rebuild the writer performs every pass anyway.
-// Server-side the project dimension is the workspace-issued project id, which a
-// rename does not touch, so the display name rides as a node property and the
-// rule costs nothing.
+// An id carries the scope tuple, so changing a scope value changes the id.
+// Every writer clears the scope it writes in the same pass, so a rename is a
+// deterministic re-key. Locally the project dimension is the recipe's project
+// name, so a rename re-keys the whole projection, which the writer rebuilds
+// every pass anyway. On the server it is the workspace-issued project id, and
+// the display name rides as a node property.
 //
-// Within a scope, identity is durable: a block is its content key ([F-03]),
-// not a reader's positional id, so a re-parse that renumbers a document rewrites
-// the same rows rather than orphaning them.
+// Within a scope a block is its content key ([F-03]), not a reader's
+// positional id, so a re-parse that renumbers a document rewrites the same
+// rows.
 //
 // [F-03]: https://neokapi.org/docs/contribute/architecture/foundations/f-03-identity
 // [C-03]: https://neokapi.org/docs/contribute/architecture/context/c-03-context-store-and-graph
@@ -63,7 +54,7 @@ const (
 	// NodeCollection is a content collection, identified by its label within a
 	// (project, stream).
 	NodeCollection = "collection"
-	// NodeUnitState is one unit's workflow state in one locale variant — the
+	// NodeUnitState is one unit's workflow state in one locale variant, the
 	// record that blesses a translation at a content hash.
 	NodeUnitState = "unit_state"
 
@@ -71,8 +62,8 @@ const (
 	// issued by the workspace, and one concept is one node however many
 	// projects use it.
 	NodeConcept = "concept"
-	// NodeCoordinate is a point in the context space — a (profile, channel)
-	// pair — workspace-scoped, because governance vocabulary is the workspace's
+	// NodeCoordinate is a point in the context space, a (profile, channel)
+	// pair, workspace-scoped, because governance vocabulary is the workspace's
 	// and a project binds to it rather than owning it.
 	NodeCoordinate = "coordinate"
 )
@@ -100,15 +91,15 @@ const (
 //
 // An empty dimension is written as an ABSENT key rather than an empty string,
 // because a JSON property filter compares against a value and absence is not
-// the empty string. Locally that means the scope properties are simply not
-// there, which is correct: a disconnected project has no workspace to name.
+// the empty string. Locally that means the scope properties are absent,
+// which is correct: a disconnected project has no workspace to name.
 const (
 	PropWorkspace = "workspace"
 	PropProject   = "project"
 	PropStream    = "stream"
 
 	// PropProjectName is the project's display name where it differs from the
-	// identity in the id — the server's case, where a rename updates this
+	// identity in the id, the server's case, where a rename updates this
 	// property and nothing else.
 	PropProjectName = "project_name"
 
@@ -123,7 +114,7 @@ const (
 	PropConceptID  = "concept_id"
 	PropTerm       = "term"
 	PropTermLocale = "term_locale"
-	// PropTermStatus is the lifecycle status of the term the edge names — the
+	// PropTermStatus is the lifecycle status of the term the edge names, the
 	// half of "is it discouraged HERE" the graph can hold. The other half is the
 	// window, which rides as the edge's validity, so the same edge answers
 	// differently at two instants without being rewritten.
@@ -141,7 +132,7 @@ const (
 	PropReviewState = "review_state"
 	// PropContentHash is the decision's BASIS: the hash of the SOURCE wording it
 	// blessed. Paired with PropTargetHash it makes "at which basis" answerable by
-	// traversal — a blessing carries both halves of what it approved, so a reader
+	// traversal, a blessing carries both halves of what it approved, so a reader
 	// can see that the source moved, not only that the translation did.
 	PropContentHash = "content_hash"
 	// PropRevision and PropBasis name the two halves of the pairing by
@@ -210,7 +201,7 @@ func (s Scope) WriteProperties(props map[string]string) {
 
 // Contains reports whether other sits within this scope, treating an empty
 // dimension here as "any". It is the filter a query applies when the caller
-// pinned some dimensions and left the rest free — the server's explorer slicing
+// pinned some dimensions and left the rest free, the server's explorer slicing
 // a workspace view down to one project, and the local surface asserting the one
 // project it has.
 func (s Scope) Contains(other Scope) bool {
@@ -283,7 +274,7 @@ func CollectionNodeID(s Scope, label string) string {
 //
 // All three are identity. The variant, because a unit has one state per variant
 // and a variant-less key would collapse them. The document, because a unit id is
-// unique inside its document and nowhere wider — every page of a prose
+// unique inside its document and nowhere wider, every page of a prose
 // collection carries an `h` and a `p`, so without it two pages are one node and
 // the decision recorded last answers for both.
 //
@@ -319,8 +310,8 @@ func coordinateLocal(profile, channel string) string {
 	return profile + "/" + channel
 }
 
-// EdgeID keys one relationship. Node ids never contain "|" — every component
-// they are built from is escaped — so joining them with it is unambiguous, and
+// EdgeID keys one relationship. Node ids never contain "|", every component
+// they are built from is escaped, so joining them with it is unambiguous, and
 // an edge's id says which nodes it relates without a lookup.
 //
 // Discriminators are the parts of the relationship that make two edges between
