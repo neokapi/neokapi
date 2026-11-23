@@ -133,6 +133,10 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 	}
 	t.ToolName = name
 	t.ToolDescription = "Translates Blocks using " + string(p.Name())
+	// The engine's version is left out on purpose. A draft stays valid when the
+	// engine that wrote it is upgraded: redrafting a project on an upgrade
+	// would spend provider calls to replace text people may have reviewed, and
+	// the staleness gate already redrafts when the governing context moves.
 	t.configFP = tool.OverlayConfigFingerprint("mt", string(p.Name()), string(cfg.SourceLocale), string(cfg.TargetLocale))
 	t.profileID, t.profileVersion, t.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.TermRules)
 	// Translate: writes the target locale; source stays read-only.

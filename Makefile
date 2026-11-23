@@ -146,6 +146,9 @@ KAPI_ISO_ENV := KAPI_NO_PROJECT=1 KAPI_TELEMETRY=0 KAPI_PLUGINS_DIR_ONLY=1 KAPI_
 
 GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint"; })
 PROTOC        := $(shell which protoc 2>/dev/null)
+# The protoc release every committed *.pb.go header records. The proto targets
+# refuse another, so a regeneration on any machine writes the same headers.
+PROTOC_VERSION := 36.2
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 # ── CI auto-detection ────────────────────────────────────────────────────────
@@ -475,6 +478,7 @@ endif
 ifndef PROTOC_GEN_GO
 	$(error "protoc-gen-go not found. Run 'make tools' to install.")
 endif
+	@have="$$(protoc --version | awk '{print $$2}')"; [ "$$have" = "$(PROTOC_VERSION)" ] || { echo "protoc $$have found; the committed bindings are generated with protoc $(PROTOC_VERSION). Install that release (github.com/protocolbuffers/protobuf/releases/tag/v$(PROTOC_VERSION)), or raise the pin with scripts/check-tool-versions.py."; exit 1; }
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		core/proto/content/v1/*.proto \
@@ -2267,6 +2271,9 @@ authoring-eval-checks: build ## Score the offline voice check only (free, no mod
 # Resolution, the version chain and the governance gate are deterministic, so
 # the page states facts rather than samples, and the companion test fails when
 # the committed data stops matching the code.
+gardening-due: ## Print the local upkeep that is due (docs/internals/gardening.yaml), with the command to run
+	@python3 ./scripts/gardening-due.py
+
 coordinate-report: ## Regenerate the /coordinate dashboard data (no model calls)
 	$(GO) run $(GOTAGS) ./scripts/coordinatereport
 	@echo "Published coordinate report → web/src/pages/coordinate/_coordinate.json"
@@ -3128,8 +3135,8 @@ publish-website: docs-build-prod bowrain-docs-build-prod ## Build + deploy the k
 # v2 lives under the /v2 module path: the v1 path installs a v1 binary, which
 # cannot read the version 2 .golangci.yml.
 tools: ## Install development tools
-	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
-	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
+	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
 	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
 setup-remote: ## Install dependencies for cloud environments

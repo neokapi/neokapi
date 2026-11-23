@@ -26,18 +26,18 @@ func NewCredentialsCmd(a *App) *cobra.Command {
 	cmd.AddCommand(newCredentialsRemoveCmd(a))
 	cmd.AddCommand(newCredentialsTestCmd(a))
 
-	return cmd
+	return NoProject(cmd)
 }
 
 // promptForAPIKey asks for the key `kapi credentials add` was not given.
 //
 // A key passed as --api-key lands in shell history and, for the life of the
-// process, in every local process listing. The flag stays — scripts and the
-// non-interactive path need it, and it is part of the CLI contract — but a
-// person at a terminal should not have to choose that just to save a
+// process, in every local process listing. The flag stays, because scripts
+// and the non-interactive path need it and it is part of the CLI contract, but
+// a person at a terminal should not have to choose that just to save a
 // credential. There is no third prompt here: this is the wizard's own
 // AISetupPrompter, which the CLI registers globally at init with
-// huh.EchoModePassword, for the reason `kapi models setup` already records —
+// huh.EchoModePassword, for the reason `kapi models setup` already records:
 // the earlier prompt echoed the key, which is the wrong default for a secret.
 //
 // With no terminal (or no prompter, as in the js/wasm build) the original

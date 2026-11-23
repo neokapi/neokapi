@@ -48,21 +48,21 @@ func printContextFilesNotice(a *App, cmd *cobra.Command) {
 	fmt.Fprintln(cmd.ErrOrStderr(), "note: "+notice.Message())
 }
 
-// skipsContextNotice reports the commands that would only repeat themselves.
-// The context commands that read and write a layout name the files in their own
-// report, the context answers (`kapi context <path>` and `kapi context search`)
-// carry the notice in their own text, and the commands that answer questions
-// about kapi rather than about the project have no project to say it about.
+// skipsContextNotice reports the commands that would only repeat themselves,
+// and those with no project to say it about. The context commands that read
+// and write a layout name the files in their own report, the context answers
+// (`kapi context <path>` and `kapi context search`) carry the notice in their
+// own text, and a command that does not concern a project
+// (ProjectDeclaration) resolves none.
 func skipsContextNotice(cmd *cobra.Command) bool {
+	if uses, _ := ProjectDeclaration(cmd); !uses {
+		return true
+	}
 	path := cmd.CommandPath()
 	for _, verb := range []string{"context", "context search", "context sync", "store import", "store export"} {
 		if path == verb || strings.HasSuffix(path, " "+verb) {
 			return true
 		}
-	}
-	switch cmd.Name() {
-	case "version", "completion", "help", "update":
-		return true
 	}
 	return false
 }

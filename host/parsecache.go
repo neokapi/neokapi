@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/core/version"
 )
 
@@ -24,12 +25,13 @@ import (
 // YAML reader's comment notes) would fail on replay. The wrappers shadow the
 // Annotations field with a typed envelope that carries each payload's
 // registered type name (map keys are usually, but not always, the type
-// name, so the name travels explicitly).
+// name, so the name travels explicitly). The inline skeleton is shadowed the
+// same way (toCachedSkeleton).
 type cachedPart struct {
 	Type   model.PartType    `json:"t"`
 	Block  *cachedBlock      `json:"b,omitempty"`
 	Layer  *cachedLayer      `json:"l,omitempty"`
-	Data   *model.Data       `json:"d,omitempty"`
+	Data   *cachedData       `json:"d,omitempty"`
 	Media  *model.Media      `json:"m,omitempty"`
 	GStart *model.GroupStart `json:"gs,omitempty"`
 	GEnd   *model.GroupEnd   `json:"ge,omitempty"`
@@ -50,6 +52,7 @@ type cachedAnno struct {
 type cachedBlock struct {
 	*model.Block
 	Annotations        map[string]cachedAnno `json:"Annotations,omitempty"`
+	Skeleton           json.RawMessage       `json:"Skeleton,omitempty"`
 	Unlabelled         *model.Edition        `json:"Unlabelled,omitempty"`
 	UnlabelledOverlays []model.Overlay       `json:"UnlabelledOverlays,omitempty"`
 }
@@ -58,6 +61,35 @@ type cachedBlock struct {
 type cachedLayer struct {
 	*model.Layer
 	Annotations map[string]cachedAnno `json:"Annotations,omitempty"`
+}
+
+// cachedData shadows Data.Skeleton with its discriminated form, as cachedBlock
+// does for a block.
+type cachedData struct {
+	*model.Data
+	Skeleton json.RawMessage `json:"Skeleton,omitempty"`
+}
+
+// toCachedSkeleton encodes an inline skeleton for the log; nil encodes as
+// nothing. A Block's or a Data's Skeleton holds a polymorphic []SkeletonPart,
+// which raw json.Unmarshal cannot rehydrate, so the record carries the
+// discriminated form core/venue writes for it (venue.MarshalSkeleton). The
+// HTML reader gives every block one, including a block HTML yields through a
+// subfilter.
+func toCachedSkeleton(s *model.Skeleton) (json.RawMessage, error) {
+	if s == nil {
+		return nil, nil
+	}
+	return venue.MarshalSkeleton(s)
+}
+
+// fromCachedSkeleton reverses toCachedSkeleton. An absent field and a JSON
+// null both read as no skeleton.
+func fromCachedSkeleton(raw json.RawMessage) (*model.Skeleton, error) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, nil
+	}
+	return venue.UnmarshalSkeleton(raw)
 }
 
 // toCachedAnnotations envelopes a Payload map for serialization. Payloads that
@@ -124,7 +156,10 @@ func cacheableMedia(m *model.Media) *model.Media {
 	return &rec
 }
 
-func toCachedParts(parts []*model.Part) []cachedPart {
+// toCachedParts converts parts to their records. A skeleton that does not
+// encode is an error: the record would replay without the structure a writer
+// rebuilds the document from.
+func toCachedParts(parts []*model.Part) ([]cachedPart, error) {
 	out := make([]cachedPart, 0, len(parts))
 	for _, p := range parts {
 		if p == nil {
@@ -133,7 +168,11 @@ func toCachedParts(parts []*model.Part) []cachedPart {
 		cp := cachedPart{Type: p.Type}
 		switch r := p.Resource.(type) {
 		case *model.Block:
-			cp.Block = &cachedBlock{Block: r, Annotations: toCachedAnnotations(r.AnnoMap())}
+			skel, err := toCachedSkeleton(r.Skeleton)
+			if err != nil {
+				return nil, fmt.Errorf("record block %s: %w", r.ID, err)
+			}
+			cp.Block = &cachedBlock{Block: r, Annotations: toCachedAnnotations(r.AnnoMap()), Skeleton: skel}
 			if e, ok := r.TargetEdition(""); ok {
 				cp.Block.Unlabelled = &e
 			}
@@ -141,7 +180,11 @@ func toCachedParts(parts []*model.Part) []cachedPart {
 		case *model.Layer:
 			cp.Layer = &cachedLayer{Layer: r, Annotations: toCachedAnnotations(r.Annotations)}
 		case *model.Data:
-			cp.Data = r
+			skel, err := toCachedSkeleton(r.Skeleton)
+			if err != nil {
+				return nil, fmt.Errorf("record data %s: %w", r.ID, err)
+			}
+			cp.Data = &cachedData{Data: r, Skeleton: skel}
 		case *model.Media:
 			cp.Media = cacheableMedia(r)
 		case *model.GroupStart:
@@ -156,9 +199,12 @@ func toCachedParts(parts []*model.Part) []cachedPart {
 		}
 		out = append(out, cp)
 	}
-	return out
+	return out, nil
 }
 
+// fromCachedParts converts records back to parts. A record whose skeleton does
+// not decode yields no part, so the log it came from reads as invalid and the
+// document is parsed again.
 func fromCachedParts(cps []cachedPart) []*model.Part {
 	out := make([]*model.Part, 0, len(cps))
 	for i := range cps {
@@ -167,6 +213,11 @@ func fromCachedParts(cps []cachedPart) []*model.Part {
 		switch cp.Type {
 		case model.PartBlock:
 			if cp.Block != nil && cp.Block.Block != nil {
+				skel, err := fromCachedSkeleton(cp.Block.Skeleton)
+				if err != nil {
+					continue
+				}
+				cp.Block.Block.Skeleton = skel
 				// Through the setter, so an annotation the Block holds in a
 				// field rather than the map lands where it belongs.
 				cp.Block.Block.Annotations = nil
@@ -185,7 +236,14 @@ func fromCachedParts(cps []cachedPart) []*model.Part {
 				res = cp.Layer.Layer
 			}
 		case model.PartData:
-			res = cp.Data
+			if cp.Data != nil && cp.Data.Data != nil {
+				skel, err := fromCachedSkeleton(cp.Data.Skeleton)
+				if err != nil {
+					continue
+				}
+				cp.Data.Data.Skeleton = skel
+				res = cp.Data.Data
+			}
 		case model.PartMedia:
 			res = cp.Media
 		case model.PartGroupStart:
@@ -246,8 +304,10 @@ func (a *App) openParseCache(root string) (func(), error) {
 	}
 	c, err := openProjectDocCache(layout)
 	if err != nil {
+		a.noteParseCacheOff(err)
 		return func() {}, nil
 	}
+	c.producer = memoProducer(a.formatProducer)
 	a.docCache = c
 	return func() {
 		c.Close()

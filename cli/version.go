@@ -8,7 +8,7 @@ import (
 
 // NewVersionCmd creates a version command for the named program.
 func NewVersionCmd(a *App, program string) *cobra.Command {
-	return &cobra.Command{
+	return NoProject(&cobra.Command{
 		Use:     "version",
 		Short:   "Show version information",
 		Example: "  kapi version",
@@ -22,5 +22,5 @@ func NewVersionCmd(a *App, program string) *cobra.Command {
 			}
 			return output.Print(cmd, out)
 		},
-	}
+	})
 }

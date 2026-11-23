@@ -51,7 +51,7 @@ With `--json`, the core verbs print one JSON document on stdout when they finish
 
 ### `kapi run`
 
-A single-file run reports the flow and the paths involved; a batch run reports the file count. An in-project run with no `-o` is process-only ([projects](/kapi/projects)): it commits target overlays to the project store instead of writing a file, and reports `process_only`.
+A single-file run reports the flow and the paths involved; a batch run reports the file count. An in-project run with no `-o` is process-only ([projects](/kapi/projects)): it commits target overlays to the project store instead of writing a file, and reports `process_only`. When the parse cache could not be opened, the run parsed every file and the document carries `parse_cache_off` with the reason.
 
 ```json
 {

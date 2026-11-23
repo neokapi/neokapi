@@ -16,7 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/version"
 )
 
-// NewUpdateCmd creates the `kapi update` command — the kapi binary's own
+// NewUpdateCmd creates the `kapi update` command, the kapi binary's own
 // updater. How it behaves depends on how kapi was installed (see
 // cli/selfupdate): a package-manager install is nudged toward the exact upgrade
 // command (and, with --run, that command is executed); a direct/tarball install
@@ -57,7 +57,7 @@ SHA-256 and cosign signature, and replaces the binary in place.
 			// Hidden background mode: refresh the update-check cache and exit
 			// silently. StartBackgroundRefresh spawns this as a detached child
 			// so the fetch survives the (typically millisecond-fast) parent.
-			// Errors are irrelevant — a failed refresh just means no notice.
+			// Errors are irrelevant: a failed refresh means no notice.
 			if refreshCache {
 				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
@@ -122,7 +122,7 @@ SHA-256 and cosign signature, and replaces the binary in place.
 	cmd.Flags().BoolVar(&checkOnly, "check", false, "only report whether an update is available")
 	cmd.Flags().BoolVar(&refreshCache, "refresh-cache", false, "refresh the update-check cache and exit (internal)")
 	_ = cmd.Flags().MarkHidden("refresh-cache")
-	return cmd
+	return NoProject(cmd)
 }
 
 // windowsWingetNotice is what `kapi update` prints on a Windows build when the
@@ -155,7 +155,7 @@ func runManagedUpgrade(cmd *cobra.Command, source selfupdate.Source, channel, la
 
 	argv := selfupdate.UpgradeArgv(source, channel)
 	if len(argv) == 0 {
-		// apt/dnf need sudo / a TTY — never run those unattended.
+		// apt/dnf need sudo or a TTY, so kapi never runs those unattended.
 		fmt.Fprintf(out, "Run this to update kapi (needs elevated privileges):\n\n    %s\n", upgradeCmd)
 		return nil
 	}

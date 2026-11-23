@@ -15,19 +15,7 @@ import { useTranslation } from "react-i18next";
 import { useCSSVariable } from "uniwind";
 
 import { formatCount } from "../../lib/format";
-
-/** The text scale from which a fixed-height row stacks its parts and lets its lines wrap. */
-export const LARGE_TEXT = 1.6;
-
-/**
- * Whether the text is at a large accessibility size, and how many lines a
- * wrapping line of small text is given there. The lines grow with the
- * scale, so a line such as a project's facts fits at every large size.
- */
-export function useLargeText(): { large: boolean; lines: number } {
-  const { fontScale } = useWindowDimensions();
-  return { large: fontScale >= LARGE_TEXT, lines: Math.min(4, Math.round(fontScale + 0.5)) };
-}
+import { RetryButton } from "../RetryButton";
 
 /** The line height, before scaling, of each text size a fixed-lines text takes. */
 const LINE_HEIGHT = { sm: 20, xs: 16 } as const;
@@ -96,9 +84,7 @@ export function CountsNotice({
   return (
     <View testID={`counts-${kind}`} className="items-center gap-2 px-8 pt-4 pb-2">
       <Text className="text-muted-foreground text-center text-sm">{text}</Text>
-      <Pressable testID="counts-retry" accessibilityRole="button" onPress={onRetry} hitSlop={8}>
-        <Text className="text-primary text-base">{t("common.retry")}</Text>
-      </Pressable>
+      <RetryButton testID="counts-retry" size="base" onPress={onRetry} />
     </View>
   );
 }

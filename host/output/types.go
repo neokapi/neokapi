@@ -367,6 +367,9 @@ type FlowRunOutput struct {
 	// the run landed `targets/<locale>` overlays in the project block store
 	// instead of writing an output file.
 	ProcessOnly bool `json:"process_only,omitempty"`
+	// ParseCacheOff is why the parse cache was off for the run, which then
+	// parsed every file; "" when it was on.
+	ParseCacheOff string `json:"parse_cache_off,omitempty"`
 }
 
 func (o FlowRunOutput) FormatText(w io.Writer) error {
@@ -386,6 +389,9 @@ func (o FlowRunOutput) FormatText(w io.Writer) error {
 	}
 	if o.Stats != nil {
 		Note(w, "  Parts: %d, Blocks: %d", o.Stats.PartCount, o.Stats.BlockCount)
+	}
+	if o.ParseCacheOff != "" {
+		Note(w, "  Parse cache: off (%s)", o.ParseCacheOff)
 	}
 	return nil
 }

@@ -8,17 +8,17 @@ import (
 	"github.com/neokapi/neokapi/host/output"
 )
 
-// NewConfigCmd creates `kapi config` — the one configuration verb. Two scopes
+// NewConfigCmd creates `kapi config`, the one configuration verb. Two scopes
 // share it, split by shape:
 //
 //   - Subcommands read and write kapi's app configuration (the global
 //     ~/.config/kapi/kapi.yaml): `kapi config set ai.provider ollama`. A key
 //     whose first segment names an installed plugin's declared namespace is
-//     routed to that plugin's own config file — `kapi config set
-//     bowrain.server.url …` — so plugins never ship a competing config command.
+//     routed to that plugin's own config file (`kapi config set
+//     bowrain.server.url …`), so plugins never ship a competing config command.
 //   - The positional form reads and writes the project recipe:
 //     `kapi config name`, `kapi config source_language nb`,
-//     `kapi config server.url https://…` — core fields natively, registered
+//     `kapi config server.url https://…`: core fields natively, registered
 //     extension blocks (server, …) generically, validated before saving.
 //
 // The split is deliberate: app config is per-machine and uncommitted, the
@@ -103,7 +103,7 @@ func newConfigGetCmd(a *App) *cobra.Command {
 		},
 	}
 	output.AddFlags(cmd.Flags())
-	return cmd
+	return NoProject(cmd)
 }
 
 func newConfigSetCmd(a *App) *cobra.Command {
@@ -120,7 +120,7 @@ func newConfigSetCmd(a *App) *cobra.Command {
 		},
 	}
 	output.AddFlags(cmd.Flags())
-	return cmd
+	return NoProject(cmd)
 }
 
 func newConfigUnsetCmd(a *App) *cobra.Command {
@@ -137,7 +137,7 @@ func newConfigUnsetCmd(a *App) *cobra.Command {
 		},
 	}
 	output.AddFlags(cmd.Flags())
-	return cmd
+	return NoProject(cmd)
 }
 
 func newConfigListCmd(a *App) *cobra.Command {
@@ -154,7 +154,7 @@ func newConfigListCmd(a *App) *cobra.Command {
 		},
 	}
 	output.AddFlags(cmd.Flags())
-	return cmd
+	return NoProject(cmd)
 }
 
 func newConfigPathCmd(a *App) *cobra.Command {
@@ -171,5 +171,5 @@ func newConfigPathCmd(a *App) *cobra.Command {
 		},
 	}
 	output.AddFlags(cmd.Flags())
-	return cmd
+	return NoProject(cmd)
 }

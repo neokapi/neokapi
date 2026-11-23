@@ -1,7 +1,13 @@
-import type { DeckCard, FixCandidates } from "@neokapi/bowrain-client";
+import {
+  ApiError,
+  NetworkError,
+  RequestTimeoutError,
+  type DeckCard,
+  type FixCandidates,
+} from "@neokapi/bowrain-client";
 import type { Run } from "@neokapi/kapi-format";
 import { withTestProviders } from "./testProviders";
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
 import "../lib/i18n";
 import { FixSheetBody } from "../components/FixSheet";
@@ -39,14 +45,73 @@ const fixes: FixCandidates = {
   notes: [],
 };
 
+/** A promise the test settles. */
+function deferred<T>() {
+  let resolve!: (v: T) => void;
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
 function setup() {
   const onFix = jest.fn();
   const onReject = jest.fn();
-  const loadFixes = jest.fn(async () => fixes);
+  const loadFixes = jest.fn(async (..._args: unknown[]): Promise<FixCandidates> => fixes);
   return { onFix, onReject, loadFixes };
 }
 
 describe("FixSheet", () => {
+  it.each([
+    [
+      "the client's bound passed",
+      new RequestTimeoutError("/fix-candidates", 65_000),
+      /took too long/,
+    ],
+    ["the load balancer gave up", new ApiError(504, "gateway timeout", undefined), /took too long/],
+    ["the connection failed", new NetworkError("Network request failed"), /need a connection/],
+  ])("says why the ready-made fixes did not load when %s", async (_why, err, text) => {
+    const h = { ...setup(), loadFixes: jest.fn(async () => Promise.reject(err)) };
+    await render(withTestProviders(<FixSheetBody card={card} onClose={() => {}} {...h} />));
+    expect(await screen.findByText(text)).toBeTruthy();
+    expect(screen.getByTestId("fix-retry")).toBeTruthy();
+  });
+
+  it("tries the suggestions again after a timeout, and shows them when they come", async () => {
+    const h = setup();
+    const pending = deferred<FixCandidates>();
+    h.loadFixes
+      .mockImplementationOnce(async () =>
+        Promise.reject(new RequestTimeoutError("/fix-candidates", 65_000)),
+      )
+      .mockImplementationOnce(() => pending.promise);
+    await render(withTestProviders(<FixSheetBody card={card} onClose={() => {}} {...h} />));
+    expect(await screen.findByText(/took too long/)).toBeTruthy();
+    await fireEvent.press(screen.getByTestId("fix-retry"));
+    // While it asks again, the control is gone and the sheet waits.
+    await waitFor(() => expect(screen.queryByTestId("fix-retry")).toBeNull());
+    expect(screen.queryByText(/took too long/)).toBeNull();
+    await act(async () => pending.resolve(fixes));
+    expect(await screen.findByTestId("use-term-0")).toBeTruthy();
+    expect(h.loadFixes).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the same sentence when a retry ends in a 504 again, and never asks by itself", async () => {
+    const h = setup();
+    h.loadFixes.mockImplementation(async () =>
+      Promise.reject(new ApiError(504, "gateway timeout", undefined)),
+    );
+    await render(withTestProviders(<FixSheetBody card={card} onClose={() => {}} {...h} />));
+    expect(await screen.findByText(/took too long/)).toBeTruthy();
+    expect(h.loadFixes).toHaveBeenCalledTimes(1);
+    await fireEvent.press(screen.getByTestId("fix-retry"));
+    await waitFor(() => expect(h.loadFixes).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText(/took too long/)).toBeTruthy();
+    expect(await screen.findByTestId("fix-retry")).toBeTruthy();
+    await act(async () => new Promise((r) => setTimeout(r, 50)));
+    expect(h.loadFixes).toHaveBeenCalledTimes(2);
+  });
+
   it("applies a ready-made fix with the chosen reason", async () => {
     const h = setup();
     await render(withTestProviders(<FixSheetBody card={card} onClose={() => {}} {...h} />));

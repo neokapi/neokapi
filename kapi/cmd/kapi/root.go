@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// updateChannel resolves the release track the background notifier watches — the
+// updateChannel resolves the release track the background notifier watches: the
 // persisted update.channel (KAPI_UPDATE_CHANNEL), falling back to the channel
 // inferred from this build (a prerelease defaults to beta).
 func updateChannel() string {
@@ -55,8 +55,8 @@ var rootCmd = &cobra.Command{
 		// only warms the on-disk cache; the notice (if any) is rendered in
 		// PostRun. No-ops in CI / non-TTY / when opted out.
 		selfupdate.StartBackgroundRefresh(updateChannel())
-		// Before any command reads a project's state, it asks whether git
-		// tracks that state.
+		// The one-time notices about the checkout's state, for a command that
+		// concerns a project and a person reading its error stream.
 		return cli.CheckCommandState(cmd)
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
@@ -80,6 +80,9 @@ func init() {
 	// into the cobra tree before Execute parses argv.
 	app.InitPluginHost()
 
+	// Bare `kapi` inside a project shows its status, so the root concerns
+	// the project; the declaration covers the root alone.
+	cli.UsesProject(rootCmd)
 	cli.AddPersistentFlags(app, rootCmd)
 	cli.AddCommandGroups(app, rootCmd)
 
@@ -91,22 +94,22 @@ func init() {
 	// (cli.KapiCommandSet is the single source of truth for what `kapi`
 	// exposes, so the localization inventory can never drift from the
 	// binary).
-	//
+
 	// Built-ins always register: installing a plugin must never change what
-	// an existing verb means (the no-shadowing rule — plugins extend kapi
-	// the way gh extends git). A plugin that needs to participate in a core
-	// verb does so through a contribution (bowrain's init --server), a
-	// hidden plumbing command the built-in dispatches (server-status under
-	// kapi status, server-up under kapi up), or its plugin group
-	// (kapi bowrain config). pluginattach enforces this: a plugin command
-	// colliding with a built-in attaches group-only.
+	// an existing verb means. This is the no-shadowing rule, by which plugins
+	// extend kapi the way gh extends git. A plugin takes part in a core verb
+	// through a contribution, such as bowrain's init --server; through a
+	// hidden plumbing command the built-in dispatches, such as server-status
+	// under kapi status and server-up under kapi up; or in its plugin group,
+	// as kapi bowrain config does. The pluginattach package enforces this: a
+	// plugin command colliding with a built-in attaches group-only.
 	for _, cmd := range cli.KapiCommandSet(app) {
 		rootCmd.AddCommand(cmd)
 	}
 
 	// Snapshot the built-in verb set BEFORE plugin commands attach: the
 	// opt-out telemetry reporter (epic 018, workstream G) only ever names
-	// built-in verbs — plugin-dispatched or unknown verbs report as
+	// built-in verbs; plugin-dispatched or unknown verbs report as
 	// "plugin"/"other". The reporter runs on cli.Run's exit path after the
 	// command completes, and flushes best-effort within 100 ms.
 	builtinVerbs := make(map[string]bool, len(rootCmd.Commands()))
@@ -149,7 +152,7 @@ func init() {
 
 	// Localize command help in place. This must happen at construction
 	// time: cobra renders --help before any PreRun hook, so the --lang
-	// flag cannot apply — help honors KAPI_LANG / config / POSIX env (see
+	// flag cannot apply; help honors KAPI_LANG / config / POSIX env (see
 	// cli.HelpTranslator). Misses keep the English source.
 	cli.LocalizeCommandHelp(rootCmd, cli.HelpTranslator())
 
@@ -157,7 +160,7 @@ func init() {
 	// does not have installed (`kapi push` in a project whose recipe binds a
 	// convergence venue). Offer the install inline instead of failing with cobra's
 	// bare "unknown command". Registered last: it only ever runs on the error
-	// path, after the whole tree — built-ins, plugin commands, contributions —
+	// path, after the whole tree (built-ins, plugin commands, contributions)
 	// has failed to match.
 	cli.SetUnknownCommandHandler(func(cmd *cobra.Command, verb string, args []string) (bool, error) {
 		// Argv, not app.AssumeYes/app.Quiet: cobra rejects an unknown verb in

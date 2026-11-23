@@ -78,6 +78,12 @@ type docCache struct {
 	// size and modification time only for the checkout that recorded it;
 	// another checkout's file is compared by its content.
 	checkout string
+
+	// producer names what reads a format, for the formats an entry records
+	// it handed embedded content to (App.formatProducer). An entry is served
+	// only while every one of them still names the same producer. Nil names
+	// none.
+	producer func(format string) (identity string, cacheable bool)
 }
 
 var docCacheMigrations = []storage.Migration{
@@ -137,6 +143,13 @@ var docCacheMigrations = []storage.Migration{
 			format          TEXT NOT NULL,
 			PRIMARY KEY (path, build, parts_format, config_key)
 		);`,
+	},
+	{
+		Version:     4,
+		Description: "record the formats a parse handed embedded content to, with what read each",
+		// A cache rebuilds what it drops, so the old entries are discarded.
+		SQL: `DELETE FROM documents;
+		ALTER TABLE documents ADD COLUMN subformats TEXT NOT NULL DEFAULT '';`,
 	},
 }
 
@@ -236,6 +249,7 @@ func (c *docCache) Close() {
 
 // docRow is the index entry for one (path, config).
 type docRow struct {
+	subformats     string
 	key            docKey
 	path           string
 	contentHash    string
@@ -249,11 +263,12 @@ type docRow struct {
 // partsFormat names the shape of the part records the cache writes: the JSON
 // form of a block, whose content is its peer editions (Block.Editions and
 // Block.Native), with the translation filed under no language and its overlays
-// beside it. Every development build shares the version "dev", so the format
-// is part of the key too. An entry written with another record shape reads as
-// a miss under any version. It never decodes into a block that holds none of
+// beside it, and an inline skeleton in its discriminated form. Every
+// development build shares the version "dev", so the format is part of the key
+// too. An entry written with another record shape reads as a miss under any
+// version. It never decodes into a block that holds none of
 // its content or files an overlay on the wrong edition.
-const partsFormat = "editions/2"
+const partsFormat = "editions/3"
 
 // docKey is what the cache files an entry under, beside its path: the build
 // that recorded it, the shape of its records and the caller's config key.
@@ -310,11 +325,11 @@ func (c *docCache) lookup(path, configKey string, f *os.File, st os.FileInfo) (d
 	var checkout string
 	var mtime, size int64
 	q := c.DB.QueryRow(
-		`SELECT content_hash, checkout, mtime, size, parts_ref, parts_digest, skeleton_ref, skeleton_digest, format
+		`SELECT content_hash, checkout, mtime, size, parts_ref, parts_digest, skeleton_ref, skeleton_digest, format, subformats
 		   FROM documents WHERE path = ? AND build = ? AND parts_format = ? AND config_key = ?`,
 		row.path, key.build, key.partsFormat, key.config)
 	if err := q.Scan(&row.contentHash, &checkout, &mtime, &size, &row.partsRef, &row.partsDigest,
-		&row.skeletonRef, &row.skeletonDigest, &row.format); err != nil {
+		&row.skeletonRef, &row.skeletonDigest, &row.format, &row.subformats); err != nil {
 		return docRow{}, false
 	}
 	// The size and modification time stand for the content only in the
@@ -353,17 +368,51 @@ func openCacheEntry(dir, p string) (*os.File, error) {
 	return rootpath.OpenRegularNoLink(dir, p)
 }
 
-// validLog reports whether the regular file p inside dir is a part log whose
-// every line decodes as one part and whose bytes digest to want. It reads the
-// log once, line by line, as Feed does.
-func validLog(dir, p, want string) bool {
-	f, err := openCacheEntry(dir, p)
-	if err != nil {
+// subformatProducers names, for each format a parse handed embedded content
+// to, what reads it now: "format=identity" entries joined by newlines. ok is
+// false when one of them cannot be named, and such a parse is not recorded.
+func (c *docCache) subformatProducers(formats []string) (string, bool) {
+	if len(formats) == 0 || c.producer == nil {
+		return "", true
+	}
+	parts := make([]string, 0, len(formats))
+	for _, f := range formats {
+		id, ok := c.producer(f)
+		if !ok {
+			return "", false
+		}
+		parts = append(parts, f+"="+id)
+	}
+	return strings.Join(parts, "\n"), true
+}
+
+// subformatsHold reports whether every format an entry recorded still names
+// the producer it named when the entry was recorded.
+func (c *docCache) subformatsHold(recorded string) bool {
+	if recorded == "" {
+		return true
+	}
+	if c.producer == nil {
 		return false
 	}
-	defer f.Close()
+	for line := range strings.SplitSeq(recorded, "\n") {
+		f, want, ok := strings.Cut(line, "=")
+		if !ok {
+			return false
+		}
+		if id, cacheable := c.producer(f); !cacheable || id != want {
+			return false
+		}
+	}
+	return true
+}
+
+// validLog reports whether the first size bytes of the open log f are a part
+// log whose every line decodes as one part and whose bytes digest to want. It
+// reads the log once, line by line, as Feed does, and leaves f open.
+func validLog(f *os.File, size int64, want string) bool {
 	h := sha256.New()
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(io.NewSectionReader(f, 0, size))
 	sc.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
 	for sc.Scan() {
 		line := sc.Bytes()
@@ -423,13 +472,22 @@ func (c *docCache) OpenDocument(path, configKey string) flow.CachedDocument {
 // A cache restored from elsewhere is checked the same way, so an entry whose
 // files were truncated, replaced or renamed is parsed again, never an error.
 func (c *docCache) recorded(row docRow) flow.CachedDocument {
+	if !c.subformatsHold(row.subformats) {
+		c.discard(row)
+		return nil
+	}
 	base := recordingBase(row.key, row.contentHash)
 	if row.partsRef != "parts-"+base+".log" || (row.skeletonRef != "" && row.skeletonRef != "skel-"+base+".bin") {
 		c.discard(row)
 		return nil
 	}
-	partsPath := filepath.Join(c.dir, row.partsRef)
-	if row.partsDigest == "" || !validLog(c.dir, partsPath, row.partsDigest) {
+	// The log is checked and replayed through one handle, so a file put in
+	// its place after the check is never what Feed reads.
+	log, size, ok := openLog(c.dir, filepath.Join(c.dir, row.partsRef))
+	if !ok || row.partsDigest == "" || !validLog(log, size, row.partsDigest) {
+		if log != nil {
+			_ = log.Close()
+		}
 		c.discard(row)
 		return nil
 	}
@@ -437,11 +495,27 @@ func (c *docCache) recorded(row docRow) flow.CachedDocument {
 	if row.skeletonRef != "" {
 		skelPath = filepath.Join(c.dir, row.skeletonRef)
 		if fileDigestIn(c.dir, skelPath) != row.skeletonDigest {
+			_ = log.Close()
 			c.discard(row)
 			return nil
 		}
 	}
-	return &cachedDocument{dir: c.dir, partsPath: partsPath, skeletonPath: skelPath}
+	return &cachedDocument{dir: c.dir, log: log, logSize: size, skeletonPath: skelPath}
+}
+
+// openLog opens the part log p inside dir and returns it with its size; ok is
+// false, with no file to close, when it cannot be opened or sized.
+func openLog(dir, p string) (f *os.File, size int64, ok bool) {
+	f, err := openCacheEntry(dir, p)
+	if err != nil {
+		return nil, 0, false
+	}
+	st, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, 0, false
+	}
+	return f, st.Size(), true
 }
 
 // RecordDocument returns a sink that persists a freshly-parsed document as it
@@ -511,21 +585,21 @@ func (c *docCache) newRecorder(path, configKey, formatName string) *docRecorder 
 // cachedDocument streams a previously-recorded document from disk.
 type cachedDocument struct {
 	// dir is the cache directory that holds both files.
-	dir          string
-	partsPath    string
+	dir string
+	// log is the part log, open from the check in recorded until Close, and
+	// logSize its size at the check.
+	log          *os.File
+	logSize      int64
 	skeletonPath string
 }
 
 // Feed streams the document's parts to inCh one at a time, reading the append
-// log line by line so the whole document is never held in memory. It closes inCh.
+// log line by line so the whole document is never held in memory. It reads the
+// handle recorded checked, from its start, so it may run more than once before
+// Close. It closes inCh.
 func (d *cachedDocument) Feed(ctx context.Context, inCh chan<- *model.Part) error {
 	defer close(inCh)
-	f, err := openCacheEntry(d.dir, d.partsPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(io.NewSectionReader(d.log, 0, d.logSize))
 	sc.Buffer(make([]byte, 0, 64*1024), 16*1024*1024) // allow large single-part lines
 	for sc.Scan() {
 		var cp cachedPart
@@ -568,7 +642,8 @@ func (d *cachedDocument) OpenSkeleton() (*format.SkeletonStore, error) {
 	return s, nil
 }
 
-func (d *cachedDocument) Close() error { return nil }
+// Close closes the part log.
+func (d *cachedDocument) Close() error { return d.log.Close() }
 
 // docRecorder persists a document as it parses: each part appended to the log,
 // the skeleton written to its file by the reader's emitter.
@@ -587,6 +662,9 @@ type docRecorder struct {
 	// release frees the cache's in-flight slot for this document; called
 	// exactly once, from Commit or Abort.
 	release func()
+	// formats lists the formats the parse handed embedded content to, read at
+	// Commit (flow.FormatsRecorder). Nil when the runner records none.
+	formats func() []string
 }
 
 // done releases the in-flight slot (idempotent).
@@ -614,7 +692,10 @@ func (r *docRecorder) SkeletonStore() *format.SkeletonStore {
 
 // Add appends one parsed part to the log (streamed; not buffered into a slice).
 func (r *docRecorder) Add(p *model.Part) error {
-	cps := toCachedParts([]*model.Part{p})
+	cps, err := toCachedParts([]*model.Part{p})
+	if err != nil {
+		return err
+	}
 	if len(cps) == 0 {
 		return nil // a part type the cache doesn't model is skipped and never replayed
 	}
@@ -665,21 +746,44 @@ func (r *docRecorder) Commit() error {
 		_ = os.Remove(r.skelTmp)
 		skelRef = ""
 	}
+	subformats := ""
+	if r.formats != nil {
+		var ok bool
+		if subformats, ok = r.c.subformatProducers(r.formats()); !ok {
+			// A reader behind part of the parse cannot be named, so the parse
+			// is not kept; the next read parses again.
+			r.discardFiles(skelRef)
+			return nil
+		}
+	}
 	skelDigest := ""
 	if skelRef != "" {
 		skelDigest = fileDigestIn(r.c.dir, filepath.Join(r.c.dir, skelRef))
 	}
 	_, err := r.c.DB.Exec(
 		`INSERT INTO documents (path, build, parts_format, config_key, content_hash, checkout, mtime, size,
-		                        parts_ref, parts_digest, skeleton_ref, skeleton_digest, format)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		                        parts_ref, parts_digest, skeleton_ref, skeleton_digest, format, subformats)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(path, build, parts_format, config_key) DO UPDATE SET
 		   content_hash = excluded.content_hash, checkout = excluded.checkout, mtime = excluded.mtime,
 		   size = excluded.size, parts_ref = excluded.parts_ref, parts_digest = excluded.parts_digest,
-		   skeleton_ref = excluded.skeleton_ref, skeleton_digest = excluded.skeleton_digest, format = excluded.format`,
+		   skeleton_ref = excluded.skeleton_ref, skeleton_digest = excluded.skeleton_digest, format = excluded.format,
+		   subformats = excluded.subformats`,
 		r.c.keyPath(r.path), r.key.build, r.key.partsFormat, r.key.config, r.contentHash, r.c.checkout,
-		r.st.ModTime().UnixNano(), r.st.Size(), r.partsRef, hex.EncodeToString(r.ph.Sum(nil)), skelRef, skelDigest, r.format)
+		r.st.ModTime().UnixNano(), r.st.Size(), r.partsRef, hex.EncodeToString(r.ph.Sum(nil)), skelRef, skelDigest, r.format, subformats)
 	return err
+}
+
+// RecordFormatsFrom implements flow.FormatsRecorder.
+func (r *docRecorder) RecordFormatsFrom(formats func() []string) { r.formats = formats }
+
+// discardFiles removes the files a committed recording renamed into place,
+// for a recording that is then not kept.
+func (r *docRecorder) discardFiles(skelRef string) {
+	_ = rootpath.Remove(r.c.dir, filepath.Join(r.c.dir, r.partsRef))
+	if skelRef != "" {
+		_ = rootpath.Remove(r.c.dir, filepath.Join(r.c.dir, skelRef))
+	}
 }
 
 // Abort discards the in-progress files without recording an index entry.

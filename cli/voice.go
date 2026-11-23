@@ -73,10 +73,10 @@ func newVoiceCheckCmd(a *App) *cobra.Command {
 			}
 			// A profile this command cannot score against must not be scored
 			// against. Every field is optional, so an empty file and
-			// `hello: world` both load, contribute no rules, and came back
-			// 100/100 "on brand" — the most misleading answer this command can
-			// give, and reachable from a scaffold nobody filled in or a path
-			// typo that resolved to some other YAML. `kapi voice validate`
+			// `hello: world` both load and contribute no rules, and scoring
+			// them gives 100/100 "on brand". That is the most misleading answer
+			// this command can give, and a scaffold nobody filled in or a path
+			// typo that resolved to some other YAML reaches it. `kapi voice validate`
 			// already refuses both; check asks it the same question. See #2224.
 			if probs := coreprofile.Blocking(coreprofile.ValidateProfile(profile)); len(probs) > 0 {
 				return fmt.Errorf("%s is not a usable voice profile:%s\n"+
@@ -167,7 +167,7 @@ func subjectFile(cmd *cobra.Command, args []string) string {
 }
 
 // VoiceProfileLabel names a profile for an error message, falling back to a
-// description of what was resolved when it has no name — which is the case the
+// description of what was resolved when it has no name, which is the case the
 // error is usually about.
 func VoiceProfileLabel(p *coreprofile.VoiceProfile) string {
 	if p == nil {
@@ -293,7 +293,7 @@ the result is {"valid": bool, "errors": [{"field", "message"}]}.`,
 		},
 	}
 	output.AddFlags(cmd.Flags())
-	return cmd
+	return NoProject(cmd)
 }
 
 func newVoiceProfilesCmd(a *App) *cobra.Command {
@@ -328,7 +328,7 @@ func newVoiceProfilesCmd(a *App) *cobra.Command {
 	}
 	AddResourceFlags(cmd)
 	output.AddFlags(cmd.Flags())
-	return cmd
+	return UsesProject(cmd)
 }
 
 func newVoiceNewCmd(a *App) *cobra.Command {
@@ -369,7 +369,7 @@ then ` + "`kapi voice import`" + ` it.`,
 	}
 	cmd.Flags().StringVar(&pack, "pack", "", "seed from a starter pack (see 'kapi voice profiles')")
 	cmd.Flags().StringVarP(&out, "out", "o", "", "write to a file instead of stdout")
-	return cmd
+	return NoProject(cmd)
 }
 
 func newVoiceShowCmd(a *App) *cobra.Command {
@@ -415,7 +415,7 @@ func newVoiceImportCmd(a *App) *cobra.Command {
 	}
 	AddResourceFlags(cmd)
 	output.AddFlags(cmd.Flags())
-	return cmd
+	return UsesProject(cmd)
 }
 
 func newVoiceEditCmd(a *App) *cobra.Command {
@@ -471,5 +471,5 @@ func newVoicePackCmd(a *App) *cobra.Command {
 	}
 	AddResourceFlags(cmd)
 	output.AddFlags(cmd.Flags())
-	return cmd
+	return UsesProject(cmd)
 }

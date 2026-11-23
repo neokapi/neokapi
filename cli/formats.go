@@ -63,7 +63,7 @@ can edit is listed.`,
 	formatsCmd.AddCommand(newFormatsInfoCmd(a))
 	formatsCmd.AddCommand(newFormatsSchemaCmd(a))
 
-	return formatsCmd
+	return NoProject(formatsCmd)
 }
 
 // newFormatsExplainCmd is `kapi formats explain <file>...`: which format

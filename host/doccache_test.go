@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"encoding/json"
 	"maps"
 	"os"
 	"path/filepath"
@@ -333,6 +334,48 @@ func TestDocCache_OpensACacheOfTheFirstSchema(t *testing.T) {
 	defer f.Close()
 	_, found := c.lookup(src, "cfg", f, st)
 	assert.True(t, found, "a recording under the split key is found again")
+}
+
+// A part log replaced after the entry was checked is not what the replay
+// reads: the log is checked and replayed through one handle.
+func TestDocCache_ReplayReadsTheLogItChecked(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "m.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"a":"Apple"}`), 0o644))
+	c, err := OpenDocCache(filepath.Join(dir, "cache"))
+	require.NoError(t, err)
+	defer c.Close()
+
+	rec := c.RecordDocument(src, "k", "json")
+	require.NotNil(t, rec)
+	require.NoError(t, rec.Add(&model.Part{Type: model.PartBlock, Resource: mkBlock("a", "Apple")}))
+	require.NoError(t, rec.Commit())
+
+	doc := c.OpenDocument(src, "k")
+	require.NotNil(t, doc)
+	defer doc.Close()
+	cd, ok := doc.(*cachedDocument)
+	require.True(t, ok)
+	logPath := cd.log.Name()
+	other, err := toCachedParts([]*model.Part{{Type: model.PartBlock, Resource: mkBlock("a", "Swapped")}})
+	require.NoError(t, err)
+	line, err := json.Marshal(other[0])
+	require.NoError(t, err)
+	swap := logPath + ".swap"
+	require.NoError(t, os.WriteFile(swap, append(line, '\n'), 0o600))
+	require.NoError(t, os.Rename(swap, logPath))
+
+	for range 2 {
+		ch := make(chan *model.Part, 1)
+		go func() { _ = doc.Feed(context.Background(), ch) }()
+		var got []string
+		for p := range ch {
+			if b, ok := p.Resource.(*model.Block); ok {
+				got = append(got, b.SourceText())
+			}
+		}
+		assert.Equal(t, []string{"Apple"}, got, "the replay reads the log that was checked, on every feed")
+	}
 }
 
 func mkBlock(id, text string) *model.Block {

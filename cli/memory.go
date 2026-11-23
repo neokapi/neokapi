@@ -291,7 +291,7 @@ Examples:
 	cmd.Flags().StringP("pattern", "p", "", "filename glob to filter (default: all .tmx and .tmx.gz)")
 	cmd.Flags().BoolP("recursive", "r", false, "recurse into subdirectories")
 
-	return cmd
+	return UsesProject(cmd)
 }
 
 func newMemoryExportCmd(a *App) *cobra.Command {
@@ -527,7 +527,7 @@ func newMemoryStatsCmd(a *App) *cobra.Command {
 }
 
 func newMemoryListCmd(a *App) *cobra.Command {
-	return &cobra.Command{
+	return NoProject(&cobra.Command{
 		Use:   "list",
 		Short: "List named Memories in KAPI_HOME",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -552,7 +552,7 @@ func newMemoryListCmd(a *App) *cobra.Command {
 				Total:     len(entries),
 			})
 		},
-	}
+	})
 }
 
 // newMemorySessionsCmd groups the import-session subcommands.
@@ -625,7 +625,7 @@ that added them so you can filter the content memory by import source.`,
 		AddResourceFlags(c)
 	}
 	sessionsCmd.AddCommand(listCmd, showCmd, deleteCmd)
-	return sessionsCmd
+	return UsesProject(sessionsCmd)
 }
 
 // memoryStoreSourceLocale resolves --source-locale for a command on the

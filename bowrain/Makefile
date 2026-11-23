@@ -57,6 +57,9 @@ SERVER_PROTO_DIR := proto/v1
 # Tools
 GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint"; })
 PROTOC        := $(shell which protoc 2>/dev/null)
+# The protoc release every committed *.pb.go header records. The proto targets
+# refuse another, so a regeneration on any machine writes the same headers.
+PROTOC_VERSION := 36.2
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 # ── CI auto-detection ────────────────────────────────────────────────────────
@@ -618,6 +621,7 @@ endif
 ifndef PROTOC_GEN_GO
 	$(error "protoc-gen-go not found. Run 'make tools' to install.")
 endif
+	@have="$$(protoc --version | awk '{print $$2}')"; [ "$$have" = "$(PROTOC_VERSION)" ] || { echo "protoc $$have found; the committed bindings are generated with protoc $(PROTOC_VERSION). Install that release (github.com/protocolbuffers/protobuf/releases/tag/v$(PROTOC_VERSION)), or raise the pin with scripts/check-tool-versions.py."; exit 1; }
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		$(SERVER_PROTO_DIR)/*.proto

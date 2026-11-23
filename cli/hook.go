@@ -35,7 +35,8 @@ recipe's hooks: block, which is a different (and unimplemented) mechanism.`,
 	cmd.AddCommand(newHookPreEditCmd(a))
 	cmd.AddCommand(newHookPostEditCmd(a))
 	// Hidden from the root help, and listed in the command reference.
-	return ListInReference(cmd)
+	// Each hook finds the project of the file or session its payload names.
+	return ListInReference(UsesProject(cmd))
 }
 
 // newHookStopCmd implements the Claude Code `Stop` hook: it runs the current
