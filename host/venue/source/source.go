@@ -1091,6 +1091,11 @@ func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID strin
 		// means the ingest landed.
 		switch {
 		case st.Failed > 0 && st.Completed == 0:
+			if st.Reason != "" {
+				return "", nil, none, fmt.Errorf(
+					"push %s was not applied: %s (the local sync record was left untouched so the next push sends this content again)",
+					pushID, st.Reason)
+			}
 			return "", nil, none, fmt.Errorf(
 				"push %s was accepted but the server failed to apply it (%d job(s) failed); "+
 					"the local sync record was left untouched so the next push sends this content again",

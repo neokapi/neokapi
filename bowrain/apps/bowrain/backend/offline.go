@@ -164,6 +164,19 @@ func (q *OfflineQueue) Rewrite(ctx context.Context, id int64, payload any) (bool
 	return n > 0, err
 }
 
+// Discard removes a change that has not been sent. It reports false when the
+// change was sent or removed meanwhile.
+func (q *OfflineQueue) Discard(ctx context.Context, id int64) (bool, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	res, err := q.db.ExecContext(ctx, `DELETE FROM pending_changes WHERE id = ? AND status = 'pending'`, id)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
+
 // MarkCompleted marks a change as successfully replayed.
 func (q *OfflineQueue) MarkCompleted(ctx context.Context, id int64) error {
 	q.mu.Lock()

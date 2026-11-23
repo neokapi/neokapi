@@ -248,3 +248,26 @@ func TestBuildPushContext_ExpiredProfileCarriesNoCoordinates(t *testing.T) {
 		})
 	}
 }
+
+// A push that carries a voice profile names the revision of it the last pull
+// saw on the server, so the server can refuse a change to a profile that has
+// moved since. A profile the server has never shown carries none.
+func TestBuildPushContext_CarriesTheVoiceRevisionItPulled(t *testing.T) {
+	app, proj := newGovernedProject(t)
+
+	pushCtx, _, err := BuildPushContext(t.Context(), app, proj, false)
+	require.NoError(t, err)
+	assert.Empty(t, entriesByName(pushCtx.Entries)["docs"].VoiceProfileRevision, "nothing pulled, nothing to name")
+
+	cache := bproject.LoadSyncCache(proj.Layout)
+	cache.ServerContext = map[string]bproject.ServerCollection{
+		"docs": {VoiceProfile: "acme voice", VoiceRevision: "rev-pulled", Owner: "recipe"},
+	}
+	require.NoError(t, cache.Save(proj.Layout))
+
+	pushCtx, _, err = BuildPushContext(t.Context(), app, proj, false)
+	require.NoError(t, err)
+	byName := entriesByName(pushCtx.Entries)
+	assert.Equal(t, "rev-pulled", byName["docs"].VoiceProfileRevision, "the carried profile names the revision pulled")
+	assert.NotEmpty(t, byName["docs"].VoiceProfileJson)
+}

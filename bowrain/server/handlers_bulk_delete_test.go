@@ -53,9 +53,27 @@ func TestHandleBulkDeleteMemoryEntries(t *testing.T) {
 	const ws = "demo"
 	seedMemoryEntries(t, srv, ws, "e1", "e2", "e3")
 
+	// A client names the revision of each entry it read; ids the memory does
+	// not hold are sent without one.
+	withRevisions := func(t *testing.T, body string) string {
+		t.Helper()
+		var req BulkDeleteRequest
+		require.NoError(t, json.Unmarshal([]byte(body), &req))
+		if req.Revisions != nil || len(req.IDs) == 0 {
+			return body
+		}
+		tm, err := srv.wsStores.getMemory(t.Context(), ws)
+		require.NoError(t, err)
+		revs, err := tm.(editableMemory).Revisions(t.Context(), req.IDs)
+		require.NoError(t, err)
+		req.Revisions = revs
+		out, err := json.Marshal(req)
+		require.NoError(t, err)
+		return string(out)
+	}
 	post := func(t *testing.T, body string) (BulkDeleteResponse, int) {
 		t.Helper()
-		c, rec := bulkDeleteCtx(t, srv, ws, body)
+		c, rec := bulkDeleteCtx(t, srv, ws, withRevisions(t, body))
 		require.NoError(t, srv.HandleBulkDeleteMemoryEntries(c))
 		var resp BulkDeleteResponse
 		if rec.Code == http.StatusOK {
@@ -97,6 +115,20 @@ func TestHandleBulkDeleteMemoryEntries(t *testing.T) {
 		assert.True(t, byID["e3"].Deleted)
 		assert.False(t, byID["never-existed"].Deleted)
 		assert.NotEmpty(t, byID["never-existed"].Error)
+	})
+
+	t.Run("an entry changed since it was read is not deleted", func(t *testing.T) {
+		seedMemoryEntries(t, srv, ws, "stale")
+		resp, code := post(t, `{"ids":["stale"],"revisions":{"stale":"an-older-revision"}}`)
+		require.Equal(t, http.StatusOK, code)
+		require.Len(t, resp.Results, 1)
+		assert.False(t, resp.Results[0].Deleted)
+		assert.Contains(t, resp.Results[0].Error, "someone else saved this content-memory entry")
+		tm, err := srv.wsStores.getMemory(t.Context(), ws)
+		require.NoError(t, err)
+		_, ok, err := tm.GetEntry(t.Context(), "stale")
+		require.NoError(t, err)
+		assert.True(t, ok, "the entry stays")
 	})
 
 	t.Run("a repeated id is reported once", func(t *testing.T) {

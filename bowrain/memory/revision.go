@@ -278,3 +278,33 @@ func (tm *PostgresStore) putOrigin(ctx context.Context, r storage.Runner, id str
 	}
 	return nil
 }
+
+// DeleteAt removes the entry id names when it is still at revision base. The
+// check and the delete are one statement. An entry that has changed since is
+// storage.ErrStale, so a person's delete never removes text someone else
+// wrote after they read it; one that is gone is ErrEntryNotFound.
+func (tm *PostgresStore) DeleteAt(ctx context.Context, id, base string) error {
+	res, err := tm.db.ExecContext(ctx,
+		`DELETE FROM tm_entries WHERE workspace_id = $1 AND id = $2 AND revision = $3`,
+		tm.workspaceID, id, base)
+	if err != nil {
+		return fmt.Errorf("delete entry: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("delete entry: %w", err)
+	}
+	if n > 0 {
+		return nil
+	}
+	var one int
+	err = tm.db.QueryRowContext(ctx,
+		`SELECT 1 FROM tm_entries WHERE workspace_id = $1 AND id = $2`, tm.workspaceID, id).Scan(&one)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrEntryNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("read entry %s: %w", id, err)
+	}
+	return storage.ErrStale
+}

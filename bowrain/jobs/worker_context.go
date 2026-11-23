@@ -317,7 +317,7 @@ func (b *profileBinder) bind(ctx context.Context, e *pb.SyncContextEntry) (strin
 		return "", fmt.Errorf("decode voice profile %q: %w", e.VoiceProfile, err)
 	}
 
-	profileID, err := b.upsert(ctx, e.VoiceProfile, existing, pushed, e.GetVoiceOp())
+	profileID, err := b.upsert(ctx, e.VoiceProfile, existing, pushed, e.GetVoiceOp(), e.GetVoiceProfileRevision())
 	if err != nil {
 		return "", err
 	}
@@ -334,7 +334,10 @@ func (b *profileBinder) bind(ctx context.Context, e *pb.SyncContextEntry) (strin
 // write: when the push's ledger objects or the project's ledger hold it, it
 // is the record, with its actor, note and agent host, and no second
 // operation is appended. Otherwise the write is recorded as the pusher's.
-func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushed *coreprofile.VoiceProfile, recorded string) (string, error) {
+//
+// An update names base, the revision of the profile the push last pulled, and
+// the store refuses it when the profile has changed since.
+func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushed *coreprofile.VoiceProfile, recorded, base string) (string, error) {
 	if pushed == nil {
 		if existing == nil {
 			return "", nil
@@ -352,7 +355,7 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 		created.CreatedAt = now
 		created.UpdatedAt = now
 		created.CreatedBy = b.actorID
-		if _, err := voicewrite.Apply(ctx, b.voice, b.ledger, b.write(nil, &created, recorded)); err != nil {
+		if _, err := voicewrite.Apply(ctx, b.voice, b.ledger, b.write(nil, &created, recorded, "")); err != nil {
 			return "", err
 		}
 		return created.ID, nil
@@ -362,7 +365,7 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 	// does not manufacture a version. When it did change, UpdateProfile archives
 	// the current state before bumping — a server-side edit is superseded by a
 	// revertible version, never clobbered.
-	if sameAuthoredVoice(existing, pushed) {
+	if sameAuthoredVoice(existing, pushedOver(existing, pushed)) {
 		return existing.ID, nil
 	}
 	updated := *existing
@@ -373,17 +376,21 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 	updated.Locales = pushed.Locales
 	updated.Channels = pushed.Channels
 	updated.Personas = pushed.Personas
+	updated.MinScore = pushed.MinScore
+	if pushed.Constraints != nil {
+		updated.Constraints = pushed.Constraints
+	}
 	updated.VersionNote = "superseded by kapi push"
 	updated.UpdatedAt = now
-	if _, err := voicewrite.Apply(ctx, b.voice, b.ledger, b.write(existing, &updated, recorded)); err != nil {
-		return "", err
+	if _, err := voicewrite.Apply(ctx, b.voice, b.ledger, b.write(existing, &updated, recorded, base)); err != nil {
+		return "", asVoiceRefusal(err, existing.Name)
 	}
 	return updated.ID, nil
 }
 
 // write is the voicewrite.Write of one pushed profile, by the pusher: the
 // member, or the tool whose token made the push.
-func (b *profileBinder) write(before, after *coreprofile.VoiceProfile, recorded string) voicewrite.Write {
+func (b *profileBinder) write(before, after *coreprofile.VoiceProfile, recorded, base string) voicewrite.Write {
 	actor := contextop.Actor{Kind: contextop.ActorPerson}
 	if b.pusher.Tool != "" {
 		actor = contextop.Actor{Kind: contextop.ActorTool, Name: b.pusher.Tool}
@@ -391,6 +398,7 @@ func (b *profileBinder) write(before, after *coreprofile.VoiceProfile, recorded 
 	return voicewrite.Write{
 		Before:   before,
 		After:    after,
+		Base:     base,
 		Actor:    actor,
 		PushedBy: b.pusher,
 		Note:     "pushed with `kapi push`",
@@ -412,7 +420,9 @@ func decodeVoiceProfile(raw []byte) (*coreprofile.VoiceProfile, error) {
 
 // sameAuthoredVoice compares the authored surface of two profiles — everything
 // a recipe can write — ignoring the server-managed metadata (id, workspace,
-// version, timestamps) that would otherwise make every comparison unequal.
+// version, timestamps, autonomy) that would otherwise make every comparison
+// unequal. It compares exactly what upsert copies, so a push that differs only
+// in what upsert would not write never makes a version.
 func sameAuthoredVoice(a, b *coreprofile.VoiceProfile) bool {
 	authored := func(p *coreprofile.VoiceProfile) string {
 		snapshot := *p
@@ -423,6 +433,7 @@ func sameAuthoredVoice(a, b *coreprofile.VoiceProfile) bool {
 		snapshot.CreatedAt = time.Time{}
 		snapshot.UpdatedAt = time.Time{}
 		snapshot.CreatedBy = ""
+		snapshot.Autonomy = coreprofile.AutonomyConfig{}
 		encoded, err := json.Marshal(snapshot)
 		if err != nil {
 			return ""
@@ -431,4 +442,16 @@ func sameAuthoredVoice(a, b *coreprofile.VoiceProfile) bool {
 	}
 	left, right := authored(a), authored(b)
 	return left != "" && left == right
+}
+
+// pushedOver is the pushed profile as it would stand over existing: the push
+// keeps the stored name (the two match by name, case aside), and a push that
+// carries no constraints keeps the stored ones.
+func pushedOver(existing, pushed *coreprofile.VoiceProfile) *coreprofile.VoiceProfile {
+	effective := *pushed
+	effective.Name = existing.Name
+	if effective.Constraints == nil {
+		effective.Constraints = existing.Constraints
+	}
+	return &effective
 }

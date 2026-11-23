@@ -93,3 +93,23 @@ func TestUpgradeGivesEveryMarketItsOwnRevision(t *testing.T) {
 	assert.Equal(t, 3, distinct, "two stored markets share a revision")
 	assert.Zero(t, missing)
 }
+
+// Voice profiles stored before the revision column each get one of their own.
+// Profiles are a few rows per workspace, so the column arrives with its default
+// in one step.
+func TestUpgradeGivesEveryVoiceProfileItsOwnRevision(t *testing.T) {
+	db := databaseBefore(t, "voice", 8)
+	ctx := t.Context()
+	for _, id := range []string{"a", "b", "c"} {
+		_, err := db.ExecContext(ctx,
+			`INSERT INTO voice_profiles (id, workspace_id, name) VALUES ($1, 'ws', $1)`, id)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, migrations.Apply(db, nil))
+
+	rows, distinct, missing := distinctRevisions(t, db, "voice_profiles")
+	assert.Equal(t, 3, rows)
+	assert.Equal(t, 3, distinct, "two stored profiles share a revision")
+	assert.Zero(t, missing)
+}

@@ -234,11 +234,11 @@ describe("RestApiAdapter — brand knowledge graph routes", () => {
     expect(url).toBe(`${BASE}/api/v1/acme/markets/m1`);
   });
 
-  it("deleteMarket DELETEs /markets/:mid", async () => {
-    await adapter.deleteMarket("acme", "m1");
+  it("deleteMarket DELETEs /markets/:mid at the revision read", async () => {
+    await adapter.deleteMarket("acme", "m1", "r1");
     const { url, method } = lastRequest();
     expect(method).toBe("DELETE");
-    expect(url).toBe(`${BASE}/api/v1/acme/markets/m1`);
+    expect(url).toBe(`${BASE}/api/v1/acme/markets/m1?base_revision=r1`);
   });
 
   // ── Change-sets ──────────────────────────────────────────────────────────

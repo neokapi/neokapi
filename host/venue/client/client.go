@@ -245,6 +245,10 @@ type PushStatusResponse struct {
 	Failed     int    `json:"failed"`
 	InProgress int    `json:"in_progress"`
 
+	// Reason is why a failed job failed, as the server recorded it: the cause
+	// and, for a refusal, what to do about it. Empty while nothing failed.
+	Reason string `json:"reason,omitempty"`
+
 	// Governance is what the venue's review gate refused: the approvals this
 	// push carried that the pusher was not entitled to make.
 	// The verdicts were not recorded and the rungs were not written; the

@@ -60,7 +60,13 @@ export function ContextEditorRoute() {
       if (isNew) {
         await createMutation.mutateAsync(data);
       } else {
-        await updateMutation.mutateAsync({ ...data, id: profileId ?? "" });
+        // The edit names the version of the profile the person opened, so a
+        // save over someone else's later one is refused rather than lost.
+        await updateMutation.mutateAsync({
+          ...data,
+          id: profileId ?? "",
+          base_revision: profile?.revision,
+        });
       }
       capture(AnalyticsEvents.brandVoiceSaved, { mode: isNew ? "created" : "updated" });
       void navigate({

@@ -320,6 +320,20 @@ func (s *Server) HandleSyncPushCommit(c *echo.Context) error {
 		return serverErr(c, err)
 	}
 
+	// A push that would change a workspace voice profile names the revision
+	// it last pulled; refuse it here, with the remedy, before anything is
+	// queued. The worker checks again in the statement that writes.
+	if err := s.checkPushedVoiceBases(c.Request().Context(), manifest.ProjectID, manifest.Contexts); err != nil {
+		if refusal, ok := errors.AsType[*jobs.VoiceRefusal](err); ok {
+			status := http.StatusConflict
+			if refusal.Unversioned {
+				status = http.StatusPreconditionRequired
+			}
+			return apiErr(c, status, refusal.Code(), map[string]any{"profile": refusal.Profile})
+		}
+		return serverErr(c, err)
+	}
+
 	// Enforce upload budget. Cheap and manifest-local, so it runs before the
 	// per-chunk storage probes below: an oversized manifest is rejected without
 	// paying for a stat per chunk.
@@ -782,6 +796,7 @@ func (s *Server) pullContextEntries(ctx context.Context, projectID, stream strin
 	}
 
 	profileNames := map[string]string{}
+	profileRevisions := map[string]string{}
 	entries := make([]*pb.SyncContextEntry, 0, len(collections))
 	for _, col := range collections {
 		if col == nil {
@@ -804,10 +819,19 @@ func (s *Server) pullContextEntries(ctx context.Context, projectID, stream strin
 					if p, perr := s.VoiceStore.GetProfile(ctx, pid); perr == nil && p != nil {
 						name = p.Name
 					}
+					// The revision a push that changes the profile names, so
+					// the server can tell a change based on what it holds
+					// from one made over a later edit.
+					if store, ok := s.VoiceStore.(voiceRevisions); ok {
+						if revs, rerr := store.Revisions(ctx, []string{pid}); rerr == nil {
+							profileRevisions[pid] = revs[pid]
+						}
+					}
 				}
 				profileNames[pid] = name
 			}
 			e.VoiceProfile = name
+			e.VoiceProfileRevision = profileRevisions[pid]
 		}
 		entries = append(entries, e)
 	}
@@ -974,6 +998,7 @@ func (s *Server) HandleSyncPushStatus(c *echo.Context) error {
 	completed := 0
 	failed := 0
 	inProgress := 0
+	reason := ""
 
 	for _, j := range jobList {
 		switch j.Status {
@@ -981,6 +1006,9 @@ func (s *Server) HandleSyncPushStatus(c *echo.Context) error {
 			completed++
 		case jobs.StatusFailed:
 			failed++
+			if reason == "" {
+				reason = j.Error
+			}
 		case jobs.StatusProcessing, jobs.StatusQueued:
 			inProgress++
 		}
@@ -993,6 +1021,11 @@ func (s *Server) HandleSyncPushStatus(c *echo.Context) error {
 		"completed":   completed,
 		"failed":      failed,
 		"in_progress": inProgress,
+	}
+	// Why the push failed, so the person who ran `kapi push` reads the cause
+	// and the remedy rather than only that it failed.
+	if reason != "" {
+		resp["reason"] = reason
 	}
 	// What the push's review gate did not accept. The producer polls this
 	// endpoint until the ingest lands, so it is where a refusal decided in
@@ -1011,4 +1044,18 @@ func (s *Server) HandleSyncPushStatus(c *echo.Context) error {
 		}
 	}
 	return c.JSON(http.StatusOK, resp)
+}
+
+// checkPushedVoiceBases refuses a push whose context entries would change a
+// voice profile of the project's workspace without naming its current
+// revision (jobs.CheckVoiceBases).
+func (s *Server) checkPushedVoiceBases(ctx context.Context, projectID string, contexts json.RawMessage) error {
+	if s.VoiceStore == nil || s.ContentStore == nil || !carriesRecords(contexts) {
+		return nil
+	}
+	proj, err := s.ContentStore.GetProject(ctx, projectID)
+	if err != nil || proj == nil || proj.WorkspaceID == "" {
+		return nil
+	}
+	return jobs.CheckVoiceBases(ctx, s.VoiceStore, proj.WorkspaceID, contexts)
 }

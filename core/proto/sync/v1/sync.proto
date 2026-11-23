@@ -478,6 +478,14 @@ message SyncContextEntry {
   // "high" or "low", empty for normal. A venue deals high collections first
   // and low ones last. It is part of content_hash.
   string priority = 11;
+
+  // VoiceProfileRevision is the server's revision of the voice profile named
+  // in voice_profile. A pull reports the profile's current revision; a push
+  // that carries voice_profile_json sends back the revision it last pulled,
+  // and the server refuses to change a profile that has moved since, or
+  // whose push names no revision. It is not part of content_hash: it says
+  // what the sender read, not what it declares.
+  string voice_profile_revision = 12;
 }
 
 // SyncPreviewSource is a place a collection's strings can be seen in situ.

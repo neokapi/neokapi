@@ -73,7 +73,14 @@ func (s *memStore) UpdateMarket(_ context.Context, m *Market, base string) error
 	return nil
 }
 
-func (s *memStore) DeleteMarket(_ context.Context, ws, id string) error {
+func (s *memStore) DeleteMarketAt(_ context.Context, ws, id, base string) error {
+	stored, ok := s.markets[csKey(ws, id)]
+	if !ok {
+		return ErrMarketNotFound
+	}
+	if stored.Revision != base {
+		return storage.ErrStale
+	}
 	delete(s.markets, csKey(ws, id))
 	return nil
 }

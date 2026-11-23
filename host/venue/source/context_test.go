@@ -132,11 +132,12 @@ func TestApplyPulledContext_RecipeOwnedGovernanceIsNotApplied(t *testing.T) {
 	require.Equal(t, "docs", before.Channel)
 
 	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
-		Name:         "docs",
-		Coordinates:  map[string]string{"product": "bowrain"},
-		Channel:      "email",
-		VoiceProfile: "Someone Else's Voice",
-		Owner:        venue.ContextOwnerRecipe,
+		Name:                 "docs",
+		Coordinates:          map[string]string{"product": "bowrain"},
+		Channel:              "email",
+		VoiceProfile:         "Someone Else's Voice",
+		VoiceProfileRevision: "rev-on-server",
+		Owner:                venue.ContextOwnerRecipe,
 	}})
 
 	assert.Equal(t, 1, res.Observed)
@@ -155,11 +156,12 @@ func TestApplyPulledContext_RecipeOwnedGovernanceIsNotApplied(t *testing.T) {
 	// What it did do is record the observation, which is what lets the
 	// divergence be reported rather than silently absorbed.
 	assert.Equal(t, bproject.ServerCollection{
-		Coordinates:  map[string]string{"product": "bowrain"},
-		Channel:      "email",
-		VoiceProfile: "Someone Else's Voice",
-		Owner:        venue.ContextOwnerRecipe,
-	}, conn.cache.ServerContext["docs"])
+		Coordinates:   map[string]string{"product": "bowrain"},
+		Channel:       "email",
+		VoiceProfile:  "Someone Else's Voice",
+		VoiceRevision: "rev-on-server",
+		Owner:         venue.ContextOwnerRecipe,
+	}, conn.cache.ServerContext["docs"], "the revision a later push names is recorded")
 }
 
 // TestApplyPulledContext_AgreementIsNotADivergence keeps the report honest: a

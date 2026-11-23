@@ -134,9 +134,89 @@ func (s *PostgresVoiceStore) GetProfile(ctx context.Context, profileID string) (
 	return scanProfile(row)
 }
 
-func (s *PostgresVoiceStore) UpdateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error {
-	// Archive the current state as an immutable ProfileVersion before applying the edit.
-	existing, err := s.GetProfile(ctx, profile.ID)
+// ErrProfileNotFound is a voice profile id with no profile.
+var ErrProfileNotFound = errors.New("voice profile not found")
+
+// errUnversionedUpdate is what UpdateProfile answers: on the platform every
+// update of a profile names the revision it was based on.
+var errUnversionedUpdate = errors.New("voice: an update names the revision it was based on (UpdateProfileAt)")
+
+// UpdateProfile refuses: a platform write of a voice profile names the
+// revision it was based on, through UpdateProfileAt.
+func (s *PostgresVoiceStore) UpdateProfile(context.Context, *coreprofile.VoiceProfile) error {
+	return errUnversionedUpdate
+}
+
+// Revisions returns the revision of each profile ids names that exists.
+func (s *PostgresVoiceStore) Revisions(ctx context.Context, ids []string) (map[string]string, error) {
+	out := make(map[string]string, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+	rows, err := s.run().QueryContext(ctx,
+		`SELECT id, revision FROM voice_profiles WHERE id IN (`+strings.Join(placeholders, ",")+`)`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("read voice profile revisions: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, rev string
+		if err := rows.Scan(&id, &rev); err != nil {
+			return nil, fmt.Errorf("read voice profile revisions: %w", err)
+		}
+		out[id] = rev
+	}
+	return out, rows.Err()
+}
+
+// UpdateProfileAt writes profile when the stored profile is still at revision
+// base, archives the version it replaces, and gives it the next version and a
+// new revision. It holds the profile's row for the whole write, so two
+// writers based on the same revision cannot both land and every replaced
+// version is archived. A profile that has changed since is storage.ErrStale;
+// one that is gone is ErrProfileNotFound.
+func (s *PostgresVoiceStore) UpdateProfileAt(ctx context.Context, profile *coreprofile.VoiceProfile, base string) error {
+	if s.tx != nil {
+		return s.updateProfileAt(ctx, s.tx, profile, base)
+	}
+	return s.db.Transition(ctx, func(r storage.Runner) error {
+		return s.updateProfileAt(ctx, r, profile, base)
+	})
+}
+
+func (s *PostgresVoiceStore) updateProfileAt(ctx context.Context, r storage.Runner, profile *coreprofile.VoiceProfile, base string) error {
+	// The row lock is the weakest an update takes (NO KEY UPDATE), so rows
+	// that only reference the profile (a version, a tag, a rule decision) do
+	// not hold it up. Only another update or delete of the profile does, and
+	// that is waited for, up to a bound: the transaction makes every read on
+	// its own connection, so waiting holds no second one. A writer whose wait
+	// ends finds out whether its revision is still current.
+	if _, err := r.ExecContext(ctx, `SET LOCAL lock_timeout = '`+storage.LockTimeout+`'`); err != nil {
+		return fmt.Errorf("set the lock timeout: %w", err)
+	}
+	var current string
+	err := r.QueryRowContext(ctx,
+		`SELECT revision FROM voice_profiles WHERE id = $1 FOR NO KEY UPDATE`, profile.ID).Scan(&current)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrProfileNotFound
+	}
+	if storage.LockTimedOut(err) {
+		return storage.ErrBusy
+	}
+	if err != nil {
+		return fmt.Errorf("lock voice profile %s: %w", profile.ID, err)
+	}
+	if current != base {
+		return storage.ErrStale
+	}
+	existing, err := scanProfile(r.QueryRowContext(ctx,
+		`SELECT `+profileColumns+` FROM voice_profiles WHERE id = $1`, profile.ID))
 	if err != nil {
 		return fmt.Errorf("get existing profile for versioning: %w", err)
 	}
@@ -145,18 +225,21 @@ func (s *PostgresVoiceStore) UpdateProfile(ctx context.Context, profile *corepro
 	if profile.Constraints == nil {
 		profile.Constraints = existing.Constraints
 	}
-	snapshotJSON, _ := json.Marshal(existing)
-	_, _ = s.run().ExecContext(ctx,
+	snapshotJSON, err := json.Marshal(existing)
+	if err != nil {
+		return fmt.Errorf("snapshot voice profile: %w", err)
+	}
+	if _, err := r.ExecContext(ctx,
 		`INSERT INTO voice_profile_versions (profile_id, version, snapshot, note, created_at)
-		 VALUES ($1, $2, $3, $4, NOW())
-		 ON CONFLICT DO NOTHING`,
+		 VALUES ($1, $2, $3, $4, NOW())`,
 		existing.ID, existing.Version, string(snapshotJSON),
-		profile.VersionNote)
+		profile.VersionNote); err != nil {
+		return fmt.Errorf("archive voice profile version %d: %w", existing.Version, err)
+	}
 
 	now := time.Now().UTC()
 	profile.UpdatedAt = now
 	profile.Version = existing.Version + 1
-
 	tone, err := json.Marshal(profile.Tone)
 	if err != nil {
 		return fmt.Errorf("marshal tone: %w", err)
@@ -191,24 +274,52 @@ func (s *PostgresVoiceStore) UpdateProfile(ctx context.Context, profile *corepro
 		return fmt.Errorf("marshal constraints: %w", err)
 	}
 
-	res, err := s.run().ExecContext(ctx,
+	res, err := r.ExecContext(ctx,
 		`UPDATE voice_profiles
 		 SET name=$1, description=$2, tone=$3, style=$4, examples=$5,
 		     locales=$6, channels=$7, personas=$8, autonomy=$9, constraints=$10, min_score=$11,
-		     version=$12, updated_at=$13
+		     version=$12, updated_at=$13, revision=$15
 		 WHERE id=$14`,
 		profile.Name, profile.Description,
 		string(tone), string(style), string(examples),
 		string(locales), string(channels), string(personas), string(autonomy), string(constraints),
-		profile.MinScore, profile.Version, now, profile.ID)
+		profile.MinScore, profile.Version, now, profile.ID, storage.NewRevision())
 	if err != nil {
 		return fmt.Errorf("update voice profile: %w", err)
 	}
-	n, _ := res.RowsAffected()
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update voice profile: %w", err)
+	}
 	if n == 0 {
-		return fmt.Errorf("voice profile %s not found", profile.ID)
+		return ErrProfileNotFound
 	}
 	return nil
+}
+
+// DeleteProfileAt removes the profile when it is still at revision base: one
+// that changed since is storage.ErrStale, one that is gone ErrProfileNotFound.
+func (s *PostgresVoiceStore) DeleteProfileAt(ctx context.Context, profileID, base string) error {
+	res, err := s.run().ExecContext(ctx, `DELETE FROM voice_profiles WHERE id = $1 AND revision = $2`, profileID, base)
+	if err != nil {
+		return fmt.Errorf("delete voice profile: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("delete voice profile: %w", err)
+	}
+	if n > 0 {
+		return nil
+	}
+	var one int
+	err = s.run().QueryRowContext(ctx, `SELECT 1 FROM voice_profiles WHERE id = $1`, profileID).Scan(&one)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrProfileNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("read voice profile %s: %w", profileID, err)
+	}
+	return storage.ErrStale
 }
 
 func (s *PostgresVoiceStore) DeleteProfile(ctx context.Context, profileID string) error {

@@ -94,6 +94,17 @@ const (
 	// caller reaches for identifies the protocol it speaks, so the server can
 	// name the version that fixes it without the client sending one.
 	CodeClientTooOld = "client_too_old"
+
+	// CodeVoiceProfileUnversioned is a push that would change a voice profile
+	// without naming the revision it last pulled: a kapi-bowrain that does
+	// not send one, or a project that has not pulled since it updated.
+	// Detail field: "profile".
+	CodeVoiceProfileUnversioned = "voice_profile_unversioned"
+
+	// CodeVoiceProfileMoved is a push that would change a voice profile which
+	// changed on the server after the project last pulled. Detail field:
+	// "profile".
+	CodeVoiceProfileMoved = "voice_profile_moved"
 )
 
 // RequestID returns the per-request correlation ID set by
@@ -220,6 +231,12 @@ func MessageFor(code string, details map[string]any) string {
 				v, detailOr(details, "install", "kapi plugins install --channel beta bowrain"))
 		}
 		return "This server needs a newer kapi-bowrain plugin than the one sending this request."
+	case CodeVoiceProfileUnversioned:
+		return fmt.Sprintf("This push does not say which version of the voice profile %q it was based on, so it cannot change it. "+
+			"Update kapi-bowrain with `kapi plugin update bowrain`, run `kapi pull`, then push again.", detailOr(details, "profile", ""))
+	case CodeVoiceProfileMoved:
+		return fmt.Sprintf("The voice profile %q changed on the server after this project last pulled. "+
+			"Run `kapi pull`, then push again.", detailOr(details, "profile", ""))
 	case CodeGovernanceMoved:
 		if component, ok := details["component"]; ok {
 			return fmt.Sprintf("The project's %v moved on the server since this client last looked. Pull first, then send this again.", component)

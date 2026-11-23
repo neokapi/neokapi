@@ -64,10 +64,11 @@ func (c *BowrainSourceConnector) applyPulledContext(ctx context.Context, entries
 		}
 		owner := venue.NormalizeContextOwner(e.Owner)
 		observed[e.Name] = bproject.ServerCollection{
-			Coordinates:  maps.Clone(e.Coordinates),
-			Channel:      e.Channel,
-			VoiceProfile: e.VoiceProfile,
-			Owner:        owner,
+			Coordinates:   maps.Clone(e.Coordinates),
+			Channel:       e.Channel,
+			VoiceProfile:  e.VoiceProfile,
+			VoiceRevision: e.GetVoiceProfileRevision(),
+			Owner:         owner,
 		}
 		result.Observed++
 

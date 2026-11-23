@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -271,9 +272,9 @@ func TestReconcileContext_ChangedVoiceLandsAsANewVersion(t *testing.T) {
 		Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "formal"},
 	})
 	require.NoError(t, err)
-	_, err = reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{
-		contextEntry("docs", nil, "", "Acme Voice", second),
-	})
+	changed := contextEntry("docs", nil, "", "Acme Voice", second)
+	changed.VoiceProfileRevision = pulledRevision(t, deps, "ws1", "Acme Voice")
+	_, err = reconcileContext(ctx, deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{changed})
 	require.NoError(t, err)
 
 	profiles, err := deps.VoiceStore.ListProfiles(ctx, "ws1")
@@ -339,4 +340,100 @@ func TestGovernanceConfig_SourceOnly(t *testing.T) {
 	assert.False(t, hasPriority)
 	_, ok := cleared[store.CollectionConfigSourceOnly]
 	assert.False(t, ok)
+}
+
+// pulledRevision is the revision of the workspace profile named name, as a
+// pull reports it.
+func pulledRevision(t *testing.T, deps *WorkerDeps, wsID, name string) string {
+	t.Helper()
+	profiles, err := deps.VoiceStore.ListProfiles(t.Context(), wsID)
+	require.NoError(t, err)
+	store, ok := deps.VoiceStore.(interface {
+		Revisions(ctx context.Context, ids []string) (map[string]string, error)
+	})
+	require.True(t, ok)
+	for _, p := range profiles {
+		if strings.EqualFold(p.Name, name) {
+			revs, err := store.Revisions(t.Context(), []string{p.ID})
+			require.NoError(t, err)
+			return revs[p.ID]
+		}
+	}
+	return ""
+}
+
+// pushVoice reconciles one entry carrying profile under name, naming base.
+func pushVoice(t *testing.T, deps *WorkerDeps, name, base string, profile *coreprofile.VoiceProfile) error {
+	t.Helper()
+	raw, err := json.Marshal(profile)
+	require.NoError(t, err)
+	entry := contextEntry("docs", nil, "", name, raw)
+	entry.VoiceProfileRevision = base
+	_, err = reconcileContext(t.Context(), deps.ContentStore, deps.VoiceStore, "p1", "main", "ws1", "user-1", nil, []*pb.SyncContextEntry{entry})
+	return err
+}
+
+// A push that would change a profile names the revision it pulled: without
+// one it is refused with the update remedy, on an older one with the pull
+// remedy, and the profile stays as it was.
+func TestReconcileContext_AVoiceChangeNamesTheRevisionItPulled(t *testing.T) {
+	deps := newContextTestDeps(t)
+	newContextProject(t, t.Context(), deps, "p1", "ws1")
+	require.NoError(t, pushVoice(t, deps, "Acme Voice", "", &coreprofile.VoiceProfile{
+		Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "neutral"},
+	}))
+	pulled := pulledRevision(t, deps, "ws1", "Acme Voice")
+	formal := &coreprofile.VoiceProfile{Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "formal"}}
+
+	var refusal *VoiceRefusal
+	err := pushVoice(t, deps, "Acme Voice", "", formal)
+	require.ErrorAs(t, err, &refusal)
+	assert.True(t, refusal.Unversioned)
+	assert.Contains(t, err.Error(), "kapi plugin update bowrain")
+
+	require.NoError(t, pushVoice(t, deps, "Acme Voice", pulled, formal))
+	casual := &coreprofile.VoiceProfile{Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "casual"}}
+	err = pushVoice(t, deps, "Acme Voice", pulled, casual)
+	require.ErrorAs(t, err, &refusal)
+	assert.False(t, refusal.Unversioned)
+	assert.Contains(t, err.Error(), "Run `kapi pull`, then push again")
+
+	profiles, err := deps.VoiceStore.ListProfiles(t.Context(), "ws1")
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	assert.Equal(t, "formal", profiles[0].Tone.Formality, "a refused push writes nothing")
+}
+
+// A pushed profile's compliance bar and constraints land: the push applied
+// every authored field it compares, so a profile that differed only there
+// made a new version on every push and never took the change.
+func TestReconcileContext_MinScoreAndConstraintsLand(t *testing.T) {
+	deps := newContextTestDeps(t)
+	newContextProject(t, t.Context(), deps, "p1", "ws1")
+	base := &coreprofile.VoiceProfile{Name: "Acme Voice", Tone: coreprofile.ToneProfile{Formality: "neutral"}}
+	require.NoError(t, pushVoice(t, deps, "Acme Voice", "", base))
+
+	raised := *base
+	raised.MinScore = 85
+	raised.Constraints = []coreprofile.Constraint{{ID: "c1", Version: 1, Source: "style guide", Statement: "Name the product in full.", Kind: "guidance"}}
+	require.NoError(t, pushVoice(t, deps, "Acme Voice", pulledRevision(t, deps, "ws1", "Acme Voice"), &raised))
+
+	profiles, err := deps.VoiceStore.ListProfiles(t.Context(), "ws1")
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	assert.Equal(t, 85, profiles[0].MinScore, "the pushed compliance bar lands")
+	require.Len(t, profiles[0].Constraints, 1, "the pushed constraints land")
+	assert.Equal(t, "Name the product in full.", profiles[0].Constraints[0].Statement)
+	version := profiles[0].Version
+
+	// The same push again changes nothing and makes no version, even when the
+	// recipe spells the name in another case and carries no constraints (a
+	// push without constraints keeps the stored ones).
+	again := raised
+	again.Name = "acme voice"
+	again.Constraints = nil
+	require.NoError(t, pushVoice(t, deps, "acme voice", pulledRevision(t, deps, "ws1", "Acme Voice"), &again))
+	profiles, err = deps.VoiceStore.ListProfiles(t.Context(), "ws1")
+	require.NoError(t, err)
+	assert.Equal(t, version, profiles[0].Version, "an unchanged push makes no version")
 }

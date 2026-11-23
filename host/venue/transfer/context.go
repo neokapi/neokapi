@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/venue"
@@ -72,6 +73,10 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 	// governed by one voice cost one copy of it on the wire, and the entries
 	// after the first identify it by name alone.
 	carried := map[string]bool{}
+	// The revision of each profile as the last pull saw it on the server,
+	// which a carried profile names so the server can refuse a change to a
+	// profile that has moved since.
+	pulled := pulledVoiceRevisions(proj)
 	var entries []*pb.SyncContextEntry
 	var voiceResult *PushVoiceResult
 
@@ -137,6 +142,7 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 					return nil, nil, fmt.Errorf("encode voice profile %q: %w", profile.Name, merr)
 				}
 				entry.VoiceProfileJson = authored
+				entry.VoiceProfileRevision = pulled[strings.ToLower(profile.Name)]
 				carried[profile.Name] = true
 				// The operation that recorded the write, so the server keeps
 				// its author rather than recording the pusher. A ledger that
@@ -176,4 +182,20 @@ func voiceAction(dryRun bool) string {
 		return "would-push"
 	}
 	return "carried"
+}
+
+// pulledVoiceRevisions is the revision of each voice profile, by lowercased
+// name, as the project's last pull saw it on the server.
+func pulledVoiceRevisions(proj *bproject.Project) map[string]string {
+	out := map[string]string{}
+	cache := bproject.LoadSyncCache(proj.Layout)
+	if cache == nil {
+		return out
+	}
+	for _, sc := range cache.ServerContext {
+		if sc.VoiceProfile != "" && sc.VoiceRevision != "" {
+			out[strings.ToLower(sc.VoiceProfile)] = sc.VoiceRevision
+		}
+	}
+	return out
 }

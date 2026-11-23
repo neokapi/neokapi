@@ -90,6 +90,10 @@ type ServerCollection struct {
 	Channel string `json:"channel,omitempty"`
 	// VoiceProfile is the name of the voice profile bound to it server-side.
 	VoiceProfile string `json:"voice_profile,omitempty"`
+	// VoiceRevision is the server's revision of that profile when it was
+	// pulled. A push that changes the profile sends it back, and the server
+	// refuses the change when the profile has moved since.
+	VoiceRevision string `json:"voice_revision,omitempty"`
 	// Owner is "recipe" or "workspace" — which side is authoritative. Every
 	// decision about what a pull may act on is a lookup of this field.
 	Owner string `json:"owner,omitempty"`

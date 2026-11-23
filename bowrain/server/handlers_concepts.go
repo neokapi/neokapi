@@ -1064,8 +1064,23 @@ func (s *Server) HandleDeleteMarket(c *echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errKnowledgeUnavailable.Error()})
 	}
 	wsID, _ := c.Get("workspace_id").(string)
-	if err := s.KnowledgeStore.DeleteMarket(c.Request().Context(), wsID, c.Param("mid")); err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	ctx := c.Request().Context()
+	mid := c.Param("mid")
+	base := c.QueryParam("base_revision")
+	if base == "" {
+		return refuseUnversioned(c, "markets")
+	}
+	switch err := s.KnowledgeStore.DeleteMarketAt(ctx, wsID, mid, base); {
+	case errors.Is(err, knowledge.ErrMarketNotFound):
+		return refuseGone(c, "market")
+	case errors.Is(err, storage.ErrStale):
+		current, gerr := s.KnowledgeStore.GetMarket(ctx, wsID, mid)
+		if gerr != nil {
+			return refuseGone(c, "market")
+		}
+		return refuseChanged(c, "market_changed", "market", current)
+	case err != nil:
+		return serverErr(c, err)
 	}
 	return c.NoContent(http.StatusNoContent)
 }

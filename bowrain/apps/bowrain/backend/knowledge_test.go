@@ -237,7 +237,7 @@ func TestKnowledgeMarketRoutes(t *testing.T) {
 		{
 			name: "delete market",
 			call: func(a *App) error {
-				return a.DeleteMarket("acme", "m-1")
+				return a.DeleteMarket("acme", "m-1", "r1")
 			},
 			wantMethod: http.MethodDelete,
 			wantPath:   "/api/v1/acme/markets/m-1",
