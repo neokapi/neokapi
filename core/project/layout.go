@@ -24,6 +24,21 @@ type Layout struct {
 	// that are scaffolding a fresh project should call EnsureLayout
 	// instead.
 	StateDir string
+	// LocalDir is the absolute path of the directory that holds this
+	// checkout's own state: the work directory, the sync state, the vault and
+	// the saved filters. Every path to that state goes through it
+	// (LocalStateDir), so where it lives is decided in one place. Empty means
+	// StateDir.
+	LocalDir string
+}
+
+// LocalStateDir returns the directory that holds this checkout's own state:
+// LocalDir when it is set, and StateDir otherwise.
+func (l Layout) LocalStateDir() string {
+	if l.LocalDir != "" {
+		return l.LocalDir
+	}
+	return l.StateDir
 }
 
 // StateDirName is the one kapi-owned directory in a checkout, and it is a
@@ -73,7 +88,7 @@ func GitignoreCovers(content, name string) bool {
 
 // WorkDir returns the absolute path of the derived directory.
 func (l Layout) WorkDir() string {
-	return filepath.Join(l.StateDir, WorkDirName)
+	return filepath.Join(l.LocalStateDir(), WorkDirName)
 }
 
 // RelStatePath returns the project-relative path of a context file inside
@@ -105,7 +120,7 @@ const ProfilesDirName = "profiles"
 // reason: a project has one vocabulary. The path sits on ExportLayout.
 const MemoryDirName = "memory"
 
-// UnitStateDirName holds an exported decision record — one JSON Lines shard
+// UnitStateDirName holds an exported decision record, one JSON Lines shard
 // per document. The path sits on ExportLayout.
 const UnitStateDirName = "state"
 
@@ -115,8 +130,8 @@ const UnitStateDirName = "state"
 //
 // Everything in it is derived from the working tree beside it, so it belongs
 // beside that tree and a second checkout of the same project keeps one of its
-// own. What the project authored — the terms, the voice profiles, the content
-// memory and the unit working set with its staged decisions — is in the user's
+// own. What the project authored, the terms, the voice profiles, the content
+// memory and the unit working set with its staged decisions, is in the user's
 // workspace, one database per project, shared by every checkout (core/workspace).
 //
 // It sits at the TOP of the work directory rather than under work/cache/
@@ -155,7 +170,7 @@ func (l Layout) CacheDir() string {
 
 // LocalFiltersPath returns the path to the personal saved-filters file.
 func (l Layout) LocalFiltersPath() string {
-	return filepath.Join(l.StateDir, LocalFiltersFilename)
+	return filepath.Join(l.LocalStateDir(), LocalFiltersFilename)
 }
 
 // ExtractionsDir returns the absolute path of the extractions cache root.
@@ -191,7 +206,7 @@ const VaultBatchesDirName = "batches"
 
 // VaultDir returns the absolute path of the withheld-originals root.
 func (l Layout) VaultDir() string {
-	return filepath.Join(l.StateDir, VaultDirName)
+	return filepath.Join(l.LocalStateDir(), VaultDirName)
 }
 
 // PrepareVault creates the vault directory owner-only and keeps it out of
@@ -210,7 +225,7 @@ const SyncDirName = "sync"
 
 // SyncDir returns the absolute path of the venue sync state.
 func (l Layout) SyncDir() string {
-	return filepath.Join(l.StateDir, SyncDirName)
+	return filepath.Join(l.LocalStateDir(), SyncDirName)
 }
 
 // EnsureLocalDir creates the StateDir subdirectory name, owner-only, and
@@ -223,7 +238,7 @@ func EnsureLocalDir(layout Layout, name string) (string, error) {
 	if err := layout.CheckState(); err != nil {
 		return "", err
 	}
-	dir := filepath.Join(layout.StateDir, name)
+	dir := filepath.Join(layout.LocalStateDir(), name)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("project: create %s: %w", name, err)
 	}
@@ -301,12 +316,11 @@ func ResolveLayout(start string) (Layout, error) {
 	}
 }
 
-// LayoutAt returns the Layout for a project root without touching the disk —
-// the pure path computation behind the two resolvers below.
+// LayoutAt returns the Layout for a project root without touching the disk, // the pure path computation behind the two resolvers below.
 //
 // It exists so that "the store of the project at root" is spelled one way, and
 // not hand-rolled as `filepath.Join(root, StateDirName, StoreFileName)` in
-// every module — a spelling the layout cannot move without breaking at run
+// every module, a spelling the layout cannot move without breaking at run
 // time in a package that still compiles. Callers that have a recipe path or a
 // working directory want LayoutFor or ResolveLayout; this is for the ones that
 // already know the root.
@@ -425,8 +439,8 @@ func cacheOnly(dir string) bool {
 }
 
 // Retired state files are not swept here. Every predecessor of the merged store
-// — the vocabulary-renamed `tm.db`/`termbase.db` as well as the four-file
-// `memory.db`/`terms.db`/`cache/blocks.db`/`work/state.db` — is removed by
+//, the vocabulary-renamed `tm.db`/`termbase.db` as well as the four-file
+// `memory.db`/`terms.db`/`cache/blocks.db`/`work/state.db`, is removed by
 // core/projectdb when the project store opens, so one place decides what a
 // state directory may contain.
 

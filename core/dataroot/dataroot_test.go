@@ -1,4 +1,4 @@
-package host
+package dataroot
 
 import (
 	"os"
@@ -27,19 +27,19 @@ func TestDataDir(t *testing.T) {
 		{
 			name: "KAPI_DATA_DIR wins on darwin",
 			goos: "darwin",
-			env:  map[string]string{EnvDataDir: "/tmp/iso/data", "XDG_DATA_HOME": "/xdg", "HOME": "/fakehome"},
+			env:  map[string]string{EnvDir: "/tmp/iso/data", "XDG_DATA_HOME": "/xdg", "HOME": "/fakehome"},
 			want: "/tmp/iso/data",
 		},
 		{
 			name: "KAPI_DATA_DIR wins on linux",
 			goos: "linux",
-			env:  map[string]string{EnvDataDir: "/tmp/iso/data", "XDG_DATA_HOME": "/xdg", "HOME": "/home/x"},
+			env:  map[string]string{EnvDir: "/tmp/iso/data", "XDG_DATA_HOME": "/xdg", "HOME": "/home/x"},
 			want: "/tmp/iso/data",
 		},
 		{
 			name: "KAPI_DATA_DIR wins on windows",
 			goos: "windows",
-			env:  map[string]string{EnvDataDir: `C:\iso\data`, "LOCALAPPDATA": `C:\fakeprofile\AppData\Local`},
+			env:  map[string]string{EnvDir: `C:\iso\data`, "LOCALAPPDATA": `C:\fakeprofile\AppData\Local`},
 			want: `C:\iso\data`,
 		},
 		{
@@ -93,7 +93,7 @@ func TestDataDir(t *testing.T) {
 		{
 			name: "an empty override is no override",
 			goos: "linux",
-			env:  map[string]string{EnvDataDir: "", "XDG_DATA_HOME": "", "HOME": "/home/x"},
+			env:  map[string]string{EnvDir: "", "XDG_DATA_HOME": "", "HOME": "/home/x"},
 			want: filepath.Join("/home/x", ".local", "share", "kapi"),
 		},
 	}
@@ -113,8 +113,8 @@ func TestDataDir(t *testing.T) {
 // resolution order it bypasses is the table above, driven through the seam.
 func TestDataDirReadsTheProcessEnvironment(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv(EnvDataDir, dir)
-	assert.Equal(t, dir, DataDir())
+	t.Setenv(EnvDir, dir)
+	assert.Equal(t, dir, Dir())
 }
 
 // Two spellings of one checkout normalize to the same string; two different
@@ -126,7 +126,7 @@ func TestNormalizeCheckoutPath(t *testing.T) {
 	link := filepath.Join(root, "link")
 	require.NoError(t, os.Symlink(real, link))
 
-	want := NormalizeCheckoutPath(real)
+	want := NormalizePath(real)
 	require.NotEmpty(t, want)
 
 	tests := []struct {
@@ -145,13 +145,13 @@ func TestNormalizeCheckoutPath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, NormalizeCheckoutPath(tt.path))
+			assert.Equal(t, tt.want, NormalizePath(tt.path))
 		})
 	}
 
 	other := filepath.Join(root, "other")
 	require.NoError(t, os.MkdirAll(other, 0o755))
-	assert.NotEqual(t, want, NormalizeCheckoutPath(other), "two checkouts stay two checkouts")
+	assert.NotEqual(t, want, NormalizePath(other), "two checkouts stay two checkouts")
 }
 
 // A relative path normalizes against the working directory, so a comparison
@@ -159,5 +159,5 @@ func TestNormalizeCheckoutPath(t *testing.T) {
 func TestNormalizeCheckoutPathIsAbsolute(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
-	assert.Equal(t, NormalizeCheckoutPath(dir), NormalizeCheckoutPath("."))
+	assert.Equal(t, NormalizePath(dir), NormalizePath("."))
 }
