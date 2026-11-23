@@ -104,7 +104,7 @@ func TestConceptWriters_KeepingRefusesAnEditMadeMeanwhile(t *testing.T) {
 	base := interleaveTerms(t, f.srv, "ws")
 
 	require.Equal(t, http.StatusConflict, decideRoute(t, f.e, http.MethodPost, f.a, "/context/deck/decide",
-		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "keep"}, nil))
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: "keep"}, nil))
 	got := storedConcept(t, base, cid)
 	assert.Equal(t, personsEdit, got.Definition, "the person's edit stays")
 	assert.True(t, termcandidate.IsCandidate(got, "en"), "and the candidate is not kept")
@@ -120,7 +120,7 @@ func TestConceptWriters_DroppingACandidateKeepsAnEditMadeMeanwhile(t *testing.T)
 	base := interleaveTerms(t, f.srv, "ws")
 
 	status := decideRoute(t, f.e, http.MethodPost, f.a, "/context/deck/decide",
-		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "reject"}, nil)
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: "reject"}, nil)
 	assert.Equal(t, http.StatusConflict, status, "the drop is refused")
 	got := storedConcept(t, base, cid)
 	assert.Equal(t, personsEdit, got.Definition, "and the edit stays with its concept")
@@ -131,9 +131,9 @@ func postgresScopeBackend(t *testing.T) terms.Store { return scopeBackends[1].op
 
 // A reviewer dealt a candidate decides on the candidate as the card showed
 // it. When another reviewer edited it since the deal, a drop or a keep sent
-// with the dealt revision is refused with the card as it stands, and the
-// other reviewer's edit stays. A decision that names no revision is refused
-// and told to refresh.
+// with the dealt base revision is refused with the card as it stands, and
+// the other reviewer's edit stays. A decision that names no base revision is
+// refused and told to update the app.
 func TestConceptWriters_ADeckDecisionActsAtTheDealtRevision(t *testing.T) {
 	for _, action := range []string{"reject", "keep"} {
 		t.Run(action, func(t *testing.T) {
@@ -148,22 +148,26 @@ func TestConceptWriters_ADeckDecisionActsAtTheDealtRevision(t *testing.T) {
 
 			var refusal map[string]any
 			status := decideRoute(t, f.e, http.MethodPost, f.a, "/context/deck/decide",
-				contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: action}, &refusal)
+				contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: action}, &refusal)
 			require.Equal(t, http.StatusConflict, status, "a decision on the dealt revision is refused")
 			assert.Equal(t, deckCodeStale, refusal["code"])
 			got := storedConcept(t, f.tb, cid)
 			assert.Equal(t, personsEdit, got.Definition, "B's edit stays")
 			assert.True(t, termcandidate.IsCandidate(got, "en"), "and the candidate is as B left it")
 
-			status = decideRoute(t, f.e, http.MethodPost, f.a, "/context/deck/decide",
-				contextDeckDecideRequest{Item: card.Item, Action: action}, &refusal)
-			assert.Equal(t, http.StatusPreconditionRequired, status, "a decision with no revision is refused")
-			assert.Equal(t, deckCodeStale, refusal["code"])
-
 			fresh := deckCardWhere(t, readContextDeck(t, f.e, f.a, ""), candidateCard(cid))
-			require.NotEqual(t, card.Revision, fresh.Revision, "the edit moved the card's revision")
+			require.NotEqual(t, card.BaseRevision, fresh.BaseRevision, "the edit moved the card's base revision")
+
+			// An app that sends no base revision is refused and told to
+			// update, never applied to the candidate as it stands.
+			status = decideRoute(t, f.e, http.MethodPost, f.a, "/context/deck/decide",
+				contextDeckDecideRequest{Item: fresh.Item, Revision: fresh.Revision, Action: action}, &refusal)
+			assert.Equal(t, http.StatusPreconditionRequired, status, "a decision with no base revision is refused")
+			assert.Equal(t, deckCodeUpdateApp, refusal["code"])
+			assert.True(t, termcandidate.IsCandidate(storedConcept(t, f.tb, cid), "en"), "and nothing was decided")
+
 			assert.Equal(t, http.StatusOK, decideRoute(t, f.e, http.MethodPost, f.a, "/context/deck/decide",
-				contextDeckDecideRequest{Item: fresh.Item, Revision: fresh.Revision, Action: action}, nil))
+				contextDeckDecideRequest{Item: fresh.Item, Revision: fresh.Revision, BaseRevision: fresh.BaseRevision, Action: action}, nil))
 		})
 	}
 }
@@ -179,7 +183,7 @@ func TestConceptWriters_ATranslationDecisionKeepsAnEditMadeMeanwhile(t *testing.
 	base := interleaveTerms(t, srv, "ws")
 
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "reject"}, nil))
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: "reject"}, nil))
 	got := storedConcept(t, base, "c-memory")
 	assert.Equal(t, personsEdit, got.Definition, "the person's edit stays")
 	assert.Equal(t, []string{"mémoire de contenu"}, termcandidate.RejectedTranslations(got, "fr"), "and the decision lands")

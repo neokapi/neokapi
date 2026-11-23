@@ -113,7 +113,7 @@ func (f scopeFixture) keepInProject(t *testing.T, pid, term string) string {
 	card := deckCardWhere(t, readContextDeck(t, f.e, pid, ""), candidateCard(cid))
 	var out contextDeckDecideResponse
 	require.Equal(t, http.StatusOK, decideRoute(t, f.e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "keep"}, &out))
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: "keep"}, &out))
 	return cid
 }
 
@@ -231,7 +231,7 @@ func TestTermScope_KeepLimitsUnscopedCandidate(t *testing.T) {
 	card := deckCardWhere(t, readContextDeck(t, f.e, f.b, ""), candidateCard("c-open"))
 	var out contextDeckDecideResponse
 	require.Equal(t, http.StatusOK, decideRoute(t, f.e, http.MethodPost, f.b, "/context/deck/decide",
-		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "keep"}, &out))
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: "keep"}, &out))
 	cp, ok, err := f.tb.GetConcept(ctx, "c-open")
 	require.NoError(t, err)
 	require.True(t, ok)

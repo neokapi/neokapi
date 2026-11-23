@@ -35,6 +35,7 @@ const (
 // Codes a context deck decision is refused with.
 const (
 	deckCodeStale         = "stale"
+	deckCodeUpdateApp     = "update_app"
 	deckCodeNotPending    = "not_pending"
 	deckCodeNotOffered    = "action_not_offered"
 	deckCodeRetireHeld    = "retire_needs_approval"
@@ -72,6 +73,11 @@ type contextDeckDecideRequest struct {
 	// Revision is the revision the card showed. A decision about a revision
 	// that has moved is refused as stale.
 	Revision string `json:"revision"`
+	// BaseRevision is the card's base_revision: the terms-store revision of
+	// the concept it showed. A decision that writes the concept (keeping or
+	// dropping a candidate, retiring a concept) acts at it, and is refused
+	// without it.
+	BaseRevision string `json:"base_revision,omitempty"`
 	// Action is keep, reject or later.
 	Action string `json:"action"`
 	Note   string `json:"note,omitempty"`
@@ -341,13 +347,6 @@ func (s *Server) decideContextCard(c *echo.Context, req contextDeckDecideRequest
 	if !ok {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: "the item is not waiting for review", Code: deckCodeNotPending})
 	}
-	if req.Revision == "" {
-		// An app that does not say which card it decided on is refused, never
-		// applied to the item as it stands now.
-		return c.JSON(http.StatusPreconditionRequired, ErrorResponse{
-			Error: "the decision does not say which version of the card it is about; refresh the deck and decide again", Code: deckCodeStale,
-		})
-	}
 	if card.Revision != req.Revision {
 		return c.JSON(http.StatusConflict, map[string]any{
 			"error": "the item changed since the card was dealt", "code": deckCodeStale, "card": card,
@@ -359,6 +358,19 @@ func (s *Server) decideContextCard(c *echo.Context, req contextDeckDecideRequest
 
 	if card.Kind == deckKindTermTranslation {
 		return s.decideTermTranslation(c, src, rv, cards, card, req)
+	}
+	if writesConcept(card, req.Action) {
+		// The decision acts on the concept as the card showed it. An app
+		// that does not say which version that was is refused, never applied
+		// to the concept as it stands now.
+		if req.BaseRevision == "" {
+			return c.JSON(http.StatusPreconditionRequired, ErrorResponse{
+				Error: "this app does not say which version of the term it decided on; update the app and refresh the deck", Code: deckCodeUpdateApp,
+			})
+		}
+		if req.BaseRevision != card.BaseRevision {
+			return s.refuseStaleCard(c, src, rv, card)
+		}
 	}
 	promoted := false
 	if card.Proposed && card.Item.Kind == contextop.ItemConcept {
@@ -413,6 +425,15 @@ func (s *Server) decideContextCard(c *echo.Context, req contextDeckDecideRequest
 	return c.JSON(http.StatusOK, contextDeckDecideResponse{Outcome: outcome})
 }
 
+// writesConcept reports whether action on card writes its concept: keeping
+// or dropping a candidate, and rejecting (retiring) any concept.
+func writesConcept(card contextDeckCard, action string) bool {
+	if card.Item.Kind != contextop.ItemConcept {
+		return false
+	}
+	return card.Proposed || action == deckActionReject
+}
+
 // errCandidateGone is a candidate term deleted between the deal and the
 // decision.
 var errCandidateGone = errors.New("the candidate term is gone")
@@ -448,7 +469,7 @@ func (s *Server) keepCandidate(c *echo.Context, src deckSource, rv deckReviewer,
 	if !found {
 		return card, errCandidateGone
 	}
-	if rev != card.Revision {
+	if rev != card.BaseRevision {
 		return card, storage.ErrStale
 	}
 	kept := termcandidate.Promote(&concept, src.project.DefaultSourceLanguage)
@@ -461,7 +482,7 @@ func (s *Server) keepCandidate(c *echo.Context, src deckSource, rv deckReviewer,
 			termscope.Limit(&concept, src.project.ID)
 		}
 		concept.UpdatedAt = time.Now().UTC()
-		if _, err := tb.UpdateConcept(ctx, concept, "", card.Revision); err != nil {
+		if _, err := tb.UpdateConcept(ctx, concept, "", card.BaseRevision); err != nil {
 			if errors.Is(err, sqlterms.ErrConceptNotFound) {
 				return card, errCandidateGone
 			}
@@ -523,7 +544,7 @@ func (s *Server) forgetCandidate(c *echo.Context, src deckSource, rv deckReviewe
 		return serverErr(c, err)
 	}
 	if ok {
-		err := tb.DeleteConceptAt(ctx, concept.ID, card.Revision)
+		err := tb.DeleteConceptAt(ctx, concept.ID, card.BaseRevision)
 		if _, stale := errors.AsType[*sqlterms.StaleConceptError](err); stale {
 			return s.refuseStaleDrop(c, src, rv, card, term, added)
 		}
@@ -664,7 +685,7 @@ func (s *Server) proposeConceptRetire(c *echo.Context, src deckSource, rv deckRe
 		}})
 	}
 	if len(payloads) == 0 {
-		payloads = append(payloads, retireOp{knowledge.OpConceptDelete, knowledge.ConceptDeletePayload{ConceptID: concept.ID, Revision: card.Revision}})
+		payloads = append(payloads, retireOp{knowledge.OpConceptDelete, knowledge.ConceptDeletePayload{ConceptID: concept.ID, Revision: card.BaseRevision}})
 	}
 	if err := s.KnowledgeStore.CreateChangeSet(ctx, cs); err != nil {
 		return serverErr(c, err)

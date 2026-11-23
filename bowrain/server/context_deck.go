@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -54,6 +55,9 @@ type contextDeckCard struct {
 	Item     contextop.ItemRef `json:"item"`
 	Kind     string            `json:"kind"`
 	Revision string            `json:"revision"`
+	// BaseRevision is a concept card's terms-store revision, which a
+	// decision that writes the concept sends back and acts at.
+	BaseRevision string `json:"base_revision,omitempty"`
 	// Status is the ledger status of a term rule or a note: suggested,
 	// established or contested.
 	Status string `json:"status,omitempty"`
@@ -602,13 +606,14 @@ func termRuleFlags(rule coreprofile.TermRule) []string {
 
 // conceptCards are the cards of the concepts the workspace's terms store
 // holds for the project: those of the whole workspace and the project's own.
-// A concept card's revision is the concept's revision in the terms store, so
-// a decision sent with it acts on the concept as the card showed it, and any
-// write since refuses the decision as stale. The revisions are read before
-// the content, so a write landing between the two leaves a card whose
-// revision is older than what it shows, which the decision then refuses. The
-// second list is the cards of the target terms proposed for those concepts
-// (translationCards).
+// A concept's revision is its latest revision in the knowledge store, or the
+// time it was last written when it has none: what a review attests. Its
+// base revision is the concept's revision in the terms store, which a
+// decision that writes the concept acts at, so any write since the deal
+// refuses it as stale. The base revisions are read before the content, so a
+// write landing between the two leaves a card whose base is older than what
+// it shows, which the decision then refuses. The second list is the cards of
+// the target terms proposed for those concepts (translationCards).
 func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[string]string) ([]contextDeckCard, []contextDeckCard, error) {
 	if s.wsStores == nil || src.wsSlug == "" {
 		return nil, nil, nil
@@ -650,13 +655,13 @@ func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[str
 			continue
 		}
 		card := contextDeckCard{
-			Item:     contextop.ItemRef{Kind: contextop.ItemConcept, ID: cp.ID},
-			Revision: rev,
-			Kind:     deckKindConcept,
-			Text:     cp.Definition,
-			Language: string(source),
-			Where:    contextDeckWhere{Level: string(contextop.LevelWorkspace), Coordinates: cp.Coordinates()},
-			At:       cp.CreatedAt,
+			Item:         contextop.ItemRef{Kind: contextop.ItemConcept, ID: cp.ID},
+			BaseRevision: rev,
+			Kind:         deckKindConcept,
+			Text:         cp.Definition,
+			Language:     string(source),
+			Where:        contextDeckWhere{Level: string(contextop.LevelWorkspace), Coordinates: cp.Coordinates()},
+			At:           cp.CreatedAt,
 		}
 		if !termscope.Workspace(cp) {
 			card.Where.Level = string(contextop.LevelProject)
@@ -681,9 +686,11 @@ func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[str
 			card.Flags = append(card.Flags, "competitor")
 		}
 		if merged := latest[cp.ID]; merged != nil {
+			card.Revision = "r" + strconv.FormatInt(merged.Rev, 10)
 			card.Author = s.memberAuthor(ctx, merged.Actor, names)
 			card.At = merged.CreatedAt
 		} else {
+			card.Revision = "u" + strconv.FormatInt(cp.UpdatedAt.UnixNano(), 10)
 			card.Author = contextDeckAuthor{Kind: string(contextop.ActorPerson)}
 			// A candidate the scan filed names the scan as its author, so
 			// the person who keeps it reviews a tool's work.
