@@ -29,7 +29,7 @@
 # Usage: publish-appcast.sh <title> <name> <version> <ref> <repo> <source> <os> <arch>
 #   title    app display name (and macOS zip prefix), e.g. Kapi / Bowrain
 #   name     feed basename, e.g. kapi / bowrain
-#   source   .app dir (os=darwin) | .zip (os=windows) | .tar.gz (os=linux)
+#   source   .app dir or its .app.zip (os=darwin) | .zip (os=windows) | .tar.gz (os=linux)
 #   os       darwin | windows | linux   (the app's runtime.GOOS; names the feed)
 #   arch     arm64 | amd64
 #
@@ -152,7 +152,7 @@ STUB
     : >"$work/feeds"
     if ! (cd "$work" && PATH="$work/bin:$PATH" SELFTEST_FEEDS="$work/feeds" \
       REGISTRY_TOKEN=selftest GH_TOKEN=selftest bash "$script" "$title" "$name" "$version" "$ref" neokapi/neokapi \
-      "$work/artifact.tar.gz" linux amd64 >"$work/log" 2>&1); then
+      "${SRC:-$work/artifact.tar.gz}" "${OS:-linux}" "${ARCH:-amd64}" >"$work/log" 2>&1); then
       echo "✖ self-test: ${ref} exited non-zero:"
       sed 's/^/    /' "$work/log"
       status=1
@@ -176,6 +176,11 @@ STUB
     appcast-bowrain-linux-amd64.xml appcast-bowrain-linux-amd64-beta.xml
   expect Bowrain bowrain 1.2.0-rc1 bowrain-v1.2.0-rc1 \
     appcast-bowrain-linux-amd64-beta.xml
+  # A macOS build job may pass the .app zip it made; no ditto runs here (the
+  # self-test host may have none), and the zip is published as it is.
+  printf 'dummy\n' >"$work/Kapi-1.2.0-macOS-arm64.app.zip"
+  SRC="$work/Kapi-1.2.0-macOS-arm64.app.zip" OS=darwin ARCH=arm64 expect Kapi kapi 1.2.0 v1.2.0 \
+    appcast-kapi-darwin-arm64.xml appcast-kapi-darwin-arm64-beta.xml
 
   return "$status"
 }
@@ -212,11 +217,13 @@ esac
 
 # Resolve the update artifact. macOS is zipped here from the notarized .app;
 # Windows/Linux artifacts are already built (and on the release).
-if [ "$os" = darwin ]; then
+if [ "$os" = darwin ] && [ -d "$source" ]; then
   artifact="${title}-${version}-macOS-${arch}.app.zip"
   echo "Zipping notarized app $source → $artifact" >&2
   ditto -c -k --sequesterRsrc --keepParent "$source" "$artifact"
 else
+  # Windows and Linux pass the built archive; macOS may pass the .app zip a
+  # build job already made (ditto -c -k --sequesterRsrc --keepParent).
   artifact="$source"
 fi
 
