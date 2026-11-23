@@ -336,9 +336,17 @@ func TestOpAuthor(t *testing.T) {
 			Actor: contextop.Actor{Kind: contextop.ActorPerson, Name: "asgeir"},
 			Note:  "recorded as a person in a claude-code shell",
 		}, true, "claude-code"},
-		{"a person with a note of their own after it", contextop.Record{
+		{"a person with a note of their own before it", contextop.Record{
 			Actor: contextop.Actor{Kind: contextop.ActorPerson},
-			Note:  "fixed the casing; recorded as a person in a codex shell",
+			Note:  "fixed the casing (recorded as a person in a codex shell)",
+		}, true, "codex"},
+		{"a person whose own note says the words", contextop.Record{
+			Actor: contextop.Actor{Kind: contextop.ActorPerson},
+			Note:  "I was recorded as a person in a bash shell",
+		}, false, ""},
+		{"a person in an agent host's shell, held on the actor", contextop.Record{
+			Actor: contextop.Actor{Kind: contextop.ActorPerson, AgentHost: "codex"},
+			Note:  "fixed the casing",
 		}, true, "codex"},
 	}
 	for _, tt := range tests {
@@ -400,7 +408,8 @@ func TestContextDeckCardJudge(t *testing.T) {
 func TestOriginNoteDropsTheHostMarker(t *testing.T) {
 	legacy := func(note string) contextop.Record { return contextop.Record{Note: note} }
 	assert.Equal(t, "edited with `kapi voice edit`", originNote(legacy("edited with `kapi voice edit` (recorded as a person in a claude-code shell)")))
-	assert.Equal(t, "fixed the casing", originNote(legacy("fixed the casing; recorded as a person in a codex shell")))
+	assert.Equal(t, "fixed the casing;", originNote(legacy("fixed the casing; (recorded as a person in a codex shell)")), "the person's text is kept as typed")
+	assert.Equal(t, "I was recorded as a person in a bash shell", originNote(legacy("I was recorded as a person in a bash shell")))
 
 	held := contextop.Record{Note: "fixed the casing", Actor: contextop.Actor{Kind: contextop.ActorPerson, AgentHost: "codex"}}
 	assert.Equal(t, "fixed the casing", originNote(held))
