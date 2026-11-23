@@ -1,0 +1,365 @@
+name: Rebuild release images
+
+# Each week, rebuild the images of the last Bowrain release from that
+# release's own source, so base-image fixes reach `latest` between releases.
+# `latest` keeps meaning the last release; it is never built from main.
+#
+# The last release is the highest `bowrain-v*` version tag, release
+# candidates included: release-bowrain.yml moves `latest` on every one of
+# them. A rebuild publishes under its own tag, `<version>-r<YYYYMMDD>`,
+# and moves `latest` to it; the release's version tag is never overwritten.
+# A rebuild that scans worse than the image `latest` points at now, a finding
+# the current image does not have, publishes nothing.
+#
+# A dispatch builds and scans only, on any branch. Only the schedule, on
+# main, publishes (scripts/check-release-build-only.py holds the shape).
+on:
+  schedule:
+    # Sunday 05:00 UTC, so Monday's container scan reads the rebuilt images.
+    - cron: "0 5 * * 0"
+  workflow_dispatch:
+    inputs:
+      build_only:
+        description: "Build and scan only; publish nothing (a dispatch always builds only)."
+        type: boolean
+        default: true
+  push:
+    branches: [weekly-image-rebuild]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rebuild-release-images
+  cancel-in-progress: false
+
+env:
+  TRIVY_VERSION: v0.76.2
+
+jobs:
+  setup:
+    name: Find the last release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.r.outputs.tag }}
+      version: ${{ steps.r.outputs.version }}
+      rebuild_tag: ${{ steps.r.outputs.rebuild_tag }}
+      build_only: ${{ steps.r.outputs.build_only }}
+    steps:
+      - id: r
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          build_only=true
+          if [ "$EVENT" = schedule ] && [ "$REF" = refs/heads/main ]; then
+            build_only=false
+          fi
+          # The highest bowrain-v* version tag, release candidates included,
+          # with a release candidate below its release (~ sorts first).
+          tag="$(git ls-remote --tags --refs "$REPO_URL" 'refs/tags/bowrain-v*' \
+            | sed 's|.*refs/tags/||' \
+            | grep -E '^bowrain-v[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$' \
+            | sed 's/-rc/~rc/' | sort -V | tail -1 | sed 's/~rc/-rc/')"
+          if [ -z "$tag" ]; then
+            echo "::error::no bowrain-v* version tag found"
+            exit 1
+          fi
+          version="${tag#bowrain-v}"
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "rebuild_tag=$version-r$(date -u +%Y%m%d)"
+            echo "build_only=$build_only"
+          } >> "$GITHUB_OUTPUT"
+          echo "last release: $tag; rebuild tag: $version-r$(date -u +%Y%m%d); build only: $build_only"
+
+  # Builds each image from the release tag into an OCI archive, with an SBOM
+  # and provenance attestation as a release build has, and scans it. Nothing
+  # here holds a write permission or a secret.
+  build:
+    name: Build ${{ matrix.image }} (${{ matrix.arch }})
+    needs: [setup]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: bowrain-server, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
+          - { image: bowrain-server, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
+          - { image: bowrain-worker, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
+          - { image: bowrain-worker, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
+          - { image: bowrain-web, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
+          - { image: bowrain-web, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
+          - { image: bowrain-keycloak, arch: amd64, runner: ubuntu-latest, platform: linux/amd64, ignorefile: .github/trivy/bowrain-keycloak.trivyignore.yaml }
+    steps:
+      - name: Check out the release
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.setup.outputs.tag }}
+
+      # The scripts and ignore file come from this workflow's commit, not the
+      # release's, so a rebuild applies today's scan rules.
+      - name: Check out this workflow's scripts
+        uses: actions/checkout@v7
+        with:
+          path: tools
+          sparse-checkout: |
+            .github/trivy
+            scripts/check-trivy-db.py
+            scripts/image-scan-compare.py
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Node (Keycloak theme)
+        if: matrix.image == 'bowrain-keycloak'
+        uses: ./.github/actions/setup-node-ui
+
+      - name: Build @neokapi/i18n-react (Keycloak theme)
+        if: matrix.image == 'bowrain-keycloak'
+        working-directory: packages/i18n-react
+        run: vp run build
+
+      - name: Set up JDK 17 (Keycloak theme)
+        if: matrix.image == 'bowrain-keycloak'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build the Keycloak theme
+        if: matrix.image == 'bowrain-keycloak'
+        run: make -C bowrain keycloak-theme
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Read the release commit
+        id: meta
+        run: |
+          {
+            echo "commit=$(git rev-parse --short HEAD)"
+            echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+
+      # No cache, and fresh base images: the point of the rebuild is to take
+      # what the bases fixed since the release.
+      - name: Build ${{ matrix.image }} into an OCI archive
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: bowrain/docker/${{ matrix.image == 'bowrain-keycloak' && 'keycloak' || matrix.image }}/Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: "false"
+          pull: true
+          no-cache: true
+          sbom: true
+          provenance: mode=max
+          outputs: type=oci,dest=${{ runner.temp }}/image.tar
+          build-args: |
+            VERSION=${{ needs.setup.outputs.version }}
+            COMMIT=${{ steps.meta.outputs.commit }}
+            BUILD_DATE=${{ steps.meta.outputs.date }}
+
+      - name: Scan the rebuilt image
+        # master as of 2026-11-05 (#595), with the scanner version set below.
+        uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec
+        env:
+          TRIVY_PLATFORM: ${{ matrix.platform }}
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          input: ${{ runner.temp }}/image.tar
+          severity: CRITICAL,HIGH
+          format: json
+          output: ${{ runner.temp }}/out/candidate.json
+          exit-code: "0"
+          trivyignores: ${{ matrix.ignorefile && format('tools/{0}', matrix.ignorefile) || '' }}
+          cache: false
+
+      - name: Write the rebuilt image's SBOM
+        uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec
+        env:
+          TRIVY_PLATFORM: ${{ matrix.platform }}
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          input: ${{ runner.temp }}/image.tar
+          format: cyclonedx
+          output: ${{ runner.temp }}/out/sbom.cdx.json
+          skip-setup-trivy: true
+          cache: false
+
+      - name: Check the scanner's databases are fresh
+        run: python3 tools/scripts/check-trivy-db.py "$GITHUB_WORKSPACE/.cache/trivy"
+
+      - name: Report the rebuilt image's findings
+        env:
+          OUT: ${{ runner.temp }}/out
+        run: python3 tools/scripts/image-scan-compare.py "$OUT/candidate.json" /dev/null || true
+
+      - name: Upload the image
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-${{ matrix.image }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/image.tar
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload the scan and SBOM
+        uses: actions/upload-artifact@v7
+        with:
+          name: record-${{ matrix.image }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/out/
+          if-no-files-found: error
+          retention-days: 90
+
+  # The images are private: scanning what `latest` points at needs a read
+  # token, so this runs only when the rebuild would publish.
+  scan-current:
+    name: Scan the current ${{ matrix.image }} (${{ matrix.arch }})
+    needs: [setup]
+    if: needs.setup.outputs.build_only != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read # pull the current image from ghcr.io
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: bowrain-server, arch: amd64, platform: linux/amd64 }
+          - { image: bowrain-server, arch: arm64, platform: linux/arm64 }
+          - { image: bowrain-worker, arch: amd64, platform: linux/amd64 }
+          - { image: bowrain-worker, arch: arm64, platform: linux/arm64 }
+          - { image: bowrain-web, arch: amd64, platform: linux/amd64 }
+          - { image: bowrain-web, arch: arm64, platform: linux/arm64 }
+          - { image: bowrain-keycloak, arch: amd64, platform: linux/amd64, ignorefile: .github/trivy/bowrain-keycloak.trivyignore.yaml }
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            .github/trivy
+            scripts/check-trivy-db.py
+          sparse-checkout-cone-mode: false
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Scan ghcr.io/neokapi/${{ matrix.image }}:latest
+        uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec
+        env:
+          TRIVY_PLATFORM: ${{ matrix.platform }}
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          image-ref: ghcr.io/neokapi/${{ matrix.image }}:latest
+          severity: CRITICAL,HIGH
+          format: json
+          output: ${{ runner.temp }}/current.json
+          exit-code: "0"
+          trivyignores: ${{ matrix.ignorefile || '' }}
+          cache: false
+
+      - name: Check the scanner's databases are fresh
+        run: python3 scripts/check-trivy-db.py "$GITHUB_WORKSPACE/.cache/trivy"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: current-${{ matrix.image }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/current.json
+          if-no-files-found: error
+          retention-days: 90
+
+  # Publishes only when every rebuilt image scans no worse than the one it
+  # replaces. The rebuild tag must not exist yet: a published tag is never
+  # replaced.
+  publish:
+    name: Publish ${{ needs.setup.outputs.rebuild_tag }} and move latest
+    needs: [setup, build, scan-current]
+    if: needs.setup.outputs.build_only != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push the rebuilt images to ghcr.io
+    env:
+      TAG: ${{ needs.setup.outputs.rebuild_tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/image-scan-compare.py
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/a
+
+      - name: Compare each rebuilt image with the current one
+        env:
+          A: ${{ runner.temp }}/a
+        run: |
+          set -euo pipefail
+          worse=0
+          for leg in server-amd64 server-arm64 worker-amd64 worker-arm64 web-amd64 web-arm64 keycloak-amd64; do
+            echo "::group::bowrain-$leg"
+            python3 scripts/image-scan-compare.py "$A/record-bowrain-$leg/candidate.json" "$A/current-bowrain-$leg/current.json" || worse=1
+            echo "::endgroup::"
+          done
+          if [ "$worse" -ne 0 ]; then
+            echo "::error::a rebuilt image scans worse than the one it would replace; nothing is published"
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Push the rebuilt images, then move latest
+        env:
+          A: ${{ runner.temp }}/a
+        run: |
+          set -euo pipefail
+          for image in bowrain-server bowrain-worker bowrain-web bowrain-keycloak; do
+            if docker buildx imagetools inspect "ghcr.io/neokapi/$image:$TAG" >/dev/null 2>&1; then
+              echo "::error::ghcr.io/neokapi/$image:$TAG exists; a published tag is never replaced"
+              exit 1
+            fi
+          done
+          for image in bowrain-server bowrain-worker bowrain-web; do
+            for arch in amd64 arm64; do
+              skopeo copy --all "oci-archive:$A/image-$image-$arch/image.tar" "docker://ghcr.io/neokapi/$image:$TAG-$arch"
+            done
+            docker buildx imagetools create -t "ghcr.io/neokapi/$image:$TAG" \
+              "ghcr.io/neokapi/$image:$TAG-amd64" "ghcr.io/neokapi/$image:$TAG-arm64"
+          done
+          skopeo copy --all "oci-archive:$A/image-bowrain-keycloak-amd64/image.tar" "docker://ghcr.io/neokapi/bowrain-keycloak:$TAG"
+          for image in bowrain-server bowrain-worker bowrain-web bowrain-keycloak; do
+            docker buildx imagetools create -t "ghcr.io/neokapi/$image:latest" "ghcr.io/neokapi/$image:$TAG"
+          done
+
+      - name: Record what was published
+        env:
+          A: ${{ runner.temp }}/a
+        run: |
+          set -euo pipefail
+          mkdir -p records
+          for image in bowrain-server bowrain-worker bowrain-web bowrain-keycloak; do
+            digest="$(docker buildx imagetools inspect "ghcr.io/neokapi/$image:$TAG" --format '{{json .Manifest}}' | jq -r .digest)"
+            echo "ghcr.io/neokapi/$image:$TAG $digest" | tee -a records/digests.txt
+          done
+          cp -r "$A"/record-* records/
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: published-${{ needs.setup.outputs.rebuild_tag }}
+          path: records/
+          if-no-files-found: error
+          retention-days: 90

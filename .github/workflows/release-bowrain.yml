@@ -597,6 +597,10 @@ jobs:
           # (the _build-* workflows and e2e.yml), so an amd64 leg reads them and
           # an arm64 leg has nothing to read. A tag run saves no layer cache.
           cache-from: ${{ matrix.cache_from }}
+          # An SBOM and provenance attestation travel with each image, as on a
+          # rebuild (rebuild-release-images.yml).
+          sbom: true
+          provenance: mode=max
 
   docker-manifest:
     name: Docker Manifests
@@ -698,7 +702,95 @@ jobs:
             ghcr.io/neokapi/bowrain-keycloak:${{ github.sha }}
             ghcr.io/neokapi/bowrain-keycloak:latest
           cache-from: type=gha,scope=bowrain-keycloak
+          sbom: true
+          provenance: mode=max
           # A tag run saves no layer cache: one saved there serves only that tag.
+
+  # What shipped, on the release: each image's digest, its package list
+  # (CycloneDX) and its scan, per platform, uploaded as release assets. The
+  # weekly rebuild keeps the same record for the images it publishes.
+  record-images:
+    name: Record ${{ matrix.image }} (${{ matrix.arch }})
+    needs: [setup, docker-manifest, docker-keycloak]
+    if: needs.setup.outputs.build_only != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # upload the records to the release
+      packages: read # read the published images
+    env:
+      TAG: ${{ needs.setup.outputs.tag }}
+      VERSION: ${{ needs.setup.outputs.version }}
+      IMAGE: ${{ matrix.image }}
+      ARCH: ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: bowrain-server, arch: amd64, platform: linux/amd64 }
+          - { image: bowrain-server, arch: arm64, platform: linux/arm64 }
+          - { image: bowrain-worker, arch: amd64, platform: linux/amd64 }
+          - { image: bowrain-worker, arch: arm64, platform: linux/arm64 }
+          - { image: bowrain-web, arch: amd64, platform: linux/amd64 }
+          - { image: bowrain-web, arch: arm64, platform: linux/arm64 }
+          - { image: bowrain-keycloak, arch: amd64, platform: linux/amd64, ignorefile: .github/trivy/bowrain-keycloak.trivyignore.yaml }
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            .github/trivy
+            scripts/check-trivy-db.py
+          sparse-checkout-cone-mode: false
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Scan the published image
+        # master as of 2026-11-05 (#595), with the scanner version set below.
+        uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec
+        env:
+          TRIVY_PLATFORM: ${{ matrix.platform }}
+        with:
+          version: v0.76.2
+          image-ref: ghcr.io/neokapi/${{ matrix.image }}:${{ needs.setup.outputs.version }}
+          severity: CRITICAL,HIGH
+          format: json
+          output: records/${{ matrix.image }}-${{ matrix.arch }}.scan.json
+          exit-code: "0"
+          trivyignores: ${{ matrix.ignorefile || '' }}
+          cache: false
+
+      - name: Write the published image's SBOM
+        uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec
+        env:
+          TRIVY_PLATFORM: ${{ matrix.platform }}
+        with:
+          version: v0.76.2
+          image-ref: ghcr.io/neokapi/${{ matrix.image }}:${{ needs.setup.outputs.version }}
+          format: cyclonedx
+          output: records/${{ matrix.image }}-${{ matrix.arch }}.cdx.json
+          skip-setup-trivy: true
+          cache: false
+
+      - name: Check the scanner's databases are fresh
+        run: python3 scripts/check-trivy-db.py "$GITHUB_WORKSPACE/.cache/trivy"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Upload the record to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools inspect "ghcr.io/neokapi/$IMAGE:$VERSION" --format '{{json .Manifest}}' \
+            | jq -r '.digest' > "records/$IMAGE-$ARCH.digest.txt"
+          echo "ghcr.io/neokapi/$IMAGE:$VERSION $(cat "records/$IMAGE-$ARCH.digest.txt")"
+          gh release upload "$TAG" records/"$IMAGE-$ARCH".* --clobber
 
   qps-bowrain-app:
     name: Bowrain app qps dictionary
