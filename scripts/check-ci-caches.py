@@ -40,7 +40,13 @@ saves when it is:
   * docker/build-push-action whose `cache-to` names the gha cache;
   * msys2/setup-msys2 whose `cache` is not false (it defaults to true).
 
-An input or condition the guard cannot decide is an error naming the step.
+An input or condition the guard cannot decide is an error naming the step,
+and so is a workflow on an event it does not model (merge_group,
+pull_request_target), so one cannot be added unchecked.
+
+It also pairs BuildKit scopes: a `cache-from` scope that no `cache-to` in
+any workflow writes is a read that never hits, and is reported. Matrix
+values in a scope are expanded over the job's `include` rows.
 
 Exit status: 0 nothing off main saves a cache, 1 something does, 2 an input
 is unreadable or a condition cannot be decided.
@@ -158,10 +164,24 @@ def triggers(doc: dict) -> dict:
     return {}
 
 
+# Events whose runs are on the default branch (main): nothing to check.
+# workflow_call runs as part of its caller, which walk_jobs follows.
+ON_MAIN_EVENTS = {"schedule", "workflow_run", "repository_dispatch", "issue_comment", "issues", "workflow_call"}
+# Events scenarios() evaluates as a run off main.
+OFF_MAIN_EVENTS = {"pull_request", "pull_request_review", "pull_request_review_comment",
+                   "workflow_dispatch", "push", "release"}
+
+
 def scenarios(doc: dict) -> list[tuple[str, str, str]]:
     """Return (label, event, ref prefix) for each kind of off-main run.
-    An empty prefix is the pull request evaluator of check-test-scripts.py."""
+    An empty prefix is the pull request evaluator of check-test-scripts.py.
+    An event in neither list above (merge_group, pull_request_target, ...)
+    raises Unreadable, so a workflow cannot add one unchecked."""
     on = triggers(doc)
+    unknown = sorted(set(on) - ON_MAIN_EVENTS - OFF_MAIN_EVENTS, key=str)
+    if unknown:
+        raise Unreadable(f"runs on {', '.join(map(str, unknown))}, which the guard does not model: "
+                         "say in scripts/check-ci-caches.py which ref such a run is on")
     out = []
     if "pull_request" in on:
         out.append(("a pull request", "pull_request", ""))
@@ -347,7 +367,11 @@ def check(root: str) -> list[str]:
             continue
         rel = f".github/workflows/{name}"
         doc = load(os.path.join(directory, name))
-        for label, event, prefix in scenarios(doc):
+        try:
+            runs = scenarios(doc)
+        except Unreadable as err:
+            raise Unreadable(f"{rel}: {err}") from err
+        for label, event, prefix in runs:
             SCENARIO[0] = label
             scope = off_main(event, prefix) if prefix else contextlib.nullcontext()
             # A run started by hand has inputs nobody fixes; other runs have none.
@@ -364,9 +388,58 @@ def check(root: str) -> list[str]:
 SCENARIO = ["a pull request"]
 
 
+SCOPE_RE = re.compile(r"scope=([^,\s'\"]+)")
+
+
+def matrix_rows(job: dict) -> list[dict]:
+    """The matrix rows of a job: the include entries, or one empty row."""
+    matrix = (job.get("strategy") or {}).get("matrix") or {}
+    rows = [r for r in (matrix.get("include") or []) if isinstance(r, dict)] if isinstance(matrix, dict) else []
+    return rows or [{}]
+
+
+def expand(text: str, row: dict) -> str:
+    return re.sub(r"\$\{\{\s*matrix\.([A-Za-z0-9_-]+)\s*\}\}", lambda m: str(row.get(m.group(1), m.group(0))), text)
+
+
+def check_scopes(root: str) -> list[str]:
+    """A BuildKit cache-from scope must be one that a cache-to writes: only
+    main writes (check() makes sure of that), and a scope nothing writes is a
+    read that can never hit."""
+    directory = os.path.join(root, ".github", "workflows")
+    written, reads = set(), []
+    for name in sorted(os.listdir(directory)):
+        if not name.endswith((".yml", ".yaml")):
+            continue
+        rel = f".github/workflows/{name}"
+        doc = load(os.path.join(directory, name))
+        for job_id, job in (doc.get("jobs") or {}).items():
+            if not isinstance(job, dict):
+                continue
+            for n, step in enumerate(job.get("steps") or [], 1):
+                if not isinstance(step, dict) or not str(step.get("uses", "")).startswith("docker/build-push-action"):
+                    continue
+                label = f"{rel} job {job_id} step {step.get('name') or n}"
+                with_ = step.get("with") or {}
+                for row in matrix_rows(job):
+                    written.update(SCOPE_RE.findall(expand(str(with_.get("cache-to") or ""), row)))
+                    text = expand(str(with_.get("cache-from") or ""), row)
+                    if "type=gha" in text or "${{" in text:
+                        reads.append((label, text))
+    problems = []
+    for label, text in reads:
+        if "${{" in text:
+            problems.append(f"{label}: cache-from {text!r} names a scope the guard cannot resolve")
+            continue
+        for scope in SCOPE_RE.findall(text):
+            if scope not in written:
+                problems.append(f"{label}: cache-from reads scope {scope!r}, which no cache-to writes, so it never hits")
+    return problems
+
+
 def main() -> int:
     try:
-        problems = check(ROOT)
+        problems = check(ROOT) + check_scopes(ROOT)
     except Unreadable as err:
         print(f"check-ci-caches: cannot read {err}", file=sys.stderr)
         return 2
@@ -539,6 +612,72 @@ FIXTURE_UNDECIDED = """\
         uses: actions/cache@v6
 """
 
+FIXTURE_REVIEW = """\
+name: Review
+on:
+  pull_request_review:
+  pull_request_review_comment:
+jobs:
+  answer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: saves on a review
+        uses: actions/cache@v6
+"""
+
+FIXTURE_SUBDIR = """\
+name: Audit
+on: [pull_request]
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: action under a checkout subdirectory
+        uses: ./neokapi/.github/actions/local
+        with:
+          save: "true"
+"""
+
+FIXTURE_UNMODELLED = """\
+name: Queue
+on:
+  merge_group:
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/cache@v6
+"""
+
+FIXTURE_SCOPES = """\
+name: Images
+on:
+  push:
+    branches: [main]
+jobs:
+  main-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: writes server
+        uses: docker/build-push-action@v7
+        with:
+          cache-from: type=gha,scope=server
+          cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max,scope=server' || '' }}
+  release-images:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { image: server, cache_from: "type=gha,scope=server" }
+          - { image: web, cache_from: "type=gha,scope=web-arm64" }
+          - { image: tool, cache_from: "" }
+    steps:
+      - name: reads per row
+        uses: docker/build-push-action@v7
+        with:
+          cache-from: ${{ matrix.cache_from }}
+"""
+
 FIXTURE_ACTION = """\
 name: local
 inputs:
@@ -626,6 +765,37 @@ def self_test() -> int:
         runs = sorted(p.rsplit(" on ", 1)[1] for p in problems)
         if runs != ["a push of a tag", "a release"]:
             failures.append(f"a tag-only push and a release run on tags, never on a branch; got {problems}")
+    with tempfile.TemporaryDirectory() as root:
+        os.makedirs(os.path.join(root, ".github", "workflows"))
+        os.makedirs(os.path.join(root, ".github", "actions", "local"))
+        with open(os.path.join(root, ".github", "actions", "local", "action.yml"), "w") as fh:
+            fh.write(FIXTURE_ACTION)
+        with open(os.path.join(root, ".github", "workflows", "review.yml"), "w") as fh:
+            fh.write(FIXTURE_REVIEW)
+        with open(os.path.join(root, ".github", "workflows", "audit.yml"), "w") as fh:
+            fh.write(FIXTURE_SUBDIR)
+        problems = check(root)
+        for run in ("a pull request review", "a pull request review comment"):
+            if not any("saves on a review" in p and p.endswith(run) for p in problems):
+                failures.append(f"a save on {run} must be reported; got {problems}")
+        if not any("action under a checkout subdirectory > ./neokapi/.github/actions/local step inner save" in p
+                   for p in problems):
+            failures.append(f"a local action named under a checkout subdirectory must be followed; got {problems}")
+        with open(os.path.join(root, ".github", "workflows", "queue.yml"), "w") as fh:
+            fh.write(FIXTURE_UNMODELLED)
+        try:
+            check(root)
+            failures.append("a workflow on an event the guard does not model passed")
+        except Unreadable as err:
+            if "merge_group" not in str(err) or "queue.yml" not in str(err):
+                failures.append(f"the unmodelled event and its workflow were not named: {err}")
+    with tempfile.TemporaryDirectory() as root:
+        os.makedirs(os.path.join(root, ".github", "workflows"))
+        with open(os.path.join(root, ".github", "workflows", "images.yml"), "w") as fh:
+            fh.write(FIXTURE_SCOPES)
+        problems = check_scopes(root)
+        if [p for p in problems if "'web-arm64'" in p] == [] or len(problems) != 1:
+            failures.append(f"only the scope nothing writes (web-arm64) must be reported; got {problems}")
     if failures:
         print("check-ci-caches self-test: FAIL")
         for f in failures:

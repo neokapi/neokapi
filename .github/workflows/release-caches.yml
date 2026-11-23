@@ -1,0 +1,158 @@
+name: Release caches
+
+# The release workflows (release.yml, release-bowrain.yml) run on tags and
+# save no cache: only main saves (scripts/check-ci-caches.py). This workflow
+# saves on main what their Linux and macOS jobs restore:
+#
+#   * the static ICU build, under the key the release jobs read
+#     (icu-static-<os>-<arch>-macos13.0-<script hash>);
+#   * a Go build and module cache, filled by compiling what the release jobs
+#     compile (the kapi CLI, the kapi-bowrain plugin and both desktop apps),
+#     under go-release-<os>-<arch>-<sha>.
+#
+# Windows jobs build ICU through MSYS2 and are not warmed here.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/build-icu-static.sh"
+      - "scripts/icu-data-filter.json"
+      - "scripts/gen-icu-static-pc.sh"
+      - "**/go.sum"
+      - ".github/workflows/release-caches.yml"
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write # the prune step deletes the copy each save replaces
+
+env:
+  GOFLAGS: -trimpath
+
+concurrency:
+  group: release-caches
+  cancel-in-progress: false
+
+jobs:
+  warm:
+    name: Warm the release caches (${{ matrix.os }})
+    # Saves on main only; a dispatch on another branch would save under it.
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.4"
+          cache: false
+
+      - name: Resolve the Go cache paths
+        id: gopaths
+        shell: bash
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev build-essential curl pkg-config python3 unzip
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install pkg-config
+
+      # ---- Static ICU: build once per script change, save under the release key ----
+      - name: Restore static ICU
+        id: icu
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/icu-static
+          key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
+
+      - name: Build static ICU
+        if: steps.icu.outputs.cache-hit != 'true'
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "13.0"
+        run: bash scripts/build-icu-static.sh "$HOME/icu-static"
+
+      - name: Save static ICU
+        if: steps.icu.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/icu-static
+          key: icu-static-${{ runner.os }}-${{ runner.arch }}-macos13.0-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
+
+      # ---- Go: compile what the release jobs compile ----
+      - name: Restore the Go caches
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ steps.gopaths.outputs.build }}
+            ${{ steps.gopaths.outputs.mod }}
+          key: go-release-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          restore-keys: go-release-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Note when compiling starts
+        id: start
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+      - name: Compile the release binaries
+        env:
+          CGO_ENABLED: "1"
+          MACOSX_DEPLOYMENT_TARGET: "13.0"
+        run: |
+          set -euo pipefail
+          PKG_CONFIG_PATH="$(ICU_PREFIX="$HOME/icu-static" bash scripts/gen-icu-static-pc.sh)"
+          export PKG_CONFIG_PATH
+          if [ "$RUNNER_OS" = macOS ]; then
+            export CGO_CPPFLAGS="-I$HOME/icu-static/include"
+          fi
+          mkdir -p bowrain/apps/bowrain/frontend/dist apps/kapi-desktop/frontend/dist
+          touch bowrain/apps/bowrain/frontend/dist/placeholder apps/kapi-desktop/frontend/dist/placeholder
+          go run ./core/i18n/gen/catalogs
+          out="$RUNNER_TEMP/release-bins"
+          mkdir -p "$out"
+          ( cd kapi && go build -tags fts5 -buildvcs=false -o "$out/kapi" ./cmd/kapi )
+          ( cd bowrain/plugin && go build -tags fts5 -buildvcs=false -o "$out/kapi-bowrain" ./cmd/kapi-bowrain )
+          ( cd apps/kapi-desktop && go build -tags production,fts5 -buildvcs=false -o "$out/Kapi" )
+          ( cd bowrain/apps/bowrain && go build -tags production,fts5 -buildvcs=false -o "$out/Bowrain" )
+
+      # Keep what this run used: an entry Go did not restamp (its stamp is more
+      # than an hour before the run started) was not used. See ci.yml's warm job.
+      - name: Drop the cache entries this run did not use
+        env:
+          GOCACHE_DIR: ${{ steps.gopaths.outputs.build }}
+          START: ${{ steps.start.outputs.epoch }}
+        run: |
+          set -euo pipefail
+          before=$(du -sm "$GOCACHE_DIR" | cut -f1)
+          if [ "$RUNNER_OS" = macOS ]; then
+            find "$GOCACHE_DIR" -type f ! -newermt "$(date -r $((START - 3700)) '+%Y-%m-%d %H:%M:%S')" -delete
+          else
+            find "$GOCACHE_DIR" -type f ! -newermt "@$((START - 3700))" -delete
+          fi
+          echo "Go build cache: ${before} MiB before, $(du -sm "$GOCACHE_DIR" | cut -f1) MiB after dropping unused entries"
+
+      - name: Save the Go caches
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ steps.gopaths.outputs.build }}
+            ${{ steps.gopaths.outputs.mod }}
+          key: go-release-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+
+      - name: Delete the copy it replaces
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 scripts/ci-cache-budget.py prune

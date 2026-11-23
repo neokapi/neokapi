@@ -10,6 +10,15 @@ on:
   # Reusable entry point for release-coordinated.yml; see release.yml for the
   # mirror. Lets the coordinator run the bowrain track with an explicit version
   # and gate the publish jobs so kapi + bowrain land together.
+  # A build-only run on any branch: every build job runs, and nothing is
+  # signed, published or pushed. For measuring a change to the release
+  # builds (their caches, their duration) without making a release.
+  workflow_dispatch:
+    inputs:
+      build_only:
+        description: "Build only; sign, publish and push nothing (must stay true)."
+        type: boolean
+        default: true
   workflow_call:
     inputs:
       version:
@@ -45,14 +54,25 @@ jobs:
       tag: ${{ steps.r.outputs.tag }}
       coordinated: ${{ steps.r.outputs.coordinated }}
       prerelease: ${{ steps.r.outputs.prerelease }}
+      build_only: ${{ steps.r.outputs.build_only }}
     steps:
       - id: r
         env:
           IN_VERSION: ${{ inputs.version }}
           IN_COORD: ${{ inputs.coordinated }}
           PUSH_REF: ${{ github.ref_name }}
+          EVENT: ${{ github.event_name }}
+          RUN_NUMBER: ${{ github.run_number }}
+          REF_TYPE: ${{ github.ref_type }}
         run: |
           set -euo pipefail
+          build_only=false
+          # A dispatch, or a push of a branch (a measurement branch added to
+          # the push filter), builds only, whatever the input says.
+          if [ "$EVENT" = workflow_dispatch ] || { [ "$EVENT" = push ] && [ "$REF_TYPE" != tag ]; }; then
+            build_only=true
+            IN_VERSION="0.0.0-dispatch.${RUN_NUMBER}"
+          fi
           if [ -n "${IN_VERSION:-}" ]; then
             ver="${IN_VERSION#bowrain-v}"; ver="${ver#v}"
             tag="bowrain-v${ver}"; coord="${IN_COORD:-false}"
@@ -65,6 +85,7 @@ jobs:
             echo "tag=$tag"
             echo "coordinated=$coord"
             echo "prerelease=$pre"
+            echo "build_only=$build_only"
           } >> "$GITHUB_OUTPUT"
 
   # Build the kapi-bowrain plugin binary natively per OS/arch with cgo +
@@ -95,9 +116,25 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
-          # A tag run saves no cache: one saved there serves only that tag,
-          # and setup-go has no restore-only mode.
+          # A tag run saves no cache: one saved there serves only that tag.
+          # The next two steps restore what release-caches.yml saves on main.
           cache: false
+
+      - name: Resolve the Go cache paths
+        id: gopaths
+        shell: bash
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Go caches main saved
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ steps.gopaths.outputs.build }}
+            ${{ steps.gopaths.outputs.mod }}
+          key: go-release-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          restore-keys: go-release-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Compute build metadata
         id: meta
@@ -241,9 +278,25 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
-          # A tag run saves no cache: one saved there serves only that tag,
-          # and setup-go has no restore-only mode.
+          # A tag run saves no cache: one saved there serves only that tag.
+          # The next two steps restore what release-caches.yml saves on main.
           cache: false
+
+      - name: Resolve the Go cache paths
+        id: gopaths
+        shell: bash
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Go caches main saved
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ steps.gopaths.outputs.build }}
+            ${{ steps.gopaths.outputs.mod }}
+          key: go-release-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          restore-keys: go-release-${{ runner.os }}-${{ runner.arch }}-
 
       # Release gate: shared UI must type-check + pass unit tests.
       - uses: ./.github/actions/setup-node-ui
@@ -258,6 +311,7 @@ jobs:
         run: vp test
 
       - name: Install cosign (for kapi-bowrain plugin signing)
+        if: needs.setup.outputs.build_only != 'true'
         uses: sigstore/cosign-installer@v3
 
       - name: Download CLI binaries
@@ -276,6 +330,7 @@ jobs:
       # Keyless cosign signature (sigstore bundle) for the kapi-bowrain plugin
       # tarballs; kapi's plugin-install verifier requires it.
       - name: Sign plugin archives (cosign)
+        if: needs.setup.outputs.build_only != 'true'
         env:
           COSIGN_EXPERIMENTAL: "true"
         run: |
@@ -318,9 +373,11 @@ jobs:
       # notes file for this tag; the fetch-depth: 0 checkout above gives it full
       # history + tags. REF_NAME is the job env.
       - name: Generate release notes
+        if: needs.setup.outputs.build_only != 'true'
         run: bash scripts/release-notes/generate.sh "$REF_NAME"
 
       - name: Publish plugin archives to release
+        if: needs.setup.outputs.build_only != 'true'
         uses: softprops/action-gh-release@v3
         with:
           # kapi-bowrain is a plugin on its own tag line, so it never becomes
@@ -338,6 +395,7 @@ jobs:
           body_path: scripts/release-notes/${{ needs.setup.outputs.tag }}.md
 
       - name: Push brew formula to homebrew-tap
+        if: needs.setup.outputs.build_only != 'true'
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           CHANNEL: ${{ steps.channel.outputs.channel }}
@@ -361,6 +419,7 @@ jobs:
       # Includes cosign signature URLs + cert-identity so kapi's verifier can
       # validate the install (signatures are mandatory unless --unsafe).
       - name: Update manifest plugin registry
+        if: needs.setup.outputs.build_only != 'true'
         env:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           REF_NAME: ${{ needs.setup.outputs.tag }}
@@ -422,25 +481,27 @@ jobs:
     name: Docker (${{ matrix.image }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     needs: [setup, package-bowrain-cli]
+    if: needs.setup.outputs.build_only != 'true'
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { image: bowrain-server, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
-          - { image: bowrain-server, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
-          - { image: bowrain-worker, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
-          - { image: bowrain-worker, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
-          - { image: bowrain-web, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
-          - { image: bowrain-web, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
-          - { image: bravo-agent, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
-          - { image: bravo-sandbox-node, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
+          - { image: bowrain-server, arch: amd64, runner: ubuntu-latest, platform: linux/amd64, cache_from: 'type=gha,scope=bowrain-server' }
+          - { image: bowrain-server, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64, cache_from: '' }
+          - { image: bowrain-worker, arch: amd64, runner: ubuntu-latest, platform: linux/amd64, cache_from: 'type=gha,scope=bowrain-worker' }
+          - { image: bowrain-worker, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64, cache_from: '' }
+          - { image: bowrain-web, arch: amd64, runner: ubuntu-latest, platform: linux/amd64, cache_from: 'type=gha,scope=bowrain-web' }
+          - { image: bowrain-web, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64, cache_from: '' }
+          - { image: bravo-agent, arch: amd64, runner: ubuntu-latest, platform: linux/amd64, cache_from: 'type=gha,scope=bravo-agent' }
+          - { image: bravo-sandbox-node, arch: amd64, runner: ubuntu-latest, platform: linux/amd64, cache_from: 'type=gha,scope=bravo-sandbox-node' }
           - {
               image: bravo-sandbox-python,
               arch: amd64,
               runner: ubuntu-latest,
               platform: linux/amd64,
+              cache_from: "type=gha,scope=bravo-sandbox-python",
             }
     steps:
       - uses: actions/checkout@v7
@@ -478,13 +539,16 @@ jobs:
             VERSION=${{ steps.version.outputs.VERSION }}
             COMMIT=${{ steps.version.outputs.COMMIT }}
             BUILD_DATE=${{ steps.version.outputs.BUILD_DATE }}
-          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
-          # A tag run saves no layer cache: one saved there serves only that tag.
+          # Main saves each image's layers under its own name, built for amd64
+          # (the _build-* workflows and e2e.yml), so an amd64 leg reads them and
+          # an arm64 leg has nothing to read. A tag run saves no layer cache.
+          cache-from: ${{ matrix.cache_from }}
 
   docker-manifest:
     name: Docker Manifests
     runs-on: ubuntu-latest
     needs: [setup, docker]
+    if: needs.setup.outputs.build_only != 'true'
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
@@ -526,6 +590,7 @@ jobs:
     name: Docker (bowrain-keycloak)
     runs-on: ubuntu-latest
     needs: [setup, package-bowrain-cli]
+    if: needs.setup.outputs.build_only != 'true'
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
@@ -598,9 +663,25 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
-          # A tag run saves no cache: one saved there serves only that tag,
-          # and setup-go has no restore-only mode.
+          # A tag run saves no cache: one saved there serves only that tag.
+          # The next two steps restore what release-caches.yml saves on main.
           cache: false
+
+      - name: Resolve the Go cache paths
+        id: gopaths
+        shell: bash
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Go caches main saved
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ steps.gopaths.outputs.build }}
+            ${{ steps.gopaths.outputs.mod }}
+          key: go-release-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          restore-keys: go-release-${{ runner.os }}-${{ runner.arch }}-
 
       - uses: ./.github/actions/setup-node-ui
 
@@ -849,7 +930,7 @@ jobs:
 
       - name: Import signing certificate
         id: signing
-        if: runner.os == 'macOS'
+        if: ${{ (runner.os == 'macOS') && needs.setup.outputs.build_only != 'true' }}
         env:
           APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
           APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
@@ -894,7 +975,7 @@ jobs:
           rm -f "$KEY_PATH"
 
       - name: Sign + notarize app bundle (Wails)
-        if: runner.os == 'macOS'
+        if: ${{ (runner.os == 'macOS') && needs.setup.outputs.build_only != 'true' }}
         working-directory: bowrain/apps/bowrain
         env:
           SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
@@ -965,7 +1046,7 @@ jobs:
           fi
 
       - name: Upload DMG to release
-        if: runner.os == 'macOS'
+        if: ${{ (runner.os == 'macOS') && needs.setup.outputs.build_only != 'true' }}
         uses: softprops/action-gh-release@v3
         with:
           # kapi-bowrain is a plugin on its own tag line, so it never becomes
@@ -987,7 +1068,7 @@ jobs:
         # must never block cask publication or zombie the runner for hours. The
         # with_timeout retries inside publish-appcast.sh handle the common stall;
         # these caps bound the worst case; the in-app-update feed is recoverable.
-        if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
+        if: ${{ (runner.os == 'macOS' && steps.signing.outputs.enabled == 'true') && needs.setup.outputs.build_only != 'true' }}
         timeout-minutes: 25
         continue-on-error: true
         env:
@@ -1049,7 +1130,7 @@ jobs:
             -C bowrain/apps/bowrain/bin Bowrain
 
       - name: Upload tarball to release
-        if: runner.os == 'Linux'
+        if: ${{ (runner.os == 'Linux') && needs.setup.outputs.build_only != 'true' }}
         uses: softprops/action-gh-release@v3
         with:
           # kapi-bowrain is a plugin on its own tag line, so it never becomes
@@ -1062,7 +1143,7 @@ jobs:
 
       # Linux in-app-update feed: sign the tarball into the linux/<arch> appcast.
       - name: Publish updater appcast (Linux)
-        if: runner.os == 'Linux'
+        if: ${{ (runner.os == 'Linux') && needs.setup.outputs.build_only != 'true' }}
         env:
           UPDATE_ED25519_PRIVATE_KEY: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY }}
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
@@ -1087,6 +1168,7 @@ jobs:
     # the bowrain@beta cask (which depends on the bowrain-cli-beta formula).
     runs-on: ubuntu-latest
     needs: [setup, build-bowrain]
+    if: needs.setup.outputs.build_only != 'true'
     environment: ${{ needs.setup.outputs.coordinated == 'true' && 'coordinated-release' || '' }}
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
@@ -1206,6 +1288,7 @@ jobs:
   windows-signing:
     name: Windows signing (manual, after this run)
     needs: [setup, build-bowrain]
+    if: needs.setup.outputs.build_only != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Record the outstanding Windows signing step
@@ -1240,7 +1323,7 @@ jobs:
   verify-release-assets:
     name: Verify the release carries every promised asset
     needs: [setup, build-bowrain-cli, package-bowrain-cli, build-bowrain, update-casks]
-    if: ${{ always() && needs.setup.result == 'success' }}
+    if: ${{ (always() && needs.setup.result == 'success') && needs.setup.outputs.build_only != 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
