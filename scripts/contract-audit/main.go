@@ -124,6 +124,9 @@ type testComparisonData struct {
 	OkapiTag       string             `json:"okapiTag,omitempty"`
 	Filters        []filterComparison `json:"filters"`
 	Summary        summary            `json:"summary"`
+	// Checked records what this run checked and could not check; see
+	// coverage.go.
+	Checked auditCoverage `json:"checked"`
 }
 
 type summary struct {
@@ -166,7 +169,7 @@ type filterComparison struct {
 	Spec      *specSummary     `json:"spec,omitempty"`
 	SpecDrift []specDriftEntry `json:"specDrift,omitempty"`
 	// SpecRefsChecked and SpecRefsUnchecked count the spec's okapi_refs this
-	// audit checked and could not check (see refCheckable).
+	// audit checked and could not check (see coverage.go).
 	SpecRefsChecked   int                    `json:"specRefsChecked,omitempty"`
 	SpecRefsUnchecked int                    `json:"specRefsUnchecked,omitempty"`
 	SpecConfigDrift   []specConfigDriftEntry `json:"specConfigDrift,omitempty"`
@@ -306,6 +309,10 @@ func main() {
 	okapiTag := flag.String("okapi-tag", "", "Okapi git tag for source links (e.g. v1.47.0)")
 	goCommit := flag.String("go-commit", "", "neokapi git SHA for source links")
 	out := flag.String("out", "web/static/data/contract-audit.json", "Output JSON path")
+	expect := flag.String("expect-modules", "", "Okapi filter modules that must have test reports: a comma-separated list, or all (every module under -okapi-filters-dir with src/test/java). The run fails when one has none.")
+	filtersDir := flag.String("okapi-filters-dir", "", "The Okapi okapi/filters directory, for -expect-modules all")
+	baselinePath := flag.String("baseline", "", "Committed baseline of references checked per filter and format; the run fails when one checks fewer")
+	writeBaselinePath := flag.String("write-baseline", "", "Write this run's checked counts as the baseline to this path")
 	flag.Parse()
 
 	if *surefireDir == "" {
@@ -319,8 +326,12 @@ func main() {
 	if len(okapiByFilter) == 0 {
 		die("no surefire XMLs found under %s", *surefireDir)
 	}
+	withReports, err := modulesWithReports(*surefireDir)
+	if err != nil {
+		die("list modules with reports: %v", err)
+	}
 	// The filters whose Okapi unit tests ran in this audit, before the
-	// Failsafe integration tests below join. See refCheckable.
+	// Failsafe integration tests below join. See coverage.go.
 	unitFilters := map[string]bool{}
 	for name := range okapiByFilter {
 		unitFilters[name] = true
@@ -400,7 +411,18 @@ func main() {
 		}
 	}
 
-	doc := buildDoc(okapiByFilter, unitFilters, nativeByFilter, bridgeByFilter, specByFilter, bridgeSchemaProps, nativeAnnotations, nativeFuncIndex, okapiIDsByNative, *okapiVersion, *okapiTag, *goCommit)
+	ix := indexClasses(okapiByFilter)
+	cov := newCoverage()
+	cov.ModulesWithReports = withReports
+	if *expect != "" {
+		cov.ModulesExpected, err = expectedModules(*expect, *filtersDir)
+		if err != nil {
+			die("expected modules: %v", err)
+		}
+	}
+	doc := buildDoc(okapiByFilter, unitFilters, ix, &cov, nativeByFilter, bridgeByFilter, specByFilter, bridgeSchemaProps, nativeAnnotations, nativeFuncIndex, okapiIDsByNative, *okapiVersion, *okapiTag, *goCommit)
+	annDrift := checkAnnotations(nativeAnnotations, unitFilters, ix, &cov)
+	doc.Checked = cov
 
 	body, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
@@ -414,20 +436,14 @@ func main() {
 	}
 	fmt.Fprintf(os.Stderr, "contract-audit: %d filters → %s\n", len(doc.Filters), *out)
 
-	// Drift report runs only when both annotations and surefire are
-	// present. Otherwise the comparison is meaningless (no annotations
-	// means no drift; no surefire means everything looks like drift).
 	driftFound := false
-	// An annotation in a format whose Okapi unit tests did not run cannot be
-	// checked: it is counted and reported, never read as drift.
-	allClasses := make([]*filterResult, 0, len(okapiByFilter))
-	for _, fr := range okapiByFilter {
-		allClasses = append(allClasses, fr)
+	checkedAnns := 0
+	for _, n := range cov.Annotations {
+		checkedAnns += n
 	}
-	checkable, uncheckedAnns := splitCheckableAnnotations(nativeAnnotations, unitFilters, classesIn(allClasses...))
-	fmt.Fprintf(os.Stderr, "contract-audit: checked %d annotation(s) against Okapi %s\n", len(checkable), *okapiVersion)
-	if len(checkable) > 0 && len(okapiByFilter) > 0 {
-		drift := detectAnnotationDrift(checkable, okapiByFilter)
+	fmt.Fprintf(os.Stderr, "contract-audit: checked %d annotation(s) against Okapi %s\n", checkedAnns, *okapiVersion)
+	{
+		drift := annDrift
 		if len(drift) > 0 {
 			driftFound = true
 			fmt.Fprintf(os.Stderr, "contract-audit: %d annotation(s) reference Okapi tests not present in %s:\n", len(drift), *okapiVersion)
@@ -470,8 +486,28 @@ func main() {
 		}
 	}
 	reportUncheckedSpecRefs(os.Stderr, doc.Filters, *okapiVersion)
-	reportUncheckedAnnotations(os.Stderr, uncheckedAnns)
-	if driftFound && *failOnDrift {
+	reportUncheckedAnnotations(os.Stderr, cov.AnnotationsNotChecked)
+
+	var drops, rises []string
+	if *baselinePath != "" {
+		b, err := readBaseline(*baselinePath)
+		if err != nil {
+			die("read baseline: %v", err)
+		}
+		drops, rises = compareBaseline(b, cov)
+	}
+	reportCoverage(os.Stderr, cov, rises)
+	if *writeBaselinePath != "" {
+		if err := writeBaseline(*writeBaselinePath, cov); err != nil {
+			die("write baseline: %v", err)
+		}
+		fmt.Fprintf(os.Stderr, "contract-audit: baseline written to %s\n", *writeBaselinePath)
+	}
+	failures := coverageFailures(cov, missingModules(cov.ModulesExpected, cov.ModulesWithReports), drops)
+	for _, f := range failures {
+		fmt.Fprintf(os.Stderr, "contract-audit: FAIL: %s\n", f)
+	}
+	if len(failures) > 0 || (driftFound && *failOnDrift) {
 		os.Exit(1)
 	}
 }
@@ -1128,7 +1164,7 @@ var bridgeFilterAliases = map[string]string{
 // buildDoc joins the per-filter Okapi and native maps with the
 // scanned annotations into a single dashboard document, deterministic
 // in iteration order.
-func buildDoc(okapiByFilter map[string]*filterResult, unitFilters map[string]bool, nativeByFilter map[string]*filterResult, bridgeByFilter map[string]*bridgeRows, specByFilter map[string]*spec.Spec, bridgeSchemaProps map[string]map[string]bool, annotations []annotation, nativeFuncIndex map[string]funcLoc, okapiIDsByNative map[string]map[string]bool, okapiVersion, okapiTag, goCommit string) testComparisonData {
+func buildDoc(okapiByFilter map[string]*filterResult, unitFilters map[string]bool, ix classIndex, cov *auditCoverage, nativeByFilter map[string]*filterResult, bridgeByFilter map[string]*bridgeRows, specByFilter map[string]*spec.Spec, bridgeSchemaProps map[string]map[string]bool, annotations []annotation, nativeFuncIndex map[string]funcLoc, okapiIDsByNative map[string]map[string]bool, okapiVersion, okapiTag, goCommit string) testComparisonData {
 	// Index annotations by Java FQN#method for O(1) joins.
 	annByOkapi := map[string]annotation{}
 	for _, a := range annotations {
@@ -1255,7 +1291,7 @@ func buildDoc(okapiByFilter map[string]*filterResult, unitFilters map[string]boo
 			}
 			// A ref this audit cannot check is counted and reported, never
 			// read as drift and never passed silently.
-			fc.SpecDrift, fc.SpecRefsChecked, fc.SpecRefsUnchecked = detectSpecRefDrift(s, fc.Okapi, unitFilters[name])
+			fc.SpecDrift, fc.SpecRefsChecked, fc.SpecRefsUnchecked = checkSpecRefs(name, s, ix, unitFilters[name], cov)
 			// Spec config drift: each spec.config[].key must match a
 			// property in the bridge composite schema for the pinned
 			// Okapi version. Filters without a loaded schema are
@@ -1717,74 +1753,6 @@ func loadSpecsForFilters(formatsDir string) (map[string]*spec.Spec, error) {
 	return out, nil
 }
 
-// classesIn returns the test classes, by full and short name, with at least
-// one test in the results.
-func classesIn(results ...*filterResult) map[string]bool {
-	out := map[string]bool{}
-	for _, fr := range results {
-		if fr == nil {
-			continue
-		}
-		for _, suite := range fr.Suites {
-			for _, tc := range suite.Tests {
-				out[tc.ClassName] = true
-				out[shortClass(tc.ClassName)] = true
-			}
-		}
-	}
-	return out
-}
-
-// refCheckable reports whether a reference "Class#method" can be checked
-// against this audit's Okapi tests. It can when the Okapi unit tests of the
-// format it belongs to ran, so a missing class is drift, or when its class
-// ran here at all (an integration test, or another module's), so a missing
-// method is drift. Otherwise the module that holds the class did not run, and
-// the reference is neither confirmed nor drift.
-func refCheckable(ref string, unitTestsRan bool, classes map[string]bool) bool {
-	class, _, _ := strings.Cut(ref, "#")
-	return unitTestsRan || classes[class]
-}
-
-// detectSpecRefDrift returns one entry per spec.okapi_refs ref that no
-// longer matches any test in the pinned Okapi result for this filter, with
-// the counts of refs checked and not checked (see refCheckable). Ref
-// matching mirrors the annotation join: both FQN+method and
-// shortClass+method are accepted.
-func detectSpecRefDrift(s *spec.Spec, okapi *filterResult, unitTestsRan bool) (drift []specDriftEntry, checked, unchecked int) {
-	if s == nil {
-		return nil, 0, 0
-	}
-	valid := map[string]struct{}{}
-	if okapi != nil {
-		for _, suite := range okapi.Suites {
-			for _, tc := range suite.Tests {
-				valid[tc.ClassName+"#"+tc.Name] = struct{}{}
-				valid[shortClass(tc.ClassName)+"#"+tc.Name] = struct{}{}
-			}
-		}
-	}
-	classes := classesIn(okapi)
-	for _, f := range s.Features {
-		for _, ref := range f.OkapiRefs {
-			if !refCheckable(ref, unitTestsRan && okapi != nil, classes) {
-				unchecked++
-				continue
-			}
-			checked++
-			if _, ok := valid[ref]; ok {
-				continue
-			}
-			drift = append(drift, specDriftEntry{
-				FeatureID: f.ID,
-				OkapiRef:  ref,
-				Reason:    "missing-from-okapi",
-			})
-		}
-	}
-	return drift, checked, unchecked
-}
-
 // reportUncheckedSpecRefs says which filters' spec references this audit
 // checked and which it could not, with their counts, so a run that checks one
 // filter of many does not read as a clean audit of all of them.
@@ -1823,23 +1791,6 @@ func annotationFormat(a annotation) string {
 		return ""
 	}
 	return format
-}
-
-// splitCheckableAnnotations separates the annotations that can be checked
-// against this audit's Okapi tests (see refCheckable) from the rest, which
-// are counted by format. An annotation outside core/formats is always
-// checked.
-func splitCheckableAnnotations(anns []annotation, unitFilters, classes map[string]bool) (checkable []annotation, unchecked map[string]int) {
-	unchecked = map[string]int{}
-	for _, a := range anns {
-		f := annotationFormat(a)
-		if f != "" && !refCheckable(a.JavaClass+"#"+a.JavaMethod, unitFilters[f], classes) {
-			unchecked[f]++
-			continue
-		}
-		checkable = append(checkable, a)
-	}
-	return checkable, unchecked
 }
 
 // reportUncheckedAnnotations names the formats whose annotations this audit
@@ -2033,44 +1984,6 @@ func collectSchemaProperties(node any, out map[string]bool) {
 }
 
 // ── Annotation drift detection ──────────────────────────────────────────────
-
-// detectAnnotationDrift returns annotations whose JavaClass#JavaMethod
-// no longer matches any test case in the pinned Okapi Surefire output.
-// These are the annotations that quietly orphan. The dashboard would
-// otherwise lose the row entirely without telling anyone, because the
-// surefire join produces no row for a method that doesn't exist.
-//
-// Matching mirrors buildRows: the annotation matches if its key is
-// present either as FQN+method (e.g.
-// `net.sf.okapi.filters.html.HtmlSnippetsTest#testFoo`) or as
-// shortClass+method (`HtmlSnippetsTest#testFoo`). Annotations always
-// use short class form in practice, but we accept both so users have
-// the option to disambiguate.
-func detectAnnotationDrift(annotations []annotation, okapiByFilter map[string]*filterResult) []annotation {
-	valid := map[string]struct{}{}
-	for _, fr := range okapiByFilter {
-		for _, suite := range fr.Suites {
-			for _, tc := range suite.Tests {
-				valid[tc.ClassName+"#"+tc.Name] = struct{}{}
-				valid[shortClass(tc.ClassName)+"#"+tc.Name] = struct{}{}
-			}
-		}
-	}
-	var drift []annotation
-	for _, a := range annotations {
-		if _, ok := valid[a.JavaClass+"#"+a.JavaMethod]; ok {
-			continue
-		}
-		drift = append(drift, a)
-	}
-	sort.SliceStable(drift, func(i, j int) bool {
-		if drift[i].File != drift[j].File {
-			return drift[i].File < drift[j].File
-		}
-		return drift[i].Line < drift[j].Line
-	})
-	return drift
-}
 
 // bridgeStatusFromParity normalises parity-report statuses ("pass" /
 // "fail" / "skip") to the dashboard's status vocabulary which mirrors

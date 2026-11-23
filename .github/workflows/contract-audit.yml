@@ -86,10 +86,10 @@ jobs:
 
       - name: Run mvn test for selected filter modules
         # The modules in FILTERS, in one reactor so their shared dependencies
-        # build once.
-        # A test failure is recorded in the reports and does not stop the run;
-        # a module that does not build leaves no reports, and the audit names
-        # its references as not checked.
+        # build once. -fae and maven.test.failure.ignore keep Maven going past
+        # a module whose tests fail, so every module writes its reports; the
+        # failures stay in the log as upstream information. A module that does
+        # not build writes no reports, and the audit fails on it.
         working-directory: okapi-java
         run: |
           if [ "$FILTERS" = all ]; then
@@ -98,8 +98,16 @@ jobs:
             modules="$(echo "$FILTERS" | tr ',' '\n' | sed 's|^|okapi/filters/|' | paste -sd, -)"
           fi
           echo "::group::mvn test -pl $modules"
-          mvn -B -DfailIfNoTests=false test -pl "$modules" -am || true
+          status=0
+          mvn -B -fae -DfailIfNoTests=false -Dmaven.test.failure.ignore=true test -pl "$modules" -am || status=$?
           echo "::endgroup::"
+          failed="$(grep -lE '<(failure|error)[ >]' okapi/filters/*/target/surefire-reports/TEST-*.xml 2>/dev/null | wc -l)"
+          if [ "$failed" -gt 0 ]; then
+            echo "::warning::$failed Okapi test class(es) report failures at $OKAPI_REF; see the log above"
+          fi
+          if [ "$status" -ne 0 ]; then
+            echo "::warning::Maven exited $status: a module did not build, so it wrote no reports; the audit names it"
+          fi
 
       # Okapi's RoundTrip*IT / *XliffCompareIT contracts run under Maven
       # Failsafe, not Surefire, so the drift check needs their reports too.
@@ -129,6 +137,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: contract-audit
-          path: neokapi/web/static/data/contract-audit.json
+          path: |
+            neokapi/web/static/data/contract-audit.json
+            neokapi/.contract-audit/baseline.json
           if-no-files-found: error
           retention-days: 90

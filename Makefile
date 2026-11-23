@@ -896,6 +896,11 @@ CONTRACT_FAIL_ON_DRIFT   ?=
 # either way; the audit checks a format's references only when its Okapi unit
 # tests ran, and names the rest as not checked.
 CONTRACT_SUREFIRE = $(if $(filter all,$(CONTRACT_FILTER)),$(OKAPI_REPO)/okapi/filters,$(OKAPI_REPO)/okapi/filters/$(CONTRACT_FILTER)/target/surefire-reports)
+# The committed count of references each filter and format checked. A full run
+# (CONTRACT_FILTER=all) fails when one checks fewer, and writes this run's
+# counts to $(CONTRACT_DIR)/baseline.json for review; commit that file here to
+# accept a change.
+CONTRACT_BASELINE := $(ROOT_DIR)/scripts/contract-audit/baseline.json
 
 contract-audit: ## Generate the contract-audit dashboard JSON for $(CONTRACT_FILTER) (an Okapi filter module, or all)
 	@mkdir -p $(CONTRACT_DIR)
@@ -907,6 +912,8 @@ contract-audit: ## Generate the contract-audit dashboard JSON for $(CONTRACT_FIL
 	@cd $(ROOT_DIR) && go test -json ./core/formats/... > $(CONTRACT_DIR)/native.json 2>/dev/null || true
 	@cd $(ROOT_DIR) && go run ./scripts/contract-audit \
 	    -okapi-surefire $(CONTRACT_SUREFIRE) \
+	    -expect-modules $(CONTRACT_FILTER) -okapi-filters-dir $(OKAPI_REPO)/okapi/filters \
+	    $(if $(filter all,$(CONTRACT_FILTER)),$(if $(wildcard $(CONTRACT_BASELINE)),-baseline $(CONTRACT_BASELINE),) -write-baseline $(CONTRACT_DIR)/baseline.json,) \
 	    -native-gotest $(CONTRACT_DIR)/native.json \
 	    -native-src core/formats \
 	    $(if $(wildcard $(BRIDGE_SCHEMAS)),-bridge-schemas $(BRIDGE_SCHEMAS),) \

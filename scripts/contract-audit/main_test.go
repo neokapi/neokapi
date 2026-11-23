@@ -98,7 +98,8 @@ func TestBuildDoc_NoPhantomRows(t *testing.T) {
 	for name := range okapiByFilter {
 		unit[name] = true
 	}
-	doc := buildDoc(okapiByFilter, unit, nativeByFilter, nil, nil, nil, nil, nil, okapiIDs, "v1.48.0", "v1.48.0", "test")
+	cov := newCoverage()
+	doc := buildDoc(okapiByFilter, unit, indexClasses(okapiByFilter), &cov, nativeByFilter, nil, nil, nil, nil, nil, okapiIDs, "v1.48.0", "v1.48.0", "test")
 
 	byName := map[string]filterComparison{}
 	for _, fc := range doc.Filters {
@@ -363,7 +364,8 @@ func TestSpecRefs_CheckedOnlyWhereUnitTestsRan(t *testing.T) {
 		"html": {Features: []spec.Feature{{ID: "a", OkapiRefs: []string{"HtmlFilterTest#testA", "HtmlFilterTest#gone"}}}},
 		"csv":  {Features: []spec.Feature{{ID: "b", OkapiRefs: []string{"CommaSeparatedValuesFilterTest#testFileEvents", "CommaSeparatedValuesFilterTest#testQuotes", "RoundTripCsvIT#roundTrip", "RoundTripCsvIT#gone"}}}},
 	}
-	doc := buildDoc(okapiByFilter, map[string]bool{"html": true}, nil, nil, specs, nil, nil, nil, nil, "v1.48.0", "v1.48.0", "test")
+	cov := newCoverage()
+	doc := buildDoc(okapiByFilter, map[string]bool{"html": true}, indexClasses(okapiByFilter), &cov, nil, nil, specs, nil, nil, nil, nil, "v1.48.0", "v1.48.0", "test")
 	byName := map[string]filterComparison{}
 	for _, fc := range doc.Filters {
 		byName[fc.FilterName] = fc
@@ -388,30 +390,142 @@ func TestSpecRefs_CheckedOnlyWhereUnitTestsRan(t *testing.T) {
 	if !strings.Contains(b.String(), "NOT CHECKED: 2 okapi_ref(s) in 1 filter(s)") || !strings.Contains(b.String(), "csv (2)") {
 		t.Errorf("report does not name the unchecked filter: %q", b.String())
 	}
+	if cov.SpecRefs["html"] != 2 || cov.SpecRefs["csv"] != 2 || cov.SpecRefsNotChecked["csv"] != 2 {
+		t.Errorf("coverage = %+v", cov)
+	}
 }
 
-// An annotation in a format whose Okapi unit tests did not run is counted and
-// reported by format, never checked for drift. One outside core/formats, or in
-// a format whose tests ran, is checked.
-func TestSplitCheckableAnnotations(t *testing.T) {
+// An annotation in a format whose Okapi unit tests did not run, naming a class
+// that did not run, is counted as not checked, never as drift. One outside
+// core/formats, in a format whose tests ran, or naming a class that ran
+// (an integration test here) is checked.
+func TestCheckAnnotations(t *testing.T) {
+	ix := indexClasses(map[string]*filterResult{
+		"html": {Suites: []testSuite{{Tests: []testCase{{Name: "a", ClassName: "net.sf.okapi.filters.html.HtmlFilterTest"}}}}},
+		"srt":  {Suites: []testSuite{{Tests: []testCase{{Name: "e", ClassName: "net.sf.okapi.roundtrip.integration.RoundTripSrtIT"}}}}},
+	})
 	anns := []annotation{
 		{JavaClass: "HtmlFilterTest", JavaMethod: "a", File: "core/formats/html/html_test.go"},
+		{JavaClass: "HtmlFilterTest", JavaMethod: "gone", File: "core/formats/html/html_test.go"},
 		{JavaClass: "JSONFilterTest", JavaMethod: "b", File: "core/formats/json/json_test.go"},
 		{JavaClass: "JSONFilterTest", JavaMethod: "c", File: "core/formats/json/more_test.go"},
 		{JavaClass: "X", JavaMethod: "d", File: "cli/x_test.go"},
+		{JavaClass: "RoundTripSrtIT", JavaMethod: "e", File: "core/formats/srt/srt_test.go"},
 	}
-	anns = append(anns, annotation{JavaClass: "RoundTripSrtIT", JavaMethod: "e", File: "core/formats/srt/srt_test.go"})
-	checkable, unchecked := splitCheckableAnnotations(anns, map[string]bool{"html": true}, map[string]bool{"RoundTripSrtIT": true})
-	if len(checkable) != 3 || checkable[0].JavaMethod != "a" || checkable[1].JavaMethod != "d" || checkable[2].JavaMethod != "e" {
-		t.Errorf("checkable = %+v, want the html, cli and srt (its class ran) annotations", checkable)
+	cov := newCoverage()
+	drift := checkAnnotations(anns, map[string]bool{"html": true}, ix, &cov)
+	if len(drift) != 2 || drift[0].JavaClass != "X" || drift[1].JavaMethod != "gone" {
+		t.Errorf("drift = %+v, want cli X#d and html gone", drift)
 	}
-	if len(unchecked) != 1 || unchecked["json"] != 2 {
-		t.Errorf("unchecked = %v, want json: 2", unchecked)
+	if cov.Annotations["html"] != 2 || cov.Annotations["srt"] != 1 || cov.Annotations["(other)"] != 1 || cov.AnnotationsNotChecked["json"] != 2 {
+		t.Errorf("coverage = %+v", cov)
 	}
 	var b strings.Builder
-	reportUncheckedAnnotations(&b, unchecked)
+	reportUncheckedAnnotations(&b, cov.AnnotationsNotChecked)
 	if !strings.Contains(b.String(), "NOT CHECKED: 2 annotation(s) in 1 format(s)") || !strings.Contains(b.String(), "json (2)") {
 		t.Errorf("report = %q", b.String())
+	}
+}
+
+// A fully qualified reference matches only that class. A simple name that two
+// modules share is ambiguous and reported, not guessed at.
+func TestResolve_FullNamesAndAmbiguity(t *testing.T) {
+	ix := indexClasses(map[string]*filterResult{
+		"xml":  {Suites: []testSuite{{Tests: []testCase{{Name: "m", ClassName: "net.sf.okapi.filters.its.XMLFilterTest"}}}}},
+		"html": {Suites: []testSuite{{Tests: []testCase{{Name: "n", ClassName: "net.sf.okapi.filters.html.XMLFilterTest"}}}}},
+		"tmx":  {Suites: []testSuite{{Tests: []testCase{{Name: "t", ClassName: "net.sf.okapi.filters.tmx.TmxFilterTest"}}}}},
+	})
+	cases := []struct {
+		ref        string
+		ran        bool
+		wantState  string
+		wantExists bool
+	}{
+		{"net.sf.okapi.filters.its.XMLFilterTest#m", false, refChecked, true},
+		{"net.sf.okapi.filters.its.XMLFilterTest#n", false, refChecked, false},
+		{"net.sf.okapi.filters.other.XMLFilterTest#m", false, refUnchecked, false},
+		{"net.sf.okapi.filters.other.XMLFilterTest#m", true, refChecked, false},
+		{"XMLFilterTest#m", true, refAmbiguous, false},
+		{"TmxFilterTest#t", false, refChecked, true},
+		{"TmxFilterTest#gone", false, refChecked, false},
+		{"NoSuchTest#x", false, refUnchecked, false},
+		{"NoSuchTest#x", true, refChecked, false},
+	}
+	for _, c := range cases {
+		state, exists := ix.resolve(c.ref, c.ran)
+		if state != c.wantState || exists != c.wantExists {
+			t.Errorf("resolve(%q, ran=%v) = %s, %v; want %s, %v", c.ref, c.ran, state, exists, c.wantState, c.wantExists)
+		}
+	}
+	cov := newCoverage()
+	checkAnnotations([]annotation{{JavaClass: "XMLFilterTest", JavaMethod: "m", File: "core/formats/xml/x_test.go"}},
+		map[string]bool{"xml": true}, ix, &cov)
+	if len(cov.Ambiguous) != 1 || cov.Annotations["xml"] != 0 {
+		t.Errorf("an ambiguous annotation must be reported and not counted as checked: %+v", cov)
+	}
+}
+
+// The run fails when it checked nothing, when an expected module wrote no
+// reports, and when a filter or format checks fewer references than the
+// baseline. A rise is reported, not failed.
+func TestCoverageFailures(t *testing.T) {
+	empty := newCoverage()
+	if f := coverageFailures(empty, nil, nil); len(f) != 1 || !strings.Contains(f[0], "nothing was checked") {
+		t.Errorf("empty run: %v", f)
+	}
+	cov := newCoverage()
+	cov.SpecRefs["html"] = 10
+	cov.Annotations["tmx"] = 3
+	if f := coverageFailures(cov, nil, nil); len(f) != 0 {
+		t.Errorf("a run that checked something, with nothing missing: %v", f)
+	}
+	missing := missingModules([]string{"html", "tmx", "xliff"}, []string{"html", "tmx"})
+	if f := coverageFailures(cov, missing, nil); len(f) != 1 || !strings.Contains(f[0], "xliff") {
+		t.Errorf("missing module: %v", f)
+	}
+	drops, rises := compareBaseline(baseline{
+		SpecRefs:    map[string]int{"html": 12, "po": 4},
+		Annotations: map[string]int{"tmx": 2},
+	}, cov)
+	if len(drops) != 2 || !strings.Contains(drops[0], "html: 10 checked, baseline 12") || !strings.Contains(drops[1], "po: 0 checked, baseline 4") {
+		t.Errorf("drops = %v", drops)
+	}
+	if len(rises) != 1 || !strings.Contains(rises[0], "tmx: 3 checked, baseline 2") {
+		t.Errorf("rises = %v", rises)
+	}
+	if f := coverageFailures(cov, nil, drops); len(f) != 2 {
+		t.Errorf("baseline drops must fail: %v", f)
+	}
+}
+
+// moduleOf reads the module from a report's path; expectedModules takes the
+// modules that have tests from the tree, not the ones that reported.
+func TestModules(t *testing.T) {
+	if got := moduleOf("/w/okapi-java/okapi/filters/html/target/surefire-reports/TEST-x.xml"); got != "html" {
+		t.Errorf("moduleOf = %q", got)
+	}
+	dir := t.TempDir()
+	for _, m := range []string{"html/src/test/java", "tmx/src/test/java", "notests/src/main/java"} {
+		if err := os.MkdirAll(filepath.Join(dir, m), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := expectedModules("all", dir)
+	if err != nil || strings.Join(got, ",") != "html,tmx" {
+		t.Errorf("expectedModules(all) = %v, %v", got, err)
+	}
+	if got, _ := expectedModules("tmx, html", ""); strings.Join(got, ",") != "html,tmx" {
+		t.Errorf("expectedModules(list) = %v", got)
+	}
+	reports := filepath.Join(dir, "okapi", "filters", "html", "target", "surefire-reports")
+	if err := os.MkdirAll(reports, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(reports, "TEST-a.xml"), []byte("<testsuite/>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := modulesWithReports(dir); strings.Join(got, ",") != "html" {
+		t.Errorf("modulesWithReports = %v", got)
 	}
 }
 
