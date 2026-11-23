@@ -12,6 +12,7 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -58,10 +59,10 @@ func decideSessionCard(t *testing.T, e *echo.Echo, pid string, card contextSessi
 		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: action}, &out)
 }
 
-func sessionKeys(cards []contextSessionCard) map[string]bool {
-	out := map[string]bool{}
+func sessionKeys(cards []contextSessionCard) map[contextop.ItemRef]bool {
+	out := map[contextop.ItemRef]bool{}
 	for _, c := range cards {
-		out[c.Item.Key()] = true
+		out[c.Item] = true
 	}
 	return out
 }
@@ -100,7 +101,7 @@ func TestContextSessions_TwoReviewersGetDisjointCards(t *testing.T) {
 
 	deck := readContextDeck(t, e, pid, "?limit=200")
 	for _, c := range deck.Cards {
-		assert.False(t, held[c.Item.Key()], "Bea's deck lists %s, which Ada's session holds", c.Item.Key())
+		assert.False(t, held[c.Item], "Bea's deck lists %s, which Ada's session holds", c.Item)
 	}
 	assert.Equal(t, http.StatusConflict, decideSessionCard(t, e, pid, ada.Cards[0], "keep"))
 
@@ -109,7 +110,7 @@ func TestContextSessions_TwoReviewersGetDisjointCards(t *testing.T) {
 	require.Equal(t, http.StatusOK, decideSessionCard(t, e, pid, ada.Cards[0], "keep"))
 	caller.userID = "member-b"
 	for _, c := range readContextDeck(t, e, pid, "?limit=200").Cards {
-		assert.NotEqual(t, ada.Cards[0].Item.Key(), c.Item.Key())
+		assert.NotEqual(t, ada.Cards[0].Item, c.Item)
 	}
 
 	// Ada leaves without ending her session. Once it expires, her cards are
@@ -117,11 +118,11 @@ func TestContextSessions_TwoReviewersGetDisjointCards(t *testing.T) {
 	*clock = clock.Add(contextSessionIdle + time.Minute)
 	listed := sessionKeys(nil)
 	for _, c := range readContextDeck(t, e, pid, "?limit=200").Cards {
-		listed[c.Item.Key()] = true
+		listed[c.Item] = true
 	}
-	assert.True(t, listed[ada.Cards[1].Item.Key()], "an expired session releases its cards")
+	assert.True(t, listed[ada.Cards[1].Item], "an expired session releases its cards")
 	again := startSession(t, e, pid)
-	assert.Equal(t, ada.Cards[1].Item.Key(), again.Cards[0].Item.Key())
+	assert.Equal(t, ada.Cards[1].Item, again.Cards[0].Item)
 }
 
 // A session's summary counts its decisions and the blocks the kept terms
@@ -218,12 +219,30 @@ func TestContextSessions_FindingsCleared(t *testing.T) {
 	}))
 	sess := platstore.ContextSession{
 		ProjectID: pid,
-		Cards:     []platstore.ContextSessionCard{{Item: "op::r1", Kind: deckKindTermRule, Term: "Utilise"}},
-		Decisions: []platstore.ContextSessionDecision{{Item: "op::r1", Outcome: platstore.SessionRejected}},
+		Cards:     []platstore.ContextSessionCard{{Item: contextop.ItemRef{Kind: contextop.ItemOp, ID: "r1"}, Kind: deckKindTermRule, Term: "Utilise"}},
+		Decisions: []platstore.ContextSessionDecision{{Item: contextop.ItemRef{Kind: contextop.ItemOp, ID: "r1"}, Outcome: platstore.SessionRejected}},
 	}
 	summary := summarizeSession(sess)
 	srv.countFindingsCleared(t.Context(), sess, &summary)
 	require.NotNil(t, summary.FindingsCleared)
 	assert.Equal(t, 4, *summary.FindingsCleared)
 	assert.Nil(t, summary.Blocks)
+}
+
+// An item reference with a NUL byte in a part is refused at the route: no
+// store can hold it as text, so it never reaches one.
+func TestContextDeckDecide_RefusesANULInTheItem(t *testing.T) {
+	caller := &decideCaller{userID: "member-a", perms: decideAll}
+	e, cs, _, _ := deckSQLiteServerWithTerms(t, caller)
+	pid := seedDecideParity(t, e, cs)
+	for _, item := range []contextop.ItemRef{
+		{Kind: contextop.ItemOp, ID: "a\x00b"},
+		{Kind: contextop.ItemOp, Profile: "p\x00", ID: "x"},
+		{Kind: "op\x00", ID: "x"},
+	} {
+		var out ErrorResponse
+		status := decideRoute(t, e, http.MethodPost, pid, "/context/deck/decide",
+			contextDeckDecideRequest{Item: item, Revision: "r", Action: deckActionKeep}, &out)
+		assert.Equal(t, http.StatusBadRequest, status, "%q", item)
+	}
 }

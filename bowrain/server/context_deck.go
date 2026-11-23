@@ -458,7 +458,7 @@ func (s *Server) contextItems(ctx context.Context, src deckSource, rv deckReview
 
 	reviews := contextop.Reviews(src.records)
 	for i := range cards {
-		review := reviews[cards[i].Item.Key()]
+		review := reviews[cards[i].Item]
 		if review.Current(cards[i].Revision) {
 			cards[i].Reviewed = true
 			continue
@@ -907,7 +907,7 @@ func patternIdentity(list string, p coreprofile.Pattern) (id, rev string) {
 // findCard is the card naming item, and whether the deck holds one.
 func findCard(cards []contextDeckCard, item contextop.ItemRef) (contextDeckCard, bool) {
 	for _, c := range cards {
-		if c.Item.Key() == item.Key() {
+		if c.Item == item {
 			return c, true
 		}
 	}

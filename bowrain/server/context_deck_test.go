@@ -15,7 +15,9 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -47,6 +49,23 @@ func deckServer(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlitestore.SQ
 	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "content.db"))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = cs.Close() })
+	e, ks, tb, srv := deckServerOn(t, caller, cs)
+	return e, cs, ks, tb, srv
+}
+
+// deckPostgresServer is deckServer over a PostgreSQL content store, the only
+// database production runs.
+func deckPostgresServer(t *testing.T, caller *decideCaller) (*echo.Echo, *bstore.PostgresStore, *testTermStore, *Server) {
+	t.Helper()
+	cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
+	require.NoError(t, err)
+	e, _, tb, srv := deckServerOn(t, caller, cs)
+	return e, cs, tb, srv
+}
+
+// deckServerOn wires the deck routes over the content store given.
+func deckServerOn(t *testing.T, caller *decideCaller, cs platstore.ContentStore) (*echo.Echo, *fakeKnowledgeStore, *testTermStore, *Server) {
+	t.Helper()
 	ks := newFakeKnowledgeStore()
 	// Another member wrote the concept, so the caller may keep it as a peer.
 	ks.latest = map[string]*knowledge.ConceptRevision{"c-memory": {ConceptID: "c-memory", Rev: 1, Actor: "member-b"}}
@@ -61,6 +80,11 @@ func deckServer(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlitestore.SQ
 			{Text: "translation memory", Locale: "en", Status: model.TermForbidden},
 		},
 	}))
+	return deckEcho(srv, caller), ks, tb, srv
+}
+
+// deckEcho is an echo serving srv's deck routes, signed in as caller.
+func deckEcho(srv *Server, caller *decideCaller) *echo.Echo {
 	e := echo.New()
 	g := e.Group("/api/v1/:ws", func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
@@ -78,7 +102,7 @@ func deckServer(t *testing.T, caller *decideCaller) (*echo.Echo, *sqlitestore.SQ
 	srv.registerRulesDecideRoutes(g)
 	srv.registerContextDeckRoutes(g)
 	g.POST("/:id/context/term-proposals", srv.HandleProposeTermTranslations)
-	return e, cs, ks, tb, srv
+	return e
 }
 
 func readContextDeck(t *testing.T, e *echo.Echo, pid, query string) contextDeckResponse {
