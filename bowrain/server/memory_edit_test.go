@@ -2,12 +2,16 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
@@ -175,4 +179,85 @@ func TestAnAddThatNamesItsIDIsStoredOnce(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusBadRequest,
 		memoryReq(t, s, http.MethodPost, "/api/v1/test/translation-memory", token, string(body)).Code)
+}
+
+// Concurrent copies of one add (a replay racing a retry) over HTTP: one caller
+// gets the created entry and every other the stored-once answer, never a 404.
+func TestConcurrentCopiesOfOneAddStoreItOnce(t *testing.T) {
+	s, token := newTestServer(t)
+	// The workspace memory is opened as production opens it, on first use from
+	// the database, so the first round races that opening too.
+	pg, ok := s.ContentStore.(*bstore.PostgresStore)
+	require.True(t, ok)
+	s.wsStores.pgDB = pg.DB()
+	s.wsStores.memoryFactory = nil
+	srv := httptest.NewServer(s.GetEcho())
+	t.Cleanup(srv.Close)
+
+	for round := range 20 {
+		entryID := fmt.Sprintf("offline-race-%d", round)
+		body, err := json.Marshal(MemoryAddRequest{ID: entryID, Source: "Hello", Target: "Hei", SourceLocale: "en", TargetLocale: "nb"})
+		require.NoError(t, err)
+
+		const callers = 8
+		codes := make([]int, callers)
+		bodies := make([]string, callers)
+		var wg sync.WaitGroup
+		for i := range callers {
+			wg.Go(func() {
+				req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/api/v1/test/translation-memory", strings.NewReader(string(body)))
+				if err != nil {
+					return
+				}
+				req.Header.Set("Content-Type", "application/json")
+				req.Header.Set("Authorization", "Bearer "+token)
+				resp, err := http.DefaultClient.Do(req)
+				if err != nil {
+					bodies[i] = err.Error()
+					return
+				}
+				defer resp.Body.Close()
+				b, _ := io.ReadAll(resp.Body)
+				codes[i], bodies[i] = resp.StatusCode, string(b)
+			})
+		}
+		wg.Wait()
+
+		created := 0
+		for i, code := range codes {
+			switch code {
+			case http.StatusCreated:
+				created++
+			case http.StatusOK:
+			default:
+				t.Fatalf("round %d caller %d: %d %s", round, i, code, bodies[i])
+			}
+		}
+		assert.Equal(t, 1, created, "round %d: the entry is created once", round)
+	}
+}
+
+// The first requests a server sees can arrive together. Each is answered by
+// its route, never by a router whose routes are still being registered.
+func TestTheFirstConcurrentRequestsReachTheirRoute(t *testing.T) {
+	s, token := newTestServer(t)
+	body, err := json.Marshal(MemoryAddRequest{ID: "first-race", Source: "Hello", Target: "Hei", SourceLocale: "en", TargetLocale: "nb"})
+	require.NoError(t, err)
+	const callers = 32
+	codes := make([]int, callers)
+	var wg sync.WaitGroup
+	for i := range callers {
+		wg.Go(func() {
+			codes[i] = memoryReq(t, s, http.MethodPost, "/api/v1/test/translation-memory", token, string(body)).Code
+		})
+	}
+	wg.Wait()
+	created := 0
+	for i, code := range codes {
+		require.Contains(t, []int{http.StatusCreated, http.StatusOK}, code, "caller %d", i)
+		if code == http.StatusCreated {
+			created++
+		}
+	}
+	assert.Equal(t, 1, created)
 }

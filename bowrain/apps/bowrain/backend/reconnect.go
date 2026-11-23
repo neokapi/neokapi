@@ -262,6 +262,7 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 
 	slog.Info("bowrain: replaying pending changes", "count", count)
 
+	moved := revisionMoves{}
 	for {
 		changes, err := a.offlineQueue.PeekPending(ctx, 10)
 		if err != nil || len(changes) == 0 {
@@ -276,7 +277,7 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 		// eventually retires serial offenders).
 		progressed := false
 		for _, change := range changes {
-			if err := a.replayChange(ctx, change); err != nil {
+			if err := a.replayChange(ctx, change, moved); err != nil {
 				if errors.Is(err, errRetired) {
 					// An earlier version queued it without the revision it
 					// was made on. It is dropped rather than failed, and the
@@ -332,7 +333,7 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 // kind+payload is decoded back into its typed offlineOp, which knows how to
 // replay itself; every op goes through the REST/SSE editor client, which threads
 // ctx so a cancellation (Disconnect) stops replay promptly.
-func (a *App) replayChange(ctx context.Context, change PendingChange) error {
+func (a *App) replayChange(ctx context.Context, change PendingChange, moved revisionMoves) error {
 	client, ws := a.editorRemote()
 	if client == nil {
 		return errNotConnected
@@ -342,12 +343,26 @@ func (a *App) replayChange(ctx context.Context, change PendingChange) error {
 	if err != nil {
 		return err
 	}
+	// An edit queued on the revision an earlier edit of the same entry was
+	// made on builds on the revision that edit returned: both are this
+	// person's, and the first must not refuse the second as someone else's.
+	var base string
+	if edit, ok := op.(updateMemoryEntryOp); ok {
+		base = edit.BaseRevision
+		if m, ok := moved[edit.EntryID]; ok && m.from == base {
+			edit.BaseRevision = m.to
+			op = edit
+		}
+	}
 	if revised, ok := op.(revisedOp); ok {
 		id, rev, err := revised.replayRevised(ctx, client, ws)
 		if err != nil {
 			return err
 		}
 		a.recordLocalMemoryRevision(id, rev)
+		if base != "" && moved != nil {
+			moved[id] = revisionMove{from: base, to: rev}
+		}
 		return nil
 	}
 	return op.replay(ctx, client, ws)
@@ -372,3 +387,10 @@ func refusalReason(err error) string {
 	}
 	return err.Error()
 }
+
+// revisionMove is a queued edit's base revision and the revision its replay
+// returned, by entry.
+type revisionMove struct{ from, to string }
+
+// revisionMoves is the moves one replay pass made.
+type revisionMoves map[string]revisionMove

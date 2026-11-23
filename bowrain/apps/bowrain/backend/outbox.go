@@ -64,12 +64,22 @@ func failedChangeOf(c PendingChange) FailedChange {
 		if json.Unmarshal([]byte(c.Payload), &op) == nil {
 			out.Edits = []FailedEdit{{Op: failedMemoryEdit, Locale: op.TargetLocale, Text: op.Target}}
 		}
+	case opAddMemoryEntry:
+		// An add carries the entry as the person left it, edits made before it
+		// was sent included.
+		var op addMemoryEntryOp
+		if json.Unmarshal([]byte(c.Payload), &op) == nil {
+			out.Edits = []FailedEdit{{Op: failedMemoryAdd, Locale: op.TargetLocale, Text: op.Target}}
+		}
 	}
 	return out
 }
 
-// failedMemoryEdit is the FailedEdit op of a content-memory edit.
-const failedMemoryEdit = "update_memory_entry"
+// The FailedEdit ops of a content-memory edit and add.
+const (
+	failedMemoryEdit = "update_memory_entry"
+	failedMemoryAdd  = "add_memory_entry"
+)
 
 // changeSetEdits lists the operations of a queued change set.
 func changeSetEdits(payload string) []FailedEdit {

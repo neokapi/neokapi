@@ -250,10 +250,10 @@ func TestReplayItemActions(t *testing.T) {
 	})
 
 	ctx := t.Context()
-	require.NoError(t, app.replayChange(ctx, PendingChange{Operation: "add_items", Payload: `{"project_id":"p1","files":{"a.txt":"aGk="}}`}))
-	require.NoError(t, app.replayChange(ctx, PendingChange{Operation: "remove_item", Payload: `{"project_id":"p1","item_name":"a.txt"}`}))
-	require.NoError(t, app.replayChange(ctx, PendingChange{Operation: "pseudo_translate_item", Payload: `{"project_id":"p1","item_name":"a.txt","target_locale":"fr"}`}))
-	require.NoError(t, app.replayChange(ctx, PendingChange{Operation: "tm_translate_item", Payload: `{"project_id":"p1","item_name":"a.txt","target_locale":"fr"}`}))
+	require.NoError(t, app.replayChange(ctx, PendingChange{Operation: "add_items", Payload: `{"project_id":"p1","files":{"a.txt":"aGk="}}`}, nil))
+	require.NoError(t, app.replayChange(ctx, PendingChange{Operation: "remove_item", Payload: `{"project_id":"p1","item_name":"a.txt"}`}, nil))
+	require.NoError(t, app.replayChange(ctx, PendingChange{Operation: "pseudo_translate_item", Payload: `{"project_id":"p1","item_name":"a.txt","target_locale":"fr"}`}, nil))
+	require.NoError(t, app.replayChange(ctx, PendingChange{Operation: "tm_translate_item", Payload: `{"project_id":"p1","item_name":"a.txt","target_locale":"fr"}`}, nil))
 
 	assert.True(t, hitsContain(*hits, "POST", "/items/main"))
 	assert.True(t, hitsContain(*hits, "DELETE", "/items/main"))

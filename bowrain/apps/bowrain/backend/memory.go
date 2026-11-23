@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/neokapi/neokapi/core/id"
@@ -154,6 +155,31 @@ func (a *App) foldIntoQueuedAdd(req MemoryUpdateRequest) (bool, error) {
 	return false, nil
 }
 
+// foldIntoQueuedEdit puts an offline edit into the queued edit of the same
+// entry, when that edit has not been sent. The queued edit keeps the revision
+// it was made on: both are the person's, made on the version they saw, and
+// the server takes the last wording as one edit. It reports whether it did.
+func (a *App) foldIntoQueuedEdit(req MemoryUpdateRequest) (bool, error) {
+	if a.offlineQueue == nil {
+		return false, nil
+	}
+	ctx := a.queueCtx()
+	pending, err := a.offlineQueue.Pending(ctx, string(opUpdateMemoryEntry))
+	if err != nil {
+		return false, err
+	}
+	for _, c := range slices.Backward(pending) {
+		var queued updateMemoryEntryOp
+		if json.Unmarshal([]byte(c.Payload), &queued) != nil || queued.EntryID != req.EntryID {
+			continue
+		}
+		queued.Source, queued.Target = req.Source, req.Target
+		queued.SourceLocale, queued.TargetLocale = req.SourceLocale, req.TargetLocale
+		return a.offlineQueue.Rewrite(ctx, c.ID, queued)
+	}
+	return false, nil
+}
+
 // GetMemoryEntries searches the content memory with optional query and locale filters.
 func (a *App) GetMemoryEntries(projectID, query, sourceLocale, targetLocale string, offset, limit int) (*MemorySearchResult, error) {
 	if a.isConnected() {
@@ -220,6 +246,12 @@ func (a *App) UpdateMemoryEntry(req MemoryUpdateRequest) error {
 		folded, err := a.foldIntoQueuedAdd(req)
 		if err != nil {
 			return err
+		}
+		if !folded {
+			// A queued edit of the same entry takes the later wording.
+			if folded, err = a.foldIntoQueuedEdit(req); err != nil {
+				return err
+			}
 		}
 		if folded {
 			return a.updateMemoryEntryLocal(req)

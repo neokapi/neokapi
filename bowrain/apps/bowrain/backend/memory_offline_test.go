@@ -60,6 +60,15 @@ func (m *memoryServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			id = "server-minted"
 		}
 		if e, ok := m.entries[id]; ok {
+			// The same add sent again is answered with the stored entry;
+			// other text under the id is refused, as the server does.
+			if e.Source != req.Source || e.Target != req.Target {
+				w.WriteHeader(http.StatusConflict)
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"code": "memory_entry_exists", "error": "a content-memory entry with this id holds other text; the stored entry is attached", "current": e,
+				})
+				return
+			}
 			_ = json.NewEncoder(w).Encode(e)
 			return
 		}
@@ -68,6 +77,15 @@ func (m *memoryServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		m.entries[id] = e
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(e)
+	case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, prefix+"/"):
+		id := strings.TrimPrefix(r.URL.Path, prefix+"/")
+		if _, ok := m.entries[id]; !ok {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":"entry not found: ` + id + `"}`))
+			return
+		}
+		delete(m.entries, id)
+		w.WriteHeader(http.StatusNoContent)
 	case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, prefix+"/"):
 		id := strings.TrimPrefix(r.URL.Path, prefix+"/")
 		var req struct {
@@ -257,4 +275,84 @@ func TestAnOfflineEditOfAnEntryWithoutARevisionIsRefusedAtOnce(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errUnsentOffline)
 	assert.Zero(t, app.offlineQueue.PendingCount(t.Context()), "nothing is queued that can only be refused")
+}
+
+func editOffline(t *testing.T, app *App, entry *MemoryEntryInfo, target string) {
+	t.Helper()
+	require.NoError(t, app.UpdateMemoryEntry(MemoryUpdateRequest{
+		EntryID: entry.ID, Source: "Hello", Target: target, SourceLocale: "en", TargetLocale: "nb",
+		BaseRevision: entry.Revision,
+	}))
+}
+
+// Two offline edits of an entry that was already sent: the server ends with
+// the person's last wording, and nothing is refused as someone else's.
+func TestTwoOfflineEditsOfASentEntryLandAsTheLast(t *testing.T) {
+	app, ms, reconnect, entry := sentOffline(t)
+	editOffline(t, app, entry, "Hallo")
+	editOffline(t, app, entry, "Halloen")
+	reconnect()
+
+	failed, err := app.GetFailedChanges()
+	require.NoError(t, err)
+	assert.Empty(t, failed, "the person's own edits never refuse each other")
+	assert.Equal(t, "Halloen", serverTarget(ms, entry.ID))
+}
+
+// Two edits of one entry queued as two rows (an earlier version queued every
+// edit on its own): the second replays on the revision the first returned.
+func TestASecondQueuedEditBuildsOnTheFirst(t *testing.T) {
+	app, ms, reconnect, entry := sentOffline(t)
+	for _, target := range []string{"Hallo", "Halloen"} {
+		app.enqueue(updateMemoryEntryOp{MemoryUpdateRequest{
+			EntryID: entry.ID, Source: "Hello", Target: target, SourceLocale: "en", TargetLocale: "nb",
+			BaseRevision: entry.Revision,
+		}})
+	}
+	reconnect()
+
+	failed, err := app.GetFailedChanges()
+	require.NoError(t, err)
+	assert.Empty(t, failed)
+	assert.Equal(t, "Halloen", serverTarget(ms, entry.ID))
+}
+
+// Edit, edit, delete offline: the entry is gone on the server, and nothing
+// failed.
+func TestEditEditDeleteOffline(t *testing.T) {
+	app, ms, reconnect, entry := sentOffline(t)
+	editOffline(t, app, entry, "Hallo")
+	editOffline(t, app, entry, "Halloen")
+	require.NoError(t, app.DeleteMemoryEntry("", entry.ID))
+	reconnect()
+
+	failed, err := app.GetFailedChanges()
+	require.NoError(t, err)
+	assert.Empty(t, failed)
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+	assert.NotContains(t, ms.entries, entry.ID)
+}
+
+// An add the server refuses for good, with an edit folded into it, lists the
+// person's last wording beside why it was refused.
+func TestARefusedAddKeepsThePersonsWording(t *testing.T) {
+	app, ms, reconnect := offlineMemoryApp(t)
+	added, err := app.AddMemoryEntry("", "Hello", "Hei", "en", "nb")
+	require.NoError(t, err)
+	require.NoError(t, app.UpdateMemoryEntry(MemoryUpdateRequest{
+		EntryID: added.ID, Source: "Hello", Target: "Hallo", SourceLocale: "en", TargetLocale: "nb",
+		BaseRevision: added.Revision,
+	}))
+	// The server already holds other text under the entry's id.
+	ms.mu.Lock()
+	ms.entries[added.ID] = &memoryServerEntry{ID: added.ID, Source: "Hello", Target: "Something else", Revision: "r0"}
+	ms.mu.Unlock()
+	reconnect()
+
+	failed, err := app.GetFailedChanges()
+	require.NoError(t, err)
+	require.Len(t, failed, 1)
+	require.Len(t, failed[0].Edits, 1)
+	assert.Equal(t, "Hallo", failed[0].Edits[0].Text, "the person's wording is visible with the refusal")
 }
