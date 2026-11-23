@@ -377,7 +377,8 @@ func reviewProvenanceOf(d *venue.UnitDecision, sb *venue.StoredBlock, loc model.
 		p.Status = d.Status
 		p.By = d.DecidedBy
 		p.At = d.DecidedAt
-		p.Note = d.Note
+		said := venue.SplitNote(*d)
+		p.Note, p.AgentHost = said.Note, said.AgentHost
 		p.Reasons = d.Reasons
 		// A decision whose recorded basis names another revision of the
 		// source than the block carries was a verdict on a source that has

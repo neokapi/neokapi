@@ -267,6 +267,10 @@ type Provenance struct {
 	By     string `json:"by,omitempty"`
 	At     string `json:"at,omitempty"`
 	Note   string `json:"note,omitempty"`
+	// AgentHost is the agent host whose shell the person declared themselves in
+	// to record the decision, such as "claude-code". Empty for anyone else.
+	// Note never carries it.
+	AgentHost string `json:"agent_host,omitempty"`
 	// Reasons are the reason codes the decision in force was given
 	// (DecisionReason), sorted. A client shows each as a phrase.
 	Reasons []string `json:"reasons,omitempty"`

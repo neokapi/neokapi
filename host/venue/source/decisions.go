@@ -105,6 +105,9 @@ func (c *BowrainSourceConnector) projectDecisions(ctx context.Context) ([]venue.
 		if p, ok := docPaths[u.Scope]; ok && p != "" {
 			item = p
 		}
+		// The note travels as the person typed it and the agent host as its
+		// own field, whichever form the record holds.
+		note, host := u.Decision.Said()
 		out = append(out, venue.UnitDecision{
 			ItemName: item,
 			Unit:     u.Unit,
@@ -118,7 +121,8 @@ func (c *BowrainSourceConnector) projectDecisions(ctx context.Context) ([]venue.
 			ReviewState: u.Decision.ReviewState,
 			DecidedBy:   u.Decision.By,
 			DecidedAt:   u.Decision.At,
-			Note:        u.Decision.Note,
+			Note:        note,
+			AgentHost:   host,
 			Reasons:     u.Decision.Reasons,
 			Parked:      u.Decision.Parked,
 			Assignee:    u.Decision.Assignee,
@@ -242,6 +246,8 @@ func (c *BowrainSourceConnector) recordPulledDecisions(ctx context.Context, pull
 			skipped++
 			continue
 		}
+		// A venue older than AgentHost sends the agent host inside the note.
+		d = venue.SplitNote(d)
 		k := state.Key{Scope: d.ItemName, Unit: d.Unit, Variant: variant}
 		if prev, ok := st.Get(ctx, k); ok {
 			if prev.Updated != "" && d.Updated != "" && d.Updated <= prev.Updated {
@@ -263,6 +269,7 @@ func (c *BowrainSourceConnector) recordPulledDecisions(ctx context.Context, pull
 				By:          d.DecidedBy,
 				At:          d.DecidedAt,
 				Note:        d.Note,
+				AgentHost:   d.AgentHost,
 				Reasons:     d.Reasons,
 				Parked:      d.Parked,
 				Assignee:    d.Assignee,

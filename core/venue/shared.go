@@ -112,6 +112,12 @@ type UnitDecision struct {
 	Reasons  []string `json:"reasons,omitzero"`
 	Parked   bool     `json:"parked,omitempty"`
 	Assignee string   `json:"assignee,omitempty"`
+	// AgentHost is the agent host whose shell a person declared themselves in to
+	// record the decision (KAPI_ACTOR=person), such as "claude-code". Absent
+	// when the sender did not say: a client older than the field folds the
+	// host into Note instead, and a store reads it out (SplitNote) and keeps
+	// the host it holds for the same decision (CarryHost).
+	AgentHost string `json:"agent_host,omitempty"`
 	// GoverningFingerprint is the governing context the record's answer stands
 	// under (state.UnitState.GoverningFingerprint): the voice guidance and term
 	// rules in force when the decision was made, or the producer's stamp on a

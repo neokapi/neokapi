@@ -1559,4 +1559,10 @@ export interface ChangeActor {
   kind: ChangeActorKind;
   name?: string;
   session?: string;
+  /**
+   * AgentHost is the agent host whose shell a person declared themselves in
+   * (KAPI_ACTOR=person), such as "claude-code". Empty for anyone else. It is
+   * recorded beside the note and never inside it (SplitNote).
+   */
+  agent_host?: string;
 }

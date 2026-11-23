@@ -830,6 +830,16 @@ export class Provenance {
         }
         if (/** @type {any} */(false)) {
             /**
+             * AgentHost is the agent host whose shell the person declared themselves in
+             * to record the decision, such as "claude-code". Empty for anyone else.
+             * Note never carries it.
+             * @member
+             * @type {string | undefined}
+             */
+            this["agent_host"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Reasons are the reason codes the decision in force was given
              * (DecisionReason), sorted. A client shows each as a phrase.
              * @member
@@ -858,13 +868,13 @@ export class Provenance {
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType28;
-        const $$createField6_0 = $$createType26;
+        const $$createField7_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("origin" in $$parsedSource) {
             $$parsedSource["origin"] = $$createField0_0($$parsedSource["origin"]);
         }
         if ("reasons" in $$parsedSource) {
-            $$parsedSource["reasons"] = $$createField6_0($$parsedSource["reasons"]);
+            $$parsedSource["reasons"] = $$createField7_0($$parsedSource["reasons"]);
         }
         return new Provenance(/** @type {Partial<Provenance>} */($$parsedSource));
     }

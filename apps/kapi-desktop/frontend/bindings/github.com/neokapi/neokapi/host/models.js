@@ -1513,7 +1513,7 @@ export class ContextAnswer {
         if (/** @type {any} */(false)) {
             /**
              * Terms are the terms bound at this point that are in force, ranked with the
-             * discouraged ones first — a rule to act on before a word to reuse.
+             * discouraged ones first, a rule to act on before a word to reuse.
              * @member
              * @type {ContextTermHit[] | undefined}
              */
@@ -1556,7 +1556,7 @@ export class ContextAnswer {
         if (/** @type {any} */(false)) {
             /**
              * Profiles are the governance profiles whose validity is bounded, read
-             * against the answer's instant — which voice is in force, and until when.
+             * against the answer's instant, which voice is in force, and until when.
              * The same shape the by-content answer reports, because it is the same fact.
              * @member
              * @type {ContextProfileHit[] | undefined}
@@ -2561,7 +2561,7 @@ export class ContextPoint {
         if (!("default" in $$source)) {
             /**
              * Default reports that resolution fell through to the project's default
-             * point — a real answer, and a different one from "no profile exists".
+             * point, a real answer, and a different one from "no profile exists".
              * @member
              * @type {boolean}
              */

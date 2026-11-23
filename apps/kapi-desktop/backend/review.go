@@ -20,10 +20,9 @@ import (
 )
 
 // ReviewUnitDetail is the full picture of one review-queue unit for the Review
-// page: the rendered source and target text, the unit's check findings (the
-// registered checkers run on demand for just this block), the recorded review
-// state and provenance from the project state store, and the best content-memory match when
-// the project content memory is open. It is read-derived — nothing here is cached.
+// page: the rendered source and target text, the unit's check findings, the
+// recorded review state and provenance, and the best content-memory match
+// when the content memory is open. Nothing here is cached.
 type ReviewUnitDetail struct {
 	Locale     string `json:"locale"`
 	File       string `json:"file"`
@@ -40,7 +39,7 @@ type ReviewUnitDetail struct {
 	TargetRuns []model.Run `json:"target_runs,omitempty"`
 	// SourceLocale is the project's source language. The reviewer renders the
 	// source and target panes in their own writing direction, so both locales
-	// have to reach the UI — a right-to-left source (or target) otherwise
+	// have to reach the UI, a right-to-left source (or target) otherwise
 	// inherits the app's direction and reads scrambled.
 	SourceLocale string `json:"source_locale,omitempty"`
 	// Status is the unit's effective ladder state (draft|translated|
@@ -162,11 +161,8 @@ func (a *App) blockCheckFindings(ctx context.Context, points *host.ReviewPointRe
 	return findings
 }
 
-// GetReviewUnit returns the full review picture for one queue unit, addressed by
-// (locale, file, key) exactly as the review queue lists it: rendered source and
-// target text, the unit's current check findings (checkers run on demand for
-// this block), the recorded decision + provenance from the project state store,
-// and the best content-memory match percent when the project content memory is open.
+// GetReviewUnit returns the full review picture for one queue unit, addressed
+// by (locale, file, key) as the review queue lists it (ReviewUnitDetail).
 func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -226,7 +222,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	// Recorded decision + provenance from the project state store, when the
 	// decision still judges the current translation.
 	// The working store is a schema of the project's one store, so this is the
-	// engine's handle, not a second opener — and closing it is not ours to do.
+	// engine's handle, not a second opener, and closing it is not ours to do.
 	root := filepath.Dir(op.Path)
 	var record *state.UnitState
 	if st, serr := a.hostEngine().OpenProjectState(ctx, root); serr == nil {
@@ -239,7 +235,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 					detail.Status = string(us.Status)
 				}
 				detail.ReviewState = us.Decision.ReviewState
-				detail.Note = us.Decision.Note
+				detail.Note, _ = us.Decision.Said()
 			}
 			if us.Origin.Kind != "" {
 				o := us.Origin
@@ -259,7 +255,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 		detail.Origin = &o
 	}
 
-	// Best content-memory match, when the project content memory is already open — an existing lookup,
+	// Best content-memory match, when the project content memory is already open, an existing lookup,
 	// not a new content memory API.
 	tm := a.reviewMemoryFor(ctx, op, root)
 	if tm != nil {
