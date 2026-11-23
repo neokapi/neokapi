@@ -11,15 +11,6 @@ on:
   # Reusable entry point for release-coordinated.yml: lets the coordinator run
   # the kapi track with an explicit version and route the publish jobs through a
   # manual-approval gate so kapi + bowrain land in the package managers together.
-  # A build-only run on any branch: every build job runs, and nothing is
-  # signed, published or pushed. For measuring a change to the release
-  # builds (their caches, their duration) without making a release.
-  workflow_dispatch:
-    inputs:
-      build_only:
-        description: "Build only; sign, publish and push nothing (must stay true)."
-        type: boolean
-        default: true
   workflow_call:
     inputs:
       version:
@@ -57,25 +48,14 @@ jobs:
       tag: ${{ steps.r.outputs.tag }}
       coordinated: ${{ steps.r.outputs.coordinated }}
       prerelease: ${{ steps.r.outputs.prerelease }}
-      build_only: ${{ steps.r.outputs.build_only }}
     steps:
       - id: r
         env:
           IN_VERSION: ${{ inputs.version }}
           IN_COORD: ${{ inputs.coordinated }}
           PUSH_REF: ${{ github.ref_name }}
-          EVENT: ${{ github.event_name }}
-          RUN_NUMBER: ${{ github.run_number }}
-          REF_TYPE: ${{ github.ref_type }}
         run: |
           set -euo pipefail
-          build_only=false
-          # A dispatch, or a push of a branch (a measurement branch added to
-          # the push filter), builds only, whatever the input says.
-          if [ "$EVENT" = workflow_dispatch ] || { [ "$EVENT" = push ] && [ "$REF_TYPE" != tag ]; }; then
-            build_only=true
-            IN_VERSION="0.0.0-dispatch.${RUN_NUMBER}"
-          fi
           if [ -n "${IN_VERSION:-}" ]; then
             ver="${IN_VERSION#v}"; tag="v${ver}"; coord="${IN_COORD:-false}"
           else
@@ -87,7 +67,6 @@ jobs:
             echo "tag=$tag"
             echo "coordinated=$coord"
             echo "prerelease=$pre"
-            echo "build_only=$build_only"
           } >> "$GITHUB_OUTPUT"
 
   # Build the kapi CLI natively per OS/arch with cgo, statically linked ICU
@@ -281,7 +260,7 @@ jobs:
 
       # ---- Sign the macOS kapi binary (quill: Developer ID + notarize) ----
       - name: Sign + notarize kapi (macOS)
-        if: ${{ (matrix.target.goos == 'darwin') && needs.setup.outputs.build_only != 'true' }}
+        if: matrix.target.goos == 'darwin'
         env:
           QUILL_SIGN_P12: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
           QUILL_SIGN_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
@@ -387,7 +366,6 @@ jobs:
         run: vp test
 
       - name: Install cosign (for kapi CLI archive signing)
-        if: needs.setup.outputs.build_only != 'true'
         uses: sigstore/cosign-installer@v3
 
       - name: Download CLI binaries
@@ -436,7 +414,7 @@ jobs:
       # PUBLISH_PACKAGES is "true": the repository is off until it is set.
       # scripts/check-packages-publish-gate.sh keeps this condition in place.
       - name: Publish to apt/yum repo
-        if: ${{ (needs.setup.outputs.prerelease != 'true' && vars.PUBLISH_PACKAGES == 'true') && needs.setup.outputs.build_only != 'true' }}
+        if: ${{ needs.setup.outputs.prerelease != 'true' && vars.PUBLISH_PACKAGES == 'true' }}
         env:
           PACKAGES_GPG_PRIVATE_KEY: ${{ secrets.PACKAGES_GPG_PRIVATE_KEY }}
           PACKAGES_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
@@ -456,7 +434,6 @@ jobs:
       # former GoReleaser `signs` block. (The kapi-bowrain plugin tarballs are
       # cosign-signed by release-bowrain.yml.)
       - name: Sign CLI archives (cosign)
-        if: needs.setup.outputs.build_only != 'true'
         env:
           COSIGN_EXPERIMENTAL: "true"
         run: |
@@ -504,11 +481,9 @@ jobs:
       # for this tag (so rc → final hand-edits survive), and the fetch-depth: 0
       # checkout above gives it full history + tags. REF_NAME is the job env.
       - name: Generate release notes
-        if: needs.setup.outputs.build_only != 'true'
         run: bash scripts/release-notes/generate.sh "$REF_NAME"
 
       - name: Publish CLI archives to release
-        if: needs.setup.outputs.build_only != 'true'
         uses: softprops/action-gh-release@v3
         with:
           # Prerelease tags (vX.Y.Z-rcN) produce a GitHub *prerelease* with
@@ -531,7 +506,6 @@ jobs:
       # the formula name and channel differ. (bowrain-cli is pushed by
       # release-bowrain.yml.)
       - name: Push brew formulae to homebrew-tap
-        if: needs.setup.outputs.build_only != 'true'
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           CHANNEL: ${{ steps.channel.outputs.channel }}
@@ -556,7 +530,6 @@ jobs:
       # (manifest-plugins.json, which `kapi plugin install bowrain` reads, is updated by
       # release-bowrain.yml.)
       - name: Update kapi self-update index
-        if: needs.setup.outputs.build_only != 'true'
         env:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           REF_NAME: ${{ needs.setup.outputs.tag }}
@@ -639,7 +612,6 @@ jobs:
   publish-cli-image:
     name: Publish CLI container image
     needs: [setup, package-cli]
-    if: needs.setup.outputs.build_only != 'true'
     runs-on: ubuntu-latest
     env:
       IMAGE: ghcr.io/${{ github.repository_owner }}/kapi
@@ -1049,7 +1021,7 @@ jobs:
 
       - name: Import signing certificate
         id: signing
-        if: ${{ (runner.os == 'macOS') && needs.setup.outputs.build_only != 'true' }}
+        if: runner.os == 'macOS'
         env:
           APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
           APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
@@ -1094,7 +1066,7 @@ jobs:
           rm -f "$KEY_PATH"
 
       - name: Sign + notarize app bundle (Wails)
-        if: ${{ (runner.os == 'macOS') && needs.setup.outputs.build_only != 'true' }}
+        if: runner.os == 'macOS'
         working-directory: apps/kapi-desktop
         env:
           SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
@@ -1164,7 +1136,7 @@ jobs:
           fi
 
       - name: Upload DMG to release
-        if: ${{ (runner.os == 'macOS') && needs.setup.outputs.build_only != 'true' }}
+        if: runner.os == 'macOS'
         uses: softprops/action-gh-release@v3
         with:
           prerelease: ${{ needs.setup.outputs.prerelease == 'true' }}
@@ -1180,7 +1152,7 @@ jobs:
         # must never block cask publication or zombie the runner for hours. The
         # with_timeout retries inside publish-appcast.sh handle the common stall;
         # these caps bound the worst case; the in-app-update feed is recoverable.
-        if: ${{ (runner.os == 'macOS' && steps.signing.outputs.enabled == 'true') && needs.setup.outputs.build_only != 'true' }}
+        if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
         timeout-minutes: 25
         continue-on-error: true
         env:
@@ -1240,7 +1212,7 @@ jobs:
             -C apps/kapi-desktop/bin Kapi
 
       - name: Upload tarball to release
-        if: ${{ (runner.os == 'Linux') && needs.setup.outputs.build_only != 'true' }}
+        if: runner.os == 'Linux'
         uses: softprops/action-gh-release@v3
         with:
           prerelease: ${{ needs.setup.outputs.prerelease == 'true' }}
@@ -1250,7 +1222,7 @@ jobs:
 
       # Linux in-app-update feed: sign the tarball into the linux/<arch> appcast.
       - name: Publish updater appcast (Linux)
-        if: ${{ (runner.os == 'Linux') && needs.setup.outputs.build_only != 'true' }}
+        if: runner.os == 'Linux'
         env:
           UPDATE_ED25519_PRIVATE_KEY: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY }}
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
@@ -1282,7 +1254,6 @@ jobs:
     # by release-bowrain.yml.
     runs-on: ubuntu-latest
     needs: [setup, build-kapi-desktop]
-    if: needs.setup.outputs.build_only != 'true'
     environment: ${{ needs.setup.outputs.coordinated == 'true' && 'coordinated-release' || '' }}
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
@@ -1409,7 +1380,6 @@ jobs:
   windows-signing:
     name: Windows signing (manual, after this run)
     needs: [setup, build-cli, build-kapi-desktop]
-    if: needs.setup.outputs.build_only != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Record the outstanding Windows signing step
@@ -1445,7 +1415,7 @@ jobs:
   verify-release-assets:
     name: Verify the release carries every promised asset
     needs: [setup, build-cli, package-cli, build-kapi-desktop, update-casks]
-    if: ${{ (always() && needs.setup.result == 'success') && needs.setup.outputs.build_only != 'true' }}
+    if: ${{ always() && needs.setup.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

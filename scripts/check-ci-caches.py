@@ -44,6 +44,9 @@ An input or condition the guard cannot decide is an error naming the step,
 and so is a workflow on an event it does not model (merge_group,
 pull_request_target), so one cannot be added unchecked.
 
+A step that runs `scripts/ci-cache-budget.py prune` counts as a save: it
+deletes caches main's runs read, so it too runs on main only.
+
 It also pairs BuildKit scopes: a `cache-from` scope that no `cache-to` in
 any workflow writes is a read that never hits, and is reported. Matrix
 values in a scope are expanded over the job's `include` rows.
@@ -163,6 +166,8 @@ def triggers(doc: dict) -> dict:
         return {k: (v or {}) for k, v in on.items()}
     return {}
 
+
+PRUNE_RE = re.compile(r"ci-cache-budget\.py\s+prune")
 
 # Events whose runs are on the default branch (main): nothing to check.
 # workflow_call runs as part of its caller, which walk_jobs follows.
@@ -290,9 +295,17 @@ def load(path: str) -> dict:
 
 def walk_steps(root: str, steps: list, inputs: dict[str, str], where: str, problems: list[str], seen: set) -> None:
     for n, step in enumerate(steps or [], 1):
-        if not isinstance(step, dict) or "uses" not in step:
+        if not isinstance(step, dict):
             continue
         label = f"{where} step {step.get('name') or step.get('id') or n}"
+        if "uses" not in step:
+            # The prune deletes caches main's runs read: it runs on main only,
+            # like a save.
+            if PRUNE_RE.search(str(step.get("run") or "")):
+                cond = substitute(step.get("if"), inputs)
+                if not cts.excludes_pull_requests(cond, label):
+                    problems.append(f"{label}: runs the cache prune on {SCENARIO[0]}")
+            continue
         cond = substitute(step.get("if"), inputs)
         if cts.excludes_pull_requests(cond, label):
             continue
@@ -678,6 +691,29 @@ jobs:
           cache-from: ${{ matrix.cache_from }}
 """
 
+FIXTURE_SECOND_BRANCH = """\
+name: Release caches
+on:
+  push:
+    branches: [main, probe]
+  workflow_dispatch:
+jobs:
+  warm:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/probe'
+    runs-on: ubuntu-latest
+    steps:
+      - name: save on a second branch
+        uses: actions/cache/save@v6
+      - name: prune on a second branch
+        run: python3 scripts/ci-cache-budget.py prune
+  main-only:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: prune on main
+        run: python3 scripts/ci-cache-budget.py prune
+"""
+
 FIXTURE_ACTION = """\
 name: local
 inputs:
@@ -789,6 +825,19 @@ def self_test() -> int:
         except Unreadable as err:
             if "merge_group" not in str(err) or "queue.yml" not in str(err):
                 failures.append(f"the unmodelled event and its workflow were not named: {err}")
+    with tempfile.TemporaryDirectory() as root:
+        os.makedirs(os.path.join(root, ".github", "workflows"))
+        with open(os.path.join(root, ".github", "workflows", "caches.yml"), "w") as fh:
+            fh.write(FIXTURE_SECOND_BRANCH)
+        problems = check(root)
+        for step, run in (("save on a second branch", "a push to a branch"),
+                          ("prune on a second branch", "a push to a branch"),
+                          ("save on a second branch", "a run started by hand on a branch"),
+                          ("prune on a second branch", "a run started by hand on a branch")):
+            if not any(f"step {step}:" in p and p.endswith(run) for p in problems):
+                failures.append(f"{step!r} on {run} must be reported; got {problems}")
+        if any("prune on main" in p for p in problems):
+            failures.append(f"a prune gated on main runs nowhere else; got {problems}")
     with tempfile.TemporaryDirectory() as root:
         os.makedirs(os.path.join(root, ".github", "workflows"))
         with open(os.path.join(root, ".github", "workflows", "images.yml"), "w") as fh:
