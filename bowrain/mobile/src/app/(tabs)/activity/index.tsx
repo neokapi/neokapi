@@ -37,10 +37,10 @@ function ProjectButton({ name }: { name: string }) {
         accessibilityLabel={t("activity.projectLabel", { name })}
         accessibilityHint={t("activity.pickHint")}
         onPress={openPicker}
-        className="bg-card border-border flex-row items-center gap-2 rounded-full border px-3.5 py-2 active:opacity-70"
+        className="bg-card border-border max-w-full flex-row items-center gap-2 rounded-full border px-3.5 py-2 active:opacity-70"
       >
         <Ionicons name="folder-open-outline" size={17} color={String(primary)} />
-        <Text className="text-foreground text-base font-medium" numberOfLines={1}>
+        <Text className="text-foreground shrink text-base font-medium" numberOfLines={1}>
           {name}
         </Text>
         <Ionicons name="chevron-down" size={15} color={String(primary)} />

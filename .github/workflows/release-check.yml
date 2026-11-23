@@ -10,21 +10,50 @@ on:
   push:
     tags:
       - "check-v*"
-  # Build-only dry run, like the other plugins: the publish and register jobs
-  # run on tag pushes only.
-  workflow_dispatch: {}
+  # A build-only run on any branch: every build leg runs, and nothing is
+  # signed, published or registered.
+  workflow_dispatch:
+    inputs:
+      build_only:
+        description: "Build only; sign, publish and register nothing (must stay true)."
+        type: boolean
+        default: true
 
+# Read only. The publishing job asks for what it writes and is skipped on a
+# build-only run, so a dispatched run holds no write permission whatever its
+# branch does (scripts/check-release-build-only.py).
 permissions:
-  contents: write
-  # cosign keyless requires a fresh GitHub Actions OIDC token to mint a
-  # short-lived Fulcio cert for signing the kapi-check plugin tarballs.
-  id-token: write
+  contents: read
 
 env:
   # The same Go flags as a make-driven local build; see scripts/lib/goflags.mk.
   GOFLAGS: -trimpath
 
 jobs:
+  # A tag push releases; a dispatch builds only. A dispatch always builds
+  # only, whatever its input says.
+  setup:
+    name: Resolve release inputs
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.r.outputs.version }}
+      build_only: ${{ steps.r.outputs.build_only }}
+    steps:
+      - id: r
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = workflow_dispatch ]; then
+            # A filename-safe placeholder: a branch name can hold "/".
+            echo "version=0.0.0-dev" >> "$GITHUB_OUTPUT"
+            echo "build_only=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${REF_NAME#check-v}" >> "$GITHUB_OUTPUT"
+            echo "build_only=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # ── kapi-check ML checker plugin ────────────────────────────────────────────
   # Build + sign + publish the kapi-check plugin tarball per platform. kapi-check
   # is a cgo binary (-tags onnx): it links daulet/tokenizers (static .a) at build
@@ -35,6 +64,7 @@ jobs:
   # `kapi-check pull` step at first use (matching kapi-sat; keeps tarballs small).
   build-check-plugin:
     name: Build kapi-check plugin (${{ matrix.build.platform }})
+    needs: [setup]
     strategy:
       fail-fast: false
       matrix:
@@ -86,14 +116,6 @@ jobs:
           # A tag run saves no cache: one saved there serves only that tag,
           # and setup-go has no restore-only mode.
           cache: false
-
-      - name: Install cosign (tarball signing)
-        uses: sigstore/cosign-installer@v3
-
-      - name: Extract version
-        id: version
-        shell: bash
-        run: echo "VERSION=${GITHUB_REF_NAME#check-v}" >> "$GITHUB_OUTPUT"
 
       # ── onnxruntime shared library (runtime dep; bundled into the tarball) ────
       - name: Download onnxruntime
@@ -178,7 +200,7 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         env:
-          VERSION: ${{ steps.version.outputs.VERSION }}
+          VERSION: ${{ needs.setup.outputs.version }}
           GH_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
@@ -195,7 +217,7 @@ jobs:
       # action. reloc-id pins the dylib install id BEFORE signing so the package
       # script's guarded install_name_tool no-op preserves the signature.
       - name: Sign + notarize macOS Mach-O
-        if: runner.os == 'macOS'
+        if: ${{ (runner.os == 'macOS') && needs.setup.outputs.build_only != 'true' }}
         uses: ./.github/actions/macos-sign
         with:
           label: kapi-check
@@ -215,7 +237,7 @@ jobs:
         id: package
         shell: bash
         env:
-          VERSION: ${{ steps.version.outputs.VERSION }}
+          VERSION: ${{ needs.setup.outputs.version }}
         run: |
           scripts/package-check-plugin.sh \
             --version "${VERSION}" \
@@ -223,7 +245,6 @@ jobs:
             --tokenizers-lib "${TOKENIZERS_LIB}" \
             --out-dir "$RUNNER_TEMP/check-out"
 
-      # ── cosign keyless sign + upload ──────────────────────────────────────────
       - name: Check the macOS minimum the tarball's binaries record
         if: runner.os == 'macOS'
         shell: bash
@@ -236,25 +257,15 @@ jobs:
           tar -xzf "$TARBALL" -C "$dir"
           scripts/check-macho-minimum.sh --minimum "$MACOS_MINIMUM" "$dir"
 
-      - name: Cosign sign tarball (keyless)
-        shell: bash
-        env:
-          TARBALL: ${{ steps.package.outputs.tarball }}
-        run: |
-          set -euo pipefail
-          cosign sign-blob --yes --bundle "${TARBALL}.sigstore.json" "${TARBALL}"
-
-      # Upload the tarball + signature as a workflow ARTIFACT (not directly to the
-      # release): the matrix legs run concurrently, and several gh-release calls
-      # racing to update the same release can silently drop an asset. A single
-      # publish job (below) uploads them all in one writer.
-      - name: Upload tarball + signature artifact
+      # Upload the tarball as a workflow ARTIFACT (not directly to the release):
+      # the matrix legs run concurrently, and several gh-release calls racing to
+      # update the same release can silently drop an asset. A single publish job
+      # (below) signs and uploads them all in one writer.
+      - name: Upload tarball artifact
         uses: actions/upload-artifact@v7
         with:
           name: check-tarball-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
-          path: |
-            ${{ runner.temp }}/check-out/*.tar.gz
-            ${{ runner.temp }}/check-out/*.tar.gz.sigstore.json
+          path: ${{ runner.temp }}/check-out/*.tar.gz
           if-no-files-found: error
           retention-days: 14
 
@@ -300,21 +311,35 @@ jobs:
       - name: Compare the built archives with scripts/lib/release-assets.json
         run: python3 scripts/release-assets.py check-checksums check check-checksums
 
-  # Single-writer publish: download every leg's tarball + signature artifact and
-  # upload them to the GitHub release in ONE softprops call, avoiding the
-  # concurrent-release-write race that can drop an asset.
+  # Single-writer publish: download every leg's tarball, sign each, and upload
+  # them to the GitHub release in ONE softprops call, avoiding the
+  # concurrent-release-write race that can drop an asset. Skipped on a
+  # build-only run, so the write and the signing token exist only here.
   publish-check-release:
     name: Publish kapi-check release
-    if: startsWith(github.ref, 'refs/tags/check-v')
-    needs: [build-check-plugin, verify-check-platforms]
+    if: needs.setup.outputs.build_only != 'true'
+    needs: [setup, build-check-plugin, verify-check-platforms]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Upload the release assets
+      id-token: write # Sign the tarballs (cosign keyless, Fulcio)
     steps:
-      - name: Download all tarball + signature artifacts
+      - name: Download all tarball artifacts
         uses: actions/download-artifact@v8
         with:
           pattern: check-tarball-*
           path: check-release
           merge-multiple: true
+
+      - name: Install cosign (tarball signing)
+        uses: sigstore/cosign-installer@v3
+
+      - name: Cosign sign tarballs (keyless)
+        run: |
+          set -euo pipefail
+          for tarball in check-release/*.tar.gz; do
+            cosign sign-blob --yes --bundle "${tarball}.sigstore.json" "${tarball}"
+          done
 
       - name: Upload all assets to the release
         uses: softprops/action-gh-release@v3
@@ -336,8 +361,8 @@ jobs:
   # existing "sat"/"bowrain"/"okapi-bridge" entries.
   register-check-plugin:
     name: Register kapi-check in plugin registry
-    if: startsWith(github.ref, 'refs/tags/check-v')
-    needs: publish-check-release
+    if: needs.setup.outputs.build_only != 'true'
+    needs: [setup, publish-check-release]
     runs-on: ubuntu-latest
     steps:
       # The one file this job reads from the repository.

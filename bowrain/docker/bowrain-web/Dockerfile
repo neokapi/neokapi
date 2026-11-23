@@ -96,7 +96,9 @@ RUN corepack pnpm --filter neokapi-web run build
 
 # ── Stage 2: Serve with nginx ──────────────────────────────────────────────
 FROM nginx:1-alpine
-RUN rm /etc/nginx/conf.d/default.conf
+# The base tag can lag Alpine's security fixes by weeks (libxml2 2.13.9-r3 was
+# out while nginx:1-alpine still carried r2), so each build takes them.
+RUN apk upgrade --no-cache && rm /etc/nginx/conf.d/default.conf
 COPY bowrain/docker/bowrain-web/nginx.conf /etc/nginx/conf.d/default.conf
 # Security response headers, included from every location in nginx.conf. Outside
 # conf.d on purpose: these are bare add_header directives, not a server block.

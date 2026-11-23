@@ -5,7 +5,9 @@
 // for a rejection (the left swipe), the sheet shows the reasons and the note
 // first, with the fixes one tap away.
 import {
+  ApiError,
   FIX_REASONS,
+  RequestTimeoutError,
   type DeckCard,
   type FixCandidate,
   type FixCandidates,
@@ -27,11 +29,21 @@ import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "./SafeArea";
 
 import { RunDiff, ServerDiff } from "./DiffView";
+import { RetryButton } from "./RetryButton";
 import { editable, fromSegments, RunEditor, toSegments, type Segment } from "./RunEditor";
 import { markBusy } from "../lib/busy";
 import { RunText } from "./RunText";
 import { reasonLabel } from "../lib/reasons";
 import { MAX_DECISION_NOTE } from "@neokapi/contract-types";
+
+/**
+ * Whether ready-made fixes failed because they took too long: the client's
+ * bound passed, or the load balancer gave up first (504). An AI suggestion
+ * waits for a model, so this is a slow answer, not a lost connection.
+ */
+export function tookTooLong(err: unknown): boolean {
+  return err instanceof RequestTimeoutError || (err instanceof ApiError && err.status === 504);
+}
 
 export interface FixSheetProps {
   card: DeckCard | null;
@@ -106,11 +118,17 @@ export function FixSheetBody({
 
   return (
     <SafeAreaView className="bg-background flex-1" edges={["bottom", "left", "right"]}>
-      <View className="border-border flex-row items-center justify-between border-b px-4 py-3">
-        <Text className="text-foreground text-lg font-semibold">
+      <View className="border-border flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-3">
+        <Text className="text-foreground shrink text-lg font-semibold">
           {rejecting ? t("fix.rejectTitle") : t("fix.title")}
         </Text>
-        <Pressable testID="fix-close" accessibilityRole="button" onPress={onClose} hitSlop={12}>
+        <Pressable
+          testID="fix-close"
+          accessibilityRole="button"
+          onPress={onClose}
+          hitSlop={12}
+          className="ml-auto"
+        >
           <Text className="text-primary text-base">{t("common.cancel")}</Text>
         </Pressable>
       </View>
@@ -148,9 +166,16 @@ export function FixSheetBody({
 
         {rejecting ? null : (
           <Section title={t("fix.readyMade")}>
-            {fixes.isPending ? <ActivityIndicator /> : null}
-            {fixes.isError ? (
-              <Text className="text-muted-foreground">{t("fix.fixesUnavailable")}</Text>
+            {fixes.isPending || (fixes.isError && fixes.isFetching) ? <ActivityIndicator /> : null}
+            {/* A failed or slow load offers Try again, hidden while it asks; the
+                query never retries by itself (retry: false). */}
+            {fixes.isError && !fixes.isFetching ? (
+              <View className="items-start gap-2">
+                <Text className="text-muted-foreground">
+                  {tookTooLong(fixes.error) ? t("fix.fixesSlow") : t("fix.fixesUnavailable")}
+                </Text>
+                <RetryButton testID="fix-retry" size="base" onPress={() => void fixes.refetch()} />
+              </View>
             ) : null}
             {fixes.data === null ? (
               <Text className="text-muted-foreground">{t("fix.noFixRoute")}</Text>

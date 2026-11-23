@@ -11,8 +11,9 @@ import { useCSSVariable } from "uniwind";
 
 import { languageLabel } from "../../lib/feed";
 import type { ProjectWaiting, Waiting } from "../../lib/home";
+import { useLargeText } from "../../lib/textScale";
 import { Monogram } from "./Monogram";
-import { CountPill, FixedLinesText, LocaleBadge, UnknownPill, useLargeText } from "./parts";
+import { CountPill, FixedLinesText, LocaleBadge, UnknownPill } from "./parts";
 import { ReviewMix } from "./ReviewMix";
 
 const CARD =

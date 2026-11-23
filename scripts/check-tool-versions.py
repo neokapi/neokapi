@@ -161,9 +161,15 @@ PINS = [
     },
     {
         "name": "Trivy (container scan)",
-        "where": [(".github/workflows/container-scan.yml", r"uses: aquasecurity/trivy-action@[0-9a-f]{40}\n\s+with:\n\s+version: v(\d+\.\d+\.\d+)")],
+        "where": [(".github/workflows/container-scan.yml", r"uses: aquasecurity/trivy-action@[0-9a-f]{40}\n(?:\s+.*\n)*?\s+version: v(\d+\.\d+\.\d+)")],
         "latest": ("github-release", "aquasecurity/trivy"),
         "note": "The scanner version is set beside the action's pinned commit. Take a newer one together with the trivy-action commit that defaults to it, and compare a dispatch's findings before and after.",
+    },
+    {
+        "name": "Keycloak image",
+        "where": [("bowrain/docker/keycloak/Dockerfile", r"FROM quay\.io/keycloak/keycloak:(\d+\.\d+\.\d+)-\d+")],
+        "latest": ("github-release", "keycloak/keycloak"),
+        "note": "A release that ships guava 33.7.2 or later retires the CVE-2026-102554 entry in .github/trivy/bowrain-keycloak.trivyignore.yaml: take it, drop the entry, and sign in once on the local stack (the dev realm and the e2e suites use this image).",
     },
     {
         "name": "actionlint",

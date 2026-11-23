@@ -582,6 +582,7 @@
     "why": "Why",
     "readyMade": "Ready-made fixes",
     "fixesUnavailable": "Fixes need a connection. You can still edit or reject.",
+    "fixesSlow": "The suggestions took too long. Try again, or edit or reject.",
     "noFixRoute": "This server offers no ready-made fixes.",
     "noFixes": "No ready-made fix for this text.",
     "askAi": "Suggest a rewrite",

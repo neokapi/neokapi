@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -232,6 +234,7 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 		IndexURL:    opts.IndexURL,
 		Version:     version,
 		InstalledAt: time.Now().UTC().Format(time.RFC3339),
+		Archive:     archiveDigest(body),
 	}); err != nil {
 		// Non-fatal; install succeeded.
 		logf("Warning: write installed metadata: " + err.Error())
@@ -261,6 +264,16 @@ type InstalledMetadata struct {
 	IndexURL    string `json:"index_url,omitempty"`
 	Version     string `json:"version,omitempty"`
 	InstalledAt string `json:"installed_at,omitempty"`
+	// Archive is the sha256 of the archive the plugin was installed from, in
+	// hex: the plugin's bytes, the same whenever those bytes are installed
+	// again. The parse cache keys a plugin's parses by it (Plugin.Fingerprint).
+	Archive string `json:"archive_sha256,omitempty"`
+}
+
+// archiveDigest is the sha256 of an installed archive's bytes, in hex.
+func archiveDigest(body []byte) string {
+	sum := sha256.Sum256(body)
+	return hex.EncodeToString(sum[:])
 }
 
 func writeInstalledMetadata(pluginDir string, meta InstalledMetadata) error {

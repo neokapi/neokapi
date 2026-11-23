@@ -13,26 +13,18 @@ import (
 	"github.com/neokapi/neokapi/host/output"
 )
 
-// A check inside a flow had nowhere to say what it found. The tool wrote its
-// verdict into a stand-off annotation, no `core/formats` writer serializes
-// overlays, and `kapi run` printed the run line and nothing else — so a recipe
-// could declare a guardrail, fire it, and report exit 0 with no output either
-// way. `kapi check` had a findings surface and `kapi exec <check>` gained one in
-// #1476; the flow verb is where a check actually lives in a recipe.
-//
-// The surface is the same kapi.check/v2 findings the other two print — same
-// table, same `.findings[]` and `.summary` under `--json` — nested inside the
-// run's own output so one run remains one document under every --output-format.
-//
-// It reports and does not gate, which is `kapi exec`'s contract rather than
-// `kapi check`'s. `kapi check` and `kapi up` are the enforcement points and
-// their exit codes are what CI is written against; a flow run that started
-// failing because a step it always ran found something would be a new gating
-// rule, and this issue is that the finding was invisible, not that it was
-// unenforced.
+// A check inside a flow reports what it found here. The tool writes its
+// verdict into a stand-off annotation that no writer serializes, so the flow
+// run prints the findings itself: the same kapi.check/v2 findings `kapi check`
+// and `kapi exec <check>` print, nested inside the run's own output so one run
+// remains one document under every --output-format.
+
+// The flow run reports and does not gate, as `kapi exec` does. `kapi check`
+// and `kapi up` are the enforcement points whose exit codes CI is written
+// against.
 
 // flowFindings accumulates the findings the blocks of one run carry. One
-// instance per reported run, shared by every file's tap — files are processed
+// instance per reported run, shared by every file's tap, files are processed
 // in parallel and a tool may itself be block-parallel, so every field is
 // guarded.
 type flowFindings struct {
@@ -135,7 +127,7 @@ type FlowFindings struct {
 // flowFindingsTap is one file's view of the run's collector: a
 // flow.StreamingCollector that names the file each observed block belongs to.
 // The tool chain is shared across a project run's files, so the file cannot be
-// carried on the collector — it is carried on the tap the chain was wrapped with
+// carried on the collector, it is carried on the tap the chain was wrapped with
 // for that file.
 type flowFindingsTap struct {
 	shared *flowFindings
@@ -152,8 +144,8 @@ func (t *flowFindingsTap) Observe(part *model.Part) {
 	}
 }
 
-// Collect satisfies flow.Collector. The tap reports through Observe — nothing in
-// the flow-run path drives the batch API — so there is nothing to do here.
+// Collect satisfies flow.Collector. The tap reports through Observe, nothing in
+// the flow-run path drives the batch API, so there is nothing to do here.
 func (t *flowFindingsTap) Collect(context.Context, *flow.Item, []*model.Part) error { return nil }
 
 // Result satisfies flow.Collector. The run's report is read from the shared
@@ -165,25 +157,21 @@ func (t *flowFindingsTap) Result() (flow.CollectorResult, error) {
 var _ flow.StreamingCollector = (*flowFindingsTap)(nil)
 
 // beginFlowFindings arms a run-scoped findings collector and returns the
-// function that disarms it. Arming has to happen before the tool chain is built
-// — buildFlowTools is what attaches the taps — and every path that prints a run
-// result arms exactly once, so a project run that dispatches to a built-in flow
-// reports its findings under the output it actually prints.
+// function that disarms it. Arming happens before the tool chain is built,
+// because buildFlowTools attaches the taps. Every path that prints a run result
+// arms exactly once, so a project run that dispatches to a built-in flow
+// reports its findings under the output it prints.
 //
 // Disarming hands the run's report to the findings sink when one is set
-// (RunCmdOptions.OnFindings), after the run has printed it, so a surface that
-// gates on the run reads the same report the run showed.
+// (RunCmdOptions.OnFindings), after the run has printed it.
 //
-// A run whose output is suppressed and that nobody gates on arms nothing, so
-// it also taps nothing: the collector exists to fill a report `--quiet` does
-// not print, and a convergence pass — whose workers are silent by construction
-// and whose flows do run checks — would otherwise pay a channel hop per part to
-// fill one. A sink arms the collector under `--quiet` too: a gate that read
-// nothing under `-q` would pass a push its findings should have stopped.
+// A run whose output is suppressed and that nobody gates on arms nothing, and
+// taps nothing: a convergence pass, whose workers are silent and whose flows
+// run checks, would otherwise pay a channel hop per part. A sink arms the
+// collector under `--quiet` too, so a gate under `-q` still reads findings.
 //
-// The collector learns from flowName whether the flow holds a check step before
-// any file is read. A run whose check steps then read no block, because every
-// file was skipped or held none, still reports, and its report is did_not_run.
+// The collector learns from flowName whether the flow holds a check step. A
+// run whose check steps read no block still reports, as did_not_run.
 func (a *App) beginFlowFindings(flowName string) func() {
 	sink := a.flowFindingsSink
 	if a.Quiet && sink == nil {
@@ -244,7 +232,7 @@ func (a *App) flowFindingsReport() *FindingsReport {
 // block passes every step before it leaves, so one observation sees everything
 // the flow contributed and counts the block once.
 //
-// The returned slice is always a copy — a project run's chain is built once and
+// The returned slice is always a copy, a project run's chain is built once and
 // shared across its files, and each file needs a tap of its own to name itself.
 func (a *App) tapFindings(tools []tool.Tool, inputPath string) []tool.Tool {
 	if a.flowFindings == nil || len(tools) == 0 {
@@ -311,5 +299,8 @@ func (r flowRunReport) FormatText(w io.Writer) error {
 // printFlowRun prints one flow run's result, carrying the findings its check
 // steps produced when the flow declared any.
 func (a *App) printFlowRun(cmd Command, out output.FlowRunOutput) error {
+	if out.ParseCacheOff == "" {
+		out.ParseCacheOff = a.ParseCacheOff()
+	}
 	return output.Print(cmd, flowRunReport{FlowRunOutput: out, Findings: a.flowFindingsReport()})
 }
