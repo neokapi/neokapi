@@ -816,6 +816,15 @@ export class Provenance {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Reasons are the reason codes the decision in force was given
+             * (DecisionReason), sorted. A client shows each as a phrase.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["reasons"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Stale reports a decision recorded against source wording that has since
              * changed: the reviewer blessed a rendering of a sentence the project no
              * longer has.
@@ -835,9 +844,13 @@ export class Provenance {
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType26;
+        const $$createField6_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("origin" in $$parsedSource) {
             $$parsedSource["origin"] = $$createField0_0($$parsedSource["origin"]);
+        }
+        if ("reasons" in $$parsedSource) {
+            $$parsedSource["reasons"] = $$createField6_0($$parsedSource["reasons"]);
         }
         return new Provenance(/** @type {Partial<Provenance>} */($$parsedSource));
     }
