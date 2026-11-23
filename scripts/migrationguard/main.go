@@ -23,8 +23,8 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -148,7 +148,11 @@ func compareLedgers(file string, here, there []byte) ([]string, error) {
 		for v := range m[l] {
 			versions = append(versions, v)
 		}
-		sort.Slice(versions, func(i, j int) bool { a, _ := strconv.Atoi(versions[i]); b, _ := strconv.Atoi(versions[j]); return a < b })
+		sort.Slice(versions, func(i, j int) bool {
+			a, _ := strconv.Atoi(versions[i])
+			b, _ := strconv.Atoi(versions[j])
+			return a < b
+		})
 		for _, v := range versions {
 			want := m[l][v]
 			got, ok := h[l][v]
