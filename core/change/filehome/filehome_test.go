@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/changetest"
 	"github.com/neokapi/neokapi/core/change/filehome"
+	"github.com/neokapi/neokapi/core/dataroot"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
@@ -312,6 +313,27 @@ func otherUsersDir(t *testing.T, base string) string {
 	require.NoError(t, os.Mkdir(dir, 0o700))
 	require.NoError(t, os.Chown(dir, 65534, 65534))
 	return dir
+}
+
+// TestFileHome_UnwritableDataRootSaysWhatToDo pins the refusal of a commit
+// whose default lock directory cannot be created: it names the directory and
+// the variable that moves the data root, and writes nothing.
+func TestFileHome_UnwritableDataRootSaysWhatToDo(t *testing.T) {
+	notADir := filepath.Join(t.TempDir(), "file")
+	require.NoError(t, os.WriteFile(notADir, nil, 0o600))
+	t.Setenv(dataroot.EnvDir, filepath.Join(notADir, "data"))
+
+	body := `{"greeting": "Hello there"}` + "\n"
+	f := newFixture(t, map[string]string{"a.json": body}, filehome.Options{LockDir: filehome.DefaultLockDir()})
+	ctx := context.Background()
+	page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "a.json"})
+	require.NoError(t, err)
+	b := page.Blocks[0]
+	_, err = f.svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(b.Ref, b.Rev, "Hello")}}, person)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), filehome.DefaultLockDir(), "the refusal names the directory")
+	assert.Contains(t, err.Error(), dataroot.EnvDir, "and the variable that moves it")
+	assert.Equal(t, body, f.read(t, "a.json"), "nothing is written")
 }
 
 // TestFileHome_PreparesTheLockDirectoryAtTheFirstCommit pins that the home

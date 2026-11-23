@@ -44,17 +44,19 @@ import (
 
 // Home is the file home.
 type Home struct {
-	layout       Layout
-	lockDir      string
-	prepareLocks func() error
-	prepared     sync.Once
-	prepareErr   error
-	beforeSettle func(doc string)
-	backup       string
-	writeNothing bool
-	writeUnder   string
-	materialize  bool
-	root         string
+	layout  Layout
+	lockDir string
+	// defaultLockDir says lockDir is DefaultLockDir, in the data root.
+	defaultLockDir bool
+	prepareLocks   func() error
+	prepared       sync.Once
+	prepareErr     error
+	beforeSettle   func(doc string)
+	backup         string
+	writeNothing   bool
+	writeUnder     string
+	materialize    bool
+	root           string
 
 	// mu guards permitted, the destinations outside root a person named.
 	mu        sync.Mutex
@@ -132,7 +134,7 @@ func New(layout Layout, opts Options) *Home {
 	if l, ok := layout.(DirLayout); ok && root == "" {
 		root = l.Root
 	}
-	return &Home{layout: layout, lockDir: dir, prepareLocks: opts.PrepareLocks, beforeSettle: opts.BeforeSettle, backup: opts.BackupSuffix,
+	return &Home{layout: layout, lockDir: dir, defaultLockDir: filepath.Clean(dir) == filepath.Clean(DefaultLockDir()), prepareLocks: opts.PrepareLocks, beforeSettle: opts.BeforeSettle, backup: opts.BackupSuffix,
 		writeNothing: opts.WriteNothing, writeUnder: opts.WriteUnder, materialize: opts.Materialize, root: root}
 }
 
@@ -568,37 +570,12 @@ func (s *session) Close() error { return nil }
 // later one that replaces it take the same lock. It names the file and
 // creates nothing.
 func (h *Home) lockPath(path string) (string, error) {
-	target, _, exists, err := atomicfile.Resolve(path)
+	target, _, _, err := atomicfile.Resolve(path)
 	if err != nil {
 		return "", err
 	}
-	if !exists {
-		target = resolveExistingPrefix(target)
-	}
-	abs, err := filepath.Abs(target)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256([]byte(abs))
+	sum := sha256.Sum256([]byte(dataroot.NormalizePath(target)))
 	return filepath.Join(h.lockDir, hex.EncodeToString(sum[:16])+".lock"), nil
-}
-
-// resolveExistingPrefix resolves the symlinks of the longest leading part of
-// path that exists and keeps the rest as written. It answers path when no
-// part of it resolves.
-func resolveExistingPrefix(path string) string {
-	rest := ""
-	for dir := path; ; {
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return path
-		}
-		rest = filepath.Join(filepath.Base(dir), rest)
-		if resolved, err := filepath.EvalSymlinks(parent); err == nil {
-			return filepath.Join(resolved, rest)
-		}
-		dir = parent
-	}
 }
 
 // openLock opens the lock file at path, creating the lock directory, which
@@ -610,20 +587,24 @@ func (h *Home) openLock(path string) (*filelock.Lock, error) {
 			return nil, fmt.Errorf("prepare the lock directory: %w", h.prepareErr)
 		}
 	}
-	if err := ensureLockDir(h.lockDir); err != nil {
+	if err := ensureLockDir(h.lockDir, h.defaultLockDir); err != nil {
 		return nil, err
 	}
 	return filelock.Open(path)
 }
 
-// ensureLockDir creates dir with mode 0700 and refuses a lock directory this
+// ensureLockDir creates dir with mode 0700. It refuses a lock directory this
 // user does not hold alone: a link, something other than a directory, a
-// directory another user owns (dataroot.CheckOwnedDir, the check the data
-// root and the state directories pass), or one group or other users may
-// write.
-func ensureLockDir(dir string) error {
+// directory another user owns, or one group or other users may write. The
+// owner check is dataroot.CheckOwnedDir, the one the data root passes.
+// inDataRoot says dir is DefaultLockDir, so a directory that cannot be
+// created is reported with the variable that moves the data root.
+func ensureLockDir(dir string, inDataRoot bool) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("create the lock directory: %w", err)
+		if inDataRoot {
+			return fmt.Errorf("create the lock directory %s in kapi's data root: %w; make the data root writable, or set %s to a directory you can write", dir, err, dataroot.EnvDir)
+		}
+		return fmt.Errorf("create the lock directory %s: %w", dir, err)
 	}
 	if err := dataroot.CheckOwnedDir(dir); err != nil {
 		return fmt.Errorf("refused the lock directory %w; remove it, or name a lock directory of your own", err)
