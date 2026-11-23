@@ -4,7 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"sync/atomic"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,23 +16,50 @@ import (
 
 // ServiceShutdown returns once the reconnect loop has: an attempt under way
 // when the app shuts down has ended by then, so it cannot act on sign-in
-// state or the offline queue after the app is gone.
+// state or the offline queue after the app is gone. The attempt here keeps
+// running past the cancel until the test releases it, and shutdown must not
+// return before that. Shutdown is waiting once its goroutine is parked in
+// the wait group, which the goroutine stacks show; no timing is involved.
 func TestServiceShutdownWaitsForTheReconnectLoop(t *testing.T) {
 	app := newTestApp(t)
 	started := make(chan struct{})
-	var returned atomic.Bool
+	release := make(chan struct{})
 	app.reconnectAttempt = func(ctx context.Context) error {
 		close(started)
 		<-ctx.Done()
-		returned.Store(true)
+		<-release
 		return ctx.Err()
 	}
 	app.goOffline()
 	app.RetryConnection()
 	<-started
 
-	require.NoError(t, app.ServiceShutdown())
-	assert.True(t, returned.Load(), "the attempt returned before shutdown did")
+	done := make(chan error, 1)
+	go func() { done <- app.ServiceShutdown() }()
+	for !shutdownIsWaiting() {
+		select {
+		case err := <-done:
+			close(release)
+			t.Fatalf("ServiceShutdown returned (%v) while a reconnect attempt was still running", err)
+		default:
+			runtime.Gosched()
+		}
+	}
+	close(release)
+	require.NoError(t, <-done)
+}
+
+// shutdownIsWaiting reports whether a goroutine is inside ServiceShutdown and
+// parked on a wait group.
+func shutdownIsWaiting() bool {
+	buf := make([]byte, 1<<20)
+	n := runtime.Stack(buf, true)
+	for g := range strings.SplitSeq(string(buf[:n]), "\n\n") {
+		if strings.Contains(g, "(*App).ServiceShutdown") && strings.Contains(g, "sync.(*WaitGroup).Wait") {
+			return true
+		}
+	}
+	return false
 }
 
 func TestGoOfflineSetsState(t *testing.T) {
