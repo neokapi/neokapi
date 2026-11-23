@@ -17,8 +17,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/keychain"
+
 	"github.com/neokapi/neokapi/core/id"
-	"github.com/zalando/go-keyring"
 )
 
 // ProviderConfig holds saved AI provider configuration.
@@ -30,7 +31,7 @@ type ProviderConfig struct {
 	Model        string `json:"model,omitempty"`
 	BaseURL      string `json:"base_url,omitempty"`
 	// Default marks this as the credential to use when its provider has more than
-	// one saved — at most one per provider type (enforced by SetDefault). With a
+	// one saved, at most one per provider type (enforced by SetDefault). With a
 	// single credential the flag is irrelevant (it always resolves).
 	Default bool `json:"default,omitempty"`
 }
@@ -117,7 +118,7 @@ func (s *Store) Upsert(cfg ProviderConfig) (ProviderConfig, error) {
 	if cfg.ID == "" {
 		// Dedupe by name: adding a credential whose name already exists updates
 		// that entry in place rather than creating a second, indistinguishable
-		// record — two same-named credentials make auto-detect ambiguous and
+		// record, two same-named credentials make auto-detect ambiguous and
 		// can't be told apart in a picker. Adopt the existing ID so the
 		// update path below runs (and the caller's key write targets it).
 		for _, c := range s.configs {
@@ -216,17 +217,17 @@ func (s *Store) Remove(configID string) error {
 
 // SetAPIKey stores an API key in the OS keychain.
 func (s *Store) SetAPIKey(configID, key string) error {
-	return keyring.Set(s.keyringService, configID, key)
+	return keychain.Set(s.keyringService, configID, key)
 }
 
 // GetAPIKey retrieves an API key from the OS keychain.
 func (s *Store) GetAPIKey(configID string) (string, error) {
-	return keyring.Get(s.keyringService, configID)
+	return keychain.Get(s.keyringService, configID)
 }
 
 // DeleteAPIKey removes an API key from the OS keychain.
 func (s *Store) DeleteAPIKey(configID string) error {
-	return keyring.Delete(s.keyringService, configID)
+	return keychain.Delete(s.keyringService, configID)
 }
 
 func (s *Store) load() {

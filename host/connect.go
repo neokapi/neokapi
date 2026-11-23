@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/host/skills"
@@ -232,7 +234,7 @@ func claudeUserSettings() (string, bool) {
 	if dir := os.Getenv("CLAUDE_CONFIG_DIR"); dir != "" {
 		return filepath.Join(dir, "settings.json"), true
 	}
-	home, err := os.UserHomeDir()
+	home, err := dataroot.UserHomeDir()
 	if err != nil || home == "" {
 		return "", false
 	}

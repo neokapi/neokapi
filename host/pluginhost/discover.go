@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 )
 
@@ -167,7 +169,7 @@ func assembleRoots(opts DiscoverOptions) []Source {
 	if xdg == "" {
 		home := opts.HomeDir
 		if home == "" {
-			if h, err := os.UserHomeDir(); err == nil {
+			if h, err := dataroot.UserHomeDir(); err == nil {
 				home = h
 			}
 		}
