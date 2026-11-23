@@ -119,8 +119,8 @@ func FetchIndex(ctx context.Context, indexURL string) (*IndexV2, error) {
 
 // HighestVersion returns the highest version key in entry.Versions per
 // CompareSemver ordering (numeric, so 1.10.0 > 1.9.0; pre-release/build
-// metadata is ignored, per CompareSemver). Semver ties — e.g. "1.4.0" vs
-// "1.4.0-rc1" — break lexicographically so the result is deterministic.
+// metadata is ignored, per CompareSemver). Semver ties, e.g. "1.4.0" vs
+// "1.4.0-rc1", break lexicographically so the result is deterministic.
 // Returns "" when the entry has no versions.
 func HighestVersion(entry PluginEntry) string {
 	var best string
@@ -158,6 +158,12 @@ func MatchQuery(name, description, query string) bool {
 //
 // Picks the highest version that matches all constraints. Returns the
 // version string + the entry for the running platform.
+//
+// When none does, the error gives the one reason that decided it, in the order
+// the filters narrow the versions: the constraint, the channel, a build for
+// this platform, then the kapi version (naming the lowest one needed). A
+// development build satisfies no min_kapi_version and has no override; the
+// message says `make build` stamps a version.
 func (idx *IndexV2) Resolve(name, constraint, channel, kapiVersion string) (version string, plat PlatformEntry, err error) {
 	entry, ok := idx.Plugins[name]
 	if !ok {
@@ -173,26 +179,69 @@ func (idx *IndexV2) Resolve(name, constraint, channel, kapiVersion string) (vers
 	})
 
 	platKey := PlatformKey()
+	var matched, onChannel, onPlatform bool
+	lowestNeeded := ""
 	for _, v := range candidates {
 		ve := entry.Versions[v]
 		if constraint != "" && !MatchConstraint(constraint, v) {
 			continue
 		}
+		matched = true
 		if channel != "" && ve.Channel != "" && ve.Channel != channel {
 			continue
 		}
-		if ve.MinKapiVersion != "" && kapiVersion != "" {
-			if CompareSemver(kapiVersion, ve.MinKapiVersion) < 0 {
-				continue
-			}
-		}
+		onChannel = true
 		pe, ok := ve.Platforms[platKey]
 		if !ok {
 			continue
 		}
+		onPlatform = true
+		if ve.MinKapiVersion != "" && kapiVersion != "" && CompareSemver(kapiVersion, ve.MinKapiVersion) < 0 {
+			if lowestNeeded == "" || CompareSemver(ve.MinKapiVersion, lowestNeeded) < 0 {
+				lowestNeeded = ve.MinKapiVersion
+			}
+			continue
+		}
 		return v, pe, nil
 	}
-	return "", PlatformEntry{}, fmt.Errorf("no version of plugin %q matches constraint %q on channel %q for platform %s", name, constraint, channel, platKey)
+	return "", PlatformEntry{}, unresolvedError(name, constraint, channel, platKey, kapiVersion, len(candidates) > 0, matched, onChannel, onPlatform, lowestNeeded)
+}
+
+// unresolvedError is the one reason Resolve found no version, from how far
+// the versions got through its filters.
+func unresolvedError(name, constraint, channel, platKey, kapiVersion string, any, matched, onChannel, onPlatform bool, lowestNeeded string) error {
+	switch {
+	case !any:
+		return fmt.Errorf("plugin %q lists no versions in the registry", name)
+	case !matched:
+		return fmt.Errorf("no version of plugin %q matches %q", name, constraint)
+	case !onChannel:
+		return fmt.Errorf("plugin %q has no release on the %q channel", name, channel)
+	case !onPlatform:
+		return fmt.Errorf("plugin %q has no build for %s", name, platKey)
+	case IsDevelopmentVersion(kapiVersion):
+		return fmt.Errorf("plugin %q needs kapi %s or newer, and this kapi is a development build (version %q) that satisfies no minimum: build it with `make build`, which stamps a version",
+			name, lowestNeeded, kapiVersion)
+	default:
+		return fmt.Errorf("plugin %q needs kapi %s or newer, and this kapi is %s: update kapi", name, lowestNeeded, kapiVersion)
+	}
+}
+
+// IsDevelopmentVersion reports a kapi version that is not a release number,
+// such as "dev" from a plain `go build`.
+func IsDevelopmentVersion(v string) bool {
+	core, _, _ := strings.Cut(strings.TrimPrefix(v, "v"), "-")
+	core, _, _ = strings.Cut(core, "+")
+	parts := strings.Split(core, ".")
+	if len(parts) == 0 || len(parts) > 3 {
+		return true
+	}
+	for _, p := range parts {
+		if p == "" || strings.Trim(p, "0123456789") != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // VerifySHA256 streams data and reports whether the hash matches.
