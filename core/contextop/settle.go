@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // Settling
@@ -550,7 +552,7 @@ func address(r Record) string {
 // addressOf renders the content address of an operation of kind whose
 // meaning is parts.
 func addressOf(kind Kind, parts []string) string {
-	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
+	sum := sha256.Sum256([]byte(partjoin.NUL(parts...)))
 	return OpKindPrefix + string(kind) + ":" + hex.EncodeToString(sum[:16])
 }
 

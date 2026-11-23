@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neokapi/neokapi/core/partjoin"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/workspace"
@@ -521,12 +522,6 @@ func (j decisionJournal) RecordAdoptions(ctx context.Context, adoptions []state.
 
 // digestOf is the hex SHA-256 over strings joined by NUL.
 func digestOf(parts ...string) string {
-	h := sha256.New()
-	for i, s := range parts {
-		if i > 0 {
-			h.Write([]byte{0})
-		}
-		h.Write([]byte(s))
-	}
-	return hex.EncodeToString(h.Sum(nil))
+	sum := sha256.Sum256([]byte(partjoin.NUL(parts...)))
+	return hex.EncodeToString(sum[:])
 }

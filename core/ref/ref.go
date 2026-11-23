@@ -16,6 +16,8 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // Component names one axis of a ref. The values are stable identifiers: they
@@ -34,13 +36,13 @@ const (
 	ComponentDecisions Component = "decisions"
 )
 
-// Components lists the ref's components in report order — position first,
+// Components lists the ref's components in report order, position first,
 // then the governance identities.
 func Components() []Component {
 	return []Component{ComponentContent, ComponentContext, ComponentTerms, ComponentDecisions}
 }
 
-// GovernanceComponents lists the identity components — every component except
+// GovernanceComponents lists the identity components, every component except
 // the position. They are what a status report and a staleness note speak about:
 // the position moves in the ordinary course of content traffic and says nothing
 // about governance.
@@ -58,7 +60,7 @@ const DefaultStream = "main"
 //
 // The zero Ref makes no claim about anything: position nought and three empty
 // identities. That is what a side which has never synchronized holds, and it is
-// distinct from a side that holds nothing — an empty identity compares as
+// distinct from a side that holds nothing, an empty identity compares as
 // unknown rather than as different, so a missing ref costs a round trip and
 // never a wrong answer.
 type Ref struct {
@@ -90,7 +92,7 @@ func (r Ref) Identity(c Component) string {
 
 // WithIdentity returns the ref with one identity component replaced. The
 // position component is returned unchanged for ComponentContent, which has no
-// identity to set — use Advance for that.
+// identity to set, use Advance for that.
 func (r Ref) WithIdentity(c Component, value string) Ref {
 	switch c {
 	case ComponentContext:
@@ -111,12 +113,11 @@ func (r Ref) IsZero() bool {
 // Advance moves the position component forward to cursor, and does nothing when
 // cursor does not lead the one already held.
 //
-// The monotonicity is load-bearing, not defensive. A position is what a
-// resumable transfer resumes from, so a call that would move it backwards is
-// asking for content already consumed to be consumed again — and a caller that
-// takes its new position from a response which does not carry one (a queued
-// write answering before the work lands, say) hands over a nought that means
-// "no position in this answer", never "rewind to the beginning".
+// A position is what a resumable transfer resumes from, so moving it backwards
+// would consume content again. A caller that takes its position from a response
+// carrying none (a queued write answering before the work lands) hands over a
+// nought. That nought means "no position in this answer", never "rewind to the
+// beginning".
 func (r Ref) Advance(cursor int64) Ref {
 	if cursor > r.Content {
 		r.Content = cursor
@@ -214,8 +215,8 @@ func (d Divergence) All() []ComponentDiff {
 }
 
 // Current reports whether nothing diverged: every component is either equal or
-// unknown. An unknown component is not a divergence — it is a question neither
-// side asked.
+// unknown. An unknown component is a question neither side asked, which
+// counts as no divergence.
 func (d Divergence) Current() bool {
 	for _, c := range d.All() {
 		switch c.Status {
@@ -275,7 +276,7 @@ func Assert(component Component, expected, actual string) error {
 //
 // It is the one definition of "an identity over a set of identities" the
 // freshness layer has. Both sides of a protocol fold with it, over their own
-// view of the same set, and compare the results — so a component hash means the
+// view of the same set, and compare the results, so a component hash means the
 // same thing wherever it was computed, and adding a second fold with a
 // different byte layout would silently make two correct sides disagree forever.
 func Fold(parts map[string]string) string {
@@ -296,16 +297,13 @@ func Fold(parts map[string]string) string {
 // Identity hashes an ordered list of fields into the identity of one member of
 // a folded set: the fields in the order given, NUL-separated, through SHA-256.
 //
-// Order is the caller's to fix, and it is part of the definition — two fields
+// Order is the caller's to fix, and it is part of the definition, two fields
 // swapped is a different identity. The separator is what stops a member whose
 // fields are ("ab", "c") from hashing the same as one whose fields are
 // ("a", "bc"), which would let a rename in one field pass as no change at all.
 func Identity(fields ...string) string {
 	h := sha256.New()
-	for _, f := range fields {
-		h.Write([]byte(f))
-		h.Write([]byte{0})
-	}
+	partjoin.WriteNUL(h, fields...)
 	return hex.EncodeToString(h.Sum(nil))
 }
 

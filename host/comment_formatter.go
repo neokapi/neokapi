@@ -19,6 +19,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/partjoin"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 )
 
@@ -469,7 +470,7 @@ func (f *commentFormatter) run(name string, src []byte) ([]byte, error) {
 	if len(f.command) == 0 {
 		return nil, fmt.Errorf("no formatter command is resolved for %s: %w", DisplayName(name), comment.ErrFormatterNotRun)
 	}
-	key := sha256.Sum256(append([]byte(name+"\x00"), src...))
+	key := sha256.Sum256([]byte(partjoin.NUL(name, string(src))))
 	if out, ok := f.formatted[key]; ok {
 		return out, nil
 	}

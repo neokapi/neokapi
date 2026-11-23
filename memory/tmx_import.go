@@ -19,6 +19,7 @@ import (
 	"golang.org/x/net/html/charset"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/partjoin"
 )
 
 // --- Parsed TMX tree ---
@@ -287,7 +288,14 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 	filterAll := len(localeAllowed) == 0
 
 	// 7. Walk TUs, build one multilingual entry per TU.
+	named := make(map[string]bool, len(doc.TUs))
+	for _, tu := range doc.TUs {
+		if tu.TUID != "" {
+			named[tu.TUID] = true
+		}
+	}
 	entries := make([]Entry, 0, len(doc.TUs))
+	legacy := map[string]string{}
 	for i, tu := range doc.TUs {
 		variants := make(map[model.LocaleID][]model.Run)
 		var hintLang model.LocaleID
@@ -334,7 +342,10 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 		props := make(map[string]string)
 		maps.Copy(props, tu.Properties)
 
-		entryID := scopedTUID(opts.OriginKey, tu.TUID, i, session.ID)
+		entryID := scopedTUID(opts.OriginKey, tu.TUID, i, session.ID, named)
+		if old := legacyTUID(opts.OriginKey, tu.TUID, i, session.ID); old != entryID {
+			legacy[entryID] = old
+		}
 
 		origin := Origin{
 			Source:    "import",
@@ -374,6 +385,10 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 		return "", 0, ErrNoUsablePair
 	}
 	if err := store.CreateImportSession(ctx, session); err != nil {
+		return "", 0, err
+	}
+
+	if err := moveLegacyEntries(ctx, store, entries, legacy, opts.OriginKey); err != nil {
 		return "", 0, err
 	}
 
@@ -487,7 +502,38 @@ func sessionStamp(t time.Time) int64 {
 	}
 }
 
-func scopedTUID(originKey, tuid string, index int, sessionID string) string {
+// scopedTUID is the id of the entry a translation unit becomes: the origin
+// key and the unit's tuid, joined so that no two (origin, tuid) pairs share an
+// id, and the file's session. The origin is escaped for ":" and "%", and the
+// tuid for "%" alone, so a tuid holding ":" or "@" keeps the id it has always
+// had. A unit with no tuid is named tu-N after its position; when the file
+// also holds a unit whose tuid is that name, the unnamed one gets a name no
+// tuid can produce. named holds the file's tuids.
+func scopedTUID(originKey, tuid string, index int, sessionID string, named map[string]bool) string {
+	var parts []string
+	if originKey != "" {
+		parts = append(parts, originKey)
+	}
+	var base string
+	switch fallback := fmt.Sprintf("tu-%d", index+1); {
+	case tuid != "":
+		base = partjoin.JoinTail(':', '%', append(parts, tuid)...)
+	case named[fallback]:
+		// A tail written by JoinTail never holds "%0", which Join writes for
+		// the leading ":".
+		base = partjoin.Join(':', '%', append(parts, ":"+fallback)...)
+	default:
+		base = partjoin.JoinTail(':', '%', append(parts, fallback)...)
+	}
+	if sessionID != "" {
+		base = base + "@" + sessionID[:min(12, len(sessionID))]
+	}
+	return base
+}
+
+// legacyTUID is the id scopedTUID gave before it escaped its parts. An import
+// moves an entry stored under it to the entry's id now.
+func legacyTUID(originKey, tuid string, index int, sessionID string) string {
 	base := tuid
 	if base == "" {
 		base = fmt.Sprintf("tu-%d", index+1)
@@ -499,6 +545,54 @@ func scopedTUID(originKey, tuid string, index int, sessionID string) string {
 		base = base + "@" + sessionID[:min(12, len(sessionID))]
 	}
 	return base
+}
+
+// moveLegacyEntries removes, before an import writes its entries, each entry
+// stored under the id an earlier release gave the same unit of the same
+// origin, so the import replaces it rather than adding a second copy. An id
+// this import also writes is left alone: it names another unit. legacy maps an
+// entry's id to the id it had. A store that cannot delete keeps the old entry.
+func moveLegacyEntries(ctx context.Context, store Store, entries []Entry, legacy map[string]string, originKey string) error {
+	if len(legacy) == 0 {
+		return nil
+	}
+	deleter, ok := store.(interface {
+		Delete(ctx context.Context, id string) error
+	})
+	if !ok {
+		return nil
+	}
+	writes := make(map[string]bool, len(entries))
+	for _, e := range entries {
+		writes[e.ID] = true
+	}
+	for _, e := range entries {
+		old, moved := legacy[e.ID]
+		if !moved || writes[old] {
+			continue
+		}
+		prev, found, err := store.GetEntry(ctx, old)
+		if err != nil {
+			return fmt.Errorf("read entry %s: %w", old, err)
+		}
+		if !found || !importedFrom(prev, originKey) {
+			continue
+		}
+		if err := deleter.Delete(ctx, old); err != nil {
+			return fmt.Errorf("move entry %s to %s: %w", old, e.ID, err)
+		}
+	}
+	return nil
+}
+
+// importedFrom reports whether an entry was imported from origin.
+func importedFrom(e Entry, origin string) bool {
+	for _, o := range e.Origins {
+		if o.Source == "import" && o.Key == origin {
+			return true
+		}
+	}
+	return false
 }
 
 // --- TMX parser ---
