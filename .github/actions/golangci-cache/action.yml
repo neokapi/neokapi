@@ -1,7 +1,7 @@
 name: golangci-lint cache (once per job)
 description: >
   Restore golangci-lint's analysis cache once for a job that lints several
-  modules, and save it when the job ends on a push to main. The golangci
+  modules, and save it when the job ends on a run on main. The golangci
   action's own cache is per module: each lint step restored the same
   directory again (5 to 24 s each), so .github/actions/golangci turns it off
   and a job uses this action once, before its first lint step.
@@ -25,10 +25,10 @@ runs:
         echo "GOLANGCI_LINT_CACHE=$dir" >> "$GITHUB_ENV"
         echo "path=$dir" >> "$GITHUB_OUTPUT"
 
-    # A pull request reads the entry a push to main saved for this job and
-    # saves nothing: one it saved would serve only its own later pushes.
+    # A run off main reads the entry main saved for this job and saves
+    # nothing: one it saved would serve only its own ref.
     - name: Restore the golangci-lint cache
-      if: github.event_name == 'pull_request'
+      if: github.ref != 'refs/heads/main'
       uses: actions/cache/restore@v6
       with:
         path: ${{ steps.dir.outputs.path }}
@@ -38,7 +38,7 @@ runs:
           golangci-lint-${{ runner.os }}-${{ inputs.name || github.job }}-
 
     - name: Restore and save the golangci-lint cache
-      if: github.event_name != 'pull_request'
+      if: github.ref == 'refs/heads/main'
       uses: actions/cache@v6
       with:
         path: ${{ steps.dir.outputs.path }}

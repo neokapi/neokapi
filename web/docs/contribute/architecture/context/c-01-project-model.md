@@ -200,11 +200,10 @@ again.
 A claim token in the sync state is sent only to the server and project the sync
 state records it was issued for. A sync state that records none sends no token.
 
-kapi also asks git whether it tracks `work/`, `sync/`, `vault/` or
-`filters.local.json` under `.kapi/` (`core/project.CheckStateTracked`), and
-refuses a checkout that tracks one. `KAPI_TRUST_STATE=1` in kapi's own
-environment skips that question. The walk that refuses a link or an irregular
-file applies to everything kapi still opens under `.kapi/`.
+kapi asks git nothing about a checkout's state: none of it is in the checkout,
+so nothing a repository tracks there is read as kapi's. The walk that refuses
+a link or an irregular file (`Layout.CheckState`) applies to the committed
+sources kapi still reads under `.kapi/`.
 
 What deleting costs, stated exactly:
 

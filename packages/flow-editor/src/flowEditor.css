@@ -11,3 +11,11 @@
 .nk-flow-anim .react-flow__edge-path {
   transition: d 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+/* The canvas is transparent in both themes, so the page's surface shows
+   through as it does around the editor. React Flow paints its own dark
+   background otherwise. The colour scheme itself follows the app's theme
+   through forceColorMode (useRootColorMode). */
+.react-flow {
+  --xy-background-color: transparent;
+}

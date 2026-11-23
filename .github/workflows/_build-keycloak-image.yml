@@ -60,4 +60,5 @@ jobs:
             ghcr.io/neokapi/bowrain-keycloak:${{ inputs.image-tag }}
             ghcr.io/neokapi/bowrain-keycloak:latest
           cache-from: type=gha,scope=bowrain-keycloak
-          cache-to: type=gha,mode=max,scope=bowrain-keycloak
+          # Only a run on main saves the layer cache; any other ref reads it.
+          cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max,scope=bowrain-keycloak' || '' }}

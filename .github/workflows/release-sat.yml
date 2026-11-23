@@ -89,6 +89,9 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
+          # A tag run saves no cache: one saved there serves only that tag,
+          # and setup-go has no restore-only mode.
+          cache: false
 
       # Tarball signing is only needed for publishing (tag pushes). Skip on the
       # build-only workflow_dispatch.
@@ -216,6 +219,8 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: CLANGARM64
+          # A tag run saves no cache.
+          cache: false
           path-type: inherit
           install: >-
             mingw-w64-clang-aarch64-clang
