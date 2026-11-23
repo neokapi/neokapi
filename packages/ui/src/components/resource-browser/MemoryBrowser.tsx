@@ -320,7 +320,7 @@ export function MemoryBrowser({
         onError?.("Failed to delete content-memory entry", err);
       }
     },
-    [adapter, fetchEntries, fetchFacets, debouncedSearch, page, onError],
+    [adapter, entries, fetchEntries, fetchFacets, debouncedSearch, page, onError],
   );
 
   const handleBulkDelete = useCallback(async () => {

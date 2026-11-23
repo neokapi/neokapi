@@ -172,7 +172,9 @@ describe("MemorySection", () => {
     await user.click(screen.getByRole("button", { name: /Delete/ }));
     expect(adapter.deleteMemoryEntry).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Confirm" }));
-    await waitFor(() => expect(adapter.deleteMemoryEntry).toHaveBeenCalledWith("demo", "e-2", "r-2"));
+    await waitFor(() =>
+      expect(adapter.deleteMemoryEntry).toHaveBeenCalledWith("demo", "e-2", "r-2"),
+    );
   });
 
   it("deletes every marked entry in one request, and says how many failed", async () => {

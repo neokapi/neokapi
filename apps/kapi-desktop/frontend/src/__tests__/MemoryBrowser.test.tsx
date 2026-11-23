@@ -211,9 +211,10 @@ describe("MemoryBrowser", () => {
   });
 
   describe("delete", () => {
-    it("calls adapter.deleteEntry when clicking delete on an entry", async () => {
+    it("calls adapter.deleteEntry with the revision the entry was read at", async () => {
       const entry = makeMemoryEntry({
         id: "e1",
+        revision: "rev-e1",
         variants: { "en-US": v("en-US", "Hello"), "fr-FR": v("fr-FR", "Bonjour") },
       });
       adapter = createMockAdapter([entry]);
@@ -228,7 +229,7 @@ describe("MemoryBrowser", () => {
       await userEvent.click(screen.getByText("Confirm"));
 
       await waitFor(() => {
-        expect(adapter.deleteEntry).toHaveBeenCalledWith("e1");
+        expect(adapter.deleteEntry).toHaveBeenCalledWith("e1", "rev-e1");
       });
     });
   });
@@ -263,10 +264,12 @@ describe("MemoryBrowser", () => {
       const entries = [
         makeMemoryEntry({
           id: "e1",
+          revision: "rev-e1",
           variants: { "en-US": v("en-US", "Hello"), "fr-FR": v("fr-FR", "Bonjour") },
         }),
         makeMemoryEntry({
           id: "e2",
+          revision: "rev-e2",
           variants: { "en-US": v("en-US", "World"), "fr-FR": v("fr-FR", "Monde") },
         }),
       ];
@@ -293,7 +296,10 @@ describe("MemoryBrowser", () => {
       await userEvent.click(confirmBtn);
 
       await waitFor(() => {
-        expect(adapter.deleteEntries).toHaveBeenCalledWith(expect.arrayContaining(["e1", "e2"]));
+        expect(adapter.deleteEntries).toHaveBeenCalledWith(expect.arrayContaining(["e1", "e2"]), {
+          e1: "rev-e1",
+          e2: "rev-e2",
+        });
       });
     });
   });
