@@ -5,7 +5,7 @@ import "context"
 // Prompt IDs. A rendered prompt carries its ID so a call can be identified
 // without inspecting its text. Every LLM call kapi makes on a user's behalf
 // carries one, so --explain can name it and the prompt reference can enumerate
-// it — an unlabelled call would be an undocumented use of someone's content.
+// it, an unlabelled call would be an undocumented use of someone's content.
 const (
 	IDTranslateSingle = "translate.single"
 	IDTranslateBatch  = "translate.batch"
@@ -21,7 +21,7 @@ const (
 	IDSegment         = "segment"
 
 	// media-refine sends a different prompt per modality, and each ships a
-	// different kind of the user's data — a cropped image, a speech clip, a video
+	// different kind of the user's data, a cropped image, a speech clip, a video
 	// frame. One "media.refine" ID would hide that distinction from --explain and
 	// from the reference, which is precisely the distinction a user cares about.
 	IDMediaRefineImage = "media.refine.image"
@@ -58,31 +58,29 @@ func For(id string, params map[string]string) Meta {
 	return Meta{ID: id, Version: Version, Params: params}
 }
 
-// WithID attaches metadata for a prompt with no structured params — the common
+// WithID attaches metadata for a prompt with no structured params, the common
 // case for the prompts still built inline at their call site.
 func WithID(ctx context.Context, id string) context.Context {
 	return WithMeta(ctx, For(id, nil))
 }
 
 // CorpusDelimiter separates a prompt's instructions from a bulk corpus appended
-// after it. It is a declared part of the prompt contract — the demo provider
-// locates the corpus by it — rather than incidental wording, so it must not be
+// after it. It is a declared part of the prompt contract, the demo provider
+// locates the corpus by it, rather than incidental wording, so it must not be
 // changed casually.
 const CorpusDelimiter = "\nCorpus:\n"
 
 // Meta describes what a call is doing, independent of the prompt's wording.
 //
-// It exists so nothing has to reverse-engineer a prompt's text to recover its
-// intent. The demo provider fabricates deterministic output and needs to know
-// the target locale; it used to regex "to <locale>" out of the prompt string,
-// which silently broke whenever the prompt was reworded. Consumers read Meta
-// instead. The --explain recorder uses it to label captured calls.
+// Consumers read a call's intent here rather than parsing the prompt text. The
+// demo provider reads the target locale and rejected drafts from it, and the
+// --explain recorder labels captured calls with it.
 type Meta struct {
 	// ID identifies the prompt, e.g. IDTranslateSingle.
 	ID string
 	// Version is the prompt revision that rendered the call (see Version).
 	Version string
-	// Params carries the structured inputs a consumer may need — for translate,
+	// Params carries the structured inputs a consumer may need, for translate,
 	// "source_locale" and "target_locale".
 	Params map[string]string
 	// PreferredTerms is the term map the prompt pins, source term to the

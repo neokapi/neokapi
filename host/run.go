@@ -216,7 +216,9 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	// flow whose locales come from the recipe runs several of them.
 	groupBindings := a.newLocaleBindings(cmd, proj, projectPath)
 	savedBindings, savedRedaction, savedFeedback := a.ProjectBindings, a.flowRedaction, a.flowReviewFeedback
-	defer func() { a.ProjectBindings, a.flowRedaction, a.flowReviewFeedback = savedBindings, savedRedaction, savedFeedback }()
+	defer func() {
+		a.ProjectBindings, a.flowRedaction, a.flowReviewFeedback = savedBindings, savedRedaction, savedFeedback
+	}()
 
 	// Build resource context from project file location.
 	absProjectPath, _ := filepath.Abs(projectPath)

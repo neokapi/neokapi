@@ -67,6 +67,7 @@ processingNotes:
   - Operates on translatable blocks with non-empty source; other parts pass through unchanged.
   - Blocks with inline codes are translated through a placeholder-preserving prompt and reconstructed from the response.
   - Each translation is recorded as an alternate-translation annotation tagged with the provider.
+  - In a project, a block a reviewer rejected is drafted again, and the prompt carries the latest three rejected drafts of it with the reasons and the reviewer's note. The note is redacted under the project's redaction policy like the rest of the request. A machine translation engine is sent none of it. After three rejections of drafts of one source the block is drafted no more and waits for a person.
 examples:
   - title: Translate with Anthropic
     description: Translate untranslated blocks using an Anthropic model.

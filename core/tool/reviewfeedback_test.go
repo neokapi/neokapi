@@ -1,0 +1,37 @@
+package tool
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/neokapi/neokapi/core/blockstore"
+)
+
+func TestFeedbackFingerprint(t *testing.T) {
+	assert.Equal(t, "ctx", FeedbackFingerprint("ctx", UnitReviewFeedback{}), "no feedback keeps the governing stamp")
+	one := UnitReviewFeedback{Rejections: []ReviewRejection{{TargetHash: "h1", Reasons: []string{"tone", "meaning"}, Note: "Too formal."}}}
+	a := FeedbackFingerprint("ctx", one)
+	assert.NotEqual(t, "ctx", a)
+
+	reordered := UnitReviewFeedback{Rejections: []ReviewRejection{{TargetHash: "h1", Reasons: []string{"meaning", "tone"}, Note: "Too formal.", Text: "Bonjour"}}}
+	assert.Equal(t, a, FeedbackFingerprint("ctx", reordered), "reason order and whether the wording is held do not move it")
+
+	edited := UnitReviewFeedback{Rejections: []ReviewRejection{{TargetHash: "h1", Reasons: []string{"tone", "meaning"}, Note: "Use tu."}}}
+	assert.NotEqual(t, a, FeedbackFingerprint("ctx", edited), "a changed note moves it")
+}
+
+func TestReviewFeedbackForBlockIsKeyedByFile(t *testing.T) {
+	f := ReviewFeedback{FeedbackUnitKey("src/a.json", "title"): {Held: true}}
+	ctx := blockstore.WithSourceRel(t.Context(), "src/a.json")
+	assert.True(t, f.ForBlock(ctx, "title").Held)
+	other := blockstore.WithSourceRel(t.Context(), "src/b.json")
+	assert.False(t, f.ForBlock(other, "title").Held, "the same key in another file is another unit")
+}
+
+func TestEveryRejectionReasonHasAPhrase(t *testing.T) {
+	for _, code := range RejectionReasonCodes {
+		assert.NotEqual(t, "another reason", RejectionReasonPhrase(code), code)
+	}
+	assert.Equal(t, "another reason", RejectionReasonPhrase("new_code"), "an unknown code never reaches a prompt bare")
+}

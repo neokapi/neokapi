@@ -2,12 +2,14 @@ package host
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"path/filepath"
 	"slices"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/review"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
@@ -17,16 +19,14 @@ import (
 )
 
 // Review feedback: a unit a reviewer rejected is drafted again, and the next
-// draft is told what was rejected and why. The feedback is derived, per unit,
-// from the decision history the state ledger already keeps (every decision is
-// an entry, keyed by the pairing it judged, and nothing is rewritten), so no
-// second record of the same facts exists. A rejection counts toward a unit
-// while its basis is the source the unit holds now: a rewritten source starts
-// the unit afresh.
+// draft is told what was rejected and why. The feedback is derived per unit
+// from the decision entries the state ledger keeps, keyed by the pairing each
+// judged. A rejection counts while its basis is the unit's current source, so
+// a rewritten source starts the unit afresh.
 //
-// The rejected wording is read from the target file while it still holds the
-// draft the rejection judged (its hash matches); an earlier rejection whose
-// draft has since been replaced still carries its reasons and note.
+// The rejected wording is read from the target file while the file still
+// holds that draft (its hash matches). An older rejection keeps its reasons
+// and note after its draft is replaced.
 
 // reviewFeedbackTools are the steps a run hands review feedback to: the
 // drafting step, which tells the model and stamps the draft, and recycling,
@@ -39,7 +39,12 @@ func (a *App) reviewFeedbackFor(ctx context.Context, proj *project.KapiProject, 
 	if proj == nil || root == "" || locale == "" || len(inputs) == 0 {
 		return nil, nil
 	}
-	st, err := a.OpenProjectState(ctx, root)
+	// A read: a project with no store has no decisions, and a plan or a status
+	// must not create one.
+	st, err := a.OpenProjectState(withExistingStoresOnly(ctx), root)
+	if errors.Is(err, errNoProjectStore) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +152,6 @@ func unitFeedback(entries []state.Entry, holdsBasis func(string) bool, sourceHas
 	for _, e := range slices.Backward(picked) {
 		r := tool.ReviewRejection{
 			TargetHash: e.State.TargetHash,
-			Reasons:    decisionReasons(e.State.Decision),
 			Note:       e.State.Decision.Note,
 		}
 		if currentHash != "" && e.State.TargetHash == currentHash {
@@ -156,11 +160,6 @@ func unitFeedback(entries []state.Entry, holdsBasis func(string) bool, sourceHas
 		fb.Rejections = append(fb.Rejections, r)
 	}
 	return fb, true
-}
-
-// decisionReasons are the reason codes a decision records.
-func decisionReasons(d state.Decision) []string {
-	return nil
 }
 
 // targetTexts reads the translation the unit's target file holds, by unit
@@ -202,4 +201,37 @@ func (a *App) applyReviewFeedback(toolName string, config map[string]any, cmd Co
 func stringConfig(config map[string]any, key string) string {
 	s, _ := config[key].(string)
 	return s
+}
+
+// reviewRejections is what a unit's next draft is told about its rejected
+// drafts, for the review context: a reviewer sees what the model is told.
+func (a *App) reviewRejections(ctx context.Context, req ReviewContextRequest, b *model.Block) []review.Rejection {
+	if req.SourcePath == "" || req.Locale == "" {
+		return nil
+	}
+	proj, err := project.LoadWithOptions(filepath.Join(req.Root, project.RecipeFileName), project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return nil
+	}
+	source := req.SourcePath
+	if !filepath.IsAbs(source) {
+		source = filepath.Join(req.Root, source)
+	}
+	fb, err := a.reviewFeedbackFor(ctx, proj, req.Root, req.Locale, []string{source})
+	if err != nil {
+		return nil
+	}
+	unit := fb[tool.FeedbackUnitKey(blockstore.SourceNamespace(req.Root, source), blockKey(b))]
+	out := make([]review.Rejection, 0, len(unit.Rejections))
+	for _, r := range unit.Rejections {
+		rr := review.Rejection{Text: r.Text, Note: r.Note}
+		for _, code := range r.Reasons {
+			rr.Reasons = append(rr.Reasons, tool.RejectionReasonPhrase(code))
+		}
+		out = append(out, rr)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }

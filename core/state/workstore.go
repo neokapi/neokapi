@@ -30,14 +30,11 @@ import (
 // every checkout of a project, and several of them are on different branches at
 // once, so the store holds one view per checkout and every read goes through
 // it. A decision recorded on one branch answers for another exactly when that
-// branch's files carry the same source and the same translation, which is what
-// keeps one branch's approvals out of another's record without anything having
-// to move.
+// branch's files carry the same source and translation.
 //
 // The committed shards under `.kapi/state/` are this checkout's export of the
 // view, and an import source for the ledger. `kapi commit` writes them; opening
-// the store reads them back. A fresh clone restores its decisions that way, and
-// so does a checkout picking up a colleague's after `git pull`.
+// the store reads them back, as a fresh clone or a `git pull` does.
 type WorkStore struct {
 	db        *storage.DB
 	committed string // this checkout's committed record directory
@@ -411,13 +408,10 @@ ON CONFLICT(id) DO UPDATE SET path = excluded.path`, w.checkout, filepath.Clean(
 // digest of the shards is stamped per checkout, so an import that would find
 // nothing new costs one pass over the directory and stops there.
 //
-// The view is rebuilt from the shards rather than merged with them, because the
-// shards are git-tracked and a branch switch replaces all of them. One thing
-// survives that rebuild: a row this checkout has recorded and not yet written
-// out, which no record supplies. Such a row follows the person who made it, and
-// the entry behind it answers only where its pairing appears, so a decision
-// carried onto another branch writes a line there and claims nothing about that
-// branch's wording.
+// The view is rebuilt from the shards, because they are git-tracked and a
+// branch switch replaces all of them. A row this checkout recorded and has not
+// written out survives the rebuild. Its entry answers only where its pairing
+// appears, so it claims nothing about another branch's wording.
 //
 // It runs at every open and again before every write of the record, so a
 // process holding the store open across a branch switch exports the record this
@@ -774,17 +768,15 @@ SELECT payload, revoked FROM unit_decision
 	return u, true
 }
 
-// Lookup answers what applies to a unit whose content reads r, which is the
-// question every reader of unit state is really asking: this unit, with this
-// source and this translation in front of me, what has been decided about it.
+// Lookup answers what has been decided about a unit whose content (source and
+// translation) reads r.
 //
 // A caller holding the file content passes its reading (ReadTarget) and gets
 // the entry that blessed exactly that pairing, whatever any other checkout has
 // decided about the same unit. An entry recorded with revisions answers where
-// they are the content's, and one recorded before revisions where its hashes
-// are, until an entry naming a half it leaves empty is recorded for the same
-// hashes: that later entry speaks for the text from then on, whether or not
-// its revisions are the content's. Of the entries that answer, the latest
+// they are the content's. One recorded before revisions answers where its
+// hashes are, until a later entry naming an empty half is recorded for the
+// same hashes; that entry then speaks for the text. Of the entries that answer, the latest
 // does. A decision recorded since revisions is therefore never shadowed by an
 // older entry for the same text, and its withdrawal is never undone by one,
 // even after an inline code moves under it.
@@ -1183,22 +1175,17 @@ func (w *WorkStore) Documents(ctx context.Context) ([]reconcile.DocUnit, error) 
 // AdoptDocuments resolves a fresh read against the documents this checkout
 // knows, records the result, and returns each current path's durable key.
 //
-// It is the local half of what a venue does on a push, and it exists for the
-// same reason: a decision is filed against the document it was made in, so if
-// the document's identity is its path, renaming a file orphans every approval
-// inside it, silently, because nothing fails and the loop simply re-approves
-// from scratch. Resolution here matches on path first and on surviving content
-// second, so a file that moved keeps its key, and the decisions filed under its
-// old address move onto that key.
+// It is the local half of what a venue does on a push. A decision is filed
+// against the document it was made in, so a path-keyed identity would orphan
+// every approval in a renamed file. Resolution matches on path first and on
+// surviving content second, so a moved file keeps its key and its decisions.
 //
-// The documents this checkout knows come first, so a checkout keeps the keys
-// it has. After them come the adoptions every checkout of the project recorded
-// (AdoptedDocuments), so a checkout that has not seen a document finds the key
-// the project already uses for it, at the path another checkout read it or by
-// what it holds, before it mints one. Each resolution the project does not hold
-// yet is recorded as an adoption.
+// The documents this checkout knows come first. After them come the adoptions every checkout of the project recorded
+// (AdoptedDocuments). A checkout that has not seen a document finds the key
+// the project already uses, by path or by content, before it mints one. Each
+// new resolution is recorded as an adoption.
 //
-// current is what was just read, in any order. The returned map is keyed by
+// current is what was just read, in any order; the result is keyed by
 // DocUnit.Path.
 func (w *WorkStore) AdoptDocuments(ctx context.Context, current []reconcile.DocUnit) (map[string]string, error) {
 	prior, err := w.Documents(ctx)
@@ -1221,7 +1208,7 @@ func (w *WorkStore) AdoptDocuments(ctx context.Context, current []reconcile.DocU
 	}
 	resolved := reconcile.DocumentUnits(current, candidates)
 
-	// Where each key used to live, so a key resolved at a new path can carry
+	// Each key's previous path, so a key resolved at a new path can carry
 	// the decisions filed under the old one.
 	priorPath := make(map[string]string, len(prior))
 	for _, u := range prior {
@@ -1234,9 +1221,8 @@ func (w *WorkStore) AdoptDocuments(ctx context.Context, current []reconcile.DocU
 		content := current[i].Content
 
 		// The address is swept every time, not only on first sight. Anything
-		// that could not resolve a key — a fresh checkout, a build with no
-		// store, a surface reading a project before its first extraction —
-		// files its decision under the path, so the path keeps acquiring
+		// that could not resolve a key, a fresh checkout, a build with no
+		// store, a surface reading a project before its first extraction, 		// files its decision under the path, so the path keeps acquiring
 		// decisions that belong to the identity long after it has one.
 		if rerr := w.rekeyScope(ctx, r.Path, r.Key); rerr != nil {
 			return nil, rerr

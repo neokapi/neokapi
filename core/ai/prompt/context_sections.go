@@ -73,7 +73,7 @@ func (c Context) Empty() bool {
 		c.Prior.empty() && len(c.Rejections) == 0
 }
 
-// Digest fingerprints the *neighbourhood* — the part of the context that is not a
+// Digest fingerprints the *neighbourhood*, the part of the context that is not a
 // function of the block itself.
 //
 // Key is deliberately excluded: it travels with the block, so a cache keyed by
@@ -133,8 +133,8 @@ func (c Context) sections() []Section {
 			// competing with the text: gemini-3.5-flash rendered the key for
 			// `onboarding.title` = "Capture every idea" in all four target
 			// languages ("Onboarding", "オンボーディング", "Paso a paso de
-			// bienvenida", "Bienvenue !"), and got the other nine units of the
-			// same file right. Naming it a location rather than content is what
+			// bienvenida", "Bienvenue !"). It got the other nine units of
+			// the same file right. Naming it a location rather than content is what
 			// separates the two.
 			Heading: "Where the text sits in the document, for context only. It is a " +
 				"location, not content: do not translate it and do not return it:",

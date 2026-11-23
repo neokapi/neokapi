@@ -855,7 +855,7 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 		return err
 	}
 	v.SetTargetText(t.targetLocale, text)
-	t.annotateTranslation(v, resp)
+	t.annotateTranslation(v.Context(), v, resp)
 
 	t.emitProgress(true, "")
 	return nil
@@ -998,7 +998,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 		}
 	}
 	v.SetTargetRuns(t.targetLocale, targetRuns)
-	t.annotateTranslation(v, resp)
+	t.annotateTranslation(v.Context(), v, resp)
 
 	t.emitProgress(true, "")
 	return nil
@@ -1093,7 +1093,7 @@ func (t *AITranslateTool) emitProgress(done bool, thinking string) {
 	})
 }
 
-func (t *AITranslateTool) annotateTranslation(v tool.VariantView, resp *aiprovider.TranslateResponse) {
+func (t *AITranslateTool) annotateTranslation(ctx context.Context, v tool.VariantView, resp *aiprovider.TranslateResponse) {
 	v.AddAltTranslation(&model.AltTranslation{
 		Target:    []model.Run{{Text: &model.TextRun{Text: resp.Translation}}},
 		Locale:    t.targetLocale,
@@ -1104,7 +1104,7 @@ func (t *AITranslateTool) annotateTranslation(v tool.VariantView, resp *aiprovid
 	// Stamp how the committed target was produced so coverage and ship gates can
 	// see it. A fresh machine translation lands at draft (produced, not yet
 	// verified); the convergence loop promotes it on a passing check / review.
-	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin(v.Context(), v.UnitKey()))
+	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin(ctx, v.UnitKey()))
 }
 
 // aiOrigin describes a target produced by this AI tool: how it was made (the
@@ -1734,7 +1734,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 			} else {
 				ev.SetTargetText(t.targetLocale, text)
 			}
-			t.annotateTranslation(ev, &aiprovider.TranslateResponse{
+			t.annotateTranslation(ctx, ev, &aiprovider.TranslateResponse{
 				Translation: text,
 				Confidence:  0.85,
 				Model:       resp.Model,

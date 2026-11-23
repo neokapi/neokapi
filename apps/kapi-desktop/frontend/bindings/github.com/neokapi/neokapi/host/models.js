@@ -4165,6 +4165,16 @@ export class ConvergeLocaleResult {
         }
         if (/** @type {any} */(false)) {
             /**
+             * LeftForPerson counts units whose drafts a reviewer rejected as many
+             * times as kapi drafts a unit (tool.MaxRejections). kapi drafts them no
+             * more; a person writes their translation.
+             * @member
+             * @type {number | undefined}
+             */
+            this["left_for_person"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Redrafted counts the stale units this run produced over: recycled against
              * the rewritten source, or drafted for the remainder. Each now holds a
              * translation of the current source. The decision they carried is NOT
@@ -4220,13 +4230,13 @@ export class ConvergeLocaleResult {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType19;
-        const $$createField12_0 = $$createType94;
+        const $$createField13_0 = $$createType94;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
         }
         if ("unstamped_drafts" in $$parsedSource) {
-            $$parsedSource["unstamped_drafts"] = $$createField12_0($$parsedSource["unstamped_drafts"]);
+            $$parsedSource["unstamped_drafts"] = $$createField13_0($$parsedSource["unstamped_drafts"]);
         }
         return new ConvergeLocaleResult(/** @type {Partial<ConvergeLocaleResult>} */($$parsedSource));
     }

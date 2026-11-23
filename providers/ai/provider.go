@@ -48,7 +48,7 @@ type JSONSchema struct {
 }
 
 // Message roles. A prompt declares roles semantically; each provider is
-// responsible for transporting them the way its API expects — Anthropic lifts
+// responsible for transporting them the way its API expects, Anthropic lifts
 // system into a top-level parameter, Claude Code passes it as
 // --append-system-prompt, OpenAI carries it as an ordinary message. Callers
 // never adapt to the provider.
@@ -59,7 +59,7 @@ const (
 )
 
 // Message represents a chat message. Content is an ordered list of parts so one
-// message can mix text with image/audio/video — a text-only message is a single
+// message can mix text with image/audio/video, a text-only message is a single
 // text part (see TextMessage).
 type Message struct {
 	Role  string        `json:"role"` // RoleSystem, RoleUser, RoleAssistant
@@ -67,11 +67,11 @@ type Message struct {
 	// Sections attributes the message's text to what produced each piece of it
 	// (framework rule, voice profile, terms, the source block). Set when
 	// the message came from a prompt builder; --explain renders it so a prompt can
-	// be traced back to its origins. Providers ignore it — they send Parts.
+	// be traced back to its origins. Providers ignore it, they send Parts.
 	Sections []prompt.Section `json:"sections,omitempty"`
 }
 
-// TextMessage builds a text-only message — the common case.
+// TextMessage builds a text-only message, the common case.
 func TextMessage(role, text string) Message {
 	return Message{Role: role, Parts: []ContentPart{TextPart(text)}}
 }
@@ -79,7 +79,7 @@ func TextMessage(role, text string) Message {
 // SplitSystem separates system-role messages from the rest of the conversation,
 // joining their text with blank lines. Providers whose API carries system
 // instructions out-of-band use this so a "system" role never leaks into the
-// message list — Anthropic rejects such a message outright.
+// message list, Anthropic rejects such a message outright.
 func SplitSystem(messages []Message) (system string, rest []Message) {
 	var sys []string
 	rest = make([]Message, 0, len(messages))
@@ -116,7 +116,7 @@ type TranslateRequest struct {
 	// DoNotTranslate names the terms that must survive verbatim into the
 	// target: the concepts a terms store marks do-not-translate, and the
 	// strings a recipe names. The prompt asks the model to keep them, which is
-	// what PreferredTerms cannot express — a do-not-translate term names no
+	// what PreferredTerms cannot express, a do-not-translate term names no
 	// wording to use instead.
 	DoNotTranslate []string `json:"do_not_translate,omitempty"`
 	Format         string   `json:"format,omitempty"` // e.g., "html", "plain"
@@ -125,25 +125,24 @@ type TranslateRequest struct {
 	// time rather than only checked afterwards. Empty when no profile is bound.
 	VoiceGuide string `json:"voice_guide,omitempty"`
 	// Instruction is a caller-supplied directive the model should apply while
-	// translating — a reviewer's "keep it informal", or the findings a fix pass
+	// translating, a reviewer's "keep it informal", or the findings a fix pass
 	// must resolve.
 	Instruction string `json:"instruction,omitempty"`
 	// PreserveTags marks a source that carries inline codes rendered as
 	// placeholder-tagged text, so the prompt instructs the model to reproduce
 	// every tag exactly. Source stays pure content either way.
 	PreserveTags bool `json:"preserve_tags,omitempty"`
-	// BlockContext is reference material about this block — its key, its
+	// BlockContext is reference material about this block, its key, its
 	// neighbours. The model reads it; it is never translated and never returned.
 	//
 	// (This replaces a `Context string` field that was declared and never once
-	// filled — a placeholder for exactly this feature, left empty for years while
+	// filled, a placeholder for exactly this feature, left empty for years while
 	// the model got no context at all.)
 	BlockContext prompt.Context `json:"block_context,omitzero"`
 }
 
 // Prompt returns the prompt builder for this request. Prompt construction lives
-// in core/ai/prompt so that every path — provider, tool, streaming, batch —
-// renders identical bytes.
+// in core/ai/prompt so that every path, provider, tool, streaming, batch, // renders identical bytes.
 // PromptTurns renders the turns for this request, including its context.
 func (req TranslateRequest) PromptTurns() []prompt.Turn {
 	return req.Prompt().SingleWithContext(req.Source, req.PreserveTags, req.BlockContext)
@@ -208,7 +207,7 @@ type TranslateResponse struct {
 	// Truncated reports that the model stopped at its output cap, so Translation
 	// is the beginning of a translation rather than a translation. It carries the
 	// same signal ChatResponse.Truncated does, because a caller that commits the
-	// fragment as a finished target corrupts the document silently — the text
+	// fragment as a finished target corrupts the document silently, the text
 	// looks like a translation, just a shorter one.
 	Truncated bool `json:"truncated,omitempty"`
 }
@@ -219,7 +218,7 @@ type ChatResponse struct {
 	Model   string     `json:"model"`
 	Usage   TokenUsage `json:"usage"`
 	// Truncated reports that the model stopped because it hit the output cap,
-	// not because it was finished. The content is then a fragment — with
+	// not because it was finished. The content is then a fragment, with
 	// structured output, invalid JSON.
 	//
 	// This is surfaced rather than left to the caller's JSON decoder to trip
@@ -311,7 +310,7 @@ const (
 	Ollama      ProviderID = "ollama"
 	// ClaudeCode runs prompts through the locally installed Claude Code CLI
 	// (`claude`), billing the user's Claude subscription instead of an API
-	// key. Keyless but not local — content still travels to Anthropic. See
+	// key. Keyless but not local, content still travels to Anthropic. See
 	// claudecode.go.
 	ClaudeCode ProviderID = "claude-code"
 	// Demo is a deterministic, offline provider that returns illustrative
@@ -321,8 +320,8 @@ const (
 )
 
 // IsLocalProvider reports whether a registered provider keeps content on the
-// machine (no remote egress). It is a registration property — a provider sets
-// ProviderInfo.Local at RegisterProvider time — not a hardcoded list, so the
+// machine (no remote egress). It is a registration property, a provider sets
+// ProviderInfo.Local at RegisterProvider time, not a hardcoded list, so the
 // framework needs no knowledge of specific local backends. Plugin-registered
 // providers declare themselves local the same way the built-in Ollama/Demo do.
 // An unregistered or
@@ -358,7 +357,7 @@ type ProviderInfo struct {
 	// to combine the two.
 	Keyless bool
 	// Subscription reports that usage is billed to a personal subscription the
-	// user already pays for (no per-token cost) — drives the "runs on your
+	// user already pays for (no per-token cost), drives the "runs on your
 	// subscription" wording in plans instead of a $ estimate.
 	Subscription bool
 	// DefaultModel is the model a fresh provider uses when the caller names none.
@@ -368,7 +367,7 @@ type ProviderInfo struct {
 	DefaultModel string
 	// ModelPrefixes are lower-case model-name prefixes that uniquely identify
 	// this provider (e.g. "claude" → anthropic, "gpt" → openai). ProviderForModel
-	// uses them to infer a provider from a bare model name — the "name a model,
+	// uses them to infer a provider from a bare model name, the "name a model,
 	// get a provider" convention. Local backends like Ollama leave this empty and
 	// are matched as the catch-all (see ProviderForModel).
 	ModelPrefixes []string
@@ -400,7 +399,7 @@ type providerRegistration struct {
 
 // globalProviders is the default provider registry, populated by init().
 // Plugins register after init() (possibly from other goroutines), so every
-// access goes through globalProvidersMu — the same locked-registry pattern
+// access goes through globalProvidersMu, the same locked-registry pattern
 // mtprovider uses for its config factories.
 var (
 	globalProvidersMu sync.RWMutex
@@ -415,7 +414,7 @@ func init() {
 	RegisterProvider(ProviderInfo{Name: Gemini, Label: "Gemini", DefaultModel: DefaultGeminiModel, ModelPrefixes: []string{"gemini"}},
 		func(cfg Config) LLMProvider { return NewGeminiProvider(cfg) })
 	// Azure shares OpenAI's model names but is endpoint-specific, so it declares
-	// no prefixes — inferring it from "gpt-*" would be wrong. Choose it explicitly.
+	// no prefixes, inferring it from "gpt-*" would be wrong. Choose it explicitly.
 	RegisterProviderWithAliases(ProviderInfo{Name: AzureOpenAI, Label: "Azure OpenAI", DefaultModel: DefaultAzureOpenAIModel},
 		func(cfg Config) LLMProvider { return NewAzureOpenAIProvider(cfg) },
 		"azure_openai")
@@ -431,15 +430,14 @@ func init() {
 }
 
 // ProviderForModel infers the provider that serves a given model name, by
-// convention, so callers can name only a model and let the provider follow —
-// e.g. "claude-sonnet-4" → anthropic, "gemma3:4b" → ollama. Resolution order:
+// convention, so callers can name only a model and let the provider follow, // e.g. "claude-sonnet-4" → anthropic, "gemma3:4b" → ollama. Resolution order:
 //
 //  1. A registered provider whose ModelPrefixes match the (lower-cased) name.
 //  2. Otherwise the Ollama on-device catch-all when the name looks like an
 //     Ollama tag ("name:tag") or is a recommended local model.
 //
 // Returns ("", false) when no confident inference is possible (e.g. an
-// ambiguous bare name) — the caller should then ask the user or require an
+// ambiguous bare name), the caller should then ask the user or require an
 // explicit provider. Azure OpenAI is never inferred (it shares gpt-* names but
 // needs an endpoint), so a gpt-* model resolves to OpenAI.
 func ProviderForModel(modelName string) (ProviderID, bool) {
@@ -458,7 +456,7 @@ func ProviderForModel(modelName string) (ProviderID, bool) {
 	}
 	globalProvidersMu.RUnlock()
 	// Ollama tags are "<name>:<tag>" (gemma3:4b, llama3.2:3b). Anything that
-	// looks like one — or is a curated local pick — is the on-device catch-all.
+	// looks like one, or is a curated local pick, is the on-device catch-all.
 	if strings.Contains(m, ":") {
 		return Ollama, true
 	}
@@ -497,7 +495,7 @@ func RegisterProviderWithAliases(info ProviderInfo, factory ProviderFactory, ali
 func NewProvider(name ProviderID, cfg Config) (LLMProvider, error) {
 	// Resolve the factory under the read lock, but call it (and build the
 	// not-found error, which re-enters the registry via ProviderNames) outside
-	// it — a factory registering another provider must not deadlock.
+	// it, a factory registering another provider must not deadlock.
 	var factory ProviderFactory
 	globalProvidersMu.RLock()
 	for _, reg := range globalProviders {
@@ -520,7 +518,7 @@ func NewProvider(name ProviderID, cfg Config) (LLMProvider, error) {
 }
 
 // Providers returns the list of available AI providers in display order.
-// This is the canonical source of truth for provider names — used by tool
+// This is the canonical source of truth for provider names, used by tool
 // schemas, CLI flags, and UI dropdowns.
 func Providers() []ProviderInfo {
 	globalProvidersMu.RLock()
@@ -567,14 +565,13 @@ func (c *Config) Validate() error {
 
 // StandardTranslate renders the translate prompt and runs it through a
 // provider's Chat method. Every provider's Translate delegates here, differing
-// only in the confidence it reports — no provider carries a prompt of its own.
+// only in the confidence it reports, no provider carries a prompt of its own.
 // A provider written outside this package (a plugin's, a test's) delegates here
 // too, or it will diverge from the built-ins in both prompt and recording.
 //
 // It records the exchange itself: a provider's Translate calls that provider's
 // own Chat, which bypasses the recording wrapper, so this is the only point that
-// sees the call. (The wrapper still records direct Chat/ChatStructured calls —
-// batch translation, voice profile, entity extraction — and the two cannot
+// sees the call. (The wrapper still records direct Chat/ChatStructured calls, // batch translation, voice profile, entity extraction, and the two cannot
 // double-count, because the Chat reached from here is the unwrapped inner one.)
 func StandardTranslate(
 	ctx context.Context,

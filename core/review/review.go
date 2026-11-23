@@ -192,6 +192,17 @@ type History struct {
 	// that genuinely holds nothing close. `kapi store import` reads the
 	// files; until then, an empty Match means unread.
 	Unread bool `json:"unread,omitempty"`
+	// Rejections are the earlier drafts of this block a reviewer rejected,
+	// oldest first, as its next draft's prompt carries them: the wording when
+	// it is still held, the reasons as phrases, and the note.
+	Rejections []Rejection `json:"rejections,omitempty"`
+}
+
+// Rejection is one earlier draft of a block a reviewer rejected.
+type Rejection struct {
+	Text    string   `json:"text,omitempty"`
+	Reasons []string `json:"reasons,omitempty"`
+	Note    string   `json:"note,omitempty"`
 }
 
 // PriorVersion is one block's previous source and the target approved for it,

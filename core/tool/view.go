@@ -15,19 +15,18 @@ import (
 // view; the writable output surface is overlays, annotations, and properties.
 //
 // A tool's capability is expressed by which handler field it sets on BaseTool:
-//   - Annotate(BlockView)   — analysis / annotation (the default; no content
-//     writes possible — the methods simply don't exist here)
-//   - Produce(VariantView) — writes target content
-//   - Transform(BlockView)  — a read-only edit producer returning an EditPlan;
+//   - Annotate(BlockView), analysis / annotation (the default; no content
+//     writes possible, the methods simply don't exist here)
+//   - Produce(VariantView), writes target content
+//   - Transform(BlockView), a read-only edit producer returning an EditPlan;
 //     the framework applier is the sole source mutator (AD-006)
 //
-// Because the read methods hand back the Block's live run slices, tools must
-// treat returned runs as read-only; the dispatcher's backstop check
-// (EnforceImmutability) catches accidental in-place edits in dev/test.
+// The read methods hand back the Block's live run slices, so tools treat them
+// as read-only; EnforceImmutability catches in-place edits in dev and test.
 //
-// BlockView is composed from named facets grouped by concern — BlockReader
+// BlockView is composed from named facets grouped by concern, BlockReader
 // (all reads), OverlayWriter, AnnotationWriter, and PropertyWriter (the three
-// writable output surfaces) — so tests can mock a facet and readers of the
+// writable output surfaces), so tests can mock a facet and readers of the
 // code can see at a glance what a tool may touch.
 type BlockView interface {
 	BlockReader
@@ -166,7 +165,7 @@ type PropertyWriter interface {
 	SetProperty(key, value string)
 	// SetSourceStatus stamps the block's authoring lifecycle state. This is
 	// metadata about the source, not a rewrite of its runs, so it is available
-	// at the read-only Annotate tier (like SetProperty) — a check tool that
+	// at the read-only Annotate tier (like SetProperty), a check tool that
 	// clears a block stamps `written` without touching the source content.
 	SetSourceStatus(s model.SourceStatus)
 }

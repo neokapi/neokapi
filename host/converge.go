@@ -330,7 +330,7 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	}
 	if held := o.LeftForPersonUnits(); held > 0 {
 		fmt.Fprintf(w, "%d block(s) had %d drafts rejected, so kapi drafts them no more. "+
-			"They wait for a person to write the translation (kapi status --review lists them).\n", held, tool.MaxRejections)
+			"They wait for a person to write the translation, and do not ship until then.\n", held, tool.MaxRejections)
 	}
 	if o.Findings != nil {
 		o.formatPlaceholderFindings(w)

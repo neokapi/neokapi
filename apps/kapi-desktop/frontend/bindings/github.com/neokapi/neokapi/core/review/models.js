@@ -146,6 +146,16 @@ export class History {
              */
             this["unread"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Rejections are the earlier drafts of this block a reviewer rejected,
+             * oldest first, as its next draft's prompt carries them: the wording when
+             * it is still held, the reasons as phrases, and the note.
+             * @member
+             * @type {Rejection[] | undefined}
+             */
+            this["rejections"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -158,12 +168,16 @@ export class History {
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType6;
         const $$createField1_0 = $$createType8;
+        const $$createField3_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("prior" in $$parsedSource) {
             $$parsedSource["prior"] = $$createField0_0($$parsedSource["prior"]);
         }
         if ("match" in $$parsedSource) {
             $$parsedSource["match"] = $$createField1_0($$parsedSource["match"]);
+        }
+        if ("rejections" in $$parsedSource) {
+            $$parsedSource["rejections"] = $$createField3_0($$parsedSource["rejections"]);
         }
         return new History(/** @type {Partial<History>} */($$parsedSource));
     }
@@ -221,8 +235,8 @@ export class Judgement {
      * @returns {Judgement}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType10;
-        const $$createField3_0 = $$createType12;
+        const $$createField0_0 = $$createType12;
+        const $$createField3_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField0_0($$parsedSource["findings"]);
@@ -296,7 +310,7 @@ export class MemoryMatch {
      * @returns {MemoryMatch}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType13;
+        const $$createField4_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_runs" in $$parsedSource) {
             $$parsedSource["target_runs"] = $$createField4_0($$parsedSource["target_runs"]);
@@ -359,8 +373,8 @@ export class Neighbour {
      * @returns {Neighbour}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType13;
-        const $$createField2_0 = $$createType13;
+        const $$createField1_0 = $$createType15;
+        const $$createField2_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("source" in $$parsedSource) {
             $$parsedSource["source"] = $$createField1_0($$parsedSource["source"]);
@@ -445,9 +459,9 @@ export class Neighbourhood {
      * @returns {Neighbourhood}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType15;
-        const $$createField2_0 = $$createType15;
-        const $$createField3_0 = $$createType16;
+        const $$createField1_0 = $$createType17;
+        const $$createField2_0 = $$createType17;
+        const $$createField3_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("before" in $$parsedSource) {
             $$parsedSource["before"] = $$createField1_0($$parsedSource["before"]);
@@ -612,11 +626,11 @@ export class Point {
      * @returns {Point}
      */
     static createFrom($$source = {}) {
-        const $$createField8_0 = $$createType17;
-        const $$createField9_0 = $$createType19;
-        const $$createField10_0 = $$createType21;
-        const $$createField12_0 = $$createType23;
-        const $$createField13_0 = $$createType24;
+        const $$createField8_0 = $$createType19;
+        const $$createField9_0 = $$createType21;
+        const $$createField10_0 = $$createType23;
+        const $$createField12_0 = $$createType25;
+        const $$createField13_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coordinates" in $$parsedSource) {
             $$parsedSource["coordinates"] = $$createField8_0($$parsedSource["coordinates"]);
@@ -834,12 +848,61 @@ export class Provenance {
      * @returns {Provenance}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType26;
+        const $$createField0_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("origin" in $$parsedSource) {
             $$parsedSource["origin"] = $$createField0_0($$parsedSource["origin"]);
         }
         return new Provenance(/** @type {Partial<Provenance>} */($$parsedSource));
+    }
+}
+
+/**
+ * Rejection is one earlier draft of a block a reviewer rejected.
+ */
+export class Rejection {
+    /**
+     * Creates a new Rejection instance.
+     * @param {Partial<Rejection>} [$$source = {}] - The source object to create the Rejection.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["text"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["reasons"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Rejection instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Rejection}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType26;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("reasons" in $$parsedSource) {
+            $$parsedSource["reasons"] = $$createField1_0($$parsedSource["reasons"]);
+        }
+        return new Rejection(/** @type {Partial<Rejection>} */($$parsedSource));
     }
 }
 
@@ -915,21 +978,23 @@ const $$createType5 = PriorVersion.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
 const $$createType7 = MemoryMatch.createFrom;
 const $$createType8 = $Create.Nullable($$createType7);
-const $$createType9 = check$0.Finding.createFrom;
+const $$createType9 = Rejection.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = state$0.AIReviewFinding.createFrom;
+const $$createType11 = check$0.Finding.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = $Create.Array($Create.Any);
-const $$createType14 = Neighbour.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = $Create.Nullable($$createType14);
-const $$createType17 = $Create.Map($Create.Any, $Create.Any);
-const $$createType18 = Voice.createFrom;
-const $$createType19 = $Create.Nullable($$createType18);
-const $$createType20 = profile$0.TermRule.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = ProfileValidity.createFrom;
+const $$createType13 = state$0.AIReviewFinding.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = $Create.Array($Create.Any);
+const $$createType16 = Neighbour.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = $Create.Nullable($$createType16);
+const $$createType19 = $Create.Map($Create.Any, $Create.Any);
+const $$createType20 = Voice.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = profile$0.TermRule.createFrom;
 const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = $Create.Array($Create.Any);
-const $$createType25 = model$0.Origin.createFrom;
-const $$createType26 = $Create.Nullable($$createType25);
+const $$createType24 = ProfileValidity.createFrom;
+const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = $Create.Array($Create.Any);
+const $$createType27 = model$0.Origin.createFrom;
+const $$createType28 = $Create.Nullable($$createType27);

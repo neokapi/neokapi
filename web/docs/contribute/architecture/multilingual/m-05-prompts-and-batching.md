@@ -204,6 +204,29 @@ reused where the source has changed; it is included only when the memory's
 governance gate says the earlier answer was approved under rules that still
 apply, and it is folded into the fingerprint like every other section.
 
+A segment a reviewer rejected carries **`rejected_drafts`**: the earlier drafts
+of that block a reviewer rejected, each with the reasons (each reason code
+rendered as a phrase, `tool.RejectionReasonPhrase`) and the reviewer's note. The
+host supplies them under one configuration key, `review_feedback`, on every
+route, derived from the decision history the state ledger already keeps; the
+translate tool knows nothing of where they came from. A prompt carries the
+latest `tool.MaxRejectionsSent` (3) rejections of the block, oldest dropped.
+The ledger holds each rejected draft's hash, not its wording, so a draft's text
+is sent while the target file still holds it, and an earlier rejection is sent
+with its reasons and note alone. A new draft whose hash equals a rejected one is
+asked for once more, with that wording now shown as rejected.
+
+The feedback is folded into the stamp the draft carries
+(`tool.FeedbackFingerprint`, over each rejection's draft hash, reasons and
+note), and the staleness gate folds in the unit's current feedback the same
+way, so a changed note makes that unit stale and no other. The note is free
+text a reviewer typed: the request carrying it is redacted under the block's
+policy like every other string of the request, and the exchange record shows it
+as sent. A machine translation engine takes no instructions, so it is sent no
+feedback; the unit is still drafted again, stamped the same way, and the run
+says so once. After `tool.MaxRejections` (3) rejections of drafts of one source,
+kapi drafts the unit no more and reports it as left for a person.
+
 ## Prompt injection is contained structurally
 
 The text kapi translates is frequently not written by the person running kapi.

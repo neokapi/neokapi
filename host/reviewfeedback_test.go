@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	mttools "github.com/neokapi/neokapi/core/mt/tools"
+	"github.com/neokapi/neokapi/core/state"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,7 +43,10 @@ func feedbackProject(t *testing.T, provider string) (*App, *EnvCommand, string, 
 		},
 		Collections: []project.Collection{{Name: "docs", Path: "src/en.json", Target: "src/{lang}.json"}},
 		Flows: map[string]*flow.StepsSpec{
-			"converge": {Steps: []flow.FlowStep{{Tool: "translate", Config: map[string]any{"provider": provider}}}},
+			"converge": {Steps: []flow.FlowStep{
+				{Tool: "recycle"},
+				{Tool: "translate", Config: map[string]any{"provider": provider, "skip_matched": true}},
+			}},
 		},
 	}
 	recipe := filepath.Join(root, project.RecipeFileName)
@@ -112,6 +116,10 @@ func TestReviewFeedback_TheNextDraftIsToldWhy(t *testing.T) {
 func TestReviewFeedback_TheRejectedPairIsNotRecycled(t *testing.T) {
 	a, _, recipe, root := feedbackProject(t, "demo")
 	first := frenchTargets(t, root)
+	// The content memory learned the draft from the committed file before
+	// anyone rejected it, so it could answer the unit with it.
+	_, err := a.AbsorbProjectRecord(t.Context(), recipe)
+	require.NoError(t, err)
 	rejectGreeting(t, a, recipe, "")
 
 	sent := exchangesSent(t)
@@ -119,6 +127,24 @@ func TestReviewFeedback_TheRejectedPairIsNotRecycled(t *testing.T) {
 	runConverge(t, a, cmd, recipe)
 	require.NotEmpty(t, sent(), "the provider is asked for the rejected unit")
 	assert.NotEqual(t, first["greeting"], frenchTargets(t, root)["greeting"])
+}
+
+// The absorber does not learn a translation a reviewer rejected as that
+// unit's answer.
+func TestReviewFeedback_TheAbsorberSkipsARejectedPair(t *testing.T) {
+	a, _, recipe, root := feedbackProject(t, "demo")
+	rejectGreeting(t, a, recipe, "")
+	// The same translations laid out afresh, so the absorber reads the file
+	// again rather than passing over a digest it has seen.
+	targets := frenchTargets(t, root)
+	raw, err := json.MarshalIndent(targets, "", "    ")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "fr.json"), raw, 0o644))
+
+	res, err := a.AbsorbProjectRecord(t.Context(), recipe)
+	require.NoError(t, err)
+	assert.Equal(t, 1, res.Rejected)
+	assert.Equal(t, 1, res.Pairs, "the unit nobody rejected is learned")
 }
 
 // A changed note makes exactly that unit stale: its stamp folds in the
@@ -145,6 +171,45 @@ func TestReviewFeedback_AChangedNoteMakesOnlyThatUnitStale(t *testing.T) {
 	assert.NotEqual(t, before, tool.FeedbackFingerprint("ctx", edited), "a changed note moves the unit's stamp")
 	assert.Equal(t, "ctx", tool.FeedbackFingerprint("ctx", fb[tool.FeedbackUnitKey("src/en.json", "farewell")]),
 		"a unit nobody rejected keeps the governing stamp")
+}
+
+// The staleness gate reads the redraft as current, and a changed note on the
+// rejection it answered makes that unit stale and no other.
+func TestReviewFeedback_TheGateFoldsInTheFeedback(t *testing.T) {
+	a, _, recipe, root := feedbackProject(t, "demo")
+	rejectGreeting(t, a, recipe, "Too formal.")
+	a, cmd := feedbackApp(t, root)
+	runConverge(t, a, cmd, recipe)
+
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	units, err := a.UnitsFromProject(proj, root, "fr")
+	require.NoError(t, err)
+	gate, _, err := a.verifyStaleness(cmd, proj, root, units, nil)
+	require.NoError(t, err)
+	assert.True(t, gate.Pass, "the redraft was made under the feedback it carries: %v", gate.Findings)
+
+	st, err := a.OpenProjectState(t.Context(), root)
+	require.NoError(t, err)
+	entries, err := st.EntriesInScope(t.Context(), a.documentIndexOrEmpty(t.Context(), root).Scope(root, filepath.Join(root, "src", "en.json")))
+	require.NoError(t, err)
+	var rejection state.UnitState
+	for _, e := range entries {
+		if e.State.Unit == "greeting" && e.State.Decision.ReviewState == ReviewDecisionRejected {
+			rejection = e.State
+			break
+		}
+	}
+	require.NotEmpty(t, rejection.Unit)
+	rejection.Decision.Note = "Too formal; use tu."
+	rejection.Decision.At = "2099-01-01T00:00:00Z"
+	require.NoError(t, st.Put(t.Context(), rejection))
+
+	gate, _, err = a.verifyStaleness(cmd, proj, root, units, nil)
+	require.NoError(t, err)
+	require.False(t, gate.Pass, "a changed note makes the unit stale")
+	require.Len(t, gate.Findings, 1)
+	assert.Contains(t, gate.Findings[0].Message, "1 of 2 targets", "only the unit whose note changed")
 }
 
 // Machine translation is sent no feedback: the run says so once, the unit is

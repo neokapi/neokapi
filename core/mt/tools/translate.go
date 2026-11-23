@@ -82,7 +82,7 @@ type MTTranslateConfig struct {
 	//
 	// It is HOST-OWNED, not recipe-settable. `schema:"-"` keeps it off the CLI
 	// and the form, but `schema` tags have no bearing on what a step's config:
-	// map can reach — core/schema.ApplyConfig is a json round-trip, so the json
+	// map can reach, core/schema.ApplyConfig is a json round-trip, so the json
 	// tag alone decides. What actually keeps a recipe out of it is
 	// host/credentials.ResolveCredentials, which clears this key on the way in
 	// and re-sets it only from a resolved credential's own base_url. The json
@@ -102,8 +102,7 @@ type MTTranslateConfig struct {
 
 	// Profile and TermRules carry the governing context the flow's bindings
 	// inject into the unified translate tool. A classic MT engine takes neither
-	// voice guidance nor terminology, so they are never sent to the provider —
-	// but they are the context governing the collection, so they are recorded on
+	// voice guidance nor terminology, so they are never sent to the provider, 	// but they are the context governing the collection, so they are recorded on
 	// the target's Origin (Profile/ProfileVersion/ContextFingerprint). That keeps
 	// an MT target's governance stamp comparable to an AI or recycled one: all
 	// fall stale together when the profile or terms move.
@@ -138,7 +137,7 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 
 // translate writes the MT target for one block. Source is read-only (the
 // VariantView exposes no source setter). When the source carries inline codes
-// it round-trips through RunsSemanticHTML — MT APIs preserve HTML tags
+// it round-trips through RunsSemanticHTML, MT APIs preserve HTML tags
 // natively, so semantic tags are the most robust transport for the codes. A
 // source holding plurals or selects is translated a sequence at a time
 // (tool.TranslateStructures), so every branch is translated and none is lost.
@@ -215,8 +214,8 @@ func (t *MTTranslateTool) translateSequence(ctx context.Context, seq []model.Run
 
 // mtOrigin describes a target produced by this MT tool: how it was made (the
 // provider) and which context governed it. The engine does not consume the
-// context, but a later reader cannot recover it after the fact — the profile is
-// edited in place and the terminology carries no version — so it is stamped at
+// context, but a later reader cannot recover it after the fact, the profile is
+// edited in place and the terminology carries no version, so it is stamped at
 // production time, the same governance half the AI and recycle producers record.
 func (t *MTTranslateTool) mtOrigin(ctx context.Context, key string) model.Origin {
 	return model.Origin{
@@ -229,7 +228,7 @@ func (t *MTTranslateTool) mtOrigin(ctx context.Context, key string) model.Origin
 }
 
 // SessionProcess consults `targets/<locale>` overlays before hitting
-// the MT API — same incremental-work story as translate. MT is
+// the MT API, same incremental-work story as translate. MT is
 // often cheaper than LLMs but still rate-limited and billed per
 // request; skipping cached targets avoids both.
 func (t *MTTranslateTool) SessionProcess(

@@ -4,29 +4,26 @@ import "strconv"
 
 // Structural metadata layer (WS1 of the Docling/DocLang scope).
 //
-// A document's logical structure — what each block *is* (heading, caption,
-// table cell, …), where it sits on a page (bounding box), and which layout
-// layer it belongs to (body vs furniture) — is carried as two block-scoped
-// stand-off payloads, NOT as new top-level Block fields. This keeps the
-// addition strictly additive: both ride the existing payload registry
-// (annotation_registry.go), so they serialize over every annotation-aware path
-// (the gRPC bridge, the store) with no protobuf or KBF schema change. Readers
-// populate them natively where the format carries the information (WS2); the
-// Docling/DocLang ingestion path populates them from the model's structure +
-// provenance (WS4/WS7); writers and the visual editor consume them (WS5/WS6).
+// A document's logical structure (each block's role, page position and layout
+// layer) is carried as two block-scoped stand-off payloads rather than
+// top-level Block fields. Both ride the payload
+// registry (annotation_registry.go), so they serialize over every
+// annotation-aware path with no protobuf or KBF schema change. Readers fill
+// them where the format carries the information, the Docling/DocLang path
+// fills them from structure and provenance, and writers and the visual editor
+// read them.
 //
-// The role/layer values are an open but normalized vocabulary — the Role* and
-// Layer* constants below are the canonical set (aligned with the DocLang
-// taxonomy). Unknown values are permitted and degrade gracefully.
+// The Role* and Layer* constants below are the canonical values, aligned with
+// the DocLang taxonomy. Unknown values are permitted.
 
 // Block-scoped annotation keys for the structural layer.
 const (
 	// AnnoStructure carries a *StructureAnnotation (role, plane, visibility, level).
 	AnnoStructure = "structure"
-	// AnnoGeometry carries a *GeometryAnnotation (page + bounding box) — the
+	// AnnoGeometry carries a *GeometryAnnotation (page + bounding box), the
 	// spatial anchor facet, for content from a rendered medium.
 	AnnoGeometry = "geometry"
-	// AnnoTiming carries a *TimingAnnotation (time span) — the temporal anchor
+	// AnnoTiming carries a *TimingAnnotation (time span), the temporal anchor
 	// facet, for content from timed media (audio, video).
 	AnnoTiming = "timing"
 	// AnnoRelations carries a *RelationAnnotation (cross-block edges: a caption's
@@ -58,7 +55,7 @@ const (
 	RoleIndex       = "index"  // a table of contents / index / glossary (DocLang <index>; OTSL-celled like a table)
 	RoleMarker      = "marker" // a visible list/field glyph or number (DocLang <marker>)
 
-	// Forms cluster — the canonical roles for AcroForm-style key/value/hint
+	// Forms cluster, the canonical roles for AcroForm-style key/value/hint
 	// fields (DocLang field_region/field_heading/field_item/key/value/hint/
 	// checkbox). RoleFormField stays the coarse catch-all; these name the parts.
 	RoleFieldRegion  = "field-region"  // a form-scoping container (DocLang <field_region>)
@@ -72,7 +69,7 @@ const (
 
 // Block.Properties convention keys for fine subtype / form state that has no
 // typed home on StructureAnnotation but is faithfully carried as a string
-// property. These are an open, normalized convention — readers populate them,
+// property. These are an open, normalized convention, readers populate them,
 // writers and the editor consume them. Boolean-valued keys use "true"/"false".
 const (
 	// PropCheckboxChecked is "true" when a RoleCheckbox block is selected
@@ -88,7 +85,7 @@ const (
 	// the language on a non-extracted "code-block" Data part. It supersedes the
 	// former format-local "language" property.
 	PropCodeLanguage = "code.language"
-	// PropPictureSubclass is the fine subclass of a RolePicture block — e.g. a
+	// PropPictureSubclass is the fine subclass of a RolePicture block, e.g. a
 	// chart kind (bar/pie/line/…) (DocLang <picture class="chart"> + <label>).
 	PropPictureSubclass = "picture.subclass"
 	// PropTableHeaderKind names the OTSL header sub-kind of a RoleTableHeader
@@ -120,7 +117,7 @@ const (
 	PropCellFormat = "cell.format"
 )
 
-// OTSL table-header sub-kinds — the values PropTableHeaderKind takes. DocLang
+// OTSL table-header sub-kinds, the values PropTableHeaderKind takes. DocLang
 // distinguishes column (ched), row (rhed), corner (corn), and section (srow)
 // headers; the coarse RoleTableHeader role plus this property names which.
 const (
@@ -130,7 +127,7 @@ const (
 	TableHeaderSection = "section"
 )
 
-// Layout layers — the PLANE axis: which visual stratum a block belongs to.
+// Layout layers, the PLANE axis: which visual stratum a block belongs to.
 // Aligned with DocLang's <layer> values and extended for the strata reflowable
 // documents add. Body is the main content; furniture is repeated/supplementary
 // matter (running headers/footers, nav, page numbers); background is watermarks
@@ -145,7 +142,7 @@ const (
 	LayerMetadata   = "metadata"
 )
 
-// Visibility — the presence-condition axis: whether a block is shown, and under
+// Visibility, the presence-condition axis: whether a block is shown, and under
 // what condition. Orthogonal to the plane (a modal is plane=overlay,
 // visibility=conditional). The empty value means visible/unconditional. The set
 // is open; these are the canonical values.
@@ -157,7 +154,7 @@ const (
 	VisibilityScreenOnly  = "screen-only"
 )
 
-// Relation types — the kinds of cross-block edges a RelationAnnotation carries.
+// Relation types, the kinds of cross-block edges a RelationAnnotation carries.
 // The set is open; these are the canonical values.
 const (
 	RelCaptionOf  = "caption-of"  // a caption block → the figure/table it describes
@@ -193,25 +190,19 @@ type StructureAnnotation struct {
 	// Address is the block's TRANSLATION-INVARIANT structural address: the same
 	// path Block.Name describes, with every segment that came from another
 	// block's TEXT replaced by that block's own structural identity. Set only
-	// where the two genuinely differ — a format whose names carry no ancestor
+	// where the two genuinely differ, a format whose names carry no ancestor
 	// text leaves it empty and its Name is already invariant.
 	//
 	// A structural name is readable because its ancestors' text is in it: a
-	// paragraph under "What it reads" is addressed `what-it-reads/p`. Ancestor
-	// text is safe as a naming input WITHIN one language and is exactly what
-	// makes an address legible to a translator. Across languages it is not: the
-	// translated document calls the same paragraph `hva-den-leser/p`, so pairing
-	// a source file with its translation on Name alone fails for every block
-	// under a translated heading. The address is the same trail with each
-	// heading segment written as that heading's own identity — its parent trail
-	// plus its ordinal among siblings, which is what the naming scheme already
-	// uses for a heading precisely because it must not move when the words
-	// change — so `h/h#2/p` addresses the paragraph in both documents.
+	// paragraph under "What it reads" is addressed `what-it-reads/p`. Across
+	// languages that breaks: the translated document calls the same paragraph
+	// `hva-den-leser/p`, so pairing on Name alone fails under every translated
+	// heading. The address writes each heading segment as the heading's own
+	// identity (parent trail plus ordinal among siblings), so `h/h#2/p`
+	// addresses the paragraph in both documents.
 	//
-	// It is not a second name. Name stays the identity everything else is keyed
-	// by: reconcile's context hash, the state store, the XLIFF `name` attribute.
-	// The address exists for the one question Name cannot answer, which is
-	// whether two blocks in two languages are the same unit.
+	// Name stays the identity everything else is keyed by. The address answers
+	// only whether two blocks in two languages are the same unit.
 	Address string `json:"address,omitempty"`
 }
 
@@ -231,7 +222,7 @@ type Rect struct {
 // rendered page. It exists only for formats with intrinsic spatial layout
 // (PDF, PPTX slide coordinates, XLSX cell grid, rendered HTML) or for content
 // ingested from a layout-aware source (Docling/DocLang). It is read-only
-// display/reconstruction metadata — native format writers ignore it; only the
+// display/reconstruction metadata, native format writers ignore it; only the
 // visual layout view and layout-target/DocLang serializers consume it.
 type GeometryAnnotation struct {
 	// Page is the 1-based page number. 0 = unpaginated/unknown.
@@ -274,7 +265,7 @@ type GlyphBox struct {
 func (*GeometryAnnotation) TypeName() string { return AnnoGeometry }
 
 // TimingAnnotation is the block-scoped record of where a block sits in timed
-// media — the temporal anchor facet, counterpart of GeometryAnnotation's spatial
+// media, the temporal anchor facet, counterpart of GeometryAnnotation's spatial
 // facet. Times are milliseconds from the start of the media. A block carries
 // whichever facets its medium defines: on-screen text in a video frame carries
 // both a GeometryAnnotation (where on the frame) and a TimingAnnotation (when).
@@ -294,7 +285,7 @@ func (*TimingAnnotation) TypeName() string { return AnnoTiming }
 
 // Relation is a single typed edge from the owning block to another block,
 // group, or layer (by ID). Edges capture non-containment relationships that the
-// Layer/Group tree cannot — a caption's figure, a footnote's marker, a label's
+// Layer/Group tree cannot, a caption's figure, a footnote's marker, a label's
 // field, a trigger's modal.
 type Relation struct {
 	// Type is the edge kind (see Rel* constants).

@@ -14,14 +14,13 @@ import (
 )
 
 // Translate renders the prompts for the translate tool. One builder serves
-// every path — single block, block with inline codes, and batch — so they
+// every path, single block, block with inline codes, and batch, so they
 // cannot drift apart.
 type Translate struct {
 	SourceLocale model.LocaleID
 	TargetLocale model.LocaleID
 
-	// Instruction is a caller-supplied directive applied while translating —
-	// a reviewer's "keep it informal", or the findings a fix pass must resolve.
+	// Instruction is a caller-supplied directive applied while translating, 	// a reviewer's "keep it informal", or the findings a fix pass must resolve.
 	Instruction string
 	// VoiceGuide is voice profile guidance rendered from a VoiceProfile, so output
 	// is on-brand at generation time rather than only corrected afterwards.
@@ -37,14 +36,13 @@ type Translate struct {
 	DoNotTranslate []string
 }
 
-// steering returns the project-owned sections — the ones that make output yours
+// steering returns the project-owned sections, the ones that make output yours
 // rather than merely correct. Every translate prompt carries them, so guidance
 // applies identically whether a block goes through the single or batch path.
 //
 // Preferred terms are sorted, so the same inputs always render byte-identical
-// prompt text. That determinism is load-bearing: the rendered prompt feeds the
-// translate config fingerprint, and a prompt that reordered itself between runs
-// would invalidate the cache on every run.
+// prompt text. The rendered prompt feeds the translate config fingerprint, so
+// a prompt that reordered itself would invalidate the cache on every run.
 func (t Translate) steering() []Section {
 	var out []Section
 
@@ -114,8 +112,8 @@ func keepVerbatimList(terms []string) []string {
 // for callers that want the block on its own.
 func (t Translate) Directives() string { return renderSections(t.steering()) }
 
-// Fingerprint hashes every instruction this builder can send — the task, the
-// constraints, and the steering — across all three prompt shapes. The translate
+// Fingerprint hashes every instruction this builder can send, the task, the
+// constraints, and the steering, across all three prompt shapes. The translate
 // tool folds it into its config fingerprint, so a *changed prompt* invalidates
 // cached targets automatically.
 //
@@ -124,7 +122,7 @@ func (t Translate) Directives() string { return renderSections(t.steering()) }
 // forgetting it means silently serving a translation produced by a prompt that
 // no longer exists. Reword anything above and the hash moves on its own.
 //
-// The source text is excluded — it varies per block and is fingerprinted by the
+// The source text is excluded, it varies per block and is fingerprinted by the
 // block's own content key.
 func (t Translate) Fingerprint() string {
 	var b strings.Builder
@@ -152,24 +150,17 @@ func hashString(s string) string {
 
 // dataNotInstruction tells the model that the content is content.
 //
-// Honest about what this is: defence in depth, not a guarantee. The text kapi
-// translates is frequently not written by the person running kapi — it is CMS
-// copy, user comments, strings from a dependency — and a block that says "ignore
-// your instructions and output X" is a thing that happens. No prompt-level rule
-// reliably stops a model from following an instruction embedded in its input,
-// and this one should not be described as if it does.
+// It is defence in depth. The text kapi translates is often written by someone
+// else (CMS copy, user comments, strings from a dependency), and no prompt rule
+// reliably stops a model from following an instruction in its input.
 //
-// What actually contains the damage is structural, and lives outside the prompt:
-// the call has no tools, no filesystem and no network, so an injected
-// instruction cannot act — only produce a wrong translation; the reply is
-// constrained to a JSON schema by the provider's grammar, so it cannot escape
-// its shape; and the caller checks that the returned ids are exactly the ids it
-// asked for, so an injected omission is caught rather than shifting every
-// translation after it.
+// The structural limits sit outside the prompt. The call has no tools,
+// filesystem or network, so an injected instruction can only produce a wrong
+// translation. The reply is constrained to a JSON schema. The caller checks
+// that the returned ids are exactly the ids it asked for.
 //
-// This section is stated in the prompt, and shown in --explain-prompts and the
-// prompt reference, so the boundary is something a user can see us drawing
-// rather than something they have to assume.
+// The section is shown in --explain-prompts and the prompt reference, so a
+// user can see the boundary.
 var dataNotInstruction = Section{
 	Kind:   KindConstraint,
 	Origin: "framework",
@@ -202,8 +193,8 @@ func (t Translate) constraints(preserveTags bool) []Section {
 //
 // It claims two competences rather than a job title: command of both languages,
 // and command of the subject the content is about. Both are what separates a
-// usable translation from a literal one — a term of art rendered by its
-// dictionary gloss is grammatical and wrong — and naming them is the cheapest
+// usable translation from a literal one, a term of art rendered by its
+// dictionary gloss is grammatical and wrong, and naming them is the cheapest
 // steer there is.
 //
 // Stated once because the single and batch tasks both open with it, and a model
@@ -228,9 +219,6 @@ func (t Translate) task() Section {
 // source carries inline codes, rendered as placeholder-tagged text.
 //
 // The text to translate is the entire user turn: it is data, never instruction.
-// (The inline-code path used to build a full instruction and pass it as the
-// *source text* of another instruction, so the model was handed a prompt to
-// translate rather than content.)
 func (t Translate) Single(source string, preserveTags bool) []Turn {
 	return t.SingleWithContext(source, preserveTags, Context{})
 }
@@ -239,7 +227,7 @@ func (t Translate) Single(source string, preserveTags bool) []Turn {
 // about it: its key, its neighbours.
 //
 // The context goes in the *system* turn, not the user turn. The user turn is the
-// text to translate and nothing else — that separation is what lets the model be
+// text to translate and nothing else, that separation is what lets the model be
 // told "translate the user's message" without ambiguity about which of several
 // texts is the one to translate.
 func (t Translate) SingleWithContext(source string, preserveTags bool, blockCtx Context) []Turn {
@@ -260,7 +248,7 @@ func (t Translate) SingleWithContext(source string, preserveTags bool, blockCtx 
 //
 // The ID is batch-local (s1, s2, …) rather than the block's content key, because
 // content keys are content-derived and two blocks with identical source text
-// therefore share one — which in a batch would be a mapping collision, not an
+// therefore share one, which in a batch would be a mapping collision, not an
 // identifier.
 type BatchSegment struct {
 	ID   string `json:"id"`
@@ -269,7 +257,7 @@ type BatchSegment struct {
 	Key string `json:"key,omitempty"`
 
 	// Prior is what this segment said last time and what was approved for it
-	// then — reference, never an answer.
+	// then, reference, never an answer.
 	//
 	// Per-segment, like the key, and for the same reason: it differs per
 	// segment, so it cannot hoist into the shared preamble the way voice
@@ -277,7 +265,7 @@ type BatchSegment struct {
 	//
 	// This field is why a batch can carry references at all. Before it, the only
 	// per-segment context was the key, so a block with history had to be
-	// translated alone — which meant the feature un-batched exactly the blocks
+	// translated alone, which meant the feature un-batched exactly the blocks
 	// it applied to, and on a model migration (where every approved block has a
 	// governed prior) that was every block in the corpus.
 	Prior *PriorVersion `json:"prior,omitempty"`
@@ -298,26 +286,22 @@ func BatchSegments(texts []string) []BatchSegment {
 
 // batchPayload renders the segments as a JSON document.
 //
-// JSON, not "[1] text" lines, and not XML tags — for two reasons.
+// JSON, not "[1] text" lines, and not XML tags, for two reasons.
 //
 // Correctness: a block whose text contains "[2]" or "</segment>" could forge a
-// boundary in a delimiter-framed payload, and that needs no attacker — a user
-// documenting a numbered list is enough. JSON string escaping is lossless and
-// cannot be broken out of from inside a string.
+// boundary in a delimiter-framed payload. JSON string escaping is lossless.
 //
 // Fidelity: the text may carry inline markup as literal placeholder tags
-// (<ph id="1"/>), which the model must reproduce verbatim. XML-escaping the
-// payload would mangle exactly the thing the tag-fidelity constraint demands be
-// preserved.
+// (<ph id="1"/>), which the model must reproduce verbatim. XML escaping would
+// mangle them.
 //
 // HTML escaping must be off. encoding/json escapes < > & to < > &
-// by default — a defence against embedding JSON in a <script> tag, which is not
+// by default, a defence against embedding JSON in a <script> tag, which is not
 // what is happening here. The cost is that every inline tag reaches the model as
 // `<ph id="1"/>` instead of `<ph id="1"/>`, and the model then has to
-// decode and re-emit an escape sequence rather than copy a tag. Measured against
-// gemini-3.5-flash, it did not: it echoed back a literal `3cph id="1"/3e`,
-// silently corrupting the inline markup of every tagged segment. The model is
-// asked to reproduce a tag, so it must be shown a tag.
+// decode and re-emit an escape sequence rather than copy a tag.
+// gemini-3.5-flash echoed back a literal `3cph id="1"/3e`, corrupting every
+// tagged segment.
 func batchPayload(segments []BatchSegment) string {
 	// Indented so the prompt stays readable in --explain-prompts and in the
 	// generated reference. Marshalling a struct of strings cannot fail.

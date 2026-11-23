@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/ref"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/output"
 )
@@ -291,7 +292,7 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 	// A locale is named as ungoverned only when terms govern none of its scopes.
 	var locales []string
 	scopes, ungovernedScopes := map[string]int{}, map[string]int{}
-	awaitingDraft, awaitingReview, rejected := 0, 0, 0
+	awaitingDraft, awaitingReview, rejected, leftForPerson := 0, 0, 0, 0
 	for _, lc := range o.Locales {
 		stale += lc.Stale
 		unknown += lc.BasisUnknown
@@ -299,6 +300,7 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 		awaitingDraft += lc.StaleAwaitingDraft
 		awaitingReview += lc.StaleAwaitingReview
 		rejected += lc.RejectedAwaitingDraft
+		leftForPerson += lc.RejectedLeftForPerson
 		termsNotChecked += lc.TermsNotChecked
 		if scopes[lc.Locale] == 0 {
 			locales = append(locales, lc.Locale)
@@ -333,7 +335,11 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 	// it and the gate is a reviewer's refusal.
 	if rejected > 0 {
 		fmt.Fprintf(w, "\n%d block(s) were turned down in review and hold the wording that was refused. "+
-			"They do not ship. `kapi up` drafts them again.\n", rejected)
+			"They do not ship. `kapi up` drafts them again and tells an AI draft the reasons and note.\n", rejected)
+	}
+	if leftForPerson > 0 {
+		fmt.Fprintf(w, "\n%d block(s) had %d drafts turned down, so kapi drafts them no more. "+
+			"They wait for a person to write the translation, and do not ship until then.\n", leftForPerson, tool.MaxRejections)
 	}
 	// Named as units, because `kapi check` counts findings over the same tree and
 	// one unit can carry several. The percentages above are unaffected: these
@@ -649,7 +655,7 @@ func shipCell(lc LocaleCoverage, s *output.Styles) string {
 	// A rejection is read there too. The wording is present and at the `draft`
 	// rung, so a coverage bar can be satisfied over it, and a person has said it
 	// will not do.
-	if lc.RejectedAwaitingDraft > 0 {
+	if lc.RejectedAwaitingDraft > 0 || lc.RejectedLeftForPerson > 0 {
 		return s.Warn.Render("blocked: rejected")
 	}
 	// A failing guardrail is read the same way, and for the same reason: the
