@@ -420,7 +420,7 @@ func TestSplitCheckableAnnotations(t *testing.T) {
 func TestRelPath_RepoRelative(t *testing.T) {
 	for in, want := range map[string]string{
 		"core/formats/json/json_test.go":           "core/formats/json/json_test.go",
-		"/home/x/neokapi/core/formats/a/a_test.go": "core/formats/a/a_test.go",
+		"/srv/build/neokapi/core/formats/a/a_test.go": "core/formats/a/a_test.go",
 		"elsewhere/a_test.go":                      "a_test.go",
 	} {
 		if got := relPath(in); got != want {
