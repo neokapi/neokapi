@@ -12,17 +12,15 @@ import (
 
 // The freshness ref's component definitions.
 //
-// A component hash only means anything because both sides compute it the same
-// way, so each definition lives here once — in the framework-only bowrain/core
-// module, beside the block and context hashes — and the push client, the plugin
-// and the server all fold with it. A second definition with a different byte
-// layout would not fail loudly: it would make two correct sides disagree
-// forever and report a governance conflict on every write.
+// A component hash means something only because both sides compute it the
+// same way. Each definition lives here once, beside the block and context
+// hashes, and the push client, the plugin and the server all fold with it. A
+// second definition with another byte layout would fail silently: two correct
+// sides would disagree forever and report a governance conflict on every
+// write.
 //
-// The context component has no function of its own here: it is ContextHashOf
-// (context.go), which the push has negotiated on since the context content type
-// existed. Naming it twice would be the second definition this file exists to
-// prevent.
+// The context component has no function here: it is ContextHashOf
+// (context.go), which the push negotiates on.
 
 // DecisionsComponent folds a decision ledger into the ref's decisions
 // component: one identity per (item, unit, variant) for each record that
@@ -81,7 +79,7 @@ func decisionKey(d UnitDecision) string {
 // itself.
 //
 // It covers exactly the fields SameDecision compares, which is exactly what a
-// store treats as a change — so a record a store would skip as unchanged cannot
+// store treats as a change, so a record a store would skip as unchanged cannot
 // move the decisions component, and a component that moved means a decision
 // really did. Updated is excluded for that reason: it orders conflicting
 // records for last-writer-wins, and a replay that only bumped it writes
@@ -90,7 +88,7 @@ func DecisionIdentity(d UnitDecision) string {
 	return ref.Identity(decisionFields(d)...)
 }
 
-// SameDecision reports whether two records say the same thing about a unit —
+// SameDecision reports whether two records say the same thing about a unit:
 // the idempotency test a store applies before writing, and the equality the
 // decisions component is folded from.
 func SameDecision(a, b UnitDecision) bool {
@@ -218,7 +216,7 @@ func CarryReasons(stored, next UnitDecision) UnitDecision {
 // TermsComponent folds a terminology set into the ref's terms component: one
 // identity per concept and per relation, folded by ref.Fold.
 //
-// The concept identity covers the fields a concept diff is computed against —
+// The concept identity covers the fields a concept diff is computed against:
 // domain, definition, and each term's locale, text, status and grammatical
 // metadata. Volatile bookkeeping (timestamps, server-minted properties) is
 // excluded: a component that moved on a touch nobody made would send every

@@ -356,13 +356,10 @@ func TestReviewContext_HandEditReadsAsHuman(t *testing.T) {
 	assert.Empty(t, rewritten.Provenance.Origin.Engine)
 }
 
-// TestReviewContext_ReadsTheSameFactsAsTheHost seeds one unit here and holds
-// this assembler to the functions in core/review the host's assembler composes
-// (host.AssembleReviewContext, held to them by its own test), over the same
-// blocks, the same memory entry and the same decision: the neighbourhood in
-// document order with each neighbour's rung, the prior version and whether its
-// context still governs, the memory match on one scale, and the decision in
-// force with the target's origin. The point is each venue's own (a recipe on
+// TestReviewContext_ReadsTheSameFactsAsTheHost seeds one unit and holds this
+// assembler to the core/review functions the host's assembler composes, over
+// the same blocks, memory entry and decision. It compares the neighbourhood,
+// the prior version, the memory match and the decision in force. The point is each venue's own (a recipe on
 // the host, a workspace here) and the checks each venue runs are its own, so
 // those two are pinned by the cases above rather than compared.
 func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {

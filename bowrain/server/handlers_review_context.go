@@ -19,24 +19,13 @@ import (
 
 // The context a reviewer decides in, for ONE unit, gathered once.
 //
-// The shape is the review model every review client reads (core/review): the
-// five layers Kapi Desktop, the CLI and the MCP tools receive from the host,
-// spelled the same way and on the same scales, so a reviewer comparing the
-// two surfaces reads the same facts for one unit. The platform adds beside it
-// the rows only the platform holds: the unit's own address here, the
-// positioned term hits its document surface marks, the block's notes, and the
-// unit's voice score against its profile's bar.
+// The shape is the review model every review client reads (core/review), the
+// same five layers the host gives Kapi Desktop, the CLI and the MCP tools. The
+// platform adds the rows only it holds: the unit's address, the positioned
+// term hits, the block's notes and the unit's voice score.
 //
-// The pieces are resolved elsewhere for other purposes: the queue holds the
-// voice profile id that enables its button, the bulk memory pass reads the
-// content-memory match, and the review handler writes the ledger row naming
-// who decided a unit and when. The endpoint gathers them once.
-//
-// It is per-unit rather than per-queue-entry deliberately. A queue page already
-// carries a full block payload per row; the neighbours would roughly triple it,
-// and the memory and term lookups are per-block matcher runs, 500 of them for
-// one page of the queue. A reviewer decides one unit at a time, so the context
-// is fetched one unit at a time.
+// The endpoint is per unit: a reviewer decides one unit at a time, and the
+// neighbours and lookups would roughly triple a queue page.
 
 // reviewContextResponse is the review model for one (block, locale) pair, with
 // the platform's own rows beside it.
@@ -319,8 +308,8 @@ func (s *Server) reviewHistory(
 
 	if vr, versioned := tm.(memory.VersionReader); versioned {
 		// The target's own stamp first, then what the decision record says
-		// governed the answer — the same order the host's assembler reads
-		// them in, so a unit reviewed on the platform and one reviewed in a
+		// governed the answer. The host's assembler reads them in the same
+		// order, so a unit reviewed on the platform and one reviewed in a
 		// project are judged governed by the same rule.
 		fingerprint := review.GoverningFingerprint(sb.Block, loc, recorded)
 		h.Prior = review.PriorVersionOf(ctx, vr, sb.Block, source, loc, fingerprint)

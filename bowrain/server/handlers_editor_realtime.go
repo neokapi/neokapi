@@ -122,7 +122,7 @@ type blockReviewInput struct {
 
 // blockReviewOutcome reports what the review did to one block.
 type blockReviewOutcome struct {
-	// HadTarget is false when the locale had no target at all — an
+	// HadTarget is false when the locale had no target at all: an
 	// un-review with nothing to demote.
 	HadTarget bool
 	// From is the rung the target held before the call, for the audit trail.
@@ -244,9 +244,9 @@ func (s *Server) applyBlockReview(ctx context.Context, c *echo.Context, in block
 		return blockReviewOutcome{}, nil
 	}
 
-	// The review is a DECISION, and decisions live in the ledger — with the
+	// The review is a DECISION, and decisions live in the ledger, with the
 	// decider's identity, the time, and the revision of the translation it
-	// blesses — not only in the projected status the write above landed. The
+	// blesses, as well as in the projected status the write above landed. The
 	// ledger is what travels to the client on pull, where the same record
 	// lands in the project's committed state.
 	out.Recorded = s.recordReviewDecision(ctx, c, in.Ledger, in.ProjectID, in.Stream, sb, req.TargetLocale, out.Status, req, out.Changed)
@@ -268,7 +268,7 @@ type PresenceRequest struct {
 // carries the coarse "who is looking at which item/block" signal used by the
 // backend-mediated presence indicators.
 //
-// POST /:ws/:id/presence  { "item_name": "file.html", "block_id": "b-1" }
+// POST /:ws/:id/presence { "item_name": "file.html", "block_id": "b-1" }
 func (s *Server) HandleUpdatePresence(c *echo.Context) error {
 	if s.EventBus == nil {
 		return c.NoContent(http.StatusNoContent) // presence is best-effort
@@ -309,7 +309,7 @@ func (s *Server) HandleUpdatePresence(c *echo.Context) error {
 }
 
 // emitEditorBlockChange publishes an editor.block.<changeType> event so watchers
-// refresh the affected block. Mirrors the event the gRPC editor used to emit.
+// refresh the affected block.
 func (s *Server) emitEditorBlockChange(c *echo.Context, projectID, blockID, itemName, stream, changeType string) {
 	userName, _ := c.Get("name").(string)
 	userID, _ := c.Get("user_id").(string)

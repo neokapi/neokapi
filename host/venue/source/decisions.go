@@ -206,25 +206,20 @@ func (c *BowrainSourceConnector) checkoutKeyed(ctx context.Context, pulled []ven
 
 // recordPulledDecisions reconciles the server's decision ledger into the
 // project's: a record newer than the local one (by Updated) is recorded; an
-// older or identical one is left alone. A recorded decision is durable at once,
-// and `kapi commit` writes it into the shards along with everything else the
-// checkout holds.
+// older or identical one is left alone. `kapi commit` writes it into the
+// shards.
 //
-// Recording is idempotent twice over. An entry is addressed by what it says, so
-// a decision the ledger already holds is held once however often it arrives,
-// and the venue serves its whole ledger on every pull page rather than from the
-// stream position (the pull route lists it in full beside the page of changes).
-// So a project whose store was deleted gets its pulled decisions back on the
-// next pull, and a project that pulls twice holds them once. The position
-// guards the same property from the other side: it is bound to the store that
-// consumed it (refcache.Cache.BindStore), so a new store replays the feed
-// rather than asking for the changes after a position it never reached.
+// Recording is idempotent. An entry is addressed by what it says, so a
+// decision the ledger already holds is held once however often it arrives.
+// The venue serves its whole ledger on every pull page, so a project whose
+// store was deleted gets its decisions back on the next pull. The position is
+// bound to the store that consumed it (refcache.Cache.BindStore), so a new
+// store replays the feed rather than resuming from a position it never
+// reached.
 //
-// It also reports how many records it could NOT record. Skipping a decision
-// whose variant does not parse is a forward-compatibility case rather than a
-// corruption, so it is not fatal, but it must be counted: the reviewer's
-// verdict and its attribution are then absent from this checkout with nothing
-// anywhere saying so.
+// It also counts the records it could not record. A decision whose variant
+// does not parse is skipped, which is not fatal, and the count says the
+// reviewer's verdict is missing from this checkout.
 func (c *BowrainSourceConnector) recordPulledDecisions(ctx context.Context, pulled []venue.UnitDecision) (recorded, skipped int, err error) {
 	if len(pulled) == 0 {
 		return 0, 0, nil
@@ -250,7 +245,7 @@ func (c *BowrainSourceConnector) recordPulledDecisions(ctx context.Context, pull
 		k := state.Key{Scope: d.ItemName, Unit: d.Unit, Variant: variant}
 		if prev, ok := st.Get(ctx, k); ok {
 			if prev.Updated != "" && d.Updated != "" && d.Updated <= prev.Updated {
-				continue // local record is as new or newer — leave it
+				continue // local record is as new or newer: leave it
 			}
 		}
 		next := state.UnitState{
