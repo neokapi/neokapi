@@ -7,7 +7,7 @@
 # One issue per workflow, labelled `scheduled-failure` and titled
 # "Scheduled run failing: <workflow>". A failure opens it, or reopens it and
 # comments, naming the jobs that failed. The workflow's next passing scheduled
-# run closes it. A job failing every night is one thread, not thirty.
+# run closes it.
 #
 # A dispatch with a run id replays that run through the same path, so the
 # reporter can be tested against a known scheduled run.
