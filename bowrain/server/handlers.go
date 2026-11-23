@@ -23,6 +23,9 @@ type HealthResponse struct {
 	Version   string `json:"version"`
 	Commit    string `json:"commit"`
 	BuildDate string `json:"build_date"`
+	// Disposable is true on a server started as a disposable test stack
+	// (BOWRAIN_DISPOSABLE_STACK); the e2e suites refuse any other.
+	Disposable bool `json:"disposable,omitempty"`
 }
 
 // InfoResponse returns server info including mode, build metadata, and reference data.
@@ -88,10 +91,11 @@ type ErrorResponse struct {
 // HandleHealth returns a simple health check.
 func (s *Server) HandleHealth(c *echo.Context) error {
 	return c.JSON(http.StatusOK, HealthResponse{
-		Status:    "ok",
-		Version:   version.Version,
-		Commit:    version.Commit,
-		BuildDate: version.BuildDate,
+		Status:     "ok",
+		Version:    version.Version,
+		Commit:     version.Commit,
+		BuildDate:  version.BuildDate,
+		Disposable: s.Config.DisposableStack,
 	})
 }
 
@@ -138,7 +142,7 @@ func (s *Server) readiness(ctx context.Context) (map[string]ComponentStatus, str
 	// An open circuit is a real, currently-enforced degradation: the platform is
 	// declining calls to that dependency right now. Surface it as its own
 	// component so /ready and the ctrl dashboard say "degraded" for the same
-	// reason the request path is returning 503s — never "ready" while work is
+	// reason the request path is returning 503s, and never "ready" while work is
 	// being deferred. It is never "unhealthy": the platform is still serving,
 	// and a load balancer must not pull an instance out for an upstream outage
 	// every instance shares.
@@ -216,8 +220,8 @@ func (s *Server) checkAI() ComponentStatus {
 
 	// A server-configured platform provider (the hosted cloud's Bedrock task role)
 	// makes AI available even when the local file-based CredentialStore is empty
-	// and per-workspace keys live in Postgres. Without this, hosted deployments —
-	// which never populate the file store — reported ai:down and failed readiness.
+	// and per-workspace keys live in Postgres. Without this, hosted deployments
+	// (which never populate the file store) reported ai:down and failed readiness.
 	if s.Config.PlatformProvider != "" {
 		providers = append(providers, AIProviderStatus{
 			Name:       s.Config.PlatformProvider,
