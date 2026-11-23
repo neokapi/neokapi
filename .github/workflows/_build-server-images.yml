@@ -59,7 +59,8 @@ jobs:
           cache-from: |
             type=gha,scope=bowrain-server
             type=gha,scope=bowrain-worker
-          cache-to: type=gha,mode=max,scope=bowrain-server
+          # Only a run on main saves the layer cache; any other ref reads it.
+          cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max,scope=bowrain-server' || '' }}
 
       - name: Build and push worker image
         uses: docker/build-push-action@v7
@@ -77,4 +78,5 @@ jobs:
           cache-from: |
             type=gha,scope=bowrain-worker
             type=gha,scope=bowrain-server
-          cache-to: type=gha,mode=max,scope=bowrain-worker
+          # Only a run on main saves the layer cache; any other ref reads it.
+          cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max,scope=bowrain-worker' || '' }}

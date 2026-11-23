@@ -40,6 +40,7 @@ export interface FixSheetProps {
     card: DeckCard,
     reason: FixReason | undefined,
     ai: boolean,
+    signal?: AbortSignal,
   ) => Promise<FixCandidates | null>;
   onFix: (card: DeckCard, runs: Run[], reasons: FixReason[]) => void;
   onReject: (card: DeckCard, reasons: FixReason[], note: string) => void;
@@ -95,7 +96,7 @@ export function FixSheetBody({
 
   const fixes = useQuery({
     queryKey: ["fixes", card.key, card.targetRevision, reason ?? "", ai],
-    queryFn: () => loadFixes(card, reason, ai),
+    queryFn: ({ signal }) => loadFixes(card, reason, ai, signal),
     enabled: !rejecting,
     // An offline reviewer still edits and rejects; fixes need the server.
     retry: false,

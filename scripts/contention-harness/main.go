@@ -1,62 +1,40 @@
 // Command contention-harness measures SQLite write contention for the
-// project store, to answer one question with numbers: can the four
-// per-project databases — the content memory, the terms store, the block
-// cache and the working store — live in ONE file without the single-writer
-// lock that SQLite enforces per file turning into starvation?
+// project store. It answers one question with numbers: can the content
+// memory, the terms store, the block cache and the working store live in ONE
+// file without SQLite's per-file write lock turning into starvation?
 //
-// Today those four files partition the writers. A converge run writing
-// memory entries, an extraction holding a long purge-and-refill transaction
-// over the block cache, and a status poller reading unit state never contend
-// with one another, because they hold write locks on different files. Merged
-// into `.kapi/work/store.db` they all queue behind one lock, and `busy_timeout`
-// (5s, set by core/storage) is the only thing between that queue and an
-// error.
+// In separate files the writers never contend. A converge run writing memory
+// entries, an extraction refilling the block cache and a status poller hold
+// locks on different files. In one `work/store.db` in the
+// checkout's state directory they queue behind one lock. Only `busy_timeout`
+// (5s, set by core/storage) stands between that queue and an error.
 //
-// The harness runs the real stores — core/blockstore/sqlitestore,
-// memory.SQLiteStore, terms.SQLiteStore, core/state.WorkStore — against a
-// synthetic project at dogfood scale, in six topologies. The first four vary
-// only WHICH FILES the subsystems share, keeping today's write discipline —
-// a connection pool per subsystem and deferred transactions:
+// The harness runs the real stores against a synthetic project at dogfood
+// scale. The modes:
 //
-//	-mode=split       the four files of today (the baseline)
-//	-mode=merged      every subsystem opened against one file
-//	-mode=hybrid      everything but the block cache merged
-//	-mode=work-apart  everything but the working store merged
+//	-mode=split             four files (the baseline)
+//	-mode=merged            one file
+//	-mode=hybrid            one file, block cache apart
+//	-mode=work-apart        one file, working store apart
+//	-mode=merged-immediate  one shared handle, BEGIN IMMEDIATE writes
+//	-mode=merged-gated      the above, plus a write gate
+//	-mode=projectdb         core/projectdb.Open, the shipped store
 //
-// The last two vary the write discipline as well, and are what a merged store
-// would actually ship with — one shared handle per process, in place of a pool
-// per subsystem:
-//
-//	-mode=merged-immediate  one shared handle, BEGIN IMMEDIATE on every write tx
-//	-mode=merged-gated      the above, plus an in-process write gate
-//
-// The distinction matters because a deferred transaction that reads before it
-// writes has to upgrade its lock, and SQLite refuses that upgrade IMMEDIATELY
-// rather than consulting busy_timeout — so the failure mode the first four
-// modes measure is partly an artefact of the write discipline, not of merging.
-//
-// The seventh mode measures what was actually built:
-//
-//	-mode=projectdb   core/projectdb.Open — the shipped store, its shipped stores
-//
-// It is the acceptance run. Where merged-gated hand-rolls the discipline in this
-// file (a hand-built DSN, shim writers, an explicit permit around each library
-// call), projectdb opens the real handle through storage.ProjectOptions() and
-// drives the real memory, terms, block and working stores over it, with the
-// permit taken inside core/storage where no call site can forget it. If the two
-// modes disagree, the design was measured and the implementation is not it.
+// The first four keep a pool per subsystem and deferred transactions. A
+// deferred transaction that reads before it writes must upgrade its lock.
+// SQLite refuses that upgrade at once rather than consulting busy_timeout, so
+// part of what they measure is the write discipline. projectdb is the
+// acceptance run: if it disagrees with merged-gated, the implementation is not
+// the design that was measured.
 //
 // For each topology it reports, per workload, op counts, errors split into
-// lock contention versus everything else, and the latency distribution.
+// lock contention and the rest, and the latency distribution.
 //
-// Run it as:
+// Spell every tag in one -tags flag: `go` does not union repeated flags, and
+// the content memory's FTS5 rebuild, one of the workloads here, is what
+// detects the tag being dropped. Run it as
 //
 //	go run -tags fts5 ./scripts/contention-harness
-//
-// The fts5 tag must be spelled in one comma-separated -tags flag together
-// with any other tag: `go` does not union repeated -tags flags, and the
-// content memory's FTS5 rebuild — one of the workloads measured here — is
-// exactly what detects it being dropped.
 package main
 
 import (
@@ -124,7 +102,7 @@ type topology string
 const (
 	// topoSplit is today's layout: four files, four independent write locks.
 	topoSplit topology = "split"
-	// topoMerged puts every subsystem in `.kapi/work/store.db` — the proposal.
+	// topoMerged puts every subsystem in `work/store.db` in the checkout's state directory, the proposal.
 	topoMerged topology = "merged"
 	// topoHybrid merges everything except the block cache, on the assumption
 	// that the block cache is the hottest writer. It is the first fallback
@@ -152,7 +130,7 @@ const (
 	// of small ones.
 	topoMergedGated topology = "merged-gated"
 	// topoProjectDB is the shipped store: core/projectdb.Open, whose handle
-	// comes from storage.OpenWith(path, storage.ProjectOptions()) — the same
+	// comes from storage.OpenWith(path, storage.ProjectOptions()), the same
 	// two properties merged-gated models by hand, but taken inside
 	// core/storage, where every write a subsystem issues passes through them
 	// whether or not the subsystem knows they exist. The subsystem stores are
@@ -287,7 +265,7 @@ func openImmediate(path string) (*storage.DB, error) {
 }
 
 // projectDB is one process's handle on the project store: a single pool every
-// subsystem shares, and — in the gated topology — a single permit every write
+// subsystem shares, and, in the gated topology, a single permit every write
 // transaction in the process passes through.
 //
 // The permit is a buffered channel rather than a mutex because Go's channel
@@ -337,7 +315,7 @@ func (p *projectDB) Close() error { return p.db.Close() }
 // harness's model of the constructor the merged store would grow; if the
 // numbers say merge, that constructor is the change to make.
 
-// overlayWriter writes a batch of overlays in ONE transaction — a converge
+// overlayWriter writes a batch of overlays in ONE transaction, a converge
 // worker's unit of block-store work.
 type overlayWriter interface {
 	writeBatch(ctx context.Context, overlays []blockstore.Overlay) error
@@ -738,8 +716,8 @@ func makeUnitState(i int) state.UnitState {
 // ─── The shipped store ──────────────────────────────────────────
 
 // projectLayout describes the synthetic project to core/projectdb. The paths
-// are the same ones newStorePaths computes for the merged topologies —
-// `.kapi/work/store.db` and `.kapi/state/` — because project.Layout computes them the
+// are the same ones newStorePaths computes for the merged topologies ,
+// `work/store.db` in the checkout's state directory and `.kapi/state/`, because project.Layout computes them the
 // same way; the assertion in openRealProject keeps that true.
 func projectLayout(root string) project.Layout {
 	return project.Layout{
@@ -912,8 +890,8 @@ func seedMemoryAndTerms(ctx context.Context, p storePaths, cfg config) error {
 		return fmt.Errorf("seed: rebuild search index: %w", err)
 	}
 
-	// The terms store shares the memory pool when the topology merges them —
-	// the case the decision is about — and opens its own otherwise.
+	// The terms store shares the memory pool when the topology merges them ,
+	// the case the decision is about, and opens its own otherwise.
 	termsDB := db
 	if p.terms != p.memory {
 		termsDB, err = storage.Open(p.terms)
@@ -972,7 +950,7 @@ const (
 // topology so the comparison is like for like:
 //
 //	process A (this one)  W1 converge, W3 the content memory's FTS rebuild,
-//	                      W4 the decision loop — the stages of one kapi run,
+//	                      W4 the decision loop, the stages of one kapi run,
 //	                      sharing one handle where the topology shares handles
 //	process B (child)     W2 re-extraction, holding the long transaction
 //	process C (child)     W5 the status poller, read only
@@ -1134,7 +1112,7 @@ func runWorkloads(ctx context.Context, root string, p storePaths, cfg config) ([
 // 14 ms apiece: every Add maintains the FTS5 tables row by row, and FTS5
 // tokenization is the expensive part. The other half go through
 // BulkAddWithStream, one transaction for the batch, which is what a converge
-// worker can trivially do instead — it already has the entries in hand. The
+// worker can trivially do instead, it already has the entries in hand. The
 // two lines in the report are directly comparable: same locale, same entries,
 // same run, half the rows each.
 func convergeSim(ctx context.Context, ps *parentStores, cfg config, rec *recorder) error {
@@ -1254,10 +1232,9 @@ func decisionsSim(ctx context.Context, ps *parentStores, cfg config, rec *record
 // It issues the purge and the refill as the same SQL sqlitestore does, in one
 // transaction, because the purge here is SCOPED to the collections being
 // re-extracted. blockstore.BlockPurger.DeleteBlocks drops every block in the
-// store — correct for a whole-project re-extraction, but it would leave the
-// other workloads reading an empty corpus for the rest of the run, measuring
-// contention against a store that no longer resembles the one the decision is
-// about.
+// store, which suits a whole-project re-extraction. Here it would leave the
+// other workloads reading an empty corpus for the rest of the run, against a
+// store that no longer resembles the one the decision is about.
 func runExtractChild(ctx context.Context, root string, p storePaths, cfg config) error {
 	rec := newRecorder()
 	rec.stream(nW2Extract)
@@ -1268,7 +1245,7 @@ func runExtractChild(ctx context.Context, root string, p storePaths, cfg config)
 	case cfg.mode.real():
 		// The shipped store's own handle, and no wrapper: BeginTx below takes
 		// the permit itself and holds it for the whole transaction. The SQL is
-		// the same as every other mode's, so the row stays comparable — the
+		// the same as every other mode's, so the row stays comparable, the
 		// blockstore.Session interface can only purge the WHOLE cache, which
 		// would leave the other workloads reading an empty corpus.
 		pdb, err := openRealProject(ctx, root, p)
@@ -1404,7 +1381,7 @@ func (c *childHandle) wait() ([]streamStats, error) {
 
 // runStatusChild is the child's whole life: open the databases a status read
 // touches, poll them, and report on stdout. It never migrates and never
-// writes — the only lock it takes beyond the shared read lock is whatever
+// writes, the only lock it takes beyond the shared read lock is whatever
 // storage.Open's journal-mode pragma needs.
 func runStatusChild(ctx context.Context, p storePaths, cfg config) error {
 	rec := newRecorder()

@@ -217,13 +217,14 @@ export function CoordinatesTreemap({
           ? { fill: colors.muted, ink: colors.ink }
           : shadeOf(colors, share);
         const outline = outlineOf(cell, colors);
+        const coverage = cell.sourceOnly
+          ? t("plan.coordinates.sourceOnly")
+          : t("plan.coordinates.established", { percent: Math.round(share * 100) });
         const label = [
           t("plan.coordinates.tileLabel", {
             name: zoomed === null && cell.product ? `${cell.product} ${name}` : name,
             blocks: blocks(cell.blocks),
-            coverage: cell.sourceOnly
-              ? t("plan.coordinates.sourceOnly")
-              : t("plan.coordinates.established", { percent: Math.round(share * 100) }),
+            coverage,
           }),
           outline === colors.added
             ? t("plan.coordinates.outlineNew")
@@ -294,6 +295,8 @@ export function CoordinateCellSheet({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const noProduct = t("plan.coordinates.noProduct");
+  const noChannel = t("plan.coordinates.noChannel");
   return (
     <Modal
       visible={!!cell}
@@ -306,8 +309,8 @@ export function CoordinateCellSheet({
           <View className="flex-row items-center justify-between px-5 pt-5 pb-3">
             <Text className="text-foreground flex-1 text-lg font-semibold">
               {t("plan.coordinates.cellTitle", {
-                product: cell.product || t("plan.coordinates.noProduct"),
-                channel: cell.channel || t("plan.coordinates.noChannel"),
+                product: cell.product || noProduct,
+                channel: cell.channel || noChannel,
               })}
             </Text>
             <Pressable

@@ -19,11 +19,11 @@ import (
 )
 
 // ExtractionsDirName is the subdirectory of CacheDir() that holds per-batch
-// extraction state (AD-017). The full path is .kapi/work/cache/extractions/.
+// extraction state (AD-017). The full path is work/cache/extractions/ in the checkout's state directory.
 const ExtractionsDirName = "extractions"
 
 // CollectionsDirName is the subdirectory of CacheDir() that holds overlay
-// layers per content collection. The full path is .kapi/work/cache/collections/.
+// layers per content collection. The full path is work/cache/collections/ in the checkout's state directory.
 const CollectionsDirName = "collections"
 
 // ExtractionManifestFilename is the manifest filename inside each
@@ -55,7 +55,7 @@ type ExtractionManifest struct {
 	Generator     ExtractionGenerator `yaml:"generator" json:"generator"`
 	CreatedAt     string              `yaml:"createdAt" json:"createdAt"`
 	// InputsHash fingerprints everything besides a source file's own bytes that
-	// shapes its extracted output — the recipe (format config, redaction,
+	// shapes its extracted output, the recipe (format config, redaction,
 	// segmentation), the content memory the prefill drew from, and the output options. An
 	// incremental re-extract skips a file only when this matches a prior batch
 	// AND the file's SourceHash matches, so a changed recipe or content memory re-extracts.
@@ -122,7 +122,7 @@ func (s *ExtractionLeverageStats) Add(other ExtractionLeverageStats) {
 }
 
 // ExtractionsRoot returns the directory that holds every extraction batch
-// for the project (.kapi/work/cache/extractions/).
+// for the project (work/cache/extractions/ in the checkout's state directory).
 func ExtractionsRoot(layout Layout) string {
 	return layout.ExtractionsDir()
 }
@@ -285,12 +285,12 @@ func HashBytes(b []byte) string {
 // ExtractionInputsHash fingerprints the non-source inputs that shape a file's
 // extracted *structure*: the recipe (format config, redaction, segmentation) and
 // the output options. An incremental re-extract reuses a file only when this
-// matches a prior batch AND the file's own SourceHash is unchanged — so editing
+// matches a prior batch AND the file's own SourceHash is unchanged, so editing
 // the recipe correctly forces a re-extract.
 //
 // It deliberately omits the content memory. The content memory affects only the *prefilled* targets (a
 // leverage convenience), not the source blocks or skeleton, and extract itself
-// touches the content memory cache on the first run — folding it in would make the hash
+// touches the content memory cache on the first run, folding it in would make the hash
 // differ every time and defeat reuse. A reused file therefore keeps the prefill
 // it had when it was first extracted; `--force` re-extracts to refresh it from a
 // changed content memory.

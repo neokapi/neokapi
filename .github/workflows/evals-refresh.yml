@@ -62,6 +62,8 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
+          # setup-go has no restore-only mode, so only a run on main uses its cache.
+          cache: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install libicu (framework cgo dependency)
         uses: ./.github/actions/apt-install
@@ -98,7 +100,7 @@ jobs:
       - name: Mint the bot App token
         id: bot
         if: env.HAS_BOT_APP == 'true'
-        uses: actions/create-github-app-token@v3.3.0
+        uses: actions/create-github-app-token@v3.4.0
         with:
           client-id: ${{ secrets.BOT_APP_CLIENT_ID }}
           private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
@@ -113,6 +115,8 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
+          # setup-go has no restore-only mode, so only a run on main uses its cache.
+          cache: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install libicu (framework cgo dependency)
         uses: ./.github/actions/apt-install
@@ -182,7 +186,7 @@ jobs:
       - name: Mint the bot App token
         id: bot
         if: env.HAS_BOT_APP == 'true'
-        uses: actions/create-github-app-token@v3.3.0
+        uses: actions/create-github-app-token@v3.4.0
         with:
           client-id: ${{ secrets.BOT_APP_CLIENT_ID }}
           private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
@@ -208,6 +212,8 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
+          # setup-go has no restore-only mode, so only a run on main uses its cache.
+          cache: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install libicu (framework cgo dependency)
         if: steps.gate.outputs.run == 'true'

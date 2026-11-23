@@ -120,7 +120,7 @@ describe("the origin sheet", () => {
     expect(screen.getByTestId("origin-path")).toHaveTextContent(".kapi/terms.json");
 
     expect(await screen.findByTestId("origin-item-current")).toBeTruthy();
-    expect(load).toHaveBeenCalledWith("0op-terms", undefined);
+    expect(load).toHaveBeenCalledWith("0op-terms", undefined, expect.any(AbortSignal));
     expect(screen.getByTestId("origin-waiting")).toHaveTextContent("60 of 61 wait for review");
     expect(screen.getByText("This card")).toBeTruthy();
     expect(screen.getAllByTestId("origin-item")).toHaveLength(1);
@@ -161,6 +161,6 @@ describe("the origin sheet", () => {
 
     await fireEvent.press(await screen.findByTestId("origin-more"));
     expect(await screen.findByText("Bowrain")).toBeTruthy();
-    expect(load).toHaveBeenLastCalledWith("0op-terms", "2");
+    expect(load).toHaveBeenLastCalledWith("0op-terms", "2", expect.any(AbortSignal));
   });
 });

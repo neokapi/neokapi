@@ -28,7 +28,7 @@ jobs:
       - name: Mint the bot App token
         id: bot
         if: env.HAS_BOT_APP == 'true'
-        uses: actions/create-github-app-token@v3.3.0
+        uses: actions/create-github-app-token@v3.4.0
         with:
           client-id: ${{ secrets.BOT_APP_CLIENT_ID }}
           private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
@@ -47,8 +47,8 @@ jobs:
           version: "1.7.0"
           node-version: "26"
           cache: true
-          # A pull request restores the dependency cache and saves none.
-          cache-save: ${{ github.event_name != 'pull_request' }}
+          # Only a run on main saves the dependency cache; any other ref restores it.
+          cache-save: ${{ github.ref == 'refs/heads/main' }}
           cache-dependency-path: pnpm-lock.yaml
           run-install: false
 

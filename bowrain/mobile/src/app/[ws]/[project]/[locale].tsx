@@ -126,7 +126,8 @@ export default function DeckScreen() {
   // The deck by page, which the screen opens on when the server has it.
   const pages = useQuery({
     queryKey: ["deck-pages", ws, project, locale, collection ?? null, sample],
-    queryFn: () => client.deckPages(scope, locale, { collection, sample }),
+    queryFn: ({ signal }) =>
+      client.with({ signal }).deckPages(scope, locale, { collection, sample }),
   });
   const refetchPages = pages.refetch;
   useFocusEffect(
@@ -158,8 +159,10 @@ export default function DeckScreen() {
 
   const deck = useInfiniteQuery({
     queryKey: ["deck", ws, project, locale, collection ?? null, rule ?? null],
-    queryFn: ({ pageParam }) =>
-      client.deck(scope, locale, { limit: PAGE, cursor: pageParam, collection, rule }),
+    queryFn: ({ pageParam, signal }) =>
+      client
+        .with({ signal })
+        .deck(scope, locale, { limit: PAGE, cursor: pageParam, collection, rule }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor,
   });
@@ -240,7 +243,7 @@ export default function DeckScreen() {
   // collection when this one runs out.
   const collections = useQuery({
     queryKey: collectionsKey(ws, project, locale),
-    queryFn: () => client.deckCollections(scope, locale),
+    queryFn: ({ signal }) => client.with({ signal }).deckCollections(scope, locale),
   });
   const whereOf = useCallback(
     (c: DeckCard) =>
@@ -522,10 +525,13 @@ export default function DeckScreen() {
         card={details}
         scope={scope}
         where={details ? whereOf(details) : []}
-        load={(card) => client.reviewContext(scope, card.blockId, card.locale)}
+        load={(card, signal) =>
+          client.with({ signal }).reviewContext(scope, card.blockId, card.locale)
+        }
         onClose={() => setDetails(null)}
         inContext={{
-          loadContainer: (card) => client.reviewContainer(scope, card.blockId, card.locale),
+          loadContainer: (card, signal) =>
+            client.with({ signal }).reviewContainer(scope, card.blockId, card.locale),
           onApprove: (card) => record(card, "approve"),
           // The fix sheet opens over the deck, so the context sheet steps aside.
           onFix: (card) => {
@@ -533,15 +539,19 @@ export default function DeckScreen() {
             setFixing({ card, mode: "fix", flown: false });
           },
           decided: decidedBlocks,
-          loadIndex: (collectionId) => client.storyIndex(scope, collectionId),
-          loadConcept: (conceptId) => client.concept(scope.workspace, conceptId),
+          loadIndex: (collectionId, signal) =>
+            client.with({ signal }).storyIndex(scope, collectionId),
+          loadConcept: (conceptId, signal) =>
+            client.with({ signal }).concept(scope.workspace, conceptId),
         }}
       />
 
       <FixSheet
         card={fixing?.card ?? null}
         mode={fixing?.mode}
-        loadFixes={(card, reason, ai) => client.fixCandidates(scope, card, { reason, ai })}
+        loadFixes={(card, reason, ai, signal) =>
+          client.with({ signal }).fixCandidates(scope, card, { reason, ai })
+        }
         onClose={closeSheet}
         onFix={(card, runs, reasons) => {
           record(card, "fix", { runs, reasons });

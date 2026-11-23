@@ -9,7 +9,13 @@ import { createDecisionTestClient } from "./testProviders";
 
 const mockFeedDecisions = jest.fn<Promise<FeedDecisions>, unknown[]>();
 jest.mock("../lib/auth", () => ({
-  useAuth: () => ({ client: { feedDecisions: (...a: unknown[]) => mockFeedDecisions(...a) } }),
+  useAuth: () => {
+    const client = {
+      feedDecisions: (...a: unknown[]) => mockFeedDecisions(...a),
+      with: () => client,
+    };
+    return { client };
+  },
 }));
 
 const card = (n: number): DeckCard => ({

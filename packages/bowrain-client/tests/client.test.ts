@@ -1,17 +1,21 @@
-import { describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { ChangeResult } from "@neokapi/contract-types";
 import type { Run } from "@neokapi/kapi-format";
 
 import {
   approveSet,
+  correctionLanded,
   createBowrainClient,
   diffRuns,
   placeholderForm,
   fixSet,
   isNetworkError,
+  MODEL_READ_TIMEOUT_MS,
   NetworkError,
+  READ_TIMEOUT_MS,
   readOutcome,
+  RequestTimeoutError,
   sameContent,
   rejectSet,
   revisionsOf,
@@ -908,5 +912,178 @@ describe("the same content", () => {
 
   it("writes inline codes as a read shows them", () => {
     expect(placeholderForm([{ text: "a" }, ph, { text: "b" }])).toBe('a<x id="1/"/>b');
+  });
+});
+
+describe("read bounds", () => {
+  type Seen = { url: string; signal?: AbortSignal | null };
+
+  /** A fetch that never answers until its signal aborts. */
+  function hanging(seen: Seen[]) {
+    return ((url: string, init?: RequestInit) => {
+      seen.push({ url, signal: init?.signal });
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () =>
+          reject(new DOMException("aborted", "AbortError")),
+        );
+      });
+    }) as typeof fetch;
+  }
+
+  it("ends a read that has no answer within its bound, as a timeout and not a network error", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: hanging([]),
+      readTimeoutMs: 20,
+    });
+    const err = await client.reviewHome().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RequestTimeoutError);
+    expect(isNetworkError(err)).toBe(false);
+    expect((err as RequestTimeoutError).timeoutMs).toBe(20);
+  });
+
+  it("lets a slow answer arrive within the bound", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async () => {
+        await new Promise((r) => setTimeout(r, 30));
+        return new Response(JSON.stringify([]), { status: 200 });
+      }) as typeof fetch,
+      readTimeoutMs: 200,
+    });
+    await expect(client.workspaces()).resolves.toEqual([]);
+  });
+
+  it("ends a read whose body stalls halfway", async () => {
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: (async (_url: string, init?: RequestInit) => {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode("[1,"));
+            init?.signal?.addEventListener("abort", () =>
+              controller.error(new DOMException("aborted", "AbortError")),
+            );
+          },
+        });
+        return new Response(body, { status: 200 });
+      }) as typeof fetch,
+      readTimeoutMs: 30,
+    });
+    const err = await client.workspaces().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RequestTimeoutError);
+  });
+
+  it("cancels a read when the caller's signal aborts, without calling it a timeout", async () => {
+    const seen: Seen[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: hanging(seen),
+      readTimeoutMs: 5_000,
+    });
+    const abort = new AbortController();
+    const pending = client
+      .with({ signal: abort.signal })
+      .workspaces()
+      .catch((e: unknown) => e);
+    await new Promise((r) => setTimeout(r, 5));
+    abort.abort();
+    const err = await pending;
+    expect(err).not.toBeInstanceOf(RequestTimeoutError);
+    expect(err).not.toBeInstanceOf(NetworkError);
+    expect(seen[0].signal?.aborted).toBe(true);
+  });
+
+  it("sends a write without a bound", async () => {
+    const seen: Seen[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      readTimeoutMs: 1,
+      fetch: (async (url: string, init?: RequestInit) => {
+        seen.push({ url, signal: init?.signal });
+        await new Promise((r) => setTimeout(r, 20));
+        return new Response("{}", { status: 200 });
+      }) as typeof fetch,
+    });
+    const err = await client
+      .applyChanges({ workspace: "acme", project: "p1" }, approveSet(card))
+      .catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(RequestTimeoutError);
+    expect(seen).toHaveLength(1);
+  });
+});
+
+describe("a read that waits for a model", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const scope = { workspace: "ws", project: "p" };
+  const fixCard = { blockId: "b1", locale: "nb" };
+
+  /** A fetch that answers `body` after `ms`, or ends when its signal aborts. */
+  function answersAfter(ms: number, seen: string[]) {
+    return ((url: string, init?: RequestInit) => {
+      seen.push(url);
+      return new Promise<Response>((resolve, reject) => {
+        const timer = setTimeout(
+          () => resolve(new Response(JSON.stringify({ candidates: [] }), { status: 200 })),
+          ms,
+        );
+        init?.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+    }) as typeof fetch;
+  }
+
+  it("lets an AI fix suggestion answer after the read bound and before its own", async () => {
+    vi.useFakeTimers();
+    const seen: string[] = [];
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: answersAfter(45_000, seen),
+    });
+    const pending = client.fixCandidates(scope, fixCard, { ai: true });
+    await vi.advanceTimersByTimeAsync(45_000);
+    await expect(pending).resolves.toMatchObject({ candidates: [] });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toContain("ai=true");
+    expect(READ_TIMEOUT_MS).toBeLessThan(45_000);
+  });
+
+  it("ends an AI fix suggestion at its own bound", async () => {
+    vi.useFakeTimers();
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: answersAfter(10 * 60_000, []),
+    });
+    const pending = client.fixCandidates(scope, fixCard, { ai: true }).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(MODEL_READ_TIMEOUT_MS);
+    const err = await pending;
+    expect(err).toBeInstanceOf(RequestTimeoutError);
+    expect((err as RequestTimeoutError).timeoutMs).toBe(MODEL_READ_TIMEOUT_MS);
+  });
+
+  it("keeps the read bound for fix suggestions that call no model", async () => {
+    vi.useFakeTimers();
+    const client = createBowrainClient({
+      baseUrl: "http://server",
+      getAccessToken: () => "t",
+      fetch: answersAfter(45_000, []),
+    });
+    const pending = client.fixCandidates(scope, fixCard).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MS);
+    const err = await pending;
+    expect(err).toBeInstanceOf(RequestTimeoutError);
+    expect((err as RequestTimeoutError).timeoutMs).toBe(READ_TIMEOUT_MS);
   });
 });

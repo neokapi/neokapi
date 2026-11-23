@@ -187,7 +187,7 @@ func WithRun(err error, run string) error {
 var ErrNewerVault = errors.New("a newer kapi wrote this vault")
 
 // FileVault is a [Vault] backed by a JSON sidecar file. It is meant to live
-// in a project's vault directory (.kapi/vault/, prepared owner-only and out of
+// in a project's vault directory (the vault directory in the checkout's state directory, prepared owner-only and out of
 // version control by project.Layout.PrepareVault) so secrets stay on the
 // machine. Writes are buffered in memory; call [FileVault.Flush]
 // (or [FileVault.Close]) to persist.

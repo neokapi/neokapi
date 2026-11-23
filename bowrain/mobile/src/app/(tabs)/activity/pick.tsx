@@ -50,11 +50,14 @@ function WorkspaceProjects({
 export default function PickProject() {
   const { t } = useTranslation();
   const { client } = useAuth();
-  const workspaces = useQuery({ queryKey: ["workspaces"], queryFn: () => client.workspaces() });
+  const workspaces = useQuery({
+    queryKey: ["workspaces"],
+    queryFn: ({ signal }) => client.with({ signal }).workspaces(),
+  });
   const projects = useQueries({
     queries: (workspaces.data ?? []).map((w) => ({
       queryKey: ["projects", w.slug],
-      queryFn: () => client.projects(w.slug),
+      queryFn: ({ signal }) => client.with({ signal }).projects(w.slug),
     })),
   });
 

@@ -119,6 +119,14 @@ through the local stack's device flow and refuses any server but a local one.
 Each flow starts from a clean install (`e2e/subflows/launch.yaml`) and signs
 in through the real Keycloak. Record each flow's result line.
 
+Leave the source alone while the flows run. An edit, or a `vp check --fix`
+that reformats a file in the bundle, makes Metro push a Fast Refresh, and a
+tap that lands during the refresh is lost: the `reject` flow then fails with
+its sheet unopened or open. The recording shows the blue "Refreshing..."
+banner at the tap. `e2e/seed.mjs` deletes the projects of earlier runs, so
+run one seeded suite at a time against one stack, never two simulators at
+once.
+
 ## A change to a response shape
 
 The app persists its query cache. A release build drops a cache written by

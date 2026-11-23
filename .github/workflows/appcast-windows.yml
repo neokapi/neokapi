@@ -53,6 +53,8 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.4"
+          # setup-go has no restore-only mode, so only a run on main uses its cache.
+          cache: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Publish Windows appcast
         env:

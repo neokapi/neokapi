@@ -201,7 +201,7 @@ export default function ReviewPlanScreen() {
   const scope = { workspace: ws, project };
   const plan = useQuery({
     queryKey: reviewPlanKey(ws, project),
-    queryFn: () => client.reviewPlan(scope),
+    queryFn: ({ signal }) => client.with({ signal }).reviewPlan(scope),
   });
   const pull = usePullRefresh(() => qc.invalidateQueries({ queryKey: reviewPlanKey(ws, project) }));
 
