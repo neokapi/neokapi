@@ -40,9 +40,9 @@ Re-record vocabulary:
 | `harness/demos/04-i18n-react-catalogs` | Narration: `kapi translate` + built-in checks verify placeholders/plurals survived. | re-dub | none | n/a | same |
 | `harness/demos/06-multi-format-publishing` | Narration: hardcoded provider name dropped. | re-dub | none | n/a | same |
 | `harness/demos/08-mcp-tools` | Narration + caption: MCP tools are the same registry tools `up` and the porcelain drive; `exec` named as the CLI's raw doorway. Caption text changed → re-render required. | re-dub + re-render (`make harness-videos`); no re-capture (tool calls and stats artifact unchanged; stats already landed) | none | n/a | same |
-| `harness/demos/kapi-desktop-content` | Narration (oneshot track): SYNC column callout (conditional phrasing; the sample project is not server-connected, so the capture stays valid) and auto re-extract in the outro. | re-dub (full oneshot voice track) + re-render | none (no UI re-capture needed) | regenerate via `make l10n`; ids `files`, `outro` pending in the content memory (sidecar demo.nb.yaml falls back to EN for them) | same |
-| `harness/demos/kapi-desktop-flows` | Narration re-framed: built-in default flow is the zero-config hero; project flows are the escape hatch. Beats/screens unchanged. | re-dub (full oneshot track) + re-render | none | regenerate via `make l10n`; three scenes recovered from the content memory, the re-framed rest pending (EN fallback in demo.nb.yaml) | same |
-| `harness/demos/kapi-desktop-projects` | Narration: per-locale ladder (drafted → translated → reviewed) toward the gate; "Bring up to date" as the project's one main action. | re-dub (full oneshot track) + re-render | none | regenerate via `make l10n`; ids `project-home`, `content`, `outro` pending in the content memory (EN fallback in demo.nb.yaml) | same |
+| `harness/demos/kapi-desktop-content` | Narration (oneshot track): SYNC column callout (conditional phrasing; the sample project is not server-connected, so the capture stays valid) and auto re-extract in the outro. | re-dub (full oneshot voice track) + re-render | none (no UI re-capture needed) | regenerate with the dogfood loop; ids `files`, `outro` pending in the content memory (sidecar demo.nb.yaml falls back to EN for them) | same |
+| `harness/demos/kapi-desktop-flows` | Narration re-framed: built-in default flow is the zero-config hero; project flows are the escape hatch. Beats/screens unchanged. | re-dub (full oneshot track) + re-render | none | regenerate with the dogfood loop; three scenes recovered from the content memory, the re-framed rest pending (EN fallback in demo.nb.yaml) | same |
+| `harness/demos/kapi-desktop-projects` | Narration: per-locale ladder (drafted → translated → reviewed) toward the gate; "Bring up to date" as the project's one main action. | re-dub (full oneshot track) + re-render | none | regenerate with the dogfood loop; ids `project-home`, `content`, `outro` pending in the content memory (EN fallback in demo.nb.yaml) | same |
 
 ## P3: bowrain assets
 
@@ -83,19 +83,17 @@ Re-record vocabulary:
 
 The recording-only desktop app (`apps/kapi-desktop/frontend/src/demo/`) is what
 the `kapi-desktop-*` walkthroughs show on screen. Its copy and sample data were
-swept to the fixed vocabulary, and two on-screen paths were wrong as well as
-retired: the demo listed named stores under `~/.config/kapi/termbases/` and
-`~/.config/kapi/tm/`, where `namedResourceDir` puts them under `terms/` and
-`memory/` (`apps/kapi-desktop/backend/memory.go`). Every published desktop
-capture therefore shows a directory that does not exist.
+swept to the fixed vocabulary. Two on-screen paths were also wrong: the demo
+listed named stores under directories with the retired names, where
+`namedResourceDir` puts them under `terms/` and `memory/`
+(`apps/kapi-desktop/backend/memory.go`). Every published desktop capture
+therefore shows a directory that does not exist.
 
-Authoring is done; **no recording was performed**. Narration needed no change;
-the demo scripts were already clean, and their `beat`/step ids (`open-termbases`,
-`open-glossary`) are recorded identifiers that stay.
+Authoring is done; **no recording was performed**. Narration needed no change.
 
 | Asset | What changed on screen | Re-record | Infra | Publish |
 | --- | --- | --- | --- | --- |
-| `harness/demos/kapi-desktop-explorer` | Home copy ("behind your localisation" → "behind your content"), and the Terms list + opened-store subtitle now read `~/.config/kapi/terms/<name>.db` instead of the non-existent `termbases/`. Beats `intro`, `open-termbases`, `open-glossary` all show changed pixels. | full re-capture; **no re-dub**, narration text is unchanged | none: `demo.html` runs in-browser with sample data, no backend | `make harness-videos-staged` → `make publish-cdn-videos` |
+| `harness/demos/kapi-desktop-explorer` | Home copy (now "behind your content"), and the Terms list and opened-store subtitle read `~/.config/kapi/terms/<name>.db`. The intro and both Terms beats show changed pixels. | full re-capture; **no re-dub**, narration text is unchanged | none: `demo.html` runs in-browser with sample data, no backend | `make harness-videos-staged` → `make publish-cdn-videos` |
 | `harness/demos/kapi-desktop-{config,content,flows,projects}` | Not known to show the changed screens, but all five demos boot the same `demo.html` entry. | spot-check each capture's opening frames for the home copy before deciding; re-capture only those that show it | none | same |
 
 Storybook fixtures were swept in the same pass and are **not** recorded, so they
@@ -115,6 +113,36 @@ reviewed before any capture.
 | `harness/demos/bowrain-web-project-screens` (NEW) | New walk `bowrainProjectScreensWalk`: the projects list opens a project on its Map; Run on everything; a file in the Reader; Fix files a source proposal and its id opens the proposals list; Rules with an assignment, a keep, and Kept by. | record-first-time | server stack (`make -C bowrain stack-up-web`), `make -C harness seed`, and `BOWRAIN_SCREENS_PROJECT_ID`: a project whose context holds undecided suggestions, synced with `context: {backend: bowrain}` and `kapi context sync`, with a file carrying a fixable finding. `make -C harness seed` builds that project (Help Center, connected and synced from a scratch checkout) and writes `BOWRAIN_SCREENS_PROJECT_ID` to `harness/.env`. The `assign` beat needs the team queue's assignee picker. | none yet: the dogfood loop writes the sidecar once the narration is approved | `make harness-videos-staged` → `make publish-cdn-bowrain-videos` |
 | `harness/demos/kapi-desktop-context` | New `preview` beat after `share`: Preview opens on the Map tab, then the Rules tab with Kept by listing the rules kept earlier in the walk. Earlier beats unchanged. | re-capture (the walk gains a beat) + re-dub (one new narration line in the oneshot track) | none: the sample project, no server | n/a: no nb sidecar | `make harness-videos-staged` → `make publish-cdn-videos` |
 
+## kapi up summary lines (2026-11-22), scripts only
+
+A `kapi up` pass line lists what the pass drafted, recycled or held for
+review, for example `pass 1 done · drafted 97 · recycled 23 · waiting for
+review 60`. The count of units written to target files appears on the
+`materialized` line and in the summary as `produced N`, beside
+`waiting for review N`. `kapi status --json` carries an `at_least` object per
+language, and `kapi up --plan` names the AI provider. Every asset below shows
+these lines. The scripts are updated; **nothing was captured, narrated or
+rendered**. Each scene was run on `bin/kapi` with the `demo` provider, and no
+scene command fails.
+
+| Asset | What changed on screen | Re-record | Infra | Norwegian (nb) | Publish |
+| --- | --- | --- | --- | --- | --- |
+| `harness/demos/s1-compass-converge` | `kapi up` pass lines; summary `produced 9`, `waiting for review 38` | full re-capture; narration unchanged | none | unchanged | `make harness-videos-staged` → `make publish-cdn-videos` |
+| `harness/demos/s1-compass-ship-gate` | both `kapi up` runs; the second shows `from stored drafts 19` and `produced 19`. The `review` caption and narration now say that kapi up writes the held Dutch drafts to `site/locales/nl.json` | full re-capture + re-dub `review` | none | `review` falls back to English until the dogfood loop translates it | same |
+| `harness/demos/s2-tidewatch-build-output` | `kapi up` pass lines; summary `produced 60`, `waiting for review 60` | full re-capture; narration unchanged | none | unchanged | same |
+| `harness/demos/s2-tidewatch-ci` | the same `kapi up` lines; the `coverage` artifact grows from 53 to 63 lines with `at_least`. Check the report still fits its 1200 by 900 frame | full re-capture; narration unchanged | none | unchanged | same |
+| `harness/demos/kapi-bilingual-workflow` and `web/walkthroughs/kapi-bilingual-workflow` | `kapi merge` reports `memory_new=1 memory_updated=4` in place of `memory_new=5` | re-capture; narration unchanged | none | unchanged | same |
+| `web/walkthroughs/kapi-up-loop` | `kapi up` shows `recycled 3 · waiting for review 3` and `produced 0`. Its narration now says that kapi up holds the three French translations for review. A closing `kapi up` step writes them to `messages.fr.json` (`produced 3`) | record-first-time | none | n/a | `make harness-videos-staged` → `make publish-cdn-videos` |
+| `web/walkthroughs/kapi-project-workflow` | `kapi up` shows `produced 3` on the pass line and in the summary | re-capture; narration unchanged | none | n/a | same |
+| `web/walkthroughs/kapi-under-the-hood` | `kapi merge` reports `memory_updated=3` in place of `memory_new=3` | re-capture; narration unchanged | none | n/a | same |
+| `web/walkthroughs/kapi-explain-prompts` | the prompt gains a section with the block's key, given as context | re-capture; narration unchanged | none | n/a | same |
+| `harness/demos/bowrain-cli-getting-started` | `kapi up` pass lines, read from `host/upprogress.go` and not run | full re-capture; narration unchanged | server stack + `make harness-seed`; build `bin/kapi-bowrain` from the same commit as `bin/kapi`, or `kapi up` refuses the server run | n/a | `make harness-videos-staged` → `make publish-cdn-bowrain-videos` |
+| `harness/demos/07-global-launch-many-languages` | the `plan` artifact gains `provider`, and a `credential` error when the take has no key; the `status` artifact gains `at_least` for four languages | re-capture at the next recording | AI provider key | n/a | `make harness-videos-staged` → `make publish-cdn-videos` |
+
+The other scripted demos and walkthroughs print the same output apart from
+paths, ids and timings. In `kapi-overview`, `kapi tools` now lists the tools in
+a stable order.
+
 ## Known gaps / follow-ups
 
 - **Browser-only steps.** The wasm build mirrors the native command set
@@ -130,5 +158,5 @@ reviewed before any capture.
   configures the project target template accordingly (`src/{lang}.json`);
   confirm during the re-record.
 - The desktop demo app's vocabulary sweep (section above) is authored but
-  unrecorded: published `kapi-desktop-explorer` frames still show
-  `~/.config/kapi/termbases/`, a path the app never used.
+  unrecorded: published `kapi-desktop-explorer` frames still show a store
+  directory under a retired name, a path the app never used.
