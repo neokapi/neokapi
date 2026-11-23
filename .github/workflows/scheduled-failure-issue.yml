@@ -32,15 +32,20 @@ on:
       run_id:
         description: "Id of a finished scheduled run of a listed workflow, to replay (opens or updates only)"
         required: true
+      workflow:
+        description: "Name of that run's workflow, as listed above; the replay checks it against the run"
+        required: true
 
 permissions:
   contents: read
   issues: write
+  # Read the reported run and its jobs.
+  actions: read
 
-# A failure and a pass of the same workflow never interleave. A replay does
-# not know its workflow until it reads the run, so replays queue together.
+# Reports for one workflow never interleave, a replay's included: a replay
+# names its workflow, and the step checks the name against the run.
 concurrency:
-  group: scheduled-failure-${{ github.event.workflow_run.name || 'replay' }}
+  group: scheduled-failure-${{ github.event.workflow_run.name || inputs.workflow }}
   cancel-in-progress: false
 
 jobs:
@@ -69,6 +74,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RUN_JSON: ${{ toJSON(github.event.workflow_run) }}
           REPLAY_RUN_ID: ${{ inputs.run_id }}
+          REPLAY_WORKFLOW: ${{ inputs.workflow }}
         run: |
           set -euo pipefail
 
@@ -91,6 +97,10 @@ jobs:
           echo "$workflow run $run_id (attempt $attempt): event $event, conclusion $conclusion, replay $replay"
 
           if [ "$replay" = true ]; then
+            if [ "$workflow" != "$REPLAY_WORKFLOW" ]; then
+              echo "::error::run ${run_id} belongs to ${workflow}, not ${REPLAY_WORKFLOW}; refusing to replay it"
+              exit 1
+            fi
             if ! WORKFLOW="$workflow" python3 - <<'EOF'
           import os, sys, yaml
           doc = yaml.safe_load(open(".github/workflows/scheduled-failure-issue.yml"))
