@@ -127,6 +127,9 @@ export function kapiIsolationEnv(): Record<string, string> {
     KAPI_PLUGINS_DIR: KAPI_ISO_PLUGINS,
     KAPI_PLUGINS_DIR_ONLY: "1",
     KAPI_NO_PROJECT: "1",
+    // Empty: the parse cache stays in each sandbox checkout's own state,
+    // whatever the shell running the harness exports.
+    KAPI_PARSE_CACHE_DIR: "",
     // A walkthrough depicts a person working, and kapi reads a coding agent's
     // marker variables out of the shell this runs in.
     KAPI_ACTOR: "person",

@@ -76,6 +76,13 @@
       "names": [
         "key entries by build, record shape and config in separate columns"
       ]
+    },
+    "3": {
+      "description": "key entries by the path the project names, and record the checkout and the digests of the recorded files",
+      "identity": "8adbbf222f6defb11846eb4bd7f3b6db",
+      "names": [
+        "key entries by the path the project names, and record the checkout and the digests of the recorded files"
+      ]
     }
   },
   "graph": {

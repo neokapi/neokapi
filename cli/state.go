@@ -32,7 +32,7 @@ can, and a person brings the rest across:
   kapi state import   takes the state an earlier kapi left inside the
                       checkout's .kapi/ folder
   kapi state relink   takes the state kapi recorded for another location
-  kapi state path     prints the checkout's state directory, for a CI cache
+  kapi state path     prints the checkout's state directory and its parse cache
 
 Both import and relink show every file they would take, with its size and
 the server any sync state was issued by, ask at the terminal (or take --yes),
@@ -101,10 +101,14 @@ the files came from is removed once they are in place.`,
 	pathCmd := &cobra.Command{
 		Use:   "path",
 		Short: "Print the directory that holds the checkout's state",
-		Long: `Print the directory that holds the checkout's own state. A CI workflow that
-caches kapi's work between runs caches this directory, keyed by the CI
-system's own cache key.`,
-		Example: `  kapi state path -p .`,
+		Long: `Print the directory that holds the checkout's own state. With --json the
+answer also names the parse cache directory, parse_cache: work/cache/docs in
+the state directory, or the directory KAPI_PARSE_CACHE_DIR names.
+
+A CI workflow caches the parse cache only. It sets KAPI_PARSE_CACHE_DIR to a
+fixed directory and caches that, because the state directory changes with
+every fresh checkout and also holds the sync state and the redaction vault.`,
+		Example: "  kapi state path -p .\n  kapi state path -p . --json",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			recipePath, err := RequireProjectPath(cmd)

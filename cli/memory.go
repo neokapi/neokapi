@@ -54,7 +54,7 @@ Outside a project and with no flag: same as --local (uses ./memory.db).`,
 	for _, cmd := range []*cobra.Command{importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd, annotateCmd} {
 		AddResourceFlags(cmd)
 	}
-	// The project's content memory is a subsystem of `.kapi/work/store.db`
+	// The project's content memory is a subsystem of `work/store.db` in the checkout's state directory
 	// rather than a file a caller can name, so with no resource flag these
 	// resolve the project, and -p is how you say WHICH, exactly as for every other
 	// project-aware verb. It also matters under KAPI_NO_PROJECT, where the

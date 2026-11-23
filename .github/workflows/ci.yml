@@ -1419,6 +1419,8 @@ jobs:
         uses: ./.github/actions/apt-install
         with:
           packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
+      - name: "Guard self-test: a test that writes into the home is caught"
+        run: ./scripts/check-test-isolation.sh --self-test
       - name: "Guard: Go tests write nothing under the user's home"
         run: ./scripts/check-test-isolation.sh
 
