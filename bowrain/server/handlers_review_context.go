@@ -389,6 +389,7 @@ func reviewProvenanceOf(d *venue.UnitDecision, sb *venue.StoredBlock, loc model.
 		p.By = d.DecidedBy
 		p.At = d.DecidedAt
 		p.Note = d.Note
+		p.Reasons = d.Reasons
 		// A decision whose recorded basis names another revision of the
 		// source than the block carries was a verdict on a source that has
 		// since changed, its wording or an inline code. A record with no

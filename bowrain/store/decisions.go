@@ -155,7 +155,12 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		default:
 			return changed, fmt.Errorf("read decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
-		d.Reasons, d.Note = venue.NormalizeReasons(d.Reasons), venue.BoundNote(d.Note)
+		// A note or a reason no decision may carry is refused, never cut:
+		// the push fails and says which.
+		if err := venue.CheckDecisionInput(d.Note, d.Reasons); err != nil {
+			return changed, fmt.Errorf("decision %s/%s: %w", d.Unit, d.Variant, err)
+		}
+		d.Reasons = venue.NormalizeReasons(d.Reasons)
 		if haveOld {
 			d = venue.CarryReasons(old, d)
 			if DecisionUnchanged(old, d) {

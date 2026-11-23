@@ -1173,6 +1173,17 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 	}
 	locale := string(target.Ref.Edition.Locale)
 	ref := ReviewUnitRef{File: filepath.FromSlash(file), Key: target.Ref.Block, Locale: locale}
+	if body.Outcome != change.OutcomePrereview {
+		// The same refusal, in the same words, as the platform's change
+		// route: a decision the platform would refuse never reaches a push.
+		note := ""
+		if set != nil {
+			note = set.Note
+		}
+		if err := venue.CheckDecisionInput(note, body.Reasons); err != nil {
+			return "", &change.Error{Code: change.CodeInvalid, Field: err.Field, Message: err.Message}
+		}
+	}
 	switch body.Outcome {
 	case change.OutcomePrereview:
 		review := state.AIReview{Model: reviewerName(actor), At: nowRFC3339(), TargetHash: targetHash(decided.target), Revision: decided.targetRev}

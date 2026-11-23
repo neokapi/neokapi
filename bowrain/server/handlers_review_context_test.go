@@ -117,7 +117,7 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 	_, derr := ds.UpsertUnitDecisions(ctx, projID, "main", []venue.UnitDecision{{
 		ItemName: sb.ItemName, Unit: sb.SourceID, Variant: "fr", Status: "draft",
 		ReviewState: "rejected", DecidedBy: "owner@rc.test", DecidedAt: "2026-09-01T11:00:00Z",
-		Note: "Reads as machine output", Updated: "2026-09-01T11:00:00Z",
+		Note: "Reads as machine output", Reasons: []string{"tone"}, Updated: "2026-09-01T11:00:00Z",
 	}})
 	require.NoError(t, derr)
 	note, _ := json.Marshal(map[string]string{"text": "Check with legal"})
@@ -187,6 +187,7 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 	assert.Equal(t, "owner@rc.test", got.Provenance.By)
 	assert.Equal(t, "2026-09-01T11:00:00Z", got.Provenance.At)
 	assert.Equal(t, "Reads as machine output", got.Provenance.Note)
+	assert.Equal(t, []string{"tone"}, got.Provenance.Reasons, "the review sheet reads the reasons beside the note")
 	assert.False(t, got.Provenance.Stale)
 	require.NotNil(t, got.Provenance.Origin)
 	assert.Equal(t, "ai", got.Provenance.Origin.Kind)

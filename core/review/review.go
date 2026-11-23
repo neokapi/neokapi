@@ -256,6 +256,9 @@ type Provenance struct {
 	By     string `json:"by,omitempty"`
 	At     string `json:"at,omitempty"`
 	Note   string `json:"note,omitempty"`
+	// Reasons are the reason codes the decision in force was given
+	// (DecisionReason), sorted. A client shows each as a phrase.
+	Reasons []string `json:"reasons,omitempty"`
 	// Stale reports a decision recorded against source wording that has since
 	// changed: the reviewer blessed a rendering of a sentence the project no
 	// longer has.

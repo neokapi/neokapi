@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // A rejection through kapi's own change service keeps its reasons and note
@@ -63,4 +65,23 @@ func TestDecide_ARejectionKeepsItsReasonsInTheRecord(t *testing.T) {
 	assert.Equal(t, change.OpApplied, reject("grammar"), "other reasons are a decision of their own")
 	u, _ = st.Get(ctx, key)
 	assert.Equal(t, []string{"grammar"}, u.Decision.Reasons)
+
+	// What the platform's change route refuses, kapi refuses in the same
+	// words, before the record holds anything a push would have to carry.
+	refused := func(note string, reasons ...string) *change.Error {
+		res, err := svc.Apply(ctx, change.Set{Note: note, Ops: []change.Op{
+			{Kind: change.KindDecide, At: at, IfMatch: rev, Body: &change.Decide{Outcome: change.OutcomeReject, Reasons: reasons}},
+		}}, reviewPerson)
+		require.NoError(t, err)
+		require.NotNil(t, res.Ops[0].Error)
+		return res.Ops[0].Error
+	}
+	e := refused("Too formal.", "tone", "made_up")
+	assert.Equal(t, change.CodeInvalid, e.Code)
+	assert.Equal(t, "reasons", e.Field)
+	assert.Equal(t, venue.CheckDecisionInput("", []string{"made_up"}).Message, e.Message)
+	e = refused(strings.Repeat("x", venue.MaxDecisionNote+1), "tone")
+	assert.Equal(t, "note", e.Field)
+	u, _ = st.Get(ctx, key)
+	assert.Equal(t, []string{"grammar"}, u.Decision.Reasons, "a refused decision changes nothing")
 }

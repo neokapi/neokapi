@@ -268,7 +268,7 @@ func (c *BowrainSourceConnector) recordPulledDecisions(ctx context.Context, pull
 				By:          d.DecidedBy,
 				At:          d.DecidedAt,
 				Note:        d.Note,
-				Reasons:     venue.NormalizeReasons(d.Reasons),
+				Reasons:     d.Reasons,
 				Parked:      d.Parked,
 				Assignee:    d.Assignee,
 			},

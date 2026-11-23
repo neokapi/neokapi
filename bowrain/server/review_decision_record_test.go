@@ -198,3 +198,33 @@ func TestReviewDecision_AnEchoWithoutReasonsKeepsThem(t *testing.T) {
 	assert.Equal(t, 1, n, "a sender that says the decision has no reasons is heard")
 	assert.Empty(t, ledgerRow(t, cs, pid, bid).Reasons)
 }
+
+// A pushed decision whose note is past the bound, or whose reason is not a
+// reason code, is refused by the store. It is never cut or dropped, so the
+// ledger and the pushing checkout cannot disagree about what was written.
+func TestReviewDecision_TheStoreRefusesWhatItWouldHaveToCut(t *testing.T) {
+	srv, cs := newReviewTestServer(t)
+	pid, bid := seedDraftedProject(t, cs)
+	rejectWith(t, srv, cs, pid, bid, fullCaller, "Says the opposite.", "meaning")
+	stored := ledgerRow(t, cs, pid, bid)
+	require.NotNil(t, stored)
+	sb, err := cs.GetBlock(t.Context(), pid, "main", bid)
+	require.NoError(t, err)
+
+	long := *stored
+	long.ItemName, long.DecidedAt = sb.ItemName, "2026-11-23T10:00:00Z"
+	long.Note = strings.Repeat("x", venue.MaxDecisionNote+1)
+	_, err = cs.UpsertUnitDecisions(t.Context(), pid, "main", []venue.UnitDecision{long})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "a decision keeps at most 2000")
+
+	unknown := long
+	unknown.Note, unknown.Reasons = "Short.", []string{"tone", "made_up"}
+	_, err = cs.UpsertUnitDecisions(t.Context(), pid, "main", []venue.UnitDecision{unknown})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"made_up" is not a reason`)
+
+	row := ledgerRow(t, cs, pid, bid)
+	assert.Equal(t, "Says the opposite.", row.Note, "a refused push changes nothing")
+	assert.Equal(t, []string{"meaning"}, row.Reasons)
+}
