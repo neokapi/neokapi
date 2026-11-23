@@ -43,6 +43,24 @@ func TestCheckDecisionInput(t *testing.T) {
 	assert.Nil(t, CheckDecisionInput(strings.Repeat("é", MaxDecisionNote), nil), "the bound counts characters")
 }
 
+// Only what a record states anew is checked: a note or a reason the stored
+// record already holds passes, however it breaks the bounds.
+func TestCheckStatedInput(t *testing.T) {
+	long := strings.Repeat("x", MaxDecisionNote+1)
+	stored := UnitDecision{Note: long, Reasons: []string{"retired_code", "tone"}}
+
+	assert.Nil(t, CheckStatedInput(&stored, stored), "an echo passes")
+	assert.Nil(t, CheckStatedInput(&stored, UnitDecision{Note: long, Reasons: []string{"tone"}}))
+
+	err := CheckStatedInput(&stored, UnitDecision{Note: long + "y"})
+	require.NotNil(t, err, "a changed note is a statement")
+	assert.Equal(t, "note", err.Field)
+	err = CheckStatedInput(&stored, UnitDecision{Note: long, Reasons: []string{"tone", "made_up"}})
+	require.NotNil(t, err, "a reason the record did not hold is a statement")
+	assert.Equal(t, "reasons", err.Field)
+	require.NotNil(t, CheckStatedInput(nil, UnitDecision{Note: long}), "a unit with no record states everything")
+}
+
 // An echo of the same decision without reasons keeps the stored ones; a
 // decision made at another time does not inherit them.
 func TestCarryReasons(t *testing.T) {

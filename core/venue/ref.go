@@ -176,6 +176,26 @@ func CheckDecisionInput(note string, reasons []string) *DecisionInputError {
 	return nil
 }
 
+// CheckStatedInput is CheckDecisionInput over what next states that stored
+// does not already hold: the note when it differs, and the reasons stored
+// does not carry. A writer passing on a record it did not author (a push
+// echo, a job, a replay) is never refused for what the ledger holds. So one
+// record stored before the bound cannot fail every push after it. stored is
+// nil for a unit with no record.
+func CheckStatedInput(stored *UnitDecision, next UnitDecision) *DecisionInputError {
+	note := next.Note
+	if stored != nil && stored.Note == next.Note {
+		note = ""
+	}
+	var reasons []string
+	for _, r := range next.Reasons {
+		if stored == nil || !slices.Contains(stored.Reasons, r) {
+			reasons = append(reasons, r)
+		}
+	}
+	return CheckDecisionInput(note, reasons)
+}
+
 // NormalizeReasons is reasons as a decision stores them: each once, sorted.
 // It keeps every reason it is given; CheckDecisionInput is what refuses an
 // unknown one. A nil list stays nil (the sender did not say), and a non-nil

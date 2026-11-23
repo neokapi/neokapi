@@ -153,13 +153,10 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		default:
 			return changed, fmt.Errorf("read decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
-		// A note or a reason no decision may carry is refused, never cut:
-		// the push fails and says which.
-		if err := venue.CheckDecisionInput(d.Note, d.Reasons); err != nil {
-			return changed, fmt.Errorf("decision %s/%s: %w", d.Unit, d.Variant, err)
-		}
 		d.Reasons = venue.NormalizeReasons(d.Reasons)
+		var stored *venue.UnitDecision
 		if haveOld {
+			stored = &old
 			d = venue.CarryReasons(old, d)
 			if DecisionUnchanged(old, d) {
 				continue
@@ -169,6 +166,14 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 			if old.Updated != "" && d.Updated != "" && d.Updated < old.Updated {
 				continue
 			}
+		}
+		// A store accepts what it already holds. Only what this record states
+		// anew is checked, after the comparisons above, so an echo of a
+		// stored record passes whatever it carries. The push refuses a new
+		// one per decision before it gets here (jobs.pushGovernor), so this
+		// is the last line for any other writer.
+		if err := venue.CheckStatedInput(stored, d); err != nil {
+			return changed, fmt.Errorf("decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 
 		if _, err := tx.ExecContext(ctx,
