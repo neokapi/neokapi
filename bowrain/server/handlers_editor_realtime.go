@@ -23,25 +23,45 @@ import (
 // A verdict that is not an approval carries the row's existing basis forward
 // rather than stamping the source and context in front of it, so the one row
 // this call reads is the row it is about to replace.
-func (s *Server) recordReviewDecision(ctx context.Context, c *echo.Context, ledger *reviewLedger, projectID, stream string, sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool) {
+func (s *Server) recordReviewDecision(ctx context.Context, c *echo.Context, ledger *reviewLedger, projectID, stream string, sb *venue.StoredBlock, locale string, status model.TargetStatus, req ReviewBlockRequest, moved bool) bool {
 	if sb == nil || sb.SourceID == "" {
-		return
+		return false
 	}
 	if ledger == nil {
 		ledger = s.newReviewLedger(ctx, c, projectID, stream)
 	}
 	if ledger == nil {
-		return
+		return false
 	}
-	var prev *venue.UnitDecision
-	if !approved {
-		prev = s.unitDecisionFor(ctx, projectID, stream, sb, locale)
+	prev := s.unitDecisionFor(ctx, projectID, stream, sb, locale)
+	carried := prev
+	if req.Reviewed {
+		// An approval re-stamps the basis; see unitDecisionFor.
+		carried = nil
 	}
 	governing := ledger.governingFingerprint(ctx, sb.ItemName, locale)
-	ledger.write(ctx, []venue.UnitDecision{unitDecisionFor(sb, locale, status, approved, ledger.decider, governing, prev)})
+	next := unitDecisionFor(sb, locale, status, req.Reviewed, ledger.decider, governing, carried)
+	next.Note, next.Reasons = req.Note, req.Reasons
+	// A decision that moved the rung is always recorded; one that moved
+	// nothing is recorded unless it is already on record.
+	if !moved && decisionStands(prev, next) {
+		return false
+	}
+	ledger.write(ctx, []venue.UnitDecision{next})
 	if status == model.TargetStatusDraft {
 		ledger.clearDraftBasis(ctx, sb, locale)
 	}
+	return true
+}
+
+// decisionStands reports whether the ledger already holds next: the same
+// verdict on the same pairing of translation and source, by the same person,
+// with the same note and reasons. Only then is a decision nothing new; a rejection with other
+// reasons, or the same verdict by someone else, is a decision of its own.
+func decisionStands(prev *venue.UnitDecision, next venue.UnitDecision) bool {
+	return prev != nil && prev.ReviewState == next.ReviewState && prev.Status == next.Status &&
+		prev.Revision == next.Revision && prev.Basis == next.Basis && prev.DecidedBy == next.DecidedBy &&
+		prev.Note == next.Note && venue.SameReasons(*prev, next)
 }
 
 // ReviewBlockRequest is one review decision on one block's translation for one
@@ -57,6 +77,11 @@ type ReviewBlockRequest struct {
 	Reviewed     bool
 	Status       string
 	BaseRevision string
+	// Note and Reasons are what the person wrote and chose with the
+	// decision. The ledger keeps them with it, whatever rung the target
+	// held.
+	Note    string
+	Reasons []string
 }
 
 // legacyTranslationStatusProperty is the pre-per-locale review flag: a
@@ -97,7 +122,7 @@ type blockReviewInput struct {
 
 // blockReviewOutcome reports what the review did to one block.
 type blockReviewOutcome struct {
-	// HadTarget is false when the locale had no target at all — an
+	// HadTarget is false when the locale had no target at all: an
 	// un-review with nothing to demote.
 	HadTarget bool
 	// From is the rung the target held before the call, for the audit trail.
@@ -109,10 +134,14 @@ type blockReviewOutcome struct {
 	// idempotent re-approve advances nothing and neither does signing off a
 	// target that was already reviewed.
 	Approval bool
-	// Changed is false when the call moved no rung: an idempotent re-approve
-	// of an established target, or an un-review with nothing to demote. Nothing
-	// happened, so nothing is audited.
+	// Changed is false when the call moved no rung: a re-approve of an
+	// established target, a rejection of a target already in draft, or an
+	// un-review with nothing to demote.
 	Changed bool
+	// Recorded is true when the decision ledger took a new decision. A
+	// decision that moved no rung is still recorded, with its note and
+	// reasons, unless the same person's same decision already stands.
+	Recorded bool
 }
 
 // applyBlockReview moves one block's target for one locale to the requested
@@ -199,6 +228,11 @@ func (s *Server) applyBlockReview(ctx context.Context, c *echo.Context, in block
 	})
 	switch {
 	case nothingToWrite(err):
+		// No rung moves, and the decision may still be new: a second
+		// person's approval, or the same person's with another note.
+		if out.HadTarget {
+			out.Recorded = s.recordReviewDecision(ctx, c, in.Ledger, in.ProjectID, in.Stream, sb, req.TargetLocale, out.Status, req, false)
+		}
 		return out, nil
 	case err != nil && sb == nil:
 		return blockReviewOutcome{}, reviewFault{http.StatusNotFound, "block not found: " + err.Error()}
@@ -210,12 +244,12 @@ func (s *Server) applyBlockReview(ctx context.Context, c *echo.Context, in block
 		return blockReviewOutcome{}, nil
 	}
 
-	// The review is a DECISION, and decisions live in the ledger — with the
+	// The review is a DECISION, and decisions live in the ledger, with the
 	// decider's identity, the time, and the revision of the translation it
-	// blesses — not only in the projected status the write above landed. The
+	// blesses, as well as in the projected status the write above landed. The
 	// ledger is what travels to the client on pull, where the same record
 	// lands in the project's committed state.
-	s.recordReviewDecision(ctx, c, in.Ledger, in.ProjectID, in.Stream, sb, req.TargetLocale, out.Status, req.Reviewed)
+	out.Recorded = s.recordReviewDecision(ctx, c, in.Ledger, in.ProjectID, in.Stream, sb, req.TargetLocale, out.Status, req, out.Changed)
 	s.emitEditorBlockChange(c, in.ProjectID, in.BlockID, req.ItemName, in.Stream, "updated")
 
 	return out, nil
@@ -234,7 +268,7 @@ type PresenceRequest struct {
 // carries the coarse "who is looking at which item/block" signal used by the
 // backend-mediated presence indicators.
 //
-// POST /:ws/:id/presence  { "item_name": "file.html", "block_id": "b-1" }
+// POST /:ws/:id/presence { "item_name": "file.html", "block_id": "b-1" }
 func (s *Server) HandleUpdatePresence(c *echo.Context) error {
 	if s.EventBus == nil {
 		return c.NoContent(http.StatusNoContent) // presence is best-effort
@@ -275,7 +309,7 @@ func (s *Server) HandleUpdatePresence(c *echo.Context) error {
 }
 
 // emitEditorBlockChange publishes an editor.block.<changeType> event so watchers
-// refresh the affected block. Mirrors the event the gRPC editor used to emit.
+// refresh the affected block.
 func (s *Server) emitEditorBlockChange(c *echo.Context, projectID, blockID, itemName, stream, changeType string) {
 	userName, _ := c.Get("name").(string)
 	userID, _ := c.Get("user_id").(string)

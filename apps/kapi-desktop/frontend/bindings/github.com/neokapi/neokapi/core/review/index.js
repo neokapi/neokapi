@@ -13,5 +13,6 @@ export {
     PriorVersion,
     ProfileValidity,
     Provenance,
+    Rejection,
     Voice
 } from "./models.js";

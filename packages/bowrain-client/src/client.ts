@@ -265,7 +265,7 @@ export interface BowrainClient {
   ): Promise<ReviewInvolvementSettings>;
   /**
    * The plan's last step: establishes every waiting translation that clears
-   * every bar, recorded with the reason "review policy". The server refuses
+   * every bar, recorded with the reason "review_policy". The server refuses
    * (409) once the first pass is taken and the context is still open.
    */
   settlePlan(
@@ -794,6 +794,8 @@ export function createBowrainClient(opts: BowrainClientOptions): BowrainClient {
           card: cardFromServer(d.card),
           decision: d.decision,
           at: d.at,
+          note: d.note || undefined,
+          reasons: d.reasons ?? [],
           current: d.current,
           canUndo: d.can_undo,
         })),
@@ -900,6 +902,8 @@ interface ServerFeedDecisions {
     card: ServerDeckCard;
     decision: string;
     at: string;
+    note?: string;
+    reasons?: string[];
     current: boolean;
     can_undo: boolean;
   }[];

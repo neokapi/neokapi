@@ -48,6 +48,29 @@ export function decisionLabel(state: string | undefined): string | undefined {
   }
 }
 
+/**
+ * How a decision's reason code reads to a person. Every code in
+ * DECISION_REASONS has a phrase; an unknown code is shown as recorded.
+ */
+export function reasonLabel(code: string): string {
+  switch (code) {
+    case "wrong_term":
+      return t("Wrong term");
+    case "meaning":
+      return t("Meaning");
+    case "tone":
+      return t("Tone");
+    case "placeholder":
+      return t("Placeholder");
+    case "grammar":
+      return t("Grammar");
+    case "review_policy":
+      return t("Cleared the review policy");
+    default:
+      return code;
+  }
+}
+
 export interface ProvenanceCardProps {
   provenance?: ReviewProvenance;
   /**
@@ -76,7 +99,8 @@ export function ProvenanceCard({
   const at = provenance?.at;
   const stale = provenance?.stale;
   const note = provenance?.note || unitNote;
-  const empty = !kind && !state && !by && !note;
+  const reasons = provenance?.reasons ?? [];
+  const empty = !kind && !state && !by && !note && reasons.length === 0;
 
   const summary = (
     <>
@@ -151,6 +175,21 @@ export function ProvenanceCard({
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">{t("Written")}</span>
             <When iso={(at ?? origin?.timestamp)!} />
+          </div>
+        )}
+
+        {reasons.length > 0 && (
+          <div
+            className="flex flex-wrap items-center gap-1.5"
+            data-slot="review-reasons"
+            data-testid="provenance-reasons"
+          >
+            <span className="shrink-0 text-muted-foreground">{t("Reasons")}</span>
+            {reasons.map((r) => (
+              <Badge key={r} variant="outline">
+                {reasonLabel(r)}
+              </Badge>
+            ))}
           </div>
         )}
 

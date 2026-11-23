@@ -257,7 +257,7 @@ export class JSONSchema {
 
 /**
  * Message represents a chat message. Content is an ordered list of parts so one
- * message can mix text with image/audio/video — a text-only message is a single
+ * message can mix text with image/audio/video, a text-only message is a single
  * text part (see TextMessage).
  */
 export class Message {
@@ -286,7 +286,7 @@ export class Message {
              * Sections attributes the message's text to what produced each piece of it
              * (framework rule, voice profile, terms, the source block). Set when
              * the message came from a prompt builder; --explain renders it so a prompt can
-             * be traced back to its origins. Providers ignore it — they send Parts.
+             * be traced back to its origins. Providers ignore it, they send Parts.
              * @member
              * @type {prompt$0.Section[] | undefined}
              */

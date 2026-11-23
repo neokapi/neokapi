@@ -1267,6 +1267,16 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS context_session_holds_session ON context_session_holds (session_id);
 		`,
 	},
+	{
+		Version:     47,
+		Description: "the reasons of a review decision",
+		SQL:         `-- Mirrors bowrain/store/migrations.go version 63; Apply adds the column.`,
+		Apply: func(ctx context.Context, tx *sql.Tx) error {
+			return addMissingColumns(ctx, tx, "unit_decisions", []string{
+				"reasons TEXT NOT NULL DEFAULT '[]'",
+			})
+		},
+	},
 }
 
 // addMissingColumns adds each column definition to table unless the table

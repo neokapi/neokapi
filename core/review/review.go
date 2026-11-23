@@ -192,6 +192,17 @@ type History struct {
 	// that genuinely holds nothing close. `kapi store import` reads the
 	// files; until then, an empty Match means unread.
 	Unread bool `json:"unread,omitempty"`
+	// Rejections are the earlier drafts of this block a reviewer rejected,
+	// oldest first, as its next draft's prompt carries them: the wording when
+	// it is still held, the reasons as phrases, and the note.
+	Rejections []Rejection `json:"rejections,omitempty"`
+}
+
+// Rejection is one earlier draft of a block a reviewer rejected.
+type Rejection struct {
+	Text    string   `json:"text,omitempty"`
+	Reasons []string `json:"reasons,omitempty"`
+	Note    string   `json:"note,omitempty"`
 }
 
 // PriorVersion is one block's previous source and the target approved for it,
@@ -256,6 +267,9 @@ type Provenance struct {
 	By     string `json:"by,omitempty"`
 	At     string `json:"at,omitempty"`
 	Note   string `json:"note,omitempty"`
+	// Reasons are the reason codes the decision in force was given
+	// (DecisionReason), sorted. A client shows each as a phrase.
+	Reasons []string `json:"reasons,omitempty"`
 	// Stale reports a decision recorded against source wording that has since
 	// changed: the reviewer blessed a rendering of a sentence the project no
 	// longer has.

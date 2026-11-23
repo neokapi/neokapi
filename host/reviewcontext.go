@@ -22,22 +22,17 @@ import (
 // The review model: what a reviewer is owed about one unit besides its two
 // strings.
 //
-// The bar: a reviewer sees at least what the model was told. A translate
-// prompt carries four things about a block beyond the block itself
-// (core/ai/prompt.Context): the block's key, the blocks before and after it,
-// and what the block said last time. Every one of them reaches the reviewer
-// here, and TestReviewContextAnswersPromptContext holds it that way.
+// A reviewer sees at least what the model was told (core/ai/prompt.Context):
+// the block's key, its neighbours, what it said last time and the rejected
+// drafts. TestReviewContextAnswersPromptContext holds it that way.
 //
-// Every layer is assembled from an answer that already exists: the
-// by-location resolution `kapi context` serves, the ordered blocks the file was
-// read as, the content memory's version chain, the registered checkers, and the
-// project state store. No store is added; the only cache is
-// ReviewPointResolver, which holds a file's point for the length of one
-// queue.
+// Every layer is assembled from an existing answer: `kapi context`, the file's
+// blocks, the content memory, the checkers and the state store.
+// ReviewPointResolver caches a file's point for one queue.
 //
-// There is no decision chain. core/state keeps one record per (Scope, Unit,
-// Variant) and Put overwrites it, so Provenance carries the decision in force
-// and says nothing about the ones before it.
+// Provenance carries the decision in force. The earlier rejections of the
+// current source come from the state ledger's entries, as the next draft
+// receives them.
 
 // DefaultReviewWindow is how many blocks either side of the unit the
 // neighbourhood carries: the translate tool's own default, so a reviewer
@@ -279,10 +274,10 @@ func reviewPointPath(root, sourcePath string) string {
 
 // AssembleReviewContext builds one unit's review model from what the caller has
 // already read. It is the single assembler behind every local review client, so
-// the desktop, an MCP agent and the CLI cannot be shown different context for
-// the same decision; the layers a venue can read without a project (the
-// neighbourhood, the history, the provenance) are composed from core/review,
-// which the platform's assembler composes too.
+// the desktop, an MCP agent and the CLI see the same context for a decision.
+// The layers a venue can read without a project (the neighbourhood, the
+// history, the provenance) are composed from core/review, which the platform's
+// assembler composes too.
 func (a *App) AssembleReviewContext(ctx context.Context, req ReviewContextRequest) *ReviewContext {
 	idx := indexOfBlockKey(req.Blocks, req.Key)
 	if idx < 0 {
@@ -335,6 +330,7 @@ func (a *App) reviewHistory(ctx context.Context, req ReviewContextRequest, b *mo
 	var h ReviewHistory
 	if req.Root != "" {
 		_, h.Unread = a.ContextFilesUnread(ctx, req.Root)
+		h.Rejections = a.reviewRejections(ctx, req, b)
 	}
 	if req.Memory == nil {
 		return h
