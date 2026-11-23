@@ -2,7 +2,7 @@ package venue
 
 import (
 	"slices"
-	"strconv"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/terms"
@@ -121,14 +121,85 @@ func decisionFields(d UnitDecision) []string {
 	if d.GoverningFingerprint != "" {
 		fields = append(fields, d.GoverningFingerprint)
 	}
-	// Reasons are appended only when the record carries any, for the same
-	// reason as the fingerprint. Their count comes first, so no reason can be
-	// read as another field.
-	if len(d.Reasons) > 0 {
-		fields = append(fields, "reasons", strconv.Itoa(len(d.Reasons)))
-		fields = append(fields, d.Reasons...)
-	}
+	// Reasons are left out. A client that predates them computes this
+	// identity without them, and the decisions component the two ends compare
+	// must agree for such a client, or it would resend every decision on
+	// every push. Reasons are chosen together with the decision, which stamps
+	// DecidedAt, so a decision with other reasons has another identity
+	// anyway. A store compares reasons on its own (SameReasons).
 	return fields
+}
+
+// DecisionReasons are the reason codes a person may give a rejection or a
+// correction, in the order a reason sheet offers them.
+var DecisionReasons = []string{"wrong_term", "meaning", "tone", "placeholder", "grammar"}
+
+// ReasonReviewPolicy is the reason a review plan's settle pass records on
+// each approval it makes: the translation cleared the project's bars, and
+// no person looked at it.
+const ReasonReviewPolicy = "review_policy"
+
+// knownReason reports whether r is a reason a decision may carry.
+func knownReason(r string) bool {
+	return r == ReasonReviewPolicy || slices.Contains(DecisionReasons, r)
+}
+
+// MaxDecisionNote is the longest note, in characters, a decision keeps.
+const MaxDecisionNote = 2000
+
+// ValidReasons reports the first reason that is neither a DecisionReasons
+// code nor ReasonReviewPolicy, or "" when every reason is one.
+func ValidReasons(reasons []string) (bad string, ok bool) {
+	for _, r := range reasons {
+		if !knownReason(r) {
+			return r, false
+		}
+	}
+	return "", true
+}
+
+// NormalizeReasons is reasons as a decision stores them: known codes only,
+// each once, sorted. A nil list stays nil (the sender did not say), and a
+// non-nil list stays non-nil, so the difference survives.
+func NormalizeReasons(reasons []string) []string {
+	if reasons == nil {
+		return nil
+	}
+	out := make([]string, 0, len(reasons))
+	for _, r := range reasons {
+		if knownReason(r) && !slices.Contains(out, r) {
+			out = append(out, r)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// BoundNote is note cut to MaxDecisionNote characters.
+func BoundNote(note string) string {
+	if utf8.RuneCountInString(note) <= MaxDecisionNote {
+		return note
+	}
+	return string([]rune(note)[:MaxDecisionNote])
+}
+
+// SameReasons reports whether two records carry the same reasons, a nil list
+// and an empty one alike.
+func SameReasons(a, b UnitDecision) bool {
+	return slices.Equal(NormalizeReasons(a.Reasons), NormalizeReasons(b.Reasons))
+}
+
+// CarryReasons is next with the reasons stored keeps, when next does not say
+// (a nil list) and is the same act of deciding: the same verdict by the same
+// person at the same time on the same translation. A client older than the
+// field echoes a decision it pulled without its reasons; this keeps the
+// echo from erasing them.
+func CarryReasons(stored, next UnitDecision) UnitDecision {
+	if next.Reasons == nil && stored.ReviewState == next.ReviewState && stored.DecidedBy == next.DecidedBy &&
+		stored.DecidedAt == next.DecidedAt && stored.Revision == next.Revision {
+		next.Reasons = stored.Reasons
+	}
+	return next
 }
 
 // TermsComponent folds a terminology set into the ref's terms component: one

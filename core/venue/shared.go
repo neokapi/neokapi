@@ -104,9 +104,12 @@ type UnitDecision struct {
 	DecidedAt   string `json:"at,omitempty"`          // RFC 3339
 	// Note is what the person wrote with the decision.
 	Note string `json:"note,omitempty"`
-	// Reasons are the reasons the person chose for a rejection or a
-	// correction, such as "meaning" or "wrong_term".
-	Reasons  []string `json:"reasons,omitempty"`
+	// Reasons are the reason codes the person chose for a rejection or a
+	// correction (DecisionReasons), sorted. A nil list means the sender did
+	// not say: a client older than the field sends none, and a store keeps
+	// the reasons it holds for the same decision (CarryReasons). An empty,
+	// non-nil list ("reasons": []) means the decision has no reasons.
+	Reasons  []string `json:"reasons,omitzero"`
 	Parked   bool     `json:"parked,omitempty"`
 	Assignee string   `json:"assignee,omitempty"`
 	// GoverningFingerprint is the governing context the record's answer stands

@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,7 +72,7 @@ func TestReviewDecision_ARejectionOfADraftIsRecordedWithItsReasons(t *testing.T)
 	res = rejectWith(t, srv, cs, pid, bid, fullCaller, "Wrong term and tone.", "wrong_term", "tone")
 	assert.Equal(t, change.OpApplied, res.Ops[0].Status, "other reasons are a decision of their own")
 	row = ledgerRow(t, cs, pid, bid)
-	assert.Equal(t, []string{"wrong_term", "tone"}, row.Reasons)
+	assert.Equal(t, []string{"tone", "wrong_term"}, row.Reasons, "stored sorted")
 	assert.Equal(t, "Wrong term and tone.", row.Note)
 
 	first := row.DecidedBy
@@ -137,4 +138,63 @@ func TestReviewDecision_ACorrectionKeepsItsReasons(t *testing.T) {
 	assert.Equal(t, venue.ReviewStateApproved, row.ReviewState)
 	assert.Equal(t, []string{"wrong_term"}, row.Reasons)
 	assert.Equal(t, "The product calls it Save.", row.Note)
+}
+
+// The same reasons in another order are the same rejection, and a reason
+// that is not a reason code, or a note past the bound, is refused.
+func TestReviewDecision_ReasonsAreCodesInAnyOrder(t *testing.T) {
+	srv, cs := newReviewTestServer(t)
+	pid, bid := seedDraftedProject(t, cs)
+
+	res := rejectWith(t, srv, cs, pid, bid, fullCaller, "Off.", "tone", "meaning")
+	assert.Equal(t, change.OpApplied, res.Ops[0].Status)
+	assert.Equal(t, []string{"meaning", "tone"}, ledgerRow(t, cs, pid, bid).Reasons, "stored sorted")
+	res = rejectWith(t, srv, cs, pid, bid, fullCaller, "Off.", "meaning", "tone", "tone")
+	assert.Equal(t, change.OpUnchanged, res.Ops[0].Status, "the same reasons in another order are the same rejection")
+
+	_, res = sendRejection(t, srv, cs, pid, bid, "Off.", "<script>")
+	require.NotNil(t, res.Ops[0].Error)
+	assert.Equal(t, change.CodeInvalid, res.Ops[0].Error.Code)
+	assert.Equal(t, "reasons", res.Ops[0].Error.Field)
+
+	_, res = sendRejection(t, srv, cs, pid, bid, strings.Repeat("x", venue.MaxDecisionNote+1), "tone")
+	require.NotNil(t, res.Ops[0].Error)
+	assert.Equal(t, "note", res.Ops[0].Error.Field)
+	assert.Equal(t, []string{"meaning", "tone"}, ledgerRow(t, cs, pid, bid).Reasons, "a refused decision changes nothing")
+}
+
+// sendRejection is rejectWith for a set the route may refuse.
+func sendRejection(t *testing.T, srv *Server, cs *bstore.PostgresStore, pid, bid, note string, reasons ...string) (int, change.Result) {
+	t.Helper()
+	op := decide(at("greetings.txt", bid, "fr"), targetRev(t, cs, pid, bid, "fr"), change.OutcomeReject)
+	op.Body.(*change.Decide).Reasons = reasons
+	rec, res := sendChanges(t, srv, pid, fullCaller, change.Set{Ops: []change.Op{op}, Note: note})
+	return rec.Code, res
+}
+
+// A push from a client that predates reasons echoes a pulled decision
+// without them. The ledger keeps the reasons it holds for the same decision;
+// a sender that says the decision has none ([]) is heard.
+func TestReviewDecision_AnEchoWithoutReasonsKeepsThem(t *testing.T) {
+	srv, cs := newReviewTestServer(t)
+	pid, bid := seedDraftedProject(t, cs)
+	rejectWith(t, srv, cs, pid, bid, fullCaller, "Says the opposite.", "meaning")
+	stored := ledgerRow(t, cs, pid, bid)
+	require.NotNil(t, stored)
+	sb, err := cs.GetBlock(t.Context(), pid, "main", bid)
+	require.NoError(t, err)
+
+	echo := *stored
+	echo.ItemName, echo.Reasons = sb.ItemName, nil
+	n, err := cs.UpsertUnitDecisions(t.Context(), pid, "main", []venue.UnitDecision{echo})
+	require.NoError(t, err)
+	assert.Zero(t, n, "the echo is the decision the ledger holds")
+	assert.Equal(t, []string{"meaning"}, ledgerRow(t, cs, pid, bid).Reasons)
+
+	sentNone := echo
+	sentNone.Reasons = []string{}
+	n, err = cs.UpsertUnitDecisions(t.Context(), pid, "main", []venue.UnitDecision{sentNone})
+	require.NoError(t, err)
+	assert.Equal(t, 1, n, "a sender that says the decision has no reasons is heard")
+	assert.Empty(t, ledgerRow(t, cs, pid, bid).Reasons)
 }

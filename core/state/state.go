@@ -241,11 +241,15 @@ type Decision struct {
 	// By is the person's identity where a hosted surface knows it; empty for
 	// the person at the keyboard. An agent never records a decision: the
 	// change service refuses a decide other than prereview from one.
-	By       string `json:"by,omitempty"`
-	At       string `json:"at,omitempty"` // RFC 3339
-	Note     string `json:"note,omitempty"`
-	Parked   bool   `json:"parked,omitempty"`
-	Assignee string `json:"assignee,omitempty"`
+	By   string `json:"by,omitempty"`
+	At   string `json:"at,omitempty"` // RFC 3339
+	Note string `json:"note,omitempty"`
+	// Reasons are the reason codes chosen with a rejection or a correction
+	// (venue.DecisionReasons), sorted: "wrong_term", "meaning", "tone",
+	// "placeholder", "grammar".
+	Reasons  []string `json:"reasons,omitempty"`
+	Parked   bool     `json:"parked,omitempty"`
+	Assignee string   `json:"assignee,omitempty"`
 }
 
 // AIIdentityPrefix marks an identity that is an AI model ("ai/<model>").
@@ -315,7 +319,7 @@ func (s UnitState) Key() Key { return Key{Scope: s.Scope, Unit: s.Unit, Variant:
 // other change to the edition, and the ledger holds decisions only.
 func (s UnitState) Decides() bool {
 	d := s.Decision
-	return d.ReviewState != "" || d.Parked || d.Assignee != "" || d.Note != "" ||
+	return d.ReviewState != "" || d.Parked || d.Assignee != "" || d.Note != "" || len(d.Reasons) > 0 ||
 		s.Status.Rank() > model.TargetStatusTranslated.Rank() ||
 		s.SourceStatus == model.SourceStatusEstablished ||
 		s.AIReview != nil
