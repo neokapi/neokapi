@@ -68,7 +68,7 @@ var (
 type workspaceMemoryTerms struct {
 	mu     sync.Mutex
 	memory memory.Store
-	terms  terms.Store
+	terms  sqlterms.Store
 }
 
 // workspaceStores manages per-workspace content memory and terms stores.
@@ -144,7 +144,7 @@ func (ws *workspaceStores) getMemory(ctx context.Context, wsSlug string) (memory
 
 // getTerms returns the workspace's terms store, opened on first use, under
 // the same contract as getMemory.
-func (ws *workspaceStores) getTerms(ctx context.Context, wsSlug string) (terms.Store, error) {
+func (ws *workspaceStores) getTerms(ctx context.Context, wsSlug string) (sqlterms.Store, error) {
 	w := ws.getOrCreate(wsSlug)
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -154,7 +154,15 @@ func (ws *workspaceStores) getTerms(ctx context.Context, wsSlug string) (terms.S
 
 	if ws.pgDB == nil {
 		if ws.termsFactory != nil {
-			w.terms = ws.termsFactory()
+			// The same write rules as the PostgreSQL store: a factory's
+			// store that keeps no revisions gets them, so no test path is
+			// kinder than the server.
+			made := ws.termsFactory()
+			if st, ok := made.(sqlterms.Store); ok {
+				w.terms = st
+			} else {
+				w.terms = sqlterms.WithRevisions(made)
+			}
 			return w.terms, nil
 		}
 		return nil, errNoPgDB
@@ -435,6 +443,10 @@ type UpdateConceptRequest struct {
 	// names the stored value, keeps it.
 	DoNotTranslate *bool              `json:"do_not_translate,omitempty"`
 	Terms          []TermInfoResponse `json:"terms"`
+	// BaseRevision is the concept's revision as the editor read it. An update
+	// without one is refused (428); one the concept has moved on from is
+	// refused with the current concept (409).
+	BaseRevision string `json:"base_revision"`
 }
 
 // ImportCSVRequest holds parameters for CSV term import.
@@ -444,11 +456,24 @@ type ImportCSVRequest struct {
 	TargetLocale string `json:"target_locale"`
 	Domain       string `json:"domain"`
 	HasHeader    bool   `json:"has_header"`
+	// Source is the file's name, shown beside the import when a later one
+	// lists it. It decides nothing.
+	Source string `json:"source,omitempty"`
+	// UpdateOf names an earlier import (GET concepts/imports) whose concepts
+	// this file updates. Without it the import changes no concept an earlier
+	// one wrote.
+	UpdateOf string `json:"update_of,omitempty"`
 }
 
 // ImportJSONRequest holds parameters for JSON term import.
 type ImportJSONRequest struct {
 	JSONContent string `json:"json_content"`
+	// Source is the file's name (ImportCSVRequest.Source); without it the
+	// name the JSON file declares is shown.
+	Source string `json:"source,omitempty"`
+	// UpdateOf names an earlier import this file updates
+	// (ImportCSVRequest.UpdateOf).
+	UpdateOf string `json:"update_of,omitempty"`
 }
 
 // ExportJSONRequest holds parameters for JSON term export.

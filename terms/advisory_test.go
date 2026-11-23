@@ -192,9 +192,9 @@ func TestImportCSVReadsTheAdvisoryColumn(t *testing.T) {
 		require.NoError(t, err)
 		got, err := tb.Concepts(ctx)
 		require.NoError(t, err)
-		assert.Equal(t, map[string]bool{"csv-1": true, "csv-2": false, "csv-3": false}, advisoryFlags(got))
+		assert.Equal(t, map[string]bool{"term:en:utilize": true, "term:en:leverage": false, "term:en:globex": false}, advisoryFlags(got))
 		for _, c := range got {
-			if c.ID == "csv-3" {
+			if c.ID == "term:en:globex" {
 				assert.True(t, c.Terms[0].CompetitorTerm, "the competitor column sits before the advisory one")
 			}
 		}
@@ -209,7 +209,7 @@ func TestImportCSVReadsTheAdvisoryColumn(t *testing.T) {
 		require.NoError(t, err)
 		got, err := tb.Concepts(ctx)
 		require.NoError(t, err)
-		assert.Equal(t, map[string]bool{"csv-1": true, "csv-2": false}, advisoryFlags(got))
+		assert.Equal(t, map[string]bool{"term:en:utilize": true, "term:en:leverage": false}, advisoryFlags(got))
 	})
 }
 
@@ -265,7 +265,7 @@ func TestMarkingAdvisory(t *testing.T) {
 	_, err = ImportCSV(ctx, marked, strings.NewReader("synergy,,,forbidden\n"),
 		CSVImportOptions{SourceLocale: model.LocaleEnglish, Monolingual: true})
 	require.NoError(t, err)
-	imported, ok, err := marked.GetConcept(ctx, "csv-1")
+	imported, ok, err := marked.GetConcept(ctx, "term:en:synergy")
 	require.NoError(t, err)
 	require.True(t, ok, "reads pass through the wrapper")
 	assert.True(t, imported.Advisory, "an import through the wrapper marks every concept")

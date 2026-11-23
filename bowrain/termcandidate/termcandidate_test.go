@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/bowrain/terms/termstest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -173,7 +174,7 @@ func TestReachRoundTripsThroughProperties(t *testing.T) {
 
 func TestFile_DedupesAndRemembersRejections(t *testing.T) {
 	ctx := t.Context()
-	tb := terms.NewInMemoryStore()
+	tb := termstest.Memory()
 	now := time.Date(2026, 11, 19, 0, 0, 0, 0, time.UTC)
 	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
 		ID: "kept", Terms: []terms.Term{{Text: "Workspace", Locale: "en", Status: model.TermPreferred}},
@@ -222,7 +223,10 @@ func TestFile_DedupesAndRemembersRejections(t *testing.T) {
 	require.True(t, Promote(&cp, "en"))
 	assert.Equal(t, model.TermPreferred, cp.Terms[0].Status)
 	assert.False(t, IsCandidate(cp, "en"))
-	require.NoError(t, tb.AddConcept(ctx, cp))
+	_, rev, _, err := tb.GetConceptAt(ctx, cp.ID)
+	require.NoError(t, err)
+	_, err = tb.UpdateConcept(ctx, cp, "", rev)
+	require.NoError(t, err)
 	res, err = File(ctx, tb, "p1", "en", cands[1:2], nil, ScanIdentity, now)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"Flow"}, res.Existing)

@@ -56,7 +56,7 @@ func decideSessionCard(t *testing.T, e *echo.Echo, pid string, card contextSessi
 	t.Helper()
 	var out contextDeckDecideResponse
 	return decideRoute(t, e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: action}, &out)
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: action}, &out)
 }
 
 func sessionKeys(cards []contextSessionCard) map[contextop.ItemRef]bool {

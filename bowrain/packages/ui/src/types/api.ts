@@ -1230,6 +1230,8 @@ export interface ConceptInfo {
   properties?: Record<string, string>;
   created_at: string;
   updated_at: string;
+  /** The concept's revision as read; an update sends it back as base_revision. */
+  revision?: string;
 }
 
 /** Term search result */
@@ -1259,6 +1261,8 @@ export interface UpdateConceptRequest {
   definition: string;
   do_not_translate?: boolean;
   terms: TermInfo[];
+  /** The revision of the concept the edit was made on. */
+  base_revision?: string;
 }
 
 /** Term match for a block */

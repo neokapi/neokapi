@@ -23,8 +23,11 @@ func (s *Server) proposeGovernedChange(ctx context.Context, wsSlug, wsID, actor,
 	if len(ops) == 0 {
 		return nil, errors.New("a proposal needs at least one op")
 	}
-	for _, op := range ops {
-		if err := knowledge.ValidateOp(op); err != nil {
+	for i := range ops {
+		if err := knowledge.ValidateOp(ops[i]); err != nil {
+			return nil, err
+		}
+		if err := s.pinDeleteRevision(ctx, wsSlug, &ops[i]); err != nil {
 			return nil, err
 		}
 	}
@@ -54,6 +57,20 @@ func (s *Server) proposeGovernedChange(ctx context.Context, wsSlug, wsID, actor,
 	})
 	s.summonChangeSetReviewersIn(context.WithoutCancel(ctx), wsSlug, strings.TrimSuffix(s.Config.AppPublicURL, "/"), cs, len(ops), governed)
 	return cs, nil
+}
+
+// pinDeleteRevision records on a concept.delete op the revision of the
+// concept it would delete (knowledge.PinDeleteRevision), read from the
+// workspace's terms store.
+func (s *Server) pinDeleteRevision(ctx context.Context, wsSlug string, op *knowledge.ChangeSetOp) error {
+	if op.Op != knowledge.OpConceptDelete || s.wsStores == nil {
+		return nil
+	}
+	tb, err := s.wsStores.getTerms(ctx, wsSlug)
+	if err != nil {
+		return err
+	}
+	return knowledge.PinDeleteRevision(ctx, tb, op)
 }
 
 // conceptCreateOp is the op that proposes creating concept.

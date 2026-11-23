@@ -203,6 +203,7 @@ func editorConceptToInfo(c editorclient.EditorConcept) ConceptInfo {
 		Properties: c.Properties,
 		CreatedAt:  c.CreatedAt,
 		UpdatedAt:  c.UpdatedAt,
+		Revision:   c.Revision,
 	}
 }
 

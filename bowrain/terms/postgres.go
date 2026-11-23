@@ -150,6 +150,21 @@ ON CONFLICT (workspace_id) DO NOTHING;`,
 			return fw.BackfillNormalizedText(ctx, tx, true)
 		},
 	},
+	// 13 to 17 give tb_concepts its revision column without rewriting the
+	// table (storage.RevisionColumn), frozen as they shipped.
+	{Version: 13, Description: "a revision column on tb_concepts", SQL: termsPostgresRevision1},
+	{Version: 14, Description: "a revision for each existing row of tb_concepts", SQL: termsPostgresRevision2},
+	{Version: 15, Description: "a not-null check on tb_concepts revisions, not yet validated", SQL: termsPostgresRevision3},
+	{Version: 16, Description: "validate the tb_concepts revision check", SQL: termsPostgresRevision4},
+	{Version: 17, Description: "tb_concepts revisions are not null", SQL: termsPostgresRevision5},
+	{
+		Version:     18,
+		Description: "a record of each terms import",
+		// One row per import: the id the server minted, the file it read, who
+		// created it and who last updated it, and when. The concepts an import
+		// writes carry its id (import.id).
+		SQL: termsPostgresImports,
+	},
 }
 
 // Revision is the revision of the workspace's terms: a token every write
@@ -248,25 +263,39 @@ func pgValidityFromColumns(validFrom, validTo sql.NullTime, tags string) *graph.
 	return &v
 }
 
-// AddConcept inserts or updates a concept with all its terms using an empty stream.
+// AddConcept stores a new concept with all its terms, on the default stream.
+// A concept already stored under the id is ErrConceptExists and is left as
+// it was: a stored concept changes only through UpdateConcept, at the
+// revision the writer read.
 func (tb *PostgresStore) AddConcept(ctx context.Context, concept fw.Concept) error {
 	return tb.AddConceptWithStream(ctx, concept, "")
 }
 
-// AddConceptWithStream inserts or updates a concept associated with a stream.
+// AddConceptWithStream stores a new concept on a stream, under the rules of
+// AddConcept.
 func (tb *PostgresStore) AddConceptWithStream(ctx context.Context, concept fw.Concept, stream string) error {
+	concept, err := preparedConcept(concept)
+	if err != nil {
+		return err
+	}
+	_, err = tb.writeConcept(ctx, concept, stream, conceptCreate, "")
+	return err
+}
+
+// preparedConcept checks concept and fills what a write needs: normalized
+// text and the creation and update times.
+func preparedConcept(concept fw.Concept) (fw.Concept, error) {
 	if concept.ID == "" {
-		return errors.New("concept ID is required")
+		return concept, errors.New("concept ID is required")
 	}
 	// Mirror the framework backends: each term status must be a known
-	// lifecycle value (an empty status is allowed, callers may leave it unset).
+	// lifecycle value. An empty status is allowed; callers may leave it unset.
 	for _, t := range concept.Terms {
 		if t.Status != "" && !fw.KnownTermStatus(t.Status) {
-			return fmt.Errorf("term %q (%s): unknown status %q", t.Text, t.Locale, t.Status)
+			return concept, fmt.Errorf("term %q (%s): unknown status %q", t.Text, t.Locale, t.Status)
 		}
 	}
 	concept = fw.NormalizedConcept(concept)
-
 	now := time.Now()
 	if concept.CreatedAt.IsZero() {
 		concept.CreatedAt = now
@@ -274,7 +303,106 @@ func (tb *PostgresStore) AddConceptWithStream(ctx context.Context, concept fw.Co
 	if concept.UpdatedAt.IsZero() {
 		concept.UpdatedAt = now
 	}
+	return concept, nil
+}
 
+// ErrConceptNotFound is returned by UpdateConcept when no concept is stored
+// under the id.
+var ErrConceptNotFound = errors.New("concept not found")
+
+// ErrConceptExists is returned by CreateConcept when a concept is already
+// stored under the id.
+var ErrConceptExists = errors.New("concept already exists")
+
+// CreateConcept stores a new concept and returns its revision. A concept
+// already stored under the id is ErrConceptExists, and is left as it was.
+func (tb *PostgresStore) CreateConcept(ctx context.Context, concept fw.Concept, stream string) (string, error) {
+	concept, err := preparedConcept(concept)
+	if err != nil {
+		return "", err
+	}
+	return tb.writeConcept(ctx, concept, stream, conceptCreate, "")
+}
+
+// UpdateConcept replaces the stored concept when it is still at base, the
+// revision the writer read, and returns the new revision. A concept that
+// has moved on since is storage.ErrStale; a concept that is gone is
+// ErrConceptNotFound. Either way nothing is written.
+func (tb *PostgresStore) UpdateConcept(ctx context.Context, concept fw.Concept, stream, base string) (string, error) {
+	if base == "" {
+		return "", errors.New("update concept: a base revision is required")
+	}
+	concept, err := preparedConcept(concept)
+	if err != nil {
+		return "", err
+	}
+	return tb.writeConcept(ctx, concept, stream, conceptUpdate, base)
+}
+
+// StaleConceptError is UpdateConcept's answer when the stored concept is no
+// longer at the base revision. It carries what the concept holds now and its
+// revision, read in the transaction that refused the write. errors.Is
+// matches it against storage.ErrStale.
+type StaleConceptError struct {
+	Current  fw.Concept
+	Revision string
+}
+
+func (e *StaleConceptError) Error() string {
+	return "concept " + e.Current.ID + " changed since it was read"
+}
+
+func (e *StaleConceptError) Unwrap() error { return storage.ErrStale }
+
+// GetConceptAt returns a concept with its revision, read from one row: the
+// revision a writer names as its base to change this concept.
+func (tb *PostgresStore) GetConceptAt(ctx context.Context, id string) (fw.Concept, string, bool, error) {
+	concept, rev, err := tb.scanConceptAt(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return fw.Concept{}, "", false, nil
+	}
+	if err != nil {
+		return fw.Concept{}, "", false, err
+	}
+	return concept, rev, true, nil
+}
+
+// ConceptRevisions returns the revision of each listed concept that exists,
+// by id, for a view that lists concepts and lets a person change one.
+func (tb *PostgresStore) ConceptRevisions(ctx context.Context, ids []string) (map[string]string, error) {
+	out := make(map[string]string, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := tb.run().QueryContext(ctx,
+		`SELECT id, revision FROM tb_concepts WHERE workspace_id = $1 AND id = ANY($2)`,
+		tb.workspaceID, ids)
+	if err != nil {
+		return nil, fmt.Errorf("read concept revisions: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, rev string
+		if err := rows.Scan(&id, &rev); err != nil {
+			return nil, fmt.Errorf("scan concept revision: %w", err)
+		}
+		out[id] = rev
+	}
+	return out, rows.Err()
+}
+
+// The ways writeConcept writes a concept's row.
+type conceptWrite int
+
+const (
+	conceptCreate conceptWrite = iota // insert; a concept under the id is ErrConceptExists
+	conceptUpdate                     // replace the stored concept when it is at the base revision
+)
+
+// writeConcept writes concept's row the way mode says, then its terms, and
+// moves the workspace's terms revision, in one transaction. It returns the
+// concept's new revision.
+func (tb *PostgresStore) writeConcept(ctx context.Context, concept fw.Concept, stream string, mode conceptWrite, base string) (string, error) {
 	var propsJSON []byte
 	if len(concept.Properties) > 0 {
 		propsJSON, _ = json.Marshal(concept.Properties)
@@ -282,7 +410,7 @@ func (tb *PostgresStore) AddConceptWithStream(ctx context.Context, concept fw.Co
 
 	tx, err := tb.begin(ctx)
 	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
+		return "", fmt.Errorf("begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
@@ -290,30 +418,70 @@ func (tb *PostgresStore) AddConceptWithStream(ctx context.Context, concept fw.Co
 	if source == "" {
 		source = fw.TermSourceTerminology
 	}
+	next := storage.NewRevision()
 
-	_, err = tx.ExecContext(ctx, `
-		INSERT INTO tb_concepts (id, workspace_id, stream, domain, definition, properties, source, do_not_translate, advisory, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		ON CONFLICT (workspace_id, id) DO UPDATE SET
-			stream = EXCLUDED.stream,
-			domain = EXCLUDED.domain,
-			definition = EXCLUDED.definition,
-			properties = EXCLUDED.properties,
-			source = EXCLUDED.source,
-			do_not_translate = EXCLUDED.do_not_translate,
-			advisory = EXCLUDED.advisory,
-			updated_at = EXCLUDED.updated_at
-	`, concept.ID, tb.workspaceID, stream, concept.Domain, concept.Definition,
-		nullableString(propsJSON), string(source), concept.DoNotTranslate, concept.Advisory,
-		concept.CreatedAt, concept.UpdatedAt)
-	if err != nil {
-		return fmt.Errorf("upsert concept: %w", err)
+	switch mode {
+	case conceptUpdate:
+		// The check and the write are one statement.
+		res, err := tx.ExecContext(ctx, `
+			UPDATE tb_concepts SET stream = $3, domain = $4, definition = $5, properties = $6, source = $7,
+				do_not_translate = $8, advisory = $9, updated_at = $10, revision = $11
+			WHERE workspace_id = $1 AND id = $2 AND revision = $12`,
+			tb.workspaceID, concept.ID, stream, concept.Domain, concept.Definition,
+			nullableString(propsJSON), string(source), concept.DoNotTranslate, concept.Advisory,
+			concept.UpdatedAt, next, base)
+		if err != nil {
+			return "", fmt.Errorf("update concept: %w", err)
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return "", fmt.Errorf("update concept: %w", err)
+		}
+		if n == 0 {
+			var one int
+			err := tx.QueryRowContext(ctx, `SELECT 1 FROM tb_concepts WHERE workspace_id = $1 AND id = $2`,
+				tb.workspaceID, concept.ID).Scan(&one)
+			if errors.Is(err, sql.ErrNoRows) {
+				return "", ErrConceptNotFound
+			}
+			if err != nil {
+				return "", fmt.Errorf("read concept %s: %w", concept.ID, err)
+			}
+			// The concept moved on since base. What it holds now is read on
+			// this transaction's connection, for the writer's conflict answer.
+			current, rev, err := tb.Bind(tx).scanConceptAt(ctx, concept.ID)
+			if errors.Is(err, sql.ErrNoRows) {
+				return "", ErrConceptNotFound
+			}
+			if err != nil {
+				return "", err
+			}
+			return "", &StaleConceptError{Current: current, Revision: rev}
+		}
+	default:
+		const conflict = `ON CONFLICT (workspace_id, id) DO NOTHING`
+		res, err := tx.ExecContext(ctx, `
+			INSERT INTO tb_concepts (id, workspace_id, stream, domain, definition, properties, source, do_not_translate, advisory, created_at, updated_at, revision)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) `+conflict,
+			concept.ID, tb.workspaceID, stream, concept.Domain, concept.Definition,
+			nullableString(propsJSON), string(source), concept.DoNotTranslate, concept.Advisory,
+			concept.CreatedAt, concept.UpdatedAt, next)
+		if err != nil {
+			return "", fmt.Errorf("write concept: %w", err)
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return "", fmt.Errorf("create concept: %w", err)
+		}
+		if n == 0 {
+			return "", ErrConceptExists
+		}
 	}
 
 	// Replace all terms for this concept.
 	_, err = tx.ExecContext(ctx, "DELETE FROM tb_terms WHERE workspace_id = $1 AND concept_id = $2", tb.workspaceID, concept.ID)
 	if err != nil {
-		return fmt.Errorf("delete old terms: %w", err)
+		return "", fmt.Errorf("delete old terms: %w", err)
 	}
 
 	for _, term := range concept.Terms {
@@ -326,13 +494,16 @@ func (tb *PostgresStore) AddConceptWithStream(ctx context.Context, concept fw.Co
 			term.PartOfSpeech, term.Gender, term.Note, term.CompetitorTerm,
 			validFrom, validTo, tags, fw.FormsColumn(term.Forms))
 		if err != nil {
-			return fmt.Errorf("insert term: %w", err)
+			return "", fmt.Errorf("insert term: %w", err)
 		}
 	}
 	if err := tb.bumpRevision(ctx, tx); err != nil {
-		return err
+		return "", err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return "", err
+	}
+	return next, nil
 }
 
 // GetConcept retrieves a concept by ID.
@@ -347,10 +518,27 @@ func (tb *PostgresStore) GetConcept(ctx context.Context, id string) (fw.Concept,
 	return concept, true, nil
 }
 
-// DeleteConcept removes a concept by ID.
-func (tb *PostgresStore) DeleteConcept(ctx context.Context, id string) error {
+// ErrDeleteNeedsRevision is DeleteConcept's answer: a stored concept is
+// deleted only at the revision its caller read (DeleteConceptAt).
+var ErrDeleteNeedsRevision = errors.New("a concept is deleted at the revision its caller read; use DeleteConceptAt")
+
+// DeleteConcept refuses: a delete that names no revision could remove an
+// edit its caller never saw. DeleteConceptAt is the delete.
+func (tb *PostgresStore) DeleteConcept(context.Context, string) error {
+	return ErrDeleteNeedsRevision
+}
+
+// DeleteConceptAt removes the concept when it is still at base, the revision
+// its caller read, deciding in the statement that deletes. A concept that
+// moved since is a *StaleConceptError carrying what it holds now; one that
+// is gone is ErrConceptNotFound. Either way nothing is deleted.
+func (tb *PostgresStore) DeleteConceptAt(ctx context.Context, id, base string) error {
+	if base == "" {
+		return errors.New("delete concept: a base revision is required")
+	}
 	return tb.write(ctx, func(tx storage.Runner) error {
-		result, err := tx.ExecContext(ctx, "DELETE FROM tb_concepts WHERE workspace_id = $1 AND id = $2", tb.workspaceID, id)
+		result, err := tx.ExecContext(ctx,
+			"DELETE FROM tb_concepts WHERE workspace_id = $1 AND id = $2 AND revision = $3", tb.workspaceID, id, base)
 		if err != nil {
 			return fmt.Errorf("delete concept: %w", err)
 		}
@@ -358,8 +546,70 @@ func (tb *PostgresStore) DeleteConcept(ctx context.Context, id string) error {
 		if err != nil {
 			return fmt.Errorf("rows affected: %w", err)
 		}
-		if rows == 0 {
-			return fmt.Errorf("concept not found: %s", id)
+		if rows > 0 {
+			return nil
+		}
+		current, rev, err := tb.Bind(tx).scanConceptAt(ctx, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrConceptNotFound
+		}
+		if err != nil {
+			return err
+		}
+		return &StaleConceptError{Current: current, Revision: rev}
+	})
+}
+
+// DeleteConceptsAt removes each listed concept at the revision its caller
+// read (id to revision), deciding in the statement that deletes. A listed
+// concept that is gone already is skipped. When one has moved, nothing is
+// deleted and the answer is a *StaleConceptError carrying what it holds now.
+func (tb *PostgresStore) DeleteConceptsAt(ctx context.Context, revs map[string]string) error {
+	if len(revs) == 0 {
+		return nil
+	}
+	ids := slices.Sorted(maps.Keys(revs))
+	bases := make([]string, len(ids))
+	for i, id := range ids {
+		bases[i] = revs[id]
+	}
+	return tb.write(ctx, func(tx storage.Runner) error {
+		rows, err := tx.QueryContext(ctx, `
+			DELETE FROM tb_concepts
+			WHERE workspace_id = $1 AND (id, revision) IN (SELECT * FROM unnest($2::text[], $3::text[]))
+			RETURNING id`, tb.workspaceID, ids, bases)
+		if err != nil {
+			return fmt.Errorf("delete concepts: %w", err)
+		}
+		deleted := map[string]bool{}
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				_ = rows.Close()
+				return fmt.Errorf("scan deleted concept: %w", err)
+			}
+			deleted[id] = true
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		for _, id := range ids {
+			if deleted[id] {
+				continue
+			}
+			current, rev, err := tb.Bind(tx).scanConceptAt(ctx, id)
+			if errors.Is(err, sql.ErrNoRows) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			// Returning the error rolls the transaction back, and with it
+			// every row this statement deleted.
+			return &StaleConceptError{Current: current, Revision: rev}
 		}
 		return nil
 	})
@@ -996,16 +1246,25 @@ func (tb *PostgresStore) scanConcepts(ctx context.Context, ids []string) ([]fw.C
 }
 
 func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept, error) {
+	c, _, err := tb.scanConceptAt(ctx, id)
+	return c, err
+}
+
+// scanConceptAt reads one concept and the revision of the row it read. The
+// terms are a second statement: outside a transaction they can belong to a
+// later write than the revision, which only makes a base that names the
+// revision stale, never a write over unseen content.
+func (tb *PostgresStore) scanConceptAt(ctx context.Context, id string) (fw.Concept, string, error) {
 	var c fw.Concept
 	var propsJSON *string
-	var source string
+	var source, rev string
 
 	err := tb.run().QueryRowContext(ctx, `
-		SELECT id, domain, definition, properties, source, do_not_translate, advisory, created_at, updated_at
+		SELECT id, domain, definition, properties, source, do_not_translate, advisory, created_at, updated_at, revision
 		FROM tb_concepts WHERE workspace_id = $1 AND id = $2
-	`, tb.workspaceID, id).Scan(&c.ID, &c.Domain, &c.Definition, &propsJSON, &source, &c.DoNotTranslate, &c.Advisory, &c.CreatedAt, &c.UpdatedAt)
+	`, tb.workspaceID, id).Scan(&c.ID, &c.Domain, &c.Definition, &propsJSON, &source, &c.DoNotTranslate, &c.Advisory, &c.CreatedAt, &c.UpdatedAt, &rev)
 	if err != nil {
-		return fw.Concept{}, err
+		return fw.Concept{}, "", err
 	}
 
 	c.Source = fw.TermSource(source)
@@ -1014,7 +1273,7 @@ func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept
 	// never had properties reads as nil, not as a corrupt one.
 	if propsJSON != nil && *propsJSON != "" {
 		if err := json.Unmarshal([]byte(*propsJSON), &c.Properties); err != nil {
-			return c, fmt.Errorf("concept %s: unmarshal properties: %w", c.ID, err)
+			return c, "", fmt.Errorf("concept %s: unmarshal properties: %w", c.ID, err)
 		}
 	}
 
@@ -1023,7 +1282,7 @@ func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept
 		FROM tb_terms WHERE workspace_id = $1 AND concept_id = $2
 	`, tb.workspaceID, id)
 	if err != nil {
-		return c, fmt.Errorf("query terms for concept %s: %w", id, err)
+		return c, "", fmt.Errorf("query terms for concept %s: %w", id, err)
 	}
 	defer rows.Close()
 
@@ -1032,23 +1291,23 @@ func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept
 		var locale, status, tags, forms string
 		var validFrom, validTo sql.NullTime
 		if err := rows.Scan(&t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note, &t.CompetitorTerm, &validFrom, &validTo, &tags, &forms); err != nil {
-			return c, fmt.Errorf("concept %s: scan term: %w", id, err)
+			return c, "", fmt.Errorf("concept %s: scan term: %w", id, err)
 		}
 		t.Locale = model.LocaleID(locale)
 		t.Status = model.TermStatus(status)
 		t.Validity = pgValidityFromColumns(validFrom, validTo, tags)
 		decoded, ferr := fw.FormsFromColumn(forms)
 		if ferr != nil {
-			return c, fmt.Errorf("concept %s: term %q: %w", id, t.Text, ferr)
+			return c, "", fmt.Errorf("concept %s: term %q: %w", id, t.Text, ferr)
 		}
 		t.Forms = decoded
 		c.Terms = append(c.Terms, t)
 	}
 	if err := rows.Err(); err != nil {
-		return c, fmt.Errorf("iterate terms: %w", err)
+		return c, "", fmt.Errorf("iterate terms: %w", err)
 	}
 
-	return c, nil
+	return c, rev, nil
 }
 
 // pgTermSelectCols is the term projection every candidate

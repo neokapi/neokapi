@@ -1244,6 +1244,15 @@ export class ConceptInfo {
              */
             this["updated_at"] = "";
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Revision is the concept's revision on the server as read; an edit
+             * sends it back. A concept from the local store has none.
+             * @member
+             * @type {string | undefined}
+             */
+            this["revision"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -4077,6 +4086,15 @@ export class UpdateConceptRequest {
              * @type {TermInfo[]}
              */
             this["terms"] = [];
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * BaseRevision is the revision of the concept the edit was made on, as
+             * the UI read it. The backend never fills it in.
+             * @member
+             * @type {string | undefined}
+             */
+            this["base_revision"] = undefined;
         }
 
         Object.assign(this, $$source);

@@ -55,7 +55,7 @@ func proposeTranslation(t *testing.T, tb terms.Terminology, cid string, locale m
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.True(t, termcandidate.SetTranslation(&cp, "en", locale, text))
-	require.NoError(t, tb.AddConcept(t.Context(), cp))
+	rewriteConcept(t, tb, cp)
 }
 
 // TestContextDeck_KeepTermThenItsTranslation: keeping a candidate starts a
@@ -75,7 +75,7 @@ func TestContextDeck_KeepTermThenItsTranslation(t *testing.T) {
 	card := deckCardWhere(t, readContextDeck(t, e, pid, ""), candidateCard(cid))
 	var out contextDeckDecideResponse
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "keep"}, &out))
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: "keep"}, &out))
 	req := nextTermProposalJob(t, srv, q)
 	assert.Equal(t, pid, req.Project)
 	require.NotNil(t, req.TermProposals)
@@ -97,7 +97,7 @@ func TestContextDeck_KeepTermThenItsTranslation(t *testing.T) {
 	assert.Equal(t, 1, deck.Counts.ByKind[deckKindTermTranslation])
 
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: tr.Item, Revision: tr.Revision, Action: "keep", Text: "graphe de flot"}, &out))
+		contextDeckDecideRequest{Item: tr.Item, Revision: tr.Revision, BaseRevision: tr.BaseRevision, Action: "keep", Text: "graphe de flot"}, &out))
 	assert.Equal(t, deckOutcomeKept, out.Outcome)
 	assert.Empty(t, ks.changesets, "keeping a proposal proposes no change set")
 
@@ -147,7 +147,7 @@ func TestContextDeck_RejectTranslationRemembersIt(t *testing.T) {
 	card := deckCardWhere(t, readContextDeck(t, e, pid, ""), translationCard("c-memory", "fr"))
 	var out contextDeckDecideResponse
 	require.Equal(t, http.StatusOK, decideRoute(t, e, http.MethodPost, pid, "/context/deck/decide",
-		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "reject"}, &out))
+		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: "reject"}, &out))
 	assert.Equal(t, deckOutcomeDropped, out.Outcome)
 
 	cp, _, err := tb.GetConcept(t.Context(), "c-memory")

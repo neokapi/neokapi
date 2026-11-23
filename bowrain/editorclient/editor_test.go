@@ -198,7 +198,7 @@ func TestEditorConcepts(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "c2", concept.ID)
 
-	require.NoError(t, c.EditorUpdateConcept(context.Background(), "acme", "c2", "ui", "d2", nil))
+	require.NoError(t, c.EditorUpdateConcept(context.Background(), "acme", "c2", "rev-c2", "ui", "d2", nil))
 	require.NoError(t, c.EditorDeleteConcept(context.Background(), "acme", "c2"))
 
 	csv, err := c.ImportTermsCSV(context.Background(), "acme", "a,b", "en", "fr", "ui", true)

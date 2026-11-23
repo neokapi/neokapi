@@ -95,3 +95,34 @@ const (
 		CREATE INDEX IF NOT EXISTS idx_tb_terms_ws_normalized ON tb_terms(workspace_id, locale, text_normalized);
 `
 )
+
+// The SQL of the terms migrations that give tb_concepts its revision column,
+// frozen as they shipped. They do not follow storage.RevisionColumn: a test
+// holds them to it, and a change to either is a new numbered migration.
+const (
+	termsPostgresRevision1 = `
+				ALTER TABLE tb_concepts ADD COLUMN IF NOT EXISTS revision TEXT;
+				ALTER TABLE tb_concepts ALTER COLUMN revision SET DEFAULT gen_random_uuid()::text;
+			`
+	termsPostgresRevision2 = `UPDATE tb_concepts SET revision = gen_random_uuid()::text WHERE revision IS NULL;`
+	termsPostgresRevision3 = `ALTER TABLE tb_concepts ADD CONSTRAINT tb_concepts_revision_not_null CHECK (revision IS NOT NULL) NOT VALID;`
+	termsPostgresRevision4 = `ALTER TABLE tb_concepts VALIDATE CONSTRAINT tb_concepts_revision_not_null;`
+	termsPostgresRevision5 = `
+				ALTER TABLE tb_concepts ALTER COLUMN revision SET NOT NULL;
+				ALTER TABLE tb_concepts DROP CONSTRAINT tb_concepts_revision_not_null;
+			`
+)
+
+// termsPostgresImports is the record of each terms import (ImportLedger).
+const termsPostgresImports = `
+CREATE TABLE IF NOT EXISTS tb_imports (
+    workspace_id TEXT NOT NULL,
+    id           TEXT NOT NULL,
+    name         TEXT NOT NULL DEFAULT '',
+    created_by   TEXT NOT NULL DEFAULT '',
+    created_at   TIMESTAMPTZ NOT NULL,
+    updated_by   TEXT NOT NULL DEFAULT '',
+    updated_at   TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (workspace_id, id)
+);
+CREATE INDEX IF NOT EXISTS tb_imports_updated ON tb_imports (workspace_id, updated_at DESC);`

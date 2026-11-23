@@ -7,6 +7,7 @@ import { SinceCard, Summary } from "../components/ContextSession";
 import {
   contextCardId,
   contextCopyPrefix,
+  contextDecision,
   contextDeckView,
   mergeContextPages,
   reachShare,
@@ -84,6 +85,33 @@ describe("the context deck view", () => {
   it("reads the refusal code a decision came back with", () => {
     expect(refusalCode({ body: { code: "stale" } })).toBe("stale");
     expect(refusalCode(new Error("network"))).toBe("failed");
+  });
+});
+
+describe("a context decision", () => {
+  it("sends the base revision a concept card was dealt at", () => {
+    const candidate: Card = {
+      ...concept,
+      base_revision: "b7",
+      actions: ["keep", "reject", "later"],
+    };
+    expect(contextDecision(candidate, "reject")).toEqual({
+      item: candidate.item,
+      revision: "r3",
+      base_revision: "b7",
+      action: "reject",
+      text: undefined,
+    });
+  });
+
+  it("sends the reviewer's wording only when it differs from the proposal", () => {
+    const tr: Card = {
+      ...concept,
+      kind: "term_translation",
+      translation: { term: "content memory", proposed: "innhaldsminne", locale: "nb" },
+    };
+    expect(contextDecision(tr, "keep", "innhaldsminne").text).toBeUndefined();
+    expect(contextDecision(tr, "keep", "innhaldsminnet").text).toBe("innhaldsminnet");
   });
 });
 
