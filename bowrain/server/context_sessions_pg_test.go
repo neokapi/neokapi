@@ -75,7 +75,7 @@ func TestContextSessions_TwoSessionsRaceForOneItemOnPostgres(t *testing.T) {
 	bea := &decideCaller{userID: "member-b", perms: decideAll}
 	callers := []*decideCaller{ada, bea}
 	results := make([]contextSessionResponse, len(callers))
-	for round := 0; round < 5; round++ {
+	for round := range 5 {
 		var wg sync.WaitGroup
 		for i, caller := range callers {
 			wg.Go(func() {
