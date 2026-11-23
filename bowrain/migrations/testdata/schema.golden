@@ -1192,6 +1192,7 @@ unclaimed_projects.expires_at timestamp with time zone NOT NULL
 unclaimed_projects.name text NOT NULL
 unclaimed_projects.project_id text NOT NULL
 unclaimed_projects.target_languages text NOT NULL
+unit_decisions.agent_host text NOT NULL DEFAULT ''::text
 unit_decisions.assignee text NOT NULL DEFAULT ''::text
 unit_decisions.basis text NOT NULL DEFAULT ''::text
 unit_decisions.decided_at text NOT NULL DEFAULT ''::text

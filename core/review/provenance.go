@@ -20,7 +20,7 @@ func ProvenanceOf(b *model.Block, loc model.LocaleID, unit *state.UnitState) Pro
 		p.ReviewState = unit.Decision.ReviewState
 		p.By = unit.Decision.By
 		p.At = unit.Decision.At
-		p.Note = unit.Decision.Note
+		p.Note, p.AgentHost = unit.Decision.Said()
 		p.Reasons = unit.Decision.Reasons
 		// The rung the decision landed the unit on: a translation's target rung,
 		// or the authoring rung for source wording reviewed in its own language.

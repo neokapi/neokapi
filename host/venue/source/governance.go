@@ -215,11 +215,13 @@ func withoutVerdict(u state.UnitState) state.UnitState {
 // the local record's own; a withdrawal is refused only over the pairing the
 // approval blessed, so the two already agree.
 func withHeld(u state.UnitState, h venue.UnitDecision) state.UnitState {
+	h = venue.SplitNote(h)
 	u.Status = model.TargetStatus(h.Status)
 	u.Decision.ReviewState = h.ReviewState
 	u.Decision.By = h.DecidedBy
 	u.Decision.At = h.DecidedAt
 	u.Decision.Note = h.Note
+	u.Decision.AgentHost = h.AgentHost
 	u.Decision.Parked = h.Parked
 	u.Decision.Assignee = h.Assignee
 	u.GoverningFingerprint = h.GoverningFingerprint

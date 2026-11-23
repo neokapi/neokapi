@@ -137,7 +137,7 @@ func decisionStatus(decision string) (model.TargetStatus, error) {
 //
 // It returns changed=false (no error) when the unit is already at this
 // decision for this exact translation.
-func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note string, reasons []string, decided *decidedContent) (bool, error) {
+func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note string, reasons []string, host string, decided *decidedContent) (bool, error) {
 	a.InitRegistries()
 	ctx = ctxOrBackground(ctx)
 	status, err := decisionStatus(decision)
@@ -202,7 +202,7 @@ func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang s
 			// tells one page's `p` from another's. The review queue's display
 			// path is the target file, which no other party names anything by.
 			return a.recordDecisionState(ctx, proj, root, a.documentIndexOrEmpty(ctx, root).Scope(root, u.SourcePath), blockKey(b), loc,
-				content, governing, status, decision, note, reasons)
+				content, governing, status, decision, note, reasons, host)
 		}
 	}
 	return false, fmt.Errorf("block %q (%s) under review not found in %s", ref.Key, ref.Locale, ref.File)
@@ -275,7 +275,7 @@ func (c decidedContent) reading() state.Reading {
 // reviewer. A rejection endorses nothing. It records the verdict, the
 // translation and who turned it down, and leaves the basis where the last
 // approval or the producing run put it, so a rejected re-draft stays stale.
-func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, content decidedContent, governing string, status model.TargetStatus, decision, note string, reasons []string) (bool, error) {
+func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, content decidedContent, governing string, status model.TargetStatus, decision, note string, reasons []string, host string) (bool, error) {
 	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
 		return false, err
@@ -303,7 +303,7 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 	}
 	if hadPrev && prev.Status == status && prev.TargetHash == th && prev.Revision == rev &&
 		prev.ContentHash == ch && prev.Basis == basis &&
-		prev.Decision.Note == note && slices.Equal(prev.Decision.Reasons, reasons) &&
+		sameSaid(prev.Decision, note, host) && slices.Equal(prev.Decision.Reasons, reasons) &&
 		prev.Decision.By == "" && prev.GoverningFingerprint == gov {
 		return false, nil // already at this decision for this exact pairing, under this context
 	}
@@ -317,7 +317,7 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 		ContentHash:          ch,
 		Basis:                basis,
 		GoverningFingerprint: gov,
-		Decision:             state.Decision{ReviewState: decision, At: now, Note: note, Reasons: reasons},
+		Decision:             state.Decision{ReviewState: decision, At: now, Note: note, Reasons: reasons, AgentHost: host},
 		Updated:              now,
 		// The document the unit was decided in: half of the record's identity,
 		// and what lets a decision travel the sync protocol scoped to the item
@@ -578,7 +578,7 @@ func (a *App) ReviewUnitWithOptions(ctx context.Context, projectPath, sourceLang
 						info.Status = string(us.Status)
 					}
 					info.ReviewState = us.Decision.ReviewState
-					info.Note = us.Decision.Note
+					info.Note, _ = us.Decision.Said()
 					info.By = us.Decision.By
 				}
 				if us.AIReview.Fresh(read) {
@@ -646,4 +646,12 @@ func relToRoot(root, p string) string {
 		return rel
 	}
 	return p
+}
+
+// sameSaid reports whether a recorded decision carries note and host, reading
+// a record a released client wrote the way every reader does
+// (state.Decision.Said).
+func sameSaid(d state.Decision, note, host string) bool {
+	n, h := d.Said()
+	return n == note && h == host
 }

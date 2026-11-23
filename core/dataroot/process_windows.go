@@ -1,6 +1,6 @@
 //go:build windows
 
-package host
+package dataroot
 
 import (
 	"errors"

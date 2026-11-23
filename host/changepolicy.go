@@ -8,32 +8,24 @@ import (
 )
 
 // ChangePolicy is the actor policy kapi holds a change set to: the context
-// policy (contextop.PersonDecides) extended to the operations of the change
-// contract. One function decides what each actor may send, whichever surface
-// carries the change set.
+// policy (contextop.PersonDecides) extended to the change contract, whichever
+// surface carries the change set.
 //
 // A person may send every operation, choose either gate and write blindly. An
 // agent may change content, and may not:
 //
-//   - send a term, memory or recipe operation, which writes the project's
-//     context or its recipe directly. The context policy refuses that write
-//     to anyone but a person; an agent records an observation or a correction
-//     instead, and a person keeps it.
-//   - decide with any outcome but prereview. A review decision is a person's; an
-//     agent pre-reviews.
-//   - send if_match "*", which writes whatever the edition holds without having
-//     read it.
+//   - send a term, memory or recipe operation; it records an observation or a
+//     correction instead, and a person keeps it.
+//   - decide with any outcome but prereview.
+//   - send if_match "*", which writes without having read the edition.
 //   - choose gate report, which lands an edit over the failing findings it
-//     introduces. An agent fixes the wording, or asks a person to override.
+//     introduces.
 //
-// A tool in a flow may choose report: its drafts land as drafts and meet the
-// ship gates later. Only a tool records provenance, the in-process operation
-// that says how a tool produced an edition. A tool, like an agent, decides
-// only with prereview; a surface that carries a person's decision (a pull, a
-// merge) sends it as that person.
+// A tool in a flow may choose report, and only a tool records provenance. A
+// tool, like an agent, decides only with prereview; a surface that carries a
+// person's decision (a pull, a merge) sends it as that person.
 //
-// The surface that carries a change set names its sender. A sender of any
-// other kind, or of none, is refused every operation.
+// A sender of any other kind, or of none, is refused every operation.
 type ChangePolicy struct {
 	// Context decides the transitions the asset operations stand for. Nil is
 	// contextop.PersonDecides, the policy in force.
@@ -95,7 +87,7 @@ func (p ChangePolicy) asset(actor change.Actor, kind change.Kind) *change.Error 
 		subject, route = contextop.SubjectMemory, agentAssetRoute(kindMemory)
 	}
 	err := decide(contextop.Transition{
-		Actor:   contextop.Actor{Kind: contextop.ActorKind(actor.Kind), Name: actor.Name, Session: actor.Session},
+		Actor:   contextActorOf(actor),
 		Kind:    contextop.KindEdit,
 		Subject: subject,
 	})
@@ -140,5 +132,5 @@ func notPermitted(field string, actor change.Actor, what, why string) *change.Er
 // actorText renders an actor the way the context log does: "agent
 // claude/s_01", "person asgeir".
 func actorText(actor change.Actor) string {
-	return contextop.Actor{Kind: contextop.ActorKind(actor.Kind), Name: actor.Name, Session: actor.Session}.String()
+	return contextActorOf(actor).String()
 }

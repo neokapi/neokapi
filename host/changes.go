@@ -1065,7 +1065,7 @@ func whoOf(actor change.Actor, set *change.Set) changeActor {
 	if set != nil && set.Note != "" {
 		note = set.Note
 	}
-	return changeActor{Actor: contextop.Actor{Kind: contextop.ActorKind(actor.Kind), Name: actor.Name, Session: actor.Session}, Note: note}
+	return changeActor{Actor: contextActorOf(actor), Note: note}
 }
 
 func (c *changeAssets) Prepare(ctx context.Context, actor change.Actor, op change.Op, target *change.DecisionTarget) *change.Error {
@@ -1206,10 +1206,10 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 		if set != nil {
 			note = set.Note
 		}
-		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionRejected, note, venue.NormalizeReasons(body.Reasons), decided)
+		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionRejected, note, venue.NormalizeReasons(body.Reasons), actor.AgentHost, decided)
 		return decisionOutcome(changed, err)
 	default:
-		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionApproved, "", venue.NormalizeReasons(body.Reasons), decided)
+		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionApproved, "", venue.NormalizeReasons(body.Reasons), actor.AgentHost, decided)
 		return decisionOutcome(changed, err)
 	}
 }

@@ -14,6 +14,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/review"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
@@ -390,8 +391,13 @@ func (s *Server) emitReviewDecisionAudit(c *echo.Context, projectID, stream, blo
 		"stream":   stream,
 		"decision": review.DecisionName(approved, to),
 	}
+	// The note as the person typed it, and the agent host as its own field.
+	note, agentHost := change.SplitNote(note)
 	if note != "" {
 		data["reason"] = note
+	}
+	if agentHost != "" {
+		data["agent_host"] = agentHost
 	}
 	if len(reasons) > 0 {
 		// A JSON array, so each reason stays whole.

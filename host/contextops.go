@@ -8,11 +8,8 @@
 // append-only log; this file is what the CLI, the agent tools and the desktop
 // call.
 //
-// Three things are worth knowing before reading on.
-//
-// Checks report a suggestion from the moment it is recorded, and it binds only once a
-// person keeps it. Until then it is projected into checks as a suggested
-// finding, which reports, weighs nothing in the score and never fails.
+// Checks report a suggestion from the moment it is recorded, and it binds only
+// once a person keeps it. Until then it reports and never fails.
 //
 // Keeping writes the rule where the existing subsystems already read it:
 // through the same appliers `kapi apply` uses, into the project's terms store
@@ -299,7 +296,7 @@ func (s *contextOpsSession) actorFor(ctx context.Context, stated contextop.Actor
 		return contextop.Actor{}, "", err
 	}
 	s.noteAgentSession(ctx, resolved.Actor)
-	return resolved.Actor, resolved.NoteWith(note), nil
+	return resolved.Actor, note, nil
 }
 
 // noteAgentSession records that an agent is at work in this project.
@@ -1244,9 +1241,8 @@ func (s *contextOpsSession) refreshRulesFiles(ctx context.Context) {
 // registered under. An empty path resolves the project the way every other
 // command does. A key opens the checkout the registry lists when a readable
 // one is on this machine, and the project's stores in the workspace alone
-// otherwise, which is enough to read its log and to decide on it: a kept rule
-// lands in the terms store or content memory the workspace holds for the
-// project, and the next checkout anywhere reads it from there.
+// otherwise. That is enough to read its log and decide on it: a kept rule
+// lands in the stores the workspace holds for the project.
 //
 // A value that names a file or a directory is a path. One that names nothing
 // on disk and is registered is a key; one that names nothing and is not

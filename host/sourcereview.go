@@ -332,7 +332,7 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 				info.Stale = us.SourceStale(state.ReadSource(b, model.LocaleID(sourceLang)))
 				if !info.Stale {
 					info.ReviewState = us.Decision.ReviewState
-					info.Note = us.Decision.Note
+					info.Note, _ = us.Decision.Said()
 					info.By = us.Decision.By
 				}
 			}

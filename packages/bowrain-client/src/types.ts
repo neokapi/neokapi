@@ -778,6 +778,8 @@ export interface FeedDecision {
   note?: string;
   /** The reason codes chosen with the decision, sorted. */
   reasons?: string[];
+  /** The agent host whose shell the person decided in, such as "claude-code". */
+  agentHost?: string;
   /** Still the newest decision on the translation, which stands where it left it. */
   current: boolean;
   /** The reader made it and it still holds, so it can be withdrawn. */

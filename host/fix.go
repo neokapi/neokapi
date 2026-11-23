@@ -302,7 +302,7 @@ func (a *App) applyFixes(cmd Command, recipe string, opts FixOptions, docs map[s
 		return err
 	}
 	f := &fixer{app: a, cmd: cmd, recipe: recipe, root: root, resolved: resolved,
-		note: resolved.NoteWith("applied with `kapi fix`"), services: map[bool]*change.Service{}}
+		note: "applied with `kapi fix`", services: map[bool]*change.Service{}}
 	for _, doc := range order {
 		if err := f.fixDoc(doc, docs[doc], opts.DryRun, res); err != nil {
 			return err

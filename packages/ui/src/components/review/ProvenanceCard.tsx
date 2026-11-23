@@ -96,6 +96,7 @@ export function ProvenanceCard({
   const label = originLabel(kind);
   const state = decisionLabel(provenance?.review_state);
   const by = provenance?.by;
+  const agentHost = provenance?.agent_host;
   const at = provenance?.at;
   const stale = provenance?.stale;
   const note = provenance?.note || unitNote;
@@ -158,6 +159,11 @@ export function ProvenanceCard({
             {by && (
               <span className="text-muted-foreground">
                 {t("by")} <span translate="no">{by}</span>
+              </span>
+            )}
+            {agentHost && (
+              <span className="text-muted-foreground" data-testid="provenance-agent-host">
+                {t("recorded in a {host} shell", { host: agentHost })}
               </span>
             )}
             {at && <When iso={at} className="text-muted-foreground" />}
