@@ -10,13 +10,13 @@
 package dataroot
 
 import (
-	"flag"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 )
 
@@ -61,17 +61,11 @@ func Dir() string {
 	return dataDir(os.Getenv, runtime.GOOS)
 }
 
-// UnderTest reports whether this process is a test binary.
-//
-// The testing package installs its flags before any test runs, so `test.v`
-// existing is the signal; the executable's name is the belt for a binary that
-// has not reached testing.Init yet.
+// UnderTest reports whether this process is a test binary built by `go test`.
+// testing.Testing is the exact signal: a released binary renamed to end in
+// ".test" is not one.
 func UnderTest() bool {
-	if flag.Lookup("test.v") != nil {
-		return true
-	}
-	base := filepath.Base(os.Args[0])
-	return strings.HasSuffix(base, ".test") || strings.HasSuffix(base, ".test.exe")
+	return testing.Testing()
 }
 
 // testDataDirPrefix begins the name of a test binary's data root under the

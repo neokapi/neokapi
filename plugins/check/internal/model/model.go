@@ -15,11 +15,11 @@ package model
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
+	"testing"
 )
 
 const (
@@ -98,7 +98,7 @@ func ModelsRoot() (string, error) {
 	if v := os.Getenv("XDG_CACHE_HOME"); v != "" {
 		return filepath.Join(v, "kapi", "models", "check"), nil
 	}
-	if flag.Lookup("test.v") != nil {
+	if testing.Testing() {
 		// A test binary keeps off the developer's cache (core/dataroot), in a
 		// private directory of its own that no other user can name in advance.
 		dir, err := testModelsDir()

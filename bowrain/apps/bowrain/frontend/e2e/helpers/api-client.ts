@@ -6,6 +6,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { requireDisposableStack } from "../../../../../e2e/shared/disposable-stack";
 import { CONCEPTS, MEMORY_ENTRIES } from "../../../../../e2e/shared/seed-data";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -31,6 +32,8 @@ export async function authenticate(
   email = "admin@example.com",
   name = "Demo User",
 ): Promise<string> {
+  // Before any request, a token included: these suites delete data.
+  await requireDisposableStack(BASE_URL);
   // Fast path: pre-supplied token for external server mode.
   const preSupplied = process.env.BOWRAIN_TOKEN;
   if (preSupplied) return preSupplied;
@@ -152,6 +155,7 @@ export async function deleteEditorProject(
 }
 
 export async function deleteAllEditorProjects(token: string, wsSlug: string): Promise<void> {
+  await requireDisposableStack(BASE_URL);
   const projects = await listEditorProjects(token, wsSlug);
   if (!projects) return;
   for (const p of projects) {
