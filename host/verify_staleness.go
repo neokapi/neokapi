@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/tool"
 )
 
 // The staleness gate detects content produced or approved under superseded
@@ -105,6 +107,15 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 
 		scope := stalenessScope{unit: u}
 		document := docs.Scope(root, u.SourcePath)
+		// A unit a reviewer rejected was drafted again under its feedback, and
+		// the draft carries it in its stamp (tool.FeedbackFingerprint), so the
+		// comparison folds in the feedback the unit has now: a changed note
+		// makes that unit stale and no other.
+		feedback, ferr := a.reviewFeedbackFor(ctx, proj, root, u.Locale, []string{u.SourcePath})
+		if ferr != nil {
+			return gate, false, ferr
+		}
+		rel := blockstore.SourceNamespace(root, u.SourcePath)
 		for _, b := range bl {
 			if !b.Translatable {
 				continue
@@ -119,10 +130,16 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 				// is how two gates come to disagree.
 				continue
 			}
+			unitFeedback := feedback[tool.FeedbackUnitKey(rel, blockKey(b))]
+			if unitFeedback.Held {
+				// Rejected tool.MaxRejections times: a person writes it, and the
+				// loop has nothing to redraft.
+				continue
+			}
 			judged = true
 			scope.produced++
 			switch {
-			case p.fingerprint == want.fingerprint:
+			case p.fingerprint == tool.FeedbackFingerprint(want.fingerprint, unitFeedback):
 				// Produced under the context in force, an ungoverned one
 				// included: both stamps are empty there.
 			case p.fingerprint == "":

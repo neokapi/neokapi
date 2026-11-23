@@ -90,6 +90,11 @@ type Meta struct {
 	// terminology section. The demo provider applies it so its drafts carry the
 	// project's terms the way a model given the prompt is asked to.
 	PreferredTerms map[string]string
+	// RejectedDrafts are the wordings of earlier drafts of the block a
+	// reviewer rejected, which the prompt tells the model not to return. The
+	// demo provider avoids them so its redraft differs the way a model's is
+	// asked to.
+	RejectedDrafts []string
 }
 
 // Param returns a parameter, or "" when absent.

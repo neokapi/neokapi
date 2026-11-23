@@ -373,6 +373,22 @@ func (b *Block) StructuralAddress() string {
 	return ""
 }
 
+// UnitKey is the key a unit's decisions, history and review feedback are
+// filed under: the resolved unit key, else the reader's name, else the
+// reader's id. convergence.BlockKey answers with it.
+func (b *Block) UnitKey() string {
+	if b == nil {
+		return ""
+	}
+	if b.Key != "" {
+		return b.Key
+	}
+	if b.Name != "" {
+		return b.Name
+	}
+	return b.ID
+}
+
 // ChainKey is the identity that links a block's successive approved
 // translations into one chain, so a source that was rewritten can still find
 // what it said before.

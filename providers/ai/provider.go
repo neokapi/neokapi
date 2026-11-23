@@ -585,7 +585,13 @@ func StandardTranslate(
 ) (*TranslateResponse, error) {
 	p := req.Prompt()
 	turns := p.SingleWithContext(req.Source, req.PreserveTags, req.BlockContext)
-	ctx = prompt.WithMeta(ctx, p.Meta(prompt.IDTranslateSingle))
+	meta := p.Meta(prompt.IDTranslateSingle)
+	for _, r := range req.BlockContext.Rejections {
+		if r.Text != "" {
+			meta.RejectedDrafts = append(meta.RejectedDrafts, r.Text)
+		}
+	}
+	ctx = prompt.WithMeta(ctx, meta)
 	msgs := MessagesFromTurns(turns)
 
 	resp, err := chat(ctx, msgs)

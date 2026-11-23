@@ -949,6 +949,38 @@ SELECT id, actor, origin, recorded_at, revoked, payload FROM unit_decision
 	return out, rows.Err()
 }
 
+// EntriesInScope returns every entry the ledger holds for the units of one
+// document, most recent first: the decision history of a whole file in one
+// read, for a caller that asks about each of its units.
+func (w *WorkStore) EntriesInScope(ctx context.Context, scope string) ([]Entry, error) {
+	rows, err := w.db.QueryContext(ctx, `
+SELECT id, actor, origin, recorded_at, revoked, payload FROM unit_decision
+ WHERE scope = ?
+ ORDER BY recorded_at DESC, rowid DESC`, scope)
+	if err != nil {
+		return nil, fmt.Errorf("state: read document history: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Entry
+	for rows.Next() {
+		var e Entry
+		var origin, stamp, payload string
+		var revoked int
+		if err := rows.Scan(&e.ID, &e.Actor, &origin, &stamp, &revoked, &payload); err != nil {
+			return nil, fmt.Errorf("state: scan entry: %w", err)
+		}
+		if err := json.Unmarshal([]byte(payload), &e.State); err != nil {
+			return nil, fmt.Errorf("state: parse entry: %w", err)
+		}
+		e.Origin = EntryOrigin(origin)
+		e.Revoked = revoked == 1
+		e.Recorded, _ = time.Parse(entryTimeLayout, stamp)
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
 func scanUnits(rows *sql.Rows) ([]UnitState, error) {
 	var out []UnitState
 	for rows.Next() {

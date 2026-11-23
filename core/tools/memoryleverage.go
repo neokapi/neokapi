@@ -63,6 +63,12 @@ type MemoryLeverageConfig struct {
 	Profile   *coreprofile.VoiceProfile `json:"-" schema:"-"`
 	TermRules []coreprofile.TermRule    `json:"term_rules,omitempty" schema:"-"`
 
+	// ReviewFeedback names the units a reviewer rejected a draft of
+	// (tool.ReviewFeedbackKey). Recycling fills none of them: a rejected unit
+	// is owed a new draft, and the content memory could only answer it with
+	// wording the reviewer has already seen, the rejected draft among it.
+	ReviewFeedback tool.ReviewFeedback `json:"review_feedback,omitempty" schema:"-"`
+
 	// Governing context resolved once at construction from Profile + TermRules
 	// and stamped onto every filled target's Origin.
 	profileID      string
@@ -224,6 +230,9 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 
 		conf := t.Cfg.(*MemoryLeverageConfig)
 		if conf.Memory == nil {
+			return nil
+		}
+		if fb := conf.ReviewFeedback.ForBlock(v.Context(), v.UnitKey()); len(fb.Rejections) > 0 || fb.Held {
 			return nil
 		}
 

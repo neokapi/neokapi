@@ -173,22 +173,24 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	// delivers what every locale's worker drafted.
 	"convergeDeliveries": fieldShared,
 	// A run that prints its change set prints one, gathered from every worker.
-	"printOps":            fieldShared,
-	"docCache":            fieldShared,
-	"translator":          fieldShared,
-	"pluginRuntime":       fieldShared, // pre-seeded, never rebuilt per worker
-	"projectStores":       fieldShared, // pre-seeded: one store per project, not per locale
-	"governance":          fieldShared, // one instant and one transition report per run
-	"governanceOnce":      fieldOwned,  // a fresh Once that sees the pre-seeded state
-	"freshness":           fieldShared, // one process, one reading history
-	"freshnessOnce":       fieldOwned,  // a fresh Once that sees the pre-seeded watch
-	"projectFlowTools":    fieldOwned,  // each worker builds its own tool instances
-	"flowFindings":        fieldOwned,  // armed per reported run; a silent worker reports none
-	"flowFindingsSink":    fieldOwned,  // scoped to one RunFromProject; a worker gates nothing
-	"convergeProgressTap": fieldOwned,  // one tap per locale
-	"flowRedaction":       fieldOwned,  // set per binding group on the worker that runs it
-	"pluginRuntimeOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded runtime
-	"projectStoresOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded holder
+	"printOps":              fieldShared,
+	"docCache":              fieldShared,
+	"translator":            fieldShared,
+	"pluginRuntime":         fieldShared, // pre-seeded, never rebuilt per worker
+	"projectStores":         fieldShared, // pre-seeded: one store per project, not per locale
+	"governance":            fieldShared, // one instant and one transition report per run
+	"governanceOnce":        fieldOwned,  // a fresh Once that sees the pre-seeded state
+	"freshness":             fieldShared, // one process, one reading history
+	"freshnessOnce":         fieldOwned,  // a fresh Once that sees the pre-seeded watch
+	"projectFlowTools":      fieldOwned,  // each worker builds its own tool instances
+	"flowFindings":          fieldOwned,  // armed per reported run; a silent worker reports none
+	"flowFindingsSink":      fieldOwned,  // scoped to one RunFromProject; a worker gates nothing
+	"convergeProgressTap":   fieldOwned,  // one tap per locale
+	"flowRedaction":         fieldOwned,  // set per binding group on the worker that runs it
+	"flowReviewFeedback":    fieldOwned,  // set per binding group and locale on the worker that runs it
+	"reviewFeedbackMTNoted": fieldOwned,  // each worker says it at most once; a silent worker says nothing
+	"pluginRuntimeOnce":     fieldOwned,  // a fresh Once that sees the pre-seeded runtime
+	"projectStoresOnce":     fieldOwned,  // a fresh Once that sees the pre-seeded holder
 	// The plugin MCP servers belong to a `kapi mcp` session, and a converge
 	// worker is not one. Sharing them would let a worker's Shutdown close the
 	// parent's plugin subprocesses out from under the agent it is serving.

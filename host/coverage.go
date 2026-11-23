@@ -7,6 +7,7 @@ import (
 	"math"
 	"slices"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
@@ -15,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/tool"
 )
 
 // computeSourceReadiness rolls up source-authoring readiness over the project's
@@ -686,6 +688,11 @@ func (a *App) coverageTally(ctx context.Context, proj *project.KapiProject, root
 	for _, u := range units {
 		s := convergence.Scope{Collection: u.Collection, Locale: u.Locale}
 		scope := docs.Scope(root, u.SourcePath)
+		feedback, ferr := a.reviewFeedbackFor(ctx, proj, root, u.Locale, []string{u.SourcePath})
+		if ferr != nil {
+			return nil, ferr
+		}
+		feedbackRel := blockstore.SourceNamespace(root, u.SourcePath)
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
 			if !errors.Is(berr, errTargetUnreadable) {
@@ -761,7 +768,11 @@ func (a *App) coverageTally(ctx context.Context, proj *project.KapiProject, root
 			// The unit is the loop's work, on a source the grading above reads
 			// as settled, so it is counted where a reader can act on it.
 			if read.rejectedOwed {
-				tally.NoteRejectedAwaitingDraft(s)
+				if feedback[tool.FeedbackUnitKey(feedbackRel, blockKey(b))].Held {
+					tally.NoteRejectedLeftForPerson(s)
+				} else {
+					tally.NoteRejectedAwaitingDraft(s)
+				}
 			}
 			tally.Add(s, read.state)
 		}

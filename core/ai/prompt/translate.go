@@ -281,6 +281,10 @@ type BatchSegment struct {
 	// it applied to, and on a model migration (where every approved block has a
 	// governed prior) that was every block in the corpus.
 	Prior *PriorVersion `json:"prior,omitempty"`
+
+	// RejectedDrafts are earlier drafts of this segment a reviewer rejected,
+	// with the reasons and the note. Per segment, like Prior.
+	RejectedDrafts []Rejection `json:"rejected_drafts,omitempty"`
 }
 
 // BatchSegments labels texts for a batched call, in order.
@@ -343,7 +347,7 @@ func (t Translate) Batch(segments []BatchSegment) []Turn {
 // Per-segment keys ride inside the payload (they differ per segment); the
 // neighbourhood is one shared section (it does not).
 func (t Translate) BatchWithContext(segments []BatchSegment, batchCtx Context) []Turn {
-	var keyRule, priorRule string
+	var keyRule, priorRule, rejectedRule string
 	for _, seg := range segments {
 		if keyRule == "" && strings.TrimSpace(seg.Key) != "" {
 			keyRule = " Each segment carries the key it appears under in the document; use it to disambiguate, and never translate or return it."
@@ -357,6 +361,11 @@ func (t Translate) BatchWithContext(segments []BatchSegment, batchCtx Context) [
 				"what the edit requires. It is reference for its own segment alone. Never carry it across to another segment, " +
 				"and never return it as a translation."
 		}
+		if rejectedRule == "" && len(seg.RejectedDrafts) > 0 {
+			rejectedRule = " A segment may carry `rejected_drafts`: earlier drafts of that segment a reviewer rejected, " +
+				"each with why and the reviewer's note. Write a new translation of that segment that answers them, " +
+				"and never return a rejected draft."
+		}
 	}
 
 	system := []Section{{
@@ -367,7 +376,7 @@ func (t Translate) BatchWithContext(segments []BatchSegment, batchCtx Context) [
 				"rendering each as a specialist writing natively in that domain and language would. "+
 				"Return one translation per segment, echoing each segment's id exactly. "+
 				"Return every id you were given, and no others.%s",
-			LanguageName(t.SourceLocale), LanguageName(t.TargetLocale), keyRule+priorRule,
+			LanguageName(t.SourceLocale), LanguageName(t.TargetLocale), keyRule+priorRule+rejectedRule,
 		),
 	}}
 	system = append(system, t.constraints(true)...)

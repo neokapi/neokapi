@@ -34,6 +34,11 @@ type MTTranslateTool struct {
 	profileID      string
 	profileVersion string
 	contextFP      string
+	// feedback is the review feedback per unit key. A machine translation
+	// engine takes no instructions, so none of it is sent: a unit's draft is
+	// stamped with it (tool.FeedbackFingerprint), so a changed note makes that
+	// unit stale on this route as on any other, and a held unit is not drafted.
+	feedback tool.ReviewFeedback
 	// reused counts the blocks this run served from the block store instead of
 	// sending to the MT API. See AITranslateTool.ReusedTargets.
 	reused atomic.Int64
@@ -47,11 +52,15 @@ func (t *MTTranslateTool) ReusedTargets() int { return int(t.reused.Load()) }
 // answers this block when it was made from the same source wording by this
 // engine for this language pair, under the governing context in force. Every
 // store lookup this tool makes goes through here, and so does the plan's.
-func (t *MTTranslateTool) ReusesStoredTarget(_ context.Context, b *model.Block, stored blockstore.TargetOverlay) bool {
+func (t *MTTranslateTool) ReusesStoredTarget(ctx context.Context, b *model.Block, stored blockstore.TargetOverlay) bool {
 	if b == nil {
 		return false
 	}
-	return stored.ReusableFor(blockstore.AsReadSourceText(b), blockstore.ReuseConfig(t.configFP, b), t.contextFP)
+	fb := t.feedback.ForBlock(ctx, b.UnitKey())
+	if fb.Held {
+		return stored.ReusableFor(blockstore.AsReadSourceText(b), stored.Config, stored.ContextFingerprint())
+	}
+	return stored.ReusableFor(blockstore.AsReadSourceText(b), blockstore.ReuseConfig(t.configFP, b), tool.FeedbackFingerprint(t.contextFP, fb))
 }
 
 // MTTranslateConfig holds configuration for the MT translate tool.
@@ -100,6 +109,9 @@ type MTTranslateConfig struct {
 	// fall stale together when the profile or terms move.
 	Profile   *coreprofile.VoiceProfile `json:"-" schema:"-"`
 	TermRules []coreprofile.TermRule    `json:"term_rules,omitempty" schema:"-"`
+	// ReviewFeedback is each unit's earlier rejected drafts
+	// (tool.ReviewFeedbackKey). It is never sent to the engine.
+	ReviewFeedback tool.ReviewFeedback `json:"review_feedback,omitempty" schema:"-"`
 }
 
 // NewMTTranslateTool creates a new MT translation tool.
@@ -109,6 +121,7 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 		sourceLocale: cfg.SourceLocale,
 		targetLocale: cfg.TargetLocale,
 		vocab:        model.DefaultVocabulary(),
+		feedback:     cfg.ReviewFeedback,
 	}
 	name := cfg.ToolName
 	if name == "" {
@@ -138,6 +151,10 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 	if sourceText == "" {
 		return nil
 	}
+	// A unit a reviewer rejected tool.MaxRejections times is not drafted again.
+	if t.feedback.ForBlock(v.Context(), v.UnitKey()).Held {
+		return nil
+	}
 
 	sourceRuns := v.SourceRuns()
 	if model.HasStructuredRuns(sourceRuns) || model.RunsHaveInlineCodes(sourceRuns) {
@@ -148,7 +165,7 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 			return err
 		}
 		v.SetTargetRuns(t.targetLocale, runs)
-		v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
+		v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin(v.Context(), v.UnitKey()))
 		return nil
 	}
 
@@ -162,7 +179,7 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 	}
 
 	v.SetTargetText(t.targetLocale, resp.Translation)
-	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
+	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin(v.Context(), v.UnitKey()))
 	return nil
 }
 
@@ -201,13 +218,13 @@ func (t *MTTranslateTool) translateSequence(ctx context.Context, seq []model.Run
 // context, but a later reader cannot recover it after the fact — the profile is
 // edited in place and the terminology carries no version — so it is stamped at
 // production time, the same governance half the AI and recycle producers record.
-func (t *MTTranslateTool) mtOrigin() model.Origin {
+func (t *MTTranslateTool) mtOrigin(ctx context.Context, key string) model.Origin {
 	return model.Origin{
 		Kind:               model.OriginMT,
 		Engine:             string(t.provider.Name()),
 		Profile:            t.profileID,
 		ProfileVersion:     t.profileVersion,
-		ContextFingerprint: t.contextFP,
+		ContextFingerprint: tool.FeedbackFingerprint(t.contextFP, t.feedback.ForBlock(ctx, key)),
 	}
 }
 
@@ -272,7 +289,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 					} else {
 						v.SetTargetText(t.targetLocale, cached.TargetText())
 					}
-					v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
+					v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin(ctx, block.UnitKey()))
 					return nil
 				})
 				if err != nil {
@@ -296,7 +313,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 			Provider: string(t.provider.Name()),
 			Config:   blockstore.ReuseConfig(t.configFP, block),
 			Source:   blockstore.BlockSourceStamp(block),
-			Origin:   blockstore.OverlayOrigin(t.mtOrigin()),
+			Origin:   blockstore.OverlayOrigin(t.mtOrigin(ctx, block.UnitKey())),
 		})
 		if err != nil {
 			return fmt.Errorf("translate: encode overlay: %w", err)

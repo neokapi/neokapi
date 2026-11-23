@@ -32,6 +32,7 @@ type scopeTally struct {
 	stale          int
 	staleRedrafted int
 	rejectedOwed   int
+	rejectedHeld   int
 	failingChecks  int
 	basisUnknown   int
 	// termsNotChecked counts units in a locale the terms govern that have no
@@ -96,6 +97,13 @@ func (t *CoverageTally) AddStale(s Scope, redrafted bool) {
 // a translation of the source the project still holds moves neither hash, so no
 // grading of the basis can see it.
 func (t *CoverageTally) NoteRejectedAwaitingDraft(s Scope) { t.tally(s).rejectedOwed++ }
+
+// NoteRejectedLeftForPerson records a unit whose drafts a reviewer rejected
+// as many times as kapi drafts a unit (tool.MaxRejections): the loop drafts it
+// no more, and a person writes its translation. It is not the loop's work, so
+// it is kept apart from RejectedAwaitingDraft, and like it it holds the scope
+// out of Shippable.
+func (t *CoverageTally) NoteRejectedLeftForPerson(s Scope) { t.tally(s).rejectedHeld++ }
 
 // NoteUnknownBasis records that a unit's record says nothing about the source in
 // front of the reader: a decision written before the basis was tracked, or a
@@ -196,6 +204,7 @@ func (t *CoverageTally) RollupGates(ship, established gate.RuleSet) []LocaleCove
 			Stale: st.stale, FailingChecks: st.failingChecks,
 			StaleAwaitingDraft: st.stale - st.staleRedrafted, StaleAwaitingReview: st.staleRedrafted,
 			RejectedAwaitingDraft: st.rejectedOwed,
+			RejectedLeftForPerson: st.rejectedHeld,
 			BasisUnknown:          st.basisUnknown,
 			TermsNotChecked:       st.termsNotChecked,
 		}
@@ -230,7 +239,7 @@ func (t *CoverageTally) RollupGates(ship, established gate.RuleSet) []LocaleCove
 		//
 		// This is the one place the verdict is decided, so every surface reading a
 		// LocaleCoverage gets the same answer to "does this ship".
-		if lc.Stale > 0 || lc.RejectedAwaitingDraft > 0 || lc.FailingChecks > 0 || lc.TermsNotChecked > 0 {
+		if lc.Stale > 0 || lc.RejectedAwaitingDraft > 0 || lc.RejectedLeftForPerson > 0 || lc.FailingChecks > 0 || lc.TermsNotChecked > 0 {
 			lc.Shippable = false
 		}
 		lc.ShipState = shipState(lc, establishedMet)

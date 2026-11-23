@@ -2614,6 +2614,7 @@ func (a *App) stepToolConfig(step flow.FlowStep, cmd Command, rCtx *flow.Resourc
 	if err != nil {
 		return nil, noop, err
 	}
+	config = a.applyReviewFeedback(step.Tool, config, cmd)
 
 	// The grant happens here, on the config map, at the one place a flow step
 	// becomes a tool. The map takes the handle for any tool that declared it

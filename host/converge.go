@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host/output"
 )
 
@@ -80,6 +81,10 @@ type ConvergeLocaleResult struct {
 	// so Stale does not count them, and they hold the locale out of Shippable
 	// for the same reason: a person has said the wording will not do.
 	Rejected int `json:"rejected,omitempty"`
+	// LeftForPerson counts units whose drafts a reviewer rejected as many
+	// times as kapi drafts a unit (tool.MaxRejections). kapi drafts them no
+	// more; a person writes their translation.
+	LeftForPerson int `json:"left_for_person,omitempty"`
 	// Redrafted counts the stale units this run produced over: recycled against
 	// the rewritten source, or drafted for the remainder. Each now holds a
 	// translation of the current source. The decision they carried is NOT
@@ -223,6 +228,16 @@ func (o ConvergeOutput) RejectedUnits() int {
 	return n
 }
 
+// LeftForPersonUnits totals the units kapi drafts no more because a reviewer
+// rejected tool.MaxRejections of their drafts, across every locale.
+func (o ConvergeOutput) LeftForPersonUnits() int {
+	n := 0
+	for _, lc := range o.Locales {
+		n += lc.LeftForPerson
+	}
+	return n
+}
+
 // RedraftedUnits totals the stale units this run produced a fresh translation
 // for, across every locale.
 func (o ConvergeOutput) RedraftedUnits() int {
@@ -309,7 +324,13 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	// unit and produced the same words, or the flow has no step that would.
 	if rejected := o.RejectedUnits(); rejected > 0 {
 		fmt.Fprintf(w, "%d block(s) still hold wording a reviewer turned down. "+
-			"They do not ship until a pass drafts something else for them.\n", rejected)
+			"They do not ship until a pass drafts something else for them: a run whose flow drafts "+
+			"(an AI or machine translation step with its provider set up) drafts them again, "+
+			"and an AI draft is told the reviewer's reasons and note.\n", rejected)
+	}
+	if held := o.LeftForPersonUnits(); held > 0 {
+		fmt.Fprintf(w, "%d block(s) had %d drafts rejected, so kapi drafts them no more. "+
+			"They wait for a person to write the translation (kapi status --review lists them).\n", held, tool.MaxRejections)
 	}
 	if o.Findings != nil {
 		o.formatPlaceholderFindings(w)
@@ -670,6 +691,12 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 				}
 				worker.ProjectBindings = b
 				worker.flowRedaction = &group.Redaction
+				fb, ferr := worker.reviewFeedbackFor(ctx, pctx.Project, projectDir, locale, group.Inputs)
+				if ferr != nil {
+					err = ferr
+					break
+				}
+				worker.flowReviewFeedback = fb
 				// A quiet worker arms no findings collector of its own
 				// (beginFlowFindings), so the run's placeholder collector
 				// stays armed and taps the worker's chain per file.
@@ -1486,6 +1513,7 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 			}
 			res.Stale += c.Stale
 			res.Rejected += c.RejectedAwaitingDraft
+			res.LeftForPerson += c.RejectedLeftForPerson
 			res.FailingChecks += c.FailingChecks
 			// The verdict is the rollup's, unconditionally: a scope that does not
 			// ship does not ship, gate or no gate, and reading it only for gated

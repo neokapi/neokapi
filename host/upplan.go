@@ -21,6 +21,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/core/tool"
 	appconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/neokapi/neokapi/host/output"
@@ -831,6 +832,14 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 		settled := basis.settled[u.TargetPath]
 		delivered := !missing && targetDelivered(basis.root, u.TargetPath)
 		scope := basis.docs.Scope(basis.root, u.SourcePath)
+		// A unit a reviewer rejected is owed a new draft: recycling leaves it
+		// for the drafter, so the corpus answering it changes nothing. One
+		// rejected tool.MaxRejections times is left for a person.
+		feedback, ferr := a.reviewFeedbackFor(ctx, proj, basis.root, u.Locale, []string{u.SourcePath})
+		if ferr != nil {
+			return UpPlanOutput{}, ferr
+		}
+		feedbackRel := blockstore.SourceNamespace(basis.root, u.SourcePath)
 		for _, b := range blocks {
 			if !b.Translatable {
 				continue
@@ -861,6 +870,13 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 			// counts. It is a fact about the corpus alone, what the configured
 			// flow does with the answer is decided below.
 			answered := planMemoryExactHit(ctx, basis.memory, b, source, target)
+			unitFeedback := feedback[tool.FeedbackUnitKey(feedbackRel, blockKey(b))]
+			if unitFeedback.Held {
+				continue
+			}
+			if len(unitFeedback.Rejections) > 0 {
+				answered = false
+			}
 			switch {
 			case !produced:
 				s.MissingTarget++

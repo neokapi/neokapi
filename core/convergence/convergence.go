@@ -112,6 +112,11 @@ type LocaleCoverage struct {
 	// convergence pass either way. They hold the scope out of Shippable for the same reason a stale unit does: a translation somebody
 	// refused is not shippable at any coverage.
 	RejectedAwaitingDraft int `json:"rejected_awaiting_draft,omitempty"`
+	// RejectedLeftForPerson counts units whose drafts a reviewer rejected as
+	// many times as kapi drafts a unit: the loop drafts them no more, and a
+	// person writes their translation. They are not convergence work, and
+	// like a rejected unit they hold the scope out of Shippable.
+	RejectedLeftForPerson int `json:"rejected_left_for_person,omitempty"`
 	// FailingChecks counts produced units that fail the project's bound
 	// target-side checks (placeholder and tag integrity, terminology). They
 	// count at their true rung in Pct (the unit is translated, and a percentage
@@ -362,13 +367,7 @@ func BlockKey(b *model.Block) string {
 	// rather than named: it survives a sibling being deleted, which is the
 	// case the other two cannot answer. Absent, the reader's name is the best
 	// available key, and the reader's id the last resort.
-	if b.Key != "" {
-		return b.Key
-	}
-	if b.Name != "" {
-		return b.Name
-	}
-	return b.ID
+	return b.UnitKey()
 }
 
 // BlockAddress is a block's TRANSLATION-INVARIANT unit identity, or "" when it

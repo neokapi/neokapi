@@ -215,8 +215,8 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	// binding set carries are the wording approved for one target locale, and a
 	// flow whose locales come from the recipe runs several of them.
 	groupBindings := a.newLocaleBindings(cmd, proj, projectPath)
-	savedBindings, savedRedaction := a.ProjectBindings, a.flowRedaction
-	defer func() { a.ProjectBindings, a.flowRedaction = savedBindings, savedRedaction }()
+	savedBindings, savedRedaction, savedFeedback := a.ProjectBindings, a.flowRedaction, a.flowReviewFeedback
+	defer func() { a.ProjectBindings, a.flowRedaction, a.flowReviewFeedback = savedBindings, savedRedaction, savedFeedback }()
 
 	// Build resource context from project file location.
 	absProjectPath, _ := filepath.Abs(projectPath)
@@ -238,6 +238,11 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 			}
 			a.ProjectBindings = b
 			a.flowRedaction = &group.Redaction
+			fb, ferr := a.reviewFeedbackFor(cmd.Context(), proj, ctx.ProjectDir, a.TargetLang, group.Inputs)
+			if ferr != nil {
+				return ferr
+			}
+			a.flowReviewFeedback = fb
 			if err := a.runProjectStepsOver(cmd.Context(), cmd, flowName, spec, &rCtx, group.Inputs); err != nil {
 				return err
 			}

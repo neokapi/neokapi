@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
@@ -43,6 +44,15 @@ type AITranslateTool struct {
 	dnt         []string // do-not-translate terms; masked before the model, restored after
 	voiceGuide  string   // compact voice profile guidance injected into every prompt
 	instruction string   // caller-supplied directive injected into every prompt
+	// feedback is the review feedback per unit key (tool.ReviewFeedbackKey):
+	// earlier drafts a reviewer rejected, which a unit's next draft is told
+	// about, and the units kapi no longer drafts.
+	feedback tool.ReviewFeedback
+	// learned holds the wording of a rejected draft the host no longer held,
+	// recovered when a new draft came back equal to it (repeatsRejected), so
+	// the retry can show the model what was rejected.
+	learnedMu sync.Mutex
+	learned   map[string]string
 	// profileID and profileVersion identify the context profile whose guidance
 	// went into voiceGuide, stamped onto every target this tool produces. The
 	// guidance itself is rendered once and the profile discarded, so these are
@@ -109,7 +119,13 @@ func (t *AITranslateTool) ReusesStoredTarget(ctx context.Context, b *model.Block
 	if b == nil || !cachesTarget(b) {
 		return false
 	}
-	return stored.ReusableFor(blockstore.AsReadSourceText(b), t.cacheFingerprint(ctx, b), t.contextFP)
+	fb := t.feedback.ForBlock(ctx, b.UnitKey())
+	if fb.Held {
+		// A unit rejected tool.MaxRejections times is drafted no more: it
+		// keeps the draft it has, under whatever it was made, for a person.
+		return stored.ReusableFor(blockstore.AsReadSourceText(b), stored.Config, stored.ContextFingerprint())
+	}
+	return stored.ReusableFor(blockstore.AsReadSourceText(b), t.cacheFingerprint(ctx, b), tool.FeedbackFingerprint(t.contextFP, fb))
 }
 
 // applyStored puts a stored target on the block and counts the reuse. The
@@ -123,7 +139,7 @@ func (t *AITranslateTool) applyStored(ctx context.Context, block *model.Block, s
 		} else {
 			v.SetTargetText(t.targetLocale, stored.TargetText())
 		}
-		v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
+		v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin(ctx, block.UnitKey()))
 		return nil
 	})
 	if err != nil {
@@ -146,7 +162,7 @@ func (t *AITranslateTool) leavesProducedAlone(block *model.Block) bool {
 // storedTarget is the overlay this tool writes for a block it just translated:
 // the runs (so inline markup round-trips), the source it answered and the
 // configuration it answered under.
-func (t *AITranslateTool) storedTarget(block *model.Block, target, configFP string) blockstore.TargetOverlay {
+func (t *AITranslateTool) storedTarget(ctx context.Context, block *model.Block, target, configFP string) blockstore.TargetOverlay {
 	return blockstore.TargetOverlay{
 		Runs:     block.TargetRuns(t.targetLocale),
 		Text:     target,
@@ -154,7 +170,7 @@ func (t *AITranslateTool) storedTarget(block *model.Block, target, configFP stri
 		Provider: string(t.provider.Name()),
 		Config:   configFP,
 		Source:   blockstore.BlockSourceStamp(block),
-		Origin:   blockstore.OverlayOrigin(t.aiOrigin()),
+		Origin:   blockstore.OverlayOrigin(t.aiOrigin(ctx, block.UnitKey())),
 	}
 }
 
@@ -212,6 +228,10 @@ type AITranslateConfig struct {
 	// same shape a voice profile's vocabulary uses, so one set of rules can be
 	// rendered into the prompt here and checked by term-check afterwards.
 	TermRules []coreprofile.TermRule `json:"term_rules,omitempty" schema:"-"`
+	// ReviewFeedback is each unit's earlier rejected drafts, keyed by unit key
+	// (tool.ReviewFeedbackKey). A host supplies it; the prompt carries a unit's
+	// rejections, and each draft is stamped with them (tool.FeedbackFingerprint).
+	ReviewFeedback tool.ReviewFeedback `json:"review_feedback,omitempty" schema:"-"`
 	// Instruction is a directive applied while translating, rendered into the
 	// prompt's Instruction section. It is the supported way to steer a
 	// translation without replacing the prompt: "Informal register", "keep
@@ -412,6 +432,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		dnt:          sanitizeDNT(cfg.DNT),
 		voiceGuide:   coreprofile.RenderVoiceGuideCompact(cfg.Profile),
 		instruction:  cfg.Instruction,
+		feedback:     cfg.ReviewFeedback,
 		skipMatched:  cfg.SkipMatched,
 		batchSize:    cfg.BatchSize,
 		concurrency:  cfg.BatchConcurrency,
@@ -644,7 +665,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 	}
 
 	if target := block.TargetText(t.targetLocale); cacheable && target != "" {
-		payload, err := json.Marshal(t.storedTarget(block, target, cacheFP))
+		payload, err := json.Marshal(t.storedTarget(ctx, block, target, cacheFP))
 		if err != nil {
 			return fmt.Errorf("translate: encode overlay: %w", err)
 		}
@@ -750,7 +771,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 	for part := range batchOut {
 		if block, ok := part.Resource.(*model.Block); ok && block != nil && block.ID != "" && cachesTarget(block) {
 			if target := block.TargetText(t.targetLocale); target != "" {
-				payload, err := json.Marshal(t.storedTarget(block, target, t.cacheFingerprint(ctx, block)))
+				payload, err := json.Marshal(t.storedTarget(ctx, block, target, t.cacheFingerprint(ctx, block)))
 				if err == nil {
 					if werr := sess.PutOverlay(blockstore.Overlay{
 						Kind:      overlayKind,
@@ -793,6 +814,12 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 	// the gate is lowered. The gate is off (or the source cleared) when the
 	// marker is absent, so this is a no-op for the ungated path.
 	if v.Property(model.PropSourceHeld) == "1" {
+		return nil
+	}
+
+	// A unit a reviewer rejected tool.MaxRejections times is not drafted
+	// again: a person writes it.
+	if t.feedback.ForBlock(v.Context(), v.UnitKey()).Held {
 		return nil
 	}
 
@@ -856,6 +883,24 @@ func (t *AITranslateTool) translatePlain(v tool.VariantView, sourceText string) 
 		return "", nil, fmt.Errorf("translate: %w", err)
 	}
 	t.addUsage(resp.Usage)
+	// A draft equal to one a reviewer rejected is asked for once more, with
+	// that wording now shown as rejected.
+	if t.repeatsRejected(ctx, v.UnitKey(), dntRestore(resp.Translation, dntRestoreMap)) {
+		again, rerr := t.translateBlock(ctx, aiprovider.TranslateRequest{
+			Source:         maskedSource,
+			SourceLanguage: t.sourceLocale,
+			TargetLocale:   t.targetLocale,
+			PreferredTerms: t.termsFor(maskedSource),
+			DoNotTranslate: t.keptVerbatimFor(maskedSource),
+			VoiceGuide:     t.voiceGuide,
+			Instruction:    t.instruction,
+			BlockContext:   t.contextFor(ctx, v.ID(), v.Name(), v.ChainKey()),
+		})
+		if rerr == nil {
+			t.addUsage(again.Usage)
+			resp = again
+		}
+	}
 	return dntRestore(resp.Translation, dntRestoreMap), resp, nil
 }
 
@@ -868,7 +913,7 @@ func (t *AITranslateTool) translatePlain(v tool.VariantView, sourceText string) 
 func (t *AITranslateTool) translateStructured(v tool.VariantView, sourceRuns []model.Run) error {
 	runs, err := tool.TranslateStructures(sourceRuns, func(seq []model.Run) ([]model.Run, error) {
 		if model.RunsHaveInlineCodes(seq) {
-			out, _, err := t.translateCoded(v.Context(), seq)
+			out, _, err := t.translateCoded(v.Context(), seq, t.contextFor(v.Context(), v.ID(), v.Name(), v.ChainKey()))
 			return out, err
 		}
 		text, _, err := t.translatePlain(v, model.RunsText(seq))
@@ -881,7 +926,7 @@ func (t *AITranslateTool) translateStructured(v tool.VariantView, sourceRuns []m
 		return err
 	}
 	v.SetTargetRuns(t.targetLocale, runs)
-	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
+	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin(v.Context(), v.UnitKey()))
 	t.emitProgress(true, "")
 	return nil
 }
@@ -941,9 +986,16 @@ func (t *AITranslateTool) translateBlockRaw(ctx context.Context, req aiprovider.
 // translateWithInlineCodes translates a block that contains inline codes
 // (translateCoded) and writes the target.
 func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRuns []model.Run) error {
-	targetRuns, resp, err := t.translateCoded(v.Context(), sourceRuns)
+	targetRuns, resp, err := t.translateCoded(v.Context(), sourceRuns, t.contextFor(v.Context(), v.ID(), v.Name(), v.ChainKey()))
 	if err != nil {
 		return err
+	}
+	// A draft equal to one a reviewer rejected is asked for once more, with
+	// that wording now shown as rejected.
+	if t.repeatsRejected(v.Context(), v.UnitKey(), model.RunsText(targetRuns)) {
+		if again, againResp, rerr := t.translateCoded(v.Context(), sourceRuns, t.contextFor(v.Context(), v.ID(), v.Name(), v.ChainKey())); rerr == nil {
+			targetRuns, resp = again, againResp
+		}
 	}
 	v.SetTargetRuns(t.targetLocale, targetRuns)
 	t.annotateTranslation(v, resp)
@@ -956,7 +1008,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 // renders the runs as placeholder-tagged text so the LLM can preserve tag
 // positions, then reconstructs the target runs from the response via
 // ParseRunsPlaceholderText.
-func (t *AITranslateTool) translateCoded(ctx context.Context, sourceRuns []model.Run) ([]model.Run, *aiprovider.TranslateResponse, error) {
+func (t *AITranslateTool) translateCoded(ctx context.Context, sourceRuns []model.Run, bc prompt.Context) ([]model.Run, *aiprovider.TranslateResponse, error) {
 	sourceText := model.RunsPlaceholderText(sourceRuns)
 
 	// DNT enforcement (epic 019, item 4): mask protected spans in the
@@ -979,6 +1031,7 @@ func (t *AITranslateTool) translateCoded(ctx context.Context, sourceRuns []model
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 		PreserveTags:   true,
+		BlockContext:   bc,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("translate: %w", err)
@@ -1051,7 +1104,7 @@ func (t *AITranslateTool) annotateTranslation(v tool.VariantView, resp *aiprovid
 	// Stamp how the committed target was produced so coverage and ship gates can
 	// see it. A fresh machine translation lands at draft (produced, not yet
 	// verified); the convergence loop promotes it on a passing check / review.
-	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
+	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin(v.Context(), v.UnitKey()))
 }
 
 // aiOrigin describes a target produced by this AI tool: how it was made (the
@@ -1059,14 +1112,67 @@ func (t *AITranslateTool) annotateTranslation(v tool.VariantView, resp *aiprovid
 // because it is only knowable at production time, the profile is edited in
 // place and the terminology carries no version at all, so a later reader cannot
 // recover what shaped this target.
-func (t *AITranslateTool) aiOrigin() model.Origin {
+func (t *AITranslateTool) aiOrigin(ctx context.Context, key string) model.Origin {
 	return model.Origin{
 		Kind:               model.OriginAI,
 		Engine:             string(t.provider.Name()),
 		Profile:            t.profileID,
 		ProfileVersion:     t.profileVersion,
-		ContextFingerprint: t.contextFP,
+		ContextFingerprint: tool.FeedbackFingerprint(t.contextFP, t.feedback.ForBlock(ctx, key)),
 	}
+}
+
+// repeatsRejected reports whether text is a draft a reviewer already
+// rejected for the unit, by the hash the rejection recorded. The host may no
+// longer hold the wording of an earlier rejected draft, so a model can return
+// it unknowingly; the hash still identifies it.
+func (t *AITranslateTool) repeatsRejected(ctx context.Context, key, text string) bool {
+	fb := t.feedback.ForBlock(ctx, key)
+	if len(fb.Rejections) == 0 || text == "" {
+		return false
+	}
+	h := state.TargetHash(text)
+	for _, r := range fb.Rejections {
+		if r.TargetHash != "" && r.TargetHash == h {
+			t.learnedMu.Lock()
+			if t.learned == nil {
+				t.learned = map[string]string{}
+			}
+			t.learned[tool.FeedbackUnitKey(blockstore.SourceRel(ctx), key)+"\x00"+h] = text
+			t.learnedMu.Unlock()
+			return true
+		}
+	}
+	return false
+}
+
+// learnedText is the wording repeatsRejected recovered for a rejected draft.
+func (t *AITranslateTool) learnedText(ctx context.Context, key, hash string) string {
+	t.learnedMu.Lock()
+	defer t.learnedMu.Unlock()
+	return t.learned[tool.FeedbackUnitKey(blockstore.SourceRel(ctx), key)+"\x00"+hash]
+}
+
+// rejectionsFor is what the prompt says about a unit's rejected drafts: each
+// rejection with its reasons in the words a person reads.
+func (t *AITranslateTool) rejectionsFor(ctx context.Context, key string) []prompt.Rejection {
+	fb := t.feedback.ForBlock(ctx, key)
+	if len(fb.Rejections) == 0 {
+		return nil
+	}
+	out := make([]prompt.Rejection, 0, len(fb.Rejections))
+	for _, r := range fb.Rejections {
+		text := r.Text
+		if text == "" {
+			text = t.learnedText(ctx, key, r.TargetHash)
+		}
+		pr := prompt.Rejection{Text: text, Note: r.Note}
+		for _, code := range r.Reasons {
+			pr.Reasons = append(pr.Reasons, tool.RejectionReasonPhrase(code))
+		}
+		out = append(out, pr)
+	}
+	return out
 }
 
 // ---------------------------------------------------------------------------
@@ -1268,12 +1374,14 @@ func (b *batchTranslations) UnmarshalJSON(data []byte) error {
 // in it. A nil list means the caller has no document order to offer (the
 // streaming path), in which case only the key is available.
 func (t *AITranslateTool) blockContext(ctx context.Context, b *model.Block, neighbours []blockEntry, i int) prompt.Context {
+	// A reviewer's rejections reach the model whatever the context policy:
+	// they are why this draft is being made.
 	if t.contextPolicy == ContextNone {
-		return prompt.Context{}
+		return prompt.Context{Rejections: t.rejectionsFor(ctx, b.UnitKey())}
 	}
 
 	// The key travels with the block, so it is available on every path.
-	pc := prompt.Context{Key: blockKey(b)}
+	pc := prompt.Context{Key: blockKey(b), Rejections: t.rejectionsFor(ctx, b.UnitKey())}
 	t.attachPrior(ctx, b.ChainKey(), &pc)
 
 	if t.contextPolicy != ContextNeighbours || neighbours == nil {
@@ -1407,9 +1515,9 @@ func (t *AITranslateTool) keptVerbatimFor(texts ...string) []string {
 // neighbours when the tool holds the document in order.
 func (t *AITranslateTool) contextFor(ctx context.Context, id, name, unit string) prompt.Context {
 	if t.contextPolicy == ContextNone {
-		return prompt.Context{}
+		return prompt.Context{Rejections: t.rejectionsFor(ctx, strings.TrimSpace(name))}
 	}
-	pc := prompt.Context{Key: strings.TrimSpace(name)}
+	pc := prompt.Context{Key: strings.TrimSpace(name), Rejections: t.rejectionsFor(ctx, strings.TrimSpace(name))}
 	for i := range t.docEntries {
 		if t.docEntries[i].block != nil && t.docEntries[i].block.ID == id {
 			return t.blockContext(ctx, t.docEntries[i].block, t.docEntries, i)
@@ -1518,6 +1626,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 			continue
 		}
 		segments[i].Prior = t.priorFor(ctx, entry.block.ChainKey())
+		segments[i].RejectedDrafts = t.rejectionsFor(ctx, entry.block.UnitKey())
 	}
 	batchCtx := t.batchContext(entries, t.docEntries)
 	p := prompt.Translate{
@@ -1609,7 +1718,9 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	// Apply translations (fall back to individual calls for missing entries).
 	for i, entry := range entries {
 		text, ok := translations[i]
-		if !ok || text == "" {
+		if !ok || text == "" || t.repeatsRejected(ctx, entry.block.UnitKey(), text) {
+			// Missing, or equal to a draft a reviewer rejected: drafted on its
+			// own, where the rejected wording is now shown.
 			if err := tool.WriteAs(ctx, entry.block, t.ToolName, t.translate); err != nil {
 				return err
 			}

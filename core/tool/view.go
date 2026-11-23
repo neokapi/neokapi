@@ -64,6 +64,9 @@ type BlockReader interface {
 	// the ID, which is assigned per read. Exposed here rather than by handing
 	// out the block, so a view stays a view.
 	ChainKey() string
+	// UnitKey is the key the unit's decisions and review feedback are filed
+	// under (model.Block.UnitKey).
+	UnitKey() string
 	PreserveWhitespace() bool
 
 	// Source (read-only).
@@ -379,6 +382,7 @@ func (v *blockView) Translatable() bool             { return v.b.Translatable }
 func (v *blockView) SourceLocale() model.LocaleID   { return v.b.SourceLocale }
 func (v *blockView) Identity() *model.BlockIdentity { return v.b.Identity }
 func (v *blockView) ChainKey() string               { return v.b.ChainKey() }
+func (v *blockView) UnitKey() string                { return v.b.UnitKey() }
 func (v *blockView) PreserveWhitespace() bool       { return v.b.PreserveWhitespace }
 
 func (v *blockView) SourceRuns() []model.Run             { return authoritative(v.b).Runs }

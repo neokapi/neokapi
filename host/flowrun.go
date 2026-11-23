@@ -232,10 +232,10 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	// output-path resolution; restored on exit so an embedding App can be
 	// reused.
 	savedPctx, savedBindings, savedRedaction := a.ProjectContext, a.ProjectBindings, a.flowRedaction
-	savedSource, savedTarget := a.SourceLang, a.TargetLang
+	savedSource, savedTarget, savedFeedback := a.SourceLang, a.TargetLang, a.flowReviewFeedback
 	defer func() {
 		a.ProjectContext, a.ProjectBindings, a.flowRedaction = savedPctx, savedBindings, savedRedaction
-		a.SourceLang, a.TargetLang = savedSource, savedTarget
+		a.SourceLang, a.TargetLang, a.flowReviewFeedback = savedSource, savedTarget, savedFeedback
 	}()
 	a.ProjectContext = pctx
 	if source != "" {
@@ -392,6 +392,11 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 			a.ProjectBindings = b
 		}
 		a.flowRedaction = &group.Redaction
+		fb, ferr := a.reviewFeedbackFor(ctx, pctx.Project, pctx.ProjectDir, lang, group.Inputs)
+		if ferr != nil {
+			return ferr
+		}
+		a.flowReviewFeedback = fb
 		rCtx := flow.ResourceContext{ProjectDir: pctx.ProjectDir, SourceLocale: source, TargetLocale: lang}
 		tools, cleanup, err := a.buildProjectFlowTools(cmd, opts.FlowName, spec, &rCtx, onProgress)
 		if err != nil {
@@ -622,16 +627,21 @@ func (a *App) BuildProjectFlowTools(ctx context.Context, flowName string, spec *
 			return nil, nil, err
 		}
 	}
-	savedPctx, savedRedaction := a.ProjectContext, a.flowRedaction
+	savedPctx, savedRedaction, savedFeedback := a.ProjectContext, a.flowRedaction, a.flowReviewFeedback
 	savedSrc, savedTgt := a.SourceLang, a.TargetLang
 	a.ProjectContext = pctx
 	a.SourceLang, a.TargetLang = src, tgt
 	resolved := pctx.Project.RedactionForPath(redactionPath(pctx.ProjectDir, inputPath))
 	a.flowRedaction = &resolved
 	defer func() {
-		a.ProjectContext, a.flowRedaction = savedPctx, savedRedaction
+		a.ProjectContext, a.flowRedaction, a.flowReviewFeedback = savedPctx, savedRedaction, savedFeedback
 		a.SourceLang, a.TargetLang = savedSrc, savedTgt
 	}()
+	fb, err := a.reviewFeedbackFor(ctx, pctx.Project, pctx.ProjectDir, tgt, []string{inputPath})
+	if err != nil {
+		return nil, nil, err
+	}
+	a.flowReviewFeedback = fb
 	rCtx := &flow.ResourceContext{ProjectDir: pctx.ProjectDir, SourceLocale: src, TargetLocale: tgt}
 	return a.buildProjectFlowTools(cmd, flowName, spec, rCtx, nil)
 }

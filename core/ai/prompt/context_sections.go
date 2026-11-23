@@ -31,6 +31,23 @@ type Context struct {
 	// current context; memory.Version.GovernedBy performs that check. Otherwise
 	// superseded wording could influence a result stamped with a current fingerprint.
 	Prior *PriorVersion
+
+	// Rejections are earlier drafts of this block a reviewer rejected, oldest
+	// first, with the reasons in the words a person reads and the reviewer's
+	// note. A host supplies them; they change what the model is asked, so
+	// they are part of Digest.
+	Rejections []Rejection
+}
+
+// Rejection is one earlier draft of a block a reviewer rejected. The JSON
+// field names are part of the batch payload sent to the model.
+type Rejection struct {
+	// Text is the rejected draft, empty when its wording is no longer held.
+	Text string `json:"rejected,omitempty"`
+	// Reasons are the reviewer's reasons, as phrases.
+	Reasons []string `json:"why,omitempty"`
+	// Note is what the reviewer wrote.
+	Note string `json:"note,omitempty"`
 }
 
 // PriorVersion pairs a block's previous source with its approved target.
@@ -53,7 +70,7 @@ func (p *PriorVersion) empty() bool {
 // Empty reports whether there is nothing to say about this block.
 func (c Context) Empty() bool {
 	return strings.TrimSpace(c.Key) == "" && len(c.Before) == 0 && len(c.After) == 0 &&
-		c.Prior.empty()
+		c.Prior.empty() && len(c.Rejections) == 0
 }
 
 // Digest fingerprints the *neighbourhood* — the part of the context that is not a
@@ -63,10 +80,22 @@ func (c Context) Empty() bool {
 // the block already accounts for it. The neighbours do not, and a block whose
 // neighbours changed must be re-translated even though its own text did not.
 func (c Context) Digest() string {
-	if len(c.Before) == 0 && len(c.After) == 0 && c.Prior.empty() {
+	if len(c.Before) == 0 && len(c.After) == 0 && c.Prior.empty() && len(c.Rejections) == 0 {
 		return ""
 	}
 	var b strings.Builder
+	// The rejections belong in the digest for the reason the prior version
+	// does: a draft made with one reviewer's note must not be served after the
+	// note changed.
+	for _, r := range c.Rejections {
+		b.WriteString("rejected\x00")
+		b.WriteString(r.Text)
+		b.WriteByte('\x00')
+		b.WriteString(strings.Join(r.Reasons, ","))
+		b.WriteByte('\x00')
+		b.WriteString(r.Note)
+		b.WriteByte('\x00')
+	}
 	// The prior version belongs in the digest for the same reason the
 	// neighbours do: it is not a function of the block's own text, so a
 	// translation cached with one prior version must not be served after the
@@ -143,7 +172,40 @@ func (c Context) sections() []Section {
 		})
 	}
 
+	if len(c.Rejections) > 0 {
+		out = append(out, Section{
+			Kind:   KindContext,
+			Origin: fmt.Sprintf("review (%s of this block)", plural(len(c.Rejections), "rejected draft")),
+			Heading: "A reviewer rejected earlier drafts of this text. Write a new translation that " +
+				"answers the reasons and the note. Do not return any of these drafts:",
+			Text: RenderRejections(c.Rejections),
+		})
+	}
+
 	return out
+}
+
+// RenderRejections renders rejected drafts as the prompt states them, oldest
+// first, one block of lines each.
+func RenderRejections(rs []Rejection) string {
+	var b strings.Builder
+	for i, r := range rs {
+		if i > 0 {
+			b.WriteByte('\n')
+		}
+		if t := collapse(r.Text); t != "" {
+			fmt.Fprintf(&b, "rejected draft: %s\n", t)
+		} else {
+			b.WriteString("rejected draft: (its wording is no longer held)\n")
+		}
+		if len(r.Reasons) > 0 {
+			fmt.Fprintf(&b, "why: %s\n", strings.Join(r.Reasons, "; "))
+		}
+		if n := collapse(r.Note); n != "" {
+			fmt.Fprintf(&b, "reviewer's note: %s\n", n)
+		}
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // collapse flattens a neighbour onto one line. A neighbour is a hint, not a
