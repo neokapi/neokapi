@@ -45,7 +45,7 @@ func (s *PostgresStore) StartContextSession(ctx context.Context, sess platstore.
 		INSERT INTO context_sessions (id, project_id, user_id, cards, reach, decisions, started_at, expires_at)
 		VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, '[]'::jsonb, $6, $7)`,
 		sess.ID, sess.ProjectID, sess.UserID,
-		platstore.EncodeSessionJSON(sess.Cards, "[]"), platstore.EncodeSessionJSON(sess.Reach, "{}"),
+		platstore.EncodeSessionJSON(storableCards(sess.Cards), "[]"), platstore.EncodeSessionJSON(platstore.StorableReach(sess.Reach), "{}"),
 		now, sess.ExpiresAt.UTC()); err != nil {
 		return nil, fmt.Errorf("start a context session: %w", err)
 	}
@@ -53,6 +53,9 @@ func (s *PostgresStore) StartContextSession(ctx context.Context, sess platstore.
 	for _, item := range items {
 		if len(held) >= limit {
 			break
+		}
+		if !platstore.StorableItem(item) {
+			continue // a card the session cannot name is not dealt
 		}
 		res, err := tx.ExecContext(ctx, `
 			INSERT INTO context_session_holds (project_id, item_kind, item_profile, item_id, session_id)
@@ -66,16 +69,33 @@ func (s *PostgresStore) StartContextSession(ctx context.Context, sess platstore.
 			held = append(held, item)
 		}
 	}
+	if sess.DealCards != nil {
+		dealt, err := sess.DealCards(held)
+		if err != nil {
+			return nil, fmt.Errorf("deal the cards of a context session: %w", err)
+		}
+		cards := storableCards(dealt)
+		if _, err := tx.ExecContext(ctx, `UPDATE context_sessions SET cards = $2::jsonb WHERE id = $1`,
+			sess.ID, platstore.EncodeSessionJSON(cards, "[]")); err != nil {
+			return nil, fmt.Errorf("record the cards of context session %s: %w", sess.ID, err)
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("start a context session: %w", err)
 	}
 	return held, nil
 }
 
+// storableCards is platstore.StorableCards without the count.
+func storableCards(cards []platstore.ContextSessionCard) []platstore.ContextSessionCard {
+	out, _ := platstore.StorableCards(cards)
+	return out
+}
+
 // SetContextSessionCards implements platstore.ContextSessionStore.
 func (s *PostgresStore) SetContextSessionCards(ctx context.Context, id string, cards []platstore.ContextSessionCard) error {
 	if _, err := s.db.ExecContext(ctx, `UPDATE context_sessions SET cards = $2::jsonb WHERE id = $1`,
-		id, platstore.EncodeSessionJSON(cards, "[]")); err != nil {
+		id, platstore.EncodeSessionJSON(storableCards(cards), "[]")); err != nil {
 		return fmt.Errorf("record the cards of context session %s: %w", id, err)
 	}
 	return nil

@@ -276,7 +276,7 @@ func (s *Server) HandleContextDeckDecide(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
-	if !storableItem(req.Item) {
+	if !platstore.StorableItem(req.Item) {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "the item names a NUL byte, which no item holds"})
 	}
 	css, sessions := s.contextSessionStore()
