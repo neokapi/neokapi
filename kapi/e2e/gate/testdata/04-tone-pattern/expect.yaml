@@ -6,7 +6,7 @@ description: >-
 stages:
   - name: unmarked
     steps:
-      - kapi: [store, import]
+      - kapi: [store, import, --yes]
     files:
       - path: docs/guide.md
         check:
@@ -30,7 +30,7 @@ stages:
                 - regex: '—'
                   description: Use a comma or a full stop
                   advisory: true
-      - kapi: [store, import]
+      - kapi: [store, import, --yes]
     files:
       - path: docs/guide.md
         check:
@@ -52,7 +52,7 @@ stages:
                 - regex: '—'
                   description: Use a comma or a full stop
                   fails: true
-      - kapi: [store, import]
+      - kapi: [store, import, --yes]
     files:
       - path: docs/guide.md
         check:

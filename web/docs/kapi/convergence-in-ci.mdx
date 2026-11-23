@@ -357,11 +357,15 @@ stage.
   writes the record on first use.
 
   Whether to trust what the cache restored is a question about the cache: its
-  key, and who can write to it. In GitHub Actions a pull request from a fork cannot write to the
-  repository's caches, and a cache written on one branch is read by branches
-  created from it.
+  key, and who can write to it. In GitHub Actions a run restores only caches
+  saved on its own branch, on the default branch, or, for a pull request, on
+  its base branch. A pull request, including one from a fork, cannot write a
+  cache the default branch restores.
 
-  **Cache nothing else from the state directory.** `work/store.db` is derived
+  **Cache `work/cache/docs` and nothing else from the state directory.** The
+  steps above name that one directory, never the state directory itself, which
+  also holds the sync state with its claim token and the redaction vault. A
+  cache shared with other runs would carry both. `work/store.db` is derived
   from this checkout's working tree, and a restored copy changes what a run
   reports: on a fixture project it turned a failing `check --ship` into a
   passing one and a locale's coverage from 0% to 100%. The other entries, such
