@@ -60,7 +60,8 @@ func execTrustEntryKind(key string) string {
 func execTrustStanding(key, kind, digest string) (status, detail string) {
 	if kind == "context-store" {
 		recipe := strings.TrimSuffix(key, contextStoreKeySuffix)
-		location, now, err := contextStoreFor(recipe)
+		folder, err := contextStoreFor(recipe)
+		location, now := folder.Resolved, folder.Digest
 		switch {
 		case err != nil:
 			return output.TrustStatusUnreadable, err.Error()
