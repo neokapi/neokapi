@@ -173,7 +173,14 @@ drafting step is told what was rejected and why:
 
 The note goes to the AI provider the flow drafts with. It is redacted under the
 project's redaction policy like the rest of the request, and `--explain`
-records the prompt as it was sent. A machine translation engine takes no
+records the prompt as it was sent. The prompt quotes each note, cuts a long
+one short, and states it after the project's terms and rules, which a note does
+not change. The term check after drafting judges the new draft as it judges any
+other.
+
+A draft that comes back in wording you already rejected is not kept. The block
+stays waiting for a new draft, `kapi up` says how many such drafts the run
+made, and each one counts towards the stop below. A machine translation engine takes no
 instructions: the block is drafted again without the reasons and note, and the
 run says so once. A run whose flow cannot draft leaves the block waiting, and
 `kapi status` says so.
@@ -182,3 +189,6 @@ Changing a note makes that block's draft out of date, and the next `kapi up`
 drafts that block again and no other. After three rejections of drafts of the
 same source, the loop drafts the block no more. `kapi status` and `kapi up` report
 it as waiting for a person to write the translation.
+
+The reasons and notes come from your review decisions only. A recipe that sets
+`review_feedback` on a step does not load.

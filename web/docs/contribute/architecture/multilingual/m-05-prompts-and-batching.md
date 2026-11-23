@@ -213,8 +213,23 @@ translate tool knows nothing of where they came from. A prompt carries the
 latest `tool.MaxRejectionsSent` (3) rejections of the block, oldest dropped.
 The ledger holds each rejected draft's hash, not its wording, so a draft's text
 is sent while the target file still holds it, and an earlier rejection is sent
-with its reasons and note alone. A new draft whose hash equals a rejected one is
-asked for once more, with that wording now shown as rejected.
+with its reasons and note alone. The rejections are ordered by the decisions'
+own time, since a clone records every imported ledger entry at once. A new draft
+whose hash equals a rejected one is asked for once more, with that wording now
+shown as rejected. A retry that returns rejected wording again is not kept: the
+unit stays owed, the host counts the repeat in the state store
+(`state.WorkStore.NoteRepeatedDraft`, per unit and source revision, never
+exported) and the run reports the count in one line.
+
+The rejections section comes after the steering sections (voice and terms), and
+its heading says that the notes describe what was wrong with earlier drafts and
+do not change the rules above. Each note is quoted (`strconv.Quote`, so a quote
+inside it cannot close it) and cut at `prompt.MaxNoteRunes`. In a batch the
+rule about `rejected_drafts` is its own section after the terms, and each
+note in the payload is cut the same way. The term check after drafting stays
+the gate: no check step is handed the feedback. The grant reaches a step only
+from the host (`tool.TakeReviewFeedback` refuses any other value), and a
+recipe step that sets `review_feedback` is refused when the recipe loads.
 
 The feedback is folded into the stamp the draft carries
 (`tool.FeedbackFingerprint`, over each rejection's draft hash, reasons and
@@ -225,7 +240,8 @@ policy like every other string of the request, and the exchange record shows it
 as sent. A machine translation engine takes no instructions, so it is sent no
 feedback; the unit is still drafted again, stamped the same way, and the run
 says so once. After `tool.MaxRejections` (3) rejections of drafts of one source,
-the loop drafts the unit no more and reports it as left for a person.
+counting each repeated draft, the loop drafts the unit no more and reports it as
+left for a person.
 
 ## Prompt injection is contained structurally
 

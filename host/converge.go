@@ -148,6 +148,10 @@ type ConvergeOutput struct {
 	// source is fully settled. It is source-scoped (deduped across locales, as
 	// a source block is shared by every target), mirroring the server's run row.
 	BlockedOnSource int `json:"blocked_on_source,omitempty"`
+	// RepeatedRejected counts the drafts this run made that came back equal to
+	// one a reviewer had rejected. None was kept, so those units stay owed,
+	// and each counts towards the unit's stop (tool.MaxRejections).
+	RepeatedRejected int `json:"repeated_rejected,omitempty"`
 	// TranslateAfter is the resolved defaults.translate_after level applied
 	// (none|written|established), for observability. Empty when no level
 	// was evaluated (no content).
@@ -327,6 +331,10 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 			"They do not ship until a pass drafts something else for them: a run whose flow drafts "+
 			"(an AI or machine translation step with its provider set up) drafts them again, "+
 			"and an AI draft is told the reviewer's reasons and note.\n", rejected)
+	}
+	if o.RepeatedRejected > 0 {
+		fmt.Fprintf(w, "%d draft(s) came back in wording a reviewer had rejected, so the loop kept none of them. "+
+			"Those blocks stay owed, and each such draft counts towards the stop after %d rejections.\n", o.RepeatedRejected, tool.MaxRejections)
 	}
 	if held := o.LeftForPersonUnits(); held > 0 {
 		fmt.Fprintf(w, "%d block(s) had %d drafts rejected, so the loop drafts them no more. "+
@@ -616,6 +624,11 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		// reports them and fails (placeholderGateError).
 		facts.placeholders = &flowFindings{}
 	}
+	// One count of repeated drafts for the whole run, handed to each locale's
+	// worker; the summary says it once.
+	endRepeats := a.beginReviewRepeats(cmd.Context())
+	defer endRepeats(io.Discard)
+	facts.repeats = a.reviewRepeats
 	announceSetAside(emitter, unread)
 	if onEvent == nil {
 		// No event consumer: the set-aside lines go to stderr instead.
@@ -701,6 +714,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 				// (beginFlowFindings), so the run's placeholder collector
 				// stays armed and taps the worker's chain per file.
 				worker.flowFindings = facts.placeholders
+				worker.reviewRepeats = facts.repeats
 				if err = worker.runProjectStepsOver(ctx, cmd, flowName, spec, &rCtx, group.Inputs); err != nil {
 					break
 				}
@@ -913,6 +927,9 @@ type convergeFacts struct {
 	// whose output changed a redaction placeholder. Nil when the flow holds no
 	// such step behind a redact step.
 	placeholders *flowFindings
+	// repeats counts the drafts that came back equal to one a reviewer had
+	// rejected, over every pass.
+	repeats *reviewRepeats
 }
 
 // placeholderReport is the findings report of the placeholder findings the
@@ -1310,6 +1327,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	out.WaitingForReview = facts.waitingForReview
 	out.BlockedOnSource = blockedOnSource
 	out.Findings = facts.placeholderReport()
+	out.RepeatedRejected = facts.repeats.count()
 	if translateAfter != "" {
 		out.TranslateAfter = string(translateAfter)
 	}

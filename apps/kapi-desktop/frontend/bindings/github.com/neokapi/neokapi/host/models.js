@@ -4338,6 +4338,16 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
+             * RepeatedRejected counts the drafts this run made that came back equal to
+             * one a reviewer had rejected. None was kept, so those units stay owed,
+             * and each counts towards the unit's stop (tool.MaxRejections).
+             * @member
+             * @type {number | undefined}
+             */
+            this["repeated_rejected"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * TranslateAfter is the resolved defaults.translate_after level applied
              * (none|written|established), for observability. Empty when no level
              * was evaluated (no content).
@@ -4468,9 +4478,9 @@ export class ConvergeOutput {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType96;
         const $$createField6_0 = $$createType98;
-        const $$createField18_0 = $$createType100;
-        const $$createField19_0 = $$createType102;
-        const $$createField20_0 = $$createType104;
+        const $$createField19_0 = $$createType100;
+        const $$createField20_0 = $$createType102;
+        const $$createField21_0 = $$createType104;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -4479,13 +4489,13 @@ export class ConvergeOutput {
             $$parsedSource["parked_scopes"] = $$createField6_0($$parsedSource["parked_scopes"]);
         }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField18_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField19_0($$parsedSource["warnings"]);
         }
         if ("findings" in $$parsedSource) {
-            $$parsedSource["findings"] = $$createField19_0($$parsedSource["findings"]);
+            $$parsedSource["findings"] = $$createField20_0($$parsedSource["findings"]);
         }
         if ("pre_review" in $$parsedSource) {
-            $$parsedSource["pre_review"] = $$createField20_0($$parsedSource["pre_review"]);
+            $$parsedSource["pre_review"] = $$createField21_0($$parsedSource["pre_review"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
     }

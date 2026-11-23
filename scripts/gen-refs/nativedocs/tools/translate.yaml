@@ -67,7 +67,7 @@ processingNotes:
   - Operates on translatable blocks with non-empty source; other parts pass through unchanged.
   - Blocks with inline codes are translated through a placeholder-preserving prompt and reconstructed from the response.
   - Each translation is recorded as an alternate-translation annotation tagged with the provider.
-  - In a project, a block a reviewer rejected is drafted again, and the prompt carries the latest three rejected drafts of it with the reasons and the reviewer's note. The note is redacted under the project's redaction policy like the rest of the request. A machine translation engine is sent none of it. After three rejections of drafts of one source the block is drafted no more and waits for a person.
+  - In a project, a block a reviewer rejected is drafted again, and the prompt carries the latest three rejected drafts of it with the reasons and the reviewer's note. The notes are quoted, cut when long, and stated after the terms and rules, which they do not change. The note is redacted under the project's redaction policy like the rest of the request. A machine translation engine is sent none of it. A draft that comes back in rejected wording is not kept and counts towards the stop. After three rejections of drafts of one source the block is drafted no more and waits for a person. A recipe cannot set `review_feedback`.
 examples:
   - title: Translate with Anthropic
     description: Translate untranslated blocks using an Anthropic model.

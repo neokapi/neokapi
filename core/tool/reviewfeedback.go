@@ -2,6 +2,7 @@ package tool
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 
@@ -9,10 +10,47 @@ import (
 )
 
 // ReviewFeedbackKey is the configuration key a drafting tool and a recycle
-// step take review feedback under: a map from a unit's key to the latest
-// rejections of its earlier drafts. A host builds it from its own record of
-// decisions, on every route, and the tools know nothing of where it came from.
+// step take review feedback under, as a ReviewFeedbackGrant. A host builds it
+// from its own record of decisions, on every route. A recipe never supplies
+// it: TakeReviewFeedback refuses a value of any other type.
 const ReviewFeedbackKey = "review_feedback"
+
+// ErrReviewFeedbackFromConfig is the refusal of review feedback written into
+// a step's configuration rather than granted by a host.
+var ErrReviewFeedbackFromConfig = errors.New("review_feedback comes from the project's review decisions, and a recipe or step configuration cannot set it")
+
+// ReviewFeedbackGrant is what a host hands a step under ReviewFeedbackKey.
+type ReviewFeedbackGrant struct {
+	Units ReviewFeedback
+	// Repeated is told the Repeat name of each unit whose draft still
+	// repeated a rejected one after the retry. The draft is not kept, and
+	// the unit stays owed. Nil when the host does not count repeats.
+	Repeated func(repeat string)
+}
+
+// TakeReviewFeedback removes the review feedback grant from config and
+// returns it. A value of any other type came from a recipe, not a host, and
+// is refused with ErrReviewFeedbackFromConfig.
+func TakeReviewFeedback(config map[string]any) (ReviewFeedbackGrant, error) {
+	v, ok := config[ReviewFeedbackKey]
+	if !ok {
+		return ReviewFeedbackGrant{}, nil
+	}
+	delete(config, ReviewFeedbackKey)
+	g, ok := v.(ReviewFeedbackGrant)
+	if !ok {
+		return ReviewFeedbackGrant{}, ErrReviewFeedbackFromConfig
+	}
+	return g, nil
+}
+
+// ReportRepeated tells the host that the unit's draft repeated a rejected
+// one.
+func (g ReviewFeedbackGrant) ReportRepeated(fb UnitReviewFeedback) {
+	if g.Repeated != nil && fb.Repeat != "" {
+		g.Repeated(fb.Repeat)
+	}
+}
 
 // MaxRejectionsSent is how many of a unit's latest rejections a prompt
 // carries; older ones are dropped. MaxRejections is how many rejections of
@@ -44,9 +82,14 @@ type UnitReviewFeedback struct {
 	// Rejections are the latest rejections, oldest first, at most
 	// MaxRejectionsSent.
 	Rejections []ReviewRejection `json:"rejections,omitempty"`
-	// Held marks a unit rejected MaxRejections times: the loop drafts it no
-	// more, and a person writes its translation.
+	// Held marks a unit rejected MaxRejections times, counting each draft
+	// that repeated a rejected one: the loop drafts it no more, and a person
+	// writes its translation.
 	Held bool `json:"held,omitempty"`
+	// Repeat is the name the host files a repeated draft of this unit under.
+	// A tool hands it back through ReviewFeedbackGrant.Repeated and reads
+	// nothing in it.
+	Repeat string `json:"-"`
 }
 
 // ReviewFeedback maps a unit (FeedbackUnitKey) to its feedback.

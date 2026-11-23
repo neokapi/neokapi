@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 )
@@ -31,4 +32,22 @@ func TestReviewFeedbackForBlockIsKeyedByFile(t *testing.T) {
 
 func TestAnUnknownReasonHasAPhrase(t *testing.T) {
 	assert.Equal(t, "another reason", RejectionReasonPhrase("new_code"), "an unknown code never reaches a prompt bare")
+}
+
+// Feedback written into a configuration is refused: only a host's grant is
+// taken.
+func TestTakeReviewFeedback(t *testing.T) {
+	grant := ReviewFeedbackGrant{Units: ReviewFeedback{"a": {Held: true}}}
+	cfg := map[string]any{ReviewFeedbackKey: grant, "other": 1}
+	got, err := TakeReviewFeedback(cfg)
+	require.NoError(t, err)
+	assert.True(t, got.Units["a"].Held)
+	assert.NotContains(t, cfg, ReviewFeedbackKey, "the grant is taken out of the configuration")
+
+	_, err = TakeReviewFeedback(map[string]any{ReviewFeedbackKey: map[string]any{"a": map[string]any{"held": true}}})
+	require.ErrorIs(t, err, ErrReviewFeedbackFromConfig)
+
+	got, err = TakeReviewFeedback(map[string]any{})
+	require.NoError(t, err)
+	assert.Empty(t, got.Units)
 }

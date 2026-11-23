@@ -46,8 +46,10 @@ type AITranslateTool struct {
 	instruction string   // caller-supplied directive injected into every prompt
 	// feedback is the review feedback per unit key (tool.ReviewFeedbackKey):
 	// earlier drafts a reviewer rejected, which a unit's next draft is told
-	// about, and the units kapi no longer drafts.
+	// about, and the units the loop no longer drafts.
 	feedback tool.ReviewFeedback
+	// grant reports a draft that still repeated a rejected one after the retry.
+	grant tool.ReviewFeedbackGrant
 	// learned holds the wording of a rejected draft the host no longer held,
 	// recovered when a new draft came back equal to it (repeatsRejected), so
 	// the retry can show the model what was rejected.
@@ -228,10 +230,11 @@ type AITranslateConfig struct {
 	// same shape a voice profile's vocabulary uses, so one set of rules can be
 	// rendered into the prompt here and checked by term-check afterwards.
 	TermRules []coreprofile.TermRule `json:"term_rules,omitempty" schema:"-"`
-	// ReviewFeedback is each unit's earlier rejected drafts, keyed by unit key
-	// (tool.ReviewFeedbackKey). A host supplies it; the prompt carries a unit's
-	// rejections, and each draft is stamped with them (tool.FeedbackFingerprint).
-	ReviewFeedback tool.ReviewFeedback `json:"review_feedback,omitempty" schema:"-"`
+	// ReviewFeedback is each unit's earlier rejected drafts, keyed by unit key.
+	// Only a host grants it (tool.TakeReviewFeedback); the prompt carries a
+	// unit's rejections, and each draft is stamped with them
+	// (tool.FeedbackFingerprint).
+	ReviewFeedback tool.ReviewFeedbackGrant `json:"-" schema:"-"`
 	// Instruction is a directive applied while translating, rendered into the
 	// prompt's Instruction section. It is the supported way to steer a
 	// translation without replacing the prompt: "Informal register", "keep
@@ -393,10 +396,16 @@ func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.To
 		delete(config, corememory.ConfigKey)
 	}
 
+	feedback, err := tool.TakeReviewFeedback(config)
+	if err != nil {
+		return nil, fmt.Errorf("translate config: %w", err)
+	}
+
 	var cfg AITranslateConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
 		return nil, fmt.Errorf("translate config: %w", err)
 	}
+	cfg.ReviewFeedback = feedback
 	cfg.OnProgress = onProgress
 	cfg.Profile = profile
 	cfg.Memory = corpus
@@ -432,7 +441,8 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		dnt:          sanitizeDNT(cfg.DNT),
 		voiceGuide:   coreprofile.RenderVoiceGuideCompact(cfg.Profile),
 		instruction:  cfg.Instruction,
-		feedback:     cfg.ReviewFeedback,
+		feedback:     cfg.ReviewFeedback.Units,
+		grant:        cfg.ReviewFeedback,
 		skipMatched:  cfg.SkipMatched,
 		batchSize:    cfg.BatchSize,
 		concurrency:  cfg.BatchConcurrency,
@@ -844,15 +854,15 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 	// intact.
 	sourceRuns := v.SourceRuns()
 	if model.HasStructuredRuns(sourceRuns) {
-		return t.translateStructured(v, sourceRuns)
+		return t.leaveRepeated(v, t.translateStructured(v, sourceRuns))
 	}
 	if model.RunsHaveInlineCodes(sourceRuns) {
-		return t.translateWithInlineCodes(v, sourceRuns)
+		return t.leaveRepeated(v, t.translateWithInlineCodes(v, sourceRuns))
 	}
 
 	text, resp, err := t.translatePlain(v, sourceText)
 	if err != nil {
-		return err
+		return t.leaveRepeated(v, err)
 	}
 	v.SetTargetText(t.targetLocale, text)
 	t.annotateTranslation(v.Context(), v, resp)
@@ -896,9 +906,13 @@ func (t *AITranslateTool) translatePlain(v tool.VariantView, sourceText string) 
 			Instruction:    t.instruction,
 			BlockContext:   t.contextFor(ctx, v.ID(), v.Name(), v.ChainKey()),
 		})
-		if rerr == nil {
-			t.addUsage(again.Usage)
-			resp = again
+		if rerr != nil {
+			return "", nil, fmt.Errorf("translate: %w", rerr)
+		}
+		t.addUsage(again.Usage)
+		resp = again
+		if t.repeatsRejected(ctx, v.UnitKey(), dntRestore(resp.Translation, dntRestoreMap)) {
+			return "", nil, errRepeatsRejected
 		}
 	}
 	return dntRestore(resp.Translation, dntRestoreMap), resp, nil
@@ -993,8 +1007,13 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 	// A draft equal to one a reviewer rejected is asked for once more, with
 	// that wording now shown as rejected.
 	if t.repeatsRejected(v.Context(), v.UnitKey(), model.RunsText(targetRuns)) {
-		if again, againResp, rerr := t.translateCoded(v.Context(), sourceRuns, t.contextFor(v.Context(), v.ID(), v.Name(), v.ChainKey())); rerr == nil {
-			targetRuns, resp = again, againResp
+		again, againResp, rerr := t.translateCoded(v.Context(), sourceRuns, t.contextFor(v.Context(), v.ID(), v.Name(), v.ChainKey()))
+		if rerr != nil {
+			return rerr
+		}
+		targetRuns, resp = again, againResp
+		if t.repeatsRejected(v.Context(), v.UnitKey(), model.RunsText(targetRuns)) {
+			return errRepeatsRejected
 		}
 	}
 	v.SetTargetRuns(t.targetLocale, targetRuns)
@@ -1120,6 +1139,22 @@ func (t *AITranslateTool) aiOrigin(ctx context.Context, key string) model.Origin
 		ProfileVersion:     t.profileVersion,
 		ContextFingerprint: tool.FeedbackFingerprint(t.contextFP, t.feedback.ForBlock(ctx, key)),
 	}
+}
+
+// errRepeatsRejected says a unit's draft still repeated a rejected one after
+// the retry. The draft is not kept (leaveRepeated).
+var errRepeatsRejected = errors.New("the draft repeats one a reviewer rejected")
+
+// leaveRepeated leaves a unit whose draft repeated a rejected one without a
+// new draft, so the unit stays owed, and reports it to the host, which counts
+// it towards the unit's stop. Any other error is returned as it is.
+func (t *AITranslateTool) leaveRepeated(v tool.VariantView, err error) error {
+	if !errors.Is(err, errRepeatsRejected) {
+		return err
+	}
+	t.grant.ReportRepeated(t.feedback.ForBlock(v.Context(), v.UnitKey()))
+	t.emitProgress(true, "")
+	return nil
 }
 
 // repeatsRejected reports whether text is a draft a reviewer already

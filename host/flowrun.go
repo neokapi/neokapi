@@ -237,6 +237,8 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 		a.ProjectContext, a.ProjectBindings, a.flowRedaction = savedPctx, savedBindings, savedRedaction
 		a.SourceLang, a.TargetLang, a.flowReviewFeedback = savedSource, savedTarget, savedFeedback
 	}()
+	endRepeats := a.beginReviewRepeats(ctx)
+	defer endRepeats(cmd.ErrOrStderr())
 	a.ProjectContext = pctx
 	if source != "" {
 		a.SourceLang = source
@@ -244,7 +246,8 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 
 	// The venue caveat goes to the process's own stderr rather than to cmd: the
 	// synthetic command above discards its error stream on purpose, because it
-	// carries tool-assembly noise an embedder should not see. This is not that, 	// it says the recipe's coordinates govern here and would not govern a server
+	// carries tool-assembly noise an embedder should not see. This is not that:
+	// it says the recipe's coordinates govern here and would not govern a server
 	// run, so discarding it would be the one thing worse than printing it.
 	a.WarnUnsyncedCoordinates(os.Stderr, proj)
 
@@ -491,7 +494,8 @@ passLoop:
 		for _, group := range groups {
 			if err := runPass(pass, group); err != nil {
 				// Cancellation mid-file surfaces as a wrapped context error from
-				// the runner; per the documented contract it is not a run error, 				// stop the loop so the complete event and totals still emit.
+				// the runner; per the documented contract it is not a run error:
+				// stop the loop so the complete event and totals still emit.
 				if ctx.Err() != nil && errors.Is(err, ctx.Err()) {
 					canceled = true
 					break passLoop
@@ -544,7 +548,8 @@ func (a *App) buildProjectFlowTools(cmd Command, flowName string, spec *flow.Ste
 	if err := flow.CheckSequential(spec.Steps); err != nil {
 		return nil, nil, fmt.Errorf("flow %q: %w", flowName, err)
 	}
-	// Transformer placement gate (AD-006) over the compiled steps graph, 	// unconditional at load, like the built-in flow path. The gate sees each
+	// Transformer placement gate (AD-006) over the compiled steps graph:
+	// unconditional at load, like the built-in flow path. The gate sees each
 	// node's preset-merged config (defaults.tools), so a preset that enables
 	// entity detection drives the same contract resolution the runtime uses.
 	if nodes, edges, err := flow.StepsToGraph(spec); err == nil {

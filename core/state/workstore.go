@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1002,6 +1003,44 @@ func (w *WorkStore) readMeta(ctx context.Context, key string) (value string, ok 
 	return value, true, nil
 }
 
+// RepeatedDrafts is how many drafts of unit k, made from the source revision
+// basis, repeated wording a reviewer had rejected (NoteRepeatedDraft).
+func (w *WorkStore) RepeatedDrafts(ctx context.Context, k Key, basis string) (int, error) {
+	v, ok, err := w.readMeta(ctx, metaRepeatedDrafts(k, basis))
+	if err != nil || !ok {
+		return 0, err
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return 0, fmt.Errorf("state: read repeated drafts of %s: %w", k.Unit, err)
+	}
+	return n, nil
+}
+
+// NoteRepeatedDraft counts one more draft of unit k, made from the source
+// revision basis, that repeated wording a reviewer had rejected, and returns
+// the count. It is this checkout's tally of the loop's own attempts, which
+// counts towards the unit's stop beside the rejections. It records no
+// decision, and the committed shards never carry it.
+func (w *WorkStore) NoteRepeatedDraft(ctx context.Context, k Key, basis string) (int, error) {
+	var n int
+	err := w.db.QueryRowContext(ctx, `
+INSERT INTO state_meta (key, value) VALUES (?, '1')
+ON CONFLICT(key) DO UPDATE SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)
+RETURNING CAST(value AS INTEGER)`, metaRepeatedDrafts(k, basis)).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("state: count repeated draft of %s: %w", k.Unit, err)
+	}
+	return n, nil
+}
+
+// metaRepeatedDrafts is the state_meta key a unit's repeated drafts are
+// counted under, per source revision, so a rewritten source starts afresh.
+func metaRepeatedDrafts(k Key, basis string) string {
+	variant, _ := k.Variant.Canonical().MarshalText()
+	return strings.Join([]string{"repeated_drafts", k.Scope, k.Unit, string(variant), basis}, "\x00")
+}
+
 // stampCommitted records the digest of the shards this checkout's view now
 // projects.
 func (w *WorkStore) stampCommitted(ctx context.Context, digest string) error {
@@ -1221,8 +1260,9 @@ func (w *WorkStore) AdoptDocuments(ctx context.Context, current []reconcile.DocU
 		content := current[i].Content
 
 		// The address is swept every time, not only on first sight. Anything
-		// that could not resolve a key, a fresh checkout, a build with no
-		// store, a surface reading a project before its first extraction, 		// files its decision under the path, so the path keeps acquiring
+		// that could not resolve a key (a fresh checkout, a build with no
+		// store, a surface reading a project before its first extraction)
+		// files its decision under the path, so the path keeps acquiring
 		// decisions that belong to the identity long after it has one.
 		if rerr := w.rekeyScope(ctx, r.Path, r.Key); rerr != nil {
 			return nil, rerr

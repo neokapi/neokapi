@@ -189,6 +189,7 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"flowRedaction":         fieldOwned,  // set per binding group on the worker that runs it
 	"flowReviewFeedback":    fieldOwned,  // set per binding group and locale on the worker that runs it
 	"reviewFeedbackMTNoted": fieldOwned,  // each worker says it at most once; a silent worker says nothing
+	"reviewRepeats":         fieldOwned,  // the run's one count, handed to each worker
 	"pluginRuntimeOnce":     fieldOwned,  // a fresh Once that sees the pre-seeded runtime
 	"projectStoresOnce":     fieldOwned,  // a fresh Once that sees the pre-seeded holder
 	// The plugin MCP servers belong to a `kapi mcp` session, and a converge

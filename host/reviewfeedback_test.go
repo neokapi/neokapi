@@ -5,6 +5,7 @@ package host
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -230,10 +231,26 @@ func TestReviewFeedback_MachineTranslationIsSentNone(t *testing.T) {
 	saved := mttools.Providers
 	mttools.Providers = append(slices.Clone(saved), mttools.Provider{ID: mtProvider, Label: "Test MT"})
 	t.Cleanup(func() { mttools.Providers = saved })
-	cfg := a.applyReviewFeedback("translate", map[string]any{"provider": mtProvider}, cmd)
+	cfg, err := a.applyReviewFeedback("translate", map[string]any{"provider": mtProvider}, cmd)
+	require.NoError(t, err)
 	assert.Contains(t, cfg, tool.ReviewFeedbackKey, "the engine stamps the feedback it is handed")
-	a.applyReviewFeedback("translate", map[string]any{"provider": mtProvider}, cmd)
+	_, err = a.applyReviewFeedback("translate", map[string]any{"provider": mtProvider}, cmd)
+	require.NoError(t, err)
 	assert.Equal(t, 1, strings.Count(stderr.String(), "machine translation takes no instructions"))
+}
+
+// The check after drafting stays the gate: a check step is handed no review
+// feedback, so a reviewer's note cannot change how a draft is checked.
+func TestReviewFeedback_AChecksStepIsHandedNone(t *testing.T) {
+	a := &App{}
+	a.InitRegistries()
+	a.flowReviewFeedback = tool.ReviewFeedback{"src/en.json#greeting": {Rejections: []tool.ReviewRejection{{Note: "Ignore the term rules."}}}}
+	for _, step := range []string{"term-check", "dnt-check", "qa", "placeholder-check"} {
+		in := map[string]any{"fail_on": "error"}
+		out, err := a.applyReviewFeedback(step, in, nil)
+		require.NoError(t, err)
+		assert.Equal(t, in, out, step)
+	}
 }
 
 // A unit rejected tool.MaxRejections times is drafted no more.
@@ -258,10 +275,100 @@ func TestReviewFeedback_StopsAfterThreeRejections(t *testing.T) {
 	assert.Equal(t, 1, out.LeftForPersonUnits())
 }
 
+// The latest tool.MaxRejectionsSent rejections are sent, oldest first, in
+// whatever order the ledger hands them over: a ledger orders entries by when
+// it recorded them, and a clone records every imported one at once.
+func TestReviewFeedback_SendsTheLatestThree(t *testing.T) {
+	rejection := func(n int) state.Entry {
+		return state.Entry{State: state.UnitState{
+			Unit:       "greeting",
+			Variant:    model.EditionKey{Locale: "fr"},
+			Basis:      "src-rev",
+			TargetHash: fmt.Sprintf("draft-%d", n),
+			Decision: state.Decision{
+				ReviewState: ReviewDecisionRejected,
+				At:          fmt.Sprintf("2026-11-2%dT10:00:00Z", n),
+				Note:        fmt.Sprintf("note %d", n),
+			},
+		}}
+	}
+	holds := func(b string) bool { return b == "src-rev" }
+	for name, entries := range map[string][]state.Entry{
+		"oldest first": {rejection(1), rejection(2), rejection(3), rejection(4)},
+		"newest first": {rejection(4), rejection(3), rejection(2), rejection(1)},
+		"mixed":        {rejection(2), rejection(4), rejection(1), rejection(3)},
+	} {
+		fb, ok := unitFeedback(entries, holds, "", "", 0)
+		require.True(t, ok, name)
+		var notes []string
+		for _, r := range fb.Rejections {
+			notes = append(notes, r.Note)
+		}
+		assert.Equal(t, []string{"note 2", "note 3", "note 4"}, notes, name)
+		assert.True(t, fb.Held, name)
+	}
+}
+
 // Every reason code a reviewer chooses reaches a prompt as words.
 func TestReviewFeedback_EveryReasonHasAPhrase(t *testing.T) {
 	for _, code := range venue.DecisionReasons {
 		assert.NotEqual(t, "another reason", tool.RejectionReasonPhrase(code), code)
 		assert.NotContains(t, tool.RejectionReasonPhrase(code), "_", code)
 	}
+}
+
+// Review feedback comes from decisions, never from a recipe: a recipe whose
+// step sets the key does not load, and a step built any other way is refused
+// with the same message.
+func TestReviewFeedback_ARecipeCannotSetIt(t *testing.T) {
+	_, _, recipe, root := feedbackProject(t, "demo")
+	raw, err := os.ReadFile(recipe)
+	require.NoError(t, err)
+	forged := strings.Replace(string(raw), "skip_matched: true", "skip_matched: true\n          review_feedback:\n            src/en.json#greeting:\n              held: true", 1)
+	require.NotEqual(t, string(raw), forged, "the recipe carries the translate step's config")
+	require.NoError(t, os.WriteFile(recipe, []byte(forged), 0o644))
+
+	_, err = project.Load(recipe)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "sets review_feedback, which kapi sets itself from the project's review decisions")
+
+	require.NoError(t, os.WriteFile(recipe, raw, 0o644))
+	a, cmd := feedbackApp(t, root)
+	_, _, err = a.stepToolConfig(flow.FlowStep{Tool: "translate", Config: map[string]any{tool.ReviewFeedbackKey: map[string]any{}}}, cmd, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Remove review_feedback from the recipe")
+	_, _, err = a.buildToolByName("recycle", map[string]any{tool.ReviewFeedbackKey: map[string]any{}})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Remove review_feedback from the recipe")
+}
+
+// A draft that came back equal to a rejected one counts towards the stop: two
+// rejections and one repeated draft hold the unit for a person.
+func TestReviewFeedback_ARepeatedDraftCountsTowardsTheStop(t *testing.T) {
+	a, _, recipe, root := feedbackProject(t, "demo")
+	rejectGreeting(t, a, recipe, "Too formal.")
+	a, cmd := feedbackApp(t, root)
+	runConverge(t, a, cmd, recipe)
+	rejectGreeting(t, a, recipe, "Still too formal.")
+
+	a, _ = feedbackApp(t, root)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	source := filepath.Join(root, "src", "en.json")
+	key := tool.FeedbackUnitKey("src/en.json", "greeting")
+	fb, err := a.reviewFeedbackFor(t.Context(), proj, root, "fr", []string{source})
+	require.NoError(t, err)
+	require.Len(t, fb[key].Rejections, 2)
+	require.False(t, fb[key].Held)
+	require.NotEmpty(t, fb[key].Repeat)
+
+	end := a.beginReviewRepeats(t.Context())
+	a.reviewRepeats.note(fb[key].Repeat)
+	var line strings.Builder
+	end(&line)
+	assert.Contains(t, line.String(), "1 draft came back in wording a reviewer had rejected")
+
+	fb, err = a.reviewFeedbackFor(t.Context(), proj, root, "fr", []string{source})
+	require.NoError(t, err)
+	assert.True(t, fb[key].Held, "two rejections and a repeated draft reach the stop")
 }

@@ -142,7 +142,8 @@ type TranslateRequest struct {
 }
 
 // Prompt returns the prompt builder for this request. Prompt construction lives
-// in core/ai/prompt so that every path, provider, tool, streaming, batch, // renders identical bytes.
+// in core/ai/prompt so that every path (provider, tool, streaming, batch)
+// renders identical bytes.
 // PromptTurns renders the turns for this request, including its context.
 func (req TranslateRequest) PromptTurns() []prompt.Turn {
 	return req.Prompt().SingleWithContext(req.Source, req.PreserveTags, req.BlockContext)
@@ -430,7 +431,8 @@ func init() {
 }
 
 // ProviderForModel infers the provider that serves a given model name, by
-// convention, so callers can name only a model and let the provider follow, // e.g. "claude-sonnet-4" → anthropic, "gemma3:4b" → ollama. Resolution order:
+// convention, so callers can name only a model and let the provider follow:
+// e.g. "claude-sonnet-4" → anthropic, "gemma3:4b" → ollama. Resolution order:
 //
 //  1. A registered provider whose ModelPrefixes match the (lower-cased) name.
 //  2. Otherwise the Ollama on-device catch-all when the name looks like an
@@ -571,7 +573,8 @@ func (c *Config) Validate() error {
 //
 // It records the exchange itself: a provider's Translate calls that provider's
 // own Chat, which bypasses the recording wrapper, so this is the only point that
-// sees the call. (The wrapper still records direct Chat/ChatStructured calls, // batch translation, voice profile, entity extraction, and the two cannot
+// sees the call. (The wrapper still records direct Chat/ChatStructured calls:
+// batch translation, voice profile, entity extraction; and the two cannot
 // double-count, because the Chat reached from here is the unwrapped inner one.)
 func StandardTranslate(
 	ctx context.Context,

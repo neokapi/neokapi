@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/tool"
 	mtprovider "github.com/neokapi/neokapi/providers/mt"
 )
@@ -39,6 +40,8 @@ type MTTranslateTool struct {
 	// stamped with it (tool.FeedbackFingerprint), so a changed note makes that
 	// unit stale on this route as on any other, and a held unit is not drafted.
 	feedback tool.ReviewFeedback
+	// grant reports a draft that repeated a rejected one, which is not kept.
+	grant tool.ReviewFeedbackGrant
 	// reused counts the blocks this run served from the block store instead of
 	// sending to the MT API. See AITranslateTool.ReusedTargets.
 	reused atomic.Int64
@@ -102,15 +105,16 @@ type MTTranslateConfig struct {
 
 	// Profile and TermRules carry the governing context the flow's bindings
 	// inject into the unified translate tool. A classic MT engine takes neither
-	// voice guidance nor terminology, so they are never sent to the provider, 	// but they are the context governing the collection, so they are recorded on
+	// voice guidance nor terminology, so they are never sent to the provider,
+	// but they are the context governing the collection, so they are recorded on
 	// the target's Origin (Profile/ProfileVersion/ContextFingerprint). That keeps
 	// an MT target's governance stamp comparable to an AI or recycled one: all
 	// fall stale together when the profile or terms move.
 	Profile   *coreprofile.VoiceProfile `json:"-" schema:"-"`
 	TermRules []coreprofile.TermRule    `json:"term_rules,omitempty" schema:"-"`
-	// ReviewFeedback is each unit's earlier rejected drafts
-	// (tool.ReviewFeedbackKey). It is never sent to the engine.
-	ReviewFeedback tool.ReviewFeedback `json:"review_feedback,omitempty" schema:"-"`
+	// ReviewFeedback is each unit's earlier rejected drafts. Only a host
+	// grants it (tool.TakeReviewFeedback), and it is never sent to the engine.
+	ReviewFeedback tool.ReviewFeedbackGrant `json:"-" schema:"-"`
 }
 
 // NewMTTranslateTool creates a new MT translation tool.
@@ -120,7 +124,8 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 		sourceLocale: cfg.SourceLocale,
 		targetLocale: cfg.TargetLocale,
 		vocab:        model.DefaultVocabulary(),
-		feedback:     cfg.ReviewFeedback,
+		feedback:     cfg.ReviewFeedback.Units,
+		grant:        cfg.ReviewFeedback,
 	}
 	name := cfg.ToolName
 	if name == "" {
@@ -163,6 +168,9 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 		if err != nil {
 			return err
 		}
+		if t.repeatsRejected(v, model.RunsText(runs)) {
+			return nil
+		}
 		v.SetTargetRuns(t.targetLocale, runs)
 		v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin(v.Context(), v.UnitKey()))
 		return nil
@@ -177,9 +185,32 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 		return fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
 	}
 
+	if t.repeatsRejected(v, resp.Translation) {
+		return nil
+	}
 	v.SetTargetText(t.targetLocale, resp.Translation)
 	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin(v.Context(), v.UnitKey()))
 	return nil
+}
+
+// repeatsRejected reports whether text is a draft a reviewer already rejected
+// for the unit, by the hash the rejection recorded. Such a draft is not kept:
+// the unit stays owed, and the host is told, which counts it towards the
+// unit's stop. An engine takes no instructions, so asking again would return
+// the same words.
+func (t *MTTranslateTool) repeatsRejected(v tool.VariantView, text string) bool {
+	fb := t.feedback.ForBlock(v.Context(), v.UnitKey())
+	if len(fb.Rejections) == 0 || text == "" {
+		return false
+	}
+	h := state.TargetHash(text)
+	for _, r := range fb.Rejections {
+		if r.TargetHash != "" && r.TargetHash == h {
+			t.grant.ReportRepeated(fb)
+			return true
+		}
+	}
+	return false
 }
 
 // translateSequence translates one run sequence that holds no plural or

@@ -219,6 +219,8 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	defer func() {
 		a.ProjectBindings, a.flowRedaction, a.flowReviewFeedback = savedBindings, savedRedaction, savedFeedback
 	}()
+	endRepeats := a.beginReviewRepeats(cmd.Context())
+	defer endRepeats(cmd.ErrOrStderr())
 
 	// Build resource context from project file location.
 	absProjectPath, _ := filepath.Abs(projectPath)

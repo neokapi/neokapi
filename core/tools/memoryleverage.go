@@ -63,11 +63,11 @@ type MemoryLeverageConfig struct {
 	Profile   *coreprofile.VoiceProfile `json:"-" schema:"-"`
 	TermRules []coreprofile.TermRule    `json:"term_rules,omitempty" schema:"-"`
 
-	// ReviewFeedback names the units a reviewer rejected a draft of
-	// (tool.ReviewFeedbackKey). Recycling fills none of them: a rejected unit
-	// is owed a new draft, and the content memory could only answer it with
-	// wording the reviewer has already seen, the rejected draft among it.
-	ReviewFeedback tool.ReviewFeedback `json:"review_feedback,omitempty" schema:"-"`
+	// ReviewFeedback names the units a reviewer rejected a draft of. Only a
+	// host grants it (tool.TakeReviewFeedback). Recycling fills none of them:
+	// a rejected unit is owed a new draft, and the content memory could only
+	// answer it with wording the reviewer has already seen.
+	ReviewFeedback tool.ReviewFeedback `json:"-" schema:"-"`
 
 	// Governing context resolved once at construction from Profile + TermRules
 	// and stamped onto every filled target's Origin.
@@ -173,6 +173,11 @@ func NewMemoryLeverageFromConfig(config map[string]any, targetLang string) (tool
 		profile = pf
 		delete(config, "profile")
 	}
+	feedback, err := tool.TakeReviewFeedback(config)
+	if err != nil {
+		return nil, fmt.Errorf("recycle config: %w", err)
+	}
+	cfg.ReviewFeedback = feedback.Units
 	if err := schema.ApplyConfig(config, cfg); err != nil {
 		return nil, fmt.Errorf("recycle config: %w", err)
 	}
@@ -631,7 +636,8 @@ func shouldFillTarget(conf *MemoryLeverageConfig, v tool.VariantView, score int,
 // by block.
 //
 // It exists for entries stored without inline codes, which a block form cannot
-// reach because it matches over runs. It is the weaker path by construction, // asked by text, the corpus answers with a target and no source, so nothing can
+// reach because it matches over runs. It is the weaker path by construction:
+// asked by text, the corpus answers with a target and no source, so nothing can
 // classify the edit and the fill falls back to the score alone.
 //
 // It now asks at the run's point, which it did not before. An answer approved

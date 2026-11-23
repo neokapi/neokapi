@@ -227,6 +227,9 @@ type App struct {
 	// reviewFeedbackMTNoted is set once a run has said that machine
 	// translation is sent no review feedback.
 	reviewFeedbackMTNoted bool
+	// reviewRepeats counts the run's drafts that came back equal to one a
+	// reviewer had rejected (beginReviewRepeats). Nil outside a run.
+	reviewRepeats *reviewRepeats
 
 	// translator localizes tool/format/plugin metadata at API egress.
 	// Built during Init from --lang / KAPI_LANG / config / POSIX env.
