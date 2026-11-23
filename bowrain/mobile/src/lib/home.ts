@@ -26,6 +26,15 @@ export function useReviewHome() {
   return useQuery({ queryKey: inboxKey, queryFn: () => client.reviewHome() });
 }
 
+/**
+ * Whether a query has given its first answer: data, or a failed attempt. A
+ * screen that lays its cards out from the inbox waits for this, so a failing
+ * inbox holds the screen for one attempt rather than the whole retry sequence.
+ */
+export function hasAnswered(query: { isPending: boolean; failureCount: number }): boolean {
+  return !query.isPending || query.failureCount > 0;
+}
+
 /** What waits in one project, one workspace, or everywhere. */
 export interface Waiting {
   /** Translations waiting, over every language. */

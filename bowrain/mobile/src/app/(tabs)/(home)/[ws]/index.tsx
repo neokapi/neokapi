@@ -13,7 +13,7 @@ import { QueryState } from "../../../../components/List";
 import { ProjectCard } from "../../../../components/home/HomeCards";
 import { EmptyState, SkeletonCards } from "../../../../components/home/parts";
 import { useAuth } from "../../../../lib/auth";
-import { projectKey, summarize, useReviewHome } from "../../../../lib/home";
+import { hasAnswered, projectKey, summarize, useReviewHome } from "../../../../lib/home";
 import { usePullRefresh } from "../../../../lib/pullRefresh";
 import { routeValue } from "../../../../lib/routeParams";
 
@@ -54,9 +54,10 @@ function ProjectList({ ws }: { ws: string }) {
   }, [projects.data, summary, ws]);
 
   // The projects with work waiting come first, and the inbox says which those
-  // are. The list waits for both queries, so no card moves when the inbox
-  // answers after the projects.
-  const settling = projects.isPending || inbox.isPending;
+  // are and how tall each card is. The list waits for the inbox's first
+  // answer, so no card moves when it arrives after the projects. A failed
+  // attempt counts as an answer.
+  const settling = projects.isPending || !hasAnswered(inbox);
 
   const open = useCallback(
     (p: Project) => router.push({ pathname: "/[ws]/[project]", params: { ws, project: p.id } }),

@@ -249,7 +249,12 @@ export const LanguageCard = memo(function LanguageCard({
         {waiting && count > 0 ? (
           <ReviewMix testID={`language-${locale}-mix`} mix={waiting} />
         ) : (
-          <Text className="text-muted-foreground text-sm">{status}</Text>
+          // The same shape as the review mix, an empty bar over one line, so
+          // the card keeps its height when the counts arrive.
+          <View className="gap-1.5">
+            <View className="bg-muted h-2 rounded-full" />
+            <Text className="text-muted-foreground text-xs">{status}</Text>
+          </View>
         )}
       </View>
       {loading ? <View className="bg-muted h-7 w-9 rounded-full" /> : <CountPill count={count} />}

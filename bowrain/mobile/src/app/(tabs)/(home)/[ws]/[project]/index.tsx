@@ -1,7 +1,7 @@
 // A project's home, under its name as a large title: the project's mark and
-// languages, its context waiting for review, who worked on it lately, and the
-// languages the person may review, each with the translations waiting and how
-// the deck groups them. A language opens its deck in one tap. The server says
+// languages, its review plan, the languages the person may review, each with
+// the translations waiting and how the deck groups them, and then its context
+// waiting for review and who worked on it lately. A language opens its deck in one tap. The server says
 // which languages the review permission covers; the app lists those and no
 // others. What waits comes from the review inbox the Review tab reads, so a
 // project shows the numbers the Review tab shows.
@@ -53,6 +53,20 @@ function ProjectHeader({ project }: { project: Project }) {
   );
 }
 
+/** The header's place while the project's details load: the same row, with the mark's size. */
+function ProjectHeaderPlaceholder() {
+  return (
+    <View
+      testID="project-header-loading"
+      className="flex-row items-center gap-4 px-5 pt-2 pb-4"
+      importantForAccessibility="no-hide-descendants"
+    >
+      <View className="bg-muted h-14 w-14 rounded-2xl" />
+      <View className="bg-muted h-3 flex-1 rounded-full" />
+    </View>
+  );
+}
+
 // The screen waits for a workspace and a project: a parameter that is a route
 // group's name is neither, and leads back to the workspace list.
 export default function ProjectHome() {
@@ -88,7 +102,7 @@ function Languages({ ws, project }: { ws: string; project: string }) {
     ? (info?.target_languages ?? []).filter((l) => scoped.length === 0 || scoped.includes(l))
     : [];
 
-  // The context waits before the languages: a translation is checked against it.
+  // The context waiting for review, from the inbox the Review tab reads.
   const inbox = useReviewHome();
   const waiting = summarize(inbox.data).byProject.get(projectKey(ws, project));
   const contextWaiting = waiting?.contextEntry?.waiting ?? 0;
@@ -131,16 +145,19 @@ function Languages({ ws, project }: { ws: string; project: string }) {
     [waiting, inbox.isPending, openLanguage],
   );
 
-  // The screen draws its cards once, when every query it lays out has answered
-  // its first request, so a card that arrives late never pushes the others down.
-  const settling =
-    perms.isPending ||
-    (projects.isPending && !info) ||
-    plan.isPending ||
-    inbox.isPending ||
-    feed.isPending;
-
   const pull = usePullRefresh(() => Promise.all([feed.refetch(), inbox.refetch(), plan.refetch()]));
+
+  // Each section fills in place as its query answers. The header, the plan
+  // card and the language cards hold their size while loading. The context
+  // row and the activity strip show only when something is there, so they sit
+  // below the languages and appear once everything above them has its final
+  // size: a late one is added below the content, never above it.
+  const languagesFinal = !perms.isPending && (info !== undefined || !projects.isPending);
+  const extrasReady = languagesFinal && !inbox.isPending && !feed.isPending;
+  // Before the permissions answer, the project's own languages hold the place
+  // of the list the permissions narrow, as cards still loading.
+  const listed = perms.isPending ? (info?.target_languages ?? []) : languages;
+  const planText = planDetail ?? (plan.isError ? t("common.loadFailed") : t("home.loading"));
 
   return (
     <View collapsable={false} className="bg-background flex-1">
@@ -151,46 +168,35 @@ function Languages({ ws, project }: { ws: string; project: string }) {
         testID="language-list"
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="pb-8"
-        data={settling ? [] : languages}
+        data={listed}
         keyExtractor={(l) => l}
         renderItem={renderItem}
         refreshing={pull.refreshing}
         onRefresh={pull.onRefresh}
         ListHeaderComponent={
           <View>
-            {info ? <ProjectHeader project={info} /> : null}
-            {!settling && planDetail ? (
-              <Pressable
-                testID="project-plan"
-                accessibilityRole="button"
-                onPress={() =>
-                  router.push({ pathname: "/[ws]/[project]/plan", params: { ws, project } })
-                }
-                className="border-primary/40 bg-primary/10 mx-4 mb-3 rounded-3xl border p-4 active:opacity-80"
-              >
-                <Text className="text-foreground text-[17px] font-semibold">{t("plan.home")}</Text>
-                <Text className="text-muted-foreground text-sm">{planDetail}</Text>
-              </Pressable>
-            ) : null}
-            {!settling && contextWaiting > 0 ? (
-              <ContextEntryCard
-                count={contextWaiting}
-                detail={contextDetail}
-                onPress={() =>
-                  router.push({ pathname: "/[ws]/[project]/context", params: { ws, project } })
-                }
-              />
-            ) : null}
-            {settling ? null : (
-              <ActivityStrip entries={entries} onPress={() => router.navigate("/activity")} />
-            )}
-            {!settling && languages.length > 0 ? (
+            {info ? <ProjectHeader project={info} /> : <ProjectHeaderPlaceholder />}
+            <Pressable
+              testID="project-plan"
+              accessibilityRole="button"
+              accessibilityState={{ busy: plan.isPending }}
+              onPress={() =>
+                router.push({ pathname: "/[ws]/[project]/plan", params: { ws, project } })
+              }
+              className="border-primary/40 bg-primary/10 mx-4 mb-3 rounded-3xl border p-4 active:opacity-80"
+            >
+              <Text className="text-foreground text-[17px] font-semibold">{t("plan.home")}</Text>
+              <Text className="text-muted-foreground text-sm" numberOfLines={1}>
+                {planText}
+              </Text>
+            </Pressable>
+            {listed.length > 0 || !languagesFinal ? (
               <SectionHeader title={t("home.languagesHeader")} />
             ) : null}
           </View>
         }
         ListEmptyComponent={
-          settling ? (
+          !languagesFinal ? (
             <SkeletonCards testID="languages-loading" />
           ) : perms.isSuccess ? (
             <EmptyState
@@ -200,6 +206,22 @@ function Languages({ ws, project }: { ws: string; project: string }) {
           ) : (
             <QueryState query={perms} />
           )
+        }
+        ListFooterComponent={
+          extrasReady ? (
+            <View className="pt-3">
+              {contextWaiting > 0 ? (
+                <ContextEntryCard
+                  count={contextWaiting}
+                  detail={contextDetail}
+                  onPress={() =>
+                    router.push({ pathname: "/[ws]/[project]/context", params: { ws, project } })
+                  }
+                />
+              ) : null}
+              <ActivityStrip entries={entries} onPress={() => router.navigate("/activity")} />
+            </View>
+          ) : undefined
         }
       />
     </View>

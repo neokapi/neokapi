@@ -5,7 +5,7 @@ import type {
   ReviewInboxProject,
 } from "@neokapi/bowrain-client";
 
-import { homeStep, projectKey, summarize } from "../lib/home";
+import { hasAnswered, homeStep, projectKey, summarize } from "../lib/home";
 
 function lang(
   workspace: string,
@@ -187,5 +187,13 @@ describe("homeStep", () => {
     expect(homeStep(withProjects(proj("acme", "p1")))).toBeNull();
     expect(homeStep({ context: [], languages: [], projects: [] })).toBeNull();
     expect(homeStep(null)).toBeNull();
+  });
+});
+
+describe("hasAnswered", () => {
+  it("counts data or a failed attempt as the first answer", () => {
+    expect(hasAnswered({ isPending: true, failureCount: 0 })).toBe(false);
+    expect(hasAnswered({ isPending: true, failureCount: 1 })).toBe(true);
+    expect(hasAnswered({ isPending: false, failureCount: 0 })).toBe(true);
   });
 });

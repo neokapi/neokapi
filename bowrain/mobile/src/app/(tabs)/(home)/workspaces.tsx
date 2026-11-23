@@ -14,7 +14,7 @@ import { WorkspaceCard } from "../../../components/home/HomeCards";
 import { CaughtUpCard, NextUpCard } from "../../../components/home/NextUpCard";
 import { EmptyState, SectionHeader, SkeletonCards } from "../../../components/home/parts";
 import { useAuth } from "../../../lib/auth";
-import { homeStep, summarize, useReviewHome, type HomeStep } from "../../../lib/home";
+import { hasAnswered, homeStep, summarize, useReviewHome, type HomeStep } from "../../../lib/home";
 import { usePullRefresh } from "../../../lib/pullRefresh";
 import { useRecentProject } from "../../../lib/recentProject";
 import { openContext, openDeck, openSetup, openStep } from "../../../lib/reviewNav";
@@ -97,10 +97,11 @@ export default function Workspaces() {
     hero = <CaughtUpCard />;
   }
 
-  // The screen draws its cards once, when both queries have answered their
-  // first request, so the next step never arrives above the workspaces and
-  // pushes them down.
-  const settling = workspaces.isPending || inbox.isPending;
+  // The next step sits above the workspaces, and its height depends on what
+  // the inbox says, as do the counts on every workspace card. The cards wait
+  // for the inbox's first answer, so the next step never arrives above them
+  // and pushes them down. A failed attempt counts as an answer.
+  const settling = workspaces.isPending || !hasAnswered(inbox);
   const hasWorkspaces = !settling && (workspaces.data?.length ?? 0) > 0;
 
   return (

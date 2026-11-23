@@ -582,7 +582,16 @@ background refetch would move the whole screen. Screens bind the control through
 screen that binds it to anything else.
 
 A first load shows placeholders in the shape of what replaces them, and a
-"loading more" row sits at the end of a list.
+"loading more" row sits at the end of a list. On a project's screen each
+section fills in place as its own request answers. The header, the plan card
+and the language cards keep their height while they load, and a failed plan
+says so in the card. The context row and the activity strip show only when
+something is there, so they sit below the languages and appear once the
+sections above them have their final height. The workspaces and projects
+lists wait for the inbox's first answer, because the inbox decides the next
+step above the workspaces, the order of the projects and the height of each
+card. A failed attempt counts as an answer, so a failing inbox costs one
+attempt.
 
 ## Licence
 
