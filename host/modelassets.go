@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neokapi/neokapi/core/plugin/manifest"
@@ -20,9 +22,9 @@ import (
 
 // Model assets are large data dependencies a plugin declares in its manifest
 // (manifest.ModelAsset) and the HOST fetches, verifies, and caches on the
-// plugin's behalf — so the plugin binary stays a pure compute engine and asset
-// downloads are uniform with the rest of kapi (one shared cache, one progress
-// renderer, mandatory integrity). The model lives under
+// plugin's behalf. The plugin binary stays a pure compute engine, and asset
+// downloads share one cache, one progress renderer and mandatory integrity
+// checks with the rest of kapi. The model lives under
 //
 //	$XDG_CACHE_HOME/kapi/models/<plugin>/<id>/<version>/<file-basename>
 //
@@ -41,7 +43,7 @@ func ModelCacheRoot() (string, error) {
 	if v := os.Getenv("XDG_CACHE_HOME"); v != "" {
 		return filepath.Join(v, "kapi", "models"), nil
 	}
-	home, err := os.UserHomeDir()
+	home, err := dataroot.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("model assets: resolve cache root: %w", err)
 	}
@@ -96,8 +98,8 @@ func (o ModelEnsureOptions) lockTimeout() time.Duration {
 }
 
 // EnsureModel makes sure every file the asset declares is present and verified
-// in the cache, downloading any that are missing — concurrently, with a progress
-// bar — and returns the model's cache directory. Already-present files are a
+// in the cache, downloading any that are missing, concurrently, with a progress
+// bar, and returns the model's cache directory. Already-present files are a
 // pure cache hit (no requests, no bars). It is safe to call concurrently across
 // processes; per-file locks serialize installs.
 func EnsureModel(ctx context.Context, asset manifest.ModelAsset, opts ModelEnsureOptions) (string, error) {
@@ -162,7 +164,7 @@ func validateModelFilePath(p string) error {
 }
 
 // modelFilePresent reports whether dst already holds the file: it exists, is
-// non-empty, and — when a size is pinned — matches it. A size mismatch forces a
+// non-empty, and, when a size is pinned, matches it. A size mismatch forces a
 // re-download (the cached file is stale or truncated).
 func modelFilePresent(dst string, wantSize int64) bool {
 	fi, err := os.Stat(dst)

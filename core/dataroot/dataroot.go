@@ -95,6 +95,61 @@ func testDataDir() string {
 	return testDataRoot(os.TempDir(), os.Getpid())
 }
 
+// TestUserDir answers, in a test binary, a directory of this process's own
+// for one kind of per-user location ("config", "home"), under the test
+// binary's data root, and true. Outside a test binary it answers "" and false,
+// and the caller resolves the platform's location.
+//
+// A test that points HOME (or, for "config", XDG_CONFIG_HOME) somewhere other
+// than where the process started has chosen its own tree, and gets "" and false
+// too, so it resolves through the platform exactly as a user would, under the
+// directory it chose. A test that leaves them alone would otherwise reach the
+// developer's own configuration, caches, plugins or home; it reaches a
+// throwaway directory instead. The sweep and RemoveTestDir clean it with the
+// rest of the root.
+func TestUserDir(kind string) (string, bool) {
+	if !UnderTest() {
+		return "", false
+	}
+	if os.Getenv("HOME") != startHome || (kind == "config" && os.Getenv("XDG_CONFIG_HOME") != startXDGConfig) {
+		return "", false
+	}
+	return filepath.Join(testDataDir(), "user", kind), true
+}
+
+// The home and configuration variables as the process started, before any
+// test changed them.
+var (
+	startHome      = os.Getenv("HOME")
+	startXDGConfig = os.Getenv("XDG_CONFIG_HOME")
+)
+
+// UserConfigDir is the platform's per-user configuration base
+// (os.UserConfigDir, $HOME/.config when it has none), or in a test binary the
+// process's own (TestUserDir). Every kapi path under the user's configuration
+// resolves through it, after its own explicit override.
+func UserConfigDir() string {
+	if d, ok := TestUserDir("config"); ok {
+		return d
+	}
+	d, err := os.UserConfigDir()
+	if err != nil || d == "" {
+		d = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	return d
+}
+
+// UserHomeDir is the user's home directory (os.UserHomeDir), or in a test
+// binary the process's own (TestUserDir). The caches, the per-user plugin
+// root and the agent configuration kapi writes under the home resolve through
+// it, after their own explicit override.
+func UserHomeDir() (string, error) {
+	if d, ok := TestUserDir("home"); ok {
+		return d, nil
+	}
+	return os.UserHomeDir()
+}
+
 // testDataRoot names the data root of the test binary with this process id.
 func testDataRoot(tmp string, pid int) string {
 	return filepath.Join(tmp, testDataDirPrefix+strconv.Itoa(pid))

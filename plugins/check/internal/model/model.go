@@ -3,7 +3,7 @@
 //
 // The plugin no longer downloads anything: model acquisition is owned by the
 // HOST (kapi). The model is declared in the plugin manifest and fetched +
-// verified + cached by `kapi models pull check` (cli.EnsureModel) — replacing
+// verified + cached by `kapi models pull check` (cli.EnsureModel), replacing
 // the old bespoke `kapi-check pull`. This package resolves the staged files; its
 // cache root mirrors the host's convention ($XDG_CACHE_HOME/kapi/models/check)
 // so the plugin finds exactly what the host staged, and honors
@@ -15,9 +15,11 @@ package model
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 const (
@@ -95,6 +97,10 @@ func ModelsRoot() (string, error) {
 	}
 	if v := os.Getenv("XDG_CACHE_HOME"); v != "" {
 		return filepath.Join(v, "kapi", "models", "check"), nil
+	}
+	if flag.Lookup("test.v") != nil {
+		// A test binary keeps off the developer's cache (core/dataroot).
+		return filepath.Join(os.TempDir(), "kapi-test-models-"+strconv.Itoa(os.Getpid()), "check"), nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {

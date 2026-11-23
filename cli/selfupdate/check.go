@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
 	"github.com/mattn/go-isatty"
 
 	"github.com/neokapi/neokapi/core/version"
@@ -30,7 +32,7 @@ const indexName = "kapi"
 const DefaultIndexURL = "https://neokapi.github.io/registry/cli.json"
 
 // cacheTTL is how long a cached latest-version answer stays fresh. The check is
-// a courtesy, not a guarantee — once a day is plenty and keeps us off the
+// a courtesy, not a guarantee, once a day is plenty and keeps us off the
 // network on the hot path.
 const cacheTTL = 24 * time.Hour
 
@@ -98,7 +100,7 @@ func windowsUnindexed(idx *registry.IndexV2, goos, platKey string) bool {
 }
 
 // IsNewer reports whether latest is a strictly newer release than the running
-// binary. Dev / source builds are never told to update — there is no meaningful
+// binary. Dev / source builds are never told to update, there is no meaningful
 // "latest" to compare them against, and their version isn't semver at all (an
 // unstamped "dev", or a git-describe string like
 // "v1.2.0-rc9-238-gb1a3033dc-dirty"). Comparing one would be worse than
@@ -159,7 +161,7 @@ func isTruthy(v string) bool {
 
 // CachedLatest returns the latest known version, fetching from the network only
 // when the cache is missing or older than cacheTTL. A fetch error is reported
-// but never fatal — callers treat any error as "no notice".
+// but never fatal, callers treat any error as "no notice".
 func CachedLatest(ctx context.Context, channel string) (latest string, err error) {
 	if channel == "" {
 		channel = version.Channel()
@@ -180,18 +182,15 @@ func CachedLatest(ctx context.Context, channel string) (latest string, err error
 //
 // The flow is split so the command's hot path is never blocked by the network:
 //
-//   - StartBackgroundRefresh, run in the root PreRun, spawns a detached
-//     `kapi update --refresh-cache` child when the cache is stale. The child
-//     outlives this process, fetches the latest version, and rewrites the
-//     cache file. It must be a separate process: most kapi commands finish in
-//     milliseconds, so an in-process goroutine is abandoned before the fetch
-//     completes and the cache goes permanently stale.
-//   - RenderNotice reads the cache file only (never the network) and prints the
-//     "update available" line. Run in the root PostRun, it shows whatever the
-//     latest completed refresh found — this run's or a prior run's.
+//   - StartBackgroundRefresh (root PreRun) spawns a detached
+//     `kapi update --refresh-cache` child when the cache is stale; the child
+//     fetches the latest version and rewrites the cache. A goroutine would be
+//     abandoned when a fast command exits, leaving the cache stale.
+//   - RenderNotice (root PostRun) reads only the cache file and prints the
+//     "update available" line found by the latest completed refresh.
 //
-// Net effect, like npm's update-notifier: zero added latency, and the notice
-// surfaces on a subsequent invocation.
+// Like npm's update-notifier, this adds no latency, and the notice appears on
+// a later invocation.
 
 // backgroundRefreshTimeout bounds the in-process fallback fetch so a slow/hung
 // network can't keep a goroutine (and its sockets) alive indefinitely.
@@ -208,12 +207,12 @@ func StartBackgroundRefresh(channel string) {
 		channel = version.Channel()
 	}
 	if st, ok := readCache(cachePath()); ok && st.Channel == channel && time.Since(st.CheckedAt) < cacheTTL {
-		return // cache is fresh — nothing to refresh
+		return // cache is fresh, nothing to refresh
 	}
 	exe, err := os.Executable()
 	if err != nil {
 		// Can't respawn ourselves; fetch in-process. Abandoned if the command
-		// finishes first — best-effort either way.
+		// finishes first, best-effort either way.
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), backgroundRefreshTimeout)
 			defer cancel()
@@ -225,7 +224,7 @@ func StartBackgroundRefresh(channel string) {
 	// exit. The child's non-TTY stderr disables its own background refresh,
 	// so it cannot respawn itself.
 	// context.Background() keeps the child fully detached (never cancelled,
-	// no wait) while satisfying noctx — the whole point is that it survives
+	// no wait) while satisfying noctx, the whole point is that it survives
 	// this process's exit.
 	cmd := exec.CommandContext(context.Background(), exe, "update", "--refresh-cache", "--channel", channel)
 	if err := cmd.Start(); err != nil {
@@ -262,10 +261,7 @@ func cachePath() string {
 	if dir := strings.TrimSpace(os.Getenv("KAPI_CONFIG_DIR")); dir != "" {
 		return filepath.Join(dir, "update-check.json")
 	}
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
-	}
+	configDir := dataroot.UserConfigDir()
 	return filepath.Join(configDir, "kapi", "update-check.json")
 }
 

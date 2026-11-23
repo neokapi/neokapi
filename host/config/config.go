@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
 	"github.com/neokapi/neokapi/core/channel"
 	"github.com/spf13/viper"
 )
@@ -23,26 +25,18 @@ type AppConfig struct {
 //
 // # One path, shared with the writer
 //
-// The file is pinned to [GlobalConfigFilePath] — the same function every writer
-// uses (SetGlobalConfig, UnsetGlobalConfig, AddGlobalRegistry) — rather than
-// resolved through a search path. A search path made read and write disagree in
-// two independent ways, and `kapi models default` silently lost its value to
-// both:
+// The file is pinned to [GlobalConfigFilePath], the function every writer uses
+// (SetGlobalConfig, UnsetGlobalConfig, AddGlobalRegistry), so reader and writer
+// always name the same file. Two consequences follow:
 //
-//  1. `.` (the working directory) was searched *before* the user config dir, and
-//     a kapi project's recipe is named `kapi.yaml` — exactly the name being
-//     searched for. Inside any project, the recipe was loaded *as* the app
-//     config, so `ai.provider` read as empty however it had been set.
-//  2. The writer resolved `os.UserConfigDir()` while the reader searched a
-//     hardcoded `$HOME/.config/kapi`. On macOS those are different directories,
-//     so even outside a project the stored value was in a directory the reader
-//     never looked in.
+//  1. The working directory is never searched. A project's recipe is also
+//     named `kapi.yaml`, and reading it as the app config would empty
+//     `ai.provider` inside every project.
+//  2. The reader follows the writer's platform directory, which on macOS is
+//     not `$HOME/.config/kapi`.
 //
-// A recipe is not app configuration, and app configuration is not per-directory:
-// the two never had a reason to share a search path. The locations the old reader
-// searched are still read as lower-precedence layers (see legacyConfigPaths), so
-// an existing `$HOME/.config/kapi/kapi.yaml` or `/etc/kapi/kapi.yaml` keeps
-// working — what is removed is only the working directory.
+// `$HOME/.config/kapi/kapi.yaml` and `/etc/kapi/kapi.yaml` are still read as
+// lower-precedence layers (see legacyConfigPaths).
 func NewAppConfig() *AppConfig {
 	v := viper.New()
 	v.SetConfigType("yaml")
@@ -56,7 +50,7 @@ func NewAppConfig() *AppConfig {
 	// Set defaults
 	v.SetDefault(KeyFlowChannelBuffer, 64)
 	pluginDir := "./plugins"
-	if configDir, err := os.UserConfigDir(); err == nil {
+	if configDir := dataroot.UserConfigDir(); configDir != "" {
 		pluginDir = filepath.Join(configDir, "kapi", "plugins")
 	}
 	v.SetDefault(KeyPluginsDirectory, pluginDir)
@@ -101,13 +95,13 @@ func NewOverlayAppConfig(appName string, configure func(cfg *AppConfig)) *AppCon
 // lower-precedence layers beneath the pinned global file, so an installation
 // that already had one keeps working:
 //
-//   - `$HOME/.config/kapi/kapi.yaml` — the location the old reader searched and
+//   - `$HOME/.config/kapi/kapi.yaml`, the location the old reader searched and
 //     the docs name. On Linux it *is* the pinned path (os.UserConfigDir honours
 //     XDG), so this entry is a no-op there; on macOS os.UserConfigDir resolves to
 //     `~/Library/Application Support`, and a hand-written config at the
 //     documented path must not stop being read just because the reader stopped
 //     guessing.
-//   - `/etc/kapi/kapi.yaml` — a system-wide install.
+//   - `/etc/kapi/kapi.yaml`, a system-wide install.
 //
 // The working directory is deliberately absent: `./kapi.yaml` is a project
 // recipe, not app configuration, and searching it is what made `kapi models
@@ -115,7 +109,7 @@ func NewOverlayAppConfig(appName string, configure func(cfg *AppConfig)) *AppCon
 // pinned file is skipped, so nothing is read twice.
 func legacyConfigPaths() []string {
 	paths := []string{filepath.Join("/etc", "kapi", "kapi.yaml")}
-	if home, err := os.UserHomeDir(); err == nil {
+	if home, err := dataroot.UserHomeDir(); err == nil {
 		paths = append([]string{filepath.Join(home, ".config", "kapi", "kapi.yaml")}, paths...)
 	}
 	pinned := GlobalConfigFilePath()
@@ -123,12 +117,12 @@ func legacyConfigPaths() []string {
 }
 
 // Load reads the configuration file, then merges any legacy location underneath
-// it. A missing file is not an error — an unconfigured kapi runs on its built-in
+// it. A missing file is not an error, an unconfigured kapi runs on its built-in
 // defaults.
 //
 // Precedence is per **top-level block**, not per leaf: if the pinned file
 // mentions `ai:` at all, the legacy file's whole `ai:` block is ignored rather
-// than merged leaf by leaf. Deliberate — a half-merged block is the harder thing
+// than merged leaf by leaf. Deliberate, a half-merged block is the harder thing
 // to reason about, and the file kapi writes always writes a complete block.
 func (c *AppConfig) Load() error {
 	if err := c.v.ReadInConfig(); err != nil {
@@ -205,7 +199,7 @@ func (c *AppConfig) PluginDirectory() string {
 }
 
 // Language returns the configured target locale for CLI/UI output
-// (BCP-47, e.g. "fr"). Empty when unset — the i18n.Resolve chain
+// (BCP-47, e.g. "fr"). Empty when unset, the i18n.Resolve chain
 // then falls back to KAPI_LANG / LC_ALL / LANG.
 func (c *AppConfig) Language() string {
 	return c.v.GetString(KeyLanguage)
@@ -221,7 +215,7 @@ func (c *AppConfig) RegistryURL() string {
 // is the sticky source of truth; when unset it falls back to the channel inferred
 // from the running build (a prerelease build defaults to "beta"), so a fresh beta
 // install tracks beta without configuration. The persisted preference outlives a
-// later update to a final (non-prerelease) version — see EnsureChannelPinned.
+// later update to a final (non-prerelease) version, see EnsureChannelPinned.
 func (c *AppConfig) UpdateChannel() string {
 	if ch := c.v.GetString(KeyUpdateChannel); ch != "" {
 		return ch // explicit KAPI_UPDATE_CHANNEL env or kapi.yaml update.channel
@@ -232,7 +226,7 @@ func (c *AppConfig) UpdateChannel() string {
 // EnsureChannelPinned makes beta-channel membership sticky via the shared
 // channel preference (core/channel), so the CLI and the desktop apps all honor
 // it. The first time a prerelease build runs with nothing pinned and no
-// KAPI_UPDATE_CHANNEL override, beta is persisted — so a beta user stays on the
+// KAPI_UPDATE_CHANNEL override, beta is persisted, so a beta user stays on the
 // fast track after updating to a final release (the beta channel also serves
 // finals, so its version no longer infers "beta"). A pre-existing kapi.yaml
 // update.channel is treated as an explicit choice and left untouched. Best-effort.
@@ -255,7 +249,7 @@ const DefaultRegistryURL = "https://neokapi.github.io/registry/manifest-plugins.
 
 // DefaultUpdateChannel is the stable release channel. It is the ultimate
 // fallback; the effective default for an unconfigured build is version.Channel()
-// (a prerelease build defaults to "beta") — see UpdateChannel.
+// (a prerelease build defaults to "beta"), see UpdateChannel.
 const DefaultUpdateChannel = "stable"
 
 // EnvUpdateChannel is the environment variable that overrides the update channel
@@ -373,7 +367,7 @@ func parseStringSlice(raw any) []string {
 //  2. KAPI_CONFIG_DIR, which nests a sibling app under kapi's config root
 //     ($KAPI_CONFIG_DIR/<name>/<name>.yaml). This is what makes the isolation
 //     contract whole: `kapi config set bowrain.…` writes a *plugin's* config
-//     file, so pinning KAPI_CONFIG_DIR must contain that write too — otherwise
+//     file, so pinning KAPI_CONFIG_DIR must contain that write too, otherwise
 //     an isolated run reaches into the developer's real home.
 //  3. The OS user config dir.
 func GlobalConfigFilePath(appName ...string) string {
@@ -391,10 +385,7 @@ func GlobalConfigFilePath(appName ...string) string {
 		}
 		return filepath.Join(dir, name, name+".yaml")
 	}
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
-	}
+	configDir := dataroot.UserConfigDir()
 	return filepath.Join(configDir, name, name+".yaml")
 }
 
@@ -483,8 +474,8 @@ func pruneKey(m map[string]any, path []string) bool {
 }
 
 // GlobalConfigValues reads the flat, dotted key → value map stored in an app's
-// global config file. Unlike AppConfig it reads only that one file — no env
-// vars, no defaults, no search path — so a listing can say what is actually
+// global config file. Unlike AppConfig it reads only that one file, no env
+// vars, no defaults, no search path, so a listing can say what is actually
 // persisted and where, which is what `kapi config list` reports.
 func GlobalConfigValues(appName ...string) (map[string]string, error) {
 	path := GlobalConfigFilePath(appName...)
