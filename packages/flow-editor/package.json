@@ -23,7 +23,7 @@
     "@neokapi/contract-types": "*",
     "@neokapi/i18n-react": "*",
     "@neokapi/ui-primitives": "*",
-    "@xyflow/react": "^12.12.1",
+    "@xyflow/react": "^13.0.1",
     "lucide-react": "^1.76.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
