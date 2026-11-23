@@ -42,16 +42,11 @@ type ImportReport struct {
 // Imported counts the concepts the import wrote.
 func (r ImportReport) Imported() int { return r.Created + r.Updated }
 
-// The properties an import records on each concept it writes: the import's
-// id, which the server mints for each import, and the file name, the person
-// and the time it ran, which are for display. Only an import that a person
-// names as an update of that id changes the concept again.
-const (
-	ImportIDProperty   = "import.id"
-	ImportNameProperty = "import.name"
-	ImportByProperty   = "import.by"
-	ImportAtProperty   = "import.at"
-)
+// ImportIDProperty is the property an import records on each concept it
+// writes: the id the server minted for the import (ImportRecord.ID). Only an
+// import that a person names as an update of that id changes the concept
+// again.
+const ImportIDProperty = "import.id"
 
 // ImportSource is the import a file's rows belong to.
 type ImportSource struct {
@@ -59,49 +54,6 @@ type ImportSource struct {
 	// id of the earlier import the person named this one an update of. A row
 	// changes a stored concept only when an import with this id wrote it.
 	ID string
-	// Name, By and At say which file was imported, by whom and when. They
-	// are shown when a later import lists earlier ones, and decide nothing.
-	Name, By, At string
-}
-
-// ImportRecord is one earlier import, as a person picks it to update.
-type ImportRecord struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	By       string `json:"by"`
-	At       string `json:"at"`
-	Concepts int    `json:"concepts"`
-}
-
-// Imports lists the earlier imports whose concepts the store holds, the
-// latest first, each with the file name, person and time of its latest run.
-func Imports(ctx context.Context, st fw.Terminology) ([]ImportRecord, error) {
-	all, err := st.Concepts(ctx)
-	if err != nil {
-		return nil, err
-	}
-	byID := map[string]*ImportRecord{}
-	for _, c := range all {
-		id := c.Properties[ImportIDProperty]
-		if id == "" {
-			continue
-		}
-		r := byID[id]
-		if r == nil {
-			r = &ImportRecord{ID: id}
-			byID[id] = r
-		}
-		r.Concepts++
-		if at := c.Properties[ImportAtProperty]; at >= r.At {
-			r.At, r.Name, r.By = at, c.Properties[ImportNameProperty], c.Properties[ImportByProperty]
-		}
-	}
-	out := make([]ImportRecord, 0, len(byID))
-	for _, r := range byID {
-		out = append(out, *r)
-	}
-	slices.SortFunc(out, func(a, b ImportRecord) int { return cmp.Or(cmp.Compare(b.At, a.At), cmp.Compare(a.ID, b.ID)) })
-	return out, nil
 }
 
 // ImportRows writes the concepts of a terms file to st, as the import src.
@@ -274,8 +226,7 @@ func importRow(ctx context.Context, st Store, row fw.ImportRow, given, fp string
 		case recorded == "":
 			return importRefused, fmt.Sprintf("concept %s was not written by an import, so it is left as it is; to change it, export the workspace's terms and edit the exported file", id), nil
 		case recorded != src.ID:
-			return importRefused, fmt.Sprintf("concept %s belongs to the import of %s by %s at %s, so this row was not applied; to change it, import this file as an update of that import", id,
-				cmp.Or(stored.Properties[ImportNameProperty], "an unnamed file"), cmp.Or(stored.Properties[ImportByProperty], "an unknown person"), cmp.Or(stored.Properties[ImportAtProperty], "an unknown time")), nil
+			return importRefused, fmt.Sprintf("concept %s belongs to %s, so this row was not applied; to change it, import this file as an update of that import", id, describeImport(ctx, st, recorded)), nil
 		case stored.Properties[ImportFingerprintProperty] != current:
 			return importRefused, fmt.Sprintf("concept %s was edited after it was last imported, so this row was not applied; review the edit, then import again", id), nil
 		}
@@ -290,6 +241,16 @@ func importRow(ctx context.Context, st Store, row fw.ImportRow, given, fp string
 		return importUpdated, "", nil
 	}
 	return 0, "", fmt.Errorf("concept %s: %w", id, ErrKeptChanging)
+}
+
+// describeImport names an import for a person: its file, who created it and
+// when, read from its record.
+func describeImport(ctx context.Context, st Store, id string) string {
+	r, ok, err := st.GetImport(ctx, id)
+	if err != nil || !ok {
+		return "the import " + id
+	}
+	return fmt.Sprintf("the import of %s by %s on %s (%s)", cmp.Or(r.Name, "an unnamed file"), cmp.Or(r.CreatedBy, "an unknown person"), r.CreatedAt.UTC().Format("2006-01-02 15:04 UTC"), r.ID)
 }
 
 // importExportedRow applies a row that carries the revision its concept had
@@ -326,8 +287,7 @@ func importExportedRow(ctx context.Context, st Store, row fw.ImportRow, fp strin
 }
 
 // withImportRecord is c carrying the properties it is stored with, the
-// file's own over them, and the import's record: its fingerprint, its id,
-// and the file, person and time of this run.
+// file's own over them, and the import's record: its fingerprint and its id.
 func withImportRecord(c fw.Concept, stored map[string]string, fp string, src ImportSource) fw.Concept {
 	props := maps.Clone(stored)
 	if props == nil {
@@ -336,9 +296,6 @@ func withImportRecord(c fw.Concept, stored map[string]string, fp string, src Imp
 	maps.Copy(props, c.Properties)
 	props[ImportFingerprintProperty] = fp
 	props[ImportIDProperty] = src.ID
-	props[ImportNameProperty] = src.Name
-	props[ImportByProperty] = src.By
-	props[ImportAtProperty] = src.At
 	c.Properties = props
 	return c
 }

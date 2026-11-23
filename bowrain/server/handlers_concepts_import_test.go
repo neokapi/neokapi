@@ -51,14 +51,22 @@ func TestConceptImport_UpdatesOnlyTheImportItNames(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	var imports []sqlterms.ImportRecord
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &imports))
-	require.Len(t, imports, 1)
-	assert.Equal(t, sqlterms.ImportRecord{ID: ann.Import, Name: "terms.csv", By: "ann", At: imports[0].At, Concepts: 1}, imports[0])
+	require.Len(t, imports, 2, "bob's import is listed though it wrote nothing")
+	byID := map[string]sqlterms.ImportRecord{imports[0].ID: imports[0], imports[1].ID: imports[1]}
+	assert.Equal(t, "ann", byID[ann.Import].CreatedBy)
+	assert.Equal(t, "terms.csv", byID[ann.Import].Name)
+	assert.Equal(t, "bob", byID[bob.Import].CreatedBy)
 
-	status, update := importCSVAs(t, h, "ann", "terms.csv", "Save,Lagre data\n", ann.Import)
+	status, update := importCSVAs(t, h, "carol", "terms.csv", "Save,Lagre data\n", ann.Import)
 	require.Equal(t, http.StatusOK, status)
 	assert.Equal(t, 1, update.Updated)
 	assert.Equal(t, ann.Import, update.Import)
 	assert.Equal(t, "Lagre data", storedConcept(t, h.tb(t), "term:en:save").Terms[1].Text)
+	r, ok, err := h.tb(t).(sqlterms.Store).GetImport(t.Context(), ann.Import)
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.Equal(t, "ann", r.CreatedBy, "the creator stays listed")
+	assert.Equal(t, "carol", r.UpdatedBy)
 
 	status, _ = importCSVAs(t, h, "bob", "terms.csv", "Save,Spare\n", "import-nobody-made")
 	assert.Equal(t, http.StatusNotFound, status, "an update must name an import the workspace holds")

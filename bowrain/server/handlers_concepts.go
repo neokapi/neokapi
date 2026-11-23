@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1159,21 +1158,22 @@ func (s *Server) importConcepts(c *echo.Context, tb sqlterms.Store, rows []terms
 	if fileName == "" && len(rows) > 0 {
 		fileName = rows[0].Document
 	}
-	src := sqlterms.ImportSource{
-		ID:   "import-" + id.New(),
-		Name: fileName,
-		By:   authorIdentity(c),
-		At:   sessionNow().UTC().Format(time.RFC3339Nano),
-	}
+	by, now := authorIdentity(c), sessionNow().UTC()
+	src := sqlterms.ImportSource{ID: updateOf}
 	if updateOf != "" {
-		earlier, err := sqlterms.Imports(ctx, tb)
-		if err != nil {
+		// The record keeps who created the import; this run is its update.
+		if _, err := tb.TouchImport(ctx, updateOf, fileName, by, now); errors.Is(err, sqlterms.ErrImportNotFound) {
+			return c.JSON(http.StatusNotFound, ErrorResponse{Error: "update_of names no import of this workspace"})
+		} else if err != nil {
 			return serverErr(c, err)
 		}
-		if !slices.ContainsFunc(earlier, func(r sqlterms.ImportRecord) bool { return r.ID == updateOf }) {
-			return c.JSON(http.StatusNotFound, ErrorResponse{Error: "update_of names no import whose concepts the workspace holds"})
+	} else {
+		// Recorded before any row is written, so an import that writes
+		// nothing is still listed.
+		src.ID = "import-" + id.New()
+		if err := tb.CreateImport(ctx, sqlterms.ImportRecord{ID: src.ID, Name: fileName, CreatedBy: by, CreatedAt: now}); err != nil {
+			return serverErr(c, err)
 		}
-		src.ID = updateOf
 	}
 	report, err := sqlterms.ImportRows(ctx, tb, rows, src)
 	if err != nil {
@@ -1182,9 +1182,13 @@ func (s *Server) importConcepts(c *echo.Context, tb sqlterms.Store, rows []terms
 	return c.JSON(http.StatusOK, importConceptsResponse{Imported: report.Imported(), ImportReport: report, Import: src.ID})
 }
 
-// HandleListConceptImports lists the earlier imports whose concepts the
-// workspace holds, with the file name, who ran each and when, so a person
-// can name one as the import a new file updates.
+// conceptImportsListed is how many imports HandleListConceptImports lists,
+// the latest updated first.
+const conceptImportsListed = 100
+
+// HandleListConceptImports lists the workspace's latest imports from their
+// records, with the file name, who created each and who last updated it,
+// and when, so a person can name one as the import a new file updates.
 func (s *Server) HandleListConceptImports(c *echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
 		return err
@@ -1196,7 +1200,7 @@ func (s *Server) HandleListConceptImports(c *echo.Context) error {
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	imports, err := sqlterms.Imports(c.Request().Context(), tb)
+	imports, err := tb.Imports(c.Request().Context(), conceptImportsListed)
 	if err != nil {
 		return serverErr(c, err)
 	}

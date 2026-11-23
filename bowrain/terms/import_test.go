@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,21 +20,27 @@ import (
 
 var importSeq atomic.Int64
 
-// newImport is a new import of the file name by who, with an id of its own,
-// as the server mints one for each import.
-func newImport(name, who string) sqlterms.ImportSource {
-	n := importSeq.Add(1)
-	return sqlterms.ImportSource{
-		ID: "import-" + strconv.FormatInt(n, 10), Name: name, By: who, At: "2026-11-23T10:" + strconv.FormatInt(10+n%50, 10) + ":00Z",
-	}
+// importClock is the time of the next import: a minute later each time.
+func importClock() time.Time {
+	return time.Date(2026, 11, 23, 10, 0, 0, 0, time.UTC).Add(time.Duration(importSeq.Add(1)) * time.Minute)
 }
 
-// updateOf is an import of the file name that the person names an update of
-// the earlier import.
-func updateOf(earlier sqlterms.ImportSource, name, who string) sqlterms.ImportSource {
-	next := newImport(name, who)
-	next.ID = earlier.ID
-	return next
+// newImport records a new import of the file name by who, with an id of its
+// own, as the server does before it writes a row.
+func newImport(t *testing.T, st sqlterms.Store, name, who string) sqlterms.ImportSource {
+	t.Helper()
+	id := "import-" + strconv.FormatInt(importSeq.Add(1), 10)
+	require.NoError(t, st.CreateImport(t.Context(), sqlterms.ImportRecord{ID: id, Name: name, CreatedBy: who, CreatedAt: importClock()}))
+	return sqlterms.ImportSource{ID: id}
+}
+
+// updateOf records that who runs the earlier import again with the file
+// name, as the server does when a person names it in update_of.
+func updateOf(t *testing.T, st sqlterms.Store, earlier sqlterms.ImportSource, name, who string) sqlterms.ImportSource {
+	t.Helper()
+	_, err := st.TouchImport(t.Context(), earlier.ID, name, who, importClock())
+	require.NoError(t, err)
+	return earlier
 }
 
 func runImport(t *testing.T, st sqlterms.Store, src sqlterms.ImportSource, rows []fw.ImportRow) sqlterms.ImportReport {
@@ -142,53 +149,75 @@ var importScenarios = []struct {
 	run  func(t *testing.T, st sqlterms.Store)
 }{
 	{"two files name two concepts", func(t *testing.T, st sqlterms.Store) {
-		a := runImport(t, st, newImport("a.csv", "ann"), csvRows(t, "Save,Lagre\n"))
-		b := runImport(t, st, newImport("b.csv", "ann"), csvRows(t, "Cancel,Avbryt\n"))
+		a := runImport(t, st, newImport(t, st, "a.csv", "ann"), csvRows(t, "Save,Lagre\n"))
+		b := runImport(t, st, newImport(t, st, "b.csv", "ann"), csvRows(t, "Cancel,Avbryt\n"))
 		assert.Equal(t, 1, a.Created)
 		assert.Equal(t, 1, b.Created)
 		assert.Equal(t, "Lagre", concept(t, st, "term:en:save").Terms[1].Text)
 		assert.Equal(t, "Avbryt", concept(t, st, "term:en:cancel").Terms[1].Text)
 	}},
 	{"two TBX files that both say c1 keep two concepts", func(t *testing.T, st sqlterms.Store) {
-		a := runImport(t, st, newImport("a.tbx", "ann"), tbxRows(t, tbxDoc(tbxEntry("c1", "text editor"))))
-		b := runImport(t, st, newImport("b.tbx", "bob"), tbxRows(t, tbxDoc(tbxEntry("c1", "invoice"))))
+		a := runImport(t, st, newImport(t, st, "a.tbx", "ann"), tbxRows(t, tbxDoc(tbxEntry("c1", "text editor"))))
+		b := runImport(t, st, newImport(t, st, "b.tbx", "bob"), tbxRows(t, tbxDoc(tbxEntry("c1", "invoice"))))
 		assert.Equal(t, 1, a.Created)
 		assert.Equal(t, sqlterms.ImportReport{Created: 1}, b, "the second file's c1 is a concept of its own")
 		assert.Equal(t, "text editor", concept(t, st, "term:en:text-editor:c1").Terms[0].Text, "the first file's c1 is unchanged")
 		assert.Equal(t, "invoice", concept(t, st, "term:en:invoice:c1").Terms[0].Text)
 	}},
 	{"two people importing files with the same name", func(t *testing.T, st sqlterms.Store) {
-		runImport(t, st, newImport("terms.csv", "ann"), csvRows(t, "Save,Lagre\n"))
+		runImport(t, st, newImport(t, st, "terms.csv", "ann"), csvRows(t, "Save,Lagre\n"))
 		before := revisionsOf(t, st)
-		report := runImport(t, st, newImport("terms.csv", "bob"), csvRows(t, "Save,Spare\n"))
+		report := runImport(t, st, newImport(t, st, "terms.csv", "bob"), csvRows(t, "Save,Spare\n"))
 		assert.Zero(t, report.Imported())
 		require.Len(t, report.Conflicts, 1)
 		assert.Equal(t, 1, report.Conflicts[0].Row)
-		assert.Contains(t, report.Conflicts[0].Reason, "belongs to the import of terms.csv by ann")
+		assert.Contains(t, report.Conflicts[0].Reason, "belongs to the import of terms.csv by ann on 2026-11-23")
 		assert.Contains(t, report.Conflicts[0].Reason, "import this file as an update of that import")
 		assert.Equal(t, before, revisionsOf(t, st), "nothing was written")
 		assert.Equal(t, "Lagre", concept(t, st, "term:en:save").Terms[1].Text)
 	}},
 	{"a person updates their own earlier import by naming it", func(t *testing.T, st sqlterms.Store) {
-		first := newImport("terms.csv", "ann")
+		first := newImport(t, st, "terms.csv", "ann")
 		runImport(t, st, first, csvRows(t, "Save,Lagre\n"))
-		report := runImport(t, st, updateOf(first, "terms-v2.csv", "ann"), csvRows(t, "Save,Lagre data\nCancel,Avbryt\n"))
+		report := runImport(t, st, updateOf(t, st, first, "terms-v2.csv", "ann"), csvRows(t, "Save,Lagre data\nCancel,Avbryt\n"))
 		assert.Equal(t, sqlterms.ImportReport{Created: 1, Updated: 1}, report)
 		assert.Equal(t, "Lagre data", concept(t, st, "term:en:save").Terms[1].Text)
 
-		imports, err := sqlterms.Imports(t.Context(), st)
+		imports, err := st.Imports(t.Context(), 10)
 		require.NoError(t, err)
 		require.Len(t, imports, 1, "the update stays the one import")
 		assert.Equal(t, first.ID, imports[0].ID)
 		assert.Equal(t, "terms-v2.csv", imports[0].Name, "listed by its latest file")
-		assert.Equal(t, 2, imports[0].Concepts)
+		assert.Equal(t, "ann", imports[0].CreatedBy)
+		assert.Equal(t, "ann", imports[0].UpdatedBy)
+	}},
+	{"someone else updating an import keeps who created it", func(t *testing.T, st sqlterms.Store) {
+		first := newImport(t, st, "terms.csv", "ann")
+		runImport(t, st, first, csvRows(t, "Save,Lagre\n"))
+		runImport(t, st, updateOf(t, st, first, "terms.csv", "bob"), csvRows(t, "Save,Lagre data\n"))
+		r, ok, err := st.GetImport(t.Context(), first.ID)
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, "ann", r.CreatedBy, "the creator stays")
+		assert.Equal(t, "bob", r.UpdatedBy)
+		assert.True(t, r.UpdatedAt.After(r.CreatedAt))
+	}},
+	{"an import that writes nothing is still listed", func(t *testing.T, st sqlterms.Store) {
+		handMade(t, st, "csv-3", "Save", "Spare")
+		src := newImport(t, st, "homonyms.csv", "ann")
+		report := runImport(t, st, src, csvRows(t, "Save,Lagre\n"))
+		assert.Zero(t, report.Imported())
+		imports, err := st.Imports(t.Context(), 10)
+		require.NoError(t, err)
+		require.Len(t, imports, 1)
+		assert.Equal(t, src.ID, imports[0].ID)
 	}},
 	{"an update of an import whose concept a person edited leaves the edit", func(t *testing.T, st sqlterms.Store) {
-		first := newImport("terms.csv", "ann")
+		first := newImport(t, st, "terms.csv", "ann")
 		runImport(t, st, first, csvRows(t, "Save,Lagre\n"))
 		editDefinition(t, st, "term:en:save", "a person's edit")
 
-		report := runImport(t, st, updateOf(first, "terms.csv", "ann"), csvRows(t, "Save,Lagre data\n"))
+		report := runImport(t, st, updateOf(t, st, first, "terms.csv", "ann"), csvRows(t, "Save,Lagre data\n"))
 		assert.Zero(t, report.Imported())
 		require.Len(t, report.Conflicts, 1)
 		assert.Contains(t, report.Conflicts[0].Reason, "was edited after it was last imported")
@@ -199,7 +228,7 @@ var importScenarios = []struct {
 	{"an id that names a concept a person made is reported, not followed", func(t *testing.T, st sqlterms.Store) {
 		handMade(t, st, "hm1", "Archive", "Arkiv")
 		before := revisionsOf(t, st)
-		report := runImport(t, st, newImport("ids.csv", "ann"), csvRows(t,
+		report := runImport(t, st, newImport(t, st, "ids.csv", "ann"), csvRows(t,
 			"source,target,domain,definition,status,term_source,competitor_term,advisory,concept_id\nArchive,Arkivet,,,approved,,,,hm1\n"))
 		assert.Zero(t, report.Imported())
 		require.Len(t, report.Conflicts, 1)
@@ -209,18 +238,18 @@ var importScenarios = []struct {
 	}},
 	{"the same file twice changes nothing", func(t *testing.T, st sqlterms.Store) {
 		rows := csvRows(t, "Save,Lagre\nCancel,Avbryt\n")
-		assert.Equal(t, 2, runImport(t, st, newImport("terms.csv", "ann"), rows).Created)
+		assert.Equal(t, 2, runImport(t, st, newImport(t, st, "terms.csv", "ann"), rows).Created)
 		before := revisionsOf(t, st)
-		assert.Equal(t, sqlterms.ImportReport{Unchanged: 2}, runImport(t, st, newImport("terms.csv", "ann"), rows))
+		assert.Equal(t, sqlterms.ImportReport{Unchanged: 2}, runImport(t, st, newImport(t, st, "terms.csv", "ann"), rows))
 		assert.Equal(t, before, revisionsOf(t, st), "nothing was written")
 
 		doc := tbxRows(t, tbxDoc(tbxEntry("c1", "text editor")))
-		runImport(t, st, newImport("a.tbx", "ann"), doc)
-		assert.Equal(t, sqlterms.ImportReport{Unchanged: 1}, runImport(t, st, newImport("a.tbx", "ann"), doc))
+		runImport(t, st, newImport(t, st, "a.tbx", "ann"), doc)
+		assert.Equal(t, sqlterms.ImportReport{Unchanged: 1}, runImport(t, st, newImport(t, st, "a.tbx", "ann"), doc))
 	}},
 	{"a homonym is reported with its remedy", func(t *testing.T, st sqlterms.Store) {
 		handMade(t, st, "csv-3", "Save", "Spare")
-		report := runImport(t, st, newImport("terms.csv", "ann"), csvRows(t, "Save,Lagre\n"))
+		report := runImport(t, st, newImport(t, st, "terms.csv", "ann"), csvRows(t, "Save,Lagre\n"))
 		require.Len(t, report.Conflicts, 1)
 		assert.Contains(t, report.Conflicts[0].Reason, `"Save" is already a term of concept csv-3`)
 		assert.Equal(t, "Spare", concept(t, st, "csv-3").Terms[1].Text)
@@ -229,15 +258,15 @@ var importScenarios = []struct {
 		handMade(t, st, "csv-3", "Save", "Spare")
 		doc := exportJSON(t, st)
 		doc.Concepts[0].Terms[1].Text = "Lagre"
-		assert.Equal(t, sqlterms.ImportReport{Updated: 1}, runImport(t, st, newImport("export.json", "ann"), jsonRows(t, doc)))
+		assert.Equal(t, sqlterms.ImportReport{Updated: 1}, runImport(t, st, newImport(t, st, "export.json", "ann"), jsonRows(t, doc)))
 		assert.Equal(t, "Lagre", concept(t, st, "csv-3").Terms[1].Text)
-		assert.Equal(t, sqlterms.ImportReport{Unchanged: 1}, runImport(t, st, newImport("export.json", "ann"), jsonRows(t, doc)))
+		assert.Equal(t, sqlterms.ImportReport{Unchanged: 1}, runImport(t, st, newImport(t, st, "export.json", "ann"), jsonRows(t, doc)))
 
 		// An export edited while someone changes the concept in Bowrain.
 		stale := exportJSON(t, st)
 		editDefinition(t, st, "csv-3", "changed in Bowrain")
 		stale.Concepts[0].Terms[1].Text = "Lagre data"
-		report := runImport(t, st, newImport("export.json", "ann"), jsonRows(t, stale))
+		report := runImport(t, st, newImport(t, st, "export.json", "ann"), jsonRows(t, stale))
 		require.Len(t, report.Conflicts, 1)
 		assert.Contains(t, report.Conflicts[0].Reason, "changed in Bowrain after this file was exported")
 		assert.Equal(t, "changed in Bowrain", concept(t, st, "csv-3").Definition)
@@ -253,20 +282,20 @@ var importScenarios = []struct {
 
 		bare := doc
 		bare.Revisions = nil
-		report := runImport(t, st, newImport("bare.json", "mallory"), jsonRows(t, bare))
+		report := runImport(t, st, newImport(t, st, "bare.json", "mallory"), jsonRows(t, bare))
 		assert.Zero(t, report.Imported())
 		assert.Len(t, report.Conflicts, 2, "every row is reported")
 
 		stale := doc
 		stale.Revisions = map[string]string{"c-a": "not-a-revision", "c-b": "not-a-revision"}
-		report = runImport(t, st, newImport("stale.json", "mallory"), jsonRows(t, stale))
+		report = runImport(t, st, newImport(t, st, "stale.json", "mallory"), jsonRows(t, stale))
 		assert.Zero(t, report.Imported())
 		assert.Len(t, report.Conflicts, 2, "every row is reported")
 		assert.Equal(t, before, revisionsOf(t, st), "nothing was written")
 		assert.Equal(t, "made in Bowrain", concept(t, st, "c-a").Definition)
 	}},
 	{"a term twice in one file is reported", func(t *testing.T, st sqlterms.Store) {
-		report := runImport(t, st, newImport("terms.csv", "ann"), csvRows(t, "Save,Lagre\nSave,Spare\n"))
+		report := runImport(t, st, newImport(t, st, "terms.csv", "ann"), csvRows(t, "Save,Lagre\nSave,Spare\n"))
 		assert.Equal(t, 1, report.Created)
 		require.Len(t, report.Conflicts, 1)
 		assert.Equal(t, 2, report.Conflicts[0].Row)
@@ -284,10 +313,10 @@ func TestImportRows(t *testing.T) {
 // the concept edited.
 func TestImportRows_APersonsSaveDuringTheImportStays(t *testing.T) {
 	st := termstest.Memory()
-	first := newImport("terms.csv", "ann")
+	first := newImport(t, st, "terms.csv", "ann")
 	runImport(t, st, first, csvRows(t, "Save,Lagre\n"))
 	raced := termstest.Interleaved(st, termstest.SetDefinition(t, "a person's edit"))
-	report := runImport(t, raced, updateOf(first, "terms.csv", "ann"), csvRows(t, "Save,Lagre data\n"))
+	report := runImport(t, raced, updateOf(t, st, first, "terms.csv", "ann"), csvRows(t, "Save,Lagre data\n"))
 	require.Len(t, report.Conflicts, 1)
 	assert.Equal(t, "a person's edit", concept(t, st, "term:en:save").Definition)
 }

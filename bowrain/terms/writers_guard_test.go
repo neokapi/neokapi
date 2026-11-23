@@ -66,7 +66,7 @@ var conceptWriters = map[string]conceptWriter{
 	"server.(*Server).HandleCreateConcept": {writerCreates, "TestConceptAPI_DoNotTranslateIsGoverned"},
 	"server.(*Server).HandleUpdateConcept": {writerPerson, "TestConceptWriters_APersonsUpdateNamesTheRevisionItRead"},
 	"server.(*Server).HandleWidenConcept":  {writerDerives, "TestConceptWriters_WideningKeepsAnEditMadeMeanwhile"},
-	"server.(*Server).keepCandidate":       {writerDerives, "TestConceptWriters_KeepingKeepsAnEditMadeMeanwhile"},
+	"server.(*Server).keepCandidate":       {writerPerson, "TestConceptWriters_ADeckDecisionActsAtTheDealtRevision"},
 	"server.(*Server).decideTermTranslation": {writerDerives,
 		"TestConceptWriters_ATranslationDecisionKeepsAnEditMadeMeanwhile"},
 	"server.(*Server).promoteRuleToTerms":     {writerDerives, "TestConceptWriters_PromotingARuleKeepsAnEditMadeMeanwhile"},
@@ -100,7 +100,7 @@ var conceptWriters = map[string]conceptWriter{
 // the routine read; TestRewrite_ADeleteNamesTheRevisionItRead covers it, and
 // its callers are listed in conceptWriters as deriving.
 var conceptDeleters = map[string]conceptWriter{
-	"server.(*Server).forgetCandidate": {deletePerson, "TestConceptWriters_DroppingACandidateKeepsAnEditMadeMeanwhile"},
+	"server.(*Server).forgetCandidate": {deletePerson, "TestConceptWriters_ADeckDecisionActsAtTheDealtRevision"},
 	"knowledge.applyTermsOp":           {deleteProposed, "TestMergeChangeSet_DeletesOnlyTheConceptItWasProposedFor"},
 	"knowledge.(Pilot).clearShadow":    {deleteShadow, "TestStopPilot_KeepsAShadowEditedMeanwhile"},
 }

@@ -16,11 +16,12 @@ import (
 // revision the writer read. Its checks and writes run under one lock, so they
 // refuse exactly what the PostgreSQL statements refuse.
 func WithRevisions(inner fw.Store) Store {
-	return &revisioned{Store: inner, revs: map[string]string{}}
+	return &revisioned{Store: inner, memoryImports: &memoryImports{}, revs: map[string]string{}}
 }
 
 type revisioned struct {
 	fw.Store
+	*memoryImports
 	mu   sync.Mutex
 	revs map[string]string
 }

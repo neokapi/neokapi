@@ -41,6 +41,7 @@ type ConceptWriter interface {
 type Store interface {
 	fw.Store
 	ConceptWriter
+	ImportLedger
 }
 
 var _ Store = (*PostgresStore)(nil)

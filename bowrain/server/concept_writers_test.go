@@ -94,18 +94,20 @@ func TestConceptWriters_WideningKeepsAnEditMadeMeanwhile(t *testing.T) {
 	assert.True(t, termscope.Workspace(got), "and the concept is widened")
 }
 
-// Keeping a candidate promotes it as it stands when written.
-func TestConceptWriters_KeepingKeepsAnEditMadeMeanwhile(t *testing.T) {
+// Keeping a candidate is a person's decision on the candidate the card
+// showed. One edited between the keep's read and its write is refused with
+// the card as it stands, and the edit stays with the candidate unkept.
+func TestConceptWriters_KeepingRefusesAnEditMadeMeanwhile(t *testing.T) {
 	f := newScopeFixture(t, memoryScopeBackend)
 	cid := fileCandidate(t, f.tb, f.a, "Flowgraph", termcandidate.Reach{Blocks: 3}, nil)
 	card := deckCardWhere(t, readContextDeck(t, f.e, f.a, ""), candidateCard(cid))
 	base := interleaveTerms(t, f.srv, "ws")
 
-	require.Equal(t, http.StatusOK, decideRoute(t, f.e, http.MethodPost, f.a, "/context/deck/decide",
+	require.Equal(t, http.StatusConflict, decideRoute(t, f.e, http.MethodPost, f.a, "/context/deck/decide",
 		contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: "keep"}, nil))
 	got := storedConcept(t, base, cid)
 	assert.Equal(t, personsEdit, got.Definition, "the person's edit stays")
-	assert.False(t, termcandidate.IsCandidate(got, "en"), "and the candidate is kept")
+	assert.True(t, termcandidate.IsCandidate(got, "en"), "and the candidate is not kept")
 }
 
 // Dropping a candidate is a person's decision about the candidate they saw.
@@ -122,6 +124,48 @@ func TestConceptWriters_DroppingACandidateKeepsAnEditMadeMeanwhile(t *testing.T)
 	assert.Equal(t, http.StatusConflict, status, "the drop is refused")
 	got := storedConcept(t, base, cid)
 	assert.Equal(t, personsEdit, got.Definition, "and the edit stays with its concept")
+}
+
+// postgresScopeBackend is the platform's PostgreSQL terms store.
+func postgresScopeBackend(t *testing.T) terms.Store { return scopeBackends[1].open(t) }
+
+// A reviewer dealt a candidate decides on the candidate as the card showed
+// it. When another reviewer edited it since the deal, a drop or a keep sent
+// with the dealt revision is refused with the card as it stands, and the
+// other reviewer's edit stays. A decision that names no revision is refused
+// and told to refresh.
+func TestConceptWriters_ADeckDecisionActsAtTheDealtRevision(t *testing.T) {
+	for _, action := range []string{"reject", "keep"} {
+		t.Run(action, func(t *testing.T) {
+			f := newScopeFixture(t, postgresScopeBackend)
+			cid := fileCandidate(t, f.tb, f.a, "Flowgraph", termcandidate.Reach{Blocks: 3}, nil)
+			card := deckCardWhere(t, readContextDeck(t, f.e, f.a, ""), candidateCard(cid))
+
+			// Reviewer B edits the candidate after A was dealt it.
+			edited := storedConcept(t, f.tb, cid)
+			edited.Definition = personsEdit
+			rewriteConcept(t, f.tb, edited)
+
+			var refusal map[string]any
+			status := decideRoute(t, f.e, http.MethodPost, f.a, "/context/deck/decide",
+				contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: action}, &refusal)
+			require.Equal(t, http.StatusConflict, status, "a decision on the dealt revision is refused")
+			assert.Equal(t, deckCodeStale, refusal["code"])
+			got := storedConcept(t, f.tb, cid)
+			assert.Equal(t, personsEdit, got.Definition, "B's edit stays")
+			assert.True(t, termcandidate.IsCandidate(got, "en"), "and the candidate is as B left it")
+
+			status = decideRoute(t, f.e, http.MethodPost, f.a, "/context/deck/decide",
+				contextDeckDecideRequest{Item: card.Item, Action: action}, &refusal)
+			assert.Equal(t, http.StatusPreconditionRequired, status, "a decision with no revision is refused")
+			assert.Equal(t, deckCodeStale, refusal["code"])
+
+			fresh := deckCardWhere(t, readContextDeck(t, f.e, f.a, ""), candidateCard(cid))
+			require.NotEqual(t, card.Revision, fresh.Revision, "the edit moved the card's revision")
+			assert.Equal(t, http.StatusOK, decideRoute(t, f.e, http.MethodPost, f.a, "/context/deck/decide",
+				contextDeckDecideRequest{Item: fresh.Item, Revision: fresh.Revision, Action: action}, nil))
+		})
+	}
 }
 
 // A translation decision applies to the proposal the person saw, on the

@@ -94,7 +94,7 @@ func ForWorkspace(db *storage.PgDB, workspaceID string) *PostgresStore {
 var migratePilotProjects string
 
 // Migrations defines the PostgreSQL terms schema and upgrades its stored data.
-var Migrations = append([]storage.Migration{
+var Migrations = []storage.Migration{
 	{
 		Version:     5,
 		Description: "terms baseline (folds 1-4)",
@@ -150,7 +150,22 @@ ON CONFLICT (workspace_id) DO NOTHING;`,
 			return fw.BackfillNormalizedText(ctx, tx, true)
 		},
 	},
-}, storage.RevisionColumn("tb_concepts", 13)...)
+	// 13 to 17 give tb_concepts its revision column without rewriting the
+	// table (storage.RevisionColumn), frozen as they shipped.
+	{Version: 13, Description: "a revision column on tb_concepts", SQL: termsPostgresRevision1},
+	{Version: 14, Description: "a revision for each existing row of tb_concepts", SQL: termsPostgresRevision2},
+	{Version: 15, Description: "a not-null check on tb_concepts revisions, not yet validated", SQL: termsPostgresRevision3},
+	{Version: 16, Description: "validate the tb_concepts revision check", SQL: termsPostgresRevision4},
+	{Version: 17, Description: "tb_concepts revisions are not null", SQL: termsPostgresRevision5},
+	{
+		Version:     18,
+		Description: "a record of each terms import",
+		// One row per import: the id the server minted, the file it read, who
+		// created it and who last updated it, and when. The concepts an import
+		// writes carry its id (import.id).
+		SQL: termsPostgresImports,
+	},
+}
 
 // Revision is the revision of the workspace's terms: a token every write
 // through this store replaces, in the transaction that makes the write, with

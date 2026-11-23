@@ -361,6 +361,22 @@ func (t *testTermStore) DeleteConcept(ctx context.Context, id string) error {
 	return t.revisioned().DeleteConcept(ctx, id)
 }
 
+func (t *testTermStore) CreateImport(ctx context.Context, r sqlterms.ImportRecord) error {
+	return t.revisioned().CreateImport(ctx, r)
+}
+
+func (t *testTermStore) TouchImport(ctx context.Context, id, name, by string, at time.Time) (sqlterms.ImportRecord, error) {
+	return t.revisioned().TouchImport(ctx, id, name, by, at)
+}
+
+func (t *testTermStore) GetImport(ctx context.Context, id string) (sqlterms.ImportRecord, bool, error) {
+	return t.revisioned().GetImport(ctx, id)
+}
+
+func (t *testTermStore) Imports(ctx context.Context, limit int) ([]sqlterms.ImportRecord, error) {
+	return t.revisioned().Imports(ctx, limit)
+}
+
 func (t *testTermStore) DeleteConceptAt(ctx context.Context, id, base string) error {
 	return t.revisioned().DeleteConceptAt(ctx, id, base)
 }
