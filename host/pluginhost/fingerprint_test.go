@@ -1,3 +1,5 @@
+//go:build unix
+
 package pluginhost_test
 
 import (
@@ -9,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/neokapi/neokapi/host/pluginhost"
@@ -118,4 +121,23 @@ func TestFingerprint_IsNotServedFromTheDiscoveryCache(t *testing.T) {
 	withoutRecord, err := pluginhost.PluginsFromCache(cache)[0].Fingerprint()
 	require.NoError(t, err)
 	assert.NotEqual(t, withRecord, withoutRecord)
+}
+
+// A link inside a development plugin that is pointed elsewhere changes the
+// fingerprint.
+func TestFingerprint_ARetargetedLinkChangesIt(t *testing.T) {
+	p := demoPlugin(t, "")
+	link := filepath.Join(p.Dir, "lib", "current.jar")
+	require.NoError(t, os.Symlink("a.jar", link))
+	// The first link is dated in the past, so the retargeted one, made now,
+	// differs even on a file system with coarse times.
+	past := unix.NsecToTimeval(time.Now().Add(-time.Hour).UnixNano())
+	require.NoError(t, unix.Lutimes(link, []unix.Timeval{past, past}))
+	before, err := p.Fingerprint()
+	require.NoError(t, err)
+	require.NoError(t, os.Remove(link))
+	require.NoError(t, os.Symlink("b.jar", link))
+	after, err := p.Fingerprint()
+	require.NoError(t, err)
+	assert.NotEqual(t, before, after)
 }

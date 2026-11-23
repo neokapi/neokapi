@@ -426,7 +426,7 @@ func validLog(dir, p, want string) bool {
 		if err := json.Unmarshal(line, &cp); err != nil {
 			return false
 		}
-		if len(fromCachedParts([]cachedPart{cp})) > 1 {
+		if len(fromCachedParts([]cachedPart{cp})) != 1 {
 			return false
 		}
 	}

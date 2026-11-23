@@ -2004,7 +2004,7 @@ func (a *App) readBlocksAs(ctx context.Context, root, path, fmtName string, cfg 
 	// A file a plugin reads is keyed by the plugin's identity too, so an
 	// upgraded plugin's files are parsed again; one whose plugin declares no
 	// version is never served from the cache.
-	producer, cacheable := a.formatProducer(a.readFormatOf(path, fmtName))
+	producer, cacheable := a.parseProducer(a.readFormatOf(path, fmtName))
 	if a.docCache != nil && cacheable && !a.inConvergeDraftTree(path) {
 		configKey := readBlocksConfigKey(fmtName, cfg, sourceLang) + "|" + producer
 		if doc := a.docCache.OpenDocument(path, configKey); doc != nil {

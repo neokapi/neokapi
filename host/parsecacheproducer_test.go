@@ -214,3 +214,16 @@ func TestParseCache_OffIsRecorded(t *testing.T) {
 	a.noteParseCacheOff(errors.New("disk full"))
 	assert.Equal(t, "disk full", a.ParseCacheOff())
 }
+
+// The open cache asks for each format's producer once, so a development
+// plugin's directory is walked once per run rather than once per file.
+func TestMemoProducer_AsksOncePerFormat(t *testing.T) {
+	calls := 0
+	p := memoProducer(func(f string) (string, bool) { calls++; return f + "-id", true })
+	for range 3 {
+		id, ok := p("okf_json")
+		assert.True(t, ok)
+		assert.Equal(t, "okf_json-id", id)
+	}
+	assert.Equal(t, 1, calls)
+}

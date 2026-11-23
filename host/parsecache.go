@@ -249,7 +249,7 @@ func (a *App) openParseCache(root string) (func(), error) {
 		a.noteParseCacheOff(err)
 		return func() {}, nil
 	}
-	c.producer = a.formatProducer
+	c.producer = memoProducer(a.formatProducer)
 	a.docCache = c
 	return func() {
 		c.Close()

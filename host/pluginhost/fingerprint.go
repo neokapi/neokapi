@@ -84,7 +84,15 @@ func payloadFiles(dir string) ([]string, error) {
 			name := path.Join(rel, e.Name())
 			switch {
 			case e.Type()&fs.ModeSymlink != 0:
-				out = append(out, name+":link")
+				// A link is recorded by its own size, the length of its target,
+				// and its time, which retargeting it (a new link) changes. The
+				// target string itself would need a readlink through the plugin
+				// directory, which core/rootpath does not offer.
+				info, err := e.Info()
+				if err != nil {
+					return ErrNoFingerprint
+				}
+				out = append(out, fmt.Sprintf("%s:link:%d:%d", name, info.Size(), info.ModTime().UnixNano()))
 			case e.IsDir():
 				if err := walk(name); err != nil {
 					return err

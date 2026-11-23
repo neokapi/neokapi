@@ -66,6 +66,35 @@ func (a *App) noteParseCacheOff(err error) {
 // wanted it, or "" when it was open.
 func (a *App) ParseCacheOff() string { return a.parseCacheOff }
 
+// parseProducer is formatProducer as the open parse cache answers it: once per
+// format for the life of the cache, which is one command, so a development
+// plugin's directory is walked once per run rather than once per file read.
+// With no cache open it asks formatProducer.
+func (a *App) parseProducer(fmtName string) (string, bool) {
+	if a.docCache != nil && a.docCache.producer != nil {
+		return a.docCache.producer(fmtName)
+	}
+	return a.formatProducer(fmtName)
+}
+
+// memoProducer answers each format once and reuses the answer.
+func memoProducer(produce func(string) (string, bool)) func(string) (string, bool) {
+	type answer struct {
+		id string
+		ok bool
+	}
+	var memo sync.Map
+	return func(f string) (string, bool) {
+		if v, ok := memo.Load(f); ok {
+			a := v.(answer)
+			return a.id, a.ok
+		}
+		id, ok := produce(f)
+		memo.Store(f, answer{id, ok})
+		return id, ok
+	}
+}
+
 // noteUncachedPlugin says once per plugin that its files are parsed every time.
 func (a *App) noteUncachedPlugin(name, why string) {
 	if _, told := uncachedPluginsTold.LoadOrStore(name, true); told {

@@ -9,6 +9,12 @@ import (
 // a reader for, at any depth, so a cache can key a parse by every reader that
 // produced part of it: the format the file was opened in, and each format its
 // embedded content was handed to.
+//
+// A reader must obtain the reader for embedded content through the resolver
+// it is given (SetSubfilterResolver) for that reader's plugin to be in the
+// key. A plugin's reader is reachable only through the format registry, and
+// no format package imports the registry (TestFormatPackagesReachOtherReadersOnlyThroughTheResolver),
+// so a reader cannot reach one any other way.
 type SubfilterTrace struct {
 	inner SubfilterResolver
 

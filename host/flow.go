@@ -515,7 +515,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 		ConfigureWriter: configureWriter,
 		PartCache:       runnerCache,
 		PartCacheKey:    runnerCacheKey,
-		FormatProducer:  a.formatProducer,
+		FormatProducer:  a.parseProducer,
 		Home:            home,
 		Documents:       docs,
 	})
