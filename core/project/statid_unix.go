@@ -20,8 +20,13 @@ func dirIdentity(path string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("project: no file identity for %s", path)
 	}
-	return fmt.Sprintf("%d:%d:%s", st.Dev, st.Ino, birthTime(path, st)), nil
+	return fmt.Sprintf("%d:%d:%s", st.Dev, st.Ino, birthTimeOf(path, st)), nil
 }
+
+// birthTimeOf is when the file at path was created, where the platform and the
+// file system say so, and "" elsewhere; the device and inode alone identify a
+// file there. statid_birth_linux.go and statid_birth_darwin.go set it.
+var birthTimeOf = func(string, *syscall.Stat_t) string { return "" }
 
 // keyPrivate refuses a key that another user could read or replace: the key
 // must be a regular file of mode 0600 owned by this user, in a directory owned

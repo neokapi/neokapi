@@ -12,6 +12,8 @@ import (
 // birthTime is when the file at path was created, where the file system
 // records it, and "" where it does not. A file removed and created again can
 // get the same inode number on Linux; its birth time tells the two apart.
+func init() { birthTimeOf = birthTime }
+
 func birthTime(path string, _ *syscall.Stat_t) string {
 	var st unix.Statx_t
 	if err := unix.Statx(unix.AT_FDCWD, path, 0, unix.STATX_BTIME, &st); err != nil {
