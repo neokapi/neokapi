@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"unicode"
 	"unicode/utf8"
 
@@ -157,12 +158,22 @@ type PseudoTranslateTool struct {
 	*tool.BaseTool
 	cfg *PseudoConfig
 	// root is the project directory, when the run has one (SetProjectRoot).
-	root string
+	// One tool serves every file of a run, and the runner sets the root for
+	// each file it starts, so the field is read and written atomically.
+	root atomic.Pointer[string]
 }
 
 // SetProjectRoot sets the project directory. An image Media that names its
 // bytes by URI is then read only when the URI lies beneath it.
-func (t *PseudoTranslateTool) SetProjectRoot(root string) { t.root = root }
+func (t *PseudoTranslateTool) SetProjectRoot(root string) { t.root.Store(&root) }
+
+// projectRoot is the directory SetProjectRoot set, or "" when none was.
+func (t *PseudoTranslateTool) projectRoot() string {
+	if root := t.root.Load(); root != nil {
+		return *root
+	}
+	return ""
+}
 
 // Compile-time assertion: this type satisfies SessionTool.
 var _ tool.SessionTool = (*PseudoTranslateTool)(nil)
@@ -184,7 +195,7 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 	// analog of the text transform. Non-image media passes through.
 	t := &PseudoTranslateTool{BaseTool: base, cfg: cfg}
 	base.HandleMediaFn = func(part *model.Part) (*model.Part, error) {
-		pseudoLocalizeMedia(part, cfg, t.root)
+		pseudoLocalizeMedia(part, cfg, t.projectRoot())
 		return part, nil
 	}
 	// Translate: pseudo-translate writes a target; source is read-only.
