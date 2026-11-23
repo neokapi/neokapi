@@ -13,11 +13,10 @@ import (
 
 // The convergence the whole exchange turns on.
 //
-// A push sends the project's committed decision record and compares its fold
-// against the venue's. When the venue refuses a verdict it keeps the basis and
-// not the verdict, so the two folds differ, and they go on differing push after
-// push until the project's own record follows. Every one of those pushes sends
-// the same refused approvals, is refused again, and reports it again.
+// A push compares the fold of the project's decision record with the venue's.
+// When the venue refuses a verdict it keeps the basis, so the folds differ
+// until the project's record follows, and every push in between is refused
+// again.
 //
 // So the property under test is the one the loop needs: after the refusal, the
 // project's record folds to exactly what the venue holds, and `kapi status` has
@@ -288,4 +287,29 @@ func TestRetireRefusedVerdicts_CoversEveryDecisionThePushSent(t *testing.T) {
 	diff, err := st.RecordDiff(t.Context())
 	require.NoError(t, err)
 	assert.Zero(t, diff.Changed(), "and the shards carry what the checkout now holds")
+}
+
+// A decision the venue refused for its note or a reason stays in the
+// project's record as the person made it: they record it again within the
+// bounds, and nothing retires the verdict on their behalf.
+func TestRetireRefusedVerdicts_KeepsADecisionRefusedForItsInput(t *testing.T) {
+	for _, reason := range []string{venue.RefusedNoteTooLong, venue.RefusedUnknownReason} {
+		t.Run(reason, func(t *testing.T) {
+			a := &host.App{}
+			defer a.Shutdown()
+			c, _ := committedProject(t, a, approvedUnit("greeting", "fr"))
+			before, err := c.projectDecisions(t.Context())
+			require.NoError(t, err)
+
+			retired, err := c.retireRefusedVerdicts(t.Context(), &venue.PushGovernance{
+				Refusals: []venue.DecisionRefusal{{Locale: "fr", Kind: venue.VerdictApproval, Reason: reason, Count: 1}},
+				Units:    []venue.RefusedUnit{{ItemName: "locales/en.json", Unit: "greeting", Variant: "fr", Reason: reason}},
+			})
+			require.NoError(t, err)
+			assert.Zero(t, retired)
+			after, err := c.projectDecisions(t.Context())
+			require.NoError(t, err)
+			assert.Equal(t, venue.DecisionsComponent(before), venue.DecisionsComponent(after))
+		})
+	}
 }

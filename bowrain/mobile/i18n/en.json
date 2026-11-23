@@ -600,7 +600,8 @@
     "meaning": "Meaning",
     "tone": "Tone",
     "placeholder": "Placeholder",
-    "grammar": "Grammar"
+    "grammar": "Grammar",
+    "review_policy": "Cleared the review policy"
   },
   "notice": {
     "stale": "This text changed after you read it. The new version is back in the deck.",

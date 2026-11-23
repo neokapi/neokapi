@@ -11,26 +11,15 @@ import (
 
 // The producer's side of the venue's review governance.
 //
-// A venue is authoritative about what has been approved in it. A push can carry
-// an approval the venue declines to accept, because the pusher holds no review
-// permission for that language or the workspace refuses a verdict on work its
-// author wrote. The venue then stores the translation without the verdict. A
-// push can also lower a unit the venue holds as established, and the venue
-// declines that too for a pusher without review permission: the approval
-// stands, and the venue sends back the record it kept.
+// A venue may decline an approval a push carries (no review permission, or
+// separation of duties) and store the translation without it, or decline to
+// lower an established unit and send back the record it kept.
 //
-// The project's own record has to follow, or the two disagree forever: the
-// decisions component of the freshness ref would keep differing, so every push
-// from then on would send the same refused claims again, be refused again, and
-// report it again. So a refused verdict is retired here the way the venue
-// retired it: the venue keeps the basis the verdict carried, which decides
-// nothing and folds into no component, and the project's ledger, which holds
-// decisions only, withdraws the verdict and keeps whatever else the record
-// decided (a note, an assignee, a parked unit). A refused withdrawal is
-// restored to the record the venue kept.
-//
-// Both are recorded with the venue as their origin, because the venue is who
-// reached them: they are its answer about a decision this project sent it.
+// The project's record follows, or every later push resends the refused
+// claims. A refused verdict is withdrawn and the rest of the record stays; a
+// refused withdrawal takes the venue's record. A decision refused for its
+// note or a reason stays for the person to record again. Each is recorded
+// with the venue as its origin.
 
 // retireRefusedVerdicts brings the project's committed record into line with
 // what the venue accepted, and reports how many records it changed.
@@ -68,6 +57,12 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 			if u.Held != nil {
 				held[key] = *u.Held
 			}
+			continue
+		}
+		if u.Reason == venue.RefusedNoteTooLong || u.Reason == venue.RefusedUnknownReason {
+			// The decision stays as the person made it; they record it
+			// again within the bounds. Retiring it to a basis would drop
+			// the verdict without anyone deciding that.
 			continue
 		}
 		if u.Reason == venue.RefusedStaleRejection {

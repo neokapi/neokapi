@@ -24,14 +24,14 @@ import (
 
 // These tests cover a review decision on the server: decide, sent to a
 // stream's changes route, stores the decision as the per-locale
-// model.Edition.Status on the block's translation for the decided locale — the
+// model.Edition.Status on the block's translation for the decided locale: the
 // framework target ladder that convergence, coverage and the ship gates
 // consume. They run against the real PostgreSQL ContentStore
 // (testcontainers), so every assertion covers the full route → change
 // service → stream home → translations-table round trip.
 
 // newReviewTestServer builds a minimal Server over a real Postgres content
-// store — enough for the changes route and the blocks handlers (no auth
+// store: enough for the changes route and the blocks handlers (no auth
 // middleware; tests grant permissions directly on the echo context).
 func newReviewTestServer(t *testing.T) (*Server, *bstore.PostgresStore) {
 	t.Helper()

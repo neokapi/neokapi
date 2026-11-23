@@ -203,6 +203,7 @@ export interface ReviewProvenance {
   by?: string;
   at?: string;
   note?: string;
+  reasons?: string[];
   stale?: boolean;
 }
 
@@ -221,3 +222,27 @@ export interface Origin {
   profile_version?: string;
   context_fingerprint?: string;
 }
+
+/**
+ * A reason code a person may give a rejection or a correction, in the order a
+ * reason sheet offers them. Mirrors core/venue.DecisionReasons.
+ */
+export type PersonReason = "wrong_term" | "meaning" | "tone" | "placeholder" | "grammar";
+export const PERSON_REASONS: readonly PersonReason[] = ["wrong_term", "meaning", "tone", "placeholder", "grammar"];
+
+/**
+ * A reason code a decision may carry: a person's reason, or review_policy on an
+ * approval a review plan's settle pass made (core/venue.ReasonReviewPolicy).
+ * Every client shows each code as a phrase.
+ */
+export type DecisionReason =
+  | "wrong_term"
+  | "meaning"
+  | "tone"
+  | "placeholder"
+  | "grammar"
+  | "review_policy";
+export const DECISION_REASONS: readonly DecisionReason[] = ["wrong_term", "meaning", "tone", "placeholder", "grammar", "review_policy"];
+
+/** The longest note, in characters, a decision keeps (core/venue.MaxDecisionNote). */
+export const MAX_DECISION_NOTE = 2000;

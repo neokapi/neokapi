@@ -1,7 +1,9 @@
 package venue
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/ref"
@@ -10,17 +12,15 @@ import (
 
 // The freshness ref's component definitions.
 //
-// A component hash only means anything because both sides compute it the same
-// way, so each definition lives here once — in the framework-only bowrain/core
-// module, beside the block and context hashes — and the push client, the plugin
-// and the server all fold with it. A second definition with a different byte
-// layout would not fail loudly: it would make two correct sides disagree
-// forever and report a governance conflict on every write.
+// A component hash means something only because both sides compute it the
+// same way. Each definition lives here once, beside the block and context
+// hashes, and the push client, the plugin and the server all fold with it. A
+// second definition with another byte layout would fail silently: two correct
+// sides would disagree forever and report a governance conflict on every
+// write.
 //
-// The context component has no function of its own here: it is ContextHashOf
-// (context.go), which the push has negotiated on since the context content type
-// existed. Naming it twice would be the second definition this file exists to
-// prevent.
+// The context component has no function here: it is ContextHashOf
+// (context.go), which the push negotiates on.
 
 // DecisionsComponent folds a decision ledger into the ref's decisions
 // component: one identity per (item, unit, variant) for each record that
@@ -79,7 +79,7 @@ func decisionKey(d UnitDecision) string {
 // itself.
 //
 // It covers exactly the fields SameDecision compares, which is exactly what a
-// store treats as a change — so a record a store would skip as unchanged cannot
+// store treats as a change, so a record a store would skip as unchanged cannot
 // move the decisions component, and a component that moved means a decision
 // really did. Updated is excluded for that reason: it orders conflicting
 // records for last-writer-wins, and a replay that only bumped it writes
@@ -88,7 +88,7 @@ func DecisionIdentity(d UnitDecision) string {
 	return ref.Identity(decisionFields(d)...)
 }
 
-// SameDecision reports whether two records say the same thing about a unit —
+// SameDecision reports whether two records say the same thing about a unit:
 // the idempotency test a store applies before writing, and the equality the
 // decisions component is folded from.
 func SameDecision(a, b UnitDecision) bool {
@@ -147,40 +147,71 @@ func knownReason(r string) bool {
 // MaxDecisionNote is the longest note, in characters, a decision keeps.
 const MaxDecisionNote = 2000
 
-// ValidReasons reports the first reason that is neither a DecisionReasons
-// code nor ReasonReviewPolicy, or "" when every reason is one.
-func ValidReasons(reasons []string) (bad string, ok bool) {
-	for _, r := range reasons {
-		if !knownReason(r) {
-			return r, false
-		}
-	}
-	return "", true
+// DecisionInputError is a note or a reason a decision may not carry. Field
+// names which: "note" or "reasons".
+type DecisionInputError struct {
+	Field   string
+	Message string
 }
 
-// NormalizeReasons is reasons as a decision stores them: known codes only,
-// each once, sorted. A nil list stays nil (the sender did not say), and a
-// non-nil list stays non-nil, so the difference survives.
+func (e *DecisionInputError) Error() string { return e.Message }
+
+// CheckDecisionInput refuses a note longer than MaxDecisionNote characters
+// and a reason that is neither a DecisionReasons code nor
+// ReasonReviewPolicy. Every place that takes a decision from a person or a
+// client asks it, so each refuses with the same words and none cuts or
+// drops what a person wrote.
+func CheckDecisionInput(note string, reasons []string) *DecisionInputError {
+	if n := utf8.RuneCountInString(note); n > MaxDecisionNote {
+		return &DecisionInputError{Field: "note",
+			Message: fmt.Sprintf("the note is %d characters long; a decision keeps at most %d", n, MaxDecisionNote)}
+	}
+	for _, r := range reasons {
+		if !knownReason(r) {
+			return &DecisionInputError{Field: "reasons",
+				Message: fmt.Sprintf("%q is not a reason: want one of %s", r,
+					strings.Join(append(slices.Clone(DecisionReasons), ReasonReviewPolicy), ", "))}
+		}
+	}
+	return nil
+}
+
+// CheckStatedInput is CheckDecisionInput over what next states that stored
+// does not already hold: the note when it differs, and the reasons stored
+// does not carry. A writer passing on a record it did not author (a push
+// echo, a job, a replay) is never refused for what the ledger holds. So one
+// record stored before the bound cannot fail every push after it. stored is
+// nil for a unit with no record.
+func CheckStatedInput(stored *UnitDecision, next UnitDecision) *DecisionInputError {
+	note := next.Note
+	if stored != nil && stored.Note == next.Note {
+		note = ""
+	}
+	var reasons []string
+	for _, r := range next.Reasons {
+		if stored == nil || !slices.Contains(stored.Reasons, r) {
+			reasons = append(reasons, r)
+		}
+	}
+	return CheckDecisionInput(note, reasons)
+}
+
+// NormalizeReasons is reasons as a decision stores them: each once, sorted.
+// It keeps every reason it is given; CheckDecisionInput is what refuses an
+// unknown one. A nil list stays nil (the sender did not say), and a non-nil
+// list stays non-nil, so the difference survives.
 func NormalizeReasons(reasons []string) []string {
 	if reasons == nil {
 		return nil
 	}
 	out := make([]string, 0, len(reasons))
 	for _, r := range reasons {
-		if knownReason(r) && !slices.Contains(out, r) {
+		if !slices.Contains(out, r) {
 			out = append(out, r)
 		}
 	}
 	slices.Sort(out)
 	return out
-}
-
-// BoundNote is note cut to MaxDecisionNote characters.
-func BoundNote(note string) string {
-	if utf8.RuneCountInString(note) <= MaxDecisionNote {
-		return note
-	}
-	return string([]rune(note)[:MaxDecisionNote])
 }
 
 // SameReasons reports whether two records carry the same reasons, a nil list
@@ -205,7 +236,7 @@ func CarryReasons(stored, next UnitDecision) UnitDecision {
 // TermsComponent folds a terminology set into the ref's terms component: one
 // identity per concept and per relation, folded by ref.Fold.
 //
-// The concept identity covers the fields a concept diff is computed against —
+// The concept identity covers the fields a concept diff is computed against:
 // domain, definition, and each term's locale, text, status and grammatical
 // metadata. Volatile bookkeeping (timestamps, server-minted properties) is
 // excluded: a component that moved on a touch nobody made would send every

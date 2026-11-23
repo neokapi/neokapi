@@ -4,7 +4,13 @@
  * the server leaves out is optional here.
  */
 
-import type { OverlayView, ReviewContext } from "@neokapi/contract-types";
+import {
+  PERSON_REASONS,
+  type DecisionReason,
+  type OverlayView,
+  type PersonReason,
+  type ReviewContext,
+} from "@neokapi/contract-types";
 import type { Run } from "@neokapi/kapi-format";
 
 import type { ReviewInboxProject } from "./languages.ts";
@@ -594,7 +600,7 @@ export interface FixCandidate {
   /** The server's word diff of the draft against this fix. */
   diff?: FixDiff;
   /** The reasons this fix addresses. */
-  reasons: string[];
+  reasons?: string[];
   /** A score from 0 to 100, for a content-memory match. */
   score?: number;
 }
@@ -622,9 +628,10 @@ export interface FixCandidates {
   targetRevision?: string;
 }
 
-/** The reasons a reviewer can give for a fix or a rejection. */
-export const FIX_REASONS = ["wrong_term", "meaning", "tone", "placeholder", "grammar"] as const;
-export type FixReason = (typeof FIX_REASONS)[number];
+/** The reasons a reviewer can give for a fix or a rejection (core/venue.DecisionReasons). */
+export const FIX_REASONS = PERSON_REASONS;
+export type FixReason = PersonReason;
+export type { DecisionReason };
 
 /** The project feed's kinds (bstore.FeedKinds): a closed list. */
 export const FEED_KINDS = [
@@ -767,6 +774,10 @@ export interface FeedDecision {
   /** approved, rejected, or unreviewed for a withdrawal. */
   decision: string;
   at: string;
+  /** What the person wrote with the decision. */
+  note?: string;
+  /** The reason codes chosen with the decision, sorted. */
+  reasons?: string[];
   /** Still the newest decision on the translation, which stands where it left it. */
   current: boolean;
   /** The reader made it and it still holds, so it can be withdrawn. */
