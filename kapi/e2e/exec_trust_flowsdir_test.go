@@ -3,7 +3,6 @@
 package e2e
 
 import (
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,7 +41,7 @@ func TestExecTrustCoversTheFlowFiles(t *testing.T) {
 	out, err := kapiEnv(t, nil, "run", "sneaky", "-p", recipePath, "-i", src, "-o", filepath.Join(t.TempDir(), "out.json"), "--target-lang", "fr")
 	require.Error(t, err, out)
 	var exit *exec.ExitError
-	require.True(t, errors.As(err, &exit), "%v", err)
+	require.ErrorAs(t, err, &exit)
 	assert.Equal(t, 1, exit.ExitCode())
 	assert.Contains(t, out, "Added since it was answered: flows/sneaky.yaml steps[0] external-command")
 	assert.Contains(t, out, "kapi trust allow -p "+recipePath)
