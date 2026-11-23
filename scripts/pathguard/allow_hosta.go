@@ -25,8 +25,6 @@ var allowHostA = map[string]string{
 	"host/convergedrafts.go:beginConvergeDrafts":     "clears and creates the run's draft tree in .kapi/work of a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/; os.RemoveAll follows no link",
 	"host/convergedrafts.go:draftedTargetPath":       "stats a draft in the run's own draft tree, which beginConvergeDrafts created under a layout LayoutFor checked with Layout.CheckState, which refuses any link or irregular file beneath .kapi/",
 	"host/convergedrafts.go:endConvergeDrafts":       "removes the run's own draft tree, which beginConvergeDrafts created; os.RemoveAll follows no link",
-	"host/datadir.go:RemoveTestDataDir":              "a test binary's data root under the OS temp dir",
-	"host/datadir.go:sweepTestDataDirs":              "test binaries' data roots under the OS temp dir",
 	"host/doccache.go:Abort":                         "removes the recorder's own temp files, which CreateTemp made in the cache directory",
 	"host/doccache.go:Commit":                        "renames the recorder's own temp files to content-addressed names in the cache directory, which OpenDocCache opened after Layout.CheckState, which refuses any link or irregular file beneath .kapi/ (or outside any project)",
 	"host/doccache.go:OpenSkeleton":                  "stats a recorded skeleton in the cache directory, which OpenDocCache opened after Layout.CheckState, which refuses any link or irregular file beneath .kapi/ (or outside any project)",

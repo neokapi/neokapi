@@ -9,6 +9,11 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 )
 
+// envOf is a getenv over a fixed set of variables.
+func envOf(vars map[string]string) func(string) string {
+	return func(key string) string { return vars[key] }
+}
+
 // TestAgentHostTableIsTheVerifiedOne pins the table. A row says that a variable
 // in somebody's shell means an agent is driving the command, and a row added
 // from documentation rather than from the host itself attributes a person's
