@@ -26,7 +26,8 @@ import (
 // A shared filter is a team setting about the project, so it is kept in the
 // project's context store (projectdb.SettingSavedFilters), which every checkout
 // of the project reads. A personal filter, and the choice of active filter,
-// belong to this checkout and sit in .kapi/filters.local.json.
+// belong to this checkout and sit in filters.local.json in the checkout's
+// state directory.
 type ProjectFilter struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`

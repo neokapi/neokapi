@@ -115,7 +115,7 @@ const UnitStateDirName = "state"
 //
 // It sits at the TOP of the work directory rather than under work/cache/
 // because it is rebuilt by a full re-extraction rather than by the next run
-// that happens to need a parse, and `rm -rf .kapi/work/cache` must stay free.
+// that happens to need a parse, and removing `work/cache` must stay free.
 const StoreFileName = "store.db"
 
 // StorePath returns the project's single local store.
@@ -173,7 +173,7 @@ const RedactionDirName = "redaction"
 // costs CPU. The vault is defined by an EXCLUSION: a named destination must
 // never read it, and losing it means redacted content can never be restored.
 // Filing it under work/ made it look regenerable, which it is not, and put it
-// one `rm -rf .kapi/work` away from unrecoverable placeholders.
+// one removing `work/` away from unrecoverable placeholders.
 //
 // The originals never leave the machine: the directory is written owner-only
 // and kept out of version control (EnsureLocalDir), and nothing syncs it.
@@ -358,7 +358,7 @@ func EnsureLayout(layout Layout) error {
 }
 
 // Retired state files are not swept here. Every predecessor of the merged store
-// (the vocabulary-renamed `tm.db`/`termbase.db` as well as the four-file
+// (the files the vocabulary rename replaced, as well as the four-file
 // `memory.db`/`terms.db`/`cache/blocks.db`/`work/state.db`) is removed by
 // core/projectdb when the project store opens, so one place decides what a
 // state directory may contain.

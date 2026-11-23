@@ -384,7 +384,7 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	// empty, it would price every unit as new work. An absent store means the
 	// project has no content memory yet, so the work is priced from scratch.
 	// The plan checks that the store exists rather than opening it, because
-	// opening creates it and a dry run leaves no `.kapi/work/store.db` behind.
+	// opening creates it and a dry run leaves no `work/store.db` in the checkout's state directory behind.
 	// The project's decisions are read under the same guard; an absent store
 	// gives an empty index, so nothing is stale.
 	basis := upPlanBasis{root: root, projectPath: projectPath, runConfig: run.runConfig(), spec: run.spec}

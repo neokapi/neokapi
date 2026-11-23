@@ -14,7 +14,7 @@ import (
 // Coverage grades each unit's target from a file, so a pass writes its output
 // before the next pass measures the locale. Under `materialize: on-converge` a
 // locale short of its gate gets no files (#1936). So a pass writes into a
-// run-local draft tree under `.kapi/work/`, one subtree per locale, and
+// run-local draft tree under `work/` in the checkout's state directory, one subtree per locale, and
 // delivery happens once, at the end of the run. A parked locale's drafts stay
 // in the workspace home (host/workhome.go).
 

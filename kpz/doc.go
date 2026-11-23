@@ -3,7 +3,7 @@
 // the Kapi format family of formats.
 //
 // A .kpz is a (deterministic) zip with a manifest plus one member per content
-// type — the same content-type set the sync protocol enumerates
+// type, the same content-type set the sync protocol enumerates
 // (blocks, annotations, tm, terms, media):
 //
 //	manifest.json                    inventory + per-member sha256 + Merkle rootHash
@@ -17,7 +17,7 @@
 // unpacking can seed a fresh content memory, terms, and block store and the regenerable
 // caches (the parse cache, sync hashes) rebuild faithfully. The package
 // deliberately excludes regenerable caches and secrets (nothing from
-// `.kapi/work/cache/`, no sync-cache claim
+// `work/ in the checkout's state directorycache/`, no sync-cache claim
 // tokens). It is the at-rest twin of the over-the-wire sync chunk set: pack =
 // the sync converters writing files instead of protobuf.
 //
