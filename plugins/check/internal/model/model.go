@@ -3,7 +3,7 @@
 //
 // The plugin no longer downloads anything: model acquisition is owned by the
 // HOST (kapi). The model is declared in the plugin manifest and fetched +
-// verified + cached by `kapi models pull check` (cli.EnsureModel) — replacing
+// verified + cached by `kapi models pull check` (cli.EnsureModel), replacing
 // the old bespoke `kapi-check pull`. This package resolves the staged files; its
 // cache root mirrors the host's convention ($XDG_CACHE_HOME/kapi/models/check)
 // so the plugin finds exactly what the host staged, and honors
@@ -15,9 +15,11 @@ package model
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 const (
@@ -96,6 +98,15 @@ func ModelsRoot() (string, error) {
 	if v := os.Getenv("XDG_CACHE_HOME"); v != "" {
 		return filepath.Join(v, "kapi", "models", "check"), nil
 	}
+	if flag.Lookup("test.v") != nil {
+		// A test binary keeps off the developer's cache (core/dataroot), in a
+		// private directory of its own that no other user can name in advance.
+		dir, err := testModelsDir()
+		if err != nil {
+			return "", fmt.Errorf("model: test cache root: %w", err)
+		}
+		return filepath.Join(dir, "check"), nil
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("model: resolve cache root: %w", err)
@@ -139,4 +150,35 @@ func Present(name string) bool {
 	}
 	_, err = ResolveInDir(name, root)
 	return err == nil
+}
+
+// testModels is the test binary's model cache root, made on first use by
+// os.MkdirTemp (mode 0700, a name no other user can predict) and removed by
+// removeTestModelsDir from the package's TestMain.
+var testModels struct {
+	sync.Mutex
+	dir string
+}
+
+func testModelsDir() (string, error) {
+	testModels.Lock()
+	defer testModels.Unlock()
+	if testModels.dir == "" {
+		dir, err := os.MkdirTemp("", "kapi-test-models-")
+		if err != nil {
+			return "", err
+		}
+		testModels.dir = dir
+	}
+	return testModels.dir, nil
+}
+
+// removeTestModelsDir removes the test model cache root, if a test made one.
+func removeTestModelsDir() {
+	testModels.Lock()
+	defer testModels.Unlock()
+	if testModels.dir != "" {
+		_ = os.RemoveAll(testModels.dir)
+		testModels.dir = ""
+	}
 }

@@ -192,6 +192,12 @@ export interface ContextCard {
   item: ContextItemRef;
   kind: ContextCardKind;
   revision: string;
+  /**
+   * A concept card's revision in the terms store. A decision that writes the
+   * concept (keeping or dropping a candidate, retiring a concept) sends it
+   * back as `base_revision`, and the server refuses one without it.
+   */
+  base_revision?: string;
   status?: "suggested" | "established" | "contested";
   term?: { term: string; replacement?: string; forms?: string[] };
   terms?: { text: string; locale: string; status?: string }[];
@@ -376,6 +382,8 @@ export interface ContextSessionEnd {
 export interface ContextDecision {
   item: ContextItemRef;
   revision: string;
+  /** The card's `base_revision`, which the decision acts at. */
+  base_revision?: string;
   action: ContextAction;
   note?: string;
   /** The reviewer's own wording for a kept term-translation card. */

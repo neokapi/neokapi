@@ -20,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/bowrain/termcandidate"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/termscope"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/id"
@@ -156,31 +157,34 @@ func (s *Server) decideTermTranslation(c *echo.Context, src deckSource, rv deckR
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
-	concept, ok, err := tb.GetConcept(ctx, cid)
-	if err != nil {
-		return serverErr(c, err)
-	}
-	if !ok || card.Translation == nil || termcandidate.TranslationFor(concept, loc) != card.Translation.Proposed {
-		return c.JSON(http.StatusConflict, ErrorResponse{Error: errProposalGone.Error(), Code: deckCodeNotPending})
-	}
-
-	if req.Action == deckActionReject {
-		termcandidate.RejectTranslation(&concept, loc)
-		if err := tb.AddConcept(ctx, concept); err != nil {
-			return serverErr(c, err)
-		}
-		return c.JSON(http.StatusOK, contextDeckDecideResponse{Outcome: deckOutcomeDropped})
-	}
-
+	// The decision is about the proposal the person saw. It is applied to
+	// the concept as it stands when written, and refused if that proposal is
+	// no longer the one stored (sqlterms.Rederive).
 	_, conceptPending := findCard(pending, contextop.ItemRef{Kind: contextop.ItemConcept, ID: cid})
 	text := strings.TrimSpace(req.Text)
-	if text == "" {
+	if text == "" && card.Translation != nil {
 		text = card.Translation.Proposed
 	}
-	termcandidate.KeepTranslation(&concept, loc, text)
-	concept.UpdatedAt = time.Now().UTC()
-	if err := tb.AddConcept(ctx, concept); err != nil {
-		return serverErr(c, err)
+	concept, _, err := sqlterms.Rederive(ctx, tb, cid, "", func(concept terms.Concept, exists bool) (terms.Concept, bool, error) {
+		if !exists || card.Translation == nil || termcandidate.TranslationFor(concept, loc) != card.Translation.Proposed {
+			return concept, false, errProposalGone
+		}
+		if req.Action == deckActionReject {
+			termcandidate.RejectTranslation(&concept, loc)
+		} else {
+			termcandidate.KeepTranslation(&concept, loc, text)
+		}
+		concept.UpdatedAt = time.Now().UTC()
+		return concept, true, nil
+	})
+	if errors.Is(err, errProposalGone) {
+		return c.JSON(http.StatusConflict, ErrorResponse{Error: errProposalGone.Error(), Code: deckCodeNotPending})
+	}
+	if err != nil {
+		return refuseConceptWrite(c, err)
+	}
+	if req.Action == deckActionReject {
+		return c.JSON(http.StatusOK, contextDeckDecideResponse{Outcome: deckOutcomeDropped})
 	}
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
 		conceptEvent(knowledge.EventConceptUpdated, src.wsID, concept.ID, rv.userID),

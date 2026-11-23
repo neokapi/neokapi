@@ -1,6 +1,6 @@
 id: kapi-bilingual-workflow
 title: Overleveringen er en tospråklig fil
-subtitle: kapi skriver XLIFF forhåndsutfylt fra memory og tar den oversatte filen tilbake.
+subtitle: kapi skriver XLIFF-en forhåndsutfylt fra minnet og tar imot den oversatte filen.
 kind: use-case
 publishAs: bilingual-workflow
 # A scripted plain-shell demo (no Claude): extract/merge/memory are deterministic, so
@@ -17,7 +17,7 @@ aspects:
   - any CAT tool
   - full provenance
 outro:
-  line: "Trekk ut, send mappen, flett inn returen."
+  line: "Ekstraher, send mappen, slå sammen returen."
   pointer: kapi extract && kapi merge -i out/
 
 # Each comment names exactly what the command below it does. The XLIFF file name
@@ -57,33 +57,33 @@ narration:
   - id: title
     kind: title
     text: >-
-      Når et menneske gjør oversettelsen, er overleveringen en tospråklig fil. kapi skriver XLIFF forhåndsutfylt fra content memory, tar den oversatte filen tilbake og registrerer hvor hver oppføring kom fra.
+      Når en person gjør oversettingen, er overleveringen en tospråklig fil. kapi skriver XLIFF-en forhåndsutfylt fra innholdsminnet, tar den oversatte filen tilbake og registrerer hvor hvert oppføring kom fra.
   - id: extract
     kind: terminal
     through: 7
-    caption: "Én fil per språkkode, og gjenbruk talt opp før den sendes."
+    caption: "Én fil per målspråk, og gjenbruket talt opp før den sendes."
     text: >-
-      Prosjektets memory seedes én gang fra en corporate exchange-fil. Deretter skriver ett uttrekk én tospråklig fil per målspråkkode, og rapporten viser hva som ble funnet: eksakte treff, fuzzy-treff og segmenter ingen har sett før.
+      Prosjektets minne seedes én gang fra en bedriftsutvekslingsfil. Deretter skriver én ekstraksjon én tospråklig fil per målspråk og rapporterer hva den fant: eksakte treff, uklare treff og segmenter ingen har sett før.
   - id: prefilled
     kind: terminal
     through: 9
     highlight: { text: ["<target"] }
-    caption: Svarene fra memory er allerede i filen.
+    caption: Svarene fra minnet er allerede i filen.
     text: >-
-      Åpne den franske filen og forhåndsutfyllingen er synlig. Et segment som memory svarer på, ankommer allerede med en målverdi, så oversetteren åpner en fil som er delvis ferdig – ikke tom.
+      Åpne den franske filen, så er forhåndsutfyllingen synlig. Et segment som minnet har svar på, kommer med en målverdi allerede på plass – så oversetteren åpner en fil som er delvis ferdig, ikke tom.
   - id: merge
     kind: terminal
     through: 15
-    caption: "Lagt til, absorbert og sporbar til returen den kom fra."
+    caption: "Anvendt, absorbert og sporbart til returen det kom fra."
     text: >-
-      Oversetteren returnerer filene, og flett legger dem tilbake på kilden. Hvert godkjente segment absorberes i prosjektets memory, og revisjonsloggen navngir hvilken retur hver oppføring kom fra – det er det som gjør neste uttrekk varmere enn dette.
+      Oversetteren returnerer filene, og sammenslåingen anvender dem tilbake på kilden. Hvert godkjente segment absorberes i prosjektets minne, og revisjonen navngir hvilken retur hver oppføring kom fra – det er det som gjør neste ekstraksjon varmere enn denne.
   - id: fr
     kind: artifact
     artifact: fr
     caption: "Hver nøkkel bevart, hver verdi oversatt."
     text: >-
-      Den franske katalogen er ferdig. Nøkler urørt, verdier oversatt, og memory inneholder nå ordlyd en person godkjente – ikke ordlyd en modell produserte.
+      Den franske katalogen er ferdig. Nøklene er urørte, verdiene er oversatt, og minnet inneholder nå ordlyd som en person har godkjent – ikke ordlyd som en modell har produsert.
   - id: outro
     kind: outro
     text: >-
-      Trekk ut, send mappen til den som oversetter, og flett inn det som kommer tilbake. Ethvert verktøy som leser exchange-formatet passer inn i midten.
+      Ekstraher, send mappen til den som oversetter, og slå sammen det som kommer tilbake. Et hvilket som helst verktøy som leser utvekslingsformatet, passer inn i midten.

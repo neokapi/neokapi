@@ -1,12 +1,13 @@
 {
   "credits-exhausted": "AI-kredittene dine er oppbrukt ({{.WorkspaceName}})",
-  "credits-warning": "AI-kredittene dine er i ferd med å gå tomme ({{.WorkspaceName}})",
-  "email-change-verify": "Bekreft din nye Bowrain-e-postadresse",
-  "invite": "Du har blitt invitert til å bli med i {{.WorkspaceName}} på Bowrain",
+  "credits-warning": "AI-kredittene dine er i ferd med å gå tom ({{.WorkspaceName}})",
+  "email-change-verify": "Bekreft den nye Bowrain-e-postadressen din",
+  "invite": "Du er invitert til å bli med i {{.WorkspaceName}} på Bowrain",
   "job-failed": "En {{.JobKind}}-jobb ble ikke fullført ({{.WorkspaceName}})",
+  "job-failures": "{{.Count}} {{.JobKind}}-jobber ble ikke fullført ({{.WorkspaceName}})",
   "notification": "{{.Title}} (Bowrain)",
   "payment-failed": "Betaling mislyktes for abonnementet ditt ({{.WorkspaceName}})",
-  "review-request": "Venter på gjennomgang fra deg: {{.ChangeSetName}} ({{.WorkspaceName}})",
+  "review-request": "Venter på gjennomgang: {{.ChangeSetName}} ({{.WorkspaceName}})",
   "subscription-changed": "Abonnementet ditt er oppdatert ({{.WorkspaceName}})",
   "task-assigned": "{{.Priority}}: {{.TaskTitle}} ({{.WorkspaceName}})",
   "welcome": "Velkommen til Bowrain ({{.WorkspaceName}})"

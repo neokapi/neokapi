@@ -198,6 +198,8 @@ type EditorConcept struct {
 	Properties map[string]string `json:"properties,omitempty"`
 	CreatedAt  string            `json:"created_at"`
 	UpdatedAt  string            `json:"updated_at"`
+	// Revision is the concept's revision as read; an update names it.
+	Revision string `json:"revision,omitempty"`
 }
 
 // EditorTermSearchResult mirrors TermSearchResponse.
@@ -812,13 +814,15 @@ func (c *EditorClient) EditorAddConcept(ctx context.Context, ws, domain, definit
 	return &out, nil
 }
 
-// EditorUpdateConcept updates a concept's domain, definition, and terms.
-func (c *EditorClient) EditorUpdateConcept(ctx context.Context, ws, conceptID, domain, definition string, terms []EditorTerm) error {
+// EditorUpdateConcept updates a concept's domain, definition, and terms, when
+// the concept is still at baseRevision, the revision the edit was made on.
+func (c *EditorClient) EditorUpdateConcept(ctx context.Context, ws, conceptID, baseRevision, domain, definition string, terms []EditorTerm) error {
 	body := struct {
-		Domain     string       `json:"domain"`
-		Definition string       `json:"definition"`
-		Terms      []EditorTerm `json:"terms"`
-	}{domain, definition, terms}
+		Domain       string       `json:"domain"`
+		Definition   string       `json:"definition"`
+		Terms        []EditorTerm `json:"terms"`
+		BaseRevision string       `json:"base_revision"`
+	}{domain, definition, terms, baseRevision}
 	return c.DoJSON(ctx, http.MethodPut, wsPath(ws, "/concepts/"+url.PathEscape(conceptID)), nil, body, nil)
 }
 

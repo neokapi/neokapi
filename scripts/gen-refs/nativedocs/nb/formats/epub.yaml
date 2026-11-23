@@ -3,28 +3,28 @@
 # Upstream analogue: Okapi EPUBFilter (electronic publication). The
 # okapi-bridge ships no okf_epub filter, so this is a native-only format.
 # Config is empty (no schema), so no `parameters`/`examples` blocks.
-description: Trekk ut tekst fra EPUB-e-bøker ved å gå gjennom leseordenen i spine.
+description: Hent ut tekst fra EPUB-e-bøker ved å gjennomgå spine-listen i leserekkefølge.
 overview: |
-  EPUB er det åpne e-bokformatet: en ZIP-beholder (OCF) som pakker XHTML- og
-  SVG-innholdsdokumenter sammen med et pakkedokument (OPF) som lister opp
-  manifestet og leseordenen i spine. neokapi leser
-  `META-INF/container.xml`-oppføringen for å finne OPF-en, analyserer OPF-en for å løse opp
-  spine, og går gjennom hvert spine-element som et underordnet lag i dokumentet.
+  EPUB er et åpent e-bokformat. Det er en ZIP-beholder (OCF) som inneholder XHTML- og
+  SVG-innholdsdokumenter samt et pakkedokument (OPF). Pakkedokumentet inneholder
+  manifestet og spine-listen med leserekkefølgen. neokapi leser
+  `META-INF/container.xml` for å finne OPF-dokumentet, parser OPF-dokumentet for å finne
+  elementene i spine-listen og gjennomgår hvert element som et underordnet lag i dokumentet.
 
-  neokapi leser og skriver EPUB og utfører rundtur med beholderen slik at
-  oversatt utdata forblir en gyldig e-bok. Innholdsdokumenter analyseres som
-  innebygd XHTML: når en HTML-underformat-leser er koblet inn, delegeres hvert spine-element
-  til den; ellers faller neokapi tilbake til en direkte XHTML-gjennomgang som
-  behandler vanlige blokkelementer (avsnitt, overskrifter, listeelementer, tabellceller,
-  figur- og tabell-undertekster, blokksitaterer og dokumenttittelen) som
-  oversettbare. OPF-en, beholdermetadata og ikke-innholdsressurser
-  bevares som skjelett. Dette formatet har ingen konfigurerbar JSON-schema i denne
+  neokapi leser og skriver EPUB og tilbakefører innholdet til beholderen, slik at
+  det oversatte resultatet fortsatt er en gyldig e-bok. Innholdsdokumenter parses som
+  innebygd XHTML. Når en HTML-underformatleser er koblet til, behandles hvert element i spine-listen
+  av denne. Ellers bruker neokapi en direkte gjennomgang av XHTML, der vanlige
+  blokkelementer behandles som oversettbare. Det gjelder avsnitt, overskrifter, listeelementer,
+  tabellceller, figur- og tabelltekster, blokksitater og dokumenttittelen.
+  OPF-dokumentet, beholderens metadata og ressurser uten innhold bevares som skjelett.
+  Dette formatet har ikke et konfigurerbart JSON-skjema i denne
   referansen.
 limitations:
-  - Den alternative XHTML-gjennomgangen trekker ut et fast sett med blokkelementer; rikere uttrekk avhenger av at en HTML-underformat-leser er koblet inn i pipelinen.
-  - "Spine-elementer som ikke er oppført i OPF-leseordenen, blir ikke gjennomgått."
+  - Den alternative gjennomgangen av XHTML henter ut et fast sett med blokkelementer. Mer omfattende uttrekk krever at en HTML-underformatleser er koblet til prosesseringskjeden.
+  - "Elementer som ikke er oppført i OPF-dokumentets spine-liste, gjennomgås ikke."
 processingNotes:
-  - "OPF-en lokaliseres via `META-INF/container.xml`; spine-elementer gjennomgås i leseorden, hvert som et underordnet lag."
-  - "Innholdsdokumenter behandles som innebygd XHTML, enten via en HTML-underformat-leser eller en direkte token-gjennomgang."
-  - "Beholderstrukturen, OPF-en og ikke-innholdsressurser bevares som skjelett for rundturer."
+  - "OPF-dokumentet finnes via `META-INF/container.xml`. Elementene i spine-listen gjennomgås i leserekkefølge, hvert som et underordnet lag."
+  - "Innholdsdokumenter behandles som innebygd XHTML, enten via en HTML-underformatleser eller ved direkte gjennomgang av tokener."
+  - "Beholderstrukturen, OPF-dokumentet og ressurser uten innhold bevares som skjelett for tilbakeføring."
 wikiUrl: "https://www.w3.org/TR/epub-33/"

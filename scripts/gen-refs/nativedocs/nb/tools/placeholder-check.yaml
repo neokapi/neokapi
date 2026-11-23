@@ -2,35 +2,35 @@
 # Schema source: core/tools/placeholdercheck.go (PlaceholderCheckConfig).
 description: Verifiser at interpolasjonsplassholdere og nummererte tagger er bevart i målet.
 overview: |
-  Verktøyet **Plassholderkontroll** verifiserer at hver interpolasjonsplassholder
-  i kilden overlever, etter antall, i målet. En tapt `{count}` eller en
+  Verktøyet **Placeholder Check** verifiserer at hver interpolasjonsplassholder
+  i kilden finnes, etter antall, i målet. En manglende `{count}` eller en
   ubalansert `<0>` er typen feil som krasjer et oversatt program ved
   kjøretid, så en plassholder som forekommer færre ganger i målet enn i kilden
-  flagges som kritisk. Det er skrivebeskyttet: det annoterer funn og omskriver aldri
-  innhold.
+  feiler sjekken. Verktøyet er skrivebeskyttet: det annoterer funn og
+  skriver aldri om innhold.
 
-  Plassholdere oppdages med et innebygd mønster som dekker de vanlige
+  Plassholdere detekteres med et innebygd mønster som dekker de vanlige
   interpolasjonsstilene: `{{name}}`, `${name}`, `%(name)s` (Python),
-  `%1$s` (posisjonsbasert), `%s` / `%d` / `%@` (printf / Objective-C),
-  `{name}` / `{0}` (ICU / .NET), og nummererte tagger som `<0>…</0>`. En
-  målspråkkode er påkrevd; blokker uten et mål for den språkkoden hoppes over.
+  `%1$s` (posisjonell), `%s` / `%d` / `%@` (printf / Objective-C),
+  `{name}` / `{0}` (ICU / .NET), og nummererte tagger som `<0>…</0>`. Et
+  målspråk er påkrevd; blokker uten et mål for det språket hoppes over.
 parameters:
-  flagExtra:
-    description: "Rapporter plassholdere som finnes i målet, men som mangler i kilden."
+  flag_extra:
+    description: Rapporter plassholdere som finnes i målet men mangler i kilden.
     help: |
-      Når dette er aktivert (standard), rapporteres en plassholder som finnes i målet men
-      ikke i kilden – vanligvis et løst token – som et alvorlig problem, i tillegg
-      til den alltid-kritiske rapporten om plassholdere som er utelatt fra målet.
+      Når aktivert (standard), feiler sjekken også for en plassholder som finnes i målet men
+      ikke i kilden – vanligvis et villfart token – i tillegg til
+      plassholdere som mangler fra målet.
     values: "`true` / `false` (standard `true`)"
 limitations:
-  - Oppdagelse er mønsterbasert og dekker de vanlige interpolasjonsstilene nevnt ovenfor; plassholdersyntakser utenfor dette settet gjenkjennes ikke.
-  - "Kontrollen sammenligner antall plassholdere, ikke posisjoner; en plassholder som forekommer riktig antall ganger, men i feil rekkefølge, flagges ikke."
-  - Krever en konfigurert målspråkkode; blokker uten et mål for den språkkoden hoppes over.
+  - Deteksjon er mønsterbasert og dekker de vanlige interpolasjonsstilene listet ovenfor; plassholdersyntakser utenfor dette settet gjenkjennes ikke.
+  - "Sjekken sammenligner antall plassholdere, ikke posisjoner; en plassholder som forekommer riktig antall ganger men i feil rekkefølge, flagges ikke."
+  - Krever et konfigurert målspråk; blokker uten et mål for det språket hoppes over.
 processingNotes:
-  - Opererer på oversettbare blokker som har et mål for den konfigurerte språkkoden; andre deler passerer uendret gjennom.
-  - Tapte plassholdere rapporteres med kritisk alvorlighetsgrad; ekstra plassholdere (når flagExtra er aktivert) med alvorlig alvorlighetsgrad.
+  - Opererer på oversettbare blokker som har et mål for det konfigurerte språket; andre deler sendes gjennom uendret.
+  - "Manglende plassholdere feiler sjekken, det gjør også ekstra plassholdere når flag_extra er aktivert."
 examples:
-  - title: Rapporter kun tapte plassholdere
-    description: Deaktiver rapportering av ekstra plassholdere og flagg kun plassholdere som mangler fra målet.
+  - title: Rapporter bare manglende plassholdere
+    description: Deaktiver rapportering av ekstra plassholdere og flagg bare plassholdere som mangler i målet.
     config: |
-      flagExtra: false
+      flag_extra: false

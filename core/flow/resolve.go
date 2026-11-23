@@ -21,6 +21,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/dataroot"
+
 	"github.com/neokapi/neokapi/core/rootpath"
 	"github.com/neokapi/neokapi/core/schema"
 )
@@ -272,10 +274,7 @@ func kapiHomeDir() (string, error) {
 	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
 		return dir, nil
 	}
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
-	}
+	configDir := dataroot.UserConfigDir()
 	return filepath.Join(configDir, "kapi"), nil
 }
 

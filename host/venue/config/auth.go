@@ -8,7 +8,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/zalando/go-keyring"
+	"github.com/neokapi/neokapi/core/keychain"
+
+	"github.com/neokapi/neokapi/core/dataroot"
 )
 
 // keyringService is the OS keychain service identifier shared with the
@@ -29,7 +31,7 @@ func keyringRefreshKey(serverURL string) string {
 	return "bowrain-refresh:" + serverURL
 }
 
-// StoredAuth is the bowrain auth payload — server URL, tokens, expiry,
+// StoredAuth is the bowrain auth payload, server URL, tokens, expiry,
 // and user info. Tokens are kept in the OS keychain; everything else is
 // persisted as JSON metadata at the path returned by AuthFilePath().
 type StoredAuth struct {
@@ -54,10 +56,7 @@ func AuthFilePath() string {
 	if dir := os.Getenv("BOWRAIN_CONFIG_DIR"); dir != "" {
 		return filepath.Join(dir, "auth.json")
 	}
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
-	}
+	configDir := dataroot.UserConfigDir()
 	return filepath.Join(configDir, "bowrain", "auth.json")
 }
 
@@ -70,12 +69,12 @@ func SaveAuth(a StoredAuth) error {
 	}
 
 	if a.AccessToken != "" {
-		if err := keyring.Set(keyringService, keyringAccessKey(a.ServerURL), a.AccessToken); err != nil {
+		if err := keychain.Set(keyringService, keyringAccessKey(a.ServerURL), a.AccessToken); err != nil {
 			return fmt.Errorf("save access token to keychain: %w", err)
 		}
 	}
 	if a.RefreshToken != "" {
-		if err := keyring.Set(keyringService, keyringRefreshKey(a.ServerURL), a.RefreshToken); err != nil {
+		if err := keychain.Set(keyringService, keyringRefreshKey(a.ServerURL), a.RefreshToken); err != nil {
 			return fmt.Errorf("save refresh token to keychain: %w", err)
 		}
 	}
@@ -93,7 +92,7 @@ func SaveAuth(a StoredAuth) error {
 
 // LoadAuth returns auth credentials. Resolution order:
 //
-//  1. BOWRAIN_AUTH_TOKEN env var (CI/CD bypass — pairs with BOWRAIN_SERVER_URL).
+//  1. BOWRAIN_AUTH_TOKEN env var (CI/CD bypass, pairs with BOWRAIN_SERVER_URL).
 //  2. Metadata file + tokens from the OS keychain.
 func LoadAuth() (*StoredAuth, error) {
 	if token := os.Getenv("BOWRAIN_AUTH_TOKEN"); token != "" {
@@ -116,13 +115,13 @@ func LoadAuth() (*StoredAuth, error) {
 		return nil, errors.New("auth metadata missing server URL")
 	}
 
-	access, err := keyring.Get(keyringService, keyringAccessKey(a.ServerURL))
+	access, err := keychain.Get(keyringService, keyringAccessKey(a.ServerURL))
 	if err != nil {
 		return nil, fmt.Errorf("read access token from keychain: %w", err)
 	}
 	a.AccessToken = access
 
-	if refresh, err := keyring.Get(keyringService, keyringRefreshKey(a.ServerURL)); err == nil {
+	if refresh, err := keychain.Get(keyringService, keyringRefreshKey(a.ServerURL)); err == nil {
 		a.RefreshToken = refresh
 	}
 
@@ -134,10 +133,10 @@ func LoadAuth() (*StoredAuth, error) {
 // error.
 func DeleteAuth(serverURL string) error {
 	if serverURL != "" {
-		if err := keyring.Delete(keyringService, keyringAccessKey(serverURL)); err != nil && !errors.Is(err, keyring.ErrNotFound) {
+		if err := keychain.Delete(keyringService, keyringAccessKey(serverURL)); err != nil && !errors.Is(err, keychain.ErrNotFound) {
 			return fmt.Errorf("delete access token: %w", err)
 		}
-		if err := keyring.Delete(keyringService, keyringRefreshKey(serverURL)); err != nil && !errors.Is(err, keyring.ErrNotFound) {
+		if err := keychain.Delete(keyringService, keyringRefreshKey(serverURL)); err != nil && !errors.Is(err, keychain.ErrNotFound) {
 			return fmt.Errorf("delete refresh token: %w", err)
 		}
 	}

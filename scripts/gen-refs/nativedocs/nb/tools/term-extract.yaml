@@ -1,59 +1,59 @@
 # Native reference doc for the built-in `term-extract` tool.
 # Schema source: core/ai/tools/terminology.go (AITerminologyConfig).
-description: Trekk ut kandidatterminologi fra kildetekst ved hjelp av en LLM-leverandør.
+description: Ekstraher termkandidater fra kildetekst ved hjelp av en LLM-leverandør.
 overview: |
-  **Term Extract**-verktøyet sender kildeteksten til hver blokk til en
-  konfigurert LLM-leverandør og ber den returnere bemerkelsesverdige termer, hver med en kort
-  definisjon og et domene. De trukket ut oppføringene registreres på blokkens
-  egenskaper som en terminologiliste. Blokker der kilden er tom hoppes over, og
-  blokker der ingen termer ble funnet forblir uendret.
+  Verktøyet **Term Extract** sender kildeteksten i hver blokk til en
+  konfigurert LLM-leverandør og ber om å få tilbake relevante termer, hver med en kort
+  definisjon og et fagområde. De ekstraherte oppføringene lagres som en terminologiliste
+  i blokkens egenskaper. Blokker uten kildetekst hoppes over, og
+  blokker der det ikke finnes termer, forblir uendret.
 
-  Ettersom verktøyet kaller en ekstern modell, krever det leverandørlegitimasjon. Et
-  valgfritt fagdomene kan oppgis for å vri uttrekket mot det feltet
+  Verktøyet kaller en ekstern modell og krever derfor tilgangsopplysninger for leverandøren. Du kan
+  angi et fagområde for å prioritere ekstrahering av termer fra dette området
   (for eksempel medisinsk, juridisk eller teknologisk terminologi). Resultatene er
-  kandidattermer beregnet på gjennomgang og kurering i et termbase, ikke
-  autoritativ terminologi.
+  termkandidater som skal gjennomgås og bearbeides før de legges inn i et termlager.
+  De er ikke autoritativ terminologi.
 parameters:
   provider:
-    description: LLM-leverandør-backend som skal brukes.
+    description: LLM-leverandørens backend som skal brukes.
     help: |
-      Velger hvilken modell-backend som utfører uttrekket.
-    values: "`anthropic` (standard), `openai`, `gemini`, `azureopenai`, `ollama` (lokal, ingen nøkkel)"
-  apiKey:
-    description: API-nøkkel for AI-leverandøren.
+      Velger hvilken modellbackend som utfører ekstraheringen.
+    values: "`anthropic` (standard), `openai`, `gemini`, `azureopenai`, `ollama` (lokal, uten nøkkel)"
+  api_key:
+    description: API-nøkkel for KI-leverandøren.
     help: |
-      Legitimasjon for den valgte leverandøren. Lokale leverandører som Ollama
-      krever kanskje ikke en nøkkel. Foretrekk å oppgi legitimasjon via legitimasjonslageret
-      eller miljøet fremfor å lagre dem i en oppskrift.
+      Tilgangsopplysninger for den valgte leverandøren. Lokale leverandører som Ollama
+      krever ikke nødvendigvis en nøkkel. Oppgi helst tilgangsopplysninger via
+      lageret for tilgangsopplysninger eller miljøet, fremfor å sjekke dem inn i en oppskrift.
     values: "streng"
   model:
-    description: Modellnavnet som skal forespørres fra leverandøren.
+    description: Navnet på modellen som skal forespørres fra leverandøren.
     help: |
-      Den leverandørspesifikke modellidentifikatoren. Når den utelates, brukes
+      Den leverandørspesifikke modellidentifikatoren. Hvis den utelates, brukes
       leverandørens standardmodell.
     values: "streng"
   domain:
-    description: Fagdomene for å vri terminologiuttrekket.
+    description: Fagområde som terminologiuttrekket skal rettes mot.
     help: |
-      Et valgfritt hint som angir fagområdet (for eksempel `medical`, `legal` eller
-      `technology`). Når det er angitt, inkluderes det i ledeteksten slik at modellen foretrekker
-      termer som er relevante for det domenet.
+      En valgfri angivelse av fagområdet (for eksempel `medical`, `legal` eller
+      `technology`). Når den er angitt, tas den med i prompten slik at modellen
+      prioriterer termer som er relevante for fagområdet.
     values: "streng"
 limitations:
-  - Krever AI-leverandørlegitimasjon og utfører et eksternt API-kall per blokk.
-  - Trukket ut termer er modellutdata og bør gjennomgås før de behandles som autoritative.
-  - Opererer kun på kildetekst.
+  - Krever tilgangsopplysninger for en KI-leverandør og utfører ett eksternt API-kall per blokk.
+  - Ekstraherte termer er generert av modellen og bør gjennomgås før de brukes som autoritativ terminologi.
+  - Behandler bare kildetekst.
 processingNotes:
-  - Opererer på blokker; blokker med tom kildetekst hoppes over.
-  - Blokker behandles parallelt som standard for gjennomstrømning.
+  - Behandler blokker. Blokker med tom kildetekst hoppes over.
+  - Blokkene behandles som standard parallelt for å øke gjennomstrømningen.
 examples:
-  - title: Trekk ut domenespesifikk terminologi
-    description: Vri uttrekket mot et bestemt fagområde.
+  - title: Ekstraher fagspesifikk terminologi
+    description: Rett uttrekket mot et bestemt fagområde.
     config: |
       provider: anthropic
       domain: medical
   - title: Bruk en lokal Ollama-modell
-    description: Kjør uttrekk mot en lokalt hostet modell.
+    description: Kjør ekstrahering med en lokalt driftet modell.
     config: |
       provider: ollama
       model: llama3

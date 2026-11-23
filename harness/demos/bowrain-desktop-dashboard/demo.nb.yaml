@@ -1,6 +1,6 @@
 id: bowrain-desktop-dashboard
 title: Den fortsetter å fungere når nettverket faller ut
-subtitle: "Samme arbeidsområde, nativt, med en utboks i bakgrunnen."
+subtitle: "Det samme arbeidsområdet, nativt, med en utboks bak seg."
 tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-desktop-dashboard
@@ -10,7 +10,7 @@ brand: bowrain
 needsAi: false
 oneshot: true
 outro:
-  line: "Installer appen, logg inn, og fortsett arbeidet."
+  line: "Installer appen, logg inn, og fortsett å jobbe."
   pointer: brew install --cask neokapi/tap/bowrain
 aspects:
   - The same shared workspace
@@ -29,19 +29,19 @@ narration:
     hold: 13
     crop: { x: 0.03, y: 0.1, w: 0.94, h: 0.56 }
     text: >-
-      Samme arbeidsområde, samme prosjekter, samme editor. Å logge inn på skrivebordsappen åpner nøyaktig det nettleseren åpner, fordi begge er klienter til én server – ikke to kopier av arbeidet.
+      Samme arbeidsområde, samme prosjekter, samme editor. Å logge inn på skrivebordet åpner nøyaktig det nettleseren åpner, fordi begge er klienter av én server – ikke to kopier av arbeidet.
   - id: edit
     kind: desktop
     beat: edit
-    caption: Skrevet rett igjennom til serveren.
+    caption: Skrevet direkte til serveren.
     hold: 12
     crop: { selector: '[data-testid="visual-editor-card"]' }
     text: >-
-      Åpne en fil og oversett en blokk. Med serveren tilgjengelig skrives redigeringen rett igjennom, og alle andre i arbeidsområdet har den et øyeblikk senere.
+      Åpne en fil og oversett en blokk. Når serveren er nåbar, skrives endringen rett igjennom, og alle andre i arbeidsområdet har den et øyeblikk senere.
   - id: offline
     kind: desktop
     beat: offline
-    caption: "Frakoblet, med redigeringer som venter på å bli sendt."
+    caption: "Frakoblet, med endringer som venter på å bli sendt."
     hold: 18
     crop:
       selector:
@@ -49,7 +49,7 @@ narration:
         - '[data-testid="visual-editor-card"]'
     highlight: { selector: '[data-testid="offline-pending"]' }
     text: >-
-      Så faller tilkoblingen bort. Oversettingen fortsetter: redigeringene havner i en lokal utboks i stedet for på serveren, og nettleseren teller hva som venter. På et tog, eller på et konferansenettverk, er dette timen en nettleserfane ikke gir deg noe.
+      Nå forsvinner tilkoblingen. Oversettelsen fortsetter: endringene havner i en lokal utboks i stedet for på serveren, og grensesnittet teller hva som venter. På et tog, eller på et konferansenettverk, er dette timen en nettleserfane ikke gir deg noe.
   - id: replayed
     kind: desktop
     beat: replayed
@@ -60,7 +60,7 @@ narration:
         - '[data-testid="connection-status"]'
         - '[data-testid="visual-editor-card"]'
     text: >-
-      Når tilkoblingen kommer tilbake, spilles køen av i rekkefølge, på egen hånd. Det er ingenting å prøve på nytt manuelt, ingenting skrevet frakoblet går tapt, og arbeidsområdet ender opp i den tilstanden det uansett ville ha nådd.
+      Når tilkoblingen er tilbake, spilles køen av i rekkefølge, automatisk. Det er ingenting å prøve på nytt manuelt, ingenting du skrev offline går tapt, og arbeidsområdet ender opp i den tilstanden det ville ha nådd uansett.
   - id: outro
     kind: outro
     text: >-

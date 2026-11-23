@@ -42,6 +42,8 @@ permissions:
   contents: write
   packages: write
   id-token: write
+  # verify-release-assets in both called workflows reads workflow runs.
+  actions: read
 
 jobs:
   kapi:

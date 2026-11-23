@@ -55,6 +55,9 @@ type contextDeckCard struct {
 	Item     contextop.ItemRef `json:"item"`
 	Kind     string            `json:"kind"`
 	Revision string            `json:"revision"`
+	// BaseRevision is a concept card's terms-store revision, which a
+	// decision that writes the concept sends back and acts at.
+	BaseRevision string `json:"base_revision,omitempty"`
 	// Status is the ledger status of a term rule or a note: suggested,
 	// established or contested.
 	Status string `json:"status,omitempty"`
@@ -604,8 +607,13 @@ func termRuleFlags(rule coreprofile.TermRule) []string {
 // conceptCards are the cards of the concepts the workspace's terms store
 // holds for the project: those of the whole workspace and the project's own.
 // A concept's revision is its latest revision in the knowledge store, or the
-// time it was last written when it has none. The second list is the cards
-// of the target terms proposed for those concepts (translationCards).
+// time it was last written when it has none: what a review attests. Its
+// base revision is the concept's revision in the terms store, which a
+// decision that writes the concept acts at, so any write since the deal
+// refuses it as stale. The base revisions are read before the content, so a
+// write landing between the two leaves a card whose base is older than what
+// it shows, which the decision then refuses. The second list is the cards of
+// the target terms proposed for those concepts (translationCards).
 func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[string]string) ([]contextDeckCard, []contextDeckCard, error) {
 	if s.wsStores == nil || src.wsSlug == "" {
 		return nil, nil, nil
@@ -613,6 +621,18 @@ func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[str
 	tb, err := s.wsStores.getTerms(ctx, src.wsSlug)
 	if err != nil || tb == nil {
 		return nil, nil, nil //nolint:nilerr // a workspace with no terms store has no concept cards
+	}
+	listed, err := tb.Concepts(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read the terms store: %w", err)
+	}
+	ids := make([]string, len(listed))
+	for i, cp := range listed {
+		ids[i] = cp.ID
+	}
+	revs, err := tb.ConceptRevisions(ctx, ids)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read the terms store: %w", err)
 	}
 	concepts, err := tb.Concepts(ctx)
 	if err != nil {
@@ -628,16 +648,20 @@ func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[str
 	out := make([]contextDeckCard, 0, len(concepts))
 	var translations []contextDeckCard
 	for _, cp := range concepts {
-		if !termscope.AppliesIn(cp, src.project.ID) {
+		rev, held := revs[cp.ID]
+		if !termscope.AppliesIn(cp, src.project.ID) || !held {
+			// A concept created after the revisions were read waits for
+			// the next deal.
 			continue
 		}
 		card := contextDeckCard{
-			Item:     contextop.ItemRef{Kind: contextop.ItemConcept, ID: cp.ID},
-			Kind:     deckKindConcept,
-			Text:     cp.Definition,
-			Language: string(source),
-			Where:    contextDeckWhere{Level: string(contextop.LevelWorkspace), Coordinates: cp.Coordinates()},
-			At:       cp.CreatedAt,
+			Item:         contextop.ItemRef{Kind: contextop.ItemConcept, ID: cp.ID},
+			BaseRevision: rev,
+			Kind:         deckKindConcept,
+			Text:         cp.Definition,
+			Language:     string(source),
+			Where:        contextDeckWhere{Level: string(contextop.LevelWorkspace), Coordinates: cp.Coordinates()},
+			At:           cp.CreatedAt,
 		}
 		if !termscope.Workspace(cp) {
 			card.Where.Level = string(contextop.LevelProject)
@@ -661,10 +685,10 @@ func (s *Server) conceptCards(ctx context.Context, src deckSource, names map[str
 		if slices.ContainsFunc(cp.Terms, func(t terms.Term) bool { return t.CompetitorTerm }) {
 			card.Flags = append(card.Flags, "competitor")
 		}
-		if rev := latest[cp.ID]; rev != nil {
-			card.Revision = "r" + strconv.FormatInt(rev.Rev, 10)
-			card.Author = s.memberAuthor(ctx, rev.Actor, names)
-			card.At = rev.CreatedAt
+		if merged := latest[cp.ID]; merged != nil {
+			card.Revision = "r" + strconv.FormatInt(merged.Rev, 10)
+			card.Author = s.memberAuthor(ctx, merged.Actor, names)
+			card.At = merged.CreatedAt
 		} else {
 			card.Revision = "u" + strconv.FormatInt(cp.UpdatedAt.UnixNano(), 10)
 			card.Author = contextDeckAuthor{Kind: string(contextop.ActorPerson)}

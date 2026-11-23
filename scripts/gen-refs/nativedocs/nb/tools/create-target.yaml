@@ -1,48 +1,54 @@
 # Native reference doc for the built-in `create-target` tool.
 # Schema source: core/tools/createtarget.go (CreateTargetConfig).
-description: "Opprett målsegmentbeholdere for en språkkode, eventuelt fylt med kildeteksten."
+description: "Opprett målsegmentbeholdere for en locale, eventuelt forhåndsutfylt med kildeteksten."
 overview: |
-  Verktøyet **Create Target** sikrer at hver blokk har et målsegment for en gitt språkkode. Det er det vanlige første steget når du gjør innhold klart for oversettelse: det oppretter tomme (eller kildebaserte) målbeholdere som senere verktøy (oversettelse, gjenbruk, verifisering) fyller ut og kontrollerer.
+  **Create Target**-verktøyet sikrer at hvert blokk har et målsegment for en
+  gitt locale. Det er det vanlige første steget når du klargjør innhold for
+  oversettelse: det oppretter de tomme (eller kilde-forhåndsutfylte) målbeholderne som
+  senere verktøy (oversettelse, gjenbruk, verifisering) fyller og sjekker.
 
-  En målspråkkode er påkrevd. Som standard forblir eksisterende mål urørt; aktiver overskriving for å erstatte dem. Mål kan også opprettes for ikke-oversettbare blokker, noe som holder den tospråklige strukturen komplett gjennom hele dokumentet.
+  En mål-locale er påkrevd. Som standard forblir eksisterende mål urørt;
+  aktiver overskriving for å erstatte dem. Mål kan opprettes for
+  ikke-oversettbare blokker også, noe som holder den tospråklige strukturen komplett
+  på tvers av hele dokumentet.
 parameters:
-  targetLocale:
-    description: Språkkoden det skal opprettes et mål for.
+  target_locale:
+    description: Locale-en det skal opprettes et mål for.
     help: |
-      BCP-47-språkkodeidentifikatoren for målet som skal opprettes (for eksempel
-      `fr`). I CLI og i flyter angis dette vanligvis av
-      verdien `--target-lang`.
-    values: "BCP-47-språkkode (påkrevd)"
-  copySource:
-    description: Fyll det nye målet med kildeteksten.
+      BCP-47-locale-identifikatoren for målet som skal opprettes (for eksempel
+      `fr`). På CLI og i flyter oppgis dette vanligvis av
+      `--target-lang`-verdien.
+    values: "BCP-47-locale (påkrevd)"
+  copy_source:
+    description: Forhåndsutfyll det nye målet med kildeteksten.
     help: |
-      Når aktivert, kopieres kildeteksten inn i det nye målsegmentet slik at det
-      starter som en kopi av kilden. Når deaktivert, opprettes målet
+      Når dette er aktivert, kopieres kildeteksten inn i det nye målsegmentet slik at
+      det starter som et duplikat av kilden. Når det er deaktivert, opprettes målet
       tomt.
     values: "`true` / `false` (standard `false`)"
   overwrite:
     description: Erstatt mål som allerede finnes.
     help: |
-      Som standard forblir en blokk som allerede har et mål for språkkoden
+      Som standard forblir en blokk som allerede har et mål for locale-en
       uendret. Aktiver dette for å overskrive det eksisterende målet med et nytt
-      (tomt eller kildeinitiert) ett.
+      (tomt eller kilde-forhåndsutfylt) mål.
     values: "`true` / `false` (standard `false`)"
-  createOnNonTranslatable:
+  create_on_non_translatable:
     description: Opprett også mål for ikke-oversettbare blokker.
     help: |
-      Når aktivert, opprettes målbeholdere selv for blokker merket som
-      ikke-oversettbare, noe som holder den tospråklige strukturen komplett. Deaktiver for å
+      Når dette er aktivert, opprettes målbeholdere også for blokker merket som
+      ikke-oversettbare, slik at den tospråklige strukturen holdes komplett. Deaktiver det for å
       hoppe over ikke-oversettbare blokker helt.
     values: "`true` / `false` (standard `true`)"
 processingNotes:
   - Eksisterende mål hoppes over med mindre overskriving er aktivert.
 examples:
-  - title: Opprett tomme mål for en språkkode
+  - title: Opprett tomme mål for en locale
     description: Klargjør tomme målbeholdere klare for oversettelse.
     config: |
-      targetLocale: fr
+      target_locale: fr
   - title: Forhåndsutfyll mål med kilden
-    description: Fyll mål med kildetekst som et utgangsutkast.
+    description: Forhåndsutfyll mål med kildetekst som et startkladd.
     config: |
-      targetLocale: de
-      copySource: true
+      target_locale: de
+      copy_source: true

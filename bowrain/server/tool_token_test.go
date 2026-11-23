@@ -133,7 +133,7 @@ func TestToolToken_PushIsTheToolsAndTheIssuerReviewsIt(t *testing.T) {
 		assert.Contains(t, card.Actions, deckActionKeep)
 	})
 
-	decide := contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, Action: deckActionKeep}
+	decide := contextDeckDecideRequest{Item: card.Item, Revision: card.Revision, BaseRevision: card.BaseRevision, Action: deckActionKeep}
 
 	refusals := []struct {
 		name   string

@@ -158,6 +158,7 @@ export function TermsBrowser({
         domain: editConcept.domain,
         definition: editConcept.definition,
         terms: editConcept.terms,
+        base_revision: editConcept.revision,
       });
       setEditingId(null);
       setEditConcept(null);

@@ -554,7 +554,7 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
       # host/s3remote runs the mirrored S3 gateway from ghcr.io.
       - name: Login to ghcr.io
-        uses: docker/login-action@v4
+        uses: ./.github/actions/registry-login
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -632,7 +632,7 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
       # host/s3remote runs the mirrored S3 gateway from ghcr.io.
       - name: Login to ghcr.io
-        uses: docker/login-action@v4
+        uses: ./.github/actions/registry-login
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -1114,7 +1114,7 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
       # host/s3remote runs the mirrored S3 gateway from ghcr.io.
       - name: Login to ghcr.io
-        uses: docker/login-action@v4
+        uses: ./.github/actions/registry-login
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
