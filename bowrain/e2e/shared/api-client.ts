@@ -12,6 +12,8 @@
  * registered nowhere and 404s.
  */
 
+import { requireDisposableStack } from "./disposable-stack";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -357,6 +359,7 @@ export class BowrainAPI {
   }
 
   private async del(path: string): Promise<void> {
+    await requireDisposableStack(this.baseUrl);
     const resp = await fetch(`${this.apiUrl}${path}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${this.token}` },
@@ -1168,6 +1171,8 @@ export async function deviceAuth(
   email = "admin@example.com",
   name = "Demo User",
 ): Promise<string> {
+  // Before any request, a token included: these suites delete data.
+  await requireDisposableStack(baseUrl);
   // Fast path: pre-supplied token.
   const preSupplied = process.env.BOWRAIN_TOKEN;
   if (preSupplied) return preSupplied;
