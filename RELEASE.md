@@ -168,11 +168,11 @@ so both platforms show the same publisher.
 
 ### Release tags
 
-The repository ruleset "release tags" lets only the admin role create, move or
-delete `refs/tags/v*` and `refs/tags/*-v*`. A tag-push release reacts to a tag a
-person pushed. The coordinated release is the exception: its publish step
-creates the tags with the workflow token, which the ruleset refuses, so push
-both tags before you dispatch it.
+The repository ruleset "release tags" lets only an administrator move or delete
+`refs/tags/v*` and `refs/tags/*-v*`. Creating one stays open, so the coordinated
+release can create its tags with the workflow token. The weekly image rebuild
+guards itself against a stray tag: it builds a tag only when it has a published
+GitHub Release and a commit on main.
 
 ### CI (one-time; already configured)
 
